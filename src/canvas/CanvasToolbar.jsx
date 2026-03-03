@@ -1,5 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
-import { setTool, toggleSnap } from '../store/slices/canvasSlice';
+import { setTool, toggleSnap, setViewport } from '../store/slices/canvasSlice';
 
 const tools = [
   { id: 'select', label: 'Select', shortcut: 'V' },
@@ -39,6 +39,17 @@ export default function CanvasToolbar() {
         }`}
       >
         Snap {snapEnabled ? 'ON' : 'OFF'}
+      </button>
+
+      <button
+        onClick={() => {
+          const stageWidth = window.innerWidth - 520;
+          const stageHeight = window.innerHeight - 48;
+          dispatch(setViewport({ panX: stageWidth / 2, panY: stageHeight / 2 }));
+        }}
+        className="px-3 py-1 rounded text-xs font-medium transition-colors bg-gray-700 text-gray-300 hover:bg-gray-600"
+      >
+        Re-center
       </button>
     </div>
   );

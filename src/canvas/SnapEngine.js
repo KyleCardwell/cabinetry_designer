@@ -43,6 +43,15 @@ export function wallAngleDeg(wall) {
 }
 
 /**
+ * Length of a wall in inches.
+ */
+export function wallLength(wall) {
+  const dx = wall.x2 - wall.x1;
+  const dy = wall.y2 - wall.y1;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+/**
  * Distance from a point to the nearest spot on a wall segment.
  */
 function distToWall(point, wall) {
@@ -71,6 +80,43 @@ export function snapToWall(point, walls, snapRadius = 12) {
         y: proj.y,
         rotation: wallAngleDeg(wall),
       };
+    }
+  }
+
+  return best;
+}
+
+/**
+ * Find the nearest wall endpoint to a given point within snapRadius.
+ * Excludes endpoints belonging to excludeWallId (the wall being drawn/dragged).
+ * Returns { wallId, endpoint, x, y, dist } or null.
+ */
+export function snapToEndpoint(point, walls, snapRadius = 6, excludeWallId = null) {
+  let best = null;
+  let bestDist = snapRadius;
+
+  for (const wall of walls) {
+    if (wall.wall_id === excludeWallId) continue;
+
+    const endpoints = [
+      { endpoint: 'start', x: wall.x1, y: wall.y1 },
+      { endpoint: 'end', x: wall.x2, y: wall.y2 },
+    ];
+
+    for (const ep of endpoints) {
+      const dx = point.x - ep.x;
+      const dy = point.y - ep.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = {
+          wallId: wall.wall_id,
+          endpoint: ep.endpoint,
+          x: ep.x,
+          y: ep.y,
+          dist,
+        };
+      }
     }
   }
 

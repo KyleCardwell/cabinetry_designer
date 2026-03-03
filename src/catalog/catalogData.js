@@ -22,6 +22,8 @@ export const CATALOG_ITEMS = [
       reveal_gap: 0.125,
       shelf_count: 1,
     },
+    fillColor: "#aa56fdff",
+    borderColor: "#63138eff",
   },
   {
     catalog_id: 'wall_cabinet_std',
@@ -37,6 +39,8 @@ export const CATALOG_ITEMS = [
       reveal_gap: 0.125,
       shelf_count: 2,
     },
+    fillColor: "#50ebffff",
+    borderColor: "#0c9ba0ff",
   },
   {
     catalog_id: 'tall_cabinet_std',
@@ -55,15 +59,19 @@ export const CATALOG_ITEMS = [
       reveal_gap: 0.125,
       shelf_count: 4,
     },
+    fillColor: "#507fffff",
+    borderColor: "#3a0ce2ff",
   },
   {
     catalog_id: 'appliance_generic',
     object_type: 'appliance',
     label: 'Appliance',
     defaultWidth: 30,
-    defaultHeight: 36,
+    defaultHeight: 72,
     defaultDepth: 24,
     defaultParams: {},
+    fillColor: "#6bfe63ff",
+    borderColor: "#13a424ff",
   },
   {
     catalog_id: 'filler_strip',
@@ -73,5 +81,7 @@ export const CATALOG_ITEMS = [
     defaultHeight: 34.5,
     defaultDepth: 24,
     defaultParams: {},
+    fillColor: "#ffd950ff",
+    borderColor: "#d9a800ff",
   },
 ];
