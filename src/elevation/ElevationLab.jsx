@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import ElevationCanvas from './components/ElevationCanvas.jsx';
 import ElevationToolbar from './components/ElevationToolbar.jsx';
 import JsonToggle from './components/JsonToggle.jsx';
+import PropertiesPanel from './components/PropertiesPanel.jsx';
 import SampleRunsButton from './components/SampleRunsButton.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import WallList from './components/WallList.jsx';
@@ -38,12 +39,7 @@ export default function ElevationLab() {
         </div>
       </section>
 
-      <aside className="w-72 shrink-0 border-l border-gray-700 bg-gray-800/50 p-4">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">Properties</h2>
-        <p className="mt-3 text-sm leading-relaxed text-gray-500">
-          Select a run or piece to inspect it. Editing controls arrive in step 5.
-        </p>
-      </aside>
+      <PropertiesPanel />
     </div>
   );
 }

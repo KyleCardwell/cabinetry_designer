@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import elevationReducer, {
+  addItemAfter,
   addRun,
   lockItem,
   removeItem,
@@ -123,5 +124,22 @@ describe('elevation run reducers', () => {
 
     expect(currentRun(next).ends.left).toEqual({ type: 'end_panel', width: null });
     expect(currentRun(next).items).toHaveLength(3);
+  });
+
+  it('adds the first manual item to an empty run and disables auto count', () => {
+    const initial = stateWithRun(run({ autoCount: false, items: [] }));
+    const next = elevationReducer(
+      initial,
+      addItemAfter({
+        wallId: 'wall-1',
+        runId: 'run-1',
+        itemId: null,
+        kind: 'cabinet',
+      }),
+    );
+
+    expect(currentRun(next).autoCount).toBe(false);
+    expect(currentRun(next).items).toHaveLength(1);
+    expect(currentRun(next).items[0]).toMatchObject({ kind: 'cabinet', width: null });
   });
 });

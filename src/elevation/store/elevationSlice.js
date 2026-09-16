@@ -211,12 +211,15 @@ const elevationSlice = createSlice({
       const location = runLocation(state, action.payload);
       if (!location) return;
       const itemIndex = itemIndexFor(location.run, action.payload.itemId);
-      if (itemIndex === -1) return;
+      const appendToEmptyRun = action.payload.itemId == null
+        && location.run.items.length === 0;
+      if (itemIndex === -1 && !appendToEmptyRun) return;
       const kind = action.payload.kind;
       const item = kind === 'filler'
         ? { id: uuid(), kind, width: state.settings.defaultInteriorFillerWidth }
         : { id: uuid(), kind: 'cabinet', width: null };
-      location.run.items.splice(itemIndex + 1, 0, item);
+      const insertAt = appendToEmptyRun ? 0 : itemIndex + 1;
+      location.run.items.splice(insertAt, 0, item);
       location.run.autoCount = false;
       syncRun(state, location.wall, location.runIndex);
     },

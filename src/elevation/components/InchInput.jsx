@@ -23,8 +23,9 @@ export default function InchInput({
   const commit = () => {
     const trimmed = text.trim();
     if (allowBlank && trimmed === '') {
-      onCommit(null);
-      setText('');
+      const accepted = onCommit(null);
+      if (accepted === false) revert();
+      else setText('');
       return;
     }
 
@@ -34,8 +35,9 @@ export default function InchInput({
       return;
     }
 
-    onCommit(parsed);
-    setText(formatInches(parsed));
+    const accepted = onCommit(parsed);
+    if (accepted === false) revert();
+    else setText(formatInches(parsed));
   };
 
   return (
