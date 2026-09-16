@@ -4,25 +4,42 @@ import { KIND_COLORS } from '../model/constants.js';
 import { formatInches } from '../model/units.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 
-export default function PieceRect({ piece, transform, warning, error }) {
+export default function PieceRect({
+  piece,
+  transform,
+  warning,
+  error,
+  selected,
+  onSelect,
+}) {
   const [hovered, setHovered] = useState(false);
   const rect = wallRectToScreen(piece, transform);
   const widthText = formatInches(piece.width);
   const narrow = rect.width < Math.max(44, widthText.length * 6.5);
-  const outline = error ? '#ef4444' : warning ? '#f59e0b' : '#1e293b';
+  const outline = error
+    ? '#ef4444'
+    : warning
+      ? '#f59e0b'
+      : selected
+        ? '#7dd3fc'
+        : '#1e293b';
   const fixedCabinet = piece.kind === 'cabinet' && !piece.auto;
 
   return (
     <Group
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onClick={(event) => {
+        event.cancelBubble = true;
+        onSelect();
+      }}
     >
       <Rect
         {...rect}
         fill={KIND_COLORS[piece.kind]}
         opacity={0.82}
         stroke={outline}
-        strokeWidth={error || warning ? 2 : 1}
+        strokeWidth={selected ? 3 : error || warning ? 2 : 1}
       />
 
       {!narrow && (

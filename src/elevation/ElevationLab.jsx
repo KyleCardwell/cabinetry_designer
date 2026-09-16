@@ -41,7 +41,7 @@ export default function ElevationLab() {
       <aside className="w-72 shrink-0 border-l border-gray-700 bg-gray-800/50 p-4">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">Properties</h2>
         <p className="mt-3 text-sm leading-relaxed text-gray-500">
-          Select a run or piece to edit its properties. Controls arrive in step 4.
+          Select a run or piece to inspect it. Editing controls arrive in step 5.
         </p>
       </aside>
     </div>

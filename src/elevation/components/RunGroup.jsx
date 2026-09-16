@@ -6,7 +6,15 @@ import { wallRectToScreen } from '../canvas/transform.js';
 import DimensionLine from './DimensionLine.jsx';
 import PieceRect from './PieceRect.jsx';
 
-function RunGroup({ run, settings, transform }) {
+function RunGroup({
+  run,
+  settings,
+  transform,
+  selectedRun,
+  selectedPieceId,
+  onSelectRun,
+  onSelectPiece,
+}) {
   const result = useMemo(() => splitRun(run, settings), [run, settings]);
   const warningPieceIds = useMemo(
     () => new Set(result.warnings.map((entry) => entry.pieceId)),
@@ -29,6 +37,12 @@ function RunGroup({ run, settings, transform }) {
     width: run.width + 2,
     height: settings.countertopThickness,
   }, transform);
+  const runRect = wallRectToScreen(run, transform);
+
+  const selectRun = (event) => {
+    event.cancelBubble = true;
+    onSelectRun(run.id);
+  };
 
   return (
     <Group>
@@ -53,6 +67,12 @@ function RunGroup({ run, settings, transform }) {
         />
       )}
 
+      <Rect
+        {...runRect}
+        fill="rgba(0, 0, 0, 0.001)"
+        onClick={selectRun}
+      />
+
       {result.pieces.map((piece) => (
         <PieceRect
           key={piece.id}
@@ -60,14 +80,27 @@ function RunGroup({ run, settings, transform }) {
           transform={transform}
           warning={warningPieceIds.has(piece.id)}
           error={hasErrors}
+          selected={selectedPieceId === piece.id}
+          onSelect={() => onSelectPiece(run.id, piece.id)}
         />
       ))}
+
+      {selectedRun && (
+        <Rect
+          {...runRect}
+          fillEnabled={false}
+          stroke="#38bdf8"
+          strokeWidth={2.5}
+          listening={false}
+        />
+      )}
 
       <DimensionLine
         run={run}
         transform={transform}
-        color={hasErrors ? '#ef4444' : '#94a3b8'}
+        color={hasErrors ? '#ef4444' : selectedRun ? '#38bdf8' : '#94a3b8'}
         topOffset={isBase ? settings.countertopThickness + 4 : 4}
+        onSelect={() => onSelectRun(run.id)}
       />
     </Group>
   );
