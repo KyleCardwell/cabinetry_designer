@@ -1,20 +1,15 @@
-import { useDispatch, useSelector } from 'react-redux';
-import { CABINET_TYPE_IDS } from './model/constants.js';
-import { formatInches } from './model/units.js';
-import { setTool } from './store/elevationSlice.js';
+import { useState } from 'react';
+import { useSelector } from 'react-redux';
+import ElevationCanvas from './components/ElevationCanvas.jsx';
+import ElevationToolbar from './components/ElevationToolbar.jsx';
 import JsonToggle from './components/JsonToggle.jsx';
+import SampleRunsButton from './components/SampleRunsButton.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import WallList from './components/WallList.jsx';
 
-const TYPE_LABELS = {
-  [CABINET_TYPE_IDS.BASE]: 'Base',
-  [CABINET_TYPE_IDS.UPPER]: 'Upper',
-  [CABINET_TYPE_IDS.TALL]: 'Tall',
-};
-
 export default function ElevationLab() {
-  const dispatch = useDispatch();
-  const { walls, activeWallId, tool, message } = useSelector((state) => state.elevation);
+  const [fitRequest, setFitRequest] = useState(0);
+  const { walls, activeWallId, settings } = useSelector((state) => state.elevation);
   const activeWall = walls.find((wall) => wall.id === activeWallId) ?? null;
 
   return (
@@ -26,66 +21,20 @@ export default function ElevationLab() {
         </div>
         <div className="space-y-5">
           <WallList />
+          <SampleRunsButton />
           <SettingsPanel />
           <JsonToggle />
         </div>
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <div className="flex h-12 shrink-0 items-center gap-2 border-b border-gray-700 bg-gray-800 px-4">
-          {['select', 'draw'].map((toolName) => (
-            <button
-              key={toolName}
-              type="button"
-              onClick={() => dispatch(setTool(toolName))}
-              className={`rounded px-3 py-1.5 text-sm capitalize transition-colors ${
-                tool === toolName
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-            >
-              {toolName === 'draw' ? 'Draw run' : toolName}
-            </button>
-          ))}
-          {message && <span className="ml-2 text-sm text-amber-300">{message}</span>}
-        </div>
-
-        <div className="flex-1 overflow-auto p-6">
-          <div className="mx-auto flex min-h-full max-w-4xl items-center justify-center rounded-xl border border-dashed border-gray-700 bg-gray-800/30 p-8">
-            <div className="w-full max-w-xl text-center">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-gray-700 bg-gray-800 text-xl text-gray-500">
-                ▦
-              </div>
-              <h2 className="text-lg font-semibold">Canvas comes in step 3</h2>
-              {activeWall ? (
-                <>
-                  <p className="mt-2 text-sm text-gray-400">
-                    {activeWall.name} · {formatInches(activeWall.length)} × {formatInches(activeWall.height)}
-                  </p>
-                  <div className="mt-6 text-left">
-                    <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                      Runs ({activeWall.runs.length})
-                    </h3>
-                    {activeWall.runs.length > 0 ? (
-                      <ul className="space-y-2">
-                        {activeWall.runs.map((run) => (
-                          <li key={run.id} className="rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-300">
-                            {TYPE_LABELS[run.cabinetTypeId]} run · x {formatInches(run.x)} · width {formatInches(run.width)} · {run.items.length} items
-                          </li>
-                        ))}
-                      </ul>
-                    ) : (
-                      <p className="rounded-lg border border-gray-800 bg-gray-900/60 px-3 py-4 text-sm text-gray-500">
-                        No runs on this wall yet.
-                      </p>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <p className="mt-2 text-sm text-gray-500">Add a wall to begin.</p>
-              )}
-            </div>
-          </div>
+        <ElevationToolbar onZoomToFit={() => setFitRequest((value) => value + 1)} />
+        <div className="min-h-0 flex-1">
+          <ElevationCanvas
+            wall={activeWall}
+            settings={settings}
+            fitRequest={fitRequest}
+          />
         </div>
       </section>
 
