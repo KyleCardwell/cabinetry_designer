@@ -6,7 +6,7 @@ const WIDTH_EPSILON = 1e-6;
 const FILLER_STEP = 1 / 16;
 
 function endWidth(end, settings) {
-  if (end.type === 'end_panel') return settings.endPanelThickness;
+  if (end.type === 'end_panel') return end.width ?? settings.endPanelThickness;
   if (end.type === 'filler' && end.width !== null) return end.width;
   return 0;
 }

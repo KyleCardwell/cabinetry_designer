@@ -63,6 +63,7 @@ function Field({ label, children }) {
 
 function EndEditor({ side, end, onChange }) {
   const label = `${side[0].toUpperCase()}${side.slice(1)} end`;
+  const hasWidth = end.type === 'filler' || end.type === 'end_panel';
 
   return (
     <div className="rounded border border-gray-700 bg-gray-900/45 p-3">
@@ -75,7 +76,7 @@ function EndEditor({ side, end, onChange }) {
               const type = event.target.value;
               onChange({
                 type,
-                width: type === 'filler' && end.type === 'filler' ? end.width : null,
+                width: hasWidth && type === end.type ? end.width : null,
               });
             }}
             className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
@@ -85,12 +86,14 @@ function EndEditor({ side, end, onChange }) {
             ))}
           </select>
         </Field>
-        {end.type === 'filler' && (
-          <Field label="Width (blank = auto)">
+        {hasWidth && (
+          <Field label={end.type === 'filler'
+            ? 'Width (blank = auto)'
+            : 'Width (blank = default)'}>
             <InchInput
               value={end.width}
               allowBlank
-              onCommit={(width) => onChange({ type: 'filler', width })}
+              onCommit={(width) => onChange({ type: end.type, width })}
               aria-label={`${label} width`}
             />
           </Field>

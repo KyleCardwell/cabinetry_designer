@@ -63,6 +63,22 @@ describe('splitRun', () => {
     expect(result.pieces.map((piece) => piece.x)).toEqual([0, 0.75, 31.75, 62.75, 93.75]);
   });
 
+  it('uses an explicit end-panel width instead of the default thickness', () => {
+    const run = makeRun({
+      width: 62,
+      ends: {
+        left: { type: 'end_panel', width: 2 },
+        right: { type: 'none', width: null },
+      },
+      items: [auto('a'), auto('b')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS);
+
+    expect(widths(result)).toEqual([2, 30, 30]);
+    expect(result.pieces.map((piece) => piece.x)).toEqual([0, 2, 32]);
+    expect(result.errors).toEqual([]);
+  });
+
   it('warns for both wide autos alongside a fixed cabinet', () => {
     const run = makeRun({
       items: [auto('auto-left'), fixed('fixed', 36), auto('auto-right')],
