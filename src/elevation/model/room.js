@@ -15,6 +15,9 @@ import { validateRunPlacement } from './overlap.js';
 import { resolveProfile, resolveVertical } from './profile.js';
 import { splitRun, syncAutoItems } from './splitRun.js';
 import { computeWallOrder } from './topology.js';
+import { roundTo } from './units.js';
+
+const STRETCH_EDGE_SNAP_DISTANCE = 2;
 
 function cloneRun(run) {
   return {
@@ -220,6 +223,90 @@ export function tryPlaceRun(room, wallId, run, settings) {
     settings,
   );
   return { ...validation, room: synced };
+}
+
+/**
+ * Stretch one run edge, resolve its room geometry, and validate the result.
+ *
+ * @returns {{ok:boolean,reason:string|null,room:object}}
+ */
+export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
+  if (side !== 'left' && side !== 'right') {
+    return { ok: false, reason: 'invalid-side', room };
+  }
+  const sourceWall = room.walls.find((wall) => wall.id === wallId);
+  const sourceRun = sourceWall?.runs.find((run) => run.id === runId);
+  if (!sourceWall || !sourceRun || !Number.isFinite(newEdgeX)) {
+    return { ok: false, reason: 'run-not-found', room };
+  }
+
+  const length = wallLength(sourceWall);
+  const reserveLeft = cornerReserve(room, sourceWall, 'left', sourceRun, settings);
+  const reserveRight = cornerReserve(room, sourceWall, 'right', sourceRun, settings);
+  const candidates = [
+    { value: 0, anchor: side === 'left' },
+    { value: length, anchor: side === 'right' },
+    { value: reserveLeft, anchor: side === 'left' },
+    { value: length - reserveRight, anchor: side === 'right' },
+    ...sourceWall.runs
+      .filter((run) => run.id !== runId)
+      .flatMap((run) => [
+        { value: run.x, anchor: false },
+        { value: run.x + run.width, anchor: false },
+      ]),
+  ];
+
+  let edge = roundTo(newEdgeX, 0.5);
+  let snapped = null;
+  for (const candidate of candidates) {
+    const distance = Math.abs(candidate.value - edge);
+    if (distance > STRETCH_EDGE_SNAP_DISTANCE + 1e-9) continue;
+    if (!snapped
+      || distance < snapped.distance - 1e-9
+      || (Math.abs(distance - snapped.distance) <= 1e-9
+        && candidate.anchor && !snapped.anchor)) {
+      snapped = { ...candidate, distance };
+    }
+  }
+  if (snapped) edge = snapped.value;
+
+  const fixedEdge = side === 'left' ? sourceRun.x + sourceRun.width : sourceRun.x;
+  const unclampedEdge = edge;
+  edge = side === 'left'
+    ? Math.min(edge, fixedEdge - settings.minRunWidth)
+    : Math.max(edge, fixedEdge + settings.minRunWidth);
+  const anchorsAtSnap = Boolean(
+    snapped?.anchor && Math.abs(edge - unclampedEdge) <= 1e-9,
+  );
+  const proposed = {
+    ...sourceRun,
+    x: side === 'left' ? edge : sourceRun.x,
+    width: side === 'left' ? fixedEdge - edge : edge - fixedEdge,
+    anchors: { ...sourceRun.anchors, [side]: anchorsAtSnap },
+    ends: {
+      left: { ...sourceRun.ends.left },
+      right: { ...sourceRun.ends.right },
+    },
+  };
+  if (anchorsAtSnap && cornerAt(room, sourceWall, side).type === 'inside') {
+    proposed.ends[side] = { type: 'filler', width: null };
+  }
+
+  const temporary = cloneRoom(room);
+  const wall = temporary.walls.find((candidate) => candidate.id === wallId);
+  const runIndex = wall.runs.findIndex((candidate) => candidate.id === runId);
+  wall.runs[runIndex] = cloneRun(proposed);
+  const synced = syncRoom(temporary, settings);
+  const resolvedWall = synced.walls.find((candidate) => candidate.id === wallId);
+  const resolvedRun = resolvedWall.runs.find((candidate) => candidate.id === runId);
+  const validation = validateRunPlacement(
+    { ...resolvedWall, length: wallLength(resolvedWall) },
+    resolvedRun,
+    settings,
+  );
+  return validation.ok
+    ? { ok: true, reason: null, room: synced }
+    : { ok: false, reason: validation.reason, room };
 }
 
 /** Mirror a wall's elevation-facing state and stored run intent. */

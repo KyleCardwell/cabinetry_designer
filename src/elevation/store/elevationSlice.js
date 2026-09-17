@@ -376,6 +376,17 @@ const elevationSlice = createSlice({
       location.wall.runs.push(run);
       syncRoomAt(state, location.roomIndex);
     },
+    replaceRun(state, action) {
+      const run = action.payload.run;
+      if (!run?.id) return;
+      const location = runLocation(state, {
+        ...action.payload,
+        runId: run.id,
+      });
+      if (!location) return;
+      location.wall.runs[location.runIndex] = run;
+      syncRoomAt(state, location.roomIndex);
+    },
     updateRun(state, action) {
       const location = runLocation(state, action.payload);
       if (!location) return;
@@ -574,6 +585,7 @@ export const {
   setActiveWall,
   flipWall,
   addRun,
+  replaceRun,
   updateRun,
   deleteRun,
   setRunEnd,

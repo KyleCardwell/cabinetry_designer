@@ -1,5 +1,11 @@
-import { memo, useMemo } from 'react';
-import { Group, Rect, Text } from 'react-konva';
+import { memo, useMemo, useState } from 'react';
+import {
+  Group,
+  Label,
+  Rect,
+  Tag,
+  Text,
+} from 'react-konva';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { splitRun } from '../model/splitRun.js';
@@ -20,7 +26,13 @@ function RunGroup({
   selectedPieceId,
   onSelectRun,
   onSelectPiece,
+  stretchable = false,
+  preview = false,
+  onStretchStart,
+  onStretchMove,
+  onStretchEnd,
 }) {
+  const [anchorTooltip, setAnchorTooltip] = useState(null);
   const result = useMemo(() => splitRun(run, settings, {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
   }), [room, run, settings, wall]);
@@ -87,8 +99,116 @@ function RunGroup({
     onSelectRun(run.id);
   };
 
+  const setResizeCursor = (event, cursor) => {
+    const stage = event.target.getStage();
+    if (stage) stage.container().style.cursor = cursor;
+  };
+
+  const edgeXFor = (side) => (
+    side === 'left' ? runRect.x : runRect.x + runRect.width
+  );
+
+  const wallXFromHandle = (event) => (
+    (event.target.x() - transform.offsetX) / transform.scale
+  );
+
+  const stopHandleEvent = (event) => {
+    event.cancelBubble = true;
+  };
+
+  const renderAnchor = (side) => {
+    if (!run.anchors?.[side]) return null;
+    const x = side === 'left' ? runRect.x + 2 : runRect.x + runRect.width - 9;
+    const tooltipX = side === 'left' ? runRect.x + 8 : runRect.x + runRect.width - 8;
+    return (
+      <Group
+        key={side}
+        listening={selectedRun && stretchable}
+        onMouseDown={stopHandleEvent}
+        onMouseUp={stopHandleEvent}
+        onClick={stopHandleEvent}
+        onMouseEnter={(event) => {
+          setAnchorTooltip(side);
+          setResizeCursor(event, 'help');
+        }}
+        onMouseLeave={(event) => {
+          setAnchorTooltip(null);
+          setResizeCursor(event, 'default');
+        }}
+      >
+        <Text
+          x={x}
+          y={runRect.y + 2}
+          text={side === 'left' ? '▌' : '▐'}
+          fontSize={14}
+          fill="#67e8f9"
+        />
+        {anchorTooltip === side && (
+          <Label x={tooltipX} y={runRect.y - 6} listening={false}>
+            <Tag
+              fill="#0f172a"
+              stroke="#67e8f9"
+              strokeWidth={1}
+              cornerRadius={3}
+              pointerDirection="down"
+              pointerWidth={8}
+              pointerHeight={5}
+            />
+            <Text
+              text="Anchored — uncheck Anchor to resize"
+              fill="#e2e8f0"
+              fontSize={11}
+              padding={6}
+            />
+          </Label>
+        )}
+      </Group>
+    );
+  };
+
+  const renderStretchHandle = (side) => {
+    if (!selectedRun || !stretchable || run.anchors?.[side]) return null;
+    const edgeX = edgeXFor(side);
+    return (
+      <Rect
+        key={side}
+        x={edgeX}
+        y={runRect.y}
+        offsetX={4}
+        width={8}
+        height={runRect.height}
+        fill="#38bdf8"
+        opacity={0.65}
+        stroke="#bae6fd"
+        strokeWidth={1}
+        draggable
+        dragBoundFunc={(position) => ({ x: position.x, y: runRect.y })}
+        onMouseDown={stopHandleEvent}
+        onMouseUp={stopHandleEvent}
+        onClick={stopHandleEvent}
+        onMouseEnter={(event) => setResizeCursor(event, 'ew-resize')}
+        onMouseLeave={(event) => setResizeCursor(event, 'default')}
+        onDragStart={(event) => {
+          stopHandleEvent(event);
+          onStretchStart?.(run.id, side);
+        }}
+        onDragMove={(event) => {
+          stopHandleEvent(event);
+          onStretchMove?.(run.id, side, wallXFromHandle(event));
+        }}
+        onDragEnd={(event) => {
+          stopHandleEvent(event);
+          const newEdgeX = wallXFromHandle(event);
+          event.target.position({ x: edgeX, y: runRect.y });
+          setResizeCursor(event, 'ew-resize');
+          onStretchEnd?.(run.id, side, newEdgeX);
+        }}
+      />
+    );
+  };
+
   return (
-    <Group>
+    <Group opacity={preview ? 0.72 : 1}>
       {hasToeKick && toeKickWidth > 0 && (
         <Rect
           {...toeKick}
@@ -152,26 +272,8 @@ function RunGroup({
         />
       ))}
 
-      {run.anchors?.left && (
-        <Text
-          x={runRect.x + 2}
-          y={runRect.y + 2}
-          text="▌"
-          fontSize={14}
-          fill="#67e8f9"
-          listening={false}
-        />
-      )}
-      {run.anchors?.right && (
-        <Text
-          x={runRect.x + runRect.width - 9}
-          y={runRect.y + 2}
-          text="▐"
-          fontSize={14}
-          fill="#67e8f9"
-          listening={false}
-        />
-      )}
+      {renderAnchor('left')}
+      {renderAnchor('right')}
 
       {selectedRun && (
         <Rect
@@ -194,6 +296,9 @@ function RunGroup({
         topOffset={isBase ? countertopThickness + 4 : 4}
         onSelect={() => onSelectRun(run.id)}
       />
+
+      {renderStretchHandle('left')}
+      {renderStretchHandle('right')}
     </Group>
   );
 }

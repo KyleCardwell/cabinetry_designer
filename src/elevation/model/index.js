@@ -56,6 +56,7 @@ export {
   flipRunsForWall,
   resolveWall,
   roomDiagnostics,
+  stretchRun,
   syncRoom,
   tryPlaceRun,
 } from './room.js';

@@ -15,12 +15,17 @@ import {
 } from '../canvas/drag.js';
 import { createRun } from '../model/runDefaults.js';
 import { resolveProfile } from '../model/profile.js';
-import { roomDiagnostics, tryPlaceRun } from '../model/room.js';
+import {
+  roomDiagnostics,
+  stretchRun,
+  tryPlaceRun,
+} from '../model/room.js';
 import {
   addRun,
   clearSelection,
   deleteRun,
   removeItem,
+  replaceRun,
   setMessage,
   setSelection,
   setTool,
@@ -36,6 +41,7 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
   const containerRef = useRef(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [drag, setDrag] = useState(null);
+  const [stretchPreview, setStretchPreview] = useState(null);
   const dragRef = useRef(null);
   const selectionRef = useRef(selection);
   const wallRef = useRef(wall);
@@ -99,17 +105,24 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
 
   useEffect(() => {
     cancelDrag();
+    setStretchPreview(null);
     dispatch(clearSelection());
   }, [cancelDrag, dispatch, wallId]);
 
   useEffect(() => {
     if (tool !== 'draw') cancelDrag();
+    if (tool !== 'select') setStretchPreview(null);
   }, [cancelDrag, tool]);
+
+  useEffect(() => {
+    setStretchPreview(null);
+  }, [selection.runId]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         if (dragRef.current) cancelDrag();
+        else if (stretchPreview) setStretchPreview(null);
         else dispatch(clearSelection());
         return;
       }
@@ -146,7 +159,7 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrag, dispatch]);
+  }, [cancelDrag, dispatch, stretchPreview]);
 
   useEffect(() => () => {
     if (messageTimeoutRef.current !== null) {
@@ -245,6 +258,45 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
     dispatch(setSelection({ runId, pieceId }));
   }, [dispatch, tool]);
 
+  const previewStretch = useCallback((runId, side, newEdgeX) => {
+    if (!room || !wall) return;
+    const result = stretchRun(room, wall.id, runId, side, newEdgeX, settings);
+    if (!result.ok) return;
+    const previewWall = result.room.walls.find((candidate) => candidate.id === wall.id);
+    const previewRun = previewWall?.runs.find((candidate) => candidate.id === runId);
+    if (!previewWall || !previewRun) return;
+    setStretchPreview({
+      room: result.room,
+      wall: previewWall,
+      run: previewRun,
+    });
+  }, [room, settings, wall]);
+
+  const startStretch = useCallback((runId) => {
+    if (!room || !wall) return;
+    const run = wall.runs.find((candidate) => candidate.id === runId);
+    if (run) setStretchPreview({ room, wall, run });
+  }, [room, wall]);
+
+  const finishStretch = useCallback((runId, side, newEdgeX) => {
+    setStretchPreview(null);
+    if (!room || !wall) return;
+    const result = stretchRun(room, wall.id, runId, side, newEdgeX, settings);
+    if (!result.ok) {
+      showMessage(result.reason);
+      return;
+    }
+    const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
+    const resolvedRun = resolvedWall?.runs.find((candidate) => candidate.id === runId);
+    if (!resolvedRun) return;
+    if (messageTimeoutRef.current !== null) {
+      globalThis.clearTimeout(messageTimeoutRef.current);
+      messageTimeoutRef.current = null;
+    }
+    dispatch(setMessage(null));
+    dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
+  }, [dispatch, room, settings, showMessage, wall]);
+
   return (
     <div
       ref={containerRef}
@@ -298,9 +350,28 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
                 }
                 onSelectRun={selectRun}
                 onSelectPiece={selectPiece}
+                stretchable={tool === 'select'}
+                onStretchStart={startStretch}
+                onStretchMove={previewStretch}
+                onStretchEnd={finishStretch}
               />
             ))}
           </Layer>
+          {stretchPreview && (
+            <Layer listening={false}>
+              <RunGroup
+                run={stretchPreview.run}
+                room={stretchPreview.room}
+                wall={stretchPreview.wall}
+                settings={settings}
+                diagnostic={null}
+                transform={transform}
+                selectedRun={false}
+                selectedPieceId={null}
+                preview
+              />
+            </Layer>
+          )}
           {dragPreview && (
             <Layer listening={false}>
               <DragPreview

@@ -11,6 +11,7 @@ import elevationReducer, {
   moveWallEndpoint,
   moveWallPerpendicular,
   removeItem,
+  replaceRun,
   setActiveRoom,
   setRunEnd,
   splitItem,
@@ -212,6 +213,20 @@ describe('elevation run reducers', () => {
 
     expect(currentRun(next).items).toHaveLength(4);
     expect(currentRun(next).items.every((item) => item.kind === 'cabinet' && item.width === null)).toBe(true);
+  });
+
+  it('replaces a stretched run and re-syncs its automatic cabinet count', () => {
+    const initialRun = run({ width: 60, items: [auto('left'), auto('right')] });
+    const next = elevationReducer(
+      stateWithRun(initialRun),
+      replaceRun({
+        wallId: 'wall-1',
+        run: { ...initialRun, width: 110 },
+      }),
+    );
+
+    expect(currentRun(next).width).toBe(110);
+    expect(currentRun(next).items).toHaveLength(3);
   });
 
   it('splits a cabinet into two auto cabinets and disables auto count', () => {
