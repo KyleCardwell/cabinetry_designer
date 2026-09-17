@@ -26,6 +26,7 @@ import {
   setTool,
 } from '../store/elevationSlice.js';
 import DragPreview from './DragPreview.jsx';
+import NeighborReturns from './NeighborReturns.jsx';
 import RunGroup from './RunGroup.jsx';
 import WallFrame from './WallFrame.jsx';
 
@@ -166,6 +167,18 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
   const dragBounds = useMemo(() => (
     drag ? dragPointsToRunInput(drag.start, drag.current) : null
   ), [drag]);
+  const dragPreview = useMemo(() => {
+    if (!dragBounds || !room || !wall || dragBounds.width <= 0) return null;
+    const run = createRun(dragBounds, { settings, room, wall });
+    const placement = tryPlaceRun(room, wall.id, run, settings);
+    const resolvedWall = placement.room.walls.find(
+      (candidate) => candidate.id === wall.id,
+    );
+    return {
+      run: resolvedWall?.runs.find((candidate) => candidate.id === run.id) ?? run,
+      valid: placement.ok,
+    };
+  }, [dragBounds, room, settings, wall]);
 
   const wallPointFromEvent = (event) => {
     if (!wall || !transform) return null;
@@ -262,6 +275,12 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
               transform={transform}
               crownTop={profile?.crownTop}
             />
+            <NeighborReturns
+              room={room}
+              wall={wall}
+              settings={settings}
+              transform={transform}
+            />
           </Layer>
           <Layer>
             {wall.runs.map((run) => (
@@ -282,9 +301,13 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
               />
             ))}
           </Layer>
-          {dragBounds && (
+          {dragPreview && (
             <Layer listening={false}>
-              <DragPreview bounds={dragBounds} transform={transform} />
+              <DragPreview
+                run={dragPreview.run}
+                valid={dragPreview.valid}
+                transform={transform}
+              />
             </Layer>
           )}
         </Stage>

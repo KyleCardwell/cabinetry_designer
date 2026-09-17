@@ -1,4 +1,5 @@
-import { Group, Line } from 'react-konva';
+import { useState } from 'react';
+import { Group, Label, Line, Tag, Text } from 'react-konva';
 import {
   CABINET_TYPE_COLORS,
   CABINET_TYPE_IDS,
@@ -21,11 +22,13 @@ export default function PlanRunFootprint({
   run,
   settings,
   collision,
+  collisionMessage,
   selected,
   selectable,
   scale,
   onSelect,
 }) {
+  const [hovered, setHovered] = useState(false);
   const footprint = runFootprint(frame, run, settings);
   const layout = splitRun(run, settings, {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
@@ -37,10 +40,14 @@ export default function PlanRunFootprint({
   const boundaryPieces = layout.pieces.slice(1).filter(
     (piece) => piece.x > run.x && piece.x < run.x + run.width,
   );
+  const centerX = footprint.reduce((sum, point) => sum + point.x, 0) / footprint.length;
+  const topY = Math.min(...footprint.map((point) => point.y));
 
   return (
     <Group
       listening={selectable}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       onClick={(event) => {
         event.cancelBubble = true;
         onSelect();
@@ -69,6 +76,32 @@ export default function PlanRunFootprint({
           />
         );
       })}
+      {collision && hovered && collisionMessage && (
+        <Label
+          x={centerX}
+          y={topY - 5 / scale}
+          opacity={0.98}
+          listening={false}
+        >
+          <Tag
+            fill="#020617"
+            stroke="#ef4444"
+            strokeWidth={1 / scale}
+            cornerRadius={3 / scale}
+            pointerDirection="down"
+            pointerWidth={7 / scale}
+            pointerHeight={5 / scale}
+          />
+          <Text
+            width={230 / scale}
+            text={collisionMessage}
+            align="center"
+            fill="#fecaca"
+            fontSize={11 / scale}
+            padding={6 / scale}
+          />
+        </Label>
+      )}
     </Group>
   );
 }

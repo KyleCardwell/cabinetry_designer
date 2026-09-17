@@ -2,13 +2,9 @@ import { Group, Label, Rect, Tag, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { formatInches } from '../model/units.js';
 
-export default function DragPreview({ bounds, transform }) {
-  const rect = wallRectToScreen({
-    x: bounds.x,
-    z: bounds.bottomZ,
-    width: bounds.width,
-    height: bounds.topZ - bounds.bottomZ,
-  }, transform);
+export default function DragPreview({ run, valid, transform }) {
+  const rect = wallRectToScreen(run, transform);
+  const color = valid ? '#60a5fa' : '#ef4444';
 
   return (
     <Group listening={false}>
@@ -16,14 +12,14 @@ export default function DragPreview({ bounds, transform }) {
         {...rect}
         fill="#2563eb"
         opacity={0.24}
-        stroke="#60a5fa"
+        stroke={color}
         strokeWidth={2}
         dash={[7, 5]}
       />
       <Label x={rect.x + rect.width / 2} y={rect.y - 6}>
         <Tag
           fill="#0f172a"
-          stroke="#60a5fa"
+          stroke={color}
           strokeWidth={1}
           cornerRadius={3}
           pointerDirection="down"
@@ -31,7 +27,7 @@ export default function DragPreview({ bounds, transform }) {
           pointerHeight={5}
         />
         <Text
-          text={formatInches(bounds.width)}
+          text={formatInches(run.width)}
           fill="#dbeafe"
           fontSize={12}
           padding={5}

@@ -10,6 +10,7 @@ export default function PieceRect({
   warning,
   error,
   selected,
+  cornerFiller = false,
   onSelect,
 }) {
   const [hovered, setHovered] = useState(false);
@@ -36,7 +37,7 @@ export default function PieceRect({
     >
       <Rect
         {...rect}
-        fill={KIND_COLORS[piece.kind]}
+        fill={cornerFiller ? '#fbbf24' : KIND_COLORS[piece.kind]}
         opacity={0.82}
         stroke={outline}
         strokeWidth={selected ? 3 : error || warning ? 2 : 1}

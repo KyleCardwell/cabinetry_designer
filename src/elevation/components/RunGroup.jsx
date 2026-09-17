@@ -1,6 +1,7 @@
 import { memo, useMemo } from 'react';
-import { Group, Rect } from 'react-konva';
+import { Group, Rect, Text } from 'react-konva';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
+import { cornerAt } from '../model/corners.js';
 import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
 import { endMinWidthsForRun } from '../model/room.js';
@@ -71,6 +72,15 @@ function RunGroup({
     height: countertopThickness,
   }, transform);
   const runRect = wallRectToScreen(run, transform);
+  const cornerFillers = useMemo(() => Object.fromEntries(
+    ['left', 'right'].map((side) => [
+      side,
+      run.anchors?.[side]
+        && run.ends[side].type === 'filler'
+        && run.ends[side].width === null
+        && cornerAt(room, wall, side).type === 'inside',
+    ]),
+  ), [room, run, wall]);
 
   const selectRun = (event) => {
     event.cancelBubble = true;
@@ -135,9 +145,33 @@ function RunGroup({
           warning={warningPieceIds.has(piece.id)}
           error={hasErrors}
           selected={selectedPieceId === piece.id}
+          cornerFiller={piece.role === 'end-left'
+            ? cornerFillers.left
+            : piece.role === 'end-right' && cornerFillers.right}
           onSelect={() => onSelectPiece(run.id, piece.id)}
         />
       ))}
+
+      {run.anchors?.left && (
+        <Text
+          x={runRect.x + 2}
+          y={runRect.y + 2}
+          text="▌"
+          fontSize={14}
+          fill="#67e8f9"
+          listening={false}
+        />
+      )}
+      {run.anchors?.right && (
+        <Text
+          x={runRect.x + runRect.width - 9}
+          y={runRect.y + 2}
+          text="▐"
+          fontSize={14}
+          fill="#67e8f9"
+          listening={false}
+        />
+      )}
 
       {selectedRun && (
         <Rect

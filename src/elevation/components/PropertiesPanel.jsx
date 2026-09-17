@@ -3,7 +3,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   CABINET_TYPE_IDS,
   KIND_LABELS,
+  cornerAt,
+  cornerReserve,
   formatInches,
+  frontDepth,
   moldingStack,
   resolveProfile,
   splitRun,
@@ -31,6 +34,7 @@ import {
   setMessage,
   setRunEnd,
   setRunHeightMode,
+  setRunAnchor,
   setRunOverride,
   setRunType,
   setSelection,
@@ -109,6 +113,14 @@ function ReadOnlyValue({ value, ariaLabel }) {
       {formatInches(value)}
     </div>
   );
+}
+
+function cornerLabel(corner, room) {
+  if (corner.type === 'open') return 'Open end';
+  if (corner.type === 'straight') return 'Straight joint';
+  if (corner.type === 'outside') return 'Outside corner (not supported yet)';
+  const neighbor = room.walls.find((wall) => wall.id === corner.neighborWallId);
+  return `Inside corner ${Math.round(corner.angle)}° · ${neighbor?.name ?? 'Unknown wall'}`;
 }
 
 function EndEditor({ side, end, onChange }) {
@@ -199,6 +211,16 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
     boxTop: profile.crownTop - moldingStack(profile),
   };
   const overrideFields = RUN_OVERRIDE_FIELDS[run.cabinetTypeId] ?? [];
+  const corners = Object.fromEntries(['left', 'right'].map((side) => [
+    side,
+    cornerAt(room, wall, side),
+  ]));
+  const reserves = Object.fromEntries(['left', 'right'].map((side) => [
+    side,
+    cornerReserve(room, wall, side, run, settings),
+  ]));
+  const anchored = run.anchors.left || run.anchors.right;
+  const bothAnchored = run.anchors.left && run.anchors.right;
 
   const validateAndDispatch = (changes) => {
     const { validation } = prepareRunUpdate(room, wall.id, run, settings, changes);
@@ -255,12 +277,63 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
             ['depth', 'Depth'],
           ].map(([key, label]) => (
             <Field key={key} label={label}>
-              <InchInput
-                value={run[key]}
-                onCommit={(value) => validateAndDispatch({ [key]: value })}
-                aria-label={`Run ${label.toLowerCase()}`}
-              />
+              {(key === 'x' && anchored) || (key === 'width' && bothAnchored) ? (
+                <ReadOnlyValue
+                  value={run[key]}
+                  ariaLabel={`Resolved run ${label.toLowerCase()}`}
+                />
+              ) : (
+                <InchInput
+                  value={run[key]}
+                  onCommit={(value) => validateAndDispatch({ [key]: value })}
+                  aria-label={`Run ${label.toLowerCase()}`}
+                />
+              )}
             </Field>
+          ))}
+        </div>
+        <div className="mt-2.5">
+          <Field label="Front depth">
+            <ReadOnlyValue
+              value={frontDepth(run, settings)}
+              ariaLabel="Installed front depth"
+            />
+          </Field>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Corners &amp; anchors
+        </h3>
+        <div className="space-y-2">
+          {['left', 'right'].map((side) => (
+            <div
+              key={side}
+              className="rounded border border-gray-700 bg-gray-900/45 p-3"
+            >
+              <label className="flex items-center justify-between text-sm text-gray-200">
+                <span className="capitalize">Anchor {side}</span>
+                <input
+                  type="checkbox"
+                  checked={run.anchors[side]}
+                  onChange={(event) => dispatch(setRunAnchor({
+                    ...actionBase,
+                    side,
+                    value: event.target.checked,
+                  }))}
+                  className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
+                />
+              </label>
+              <p className="mt-1.5 text-xs text-gray-500">
+                {cornerLabel(corners[side], room)}
+              </p>
+              {run.anchors[side] && (
+                <p className="mt-1 text-xs text-cyan-300">
+                  Anchored — corner reserve {formatInches(reserves[side])}
+                </p>
+              )}
+            </div>
           ))}
         </div>
       </section>

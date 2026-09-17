@@ -55,10 +55,23 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     () => walls.map((wall) => ({ ...wall, wall_id: wall.id })),
     [walls],
   );
-  const collisionRunIds = useMemo(
-    () => new Set(room ? findCollisions(room, settings).map((entry) => entry.runId) : []),
-    [room, settings],
-  );
+  const collisionMessages = useMemo(() => {
+    const messages = new Map();
+    if (!room) return messages;
+    const runWalls = new Map(room.walls.flatMap((wall) => (
+      wall.runs.map((run) => [run.id, wall])
+    )));
+    for (const collision of findCollisions(room, settings)) {
+      const otherWall = runWalls.get(collision.otherRunId);
+      if (otherWall && !messages.has(collision.runId)) {
+        messages.set(
+          collision.runId,
+          `Overlaps ${otherWall.name} run — anchor both runs to the corner`,
+        );
+      }
+    }
+    return messages;
+  }, [room, settings]);
   const stageRef = useRef(null);
   const containerRef = useRef(null);
   const drawStartRef = useRef(null);
@@ -357,7 +370,8 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                   wall={wall}
                   run={run}
                   settings={settings}
-                  collision={collisionRunIds.has(run.id)}
+                  collision={collisionMessages.has(run.id)}
+                  collisionMessage={collisionMessages.get(run.id)}
                   selected={selection.runId === run.id}
                   selectable={tool === 'select'}
                   scale={scale}
