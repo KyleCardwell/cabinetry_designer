@@ -2,7 +2,7 @@
 
 **Before step 6:** the working tree has uncommitted edits (end panel width override in `splitRun.js`, `PropertiesPanel.jsx` and a test). Commit them first, e.g. "elevation-mvp: end panel width override". Also commit `docs/elevation-mvp/SPEC-2.md` and this file.
 
-Run the steps in order. Paste everything inside each code block. After each step, check it in the browser, and optionally ask Claude to "review step N".
+Run the steps in order (6, 7, 8a, 8b, 9, 10). Paste everything inside each code block. After each step, check it in the browser, and optionally ask Claude to "review step N".
 
 ---
 ## Step 6 — v2 data model, migration, pure geometry helpers
@@ -62,48 +62,75 @@ Task (step 7 of 10): height inputs and their display.
    - Molding bands above auto upper and tall runs (top mold + crown, with the overlap per SPEC-2 §8), visual only.
    - A dashed "Top of crown" line with a label.
    - Warnings from roomDiagnostics shown as before, including mixed-counter-heights, no-room-for-box and crown-above-ceiling.
+4b. In the Room heights panel, add a "Use auto heights for all runs" button (a new reducer: sets heightMode 'auto' on every run in the room and clears nothing else). Runs converted from v1 are Manual, so this is how they start following the room heights.
 5. Changing any room or wall height input must update every auto run immediately (syncRoom already does this). Manual runs don't move.
 6. Add tests for any new pure helpers. `npm test`, `npm run build` and `npm run lint` must pass.
 
 Commit "elevation-mvp: step 7 height profile UI" and summarize, with 4–6 manual test steps.
 ```
 ---
-## Step 8 — Floor plan view
+## Step 8a — Floor plan: walls (reusing the classic editor)
 
 ```
-Repo: cabinetry_designer, branch feature/elevation-mvp. Read docs/elevation-mvp/SPEC-2.md (source of truth), especially §1, §7 and §8 "Plan canvas" / "Wall properties".
+Repo: cabinetry_designer, branch feature/elevation-mvp. Read docs/elevation-mvp/SPEC-2.md (source of truth), especially §1, §8 "Plan canvas" and §8.1 "Reuse from the classic editor".
 
-Task (step 8 of 10): plan view with connected walls.
-1. Toolbar: a Plan | Elevation toggle (setView). Plan tools: Select, Draw Wall, an Ortho toggle (settings.orthoWalls) and Zoom to fit. Elevation tools stay as they are.
-2. src/elevation/plan/: PlanCanvas.jsx and subcomponents (react-konva, ResizeObserver sizing, wheel zoom around the cursor, drag to pan in Select mode), plus a pure planTransform.js with tests.
-3. Wall reducers in elevationSlice, porting the *behavior* of the classic src/store/slices/wallSlice.js without importing it:
-   - addWallSegment({x1,y1,x2,y2, connectStart, connectEnd})
-   - moveWallEndpoint (propagates to the connected wall)
-   - connectWalls, disconnectWallEndpoint
-   - deleteWall (clears connections)
-   - setWallLength (moves the endpoint that is not the frame's left end along d; the connected neighbor endpoint follows)
-   All of them end with syncRoom.
-   You may import snapToGrid / snapToEndpoint from src/canvas/SnapEngine.js (read-only import).
-4. Draw Wall:
-   - Click the start point, then click the end point. Snap to settings.planGrid. Apply ortho when enabled. Snap to existing endpoints within 6" and auto-connect.
-   - Show a live preview with a length label. Esc cancels.
-   - Chaining: after placing a wall, the next wall starts at its end point until Esc or a double-click.
-5. Select:
-   - Click a wall → select it (it becomes the active wall).
-   - Drag endpoint handles on the selected wall (connections follow; ortho applies; dropping on another endpoint connects, dragging away from a connection disconnects).
-   - Double-click a wall → set active and switch to Elevation.
-   - Delete/Backspace deletes the selected wall (inline confirm if it has runs).
-6. Rendering:
-   - Each wall is its interior-face line plus a thickness band on the exterior side (use wallFrame's n), with a small tick showing the interior side and a length label.
-   - Run footprints (runFootprint) for every run: base/tall filled, upper dashed outline, colors by type, collisions (findCollisions) outlined red. Clicking a footprint selects that wall and run.
-7. Right panel in plan view:
-   - Wall properties per SPEC-2 §8: name, length (setWallLength), height, thickness, a Flip button (flipWall), profile overrides.
-   - If a run is selected, show the existing run properties.
-8. The sidebar wall list still works (selecting sets the active wall). "Add wall" in plan view switches to the Draw Wall tool instead of creating a horizontal wall.
-9. Tests for the new reducers (connection propagation, setWallLength with a connected neighbor, flipWall mirroring) and planTransform. `npm test`, `npm run build` and `npm run lint` must pass.
+Task (step 8a of 10): a plan view where walls can be drawn, connected, edited and opened. Footprints and the wall properties panel come in 8b.
+Keep this step small: REUSE the classic floor-plan code as described below instead of writing new equivalents. Do not modify any classic file.
 
-Don't modify classic editor files.
-Commit "elevation-mvp: step 8 floor plan" and summarize, with manual test steps (draw an L-shaped room, open each wall).
+1. Imports (read-only, no edits to these files):
+   - src/canvas/SnapEngine.js: snapToGrid, snapToEndpoint. Classic helpers expect `wall_id`, so pass adapted walls: `walls.map(w => ({ ...w, wall_id: w.id }))`.
+   - src/canvas/components/WallEndpoints.jsx: pass `wall={{ ...wall, wall_id: wall.id }}`. Its onDrag gets (wallId, endpoint, konvaEvent).
+   - src/canvas/components/WallDrawPreview.jsx and src/canvas/components/AxisGuides.jsx: use as-is.
+2. Copy and adapt (don't import these; they're tied to classic Redux state):
+   - src/canvas/components/WallShape.jsx → src/elevation/plan/PlanWallShape.jsx. Same look, but put the thickness band on the EXTERIOR side using wallFrame(room, wall).n (the classic one always offsets to one side), and add a small interior-side tick and a centered length label (formatInches).
+   - From src/canvas/CanvasStage.jsx, copy the viewport and interaction logic into src/elevation/plan/PlanCanvas.jsx:
+     - the Layer offset/scale pattern and PIXELS_PER_INCH
+     - handleWheel (zoom around the cursor)
+     - handleStageDragEnd (pan)
+     - the two-click wall drawing in handleStageClick, with endpoint snapping and connectStart/connectEnd
+     - handleMouseMove preview
+     - handleWallEndpointDrag (snap, then connect/disconnect on dragend). Skip the length/angle lock branches; the Lab has an Ortho toggle instead.
+     - the Escape/Delete keyboard handling
+     Replace the window.innerWidth sizing with a ResizeObserver on the container, as ElevationCanvas already does.
+   - From src/store/slices/wallSlice.js, port the logic of addWall (connectStart/connectEnd), moveWallEndpoint (propagate to the connected wall), connectWalls and disconnectWallEndpoint into elevationSlice reducers: addWallSegment, moveWallEndpoint, connectWalls, disconnectWallEndpoint. The existing deleteWall already clears connections. Each reducer works on the active room's walls and ends with syncRoomAt. Put the pure parts in src/elevation/plan/wallOps.js so they can be unit-tested.
+3. Ortho: when settings.orthoWalls is on, the drawn or dragged end point snaps so the wall is horizontal or vertical relative to the fixed end, before endpoint snapping. Snap to settings.planGrid. A pure helper goes in wallOps.js.
+4. Toolbar:
+   - A Plan | Elevation toggle (setView).
+   - In Plan: Select, Draw Wall, an Ortho toggle and Zoom to fit. Elevation tools unchanged.
+   - Drawing chains: after placing a wall, the next wall starts at its end point until Esc or a double-click.
+5. Select in plan:
+   - Click a wall → it becomes the active wall. Show WallEndpoints on it and allow endpoint dragging.
+   - Double-click a wall → set it active and switch to Elevation.
+   - Delete/Backspace deletes the selected wall, with an inline confirm if it has runs.
+6. The sidebar wall list still works. In Plan view, "Add wall" switches to the Draw Wall tool instead of creating a horizontal wall.
+7. Tests for wallOps (connect on add, endpoint move propagating to the connected wall, disconnect, ortho snapping). `npm test`, `npm run build` and `npm run lint` must pass.
+
+Commit "elevation-mvp: step 8a plan walls" and summarize, listing which classic files were imported vs copied. Manual test: draw an L-shaped room (144" east, then 120" south), drag the shared corner (both walls follow), double-click each wall to open its elevation.
+```
+---
+## Step 8b — Floor plan: footprints + wall properties
+
+```
+Repo: cabinetry_designer, branch feature/elevation-mvp. Read docs/elevation-mvp/SPEC-2.md (source of truth), especially §7 and §8 "Plan canvas" / "Wall properties".
+
+Task (step 8b of 10): make cabinets and wall settings visible in the plan.
+1. Run footprints in PlanCanvas, from runFootprint (src/elevation/model/footprints.js):
+   - base/tall filled, upper dashed outline, colors by type (reuse KIND/type colors from constants.js)
+   - optional thin lines at piece boundaries (from splitRun)
+   - collisions from findCollisions outlined red
+   Clicking a footprint sets that wall active and selects the run (stay in Plan).
+2. Right panel in Plan view:
+   - A run is selected → the existing run properties.
+   - Otherwise, the active wall's properties per SPEC-2 §8:
+     - name
+     - length (a new setWallLength reducer: moves the wall's frame-right endpoint along d, and a connected neighbor endpoint follows; pure helper in wallOps.js)
+     - height, thickness
+     - a Flip button (flipWall)
+     - profile overrides (Top of crown, toe kick, countertop; blank = inherit)
+   If step 7 already added a wall heights section, reuse that component. Don't duplicate it.
+3. Tests for setWallLength (with and without a connected neighbor). `npm test`, `npm run build` and `npm run lint` must pass.
+
+Commit "elevation-mvp: step 8b plan footprints + wall properties" and summarize. Manual test: in the L-shaped room, add base runs on both walls and confirm the footprints show in plan; change wall A's length and confirm wall B's start moves with it.
 ```
 ---
 ## Step 9 — Corner behavior in the UI
@@ -111,7 +138,7 @@ Commit "elevation-mvp: step 8 floor plan" and summarize, with manual test steps 
 ```
 Repo: cabinetry_designer, branch feature/elevation-mvp. Read docs/elevation-mvp/SPEC-2.md (source of truth), especially §5, §6 and §8 "Run properties" / "Elevation canvas".
 
-Task (step 9 of 10): make corners visible and editable. (The model already exists from step 6. Fix it only if you find a bug, and add a test for the bug.)
+Task (step 9 of 10; requires 8a and 8b): make corners visible and editable. (The model already exists from step 6. Fix it only if you find a bug, and add a test for the bug.)
 1. Draw tool: runs created within settings.cornerSnapDistance of a wall end are anchored on that side (createRun already does this). Make sure the placement preview shows the *resolved* run, i.e. snapped to the corner reserve, before mouse up.
 2. Run properties:
    - "Anchor left" / "Anchor right" checkboxes (setRunAnchor).

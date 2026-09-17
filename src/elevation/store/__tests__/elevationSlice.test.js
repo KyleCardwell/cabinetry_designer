@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import elevationReducer, {
+  addRoom,
   addItemAfter,
   addRun,
+  createInitialElevationState,
   lockItem,
   removeItem,
+  setActiveRoom,
   setRunEnd,
   splitItem,
   updateRoomProfile,
@@ -82,6 +85,58 @@ function stateWithRun(existingRun = null) {
 function currentRun(state) {
   return state.rooms[0].walls[0].runs[0];
 }
+
+describe('elevation room reducers', () => {
+  it('starts a fresh document with an empty room ready to draw walls in plan', () => {
+    const state = createInitialElevationState(null);
+
+    expect(state.rooms).toHaveLength(1);
+    expect(state.rooms[0].walls).toEqual([]);
+    expect(state.activeWallId).toBeNull();
+    expect(state.view).toBe('plan');
+    expect(state.tool).toBe('wall');
+  });
+
+  it('adds an empty room and opens it in plan with Draw Wall selected', () => {
+    const next = elevationReducer(
+      stateWithRun(),
+      addRoom({ name: 'Room 2' }),
+    );
+    const addedRoom = next.rooms[1];
+
+    expect(addedRoom).toMatchObject({ name: 'Room 2', walls: [] });
+    expect(next.activeRoomId).toBe(addedRoom.id);
+    expect(next.activeWallId).toBeNull();
+    expect(next.view).toBe('plan');
+    expect(next.tool).toBe('wall');
+  });
+
+  it('selects Draw Wall for empty rooms and Select for populated rooms', () => {
+    const initial = stateWithRun();
+    initial.rooms.push({
+      id: 'room-2',
+      name: 'Room 2',
+      profile: { ...DEFAULT_SETTINGS.defaultProfile },
+      walls: [],
+    });
+
+    const emptySelected = elevationReducer(initial, setActiveRoom('room-2'));
+    expect(emptySelected).toMatchObject({
+      activeRoomId: 'room-2',
+      activeWallId: null,
+      view: 'plan',
+      tool: 'wall',
+    });
+
+    const populatedSelected = elevationReducer(emptySelected, setActiveRoom('room-1'));
+    expect(populatedSelected).toMatchObject({
+      activeRoomId: 'room-1',
+      activeWallId: 'wall-1',
+      view: 'plan',
+      tool: 'select',
+    });
+  });
+});
 
 describe('elevation run reducers', () => {
   it('syncs auto cabinet items when adding an already-built run', () => {

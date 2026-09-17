@@ -46,7 +46,7 @@ function createRoom(name = 'Room 1', settings = DEFAULT_SETTINGS, id = uuid()) {
     id,
     name,
     profile: { ...settings.defaultProfile },
-    walls: [createWall()],
+    walls: [],
   };
 }
 
@@ -55,15 +55,18 @@ export function createInitialElevationState(document = loadElevationDocument()) 
   const settings = copySettings(document?.settings ?? DEFAULT_SETTINGS);
   const fallbackRoom = document ? null : createRoom('Room 1', settings);
   const rooms = document?.rooms ?? [fallbackRoom];
+  const activeRoomId = document ? document.activeRoomId : fallbackRoom.id;
+  const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
+  const emptyActiveRoom = Boolean(activeRoom && activeRoom.walls.length === 0);
   return {
     schemaVersion: ELEVATION_SCHEMA_VERSION,
     settings,
     rooms,
-    activeRoomId: document ? document.activeRoomId : fallbackRoom.id,
-    activeWallId: document ? document.activeWallId : fallbackRoom.walls[0].id,
-    view: document ? document.view : 'elevation',
+    activeRoomId,
+    activeWallId: document ? document.activeWallId : null,
+    view: emptyActiveRoom ? 'plan' : document?.view ?? 'plan',
     selection: { runId: null, pieceId: null },
-    tool: 'select',
+    tool: emptyActiveRoom ? 'wall' : 'select',
     message: null,
   };
 }
@@ -107,6 +110,18 @@ function clearTransientSelection(state) {
   state.selection = { runId: null, pieceId: null };
 }
 
+function activateRoom(state, room) {
+  state.activeRoomId = room?.id ?? null;
+  state.activeWallId = room?.walls[0]?.id ?? null;
+  if (room?.walls.length === 0) {
+    state.view = 'plan';
+    state.tool = 'wall';
+  } else {
+    state.tool = 'select';
+  }
+  clearTransientSelection(state);
+}
+
 const elevationSlice = createSlice({
   name: 'elevation',
   initialState: createInitialElevationState(),
@@ -115,9 +130,7 @@ const elevationSlice = createSlice({
       reducer(state, action) {
         const room = createRoom(action.payload.name, state.settings, action.payload.id);
         state.rooms.push(syncRoom(room, state.settings));
-        state.activeRoomId = room.id;
-        state.activeWallId = room.walls[0].id;
-        clearTransientSelection(state);
+        activateRoom(state, room);
       },
       prepare(payload = {}) {
         return { payload: { id: uuid(), name: payload.name ?? 'Room 1' } };
@@ -136,18 +149,14 @@ const elevationSlice = createSlice({
       state.rooms.splice(index, 1);
       if (state.activeRoomId === roomId) {
         const nextRoom = state.rooms[0] ?? null;
-        state.activeRoomId = nextRoom?.id ?? null;
-        state.activeWallId = nextRoom?.walls[0]?.id ?? null;
-        clearTransientSelection(state);
+        activateRoom(state, nextRoom);
       }
     },
     setActiveRoom(state, action) {
       const roomId = action.payload.roomId ?? action.payload;
       const room = state.rooms.find((candidate) => candidate.id === roomId);
       if (!room) return;
-      state.activeRoomId = room.id;
-      state.activeWallId = room.walls[0]?.id ?? null;
-      clearTransientSelection(state);
+      activateRoom(state, room);
     },
     updateRoomProfile(state, action) {
       const roomIndex = roomIndexFor(state, action.payload.roomId);

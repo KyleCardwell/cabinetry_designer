@@ -75,7 +75,7 @@ planGrid: 0.5,
 Keep `baseDepth`, `upperDepth`, `tallDepth` and every other SPEC §4 setting. (Later, top mold and crown will be picked from a molding catalog and these three numbers will be derived from the selections. Keep them in one place so that swap is easy.)
 
 ## 3. Migration v1 → v2 (`persistence.js`)
-- New storage key `cd.elevationLab.v2`. On load: if v2 is valid, use it. Otherwise, if `cd.elevationLab.v1` is valid, migrate it. Otherwise start fresh with one room, "Room 1", containing one wall. **Never delete the v1 key.**
+- New storage key `cd.elevationLab.v2`. On load: if v2 is valid, use it. Otherwise, if `cd.elevationLab.v1` is valid, migrate it. Otherwise start fresh with one empty room, "Room 1", in Plan view with Draw Wall selected. **Never delete the v1 key.**
 - **Settings:** build `defaultProfile` from the old values:
   - `toeKickHeight`, `baseBoxHeight` and `countertopThickness` copy over as-is.
   - `upperClearance = old.upperBottomZ − (toe + base + counter)`.
@@ -144,6 +144,7 @@ Keep `baseDepth`, `upperDepth`, `tallDepth` and every other SPEC §4 setting. (L
 ## 8. UI changes
 - **Sidebar:**
   - Room picker: add, rename, delete (inline confirm), select.
+  - New rooms contain no walls and open in Plan view with Draw Wall selected. Selecting an existing empty room does the same; selecting a room that already has walls resets the tool to Select.
   - "Room heights" panel: every HeightProfile field as an InchInput, with "Top of crown" as the label for `crownTop`, and a read-only molding stack and counter height.
   - The wall list shows the active room's walls, with length read-only (derived).
   - The Settings panel gains the new §2 settings.
@@ -178,6 +179,15 @@ Keep `baseDepth`, `upperDepth`, `tallDepth` and every other SPEC §4 setting. (L
   - **Neighbor returns:** for each inside-corner side, draw a hatched block for each occupying neighbor run: x from the wall end to `frontDepth/sin θ`, z range = the neighbor's z/height, label "<neighbor wall name>". Not selectable.
   - Show an anchor marker (e.g. ⚓ or ▌) on anchored run ends.
 - All highlighting and warnings use `roomDiagnostics`.
+
+### 8.1 Reuse from the classic editor (plan view)
+The classic floor plan already works, so the Lab reuses it rather than rebuilding it. Classic files are never modified.
+- **Import as-is:** `src/canvas/SnapEngine.js` (`snapToGrid`, `snapToEndpoint`; pass walls adapted with `wall_id: id`), `src/canvas/components/WallEndpoints.jsx` (pass `{...wall, wall_id: wall.id}`), `WallDrawPreview.jsx`, `AxisGuides.jsx`.
+- **Copy and adapt** into `src/elevation/plan/`:
+  - `WallShape.jsx`: the thickness band must follow the interior normal, not a fixed side.
+  - The viewport, zoom, pan, two-click wall drawing and endpoint-drag logic from `CanvasStage.jsx`: skip the length/angle locks, and use ResizeObserver sizing.
+  - The connection logic from `src/store/slices/wallSlice.js`, as pure functions in `wallOps.js`, called by elevation-slice reducers.
+- This duplication is temporary. It disappears when the classic editor is retired.
 
 ## 9. Required tests (vitest)
 Use the defaults in §2 unless noted.
