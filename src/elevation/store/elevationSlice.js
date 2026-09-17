@@ -5,6 +5,12 @@ import { cornerAt } from '../model/corners.js';
 import { wallFrame } from '../model/geometry.js';
 import { flipRunsForWall, syncRoom } from '../model/room.js';
 import {
+  addWallWithConnections,
+  connectWallEndpoints,
+  disconnectWallEndpoint as disconnectWallEndpointPure,
+  moveConnectedEndpoint,
+} from '../plan/wallOps.js';
+import {
   ELEVATION_SCHEMA_VERSION,
   loadElevationDocument,
 } from './persistence.js';
@@ -186,6 +192,73 @@ const elevationSlice = createSlice({
       prepare(payload = {}) {
         return { payload: { ...payload, id: payload.id ?? uuid() } };
       },
+    },
+    addWallSegment: {
+      reducer(state, action) {
+        const roomIndex = roomIndexFor(state, action.payload.roomId);
+        if (roomIndex === -1) return;
+        const room = state.rooms[roomIndex];
+        const wall = createWall(
+          action.payload.name ?? `Wall ${room.walls.length + 1}`,
+          action.payload.y1,
+          0,
+          {
+            id: action.payload.id,
+            x1: action.payload.x1,
+            y1: action.payload.y1,
+            x2: action.payload.x2,
+            y2: action.payload.y2,
+            height: action.payload.height,
+            thickness: action.payload.thickness,
+          },
+        );
+        room.walls = addWallWithConnections(
+          room.walls,
+          wall,
+          action.payload.connectStart,
+          action.payload.connectEnd,
+        );
+        state.activeWallId = wall.id;
+        clearTransientSelection(state);
+        syncRoomAt(state, roomIndex);
+      },
+      prepare(payload) {
+        return { payload: { ...payload, id: payload.id ?? uuid() } };
+      },
+    },
+    moveWallEndpoint(state, action) {
+      const roomIndex = roomIndexFor(state, action.payload.roomId);
+      if (roomIndex === -1) return;
+      const wallId = action.payload.wallId ?? action.payload.wall_id;
+      state.rooms[roomIndex].walls = moveConnectedEndpoint(
+        state.rooms[roomIndex].walls,
+        wallId,
+        action.payload.endpoint,
+        { x: action.payload.x, y: action.payload.y },
+      );
+      syncRoomAt(state, roomIndex);
+    },
+    connectWalls(state, action) {
+      const roomIndex = roomIndexFor(state, action.payload.roomId);
+      if (roomIndex === -1) return;
+      state.rooms[roomIndex].walls = connectWallEndpoints(
+        state.rooms[roomIndex].walls,
+        action.payload.wallId1,
+        action.payload.endpoint1,
+        action.payload.wallId2,
+        action.payload.endpoint2,
+      );
+      syncRoomAt(state, roomIndex);
+    },
+    disconnectWallEndpoint(state, action) {
+      const roomIndex = roomIndexFor(state, action.payload.roomId);
+      if (roomIndex === -1) return;
+      state.rooms[roomIndex].walls = disconnectWallEndpointPure(
+        state.rooms[roomIndex].walls,
+        action.payload.wallId ?? action.payload.wall_id,
+        action.payload.endpoint,
+      );
+      syncRoomAt(state, roomIndex);
     },
     updateWall(state, action) {
       const location = wallLocation(state, action.payload);
@@ -397,7 +470,7 @@ const elevationSlice = createSlice({
       clearTransientSelection(state);
     },
     setTool(state, action) {
-      if (action.payload !== 'select' && action.payload !== 'draw') return;
+      if (!['select', 'draw', 'wall'].includes(action.payload)) return;
       state.tool = action.payload;
     },
     setMessage(state, action) {
@@ -407,6 +480,7 @@ const elevationSlice = createSlice({
       const view = action.payload.view ?? action.payload;
       if (view !== 'plan' && view !== 'elevation') return;
       state.view = view;
+      state.tool = 'select';
       clearTransientSelection(state);
     },
     updateSettings(state, action) {
@@ -431,6 +505,10 @@ export const {
   updateRoomProfile,
   useAutoHeightsForRoom,
   addWall,
+  addWallSegment,
+  moveWallEndpoint,
+  connectWalls,
+  disconnectWallEndpoint,
   updateWall,
   deleteWall,
   setActiveWall,

@@ -10,6 +10,7 @@ import SampleRunsButton from './components/SampleRunsButton.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import WallList from './components/WallList.jsx';
 import { resolveWall } from './model/room.js';
+import PlanCanvas from './plan/PlanCanvas.jsx';
 
 export default function ElevationLab() {
   const [fitRequest, setFitRequest] = useState(0);
@@ -18,6 +19,7 @@ export default function ElevationLab() {
     activeRoomId,
     activeWallId,
     settings,
+    view,
   } = useSelector((state) => state.elevation);
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
   const activeWall = useMemo(() => resolveWall(
@@ -45,16 +47,20 @@ export default function ElevationLab() {
       <section className="flex min-w-0 flex-1 flex-col">
         <ElevationToolbar onZoomToFit={() => setFitRequest((value) => value + 1)} />
         <div className="min-h-0 flex-1">
-          <ElevationCanvas
-            room={activeRoom}
-            wall={activeWall}
-            settings={settings}
-            fitRequest={fitRequest}
-          />
+          {view === 'plan' ? (
+            <PlanCanvas fitRequest={fitRequest} />
+          ) : (
+            <ElevationCanvas
+              room={activeRoom}
+              wall={activeWall}
+              settings={settings}
+              fitRequest={fitRequest}
+            />
+          )}
         </div>
       </section>
 
-      <PropertiesPanel />
+      {view === 'elevation' && <PropertiesPanel />}
     </div>
   );
 }

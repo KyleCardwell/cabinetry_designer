@@ -4,6 +4,7 @@ import {
   addWall,
   deleteWall,
   setActiveWall,
+  setTool,
   updateWall,
 } from '../store/elevationSlice.js';
 import InchInput from './InchInput.jsx';
@@ -12,7 +13,12 @@ import { wallLength } from '../model/geometry.js';
 
 export default function WallList() {
   const dispatch = useDispatch();
-  const { rooms, activeRoomId, activeWallId } = useSelector((state) => state.elevation);
+  const {
+    rooms,
+    activeRoomId,
+    activeWallId,
+    view,
+  } = useSelector((state) => state.elevation);
   const room = rooms.find((candidate) => candidate.id === activeRoomId);
   const walls = room?.walls ?? [];
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
@@ -25,7 +31,10 @@ export default function WallList() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">Walls</h2>
         <button
           type="button"
-          onClick={() => dispatch(addWall({ name: `Wall ${walls.length + 1}` }))}
+          onClick={() => {
+            if (view === 'plan') dispatch(setTool('wall'));
+            else dispatch(addWall({ name: `Wall ${walls.length + 1}` }));
+          }}
           className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs font-medium transition-colors"
         >
           Add wall
