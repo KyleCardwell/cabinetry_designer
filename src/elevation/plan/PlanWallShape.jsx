@@ -2,6 +2,7 @@ import { Circle, Group, Line, Text } from 'react-konva';
 import { wallFrame } from '../model/geometry.js';
 import { wallNumbers } from '../model/topology.js';
 import { formatInches } from '../model/units.js';
+import { wallOutline } from '../model/wallOutline.js';
 
 export default function PlanWallShape({
   room,
@@ -14,15 +15,8 @@ export default function PlanWallShape({
   const frame = wallFrame(room, wall);
   if (frame.length === 0) return null;
 
+  const outline = wallOutline(room, wall);
   const exterior = { x: -frame.n.x, y: -frame.n.y };
-  const exteriorStart = {
-    x: wall.x1 + exterior.x * wall.thickness,
-    y: wall.y1 + exterior.y * wall.thickness,
-  };
-  const exteriorEnd = {
-    x: wall.x2 + exterior.x * wall.thickness,
-    y: wall.y2 + exterior.y * wall.thickness,
-  };
   const midpoint = {
     x: (wall.x1 + wall.x2) / 2,
     y: (wall.y1 + wall.y2) / 2,
@@ -43,16 +37,7 @@ export default function PlanWallShape({
   return (
     <Group onClick={onSelect} onDblClick={onOpen}>
       <Line
-        points={[
-          wall.x1,
-          wall.y1,
-          wall.x2,
-          wall.y2,
-          exteriorEnd.x,
-          exteriorEnd.y,
-          exteriorStart.x,
-          exteriorStart.y,
-        ]}
+        points={outline.flatMap((point) => [point.x, point.y])}
         closed
         fill={isSelected ? '#60a5fa' : '#6b7280'}
         opacity={0.85}

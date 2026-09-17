@@ -19,8 +19,10 @@ export { runsConflict, validateRunPlacement } from './overlap.js';
 export {
   add,
   clamp,
+  cross,
   dot,
   elevationToPlan,
+  lineIntersection,
   magnitude,
   normalize,
   scale,
@@ -28,6 +30,7 @@ export {
   wallFrame,
   wallLength,
 } from './geometry.js';
+export { wallOutline } from './wallOutline.js';
 export { counterTop, moldingStack, resolveProfile, resolveVertical } from './profile.js';
 export {
   bandsCompatible,

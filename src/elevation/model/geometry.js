@@ -23,6 +23,11 @@ export function dot(a, b) {
   return a.x * b.x + a.y * b.y;
 }
 
+/** Return the 2D cross product of two plan vectors. */
+export function cross(a, b) {
+  return a.x * b.y - a.y * b.x;
+}
+
 /** Return the Euclidean length of a plan vector. */
 export function magnitude(vector) {
   return Math.hypot(vector.x, vector.y);
@@ -44,6 +49,38 @@ export function clamp(value, minimum, maximum) {
 /** Return a wall's derived finished-face length. */
 export function wallLength(wall) {
   return Math.hypot(wall.x2 - wall.x1, wall.y2 - wall.y1);
+}
+
+function cleanCoordinate(value) {
+  const rounded = Math.round(value * 1e12) / 1e12;
+  return Math.abs(value - rounded) < VECTOR_EPSILON ? rounded : value;
+}
+
+/**
+ * Return the intersection of two infinite lines, or null when they are parallel.
+ *
+ * @param {object} pointA point on the first line
+ * @param {object} directionA direction of the first line
+ * @param {object} pointB point on the second line
+ * @param {object} directionB direction of the second line
+ * @param {number} epsilon parallel tolerance
+ * @returns {{x:number,y:number}|null}
+ */
+export function lineIntersection(
+  pointA,
+  directionA,
+  pointB,
+  directionB,
+  epsilon = 1e-6,
+) {
+  const denominator = cross(directionA, directionB);
+  if (Math.abs(denominator) < epsilon) return null;
+  const amount = cross(subtract(pointB, pointA), directionB) / denominator;
+  const intersection = add(pointA, scale(directionA, amount));
+  return {
+    x: cleanCoordinate(intersection.x),
+    y: cleanCoordinate(intersection.y),
+  };
 }
 
 function endpointPoint(wall, endpoint) {
