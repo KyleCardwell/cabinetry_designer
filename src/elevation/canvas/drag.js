@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { roundTo } from '../model/units.js';
 import { screenToWall } from './transform.js';
 
@@ -13,11 +14,23 @@ function clamp(value, minimum, maximum) {
  * @param {{x: number, z: number}} point
  * @param {{length: number, height: number}} wall
  * @param {number} [step]
+ * @param {number} [maxRunOverhang]
  * @returns {{x: number, z: number}}
  */
-export function clampAndSnapWallPoint(point, wall, step = DRAW_SNAP) {
+export function clampAndSnapWallPoint(
+  point,
+  wall,
+  step = DRAW_SNAP,
+  maxRunOverhang = DEFAULT_SETTINGS.maxRunOverhang,
+) {
+  const minimumX = -maxRunOverhang;
+  const maximumX = wall.length + maxRunOverhang;
   return {
-    x: clamp(roundTo(clamp(point.x, 0, wall.length), step), 0, wall.length),
+    x: clamp(
+      roundTo(clamp(point.x, minimumX, maximumX), step),
+      minimumX,
+      maximumX,
+    ),
     z: clamp(roundTo(clamp(point.z, 0, wall.height), step), 0, wall.height),
   };
 }
@@ -29,10 +42,22 @@ export function clampAndSnapWallPoint(point, wall, step = DRAW_SNAP) {
  * @param {{length: number, height: number}} wall
  * @param {{scale: number, offsetX: number, offsetY: number, wallHeight: number}} transform
  * @param {number} [step]
+ * @param {number} [maxRunOverhang]
  * @returns {{x: number, z: number}}
  */
-export function screenPointToWallSnapped(point, wall, transform, step = DRAW_SNAP) {
-  return clampAndSnapWallPoint(screenToWall(point, transform), wall, step);
+export function screenPointToWallSnapped(
+  point,
+  wall,
+  transform,
+  step = DRAW_SNAP,
+  maxRunOverhang = DEFAULT_SETTINGS.maxRunOverhang,
+) {
+  return clampAndSnapWallPoint(
+    screenToWall(point, transform),
+    wall,
+    step,
+    maxRunOverhang,
+  );
 }
 
 /**

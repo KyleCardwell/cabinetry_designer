@@ -81,6 +81,20 @@ describe('run defaults', () => {
     expect(run).toMatchObject({ x: 1, width: 60.5, z: 49.5, height: 30.5 });
   });
 
+  it('clamps drawn horizontal bounds to the configured overhang range', () => {
+    const left = createRun(
+      { x: -50, width: 60, bottomZ: 2, topZ: 30 },
+      ctx,
+    );
+    const right = createRun(
+      { x: 150, width: 60, bottomZ: 2, topZ: 30 },
+      ctx,
+    );
+
+    expect(left).toMatchObject({ x: -36, width: 46 });
+    expect(right).toMatchObject({ x: 150, width: 6 });
+  });
+
   it('returns the configured defaults for each type', () => {
     expect(defaultsForType(CABINET_TYPE_IDS.BASE, DEFAULT_SETTINGS)).toEqual({ z: 4, height: 30.5, depth: 24 });
     expect(defaultsForType(CABINET_TYPE_IDS.UPPER, DEFAULT_SETTINGS)).toEqual({ z: 54, height: 36, depth: 12 });

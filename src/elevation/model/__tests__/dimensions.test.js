@@ -101,15 +101,18 @@ function expectNumbersClose(actual, expected) {
   actual.forEach((value, index) => expect(value).toBeCloseTo(expected[index], 8));
 }
 
-function expectContiguous(chain, length) {
+function expectContiguous(chain, startOrLength, end) {
+  const start = end === undefined ? 0 : startOrLength;
+  const finish = end === undefined ? startOrLength : end;
   expect(chain.length).toBeGreaterThan(0);
-  expect(chain[0].start).toBeCloseTo(0, 8);
+  expect(chain[0].start).toBeCloseTo(start, 8);
   chain.forEach((segment, index) => {
     expect(segment.end - segment.start).toBeGreaterThan(1e-6);
     if (index > 0) expect(segment.start).toBeCloseTo(chain[index - 1].end, 8);
   });
-  expect(chain.at(-1).end).toBeCloseTo(length, 8);
-  expect(lengths(chain).reduce((sum, value) => sum + value, 0)).toBeCloseTo(length, 8);
+  expect(chain.at(-1).end).toBeCloseTo(finish, 8);
+  expect(lengths(chain).reduce((sum, value) => sum + value, 0))
+    .toBeCloseTo(finish - start, 8);
 }
 
 describe('horizontalChains', () => {
@@ -186,6 +189,24 @@ describe('horizontalChains', () => {
     });
     expect(inner[tallIndex - 1]).toMatchObject({ start: 30, end: 60, kind: 'open' });
     expect(inner[tallIndex + 1]).toMatchObject({ start: 84, end: 120, kind: 'open' });
+  });
+
+  it('13. extends both chains across a left-overhanging run', () => {
+    const room = syncRoom(roomR({
+      wallA: {
+        runs: [cabinetRun('overhang', CABINET_TYPE_IDS.BASE, {
+          x: -6,
+          width: 60,
+        })],
+      },
+    }), DEFAULT_SETTINGS);
+    const wall = room.walls.find(({ id }) => id === 'A');
+    const chains = horizontalChains(room, wall, 'lower', DEFAULT_SETTINGS);
+
+    expect(chains.inner[0].start).toBe(-6);
+    expect(chains.outer[0]).toMatchObject({ start: -6, end: 54, kind: 'run' });
+    expectContiguous(chains.inner, -6, 120);
+    expectContiguous(chains.outer, -6, 120);
   });
 });
 

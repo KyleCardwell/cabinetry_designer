@@ -1,4 +1,4 @@
-import { CABINET_TYPE_IDS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 
 const OVERLAP_EPSILON = 1e-6;
 
@@ -34,11 +34,12 @@ export function runsConflict(a, b, settings) {
  * @returns {{ok: boolean, reason: string|null}}
  */
 export function validateRunPlacement(wall, run, settings) {
+  const maxRunOverhang = settings.maxRunOverhang ?? DEFAULT_SETTINGS.maxRunOverhang;
   const insideWall = run.width > 0
     && run.height > 0
-    && run.x >= -OVERLAP_EPSILON
+    && run.x >= -maxRunOverhang - OVERLAP_EPSILON
     && run.z >= -OVERLAP_EPSILON
-    && run.x + run.width <= wall.length + OVERLAP_EPSILON
+    && run.x + run.width <= wall.length + maxRunOverhang + OVERLAP_EPSILON
     && run.z + run.height <= wall.height + OVERLAP_EPSILON;
 
   if (!insideWall) return { ok: false, reason: 'out-of-bounds' };

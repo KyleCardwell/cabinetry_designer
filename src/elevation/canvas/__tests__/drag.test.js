@@ -6,11 +6,13 @@ import {
 } from '../drag.js';
 
 describe('elevation drag helpers', () => {
-  it('clamps points to the wall and snaps them to half inches', () => {
+  it('clamps points to the run-overhang range and snaps them to half inches', () => {
     const wall = { length: 120, height: 96 };
 
     expect(clampAndSnapWallPoint({ x: 12.24, z: 97 }, wall)).toEqual({ x: 12, z: 96 });
-    expect(clampAndSnapWallPoint({ x: -4, z: 30.26 }, wall)).toEqual({ x: 0, z: 30.5 });
+    expect(clampAndSnapWallPoint({ x: -4, z: 30.26 }, wall)).toEqual({ x: -4, z: 30.5 });
+    expect(clampAndSnapWallPoint({ x: -50, z: 30 }, wall)).toEqual({ x: -36, z: 30 });
+    expect(clampAndSnapWallPoint({ x: 170, z: 30 }, wall)).toEqual({ x: 156, z: 30 });
   });
 
   it('converts screen points before clamping and snapping', () => {

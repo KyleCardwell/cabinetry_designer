@@ -54,6 +54,17 @@ function resultRun(result, id = 'run') {
 }
 
 describe('stretchRun', () => {
+  it('14. allows stretching within the overhang limit and rejects beyond it unchanged', () => {
+    const room = makeRoom();
+    const allowed = stretchRun(room, 'A', 'run', 'left', -10, DEFAULT_SETTINGS);
+    expect(allowed.ok).toBe(true);
+    expect(resultRun(allowed)).toMatchObject({ x: -10, width: 90 });
+
+    const rejected = stretchRun(room, 'A', 'run', 'left', -50, DEFAULT_SETTINGS);
+    expect(rejected).toEqual({ ok: false, reason: 'out-of-bounds', room });
+    expect(rejected.room).toBe(room);
+  });
+
   it('17. snaps to an open wall end without anchoring or changing its end', () => {
     const room = makeRoom();
 

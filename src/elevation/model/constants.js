@@ -33,6 +33,7 @@ export const DEFAULT_SETTINGS = {
   endPanelThickness: 0.75,
   defaultInteriorFillerWidth: 3,
   minRunWidth: 9,
+  maxRunOverhang: 36,
   snapHeightsToDefaults: true,
   defaultEnds: { left: 'filler', right: 'filler' },
   bumperThickness: 0.0625,

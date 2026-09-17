@@ -119,6 +119,7 @@ describe('elevation persistence migration', () => {
     delete current.rooms[0].wallOrder;
     delete current.settings.autoEndPanelOnFreeEnd;
     delete current.settings.adjacentRunGap;
+    delete current.settings.maxRunOverhang;
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
     };
@@ -132,6 +133,7 @@ describe('elevation persistence migration', () => {
     expect(loaded.settings).toMatchObject({
       autoEndPanelOnFreeEnd: true,
       adjacentRunGap: 1,
+      maxRunOverhang: 36,
     });
   });
 });

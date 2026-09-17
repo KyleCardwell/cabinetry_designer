@@ -24,6 +24,7 @@ const KIND_COLORS = {
 
 const FONT_SIZE = 11;
 const TICK_HALF_LENGTH = 4;
+const WALL_END_TICK_HALF_LENGTH = 6;
 
 function colorFor(segment, highlightRunId) {
   if (segment.kind === 'run' && segment.runId === highlightRunId) return '#38bdf8';
@@ -38,6 +39,7 @@ export default function DimensionRow({
   transform,
   onSegmentClick,
   highlightRunId,
+  wallEndMarks = [],
 }) {
   const [hoveredHiddenIndex, setHoveredHiddenIndex] = useState(null);
   const layout = useMemo(() => layoutDimensionRow(segments, {
@@ -97,6 +99,24 @@ export default function DimensionRow({
               strokeWidth={1}
             />
           </Group>
+        );
+      })}
+
+      {wallEndMarks.map((value) => {
+        const row = rowPoint(value);
+        return (
+          <Line
+            key={`wall-end:${value}`}
+            points={[
+              row.x - tickDirection.x * WALL_END_TICK_HALF_LENGTH,
+              row.y - tickDirection.y * WALL_END_TICK_HALF_LENGTH,
+              row.x + tickDirection.x * WALL_END_TICK_HALF_LENGTH,
+              row.y + tickDirection.y * WALL_END_TICK_HALF_LENGTH,
+            ]}
+            stroke="#e2e8f0"
+            strokeWidth={2}
+            listening={false}
+          />
         );
       })}
 

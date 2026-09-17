@@ -1,4 +1,4 @@
-import { CABINET_TYPE_IDS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import {
   cornerAt,
   cornerFillerMin,
@@ -208,8 +208,17 @@ export function roomDiagnostics(room, settings) {
         settings,
       );
       const placement = validateRunPlacement(resolvedWall, run, settings);
+      const overhang = {
+        code: 'overhang',
+        left: Math.max(0, -run.x),
+        right: Math.max(0, run.x + run.width - length),
+      };
       diagnostics[run.id] = {
-        warnings: [...layout.warnings, ...vertical.warnings],
+        warnings: [
+          ...layout.warnings,
+          ...vertical.warnings,
+          ...(overhang.left > 0 || overhang.right > 0 ? [overhang] : []),
+        ],
         errors: [
           ...layout.errors,
           ...vertical.errors,
@@ -297,6 +306,10 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
   edge = side === 'left'
     ? Math.min(edge, fixedEdge - settings.minRunWidth)
     : Math.max(edge, fixedEdge + settings.minRunWidth);
+  const maxRunOverhang = settings.maxRunOverhang ?? DEFAULT_SETTINGS.maxRunOverhang;
+  if (edge < -maxRunOverhang || edge > length + maxRunOverhang) {
+    return { ok: false, reason: 'out-of-bounds', room };
+  }
   const anchorsAtSnap = Boolean(
     snapped?.anchor && Math.abs(edge - unclampedEdge) <= 1e-9,
   );

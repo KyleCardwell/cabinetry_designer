@@ -320,7 +320,15 @@ function ElevationCanvas({
   const wallPointFromEvent = (event) => {
     if (!wall || !transform) return null;
     const pointer = event.target.getStage()?.getPointerPosition();
-    return pointer ? screenPointToWallSnapped(pointer, wall, transform) : null;
+    return pointer
+      ? screenPointToWallSnapped(
+        pointer,
+        wall,
+        transform,
+        undefined,
+        settings.maxRunOverhang,
+      )
+      : null;
   };
 
   const handleMouseDown = (event) => {
@@ -493,6 +501,7 @@ function ElevationCanvas({
                 side="below"
                 offsetPx={dimensionOffsets.lower.inner}
                 transform={transform}
+                wallEndMarks={[0, wall.length]}
               />
               <DimensionRow
                 segments={dimensionChains.lower.outer}
@@ -502,6 +511,7 @@ function ElevationCanvas({
                 transform={transform}
                 onSegmentClick={(segment) => selectRun(segment.runId)}
                 highlightRunId={selection.runId}
+                wallEndMarks={[0, wall.length]}
               />
               <DimensionRow
                 segments={dimensionChains.upper.inner}
@@ -509,6 +519,7 @@ function ElevationCanvas({
                 side="above"
                 offsetPx={dimensionOffsets.upper.inner}
                 transform={transform}
+                wallEndMarks={[0, wall.length]}
               />
               <DimensionRow
                 segments={dimensionChains.upper.outer}
@@ -518,6 +529,7 @@ function ElevationCanvas({
                 transform={transform}
                 onSegmentClick={(segment) => selectRun(segment.runId)}
                 highlightRunId={selection.runId}
+                wallEndMarks={[0, wall.length]}
               />
               <DimensionRow
                 segments={dimensionChains.vertical.inner}

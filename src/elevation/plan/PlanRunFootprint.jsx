@@ -15,6 +15,39 @@ function linePoints(points) {
   return points.flatMap((point) => [point.x, point.y]);
 }
 
+function footprintOutlineSegments(frame, run, depth) {
+  const start = run.x;
+  const end = run.x + run.width;
+  const ranges = [
+    { start, end: Math.min(end, 0), overhang: true },
+    { start: Math.max(start, 0), end: Math.min(end, frame.length), overhang: false },
+    { start: Math.max(start, frame.length), end, overhang: true },
+  ].filter((range) => range.end - range.start > 1e-9);
+  const segments = ranges.flatMap((range) => [
+    {
+      points: [
+        elevationToPlan(frame, range.start, 0),
+        elevationToPlan(frame, range.end, 0),
+      ],
+      overhang: range.overhang,
+    },
+    {
+      points: [
+        elevationToPlan(frame, range.start, depth),
+        elevationToPlan(frame, range.end, depth),
+      ],
+      overhang: range.overhang,
+    },
+  ]);
+  for (const x of [start, end]) {
+    segments.push({
+      points: [elevationToPlan(frame, x, 0), elevationToPlan(frame, x, depth)],
+      overhang: x < 0 || x > frame.length,
+    });
+  }
+  return segments;
+}
+
 export default function PlanRunFootprint({
   frame,
   room,
@@ -38,6 +71,7 @@ export default function PlanRunFootprint({
   const upper = run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
   const color = CABINET_TYPE_COLORS[run.cabinetTypeId] ?? KIND_COLORS.cabinet;
   const outline = collision ? '#ef4444' : selected ? '#f8fafc' : color;
+  const outlineSegments = footprintOutlineSegments(frame, run, depth);
   const boundaryPieces = layout.pieces.slice(1).filter(
     (piece) => piece.x > run.x && piece.x < run.x + run.width,
   );
@@ -58,11 +92,20 @@ export default function PlanRunFootprint({
         points={linePoints(footprint)}
         closed
         fill={upper ? `${color}59` : `${color}8c`}
-        stroke={outline}
-        strokeWidth={(collision || selected ? 2.5 : 1.5) / scale}
-        dash={upper ? [5 / scale, 3 / scale] : undefined}
         hitStrokeWidth={8 / scale}
       />
+      {outlineSegments.map((segment, index) => (
+        <Line
+          key={`outline:${index}`}
+          points={linePoints(segment.points)}
+          stroke={outline}
+          strokeWidth={(collision || selected ? 2.5 : 1.5) / scale}
+          dash={segment.overhang
+            ? [2 / scale, 2 / scale]
+            : upper ? [5 / scale, 3 / scale] : undefined}
+          listening={false}
+        />
+      ))}
       {boundaryPieces.map((piece) => {
         const face = elevationToPlan(frame, piece.x, 0);
         const front = elevationToPlan(frame, piece.x, depth);
@@ -73,6 +116,9 @@ export default function PlanRunFootprint({
             stroke={KIND_COLORS[piece.kind] ?? '#cbd5e1'}
             strokeWidth={0.75 / scale}
             opacity={0.9}
+            dash={piece.x < 0 || piece.x > frame.length
+              ? [2 / scale, 2 / scale]
+              : undefined}
             listening={false}
           />
         );

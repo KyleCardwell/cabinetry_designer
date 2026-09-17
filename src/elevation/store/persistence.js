@@ -154,6 +154,9 @@ function normalizeV2Document(document) {
       adjacentRunGap: document.settings.adjacentRunGap === undefined
         ? DEFAULT_SETTINGS.adjacentRunGap
         : document.settings.adjacentRunGap,
+      maxRunOverhang: document.settings.maxRunOverhang === undefined
+        ? DEFAULT_SETTINGS.maxRunOverhang
+        : document.settings.maxRunOverhang,
     }
     : document.settings;
   return {

@@ -66,7 +66,7 @@ describe('properties helpers', () => {
       runs: [selected],
     };
     const room = { profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall] };
-    const result = prepareRunUpdate(room, wall.id, selected, DEFAULT_SETTINGS, { width: 121 });
+    const result = prepareRunUpdate(room, wall.id, selected, DEFAULT_SETTINGS, { width: 157 });
 
     expect(result.validation).toEqual({ ok: false, reason: 'out-of-bounds' });
   });

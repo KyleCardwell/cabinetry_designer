@@ -59,6 +59,8 @@ export function horizontalChains(room, wall, band, settings) {
   const length = wallLength(wall);
   const firstRun = runs[0];
   const lastRun = runs[runs.length - 1];
+  const rangeStart = Math.min(0, firstRun.x);
+  const rangeEnd = Math.max(length, lastRun.x + lastRun.width);
   const leftCornerGap = Boolean(
     firstRun.anchors?.left
     && cornerAt(room, wall, 'left').type === 'inside',
@@ -75,7 +77,7 @@ export function horizontalChains(room, wall, band, settings) {
     : [];
 
   const inner = [];
-  let cursor = 0;
+  let cursor = rangeStart;
   runs.forEach((run, index) => {
     appendGap(
       inner,
@@ -99,13 +101,13 @@ export function horizontalChains(room, wall, band, settings) {
   appendGap(
     inner,
     cursor,
-    length,
+    rangeEnd,
     rightCornerGap ? 'corner-gap' : 'open',
     tallRanges,
   );
 
   const outer = [];
-  cursor = 0;
+  cursor = rangeStart;
   runs.forEach((run, index) => {
     const start = index === 0 && leftCornerGap ? 0 : run.x;
     const end = index === runs.length - 1 && rightCornerGap
@@ -115,7 +117,7 @@ export function horizontalChains(room, wall, band, settings) {
     appendSegment(outer, start, end, 'run', { runId: run.id });
     cursor = end;
   });
-  appendOpenGap(outer, cursor, length, tallRanges);
+  appendOpenGap(outer, cursor, rangeEnd, tallRanges);
 
   return { inner, outer };
 }

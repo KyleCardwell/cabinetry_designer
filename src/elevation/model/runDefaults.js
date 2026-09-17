@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
-import { CABINET_TYPE_IDS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { bandsCompatible, cornerAt } from './corners.js';
-import { wallFrame } from './geometry.js';
+import { clamp, wallFrame } from './geometry.js';
 import {
   counterTop,
   moldingStack,
@@ -57,9 +57,15 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
   const cabinetTypeId = inferRunType(bottomZ, topZ);
   const profile = resolveProfile(settings, room, wall);
   const typeDefaults = defaultsForType(cabinetTypeId, settings, profile);
-  const roundedX = roundTo(x, 0.5);
-  const roundedWidth = roundTo(width, 0.5);
   const length = wall ? wallFrame(room, wall).length : Number.POSITIVE_INFINITY;
+  const maxRunOverhang = settings.maxRunOverhang ?? DEFAULT_SETTINGS.maxRunOverhang;
+  const minimumX = -maxRunOverhang;
+  const maximumX = length + maxRunOverhang;
+  const requestedX = roundTo(x, 0.5);
+  const requestedWidth = roundTo(width, 0.5);
+  const roundedX = clamp(requestedX, minimumX, maximumX);
+  const roundedEnd = clamp(requestedX + requestedWidth, minimumX, maximumX);
+  const roundedWidth = Math.max(0, roundedEnd - roundedX);
   const edges = { left: roundedX, right: roundedX + roundedWidth };
   const anchors = Object.fromEntries(['left', 'right'].map((side) => {
     const distance = side === 'left' ? Math.abs(edges.left) : Math.abs(length - edges.right);
