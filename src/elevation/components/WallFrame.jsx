@@ -1,7 +1,13 @@
-import { Group, Line, Rect } from 'react-konva';
+import {
+  Group,
+  Line,
+  Rect,
+  Text,
+} from 'react-konva';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
+import { formatInches } from '../model/units.js';
 
-export default function WallFrame({ wall, transform }) {
+export default function WallFrame({ wall, transform, crownTop }) {
   const wallRect = wallRectToScreen({
     x: 0,
     z: 0,
@@ -10,6 +16,12 @@ export default function WallFrame({ wall, transform }) {
   }, transform);
   const floorStart = wallToScreen({ x: 0, z: 0 }, transform);
   const floorEnd = wallToScreen({ x: wall.length, z: 0 }, transform);
+  const crownStart = Number.isFinite(crownTop)
+    ? wallToScreen({ x: 0, z: crownTop }, transform)
+    : null;
+  const crownEnd = Number.isFinite(crownTop)
+    ? wallToScreen({ x: wall.length, z: crownTop }, transform)
+    : null;
   const verticalGrid = [];
   const horizontalGrid = [];
 
@@ -51,6 +63,24 @@ export default function WallFrame({ wall, transform }) {
       />
       {verticalGrid}
       {horizontalGrid}
+      {Number.isFinite(crownTop) && (
+        <>
+          <Line
+            points={[crownStart.x, crownStart.y, crownEnd.x, crownEnd.y]}
+            stroke="#fbbf24"
+            strokeWidth={1.25}
+            dash={[7, 5]}
+            opacity={0.9}
+          />
+          <Text
+            x={crownStart.x + 5}
+            y={crownStart.y - 17}
+            text={`Top of crown ${formatInches(crownTop)}`}
+            fontSize={11}
+            fill="#fbbf24"
+          />
+        </>
+      )}
       <Line
         points={[floorStart.x, floorStart.y, floorEnd.x, floorEnd.y]}
         stroke="#e2e8f0"

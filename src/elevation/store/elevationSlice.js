@@ -155,6 +155,14 @@ const elevationSlice = createSlice({
       }
       syncRoomAt(state, roomIndex);
     },
+    useAutoHeightsForRoom(state, action) {
+      const roomIndex = roomIndexFor(state, action.payload.roomId ?? action.payload);
+      if (roomIndex === -1) return;
+      for (const wall of state.rooms[roomIndex].walls) {
+        for (const run of wall.runs) run.heightMode = 'auto';
+      }
+      syncRoomAt(state, roomIndex);
+    },
     addWall: {
       reducer(state, action) {
         const roomIndex = roomIndexFor(state, action.payload.roomId);
@@ -421,6 +429,7 @@ export const {
   deleteRoom,
   setActiveRoom,
   updateRoomProfile,
+  useAutoHeightsForRoom,
   addWall,
   updateWall,
   deleteWall,

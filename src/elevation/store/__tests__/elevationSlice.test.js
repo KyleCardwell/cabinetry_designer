@@ -7,6 +7,9 @@ import elevationReducer, {
   removeItem,
   setRunEnd,
   splitItem,
+  updateRoomProfile,
+  updateWall,
+  useAutoHeightsForRoom,
 } from '../elevationSlice.js';
 
 function auto(id) {
@@ -162,5 +165,81 @@ describe('elevation run reducers', () => {
     expect(currentRun(next).autoCount).toBe(false);
     expect(currentRun(next).items).toHaveLength(1);
     expect(currentRun(next).items[0]).toMatchObject({ kind: 'cabinet', width: null });
+  });
+
+  it('switches every room run to auto heights without clearing overrides', () => {
+    const first = run({
+      id: 'run-1',
+      heightMode: 'manual',
+      z: 12,
+      height: 18,
+      overrides: { toeKickHeight: 6 },
+    });
+    const second = run({
+      id: 'run-2',
+      cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+      heightMode: 'manual',
+      z: 48,
+      height: 24,
+      overrides: { upperClearance: 20 },
+    });
+    const initial = stateWithRun(first);
+    initial.rooms[0].walls[0].runs.push(second);
+
+    const next = elevationReducer(
+      initial,
+      useAutoHeightsForRoom({ roomId: 'room-1' }),
+    );
+    const [resolvedFirst, resolvedSecond] = next.rooms[0].walls[0].runs;
+
+    expect(resolvedFirst).toMatchObject({
+      heightMode: 'auto',
+      z: 6,
+      height: 30.5,
+      overrides: { toeKickHeight: 6 },
+    });
+    expect(resolvedSecond).toMatchObject({
+      heightMode: 'auto',
+      z: 58,
+      height: 32,
+      overrides: { upperClearance: 20 },
+    });
+  });
+
+  it('re-resolves auto runs after room height changes while preserving manual runs', () => {
+    const automatic = run({ id: 'auto', heightMode: 'auto' });
+    const manual = run({
+      id: 'manual',
+      x: 84,
+      width: 48,
+      heightMode: 'manual',
+      z: 12,
+      height: 18,
+    });
+    const initial = stateWithRun(automatic);
+    initial.rooms[0].walls[0].runs.push(manual);
+
+    const next = elevationReducer(initial, updateRoomProfile({
+      roomId: 'room-1',
+      changes: { toeKickHeight: 5, baseBoxHeight: 32 },
+    }));
+
+    expect(next.rooms[0].walls[0].runs[0]).toMatchObject({ z: 5, height: 32 });
+    expect(next.rooms[0].walls[0].runs[1]).toMatchObject({ z: 12, height: 18 });
+  });
+
+  it('re-resolves an auto tall run after a wall crown override changes', () => {
+    const tall = run({
+      cabinetTypeId: CABINET_TYPE_IDS.TALL,
+      heightMode: 'auto',
+      height: 86,
+    });
+
+    const next = elevationReducer(stateWithRun(tall), updateWall({
+      wallId: 'wall-1',
+      changes: { profile: { crownTop: 90 } },
+    }));
+
+    expect(currentRun(next)).toMatchObject({ z: 4, height: 80 });
   });
 });

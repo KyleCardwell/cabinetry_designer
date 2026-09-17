@@ -4,6 +4,8 @@ import {
   CABINET_TYPE_IDS,
   KIND_LABELS,
   formatInches,
+  moldingStack,
+  resolveProfile,
   splitRun,
 } from '../model/index.js';
 import {
@@ -27,10 +29,13 @@ import {
   setMaxCabinetWidth,
   setMessage,
   setRunEnd,
+  setRunHeightMode,
+  setRunOverride,
   setRunType,
   setSelection,
   splitItem,
   updateRun,
+  updateWall,
 } from '../store/elevationSlice.js';
 import InchInput from './InchInput.jsx';
 
@@ -54,7 +59,35 @@ const PLACEMENT_MESSAGES = {
 const ERROR_MESSAGES = {
   'over-constrained': 'Fixed widths exceed the run width.',
   'does-not-fill': 'The fixed pieces do not fill the run.',
+  'no-room-for-box': 'The height profile leaves no room for this cabinet box.',
 };
+
+const WARNING_MESSAGES = {
+  'mixed-counter-heights': 'Overlapping base runs have different counter heights.',
+  'crown-above-ceiling': 'The crown profile extends above the wall height.',
+};
+
+const RUN_OVERRIDE_FIELDS = {
+  [CABINET_TYPE_IDS.BASE]: [
+    ['toeKickHeight', 'Toe kick'],
+    ['baseBoxHeight', 'Box height'],
+    ['countertopThickness', 'Countertop'],
+  ],
+  [CABINET_TYPE_IDS.TALL]: [
+    ['toeKickHeight', 'Toe kick'],
+    ['boxTop', 'Box top'],
+  ],
+  [CABINET_TYPE_IDS.UPPER]: [
+    ['upperClearance', 'Clearance above counter'],
+    ['boxTop', 'Box top'],
+  ],
+};
+
+const WALL_OVERRIDE_FIELDS = [
+  ['crownTop', 'Top of crown'],
+  ['toeKickHeight', 'Toe kick height'],
+  ['countertopThickness', 'Countertop thickness'],
+];
 
 function Field({ label, children }) {
   return (
@@ -62,6 +95,17 @@ function Field({ label, children }) {
       <span className="mb-1 block">{label}</span>
       {children}
     </label>
+  );
+}
+
+function ReadOnlyValue({ value, ariaLabel }) {
+  return (
+    <div
+      aria-label={ariaLabel}
+      className="w-full rounded border border-gray-700 bg-gray-900/60 px-2.5 py-1.5 text-sm text-gray-300"
+    >
+      {formatInches(value)}
+    </div>
   );
 }
 
@@ -132,7 +176,7 @@ function WarningsList({ layout }) {
               key={`${warning.code}-${warning.pieceId}-${index}`}
               className="rounded border border-amber-900/80 bg-amber-950/35 px-2.5 py-2 text-amber-300"
             >
-              {warning.message ?? warning.code}
+              {warning.message ?? WARNING_MESSAGES[warning.code] ?? warning.code}
             </li>
           ))}
         </ul>
@@ -147,6 +191,12 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
   const finalCabinet = lastCabinetItem(run);
   const finalItem = lastRunItem(run);
   const cabinetCount = run.items.filter((item) => item.kind === 'cabinet').length;
+  const profile = resolveProfile(settings, room, wall);
+  const inheritedValues = {
+    ...profile,
+    boxTop: profile.crownTop - moldingStack(profile),
+  };
+  const overrideFields = RUN_OVERRIDE_FIELDS[run.cabinetTypeId] ?? [];
 
   const validateAndDispatch = (changes) => {
     const { validation } = prepareRunUpdate(room, wall.id, run, settings, changes);
@@ -190,13 +240,6 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
             ))}
           </select>
         </Field>
-        <button
-          type="button"
-          onClick={() => changeType(run.cabinetTypeId, true)}
-          className="mt-2 w-full rounded bg-gray-700 px-3 py-2 text-xs font-medium text-gray-200 transition-colors hover:bg-gray-600"
-        >
-          Reset heights to defaults
-        </button>
       </section>
 
       <section>
@@ -207,8 +250,6 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
           {[
             ['x', 'X'],
             ['width', 'Width'],
-            ['z', 'Z'],
-            ['height', 'Height'],
             ['depth', 'Depth'],
           ].map(([key, label]) => (
             <Field key={key} label={label}>
@@ -220,6 +261,87 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
             </Field>
           ))}
         </div>
+      </section>
+
+      <section>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Heights
+        </h3>
+        <div className="mb-3 grid grid-cols-2 overflow-hidden rounded border border-gray-700">
+          {['auto', 'manual'].map((mode) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => dispatch(setRunHeightMode({ ...actionBase, mode }))}
+              className={`px-3 py-2 text-xs font-medium capitalize transition-colors ${
+                run.heightMode === mode
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-900/45 text-gray-400 hover:bg-gray-700'
+              }`}
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+
+        {run.heightMode === 'auto' ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2.5">
+              <Field label="Resolved Z">
+                <ReadOnlyValue value={run.z} ariaLabel="Resolved run z" />
+              </Field>
+              <Field label="Resolved height">
+                <ReadOnlyValue value={run.height} ariaLabel="Resolved run height" />
+              </Field>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {overrideFields.map(([key, label]) => (
+                <Field key={key} label={`${label} (blank = inherit)`}>
+                  <InchInput
+                    value={run.overrides[key] ?? null}
+                    allowBlank
+                    placeholder={formatInches(inheritedValues[key])}
+                    onCommit={(value) => dispatch(setRunOverride({
+                      ...actionBase,
+                      key,
+                      value,
+                    }))}
+                    aria-label={`Run ${label} override`}
+                  />
+                </Field>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-2.5">
+            <Field label="Z">
+              <InchInput
+                value={run.z}
+                onCommit={(value) => validateAndDispatch({ z: value })}
+                aria-label="Run z"
+              />
+            </Field>
+            <Field label="Height">
+              <InchInput
+                value={run.height}
+                onCommit={(value) => validateAndDispatch({ height: value })}
+                aria-label="Run height"
+              />
+            </Field>
+          </div>
+        )}
+
+        <button
+          type="button"
+          onClick={() => dispatch(setRunType({
+            ...actionBase,
+            typeId: run.cabinetTypeId,
+            resetToDefaults: true,
+          }))}
+          className="mt-3 w-full rounded bg-gray-700 px-3 py-2 text-xs font-medium text-gray-200 transition-colors hover:bg-gray-600"
+        >
+          Reset heights to defaults
+        </button>
       </section>
 
       <section>
@@ -496,6 +618,54 @@ function PieceProperties({ wallId, run, selectionContext }) {
   );
 }
 
+function WallHeightProperties({ room, wall }) {
+  const dispatch = useDispatch();
+
+  return (
+    <div className="space-y-5">
+      <section>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Wall
+        </h3>
+        <p className="mb-3 text-sm font-medium text-gray-200">{wall.name}</p>
+        <Field label="Wall height">
+          <InchInput
+            value={wall.height}
+            onCommit={(height) => dispatch(updateWall({
+              wallId: wall.id,
+              changes: { height },
+            }))}
+            aria-label="Wall height"
+          />
+        </Field>
+      </section>
+
+      <section>
+        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Heights
+        </h3>
+        <p className="mb-3 text-xs text-gray-500">Blank values inherit from the room.</p>
+        <div className="space-y-2.5">
+          {WALL_OVERRIDE_FIELDS.map(([key, label]) => (
+            <Field key={key} label={label}>
+              <InchInput
+                value={wall.profile[key] ?? null}
+                allowBlank
+                placeholder={formatInches(room.profile[key])}
+                onCommit={(value) => dispatch(updateWall({
+                  wallId: wall.id,
+                  changes: { profile: { [key]: value } },
+                }))}
+                aria-label={`Wall ${label} override`}
+              />
+            </Field>
+          ))}
+        </div>
+      </section>
+    </div>
+  );
+}
+
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
   const messageTimer = useRef(null);
@@ -563,10 +733,12 @@ export default function PropertiesPanel() {
       </h2>
 
       <div className="mt-4">
-        {!run || !wall || !displayLayout ? (
+        {!wall ? (
           <p className="text-sm leading-relaxed text-gray-500">
-            Draw a run, or click a run or cabinet
+            Add or select a wall to edit its heights.
           </p>
+        ) : !run || !displayLayout ? (
+          <WallHeightProperties room={room} wall={wall} />
         ) : selectionContext ? (
           <PieceProperties
             wallId={wall.id}

@@ -4,6 +4,8 @@ import ElevationCanvas from './components/ElevationCanvas.jsx';
 import ElevationToolbar from './components/ElevationToolbar.jsx';
 import JsonToggle from './components/JsonToggle.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
+import RoomHeightsPanel from './components/RoomHeightsPanel.jsx';
+import RoomPicker from './components/RoomPicker.jsx';
 import SampleRunsButton from './components/SampleRunsButton.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import WallList from './components/WallList.jsx';
@@ -31,6 +33,8 @@ export default function ElevationLab() {
           <p className="mt-1 text-xs text-gray-500">Scratch walls and cabinet runs</p>
         </div>
         <div className="space-y-5">
+          <RoomPicker />
+          <RoomHeightsPanel />
           <WallList />
           <SampleRunsButton />
           <SettingsPanel />

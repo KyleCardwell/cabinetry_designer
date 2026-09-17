@@ -30,6 +30,22 @@ function RunGroup({
   const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
   const countertopThickness = run.overrides?.countertopThickness
     ?? profile.countertopThickness;
+  const showsMolding = run.heightMode === 'auto'
+    && (run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
+      || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
+  const boxTop = run.z + run.height;
+  const topMold = wallRectToScreen({
+    x: run.x,
+    z: boxTop,
+    width: run.width,
+    height: profile.topMoldHeight,
+  }, transform);
+  const crown = wallRectToScreen({
+    x: run.x,
+    z: boxTop + profile.topMoldHeight - profile.crownOverlap,
+    width: run.width,
+    height: profile.crownHeight,
+  }, transform);
   const warningPieceIds = useMemo(
     () => new Set(
       [...result.warnings, ...(diagnostic?.warnings ?? [])].map((entry) => entry.pieceId),
@@ -37,6 +53,7 @@ function RunGroup({
     [diagnostic?.warnings, result.warnings],
   );
   const hasErrors = (diagnostic?.errors ?? result.errors).length > 0;
+  const hasWarnings = (diagnostic?.warnings ?? result.warnings).length > 0;
   const hasToeKick = run.cabinetTypeId === CABINET_TYPE_IDS.BASE
     || run.cabinetTypeId === CABINET_TYPE_IDS.TALL;
   const isBase = run.cabinetTypeId === CABINET_TYPE_IDS.BASE;
@@ -83,6 +100,27 @@ function RunGroup({
         />
       )}
 
+      {showsMolding && (
+        <>
+          <Rect
+            {...topMold}
+            fill="#94a3b8"
+            opacity={0.9}
+            stroke="#cbd5e1"
+            strokeWidth={1}
+            listening={false}
+          />
+          <Rect
+            {...crown}
+            fill="#e2e8f0"
+            opacity={0.82}
+            stroke="#f8fafc"
+            strokeWidth={1}
+            listening={false}
+          />
+        </>
+      )}
+
       <Rect
         {...runRect}
         fill="rgba(0, 0, 0, 0.001)"
@@ -114,7 +152,11 @@ function RunGroup({
       <DimensionLine
         run={run}
         transform={transform}
-        color={hasErrors ? '#ef4444' : selectedRun ? '#38bdf8' : '#94a3b8'}
+        color={hasErrors
+          ? '#ef4444'
+          : hasWarnings
+            ? '#f59e0b'
+            : selectedRun ? '#38bdf8' : '#94a3b8'}
         topOffset={isBase ? countertopThickness + 4 : 4}
         onSelect={() => onSelectRun(run.id)}
       />

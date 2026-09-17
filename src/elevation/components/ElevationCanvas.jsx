@@ -14,6 +14,7 @@ import {
   screenPointToWallSnapped,
 } from '../canvas/drag.js';
 import { createRun } from '../model/runDefaults.js';
+import { resolveProfile } from '../model/profile.js';
 import { roomDiagnostics, tryPlaceRun } from '../model/room.js';
 import {
   addRun,
@@ -44,6 +45,10 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
   const diagnostics = useMemo(
     () => (room ? roomDiagnostics(room, settings) : {}),
     [room, settings],
+  );
+  const profile = useMemo(
+    () => (room && wall ? resolveProfile(settings, room, wall) : null),
+    [room, settings, wall],
   );
 
   selectionRef.current = selection;
@@ -252,7 +257,11 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
         >
           <Layer listening={false}>
             <Rect width={viewport.width} height={viewport.height} fill="#111827" />
-            <WallFrame wall={wall} transform={transform} />
+            <WallFrame
+              wall={wall}
+              transform={transform}
+              crownTop={profile?.crownTop}
+            />
           </Layer>
           <Layer>
             {wall.runs.map((run) => (
