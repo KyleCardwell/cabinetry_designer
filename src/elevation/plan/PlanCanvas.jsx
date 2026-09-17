@@ -7,20 +7,30 @@ import {
   useState,
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Layer, Stage } from 'react-konva';
+import {
+  Group,
+  Layer,
+  Line,
+  Rect,
+  Stage,
+  Text,
+} from 'react-konva';
 import { snapToEndpoint, snapToGrid } from '../../canvas/SnapEngine.js';
 import AxisGuides from '../../canvas/components/AxisGuides.jsx';
 import WallDrawPreview from '../../canvas/components/WallDrawPreview.jsx';
 import WallEndpoints from '../../canvas/components/WallEndpoints.jsx';
 import { findCollisions } from '../model/footprints.js';
-import { wallFrame } from '../model/geometry.js';
+import { dot, subtract, wallFrame } from '../model/geometry.js';
 import { wallLabel } from '../model/topology.js';
+import { formatInches, roundTo } from '../model/units.js';
+import { wallOutline } from '../model/wallOutline.js';
 import {
   addWallSegment,
   connectWalls,
   deleteWall,
   disconnectWallEndpoint,
   moveWallEndpoint,
+  moveWallPerpendicular,
   setActiveWall,
   setSelection,
   setTool,
@@ -28,7 +38,10 @@ import {
 } from '../store/elevationSlice.js';
 import PlanWallShape from './PlanWallShape.jsx';
 import PlanRunFootprint from './PlanRunFootprint.jsx';
-import { snapPointOrtho } from './wallOps.js';
+import {
+  moveWallPerpendicular as previewWallPerpendicular,
+  snapPointOrtho,
+} from './wallOps.js';
 
 const PIXELS_PER_INCH = 4;
 const ENDPOINT_SNAP_RADIUS = 6;
@@ -37,6 +50,11 @@ const MAX_ZOOM = 10;
 
 function clampZoom(zoom) {
   return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
+}
+
+function signedInches(value) {
+  if (Math.abs(value) < 1e-9) return formatInches(0);
+  return `${value > 0 ? '+' : '−'}${formatInches(Math.abs(value))}`;
 }
 
 export default function PlanCanvas({ fitRequest = 0 }) {
@@ -84,7 +102,24 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const [wallDrawStart, setWallDrawStart] = useState(null);
   const [mouseWorldPos, setMouseWorldPos] = useState(null);
   const [pendingDeleteWallId, setPendingDeleteWallId] = useState(null);
+  const [wallMovePreview, setWallMovePreview] = useState(null);
   const scale = zoom * PIXELS_PER_INCH;
+  const moveHandle = useMemo(() => {
+    if (!room || !selectedWall) return null;
+    const frame = wallFrame(room, selectedWall);
+    const midpoint = {
+      x: (selectedWall.x1 + selectedWall.x2) / 2,
+      y: (selectedWall.y1 + selectedWall.y2) / 2,
+    };
+    return {
+      frame,
+      midpoint,
+      point: {
+        x: midpoint.x + frame.n.x * 12 / scale,
+        y: midpoint.y + frame.n.y * 12 / scale,
+      },
+    };
+  }, [room, scale, selectedWall]);
 
   drawStartRef.current = wallDrawStart;
 
@@ -162,6 +197,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   useEffect(() => {
     if (tool !== 'wall') cancelDrawing();
   }, [cancelDrawing, tool]);
+
+  useEffect(() => {
+    setWallMovePreview(null);
+  }, [activeRoomId, activeWallId, tool]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -286,6 +325,52 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     }
   }, [adaptedWalls, dispatch, gridAndOrtho, walls]);
 
+  const previewPerpendicularMove = useCallback((delta) => {
+    if (!room || !selectedWall) return;
+    const result = previewWallPerpendicular(room, selectedWall.id, delta);
+    if (!result.ok) {
+      setWallMovePreview({ delta, room: null, affectedWallIds: [] });
+      return;
+    }
+    const affectedWallIds = [
+      selectedWall.id,
+      ...['start', 'end'].map((endpoint) => (
+        selectedWall.connections?.[endpoint]?.wallId
+      )).filter(Boolean),
+    ];
+    setWallMovePreview({
+      delta,
+      room: { ...room, walls: result.walls },
+      affectedWallIds: [...new Set(affectedWallIds)],
+    });
+  }, [room, selectedWall]);
+
+  const wallMoveDelta = useCallback((event) => {
+    if (!moveHandle) return 0;
+    return dot(
+      subtract(
+        { x: event.target.x(), y: event.target.y() },
+        moveHandle.point,
+      ),
+      moveHandle.frame.n,
+    );
+  }, [moveHandle]);
+
+  const handleWallMoveDrag = useCallback((event) => {
+    event.cancelBubble = true;
+    previewPerpendicularMove(wallMoveDelta(event));
+  }, [previewPerpendicularMove, wallMoveDelta]);
+
+  const handleWallMoveEnd = useCallback((event) => {
+    event.cancelBubble = true;
+    if (!selectedWall || !moveHandle) return;
+    const delta = roundTo(wallMoveDelta(event), settings.planGrid);
+    setWallMovePreview(null);
+    event.target.position(moveHandle.point);
+    event.target.getLayer()?.batchDraw();
+    dispatch(moveWallPerpendicular({ wallId: selectedWall.id, delta }));
+  }, [dispatch, moveHandle, selectedWall, settings.planGrid, wallMoveDelta]);
+
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
     const pointer = stageRef.current?.getPointerPosition();
@@ -380,11 +465,105 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 />
               ));
             })}
+            {wallMovePreview?.room && (
+              <Group listening={false}>
+                {wallMovePreview.affectedWallIds.map((wallId) => {
+                  const previewWall = wallMovePreview.room.walls.find(
+                    (wall) => wall.id === wallId,
+                  );
+                  if (!previewWall) return null;
+                  return (
+                    <Line
+                      key={wallId}
+                      points={wallOutline(wallMovePreview.room, previewWall)
+                        .flatMap((point) => [point.x, point.y])}
+                      closed
+                      fill="#22d3ee"
+                      opacity={0.16}
+                      stroke="#67e8f9"
+                      strokeWidth={2 / scale}
+                      dash={[6 / scale, 4 / scale]}
+                    />
+                  );
+                })}
+                {(() => {
+                  const previewWall = wallMovePreview.room.walls.find(
+                    (wall) => wall.id === selectedWall?.id,
+                  );
+                  if (!previewWall) return null;
+                  const frame = wallFrame(wallMovePreview.room, previewWall);
+                  const midpoint = {
+                    x: (previewWall.x1 + previewWall.x2) / 2,
+                    y: (previewWall.y1 + previewWall.y2) / 2,
+                  };
+                  return (
+                    <Text
+                      x={midpoint.x + frame.n.x * 28 / scale}
+                      y={midpoint.y + frame.n.y * 28 / scale}
+                      width={100 / scale}
+                      offsetX={50 / scale}
+                      offsetY={6 / scale}
+                      align="center"
+                      text={signedInches(wallMovePreview.delta)}
+                      fontSize={11 / scale}
+                      fill="#a5f3fc"
+                    />
+                  );
+                })()}
+              </Group>
+            )}
             {tool === 'select' && selectedWall && (
               <WallEndpoints
                 wall={{ ...selectedWall, wall_id: selectedWall.id }}
                 scale={scale}
                 onDrag={handleWallEndpointDrag}
+              />
+            )}
+            {tool === 'select' && selectedWall && moveHandle && (
+              <Rect
+                x={moveHandle.point.x}
+                y={moveHandle.point.y}
+                width={10 / scale}
+                height={10 / scale}
+                offsetX={5 / scale}
+                offsetY={5 / scale}
+                fill="#22d3ee"
+                stroke="#ecfeff"
+                strokeWidth={1 / scale}
+                cornerRadius={1.5 / scale}
+                draggable
+                dragBoundFunc={(position) => {
+                  const midpoint = {
+                    x: moveHandle.midpoint.x * scale + pan.x,
+                    y: moveHandle.midpoint.y * scale + pan.y,
+                  };
+                  const amount = dot(subtract(position, midpoint), moveHandle.frame.n);
+                  return {
+                    x: midpoint.x + moveHandle.frame.n.x * amount,
+                    y: midpoint.y + moveHandle.frame.n.y * amount,
+                  };
+                }}
+                onMouseEnter={(event) => {
+                  event.target.getStage().container().style.cursor = 'move';
+                }}
+                onMouseLeave={(event) => {
+                  event.target.getStage().container().style.cursor = 'default';
+                }}
+                onMouseDown={(event) => {
+                  event.cancelBubble = true;
+                }}
+                onClick={(event) => {
+                  event.cancelBubble = true;
+                }}
+                onDblClick={(event) => {
+                  event.cancelBubble = true;
+                }}
+                onDragStart={(event) => {
+                  event.cancelBubble = true;
+                  setWallMovePreview(null);
+                }}
+                onDragMove={handleWallMoveDrag}
+                onDragEnd={handleWallMoveEnd}
               />
             )}
             <WallDrawPreview

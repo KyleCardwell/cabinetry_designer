@@ -1,11 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
+import { runFootprint } from '../../model/footprints.js';
+import { wallFrame } from '../../model/geometry.js';
 import elevationReducer, {
   addRoom,
   addItemAfter,
   addRun,
   createInitialElevationState,
   lockItem,
+  moveWallEndpoint,
+  moveWallPerpendicular,
   removeItem,
   setActiveRoom,
   setRunEnd,
@@ -135,6 +139,67 @@ describe('elevation room reducers', () => {
       view: 'plan',
       tool: 'select',
     });
+  });
+
+  it('keeps an unanchored run footprint fixed when its wall left end moves', () => {
+    const initial = stateWithRun(run({
+      x: 30,
+      width: 30,
+      autoCount: false,
+      items: [fixed('cabinet', 27)],
+    }));
+    const oldRoom = initial.rooms[0];
+    const oldWall = oldRoom.walls[0];
+    const oldFootprint = runFootprint(
+      wallFrame(oldRoom, oldWall),
+      oldWall.runs[0],
+      initial.settings,
+    );
+
+    const next = elevationReducer(initial, moveWallEndpoint({
+      wallId: 'wall-1',
+      endpoint: 'start',
+      x: 10,
+      y: 0,
+    }));
+    const nextRoom = next.rooms[0];
+    const nextWall = nextRoom.walls[0];
+    const nextFootprint = runFootprint(
+      wallFrame(nextRoom, nextWall),
+      nextWall.runs[0],
+      next.settings,
+    );
+
+    expect(nextWall.runs[0].x).toBe(20);
+    expect(nextFootprint).toEqual(oldFootprint);
+  });
+
+  it('leaves wall geometry unchanged and reports a rejected perpendicular move', () => {
+    const initial = stateWithRun();
+    const room = initial.rooms[0];
+    room.wallOrder = ['wall-1', 'wall-2'];
+    Object.assign(room.walls[0], {
+      x2: 120,
+      connections: { start: null, end: { wallId: 'wall-2', endpoint: 'start' } },
+    });
+    room.walls.push({
+      ...room.walls[0],
+      id: 'wall-2',
+      x1: 120,
+      y1: 0,
+      x2: 120,
+      y2: 96,
+      connections: { start: { wallId: 'wall-1', endpoint: 'end' }, end: null },
+      runs: [],
+    });
+
+    const next = elevationReducer(initial, moveWallPerpendicular({
+      wallId: 'wall-1',
+      delta: 96,
+    }));
+
+    expect(next.rooms[0]).toEqual(initial.rooms[0]);
+    expect(next.message).toBe('neighbor-too-short');
   });
 });
 

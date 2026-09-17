@@ -5,7 +5,12 @@ import {
   resolveHorizontal,
 } from './corners.js';
 import { findCollisions } from './footprints.js';
-import { wallFrame, wallLength } from './geometry.js';
+import {
+  dot,
+  subtract,
+  wallFrame,
+  wallLength,
+} from './geometry.js';
 import { validateRunPlacement } from './overlap.js';
 import { resolveProfile, resolveVertical } from './profile.js';
 import { splitRun, syncAutoItems } from './splitRun.js';
@@ -40,6 +45,34 @@ function cloneRoom(room) {
       },
       runs: wall.runs.map(cloneRun),
     })),
+  };
+}
+
+/**
+ * Shift unanchored run x values so geometry edits keep their plan positions fixed.
+ *
+ * @param {object} oldRoom
+ * @param {object} newRoom
+ * @returns {object}
+ */
+export function compensateRuns(oldRoom, newRoom) {
+  const oldWalls = new Map(oldRoom.walls.map((wall) => [wall.id, wall]));
+  return {
+    ...newRoom,
+    walls: newRoom.walls.map((wall) => {
+      const oldWall = oldWalls.get(wall.id);
+      if (!oldWall) return wall;
+      const oldFrame = wallFrame(oldRoom, oldWall);
+      const newFrame = wallFrame(newRoom, wall);
+      const shift = dot(subtract(newFrame.leftPoint, oldFrame.leftPoint), newFrame.r);
+      if (Math.abs(shift) <= 1e-9) return wall;
+      return {
+        ...wall,
+        runs: (wall.runs ?? []).map((run) => (
+          run.anchors?.left ? run : { ...run, x: run.x - shift }
+        )),
+      };
+    }),
   };
 }
 

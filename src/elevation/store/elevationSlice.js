@@ -3,12 +3,17 @@ import { v4 as uuid } from 'uuid';
 import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { wallFrame } from '../model/geometry.js';
-import { flipRunsForWall, syncRoom } from '../model/room.js';
+import {
+  compensateRuns,
+  flipRunsForWall,
+  syncRoom,
+} from '../model/room.js';
 import {
   addWallWithConnections,
   connectWallEndpoints,
   disconnectWallEndpoint as disconnectWallEndpointPure,
   moveConnectedEndpoint,
+  moveWallPerpendicular as moveWallPerpendicularPure,
   setWallLength as setWallLengthPure,
 } from '../plan/wallOps.js';
 import {
@@ -102,6 +107,12 @@ function runLocation(state, payload) {
 
 function syncRoomAt(state, roomIndex) {
   state.rooms[roomIndex] = syncRoom(state.rooms[roomIndex], state.settings);
+}
+
+function setCompensatedWalls(state, roomIndex, walls) {
+  const oldRoom = state.rooms[roomIndex];
+  state.rooms[roomIndex] = compensateRuns(oldRoom, { ...oldRoom, walls });
+  syncRoomAt(state, roomIndex);
 }
 
 function itemIndexFor(run, itemId) {
@@ -242,25 +253,27 @@ const elevationSlice = createSlice({
       const roomIndex = roomIndexFor(state, action.payload.roomId);
       if (roomIndex === -1) return;
       const wallId = action.payload.wallId ?? action.payload.wall_id;
-      state.rooms[roomIndex].walls = moveConnectedEndpoint(
-        state.rooms[roomIndex].walls,
+      const room = state.rooms[roomIndex];
+      const walls = moveConnectedEndpoint(
+        room.walls,
         wallId,
         action.payload.endpoint,
         { x: action.payload.x, y: action.payload.y },
       );
-      syncRoomAt(state, roomIndex);
+      setCompensatedWalls(state, roomIndex, walls);
     },
     connectWalls(state, action) {
       const roomIndex = roomIndexFor(state, action.payload.roomId);
       if (roomIndex === -1) return;
-      state.rooms[roomIndex].walls = connectWallEndpoints(
-        state.rooms[roomIndex].walls,
+      const room = state.rooms[roomIndex];
+      const walls = connectWallEndpoints(
+        room.walls,
         action.payload.wallId1,
         action.payload.endpoint1,
         action.payload.wallId2,
         action.payload.endpoint2,
       );
-      syncRoomAt(state, roomIndex);
+      setCompensatedWalls(state, roomIndex, walls);
     },
     disconnectWallEndpoint(state, action) {
       const roomIndex = roomIndexFor(state, action.payload.roomId);
@@ -276,12 +289,28 @@ const elevationSlice = createSlice({
       const location = wallLocation(state, action.payload);
       const length = action.payload.length ?? action.payload.value;
       if (!location || !Number.isFinite(length) || length <= 0) return;
-      location.room.walls = setWallLengthPure(
+      const walls = setWallLengthPure(
         location.room,
         location.wall.id,
         length,
       );
-      syncRoomAt(state, location.roomIndex);
+      setCompensatedWalls(state, location.roomIndex, walls);
+    },
+    moveWallPerpendicular(state, action) {
+      const roomIndex = roomIndexFor(state, action.payload.roomId);
+      if (roomIndex === -1) return;
+      const room = state.rooms[roomIndex];
+      const result = moveWallPerpendicularPure(
+        room,
+        action.payload.wallId,
+        action.payload.delta,
+      );
+      if (!result.ok) {
+        state.message = result.reason;
+        return;
+      }
+      state.message = null;
+      setCompensatedWalls(state, roomIndex, result.walls);
     },
     updateWall(state, action) {
       const location = wallLocation(state, action.payload);
@@ -536,6 +565,7 @@ export const {
   addWall,
   addWallSegment,
   moveWallEndpoint,
+  moveWallPerpendicular,
   connectWalls,
   disconnectWallEndpoint,
   setWallLength,

@@ -51,6 +51,7 @@ export {
   wallNumberWarnings,
 } from './topology.js';
 export {
+  compensateRuns,
   endMinWidthsForRun,
   flipRunsForWall,
   resolveWall,

@@ -1,4 +1,12 @@
-import { wallFrame } from '../model/geometry.js';
+import {
+  add,
+  dot,
+  lineIntersection,
+  magnitude,
+  scale,
+  subtract,
+  wallFrame,
+} from '../model/geometry.js';
 
 function cloneWalls(walls) {
   return walls.map((wall) => ({
@@ -91,6 +99,66 @@ export function setWallLength(room, wallId, length) {
     y: frame.leftPoint.y + frame.d.y * length * direction,
   };
   return moveConnectedEndpoint(room.walls, wallId, frame.rightEndpoint, point);
+}
+
+/**
+ * Move a wall along its interior normal while preserving connected-neighbor angles.
+ *
+ * @returns {{ok:boolean,reason:string|null,walls:object[]}}
+ */
+export function moveWallPerpendicular(room, wallId, delta) {
+  const sourceWall = wallById(room.walls, wallId);
+  if (!sourceWall || !Number.isFinite(delta)) {
+    return { ok: false, reason: 'wall-not-found', walls: room.walls };
+  }
+
+  const next = cloneWalls(room.walls);
+  const movedWall = wallById(next, wallId);
+  const frame = wallFrame(room, sourceWall);
+  const shift = scale(frame.n, delta);
+  const movedLinePoint = add({ x: sourceWall.x1, y: sourceWall.y1 }, shift);
+  const affectedWallIds = new Set([wallId]);
+
+  for (const endpoint of ['start', 'end']) {
+    const oldPoint = endpointPoint(sourceWall, endpoint);
+    const connection = sourceWall.connections?.[endpoint];
+    const sourceNeighbor = connection ? wallById(room.walls, connection.wallId) : null;
+    const movedNeighbor = connection ? wallById(next, connection.wallId) : null;
+    let point = add(oldPoint, shift);
+
+    if (connection && sourceNeighbor && movedNeighbor) {
+      const neighborFrame = wallFrame(room, sourceNeighbor);
+      const otherEndpoint = connection.endpoint === 'start' ? 'end' : 'start';
+      const neighborLinePoint = endpointPoint(sourceNeighbor, otherEndpoint);
+      point = lineIntersection(
+        movedLinePoint,
+        frame.d,
+        neighborLinePoint,
+        neighborFrame.d,
+      ) ?? point;
+      setEndpoint(movedNeighbor, connection.endpoint, point);
+      affectedWallIds.add(sourceNeighbor.id);
+    }
+    setEndpoint(movedWall, endpoint, point);
+  }
+
+  for (const affectedWallId of affectedWallIds) {
+    const before = wallById(room.walls, affectedWallId);
+    const after = wallById(next, affectedWallId);
+    const oldDirection = subtract(
+      { x: before.x2, y: before.y2 },
+      { x: before.x1, y: before.y1 },
+    );
+    const newDirection = subtract(
+      { x: after.x2, y: after.y2 },
+      { x: after.x1, y: after.y1 },
+    );
+    if (magnitude(newDirection) < 1 || dot(oldDirection, newDirection) <= 0) {
+      return { ok: false, reason: 'neighbor-too-short', walls: room.walls };
+    }
+  }
+
+  return { ok: true, reason: null, walls: next };
 }
 
 /** Connect two endpoints bidirectionally, replacing their previous connections. */
