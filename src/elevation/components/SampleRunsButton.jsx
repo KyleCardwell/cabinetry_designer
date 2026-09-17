@@ -10,7 +10,7 @@ function withSampleAnchors(run, settings, anchors) {
     ends: Object.fromEntries(['left', 'right'].map((side) => [
       side,
       anchors[side]
-        ? run.ends[side]
+        ? { type: 'filler', width: null }
         : { type: settings.defaultEnds[side], width: null },
     ])),
   };

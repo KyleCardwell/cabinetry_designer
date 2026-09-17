@@ -243,11 +243,12 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
   const length = wallLength(sourceWall);
   const reserveLeft = cornerReserve(room, sourceWall, 'left', sourceRun, settings);
   const reserveRight = cornerReserve(room, sourceWall, 'right', sourceRun, settings);
+  const insideCorner = cornerAt(room, sourceWall, side).type === 'inside';
   const candidates = [
-    { value: 0, anchor: side === 'left' },
-    { value: length, anchor: side === 'right' },
-    { value: reserveLeft, anchor: side === 'left' },
-    { value: length - reserveRight, anchor: side === 'right' },
+    { value: 0, anchor: side === 'left' && insideCorner },
+    { value: length, anchor: side === 'right' && insideCorner },
+    { value: reserveLeft, anchor: side === 'left' && insideCorner },
+    { value: length - reserveRight, anchor: side === 'right' && insideCorner },
     ...sourceWall.runs
       .filter((run) => run.id !== runId)
       .flatMap((run) => [

@@ -145,8 +145,20 @@ function isRoom(room) {
 
 function normalizeV2Document(document) {
   if (!document || document.schemaVersion !== ELEVATION_SCHEMA_VERSION) return document;
+  const settings = document.settings && typeof document.settings === 'object'
+    ? {
+      ...document.settings,
+      autoEndPanelOnFreeEnd: document.settings.autoEndPanelOnFreeEnd === undefined
+        ? DEFAULT_SETTINGS.autoEndPanelOnFreeEnd
+        : document.settings.autoEndPanelOnFreeEnd,
+      adjacentRunGap: document.settings.adjacentRunGap === undefined
+        ? DEFAULT_SETTINGS.adjacentRunGap
+        : document.settings.adjacentRunGap,
+    }
+    : document.settings;
   return {
     ...document,
+    settings,
     rooms: Array.isArray(document.rooms) ? document.rooms.map((room) => {
       if (!room || typeof room !== 'object') return room;
       const normalized = {
@@ -182,6 +194,7 @@ function isSettings(settings) {
     && V2_NUMERIC_SETTING_KEYS.every((key) => isFiniteNumber(settings[key]))
     && isCompleteProfile(settings.defaultProfile)
     && typeof settings.snapHeightsToDefaults === 'boolean'
+    && typeof settings.autoEndPanelOnFreeEnd === 'boolean'
     && typeof settings.orthoWalls === 'boolean'
     && hasValidEnds(settings);
 }

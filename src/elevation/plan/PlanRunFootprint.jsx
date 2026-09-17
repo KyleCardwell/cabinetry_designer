@@ -56,7 +56,7 @@ export default function PlanRunFootprint({
       <Line
         points={linePoints(footprint)}
         closed
-        fill={upper ? 'rgba(0, 0, 0, 0.001)' : `${color}8c`}
+        fill={upper ? `${color}59` : `${color}8c`}
         stroke={outline}
         strokeWidth={(collision || selected ? 2.5 : 1.5) / scale}
         dash={upper ? [5 / scale, 3 / scale] : undefined}

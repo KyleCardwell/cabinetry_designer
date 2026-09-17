@@ -117,6 +117,8 @@ describe('elevation persistence migration', () => {
     current.rooms[0].walls[0].name = 'Wall 7';
     delete current.rooms[0].walls[0].numberOverride;
     delete current.rooms[0].wallOrder;
+    delete current.settings.autoEndPanelOnFreeEnd;
+    delete current.settings.adjacentRunGap;
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
     };
@@ -127,5 +129,9 @@ describe('elevation persistence migration', () => {
       numberOverride: null,
     });
     expect(loaded.rooms[0].wallOrder).toEqual(['wall-a', 'wall-b']);
+    expect(loaded.settings).toMatchObject({
+      autoEndPanelOnFreeEnd: true,
+      adjacentRunGap: 1,
+    });
   });
 });

@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS } from './constants.js';
-import { cornerAt } from './corners.js';
+import { bandsCompatible, cornerAt } from './corners.js';
 import { wallFrame } from './geometry.js';
 import {
   counterTop,
@@ -60,19 +60,31 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
   const roundedX = roundTo(x, 0.5);
   const roundedWidth = roundTo(width, 0.5);
   const length = wall ? wallFrame(room, wall).length : Number.POSITIVE_INFINITY;
-  const anchors = {
-    left: roundedX <= settings.cornerSnapDistance,
-    right: length - (roundedX + roundedWidth) <= settings.cornerSnapDistance,
-  };
-  const ends = {
-    left: { type: settings.defaultEnds.left, width: null },
-    right: { type: settings.defaultEnds.right, width: null },
-  };
-  for (const side of ['left', 'right']) {
-    if (wall && anchors[side] && cornerAt(room, wall, side).type === 'inside') {
-      ends[side] = { type: 'filler', width: null };
-    }
-  }
+  const edges = { left: roundedX, right: roundedX + roundedWidth };
+  const anchors = Object.fromEntries(['left', 'right'].map((side) => {
+    const distance = side === 'left' ? Math.abs(edges.left) : Math.abs(length - edges.right);
+    return [
+      side,
+      Boolean(
+        wall
+        && distance <= settings.cornerSnapDistance
+        && cornerAt(room, wall, side).type === 'inside',
+      ),
+    ];
+  }));
+  const isAdjacent = (side) => wall?.runs.some((run) => (
+    bandsCompatible(cabinetTypeId, run)
+    && Math.min(
+      Math.abs(edges[side] - run.x),
+      Math.abs(edges[side] - (run.x + run.width)),
+    ) <= settings.adjacentRunGap
+  ));
+  const ends = Object.fromEntries(['left', 'right'].map((side) => {
+    let type = settings.defaultEnds[side];
+    if (anchors[side]) type = 'filler';
+    else if (settings.autoEndPanelOnFreeEnd && !isAdjacent(side)) type = 'end_panel';
+    return [side, { type, width: null }];
+  }));
   const heightMode = settings.snapHeightsToDefaults ? 'auto' : 'manual';
   const geometry = heightMode === 'auto'
     ? typeDefaults

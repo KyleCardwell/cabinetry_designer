@@ -54,7 +54,7 @@ function resultRun(result, id = 'run') {
 }
 
 describe('stretchRun', () => {
-  it('17. snaps to half inches and anchors only within two inches of the wall end', () => {
+  it('17. snaps to an open wall end without anchoring or changing its end', () => {
     const room = makeRoom();
 
     const right = stretchRun(room, 'A', 'run', 'right', 87.3, DEFAULT_SETTINGS);
@@ -73,12 +73,13 @@ describe('stretchRun', () => {
       anchors: { left: false, right: false },
     });
 
-    const leftAnchored = stretchRun(room, 'A', 'run', 'left', 1.2, DEFAULT_SETTINGS);
-    expect(leftAnchored.ok).toBe(true);
-    expect(resultRun(leftAnchored)).toMatchObject({
+    const leftOpenEnd = stretchRun(room, 'A', 'run', 'left', 1.2, DEFAULT_SETTINGS);
+    expect(leftOpenEnd.ok).toBe(true);
+    expect(resultRun(leftOpenEnd)).toMatchObject({
       x: 0,
       width: 80,
-      anchors: { left: true, right: false },
+      anchors: { left: false, right: false },
+      ends: { left: { type: 'none', width: null } },
     });
   });
 

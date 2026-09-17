@@ -19,6 +19,7 @@ const NUMBER_SETTINGS = [
   ['doorThickness', 'Door thickness'],
   ['cornerFillerMinWidth', 'Corner filler minimum'],
   ['cornerSnapDistance', 'Corner snap distance'],
+  ['adjacentRunGap', 'Adjacent run gap'],
   ['planGrid', 'Plan grid'],
 ];
 
@@ -99,6 +100,16 @@ export default function SettingsPanel() {
               className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
             />
             Snap run heights to defaults
+          </label>
+
+          <label className="flex items-center gap-2 text-xs text-gray-300">
+            <input
+              type="checkbox"
+              checked={settings.autoEndPanelOnFreeEnd}
+              onChange={(event) => update({ autoEndPanelOnFreeEnd: event.target.checked })}
+              className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
+            />
+            Add end panels to free run ends
           </label>
 
           <label className="flex items-center gap-2 text-xs text-gray-300">

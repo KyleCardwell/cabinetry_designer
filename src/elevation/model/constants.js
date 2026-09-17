@@ -38,7 +38,9 @@ export const DEFAULT_SETTINGS = {
   bumperThickness: 0.0625,
   doorThickness: 0.8125,
   cornerFillerMinWidth: 1.5,
-  cornerSnapDistance: 30,
+  cornerSnapDistance: 3,
+  autoEndPanelOnFreeEnd: true,
+  adjacentRunGap: 1,
   orthoWalls: true,
   planGrid: 0.5,
 };
