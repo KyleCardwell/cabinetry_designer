@@ -9,6 +9,7 @@ import {
   connectWallEndpoints,
   disconnectWallEndpoint as disconnectWallEndpointPure,
   moveConnectedEndpoint,
+  setWallLength as setWallLengthPure,
 } from '../plan/wallOps.js';
 import {
   ELEVATION_SCHEMA_VERSION,
@@ -260,6 +261,17 @@ const elevationSlice = createSlice({
       );
       syncRoomAt(state, roomIndex);
     },
+    setWallLength(state, action) {
+      const location = wallLocation(state, action.payload);
+      const length = action.payload.length ?? action.payload.value;
+      if (!location || !Number.isFinite(length) || length <= 0) return;
+      location.room.walls = setWallLengthPure(
+        location.room,
+        location.wall.id,
+        length,
+      );
+      syncRoomAt(state, location.roomIndex);
+    },
     updateWall(state, action) {
       const location = wallLocation(state, action.payload);
       if (!location) return;
@@ -509,6 +521,7 @@ export const {
   moveWallEndpoint,
   connectWalls,
   disconnectWallEndpoint,
+  setWallLength,
   updateWall,
   deleteWall,
   setActiveWall,

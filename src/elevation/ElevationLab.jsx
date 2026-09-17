@@ -60,7 +60,7 @@ export default function ElevationLab() {
         </div>
       </section>
 
-      {view === 'elevation' && <PropertiesPanel />}
+      <PropertiesPanel />
     </div>
   );
 }

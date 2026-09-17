@@ -12,6 +12,8 @@ import { snapToEndpoint, snapToGrid } from '../../canvas/SnapEngine.js';
 import AxisGuides from '../../canvas/components/AxisGuides.jsx';
 import WallDrawPreview from '../../canvas/components/WallDrawPreview.jsx';
 import WallEndpoints from '../../canvas/components/WallEndpoints.jsx';
+import { findCollisions } from '../model/footprints.js';
+import { wallFrame } from '../model/geometry.js';
 import {
   addWallSegment,
   connectWalls,
@@ -19,10 +21,12 @@ import {
   disconnectWallEndpoint,
   moveWallEndpoint,
   setActiveWall,
+  setSelection,
   setTool,
   setView,
 } from '../store/elevationSlice.js';
 import PlanWallShape from './PlanWallShape.jsx';
+import PlanRunFootprint from './PlanRunFootprint.jsx';
 import { snapPointOrtho } from './wallOps.js';
 
 const PIXELS_PER_INCH = 4;
@@ -42,6 +46,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     activeWallId,
     settings,
     tool,
+    selection,
   } = useSelector((state) => state.elevation);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const walls = room?.walls ?? [];
@@ -49,6 +54,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const adaptedWalls = useMemo(
     () => walls.map((wall) => ({ ...wall, wall_id: wall.id })),
     [walls],
+  );
+  const collisionRunIds = useMemo(
+    () => new Set(room ? findCollisions(room, settings).map((entry) => entry.runId) : []),
+    [room, settings],
   );
   const stageRef = useRef(null);
   const containerRef = useRef(null);
@@ -300,6 +309,12 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     dispatch(setView('elevation'));
   }, [dispatch, tool]);
 
+  const handleRunSelect = useCallback((wallId, runId) => {
+    if (tool !== 'select') return;
+    dispatch(setActiveWall(wallId));
+    dispatch(setSelection({ runId, pieceId: null }));
+  }, [dispatch, tool]);
+
   return (
     <div ref={containerRef} className="relative h-full min-h-0 overflow-hidden bg-gray-950">
       {viewport.width > 0 && viewport.height > 0 && (
@@ -332,6 +347,24 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 onOpen={(event) => handleWallOpen(wall.id, event)}
               />
             ))}
+            {walls.flatMap((wall) => {
+              const frame = wallFrame(room, wall);
+              return wall.runs.map((run) => (
+                <PlanRunFootprint
+                  key={run.id}
+                  frame={frame}
+                  room={room}
+                  wall={wall}
+                  run={run}
+                  settings={settings}
+                  collision={collisionRunIds.has(run.id)}
+                  selected={selection.runId === run.id}
+                  selectable={tool === 'select'}
+                  scale={scale}
+                  onSelect={() => handleRunSelect(wall.id, run.id)}
+                />
+              ));
+            })}
             {tool === 'select' && selectedWall && (
               <WallEndpoints
                 wall={{ ...selectedWall, wall_id: selectedWall.id }}

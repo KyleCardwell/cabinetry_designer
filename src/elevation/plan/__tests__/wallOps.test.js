@@ -4,6 +4,7 @@ import {
   connectWallEndpoints,
   disconnectWallEndpoint,
   moveConnectedEndpoint,
+  setWallLength,
   snapPointOrtho,
 } from '../wallOps.js';
 
@@ -72,6 +73,28 @@ describe('elevation plan wall operations', () => {
 
     expect(result.find((item) => item.id === 'a').connections.end).toBeNull();
     expect(result.find((item) => item.id === 'b').connections.start).toBeNull();
+  });
+
+  it('sets wall length by moving the frame-right endpoint', () => {
+    const room = { walls: [wall('a', 0, 0, 120, 0)] };
+    const result = setWallLength(room, 'a', 144);
+
+    expect(result[0]).toMatchObject({ x1: 0, y1: 0, x2: 144, y2: 0 });
+    expect(room.walls[0]).toMatchObject({ x2: 120, y2: 0 });
+  });
+
+  it('moves a connected neighbor when setting wall length', () => {
+    const walls = connectWallEndpoints(
+      [wall('a', 0, 0, 120, 0), wall('b', 120, 0, 120, 96)],
+      'a',
+      'end',
+      'b',
+      'start',
+    );
+    const result = setWallLength({ walls }, 'a', 144);
+
+    expect(result.find((item) => item.id === 'a')).toMatchObject({ x2: 144, y2: 0 });
+    expect(result.find((item) => item.id === 'b')).toMatchObject({ x1: 144, y1: 0 });
   });
 
   it('snaps to the nearest orthogonal axis relative to the fixed point', () => {

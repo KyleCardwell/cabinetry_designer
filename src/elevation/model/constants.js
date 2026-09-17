@@ -56,3 +56,10 @@ export const KIND_COLORS = {
   filler: '#f59e0b',
   end_panel: '#8b5cf6',
 };
+
+/** Display colors for cabinet run types. */
+export const CABINET_TYPE_COLORS = {
+  [CABINET_TYPE_IDS.BASE]: '#3b82f6',
+  [CABINET_TYPE_IDS.UPPER]: '#14b8a6',
+  [CABINET_TYPE_IDS.TALL]: '#8b5cf6',
+};

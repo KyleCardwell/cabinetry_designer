@@ -22,6 +22,7 @@ import {
 import {
   addItemAfter,
   clearSelection,
+  flipWall,
   lockItem,
   removeItem,
   setAutoCount,
@@ -33,6 +34,7 @@ import {
   setRunOverride,
   setRunType,
   setSelection,
+  setWallLength,
   splitItem,
   updateRun,
   updateWall,
@@ -618,8 +620,14 @@ function PieceProperties({ wallId, run, selectionContext }) {
   );
 }
 
-function WallHeightProperties({ room, wall }) {
+function WallHeightProperties({ room, wall, plan }) {
   const dispatch = useDispatch();
+
+  const updateLength = (length) => {
+    if (length <= 0) return false;
+    dispatch(setWallLength({ wallId: wall.id, length }));
+    return true;
+  };
 
   return (
     <div className="space-y-5">
@@ -627,17 +635,72 @@ function WallHeightProperties({ room, wall }) {
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Wall
         </h3>
-        <p className="mb-3 text-sm font-medium text-gray-200">{wall.name}</p>
-        <Field label="Wall height">
-          <InchInput
-            value={wall.height}
-            onCommit={(height) => dispatch(updateWall({
-              wallId: wall.id,
-              changes: { height },
-            }))}
-            aria-label="Wall height"
-          />
-        </Field>
+        {plan ? (
+          <div className="space-y-2.5">
+            <Field label="Name">
+              <input
+                type="text"
+                value={wall.name}
+                onChange={(event) => dispatch(updateWall({
+                  wallId: wall.id,
+                  changes: { name: event.target.value },
+                }))}
+                aria-label="Wall name"
+                className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+              />
+            </Field>
+            <div className="grid grid-cols-2 gap-2.5">
+              <Field label="Length">
+                <InchInput
+                  value={wall.length}
+                  onCommit={updateLength}
+                  aria-label="Wall length"
+                />
+              </Field>
+              <Field label="Height">
+                <InchInput
+                  value={wall.height}
+                  onCommit={(height) => dispatch(updateWall({
+                    wallId: wall.id,
+                    changes: { height },
+                  }))}
+                  aria-label="Wall height"
+                />
+              </Field>
+              <Field label="Thickness">
+                <InchInput
+                  value={wall.thickness}
+                  onCommit={(thickness) => dispatch(updateWall({
+                    wallId: wall.id,
+                    changes: { thickness },
+                  }))}
+                  aria-label="Wall thickness"
+                />
+              </Field>
+            </div>
+            <button
+              type="button"
+              onClick={() => dispatch(flipWall({ wallId: wall.id }))}
+              className="w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600"
+            >
+              Flip interior side
+            </button>
+          </div>
+        ) : (
+          <>
+            <p className="mb-3 text-sm font-medium text-gray-200">{wall.name}</p>
+            <Field label="Wall height">
+              <InchInput
+                value={wall.height}
+                onCommit={(height) => dispatch(updateWall({
+                  wallId: wall.id,
+                  changes: { height },
+                }))}
+                aria-label="Wall height"
+              />
+            </Field>
+          </>
+        )}
       </section>
 
       <section>
@@ -675,6 +738,7 @@ export default function PropertiesPanel() {
     activeWallId,
     selection,
     settings,
+    view,
   } = useSelector(
     (state) => state.elevation,
   );
@@ -735,10 +799,10 @@ export default function PropertiesPanel() {
       <div className="mt-4">
         {!wall ? (
           <p className="text-sm leading-relaxed text-gray-500">
-            Add or select a wall to edit its heights.
+            Add or select a wall to edit its properties.
           </p>
         ) : !run || !displayLayout ? (
-          <WallHeightProperties room={room} wall={wall} />
+          <WallHeightProperties room={room} wall={wall} plan={view === 'plan'} />
         ) : selectionContext ? (
           <PieceProperties
             wallId={wall.id}

@@ -1,3 +1,5 @@
+import { wallFrame } from '../model/geometry.js';
+
 function cloneWalls(walls) {
   return walls.map((wall) => ({
     ...wall,
@@ -72,6 +74,23 @@ export function moveConnectedEndpoint(walls, wallId, endpoint, point) {
   const other = connection ? wallById(next, connection.wallId) : null;
   if (other) setEndpoint(other, connection.endpoint, point);
   return next;
+}
+
+/**
+ * Set a wall's length by moving its elevation-frame right endpoint.
+ * A connection on the moved endpoint follows the new position.
+ */
+export function setWallLength(room, wallId, length) {
+  if (!Number.isFinite(length) || length <= 0) return cloneWalls(room.walls);
+  const wall = wallById(room.walls, wallId);
+  if (!wall) return cloneWalls(room.walls);
+  const frame = wallFrame(room, wall);
+  const direction = frame.rightEndpoint === 'end' ? 1 : -1;
+  const point = {
+    x: frame.leftPoint.x + frame.d.x * length * direction,
+    y: frame.leftPoint.y + frame.d.y * length * direction,
+  };
+  return moveConnectedEndpoint(room.walls, wallId, frame.rightEndpoint, point);
 }
 
 /** Connect two endpoints bidirectionally, replacing their previous connections. */
