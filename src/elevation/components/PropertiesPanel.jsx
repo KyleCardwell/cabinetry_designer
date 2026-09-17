@@ -4,7 +4,7 @@ import {
   CABINET_TYPE_IDS,
   KIND_LABELS,
   cornerAt,
-  cornerReserve,
+  cornerReserveParts,
   formatInches,
   formatInchesInput,
   frontDepth,
@@ -22,6 +22,8 @@ import {
   roomDiagnostics,
 } from '../model/room.js';
 import {
+  formatCornerReserve,
+  formatRunOverhang,
   lastCabinetItem,
   lastRunItem,
   prepareRunUpdate,
@@ -40,6 +42,7 @@ import {
   setRunEnd,
   setRunHeightMode,
   setRunAnchor,
+  setRunCornerClearance,
   setRunOverride,
   setRunType,
   setSelection,
@@ -60,6 +63,12 @@ const END_TYPES = [
   ['filler', 'Filler'],
   ['end_panel', 'End panel'],
   ['none', 'None'],
+];
+
+const CORNER_CLEARANCE_MODES = [
+  ['auto', 'Auto'],
+  ['face', 'Face only'],
+  ['custom', 'Custom'],
 ];
 
 const PLACEMENT_MESSAGES = {
@@ -173,7 +182,9 @@ function EndEditor({ side, end, onChange }) {
 }
 
 function WarningsList({ layout }) {
-  const hasIssues = layout.warnings.length > 0 || layout.errors.length > 0;
+  const warnings = layout.warnings.filter((warning) => warning.code !== 'overhang');
+  const hasOverhang = warnings.length !== layout.warnings.length;
+  const hasIssues = warnings.length > 0 || layout.errors.length > 0;
 
   return (
     <section>
@@ -181,7 +192,9 @@ function WarningsList({ layout }) {
         Warnings &amp; errors
       </h3>
       {!hasIssues ? (
-        <p className="mt-2 text-xs text-gray-500">No warnings or errors.</p>
+        <p className="mt-2 text-xs text-gray-500">
+          {hasOverhang ? 'No other warnings or errors.' : 'No warnings or errors.'}
+        </p>
       ) : (
         <ul className="mt-2 space-y-2 text-xs">
           {layout.errors.map((error, index) => (
@@ -192,7 +205,7 @@ function WarningsList({ layout }) {
               {ERROR_MESSAGES[error.code] ?? error.code}
             </li>
           ))}
-          {layout.warnings.map((warning, index) => (
+          {warnings.map((warning, index) => (
             <li
               key={`${warning.code}-${warning.pieceId}-${index}`}
               className="rounded border border-amber-900/80 bg-amber-950/35 px-2.5 py-2 text-amber-300"
@@ -222,10 +235,11 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
     side,
     cornerAt(room, wall, side),
   ]));
-  const reserves = Object.fromEntries(['left', 'right'].map((side) => [
+  const reserveParts = Object.fromEntries(['left', 'right'].map((side) => [
     side,
-    cornerReserve(room, wall, side, run, settings),
+    cornerReserveParts(room, wall, side, run, settings),
   ]));
+  const overhang = formatRunOverhang(run, wall.length);
   const anchored = run.anchors.left || run.anchors.right;
   const bothAnchored = run.anchors.left && run.anchors.right;
 
@@ -307,6 +321,9 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
             />
           </Field>
         </div>
+        {overhang && (
+          <p className="mt-2 text-xs font-medium text-amber-300">{overhang}</p>
+        )}
       </section>
 
       <section>
@@ -314,34 +331,78 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
           Corners &amp; anchors
         </h3>
         <div className="space-y-2">
-          {['left', 'right'].map((side) => (
-            <div
-              key={side}
-              className="rounded border border-gray-700 bg-gray-900/45 p-3"
-            >
-              <label className="flex items-center justify-between text-sm text-gray-200">
-                <span className="capitalize">Anchor {side}</span>
-                <input
-                  type="checkbox"
-                  checked={run.anchors[side]}
-                  onChange={(event) => dispatch(setRunAnchor({
-                    ...actionBase,
-                    side,
-                    value: event.target.checked,
-                  }))}
-                  className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
-                />
-              </label>
-              <p className="mt-1.5 text-xs text-gray-500">
-                {cornerLabel(corners[side], room)}
-              </p>
-              {run.anchors[side] && (
-                <p className="mt-1 text-xs text-cyan-300">
-                  Anchored — corner reserve {formatInches(reserves[side])}
+          {['left', 'right'].map((side) => {
+            const insideCorner = corners[side].type === 'inside';
+            const anchoredInsideCorner = run.anchors[side] && insideCorner;
+            const clearance = run.cornerClearance?.[side] ?? 'auto';
+            const clearanceMode = typeof clearance === 'number' ? 'custom' : clearance;
+            return (
+              <div
+                key={side}
+                className="rounded border border-gray-700 bg-gray-900/45 p-3"
+              >
+                <label className="flex items-center justify-between text-sm text-gray-200">
+                  <span className="capitalize">Anchor {side}</span>
+                  <input
+                    type="checkbox"
+                    checked={run.anchors[side]}
+                    onChange={(event) => dispatch(setRunAnchor({
+                      ...actionBase,
+                      side,
+                      value: event.target.checked,
+                    }))}
+                    className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
+                  />
+                </label>
+                <p className="mt-1.5 text-xs text-gray-500">
+                  {cornerLabel(corners[side], room)}
                 </p>
-              )}
-            </div>
-          ))}
+                {anchoredInsideCorner ? (
+                  <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
+                    <Field label="Corner clearance">
+                      <select
+                        value={clearanceMode}
+                        onChange={(event) => {
+                          const mode = event.target.value;
+                          dispatch(setRunCornerClearance({
+                            ...actionBase,
+                            side,
+                            value: mode === 'custom' ? reserveParts[side].total : mode,
+                          }));
+                        }}
+                        aria-label={`${side} corner clearance`}
+                        className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                      >
+                        {CORNER_CLEARANCE_MODES.map(([value, label]) => (
+                          <option key={value} value={value}>{label}</option>
+                        ))}
+                      </select>
+                    </Field>
+                    {clearanceMode === 'custom' && (
+                      <Field label="Custom clearance">
+                        <InchInput
+                          value={clearance}
+                          onCommit={(value) => dispatch(setRunCornerClearance({
+                            ...actionBase,
+                            side,
+                            value,
+                          }))}
+                          aria-label={`${side} custom corner clearance`}
+                        />
+                      </Field>
+                    )}
+                    <p className="text-xs text-cyan-300">
+                      {formatCornerReserve(reserveParts[side])}
+                    </p>
+                  </div>
+                ) : run.anchors[side] ? (
+                  <p className="mt-1 text-xs text-cyan-300">
+                    Anchored — corner reserve {formatInches(reserveParts[side].total)}
+                  </p>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       </section>
 

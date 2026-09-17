@@ -15,6 +15,7 @@ const NUMBER_SETTINGS = [
   ['endPanelThickness', 'End panel thickness'],
   ['defaultInteriorFillerWidth', 'Interior filler width'],
   ['minRunWidth', 'Minimum run width'],
+  ['maxRunOverhang', 'Maximum run overhang'],
   ['bumperThickness', 'Bumper thickness'],
   ['doorThickness', 'Door thickness'],
   ['cornerFillerMinWidth', 'Corner filler minimum'],

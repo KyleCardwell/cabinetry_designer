@@ -1,4 +1,23 @@
+import { formatInches } from '../model/units.js';
 import { tryPlaceRun } from '../model/room.js';
+
+/** Format a resolved corner reserve for the run properties panel. */
+export function formatCornerReserve(parts) {
+  const resolved = `Reserve ${formatInches(parts.total)}`;
+  if (parts.source === 'face') return `${resolved} · Face only`;
+  if (parts.source === 'custom') return `${resolved} · Custom`;
+  return `${resolved} (face ${formatInches(parts.face)} + back ${formatInches(parts.back)})`;
+}
+
+/** Format any horizontal wall overhang on a run. */
+export function formatRunOverhang(run, wallLength) {
+  const sides = [];
+  const left = Math.max(0, -run.x);
+  const right = Math.max(0, run.x + run.width - wallLength);
+  if (left > 0) sides.push(`left ${formatInches(left)}`);
+  if (right > 0) sides.push(`right ${formatInches(right)}`);
+  return sides.length > 0 ? `Overhangs ${sides.join(' · ')}` : null;
+}
 
 /**
  * Build and validate a prospective partial update to a run.
