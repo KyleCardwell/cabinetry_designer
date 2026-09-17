@@ -39,7 +39,12 @@ export {
   frontDepth,
   resolveHorizontal,
 } from './corners.js';
-export { findCollisions, polygonOverlap, runFootprint } from './footprints.js';
+export {
+  findCollisions,
+  footprintsAtPoint,
+  polygonOverlap,
+  runFootprint,
+} from './footprints.js';
 export {
   chainOrder,
   chainOrientation,

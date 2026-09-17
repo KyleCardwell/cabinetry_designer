@@ -19,7 +19,8 @@ import { snapToEndpoint, snapToGrid } from '../../canvas/SnapEngine.js';
 import AxisGuides from '../../canvas/components/AxisGuides.jsx';
 import WallDrawPreview from '../../canvas/components/WallDrawPreview.jsx';
 import WallEndpoints from '../../canvas/components/WallEndpoints.jsx';
-import { findCollisions } from '../model/footprints.js';
+import { CABINET_TYPE_IDS } from '../model/constants.js';
+import { findCollisions, footprintsAtPoint } from '../model/footprints.js';
 import { dot, subtract, wallFrame } from '../model/geometry.js';
 import { wallLabel } from '../model/topology.js';
 import { formatInches, roundTo } from '../model/units.js';
@@ -91,6 +92,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     }
     return messages;
   }, [room, settings]);
+  const orderedFootprints = useMemo(() => {
+    if (!room) return [];
+    const entries = walls.flatMap((wall) => {
+      const frame = wallFrame(room, wall);
+      return wall.runs.map((run) => ({ frame, wall, run }));
+    });
+    return [
+      ...entries.filter(({ run }) => run.cabinetTypeId !== CABINET_TYPE_IDS.UPPER),
+      ...entries.filter(({ run }) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER),
+    ];
+  }, [room, walls]);
   const stageRef = useRef(null);
   const containerRef = useRef(null);
   const drawStartRef = useRef(null);
@@ -115,8 +127,8 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       frame,
       midpoint,
       point: {
-        x: midpoint.x + frame.n.x * 12 / scale,
-        y: midpoint.y + frame.n.y * 12 / scale,
+        x: midpoint.x - frame.n.x * (selectedWall.thickness + 38 / scale),
+        y: midpoint.y - frame.n.y * (selectedWall.thickness + 38 / scale),
       },
     };
   }, [room, scale, selectedWall]);
@@ -408,11 +420,22 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     dispatch(setView('elevation'));
   }, [dispatch, tool]);
 
-  const handleRunSelect = useCallback((wallId, runId) => {
-    if (tool !== 'select') return;
-    dispatch(setActiveWall(wallId));
+  const handleRunSelect = useCallback(() => {
+    if (tool !== 'select' || !room) return;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+    const runIds = footprintsAtPoint(room, toWorld(pointer), settings);
+    if (runIds.length === 0) return;
+    const runId = selection.runId === runIds[0]
+      ? runIds[1] ?? runIds[0]
+      : runIds[0];
+    const wall = walls.find((candidate) => (
+      candidate.runs.some((run) => run.id === runId)
+    ));
+    if (!wall) return;
+    dispatch(setActiveWall(wall.id));
     dispatch(setSelection({ runId, pieceId: null }));
-  }, [dispatch, tool]);
+  }, [dispatch, room, selection.runId, settings, toWorld, tool, walls]);
 
   return (
     <div ref={containerRef} className="relative h-full min-h-0 overflow-hidden bg-gray-950">
@@ -446,25 +469,22 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 onOpen={(event) => handleWallOpen(wall.id, event)}
               />
             ))}
-            {walls.flatMap((wall) => {
-              const frame = wallFrame(room, wall);
-              return wall.runs.map((run) => (
-                <PlanRunFootprint
-                  key={run.id}
-                  frame={frame}
-                  room={room}
-                  wall={wall}
-                  run={run}
-                  settings={settings}
-                  collision={collisionMessages.has(run.id)}
-                  collisionMessage={collisionMessages.get(run.id)}
-                  selected={selection.runId === run.id}
-                  selectable={tool === 'select'}
-                  scale={scale}
-                  onSelect={() => handleRunSelect(wall.id, run.id)}
-                />
-              ));
-            })}
+            {orderedFootprints.map(({ frame, wall, run }) => (
+              <PlanRunFootprint
+                key={run.id}
+                frame={frame}
+                room={room}
+                wall={wall}
+                run={run}
+                settings={settings}
+                collision={collisionMessages.has(run.id)}
+                collisionMessage={collisionMessages.get(run.id)}
+                selected={selection.runId === run.id}
+                selectable={tool === 'select'}
+                scale={scale}
+                onSelect={handleRunSelect}
+              />
+            ))}
             {wallMovePreview?.room && (
               <Group listening={false}>
                 {wallMovePreview.affectedWallIds.map((wallId) => {
@@ -496,10 +516,11 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                     x: (previewWall.x1 + previewWall.x2) / 2,
                     y: (previewWall.y1 + previewWall.y2) / 2,
                   };
+                  const labelOffset = previewWall.thickness + 54 / scale;
                   return (
                     <Text
-                      x={midpoint.x + frame.n.x * 28 / scale}
-                      y={midpoint.y + frame.n.y * 28 / scale}
+                      x={midpoint.x - frame.n.x * labelOffset}
+                      y={midpoint.y - frame.n.y * labelOffset}
                       width={100 / scale}
                       offsetX={50 / scale}
                       offsetY={6 / scale}

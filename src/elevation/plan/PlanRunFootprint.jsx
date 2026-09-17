@@ -50,7 +50,7 @@ export default function PlanRunFootprint({
       onMouseLeave={() => setHovered(false)}
       onClick={(event) => {
         event.cancelBubble = true;
-        onSelect();
+        onSelect(event);
       }}
     >
       <Line

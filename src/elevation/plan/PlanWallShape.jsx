@@ -1,7 +1,7 @@
 import { Circle, Group, Line, Text } from 'react-konva';
+import { layoutDimensionRow } from '../canvas/dimensionLayout.js';
 import { wallFrame } from '../model/geometry.js';
 import { wallNumbers } from '../model/topology.js';
-import { formatInches } from '../model/units.js';
 import { wallOutline } from '../model/wallOutline.js';
 
 export default function PlanWallShape({
@@ -22,14 +22,45 @@ export default function PlanWallShape({
     y: (wall.y1 + wall.y2) / 2,
   };
   const tickLength = 8 / scale;
-  const labelOffset = 14 / scale;
   const fontSize = 11 / scale;
   const number = wallNumbers(room).get(wall.id);
   const numberRadius = 9 / scale;
-  const numberOffset = wall.thickness + 12 / scale;
+  const numberOffset = wall.thickness + 38 / scale;
   const numberPoint = {
-    x: midpoint.x + exterior.x * numberOffset,
-    y: midpoint.y + exterior.y * numberOffset,
+    x: midpoint.x + exterior.x * numberOffset + frame.d.x * 24 / scale,
+    y: midpoint.y + exterior.y * numberOffset + frame.d.y * 24 / scale,
+  };
+  const dimensionOffset = wall.thickness + 18 / scale;
+  const extensionStartOffset = wall.thickness + 2 / scale;
+  const extensionEndOffset = wall.thickness + 22 / scale;
+  const faceEndpoints = [
+    { x: wall.x1, y: wall.y1 },
+    { x: wall.x2, y: wall.y2 },
+  ];
+  const dimensionEndpoints = faceEndpoints.map((point) => ({
+    x: point.x + exterior.x * dimensionOffset,
+    y: point.y + exterior.y * dimensionOffset,
+  }));
+  const tickDirection = {
+    x: (frame.d.x + exterior.x) / Math.SQRT2,
+    y: (frame.d.y + exterior.y) / Math.SQRT2,
+  };
+  const tickHalfLength = 4 / scale;
+  const layout = layoutDimensionRow(
+    [{ start: 0, end: frame.length }],
+    { scale, fontSize: 11 },
+  );
+  const dimensionLabel = layout.labels[0];
+  const labelDistance = (dimensionLabel.mode === 'popout'
+    ? 9 + 12 * dimensionLabel.level
+    : 9) / scale;
+  const dimensionCenter = {
+    x: midpoint.x + exterior.x * dimensionOffset,
+    y: midpoint.y + exterior.y * dimensionOffset,
+  };
+  const labelPoint = {
+    x: dimensionCenter.x + exterior.x * labelDistance,
+    y: dimensionCenter.y + exterior.y * labelDistance,
   };
   let labelRotation = Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1) * 180 / Math.PI;
   if (labelRotation > 90 || labelRotation < -90) labelRotation += 180;
@@ -60,19 +91,72 @@ export default function PlanWallShape({
         strokeWidth={1.5 / scale}
         listening={false}
       />
-      <Text
-        x={midpoint.x + frame.n.x * labelOffset}
-        y={midpoint.y + frame.n.y * labelOffset}
-        width={100 / scale}
-        offsetX={50 / scale}
-        offsetY={fontSize / 2}
-        rotation={labelRotation}
-        align="center"
-        text={formatInches(frame.length)}
-        fontSize={fontSize}
-        fill="#e2e8f0"
-        listening={false}
-      />
+      <Group listening={false}>
+        <Line
+          points={dimensionEndpoints.flatMap((point) => [point.x, point.y])}
+          stroke="#94a3b8"
+          strokeWidth={1 / scale}
+        />
+        {faceEndpoints.map((point, index) => {
+          const extensionStart = {
+            x: point.x + exterior.x * extensionStartOffset,
+            y: point.y + exterior.y * extensionStartOffset,
+          };
+          const extensionEnd = {
+            x: point.x + exterior.x * extensionEndOffset,
+            y: point.y + exterior.y * extensionEndOffset,
+          };
+          const dimensionPoint = dimensionEndpoints[index];
+          return (
+            <Group key={index}>
+              <Line
+                points={[
+                  extensionStart.x,
+                  extensionStart.y,
+                  extensionEnd.x,
+                  extensionEnd.y,
+                ]}
+                stroke="#64748b"
+                strokeWidth={0.75 / scale}
+              />
+              <Line
+                points={[
+                  dimensionPoint.x - tickDirection.x * tickHalfLength,
+                  dimensionPoint.y - tickDirection.y * tickHalfLength,
+                  dimensionPoint.x + tickDirection.x * tickHalfLength,
+                  dimensionPoint.y + tickDirection.y * tickHalfLength,
+                ]}
+                stroke="#cbd5e1"
+                strokeWidth={1 / scale}
+              />
+            </Group>
+          );
+        })}
+        {dimensionLabel.mode === 'popout' && (
+          <Line
+            points={[
+              dimensionCenter.x,
+              dimensionCenter.y,
+              labelPoint.x,
+              labelPoint.y,
+            ]}
+            stroke="#64748b"
+            strokeWidth={0.75 / scale}
+          />
+        )}
+        <Text
+          x={labelPoint.x}
+          y={labelPoint.y}
+          width={dimensionLabel.width / scale}
+          offsetX={dimensionLabel.width / scale / 2}
+          offsetY={fontSize / 2}
+          rotation={labelRotation}
+          align="center"
+          text={dimensionLabel.text}
+          fontSize={fontSize}
+          fill="#e2e8f0"
+        />
+      </Group>
       <Circle
         x={numberPoint.x}
         y={numberPoint.y}

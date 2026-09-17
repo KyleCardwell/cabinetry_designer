@@ -1,4 +1,5 @@
 import { bandsCompatible, frontDepth } from './corners.js';
+import { CABINET_TYPE_IDS } from './constants.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
 
 /** Return the four-point plan polygon occupied by a run. */
@@ -10,6 +11,50 @@ export function runFootprint(frame, run, settings) {
     elevationToPlan(frame, run.x + run.width, depth),
     elevationToPlan(frame, run.x, depth),
   ];
+}
+
+function pointOnSegment(point, start, end) {
+  const segmentCross = cross(start, end, point);
+  if (Math.abs(segmentCross) > 1e-9) return false;
+  return point.x >= Math.min(start.x, end.x) - 1e-9
+    && point.x <= Math.max(start.x, end.x) + 1e-9
+    && point.y >= Math.min(start.y, end.y) - 1e-9
+    && point.y <= Math.max(start.y, end.y) + 1e-9;
+}
+
+function polygonContainsPoint(polygon, point) {
+  let inside = false;
+  for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
+    const start = polygon[previous];
+    const end = polygon[index];
+    if (pointOnSegment(point, start, end)) return true;
+    const crossesRay = (start.y > point.y) !== (end.y > point.y)
+      && point.x < ((end.x - start.x) * (point.y - start.y)) / (end.y - start.y) + start.x;
+    if (crossesRay) inside = !inside;
+  }
+  return inside;
+}
+
+/** Return run ids under a plan point in visual stacking order. */
+export function footprintsAtPoint(room, point, settings) {
+  if (!room || !point) return [];
+  const upper = [];
+  const lower = [];
+
+  for (const wall of room.walls ?? []) {
+    const frame = wallFrame(room, wall);
+    for (const run of wall.runs ?? []) {
+      const target = run.cabinetTypeId === CABINET_TYPE_IDS.UPPER ? upper : lower;
+      target.push({
+        id: run.id,
+        containsPoint: polygonContainsPoint(runFootprint(frame, run, settings), point),
+      });
+    }
+  }
+
+  return [...upper.reverse(), ...lower.reverse()]
+    .filter((entry) => entry.containsPoint)
+    .map((entry) => entry.id);
 }
 
 function cross(a, b, c) {
