@@ -12,7 +12,6 @@ import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
 import { endMinWidthsForRun } from '../model/room.js';
 import { wallRectToScreen } from '../canvas/transform.js';
-import DimensionLine from './DimensionLine.jsx';
 import PieceRect from './PieceRect.jsx';
 
 function RunGroup({
@@ -66,7 +65,6 @@ function RunGroup({
     [diagnostic?.warnings, result.warnings],
   );
   const hasErrors = (diagnostic?.errors ?? result.errors).length > 0;
-  const hasWarnings = (diagnostic?.warnings ?? result.warnings).length > 0;
   const hasToeKick = run.cabinetTypeId === CABINET_TYPE_IDS.BASE
     || run.cabinetTypeId === CABINET_TYPE_IDS.TALL;
   const isBase = run.cabinetTypeId === CABINET_TYPE_IDS.BASE;
@@ -284,18 +282,6 @@ function RunGroup({
           listening={false}
         />
       )}
-
-      <DimensionLine
-        run={run}
-        transform={transform}
-        color={hasErrors
-          ? '#ef4444'
-          : hasWarnings
-            ? '#f59e0b'
-            : selectedRun ? '#38bdf8' : '#94a3b8'}
-        topOffset={isBase ? countertopThickness + 4 : 4}
-        onSelect={() => onSelectRun(run.id)}
-      />
 
       {renderStretchHandle('left')}
       {renderStretchHandle('right')}

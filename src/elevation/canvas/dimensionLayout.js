@@ -2,6 +2,14 @@ import { formatInches } from '../model/units.js';
 
 const POPOUT_GAP = 4;
 
+/** Return the inner and outer row offsets for an elevation dimension pair. */
+export function dimensionRowOffsets(orientation, innerLevels = 0) {
+  if (orientation === 'vertical') {
+    return { inner: 24, outer: 24 + 26 + innerLevels * 16 };
+  }
+  return { inner: 20, outer: 20 + 22 + innerLevels * 14 };
+}
+
 function overlaps(candidate, placed) {
   return candidate.left < placed.right + POPOUT_GAP
     && candidate.right + POPOUT_GAP > placed.left;

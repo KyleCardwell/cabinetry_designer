@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { layoutDimensionRow } from '../dimensionLayout.js';
+import {
+  dimensionRowOffsets,
+  layoutDimensionRow,
+} from '../dimensionLayout.js';
 
 describe('layoutDimensionRow', () => {
   it('12. keeps a fitting label inline and pops out a narrow segment', () => {
@@ -40,5 +43,14 @@ describe('layoutDimensionRow', () => {
 
     expect(result.labels[0]).toMatchObject({ mode: 'inline', level: 0 });
     expect(result.levels).toBe(0);
+  });
+});
+
+describe('dimensionRowOffsets', () => {
+  it('accounts for inner popout levels in horizontal and vertical outer rows', () => {
+    expect(dimensionRowOffsets('horizontal', 0)).toEqual({ inner: 20, outer: 42 });
+    expect(dimensionRowOffsets('horizontal', 2)).toEqual({ inner: 20, outer: 70 });
+    expect(dimensionRowOffsets('vertical', 0)).toEqual({ inner: 24, outer: 50 });
+    expect(dimensionRowOffsets('vertical', 2)).toEqual({ inner: 24, outer: 82 });
   });
 });

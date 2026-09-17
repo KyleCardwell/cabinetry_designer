@@ -8,12 +8,21 @@ import {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Layer, Rect, Stage } from 'react-konva';
+import {
+  dimensionRowOffsets,
+  layoutDimensionRow,
+} from '../canvas/dimensionLayout.js';
 import { fitWallToViewport } from '../canvas/transform.js';
 import {
   dragPointsToRunInput,
   screenPointToWallSnapped,
 } from '../canvas/drag.js';
 import { createRun } from '../model/runDefaults.js';
+import {
+  horizontalChains,
+  pickColumnRuns,
+  verticalChains,
+} from '../model/dimensions.js';
 import { resolveProfile } from '../model/profile.js';
 import {
   roomDiagnostics,
@@ -31,6 +40,7 @@ import {
   setTool,
 } from '../store/elevationSlice.js';
 import DragPreview from './DragPreview.jsx';
+import DimensionRow from './DimensionRow.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import RunGroup from './RunGroup.jsx';
 import WallFrame from './WallFrame.jsx';
@@ -57,6 +67,17 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
     () => (room && wall ? resolveProfile(settings, room, wall) : null),
     [room, settings, wall],
   );
+  const dimensionChains = useMemo(() => {
+    if (!room || !wall) return null;
+    const lower = horizontalChains(room, wall, 'lower', settings);
+    const upper = horizontalChains(room, wall, 'upper', settings);
+    const columnRuns = pickColumnRuns(wall, selection.runId);
+    return {
+      lower,
+      upper,
+      vertical: verticalChains(room, wall, columnRuns, settings),
+    };
+  }, [room, selection.runId, settings, wall]);
 
   selectionRef.current = selection;
   wallRef.current = wall;
@@ -173,9 +194,31 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
 
   const transform = useMemo(() => (
     wall && viewport.width > 0 && viewport.height > 0
-      ? fitWallToViewport(wall, viewport)
+      ? fitWallToViewport(wall, viewport, {
+        top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
+        right: 48,
+        bottom: 96,
+        left: 110,
+      })
       : null
-  ), [fitRequest, viewport, wall]);
+  ), [dimensionChains?.upper.inner.length, fitRequest, viewport, wall]);
+  const dimensionOffsets = useMemo(() => {
+    if (!dimensionChains || !transform) return null;
+    const lowerLevels = layoutDimensionRow(dimensionChains.lower.inner, {
+      scale: transform.scale,
+    }).levels;
+    const upperLevels = layoutDimensionRow(dimensionChains.upper.inner, {
+      scale: transform.scale,
+    }).levels;
+    const verticalLevels = layoutDimensionRow(dimensionChains.vertical.inner, {
+      scale: transform.scale,
+    }).levels;
+    return {
+      lower: dimensionRowOffsets('horizontal', lowerLevels),
+      upper: dimensionRowOffsets('horizontal', upperLevels),
+      vertical: dimensionRowOffsets('vertical', verticalLevels),
+    };
+  }, [dimensionChains, transform]);
 
   const dragBounds = useMemo(() => (
     drag ? dragPointsToRunInput(drag.start, drag.current) : null
@@ -357,6 +400,56 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
               />
             ))}
           </Layer>
+          {dimensionChains && dimensionOffsets && (
+            <Layer listening={tool === 'select'}>
+              <DimensionRow
+                segments={dimensionChains.lower.inner}
+                orientation="horizontal"
+                side="below"
+                offsetPx={dimensionOffsets.lower.inner}
+                transform={transform}
+              />
+              <DimensionRow
+                segments={dimensionChains.lower.outer}
+                orientation="horizontal"
+                side="below"
+                offsetPx={dimensionOffsets.lower.outer}
+                transform={transform}
+                onSegmentClick={(segment) => selectRun(segment.runId)}
+                highlightRunId={selection.runId}
+              />
+              <DimensionRow
+                segments={dimensionChains.upper.inner}
+                orientation="horizontal"
+                side="above"
+                offsetPx={dimensionOffsets.upper.inner}
+                transform={transform}
+              />
+              <DimensionRow
+                segments={dimensionChains.upper.outer}
+                orientation="horizontal"
+                side="above"
+                offsetPx={dimensionOffsets.upper.outer}
+                transform={transform}
+                onSegmentClick={(segment) => selectRun(segment.runId)}
+                highlightRunId={selection.runId}
+              />
+              <DimensionRow
+                segments={dimensionChains.vertical.inner}
+                orientation="vertical"
+                side="left"
+                offsetPx={dimensionOffsets.vertical.inner}
+                transform={transform}
+              />
+              <DimensionRow
+                segments={dimensionChains.vertical.outer}
+                orientation="vertical"
+                side="left"
+                offsetPx={dimensionOffsets.vertical.outer}
+                transform={transform}
+              />
+            </Layer>
+          )}
           {stretchPreview && (
             <Layer listening={false}>
               <RunGroup
