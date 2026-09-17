@@ -45,11 +45,6 @@ export function defaultsForType(typeId, settings, profile = settings.defaultProf
   return { z, height: boxTop - z, depth: settings.upperDepth };
 }
 
-function normalizeContext(ctx) {
-  if (ctx?.settings) return ctx;
-  return { settings: ctx, room: null, wall: null };
-}
-
 /**
  * Create a run from drawn bounds and room/wall context.
  *
@@ -58,7 +53,7 @@ function normalizeContext(ctx) {
  * @returns {object}
  */
 export function createRun({ x, width, bottomZ, topZ }, ctx) {
-  const { settings, room, wall } = normalizeContext(ctx);
+  const { settings, room, wall } = ctx;
   const cabinetTypeId = inferRunType(bottomZ, topZ);
   const profile = resolveProfile(settings, room, wall);
   const typeDefaults = defaultsForType(cabinetTypeId, settings, profile);

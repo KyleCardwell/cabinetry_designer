@@ -212,3 +212,10 @@ Use the defaults in §2 unless noted.
 **Regression:**
 
 19. All existing tests still pass.
+
+## SPEC-QUESTIONS / Deviations
+
+- `resolveVertical` accepts an optional fourth wall (or wall-height) argument. The documented three arguments do not provide the wall height required to produce `crown-above-ceiling`; keeping it optional preserves the documented calculations while enabling that required warning.
+- The dev-only sample set uses a 24-inch tall run because the specification does not define a sample tall width. Its base and upper runs are anchored left only, and the tall run is anchored right only, so the samples remain non-overlapping on the default 144-inch wall.
+- Neighbor-return blocks are clamped to the current wall length. This only affects walls shorter than the projected `frontDepth / sin(theta)` return and keeps the visual block inside the elevation canvas.
+- The acceptance checklist says Flip should leave a plan footprint unchanged, while section 1 requires Flip to negate the interior normal. A footprint with positive depth necessarily changes sides when that normal is negated. The implementation follows section 1: it preserves the cabinets' along-wall positions by mirroring run x/order, while the depth projects to the newly selected interior side.

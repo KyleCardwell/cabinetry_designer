@@ -33,8 +33,6 @@ export function counterTop(profile) {
  * @returns {{z:number,height:number,warnings:object[],errors:object[]}}
  */
 export function resolveVertical(run, profile, baseRunsBelow = [], wallOrHeight) {
-  // SPEC-QUESTION: §4's signature omits the wall height needed for its ceiling warning;
-  // accept it as an optional fourth argument while keeping the documented first three.
   const warnings = [];
   const errors = [];
 

@@ -3,6 +3,19 @@ import { createRun } from '../model/runDefaults.js';
 import { addRun } from '../store/elevationSlice.js';
 import { resolveWall } from '../model/room.js';
 
+function withSampleAnchors(run, settings, anchors) {
+  return {
+    ...run,
+    anchors,
+    ends: Object.fromEntries(['left', 'right'].map((side) => [
+      side,
+      anchors[side]
+        ? run.ends[side]
+        : { type: settings.defaultEnds[side], width: null },
+    ])),
+  };
+}
+
 export default function SampleRunsButton() {
   const dispatch = useDispatch();
   const {
@@ -19,20 +32,37 @@ export default function SampleRunsButton() {
 
   const addSamples = () => {
     if (!wall) return;
+    const tallWidth = 24;
     const samples = [
-      createRun({ x: 0, width: 120, bottomZ: 2, topZ: 30 }, { settings, room, wall }),
-      createRun({ x: 0, width: 96, bottomZ: 50, topZ: 80 }, { settings, room, wall }),
+      withSampleAnchors(
+        createRun(
+          { x: 0, width: 120, bottomZ: 2, topZ: 30 },
+          { settings, room, wall },
+        ),
+        settings,
+        { left: true, right: false },
+      ),
+      withSampleAnchors(
+        createRun(
+          { x: 0, width: 96, bottomZ: 50, topZ: 80 },
+          { settings, room, wall },
+        ),
+        settings,
+        { left: true, right: false },
+      ),
     ];
 
-    // SPEC-QUESTION: The sample tall-run width is not specified; use a 24-inch run.
-    const tallWidth = 24;
     if (wall.length - 120 >= tallWidth) {
-      samples.push(createRun({
-        x: wall.length - tallWidth,
-        width: tallWidth,
-        bottomZ: 1,
-        topZ: 90,
-      }, { settings, room, wall }));
+      samples.push(withSampleAnchors(
+        createRun({
+          x: wall.length - tallWidth,
+          width: tallWidth,
+          bottomZ: 1,
+          topZ: 90,
+        }, { settings, room, wall }),
+        settings,
+        { left: false, right: true },
+      ));
     }
 
     for (const run of samples) dispatch(addRun({ wallId: wall.id, run }));
