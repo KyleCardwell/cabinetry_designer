@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DEFAULT_VIEW,
   fitWallToViewport,
+  panView,
   screenToWall,
   wallRectToScreen,
   wallToScreen,
+  withView,
+  zoomViewAt,
 } from '../transform.js';
 
 describe('elevation canvas transform', () => {
@@ -49,5 +53,45 @@ describe('elevation canvas transform', () => {
       width: 60,
       height: 40,
     });
+  });
+
+  it('leaves the fitted transform unchanged at the default view', () => {
+    const base = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
+
+    expect(withView(base, DEFAULT_VIEW)).toEqual(base);
+  });
+
+  it('keeps the wall point under the pointer fixed while zooming', () => {
+    const base = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
+    const pointer = { x: 130, y: 100 };
+    const wallPoint = screenToWall(pointer, withView(base, DEFAULT_VIEW));
+    const view = zoomViewAt(base, DEFAULT_VIEW, pointer, 2);
+    const screenPoint = wallToScreen(wallPoint, withView(base, view));
+
+    expect(view.zoom).toBe(2);
+    expect(screenPoint.x).toBeCloseTo(pointer.x, 6);
+    expect(screenPoint.y).toBeCloseTo(pointer.y, 6);
+  });
+
+  it('returns the view unchanged when zoom is already clamped', () => {
+    const base = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
+    const pointer = { x: 130, y: 100 };
+    const maximum = { zoom: 8, panX: 3, panY: 4 };
+    const minimum = { zoom: 0.25, panX: 3, panY: 4 };
+
+    expect(zoomViewAt(base, maximum, pointer, 2)).toBe(maximum);
+    expect(zoomViewAt(base, minimum, pointer, 0.5)).toBe(minimum);
+  });
+
+  it('adds pan deltas and shifts screen positions by the pan', () => {
+    const base = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
+    const point = { x: 12, z: 24 };
+    const before = wallToScreen(point, withView(base, DEFAULT_VIEW));
+    const view = panView(DEFAULT_VIEW, 17, -9);
+    const after = wallToScreen(point, withView(base, view));
+
+    expect(view).toEqual({ zoom: 1, panX: 17, panY: -9 });
+    expect(after.x - before.x).toBe(17);
+    expect(after.y - before.y).toBe(-9);
   });
 });

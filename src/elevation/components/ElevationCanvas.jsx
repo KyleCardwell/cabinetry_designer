@@ -1,6 +1,8 @@
 import {
+  forwardRef,
   useCallback,
   useEffect,
+  useImperativeHandle,
   useLayoutEffect,
   useMemo,
   useRef,
@@ -12,7 +14,13 @@ import {
   dimensionRowOffsets,
   layoutDimensionRow,
 } from '../canvas/dimensionLayout.js';
-import { fitWallToViewport } from '../canvas/transform.js';
+import {
+  DEFAULT_VIEW,
+  fitWallToViewport,
+  panView,
+  withView,
+  zoomViewAt,
+} from '../canvas/transform.js';
 import {
   dragPointsToRunInput,
   screenPointToWallSnapped,
@@ -45,11 +53,19 @@ import NeighborReturns from './NeighborReturns.jsx';
 import RunGroup from './RunGroup.jsx';
 import WallFrame from './WallFrame.jsx';
 
-export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }) {
+function ElevationCanvas({
+  room,
+  wall,
+  settings,
+  fitRequest = 0,
+  onZoomChange,
+}, ref) {
   const dispatch = useDispatch();
   const { tool, selection } = useSelector((state) => state.elevation);
+  const stageRef = useRef(null);
   const containerRef = useRef(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const [view, setView] = useState(DEFAULT_VIEW);
   const [drag, setDrag] = useState(null);
   const [stretchPreview, setStretchPreview] = useState(null);
   const dragRef = useRef(null);
@@ -88,6 +104,11 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
   }, []);
 
   const cancelDrag = useCallback(() => updateDrag(null), [updateDrag]);
+
+  const resetView = useCallback(() => {
+    setView(DEFAULT_VIEW);
+    stageRef.current?.position({ x: 0, y: 0 });
+  }, []);
 
   const showMessage = useCallback((message) => {
     dispatch(setMessage(message));
@@ -131,6 +152,10 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
   }, [cancelDrag, dispatch, wallId]);
 
   useEffect(() => {
+    resetView();
+  }, [fitRequest, resetView, wallId]);
+
+  useEffect(() => {
     if (tool !== 'draw') cancelDrag();
     if (tool !== 'select') setStretchPreview(null);
   }, [cancelDrag, tool]);
@@ -138,6 +163,68 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
   useEffect(() => {
     setStretchPreview(null);
   }, [selection.runId]);
+
+  useEffect(() => () => {
+    if (messageTimeoutRef.current !== null) {
+      globalThis.clearTimeout(messageTimeoutRef.current);
+    }
+    if (clickSuppressionTimeoutRef.current !== null) {
+      globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
+    }
+    dispatch(setMessage(null));
+  }, [dispatch]);
+
+  const baseTransform = useMemo(() => (
+    wall && viewport.width > 0 && viewport.height > 0
+      ? fitWallToViewport(wall, viewport, {
+        top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
+        right: 48,
+        bottom: 96,
+        left: 110,
+      })
+      : null
+  ), [dimensionChains?.upper.inner.length, viewport, wall]);
+  const transform = useMemo(
+    () => (baseTransform ? withView(baseTransform, view) : null),
+    [baseTransform, view],
+  );
+
+  const zoomAt = useCallback((pointer, factor) => {
+    if (!baseTransform) return;
+    setView((current) => zoomViewAt(baseTransform, current, pointer, factor));
+  }, [baseTransform]);
+
+  const zoomIn = useCallback(() => {
+    zoomAt({ x: viewport.width / 2, y: viewport.height / 2 }, 1.08);
+  }, [viewport.height, viewport.width, zoomAt]);
+
+  const zoomOut = useCallback(() => {
+    zoomAt({ x: viewport.width / 2, y: viewport.height / 2 }, 1 / 1.08);
+  }, [viewport.height, viewport.width, zoomAt]);
+
+  useImperativeHandle(ref, () => ({ zoomIn, zoomOut }), [zoomIn, zoomOut]);
+
+  useEffect(() => {
+    onZoomChange?.(view.zoom);
+  }, [onZoomChange, view.zoom]);
+
+  const dimensionOffsets = useMemo(() => {
+    if (!dimensionChains || !transform) return null;
+    const lowerLevels = layoutDimensionRow(dimensionChains.lower.inner, {
+      scale: transform.scale,
+    }).levels;
+    const upperLevels = layoutDimensionRow(dimensionChains.upper.inner, {
+      scale: transform.scale,
+    }).levels;
+    const verticalLevels = layoutDimensionRow(dimensionChains.vertical.inner, {
+      scale: transform.scale,
+    }).levels;
+    return {
+      lower: dimensionRowOffsets('horizontal', lowerLevels),
+      upper: dimensionRowOffsets('horizontal', upperLevels),
+      vertical: dimensionRowOffsets('vertical', verticalLevels),
+    };
+  }, [dimensionChains, transform]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -148,9 +235,25 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
         return;
       }
 
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       const tagName = event.target?.tagName?.toLowerCase();
       if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
+
+      if (event.key === '+' || event.key === '=') {
+        event.preventDefault();
+        zoomIn();
+        return;
+      }
+      if (event.key === '-') {
+        event.preventDefault();
+        zoomOut();
+        return;
+      }
+      if (event.key === '0') {
+        event.preventDefault();
+        resetView();
+        return;
+      }
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
 
       const currentSelection = selectionRef.current;
       const currentWall = wallRef.current;
@@ -180,45 +283,23 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrag, dispatch, stretchPreview]);
+  }, [cancelDrag, dispatch, resetView, stretchPreview, zoomIn, zoomOut]);
 
-  useEffect(() => () => {
-    if (messageTimeoutRef.current !== null) {
-      globalThis.clearTimeout(messageTimeoutRef.current);
-    }
-    if (clickSuppressionTimeoutRef.current !== null) {
-      globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
-    }
-    dispatch(setMessage(null));
-  }, [dispatch]);
+  const handleWheel = useCallback((event) => {
+    event.evt.preventDefault();
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+    let factor = event.evt.deltaY < 0 ? 1.08 : 1 / 1.08;
+    if (event.evt.ctrlKey || event.evt.metaKey) factor = 1 / factor;
+    zoomAt(pointer, factor);
+  }, [zoomAt]);
 
-  const transform = useMemo(() => (
-    wall && viewport.width > 0 && viewport.height > 0
-      ? fitWallToViewport(wall, viewport, {
-        top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
-        right: 48,
-        bottom: 96,
-        left: 110,
-      })
-      : null
-  ), [dimensionChains?.upper.inner.length, fitRequest, viewport, wall]);
-  const dimensionOffsets = useMemo(() => {
-    if (!dimensionChains || !transform) return null;
-    const lowerLevels = layoutDimensionRow(dimensionChains.lower.inner, {
-      scale: transform.scale,
-    }).levels;
-    const upperLevels = layoutDimensionRow(dimensionChains.upper.inner, {
-      scale: transform.scale,
-    }).levels;
-    const verticalLevels = layoutDimensionRow(dimensionChains.vertical.inner, {
-      scale: transform.scale,
-    }).levels;
-    return {
-      lower: dimensionRowOffsets('horizontal', lowerLevels),
-      upper: dimensionRowOffsets('horizontal', upperLevels),
-      vertical: dimensionRowOffsets('vertical', verticalLevels),
-    };
-  }, [dimensionChains, transform]);
+  const handleStageDragEnd = useCallback((event) => {
+    if (event.target !== stageRef.current) return;
+    const stage = event.target;
+    setView((current) => panView(current, stage.x(), stage.y()));
+    stage.position({ x: 0, y: 0 });
+  }, []);
 
   const dragBounds = useMemo(() => (
     drag ? dragPointsToRunInput(drag.start, drag.current) : null
@@ -353,11 +434,15 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
       )}
       {wall && transform && (
         <Stage
+          ref={stageRef}
           width={viewport.width}
           height={viewport.height}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onWheel={handleWheel}
+          draggable={tool === 'select' && !drag && !stretchPreview}
+          onDragEnd={handleStageDragEnd}
           onClick={() => {
             if (suppressClickRef.current) return;
             if (tool === 'select') dispatch(clearSelection());
@@ -479,3 +564,5 @@ export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }
     </div>
   );
 }
+
+export default forwardRef(ElevationCanvas);

@@ -113,6 +113,44 @@ export default function DimensionRow({
         const labelPoint = rowPoint(midpointValue, labelDistance);
         const rotation = horizontal ? 0 : -90;
         const tooltipPoint = rowPoint(midpointValue, 12 * (layout.levels + 1));
+        const hitEvents = {
+          onClick: clickable ? (event) => {
+            event.cancelBubble = true;
+            onSegmentClick(segment);
+          } : undefined,
+          onMouseEnter: showsHiddenTooltip
+            ? () => setHoveredHiddenIndex(index)
+            : undefined,
+          onMouseLeave: showsHiddenTooltip
+            ? () => setHoveredHiddenIndex(null)
+            : undefined,
+        };
+        const band = horizontal
+          ? {
+            x: Math.min(start.x, end.x),
+            y: start.y - 14,
+            width: Math.abs(end.x - start.x),
+            height: 28,
+          }
+          : {
+            x: start.x - 14,
+            y: Math.min(start.y, end.y),
+            width: 28,
+            height: Math.abs(end.y - start.y),
+          };
+        const leader = horizontal
+          ? {
+            x: midpoint.x - 5,
+            y: Math.min(midpoint.y, labelPoint.y),
+            width: 10,
+            height: Math.abs(labelPoint.y - midpoint.y),
+          }
+          : {
+            x: Math.min(midpoint.x, labelPoint.x),
+            y: midpoint.y - 5,
+            width: Math.abs(labelPoint.x - midpoint.x),
+            height: 10,
+          };
 
         return (
           <Group key={`${segment.kind}:${segment.start}:${segment.end}`}>
@@ -120,18 +158,7 @@ export default function DimensionRow({
               points={[start.x, start.y, end.x, end.y]}
               stroke={color}
               strokeWidth={segment.kind === 'run' ? 1.5 : 1}
-              hitStrokeWidth={clickable || showsHiddenTooltip ? 10 : 0}
-              listening={clickable || showsHiddenTooltip}
-              onClick={clickable ? (event) => {
-                event.cancelBubble = true;
-                onSegmentClick(segment);
-              } : undefined}
-              onMouseEnter={showsHiddenTooltip
-                ? () => setHoveredHiddenIndex(index)
-                : undefined}
-              onMouseLeave={showsHiddenTooltip
-                ? () => setHoveredHiddenIndex(null)
-                : undefined}
+              listening={false}
             />
 
             {label.mode === 'popout' && (
@@ -156,6 +183,34 @@ export default function DimensionRow({
                 fontSize={FONT_SIZE}
                 fill={color}
                 listening={false}
+              />
+            )}
+
+            {(clickable || showsHiddenTooltip) && (
+              <Rect
+                {...band}
+                fill="rgba(0,0,0,0.001)"
+                {...hitEvents}
+              />
+            )}
+            {clickable && label.mode !== 'hidden' && (
+              <Rect
+                x={labelPoint.x}
+                y={labelPoint.y}
+                width={label.width + 8}
+                height={FONT_SIZE + 8}
+                offsetX={(label.width + 8) / 2}
+                offsetY={(FONT_SIZE + 8) / 2}
+                rotation={rotation}
+                fill="rgba(0,0,0,0.001)"
+                {...hitEvents}
+              />
+            )}
+            {clickable && label.mode === 'popout' && (
+              <Rect
+                {...leader}
+                fill="rgba(0,0,0,0.001)"
+                {...hitEvents}
               />
             )}
 

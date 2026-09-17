@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import ElevationCanvas from './components/ElevationCanvas.jsx';
 import ElevationToolbar from './components/ElevationToolbar.jsx';
@@ -13,7 +13,9 @@ import { resolveWall } from './model/room.js';
 import PlanCanvas from './plan/PlanCanvas.jsx';
 
 export default function ElevationLab() {
+  const elevationCanvasRef = useRef(null);
   const [fitRequest, setFitRequest] = useState(0);
+  const [elevationZoom, setElevationZoom] = useState(1);
   const {
     rooms,
     activeRoomId,
@@ -45,16 +47,23 @@ export default function ElevationLab() {
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <ElevationToolbar onZoomToFit={() => setFitRequest((value) => value + 1)} />
+        <ElevationToolbar
+          onZoomToFit={() => setFitRequest((value) => value + 1)}
+          onZoomIn={() => elevationCanvasRef.current?.zoomIn()}
+          onZoomOut={() => elevationCanvasRef.current?.zoomOut()}
+          zoom={elevationZoom}
+        />
         <div className="min-h-0 flex-1">
           {view === 'plan' ? (
             <PlanCanvas fitRequest={fitRequest} />
           ) : (
             <ElevationCanvas
+              ref={elevationCanvasRef}
               room={activeRoom}
               wall={activeWall}
               settings={settings}
               fitRequest={fitRequest}
+              onZoomChange={setElevationZoom}
             />
           )}
         </div>

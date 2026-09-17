@@ -5,6 +5,9 @@ const DEFAULT_PADDING = {
   left: 48,
 };
 
+/** @type {{zoom: number, panX: number, panY: number}} */
+export const DEFAULT_VIEW = { zoom: 1, panX: 0, panY: 0 };
+
 function normalizePadding(padding) {
   if (typeof padding === 'number') {
     return { top: padding, right: padding, bottom: padding, left: padding };
@@ -36,6 +39,57 @@ export function fitWallToViewport(wall, viewport, padding = DEFAULT_PADDING) {
     offsetY: inset.top + (availableHeight - drawnHeight) / 2,
     wallHeight: wall.height,
   };
+}
+
+/**
+ * Apply zoom and pan view state to a fitted wall transform.
+ *
+ * @param {{scale: number, offsetX: number, offsetY: number, wallHeight: number}} base
+ * @param {{zoom: number, panX: number, panY: number}} view
+ * @returns {{scale: number, offsetX: number, offsetY: number, wallHeight: number}}
+ */
+export function withView(base, view) {
+  return {
+    scale: base.scale * view.zoom,
+    offsetX: base.offsetX * view.zoom + view.panX,
+    offsetY: base.offsetY * view.zoom + view.panY,
+    wallHeight: base.wallHeight,
+  };
+}
+
+/**
+ * Zoom a fitted wall view around a screen-space pointer.
+ *
+ * @param {{scale: number, offsetX: number, offsetY: number, wallHeight: number}} base
+ * @param {{zoom: number, panX: number, panY: number}} view
+ * @param {{x: number, y: number}} pointer
+ * @param {number} factor
+ * @param {{min?: number, max?: number}} [limits]
+ * @returns {{zoom: number, panX: number, panY: number}}
+ */
+export function zoomViewAt(base, view, pointer, factor, { min = 0.25, max = 8 } = {}) {
+  const zoom = Math.max(min, Math.min(max, view.zoom * factor));
+  if (zoom === view.zoom) return view;
+  const wallPoint = screenToWall(pointer, withView(base, view));
+  return {
+    zoom,
+    panX: pointer.x - zoom * (wallPoint.x * base.scale + base.offsetX),
+    panY: pointer.y - zoom * (
+      (base.wallHeight - wallPoint.z) * base.scale + base.offsetY
+    ),
+  };
+}
+
+/**
+ * Add screen-space deltas to a wall view's pan.
+ *
+ * @param {{zoom: number, panX: number, panY: number}} view
+ * @param {number} dx
+ * @param {number} dy
+ * @returns {{zoom: number, panX: number, panY: number}}
+ */
+export function panView(view, dx, dy) {
+  return { ...view, panX: view.panX + dx, panY: view.panY + dy };
 }
 
 /**

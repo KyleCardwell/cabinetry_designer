@@ -1,7 +1,12 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { setTool, setView, updateSettings } from '../store/elevationSlice.js';
 
-export default function ElevationToolbar({ onZoomToFit }) {
+export default function ElevationToolbar({
+  onZoomToFit,
+  onZoomIn,
+  onZoomOut,
+  zoom = 1,
+}) {
   const dispatch = useDispatch();
   const {
     tool,
@@ -57,6 +62,29 @@ export default function ElevationToolbar({ onZoomToFit }) {
         </button>
       )}
       <div className="mx-1 h-5 w-px bg-gray-700" />
+      {view === 'elevation' && (
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            aria-label="Zoom out"
+            onClick={onZoomOut}
+            className="rounded bg-gray-700 px-2.5 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-600"
+          >
+            −
+          </button>
+          <span className="w-12 text-center text-xs tabular-nums text-gray-300">
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            aria-label="Zoom in"
+            onClick={onZoomIn}
+            className="rounded bg-gray-700 px-2.5 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-600"
+          >
+            +
+          </button>
+        </div>
+      )}
       <button
         type="button"
         onClick={onZoomToFit}
