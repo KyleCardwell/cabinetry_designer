@@ -45,6 +45,7 @@ export {
   polygonOverlap,
   runFootprint,
 } from './footprints.js';
+export { horizontalChains, pickColumnRuns, verticalChains } from './dimensions.js';
 export {
   chainOrder,
   chainOrientation,
