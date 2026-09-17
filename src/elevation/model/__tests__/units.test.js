@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { floorTo, formatInches, parseInches, roundTo } from '../units.js';
+import {
+  floorTo,
+  formatInches,
+  formatInchesInput,
+  parseInches,
+  roundTo,
+} from '../units.js';
 
 describe('parseInches and formatInches', () => {
   it.each([
@@ -23,6 +29,12 @@ describe('parseInches and formatInches', () => {
     expect(parseInches('-2 1/2')).toBe(-2.5);
     expect(formatInches(-2.5)).toBe('-2 1/2"');
     expect(formatInches(1.999)).toBe('2"');
+  });
+
+  it('formats input values as fractions without an inch mark', () => {
+    expect(formatInchesInput(24.875)).toBe('24 7/8');
+    expect(formatInchesInput(0.75)).toBe('3/4');
+    expect(formatInchesInput(-2.5)).toBe('-2 1/2');
   });
 });
 

@@ -72,6 +72,16 @@ export function formatInches(n) {
 }
 
 /**
+ * Format an inch value for an input, retaining fractions without the inch mark.
+ *
+ * @param {number} n
+ * @returns {string}
+ */
+export function formatInchesInput(n) {
+  return formatInches(n).replace(/"$/, '');
+}
+
+/**
  * Round a number down to a positive step while tolerating floating-point noise.
  *
  * @param {number} n

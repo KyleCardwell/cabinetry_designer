@@ -6,6 +6,7 @@ import {
   cornerAt,
   cornerReserve,
   formatInches,
+  formatInchesInput,
   frontDepth,
   moldingStack,
   resolveProfile,
@@ -375,7 +376,7 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                   <InchInput
                     value={run.overrides[key] ?? null}
                     allowBlank
-                    placeholder={formatInches(inheritedValues[key])}
+                    placeholder={formatInchesInput(inheritedValues[key])}
                     onCommit={(value) => dispatch(setRunOverride({
                       ...actionBase,
                       key,
@@ -787,7 +788,7 @@ function WallHeightProperties({ room, wall, plan }) {
               <InchInput
                 value={wall.profile[key] ?? null}
                 allowBlank
-                placeholder={formatInches(room.profile[key])}
+                placeholder={formatInchesInput(room.profile[key])}
                 onCommit={(value) => dispatch(updateWall({
                   wallId: wall.id,
                   changes: { profile: { [key]: value } },

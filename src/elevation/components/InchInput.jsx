@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { formatInches, parseInches } from '../model/units.js';
+import { formatInchesInput, parseInches } from '../model/units.js';
 
 function displayValue(value) {
-  return value === null || value === undefined ? '' : formatInches(value);
+  return value === null || value === undefined ? '' : formatInchesInput(value);
 }
 
 export default function InchInput({
@@ -37,7 +37,7 @@ export default function InchInput({
 
     const accepted = onCommit(parsed);
     if (accepted === false) revert();
-    else setText(formatInches(parsed));
+    else setText(formatInchesInput(parsed));
   };
 
   return (
