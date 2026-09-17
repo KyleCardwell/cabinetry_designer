@@ -5,6 +5,7 @@ import {
   ELEVATION_STORAGE_KEY,
   LEGACY_ELEVATION_STORAGE_KEY,
   loadElevationDocument,
+  migrateV1Document,
 } from '../persistence.js';
 
 function v1Run(id, x, z, height) {
@@ -109,5 +110,22 @@ describe('elevation persistence migration', () => {
     });
     expect(room.walls[1].runs[0]).toMatchObject({ x: 7, z: 10, height: 20 });
     expect(localStorage.getItem(LEGACY_ELEVATION_STORAGE_KEY)).toBe(legacy);
+  });
+
+  it('defaults new optional wall fields and normalizes generated names on v2 load', () => {
+    const current = migrateV1Document(v1Document());
+    current.rooms[0].walls[0].name = 'Wall 7';
+    delete current.rooms[0].walls[0].numberOverride;
+    delete current.rooms[0].wallOrder;
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.rooms[0].walls[0]).toMatchObject({
+      name: '',
+      numberOverride: null,
+    });
+    expect(loaded.rooms[0].wallOrder).toEqual(['wall-a', 'wall-b']);
   });
 });

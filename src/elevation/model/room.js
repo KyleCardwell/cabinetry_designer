@@ -9,6 +9,7 @@ import { wallFrame, wallLength } from './geometry.js';
 import { validateRunPlacement } from './overlap.js';
 import { resolveProfile, resolveVertical } from './profile.js';
 import { splitRun, syncAutoItems } from './splitRun.js';
+import { computeWallOrder } from './topology.js';
 
 function cloneRun(run) {
   return {
@@ -26,9 +27,12 @@ function cloneRun(run) {
 function cloneRoom(room) {
   return {
     ...room,
+    wallOrder: [...(room.wallOrder ?? [])],
     profile: { ...room.profile },
     walls: room.walls.map((wall) => ({
       ...wall,
+      name: wall.name ?? '',
+      numberOverride: wall.numberOverride ?? null,
       profile: { ...(wall.profile ?? {}) },
       connections: {
         start: wall.connections?.start ? { ...wall.connections.start } : null,
@@ -58,6 +62,8 @@ export function endMinWidthsForRun(room, wall, run, settings) {
  */
 export function syncRoom(room, settings) {
   let nextRoom = cloneRoom(room);
+
+  nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
 
   nextRoom = {
     ...nextRoom,

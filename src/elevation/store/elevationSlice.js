@@ -24,10 +24,11 @@ function copySettings(settings = DEFAULT_SETTINGS) {
   };
 }
 
-function createWall(name = 'Wall 1', y = 0, length = 144, values = {}) {
+function createWall(name = '', y = 0, length = 144, values = {}) {
   return {
     id: values.id ?? uuid(),
-    name,
+    name: values.name ?? name,
+    numberOverride: values.numberOverride ?? null,
     x1: values.x1 ?? 0,
     y1: values.y1 ?? y,
     x2: values.x2 ?? length,
@@ -46,6 +47,7 @@ function createRoom(name = 'Room 1', settings = DEFAULT_SETTINGS, id = uuid()) {
     id,
     name,
     profile: { ...settings.defaultProfile },
+    wallOrder: [],
     walls: [],
   };
 }
@@ -188,7 +190,7 @@ const elevationSlice = createSlice({
           ? 0
           : Math.max(...room.walls.flatMap((wall) => [wall.y1, wall.y2])) + 60);
         const wall = createWall(
-          action.payload.name ?? `Wall ${room.walls.length + 1}`,
+          action.payload.name ?? '',
           y,
           action.payload.length ?? 144,
           action.payload,
@@ -209,7 +211,7 @@ const elevationSlice = createSlice({
         if (roomIndex === -1) return;
         const room = state.rooms[roomIndex];
         const wall = createWall(
-          action.payload.name ?? `Wall ${room.walls.length + 1}`,
+          action.payload.name ?? '',
           action.payload.y1,
           0,
           {
@@ -291,6 +293,12 @@ const elevationSlice = createSlice({
       const allowedChanges = changes ?? inlineChanges;
       for (const key of ['name', 'height', 'thickness']) {
         if (allowedChanges[key] !== undefined) location.wall[key] = allowedChanges[key];
+      }
+      if (allowedChanges.numberOverride !== undefined) {
+        const value = allowedChanges.numberOverride;
+        if (value === null || (Number.isInteger(value) && value > 0)) {
+          location.wall.numberOverride = value;
+        }
       }
       const profileChanges = allowedChanges.profile ?? allowedChanges.profileOverrides;
       if (profileChanges) {

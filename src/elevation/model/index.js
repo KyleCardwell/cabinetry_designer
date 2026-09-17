@@ -38,6 +38,16 @@ export {
 } from './corners.js';
 export { findCollisions, polygonOverlap, runFootprint } from './footprints.js';
 export {
+  chainOrder,
+  chainOrientation,
+  computeWallOrder,
+  normalizeWallName,
+  wallComponents,
+  wallLabel,
+  wallNumbers,
+  wallNumberWarnings,
+} from './topology.js';
+export {
   endMinWidthsForRun,
   flipRunsForWall,
   resolveWall,

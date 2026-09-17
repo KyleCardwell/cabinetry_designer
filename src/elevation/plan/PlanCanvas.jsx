@@ -14,6 +14,7 @@ import WallDrawPreview from '../../canvas/components/WallDrawPreview.jsx';
 import WallEndpoints from '../../canvas/components/WallEndpoints.jsx';
 import { findCollisions } from '../model/footprints.js';
 import { wallFrame } from '../model/geometry.js';
+import { wallLabel } from '../model/topology.js';
 import {
   addWallSegment,
   connectWalls,
@@ -66,7 +67,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       if (otherWall && !messages.has(collision.runId)) {
         messages.set(
           collision.runId,
-          `Overlaps ${otherWall.name} run — anchor both runs to the corner`,
+          `Overlaps ${wallLabel(room, otherWall)} run — anchor both runs to the corner`,
         );
       }
     }

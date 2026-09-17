@@ -5,6 +5,10 @@ import {
   DEFAULT_SETTINGS,
 } from '../model/constants.js';
 import { wallFrame } from '../model/geometry.js';
+import {
+  computeWallOrder,
+  normalizeWallName,
+} from '../model/topology.js';
 
 /** Current Elevation Lab localStorage key. */
 export const ELEVATION_STORAGE_KEY = 'cd.elevationLab.v2';
@@ -113,6 +117,8 @@ function isWall(wall) {
   return Boolean(wall)
     && typeof wall.id === 'string'
     && typeof wall.name === 'string'
+    && (wall.numberOverride === null
+      || (Number.isInteger(wall.numberOverride) && wall.numberOverride > 0))
     && ['x1', 'y1', 'x2', 'y2', 'height', 'thickness'].every(
       (key) => isFiniteNumber(wall[key]),
     )
@@ -130,7 +136,40 @@ function isRoom(room) {
     && typeof room.name === 'string'
     && isCompleteProfile(room.profile)
     && Array.isArray(room.walls)
-    && room.walls.every(isWall);
+    && Array.isArray(room.wallOrder)
+    && room.wallOrder.length === room.walls.length
+    && new Set(room.wallOrder).size === room.wallOrder.length
+    && room.walls.every(isWall)
+    && room.wallOrder.every((wallId) => room.walls.some((wall) => wall.id === wallId));
+}
+
+function normalizeV2Document(document) {
+  if (!document || document.schemaVersion !== ELEVATION_SCHEMA_VERSION) return document;
+  return {
+    ...document,
+    rooms: Array.isArray(document.rooms) ? document.rooms.map((room) => {
+      if (!room || typeof room !== 'object') return room;
+      const normalized = {
+        ...room,
+        walls: Array.isArray(room.walls) ? room.walls.map((wall) => (
+          wall && typeof wall === 'object'
+            ? {
+              ...wall,
+              name: normalizeWallName(wall.name),
+              numberOverride: wall.numberOverride ?? null,
+            }
+            : wall
+        )) : room.walls,
+      };
+      if (Array.isArray(normalized.walls)) {
+        normalized.wallOrder = computeWallOrder(
+          normalized,
+          Array.isArray(room.wallOrder) ? room.wallOrder : [],
+        );
+      }
+      return normalized;
+    }) : document.rooms,
+  };
 }
 
 function hasValidEnds(settings) {
@@ -210,9 +249,11 @@ export function migrateV1Document(document) {
     id: uuid(),
     name: 'Room 1',
     profile: { ...defaultProfile },
+    wallOrder: [],
     walls: document.walls.map((wall, index) => ({
       id: wall.id,
-      name: wall.name,
+      name: normalizeWallName(wall.name),
+      numberOverride: null,
       x1: 0,
       y1: index * 60,
       x2: wall.length,
@@ -232,6 +273,7 @@ export function migrateV1Document(document) {
       })),
     })),
   };
+  room.wallOrder = computeWallOrder(room, []);
   room.walls = room.walls.map((wall) => (
     wallFrame(room, wall).leftEndpoint === 'start' ? wall : { ...wall, flipped: true }
   ));
@@ -259,7 +301,7 @@ function readStored(key) {
 export function loadElevationDocument() {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return null;
-    const current = readStored(ELEVATION_STORAGE_KEY);
+    const current = normalizeV2Document(readStored(ELEVATION_STORAGE_KEY));
     if (isElevationDocument(current)) return current;
     const legacy = readStored(LEGACY_ELEVATION_STORAGE_KEY);
     return isV1ElevationDocument(legacy) ? migrateV1Document(legacy) : null;

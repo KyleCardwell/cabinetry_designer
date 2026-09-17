@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
+import { wallLabel } from '../model/topology.js';
 
 export default function JsonToggle() {
   const [showJson, setShowJson] = useState(false);
@@ -8,6 +9,13 @@ export default function JsonToggle() {
       (candidate) => candidate.id === state.elevation.activeRoomId,
     ) ?? null
   ));
+  const displayRoom = activeRoom ? {
+    ...activeRoom,
+    walls: activeRoom.walls.map((wall) => ({
+      ...wall,
+      name: wallLabel(activeRoom, wall),
+    })),
+  } : null;
 
   return (
     <section className="border-t border-gray-700 pt-4">
@@ -22,7 +30,7 @@ export default function JsonToggle() {
       </label>
       {showJson && (
         <pre className="mt-3 max-h-72 overflow-auto rounded bg-gray-950 p-3 text-[10px] leading-relaxed text-gray-400">
-          {JSON.stringify(activeRoom, null, 2)}
+          {JSON.stringify(displayRoom, null, 2)}
         </pre>
       )}
     </section>

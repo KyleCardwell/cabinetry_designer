@@ -1,5 +1,6 @@
-import { Group, Line, Text } from 'react-konva';
+import { Circle, Group, Line, Text } from 'react-konva';
 import { wallFrame } from '../model/geometry.js';
+import { wallNumbers } from '../model/topology.js';
 import { formatInches } from '../model/units.js';
 
 export default function PlanWallShape({
@@ -29,6 +30,13 @@ export default function PlanWallShape({
   const tickLength = 8 / scale;
   const labelOffset = 14 / scale;
   const fontSize = 11 / scale;
+  const number = wallNumbers(room).get(wall.id);
+  const numberRadius = 9 / scale;
+  const numberOffset = wall.thickness + 12 / scale;
+  const numberPoint = {
+    x: midpoint.x + exterior.x * numberOffset,
+    y: midpoint.y + exterior.y * numberOffset,
+  };
   let labelRotation = Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1) * 180 / Math.PI;
   if (labelRotation > 90 || labelRotation < -90) labelRotation += 180;
 
@@ -78,6 +86,27 @@ export default function PlanWallShape({
         text={formatInches(frame.length)}
         fontSize={fontSize}
         fill="#e2e8f0"
+        listening={false}
+      />
+      <Circle
+        x={numberPoint.x}
+        y={numberPoint.y}
+        radius={numberRadius}
+        fill="#111827"
+        stroke={isSelected ? '#93c5fd' : '#cbd5e1'}
+        strokeWidth={1 / scale}
+        listening={false}
+      />
+      <Text
+        x={numberPoint.x - numberRadius}
+        y={numberPoint.y - numberRadius}
+        width={numberRadius * 2}
+        height={numberRadius * 2}
+        text={String(number ?? '')}
+        align="center"
+        verticalAlign="middle"
+        fontSize={10 / scale}
+        fill="#f8fafc"
         listening={false}
       />
     </Group>

@@ -11,6 +11,9 @@ import {
   moldingStack,
   resolveProfile,
   splitRun,
+  wallLabel,
+  wallNumbers,
+  wallNumberWarnings,
 } from '../model/index.js';
 import {
   endMinWidthsForRun,
@@ -121,7 +124,9 @@ function cornerLabel(corner, room) {
   if (corner.type === 'straight') return 'Straight joint';
   if (corner.type === 'outside') return 'Outside corner (not supported yet)';
   const neighbor = room.walls.find((wall) => wall.id === corner.neighborWallId);
-  return `Inside corner ${Math.round(corner.angle)}° · ${neighbor?.name ?? 'Unknown wall'}`;
+  return `Inside corner ${Math.round(corner.angle)}° · ${neighbor
+    ? wallLabel(room, neighbor)
+    : 'Unknown wall'}`;
 }
 
 function EndEditor({ side, end, onChange }) {
@@ -696,6 +701,9 @@ function PieceProperties({ wallId, run, selectionContext }) {
 
 function WallHeightProperties({ room, wall, plan }) {
   const dispatch = useDispatch();
+  const autoNumber = wallNumbers(room).get(wall.id);
+  const duplicateNumber = wallNumberWarnings(room)
+    .some((warning) => warning.wallIds.includes(wall.id));
 
   const updateLength = (length) => {
     if (length <= 0) return false;
@@ -709,20 +717,52 @@ function WallHeightProperties({ room, wall, plan }) {
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Wall
         </h3>
+        <p className="mb-3 text-sm font-medium text-gray-200">{wallLabel(room, wall)}</p>
+        <div className="mb-3 grid grid-cols-2 gap-2.5">
+          <Field label="Name (optional)">
+            <input
+              type="text"
+              value={wall.name}
+              onChange={(event) => dispatch(updateWall({
+                wallId: wall.id,
+                changes: { name: event.target.value },
+              }))}
+              aria-label="Wall name"
+              className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+            />
+          </Field>
+          <Field label="Number">
+            <input
+              type="number"
+              min="1"
+              step="1"
+              value={wall.numberOverride ?? ''}
+              placeholder={String(autoNumber ?? '')}
+              onChange={(event) => {
+                const value = event.target.value;
+                if (value === '') {
+                  dispatch(updateWall({ wallId: wall.id, changes: { numberOverride: null } }));
+                  return;
+                }
+                const number = Number(value);
+                if (Number.isInteger(number) && number > 0) {
+                  dispatch(updateWall({ wallId: wall.id, changes: { numberOverride: number } }));
+                }
+              }}
+              aria-label="Wall number"
+              className={`w-full rounded border bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:outline-none ${
+                duplicateNumber
+                  ? 'border-amber-500 focus:border-amber-400'
+                  : 'border-gray-600 focus:border-blue-500'
+              }`}
+            />
+          </Field>
+        </div>
+        {duplicateNumber && (
+          <p className="mb-3 text-xs text-amber-400">This wall number is also assigned to another wall.</p>
+        )}
         {plan ? (
           <div className="space-y-2.5">
-            <Field label="Name">
-              <input
-                type="text"
-                value={wall.name}
-                onChange={(event) => dispatch(updateWall({
-                  wallId: wall.id,
-                  changes: { name: event.target.value },
-                }))}
-                aria-label="Wall name"
-                className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-              />
-            </Field>
             <div className="grid grid-cols-2 gap-2.5">
               <Field label="Length">
                 <InchInput
@@ -762,7 +802,6 @@ function WallHeightProperties({ room, wall, plan }) {
           </div>
         ) : (
           <>
-            <p className="mb-3 text-sm font-medium text-gray-200">{wall.name}</p>
             <Field label="Wall height">
               <InchInput
                 value={wall.height}

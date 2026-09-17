@@ -1,4 +1,7 @@
+import { chainOrientation, wallComponents } from './topology.js';
+
 const VECTOR_EPSILON = 1e-9;
+const topologyCache = new WeakMap();
 
 /** Add two plan vectors. */
 export function add(a, b) {
@@ -61,29 +64,46 @@ function cleanVector(vector) {
  *
  * @param {object} room
  * @param {object} wall
+ * @param {object|Array<object>|null} topology optional precomputed topology
  * @returns {{length:number,d:object,n:object,r:object,leftEndpoint:string,rightEndpoint:string,leftPoint:object,rightPoint:object}}
  */
-export function wallFrame(room, wall) {
+export function wallFrame(room, wall, topology = null) {
   const length = wallLength(wall);
   const d = length > VECTOR_EPSILON
     ? { x: (wall.x2 - wall.x1) / length, y: (wall.y2 - wall.y1) / length }
     : { x: 1, y: 0 };
-  const nA = { x: -d.y, y: d.x };
-  const nB = { x: d.y, y: -d.x };
-  const walls = room?.walls?.length ? room.walls : [wall];
-  const centroid = walls.reduce((sum, candidate) => ({
-    x: sum.x + (candidate.x1 + candidate.x2) / 2,
-    y: sum.y + (candidate.y1 + candidate.y2) / 2,
-  }), { x: 0, y: 0 });
-  centroid.x /= walls.length;
-  centroid.y /= walls.length;
-  const midpoint = { x: (wall.x1 + wall.x2) / 2, y: (wall.y1 + wall.y2) / 2 };
-  const towardCentroid = subtract(centroid, midpoint);
-  const scoreA = dot(nA, towardCentroid);
-  const scoreB = dot(nB, towardCentroid);
-  let n = walls.length === 1 || Math.abs(scoreA - scoreB) <= VECTOR_EPSILON
-    ? nA
-    : (scoreA > 0 ? nA : nB);
+  let resolvedTopology = topology;
+  if (!resolvedTopology && room && typeof room === 'object') {
+    resolvedTopology = topologyCache.get(room);
+    if (!resolvedTopology) {
+      const components = wallComponents(room);
+      const entries = new Map();
+      for (const component of components) {
+        const orientation = chainOrientation(room, component);
+        for (const entry of component.walls) entries.set(entry.wallId, { entry, orientation });
+      }
+      resolvedTopology = { components, entries };
+      topologyCache.set(room, resolvedTopology);
+    }
+  }
+  if (Array.isArray(resolvedTopology)) {
+    const entries = new Map();
+    for (const component of resolvedTopology) {
+      const orientation = chainOrientation(room, component);
+      for (const entry of component.walls) entries.set(entry.wallId, { entry, orientation });
+    }
+    resolvedTopology = { components: resolvedTopology, entries };
+  }
+  const chain = resolvedTopology?.entries?.get(wall.id);
+  const from = chain?.entry?.from ?? 'start';
+  const to = chain?.entry?.to ?? 'end';
+  const fromPoint = endpointPoint(wall, from);
+  const toPoint = endpointPoint(wall, to);
+  const t = length > VECTOR_EPSILON ? normalize(subtract(toPoint, fromPoint)) : d;
+  const orientation = chain?.orientation ?? 1;
+  let n = orientation > 0
+    ? { x: -t.y, y: t.x }
+    : { x: t.y, y: -t.x };
   if (wall.flipped) n = scale(n, -1);
   n = cleanVector(n);
   const r = cleanVector({ x: n.y, y: -n.x });

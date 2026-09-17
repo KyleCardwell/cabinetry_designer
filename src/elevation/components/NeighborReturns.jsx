@@ -1,6 +1,7 @@
 import { Group, Line, Rect, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { cornerAt, frontDepth } from '../model/corners.js';
+import { wallLabel } from '../model/topology.js';
 
 function Hatch({ rect }) {
   const spacing = 8;
@@ -56,7 +57,7 @@ export default function NeighborReturns({ room, wall, settings, transform }) {
       }, transform);
       returns.push({
         key: `${side}:${neighbor.id}:${run.id}`,
-        label: neighbor.name,
+        label: wallLabel(room, neighbor),
         rect,
       });
     }

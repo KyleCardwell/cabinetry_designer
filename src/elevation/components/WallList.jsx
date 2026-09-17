@@ -10,6 +10,7 @@ import {
 import InchInput from './InchInput.jsx';
 import { formatInches } from '../model/units.js';
 import { wallLength } from '../model/geometry.js';
+import { wallLabel, wallNumbers } from '../model/topology.js';
 
 export default function WallList() {
   const dispatch = useDispatch();
@@ -21,6 +22,12 @@ export default function WallList() {
   } = useSelector((state) => state.elevation);
   const room = rooms.find((candidate) => candidate.id === activeRoomId);
   const walls = room?.walls ?? [];
+  const numbers = room ? wallNumbers(room) : new Map();
+  const sortedWalls = [...walls].sort((a, b) => (
+    (numbers.get(a.id) ?? Number.POSITIVE_INFINITY)
+      - (numbers.get(b.id) ?? Number.POSITIVE_INFINITY)
+    || walls.indexOf(a) - walls.indexOf(b)
+  ));
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const update = (wallId, changes) => dispatch(updateWall({ wallId, changes }));
@@ -33,7 +40,7 @@ export default function WallList() {
           type="button"
           onClick={() => {
             if (view === 'plan') dispatch(setTool('wall'));
-            else dispatch(addWall({ name: `Wall ${walls.length + 1}` }));
+            else dispatch(addWall());
           }}
           className="px-2.5 py-1 bg-blue-600 hover:bg-blue-500 rounded text-xs font-medium transition-colors"
         >
@@ -42,9 +49,10 @@ export default function WallList() {
       </div>
 
       <div className="space-y-2">
-        {walls.map((wall) => {
+        {sortedWalls.map((wall) => {
           const active = wall.id === activeWallId;
           const confirming = wall.id === confirmDeleteId;
+          const label = wallLabel(room, wall);
           return (
             <div
               key={wall.id}
@@ -59,15 +67,15 @@ export default function WallList() {
                   className={`h-3 w-3 shrink-0 rounded-full border ${
                     active ? 'border-blue-400 bg-blue-500' : 'border-gray-500'
                   }`}
-                  aria-label={`Select ${wall.name}`}
+                  aria-label={`Select ${label}`}
                 />
-                <input
-                  value={wall.name}
-                  onChange={(event) => update(wall.id, { name: event.target.value })}
-                  onFocus={() => dispatch(setActiveWall(wall.id))}
-                  aria-label="Wall name"
-                  className="min-w-0 flex-1 bg-transparent text-sm font-medium focus:outline-none focus:ring-1 focus:ring-blue-500 rounded px-1"
-                />
+                <button
+                  type="button"
+                  onClick={() => dispatch(setActiveWall(wall.id))}
+                  className="min-w-0 flex-1 truncate px-1 text-left text-sm font-medium"
+                >
+                  {label}
+                </button>
                 <button
                   type="button"
                   onClick={() => setConfirmDeleteId(wall.id)}
@@ -89,7 +97,7 @@ export default function WallList() {
                   <InchInput
                     value={wall.height}
                     onCommit={(height) => update(wall.id, { height })}
-                    aria-label={`${wall.name} height`}
+                    aria-label={`${label} height`}
                     className="mt-1"
                   />
                 </label>
