@@ -47,7 +47,10 @@ function warning(code, pieceId, message) {
  *
  * @param {object} run
  * @param {object} settings
- * @param {{endMinWidths?: {left?: number, right?: number}}} [opts]
+ * @param {{
+ *   endMinWidths?: {left?: number, right?: number},
+ *   endCornerAngles?: {left?: number, right?: number},
+ * }} [opts]
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 export function splitRun(run, settings, opts) {
@@ -158,7 +161,7 @@ export function splitRun(run, settings, opts) {
     if (end.type === 'none') return;
     let width = endWidth(end, settings);
     if (isFlexEnd(end)) width = side === 'left' ? leftFlexWidth : rightFlexWidth;
-    rawPieces.push({
+    const piece = {
       id: `${run.id}:${side}`,
       kind: end.type,
       role: `end-${side}`,
@@ -167,7 +170,14 @@ export function splitRun(run, settings, opts) {
         : CABINET_TYPE_IDS.END_PANEL,
       width,
       auto: isFlexEnd(end),
-    });
+    };
+    const cornerAngle = opts?.endCornerAngles?.[side];
+    if (isFlexEnd(end)
+      && Number.isFinite(cornerAngle)
+      && Math.abs(cornerAngle - 90) > 0.5) {
+      piece.cornerAngle = cornerAngle;
+    }
+    rawPieces.push(piece);
   };
 
   addEnd('left', run.ends.left);

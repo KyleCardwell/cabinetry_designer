@@ -7,7 +7,7 @@ import {
 } from '../model/constants.js';
 import { frontDepth } from '../model/corners.js';
 import { elevationToPlan } from '../model/geometry.js';
-import { endMinWidthsForRun } from '../model/room.js';
+import { endCornerAnglesForRun, endMinWidthsForRun } from '../model/room.js';
 import { runFootprint } from '../model/footprints.js';
 import { splitRun } from '../model/splitRun.js';
 
@@ -32,6 +32,7 @@ export default function PlanRunFootprint({
   const footprint = runFootprint(frame, run, settings);
   const layout = splitRun(run, settings, {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+    endCornerAngles: endCornerAnglesForRun(room, wall, run),
   });
   const depth = frontDepth(run, settings);
   const upper = run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;

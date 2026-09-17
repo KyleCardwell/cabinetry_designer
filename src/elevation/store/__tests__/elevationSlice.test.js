@@ -13,6 +13,7 @@ import elevationReducer, {
   removeItem,
   replaceRun,
   setActiveRoom,
+  setRunCornerClearance,
   setRunEnd,
   splitItem,
   updateRoomProfile,
@@ -92,6 +93,18 @@ function currentRun(state) {
 }
 
 describe('elevation room reducers', () => {
+  it('stores a per-side run corner-clearance override and syncs the room', () => {
+    const initial = stateWithRun(run());
+    const next = elevationReducer(initial, setRunCornerClearance({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      side: 'right',
+      value: 'face',
+    }));
+
+    expect(currentRun(next).cornerClearance).toEqual({ right: 'face' });
+  });
+
   it('starts a fresh document with an empty room ready to draw walls in plan', () => {
     const state = createInitialElevationState(null);
 

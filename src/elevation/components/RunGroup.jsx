@@ -10,7 +10,7 @@ import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
-import { endMinWidthsForRun } from '../model/room.js';
+import { endCornerAnglesForRun, endMinWidthsForRun } from '../model/room.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 import PieceRect from './PieceRect.jsx';
 
@@ -34,6 +34,7 @@ function RunGroup({
   const [anchorTooltip, setAnchorTooltip] = useState(null);
   const result = useMemo(() => splitRun(run, settings, {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+    endCornerAngles: endCornerAnglesForRun(room, wall, run),
   }), [room, run, settings, wall]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),

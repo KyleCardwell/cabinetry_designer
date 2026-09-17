@@ -2,12 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import {
   cornerAt,
+  cornerFillerMin,
   cornerReserve,
+  cornerReserveParts,
   resolveHorizontal,
 } from '../corners.js';
 import { findCollisions } from '../footprints.js';
 import { wallFrame } from '../geometry.js';
 import {
+  endCornerAnglesForRun,
+  endMinWidthsForRun,
   flipRunsForWall,
   syncRoom,
 } from '../room.js';
@@ -73,6 +77,16 @@ function connectedRoom(values = {}) {
     profile: { ...DEFAULT_SETTINGS.defaultProfile },
     walls: [wallA, wallB],
   };
+}
+
+function roomWithCornerAngle(angle) {
+  const direction = (180 - angle) * Math.PI / 180;
+  return connectedRoom({
+    wallB: {
+      x2: 120 + 96 * Math.cos(direction),
+      y2: 96 * Math.sin(direction),
+    },
+  });
 }
 
 describe('wall frames and corners', () => {
@@ -275,5 +289,111 @@ describe('wall frames and corners', () => {
     const right = result.pieces.find((piece) => piece.role === 'end-right');
     expect(left.width).toBeGreaterThanOrEqual(1.5);
     expect(right.width).toBeGreaterThanOrEqual(3);
+  });
+});
+
+describe('SPEC-6 angled corner clearance', () => {
+  function reserveFixture(angle, runOverrides = {}) {
+    const room = roomWithCornerAngle(angle);
+    const run = cabinetRun('A-run', CABINET_TYPE_IDS.BASE, runOverrides);
+    room.walls[1].runs = [cabinetRun('B-run', CABINET_TYPE_IDS.BASE, {
+      anchors: { left: true, right: false },
+    })];
+    return { room, run };
+  }
+
+  it('1. keeps the 90-degree reserve at the neighboring front depth', () => {
+    const { room, run } = reserveFixture(90);
+    expect(cornerReserve(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
+      .toBeCloseTo(24.875, 3);
+  });
+
+  it('2. adds the acute-angle back term and honors face and custom overrides', () => {
+    const { room, run } = reserveFixture(60);
+    const automatic = cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS);
+    expect(automatic.face).toBeCloseTo(28.7232, 3);
+    expect(automatic.back).toBeCloseTo(13.8564, 3);
+    expect(automatic.total).toBeCloseTo(42.5796, 3);
+    expect(automatic.source).toBe('auto');
+
+    run.cornerClearance = { right: 'face' };
+    const faceOnly = cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS);
+    expect(faceOnly).toMatchObject({ source: 'face' });
+    expect(faceOnly.face).toBeCloseTo(28.7232, 3);
+    expect(faceOnly.back).toBeCloseTo(13.8564, 3);
+    expect(faceOnly.total).toBeCloseTo(28.7232, 3);
+
+    run.cornerClearance.right = 30;
+    expect(cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
+      .toMatchObject({ total: 30, source: 'custom' });
+  });
+
+  it('3. does not add a back term at a 135-degree corner', () => {
+    const { room, run } = reserveFixture(135);
+    const parts = cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS);
+    expect(parts.face).toBeCloseTo(35.1786, 3);
+    expect(parts.back).toBe(0);
+    expect(parts.total).toBeCloseTo(35.1786, 3);
+  });
+
+  it('4. uses the current run depth for the acute-angle back term', () => {
+    const { room, run } = reserveFixture(75, {
+      cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+      depth: 12,
+    });
+    room.walls[1].runs[0] = cabinetRun('B-tall', CABINET_TYPE_IDS.TALL, {
+      anchors: { left: true, right: false },
+    });
+    const parts = cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS);
+    expect(parts.face).toBeCloseTo(25.7525, 3);
+    expect(parts.back).toBeCloseTo(3.2154, 3);
+    expect(parts.total).toBeCloseTo(28.9679, 3);
+  });
+
+  it('5. scales and clamps the corner filler minimum by angle', () => {
+    expect(cornerFillerMin(DEFAULT_SETTINGS, 90)).toBeCloseTo(1.5, 3);
+    expect(cornerFillerMin(DEFAULT_SETTINGS, 60)).toBeCloseTo(1.7321, 3);
+    expect(cornerFillerMin(DEFAULT_SETTINGS, 135)).toBeCloseTo(2.1213, 3);
+    expect(cornerFillerMin(DEFAULT_SETTINGS, 150)).toBeCloseTo(3, 3);
+    expect(cornerFillerMin(DEFAULT_SETTINGS, 10)).toBe(6);
+  });
+
+  it('6. annotates only angled flex fillers with their corner angle', () => {
+    const angled = reserveFixture(60);
+    angled.run.anchors.right = true;
+    const angledOptions = {
+      endMinWidths: endMinWidthsForRun(
+        angled.room,
+        angled.room.walls[0],
+        angled.run,
+        DEFAULT_SETTINGS,
+      ),
+      endCornerAngles: endCornerAnglesForRun(
+        angled.room,
+        angled.room.walls[0],
+        angled.run,
+      ),
+    };
+    expect(angledOptions.endMinWidths.right).toBeCloseTo(1.7321, 3);
+    const angledPiece = splitRun(angled.run, DEFAULT_SETTINGS, angledOptions).pieces
+      .find((piece) => piece.role === 'end-right');
+    expect(angledPiece.cornerAngle).toBeCloseTo(60, 6);
+
+    const square = reserveFixture(90);
+    square.run.anchors.right = true;
+    const squarePiece = splitRun(square.run, DEFAULT_SETTINGS, {
+      endMinWidths: endMinWidthsForRun(
+        square.room,
+        square.room.walls[0],
+        square.run,
+        DEFAULT_SETTINGS,
+      ),
+      endCornerAngles: endCornerAnglesForRun(
+        square.room,
+        square.room.walls[0],
+        square.run,
+      ),
+    }).pieces.find((piece) => piece.role === 'end-right');
+    expect(squarePiece).not.toHaveProperty('cornerAngle');
   });
 });

@@ -2,7 +2,7 @@ import { CABINET_TYPE_IDS } from './constants.js';
 import { cornerAt } from './corners.js';
 import { wallLength } from './geometry.js';
 import { moldingStack, resolveProfile } from './profile.js';
-import { endMinWidthsForRun } from './room.js';
+import { endCornerAnglesForRun, endMinWidthsForRun } from './room.js';
 import { splitRun } from './splitRun.js';
 
 const SEGMENT_EPSILON = 1e-6;
@@ -86,6 +86,7 @@ export function horizontalChains(room, wall, band, settings) {
     );
     const layout = splitRun(run, settings, {
       endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+      endCornerAngles: endCornerAnglesForRun(room, wall, run),
     });
     for (const piece of layout.pieces) {
       appendSegment(inner, piece.x, piece.x + piece.width, 'piece', {

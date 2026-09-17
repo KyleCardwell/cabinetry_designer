@@ -453,6 +453,19 @@ const elevationSlice = createSlice({
       }
       syncRoomAt(state, location.roomIndex);
     },
+    setRunCornerClearance(state, action) {
+      const location = runLocation(state, action.payload);
+      const { side, value } = action.payload;
+      const validValue = value === 'auto'
+        || value === 'face'
+        || (typeof value === 'number' && Number.isFinite(value));
+      if (!location || (side !== 'left' && side !== 'right') || !validValue) return;
+      location.run.cornerClearance = {
+        ...(location.run.cornerClearance ?? {}),
+        [side]: value,
+      };
+      syncRoomAt(state, location.roomIndex);
+    },
     setAutoCount(state, action) {
       const location = runLocation(state, action.payload);
       if (!location) return;
@@ -593,6 +606,7 @@ export const {
   setRunHeightMode,
   setRunOverride,
   setRunAnchor,
+  setRunCornerClearance,
   setAutoCount,
   setMaxCabinetWidth,
   setItemWidth,

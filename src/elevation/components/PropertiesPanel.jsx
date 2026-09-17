@@ -16,6 +16,7 @@ import {
   wallNumberWarnings,
 } from '../model/index.js';
 import {
+  endCornerAnglesForRun,
   endMinWidthsForRun,
   resolveWall,
   roomDiagnostics,
@@ -862,6 +863,7 @@ export default function PropertiesPanel() {
   const layout = useMemo(
     () => (run ? splitRun(run, settings, {
       endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+      endCornerAngles: endCornerAnglesForRun(room, wall, run),
     }) : null),
     [room, run, settings, wall],
   );

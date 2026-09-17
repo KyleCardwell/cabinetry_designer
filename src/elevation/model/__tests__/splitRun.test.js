@@ -39,6 +39,42 @@ function codes(entries) {
 }
 
 describe('splitRun', () => {
+  it('7. distributes extra width above unequal per-side filler minimums', () => {
+    const run = makeRun({ items: [auto('a'), auto('b'), auto('c'), auto('d')] });
+    const result = splitRun(run, DEFAULT_SETTINGS, {
+      endMinWidths: { left: 1.5, right: 3 },
+    });
+
+    expect(widths(result)).toEqual([2.25, 28.5, 28.5, 28.5, 28.5, 3.75]);
+    expect(widths(result).reduce((sum, width) => sum + width, 0)).toBe(120);
+  });
+
+  it('8. preserves the established result when both filler minimums are equal', () => {
+    const run = makeRun({ items: [auto('a'), auto('b'), auto('c'), auto('d')] });
+    const result = splitRun(run, DEFAULT_SETTINGS, {
+      endMinWidths: { left: 1.5, right: 1.5 },
+    });
+
+    expect(widths(result)).toEqual([2, 29, 29, 29, 29, 2]);
+  });
+
+  it('9. gives one flex filler its minimum plus all distributable extra', () => {
+    const run = makeRun({
+      width: 96,
+      ends: {
+        left: { type: 'end_panel', width: null },
+        right: { type: 'filler', width: null },
+      },
+      items: [auto('a'), auto('b'), auto('c')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS, {
+      endMinWidths: { left: 1.5, right: 3 },
+    });
+
+    expect(widths(result)).toEqual([0.75, 30.5, 30.5, 30.5, 3.75]);
+    expect(widths(result).reduce((sum, width) => sum + width, 0)).toBe(96);
+  });
+
   it('splits a 120-inch run into four rounded cabinets and two flex fillers', () => {
     const run = makeRun({ items: [auto('a'), auto('b'), auto('c'), auto('d')] });
     const result = splitRun(run, DEFAULT_SETTINGS);

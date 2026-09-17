@@ -1,6 +1,7 @@
 import { CABINET_TYPE_IDS } from './constants.js';
 import {
   cornerAt,
+  cornerFillerMin,
   cornerReserve,
   resolveHorizontal,
 } from './corners.js';
@@ -28,6 +29,9 @@ function cloneRun(run) {
     },
     overrides: { ...(run.overrides ?? {}) },
     anchors: { left: false, right: false, ...(run.anchors ?? {}) },
+    ...(run.cornerClearance
+      ? { cornerClearance: { ...run.cornerClearance } }
+      : {}),
     items: run.items.map((item) => ({ ...item })),
   };
 }
@@ -81,12 +85,26 @@ export function compensateRuns(oldRoom, newRoom) {
 
 /** Return per-side flex-filler minimums for a run in its room context. */
 export function endMinWidthsForRun(room, wall, run, settings) {
-  return Object.fromEntries(['left', 'right'].map((side) => [
-    side,
-    run.anchors?.[side] && cornerAt(room, wall, side).type === 'inside'
-      ? settings.cornerFillerMinWidth
-      : settings.fillerMinWidth,
-  ]));
+  return Object.fromEntries(['left', 'right'].map((side) => {
+    const corner = cornerAt(room, wall, side);
+    return [
+      side,
+      run.anchors?.[side] && corner.type === 'inside'
+        ? cornerFillerMin(settings, corner.angle)
+        : settings.fillerMinWidth,
+    ];
+  }));
+}
+
+/** Return per-side corner angles for anchored inside-corner fillers. */
+export function endCornerAnglesForRun(room, wall, run) {
+  return Object.fromEntries(['left', 'right'].map((side) => {
+    const corner = cornerAt(room, wall, side);
+    return [
+      side,
+      run.anchors?.[side] && corner.type === 'inside' ? corner.angle : undefined,
+    ];
+  }));
 }
 
 /**
@@ -177,7 +195,10 @@ export function roomDiagnostics(room, settings) {
     const resolvedWall = { ...wall, length };
     for (const run of wall.runs) {
       const minimums = endMinWidthsForRun(synced, wall, run, settings);
-      const layout = splitRun(run, settings, { endMinWidths: minimums });
+      const layout = splitRun(run, settings, {
+        endMinWidths: minimums,
+        endCornerAngles: endCornerAnglesForRun(synced, wall, run),
+      });
       const vertical = resolveVertical(run, profile, bases, wall);
       const horizontal = resolveHorizontal(
         run,
@@ -321,6 +342,14 @@ export function flipRunsForWall(wall) {
       x: length - run.x - run.width,
       ends: { left: { ...run.ends.right }, right: { ...run.ends.left } },
       anchors: { left: run.anchors.right, right: run.anchors.left },
+      ...(run.cornerClearance
+        ? {
+            cornerClearance: {
+              left: run.cornerClearance.right,
+              right: run.cornerClearance.left,
+            },
+          }
+        : {}),
       items: [...run.items].reverse().map((item) => ({ ...item })),
     })),
   };

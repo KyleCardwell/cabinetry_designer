@@ -13,6 +13,14 @@ export function frontDepth(run, settings) {
   return run.depth + settings.bumperThickness + settings.doorThickness;
 }
 
+/** Return the minimum width for a filler scribed into an angled corner. */
+export function cornerFillerMin(settings, angle) {
+  const base = settings.cornerFillerMinWidth;
+  const sine = Math.sin(angle * Math.PI / 180);
+  if (sine <= 1e-9) return 4 * base;
+  return Math.min(base / sine, 4 * base);
+}
+
 /** Return whether two cabinet types occupy compatible vertical bands. */
 export function bandsCompatible(a, b) {
   const aType = typeof a === 'object' ? a.cabinetTypeId : a;
@@ -55,20 +63,41 @@ export function cornerAt(room, wall, side) {
   return { type: 'outside', angle: 360 - angle, neighborWallId: neighbor.id, neighborSide };
 }
 
-/** Return the horizontal reserve required by compatible neighboring corner runs. */
-export function cornerReserve(room, wall, side, run, settings) {
+/** Return the face and back components of a corner reserve. */
+export function cornerReserveParts(room, wall, side, run, settings) {
   const corner = cornerAt(room, wall, side);
-  if (corner.type !== 'inside') return 0;
+  if (corner.type !== 'inside') {
+    return { face: 0, back: 0, total: 0, source: 'auto' };
+  }
+  const override = run.cornerClearance?.[side] ?? 'auto';
+  const source = typeof override === 'number' && Number.isFinite(override)
+    ? 'custom'
+    : override === 'face' ? 'face' : 'auto';
   const neighbor = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
-  if (!neighbor) return 0;
   const sine = Math.sin(corner.angle * Math.PI / 180);
-  if (Math.abs(sine) < 1e-9) return 0;
-
-  return neighbor.runs.reduce((reserve, neighborRun) => {
+  const face = !neighbor || Math.abs(sine) < 1e-9 ? 0 : neighbor.runs.reduce((reserve, neighborRun) => {
     if (!neighborRun.anchors?.[corner.neighborSide]) return reserve;
     if (!bandsCompatible(run, neighborRun)) return reserve;
     return Math.max(reserve, frontDepth(neighborRun, settings) / sine);
   }, 0);
+
+  const radians = corner.angle * Math.PI / 180;
+  const back = face > 0 && corner.angle < 90
+    ? run.depth * (Math.cos(radians) / sine)
+    : 0;
+  if (source === 'custom') {
+    return { face, back, total: override, source: 'custom' };
+  }
+  if (source === 'face') {
+    return { face, back, total: face, source: 'face' };
+  }
+
+  return { face, back, total: face + back, source: 'auto' };
+}
+
+/** Return the horizontal reserve required by compatible neighboring corner runs. */
+export function cornerReserve(room, wall, side, run, settings) {
+  return cornerReserveParts(room, wall, side, run, settings).total;
 }
 
 /**

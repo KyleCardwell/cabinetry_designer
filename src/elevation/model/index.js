@@ -35,7 +35,9 @@ export { counterTop, moldingStack, resolveProfile, resolveVertical } from './pro
 export {
   bandsCompatible,
   cornerAt,
+  cornerFillerMin,
   cornerReserve,
+  cornerReserveParts,
   frontDepth,
   resolveHorizontal,
 } from './corners.js';
@@ -58,6 +60,7 @@ export {
 } from './topology.js';
 export {
   compensateRuns,
+  endCornerAnglesForRun,
   endMinWidthsForRun,
   flipRunsForWall,
   resolveWall,
