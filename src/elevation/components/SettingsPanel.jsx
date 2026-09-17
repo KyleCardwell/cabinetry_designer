@@ -4,14 +4,8 @@ import { updateSettings } from '../store/elevationSlice.js';
 import InchInput from './InchInput.jsx';
 
 const NUMBER_SETTINGS = [
-  ['toeKickHeight', 'Toe kick height'],
-  ['baseBoxHeight', 'Base box height'],
   ['baseDepth', 'Base depth'],
-  ['countertopThickness', 'Countertop thickness'],
-  ['upperBottomZ', 'Upper bottom height'],
-  ['upperBoxHeight', 'Upper box height'],
   ['upperDepth', 'Upper depth'],
-  ['tallBoxHeight', 'Tall box height'],
   ['tallDepth', 'Tall depth'],
   ['roundTo', 'Cabinet rounding'],
   ['maxCabinetWidth', 'Max cabinet width'],
@@ -21,6 +15,22 @@ const NUMBER_SETTINGS = [
   ['endPanelThickness', 'End panel thickness'],
   ['defaultInteriorFillerWidth', 'Interior filler width'],
   ['minRunWidth', 'Minimum run width'],
+  ['bumperThickness', 'Bumper thickness'],
+  ['doorThickness', 'Door thickness'],
+  ['cornerFillerMinWidth', 'Corner filler minimum'],
+  ['cornerSnapDistance', 'Corner snap distance'],
+  ['planGrid', 'Plan grid'],
+];
+
+const PROFILE_SETTINGS = [
+  ['toeKickHeight', 'Toe kick height'],
+  ['baseBoxHeight', 'Base box height'],
+  ['countertopThickness', 'Countertop thickness'],
+  ['upperClearance', 'Upper clearance'],
+  ['crownTop', 'Top of crown'],
+  ['topMoldHeight', 'Top mold height'],
+  ['crownHeight', 'Crown height'],
+  ['crownOverlap', 'Crown overlap'],
 ];
 
 const END_OPTIONS = [
@@ -64,6 +74,23 @@ export default function SettingsPanel() {
             ))}
           </div>
 
+          <div>
+            <p className="mb-2 text-xs font-medium text-gray-300">Default height profile</p>
+            <div className="grid grid-cols-2 gap-2">
+              {PROFILE_SETTINGS.map(([key, label]) => (
+                <label key={key} className="text-xs text-gray-400">
+                  {label}
+                  <InchInput
+                    value={settings.defaultProfile[key]}
+                    onCommit={(value) => update({ defaultProfile: { [key]: value } })}
+                    aria-label={`Default ${label}`}
+                    className="mt-1"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+
           <label className="flex items-center gap-2 text-xs text-gray-300">
             <input
               type="checkbox"
@@ -72,6 +99,16 @@ export default function SettingsPanel() {
               className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
             />
             Snap run heights to defaults
+          </label>
+
+          <label className="flex items-center gap-2 text-xs text-gray-300">
+            <input
+              type="checkbox"
+              checked={settings.orthoWalls}
+              onChange={(event) => update({ orthoWalls: event.target.checked })}
+              className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
+            />
+            Orthogonal plan walls
           </label>
 
           <div>

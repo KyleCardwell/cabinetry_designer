@@ -16,8 +16,8 @@ function makeRun(overrides = {}) {
     cabinetTypeId: CABINET_TYPE_IDS.BASE,
     x: 0,
     width: 120,
-    z: DEFAULT_SETTINGS.toeKickHeight,
-    height: DEFAULT_SETTINGS.baseBoxHeight,
+    z: DEFAULT_SETTINGS.defaultProfile.toeKickHeight,
+    height: DEFAULT_SETTINGS.defaultProfile.baseBoxHeight,
     depth: DEFAULT_SETTINGS.baseDepth,
     ends: {
       left: { type: 'filler', width: null },

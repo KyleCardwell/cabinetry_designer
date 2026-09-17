@@ -33,22 +33,43 @@ function run(overrides = {}) {
     autoCount: true,
     maxCabinetWidth: null,
     items: [],
+    heightMode: 'manual',
+    overrides: {},
+    anchors: { left: false, right: false },
     ...overrides,
   };
 }
 
 function stateWithRun(existingRun = null) {
   return {
-    schemaVersion: 1,
-    settings: { ...DEFAULT_SETTINGS, defaultEnds: { ...DEFAULT_SETTINGS.defaultEnds } },
-    walls: [{
-      id: 'wall-1',
-      name: 'Wall 1',
-      length: 144,
-      height: 96,
-      runs: existingRun ? [existingRun] : [],
+    schemaVersion: 2,
+    settings: {
+      ...DEFAULT_SETTINGS,
+      defaultProfile: { ...DEFAULT_SETTINGS.defaultProfile },
+      defaultEnds: { ...DEFAULT_SETTINGS.defaultEnds },
+    },
+    rooms: [{
+      id: 'room-1',
+      name: 'Room 1',
+      profile: { ...DEFAULT_SETTINGS.defaultProfile },
+      walls: [{
+        id: 'wall-1',
+        name: 'Wall 1',
+        x1: 0,
+        y1: 0,
+        x2: 144,
+        y2: 0,
+        height: 96,
+        thickness: 4.5,
+        flipped: false,
+        connections: { start: null, end: null },
+        profile: {},
+        runs: existingRun ? [existingRun] : [],
+      }],
     }],
+    activeRoomId: 'room-1',
     activeWallId: 'wall-1',
+    view: 'elevation',
     selection: { runId: null, pieceId: null },
     tool: 'select',
     message: null,
@@ -56,7 +77,7 @@ function stateWithRun(existingRun = null) {
 }
 
 function currentRun(state) {
-  return state.walls[0].runs[0];
+  return state.rooms[0].walls[0].runs[0];
 }
 
 describe('elevation run reducers', () => {

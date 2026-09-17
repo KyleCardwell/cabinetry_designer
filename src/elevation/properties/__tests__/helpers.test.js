@@ -23,6 +23,9 @@ function run(overrides = {}) {
     autoCount: false,
     maxCabinetWidth: null,
     items: [],
+    heightMode: 'manual',
+    overrides: {},
+    anchors: { left: false, right: false },
     ...overrides,
   };
 }
@@ -30,8 +33,19 @@ function run(overrides = {}) {
 describe('properties helpers', () => {
   it('builds a validated run patch without mutating the stored run', () => {
     const selected = run();
-    const wall = { length: 120, height: 96, runs: [selected] };
-    const result = prepareRunUpdate(wall, selected, DEFAULT_SETTINGS, { x: 12, width: 72 });
+    const wall = {
+      id: 'wall-1',
+      x1: 0,
+      y1: 0,
+      x2: 120,
+      y2: 0,
+      height: 96,
+      profile: {},
+      connections: { start: null, end: null },
+      runs: [selected],
+    };
+    const room = { profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall] };
+    const result = prepareRunUpdate(room, wall.id, selected, DEFAULT_SETTINGS, { x: 12, width: 72 });
 
     expect(result.validation).toEqual({ ok: true, reason: null });
     expect(result.patchedRun).toMatchObject({ x: 12, width: 72 });
@@ -40,8 +54,19 @@ describe('properties helpers', () => {
 
   it('reports an invalid prospective run patch', () => {
     const selected = run();
-    const wall = { length: 120, height: 96, runs: [selected] };
-    const result = prepareRunUpdate(wall, selected, DEFAULT_SETTINGS, { width: 121 });
+    const wall = {
+      id: 'wall-1',
+      x1: 0,
+      y1: 0,
+      x2: 120,
+      y2: 0,
+      height: 96,
+      profile: {},
+      connections: { start: null, end: null },
+      runs: [selected],
+    };
+    const room = { profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall] };
+    const result = prepareRunUpdate(room, wall.id, selected, DEFAULT_SETTINGS, { width: 121 });
 
     expect(result.validation).toEqual({ ok: false, reason: 'out-of-bounds' });
   });

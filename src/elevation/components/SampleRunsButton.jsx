@@ -1,19 +1,27 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { createRun } from '../model/runDefaults.js';
 import { addRun } from '../store/elevationSlice.js';
+import { resolveWall } from '../model/room.js';
 
 export default function SampleRunsButton() {
   const dispatch = useDispatch();
-  const { activeWallId, settings, walls } = useSelector((state) => state.elevation);
-  const wall = walls.find((candidate) => candidate.id === activeWallId);
+  const {
+    activeRoomId,
+    activeWallId,
+    settings,
+    rooms,
+  } = useSelector((state) => state.elevation);
+  const room = rooms.find((candidate) => candidate.id === activeRoomId);
+  const storedWall = room?.walls.find((candidate) => candidate.id === activeWallId);
+  const wall = resolveWall(room, storedWall);
 
   if (!import.meta.env.DEV) return null;
 
   const addSamples = () => {
     if (!wall) return;
     const samples = [
-      createRun({ x: 0, width: 120, bottomZ: 2, topZ: 30 }, settings),
-      createRun({ x: 0, width: 96, bottomZ: 50, topZ: 80 }, settings),
+      createRun({ x: 0, width: 120, bottomZ: 2, topZ: 30 }, { settings, room, wall }),
+      createRun({ x: 0, width: 96, bottomZ: 50, topZ: 80 }, { settings, room, wall }),
     ];
 
     // SPEC-QUESTION: The sample tall-run width is not specified; use a 24-inch run.
@@ -24,7 +32,7 @@ export default function SampleRunsButton() {
         width: tallWidth,
         bottomZ: 1,
         topZ: 90,
-      }, settings));
+      }, { settings, room, wall }));
     }
 
     for (const run of samples) dispatch(addRun({ wallId: wall.id, run }));

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import ElevationCanvas from './components/ElevationCanvas.jsx';
 import ElevationToolbar from './components/ElevationToolbar.jsx';
@@ -7,11 +7,21 @@ import PropertiesPanel from './components/PropertiesPanel.jsx';
 import SampleRunsButton from './components/SampleRunsButton.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import WallList from './components/WallList.jsx';
+import { resolveWall } from './model/room.js';
 
 export default function ElevationLab() {
   const [fitRequest, setFitRequest] = useState(0);
-  const { walls, activeWallId, settings } = useSelector((state) => state.elevation);
-  const activeWall = walls.find((wall) => wall.id === activeWallId) ?? null;
+  const {
+    rooms,
+    activeRoomId,
+    activeWallId,
+    settings,
+  } = useSelector((state) => state.elevation);
+  const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
+  const activeWall = useMemo(() => resolveWall(
+    activeRoom,
+    activeRoom?.walls.find((wall) => wall.id === activeWallId) ?? null,
+  ), [activeRoom, activeWallId]);
 
   return (
     <div className="flex h-full min-h-0 bg-gray-900 text-gray-100">
@@ -32,6 +42,7 @@ export default function ElevationLab() {
         <ElevationToolbar onZoomToFit={() => setFitRequest((value) => value + 1)} />
         <div className="min-h-0 flex-1">
           <ElevationCanvas
+            room={activeRoom}
             wall={activeWall}
             settings={settings}
             fitRequest={fitRequest}

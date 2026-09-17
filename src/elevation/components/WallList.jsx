@@ -7,10 +7,14 @@ import {
   updateWall,
 } from '../store/elevationSlice.js';
 import InchInput from './InchInput.jsx';
+import { formatInches } from '../model/units.js';
+import { wallLength } from '../model/geometry.js';
 
 export default function WallList() {
   const dispatch = useDispatch();
-  const { walls, activeWallId } = useSelector((state) => state.elevation);
+  const { rooms, activeRoomId, activeWallId } = useSelector((state) => state.elevation);
+  const room = rooms.find((candidate) => candidate.id === activeRoomId);
+  const walls = room?.walls ?? [];
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const update = (wallId, changes) => dispatch(updateWall({ wallId, changes }));
@@ -67,12 +71,9 @@ export default function WallList() {
               <div className="grid grid-cols-2 gap-2">
                 <label className="text-xs text-gray-400">
                   Length
-                  <InchInput
-                    value={wall.length}
-                    onCommit={(length) => update(wall.id, { length })}
-                    aria-label={`${wall.name} length`}
-                    className="mt-1"
-                  />
+                  <span className="mt-1 block rounded border border-gray-700 bg-gray-900/60 px-2.5 py-1.5 text-sm text-gray-300">
+                    {formatInches(wallLength(wall))}
+                  </span>
                 </label>
                 <label className="text-xs text-gray-400">
                   Height

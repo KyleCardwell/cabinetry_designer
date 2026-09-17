@@ -3,9 +3,12 @@ import { useSelector } from 'react-redux';
 
 export default function JsonToggle() {
   const [showJson, setShowJson] = useState(false);
-  const activeWall = useSelector((state) => state.elevation.walls.find(
-    (wall) => wall.id === state.elevation.activeWallId,
-  ));
+  const activeWall = useSelector((state) => {
+    const room = state.elevation.rooms.find(
+      (candidate) => candidate.id === state.elevation.activeRoomId,
+    );
+    return room?.walls.find((wall) => wall.id === state.elevation.activeWallId);
+  });
 
   return (
     <section className="border-t border-gray-700 pt-4">

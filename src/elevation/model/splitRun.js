@@ -15,7 +15,11 @@ function isFlexEnd(end) {
   return end.type === 'filler' && end.width === null;
 }
 
-function layoutInputs(run, settings) {
+function flexMinimum(side, settings, opts) {
+  return opts?.endMinWidths?.[side] ?? settings.fillerMinWidth;
+}
+
+function layoutInputs(run, settings, opts) {
   const fixedEnds = endWidth(run.ends.left, settings) + endWidth(run.ends.right, settings);
   const fixedItems = run.items.reduce((sum, item) => (
     sum + (item.width === null ? 0 : item.width)
@@ -23,10 +27,15 @@ function layoutInputs(run, settings) {
   const nAuto = run.items.filter(
     (item) => item.kind === 'cabinet' && item.width === null,
   ).length;
-  const flex = Number(isFlexEnd(run.ends.left)) + Number(isFlexEnd(run.ends.right));
+  const flexSides = ['left', 'right'].filter((side) => isFlexEnd(run.ends[side]));
+  const flex = flexSides.length;
+  const minimumTotal = flexSides.reduce(
+    (sum, side) => sum + flexMinimum(side, settings, opts),
+    0,
+  );
   const available = run.width - fixedEnds - fixedItems;
 
-  return { available, flex, nAuto };
+  return { available, flex, flexSides, minimumTotal, nAuto };
 }
 
 function warning(code, pieceId, message) {
@@ -38,28 +47,37 @@ function warning(code, pieceId, message) {
  *
  * @param {object} run
  * @param {object} settings
+ * @param {{endMinWidths?: {left?: number, right?: number}}} [opts]
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
-export function splitRun(run, settings) {
-  const { available, flex, nAuto } = layoutInputs(run, settings);
+export function splitRun(run, settings, opts) {
+  const {
+    available,
+    flex,
+    minimumTotal,
+    nAuto,
+  } = layoutInputs(run, settings, opts);
   const warnings = [];
   const errors = [];
   const hasAvailableError = available < -WIDTH_EPSILON;
+  let flexOverconstrained = hasAvailableError;
   let autoWidth = 0;
-  let flexWidth = 0;
+  let flexExtra = 0;
   let flexRemainder = 0;
 
   if (hasAvailableError) {
     errors.push({ code: 'over-constrained' });
   } else if (flex > 0) {
-    const cabSpace = available - flex * settings.fillerMinWidth;
+    const cabSpace = available - minimumTotal;
     if (cabSpace < -WIDTH_EPSILON) {
+      flexOverconstrained = true;
       errors.push({ code: 'over-constrained' });
     } else {
       autoWidth = nAuto > 0 ? floorTo(cabSpace / nAuto, settings.roundTo) : 0;
       const leftover = available - nAuto * autoWidth;
-      flexWidth = floorTo(leftover / flex, FILLER_STEP);
-      flexRemainder = leftover - flex * flexWidth;
+      const extra = leftover - minimumTotal;
+      flexExtra = floorTo(extra / flex, FILLER_STEP);
+      flexRemainder = extra - flex * flexExtra;
     }
   } else if (nAuto > 0) {
     autoWidth = roundTo(available / nAuto, FILLER_STEP);
@@ -113,9 +131,11 @@ export function splitRun(run, settings) {
 
   const leftIsFlex = isFlexEnd(run.ends.left);
   const rightIsFlex = isFlexEnd(run.ends.right);
-  const leftFlexWidth = leftIsFlex ? flexWidth + flexRemainder : 0;
-  const rightFlexWidth = rightIsFlex
-    ? flexWidth + (leftIsFlex ? 0 : flexRemainder)
+  const leftFlexWidth = leftIsFlex && !flexOverconstrained
+    ? flexMinimum('left', settings, opts) + flexExtra + flexRemainder
+    : 0;
+  const rightFlexWidth = rightIsFlex && !flexOverconstrained
+    ? flexMinimum('right', settings, opts) + flexExtra + (leftIsFlex ? 0 : flexRemainder)
     : 0;
 
   if (leftIsFlex && leftFlexWidth > settings.fillerWarnWidth + WIDTH_EPSILON) {
@@ -186,14 +206,20 @@ export function splitRun(run, settings) {
  *
  * @param {object} run
  * @param {object} settings
+ * @param {{endMinWidths?: {left?: number, right?: number}}} [opts]
  * @returns {object}
  */
-export function syncAutoItems(run, settings) {
+export function syncAutoItems(run, settings, opts) {
   if (!run.autoCount) return run;
 
-  const { available, flex, nAuto } = layoutInputs(run, settings);
+  const {
+    available,
+    flex,
+    minimumTotal,
+    nAuto,
+  } = layoutInputs(run, settings, opts);
   const autoSpace = flex > 0
-    ? available - flex * settings.fillerMinWidth
+    ? available - minimumTotal
     : available;
   const maxWidth = run.maxCabinetWidth ?? settings.maxCabinetWidth;
   const target = autoSpace > 0 ? Math.max(1, Math.ceil(autoSpace / maxWidth)) : 0;

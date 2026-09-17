@@ -2,25 +2,41 @@ import { memo, useMemo } from 'react';
 import { Group, Rect } from 'react-konva';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { splitRun } from '../model/splitRun.js';
+import { resolveProfile } from '../model/profile.js';
+import { endMinWidthsForRun } from '../model/room.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 import DimensionLine from './DimensionLine.jsx';
 import PieceRect from './PieceRect.jsx';
 
 function RunGroup({
   run,
+  room,
+  wall,
   settings,
+  diagnostic,
   transform,
   selectedRun,
   selectedPieceId,
   onSelectRun,
   onSelectPiece,
 }) {
-  const result = useMemo(() => splitRun(run, settings), [run, settings]);
-  const warningPieceIds = useMemo(
-    () => new Set(result.warnings.map((entry) => entry.pieceId)),
-    [result.warnings],
+  const result = useMemo(() => splitRun(run, settings, {
+    endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+  }), [room, run, settings, wall]);
+  const profile = useMemo(
+    () => resolveProfile(settings, room, wall),
+    [room, settings, wall],
   );
-  const hasErrors = result.errors.length > 0;
+  const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
+  const countertopThickness = run.overrides?.countertopThickness
+    ?? profile.countertopThickness;
+  const warningPieceIds = useMemo(
+    () => new Set(
+      [...result.warnings, ...(diagnostic?.warnings ?? [])].map((entry) => entry.pieceId),
+    ),
+    [diagnostic?.warnings, result.warnings],
+  );
+  const hasErrors = (diagnostic?.errors ?? result.errors).length > 0;
   const hasToeKick = run.cabinetTypeId === CABINET_TYPE_IDS.BASE
     || run.cabinetTypeId === CABINET_TYPE_IDS.TALL;
   const isBase = run.cabinetTypeId === CABINET_TYPE_IDS.BASE;
@@ -29,13 +45,13 @@ function RunGroup({
     x: run.x + Math.min(3, run.width / 2),
     z: 0,
     width: toeKickWidth,
-    height: settings.toeKickHeight,
+    height: toeKickHeight,
   }, transform);
   const countertop = wallRectToScreen({
     x: run.x - 1,
     z: run.z + run.height,
     width: run.width + 2,
-    height: settings.countertopThickness,
+    height: countertopThickness,
   }, transform);
   const runRect = wallRectToScreen(run, transform);
 
@@ -99,7 +115,7 @@ function RunGroup({
         run={run}
         transform={transform}
         color={hasErrors ? '#ef4444' : selectedRun ? '#38bdf8' : '#94a3b8'}
-        topOffset={isBase ? settings.countertopThickness + 4 : 4}
+        topOffset={isBase ? countertopThickness + 4 : 4}
         onSelect={() => onSelectRun(run.id)}
       />
     </Group>

@@ -3,10 +3,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   CABINET_TYPE_IDS,
   KIND_LABELS,
-  defaultsForType,
   formatInches,
   splitRun,
 } from '../model/index.js';
+import {
+  endMinWidthsForRun,
+  resolveWall,
+  roomDiagnostics,
+} from '../model/room.js';
 import {
   lastCabinetItem,
   lastRunItem,
@@ -137,7 +141,7 @@ function WarningsList({ layout }) {
   );
 }
 
-function RunProperties({ wall, run, layout, settings, showMessage }) {
+function RunProperties({ room, wall, run, layout, settings, showMessage }) {
   const dispatch = useDispatch();
   const actionBase = { wallId: wall.id, runId: run.id };
   const finalCabinet = lastCabinetItem(run);
@@ -145,7 +149,7 @@ function RunProperties({ wall, run, layout, settings, showMessage }) {
   const cabinetCount = run.items.filter((item) => item.kind === 'cabinet').length;
 
   const validateAndDispatch = (changes) => {
-    const { validation } = prepareRunUpdate(wall, run, settings, changes);
+    const { validation } = prepareRunUpdate(room, wall.id, run, settings, changes);
     if (!validation.ok) {
       showMessage(PLACEMENT_MESSAGES[validation.reason] ?? validation.reason);
       return false;
@@ -157,9 +161,9 @@ function RunProperties({ wall, run, layout, settings, showMessage }) {
   const changeType = (typeId, resetToDefaults = false) => {
     const changes = {
       cabinetTypeId: typeId,
-      ...(resetToDefaults ? defaultsForType(typeId, settings) : {}),
+      ...(resetToDefaults ? { heightMode: 'auto', overrides: {} } : {}),
     };
-    const { validation } = prepareRunUpdate(wall, run, settings, changes);
+    const { validation } = prepareRunUpdate(room, wall.id, run, settings, changes);
     if (!validation.ok) {
       showMessage(PLACEMENT_MESSAGES[validation.reason] ?? validation.reason);
       return;
@@ -495,15 +499,32 @@ function PieceProperties({ wallId, run, selectionContext }) {
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
   const messageTimer = useRef(null);
-  const { walls, activeWallId, selection, settings } = useSelector(
+  const {
+    rooms,
+    activeRoomId,
+    activeWallId,
+    selection,
+    settings,
+  } = useSelector(
     (state) => state.elevation,
   );
-  const wall = walls.find((candidate) => candidate.id === activeWallId) ?? null;
+  const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
+  const storedWall = room?.walls.find((candidate) => candidate.id === activeWallId) ?? null;
+  const wall = useMemo(() => resolveWall(room, storedWall), [room, storedWall]);
   const run = wall?.runs.find((candidate) => candidate.id === selection.runId) ?? null;
   const layout = useMemo(
-    () => (run ? splitRun(run, settings) : null),
-    [run, settings],
+    () => (run ? splitRun(run, settings, {
+      endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+    }) : null),
+    [room, run, settings, wall],
   );
+  const diagnostics = useMemo(
+    () => (room ? roomDiagnostics(room, settings) : {}),
+    [room, settings],
+  );
+  const displayLayout = layout && diagnostics[run?.id]
+    ? { ...layout, ...diagnostics[run.id] }
+    : layout;
   const selectionContext = useMemo(
     () => (run && layout
       ? resolveSelectedPiece(run, layout, selection.pieceId)
@@ -542,7 +563,7 @@ export default function PropertiesPanel() {
       </h2>
 
       <div className="mt-4">
-        {!run || !wall || !layout ? (
+        {!run || !wall || !displayLayout ? (
           <p className="text-sm leading-relaxed text-gray-500">
             Draw a run, or click a run or cabinet
           </p>
@@ -555,8 +576,9 @@ export default function PropertiesPanel() {
         ) : (
           <RunProperties
             wall={wall}
+            room={room}
             run={run}
-            layout={layout}
+            layout={displayLayout}
             settings={settings}
             showMessage={showMessage}
           />

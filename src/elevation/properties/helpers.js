@@ -1,19 +1,29 @@
-import { validateRunPlacement } from '../model/overlap.js';
+import { tryPlaceRun } from '../model/room.js';
 
 /**
  * Build and validate a prospective partial update to a run.
  *
- * @param {object} wall
+ * @param {object} room
+ * @param {string} wallId
  * @param {object} run
  * @param {object} settings
  * @param {object} changes
  * @returns {{patchedRun: object, validation: {ok: boolean, reason: string|null}}}
  */
-export function prepareRunUpdate(wall, run, settings, changes) {
+export function prepareRunUpdate(room, wallId, run, settings, changes) {
   const patchedRun = { ...run, ...changes };
+  const roomWithoutRun = {
+    ...room,
+    walls: room.walls.map((wall) => (
+      wall.id === wallId
+        ? { ...wall, runs: wall.runs.filter((candidate) => candidate.id !== run.id) }
+        : wall
+    )),
+  };
+  const placement = tryPlaceRun(roomWithoutRun, wallId, patchedRun, settings);
   return {
     patchedRun,
-    validation: validateRunPlacement(wall, patchedRun, settings),
+    validation: { ok: placement.ok, reason: placement.reason },
   };
 }
 

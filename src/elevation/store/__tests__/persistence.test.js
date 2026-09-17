@@ -1,0 +1,113 @@
+import { afterEach, describe, expect, it } from 'vitest';
+import { CABINET_TYPE_IDS } from '../../model/constants.js';
+import { wallFrame } from '../../model/geometry.js';
+import {
+  ELEVATION_STORAGE_KEY,
+  LEGACY_ELEVATION_STORAGE_KEY,
+  loadElevationDocument,
+} from '../persistence.js';
+
+function v1Run(id, x, z, height) {
+  return {
+    id,
+    cabinetTypeId: CABINET_TYPE_IDS.BASE,
+    x,
+    width: 48,
+    z,
+    height,
+    depth: 24,
+    ends: {
+      left: { type: 'filler', width: null },
+      right: { type: 'filler', width: null },
+    },
+    autoCount: false,
+    maxCabinetWidth: null,
+    items: [{ id: `${id}-cab`, kind: 'cabinet', width: 45 }],
+  };
+}
+
+function v1Document() {
+  return {
+    schemaVersion: 1,
+    settings: {
+      toeKickHeight: 4,
+      baseBoxHeight: 30.5,
+      baseDepth: 24,
+      countertopThickness: 1.5,
+      upperBottomZ: 60,
+      upperBoxHeight: 30,
+      upperDepth: 12,
+      tallBoxHeight: 84,
+      tallDepth: 24,
+      roundTo: 0.5,
+      maxCabinetWidth: 36,
+      minCabinetWidth: 9,
+      fillerMinWidth: 1.5,
+      fillerWarnWidth: 6,
+      endPanelThickness: 0.75,
+      defaultInteriorFillerWidth: 3,
+      minRunWidth: 9,
+      snapHeightsToDefaults: true,
+      defaultEnds: { left: 'filler', right: 'filler' },
+    },
+    walls: [
+      { id: 'wall-a', name: 'Wall A', length: 144, height: 96, runs: [v1Run('a', 12, 4, 30.5)] },
+      { id: 'wall-b', name: 'Wall B', length: 96, height: 90, runs: [v1Run('b', 7, 10, 20)] },
+    ],
+    activeWallId: 'wall-b',
+  };
+}
+
+function storageWith(entries) {
+  const values = new Map(entries);
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+}
+
+afterEach(() => {
+  delete globalThis.window;
+});
+
+describe('elevation persistence migration', () => {
+  it('18. migrates v1 walls and runs without deleting the v1 key', () => {
+    const legacy = JSON.stringify(v1Document());
+    const localStorage = storageWith([
+      [LEGACY_ELEVATION_STORAGE_KEY, legacy],
+      [ELEVATION_STORAGE_KEY, '{'],
+    ]);
+    globalThis.window = { localStorage };
+
+    const migrated = loadElevationDocument();
+    const room = migrated.rooms[0];
+    expect(migrated).toMatchObject({
+      schemaVersion: 2,
+      activeRoomId: room.id,
+      activeWallId: 'wall-b',
+      view: 'elevation',
+    });
+    expect(room.name).toBe('Room 1');
+    expect(migrated.settings.defaultProfile).toMatchObject({
+      toeKickHeight: 4,
+      baseBoxHeight: 30.5,
+      countertopThickness: 1.5,
+      upperClearance: 24,
+    });
+    expect(room.profile).toEqual(migrated.settings.defaultProfile);
+    expect(room.walls.map((wall) => [wall.x1, wall.y1, wall.x2, wall.y2]))
+      .toEqual([[0, 0, 144, 0], [0, 60, 96, 60]]);
+    expect(room.walls.every((wall) => wallFrame(room, wall).leftEndpoint === 'start')).toBe(true);
+    expect(room.walls[0].runs[0]).toMatchObject({
+      x: 12,
+      z: 4,
+      height: 30.5,
+      heightMode: 'manual',
+      overrides: {},
+      anchors: { left: false, right: false },
+    });
+    expect(room.walls[1].runs[0]).toMatchObject({ x: 7, z: 10, height: 20 });
+    expect(localStorage.getItem(LEGACY_ELEVATION_STORAGE_KEY)).toBe(legacy);
+  });
+});

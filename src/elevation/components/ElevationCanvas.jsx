@@ -14,7 +14,7 @@ import {
   screenPointToWallSnapped,
 } from '../canvas/drag.js';
 import { createRun } from '../model/runDefaults.js';
-import { validateRunPlacement } from '../model/overlap.js';
+import { roomDiagnostics, tryPlaceRun } from '../model/room.js';
 import {
   addRun,
   clearSelection,
@@ -28,7 +28,7 @@ import DragPreview from './DragPreview.jsx';
 import RunGroup from './RunGroup.jsx';
 import WallFrame from './WallFrame.jsx';
 
-export default function ElevationCanvas({ wall, settings, fitRequest = 0 }) {
+export default function ElevationCanvas({ room, wall, settings, fitRequest = 0 }) {
   const dispatch = useDispatch();
   const { tool, selection } = useSelector((state) => state.elevation);
   const containerRef = useRef(null);
@@ -41,6 +41,10 @@ export default function ElevationCanvas({ wall, settings, fitRequest = 0 }) {
   const clickSuppressionTimeoutRef = useRef(null);
   const suppressClickRef = useRef(false);
   const wallId = wall?.id ?? null;
+  const diagnostics = useMemo(
+    () => (room ? roomDiagnostics(room, settings) : {}),
+    [room, settings],
+  );
 
   selectionRef.current = selection;
   wallRef.current = wall;
@@ -196,8 +200,8 @@ export default function ElevationCanvas({ wall, settings, fitRequest = 0 }) {
 
     if (bounds.width < settings.minRunWidth) return;
 
-    const run = createRun(bounds, settings);
-    const placement = validateRunPlacement(wall, run, settings);
+    const run = createRun(bounds, { settings, room, wall });
+    const placement = tryPlaceRun(room, wall.id, run, settings);
     if (!placement.ok) {
       showMessage(placement.reason);
       return;
@@ -255,7 +259,10 @@ export default function ElevationCanvas({ wall, settings, fitRequest = 0 }) {
               <RunGroup
                 key={run.id}
                 run={run}
+                room={room}
+                wall={wall}
                 settings={settings}
+                diagnostic={diagnostics[run.id]}
                 transform={transform}
                 selectedRun={selection.runId === run.id}
                 selectedPieceId={
