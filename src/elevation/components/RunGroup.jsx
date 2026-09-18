@@ -2,12 +2,14 @@ import { memo, useMemo, useState } from 'react';
 import {
   Group,
   Label,
+  Line,
   Rect,
   Tag,
   Text,
 } from 'react-konva';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
+import { centerlineMarkers } from '../model/dimensions.js';
 import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
 import {
@@ -15,6 +17,7 @@ import {
   endMinWidthsForRun,
   pinTargetsForRun,
 } from '../model/room.js';
+import { formatInches } from '../model/units.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 import PieceRect from './PieceRect.jsx';
 
@@ -303,6 +306,26 @@ function RunGroup({
             listening={false}
           />
         )];
+      })}
+
+      {centerlineMarkers(run, result.pieces).map((marker) => {
+        const base = wallRectToScreen({ x: marker.x, z: marker.calloutZ - 12, width: 0, height: 0 }, transform);
+        const tip = wallRectToScreen({ x: marker.x, z: marker.calloutZ, width: 0, height: 0 }, transform);
+        const fromLabel = marker.from === 'right' ? 'from right' : marker.from === 'opening' ? 'from opening' : 'from left';
+        return (
+          <Group key={`centerline:${marker.pieceId}`} listening={false}>
+            <Line points={[base.x, base.y, tip.x, tip.y]} stroke="#facc15" strokeWidth={1} dash={[3, 2]} />
+            <Text
+              x={tip.x - 40}
+              y={tip.y - 14}
+              width={80}
+              align="center"
+              text={`℄ ${formatInches(marker.value)} ${fromLabel}`}
+              fontSize={10}
+              fill="#facc15"
+            />
+          </Group>
+        );
       })}
 
       {renderAnchor('left')}

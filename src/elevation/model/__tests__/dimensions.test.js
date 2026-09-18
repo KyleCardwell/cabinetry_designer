@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import {
+  centerlineMarkers,
   horizontalChains,
   openingChain,
   pickColumnRuns,
@@ -343,6 +344,62 @@ describe('pickColumnRuns', () => {
       lowerRun: { id: 'base-left' },
       upperRun: { id: 'upper-left' },
     });
+  });
+});
+
+describe('centerlineMarkers', () => {
+  const pieces = [
+    { id: 'left', role: 'item', x: 0, width: 24, z: 4, height: 30.5 },
+    { id: 'mid', role: 'item', x: 24, width: 24, z: 4, height: 30.5 },
+  ];
+
+  it('SPEC-10 11. returns a callout for a center-pinned item', () => {
+    const run = {
+      items: [
+        { id: 'left', pin: null },
+        { id: 'mid', pin: { from: 'left', value: 24, anchor: 'center' } },
+      ],
+    };
+
+    expect(centerlineMarkers(run, pieces)).toEqual([{
+      pieceId: 'mid',
+      x: 36,
+      calloutZ: 46.5,
+      value: 24,
+      from: 'left',
+    }]);
+  });
+
+  it('SPEC-10 12. excludes pins anchored to an item edge', () => {
+    const run = {
+      items: [
+        { id: 'left', pin: null },
+        { id: 'mid', pin: { from: 'left', value: 24, anchor: 'center' } },
+        { id: 'right', pin: { from: 'right', value: 12, anchor: 'left' } },
+      ],
+    };
+    const piecesWithEdgePin = [
+      ...pieces,
+      { id: 'right', role: 'item', x: 48, width: 24, z: 4, height: 30.5 },
+    ];
+
+    expect(centerlineMarkers(run, piecesWithEdgePin)).toEqual([{
+      pieceId: 'mid',
+      x: 36,
+      calloutZ: 46.5,
+      value: 24,
+      from: 'left',
+    }]);
+  });
+
+  it('SPEC-10 13. returns no callouts when the run has no items or pins', () => {
+    expect(centerlineMarkers({ items: [] }, pieces)).toEqual([]);
+    expect(centerlineMarkers({
+      items: [
+        { id: 'left', pin: null },
+        { id: 'mid', pin: null },
+      ],
+    }, pieces)).toEqual([]);
   });
 });
 

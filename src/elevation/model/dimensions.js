@@ -235,6 +235,25 @@ function leftmost(runs) {
   ), null);
 }
 
+/**
+ * Return one centerline callout per item pinned by its center: the piece's
+ * horizontal center, the z 12" above its top, and the pin's raw entered value.
+ */
+export function centerlineMarkers(run, pieces) {
+  return pieces.flatMap((piece) => {
+    if (piece.role !== 'item') return [];
+    const item = run.items.find((candidate) => candidate.id === piece.id);
+    if (item?.pin?.anchor !== 'center') return [];
+    return [{
+      pieceId: piece.id,
+      x: piece.x + piece.width / 2,
+      calloutZ: piece.z + piece.height + 12,
+      value: item.pin.value,
+      from: item.pin.from,
+    }];
+  });
+}
+
 /** Choose the lower and upper runs represented by the vertical dimension column. */
 export function pickColumnRuns(wall, selectedRunId) {
   const lowerRuns = wall.runs.filter((run) => (

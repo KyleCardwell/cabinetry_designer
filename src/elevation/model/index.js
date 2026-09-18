@@ -69,6 +69,7 @@ export {
   runFootprint,
 } from './footprints.js';
 export {
+  centerlineMarkers,
   horizontalChains,
   openingChain,
   openingClearances,
