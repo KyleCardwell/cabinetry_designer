@@ -33,6 +33,7 @@ import {
   dragPointsToRunInput,
   screenPointToWallSnapped,
 } from '../canvas/drag.js';
+import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
 import { createRun } from '../model/runDefaults.js';
 import {
   createOpening,
@@ -69,10 +70,13 @@ import {
 } from '../store/elevationSlice.js';
 import DragPreview from './DragPreview.jsx';
 import DimensionRow from './DimensionRow.jsx';
+import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
 import RunGroup from './RunGroup.jsx';
 import WallFrame from './WallFrame.jsx';
+
+const ALIGNMENT_SNAP_PX = 6;
 
 function ElevationCanvas({
   room,
@@ -89,6 +93,7 @@ function ElevationCanvas({
   const [view, setView] = useState(DEFAULT_VIEW);
   const [drag, setDrag] = useState(null);
   const [stretchPreview, setStretchPreview] = useState(null);
+  const [alignmentGuides, setAlignmentGuides] = useState([]);
   const dragRef = useRef(null);
   const panRef = useRef(null);
   const spacePressedRef = useRef(false);
@@ -352,6 +357,7 @@ function ElevationCanvas({
       if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
 
       if (event.key === 'Escape') {
+        setAlignmentGuides([]);
         if (dragRef.current) cancelDrag();
         else if (stretchPreview) setStretchPreview(null);
         else dispatch(setSelection({}));
@@ -470,10 +476,22 @@ function ElevationCanvas({
     };
   }, [dragBounds, room, settings, wall]);
 
+  const applyRunAlignment = useCallback((point, excludeRunId = null, axes = ['x']) => {
+    if (!wall || !transform) return point;
+    const result = snapToAlignment(
+      point,
+      runAlignmentTargets(wall, excludeRunId),
+      ALIGNMENT_SNAP_PX / transform.scale,
+      axes,
+    );
+    setAlignmentGuides(result.guides);
+    return result.point;
+  }, [transform, wall]);
+
   const wallPointFromEvent = (event) => {
     if (!wall || !transform) return null;
     const pointer = event.target.getStage()?.getPointerPosition();
-    return pointer
+    const raw = pointer
       ? screenPointToWallSnapped(
         pointer,
         wall,
@@ -482,6 +500,9 @@ function ElevationCanvas({
         settings.maxRunOverhang,
       )
       : null;
+    if (!raw) return null;
+    const point = applyRunAlignment(raw, null, ['x', 'z']);
+    return point;
   };
 
   const handleMouseDown = (event) => {
@@ -506,6 +527,7 @@ function ElevationCanvas({
     const end = wallPointFromEvent(event) ?? currentDrag.current;
     const bounds = dragPointsToRunInput(currentDrag.start, end);
     cancelDrag();
+    setAlignmentGuides([]);
     if (clickSuppressionTimeoutRef.current !== null) {
       globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
     }
@@ -591,7 +613,8 @@ function ElevationCanvas({
 
   const previewStretch = useCallback((runId, side, newEdgeX) => {
     if (!room || !wall) return;
-    const result = stretchRun(room, wall.id, runId, side, newEdgeX, settings);
+    const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).x;
+    const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings);
     if (!result.ok) return;
     const previewWall = result.room.walls.find((candidate) => candidate.id === wall.id);
     const previewRun = previewWall?.runs.find((candidate) => candidate.id === runId);
@@ -601,7 +624,7 @@ function ElevationCanvas({
       wall: previewWall,
       run: previewRun,
     });
-  }, [room, settings, wall]);
+  }, [applyRunAlignment, room, settings, wall]);
 
   const startStretch = useCallback((runId) => {
     if (!room || !wall) return;
@@ -610,9 +633,11 @@ function ElevationCanvas({
   }, [room, wall]);
 
   const finishStretch = useCallback((runId, side, newEdgeX) => {
+    const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).x;
     setStretchPreview(null);
+    setAlignmentGuides([]);
     if (!room || !wall) return;
-    const result = stretchRun(room, wall.id, runId, side, newEdgeX, settings);
+    const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings);
     if (!result.ok) {
       showMessage(result.reason);
       return;
@@ -626,7 +651,7 @@ function ElevationCanvas({
     }
     dispatch(setMessage(null));
     dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
-  }, [dispatch, room, settings, showMessage, wall]);
+  }, [applyRunAlignment, dispatch, room, settings, showMessage, wall]);
 
   return (
     <div
@@ -701,6 +726,12 @@ function ElevationCanvas({
               wall={wall}
               settings={settings}
               transform={transform}
+            />
+            <ElevationAlignmentGuides
+              guides={alignmentGuides}
+              transform={transform}
+              width={viewport.width}
+              height={viewport.height}
             />
           </Layer>
           {dimensionChains && dimensionOffsets && (
