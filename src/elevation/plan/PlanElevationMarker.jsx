@@ -1,7 +1,7 @@
 import { Circle, Group, Line, Text } from 'react-konva';
 
-const RADIUS = 9;
-const FLAG_LENGTH = 7;
+const RADIUS = 14;
+const FLAG_LENGTH = 10;
 
 /** A circled letter with a small triangular flag pointing back at the wall. */
 export default function PlanElevationMarker({ point, direction, scale, letter }) {
@@ -38,7 +38,7 @@ export default function PlanElevationMarker({ point, direction, scale, letter })
         text={letter}
         align="center"
         verticalAlign="middle"
-        fontSize={10 / scale}
+        fontSize={15 / scale}
         fill="#fde68a"
       />
     </Group>

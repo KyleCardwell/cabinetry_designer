@@ -744,11 +744,11 @@ function ElevationCanvas({
                   x={wallToScreen({ x: wall.length / 2, z: 0 }, transform).x}
                   y={wallToScreen({ x: wall.length / 2, z: 0 }, transform).y + dimensionOffsets.label}
                   text={elevationLabel(room, wall)}
-                  fontSize={13}
+                  fontSize={20}
                   fill="#e2e8f0"
                   align="center"
-                  offsetX={40}
-                  width={80}
+                  offsetX={70}
+                  width={140}
                   listening={false}
                 />
               )}
