@@ -631,8 +631,12 @@ const elevationSlice = createSlice({
         && (value.clearance === null || Number.isFinite(value.clearance));
       if (typeof value !== 'boolean' && !validOpeningAnchor) return;
       location.run.anchors[side] = validOpeningAnchor ? { ...value } : value;
-      if (value === true && cornerAt(location.room, location.wall, side).type === 'inside') {
-        location.run.ends[side] = { type: 'filler', width: null };
+      if (value === true) {
+        const inside = cornerAt(location.room, location.wall, side).type === 'inside';
+        if (inside) location.run.ends[side] = { type: 'filler', width: null };
+        else if (location.run.ends[side].type !== 'end_panel') {
+          location.run.ends[side] = { type: 'end_panel', width: null };
+        }
       }
       syncRoomAt(state, location.roomIndex);
     },

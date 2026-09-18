@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
+import { describeAnchor } from '../../model/room.js';
 import {
   formatCornerReserve,
   formatRunOverhang,
@@ -34,6 +35,69 @@ function run(overrides = {}) {
 }
 
 describe('properties helpers', () => {
+  it('15. describes inside, outside, and opening anchor offsets', () => {
+    const wallA = {
+      id: 'A', name: '', numberOverride: null,
+      x1: 0, y1: 0, x2: 120, y2: 0,
+      height: 96, thickness: 4.5, flipped: false,
+      connections: { start: null, end: { wallId: 'B', endpoint: 'start' } },
+      profile: {}, runs: [], openings: [],
+    };
+    const angle = 60;
+    const direction = (180 - angle) * Math.PI / 180;
+    const wallB = {
+      ...wallA,
+      id: 'B',
+      x1: 120,
+      y1: 0,
+      x2: 120 + 96 * Math.cos(direction),
+      y2: 96 * Math.sin(direction),
+      connections: { start: { wallId: 'A', endpoint: 'end' }, end: null },
+    };
+    const insideRun = run({ anchors: { left: false, right: true } });
+    const neighborRun = run({ id: 'neighbor', anchors: { left: true, right: false } });
+    wallA.runs = [insideRun];
+    wallB.runs = [neighborRun];
+    const insideRoom = {
+      id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile },
+      wallOrder: ['A', 'B'], walls: [wallA, wallB],
+    };
+    expect(describeAnchor(insideRoom, wallA, insideRun, 'right', DEFAULT_SETTINGS))
+      .toBe('Reserve 42 9/16" (face 28 3/4" + back 13 7/8")');
+
+    const outsideWall = { ...wallA, flipped: true, runs: [] };
+    const outsideNeighbor = { ...wallB, x2: 120, y2: -96, runs: [] };
+    const outsideRoom = { ...insideRoom, walls: [outsideWall, outsideNeighbor] };
+    const outsideRun = run({ anchors: { left: false, right: true } });
+    expect(describeAnchor(outsideRoom, outsideWall, outsideRun, 'right', DEFAULT_SETTINGS))
+      .toBe('Flush with the wall end');
+    outsideRun.cornerClearance = { right: 2 };
+    expect(describeAnchor(outsideRoom, outsideWall, outsideRun, 'right', DEFAULT_SETTINGS))
+      .toBe('Held back 2"');
+    outsideRun.cornerClearance.right = -2;
+    expect(describeAnchor(outsideRoom, outsideWall, outsideRun, 'right', DEFAULT_SETTINGS))
+      .toBe('2" past the wall end');
+
+    const opening = {
+      id: 'window-1', kind: 'window', label: 'W1', measureMode: 'jamb',
+      width: 36, height: 48, sillZ: 36, offset: 12, offsetFrom: 'right',
+      offsetAnchor: 'edge', casing: { width: 3, thickness: 0.75 },
+    };
+    const openingWall = { ...wallA, connections: { start: null, end: null }, openings: [opening] };
+    const openingRoom = { ...insideRoom, wallOrder: ['A'], walls: [openingWall] };
+    const openingRun = run({
+      anchors: {
+        left: false,
+        right: { to: 'opening', openingId: opening.id, edge: 'casing', clearance: 4 },
+      },
+    });
+    expect(describeAnchor(openingRoom, openingWall, openingRun, 'right', DEFAULT_SETTINGS))
+      .toBe('4" clear of W1 casing');
+    openingRun.anchors.right.clearance = -1.5;
+    expect(describeAnchor(openingRoom, openingWall, openingRun, 'right', DEFAULT_SETTINGS))
+      .toBe('1 1/2" into W1 casing');
+  });
+
   it('formats automatic, face-only, and custom corner reserves', () => {
     expect(formatCornerReserve({
       face: 28.7232,

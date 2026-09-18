@@ -67,6 +67,10 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
   const roundedEnd = clamp(requestedX + requestedWidth, minimumX, maximumX);
   const roundedWidth = Math.max(0, roundedEnd - roundedX);
   const edges = { left: roundedX, right: roundedX + roundedWidth };
+  const corners = wall ? Object.fromEntries(['left', 'right'].map((side) => [
+    side,
+    cornerAt(room, wall, side),
+  ])) : {};
   const anchors = Object.fromEntries(['left', 'right'].map((side) => {
     const distance = side === 'left' ? Math.abs(edges.left) : Math.abs(length - edges.right);
     return [
@@ -74,7 +78,6 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
       Boolean(
         wall
         && distance <= settings.cornerSnapDistance
-        && cornerAt(room, wall, side).type === 'inside',
       ),
     ];
   }));
@@ -87,7 +90,7 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
   ));
   const ends = Object.fromEntries(['left', 'right'].map((side) => {
     let type = settings.defaultEnds[side];
-    if (anchors[side]) type = 'filler';
+    if (anchors[side]) type = corners[side].type === 'inside' ? 'filler' : 'end_panel';
     else if (settings.autoEndPanelOnFreeEnd && !isAdjacent(side)) type = 'end_panel';
     return [side, { type, width: null }];
   }));

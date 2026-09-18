@@ -159,7 +159,7 @@ function RunGroup({
               pointerHeight={5}
             />
             <Text
-              text="Anchored — uncheck Anchor to resize"
+              text="Anchored — set Anchor to Free to resize"
               fill="#e2e8f0"
               fontSize={11}
               padding={6}

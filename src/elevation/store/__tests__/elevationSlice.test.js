@@ -26,6 +26,7 @@ import elevationReducer, {
   setActiveRoom,
   setActiveWall,
   setRunCornerClearance,
+  setRunAnchor,
   setRunEnd,
   setSelection,
   setTool,
@@ -209,6 +210,47 @@ describe('elevation room reducers', () => {
     expect(next.selection).toEqual({
       wallId: null, runId: null, pieceId: null, openingId: null,
     });
+  });
+
+  it('9. assigns exposed and inside anchored-end treatments', () => {
+    const cornerState = (outside, rightEnd = { type: 'none', width: null }) => {
+      const state = stateWithRun(run({
+        width: 40,
+        ends: {
+          left: { type: 'none', width: null },
+          right: rightEnd,
+        },
+      }));
+      const wallA = state.rooms[0].walls[0];
+      wallA.x2 = 120;
+      wallA.flipped = outside;
+      wallA.connections.end = { wallId: 'wall-2', endpoint: 'start' };
+      state.rooms[0].walls.push({
+        ...wallA,
+        id: 'wall-2',
+        x1: 120,
+        y1: 0,
+        x2: 120,
+        y2: outside ? -96 : 96,
+        flipped: false,
+        connections: { start: { wallId: 'wall-1', endpoint: 'end' }, end: null },
+        runs: [],
+      });
+      state.rooms[0].wallOrder = ['wall-1', 'wall-2'];
+      return state;
+    };
+    const anchorRight = setRunAnchor({
+      wallId: 'wall-1', runId: 'run-1', side: 'right', value: true,
+    });
+
+    expect(currentRun(elevationReducer(cornerState(true), anchorRight)).ends.right)
+      .toEqual({ type: 'end_panel', width: null });
+    expect(currentRun(elevationReducer(cornerState(false), anchorRight)).ends.right)
+      .toEqual({ type: 'filler', width: null });
+    expect(currentRun(elevationReducer(
+      cornerState(true, { type: 'end_panel', width: 0.75 }),
+      anchorRight,
+    )).ends.right).toEqual({ type: 'end_panel', width: 0.75 });
   });
 
   it('20. fixes both pinned widths when adding the second pin and keeps them fixed', () => {

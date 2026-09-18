@@ -101,11 +101,11 @@ describe('run defaults', () => {
     expect(defaultsForType(CABINET_TYPE_IDS.TALL, DEFAULT_SETTINGS)).toEqual({ z: 4, height: 86, depth: 24 });
   });
 
-  it('5. leaves open and distant sides unanchored with end panels', () => {
+  it('5. anchors a nearby open end and gives it an end panel', () => {
     const run = createRun({ x: 2, width: 60, bottomZ: 2, topZ: 30 }, ctx);
 
     expect(run).toMatchObject({
-      anchors: { left: false, right: false },
+      anchors: { left: true, right: false },
       ends: { left: { type: 'end_panel' }, right: { type: 'end_panel' } },
     });
   });
@@ -166,7 +166,7 @@ describe('run defaults', () => {
     expect(run.ends.right.type).toBe('end_panel');
   });
 
-  it('11. anchors only the connected inside corner for the same edge distance', () => {
+  it('11a. uses different end treatments for inside and open anchors', () => {
     const inside = createRun(
       { x: 1.5, width: 60, bottomZ: 2, topZ: 30 },
       { settings: DEFAULT_SETTINGS, room, wall: wallB },
@@ -181,8 +181,33 @@ describe('run defaults', () => {
       ends: { left: { type: 'filler', width: null } },
     });
     expect(open).toMatchObject({
-      anchors: { left: false },
+      anchors: { left: true },
       ends: { left: { type: 'end_panel', width: null } },
     });
+  });
+
+  it('11. auto-anchors near an outside corner but not beyond the snap distance', () => {
+    const outsideWall = { ...wall, flipped: true };
+    const outsideNeighbor = { ...wallB, x2: 120, y2: -96 };
+    const outsideRoom = { ...room, walls: [outsideWall, outsideNeighbor] };
+    const outsideContext = {
+      settings: DEFAULT_SETTINGS,
+      room: outsideRoom,
+      wall: outsideWall,
+    };
+    const near = createRun(
+      { x: 59, width: 60, bottomZ: 2, topZ: 30 },
+      outsideContext,
+    );
+    const far = createRun(
+      { x: 54, width: 60, bottomZ: 2, topZ: 30 },
+      outsideContext,
+    );
+
+    expect(near).toMatchObject({
+      anchors: { right: true },
+      ends: { right: { type: 'end_panel', width: null } },
+    });
+    expect(far.anchors.right).toBe(false);
   });
 });

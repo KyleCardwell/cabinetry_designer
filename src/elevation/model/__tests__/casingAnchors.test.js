@@ -91,6 +91,29 @@ describe('opening run anchors', () => {
       .toBe(false);
   });
 
+  it('13. allows a run under casing without warning before the jamb', () => {
+    const room = testRoom({
+      runs: [cabinetRun({ anchors: { left: false, right: openingAnchor(-2) } })],
+    });
+    const synced = syncRoom(room, DEFAULT_SETTINGS);
+    const run = synced.walls[0].runs[0];
+    expect(run.x + run.width).toBe(71);
+    expect(roomDiagnostics(room, DEFAULT_SETTINGS).base.warnings
+      .some(({ code }) => code === 'blocks-opening')).toBe(false);
+  });
+
+  it('14. warns when a negative casing offset carries the run past the jamb', () => {
+    const room = testRoom({
+      runs: [cabinetRun({ anchors: { left: false, right: openingAnchor(-5) } })],
+    });
+    const synced = syncRoom(room, DEFAULT_SETTINGS);
+    const run = synced.walls[0].runs[0];
+    expect(run.x + run.width).toBe(74);
+    expect(roomDiagnostics(room, DEFAULT_SETTINGS).base.warnings).toContainEqual({
+      code: 'blocks-opening', openingId: 'window-1', label: 'W1',
+    });
+  });
+
   it('reports missing opening and crossed-datum anchor errors', () => {
     const missing = testRoom({
       runs: [cabinetRun({ anchors: { left: false, right: openingAnchor() } })],

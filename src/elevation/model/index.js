@@ -89,6 +89,7 @@ export {
 } from './topology.js';
 export {
   compensateRuns,
+  describeAnchor,
   endCornerAnglesForRun,
   endMinWidthsForRun,
   flipRunsForWall,

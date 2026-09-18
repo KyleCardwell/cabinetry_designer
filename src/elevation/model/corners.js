@@ -67,7 +67,14 @@ export function cornerAt(room, wall, side) {
 export function cornerReserveParts(room, wall, side, run, settings) {
   const corner = cornerAt(room, wall, side);
   if (corner.type !== 'inside') {
-    return { face: 0, back: 0, total: 0, source: 'auto' };
+    const override = run.cornerClearance?.[side];
+    const custom = typeof override === 'number' && Number.isFinite(override);
+    return {
+      face: 0,
+      back: 0,
+      total: custom ? override : 0,
+      source: custom ? 'custom' : 'auto',
+    };
   }
   const override = run.cornerClearance?.[side] ?? 'auto';
   const source = typeof override === 'number' && Number.isFinite(override)

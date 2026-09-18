@@ -3,6 +3,7 @@ import {
   cornerAt,
   cornerFillerMin,
   cornerReserve,
+  cornerReserveParts,
   resolveHorizontal,
 } from './corners.js';
 import { findCollisions } from './footprints.js';
@@ -17,7 +18,7 @@ import { validateRunPlacement, verticalStart } from './overlap.js';
 import { resolveProfile, resolveVertical } from './profile.js';
 import { splitRun, syncAutoItems } from './splitRun.js';
 import { computeWallOrder } from './topology.js';
-import { roundTo } from './units.js';
+import { formatInches, roundTo } from './units.js';
 
 const STRETCH_EDGE_SNAP_DISTANCE = 2;
 const PIN_EPSILON = 1e-6;
@@ -145,6 +146,33 @@ export function resolveRunAnchorDatum(room, wall, run, side, settings) {
     return { ...openingAnchorDatum(anchor, side, wall, length, settings), type: 'opening' };
   }
   return { x: side === 'left' ? run.x : run.x + run.width, type: 'free' };
+}
+
+/** Describe a resolved wall-end or opening anchor in shop language. */
+export function describeAnchor(room, wall, run, side, settings) {
+  const anchor = run.anchors?.[side];
+  if (!anchor) return '';
+  if (anchor?.to === 'opening') {
+    const resolved = resolveRunAnchorDatum(room, wall, run, side, settings);
+    if (resolved.error || !resolved.opening) return 'Anchored opening is missing';
+    const amount = resolved.clearance;
+    return amount < 0
+      ? `${formatInches(Math.abs(amount))} into ${resolved.opening.label} ${anchor.edge}`
+      : `${formatInches(amount)} clear of ${resolved.opening.label} ${anchor.edge}`;
+  }
+
+  const corner = cornerAt(room, wall, side);
+  const parts = cornerReserveParts(room, wall, side, run, settings);
+  if (corner.type !== 'inside') {
+    if (parts.source === 'auto') return 'Flush with the wall end';
+    return parts.total < 0
+      ? `${formatInches(Math.abs(parts.total))} past the wall end`
+      : `Held back ${formatInches(parts.total)}`;
+  }
+  const resolved = `Reserve ${formatInches(parts.total)}`;
+  if (parts.source === 'face') return `${resolved} · Face only`;
+  if (parts.source === 'custom') return `${resolved} · Custom`;
+  return `${resolved} (face ${formatInches(parts.face)} + back ${formatInches(parts.back)})`;
 }
 
 function horizontalResolution(room, wall, run, settings) {
@@ -514,12 +542,11 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
   const length = wallLength(sourceWall);
   const reserveLeft = cornerReserve(room, sourceWall, 'left', sourceRun, settings);
   const reserveRight = cornerReserve(room, sourceWall, 'right', sourceRun, settings);
-  const insideCorner = cornerAt(room, sourceWall, side).type === 'inside';
   const candidates = [
-    { value: 0, anchor: side === 'left' && insideCorner },
-    { value: length, anchor: side === 'right' && insideCorner },
-    { value: reserveLeft, anchor: side === 'left' && insideCorner },
-    { value: length - reserveRight, anchor: side === 'right' && insideCorner },
+    { value: 0, anchor: side === 'left' },
+    { value: length, anchor: side === 'right' },
+    { value: reserveLeft, anchor: side === 'left' },
+    { value: length - reserveRight, anchor: side === 'right' },
     ...sourceWall.runs
       .filter((run) => run.id !== runId)
       .flatMap((run) => [
@@ -564,8 +591,12 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
       right: { ...sourceRun.ends.right },
     },
   };
-  if (anchorsAtSnap && cornerAt(room, sourceWall, side).type === 'inside') {
-    proposed.ends[side] = { type: 'filler', width: null };
+  if (anchorsAtSnap) {
+    const inside = cornerAt(room, sourceWall, side).type === 'inside';
+    if (inside) proposed.ends[side] = { type: 'filler', width: null };
+    else if (proposed.ends[side].type !== 'end_panel') {
+      proposed.ends[side] = { type: 'end_panel', width: null };
+    }
   }
 
   const temporary = cloneRoom(room);

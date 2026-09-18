@@ -13,6 +13,7 @@ import {
   cornerAt,
   cornerReserveParts,
   crownOverlap,
+  describeAnchor,
   formatInches,
   formatInchesInput,
   frontDepth,
@@ -22,7 +23,6 @@ import {
   positionReadouts,
   resolvePinTarget,
   resolveProfile,
-  resolveRunAnchorDatum,
   runBlocksOpening,
   splitRun,
   startFromReadout,
@@ -39,7 +39,6 @@ import {
   roomDiagnostics,
 } from '../model/room.js';
 import {
-  formatCornerReserve,
   formatRunOverhang,
   formatRunWarning,
   lastCabinetItem,
@@ -659,16 +658,18 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
             const insideCorner = corners[side].type === 'inside';
             const anchor = run.anchors[side];
             const openingAnchor = anchor?.to === 'opening' ? anchor : null;
-            const anchoredInsideCorner = anchor === true && insideCorner;
+            const wallEndAnchor = anchor === true;
             const clearance = run.cornerClearance?.[side] ?? 'auto';
-            const clearanceMode = typeof clearance === 'number' ? 'custom' : clearance;
-            const anchoredOpening = openingAnchor
-              ? wall.openings?.find((opening) => opening.id === openingAnchor.openingId)
-              : null;
+            const clearanceMode = typeof clearance === 'number'
+              ? 'custom'
+              : insideCorner && clearance === 'face' ? 'face' : 'auto';
+            const clearanceModes = insideCorner
+              ? CORNER_CLEARANCE_MODES
+              : CORNER_CLEARANCE_MODES.filter(([value]) => value !== 'face');
             const anchorValue = openingAnchor
               ? `opening:${openingAnchor.openingId}`
               : anchor === true ? 'corner' : 'free';
-            const resolvedAnchor = resolveRunAnchorDatum(room, wall, run, side, settings);
+            const anchorDescription = describeAnchor(room, wall, run, side, settings);
             return (
               <div
                 key={side}
@@ -724,6 +725,9 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                         aria-label={`${side} opening anchor clearance`}
                       />
                     </Field>
+                    <p className="text-xs text-gray-500">
+                      Positive holds the run back; negative carries it past.
+                    </p>
                     <div className="grid grid-cols-2 overflow-hidden rounded border border-gray-700">
                       {['casing', 'jamb'].map((edge) => (
                         <button
@@ -744,15 +748,15 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                         </button>
                       ))}
                     </div>
-                    <p className={`text-xs ${resolvedAnchor.error ? 'text-amber-300' : 'text-cyan-300'}`}>
-                      {anchoredOpening
-                        ? `Anchored ${formatInches(resolvedAnchor.clearance)} off ${anchoredOpening.label} ${openingAnchor.edge}`
-                        : 'Anchored opening is missing'}
+                    <p className={`text-xs ${anchorDescription === 'Anchored opening is missing'
+                      ? 'text-amber-300'
+                      : 'text-cyan-300'}`}>
+                      {anchorDescription}
                     </p>
                   </div>
-                ) : anchoredInsideCorner ? (
+                ) : wallEndAnchor ? (
                   <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
-                    <Field label="Corner clearance">
+                    <Field label={insideCorner ? 'Corner clearance' : 'End offset'}>
                       <select
                         value={clearanceMode}
                         onChange={(event) => {
@@ -766,7 +770,7 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                         aria-label={`${side} corner clearance`}
                         className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
                       >
-                        {CORNER_CLEARANCE_MODES.map(([value, label]) => (
+                        {clearanceModes.map(([value, label]) => (
                           <option key={value} value={value}>{label}</option>
                         ))}
                       </select>
@@ -784,14 +788,15 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                         />
                       </Field>
                     )}
+                    {clearanceMode === 'custom' && (
+                      <p className="text-xs text-gray-500">
+                        Positive holds the run back; negative carries it past.
+                      </p>
+                    )}
                     <p className="text-xs text-cyan-300">
-                      {formatCornerReserve(reserveParts[side])}
+                      {anchorDescription}
                     </p>
                   </div>
-                ) : anchor === true ? (
-                  <p className="mt-1 text-xs text-cyan-300">
-                    Anchored — corner reserve {formatInches(reserveParts[side].total)}
-                  </p>
                 ) : null}
               </div>
             );

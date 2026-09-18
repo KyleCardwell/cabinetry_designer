@@ -9,10 +9,12 @@ import {
 } from '../corners.js';
 import { findCollisions } from '../footprints.js';
 import { wallFrame } from '../geometry.js';
+import { validateRunPlacement } from '../overlap.js';
 import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
   flipRunsForWall,
+  roomDiagnostics,
   syncRoom,
 } from '../room.js';
 import { splitRun } from '../splitRun.js';
@@ -86,6 +88,13 @@ function roomWithCornerAngle(angle) {
       x2: 120 + 96 * Math.cos(direction),
       y2: 96 * Math.sin(direction),
     },
+  });
+}
+
+function outsideRoom() {
+  return connectedRoom({
+    wallA: { flipped: true },
+    wallB: { x2: 120, y2: -96 },
   });
 }
 
@@ -395,5 +404,94 @@ describe('SPEC-6 angled corner clearance', () => {
       ),
     }).pieces.find((piece) => piece.role === 'end-right');
     expect(squarePiece).not.toHaveProperty('cornerAngle');
+  });
+});
+
+describe('SPEC-9 signed wall-end offsets', () => {
+  it('5. resolves signed custom offsets at an outside corner', () => {
+    const room = outsideRoom();
+    const run = cabinetRun('A-run', CABINET_TYPE_IDS.BASE);
+    expect(cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
+      .toEqual({ face: 0, back: 0, total: 0, source: 'auto' });
+
+    run.cornerClearance = { right: 2 };
+    expect(cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
+      .toEqual({ face: 0, back: 0, total: 2, source: 'custom' });
+    run.cornerClearance.right = -3;
+    expect(cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
+      .toEqual({ face: 0, back: 0, total: -3, source: 'custom' });
+    run.cornerClearance.right = 'face';
+    expect(cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
+      .toEqual({ face: 0, back: 0, total: 0, source: 'auto' });
+  });
+
+  it('6. holds back or carries past an outside-corner datum', () => {
+    const resolve = (clearance) => {
+      const room = outsideRoom();
+      room.walls[0].runs = [cabinetRun('A-run', CABINET_TYPE_IDS.BASE, {
+        width: 40,
+        items: [{ id: 'A-run-cab', kind: 'cabinet', width: 40 }],
+        anchors: { left: false, right: true },
+        cornerClearance: { right: clearance },
+      })];
+      return syncRoom(room, DEFAULT_SETTINGS).walls[0].runs[0];
+    };
+
+    expect(resolve(2)).toMatchObject({ x: 78, width: 40 });
+    const past = resolve(-3);
+    expect(past).toMatchObject({ x: 83, width: 40 });
+    expect(validateRunPlacement(
+      { ...outsideRoom().walls[0], length: 120, runs: [past] },
+      past,
+      DEFAULT_SETTINGS,
+    )).toEqual({ ok: true, reason: null });
+  });
+
+  it('7. rejects a signed offset beyond the maximum overhang', () => {
+    const room = outsideRoom();
+    room.walls[0].runs = [cabinetRun('A-run', CABINET_TYPE_IDS.BASE, {
+      width: 40,
+      items: [{ id: 'A-run-cab', kind: 'cabinet', width: 40 }],
+      anchors: { left: false, right: true },
+      cornerClearance: { right: -40 },
+    })];
+    const run = syncRoom(room, DEFAULT_SETTINGS).walls[0].runs[0];
+    expect(validateRunPlacement(
+      { ...room.walls[0], length: 120, runs: [run] },
+      run,
+      DEFAULT_SETTINGS,
+    )).toEqual({ ok: false, reason: 'out-of-bounds' });
+  });
+
+  it('8. applies positive and negative offsets at an open left end', () => {
+    const resolve = (clearance) => {
+      const room = connectedRoom();
+      room.walls[0].runs = [cabinetRun('A-run', CABINET_TYPE_IDS.BASE, {
+        width: 40,
+        items: [{ id: 'A-run-cab', kind: 'cabinet', width: 40 }],
+        anchors: { left: true, right: false },
+        cornerClearance: { left: clearance },
+      })];
+      return syncRoom(room, DEFAULT_SETTINGS).walls[0].runs[0];
+    };
+    expect(resolve(1.5).x).toBe(1.5);
+    expect(resolve(-1.5).x).toBe(-1.5);
+  });
+
+  it('10. reports a negative inside-corner offset as a collision warning', () => {
+    const room = connectedRoom();
+    room.walls[0].runs = [cabinetRun('A-run', CABINET_TYPE_IDS.BASE, {
+      anchors: { left: false, right: true },
+      cornerClearance: { right: -2 },
+    })];
+    room.walls[1].runs = [cabinetRun('B-run', CABINET_TYPE_IDS.BASE, {
+      anchors: { left: true, right: false },
+      cornerClearance: { left: 0 },
+    })];
+    const diagnostics = roomDiagnostics(room, DEFAULT_SETTINGS)['A-run'];
+    expect(cornerReserveParts(room, room.walls[0], 'right', room.walls[0].runs[0], DEFAULT_SETTINGS))
+      .toMatchObject({ total: -2, source: 'custom' });
+    expect(diagnostics.warnings.some(({ code }) => code === 'corner-collision')).toBe(true);
+    expect(diagnostics.errors).toEqual([]);
   });
 });

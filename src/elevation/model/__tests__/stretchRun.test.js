@@ -49,6 +49,25 @@ function makeRoom(runs = [makeRun('run')]) {
   };
 }
 
+function makeOutsideRoom() {
+  const room = makeRoom();
+  room.wallOrder = ['A', 'B'];
+  room.walls[0].flipped = true;
+  room.walls[0].connections.end = { wallId: 'B', endpoint: 'start' };
+  room.walls.push({
+    ...room.walls[0],
+    id: 'B',
+    x1: 120,
+    y1: 0,
+    x2: 120,
+    y2: -96,
+    flipped: false,
+    connections: { start: { wallId: 'A', endpoint: 'end' }, end: null },
+    runs: [],
+  });
+  return room;
+}
+
 function resultRun(result, id = 'run') {
   return result.room.walls[0].runs.find((run) => run.id === id);
 }
@@ -65,7 +84,7 @@ describe('stretchRun', () => {
     expect(rejected.room).toBe(room);
   });
 
-  it('17. snaps to an open wall end without anchoring or changing its end', () => {
+  it('17. snaps to and anchors an open wall end', () => {
     const room = makeRoom();
 
     const right = stretchRun(room, 'A', 'run', 'right', 87.3, DEFAULT_SETTINGS);
@@ -89,8 +108,27 @@ describe('stretchRun', () => {
     expect(resultRun(leftOpenEnd)).toMatchObject({
       x: 0,
       width: 80,
-      anchors: { left: false, right: false },
-      ends: { left: { type: 'none', width: null } },
+      anchors: { left: true, right: false },
+      ends: { left: { type: 'end_panel', width: null } },
+    });
+  });
+
+  it('12. snaps and anchors within two inches of an outside corner', () => {
+    const result = stretchRun(
+      makeOutsideRoom(),
+      'A',
+      'run',
+      'right',
+      118,
+      DEFAULT_SETTINGS,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(resultRun(result)).toMatchObject({
+      x: 40,
+      width: 80,
+      anchors: { left: false, right: true },
+      ends: { right: { type: 'end_panel', width: null } },
     });
   });
 
