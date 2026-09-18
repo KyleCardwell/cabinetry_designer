@@ -7,6 +7,7 @@ import {
   wallFrame,
 } from './geometry.js';
 import { verticalStart } from './overlap.js';
+import { positionReadouts, startFromReadout } from './positions.js';
 import { roundTo } from './units.js';
 
 const OVERLAP_EPSILON = 1e-6;
@@ -44,9 +45,14 @@ export function openingGeometry(opening, wallLength, settings) {
   const referenceWidth = opening.measureMode === 'jamb'
     ? jambWidth
     : casingOuterWidth;
-  const referenceLeftX = opening.offsetFrom === 'left'
-    ? opening.offset
-    : wallLength - opening.offset - referenceWidth;
+  const offsetAnchor = opening.offsetAnchor ?? 'edge';
+  const referenceLeftX = startFromReadout(
+    opening.offsetFrom,
+    offsetAnchor,
+    opening.offset,
+    referenceWidth,
+    wallLength,
+  );
   const jambX = opening.measureMode === 'jamb'
     ? referenceLeftX
     : referenceLeftX + casingWidth;
@@ -64,15 +70,22 @@ export function openingGeometry(opening, wallLength, settings) {
     thickness: casingThickness,
     sides,
   } : null;
-  const rightJamb = wallLength - (jamb.x + jamb.width);
   const offsets = {
     left: {
-      jamb: jamb.x,
-      casing: casing ? casing.x : jamb.x,
+      jamb: positionReadouts(jamb.x, jamb.width, wallLength).left,
+      casing: positionReadouts(
+        casing?.x ?? jamb.x,
+        casing?.width ?? jamb.width,
+        wallLength,
+      ).left,
     },
     right: {
-      jamb: rightJamb,
-      casing: casing ? wallLength - (casing.x + casing.width) : rightJamb,
+      jamb: positionReadouts(jamb.x, jamb.width, wallLength).right,
+      casing: positionReadouts(
+        casing?.x ?? jamb.x,
+        casing?.width ?? jamb.width,
+        wallLength,
+      ).right,
     },
   };
 
@@ -97,7 +110,7 @@ export function setMeasureMode(opening, mode, wallLength, settings) {
     width: reference.width,
     height: reference.height,
     sillZ: opening.kind === 'door' ? 0 : reference.z,
-    offset: geometry.offsets[opening.offsetFrom][mode],
+    offset: geometry.offsets[opening.offsetFrom][mode][opening.offsetAnchor ?? 'edge'],
   };
 }
 
@@ -108,7 +121,18 @@ export function setOffsetSide(opening, side, wallLength, settings) {
   return {
     ...opening,
     offsetFrom: side,
-    offset: geometry.offsets[side][opening.measureMode],
+    offset: geometry.offsets[side][opening.measureMode][opening.offsetAnchor ?? 'edge'],
+  };
+}
+
+/** Change the reference anchor without moving the opening. */
+export function setOffsetAnchor(opening, anchor, wallLength, settings) {
+  if (anchor !== 'edge' && anchor !== 'center') return opening;
+  const geometry = openingGeometry(opening, wallLength, settings);
+  return {
+    ...opening,
+    offsetAnchor: anchor,
+    offset: geometry.offsets[opening.offsetFrom][opening.measureMode][anchor],
   };
 }
 
@@ -139,9 +163,8 @@ export function setOpeningReferenceX(opening, x, wallLength, settings) {
   const referenceX = clamp(roundTo(x, settings.openingSnap), range.min, range.max);
   return {
     ...opening,
-    offset: opening.offsetFrom === 'left'
-      ? referenceX
-      : wallLength - referenceX - reference.width,
+    offset: positionReadouts(referenceX, reference.width, wallLength)
+      [opening.offsetFrom][opening.offsetAnchor ?? 'edge'],
   };
 }
 
@@ -182,6 +205,7 @@ export function createOpening({ kind, x, measureMode }, { settings, room, wall }
     sillZ,
     offset: 0,
     offsetFrom: 'left',
+    offsetAnchor: 'edge',
     casing,
   }, x, wallLength, settings);
 }

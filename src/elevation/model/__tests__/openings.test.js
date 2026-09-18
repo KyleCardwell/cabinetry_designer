@@ -26,6 +26,7 @@ function door(overrides = {}) {
     sillZ: 0,
     offset: 24,
     offsetFrom: 'left',
+    offsetAnchor: 'edge',
     casing: { width: 3, thickness: 0.75 },
     ...overrides,
   };
@@ -42,6 +43,7 @@ function windowOpening(overrides = {}) {
     sillZ: 36,
     offset: 12,
     offsetFrom: 'right',
+    offsetAnchor: 'edge',
     casing: { width: 3, thickness: 0.75 },
     ...overrides,
   };
@@ -89,8 +91,14 @@ const expectedDoorGeometry = {
   },
   head: 80,
   offsets: {
-    left: { jamb: 24, casing: 21 },
-    right: { jamb: 60, casing: 57 },
+    left: {
+      jamb: { edge: 24, center: 42 },
+      casing: { edge: 21, center: 42 },
+    },
+    right: {
+      jamb: { edge: 60, center: 78 },
+      casing: { edge: 57, center: 78 },
+    },
   },
 };
 
@@ -106,8 +114,14 @@ const expectedWindowGeometry = {
   },
   head: 84,
   offsets: {
-    left: { jamb: 72, casing: 69 },
-    right: { jamb: 12, casing: 9 },
+    left: {
+      jamb: { edge: 72, center: 90 },
+      casing: { edge: 69, center: 90 },
+    },
+    right: {
+      jamb: { edge: 12, center: 30 },
+      casing: { edge: 9, center: 30 },
+    },
   },
 };
 
@@ -153,8 +167,14 @@ describe('opening geometry', () => {
     expect(geometry.casing).toBeNull();
     expect(geometry.jamb).toEqual(expectedDoorGeometry.jamb);
     expect(geometry.offsets).toEqual({
-      left: { jamb: 24, casing: 24 },
-      right: { jamb: 60, casing: 60 },
+      left: {
+        jamb: { edge: 24, center: 42 },
+        casing: { edge: 24, center: 42 },
+      },
+      right: {
+        jamb: { edge: 60, center: 78 },
+        casing: { edge: 60, center: 78 },
+      },
     });
   });
 });
@@ -275,6 +295,7 @@ describe('opening creation and hit testing', () => {
       sillZ: 0,
       offset: 40,
       offsetFrom: 'left',
+      offsetAnchor: 'edge',
       casing: { width: 3, thickness: 0.75 },
     });
     expect(openingGeometry(opening, 120, settings).casing)

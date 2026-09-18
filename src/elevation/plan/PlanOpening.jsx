@@ -38,7 +38,7 @@ export default function PlanOpening({
   const dragStartRef = useRef(null);
   const geometry = openingGeometry(opening, frame.length, settings);
   const { jamb, casing } = geometry;
-  const referenceX = opening.measureMode === 'casing' && casing ? casing.x : jamb.x;
+  const referenceX = geometry.offsets.left[opening.measureMode].edge;
   const range = openingReferenceBounds(opening, frame.length, settings);
   const voidPolygon = [
     elevationToPlan(frame, jamb.x, 0),

@@ -134,7 +134,7 @@ function isConnection(connection) {
   );
 }
 
-/** Return whether a persisted wall opening has the v2 opening shape. */
+/** Validate a persisted opening, including pre-anchor v2/v3 documents. */
 export function isOpening(opening) {
   return Boolean(opening)
     && typeof opening.id === 'string'
@@ -145,6 +145,9 @@ export function isOpening(opening) {
       (key) => isFiniteNumber(opening[key]),
     )
     && (opening.offsetFrom === 'left' || opening.offsetFrom === 'right')
+    && (opening.offsetAnchor === undefined
+      || opening.offsetAnchor === 'edge'
+      || opening.offsetAnchor === 'center')
     && (opening.casing === null || (
       Boolean(opening.casing)
       && isFiniteNumber(opening.casing.width)
@@ -222,6 +225,39 @@ function normalizeDocument(document, schemaVersion) {
   };
 }
 
+/** Fill fields added within schema v3 while retaining v3 compatibility. */
+export function normalizeV3Document(document) {
+  const normalized = normalizeDocument(document, ELEVATION_SCHEMA_VERSION);
+  if (!normalized || normalized.schemaVersion !== ELEVATION_SCHEMA_VERSION) {
+    return normalized;
+  }
+  return {
+    ...normalized,
+    rooms: Array.isArray(normalized.rooms) ? normalized.rooms.map((room) => {
+      if (!room || typeof room !== 'object') return room;
+      return {
+        ...room,
+        walls: Array.isArray(room.walls) ? room.walls.map((wall) => {
+          if (!wall || typeof wall !== 'object') return wall;
+          return {
+            ...wall,
+            openings: Array.isArray(wall.openings) ? wall.openings.map((opening) => (
+              opening && typeof opening === 'object'
+                ? {
+                    ...opening,
+                    offsetAnchor: opening.offsetAnchor === undefined
+                      ? 'edge'
+                      : opening.offsetAnchor,
+                  }
+                : opening
+            )) : wall.openings,
+          };
+        }) : room.walls,
+      };
+    }) : normalized.rooms,
+  };
+}
+
 function hasValidEnds(settings) {
   return END_TYPES.has(settings.defaultEnds?.left)
     && END_TYPES.has(settings.defaultEnds?.right);
@@ -240,7 +276,7 @@ function isSettings(settings, profileKeys = PROFILE_KEYS) {
     && hasValidEnds(settings);
 }
 
-/** Return whether a value is a valid v2 elevation document. */
+/** Return whether a value is a valid current elevation document. */
 export function isElevationDocument(value) {
   if (!value || value.schemaVersion !== ELEVATION_SCHEMA_VERSION) return false;
   if (!isSettings(value.settings) || !Array.isArray(value.rooms)) return false;
@@ -406,13 +442,12 @@ function readStored(key) {
 export function loadElevationDocument() {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return null;
-    const current = normalizeDocument(
-      readStored(ELEVATION_STORAGE_KEY),
-      ELEVATION_SCHEMA_VERSION,
-    );
+    const current = normalizeV3Document(readStored(ELEVATION_STORAGE_KEY));
     if (isElevationDocument(current)) return current;
     const previous = normalizeDocument(readStored(V2_ELEVATION_STORAGE_KEY), 2);
-    if (isV2ElevationDocument(previous)) return migrateV2Document(previous);
+    if (isV2ElevationDocument(previous)) {
+      return normalizeV3Document(migrateV2Document(previous));
+    }
     const legacy = readStored(LEGACY_ELEVATION_STORAGE_KEY);
     return isV1ElevationDocument(legacy) ? migrateV1Document(legacy) : null;
   } catch {

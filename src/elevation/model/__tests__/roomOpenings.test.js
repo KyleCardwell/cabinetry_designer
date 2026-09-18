@@ -167,9 +167,9 @@ describe('room opening integration', () => {
     expect(leftOpening.offset).toBe(24);
     expect(rightOpening.offset).toBe(24);
     expect(afterLeft.offsets.left).toEqual(beforeLeft.offsets.left);
-    expect(afterLeft.offsets.right.jamb - beforeLeft.offsets.right.jamb).toBe(12);
+    expect(afterLeft.offsets.right.jamb.edge - beforeLeft.offsets.right.jamb.edge).toBe(12);
     expect(afterRight.offsets.right).toEqual(beforeRight.offsets.right);
-    expect(afterRight.offsets.left.jamb - beforeRight.offsets.left.jamb).toBe(12);
+    expect(afterRight.offsets.left.jamb.edge - beforeRight.offsets.left.jamb.edge).toBe(12);
   });
 
   it('17. flips the measured side without moving the jamb in plan', () => {

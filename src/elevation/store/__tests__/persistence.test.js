@@ -209,6 +209,30 @@ describe('elevation persistence migration', () => {
     expect(isElevationDocument(loaded)).toBe(true);
   });
 
+  it('defaults a missing v3 opening offset anchor to edge', () => {
+    const current = migrateV1Document(v1Document());
+    current.rooms[0].walls[0].openings.push({
+      id: 'door-1',
+      kind: 'door',
+      label: 'D1',
+      measureMode: 'jamb',
+      width: 36,
+      height: 80,
+      sillZ: 0,
+      offset: 24,
+      offsetFrom: 'left',
+      casing: { width: 3, thickness: 0.75 },
+    });
+    expect(isElevationDocument(current)).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.rooms[0].walls[0].openings[0].offsetAnchor).toBe('edge');
+    expect(isElevationDocument(loaded)).toBe(true);
+  });
+
   it('25. rejects a malformed opening so the editor can start fresh', () => {
     const current = migrateV1Document(v1Document());
     current.rooms[0].walls[0].openings.push({

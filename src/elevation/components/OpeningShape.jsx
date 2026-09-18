@@ -4,12 +4,6 @@ import { wallRectToScreen } from '../canvas/transform.js';
 import { openingReferenceBounds } from '../model/openings.js';
 import { formatInches } from '../model/units.js';
 
-function referenceLeft(opening, geometry) {
-  return opening.measureMode === 'casing' && geometry.casing
-    ? geometry.casing.x
-    : geometry.jamb.x;
-}
-
 export default function OpeningShape({
   opening,
   geometry,
@@ -24,10 +18,10 @@ export default function OpeningShape({
     ? wallRectToScreen(geometry.casing, transform)
     : null;
   const jambRect = wallRectToScreen(geometry.jamb, transform);
-  const wallLength = geometry.offsets.left.jamb
+  const wallLength = geometry.offsets.left.jamb.edge
     + geometry.jamb.width
-    + geometry.offsets.right.jamb;
-  const referenceX = referenceLeft(opening, geometry);
+    + geometry.offsets.right.jamb.edge;
+  const referenceX = geometry.offsets.left[opening.measureMode].edge;
   const range = openingReferenceBounds(opening, wallLength, null);
   const stroke = selected ? '#f8fafc' : '#94a3b8';
   const strokeWidth = selected ? 2 : 1;

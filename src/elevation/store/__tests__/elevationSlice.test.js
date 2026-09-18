@@ -17,6 +17,7 @@ import elevationReducer, {
   removeItem,
   replaceRun,
   setOpeningMeasureMode,
+  setOpeningOffsetAnchor,
   setOpeningOffsetSide,
   setActiveRoom,
   setRunCornerClearance,
@@ -73,6 +74,7 @@ function opening(overrides = {}) {
     sillZ: 0,
     offset: 24,
     offsetFrom: 'left',
+    offsetAnchor: 'edge',
     casing: { width: 3, thickness: 0.75 },
     ...overrides,
   };
@@ -514,11 +516,24 @@ describe('elevation opening reducers', () => {
     }));
     expect(openingGeometry(currentOpening(fromRight), 144, fromRight.settings)).toEqual(before);
 
-    const moved = elevationReducer(fromRight, moveOpening({
+    const fromCenter = elevationReducer(fromRight, setOpeningOffsetAnchor({
+      wallId: 'wall-1',
+      openingId: 'door-1',
+      anchor: 'center',
+    }));
+    expect(currentOpening(fromCenter)).toMatchObject({
+      offsetFrom: 'right',
+      offsetAnchor: 'center',
+      offset: 102,
+    });
+    expect(openingGeometry(currentOpening(fromCenter), 144, fromCenter.settings)).toEqual(before);
+
+    const moved = elevationReducer(fromCenter, moveOpening({
       wallId: 'wall-1',
       openingId: 'door-1',
       x: 140,
     }));
+    expect(currentOpening(moved)).toMatchObject({ offsetAnchor: 'center', offset: 21 });
     expect(openingGeometry(currentOpening(moved), 144, moved.settings).casing)
       .toMatchObject({ x: 102, width: 42 });
 

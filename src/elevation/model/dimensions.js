@@ -62,9 +62,10 @@ export function openingChain(room, wall, settings) {
     const reference = opening.measureMode === 'casing' && geometry.casing
       ? geometry.casing
       : geometry.jamb;
+    const start = geometry.offsets.left[opening.measureMode].edge;
     return {
-      start: reference.x,
-      end: reference.x + reference.width,
+      start,
+      end: start + reference.width,
       openingId: opening.id,
       label: opening.label,
     };

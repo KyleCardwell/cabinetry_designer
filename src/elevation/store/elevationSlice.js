@@ -5,6 +5,7 @@ import { cornerAt } from '../model/corners.js';
 import { wallFrame } from '../model/geometry.js';
 import {
   setMeasureMode,
+  setOffsetAnchor,
   setOffsetSide,
   setOpeningReferenceX,
   validateOpeningPlacement,
@@ -427,7 +428,17 @@ const elevationSlice = createSlice({
       if (!location) return;
       const candidate = { ...location.opening };
       const changes = action.payload.changes ?? {};
-      for (const key of ['label', 'kind', 'width', 'height', 'sillZ', 'offset', 'casing']) {
+      for (const key of [
+        'label',
+        'kind',
+        'width',
+        'height',
+        'sillZ',
+        'offset',
+        'offsetFrom',
+        'offsetAnchor',
+        'casing',
+      ]) {
         if (!Object.prototype.hasOwnProperty.call(changes, key)) continue;
         candidate[key] = key === 'casing' && changes[key]
           ? { ...changes[key] }
@@ -466,6 +477,18 @@ const elevationSlice = createSlice({
       location.wall.openings[location.openingIndex] = setOffsetSide(
         location.opening,
         action.payload.side,
+        length,
+        state.settings,
+      );
+      syncRoomAt(state, location.roomIndex);
+    },
+    setOpeningOffsetAnchor(state, action) {
+      const location = openingLocation(state, action.payload);
+      if (!location) return;
+      const length = wallFrame(location.room, location.wall).length;
+      location.wall.openings[location.openingIndex] = setOffsetAnchor(
+        location.opening,
+        action.payload.anchor,
         length,
         state.settings,
       );
@@ -723,6 +746,7 @@ export const {
   addOpening,
   updateOpening,
   setOpeningMeasureMode,
+  setOpeningOffsetAnchor,
   setOpeningOffsetSide,
   moveOpening,
   deleteOpening,

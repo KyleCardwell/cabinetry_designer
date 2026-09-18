@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -17,9 +18,11 @@ import {
   frontDepth,
   moldingStack,
   openingGeometry,
+  positionReadouts,
   resolveProfile,
   runBlocksOpening,
   splitRun,
+  startFromReadout,
   validateOpeningPlacement,
   wallLabel,
   wallFrame,
@@ -53,7 +56,6 @@ import {
   setMaxCabinetWidth,
   setMessage,
   setOpeningMeasureMode,
-  setOpeningOffsetSide,
   setRunEnd,
   setRunHeightMode,
   setRunAnchor,
@@ -369,50 +371,49 @@ function OpeningProperties({ wall, opening, settings, placementMessage }) {
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Position
         </h3>
-        <p className="mb-1 text-xs text-gray-400">From</p>
-        <div className="mb-3 grid grid-cols-2 overflow-hidden rounded border border-gray-700">
-          {[
-            ['left', 'Left end'],
-            ['right', 'Right end'],
-          ].map(([side, label]) => (
-            <button
-              key={side}
-              type="button"
-              onClick={() => dispatch(setOpeningOffsetSide({ ...actionBase, side }))}
-              className={`px-2 py-2 text-xs font-medium transition-colors ${
-                opening.offsetFrom === side
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-900/45 text-gray-400 hover:bg-gray-700'
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        <Field label="Distance">
-          <InchInput
-            value={opening.offset}
-            onCommit={(offset) => update({ offset })}
-            aria-label="Opening distance from wall end"
-          />
-        </Field>
-
-        <div className="mt-3 space-y-2 rounded border border-gray-700 bg-gray-900/45 p-3 text-xs">
+        <div className="grid grid-cols-[auto_1fr_1fr] items-end gap-2">
+          <span />
+          <span className="text-center text-xs text-gray-500">Edge</span>
+          <span className="text-center text-xs text-gray-500">Center</span>
           {['left', 'right'].map((side) => (
-            <div key={side} className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-              <span className="w-full text-gray-500 capitalize">{side} end →</span>
-              {['jamb', 'casing'].map((mode, index) => {
-                const active = opening.offsetFrom === side && opening.measureMode === mode;
+            <Fragment key={side}>
+              <span className="text-xs capitalize text-gray-400">{side} end</span>
+              {['edge', 'center'].map((anchor) => {
+                const active = opening.offsetFrom === side
+                  && (opening.offsetAnchor ?? 'edge') === anchor;
                 return (
-                  <span key={mode} className={active ? 'font-medium text-cyan-300' : 'text-gray-400'}>
-                    {index > 0 && <span className="mr-1.5 text-gray-600">·</span>}
-                    {mode} {formatInches(geometry.offsets[side][mode])}
-                  </span>
+                  <div
+                    key={anchor}
+                    className={active ? 'rounded ring-1 ring-cyan-400' : ''}
+                  >
+                    <InchInput
+                      value={geometry.offsets[side][opening.measureMode][anchor]}
+                      onCommit={(offset) => update({
+                        offset,
+                        offsetFrom: side,
+                        offsetAnchor: anchor,
+                      })}
+                      aria-label={`Opening ${side} ${anchor} position`}
+                    />
+                  </div>
                 );
               })}
-            </div>
+            </Fragment>
           ))}
         </div>
+        {(() => {
+          const otherMode = opening.measureMode === 'jamb' ? 'casing' : 'jamb';
+          const other = geometry.offsets;
+          return (
+            <p className="mt-3 text-xs leading-relaxed text-gray-500">
+              {otherMode[0].toUpperCase() + otherMode.slice(1)}: left edge{' '}
+              {formatInches(other.left[otherMode].edge)}, center{' '}
+              {formatInches(other.left[otherMode].center)} · right edge{' '}
+              {formatInches(other.right[otherMode].edge)}, center{' '}
+              {formatInches(other.right[otherMode].center)}
+            </p>
+          );
+        })()}
       </section>
 
       <section>
@@ -517,8 +518,8 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
     cornerReserveParts(room, wall, side, run, settings),
   ]));
   const overhang = formatRunOverhang(run, wall.length);
-  const anchored = run.anchors.left || run.anchors.right;
   const bothAnchored = run.anchors.left && run.anchors.right;
+  const runPositions = positionReadouts(run.x, run.width, wall.length);
 
   const validateAndDispatch = (changes) => {
     const { validation } = prepareRunUpdate(room, wall.id, run, settings, changes);
@@ -570,12 +571,11 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
         </h3>
         <div className="grid grid-cols-2 gap-2.5">
           {[
-            ['x', 'X'],
             ['width', 'Width'],
             ['depth', 'Depth'],
           ].map(([key, label]) => (
             <Field key={key} label={label}>
-              {(key === 'x' && anchored) || (key === 'width' && bothAnchored) ? (
+              {key === 'width' && bothAnchored ? (
                 <ReadOnlyValue
                   value={run[key]}
                   ariaLabel={`Resolved run ${label.toLowerCase()}`}
@@ -588,6 +588,45 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                 />
               )}
             </Field>
+          ))}
+        </div>
+        <div className="mt-3 grid grid-cols-[auto_1fr_1fr] items-end gap-2">
+          <span />
+          <span className="text-center text-xs text-gray-500">Edge</span>
+          <span className="text-center text-xs text-gray-500">Center</span>
+          {['left', 'right'].map((side) => (
+            <Fragment key={side}>
+              <span className="text-xs capitalize text-gray-400">{side} end</span>
+              {['edge', 'center'].map((anchor) => {
+                const readOnly = run.anchors[side];
+                const className = anchor === 'center' ? 'opacity-60' : '';
+                const ariaLabel = `Run ${side} ${anchor} position`;
+                return (
+                  <div key={anchor} className={className}>
+                    {readOnly ? (
+                      <ReadOnlyValue
+                        value={runPositions[side][anchor]}
+                        ariaLabel={ariaLabel}
+                      />
+                    ) : (
+                      <InchInput
+                        value={runPositions[side][anchor]}
+                        onCommit={(value) => validateAndDispatch({
+                          x: startFromReadout(
+                            side,
+                            anchor,
+                            value,
+                            run.width,
+                            wall.length,
+                          ),
+                        })}
+                        aria-label={ariaLabel}
+                      />
+                    )}
+                  </div>
+                );
+              })}
+            </Fragment>
           ))}
         </div>
         <div className="mt-2.5">
