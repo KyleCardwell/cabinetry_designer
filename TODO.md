@@ -75,6 +75,15 @@ Specified in `docs/elevation-mvp/SPEC-8.md`, step prompts in `PROMPTS-8.md`.
   - Notes: run.anchors[side] widens from a boolean to false | true | {to: 'opening', openingId, edge, clearance}; new casingClearance setting; casing-to-cabinetry dimension row with violated segments in amber.
   - Done when: A run can anchor to a casing with a clearance, moving the opening moves the run, unanchored runs warn when closer than the clearance, SPEC-8 tests 26-33 pass.
 
+- [ ] **[P2][plan][UI] Step 32 — deselect on empty space, wall navigation arrows**
+  - Why: Clicking empty space in plan doesn't deselect anything; jumping between wall elevations means going back to the plan every time.
+  - Notes: selection gains wallId so the visual selection splits from activeWallId, which stays the navigation cursor. Elevation keeps its wall selected on an empty click - you're inside it - which is the one asymmetry; flag it if it reads wrong in use.
+  - Done when: Empty-space click clears everything in plan, the elevation toolbar has wrapping wall arrows with [ and ] bound, SPEC-9 tests 1-4 and 16 pass.
+- [ ] **[P2][model][UI] Step 33 — signed anchor offsets everywhere**
+  - Why: Outside corners can only pin flush; there's no way to hold a run back from a wall end or run it past one.
+  - Notes: One rule for all three datum kinds - positive holds the run back on the room side, negative carries it past. resolveHorizontal's arithmetic already does this and parseInches already takes a minus sign, so the work is relaxing four inside-corner gates and labelling it. Outside/straight/open ends get Auto (flush) or a custom signed number in the existing cornerClearance field; an anchored non-inside end gets an end panel, not a filler.
+  - Done when: Anchors work at any wall end with a signed offset, a negative opening clearance runs cabinetry under the casing while going past the jamb still warns, SPEC-9 tests 5-15 pass.
+
 ## In progress
 
 <!-- Include the branch, task, or owner when useful. -->
