@@ -1,8 +1,11 @@
 import { Circle, Group, Line, Text } from 'react-konva';
 import { layoutDimensionRow } from '../canvas/dimensionLayout.js';
 import { wallFrame } from '../model/geometry.js';
-import { wallNumbers } from '../model/topology.js';
+import { elevationLetters, wallNumbers } from '../model/topology.js';
 import { wallOutline } from '../model/wallOutline.js';
+import PlanElevationMarker from './PlanElevationMarker.jsx';
+
+const ELEVATION_MARKER_DEPTH = 30;
 
 export default function PlanWallShape({
   room,
@@ -29,6 +32,12 @@ export default function PlanWallShape({
   const numberPoint = {
     x: midpoint.x + exterior.x * numberOffset + frame.d.x * 24 / scale,
     y: midpoint.y + exterior.y * numberOffset + frame.d.y * 24 / scale,
+  };
+  const interior = { x: frame.n.x, y: frame.n.y };
+  const letter = elevationLetters(room).get(wall.id);
+  const elevationPoint = {
+    x: midpoint.x + interior.x * ELEVATION_MARKER_DEPTH + frame.d.x * 24 / scale,
+    y: midpoint.y + interior.y * ELEVATION_MARKER_DEPTH + frame.d.y * 24 / scale,
   };
   const dimensionOffset = wall.thickness + 18 / scale;
   const extensionStartOffset = wall.thickness + 2 / scale;
@@ -178,6 +187,14 @@ export default function PlanWallShape({
         fill="#f8fafc"
         listening={false}
       />
+      {letter && (
+        <PlanElevationMarker
+          point={elevationPoint}
+          direction={interior}
+          scale={scale}
+          letter={letter}
+        />
+      )}
     </Group>
   );
 }
