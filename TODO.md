@@ -45,6 +45,7 @@ Suggested format:
 - [ ] Part numbering for a whole room.
 - [ ] Cross sections on drawings.
 - [ ] Saving to the database - how to structure for edits, redraws and versions, etc. Do we need a version history since multiple people could work on one project?
+- [ ] save clearances to side objects - i.e. a run needs 4" clearance from door casing, etc.
 
 ## Planned
 
