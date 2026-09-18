@@ -1,6 +1,7 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { nextWallId, wallLabel } from '../model/topology.js';
 import {
+  centerRoomOnOrigin,
   setActiveWall,
   setTool,
   setView,
@@ -80,6 +81,19 @@ export default function ElevationToolbar({
           }`}
         >
           Ortho
+        </button>
+      )}
+      {view === 'plan' && (
+        <button
+          type="button"
+          disabled={(room?.walls.length ?? 0) === 0}
+          onClick={() => {
+            dispatch(centerRoomOnOrigin({ roomId: activeRoomId }));
+            onZoomToFit?.();
+          }}
+          className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Center room
         </button>
       )}
       <div className="mx-1 h-5 w-px bg-gray-700" />

@@ -230,6 +230,25 @@ const elevationSlice = createSlice({
       }
       syncRoomAt(state, roomIndex);
     },
+    centerRoomOnOrigin(state, action) {
+      const roomId = action.payload?.roomId ?? action.payload ?? state.activeRoomId;
+      const roomIndex = roomIndexFor(state, roomId);
+      if (roomIndex === -1) return;
+      const room = state.rooms[roomIndex];
+      if (room.walls.length === 0) return;
+      const xs = room.walls.flatMap((wall) => [wall.x1, wall.x2]);
+      const ys = room.walls.flatMap((wall) => [wall.y1, wall.y2]);
+      const dx = roundTo(-(Math.min(...xs) + Math.max(...xs)) / 2, state.settings.planGrid);
+      const dy = roundTo(-(Math.min(...ys) + Math.max(...ys)) / 2, state.settings.planGrid);
+      if (dx === 0 && dy === 0) return;
+      for (const wall of room.walls) {
+        wall.x1 += dx;
+        wall.y1 += dy;
+        wall.x2 += dx;
+        wall.y2 += dy;
+      }
+      syncRoomAt(state, roomIndex);
+    },
     addWall: {
       reducer(state, action) {
         const roomIndex = roomIndexFor(state, action.payload.roomId);
@@ -843,6 +862,7 @@ export const {
   setActiveRoom,
   updateRoomProfile,
   useAutoHeightsForRoom,
+  centerRoomOnOrigin,
   addWall,
   addWallSegment,
   moveWallEndpoint,

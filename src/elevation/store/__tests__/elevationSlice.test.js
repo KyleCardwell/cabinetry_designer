@@ -10,6 +10,7 @@ import elevationReducer, {
   addRun,
   addWall,
   addWallSegment,
+  centerRoomOnOrigin,
   clearSelection,
   createInitialElevationState,
   deleteOpening,
@@ -262,6 +263,114 @@ describe('elevation room reducers', () => {
       .toBe(108);
     expect(explicit.rooms[0].walls.find((wall) => wall.id === 'wall-explicit-height').height)
       .toBe(84);
+  });
+
+  it('11. translates every wall to center the room on the origin', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls = [
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-a',
+        x1: 0,
+        y1: 0,
+        x2: 120,
+        y2: 0,
+        runs: [],
+      },
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-b',
+        x1: 120,
+        y1: 0,
+        x2: 120,
+        y2: 96,
+        runs: [],
+      },
+    ];
+
+    const next = elevationReducer(initial, centerRoomOnOrigin({ roomId: 'room-1' }));
+
+    expect(next.rooms[0].walls.map(({ x1, y1, x2, y2 }) => ({ x1, y1, x2, y2 })))
+      .toEqual([
+        { x1: -60, y1: -48, x2: 60, y2: -48 },
+        { x1: 60, y1: -48, x2: 60, y2: 48 },
+      ]);
+  });
+
+  it('12. changes nothing when centering an already-centered room', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls = [
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-a',
+        x1: 0,
+        y1: 0,
+        x2: 120,
+        y2: 0,
+        runs: [],
+      },
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-b',
+        x1: 120,
+        y1: 0,
+        x2: 120,
+        y2: 96,
+        runs: [],
+      },
+    ];
+    const centered = elevationReducer(initial, centerRoomOnOrigin({ roomId: 'room-1' }));
+    const centeredAgain = elevationReducer(centered, centerRoomOnOrigin({ roomId: 'room-1' }));
+
+    expect(centeredAgain.rooms[0].walls.map(({ x1, y1, x2, y2 }) => ({ x1, y1, x2, y2 })))
+      .toEqual([
+        { x1: -60, y1: -48, x2: 60, y2: -48 },
+        { x1: 60, y1: -48, x2: 60, y2: 48 },
+      ]);
+  });
+
+  it('13. preserves wall-local content and topology while centering', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls = [
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-a',
+        x1: 0,
+        y1: 0,
+        x2: 120,
+        y2: 0,
+        connections: { start: null, end: { wallId: 'wall-b', endpoint: 'start' } },
+        runs: [run({ x: 12, width: 36 })],
+      },
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-b',
+        x1: 120,
+        y1: 0,
+        x2: 120,
+        y2: 96,
+        connections: { start: { wallId: 'wall-a', endpoint: 'end' }, end: null },
+        runs: [],
+      },
+    ];
+    initial.rooms[0].wallOrder = ['wall-a', 'wall-b'];
+
+    const next = elevationReducer(initial, centerRoomOnOrigin({ roomId: 'room-1' }));
+    const wallA = next.rooms[0].walls.find((wall) => wall.id === 'wall-a');
+
+    expect(wallA.runs[0].x).toBe(12);
+    expect(next.rooms[0].wallOrder).toEqual(['wall-a', 'wall-b']);
+    expect(wallA.connections.end).toEqual({ wallId: 'wall-b', endpoint: 'start' });
+  });
+
+  it('14. leaves an empty room unchanged', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls = [];
+
+    const next = elevationReducer(initial, centerRoomOnOrigin({ roomId: 'room-1' }));
+
+    expect(next.rooms[0]).toBe(initial.rooms[0]);
+    expect(next.rooms[0].walls).toEqual([]);
   });
 
   it('9. assigns exposed and inside anchored-end treatments', () => {
