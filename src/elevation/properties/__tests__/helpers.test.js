@@ -3,6 +3,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import {
   formatCornerReserve,
   formatRunOverhang,
+  formatRunWarning,
   lastCabinetItem,
   lastRunItem,
   prepareRunUpdate,
@@ -60,6 +61,13 @@ describe('properties helpers', () => {
     expect(formatRunOverhang({ x: -6, width: 134 }, 120))
       .toBe('Overhangs left 6" · right 8"');
     expect(formatRunOverhang({ x: 10, width: 50 }, 120)).toBeNull();
+  });
+
+  it('formats a run warning for a blocked opening', () => {
+    expect(formatRunWarning({ code: 'blocks-opening', label: 'W1' })).toBe('Blocks W1');
+    expect(formatRunWarning({ code: 'other', message: 'Existing warning' }))
+      .toBe('Existing warning');
+    expect(formatRunWarning({ code: 'other' })).toBeNull();
   });
 
   it('builds a validated run patch without mutating the stored run', () => {

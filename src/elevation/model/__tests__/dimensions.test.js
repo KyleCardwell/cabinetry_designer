@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import {
   horizontalChains,
+  openingChain,
   pickColumnRuns,
   verticalChains,
+  verticalOpeningChain,
 } from '../dimensions.js';
 import { syncRoom } from '../room.js';
 
@@ -381,4 +383,98 @@ it('keeps fixed-seed valid horizontal chains contiguous and full length', () => 
       expectContiguous(chains.outer, length);
     }
   }
+});
+
+function doorOpening(overrides = {}) {
+  return {
+    id: 'door-1',
+    kind: 'door',
+    label: 'D1',
+    measureMode: 'jamb',
+    width: 36,
+    height: 80,
+    sillZ: 0,
+    offset: 24,
+    offsetFrom: 'left',
+    casing: { width: 3, thickness: 0.75 },
+    ...overrides,
+  };
+}
+
+function windowOpening(overrides = {}) {
+  return {
+    id: 'window-1',
+    kind: 'window',
+    label: 'W1',
+    measureMode: 'jamb',
+    width: 36,
+    height: 48,
+    sillZ: 36,
+    offset: 12,
+    offsetFrom: 'right',
+    casing: { width: 3, thickness: 0.75 },
+    ...overrides,
+  };
+}
+
+describe('opening dimensions', () => {
+  it('21. builds a contiguous jamb-reference chain across the wall', () => {
+    const room = roomR({
+      wallA: { openings: [doorOpening(), windowOpening()] },
+    });
+    const wall = room.walls[0];
+    const chain = openingChain(room, wall, DEFAULT_SETTINGS);
+
+    expect(chain).toEqual([
+      { start: 0, end: 24, kind: 'gap' },
+      { start: 24, end: 60, kind: 'opening', openingId: 'door-1', label: 'D1' },
+      { start: 60, end: 72, kind: 'gap' },
+      { start: 72, end: 108, kind: 'opening', openingId: 'window-1', label: 'W1' },
+      { start: 108, end: 120, kind: 'gap' },
+    ]);
+    expectContiguous(chain, 120);
+  });
+
+  it('22. uses casing reference edges and keeps the chain contiguous', () => {
+    const room = roomR({
+      wallA: {
+        openings: [
+          doorOpening({ measureMode: 'casing', width: 42, height: 83, offset: 21 }),
+          windowOpening(),
+        ],
+      },
+    });
+    const chain = openingChain(room, room.walls[0], DEFAULT_SETTINGS);
+
+    expect(chain[1]).toEqual({
+      start: 21,
+      end: 63,
+      kind: 'opening',
+      openingId: 'door-1',
+      label: 'D1',
+    });
+    expectContiguous(chain, 120);
+  });
+
+  it('23. builds window and door vertical opening chains', () => {
+    const wall = roomR().walls[0];
+    expect(verticalOpeningChain(wall, windowOpening(), 120, DEFAULT_SETTINGS)).toEqual({
+      inner: [
+        { start: 0, end: 33, kind: 'sill-below' },
+        { start: 33, end: 36, kind: 'casing' },
+        { start: 36, end: 84, kind: 'opening' },
+        { start: 84, end: 87, kind: 'casing' },
+        { start: 87, end: 96, kind: 'above' },
+      ],
+      outer: [{ start: 0, end: 96, kind: 'wall' }],
+    });
+    expect(verticalOpeningChain(wall, doorOpening(), 120, DEFAULT_SETTINGS)).toEqual({
+      inner: [
+        { start: 0, end: 80, kind: 'opening' },
+        { start: 80, end: 83, kind: 'casing' },
+        { start: 83, end: 96, kind: 'above' },
+      ],
+      outer: [{ start: 0, end: 96, kind: 'wall' }],
+    });
+  });
 });

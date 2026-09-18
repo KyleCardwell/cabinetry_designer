@@ -60,7 +60,13 @@ export {
   polygonOverlap,
   runFootprint,
 } from './footprints.js';
-export { horizontalChains, pickColumnRuns, verticalChains } from './dimensions.js';
+export {
+  horizontalChains,
+  openingChain,
+  pickColumnRuns,
+  verticalChains,
+  verticalOpeningChain,
+} from './dimensions.js';
 export {
   chainOrder,
   chainOrientation,

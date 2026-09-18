@@ -19,6 +19,12 @@ export function formatRunOverhang(run, wallLength) {
   return sides.length > 0 ? `Overhangs ${sides.join(' · ')}` : null;
 }
 
+/** Format a run warning that points at an opening. */
+export function formatRunWarning(warning) {
+  if (warning.code === 'blocks-opening') return `Blocks ${warning.label}`;
+  return warning.message ?? null;
+}
+
 /**
  * Build and validate a prospective partial update to a run.
  *

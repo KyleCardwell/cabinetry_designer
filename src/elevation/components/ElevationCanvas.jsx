@@ -34,8 +34,10 @@ import {
 } from '../model/openings.js';
 import {
   horizontalChains,
+  openingChain,
   pickColumnRuns,
   verticalChains,
+  verticalOpeningChain,
 } from '../model/dimensions.js';
 import { resolveProfile } from '../model/profile.js';
 import {
@@ -98,12 +100,18 @@ function ElevationCanvas({
     const lower = horizontalChains(room, wall, 'lower', settings);
     const upper = horizontalChains(room, wall, 'upper', settings);
     const columnRuns = pickColumnRuns(wall, selection.runId);
+    const selectedOpening = (wall.openings ?? []).find(
+      (opening) => opening.id === selection.openingId,
+    );
     return {
       lower,
       upper,
-      vertical: verticalChains(room, wall, columnRuns, settings),
+      openings: openingChain(room, wall, settings),
+      vertical: selectedOpening
+        ? verticalOpeningChain(wall, selectedOpening, wall.length, settings)
+        : verticalChains(room, wall, columnRuns, settings),
     };
-  }, [room, selection.runId, settings, wall]);
+  }, [room, selection.openingId, selection.runId, settings, wall]);
 
   selectionRef.current = selection;
   wallRef.current = wall;
@@ -189,11 +197,16 @@ function ElevationCanvas({
       ? fitWallToViewport(wall, viewport, {
         top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
         right: 48,
-        bottom: 96,
+        bottom: dimensionChains?.openings.length > 0 ? 128 : 96,
         left: 110,
       })
       : null
-  ), [dimensionChains?.upper.inner.length, viewport, wall]);
+  ), [
+    dimensionChains?.openings.length,
+    dimensionChains?.upper.inner.length,
+    viewport,
+    wall,
+  ]);
   const transform = useMemo(
     () => (baseTransform ? withView(baseTransform, view) : null),
     [baseTransform, view],
@@ -226,13 +239,20 @@ function ElevationCanvas({
     const upperLevels = layoutDimensionRow(dimensionChains.upper.inner, {
       scale: transform.scale,
     }).levels;
+    const lowerOuterLevels = layoutDimensionRow(dimensionChains.lower.outer, {
+      scale: transform.scale,
+    }).levels;
     const verticalLevels = layoutDimensionRow(dimensionChains.vertical.inner, {
       scale: transform.scale,
     }).levels;
+    const lower = dimensionRowOffsets('horizontal', lowerLevels);
     return {
-      lower: dimensionRowOffsets('horizontal', lowerLevels),
+      lower,
       upper: dimensionRowOffsets('horizontal', upperLevels),
       vertical: dimensionRowOffsets('vertical', verticalLevels),
+      openings: dimensionChains.lower.outer.length > 0
+        ? lower.outer + 22 + lowerOuterLevels * 14
+        : 20,
     };
   }, [dimensionChains, transform]);
 
@@ -590,6 +610,14 @@ function ElevationCanvas({
                 transform={transform}
                 onSegmentClick={(segment) => selectRun(segment.runId)}
                 highlightRunId={selection.runId}
+                wallEndMarks={[0, wall.length]}
+              />
+              <DimensionRow
+                segments={dimensionChains.openings}
+                orientation="horizontal"
+                side="below"
+                offsetPx={dimensionOffsets.openings}
+                transform={transform}
                 wallEndMarks={[0, wall.length]}
               />
               <DimensionRow

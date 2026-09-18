@@ -13,7 +13,9 @@ const KIND_COLORS = {
   'corner-gap': '#f59e0b',
   open: '#64748b',
   'tall-span': '#64748b',
+  gap: '#64748b',
   run: '#e2e8f0',
+  opening: '#e2e8f0',
   'toe-kick': '#cbd5e1',
   box: '#cbd5e1',
   countertop: '#cbd5e1',
@@ -177,7 +179,7 @@ export default function DimensionRow({
             <Line
               points={[start.x, start.y, end.x, end.y]}
               stroke={color}
-              strokeWidth={segment.kind === 'run' ? 1.5 : 1}
+              strokeWidth={segment.kind === 'run' || segment.kind === 'opening' ? 1.5 : 1}
               listening={false}
             />
 

@@ -1,6 +1,7 @@
 import { CABINET_TYPE_IDS } from './constants.js';
 import { cornerAt } from './corners.js';
 import { wallLength } from './geometry.js';
+import { openingGeometry } from './openings.js';
 import { moldingStack, resolveProfile } from './profile.js';
 import { endCornerAnglesForRun, endMinWidthsForRun } from './room.js';
 import { splitRun } from './splitRun.js';
@@ -49,6 +50,43 @@ function runsForBand(wall, band) {
     )
     : (run) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
   return wall.runs.filter(matches).sort((a, b) => a.x - b.x);
+}
+
+/** Build a full-wall horizontal chain using each opening's stored reference edges. */
+export function openingChain(room, wall, settings) {
+  void room;
+  if ((wall.openings ?? []).length === 0) return [];
+  const length = wallLength(wall);
+  const ranges = wall.openings.map((opening) => {
+    const geometry = openingGeometry(opening, length, settings);
+    const reference = opening.measureMode === 'casing' && geometry.casing
+      ? geometry.casing
+      : geometry.jamb;
+    return {
+      start: reference.x,
+      end: reference.x + reference.width,
+      openingId: opening.id,
+      label: opening.label,
+    };
+  }).sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const segments = [];
+  let cursor = 0;
+  for (const range of ranges) {
+    const start = Math.min(length, Math.max(cursor, range.start));
+    const end = Math.min(length, Math.max(start, range.end));
+    appendSegment(segments, cursor, start, 'gap');
+    segments.push({
+      start,
+      end,
+      kind: 'opening',
+      openingId: range.openingId,
+      label: range.label,
+    });
+    cursor = end;
+  }
+  appendSegment(segments, cursor, length, 'gap');
+  return segments;
 }
 
 /** Build the inner piece chain and outer run chain for an elevation band. */
@@ -240,4 +278,27 @@ export function verticalChains(room, wall, { lowerRun, upperRun }, settings) {
 
   append(cursor, wall.height, 'open');
   return result();
+}
+
+/** Build the vertical opening stack and full-wall dimension chains. */
+export function verticalOpeningChain(wall, opening, wallLengthValue, settings) {
+  const geometry = openingGeometry(opening, wallLengthValue, settings);
+  const casing = geometry.casing ?? geometry.jamb;
+  const casingTop = casing.z + casing.height;
+  const inner = [];
+
+  if (opening.kind === 'window') {
+    appendSegment(inner, 0, casing.z, 'sill-below');
+    appendSegment(inner, casing.z, geometry.jamb.z, 'casing');
+  }
+  appendSegment(inner, geometry.jamb.z, geometry.head, 'opening');
+  appendSegment(inner, geometry.head, casingTop, 'casing');
+  appendSegment(inner, casingTop, wall.height, 'above');
+
+  return {
+    inner,
+    outer: wall.height > SEGMENT_EPSILON
+      ? [{ start: 0, end: wall.height, kind: 'wall' }]
+      : [],
+  };
 }

@@ -76,6 +76,11 @@ export default function WallList() {
                 >
                   {label}
                 </button>
+                <span className="shrink-0 text-[10px] text-gray-500">
+                  {wall.runs.length} {wall.runs.length === 1 ? 'run' : 'runs'} ·{' '}
+                  {(wall.openings ?? []).length}{' '}
+                  {(wall.openings ?? []).length === 1 ? 'opening' : 'openings'}
+                </span>
                 <button
                   type="button"
                   onClick={() => setConfirmDeleteId(wall.id)}

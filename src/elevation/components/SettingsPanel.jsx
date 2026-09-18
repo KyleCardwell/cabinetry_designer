@@ -35,6 +35,18 @@ const PROFILE_SETTINGS = [
   ['crownOverlap', 'Crown overlap'],
 ];
 
+const OPENING_NUMBER_SETTINGS = [
+  ['casingWidth', 'Casing width'],
+  ['casingThickness', 'Casing thickness'],
+  ['defaultDoorWidth', 'Door width'],
+  ['defaultDoorHeight', 'Door height'],
+  ['defaultWindowWidth', 'Window width'],
+  ['defaultWindowHeight', 'Window height'],
+  ['defaultWindowSillZ', 'Window sill height'],
+  ['minOpeningWidth', 'Minimum opening width'],
+  ['openingSnap', 'Opening snap'],
+];
+
 const END_OPTIONS = [
   ['filler', 'Filler'],
   ['end_panel', 'End panel'],
@@ -91,6 +103,43 @@ export default function SettingsPanel() {
                 </label>
               ))}
             </div>
+          </div>
+
+          <div>
+            <p className="mb-2 text-xs font-medium text-gray-300">Openings</p>
+            <div className="grid grid-cols-2 gap-2">
+              {OPENING_NUMBER_SETTINGS.map(([key, label]) => (
+                <label key={key} className="text-xs text-gray-400">
+                  {label}
+                  <InchInput
+                    value={settings[key]}
+                    onCommit={(value) => update({ [key]: value })}
+                    aria-label={label}
+                    className="mt-1"
+                  />
+                </label>
+              ))}
+            </div>
+            <label className="mt-3 block text-xs text-gray-400">
+              Default measured to
+              <select
+                value={settings.defaultOpeningMeasureMode}
+                onChange={(event) => update({ defaultOpeningMeasureMode: event.target.value })}
+                className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="jamb">Jamb</option>
+                <option value="casing">Outside casing</option>
+              </select>
+            </label>
+            <label className="mt-3 flex items-center gap-2 text-xs text-gray-300">
+              <input
+                type="checkbox"
+                checked={settings.openingsHaveCasing}
+                onChange={(event) => update({ openingsHaveCasing: event.target.checked })}
+                className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
+              />
+              New openings include casing
+            </label>
           </div>
 
           <label className="flex items-center gap-2 text-xs text-gray-300">
