@@ -310,12 +310,18 @@ const elevationSlice = createSlice({
       const location = wallLocation(state, action.payload);
       const length = action.payload.length ?? action.payload.value;
       if (!location || !Number.isFinite(length) || length <= 0) return;
-      const walls = setWallLengthPure(
+      const result = setWallLengthPure(
         location.room,
         location.wall.id,
         length,
+        action.payload.growEnd ?? 'right',
       );
-      setCompensatedWalls(state, location.roomIndex, walls);
+      if (!result.ok) {
+        state.message = result.reason;
+        return;
+      }
+      state.message = null;
+      setCompensatedWalls(state, location.roomIndex, result.walls);
     },
     moveWallPerpendicular(state, action) {
       const roomIndex = roomIndexFor(state, action.payload.roomId);

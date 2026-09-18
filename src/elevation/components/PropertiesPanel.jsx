@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   CABINET_TYPE_IDS,
@@ -16,6 +22,7 @@ import {
   splitRun,
   validateOpeningPlacement,
   wallLabel,
+  wallFrame,
   wallNumbers,
   wallNumberWarnings,
 } from '../model/index.js';
@@ -1038,10 +1045,20 @@ function WallHeightProperties({ room, wall, plan }) {
     .some((warning) => warning.wallIds.includes(wall.id));
   const resolvedProfile = { ...room.profile, ...wall.profile };
   const overlap = crownOverlap(resolvedProfile);
+  const frame = wallFrame(room, wall);
+  const leftFree = !wall.connections?.[frame.leftEndpoint];
+  const rightFree = !wall.connections?.[frame.rightEndpoint];
+  const preferredGrowEnd = leftFree !== rightFree && leftFree ? 'left' : 'right';
+  const [growEnd, setGrowEnd] = useState(preferredGrowEnd);
+
+  useEffect(() => {
+    setGrowEnd(preferredGrowEnd);
+  }, [preferredGrowEnd, wall.id]);
 
   const updateLength = (length) => {
     if (length <= 0) return false;
-    dispatch(setWallLength({ wallId: wall.id, length }));
+    dispatch(setWallLength({ wallId: wall.id, length, growEnd }));
+    setGrowEnd(preferredGrowEnd);
     return true;
   };
 
@@ -1098,13 +1115,43 @@ function WallHeightProperties({ room, wall, plan }) {
         {plan ? (
           <div className="space-y-2.5">
             <div className="grid grid-cols-2 gap-2.5">
-              <Field label="Length">
-                <InchInput
-                  value={wall.length}
-                  onCommit={updateLength}
-                  aria-label="Wall length"
-                />
-              </Field>
+              <div className="block text-xs text-gray-400">
+                <span className="mb-1 block">Length</span>
+                <div className="flex items-stretch gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setGrowEnd('left')}
+                    aria-label="Change wall length at left end"
+                    aria-pressed={growEnd === 'left'}
+                    className={`w-7 rounded border text-lg leading-none transition-colors ${
+                      growEnd === 'left'
+                        ? 'border-cyan-500 bg-cyan-950/70 text-cyan-200'
+                        : 'border-gray-600 bg-gray-900 text-gray-500 hover:bg-gray-700'
+                    }`}
+                  >
+                    ‹
+                  </button>
+                  <InchInput
+                    value={wall.length}
+                    onCommit={updateLength}
+                    aria-label="Wall length"
+                    className="min-w-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setGrowEnd('right')}
+                    aria-label="Change wall length at right end"
+                    aria-pressed={growEnd === 'right'}
+                    className={`w-7 rounded border text-lg leading-none transition-colors ${
+                      growEnd === 'right'
+                        ? 'border-cyan-500 bg-cyan-950/70 text-cyan-200'
+                        : 'border-gray-600 bg-gray-900 text-gray-500 hover:bg-gray-700'
+                    }`}
+                  >
+                    ›
+                  </button>
+                </div>
+              </div>
               <Field label="Height">
                 <InchInput
                   value={wall.height}

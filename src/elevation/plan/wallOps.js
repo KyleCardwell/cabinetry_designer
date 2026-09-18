@@ -85,23 +85,6 @@ export function moveConnectedEndpoint(walls, wallId, endpoint, point) {
 }
 
 /**
- * Set a wall's length by moving its elevation-frame right endpoint.
- * A connection on the moved endpoint follows the new position.
- */
-export function setWallLength(room, wallId, length) {
-  if (!Number.isFinite(length) || length <= 0) return cloneWalls(room.walls);
-  const wall = wallById(room.walls, wallId);
-  if (!wall) return cloneWalls(room.walls);
-  const frame = wallFrame(room, wall);
-  const direction = frame.rightEndpoint === 'end' ? 1 : -1;
-  const point = {
-    x: frame.leftPoint.x + frame.d.x * length * direction,
-    y: frame.leftPoint.y + frame.d.y * length * direction,
-  };
-  return moveConnectedEndpoint(room.walls, wallId, frame.rightEndpoint, point);
-}
-
-/**
  * Move a wall along its interior normal while preserving connected-neighbor angles.
  *
  * @returns {{ok:boolean,reason:string|null,walls:object[]}}
@@ -159,6 +142,54 @@ export function moveWallPerpendicular(room, wallId, delta) {
   }
 
   return { ok: true, reason: null, walls: next };
+}
+
+/**
+ * Set a wall's length from one elevation-side end while preserving connected angles.
+ *
+ * @returns {{ok:boolean,reason:string|null,walls:object[]}}
+ */
+export function setWallLength(room, wallId, length, growEnd) {
+  const sourceWall = wallById(room.walls, wallId);
+  if (!sourceWall) {
+    return { ok: false, reason: 'wall-not-found', walls: room.walls };
+  }
+  if (!Number.isFinite(length) || length <= 0) {
+    return { ok: false, reason: 'invalid-length', walls: room.walls };
+  }
+  if (growEnd !== 'left' && growEnd !== 'right') {
+    return { ok: false, reason: 'invalid-grow-end', walls: room.walls };
+  }
+
+  const frame = wallFrame(room, sourceWall);
+  const endpoint = growEnd === 'left' ? frame.leftEndpoint : frame.rightEndpoint;
+  const aOut = growEnd === 'left'
+    ? scale(frame.r, -1)
+    : frame.r;
+  const delta = length - frame.length;
+  if (Math.abs(delta) < 1e-9) {
+    return { ok: true, reason: null, walls: cloneWalls(room.walls) };
+  }
+  const connection = sourceWall.connections?.[endpoint];
+
+  if (!connection) {
+    const next = cloneWalls(room.walls);
+    const wall = wallById(next, wallId);
+    const current = endpointPoint(wall, endpoint);
+    setEndpoint(wall, endpoint, add(current, scale(aOut, delta)));
+    return { ok: true, reason: null, walls: next };
+  }
+
+  const neighbor = wallById(room.walls, connection.wallId);
+  if (!neighbor) {
+    return { ok: false, reason: 'wall-not-found', walls: room.walls };
+  }
+  const neighborFrame = wallFrame(room, neighbor);
+  const projection = dot(aOut, neighborFrame.n);
+  if (Math.abs(projection) < 1e-6) {
+    return { ok: false, reason: 'parallel-neighbor', walls: room.walls };
+  }
+  return moveWallPerpendicular(room, neighbor.id, delta * projection);
 }
 
 /** Connect two endpoints bidirectionally, replacing their previous connections. */

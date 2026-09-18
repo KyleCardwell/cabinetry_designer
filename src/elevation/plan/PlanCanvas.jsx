@@ -54,6 +54,7 @@ import {
   setSelection,
   setTool,
   setView,
+  setWallLength,
 } from '../store/elevationSlice.js';
 import { PLAN_BACKGROUND_COLOR } from './constants.js';
 import PlanOpening from './PlanOpening.jsx';
@@ -281,7 +282,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   useEffect(() => {
     if (entry?.kind === 'wall-draw' && (tool !== 'wall' || !settings.orthoWalls)) {
       cancelEntry();
-    } else if (entry?.kind === 'wall-perpendicular' && tool !== 'select') {
+    } else if (
+      (entry?.kind === 'wall-perpendicular' || entry?.kind === 'wall-length')
+      && tool !== 'select'
+    ) {
       cancelEntry();
     }
   }, [cancelEntry, entry?.kind, settings.orthoWalls, tool]);
@@ -497,6 +501,18 @@ export default function PlanCanvas({ fitRequest = 0 }) {
           pointerLength: length,
         };
         updateEntry(length);
+      } else if (entry.kind === 'wall-length') {
+        const gesture = liveGestureRef.current;
+        if (gesture?.kind === 'wall-length') {
+          const delta = dot(
+            subtract(toWorld(pointer), gesture.pointerStart),
+            gesture.aOut,
+          );
+          updateEntry(roundTo(
+            gesture.initialLength + delta,
+            settings.planGrid,
+          ));
+        }
       }
       return;
     }
@@ -660,6 +676,41 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       },
     });
   }, [beginEntry, dispatch, selectedWall]);
+
+  const beginWallLength = useCallback((wallId, growEnd, event) => {
+    event.cancelBubble = true;
+    if (!room) return;
+    const targetWall = walls.find((wall) => wall.id === wallId);
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!targetWall || !pointer) return;
+    const frame = wallFrame(room, targetWall);
+    const aOut = growEnd === 'left'
+      ? { x: -frame.r.x, y: -frame.r.y }
+      : frame.r;
+    setEntryPointer(pointer);
+    liveGestureRef.current = {
+      kind: 'wall-length',
+      wallId,
+      growEnd,
+      initialLength: frame.length,
+      pointerStart: toWorld(pointer),
+      aOut,
+    };
+    beginEntry({
+      kind: 'wall-length',
+      label: 'Wall length',
+      value: frame.length,
+      min: settings.planGrid,
+      max: Infinity,
+      onCommit: (length) => {
+        liveGestureRef.current = null;
+        dispatch(setWallLength({ wallId, length, growEnd }));
+      },
+      onCancel: () => {
+        liveGestureRef.current = null;
+      },
+    });
+  }, [beginEntry, dispatch, room, settings.planGrid, toWorld, walls]);
 
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
@@ -925,8 +976,11 @@ export default function PlanCanvas({ fitRequest = 0 }) {
             {tool === 'select' && selectedWall && !entry && (
               <WallEndpoints
                 wall={{ ...selectedWall, wall_id: selectedWall.id }}
+                room={room}
                 scale={scale}
+                orthoWalls={settings.orthoWalls}
                 onDrag={handleWallEndpointDrag}
+                onLength={beginWallLength}
               />
             )}
             {tool === 'select' && selectedWall && moveHandle && !entry && (

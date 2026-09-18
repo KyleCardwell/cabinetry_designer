@@ -153,7 +153,7 @@ describe('room opening integration', () => {
       ],
     });
     const before = room(targetWall);
-    const walls = setWallLength(before, targetWall.id, 132);
+    const { walls } = setWallLength(before, targetWall.id, 132, 'right');
     const after = syncRoom(
       compensateRuns(before, { ...before, walls }),
       DEFAULT_SETTINGS,

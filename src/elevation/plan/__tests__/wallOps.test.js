@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { cross, wallLength } from '../../model/geometry.js';
 import {
   addWallWithConnections,
   connectWallEndpoints,
@@ -17,6 +18,17 @@ function wall(id, x1, y1, x2, y2) {
     y2,
     connections: { start: null, end: null },
   };
+}
+
+function roomR() {
+  const walls = connectWallEndpoints(
+    [wall('A', 0, 0, 120, 0), wall('B', 120, 0, 120, 96)],
+    'A',
+    'end',
+    'B',
+    'start',
+  );
+  return { walls };
 }
 
 describe('elevation plan wall operations', () => {
@@ -75,26 +87,93 @@ describe('elevation plan wall operations', () => {
     expect(result.find((item) => item.id === 'b').connections.start).toBeNull();
   });
 
-  it('sets wall length by moving the frame-right endpoint', () => {
-    const room = { walls: [wall('a', 0, 0, 120, 0)] };
-    const result = setWallLength(room, 'a', 144);
+  it('6. lengthens a connected right end without changing the neighbor direction', () => {
+    const room = roomR();
+    const result = setWallLength(room, 'A', 132, 'right');
 
-    expect(result[0]).toMatchObject({ x1: 0, y1: 0, x2: 144, y2: 0 });
-    expect(room.walls[0]).toMatchObject({ x2: 120, y2: 0 });
+    expect(result).toMatchObject({ ok: true, reason: null });
+    expect(result.walls.find((item) => item.id === 'A'))
+      .toMatchObject({ x1: 0, y1: 0, x2: 132, y2: 0 });
+    expect(result.walls.find((item) => item.id === 'B'))
+      .toMatchObject({ x1: 132, y1: 0, x2: 132, y2: 96 });
+    expect(wallLength(result.walls.find((item) => item.id === 'B'))).toBe(96);
   });
 
-  it('moves a connected neighbor when setting wall length', () => {
+  it('7. shortens a connected right end and translates its neighbor', () => {
+    const result = setWallLength(roomR(), 'A', 108, 'right');
+
+    expect(result.walls.find((item) => item.id === 'A'))
+      .toMatchObject({ x1: 0, y1: 0, x2: 108, y2: 0 });
+    expect(result.walls.find((item) => item.id === 'B'))
+      .toMatchObject({ x1: 108, y1: 0, x2: 108, y2: 96 });
+  });
+
+  it('8. moves a free left end without moving the connected neighbor', () => {
+    const room = roomR();
+    const result = setWallLength(room, 'A', 132, 'left');
+
+    expect(result.walls.find((item) => item.id === 'A'))
+      .toMatchObject({ x1: -12, y1: 0, x2: 120, y2: 0 });
+    expect(result.walls.find((item) => item.id === 'B'))
+      .toMatchObject({ x1: 120, y1: 0, x2: 120, y2: 96 });
+  });
+
+  it('9. preserves directions and the requested length at a 60-degree corner', () => {
+    const radians = Math.PI / 3;
+    const neighbor = wall(
+      'B',
+      120,
+      0,
+      120 + 96 * Math.cos(radians),
+      96 * Math.sin(radians),
+    );
     const walls = connectWallEndpoints(
-      [wall('a', 0, 0, 120, 0), wall('b', 120, 0, 120, 96)],
-      'a',
+      [wall('A', 0, 0, 120, 0), neighbor],
+      'A',
       'end',
-      'b',
+      'B',
       'start',
     );
-    const result = setWallLength({ walls }, 'a', 144);
+    const beforeB = walls.find((item) => item.id === 'B');
+    const result = setWallLength({ walls }, 'A', 132, 'right');
+    const afterA = result.walls.find((item) => item.id === 'A');
+    const afterB = result.walls.find((item) => item.id === 'B');
+    const beforeDirection = {
+      x: beforeB.x2 - beforeB.x1,
+      y: beforeB.y2 - beforeB.y1,
+    };
+    const afterDirection = {
+      x: afterB.x2 - afterB.x1,
+      y: afterB.y2 - afterB.y1,
+    };
 
-    expect(result.find((item) => item.id === 'a')).toMatchObject({ x2: 144, y2: 0 });
-    expect(result.find((item) => item.id === 'b')).toMatchObject({ x1: 144, y1: 0 });
+    expect(result.ok).toBe(true);
+    expect(wallLength(afterA)).toBeCloseTo(132, 6);
+    expect(afterA).toMatchObject({ x2: 132, y2: 0 });
+    expect(afterB).toMatchObject({ x1: 132, y1: 0 });
+    expect(cross(beforeDirection, afterDirection)).toBeCloseTo(0, 6);
+  });
+
+  it('10. rejects a length that would reverse a connected neighbor', () => {
+    const radians = Math.PI / 3;
+    const walls = connectWallEndpoints(
+      [
+        wall('A', 0, 0, 120, 0),
+        wall('B', 120, 0, 120 + 5 * Math.cos(radians), 5 * Math.sin(radians)),
+      ],
+      'A',
+      'end',
+      'B',
+      'start',
+    );
+    const room = { walls };
+    const result = setWallLength(room, 'A', 150, 'right');
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'neighbor-too-short',
+      walls: room.walls,
+    });
   });
 
   it('snaps to the nearest orthogonal axis relative to the fixed point', () => {

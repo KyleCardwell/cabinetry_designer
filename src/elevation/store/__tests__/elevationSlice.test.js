@@ -23,6 +23,7 @@ import elevationReducer, {
   setRunEnd,
   setSelection,
   setTool,
+  setWallLength,
   splitItem,
   updateOpening,
   updateRoomProfile,
@@ -123,6 +124,24 @@ function currentRun(state) {
 }
 
 describe('elevation room reducers', () => {
+  it('sets wall length from the right by default and reports pure-operation failures', () => {
+    const initial = stateWithRun();
+    const resized = elevationReducer(initial, setWallLength({
+      wallId: 'wall-1',
+      length: 150,
+    }));
+    expect(resized.rooms[0].walls[0]).toMatchObject({ x1: 0, x2: 150 });
+    expect(resized.message).toBeNull();
+
+    const rejected = elevationReducer(resized, setWallLength({
+      wallId: 'wall-1',
+      length: 160,
+      growEnd: 'middle',
+    }));
+    expect(rejected.rooms[0].walls[0]).toMatchObject({ x1: 0, x2: 150 });
+    expect(rejected.message).toBe('invalid-grow-end');
+  });
+
   it('stores a per-side run corner-clearance override and syncs the room', () => {
     const initial = stateWithRun(run());
     const next = elevationReducer(initial, setRunCornerClearance({
