@@ -42,6 +42,7 @@ import { wallOutline } from '../model/wallOutline.js';
 import {
   addOpening,
   addWallSegment,
+  clearSelection,
   connectWalls,
   deleteOpening,
   deleteWall,
@@ -84,14 +85,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const {
     rooms,
     activeRoomId,
-    activeWallId,
     settings,
     tool,
     selection,
   } = useSelector((state) => state.elevation);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const walls = room?.walls ?? [];
-  const selectedWall = walls.find((wall) => wall.id === activeWallId) ?? null;
+  const selectedWall = walls.find((wall) => wall.id === selection.wallId) ?? null;
   const adaptedWalls = useMemo(
     () => walls.map((wall) => ({ ...wall, wall_id: wall.id })),
     [walls],
@@ -292,7 +292,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
 
   useEffect(() => {
     setWallMovePreview(null);
-  }, [activeRoomId, activeWallId, tool]);
+  }, [activeRoomId, selection.wallId, tool]);
 
   useEffect(() => () => {
     if (messageTimeoutRef.current !== null) {
@@ -371,6 +371,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
         }
         if (drawStartRef.current) cancelDrawing();
         dispatch(setTool('select'));
+        dispatch(clearSelection());
         setPendingDeleteWallId(null);
         return;
       }
@@ -413,10 +414,15 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       : gridPoint;
   }, [settings.orthoWalls, settings.planGrid]);
 
-  const handleStageClick = useCallback(() => {
+  const handleStageClick = useCallback((event) => {
     if (suppressClickRef.current) return;
+    if (event.target !== event.target.getStage()) return;
     if (entry) {
       commitEntry();
+      return;
+    }
+    if (tool === 'select') {
+      dispatch(clearSelection());
       return;
     }
     if (tool !== 'wall') return;
@@ -888,7 +894,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 key={wall.id}
                 room={room}
                 wall={wall}
-                isSelected={wall.id === activeWallId}
+                isSelected={wall.id === selection.wallId}
                 scale={scale}
                 onSelect={(event) => handleWallSelect(wall.id, event)}
                 onOpen={(event) => handleWallOpen(wall.id, event)}

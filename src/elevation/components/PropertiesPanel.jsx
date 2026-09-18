@@ -1528,7 +1528,6 @@ export default function PropertiesPanel() {
   const {
     rooms,
     activeRoomId,
-    activeWallId,
     selection,
     settings,
     view,
@@ -1537,7 +1536,9 @@ export default function PropertiesPanel() {
     (state) => state.elevation,
   );
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
-  const storedWall = room?.walls.find((candidate) => candidate.id === activeWallId) ?? null;
+  const storedWall = room?.walls.find(
+    (candidate) => candidate.id === selection.wallId,
+  ) ?? null;
   const wall = useMemo(() => resolveWall(room, storedWall), [room, storedWall]);
   const opening = wall?.openings.find(
     (candidate) => candidate.id === selection.openingId,
@@ -1602,7 +1603,7 @@ export default function PropertiesPanel() {
       <div className="mt-4">
         {!wall ? (
           <p className="text-sm leading-relaxed text-gray-500">
-            Add or select a wall to edit its properties.
+            Select a wall, run or opening to edit it.
           </p>
         ) : opening ? (
           <OpeningProperties

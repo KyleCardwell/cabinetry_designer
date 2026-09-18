@@ -41,6 +41,7 @@ import {
   verticalOpeningChain,
 } from '../model/dimensions.js';
 import { resolveProfile } from '../model/profile.js';
+import { nextWallId } from '../model/topology.js';
 import {
   roomDiagnostics,
   stretchRun,
@@ -49,7 +50,6 @@ import {
 import {
   addOpening,
   addRun,
-  clearSelection,
   deleteOpening,
   deleteRun,
   moveOpening,
@@ -57,6 +57,7 @@ import {
   replaceRun,
   setMessage,
   setSelection,
+  setActiveWall,
   setTool,
 } from '../store/elevationSlice.js';
 import DragPreview from './DragPreview.jsx';
@@ -183,7 +184,7 @@ function ElevationCanvas({
   useEffect(() => {
     cancelDrag();
     setStretchPreview(null);
-    dispatch(clearSelection());
+    dispatch(setSelection({}));
   }, [cancelDrag, dispatch, wallId]);
 
   useEffect(() => {
@@ -334,15 +335,25 @@ function ElevationCanvas({
 
   useEffect(() => {
     const handleKeyDown = (event) => {
+      const tagName = event.target?.tagName?.toLowerCase();
+      if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
+
       if (event.key === 'Escape') {
         if (dragRef.current) cancelDrag();
         else if (stretchPreview) setStretchPreview(null);
-        else dispatch(clearSelection());
+        else dispatch(setSelection({}));
         return;
       }
 
-      const tagName = event.target?.tagName?.toLowerCase();
-      if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
+      if (event.key === '[' || event.key === ']') {
+        const currentWall = wallRef.current;
+        const targetWallId = nextWallId(room, currentWall?.id, event.key === '[' ? -1 : 1);
+        if (targetWallId && targetWallId !== currentWall?.id) {
+          event.preventDefault();
+          dispatch(setActiveWall(targetWallId));
+        }
+        return;
+      }
 
       if (event.key === '+' || event.key === '=') {
         event.preventDefault();
@@ -402,7 +413,7 @@ function ElevationCanvas({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrag, dispatch, resetView, stretchPreview, zoomIn, zoomOut]);
+  }, [cancelDrag, dispatch, resetView, room, stretchPreview, zoomIn, zoomOut]);
 
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
@@ -465,7 +476,7 @@ function ElevationCanvas({
       || spacePressedRef.current || panRef.current) return;
     const point = wallPointFromEvent(event);
     if (!point) return;
-    dispatch(clearSelection());
+    dispatch(setSelection({}));
     updateDrag({ start: point, current: point });
   };
 
@@ -533,7 +544,7 @@ function ElevationCanvas({
   const handleStageClick = useCallback(() => {
     if (suppressClickRef.current) return;
     if (tool === 'select') {
-      dispatch(clearSelection());
+      dispatch(setSelection({}));
       return;
     }
     if ((tool !== 'door' && tool !== 'window') || !room || !wall || !transform) return;

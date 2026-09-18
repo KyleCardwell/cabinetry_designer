@@ -81,6 +81,7 @@ export {
   chainOrientation,
   computeWallOrder,
   normalizeWallName,
+  nextWallId,
   wallComponents,
   wallLabel,
   wallNumbers,

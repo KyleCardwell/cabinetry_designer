@@ -220,6 +220,19 @@ export function wallLabel(room, wall) {
   return wall.name ? `Wall ${number} · ${wall.name}` : `Wall ${number}`;
 }
 
+/** Return the adjacent wall id in room order, wrapping at either end. */
+export function nextWallId(room, activeWallId, direction) {
+  const wallIds = (room?.wallOrder ?? []).filter((wallId) => (
+    room?.walls?.some((wall) => wall.id === wallId)
+  ));
+  if (wallIds.length === 0) return null;
+  if (wallIds.length === 1) return wallIds[0];
+  const currentIndex = wallIds.indexOf(activeWallId);
+  if (currentIndex === -1) return wallIds[0];
+  const step = direction === 'previous' || direction === 'left' || direction < 0 ? -1 : 1;
+  return wallIds[(currentIndex + step + wallIds.length) % wallIds.length];
+}
+
 /** Normalize obsolete generated wall names into an empty custom name. */
 export function normalizeWallName(name) {
   if (typeof name !== 'string' || /^Wall \d+$/.test(name)) return '';

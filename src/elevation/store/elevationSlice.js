@@ -76,15 +76,21 @@ export function createInitialElevationState(document = loadElevationDocument()) 
   const rooms = document?.rooms ?? [fallbackRoom];
   const activeRoomId = document ? document.activeRoomId : fallbackRoom.id;
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
+  const activeWallId = document ? document.activeWallId : null;
   const emptyActiveRoom = Boolean(activeRoom && activeRoom.walls.length === 0);
   return {
     schemaVersion: ELEVATION_SCHEMA_VERSION,
     settings,
     rooms,
     activeRoomId,
-    activeWallId: document ? document.activeWallId : null,
+    activeWallId,
     view: emptyActiveRoom ? 'plan' : document?.view ?? 'plan',
-    selection: { runId: null, pieceId: null, openingId: null },
+    selection: {
+      runId: null,
+      pieceId: null,
+      openingId: null,
+      wallId: document?.view === 'elevation' ? activeWallId : null,
+    },
     tool: emptyActiveRoom ? 'wall' : 'select',
     message: null,
   };
@@ -146,7 +152,12 @@ function itemIndexFor(run, itemId) {
 }
 
 function clearTransientSelection(state) {
-  state.selection = { runId: null, pieceId: null, openingId: null };
+  state.selection = {
+    runId: null,
+    pieceId: null,
+    openingId: null,
+    wallId: null,
+  };
 }
 
 function activateRoom(state, room) {
@@ -382,8 +393,12 @@ const elevationSlice = createSlice({
           if (wall.connections[endpoint]?.wallId === wallId) wall.connections[endpoint] = null;
         }
       }
-      if (state.activeWallId === wallId) {
+      const deletedActiveWall = state.activeWallId === wallId;
+      const deletedSelectedWall = state.selection.wallId === wallId;
+      if (deletedActiveWall) {
         state.activeWallId = location.room.walls[0]?.id ?? null;
+      }
+      if (deletedActiveWall || deletedSelectedWall) {
         clearTransientSelection(state);
       }
       syncRoomAt(state, location.roomIndex);
@@ -394,6 +409,7 @@ const elevationSlice = createSlice({
       if (!room?.walls.some((wall) => wall.id === wallId)) return;
       state.activeWallId = wallId;
       clearTransientSelection(state);
+      state.selection.wallId = wallId;
     },
     flipWall(state, action) {
       const location = wallLocation(state, action.payload);
@@ -760,7 +776,12 @@ const elevationSlice = createSlice({
       location.run.items.splice(itemIndex, 1);
       location.run.autoCount = false;
       if (state.selection.pieceId === action.payload.itemId) {
-        state.selection = { runId: location.run.id, pieceId: null, openingId: null };
+        state.selection = {
+          runId: location.run.id,
+          pieceId: null,
+          openingId: null,
+          wallId: state.selection.wallId,
+        };
       }
       syncRoomAt(state, location.roomIndex);
     },
@@ -771,6 +792,7 @@ const elevationSlice = createSlice({
         runId,
         pieceId: runId ? action.payload.pieceId ?? null : null,
         openingId: runId ? null : openingId,
+        wallId: state.selection.wallId ?? null,
       };
     },
     clearSelection(state) {
@@ -789,6 +811,7 @@ const elevationSlice = createSlice({
       state.view = view;
       state.tool = 'select';
       clearTransientSelection(state);
+      if (view === 'elevation') state.selection.wallId = state.activeWallId;
     },
     updateSettings(state, action) {
       const changes = action.payload;

@@ -5,6 +5,7 @@ import { wallFrame } from '../geometry.js';
 import { syncRoom } from '../room.js';
 import {
   chainOrientation,
+  nextWallId,
   normalizeWallName,
   wallComponents,
   wallLabel,
@@ -184,5 +185,17 @@ describe('wall topology and numbering', () => {
       neighborWallId: 'B',
       neighborSide: 'left',
     });
+  });
+
+  it('16. navigates wall order and wraps at both ends', () => {
+    const room = roomWithC();
+    expect(nextWallId(room, 'C', 1)).toBe('A');
+    expect(nextWallId(room, 'B', 1)).toBe('C');
+    expect(nextWallId(room, 'C', -1)).toBe('B');
+    expect(nextWallId(room, 'A', -1)).toBe('C');
+
+    const single = { ...room, wallOrder: ['A'], walls: [room.walls[0]] };
+    expect(nextWallId(single, 'A', 1)).toBe('A');
+    expect(nextWallId(single, 'A', -1)).toBe('A');
   });
 });

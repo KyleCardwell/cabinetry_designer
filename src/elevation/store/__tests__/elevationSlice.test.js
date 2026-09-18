@@ -8,8 +8,10 @@ import elevationReducer, {
   addRoom,
   addItemAfter,
   addRun,
+  clearSelection,
   createInitialElevationState,
   deleteOpening,
+  deleteWall,
   lockItem,
   moveOpening,
   moveWallEndpoint,
@@ -22,10 +24,12 @@ import elevationReducer, {
   setItemAbsorb,
   setItemPin,
   setActiveRoom,
+  setActiveWall,
   setRunCornerClearance,
   setRunEnd,
   setSelection,
   setTool,
+  setView,
   setWallLength,
   splitItem,
   updateOpening,
@@ -113,7 +117,12 @@ function stateWithRun(existingRun = null) {
     activeRoomId: 'room-1',
     activeWallId: 'wall-1',
     view: 'elevation',
-    selection: { runId: null, pieceId: null, openingId: null },
+    selection: {
+      runId: null,
+      pieceId: null,
+      openingId: null,
+      wallId: 'wall-1',
+    },
     tool: 'select',
     message: null,
   };
@@ -139,6 +148,69 @@ function pin(value, overrides = {}) {
 }
 
 describe('elevation room reducers', () => {
+  it('1. activates and selects a wall while clearing object selection', () => {
+    const initial = stateWithRun(run());
+    initial.rooms[0].walls.push({
+      ...initial.rooms[0].walls[0],
+      id: 'wall-2',
+      x1: 144,
+      x2: 240,
+      runs: [],
+    });
+    initial.selection = {
+      wallId: 'wall-1',
+      runId: 'run-1',
+      pieceId: 'piece-1',
+      openingId: null,
+    };
+
+    const next = elevationReducer(initial, setActiveWall('wall-2'));
+    expect(next.activeWallId).toBe('wall-2');
+    expect(next.selection).toEqual({
+      wallId: 'wall-2', runId: null, pieceId: null, openingId: null,
+    });
+  });
+
+  it('2. clears all selection fields without changing the active wall', () => {
+    const initial = stateWithRun(run());
+    initial.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: 'piece-1', openingId: null,
+    };
+
+    const next = elevationReducer(initial, clearSelection());
+    expect(next.selection).toEqual({
+      wallId: null, runId: null, pieceId: null, openingId: null,
+    });
+    expect(next.activeWallId).toBe('wall-1');
+  });
+
+  it('3. selects the active wall when entering elevation view', () => {
+    const initial = elevationReducer(stateWithRun(), setView('plan'));
+
+    const next = elevationReducer(initial, setView('elevation'));
+    expect(next.selection).toEqual({
+      wallId: 'wall-1', runId: null, pieceId: null, openingId: null,
+    });
+  });
+
+  it('4. clears a deleted wall selection and moves the active wall', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls.push({
+      ...initial.rooms[0].walls[0],
+      id: 'wall-2',
+      x1: 144,
+      x2: 240,
+      runs: [],
+    });
+    initial.rooms[0].wallOrder = ['wall-1', 'wall-2'];
+
+    const next = elevationReducer(initial, deleteWall('wall-1'));
+    expect(next.activeWallId).toBe('wall-2');
+    expect(next.selection).toEqual({
+      wallId: null, runId: null, pieceId: null, openingId: null,
+    });
+  });
+
   it('20. fixes both pinned widths when adding the second pin and keeps them fixed', () => {
     const initial = stateWithRun(run({
       items: [auto('a'), auto('b'), auto('c'), auto('d'), auto('e')],
@@ -513,6 +585,7 @@ describe('elevation opening reducers', () => {
       runId: null,
       pieceId: null,
       openingId: 'door-1',
+      wallId: 'wall-1',
     });
 
     const selectedRun = elevationReducer(selectedOpening, setSelection({
@@ -523,6 +596,7 @@ describe('elevation opening reducers', () => {
       runId: 'run-1',
       pieceId: 'piece-1',
       openingId: null,
+      wallId: 'wall-1',
     });
   });
 
@@ -605,7 +679,9 @@ describe('elevation opening reducers', () => {
     }));
     expect(deleted.rooms[0].walls[0].openings).toEqual([]);
     expect(currentRun(deleted).items[0].pin).toBeNull();
-    expect(deleted.selection).toEqual({ runId: null, pieceId: null, openingId: null });
+    expect(deleted.selection).toEqual({
+      runId: null, pieceId: null, openingId: null, wallId: null,
+    });
   });
 
   it('30. clears a deleted opening anchor without moving the resolved run', () => {
