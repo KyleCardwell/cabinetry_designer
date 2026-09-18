@@ -112,6 +112,39 @@ export function setOffsetSide(opening, side, wallLength, settings) {
   };
 }
 
+function referenceRect(opening, geometry) {
+  return opening.measureMode === 'jamb' || !geometry.casing
+    ? geometry.jamb
+    : geometry.casing;
+}
+
+/** Return the allowed wall-local range for an opening's reference left edge. */
+export function openingReferenceBounds(opening, wallLength, settings) {
+  const geometry = openingGeometry(opening, wallLength, settings);
+  const reference = referenceRect(opening, geometry);
+  const bounds = geometry.casing ?? geometry.jamb;
+  const inset = reference.x - bounds.x;
+  return {
+    min: inset,
+    max: wallLength - bounds.width + inset,
+  };
+}
+
+/** Snap and clamp an opening to a wall-local reference-left x coordinate. */
+export function setOpeningReferenceX(opening, x, wallLength, settings) {
+  if (!Number.isFinite(x)) return opening;
+  const geometry = openingGeometry(opening, wallLength, settings);
+  const reference = referenceRect(opening, geometry);
+  const range = openingReferenceBounds(opening, wallLength, settings);
+  const referenceX = clamp(roundTo(x, settings.openingSnap), range.min, range.max);
+  return {
+    ...opening,
+    offset: opening.offsetFrom === 'left'
+      ? referenceX
+      : wallLength - referenceX - reference.width,
+  };
+}
+
 /** Create a catalog-sized opening at a requested wall-local reference edge. */
 export function createOpening({ kind, x, measureMode }, { settings, room, wall }) {
   const mode = measureMode ?? settings.defaultOpeningMeasureMode;
@@ -135,17 +168,11 @@ export function createOpening({ kind, x, measureMode }, { settings, room, wall }
       ? settings.defaultWindowSillZ
       : settings.defaultWindowSillZ - casingWidth;
   const wallLength = wallFrame(room, wall).length;
-  const referenceToCasingLeft = mode === 'jamb' ? casingWidth : 0;
-  const casingOuterWidth = jambWidth + 2 * casingWidth;
-  const minimumReferenceX = referenceToCasingLeft;
-  const maximumReferenceX = wallLength - casingOuterWidth + referenceToCasingLeft;
-  const snappedX = roundTo(x, settings.openingSnap);
-  const offset = clamp(snappedX, minimumReferenceX, maximumReferenceX);
   const existingCount = (room.walls ?? []).reduce((count, candidateWall) => (
     count + (candidateWall.openings ?? []).filter((opening) => opening.kind === kind).length
   ), 0);
 
-  return {
+  return setOpeningReferenceX({
     id: uuid(),
     kind,
     label: `${kind === 'door' ? 'D' : 'W'}${existingCount + 1}`,
@@ -153,10 +180,10 @@ export function createOpening({ kind, x, measureMode }, { settings, room, wall }
     width,
     height,
     sillZ,
-    offset,
+    offset: 0,
     offsetFrom: 'left',
     casing,
-  };
+  }, x, wallLength, settings);
 }
 
 function boundsRect(geometry) {

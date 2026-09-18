@@ -14,7 +14,9 @@ export default function ElevationToolbar({
     view,
     settings,
   } = useSelector((state) => state.elevation);
-  const toolNames = view === 'plan' ? ['select', 'wall'] : ['select', 'draw'];
+  const toolNames = view === 'plan'
+    ? ['select', 'wall', 'door', 'window']
+    : ['select', 'draw', 'door', 'window'];
 
   return (
     <div className="flex min-h-12 shrink-0 items-center gap-2 border-b border-gray-700 bg-gray-800 px-4">

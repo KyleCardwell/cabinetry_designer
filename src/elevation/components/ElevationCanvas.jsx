@@ -18,6 +18,7 @@ import {
   DEFAULT_VIEW,
   fitWallToViewport,
   panView,
+  screenToWall,
   withView,
   zoomViewAt,
 } from '../canvas/transform.js';
@@ -26,6 +27,11 @@ import {
   screenPointToWallSnapped,
 } from '../canvas/drag.js';
 import { createRun } from '../model/runDefaults.js';
+import {
+  createOpening,
+  openingGeometry,
+  validateOpeningPlacement,
+} from '../model/openings.js';
 import {
   horizontalChains,
   pickColumnRuns,
@@ -38,9 +44,12 @@ import {
   tryPlaceRun,
 } from '../model/room.js';
 import {
+  addOpening,
   addRun,
   clearSelection,
+  deleteOpening,
   deleteRun,
+  moveOpening,
   removeItem,
   replaceRun,
   setMessage,
@@ -50,6 +59,7 @@ import {
 import DragPreview from './DragPreview.jsx';
 import DimensionRow from './DimensionRow.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
+import OpeningShape from './OpeningShape.jsx';
 import RunGroup from './RunGroup.jsx';
 import WallFrame from './WallFrame.jsx';
 
@@ -257,7 +267,20 @@ function ElevationCanvas({
 
       const currentSelection = selectionRef.current;
       const currentWall = wallRef.current;
-      if (!currentWall || !currentSelection.runId) return;
+      if (!currentWall) return;
+      if (currentSelection.openingId) {
+        const selectedOpening = (currentWall.openings ?? []).find(
+          (opening) => opening.id === currentSelection.openingId,
+        );
+        if (!selectedOpening) return;
+        event.preventDefault();
+        dispatch(deleteOpening({
+          wallId: currentWall.id,
+          openingId: selectedOpening.id,
+        }));
+        return;
+      }
+      if (!currentSelection.runId) return;
       const selectedRun = currentWall.runs.find(
         (run) => run.id === currentSelection.runId,
       );
@@ -390,6 +413,51 @@ function ElevationCanvas({
     dispatch(setSelection({ runId, pieceId }));
   }, [dispatch, tool]);
 
+  const selectOpening = useCallback((openingId) => {
+    if (tool !== 'select' || suppressClickRef.current) return;
+    dispatch(setSelection({ openingId }));
+  }, [dispatch, tool]);
+
+  const moveSelectedOpening = useCallback((openingId, x) => {
+    if (!wall) return;
+    dispatch(moveOpening({ wallId: wall.id, openingId, x }));
+  }, [dispatch, wall]);
+
+  const handleStageClick = useCallback(() => {
+    if (suppressClickRef.current) return;
+    if (tool === 'select') {
+      dispatch(clearSelection());
+      return;
+    }
+    if ((tool !== 'door' && tool !== 'window') || !room || !wall || !transform) return;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+    const rawPoint = screenToWall(pointer, transform);
+    if (rawPoint.x < 0 || rawPoint.x > wall.length
+      || rawPoint.z < 0 || rawPoint.z > wall.height) return;
+    const point = screenPointToWallSnapped(
+      pointer,
+      wall,
+      transform,
+      settings.openingSnap,
+      0,
+    );
+    const opening = createOpening({ kind: tool, x: point.x }, { settings, room, wall });
+    const validation = validateOpeningPlacement(wall, opening, settings);
+    if (!validation.ok) {
+      showMessage(validation.reason);
+      return;
+    }
+    if (messageTimeoutRef.current !== null) {
+      globalThis.clearTimeout(messageTimeoutRef.current);
+      messageTimeoutRef.current = null;
+    }
+    dispatch(setMessage(null));
+    dispatch(addOpening({ wallId: wall.id, opening }));
+    dispatch(setTool('select'));
+    dispatch(setSelection({ openingId: opening.id }));
+  }, [dispatch, room, settings, showMessage, tool, transform, wall]);
+
   const previewStretch = useCallback((runId, side, newEdgeX) => {
     if (!room || !wall) return;
     const result = stretchRun(room, wall.id, runId, side, newEdgeX, settings);
@@ -433,7 +501,7 @@ function ElevationCanvas({
     <div
       ref={containerRef}
       className="relative h-full w-full overflow-hidden bg-gray-900"
-      style={{ cursor: tool === 'draw' ? 'crosshair' : 'default' }}
+      style={{ cursor: ['draw', 'door', 'window'].includes(tool) ? 'crosshair' : 'default' }}
     >
       {!wall && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500">
@@ -451,10 +519,7 @@ function ElevationCanvas({
           onWheel={handleWheel}
           draggable={tool === 'select' && !drag && !stretchPreview}
           onDragEnd={handleStageDragEnd}
-          onClick={() => {
-            if (suppressClickRef.current) return;
-            if (tool === 'select') dispatch(clearSelection());
-          }}
+          onClick={handleStageClick}
         >
           <Layer listening={false}>
             <Rect width={viewport.width} height={viewport.height} fill="#111827" />
@@ -463,14 +528,20 @@ function ElevationCanvas({
               transform={transform}
               crownTop={profile?.crownTop}
             />
-            <NeighborReturns
-              room={room}
-              wall={wall}
-              settings={settings}
-              transform={transform}
-            />
           </Layer>
           <Layer>
+            {(wall.openings ?? []).map((opening) => (
+              <OpeningShape
+                key={opening.id}
+                opening={opening}
+                geometry={openingGeometry(opening, wall.length, settings)}
+                transform={transform}
+                selected={selection.openingId === opening.id}
+                selectable={tool === 'select'}
+                onSelect={selectOpening}
+                onMove={(x) => moveSelectedOpening(opening.id, x)}
+              />
+            ))}
             {wall.runs.map((run) => (
               <RunGroup
                 key={run.id}
@@ -492,6 +563,14 @@ function ElevationCanvas({
                 onStretchEnd={finishStretch}
               />
             ))}
+          </Layer>
+          <Layer listening={false}>
+            <NeighborReturns
+              room={room}
+              wall={wall}
+              settings={settings}
+              transform={transform}
+            />
           </Layer>
           {dimensionChains && dimensionOffsets && (
             <Layer listening={tool === 'select'}>

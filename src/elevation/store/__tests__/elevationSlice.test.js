@@ -22,6 +22,7 @@ import elevationReducer, {
   setRunCornerClearance,
   setRunEnd,
   setSelection,
+  setTool,
   splitItem,
   updateOpening,
   updateRoomProfile,
@@ -422,6 +423,12 @@ describe('elevation run reducers', () => {
 });
 
 describe('elevation opening reducers', () => {
+  it('accepts door and window placement tools', () => {
+    const doorTool = elevationReducer(stateWithRun(), setTool('door'));
+    expect(doorTool.tool).toBe('door');
+    expect(elevationReducer(doorTool, setTool('window')).tool).toBe('window');
+  });
+
   it('normalizes run and opening selection as mutually exclusive', () => {
     const initial = stateWithRun(run());
     const selectedOpening = elevationReducer(initial, setSelection({

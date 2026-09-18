@@ -4,9 +4,9 @@ import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { wallFrame } from '../model/geometry.js';
 import {
-  openingGeometry,
   setMeasureMode,
   setOffsetSide,
+  setOpeningReferenceX,
   validateOpeningPlacement,
 } from '../model/openings.js';
 import {
@@ -22,7 +22,6 @@ import {
   moveWallPerpendicular as moveWallPerpendicularPure,
   setWallLength as setWallLengthPure,
 } from '../plan/wallOps.js';
-import { roundTo } from '../model/units.js';
 import {
   ELEVATION_SCHEMA_VERSION,
   loadElevationDocument,
@@ -470,19 +469,12 @@ const elevationSlice = createSlice({
       const location = openingLocation(state, action.payload);
       if (!location || !Number.isFinite(action.payload.x)) return;
       const length = wallFrame(location.room, location.wall).length;
-      const geometry = openingGeometry(location.opening, length, state.settings);
-      const reference = location.opening.measureMode === 'jamb' || !geometry.casing
-        ? geometry.jamb
-        : geometry.casing;
-      const bounds = geometry.casing ?? geometry.jamb;
-      const referenceInset = reference.x - bounds.x;
-      const minimumX = referenceInset;
-      const maximumX = length - bounds.width + referenceInset;
-      const snappedX = roundTo(action.payload.x, state.settings.openingSnap);
-      const x = Math.min(maximumX, Math.max(minimumX, snappedX));
-      location.opening.offset = location.opening.offsetFrom === 'left'
-        ? x
-        : length - x - reference.width;
+      location.wall.openings[location.openingIndex] = setOpeningReferenceX(
+        location.opening,
+        action.payload.x,
+        length,
+        state.settings,
+      );
       syncRoomAt(state, location.roomIndex);
     },
     deleteOpening(state, action) {
@@ -676,7 +668,7 @@ const elevationSlice = createSlice({
       clearTransientSelection(state);
     },
     setTool(state, action) {
-      if (!['select', 'draw', 'wall'].includes(action.payload)) return;
+      if (!['select', 'draw', 'wall', 'door', 'window'].includes(action.payload)) return;
       state.tool = action.payload;
     },
     setMessage(state, action) {

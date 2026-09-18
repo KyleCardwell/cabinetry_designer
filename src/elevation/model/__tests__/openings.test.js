@@ -5,9 +5,11 @@ import {
   casingSides,
   createOpening,
   openingGeometry,
+  openingReferenceBounds,
   openingsAtPoint,
   setMeasureMode,
   setOffsetSide,
+  setOpeningReferenceX,
   validateOpeningPlacement,
 } from '../openings.js';
 
@@ -327,5 +329,15 @@ describe('opening creation and hit testing', () => {
     };
     expect(openingsAtPoint(targetRoom, voidPoint, settings)).toEqual(['door-1']);
     expect(openingsAtPoint(targetRoom, casingPoint, settings)).toEqual(['door-1']);
+  });
+
+  it('snaps and clamps a moved reference edge without changing its measured side', () => {
+    const original = door({ offsetFrom: 'right', offset: 60 });
+    expect(openingReferenceBounds(original, 120, settings)).toEqual({ min: 3, max: 81 });
+
+    const moved = setOpeningReferenceX(original, 117.8, 120, settings);
+    expect(moved).toMatchObject({ offsetFrom: 'right', offset: 3 });
+    expect(openingGeometry(moved, 120, settings).casing)
+      .toMatchObject({ x: 78, width: 42 });
   });
 });

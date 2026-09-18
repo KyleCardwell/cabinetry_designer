@@ -21,22 +21,38 @@ import WallDrawPreview from '../../canvas/components/WallDrawPreview.jsx';
 import WallEndpoints from '../../canvas/components/WallEndpoints.jsx';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { findCollisions, footprintsAtPoint } from '../model/footprints.js';
-import { dot, subtract, wallFrame } from '../model/geometry.js';
+import {
+  dot,
+  planPointToWallX,
+  subtract,
+  wallFrame,
+} from '../model/geometry.js';
+import {
+  createOpening,
+  openingsAtPoint,
+  validateOpeningPlacement,
+} from '../model/openings.js';
 import { wallLabel } from '../model/topology.js';
 import { formatInches, roundTo } from '../model/units.js';
 import { wallOutline } from '../model/wallOutline.js';
 import {
+  addOpening,
   addWallSegment,
   connectWalls,
+  deleteOpening,
   deleteWall,
   disconnectWallEndpoint,
   moveWallEndpoint,
   moveWallPerpendicular,
+  moveOpening,
   setActiveWall,
+  setMessage,
   setSelection,
   setTool,
   setView,
 } from '../store/elevationSlice.js';
+import { PLAN_BACKGROUND_COLOR } from './constants.js';
+import PlanOpening from './PlanOpening.jsx';
 import PlanWallShape from './PlanWallShape.jsx';
 import PlanRunFootprint from './PlanRunFootprint.jsx';
 import {
@@ -103,9 +119,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       ...entries.filter(({ run }) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER),
     ];
   }, [room, walls]);
+  const orderedOpenings = useMemo(() => {
+    if (!room) return [];
+    return walls.flatMap((wall) => {
+      const frame = wallFrame(room, wall);
+      return (wall.openings ?? []).map((opening) => ({ frame, wall, opening }));
+    });
+  }, [room, walls]);
   const stageRef = useRef(null);
   const containerRef = useRef(null);
   const drawStartRef = useRef(null);
+  const messageTimeoutRef = useRef(null);
   const fittedRoomRef = useRef(null);
   const handledFitRequestRef = useRef(fitRequest);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -206,6 +230,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     setMouseWorldPos(null);
   }, []);
 
+  const showMessage = useCallback((message) => {
+    dispatch(setMessage(message));
+    if (messageTimeoutRef.current !== null) {
+      globalThis.clearTimeout(messageTimeoutRef.current);
+    }
+    messageTimeoutRef.current = globalThis.setTimeout(() => {
+      dispatch(setMessage(null));
+      messageTimeoutRef.current = null;
+    }, 3000);
+  }, [dispatch]);
+
   useEffect(() => {
     if (tool !== 'wall') cancelDrawing();
   }, [cancelDrawing, tool]);
@@ -213,6 +248,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   useEffect(() => {
     setWallMovePreview(null);
   }, [activeRoomId, activeWallId, tool]);
+
+  useEffect(() => () => {
+    if (messageTimeoutRef.current !== null) {
+      globalThis.clearTimeout(messageTimeoutRef.current);
+    }
+    dispatch(setMessage(null));
+  }, [dispatch]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -226,7 +268,20 @@ export default function PlanCanvas({ fitRequest = 0 }) {
         return;
       }
 
-      if ((event.key !== 'Delete' && event.key !== 'Backspace') || !selectedWall) return;
+      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
+      if (selection.openingId) {
+        const openingWall = walls.find((wall) => (
+          (wall.openings ?? []).some((opening) => opening.id === selection.openingId)
+        ));
+        if (!openingWall) return;
+        event.preventDefault();
+        dispatch(deleteOpening({
+          wallId: openingWall.id,
+          openingId: selection.openingId,
+        }));
+        return;
+      }
+      if (!selectedWall) return;
       event.preventDefault();
       if (selectedWall.runs.length > 0) {
         setPendingDeleteWallId(selectedWall.id);
@@ -237,7 +292,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrawing, dispatch, selectedWall]);
+  }, [cancelDrawing, dispatch, selectedWall, selection.openingId, walls]);
 
   const toWorld = useCallback((point) => ({
     x: (point.x - pan.x) / scale,
@@ -407,11 +462,45 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     stage.position({ x: 0, y: 0 });
   }, []);
 
+  const placeOpeningOnWall = useCallback((wallId, event) => {
+    if ((tool !== 'door' && tool !== 'window') || !room) return false;
+    const pointer = stageRef.current?.getPointerPosition();
+    const targetWall = walls.find((wall) => wall.id === wallId);
+    if (!pointer || !targetWall) return false;
+    event.cancelBubble = true;
+    const frame = wallFrame(room, targetWall);
+    const x = planPointToWallX(frame, toWorld(pointer));
+    const opening = createOpening(
+      { kind: tool, x },
+      { settings, room, wall: targetWall },
+    );
+    const validation = validateOpeningPlacement(
+      { ...targetWall, length: frame.length },
+      opening,
+      settings,
+    );
+    if (!validation.ok) {
+      showMessage(validation.reason);
+      return true;
+    }
+    if (messageTimeoutRef.current !== null) {
+      globalThis.clearTimeout(messageTimeoutRef.current);
+      messageTimeoutRef.current = null;
+    }
+    dispatch(setMessage(null));
+    dispatch(setActiveWall(targetWall.id));
+    dispatch(addOpening({ wallId: targetWall.id, opening }));
+    dispatch(setTool('select'));
+    dispatch(setSelection({ openingId: opening.id }));
+    return true;
+  }, [dispatch, room, settings, showMessage, toWorld, tool, walls]);
+
   const handleWallSelect = useCallback((wallId, event) => {
+    if (placeOpeningOnWall(wallId, event)) return;
     if (tool !== 'select') return;
     event.cancelBubble = true;
     dispatch(setActiveWall(wallId));
-  }, [dispatch, tool]);
+  }, [dispatch, placeOpeningOnWall, tool]);
 
   const handleWallOpen = useCallback((wallId, event) => {
     if (tool !== 'select') return;
@@ -437,8 +526,34 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     dispatch(setSelection({ runId, pieceId: null }));
   }, [dispatch, room, selection.runId, settings, toWorld, tool, walls]);
 
+  const handleOpeningSelect = useCallback((event, targetOpeningId) => {
+    if (tool !== 'select' || !room) return;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+    const openingIds = openingsAtPoint(room, toWorld(pointer), settings);
+    if (openingIds.length === 0) return;
+    const openingId = openingIds.includes(targetOpeningId)
+      ? targetOpeningId
+      : openingIds[0];
+    const openingWall = walls.find((wall) => (
+      (wall.openings ?? []).some((opening) => opening.id === openingId)
+    ));
+    if (!openingWall) return;
+    event.cancelBubble = true;
+    dispatch(setActiveWall(openingWall.id));
+    dispatch(setSelection({ openingId }));
+  }, [dispatch, room, settings, toWorld, tool, walls]);
+
+  const handleOpeningMove = useCallback((wallId, openingId, x) => {
+    dispatch(moveOpening({ wallId, openingId, x }));
+  }, [dispatch]);
+
   return (
-    <div ref={containerRef} className="relative h-full min-h-0 overflow-hidden bg-gray-950">
+    <div
+      ref={containerRef}
+      className="relative h-full min-h-0 overflow-hidden"
+      style={{ backgroundColor: PLAN_BACKGROUND_COLOR }}
+    >
       {viewport.width > 0 && viewport.height > 0 && (
         <Stage
           ref={stageRef}
@@ -467,6 +582,21 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 scale={scale}
                 onSelect={(event) => handleWallSelect(wall.id, event)}
                 onOpen={(event) => handleWallOpen(wall.id, event)}
+              />
+            ))}
+            {orderedOpenings.map(({ frame, wall, opening }) => (
+              <PlanOpening
+                key={opening.id}
+                room={room}
+                wall={wall}
+                frame={frame}
+                opening={opening}
+                settings={settings}
+                selected={selection.openingId === opening.id}
+                selectable={tool === 'select'}
+                scale={scale}
+                onSelect={handleOpeningSelect}
+                onMove={(x) => handleOpeningMove(wall.id, opening.id, x)}
               />
             ))}
             {orderedFootprints.map(({ frame, wall, run }) => (

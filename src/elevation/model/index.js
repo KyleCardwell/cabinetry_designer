@@ -35,10 +35,12 @@ export {
   casingSides,
   createOpening,
   openingGeometry,
+  openingReferenceBounds,
   openingsAtPoint,
   runBlocksOpening,
   setMeasureMode,
   setOffsetSide,
+  setOpeningReferenceX,
   validateOpeningPlacement,
 } from './openings.js';
 export { wallOutline } from './wallOutline.js';
