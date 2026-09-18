@@ -144,7 +144,15 @@ export function openingClearances(room, wall, settings) {
 /** Build the inner piece chain and outer run chain for an elevation band. */
 export function horizontalChains(room, wall, band, settings) {
   const runs = runsForBand(wall, band);
-  if (runs.length === 0) return { inner: [], outer: [] };
+  if (runs.length === 0) {
+    const length = wallLength(wall);
+    return {
+      inner: [],
+      outer: length > SEGMENT_EPSILON
+        ? [{ start: 0, end: length, kind: 'wall' }]
+        : [],
+    };
+  }
 
   const length = wallLength(wall);
   const firstRun = runs[0];

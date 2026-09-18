@@ -10,6 +10,24 @@ export function dimensionRowOffsets(orientation, innerLevels = 0) {
   return { inner: 20, outer: 20 + 22 + innerLevels * 14 };
 }
 
+/**
+ * Offsets for the below-wall row stack, wall-first: casing clearances, piece
+ * widths, overall wall length, opening widths, then the elevation label.
+ */
+export function belowRowOffsets({
+  clearances: clearanceLevels = 0,
+  pieces: pieceLevels = 0,
+  overall: overallLevels = 0,
+  openings: openingLevels = 0,
+} = {}) {
+  const clearances = 20;
+  const pieces = clearances + 22 + clearanceLevels * 14;
+  const overall = pieces + 22 + pieceLevels * 14;
+  const openings = overall + 22 + overallLevels * 14;
+  const label = openings + 22 + openingLevels * 14;
+  return { clearances, pieces, overall, openings, label };
+}
+
 function overlaps(candidate, placed) {
   return candidate.left < placed.right + POPOUT_GAP
     && candidate.right + POPOUT_GAP > placed.left;

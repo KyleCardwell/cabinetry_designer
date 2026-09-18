@@ -1,8 +1,41 @@
 import { describe, expect, it } from 'vitest';
 import {
+  belowRowOffsets,
   dimensionRowOffsets,
   layoutDimensionRow,
 } from '../dimensionLayout.js';
+
+describe('belowRowOffsets', () => {
+  it('SPEC-10 1. stacks empty below-wall rows from the wall outward', () => {
+    expect(belowRowOffsets()).toEqual({
+      clearances: 20,
+      pieces: 42,
+      overall: 64,
+      openings: 86,
+      label: 108,
+    });
+  });
+
+  it('SPEC-10 2. accounts for clearance popout levels', () => {
+    expect(belowRowOffsets({ clearances: 2 })).toEqual({
+      clearances: 20,
+      pieces: 70,
+      overall: 92,
+      openings: 114,
+      label: 136,
+    });
+  });
+
+  it('SPEC-10 3. accounts for piece and opening popout levels', () => {
+    expect(belowRowOffsets({ pieces: 1, openings: 2 })).toEqual({
+      clearances: 20,
+      pieces: 42,
+      overall: 78,
+      openings: 100,
+      label: 150,
+    });
+  });
+});
 
 describe('layoutDimensionRow', () => {
   it('12. keeps a fitting label inline and pops out a narrow segment', () => {

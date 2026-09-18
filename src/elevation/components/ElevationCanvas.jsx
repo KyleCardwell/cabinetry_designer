@@ -11,6 +11,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { Layer, Rect, Stage } from 'react-konva';
 import {
+  belowRowOffsets,
   dimensionRowOffsets,
   layoutDimensionRow,
 } from '../canvas/dimensionLayout.js';
@@ -317,19 +318,25 @@ function ElevationCanvas({
     const openingLevels = layoutDimensionRow(dimensionChains.openings, {
       scale: transform.scale,
     }).levels;
+    const clearanceLevels = layoutDimensionRow(dimensionChains.clearances, {
+      scale: transform.scale,
+    }).levels;
     const verticalLevels = layoutDimensionRow(dimensionChains.vertical.inner, {
       scale: transform.scale,
     }).levels;
-    const lower = dimensionRowOffsets('horizontal', lowerLevels);
-    const openings = dimensionChains.lower.outer.length > 0
-      ? lower.outer + 22 + lowerOuterLevels * 14
-      : 20;
+    const below = belowRowOffsets({
+      clearances: clearanceLevels,
+      pieces: lowerLevels,
+      overall: lowerOuterLevels,
+      openings: openingLevels,
+    });
     return {
-      lower,
+      lower: { inner: below.pieces, outer: below.overall },
       upper: dimensionRowOffsets('horizontal', upperLevels),
       vertical: dimensionRowOffsets('vertical', verticalLevels),
-      openings,
-      clearances: openings + 22 + openingLevels * 14,
+      openings: below.openings,
+      clearances: below.clearances,
+      label: below.label,
     };
   }, [dimensionChains, transform]);
 
@@ -693,6 +700,14 @@ function ElevationCanvas({
           {dimensionChains && dimensionOffsets && (
             <Layer listening={tool === 'select'}>
               <DimensionRow
+                segments={dimensionChains.clearances}
+                orientation="horizontal"
+                side="below"
+                offsetPx={dimensionOffsets.clearances}
+                transform={transform}
+                wallEndMarks={[0, wall.length]}
+              />
+              <DimensionRow
                 segments={dimensionChains.lower.inner}
                 orientation="horizontal"
                 side="below"
@@ -715,14 +730,6 @@ function ElevationCanvas({
                 orientation="horizontal"
                 side="below"
                 offsetPx={dimensionOffsets.openings}
-                transform={transform}
-                wallEndMarks={[0, wall.length]}
-              />
-              <DimensionRow
-                segments={dimensionChains.clearances}
-                orientation="horizontal"
-                side="below"
-                offsetPx={dimensionOffsets.clearances}
                 transform={transform}
                 wallEndMarks={[0, wall.length]}
               />

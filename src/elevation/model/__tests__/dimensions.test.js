@@ -118,6 +118,16 @@ function expectContiguous(chain, startOrLength, end) {
 }
 
 describe('horizontalChains', () => {
+  it('SPEC-10 4. keeps the full lower wall row when the wall has no runs', () => {
+    const room = roomR();
+    const wall = room.walls.find(({ id }) => id === 'A');
+
+    expect(horizontalChains(room, wall, 'lower', DEFAULT_SETTINGS)).toEqual({
+      inner: [],
+      outer: [{ start: 0, end: 120, kind: 'wall' }],
+    });
+  });
+
   it('2. lays out A inner pieces between its open and corner gaps', () => {
     const room = cornerRunRoom();
     const wall = room.walls.find(({ id }) => id === 'A');
@@ -161,10 +171,22 @@ describe('horizontalChains', () => {
     });
   });
 
-  it('5. returns no rows when the requested band has no runs', () => {
-    const room = cornerRunRoom();
+  it('SPEC-10 5. keeps the full upper wall row when only base runs exist', () => {
+    const room = roomR({
+      wallA: { runs: [cabinetRun('base', CABINET_TYPE_IDS.BASE)] },
+    });
     const wall = room.walls.find(({ id }) => id === 'A');
     expect(horizontalChains(room, wall, 'upper', DEFAULT_SETTINGS)).toEqual({
+      inner: [],
+      outer: [{ start: 0, end: 120, kind: 'wall' }],
+    });
+  });
+
+  it('SPEC-10 6. omits the wall row for a zero-length wall', () => {
+    const room = roomR({ wallA: { x2: 0, y2: 0 } });
+    const wall = room.walls.find(({ id }) => id === 'A');
+
+    expect(horizontalChains(room, wall, 'lower', DEFAULT_SETTINGS)).toEqual({
       inner: [],
       outer: [],
     });

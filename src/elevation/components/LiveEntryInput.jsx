@@ -26,9 +26,10 @@ export default function LiveEntryInput({
   const [placement, setPlacement] = useState({ left: EDGE_GAP, top: EDGE_GAP });
 
   useEffect(() => {
+    if (entry.typed !== null) return;
     inputRef.current?.focus();
     inputRef.current?.select();
-  }, [entry.kind, entry.label]);
+  }, [entry.kind, entry.label, entry.value, entry.typed]);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
