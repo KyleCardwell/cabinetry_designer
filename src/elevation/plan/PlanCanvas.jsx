@@ -19,6 +19,10 @@ import { snapToEndpoint, snapToGrid } from '../../canvas/SnapEngine.js';
 import AxisGuides from '../../canvas/components/AxisGuides.jsx';
 import WallDrawPreview from '../../canvas/components/WallDrawPreview.jsx';
 import WallEndpoints from '../../canvas/components/WallEndpoints.jsx';
+import useLiveEntry, {
+  resolveLiveEntryValue,
+} from '../canvas/useLiveEntry.js';
+import LiveEntryInput from '../components/LiveEntryInput.jsx';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { findCollisions, footprintsAtPoint } from '../model/footprints.js';
 import {
@@ -129,6 +133,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const stageRef = useRef(null);
   const containerRef = useRef(null);
   const drawStartRef = useRef(null);
+  const liveGestureRef = useRef(null);
   const panRef = useRef(null);
   const spacePressedRef = useRef(false);
   const suppressClickRef = useRef(false);
@@ -143,7 +148,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const [mouseWorldPos, setMouseWorldPos] = useState(null);
   const [pendingDeleteWallId, setPendingDeleteWallId] = useState(null);
   const [wallMovePreview, setWallMovePreview] = useState(null);
+  const [entryPointer, setEntryPointer] = useState(null);
+  const {
+    entry,
+    begin: beginEntry,
+    update: updateEntry,
+    setTyped: setEntryTyped,
+    commit: commitEntry,
+    cancel: cancelEntry,
+  } = useLiveEntry();
   const scale = zoom * PIXELS_PER_INCH;
+  const entryValue = resolveLiveEntryValue(entry);
   const moveHandle = useMemo(() => {
     if (!room || !selectedWall) return null;
     const frame = wallFrame(room, selectedWall);
@@ -264,6 +279,14 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   }, [cancelDrawing, tool]);
 
   useEffect(() => {
+    if (entry?.kind === 'wall-draw' && (tool !== 'wall' || !settings.orthoWalls)) {
+      cancelEntry();
+    } else if (entry?.kind === 'wall-perpendicular' && tool !== 'select') {
+      cancelEntry();
+    }
+  }, [cancelEntry, entry?.kind, settings.orthoWalls, tool]);
+
+  useEffect(() => {
     setWallMovePreview(null);
   }, [activeRoomId, activeWallId, tool]);
 
@@ -337,6 +360,11 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
 
       if (event.key === 'Escape') {
+        if (entry) {
+          event.preventDefault();
+          cancelEntry();
+          return;
+        }
         if (drawStartRef.current) cancelDrawing();
         dispatch(setTool('select'));
         setPendingDeleteWallId(null);
@@ -367,7 +395,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrawing, dispatch, selectedWall, selection.openingId, walls]);
+  }, [cancelDrawing, cancelEntry, dispatch, entry, selectedWall, selection.openingId, walls]);
 
   const toWorld = useCallback((point) => ({
     x: (point.x - pan.x) / scale,
@@ -383,6 +411,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
 
   const handleStageClick = useCallback(() => {
     if (suppressClickRef.current) return;
+    if (entry) {
+      commitEntry();
+      return;
+    }
     if (tool !== 'wall') return;
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
@@ -394,6 +426,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       : snapped;
 
     if (!wallDrawStart) {
+      setEntryPointer(pointer);
       setWallDrawStart({
         ...point,
         _connectTo: endpointSnap
@@ -420,18 +453,127 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       _connectTo: { wallId: action.payload.id, endpoint: 'end' },
     });
     setMouseWorldPos(null);
-  }, [adaptedWalls, dispatch, gridAndOrtho, toWorld, tool, wallDrawStart]);
+  }, [
+    adaptedWalls,
+    commitEntry,
+    dispatch,
+    entry,
+    gridAndOrtho,
+    toWorld,
+    tool,
+    wallDrawStart,
+  ]);
 
   const handleMouseMove = useCallback(() => {
-    if (tool !== 'wall' || !wallDrawStart || panRef.current) return;
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
+    if (entry) {
+      setEntryPointer(pointer);
+      if (entry.kind === 'wall-perpendicular' && moveHandle) {
+        const delta = dot(
+          subtract(toWorld(pointer), moveHandle.point),
+          moveHandle.frame.n,
+        );
+        updateEntry(roundTo(delta, settings.planGrid));
+      } else if (entry.kind === 'wall-draw' && wallDrawStart) {
+        const snapped = gridAndOrtho(toWorld(pointer), wallDrawStart);
+        const endpointSnap = snapToEndpoint(
+          snapped,
+          adaptedWalls,
+          ENDPOINT_SNAP_RADIUS,
+        );
+        const point = endpointSnap
+          ? { x: endpointSnap.x, y: endpointSnap.y }
+          : snapped;
+        const dx = point.x - wallDrawStart.x;
+        const dy = point.y - wallDrawStart.y;
+        const length = Math.hypot(dx, dy);
+        liveGestureRef.current = {
+          kind: 'wall-draw',
+          direction: length > 0 ? { x: dx / length, y: dy / length } : null,
+          connectEnd: endpointSnap
+            ? { wallId: endpointSnap.wallId, endpoint: endpointSnap.endpoint }
+            : null,
+          pointerLength: length,
+        };
+        updateEntry(length);
+      }
+      return;
+    }
+    if (tool !== 'wall' || !wallDrawStart || panRef.current) return;
     const snapped = gridAndOrtho(toWorld(pointer), wallDrawStart);
     const endpointSnap = snapToEndpoint(snapped, adaptedWalls, ENDPOINT_SNAP_RADIUS);
     setMouseWorldPos(endpointSnap
       ? { x: endpointSnap.x, y: endpointSnap.y }
       : snapped);
-  }, [adaptedWalls, gridAndOrtho, toWorld, tool, wallDrawStart]);
+  }, [
+    adaptedWalls,
+    entry,
+    gridAndOrtho,
+    moveHandle,
+    settings.planGrid,
+    toWorld,
+    tool,
+    updateEntry,
+    wallDrawStart,
+  ]);
+
+  useEffect(() => {
+    if (!settings.orthoWalls || tool !== 'wall' || !wallDrawStart || entry) return;
+    const start = wallDrawStart;
+    liveGestureRef.current = {
+      kind: 'wall-draw',
+      direction: null,
+      connectEnd: null,
+      pointerLength: 0,
+    };
+    beginEntry({
+      kind: 'wall-draw',
+      label: 'Wall length',
+      value: 0,
+      min: 0,
+      max: Infinity,
+      onCommit: (length) => {
+        const gesture = liveGestureRef.current;
+        if (gesture?.kind !== 'wall-draw' || !gesture.direction || length <= 0) return;
+        const point = {
+          x: start.x + gesture.direction.x * length,
+          y: start.y + gesture.direction.y * length,
+        };
+        const connectEnd = gesture.connectEnd
+          && Math.abs(length - gesture.pointerLength) < 1e-6
+          ? gesture.connectEnd
+          : null;
+        const action = addWallSegment({
+          x1: start.x,
+          y1: start.y,
+          x2: point.x,
+          y2: point.y,
+          connectStart: start._connectTo,
+          connectEnd,
+        });
+        dispatch(action);
+        liveGestureRef.current = null;
+        setWallDrawStart({
+          ...point,
+          _connectTo: { wallId: action.payload.id, endpoint: 'end' },
+        });
+        setMouseWorldPos(null);
+      },
+      onCancel: () => {
+        liveGestureRef.current = null;
+        cancelDrawing();
+      },
+    });
+  }, [
+    beginEntry,
+    cancelDrawing,
+    dispatch,
+    entry,
+    settings.orthoWalls,
+    tool,
+    wallDrawStart,
+  ]);
 
   const handleWallEndpointDrag = useCallback((wallId, endpoint, event) => {
     const wall = walls.find((candidate) => candidate.id === wallId);
@@ -488,31 +630,36 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     });
   }, [room, selectedWall]);
 
-  const wallMoveDelta = useCallback((event) => {
-    if (!moveHandle) return 0;
-    return dot(
-      subtract(
-        { x: event.target.x(), y: event.target.y() },
-        moveHandle.point,
-      ),
-      moveHandle.frame.n,
-    );
-  }, [moveHandle]);
+  useEffect(() => {
+    if (entry?.kind === 'wall-perpendicular') {
+      previewPerpendicularMove(entryValue);
+    }
+  }, [entry?.kind, entryValue, previewPerpendicularMove]);
 
-  const handleWallMoveDrag = useCallback((event) => {
+  const beginWallMove = useCallback((event) => {
     event.cancelBubble = true;
-    previewPerpendicularMove(wallMoveDelta(event));
-  }, [previewPerpendicularMove, wallMoveDelta]);
-
-  const handleWallMoveEnd = useCallback((event) => {
-    event.cancelBubble = true;
-    if (!selectedWall || !moveHandle) return;
-    const delta = roundTo(wallMoveDelta(event), settings.planGrid);
+    if (!selectedWall) return;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (pointer) setEntryPointer(pointer);
     setWallMovePreview(null);
-    event.target.position(moveHandle.point);
-    event.target.getLayer()?.batchDraw();
-    dispatch(moveWallPerpendicular({ wallId: selectedWall.id, delta }));
-  }, [dispatch, moveHandle, selectedWall, settings.planGrid, wallMoveDelta]);
+    liveGestureRef.current = { kind: 'wall-perpendicular' };
+    beginEntry({
+      kind: 'wall-perpendicular',
+      label: 'Wall offset',
+      value: 0,
+      min: -Infinity,
+      max: Infinity,
+      onCommit: (delta) => {
+        liveGestureRef.current = null;
+        setWallMovePreview(null);
+        dispatch(moveWallPerpendicular({ wallId: selectedWall.id, delta }));
+      },
+      onCancel: () => {
+        liveGestureRef.current = null;
+        setWallMovePreview(null);
+      },
+    });
+  }, [beginEntry, dispatch, selectedWall]);
 
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
@@ -537,7 +684,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     const middleDrag = pointerEvent.button === 1;
     const spaceDrag = pointerEvent.button === 0 && spacePressedRef.current;
     const selectDrag = pointerEvent.button === 0 && tool === 'select';
-    if (!emptyCanvas || (!middleDrag && !spaceDrag && !selectDrag)) return;
+    if (entry || !emptyCanvas || (!middleDrag && !spaceDrag && !selectDrag)) return;
     pointerEvent.preventDefault();
     panRef.current = {
       pointerId: pointerEvent.pointerId,
@@ -545,7 +692,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       y: pointerEvent.clientY,
       moved: false,
     };
-  }, [tool]);
+  }, [entry, tool]);
 
   const placeOpeningOnWall = useCallback((wallId, event) => {
     if ((tool !== 'door' && tool !== 'window') || !room) return false;
@@ -581,20 +728,32 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   }, [dispatch, room, settings, showMessage, toWorld, tool, walls]);
 
   const handleWallSelect = useCallback((wallId, event) => {
+    if (entry) {
+      event.cancelBubble = true;
+      return;
+    }
     if (placeOpeningOnWall(wallId, event)) return;
     if (tool !== 'select') return;
     event.cancelBubble = true;
     dispatch(setActiveWall(wallId));
-  }, [dispatch, placeOpeningOnWall, tool]);
+  }, [dispatch, entry, placeOpeningOnWall, tool]);
 
   const handleWallOpen = useCallback((wallId, event) => {
+    if (entry) {
+      event.cancelBubble = true;
+      return;
+    }
     if (tool !== 'select') return;
     event.cancelBubble = true;
     dispatch(setActiveWall(wallId));
     dispatch(setView('elevation'));
-  }, [dispatch, tool]);
+  }, [dispatch, entry, tool]);
 
-  const handleRunSelect = useCallback(() => {
+  const handleRunSelect = useCallback((event) => {
+    if (entry) {
+      event.cancelBubble = true;
+      return;
+    }
     if (tool !== 'select' || !room) return;
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
@@ -609,9 +768,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     if (!wall) return;
     dispatch(setActiveWall(wall.id));
     dispatch(setSelection({ runId, pieceId: null }));
-  }, [dispatch, room, selection.runId, settings, toWorld, tool, walls]);
+  }, [dispatch, entry, room, selection.runId, settings, toWorld, tool, walls]);
 
   const handleOpeningSelect = useCallback((event, targetOpeningId) => {
+    if (entry) {
+      event.cancelBubble = true;
+      return;
+    }
     if (tool !== 'select' || !room) return;
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
@@ -627,11 +790,22 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     event.cancelBubble = true;
     dispatch(setActiveWall(openingWall.id));
     dispatch(setSelection({ openingId }));
-  }, [dispatch, room, settings, toWorld, tool, walls]);
+  }, [dispatch, entry, room, settings, toWorld, tool, walls]);
 
   const handleOpeningMove = useCallback((wallId, openingId, x) => {
     dispatch(moveOpening({ wallId, openingId, x }));
   }, [dispatch]);
+
+  const drawGesture = liveGestureRef.current;
+  const liveWallDrawEnd = entry?.kind === 'wall-draw'
+    && wallDrawStart
+    && drawGesture?.kind === 'wall-draw'
+    && drawGesture.direction
+    ? {
+        x: wallDrawStart.x + drawGesture.direction.x * entryValue,
+        y: wallDrawStart.y + drawGesture.direction.y * entryValue,
+      }
+    : null;
 
   return (
     <div
@@ -645,7 +819,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
           width={viewport.width}
           height={viewport.height}
           onClick={handleStageClick}
-          onDblClick={cancelDrawing}
+          onDblClick={entry ? cancelEntry : cancelDrawing}
           onMouseMove={handleMouseMove}
           onPointerDown={handlePanPointerDown}
           onPointerCancel={stopPanning}
@@ -678,7 +852,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 opening={opening}
                 settings={settings}
                 selected={selection.openingId === opening.id}
-                selectable={tool === 'select'}
+                selectable={tool === 'select' && !entry}
                 scale={scale}
                 onSelect={handleOpeningSelect}
                 onMove={(x) => handleOpeningMove(wall.id, opening.id, x)}
@@ -695,7 +869,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 collision={collisionMessages.has(run.id)}
                 collisionMessage={collisionMessages.get(run.id)}
                 selected={selection.runId === run.id}
-                selectable={tool === 'select'}
+                selectable={tool === 'select' && !entry}
                 scale={scale}
                 onSelect={handleRunSelect}
               />
@@ -748,14 +922,14 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 })()}
               </Group>
             )}
-            {tool === 'select' && selectedWall && (
+            {tool === 'select' && selectedWall && !entry && (
               <WallEndpoints
                 wall={{ ...selectedWall, wall_id: selectedWall.id }}
                 scale={scale}
                 onDrag={handleWallEndpointDrag}
               />
             )}
-            {tool === 'select' && selectedWall && moveHandle && (
+            {tool === 'select' && selectedWall && moveHandle && !entry && (
               <Rect
                 x={moveHandle.point.x}
                 y={moveHandle.point.y}
@@ -767,18 +941,6 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 stroke="#ecfeff"
                 strokeWidth={1 / scale}
                 cornerRadius={1.5 / scale}
-                draggable
-                dragBoundFunc={(position) => {
-                  const midpoint = {
-                    x: moveHandle.midpoint.x * scale + pan.x,
-                    y: moveHandle.midpoint.y * scale + pan.y,
-                  };
-                  const amount = dot(subtract(position, midpoint), moveHandle.frame.n);
-                  return {
-                    x: midpoint.x + moveHandle.frame.n.x * amount,
-                    y: midpoint.y + moveHandle.frame.n.y * amount,
-                  };
-                }}
                 onMouseEnter={(event) => {
                   event.target.getStage().container().style.cursor = 'move';
                 }}
@@ -789,26 +951,32 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                   event.cancelBubble = true;
                 }}
                 onClick={(event) => {
-                  event.cancelBubble = true;
+                  beginWallMove(event);
                 }}
                 onDblClick={(event) => {
                   event.cancelBubble = true;
                 }}
-                onDragStart={(event) => {
-                  event.cancelBubble = true;
-                  setWallMovePreview(null);
-                }}
-                onDragMove={handleWallMoveDrag}
-                onDragEnd={handleWallMoveEnd}
               />
             )}
             <WallDrawPreview
               start={tool === 'wall' ? wallDrawStart : null}
-              end={mouseWorldPos}
+              end={entry?.kind === 'wall-draw' ? liveWallDrawEnd : mouseWorldPos}
               scale={scale}
             />
           </Layer>
         </Stage>
+      )}
+
+      {entry && (
+        <LiveEntryInput
+          entry={entry}
+          position={entryPointer}
+          containerRef={containerRef}
+          containerSize={viewport}
+          onTyped={setEntryTyped}
+          onCommit={commitEntry}
+          onCancel={cancelEntry}
+        />
       )}
 
       {pendingDeleteWallId && (
