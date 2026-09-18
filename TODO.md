@@ -29,6 +29,7 @@ Suggested format:
 - [ ] Extend parts above or below their run box, such as fillers or panels sitting on the floor next to appliances or on the countertop.
 - [ ] Divide individual cabinetry into doors, drawer fronts, panels, and other components.
 - [ ] Rules for AI to “process” a room and generate reports: shipping list, cabinet order, door order, etc.
+  - Separate doors/drawer fronts by style and size
 - [ ] Rules for AI to determine stile and rail widths for smaller doors/drawer fronts
 - [ ] Upload current job processing checklist document to inform AI on current rules for processing
 - [ ] Molding designer: crown, applied moldings, and choosing which points of the molding are drawn into the room geometry.
@@ -38,6 +39,8 @@ Suggested format:
 - [ ] Appliance panels.
 - [ ] Appliances without panels.
 - [ ] Split cabinets vertically within a run so they can stack on top of each other, not only side by side.
+  - Blind Corner Cabinets
+  - Add Accessories to individual cabinets
 - [ ] Comments per unique cabinet box or part.
 - [ ] Part numbering for a whole room.
 - [ ] Cross sections on drawings.
