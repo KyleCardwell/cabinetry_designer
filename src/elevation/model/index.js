@@ -15,7 +15,7 @@ export {
 } from './units.js';
 export { splitRun, syncAutoItems } from './splitRun.js';
 export { createRun, defaultsForType, inferRunType } from './runDefaults.js';
-export { runsConflict, validateRunPlacement } from './overlap.js';
+export { runsConflict, validateRunPlacement, verticalStart } from './overlap.js';
 export {
   add,
   clamp,
@@ -25,11 +25,22 @@ export {
   lineIntersection,
   magnitude,
   normalize,
+  planPointToWallX,
   scale,
   subtract,
   wallFrame,
   wallLength,
 } from './geometry.js';
+export {
+  casingSides,
+  createOpening,
+  openingGeometry,
+  openingsAtPoint,
+  runBlocksOpening,
+  setMeasureMode,
+  setOffsetSide,
+  validateOpeningPlacement,
+} from './openings.js';
 export { wallOutline } from './wallOutline.js';
 export { counterTop, moldingStack, resolveProfile, resolveVertical } from './profile.js';
 export {

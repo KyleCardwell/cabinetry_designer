@@ -2,7 +2,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 
 const OVERLAP_EPSILON = 1e-6;
 
-function verticalStart(run) {
+export function verticalStart(run) {
   return run.cabinetTypeId === CABINET_TYPE_IDS.BASE
     || run.cabinetTypeId === CABINET_TYPE_IDS.TALL
     ? 0

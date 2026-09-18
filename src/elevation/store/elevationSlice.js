@@ -4,6 +4,12 @@ import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { wallFrame } from '../model/geometry.js';
 import {
+  openingGeometry,
+  setMeasureMode,
+  setOffsetSide,
+  validateOpeningPlacement,
+} from '../model/openings.js';
+import {
   compensateRuns,
   flipRunsForWall,
   syncRoom,
@@ -16,6 +22,7 @@ import {
   moveWallPerpendicular as moveWallPerpendicularPure,
   setWallLength as setWallLengthPure,
 } from '../plan/wallOps.js';
+import { roundTo } from '../model/units.js';
 import {
   ELEVATION_SCHEMA_VERSION,
   loadElevationDocument,
@@ -44,6 +51,7 @@ function createWall(name = '', y = 0, length = 144, values = {}) {
     connections: values.connections ?? { start: null, end: null },
     profile: values.profile ?? {},
     runs: values.runs ?? [],
+    openings: values.openings ?? [],
   };
 }
 
@@ -72,7 +80,7 @@ export function createInitialElevationState(document = loadElevationDocument()) 
     activeRoomId,
     activeWallId: document ? document.activeWallId : null,
     view: emptyActiveRoom ? 'plan' : document?.view ?? 'plan',
-    selection: { runId: null, pieceId: null },
+    selection: { runId: null, pieceId: null, openingId: null },
     tool: emptyActiveRoom ? 'wall' : 'select',
     message: null,
   };
@@ -105,6 +113,20 @@ function runLocation(state, payload) {
     : { ...location, runIndex, run: location.wall.runs[runIndex] };
 }
 
+function openingLocation(state, payload) {
+  const location = wallLocation(state, payload);
+  if (!location) return null;
+  const openingIndex = (location.wall.openings ?? [])
+    .findIndex((opening) => opening.id === payload.openingId);
+  return openingIndex === -1
+    ? null
+    : {
+        ...location,
+        openingIndex,
+        opening: location.wall.openings[openingIndex],
+      };
+}
+
 function syncRoomAt(state, roomIndex) {
   state.rooms[roomIndex] = syncRoom(state.rooms[roomIndex], state.settings);
 }
@@ -120,7 +142,7 @@ function itemIndexFor(run, itemId) {
 }
 
 function clearTransientSelection(state) {
-  state.selection = { runId: null, pieceId: null };
+  state.selection = { runId: null, pieceId: null, openingId: null };
 }
 
 function activateRoom(state, room) {
@@ -245,7 +267,7 @@ const elevationSlice = createSlice({
         clearTransientSelection(state);
         syncRoomAt(state, roomIndex);
       },
-      prepare(payload) {
+      prepare(payload = {}) {
         return { payload: { ...payload, id: payload.id ?? uuid() } };
       },
     },
@@ -374,6 +396,102 @@ const elevationSlice = createSlice({
       const run = action.payload.run ?? action.payload;
       if (!location || !run?.id) return;
       location.wall.runs.push(run);
+      syncRoomAt(state, location.roomIndex);
+    },
+    addOpening: {
+      reducer(state, action) {
+        const location = wallLocation(state, action.payload);
+        const { opening } = action.payload;
+        if (!location || !opening?.id) return;
+        location.wall.openings ??= [];
+        location.wall.openings.push(opening);
+        syncRoomAt(state, location.roomIndex);
+      },
+      prepare(payload) {
+        const opening = payload.opening ?? {};
+        return {
+          payload: {
+            ...payload,
+            opening: { ...opening, id: opening.id ?? uuid() },
+          },
+        };
+      },
+    },
+    updateOpening(state, action) {
+      const location = openingLocation(state, action.payload);
+      if (!location) return;
+      const candidate = { ...location.opening };
+      const changes = action.payload.changes ?? {};
+      for (const key of ['label', 'kind', 'width', 'height', 'sillZ', 'offset', 'casing']) {
+        if (!Object.prototype.hasOwnProperty.call(changes, key)) continue;
+        candidate[key] = key === 'casing' && changes[key]
+          ? { ...changes[key] }
+          : changes[key];
+      }
+      const resolvedWall = {
+        ...location.wall,
+        length: wallFrame(location.room, location.wall).length,
+      };
+      const validation = validateOpeningPlacement(resolvedWall, candidate, state.settings);
+      if (!validation.ok) {
+        state.message = validation.reason;
+        syncRoomAt(state, location.roomIndex);
+        return;
+      }
+      location.wall.openings[location.openingIndex] = candidate;
+      state.message = null;
+      syncRoomAt(state, location.roomIndex);
+    },
+    setOpeningMeasureMode(state, action) {
+      const location = openingLocation(state, action.payload);
+      if (!location) return;
+      const length = wallFrame(location.room, location.wall).length;
+      location.wall.openings[location.openingIndex] = setMeasureMode(
+        location.opening,
+        action.payload.mode,
+        length,
+        state.settings,
+      );
+      syncRoomAt(state, location.roomIndex);
+    },
+    setOpeningOffsetSide(state, action) {
+      const location = openingLocation(state, action.payload);
+      if (!location) return;
+      const length = wallFrame(location.room, location.wall).length;
+      location.wall.openings[location.openingIndex] = setOffsetSide(
+        location.opening,
+        action.payload.side,
+        length,
+        state.settings,
+      );
+      syncRoomAt(state, location.roomIndex);
+    },
+    moveOpening(state, action) {
+      const location = openingLocation(state, action.payload);
+      if (!location || !Number.isFinite(action.payload.x)) return;
+      const length = wallFrame(location.room, location.wall).length;
+      const geometry = openingGeometry(location.opening, length, state.settings);
+      const reference = location.opening.measureMode === 'jamb' || !geometry.casing
+        ? geometry.jamb
+        : geometry.casing;
+      const bounds = geometry.casing ?? geometry.jamb;
+      const referenceInset = reference.x - bounds.x;
+      const minimumX = referenceInset;
+      const maximumX = length - bounds.width + referenceInset;
+      const snappedX = roundTo(action.payload.x, state.settings.openingSnap);
+      const x = Math.min(maximumX, Math.max(minimumX, snappedX));
+      location.opening.offset = location.opening.offsetFrom === 'left'
+        ? x
+        : length - x - reference.width;
+      syncRoomAt(state, location.roomIndex);
+    },
+    deleteOpening(state, action) {
+      const location = openingLocation(state, action.payload);
+      if (!location) return;
+      location.wall.openings.splice(location.openingIndex, 1);
+      if (state.selection.openingId === action.payload.openingId) {
+        clearTransientSelection(state);
+      }
       syncRoomAt(state, location.roomIndex);
     },
     replaceRun(state, action) {
@@ -541,12 +659,18 @@ const elevationSlice = createSlice({
       location.run.items.splice(itemIndex, 1);
       location.run.autoCount = false;
       if (state.selection.pieceId === action.payload.itemId) {
-        state.selection = { runId: location.run.id, pieceId: null };
+        state.selection = { runId: location.run.id, pieceId: null, openingId: null };
       }
       syncRoomAt(state, location.roomIndex);
     },
     setSelection(state, action) {
-      state.selection = { runId: action.payload.runId, pieceId: action.payload.pieceId ?? null };
+      const openingId = action.payload.openingId ?? null;
+      const runId = openingId ? null : action.payload.runId ?? null;
+      state.selection = {
+        runId,
+        pieceId: runId ? action.payload.pieceId ?? null : null,
+        openingId: runId ? null : openingId,
+      };
     },
     clearSelection(state) {
       clearTransientSelection(state);
@@ -598,6 +722,12 @@ export const {
   setActiveWall,
   flipWall,
   addRun,
+  addOpening,
+  updateOpening,
+  setOpeningMeasureMode,
+  setOpeningOffsetSide,
+  moveOpening,
+  deleteOpening,
   replaceRun,
   updateRun,
   deleteRun,

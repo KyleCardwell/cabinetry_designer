@@ -2,20 +2,28 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { runFootprint } from '../../model/footprints.js';
 import { wallFrame } from '../../model/geometry.js';
+import { openingGeometry } from '../../model/openings.js';
 import elevationReducer, {
+  addOpening,
   addRoom,
   addItemAfter,
   addRun,
   createInitialElevationState,
+  deleteOpening,
   lockItem,
+  moveOpening,
   moveWallEndpoint,
   moveWallPerpendicular,
   removeItem,
   replaceRun,
+  setOpeningMeasureMode,
+  setOpeningOffsetSide,
   setActiveRoom,
   setRunCornerClearance,
   setRunEnd,
+  setSelection,
   splitItem,
+  updateOpening,
   updateRoomProfile,
   updateWall,
   useAutoHeightsForRoom,
@@ -52,6 +60,22 @@ function run(overrides = {}) {
   };
 }
 
+function opening(overrides = {}) {
+  return {
+    id: 'door-1',
+    kind: 'door',
+    label: 'D1',
+    measureMode: 'jamb',
+    width: 36,
+    height: 80,
+    sillZ: 0,
+    offset: 24,
+    offsetFrom: 'left',
+    casing: { width: 3, thickness: 0.75 },
+    ...overrides,
+  };
+}
+
 function stateWithRun(existingRun = null) {
   return {
     schemaVersion: 2,
@@ -77,15 +101,20 @@ function stateWithRun(existingRun = null) {
         connections: { start: null, end: null },
         profile: {},
         runs: existingRun ? [existingRun] : [],
+        openings: [],
       }],
     }],
     activeRoomId: 'room-1',
     activeWallId: 'wall-1',
     view: 'elevation',
-    selection: { runId: null, pieceId: null },
+    selection: { runId: null, pieceId: null, openingId: null },
     tool: 'select',
     message: null,
   };
+}
+
+function currentOpening(state) {
+  return state.rooms[0].walls[0].openings[0];
 }
 
 function currentRun(state) {
@@ -389,5 +418,90 @@ describe('elevation run reducers', () => {
     }));
 
     expect(currentRun(next)).toMatchObject({ z: 4, height: 80 });
+  });
+});
+
+describe('elevation opening reducers', () => {
+  it('normalizes run and opening selection as mutually exclusive', () => {
+    const initial = stateWithRun(run());
+    const selectedOpening = elevationReducer(initial, setSelection({
+      runId: 'run-1',
+      pieceId: 'piece-1',
+      openingId: 'door-1',
+    }));
+    expect(selectedOpening.selection).toEqual({
+      runId: null,
+      pieceId: null,
+      openingId: 'door-1',
+    });
+
+    const selectedRun = elevationReducer(selectedOpening, setSelection({
+      runId: 'run-1',
+      pieceId: 'piece-1',
+    }));
+    expect(selectedRun.selection).toEqual({
+      runId: 'run-1',
+      pieceId: 'piece-1',
+      openingId: null,
+    });
+  });
+
+  it('adds, updates, and rejects invalid opening changes without moving the opening', () => {
+    const added = elevationReducer(stateWithRun(), addOpening({
+      wallId: 'wall-1',
+      opening: { ...opening(), id: undefined },
+    }));
+    expect(currentOpening(added).id).toEqual(expect.any(String));
+
+    const renamed = elevationReducer(added, updateOpening({
+      wallId: 'wall-1',
+      openingId: currentOpening(added).id,
+      changes: { label: 'Entry', measureMode: 'rough' },
+    }));
+    expect(currentOpening(renamed)).toMatchObject({ label: 'Entry', measureMode: 'jamb' });
+
+    const rejected = elevationReducer(renamed, updateOpening({
+      wallId: 'wall-1',
+      openingId: currentOpening(renamed).id,
+      changes: { width: 4 },
+    }));
+    expect(currentOpening(rejected)).toEqual(currentOpening(renamed));
+    expect(rejected.message).toBe('opening-too-small');
+  });
+
+  it('converts, moves, clamps, and deletes openings through their reducers', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls[0].openings = [opening()];
+    const before = openingGeometry(currentOpening(initial), 144, initial.settings);
+
+    const casingMode = elevationReducer(initial, setOpeningMeasureMode({
+      wallId: 'wall-1',
+      openingId: 'door-1',
+      mode: 'casing',
+    }));
+    expect(openingGeometry(currentOpening(casingMode), 144, casingMode.settings)).toEqual(before);
+
+    const fromRight = elevationReducer(casingMode, setOpeningOffsetSide({
+      wallId: 'wall-1',
+      openingId: 'door-1',
+      side: 'right',
+    }));
+    expect(openingGeometry(currentOpening(fromRight), 144, fromRight.settings)).toEqual(before);
+
+    const moved = elevationReducer(fromRight, moveOpening({
+      wallId: 'wall-1',
+      openingId: 'door-1',
+      x: 140,
+    }));
+    expect(openingGeometry(currentOpening(moved), 144, moved.settings).casing)
+      .toMatchObject({ x: 102, width: 42 });
+
+    const selected = elevationReducer(moved, setSelection({ openingId: 'door-1' }));
+    const deleted = elevationReducer(selected, deleteOpening({
+      wallId: 'wall-1',
+      openingId: 'door-1',
+    }));
+    expect(deleted.rooms[0].walls[0].openings).toEqual([]);
+    expect(deleted.selection).toEqual({ runId: null, pieceId: null, openingId: null });
   });
 });

@@ -44,6 +44,17 @@ export const DEFAULT_SETTINGS = {
   adjacentRunGap: 1,
   orthoWalls: true,
   planGrid: 0.5,
+  casingWidth: 3,
+  casingThickness: 0.75,
+  openingsHaveCasing: true,
+  defaultOpeningMeasureMode: 'jamb',
+  defaultDoorWidth: 36,
+  defaultDoorHeight: 80,
+  defaultWindowWidth: 36,
+  defaultWindowHeight: 48,
+  defaultWindowSillZ: 36,
+  minOpeningWidth: 6,
+  openingSnap: 0.5,
 };
 
 /** Display labels for derived piece kinds. */

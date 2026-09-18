@@ -54,6 +54,22 @@ const V1_NUMERIC_SETTING_KEYS = [
 const V2_NUMERIC_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
   (key) => typeof DEFAULT_SETTINGS[key] === 'number',
 );
+const V2_DEFAULTED_SETTING_KEYS = [
+  'autoEndPanelOnFreeEnd',
+  'adjacentRunGap',
+  'maxRunOverhang',
+  'casingWidth',
+  'casingThickness',
+  'openingsHaveCasing',
+  'defaultOpeningMeasureMode',
+  'defaultDoorWidth',
+  'defaultDoorHeight',
+  'defaultWindowWidth',
+  'defaultWindowHeight',
+  'defaultWindowSillZ',
+  'minOpeningWidth',
+  'openingSnap',
+];
 
 function isFiniteNumber(value) {
   return typeof value === 'number' && Number.isFinite(value);
@@ -113,6 +129,24 @@ function isConnection(connection) {
   );
 }
 
+/** Return whether a persisted wall opening has the v2 opening shape. */
+export function isOpening(opening) {
+  return Boolean(opening)
+    && typeof opening.id === 'string'
+    && (opening.kind === 'door' || opening.kind === 'window')
+    && typeof opening.label === 'string'
+    && (opening.measureMode === 'jamb' || opening.measureMode === 'casing')
+    && ['width', 'height', 'sillZ', 'offset'].every(
+      (key) => isFiniteNumber(opening[key]),
+    )
+    && (opening.offsetFrom === 'left' || opening.offsetFrom === 'right')
+    && (opening.casing === null || (
+      Boolean(opening.casing)
+      && isFiniteNumber(opening.casing.width)
+      && isFiniteNumber(opening.casing.thickness)
+    ));
+}
+
 function isWall(wall) {
   return Boolean(wall)
     && typeof wall.id === 'string'
@@ -127,7 +161,9 @@ function isWall(wall) {
     && isConnection(wall.connections?.end)
     && isOptionalNumericObject(wall.profile, PROFILE_KEYS)
     && Array.isArray(wall.runs)
-    && wall.runs.every(isRun);
+    && wall.runs.every(isRun)
+    && (wall.openings === undefined
+      || (Array.isArray(wall.openings) && wall.openings.every(isOpening)));
 }
 
 function isRoom(room) {
@@ -145,20 +181,13 @@ function isRoom(room) {
 
 function normalizeV2Document(document) {
   if (!document || document.schemaVersion !== ELEVATION_SCHEMA_VERSION) return document;
-  const settings = document.settings && typeof document.settings === 'object'
-    ? {
-      ...document.settings,
-      autoEndPanelOnFreeEnd: document.settings.autoEndPanelOnFreeEnd === undefined
-        ? DEFAULT_SETTINGS.autoEndPanelOnFreeEnd
-        : document.settings.autoEndPanelOnFreeEnd,
-      adjacentRunGap: document.settings.adjacentRunGap === undefined
-        ? DEFAULT_SETTINGS.adjacentRunGap
-        : document.settings.adjacentRunGap,
-      maxRunOverhang: document.settings.maxRunOverhang === undefined
-        ? DEFAULT_SETTINGS.maxRunOverhang
-        : document.settings.maxRunOverhang,
+  let settings = document.settings;
+  if (settings && typeof settings === 'object') {
+    settings = { ...settings };
+    for (const key of V2_DEFAULTED_SETTING_KEYS) {
+      if (settings[key] === undefined) settings[key] = DEFAULT_SETTINGS[key];
     }
-    : document.settings;
+  }
   return {
     ...document,
     settings,
@@ -172,6 +201,7 @@ function normalizeV2Document(document) {
               ...wall,
               name: normalizeWallName(wall.name),
               numberOverride: wall.numberOverride ?? null,
+              openings: wall.openings === undefined ? [] : wall.openings,
             }
             : wall
         )) : room.walls,
@@ -198,7 +228,10 @@ function isSettings(settings) {
     && isCompleteProfile(settings.defaultProfile)
     && typeof settings.snapHeightsToDefaults === 'boolean'
     && typeof settings.autoEndPanelOnFreeEnd === 'boolean'
+    && typeof settings.openingsHaveCasing === 'boolean'
     && typeof settings.orthoWalls === 'boolean'
+    && (settings.defaultOpeningMeasureMode === 'jamb'
+      || settings.defaultOpeningMeasureMode === 'casing')
     && hasValidEnds(settings);
 }
 
@@ -279,6 +312,7 @@ export function migrateV1Document(document) {
       flipped: false,
       connections: { start: null, end: null },
       profile: {},
+      openings: [],
       runs: wall.runs.map((run) => ({
         ...run,
         ends: { left: { ...run.ends.left }, right: { ...run.ends.right } },

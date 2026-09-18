@@ -163,3 +163,8 @@ export function wallFrame(room, wall, topology = null) {
 export function elevationToPlan(frame, x, offset) {
   return add(frame.leftPoint, add(scale(frame.r, x), scale(frame.n, offset)));
 }
+
+/** Project a plan point onto a wall's elevation x axis. */
+export function planPointToWallX(frame, point) {
+  return dot(subtract(point, frame.leftPoint), frame.r);
+}

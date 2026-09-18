@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS } from '../../model/constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { wallFrame } from '../../model/geometry.js';
 import {
   ELEVATION_STORAGE_KEY,
   LEGACY_ELEVATION_STORAGE_KEY,
+  isElevationDocument,
   loadElevationDocument,
   migrateV1Document,
 } from '../persistence.js';
@@ -120,6 +121,19 @@ describe('elevation persistence migration', () => {
     delete current.settings.autoEndPanelOnFreeEnd;
     delete current.settings.adjacentRunGap;
     delete current.settings.maxRunOverhang;
+    for (const key of [
+      'casingWidth',
+      'casingThickness',
+      'openingsHaveCasing',
+      'defaultOpeningMeasureMode',
+      'defaultDoorWidth',
+      'defaultDoorHeight',
+      'defaultWindowWidth',
+      'defaultWindowHeight',
+      'defaultWindowSillZ',
+      'minOpeningWidth',
+      'openingSnap',
+    ]) delete current.settings[key];
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
     };
@@ -134,6 +148,52 @@ describe('elevation persistence migration', () => {
       autoEndPanelOnFreeEnd: true,
       adjacentRunGap: 1,
       maxRunOverhang: 36,
+      casingWidth: DEFAULT_SETTINGS.casingWidth,
+      casingThickness: DEFAULT_SETTINGS.casingThickness,
+      openingsHaveCasing: DEFAULT_SETTINGS.openingsHaveCasing,
+      defaultOpeningMeasureMode: DEFAULT_SETTINGS.defaultOpeningMeasureMode,
+      defaultDoorWidth: DEFAULT_SETTINGS.defaultDoorWidth,
+      defaultDoorHeight: DEFAULT_SETTINGS.defaultDoorHeight,
+      defaultWindowWidth: DEFAULT_SETTINGS.defaultWindowWidth,
+      defaultWindowHeight: DEFAULT_SETTINGS.defaultWindowHeight,
+      defaultWindowSillZ: DEFAULT_SETTINGS.defaultWindowSillZ,
+      minOpeningWidth: DEFAULT_SETTINGS.minOpeningWidth,
+      openingSnap: DEFAULT_SETTINGS.openingSnap,
     });
+  });
+
+  it('24. defaults a missing v2 openings array and validates the result', () => {
+    const current = migrateV1Document(v1Document());
+    delete current.rooms[0].walls[0].openings;
+    expect(isElevationDocument(current)).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.rooms[0].walls[0].openings).toEqual([]);
+    expect(isElevationDocument(loaded)).toBe(true);
+  });
+
+  it('25. rejects a malformed opening so the editor can start fresh', () => {
+    const current = migrateV1Document(v1Document());
+    current.rooms[0].walls[0].openings.push({
+      id: 'door-1',
+      kind: 'door',
+      label: 'D1',
+      measureMode: 'rough',
+      width: 36,
+      height: 80,
+      sillZ: 0,
+      offset: 24,
+      offsetFrom: 'left',
+      casing: { width: 3, thickness: 0.75 },
+    });
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    expect(isElevationDocument(current)).toBe(false);
+    expect(loadElevationDocument()).toBeNull();
   });
 });

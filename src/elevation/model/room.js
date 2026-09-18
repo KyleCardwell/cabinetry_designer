@@ -6,6 +6,7 @@ import {
   resolveHorizontal,
 } from './corners.js';
 import { findCollisions } from './footprints.js';
+import { runBlocksOpening } from './openings.js';
 import {
   dot,
   subtract,
@@ -50,6 +51,10 @@ function cloneRoom(room) {
         start: wall.connections?.start ? { ...wall.connections.start } : null,
         end: wall.connections?.end ? { ...wall.connections.end } : null,
       },
+      openings: (wall.openings ?? []).map((opening) => ({
+        ...opening,
+        casing: opening.casing ? { ...opening.casing } : null,
+      })),
       runs: wall.runs.map(cloneRun),
     })),
   };
@@ -213,11 +218,19 @@ export function roomDiagnostics(room, settings) {
         left: Math.max(0, -run.x),
         right: Math.max(0, run.x + run.width - length),
       };
+      const blockedOpenings = (wall.openings ?? [])
+        .filter((opening) => runBlocksOpening(run, opening, resolvedWall, settings))
+        .map((opening) => ({
+          code: 'blocks-opening',
+          openingId: opening.id,
+          label: opening.label,
+        }));
       diagnostics[run.id] = {
         warnings: [
           ...layout.warnings,
           ...vertical.warnings,
           ...(overhang.left > 0 || overhang.right > 0 ? [overhang] : []),
+          ...blockedOpenings,
         ],
         errors: [
           ...layout.errors,
@@ -364,6 +377,11 @@ export function flipRunsForWall(wall) {
           }
         : {}),
       items: [...run.items].reverse().map((item) => ({ ...item })),
+    })),
+    openings: (wall.openings ?? []).map((opening) => ({
+      ...opening,
+      offsetFrom: opening.offsetFrom === 'left' ? 'right' : 'left',
+      casing: opening.casing ? { ...opening.casing } : null,
     })),
   };
 }
