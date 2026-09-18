@@ -13,7 +13,7 @@ import {
   wallFrame,
   wallLength,
 } from './geometry.js';
-import { validateRunPlacement } from './overlap.js';
+import { validateRunPlacement, verticalStart } from './overlap.js';
 import { resolveProfile, resolveVertical } from './profile.js';
 import { splitRun, syncAutoItems } from './splitRun.js';
 import { computeWallOrder } from './topology.js';
@@ -95,7 +95,7 @@ export function endMinWidthsForRun(room, wall, run, settings) {
     const corner = cornerAt(room, wall, side);
     return [
       side,
-      run.anchors?.[side] && corner.type === 'inside'
+      run.anchors?.[side] === true && corner.type === 'inside'
         ? cornerFillerMin(settings, corner.angle)
         : settings.fillerMinWidth,
     ];
@@ -108,9 +108,90 @@ export function endCornerAnglesForRun(room, wall, run) {
     const corner = cornerAt(room, wall, side);
     return [
       side,
-      run.anchors?.[side] && corner.type === 'inside' ? corner.angle : undefined,
+      run.anchors?.[side] === true && corner.type === 'inside' ? corner.angle : undefined,
     ];
   }));
+}
+
+function openingAnchorDatum(anchor, side, wall, length, settings) {
+  const opening = (wall.openings ?? []).find(
+    (candidate) => candidate.id === anchor.openingId,
+  );
+  if (!opening) return { error: { code: 'anchor-opening-missing', side } };
+  const geometry = openingGeometry(opening, length, settings);
+  const edge = anchor.edge === 'jamb' ? geometry.jamb : geometry.casing ?? geometry.jamb;
+  const clearance = anchor.clearance
+    ?? settings.casingClearance
+    ?? DEFAULT_SETTINGS.casingClearance;
+  return {
+    x: side === 'left'
+      ? edge.x + edge.width + clearance
+      : edge.x - clearance,
+    opening,
+    clearance,
+    edge: anchor.edge,
+  };
+}
+
+/** Resolve a run anchor into an absolute wall-local datum. */
+export function resolveRunAnchorDatum(room, wall, run, side, settings) {
+  const anchor = run.anchors?.[side];
+  const length = wallLength(wall);
+  if (anchor === true) {
+    const reserve = cornerReserve(room, wall, side, run, settings);
+    return { x: side === 'left' ? reserve : length - reserve, type: 'corner' };
+  }
+  if (anchor?.to === 'opening') {
+    return { ...openingAnchorDatum(anchor, side, wall, length, settings), type: 'opening' };
+  }
+  return { x: side === 'left' ? run.x : run.x + run.width, type: 'free' };
+}
+
+function horizontalResolution(room, wall, run, settings) {
+  const length = wallLength(wall);
+  const left = resolveRunAnchorDatum(room, wall, run, 'left', settings);
+  const right = resolveRunAnchorDatum(room, wall, run, 'right', settings);
+  const errors = [left.error, right.error].filter(Boolean);
+  if (Boolean(run.anchors?.left) && Boolean(run.anchors?.right)
+    && !left.error && !right.error && right.x < left.x) {
+    errors.push({ code: 'anchor-opening-overlap' });
+  }
+  if (errors.length > 0) {
+    return { x: run.x, width: run.width, warnings: [], errors };
+  }
+  const resolved = resolveHorizontal(run, length, left, right, settings);
+  return { ...resolved, errors: [...errors, ...resolved.errors] };
+}
+
+function casingClearanceWarnings(run, wall, length, settings) {
+  const required = settings.casingClearance ?? DEFAULT_SETTINGS.casingClearance;
+  if (!(required > 0)) return [];
+  const runBottom = verticalStart(run);
+  const runTop = run.z + run.height;
+  return (wall.openings ?? []).flatMap((opening) => {
+    const geometry = openingGeometry(opening, length, settings);
+    if (Math.min(runTop, geometry.jamb.z + geometry.jamb.height)
+      - Math.max(runBottom, geometry.jamb.z) <= PIN_EPSILON) return [];
+    const casing = geometry.casing ?? geometry.jamb;
+    const candidates = [];
+    if (!run.anchors?.right && run.x + run.width <= casing.x + PIN_EPSILON) {
+      const gap = casing.x - (run.x + run.width);
+      if (gap < required - PIN_EPSILON) candidates.push({ side: 'left', gap });
+    }
+    const casingRight = casing.x + casing.width;
+    if (!run.anchors?.left && run.x >= casingRight - PIN_EPSILON) {
+      const gap = run.x - casingRight;
+      if (gap < required - PIN_EPSILON) candidates.push({ side: 'right', gap });
+    }
+    return candidates.map(({ side, gap }) => ({
+      code: 'casing-clearance',
+      openingId: opening.id,
+      label: opening.label,
+      side,
+      gap,
+      required,
+    }));
+  });
 }
 
 /** Resolve a stored cabinet pin to a wall-local target coordinate. */
@@ -261,19 +342,10 @@ export function syncRoom(room, settings) {
   nextRoom = {
     ...nextRoom,
     walls: nextRoom.walls.map((wall) => {
-      const length = wallLength(wall);
       return {
         ...wall,
         runs: wall.runs.map((run) => {
-          const reserveLeft = cornerReserve(nextRoom, wall, 'left', run, settings);
-          const reserveRight = cornerReserve(nextRoom, wall, 'right', run, settings);
-          const horizontal = resolveHorizontal(
-            run,
-            length,
-            reserveLeft,
-            reserveRight,
-            settings,
-          );
+          const horizontal = horizontalResolution(nextRoom, wall, run, settings);
           return { ...run, x: horizontal.x, width: horizontal.width };
         }),
       };
@@ -357,13 +429,7 @@ export function roomDiagnostics(room, settings) {
         pinTargets: pinTargetsForRun(run, wall, length, settings),
       });
       const vertical = resolveVertical(run, profile, bases, wall);
-      const horizontal = resolveHorizontal(
-        run,
-        length,
-        cornerReserve(synced, wall, 'left', run, settings),
-        cornerReserve(synced, wall, 'right', run, settings),
-        settings,
-      );
+      const horizontal = horizontalResolution(synced, wall, run, settings);
       const placement = validateRunPlacement(resolvedWall, run, settings);
       const overhang = {
         code: 'overhang',
@@ -392,6 +458,7 @@ export function roomDiagnostics(room, settings) {
           ...vertical.warnings,
           ...(overhang.left > 0 || overhang.right > 0 ? [overhang] : []),
           ...blockedOpenings,
+          ...casingClearanceWarnings(run, wall, length, settings),
         ],
         errors: [
           ...layout.errors,

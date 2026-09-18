@@ -29,6 +29,7 @@ const TICK_HALF_LENGTH = 4;
 const WALL_END_TICK_HALF_LENGTH = 6;
 
 function colorFor(segment, highlightRunId) {
+  if (segment.violated) return '#f59e0b';
   if (segment.kind === 'run' && segment.runId === highlightRunId) return '#38bdf8';
   return KIND_COLORS[segment.kind] ?? '#cbd5e1';
 }

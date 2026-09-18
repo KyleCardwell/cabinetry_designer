@@ -71,6 +71,7 @@ export {
 export {
   horizontalChains,
   openingChain,
+  openingClearances,
   pickColumnRuns,
   verticalChains,
   verticalOpeningChain,
@@ -93,6 +94,7 @@ export {
   pinTargetsForRun,
   resolvePinnedSpan,
   resolvePinTarget,
+  resolveRunAnchorDatum,
   resolveWall,
   roomDiagnostics,
   stretchRun,

@@ -76,7 +76,7 @@ export function cornerReserveParts(room, wall, side, run, settings) {
   const neighbor = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
   const sine = Math.sin(corner.angle * Math.PI / 180);
   const face = !neighbor || Math.abs(sine) < 1e-9 ? 0 : neighbor.runs.reduce((reserve, neighborRun) => {
-    if (!neighborRun.anchors?.[corner.neighborSide]) return reserve;
+    if (neighborRun.anchors?.[corner.neighborSide] !== true) return reserve;
     if (!bandsCompatible(run, neighborRun)) return reserve;
     return Math.max(reserve, frontDepth(neighborRun, settings) / sine);
   }, 0);
@@ -105,26 +105,30 @@ export function cornerReserve(room, wall, side, run, settings) {
  *
  * @returns {{x:number,width:number,warnings:object[],errors:object[]}}
  */
-export function resolveHorizontal(run, length, reserveLeft, reserveRight, settings = DEFAULT_SETTINGS) {
+export function resolveHorizontal(run, length, leftDatum, rightDatum, settings = DEFAULT_SETTINGS) {
   const warnings = [];
   const errors = [];
   let { x, width } = run;
   const left = Boolean(run.anchors?.left);
   const right = Boolean(run.anchors?.right);
+  const leftX = typeof leftDatum === 'number' ? leftDatum : leftDatum?.x ?? 0;
+  const rightX = typeof rightDatum === 'number'
+    ? length - rightDatum
+    : rightDatum?.x ?? length;
 
   if (left && right) {
-    x = reserveLeft;
-    width = length - reserveLeft - reserveRight;
+    x = leftX;
+    width = rightX - leftX;
   } else if (left) {
-    x = reserveLeft;
+    x = leftX;
     if (x + width > length) {
       width = Math.max(0, length - x);
       warnings.push({ code: 'anchor-shrunk' });
     }
   } else if (right) {
-    x = length - reserveRight - width;
+    x = rightX - width;
     if (x < 0) {
-      width = Math.max(0, length - reserveRight);
+      width = Math.max(0, rightX);
       x = 0;
       warnings.push({ code: 'anchor-shrunk' });
     }

@@ -24,7 +24,10 @@ export function layoutDimensionRow(segments, {
   maxLevels = 2,
 }) {
   const labels = segments.map((segment, index) => {
-    const text = formatInches(segment.end - segment.start);
+    const length = segment.end - segment.start;
+    const text = segment.violated && Number.isFinite(segment.required)
+      ? `${formatInches(length)} (${formatInches(segment.required)})`
+      : formatInches(length);
     // SPEC-QUESTION: Test 13's required 14.6px width excludes the trailing inch mark,
     // while §4.2 says to measure the full formatInches string. Keep the mark visible
     // but follow the test's explicit width value.

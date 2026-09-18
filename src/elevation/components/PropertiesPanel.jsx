@@ -22,6 +22,7 @@ import {
   positionReadouts,
   resolvePinTarget,
   resolveProfile,
+  resolveRunAnchorDatum,
   runBlocksOpening,
   splitRun,
   startFromReadout,
@@ -110,6 +111,8 @@ const ERROR_MESSAGES = {
   'does-not-fill': 'The fixed pieces do not fill the run.',
   'pin-gap': 'The space between pinned cabinets is not filled.',
   'no-room-for-box': 'The height profile leaves no room for this cabinet box.',
+  'anchor-opening-missing': 'The anchored opening no longer exists.',
+  'anchor-opening-overlap': 'The run anchor datums cross.',
 };
 
 const WARNING_MESSAGES = {
@@ -654,31 +657,100 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
         <div className="space-y-2">
           {['left', 'right'].map((side) => {
             const insideCorner = corners[side].type === 'inside';
-            const anchoredInsideCorner = run.anchors[side] && insideCorner;
+            const anchor = run.anchors[side];
+            const openingAnchor = anchor?.to === 'opening' ? anchor : null;
+            const anchoredInsideCorner = anchor === true && insideCorner;
             const clearance = run.cornerClearance?.[side] ?? 'auto';
             const clearanceMode = typeof clearance === 'number' ? 'custom' : clearance;
+            const anchoredOpening = openingAnchor
+              ? wall.openings?.find((opening) => opening.id === openingAnchor.openingId)
+              : null;
+            const anchorValue = openingAnchor
+              ? `opening:${openingAnchor.openingId}`
+              : anchor === true ? 'corner' : 'free';
+            const resolvedAnchor = resolveRunAnchorDatum(room, wall, run, side, settings);
             return (
               <div
                 key={side}
                 className="rounded border border-gray-700 bg-gray-900/45 p-3"
               >
-                <label className="flex items-center justify-between text-sm text-gray-200">
-                  <span className="capitalize">Anchor {side}</span>
-                  <input
-                    type="checkbox"
-                    checked={run.anchors[side]}
-                    onChange={(event) => dispatch(setRunAnchor({
-                      ...actionBase,
-                      side,
-                      value: event.target.checked,
-                    }))}
-                    className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
-                  />
-                </label>
+                <Field label={`Anchor ${side}`}>
+                  <select
+                    value={anchorValue}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      dispatch(setRunAnchor({
+                        ...actionBase,
+                        side,
+                        anchor: value === 'free'
+                          ? false
+                          : value === 'corner'
+                            ? true
+                            : {
+                                to: 'opening',
+                                openingId: value.slice('opening:'.length),
+                                edge: 'casing',
+                                clearance: null,
+                              },
+                      }));
+                    }}
+                    aria-label={`${side} run anchor`}
+                    className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="free">Free</option>
+                    <option value="corner">Corner</option>
+                    {(wall.openings ?? []).map((opening) => (
+                      <option key={opening.id} value={`opening:${opening.id}`}>
+                        {opening.label}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
                 <p className="mt-1.5 text-xs text-gray-500">
                   {cornerLabel(corners[side], room)}
                 </p>
-                {anchoredInsideCorner ? (
+                {openingAnchor ? (
+                  <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
+                    <Field label="Clearance">
+                      <InchInput
+                        value={openingAnchor.clearance}
+                        allowBlank
+                        placeholder={formatInchesInput(settings.casingClearance)}
+                        onCommit={(value) => dispatch(setRunAnchor({
+                          ...actionBase,
+                          side,
+                          anchor: { ...openingAnchor, clearance: value },
+                        }))}
+                        aria-label={`${side} opening anchor clearance`}
+                      />
+                    </Field>
+                    <div className="grid grid-cols-2 overflow-hidden rounded border border-gray-700">
+                      {['casing', 'jamb'].map((edge) => (
+                        <button
+                          key={edge}
+                          type="button"
+                          onClick={() => dispatch(setRunAnchor({
+                            ...actionBase,
+                            side,
+                            anchor: { ...openingAnchor, edge },
+                          }))}
+                          className={`px-2 py-1.5 text-xs capitalize ${
+                            openingAnchor.edge === edge
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-900 text-gray-400'
+                          }`}
+                        >
+                          {edge}
+                        </button>
+                      ))}
+                    </div>
+                    <p className={`text-xs ${resolvedAnchor.error ? 'text-amber-300' : 'text-cyan-300'}`}>
+                      {anchoredOpening
+                        ? `Anchored ${formatInches(resolvedAnchor.clearance)} off ${anchoredOpening.label} ${openingAnchor.edge}`
+                        : 'Anchored opening is missing'}
+                    </p>
+                  </div>
+                ) : anchoredInsideCorner ? (
                   <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
                     <Field label="Corner clearance">
                       <select
@@ -716,7 +788,7 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                       {formatCornerReserve(reserveParts[side])}
                     </p>
                   </div>
-                ) : run.anchors[side] ? (
+                ) : anchor === true ? (
                   <p className="mt-1 text-xs text-cyan-300">
                     Anchored — corner reserve {formatInches(reserveParts[side].total)}
                   </p>

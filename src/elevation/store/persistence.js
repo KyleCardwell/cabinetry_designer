@@ -83,6 +83,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'defaultWindowSillZ',
   'minOpeningWidth',
   'openingSnap',
+  'casingClearance',
 ];
 
 function isFiniteNumber(value) {
@@ -141,12 +142,22 @@ function isCompleteProfile(profile, profileKeys = PROFILE_KEYS) {
   return Boolean(profile) && profileKeys.every((key) => isFiniteNumber(profile[key]));
 }
 
+function isRunAnchor(anchor) {
+  return typeof anchor === 'boolean' || (
+    Boolean(anchor)
+    && anchor.to === 'opening'
+    && typeof anchor.openingId === 'string'
+    && (anchor.edge === 'casing' || anchor.edge === 'jamb')
+    && (anchor.clearance === null || isFiniteNumber(anchor.clearance))
+  );
+}
+
 function isRun(run) {
   return isV1Run(run)
     && (run.heightMode === 'auto' || run.heightMode === 'manual')
     && isOptionalNumericObject(run.overrides, RUN_OVERRIDE_KEYS)
-    && typeof run.anchors?.left === 'boolean'
-    && typeof run.anchors?.right === 'boolean';
+    && isRunAnchor(run.anchors?.left)
+    && isRunAnchor(run.anchors?.right);
 }
 
 function isConnection(connection) {

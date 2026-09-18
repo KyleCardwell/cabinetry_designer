@@ -35,6 +35,7 @@ import {
 import {
   horizontalChains,
   openingChain,
+  openingClearances,
   pickColumnRuns,
   verticalChains,
   verticalOpeningChain,
@@ -109,6 +110,7 @@ function ElevationCanvas({
       lower,
       upper,
       openings: openingChain(room, wall, settings),
+      clearances: openingClearances(room, wall, settings),
       vertical: selectedOpening
         ? verticalOpeningChain(wall, selectedOpening, wall.length, settings)
         : verticalChains(room, wall, columnRuns, settings),
@@ -266,7 +268,7 @@ function ElevationCanvas({
       ? fitWallToViewport(wall, viewport, {
         top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
         right: 48,
-        bottom: dimensionChains?.openings.length > 0 ? 128 : 96,
+        bottom: dimensionChains?.openings.length > 0 ? 152 : 96,
         left: 110,
       })
       : null
@@ -311,17 +313,22 @@ function ElevationCanvas({
     const lowerOuterLevels = layoutDimensionRow(dimensionChains.lower.outer, {
       scale: transform.scale,
     }).levels;
+    const openingLevels = layoutDimensionRow(dimensionChains.openings, {
+      scale: transform.scale,
+    }).levels;
     const verticalLevels = layoutDimensionRow(dimensionChains.vertical.inner, {
       scale: transform.scale,
     }).levels;
     const lower = dimensionRowOffsets('horizontal', lowerLevels);
+    const openings = dimensionChains.lower.outer.length > 0
+      ? lower.outer + 22 + lowerOuterLevels * 14
+      : 20;
     return {
       lower,
       upper: dimensionRowOffsets('horizontal', upperLevels),
       vertical: dimensionRowOffsets('vertical', verticalLevels),
-      openings: dimensionChains.lower.outer.length > 0
-        ? lower.outer + 22 + lowerOuterLevels * 14
-        : 20,
+      openings,
+      clearances: openings + 22 + openingLevels * 14,
     };
   }, [dimensionChains, transform]);
 
@@ -697,6 +704,14 @@ function ElevationCanvas({
                 orientation="horizontal"
                 side="below"
                 offsetPx={dimensionOffsets.openings}
+                transform={transform}
+                wallEndMarks={[0, wall.length]}
+              />
+              <DimensionRow
+                segments={dimensionChains.clearances}
+                orientation="horizontal"
+                side="below"
+                offsetPx={dimensionOffsets.clearances}
                 transform={transform}
                 wallEndMarks={[0, wall.length]}
               />

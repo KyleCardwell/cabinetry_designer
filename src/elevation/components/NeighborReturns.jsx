@@ -47,7 +47,7 @@ export default function NeighborReturns({ room, wall, settings, transform }) {
     if (Math.abs(sine) < 1e-9) continue;
 
     for (const run of neighbor.runs) {
-      if (!run.anchors?.[corner.neighborSide] || run.height <= 0) continue;
+      if (run.anchors?.[corner.neighborSide] !== true || run.height <= 0) continue;
       const width = Math.min(wall.length, frontDepth(run, settings) / sine);
       const rect = wallRectToScreen({
         x: side === 'left' ? 0 : wall.length - width,

@@ -38,6 +38,7 @@ const PROFILE_SETTINGS = [
 ];
 
 const OPENING_NUMBER_SETTINGS = [
+  ['casingClearance', 'Casing clearance'],
   ['casingWidth', 'Casing width'],
   ['casingThickness', 'Casing thickness'],
   ['defaultDoorWidth', 'Door width'],

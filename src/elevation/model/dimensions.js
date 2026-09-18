@@ -1,7 +1,8 @@
-import { CABINET_TYPE_IDS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cornerAt } from './corners.js';
 import { wallLength } from './geometry.js';
 import { openingGeometry } from './openings.js';
+import { verticalStart } from './overlap.js';
 import { moldingStack, resolveProfile } from './profile.js';
 import {
   endCornerAnglesForRun,
@@ -94,6 +95,52 @@ export function openingChain(room, wall, settings) {
   return segments;
 }
 
+/** Build casing-to-run (or casing-to-wall) clearance segments for every opening. */
+export function openingClearances(room, wall, settings) {
+  void room;
+  const length = wallLength(wall);
+  return (wall.openings ?? []).flatMap((opening) => {
+    const geometry = openingGeometry(opening, length, settings);
+    const casing = geometry.casing ?? geometry.jamb;
+    const casingRight = casing.x + casing.width;
+    const compatible = wall.runs.filter((run) => (
+      Math.min(run.z + run.height, geometry.jamb.z + geometry.jamb.height)
+        - Math.max(verticalStart(run), geometry.jamb.z) > SEGMENT_EPSILON
+    ));
+    const leftRun = compatible
+      .filter((run) => run.x + run.width <= casing.x + SEGMENT_EPSILON)
+      .sort((a, b) => (b.x + b.width) - (a.x + a.width))[0] ?? null;
+    const rightRun = compatible
+      .filter((run) => run.x >= casingRight - SEGMENT_EPSILON)
+      .sort((a, b) => a.x - b.x)[0] ?? null;
+    const required = settings.casingClearance ?? DEFAULT_SETTINGS.casingClearance;
+    const leftStart = leftRun ? leftRun.x + leftRun.width : 0;
+    const rightEnd = rightRun ? rightRun.x : length;
+    return [
+      {
+        openingId: opening.id,
+        label: opening.label,
+        side: 'left',
+        start: leftStart,
+        end: casing.x,
+        targetRunId: leftRun?.id ?? null,
+        required,
+        violated: casing.x - leftStart < required - SEGMENT_EPSILON,
+      },
+      {
+        openingId: opening.id,
+        label: opening.label,
+        side: 'right',
+        start: casingRight,
+        end: rightEnd,
+        targetRunId: rightRun?.id ?? null,
+        required,
+        violated: rightEnd - casingRight < required - SEGMENT_EPSILON,
+      },
+    ];
+  });
+}
+
 /** Build the inner piece chain and outer run chain for an elevation band. */
 export function horizontalChains(room, wall, band, settings) {
   const runs = runsForBand(wall, band);
@@ -105,11 +152,11 @@ export function horizontalChains(room, wall, band, settings) {
   const rangeStart = Math.min(0, firstRun.x);
   const rangeEnd = Math.max(length, lastRun.x + lastRun.width);
   const leftCornerGap = Boolean(
-    firstRun.anchors?.left
+    firstRun.anchors?.left === true
     && cornerAt(room, wall, 'left').type === 'inside',
   );
   const rightCornerGap = Boolean(
-    lastRun.anchors?.right
+    lastRun.anchors?.right === true
     && cornerAt(room, wall, 'right').type === 'inside',
   );
   const tallRanges = band === 'upper'

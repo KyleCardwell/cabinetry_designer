@@ -91,7 +91,7 @@ function RunGroup({
   const cornerFillers = useMemo(() => Object.fromEntries(
     ['left', 'right'].map((side) => [
       side,
-      run.anchors?.[side]
+      run.anchors?.[side] === true
         && run.ends[side].type === 'filler'
         && run.ends[side].width === null
         && cornerAt(room, wall, side).type === 'inside',

@@ -46,6 +46,7 @@ export const DEFAULT_SETTINGS = {
   planGrid: 0.5,
   casingWidth: 3,
   casingThickness: 0.75,
+  casingClearance: 0,
   openingsHaveCasing: true,
   defaultOpeningMeasureMode: 'jamb',
   defaultDoorWidth: 36,

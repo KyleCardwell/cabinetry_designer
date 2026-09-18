@@ -607,4 +607,33 @@ describe('elevation opening reducers', () => {
     expect(currentRun(deleted).items[0].pin).toBeNull();
     expect(deleted.selection).toEqual({ runId: null, pieceId: null, openingId: null });
   });
+
+  it('30. clears a deleted opening anchor without moving the resolved run', () => {
+    const anchoredRun = run({
+      x: 29,
+      width: 40,
+      anchors: {
+        left: false,
+        right: {
+          to: 'opening', openingId: 'door-1', edge: 'casing', clearance: null,
+        },
+      },
+    });
+    const state = stateWithRun(anchoredRun);
+    state.rooms[0].walls[0].x2 = 120;
+    state.rooms[0].walls[0].openings = [opening({
+      kind: 'window', label: 'W1', offset: 12, offsetFrom: 'right',
+      width: 36, height: 48, sillZ: 36,
+    })];
+
+    const deleted = elevationReducer(state, deleteOpening({
+      wallId: 'wall-1', openingId: 'door-1',
+    }));
+
+    expect(currentRun(deleted)).toMatchObject({
+      x: 29,
+      width: 40,
+      anchors: { left: false, right: false },
+    });
+  });
 });

@@ -22,6 +22,9 @@ export function formatRunOverhang(run, wallLength) {
 /** Format a run warning that points at an opening. */
 export function formatRunWarning(warning) {
   if (warning.code === 'blocks-opening') return `Blocks ${warning.label}`;
+  if (warning.code === 'casing-clearance') {
+    return `${warning.label} ${warning.side} clearance ${formatInches(warning.gap)}; ${formatInches(warning.required)} required`;
+  }
   return warning.message ?? null;
 }
 

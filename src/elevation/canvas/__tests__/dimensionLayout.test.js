@@ -44,6 +44,17 @@ describe('layoutDimensionRow', () => {
     expect(result.labels[0]).toMatchObject({ mode: 'inline', level: 0 });
     expect(result.levels).toBe(0);
   });
+
+  it('shows the required value for a violated clearance segment', () => {
+    const result = layoutDimensionRow([{
+      start: 0,
+      end: 2.5,
+      required: 4,
+      violated: true,
+    }], { scale: 4, fontSize: 11 });
+
+    expect(result.labels[0].text).toBe('2 1/2" (4")');
+  });
 });
 
 describe('dimensionRowOffsets', () => {

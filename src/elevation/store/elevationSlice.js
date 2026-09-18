@@ -515,6 +515,12 @@ const elevationSlice = createSlice({
       if (!location) return;
       location.wall.openings.splice(location.openingIndex, 1);
       for (const run of location.wall.runs) {
+        for (const side of ['left', 'right']) {
+          if (run.anchors?.[side]?.to === 'opening'
+            && run.anchors[side].openingId === action.payload.openingId) {
+            run.anchors[side] = false;
+          }
+        }
         for (const item of run.items) {
           if (item.pin?.from === 'opening'
             && item.pin.openingId === action.payload.openingId) {
@@ -597,9 +603,19 @@ const elevationSlice = createSlice({
       const location = runLocation(state, action.payload);
       const { side } = action.payload;
       if (!location || (side !== 'left' && side !== 'right')) return;
-      const value = Boolean(action.payload.value ?? action.payload.anchored);
-      location.run.anchors[side] = value;
-      if (value && cornerAt(location.room, location.wall, side).type === 'inside') {
+      const value = action.payload.anchor
+        ?? action.payload.value
+        ?? action.payload.anchored
+        ?? false;
+      const validOpeningAnchor = Boolean(value)
+        && typeof value === 'object'
+        && value.to === 'opening'
+        && typeof value.openingId === 'string'
+        && (value.edge === 'casing' || value.edge === 'jamb')
+        && (value.clearance === null || Number.isFinite(value.clearance));
+      if (typeof value !== 'boolean' && !validOpeningAnchor) return;
+      location.run.anchors[side] = validOpeningAnchor ? { ...value } : value;
+      if (value === true && cornerAt(location.room, location.wall, side).type === 'inside') {
         location.run.ends[side] = { type: 'filler', width: null };
       }
       syncRoomAt(state, location.roomIndex);

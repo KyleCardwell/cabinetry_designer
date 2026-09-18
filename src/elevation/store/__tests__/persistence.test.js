@@ -168,6 +168,7 @@ describe('elevation persistence migration', () => {
       'defaultWindowSillZ',
       'minOpeningWidth',
       'openingSnap',
+      'casingClearance',
     ]) delete current.settings[key];
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
@@ -194,6 +195,7 @@ describe('elevation persistence migration', () => {
       defaultWindowSillZ: DEFAULT_SETTINGS.defaultWindowSillZ,
       minOpeningWidth: DEFAULT_SETTINGS.minOpeningWidth,
       openingSnap: DEFAULT_SETTINGS.openingSnap,
+      casingClearance: DEFAULT_SETTINGS.casingClearance,
     });
   });
 
@@ -263,6 +265,20 @@ describe('elevation persistence migration', () => {
     )).toBeNull();
 
     item.pin.anchor = 'top';
+    expect(isElevationDocument(current)).toBe(false);
+  });
+
+  it('validates opening anchors on either run side', () => {
+    const current = migrateV1Document(v1Document());
+    const run = current.rooms[0].walls[0].runs[0];
+    run.anchors.right = {
+      to: 'opening',
+      openingId: 'deleted-opening',
+      edge: 'casing',
+      clearance: null,
+    };
+    expect(isElevationDocument(current)).toBe(true);
+    run.anchors.right.edge = 'rough';
     expect(isElevationDocument(current)).toBe(false);
   });
 
