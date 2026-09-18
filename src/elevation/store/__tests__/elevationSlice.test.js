@@ -8,6 +8,7 @@ import elevationReducer, {
   addRoom,
   addItemAfter,
   addRun,
+  addWall,
   clearSelection,
   createInitialElevationState,
   deleteOpening,
@@ -344,6 +345,37 @@ describe('elevation room reducers', () => {
     expect(next.activeWallId).toBeNull();
     expect(next.view).toBe('plan');
     expect(next.tool).toBe('wall');
+  });
+
+  it('15. defaults, preserves, updates, and validates elevationForced', () => {
+    const defaulted = elevationReducer(stateWithRun(), addWall({
+      roomId: 'room-1',
+      id: 'wall-default',
+    }));
+    expect(defaulted.rooms[0].walls.find((wall) => wall.id === 'wall-default').elevationForced)
+      .toBe(false);
+
+    const forced = elevationReducer(defaulted, addWall({
+      roomId: 'room-1',
+      id: 'wall-forced',
+      elevationForced: true,
+    }));
+    expect(forced.rooms[0].walls.find((wall) => wall.id === 'wall-forced').elevationForced)
+      .toBe(true);
+
+    const updated = elevationReducer(forced, updateWall({
+      wallId: 'wall-default',
+      changes: { elevationForced: true },
+    }));
+    expect(updated.rooms[0].walls.find((wall) => wall.id === 'wall-default').elevationForced)
+      .toBe(true);
+
+    const rejected = elevationReducer(updated, updateWall({
+      wallId: 'wall-default',
+      changes: { elevationForced: 'yes' },
+    }));
+    expect(rejected.rooms[0].walls.find((wall) => wall.id === 'wall-default').elevationForced)
+      .toBe(true);
   });
 
   it('selects Draw Wall for empty rooms and Select for populated rooms', () => {

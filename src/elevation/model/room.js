@@ -48,6 +48,7 @@ function cloneRoom(room) {
       ...wall,
       name: wall.name ?? '',
       numberOverride: wall.numberOverride ?? null,
+      elevationForced: wall.elevationForced ?? false,
       profile: { ...(wall.profile ?? {}) },
       connections: {
         start: wall.connections?.start ? { ...wall.connections.start } : null,

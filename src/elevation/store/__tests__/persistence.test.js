@@ -199,6 +199,21 @@ describe('elevation persistence migration', () => {
     });
   });
 
+  it('14. defaults a missing elevationForced field and rejects non-boolean values', () => {
+    const current = migrateV1Document(v1Document());
+    delete current.rooms[0].walls[0].elevationForced;
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.rooms[0].walls[0].elevationForced).toBe(false);
+    expect(isElevationDocument(loaded)).toBe(true);
+
+    loaded.rooms[0].walls[0].elevationForced = 'yes';
+    expect(isElevationDocument(loaded)).toBe(false);
+  });
+
   it('24. defaults a missing v2 openings array and validates the result', () => {
     const current = migrateV1Document(v1Document());
     delete current.rooms[0].walls[0].openings;

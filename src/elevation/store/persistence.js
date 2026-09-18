@@ -195,6 +195,7 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
     && typeof wall.name === 'string'
     && (wall.numberOverride === null
       || (Number.isInteger(wall.numberOverride) && wall.numberOverride > 0))
+    && typeof wall.elevationForced === 'boolean'
     && ['x1', 'y1', 'x2', 'y2', 'height', 'thickness'].every(
       (key) => isFiniteNumber(wall[key]),
     )
@@ -243,6 +244,7 @@ function normalizeDocument(document, schemaVersion) {
               ...wall,
               name: normalizeWallName(wall.name),
               numberOverride: wall.numberOverride ?? null,
+              elevationForced: wall.elevationForced ?? false,
               openings: wall.openings === undefined ? [] : wall.openings,
             }
             : wall
@@ -428,6 +430,7 @@ export function migrateV1Document(document) {
       id: wall.id,
       name: normalizeWallName(wall.name),
       numberOverride: null,
+      elevationForced: false,
       x1: 0,
       y1: index * 60,
       x2: wall.length,

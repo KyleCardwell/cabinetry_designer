@@ -45,6 +45,7 @@ function createWall(name = '', y = 0, length = 144, values = {}) {
     id: values.id ?? uuid(),
     name: values.name ?? name,
     numberOverride: values.numberOverride ?? null,
+    elevationForced: values.elevationForced ?? false,
     x1: values.x1 ?? 0,
     y1: values.y1 ?? y,
     x2: values.x2 ?? length,
@@ -372,6 +373,7 @@ const elevationSlice = createSlice({
           location.wall.numberOverride = value;
         }
       }
+      if (typeof allowedChanges.elevationForced === 'boolean') location.wall.elevationForced = allowedChanges.elevationForced;
       const profileChanges = allowedChanges.profile ?? allowedChanges.profileOverrides;
       if (profileChanges) {
         for (const [key, value] of Object.entries(profileChanges)) {
