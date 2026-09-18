@@ -15,7 +15,9 @@ export default function PieceRect({
 }) {
   const [hovered, setHovered] = useState(false);
   const rect = wallRectToScreen(piece, transform);
-  const widthText = formatInches(piece.width);
+  const widthText = Number.isFinite(piece.absorbed)
+    ? `${formatInches(piece.width)} (${piece.absorbed >= 0 ? '+' : ''}${formatInches(piece.absorbed)})`
+    : formatInches(piece.width);
   const narrow = rect.width < Math.max(44, widthText.length * 6.5);
   const outline = error
     ? '#ef4444'

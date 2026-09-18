@@ -12,9 +12,13 @@ import {
 } from '../model/openings.js';
 import {
   compensateRuns,
+  endCornerAnglesForRun,
+  endMinWidthsForRun,
   flipRunsForWall,
   syncRoom,
 } from '../model/room.js';
+import { splitRun } from '../model/splitRun.js';
+import { roundTo } from '../model/units.js';
 import {
   addWallWithConnections,
   connectWallEndpoints,
@@ -510,6 +514,14 @@ const elevationSlice = createSlice({
       const location = openingLocation(state, action.payload);
       if (!location) return;
       location.wall.openings.splice(location.openingIndex, 1);
+      for (const run of location.wall.runs) {
+        for (const item of run.items) {
+          if (item.pin?.from === 'opening'
+            && item.pin.openingId === action.payload.openingId) {
+            item.pin = null;
+          }
+        }
+      }
       if (state.selection.openingId === action.payload.openingId) {
         clearTransientSelection(state);
       }
@@ -625,6 +637,58 @@ const elevationSlice = createSlice({
       const itemIndex = itemIndexFor(location.run, action.payload.itemId);
       if (itemIndex === -1) return;
       location.run.items[itemIndex].width = action.payload.width ?? action.payload.value ?? null;
+      syncRoomAt(state, location.roomIndex);
+    },
+    setItemPin(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const itemIndex = itemIndexFor(location.run, action.payload.itemId);
+      const item = location.run.items[itemIndex];
+      if (!item || item.kind !== 'cabinet') return;
+      const pin = action.payload.pin ?? null;
+      const pinCountBefore = location.run.items.filter((candidate) => candidate.pin).length;
+      const addsSecondPin = Boolean(pin) && !item.pin && pinCountBefore === 1;
+      const addsPinToPinnedRun = Boolean(pin) && !item.pin && pinCountBefore >= 1;
+      let currentWidths = null;
+      if (addsPinToPinnedRun) {
+        const layout = splitRun(location.run, state.settings, {
+          endMinWidths: endMinWidthsForRun(
+            location.room,
+            location.wall,
+            location.run,
+            state.settings,
+          ),
+          endCornerAngles: endCornerAnglesForRun(
+            location.room,
+            location.wall,
+            location.run,
+          ),
+          pinTargets: {},
+        });
+        currentWidths = new Map(layout.pieces.map((piece) => [piece.id, piece.width]));
+      }
+      item.pin = pin ? { ...pin } : null;
+      if (pin) location.run.autoCount = false;
+      if (addsPinToPinnedRun) {
+        const itemsToLock = addsSecondPin
+          ? location.run.items.filter((candidate) => candidate.pin)
+          : [item];
+        for (const pinnedItem of itemsToLock) {
+          const width = currentWidths.get(pinnedItem.id);
+          if (Number.isFinite(width)) {
+            pinnedItem.width = roundTo(width, state.settings.roundTo);
+          }
+        }
+      }
+      syncRoomAt(state, location.roomIndex);
+    },
+    setItemAbsorb(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const itemIndex = itemIndexFor(location.run, action.payload.itemId);
+      const item = location.run.items[itemIndex];
+      if (!item || item.kind !== 'cabinet') return;
+      item.absorb = Boolean(action.payload.value ?? action.payload.absorb);
       syncRoomAt(state, location.roomIndex);
     },
     lockItem(state, action) {
@@ -762,6 +826,8 @@ export const {
   setAutoCount,
   setMaxCabinetWidth,
   setItemWidth,
+  setItemPin,
+  setItemAbsorb,
   lockItem,
   unlockItem,
   splitItem,

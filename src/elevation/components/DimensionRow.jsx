@@ -179,7 +179,9 @@ export default function DimensionRow({
             <Line
               points={[start.x, start.y, end.x, end.y]}
               stroke={color}
-              strokeWidth={segment.kind === 'run' || segment.kind === 'opening' ? 1.5 : 1}
+              strokeWidth={segment.pinned
+                ? 2.5
+                : segment.kind === 'run' || segment.kind === 'opening' ? 1.5 : 1}
               listening={false}
             />
 

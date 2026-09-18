@@ -10,7 +10,11 @@ import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
-import { endCornerAnglesForRun, endMinWidthsForRun } from '../model/room.js';
+import {
+  endCornerAnglesForRun,
+  endMinWidthsForRun,
+  pinTargetsForRun,
+} from '../model/room.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 import PieceRect from './PieceRect.jsx';
 
@@ -35,6 +39,7 @@ function RunGroup({
   const result = useMemo(() => splitRun(run, settings, {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
+    pinTargets: pinTargetsForRun(run, wall, wall.length, settings),
   }), [room, run, settings, wall]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),
@@ -270,6 +275,35 @@ function RunGroup({
           onSelect={() => onSelectPiece(run.id, piece.id)}
         />
       ))}
+
+      {result.pieces.flatMap((piece) => {
+        const item = piece.role === 'item'
+          ? run.items.find((candidate) => candidate.id === piece.id)
+          : null;
+        if (!item?.pin) return [];
+        const anchorX = item.pin.anchor === 'right'
+          ? piece.x + piece.width
+          : item.pin.anchor === 'center' ? piece.x + piece.width / 2 : piece.x;
+        const marker = wallRectToScreen({
+          x: anchorX,
+          z: piece.z + piece.height,
+          width: 0,
+          height: 0,
+        }, transform);
+        return [(
+          <Text
+            key={`pin:${piece.id}`}
+            x={marker.x - 5}
+            y={marker.y + 3}
+            width={10}
+            align="center"
+            text="◆"
+            fontSize={10}
+            fill="#22d3ee"
+            listening={false}
+          />
+        )];
+      })}
 
       {renderAnchor('left')}
       {renderAnchor('right')}

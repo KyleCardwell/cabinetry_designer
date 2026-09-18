@@ -19,6 +19,8 @@ import elevationReducer, {
   setOpeningMeasureMode,
   setOpeningOffsetAnchor,
   setOpeningOffsetSide,
+  setItemAbsorb,
+  setItemPin,
   setActiveRoom,
   setRunCornerClearance,
   setRunEnd,
@@ -125,7 +127,57 @@ function currentRun(state) {
   return state.rooms[0].walls[0].runs[0];
 }
 
+function pin(value, overrides = {}) {
+  return {
+    anchor: 'center',
+    from: 'left',
+    openingId: null,
+    openingAnchor: 'center',
+    value,
+    ...overrides,
+  };
+}
+
 describe('elevation room reducers', () => {
+  it('20. fixes both pinned widths when adding the second pin and keeps them fixed', () => {
+    const initial = stateWithRun(run({
+      items: [auto('a'), auto('b'), auto('c'), auto('d'), auto('e')],
+    }));
+    const first = elevationReducer(initial, setItemPin({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      itemId: 'b',
+      pin: pin(36),
+    }));
+    expect(currentRun(first).autoCount).toBe(false);
+    expect(currentRun(first).items.find((item) => item.id === 'b').width).toBeNull();
+
+    const second = elevationReducer(first, setItemPin({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      itemId: 'd',
+      pin: pin(84),
+    }));
+    expect(currentRun(second).items.filter((item) => item.pin).map((item) => item.width))
+      .toEqual([23, 23]);
+
+    const removed = elevationReducer(second, setItemPin({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      itemId: 'b',
+      pin: null,
+    }));
+    expect(currentRun(removed).items.find((item) => item.id === 'b').width).toBe(23);
+
+    const absorbing = elevationReducer(removed, setItemAbsorb({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      itemId: 'c',
+      value: true,
+    }));
+    expect(currentRun(absorbing).items.find((item) => item.id === 'c').absorb).toBe(true);
+  });
+
   it('sets wall length from the right by default and reports pure-operation failures', () => {
     const initial = stateWithRun();
     const resized = elevationReducer(initial, setWallLength({
@@ -498,7 +550,16 @@ describe('elevation opening reducers', () => {
   });
 
   it('converts, moves, clamps, and deletes openings through their reducers', () => {
-    const initial = stateWithRun();
+    const initial = stateWithRun(run({
+      items: [{
+        ...auto('a'),
+        pin: pin(0, {
+          from: 'opening',
+          openingId: 'door-1',
+          openingAnchor: 'center',
+        }),
+      }],
+    }));
     initial.rooms[0].walls[0].openings = [opening()];
     const before = openingGeometry(currentOpening(initial), 144, initial.settings);
 
@@ -543,6 +604,7 @@ describe('elevation opening reducers', () => {
       openingId: 'door-1',
     }));
     expect(deleted.rooms[0].walls[0].openings).toEqual([]);
+    expect(currentRun(deleted).items[0].pin).toBeNull();
     expect(deleted.selection).toEqual({ runId: null, pieceId: null, openingId: null });
   });
 });

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { wallFrame } from '../../model/geometry.js';
+import { resolvePinTarget } from '../../model/room.js';
 import {
   ELEVATION_STORAGE_KEY,
   LEGACY_ELEVATION_STORAGE_KEY,
@@ -231,6 +232,38 @@ describe('elevation persistence migration', () => {
     const loaded = loadElevationDocument();
     expect(loaded.rooms[0].walls[0].openings[0].offsetAnchor).toBe('edge');
     expect(isElevationDocument(loaded)).toBe(true);
+  });
+
+  it('validates optional cabinet pins without requiring the referenced opening', () => {
+    const current = migrateV1Document(v1Document());
+    const item = current.rooms[0].walls[0].runs[0].items[0];
+    item.pin = {
+      anchor: 'center',
+      from: 'opening',
+      openingId: 'deleted-opening',
+      openingAnchor: 'casing-left',
+      value: 0,
+    };
+    item.absorb = true;
+    expect(isElevationDocument(current)).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.rooms[0].walls[0].runs[0].items[0]).toMatchObject({
+      pin: { openingId: 'deleted-opening' },
+      absorb: true,
+    });
+    expect(resolvePinTarget(
+      loaded.rooms[0].walls[0].runs[0].items[0].pin,
+      loaded.rooms[0].walls[0],
+      144,
+      loaded.settings,
+    )).toBeNull();
+
+    item.pin.anchor = 'top';
+    expect(isElevationDocument(current)).toBe(false);
   });
 
   it('25. rejects a malformed opening so the editor can start fresh', () => {

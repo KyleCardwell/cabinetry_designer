@@ -53,7 +53,7 @@ function warning(code, pieceId, message) {
  * }} [opts]
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
-export function splitRun(run, settings, opts) {
+function splitRunLegacy(run, settings, opts) {
   const {
     available,
     flex,
@@ -207,6 +207,255 @@ export function splitRun(run, settings, opts) {
     x += piece.width;
     return positioned;
   });
+
+  return { pieces, warnings, errors };
+}
+
+function cabinetAnchorX(left, width, anchor) {
+  if (anchor === 'right') return left + width;
+  if (anchor === 'center') return left + width / 2;
+  return left;
+}
+
+function itemMinimum(item, settings) {
+  if (item.width !== null) return item.width;
+  return item.kind === 'cabinet' ? settings.minCabinetWidth : 0;
+}
+
+function itemsMinimum(items, settings) {
+  return items.reduce((sum, item) => sum + itemMinimum(item, settings), 0);
+}
+
+function outerMinimum(run, side, items, settings, opts) {
+  const end = run.ends[side];
+  const endMinimum = isFlexEnd(end)
+    ? flexMinimum(side, settings, opts)
+    : endWidth(end, settings);
+  return endMinimum + itemsMinimum(items, settings);
+}
+
+function positionedItemPiece(run, settings, item, width, x, auto, absorbed) {
+  return {
+    id: item.id,
+    kind: item.kind,
+    role: 'item',
+    cabinetTypeId: item.kind === 'cabinet'
+      ? run.cabinetTypeId
+      : CABINET_TYPE_IDS.FILLER,
+    width,
+    auto,
+    ...(Math.abs(absorbed ?? 0) > WIDTH_EPSILON ? { absorbed } : {}),
+    x,
+    z: run.z,
+    height: run.height,
+    depth: run.depth,
+  };
+}
+
+function cabinetWidthWarnings(run, settings, item, width, auto) {
+  if (!auto) return [];
+  const warnings = [];
+  const maxWidth = run.maxCabinetWidth ?? settings.maxCabinetWidth;
+  if (width > maxWidth + WIDTH_EPSILON) {
+    warnings.push(warning(
+      'wide-cabinet',
+      item.id,
+      `Cabinet is wider than ${maxWidth} inches.`,
+    ));
+  }
+  if (width < settings.minCabinetWidth - WIDTH_EPSILON) {
+    warnings.push(warning(
+      'narrow-cabinet',
+      item.id,
+      `Cabinet is narrower than ${settings.minCabinetWidth} inches.`,
+    ));
+  }
+  return warnings;
+}
+
+function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
+  const width = end - start;
+  const fixedWidth = items.reduce(
+    (sum, item) => sum + (item.width === null ? 0 : item.width),
+    0,
+  );
+  const autos = items.filter((item) => item.kind === 'cabinet' && item.width === null);
+  const available = width - fixedWidth;
+  const warnings = [];
+  const errors = [];
+  let baseWidth = 0;
+  let absorberId = null;
+  let absorberWidth = 0;
+
+  if (autos.length > 0) {
+    baseWidth = floorTo(available / autos.length, settings.roundTo);
+    absorberId = autos.find((item) => item.absorb)?.id ?? autos[autos.length - 1].id;
+    absorberWidth = available - baseWidth * (autos.length - 1);
+  } else if (Math.abs(available) > WIDTH_EPSILON) {
+    errors.push({
+      code: 'pin-gap',
+      pieceId: rightPin.item.id,
+      message: `Pins ${leftPin.item.id} and ${rightPin.item.id} leave an unfilled ${available}-inch gap. Widen a pinned cabinet or add a filler item.`,
+    });
+  }
+
+  let x = start;
+  const pieces = items.map((item) => {
+    const auto = item.kind === 'cabinet' && item.width === null;
+    const itemWidth = auto
+      ? item.id === absorberId ? absorberWidth : baseWidth
+      : item.width;
+    const absorbed = auto && item.id === absorberId ? itemWidth - baseWidth : 0;
+    warnings.push(...cabinetWidthWarnings(run, settings, item, itemWidth, auto));
+    const piece = positionedItemPiece(run, settings, item, itemWidth, x, auto, absorbed);
+    x += itemWidth;
+    return piece;
+  });
+
+  return { pieces, warnings, errors };
+}
+
+function pinUnreachableWarning(pin, actualLeft) {
+  const actual = cabinetAnchorX(actualLeft, pin.width, pin.item.pin.anchor);
+  return warning(
+    'pin-unreachable',
+    pin.item.id,
+    `Pin requested ${pin.target} inches but was clamped to ${actual} inches.`,
+  );
+}
+
+/**
+ * Split a run, optionally resolving cabinet pins against wall-local targets.
+ * With no finite pin targets this delegates byte-for-byte to the legacy solver.
+ *
+ * @param {object} run
+ * @param {object} settings
+ * @param {{
+ *   endMinWidths?: {left?: number, right?: number},
+ *   endCornerAngles?: {left?: number, right?: number},
+ *   pinTargets?: Record<string, number>,
+ * }} [opts]
+ * @returns {{pieces: object[], warnings: object[], errors: object[]}}
+ */
+export function splitRun(run, settings, opts) {
+  const targets = opts?.pinTargets ?? {};
+  const pinnedItems = run.items.filter((item) => (
+    item.kind === 'cabinet'
+    && item.pin
+    && Number.isFinite(targets[item.id])
+  ));
+  if (pinnedItems.length === 0) return splitRunLegacy(run, settings, opts);
+
+  const pass1 = splitRunLegacy(run, settings, opts);
+  const pass1Pieces = new Map(pass1.pieces.map((piece) => [piece.id, piece]));
+  const retainedPinWidths = opts?.pinWidths ?? run._pinWidths ?? {};
+  const pins = pinnedItems.map((item) => {
+    const itemIndex = run.items.findIndex((candidate) => candidate.id === item.id);
+    const piece = pass1Pieces.get(item.id);
+    const width = item.width ?? retainedPinWidths[item.id] ?? piece?.width ?? 0;
+    const target = targets[item.id];
+    return {
+      item,
+      itemIndex,
+      piece,
+      width,
+      target,
+      requestedLeft: target - (item.pin.anchor === 'center'
+        ? width / 2
+        : item.pin.anchor === 'right' ? width : 0),
+    };
+  });
+
+  const leftItems = run.items.slice(0, pins[0].itemIndex);
+  const rightItems = run.items.slice(pins[pins.length - 1].itemIndex + 1);
+  const leftMinimum = outerMinimum(run, 'left', leftItems, settings, opts);
+  const rightMinimum = outerMinimum(run, 'right', rightItems, settings, opts);
+  const middleMinimums = pins.slice(0, -1).map((pin, index) => (
+    itemsMinimum(
+      run.items.slice(pin.itemIndex + 1, pins[index + 1].itemIndex),
+      settings,
+    )
+  ));
+
+  const warnings = [];
+  const actualPins = [];
+  for (let index = 0; index < pins.length; index += 1) {
+    const pin = pins[index];
+    const minimumLeft = index === 0
+      ? run.x + leftMinimum
+      : actualPins[index - 1].left
+        + actualPins[index - 1].width
+        + middleMinimums[index - 1];
+    let requiredAfter = rightMinimum;
+    for (let future = index + 1; future < pins.length; future += 1) {
+      requiredAfter += middleMinimums[future - 1] + pins[future].width;
+    }
+    const maximumLeft = run.x + run.width - pin.width - requiredAfter;
+    const left = Math.max(minimumLeft, Math.min(pin.requestedLeft, maximumLeft));
+    const actual = { ...pin, left };
+    actualPins.push(actual);
+    if (Math.abs(cabinetAnchorX(left, pin.width, pin.item.pin.anchor) - pin.target)
+      > WIDTH_EPSILON) {
+      const unreachable = pinUnreachableWarning(pin, left);
+      if (index > 0 && left > pin.requestedLeft + WIDTH_EPSILON) {
+        unreachable.message += ' Growing the run cannot widen a middle pin segment; shrink a pinned cabinet or remove a cabinet.';
+      }
+      warnings.push(unreachable);
+    }
+  }
+
+  const pieces = [];
+  const errors = [];
+  const appendLayout = (layout) => {
+    pieces.push(...layout.pieces);
+    warnings.push(...layout.warnings);
+    errors.push(...layout.errors);
+  };
+  appendLayout(splitRunLegacy({
+    ...run,
+    x: run.x,
+    width: actualPins[0].left - run.x,
+    items: leftItems,
+    ends: { left: run.ends.left, right: { type: 'none', width: null } },
+  }, settings, opts));
+
+  actualPins.forEach((pin, index) => {
+    const pinnedPiece = {
+      ...pin.piece,
+      x: pin.left,
+      width: pin.width,
+    };
+    pieces.push(pinnedPiece);
+    warnings.push(...cabinetWidthWarnings(
+      run,
+      settings,
+      pin.item,
+      pin.width,
+      Boolean(pin.piece?.auto),
+    ));
+
+    const next = actualPins[index + 1];
+    if (next) {
+      appendLayout(interiorLayout(
+        run,
+        settings,
+        run.items.slice(pin.itemIndex + 1, next.itemIndex),
+        pin.left + pin.width,
+        next.left,
+        pin,
+        next,
+      ));
+    }
+  });
+
+  const lastPin = actualPins[actualPins.length - 1];
+  appendLayout(splitRunLegacy({
+    ...run,
+    x: lastPin.left + lastPin.width,
+    width: run.x + run.width - lastPin.left - lastPin.width,
+    items: rightItems,
+    ends: { left: { type: 'none', width: null }, right: run.ends.right },
+  }, settings, opts));
 
   return { pieces, warnings, errors };
 }

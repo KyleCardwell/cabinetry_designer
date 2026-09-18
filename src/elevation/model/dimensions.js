@@ -3,7 +3,11 @@ import { cornerAt } from './corners.js';
 import { wallLength } from './geometry.js';
 import { openingGeometry } from './openings.js';
 import { moldingStack, resolveProfile } from './profile.js';
-import { endCornerAnglesForRun, endMinWidthsForRun } from './room.js';
+import {
+  endCornerAnglesForRun,
+  endMinWidthsForRun,
+  pinTargetsForRun,
+} from './room.js';
 import { splitRun } from './splitRun.js';
 
 const SEGMENT_EPSILON = 1e-6;
@@ -128,11 +132,15 @@ export function horizontalChains(room, wall, band, settings) {
     const layout = splitRun(run, settings, {
       endMinWidths: endMinWidthsForRun(room, wall, run, settings),
       endCornerAngles: endCornerAnglesForRun(room, wall, run),
+      pinTargets: pinTargetsForRun(run, wall, length, settings),
     });
     for (const piece of layout.pieces) {
       appendSegment(inner, piece.x, piece.x + piece.width, 'piece', {
         runId: run.id,
         pieceId: piece.id,
+        ...(run.items.find((item) => item.id === piece.id)?.pin
+          ? { pinned: true }
+          : {}),
       });
     }
     cursor = run.x + run.width;

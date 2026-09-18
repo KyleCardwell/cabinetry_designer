@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { syncRoom } from '../room.js';
 import { splitRun, syncAutoItems } from '../splitRun.js';
 
 function auto(id) {
@@ -8,6 +9,21 @@ function auto(id) {
 
 function fixed(id, width) {
   return { id, kind: 'cabinet', width };
+}
+
+function pinned(id, width, anchor = 'center', value = 0) {
+  return {
+    id,
+    kind: 'cabinet',
+    width,
+    pin: {
+      anchor,
+      from: 'left',
+      openingId: null,
+      openingAnchor: 'center',
+      value,
+    },
+  };
 }
 
 function makeRun(overrides = {}) {
@@ -39,6 +55,177 @@ function codes(entries) {
 }
 
 describe('splitRun', () => {
+  it('15. solves the one-pin worked example without a rounding warning', () => {
+    const run = makeRun({ items: [auto('a'), pinned('b', null), auto('c'), auto('d')] });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 48 } });
+
+    expect(widths(result)).toEqual([1.5, 32, 29, 28, 28, 1.5]);
+    expect(widths(result).reduce((sum, width) => sum + width, 0)).toBe(120);
+    const pinnedPiece = result.pieces.find((piece) => piece.id === 'b');
+    expect(pinnedPiece.x + pinnedPiece.width / 2).toBe(48);
+    expect(codes(result.warnings)).not.toContain('widths-not-rounded');
+  });
+
+  it('16. resolves the same one-pin layout from the cabinet left edge', () => {
+    const run = makeRun({
+      items: [auto('a'), pinned('b', null, 'left'), auto('c'), auto('d')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 33.5 } });
+
+    expect(widths(result)).toEqual([1.5, 32, 29, 28, 28, 1.5]);
+  });
+
+  it('17. retains pass-one pin width and warns for wide segment cabinets', () => {
+    const run = makeRun({ items: [auto('a'), auto('b'), pinned('c', null), auto('d')] });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { c: 90 } });
+
+    expect(widths(result)).toEqual([1.5, 37, 37, 29, 14, 1.5]);
+    expect(result.warnings.filter((entry) => entry.code === 'wide-cabinet'))
+      .toEqual([
+        expect.objectContaining({ pieceId: 'a' }),
+        expect.objectContaining({ pieceId: 'b' }),
+      ]);
+  });
+
+  it('18. solves a two-pin run with one interior cabinet', () => {
+    const run = makeRun({
+      items: [auto('a'), pinned('b', 23), auto('c'), pinned('d', 23), auto('e')],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 36, d: 84 } });
+
+    expect(widths(result)).toEqual([1.5, 23, 23, 25, 23, 23, 1.5]);
+    expect(result.pieces.find((piece) => piece.id === 'b').x + 11.5).toBe(36);
+    expect(result.pieces.find((piece) => piece.id === 'd').x + 11.5).toBe(84);
+    expect(codes(result.warnings)).not.toContain('widths-not-rounded');
+  });
+
+  it('19. concentrates an interior remainder in the chosen absorber', () => {
+    const items = [
+      auto('a'),
+      pinned('b', 19.5),
+      auto('c'),
+      auto('d'),
+      pinned('e', 19.5),
+      auto('f'),
+    ];
+    const run = makeRun({ items });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 30, e: 90 } });
+    expect(widths(result)).toEqual([1.75, 18.5, 19.5, 20, 20.5, 19.5, 18.5, 1.75]);
+    expect(result.pieces.find((piece) => piece.id === 'd').absorbed).toBe(0.5);
+    expect(codes(result.warnings)).not.toContain('widths-not-rounded');
+
+    const firstAbsorbs = splitRun({
+      ...run,
+      items: items.map((item) => (item.id === 'c' ? { ...item, absorb: true } : item)),
+    }, DEFAULT_SETTINGS, { pinTargets: { b: 30, e: 90 } });
+    expect(widths(firstAbsorbs))
+      .toEqual([1.75, 18.5, 19.5, 20.5, 20, 19.5, 18.5, 1.75]);
+    expect(firstAbsorbs.pieces.find((piece) => piece.id === 'c').absorbed).toBe(0.5);
+  });
+
+  it('21. grows a free run end to make an outer pin reachable', () => {
+    const run = makeRun({
+      items: [auto('a'), auto('b'), auto('c'), auto('d'), pinned('e', null, 'center', 112)],
+      anchors: { left: false, right: false },
+      heightMode: 'manual',
+      overrides: {},
+    });
+    const wall = {
+      id: 'wall',
+      name: '',
+      numberOverride: null,
+      x1: 0,
+      y1: 0,
+      x2: 144,
+      y2: 0,
+      height: 96,
+      thickness: 4.5,
+      flipped: false,
+      connections: { start: null, end: null },
+      profile: {},
+      runs: [run],
+      openings: [],
+    };
+    const room = {
+      id: 'room',
+      name: 'Room',
+      profile: { ...DEFAULT_SETTINGS.defaultProfile },
+      wallOrder: ['wall'],
+      walls: [wall],
+    };
+    const grown = syncRoom(room, DEFAULT_SETTINGS).walls[0].runs[0];
+    const result = splitRun(grown, DEFAULT_SETTINGS, { pinTargets: { e: 112 } });
+
+    expect(grown).toMatchObject({ x: 0, width: 125 });
+    expect(widths(result)).toEqual([2.5, 24.5, 24.5, 24.5, 24.5, 23, 1.5]);
+    expect(result.pieces.find((piece) => piece.id === 'e').x + 11.5).toBe(112);
+    expect(codes(result.warnings)).not.toContain('pin-unreachable');
+  });
+
+  it('22. clamps a pin when its run end is unable to grow', () => {
+    const run = makeRun({
+      anchors: { left: false, right: true },
+      items: [auto('a'), auto('b'), auto('c'), auto('d'), pinned('e', 23)],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { e: 112 } });
+    const piece = result.pieces.find((candidate) => candidate.id === 'e');
+
+    expect(piece.x + piece.width / 2).toBe(107);
+    expect(result.warnings).toContainEqual(expect.objectContaining({
+      code: 'pin-unreachable',
+      pieceId: 'e',
+      message: expect.stringMatching(/112.*107/),
+    }));
+  });
+
+  it('23. clamps a short middle segment because run growth cannot widen it', () => {
+    const run = makeRun({
+      items: [
+        auto('a'),
+        pinned('b', 19.5),
+        auto('c'),
+        auto('d'),
+        pinned('e', 19.5),
+        auto('f'),
+      ],
+    });
+    const result = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 30, e: 40 } });
+    const later = result.pieces.find((piece) => piece.id === 'e');
+
+    expect(later.x + later.width / 2).toBe(67.5);
+    expect(result.warnings).toContainEqual(expect.objectContaining({
+      code: 'pin-unreachable',
+      pieceId: 'e',
+      message: expect.stringMatching(/cannot widen a middle pin segment/),
+    }));
+  });
+
+  it('24. errors for an unfilled gap between adjacent pins but accepts zero gap', () => {
+    const run = makeRun({
+      items: [auto('a'), pinned('b', 23), pinned('c', 23), auto('d')],
+    });
+    const gap = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 36, c: 84 } });
+    expect(gap.errors).toContainEqual(expect.objectContaining({
+      code: 'pin-gap',
+      message: expect.stringMatching(/b.*c/),
+    }));
+
+    const touching = splitRun(run, DEFAULT_SETTINGS, { pinTargets: { b: 36, c: 59 } });
+    expect(codes(touching.errors)).not.toContain('pin-gap');
+  });
+
+  it('25. preserves the established no-pin no-flex remainder behavior', () => {
+    const run = makeRun({
+      width: 61.25,
+      ends: {
+        left: { type: 'none', width: null },
+        right: { type: 'none', width: null },
+      },
+      items: [auto('a'), auto('b')],
+    });
+    expect(widths(splitRun(run, DEFAULT_SETTINGS))).toEqual([30.625, 30.625]);
+  });
+
   it('7. distributes extra width above unequal per-side filler minimums', () => {
     const run = makeRun({ items: [auto('a'), auto('b'), auto('c'), auto('d')] });
     const result = splitRun(run, DEFAULT_SETTINGS, {

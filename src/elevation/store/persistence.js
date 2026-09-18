@@ -21,6 +21,15 @@ export const ELEVATION_SCHEMA_VERSION = 3;
 
 const END_TYPES = new Set(['filler', 'end_panel', 'none']);
 const ITEM_KINDS = new Set(['cabinet', 'filler']);
+const PIN_ANCHORS = new Set(['center', 'left', 'right']);
+const PIN_DATUMS = new Set(['left', 'right', 'opening']);
+const OPENING_PIN_ANCHORS = new Set([
+  'center',
+  'casing-left',
+  'casing-right',
+  'jamb-left',
+  'jamb-right',
+]);
 const RUN_TYPE_IDS = new Set([
   CABINET_TYPE_IDS.BASE,
   CABINET_TYPE_IDS.UPPER,
@@ -86,11 +95,25 @@ function isEnd(end) {
     && (end.width === null || isFiniteNumber(end.width));
 }
 
+function isItemPin(pin) {
+  return Boolean(pin)
+    && PIN_ANCHORS.has(pin.anchor)
+    && PIN_DATUMS.has(pin.from)
+    && (pin.openingId === null || typeof pin.openingId === 'string')
+    && (pin.from !== 'opening' || typeof pin.openingId === 'string')
+    && OPENING_PIN_ANCHORS.has(pin.openingAnchor)
+    && isFiniteNumber(pin.value);
+}
+
 function isItem(item) {
   return Boolean(item)
     && typeof item.id === 'string'
     && ITEM_KINDS.has(item.kind)
-    && (item.width === null || isFiniteNumber(item.width));
+    && (item.width === null || isFiniteNumber(item.width))
+    && (item.pin === undefined || item.pin === null
+      || (item.kind === 'cabinet' && isItemPin(item.pin)))
+    && (item.absorb === undefined
+      || (item.kind === 'cabinet' && typeof item.absorb === 'boolean'));
 }
 
 function isV1Run(run) {
@@ -460,7 +483,17 @@ export function toElevationDocument(elevationState) {
   return {
     schemaVersion: elevationState.schemaVersion,
     settings: elevationState.settings,
-    rooms: elevationState.rooms,
+    rooms: elevationState.rooms.map((room) => ({
+      ...room,
+      walls: room.walls.map((wall) => ({
+        ...wall,
+        runs: wall.runs.map((run) => {
+          const { _pinWidths, ...persistedRun } = run;
+          void _pinWidths;
+          return persistedRun;
+        }),
+      })),
+    })),
     activeRoomId: elevationState.activeRoomId,
     activeWallId: elevationState.activeWallId,
     view: elevationState.view,
