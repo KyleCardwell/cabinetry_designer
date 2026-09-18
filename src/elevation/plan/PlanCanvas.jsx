@@ -19,6 +19,10 @@ import { snapToEndpoint, snapToGrid } from '../../canvas/SnapEngine.js';
 import AxisGuides from '../../canvas/components/AxisGuides.jsx';
 import WallDrawPreview from '../../canvas/components/WallDrawPreview.jsx';
 import WallEndpoints from '../../canvas/components/WallEndpoints.jsx';
+import {
+  endpointAlignmentTargets,
+  snapToAlignment,
+} from '../canvas/alignment.js';
 import useLiveEntry, {
   resolveLiveEntryValue,
 } from '../canvas/useLiveEntry.js';
@@ -58,6 +62,7 @@ import {
   setWallLength,
 } from '../store/elevationSlice.js';
 import { PLAN_BACKGROUND_COLOR } from './constants.js';
+import PlanAlignmentGuides from './PlanAlignmentGuides.jsx';
 import PlanOpening from './PlanOpening.jsx';
 import PlanWallShape from './PlanWallShape.jsx';
 import PlanRunFootprint from './PlanRunFootprint.jsx';
@@ -68,6 +73,7 @@ import {
 
 const PIXELS_PER_INCH = 4;
 const ENDPOINT_SNAP_RADIUS = 6;
+const ALIGNMENT_SNAP_PX = 6;
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 10;
 
@@ -146,6 +152,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [wallDrawStart, setWallDrawStart] = useState(null);
+  const [alignmentGuides, setAlignmentGuides] = useState([]);
   const [mouseWorldPos, setMouseWorldPos] = useState(null);
   const [pendingDeleteWallId, setPendingDeleteWallId] = useState(null);
   const [wallMovePreview, setWallMovePreview] = useState(null);
@@ -262,6 +269,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const cancelDrawing = useCallback(() => {
     setWallDrawStart(null);
     setMouseWorldPos(null);
+    setAlignmentGuides([]);
   }, []);
 
   const showMessage = useCallback((message) => {
@@ -414,6 +422,20 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       : gridPoint;
   }, [settings.orthoWalls, settings.planGrid]);
 
+  const applyAlignment = useCallback((point, { fixed = null, excludeWallId = null } = {}) => {
+    const axes = !fixed || !settings.orthoWalls
+      ? ['x', 'y']
+      : (Math.abs(point.y - fixed.y) <= 1e-6 ? ['x'] : ['y']);
+    const result = snapToAlignment(
+      point,
+      endpointAlignmentTargets(walls, excludeWallId),
+      ALIGNMENT_SNAP_PX / scale,
+      axes,
+    );
+    setAlignmentGuides(result.guides);
+    return result.point;
+  }, [scale, settings.orthoWalls, walls]);
+
   const handleStageClick = useCallback((event) => {
     if (suppressClickRef.current) return;
     if (event.target !== event.target.getStage()) return;
@@ -431,9 +453,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     const fixed = wallDrawStart ? { x: wallDrawStart.x, y: wallDrawStart.y } : null;
     const snapped = gridAndOrtho(toWorld(pointer), fixed);
     const endpointSnap = snapToEndpoint(snapped, adaptedWalls, ENDPOINT_SNAP_RADIUS);
-    const point = endpointSnap
-      ? { x: endpointSnap.x, y: endpointSnap.y }
-      : snapped;
+    let point;
+    if (endpointSnap) {
+      setAlignmentGuides([]);
+      point = { x: endpointSnap.x, y: endpointSnap.y };
+    } else {
+      point = applyAlignment(snapped, { fixed });
+    }
 
     if (!wallDrawStart) {
       setEntryPointer(pointer);
@@ -458,6 +484,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
         : null,
     });
     dispatch(action);
+    setAlignmentGuides([]);
     setWallDrawStart({
       ...point,
       _connectTo: { wallId: action.payload.id, endpoint: 'end' },
@@ -465,6 +492,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     setMouseWorldPos(null);
   }, [
     adaptedWalls,
+    applyAlignment,
     commitEntry,
     dispatch,
     entry,
@@ -492,9 +520,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
           adaptedWalls,
           ENDPOINT_SNAP_RADIUS,
         );
-        const point = endpointSnap
-          ? { x: endpointSnap.x, y: endpointSnap.y }
-          : snapped;
+        let point;
+        if (endpointSnap) {
+          setAlignmentGuides([]);
+          point = { x: endpointSnap.x, y: endpointSnap.y };
+        } else {
+          point = applyAlignment(snapped, { fixed: wallDrawStart });
+        }
         const dx = point.x - wallDrawStart.x;
         const dy = point.y - wallDrawStart.y;
         const length = Math.hypot(dx, dy);
@@ -525,11 +557,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     if (tool !== 'wall' || !wallDrawStart || panRef.current) return;
     const snapped = gridAndOrtho(toWorld(pointer), wallDrawStart);
     const endpointSnap = snapToEndpoint(snapped, adaptedWalls, ENDPOINT_SNAP_RADIUS);
-    setMouseWorldPos(endpointSnap
-      ? { x: endpointSnap.x, y: endpointSnap.y }
-      : snapped);
+    let point;
+    if (endpointSnap) {
+      setAlignmentGuides([]);
+      point = { x: endpointSnap.x, y: endpointSnap.y };
+    } else {
+      point = applyAlignment(snapped, { fixed: wallDrawStart });
+    }
+    setMouseWorldPos(point);
   }, [
     adaptedWalls,
+    applyAlignment,
     entry,
     gridAndOrtho,
     moveHandle,
@@ -613,13 +651,18 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       ENDPOINT_SNAP_RADIUS,
       wallId,
     );
-    const point = endpointSnap
-      ? { x: endpointSnap.x, y: endpointSnap.y }
-      : snapped;
+    let point;
+    if (endpointSnap) {
+      setAlignmentGuides([]);
+      point = { x: endpointSnap.x, y: endpointSnap.y };
+    } else {
+      point = applyAlignment(snapped, { fixed, excludeWallId: wallId });
+    }
     event.target.position(point);
     dispatch(moveWallEndpoint({ wallId, endpoint, ...point }));
 
     if (event.type !== 'dragend') return;
+    setAlignmentGuides([]);
     if (endpointSnap) {
       dispatch(connectWalls({
         wallId1: wallId,
@@ -630,7 +673,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     } else if (wall.connections?.[endpoint]) {
       dispatch(disconnectWallEndpoint({ wallId, endpoint }));
     }
-  }, [adaptedWalls, dispatch, gridAndOrtho, walls]);
+  }, [adaptedWalls, applyAlignment, dispatch, gridAndOrtho, walls]);
 
   const previewPerpendicularMove = useCallback((delta) => {
     if (!room || !selectedWall) return;
@@ -889,6 +932,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
             scaleY={scale}
           >
             <AxisGuides scale={scale} />
+            <PlanAlignmentGuides guides={alignmentGuides} scale={scale} />
             {walls.map((wall) => (
               <PlanWallShape
                 key={wall.id}
