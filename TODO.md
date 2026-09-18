@@ -51,6 +51,30 @@ Suggested format:
 
 <!-- Move sufficiently defined work here. -->
 
+Specified in `docs/elevation-mvp/SPEC-8.md`, step prompts in `PROMPTS-8.md`.
+
+- [ ] **[P1][plan][elevation] Step 26 — pan snap-back fix, select-before-move for openings, crown by total height**
+  - Why: Panning after a zoom reverts on mouse-up; openings move on an accidental hover-drag; we say "a 6" crown", not an overlap.
+  - Done when: Panning is pointer-driven in both canvases, an opening drags only when selected, crownStackHeight replaces crownOverlap with a v2 to v3 migration, SPEC-8 tests 1-5 pass.
+- [ ] **[P1][plan][UI] Step 27 — live numeric entry (click, move, type, Enter)**
+  - Notes: Shared useLiveEntry hook plus an HTML input over the canvas. Wired first to the perpendicular wall-move handle and to wall drawing with Ortho on.
+  - Done when: Both gestures are click-move-click with a typable distance, Esc cancels, the hook is unit-tested.
+- [ ] **[P1][plan] Step 28 — wall length propagates orthogonally, corner handles become length arrows**
+  - Why: Typing a known wall length should translate the neighbouring wall, not rotate it; free corner drags make angles wonky.
+  - Done when: setWallLength(room, wallId, length, growEnd) delegates to moveWallPerpendicular, the panel has per-edit end buttons, connected corners show one length arrow per wall under Ortho, SPEC-8 tests 6-10 pass.
+- [ ] **[P2][elevation][UI] Step 29 — edge and center readouts from either wall end**
+  - Notes: New model/positions.js; openings gain offsetAnchor; openingGeometry offsets become nested, which changes some SPEC-7 test shapes.
+  - Done when: Openings and runs both show a 2x2 edge/center by left/right grid of inputs, typing in a cell makes that cell the stored reference, SPEC-8 tests 11-14 pass.
+- [ ] **[P2][model] Step 30 — cabinet center pins**
+  - Why: Two wall-mounted faucets on one vanity wall have to land on their exact centers.
+  - Notes: Two-pass splitter. One pin: the pinned cabinet keeps its auto width from pass 1 and the neighbours absorb the offset. Two or more: adding the second pin locks both pinned widths, and the interior segment concentrates the odd amount in one cabinet (last auto by default, movable with an absorb flag) instead of splitting it evenly. A filler is never auto-inserted. An unreachable pin grows the run at a free end, or clamps and warns at an anchored one; a short middle segment always clamps.
+  - Open: which cabinet should absorb by default is a try-it-and-see question - the absorb flag exists so it can be moved without a code change.
+  - Done when: An item can pin its left edge, center or right edge to a wall end or an opening, output is unchanged for runs without pins (SPEC §11 test 7 still [30 5/8, 30 5/8]), SPEC-8 tests 15-25 pass.
+- [ ] **[P2][model][elevation] Step 31 — clearance to side objects as a constraint**
+  - Why: Closes the "save clearances to side objects" idea below - a run needs 4" clearance from door casing.
+  - Notes: run.anchors[side] widens from a boolean to false | true | {to: 'opening', openingId, edge, clearance}; new casingClearance setting; casing-to-cabinetry dimension row with violated segments in amber.
+  - Done when: A run can anchor to a casing with a clearance, moving the opening moves the run, unanchored runs warn when closer than the clearance, SPEC-8 tests 26-33 pass.
+
 ## In progress
 
 <!-- Include the branch, task, or owner when useful. -->
