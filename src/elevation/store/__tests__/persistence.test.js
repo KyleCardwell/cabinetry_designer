@@ -4,9 +4,12 @@ import { wallFrame } from '../../model/geometry.js';
 import {
   ELEVATION_STORAGE_KEY,
   LEGACY_ELEVATION_STORAGE_KEY,
+  V2_ELEVATION_STORAGE_KEY,
   isElevationDocument,
+  isV2ElevationDocument,
   loadElevationDocument,
   migrateV1Document,
+  migrateV2Document,
 } from '../persistence.js';
 
 function v1Run(id, x, z, height) {
@@ -69,6 +72,37 @@ function storageWith(entries) {
   };
 }
 
+function v2Profile(profile) {
+  const {
+    crownStackHeight,
+    topMoldHeight,
+    crownHeight,
+    ...rest
+  } = profile;
+  return {
+    ...rest,
+    topMoldHeight,
+    crownHeight,
+    crownOverlap: topMoldHeight + crownHeight - crownStackHeight,
+  };
+}
+
+function v2Document() {
+  const current = migrateV1Document(v1Document());
+  return {
+    ...current,
+    schemaVersion: 2,
+    settings: {
+      ...current.settings,
+      defaultProfile: v2Profile(current.settings.defaultProfile),
+    },
+    rooms: current.rooms.map((room) => ({
+      ...room,
+      profile: v2Profile(room.profile),
+    })),
+  };
+}
+
 afterEach(() => {
   delete globalThis.window;
 });
@@ -85,7 +119,7 @@ describe('elevation persistence migration', () => {
     const migrated = loadElevationDocument();
     const room = migrated.rooms[0];
     expect(migrated).toMatchObject({
-      schemaVersion: 2,
+      schemaVersion: 3,
       activeRoomId: room.id,
       activeWallId: 'wall-b',
       view: 'elevation',
@@ -113,7 +147,7 @@ describe('elevation persistence migration', () => {
     expect(localStorage.getItem(LEGACY_ELEVATION_STORAGE_KEY)).toBe(legacy);
   });
 
-  it('defaults new optional wall fields and normalizes generated names on v2 load', () => {
+  it('defaults new optional wall fields and normalizes generated names on current load', () => {
     const current = migrateV1Document(v1Document());
     current.rooms[0].walls[0].name = 'Wall 7';
     delete current.rooms[0].walls[0].numberOverride;
@@ -195,5 +229,46 @@ describe('elevation persistence migration', () => {
 
     expect(isElevationDocument(current)).toBe(false);
     expect(loadElevationDocument()).toBeNull();
+  });
+
+  it('3. migrates crown totals at every v2 profile level and keeps the v2 key', () => {
+    const previous = v2Document();
+    const room = previous.rooms[0];
+    room.walls[0].profile = {
+      topMoldHeight: 3,
+      crownHeight: 4.5,
+      crownOverlap: 1.5,
+    };
+    const serialized = JSON.stringify(previous);
+    const localStorage = storageWith([[V2_ELEVATION_STORAGE_KEY, serialized]]);
+    globalThis.window = { localStorage };
+
+    expect(isV2ElevationDocument(previous)).toBe(true);
+    const migrated = loadElevationDocument();
+
+    for (const profile of [
+      migrated.settings.defaultProfile,
+      migrated.rooms[0].profile,
+      migrated.rooms[0].walls[0].profile,
+    ]) {
+      expect(profile.crownStackHeight).toBe(6);
+      expect(profile).not.toHaveProperty('crownOverlap');
+    }
+    expect(migrated.schemaVersion).toBe(3);
+    expect(isElevationDocument(migrated)).toBe(true);
+    expect(localStorage.getItem(V2_ELEVATION_STORAGE_KEY)).toBe(serialized);
+  });
+
+  it('4. migrates a partial wall crown profile using inherited room values', () => {
+    const previous = v2Document();
+    previous.rooms[0].walls[0].profile = { crownHeight: 6 };
+
+    const migrated = migrateV2Document(previous);
+
+    expect(migrated.rooms[0].walls[0].profile).toEqual({
+      crownHeight: 6,
+      crownStackHeight: 7.5,
+    });
+    expect(isElevationDocument(migrated)).toBe(true);
   });
 });

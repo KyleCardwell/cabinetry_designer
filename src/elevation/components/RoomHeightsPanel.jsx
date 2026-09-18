@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { counterTop, moldingStack } from '../model/profile.js';
+import { counterTop, crownOverlap, moldingStack } from '../model/profile.js';
 import { formatInches } from '../model/units.js';
 import {
   updateRoomProfile,
@@ -14,9 +14,9 @@ const PROFILE_FIELDS = [
   ['countertopThickness', 'Countertop thickness'],
   ['upperClearance', 'Upper clearance'],
   ['crownTop', 'Top of crown'],
-  ['topMoldHeight', 'Top mold height'],
-  ['crownHeight', 'Crown height'],
-  ['crownOverlap', 'Crown overlap'],
+  ['topMoldHeight', 'Top mold'],
+  ['crownHeight', 'Crown'],
+  ['crownStackHeight', 'Crown total'],
 ];
 
 export default function RoomHeightsPanel() {
@@ -26,6 +26,7 @@ export default function RoomHeightsPanel() {
   const [open, setOpen] = useState(true);
 
   if (!room) return null;
+  const overlap = crownOverlap(room.profile);
 
   return (
     <section className="border-t border-gray-700 pt-4">
@@ -58,6 +59,10 @@ export default function RoomHeightsPanel() {
               </label>
             ))}
           </div>
+
+          <p className={`text-xs ${overlap < 0 ? 'text-amber-500/80' : 'text-gray-500'}`}>
+            {overlap < 0 ? 'Gap' : 'Overlap'} {formatInches(Math.abs(overlap))}
+          </p>
 
           <div className="grid grid-cols-2 gap-2 rounded border border-gray-700 bg-gray-900/45 p-2.5 text-xs">
             <div>

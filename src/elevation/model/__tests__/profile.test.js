@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import {
   counterTop,
+  crownOverlap,
   moldingStack,
   resolveProfile,
   resolveVertical,
@@ -29,11 +30,32 @@ describe('height profiles', () => {
   it('1. computes the molding stack and default box top', () => {
     const profile = resolveProfile(DEFAULT_SETTINGS, room, wall);
     expect(moldingStack(profile)).toBe(6);
+    expect(moldingStack({
+      ...profile,
+      topMoldHeight: 3,
+      crownHeight: 6,
+      crownStackHeight: 6,
+    })).toBe(6);
+    expect(crownOverlap({
+      ...profile,
+      topMoldHeight: 3,
+      crownHeight: 6,
+      crownStackHeight: 6,
+    })).toBe(3);
     expect(profile.crownTop - moldingStack(profile)).toBe(90);
     expect(counterTop(profile)).toBe(36);
   });
 
-  it('2. resolves default auto heights and ceiling warnings', () => {
+  it('2. reports a negative overlap as a gap between molding parts', () => {
+    expect(crownOverlap({
+      ...DEFAULT_SETTINGS.defaultProfile,
+      topMoldHeight: 3,
+      crownHeight: 4.5,
+      crownStackHeight: 9,
+    })).toBe(-1.5);
+  });
+
+  it('resolves default auto heights and ceiling warnings', () => {
     const profile = resolveProfile(DEFAULT_SETTINGS, room, wall);
     expect(resolveVertical(run(CABINET_TYPE_IDS.BASE), profile, [], wall)).toMatchObject({
       z: 4,

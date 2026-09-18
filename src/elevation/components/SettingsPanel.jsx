@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { crownOverlap } from '../model/profile.js';
+import { formatInches } from '../model/units.js';
 import { updateSettings } from '../store/elevationSlice.js';
 import InchInput from './InchInput.jsx';
 
@@ -30,9 +32,9 @@ const PROFILE_SETTINGS = [
   ['countertopThickness', 'Countertop thickness'],
   ['upperClearance', 'Upper clearance'],
   ['crownTop', 'Top of crown'],
-  ['topMoldHeight', 'Top mold height'],
-  ['crownHeight', 'Crown height'],
-  ['crownOverlap', 'Crown overlap'],
+  ['topMoldHeight', 'Top mold'],
+  ['crownHeight', 'Crown'],
+  ['crownStackHeight', 'Crown total'],
 ];
 
 const OPENING_NUMBER_SETTINGS = [
@@ -57,6 +59,7 @@ export default function SettingsPanel() {
   const dispatch = useDispatch();
   const settings = useSelector((state) => state.elevation.settings);
   const [open, setOpen] = useState(false);
+  const overlap = crownOverlap(settings.defaultProfile);
 
   const update = (changes) => dispatch(updateSettings(changes));
 
@@ -103,6 +106,9 @@ export default function SettingsPanel() {
                 </label>
               ))}
             </div>
+            <p className={`mt-2 text-xs ${overlap < 0 ? 'text-amber-500/80' : 'text-gray-500'}`}>
+              {overlap < 0 ? 'Gap' : 'Overlap'} {formatInches(Math.abs(overlap))}
+            </p>
           </div>
 
           <div>

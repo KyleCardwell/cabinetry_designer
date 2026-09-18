@@ -44,7 +44,13 @@ export {
   validateOpeningPlacement,
 } from './openings.js';
 export { wallOutline } from './wallOutline.js';
-export { counterTop, moldingStack, resolveProfile, resolveVertical } from './profile.js';
+export {
+  counterTop,
+  crownOverlap,
+  moldingStack,
+  resolveProfile,
+  resolveVertical,
+} from './profile.js';
 export {
   bandsCompatible,
   cornerAt,

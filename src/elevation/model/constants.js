@@ -16,10 +16,10 @@ export const DEFAULT_PROFILE = {
   crownTop: 96,
   topMoldHeight: 3,
   crownHeight: 4.5,
-  crownOverlap: 1.5,
+  crownStackHeight: 6,
 };
 
-/** Default persisted settings for Elevation Lab schema v2. */
+/** Default persisted settings for Elevation Lab schema v3. */
 export const DEFAULT_SETTINGS = {
   defaultProfile: { ...DEFAULT_PROFILE },
   baseDepth: 24,

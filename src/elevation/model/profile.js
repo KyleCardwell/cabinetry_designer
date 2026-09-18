@@ -13,9 +13,14 @@ export function resolveProfile(settings, room, wall) {
   return mergeDefined(settings.defaultProfile, room?.profile, wall?.profile);
 }
 
-/** Return the combined top-mold and overlapping-crown height. */
+/** Return the specified total height of the top-mold and crown stack. */
 export function moldingStack(profile) {
-  return profile.topMoldHeight + profile.crownHeight - profile.crownOverlap;
+  return profile.crownStackHeight;
+}
+
+/** Return the derived overlap between the top-mold and crown profiles. */
+export function crownOverlap(profile) {
+  return profile.topMoldHeight + profile.crownHeight - profile.crownStackHeight;
 }
 
 /** Return the finished countertop surface height. */

@@ -31,7 +31,7 @@ export default function OpeningShape({
   const range = openingReferenceBounds(opening, wallLength, null);
   const stroke = selected ? '#f8fafc' : '#94a3b8';
   const strokeWidth = selected ? 2 : 1;
-  const draggable = selectable && Boolean(onMove);
+  const draggable = selected && selectable && Boolean(onMove);
 
   const stopEvent = (event) => {
     event.cancelBubble = true;

@@ -79,7 +79,7 @@ function opening(overrides = {}) {
 
 function stateWithRun(existingRun = null) {
   return {
-    schemaVersion: 2,
+    schemaVersion: 3,
     settings: {
       ...DEFAULT_SETTINGS,
       defaultProfile: { ...DEFAULT_SETTINGS.defaultProfile },

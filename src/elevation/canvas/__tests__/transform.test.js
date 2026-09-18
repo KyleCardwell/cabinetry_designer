@@ -94,4 +94,21 @@ describe('elevation canvas transform', () => {
     expect(after.x - before.x).toBe(17);
     expect(after.y - before.y).toBe(-9);
   });
+
+  it('5. composes repeated pointer-centered zoom with an intervening pan', () => {
+    const base = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
+    const pointer = { x: 300, y: 200 };
+    const initialPoint = screenToWall(pointer, withView(base, DEFAULT_VIEW));
+    const firstZoom = zoomViewAt(base, DEFAULT_VIEW, pointer, 2);
+    expect(screenToWall(pointer, withView(base, firstZoom))).toEqual(initialPoint);
+
+    const panned = panView(firstZoom, -40, 15);
+    const pointAfterPan = screenToWall(pointer, withView(base, panned));
+    const secondZoom = zoomViewAt(base, panned, pointer, 2);
+
+    // SPEC-QUESTION: panning necessarily changes the wall point under a fixed
+    // screen coordinate, so the invariant is asserted across each zoom step.
+    expect(screenToWall(pointer, withView(base, secondZoom))).toEqual(pointAfterPan);
+    expect(panned).toMatchObject({ panX: firstZoom.panX - 40, panY: firstZoom.panY + 15 });
+  });
 });

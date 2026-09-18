@@ -55,7 +55,7 @@ function RunGroup({
   }, transform);
   const crown = wallRectToScreen({
     x: run.x,
-    z: boxTop + profile.topMoldHeight - profile.crownOverlap,
+    z: boxTop + profile.crownStackHeight - profile.crownHeight,
     width: run.width,
     height: profile.crownHeight,
   }, transform);

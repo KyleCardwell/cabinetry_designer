@@ -11,11 +11,13 @@ import {
 } from '../model/topology.js';
 
 /** Current Elevation Lab localStorage key. */
-export const ELEVATION_STORAGE_KEY = 'cd.elevationLab.v2';
-/** Legacy storage key retained for migration and rollback safety. */
+export const ELEVATION_STORAGE_KEY = 'cd.elevationLab.v3';
+/** Previous storage key retained for migration and rollback safety. */
+export const V2_ELEVATION_STORAGE_KEY = 'cd.elevationLab.v2';
+/** Original storage key retained for migration and rollback safety. */
 export const LEGACY_ELEVATION_STORAGE_KEY = 'cd.elevationLab.v1';
 /** Current persisted schema version. */
-export const ELEVATION_SCHEMA_VERSION = 2;
+export const ELEVATION_SCHEMA_VERSION = 3;
 
 const END_TYPES = new Set(['filler', 'end_panel', 'none']);
 const ITEM_KINDS = new Set(['cabinet', 'filler']);
@@ -25,6 +27,9 @@ const RUN_TYPE_IDS = new Set([
   CABINET_TYPE_IDS.TALL,
 ]);
 const PROFILE_KEYS = Object.keys(DEFAULT_PROFILE);
+const V2_PROFILE_KEYS = PROFILE_KEYS
+  .filter((key) => key !== 'crownStackHeight')
+  .concat('crownOverlap');
 const RUN_OVERRIDE_KEYS = [
   'toeKickHeight',
   'baseBoxHeight',
@@ -109,8 +114,8 @@ function isOptionalNumericObject(value, allowedKeys) {
   ));
 }
 
-function isCompleteProfile(profile) {
-  return Boolean(profile) && PROFILE_KEYS.every((key) => isFiniteNumber(profile[key]));
+function isCompleteProfile(profile, profileKeys = PROFILE_KEYS) {
+  return Boolean(profile) && profileKeys.every((key) => isFiniteNumber(profile[key]));
 }
 
 function isRun(run) {
@@ -147,7 +152,7 @@ export function isOpening(opening) {
     ));
 }
 
-function isWall(wall) {
+function isWall(wall, profileKeys = PROFILE_KEYS) {
   return Boolean(wall)
     && typeof wall.id === 'string'
     && typeof wall.name === 'string'
@@ -159,28 +164,28 @@ function isWall(wall) {
     && typeof wall.flipped === 'boolean'
     && isConnection(wall.connections?.start)
     && isConnection(wall.connections?.end)
-    && isOptionalNumericObject(wall.profile, PROFILE_KEYS)
+    && isOptionalNumericObject(wall.profile, profileKeys)
     && Array.isArray(wall.runs)
     && wall.runs.every(isRun)
     && (wall.openings === undefined
       || (Array.isArray(wall.openings) && wall.openings.every(isOpening)));
 }
 
-function isRoom(room) {
+function isRoom(room, profileKeys = PROFILE_KEYS) {
   return Boolean(room)
     && typeof room.id === 'string'
     && typeof room.name === 'string'
-    && isCompleteProfile(room.profile)
+    && isCompleteProfile(room.profile, profileKeys)
     && Array.isArray(room.walls)
     && Array.isArray(room.wallOrder)
     && room.wallOrder.length === room.walls.length
     && new Set(room.wallOrder).size === room.wallOrder.length
-    && room.walls.every(isWall)
+    && room.walls.every((wall) => isWall(wall, profileKeys))
     && room.wallOrder.every((wallId) => room.walls.some((wall) => wall.id === wallId));
 }
 
-function normalizeV2Document(document) {
-  if (!document || document.schemaVersion !== ELEVATION_SCHEMA_VERSION) return document;
+function normalizeDocument(document, schemaVersion) {
+  if (!document || document.schemaVersion !== schemaVersion) return document;
   let settings = document.settings;
   if (settings && typeof settings === 'object') {
     settings = { ...settings };
@@ -222,10 +227,10 @@ function hasValidEnds(settings) {
     && END_TYPES.has(settings.defaultEnds?.right);
 }
 
-function isSettings(settings) {
+function isSettings(settings, profileKeys = PROFILE_KEYS) {
   return Boolean(settings)
     && V2_NUMERIC_SETTING_KEYS.every((key) => isFiniteNumber(settings[key]))
-    && isCompleteProfile(settings.defaultProfile)
+    && isCompleteProfile(settings.defaultProfile, profileKeys)
     && typeof settings.snapHeightsToDefaults === 'boolean'
     && typeof settings.autoEndPanelOnFreeEnd === 'boolean'
     && typeof settings.openingsHaveCasing === 'boolean'
@@ -239,7 +244,25 @@ function isSettings(settings) {
 export function isElevationDocument(value) {
   if (!value || value.schemaVersion !== ELEVATION_SCHEMA_VERSION) return false;
   if (!isSettings(value.settings) || !Array.isArray(value.rooms)) return false;
-  if (!value.rooms.every(isRoom)) return false;
+  if (!value.rooms.every((room) => isRoom(room))) return false;
+  if (value.view !== 'plan' && value.view !== 'elevation') return false;
+  if (value.activeRoomId !== null && typeof value.activeRoomId !== 'string') return false;
+  const activeRoom = value.activeRoomId === null
+    ? null
+    : value.rooms.find((room) => room.id === value.activeRoomId);
+  if (value.activeRoomId !== null && !activeRoom) return false;
+  if (value.activeWallId !== null && typeof value.activeWallId !== 'string') return false;
+  return value.activeWallId === null
+    || Boolean(activeRoom?.walls.some((wall) => wall.id === value.activeWallId));
+}
+
+/** Return whether a value is a valid legacy v2 elevation document. */
+export function isV2ElevationDocument(value) {
+  if (!value || value.schemaVersion !== 2) return false;
+  if (!isSettings(value.settings, V2_PROFILE_KEYS) || !Array.isArray(value.rooms)) {
+    return false;
+  }
+  if (!value.rooms.every((room) => isRoom(room, V2_PROFILE_KEYS))) return false;
   if (value.view !== 'plan' && value.view !== 'elevation') return false;
   if (value.activeRoomId !== null && typeof value.activeRoomId !== 'string') return false;
   const activeRoom = value.activeRoomId === null
@@ -273,7 +296,39 @@ export function isV1ElevationDocument(value) {
       && value.walls.some((wall) => wall.id === value.activeWallId));
 }
 
-/** Migrate a validated v1 document to the v2 room model. */
+function migrateProfile(profile, inheritedProfile = {}) {
+  const resolved = { ...inheritedProfile, ...profile };
+  const migrated = {
+    ...profile,
+    crownStackHeight: resolved.topMoldHeight
+      + resolved.crownHeight
+      - resolved.crownOverlap,
+  };
+  delete migrated.crownOverlap;
+  return migrated;
+}
+
+/** Migrate a validated v2 document from crown overlap to crown total height. */
+export function migrateV2Document(document) {
+  return {
+    ...document,
+    schemaVersion: ELEVATION_SCHEMA_VERSION,
+    settings: {
+      ...document.settings,
+      defaultProfile: migrateProfile(document.settings.defaultProfile),
+    },
+    rooms: document.rooms.map((room) => ({
+      ...room,
+      profile: migrateProfile(room.profile, document.settings.defaultProfile),
+      walls: room.walls.map((wall) => ({
+        ...wall,
+        profile: migrateProfile(wall.profile, room.profile),
+      })),
+    })),
+  };
+}
+
+/** Migrate a validated v1 document to the current room model. */
 export function migrateV1Document(document) {
   const old = document.settings;
   const defaultProfile = {
@@ -351,8 +406,13 @@ function readStored(key) {
 export function loadElevationDocument() {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return null;
-    const current = normalizeV2Document(readStored(ELEVATION_STORAGE_KEY));
+    const current = normalizeDocument(
+      readStored(ELEVATION_STORAGE_KEY),
+      ELEVATION_SCHEMA_VERSION,
+    );
     if (isElevationDocument(current)) return current;
+    const previous = normalizeDocument(readStored(V2_ELEVATION_STORAGE_KEY), 2);
+    if (isV2ElevationDocument(previous)) return migrateV2Document(previous);
     const legacy = readStored(LEGACY_ELEVATION_STORAGE_KEY);
     return isV1ElevationDocument(legacy) ? migrateV1Document(legacy) : null;
   } catch {
@@ -360,7 +420,7 @@ export function loadElevationDocument() {
   }
 }
 
-/** Return only the v2 document fields that belong in localStorage. */
+/** Return only the current document fields that belong in localStorage. */
 export function toElevationDocument(elevationState) {
   return {
     schemaVersion: elevationState.schemaVersion,
@@ -372,7 +432,7 @@ export function toElevationDocument(elevationState) {
   };
 }
 
-/** Persist a v2 elevation document without allowing storage failures to escape. */
+/** Persist a current elevation document without allowing storage failures to escape. */
 export function persistElevationDocument(elevationState) {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return;

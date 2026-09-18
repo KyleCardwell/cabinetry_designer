@@ -129,6 +129,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const stageRef = useRef(null);
   const containerRef = useRef(null);
   const drawStartRef = useRef(null);
+  const panRef = useRef(null);
+  const spacePressedRef = useRef(false);
+  const suppressClickRef = useRef(false);
+  const clickSuppressionTimeoutRef = useRef(null);
   const messageTimeoutRef = useRef(null);
   const fittedRoomRef = useRef(null);
   const handledFitRequestRef = useRef(fitRequest);
@@ -158,6 +162,20 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   }, [room, scale, selectedWall]);
 
   drawStartRef.current = wallDrawStart;
+
+  const stopPanning = useCallback(() => {
+    const current = panRef.current;
+    panRef.current = null;
+    if (!current?.moved) return;
+    suppressClickRef.current = true;
+    if (clickSuppressionTimeoutRef.current !== null) {
+      globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
+    }
+    clickSuppressionTimeoutRef.current = globalThis.setTimeout(() => {
+      suppressClickRef.current = false;
+      clickSuppressionTimeoutRef.current = null;
+    }, 0);
+  }, []);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -253,8 +271,65 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     if (messageTimeoutRef.current !== null) {
       globalThis.clearTimeout(messageTimeoutRef.current);
     }
+    if (clickSuppressionTimeoutRef.current !== null) {
+      globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
+    }
     dispatch(setMessage(null));
   }, [dispatch]);
+
+  useEffect(() => {
+    const handleSpaceDown = (event) => {
+      const tagName = event.target?.tagName?.toLowerCase();
+      if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
+      if (event.code !== 'Space') return;
+      event.preventDefault();
+      spacePressedRef.current = true;
+    };
+    const handleSpaceUp = (event) => {
+      if (event.code === 'Space') spacePressedRef.current = false;
+    };
+    const handleBlur = () => {
+      spacePressedRef.current = false;
+      stopPanning();
+    };
+    const handlePointerMove = (event) => {
+      const current = panRef.current;
+      if (!current || event.pointerId !== current.pointerId) return;
+      const dx = event.clientX - current.x;
+      const dy = event.clientY - current.y;
+      if (dx === 0 && dy === 0) return;
+      panRef.current = {
+        ...current,
+        x: event.clientX,
+        y: event.clientY,
+        moved: true,
+      };
+      setPan((activePan) => ({ x: activePan.x + dx, y: activePan.y + dy }));
+    };
+    const handlePointerEnd = (event) => {
+      if (panRef.current && event.pointerId === panRef.current.pointerId) stopPanning();
+    };
+    const handlePointerOut = (event) => {
+      if (!event.relatedTarget) stopPanning();
+    };
+
+    window.addEventListener('keydown', handleSpaceDown);
+    window.addEventListener('keyup', handleSpaceUp);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('pointercancel', handlePointerEnd);
+    window.addEventListener('pointerout', handlePointerOut);
+    return () => {
+      window.removeEventListener('keydown', handleSpaceDown);
+      window.removeEventListener('keyup', handleSpaceUp);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerEnd);
+      window.removeEventListener('pointercancel', handlePointerEnd);
+      window.removeEventListener('pointerout', handlePointerOut);
+    };
+  }, [stopPanning]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -307,6 +382,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   }, [settings.orthoWalls, settings.planGrid]);
 
   const handleStageClick = useCallback(() => {
+    if (suppressClickRef.current) return;
     if (tool !== 'wall') return;
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
@@ -347,7 +423,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   }, [adaptedWalls, dispatch, gridAndOrtho, toWorld, tool, wallDrawStart]);
 
   const handleMouseMove = useCallback(() => {
-    if (tool !== 'wall' || !wallDrawStart) return;
+    if (tool !== 'wall' || !wallDrawStart || panRef.current) return;
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
     const snapped = gridAndOrtho(toWorld(pointer), wallDrawStart);
@@ -455,12 +531,21 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     });
   }, [toWorld, zoom]);
 
-  const handleStageDragEnd = useCallback((event) => {
-    if (event.target !== stageRef.current) return;
-    const stage = event.target;
-    setPan((current) => ({ x: current.x + stage.x(), y: current.y + stage.y() }));
-    stage.position({ x: 0, y: 0 });
-  }, []);
+  const handlePanPointerDown = useCallback((event) => {
+    const pointerEvent = event.evt;
+    const emptyCanvas = event.target === stageRef.current;
+    const middleDrag = pointerEvent.button === 1;
+    const spaceDrag = pointerEvent.button === 0 && spacePressedRef.current;
+    const selectDrag = pointerEvent.button === 0 && tool === 'select';
+    if (!emptyCanvas || (!middleDrag && !spaceDrag && !selectDrag)) return;
+    pointerEvent.preventDefault();
+    panRef.current = {
+      pointerId: pointerEvent.pointerId,
+      x: pointerEvent.clientX,
+      y: pointerEvent.clientY,
+      moved: false,
+    };
+  }, [tool]);
 
   const placeOpeningOnWall = useCallback((wallId, event) => {
     if ((tool !== 'door' && tool !== 'window') || !room) return false;
@@ -562,9 +647,9 @@ export default function PlanCanvas({ fitRequest = 0 }) {
           onClick={handleStageClick}
           onDblClick={cancelDrawing}
           onMouseMove={handleMouseMove}
+          onPointerDown={handlePanPointerDown}
+          onPointerCancel={stopPanning}
           onWheel={handleWheel}
-          draggable={tool === 'select'}
-          onDragEnd={handleStageDragEnd}
         >
           <Layer
             offsetX={-pan.x / scale}

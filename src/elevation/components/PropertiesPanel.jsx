@@ -5,6 +5,7 @@ import {
   KIND_LABELS,
   cornerAt,
   cornerReserveParts,
+  crownOverlap,
   formatInches,
   formatInchesInput,
   frontDepth,
@@ -122,6 +123,9 @@ const WALL_OVERRIDE_FIELDS = [
   ['crownTop', 'Top of crown'],
   ['toeKickHeight', 'Toe kick height'],
   ['countertopThickness', 'Countertop thickness'],
+  ['topMoldHeight', 'Top mold'],
+  ['crownHeight', 'Crown'],
+  ['crownStackHeight', 'Crown total'],
 ];
 
 function Field({ label, children }) {
@@ -1032,6 +1036,8 @@ function WallHeightProperties({ room, wall, plan }) {
   const autoNumber = wallNumbers(room).get(wall.id);
   const duplicateNumber = wallNumberWarnings(room)
     .some((warning) => warning.wallIds.includes(wall.id));
+  const resolvedProfile = { ...room.profile, ...wall.profile };
+  const overlap = crownOverlap(resolvedProfile);
 
   const updateLength = (length) => {
     if (length <= 0) return false;
@@ -1165,6 +1171,9 @@ function WallHeightProperties({ room, wall, plan }) {
             </Field>
           ))}
         </div>
+        <p className={`mt-2 text-xs ${overlap < 0 ? 'text-amber-500/80' : 'text-gray-500'}`}>
+          {overlap < 0 ? 'Gap' : 'Overlap'} {formatInches(Math.abs(overlap))}
+        </p>
       </section>
     </div>
   );

@@ -81,6 +81,8 @@ function ElevationCanvas({
   const [drag, setDrag] = useState(null);
   const [stretchPreview, setStretchPreview] = useState(null);
   const dragRef = useRef(null);
+  const panRef = useRef(null);
+  const spacePressedRef = useRef(false);
   const selectionRef = useRef(selection);
   const wallRef = useRef(wall);
   const messageTimeoutRef = useRef(null);
@@ -125,7 +127,20 @@ function ElevationCanvas({
 
   const resetView = useCallback(() => {
     setView(DEFAULT_VIEW);
-    stageRef.current?.position({ x: 0, y: 0 });
+  }, []);
+
+  const stopPanning = useCallback(() => {
+    const current = panRef.current;
+    panRef.current = null;
+    if (!current?.moved) return;
+    suppressClickRef.current = true;
+    if (clickSuppressionTimeoutRef.current !== null) {
+      globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
+    }
+    clickSuppressionTimeoutRef.current = globalThis.setTimeout(() => {
+      suppressClickRef.current = false;
+      clickSuppressionTimeoutRef.current = null;
+    }, 0);
   }, []);
 
   const showMessage = useCallback((message) => {
@@ -191,6 +206,60 @@ function ElevationCanvas({
     }
     dispatch(setMessage(null));
   }, [dispatch]);
+
+  useEffect(() => {
+    const handleSpaceDown = (event) => {
+      const tagName = event.target?.tagName?.toLowerCase();
+      if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
+      if (event.code !== 'Space') return;
+      event.preventDefault();
+      spacePressedRef.current = true;
+    };
+    const handleSpaceUp = (event) => {
+      if (event.code === 'Space') spacePressedRef.current = false;
+    };
+    const handleBlur = () => {
+      spacePressedRef.current = false;
+      stopPanning();
+    };
+    const handlePointerMove = (event) => {
+      const current = panRef.current;
+      if (!current || event.pointerId !== current.pointerId) return;
+      const dx = event.clientX - current.x;
+      const dy = event.clientY - current.y;
+      if (dx === 0 && dy === 0) return;
+      panRef.current = {
+        ...current,
+        x: event.clientX,
+        y: event.clientY,
+        moved: true,
+      };
+      setView((activeView) => panView(activeView, dx, dy));
+    };
+    const handlePointerEnd = (event) => {
+      if (panRef.current && event.pointerId === panRef.current.pointerId) stopPanning();
+    };
+    const handlePointerOut = (event) => {
+      if (!event.relatedTarget) stopPanning();
+    };
+
+    window.addEventListener('keydown', handleSpaceDown);
+    window.addEventListener('keyup', handleSpaceUp);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('pointercancel', handlePointerEnd);
+    window.addEventListener('pointerout', handlePointerOut);
+    return () => {
+      window.removeEventListener('keydown', handleSpaceDown);
+      window.removeEventListener('keyup', handleSpaceUp);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerEnd);
+      window.removeEventListener('pointercancel', handlePointerEnd);
+      window.removeEventListener('pointerout', handlePointerOut);
+    };
+  }, [stopPanning]);
 
   const baseTransform = useMemo(() => (
     wall && viewport.width > 0 && viewport.height > 0
@@ -337,12 +406,22 @@ function ElevationCanvas({
     zoomAt(pointer, factor);
   }, [zoomAt]);
 
-  const handleStageDragEnd = useCallback((event) => {
-    if (event.target !== stageRef.current) return;
-    const stage = event.target;
-    setView((current) => panView(current, stage.x(), stage.y()));
-    stage.position({ x: 0, y: 0 });
-  }, []);
+  const handlePanPointerDown = useCallback((event) => {
+    const pointerEvent = event.evt;
+    const emptyCanvas = event.target === stageRef.current;
+    const middleDrag = pointerEvent.button === 1;
+    const spaceDrag = pointerEvent.button === 0 && spacePressedRef.current;
+    const selectDrag = pointerEvent.button === 0 && tool === 'select';
+    if (!emptyCanvas || dragRef.current || stretchPreview
+      || (!middleDrag && !spaceDrag && !selectDrag)) return;
+    pointerEvent.preventDefault();
+    panRef.current = {
+      pointerId: pointerEvent.pointerId,
+      x: pointerEvent.clientX,
+      y: pointerEvent.clientY,
+      moved: false,
+    };
+  }, [stretchPreview, tool]);
 
   const dragBounds = useMemo(() => (
     drag ? dragPointsToRunInput(drag.start, drag.current) : null
@@ -375,7 +454,8 @@ function ElevationCanvas({
   };
 
   const handleMouseDown = (event) => {
-    if (tool !== 'draw') return;
+    if (tool !== 'draw' || event.evt.button !== 0
+      || spacePressedRef.current || panRef.current) return;
     const point = wallPointFromEvent(event);
     if (!point) return;
     dispatch(clearSelection());
@@ -536,9 +616,9 @@ function ElevationCanvas({
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onPointerDown={handlePanPointerDown}
+          onPointerCancel={stopPanning}
           onWheel={handleWheel}
-          draggable={tool === 'select' && !drag && !stretchPreview}
-          onDragEnd={handleStageDragEnd}
           onClick={handleStageClick}
         >
           <Layer listening={false}>

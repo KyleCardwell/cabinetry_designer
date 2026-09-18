@@ -69,7 +69,7 @@ export default function PlanOpening({
   );
   const selectedStroke = selected ? '#f8fafc' : '#e2e8f0';
   const selectedWidth = (selected ? 2.5 : 1) / scale;
-  const draggable = selectable && Boolean(onMove);
+  const draggable = selected && selectable && Boolean(onMove);
 
   const stopEvent = (event) => {
     event.cancelBubble = true;
