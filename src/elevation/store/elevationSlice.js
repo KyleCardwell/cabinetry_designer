@@ -242,7 +242,10 @@ const elevationSlice = createSlice({
           action.payload.name ?? '',
           y,
           action.payload.length ?? 144,
-          action.payload,
+          {
+            ...action.payload,
+            height: action.payload.height ?? room.profile.wallHeight,
+          },
         );
         room.walls.push(wall);
         if (wallFrame(room, wall).leftEndpoint !== 'start') wall.flipped = true;
@@ -269,7 +272,7 @@ const elevationSlice = createSlice({
             y1: action.payload.y1,
             x2: action.payload.x2,
             y2: action.payload.y2,
-            height: action.payload.height,
+            height: action.payload.height ?? room.profile.wallHeight,
             thickness: action.payload.thickness,
           },
         );

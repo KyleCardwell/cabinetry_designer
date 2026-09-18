@@ -9,6 +9,7 @@ export const CABINET_TYPE_IDS = {
 
 /** Default room height profile used by new rooms. */
 export const DEFAULT_PROFILE = {
+  wallHeight: 96,
   toeKickHeight: 4,
   baseBoxHeight: 30.5,
   countertopThickness: 1.5,

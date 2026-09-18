@@ -27,6 +27,7 @@ const NUMBER_SETTINGS = [
 ];
 
 const PROFILE_SETTINGS = [
+  ['wallHeight', 'Wall height'],
   ['toeKickHeight', 'Toe kick height'],
   ['baseBoxHeight', 'Base box height'],
   ['countertopThickness', 'Countertop thickness'],

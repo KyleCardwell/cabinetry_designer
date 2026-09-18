@@ -9,6 +9,7 @@ import elevationReducer, {
   addItemAfter,
   addRun,
   addWall,
+  addWallSegment,
   clearSelection,
   createInitialElevationState,
   deleteOpening,
@@ -211,6 +212,56 @@ describe('elevation room reducers', () => {
     expect(next.selection).toEqual({
       wallId: null, runId: null, pieceId: null, openingId: null,
     });
+  });
+
+  it("8. updates the room's wall height without touching existing walls", () => {
+    const next = elevationReducer(stateWithRun(), updateRoomProfile({
+      roomId: 'room-1',
+      key: 'wallHeight',
+      value: 108,
+    }));
+
+    expect(next.rooms[0].profile.wallHeight).toBe(108);
+    expect(next.rooms[0].walls[0].height).toBe(96);
+  });
+
+  it("9. uses the room's wall height when adding a wall", () => {
+    const initial = stateWithRun();
+    initial.rooms[0].profile.wallHeight = 108;
+
+    const next = elevationReducer(initial, addWall({
+      roomId: 'room-1',
+      id: 'wall-2',
+    }));
+
+    expect(next.rooms[0].walls.find((wall) => wall.id === 'wall-2').height).toBe(108);
+  });
+
+  it('10. uses the room wall height for segments while explicit height wins', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].profile.wallHeight = 108;
+    const payload = {
+      roomId: 'room-1',
+      x1: 0,
+      y1: 60,
+      x2: 120,
+      y2: 60,
+    };
+
+    const defaulted = elevationReducer(initial, addWallSegment({
+      ...payload,
+      id: 'wall-default-height',
+    }));
+    const explicit = elevationReducer(initial, addWallSegment({
+      ...payload,
+      id: 'wall-explicit-height',
+      height: 84,
+    }));
+
+    expect(defaulted.rooms[0].walls.find((wall) => wall.id === 'wall-default-height').height)
+      .toBe(108);
+    expect(explicit.rooms[0].walls.find((wall) => wall.id === 'wall-explicit-height').height)
+      .toBe(84);
   });
 
   it('9. assigns exposed and inside anchored-end treatments', () => {

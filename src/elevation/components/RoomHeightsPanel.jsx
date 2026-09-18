@@ -9,6 +9,7 @@ import {
 import InchInput from './InchInput.jsx';
 
 const PROFILE_FIELDS = [
+  ['wallHeight', 'Wall height'],
   ['toeKickHeight', 'Toe kick height'],
   ['baseBoxHeight', 'Base box height'],
   ['countertopThickness', 'Countertop thickness'],
