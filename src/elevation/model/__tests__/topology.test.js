@@ -5,6 +5,9 @@ import { wallFrame } from '../geometry.js';
 import { syncRoom } from '../room.js';
 import {
   chainOrientation,
+  elevationLabel,
+  elevationLetters,
+  indexToLetters,
   nextWallId,
   normalizeWallName,
   wallComponents,
@@ -185,6 +188,51 @@ describe('wall topology and numbering', () => {
       neighborWallId: 'B',
       neighborSide: 'left',
     });
+  });
+
+  it('SPEC-10 7. converts 1-based indices to spreadsheet-style letters', () => {
+    expect(indexToLetters(1)).toBe('A');
+    expect(indexToLetters(26)).toBe('Z');
+    expect(indexToLetters(27)).toBe('AA');
+    expect(indexToLetters(52)).toBe('AZ');
+    expect(indexToLetters(53)).toBe('BA');
+  });
+
+  it('SPEC-10 8. letters cabinet walls and forced empty walls in wall order', () => {
+    const room = {
+      ...roomR(),
+      wallOrder: ['A', 'B', 'C'],
+      walls: [
+        { ...wall('A', 0, 0, 120, 0), runs: [{ id: 'base-run' }] },
+        wall('B', 120, 0, 120, 96),
+        { ...wall('C', 120, 96, 0, 96), elevationForced: true },
+      ],
+    };
+
+    expect(elevationLetters(room)).toEqual(new Map([
+      ['A', 'A'],
+      ['C', 'B'],
+    ]));
+  });
+
+  it('SPEC-10 9. labels included walls and returns null for excluded walls', () => {
+    const room = roomR();
+    room.wallOrder = ['A', 'B'];
+    room.walls[0].runs = [{ id: 'base-run' }];
+
+    expect(elevationLabel(room, room.walls[0])).toBe('Elevation A');
+    expect(elevationLabel(room, room.walls[1])).toBeNull();
+  });
+
+  it('SPEC-10 10. assigns elevation letters independently of wall-number overrides', () => {
+    const room = roomR();
+    room.wallOrder = ['A', 'B'];
+    room.walls[0].runs = [{ id: 'base-run-a' }];
+    room.walls[1].runs = [{ id: 'base-run-b' }];
+    room.walls[1].numberOverride = 1;
+
+    expect(wallNumbers(room).get('B')).toBe(1);
+    expect(elevationLetters(room).get('B')).toBe('B');
   });
 
   it('16. navigates wall order and wraps at both ends', () => {

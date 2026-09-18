@@ -1,4 +1,5 @@
 const AREA_EPSILON = 1e-6;
+const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 function otherEndpoint(endpoint) {
   return endpoint === 'start' ? 'end' : 'start';
@@ -197,6 +198,48 @@ export function wallNumbers(room) {
     nextNumber += 1;
   }
   return numbers;
+}
+
+/** Convert a 1-based index to spreadsheet-style letters: 1 -> A, 26 -> Z, 27 -> AA. */
+export function indexToLetters(n) {
+  let value = n;
+  let result = '';
+  while (value > 0) {
+    result = LETTERS[(value - 1) % 26] + result;
+    value = Math.floor((value - 1) / 26);
+  }
+  return result;
+}
+
+/** A wall counts as "with cabinets" for elevation lettering. */
+export function wallHasCabinets(wall) {
+  return (wall?.runs?.length ?? 0) > 0;
+}
+
+/** Return the elevation letter for every wall that has cabinets, or is forced in, in wall order. */
+export function elevationLetters(room) {
+  const walls = room?.walls ?? [];
+  const wallById = new Map(walls.map((wall) => [wall.id, wall]));
+  const orderedIds = [
+    ...(room?.wallOrder ?? []),
+    ...walls.map((wall) => wall.id),
+  ].filter((wallId, index, ids) => wallById.has(wallId) && ids.indexOf(wallId) === index);
+
+  const letters = new Map();
+  let next = 1;
+  for (const wallId of orderedIds) {
+    const wall = wallById.get(wallId);
+    if (!wallHasCabinets(wall) && !wall.elevationForced) continue;
+    letters.set(wallId, indexToLetters(next));
+    next += 1;
+  }
+  return letters;
+}
+
+/** "Elevation A", or null when the wall has no letter. */
+export function elevationLabel(room, wall) {
+  const letter = elevationLetters(room).get(wall.id);
+  return letter ? `Elevation ${letter}` : null;
 }
 
 /** Return warnings for duplicate explicit wall-number overrides. */

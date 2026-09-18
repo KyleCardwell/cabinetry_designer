@@ -27,11 +27,11 @@ import {
   splitRun,
   startFromReadout,
   validateOpeningPlacement,
-  wallLabel,
   wallFrame,
   wallNumbers,
   wallNumberWarnings,
 } from '../model/index.js';
+import { wallHasCabinets, wallLabel } from '../model/topology.js';
 import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
@@ -1410,6 +1410,20 @@ function WallHeightProperties({ room, wall, plan }) {
             />
           </Field>
         </div>
+        {!wallHasCabinets(wall) && (
+          <label className="mb-3 flex items-center gap-2 text-xs text-gray-300">
+            <input
+              type="checkbox"
+              checked={Boolean(wall.elevationForced)}
+              onChange={(event) => dispatch(updateWall({
+                wallId: wall.id,
+                changes: { elevationForced: event.target.checked },
+              }))}
+              aria-label="Include in elevations"
+            />
+            Include in elevations
+          </label>
+        )}
         {duplicateNumber && (
           <p className="mb-3 text-xs text-amber-400">This wall number is also assigned to another wall.</p>
         )}

@@ -9,7 +9,12 @@ import {
   useState,
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Layer, Rect, Stage } from 'react-konva';
+import {
+  Layer,
+  Rect,
+  Stage,
+  Text,
+} from 'react-konva';
 import {
   belowRowOffsets,
   dimensionRowOffsets,
@@ -20,6 +25,7 @@ import {
   fitWallToViewport,
   panView,
   screenToWall,
+  wallToScreen,
   withView,
   zoomViewAt,
 } from '../canvas/transform.js';
@@ -42,7 +48,7 @@ import {
   verticalOpeningChain,
 } from '../model/dimensions.js';
 import { resolveProfile } from '../model/profile.js';
-import { nextWallId } from '../model/topology.js';
+import { elevationLabel, nextWallId } from '../model/topology.js';
 import {
   roomDiagnostics,
   stretchRun,
@@ -733,6 +739,19 @@ function ElevationCanvas({
                 transform={transform}
                 wallEndMarks={[0, wall.length]}
               />
+              {elevationLabel(room, wall) && (
+                <Text
+                  x={wallToScreen({ x: wall.length / 2, z: 0 }, transform).x}
+                  y={wallToScreen({ x: wall.length / 2, z: 0 }, transform).y + dimensionOffsets.label}
+                  text={elevationLabel(room, wall)}
+                  fontSize={13}
+                  fill="#e2e8f0"
+                  align="center"
+                  offsetX={40}
+                  width={80}
+                  listening={false}
+                />
+              )}
               <DimensionRow
                 segments={dimensionChains.upper.inner}
                 orientation="horizontal"
