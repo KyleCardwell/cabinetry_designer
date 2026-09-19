@@ -67,6 +67,7 @@ import {
   replaceRun,
   setMessage,
   setSelection,
+  setFacePath,
   setActiveWall,
   setTool,
 } from '../store/elevationSlice.js';
@@ -88,7 +89,7 @@ function ElevationCanvas({
   onZoomChange,
 }, ref) {
   const dispatch = useDispatch();
-  const { tool, selection } = useSelector((state) => state.elevation);
+  const { tool, selection, facePath } = useSelector((state) => state.elevation);
   const stageRef = useRef(null);
   const containerRef = useRef(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -368,6 +369,7 @@ function ElevationCanvas({
         setAlignmentGuides([]);
         if (dragRef.current) cancelDrag();
         else if (stretchPreview) setStretchPreview(null);
+        else if (facePath) dispatch(setFacePath(null));
         else dispatch(setSelection({}));
         return;
       }
@@ -440,7 +442,7 @@ function ElevationCanvas({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrag, dispatch, resetView, room, stretchPreview, zoomIn, zoomOut]);
+  }, [cancelDrag, dispatch, facePath, resetView, room, stretchPreview, zoomIn, zoomOut]);
 
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
@@ -574,6 +576,11 @@ function ElevationCanvas({
   const selectPiece = useCallback((runId, pieceId) => {
     if (tool !== 'select' || suppressClickRef.current) return;
     dispatch(setSelection({ runId, pieceId }));
+  }, [dispatch, tool]);
+
+  const selectFace = useCallback((path) => {
+    if (tool !== 'select' || suppressClickRef.current) return;
+    dispatch(setFacePath(path));
   }, [dispatch, tool]);
 
   const selectOpening = useCallback((openingId) => {
@@ -761,6 +768,8 @@ function ElevationCanvas({
                 }
                 onSelectRun={selectRun}
                 onSelectPiece={selectPiece}
+                selectedFacePath={selection.runId === run.id ? facePath : null}
+                onSelectFace={selectFace}
                 stretchable={tool === 'select'}
                 onStretchStart={startStretch}
                 onStretchMove={previewStretch}

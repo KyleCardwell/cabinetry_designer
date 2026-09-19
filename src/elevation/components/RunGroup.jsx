@@ -34,6 +34,8 @@ function RunGroup({
   selectedPieceId,
   onSelectRun,
   onSelectPiece,
+  selectedFacePath = null,
+  onSelectFace,
   stretchable = false,
   preview = false,
   onStretchStart,
@@ -295,7 +297,14 @@ function RunGroup({
       ))}
 
       {[...faceLayouts].map(([pieceId, layout]) => (
-        <FaceOutlines key={`faces:${pieceId}`} faces={layout.faces} transform={transform} />
+        <FaceOutlines
+          key={`faces:${pieceId}`}
+          faces={layout.faces}
+          transform={transform}
+          selectable={!preview && selectedPieceId === pieceId}
+          selectedPath={selectedPieceId === pieceId ? selectedFacePath : null}
+          onSelectFace={onSelectFace}
+        />
       ))}
 
       {result.pieces.flatMap((piece) => {
