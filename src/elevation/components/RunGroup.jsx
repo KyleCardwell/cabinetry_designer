@@ -9,7 +9,8 @@ import {
 } from 'react-konva';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
-import { cabinetFaces } from '../model/faces.js';
+import { runFaceLayouts } from '../model/faceLayouts.js';
+import { panelDrop, resolveStyle } from '../model/styles.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
@@ -48,19 +49,16 @@ function RunGroup({
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
     pinTargets: pinTargetsForRun(run, wall, wall.length, settings),
   }), [room, run, settings, wall]);
-  const faceLayouts = useMemo(() => new Map(
-    result.pieces
-      .filter((piece) => piece.kind === 'cabinet' && piece.role === 'item')
-      .map((piece) => [
-        piece.id,
-        cabinetFaces(
-          run.items.find((candidate) => candidate.id === piece.id),
-          piece,
-          run.cabinetTypeId,
-          settings,
-        ),
-      ]),
-  ), [result, run, settings]);
+  const faceLayouts = useMemo(
+    () => runFaceLayouts(room, wall, run, settings, result),
+    [result, room, run, settings, wall],
+  );
+  const drop = panelDrop(run, resolveStyle(settings, room, run), settings);
+  const drawnPieces = useMemo(() => (drop > 0
+    ? result.pieces.map((piece) => (piece.kind === 'filler' || piece.kind === 'end_panel'
+      ? { ...piece, z: piece.z - drop, height: piece.height + drop }
+      : piece))
+    : result.pieces), [drop, result]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),
     [room, settings, wall],
@@ -281,7 +279,7 @@ function RunGroup({
         onClick={selectRun}
       />
 
-      {result.pieces.map((piece) => (
+      {drawnPieces.map((piece) => (
         <PieceRect
           key={piece.id}
           piece={piece}
