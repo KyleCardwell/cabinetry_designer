@@ -14,6 +14,7 @@ import {
 } from '../model/room.js';
 import { runFootprint } from '../model/footprints.js';
 import { splitRun } from '../model/splitRun.js';
+import { formatInches } from '../model/units.js';
 
 function linePoints(points) {
   return points.flatMap((point) => [point.x, point.y]);
@@ -81,6 +82,13 @@ export default function PlanRunFootprint({
     (piece) => piece.x > run.x && piece.x < run.x + run.width,
   );
   const centerX = footprint.reduce((sum, point) => sum + point.x, 0) / footprint.length;
+  const centerY = footprint.reduce((sum, point) => sum + point.y, 0) / footprint.length;
+  const depthFontSize = 11 / scale;
+  const depthText = formatInches(depth);
+  const depthTextWidth = (depthText.length * 0.6 * 11 + 8) / scale;
+  let depthRotation = Math.atan2(frame.d.y, frame.d.x) * 180 / Math.PI;
+  if (depthRotation > 90 || depthRotation < -90) depthRotation += 180;
+  const showsDepth = run.width > depthTextWidth;
   const topY = Math.min(...footprint.map((point) => point.y));
 
   return (
@@ -128,6 +136,21 @@ export default function PlanRunFootprint({
           />
         );
       })}
+      {showsDepth && (
+        <Text
+          x={centerX}
+          y={centerY}
+          width={depthTextWidth}
+          offsetX={depthTextWidth / 2}
+          offsetY={depthFontSize / 2}
+          rotation={depthRotation}
+          align="center"
+          text={depthText}
+          fontSize={depthFontSize}
+          fill="#e2e8f0"
+          listening={false}
+        />
+      )}
       {collision && hovered && collisionMessage && (
         <Label
           x={centerX}
