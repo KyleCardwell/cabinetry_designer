@@ -9,6 +9,7 @@ import {
 } from 'react-konva';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
+import { cabinetFaces } from '../model/faces.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
@@ -19,6 +20,7 @@ import {
 } from '../model/room.js';
 import { formatInches } from '../model/units.js';
 import { wallRectToScreen } from '../canvas/transform.js';
+import FaceOutlines from './FaceOutlines.jsx';
 import PieceRect from './PieceRect.jsx';
 
 function RunGroup({
@@ -44,6 +46,19 @@ function RunGroup({
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
     pinTargets: pinTargetsForRun(run, wall, wall.length, settings),
   }), [room, run, settings, wall]);
+  const faceLayouts = useMemo(() => new Map(
+    result.pieces
+      .filter((piece) => piece.kind === 'cabinet' && piece.role === 'item')
+      .map((piece) => [
+        piece.id,
+        cabinetFaces(
+          run.items.find((candidate) => candidate.id === piece.id),
+          piece,
+          run.cabinetTypeId,
+          settings,
+        ),
+      ]),
+  ), [result, run, settings]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),
     [room, settings, wall],
@@ -277,6 +292,10 @@ function RunGroup({
             : piece.role === 'end-right' && cornerFillers.right}
           onSelect={() => onSelectPiece(run.id, piece.id)}
         />
+      ))}
+
+      {[...faceLayouts].map(([pieceId, layout]) => (
+        <FaceOutlines key={`faces:${pieceId}`} faces={layout.faces} transform={transform} />
       ))}
 
       {result.pieces.flatMap((piece) => {
