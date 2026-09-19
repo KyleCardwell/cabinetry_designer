@@ -74,6 +74,7 @@ import {
   updateWall,
 } from '../store/elevationSlice.js';
 import InchInput from './InchInput.jsx';
+import FaceProperties from './properties/FaceProperties.jsx';
 
 const RUN_TYPES = [
   [CABINET_TYPE_IDS.BASE, 'Base'],
@@ -1009,7 +1010,7 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
   );
 }
 
-function CabinetProperties({ wall, run, piece, item, settings }) {
+function CabinetProperties({ wall, run, piece, item, layout, settings }) {
   const dispatch = useDispatch();
   const actionBase = { wallId: wall.id, runId: run.id, itemId: item.id };
   const locked = item.width !== null;
@@ -1255,6 +1256,8 @@ function CabinetProperties({ wall, run, piece, item, settings }) {
           Remove
         </button>
       </section>
+
+      <FaceProperties wall={wall} run={run} piece={piece} item={item} layout={layout} settings={settings} />
     </div>
   );
 }
@@ -1311,7 +1314,7 @@ function EndProperties({ wallId, run, side }) {
   );
 }
 
-function PieceProperties({ wall, run, selectionContext, settings }) {
+function PieceProperties({ wall, run, layout, selectionContext, settings }) {
   const { piece, item, side } = selectionContext;
 
   if (side) {
@@ -1334,6 +1337,7 @@ function PieceProperties({ wall, run, selectionContext, settings }) {
       run={run}
       piece={piece}
       item={item}
+      layout={layout}
       settings={settings}
     />
   );
@@ -1637,6 +1641,7 @@ export default function PropertiesPanel() {
           <PieceProperties
             wall={wall}
             run={run}
+            layout={layout}
             selectionContext={selectionContext}
             settings={settings}
           />
