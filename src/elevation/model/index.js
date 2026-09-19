@@ -20,6 +20,18 @@ export {
   resolveFaces,
 } from './faces.js';
 export {
+  MAX_FACE_SPLIT,
+  equalizeGroup,
+  faceOutline,
+  getFaceNode,
+  parentFacePath,
+  removeFace,
+  setFaceSize,
+  setFaceType,
+  setGroupCount,
+  splitFace,
+} from './faceTree.js';
+export {
   floorTo,
   formatInches,
   formatInchesInput,
