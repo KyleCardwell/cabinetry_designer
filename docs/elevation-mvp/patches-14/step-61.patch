@@ -1,0 +1,316 @@
+diff --git a/src/elevation/store/__tests__/elevationSlice.test.js b/src/elevation/store/__tests__/elevationSlice.test.js
+index 3ba5c8c..bb937ad 100644
+--- a/src/elevation/store/__tests__/elevationSlice.test.js
++++ b/src/elevation/store/__tests__/elevationSlice.test.js
+@@ -30,6 +30,11 @@ import elevationReducer, {
+   setActiveRoom,
+   setFacePath,
+   setItemFace,
++  setItemReveals,
++  setItemStyle,
++  setRoomStyle,
++  setRunFaceOptions,
++  setRunStyle,
+   setActiveWall,
+   setRunCornerClearance,
+   setRunAnchor,
+@@ -1089,3 +1094,61 @@ describe('cabinet faces', () => {
+     expect(Object.keys(state.selection).sort()).toEqual(['openingId', 'pieceId', 'runId', 'wallId']);
+   });
+ });
++
++describe('styles and reveals', () => {
++  const at = { wallId: 'wall-1', runId: 'run-1' };
++
++  function styleState() {
++    return stateWithRun(run({
++      autoCount: false,
++      items: [fixed('a', 18), fixed('b', 18), { id: 'f', kind: 'filler', width: 3 }],
++    }));
++  }
++
++  function item(state, id) {
++    return currentRun(state).items.find((entry) => entry.id === id);
++  }
++
++  it('46. setRoomStyle and setRunStyle store cleaned partials', () => {
++    let state = elevationReducer(styleState(), setRoomStyle({
++      roomId: 'room-1', style: { cabinetStyleId: 14, beadWidth: null, finish: 'paint' },
++    }));
++    expect(state.rooms[0].style).toEqual({ cabinetStyleId: 14 });
++    state = elevationReducer(state, setRoomStyle({ roomId: 'room-1', style: { cabinetStyleId: 99 } }));
++    expect(state.rooms[0].style).toEqual({ cabinetStyleId: 14 });
++    state = elevationReducer(state, setRoomStyle({ roomId: 'room-1', style: null }));
++    expect('style' in state.rooms[0]).toBe(false);
++
++    state = elevationReducer(state, setRunStyle({ ...at, style: { profiledEdge: true, beadWidth: 0.5 } }));
++    expect(currentRun(state).style).toEqual({ beadWidth: 0.5, profiledEdge: true });
++    state = elevationReducer(state, setRunStyle({ ...at, style: {} }));
++    expect('style' in currentRun(state)).toBe(false);
++  });
++
++  it('47. setRunFaceOptions sets, ignores and clears', () => {
++    let state = elevationReducer(styleState(), setRunFaceOptions({ ...at, upperBottom: 'flush', top: 'wood' }));
++    expect(currentRun(state)).toMatchObject({ upperBottom: 'flush', top: 'wood' });
++    state = elevationReducer(state, setRunFaceOptions({ ...at, upperBottom: 'floating' }));
++    expect(currentRun(state).upperBottom).toBe('flush');
++    state = elevationReducer(state, setRunFaceOptions({ ...at, upperBottom: null }));
++    expect('upperBottom' in currentRun(state)).toBe(false);
++    expect(currentRun(state).top).toBe('wood');
++  });
++
++  it('48. setItemStyle and setItemReveals touch listed cabinets only', () => {
++    let state = elevationReducer(styleState(), setItemStyle({
++      ...at, itemIds: ['a', 'b', 'f'], style: { cabinetStyleId: 15 },
++    }));
++    expect(item(state, 'a').style).toEqual({ cabinetStyleId: 15 });
++    expect(item(state, 'a').style).not.toBe(item(state, 'b').style);
++    expect(item(state, 'f').style).toBeUndefined();
++
++    state = elevationReducer(state, setItemReveals({
++      ...at, itemIds: ['a'], reveals: { top: 0.1875, left: null, pair: 1, bottom: Number.NaN },
++    }));
++    expect(item(state, 'a').reveals).toEqual({ top: 0.1875 });
++    expect(item(state, 'b').reveals).toBeUndefined();
++    state = elevationReducer(state, setItemReveals({ ...at, itemIds: ['a'], reveals: null }));
++    expect('reveals' in item(state, 'a')).toBe(false);
++  });
++});
+diff --git a/src/elevation/store/__tests__/persistence.test.js b/src/elevation/store/__tests__/persistence.test.js
+index 60089fc..0a3d6fa 100644
+--- a/src/elevation/store/__tests__/persistence.test.js
++++ b/src/elevation/store/__tests__/persistence.test.js
+@@ -329,6 +329,68 @@ describe('elevation persistence migration', () => {
+     expect(loaded.settings.faceReveals).toEqual(DEFAULT_SETTINGS.faceReveals);
+   });
+ 
++  it('43. round-trips styles, run face options and manual reveals', () => {
++    const current = migrateV1Document(v1Document());
++    const room = current.rooms[0];
++    const run = room.walls[0].runs[0];
++    const item = run.items[0];
++    room.style = { cabinetStyleId: 14 };
++    run.style = { beadWidth: 0.5, profiledEdge: null };
++    run.upperBottom = 'flush';
++    run.top = 'wood';
++    item.style = { cabinetStyleId: 15, profiledEdge: true };
++    item.reveals = { top: 0.1875, left: null };
++    expect(isElevationDocument(current)).toBe(true);
++    globalThis.window = {
++      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
++    };
++
++    const loaded = loadElevationDocument();
++    const loadedRun = loaded.rooms[0].walls[0].runs[0];
++    expect(loaded.rooms[0].style).toEqual({ cabinetStyleId: 14 });
++    expect(loadedRun).toMatchObject({ style: { beadWidth: 0.5, profiledEdge: null }, upperBottom: 'flush', top: 'wood' });
++    expect(loadedRun.items[0]).toMatchObject({
++      style: { cabinetStyleId: 15, profiledEdge: true },
++      reveals: { top: 0.1875, left: null },
++    });
++  });
++
++  it('44. rejects malformed styles, run face options and reveals', () => {
++    const current = migrateV1Document(v1Document());
++    const room = current.rooms[0];
++    const run = room.walls[0].runs[0];
++    const item = run.items[0];
++    const check = (mutate, undo) => {
++      mutate();
++      expect(isElevationDocument(current)).toBe(false);
++      undo();
++      expect(isElevationDocument(current)).toBe(true);
++    };
++    check(() => { room.style = { cabinetStyleId: 99 }; }, () => { delete room.style; });
++    check(() => { run.style = { beadWidth: -0.25 }; }, () => { run.style = null; });
++    check(() => { run.upperBottom = 'floating'; }, () => { delete run.upperBottom; });
++    check(() => { run.top = 'quartz'; }, () => { run.top = 'stone'; });
++    check(() => { item.style = { finish: 'paint' }; }, () => { item.style = {}; });
++    check(() => { item.reveals = { pair: 0.125 }; }, () => { item.reveals = null; });
++  });
++
++  it('45. defaults the style settings on documents saved before them', () => {
++    const current = migrateV1Document(v1Document());
++    for (const key of ['defaultStyle', 'insetFrame', 'profiledFit', 'woodTopReveal', 'capturedSingleReveal']) {
++      delete current.settings[key];
++    }
++    globalThis.window = {
++      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
++    };
++
++    const loaded = loadElevationDocument();
++    expect(loaded.settings.defaultStyle).toEqual({ cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false });
++    expect(loaded.settings.insetFrame).toEqual(DEFAULT_SETTINGS.insetFrame);
++    expect(loaded.settings.profiledFit).toEqual(DEFAULT_SETTINGS.profiledFit);
++    expect(loaded.settings.woodTopReveal).toBe(0.125);
++    expect(loaded.settings.capturedSingleReveal).toBe(0.09375);
++  });
++
+   it('validates opening anchors on either run side', () => {
+     const current = migrateV1Document(v1Document());
+     const run = current.rooms[0].walls[0].runs[0];
+diff --git a/src/elevation/store/elevationSlice.js b/src/elevation/store/elevationSlice.js
+index 2895e34..304967e 100644
+--- a/src/elevation/store/elevationSlice.js
++++ b/src/elevation/store/elevationSlice.js
+@@ -18,6 +18,12 @@ import {
+   syncRoom,
+ } from '../model/room.js';
+ import { splitRun } from '../model/splitRun.js';
++import {
++  REVEAL_KEYS,
++  RUN_TOP_OPTIONS,
++  UPPER_BOTTOM_OPTIONS,
++  isStyle,
++} from '../model/styles.js';
+ import { roundTo } from '../model/units.js';
+ import {
+   addWallWithConnections,
+@@ -149,6 +155,20 @@ function setCompensatedWalls(state, roomIndex, walls) {
+   syncRoomAt(state, roomIndex);
+ }
+ 
++const STYLE_FIELD_KEYS = ['cabinetStyleId', 'beadWidth', 'profiledEdge'];
++
++/**
++ * Copy only `keys` whose values are set (not null/undefined) and pass `accept`.
++ * Returns null when nothing is left, which clears the stored field.
++ */
++function cleanPartial(value, keys, accept = () => true) {
++  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
++  const entries = keys
++    .map((key) => [key, value[key]])
++    .filter(([, entry]) => entry !== null && entry !== undefined && accept(entry));
++  return entries.length === 0 ? null : Object.fromEntries(entries);
++}
++
+ function itemIndexFor(run, itemId) {
+   return run.items.findIndex((item) => item.id === itemId);
+ }
+@@ -825,6 +845,52 @@ const elevationSlice = createSlice({
+         item.face = face === null ? null : structuredClone(face);
+       }
+     },
++    setRoomStyle(state, action) {
++      const room = roomFor(state, action.payload.roomId);
++      const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
++      if (!room || !isStyle(style)) return;
++      if (style) room.style = style;
++      else delete room.style;
++    },
++    setRunStyle(state, action) {
++      const location = runLocation(state, action.payload);
++      const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
++      if (!location || !isStyle(style)) return;
++      if (style) location.run.style = style;
++      else delete location.run.style;
++    },
++    setRunFaceOptions(state, action) {
++      const location = runLocation(state, action.payload);
++      if (!location) return;
++      const allowed = { upperBottom: UPPER_BOTTOM_OPTIONS, top: RUN_TOP_OPTIONS };
++      for (const [key, options] of Object.entries(allowed)) {
++        const value = action.payload[key];
++        if (value === null) delete location.run[key];
++        else if (options.includes(value)) location.run[key] = value;
++      }
++    },
++    setItemStyle(state, action) {
++      const location = runLocation(state, action.payload);
++      const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
++      if (!location || !isStyle(style)) return;
++      const { itemIds = [] } = action.payload;
++      for (const item of location.run.items) {
++        if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
++        if (style) item.style = { ...style };
++        else delete item.style;
++      }
++    },
++    setItemReveals(state, action) {
++      const location = runLocation(state, action.payload);
++      if (!location) return;
++      const reveals = cleanPartial(action.payload.reveals, REVEAL_KEYS, Number.isFinite);
++      const { itemIds = [] } = action.payload;
++      for (const item of location.run.items) {
++        if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
++        if (reveals) item.reveals = { ...reveals };
++        else delete item.reveals;
++      }
++    },
+     setFacePath(state, action) {
+       state.facePath = action.payload ?? null;
+     },
+@@ -918,6 +984,11 @@ export const {
+   addItemAfter,
+   removeItem,
+   setItemFace,
++  setRoomStyle,
++  setRunStyle,
++  setRunFaceOptions,
++  setItemStyle,
++  setItemReveals,
+   setFacePath,
+   setSelection,
+   clearSelection,
+diff --git a/src/elevation/store/persistence.js b/src/elevation/store/persistence.js
+index c8dcd24..36e02a7 100644
+--- a/src/elevation/store/persistence.js
++++ b/src/elevation/store/persistence.js
+@@ -5,6 +5,12 @@ import {
+   DEFAULT_SETTINGS,
+ } from '../model/constants.js';
+ import { isFaceNode } from '../model/faces.js';
++import {
++  REVEAL_KEYS,
++  RUN_TOP_OPTIONS,
++  UPPER_BOTTOM_OPTIONS,
++  isStyle,
++} from '../model/styles.js';
+ import { wallFrame } from '../model/geometry.js';
+ import {
+   computeWallOrder,
+@@ -87,6 +93,11 @@ const V2_DEFAULTED_SETTING_KEYS = [
+   'casingClearance',
+   'pairDoorAboveWidth',
+   'faceReveals',
++  'defaultStyle',
++  'insetFrame',
++  'profiledFit',
++  'woodTopReveal',
++  'capturedSingleReveal',
+ ];
+ 
+ function isFiniteNumber(value) {
+@@ -119,7 +130,11 @@ function isItem(item) {
+     && (item.absorb === undefined
+       || (item.kind === 'cabinet' && typeof item.absorb === 'boolean'))
+     && (item.face === undefined || item.face === null
+-      || (item.kind === 'cabinet' && isFaceNode(item.face)));
++      || (item.kind === 'cabinet' && isFaceNode(item.face)))
++    && (item.style === undefined || item.style === null
++      || (item.kind === 'cabinet' && isStyle(item.style)))
++    && (item.reveals === undefined || item.reveals === null
++      || (item.kind === 'cabinet' && isOptionalNumericObject(item.reveals, REVEAL_KEYS)));
+ }
+ 
+ function isV1Run(run) {
+@@ -162,7 +177,10 @@ function isRun(run) {
+     && (run.heightMode === 'auto' || run.heightMode === 'manual')
+     && isOptionalNumericObject(run.overrides, RUN_OVERRIDE_KEYS)
+     && isRunAnchor(run.anchors?.left)
+-    && isRunAnchor(run.anchors?.right);
++    && isRunAnchor(run.anchors?.right)
++    && isStyle(run.style)
++    && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
++    && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top));
+ }
+ 
+ function isConnection(connection) {
+@@ -219,6 +237,7 @@ function isRoom(room, profileKeys = PROFILE_KEYS) {
+     && typeof room.id === 'string'
+     && typeof room.name === 'string'
+     && isCompleteProfile(room.profile, profileKeys)
++    && isStyle(room.style)
+     && Array.isArray(room.walls)
+     && Array.isArray(room.wallOrder)
+     && room.wallOrder.length === room.walls.length

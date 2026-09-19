@@ -34,17 +34,13 @@ This plan comes from the 2026-09-18 brainstorm. Each round gets its own `SPEC-N.
 | 58 | Panel: split, count, remove, make equal, apply to same-width cabinets | UI |
 | 59 | Canvas: click a face to select it, highlight it, Esc clears it | UI |
 
-## Round 14 — Reveals per cabinet and rules (waiting on the rules)
+## Round 14 — Styles and reveal rules (steps 60–63) · `SPEC-14.md`
 
-- `item.reveals`: a partial override with the same six keys. The resolution order per key is style default, then **rules**, then manual override.
-- A pure `rules.js` layer computes rule adjustments from where a cabinet sits (run ends, neighbors, cabinet type). Rules re-apply automatically when the run changes. Only manual values are stored.
-- The panel shows each value with its source: "1/8 · style", "0 · rule: …" or "3/16 · manual", with a clear button.
-- The settings panel can edit the default reveals.
-- **Needs:** Kyle's default reveal rules.
+Style (European 13 / Inset 14 / Beaded inset 15) is set per room, run or cabinet. Reveals come from the style, then the rules (wood top, upper flush or on the counter, captured single column), then manual per-cabinet overrides, and the panel shows each value's source. Upper-run fillers and end panels drop to the door bottom. Inset faces are drawn at order size (tight to the opening, or 3/16" smaller when profiled), but the frame isn't drawn yet. The code is prewritten as verified patches in `patches-14/`.
 
 ## Round 15 — Inset face frame
 
-- **Style:** room default (later a finish group), with run and cabinet overrides. It selects the reveals, the frame parameters and the dimension mode.
+- **Style** already exists (round 14). Here it also picks the frame drawing and the dimension mode.
 - **The frame belongs to the run.**
   - A stile goes over each seam, 1 1/2" wide and 3/4" onto each box.
   - The top and bottom rails run the full length of the run.
@@ -58,10 +54,7 @@ This plan comes from the 2026-09-18 brainstorm. Each round gets its own `SPEC-N.
 - **Faces sit inside openings** (a section minus its stiles and rails), using inset reveals.
 - **Drawing:** the frame outline and the faces only. No box edges or interior parts.
 - **Dimensions in opening mode:** end stile | opening | 1 1/2 | opening | … | end stile. Vertical chains work the same way with rails.
-- **Needs:**
-  - the inset reveal defaults
-  - top and bottom rail widths (and what the 1 1/8" bottom is measured to)
-  - the default rail and mullion widths between sections
+- **Settled in round 14 (settings.insetFrame):** stile 3/4" per box, top and bottom rails 1 1/2", mid rails and mullions 1 1/2", upper bottom rail 1 1/2" with 3/4" below the box, beads add to each opening edge. The per-split member toggle comes here: in a shared opening, the gap is 0 (square) or 1/16" (profiled). Hanging bases get a 3/4" bottom rail.
 - **Later:** the wider-frame variant with a gap between boxes, flush ends, and a face frame part in reports.
 
 ## Round 16+ — Interior, export, geometry
