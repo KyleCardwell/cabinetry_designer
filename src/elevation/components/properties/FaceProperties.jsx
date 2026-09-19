@@ -1,19 +1,29 @@
+import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   FACE_TYPE_LABELS,
   FACE_TYPES,
+  MAX_FACE_SPLIT,
   ROOT_FACE_PATH,
   cabinetFaces,
   defaultFace,
+  equalizeGroup,
   faceOutline,
+  getFaceNode,
+  parentFacePath,
   presetsFor,
+  removeFace,
   setFaceSize,
   setFaceType,
+  setGroupCount,
+  splitFace,
 } from '../../model/index.js';
 import { setFacePath, setItemFace } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 
 const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600';
+const DISABLED_CLASS = 'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gray-700';
+const NUMBER_CLASS = 'w-16 rounded border border-gray-600 bg-gray-900 px-2 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 
 function groupLabel(node) {
@@ -21,13 +31,19 @@ function groupLabel(node) {
   return `${name} × ${node.children.length}`;
 }
 
-// `layout` is the run's splitRun result; it's used by the step 58 actions.
+// `layout` is the run's splitRun result; it supplies the same-width targets.
 export default function FaceProperties({ wall, run, piece, item, layout, settings }) {
   const dispatch = useDispatch();
   const facePath = useSelector((state) => state.elevation.facePath);
   const stored = item.face ?? null;
   const face = stored ?? defaultFace(piece.width, settings);
   const { warnings } = cabinetFaces(item, piece, run.cabinetTypeId, settings);
+  const [splitCount, setSplitCount] = useState(2);
+  const selected = facePath === null ? null : getFaceNode(face, facePath);
+  const sameWidthIds = layout.pieces
+    .filter((p) => p.kind === 'cabinet' && p.role === 'item' && Math.abs(p.width - piece.width) < 1e-6)
+    .map((p) => p.id);
+  const hasOtherMatches = sameWidthIds.some((id) => id !== item.id);
 
   const commit = (nextFace) => dispatch(setItemFace({
     wallId: wall.id,
@@ -40,6 +56,22 @@ export default function FaceProperties({ wall, run, piece, item, layout, setting
     commit(nextFace);
     dispatch(setFacePath(null));
   };
+
+  const commitIfChanged = (nextFace) => {
+    if (nextFace !== face) commit(nextFace);
+  };
+
+  const remove = () => {
+    commitIfChanged(removeFace(face, facePath));
+    dispatch(setFacePath(parentFacePath(facePath)));
+  };
+
+  const applyToSameWidth = () => dispatch(setItemFace({
+    wallId: wall.id,
+    runId: run.id,
+    itemIds: sameWidthIds,
+    face: stored,
+  }));
 
   return (
     <section className="space-y-3">
@@ -117,6 +149,82 @@ export default function FaceProperties({ wall, run, piece, item, layout, setting
           </div>
         ))}
       </div>
+
+      {selected && (
+        <div className="space-y-2 rounded border border-gray-700 p-2">
+          {selected.type ? (
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-xs text-gray-300">
+                Sections
+                <input
+                  type="number"
+                  min={2}
+                  max={MAX_FACE_SPLIT}
+                  value={splitCount}
+                  onChange={(event) => setSplitCount(event.target.value)}
+                  onBlur={() => {
+                    const n = Math.round(Number(splitCount));
+                    setSplitCount(Number.isFinite(n) ? Math.min(MAX_FACE_SPLIT, Math.max(2, n)) : 2);
+                  }}
+                  className={NUMBER_CLASS}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => commitIfChanged(splitFace(face, facePath, 'vertical', Number(splitCount)))}
+                className={BUTTON_CLASS}
+              >
+                Stack
+              </button>
+              <button
+                type="button"
+                onClick={() => commitIfChanged(splitFace(face, facePath, 'horizontal', Number(splitCount)))}
+                className={BUTTON_CLASS}
+              >
+                Side by side
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-2 text-xs text-gray-300">
+                Sections
+                <input
+                  type="number"
+                  min={1}
+                  max={MAX_FACE_SPLIT}
+                  value={selected.children.length}
+                  onChange={(event) => {
+                    if (event.target.value === '') return;
+                    commitIfChanged(setGroupCount(face, facePath, Number(event.target.value)));
+                  }}
+                  className={NUMBER_CLASS}
+                />
+              </label>
+              <button
+                type="button"
+                onClick={() => commitIfChanged(equalizeGroup(face, facePath))}
+                className={BUTTON_CLASS}
+              >
+                Make equal
+              </button>
+            </div>
+          )}
+          {facePath !== ROOT_FACE_PATH && (
+            <button type="button" onClick={remove} className={BUTTON_CLASS}>
+              Remove
+            </button>
+          )}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={applyToSameWidth}
+        disabled={!hasOtherMatches}
+        className={`w-full ${BUTTON_CLASS} ${DISABLED_CLASS}`}
+      >
+        Apply to same-width cabinets
+      </button>
 
       {warnings.length > 0 && (
         <p className="text-xs font-medium text-amber-300">Sections don&apos;t fit. Reduce a fixed size.</p>
