@@ -302,6 +302,7 @@ function RunGroup({
           faces={layout.faces}
           transform={transform}
           selectable={!preview && selectedPieceId === pieceId}
+          showSizes={!preview && selectedPieceId === pieceId}
           selectedPath={selectedPieceId === pieceId ? selectedFacePath : null}
           onSelectFace={onSelectFace}
         />

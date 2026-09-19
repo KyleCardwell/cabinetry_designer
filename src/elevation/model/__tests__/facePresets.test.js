@@ -28,10 +28,10 @@ describe('face presets', () => {
     expect(faces).toHaveLength(5);
     expect(faces.map(({ path, z, height }) => ({ path, z, height }))).toEqual([
       { path: 'r.0', z: 34.5, height: 53.375 },
-      { path: 'r.1.0', z: 28.375, height: 6 },
-      { path: 'r.1.1', z: 22.25, height: 6 },
-      { path: 'r.1.2', z: 13.1875, height: 8.9375 },
-      { path: 'r.1.3', z: 4.125, height: 8.9375 },
+      { path: 'r.1.0', z: 28.5, height: 5.875 },
+      { path: 'r.1.1', z: 22.5, height: 5.875 },
+      { path: 'r.1.2', z: 13.3125, height: 9.0625 },
+      { path: 'r.1.3', z: 4.125, height: 9.0625 },
     ]);
     expect(faces[0].type).toBe('door');
     for (const face of faces) {
