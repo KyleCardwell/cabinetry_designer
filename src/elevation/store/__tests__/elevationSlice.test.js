@@ -14,6 +14,7 @@ import elevationReducer, {
   clearSelection,
   createInitialElevationState,
   deleteOpening,
+  deleteRun,
   deleteWall,
   lockItem,
   moveOpening,
@@ -151,6 +152,87 @@ function pin(value, overrides = {}) {
   };
 }
 
+describe('SPEC-12 elevation selection persistence', () => {
+  it('4. keeps the wall selected when deleting a run in elevation', () => {
+    const initial = stateWithRun(run());
+    initial.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
+    };
+
+    const next = elevationReducer(initial, deleteRun({
+      wallId: 'wall-1', runId: 'run-1',
+    }));
+
+    expect(next.selection).toEqual({
+      runId: null, pieceId: null, openingId: null, wallId: 'wall-1',
+    });
+  });
+
+  it('5. resolves a later selection against the retained wall', () => {
+    const initial = stateWithRun(run());
+    initial.rooms[0].walls[0].runs.push(run({ id: 'run-2' }));
+    initial.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
+    };
+    const deleted = elevationReducer(initial, deleteRun({
+      wallId: 'wall-1', runId: 'run-1',
+    }));
+
+    const next = elevationReducer(deleted, setSelection({ runId: 'run-2' }));
+
+    expect(next.selection.wallId).toBe('wall-1');
+    expect(next.selection.runId).toBe('run-2');
+  });
+
+  it('6. clears the wall when deleting a run in plan', () => {
+    const initial = stateWithRun(run());
+    initial.view = 'plan';
+    initial.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
+    };
+
+    const next = elevationReducer(initial, deleteRun({
+      wallId: 'wall-1', runId: 'run-1',
+    }));
+
+    expect(next.selection.wallId).toBeNull();
+  });
+
+  it('7. keeps the wall selected when deleting an opening in elevation', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls[0].openings = [opening()];
+    initial.selection = {
+      wallId: 'wall-1', runId: null, pieceId: null, openingId: 'door-1',
+    };
+
+    const next = elevationReducer(initial, deleteOpening({
+      wallId: 'wall-1', openingId: 'door-1',
+    }));
+
+    expect(next.selection.wallId).toBe('wall-1');
+    expect(next.selection.openingId).toBeNull();
+  });
+
+  it('8. keeps the wall when clearing elevation selection and clears it in plan', () => {
+    const elevation = stateWithRun(run());
+    elevation.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
+    };
+    const plan = stateWithRun(run());
+    plan.view = 'plan';
+    plan.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
+    };
+
+    expect(elevationReducer(elevation, clearSelection()).selection).toEqual({
+      runId: null, pieceId: null, openingId: null, wallId: 'wall-1',
+    });
+    expect(elevationReducer(plan, clearSelection()).selection).toEqual({
+      runId: null, pieceId: null, openingId: null, wallId: null,
+    });
+  });
+});
+
 describe('elevation room reducers', () => {
   it('1. activates and selects a wall while clearing object selection', () => {
     const initial = stateWithRun(run());
@@ -183,7 +265,7 @@ describe('elevation room reducers', () => {
 
     const next = elevationReducer(initial, clearSelection());
     expect(next.selection).toEqual({
-      wallId: null, runId: null, pieceId: null, openingId: null,
+      wallId: 'wall-1', runId: null, pieceId: null, openingId: null,
     });
     expect(next.activeWallId).toBe('wall-1');
   });
@@ -211,7 +293,7 @@ describe('elevation room reducers', () => {
     const next = elevationReducer(initial, deleteWall('wall-1'));
     expect(next.activeWallId).toBe('wall-2');
     expect(next.selection).toEqual({
-      wallId: null, runId: null, pieceId: null, openingId: null,
+      wallId: 'wall-2', runId: null, pieceId: null, openingId: null,
     });
   });
 
@@ -914,7 +996,7 @@ describe('elevation opening reducers', () => {
     expect(deleted.rooms[0].walls[0].openings).toEqual([]);
     expect(currentRun(deleted).items[0].pin).toBeNull();
     expect(deleted.selection).toEqual({
-      runId: null, pieceId: null, openingId: null, wallId: null,
+      runId: null, pieceId: null, openingId: null, wallId: 'wall-1',
     });
   });
 

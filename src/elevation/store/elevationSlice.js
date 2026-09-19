@@ -157,7 +157,7 @@ function clearTransientSelection(state) {
     runId: null,
     pieceId: null,
     openingId: null,
-    wallId: null,
+    wallId: state.view === 'elevation' ? state.activeWallId : null,
   };
 }
 
