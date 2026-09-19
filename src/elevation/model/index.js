@@ -99,6 +99,7 @@ export {
   endCornerAnglesForRun,
   endMinWidthsForRun,
   flipRunsForWall,
+  moveRun,
   pinTargetsForRun,
   resolvePinnedSpan,
   resolvePinTarget,

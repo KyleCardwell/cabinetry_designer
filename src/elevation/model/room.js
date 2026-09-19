@@ -617,6 +617,73 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
     : { ok: false, reason: validation.reason, room };
 }
 
+/**
+ * Move a run along its wall without changing its width, snapping either edge to the
+ * same candidates stretchRun snaps to, then resolve and validate the room.
+ *
+ * @returns {{ok:boolean,reason:string|null,room:object,snap:{value:number,edge:string}|null}}
+ */
+export function moveRun(room, wallId, runId, newX, settings) {
+  const sourceWall = room.walls.find((wall) => wall.id === wallId);
+  const sourceRun = sourceWall?.runs.find((run) => run.id === runId);
+  if (!sourceWall || !sourceRun || !Number.isFinite(newX)) {
+    return { ok: false, reason: 'run-not-found', room, snap: null };
+  }
+  if (sourceRun.anchors?.left || sourceRun.anchors?.right) {
+    return { ok: false, reason: 'anchored', room, snap: null };
+  }
+
+  const length = wallLength(sourceWall);
+  const candidates = [
+    0,
+    length,
+    cornerReserve(room, sourceWall, 'left', sourceRun, settings),
+    length - cornerReserve(room, sourceWall, 'right', sourceRun, settings),
+    ...sourceWall.runs
+      .filter((run) => run.id !== runId)
+      .flatMap((run) => [run.x, run.x + run.width]),
+  ];
+
+  let x = roundTo(newX, 0.5);
+  let snap = null;
+  for (const candidate of candidates) {
+    for (const edge of ['left', 'right']) {
+      const edgeX = edge === 'left' ? x : x + sourceRun.width;
+      const distance = Math.abs(candidate - edgeX);
+      if (distance > STRETCH_EDGE_SNAP_DISTANCE + 1e-9) continue;
+      if (snap && distance >= snap.distance - 1e-9) continue;
+      snap = { value: candidate, edge, distance };
+    }
+  }
+  if (snap) x = snap.edge === 'left' ? snap.value : snap.value - sourceRun.width;
+
+  const maxRunOverhang = settings.maxRunOverhang ?? DEFAULT_SETTINGS.maxRunOverhang;
+  if (x < -maxRunOverhang || x + sourceRun.width > length + maxRunOverhang) {
+    return { ok: false, reason: 'out-of-bounds', room, snap: null };
+  }
+
+  const temporary = cloneRoom(room);
+  const wall = temporary.walls.find((candidate) => candidate.id === wallId);
+  const runIndex = wall.runs.findIndex((candidate) => candidate.id === runId);
+  wall.runs[runIndex] = cloneRun({ ...sourceRun, x });
+  const synced = syncRoom(temporary, settings);
+  const resolvedWall = synced.walls.find((candidate) => candidate.id === wallId);
+  const resolvedRun = resolvedWall.runs.find((candidate) => candidate.id === runId);
+  const validation = validateRunPlacement(
+    { ...resolvedWall, length: wallLength(resolvedWall) },
+    resolvedRun,
+    settings,
+  );
+  return validation.ok
+    ? {
+        ok: true,
+        reason: null,
+        room: synced,
+        snap: snap ? { value: snap.value, edge: snap.edge } : null,
+      }
+    : { ok: false, reason: validation.reason, room, snap: null };
+}
+
 /** Mirror a wall's elevation-facing state and stored run intent. */
 export function flipRunsForWall(wall) {
   const length = wallLength(wall);

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { stretchRun, syncRoom } from '../room.js';
+import { moveRun, stretchRun, syncRoom } from '../room.js';
 
 function makeRun(id, overrides = {}) {
   return {
@@ -177,5 +177,84 @@ describe('stretchRun', () => {
     const result = stretchRun(room, 'A', 'auto', 'right', 100, DEFAULT_SETTINGS);
     expect(result.ok).toBe(true);
     expect(resultRun(result, 'auto').items).toHaveLength(3);
+  });
+});
+
+describe('moveRun', () => {
+  it('12. shifts x and keeps width for a clean move', () => {
+    const result = moveRun(makeRoom(), 'A', 'run', 60, DEFAULT_SETTINGS);
+
+    expect(result.ok).toBe(true);
+    expect(resultRun(result)).toMatchObject({ x: 60, width: 40 });
+    expect(result.snap).toBeNull();
+  });
+
+  it('13. snaps its left edge to the wall end', () => {
+    const result = moveRun(makeRoom(), 'A', 'run', 1.5, DEFAULT_SETTINGS);
+
+    expect(result.ok).toBe(true);
+    expect(resultRun(result)).toMatchObject({ x: 0, width: 40 });
+    expect(result.snap).toEqual({ value: 0, edge: 'left' });
+  });
+
+  it("14. snaps its right edge to a neighbour's left edge", () => {
+    const room = makeRoom([
+      makeRun('run'),
+      makeRun('other', {
+        x: 90,
+        width: 20,
+        items: [{ id: 'other-cabinet', kind: 'cabinet', width: 20 }],
+      }),
+    ]);
+    const result = moveRun(room, 'A', 'run', 49, DEFAULT_SETTINGS);
+
+    expect(result.ok).toBe(true);
+    expect(resultRun(result)).toMatchObject({ x: 50, width: 40 });
+    expect(result.snap).toEqual({ value: 90, edge: 'right' });
+  });
+
+  it('15. refuses conflicting and out-of-bounds moves without changing the room', () => {
+    const room = makeRoom([
+      makeRun('run'),
+      makeRun('other', {
+        x: 90,
+        width: 20,
+        items: [{ id: 'other-cabinet', kind: 'cabinet', width: 20 }],
+      }),
+    ]);
+
+    const conflict = moveRun(room, 'A', 'run', 80, DEFAULT_SETTINGS);
+    expect(conflict).toEqual({
+      ok: false,
+      reason: 'conflict',
+      room,
+      snap: null,
+    });
+    expect(conflict.room).toBe(room);
+
+    const source = makeRoom();
+    const outOfBounds = moveRun(source, 'A', 'run', 200, DEFAULT_SETTINGS);
+    expect(outOfBounds).toEqual({
+      ok: false,
+      reason: 'out-of-bounds',
+      room: source,
+      snap: null,
+    });
+    expect(outOfBounds.room).toBe(source);
+  });
+
+  it('16. refuses to move an anchored run', () => {
+    const room = makeRoom([
+      makeRun('run', { anchors: { left: true, right: false } }),
+    ]);
+    const result = moveRun(room, 'A', 'run', 60, DEFAULT_SETTINGS);
+
+    expect(result).toEqual({
+      ok: false,
+      reason: 'anchored',
+      room,
+      snap: null,
+    });
+    expect(result.room).toBe(room);
   });
 });
