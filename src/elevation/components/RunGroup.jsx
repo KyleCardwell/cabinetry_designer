@@ -308,20 +308,50 @@ function RunGroup({
         )];
       })}
 
-      {centerlineMarkers(run, result.pieces).map((marker) => {
-        const base = wallRectToScreen({ x: marker.x, z: marker.calloutZ - 12, width: 0, height: 0 }, transform);
-        const tip = wallRectToScreen({ x: marker.x, z: marker.calloutZ, width: 0, height: 0 }, transform);
-        const fromLabel = marker.from === 'right' ? 'from right' : marker.from === 'opening' ? 'from opening' : 'from left';
+      {centerlineMarkers(run, result.pieces, wall, wall.length, settings).map((marker) => {
+        const datum = wallRectToScreen({ x: marker.datumX, z: marker.z, width: 0, height: 0 }, transform);
+        const center = wallRectToScreen({ x: marker.x, z: marker.z, width: 0, height: 0 }, transform);
+        const spanTop = wallRectToScreen({
+          x: marker.x,
+          z: Math.max(marker.z, marker.pieceTop),
+          width: 0,
+          height: 0,
+        }, transform);
+        const spanBottom = wallRectToScreen({
+          x: marker.x,
+          z: Math.min(marker.z, marker.pieceBottom),
+          width: 0,
+          height: 0,
+        }, transform);
+        const midX = (datum.x + center.x) / 2;
         return (
           <Group key={`centerline:${marker.pieceId}`} listening={false}>
-            <Line points={[base.x, base.y, tip.x, tip.y]} stroke="#facc15" strokeWidth={1} dash={[3, 2]} />
+            <Line
+              points={[spanBottom.x, spanBottom.y, spanTop.x, spanTop.y]}
+              stroke="#facc15"
+              strokeWidth={1}
+              dash={[3, 2]}
+            />
+            <Line
+              points={[datum.x, datum.y, center.x, center.y]}
+              stroke="#facc15"
+              strokeWidth={1}
+            />
+            {[datum, center].map((point, index) => (
+              <Line
+                key={`tick:${index}`}
+                points={[point.x - 3, point.y + 3, point.x + 3, point.y - 3]}
+                stroke="#facc15"
+                strokeWidth={1}
+              />
+            ))}
             <Text
-              x={tip.x - 40}
-              y={tip.y - 14}
+              x={midX - 40}
+              y={datum.y - 14}
               width={80}
               align="center"
-              text={`℄ ${formatInches(marker.value)} ${fromLabel}`}
-              fontSize={10}
+              text={`℄ ${formatInches(marker.value)}`}
+              fontSize={11}
               fill="#facc15"
             />
           </Group>

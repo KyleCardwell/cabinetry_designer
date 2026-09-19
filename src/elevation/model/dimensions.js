@@ -8,6 +8,7 @@ import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
   pinTargetsForRun,
+  resolvePinTarget,
 } from './room.js';
 import { splitRun } from './splitRun.js';
 
@@ -235,20 +236,32 @@ function leftmost(runs) {
   ), null);
 }
 
+/** Height above the floor where centerline callouts are drawn. */
+export const CENTERLINE_CALLOUT_Z = 40;
+
 /**
- * Return one centerline callout per item pinned by its center: the piece's
- * horizontal center, the z 12" above its top, and the pin's raw entered value.
+ * Describe the centerline dimension for every center-pinned item in a run:
+ * the datum it is measured from, the piece centerline, and the measured distance.
  */
-export function centerlineMarkers(run, pieces) {
+export function centerlineMarkers(run, pieces, wall, wallLengthValue, settings) {
   return pieces.flatMap((piece) => {
     if (piece.role !== 'item') return [];
     const item = run.items.find((candidate) => candidate.id === piece.id);
     if (item?.pin?.anchor !== 'center') return [];
+    const target = resolvePinTarget(item.pin, wall, wallLengthValue, settings);
+    if (!Number.isFinite(target)) return [];
+    const datumX = item.pin.from === 'right'
+      ? target + item.pin.value
+      : target - item.pin.value;
+    const x = piece.x + piece.width / 2;
     return [{
       pieceId: piece.id,
-      x: piece.x + piece.width / 2,
-      calloutZ: piece.z + piece.height + 12,
-      value: item.pin.value,
+      x,
+      datumX,
+      z: CENTERLINE_CALLOUT_Z,
+      value: Math.abs(x - datumX),
+      pieceBottom: piece.z,
+      pieceTop: piece.z + piece.height,
       from: item.pin.from,
     }];
   });

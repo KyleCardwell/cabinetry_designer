@@ -353,53 +353,80 @@ describe('centerlineMarkers', () => {
     { id: 'mid', role: 'item', x: 24, width: 24, z: 4, height: 30.5 },
   ];
 
-  it('SPEC-10 11. returns a callout for a center-pinned item', () => {
+  it('SPEC-12 9. returns a dimension from the left wall end', () => {
     const run = {
       items: [
         { id: 'left', pin: null },
-        { id: 'mid', pin: { from: 'left', value: 24, anchor: 'center' } },
+        { id: 'mid', pin: { from: 'left', value: 36, anchor: 'center' } },
       ],
     };
 
-    expect(centerlineMarkers(run, pieces)).toEqual([{
+    expect(centerlineMarkers(
+      run,
+      pieces,
+      { openings: [] },
+      120,
+      DEFAULT_SETTINGS,
+    )).toEqual([{
       pieceId: 'mid',
       x: 36,
-      calloutZ: 46.5,
-      value: 24,
+      datumX: 0,
+      z: 40,
+      value: 36,
+      pieceBottom: 4,
+      pieceTop: 34.5,
       from: 'left',
     }]);
   });
 
-  it('SPEC-10 12. excludes pins anchored to an item edge', () => {
+  it('SPEC-12 10. measures a right-hand datum from the wall length', () => {
     const run = {
       items: [
         { id: 'left', pin: null },
-        { id: 'mid', pin: { from: 'left', value: 24, anchor: 'center' } },
-        { id: 'right', pin: { from: 'right', value: 12, anchor: 'left' } },
+        { id: 'mid', pin: { from: 'right', value: 84, anchor: 'center' } },
       ],
     };
-    const piecesWithEdgePin = [
-      ...pieces,
-      { id: 'right', role: 'item', x: 48, width: 24, z: 4, height: 30.5 },
-    ];
 
-    expect(centerlineMarkers(run, piecesWithEdgePin)).toEqual([{
+    expect(centerlineMarkers(
+      run,
+      pieces,
+      { openings: [] },
+      120,
+      DEFAULT_SETTINGS,
+    )).toEqual([{
       pieceId: 'mid',
       x: 36,
-      calloutZ: 46.5,
-      value: 24,
-      from: 'left',
+      datumX: 120,
+      z: 40,
+      value: 84,
+      pieceBottom: 4,
+      pieceTop: 34.5,
+      from: 'right',
     }]);
   });
 
-  it('SPEC-10 13. returns no callouts when the run has no items or pins', () => {
-    expect(centerlineMarkers({ items: [] }, pieces)).toEqual([]);
-    expect(centerlineMarkers({
+  it('SPEC-12 11. returns nothing for edge-anchored pins and pinless runs', () => {
+    const edgeAnchoredRun = {
       items: [
         { id: 'left', pin: null },
-        { id: 'mid', pin: null },
+        { id: 'mid', pin: { from: 'left', value: 24, anchor: 'left' } },
       ],
-    }, pieces)).toEqual([]);
+    };
+
+    expect(centerlineMarkers(
+      edgeAnchoredRun,
+      pieces,
+      { openings: [] },
+      120,
+      DEFAULT_SETTINGS,
+    )).toEqual([]);
+    expect(centerlineMarkers(
+      { items: [] },
+      pieces,
+      { openings: [] },
+      120,
+      DEFAULT_SETTINGS,
+    )).toEqual([]);
   });
 });
 
