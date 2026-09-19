@@ -92,6 +92,7 @@ export function createInitialElevationState(document = loadElevationDocument()) 
       openingId: null,
       wallId: document?.view === 'elevation' ? activeWallId : null,
     },
+    facePath: null,
     tool: emptyActiveRoom ? 'wall' : 'select',
     message: null,
   };
@@ -159,6 +160,7 @@ function clearTransientSelection(state) {
     openingId: null,
     wallId: state.view === 'elevation' ? state.activeWallId : null,
   };
+  state.facePath = null;
 }
 
 function activateRoom(state, room) {
@@ -810,8 +812,21 @@ const elevationSlice = createSlice({
           openingId: null,
           wallId: state.selection.wallId,
         };
+        state.facePath = null;
       }
       syncRoomAt(state, location.roomIndex);
+    },
+    setItemFace(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { itemIds = [], face = null } = action.payload;
+      for (const item of location.run.items) {
+        if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
+        item.face = face === null ? null : structuredClone(face);
+      }
+    },
+    setFacePath(state, action) {
+      state.facePath = action.payload ?? null;
     },
     setSelection(state, action) {
       const openingId = action.payload.openingId ?? null;
@@ -822,6 +837,7 @@ const elevationSlice = createSlice({
         openingId: runId ? null : openingId,
         wallId: state.selection.wallId ?? null,
       };
+      state.facePath = null;
     },
     clearSelection(state) {
       clearTransientSelection(state);
@@ -901,6 +917,8 @@ export const {
   splitItem,
   addItemAfter,
   removeItem,
+  setItemFace,
+  setFacePath,
   setSelection,
   clearSelection,
   setTool,

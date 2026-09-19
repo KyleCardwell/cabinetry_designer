@@ -28,6 +28,8 @@ import elevationReducer, {
   setItemAbsorb,
   setItemPin,
   setActiveRoom,
+  setFacePath,
+  setItemFace,
   setActiveWall,
   setRunCornerClearance,
   setRunAnchor,
@@ -1027,5 +1029,63 @@ describe('elevation opening reducers', () => {
       width: 40,
       anchors: { left: false, right: false },
     });
+  });
+});
+
+describe('cabinet faces', () => {
+  function faceState() {
+    return stateWithRun(run({
+      autoCount: false,
+      items: [fixed('a', 18), fixed('b', 18), { id: 'f', kind: 'filler', width: 3 }],
+    }));
+  }
+
+  function item(state, id) {
+    return currentRun(state).items.find((entry) => entry.id === id);
+  }
+
+  it('23. setItemFace sets cabinets only, with copies', () => {
+    const face = { type: 'pair_door', size: null };
+    const next = elevationReducer(faceState(), setItemFace({
+      wallId: 'wall-1', runId: 'run-1', itemIds: ['a', 'b', 'f'], face,
+    }));
+
+    expect(item(next, 'a').face).toEqual(face);
+    expect(item(next, 'b').face).toEqual(face);
+    expect(item(next, 'a').face).not.toBe(item(next, 'b').face);
+    expect(item(next, 'f').face).toBeUndefined();
+  });
+
+  it('24. a null face resets only the listed cabinets', () => {
+    const face = { type: 'pair_door', size: null };
+    const set = elevationReducer(faceState(), setItemFace({
+      wallId: 'wall-1', runId: 'run-1', itemIds: ['a', 'b', 'f'], face,
+    }));
+    const reset = elevationReducer(set, setItemFace({
+      wallId: 'wall-1', runId: 'run-1', itemIds: ['a'], face: null,
+    }));
+
+    expect(item(reset, 'a').face).toBeNull();
+    expect(item(reset, 'b').face).toEqual(face);
+  });
+
+  it('25. facePath is cleared by selection changes', () => {
+    let state = elevationReducer(faceState(), setFacePath('r.1'));
+    expect(state.facePath).toBe('r.1');
+
+    state = elevationReducer(state, setSelection({ runId: 'run-1', pieceId: 'b' }));
+    expect(state.facePath).toBeNull();
+
+    state = elevationReducer(state, setFacePath('r.0'));
+    state = elevationReducer(state, clearSelection());
+    expect(state.facePath).toBeNull();
+
+    state = elevationReducer(state, setSelection({ runId: 'run-1', pieceId: 'b' }));
+    state = elevationReducer(state, setFacePath('r.0'));
+    state = elevationReducer(state, removeItem({
+      wallId: 'wall-1', runId: 'run-1', itemId: 'b',
+    }));
+    expect(state.facePath).toBeNull();
+    expect(Object.keys(state.selection).sort()).toEqual(['openingId', 'pieceId', 'runId', 'wallId']);
   });
 });
