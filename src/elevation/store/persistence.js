@@ -5,6 +5,12 @@ import {
   DEFAULT_SETTINGS,
 } from '../model/constants.js';
 import { isFaceNode } from '../model/faces.js';
+import {
+  REVEAL_KEYS,
+  RUN_TOP_OPTIONS,
+  UPPER_BOTTOM_OPTIONS,
+  isStyle,
+} from '../model/styles.js';
 import { wallFrame } from '../model/geometry.js';
 import {
   computeWallOrder,
@@ -87,6 +93,11 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'casingClearance',
   'pairDoorAboveWidth',
   'faceReveals',
+  'defaultStyle',
+  'insetFrame',
+  'profiledFit',
+  'woodTopReveal',
+  'capturedSingleReveal',
 ];
 
 function isFiniteNumber(value) {
@@ -119,7 +130,11 @@ function isItem(item) {
     && (item.absorb === undefined
       || (item.kind === 'cabinet' && typeof item.absorb === 'boolean'))
     && (item.face === undefined || item.face === null
-      || (item.kind === 'cabinet' && isFaceNode(item.face)));
+      || (item.kind === 'cabinet' && isFaceNode(item.face)))
+    && (item.style === undefined || item.style === null
+      || (item.kind === 'cabinet' && isStyle(item.style)))
+    && (item.reveals === undefined || item.reveals === null
+      || (item.kind === 'cabinet' && isOptionalNumericObject(item.reveals, REVEAL_KEYS)));
 }
 
 function isV1Run(run) {
@@ -162,7 +177,10 @@ function isRun(run) {
     && (run.heightMode === 'auto' || run.heightMode === 'manual')
     && isOptionalNumericObject(run.overrides, RUN_OVERRIDE_KEYS)
     && isRunAnchor(run.anchors?.left)
-    && isRunAnchor(run.anchors?.right);
+    && isRunAnchor(run.anchors?.right)
+    && isStyle(run.style)
+    && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
+    && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top));
 }
 
 function isConnection(connection) {
@@ -219,6 +237,7 @@ function isRoom(room, profileKeys = PROFILE_KEYS) {
     && typeof room.id === 'string'
     && typeof room.name === 'string'
     && isCompleteProfile(room.profile, profileKeys)
+    && isStyle(room.style)
     && Array.isArray(room.walls)
     && Array.isArray(room.wallOrder)
     && room.wallOrder.length === room.walls.length

@@ -18,6 +18,12 @@ import {
   syncRoom,
 } from '../model/room.js';
 import { splitRun } from '../model/splitRun.js';
+import {
+  REVEAL_KEYS,
+  RUN_TOP_OPTIONS,
+  UPPER_BOTTOM_OPTIONS,
+  isStyle,
+} from '../model/styles.js';
 import { roundTo } from '../model/units.js';
 import {
   addWallWithConnections,
@@ -147,6 +153,20 @@ function setCompensatedWalls(state, roomIndex, walls) {
   const oldRoom = state.rooms[roomIndex];
   state.rooms[roomIndex] = compensateRuns(oldRoom, { ...oldRoom, walls });
   syncRoomAt(state, roomIndex);
+}
+
+const STYLE_FIELD_KEYS = ['cabinetStyleId', 'beadWidth', 'profiledEdge'];
+
+/**
+ * Copy only `keys` whose values are set (not null/undefined) and pass `accept`.
+ * Returns null when nothing is left, which clears the stored field.
+ */
+function cleanPartial(value, keys, accept = () => true) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const entries = keys
+    .map((key) => [key, value[key]])
+    .filter(([, entry]) => entry !== null && entry !== undefined && accept(entry));
+  return entries.length === 0 ? null : Object.fromEntries(entries);
 }
 
 function itemIndexFor(run, itemId) {
@@ -825,6 +845,52 @@ const elevationSlice = createSlice({
         item.face = face === null ? null : structuredClone(face);
       }
     },
+    setRoomStyle(state, action) {
+      const room = roomFor(state, action.payload.roomId);
+      const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
+      if (!room || !isStyle(style)) return;
+      if (style) room.style = style;
+      else delete room.style;
+    },
+    setRunStyle(state, action) {
+      const location = runLocation(state, action.payload);
+      const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
+      if (!location || !isStyle(style)) return;
+      if (style) location.run.style = style;
+      else delete location.run.style;
+    },
+    setRunFaceOptions(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const allowed = { upperBottom: UPPER_BOTTOM_OPTIONS, top: RUN_TOP_OPTIONS };
+      for (const [key, options] of Object.entries(allowed)) {
+        const value = action.payload[key];
+        if (value === null) delete location.run[key];
+        else if (options.includes(value)) location.run[key] = value;
+      }
+    },
+    setItemStyle(state, action) {
+      const location = runLocation(state, action.payload);
+      const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
+      if (!location || !isStyle(style)) return;
+      const { itemIds = [] } = action.payload;
+      for (const item of location.run.items) {
+        if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
+        if (style) item.style = { ...style };
+        else delete item.style;
+      }
+    },
+    setItemReveals(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const reveals = cleanPartial(action.payload.reveals, REVEAL_KEYS, Number.isFinite);
+      const { itemIds = [] } = action.payload;
+      for (const item of location.run.items) {
+        if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
+        if (reveals) item.reveals = { ...reveals };
+        else delete item.reveals;
+      }
+    },
     setFacePath(state, action) {
       state.facePath = action.payload ?? null;
     },
@@ -918,6 +984,11 @@ export const {
   addItemAfter,
   removeItem,
   setItemFace,
+  setRoomStyle,
+  setRunStyle,
+  setRunFaceOptions,
+  setItemStyle,
+  setItemReveals,
   setFacePath,
   setSelection,
   clearSelection,

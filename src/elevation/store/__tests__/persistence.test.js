@@ -329,6 +329,68 @@ describe('elevation persistence migration', () => {
     expect(loaded.settings.faceReveals).toEqual(DEFAULT_SETTINGS.faceReveals);
   });
 
+  it('43. round-trips styles, run face options and manual reveals', () => {
+    const current = migrateV1Document(v1Document());
+    const room = current.rooms[0];
+    const run = room.walls[0].runs[0];
+    const item = run.items[0];
+    room.style = { cabinetStyleId: 14 };
+    run.style = { beadWidth: 0.5, profiledEdge: null };
+    run.upperBottom = 'flush';
+    run.top = 'wood';
+    item.style = { cabinetStyleId: 15, profiledEdge: true };
+    item.reveals = { top: 0.1875, left: null };
+    expect(isElevationDocument(current)).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    const loadedRun = loaded.rooms[0].walls[0].runs[0];
+    expect(loaded.rooms[0].style).toEqual({ cabinetStyleId: 14 });
+    expect(loadedRun).toMatchObject({ style: { beadWidth: 0.5, profiledEdge: null }, upperBottom: 'flush', top: 'wood' });
+    expect(loadedRun.items[0]).toMatchObject({
+      style: { cabinetStyleId: 15, profiledEdge: true },
+      reveals: { top: 0.1875, left: null },
+    });
+  });
+
+  it('44. rejects malformed styles, run face options and reveals', () => {
+    const current = migrateV1Document(v1Document());
+    const room = current.rooms[0];
+    const run = room.walls[0].runs[0];
+    const item = run.items[0];
+    const check = (mutate, undo) => {
+      mutate();
+      expect(isElevationDocument(current)).toBe(false);
+      undo();
+      expect(isElevationDocument(current)).toBe(true);
+    };
+    check(() => { room.style = { cabinetStyleId: 99 }; }, () => { delete room.style; });
+    check(() => { run.style = { beadWidth: -0.25 }; }, () => { run.style = null; });
+    check(() => { run.upperBottom = 'floating'; }, () => { delete run.upperBottom; });
+    check(() => { run.top = 'quartz'; }, () => { run.top = 'stone'; });
+    check(() => { item.style = { finish: 'paint' }; }, () => { item.style = {}; });
+    check(() => { item.reveals = { pair: 0.125 }; }, () => { item.reveals = null; });
+  });
+
+  it('45. defaults the style settings on documents saved before them', () => {
+    const current = migrateV1Document(v1Document());
+    for (const key of ['defaultStyle', 'insetFrame', 'profiledFit', 'woodTopReveal', 'capturedSingleReveal']) {
+      delete current.settings[key];
+    }
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.settings.defaultStyle).toEqual({ cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false });
+    expect(loaded.settings.insetFrame).toEqual(DEFAULT_SETTINGS.insetFrame);
+    expect(loaded.settings.profiledFit).toEqual(DEFAULT_SETTINGS.profiledFit);
+    expect(loaded.settings.woodTopReveal).toBe(0.125);
+    expect(loaded.settings.capturedSingleReveal).toBe(0.09375);
+  });
+
   it('validates opening anchors on either run side', () => {
     const current = migrateV1Document(v1Document());
     const run = current.rooms[0].walls[0].runs[0];

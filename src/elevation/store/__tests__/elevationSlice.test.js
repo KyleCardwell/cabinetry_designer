@@ -30,6 +30,11 @@ import elevationReducer, {
   setActiveRoom,
   setFacePath,
   setItemFace,
+  setItemReveals,
+  setItemStyle,
+  setRoomStyle,
+  setRunFaceOptions,
+  setRunStyle,
   setActiveWall,
   setRunCornerClearance,
   setRunAnchor,
@@ -1087,5 +1092,63 @@ describe('cabinet faces', () => {
     }));
     expect(state.facePath).toBeNull();
     expect(Object.keys(state.selection).sort()).toEqual(['openingId', 'pieceId', 'runId', 'wallId']);
+  });
+});
+
+describe('styles and reveals', () => {
+  const at = { wallId: 'wall-1', runId: 'run-1' };
+
+  function styleState() {
+    return stateWithRun(run({
+      autoCount: false,
+      items: [fixed('a', 18), fixed('b', 18), { id: 'f', kind: 'filler', width: 3 }],
+    }));
+  }
+
+  function item(state, id) {
+    return currentRun(state).items.find((entry) => entry.id === id);
+  }
+
+  it('46. setRoomStyle and setRunStyle store cleaned partials', () => {
+    let state = elevationReducer(styleState(), setRoomStyle({
+      roomId: 'room-1', style: { cabinetStyleId: 14, beadWidth: null, finish: 'paint' },
+    }));
+    expect(state.rooms[0].style).toEqual({ cabinetStyleId: 14 });
+    state = elevationReducer(state, setRoomStyle({ roomId: 'room-1', style: { cabinetStyleId: 99 } }));
+    expect(state.rooms[0].style).toEqual({ cabinetStyleId: 14 });
+    state = elevationReducer(state, setRoomStyle({ roomId: 'room-1', style: null }));
+    expect('style' in state.rooms[0]).toBe(false);
+
+    state = elevationReducer(state, setRunStyle({ ...at, style: { profiledEdge: true, beadWidth: 0.5 } }));
+    expect(currentRun(state).style).toEqual({ beadWidth: 0.5, profiledEdge: true });
+    state = elevationReducer(state, setRunStyle({ ...at, style: {} }));
+    expect('style' in currentRun(state)).toBe(false);
+  });
+
+  it('47. setRunFaceOptions sets, ignores and clears', () => {
+    let state = elevationReducer(styleState(), setRunFaceOptions({ ...at, upperBottom: 'flush', top: 'wood' }));
+    expect(currentRun(state)).toMatchObject({ upperBottom: 'flush', top: 'wood' });
+    state = elevationReducer(state, setRunFaceOptions({ ...at, upperBottom: 'floating' }));
+    expect(currentRun(state).upperBottom).toBe('flush');
+    state = elevationReducer(state, setRunFaceOptions({ ...at, upperBottom: null }));
+    expect('upperBottom' in currentRun(state)).toBe(false);
+    expect(currentRun(state).top).toBe('wood');
+  });
+
+  it('48. setItemStyle and setItemReveals touch listed cabinets only', () => {
+    let state = elevationReducer(styleState(), setItemStyle({
+      ...at, itemIds: ['a', 'b', 'f'], style: { cabinetStyleId: 15 },
+    }));
+    expect(item(state, 'a').style).toEqual({ cabinetStyleId: 15 });
+    expect(item(state, 'a').style).not.toBe(item(state, 'b').style);
+    expect(item(state, 'f').style).toBeUndefined();
+
+    state = elevationReducer(state, setItemReveals({
+      ...at, itemIds: ['a'], reveals: { top: 0.1875, left: null, pair: 1, bottom: Number.NaN },
+    }));
+    expect(item(state, 'a').reveals).toEqual({ top: 0.1875 });
+    expect(item(state, 'b').reveals).toBeUndefined();
+    state = elevationReducer(state, setItemReveals({ ...at, itemIds: ['a'], reveals: null }));
+    expect('reveals' in item(state, 'a')).toBe(false);
   });
 });
