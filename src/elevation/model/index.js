@@ -7,6 +7,19 @@ export {
   KIND_LABELS,
 } from './constants.js';
 export {
+  FACE_DIRECTIONS,
+  FACE_TYPE_LABELS,
+  FACE_TYPES,
+  MIN_FACE_SIZE,
+  ROOT_FACE_PATH,
+  cabinetFaces,
+  defaultFace,
+  faceArea,
+  faceRevealsFor,
+  isFaceNode,
+  resolveFaces,
+} from './faces.js';
+export {
   floorTo,
   formatInches,
   formatInchesInput,

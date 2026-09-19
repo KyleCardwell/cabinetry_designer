@@ -57,6 +57,18 @@ export const DEFAULT_SETTINGS = {
   defaultWindowSillZ: 36,
   minOpeningWidth: 6,
   openingSnap: 0.5,
+  pairDoorAboveWidth: 24,
+  faceReveals: {
+    [CABINET_TYPE_IDS.BASE]: {
+      top: 0.25, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125,
+    },
+    [CABINET_TYPE_IDS.UPPER]: {
+      top: 0.125, bottom: -0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125,
+    },
+    [CABINET_TYPE_IDS.TALL]: {
+      top: 0.125, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125,
+    },
+  },
 };
 
 /** Display labels for derived piece kinds. */
