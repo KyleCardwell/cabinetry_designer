@@ -31,6 +31,7 @@ export {
   setGroupCount,
   splitFace,
 } from './faceTree.js';
+export { FACE_PRESETS, presetsFor } from './facePresets.js';
 export {
   floorTo,
   formatInches,
