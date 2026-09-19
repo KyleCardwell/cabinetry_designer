@@ -16,6 +16,8 @@ import { runFootprint } from '../model/footprints.js';
 import { splitRun } from '../model/splitRun.js';
 import { formatInches } from '../model/units.js';
 
+const DEPTH_TICK_HALF_LENGTH = 4;
+
 function linePoints(points) {
   return points.flatMap((point) => [point.x, point.y]);
 }
@@ -82,13 +84,21 @@ export default function PlanRunFootprint({
     (piece) => piece.x > run.x && piece.x < run.x + run.width,
   );
   const centerX = footprint.reduce((sum, point) => sum + point.x, 0) / footprint.length;
-  const centerY = footprint.reduce((sum, point) => sum + point.y, 0) / footprint.length;
   const depthFontSize = 11 / scale;
   const depthText = formatInches(depth);
   const depthTextWidth = (depthText.length * 0.6 * 11 + 8) / scale;
-  let depthRotation = Math.atan2(frame.d.y, frame.d.x) * 180 / Math.PI;
+  // Depth dimension: from the wall (offset 0) to the run front, at the run's middle.
+  const dimensionX = run.x + run.width / 2;
+  const dimensionBack = elevationToPlan(frame, dimensionX, 0);
+  const dimensionFront = elevationToPlan(frame, dimensionX, depth);
+  const tickHalf = DEPTH_TICK_HALF_LENGTH / scale;
+  const tickDirection = {
+    x: (frame.n.x + frame.r.x) / Math.SQRT2,
+    y: (frame.n.y + frame.r.y) / Math.SQRT2,
+  };
+  let depthRotation = Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI;
   if (depthRotation > 90 || depthRotation < -90) depthRotation += 180;
-  const showsDepth = run.width > depthTextWidth;
+  const showsDepth = depth > depthTextWidth;
   const topY = Math.min(...footprint.map((point) => point.y));
 
   return (
@@ -136,13 +146,33 @@ export default function PlanRunFootprint({
           />
         );
       })}
+      <Line
+        points={[dimensionBack.x, dimensionBack.y, dimensionFront.x, dimensionFront.y]}
+        stroke="#e2e8f0"
+        strokeWidth={1 / scale}
+        listening={false}
+      />
+      {[dimensionBack, dimensionFront].map((point, index) => (
+        <Line
+          key={`depth-tick:${index}`}
+          points={[
+            point.x - tickDirection.x * tickHalf,
+            point.y - tickDirection.y * tickHalf,
+            point.x + tickDirection.x * tickHalf,
+            point.y + tickDirection.y * tickHalf,
+          ]}
+          stroke="#e2e8f0"
+          strokeWidth={1 / scale}
+          listening={false}
+        />
+      ))}
       {showsDepth && (
         <Text
-          x={centerX}
-          y={centerY}
+          x={(dimensionBack.x + dimensionFront.x) / 2}
+          y={(dimensionBack.y + dimensionFront.y) / 2}
           width={depthTextWidth}
           offsetX={depthTextWidth / 2}
-          offsetY={depthFontSize / 2}
+          offsetY={depthFontSize + 2 / scale}
           rotation={depthRotation}
           align="center"
           text={depthText}
