@@ -20,6 +20,7 @@ import {
   dimensionRowOffsets,
   layoutDimensionRow,
 } from '../canvas/dimensionLayout.js';
+import { panExceedsThreshold } from '../canvas/panGesture.js';
 import {
   DEFAULT_VIEW,
   fitWallToViewport,
@@ -243,12 +244,17 @@ function ElevationCanvas({
       const dx = event.clientX - current.x;
       const dy = event.clientY - current.y;
       if (dx === 0 && dy === 0) return;
+      const moved = current.moved || panExceedsThreshold(
+        { x: current.originX, y: current.originY },
+        { x: event.clientX, y: event.clientY },
+      );
       panRef.current = {
         ...current,
         x: event.clientX,
         y: event.clientY,
-        moved: true,
+        moved,
       };
+      if (!moved) return;
       setView((activeView) => panView(activeView, dx, dy));
     };
     const handlePointerEnd = (event) => {
@@ -456,6 +462,8 @@ function ElevationCanvas({
       pointerId: pointerEvent.pointerId,
       x: pointerEvent.clientX,
       y: pointerEvent.clientY,
+      originX: pointerEvent.clientX,
+      originY: pointerEvent.clientY,
       moved: false,
     };
   }, [stretchPreview, tool]);

@@ -23,6 +23,7 @@ import {
   endpointAlignmentTargets,
   snapToAlignment,
 } from '../canvas/alignment.js';
+import { panExceedsThreshold } from '../canvas/panGesture.js';
 import useLiveEntry, {
   resolveLiveEntryValue,
 } from '../canvas/useLiveEntry.js';
@@ -333,12 +334,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       const dx = event.clientX - current.x;
       const dy = event.clientY - current.y;
       if (dx === 0 && dy === 0) return;
+      const moved = current.moved || panExceedsThreshold(
+        { x: current.originX, y: current.originY },
+        { x: event.clientX, y: event.clientY },
+      );
       panRef.current = {
         ...current,
         x: event.clientX,
         y: event.clientY,
-        moved: true,
+        moved,
       };
+      if (!moved) return;
       setPan((activePan) => ({ x: activePan.x + dx, y: activePan.y + dy }));
     };
     const handlePointerEnd = (event) => {
@@ -790,6 +796,8 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       pointerId: pointerEvent.pointerId,
       x: pointerEvent.clientX,
       y: pointerEvent.clientY,
+      originX: pointerEvent.clientX,
+      originY: pointerEvent.clientY,
       moved: false,
     };
   }, [entry, tool]);
