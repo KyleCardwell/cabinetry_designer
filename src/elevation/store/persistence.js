@@ -4,6 +4,7 @@ import {
   DEFAULT_PROFILE,
   DEFAULT_SETTINGS,
 } from '../model/constants.js';
+import { isFaceNode } from '../model/faces.js';
 import { wallFrame } from '../model/geometry.js';
 import {
   computeWallOrder,
@@ -84,6 +85,8 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'minOpeningWidth',
   'openingSnap',
   'casingClearance',
+  'pairDoorAboveWidth',
+  'faceReveals',
 ];
 
 function isFiniteNumber(value) {
@@ -114,7 +117,9 @@ function isItem(item) {
     && (item.pin === undefined || item.pin === null
       || (item.kind === 'cabinet' && isItemPin(item.pin)))
     && (item.absorb === undefined
-      || (item.kind === 'cabinet' && typeof item.absorb === 'boolean'));
+      || (item.kind === 'cabinet' && typeof item.absorb === 'boolean'))
+    && (item.face === undefined || item.face === null
+      || (item.kind === 'cabinet' && isFaceNode(item.face)));
 }
 
 function isV1Run(run) {

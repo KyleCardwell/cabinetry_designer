@@ -283,6 +283,52 @@ describe('elevation persistence migration', () => {
     expect(isElevationDocument(current)).toBe(false);
   });
 
+  it('21. round-trips a valid cabinet face and rejects a malformed one', () => {
+    const current = migrateV1Document(v1Document());
+    const item = current.rooms[0].walls[0].runs[0].items[0];
+    const face = {
+      direction: 'vertical',
+      size: null,
+      children: [
+        {
+          direction: 'horizontal',
+          size: 6,
+          children: [
+            { type: 'drawer_front', size: null },
+            { type: 'drawer_front', size: null },
+          ],
+        },
+        { type: 'pair_door', size: null },
+      ],
+    };
+    item.face = face;
+    expect(isElevationDocument(current)).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.rooms[0].walls[0].runs[0].items[0]).toMatchObject({ face });
+
+    item.face = { type: 'shelf', size: null };
+    expect(isElevationDocument(current)).toBe(false);
+    item.face = null;
+    expect(isElevationDocument(current)).toBe(true);
+  });
+
+  it('22. defaults the face settings on documents saved before them', () => {
+    const current = migrateV1Document(v1Document());
+    delete current.settings.faceReveals;
+    delete current.settings.pairDoorAboveWidth;
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.settings.pairDoorAboveWidth).toBe(24);
+    expect(loaded.settings.faceReveals).toEqual(DEFAULT_SETTINGS.faceReveals);
+  });
+
   it('validates opening anchors on either run side', () => {
     const current = migrateV1Document(v1Document());
     const run = current.rooms[0].walls[0].runs[0];
