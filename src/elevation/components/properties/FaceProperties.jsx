@@ -5,7 +5,7 @@ import {
   FACE_TYPES,
   MAX_FACE_SPLIT,
   ROOT_FACE_PATH,
-  cabinetFaces,
+  runFaceLayouts,
   defaultFace,
   equalizeGroup,
   faceOutline,
@@ -20,6 +20,7 @@ import {
 } from '../../model/index.js';
 import { setFacePath, setItemFace } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import CabinetStyleProperties from './CabinetStyleProperties.jsx';
 
 const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600';
 const DISABLED_CLASS = 'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gray-700';
@@ -37,7 +38,11 @@ export default function FaceProperties({ wall, run, piece, item, layout, setting
   const facePath = useSelector((state) => state.elevation.facePath);
   const stored = item.face ?? null;
   const face = stored ?? defaultFace(piece.width, settings);
-  const { warnings } = cabinetFaces(item, piece, run.cabinetTypeId, settings);
+  const room = useSelector((state) => state.elevation.rooms.find(
+    (candidate) => candidate.id === state.elevation.activeRoomId,
+  ));
+  const faceLayout = runFaceLayouts(room, wall, run, settings, layout).get(piece.id);
+  const warnings = faceLayout?.warnings ?? [];
   const [splitCount, setSplitCount] = useState(2);
   const selected = facePath === null ? null : getFaceNode(face, facePath);
   const sameWidthIds = layout.pieces
@@ -75,6 +80,17 @@ export default function FaceProperties({ wall, run, piece, item, layout, setting
 
   return (
     <section className="space-y-3">
+      {faceLayout && (
+        <CabinetStyleProperties
+          room={room}
+          wall={wall}
+          run={run}
+          item={item}
+          settings={settings}
+          faceLayout={faceLayout}
+        />
+      )}
+
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Faces</h3>
         {stored === null ? (

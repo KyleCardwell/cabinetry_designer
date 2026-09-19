@@ -1,24 +1,25 @@
 import { useEffect, useState } from 'react';
 import { formatInchesInput, parseInches } from '../model/units.js';
 
-function displayValue(value) {
-  return value === null || value === undefined ? '' : formatInchesInput(value);
+function displayValue(value, step) {
+  return value === null || value === undefined ? '' : formatInchesInput(value, step);
 }
 
 export default function InchInput({
   value,
   onCommit,
   allowBlank = false,
+  displayStep,
   className = '',
   ...inputProps
 }) {
-  const [text, setText] = useState(() => displayValue(value));
+  const [text, setText] = useState(() => displayValue(value, displayStep));
 
   useEffect(() => {
-    setText(displayValue(value));
-  }, [value]);
+    setText(displayValue(value, displayStep));
+  }, [value, displayStep]);
 
-  const revert = () => setText(displayValue(value));
+  const revert = () => setText(displayValue(value, displayStep));
 
   const commit = () => {
     const trimmed = text.trim();
@@ -37,7 +38,7 @@ export default function InchInput({
 
     const accepted = onCommit(parsed);
     if (accepted === false) revert();
-    else setText(formatInchesInput(parsed));
+    else setText(formatInchesInput(parsed, displayStep));
   };
 
   return (

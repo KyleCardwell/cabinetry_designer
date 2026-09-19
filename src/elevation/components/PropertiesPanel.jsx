@@ -75,6 +75,7 @@ import {
 } from '../store/elevationSlice.js';
 import InchInput from './InchInput.jsx';
 import FaceProperties from './properties/FaceProperties.jsx';
+import RunFaceOptions from './properties/RunFaceOptions.jsx';
 
 const RUN_TYPES = [
   [CABINET_TYPE_IDS.BASE, 'Base'],
@@ -1004,6 +1005,8 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
           )}
         </div>
       </section>
+
+      <RunFaceOptions room={room} wall={wall} run={run} settings={settings} />
 
       <WarningsList layout={layout} />
     </div>
