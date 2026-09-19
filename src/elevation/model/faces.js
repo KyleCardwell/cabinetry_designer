@@ -74,22 +74,33 @@ export function resolveFaces(face, area, reveals) {
   const faces = [];
   const warnings = [];
 
+  const pairGap = reveals.pair ?? reveals.vertical;
+  const fit = reveals.fit ?? 0;
+  const pairFit = reveals.pairFit ?? fit;
+
   const place = (node, rect, path) => {
     if (node.type) {
+      const side = node.type === 'pair_door' ? pairFit : fit;
+      const leaf = {
+        x: rect.x + side,
+        z: rect.z + fit,
+        width: rect.width - side * 2,
+        height: rect.height - fit * 2,
+      };
       if (node.type === 'pair_door') {
-        const half = (rect.width - reveals.vertical) / 2;
-        faces.push({ path, type: node.type, half: 'left', x: rect.x, z: rect.z, width: half, height: rect.height });
+        const half = (leaf.width - pairGap) / 2;
+        faces.push({ path, type: node.type, half: 'left', x: leaf.x, z: leaf.z, width: half, height: leaf.height });
         faces.push({
           path,
           type: node.type,
           half: 'right',
-          x: rect.x + half + reveals.vertical,
-          z: rect.z,
+          x: leaf.x + half + pairGap,
+          z: leaf.z,
           width: half,
-          height: rect.height,
+          height: leaf.height,
         });
       } else {
-        faces.push({ path, type: node.type, ...rect });
+        faces.push({ path, type: node.type, ...leaf });
       }
       return;
     }
@@ -123,9 +134,9 @@ export function resolveFaces(face, area, reveals) {
   return { faces, warnings };
 }
 
-/** Resolved faces for one cabinet piece from splitRun. */
-export function cabinetFaces(item, piece, cabinetTypeId, settings) {
-  const reveals = faceRevealsFor(cabinetTypeId, settings);
+/** Resolved faces for one cabinet piece from splitRun. Pass revealValues to use style/rule reveals. */
+export function cabinetFaces(item, piece, cabinetTypeId, settings, revealValues = null) {
+  const reveals = revealValues ?? faceRevealsFor(cabinetTypeId, settings);
   const face = item?.face ?? defaultFace(piece.width, settings);
   return resolveFaces(face, faceArea(piece, reveals), reveals);
 }

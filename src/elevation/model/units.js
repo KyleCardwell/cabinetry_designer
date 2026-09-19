@@ -48,20 +48,21 @@ export function parseInches(str) {
  * @param {number} n
  * @returns {string}
  */
-export function formatInches(n) {
+export function formatInches(n, step = DISPLAY_STEP) {
   if (!Number.isFinite(n)) return '';
 
-  const sixteenths = Math.round((n / DISPLAY_STEP) + MATH_EPSILON);
-  if (sixteenths === 0) return '0"';
+  const perInch = Math.round(1 / step);
+  const units = Math.round((n * perInch) + MATH_EPSILON);
+  if (units === 0) return '0"';
 
-  const sign = sixteenths < 0 ? '-' : '';
-  const absolute = Math.abs(sixteenths);
-  const whole = Math.floor(absolute / 16);
-  let numerator = absolute % 16;
+  const sign = units < 0 ? '-' : '';
+  const absolute = Math.abs(units);
+  const whole = Math.floor(absolute / perInch);
+  let numerator = absolute % perInch;
 
   if (numerator === 0) return `${sign}${whole}"`;
 
-  let denominator = 16;
+  let denominator = perInch;
   while (numerator % 2 === 0) {
     numerator /= 2;
     denominator /= 2;
@@ -77,8 +78,8 @@ export function formatInches(n) {
  * @param {number} n
  * @returns {string}
  */
-export function formatInchesInput(n) {
-  return formatInches(n).replace(/"$/, '');
+export function formatInchesInput(n, step) {
+  return formatInches(n, step).replace(/"$/, '');
 }
 
 /**

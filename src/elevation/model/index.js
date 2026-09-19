@@ -33,6 +33,23 @@ export {
 } from './faceTree.js';
 export { FACE_PRESETS, presetsFor } from './facePresets.js';
 export {
+  CABINET_STYLE_IDS,
+  CABINET_STYLE_LABELS,
+  REVEAL_KEYS,
+  REVEAL_SOURCE_LABELS,
+  RUN_TOP_OPTIONS,
+  UPPER_BOTTOM_OPTIONS,
+  cabinetReveals,
+  isInsetStyle,
+  isSingleColumn,
+  isStyle,
+  panelDrop,
+  resolveStyle,
+  styleReveals,
+} from './styles.js';
+export { captureSides } from './capture.js';
+export { layoutRun, runFaceLayouts } from './faceLayouts.js';
+export {
   floorTo,
   formatInches,
   formatInchesInput,

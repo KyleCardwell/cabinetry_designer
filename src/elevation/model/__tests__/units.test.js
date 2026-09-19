@@ -51,3 +51,13 @@ describe('step rounding', () => {
     expect(roundTo(10, -1)).toBeNaN();
   });
 });
+
+describe('formatInches with a finer step', () => {
+  it('50. formats thirty-seconds when asked', () => {
+    expect(formatInches(0.09375, 1 / 32)).toBe('3/32"');
+    expect(formatInches(1.09375, 1 / 32)).toBe('1 3/32"');
+    expect(formatInches(-0.125, 1 / 32)).toBe('-1/8"');
+    expect(formatInches(0.09375)).toBe('1/8"');
+    expect(formatInchesInput(0.84375, 1 / 32)).toBe('27/32');
+  });
+});

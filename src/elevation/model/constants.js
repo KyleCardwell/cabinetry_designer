@@ -69,6 +69,11 @@ export const DEFAULT_SETTINGS = {
       top: 0.125, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125,
     },
   },
+  defaultStyle: { cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false },
+  insetFrame: { stile: 0.75, rail: 1.5, midRail: 1.5, mullion: 1.5, upperDrop: 0.75 },
+  profiledFit: { edge: 0.09375, pairEdge: 0.0625, pairGap: 0.125 },
+  woodTopReveal: 0.125,
+  capturedSingleReveal: 0.09375,
 };
 
 /** Display labels for derived piece kinds. */
