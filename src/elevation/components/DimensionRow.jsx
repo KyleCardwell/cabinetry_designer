@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   Group,
   Line,
@@ -43,8 +43,13 @@ export default function DimensionRow({
   onSegmentClick,
   highlightRunId,
   wallEndMarks = [],
+  draggableRuns = false,
+  onSegmentDragStart,
+  onSegmentDragMove,
+  onSegmentDragEnd,
 }) {
   const [hoveredHiddenIndex, setHoveredHiddenIndex] = useState(null);
+  const dragMovedRef = useRef(false);
   const layout = useMemo(() => layoutDimensionRow(segments, {
     scale: transform.scale,
     fontSize: FONT_SIZE,
@@ -78,6 +83,38 @@ export default function DimensionRow({
     x: (axis.x + outward.x) / Math.SQRT2,
     y: (axis.y + outward.y) / Math.SQRT2,
   };
+  const setResizeCursor = (event, cursor) => {
+    const stage = event.target.getStage();
+    if (stage) stage.container().style.cursor = cursor;
+  };
+  const dragDelta = (event, origin) => (horizontal
+    ? (event.target.x() - origin.x) / transform.scale
+    : -(event.target.y() - origin.y) / transform.scale);
+  const dragProps = (segment, origin) => (draggableRuns && segment.kind === 'run' ? {
+    draggable: true,
+    dragBoundFunc: (position) => (horizontal
+      ? { x: position.x, y: origin.y }
+      : { x: origin.x, y: position.y }),
+    onMouseEnter: (event) => setResizeCursor(event, 'move'),
+    onMouseLeave: (event) => setResizeCursor(event, 'default'),
+    onDragStart: (event) => {
+      event.cancelBubble = true;
+      dragMovedRef.current = false;
+      onSegmentClick?.(segment);
+      onSegmentDragStart?.(segment);
+    },
+    onDragMove: (event) => {
+      event.cancelBubble = true;
+      dragMovedRef.current = true;
+      onSegmentDragMove?.(segment, dragDelta(event, origin));
+    },
+    onDragEnd: (event) => {
+      event.cancelBubble = true;
+      const delta = dragDelta(event, origin);
+      event.target.position(origin);
+      onSegmentDragEnd?.(segment, delta);
+    },
+  } : {});
 
   return (
     <Group>
@@ -139,6 +176,10 @@ export default function DimensionRow({
         const hitEvents = {
           onClick: clickable ? (event) => {
             event.cancelBubble = true;
+            if (dragMovedRef.current) {
+              dragMovedRef.current = false;
+              return;
+            }
             onSegmentClick(segment);
           } : undefined,
           onMouseEnter: showsHiddenTooltip
@@ -216,6 +257,7 @@ export default function DimensionRow({
                 {...band}
                 fill="rgba(0,0,0,0.001)"
                 {...hitEvents}
+                {...dragProps(segment, { x: band.x, y: band.y })}
               />
             )}
             {clickable && label.mode !== 'hidden' && (
@@ -229,6 +271,7 @@ export default function DimensionRow({
                 rotation={rotation}
                 fill="rgba(0,0,0,0.001)"
                 {...hitEvents}
+                {...dragProps(segment, { x: labelPoint.x, y: labelPoint.y })}
               />
             )}
             {clickable && label.mode === 'popout' && (
@@ -236,6 +279,7 @@ export default function DimensionRow({
                 {...leader}
                 fill="rgba(0,0,0,0.001)"
                 {...hitEvents}
+                {...dragProps(segment, { x: leader.x, y: leader.y })}
               />
             )}
 

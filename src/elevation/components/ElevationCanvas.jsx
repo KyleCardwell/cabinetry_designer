@@ -52,6 +52,7 @@ import {
 import { resolveProfile } from '../model/profile.js';
 import { elevationLabel, nextWallId } from '../model/topology.js';
 import {
+  moveRun,
   roomDiagnostics,
   stretchRun,
   tryPlaceRun,
@@ -95,6 +96,7 @@ function ElevationCanvas({
   const [drag, setDrag] = useState(null);
   const [stretchPreview, setStretchPreview] = useState(null);
   const [alignmentGuides, setAlignmentGuides] = useState([]);
+  const moveOriginRef = useRef(null);
   const dragRef = useRef(null);
   const panRef = useRef(null);
   const spacePressedRef = useRef(false);
@@ -661,6 +663,44 @@ function ElevationCanvas({
     dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
   }, [applyRunAlignment, dispatch, room, settings, showMessage, wall]);
 
+  const startRunMove = useCallback((segment) => {
+    if (!room || !wall) return;
+    const run = wall.runs.find((candidate) => candidate.id === segment.runId);
+    if (!run) return;
+    moveOriginRef.current = { runId: run.id, x: run.x };
+    setStretchPreview({ room, wall, run });
+  }, [room, wall]);
+
+  const applyRunMove = useCallback((segment, delta, commit) => {
+    const origin = moveOriginRef.current;
+    if (!origin || !room || !wall || origin.runId !== segment.runId) return;
+    const result = moveRun(room, wall.id, segment.runId, origin.x + delta, settings);
+    if (!result.ok) {
+      if (commit) {
+        moveOriginRef.current = null;
+        setStretchPreview(null);
+        setAlignmentGuides([]);
+        showMessage(result.reason === 'anchored'
+          ? 'Anchored — set Anchor to Free to move'
+          : result.reason);
+      }
+      return;
+    }
+    const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
+    const resolvedRun = resolvedWall?.runs.find((candidate) => candidate.id === segment.runId);
+    if (!resolvedRun) return;
+    setAlignmentGuides(result.snap ? [{ axis: 'x', value: result.snap.value }] : []);
+    if (!commit) {
+      setStretchPreview({ room: result.room, wall: resolvedWall, run: resolvedRun });
+      return;
+    }
+    moveOriginRef.current = null;
+    setStretchPreview(null);
+    setAlignmentGuides([]);
+    dispatch(setMessage(null));
+    dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
+  }, [dispatch, room, settings, showMessage, wall]);
+
   return (
     <div
       ref={containerRef}
@@ -767,6 +807,10 @@ function ElevationCanvas({
                 offsetPx={dimensionOffsets.lower.outer}
                 transform={transform}
                 onSegmentClick={(segment) => selectRun(segment.runId)}
+                draggableRuns={tool === 'select'}
+                onSegmentDragStart={startRunMove}
+                onSegmentDragMove={(segment, delta) => applyRunMove(segment, delta, false)}
+                onSegmentDragEnd={(segment, delta) => applyRunMove(segment, delta, true)}
                 highlightRunId={selection.runId}
                 wallEndMarks={[0, wall.length]}
               />
@@ -806,6 +850,10 @@ function ElevationCanvas({
                 offsetPx={dimensionOffsets.upper.outer}
                 transform={transform}
                 onSegmentClick={(segment) => selectRun(segment.runId)}
+                draggableRuns={tool === 'select'}
+                onSegmentDragStart={startRunMove}
+                onSegmentDragMove={(segment, delta) => applyRunMove(segment, delta, false)}
+                onSegmentDragEnd={(segment, delta) => applyRunMove(segment, delta, true)}
                 highlightRunId={selection.runId}
                 wallEndMarks={[0, wall.length]}
               />
