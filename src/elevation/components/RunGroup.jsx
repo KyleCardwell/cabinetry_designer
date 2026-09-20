@@ -207,14 +207,16 @@ function RunGroup({
         strokeWidth={1}
         draggable
         dragBoundFunc={(position) => ({ x: position.x, y: runRect.y })}
-        onMouseDown={stopHandleEvent}
+        onMouseDown={(event) => {
+          stopHandleEvent(event);
+          onStretchStart?.(run.id, side);
+        }}
         onMouseUp={stopHandleEvent}
         onClick={stopHandleEvent}
         onMouseEnter={(event) => setResizeCursor(event, 'ew-resize')}
         onMouseLeave={(event) => setResizeCursor(event, 'default')}
         onDragStart={(event) => {
           stopHandleEvent(event);
-          onStretchStart?.(run.id, side);
         }}
         onDragMove={(event) => {
           stopHandleEvent(event);

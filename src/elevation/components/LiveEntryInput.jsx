@@ -6,7 +6,8 @@ const EDGE_GAP = 8;
 
 function displayValue(entry) {
   if (entry.typed !== null) return entry.typed;
-  if (entry.kind === 'wall-perpendicular' && Math.abs(entry.value) > 1e-9) {
+  if (['wall-perpendicular', 'run-move'].includes(entry.kind)
+    && Math.abs(entry.value) > 1e-9) {
     return `${entry.value > 0 ? '+' : '−'}${formatInches(Math.abs(entry.value))}`;
   }
   return formatInches(entry.value);

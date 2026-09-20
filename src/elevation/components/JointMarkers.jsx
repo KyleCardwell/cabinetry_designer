@@ -75,14 +75,16 @@ function JointMarkers({
             strokeWidth={1}
             draggable
             dragBoundFunc={(position) => ({ x: position.x, y: bounds.y })}
-            onMouseDown={stopEvent}
+            onMouseDown={(event) => {
+              stopEvent(event);
+              onJointDragStart(joint.id);
+            }}
             onMouseUp={stopEvent}
             onClick={stopEvent}
             onMouseEnter={(event) => setCursor(event, 'ew-resize')}
             onMouseLeave={(event) => setCursor(event, 'default')}
             onDragStart={(event) => {
               stopEvent(event);
-              onJointDragStart(joint.id);
             }}
             onDragMove={(event) => {
               stopEvent(event);

@@ -35,7 +35,8 @@ import {
   screenPointToWallSnapped,
 } from '../canvas/drag.js';
 import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
-import { CABINET_TYPE_IDS } from '../model/constants.js';
+import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../model/constants.js';
 import { createRun } from '../model/runDefaults.js';
 import {
   createOpening,
@@ -54,6 +55,7 @@ import { resolveProfile } from '../model/profile.js';
 import { elevationLabel, nextWallId } from '../model/topology.js';
 import {
   joinTouchingEdges,
+  endMinWidthsForRun,
   moveJoint,
   moveRun,
   roomDiagnostics,
@@ -61,6 +63,7 @@ import {
   tryPlaceRun,
 } from '../model/room.js';
 import { isJointAnchor, jointMembers } from '../model/joints.js';
+import { runWidthRange } from '../model/splitRun.js';
 import { formatInches } from '../model/units.js';
 import {
   addOpening,
@@ -82,6 +85,7 @@ import DragPreview from './DragPreview.jsx';
 import DimensionRow from './DimensionRow.jsx';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import JointMarkers from './JointMarkers.jsx';
+import LiveEntryInput from './LiveEntryInput.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
 import RunGroup from './RunGroup.jsx';
@@ -93,6 +97,24 @@ const RUN_TYPE_LABELS = {
   [CABINET_TYPE_IDS.UPPER]: 'Upper',
   [CABINET_TYPE_IDS.TALL]: 'Tall',
 };
+
+function runDrawBounds(start, current, width, fallbackDirection = 1) {
+  const direction = current.x === start.x
+    ? fallbackDirection
+    : Math.sign(current.x - start.x);
+  return dragPointsToRunInput(start, {
+    ...current,
+    x: start.x + direction * width,
+  });
+}
+
+function runEdgeXForWidth(run, side, width) {
+  return side === 'left' ? run.x + run.width - width : run.x + width;
+}
+
+function runWidthForEdgeX(run, side, edgeX) {
+  return side === 'left' ? run.x + run.width - edgeX : edgeX - run.x;
+}
 
 function ElevationCanvas({
   room,
@@ -111,6 +133,8 @@ function ElevationCanvas({
   const [stretchPreview, setStretchPreview] = useState(null);
   const [hoveredJointId, setHoveredJointId] = useState(null);
   const [alignmentGuides, setAlignmentGuides] = useState([]);
+  const [entryPointer, setEntryPointer] = useState(null);
+  const liveGestureRef = useRef(null);
   const moveOriginRef = useRef(null);
   const dragRef = useRef(null);
   const panRef = useRef(null);
@@ -120,6 +144,17 @@ function ElevationCanvas({
   const messageTimeoutRef = useRef(null);
   const clickSuppressionTimeoutRef = useRef(null);
   const suppressClickRef = useRef(false);
+  const {
+    entry,
+    begin: beginEntry,
+    update: updateEntry,
+    setTyped: setEntryTyped,
+    commit: commitEntry,
+    cancel: cancelEntry,
+  } = useLiveEntry();
+  const entryRef = useRef(entry);
+  entryRef.current = entry;
+  const entryValue = resolveLiveEntryValue(entry);
   const wallId = wall?.id ?? null;
   const diagnostics = useMemo(
     () => (room ? roomDiagnostics(room, settings) : {}),
@@ -212,10 +247,11 @@ function ElevationCanvas({
   }, []);
 
   useEffect(() => {
+    cancelEntry();
     cancelDrag();
     setStretchPreview(null);
     dispatch(setSelection({}));
-  }, [cancelDrag, dispatch, wallId]);
+  }, [cancelDrag, cancelEntry, dispatch, wallId]);
 
   useEffect(() => {
     resetView();
@@ -225,6 +261,14 @@ function ElevationCanvas({
     if (tool !== 'draw') cancelDrag();
     if (tool !== 'select') setStretchPreview(null);
   }, [cancelDrag, tool]);
+
+  useEffect(() => {
+    if (entry?.kind === 'run-draw' && tool !== 'draw') cancelEntry();
+    else if (
+      (entry?.kind === 'run-edge' || entry?.kind === 'run-move')
+      && tool !== 'select'
+    ) cancelEntry();
+  }, [cancelEntry, entry?.kind, tool]);
 
   useEffect(() => {
     setStretchPreview(null);
@@ -387,6 +431,11 @@ function ElevationCanvas({
       if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
 
       if (event.key === 'Escape') {
+        if (entry) {
+          event.preventDefault();
+          cancelEntry();
+          return;
+        }
         if (tool !== 'select') {
           if (dragRef.current) cancelDrag();
           setAlignmentGuides([]);
@@ -470,7 +519,19 @@ function ElevationCanvas({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrag, dispatch, facePath, resetView, room, stretchPreview, tool, zoomIn, zoomOut]);
+  }, [
+    cancelDrag,
+    cancelEntry,
+    dispatch,
+    entry,
+    facePath,
+    resetView,
+    room,
+    stretchPreview,
+    tool,
+    zoomIn,
+    zoomOut,
+  ]);
 
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
@@ -487,7 +548,7 @@ function ElevationCanvas({
     const middleDrag = pointerEvent.button === 1;
     const spaceDrag = pointerEvent.button === 0 && spacePressedRef.current;
     const selectDrag = pointerEvent.button === 0 && tool === 'select';
-    if (!emptyCanvas || dragRef.current || stretchPreview
+    if (!emptyCanvas || entry || dragRef.current || stretchPreview
       || (!middleDrag && !spaceDrag && !selectDrag)) return;
     pointerEvent.preventDefault();
     panRef.current = {
@@ -499,11 +560,20 @@ function ElevationCanvas({
       moved: false,
       clearsSelection: selectDrag && !spaceDrag,
     };
-  }, [stretchPreview, tool]);
+  }, [entry, stretchPreview, tool]);
 
-  const dragBounds = useMemo(() => (
-    drag ? dragPointsToRunInput(drag.start, drag.current) : null
-  ), [drag]);
+  const dragBounds = useMemo(() => {
+    if (!drag) return null;
+    if (entry?.kind !== 'run-draw') {
+      return dragPointsToRunInput(drag.start, drag.current);
+    }
+    return runDrawBounds(
+      drag.start,
+      drag.current,
+      entryValue,
+      liveGestureRef.current?.direction,
+    );
+  }, [drag, entry?.kind, entryValue]);
   const dragPreview = useMemo(() => {
     if (!dragBounds || !room || !wall || dragBounds.width <= 0) return null;
     const run = createRun(dragBounds, { settings, room, wall });
@@ -546,29 +616,7 @@ function ElevationCanvas({
     return point;
   };
 
-  const handleMouseDown = (event) => {
-    if (tool !== 'draw' || event.evt.button !== 0
-      || spacePressedRef.current || panRef.current) return;
-    const point = wallPointFromEvent(event);
-    if (!point) return;
-    dispatch(setSelection({}));
-    updateDrag({ start: point, current: point });
-  };
-
-  const handleMouseMove = (event) => {
-    if (!dragRef.current) return;
-    const point = wallPointFromEvent(event);
-    if (!point) return;
-    updateDrag({ ...dragRef.current, current: point });
-  };
-
-  const handleMouseUp = (event) => {
-    const currentDrag = dragRef.current;
-    if (!currentDrag || !wall) return;
-    const end = wallPointFromEvent(event) ?? currentDrag.current;
-    const bounds = dragPointsToRunInput(currentDrag.start, end);
-    cancelDrag();
-    setAlignmentGuides([]);
+  const suppressNextClick = useCallback(() => {
     if (clickSuppressionTimeoutRef.current !== null) {
       globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
     }
@@ -577,8 +625,20 @@ function ElevationCanvas({
       suppressClickRef.current = false;
       clickSuppressionTimeoutRef.current = null;
     }, 0);
+  }, []);
 
-    if (bounds.width < settings.minRunWidth) return;
+  const commitRunDraw = useCallback((width) => {
+    const gesture = liveGestureRef.current;
+    if (gesture?.kind !== 'run-draw' || !room || !wall) return;
+    const bounds = runDrawBounds(
+      gesture.start,
+      gesture.current,
+      width,
+      gesture.direction,
+    );
+    liveGestureRef.current = null;
+    cancelDrag();
+    setAlignmentGuides([]);
 
     const run = createRun(bounds, { settings, room, wall });
     const placement = tryPlaceRun(room, wall.id, run, settings);
@@ -606,6 +666,94 @@ function ElevationCanvas({
       dispatch(addRun({ wallId: wall.id, run }));
     }
     dispatch(setSelection({ runId: run.id, pieceId: null }));
+  }, [cancelDrag, dispatch, room, settings, showMessage, wall]);
+
+  const handleMouseDown = (event) => {
+    if (tool !== 'draw' || event.evt.button !== 0
+      || spacePressedRef.current || panRef.current) return;
+    if (entry) return;
+    const point = wallPointFromEvent(event);
+    if (!point) return;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+    dispatch(setSelection({}));
+    updateDrag({ start: point, current: point });
+    setEntryPointer(pointer);
+    liveGestureRef.current = {
+      kind: 'run-draw',
+      start: point,
+      current: point,
+      direction: 1,
+      pressStart: pointer,
+      awaitingClick: false,
+    };
+    beginEntry({
+      kind: 'run-draw',
+      label: 'Width',
+      value: 0,
+      min: settings.minRunWidth,
+      max: Infinity,
+      onCommit: commitRunDraw,
+      onCancel: () => {
+        liveGestureRef.current = null;
+        cancelDrag();
+        setAlignmentGuides([]);
+      },
+    });
+  };
+
+  const handleMouseMove = (event) => {
+    const gesture = liveGestureRef.current;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!entry || !gesture || !pointer) return;
+    setEntryPointer(pointer);
+    if (entry.kind === 'run-draw' && gesture.kind === 'run-draw') {
+      const point = wallPointFromEvent(event);
+      if (!point) return;
+      const direction = point.x === gesture.start.x
+        ? gesture.direction
+        : Math.sign(point.x - gesture.start.x);
+      liveGestureRef.current = { ...gesture, current: point, direction };
+      updateDrag({ start: gesture.start, current: point });
+      updateEntry(Math.abs(point.x - gesture.start.x));
+      return;
+    }
+    if (!transform) return;
+    const pointerX = screenToWall(pointer, transform).x;
+    if (entry.kind === 'run-edge' && gesture.kind === 'run-edge') {
+      if (gesture.jointId) {
+        liveGestureRef.current = { ...gesture, requestedJointX: pointerX };
+      }
+      const edgeX = gesture.jointId
+        ? gesture.side === 'right'
+          ? pointerX - gesture.offset
+          : pointerX + gesture.offset
+        : pointerX;
+      updateEntry(runWidthForEdgeX(gesture.run, gesture.side, edgeX));
+    } else if (entry.kind === 'run-move' && gesture.kind === 'run-move') {
+      updateEntry(pointerX - gesture.pointerStartX);
+    }
+  };
+
+  const handleMouseUp = (event) => {
+    const gesture = liveGestureRef.current;
+    if (entry?.kind !== 'run-draw' || gesture?.kind !== 'run-draw'
+      || gesture.awaitingClick) return;
+    const point = wallPointFromEvent(event) ?? gesture.current;
+    const pointer = stageRef.current?.getPointerPosition();
+    const direction = point.x === gesture.start.x
+      ? gesture.direction
+      : Math.sign(point.x - gesture.start.x);
+    liveGestureRef.current = { ...gesture, current: point, direction };
+    updateDrag({ start: gesture.start, current: point });
+    updateEntry(Math.abs(point.x - gesture.start.x));
+    suppressNextClick();
+
+    if (!panExceedsThreshold(gesture.pressStart, pointer)) {
+      liveGestureRef.current = { ...liveGestureRef.current, awaitingClick: true };
+      return;
+    }
+    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
   };
 
   const selectRun = useCallback((runId) => {
@@ -633,8 +781,13 @@ function ElevationCanvas({
     dispatch(moveOpening({ wallId: wall.id, openingId, x }));
   }, [dispatch, wall]);
 
-  const handleStageClick = useCallback(() => {
+  const handleStageClick = useCallback((event) => {
     if (suppressClickRef.current) return;
+    if (event.target !== event.target.getStage()) return;
+    if (entry) {
+      commitEntry();
+      return;
+    }
     if (tool === 'select') {
       dispatch(setSelection({}));
       return;
@@ -665,7 +818,7 @@ function ElevationCanvas({
     dispatch(setMessage(null));
     dispatch(addOpening({ wallId: wall.id, opening }));
     dispatch(setSelection({ openingId: opening.id }));
-  }, [dispatch, room, settings, showMessage, tool, transform, wall]);
+  }, [commitEntry, dispatch, entry, room, settings, showMessage, tool, transform, wall]);
 
   const previewStretch = useCallback((runId, side, newEdgeX) => {
     if (!room || !wall) return;
@@ -681,13 +834,7 @@ function ElevationCanvas({
     });
   }, [applyRunAlignment, room, settings, wall]);
 
-  const startStretch = useCallback((runId) => {
-    if (!room || !wall) return;
-    const run = wall.runs.find((candidate) => candidate.id === runId);
-    if (run) setStretchPreview({ room, wall, runIds: [run.id] });
-  }, [room, wall]);
-
-  const finishStretch = useCallback((runId, side, newEdgeX) => {
+  const commitStretch = useCallback((runId, side, newEdgeX) => {
     const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).x;
     setStretchPreview(null);
     setAlignmentGuides([]);
@@ -716,13 +863,53 @@ function ElevationCanvas({
     }
   }, [applyRunAlignment, dispatch, room, settings, showMessage, wall]);
 
-  const startRunMove = useCallback((segment) => {
+  const startStretch = useCallback((runId, side) => {
     if (!room || !wall) return;
-    const run = wall.runs.find((candidate) => candidate.id === segment.runId);
-    if (!run) return;
-    moveOriginRef.current = { runId: run.id, x: run.x };
+    const run = wall.runs.find((candidate) => candidate.id === runId);
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!run || !pointer) return;
+    cancelEntry();
+    const widthRange = runWidthRange(run, settings, {
+      endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+    });
+    const maxRunOverhang = settings.maxRunOverhang ?? DEFAULT_SETTINGS.maxRunOverhang;
+    const wallMaximum = side === 'left'
+      ? run.x + run.width + maxRunOverhang
+      : wall.length + maxRunOverhang - run.x;
+    const maximum = Math.max(widthRange.min, Math.min(widthRange.max, wallMaximum));
+    setEntryPointer(pointer);
     setStretchPreview({ room, wall, runIds: [run.id] });
-  }, [room, wall]);
+    liveGestureRef.current = { kind: 'run-edge', run, side, jointId: null, offset: 0 };
+    beginEntry({
+      kind: 'run-edge',
+      label: `${RUN_TYPE_LABELS[run.cabinetTypeId] ?? 'Run'} width`,
+      value: run.width,
+      min: widthRange.min,
+      max: maximum,
+      onCommit: (width) => {
+        liveGestureRef.current = null;
+        commitStretch(run.id, side, runEdgeXForWidth(run, side, width));
+      },
+      onCancel: () => {
+        liveGestureRef.current = null;
+        setStretchPreview(null);
+        setAlignmentGuides([]);
+      },
+    });
+  }, [beginEntry, cancelEntry, commitStretch, room, settings, wall]);
+
+  const updateStretch = useCallback((runId, side, newEdgeX) => {
+    const gesture = liveGestureRef.current;
+    if (gesture?.kind !== 'run-edge' || gesture.run.id !== runId || gesture.side !== side) return;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (pointer) setEntryPointer(pointer);
+    updateEntry(runWidthForEdgeX(gesture.run, side, newEdgeX));
+  }, [updateEntry]);
+
+  const finishStretch = useCallback((runId, side, newEdgeX) => {
+    updateStretch(runId, side, newEdgeX);
+    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
+  }, [commitEntry, updateStretch]);
 
   const applyRunMove = useCallback((segment, delta, commit) => {
     const origin = moveOriginRef.current;
@@ -764,11 +951,52 @@ function ElevationCanvas({
     dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
   }, [dispatch, room, settings, showMessage, wall]);
 
-  const startJointDrag = useCallback((jointId) => {
+  const startRunMove = useCallback((segment) => {
     if (!room || !wall) return;
-    const runIds = jointMembers(wall, jointId).map((member) => member.runId);
-    setStretchPreview({ room, wall, runIds });
-  }, [room, wall]);
+    const run = wall.runs.find((candidate) => candidate.id === segment.runId);
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!run || !pointer || !transform) return;
+    cancelEntry();
+    dispatch(setSelection({ runId: run.id, pieceId: null }));
+    setEntryPointer(pointer);
+    moveOriginRef.current = { runId: run.id, x: run.x };
+    setStretchPreview({ room, wall, runIds: [run.id] });
+    liveGestureRef.current = {
+      kind: 'run-move',
+      segment,
+      pointerStartX: screenToWall(pointer, transform).x,
+    };
+    beginEntry({
+      kind: 'run-move',
+      label: 'Move',
+      value: 0,
+      min: -Infinity,
+      max: Infinity,
+      onCommit: (delta) => {
+        liveGestureRef.current = null;
+        applyRunMove(segment, delta, true);
+      },
+      onCancel: () => {
+        liveGestureRef.current = null;
+        moveOriginRef.current = null;
+        setStretchPreview(null);
+        setAlignmentGuides([]);
+      },
+    });
+  }, [applyRunMove, beginEntry, cancelEntry, dispatch, room, transform, wall]);
+
+  const updateRunMove = useCallback((segment, delta) => {
+    const gesture = liveGestureRef.current;
+    if (gesture?.kind !== 'run-move' || gesture.segment.runId !== segment.runId) return;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (pointer) setEntryPointer(pointer);
+    updateEntry(delta);
+  }, [updateEntry]);
+
+  const finishRunMove = useCallback((segment, delta) => {
+    updateRunMove(segment, delta);
+    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
+  }, [commitEntry, updateRunMove]);
 
   const previewJointDrag = useCallback((jointId, x) => {
     if (!room || !wall) return;
@@ -783,7 +1011,7 @@ function ElevationCanvas({
     });
   }, [room, settings, wall]);
 
-  const finishJointDrag = useCallback((jointId, x) => {
+  const commitJointDrag = useCallback((jointId, x) => {
     setStretchPreview(null);
     if (!room || !wall) return;
     const result = moveJoint(room, wall.id, jointId, x, settings);
@@ -811,6 +1039,96 @@ function ElevationCanvas({
       dispatch(setMessage(null));
     }
   }, [dispatch, room, settings, showMessage, wall]);
+
+  const startJointDrag = useCallback((jointId) => {
+    if (!room || !wall) return;
+    const member = jointMembers(wall, jointId).find(
+      (candidate) => candidate.runId === selectionRef.current.runId,
+    );
+    const run = wall.runs.find((candidate) => candidate.id === member?.runId);
+    const joint = (wall.joints ?? []).find((candidate) => candidate.id === jointId);
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!member || !run || !joint || !pointer) return;
+    cancelEntry();
+    const rangeResult = moveJoint(room, wall.id, jointId, joint.x, settings);
+    if (!rangeResult.range || rangeResult.range.min > rangeResult.range.max) return;
+    const offset = member.offset ?? 0;
+    const widthAtJoint = (jointX) => runWidthForEdgeX(
+      run,
+      member.side,
+      member.side === 'right' ? jointX - offset : jointX + offset,
+    );
+    const endWidths = [
+      widthAtJoint(rangeResult.range.min),
+      widthAtJoint(rangeResult.range.max),
+    ];
+    const runIds = jointMembers(wall, jointId).map((candidate) => candidate.runId);
+    setEntryPointer(pointer);
+    setStretchPreview({ room, wall, runIds });
+    liveGestureRef.current = {
+      kind: 'run-edge',
+      run,
+      side: member.side,
+      jointId,
+      offset,
+    };
+    beginEntry({
+      kind: 'run-edge',
+      label: `${RUN_TYPE_LABELS[run.cabinetTypeId] ?? 'Run'} width`,
+      value: run.width,
+      min: Math.min(...endWidths),
+      max: Math.max(...endWidths),
+      onCommit: (width) => {
+        const activeGesture = liveGestureRef.current;
+        liveGestureRef.current = null;
+        const edgeX = runEdgeXForWidth(run, member.side, width);
+        const typed = entryRef.current?.typed;
+        const enteredJointX = member.side === 'right' ? edgeX + offset : edgeX - offset;
+        const jointX = typed === null && Number.isFinite(activeGesture?.requestedJointX)
+          ? activeGesture.requestedJointX
+          : enteredJointX;
+        commitJointDrag(jointId, jointX);
+      },
+      onCancel: () => {
+        liveGestureRef.current = null;
+        setStretchPreview(null);
+        setAlignmentGuides([]);
+      },
+    });
+  }, [beginEntry, cancelEntry, commitJointDrag, room, settings, wall]);
+
+  const updateJointDrag = useCallback((jointId, x) => {
+    const gesture = liveGestureRef.current;
+    if (gesture?.kind !== 'run-edge' || gesture.jointId !== jointId) return;
+    liveGestureRef.current = { ...gesture, requestedJointX: x };
+    const pointer = stageRef.current?.getPointerPosition();
+    if (pointer) setEntryPointer(pointer);
+    const edgeX = gesture.side === 'right' ? x - gesture.offset : x + gesture.offset;
+    updateEntry(runWidthForEdgeX(gesture.run, gesture.side, edgeX));
+  }, [updateEntry]);
+
+  const finishJointDrag = useCallback((jointId, x) => {
+    updateJointDrag(jointId, x);
+    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
+  }, [commitEntry, updateJointDrag]);
+
+  useEffect(() => {
+    const gesture = liveGestureRef.current;
+    if (!entry || entryValue === null || !gesture) return;
+    if (entry.kind === 'run-edge' && gesture.kind === 'run-edge') {
+      const edgeX = runEdgeXForWidth(gesture.run, gesture.side, entryValue);
+      if (gesture.jointId) {
+        const jointX = gesture.side === 'right'
+          ? edgeX + gesture.offset
+          : edgeX - gesture.offset;
+        previewJointDrag(gesture.jointId, jointX);
+      } else {
+        previewStretch(gesture.run.id, gesture.side, edgeX);
+      }
+    } else if (entry.kind === 'run-move' && gesture.kind === 'run-move') {
+      applyRunMove(gesture.segment, entryValue, false);
+    }
+  }, [applyRunMove, entry, entryValue, previewJointDrag, previewStretch]);
 
   const dissolveWallJoint = useCallback((jointId) => {
     if (!wall) return;
@@ -882,7 +1200,7 @@ function ElevationCanvas({
                 onSelectFace={selectFace}
                 stretchable={tool === 'select'}
                 onStretchStart={startStretch}
-                onStretchMove={previewStretch}
+                onStretchMove={updateStretch}
                 onStretchEnd={finishStretch}
               />
             ))}
@@ -938,11 +1256,10 @@ function ElevationCanvas({
                 side="below"
                 offsetPx={dimensionOffsets.lower.outer}
                 transform={transform}
-                onSegmentClick={(segment) => selectRun(segment.runId)}
+                onSegmentClick={startRunMove}
                 draggableRuns={tool === 'select'}
-                onSegmentDragStart={startRunMove}
-                onSegmentDragMove={(segment, delta) => applyRunMove(segment, delta, false)}
-                onSegmentDragEnd={(segment, delta) => applyRunMove(segment, delta, true)}
+                onSegmentDragMove={updateRunMove}
+                onSegmentDragEnd={finishRunMove}
                 highlightRunId={selection.runId}
                 wallEndMarks={[0, wall.length]}
               />
@@ -981,11 +1298,10 @@ function ElevationCanvas({
                 side="above"
                 offsetPx={dimensionOffsets.upper.outer}
                 transform={transform}
-                onSegmentClick={(segment) => selectRun(segment.runId)}
+                onSegmentClick={startRunMove}
                 draggableRuns={tool === 'select'}
-                onSegmentDragStart={startRunMove}
-                onSegmentDragMove={(segment, delta) => applyRunMove(segment, delta, false)}
-                onSegmentDragEnd={(segment, delta) => applyRunMove(segment, delta, true)}
+                onSegmentDragMove={updateRunMove}
+                onSegmentDragEnd={finishRunMove}
                 highlightRunId={selection.runId}
                 wallEndMarks={[0, wall.length]}
               />
@@ -1036,6 +1352,17 @@ function ElevationCanvas({
             </Layer>
           )}
         </Stage>
+      )}
+      {entry && (
+        <LiveEntryInput
+          entry={entry}
+          position={entryPointer}
+          containerRef={containerRef}
+          containerSize={viewport}
+          onTyped={setEntryTyped}
+          onCommit={commitEntry}
+          onCancel={cancelEntry}
+        />
       )}
     </div>
   );
