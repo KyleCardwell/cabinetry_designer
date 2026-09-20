@@ -13,9 +13,12 @@ import {
 } from '../model/openings.js';
 import {
   compensateRuns,
+  dissolveJoint as dissolveJointPure,
   endCornerAnglesForRun,
   endMinWidthsForRun,
   flipRunsForWall,
+  joinEdges,
+  resizeRun as resizeRunPure,
   syncRoom,
 } from '../model/room.js';
 import { splitRun } from '../model/splitRun.js';
@@ -730,6 +733,73 @@ const elevationSlice = createSlice({
       }
       syncRoomAt(state, location.roomIndex);
     },
+    joinRunEdges(state, action) {
+      const location = wallLocation(state, action.payload);
+      if (!location) return;
+      const { runId, side, targetRunId, targetSide } = action.payload;
+      const result = joinEdges(
+        location.room,
+        location.wall.id,
+        { runId, side },
+        { runId: targetRunId, side: targetSide },
+        state.settings,
+      );
+      if (!result.ok) state.message = result.reason;
+      else {
+        state.rooms[location.roomIndex] = result.room;
+        state.message = null;
+      }
+      syncRoomAt(state, location.roomIndex);
+    },
+    setRunJointOffset(state, action) {
+      const location = runLocation(state, action.payload);
+      const { side, offset } = action.payload;
+      const anchor = location?.run.anchors?.[side];
+      if (!location || !Number.isFinite(offset) || !anchor || anchor.to !== 'joint') return;
+      anchor.offset = offset;
+      syncRoomAt(state, location.roomIndex);
+    },
+    dissolveJoint(state, action) {
+      const location = wallLocation(state, action.payload);
+      if (!location) return;
+      const result = dissolveJointPure(
+        location.room,
+        location.wall.id,
+        action.payload.jointId,
+        state.settings,
+      );
+      if (!result.ok) state.message = result.reason;
+      else {
+        state.rooms[location.roomIndex] = result.room;
+        state.message = null;
+      }
+      syncRoomAt(state, location.roomIndex);
+    },
+    resizeRun(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const result = resizeRunPure(
+        location.room,
+        location.wall.id,
+        location.run.id,
+        action.payload.width,
+        action.payload.grow ?? 'right',
+        state.settings,
+      );
+      if (!result.ok) state.message = result.reason;
+      else {
+        state.rooms[location.roomIndex] = result.room;
+        state.message = null;
+      }
+      syncRoomAt(state, location.roomIndex);
+    },
+    replaceWallLayout(state, action) {
+      const location = wallLocation(state, action.payload);
+      if (!location) return;
+      location.wall.runs = action.payload.runs;
+      location.wall.joints = action.payload.joints;
+      syncRoomAt(state, location.roomIndex);
+    },
     setRunCornerClearance(state, action) {
       const location = runLocation(state, action.payload);
       const { side, value } = action.payload;
@@ -1023,6 +1093,11 @@ export const {
   setRunHeightMode,
   setRunOverride,
   setRunAnchor,
+  joinRunEdges,
+  setRunJointOffset,
+  dissolveJoint,
+  resizeRun,
+  replaceWallLayout,
   setRunCornerClearance,
   setAutoCount,
   setMaxCabinetWidth,

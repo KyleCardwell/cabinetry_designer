@@ -4,9 +4,12 @@ import { jointMembers, pruneJoints } from '../joints.js';
 import {
   compensateRuns,
   flipRunsForWall,
+  joinEdges,
+  joinTouchingEdges,
   moveJoint,
   stretchRun,
   syncRoom,
+  tryPlaceRun,
 } from '../room.js';
 
 function makeRun(id, overrides = {}) {
@@ -265,5 +268,134 @@ describe('joints', () => {
       anchors: { right: { to: 'joint', jointId: 'J2' } },
     });
     expect(wall.runs.find((run) => run.id === 'T2')).toMatchObject({ x: 66, width: 18 });
+  });
+});
+
+describe('joining run edges', () => {
+  it('73. joins two free edges into a new joint', () => {
+    const room = makeRoom([
+      makeRun('P', { x: 0, width: 30 }),
+      makeRun('Q', { cabinetTypeId: CABINET_TYPE_IDS.TALL, x: 30, width: 24, height: 80 }),
+    ]);
+    const result = joinEdges(
+      room,
+      'A',
+      { runId: 'P', side: 'right' },
+      { runId: 'Q', side: 'left' },
+      DEFAULT_SETTINGS,
+    );
+    const wall = result.room.walls[0];
+    const jointId = wall.joints[0].id;
+
+    expect(result.ok).toBe(true);
+    expect(wall.joints).toEqual([{ id: jointId, x: 30 }]);
+    expect(wall.runs[0]).toMatchObject({
+      anchors: { right: { to: 'joint', jointId, offset: 0 } },
+      ends: { right: { auto: true } },
+    });
+    expect(wall.runs[1]).toMatchObject({
+      anchors: { left: { to: 'joint', jointId, offset: 0 } },
+      ends: { left: { auto: true } },
+    });
+  });
+
+  it('74. joins a free edge to an existing joint and keeps its far edge', () => {
+    const room = makeTbt();
+    room.walls[0].runs.push(makeRun('U', {
+      cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+      x: 26,
+      width: 30,
+      z: 54,
+      height: 30,
+      depth: 12,
+    }));
+    const result = joinEdges(
+      room,
+      'A',
+      { runId: 'U', side: 'left' },
+      { runId: 'T1', side: 'right' },
+      DEFAULT_SETTINGS,
+    );
+    const joined = result.room.walls[0].runs.find((run) => run.id === 'U');
+
+    expect(result.ok).toBe(true);
+    expect(joined).toMatchObject({
+      x: 24,
+      width: 32,
+      anchors: { left: { to: 'joint', jointId: 'J1', offset: 0 } },
+    });
+  });
+
+  it('75. refuses to join two sides of the same run', () => {
+    const room = makeTbt();
+    const result = joinEdges(
+      room,
+      'A',
+      { runId: 'B', side: 'left' },
+      { runId: 'B', side: 'right' },
+      DEFAULT_SETTINGS,
+    );
+
+    expect(result).toMatchObject({ ok: false, reason: 'joint-same-run', room });
+  });
+
+  it('76. joins a stretch that snaps to a butting run edge', () => {
+    const room = makeRoom([
+      makeRun('P', { x: 0, width: 30, items: [{ id: 'P-cabinet', kind: 'cabinet', width: null }] }),
+      makeRun('Q', {
+        cabinetTypeId: CABINET_TYPE_IDS.TALL,
+        x: 40,
+        width: 24,
+        height: 80,
+      }),
+    ]);
+
+    const result = stretchRun(room, 'A', 'P', 'right', 39, DEFAULT_SETTINGS);
+
+    expect(result).toMatchObject({ ok: true, joined: { runId: 'Q', side: 'left' } });
+    expect(result.room.walls[0].joints).toHaveLength(1);
+    expect(result.room.walls[0].joints[0].x).toBe(40);
+    expect(result.room.walls[0].runs[0]).toMatchObject({ x: 0, width: 40 });
+  });
+
+  it('77. does not join snapped edges without vertical overlap', () => {
+    const room = makeRoom([
+      makeRun('R', { x: 40, width: 24 }),
+      makeRun('S', {
+        cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+        x: 0,
+        width: 30,
+        z: 54,
+        height: 30,
+        depth: 12,
+        items: [{ id: 'S-cabinet', kind: 'cabinet', width: null }],
+      }),
+    ]);
+
+    const result = stretchRun(room, 'A', 'S', 'right', 39, DEFAULT_SETTINGS);
+
+    expect(result.ok).toBe(true);
+    expect(result.joined).toBeUndefined();
+    expect(result.room.walls[0].joints ?? []).toHaveLength(0);
+  });
+
+  it('78. joins a newly placed run to a touching edge', () => {
+    const room = makeRoom([makeRun('T1', {
+      cabinetTypeId: CABINET_TYPE_IDS.TALL,
+      x: 0,
+      width: 24,
+      height: 80,
+    })]);
+    const placed = tryPlaceRun(room, 'A', makeRun('B', {
+      x: 24,
+      width: 36,
+      items: [{ id: 'B-cabinet', kind: 'cabinet', width: null }],
+    }), DEFAULT_SETTINGS);
+    const result = joinTouchingEdges(placed.room, 'A', 'B', DEFAULT_SETTINGS);
+
+    expect(placed.ok).toBe(true);
+    expect(result.ok).toBe(true);
+    expect(result.room.walls[0].joints).toHaveLength(1);
+    expect(result.room.walls[0].joints[0].x).toBe(24);
   });
 });

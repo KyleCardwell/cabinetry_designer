@@ -17,12 +17,14 @@ import elevationReducer, {
   deleteOpening,
   deleteRun,
   deleteWall,
+  dissolveJoint,
   lockItem,
   moveOpening,
   moveWallEndpoint,
   moveWallPerpendicular,
   removeItem,
   replaceRun,
+  resizeRun,
   setOpeningMeasureMode,
   setOpeningOffsetAnchor,
   setOpeningOffsetSide,
@@ -39,6 +41,7 @@ import elevationReducer, {
   setActiveWall,
   setRunCornerClearance,
   setRunAnchor,
+  setRunJointOffset,
   setRunEnd,
   setSelection,
   setTool,
@@ -1216,5 +1219,100 @@ describe('resizeOpening', () => {
     }));
     expect(currentOpening(rejected)).toMatchObject({ width: 36, offset: 4 });
     expect(rejected.message).toBeTruthy();
+  });
+});
+
+describe('joined run reducers', () => {
+  function joinedState() {
+    const state = stateWithRun();
+    const wall = state.rooms[0].walls[0];
+    wall.runs = [
+      run({
+        id: 'T1',
+        cabinetTypeId: CABINET_TYPE_IDS.TALL,
+        x: 0,
+        width: 24,
+        z: 4,
+        height: 80,
+        ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+        autoCount: false,
+        items: [auto('T1-cabinet')],
+        anchors: { left: false, right: { to: 'joint', jointId: 'J1', offset: 0 } },
+      }),
+      run({
+        id: 'B',
+        x: 24,
+        width: 36,
+        ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+        autoCount: false,
+        items: [auto('B-cabinet')],
+        anchors: {
+          left: { to: 'joint', jointId: 'J1', offset: 0 },
+          right: { to: 'joint', jointId: 'J2', offset: 0 },
+        },
+      }),
+      run({
+        id: 'T2',
+        cabinetTypeId: CABINET_TYPE_IDS.TALL,
+        x: 60,
+        width: 24,
+        z: 4,
+        height: 80,
+        ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+        autoCount: false,
+        items: [auto('T2-cabinet')],
+        anchors: { left: { to: 'joint', jointId: 'J2', offset: 0 }, right: false },
+      }),
+    ];
+    wall.joints = [{ id: 'J1', x: 24 }, { id: 'J2', x: 60 }];
+    return state;
+  }
+
+  function joinedWall(state) {
+    return state.rooms[0].walls[0];
+  }
+
+  it('79. setting a joint side free lets sync prune the joint', () => {
+    const state = elevationReducer(joinedState(), setRunAnchor({
+      wallId: 'wall-1', runId: 'B', side: 'left', anchor: false,
+    }));
+    const wall = joinedWall(state);
+
+    expect(wall.joints).toEqual([{ id: 'J2', x: 60 }]);
+    expect(wall.runs.find((entry) => entry.id === 'T1').anchors.right).toBe(false);
+  });
+
+  it('80. resizes through one or both joined sides', () => {
+    const right = elevationReducer(joinedState(), resizeRun({
+      wallId: 'wall-1', runId: 'B', width: 42, grow: 'right',
+    }));
+    expect(joinedWall(right).joints).toEqual([{ id: 'J1', x: 24 }, { id: 'J2', x: 66 }]);
+    expect(joinedWall(right).runs.find((entry) => entry.id === 'T2'))
+      .toMatchObject({ x: 66, width: 18 });
+
+    const both = elevationReducer(joinedState(), resizeRun({
+      wallId: 'wall-1', runId: 'B', width: 40, grow: 'both',
+    }));
+    expect(joinedWall(both).joints).toEqual([{ id: 'J1', x: 22 }, { id: 'J2', x: 62 }]);
+    expect(joinedWall(both).runs.find((entry) => entry.id === 'T1')).toMatchObject({ width: 22 });
+    expect(joinedWall(both).runs.find((entry) => entry.id === 'T2'))
+      .toMatchObject({ x: 62, width: 22 });
+  });
+
+  it('81. offsets a joint member and dissolves a whole joint', () => {
+    const offset = elevationReducer(joinedState(), setRunJointOffset({
+      wallId: 'wall-1', runId: 'B', side: 'left', offset: 1.5,
+    }));
+    expect(joinedWall(offset).runs.find((entry) => entry.id === 'B').x).toBe(25.5);
+
+    const dissolved = elevationReducer(joinedState(), dissolveJoint({
+      wallId: 'wall-1', jointId: 'J1',
+    }));
+    const wall = joinedWall(dissolved);
+    expect(wall.joints).toEqual([{ id: 'J2', x: 60 }]);
+    expect(wall.runs.find((entry) => entry.id === 'T1'))
+      .toMatchObject({ x: 0, width: 24, anchors: { right: false } });
+    expect(wall.runs.find((entry) => entry.id === 'B'))
+      .toMatchObject({ x: 24, width: 36, anchors: { left: false } });
   });
 });

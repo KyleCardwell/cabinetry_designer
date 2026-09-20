@@ -1,3 +1,4 @@
+import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import {
   cornerAt,
@@ -22,6 +23,7 @@ import {
 } from './geometry.js';
 import { validateRunPlacement, verticalStart } from './overlap.js';
 import { resolveProfile, resolveVertical } from './profile.js';
+import { stretchedStart } from './positions.js';
 import { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
 import { computeWallOrder } from './topology.js';
 import { formatInches, roundTo } from './units.js';
@@ -566,6 +568,199 @@ export function tryPlaceRun(room, wallId, run, settings) {
   return { ...validation, room: synced };
 }
 
+function runEdgeX(run, side) {
+  return side === 'left' ? run.x : run.x + run.width;
+}
+
+function runsOverlapVertically(a, b) {
+  return Math.min(a.z + a.height, b.z + b.height)
+    - Math.max(verticalStart(a), verticalStart(b)) > 0;
+}
+
+function withoutAuto(end) {
+  const { auto, ...manualEnd } = end;
+  void auto;
+  return manualEnd;
+}
+
+/** Join one run edge to another edge or to its existing joint. */
+export function joinEdges(room, wallId, source, target, settings) {
+  const validSide = (side) => side === 'left' || side === 'right';
+  if (!validSide(source?.side) || !validSide(target?.side)) {
+    return { ok: false, reason: 'run-not-found', room };
+  }
+  if (source.runId === target.runId) {
+    return { ok: false, reason: 'joint-same-run', room };
+  }
+
+  const resolvedRoom = syncRoom(room, settings);
+  const sourceWall = resolvedRoom.walls.find((wall) => wall.id === wallId);
+  const sourceRun = sourceWall?.runs.find((run) => run.id === source.runId);
+  const targetRun = sourceWall?.runs.find((run) => run.id === target.runId);
+  if (!sourceWall || !sourceRun || !targetRun) {
+    return { ok: false, reason: 'run-not-found', room };
+  }
+
+  const targetAnchor = targetRun.anchors?.[target.side];
+  if (targetAnchor && !isJointAnchor(targetAnchor)) {
+    return { ok: false, reason: 'joint-target-anchored', room };
+  }
+
+  const jointId = isJointAnchor(targetAnchor) ? targetAnchor.jointId : uuid();
+  const otherSide = source.side === 'left' ? 'right' : 'left';
+  if (sourceRun.anchors?.[otherSide]?.jointId === jointId) {
+    return { ok: false, reason: 'joint-same-run', room };
+  }
+  const jointX = isJointAnchor(targetAnchor)
+    ? sourceWall.joints.find((joint) => joint.id === jointId)?.x
+    : runEdgeX(targetRun, target.side);
+  if (!Number.isFinite(jointX)) {
+    return { ok: false, reason: 'run-not-found', room };
+  }
+
+  const temporary = cloneRoom(resolvedRoom);
+  const wall = temporary.walls.find((candidate) => candidate.id === wallId);
+  const mutableSource = wall.runs.find((run) => run.id === source.runId);
+  const mutableTarget = wall.runs.find((run) => run.id === target.runId);
+  if (!isJointAnchor(targetAnchor)) {
+    wall.joints ??= [];
+    wall.joints.push({ id: jointId, x: jointX });
+    mutableTarget.anchors[target.side] = { to: 'joint', jointId, offset: 0 };
+  }
+  const otherEdge = runEdgeX(mutableSource, otherSide);
+  mutableSource.x = source.side === 'left' ? jointX : otherEdge;
+  mutableSource.width = source.side === 'left' ? otherEdge - jointX : jointX - otherEdge;
+  mutableSource.anchors[source.side] = { to: 'joint', jointId, offset: 0 };
+  mutableSource.ends[source.side] = { ...mutableSource.ends[source.side], auto: true };
+  mutableTarget.ends[target.side] = { ...mutableTarget.ends[target.side], auto: true };
+
+  const synced = syncRoom(temporary, settings);
+  const resolvedWall = synced.walls.find((candidate) => candidate.id === wallId);
+  const resolvedSource = resolvedWall.runs.find((run) => run.id === source.runId);
+  const validation = validateRunPlacement(
+    { ...resolvedWall, length: wallLength(resolvedWall) },
+    resolvedSource,
+    settings,
+  );
+  return validation.ok
+    ? { ok: true, reason: null, room: synced }
+    : { ok: false, reason: validation.reason, room };
+}
+
+/** Join both touching sides of a newly placed run, preferring existing joints. */
+export function joinTouchingEdges(room, wallId, runId, settings) {
+  let nextRoom = syncRoom(room, settings);
+  const joined = [];
+
+  for (const side of ['left', 'right']) {
+    const wall = nextRoom.walls.find((candidate) => candidate.id === wallId);
+    const run = wall?.runs.find((candidate) => candidate.id === runId);
+    if (!wall || !run) return { ok: false, reason: 'run-not-found', room, joined };
+    if (run.anchors?.[side]) continue;
+    const opposite = side === 'left' ? 'right' : 'left';
+    const edge = runEdgeX(run, side);
+    const candidates = wall.runs
+      .filter((candidate) => candidate.id !== runId && runsOverlapVertically(run, candidate))
+      .map((candidate) => ({
+        run: candidate,
+        anchor: candidate.anchors?.[opposite],
+      }))
+      .filter(({ run: candidate, anchor }) => (
+        Math.abs(runEdgeX(candidate, opposite) - edge) <= PIN_EPSILON
+        && (!anchor || isJointAnchor(anchor))
+      ))
+      .sort((a, b) => Number(isJointAnchor(b.anchor)) - Number(isJointAnchor(a.anchor)));
+    const target = candidates[0]?.run;
+    if (!target) continue;
+    const result = joinEdges(
+      nextRoom,
+      wallId,
+      { runId, side },
+      { runId: target.id, side: opposite },
+      settings,
+    );
+    if (!result.ok) return { ...result, joined };
+    nextRoom = result.room;
+    joined.push({ runId: target.id, side: opposite });
+  }
+
+  return { ok: true, reason: null, room: nextRoom, joined };
+}
+
+/** Disconnect every member of a joint without moving any run edge. */
+export function dissolveJoint(room, wallId, jointId, settings) {
+  const temporary = cloneRoom(syncRoom(room, settings));
+  const wall = temporary.walls.find((candidate) => candidate.id === wallId);
+  const joint = wall?.joints?.find((candidate) => candidate.id === jointId);
+  if (!wall || !joint) return { ok: false, reason: 'joint-not-found', room };
+
+  for (const member of jointMembers(wall, jointId)) {
+    const run = wall.runs.find((candidate) => candidate.id === member.runId);
+    run.anchors[member.side] = false;
+    run.ends[member.side] = withoutAuto(run.ends[member.side]);
+  }
+  wall.joints = wall.joints.filter((candidate) => candidate.id !== jointId);
+  return { ok: true, reason: null, room: syncRoom(temporary, settings) };
+}
+
+/** Resize a run, moving joined sides through their joints as needed. */
+export function resizeRun(room, wallId, runId, width, grow, settings) {
+  if (!Number.isFinite(width) || width <= 0 || !['left', 'both', 'right'].includes(grow)) {
+    return { ok: false, reason: 'invalid-width', room };
+  }
+  const resolvedRoom = syncRoom(room, settings);
+  const wall = resolvedRoom.walls.find((candidate) => candidate.id === wallId);
+  const run = wall?.runs.find((candidate) => candidate.id === runId);
+  if (!wall || !run) return { ok: false, reason: 'run-not-found', room };
+
+  const desiredLeft = stretchedStart(run.x, run.width, width, grow);
+  const desiredRight = desiredLeft + width;
+  let nextRoom = resolvedRoom;
+  for (const side of ['left', 'right']) {
+    const anchor = run.anchors?.[side];
+    if (!isJointAnchor(anchor)) continue;
+    const desiredEdge = side === 'left' ? desiredLeft : desiredRight;
+    if (Math.abs(desiredEdge - runEdgeX(run, side)) <= PIN_EPSILON) continue;
+    const jointX = side === 'right'
+      ? desiredEdge + (anchor.offset ?? 0)
+      : desiredEdge - (anchor.offset ?? 0);
+    const moved = moveJoint(nextRoom, wallId, anchor.jointId, jointX, settings);
+    if (!moved.ok) return { ok: false, reason: moved.reason, room };
+    nextRoom = moved.room;
+  }
+
+  const nextWall = nextRoom.walls.find((candidate) => candidate.id === wallId);
+  const nextRun = nextWall.runs.find((candidate) => candidate.id === runId);
+  const leftJoined = isJointAnchor(nextRun.anchors?.left);
+  const rightJoined = isJointAnchor(nextRun.anchors?.right);
+  if (!leftJoined || !rightJoined) {
+    const temporary = cloneRoom(nextRoom);
+    const mutableWall = temporary.walls.find((candidate) => candidate.id === wallId);
+    const mutableRun = mutableWall.runs.find((candidate) => candidate.id === runId);
+    if (leftJoined) {
+      mutableRun.width = width;
+    } else if (rightJoined) {
+      mutableRun.x = runEdgeX(mutableRun, 'right') - width;
+      mutableRun.width = width;
+    } else {
+      mutableRun.x = desiredLeft;
+      mutableRun.width = width;
+    }
+    const synced = syncRoom(temporary, settings);
+    const syncedWall = synced.walls.find((candidate) => candidate.id === wallId);
+    const syncedRun = syncedWall.runs.find((candidate) => candidate.id === runId);
+    const validation = validateRunPlacement(
+      { ...syncedWall, length: wallLength(syncedWall) },
+      syncedRun,
+      settings,
+    );
+    if (!validation.ok) return { ok: false, reason: validation.reason, room };
+    nextRoom = synced;
+  }
+
+  return { ok: true, reason: null, room: nextRoom };
+}
+
 /** Move a wall joint within the width and wall limits of all its member runs. */
 export function moveJoint(room, wallId, jointId, x, settings) {
   if (!Number.isFinite(x)) {
@@ -737,8 +932,8 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
     ...sourceWall.runs
       .filter((run) => run.id !== runId)
       .flatMap((run) => [
-        { value: run.x, anchor: false },
-        { value: run.x + run.width, anchor: false },
+        { value: run.x, anchor: false, runId: run.id, side: 'left' },
+        { value: run.x + run.width, anchor: false, runId: run.id, side: 'right' },
       ]),
   ];
 
@@ -798,9 +993,33 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
     resolvedRun,
     settings,
   );
-  return validation.ok
-    ? { ok: true, reason: null, room: synced }
-    : { ok: false, reason: validation.reason, room };
+  if (!validation.ok) return { ok: false, reason: validation.reason, room };
+
+  const snappedRun = snapped?.runId
+    ? resolvedWall.runs.find((candidate) => candidate.id === snapped.runId)
+    : null;
+  const buttingRunEdge = snappedRun
+    && snapped.side !== side
+    && Math.abs(edge - unclampedEdge) <= PIN_EPSILON
+    && runsOverlapVertically(resolvedRun, snappedRun);
+  if (buttingRunEdge) {
+    const joined = joinEdges(
+      synced,
+      wallId,
+      { runId, side },
+      { runId: snapped.runId, side: snapped.side },
+      settings,
+    );
+    if (joined.ok) {
+      return {
+        ok: true,
+        reason: null,
+        room: joined.room,
+        joined: { runId: snapped.runId, side: snapped.side },
+      };
+    }
+  }
+  return { ok: true, reason: null, room: synced };
 }
 
 /**
