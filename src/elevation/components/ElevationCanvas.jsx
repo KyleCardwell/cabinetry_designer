@@ -373,6 +373,13 @@ function ElevationCanvas({
       if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
 
       if (event.key === 'Escape') {
+        if (tool !== 'select') {
+          if (dragRef.current) cancelDrag();
+          setAlignmentGuides([]);
+          dispatch(setTool('select'));
+          dispatch(setSelection({}));
+          return;
+        }
         setAlignmentGuides([]);
         if (dragRef.current) cancelDrag();
         else if (stretchPreview) setStretchPreview(null);
@@ -449,7 +456,7 @@ function ElevationCanvas({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrag, dispatch, facePath, resetView, room, stretchPreview, zoomIn, zoomOut]);
+  }, [cancelDrag, dispatch, facePath, resetView, room, stretchPreview, tool, zoomIn, zoomOut]);
 
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
@@ -572,7 +579,6 @@ function ElevationCanvas({
     }
     dispatch(setMessage(null));
     dispatch(addRun({ wallId: wall.id, run }));
-    dispatch(setTool('select'));
     dispatch(setSelection({ runId: run.id, pieceId: null }));
   };
 
@@ -632,7 +638,6 @@ function ElevationCanvas({
     }
     dispatch(setMessage(null));
     dispatch(addOpening({ wallId: wall.id, opening }));
-    dispatch(setTool('select'));
     dispatch(setSelection({ openingId: opening.id }));
   }, [dispatch, room, settings, showMessage, tool, transform, wall]);
 
