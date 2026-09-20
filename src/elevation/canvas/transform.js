@@ -67,7 +67,7 @@ export function withView(base, view) {
  * @param {{min?: number, max?: number}} [limits]
  * @returns {{zoom: number, panX: number, panY: number}}
  */
-export function zoomViewAt(base, view, pointer, factor, { min = 0.25, max = 8 } = {}) {
+export function zoomViewAt(base, view, pointer, factor, { min = 0.25, max = 16 } = {}) {
   const zoom = Math.max(min, Math.min(max, view.zoom * factor));
   if (zoom === view.zoom) return view;
   const wallPoint = screenToWall(pointer, withView(base, view));
