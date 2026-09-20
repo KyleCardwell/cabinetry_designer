@@ -46,6 +46,11 @@ Suggested format:
 - [ ] Cross sections on drawings.
 - [ ] Saving to the database - how to structure for edits, redraws and versions, etc. Do we need a version history since multiple people could work on one project?
 - [ ] save clearances to side objects - i.e. a run needs 4" clearance from door casing, etc.
+- [ ] hoods
+- [ ] runs can be anchored to each other, but allow stretching to move both, respecting any that have fixed widths, pins etc.
+- [ ] splitting into a pencil drawer and nothing below or a panel below, automatically add side panels
+- [ ] doran paneled openings in bathrooms
+- [ ] cabinet numbering***
 
 ## Planned
 
