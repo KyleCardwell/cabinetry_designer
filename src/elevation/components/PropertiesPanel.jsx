@@ -26,6 +26,7 @@ import {
   runBlocksOpening,
   splitRun,
   startFromReadout,
+  stretchedStart,
   validateOpeningPlacement,
   wallFrame,
   wallNumbers,
@@ -69,6 +70,7 @@ import {
   setSelection,
   setWallLength,
   splitItem,
+  resizeOpening,
   updateOpening,
   updateRun,
   updateWall,
@@ -76,6 +78,7 @@ import {
 import InchInput from './InchInput.jsx';
 import FaceProperties from './properties/FaceProperties.jsx';
 import RunFaceOptions from './properties/RunFaceOptions.jsx';
+import StretchInput from './properties/StretchInput.jsx';
 
 const RUN_TYPES = [
   [CABINET_TYPE_IDS.BASE, 'Base'],
@@ -268,6 +271,12 @@ function OpeningProperties({ wall, opening, settings, placementMessage }) {
     (run) => runBlocksOpening(run, opening, wall, settings),
   );
   const update = (changes) => dispatch(updateOpening({ ...actionBase, changes }));
+  // Grow away from the wall end the offset is measured from, so the typed offset holds.
+  const preferredOpeningGrow = opening.offsetFrom === 'right' ? 'left' : 'right';
+  const [openingGrow, setOpeningGrow] = useState(preferredOpeningGrow);
+  useEffect(() => {
+    setOpeningGrow(preferredOpeningGrow);
+  }, [preferredOpeningGrow, opening.id]);
   const hasWarnings = Boolean(placementReason) || blockingRuns.length > 0;
 
   return (
@@ -350,13 +359,20 @@ function OpeningProperties({ wall, opening, settings, placementMessage }) {
           Size
         </h3>
         <div className="grid grid-cols-2 gap-2.5">
-          <Field label="Width">
-            <InchInput
+          <div className="col-span-2">
+            <StretchInput
+              label="Width"
               value={opening.width}
-              onCommit={(width) => update({ width })}
-              aria-label="Opening width"
+              grow={openingGrow}
+              onGrowChange={setOpeningGrow}
+              onCommit={(width) => {
+                dispatch(resizeOpening({ ...actionBase, width, grow: openingGrow }));
+                setOpeningGrow(preferredOpeningGrow);
+                return true;
+              }}
+              ariaLabel="Opening width"
             />
-          </Field>
+          </div>
           <Field label="Height">
             <InchInput
               value={opening.height}
@@ -528,6 +544,16 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
   ]));
   const overhang = formatRunOverhang(run, wall.length);
   const bothAnchored = run.anchors.left && run.anchors.right;
+  // An anchored end can't move, so stretch away from it.
+  const preferredRunGrow = run.anchors.right && !run.anchors.left ? 'left' : 'right';
+  const runGrowLocked = [
+    ...(run.anchors.left ? ['left', 'both'] : []),
+    ...(run.anchors.right ? ['right', 'both'] : []),
+  ];
+  const [runGrow, setRunGrow] = useState(preferredRunGrow);
+  useEffect(() => {
+    setRunGrow(preferredRunGrow);
+  }, [preferredRunGrow, run.id]);
   const runPositions = positionReadouts(run.x, run.width, wall.length);
 
   const validateAndDispatch = (changes) => {
@@ -579,25 +605,37 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
           Geometry
         </h3>
         <div className="grid grid-cols-2 gap-2.5">
-          {[
-            ['width', 'Width'],
-            ['depth', 'Depth'],
-          ].map(([key, label]) => (
-            <Field key={key} label={label}>
-              {key === 'width' && bothAnchored ? (
-                <ReadOnlyValue
-                  value={run[key]}
-                  ariaLabel={`Resolved run ${label.toLowerCase()}`}
-                />
-              ) : (
-                <InchInput
-                  value={run[key]}
-                  onCommit={(value) => validateAndDispatch({ [key]: value })}
-                  aria-label={`Run ${label.toLowerCase()}`}
-                />
-              )}
-            </Field>
-          ))}
+          <div className="col-span-2">
+            {bothAnchored ? (
+              <Field label="Width">
+                <ReadOnlyValue value={run.width} ariaLabel="Resolved run width" />
+              </Field>
+            ) : (
+              <StretchInput
+                label="Width"
+                value={run.width}
+                grow={runGrow}
+                onGrowChange={setRunGrow}
+                locked={runGrowLocked}
+                onCommit={(width) => {
+                  const accepted = validateAndDispatch({
+                    width,
+                    x: stretchedStart(run.x, run.width, width, runGrow),
+                  });
+                  if (accepted) setRunGrow(preferredRunGrow);
+                  return accepted;
+                }}
+                ariaLabel="Run width"
+              />
+            )}
+          </div>
+          <Field label="Depth">
+            <InchInput
+              value={run.depth}
+              onCommit={(value) => validateAndDispatch({ depth: value })}
+              aria-label="Run depth"
+            />
+          </Field>
         </div>
         <div className="mt-3 grid grid-cols-[auto_1fr_1fr] items-end gap-2">
           <span />
@@ -1437,42 +1475,15 @@ function WallHeightProperties({ room, wall, plan }) {
         {plan ? (
           <div className="space-y-2.5">
             <div className="grid grid-cols-2 gap-2.5">
-              <div className="block text-xs text-gray-400">
-                <span className="mb-1 block">Length</span>
-                <div className="flex items-stretch gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setGrowEnd('left')}
-                    aria-label="Change wall length at left end"
-                    aria-pressed={growEnd === 'left'}
-                    className={`w-7 rounded border text-lg leading-none transition-colors ${
-                      growEnd === 'left'
-                        ? 'border-cyan-500 bg-cyan-950/70 text-cyan-200'
-                        : 'border-gray-600 bg-gray-900 text-gray-500 hover:bg-gray-700'
-                    }`}
-                  >
-                    ‹
-                  </button>
-                  <InchInput
-                    value={wall.length}
-                    onCommit={updateLength}
-                    aria-label="Wall length"
-                    className="min-w-0"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setGrowEnd('right')}
-                    aria-label="Change wall length at right end"
-                    aria-pressed={growEnd === 'right'}
-                    className={`w-7 rounded border text-lg leading-none transition-colors ${
-                      growEnd === 'right'
-                        ? 'border-cyan-500 bg-cyan-950/70 text-cyan-200'
-                        : 'border-gray-600 bg-gray-900 text-gray-500 hover:bg-gray-700'
-                    }`}
-                  >
-                    ›
-                  </button>
-                </div>
+              <div className="col-span-2">
+                <StretchInput
+                  label="Length"
+                  value={wall.length}
+                  grow={growEnd}
+                  onGrowChange={setGrowEnd}
+                  onCommit={updateLength}
+                  ariaLabel="Wall length"
+                />
               </div>
               <Field label="Height">
                 <InchInput

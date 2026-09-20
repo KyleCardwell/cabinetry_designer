@@ -7,7 +7,7 @@ import {
   wallFrame,
 } from './geometry.js';
 import { verticalStart } from './overlap.js';
-import { positionReadouts, startFromReadout } from './positions.js';
+import { positionReadouts, startFromReadout, stretchedStart } from './positions.js';
 import { roundTo } from './units.js';
 
 const OVERLAP_EPSILON = 1e-6;
@@ -164,6 +164,24 @@ export function setOpeningReferenceX(opening, x, wallLength, settings) {
   return {
     ...opening,
     offset: positionReadouts(referenceX, reference.width, wallLength)
+      [opening.offsetFrom][opening.offsetAnchor ?? 'edge'],
+  };
+}
+
+/**
+ * Change an opening's width, growing toward 'left', 'right' or 'both' (about its center).
+ * The width is in the opening's measure mode; the offset is re-expressed in its own terms
+ * without snapping or clamping (validateOpeningPlacement decides whether it fits).
+ */
+export function resizeOpening(opening, width, grow, wallLength, settings) {
+  if (!Number.isFinite(width) || width <= 0) return opening;
+  const reference = referenceRect(opening, openingGeometry(opening, wallLength, settings));
+  const referenceX = stretchedStart(reference.x, reference.width, reference.width + width - opening.width, grow);
+  const resized = { ...opening, width };
+  const nextReference = referenceRect(resized, openingGeometry(resized, wallLength, settings));
+  return {
+    ...resized,
+    offset: positionReadouts(referenceX, nextReference.width, wallLength)
       [opening.offsetFrom][opening.offsetAnchor ?? 'edge'],
   };
 }

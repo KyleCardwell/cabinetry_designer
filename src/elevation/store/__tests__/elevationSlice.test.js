@@ -5,6 +5,7 @@ import { wallFrame } from '../../model/geometry.js';
 import { openingGeometry } from '../../model/openings.js';
 import elevationReducer, {
   addOpening,
+  resizeOpening,
   addRoom,
   addItemAfter,
   addRun,
@@ -1196,5 +1197,24 @@ describe('standard drawers on style switch', () => {
     state = elevationReducer(state, setRunStyle({ ...at, style: null }));
     expect(topSize(state, 'a')).toBe(5.875);
     expect(topSize(state, 'b')).toBe(5.875);
+  });
+});
+
+describe('resizeOpening', () => {
+  it('59. grows about the center and rejects a size that leaves the wall', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls[0].openings = [opening()];
+    const grown = elevationReducer(initial, resizeOpening({
+      wallId: 'wall-1', openingId: 'door-1', width: 40, grow: 'both',
+    }));
+    expect(currentOpening(grown)).toMatchObject({ width: 40, offset: 22 });
+
+    const tight = stateWithRun();
+    tight.rooms[0].walls[0].openings = [opening({ offset: 4 })];
+    const rejected = elevationReducer(tight, resizeOpening({
+      wallId: 'wall-1', openingId: 'door-1', width: 44, grow: 'left',
+    }));
+    expect(currentOpening(rejected)).toMatchObject({ width: 36, offset: 4 });
+    expect(rejected.message).toBeTruthy();
   });
 });

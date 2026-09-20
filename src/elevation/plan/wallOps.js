@@ -145,11 +145,24 @@ export function moveWallPerpendicular(room, wallId, delta) {
 }
 
 /**
- * Set a wall's length from one elevation-side end while preserving connected angles.
+ * Set a wall's length from one elevation-side end ('left' / 'right'), or half from each
+ * ('both'), while preserving connected angles.
  *
  * @returns {{ok:boolean,reason:string|null,walls:object[]}}
  */
 export function setWallLength(room, wallId, length, growEnd) {
+  if (growEnd === 'both') {
+    const source = wallById(room.walls, wallId);
+    if (!source) return { ok: false, reason: 'wall-not-found', walls: room.walls };
+    if (!Number.isFinite(length) || length <= 0) {
+      return { ok: false, reason: 'invalid-length', walls: room.walls };
+    }
+    const half = (length - wallFrame(room, source).length) / 2;
+    const first = setWallLength(room, wallId, wallFrame(room, source).length + half, 'left');
+    if (!first.ok) return { ...first, walls: room.walls };
+    const second = setWallLength({ ...room, walls: first.walls }, wallId, length, 'right');
+    return second.ok ? second : { ...second, walls: room.walls };
+  }
   const sourceWall = wallById(room.walls, wallId);
   if (!sourceWall) {
     return { ok: false, reason: 'wall-not-found', walls: room.walls };

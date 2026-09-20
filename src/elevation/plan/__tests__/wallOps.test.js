@@ -185,3 +185,15 @@ describe('elevation plan wall operations', () => {
       .toEqual({ x: 25, y: 90 });
   });
 });
+
+describe('wall length from both ends', () => {
+  it('58 splits the change between the free left end and the connected right end', () => {
+    const result = setWallLength(roomR(), 'A', 132, 'both');
+    expect(result).toMatchObject({ ok: true, reason: null });
+    expect(result.walls.find((item) => item.id === 'A'))
+      .toMatchObject({ x1: -6, y1: 0, x2: 126, y2: 0 });
+    expect(result.walls.find((item) => item.id === 'B'))
+      .toMatchObject({ x1: 126, y1: 0, x2: 126, y2: 96 });
+    expect(setWallLength(roomR(), 'A', -1, 'both')).toMatchObject({ ok: false, reason: 'invalid-length' });
+  });
+});

@@ -59,7 +59,12 @@ export {
   roundTo,
 } from './units.js';
 export { splitRun, syncAutoItems } from './splitRun.js';
-export { positionReadouts, startFromReadout } from './positions.js';
+export {
+  GROW_ENDS,
+  positionReadouts,
+  startFromReadout,
+  stretchedStart,
+} from './positions.js';
 export { createRun, defaultsForType, inferRunType } from './runDefaults.js';
 export { runsConflict, validateRunPlacement, verticalStart } from './overlap.js';
 export {
@@ -83,6 +88,7 @@ export {
   openingGeometry,
   openingReferenceBounds,
   openingsAtPoint,
+  resizeOpening,
   runBlocksOpening,
   setMeasureMode,
   setOffsetAnchor,

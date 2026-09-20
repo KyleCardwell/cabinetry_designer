@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { wallFrame } from '../model/geometry.js';
 import {
+  resizeOpening as resizeOpeningPure,
   setMeasureMode,
   setOffsetAnchor,
   setOffsetSide,
@@ -548,6 +549,25 @@ const elevationSlice = createSlice({
       state.message = null;
       syncRoomAt(state, location.roomIndex);
     },
+    resizeOpening(state, action) {
+      const location = openingLocation(state, action.payload);
+      const { width, grow = 'right' } = action.payload;
+      if (!location || !Number.isFinite(width) || width <= 0) return;
+      const length = wallFrame(location.room, location.wall).length;
+      const candidate = resizeOpeningPure(location.opening, width, grow, length, state.settings);
+      const validation = validateOpeningPlacement(
+        { ...location.wall, length },
+        candidate,
+        state.settings,
+      );
+      if (!validation.ok) {
+        state.message = validation.reason;
+        return;
+      }
+      location.wall.openings[location.openingIndex] = candidate;
+      state.message = null;
+      syncRoomAt(state, location.roomIndex);
+    },
     setOpeningMeasureMode(state, action) {
       const location = openingLocation(state, action.payload);
       if (!location) return;
@@ -989,6 +1009,7 @@ export const {
   addRun,
   addOpening,
   updateOpening,
+  resizeOpening,
   setOpeningMeasureMode,
   setOpeningOffsetAnchor,
   setOpeningOffsetSide,
