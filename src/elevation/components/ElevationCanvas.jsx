@@ -261,7 +261,14 @@ function ElevationCanvas({
       setView((activeView) => panView(activeView, dx, dy));
     };
     const handlePointerEnd = (event) => {
-      if (panRef.current && event.pointerId === panRef.current.pointerId) stopPanning();
+      const current = panRef.current;
+      if (!current || event.pointerId !== current.pointerId) return;
+      stopPanning();
+      // preventDefault on pointerdown suppresses Konva's mouse click, so a plain
+      // left click on empty canvas deselects here instead of in handleStageClick.
+      if (event.type === 'pointerup' && current.clearsSelection && !current.moved) {
+        dispatch(setSelection({}));
+      }
     };
     const handlePointerOut = (event) => {
       if (!event.relatedTarget) stopPanning();
@@ -283,7 +290,7 @@ function ElevationCanvas({
       window.removeEventListener('pointercancel', handlePointerEnd);
       window.removeEventListener('pointerout', handlePointerOut);
     };
-  }, [stopPanning]);
+  }, [dispatch, stopPanning]);
 
   const baseTransform = useMemo(() => (
     wall && viewport.width > 0 && viewport.height > 0
@@ -469,6 +476,7 @@ function ElevationCanvas({
       originX: pointerEvent.clientX,
       originY: pointerEvent.clientY,
       moved: false,
+      clearsSelection: selectDrag && !spaceDrag,
     };
   }, [stretchPreview, tool]);
 
