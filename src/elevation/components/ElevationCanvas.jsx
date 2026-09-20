@@ -959,14 +959,8 @@ function ElevationCanvas({
         moveOriginRef.current = null;
         setStretchPreview(null);
         setAlignmentGuides([]);
-        const sourceRun = wall.runs.find((run) => run.id === segment.runId);
-        const joined = ['left', 'right'].some((side) => (
-          isJointAnchor(sourceRun?.anchors?.[side])
-        ));
         showMessage(result.reason === 'anchored'
-          ? joined
-            ? 'Joined — drag the joint, or set Anchor to Free'
-            : 'Anchored — set Anchor to Free to move'
+          ? 'Anchored — set Anchor to Free to move'
           : result.reason);
       }
       return;
@@ -976,10 +970,17 @@ function ElevationCanvas({
     if (!resolvedRun) return;
     setAlignmentGuides(result.snap ? [{ axis: 'x', value: result.snap.value }] : []);
     if (!commit) {
+      const runIds = new Set([resolvedRun.id]);
+      ['left', 'right'].forEach((side) => {
+        const anchor = resolvedRun.anchors?.[side];
+        if (isJointAnchor(anchor)) {
+          jointMembers(resolvedWall, anchor.jointId).forEach((member) => runIds.add(member.runId));
+        }
+      });
       setStretchPreview({
         room: result.room,
         wall: resolvedWall,
-        runIds: [resolvedRun.id],
+        runIds: [...runIds],
       });
       return;
     }
@@ -987,7 +988,20 @@ function ElevationCanvas({
     setStretchPreview(null);
     setAlignmentGuides([]);
     dispatch(setMessage(null));
-    dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
+    if (result.joints) {
+      dispatch(replaceWallLayout({
+        wallId: wall.id,
+        runs: resolvedWall.runs,
+        joints: resolvedWall.joints,
+      }));
+    } else {
+      dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
+    }
+    if (result.limit?.reason === 'min-width') {
+      showMessage(`${result.limit.type} can't go below ${formatInches(result.limit.min)}`);
+    } else if (result.limit?.reason === 'fixed-width') {
+      showMessage(`${result.limit.type} is fixed at ${formatInches(result.limit.width)} (all cabinets fixed)`);
+    }
   }, [dispatch, room, settings, showMessage, wall]);
 
   const startRunMove = useCallback((segment) => {
@@ -995,6 +1009,7 @@ function ElevationCanvas({
     const run = wall.runs.find((candidate) => candidate.id === segment.runId);
     const pointer = stageRef.current?.getPointerPosition();
     if (!run || !pointer || !transform) return;
+    const result = moveRun(room, wall.id, run.id, run.x, settings);
     cancelEntry();
     dispatch(setSelection({ runId: run.id, pieceId: null }));
     setEntryPointer(pointer);
@@ -1009,8 +1024,8 @@ function ElevationCanvas({
       kind: 'run-move',
       label: 'Move',
       value: 0,
-      min: -Infinity,
-      max: Infinity,
+      min: result.joints ? result.range.min : -Infinity,
+      max: result.joints ? result.range.max : Infinity,
       onCommit: (delta) => {
         liveGestureRef.current = null;
         applyRunMove(segment, delta, true);
@@ -1022,7 +1037,7 @@ function ElevationCanvas({
         setAlignmentGuides([]);
       },
     });
-  }, [applyRunMove, beginEntry, cancelEntry, dispatch, room, transform, wall]);
+  }, [applyRunMove, beginEntry, cancelEntry, dispatch, room, settings, transform, wall]);
 
   const handleRunSegmentClick = useCallback((segment) => {
     if (tool !== 'select') return;
