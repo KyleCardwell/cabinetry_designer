@@ -65,4 +65,37 @@ describe('useLiveEntry state', () => {
     expect(second.onCancel).not.toHaveBeenCalled();
     expect(live.entry.kind).toBe('second');
   });
+
+  it('87. cycles through live-entry modes', () => {
+    const live = createLiveEntryController();
+    live.begin(config({
+      modes: [
+        { key: 'first', label: 'First', value: 4, min: 1, max: 8 },
+        { key: 'second', label: 'Second', value: 12, min: 10, max: 20 },
+      ],
+    }));
+
+    expect(live.entry).toMatchObject({ label: 'First', value: 4, min: 1, max: 8 });
+    live.cycle();
+    expect(live.entry).toMatchObject({ label: 'Second', value: 12, min: 10, max: 20 });
+    live.cycle();
+    expect(live.entry).toMatchObject({ label: 'First', value: 4, min: 1, max: 8 });
+  });
+
+  it('88. clears typed text on cycle and commits the active mode key', () => {
+    const entry = config({
+      modes: [
+        { key: 'first', label: 'First', value: 4, min: 1, max: 8 },
+        { key: 'second', label: 'Second', value: 12, min: 10, max: 20 },
+      ],
+    });
+    const live = createLiveEntryController();
+    live.begin(entry);
+    live.setTyped('7');
+    live.cycle();
+
+    expect(live.entry.typed).toBeNull();
+    live.commit();
+    expect(entry.onCommit).toHaveBeenCalledWith(12, 'second');
+  });
 });

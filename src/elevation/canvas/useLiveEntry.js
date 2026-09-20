@@ -5,6 +5,17 @@ function clamp(value, min, max) {
   return Math.max(min, Math.min(max, value));
 }
 
+function normalizeMode(mode) {
+  const min = Number.isFinite(mode.min) ? mode.min : -Infinity;
+  const max = Number.isFinite(mode.max) ? mode.max : Infinity;
+  return {
+    ...mode,
+    value: clamp(mode.value, min, max),
+    min,
+    max,
+  };
+}
+
 /** Resolve the value currently represented by a live entry. */
 export function resolveLiveEntryValue(entry) {
   if (!entry) return null;
@@ -36,16 +47,23 @@ export function createLiveEntryController(notify = () => {}) {
 
   const begin = (config) => {
     if (entry) cancel();
-    const min = Number.isFinite(config.min) ? config.min : -Infinity;
-    const max = Number.isFinite(config.max) ? config.max : Infinity;
+    const modes = Array.isArray(config.modes) && config.modes.length > 0
+      ? config.modes.map(normalizeMode)
+      : null;
+    const activeMode = modes?.[0] ?? normalizeMode(config);
     entry = {
       kind: config.kind,
-      label: config.label,
-      value: clamp(config.value, min, max),
+      label: activeMode.label,
+      value: activeMode.value,
       typed: null,
-      min,
-      max,
+      min: activeMode.min,
+      max: activeMode.max,
       unit: 'in',
+      ...(modes ? {
+        modes,
+        modeIndex: 0,
+        modeKey: activeMode.key,
+      } : {}),
     };
     callbacks = {
       onCommit: config.onCommit,
@@ -66,12 +84,31 @@ export function createLiveEntryController(notify = () => {}) {
     notify();
   };
 
+  const cycle = () => {
+    if (!entry?.modes || entry.modes.length < 2) return;
+    const modeIndex = (entry.modeIndex + 1) % entry.modes.length;
+    const mode = entry.modes[modeIndex];
+    entry = {
+      ...entry,
+      label: mode.label,
+      value: mode.value,
+      typed: null,
+      min: mode.min,
+      max: mode.max,
+      modeIndex,
+      modeKey: mode.key,
+    };
+    notify();
+  };
+
   const commit = () => {
     if (!entry) return;
     const value = resolveLiveEntryValue(entry);
+    const modeKey = entry.modeKey;
     const onCommit = callbacks?.onCommit;
     clear();
-    onCommit?.(value);
+    if (modeKey === undefined) onCommit?.(value);
+    else onCommit?.(value, modeKey);
   };
 
   return {
@@ -81,6 +118,7 @@ export function createLiveEntryController(notify = () => {}) {
     begin,
     update,
     setTyped,
+    cycle,
     commit,
     cancel,
   };
@@ -99,6 +137,7 @@ export function useLiveEntry() {
     begin: controller.begin,
     update: controller.update,
     setTyped: controller.setTyped,
+    cycle: controller.cycle,
     commit: controller.commit,
     cancel: controller.cancel,
   };

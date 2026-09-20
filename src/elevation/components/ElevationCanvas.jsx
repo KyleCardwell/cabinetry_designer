@@ -149,6 +149,7 @@ function ElevationCanvas({
     begin: beginEntry,
     update: updateEntry,
     setTyped: setEntryTyped,
+    cycle: cycleEntry,
     commit: commitEntry,
     cancel: cancelEntry,
   } = useLiveEntry();
@@ -877,6 +878,37 @@ function ElevationCanvas({
       ? run.x + run.width + maxRunOverhang
       : wall.length + maxRunOverhang - run.x;
     const maximum = Math.max(widthRange.min, Math.min(widthRange.max, wallMaximum));
+    const widthModeKey = `run:${run.id}:${side}`;
+    const edgeX = runEdgeXForWidth(run, side, run.width);
+    const edgeLimits = [
+      runEdgeXForWidth(run, side, widthRange.min),
+      runEdgeXForWidth(run, side, maximum),
+    ];
+    const edgeMin = Math.min(...edgeLimits);
+    const edgeMax = Math.max(...edgeLimits);
+    const modes = [
+      {
+        key: widthModeKey,
+        label: `${RUN_TYPE_LABELS[run.cabinetTypeId] ?? 'Run'} width`,
+        value: run.width,
+        min: widthRange.min,
+        max: maximum,
+      },
+      {
+        key: 'from-left',
+        label: 'From left',
+        value: edgeX,
+        min: edgeMin,
+        max: edgeMax,
+      },
+      {
+        key: 'from-right',
+        label: 'From right',
+        value: wall.length - edgeX,
+        min: wall.length - edgeMax,
+        max: wall.length - edgeMin,
+      },
+    ];
     setEntryPointer(pointer);
     setStretchPreview({ room, wall, runIds: [run.id] });
     liveGestureRef.current = { kind: 'run-edge', run, side, jointId: null, offset: 0 };
@@ -886,9 +918,15 @@ function ElevationCanvas({
       value: run.width,
       min: widthRange.min,
       max: maximum,
-      onCommit: (width) => {
+      modes,
+      onCommit: (value, modeKey) => {
         liveGestureRef.current = null;
-        commitStretch(run.id, side, runEdgeXForWidth(run, side, width));
+        const committedEdgeX = modeKey === 'from-left'
+          ? value
+          : modeKey === 'from-right'
+            ? wall.length - value
+            : runEdgeXForWidth(run, side, value);
+        commitStretch(run.id, side, committedEdgeX);
       },
       onCancel: () => {
         liveGestureRef.current = null;
@@ -1053,16 +1091,56 @@ function ElevationCanvas({
     const rangeResult = moveJoint(room, wall.id, jointId, joint.x, settings);
     if (!rangeResult.range || rangeResult.range.min > rangeResult.range.max) return;
     const offset = member.offset ?? 0;
-    const widthAtJoint = (jointX) => runWidthForEdgeX(
-      run,
-      member.side,
-      member.side === 'right' ? jointX - offset : jointX + offset,
+    const grabbedEdgeAtJoint = (jointX) => (
+      member.side === 'right' ? jointX - offset : jointX + offset
     );
-    const endWidths = [
-      widthAtJoint(rangeResult.range.min),
-      widthAtJoint(rangeResult.range.max),
+    const edgeMin = grabbedEdgeAtJoint(rangeResult.range.min);
+    const edgeMax = grabbedEdgeAtJoint(rangeResult.range.max);
+    const members = jointMembers(wall, jointId);
+    const orderedMembers = [member, ...members.filter((candidate) => (
+      candidate.runId !== member.runId || candidate.side !== member.side
+    ))];
+    const memberModes = orderedMembers.flatMap((candidate) => {
+      const memberRun = wall.runs.find((wallRun) => wallRun.id === candidate.runId);
+      if (!memberRun) return [];
+      const memberOffset = candidate.offset ?? 0;
+      const memberWidthAtJoint = (jointX) => runWidthForEdgeX(
+        memberRun,
+        candidate.side,
+        candidate.side === 'right'
+          ? jointX - memberOffset
+          : jointX + memberOffset,
+      );
+      const widthLimits = [
+        memberWidthAtJoint(rangeResult.range.min),
+        memberWidthAtJoint(rangeResult.range.max),
+      ];
+      return [{
+        key: `run:${candidate.runId}:${candidate.side}`,
+        label: `${RUN_TYPE_LABELS[memberRun.cabinetTypeId] ?? 'Run'} width`,
+        value: memberRun.width,
+        min: Math.min(...widthLimits),
+        max: Math.max(...widthLimits),
+      }];
+    });
+    const modes = [
+      ...memberModes,
+      {
+        key: 'from-left',
+        label: 'From left',
+        value: grabbedEdgeAtJoint(joint.x),
+        min: edgeMin,
+        max: edgeMax,
+      },
+      {
+        key: 'from-right',
+        label: 'From right',
+        value: wall.length - grabbedEdgeAtJoint(joint.x),
+        min: wall.length - edgeMax,
+        max: wall.length - edgeMin,
+      },
     ];
-    const runIds = jointMembers(wall, jointId).map((candidate) => candidate.runId);
+    const runIds = members.map((candidate) => candidate.runId);
     setEntryPointer(pointer);
     setStretchPreview({ room, wall, runIds });
     liveGestureRef.current = {
@@ -1076,14 +1154,31 @@ function ElevationCanvas({
       kind: 'run-edge',
       label: `${RUN_TYPE_LABELS[run.cabinetTypeId] ?? 'Run'} width`,
       value: run.width,
-      min: Math.min(...endWidths),
-      max: Math.max(...endWidths),
-      onCommit: (width) => {
+      min: memberModes[0].min,
+      max: memberModes[0].max,
+      modes,
+      onCommit: (value, modeKey) => {
         const activeGesture = liveGestureRef.current;
         liveGestureRef.current = null;
-        const edgeX = runEdgeXForWidth(run, member.side, width);
         const typed = entryRef.current?.typed;
-        const enteredJointX = member.side === 'right' ? edgeX + offset : edgeX - offset;
+        const modeMember = orderedMembers.find(
+          (candidate) => `run:${candidate.runId}:${candidate.side}` === modeKey,
+        );
+        const modeRun = wall.runs.find((candidate) => candidate.id === modeMember?.runId);
+        const modeOffset = modeMember?.offset ?? 0;
+        const modeEdgeX = modeRun && modeMember
+          ? runEdgeXForWidth(modeRun, modeMember.side, value)
+          : null;
+        const enteredEdgeX = modeKey === 'from-left'
+          ? value
+          : wall.length - value;
+        const enteredJointX = modeKey === 'from-left' || modeKey === 'from-right'
+          ? member.side === 'right'
+            ? enteredEdgeX + offset
+            : enteredEdgeX - offset
+            : modeMember?.side === 'right'
+              ? modeEdgeX + modeOffset
+              : modeEdgeX - modeOffset;
         const jointX = typed === null && Number.isFinite(activeGesture?.requestedJointX)
           ? activeGesture.requestedJointX
           : enteredJointX;
@@ -1360,6 +1455,7 @@ function ElevationCanvas({
           containerRef={containerRef}
           containerSize={viewport}
           onTyped={setEntryTyped}
+          onCycle={cycleEntry}
           onCommit={commitEntry}
           onCancel={cancelEntry}
         />

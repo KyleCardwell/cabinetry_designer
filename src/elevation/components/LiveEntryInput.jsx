@@ -19,6 +19,7 @@ export default function LiveEntryInput({
   containerRef,
   containerSize,
   onTyped,
+  onCycle,
   onCommit,
   onCancel,
 }) {
@@ -79,13 +80,20 @@ export default function LiveEntryInput({
               event.preventDefault();
               event.stopPropagation();
               onCancel();
+            } else if (event.key === 'Tab' && entry.modes?.length > 1) {
+              event.preventDefault();
+              onCycle();
             }
           }}
           aria-label={entry.label}
           className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2 py-1.5 text-sm text-gray-100 focus:border-cyan-500 focus:outline-none"
         />
       </label>
-      <p className="mt-1.5 text-[10px] text-gray-500">Enter to set · Esc to cancel</p>
+      <p className="mt-1.5 text-[10px] text-gray-500">
+        Enter to set
+        {entry.modes?.length > 1 && ' · Tab ⇥ next'}
+        {' · Esc to cancel'}
+      </p>
     </div>
   );
 }
