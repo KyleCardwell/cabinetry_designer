@@ -35,6 +35,7 @@ import {
   screenPointToWallSnapped,
 } from '../canvas/drag.js';
 import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
+import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { createRun } from '../model/runDefaults.js';
 import {
   createOpening,
@@ -52,19 +53,25 @@ import {
 import { resolveProfile } from '../model/profile.js';
 import { elevationLabel, nextWallId } from '../model/topology.js';
 import {
+  joinTouchingEdges,
+  moveJoint,
   moveRun,
   roomDiagnostics,
   stretchRun,
   tryPlaceRun,
 } from '../model/room.js';
+import { isJointAnchor, jointMembers } from '../model/joints.js';
+import { formatInches } from '../model/units.js';
 import {
   addOpening,
   addRun,
   deleteOpening,
   deleteRun,
+  dissolveJoint,
   moveOpening,
   removeItem,
   replaceRun,
+  replaceWallLayout,
   setMessage,
   setSelection,
   setFacePath,
@@ -74,12 +81,18 @@ import {
 import DragPreview from './DragPreview.jsx';
 import DimensionRow from './DimensionRow.jsx';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
+import JointMarkers from './JointMarkers.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
 import RunGroup from './RunGroup.jsx';
 import WallFrame from './WallFrame.jsx';
 
 const ALIGNMENT_SNAP_PX = 6;
+const RUN_TYPE_LABELS = {
+  [CABINET_TYPE_IDS.BASE]: 'Base',
+  [CABINET_TYPE_IDS.UPPER]: 'Upper',
+  [CABINET_TYPE_IDS.TALL]: 'Tall',
+};
 
 function ElevationCanvas({
   room,
@@ -96,6 +109,7 @@ function ElevationCanvas({
   const [view, setView] = useState(DEFAULT_VIEW);
   const [drag, setDrag] = useState(null);
   const [stretchPreview, setStretchPreview] = useState(null);
+  const [hoveredJointId, setHoveredJointId] = useState(null);
   const [alignmentGuides, setAlignmentGuides] = useState([]);
   const moveOriginRef = useRef(null);
   const dragRef = useRef(null);
@@ -578,7 +592,19 @@ function ElevationCanvas({
       messageTimeoutRef.current = null;
     }
     dispatch(setMessage(null));
-    dispatch(addRun({ wallId: wall.id, run }));
+    const joinedPlacement = joinTouchingEdges(placement.room, wall.id, run.id, settings);
+    if (joinedPlacement.joined.length > 0) {
+      const resolvedWall = joinedPlacement.room.walls.find(
+        (candidate) => candidate.id === wall.id,
+      );
+      dispatch(replaceWallLayout({
+        wallId: wall.id,
+        runs: resolvedWall.runs,
+        joints: resolvedWall.joints,
+      }));
+    } else {
+      dispatch(addRun({ wallId: wall.id, run }));
+    }
     dispatch(setSelection({ runId: run.id, pieceId: null }));
   };
 
@@ -647,19 +673,18 @@ function ElevationCanvas({
     const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings);
     if (!result.ok) return;
     const previewWall = result.room.walls.find((candidate) => candidate.id === wall.id);
-    const previewRun = previewWall?.runs.find((candidate) => candidate.id === runId);
-    if (!previewWall || !previewRun) return;
+    if (!previewWall?.runs.some((candidate) => candidate.id === runId)) return;
     setStretchPreview({
       room: result.room,
       wall: previewWall,
-      run: previewRun,
+      runIds: [runId],
     });
   }, [applyRunAlignment, room, settings, wall]);
 
   const startStretch = useCallback((runId) => {
     if (!room || !wall) return;
     const run = wall.runs.find((candidate) => candidate.id === runId);
-    if (run) setStretchPreview({ room, wall, run });
+    if (run) setStretchPreview({ room, wall, runIds: [run.id] });
   }, [room, wall]);
 
   const finishStretch = useCallback((runId, side, newEdgeX) => {
@@ -680,7 +705,15 @@ function ElevationCanvas({
       messageTimeoutRef.current = null;
     }
     dispatch(setMessage(null));
-    dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
+    if (result.joined) {
+      dispatch(replaceWallLayout({
+        wallId: wall.id,
+        runs: resolvedWall.runs,
+        joints: resolvedWall.joints,
+      }));
+    } else {
+      dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
+    }
   }, [applyRunAlignment, dispatch, room, settings, showMessage, wall]);
 
   const startRunMove = useCallback((segment) => {
@@ -688,7 +721,7 @@ function ElevationCanvas({
     const run = wall.runs.find((candidate) => candidate.id === segment.runId);
     if (!run) return;
     moveOriginRef.current = { runId: run.id, x: run.x };
-    setStretchPreview({ room, wall, run });
+    setStretchPreview({ room, wall, runIds: [run.id] });
   }, [room, wall]);
 
   const applyRunMove = useCallback((segment, delta, commit) => {
@@ -700,8 +733,14 @@ function ElevationCanvas({
         moveOriginRef.current = null;
         setStretchPreview(null);
         setAlignmentGuides([]);
+        const sourceRun = wall.runs.find((run) => run.id === segment.runId);
+        const joined = ['left', 'right'].some((side) => (
+          isJointAnchor(sourceRun?.anchors?.[side])
+        ));
         showMessage(result.reason === 'anchored'
-          ? 'Anchored — set Anchor to Free to move'
+          ? joined
+            ? 'Joined — drag the joint, or set Anchor to Free'
+            : 'Anchored — set Anchor to Free to move'
           : result.reason);
       }
       return;
@@ -711,7 +750,11 @@ function ElevationCanvas({
     if (!resolvedRun) return;
     setAlignmentGuides(result.snap ? [{ axis: 'x', value: result.snap.value }] : []);
     if (!commit) {
-      setStretchPreview({ room: result.room, wall: resolvedWall, run: resolvedRun });
+      setStretchPreview({
+        room: result.room,
+        wall: resolvedWall,
+        runIds: [resolvedRun.id],
+      });
       return;
     }
     moveOriginRef.current = null;
@@ -720,6 +763,60 @@ function ElevationCanvas({
     dispatch(setMessage(null));
     dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
   }, [dispatch, room, settings, showMessage, wall]);
+
+  const startJointDrag = useCallback((jointId) => {
+    if (!room || !wall) return;
+    const runIds = jointMembers(wall, jointId).map((member) => member.runId);
+    setStretchPreview({ room, wall, runIds });
+  }, [room, wall]);
+
+  const previewJointDrag = useCallback((jointId, x) => {
+    if (!room || !wall) return;
+    const result = moveJoint(room, wall.id, jointId, x, settings);
+    if (!result.ok) return;
+    const previewWall = result.room.walls.find((candidate) => candidate.id === wall.id);
+    if (!previewWall) return;
+    setStretchPreview({
+      room: result.room,
+      wall: previewWall,
+      runIds: jointMembers(previewWall, jointId).map((member) => member.runId),
+    });
+  }, [room, settings, wall]);
+
+  const finishJointDrag = useCallback((jointId, x) => {
+    setStretchPreview(null);
+    if (!room || !wall) return;
+    const result = moveJoint(room, wall.id, jointId, x, settings);
+    if (!result.ok) {
+      showMessage(result.reason);
+      return;
+    }
+    const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
+    if (!resolvedWall) return;
+    dispatch(replaceWallLayout({
+      wallId: wall.id,
+      runs: resolvedWall.runs,
+      joints: resolvedWall.joints,
+    }));
+
+    const limitingRun = result.limit
+      ? resolvedWall.runs.find((run) => run.id === result.limit.runId)
+      : null;
+    const type = RUN_TYPE_LABELS[limitingRun?.cabinetTypeId] ?? 'Run';
+    if (result.limit?.reason === 'min-width') {
+      showMessage(`${type} can't go below ${formatInches(limitingRun.width)}`);
+    } else if (result.limit?.reason === 'fixed-width') {
+      showMessage(`${type} is fixed at ${formatInches(limitingRun.width)} (all cabinets fixed)`);
+    } else {
+      dispatch(setMessage(null));
+    }
+  }, [dispatch, room, settings, showMessage, wall]);
+
+  const dissolveWallJoint = useCallback((jointId) => {
+    if (!wall) return;
+    setHoveredJointId(null);
+    dispatch(dissolveJoint({ wallId: wall.id, jointId }));
+  }, [dispatch, wall]);
 
   return (
     <div
@@ -789,6 +886,19 @@ function ElevationCanvas({
                 onStretchEnd={finishStretch}
               />
             ))}
+            {tool === 'select' && (
+              <JointMarkers
+                wall={wall}
+                transform={transform}
+                selectedRunId={selection.runId}
+                onJointDragStart={startJointDrag}
+                onJointDragMove={previewJointDrag}
+                onJointDragEnd={finishJointDrag}
+                onDissolve={dissolveWallJoint}
+                hoveredJointId={hoveredJointId}
+                setHoveredJointId={setHoveredJointId}
+              />
+            )}
           </Layer>
           <Layer listening={false}>
             <NeighborReturns
@@ -897,17 +1007,23 @@ function ElevationCanvas({
           )}
           {stretchPreview && (
             <Layer listening={false}>
-              <RunGroup
-                run={stretchPreview.run}
-                room={stretchPreview.room}
-                wall={stretchPreview.wall}
-                settings={settings}
-                diagnostic={null}
-                transform={transform}
-                selectedRun={false}
-                selectedPieceId={null}
-                preview
-              />
+              {stretchPreview.runIds.map((runId) => {
+                const previewRun = stretchPreview.wall.runs.find((run) => run.id === runId);
+                return previewRun ? (
+                  <RunGroup
+                    key={runId}
+                    run={previewRun}
+                    room={stretchPreview.room}
+                    wall={stretchPreview.wall}
+                    settings={settings}
+                    diagnostic={null}
+                    transform={transform}
+                    selectedRun={false}
+                    selectedPieceId={null}
+                    preview
+                  />
+                ) : null;
+              })}
             </Layer>
           )}
           {dragPreview && (
