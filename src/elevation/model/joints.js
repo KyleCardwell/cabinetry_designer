@@ -23,6 +23,59 @@ export function jointMembers(wall, jointId) {
   }));
 }
 
+/** Return one link glyph for each joined pair owner or unpaired member. */
+export function jointGlyphs(wall, jointId) {
+  const runs = wall.runs ?? [];
+  const runIndexes = new Map(runs.map((run, index) => [run.id, index]));
+  const members = jointMembers(wall, jointId).map((member) => ({
+    ...member,
+    run: runs.find((run) => run.id === member.runId),
+  })).filter((member) => member.run);
+  const pairedRunIds = new Set();
+  const owned = new Map();
+
+  const rightMembers = members.filter((member) => member.side === 'right');
+  const leftMembers = members.filter((member) => member.side === 'left');
+  rightMembers.forEach((right) => {
+    leftMembers.forEach((left) => {
+      const overlapStart = Math.max(right.run.z, left.run.z);
+      const overlapEnd = Math.min(
+        right.run.z + right.run.height,
+        left.run.z + left.run.height,
+      );
+      const overlap = overlapEnd - overlapStart;
+      if (overlap <= 0) return;
+
+      pairedRunIds.add(right.runId);
+      pairedRunIds.add(left.runId);
+      const owner = right.run.height < left.run.height
+        ? right
+        : left.run.height < right.run.height
+          ? left
+          : runIndexes.get(right.runId) > runIndexes.get(left.runId) ? right : left;
+      const previous = owned.get(owner.runId);
+      if (!previous || overlap > previous.overlap) {
+        owned.set(owner.runId, {
+          ownerRunId: owner.runId,
+          z: (overlapStart + overlapEnd) / 2,
+          overlap,
+        });
+      }
+    });
+  });
+
+  const glyphs = [...owned.values()].map(({ ownerRunId, z }) => ({ ownerRunId, z }));
+  members.forEach((member) => {
+    if (!pairedRunIds.has(member.runId)) {
+      glyphs.push({
+        ownerRunId: member.runId,
+        z: member.run.z + member.run.height / 2,
+      });
+    }
+  });
+  return glyphs.sort((a, b) => a.z - b.z);
+}
+
 /** Resolve a joined run edge from the joint line and its signed offset. */
 export function jointEdgeX(joint, side, offset) {
   return side === 'right'
@@ -39,6 +92,12 @@ const JOINT_EPSILON = 1e-6;
 
 function runEdgeX(run, side) {
   return side === 'left' ? run.x : run.x + run.width;
+}
+
+function withoutAuto(end) {
+  const { auto, ...manualEnd } = end;
+  void auto;
+  return manualEnd;
 }
 
 function endIsCovered(wall, run, side) {
@@ -80,13 +139,22 @@ export function jointEndTypes(wall) {
 export function pruneJoints(wall) {
   const joints = wall.joints ?? [];
   const existingIds = new Set(joints.map((joint) => joint.id));
-  const runsWithExistingAnchors = (wall.runs ?? []).map((run) => ({
-    ...run,
-    anchors: Object.fromEntries(Object.entries(run.anchors ?? {}).map(([side, anchor]) => [
-      side,
-      isJointAnchor(anchor) && !existingIds.has(anchor.jointId) ? false : anchor,
-    ])),
-  }));
+  const runsWithExistingAnchors = (wall.runs ?? []).map((run) => {
+    const missingSides = new Set(Object.entries(run.anchors ?? {})
+      .filter(([, anchor]) => isJointAnchor(anchor) && !existingIds.has(anchor.jointId))
+      .map(([side]) => side));
+    return {
+      ...run,
+      anchors: Object.fromEntries(Object.entries(run.anchors ?? {}).map(([side, anchor]) => [
+        side,
+        missingSides.has(side) ? false : anchor,
+      ])),
+      ends: Object.fromEntries(Object.entries(run.ends ?? {}).map(([side, end]) => [
+        side,
+        missingSides.has(side) ? withoutAuto(end) : end,
+      ])),
+    };
+  });
   const retainedIds = new Set(joints
     .filter((joint) => jointMembers({ runs: runsWithExistingAnchors }, joint.id).length >= 2)
     .map((joint) => joint.id));
@@ -94,12 +162,21 @@ export function pruneJoints(wall) {
   return {
     ...wall,
     joints: joints.filter((joint) => retainedIds.has(joint.id)).map((joint) => ({ ...joint })),
-    runs: runsWithExistingAnchors.map((run) => ({
-      ...run,
-      anchors: Object.fromEntries(Object.entries(run.anchors).map(([side, anchor]) => [
-        side,
-        isJointAnchor(anchor) && !retainedIds.has(anchor.jointId) ? false : anchor,
-      ])),
-    })),
+    runs: runsWithExistingAnchors.map((run) => {
+      const prunedSides = new Set(Object.entries(run.anchors)
+        .filter(([, anchor]) => isJointAnchor(anchor) && !retainedIds.has(anchor.jointId))
+        .map(([side]) => side));
+      return {
+        ...run,
+        anchors: Object.fromEntries(Object.entries(run.anchors).map(([side, anchor]) => [
+          side,
+          prunedSides.has(side) ? false : anchor,
+        ])),
+        ends: Object.fromEntries(Object.entries(run.ends ?? {}).map(([side, end]) => [
+          side,
+          prunedSides.has(side) ? withoutAuto(end) : end,
+        ])),
+      };
+    }),
   };
 }

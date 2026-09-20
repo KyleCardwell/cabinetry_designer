@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { jointMembers, pruneJoints, runShortLabel } from '../joints.js';
+import {
+  jointGlyphs,
+  jointMembers,
+  pruneJoints,
+  runShortLabel,
+} from '../joints.js';
 import {
   compensateRuns,
   flipRunsForWall,
@@ -480,5 +485,47 @@ describe('joint end panels', () => {
     room.walls[0].runs.find((run) => run.id === 'B').anchors.left.offset = 0.5;
 
     expect(joinedEnds(room)).toEqual({ tall: 'end_panel', base: 'end_panel', upper: 'none' });
+  });
+});
+
+describe('joint glyphs', () => {
+  it('89. places one glyph in each shorter run of a stacked joint', () => {
+    expect(jointGlyphs(makeTbu().walls[0], 'J1')).toEqual([
+      { ownerRunId: 'B', z: 19.25 },
+      { ownerRunId: 'U', z: 69 },
+    ]);
+  });
+
+  it('90. assigns each tall-to-base glyph to the base', () => {
+    const wall = makeTbt().walls[0];
+
+    expect(jointGlyphs(wall, 'J1')).toEqual([{ ownerRunId: 'B', z: 19.25 }]);
+    expect(jointGlyphs(wall, 'J2')).toEqual([{ ownerRunId: 'B', z: 19.25 }]);
+  });
+
+  it('91. gives every unpaired member its own glyph', () => {
+    const room = makeRoom([
+      makeRun('P', {
+        x: 0,
+        width: 30,
+        z: 4,
+        height: 30.5,
+        anchors: { left: false, right: { to: 'joint', jointId: 'J1', offset: 0 } },
+      }),
+      makeRun('Q', {
+        cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+        x: 30,
+        width: 20,
+        z: 54,
+        height: 30,
+        anchors: { left: { to: 'joint', jointId: 'J1', offset: 0 }, right: false },
+      }),
+    ]);
+    room.walls[0].joints = [{ id: 'J1', x: 30 }];
+
+    expect(jointGlyphs(room.walls[0], 'J1')).toEqual([
+      { ownerRunId: 'P', z: 19.25 },
+      { ownerRunId: 'Q', z: 69 },
+    ]);
   });
 });

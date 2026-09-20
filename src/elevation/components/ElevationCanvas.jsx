@@ -75,6 +75,7 @@ import {
   removeItem,
   replaceRun,
   replaceWallLayout,
+  setRunAnchor,
   setMessage,
   setSelection,
   setFacePath,
@@ -131,7 +132,7 @@ function ElevationCanvas({
   const [view, setView] = useState(DEFAULT_VIEW);
   const [drag, setDrag] = useState(null);
   const [stretchPreview, setStretchPreview] = useState(null);
-  const [hoveredJointId, setHoveredJointId] = useState(null);
+  const [hoveredGlyphId, setHoveredGlyphId] = useState(null);
   const [alignmentGuides, setAlignmentGuides] = useState([]);
   const [entryPointer, setEntryPointer] = useState(null);
   const liveGestureRef = useRef(null);
@@ -1234,10 +1235,10 @@ function ElevationCanvas({
     }
   }, [applyRunMove, entry, entryValue, previewJointDrag, previewStretch]);
 
-  const dissolveWallJoint = useCallback((jointId) => {
+  const unjoinRunSide = useCallback((runId, side) => {
     if (!wall) return;
-    setHoveredJointId(null);
-    dispatch(dissolveJoint({ wallId: wall.id, jointId }));
+    setHoveredGlyphId(null);
+    dispatch(setRunAnchor({ wallId: wall.id, runId, side, anchor: false }));
   }, [dispatch, wall]);
 
   return (
@@ -1316,9 +1317,9 @@ function ElevationCanvas({
                 onJointDragStart={startJointDrag}
                 onJointDragMove={previewJointDrag}
                 onJointDragEnd={finishJointDrag}
-                onDissolve={dissolveWallJoint}
-                hoveredJointId={hoveredJointId}
-                setHoveredJointId={setHoveredJointId}
+                onUnjoin={unjoinRunSide}
+                hoveredGlyphId={hoveredGlyphId}
+                setHoveredGlyphId={setHoveredGlyphId}
               />
             )}
           </Layer>

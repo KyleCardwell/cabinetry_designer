@@ -1333,3 +1333,67 @@ describe('joined run reducers', () => {
     expect(end.auto).toBeUndefined();
   });
 });
+
+describe('joint glyph unjoin', () => {
+  it('92. frees one stacked member while preserving the remaining joint', () => {
+    const state = stateWithRun();
+    const wall = state.rooms[0].walls[0];
+    const joinedEnd = () => ({ type: 'none', width: null, auto: true });
+    wall.runs = [
+      run({
+        id: 'T',
+        cabinetTypeId: CABINET_TYPE_IDS.TALL,
+        x: 0,
+        width: 24,
+        z: 4,
+        height: 80,
+        depth: 12,
+        ends: { left: { type: 'none', width: null }, right: joinedEnd() },
+        autoCount: false,
+        items: [auto('T-cabinet')],
+        anchors: { left: false, right: { to: 'joint', jointId: 'J1', offset: 0 } },
+      }),
+      run({
+        id: 'B',
+        x: 24,
+        width: 36,
+        z: 4,
+        height: 30.5,
+        depth: 24,
+        ends: { left: joinedEnd(), right: { type: 'none', width: null } },
+        autoCount: false,
+        items: [auto('B-cabinet')],
+        anchors: { left: { to: 'joint', jointId: 'J1', offset: 0 }, right: false },
+      }),
+      run({
+        id: 'U',
+        cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+        x: 24,
+        width: 36,
+        z: 54,
+        height: 30,
+        depth: 15,
+        ends: { left: joinedEnd(), right: { type: 'none', width: null } },
+        autoCount: false,
+        items: [auto('U-cabinet')],
+        anchors: { left: { to: 'joint', jointId: 'J1', offset: 0 }, right: false },
+      }),
+    ];
+    wall.joints = [{ id: 'J1', x: 24 }];
+
+    const next = elevationReducer(state, setRunAnchor({
+      wallId: 'wall-1', runId: 'U', side: 'left', anchor: false,
+    }));
+    const nextWall = next.rooms[0].walls[0];
+    const upper = nextWall.runs.find((entry) => entry.id === 'U');
+
+    expect(nextWall.joints).toEqual([{ id: 'J1', x: 24 }]);
+    expect(nextWall.runs.find((entry) => entry.id === 'T').anchors.right)
+      .toMatchObject({ jointId: 'J1' });
+    expect(nextWall.runs.find((entry) => entry.id === 'B').anchors.left)
+      .toMatchObject({ jointId: 'J1' });
+    expect(upper.x).toBe(24);
+    expect(upper.anchors.left).toBe(false);
+    expect(upper.ends.left.auto).toBeUndefined();
+  });
+});

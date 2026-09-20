@@ -3,6 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { wallFrame } from '../model/geometry.js';
+import { isJointAnchor } from '../model/joints.js';
 import {
   resizeOpening as resizeOpeningPure,
   setMeasureMode,
@@ -51,6 +52,12 @@ function copySettings(settings = DEFAULT_SETTINGS) {
     defaultProfile: { ...settings.defaultProfile },
     defaultEnds: { ...settings.defaultEnds },
   };
+}
+
+function withoutAuto(end) {
+  const { auto, ...manualEnd } = end;
+  void auto;
+  return manualEnd;
 }
 
 function createWall(name = '', y = 0, length = 144, values = {}) {
@@ -723,6 +730,9 @@ const elevationSlice = createSlice({
         && (value.edge === 'casing' || value.edge === 'jamb')
         && (value.clearance === null || Number.isFinite(value.clearance));
       if (typeof value !== 'boolean' && !validOpeningAnchor) return;
+      if (isJointAnchor(location.run.anchors[side]) && !isJointAnchor(value)) {
+        location.run.ends[side] = withoutAuto(location.run.ends[side]);
+      }
       location.run.anchors[side] = validOpeningAnchor ? { ...value } : value;
       if (value === true) {
         const inside = cornerAt(location.room, location.wall, side).type === 'inside';

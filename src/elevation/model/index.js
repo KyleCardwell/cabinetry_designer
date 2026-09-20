@@ -69,6 +69,7 @@ export { createRun, defaultsForType, inferRunType } from './runDefaults.js';
 export {
   isJointAnchor,
   jointEdgeX,
+  jointGlyphs,
   jointMembers,
   pruneJoints,
   runShortLabel,
