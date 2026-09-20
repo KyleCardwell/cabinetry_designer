@@ -24,6 +24,7 @@ All new fields are optional. A missing or null field inherits.
 - **`cabinetStyleId`** uses the estimator's `cabinet_styles` IDs: `13` European, `14` Inset face frame, `15` Beaded inset face frame.
 - **`beadWidth`** only matters for style 15.
 - **`profiledEdge`** means the doors have an applied molding or profile on the outside edge. It's a stand-in until the door editor exists. When the editor lands, `resolveStyle` should read the edge from the chosen door instead, and the rest of the code stays the same.
+- **Profiled edges aren't inset-only.** The control shows for every style, European included. In round 14 it changes only inset reveals (§3); European reveals ignore it until European profile rules are defined.
 - **Resolution:** `settings.defaultStyle` ← `room.style` ← `run.style` ← `item.style` (`resolveStyle`).
 
 ## §2 Settings (new keys in `DEFAULT_SETTINGS`)
@@ -119,3 +120,23 @@ Their tops stay at the box top. When the bottom is flush or on the counter, they
   - end panels or T-fillers covering the cabinet front edges (captured reveals 13/16 and 27/32)
   - Cabinet Vision overlay values on reports
   - the style settings editor
+
+---
+
+## §8 Follow-ups (steps 64–65)
+
+**Step 64: standard drawer heights follow the style.**
+
+- New settings:
+  - `standardDrawerHeights: { european: 5.875, faceFrame: 5 }`. The face frame value is a slot size.
+  - `standardDrawerBelow: 6`
+- `applyStandardDrawers(face, style, settings)` sets every fixed `drawer_front` or `false_front` smaller than 6" to the style's standard, anywhere in the tree (e.g., the top two in a 4Df, or the stack inside D/4Df). Other types, auto sections and group sizes are unchanged, so the tall 30 1/4" lower section stays for now.
+- **When a style change switches a cabinet between European and face frame**, the reducers run it. That applies to `setRoomStyle`, `setRunStyle` and `setItemStyle`, and to every cabinet whose effective style crosses over, including cabinets reached through inheritance. Inset ↔ beaded inset doesn't trigger it. A value typed by hand stays until the next crossover.
+- **Presets are applied through it too**, so a 3Df on a face frame cabinet starts at 5".
+- Tests 51–54.
+
+**Step 65: clicking empty canvas deselects again.**
+
+- The select tool's pan-on-drag calls `preventDefault()` on `pointerdown` (since step 26). That suppresses the browser's mouse events, so Konva never fires `click` on the stage, and `handleStageClick` never ran for the select tool.
+- The window `pointerup` handler now clears the selection when a select-tool left press on empty canvas ends without panning. A press that pans, a middle-button press, or a space+drag press doesn't clear it.
+- UI only; there's no test.

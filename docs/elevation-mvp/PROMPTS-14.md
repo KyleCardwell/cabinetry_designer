@@ -77,3 +77,38 @@ At most five lines of summary. Commit "elevation-mvp: step 63 style and reveal c
    - Upper run → Bottom: Flush. The panels should return to box height.
 3. **Captured single.** A one-cabinet European base run with end panels on both sides, holding a single door or 3Df, reads "3/32" · rule: captured single". A pair door stays 1/16".
 4. **Manual override.** Type a manual reveal, and its source changes to "manual". Clear the input, and it's automatic again.
+
+---
+## Step 64 — Standard drawer heights follow the style
+
+```
+Repo: cabinetry_designer, branch feature/elevation-mvp. SPEC: docs/elevation-mvp/SPEC-14.md §8.
+If `git status` shows uncommitted changes, stop and tell me.
+
+git apply --check docs/elevation-mvp/patches-14/step-64.patch && git apply docs/elevation-mvp/patches-14/step-64.patch
+
+Touches model/constants.js, model/styles.js, model/index.js, store/persistence.js, store/elevationSlice.js, components/properties/FaceProperties.jsx and three test files.
+Run `npm test && npm run build && npm run lint`. Expect 343 tests passing.
+
+At most five lines of summary. Commit "elevation-mvp: step 64 standard drawer heights by style".
+```
+---
+## Step 65 — Click empty canvas to deselect
+
+```
+Repo: cabinetry_designer, branch feature/elevation-mvp. SPEC: docs/elevation-mvp/SPEC-14.md §8.
+If `git status` shows uncommitted changes, stop and tell me.
+
+git apply --check docs/elevation-mvp/patches-14/step-65.patch && git apply docs/elevation-mvp/patches-14/step-65.patch
+
+Touches only components/ElevationCanvas.jsx (the pan pointerdown and the window pointerup handler).
+Run `npm test && npm run build && npm run lint`. 343 passing.
+
+At most five lines of summary. Commit "elevation-mvp: step 65 click empty canvas to deselect".
+```
+
+**Check after 65:**
+
+1. Select a cabinet, then click the wall or empty space. The selection should clear.
+2. Drag on empty space. It should pan and keep the selection.
+3. Put a 3Df on a European base, then switch the room to face frame. The top drawer should go from 5 7/8" to 5". Switch back, and it returns to 5 7/8".
