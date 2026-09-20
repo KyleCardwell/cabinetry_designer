@@ -42,6 +42,7 @@ export default function DimensionRow({
   transform,
   onSegmentClick,
   highlightRunId,
+  activeRunId = null,
   wallEndMarks = [],
   draggableRuns = false,
   onSegmentDragStart,
@@ -90,7 +91,7 @@ export default function DimensionRow({
   const dragDelta = (event, origin) => (horizontal
     ? (event.target.x() - origin.x) / transform.scale
     : -(event.target.y() - origin.y) / transform.scale);
-  const dragProps = (segment, origin) => (draggableRuns && segment.kind === 'run' ? {
+  const dragProps = (segment, origin) => (draggableRuns && segment.kind === 'run' && segment.runId === activeRunId ? {
     draggable: true,
     dragBoundFunc: (position) => (horizontal
       ? { x: position.x, y: origin.y }
@@ -169,6 +170,8 @@ export default function DimensionRow({
         const color = colorFor(segment, highlightRunId);
         const clickable = segment.kind === 'run' && Boolean(onSegmentClick);
         const showsHiddenTooltip = label.mode === 'hidden';
+        const showsPointerCursor = clickable
+          && !(draggableRuns && segment.kind === 'run' && segment.runId === activeRunId);
         const labelDistance = label.mode === 'inline' ? 8 : 12 * label.level;
         const labelPoint = rowPoint(midpointValue, labelDistance);
         const rotation = horizontal ? 0 : -90;
@@ -182,11 +185,17 @@ export default function DimensionRow({
             }
             onSegmentClick(segment);
           } : undefined,
-          onMouseEnter: showsHiddenTooltip
-            ? () => setHoveredHiddenIndex(index)
+          onMouseEnter: showsHiddenTooltip || showsPointerCursor
+            ? (event) => {
+              if (showsHiddenTooltip) setHoveredHiddenIndex(index);
+              if (showsPointerCursor) setResizeCursor(event, 'pointer');
+            }
             : undefined,
-          onMouseLeave: showsHiddenTooltip
-            ? () => setHoveredHiddenIndex(null)
+          onMouseLeave: showsHiddenTooltip || showsPointerCursor
+            ? (event) => {
+              if (showsHiddenTooltip) setHoveredHiddenIndex(null);
+              if (showsPointerCursor) setResizeCursor(event, 'default');
+            }
             : undefined,
         };
         const band = horizontal

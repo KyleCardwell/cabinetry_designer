@@ -1023,6 +1023,15 @@ function ElevationCanvas({
     });
   }, [applyRunMove, beginEntry, cancelEntry, dispatch, room, transform, wall]);
 
+  const handleRunSegmentClick = useCallback((segment) => {
+    if (tool !== 'select') return;
+    if (selectionRef.current?.runId !== segment.runId) {
+      dispatch(setSelection({ runId: segment.runId, pieceId: null }));
+      return;
+    }
+    startRunMove(segment);
+  }, [dispatch, startRunMove, tool]);
+
   const updateRunMove = useCallback((segment, delta) => {
     const gesture = liveGestureRef.current;
     if (gesture?.kind !== 'run-move' || gesture.segment.runId !== segment.runId) return;
@@ -1351,11 +1360,13 @@ function ElevationCanvas({
                 side="below"
                 offsetPx={dimensionOffsets.lower.outer}
                 transform={transform}
-                onSegmentClick={startRunMove}
+                onSegmentClick={handleRunSegmentClick}
                 draggableRuns={tool === 'select'}
+                onSegmentDragStart={startRunMove}
                 onSegmentDragMove={updateRunMove}
                 onSegmentDragEnd={finishRunMove}
                 highlightRunId={selection.runId}
+                activeRunId={selection.runId}
                 wallEndMarks={[0, wall.length]}
               />
               <DimensionRow
@@ -1393,11 +1404,13 @@ function ElevationCanvas({
                 side="above"
                 offsetPx={dimensionOffsets.upper.outer}
                 transform={transform}
-                onSegmentClick={startRunMove}
+                onSegmentClick={handleRunSegmentClick}
                 draggableRuns={tool === 'select'}
+                onSegmentDragStart={startRunMove}
                 onSegmentDragMove={updateRunMove}
                 onSegmentDragEnd={finishRunMove}
                 highlightRunId={selection.runId}
+                activeRunId={selection.runId}
                 wallEndMarks={[0, wall.length]}
               />
               <DimensionRow

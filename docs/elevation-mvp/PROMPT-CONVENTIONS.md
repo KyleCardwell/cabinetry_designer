@@ -40,9 +40,9 @@ An agent in an edit-test-fix loop reads each touched file three or four times. A
 
 **6. Scope the test loop.** Spell it out:
 
-> While iterating, run only `npx vitest run <the one test file>`. Run `npm test && npm run build && npm run lint` once, at the end.
+> While iterating, run only `npx vitest run <the one test file>`. Run `npm test && npm run lint` once, at the end. Don't run `npm run build` — Kyle runs that by hand.
 
-The full gate after every fix attempt is three commands, 24 test files and a Vite build per cycle.
+The full gate after every fix attempt is 24 test files plus a lint pass per cycle.
 
 **7. Cap the summary.** "Say which you switched and which you left" asks for a 44-line inventory. Ask for at most five lines: what changed, what surprised you, what you left undone.
 

@@ -6,7 +6,7 @@ Conventions in `docs/elevation-mvp/PROMPT-CONVENTIONS.md` apply. Run one step pe
 
 **Codex can't open the app** (it's behind a login), so don't plan browser checks. Kyle checks the UI steps by hand, using the list after each one.
 
-**The gate is the same for every step:** while iterating, run only `npx vitest run <the named test file>`. Run `npm test && npm run build && npm run lint` once, at the end. Line numbers are as of `1eeb5bc`.
+**The gate is the same for every step:** while iterating, run only `npx vitest run <the named test file>`. Run `npm test && npm run lint` once, at the end. Line numbers are as of `1eeb5bc`.
 
 ---
 ## Step 76 — Zoom to 1600%
@@ -19,7 +19,7 @@ One edit. src/elevation/canvas/transform.js line 70:
   export function zoomViewAt(base, view, pointer, factor, { min = 0.25, max = 8 } = {})
 becomes max = 16. Leave min at 0.25.
 Do not touch src/elevation/plan/PlanCanvas.jsx — its MAX_ZOOM = 10 (line 79) is plan view's own cap and stays.
-No new tests. Run `npm test && npm run build && npm run lint`: 378 passing.
+No new tests. Run `npm test && npm run lint`: 378 passing.
 
 At most five lines of summary. Commit "elevation-mvp: step 76 zoom to 1600%".
 ```
@@ -62,7 +62,7 @@ ElevationCanvas.jsx:
 - startRunMove keeps its own `dispatch(setSelection(...))` — leave it.
 - The three DimensionRow blocks without onSegmentClick (lower.inner, openings, upper.inner) are not touched.
 
-No new tests (UI). Run `npm test && npm run build && npm run lint`: 378 passing.
+No new tests (UI). Run `npm test && npm run lint`: 378 passing.
 
 At most five lines of summary. Commit "elevation-mvp: step 77 dimension click selects first".
 ```
