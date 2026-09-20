@@ -32,6 +32,7 @@ import { formatInches, roundTo } from './units.js';
 
 const STRETCH_EDGE_SNAP_DISTANCE = 2;
 const PIN_EPSILON = 1e-6;
+const JOIN_EDGE_TOLERANCE = 0.015625;
 function cloneRun(run) {
   const anchors = { left: false, right: false, ...(run.anchors ?? {}) };
   return {
@@ -681,7 +682,7 @@ export function joinTouchingEdges(room, wallId, runId, settings) {
         anchor: candidate.anchors?.[opposite],
       }))
       .filter(({ run: candidate, anchor }) => (
-        Math.abs(runEdgeX(candidate, opposite) - edge) <= PIN_EPSILON
+        Math.abs(runEdgeX(candidate, opposite) - edge) <= JOIN_EDGE_TOLERANCE
         && (!anchor || isJointAnchor(anchor))
       ))
       .sort((a, b) => Number(isJointAnchor(b.anchor)) - Number(isJointAnchor(a.anchor)));

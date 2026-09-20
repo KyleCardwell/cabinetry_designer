@@ -53,7 +53,7 @@ export function defaultsForType(typeId, settings, profile = settings.defaultProf
  * @returns {object}
  */
 export function createRun({ x, width, bottomZ, topZ }, ctx) {
-  const { settings, room, wall } = ctx;
+  const { settings, room, wall, exactEdges = {} } = ctx;
   const cabinetTypeId = inferRunType(bottomZ, topZ);
   const profile = resolveProfile(settings, room, wall);
   const typeDefaults = defaultsForType(cabinetTypeId, settings, profile);
@@ -63,10 +63,15 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
   const maximumX = length + maxRunOverhang;
   const requestedX = roundTo(x, 0.5);
   const requestedWidth = roundTo(width, 0.5);
-  const roundedX = clamp(requestedX, minimumX, maximumX);
-  const roundedEnd = clamp(requestedX + requestedWidth, minimumX, maximumX);
-  const roundedWidth = Math.max(0, roundedEnd - roundedX);
-  const edges = { left: roundedX, right: roundedX + roundedWidth };
+  const runX = clamp(exactEdges.left ?? requestedX, minimumX, maximumX);
+  const runEnd = clamp(
+    exactEdges.right ?? requestedX + requestedWidth,
+    minimumX,
+    maximumX,
+  );
+  const hasExactEdge = exactEdges.left !== undefined || exactEdges.right !== undefined;
+  const runWidth = hasExactEdge ? runEnd - runX : Math.max(0, runEnd - runX);
+  const edges = { left: runX, right: runX + runWidth };
   const corners = wall ? Object.fromEntries(['left', 'right'].map((side) => [
     side,
     cornerAt(room, wall, side),
@@ -106,8 +111,8 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
   const run = {
     id: uuid(),
     cabinetTypeId,
-    x: roundedX,
-    width: roundedWidth,
+    x: runX,
+    width: runWidth,
     ...geometry,
     ends,
     autoCount: true,

@@ -210,4 +210,14 @@ describe('run defaults', () => {
     });
     expect(far.anchors.right).toBe(false);
   });
+
+  it('98. preserves an exact edge without changing unsnapped rounding', () => {
+    const input = { x: 23.7, width: 36.3, bottomZ: 4, topZ: 34.5 };
+    const exact = createRun(input, { ...ctx, exactEdges: { left: 23.7 } });
+    const rounded = createRun(input, ctx);
+
+    expect(exact).toMatchObject({ x: 23.7, width: 36.3 });
+    expect(exact.x + exact.width).toBe(60);
+    expect(rounded).toMatchObject({ x: 23.5, width: 36.5 });
+  });
 });

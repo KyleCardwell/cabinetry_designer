@@ -448,6 +448,40 @@ describe('joining run edges', () => {
     expect(result.room.walls[0].joints).toHaveLength(1);
     expect(result.room.walls[0].joints[0].x).toBe(24);
   });
+
+  it('99. joins newly placed runs within one sixty-fourth of an inch', () => {
+    const joinAt = (x) => {
+      const room = makeRoom([makeRun('T1', {
+        cabinetTypeId: CABINET_TYPE_IDS.TALL,
+        x: 0,
+        width: 23.7,
+        height: 80,
+      })]);
+      const placed = tryPlaceRun(room, 'A', makeRun('B', {
+        x,
+        width: 36,
+        items: [{ id: 'B-cabinet', kind: 'cabinet', width: null }],
+      }), DEFAULT_SETTINGS);
+      expect(placed.ok).toBe(true);
+      return joinTouchingEdges(placed.room, 'A', 'B', DEFAULT_SETTINGS);
+    };
+    const touching = joinAt(23.7);
+    const nearby = joinAt(23.71);
+    const separated = joinAt(23.8);
+    const wall = touching.room.walls[0];
+    const jointId = wall.joints[0].id;
+
+    expect(wall.joints).toHaveLength(1);
+    expect(Math.abs(wall.joints[0].x - 23.7)).toBeLessThanOrEqual(0.015625);
+    expect(wall.runs.find((run) => run.id === 'T1').anchors.right).toEqual({
+      to: 'joint', jointId, offset: 0,
+    });
+    expect(wall.runs.find((run) => run.id === 'B').anchors.left).toEqual({
+      to: 'joint', jointId, offset: 0,
+    });
+    expect(nearby.room.walls[0].joints).toHaveLength(1);
+    expect(separated.room.walls[0].joints ?? []).toHaveLength(0);
+  });
 });
 
 describe('joint end panels', () => {

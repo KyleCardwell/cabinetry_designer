@@ -578,7 +578,20 @@ function ElevationCanvas({
   }, [drag, entry?.kind, entryValue]);
   const dragPreview = useMemo(() => {
     if (!dragBounds || !room || !wall || dragBounds.width <= 0) return null;
-    const run = createRun(dragBounds, { settings, room, wall });
+    const gesture = liveGestureRef.current;
+    const startSide = gesture?.direction < 0 ? 'right' : 'left';
+    const currentSide = startSide === 'left' ? 'right' : 'left';
+    const exactEdges = gesture?.kind === 'run-draw'
+      ? {
+          ...(Number.isFinite(gesture.snappedStartX)
+            ? { [startSide]: gesture.snappedStartX }
+            : {}),
+          ...(Number.isFinite(gesture.snappedCurrentX)
+            ? { [currentSide]: gesture.snappedCurrentX }
+            : {}),
+        }
+      : {};
+    const run = createRun(dragBounds, { settings, room, wall, exactEdges });
     const placement = tryPlaceRun(room, wall.id, run, settings);
     const resolvedWall = placement.room.walls.find(
       (candidate) => candidate.id === wall.id,
@@ -590,7 +603,7 @@ function ElevationCanvas({
   }, [dragBounds, room, settings, wall]);
 
   const applyRunAlignment = useCallback((point, excludeRunId = null, axes = ['x']) => {
-    if (!wall || !transform) return point;
+    if (!wall || !transform) return { point, guides: [] };
     const result = snapToAlignment(
       point,
       runAlignmentTargets(wall, excludeRunId),
@@ -598,7 +611,7 @@ function ElevationCanvas({
       axes,
     );
     setAlignmentGuides(result.guides);
-    return result.point;
+    return result;
   }, [transform, wall]);
 
   const wallPointFromEvent = (event) => {
@@ -614,8 +627,11 @@ function ElevationCanvas({
       )
       : null;
     if (!raw) return null;
-    const point = applyRunAlignment(raw, null, ['x', 'z']);
-    return point;
+    const { point, guides } = applyRunAlignment(raw, null, ['x', 'z']);
+    return {
+      point,
+      snappedX: guides.find((guide) => guide.axis === 'x')?.value ?? null,
+    };
   };
 
   const suppressNextClick = useCallback(() => {
@@ -638,11 +654,21 @@ function ElevationCanvas({
       width,
       gesture.direction,
     );
+    const startSide = gesture.direction < 0 ? 'right' : 'left';
+    const currentSide = startSide === 'left' ? 'right' : 'left';
+    const exactEdges = {
+      ...(Number.isFinite(gesture.snappedStartX)
+        ? { [startSide]: gesture.snappedStartX }
+        : {}),
+      ...(Number.isFinite(gesture.snappedCurrentX)
+        ? { [currentSide]: gesture.snappedCurrentX }
+        : {}),
+    };
     liveGestureRef.current = null;
     cancelDrag();
     setAlignmentGuides([]);
 
-    const run = createRun(bounds, { settings, room, wall });
+    const run = createRun(bounds, { settings, room, wall, exactEdges });
     const placement = tryPlaceRun(room, wall.id, run, settings);
     if (!placement.ok) {
       showMessage(placement.reason);
@@ -674,8 +700,9 @@ function ElevationCanvas({
     if (tool !== 'draw' || event.evt.button !== 0
       || spacePressedRef.current || panRef.current) return;
     if (entry) return;
-    const point = wallPointFromEvent(event);
-    if (!point) return;
+    const wallPoint = wallPointFromEvent(event);
+    if (!wallPoint) return;
+    const { point, snappedX } = wallPoint;
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
     dispatch(setSelection({}));
@@ -686,6 +713,7 @@ function ElevationCanvas({
       start: point,
       current: point,
       direction: 1,
+      snappedStartX: snappedX,
       pressStart: pointer,
       awaitingClick: false,
     };
@@ -710,12 +738,18 @@ function ElevationCanvas({
     if (!entry || !gesture || !pointer) return;
     setEntryPointer(pointer);
     if (entry.kind === 'run-draw' && gesture.kind === 'run-draw') {
-      const point = wallPointFromEvent(event);
-      if (!point) return;
+      const wallPoint = wallPointFromEvent(event);
+      if (!wallPoint) return;
+      const { point, snappedX } = wallPoint;
       const direction = point.x === gesture.start.x
         ? gesture.direction
         : Math.sign(point.x - gesture.start.x);
-      liveGestureRef.current = { ...gesture, current: point, direction };
+      liveGestureRef.current = {
+        ...gesture,
+        current: point,
+        direction,
+        snappedCurrentX: snappedX,
+      };
       updateDrag({ start: gesture.start, current: point });
       updateEntry(Math.abs(point.x - gesture.start.x));
       return;
@@ -741,12 +775,20 @@ function ElevationCanvas({
     const gesture = liveGestureRef.current;
     if (entry?.kind !== 'run-draw' || gesture?.kind !== 'run-draw'
       || gesture.awaitingClick) return;
-    const point = wallPointFromEvent(event) ?? gesture.current;
+    const { point, snappedX } = wallPointFromEvent(event) ?? {
+      point: gesture.current,
+      snappedX: gesture.snappedCurrentX ?? null,
+    };
     const pointer = stageRef.current?.getPointerPosition();
     const direction = point.x === gesture.start.x
       ? gesture.direction
       : Math.sign(point.x - gesture.start.x);
-    liveGestureRef.current = { ...gesture, current: point, direction };
+    liveGestureRef.current = {
+      ...gesture,
+      current: point,
+      direction,
+      snappedCurrentX: snappedX,
+    };
     updateDrag({ start: gesture.start, current: point });
     updateEntry(Math.abs(point.x - gesture.start.x));
     suppressNextClick();
@@ -824,7 +866,7 @@ function ElevationCanvas({
 
   const previewStretch = useCallback((runId, side, newEdgeX) => {
     if (!room || !wall) return;
-    const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).x;
+    const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).point.x;
     const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings);
     if (!result.ok) return;
     const previewWall = result.room.walls.find((candidate) => candidate.id === wall.id);
@@ -837,7 +879,7 @@ function ElevationCanvas({
   }, [applyRunAlignment, room, settings, wall]);
 
   const commitStretch = useCallback((runId, side, newEdgeX) => {
-    const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).x;
+    const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).point.x;
     setStretchPreview(null);
     setAlignmentGuides([]);
     if (!room || !wall) return;
