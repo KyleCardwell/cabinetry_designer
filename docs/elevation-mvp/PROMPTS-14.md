@@ -112,3 +112,30 @@ At most five lines of summary. Commit "elevation-mvp: step 65 click empty canvas
 1. Select a cabinet, then click the wall or empty space. The selection should clear.
 2. Drag on empty space. It should pan and keep the selection.
 3. Put a 3Df on a European base, then switch the room to face frame. The top drawer should go from 5 7/8" to 5". Switch back, and it returns to 5 7/8".
+
+---
+## Step 66 — Stretch direction (‹ › ↔) for wall, run and opening widths
+
+```
+Repo: cabinetry_designer, branch feature/elevation-mvp. SPEC: docs/elevation-mvp/SPEC-14.md §9.
+If `git status` shows uncommitted changes, stop and tell me.
+
+git apply --check docs/elevation-mvp/patches-14/step-66.patch && git apply docs/elevation-mvp/patches-14/step-66.patch
+
+Touches:
+- model: positions.js, openings.js, index.js
+- plan/wallOps.js
+- store/elevationSlice.js
+- components/PropertiesPanel.jsx: the Wall length, Run width and Opening width fields
+- new components/properties/StretchInput.jsx
+- tests: a new model/__tests__/stretch.test.js, plus additions to plan/__tests__/wallOps.test.js and the slice test
+Run `npm test && npm run build && npm run lint`. Expect 348 tests passing.
+
+At most five lines of summary. Commit "elevation-mvp: step 66 stretch direction for widths".
+```
+
+**Check after 66:**
+
+1. **Run width:** with ↔ on a free run, 30 → 36 moves both edges 3". On a run anchored at the left, ‹ and ↔ are disabled.
+2. **Door width:** with ↔, 36 → 40 keeps the center. With the offset measured from the right, the default keeps the right edge.
+3. **Wall length (plan view):** with ↔, the wall grows at both ends, and a connected neighbor wall slides.

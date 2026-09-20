@@ -140,3 +140,22 @@ Their tops stay at the box top. When the bottom is flush or on the counter, they
 - The select tool's pan-on-drag calls `preventDefault()` on `pointerdown` (since step 26). That suppresses the browser's mouse events, so Konva never fires `click` on the stage, and `handleStageClick` never ran for the select tool.
 - The window `pointerup` handler now clears the selection when a select-tool left press on empty canvas ends without panning. A press that pans, a middle-button press, or a space+drag press doesn't clear it.
 - UI only; there's no test.
+
+## §9 Stretch direction for wall, run and opening widths (step 66)
+
+Every width or length input now has **‹** before it and **›** and **↔** after it:
+
+| Button | Meaning | Stays put |
+|---|---|---|
+| ‹ | stretch toward the left | the right end |
+| › | stretch toward the right | the left end |
+| ↔ | stretch both ways | the center |
+
+- **`StretchInput`** (`components/properties/StretchInput.jsx`) is the shared control. Its field spans the full row.
+- **Wall length:** `setWallLength` accepts `growEnd: 'both'`. It applies half the change at the left end, then the rest at the right end, so connected neighbors move the same way they do for one end. The default is still the free end, and the choice resets to it after each commit. The plan-view length gesture is unchanged.
+- **Run width:** the new `x` comes from `stretchedStart(x, width, nextWidth, grow)`, and width and `x` go through the existing placement check together. An anchored end can't move, so its arrow and ↔ are disabled; runs anchored on both ends still show the read-only width. The default grows away from an anchored end, otherwise to the right.
+- **Opening width:**
+  - A new `resizeOpening` reducer, with the pure function in `openings.js`, re-expresses the offset in the opening's own terms (measured from the left or right end, edge or center, jamb or casing) without snapping.
+  - It checks placement and leaves the opening unchanged with a message if it no longer fits.
+  - The default grows away from the wall end the offset is measured from, so the offset you typed stays the same.
+- Tests 55–59.
