@@ -7,6 +7,12 @@ import {
   resolveHorizontal,
 } from './corners.js';
 import { findCollisions } from './footprints.js';
+import {
+  isJointAnchor,
+  jointEdgeX,
+  jointMembers,
+  pruneJoints,
+} from './joints.js';
 import { openingGeometry, runBlocksOpening } from './openings.js';
 import {
   dot,
@@ -16,12 +22,17 @@ import {
 } from './geometry.js';
 import { validateRunPlacement, verticalStart } from './overlap.js';
 import { resolveProfile, resolveVertical } from './profile.js';
-import { splitRun, syncAutoItems } from './splitRun.js';
+import { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
 import { computeWallOrder } from './topology.js';
 import { formatInches, roundTo } from './units.js';
 
 const STRETCH_EDGE_SNAP_DISTANCE = 2;
 const PIN_EPSILON = 1e-6;
+const RUN_TYPE_LABELS = {
+  [CABINET_TYPE_IDS.BASE]: 'Base',
+  [CABINET_TYPE_IDS.UPPER]: 'Upper',
+  [CABINET_TYPE_IDS.TALL]: 'Tall',
+};
 
 function cloneRun(run) {
   const anchors = { left: false, right: false, ...(run.anchors ?? {}) };
@@ -88,6 +99,10 @@ export function compensateRuns(oldRoom, newRoom) {
       if (Math.abs(shift) <= 1e-9) return wall;
       return {
         ...wall,
+        joints: (wall.joints ?? []).map((joint) => ({
+          ...joint,
+          x: joint.x - shift,
+        })),
         runs: (wall.runs ?? []).map((run) => (
           run.anchors?.left ? run : { ...run, x: run.x - shift }
         )),
@@ -151,6 +166,15 @@ export function resolveRunAnchorDatum(room, wall, run, side, settings) {
   if (anchor?.to === 'opening') {
     return { ...openingAnchorDatum(anchor, side, wall, length, settings), type: 'opening' };
   }
+  if (isJointAnchor(anchor)) {
+    const joint = (wall.joints ?? []).find((candidate) => candidate.id === anchor.jointId);
+    if (!joint) return { error: { code: 'anchor-joint-missing', side } };
+    return {
+      x: jointEdgeX(joint, side, anchor.offset),
+      type: 'joint',
+      jointId: anchor.jointId,
+    };
+  }
   return { x: side === 'left' ? run.x : run.x + run.width, type: 'free' };
 }
 
@@ -165,6 +189,17 @@ export function describeAnchor(room, wall, run, side, settings) {
     return amount < 0
       ? `${formatInches(Math.abs(amount))} into ${resolved.opening.label} ${anchor.edge}`
       : `${formatInches(amount)} clear of ${resolved.opening.label} ${anchor.edge}`;
+  }
+  if (isJointAnchor(anchor)) {
+    const otherMember = jointMembers(wall, anchor.jointId)
+      .find((member) => member.runId !== run.id || member.side !== side);
+    const otherRun = wall.runs.find((candidate) => candidate.id === otherMember?.runId);
+    const label = RUN_TYPE_LABELS[otherRun?.cabinetTypeId] ?? 'Run';
+    const offset = anchor.offset ?? 0;
+    const relation = offset > 0
+      ? `${formatInches(offset)} gap`
+      : offset < 0 ? `${formatInches(Math.abs(offset))} past` : 'flush';
+    return `Joined to ${label} · ${relation}`;
   }
 
   const corner = cornerAt(room, wall, side);
@@ -370,6 +405,7 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
  */
 export function syncRoom(room, settings) {
   let nextRoom = cloneRoom(room);
+  nextRoom.walls = nextRoom.walls.map(pruneJoints);
 
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
 
@@ -530,6 +566,145 @@ export function tryPlaceRun(room, wallId, run, settings) {
   return { ...validation, room: synced };
 }
 
+/** Move a wall joint within the width and wall limits of all its member runs. */
+export function moveJoint(room, wallId, jointId, x, settings) {
+  if (!Number.isFinite(x)) {
+    return {
+      ok: false,
+      reason: 'joint-not-found',
+      room,
+      x,
+      range: null,
+      limit: null,
+    };
+  }
+
+  const resolvedRoom = syncRoom(room, settings);
+  const sourceWall = resolvedRoom.walls.find((wall) => wall.id === wallId);
+  const sourceJoint = sourceWall?.joints?.find((joint) => joint.id === jointId);
+  if (!sourceWall || !sourceJoint) {
+    return {
+      ok: false,
+      reason: 'joint-not-found',
+      room,
+      x,
+      range: null,
+      limit: null,
+    };
+  }
+
+  const members = jointMembers(sourceWall, jointId);
+  const runsById = new Map(sourceWall.runs.map((run) => [run.id, run]));
+  const length = wallLength(sourceWall);
+  const maxRunOverhang = settings.maxRunOverhang ?? DEFAULT_SETTINGS.maxRunOverhang;
+  let min = -Infinity;
+  let max = Infinity;
+  let minLimit = null;
+  let maxLimit = null;
+  const constrainMin = (value, limit) => {
+    if (value > min) {
+      min = value;
+      minLimit = limit;
+    }
+  };
+  const constrainMax = (value, limit) => {
+    if (value < max) {
+      max = value;
+      maxLimit = limit;
+    }
+  };
+
+  for (const member of members) {
+    const run = runsById.get(member.runId);
+    if (!run) continue;
+    const offset = member.offset ?? 0;
+    const widthRange = runWidthRange(run, settings, {
+      endMinWidths: endMinWidthsForRun(resolvedRoom, sourceWall, run, settings),
+    });
+    const rigid = Number.isFinite(widthRange.max);
+    const widthLimit = { runId: run.id, reason: rigid ? 'fixed-width' : 'min-width' };
+    const wallLimit = { runId: run.id, reason: 'wall-bounds' };
+
+    if (member.side === 'right') {
+      const otherEdge = run.x;
+      constrainMin(otherEdge + widthRange.min + offset, widthLimit);
+      if (rigid) constrainMax(otherEdge + widthRange.max + offset, widthLimit);
+      constrainMin(-maxRunOverhang + offset, wallLimit);
+      constrainMax(length + maxRunOverhang + offset, wallLimit);
+    } else {
+      const otherEdge = run.x + run.width;
+      constrainMax(otherEdge - widthRange.min - offset, widthLimit);
+      if (rigid) constrainMin(otherEdge - widthRange.max - offset, widthLimit);
+      constrainMin(-maxRunOverhang - offset, wallLimit);
+      constrainMax(length + maxRunOverhang - offset, wallLimit);
+    }
+  }
+
+  const range = { min, max };
+  if (min > max + PIN_EPSILON) {
+    return {
+      ok: false,
+      reason: 'over-constrained',
+      room,
+      x: sourceJoint.x,
+      range,
+      limit: null,
+    };
+  }
+
+  const clampedX = Math.max(min, Math.min(x, max));
+  const limit = x < min ? minLimit : x > max ? maxLimit : null;
+  const temporary = cloneRoom(resolvedRoom);
+  const wall = temporary.walls.find((candidate) => candidate.id === wallId);
+  const joint = wall.joints.find((candidate) => candidate.id === jointId);
+  joint.x = clampedX;
+  for (const member of members) {
+    const runIndex = wall.runs.findIndex((run) => run.id === member.runId);
+    if (runIndex < 0) continue;
+    const run = wall.runs[runIndex];
+    const edge = jointEdgeX(joint, member.side, member.offset);
+    const otherEdge = member.side === 'right' ? run.x : run.x + run.width;
+    wall.runs[runIndex] = {
+      ...run,
+      x: member.side === 'left' ? edge : otherEdge,
+      width: member.side === 'left' ? otherEdge - edge : edge - otherEdge,
+    };
+  }
+  const synced = syncRoom(temporary, settings);
+  const resolvedWall = synced.walls.find((candidate) => candidate.id === wallId);
+  const memberIds = new Set(members.map((member) => member.runId));
+
+  for (const member of members) {
+    const resolvedRun = resolvedWall.runs.find((run) => run.id === member.runId);
+    const validation = validateRunPlacement({
+      ...resolvedWall,
+      length: wallLength(resolvedWall),
+      runs: resolvedWall.runs.filter((run) => (
+        run.id === member.runId || !memberIds.has(run.id)
+      )),
+    }, resolvedRun, settings);
+    if (!validation.ok) {
+      return {
+        ok: false,
+        reason: validation.reason,
+        room,
+        x: clampedX,
+        range,
+        limit,
+      };
+    }
+  }
+
+  return {
+    ok: true,
+    reason: null,
+    room: synced,
+    x: clampedX,
+    range,
+    limit,
+  };
+}
+
 /**
  * Stretch one run edge, resolve its room geometry, and validate the result.
  *
@@ -543,6 +718,12 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
   const sourceRun = sourceWall?.runs.find((run) => run.id === runId);
   if (!sourceWall || !sourceRun || !Number.isFinite(newEdgeX)) {
     return { ok: false, reason: 'run-not-found', room };
+  }
+  const jointAnchor = sourceRun.anchors?.[side];
+  if (isJointAnchor(jointAnchor)) {
+    const offset = jointAnchor.offset ?? 0;
+    const jointX = side === 'right' ? newEdgeX + offset : newEdgeX - offset;
+    return moveJoint(room, wallId, jointAnchor.jointId, jointX, settings);
   }
 
   const length = wallLength(sourceWall);
@@ -695,6 +876,10 @@ export function flipRunsForWall(wall) {
   return {
     ...wall,
     flipped: !wall.flipped,
+    joints: (wall.joints ?? []).map((joint) => ({
+      ...joint,
+      x: length - joint.x,
+    })),
     runs: wall.runs.map((run) => ({
       ...run,
       x: length - run.x - run.width,

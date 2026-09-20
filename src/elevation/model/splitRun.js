@@ -35,7 +35,38 @@ function layoutInputs(run, settings, opts) {
   );
   const available = run.width - fixedEnds - fixedItems;
 
-  return { available, flex, flexSides, minimumTotal, nAuto };
+  return {
+    available,
+    fixedEnds,
+    fixedItems,
+    flex,
+    flexSides,
+    minimumTotal,
+    nAuto,
+  };
+}
+
+/** Return the supported width interval for a run's stored layout intent. */
+export function runWidthRange(run, settings, opts) {
+  const {
+    fixedEnds,
+    fixedItems,
+    flex,
+    minimumTotal,
+    nAuto,
+  } = layoutInputs(run, settings, opts);
+  const rigid = nAuto === 0 && flex === 0;
+  const fixedWidth = fixedEnds + fixedItems;
+  if (rigid) return { min: fixedWidth, max: fixedWidth };
+
+  const minAuto = run.autoCount && nAuto > 0 ? 1 : nAuto;
+  return {
+    min: Math.max(
+      settings.minRunWidth,
+      fixedWidth + minimumTotal + minAuto * settings.minCabinetWidth,
+    ),
+    max: Infinity,
+  };
 }
 
 function warning(code, pieceId, message) {

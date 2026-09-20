@@ -58,7 +58,7 @@ export {
   parseInches,
   roundTo,
 } from './units.js';
-export { splitRun, syncAutoItems } from './splitRun.js';
+export { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
 export {
   GROW_ENDS,
   positionReadouts,
@@ -156,6 +156,7 @@ export {
   endCornerAnglesForRun,
   endMinWidthsForRun,
   flipRunsForWall,
+  moveJoint,
   moveRun,
   pinTargetsForRun,
   resolvePinnedSpan,
