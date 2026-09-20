@@ -105,6 +105,46 @@ function makeTbt() {
   return room;
 }
 
+function makeTbu() {
+  const joinedEnd = () => ({ type: 'none', width: null, auto: true });
+  const room = makeRoom([
+    makeRun('T', {
+      cabinetTypeId: CABINET_TYPE_IDS.TALL,
+      x: 0,
+      width: 24,
+      z: 4,
+      height: 80,
+      depth: 12,
+      ends: { left: { type: 'none', width: null }, right: joinedEnd() },
+      anchors: { left: false, right: { to: 'joint', jointId: 'J1', offset: 0 } },
+      items: [{ id: 'T-cabinet', kind: 'cabinet', width: null }],
+    }),
+    makeRun('B', {
+      x: 24,
+      width: 36,
+      z: 4,
+      height: 30.5,
+      depth: 24,
+      ends: { left: joinedEnd(), right: { type: 'none', width: null } },
+      anchors: { left: { to: 'joint', jointId: 'J1', offset: 0 }, right: false },
+      items: [{ id: 'B-cabinet', kind: 'cabinet', width: null }],
+    }),
+    makeRun('U', {
+      cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+      x: 24,
+      width: 36,
+      z: 54,
+      height: 30,
+      depth: 15,
+      ends: { left: joinedEnd(), right: { type: 'none', width: null } },
+      anchors: { left: { to: 'joint', jointId: 'J1', offset: 0 }, right: false },
+      items: [{ id: 'U-cabinet', kind: 'cabinet', width: null }],
+    }),
+  ]);
+  room.walls[0].joints = [{ id: 'J1', x: 24 }];
+  return room;
+}
+
 describe('joints', () => {
   it('62. derives joint members in run order and preserves valid joints', () => {
     const wall = makeTbt().walls[0];
@@ -397,5 +437,44 @@ describe('joining run edges', () => {
     expect(result.ok).toBe(true);
     expect(result.room.walls[0].joints).toHaveLength(1);
     expect(result.room.walls[0].joints[0].x).toBe(24);
+  });
+});
+
+describe('joint end panels', () => {
+  function joinedEnds(room) {
+    const runs = syncRoom(room, DEFAULT_SETTINGS).walls[0].runs;
+    return {
+      tall: runs.find((run) => run.id === 'T').ends.right.type,
+      base: runs.find((run) => run.id === 'B').ends.left.type,
+      upper: runs.find((run) => run.id === 'U').ends.left.type,
+    };
+  }
+
+  it('82. leaves every end exposed when deeper neighbors do not cover its full height', () => {
+    expect(joinedEnds(makeTbu())).toEqual({
+      tall: 'end_panel', base: 'end_panel', upper: 'end_panel',
+    });
+  });
+
+  it('83. covers shallower runs while preserving a gap in the tall coverage', () => {
+    const room = makeTbu();
+    room.walls[0].runs.find((run) => run.id === 'T').depth = 25;
+
+    expect(joinedEnds(room)).toEqual({ tall: 'end_panel', base: 'none', upper: 'none' });
+  });
+
+  it('84. counts equal depth as coverage', () => {
+    const room = makeTbu();
+    room.walls[0].runs.find((run) => run.id === 'U').depth = 12;
+
+    expect(joinedEnds(room)).toEqual({ tall: 'end_panel', base: 'end_panel', upper: 'none' });
+  });
+
+  it('85. treats an offset edge as a gap', () => {
+    const room = makeTbu();
+    room.walls[0].runs.find((run) => run.id === 'T').depth = 25;
+    room.walls[0].runs.find((run) => run.id === 'B').anchors.left.offset = 0.5;
+
+    expect(joinedEnds(room)).toEqual({ tall: 'end_panel', base: 'end_panel', upper: 'none' });
   });
 });

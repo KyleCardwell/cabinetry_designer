@@ -11,6 +11,7 @@ import { findCollisions } from './footprints.js';
 import {
   isJointAnchor,
   jointEdgeX,
+  jointEndTypes,
   jointMembers,
   pruneJoints,
 } from './joints.js';
@@ -464,6 +465,25 @@ export function syncRoom(room, settings) {
         }
       }
       return { ...wall, runs };
+    }),
+  };
+
+  nextRoom = {
+    ...nextRoom,
+    walls: nextRoom.walls.map((wall) => {
+      const endTypes = jointEndTypes(wall);
+      return {
+        ...wall,
+        runs: wall.runs.map((run) => ({
+          ...run,
+          ends: Object.fromEntries(Object.entries(run.ends).map(([side, end]) => [
+            side,
+            isJointAnchor(run.anchors?.[side]) && end.auto === true
+              ? { type: endTypes.get(run.id)[side], width: null, auto: true }
+              : end,
+          ])),
+        })),
+      };
     }),
   };
 

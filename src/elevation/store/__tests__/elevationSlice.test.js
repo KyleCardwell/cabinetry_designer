@@ -49,6 +49,7 @@ import elevationReducer, {
   setWallLength,
   splitItem,
   updateOpening,
+  updateRun,
   updateRoomProfile,
   updateWall,
   useAutoHeightsForRoom,
@@ -1314,5 +1315,21 @@ describe('joined run reducers', () => {
       .toMatchObject({ x: 0, width: 24, anchors: { right: false } });
     expect(wall.runs.find((entry) => entry.id === 'B'))
       .toMatchObject({ x: 24, width: 36, anchors: { left: false } });
+  });
+
+  it('86. keeps a manually selected end when joined depths change', () => {
+    const initial = joinedState();
+    const base = joinedWall(initial).runs.find((entry) => entry.id === 'B');
+    base.ends.left = { type: 'end_panel', width: null, auto: true };
+    const manual = elevationReducer(initial, setRunEnd({
+      wallId: 'wall-1', runId: 'B', side: 'left', end: { type: 'none', width: null },
+    }));
+    const changed = elevationReducer(manual, updateRun({
+      wallId: 'wall-1', runId: 'T1', changes: { depth: 12 },
+    }));
+    const end = joinedWall(changed).runs.find((entry) => entry.id === 'B').ends.left;
+
+    expect(end.type).toBe('none');
+    expect(end.auto).toBeUndefined();
   });
 });
