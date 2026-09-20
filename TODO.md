@@ -47,7 +47,6 @@ Suggested format:
 - [ ] Saving to the database - how to structure for edits, redraws and versions, etc. Do we need a version history since multiple people could work on one project?
 - [ ] save clearances to side objects - i.e. a run needs 4" clearance from door casing, etc.
 - [ ] hoods
-- [ ] runs can be anchored to each other, but allow stretching to move both, respecting any that have fixed widths, pins etc.
 - [ ] splitting into a pencil drawer and nothing below or a panel below, automatically add side panels
 - [ ] doran paneled openings in bathrooms
 - [ ] cabinet numbering***
@@ -55,6 +54,13 @@ Suggested format:
 ## Planned
 
 <!-- Move sufficiently defined work here. -->
+
+Specified in `docs/elevation-mvp/SPEC-15.md`, step prompts in `PROMPTS-15.md`.
+
+- [ ] **[P1][model][elevation] Steps 67–75 — joined runs, live entry, sticky draw tools**
+  - Why: A base next to a tall should stay connected when widths change; typed distances on drag like plan walls; draw several runs without re-picking the tool.
+  - Notes: wall.joints [{id, x}] with anchors {to:'joint', jointId, offset}; dragging or typing a joint moves every member's edge, clamped to the tightest member; end panels at a joint follow depth coverage. Pushing through rigid runs and moving joined runs are deferred.
+  - Done when: SPEC-15 tests 60–88 pass and the manual checks in PROMPTS-15 hold.
 
 Specified in `docs/elevation-mvp/SPEC-8.md`, step prompts in `PROMPTS-8.md`.
 
