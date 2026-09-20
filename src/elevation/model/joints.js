@@ -1,3 +1,18 @@
+import { CABINET_TYPE_IDS } from './constants.js';
+import { formatInches } from './units.js';
+
+const RUN_TYPE_LABELS = {
+  [CABINET_TYPE_IDS.BASE]: 'Base',
+  [CABINET_TYPE_IDS.UPPER]: 'Upper',
+  [CABINET_TYPE_IDS.TALL]: 'Tall',
+};
+
+/** Return a compact type and horizontal-span label for a run. */
+export function runShortLabel(run) {
+  const type = RUN_TYPE_LABELS[run.cabinetTypeId] ?? 'Run';
+  return `${type} ${formatInches(run.x)}–${formatInches(run.x + run.width)}`;
+}
+
 /** Return the run sides that belong to a joint, in wall run order. */
 export function jointMembers(wall, jointId) {
   return (wall.runs ?? []).flatMap((run) => ['left', 'right'].flatMap((side) => {

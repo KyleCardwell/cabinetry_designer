@@ -14,6 +14,7 @@ import {
   jointEndTypes,
   jointMembers,
   pruneJoints,
+  runShortLabel,
 } from './joints.js';
 import { openingGeometry, runBlocksOpening } from './openings.js';
 import {
@@ -31,12 +32,6 @@ import { formatInches, roundTo } from './units.js';
 
 const STRETCH_EDGE_SNAP_DISTANCE = 2;
 const PIN_EPSILON = 1e-6;
-const RUN_TYPE_LABELS = {
-  [CABINET_TYPE_IDS.BASE]: 'Base',
-  [CABINET_TYPE_IDS.UPPER]: 'Upper',
-  [CABINET_TYPE_IDS.TALL]: 'Tall',
-};
-
 function cloneRun(run) {
   const anchors = { left: false, right: false, ...(run.anchors ?? {}) };
   return {
@@ -197,7 +192,7 @@ export function describeAnchor(room, wall, run, side, settings) {
     const otherMember = jointMembers(wall, anchor.jointId)
       .find((member) => member.runId !== run.id || member.side !== side);
     const otherRun = wall.runs.find((candidate) => candidate.id === otherMember?.runId);
-    const label = RUN_TYPE_LABELS[otherRun?.cabinetTypeId] ?? 'Run';
+    const label = otherRun ? runShortLabel(otherRun) : 'Run';
     const offset = anchor.offset ?? 0;
     const relation = offset > 0
       ? `${formatInches(offset)} gap`

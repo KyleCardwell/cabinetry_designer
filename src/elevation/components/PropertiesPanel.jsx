@@ -23,6 +23,9 @@ import {
   positionReadouts,
   resolvePinTarget,
   resolveProfile,
+  isJointAnchor,
+  jointMembers,
+  runShortLabel,
   runBlocksOpening,
   splitRun,
   startFromReadout,
@@ -64,7 +67,10 @@ import {
   setRunEnd,
   setRunHeightMode,
   setRunAnchor,
+  joinRunEdges,
+  resizeRun,
   setRunCornerClearance,
+  setRunJointOffset,
   setRunOverride,
   setRunType,
   setSelection,
@@ -543,12 +549,14 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
     cornerReserveParts(room, wall, side, run, settings),
   ]));
   const overhang = formatRunOverhang(run, wall.length);
-  const bothAnchored = run.anchors.left && run.anchors.right;
-  // An anchored end can't move, so stretch away from it.
-  const preferredRunGrow = run.anchors.right && !run.anchors.left ? 'left' : 'right';
+  const leftGrowLocked = run.anchors.left && !isJointAnchor(run.anchors.left);
+  const rightGrowLocked = run.anchors.right && !isJointAnchor(run.anchors.right);
+  const bothAnchored = leftGrowLocked && rightGrowLocked;
+  // A non-joint anchored end can't move, so stretch away from it.
+  const preferredRunGrow = leftGrowLocked ? 'right' : rightGrowLocked ? 'left' : 'right';
   const runGrowLocked = [
-    ...(run.anchors.left ? ['left', 'both'] : []),
-    ...(run.anchors.right ? ['right', 'both'] : []),
+    ...(leftGrowLocked ? ['left', 'both'] : []),
+    ...(rightGrowLocked ? ['right', 'both'] : []),
   ];
   const [runGrow, setRunGrow] = useState(preferredRunGrow);
   useEffect(() => {
@@ -618,6 +626,11 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                 onGrowChange={setRunGrow}
                 locked={runGrowLocked}
                 onCommit={(width) => {
+                  if (isJointAnchor(run.anchors.left) || isJointAnchor(run.anchors.right)) {
+                    dispatch(resizeRun({ ...actionBase, width, grow: runGrow }));
+                    setRunGrow(preferredRunGrow);
+                    return true;
+                  }
                   const accepted = validateAndDispatch({
                     width,
                     x: stretchedStart(run.x, run.width, width, runGrow),
@@ -698,6 +711,11 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
             const insideCorner = corners[side].type === 'inside';
             const anchor = run.anchors[side];
             const openingAnchor = anchor?.to === 'opening' ? anchor : null;
+            const jointAnchor = isJointAnchor(anchor) ? anchor : null;
+            const otherJointMember = jointAnchor
+              ? jointMembers(wall, jointAnchor.jointId)
+                .find((member) => member.runId !== run.id || member.side !== side)
+              : null;
             const wallEndAnchor = anchor === true;
             const clearance = run.cornerClearance?.[side] ?? 'auto';
             const clearanceMode = typeof clearance === 'number'
@@ -708,7 +726,9 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
               : CORNER_CLEARANCE_MODES.filter(([value]) => value !== 'face');
             const anchorValue = openingAnchor
               ? `opening:${openingAnchor.openingId}`
-              : anchor === true ? 'corner' : 'free';
+              : otherJointMember
+                ? `joint:${otherJointMember.runId}:${otherJointMember.side}`
+                : anchor === true ? 'corner' : 'free';
             const anchorDescription = describeAnchor(room, wall, run, side, settings);
             return (
               <div
@@ -720,6 +740,16 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                     value={anchorValue}
                     onChange={(event) => {
                       const value = event.target.value;
+                      if (value.startsWith('joint:')) {
+                        const [, targetRunId, targetSide] = value.split(':');
+                        dispatch(joinRunEdges({
+                          ...actionBase,
+                          side,
+                          targetRunId,
+                          targetSide,
+                        }));
+                        return;
+                      }
                       dispatch(setRunAnchor({
                         ...actionBase,
                         side,
@@ -745,12 +775,45 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                         {opening.label}
                       </option>
                     ))}
+                    <optgroup label="Run edges">
+                      {wall.runs.filter((candidate) => candidate.id !== run.id)
+                        .flatMap((candidate) => ['left', 'right'].map((targetSide) => (
+                          <option
+                            key={`${candidate.id}:${targetSide}`}
+                            value={`joint:${candidate.id}:${targetSide}`}
+                          >
+                            {`${runShortLabel(candidate)} · ${targetSide} edge`}
+                          </option>
+                        )))}
+                    </optgroup>
                   </select>
                 </Field>
                 <p className="mt-1.5 text-xs text-gray-500">
                   {cornerLabel(corners[side], room)}
                 </p>
-                {openingAnchor ? (
+                {jointAnchor ? (
+                  <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
+                    <Field label="Offset">
+                      <InchInput
+                        value={jointAnchor.offset}
+                        allowBlank
+                        placeholder="0"
+                        onCommit={(value) => dispatch(setRunJointOffset({
+                          ...actionBase,
+                          side,
+                          offset: value ?? 0,
+                        }))}
+                        aria-label={`${side} joint anchor offset`}
+                      />
+                    </Field>
+                    <p className="text-xs text-gray-500">
+                      Positive holds the run back; negative carries it past.
+                    </p>
+                    <p className="text-xs text-cyan-300">
+                      {anchorDescription}
+                    </p>
+                  </div>
+                ) : openingAnchor ? (
                   <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
                     <Field label="Clearance">
                       <InchInput

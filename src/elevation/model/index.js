@@ -71,6 +71,7 @@ export {
   jointEdgeX,
   jointMembers,
   pruneJoints,
+  runShortLabel,
 } from './joints.js';
 export { runsConflict, validateRunPlacement, verticalStart } from './overlap.js';
 export {

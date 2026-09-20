@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { jointMembers, pruneJoints } from '../joints.js';
+import { jointMembers, pruneJoints, runShortLabel } from '../joints.js';
 import {
   compensateRuns,
   flipRunsForWall,
@@ -146,6 +146,10 @@ function makeTbu() {
 }
 
 describe('joints', () => {
+  it('formats a short run label from its type and span', () => {
+    expect(runShortLabel(makeTbt().walls[0].runs[0])).toBe('Tall 0"–24"');
+  });
+
   it('62. derives joint members in run order and preserves valid joints', () => {
     const wall = makeTbt().walls[0];
 
