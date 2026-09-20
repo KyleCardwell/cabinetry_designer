@@ -74,6 +74,8 @@ export const DEFAULT_SETTINGS = {
   profiledFit: { edge: 0.09375, pairEdge: 0.0625, pairGap: 0.125 },
   woodTopReveal: 0.125,
   capturedSingleReveal: 0.09375,
+  standardDrawerHeights: { european: 5.875, faceFrame: 5 },
+  standardDrawerBelow: 6,
 };
 
 /** Display labels for derived piece kinds. */

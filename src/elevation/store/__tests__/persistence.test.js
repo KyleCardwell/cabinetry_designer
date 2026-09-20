@@ -391,6 +391,19 @@ describe('elevation persistence migration', () => {
     expect(loaded.settings.capturedSingleReveal).toBe(0.09375);
   });
 
+  it('54. defaults the standard drawer settings on documents saved before them', () => {
+    const current = migrateV1Document(v1Document());
+    delete current.settings.standardDrawerHeights;
+    delete current.settings.standardDrawerBelow;
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.settings.standardDrawerHeights).toEqual({ european: 5.875, faceFrame: 5 });
+    expect(loaded.settings.standardDrawerBelow).toBe(6);
+  });
+
   it('validates opening anchors on either run side', () => {
     const current = migrateV1Document(v1Document());
     const run = current.rooms[0].walls[0].runs[0];

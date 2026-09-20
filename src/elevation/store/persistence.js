@@ -98,6 +98,8 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'profiledFit',
   'woodTopReveal',
   'capturedSingleReveal',
+  'standardDrawerHeights',
+  'standardDrawerBelow',
 ];
 
 function isFiniteNumber(value) {

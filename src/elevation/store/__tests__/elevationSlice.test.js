@@ -1152,3 +1152,49 @@ describe('styles and reveals', () => {
     expect('reveals' in item(state, 'a')).toBe(false);
   });
 });
+
+describe('standard drawers on style switch', () => {
+  const at = { wallId: 'wall-1', runId: 'run-1' };
+  const THREE_DF = {
+    direction: 'vertical',
+    size: null,
+    children: [
+      { type: 'drawer_front', size: 5.875 },
+      { type: 'drawer_front', size: null },
+      { type: 'drawer_front', size: null },
+    ],
+  };
+
+  function drawerState() {
+    return stateWithRun(run({
+      autoCount: false,
+      items: [
+        { ...fixed('a', 18), face: THREE_DF },
+        { ...fixed('b', 18), face: THREE_DF, style: { cabinetStyleId: 13 } },
+        fixed('c', 18),
+      ],
+    }));
+  }
+
+  function topSize(state, id) {
+    return currentRun(state).items.find((entry) => entry.id === id).face.children[0].size;
+  }
+
+  it('53. switching European and face frame resets small drawer fronts', () => {
+    let state = elevationReducer(drawerState(), setRoomStyle({ roomId: 'room-1', style: { cabinetStyleId: 14 } }));
+    expect(topSize(state, 'a')).toBe(5);
+    expect(topSize(state, 'b')).toBe(5.875);
+    expect(currentRun(state).items[2].face).toBeUndefined();
+
+    state = elevationReducer(state, setRunStyle({ ...at, style: { cabinetStyleId: 15 } }));
+    expect(topSize(state, 'a')).toBe(5);
+
+    state = elevationReducer(state, setItemStyle({ ...at, itemIds: ['b'], style: null }));
+    expect(topSize(state, 'b')).toBe(5);
+
+    state = elevationReducer(state, setRoomStyle({ roomId: 'room-1', style: null }));
+    state = elevationReducer(state, setRunStyle({ ...at, style: null }));
+    expect(topSize(state, 'a')).toBe(5.875);
+    expect(topSize(state, 'b')).toBe(5.875);
+  });
+});

@@ -22,7 +22,10 @@ import {
   REVEAL_KEYS,
   RUN_TOP_OPTIONS,
   UPPER_BOTTOM_OPTIONS,
+  applyStandardDrawers,
+  isInsetStyle,
   isStyle,
+  resolveStyle,
 } from '../model/styles.js';
 import { roundTo } from '../model/units.js';
 import {
@@ -167,6 +170,27 @@ function cleanPartial(value, keys, accept = () => true) {
     .map((key) => [key, value[key]])
     .filter(([, entry]) => entry !== null && entry !== undefined && accept(entry));
   return entries.length === 0 ? null : Object.fromEntries(entries);
+}
+
+function roomCabinets(room) {
+  return room.walls.flatMap((wall) => wall.runs.flatMap((run) => run.items
+    .filter((item) => item.kind === 'cabinet')
+    .map((item) => ({ run, item }))));
+}
+
+/**
+ * Run a style edit; every cabinet whose style switches between European and face frame
+ * gets its small drawer fronts reset to the new style's standard height.
+ */
+function withStandardDrawers(state, room, mutate) {
+  const isInset = ({ run, item }) => isInsetStyle(resolveStyle(state.settings, room, run, item));
+  const before = new Map(roomCabinets(room).map((entry) => [entry.item.id, isInset(entry)]));
+  mutate();
+  for (const entry of roomCabinets(room)) {
+    const { run, item } = entry;
+    if (!item.face || before.get(item.id) === isInset(entry)) continue;
+    item.face = applyStandardDrawers(item.face, resolveStyle(state.settings, room, run, item), state.settings);
+  }
 }
 
 function itemIndexFor(run, itemId) {
@@ -849,15 +873,19 @@ const elevationSlice = createSlice({
       const room = roomFor(state, action.payload.roomId);
       const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
       if (!room || !isStyle(style)) return;
-      if (style) room.style = style;
-      else delete room.style;
+      withStandardDrawers(state, room, () => {
+        if (style) room.style = style;
+        else delete room.style;
+      });
     },
     setRunStyle(state, action) {
       const location = runLocation(state, action.payload);
       const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
       if (!location || !isStyle(style)) return;
-      if (style) location.run.style = style;
-      else delete location.run.style;
+      withStandardDrawers(state, location.room, () => {
+        if (style) location.run.style = style;
+        else delete location.run.style;
+      });
     },
     setRunFaceOptions(state, action) {
       const location = runLocation(state, action.payload);
@@ -874,11 +902,13 @@ const elevationSlice = createSlice({
       const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
       if (!location || !isStyle(style)) return;
       const { itemIds = [] } = action.payload;
-      for (const item of location.run.items) {
-        if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
-        if (style) item.style = { ...style };
-        else delete item.style;
-      }
+      withStandardDrawers(state, location.room, () => {
+        for (const item of location.run.items) {
+          if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
+          if (style) item.style = { ...style };
+          else delete item.style;
+        }
+      });
     },
     setItemReveals(state, action) {
       const location = runLocation(state, action.payload);

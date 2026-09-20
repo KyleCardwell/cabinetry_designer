@@ -138,6 +138,38 @@ export function cabinetReveals({
   return { values, sources };
 }
 
+/** The standard top drawer front height for a style (a slot size for face frame styles). */
+export function standardDrawerHeight(style, settings) {
+  const heights = { ...DEFAULT_SETTINGS.standardDrawerHeights, ...settings.standardDrawerHeights };
+  return isInsetStyle(style) ? heights.faceFrame : heights.european;
+}
+
+const STANDARD_DRAWER_TYPES = ['drawer_front', 'false_front'];
+
+/**
+ * Set every fixed drawer front / false front smaller than settings.standardDrawerBelow (6")
+ * to the style's standard height. Returns the same tree when nothing changes.
+ */
+export function applyStandardDrawers(face, style, settings) {
+  if (!face) return face;
+  const height = standardDrawerHeight(style, settings);
+  const below = settings.standardDrawerBelow ?? DEFAULT_SETTINGS.standardDrawerBelow;
+  const visit = (node) => {
+    if (node.type) {
+      const change = STANDARD_DRAWER_TYPES.includes(node.type)
+        && Number.isFinite(node.size)
+        && node.size < below
+        && node.size !== height;
+      return change ? { ...node, size: height } : node;
+    }
+    const children = node.children.map(visit);
+    return children.every((child, index) => child === node.children[index])
+      ? node
+      : { ...node, children };
+  };
+  return visit(face);
+}
+
 /** How far an upper run's fillers and end panels extend below the box. */
 export function panelDrop(run, style, settings) {
   if (run.cabinetTypeId !== UPPER || (run.upperBottom ?? 'overhang') !== 'overhang') return 0;

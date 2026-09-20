@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import {
+  applyStandardDrawers,
   cabinetReveals,
   isSingleColumn,
   isStyle,
   panelDrop,
   resolveStyle,
+  standardDrawerHeight,
   styleReveals,
 } from '../styles.js';
 
@@ -111,5 +113,29 @@ describe('styles', () => {
     expect(panelDrop({ cabinetTypeId: UPPER, upperBottom: 'flush' }, EURO, S)).toBe(0);
     expect(panelDrop({ cabinetTypeId: UPPER, upperBottom: 'overhang' }, INSET, S)).toBe(0.75);
     expect(panelDrop({ cabinetTypeId: BASE }, EURO, S)).toBe(0);
+  });
+});
+
+describe('standard drawer heights', () => {
+  const FOUR_DF = { direction: 'vertical', size: null, children: [{ type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: null }, { type: 'drawer_front', size: null }] };
+
+  it('51 standardDrawerHeight by style', () => {
+    expect(standardDrawerHeight(EURO, S)).toBe(5.875);
+    expect(standardDrawerHeight(INSET, S)).toBe(5);
+    expect(standardDrawerHeight({ ...INSET, cabinetStyleId: 15 }, S)).toBe(5);
+  });
+
+  it('52 applyStandardDrawers changes fixed drawer and false fronts under 6"', () => {
+    expect(applyStandardDrawers(FOUR_DF, INSET, S).children.map((child) => child.size)).toEqual([5, 5, null, null]);
+    const mixed = { direction: 'vertical', size: null, children: [{ type: 'false_front', size: 4 }, { type: 'drawer_front', size: 6.5 }, { type: 'open', size: 3 }, { type: 'drawer_front', size: 5 }] };
+    expect(applyStandardDrawers(mixed, EURO, S).children.map((child) => child.size)).toEqual([5.875, 6.5, 3, 5.875]);
+    const tall = { direction: 'vertical', size: null, children: [{ type: 'door', size: null }, { ...FOUR_DF, size: 30.25 }] };
+    const tallInset = applyStandardDrawers(tall, INSET, S);
+    expect(tallInset.children[1].size).toBe(30.25);
+    expect(tallInset.children[1].children.map((child) => child.size)).toEqual([5, 5, null, null]);
+    expect(tallInset.children[0]).toBe(tall.children[0]);
+    expect(applyStandardDrawers(FOUR_DF, EURO, S)).toBe(FOUR_DF);
+    expect(applyStandardDrawers(DOOR, INSET, S)).toBe(DOOR);
+    expect(applyStandardDrawers(null, INSET, S)).toBeNull();
   });
 });

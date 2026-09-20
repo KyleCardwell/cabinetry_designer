@@ -5,6 +5,7 @@ import {
   FACE_TYPES,
   MAX_FACE_SPLIT,
   ROOT_FACE_PATH,
+  applyStandardDrawers,
   runFaceLayouts,
   defaultFace,
   equalizeGroup,
@@ -112,7 +113,9 @@ export default function FaceProperties({ wall, run, piece, item, layout, setting
             key={preset.key}
             type="button"
             title={preset.description}
-            onClick={() => applyPreset(preset.face)}
+            onClick={() => applyPreset(faceLayout
+              ? applyStandardDrawers(preset.face, faceLayout.style, settings)
+              : preset.face)}
             className={BUTTON_CLASS}
           >
             {preset.label}

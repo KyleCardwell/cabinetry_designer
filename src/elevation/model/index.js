@@ -39,12 +39,14 @@ export {
   REVEAL_SOURCE_LABELS,
   RUN_TOP_OPTIONS,
   UPPER_BOTTOM_OPTIONS,
+  applyStandardDrawers,
   cabinetReveals,
   isInsetStyle,
   isSingleColumn,
   isStyle,
   panelDrop,
   resolveStyle,
+  standardDrawerHeight,
   styleReveals,
 } from './styles.js';
 export { captureSides } from './capture.js';
