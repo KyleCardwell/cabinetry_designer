@@ -109,7 +109,8 @@ function isFiniteNumber(value) {
 function isEnd(end) {
   return Boolean(end)
     && END_TYPES.has(end.type)
-    && (end.width === null || isFiniteNumber(end.width));
+    && (end.width === null || isFiniteNumber(end.width))
+    && (end.auto === undefined || typeof end.auto === 'boolean');
 }
 
 function isItemPin(pin) {
@@ -165,13 +166,15 @@ function isCompleteProfile(profile, profileKeys = PROFILE_KEYS) {
 }
 
 function isRunAnchor(anchor) {
-  return typeof anchor === 'boolean' || (
-    Boolean(anchor)
-    && anchor.to === 'opening'
-    && typeof anchor.openingId === 'string'
-    && (anchor.edge === 'casing' || anchor.edge === 'jamb')
-    && (anchor.clearance === null || isFiniteNumber(anchor.clearance))
-  );
+  return typeof anchor === 'boolean' || (Boolean(anchor) && (
+    (anchor.to === 'opening'
+      && typeof anchor.openingId === 'string'
+      && (anchor.edge === 'casing' || anchor.edge === 'jamb')
+      && (anchor.clearance === null || isFiniteNumber(anchor.clearance)))
+    || (anchor.to === 'joint'
+      && typeof anchor.jointId === 'string'
+      && (anchor.offset === null || isFiniteNumber(anchor.offset)))
+  ));
 }
 
 function isRun(run) {
@@ -231,7 +234,13 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
     && Array.isArray(wall.runs)
     && wall.runs.every(isRun)
     && (wall.openings === undefined
-      || (Array.isArray(wall.openings) && wall.openings.every(isOpening)));
+      || (Array.isArray(wall.openings) && wall.openings.every(isOpening)))
+    && (wall.joints === undefined
+      || (Array.isArray(wall.joints) && wall.joints.every((joint) => (
+        Boolean(joint)
+        && typeof joint.id === 'string'
+        && isFiniteNumber(joint.x)
+      ))));
 }
 
 function isRoom(room, profileKeys = PROFILE_KEYS) {
@@ -301,8 +310,13 @@ export function normalizeV3Document(document) {
         ...room,
         walls: Array.isArray(room.walls) ? room.walls.map((wall) => {
           if (!wall || typeof wall !== 'object') return wall;
+          const joints = wall.joints === undefined ? [] : wall.joints;
+          const jointIds = new Set(
+            Array.isArray(joints) ? joints.map((joint) => joint?.id) : [],
+          );
           return {
             ...wall,
+            joints,
             openings: Array.isArray(wall.openings) ? wall.openings.map((opening) => (
               opening && typeof opening === 'object'
                 ? {
@@ -310,9 +324,23 @@ export function normalizeV3Document(document) {
                     offsetAnchor: opening.offsetAnchor === undefined
                       ? 'edge'
                       : opening.offsetAnchor,
-                  }
+                }
                 : opening
             )) : wall.openings,
+            runs: Array.isArray(wall.runs) ? wall.runs.map((run) => {
+              if (!run || typeof run !== 'object') return run;
+              return {
+                ...run,
+                anchors: run.anchors && typeof run.anchors === 'object'
+                  ? Object.fromEntries(Object.entries(run.anchors).map(([side, anchor]) => [
+                      side,
+                      anchor?.to === 'joint' && !jointIds.has(anchor.jointId)
+                        ? false
+                        : anchor,
+                    ]))
+                  : run.anchors,
+              };
+            }) : wall.runs,
           };
         }) : room.walls,
       };

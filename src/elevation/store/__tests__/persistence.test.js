@@ -104,11 +104,91 @@ function v2Document() {
   };
 }
 
+function tbtDocument() {
+  const document = migrateV1Document(v1Document());
+  const wall = document.rooms[0].walls[0];
+  const run = (id, cabinetTypeId, x, width, height, anchors) => ({
+    id,
+    cabinetTypeId,
+    x,
+    width,
+    z: 4,
+    height,
+    depth: 24,
+    ends: {
+      left: { type: 'none', width: null },
+      right: { type: 'none', width: null },
+    },
+    autoCount: false,
+    maxCabinetWidth: null,
+    items: [{ id: `${id}-cabinet`, kind: 'cabinet', width: null }],
+    heightMode: 'manual',
+    overrides: {},
+    anchors,
+  });
+  wall.runs = [
+    run('T1', CABINET_TYPE_IDS.TALL, 0, 24, 80, {
+      left: false,
+      right: { to: 'joint', jointId: 'J1', offset: 0 },
+    }),
+    run('B', CABINET_TYPE_IDS.BASE, 24, 36, 30.5, {
+      left: { to: 'joint', jointId: 'J1', offset: 0 },
+      right: { to: 'joint', jointId: 'J2', offset: 0 },
+    }),
+    run('T2', CABINET_TYPE_IDS.TALL, 60, 24, 80, {
+      left: { to: 'joint', jointId: 'J2', offset: 0 },
+      right: false,
+    }),
+  ];
+  wall.joints = [{ id: 'J1', x: 24 }, { id: 'J2', x: 60 }];
+  document.rooms[0].walls[1].joints = [];
+  return document;
+}
+
 afterEach(() => {
   delete globalThis.window;
 });
 
 describe('elevation persistence migration', () => {
+  it('60. defaults missing joints and round-trips joined runs unchanged', () => {
+    const withoutJoints = migrateV1Document(v1Document());
+    globalThis.window = {
+      localStorage: storageWith([[
+        ELEVATION_STORAGE_KEY,
+        JSON.stringify(withoutJoints),
+      ]]),
+    };
+
+    const loadedWithoutJoints = loadElevationDocument();
+    expect(loadedWithoutJoints.rooms.every((room) => (
+      room.walls.every((wall) => Array.isArray(wall.joints) && wall.joints.length === 0)
+    ))).toBe(true);
+
+    const joined = tbtDocument();
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(joined)]]),
+    };
+    expect(isElevationDocument(joined)).toBe(true);
+    expect(loadElevationDocument()).toEqual(joined);
+  });
+
+  it('61. clears missing joint anchors and rejects invalid joint offsets', () => {
+    const stale = tbtDocument();
+    stale.rooms[0].walls[0].runs[0].anchors.right.jointId = 'J9';
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(stale)]]),
+    };
+    expect(loadElevationDocument().rooms[0].walls[0].runs[0].anchors.right).toBe(false);
+
+    const malformed = tbtDocument();
+    malformed.rooms[0].walls[0].runs[0].anchors.right.offset = 'x';
+    expect(isElevationDocument(malformed)).toBe(false);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(malformed)]]),
+    };
+    expect(loadElevationDocument()).toBeNull();
+  });
+
   it('18. migrates v1 walls and runs without deleting the v1 key', () => {
     const legacy = JSON.stringify(v1Document());
     const localStorage = storageWith([

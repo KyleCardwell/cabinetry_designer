@@ -66,6 +66,12 @@ export {
   stretchedStart,
 } from './positions.js';
 export { createRun, defaultsForType, inferRunType } from './runDefaults.js';
+export {
+  isJointAnchor,
+  jointEdgeX,
+  jointMembers,
+  pruneJoints,
+} from './joints.js';
 export { runsConflict, validateRunPlacement, verticalStart } from './overlap.js';
 export {
   add,

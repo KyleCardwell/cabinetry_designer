@@ -24,6 +24,7 @@ const STRETCH_EDGE_SNAP_DISTANCE = 2;
 const PIN_EPSILON = 1e-6;
 
 function cloneRun(run) {
+  const anchors = { left: false, right: false, ...(run.anchors ?? {}) };
   return {
     ...run,
     ends: {
@@ -31,7 +32,10 @@ function cloneRun(run) {
       right: { ...run.ends.right },
     },
     overrides: { ...(run.overrides ?? {}) },
-    anchors: { left: false, right: false, ...(run.anchors ?? {}) },
+    anchors: Object.fromEntries(Object.entries(anchors).map(([side, anchor]) => [
+      side,
+      anchor?.to === 'joint' ? { ...anchor } : anchor,
+    ])),
     ...(run.cornerClearance
       ? { cornerClearance: { ...run.cornerClearance } }
       : {}),
@@ -58,6 +62,7 @@ function cloneRoom(room) {
         ...opening,
         casing: opening.casing ? { ...opening.casing } : null,
       })),
+      joints: (wall.joints ?? []).map((joint) => ({ ...joint })),
       runs: wall.runs.map(cloneRun),
     })),
   };
