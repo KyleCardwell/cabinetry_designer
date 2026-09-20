@@ -12,6 +12,7 @@ import {
   joinEdges,
   joinTouchingEdges,
   moveJoint,
+  moveRun,
   stretchRun,
   syncRoom,
   tryPlaceRun,
@@ -527,5 +528,90 @@ describe('joint glyphs', () => {
       { ownerRunId: 'P', z: 19.25 },
       { ownerRunId: 'Q', z: 69 },
     ]);
+  });
+});
+
+describe('sliding joined runs', () => {
+  it('93. slides a run through both joints without changing its width', () => {
+    const result = moveRun(makeTbt(), 'A', 'B', 30, DEFAULT_SETTINGS);
+    const wall = result.room.walls[0];
+
+    expect(result).toMatchObject({ ok: true, x: 30, limit: null, joints: true });
+    expect(wall.joints).toEqual([{ id: 'J1', x: 30 }, { id: 'J2', x: 66 }]);
+    expect(wall.runs.map(({ id, x, width }) => ({ id, x, width }))).toEqual([
+      { id: 'T1', x: 0, width: 30 },
+      { id: 'B', x: 30, width: 36 },
+      { id: 'T2', x: 66, width: 18 },
+    ]);
+  });
+
+  it('94. clamps a joined slide when its neighbor reaches minimum width', () => {
+    const result = moveRun(makeTbt(), 'A', 'B', 44, DEFAULT_SETTINGS);
+    const wall = result.room.walls[0];
+
+    expect(result).toMatchObject({
+      ok: true,
+      x: 39,
+      limit: { runId: 'T2', reason: 'min-width' },
+      joints: true,
+    });
+    expect(wall.joints).toEqual([{ id: 'J1', x: 39 }, { id: 'J2', x: 75 }]);
+    expect(wall.runs.map(({ id, x, width }) => ({ id, x, width }))).toEqual([
+      { id: 'T1', x: 0, width: 39 },
+      { id: 'B', x: 39, width: 36 },
+      { id: 'T2', x: 75, width: 9 },
+    ]);
+  });
+
+  it('95. holds a joined slide when its neighbor is rigid', () => {
+    const room = makeTbt();
+    const t2 = room.walls[0].runs.find((run) => run.id === 'T2');
+    Object.assign(t2.items[0], { width: 24 });
+    t2.autoCount = false;
+
+    const result = moveRun(room, 'A', 'B', 30, DEFAULT_SETTINGS);
+
+    expect(result).toMatchObject({
+      ok: true,
+      x: 24,
+      limit: { runId: 'T2', reason: 'fixed-width' },
+      joints: true,
+    });
+    expect(result.room.walls[0].joints).toEqual(room.walls[0].joints);
+    expect(result.room.walls[0].runs.map(({ id, x, width }) => ({ id, x, width }))).toEqual([
+      { id: 'T1', x: 0, width: 24 },
+      { id: 'B', x: 24, width: 36 },
+      { id: 'T2', x: 60, width: 24 },
+    ]);
+  });
+
+  it('96. slides a run through its remaining joint after pruning the other', () => {
+    const room = makeTbt();
+    room.walls[0].runs = room.walls[0].runs.filter((run) => run.id !== 'T2');
+
+    const result = moveRun(room, 'A', 'B', 30, DEFAULT_SETTINGS);
+    const wall = result.room.walls[0];
+
+    expect(result).toMatchObject({ ok: true, x: 30, joints: true });
+    expect(wall.joints).toEqual([{ id: 'J1', x: 30 }]);
+    expect(wall.runs.find((run) => run.id === 'T1')).toMatchObject({ x: 0, width: 30 });
+    expect(wall.runs.find((run) => run.id === 'B')).toMatchObject({
+      x: 30,
+      width: 36,
+      anchors: { right: false },
+    });
+  });
+
+  it('97. still refuses non-joint anchors and reports free moves', () => {
+    const anchoredRoom = makeTbt();
+    anchoredRoom.walls[0].runs.find((run) => run.id === 'T1').anchors.left = true;
+
+    const anchored = moveRun(anchoredRoom, 'A', 'T1', 4, DEFAULT_SETTINGS);
+    const freeRoom = makeRoom();
+    const free = moveRun(freeRoom, 'A', 'run', 60, DEFAULT_SETTINGS);
+
+    expect(anchored).toMatchObject({ ok: false, reason: 'anchored' });
+    expect(anchored.room).toBe(anchoredRoom);
+    expect(free).toMatchObject({ ok: true, x: 60, joints: false });
   });
 });
