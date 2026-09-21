@@ -25,6 +25,8 @@ import {
   resolveProfile,
   isJointAnchor,
   jointMembers,
+  landingRefCreatesCycle,
+  landingsOn,
   runShortLabel,
   runBlocksOpening,
   splitRun,
@@ -54,6 +56,7 @@ import {
   addItemAfter,
   clearSelection,
   deleteOpening,
+  detachWallLanding,
   flipWall,
   lockItem,
   removeItem,
@@ -75,6 +78,7 @@ import {
   setRunType,
   setSelection,
   setWallEndPanel,
+  setWallLanding,
   setWallLength,
   splitItem,
   resizeOpening,
@@ -712,6 +716,7 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
             const insideCorner = corners[side].type === 'inside';
             const anchor = run.anchors[side];
             const openingAnchor = anchor?.to === 'opening' ? anchor : null;
+            const wallAnchor = anchor?.to === 'wall' ? anchor : null;
             const jointAnchor = isJointAnchor(anchor) ? anchor : null;
             const otherJointMember = jointAnchor
               ? jointMembers(wall, jointAnchor.jointId)
@@ -727,6 +732,8 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
               : CORNER_CLEARANCE_MODES.filter(([value]) => value !== 'face');
             const anchorValue = openingAnchor
               ? `opening:${openingAnchor.openingId}`
+              : wallAnchor
+                ? `wall:${wallAnchor.wallId}`
               : otherJointMember
                 ? `joint:${otherJointMember.runId}:${otherJointMember.side}`
                 : anchor === true ? 'corner' : 'free';
@@ -748,6 +755,17 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                           side,
                           targetRunId,
                           targetSide,
+                        }));
+                        return;
+                      }
+                      if (value.startsWith('wall:')) {
+                        dispatch(setRunAnchor({
+                          ...actionBase,
+                          side,
+                          anchor: {
+                            to: 'wall',
+                            wallId: value.slice('wall:'.length),
+                          },
                         }));
                         return;
                       }
@@ -776,6 +794,21 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                         {opening.label}
                       </option>
                     ))}
+                    <optgroup label="Wall faces">
+                      {landingsOn(room, wall).map((interval) => {
+                        const landedWall = room.walls.find(
+                          (candidate) => candidate.id === interval.wallId,
+                        );
+                        return landedWall ? (
+                          <option
+                            key={`${interval.wallId}:${interval.endpoint}`}
+                            value={`wall:${interval.wallId}`}
+                          >
+                            {wallLabel(room, landedWall)}
+                          </option>
+                        ) : null;
+                      })}
+                    </optgroup>
                     <optgroup label="Run edges">
                       {wall.runs.filter((candidate) => candidate.id !== run.id)
                         .flatMap((candidate) => ['left', 'right'].map((targetSide) => (
@@ -1457,8 +1490,10 @@ function WallHeightProperties({ room, wall, plan }) {
   const resolvedProfile = { ...room.profile, ...wall.profile };
   const overlap = crownOverlap(resolvedProfile);
   const frame = wallFrame(room, wall);
-  const leftFree = !wall.connections?.[frame.leftEndpoint];
-  const rightFree = !wall.connections?.[frame.rightEndpoint];
+  const leftFree = !wall.connections?.[frame.leftEndpoint]
+    && !wall.landings?.[frame.leftEndpoint];
+  const rightFree = !wall.connections?.[frame.rightEndpoint]
+    && !wall.landings?.[frame.rightEndpoint];
   const preferredGrowEnd = leftFree !== rightFree && leftFree ? 'left' : 'right';
   const [growEnd, setGrowEnd] = useState(preferredGrowEnd);
 
@@ -1594,6 +1629,95 @@ function WallHeightProperties({ room, wall, plan }) {
           </>
         )}
       </section>
+
+      {[
+        ['left', frame.leftEndpoint],
+        ['right', frame.rightEndpoint],
+      ].map(([side, endpoint]) => {
+        const landing = wall.landings?.[endpoint];
+        if (!landing) return null;
+        const host = room.walls.find((candidate) => candidate.id === landing.wallId);
+        if (!host) return null;
+        const hostView = resolveWall(room, host, landing.side);
+        const referenceWalls = landingsOn(room, hostView)
+          .filter((interval) => interval.wallId !== wall.id)
+          .map((interval) => room.walls.find(
+            (candidate) => candidate.id === interval.wallId,
+          ))
+          .filter((candidate) => candidate && !landingRefCreatesCycle(
+            room,
+            wall.id,
+            host.id,
+            landing.side,
+            candidate.id,
+          ));
+        return (
+          <section key={endpoint}>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              {`Lands on ${wallLabel(room, host)} · ${landing.side === 'front' ? 'Front' : 'Back'}`}
+            </h3>
+            <div className="space-y-2.5">
+              <Field label="Measured from">
+                <select
+                  value={landing.ref}
+                  onChange={(event) => dispatch(setWallLanding({
+                    wallId: wall.id,
+                    endpoint,
+                    ref: event.target.value,
+                  }))}
+                  aria-label={`${side} landing measured from`}
+                  className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="left">Left end</option>
+                  <option value="right">Right end</option>
+                  {referenceWalls.map((referenceWall) => (
+                    <option key={referenceWall.id} value={referenceWall.id}>
+                      {wallLabel(room, referenceWall)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="To">
+                <select
+                  value={landing.to}
+                  onChange={(event) => dispatch(setWallLanding({
+                    wallId: wall.id,
+                    endpoint,
+                    to: event.target.value,
+                  }))}
+                  aria-label={`${side} landing measured to`}
+                  className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="near">Near face</option>
+                  <option value="far">Far face</option>
+                  <option value="center">Centre</option>
+                </select>
+              </Field>
+              <Field label="Distance">
+                <InchInput
+                  value={landing.offset}
+                  onCommit={(offset) => dispatch(setWallLanding({
+                    wallId: wall.id,
+                    endpoint,
+                    offset,
+                  }))}
+                  aria-label={`${side} landing distance`}
+                />
+              </Field>
+              <button
+                type="button"
+                onClick={() => dispatch(detachWallLanding({
+                  wallId: wall.id,
+                  endpoint,
+                }))}
+                className="w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600"
+              >
+                Detach
+              </button>
+            </div>
+          </section>
+        );
+      })}
 
       <section>
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">

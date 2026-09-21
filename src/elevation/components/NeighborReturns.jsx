@@ -1,6 +1,12 @@
 import { Group, Line, Rect, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
-import { cornerAt, frontDepth } from '../model/corners.js';
+import {
+  anchoredToCorner,
+  cornerAt,
+  frontDepth,
+  spanCorner,
+} from '../model/corners.js';
+import { landingsOn } from '../model/landings.js';
 import { wallLabel } from '../model/topology.js';
 import { wallSideOf } from '../model/wallSides.js';
 
@@ -49,7 +55,7 @@ export default function NeighborReturns({ room, wall, settings, transform }) {
 
     for (const run of neighbor.runs) {
       if (wallSideOf(run) !== corner.neighborWallSide) continue;
-      if (run.anchors?.[corner.neighborSide] !== true || run.height <= 0) continue;
+      if (!anchoredToCorner(run.anchors?.[corner.neighborSide], corner) || run.height <= 0) continue;
       const width = Math.min(wall.length, frontDepth(run, settings) / sine);
       const rect = wallRectToScreen({
         x: side === 'left' ? 0 : wall.length - width,
@@ -62,6 +68,46 @@ export default function NeighborReturns({ room, wall, settings, transform }) {
         label: wallLabel(room, neighbor),
         rect,
       });
+    }
+  }
+
+  for (const { wallId, a, b } of landingsOn(room, wall)) {
+    const landedWall = room.walls.find((candidate) => candidate.id === wallId);
+    if (!landedWall) continue;
+    returns.push({
+      key: `landing:${wallId}:${a}:${b}`,
+      label: wallLabel(room, landedWall),
+      rect: wallRectToScreen({
+        x: a,
+        z: 0,
+        width: b - a,
+        height: landedWall.height,
+      }, transform),
+    });
+
+    for (const side of ['left', 'right']) {
+      const corner = spanCorner(room, wall, {
+        wallSide: wall.side,
+        anchors: { [side]: { to: 'wall', wallId } },
+      }, side);
+      const sine = Math.sin(corner.angle * Math.PI / 180);
+      if (corner.type !== 'inside' || Math.abs(sine) < 1e-9) continue;
+
+      for (const run of landedWall.runs) {
+        if (wallSideOf(run) !== corner.neighborWallSide) continue;
+        if (run.anchors?.[corner.neighborSide] !== true || run.height <= 0) continue;
+        const width = frontDepth(run, settings) / sine;
+        returns.push({
+          key: `landing:${wallId}:${side}:${run.id}`,
+          label: wallLabel(room, landedWall),
+          rect: wallRectToScreen({
+            x: side === 'left' ? b : a - width,
+            z: run.z,
+            width,
+            height: run.height,
+          }, transform),
+        });
+      }
     }
   }
 
