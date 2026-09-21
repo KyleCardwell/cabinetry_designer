@@ -62,6 +62,7 @@ import {
   stretchRun,
   tryPlaceRun,
 } from '../model/room.js';
+import { wallSideView } from '../model/wallSides.js';
 import { isJointAnchor, jointMembers } from '../model/joints.js';
 import { runWidthRange } from '../model/splitRun.js';
 import { formatInches } from '../model/units.js';
@@ -837,6 +838,10 @@ function ElevationCanvas({
       return;
     }
     if ((tool !== 'door' && tool !== 'window') || !room || !wall || !transform) return;
+    if (wall.side === 'back') {
+      showMessage('Add doors and windows from the front');
+      return;
+    }
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
     const rawPoint = screenToWall(pointer, transform);
@@ -873,7 +878,7 @@ function ElevationCanvas({
     if (!previewWall?.runs.some((candidate) => candidate.id === runId)) return;
     setStretchPreview({
       room: result.room,
-      wall: previewWall,
+      wall: wallSideView(previewWall, wall.side),
       runIds: [runId],
     });
   }, [applyRunAlignment, room, settings, wall]);
@@ -1021,7 +1026,7 @@ function ElevationCanvas({
       });
       setStretchPreview({
         room: result.room,
-        wall: resolvedWall,
+        wall: wallSideView(resolvedWall, wall.side),
         runIds: [...runIds],
       });
       return;
@@ -1111,7 +1116,7 @@ function ElevationCanvas({
     if (!previewWall) return;
     setStretchPreview({
       room: result.room,
-      wall: previewWall,
+      wall: wallSideView(previewWall, wall.side),
       runIds: jointMembers(previewWall, jointId).map((member) => member.runId),
     });
   }, [room, settings, wall]);
@@ -1338,7 +1343,7 @@ function ElevationCanvas({
                 geometry={openingGeometry(opening, wall.length, settings)}
                 transform={transform}
                 selected={selection.openingId === opening.id}
-                selectable={tool === 'select'}
+                selectable={tool === 'select' && wall.side !== 'back'}
                 onSelect={selectOpening}
                 onMove={(x) => moveSelectedOpening(opening.id, x)}
               />

@@ -86,8 +86,9 @@ export default function PlanWallShape({
       <Line
         points={[wall.x1, wall.y1, wall.x2, wall.y2]}
         stroke={isSelected ? '#bfdbfe' : '#d1d5db'}
-        strokeWidth={1 / scale}
-        listening={false}
+        strokeWidth={(wall.thickness === 0 ? 2 : 1) / scale}
+        hitStrokeWidth={wall.thickness === 0 ? 8 / scale : undefined}
+        listening={wall.thickness === 0}
       />
       <Line
         points={[

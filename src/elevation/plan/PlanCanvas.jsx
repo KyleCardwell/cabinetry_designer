@@ -44,6 +44,7 @@ import {
 import { wallLabel } from '../model/topology.js';
 import { formatInches, roundTo } from '../model/units.js';
 import { wallOutline } from '../model/wallOutline.js';
+import { wallSideFrame, wallSideOf } from '../model/wallSides.js';
 import {
   addOpening,
   addWallSegment,
@@ -122,10 +123,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   }, [room, settings]);
   const orderedFootprints = useMemo(() => {
     if (!room) return [];
-    const entries = walls.flatMap((wall) => {
-      const frame = wallFrame(room, wall);
-      return wall.runs.map((run) => ({ frame, wall, run }));
-    });
+    const entries = walls.flatMap((wall) => (
+      wall.runs.map((run) => ({
+        frame: wallSideFrame(room, wall, wallSideOf(run)),
+        wall,
+        run,
+      }))
+    ));
     return [
       ...entries.filter(({ run }) => run.cabinetTypeId !== CABINET_TYPE_IDS.UPPER),
       ...entries.filter(({ run }) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER),

@@ -2,6 +2,7 @@ import { Group, Line, Rect, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { cornerAt, frontDepth } from '../model/corners.js';
 import { wallLabel } from '../model/topology.js';
+import { wallSideOf } from '../model/wallSides.js';
 
 function Hatch({ rect }) {
   const spacing = 8;
@@ -47,6 +48,7 @@ export default function NeighborReturns({ room, wall, settings, transform }) {
     if (Math.abs(sine) < 1e-9) continue;
 
     for (const run of neighbor.runs) {
+      if (wallSideOf(run) !== corner.neighborWallSide) continue;
       if (run.anchors?.[corner.neighborSide] !== true || run.height <= 0) continue;
       const width = Math.min(wall.length, frontDepth(run, settings) / sine);
       const rect = wallRectToScreen({
