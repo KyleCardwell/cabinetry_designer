@@ -13,7 +13,9 @@ import elevationReducer, {
   addWallSegment,
   centerRoomOnOrigin,
   clearSelection,
+  connectWalls,
   createInitialElevationState,
+  detachWallLanding,
   deleteOpening,
   deleteRun,
   deleteWall,
@@ -48,6 +50,7 @@ import elevationReducer, {
   setTool,
   setView,
   setWallEndPanel,
+  setWallLanding,
   setWallLength,
   splitItem,
   updateOpening,
@@ -1495,5 +1498,138 @@ describe('SPEC-17 wall end panel UI', () => {
       wallId: 'wall-1', endpoint: 'end', panel: { width: -1 },
     }));
     expect(invalid).toBe(state);
+  });
+});
+
+describe('SPEC-18 wing wall store', () => {
+  function stateWithLandings(existingRun = null) {
+    let state = stateWithRun(existingRun);
+    state = elevationReducer(state, addWallSegment({
+      id: 'W1',
+      x1: 60,
+      y1: 0,
+      x2: 60,
+      y2: 30,
+      thickness: 9,
+      landStart: { wallId: 'wall-1', side: 'front', x: 60 },
+    }));
+    return elevationReducer(state, addWallSegment({
+      id: 'W2',
+      x1: 120,
+      y1: 0,
+      x2: 120,
+      y2: 30,
+      thickness: 9,
+      landStart: { wallId: 'wall-1', side: 'front', x: 120 },
+    }));
+  }
+
+  it('154. lands new wall segments on a host face', () => {
+    const state = stateWithLandings();
+    const wall1 = state.rooms[0].walls.find((wall) => wall.id === 'W1');
+    const wall2 = state.rooms[0].walls.find((wall) => wall.id === 'W2');
+
+    expect(wall1.landings.start).toEqual({
+      wallId: 'wall-1', side: 'front', ref: 'left', to: 'near', offset: 60,
+    });
+    expect(wall1.flipped).toBe(false);
+    expect(wall2.landings.start).toEqual({
+      wallId: 'wall-1', side: 'front', ref: 'right', to: 'near', offset: 24,
+    });
+    expect(wall2.flipped).toBe(true);
+  });
+
+  it('155. edits landing references, targets, and offsets', () => {
+    let state = stateWithLandings();
+    state = elevationReducer(state, setWallLanding({
+      wallId: 'W2', endpoint: 'start', ref: 'W1',
+    }));
+    let wall2 = state.rooms[0].walls.find((wall) => wall.id === 'W2');
+    expect(wall2.landings.start.offset).toBe(42);
+    expect(wall2.x1).toBe(120);
+
+    const cycle = elevationReducer(state, setWallLanding({
+      wallId: 'W1', endpoint: 'start', ref: 'W2',
+    }));
+    expect(cycle).toBe(state);
+    const invalidTo = elevationReducer(state, setWallLanding({
+      wallId: 'W2', endpoint: 'start', to: 'side',
+    }));
+    expect(invalidTo).toBe(state);
+
+    state = elevationReducer(state, setWallLanding({
+      wallId: 'W2', endpoint: 'start', offset: 30,
+    }));
+    wall2 = state.rooms[0].walls.find((wall) => wall.id === 'W2');
+    expect(wall2.x1).toBe(108);
+  });
+
+  it('156. releases wall references and anchors when deleting a wing', () => {
+    let state = stateWithLandings(run({
+      anchors: { left: { to: 'wall', wallId: 'W1' }, right: false },
+    }));
+    state = elevationReducer(state, setWallLanding({
+      wallId: 'W2', endpoint: 'start', ref: 'W1',
+    }));
+    state = elevationReducer(state, deleteWall('W1'));
+
+    const wall2 = state.rooms[0].walls.find((wall) => wall.id === 'W2');
+    const hostRun = state.rooms[0].walls.find((wall) => wall.id === 'wall-1').runs[0];
+    expect(wall2.landings.start).toEqual({
+      wallId: 'wall-1', side: 'front', ref: 'left', to: 'near', offset: 111,
+    });
+    expect(hostRun.anchors.left).toBe(false);
+  });
+
+  it('157. detaches a landing and releases wall anchors', () => {
+    let state = stateWithLandings(run({
+      anchors: { left: false, right: { to: 'wall', wallId: 'W2' } },
+    }));
+    state = elevationReducer(state, detachWallLanding({
+      wallId: 'W2', endpoint: 'start',
+    }));
+
+    const wall2 = state.rooms[0].walls.find((wall) => wall.id === 'W2');
+    const hostRun = state.rooms[0].walls.find((wall) => wall.id === 'wall-1').runs[0];
+    expect(wall2.landings.start).toBeNull();
+    expect(hostRun.anchors.right).toBe(false);
+  });
+
+  it('158. accepts wall run anchors and rejects missing wall ids', () => {
+    let state = stateWithRun(run());
+    state = elevationReducer(state, setRunAnchor({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      side: 'right',
+      anchor: { to: 'wall', wallId: 'W2' },
+    }));
+    expect(state.rooms[0].walls[0].runs[0].anchors.right)
+      .toEqual({ to: 'wall', wallId: 'W2' });
+    expect(state.rooms[0].walls[0].runs[0].ends.right)
+      .toEqual({ type: 'filler', width: null });
+
+    const invalid = elevationReducer(state, setRunAnchor({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      side: 'right',
+      anchor: { to: 'wall' },
+    }));
+    expect(invalid).toBe(state);
+  });
+
+  it('159. clears a landing when its endpoint is connected', () => {
+    let state = stateWithLandings();
+    state = elevationReducer(state, addWallSegment({
+      id: 'C', x1: 200, y1: 50, x2: 250, y2: 50,
+    }));
+    state = elevationReducer(state, connectWalls({
+      wallId1: 'W1',
+      endpoint1: 'start',
+      wallId2: 'C',
+      endpoint2: 'start',
+    }));
+
+    expect(state.rooms[0].walls.find((wall) => wall.id === 'W1').landings.start)
+      .toBeNull();
   });
 });

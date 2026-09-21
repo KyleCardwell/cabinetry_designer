@@ -5,6 +5,14 @@ import { cornerAt } from '../model/corners.js';
 import { wallFrame } from '../model/geometry.js';
 import { isJointAnchor } from '../model/joints.js';
 import {
+  LANDING_TO,
+  landWallEnd,
+  landingEndpoint,
+  landingOffsetFor,
+  landingRefCreatesCycle,
+  releaseWall,
+} from '../model/landings.js';
+import {
   resizeOpening as resizeOpeningPure,
   setMeasureMode,
   setOffsetAnchor,
@@ -363,6 +371,20 @@ const elevationSlice = createSlice({
           action.payload.connectStart,
           action.payload.connectEnd,
         );
+        for (const [endpoint, land, connect] of [
+          ['start', action.payload.landStart, action.payload.connectStart],
+          ['end', action.payload.landEnd, action.payload.connectEnd],
+        ]) {
+          if (land && !connect) {
+            const landed = landWallEnd(
+              { ...room, walls: room.walls },
+              wall.id,
+              endpoint,
+              land,
+            );
+            if (landed) room.walls = landed.walls;
+          }
+        }
         state.activeWallId = wall.id;
         clearTransientSelection(state);
         syncRoomAt(state, roomIndex);
@@ -395,6 +417,13 @@ const elevationSlice = createSlice({
         action.payload.wallId2,
         action.payload.endpoint2,
       );
+      for (const [wallId, endpoint] of [
+        [action.payload.wallId1, action.payload.endpoint1],
+        [action.payload.wallId2, action.payload.endpoint2],
+      ]) {
+        const wall = walls.find((candidate) => candidate.id === wallId);
+        if (wall?.landings) wall.landings[endpoint] = null;
+      }
       setCompensatedWalls(state, roomIndex, walls);
     },
     disconnectWallEndpoint(state, action) {
@@ -454,6 +483,47 @@ const elevationSlice = createSlice({
       location.wall.endPanels[endpoint] = panel ? { width: panel.width ?? null } : null;
       syncRoomAt(state, location.roomIndex);
     },
+    setWallLanding(state, action) {
+      const location = wallLocation(state, action.payload);
+      const { endpoint } = action.payload;
+      const landing = location?.wall.landings?.[endpoint];
+      if (!location || !landing) return;
+      const ref = action.payload.ref ?? landing.ref;
+      const to = action.payload.to ?? landing.to;
+      if (!LANDING_TO.includes(to)) return;
+      if (ref !== 'left' && ref !== 'right') {
+        const refWall = location.room.walls.find((wall) => wall.id === ref);
+        if (!refWall || !landingEndpoint(refWall, landing.wallId, landing.side)) return;
+        if (landingRefCreatesCycle(
+          location.room,
+          location.wall.id,
+          landing.wallId,
+          landing.side,
+          ref,
+        )) return;
+      }
+      const offset = action.payload.offset === undefined
+        ? landingOffsetFor(location.room, location.wall, endpoint, ref, to)
+        : action.payload.offset;
+      if (!Number.isFinite(offset)) return;
+      location.wall.landings[endpoint] = { ...landing, ref, to, offset };
+      syncRoomAt(state, location.roomIndex);
+    },
+    detachWallLanding(state, action) {
+      const location = wallLocation(state, action.payload);
+      const { endpoint } = action.payload;
+      if (!location?.wall.landings?.[endpoint]) return;
+      state.rooms[location.roomIndex] = releaseWall(
+        location.room,
+        location.wall.id,
+        { deleting: false },
+      );
+      const wall = state.rooms[location.roomIndex].walls.find(
+        (candidate) => candidate.id === location.wall.id,
+      );
+      wall.landings[endpoint] = null;
+      syncRoomAt(state, location.roomIndex);
+    },
     updateWall(state, action) {
       const location = wallLocation(state, action.payload);
       if (!location) return;
@@ -489,7 +559,9 @@ const elevationSlice = createSlice({
         : action.payload);
       if (!location) return;
       const wallId = location.wall.id;
-      location.room.walls.splice(location.wallIndex, 1);
+      location.room.walls = releaseWall(location.room, wallId).walls;
+      const wallIndex = location.room.walls.findIndex((wall) => wall.id === wallId);
+      location.room.walls.splice(wallIndex, 1);
       for (const wall of location.room.walls) {
         for (const endpoint of ['start', 'end']) {
           if (wall.connections[endpoint]?.wallId === wallId) wall.connections[endpoint] = null;
@@ -758,12 +830,18 @@ const elevationSlice = createSlice({
         && typeof value.openingId === 'string'
         && (value.edge === 'casing' || value.edge === 'jamb')
         && (value.clearance === null || Number.isFinite(value.clearance));
-      if (typeof value !== 'boolean' && !validOpeningAnchor) return;
+      const validWallAnchor = Boolean(value)
+        && typeof value === 'object'
+        && value.to === 'wall'
+        && typeof value.wallId === 'string';
+      if (typeof value !== 'boolean' && !validOpeningAnchor && !validWallAnchor) return;
       if (isJointAnchor(location.run.anchors[side]) && !isJointAnchor(value)) {
         location.run.ends[side] = withoutAuto(location.run.ends[side]);
       }
-      location.run.anchors[side] = validOpeningAnchor ? { ...value } : value;
-      if (value === true) {
+      location.run.anchors[side] = validOpeningAnchor || validWallAnchor ? { ...value } : value;
+      if (validWallAnchor) {
+        location.run.ends[side] = { type: 'filler', width: null };
+      } else if (value === true) {
         const inside = cornerAt(location.room, wallViewForRun(location.wall, location.run), side).type === 'inside';
         if (inside) location.run.ends[side] = { type: 'filler', width: null };
         else if (location.run.ends[side].type !== 'end_panel') {
@@ -1120,6 +1198,8 @@ export const {
   disconnectWallEndpoint,
   setWallLength,
   setWallEndPanel,
+  setWallLanding,
+  detachWallLanding,
   updateWall,
   deleteWall,
   setActiveWall,
