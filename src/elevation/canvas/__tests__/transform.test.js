@@ -76,7 +76,7 @@ describe('elevation canvas transform', () => {
   it('returns the view unchanged when zoom is already clamped', () => {
     const base = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
     const pointer = { x: 130, y: 100 };
-    const maximum = { zoom: 8, panX: 3, panY: 4 };
+    const maximum = { zoom: 16, panX: 3, panY: 4 };
     const minimum = { zoom: 0.25, panX: 3, panY: 4 };
 
     expect(zoomViewAt(base, maximum, pointer, 2)).toBe(maximum);

@@ -338,7 +338,7 @@ describe('joining run edges', () => {
     const jointId = wall.joints[0].id;
 
     expect(result.ok).toBe(true);
-    expect(wall.joints).toEqual([{ id: jointId, x: 30 }]);
+    expect(wall.joints).toEqual([{ id: jointId, x: 30, wallSide: 'front' }]);
     expect(wall.runs[0]).toMatchObject({
       anchors: { right: { to: 'joint', jointId, offset: 0 } },
       ends: { right: { auto: true } },

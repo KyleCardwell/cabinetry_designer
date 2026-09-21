@@ -184,6 +184,7 @@ function isRun(run) {
     && isRunAnchor(run.anchors?.left)
     && isRunAnchor(run.anchors?.right)
     && isStyle(run.style)
+    && (run.wallSide === undefined || run.wallSide === 'front' || run.wallSide === 'back')
     && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
     && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top));
 }
@@ -240,6 +241,7 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
         Boolean(joint)
         && typeof joint.id === 'string'
         && isFiniteNumber(joint.x)
+        && (joint.wallSide === undefined || joint.wallSide === 'front' || joint.wallSide === 'back')
       ))));
 }
 

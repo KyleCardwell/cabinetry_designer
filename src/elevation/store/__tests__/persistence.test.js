@@ -561,3 +561,19 @@ describe('elevation persistence migration', () => {
     expect(isElevationDocument(migrated)).toBe(true);
   });
 });
+
+describe('wall side persistence', () => {
+  it('105. accepts valid wall sides and rejects invalid run and joint sides', () => {
+    const valid = tbtDocument();
+    valid.rooms[0].walls[0].runs[0].wallSide = 'back';
+    expect(isElevationDocument(valid)).toBe(true);
+
+    const invalidRun = tbtDocument();
+    invalidRun.rooms[0].walls[0].runs[0].wallSide = 'side';
+    expect(isElevationDocument(invalidRun)).toBe(false);
+
+    const invalidJoint = tbtDocument();
+    invalidJoint.rooms[0].walls[0].joints[0].wallSide = 'up';
+    expect(isElevationDocument(invalidJoint)).toBe(false);
+  });
+});

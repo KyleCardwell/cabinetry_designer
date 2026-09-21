@@ -29,6 +29,7 @@ import { stretchedStart } from './positions.js';
 import { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
 import { computeWallOrder } from './topology.js';
 import { formatInches, roundTo } from './units.js';
+import { wallSideOf } from './wallSides.js';
 
 const STRETCH_EDGE_SNAP_DISTANCE = 2;
 const PIN_EPSILON = 1e-6;
@@ -640,7 +641,7 @@ export function joinEdges(room, wallId, source, target, settings) {
   const mutableTarget = wall.runs.find((run) => run.id === target.runId);
   if (!isJointAnchor(targetAnchor)) {
     wall.joints ??= [];
-    wall.joints.push({ id: jointId, x: jointX });
+    wall.joints.push({ id: jointId, x: jointX, wallSide: wallSideOf(sourceRun) });
     mutableTarget.anchors[target.side] = { to: 'joint', jointId, offset: 0 };
   }
   const otherEdge = runEdgeX(mutableSource, otherSide);

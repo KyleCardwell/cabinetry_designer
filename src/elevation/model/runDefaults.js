@@ -121,6 +121,7 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
     heightMode,
     overrides: {},
     anchors,
+    wallSide: wall?.side ?? 'front',
   };
 
   return syncAutoItems(run, settings);
