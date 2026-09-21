@@ -1,4 +1,5 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { wallSideOf } from './wallSides.js';
 
 const OVERLAP_EPSILON = 1e-6;
 
@@ -45,7 +46,9 @@ export function validateRunPlacement(wall, run, settings) {
   if (!insideWall) return { ok: false, reason: 'out-of-bounds' };
 
   const conflict = wall.runs.some(
-    (other) => other.id !== run.id && runsConflict(other, run, settings),
+    (other) => other.id !== run.id
+      && wallSideOf(other) === wallSideOf(run)
+      && runsConflict(other, run, settings),
   );
   if (conflict) return { ok: false, reason: 'conflict' };
 

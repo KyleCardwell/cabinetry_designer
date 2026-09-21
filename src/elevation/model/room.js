@@ -29,7 +29,12 @@ import { stretchedStart } from './positions.js';
 import { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
 import { computeWallOrder } from './topology.js';
 import { formatInches, roundTo } from './units.js';
-import { wallSideOf } from './wallSides.js';
+import {
+  WALL_SIDES,
+  wallSideOf,
+  wallSideView,
+  wallViewForRun,
+} from './wallSides.js';
 
 const STRETCH_EDGE_SNAP_DISTANCE = 2;
 const PIN_EPSILON = 1e-6;
@@ -113,6 +118,7 @@ export function compensateRuns(oldRoom, newRoom) {
 
 /** Return per-side flex-filler minimums for a run in its room context. */
 export function endMinWidthsForRun(room, wall, run, settings) {
+  wall = wallViewForRun(wall, run);
   return Object.fromEntries(['left', 'right'].map((side) => {
     const corner = cornerAt(room, wall, side);
     return [
@@ -126,6 +132,7 @@ export function endMinWidthsForRun(room, wall, run, settings) {
 
 /** Return per-side corner angles for anchored inside-corner fillers. */
 export function endCornerAnglesForRun(room, wall, run) {
+  wall = wallViewForRun(wall, run);
   return Object.fromEntries(['left', 'right'].map((side) => {
     const corner = cornerAt(room, wall, side);
     return [
@@ -157,6 +164,7 @@ function openingAnchorDatum(anchor, side, wall, length, settings) {
 
 /** Resolve a run anchor into an absolute wall-local datum. */
 export function resolveRunAnchorDatum(room, wall, run, side, settings) {
+  wall = wallViewForRun(wall, run);
   const anchor = run.anchors?.[side];
   const length = wallLength(wall);
   if (anchor === true) {
@@ -180,6 +188,7 @@ export function resolveRunAnchorDatum(room, wall, run, side, settings) {
 
 /** Describe a resolved wall-end or opening anchor in shop language. */
 export function describeAnchor(room, wall, run, side, settings) {
+  wall = wallViewForRun(wall, run);
   const anchor = run.anchors?.[side];
   if (!anchor) return '';
   if (anchor?.to === 'opening') {
@@ -233,6 +242,7 @@ function horizontalResolution(room, wall, run, settings) {
 }
 
 function casingClearanceWarnings(run, wall, length, settings) {
+  wall = wallViewForRun(wall, run);
   const required = settings.casingClearance ?? DEFAULT_SETTINGS.casingClearance;
   if (!(required > 0)) return [];
   const runBottom = verticalStart(run);
@@ -286,6 +296,7 @@ export function resolvePinTarget(pin, wall, wallLengthValue, settings) {
 
 /** Resolve all usable pin targets for a run. */
 export function pinTargetsForRun(run, wall, wallLengthValue, settings) {
+  wall = wallViewForRun(wall, run);
   return Object.fromEntries(run.items.flatMap((item) => {
     const target = resolvePinTarget(item.pin, wall, wallLengthValue, settings);
     return Number.isFinite(target) ? [[item.id, target]] : [];
@@ -455,7 +466,8 @@ export function syncRoom(room, settings) {
           const vertical = resolveVertical(
             run,
             profile,
-            runs.filter((candidate) => candidate.cabinetTypeId === CABINET_TYPE_IDS.BASE),
+            runs.filter((candidate) => candidate.cabinetTypeId === CABINET_TYPE_IDS.BASE
+              && wallSideOf(candidate) === wallSideOf(run)),
             wall,
           );
           runs[index] = { ...run, z: vertical.z, height: vertical.height };
@@ -505,7 +517,9 @@ export function syncRoom(room, settings) {
 export function roomDiagnostics(room, settings) {
   const synced = syncRoom(room, settings);
   const diagnostics = {};
-  for (const wall of synced.walls) {
+  for (const wall of synced.walls.flatMap((sourceWall) => (
+    WALL_SIDES.map((side) => wallSideView(sourceWall, side))
+  ))) {
     const profile = resolveProfile(settings, synced, wall);
     const length = wallLength(wall);
     const bases = wall.runs.filter((run) => run.cabinetTypeId === CABINET_TYPE_IDS.BASE);
@@ -1323,6 +1337,6 @@ export function flipRunsForWall(wall) {
 }
 
 /** Return a wall with its derived elevation length for legacy elevation consumers. */
-export function resolveWall(room, wall) {
-  return wall ? { ...wall, length: wallFrame(room, wall).length } : null;
+export function resolveWall(room, wall, side = 'front') {
+  return wall ? { ...wallSideView(wall, side), length: wallFrame(room, wall).length } : null;
 }

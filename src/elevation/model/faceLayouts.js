@@ -4,6 +4,7 @@ import { cabinetFaces, defaultFace } from './faces.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
 import { splitRun } from './splitRun.js';
 import { cabinetReveals, resolveStyle } from './styles.js';
+import { wallViewForRun } from './wallSides.js';
 
 /** splitRun with the same options RunGroup uses. */
 export function layoutRun(room, wall, run, settings) {
@@ -19,6 +20,7 @@ export function layoutRun(room, wall, run, settings) {
  * `run` may be a preview copy; the wall's other runs supply cross-run neighbors.
  */
 export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(room, wall, run, settings)) {
+  wall = wallViewForRun(wall, run);
   const otherPieces = wall.runs
     .filter((other) => other.id !== run.id)
     .flatMap((other) => layoutRun(room, wall, other, settings).pieces);

@@ -7,6 +7,7 @@ import {
   wallFrame,
 } from './geometry.js';
 import { roundTo } from './units.js';
+import { wallSideOf, wallSideView, wallViewForRun } from './wallSides.js';
 
 /** Return the installed front depth of a run. */
 export function frontDepth(run, settings) {
@@ -50,21 +51,23 @@ export function cornerAt(room, wall, side) {
 
   const neighbor = room.walls.find((candidate) => candidate.id === connection.wallId);
   if (!neighbor) return { type: 'open' };
-  const neighborFrame = wallFrame(room, neighbor);
   const neighborEndpoint = connection.endpoint;
-  const neighborSide = neighborFrame.leftEndpoint === neighborEndpoint ? 'left' : 'right';
   const uA = directionFromEndpoint(wall, endpoint);
   const uB = directionFromEndpoint(neighbor, neighborEndpoint);
   const angle = Math.acos(clamp(dot(uA, uB), -1, 1)) * 180 / Math.PI;
-  const shared = { angle, neighborWallId: neighbor.id, neighborSide };
-
   if (Math.abs(angle - 180) < 1) return { type: 'straight' };
+
+  const neighborWallSide = dot(wallFrame(room, neighbor).n, uA) > 0 ? 'front' : 'back';
+  const neighborFrame = wallFrame(room, wallSideView(neighbor, neighborWallSide));
+  const neighborSide = neighborFrame.leftEndpoint === neighborEndpoint ? 'left' : 'right';
+  const shared = { angle, neighborWallId: neighbor.id, neighborSide, neighborWallSide };
   if (dot(frame.n, uB) > 0) return { type: 'inside', ...shared };
-  return { type: 'outside', angle: 360 - angle, neighborWallId: neighbor.id, neighborSide };
+  return { ...shared, type: 'outside', angle: 360 - angle };
 }
 
 /** Return the face and back components of a corner reserve. */
 export function cornerReserveParts(room, wall, side, run, settings) {
+  wall = wallViewForRun(wall, run);
   const corner = cornerAt(room, wall, side);
   if (corner.type !== 'inside') {
     const override = run.cornerClearance?.[side];
@@ -83,6 +86,7 @@ export function cornerReserveParts(room, wall, side, run, settings) {
   const neighbor = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
   const sine = Math.sin(corner.angle * Math.PI / 180);
   const face = !neighbor || Math.abs(sine) < 1e-9 ? 0 : neighbor.runs.reduce((reserve, neighborRun) => {
+    if (wallSideOf(neighborRun) !== corner.neighborWallSide) return reserve;
     if (neighborRun.anchors?.[corner.neighborSide] !== true) return reserve;
     if (!bandsCompatible(run, neighborRun)) return reserve;
     return Math.max(reserve, frontDepth(neighborRun, settings) / sine);
