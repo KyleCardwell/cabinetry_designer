@@ -39,6 +39,7 @@ import elevationReducer, {
   setRunFaceOptions,
   setRunStyle,
   setActiveWall,
+  setActiveWallSide,
   setRunCornerClearance,
   setRunAnchor,
   setRunJointOffset,
@@ -1395,5 +1396,62 @@ describe('joint glyph unjoin', () => {
     expect(upper.x).toBe(24);
     expect(upper.anchors.left).toBe(false);
     expect(upper.ends.left.auto).toBeUndefined();
+  });
+});
+
+describe('SPEC-17 active wall side', () => {
+  it('119. initializes the active wall side to front', () => {
+    expect(createInitialElevationState().activeWallSide).toBe('front');
+  });
+
+  it('120. sets a valid active wall side and clears transient selection', () => {
+    let state = stateWithRun(run({ id: 'F', wallSide: 'front' }));
+    state = elevationReducer(state, setSelection({ runId: 'F' }));
+    state = elevationReducer(state, setActiveWallSide('back'));
+
+    expect(state.activeWallSide).toBe('back');
+    expect(state.selection.runId).toBeNull();
+
+    state = elevationReducer(state, setActiveWallSide('side'));
+    expect(state.activeWallSide).toBe('back');
+  });
+
+  it('121. keeps the active wall side in sync with selected runs and openings', () => {
+    let state = stateWithRun(run({ id: 'F', wallSide: 'front' }));
+    state.rooms[0].walls[0].runs.push(run({
+      id: 'K', x: 0, width: 60, wallSide: 'back',
+    }));
+
+    state = elevationReducer(state, setSelection({ runId: 'K' }));
+    expect(state.activeWallSide).toBe('back');
+
+    state = elevationReducer(state, setSelection({ runId: 'F' }));
+    expect(state.activeWallSide).toBe('front');
+
+    state = elevationReducer(state, setActiveWallSide('back'));
+    state = elevationReducer(state, setSelection({ openingId: 'door-1' }));
+    expect(state.activeWallSide).toBe('front');
+  });
+
+  it('122. resets the active wall side when setting the active wall', () => {
+    const state = stateWithRun();
+    state.activeWallSide = 'back';
+
+    const next = elevationReducer(state, setActiveWall('wall-1'));
+
+    expect(next.activeWallSide).toBe('front');
+  });
+
+  it('123. accepts zero wall thickness and rejects negative thickness', () => {
+    let state = stateWithRun();
+    state = elevationReducer(state, updateWall({
+      wallId: 'wall-1', changes: { thickness: 0 },
+    }));
+    expect(state.rooms[0].walls[0].thickness).toBe(0);
+
+    state = elevationReducer(state, updateWall({
+      wallId: 'wall-1', changes: { thickness: -1 },
+    }));
+    expect(state.rooms[0].walls[0].thickness).toBe(0);
   });
 });

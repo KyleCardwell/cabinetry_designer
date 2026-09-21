@@ -33,6 +33,7 @@ import {
   resolveStyle,
 } from '../model/styles.js';
 import { roundTo } from '../model/units.js';
+import { wallSideOf, wallViewForRun } from '../model/wallSides.js';
 import {
   addWallWithConnections,
   connectWallEndpoints,
@@ -105,6 +106,7 @@ export function createInitialElevationState(document = loadElevationDocument()) 
     rooms,
     activeRoomId,
     activeWallId,
+    activeWallSide: 'front',
     view: emptyActiveRoom ? 'plan' : document?.view ?? 'plan',
     selection: {
       runId: null,
@@ -221,6 +223,7 @@ function clearTransientSelection(state) {
 function activateRoom(state, room) {
   state.activeRoomId = room?.id ?? null;
   state.activeWallId = room?.walls[0]?.id ?? null;
+  state.activeWallSide = 'front';
   if (room?.walls.length === 0) {
     state.view = 'plan';
     state.tool = 'wall';
@@ -443,9 +446,11 @@ const elevationSlice = createSlice({
       void roomId;
       void id;
       const allowedChanges = changes ?? inlineChanges;
-      for (const key of ['name', 'height', 'thickness']) {
+      for (const key of ['name', 'height']) {
         if (allowedChanges[key] !== undefined) location.wall[key] = allowedChanges[key];
       }
+      const thickness = allowedChanges.thickness;
+      if (Number.isFinite(thickness) && thickness >= 0) location.wall.thickness = thickness;
       if (allowedChanges.numberOverride !== undefined) {
         const value = allowedChanges.numberOverride;
         if (value === null || (Number.isInteger(value) && value > 0)) {
@@ -478,6 +483,7 @@ const elevationSlice = createSlice({
       const deletedSelectedWall = state.selection.wallId === wallId;
       if (deletedActiveWall) {
         state.activeWallId = location.room.walls[0]?.id ?? null;
+        state.activeWallSide = 'front';
       }
       if (deletedActiveWall || deletedSelectedWall) {
         clearTransientSelection(state);
@@ -489,8 +495,15 @@ const elevationSlice = createSlice({
       const room = roomFor(state, action.payload.roomId);
       if (!room?.walls.some((wall) => wall.id === wallId)) return;
       state.activeWallId = wallId;
+      state.activeWallSide = 'front';
       clearTransientSelection(state);
       state.selection.wallId = wallId;
+    },
+    setActiveWallSide(state, action) {
+      const side = action.payload.side ?? action.payload;
+      if (side !== 'front' && side !== 'back') return;
+      state.activeWallSide = side;
+      clearTransientSelection(state);
     },
     flipWall(state, action) {
       const location = wallLocation(state, action.payload);
@@ -735,7 +748,7 @@ const elevationSlice = createSlice({
       }
       location.run.anchors[side] = validOpeningAnchor ? { ...value } : value;
       if (value === true) {
-        const inside = cornerAt(location.room, location.wall, side).type === 'inside';
+        const inside = cornerAt(location.room, wallViewForRun(location.wall, location.run), side).type === 'inside';
         if (inside) location.run.ends[side] = { type: 'filler', width: null };
         else if (location.run.ends[side].type !== 'end_panel') {
           location.run.ends[side] = { type: 'end_panel', width: null };
@@ -1033,6 +1046,14 @@ const elevationSlice = createSlice({
         openingId: runId ? null : openingId,
         wallId: state.selection.wallId ?? null,
       };
+      if (runId) {
+        const selectedRun = roomFor(state)?.walls
+          .flatMap((wall) => wall.runs)
+          .find((run) => run.id === runId);
+        if (selectedRun) state.activeWallSide = wallSideOf(selectedRun);
+      } else if (openingId) {
+        state.activeWallSide = 'front';
+      }
       state.facePath = null;
     },
     clearSelection(state) {
@@ -1085,6 +1106,7 @@ export const {
   updateWall,
   deleteWall,
   setActiveWall,
+  setActiveWallSide,
   flipWall,
   addRun,
   addOpening,

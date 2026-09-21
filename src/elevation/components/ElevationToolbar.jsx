@@ -3,6 +3,7 @@ import { nextWallId, wallLabel } from '../model/topology.js';
 import {
   centerRoomOnOrigin,
   setActiveWall,
+  setActiveWallSide,
   setTool,
   setView,
   updateSettings,
@@ -23,6 +24,7 @@ export default function ElevationToolbar({
     rooms,
     activeRoomId,
     activeWallId,
+    activeWallSide,
   } = useSelector((state) => state.elevation);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const orderedWallIds = (room?.wallOrder ?? []).filter((wallId) => (
@@ -59,8 +61,12 @@ export default function ElevationToolbar({
         <button
           key={toolName}
           type="button"
+          disabled={view === 'elevation' && activeWallSide === 'back' && ['door', 'window'].includes(toolName)}
+          title={view === 'elevation' && activeWallSide === 'back' && ['door', 'window'].includes(toolName)
+            ? 'Add doors and windows from the front'
+            : undefined}
           onClick={() => dispatch(setTool(toolName))}
-          className={`rounded px-3 py-1.5 text-sm capitalize transition-colors ${
+          className={`rounded px-3 py-1.5 text-sm capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
             tool === toolName
               ? 'bg-blue-600 text-white'
               : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
@@ -111,7 +117,7 @@ export default function ElevationToolbar({
             </button>
             <span className="min-w-24 max-w-44 truncate text-center text-xs text-gray-300">
               {activeWall
-                ? `${wallLabel(room, activeWall)} / ${orderedWallIds.length}`
+                ? `${wallLabel(room, activeWall)} / ${orderedWallIds.length}${activeWallSide === 'back' ? ' · Back' : ''}`
                 : 'No wall'}
             </span>
             <button
@@ -123,6 +129,20 @@ export default function ElevationToolbar({
             >
               ›
             </button>
+          </div>
+          <div className="flex rounded bg-gray-950 p-0.5" aria-label="Wall side">
+            {['front', 'back'].map((side) => (
+              <button
+                key={side}
+                type="button"
+                onClick={() => dispatch(setActiveWallSide(side))}
+                className={`rounded px-2.5 py-1 text-xs capitalize transition-colors ${
+                  activeWallSide === side ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                {side === 'front' ? 'Front' : 'Back'}
+              </button>
+            ))}
           </div>
           <div className="flex items-center gap-1">
             <button

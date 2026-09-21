@@ -1628,6 +1628,8 @@ export default function PropertiesPanel() {
   const {
     rooms,
     activeRoomId,
+    activeWallId,
+    activeWallSide,
     selection,
     settings,
     view,
@@ -1639,7 +1641,7 @@ export default function PropertiesPanel() {
   const storedWall = room?.walls.find(
     (candidate) => candidate.id === selection.wallId,
   ) ?? null;
-  const wall = useMemo(() => resolveWall(room, storedWall), [room, storedWall]);
+  const wall = useMemo(() => resolveWall(room, storedWall, storedWall?.id === activeWallId ? activeWallSide : 'front'), [room, storedWall, activeWallId, activeWallSide]);
   const opening = wall?.openings.find(
     (candidate) => candidate.id === selection.openingId,
   ) ?? null;

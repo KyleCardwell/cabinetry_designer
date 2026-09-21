@@ -21,6 +21,7 @@ export default function ElevationLab() {
     rooms,
     activeRoomId,
     activeWallId,
+    activeWallSide,
     settings,
     view,
   } = useSelector((state) => state.elevation);
@@ -28,7 +29,8 @@ export default function ElevationLab() {
   const activeWall = useMemo(() => resolveWall(
     activeRoom,
     activeRoom?.walls.find((wall) => wall.id === activeWallId) ?? null,
-  ), [activeRoom, activeWallId]);
+    activeWallSide,
+  ), [activeRoom, activeWallId, activeWallSide]);
 
   return (
     <div className="flex h-full min-h-0 bg-gray-900 text-gray-100">
