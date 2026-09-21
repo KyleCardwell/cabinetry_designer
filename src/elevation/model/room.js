@@ -29,6 +29,14 @@ import { validateRunPlacement, verticalStart } from './overlap.js';
 import { resolveProfile, resolveVertical } from './profile.js';
 import { stretchedStart } from './positions.js';
 import { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
+import {
+  profileUnderSoffit,
+  resolveSoffitSpan,
+  soffitAnchorDatum,
+  soffitConflicts,
+  soffitEndType,
+  soffitsOn,
+} from './soffits.js';
 import { computeWallOrder, wallLabel } from './topology.js';
 import { formatInches, roundTo } from './units.js';
 import {
@@ -198,6 +206,12 @@ export function resolveRunAnchorDatum(room, wall, run, side, settings) {
   if (anchor?.to === 'opening') {
     return { ...openingAnchorDatum(anchor, side, wall, length, settings), type: 'opening' };
   }
+  if (anchor?.to === 'soffit') {
+    const x = soffitAnchorDatum(wall, anchor, side);
+    return x === null
+      ? { error: { code: 'anchor-soffit-missing', side } }
+      : { x, type: 'soffit', soffitId: anchor.soffitId };
+  }
   if (anchor?.to === 'wall') {
     const interval = landingsOn(room, wall).find((entry) => entry.wallId === anchor.wallId);
     if (!interval) return { error: { code: 'anchor-wall-missing', side } };
@@ -242,6 +256,13 @@ export function describeAnchor(room, wall, run, side, settings) {
       ? `${formatInches(offset)} gap`
       : offset < 0 ? `${formatInches(Math.abs(offset))} past` : 'flush';
     return `Joined to ${label} · ${relation}`;
+  }
+  if (anchor?.to === 'soffit') {
+    const offset = anchor.offset ?? 0;
+    const relation = offset > 0
+      ? `${formatInches(offset)} gap`
+      : offset < 0 ? `${formatInches(Math.abs(offset))} past` : 'flush';
+    return `Against soffit · ${relation}`;
   }
   if (anchor?.to === 'wall') {
     const anchoredWall = room.walls.find((candidate) => candidate.id === anchor.wallId);
@@ -470,6 +491,21 @@ export function syncRoom(room, settings) {
 
   nextRoom = {
     ...nextRoom,
+    walls: nextRoom.walls.map((wall) => ({
+      ...wall,
+      soffits: (wall.soffits ?? []).map((soffit) => ({
+        ...soffit,
+        ...resolveSoffitSpan(
+          nextRoom,
+          wallSideView(wall, wallSideOf(soffit)),
+          soffit,
+        ),
+      })),
+    })),
+  };
+
+  nextRoom = {
+    ...nextRoom,
     walls: nextRoom.walls.map((wall) => {
       return {
         ...wall,
@@ -513,7 +549,7 @@ export function syncRoom(room, settings) {
           if (run.cabinetTypeId !== typeId || run.heightMode === 'manual') continue;
           const vertical = resolveVertical(
             run,
-            profile,
+            profileUnderSoffit(profile, wall, run),
             runs.filter((candidate) => candidate.cabinetTypeId === CABINET_TYPE_IDS.BASE
               && wallSideOf(candidate) === wallSideOf(run)),
             wall,
@@ -587,7 +623,12 @@ export function roomDiagnostics(room, settings) {
         endCornerAngles: endCornerAnglesForRun(synced, wall, run),
         pinTargets: pinTargetsForRun(run, wall, length, settings),
       });
-      const vertical = resolveVertical(run, profile, bases, wall);
+      const vertical = resolveVertical(
+        run,
+        profileUnderSoffit(profile, wall, run),
+        bases,
+        wall,
+      );
       const horizontal = horizontalResolution(synced, wall, run, settings);
       const placement = validateRunPlacement(resolvedWall, run, settings);
       const overhang = {
@@ -618,6 +659,7 @@ export function roomDiagnostics(room, settings) {
           ...(overhang.left > 0 || overhang.right > 0 ? [overhang] : []),
           ...blockedOpenings,
           ...casingClearanceWarnings(run, wall, length, settings),
+          ...soffitConflicts(wall, run),
         ],
         errors: [
           ...layout.errors,
@@ -1056,6 +1098,26 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
         anchor: side === 'right' && { to: 'wall', wallId: interval.wallId },
       },
     ]),
+    ...soffitsOn(sideWall).flatMap((soffit) => {
+      const reachesSoffit = (
+        sourceRun.cabinetTypeId === CABINET_TYPE_IDS.UPPER
+        || sourceRun.cabinetTypeId === CABINET_TYPE_IDS.TALL
+      ) && sourceRun.z + sourceRun.height > soffit.bottom;
+      return [
+        {
+          value: soffit.x + soffit.width,
+          anchor: reachesSoffit && side === 'left'
+            ? { to: 'soffit', soffitId: soffit.id, offset: 0 }
+            : false,
+        },
+        {
+          value: soffit.x,
+          anchor: reachesSoffit && side === 'right'
+            ? { to: 'soffit', soffitId: soffit.id, offset: 0 }
+            : false,
+        },
+      ];
+    }),
   ];
 
   let edge = roundTo(newEdgeX, 0.5);
@@ -1095,10 +1157,17 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
     },
   };
   if (anchorsAtSnap) {
-    const inside = cornerForRunSide(room, sideWall, proposed, side).type === 'inside';
-    if (inside) proposed.ends[side] = { type: 'filler', width: null };
-    else if (proposed.ends[side].type !== 'end_panel') {
-      proposed.ends[side] = { type: 'end_panel', width: null };
+    if (anchorsAtSnap.to === 'soffit') {
+      proposed.ends[side] = {
+        type: soffitEndType(sideWall, proposed, side, anchorsAtSnap, settings),
+        width: null,
+      };
+    } else {
+      const inside = cornerForRunSide(room, sideWall, proposed, side).type === 'inside';
+      if (inside) proposed.ends[side] = { type: 'filler', width: null };
+      else if (proposed.ends[side].type !== 'end_panel') {
+        proposed.ends[side] = { type: 'end_panel', width: null };
+      }
     }
   }
 

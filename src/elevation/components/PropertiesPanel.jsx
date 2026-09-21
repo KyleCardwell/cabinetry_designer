@@ -133,6 +133,7 @@ const ERROR_MESSAGES = {
 const WARNING_MESSAGES = {
   'mixed-counter-heights': 'Overlapping base runs have different counter heights.',
   'crown-above-ceiling': 'The crown profile extends above the wall height.',
+  'soffit-conflict': "Runs into a soffit — anchor it to the soffit's side or split it.",
 };
 
 const RUN_OVERRIDE_FIELDS = {

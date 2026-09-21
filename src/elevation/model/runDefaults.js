@@ -9,6 +9,7 @@ import {
   resolveProfile,
 } from './profile.js';
 import { syncAutoItems } from './splitRun.js';
+import { soffitEndType, soffitsOn } from './soffits.js';
 import { roundTo } from './units.js';
 
 /** Infer a run's cabinet type from its drawn vertical range. */
@@ -77,6 +78,8 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
     side,
     cornerAt(room, wall, side),
   ])) : {};
+  const heightMode = settings.snapHeightsToDefaults ? 'auto' : 'manual';
+  const runTop = heightMode === 'auto' ? typeDefaults.z + typeDefaults.height : topZ;
   const anchors = Object.fromEntries(['left', 'right'].map((side) => {
     const distance = side === 'left' ? Math.abs(edges.left) : Math.abs(length - edges.right);
     if (wall && distance <= settings.cornerSnapDistance) return [side, true];
@@ -84,10 +87,18 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
       Math.abs(edges[side] - (side === 'left' ? interval.b : interval.a))
         <= settings.cornerSnapDistance
     ));
-    return [
-      side,
-      landing ? { to: 'wall', wallId: landing.wallId } : false,
-    ];
+    if (landing) return [side, { to: 'wall', wallId: landing.wallId }];
+    const soffit = wall
+      && cabinetTypeId !== CABINET_TYPE_IDS.BASE
+      && soffitsOn(wall).find((candidate) => (
+        runTop > candidate.bottom
+        && Math.abs(edges[side] - (side === 'left'
+          ? candidate.x + candidate.width
+          : candidate.x)) <= settings.cornerSnapDistance
+      ));
+    return [side, soffit
+      ? { to: 'soffit', soffitId: soffit.id, offset: 0 }
+      : false];
   }));
   const isAdjacent = (side) => wall?.runs.some((run) => (
     bandsCompatible(cabinetTypeId, run)
@@ -99,11 +110,19 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
   const ends = Object.fromEntries(['left', 'right'].map((side) => {
     let type = settings.defaultEnds[side];
     if (anchors[side]?.to === 'wall') type = 'filler';
+    else if (anchors[side]?.to === 'soffit') {
+      type = soffitEndType(
+        wall,
+        { id: null, wallSide: wall.side },
+        side,
+        anchors[side],
+        settings,
+      );
+    }
     else if (anchors[side]) type = corners[side].type === 'inside' ? 'filler' : 'end_panel';
     else if (settings.autoEndPanelOnFreeEnd && !isAdjacent(side)) type = 'end_panel';
     return [side, { type, width: null }];
   }));
-  const heightMode = settings.snapHeightsToDefaults ? 'auto' : 'manual';
   const geometry = heightMode === 'auto'
     ? typeDefaults
     : {

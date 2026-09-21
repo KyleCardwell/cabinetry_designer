@@ -2,8 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { landWallEnd } from '../landings.js';
 import {
+  describeAnchor,
+  roomDiagnostics,
+  stretchRun,
+  syncRoom,
+} from '../room.js';
+import { createRun } from '../runDefaults.js';
+import {
   createSoffit,
   resolveSoffitSpan,
+  runMolding,
   soffitMoldingDrop,
   validateSoffitPlacement,
 } from '../soffits.js';
@@ -97,9 +105,6 @@ const soffitWall = (runs = [], soffit = SF()) => makeRoom([
 ]);
 const runById = (room, id) => wallById(room, 'S').runs.find((run) => run.id === id);
 
-void upper;
-void runById;
-
 describe('SPEC-19 soffit shape and helpers', () => {
   it('160. resolves soffit spans from wall ends and wing-wall faces', () => {
     const endRoom = soffitWall([], SF({
@@ -168,5 +173,108 @@ describe('SPEC-19 soffit shape and helpers', () => {
     expect(['crown', 'topMold', 'none'].map((molding) => (
       soffitMoldingDrop(molding, profile)
     ))).toEqual([6, 3, 0]);
+  });
+});
+
+describe('SPEC-19 soffit resolution', () => {
+  it('166. caps auto-height runs under each soffit molding', () => {
+    for (const [molding, height] of [
+      ['crown', 24],
+      ['topMold', 27],
+      ['none', 30],
+    ]) {
+      const room = syncRoom(soffitWall([
+        upper('U1', { x: 40, width: 60 }),
+      ], SF({ molding })), DEFAULT_SETTINGS);
+      const run = runById(room, 'U1');
+      expect({ z: run.z, height: run.height }).toEqual({ z: 54, height });
+      expect(runMolding(wallById(room, 'S'), run)).toBe(molding);
+    }
+  });
+
+  it('167. reports only partial or manual-height soffit conflicts', () => {
+    const room = syncRoom(soffitWall([
+      upper('U1', { x: 40, width: 60 }),
+      upper('U2', { x: 100, width: 30 }),
+      upper('U3', { x: 90, width: 30, wallSide: 'back' }),
+      upper('U4', { x: 10, width: 40 }),
+    ]), DEFAULT_SETTINGS);
+    expect(['U1', 'U2', 'U3', 'U4'].map((id) => runById(room, id).height))
+      .toEqual([24, 36, 36, 36]);
+
+    const diagnostics = roomDiagnostics(room, DEFAULT_SETTINGS);
+    for (const id of ['U1', 'U2', 'U3']) {
+      expect(diagnostics[id].warnings.filter((warning) => warning.code === 'soffit-conflict'))
+        .toEqual([]);
+    }
+    expect(diagnostics.U4.warnings.filter((warning) => warning.code === 'soffit-conflict'))
+      .toEqual([{ code: 'soffit-conflict', soffitId: 'SF' }]);
+
+    const manual = soffitWall([
+      upper('M1', { x: 50, width: 30, heightMode: 'manual' }),
+    ]);
+    expect(roomDiagnostics(manual, DEFAULT_SETTINGS).M1.warnings
+      .filter((warning) => warning.code === 'soffit-conflict'))
+      .toEqual([{ code: 'soffit-conflict', soffitId: 'SF' }]);
+  });
+
+  it('168. resolves and describes run anchors against soffit sides', () => {
+    const room = syncRoom(soffitWall([
+      upper('A1', {
+        x: 105,
+        anchors: {
+          left: { to: 'soffit', soffitId: 'SF', offset: 0 },
+          right: false,
+        },
+      }),
+      upper('A2', {
+        anchors: {
+          left: false,
+          right: { to: 'soffit', soffitId: 'SF', offset: 0.5 },
+        },
+      }),
+    ]), DEFAULT_SETTINGS);
+    const wall = wallById(room, 'S');
+    expect(runById(room, 'A1').x).toBe(100);
+    expect(runById(room, 'A2').x).toBe(9.5);
+    expect(describeAnchor(room, wall, runById(room, 'A2'), 'right', DEFAULT_SETTINGS))
+      .toBe('Against soffit · 1/2" gap');
+  });
+
+  it('169. creates a run anchored beside a soffit with the contextual end type', () => {
+    const create = (room) => {
+      const synced = syncRoom(room, DEFAULT_SETTINGS);
+      return createRun(
+        { x: 100.5, width: 30, bottomZ: 54, topZ: 90 },
+        {
+          settings: DEFAULT_SETTINGS,
+          room: synced,
+          wall: wallSideView(wallById(synced, 'S'), 'front'),
+        },
+      );
+    };
+
+    const exposed = create(soffitWall());
+    expect(exposed.anchors).toEqual({
+      left: { to: 'soffit', soffitId: 'SF', offset: 0 },
+      right: false,
+    });
+    expect(exposed.ends.left).toEqual({ type: 'end_panel', width: null });
+
+    const adjacent = create(soffitWall([upper('U1', { x: 40, width: 60 })]));
+    expect(adjacent.ends.left).toEqual({ type: 'filler', width: null });
+  });
+
+  it('170. stretches a run edge to a soffit anchor', () => {
+    const room = syncRoom(soffitWall([
+      upper('B1', { x: 110, width: 30 }),
+    ]), DEFAULT_SETTINGS);
+    const result = stretchRun(room, 'S', 'B1', 'left', 101, DEFAULT_SETTINGS);
+    expect(result.ok).toBe(true);
+    const run = runById(result.room, 'B1');
+    expect({ x: run.x, width: run.width }).toEqual({ x: 100, width: 40 });
+    expect(run.anchors.left)
+      .toEqual({ to: 'soffit', soffitId: 'SF', offset: 0 });
+    expect(run.ends.left).toEqual({ type: 'end_panel', width: null });
   });
 });
