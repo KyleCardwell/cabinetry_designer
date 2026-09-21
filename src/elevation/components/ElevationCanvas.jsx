@@ -91,6 +91,7 @@ import LiveEntryInput from './LiveEntryInput.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
 import RunGroup from './RunGroup.jsx';
+import WallEndPanelShapes from './WallEndPanelShapes.jsx';
 import WallFrame from './WallFrame.jsx';
 
 const ALIGNMENT_SNAP_PX = 6;
@@ -1387,6 +1388,12 @@ function ElevationCanvas({
           </Layer>
           <Layer listening={false}>
             <NeighborReturns
+              room={room}
+              wall={wall}
+              settings={settings}
+              transform={transform}
+            />
+            <WallEndPanelShapes
               room={room}
               wall={wall}
               settings={settings}

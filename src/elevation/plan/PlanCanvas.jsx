@@ -28,7 +28,7 @@ import useLiveEntry, {
   resolveLiveEntryValue,
 } from '../canvas/useLiveEntry.js';
 import LiveEntryInput from '../components/LiveEntryInput.jsx';
-import { CABINET_TYPE_IDS } from '../model/constants.js';
+import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { findCollisions, footprintsAtPoint } from '../model/footprints.js';
 import {
   dot,
@@ -43,6 +43,7 @@ import {
 } from '../model/openings.js';
 import { wallLabel } from '../model/topology.js';
 import { formatInches, roundTo } from '../model/units.js';
+import { wallEndPanelPolygon, wallEndPanels } from '../model/wallEndPanels.js';
 import { wallOutline } from '../model/wallOutline.js';
 import { wallSideFrame, wallSideOf } from '../model/wallSides.js';
 import {
@@ -987,6 +988,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 onSelect={handleRunSelect}
               />
             ))}
+            {walls.flatMap((wall) => wallEndPanels(room, wall, settings).map((panel) => (
+              <Line
+                key={`${wall.id}:${panel.endpoint}`}
+                points={wallEndPanelPolygon(room, wall, panel)
+                  .flatMap((point) => [point.x, point.y])}
+                closed
+                fill={KIND_COLORS.end_panel}
+                opacity={0.7}
+                listening={false}
+              />
+            )))}
             {wallMovePreview?.room && (
               <Group listening={false}>
                 {wallMovePreview.affectedWallIds.map((wallId) => {

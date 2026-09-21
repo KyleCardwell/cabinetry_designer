@@ -47,6 +47,7 @@ import elevationReducer, {
   setSelection,
   setTool,
   setView,
+  setWallEndPanel,
   setWallLength,
   splitItem,
   updateOpening,
@@ -1465,5 +1466,34 @@ describe('SPEC-17 wall end panel shape', () => {
       x1: 0, y1: 0, x2: 96, y2: 0, thickness: 0,
     }));
     expect(state.rooms[0].walls.at(-1).endPanels).toEqual({ start: null, end: null });
+  });
+});
+
+describe('SPEC-17 wall end panel UI', () => {
+  it('132. sets, updates, removes, and validates wall end panels', () => {
+    let state = elevationReducer(stateWithRun(), setWallEndPanel({
+      wallId: 'wall-1', endpoint: 'start', panel: { width: null },
+    }));
+    expect(state.rooms[0].walls[0].endPanels.start).toEqual({ width: null });
+
+    state = elevationReducer(state, setWallEndPanel({
+      wallId: 'wall-1', endpoint: 'end', panel: { width: 1 },
+    }));
+    expect(state.rooms[0].walls[0].endPanels.end).toEqual({ width: 1 });
+
+    state = elevationReducer(state, setWallEndPanel({
+      wallId: 'wall-1', endpoint: 'start', panel: null,
+    }));
+    expect(state.rooms[0].walls[0].endPanels.start).toBeNull();
+
+    const unchanged = elevationReducer(state, setWallEndPanel({
+      wallId: 'wall-1', endpoint: 'middle', panel: { width: 1 },
+    }));
+    expect(unchanged).toBe(state);
+
+    const invalid = elevationReducer(state, setWallEndPanel({
+      wallId: 'wall-1', endpoint: 'end', panel: { width: -1 },
+    }));
+    expect(invalid).toBe(state);
   });
 });

@@ -439,6 +439,20 @@ const elevationSlice = createSlice({
       state.message = null;
       setCompensatedWalls(state, roomIndex, result.walls);
     },
+    setWallEndPanel(state, action) {
+      const location = wallLocation(state, action.payload);
+      const { endpoint, panel } = action.payload;
+      const validPanel = panel === null || (
+        panel
+        && typeof panel === 'object'
+        && !Array.isArray(panel)
+        && (panel.width === null || (Number.isFinite(panel.width) && panel.width >= 0))
+      );
+      if (!location || !['start', 'end'].includes(endpoint) || !validPanel) return;
+      location.wall.endPanels ??= { start: null, end: null };
+      location.wall.endPanels[endpoint] = panel ? { width: panel.width ?? null } : null;
+      syncRoomAt(state, location.roomIndex);
+    },
     updateWall(state, action) {
       const location = wallLocation(state, action.payload);
       if (!location) return;
@@ -1104,6 +1118,7 @@ export const {
   connectWalls,
   disconnectWallEndpoint,
   setWallLength,
+  setWallEndPanel,
   updateWall,
   deleteWall,
   setActiveWall,

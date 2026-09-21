@@ -74,6 +74,7 @@ import {
   setRunOverride,
   setRunType,
   setSelection,
+  setWallEndPanel,
   setWallLength,
   splitItem,
   resizeOpening,
@@ -1449,6 +1450,7 @@ function PieceProperties({ wall, run, layout, selectionContext, settings }) {
 
 function WallHeightProperties({ room, wall, plan }) {
   const dispatch = useDispatch();
+  const settings = useSelector((state) => state.elevation.settings);
   const autoNumber = wallNumbers(room).get(wall.id);
   const duplicateNumber = wallNumberWarnings(room)
     .some((warning) => warning.wallIds.includes(wall.id));
@@ -1591,6 +1593,61 @@ function WallHeightProperties({ room, wall, plan }) {
             </Field>
           </>
         )}
+      </section>
+
+      <section>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Wall end panels
+        </h3>
+        <div className="space-y-2.5">
+          {[
+            ['Left end', frame.leftEndpoint, leftFree],
+            ['Right end', frame.rightEndpoint, rightFree],
+          ].map(([label, endpoint, free]) => {
+            const panel = wall.endPanels?.[endpoint] ?? null;
+            return (
+              <div
+                key={endpoint}
+                className="rounded border border-gray-700 bg-gray-900/45 px-3 py-2"
+              >
+                <label className={`flex items-center justify-between text-sm ${free ? 'text-gray-300' : 'text-gray-500'}`}>
+                  {label}
+                  <input
+                    type="checkbox"
+                    checked={Boolean(panel)}
+                    disabled={!free}
+                    onChange={(event) => dispatch(setWallEndPanel({
+                      wallId: wall.id,
+                      endpoint,
+                      panel: event.target.checked ? { width: null } : null,
+                    }))}
+                    aria-label={`${label} wall end panel`}
+                  />
+                </label>
+                {!free && (
+                  <p className="mt-1 text-xs text-gray-500">Connected — corner</p>
+                )}
+                {panel && (
+                  <div className="mt-2">
+                    <Field label="Width">
+                      <InchInput
+                        value={panel.width}
+                        allowBlank
+                        placeholder={formatInches(settings.endPanelThickness)}
+                        onCommit={(width) => dispatch(setWallEndPanel({
+                          wallId: wall.id,
+                          endpoint,
+                          panel: { width },
+                        }))}
+                        aria-label={`${label} panel width`}
+                      />
+                    </Field>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       <section>
