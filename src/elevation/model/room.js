@@ -98,18 +98,22 @@ export function compensateRuns(oldRoom, newRoom) {
     walls: newRoom.walls.map((wall) => {
       const oldWall = oldWalls.get(wall.id);
       if (!oldWall) return wall;
-      const oldFrame = wallFrame(oldRoom, oldWall);
-      const newFrame = wallFrame(newRoom, wall);
-      const shift = dot(subtract(newFrame.leftPoint, oldFrame.leftPoint), newFrame.r);
-      if (Math.abs(shift) <= 1e-9) return wall;
+      const oldWallForFrame = { openings: [], ...oldWall };
+      const wallForFrame = { openings: [], ...wall };
+      const shifts = Object.fromEntries(WALL_SIDES.map((side) => {
+        const oldFrame = wallFrame(oldRoom, wallSideView(oldWallForFrame, side));
+        const newFrame = wallFrame(newRoom, wallSideView(wallForFrame, side));
+        return [side, dot(subtract(newFrame.leftPoint, oldFrame.leftPoint), newFrame.r)];
+      }));
+      if (WALL_SIDES.every((side) => Math.abs(shifts[side]) <= 1e-9)) return wall;
       return {
         ...wall,
         joints: (wall.joints ?? []).map((joint) => ({
           ...joint,
-          x: joint.x - shift,
+          x: joint.x - shifts[wallSideOf(joint)],
         })),
         runs: (wall.runs ?? []).map((run) => (
-          run.anchors?.left ? run : { ...run, x: run.x - shift }
+          run.anchors?.left ? run : { ...run, x: run.x - shifts[wallSideOf(run)] }
         )),
       };
     }),
@@ -631,6 +635,9 @@ export function joinEdges(room, wallId, source, target, settings) {
   if (!sourceWall || !sourceRun || !targetRun) {
     return { ok: false, reason: 'run-not-found', room };
   }
+  if (wallSideOf(sourceRun) !== wallSideOf(targetRun)) {
+    return { ok: false, reason: 'joint-other-side', room };
+  }
 
   const targetAnchor = targetRun.anchors?.[target.side];
   if (targetAnchor && !isJointAnchor(targetAnchor)) {
@@ -691,7 +698,11 @@ export function joinTouchingEdges(room, wallId, runId, settings) {
     const opposite = side === 'left' ? 'right' : 'left';
     const edge = runEdgeX(run, side);
     const candidates = wall.runs
-      .filter((candidate) => candidate.id !== runId && runsOverlapVertically(run, candidate))
+      .filter((candidate) => (
+        candidate.id !== runId
+        && wallSideOf(candidate) === wallSideOf(run)
+        && runsOverlapVertically(run, candidate)
+      ))
       .map((candidate) => ({
         run: candidate,
         anchor: candidate.anchors?.[opposite],
@@ -957,6 +968,7 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
   if (!sourceWall || !sourceRun || !Number.isFinite(newEdgeX)) {
     return { ok: false, reason: 'run-not-found', room };
   }
+  const sideWall = wallViewForRun(sourceWall, sourceRun);
   const jointAnchor = sourceRun.anchors?.[side];
   if (isJointAnchor(jointAnchor)) {
     const offset = jointAnchor.offset ?? 0;
@@ -964,15 +976,15 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
     return moveJoint(room, wallId, jointAnchor.jointId, jointX, settings);
   }
 
-  const length = wallLength(sourceWall);
-  const reserveLeft = cornerReserve(room, sourceWall, 'left', sourceRun, settings);
-  const reserveRight = cornerReserve(room, sourceWall, 'right', sourceRun, settings);
+  const length = wallLength(sideWall);
+  const reserveLeft = cornerReserve(room, sideWall, 'left', sourceRun, settings);
+  const reserveRight = cornerReserve(room, sideWall, 'right', sourceRun, settings);
   const candidates = [
     { value: 0, anchor: side === 'left' },
     { value: length, anchor: side === 'right' },
     { value: reserveLeft, anchor: side === 'left' },
     { value: length - reserveRight, anchor: side === 'right' },
-    ...sourceWall.runs
+    ...sideWall.runs
       .filter((run) => run.id !== runId)
       .flatMap((run) => [
         { value: run.x, anchor: false, runId: run.id, side: 'left' },
@@ -1017,7 +1029,7 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
     },
   };
   if (anchorsAtSnap) {
-    const inside = cornerAt(room, sourceWall, side).type === 'inside';
+    const inside = cornerAt(room, sideWall, side).type === 'inside';
     if (inside) proposed.ends[side] = { type: 'filler', width: null };
     else if (proposed.ends[side].type !== 'end_panel') {
       proposed.ends[side] = { type: 'end_panel', width: null };
@@ -1089,7 +1101,7 @@ export function moveRun(room, wallId, runId, newX, settings) {
       length,
       cornerReserve(room, sourceWall, 'left', sourceRun, settings),
       length - cornerReserve(room, sourceWall, 'right', sourceRun, settings),
-      ...sourceWall.runs
+      ...wallViewForRun(sourceWall, sourceRun).runs
         .filter((run) => run.id !== runId)
         .flatMap((run) => [run.x, run.x + run.width]),
     ];
@@ -1164,7 +1176,7 @@ export function moveRun(room, wallId, runId, newX, settings) {
     length,
     cornerReserve(resolvedRoom, resolvedWall, 'left', resolvedRun, settings),
     length - cornerReserve(resolvedRoom, resolvedWall, 'right', resolvedRun, settings),
-    ...resolvedWall.runs
+    ...wallViewForRun(resolvedWall, resolvedRun).runs
       .filter((run) => run.id !== runId)
       .flatMap((run) => {
         const edges = movingEdges.get(run.id);

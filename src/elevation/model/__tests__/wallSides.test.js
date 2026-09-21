@@ -2,10 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { cornerAt } from '../corners.js';
 import { horizontalChains, openingChain } from '../dimensions.js';
+import { findCollisions, footprintsAtPoint, runFootprint } from '../footprints.js';
 import { openingGeometry } from '../openings.js';
 import {
+  compensateRuns,
+  joinEdges,
+  joinTouchingEdges,
+  moveRun,
   resolveWall,
   roomDiagnostics,
+  stretchRun,
   syncRoom,
   tryPlaceRun,
 } from '../room.js';
@@ -295,5 +301,119 @@ describe('wall sides', () => {
     expect(horizontalChains(room, backView, 'lower', settings).inner
       .filter((segment) => segment.kind === 'piece')
       .every((segment) => segment.runId === 'BK')).toBe(true);
+  });
+
+  it('113. joins run edges on the same wall side only', () => {
+    const room = makeRoom([makeWall('J', 0, 0, 96, 0, {
+      thickness: 0,
+      runs: [
+        base('P', { width: 48 }),
+        base('Q', { x: 48, width: 48, wallSide: 'back' }),
+        base('R', { x: 48, width: 48 }),
+      ],
+    })]);
+
+    expect(joinEdges(
+      room,
+      'J',
+      { runId: 'P', side: 'right' },
+      { runId: 'Q', side: 'left' },
+      settings,
+    )).toMatchObject({ ok: false, reason: 'joint-other-side' });
+    const joined = joinEdges(
+      room,
+      'J',
+      { runId: 'P', side: 'right' },
+      { runId: 'R', side: 'left' },
+      settings,
+    );
+    expect(joined.room.walls[0].joints.map(({ x, wallSide }) => [x, wallSide]))
+      .toEqual([[48, 'front']]);
+  });
+
+  it('114. joins touching edges on the same wall side only', () => {
+    const room = makeRoom([makeWall('J', 0, 0, 96, 0, {
+      thickness: 0,
+      runs: [
+        base('P', { width: 48 }),
+        base('Q', { x: 48, width: 48, wallSide: 'back' }),
+      ],
+    })]);
+    const joined = joinTouchingEdges(room, 'J', 'Q', settings);
+
+    expect(joined.joined).toEqual([]);
+    expect(joined.room.walls[0].joints).toEqual([]);
+  });
+
+  it('115. snaps stretched and moved runs on their own wall side only', () => {
+    const room = makeRoom([makeWall('W', 0, 0, 96, 0, {
+      thickness: 0,
+      runs: [
+        base('F', { width: 40 }),
+        base('K', { width: 30, wallSide: 'back' }),
+      ],
+    })]);
+    const stretched = stretchRun(room, 'W', 'K', 'right', 39, settings);
+    const moved = moveRun(room, 'W', 'K', 11, settings);
+
+    expect(byId(stretched.room.walls[0], 'K')).toMatchObject({ x: 0, width: 39 });
+    expect(byId(moved.room.walls[0], 'K')).toMatchObject({ x: 11 });
+    expect(moved.snap).toBeNull();
+  });
+
+  it('116. compensates run positions independently on each wall side', () => {
+    const before = makeRoom([makeWall('W', 0, 0, 120, 0, {
+      thickness: 0,
+      runs: [
+        base('f1', { x: 10, width: 30 }),
+        base('b1', { x: 10, width: 30, wallSide: 'back' }),
+      ],
+    })]);
+    const after = makeRoom([makeWall('W', -12, 0, 120, 0, {
+      thickness: 0,
+      runs: [
+        base('f1', { x: 10, width: 30 }),
+        base('b1', { x: 10, width: 30, wallSide: 'back' }),
+      ],
+    })]);
+
+    expect(compensateRuns(before, after).walls[0].runs.map(({ id, x }) => [id, x]))
+      .toEqual([['f1', 22], ['b1', 10]]);
+  });
+
+  it('117. resolves island run footprints on each wall side', () => {
+    const room = syncRoom(isl(), settings);
+    const I = room.walls[0];
+    const F = byId(I, 'F');
+    const K = byId(I, 'K');
+
+    expect(runFootprint(wallSideFrame(room, I, 'front'), F, settings)).toEqual([
+      { x: 0, y: 0 },
+      { x: 96, y: 0 },
+      { x: 96, y: 24.875 },
+      { x: 0, y: 24.875 },
+    ]);
+    expect(runFootprint(wallSideFrame(room, I, 'back'), K, settings)).toEqual([
+      { x: 96, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: -24.875 },
+      { x: 96, y: -24.875 },
+    ]);
+    expect(footprintsAtPoint(room, { x: 48, y: 10 }, settings)).toEqual(['F']);
+    expect(footprintsAtPoint(room, { x: 48, y: -10 }, settings)).toEqual(['K']);
+    expect(findCollisions(room, settings)).toEqual([]);
+  });
+
+  it('118. offsets back-side footprints by wall thickness', () => {
+    const room = square();
+    const A = room.walls[0];
+    const Z = base('Z', { width: 30, wallSide: 'back' });
+
+    expect(runFootprint(wallSideFrame(room, A, 'back'), Z, settings)).toEqual([
+      { x: 120, y: -4.5 },
+      { x: 90, y: -4.5 },
+      { x: 90, y: -29.375 },
+      { x: 120, y: -29.375 },
+    ]);
   });
 });

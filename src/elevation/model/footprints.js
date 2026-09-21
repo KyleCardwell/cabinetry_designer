@@ -1,6 +1,7 @@
 import { bandsCompatible, frontDepth } from './corners.js';
 import { CABINET_TYPE_IDS } from './constants.js';
-import { elevationToPlan, wallFrame } from './geometry.js';
+import { elevationToPlan } from './geometry.js';
+import { wallSideFrame, wallSideOf } from './wallSides.js';
 
 /** Return the four-point plan polygon occupied by a run. */
 export function runFootprint(frame, run, settings) {
@@ -42,12 +43,14 @@ export function footprintsAtPoint(room, point, settings) {
   const lower = [];
 
   for (const wall of room.walls ?? []) {
-    const frame = wallFrame(room, wall);
     for (const run of wall.runs ?? []) {
       const target = run.cabinetTypeId === CABINET_TYPE_IDS.UPPER ? upper : lower;
       target.push({
         id: run.id,
-        containsPoint: polygonContainsPoint(runFootprint(frame, run, settings), point),
+        containsPoint: polygonContainsPoint(
+          runFootprint(wallSideFrame(room, wall, wallSideOf(run)), run, settings),
+          point,
+        ),
       });
     }
   }
@@ -110,10 +113,11 @@ export function polygonOverlap(a, b) {
 
 /** Find cross-wall run footprint collisions and report both affected runs. */
 export function findCollisions(room, settings) {
-  const entries = room.walls.flatMap((wall) => {
-    const frame = wallFrame(room, wall);
-    return wall.runs.map((run) => ({ wall, run, polygon: runFootprint(frame, run, settings) }));
-  });
+  const entries = room.walls.flatMap((wall) => wall.runs.map((run) => ({
+    wall,
+    run,
+    polygon: runFootprint(wallSideFrame(room, wall, wallSideOf(run)), run, settings),
+  })));
   const collisions = [];
   for (let aIndex = 0; aIndex < entries.length; aIndex += 1) {
     for (let bIndex = aIndex + 1; bIndex < entries.length; bIndex += 1) {
