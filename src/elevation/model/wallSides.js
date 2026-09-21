@@ -31,6 +31,15 @@ export function wallViewForRun(wall, run) {
   return wallSideView(wall, wallSideOf(run));
 }
 
+export function wallEndPanelAt(room, wall, side, settings) {
+  const frame = wallFrame(room, wall);
+  const endpoint = side === 'left' ? frame.leftEndpoint : frame.rightEndpoint;
+  if (wall.connections?.[endpoint]) return null;
+  const panel = wall.endPanels?.[endpoint];
+  if (!panel) return null;
+  return { endpoint, width: panel.width ?? settings.endPanelThickness };
+}
+
 export function wallSideFrame(room, wall, side = 'front') {
   const view = wallSideView(wall, side);
   const frame = wallFrame(room, view);

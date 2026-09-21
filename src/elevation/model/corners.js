@@ -7,7 +7,12 @@ import {
   wallFrame,
 } from './geometry.js';
 import { roundTo } from './units.js';
-import { wallSideOf, wallSideView, wallViewForRun } from './wallSides.js';
+import {
+  wallEndPanelAt,
+  wallSideOf,
+  wallSideView,
+  wallViewForRun,
+} from './wallSides.js';
 
 /** Return the installed front depth of a run. */
 export function frontDepth(run, settings) {
@@ -72,6 +77,8 @@ export function cornerReserveParts(room, wall, side, run, settings) {
   if (corner.type !== 'inside') {
     const override = run.cornerClearance?.[side];
     const custom = typeof override === 'number' && Number.isFinite(override);
+    const panel = corner.type === 'open' ? wallEndPanelAt(room, wall, side, settings) : null;
+    if (panel && !custom) return { face: panel.width, back: 0, total: panel.width, source: 'panel' };
     return {
       face: 0,
       back: 0,

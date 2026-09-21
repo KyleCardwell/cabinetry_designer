@@ -31,6 +31,7 @@ import { computeWallOrder } from './topology.js';
 import { formatInches, roundTo } from './units.js';
 import {
   WALL_SIDES,
+  wallEndPanelAt,
   wallSideOf,
   wallSideView,
   wallViewForRun,
@@ -222,6 +223,7 @@ export function describeAnchor(room, wall, run, side, settings) {
   const corner = cornerAt(room, wall, side);
   const parts = cornerReserveParts(room, wall, side, run, settings);
   if (corner.type !== 'inside') {
+    if (parts.source === 'panel') return `Wall end panel ${formatInches(parts.total)}`;
     if (parts.source === 'auto') return 'Flush with the wall end';
     return parts.total < 0
       ? `${formatInches(Math.abs(parts.total))} past the wall end`
@@ -493,12 +495,20 @@ export function syncRoom(room, settings) {
         ...wall,
         runs: wall.runs.map((run) => ({
           ...run,
-          ends: Object.fromEntries(Object.entries(run.ends).map(([side, end]) => [
-            side,
-            isJointAnchor(run.anchors?.[side]) && end.auto === true
-              ? { type: endTypes.get(run.id)[side], width: null, auto: true }
-              : end,
-          ])),
+          ends: Object.fromEntries(Object.entries(run.ends).map(([side, end]) => {
+            const anchor = run.anchors?.[side];
+            if (isJointAnchor(anchor) && end.auto === true) {
+              return [side, { type: endTypes.get(run.id)[side], width: null, auto: true }];
+            }
+            if (run.anchors?.[side] === true
+              && wallEndPanelAt(nextRoom, wallViewForRun(wall, run), side, settings)) {
+              return [side, { type: 'none', width: null, auto: true }];
+            }
+            if (!isJointAnchor(anchor) && end.auto === true) {
+              return [side, { type: 'end_panel', width: null }];
+            }
+            return [side, end];
+          })),
         })),
       };
     }),

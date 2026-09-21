@@ -6,6 +6,7 @@ import { findCollisions, footprintsAtPoint, runFootprint } from '../footprints.j
 import { openingGeometry } from '../openings.js';
 import {
   compensateRuns,
+  describeAnchor,
   joinEdges,
   joinTouchingEdges,
   moveRun,
@@ -16,6 +17,8 @@ import {
   tryPlaceRun,
 } from '../room.js';
 import { createRun } from '../runDefaults.js';
+import { splitRun } from '../splitRun.js';
+import { wallEndPanelPolygon, wallEndPanels } from '../wallEndPanels.js';
 import {
   mirrorOpening,
   wallSideFrame,
@@ -65,6 +68,12 @@ function isl(overrides = {}) {
     runs: [F, K],
     ...overrides,
   })]);
+}
+
+function isp() {
+  const room = isl({ endPanels: { start: { width: null }, end: null } });
+  byId(room.walls[0], 'K').depth = 12;
+  return room;
 }
 
 function square() {
@@ -415,5 +424,88 @@ describe('wall sides', () => {
       { x: 90, y: -29.375 },
       { x: 120, y: -29.375 },
     ]);
+  });
+
+  it('126. reserves wall end panels and sets run end types', () => {
+    const room = syncRoom(isp(), settings);
+    const I = room.walls[0];
+    const F = byId(I, 'F');
+    const K = byId(I, 'K');
+
+    expect(F).toMatchObject({ x: 0.75, width: 95.25 });
+    expect(K).toMatchObject({ x: 0, width: 95.25 });
+    expect(F.ends.left).toEqual({ type: 'none', width: null, auto: true });
+    expect(F.ends.right).toEqual({ type: 'end_panel', width: null });
+    expect(K.ends.right).toEqual({ type: 'none', width: null, auto: true });
+    expect(splitRun(F, settings, {}).pieces.map(({ kind, width }) => [kind, width]))
+      .toEqual([['cabinet', 94.5], ['end_panel', 0.75]]);
+  });
+
+  it('127. restores run end panels when a wall end panel is removed', () => {
+    const room = syncRoom(isp(), settings);
+    room.walls[0].endPanels = { start: null, end: null };
+    const F = byId(syncRoom(room, settings).walls[0], 'F');
+
+    expect(F).toMatchObject({
+      x: 0,
+      width: 96,
+      ends: { left: { type: 'end_panel', width: null } },
+    });
+    expect(F.ends.left.auto).toBeUndefined();
+  });
+
+  it('128. reserves custom-width wall end panels on both ends', () => {
+    const room = syncRoom(isl({
+      endPanels: { start: { width: 1 }, end: { width: 1 } },
+    }), settings);
+    const I = room.walls[0];
+
+    expect(byId(I, 'F')).toMatchObject({ x: 1, width: 94 });
+    expect(byId(I, 'K')).toMatchObject({ x: 1, width: 94 });
+  });
+
+  it('129. builds wall end panel elevation and plan geometry', () => {
+    const room = syncRoom(isp(), settings);
+    const I = room.walls[0];
+    const panels = wallEndPanels(room, I, settings);
+
+    expect(panels).toEqual([{
+      endpoint: 'start', width: 0.75, top: 34.5, thickness: 0,
+      front: { side: 'left', x: 0, depth: 24.875, top: 34.5, runIds: ['F'] },
+      back: { side: 'right', x: 95.25, depth: 12.875, top: 34.5, runIds: ['K'] },
+    }]);
+    expect(wallEndPanelPolygon(room, I, panels[0])).toEqual([
+      { x: 0, y: -12.875 },
+      { x: 0.75, y: -12.875 },
+      { x: 0.75, y: 24.875 },
+      { x: 0, y: 24.875 },
+    ]);
+  });
+
+  it('130. keeps custom clearance ahead of wall end panel reserve', () => {
+    const room = isp();
+    byId(room.walls[0], 'F').cornerClearance = { left: 2, right: 'auto' };
+    const synced = syncRoom(room, settings);
+    const F = byId(synced.walls[0], 'F');
+    const panelRoom = syncRoom(isp(), settings);
+    const I = panelRoom.walls[0];
+
+    expect(F).toMatchObject({ x: 2, width: 94 });
+    expect(describeAnchor(panelRoom, I, byId(I, 'F'), 'left', settings))
+      .toBe('Wall end panel 3/4"');
+  });
+
+  it('131. ignores a wall end panel at a connected endpoint', () => {
+    const PB = base('PB', {
+      wallSide: 'back',
+      anchors: { left: false, right: true },
+    });
+    const room = flippedL([PB]);
+    room.walls[0].endPanels = { start: null, end: { width: null } };
+    const synced = syncRoom(room, settings);
+    const P = synced.walls[0];
+
+    expect(wallEndPanels(synced, P, settings)).toEqual([]);
+    expect(byId(P, 'PB').width).toBe(96);
   });
 });

@@ -105,7 +105,16 @@ export {
   validateOpeningPlacement,
 } from './openings.js';
 export { wallOutline } from './wallOutline.js';
-export { WALL_SIDES, mirrorOpening, wallSideFrame, wallSideOf, wallSideView, wallViewForRun } from './wallSides.js';
+export {
+  WALL_SIDES,
+  mirrorOpening,
+  wallEndPanelAt,
+  wallSideFrame,
+  wallSideOf,
+  wallSideView,
+  wallViewForRun,
+} from './wallSides.js';
+export { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
 export {
   counterTop,
   crownOverlap,
