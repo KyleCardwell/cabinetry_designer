@@ -88,6 +88,7 @@ function createWall(name = '', y = 0, length = 144, values = {}) {
     profile: values.profile ?? {},
     runs: values.runs ?? [],
     openings: values.openings ?? [],
+    soffits: values.soffits ?? [],
   };
 }
 
@@ -122,6 +123,7 @@ export function createInitialElevationState(document = loadElevationDocument()) 
       runId: null,
       pieceId: null,
       openingId: null,
+      soffitId: null,
       wallId: document?.view === 'elevation' ? activeWallId : null,
     },
     facePath: null,
@@ -225,6 +227,7 @@ function clearTransientSelection(state) {
     runId: null,
     pieceId: null,
     openingId: null,
+    soffitId: null,
     wallId: state.view === 'elevation' ? state.activeWallId : null,
   };
   state.facePath = null;

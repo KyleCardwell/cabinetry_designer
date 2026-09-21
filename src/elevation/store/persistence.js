@@ -12,6 +12,7 @@ import {
   isStyle,
 } from '../model/styles.js';
 import { wallFrame } from '../model/geometry.js';
+import { SOFFIT_MOLDINGS } from '../model/soffits.js';
 import {
   computeWallOrder,
   normalizeWallName,
@@ -76,6 +77,8 @@ const V2_NUMERIC_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
   (key) => typeof DEFAULT_SETTINGS[key] === 'number',
 );
 const V2_DEFAULTED_SETTING_KEYS = [
+  'defaultSoffitDepth',
+  'defaultSoffitMolding',
   'autoEndPanelOnFreeEnd',
   'adjacentRunGap',
   'maxRunOverhang',
@@ -176,6 +179,9 @@ function isRunAnchor(anchor) {
       && (anchor.offset === null || isFiniteNumber(anchor.offset)))
     || (anchor.to === 'wall'
       && typeof anchor.wallId === 'string')
+    || (anchor.to === 'soffit'
+      && typeof anchor.soffitId === 'string'
+      && (anchor.offset === null || isFiniteNumber(anchor.offset)))
   ));
 }
 
@@ -256,6 +262,23 @@ function isLandings(landings) {
     ));
 }
 
+function isSoffitAnchor(anchor) {
+  return anchor === false || (Boolean(anchor)
+    && (anchor.offset === null || isFiniteNumber(anchor.offset))
+    && (anchor.to === 'end'
+      || (anchor.to === 'wall' && typeof anchor.wallId === 'string')));
+}
+
+function isSoffit(soffit) {
+  return Boolean(soffit)
+    && typeof soffit.id === 'string'
+    && (soffit.wallSide === 'front' || soffit.wallSide === 'back')
+    && ['x', 'width', 'bottom', 'depth'].every((key) => isFiniteNumber(soffit[key]))
+    && SOFFIT_MOLDINGS.includes(soffit.molding)
+    && isSoffitAnchor(soffit.anchors?.left)
+    && isSoffitAnchor(soffit.anchors?.right);
+}
+
 function isWall(wall, profileKeys = PROFILE_KEYS) {
   return Boolean(wall)
     && typeof wall.id === 'string'
@@ -274,6 +297,8 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
     && wall.runs.every(isRun)
     && (wall.openings === undefined
       || (Array.isArray(wall.openings) && wall.openings.every(isOpening)))
+    && (wall.soffits === undefined
+      || (Array.isArray(wall.soffits) && wall.soffits.every(isSoffit)))
     && (wall.joints === undefined
       || (Array.isArray(wall.joints) && wall.joints.every((joint) => (
         Boolean(joint)

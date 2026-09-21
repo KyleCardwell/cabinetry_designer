@@ -41,6 +41,8 @@ export const DEFAULT_SETTINGS = {
   doorThickness: 0.8125,
   cornerFillerMinWidth: 1.5,
   cornerSnapDistance: 3,
+  defaultSoffitDepth: 14,
+  defaultSoffitMolding: 'crown',
   autoEndPanelOnFreeEnd: true,
   adjacentRunGap: 1,
   orthoWalls: true,

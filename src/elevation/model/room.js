@@ -89,6 +89,13 @@ function cloneRoom(room) {
         ...opening,
         casing: opening.casing ? { ...opening.casing } : null,
       })),
+      soffits: (wall.soffits ?? []).map((soffit) => ({
+        ...soffit,
+        anchors: {
+          left: soffit.anchors?.left ? { ...soffit.anchors.left } : false,
+          right: soffit.anchors?.right ? { ...soffit.anchors.right } : false,
+        },
+      })),
       joints: (wall.joints ?? []).map((joint) => ({ ...joint })),
       runs: wall.runs.map(cloneRun),
     })),

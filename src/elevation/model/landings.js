@@ -316,7 +316,14 @@ export function releaseWall(room, wallId, { deleting = true } = {}) {
           anchor?.to === 'wall' && anchor.wallId === wallId ? false : anchor,
         ])),
       }));
-      return { ...wall, landings, runs };
+      const soffits = (wall.soffits ?? []).map((soffit) => ({
+        ...soffit,
+        anchors: Object.fromEntries(Object.entries(soffit.anchors ?? {}).map(([side, anchor]) => [
+          side,
+          anchor?.to === 'wall' && anchor.wallId === wallId ? false : anchor,
+        ])),
+      }));
+      return { ...wall, landings, runs, soffits };
     }),
   };
 }

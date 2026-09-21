@@ -627,3 +627,40 @@ describe('wall landing persistence', () => {
     expect(isElevationDocument(invalidAnchor)).toBe(false);
   });
 });
+
+describe('SPEC-19 soffit persistence', () => {
+  const SF = (overrides = {}) => ({
+    id: 'SF',
+    wallSide: 'front',
+    x: 40,
+    width: 60,
+    bottom: 84,
+    depth: 14,
+    molding: 'crown',
+    anchors: { left: false, right: false },
+    ...overrides,
+  });
+
+  it('164. validates soffits and soffit anchors and defaults older settings', () => {
+    const valid = tbtDocument();
+    valid.rooms[0].walls[0].soffits = [SF()];
+    expect(isElevationDocument(valid)).toBe(true);
+
+    const invalid = tbtDocument();
+    invalid.rooms[0].walls[0].soffits = [SF({ molding: 'cove' })];
+    expect(isElevationDocument(invalid)).toBe(false);
+
+    const anchored = tbtDocument();
+    anchored.rooms[0].walls[0].runs[0].anchors.left = {
+      to: 'soffit', soffitId: 'SF', offset: 0,
+    };
+    expect(isElevationDocument(anchored)).toBe(true);
+
+    const older = tbtDocument();
+    delete older.settings.defaultSoffitDepth;
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(older)]]),
+    };
+    expect(loadElevationDocument().settings.defaultSoffitDepth).toBe(14);
+  });
+});

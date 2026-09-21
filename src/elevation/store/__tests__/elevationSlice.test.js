@@ -181,7 +181,7 @@ describe('SPEC-12 elevation selection persistence', () => {
     }));
 
     expect(next.selection).toEqual({
-      runId: null, pieceId: null, openingId: null, wallId: 'wall-1',
+      runId: null, pieceId: null, openingId: null, soffitId: null, wallId: 'wall-1',
     });
   });
 
@@ -242,10 +242,10 @@ describe('SPEC-12 elevation selection persistence', () => {
     };
 
     expect(elevationReducer(elevation, clearSelection()).selection).toEqual({
-      runId: null, pieceId: null, openingId: null, wallId: 'wall-1',
+      runId: null, pieceId: null, openingId: null, soffitId: null, wallId: 'wall-1',
     });
     expect(elevationReducer(plan, clearSelection()).selection).toEqual({
-      runId: null, pieceId: null, openingId: null, wallId: null,
+      runId: null, pieceId: null, openingId: null, soffitId: null, wallId: null,
     });
   });
 });
@@ -270,7 +270,7 @@ describe('elevation room reducers', () => {
     const next = elevationReducer(initial, setActiveWall('wall-2'));
     expect(next.activeWallId).toBe('wall-2');
     expect(next.selection).toEqual({
-      wallId: 'wall-2', runId: null, pieceId: null, openingId: null,
+      wallId: 'wall-2', runId: null, pieceId: null, openingId: null, soffitId: null,
     });
   });
 
@@ -282,7 +282,7 @@ describe('elevation room reducers', () => {
 
     const next = elevationReducer(initial, clearSelection());
     expect(next.selection).toEqual({
-      wallId: 'wall-1', runId: null, pieceId: null, openingId: null,
+      wallId: 'wall-1', runId: null, pieceId: null, openingId: null, soffitId: null,
     });
     expect(next.activeWallId).toBe('wall-1');
   });
@@ -292,7 +292,7 @@ describe('elevation room reducers', () => {
 
     const next = elevationReducer(initial, setView('elevation'));
     expect(next.selection).toEqual({
-      wallId: 'wall-1', runId: null, pieceId: null, openingId: null,
+      wallId: 'wall-1', runId: null, pieceId: null, openingId: null, soffitId: null,
     });
   });
 
@@ -310,7 +310,7 @@ describe('elevation room reducers', () => {
     const next = elevationReducer(initial, deleteWall('wall-1'));
     expect(next.activeWallId).toBe('wall-2');
     expect(next.selection).toEqual({
-      wallId: 'wall-2', runId: null, pieceId: null, openingId: null,
+      wallId: 'wall-2', runId: null, pieceId: null, openingId: null, soffitId: null,
     });
   });
 
@@ -1013,7 +1013,7 @@ describe('elevation opening reducers', () => {
     expect(deleted.rooms[0].walls[0].openings).toEqual([]);
     expect(currentRun(deleted).items[0].pin).toBeNull();
     expect(deleted.selection).toEqual({
-      runId: null, pieceId: null, openingId: null, wallId: 'wall-1',
+      runId: null, pieceId: null, openingId: null, soffitId: null, wallId: 'wall-1',
     });
   });
 
@@ -1631,5 +1631,17 @@ describe('SPEC-18 wing wall store', () => {
 
     expect(state.rooms[0].walls.find((wall) => wall.id === 'W1').landings.start)
       .toBeNull();
+  });
+});
+
+describe('SPEC-19 soffit store shape', () => {
+  it('165. initializes wall soffits and soffit selection', () => {
+    const initial = createInitialElevationState();
+    const state = elevationReducer(initial, addWallSegment({
+      x1: 0, y1: 0, x2: 96, y2: 0,
+    }));
+
+    expect(state.rooms[0].walls[0].soffits).toEqual([]);
+    expect(initial.selection.soffitId).toBeNull();
   });
 });

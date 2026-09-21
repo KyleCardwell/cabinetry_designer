@@ -128,6 +128,20 @@ export {
 } from './wallSides.js';
 export { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
 export {
+  SOFFIT_MOLDINGS,
+  createSoffit,
+  profileUnderSoffit,
+  resolveSoffitSpan,
+  runMolding,
+  soffitAnchorDatum,
+  soffitConflicts,
+  soffitEndType,
+  soffitMoldingDrop,
+  soffitOverRun,
+  soffitsOn,
+  validateSoffitPlacement,
+} from './soffits.js';
+export {
   counterTop,
   crownOverlap,
   moldingStack,
