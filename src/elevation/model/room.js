@@ -1022,8 +1022,12 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
   }
 
   const length = wallLength(sideWall);
-  const reserveLeft = cornerReserve(room, sideWall, 'left', sourceRun, settings);
-  const reserveRight = cornerReserve(room, sideWall, 'right', sourceRun, settings);
+  const atEnd = (end) => ({
+    ...sourceRun,
+    anchors: { ...sourceRun.anchors, [end]: true },
+  });
+  const reserveLeft = cornerReserve(room, sideWall, 'left', atEnd('left'), settings);
+  const reserveRight = cornerReserve(room, sideWall, 'right', atEnd('right'), settings);
   const candidates = [
     { value: 0, anchor: side === 'left' },
     { value: length, anchor: side === 'right' },
@@ -1035,6 +1039,16 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
         { value: run.x, anchor: false, runId: run.id, side: 'left' },
         { value: run.x + run.width, anchor: false, runId: run.id, side: 'right' },
       ]),
+    ...landingsOn(room, sideWall).flatMap((interval) => [
+      {
+        value: interval.b,
+        anchor: side === 'left' && { to: 'wall', wallId: interval.wallId },
+      },
+      {
+        value: interval.a,
+        anchor: side === 'right' && { to: 'wall', wallId: interval.wallId },
+      },
+    ]),
   ];
 
   let edge = roundTo(newEdgeX, 0.5);
@@ -1060,9 +1074,9 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
   if (edge < -maxRunOverhang || edge > length + maxRunOverhang) {
     return { ok: false, reason: 'out-of-bounds', room };
   }
-  const anchorsAtSnap = Boolean(
-    snapped?.anchor && Math.abs(edge - unclampedEdge) <= 1e-9,
-  );
+  const anchorsAtSnap = snapped && Math.abs(edge - unclampedEdge) <= 1e-9
+    ? snapped.anchor || false
+    : false;
   const proposed = {
     ...sourceRun,
     x: side === 'left' ? edge : sourceRun.x,
@@ -1074,7 +1088,7 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
     },
   };
   if (anchorsAtSnap) {
-    const inside = cornerAt(room, sideWall, side).type === 'inside';
+    const inside = cornerForRunSide(room, sideWall, proposed, side).type === 'inside';
     if (inside) proposed.ends[side] = { type: 'filler', width: null };
     else if (proposed.ends[side].type !== 'end_panel') {
       proposed.ends[side] = { type: 'end_panel', width: null };
@@ -1149,6 +1163,8 @@ export function moveRun(room, wallId, runId, newX, settings) {
       ...wallViewForRun(sourceWall, sourceRun).runs
         .filter((run) => run.id !== runId)
         .flatMap((run) => [run.x, run.x + run.width]),
+      ...landingsOn(room, wallViewForRun(sourceWall, sourceRun))
+        .flatMap((interval) => [interval.a, interval.b]),
     ];
 
     let x = roundTo(newX, 0.5);

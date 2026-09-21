@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { cornerAt, cornerReserveParts } from '../corners.js';
+import { horizontalChains } from '../dimensions.js';
 import {
   landingInterval,
   landingOffsetFor,
@@ -11,7 +12,13 @@ import {
   resolveLandings,
   snapToWallFace,
 } from '../landings.js';
-import { describeAnchor, syncRoom } from '../room.js';
+import { createRun } from '../runDefaults.js';
+import {
+  describeAnchor,
+  moveRun,
+  stretchRun,
+  syncRoom,
+} from '../room.js';
 import { wallEndPanelAt, wallSideView } from '../wallSides.js';
 
 function base(id, overrides = {}) {
@@ -345,5 +352,82 @@ describe('wall landings', () => {
     const room = syncRoom(withLanding(alcove(), 'W1', { offset: 50 }), DEFAULT_SETTINGS);
 
     expect(interval(room, 'W1')).toEqual([50, 59, 50, 59]);
+  });
+
+  it('150. creates a run anchored to a landed wall face', () => {
+    const room = syncRoom(alcove(), DEFAULT_SETTINGS);
+    const H = wallById(room, 'H');
+    const run = createRun(
+      { x: 69.5, width: 100, bottomZ: 4, topZ: 34.5 },
+      {
+        settings: DEFAULT_SETTINGS,
+        room,
+        wall: wallSideView(H, 'front'),
+      },
+    );
+
+    expect(run.anchors).toEqual({
+      left: { to: 'wall', wallId: 'W1' },
+      right: false,
+    });
+    expect(run.ends.left).toEqual({ type: 'filler', width: null });
+  });
+
+  it('151. splits horizontal open gaps at landed wall intervals', () => {
+    const room = syncRoom(alcove({ hostRuns: [AL()] }), DEFAULT_SETTINGS);
+    const H = wallById(room, 'H');
+    const inner = horizontalChains(
+      room,
+      wallSideView(H, 'front'),
+      'lower',
+      DEFAULT_SETTINGS,
+    ).inner;
+
+    expect(inner.map(({ kind, start, end, wallId, runId }) => (
+      [kind, start, end, wallId ?? runId ?? '']
+    ))).toEqual([
+      ['open', 0, 60, ''],
+      ['wall', 60, 69, 'W1'],
+      ['piece', 69, 70.5, 'AL'],
+      ['piece', 70.5, 187.5, 'AL'],
+      ['piece', 187.5, 189, 'AL'],
+      ['wall', 189, 201, 'W2'],
+      ['open', 201, 246, ''],
+    ]);
+  });
+
+  it('152. stretches a run to a landed wall face', () => {
+    const room = syncRoom(alcove({
+      hostRuns: [base('ST', {
+        x: 70,
+        width: 100,
+        anchors: {
+          left: { to: 'wall', wallId: 'W1' },
+          right: false,
+        },
+      })],
+    }), DEFAULT_SETTINGS);
+    const result = stretchRun(room, 'H', 'ST', 'right', 188, DEFAULT_SETTINGS);
+    const run = wallById(result.room, 'H').runs.find(({ id }) => id === 'ST');
+
+    expect(result.ok).toBe(true);
+    expect(run).toMatchObject({
+      x: 69,
+      width: 120,
+      anchors: { right: { to: 'wall', wallId: 'W2' } },
+      ends: { right: { type: 'filler', width: null } },
+    });
+  });
+
+  it('153. moves a free run to a landed wall face', () => {
+    const room = syncRoom(alcove({
+      hostRuns: [base('F', { x: 100, width: 30 })],
+    }), DEFAULT_SETTINGS);
+    const result = moveRun(room, 'H', 'F', 158.5, DEFAULT_SETTINGS);
+    const run = wallById(result.room, 'H').runs.find(({ id }) => id === 'F');
+
+    expect(result.ok).toBe(true);
+    expect(run.x).toBe(159);
+    expect(result.snap).toEqual({ value: 189, edge: 'right' });
   });
 });

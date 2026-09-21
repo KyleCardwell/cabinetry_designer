@@ -1,6 +1,7 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cornerAt } from './corners.js';
 import { wallLength } from './geometry.js';
+import { landingsOn } from './landings.js';
 import { openingGeometry } from './openings.js';
 import { verticalStart } from './overlap.js';
 import { moldingStack, resolveProfile } from './profile.js';
@@ -32,9 +33,13 @@ function appendOpenGap(segments, start, end, tallRanges) {
     const overlapEnd = Math.min(end, range.end);
     if (overlapEnd - overlapStart <= SEGMENT_EPSILON) continue;
     appendSegment(segments, cursor, overlapStart, 'open');
-    appendSegment(segments, overlapStart, overlapEnd, 'tall-span', {
-      runId: range.runId,
-    });
+    appendSegment(
+      segments,
+      overlapStart,
+      overlapEnd,
+      range.kind,
+      range.kind === 'wall' ? { wallId: range.wallId } : { runId: range.runId },
+    );
     cursor = overlapEnd;
   }
   appendSegment(segments, cursor, end, 'open');
@@ -168,12 +173,24 @@ export function horizontalChains(room, wall, band, settings) {
     lastRun.anchors?.right === true
     && cornerAt(room, wall, 'right').type === 'inside',
   );
-  const tallRanges = band === 'upper'
-    ? wall.runs
+  const tallRanges = [
+    ...(band === 'upper'
+      ? wall.runs
       .filter((run) => run.cabinetTypeId === CABINET_TYPE_IDS.TALL)
-      .map((run) => ({ start: run.x, end: run.x + run.width, runId: run.id }))
-      .sort((a, b) => a.start - b.start)
-    : [];
+      .map((run) => ({
+        start: run.x,
+        end: run.x + run.width,
+        runId: run.id,
+        kind: 'tall-span',
+      }))
+      : []),
+    ...landingsOn(room, wall).map(({ a, b, wallId }) => ({
+      start: a,
+      end: b,
+      wallId,
+      kind: 'wall',
+    })),
+  ].sort((a, b) => a.start - b.start);
 
   const inner = [];
   let cursor = rangeStart;

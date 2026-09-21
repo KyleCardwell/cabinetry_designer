@@ -2,6 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { bandsCompatible, cornerAt } from './corners.js';
 import { clamp, wallFrame } from './geometry.js';
+import { landingsOn } from './landings.js';
 import {
   counterTop,
   moldingStack,
@@ -78,12 +79,14 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
   ])) : {};
   const anchors = Object.fromEntries(['left', 'right'].map((side) => {
     const distance = side === 'left' ? Math.abs(edges.left) : Math.abs(length - edges.right);
+    if (wall && distance <= settings.cornerSnapDistance) return [side, true];
+    const landing = wall && landingsOn(room, wall).find((interval) => (
+      Math.abs(edges[side] - (side === 'left' ? interval.b : interval.a))
+        <= settings.cornerSnapDistance
+    ));
     return [
       side,
-      Boolean(
-        wall
-        && distance <= settings.cornerSnapDistance
-      ),
+      landing ? { to: 'wall', wallId: landing.wallId } : false,
     ];
   }));
   const isAdjacent = (side) => wall?.runs.some((run) => (
@@ -95,7 +98,8 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
   ));
   const ends = Object.fromEntries(['left', 'right'].map((side) => {
     let type = settings.defaultEnds[side];
-    if (anchors[side]) type = corners[side].type === 'inside' ? 'filler' : 'end_panel';
+    if (anchors[side]?.to === 'wall') type = 'filler';
+    else if (anchors[side]) type = corners[side].type === 'inside' ? 'filler' : 'end_panel';
     else if (settings.autoEndPanelOnFreeEnd && !isAdjacent(side)) type = 'end_panel';
     return [side, { type, width: null }];
   }));
