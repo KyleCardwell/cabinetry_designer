@@ -597,3 +597,33 @@ describe('wall end panel persistence', () => {
     expect(isElevationDocument(omitted)).toBe(true);
   });
 });
+
+describe('wall landing persistence', () => {
+  it('142. validates wall landings and wall run anchors', () => {
+    const empty = tbtDocument();
+    empty.rooms[0].walls[0].landings = { start: null, end: null };
+    expect(isElevationDocument(empty)).toBe(true);
+
+    const landed = tbtDocument();
+    landed.rooms[0].walls[0].landings = {
+      start: { wallId: 'x', side: 'front', ref: 'left', to: 'near', offset: 60 },
+      end: null,
+    };
+    expect(isElevationDocument(landed)).toBe(true);
+
+    const invalidLanding = tbtDocument();
+    invalidLanding.rooms[0].walls[0].landings = {
+      start: { wallId: 'x', side: 'front', ref: 'left', to: 'edge', offset: 60 },
+      end: null,
+    };
+    expect(isElevationDocument(invalidLanding)).toBe(false);
+
+    const anchored = tbtDocument();
+    anchored.rooms[0].walls[0].runs[0].anchors.left = { to: 'wall', wallId: 'x' };
+    expect(isElevationDocument(anchored)).toBe(true);
+
+    const invalidAnchor = tbtDocument();
+    invalidAnchor.rooms[0].walls[0].runs[0].anchors.left = { to: 'wall' };
+    expect(isElevationDocument(invalidAnchor)).toBe(false);
+  });
+});

@@ -174,6 +174,8 @@ function isRunAnchor(anchor) {
     || (anchor.to === 'joint'
       && typeof anchor.jointId === 'string'
       && (anchor.offset === null || isFiniteNumber(anchor.offset)))
+    || (anchor.to === 'wall'
+      && typeof anchor.wallId === 'string')
   ));
 }
 
@@ -235,6 +237,25 @@ function isEndPanels(endPanels) {
     ));
 }
 
+function isLandings(landings) {
+  return Boolean(landings)
+    && typeof landings === 'object'
+    && !Array.isArray(landings)
+    && ['start', 'end'].every((endpoint) => (
+      Object.hasOwn(landings, endpoint)
+      && (landings[endpoint] === null || (
+        Boolean(landings[endpoint])
+        && typeof landings[endpoint] === 'object'
+        && !Array.isArray(landings[endpoint])
+        && typeof landings[endpoint].wallId === 'string'
+        && (landings[endpoint].side === 'front' || landings[endpoint].side === 'back')
+        && typeof landings[endpoint].ref === 'string'
+        && ['near', 'far', 'center'].includes(landings[endpoint].to)
+        && isFiniteNumber(landings[endpoint].offset)
+      ))
+    ));
+}
+
 function isWall(wall, profileKeys = PROFILE_KEYS) {
   return Boolean(wall)
     && typeof wall.id === 'string'
@@ -260,7 +281,8 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
         && isFiniteNumber(joint.x)
         && (joint.wallSide === undefined || joint.wallSide === 'front' || joint.wallSide === 'back')
       ))))
-    && (wall.endPanels === undefined || isEndPanels(wall.endPanels));
+    && (wall.endPanels === undefined || isEndPanels(wall.endPanels))
+    && (wall.landings === undefined || isLandings(wall.landings));
 }
 
 function isRoom(room, profileKeys = PROFILE_KEYS) {

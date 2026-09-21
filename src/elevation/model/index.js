@@ -106,6 +106,18 @@ export {
 } from './openings.js';
 export { wallOutline } from './wallOutline.js';
 export {
+  LANDING_TO,
+  landingEndpoint,
+  landingInterval,
+  landingOffsetFor,
+  landingRefCreatesCycle,
+  landingsOn,
+  landWallEnd,
+  releaseWall,
+  resolveLandings,
+  snapToWallFace,
+} from './landings.js';
+export {
   WALL_SIDES,
   mirrorOpening,
   wallEndPanelAt,
