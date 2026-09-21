@@ -75,6 +75,7 @@ function createWall(name = '', y = 0, length = 144, values = {}) {
     thickness: values.thickness ?? 4.5,
     flipped: values.flipped ?? false,
     connections: values.connections ?? { start: null, end: null },
+    endPanels: values.endPanels ?? { start: null, end: null },
     profile: values.profile ?? {},
     runs: values.runs ?? [],
     openings: values.openings ?? [],

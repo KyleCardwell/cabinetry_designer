@@ -1455,3 +1455,15 @@ describe('SPEC-17 active wall side', () => {
     expect(state.rooms[0].walls[0].thickness).toBe(0);
   });
 });
+
+describe('SPEC-17 wall end panel shape', () => {
+  it('124. creates walls with empty endpoint panels', () => {
+    let state = elevationReducer(stateWithRun(), addWall({}));
+    expect(state.rooms[0].walls.at(-1).endPanels).toEqual({ start: null, end: null });
+
+    state = elevationReducer(state, addWallSegment({
+      x1: 0, y1: 0, x2: 96, y2: 0, thickness: 0,
+    }));
+    expect(state.rooms[0].walls.at(-1).endPanels).toEqual({ start: null, end: null });
+  });
+});

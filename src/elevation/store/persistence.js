@@ -218,6 +218,23 @@ export function isOpening(opening) {
     ));
 }
 
+function isEndPanels(endPanels) {
+  return Boolean(endPanels)
+    && typeof endPanels === 'object'
+    && !Array.isArray(endPanels)
+    && ['start', 'end'].every((endpoint) => (
+      Object.hasOwn(endPanels, endpoint)
+      && (endPanels[endpoint] === null || (
+        Boolean(endPanels[endpoint])
+        && typeof endPanels[endpoint] === 'object'
+        && !Array.isArray(endPanels[endpoint])
+        && Object.hasOwn(endPanels[endpoint], 'width')
+        && (endPanels[endpoint].width === null
+          || (isFiniteNumber(endPanels[endpoint].width) && endPanels[endpoint].width >= 0))
+      ))
+    ));
+}
+
 function isWall(wall, profileKeys = PROFILE_KEYS) {
   return Boolean(wall)
     && typeof wall.id === 'string'
@@ -242,7 +259,8 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
         && typeof joint.id === 'string'
         && isFiniteNumber(joint.x)
         && (joint.wallSide === undefined || joint.wallSide === 'front' || joint.wallSide === 'back')
-      ))));
+      ))))
+    && (wall.endPanels === undefined || isEndPanels(wall.endPanels));
 }
 
 function isRoom(room, profileKeys = PROFILE_KEYS) {

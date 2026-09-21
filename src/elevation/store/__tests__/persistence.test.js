@@ -577,3 +577,23 @@ describe('wall side persistence', () => {
     expect(isElevationDocument(invalidJoint)).toBe(false);
   });
 });
+
+describe('wall end panel persistence', () => {
+  it('125. validates complete endpoint panel shapes when present', () => {
+    const valid = tbtDocument();
+    valid.rooms[0].walls[0].endPanels = { start: { width: null }, end: null };
+    expect(isElevationDocument(valid)).toBe(true);
+
+    const invalidWidth = tbtDocument();
+    invalidWidth.rooms[0].walls[0].endPanels = { start: { width: 'x' }, end: null };
+    expect(isElevationDocument(invalidWidth)).toBe(false);
+
+    const missingEnd = tbtDocument();
+    missingEnd.rooms[0].walls[0].endPanels = { start: null };
+    expect(isElevationDocument(missingEnd)).toBe(false);
+
+    const omitted = tbtDocument();
+    delete omitted.rooms[0].walls[0].endPanels;
+    expect(isElevationDocument(omitted)).toBe(true);
+  });
+});

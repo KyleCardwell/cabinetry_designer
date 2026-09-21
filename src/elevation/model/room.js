@@ -74,6 +74,10 @@ function cloneRoom(room) {
         start: wall.connections?.start ? { ...wall.connections.start } : null,
         end: wall.connections?.end ? { ...wall.connections.end } : null,
       },
+      endPanels: {
+        start: wall.endPanels?.start ? { ...wall.endPanels.start } : null,
+        end: wall.endPanels?.end ? { ...wall.endPanels.end } : null,
+      },
       openings: (wall.openings ?? []).map((opening) => ({
         ...opening,
         casing: opening.casing ? { ...opening.casing } : null,
