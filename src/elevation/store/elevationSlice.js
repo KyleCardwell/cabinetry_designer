@@ -28,8 +28,14 @@ import {
   flipRunsForWall,
   joinEdges,
   resizeRun as resizeRunPure,
+  resolveWall,
   syncRoom,
 } from '../model/room.js';
+import {
+  resolveSoffitSpan,
+  soffitEndType,
+  validateSoffitPlacement,
+} from '../model/soffits.js';
 import { splitRun } from '../model/splitRun.js';
 import {
   REVEAL_KEYS,
@@ -41,7 +47,7 @@ import {
   resolveStyle,
 } from '../model/styles.js';
 import { roundTo } from '../model/units.js';
-import { wallSideOf, wallViewForRun } from '../model/wallSides.js';
+import { wallSideOf, wallSideView, wallViewForRun } from '../model/wallSides.js';
 import {
   addWallWithConnections,
   connectWallEndpoints,
@@ -171,6 +177,31 @@ function openingLocation(state, payload) {
         openingIndex,
         opening: location.wall.openings[openingIndex],
       };
+}
+
+function soffitLocation(state, payload) {
+  const location = wallLocation(state, payload);
+  if (!location) return null;
+  const soffitIndex = (location.wall.soffits ?? [])
+    .findIndex((soffit) => soffit.id === payload.soffitId);
+  return soffitIndex === -1
+    ? null
+    : {
+        ...location,
+        soffitIndex,
+        soffit: location.wall.soffits[soffitIndex],
+      };
+}
+
+function resolvedSoffitCandidate(room, wall, soffit) {
+  const resolvedWall = resolveWall(room, wall);
+  const view = {
+    ...wallSideView(resolvedWall, soffit.wallSide),
+    length: resolvedWall.length,
+  };
+  const span = resolveSoffitSpan(room, view, soffit);
+  const candidate = { ...soffit, ...span };
+  return validateSoffitPlacement(view, candidate).ok ? candidate : null;
 }
 
 function syncRoomAt(state, roomIndex) {
@@ -609,6 +640,77 @@ const elevationSlice = createSlice({
       location.wall.runs.push(run);
       syncRoomAt(state, location.roomIndex);
     },
+    addSoffit(state, action) {
+      const location = wallLocation(state, action.payload);
+      const soffit = action.payload.soffit ?? action.payload;
+      if (!location || !soffit?.id) return;
+      const candidate = resolvedSoffitCandidate(location.room, location.wall, soffit);
+      if (!candidate) return;
+      location.wall.soffits ??= [];
+      location.wall.soffits.push(candidate);
+      state.selection = {
+        runId: null,
+        pieceId: null,
+        openingId: null,
+        soffitId: candidate.id,
+        wallId: state.selection.wallId ?? null,
+      };
+      state.activeWallSide = wallSideOf(candidate);
+      state.facePath = null;
+      syncRoomAt(state, location.roomIndex);
+    },
+    updateSoffit(state, action) {
+      const location = soffitLocation(state, action.payload);
+      if (!location) return;
+      const candidate = { ...location.soffit };
+      const changes = action.payload.changes ?? {};
+      for (const key of ['bottom', 'depth', 'molding', 'x', 'width']) {
+        if (Object.prototype.hasOwnProperty.call(changes, key)) candidate[key] = changes[key];
+      }
+      const resolved = resolvedSoffitCandidate(location.room, location.wall, candidate);
+      if (!resolved) return;
+      location.wall.soffits[location.soffitIndex] = resolved;
+      syncRoomAt(state, location.roomIndex);
+    },
+    setSoffitAnchor(state, action) {
+      const location = soffitLocation(state, action.payload);
+      const { side, anchor } = action.payload;
+      if (!location || (side !== 'left' && side !== 'right')) return;
+      const validOffset = anchor?.offset === null || Number.isFinite(anchor?.offset);
+      const validEndAnchor = anchor?.to === 'end' && validOffset;
+      const validWallAnchor = anchor?.to === 'wall'
+        && typeof anchor.wallId === 'string'
+        && validOffset;
+      if (anchor !== false && !validEndAnchor && !validWallAnchor) return;
+      const candidate = {
+        ...location.soffit,
+        anchors: {
+          ...location.soffit.anchors,
+          [side]: anchor === false ? false : { ...anchor, offset: anchor.offset ?? 0 },
+        },
+      };
+      const resolved = resolvedSoffitCandidate(location.room, location.wall, candidate);
+      if (!resolved) return;
+      location.wall.soffits[location.soffitIndex] = resolved;
+      syncRoomAt(state, location.roomIndex);
+    },
+    deleteSoffit(state, action) {
+      const location = soffitLocation(state, action.payload);
+      if (!location) return;
+      location.wall.soffits.splice(location.soffitIndex, 1);
+      for (const wall of location.room.walls) {
+        for (const run of wall.runs) {
+          for (const side of ['left', 'right']) {
+            if (run.anchors?.[side]?.to === 'soffit'
+              && run.anchors[side].soffitId === location.soffit.id) {
+              run.anchors[side] = false;
+            }
+          }
+        }
+      }
+      if (state.selection.soffitId === location.soffit.id) clearTransientSelection(state);
+      syncRoomAt(state, location.roomIndex);
+    },
     addOpening: {
       reducer(state, action) {
         const location = wallLocation(state, action.payload);
@@ -837,12 +939,28 @@ const elevationSlice = createSlice({
         && typeof value === 'object'
         && value.to === 'wall'
         && typeof value.wallId === 'string';
-      if (typeof value !== 'boolean' && !validOpeningAnchor && !validWallAnchor) return;
+      const validSoffitAnchor = Boolean(value)
+        && typeof value === 'object'
+        && value.to === 'soffit'
+        && typeof value.soffitId === 'string'
+        && (value.offset === null || Number.isFinite(value.offset));
+      if (typeof value !== 'boolean'
+        && !validOpeningAnchor
+        && !validWallAnchor
+        && !validSoffitAnchor) return;
       if (isJointAnchor(location.run.anchors[side]) && !isJointAnchor(value)) {
         location.run.ends[side] = withoutAuto(location.run.ends[side]);
       }
-      location.run.anchors[side] = validOpeningAnchor || validWallAnchor ? { ...value } : value;
-      if (validWallAnchor) {
+      const anchor = validSoffitAnchor ? { ...value, offset: value.offset ?? 0 } : value;
+      location.run.anchors[side] = validOpeningAnchor || validWallAnchor || validSoffitAnchor
+        ? { ...anchor }
+        : anchor;
+      if (validSoffitAnchor) {
+        location.run.ends[side] = {
+          type: soffitEndType(location.wall, location.run, side, anchor, state.settings),
+          width: null,
+        };
+      } else if (validWallAnchor) {
         location.run.ends[side] = { type: 'filler', width: null };
       } else if (value === true) {
         const inside = cornerAt(location.room, wallViewForRun(location.wall, location.run), side).type === 'inside';
@@ -1136,11 +1254,13 @@ const elevationSlice = createSlice({
     },
     setSelection(state, action) {
       const openingId = action.payload.openingId ?? null;
-      const runId = openingId ? null : action.payload.runId ?? null;
+      const soffitId = openingId ? null : action.payload.soffitId ?? null;
+      const runId = openingId || soffitId ? null : action.payload.runId ?? null;
       state.selection = {
         runId,
         pieceId: runId ? action.payload.pieceId ?? null : null,
-        openingId: runId ? null : openingId,
+        openingId,
+        soffitId,
         wallId: state.selection.wallId ?? null,
       };
       if (runId) {
@@ -1148,6 +1268,11 @@ const elevationSlice = createSlice({
           .flatMap((wall) => wall.runs)
           .find((run) => run.id === runId);
         if (selectedRun) state.activeWallSide = wallSideOf(selectedRun);
+      } else if (soffitId) {
+        const selectedSoffit = roomFor(state)?.walls
+          .flatMap((wall) => wall.soffits ?? [])
+          .find((soffit) => soffit.id === soffitId);
+        if (selectedSoffit) state.activeWallSide = wallSideOf(selectedSoffit);
       } else if (openingId) {
         state.activeWallSide = 'front';
       }
@@ -1157,7 +1282,7 @@ const elevationSlice = createSlice({
       clearTransientSelection(state);
     },
     setTool(state, action) {
-      if (!['select', 'draw', 'wall', 'door', 'window'].includes(action.payload)) return;
+      if (!['select', 'draw', 'soffit', 'wall', 'door', 'window'].includes(action.payload)) return;
       state.tool = action.payload;
     },
     setMessage(state, action) {
@@ -1209,6 +1334,10 @@ export const {
   setActiveWallSide,
   flipWall,
   addRun,
+  addSoffit,
+  updateSoffit,
+  setSoffitAnchor,
+  deleteSoffit,
   addOpening,
   updateOpening,
   resizeOpening,

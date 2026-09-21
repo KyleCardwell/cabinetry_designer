@@ -5,6 +5,7 @@ import { wallFrame } from '../../model/geometry.js';
 import { openingGeometry } from '../../model/openings.js';
 import elevationReducer, {
   addOpening,
+  addSoffit,
   resizeOpening,
   addRoom,
   addItemAfter,
@@ -18,6 +19,7 @@ import elevationReducer, {
   detachWallLanding,
   deleteOpening,
   deleteRun,
+  deleteSoffit,
   deleteWall,
   dissolveJoint,
   lockItem,
@@ -47,6 +49,7 @@ import elevationReducer, {
   setRunJointOffset,
   setRunEnd,
   setSelection,
+  setSoffitAnchor,
   setTool,
   setView,
   setWallEndPanel,
@@ -55,6 +58,7 @@ import elevationReducer, {
   splitItem,
   updateOpening,
   updateRun,
+  updateSoffit,
   updateRoomProfile,
   updateWall,
   useAutoHeightsForRoom,
@@ -918,6 +922,7 @@ describe('elevation opening reducers', () => {
       runId: null,
       pieceId: null,
       openingId: 'door-1',
+      soffitId: null,
       wallId: 'wall-1',
     });
 
@@ -929,6 +934,7 @@ describe('elevation opening reducers', () => {
       runId: 'run-1',
       pieceId: 'piece-1',
       openingId: null,
+      soffitId: null,
       wallId: 'wall-1',
     });
   });
@@ -1643,5 +1649,100 @@ describe('SPEC-19 soffit store shape', () => {
 
     expect(state.rooms[0].walls[0].soffits).toEqual([]);
     expect(initial.selection.soffitId).toBeNull();
+  });
+});
+
+describe('SPEC-19 soffit store', () => {
+  const SF = {
+    id: 'SF',
+    wallSide: 'front',
+    x: 40,
+    width: 60,
+    bottom: 84,
+    depth: 14,
+    molding: 'crown',
+    anchors: { left: false, right: false },
+  };
+
+  it('171. adds valid soffits, rejects overlaps, and selects their wall side', () => {
+    let state = elevationReducer(stateWithRun(), addSoffit({
+      wallId: 'wall-1', soffit: SF,
+    }));
+    expect(state.rooms[0].walls[0].soffits).toHaveLength(1);
+    expect(state.selection.soffitId).toBe('SF');
+
+    state = elevationReducer(state, addSoffit({
+      wallId: 'wall-1', soffit: { ...SF, id: 'SG', x: 90, width: 20 },
+    }));
+    expect(state.rooms[0].walls[0].soffits).toHaveLength(1);
+
+    state = elevationReducer(state, addSoffit({
+      wallId: 'wall-1',
+      soffit: { ...SF, id: 'SB', x: 0, width: 20, wallSide: 'back' },
+    }));
+    state = elevationReducer(state, setSelection({ soffitId: 'SB' }));
+    expect(state.activeWallSide).toBe('back');
+  });
+
+  it('172. updates, anchors, and deletes soffits', () => {
+    const initial = stateWithRun(run({
+      cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+      anchors: {
+        left: { to: 'soffit', soffitId: 'SF', offset: 0 },
+        right: false,
+      },
+    }));
+    let state = elevationReducer(initial, addSoffit({
+      wallId: 'wall-1', soffit: SF,
+    }));
+    state = elevationReducer(state, updateSoffit({
+      wallId: 'wall-1', soffitId: 'SF', changes: { bottom: 80 },
+    }));
+    expect(state.rooms[0].walls[0].soffits[0].bottom).toBe(80);
+
+    state = elevationReducer(state, updateSoffit({
+      wallId: 'wall-1', soffitId: 'SF', changes: { bottom: 96 },
+    }));
+    expect(state.rooms[0].walls[0].soffits[0].bottom).toBe(80);
+
+    state = elevationReducer(state, setSoffitAnchor({
+      wallId: 'wall-1',
+      soffitId: 'SF',
+      side: 'left',
+      anchor: { to: 'end', offset: 20 },
+    }));
+    expect(state.rooms[0].walls[0].soffits[0]).toMatchObject({ x: 20, width: 60 });
+
+    state = elevationReducer(state, setSelection({ soffitId: 'SF' }));
+    state = elevationReducer(state, deleteSoffit({
+      wallId: 'wall-1', soffitId: 'SF',
+    }));
+    expect(state.rooms[0].walls[0].soffits).toEqual([]);
+    expect(state.rooms[0].walls[0].runs[0].anchors.left).toBe(false);
+    expect(state.selection.soffitId).toBeNull();
+  });
+
+  it('173. anchors an upper to a soffit and enables the soffit tool', () => {
+    let state = stateWithRun(run({
+      cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+      z: 54,
+      height: 36,
+      x: 110,
+      width: 30,
+    }));
+    state = elevationReducer(state, addSoffit({ wallId: 'wall-1', soffit: SF }));
+    state = elevationReducer(state, setRunAnchor({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      side: 'left',
+      anchor: { to: 'soffit', soffitId: 'SF', offset: 0 },
+    }));
+    expect(state.rooms[0].walls[0].runs[0].anchors.left)
+      .toEqual({ to: 'soffit', soffitId: 'SF', offset: 0 });
+    expect(state.rooms[0].walls[0].runs[0].ends.left)
+      .toEqual({ type: 'end_panel', width: null });
+
+    state = elevationReducer(state, setTool('soffit'));
+    expect(state.tool).toBe('soffit');
   });
 });
