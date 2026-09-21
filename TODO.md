@@ -24,6 +24,21 @@ Suggested format:
 
 ## Idea inbox
 
+- [ ] **[P1][model][plan][elevation] Wall configuration: two-faced walls, walls ending on faces, soffits**
+  - Why: Alcoves between wing walls, pony walls, notched corners with a wall extending into the room, and islands where the cabinet backs butt together cannot be modeled today. Cabinets need to go on either side of any wall.
+  - Decided - faces: every wall has two faces and every run says which face it is on. Thickness 0 is allowed (island, backs butted). With explicit faces, chain orientation only sets defaults and naming, so it stops being a correctness risk.
+  - Decided - no wing-wall type: a wing wall, pony wall or notch extension is just a wall whose end lands on another wall's face. The host is never split, so it keeps one full-length elevation; the landing divides its face into spans. A span edge behaves like a wall end today (anchors, corner reserve, cornerClearance, end panel vs filler). A pony wall's span edge only exists below its height, so bases die into it and uppers above it do not see it.
+  - Decided - positioning: the connected end gets the existing 2x2 position readout (from host left/right end, to near face/far face/center); the typed cell becomes the stored reference. References only point down a ranking, which rules out loops: wall ends -> walls on a face (from host ends or earlier walls on the same face) -> openings and soffits (same rank, never measured from each other) -> runs -> pins. The last span on a face is always derived; typing into it rebases the reference so the typed number sticks.
+  - Decided - dimensions: plan shows the face span chain including wall thicknesses (example: 60 / 9 / 120 / 12 / 45 on a 246 wall). Elevation shows the full host length with walls that land on it drawn in section, and the cabinetry chain confined to the spans that take cabinets.
+  - Decided - cabinets on a wing wall face meet the host's cabinets at an ordinary inside corner, same reserve logic as between two walls today. Cabinets on neighbouring faces are drawn in section on this elevation - the same drawing feature the returns from adjacent walls need.
+  - Decided - no warning when cabinets are deeper than a wing wall; lapping the end panel onto the wing is a negative anchor offset. A run overlapping a wall's footprint must never be treated as an error.
+  - Decided - soffits: per face, several allowed. Each end anchors to a wall end or a wall face with a signed offset (positive holds back, negative runs past). A soffit caps the cabinet top over its range (profileAt(x) instead of one profile per wall). Running past an inside corner warns; a wrap is a second soffit on the next wall.
+  - Decided - drawing: an endpoint snaps to a wall face partway along it and records the connection; drawing the host after the wing walls auto-connects endpoints already on its face. When a host moves, a wall with one free end moves with it and keeps its length; a wall with both ends connected stretches. Users adjust afterwards when that is not what the room needs.
+  - Decided - islands: the wall owns the left/right end treatment, both faces' runs anchor to it, and interior splits stay independent per face. The end panel is one part, width frontDepth(front) + frontDepth(back), at the right end of the front elevation and the left end of the back one.
+  - Notes: Code that assumes today's model - `wallComponents`/`chainOrientation` expect no branching ("Valid elevation rooms cannot branch"); `cornerAt` only knows corners at wall ends; `resolveVertical` uses one profile per wall; `runFootprint` projects along +n only; the `backPointAt` miter limit is 0 when both walls are 0 thick; island countertop depth needs box depth, not `frontDepth` (which adds bumper and door). `resolveHorizontal`, `positionReadouts` and `startFromReadout` measure against wall length and will need to measure against a span - scope that deliberately as its own step. Bump the schema once per step, not one big v4.
+  - Notes: The shared datum ranking is also the fix for the pin entry under Bugs and cleanup - a pin is the lowest rank, so it may move its own run and joints but never an opening or a wall.
+  - Open: Does a soffit ever wrap a corner? Assumed two soffits joined at the corner until a real job says otherwise.
+  - Build order: (1) faces and spans - islands work after this; specified as SPEC-17 steps 82–89 (see Planned), which covers the two sides and islands but not spans yet; (2) shared datum ranking; (3) walls ending on faces - alcoves, pony walls, notches; (4) soffits; (5) an "Add alcove" preset that places two wing walls and an optional soffit.
 - [ ] Inset face frame vs. Euro cabinet styles; this would change the reveals per cabinet, and face frame would rarely need fillers at all.
 - [ ] UI settings modal with tabs instead of the sidebar to increase the working area.
 - [ ] Extend parts above or below their run box, such as fillers or panels sitting on the floor next to appliances or on the countertop.
@@ -54,6 +69,14 @@ Suggested format:
 ## Planned
 
 <!-- Move sufficiently defined work here. -->
+
+Specified in `docs/elevation-mvp/SPEC-17.md`, step prompts in `PROMPTS-17.md`.
+
+- [ ] **[P1][model][plan][elevation] Steps 82–89 — wall sides, islands, wall end panels**
+  - Why: Build-order item (1) of the wall configuration entry in the Idea inbox. Cabinets on either side of any wall; islands as one 0"-thick wall with backs butted; one end panel through both sides of an island.
+  - Notes: `run.wallSide` / `joint.wallSide` ('front' | 'back', missing reads as front). `wallSideView` gives a wall-shaped view of one side (filtered runs and joints, openings mirrored, `flipped` toggled), and every function taking a run converts to it on entry. `cornerAt` gains `neighborWallSide`. `elevation.activeWallSide` with a Front/Back toggle. `wall.endPanels` keyed by endpoint, free ends only. Step 82 also fixes the transform test left red by step 76.
+  - Deferred: the back side's true extent at connected ends, doors and windows from the back, wall end panels in estimates, island countertops.
+  - Done when: SPEC-17 tests 100–132 pass and the manual checks in PROMPTS-17 hold.
 
 Specified in `docs/elevation-mvp/SPEC-15.md`, step prompts in `PROMPTS-15.md`.
 
@@ -102,6 +125,13 @@ Specified in `docs/elevation-mvp/SPEC-8.md`, step prompts in `PROMPTS-8.md`.
 ## Bugs and cleanup
 
 <!-- Record known defects, technical debt, and maintenance work here. -->
+
+- [ ] **[P1][model][elevation] Pins clamp silently inside a joined run**
+  - Why: A middle upper pinned to a door center landed 1" off and the joined runs on either side did not move. Reproduced: wall 0-144 style case, joints at 34 and 84, middle run 34-84 with one auto cabinet pinned center-to-door-center, distance 0 -> pinned center 59, target 60, `pin-unreachable` warning.
+  - Notes: Two causes. (1) A single auto cabinet swells in splitRun pass 1 to fill the run, its width is then frozen in `_pinWidths`, and the fillers are already at `fillerMinWidth`, so the cabinet has nowhere to slide and `splitRun` clamps it to `run.x + leftMinimum`. Locking the cabinet width first (30" in the repro) resolves the pin exactly, so the freeze is the blocker. (2) `resolvePinnedSpan` (room.js:353) refuses to grow any end that carries an anchor, and a joint anchor is an anchor; nothing in the pin path calls `moveJoint`, which is only wired to canvas drags and `stretchRun`. Step 30 landed before joints existed and the two have never been reconciled.
+  - Notes: The failure is invisible. `pin-unreachable` has no entry in `WARNING_LABELS`, and `WarningsList` only renders under a run selection, so with the cabinet selected nothing is flagged - even though the Pin section shows "Resolved target 60" and "Actual center 59" side by side.
+  - Open: Proposed resolution ladder for an unreachable pin, in order: slack in the pinned cabinet's own segment (works today), then the pinned cabinet's own auto width, then free run ends (works today), then move the joints so a pinned run translates and its joined neighbours re-solve through `moveJoint` and its tightest-member clamp, then clamp and warn naming the run that blocked it. Underlying question to settle first: does a pin mean "this cabinet sits here in the run" (what the code does) or "this cabinet sits here on the wall" (what was meant)? If the latter, the pin should probably reuse the Step 33 signed-offset anchor grammar and be allowed to translate the run, not only stretch it.
+  - Done when: A pinned cabinet in a run joined on both sides lands on its target or reports why it cannot, the mismatch is visible from the cabinet selection, and the ladder above is covered by tests.
 
 - [ ] **[P1][UI] Split PropertiesPanel.jsx into per-selection sections**
   - Why: At 1,642 lines it is the largest per-round cost in the project. Nearly every step touches it, and an agent re-reads it three or four times per step - roughly 20k tokens each time. This is a bigger lever on usage than any prompt wording.
