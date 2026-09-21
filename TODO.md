@@ -38,7 +38,7 @@ Suggested format:
   - Notes: Code that assumes today's model - `wallComponents`/`chainOrientation` expect no branching ("Valid elevation rooms cannot branch"); `cornerAt` only knows corners at wall ends; `resolveVertical` uses one profile per wall; `runFootprint` projects along +n only; the `backPointAt` miter limit is 0 when both walls are 0 thick; island countertop depth needs box depth, not `frontDepth` (which adds bumper and door). `resolveHorizontal`, `positionReadouts` and `startFromReadout` measure against wall length and will need to measure against a span - scope that deliberately as its own step. Bump the schema once per step, not one big v4.
   - Notes: The shared datum ranking is also the fix for the pin entry under Bugs and cleanup - a pin is the lowest rank, so it may move its own run and joints but never an opening or a wall.
   - Open: Does a soffit ever wrap a corner? Assumed two soffits joined at the corner until a real job says otherwise.
-  - Build order: (1) faces and spans - islands work after this; specified as SPEC-17 steps 82–89 (see Planned), which covers the two sides and islands but not spans yet; (2) shared datum ranking; (3) walls ending on faces - alcoves, pony walls, notches; (4) soffits; (5) an "Add alcove" preset that places two wing walls and an optional soffit.
+  - Build order: (1) faces and spans - islands work after this; specified as SPEC-17 steps 82–89 (done: two sides, islands, wall end panels); (3) walls ending on faces is SPEC-18 and (4) soffits SPEC-19, both pulled ahead of (2); (2) shared datum ranking; (3) walls ending on faces - alcoves, pony walls, notches; (4) soffits; (5) an "Add alcove" preset that places two wing walls and an optional soffit.
 - [ ] Inset face frame vs. Euro cabinet styles; this would change the reveals per cabinet, and face frame would rarely need fillers at all.
 - [ ] UI settings modal with tabs instead of the sidebar to increase the working area.
 - [ ] Extend parts above or below their run box, such as fillers or panels sitting on the floor next to appliances or on the countertop.
@@ -69,6 +69,17 @@ Suggested format:
 ## Planned
 
 <!-- Move sufficiently defined work here. -->
+
+Specified in `docs/elevation-mvp/SPEC-18.md` and `SPEC-19.md`, step prompts in `PROMPTS-18.md` and `PROMPTS-19.md`.
+
+- [ ] **[P1][model][plan][elevation] Steps 90–95 — wing walls (walls landing on another wall's face)**
+  - Why: Build-order item (3) of the wall configuration entry, pulled ahead of (2). Alcoves, pony walls, notches.
+  - Notes: `wall.landings.start|end = { wallId, side, ref, to, offset }`, separate from `connections` so no topology code changes. `resolveLandings` runs first in `syncRoom`. Run anchor `{ to: 'wall', wallId }`. The datum ranking only covers wing walls here (host ends, then earlier wing walls).
+  - Done when: SPEC-18 tests 133–159 pass and the manual checks in PROMPTS-18 hold.
+- [ ] **[P1][model][elevation] Steps 96–100 — soffits**
+  - Why: Build-order item (4). A soffit is a dropped ceiling; the molding under it (crown, top mold or none) is chosen as you draw.
+  - Notes: `wall.soffits[]` per side; uppers and talls fully under one cap their box top at `bottom − molding`. Run anchor `{ to: 'soffit', soffitId, offset }` with a filler when cabinets continue under the soffit, otherwise an end panel. Straddling runs warn.
+  - Done when: SPEC-19 tests 160–173 pass and the manual checks in PROMPTS-19 hold.
 
 Specified in `docs/elevation-mvp/SPEC-17.md`, step prompts in `PROMPTS-17.md`.
 
