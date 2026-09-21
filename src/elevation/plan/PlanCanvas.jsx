@@ -33,6 +33,7 @@ import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { findCollisions, footprintsAtPoint } from '../model/footprints.js';
 import {
   dot,
+  elevationToPlan,
   planPointToWallX,
   subtract,
   wallFrame,
@@ -1031,6 +1032,24 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 listening={false}
               />
             )))}
+            {walls.flatMap((wall) => (wall.soffits ?? []).map((soffit) => {
+              const frame = wallSideFrame(room, wall, soffit.wallSide);
+              return (
+                <Line
+                  key={`${wall.id}:${soffit.id}`}
+                  points={[
+                    elevationToPlan(frame, soffit.x, 0),
+                    elevationToPlan(frame, soffit.x + soffit.width, 0),
+                    elevationToPlan(frame, soffit.x + soffit.width, soffit.depth),
+                    elevationToPlan(frame, soffit.x, soffit.depth),
+                  ].flatMap((point) => [point.x, point.y])}
+                  closed
+                  dash={[6 / scale, 4 / scale]}
+                  stroke="#94a3b8"
+                  listening={false}
+                />
+              );
+            }))}
             {wallMovePreview?.room && (
               <Group listening={false}>
                 {wallMovePreview.affectedWallIds.map((wallId) => {

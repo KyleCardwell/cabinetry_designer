@@ -9,6 +9,7 @@ const NUMBER_SETTINGS = [
   ['baseDepth', 'Base depth'],
   ['upperDepth', 'Upper depth'],
   ['tallDepth', 'Tall depth'],
+  ['defaultSoffitDepth', 'Soffit depth'],
   ['roundTo', 'Cabinet rounding'],
   ['maxCabinetWidth', 'Max cabinet width'],
   ['minCabinetWidth', 'Min cabinet width'],

@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   CABINET_TYPE_IDS,
   KIND_LABELS,
+  SOFFIT_MOLDINGS,
   cornerAt,
   cornerReserveParts,
   crownOverlap,
@@ -29,6 +30,7 @@ import {
   landingsOn,
   runShortLabel,
   runBlocksOpening,
+  soffitsOn,
   splitRun,
   startFromReadout,
   stretchedStart,
@@ -55,6 +57,7 @@ import {
 import {
   addItemAfter,
   clearSelection,
+  deleteSoffit,
   deleteOpening,
   detachWallLanding,
   flipWall,
@@ -77,6 +80,7 @@ import {
   setRunOverride,
   setRunType,
   setSelection,
+  setSoffitAnchor,
   setWallEndPanel,
   setWallLanding,
   setWallLength,
@@ -84,6 +88,7 @@ import {
   resizeOpening,
   updateOpening,
   updateRun,
+  updateSoffit,
   updateWall,
 } from '../store/elevationSlice.js';
 import InchInput from './InchInput.jsx';
@@ -717,6 +722,7 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
             const insideCorner = corners[side].type === 'inside';
             const anchor = run.anchors[side];
             const openingAnchor = anchor?.to === 'opening' ? anchor : null;
+            const soffitAnchor = anchor?.to === 'soffit' ? anchor : null;
             const wallAnchor = anchor?.to === 'wall' ? anchor : null;
             const jointAnchor = isJointAnchor(anchor) ? anchor : null;
             const otherJointMember = jointAnchor
@@ -733,6 +739,8 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
               : CORNER_CLEARANCE_MODES.filter(([value]) => value !== 'face');
             const anchorValue = openingAnchor
               ? `opening:${openingAnchor.openingId}`
+              : soffitAnchor
+                ? `soffit:${soffitAnchor.soffitId}`
               : wallAnchor
                 ? `wall:${wallAnchor.wallId}`
               : otherJointMember
@@ -766,6 +774,18 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                           anchor: {
                             to: 'wall',
                             wallId: value.slice('wall:'.length),
+                          },
+                        }));
+                        return;
+                      }
+                      if (value.startsWith('soffit:')) {
+                        dispatch(setRunAnchor({
+                          ...actionBase,
+                          side,
+                          anchor: {
+                            to: 'soffit',
+                            soffitId: value.slice('soffit:'.length),
+                            offset: 0,
                           },
                         }));
                         return;
@@ -809,6 +829,13 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                           </option>
                         ) : null;
                       })}
+                    </optgroup>
+                    <optgroup label="Soffit sides">
+                      {soffitsOn(wall).map((soffit) => (
+                        <option key={soffit.id} value={`soffit:${soffit.id}`}>
+                          {`Soffit ${formatInches(soffit.x)}–${formatInches(soffit.x + soffit.width)}`}
+                        </option>
+                      ))}
                     </optgroup>
                     <optgroup label="Run edges">
                       {wall.runs.filter((candidate) => candidate.id !== run.id)
@@ -1804,6 +1831,151 @@ function WallHeightProperties({ room, wall, plan }) {
   );
 }
 
+function SoffitProperties({ room, wall, soffit, settings }) {
+  const dispatch = useDispatch();
+  const actionBase = { wallId: wall.id, soffitId: soffit.id };
+  const moldingLabels = {
+    crown: 'Crown',
+    topMold: 'Top mold',
+    none: 'None',
+  };
+
+  return (
+    <div className="space-y-5">
+      <section>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Soffit
+        </h3>
+        <div className="space-y-2.5">
+          <Field label="Bottom">
+            <InchInput
+              value={soffit.bottom}
+              onCommit={(bottom) => dispatch(updateSoffit({
+                ...actionBase,
+                changes: { bottom },
+              }))}
+              aria-label="Soffit bottom"
+            />
+          </Field>
+          <Field label="Depth">
+            <InchInput
+              value={soffit.depth ?? settings.defaultSoffitDepth}
+              onCommit={(depth) => dispatch(updateSoffit({
+                ...actionBase,
+                changes: { depth },
+              }))}
+              aria-label="Soffit depth"
+            />
+          </Field>
+          <Field label="Molding">
+            <select
+              value={soffit.molding}
+              onChange={(event) => dispatch(updateSoffit({
+                ...actionBase,
+                changes: { molding: event.target.value },
+              }))}
+              aria-label="Soffit molding"
+              className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+            >
+              {SOFFIT_MOLDINGS.map((molding) => (
+                <option key={molding} value={molding}>{moldingLabels[molding]}</option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      </section>
+
+      <section>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Ends
+        </h3>
+        <div className="space-y-2">
+          {['left', 'right'].map((side) => {
+            const anchor = soffit.anchors?.[side] ?? false;
+            const anchorValue = anchor?.to === 'end'
+              ? 'end'
+              : anchor?.to === 'wall'
+                ? `wall:${anchor.wallId}`
+                : 'free';
+            return (
+              <div
+                key={side}
+                className="rounded border border-gray-700 bg-gray-900/45 p-3"
+              >
+                <Field label={`${side === 'left' ? 'Left' : 'Right'} end`}>
+                  <select
+                    value={anchorValue}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      const nextAnchor = value === 'free'
+                        ? false
+                        : value === 'end'
+                          ? { to: 'end', offset: 0 }
+                          : {
+                              to: 'wall',
+                              wallId: value.slice('wall:'.length),
+                              offset: 0,
+                            };
+                      dispatch(setSoffitAnchor({
+                        ...actionBase,
+                        side,
+                        anchor: nextAnchor,
+                      }));
+                    }}
+                    aria-label={`${side} soffit anchor`}
+                    className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="free">Free</option>
+                    <option value="end">Wall end</option>
+                    {landingsOn(room, wall).map((interval) => {
+                      const landedWall = room.walls.find(
+                        (candidate) => candidate.id === interval.wallId,
+                      );
+                      return landedWall ? (
+                        <option
+                          key={`${interval.wallId}:${interval.endpoint}`}
+                          value={`wall:${interval.wallId}`}
+                        >
+                          {wallLabel(room, landedWall)}
+                        </option>
+                      ) : null;
+                    })}
+                  </select>
+                </Field>
+                {anchor && (
+                  <div className="mt-2">
+                    <Field label="Offset">
+                      <InchInput
+                        value={anchor.offset}
+                        allowBlank
+                        placeholder="0"
+                        onCommit={(offset) => dispatch(setSoffitAnchor({
+                          ...actionBase,
+                          side,
+                          anchor: { ...anchor, offset },
+                        }))}
+                        aria-label={`${side} soffit anchor offset`}
+                      />
+                    </Field>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </section>
+
+      <button
+        type="button"
+        onClick={() => dispatch(deleteSoffit(actionBase))}
+        className="w-full rounded border border-red-700 px-3 py-2 text-sm text-red-300 hover:bg-red-950/40"
+      >
+        Delete soffit
+      </button>
+    </div>
+  );
+}
+
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
   const messageTimer = useRef(null);
@@ -1827,6 +1999,9 @@ export default function PropertiesPanel() {
   const opening = wall?.openings.find(
     (candidate) => candidate.id === selection.openingId,
   ) ?? null;
+  const soffit = wall
+    ? soffitsOn(wall).find((candidate) => candidate.id === selection.soffitId) ?? null
+    : null;
   const run = wall?.runs.find((candidate) => candidate.id === selection.runId) ?? null;
   const layout = useMemo(
     () => (run ? splitRun(run, settings, {
@@ -1895,6 +2070,13 @@ export default function PropertiesPanel() {
             opening={opening}
             settings={settings}
             placementMessage={message}
+          />
+        ) : soffit ? (
+          <SoffitProperties
+            room={room}
+            wall={wall}
+            soffit={soffit}
+            settings={settings}
           />
         ) : !run || !displayLayout ? (
           <WallHeightProperties room={room} wall={wall} plan={view === 'plan'} />
