@@ -15,6 +15,7 @@ import { panelDrop, resolveStyle } from '../model/styles.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
+import { runMolding } from '../model/soffits.js';
 import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
@@ -70,6 +71,7 @@ function RunGroup({
   const showsMolding = run.heightMode === 'auto'
     && (run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
       || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
+  const molding = runMolding(wall, run);
   const boxTop = run.z + run.height;
   const topMold = wallRectToScreen({
     x: run.x,
@@ -256,25 +258,25 @@ function RunGroup({
         />
       )}
 
-      {showsMolding && (
-        <>
-          <Rect
-            {...topMold}
-            fill="#94a3b8"
-            opacity={0.9}
-            stroke="#cbd5e1"
-            strokeWidth={1}
-            listening={false}
-          />
-          <Rect
-            {...crown}
-            fill="#e2e8f0"
-            opacity={0.82}
-            stroke="#f8fafc"
-            strokeWidth={1}
-            listening={false}
-          />
-        </>
+      {showsMolding && molding !== 'none' && (
+        <Rect
+          {...topMold}
+          fill="#94a3b8"
+          opacity={0.9}
+          stroke="#cbd5e1"
+          strokeWidth={1}
+          listening={false}
+        />
+      )}
+      {showsMolding && molding === 'crown' && (
+        <Rect
+          {...crown}
+          fill="#e2e8f0"
+          opacity={0.82}
+          stroke="#f8fafc"
+          strokeWidth={1}
+          listening={false}
+        />
       )}
 
       <Rect

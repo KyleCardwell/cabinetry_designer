@@ -1,4 +1,4 @@
-import { Group, Line, Rect, Text } from 'react-konva';
+import { Group, Rect, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
 import {
   anchoredToCorner,
@@ -9,39 +9,7 @@ import {
 import { landingsOn } from '../model/landings.js';
 import { wallLabel } from '../model/topology.js';
 import { wallSideOf } from '../model/wallSides.js';
-
-function Hatch({ rect }) {
-  const spacing = 8;
-  const count = Math.ceil((rect.width + rect.height) / spacing) + 2;
-  return (
-    <Group
-      clipX={rect.x}
-      clipY={rect.y}
-      clipWidth={rect.width}
-      clipHeight={rect.height}
-      listening={false}
-    >
-      {Array.from({ length: count }, (_, index) => {
-        const startX = rect.x - rect.height + index * spacing;
-        return (
-          <Line
-            key={startX}
-            points={[
-              startX,
-              rect.y + rect.height,
-              startX + rect.height,
-              rect.y,
-            ]}
-            stroke="#94a3b8"
-            strokeWidth={1}
-            opacity={0.55}
-            listening={false}
-          />
-        );
-      })}
-    </Group>
-  );
-}
+import Hatch from './Hatch.jsx';
 
 export default function NeighborReturns({ room, wall, settings, transform }) {
   const returns = [];

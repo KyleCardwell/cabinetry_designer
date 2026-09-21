@@ -26,6 +26,7 @@ import {
   fitWallToViewport,
   panView,
   screenToWall,
+  wallRectToScreen,
   wallToScreen,
   withView,
   zoomViewAt,
@@ -38,6 +39,11 @@ import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
 import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../model/constants.js';
 import { createRun } from '../model/runDefaults.js';
+import {
+  createSoffit,
+  resolveSoffitSpan,
+  validateSoffitPlacement,
+} from '../model/soffits.js';
 import {
   createOpening,
   openingGeometry,
@@ -69,8 +75,10 @@ import { formatInches } from '../model/units.js';
 import {
   addOpening,
   addRun,
+  addSoffit,
   deleteOpening,
   deleteRun,
+  deleteSoffit,
   dissolveJoint,
   moveOpening,
   removeItem,
@@ -91,6 +99,7 @@ import LiveEntryInput from './LiveEntryInput.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
 import RunGroup from './RunGroup.jsx';
+import SoffitShapes from './SoffitShapes.jsx';
 import WallEndPanelShapes from './WallEndPanelShapes.jsx';
 import WallFrame from './WallFrame.jsx';
 
@@ -262,12 +271,16 @@ function ElevationCanvas({
   }, [fitRequest, resetView, wallId]);
 
   useEffect(() => {
-    if (tool !== 'draw') cancelDrag();
+    if (tool !== 'draw' && tool !== 'soffit') cancelDrag();
     if (tool !== 'select') setStretchPreview(null);
   }, [cancelDrag, tool]);
 
   useEffect(() => {
-    if (entry?.kind === 'run-draw' && tool !== 'draw') cancelEntry();
+    if (
+      (entry?.kind === 'run-draw' || entry?.kind === 'soffit-draw')
+      && tool !== 'draw'
+      && tool !== 'soffit'
+    ) cancelEntry();
     else if (
       (entry?.kind === 'run-edge' || entry?.kind === 'run-move')
       && tool !== 'select'
@@ -497,6 +510,18 @@ function ElevationCanvas({
         }));
         return;
       }
+      if (currentSelection.soffitId) {
+        const selectedSoffit = (currentWall.soffits ?? []).find(
+          (soffit) => soffit.id === currentSelection.soffitId,
+        );
+        if (!selectedSoffit) return;
+        event.preventDefault();
+        dispatch(deleteSoffit({
+          wallId: currentWall.id,
+          soffitId: selectedSoffit.id,
+        }));
+        return;
+      }
       if (!currentSelection.runId) return;
       const selectedRun = currentWall.runs.find(
         (run) => run.id === currentSelection.runId,
@@ -568,7 +593,7 @@ function ElevationCanvas({
 
   const dragBounds = useMemo(() => {
     if (!drag) return null;
-    if (entry?.kind !== 'run-draw') {
+    if (entry?.kind !== 'run-draw' && entry?.kind !== 'soffit-draw') {
       return dragPointsToRunInput(drag.start, drag.current);
     }
     return runDrawBounds(
@@ -581,6 +606,7 @@ function ElevationCanvas({
   const dragPreview = useMemo(() => {
     if (!dragBounds || !room || !wall || dragBounds.width <= 0) return null;
     const gesture = liveGestureRef.current;
+    if (gesture?.kind === 'soffit-draw') return { soffit: dragBounds };
     const startSide = gesture?.direction < 0 ? 'right' : 'left';
     const currentSide = startSide === 'left' ? 'right' : 'left';
     const exactEdges = gesture?.kind === 'run-draw'
@@ -698,8 +724,37 @@ function ElevationCanvas({
     dispatch(setSelection({ runId: run.id, pieceId: null }));
   }, [cancelDrag, dispatch, room, settings, showMessage, wall]);
 
+  const commitSoffitDraw = useCallback((width) => {
+    const gesture = liveGestureRef.current;
+    if (gesture?.kind !== 'soffit-draw' || !room || !wall) return;
+    const bounds = runDrawBounds(
+      gesture.start,
+      gesture.current,
+      width,
+      gesture.direction,
+    );
+    liveGestureRef.current = null;
+    cancelDrag();
+    setAlignmentGuides([]);
+
+    const soffit = createSoffit(bounds, { settings, room, wall });
+    const resolvedSoffit = {
+      ...soffit,
+      ...resolveSoffitSpan(room, wall, soffit),
+    };
+    const validation = validateSoffitPlacement(wall, resolvedSoffit);
+    if (!validation.ok) {
+      showMessage(validation.reason === 'soffit-overlap'
+        ? "Soffits can't overlap"
+        : 'A soffit needs room below the ceiling');
+      return;
+    }
+
+    dispatch(addSoffit({ wallId: wall.id, soffit }));
+  }, [cancelDrag, dispatch, room, settings, showMessage, wall]);
+
   const handleMouseDown = (event) => {
-    if (tool !== 'draw' || event.evt.button !== 0
+    if ((tool !== 'draw' && tool !== 'soffit') || event.evt.button !== 0
       || spacePressedRef.current || panRef.current) return;
     if (entry) return;
     const wallPoint = wallPointFromEvent(event);
@@ -710,8 +765,9 @@ function ElevationCanvas({
     dispatch(setSelection({}));
     updateDrag({ start: point, current: point });
     setEntryPointer(pointer);
+    const kind = tool === 'soffit' ? 'soffit-draw' : 'run-draw';
     liveGestureRef.current = {
-      kind: 'run-draw',
+      kind,
       start: point,
       current: point,
       direction: 1,
@@ -720,12 +776,12 @@ function ElevationCanvas({
       awaitingClick: false,
     };
     beginEntry({
-      kind: 'run-draw',
+      kind,
       label: 'Width',
       value: 0,
       min: settings.minRunWidth,
       max: Infinity,
-      onCommit: commitRunDraw,
+      onCommit: kind === 'soffit-draw' ? commitSoffitDraw : commitRunDraw,
       onCancel: () => {
         liveGestureRef.current = null;
         cancelDrag();
@@ -739,7 +795,10 @@ function ElevationCanvas({
     const pointer = stageRef.current?.getPointerPosition();
     if (!entry || !gesture || !pointer) return;
     setEntryPointer(pointer);
-    if (entry.kind === 'run-draw' && gesture.kind === 'run-draw') {
+    if (
+      (entry.kind === 'run-draw' || entry.kind === 'soffit-draw')
+      && gesture.kind === entry.kind
+    ) {
       const wallPoint = wallPointFromEvent(event);
       if (!wallPoint) return;
       const { point, snappedX } = wallPoint;
@@ -775,7 +834,8 @@ function ElevationCanvas({
 
   const handleMouseUp = (event) => {
     const gesture = liveGestureRef.current;
-    if (entry?.kind !== 'run-draw' || gesture?.kind !== 'run-draw'
+    if ((entry?.kind !== 'run-draw' && entry?.kind !== 'soffit-draw')
+      || gesture?.kind !== entry.kind
       || gesture.awaitingClick) return;
     const { point, snappedX } = wallPointFromEvent(event) ?? {
       point: gesture.current,
@@ -805,6 +865,11 @@ function ElevationCanvas({
   const selectRun = useCallback((runId) => {
     if (tool !== 'select' || suppressClickRef.current) return;
     dispatch(setSelection({ runId, pieceId: null }));
+  }, [dispatch, tool]);
+
+  const selectSoffit = useCallback((soffitId) => {
+    if (tool !== 'select' || suppressClickRef.current) return;
+    dispatch(setSelection({ soffitId }));
   }, [dispatch, tool]);
 
   const selectPiece = useCallback((runId, pieceId) => {
@@ -1349,6 +1414,14 @@ function ElevationCanvas({
                 onMove={(x) => moveSelectedOpening(opening.id, x)}
               />
             ))}
+            <SoffitShapes
+              room={room}
+              wall={wall}
+              settings={settings}
+              transform={transform}
+              selectedSoffitId={selection.soffitId}
+              onSelect={tool === 'select' ? selectSoffit : undefined}
+            />
             {wall.runs.map((run) => (
               <RunGroup
                 key={run.id}
@@ -1522,11 +1595,25 @@ function ElevationCanvas({
           )}
           {dragPreview && (
             <Layer listening={false}>
-              <DragPreview
-                run={dragPreview.run}
-                valid={dragPreview.valid}
-                transform={transform}
-              />
+              {dragPreview.soffit ? (
+                <Rect
+                  {...wallRectToScreen({
+                    x: dragPreview.soffit.x,
+                    z: dragPreview.soffit.bottomZ,
+                    width: dragPreview.soffit.width,
+                    height: wall.height - dragPreview.soffit.bottomZ,
+                  }, transform)}
+                  stroke="#60a5fa"
+                  strokeWidth={2}
+                  dash={[8, 6]}
+                />
+              ) : (
+                <DragPreview
+                  run={dragPreview.run}
+                  valid={dragPreview.valid}
+                  transform={transform}
+                />
+              )}
             </Layer>
           )}
         </Stage>
