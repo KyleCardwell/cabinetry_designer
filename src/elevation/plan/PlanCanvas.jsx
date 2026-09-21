@@ -8,6 +8,7 @@ import {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+  Circle,
   Group,
   Layer,
   Line,
@@ -36,6 +37,7 @@ import {
   subtract,
   wallFrame,
 } from '../model/geometry.js';
+import { snapToWallFace } from '../model/landings.js';
 import {
   createOpening,
   openingsAtPoint,
@@ -45,7 +47,7 @@ import { wallLabel } from '../model/topology.js';
 import { formatInches, roundTo } from '../model/units.js';
 import { wallEndPanelPolygon, wallEndPanels } from '../model/wallEndPanels.js';
 import { wallOutline } from '../model/wallOutline.js';
-import { wallSideFrame, wallSideOf } from '../model/wallSides.js';
+import { wallSideFrame, wallSideOf, wallSideView } from '../model/wallSides.js';
 import {
   addOpening,
   addWallSegment,
@@ -447,6 +449,50 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     return result.point;
   }, [scale, settings.orthoWalls, walls]);
 
+  const snapDrawPoint = useCallback((snapped, fixed) => {
+    const endpointSnap = snapToEndpoint(
+      snapped,
+      adaptedWalls,
+      ENDPOINT_SNAP_RADIUS,
+    );
+    if (endpointSnap) {
+      setAlignmentGuides([]);
+      return {
+        point: { x: endpointSnap.x, y: endpointSnap.y },
+        connect: { wallId: endpointSnap.wallId, endpoint: endpointSnap.endpoint },
+        land: null,
+        faceLabel: null,
+      };
+    }
+
+    const faceSnap = snapToWallFace(room, snapped, ENDPOINT_SNAP_RADIUS);
+    if (faceSnap) {
+      setAlignmentGuides([]);
+      const host = room.walls.find((wall) => wall.id === faceSnap.wallId);
+      const length = host
+        ? wallFrame(room, wallSideView(host, faceSnap.side)).length
+        : 0;
+      const fromLeft = faceSnap.x <= length - faceSnap.x;
+      return {
+        point: faceSnap.point,
+        connect: null,
+        land: {
+          wallId: faceSnap.wallId,
+          side: faceSnap.side,
+          x: faceSnap.x,
+        },
+        faceLabel: `${formatInches(fromLeft ? faceSnap.x : length - faceSnap.x)} from ${fromLeft ? 'left' : 'right'}`,
+      };
+    }
+
+    return {
+      point: applyAlignment(snapped, { fixed }),
+      connect: null,
+      land: null,
+      faceLabel: null,
+    };
+  }, [adaptedWalls, applyAlignment, room]);
+
   const handleStageClick = useCallback((event) => {
     if (suppressClickRef.current) return;
     if (event.target !== event.target.getStage()) return;
@@ -463,23 +509,16 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     if (!pointer) return;
     const fixed = wallDrawStart ? { x: wallDrawStart.x, y: wallDrawStart.y } : null;
     const snapped = gridAndOrtho(toWorld(pointer), fixed);
-    const endpointSnap = snapToEndpoint(snapped, adaptedWalls, ENDPOINT_SNAP_RADIUS);
-    let point;
-    if (endpointSnap) {
-      setAlignmentGuides([]);
-      point = { x: endpointSnap.x, y: endpointSnap.y };
-    } else {
-      point = applyAlignment(snapped, { fixed });
-    }
+    const { point, connect, land, faceLabel } = snapDrawPoint(snapped, fixed);
 
     if (!wallDrawStart) {
       setEntryPointer(pointer);
       setWallDrawStart({
         ...point,
-        _connectTo: endpointSnap
-          ? { wallId: endpointSnap.wallId, endpoint: endpointSnap.endpoint }
-          : null,
+        _connectTo: connect,
+        _landOn: land,
       });
+      setMouseWorldPos({ ...point, _faceLabel: faceLabel });
       return;
     }
 
@@ -490,24 +529,24 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       x2: point.x,
       y2: point.y,
       connectStart: wallDrawStart._connectTo,
-      connectEnd: endpointSnap
-        ? { wallId: endpointSnap.wallId, endpoint: endpointSnap.endpoint }
-        : null,
+      connectEnd: connect,
+      landStart: wallDrawStart._connectTo ? null : wallDrawStart._landOn,
+      landEnd: land,
     });
     dispatch(action);
     setAlignmentGuides([]);
     setWallDrawStart({
       ...point,
       _connectTo: { wallId: action.payload.id, endpoint: 'end' },
+      _landOn: null,
     });
     setMouseWorldPos(null);
   }, [
-    adaptedWalls,
-    applyAlignment,
     commitEntry,
     dispatch,
     entry,
     gridAndOrtho,
+    snapDrawPoint,
     toWorld,
     tool,
     wallDrawStart,
@@ -526,29 +565,21 @@ export default function PlanCanvas({ fitRequest = 0 }) {
         updateEntry(roundTo(delta, settings.planGrid));
       } else if (entry.kind === 'wall-draw' && wallDrawStart) {
         const snapped = gridAndOrtho(toWorld(pointer), wallDrawStart);
-        const endpointSnap = snapToEndpoint(
+        const { point, connect, land, faceLabel } = snapDrawPoint(
           snapped,
-          adaptedWalls,
-          ENDPOINT_SNAP_RADIUS,
+          wallDrawStart,
         );
-        let point;
-        if (endpointSnap) {
-          setAlignmentGuides([]);
-          point = { x: endpointSnap.x, y: endpointSnap.y };
-        } else {
-          point = applyAlignment(snapped, { fixed: wallDrawStart });
-        }
         const dx = point.x - wallDrawStart.x;
         const dy = point.y - wallDrawStart.y;
         const length = Math.hypot(dx, dy);
         liveGestureRef.current = {
           kind: 'wall-draw',
           direction: length > 0 ? { x: dx / length, y: dy / length } : null,
-          connectEnd: endpointSnap
-            ? { wallId: endpointSnap.wallId, endpoint: endpointSnap.endpoint }
-            : null,
+          connectEnd: connect,
+          landEnd: land,
           pointerLength: length,
         };
+        setMouseWorldPos({ ...point, _faceLabel: faceLabel });
         updateEntry(length);
       } else if (entry.kind === 'wall-length') {
         const gesture = liveGestureRef.current;
@@ -565,24 +596,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       }
       return;
     }
-    if (tool !== 'wall' || !wallDrawStart || panRef.current) return;
-    const snapped = gridAndOrtho(toWorld(pointer), wallDrawStart);
-    const endpointSnap = snapToEndpoint(snapped, adaptedWalls, ENDPOINT_SNAP_RADIUS);
-    let point;
-    if (endpointSnap) {
-      setAlignmentGuides([]);
-      point = { x: endpointSnap.x, y: endpointSnap.y };
-    } else {
-      point = applyAlignment(snapped, { fixed: wallDrawStart });
-    }
-    setMouseWorldPos(point);
+    if (tool !== 'wall' || panRef.current) return;
+    const fixed = wallDrawStart ?? null;
+    const snapped = gridAndOrtho(toWorld(pointer), fixed);
+    const { point, faceLabel } = snapDrawPoint(snapped, fixed);
+    setMouseWorldPos({ ...point, _faceLabel: faceLabel });
   }, [
-    adaptedWalls,
-    applyAlignment,
     entry,
     gridAndOrtho,
     moveHandle,
     settings.planGrid,
+    snapDrawPoint,
     toWorld,
     tool,
     updateEntry,
@@ -596,6 +620,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       kind: 'wall-draw',
       direction: null,
       connectEnd: null,
+      landEnd: null,
       pointerLength: 0,
     };
     beginEntry({
@@ -615,6 +640,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
           && Math.abs(length - gesture.pointerLength) < 1e-6
           ? gesture.connectEnd
           : null;
+        const landEnd = gesture.landEnd
+          && Math.abs(length - gesture.pointerLength) < 1e-6
+          ? gesture.landEnd
+          : null;
         const action = addWallSegment({
           x1: start.x,
           y1: start.y,
@@ -622,12 +651,15 @@ export default function PlanCanvas({ fitRequest = 0 }) {
           y2: point.y,
           connectStart: start._connectTo,
           connectEnd,
+          landStart: start._connectTo ? null : start._landOn,
+          landEnd,
         });
         dispatch(action);
         liveGestureRef.current = null;
         setWallDrawStart({
           ...point,
           _connectTo: { wallId: action.payload.id, endpoint: 'end' },
+          _landOn: null,
         });
         setMouseWorldPos(null);
       },
@@ -1091,6 +1123,27 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               end={entry?.kind === 'wall-draw' ? liveWallDrawEnd : mouseWorldPos}
               scale={scale}
             />
+            {tool === 'wall' && mouseWorldPos?._faceLabel && (
+              <Group listening={false}>
+                <Circle
+                  x={mouseWorldPos.x}
+                  y={mouseWorldPos.y}
+                  radius={4 / scale}
+                  fill="#22d3ee"
+                  stroke="#ecfeff"
+                  strokeWidth={0.75 / scale}
+                />
+                <Text
+                  x={mouseWorldPos.x}
+                  y={mouseWorldPos.y - 10 / scale}
+                  text={mouseWorldPos._faceLabel}
+                  fontSize={10 / scale}
+                  fill="#22d3ee"
+                  offsetX={mouseWorldPos._faceLabel.length * 3 / scale}
+                  offsetY={10 / scale}
+                />
+              </Group>
+            )}
           </Layer>
         </Stage>
       )}

@@ -1,8 +1,10 @@
 import { Circle, Group, Line, Text } from 'react-konva';
 import { layoutDimensionRow } from '../canvas/dimensionLayout.js';
 import { wallFrame } from '../model/geometry.js';
+import { landingsOn } from '../model/landings.js';
 import { elevationLetters, wallNumbers } from '../model/topology.js';
 import { wallOutline } from '../model/wallOutline.js';
+import { wallSideFrame, wallSideView } from '../model/wallSides.js';
 import PlanElevationMarker from './PlanElevationMarker.jsx';
 
 const ELEVATION_MARKER_DEPTH = 30;
@@ -73,6 +75,48 @@ export default function PlanWallShape({
   };
   let labelRotation = Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1) * 180 / Math.PI;
   if (labelRotation > 90 || labelRotation < -90) labelRotation += 180;
+  const landingDimensionOffset = dimensionOffset + 16 / scale;
+  const landingRows = ['front', 'back'].flatMap((side) => {
+    const sideView = wallSideView(wall, side);
+    const intervals = landingsOn(room, sideView);
+    if (intervals.length === 0) return [];
+    const sideFrame = wallSideFrame(room, wall, side);
+    const outward = side === 'front' ? exterior : frame.n;
+    const segments = [];
+    let cursor = 0;
+    intervals.forEach(({ a, b }) => {
+      segments.push({ start: cursor, end: a });
+      segments.push({ start: a, end: b });
+      cursor = b;
+    });
+    segments.push({ start: cursor, end: sideFrame.length });
+    const rowLayout = layoutDimensionRow(segments, { scale, fontSize: 11 });
+    const rowStart = {
+      x: sideFrame.leftPoint.x + outward.x * landingDimensionOffset,
+      y: sideFrame.leftPoint.y + outward.y * landingDimensionOffset,
+    };
+    const rowEnd = {
+      x: sideFrame.rightPoint.x + outward.x * landingDimensionOffset,
+      y: sideFrame.rightPoint.y + outward.y * landingDimensionOffset,
+    };
+    const rowTickDirection = {
+      x: (sideFrame.r.x + outward.x) / Math.SQRT2,
+      y: (sideFrame.r.y + outward.y) / Math.SQRT2,
+    };
+    let rowRotation = Math.atan2(sideFrame.r.y, sideFrame.r.x) * 180 / Math.PI;
+    if (rowRotation > 90 || rowRotation < -90) rowRotation += 180;
+    return [{
+      side,
+      sideFrame,
+      outward,
+      segments,
+      layout: rowLayout,
+      rowStart,
+      rowEnd,
+      tickDirection: rowTickDirection,
+      rotation: rowRotation,
+    }];
+  });
 
   return (
     <Group onClick={onSelect} onDblClick={onOpen}>
@@ -167,6 +211,111 @@ export default function PlanWallShape({
           fill="#e2e8f0"
         />
       </Group>
+      {landingRows.map((row) => {
+        const boundaries = [
+          row.segments[0].start,
+          ...row.segments.map((segment) => segment.end),
+        ];
+        return (
+          <Group key={row.side} listening={false}>
+            <Line
+              points={[row.rowStart.x, row.rowStart.y, row.rowEnd.x, row.rowEnd.y]}
+              stroke="#94a3b8"
+              strokeWidth={1 / scale}
+            />
+            {boundaries.map((boundary, index) => {
+              const facePoint = {
+                x: row.sideFrame.leftPoint.x + row.sideFrame.r.x * boundary,
+                y: row.sideFrame.leftPoint.y + row.sideFrame.r.y * boundary,
+              };
+              const extensionStart = {
+                x: facePoint.x + row.outward.x * 2 / scale,
+                y: facePoint.y + row.outward.y * 2 / scale,
+              };
+              const extensionEnd = {
+                x: facePoint.x + row.outward.x * (landingDimensionOffset + 4 / scale),
+                y: facePoint.y + row.outward.y * (landingDimensionOffset + 4 / scale),
+              };
+              const dimensionPoint = {
+                x: facePoint.x + row.outward.x * landingDimensionOffset,
+                y: facePoint.y + row.outward.y * landingDimensionOffset,
+              };
+              return (
+                <Group key={`${row.side}:${boundary}:${index}`}>
+                  <Line
+                    points={[
+                      extensionStart.x,
+                      extensionStart.y,
+                      extensionEnd.x,
+                      extensionEnd.y,
+                    ]}
+                    stroke="#64748b"
+                    strokeWidth={0.75 / scale}
+                  />
+                  <Line
+                    points={[
+                      dimensionPoint.x - row.tickDirection.x * tickHalfLength,
+                      dimensionPoint.y - row.tickDirection.y * tickHalfLength,
+                      dimensionPoint.x + row.tickDirection.x * tickHalfLength,
+                      dimensionPoint.y + row.tickDirection.y * tickHalfLength,
+                    ]}
+                    stroke="#cbd5e1"
+                    strokeWidth={1 / scale}
+                  />
+                </Group>
+              );
+            })}
+            {row.layout.labels.map((rowLabel, index) => {
+              if (rowLabel.mode === 'hidden') return null;
+              const segment = row.segments[index];
+              const centerX = (segment.start + segment.end) / 2;
+              const dimensionPoint = {
+                x: row.sideFrame.leftPoint.x
+                  + row.sideFrame.r.x * centerX
+                  + row.outward.x * landingDimensionOffset,
+                y: row.sideFrame.leftPoint.y
+                  + row.sideFrame.r.y * centerX
+                  + row.outward.y * landingDimensionOffset,
+              };
+              const rowLabelDistance = (rowLabel.mode === 'popout'
+                ? 9 + 12 * rowLabel.level
+                : 9) / scale;
+              const rowLabelPoint = {
+                x: dimensionPoint.x + row.outward.x * rowLabelDistance,
+                y: dimensionPoint.y + row.outward.y * rowLabelDistance,
+              };
+              return (
+                <Group key={`${row.side}:label:${index}`}>
+                  {rowLabel.mode === 'popout' && (
+                    <Line
+                      points={[
+                        dimensionPoint.x,
+                        dimensionPoint.y,
+                        rowLabelPoint.x,
+                        rowLabelPoint.y,
+                      ]}
+                      stroke="#64748b"
+                      strokeWidth={0.75 / scale}
+                    />
+                  )}
+                  <Text
+                    x={rowLabelPoint.x}
+                    y={rowLabelPoint.y}
+                    width={rowLabel.width / scale}
+                    offsetX={rowLabel.width / scale / 2}
+                    offsetY={fontSize / 2}
+                    rotation={row.rotation}
+                    align="center"
+                    text={rowLabel.text}
+                    fontSize={fontSize}
+                    fill="#e2e8f0"
+                  />
+                </Group>
+              );
+            })}
+          </Group>
+        );
+      })}
       <Circle
         x={numberPoint.x}
         y={numberPoint.y}

@@ -1,5 +1,5 @@
 import { Fragment, useRef } from 'react';
-import { Circle, Line } from 'react-konva';
+import { Circle, Line, Rect } from 'react-konva';
 import { wallFrame } from '../../elevation/model/geometry.js';
 
 function endpointPoint(wall, endpoint) {
@@ -54,6 +54,25 @@ export default function WallEndpoints({
   const wallId = wall.id ?? wall.wall_id;
   const isConnectedStart = !!wall.connections?.start;
   const isConnectedEnd = !!wall.connections?.end;
+
+  const renderLandedEndpoint = (endpoint) => {
+    const point = endpointPoint(wall, endpoint);
+    return (
+      <Rect
+        key={endpoint}
+        x={point.x}
+        y={point.y}
+        width={6 / scale}
+        height={6 / scale}
+        offsetX={3 / scale}
+        offsetY={3 / scale}
+        fill="#22d3ee"
+        stroke="#ecfeff"
+        strokeWidth={0.75 / scale}
+        listening={false}
+      />
+    );
+  };
 
   const renderFreeHandle = (endpoint, fill) => {
     const point = endpointPoint(wall, endpoint);
@@ -153,10 +172,14 @@ export default function WallEndpoints({
 
   return (
     <>
-      {orthoWalls && isConnectedStart
+      {wall.landings?.start
+        ? renderLandedEndpoint('start')
+        : orthoWalls && isConnectedStart
         ? renderConnectedCorner('start')
         : renderFreeHandle('start', isConnectedStart ? '#facc15' : '#26ff00')}
-      {orthoWalls && isConnectedEnd
+      {wall.landings?.end
+        ? renderLandedEndpoint('end')
+        : orthoWalls && isConnectedEnd
         ? renderConnectedCorner('end')
         : renderFreeHandle('end', isConnectedEnd ? '#facc15' : '#ff0000')}
     </>
