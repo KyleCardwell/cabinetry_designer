@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { cornerAt, cornerReserveParts } from '../corners.js';
 import {
   landingInterval,
   landingOffsetFor,
@@ -10,7 +11,8 @@ import {
   resolveLandings,
   snapToWallFace,
 } from '../landings.js';
-import { wallSideView } from '../wallSides.js';
+import { describeAnchor, syncRoom } from '../room.js';
+import { wallEndPanelAt, wallSideView } from '../wallSides.js';
 
 function base(id, overrides = {}) {
   return {
@@ -234,5 +236,114 @@ describe('wall landings', () => {
     expect(wallById(detachedHost, 'W1').landings.start).toEqual({
       wallId: 'H', side: 'front', ref: 'left', to: 'near', offset: 60,
     });
+  });
+
+  it('143. treats a landed wall end as an inside corner on its facing side', () => {
+    const room = alcove();
+    const W1 = wallById(room, 'W1');
+
+    expect(cornerAt(room, wallSideView(W1, 'front'), 'left')).toEqual({
+      type: 'inside',
+      angle: 90,
+      neighborWallId: 'H',
+      neighborSide: 'right',
+      neighborWallSide: 'front',
+      anchorWallId: 'W1',
+    });
+    expect(cornerAt(room, wallSideView(W1, 'front'), 'right')).toEqual({ type: 'open' });
+    expect(cornerAt(room, wallSideView(W1, 'back'), 'right')).toEqual({
+      type: 'inside',
+      angle: 90,
+      neighborWallId: 'H',
+      neighborSide: 'left',
+      neighborWallSide: 'front',
+      anchorWallId: 'W1',
+    });
+    expect(cornerAt(room, wallSideView(W1, 'back'), 'left')).toEqual({ type: 'open' });
+  });
+
+  it('144. resolves host runs anchored flush to landed wall faces', () => {
+    const room = syncRoom(alcove({ hostRuns: [AL()] }), DEFAULT_SETTINGS);
+    const H = wallById(room, 'H');
+    const run = H.runs[0];
+
+    expect(run).toMatchObject({ x: 69, width: 120 });
+    expect(describeAnchor(room, H, run, 'left', DEFAULT_SETTINGS))
+      .toBe('Against Wall 2 · flush');
+    expect(describeAnchor(room, H, run, 'right', DEFAULT_SETTINGS))
+      .toBe('Against Wall 3 · flush');
+  });
+
+  it('145. reserves a host run for a landed wall return', () => {
+    const WR = base('WR', {
+      width: 30,
+      wallSide: 'back',
+      anchors: { left: false, right: true },
+      cornerClearance: { left: 'auto', right: 0 },
+    });
+    const room = syncRoom(
+      alcove({ hostRuns: [AL()], w1Runs: [WR] }),
+      DEFAULT_SETTINGS,
+    );
+    const H = wallById(room, 'H');
+    const W1 = wallById(room, 'W1');
+    const hostRun = H.runs[0];
+    const wingRun = W1.runs[0];
+
+    expect(hostRun).toMatchObject({ x: 93.875, width: 95.125 });
+    expect(describeAnchor(room, H, hostRun, 'left', DEFAULT_SETTINGS))
+      .toBe('Against Wall 2 · reserve 24 7/8"');
+    expect(wingRun).toMatchObject({ x: 0, width: 30 });
+  });
+
+  it('146. applies a host run reserve back to the landed wall run', () => {
+    const WR = base('WR', {
+      width: 30,
+      wallSide: 'back',
+      anchors: { left: false, right: true },
+    });
+    const room = syncRoom(
+      alcove({ hostRuns: [AL()], w1Runs: [WR] }),
+      DEFAULT_SETTINGS,
+    );
+    const W1 = wallById(room, 'W1');
+    const wingRun = W1.runs[0];
+
+    expect(cornerReserveParts(room, W1, 'right', wingRun, DEFAULT_SETTINGS)).toEqual({
+      face: 24.875,
+      back: 0,
+      total: 24.875,
+      source: 'auto',
+    });
+    expect(wingRun.width).toBe(5.125);
+  });
+
+  it('147. supports a custom lap past a landed wall face', () => {
+    const room = syncRoom(alcove({
+      hostRuns: [AL({ cornerClearance: { left: -0.5, right: 'auto' } })],
+    }), DEFAULT_SETTINGS);
+    const H = wallById(room, 'H');
+    const run = H.runs[0];
+
+    expect(run).toMatchObject({ x: 68.5, width: 120.5 });
+    expect(describeAnchor(room, H, run, 'left', DEFAULT_SETTINGS))
+      .toBe('Against Wall 2 · 1/2" past');
+  });
+
+  it('148. suppresses an end panel at a landed endpoint', () => {
+    const room = alcove();
+    const W1 = wallById(room, 'W1');
+    W1.endPanels = { start: { width: null }, end: { width: null } };
+
+    expect(wallEndPanelAt(room, wallSideView(W1, 'front'), 'left', DEFAULT_SETTINGS))
+      .toBeNull();
+    expect(wallEndPanelAt(room, wallSideView(W1, 'front'), 'right', DEFAULT_SETTINGS))
+      .toEqual({ endpoint: 'end', width: 0.75 });
+  });
+
+  it('149. resolves landing offsets before syncing the room', () => {
+    const room = syncRoom(withLanding(alcove(), 'W1', { offset: 50 }), DEFAULT_SETTINGS);
+
+    expect(interval(room, 'W1')).toEqual([50, 59, 50, 59]);
   });
 });

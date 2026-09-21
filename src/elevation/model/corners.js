@@ -3,9 +3,11 @@ import {
   clamp,
   dot,
   normalize,
+  scale,
   subtract,
   wallFrame,
 } from './geometry.js';
+import { landingEndpoint } from './landings.js';
 import { roundTo } from './units.js';
 import {
   wallEndPanelAt,
@@ -47,11 +49,32 @@ function directionFromEndpoint(wall, endpoint) {
   return normalize(subtract(other, corner));
 }
 
+function landingCorner(room, wall, frame, endpoint, landing) {
+  const host = room.walls.find((candidate) => candidate.id === landing.wallId);
+  if (!host) return { type: 'open' };
+  const hostFrame = wallFrame(room, wallSideView(host, landing.side));
+  const uA = directionFromEndpoint(wall, endpoint);
+  const along = dot(frame.n, hostFrame.r);
+  if (Math.abs(along) < 1e-9) return { type: 'open' };
+  const uB = along > 0 ? hostFrame.r : scale(hostFrame.r, -1);
+  const angle = Math.acos(clamp(dot(uA, uB), -1, 1)) * 180 / Math.PI;
+  return {
+    type: 'inside',
+    angle,
+    neighborWallId: host.id,
+    neighborSide: along > 0 ? 'left' : 'right',
+    neighborWallSide: landing.side,
+    anchorWallId: wall.id,
+  };
+}
+
 /** Classify the corner at an elevation-side end of a wall. */
 export function cornerAt(room, wall, side) {
   const frame = wallFrame(room, wall);
   const endpoint = side === 'left' ? frame.leftEndpoint : frame.rightEndpoint;
   const connection = wall.connections?.[endpoint];
+  const landing = wall.landings?.[endpoint];
+  if (!connection && landing) return landingCorner(room, wall, frame, endpoint, landing);
   if (!connection) return { type: 'open' };
 
   const neighbor = room.walls.find((candidate) => candidate.id === connection.wallId);
@@ -70,10 +93,50 @@ export function cornerAt(room, wall, side) {
   return { ...shared, type: 'outside', angle: 360 - angle };
 }
 
+/** Classify the corner where a host run is anchored to a landed wall's face. */
+export function spanCorner(room, hostView, run, side) {
+  const anchor = run.anchors?.[side];
+  const host = hostView.sideSource ?? hostView;
+  const hostSide = hostView.sideSource ? hostView.side : 'front';
+  const neighbor = room.walls.find((candidate) => candidate.id === anchor?.wallId);
+  const endpoint = neighbor ? landingEndpoint(neighbor, host.id, hostSide) : null;
+  if (!neighbor || !endpoint) return { type: 'open' };
+
+  const hostFrame = wallFrame(room, hostView);
+  const uA = side === 'left' ? hostFrame.r : scale(hostFrame.r, -1);
+  const uB = directionFromEndpoint(neighbor, endpoint);
+  const angle = Math.acos(clamp(dot(uA, uB), -1, 1)) * 180 / Math.PI;
+  const neighborWallSide = dot(wallFrame(room, neighbor).n, uA) > 0 ? 'front' : 'back';
+  const neighborFrame = wallFrame(room, wallSideView(neighbor, neighborWallSide));
+  const neighborSide = neighborFrame.leftEndpoint === endpoint ? 'left' : 'right';
+  return {
+    type: 'inside',
+    angle,
+    neighborWallId: neighbor.id,
+    neighborSide,
+    neighborWallSide,
+  };
+}
+
+/** Classify the corner at a run side, including anchors to landed walls. */
+export function cornerForRunSide(room, wall, run, side) {
+  const view = wallViewForRun(wall, run);
+  return run.anchors?.[side]?.to === 'wall'
+    ? spanCorner(room, view, run, side)
+    : cornerAt(room, view, side);
+}
+
+/** Return whether an anchor meets the wall represented by a corner. */
+export function anchoredToCorner(anchor, corner) {
+  return corner.anchorWallId
+    ? anchor?.to === 'wall' && anchor.wallId === corner.anchorWallId
+    : anchor === true;
+}
+
 /** Return the face and back components of a corner reserve. */
 export function cornerReserveParts(room, wall, side, run, settings) {
   wall = wallViewForRun(wall, run);
-  const corner = cornerAt(room, wall, side);
+  const corner = cornerForRunSide(room, wall, run, side);
   if (corner.type !== 'inside') {
     const override = run.cornerClearance?.[side];
     const custom = typeof override === 'number' && Number.isFinite(override);
@@ -94,7 +157,7 @@ export function cornerReserveParts(room, wall, side, run, settings) {
   const sine = Math.sin(corner.angle * Math.PI / 180);
   const face = !neighbor || Math.abs(sine) < 1e-9 ? 0 : neighbor.runs.reduce((reserve, neighborRun) => {
     if (wallSideOf(neighborRun) !== corner.neighborWallSide) return reserve;
-    if (neighborRun.anchors?.[corner.neighborSide] !== true) return reserve;
+    if (!anchoredToCorner(neighborRun.anchors?.[corner.neighborSide], corner)) return reserve;
     if (!bandsCompatible(run, neighborRun)) return reserve;
     return Math.max(reserve, frontDepth(neighborRun, settings) / sine);
   }, 0);

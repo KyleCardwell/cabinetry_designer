@@ -135,13 +135,16 @@ export {
   resolveVertical,
 } from './profile.js';
 export {
+  anchoredToCorner,
   bandsCompatible,
   cornerAt,
   cornerFillerMin,
+  cornerForRunSide,
   cornerReserve,
   cornerReserveParts,
   frontDepth,
   resolveHorizontal,
+  spanCorner,
 } from './corners.js';
 export {
   findCollisions,

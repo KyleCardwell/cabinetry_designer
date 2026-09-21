@@ -3,6 +3,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import {
   cornerAt,
   cornerFillerMin,
+  cornerForRunSide,
   cornerReserve,
   cornerReserveParts,
   resolveHorizontal,
@@ -16,6 +17,7 @@ import {
   pruneJoints,
   runShortLabel,
 } from './joints.js';
+import { landingsOn, resolveLandings } from './landings.js';
 import { openingGeometry, runBlocksOpening } from './openings.js';
 import {
   dot,
@@ -27,7 +29,7 @@ import { validateRunPlacement, verticalStart } from './overlap.js';
 import { resolveProfile, resolveVertical } from './profile.js';
 import { stretchedStart } from './positions.js';
 import { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
-import { computeWallOrder } from './topology.js';
+import { computeWallOrder, wallLabel } from './topology.js';
 import { formatInches, roundTo } from './units.js';
 import {
   WALL_SIDES,
@@ -133,10 +135,11 @@ export function compensateRuns(oldRoom, newRoom) {
 export function endMinWidthsForRun(room, wall, run, settings) {
   wall = wallViewForRun(wall, run);
   return Object.fromEntries(['left', 'right'].map((side) => {
-    const corner = cornerAt(room, wall, side);
+    const corner = cornerForRunSide(room, wall, run, side);
     return [
       side,
-      run.anchors?.[side] === true && corner.type === 'inside'
+      (run.anchors?.[side] === true || run.anchors?.[side]?.to === 'wall')
+        && corner.type === 'inside'
         ? cornerFillerMin(settings, corner.angle)
         : settings.fillerMinWidth,
     ];
@@ -147,10 +150,11 @@ export function endMinWidthsForRun(room, wall, run, settings) {
 export function endCornerAnglesForRun(room, wall, run) {
   wall = wallViewForRun(wall, run);
   return Object.fromEntries(['left', 'right'].map((side) => {
-    const corner = cornerAt(room, wall, side);
+    const corner = cornerForRunSide(room, wall, run, side);
     return [
       side,
-      run.anchors?.[side] === true && corner.type === 'inside' ? corner.angle : undefined,
+      (run.anchors?.[side] === true || run.anchors?.[side]?.to === 'wall')
+        && corner.type === 'inside' ? corner.angle : undefined,
     ];
   }));
 }
@@ -187,6 +191,15 @@ export function resolveRunAnchorDatum(room, wall, run, side, settings) {
   if (anchor?.to === 'opening') {
     return { ...openingAnchorDatum(anchor, side, wall, length, settings), type: 'opening' };
   }
+  if (anchor?.to === 'wall') {
+    const interval = landingsOn(room, wall).find((entry) => entry.wallId === anchor.wallId);
+    if (!interval) return { error: { code: 'anchor-wall-missing', side } };
+    const reserve = cornerReserve(room, wall, side, run, settings);
+    return {
+      x: side === 'left' ? interval.b + reserve : interval.a - reserve,
+      type: 'wall',
+    };
+  }
   if (isJointAnchor(anchor)) {
     const joint = (wall.joints ?? []).find((candidate) => candidate.id === anchor.jointId);
     if (!joint) return { error: { code: 'anchor-joint-missing', side } };
@@ -222,6 +235,20 @@ export function describeAnchor(room, wall, run, side, settings) {
       ? `${formatInches(offset)} gap`
       : offset < 0 ? `${formatInches(Math.abs(offset))} past` : 'flush';
     return `Joined to ${label} · ${relation}`;
+  }
+  if (anchor?.to === 'wall') {
+    const anchoredWall = room.walls.find((candidate) => candidate.id === anchor.wallId);
+    if (!anchoredWall) return 'Anchored wall is missing';
+    const parts = cornerReserveParts(room, wall, side, run, settings);
+    let relation = 'flush';
+    if (parts.source === 'custom' && parts.total !== 0) {
+      relation = parts.total < 0
+        ? `${formatInches(Math.abs(parts.total))} past`
+        : `held back ${formatInches(parts.total)}`;
+    } else if (parts.source === 'auto' && parts.total > 0) {
+      relation = `reserve ${formatInches(parts.total)}`;
+    }
+    return `Against ${wallLabel(room, anchoredWall)} · ${relation}`;
   }
 
   const corner = cornerAt(room, wall, side);
@@ -429,7 +456,7 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
  * @returns {object}
  */
 export function syncRoom(room, settings) {
-  let nextRoom = cloneRoom(room);
+  let nextRoom = cloneRoom(resolveLandings(room));
   nextRoom.walls = nextRoom.walls.map(pruneJoints);
 
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);

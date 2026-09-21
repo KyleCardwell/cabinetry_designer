@@ -20,7 +20,7 @@ export function wallEndPanels(room, wall, settings) {
   const source = wall.sideSource ?? wall;
   return ['start', 'end'].flatMap((endpoint) => {
     const stored = source.endPanels?.[endpoint];
-    if (!stored || source.connections?.[endpoint]) return [];
+    if (!stored || source.connections?.[endpoint] || source.landings?.[endpoint]) return [];
     const width = stored.width ?? settings.endPanelThickness;
     const front = panelSide(room, source, endpoint, 'front', width, settings);
     const back = panelSide(room, source, endpoint, 'back', width, settings);
