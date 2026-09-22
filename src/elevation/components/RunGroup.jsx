@@ -22,6 +22,7 @@ import {
   pinTargetsForRun,
 } from '../model/room.js';
 import { formatInches } from '../model/units.js';
+import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 import FaceOutlines from './FaceOutlines.jsx';
 import PieceRect from './PieceRect.jsx';
@@ -44,8 +45,10 @@ function RunGroup({
   onStretchStart,
   onStretchMove,
   onStretchEnd,
+  cursor,
 }) {
   const [anchorTooltip, setAnchorTooltip] = useState(null);
+  const cursorKeys = useCursorKeys(cursor);
   const result = useMemo(() => splitRun(run, settings, {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
@@ -124,11 +127,6 @@ function RunGroup({
     onSelectRun(run.id);
   };
 
-  const setResizeCursor = (event, cursor) => {
-    const stage = event.target.getStage();
-    if (stage) stage.container().style.cursor = cursor;
-  };
-
   const edgeXFor = (side) => (
     side === 'left' ? runRect.x : runRect.x + runRect.width
   );
@@ -152,13 +150,13 @@ function RunGroup({
         onMouseDown={stopHandleEvent}
         onMouseUp={stopHandleEvent}
         onClick={stopHandleEvent}
-        onMouseEnter={(event) => {
+        onMouseEnter={() => {
           setAnchorTooltip(side);
-          setResizeCursor(event, 'help');
+          cursorKeys.request('badge', CURSORS.explain);
         }}
-        onMouseLeave={(event) => {
+        onMouseLeave={() => {
           setAnchorTooltip(null);
-          setResizeCursor(event, 'default');
+          cursorKeys.release('badge');
         }}
       >
         <Text
@@ -215,8 +213,8 @@ function RunGroup({
         }}
         onMouseUp={stopHandleEvent}
         onClick={stopHandleEvent}
-        onMouseEnter={(event) => setResizeCursor(event, 'ew-resize')}
-        onMouseLeave={(event) => setResizeCursor(event, 'default')}
+        onMouseEnter={() => cursorKeys.request(side, CURSORS.resizeX)}
+        onMouseLeave={() => cursorKeys.release(side)}
         onDragStart={(event) => {
           stopHandleEvent(event);
         }}
@@ -228,7 +226,7 @@ function RunGroup({
           stopHandleEvent(event);
           const newEdgeX = wallXFromHandle(event);
           event.target.position({ x: edgeX, y: runRect.y });
-          setResizeCursor(event, 'ew-resize');
+          cursorKeys.request(side, CURSORS.resizeX);
           onStretchEnd?.(run.id, side, newEdgeX);
         }}
       />
@@ -283,6 +281,8 @@ function RunGroup({
         {...runRect}
         fill="rgba(0, 0, 0, 0.001)"
         onClick={selectRun}
+        onMouseEnter={() => cursorKeys.request('body', CURSORS.select)}
+        onMouseLeave={() => cursorKeys.release('body')}
       />
 
       {drawnPieces.map((piece) => (
@@ -297,6 +297,7 @@ function RunGroup({
             ? cornerFillers.left
             : piece.role === 'end-right' && cornerFillers.right}
           onSelect={() => onSelectPiece(run.id, piece.id)}
+          cursor={cursor}
         />
       ))}
 

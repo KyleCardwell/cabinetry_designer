@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Group, Label, Rect, Tag, Text } from 'react-konva';
 import { KIND_COLORS } from '../model/constants.js';
 import { formatInches } from '../model/units.js';
+import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 
 export default function PieceRect({
@@ -12,8 +13,10 @@ export default function PieceRect({
   selected,
   cornerFiller = false,
   onSelect,
+  cursor,
 }) {
   const [hovered, setHovered] = useState(false);
+  const cursorKeys = useCursorKeys(cursor);
   const rect = wallRectToScreen(piece, transform);
   const widthText = Number.isFinite(piece.absorbed)
     ? `${formatInches(piece.width)} (${piece.absorbed >= 0 ? '+' : ''}${formatInches(piece.absorbed)})`
@@ -30,8 +33,14 @@ export default function PieceRect({
 
   return (
     <Group
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => {
+        setHovered(true);
+        cursorKeys.request(piece.id, CURSORS.select);
+      }}
+      onMouseLeave={() => {
+        setHovered(false);
+        cursorKeys.release(piece.id);
+      }}
       onClick={(event) => {
         event.cancelBubble = true;
         onSelect();

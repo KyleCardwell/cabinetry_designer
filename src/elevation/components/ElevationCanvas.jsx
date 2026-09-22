@@ -1516,6 +1516,7 @@ function ElevationCanvas({
                 onStretchStart={startStretch}
                 onStretchMove={updateStretch}
                 onStretchEnd={finishStretch}
+                cursor={cursor}
               />
             ))}
             {tool === 'select' && (
