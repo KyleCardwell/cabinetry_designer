@@ -14,32 +14,117 @@ function normalizeResult(value) {
 export function parseInches(str) {
   if (typeof str !== 'string') return null;
 
-  const input = str.trim().replace(/"$/, '').trim();
-  if (!input) return null;
+  const mixedPattern = /(\d+)\s+(\d+)\s*\/\s*(\d+)/y;
+  const decimalPattern = /\d+(?:\.\d*)?|\.\d+/y;
+  let position = 0;
+  let invalid = false;
 
-  const mixed = input.match(/^([+-]?\d+)(?:\s+|-)(\d+)\s*\/\s*(\d+)$/);
-  if (mixed) {
-    const wholeToken = mixed[1];
-    const whole = Number(wholeToken);
-    const numerator = Number(mixed[2]);
-    const denominator = Number(mixed[3]);
-    if (denominator === 0 || numerator >= denominator) return null;
+  const skipWhitespace = () => {
+    while (/\s/.test(str[position] ?? '')) position += 1;
+  };
 
-    const sign = wholeToken.startsWith('-') ? -1 : 1;
-    return sign * (Math.abs(whole) + numerator / denominator);
+  const parseNumber = () => {
+    skipWhitespace();
+    mixedPattern.lastIndex = position;
+    const mixed = mixedPattern.exec(str);
+    if (mixed) {
+      position = mixedPattern.lastIndex;
+      const numerator = Number(mixed[2]);
+      const denominator = Number(mixed[3]);
+      if (denominator === 0 || numerator >= denominator) {
+        invalid = true;
+        return null;
+      }
+      return Number(mixed[1]) + numerator / denominator;
+    }
+
+    decimalPattern.lastIndex = position;
+    const decimal = decimalPattern.exec(str);
+    if (!decimal) return null;
+    position = decimalPattern.lastIndex;
+    return Number(decimal[0]);
+  };
+
+  const parseMeasure = () => {
+    const value = parseNumber();
+    if (value === null) return null;
+
+    skipWhitespace();
+    if (str[position] === '"') {
+      position += 1;
+      return value;
+    }
+    if (str[position] !== "'") return value;
+
+    position += 1;
+    const compoundStart = position;
+    const inches = parseNumber();
+    if (inches === null) {
+      if (invalid) return null;
+      position = compoundStart;
+      return value * 12;
+    }
+
+    skipWhitespace();
+    if (str[position] === "'") {
+      position = compoundStart;
+      return value * 12;
+    }
+    if (str[position] === '"') position += 1;
+    return value * 12 + inches;
+  };
+
+  const parseFactor = () => {
+    skipWhitespace();
+    if (str[position] === '+' || str[position] === '-') {
+      const sign = str[position] === '-' ? -1 : 1;
+      position += 1;
+      const value = parseFactor();
+      return value === null ? null : sign * value;
+    }
+    if (str[position] === '(') {
+      position += 1;
+      const value = parseExpr();
+      skipWhitespace();
+      if (value === null || str[position] !== ')') return null;
+      position += 1;
+      return value;
+    }
+    return parseMeasure();
+  };
+
+  const parseTerm = () => {
+    let value = parseFactor();
+    if (value === null) return null;
+    while (true) {
+      skipWhitespace();
+      const operator = str[position];
+      if (operator !== '*' && operator !== '/') return value;
+      position += 1;
+      const right = parseFactor();
+      if (right === null) return null;
+      value = operator === '*' ? value * right : value / right;
+    }
+  };
+
+  function parseExpr() {
+    let value = parseTerm();
+    if (value === null) return null;
+    while (true) {
+      skipWhitespace();
+      const operator = str[position];
+      if (operator !== '+' && operator !== '-') return value;
+      position += 1;
+      const right = parseTerm();
+      if (right === null) return null;
+      value = operator === '+' ? value + right : value - right;
+    }
   }
 
-  const fraction = input.match(/^([+-]?\d+)\s*\/\s*(\d+)$/);
-  if (fraction) {
-    const numerator = Number(fraction[1]);
-    const denominator = Number(fraction[2]);
-    if (denominator === 0) return null;
-    return numerator / denominator;
-  }
-
-  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(input)) return null;
-  const value = Number(input);
-  return Number.isFinite(value) ? value : null;
+  const value = parseExpr();
+  skipWhitespace();
+  if (invalid || value === null || position !== str.length || !Number.isFinite(value)) return null;
+  return normalizeResult(value);
 }
 
 /**

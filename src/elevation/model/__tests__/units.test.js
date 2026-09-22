@@ -10,7 +10,7 @@ import {
 describe('parseInches and formatInches', () => {
   it.each([
     ['30 1/2', 30.5, '30 1/2"'],
-    ['30-1/2', 30.5, '30 1/2"'],
+    ['30-1/2', 29.5, '29 1/2"'],
     ['30.5', 30.5, '30 1/2"'],
     ['3/4', 0.75, '3/4"'],
     ['2 1/16"', 2.0625, '2 1/16"'],
@@ -59,5 +59,39 @@ describe('formatInches with a finer step', () => {
     expect(formatInches(-0.125, 1 / 32)).toBe('-1/8"');
     expect(formatInches(0.09375)).toBe('1/8"');
     expect(formatInchesInput(0.84375, 1 / 32)).toBe('27/32');
+  });
+});
+
+describe('SPEC-21 inch math', () => {
+  it('180. evaluates inch expressions', () => {
+    const cases = [
+      ['30 1/2 + 3/4', 31.25],
+      ['30-1/2', 29.5],
+      ['55 - 4.5 / 2', 52.75],
+      ['(55 - 4.5)/2', 25.25],
+      ['30 - 1/2', 29.5],
+      ['12-3', 9],
+      ['(36 - 1 1/2) / 2', 17.25],
+      ['2 * 15 3/8', 30.75],
+      ['-1/2', -0.5],
+      ['-(2 1/2 + 1)', -3.5],
+      ['24" + 3/4"', 24.75],
+      ["8'", 96],
+      ["8'6\"", 102],
+      ["8' 6 1/2", 102.5],
+      ["8'-6", 90],
+      ["8' - 6", 90],
+      ['.5 + 1.25', 1.75],
+    ];
+
+    for (const [input, expected] of cases) {
+      expect(parseInches(input), input).toBe(expected);
+    }
+  });
+
+  it('181. rejects invalid inch expressions', () => {
+    for (const input of ['', 'abc', '1/0', '2 2/2', '3 feet', '30 +', '(30', '30)', '2(3)', '1..5', "8''", '5 5']) {
+      expect(parseInches(input), input).toBeNull();
+    }
   });
 });
