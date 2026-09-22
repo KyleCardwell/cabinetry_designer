@@ -69,6 +69,7 @@ import {
   tryPlaceRun,
 } from '../model/room.js';
 import { wallSideView } from '../model/wallSides.js';
+import { wallExtent } from '../model/wallExtent.js';
 import { isJointAnchor, jointMembers } from '../model/joints.js';
 import { runWidthRange } from '../model/splitRun.js';
 import { formatInches } from '../model/units.js';
@@ -96,6 +97,7 @@ import DimensionRow from './DimensionRow.jsx';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import JointMarkers from './JointMarkers.jsx';
 import LiveEntryInput from './LiveEntryInput.jsx';
+import NeighborProfiles from './NeighborProfiles.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
 import RunGroup from './RunGroup.jsx';
@@ -426,21 +428,39 @@ function ElevationCanvas({
     const verticalLevels = layoutDimensionRow(dimensionChains.vertical.inner, {
       scale: transform.scale,
     }).levels;
+    const extent = wallExtent(room, wall, settings);
+    const clear = {
+      below: Math.max(0, -extent.bottom) * transform.scale,
+      above: Math.max(0, extent.top - wall.height) * transform.scale,
+      left: Math.max(0, -extent.left) * transform.scale,
+      right: Math.max(0, extent.right - wall.length) * transform.scale,
+    };
     const below = belowRowOffsets({
       clearances: clearanceLevels,
       pieces: lowerLevels,
       overall: lowerOuterLevels,
       openings: openingLevels,
     });
+    const upper = dimensionRowOffsets('horizontal', upperLevels);
+    const vertical = dimensionRowOffsets('vertical', verticalLevels);
     return {
-      lower: { inner: below.pieces, outer: below.overall },
-      upper: dimensionRowOffsets('horizontal', upperLevels),
-      vertical: dimensionRowOffsets('vertical', verticalLevels),
-      openings: below.openings,
-      clearances: below.clearances,
-      label: below.label,
+      lower: {
+        inner: below.pieces + clear.below,
+        outer: below.overall + clear.below,
+      },
+      upper: {
+        inner: upper.inner + clear.above,
+        outer: upper.outer + clear.above,
+      },
+      vertical: {
+        inner: vertical.inner + clear.left,
+        outer: vertical.outer + clear.left,
+      },
+      openings: below.openings + clear.below,
+      clearances: below.clearances + clear.below,
+      label: below.label + clear.below,
     };
-  }, [dimensionChains, transform]);
+  }, [dimensionChains, room, settings, transform, wall]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -1461,6 +1481,12 @@ function ElevationCanvas({
           </Layer>
           <Layer listening={false}>
             <NeighborReturns
+              room={room}
+              wall={wall}
+              settings={settings}
+              transform={transform}
+            />
+            <NeighborProfiles
               room={room}
               wall={wall}
               settings={settings}
