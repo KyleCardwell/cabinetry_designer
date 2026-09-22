@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { wallLength } from './geometry.js';
-import { landingsOn } from './landings.js';
+import { landingProjection, landingsOn } from './landings.js';
 import { moldingStack } from './profile.js';
 import { roundTo } from './units.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
@@ -47,17 +47,51 @@ export function soffitMoldingDrop(molding, profile) {
   return 0;
 }
 
-/** Return the lowest soffit that fully covers an upper or tall run. */
+/** Return the lowest soffit that overlaps an upper or tall run. */
 export function soffitOverRun(wall, run) {
   if (run.cabinetTypeId !== CABINET_TYPE_IDS.UPPER
     && run.cabinetTypeId !== CABINET_TYPE_IDS.TALL) return null;
   const runRight = run.x + run.width;
   return soffitsOn(wall, wallSideOf(run))
     .filter((soffit) => (
-      run.x >= soffit.x - SPAN_EPSILON
-      && runRight <= soffit.x + soffit.width + SPAN_EPSILON
+      Math.min(runRight, soffit.x + soffit.width) - Math.max(run.x, soffit.x)
+        > SPAN_EPSILON
     ))
     .sort((a, b) => a.bottom - b.bottom)[0] ?? null;
+}
+
+/** Return which soffit sides are flush with their anchored wing walls. */
+export function soffitFlushSides(room, view, soffit) {
+  return Object.fromEntries(['left', 'right'].map((side) => {
+    const anchor = soffit.anchors?.[side];
+    if (anchor?.to !== 'wall' || (anchor.offset ?? 0) > SPAN_EPSILON) {
+      return [side, false];
+    }
+    const projection = landingProjection(room, view, anchor.wallId);
+    return [
+      side,
+      projection !== null && Math.abs(projection - soffit.depth) <= SPAN_EPSILON,
+    ];
+  }));
+}
+
+/** Return wing-wall seam endpoints hidden by flush soffits. */
+export function soffitSeams(room, view) {
+  const landings = landingsOn(room, view);
+  return soffitsOn(view).flatMap((soffit) => {
+    const flush = soffitFlushSides(room, view, soffit);
+    return ['left', 'right'].flatMap((side) => {
+      if (!flush[side]) return [];
+      const wallId = soffit.anchors[side].wallId;
+      const landing = landings.find((entry) => entry.wallId === wallId);
+      if (!landing) return [];
+      return [{
+        wallId,
+        x: side === 'left' ? landing.b : landing.a,
+        bottom: soffit.bottom,
+      }];
+    });
+  });
 }
 
 /** Apply a covering soffit's box-top limit to a run profile. */

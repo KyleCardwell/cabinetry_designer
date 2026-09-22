@@ -110,6 +110,7 @@ export {
   landingEndpoint,
   landingInterval,
   landingOffsetFor,
+  landingProjection,
   landingRefCreatesCycle,
   landingsOn,
   landWallEnd,
@@ -136,8 +137,10 @@ export {
   soffitAnchorDatum,
   soffitConflicts,
   soffitEndType,
+  soffitFlushSides,
   soffitMoldingDrop,
   soffitOverRun,
+  soffitSeams,
   soffitsOn,
   validateSoffitPlacement,
 } from './soffits.js';

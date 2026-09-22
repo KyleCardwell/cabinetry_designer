@@ -95,6 +95,7 @@ Specified in `docs/elevation-mvp/SPEC-18.md` and `SPEC-19.md`, step prompts in `
 - [ ] **[P1][model][elevation] Steps 96–100 — soffits**
   - Why: Build-order item (4). A soffit is a dropped ceiling; the molding under it (crown, top mold or none) is chosen as you draw.
   - Notes: `wall.soffits[]` per side; uppers and talls fully under one cap their box top at `bottom − molding`. Run anchor `{ to: 'soffit', soffitId, offset }` with a filler when cabinets continue under the soffit, otherwise an end panel. Straddling runs warn.
+  - Follow-up: a cabinet deeper than a shallow soffit, notched around the soffit's front, instead of dropping under it (decide per run). Dragging soffit edges in elevation.
   - Done when: SPEC-19 tests 160–173 pass and the manual checks in PROMPTS-19 hold.
 
 Specified in `docs/elevation-mvp/SPEC-17.md`, step prompts in `PROMPTS-17.md`.

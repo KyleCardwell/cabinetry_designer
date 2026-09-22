@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { landWallEnd } from '../landings.js';
+import { landingProjection, landWallEnd } from '../landings.js';
 import {
   describeAnchor,
   roomDiagnostics,
@@ -12,7 +12,9 @@ import {
   createSoffit,
   resolveSoffitSpan,
   runMolding,
+  soffitFlushSides,
   soffitMoldingDrop,
+  soffitSeams,
   validateSoffitPlacement,
 } from '../soffits.js';
 import { wallSideView } from '../wallSides.js';
@@ -200,15 +202,13 @@ describe('SPEC-19 soffit resolution', () => {
       upper('U4', { x: 10, width: 40 }),
     ]), DEFAULT_SETTINGS);
     expect(['U1', 'U2', 'U3', 'U4'].map((id) => runById(room, id).height))
-      .toEqual([24, 36, 36, 36]);
+      .toEqual([24, 36, 36, 24]);
 
     const diagnostics = roomDiagnostics(room, DEFAULT_SETTINGS);
-    for (const id of ['U1', 'U2', 'U3']) {
+    for (const id of ['U1', 'U2', 'U3', 'U4']) {
       expect(diagnostics[id].warnings.filter((warning) => warning.code === 'soffit-conflict'))
         .toEqual([]);
     }
-    expect(diagnostics.U4.warnings.filter((warning) => warning.code === 'soffit-conflict'))
-      .toEqual([{ code: 'soffit-conflict', soffitId: 'SF' }]);
 
     const manual = soffitWall([
       upper('M1', { x: 50, width: 30, heightMode: 'manual' }),
@@ -276,5 +276,73 @@ describe('SPEC-19 soffit resolution', () => {
     expect(run.anchors.left)
       .toEqual({ to: 'soffit', soffitId: 'SF', offset: 0 });
     expect(run.ends.left).toEqual({ type: 'end_panel', width: null });
+  });
+});
+
+describe('SPEC-20 partial soffit cover and flush ends', () => {
+  it('174. uses the lowest overlapping soffit for height and molding', () => {
+    const room = syncRoom(makeRoom([
+      makeWall('S', 0, 0, 144, 0, {
+        soffits: [
+          SF(),
+          SF({ id: 'SG', x: 100, width: 40, bottom: 90, molding: 'none' }),
+        ],
+        runs: [upper('U5', { x: 90, width: 30 })],
+      }),
+    ]), DEFAULT_SETTINGS);
+    const wall = wallById(room, 'S');
+    const run = runById(room, 'U5');
+
+    expect({ z: run.z, height: run.height }).toEqual({ z: 54, height: 24 });
+    expect(runMolding(wall, run)).toBe('crown');
+    expect(roomDiagnostics(room, DEFAULT_SETTINGS).U5.warnings
+      .filter((warning) => warning.code === 'soffit-conflict'))
+      .toEqual([]);
+  });
+
+  it('175. projects landed walls from the host face', () => {
+    const room = alcove();
+    const view = wallSideView(wallById(room, 'H'), 'front');
+
+    expect(landingProjection(room, view, 'W1')).toBe(30);
+    expect(landingProjection(room, view, 'W2')).toBe(30);
+    expect(landingProjection(room, view, 'nope')).toBeNull();
+  });
+
+  it('176. finds flush soffit sides and their wing-wall seams', () => {
+    const room = alcove();
+    const flush = SF({
+      x: 69,
+      width: 120,
+      depth: 30,
+      anchors: {
+        left: { to: 'wall', wallId: 'W1', offset: 0 },
+        right: { to: 'wall', wallId: 'W2', offset: 0 },
+      },
+    });
+    const H2 = { ...wallById(room, 'H'), soffits: [flush] };
+    const view = wallSideView(H2, 'front');
+
+    expect(soffitFlushSides(room, view, flush)).toEqual({ left: true, right: true });
+    expect(soffitFlushSides(room, view, { ...flush, depth: 14 }))
+      .toEqual({ left: false, right: false });
+    expect(soffitFlushSides(room, view, {
+      ...flush,
+      anchors: {
+        ...flush.anchors,
+        left: { ...flush.anchors.left, offset: 1 },
+      },
+    })).toEqual({ left: false, right: true });
+    expect(soffitFlushSides(room, view, {
+      ...flush,
+      anchors: {
+        ...flush.anchors,
+        left: { ...flush.anchors.left, offset: -4.5 },
+      },
+    })).toEqual({ left: true, right: true });
+    expect(soffitSeams(room, view)).toEqual([
+      { wallId: 'W1', x: 69, bottom: 84 },
+      { wallId: 'W2', x: 189, bottom: 84 },
+    ]);
   });
 });

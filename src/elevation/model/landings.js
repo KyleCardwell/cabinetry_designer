@@ -102,6 +102,23 @@ export function landingsOn(room, wallOrView) {
   })).sort((a, b) => a.a - b.a);
 }
 
+/** Return how far a landed wall projects from the host face. */
+export function landingProjection(room, wallOrView, wallId) {
+  const host = wallOrView.sideSource ?? wallOrView;
+  const side = wallOrView.sideSource ? wallOrView.side : 'front';
+  const wall = room.walls.find((candidate) => candidate.id === wallId);
+  if (!wall) return null;
+  const endpoint = ['start', 'end'].find((candidate) => {
+    const landing = wall.landings?.[candidate];
+    return landing?.wallId === host.id && landing.side === side;
+  });
+  if (!endpoint) return null;
+  const landedEnd = endpointPoint(wall, endpoint);
+  const freeEnd = endpointPoint(wall, endpoint === 'start' ? 'end' : 'start');
+  const normal = wallSideFrame(room, host, side).n;
+  return Math.abs(dot(subtract(freeEnd, landedEnd), normal));
+}
+
 export function landingEndpoint(wall, hostId, side) {
   return ['start', 'end'].find((endpoint) => {
     const landing = wall.landings?.[endpoint];
