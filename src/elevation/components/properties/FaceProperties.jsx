@@ -11,6 +11,7 @@ import {
   equalizeGroup,
   faceOutline,
   getFaceNode,
+  makeDrawerStack,
   parentFacePath,
   presetsFor,
   removeFace,
@@ -29,6 +30,12 @@ const NUMBER_CLASS = 'w-16 rounded border border-gray-600 bg-gray-900 px-2 py-1.
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 
 function groupLabel(node) {
+  if (
+    node.direction === 'vertical'
+    && node.children.every((child) => child.type === 'drawer_front')
+  ) {
+    return `Drawer stack × ${node.children.length}`;
+  }
   const name = node.direction === 'horizontal' ? 'Side by side' : 'Stack';
   return `${name} × ${node.children.length}`;
 }
@@ -190,17 +197,55 @@ export default function FaceProperties({ wall, run, piece, item, layout, setting
               </label>
               <button
                 type="button"
-                onClick={() => commitIfChanged(splitFace(face, facePath, 'vertical', Number(splitCount)))}
-                className={BUTTON_CLASS}
+                title="Split side by side"
+                aria-label="Split side by side"
+                onClick={() => commitIfChanged(splitFace(face, facePath, 'horizontal', Number(splitCount)))}
+                className={`${BUTTON_CLASS} flex h-7 w-7 items-center justify-center p-0`}
               >
-                Stack
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  aria-hidden="true"
+                >
+                  <path d="M8 2v12M5.5 5 2.5 8l3 3M10.5 5l3 3-3 3" />
+                </svg>
               </button>
               <button
                 type="button"
-                onClick={() => commitIfChanged(splitFace(face, facePath, 'horizontal', Number(splitCount)))}
+                title="Split into a stack"
+                aria-label="Split into a stack"
+                onClick={() => commitIfChanged(splitFace(face, facePath, 'vertical', Number(splitCount)))}
+                className={`${BUTTON_CLASS} flex h-7 w-7 items-center justify-center p-0`}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M8 2v12M5.5 5 2.5 8l3 3M10.5 5l3 3-3 3"
+                    transform="rotate(90 8 8)"
+                  />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => commitIfChanged(makeDrawerStack(
+                  face,
+                  facePath,
+                  Number(splitCount),
+                ))}
                 className={BUTTON_CLASS}
               >
-                Side by side
+                Drawer stack
               </button>
             </div>
           ) : (

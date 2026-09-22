@@ -919,9 +919,33 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                       {anchorDescription}
                     </p>
                   </div>
-                ) : wallEndAnchor ? (
+                ) : soffitAnchor ? (
                   <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
-                    <Field label={insideCorner ? 'Corner clearance' : 'End offset'}>
+                    <Field label="Offset">
+                      <InchInput
+                        value={soffitAnchor.offset}
+                        allowBlank
+                        placeholder="0"
+                        onCommit={(value) => dispatch(setRunAnchor({
+                          ...actionBase,
+                          side,
+                          anchor: { ...soffitAnchor, offset: value ?? 0 },
+                        }))}
+                        aria-label={`${side} soffit anchor offset`}
+                      />
+                    </Field>
+                    <p className="text-xs text-gray-500">
+                      Positive holds the run back; negative carries it past.
+                    </p>
+                    <p className="text-xs text-cyan-300">
+                      {anchorDescription}
+                    </p>
+                  </div>
+                ) : (wallEndAnchor || wallAnchor) ? (
+                  <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
+                    <Field label={wallAnchor
+                      ? 'Clearance'
+                      : insideCorner ? 'Corner clearance' : 'End offset'}>
                       <select
                         value={clearanceMode}
                         onChange={(event) => {
@@ -953,7 +977,7 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                         />
                       </Field>
                     )}
-                    {clearanceMode === 'custom' && (
+                    {(clearanceMode === 'custom' || wallAnchor) && (
                       <p className="text-xs text-gray-500">
                         Positive holds the run back; negative carries it past.
                       </p>
@@ -1847,6 +1871,34 @@ function SoffitProperties({ room, wall, soffit, settings }) {
           Soffit
         </h3>
         <div className="space-y-2.5">
+          <Field label="Left">
+            {!soffit.anchors?.left && !soffit.anchors?.right ? (
+              <InchInput
+                value={soffit.x}
+                onCommit={(x) => dispatch(updateSoffit({
+                  ...actionBase,
+                  changes: { x },
+                }))}
+                aria-label="Soffit left"
+              />
+            ) : (
+              <ReadOnlyValue value={soffit.x} ariaLabel="Soffit left" />
+            )}
+          </Field>
+          <Field label="Width">
+            {soffit.anchors?.left && soffit.anchors?.right ? (
+              <ReadOnlyValue value={soffit.width} ariaLabel="Soffit width" />
+            ) : (
+              <InchInput
+                value={soffit.width}
+                onCommit={(width) => dispatch(updateSoffit({
+                  ...actionBase,
+                  changes: { width },
+                }))}
+                aria-label="Soffit width"
+              />
+            )}
+          </Field>
           <Field label="Bottom">
             <InchInput
               value={soffit.bottom}
