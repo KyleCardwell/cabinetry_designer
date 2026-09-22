@@ -28,14 +28,16 @@ export default function PlanWallShape({
   const fontSize = PLAN_DIM_FONT_SIZE / scale;
   const number = wallNumbers(room).get(wall.id);
   const numberRadius = 9 / scale;
-  const numberOffset = wall.thickness + 46 / scale;
+  const hasFrontLandings = landingsOn(room, wallSideView(wall, 'front')).length > 0;
+  const innerRowOffset = wall.thickness + 22 / scale;
+  const dimensionOffset = innerRowOffset + (hasFrontLandings ? 20 / scale : 0);
+  const extensionEndOffset = dimensionOffset + 4 / scale;
+  const numberOffset = dimensionOffset + 24 / scale;
   const numberPoint = {
     x: midpoint.x + exterior.x * numberOffset + frame.d.x * 24 / scale,
     y: midpoint.y + exterior.y * numberOffset + frame.d.y * 24 / scale,
   };
-  const dimensionOffset = wall.thickness + 22 / scale;
   const extensionStartOffset = wall.thickness + 2 / scale;
-  const extensionEndOffset = wall.thickness + 26 / scale;
   const faceEndpoints = [
     { x: wall.x1, y: wall.y1 },
     { x: wall.x2, y: wall.y2 },
@@ -67,13 +69,13 @@ export default function PlanWallShape({
   };
   let labelRotation = Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1) * 180 / Math.PI;
   if (labelRotation > 90 || labelRotation < -90) labelRotation += 180;
-  const landingDimensionOffset = dimensionOffset + 20 / scale;
   const landingRows = ['front', 'back'].flatMap((side) => {
     const sideView = wallSideView(wall, side);
     const intervals = landingsOn(room, sideView);
     if (intervals.length === 0) return [];
     const sideFrame = wallSideFrame(room, wall, side);
     const outward = side === 'front' ? exterior : frame.n;
+    const offset = side === 'front' ? innerRowOffset : innerRowOffset + 20 / scale;
     const segments = [];
     let cursor = 0;
     intervals.forEach(({ a, b }) => {
@@ -87,12 +89,12 @@ export default function PlanWallShape({
       fontSize: PLAN_DIM_FONT_SIZE,
     });
     const rowStart = {
-      x: sideFrame.leftPoint.x + outward.x * landingDimensionOffset,
-      y: sideFrame.leftPoint.y + outward.y * landingDimensionOffset,
+      x: sideFrame.leftPoint.x + outward.x * offset,
+      y: sideFrame.leftPoint.y + outward.y * offset,
     };
     const rowEnd = {
-      x: sideFrame.rightPoint.x + outward.x * landingDimensionOffset,
-      y: sideFrame.rightPoint.y + outward.y * landingDimensionOffset,
+      x: sideFrame.rightPoint.x + outward.x * offset,
+      y: sideFrame.rightPoint.y + outward.y * offset,
     };
     const rowTickDirection = {
       x: (sideFrame.r.x + outward.x) / Math.SQRT2,
@@ -104,6 +106,7 @@ export default function PlanWallShape({
       side,
       sideFrame,
       outward,
+      offset,
       segments,
       layout: rowLayout,
       rowStart,
@@ -228,12 +231,12 @@ export default function PlanWallShape({
                 y: facePoint.y + row.outward.y * 2 / scale,
               };
               const extensionEnd = {
-                x: facePoint.x + row.outward.x * (landingDimensionOffset + 4 / scale),
-                y: facePoint.y + row.outward.y * (landingDimensionOffset + 4 / scale),
+                x: facePoint.x + row.outward.x * (row.offset + 4 / scale),
+                y: facePoint.y + row.outward.y * (row.offset + 4 / scale),
               };
               const dimensionPoint = {
-                x: facePoint.x + row.outward.x * landingDimensionOffset,
-                y: facePoint.y + row.outward.y * landingDimensionOffset,
+                x: facePoint.x + row.outward.x * row.offset,
+                y: facePoint.y + row.outward.y * row.offset,
               };
               return (
                 <Group key={`${row.side}:${boundary}:${index}`}>
@@ -267,10 +270,10 @@ export default function PlanWallShape({
               const dimensionPoint = {
                 x: row.sideFrame.leftPoint.x
                   + row.sideFrame.r.x * centerX
-                  + row.outward.x * landingDimensionOffset,
+                  + row.outward.x * row.offset,
                 y: row.sideFrame.leftPoint.y
                   + row.sideFrame.r.y * centerX
-                  + row.outward.y * landingDimensionOffset,
+                  + row.outward.y * row.offset,
               };
               const rowLabelDistance = (rowLabel.mode === 'popout'
                 ? 10 + 14 * rowLabel.level
