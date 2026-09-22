@@ -5,6 +5,7 @@ import {
   Rect,
   Text,
 } from 'react-konva';
+import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { layoutDimensionRow } from '../canvas/dimensionLayout.js';
 import { wallToScreen } from '../canvas/transform.js';
 
@@ -49,9 +50,11 @@ export default function DimensionRow({
   onSegmentDragMove,
   onSegmentDragEnd,
   wallLength = 0,
+  cursor,
 }) {
   const [hoveredHiddenIndex, setHoveredHiddenIndex] = useState(null);
   const dragMovedRef = useRef(false);
+  const cursorKeys = useCursorKeys(cursor);
   const layout = useMemo(() => layoutDimensionRow(segments, {
     scale: transform.scale,
     fontSize: FONT_SIZE,
@@ -89,20 +92,16 @@ export default function DimensionRow({
     x: (axis.x + outward.x) / Math.SQRT2,
     y: (axis.y + outward.y) / Math.SQRT2,
   };
-  const setResizeCursor = (event, cursor) => {
-    const stage = event.target.getStage();
-    if (stage) stage.container().style.cursor = cursor;
-  };
   const dragDelta = (event, origin) => (horizontal
     ? (event.target.x() - origin.x) / transform.scale
     : -(event.target.y() - origin.y) / transform.scale);
-  const dragProps = (segment, origin) => (draggableRuns && segment.kind === 'run' && segment.runId === activeRunId ? {
+  const dragProps = (segment, origin, index) => (draggableRuns && segment.kind === 'run' && segment.runId === activeRunId ? {
     draggable: true,
     dragBoundFunc: (position) => (horizontal
       ? { x: position.x, y: origin.y }
       : { x: origin.x, y: position.y }),
-    onMouseEnter: (event) => setResizeCursor(event, 'move'),
-    onMouseLeave: (event) => setResizeCursor(event, 'default'),
+    onMouseEnter: () => cursorKeys.request(index, CURSORS.move),
+    onMouseLeave: () => cursorKeys.release(index),
     onDragStart: (event) => {
       event.cancelBubble = true;
       dragMovedRef.current = false;
@@ -192,15 +191,18 @@ export default function DimensionRow({
             onSegmentClick(segment);
           } : undefined,
           onMouseEnter: showsHiddenTooltip || showsPointerCursor
-            ? (event) => {
+            ? () => {
               if (showsHiddenTooltip) setHoveredHiddenIndex(index);
-              if (showsPointerCursor) setResizeCursor(event, 'pointer');
+              cursorKeys.request(
+                index,
+                showsHiddenTooltip ? CURSORS.explain : CURSORS.select,
+              );
             }
             : undefined,
           onMouseLeave: showsHiddenTooltip || showsPointerCursor
-            ? (event) => {
+            ? () => {
               if (showsHiddenTooltip) setHoveredHiddenIndex(null);
-              if (showsPointerCursor) setResizeCursor(event, 'default');
+              cursorKeys.release(index);
             }
             : undefined,
         };
@@ -272,7 +274,7 @@ export default function DimensionRow({
                 {...band}
                 fill="rgba(0,0,0,0.001)"
                 {...hitEvents}
-                {...dragProps(segment, { x: band.x, y: band.y })}
+                {...dragProps(segment, { x: band.x, y: band.y }, index)}
               />
             )}
             {clickable && label.mode !== 'hidden' && (
@@ -286,7 +288,7 @@ export default function DimensionRow({
                 rotation={rotation}
                 fill="rgba(0,0,0,0.001)"
                 {...hitEvents}
-                {...dragProps(segment, { x: labelPoint.x, y: labelPoint.y })}
+                {...dragProps(segment, { x: labelPoint.x, y: labelPoint.y }, index)}
               />
             )}
             {clickable && label.mode === 'popout' && (
@@ -294,7 +296,7 @@ export default function DimensionRow({
                 {...leader}
                 fill="rgba(0,0,0,0.001)"
                 {...hitEvents}
-                {...dragProps(segment, { x: leader.x, y: leader.y })}
+                {...dragProps(segment, { x: leader.x, y: leader.y }, index)}
               />
             )}
 

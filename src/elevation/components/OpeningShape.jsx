@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { Group, Rect, Text } from 'react-konva';
+import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { openingReferenceBounds } from '../model/openings.js';
 import { formatInches } from '../model/units.js';
@@ -12,8 +13,10 @@ export default function OpeningShape({
   selectable,
   onSelect,
   onMove,
+  cursor,
 }) {
   const dragStartRef = useRef(null);
+  const cursorKeys = useCursorKeys(cursor);
   const casingRect = geometry.casing
     ? wallRectToScreen(geometry.casing, transform)
     : null;
@@ -54,12 +57,11 @@ export default function OpeningShape({
         stopEvent(event);
         onSelect?.(opening.id);
       }}
-      onMouseEnter={(event) => {
-        event.target.getStage().container().style.cursor = draggable ? 'ew-resize' : 'pointer';
-      }}
-      onMouseLeave={(event) => {
-        event.target.getStage().container().style.cursor = 'default';
-      }}
+      onMouseEnter={() => cursorKeys.request(
+        opening.id,
+        draggable ? CURSORS.resizeX : CURSORS.select,
+      )}
+      onMouseLeave={() => cursorKeys.release(opening.id)}
       onDragStart={(event) => {
         stopEvent(event);
         dragStartRef.current = event.target.absolutePosition();

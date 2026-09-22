@@ -20,6 +20,11 @@ import {
   dimensionRowOffsets,
   layoutDimensionRow,
 } from '../canvas/dimensionLayout.js';
+import {
+  CURSORS,
+  elevationBaseCursor,
+  useCanvasCursor,
+} from '../canvas/cursor.js';
 import { panExceedsThreshold } from '../canvas/panGesture.js';
 import {
   DEFAULT_VIEW,
@@ -146,9 +151,13 @@ function ElevationCanvas({
   const [view, setView] = useState(DEFAULT_VIEW);
   const [drag, setDrag] = useState(null);
   const [stretchPreview, setStretchPreview] = useState(null);
+  const [pointerMode, setPointerMode] = useState('idle');
   const [hoveredGlyphId, setHoveredGlyphId] = useState(null);
   const [alignmentGuides, setAlignmentGuides] = useState([]);
   const [entryPointer, setEntryPointer] = useState(null);
+  const { style: cursorStyle, controller: cursor } = useCanvasCursor(
+    elevationBaseCursor(tool, pointerMode),
+  );
   const liveGestureRef = useRef(null);
   const moveOriginRef = useRef(null);
   const dragRef = useRef(null);
@@ -226,6 +235,7 @@ function ElevationCanvas({
   const stopPanning = useCallback(() => {
     const current = panRef.current;
     panRef.current = null;
+    setPointerMode(spacePressedRef.current ? 'pan-ready' : 'idle');
     if (!current?.moved) return;
     suppressClickRef.current = true;
     if (clickSuppressionTimeoutRef.current !== null) {
@@ -321,12 +331,17 @@ function ElevationCanvas({
       if (event.code !== 'Space') return;
       event.preventDefault();
       spacePressedRef.current = true;
+      setPointerMode('pan-ready');
     };
     const handleSpaceUp = (event) => {
-      if (event.code === 'Space') spacePressedRef.current = false;
+      if (event.code === 'Space') {
+        spacePressedRef.current = false;
+        setPointerMode('idle');
+      }
     };
     const handleBlur = () => {
       spacePressedRef.current = false;
+      setPointerMode('idle');
       stopPanning();
     };
     const handlePointerMove = (event) => {
@@ -339,6 +354,7 @@ function ElevationCanvas({
         { x: current.originX, y: current.originY },
         { x: event.clientX, y: event.clientY },
       );
+      if (moved && !current.moved) setPointerMode('panning');
       panRef.current = {
         ...current,
         x: event.clientX,
@@ -493,6 +509,7 @@ function ElevationCanvas({
       if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
 
       if (event.key === 'Escape') {
+        cursor.releaseHold();
         if (entry) {
           event.preventDefault();
           cancelEntry();
@@ -596,6 +613,7 @@ function ElevationCanvas({
   }, [
     cancelDrag,
     cancelEntry,
+    cursor,
     dispatch,
     entry,
     facePath,
@@ -1029,6 +1047,7 @@ function ElevationCanvas({
     const pointer = stageRef.current?.getPointerPosition();
     if (!run || !pointer) return;
     cancelEntry();
+    cursor.hold(CURSORS.resizeX);
     const widthRange = runWidthRange(run, settings, {
       endMinWidths: endMinWidthsForRun(room, wall, run, settings),
     });
@@ -1091,9 +1110,10 @@ function ElevationCanvas({
         liveGestureRef.current = null;
         setStretchPreview(null);
         setAlignmentGuides([]);
+        cursor.releaseHold();
       },
     });
-  }, [beginEntry, cancelEntry, commitStretch, room, settings, wall]);
+  }, [beginEntry, cancelEntry, commitStretch, cursor, room, settings, wall]);
 
   const updateStretch = useCallback((runId, side, newEdgeX) => {
     const gesture = liveGestureRef.current;
@@ -1106,7 +1126,8 @@ function ElevationCanvas({
   const finishStretch = useCallback((runId, side, newEdgeX) => {
     updateStretch(runId, side, newEdgeX);
     if (!entryRef.current || entryRef.current.typed === null) commitEntry();
-  }, [commitEntry, updateStretch]);
+    cursor.releaseHold();
+  }, [commitEntry, cursor, updateStretch]);
 
   const applyRunMove = useCallback((segment, delta, commit) => {
     const origin = moveOriginRef.current;
@@ -1169,6 +1190,7 @@ function ElevationCanvas({
     if (!run || !pointer || !transform) return;
     const result = moveRun(room, wall.id, run.id, run.x, settings);
     cancelEntry();
+    cursor.hold(CURSORS.move);
     dispatch(setSelection({ runId: run.id, pieceId: null }));
     setEntryPointer(pointer);
     moveOriginRef.current = { runId: run.id, x: run.x };
@@ -1193,9 +1215,10 @@ function ElevationCanvas({
         moveOriginRef.current = null;
         setStretchPreview(null);
         setAlignmentGuides([]);
+        cursor.releaseHold();
       },
     });
-  }, [applyRunMove, beginEntry, cancelEntry, dispatch, room, settings, transform, wall]);
+  }, [applyRunMove, beginEntry, cancelEntry, cursor, dispatch, room, settings, transform, wall]);
 
   const handleRunSegmentClick = useCallback((segment) => {
     if (tool !== 'select') return;
@@ -1217,7 +1240,8 @@ function ElevationCanvas({
   const finishRunMove = useCallback((segment, delta) => {
     updateRunMove(segment, delta);
     if (!entryRef.current || entryRef.current.typed === null) commitEntry();
-  }, [commitEntry, updateRunMove]);
+    cursor.releaseHold();
+  }, [commitEntry, cursor, updateRunMove]);
 
   const previewJointDrag = useCallback((jointId, x) => {
     if (!room || !wall) return;
@@ -1273,6 +1297,7 @@ function ElevationCanvas({
     cancelEntry();
     const rangeResult = moveJoint(room, wall.id, jointId, joint.x, settings);
     if (!rangeResult.range || rangeResult.range.min > rangeResult.range.max) return;
+    cursor.hold(CURSORS.resizeX);
     const offset = member.offset ?? 0;
     const grabbedEdgeAtJoint = (jointX) => (
       member.side === 'right' ? jointX - offset : jointX + offset
@@ -1371,9 +1396,10 @@ function ElevationCanvas({
         liveGestureRef.current = null;
         setStretchPreview(null);
         setAlignmentGuides([]);
+        cursor.releaseHold();
       },
     });
-  }, [beginEntry, cancelEntry, commitJointDrag, room, settings, wall]);
+  }, [beginEntry, cancelEntry, commitJointDrag, cursor, room, settings, wall]);
 
   const updateJointDrag = useCallback((jointId, x) => {
     const gesture = liveGestureRef.current;
@@ -1388,7 +1414,8 @@ function ElevationCanvas({
   const finishJointDrag = useCallback((jointId, x) => {
     updateJointDrag(jointId, x);
     if (!entryRef.current || entryRef.current.typed === null) commitEntry();
-  }, [commitEntry, updateJointDrag]);
+    cursor.releaseHold();
+  }, [commitEntry, cursor, updateJointDrag]);
 
   useEffect(() => {
     const gesture = liveGestureRef.current;
@@ -1418,7 +1445,7 @@ function ElevationCanvas({
     <div
       ref={containerRef}
       className="relative h-full w-full overflow-hidden bg-gray-900"
-      style={{ cursor: ['draw', 'door', 'window'].includes(tool) ? 'crosshair' : 'default' }}
+      style={{ cursor: cursorStyle }}
     >
       {!wall && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500">
@@ -1457,6 +1484,7 @@ function ElevationCanvas({
                 selectable={tool === 'select' && wall.side !== 'back'}
                 onSelect={selectOpening}
                 onMove={(x) => moveSelectedOpening(opening.id, x)}
+                cursor={cursor}
               />
             ))}
             <SoffitShapes
@@ -1501,6 +1529,7 @@ function ElevationCanvas({
                 onUnjoin={unjoinRunSide}
                 hoveredGlyphId={hoveredGlyphId}
                 setHoveredGlyphId={setHoveredGlyphId}
+                cursor={cursor}
               />
             )}
           </Layer>
@@ -1539,6 +1568,7 @@ function ElevationCanvas({
                 offsetPx={dimensionOffsets.clearances}
                 transform={transform}
                 wallEndMarks={[0, wall.length]}
+                cursor={cursor}
               />
               <DimensionRow
                 segments={dimensionChains.lower.inner}
@@ -1547,6 +1577,7 @@ function ElevationCanvas({
                 offsetPx={dimensionOffsets.lower.inner}
                 transform={transform}
                 wallEndMarks={[0, wall.length]}
+                cursor={cursor}
               />
               <DimensionRow
                 segments={dimensionChains.lower.outer}
@@ -1562,6 +1593,7 @@ function ElevationCanvas({
                 highlightRunId={selection.runId}
                 activeRunId={selection.runId}
                 wallEndMarks={[0, wall.length]}
+                cursor={cursor}
               />
               <DimensionRow
                 segments={dimensionChains.openings}
@@ -1570,6 +1602,7 @@ function ElevationCanvas({
                 offsetPx={dimensionOffsets.openings}
                 transform={transform}
                 wallEndMarks={[0, wall.length]}
+                cursor={cursor}
               />
               {elevationLabel(room, wall) && (
                 <Text
@@ -1591,6 +1624,7 @@ function ElevationCanvas({
                 offsetPx={dimensionOffsets.upper.inner}
                 transform={transform}
                 wallEndMarks={[0, wall.length]}
+                cursor={cursor}
               />
               <DimensionRow
                 segments={dimensionChains.upper.outer}
@@ -1606,6 +1640,7 @@ function ElevationCanvas({
                 highlightRunId={selection.runId}
                 activeRunId={selection.runId}
                 wallEndMarks={[0, wall.length]}
+                cursor={cursor}
               />
               <DimensionRow
                 segments={dimensionChains.vertical.left.inner}
@@ -1613,6 +1648,7 @@ function ElevationCanvas({
                 side="left"
                 offsetPx={dimensionOffsets.vertical.left.inner}
                 transform={transform}
+                cursor={cursor}
               />
               <DimensionRow
                 segments={dimensionChains.vertical.left.outer}
@@ -1620,6 +1656,7 @@ function ElevationCanvas({
                 side="left"
                 offsetPx={dimensionOffsets.vertical.left.outer}
                 transform={transform}
+                cursor={cursor}
               />
               <DimensionRow
                 segments={dimensionChains.vertical.right.inner}
@@ -1628,6 +1665,7 @@ function ElevationCanvas({
                 offsetPx={dimensionOffsets.vertical.right.inner}
                 transform={transform}
                 wallLength={wall.length}
+                cursor={cursor}
               />
               <DimensionRow
                 segments={dimensionChains.vertical.right.outer}
@@ -1636,6 +1674,7 @@ function ElevationCanvas({
                 offsetPx={dimensionOffsets.vertical.right.outer}
                 transform={transform}
                 wallLength={wall.length}
+                cursor={cursor}
               />
             </Layer>
           )}

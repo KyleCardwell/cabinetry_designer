@@ -6,6 +6,7 @@ import {
   Tag,
   Text,
 } from 'react-konva';
+import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
 import { jointGlyphs, jointMembers, runShortLabel } from '../model/joints.js';
 
@@ -19,14 +20,11 @@ function JointMarkers({
   onUnjoin,
   hoveredGlyphId,
   setHoveredGlyphId,
+  cursor,
 }) {
+  const cursorKeys = useCursorKeys(cursor);
   const stopEvent = (event) => {
     event.cancelBubble = true;
-  };
-
-  const setCursor = (event, cursor) => {
-    const stage = event.target.getStage();
-    if (stage) stage.container().style.cursor = cursor;
   };
 
   return (wall.joints ?? []).map((joint) => {
@@ -84,8 +82,8 @@ function JointMarkers({
             }}
             onMouseUp={stopEvent}
             onClick={stopEvent}
-            onMouseEnter={(event) => setCursor(event, 'ew-resize')}
-            onMouseLeave={(event) => setCursor(event, 'default')}
+            onMouseEnter={() => cursorKeys.request(joint.id, CURSORS.resizeX)}
+            onMouseLeave={() => cursorKeys.release(joint.id)}
             onDragStart={(event) => {
               stopEvent(event);
             }}
@@ -97,7 +95,7 @@ function JointMarkers({
               stopEvent(event);
               const x = wallXFromHandle(event);
               event.target.position({ x: bounds.x, y: bounds.y });
-              setCursor(event, 'ew-resize');
+              cursorKeys.request(joint.id, CURSORS.resizeX);
               onJointDragEnd(joint.id, x);
             }}
           />
@@ -136,13 +134,13 @@ function JointMarkers({
                   stopEvent(event);
                   onUnjoin(glyph.ownerRunId, member.side);
                 }}
-                onMouseEnter={(event) => {
+                onMouseEnter={() => {
                   setHoveredGlyphId(glyphId);
-                  setCursor(event, 'pointer');
+                  cursorKeys.request(glyphId, CURSORS.select);
                 }}
-                onMouseLeave={(event) => {
+                onMouseLeave={() => {
                   setHoveredGlyphId(null);
-                  setCursor(event, 'default');
+                  cursorKeys.release(glyphId);
                 }}
               />
               {glyphHovered && (
