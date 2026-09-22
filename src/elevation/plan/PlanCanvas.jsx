@@ -68,7 +68,9 @@ import {
   setWallLength,
 } from '../store/elevationSlice.js';
 import { PLAN_BACKGROUND_COLOR } from './constants.js';
+import { elevationMarkers } from './elevationMarkers.js';
 import PlanAlignmentGuides from './PlanAlignmentGuides.jsx';
+import PlanElevationMarker from './PlanElevationMarker.jsx';
 import PlanOpening from './PlanOpening.jsx';
 import PlanWallShape from './PlanWallShape.jsx';
 import PlanRunFootprint from './PlanRunFootprint.jsx';
@@ -1046,10 +1048,20 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                   closed
                   dash={[6 / scale, 4 / scale]}
                   stroke="#94a3b8"
+                  strokeWidth={1 / scale}
                   listening={false}
                 />
               );
             }))}
+            {elevationMarkers(room, settings, scale).map((marker) => (
+              <PlanElevationMarker
+                key={marker.key}
+                point={marker.point}
+                direction={marker.direction}
+                scale={scale}
+                letter={marker.letter}
+              />
+            ))}
             {wallMovePreview?.room && (
               <Group listening={false}>
                 {wallMovePreview.affectedWallIds.map((wallId) => {

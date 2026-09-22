@@ -10,7 +10,7 @@ import {
   openingReferenceBounds,
 } from '../model/openings.js';
 import { formatInches } from '../model/units.js';
-import { PLAN_BACKGROUND_COLOR } from './constants.js';
+import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
 
 function linePoints(points) {
   return points.flatMap((point) => [point.x, point.y]);
@@ -159,7 +159,7 @@ export default function PlanOpening({
         align="center"
         rotation={readableRotation(frame)}
         text={`${opening.label} · ${formatInches(jamb.width)}`}
-        fontSize={11 / scale}
+        fontSize={PLAN_DIM_FONT_SIZE / scale}
         fill="#e2e8f0"
         listening={false}
       />

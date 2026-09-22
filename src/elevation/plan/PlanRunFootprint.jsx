@@ -15,6 +15,7 @@ import {
 import { runFootprint } from '../model/footprints.js';
 import { splitRun } from '../model/splitRun.js';
 import { formatInches } from '../model/units.js';
+import { PLAN_DIM_FONT_SIZE } from './constants.js';
 
 const DEPTH_TICK_HALF_LENGTH = 4;
 
@@ -84,9 +85,10 @@ export default function PlanRunFootprint({
     (piece) => piece.x > run.x && piece.x < run.x + run.width,
   );
   const centerX = footprint.reduce((sum, point) => sum + point.x, 0) / footprint.length;
-  const depthFontSize = 11 / scale;
+  const depthFontSize = PLAN_DIM_FONT_SIZE / scale;
   const depthText = formatInches(depth);
-  const depthTextWidth = (depthText.length * 0.6 * 11 + 8) / scale;
+  const depthTextPx = depthText.length * 0.6 * PLAN_DIM_FONT_SIZE + 8;
+  const depthTextWidth = depthTextPx / scale;
   // Depth dimension: from the wall (offset 0) to the run front, at the run's middle.
   const dimensionX = run.x + run.width / 2;
   const dimensionBack = elevationToPlan(frame, dimensionX, 0);
@@ -98,7 +100,18 @@ export default function PlanRunFootprint({
   };
   let depthRotation = Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI;
   if (depthRotation > 90 || depthRotation < -90) depthRotation += 180;
-  const showsDepth = depth > depthTextWidth;
+  const depthLabelFits = depth * scale >= depthTextPx + 4;
+  const depthLabelPoint = depthLabelFits
+    ? {
+      x: (dimensionBack.x + dimensionFront.x) / 2,
+      y: (dimensionBack.y + dimensionFront.y) / 2,
+    }
+    : elevationToPlan(
+      frame,
+      dimensionX,
+      depth + (4 + depthTextPx / 2) / scale,
+    );
+  const depthLeaderEnd = elevationToPlan(frame, dimensionX, depth + 4 / scale);
   const topY = Math.min(...footprint.map((point) => point.y));
 
   return (
@@ -166,21 +179,32 @@ export default function PlanRunFootprint({
           listening={false}
         />
       ))}
-      {showsDepth && (
-        <Text
-          x={(dimensionBack.x + dimensionFront.x) / 2}
-          y={(dimensionBack.y + dimensionFront.y) / 2}
-          width={depthTextWidth}
-          offsetX={depthTextWidth / 2}
-          offsetY={depthFontSize + 2 / scale}
-          rotation={depthRotation}
-          align="center"
-          text={depthText}
-          fontSize={depthFontSize}
-          fill="#e2e8f0"
+      {!depthLabelFits && (
+        <Line
+          points={[
+            dimensionFront.x,
+            dimensionFront.y,
+            depthLeaderEnd.x,
+            depthLeaderEnd.y,
+          ]}
+          stroke="#64748b"
+          strokeWidth={0.75 / scale}
           listening={false}
         />
       )}
+      <Text
+        x={depthLabelPoint.x}
+        y={depthLabelPoint.y}
+        width={depthTextWidth}
+        offsetX={depthTextWidth / 2}
+        offsetY={depthLabelFits ? depthFontSize + 2 / scale : depthFontSize / 2}
+        rotation={depthRotation}
+        align="center"
+        text={depthText}
+        fontSize={depthFontSize}
+        fill="#e2e8f0"
+        listening={false}
+      />
       {collision && hovered && collisionMessage && (
         <Label
           x={centerX}

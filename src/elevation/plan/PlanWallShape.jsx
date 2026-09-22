@@ -2,12 +2,10 @@ import { Circle, Group, Line, Text } from 'react-konva';
 import { layoutDimensionRow } from '../canvas/dimensionLayout.js';
 import { wallFrame } from '../model/geometry.js';
 import { landingsOn } from '../model/landings.js';
-import { elevationLetters, wallNumbers } from '../model/topology.js';
+import { wallNumbers } from '../model/topology.js';
 import { wallOutline } from '../model/wallOutline.js';
 import { wallSideFrame, wallSideView } from '../model/wallSides.js';
-import PlanElevationMarker from './PlanElevationMarker.jsx';
-
-const ELEVATION_MARKER_DEPTH = 30;
+import { PLAN_DIM_FONT_SIZE } from './constants.js';
 
 export default function PlanWallShape({
   room,
@@ -27,23 +25,17 @@ export default function PlanWallShape({
     y: (wall.y1 + wall.y2) / 2,
   };
   const tickLength = 8 / scale;
-  const fontSize = 11 / scale;
+  const fontSize = PLAN_DIM_FONT_SIZE / scale;
   const number = wallNumbers(room).get(wall.id);
   const numberRadius = 9 / scale;
-  const numberOffset = wall.thickness + 38 / scale;
+  const numberOffset = wall.thickness + 46 / scale;
   const numberPoint = {
     x: midpoint.x + exterior.x * numberOffset + frame.d.x * 24 / scale,
     y: midpoint.y + exterior.y * numberOffset + frame.d.y * 24 / scale,
   };
-  const interior = { x: frame.n.x, y: frame.n.y };
-  const letter = elevationLetters(room).get(wall.id);
-  const elevationPoint = {
-    x: midpoint.x + interior.x * ELEVATION_MARKER_DEPTH + frame.d.x * 24 / scale,
-    y: midpoint.y + interior.y * ELEVATION_MARKER_DEPTH + frame.d.y * 24 / scale,
-  };
-  const dimensionOffset = wall.thickness + 18 / scale;
+  const dimensionOffset = wall.thickness + 22 / scale;
   const extensionStartOffset = wall.thickness + 2 / scale;
-  const extensionEndOffset = wall.thickness + 22 / scale;
+  const extensionEndOffset = wall.thickness + 26 / scale;
   const faceEndpoints = [
     { x: wall.x1, y: wall.y1 },
     { x: wall.x2, y: wall.y2 },
@@ -59,12 +51,12 @@ export default function PlanWallShape({
   const tickHalfLength = 4 / scale;
   const layout = layoutDimensionRow(
     [{ start: 0, end: frame.length }],
-    { scale, fontSize: 11 },
+    { scale, fontSize: PLAN_DIM_FONT_SIZE },
   );
   const dimensionLabel = layout.labels[0];
   const labelDistance = (dimensionLabel.mode === 'popout'
-    ? 9 + 12 * dimensionLabel.level
-    : 9) / scale;
+    ? 10 + 14 * dimensionLabel.level
+    : 10) / scale;
   const dimensionCenter = {
     x: midpoint.x + exterior.x * dimensionOffset,
     y: midpoint.y + exterior.y * dimensionOffset,
@@ -75,7 +67,7 @@ export default function PlanWallShape({
   };
   let labelRotation = Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1) * 180 / Math.PI;
   if (labelRotation > 90 || labelRotation < -90) labelRotation += 180;
-  const landingDimensionOffset = dimensionOffset + 16 / scale;
+  const landingDimensionOffset = dimensionOffset + 20 / scale;
   const landingRows = ['front', 'back'].flatMap((side) => {
     const sideView = wallSideView(wall, side);
     const intervals = landingsOn(room, sideView);
@@ -90,7 +82,10 @@ export default function PlanWallShape({
       cursor = b;
     });
     segments.push({ start: cursor, end: sideFrame.length });
-    const rowLayout = layoutDimensionRow(segments, { scale, fontSize: 11 });
+    const rowLayout = layoutDimensionRow(segments, {
+      scale,
+      fontSize: PLAN_DIM_FONT_SIZE,
+    });
     const rowStart = {
       x: sideFrame.leftPoint.x + outward.x * landingDimensionOffset,
       y: sideFrame.leftPoint.y + outward.y * landingDimensionOffset,
@@ -278,8 +273,8 @@ export default function PlanWallShape({
                   + row.outward.y * landingDimensionOffset,
               };
               const rowLabelDistance = (rowLabel.mode === 'popout'
-                ? 9 + 12 * rowLabel.level
-                : 9) / scale;
+                ? 10 + 14 * rowLabel.level
+                : 10) / scale;
               const rowLabelPoint = {
                 x: dimensionPoint.x + row.outward.x * rowLabelDistance,
                 y: dimensionPoint.y + row.outward.y * rowLabelDistance,
@@ -337,14 +332,6 @@ export default function PlanWallShape({
         fill="#f8fafc"
         listening={false}
       />
-      {letter && (
-        <PlanElevationMarker
-          point={elevationPoint}
-          direction={interior}
-          scale={scale}
-          letter={letter}
-        />
-      )}
     </Group>
   );
 }
