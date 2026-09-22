@@ -1,4 +1,5 @@
 import { Circle, Group, Line, Text } from 'react-konva';
+import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { layoutDimensionRow } from '../canvas/dimensionLayout.js';
 import { wallFrame } from '../model/geometry.js';
 import { landingsOn } from '../model/landings.js';
@@ -15,7 +16,9 @@ export default function PlanWallShape({
   scale,
   onSelect,
   onOpen,
+  cursor,
 }) {
+  const cursorKeys = useCursorKeys(cursor);
   const frame = wallFrame(room, wall);
   if (frame.length === 0) return null;
 
@@ -120,7 +123,12 @@ export default function PlanWallShape({
   });
 
   return (
-    <Group onClick={onSelect} onDblClick={onOpen}>
+    <Group
+      onClick={onSelect}
+      onDblClick={onOpen}
+      onMouseEnter={() => cursorKeys.request(wall.id, CURSORS.select)}
+      onMouseLeave={() => cursorKeys.release(wall.id)}
+    >
       <Line
         points={outline.flatMap((point) => [point.x, point.y])}
         closed

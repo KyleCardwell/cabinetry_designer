@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { Group, Line, Text } from 'react-konva';
+import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import {
   dot,
   elevationToPlan,
@@ -28,9 +29,11 @@ export default function PlanOpening({
   scale,
   onSelect,
   onMove,
+  cursor,
 }) {
   void room;
   const dragStartRef = useRef(null);
+  const cursorKeys = useCursorKeys(cursor);
   const geometry = openingGeometry(opening, frame.length, settings);
   const { jamb, casing } = geometry;
   const referenceX = geometry.offsets.left[opening.measureMode].edge;
@@ -92,12 +95,11 @@ export default function PlanOpening({
         stopEvent(event);
         onSelect?.(event, opening.id);
       }}
-      onMouseEnter={(event) => {
-        event.target.getStage().container().style.cursor = draggable ? 'move' : 'pointer';
-      }}
-      onMouseLeave={(event) => {
-        event.target.getStage().container().style.cursor = 'default';
-      }}
+      onMouseEnter={() => cursorKeys.request(
+        opening.id,
+        draggable ? CURSORS.move : CURSORS.select,
+      )}
+      onMouseLeave={() => cursorKeys.release(opening.id)}
       onDragStart={(event) => {
         stopEvent(event);
         dragStartRef.current = event.target.absolutePosition();

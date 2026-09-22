@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Group, Label, Line, Tag, Text } from 'react-konva';
+import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import {
   CABINET_TYPE_COLORS,
   CABINET_TYPE_IDS,
@@ -70,8 +71,10 @@ export default function PlanRunFootprint({
   selectable,
   scale,
   onSelect,
+  cursor,
 }) {
   const [hovered, setHovered] = useState(false);
+  const cursorKeys = useCursorKeys(cursor);
   const footprint = runFootprint(frame, run, settings);
   const layout = splitRun(run, settings, {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
@@ -107,8 +110,14 @@ export default function PlanRunFootprint({
   return (
     <Group
       listening={selectable}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => {
+        setHovered(true);
+        cursorKeys.request(run.id, CURSORS.select);
+      }}
+      onMouseLeave={() => {
+        setHovered(false);
+        cursorKeys.release(run.id);
+      }}
       onClick={(event) => {
         event.cancelBubble = true;
         onSelect(event);

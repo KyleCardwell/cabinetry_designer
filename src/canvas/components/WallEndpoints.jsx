@@ -1,5 +1,6 @@
 import { Fragment, useRef } from 'react';
 import { Circle, Line, Rect } from 'react-konva';
+import { CURSORS, useCursorKeys } from '../../elevation/canvas/cursor.js';
 import { wallFrame } from '../../elevation/model/geometry.js';
 
 function endpointPoint(wall, endpoint) {
@@ -49,8 +50,10 @@ export default function WallEndpoints({
   onDrag,
   orthoWalls = false,
   onLength = null,
+  cursor = null,
 }) {
   const altDragRef = useRef({ start: false, end: false });
+  const cursorKeys = useCursorKeys(cursor);
   const wallId = wall.id ?? wall.wall_id;
   const isConnectedStart = !!wall.connections?.start;
   const isConnectedEnd = !!wall.connections?.end;
@@ -151,12 +154,13 @@ export default function WallEndpoints({
             fill="#22d3ee"
             stroke="#ecfeff"
             strokeWidth={0.75 / scale}
-            onMouseEnter={(event) => {
-              event.target.getStage().container().style.cursor = 'pointer';
-            }}
-            onMouseLeave={(event) => {
-              event.target.getStage().container().style.cursor = 'default';
-            }}
+            onMouseEnter={() => cursorKeys.request(
+              `${endpoint}:${arrow.wallId}:${arrow.side}`,
+              CURSORS.select,
+            )}
+            onMouseLeave={() => cursorKeys.release(
+              `${endpoint}:${arrow.wallId}:${arrow.side}`,
+            )}
             onMouseDown={(event) => {
               event.cancelBubble = true;
             }}

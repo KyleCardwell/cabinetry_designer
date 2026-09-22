@@ -24,6 +24,12 @@ import {
   endpointAlignmentTargets,
   snapToAlignment,
 } from '../canvas/alignment.js';
+import {
+  CURSORS,
+  planBaseCursor,
+  useCanvasCursor,
+  useCursorKeys,
+} from '../canvas/cursor.js';
 import { panExceedsThreshold } from '../canvas/panGesture.js';
 import useLiveEntry, {
   resolveLiveEntryValue,
@@ -162,12 +168,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [pointerMode, setPointerMode] = useState('idle');
   const [wallDrawStart, setWallDrawStart] = useState(null);
   const [alignmentGuides, setAlignmentGuides] = useState([]);
   const [mouseWorldPos, setMouseWorldPos] = useState(null);
   const [pendingDeleteWallId, setPendingDeleteWallId] = useState(null);
   const [wallMovePreview, setWallMovePreview] = useState(null);
   const [entryPointer, setEntryPointer] = useState(null);
+  const { style: cursorStyle, controller: cursor } = useCanvasCursor(
+    planBaseCursor(tool, pointerMode),
+  );
+  const moveHandleCursor = useCursorKeys(cursor);
   const {
     entry,
     begin: beginEntry,
@@ -200,6 +211,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const stopPanning = useCallback(() => {
     const current = panRef.current;
     panRef.current = null;
+    setPointerMode(spacePressedRef.current ? 'pan-ready' : 'idle');
     if (!current?.moved) return;
     suppressClickRef.current = true;
     if (clickSuppressionTimeoutRef.current !== null) {
@@ -330,12 +342,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       if (event.code !== 'Space') return;
       event.preventDefault();
       spacePressedRef.current = true;
+      setPointerMode('pan-ready');
     };
     const handleSpaceUp = (event) => {
-      if (event.code === 'Space') spacePressedRef.current = false;
+      if (event.code === 'Space') {
+        spacePressedRef.current = false;
+        setPointerMode('idle');
+      }
     };
     const handleBlur = () => {
       spacePressedRef.current = false;
+      setPointerMode('idle');
       stopPanning();
     };
     const handlePointerMove = (event) => {
@@ -348,6 +365,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
         { x: current.originX, y: current.originY },
         { x: event.clientX, y: event.clientY },
       );
+      if (moved && !current.moved) setPointerMode('panning');
       panRef.current = {
         ...current,
         x: event.clientX,
@@ -945,6 +963,12 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   }, [dispatch]);
 
   const drawGesture = liveGestureRef.current;
+  const showsMoveHandle = Boolean(
+    tool === 'select' && selectedWall && moveHandle && !entry,
+  );
+  useEffect(() => {
+    if (!showsMoveHandle) moveHandleCursor.release('move');
+  }, [moveHandleCursor, showsMoveHandle]);
   const liveWallDrawEnd = entry?.kind === 'wall-draw'
     && wallDrawStart
     && drawGesture?.kind === 'wall-draw'
@@ -959,7 +983,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     <div
       ref={containerRef}
       className="relative h-full min-h-0 overflow-hidden"
-      style={{ backgroundColor: PLAN_BACKGROUND_COLOR }}
+      style={{ backgroundColor: PLAN_BACKGROUND_COLOR, cursor: cursorStyle }}
     >
       {viewport.width > 0 && viewport.height > 0 && (
         <Stage
@@ -990,6 +1014,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 scale={scale}
                 onSelect={(event) => handleWallSelect(wall.id, event)}
                 onOpen={(event) => handleWallOpen(wall.id, event)}
+                cursor={cursor}
               />
             ))}
             {orderedOpenings.map(({ frame, wall, opening }) => (
@@ -1005,6 +1030,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 scale={scale}
                 onSelect={handleOpeningSelect}
                 onMove={(x) => handleOpeningMove(wall.id, opening.id, x)}
+                cursor={cursor}
               />
             ))}
             {orderedFootprints.map(({ frame, wall, run }) => (
@@ -1021,6 +1047,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 selectable={tool === 'select' && !entry}
                 scale={scale}
                 onSelect={handleRunSelect}
+                cursor={cursor}
               />
             ))}
             {walls.flatMap((wall) => wallEndPanels(room, wall, settings).map((panel) => (
@@ -1118,9 +1145,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 orthoWalls={settings.orthoWalls}
                 onDrag={handleWallEndpointDrag}
                 onLength={beginWallLength}
+                cursor={cursor}
               />
             )}
-            {tool === 'select' && selectedWall && moveHandle && !entry && (
+            {showsMoveHandle && (
               <Rect
                 x={moveHandle.point.x}
                 y={moveHandle.point.y}
@@ -1132,16 +1160,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 stroke="#ecfeff"
                 strokeWidth={1 / scale}
                 cornerRadius={1.5 / scale}
-                onMouseEnter={(event) => {
-                  event.target.getStage().container().style.cursor = 'move';
-                }}
-                onMouseLeave={(event) => {
-                  event.target.getStage().container().style.cursor = 'default';
-                }}
+                onMouseEnter={() => moveHandleCursor.request('move', CURSORS.move)}
+                onMouseLeave={() => moveHandleCursor.release('move')}
                 onMouseDown={(event) => {
                   event.cancelBubble = true;
                 }}
                 onClick={(event) => {
+                  moveHandleCursor.release('move');
                   beginWallMove(event);
                 }}
                 onDblClick={(event) => {
