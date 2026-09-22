@@ -19,21 +19,24 @@ export function elevationMarkers(room, settings, scale) {
       if (!letter) continue;
 
       const frame = wallSideFrame(room, wall, side);
-      const mid = {
-        x: (frame.leftPoint.x + frame.rightPoint.x) / 2,
-        y: (frame.leftPoint.y + frame.rightPoint.y) / 2,
+      const sideRuns = (wall.runs ?? []).filter((run) => wallSideOf(run) === side);
+      const deepest = sideRuns.reduce((depth, run) => Math.max(depth, frontDepth(run, settings)), 0);
+      const centerX = sideRuns.length > 0
+        ? (Math.min(...sideRuns.map((run) => run.x))
+          + Math.max(...sideRuns.map((run) => run.x + run.width))) / 2
+        : frame.length / 2;
+      const shift = sideRuns.length > 0 ? 0 : (side === 'front' ? 1 : -1) * MARKER_SHIFT / scale;
+      const anchor = {
+        x: frame.leftPoint.x + frame.r.x * centerX,
+        y: frame.leftPoint.y + frame.r.y * centerX,
       };
-      const deepest = (wall.runs ?? []).reduce((depth, run) => (
-        wallSideOf(run) === side ? Math.max(depth, frontDepth(run, settings)) : depth
-      ), 0);
       const offset = deepest + MARKER_CLEARANCE
         + (MARKER_RADIUS + MARKER_FLAG_LENGTH) / scale;
       const direction = frame.n;
       const d = wallFrame(room, wall).d;
-      const shift = (side === 'front' ? 1 : -1) * MARKER_SHIFT / scale;
       const point = {
-        x: mid.x + direction.x * offset + d.x * shift,
-        y: mid.y + direction.y * offset + d.y * shift,
+        x: anchor.x + direction.x * offset + d.x * shift,
+        y: anchor.y + direction.y * offset + d.y * shift,
       };
 
       markers.push({ key, wallId: wall.id, side, letter, point, direction });

@@ -68,7 +68,7 @@ describe('elevationMarkers', () => {
         wallId: 'H',
         side: 'front',
         letter: 'A',
-        point: { x: 135, y: 42.875 },
+        point: { x: 35, y: 42.875 },
         direction: { x: 0, y: 1 },
       },
       {
@@ -76,8 +76,41 @@ describe('elevationMarkers', () => {
         wallId: 'H',
         side: 'back',
         letter: 'B',
-        point: { x: 111, y: -35.375 },
+        point: { x: 131, y: -35.375 },
         direction: { x: 0, y: -1 },
+      },
+    ]);
+  });
+
+  it('185. centres a marker on the span of the side runs', () => {
+    const room = makeRoom([makeWall('H', 0, 0, 246, 0, { runs: [
+      run('B1', CABINET_TYPE_IDS.BASE, 24, { x: 20 }),
+      run('B2', CABINET_TYPE_IDS.BASE, 24, { x: 140, width: 40 }),
+    ] })]);
+
+    expect(elevationMarkers(room, DEFAULT_SETTINGS, 2)).toEqual([
+      {
+        key: 'H',
+        wallId: 'H',
+        side: 'front',
+        letter: 'A',
+        point: { x: 100, y: 42.875 },
+        direction: { x: 0, y: 1 },
+      },
+    ]);
+  });
+
+  it('186. keeps the shifted wall-centre marker for a side with no runs', () => {
+    const room = makeRoom([makeWall('H', 0, 0, 246, 0, { elevationForced: true })]);
+
+    expect(elevationMarkers(room, DEFAULT_SETTINGS, 2)).toEqual([
+      {
+        key: 'H',
+        wallId: 'H',
+        side: 'front',
+        letter: 'A',
+        point: { x: 135, y: 18 },
+        direction: { x: 0, y: 1 },
       },
     ]);
   });
