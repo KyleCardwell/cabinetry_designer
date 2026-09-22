@@ -132,6 +132,7 @@ export { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
 export {
   SOFFIT_MOLDINGS,
   createSoffit,
+  governingSoffit,
   profileUnderSoffit,
   resolveSoffitSpan,
   runMolding,
@@ -146,6 +147,7 @@ export {
   validateSoffitPlacement,
 } from './soffits.js';
 export {
+  boxTopOf,
   counterTop,
   crownOverlap,
   moldingStack,

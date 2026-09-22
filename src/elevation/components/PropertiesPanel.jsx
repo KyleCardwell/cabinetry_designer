@@ -11,6 +11,7 @@ import {
   CABINET_TYPE_IDS,
   KIND_LABELS,
   SOFFIT_MOLDINGS,
+  boxTopOf,
   cornerAt,
   cornerReserveParts,
   crownOverlap,
@@ -18,10 +19,10 @@ import {
   formatInches,
   formatInchesInput,
   frontDepth,
-  moldingStack,
   openingGeometry,
   pinTargetsForRun,
   positionReadouts,
+  profileUnderSoffit,
   resolvePinTarget,
   resolveProfile,
   isJointAnchor,
@@ -548,7 +549,7 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
   const profile = resolveProfile(settings, room, wall);
   const inheritedValues = {
     ...profile,
-    boxTop: profile.crownTop - moldingStack(profile),
+    boxTop: boxTopOf(profileUnderSoffit(profile, wall, run)),
   };
   const overrideFields = RUN_OVERRIDE_FIELDS[run.cabinetTypeId] ?? [];
   const corners = Object.fromEntries(['left', 'right'].map((side) => [

@@ -2,7 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { wallLength } from './geometry.js';
 import { landingProjection, landingsOn } from './landings.js';
-import { moldingStack } from './profile.js';
+import { boxTopOf, moldingStack } from './profile.js';
 import { roundTo } from './units.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
 
@@ -60,6 +60,14 @@ export function soffitOverRun(wall, run) {
     .sort((a, b) => a.bottom - b.bottom)[0] ?? null;
 }
 
+/** Return the lowest overlapping soffit that governs the profile's crown line. */
+export function governingSoffit(wall, run, profile) {
+  const soffit = soffitOverRun(wallViewForRun(wall, run), run);
+  if (!soffit) return null;
+  const crownTop = boxTopOf(profile) + moldingStack(profile);
+  return soffit.bottom <= crownTop + SPAN_EPSILON ? soffit : null;
+}
+
 /** Return which soffit sides are flush with their anchored wing walls. */
 export function soffitFlushSides(room, view, soffit) {
   return Object.fromEntries(['left', 'right'].map((side) => {
@@ -96,15 +104,18 @@ export function soffitSeams(room, view) {
 
 /** Apply a covering soffit's box-top limit to a run profile. */
 export function profileUnderSoffit(profile, wall, run) {
-  const soffit = soffitOverRun(wallViewForRun(wall, run), run);
+  const soffit = governingSoffit(wall, run, profile);
   return soffit
     ? { ...profile, boxTop: soffit.bottom - soffitMoldingDrop(soffit.molding, profile) }
     : profile;
 }
 
 /** Return the molding used above a run. */
-export function runMolding(wall, run) {
-  return soffitOverRun(wallViewForRun(wall, run), run)?.molding ?? 'crown';
+export function runMolding(wall, run, profile) {
+  const soffit = profile
+    ? governingSoffit(wall, run, profile)
+    : soffitOverRun(wallViewForRun(wall, run), run);
+  return soffit?.molding ?? 'crown';
 }
 
 /** Return soffit collisions for a run's current resolved box. */

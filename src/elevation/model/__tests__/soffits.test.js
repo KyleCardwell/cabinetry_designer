@@ -8,8 +8,10 @@ import {
   syncRoom,
 } from '../room.js';
 import { createRun } from '../runDefaults.js';
+import { boxTopOf, resolveProfile } from '../profile.js';
 import {
   createSoffit,
+  governingSoffit,
   resolveSoffitSpan,
   runMolding,
   soffitFlushSides,
@@ -344,5 +346,56 @@ describe('SPEC-20 partial soffit cover and flush ends', () => {
       { wallId: 'W1', x: 69, bottom: 84 },
       { wallId: 'W2', x: 189, bottom: 84 },
     ]);
+  });
+});
+
+describe('SPEC-21 crown line under soffits', () => {
+  const lowCrown = (crownTop) => syncRoom(makeRoom([makeWall('S', 0, 0, 144, 0, {
+    profile: { crownTop },
+    soffits: [SF({ molding: 'none' })],
+    runs: [upper('U1', { x: 40, width: 60 })],
+  })]), DEFAULT_SETTINGS);
+
+  it('182. applies a soffit only when it governs the crown line', () => {
+    for (const [crownTop, geometry, molding] of [
+      [80, { z: 54, height: 20 }, 'crown'],
+      [84, { z: 54, height: 30 }, 'none'],
+      [96, { z: 54, height: 30 }, 'none'],
+    ]) {
+      const room = lowCrown(crownTop);
+      const wall = wallById(room, 'S');
+      const run = runById(room, 'U1');
+      const profile = resolveProfile(DEFAULT_SETTINGS, room, wall);
+
+      expect({ z: run.z, height: run.height }).toEqual(geometry);
+      expect(runMolding(wall, run, profile)).toBe(molding);
+      expect(roomDiagnostics(room, DEFAULT_SETTINGS).U1.warnings
+        .filter((warning) => warning.code === 'soffit-conflict'))
+        .toEqual([]);
+    }
+  });
+
+  it('183. resolves explicit box tops and governing soffits', () => {
+    expect(boxTopOf({ crownTop: 96, crownStackHeight: 6 })).toBe(90);
+    expect(boxTopOf({ crownTop: 96, crownStackHeight: 6, boxTop: 70 })).toBe(70);
+
+    const room = lowCrown(96);
+    const wall = wallById(room, 'S');
+    const run = runById(room, 'U1');
+    expect(governingSoffit(
+      wall,
+      run,
+      { ...DEFAULT_SETTINGS.defaultProfile, crownTop: 84 },
+    )?.id).toBe('SF');
+    expect(governingSoffit(
+      wall,
+      run,
+      { ...DEFAULT_SETTINGS.defaultProfile, boxTop: 70 },
+    )).toBeNull();
+    expect(governingSoffit(
+      wall,
+      { ...run, x: 0, width: 30 },
+      DEFAULT_SETTINGS.defaultProfile,
+    )).toBeNull();
   });
 });

@@ -18,6 +18,11 @@ export function moldingStack(profile) {
   return profile.crownStackHeight;
 }
 
+/** Return the resolved top of the cabinet box. */
+export function boxTopOf(profile) {
+  return profile.boxTop ?? (profile.crownTop - moldingStack(profile));
+}
+
 /** Return the derived overlap between the top-mold and crown profiles. */
 export function crownOverlap(profile) {
   return profile.topMoldHeight + profile.crownHeight - profile.crownStackHeight;
@@ -47,7 +52,7 @@ export function resolveVertical(run, profile, baseRunsBelow = [], wallOrHeight) 
   }
 
   const q = mergeDefined(profile, run.overrides);
-  const boxTop = q.boxTop ?? (q.crownTop - moldingStack(q));
+  const boxTop = boxTopOf(q);
   let z;
   let height;
 

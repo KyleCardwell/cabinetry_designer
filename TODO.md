@@ -179,6 +179,8 @@ Specified in `docs/elevation-mvp/SPEC-8.md`, step prompts in `PROMPTS-8.md`.
 
 <!-- Keep worthwhile ideas here when they are not currently planned. -->
 
+- [ ] **[model][elevation] Multiple top-of-crown lines per wall** — runs choose which line they grow to. `governingSoffit` (SPEC-21 §2) already compares a soffit against the profile's crown top; the run's chosen line would supply that crownTop.
+
 ## Done
 <!-- Keep completed items for project history. -->
 

@@ -71,7 +71,7 @@ function RunGroup({
   const showsMolding = run.heightMode === 'auto'
     && (run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
       || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
-  const molding = runMolding(wall, run);
+  const molding = runMolding(wall, run, profile);
   const boxTop = run.z + run.height;
   const topMold = wallRectToScreen({
     x: run.x,
