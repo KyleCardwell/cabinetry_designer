@@ -17,6 +17,7 @@ import { splitRun } from '../model/splitRun.js';
 import { formatInches } from '../model/units.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
 import { depthDimension } from './depthDimension.js';
+import { readableFlip, readableRotation } from './textRotation.js';
 
 const DEPTH_TICK_HALF_LENGTH = 4;
 
@@ -98,8 +99,9 @@ export default function PlanRunFootprint({
     x: (frame.n.x + frame.r.x) / Math.SQRT2,
     y: (frame.n.y + frame.r.y) / Math.SQRT2,
   };
-  let depthRotation = Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI;
-  if (depthRotation > 90 || depthRotation < -90) depthRotation += 180;
+  const depthAngle = Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI;
+  const depthRotation = readableRotation(depthAngle);
+  const depthFlip = readableFlip(depthAngle);
   const topY = Math.min(...footprint.map((point) => point.y));
 
   return (
@@ -183,7 +185,9 @@ export default function PlanRunFootprint({
         y={depthLabelLocation.y}
         width={depthTextWidth}
         offsetX={depthTextWidth / 2}
-        offsetY={dim.fits ? depthFontSize + 2 / scale : depthFontSize / 2}
+        offsetY={dim.fits
+          ? (depthFlip > 0 ? depthFontSize + 2 / scale : -2 / scale)
+          : depthFontSize / 2}
         rotation={depthRotation}
         align="center"
         text={depthText}

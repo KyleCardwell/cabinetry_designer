@@ -174,6 +174,7 @@ export default function DimensionRow({
           && !(draggableRuns && segment.kind === 'run' && segment.runId === activeRunId);
         const labelDistance = label.mode === 'inline' ? 8 : 12 * label.level;
         const labelPoint = rowPoint(midpointValue, labelDistance);
+        // -90 puts the text's bottom to the right.
         const rotation = horizontal ? 0 : -90;
         const tooltipPoint = rowPoint(midpointValue, 12 * (layout.levels + 1));
         const hitEvents = {

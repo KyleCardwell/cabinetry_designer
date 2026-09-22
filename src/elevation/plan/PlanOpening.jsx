@@ -11,15 +11,10 @@ import {
 } from '../model/openings.js';
 import { formatInches } from '../model/units.js';
 import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
+import { readableRotation } from './textRotation.js';
 
 function linePoints(points) {
   return points.flatMap((point) => [point.x, point.y]);
-}
-
-function readableRotation(frame) {
-  let rotation = Math.atan2(frame.r.y, frame.r.x) * 180 / Math.PI;
-  if (rotation > 90 || rotation < -90) rotation += 180;
-  return rotation;
 }
 
 export default function PlanOpening({
@@ -155,9 +150,9 @@ export default function PlanOpening({
         y={labelPoint.y}
         width={120 / scale}
         offsetX={60 / scale}
-        offsetY={5.5 / scale}
+        offsetY={PLAN_DIM_FONT_SIZE / 2 / scale}
         align="center"
-        rotation={readableRotation(frame)}
+        rotation={readableRotation(Math.atan2(frame.r.y, frame.r.x) * 180 / Math.PI)}
         text={`${opening.label} · ${formatInches(jamb.width)}`}
         fontSize={PLAN_DIM_FONT_SIZE / scale}
         fill="#e2e8f0"

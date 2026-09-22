@@ -6,6 +6,7 @@ import { wallNumbers } from '../model/topology.js';
 import { wallOutline } from '../model/wallOutline.js';
 import { wallSideFrame, wallSideView } from '../model/wallSides.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
+import { readableRotation } from './textRotation.js';
 
 export default function PlanWallShape({
   room,
@@ -67,8 +68,9 @@ export default function PlanWallShape({
     x: dimensionCenter.x + exterior.x * labelDistance,
     y: dimensionCenter.y + exterior.y * labelDistance,
   };
-  let labelRotation = Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1) * 180 / Math.PI;
-  if (labelRotation > 90 || labelRotation < -90) labelRotation += 180;
+  const labelRotation = readableRotation(
+    Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1) * 180 / Math.PI,
+  );
   const landingRows = ['front', 'back'].flatMap((side) => {
     const sideView = wallSideView(wall, side);
     const intervals = landingsOn(room, sideView);
@@ -100,8 +102,9 @@ export default function PlanWallShape({
       x: (sideFrame.r.x + outward.x) / Math.SQRT2,
       y: (sideFrame.r.y + outward.y) / Math.SQRT2,
     };
-    let rowRotation = Math.atan2(sideFrame.r.y, sideFrame.r.x) * 180 / Math.PI;
-    if (rowRotation > 90 || rowRotation < -90) rowRotation += 180;
+    const rowRotation = readableRotation(
+      Math.atan2(sideFrame.r.y, sideFrame.r.x) * 180 / Math.PI,
+    );
     return [{
       side,
       sideFrame,
