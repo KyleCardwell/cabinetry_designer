@@ -51,6 +51,7 @@ import {
 } from '../model/openings.js';
 import {
   horizontalChains,
+  nearerEdge,
   openingChain,
   openingClearances,
   pickColumnRuns,
@@ -183,18 +184,28 @@ function ElevationCanvas({
     if (!room || !wall) return null;
     const lower = horizontalChains(room, wall, 'lower', settings);
     const upper = horizontalChains(room, wall, 'upper', settings);
-    const columnRuns = pickColumnRuns(wall, selection.runId);
     const selectedOpening = (wall.openings ?? []).find(
       (opening) => opening.id === selection.openingId,
     );
+    const openingCenter = selectedOpening
+      ? (() => {
+        const jamb = openingGeometry(selectedOpening, wall.length, settings).jamb;
+        return jamb.x + jamb.width / 2;
+      })()
+      : null;
+    const verticalFor = (edge) => (selectedOpening
+      && nearerEdge(openingCenter, wall.length) === edge
+      ? verticalOpeningChain(wall, selectedOpening, wall.length, settings)
+      : verticalChains(room, wall, pickColumnRuns(wall, selection.runId, edge), settings));
     return {
       lower,
       upper,
       openings: openingChain(room, wall, settings),
       clearances: openingClearances(room, wall, settings),
-      vertical: selectedOpening
-        ? verticalOpeningChain(wall, selectedOpening, wall.length, settings)
-        : verticalChains(room, wall, columnRuns, settings),
+      vertical: {
+        left: verticalFor('left'),
+        right: verticalFor('right'),
+      },
     };
   }, [room, selection.openingId, selection.runId, settings, wall]);
 
@@ -425,9 +436,14 @@ function ElevationCanvas({
     const clearanceLevels = layoutDimensionRow(dimensionChains.clearances, {
       scale: transform.scale,
     }).levels;
-    const verticalLevels = layoutDimensionRow(dimensionChains.vertical.inner, {
-      scale: transform.scale,
-    }).levels;
+    const verticalLevels = {
+      left: layoutDimensionRow(dimensionChains.vertical.left.inner, {
+        scale: transform.scale,
+      }).levels,
+      right: layoutDimensionRow(dimensionChains.vertical.right.inner, {
+        scale: transform.scale,
+      }).levels,
+    };
     const extent = wallExtent(room, wall, settings);
     const clear = {
       below: Math.max(0, -extent.bottom) * transform.scale,
@@ -442,7 +458,10 @@ function ElevationCanvas({
       openings: openingLevels,
     });
     const upper = dimensionRowOffsets('horizontal', upperLevels);
-    const vertical = dimensionRowOffsets('vertical', verticalLevels);
+    const vertical = {
+      left: dimensionRowOffsets('vertical', verticalLevels.left),
+      right: dimensionRowOffsets('vertical', verticalLevels.right),
+    };
     return {
       lower: {
         inner: below.pieces + clear.below,
@@ -453,8 +472,14 @@ function ElevationCanvas({
         outer: upper.outer + clear.above,
       },
       vertical: {
-        inner: vertical.inner + clear.left,
-        outer: vertical.outer + clear.left,
+        left: {
+          inner: vertical.left.inner + clear.left,
+          outer: vertical.left.outer + clear.left,
+        },
+        right: {
+          inner: vertical.right.inner + clear.right,
+          outer: vertical.right.outer + clear.right,
+        },
       },
       openings: below.openings + clear.below,
       clearances: below.clearances + clear.below,
@@ -1583,18 +1608,34 @@ function ElevationCanvas({
                 wallEndMarks={[0, wall.length]}
               />
               <DimensionRow
-                segments={dimensionChains.vertical.inner}
+                segments={dimensionChains.vertical.left.inner}
                 orientation="vertical"
                 side="left"
-                offsetPx={dimensionOffsets.vertical.inner}
+                offsetPx={dimensionOffsets.vertical.left.inner}
                 transform={transform}
               />
               <DimensionRow
-                segments={dimensionChains.vertical.outer}
+                segments={dimensionChains.vertical.left.outer}
                 orientation="vertical"
                 side="left"
-                offsetPx={dimensionOffsets.vertical.outer}
+                offsetPx={dimensionOffsets.vertical.left.outer}
                 transform={transform}
+              />
+              <DimensionRow
+                segments={dimensionChains.vertical.right.inner}
+                orientation="vertical"
+                side="right"
+                offsetPx={dimensionOffsets.vertical.right.inner}
+                transform={transform}
+                wallLength={wall.length}
+              />
+              <DimensionRow
+                segments={dimensionChains.vertical.right.outer}
+                orientation="vertical"
+                side="right"
+                offsetPx={dimensionOffsets.vertical.right.outer}
+                transform={transform}
+                wallLength={wall.length}
               />
             </Layer>
           )}

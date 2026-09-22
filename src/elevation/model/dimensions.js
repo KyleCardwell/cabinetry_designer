@@ -253,6 +253,16 @@ function leftmost(runs) {
   ), null);
 }
 
+function rightmost(runs) {
+  return runs.reduce((result, run) => (
+    !result || run.x + run.width > result.x + result.width ? run : result
+  ), null);
+}
+
+export function nearerEdge(center, wallLengthValue) {
+  return center * 2 <= wallLengthValue ? 'left' : 'right';
+}
+
 /** Height above the floor where centerline callouts are drawn. */
 export const CENTERLINE_CALLOUT_Z = 40;
 
@@ -285,7 +295,7 @@ export function centerlineMarkers(run, pieces, wall, wallLengthValue, settings) 
 }
 
 /** Choose the lower and upper runs represented by the vertical dimension column. */
-export function pickColumnRuns(wall, selectedRunId) {
+export function pickColumnRuns(wall, selectedRunId, edge = 'left') {
   const lowerRuns = wall.runs.filter((run) => (
     run.cabinetTypeId === CABINET_TYPE_IDS.BASE
     || run.cabinetTypeId === CABINET_TYPE_IDS.TALL
@@ -294,26 +304,29 @@ export function pickColumnRuns(wall, selectedRunId) {
     (run) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER,
   );
   const selected = wall.runs.find((run) => run.id === selectedRunId);
+  const selectedOnEdge = selected
+    && nearerEdge(selected.x + selected.width / 2, wallLength(wall)) === edge;
 
-  if (selected?.cabinetTypeId === CABINET_TYPE_IDS.TALL) {
+  if (selectedOnEdge && selected.cabinetTypeId === CABINET_TYPE_IDS.TALL) {
     return { lowerRun: selected, upperRun: null };
   }
-  if (selected?.cabinetTypeId === CABINET_TYPE_IDS.BASE) {
+  if (selectedOnEdge && selected.cabinetTypeId === CABINET_TYPE_IDS.BASE) {
     return {
       lowerRun: selected,
       upperRun: upperRuns.find((run) => rangesOverlap(selected, run)) ?? null,
     };
   }
-  if (selected?.cabinetTypeId === CABINET_TYPE_IDS.UPPER) {
+  if (selectedOnEdge && selected.cabinetTypeId === CABINET_TYPE_IDS.UPPER) {
     return {
       lowerRun: lowerRuns.find((run) => rangesOverlap(selected, run)) ?? null,
       upperRun: selected,
     };
   }
 
+  const edgeRun = edge === 'right' ? rightmost : leftmost;
   return {
-    lowerRun: leftmost(lowerRuns),
-    upperRun: leftmost(upperRuns),
+    lowerRun: edgeRun(lowerRuns),
+    upperRun: edgeRun(upperRuns),
   };
 }
 

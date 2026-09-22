@@ -3,6 +3,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import {
   centerlineMarkers,
   horizontalChains,
+  nearerEdge,
   openingChain,
   pickColumnRuns,
   verticalChains,
@@ -336,7 +337,7 @@ describe('pickColumnRuns', () => {
     }), DEFAULT_SETTINGS);
     const wall = room.walls.find(({ id }) => id === 'A');
 
-    expect(pickColumnRuns(wall, 'upper-right')).toMatchObject({
+    expect(pickColumnRuns(wall, 'upper-right', 'right')).toMatchObject({
       lowerRun: { id: 'base-right' },
       upperRun: { id: 'upper-right' },
     });
@@ -344,6 +345,35 @@ describe('pickColumnRuns', () => {
       lowerRun: { id: 'base-left' },
       upperRun: { id: 'upper-left' },
     });
+  });
+
+  it('192. picks the default pair for each edge', () => {
+    const room = syncRoom(roomR({
+      wallA: {
+        runs: [
+          cabinetRun('base-right', CABINET_TYPE_IDS.BASE, { x: 60, width: 30 }),
+          cabinetRun('upper-right', CABINET_TYPE_IDS.UPPER, { x: 65, width: 20 }),
+          cabinetRun('base-left', CABINET_TYPE_IDS.BASE, { x: 0, width: 30 }),
+          cabinetRun('upper-left', CABINET_TYPE_IDS.UPPER, { x: 5, width: 20 }),
+        ],
+      },
+    }), DEFAULT_SETTINGS);
+    const wall = room.walls.find(({ id }) => id === 'A');
+
+    expect(pickColumnRuns(wall, null, 'right')).toMatchObject({
+      lowerRun: { id: 'base-right' },
+      upperRun: { id: 'upper-right' },
+    });
+    expect(pickColumnRuns(wall, 'upper-right', 'left')).toMatchObject({
+      lowerRun: { id: 'base-left' },
+      upperRun: { id: 'upper-left' },
+    });
+    expect(pickColumnRuns(wall, 'upper-left', 'right')).toMatchObject({
+      lowerRun: { id: 'base-right' },
+      upperRun: { id: 'upper-right' },
+    });
+    expect(nearerEdge(60, 120)).toBe('left');
+    expect(nearerEdge(60.1, 120)).toBe('right');
   });
 });
 

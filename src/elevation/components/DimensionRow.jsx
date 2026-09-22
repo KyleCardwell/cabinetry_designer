@@ -48,6 +48,7 @@ export default function DimensionRow({
   onSegmentDragStart,
   onSegmentDragMove,
   onSegmentDragEnd,
+  wallLength = 0,
 }) {
   const [hoveredHiddenIndex, setHoveredHiddenIndex] = useState(null);
   const dragMovedRef = useRef(false);
@@ -62,10 +63,14 @@ export default function DimensionRow({
     ? { x: 0, y: 1 }
     : side === 'above'
       ? { x: 0, y: -1 }
-      : { x: -1, y: 0 };
+      : side === 'right'
+        ? { x: 1, y: 0 }
+        : { x: -1, y: 0 };
   const axis = horizontal ? { x: 1, y: 0 } : { x: 0, y: -1 };
   const edgePoint = (value) => {
-    if (!horizontal) return wallToScreen({ x: 0, z: value }, transform);
+    if (!horizontal) {
+      return wallToScreen({ x: side === 'right' ? wallLength : 0, z: value }, transform);
+    }
     return wallToScreen({
       x: value,
       z: side === 'above' ? transform.wallHeight : 0,
