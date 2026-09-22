@@ -1,10 +1,15 @@
-import { Group, Rect, Text } from 'react-konva';
+import {
+  Group,
+  Line,
+  Rect,
+  Text,
+} from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
-import { soffitsOn } from '../model/soffits.js';
+import { soffitFlushSides, soffitsOn } from '../model/soffits.js';
 import { formatInches } from '../model/units.js';
-import Hatch from './Hatch.jsx';
 
 export default function SoffitShapes({
+  room,
   wall,
   transform,
   selectedSoffitId,
@@ -18,6 +23,19 @@ export default function SoffitShapes({
       height: wall.height - soffit.bottom,
     }, transform);
     const selected = selectedSoffitId === soffit.id;
+    const flush = soffitFlushSides(room, wall, soffit);
+    const stroke = selected ? '#60a5fa' : '#94a3b8';
+    const strokeWidth = selected ? 2 : 1.5;
+    const left = rect.x;
+    const right = rect.x + rect.width;
+    const top = rect.y;
+    const bottom = rect.y + rect.height;
+    const edges = [
+      [left, top, right, top],
+      [left, bottom, right, bottom],
+      ...(!flush.left ? [[left, top, left, bottom]] : []),
+      ...(!flush.right ? [[right, top, right, bottom]] : []),
+    ];
     return (
       <Group
         key={soffit.id}
@@ -29,12 +47,18 @@ export default function SoffitShapes({
       >
         <Rect
           {...rect}
-          fill="#475569"
-          opacity={0.35}
-          stroke={selected ? '#60a5fa' : '#94a3b8'}
-          strokeWidth={selected ? 2 : 1.5}
+          fill="rgba(0,0,0,0)"
+          strokeEnabled={false}
         />
-        <Hatch rect={rect} />
+        {edges.map((points) => (
+          <Line
+            key={points.join(':')}
+            points={points}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            listening={false}
+          />
+        ))}
         <Text
           {...rect}
           text={`Soffit · ${formatInches(soffit.bottom)}`}
