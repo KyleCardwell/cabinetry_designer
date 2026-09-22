@@ -1,3 +1,5 @@
+import { wallSideOf } from './wallSides.js';
+
 const AREA_EPSILON = 1e-6;
 const LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -211,9 +213,14 @@ export function indexToLetters(n) {
   return result;
 }
 
-/** A wall counts as "with cabinets" for elevation lettering. */
-export function wallHasCabinets(wall) {
-  return (wall?.runs?.length ?? 0) > 0;
+/** Return the map key for one side of a wall's elevation. */
+export function elevationKey(wallId, side) {
+  return side === 'back' ? `${wallId}:back` : wallId;
+}
+
+/** A wall counts as "with cabinets" for elevation lettering on the requested side. */
+export function wallHasCabinets(wall, side = 'front') {
+  return (wall?.runs ?? []).some((run) => wallSideOf(run) === side);
 }
 
 /** Return the elevation letter for every wall that has cabinets, or is forced in, in wall order. */
@@ -233,12 +240,19 @@ export function elevationLetters(room) {
     letters.set(wallId, indexToLetters(next));
     next += 1;
   }
+  for (const wallId of orderedIds) {
+    const wall = wallById.get(wallId);
+    if (!wallHasCabinets(wall, 'back')) continue;
+    letters.set(elevationKey(wallId, 'back'), indexToLetters(next));
+    next += 1;
+  }
   return letters;
 }
 
 /** "Elevation A", or null when the wall has no letter. */
-export function elevationLabel(room, wall) {
-  const letter = elevationLetters(room).get(wall.id);
+export function elevationLabel(room, wallOrView) {
+  const key = elevationKey(wallOrView.id, wallOrView.side ?? 'front');
+  const letter = elevationLetters(room).get(key);
   return letter ? `Elevation ${letter}` : null;
 }
 

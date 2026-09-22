@@ -72,6 +72,19 @@ export function splitFace(face, path, direction, count) {
   return replaceAt(face, path, (node) => ({ direction, size: node.size, children: copies }));
 }
 
+/** Replace a leaf with a nested vertical stack of drawer fronts. */
+export function makeDrawerStack(face, path, count) {
+  const target = getFaceNode(face, path);
+  if (!target?.type || !Number.isFinite(count)) return face;
+  const n = Math.min(MAX_FACE_SPLIT, Math.max(2, Math.round(count)));
+  const children = Array.from({ length: n }, () => ({ type: 'drawer_front', size: null }));
+  return replaceAt(face, path, (node) => ({
+    direction: 'vertical',
+    size: node.size,
+    children,
+  }));
+}
+
 /** Change how many sections a group has. Added ones copy the last leaf's type; 1 collapses the group. */
 export function setGroupCount(face, path, count) {
   const target = getFaceNode(face, path);

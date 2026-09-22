@@ -3,6 +3,7 @@ import {
   equalizeGroup,
   faceOutline,
   getFaceNode,
+  makeDrawerStack,
   parentFacePath,
   removeFace,
   setFaceSize,
@@ -116,5 +117,42 @@ describe('faceTree', () => {
     expect(getFaceNode(TWO, 'r.5')).toBeNull();
     expect(parentFacePath('r.0.1')).toBe('r.0');
     expect(parentFacePath('r')).toBeNull();
+  });
+
+  it('179. makes nested drawer stacks from leaves', () => {
+    const face = {
+      direction: 'vertical',
+      size: null,
+      children: [
+        { type: 'door', size: null },
+        { type: 'door', size: 30.25 },
+      ],
+    };
+
+    expect(makeDrawerStack(face, 'r.1', 3)).toEqual({
+      direction: 'vertical',
+      size: null,
+      children: [
+        { type: 'door', size: null },
+        {
+          direction: 'vertical',
+          size: 30.25,
+          children: [
+            { type: 'drawer_front', size: null },
+            { type: 'drawer_front', size: null },
+            { type: 'drawer_front', size: null },
+          ],
+        },
+      ],
+    });
+    expect(makeDrawerStack({ type: 'door', size: null }, 'r', 1)).toEqual({
+      direction: 'vertical',
+      size: null,
+      children: [
+        { type: 'drawer_front', size: null },
+        { type: 'drawer_front', size: null },
+      ],
+    });
+    expect(makeDrawerStack(face, 'r', 3)).toBe(face);
   });
 });

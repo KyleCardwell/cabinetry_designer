@@ -5,6 +5,7 @@ import { wallFrame } from '../geometry.js';
 import { syncRoom } from '../room.js';
 import {
   chainOrientation,
+  wallHasCabinets,
   elevationLabel,
   elevationLetters,
   indexToLetters,
@@ -245,5 +246,22 @@ describe('wall topology and numbering', () => {
     const single = { ...room, wallOrder: ['A'], walls: [room.walls[0]] };
     expect(nextWallId(single, 'A', 1)).toBe('A');
     expect(nextWallId(single, 'A', -1)).toBe('A');
+  });
+
+  it('177. letters front elevations before back elevations', () => {
+    const room = roomR();
+    room.wallOrder = ['A', 'B'];
+    room.walls[0].runs = [{ id: 'af' }, { id: 'ab', wallSide: 'back' }];
+    room.walls[1].runs = [{ id: 'bb', wallSide: 'back' }];
+
+    expect(elevationLetters(room)).toEqual(new Map([
+      ['A', 'A'],
+      ['A:back', 'B'],
+      ['B:back', 'C'],
+    ]));
+    expect(elevationLabel(room, { ...room.walls[0], side: 'back' })).toBe('Elevation B');
+    expect(elevationLabel(room, room.walls[1])).toBeNull();
+    expect(wallHasCabinets(room.walls[1])).toBe(false);
+    expect(wallHasCabinets(room.walls[1], 'back')).toBe(true);
   });
 });
