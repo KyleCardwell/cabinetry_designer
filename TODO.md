@@ -65,10 +65,26 @@ Suggested format:
 - [ ] splitting into a pencil drawer and nothing below or a panel below, automatically add side panels
 - [ ] doran paneled openings in bathrooms
 - [ ] cabinet numbering***
+- [ ] choose light rail/trough/panel below uppers (or all cabinets?)
+  - Same for wood tops, lids, furniture base, toekick. Project/Room/Cabinet Overrides
+- [ ] add multiple rows/options of top of crown per room
+- [ ] 
+- [ ] 
+- [ ] 
+- [ ] 
+- [ ] 
+- [ ] 
 
 ## Planned
 
 <!-- Move sufficiently defined work here. -->
+
+Specified in `docs/elevation-mvp/SPEC-20.md`, step prompts in `PROMPTS-20.md`.
+
+- [ ] **[P1][model][plan][elevation] Steps 101–105 — soffit and plan polish**
+  - Why: Kyle's first pass over wing walls and soffits: thick plan dashes, runs partly under a soffit not dropping, no soffit width edit, no back-side elevation letters, markers crowding walls on zoom, small/hidden plan dimensions, no manual drawer stack, hatching that reads as a section, no clearance to a wing wall.
+  - Deferred: notching a cabinet deeper than a shallow soffit (decide per run); dragging soffit edges in elevation; forced elevations for wall backs.
+  - Done when: SPEC-20 tests 167 (changed) and 174–179 pass and the manual checks in PROMPTS-20 hold.
 
 Specified in `docs/elevation-mvp/SPEC-18.md` and `SPEC-19.md`, step prompts in `PROMPTS-18.md` and `PROMPTS-19.md`.
 
