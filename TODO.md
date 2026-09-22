@@ -60,7 +60,6 @@ Suggested format:
 - [ ] Part numbering for a whole room.
 - [ ] Cross sections on drawings.
 - [ ] Saving to the database - how to structure for edits, redraws and versions, etc. Do we need a version history since multiple people could work on one project?
-- [ ] save clearances to side objects - i.e. a run needs 4" clearance from door casing, etc.
 - [ ] hoods
 - [ ] splitting into a pencil drawer and nothing below or a panel below, automatically add side panels
 - [ ] doran paneled openings in bathrooms
@@ -78,6 +77,13 @@ Suggested format:
 ## Planned
 
 <!-- Move sufficiently defined work here. -->
+
+Specified in `docs/elevation-mvp/SPEC-21.md`, step prompts in `PROMPTS-21.md`.
+
+- [ ] **[P1][model][plan][elevation] Steps 106–108 — math in inputs, crown under soffits, plan dimension lanes**
+  - Why: Kyle's pass over SPEC-20: wants math in every inch box (like ff-job-schedule), a crown line dropped below a soffit was ignored and Box top's placeholder ignored soffits, stacked plan depth dimensions were unreadable, set-out depth labels left the line, and the wing-wall breakdown sat outside the wall length.
+  - Notes: `parseInches` becomes an evaluator (no mathjs); `-` always subtracts (`30-1/2` is 29 1/2, matching ff-job-schedule); mixed numbers need a space. Depth dims lane by type: base centre, upper left, tall right.
+  - Done when: SPEC-21 tests 180–184 pass and the manual checks in PROMPTS-21 hold.
 
 Specified in `docs/elevation-mvp/SPEC-20.md`, step prompts in `PROMPTS-20.md`.
 
@@ -174,5 +180,6 @@ Specified in `docs/elevation-mvp/SPEC-8.md`, step prompts in `PROMPTS-8.md`.
 <!-- Keep worthwhile ideas here when they are not currently planned. -->
 
 ## Done
-
 <!-- Keep completed items for project history. -->
+
+- [ ] save clearances to side objects - i.e. a run needs 4" clearance from door casing, etc.
