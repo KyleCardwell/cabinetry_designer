@@ -129,6 +129,8 @@ export {
   wallViewForRun,
 } from './wallSides.js';
 export { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
+export { neighborProfiles } from './neighborProfiles.js';
+export { wallExtent } from './wallExtent.js';
 export {
   SOFFIT_MOLDINGS,
   createSoffit,
