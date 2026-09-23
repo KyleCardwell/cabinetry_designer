@@ -224,4 +224,43 @@ describe('blind overlay model', () => {
       DEFAULT_SETTINGS,
     ).get('L:left')).toBe(15);
   });
+
+  it('225. defaults covered blind ordered width without changing exposed width', () => {
+    const coveredRun = leftRun({ left: 42, right: null });
+    const coveredRoom = syncRoom({
+      id: 'K',
+      name: 'Room K',
+      profile: { ...DEFAULT_SETTINGS.defaultProfile },
+      partNumberStart: 1,
+      partNumberOverrides: {},
+      wallOrder: ['K1', 'K2'],
+      walls: [
+        makeWall('K1', 0, 0, 120, 0, {
+          connections: { start: { wallId: 'K2', endpoint: 'start' }, end: null },
+          runs: [coveredRun],
+        }),
+        makeWall('K2', 0, 0, 0, 96, {
+          connections: { start: { wallId: 'K1', endpoint: 'start' }, end: null },
+          runs: [base('N', { anchors: { left: false, right: true } })],
+        }),
+      ],
+    }, DEFAULT_SETTINGS);
+    const coveredWall = wallSideView(coveredRoom.walls[0], 'front');
+    expect(blindPartWidths(
+      coveredRoom,
+      coveredWall,
+      coveredWall.runs[0],
+      DEFAULT_SETTINGS,
+    ).get('L:left')).toBe(6);
+
+    const exposedRun = leftRun({ left: 42, right: null });
+    const exposedRoom = blindRoom([exposedRun]);
+    const exposedWall = wallSideView(exposedRoom.walls[0], 'front');
+    expect(blindPartWidths(
+      exposedRoom,
+      exposedWall,
+      exposedWall.runs[0],
+      DEFAULT_SETTINGS,
+    ).get('L:left')).toBe(15);
+  });
 });

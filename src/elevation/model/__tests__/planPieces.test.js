@@ -91,6 +91,41 @@ function fixture(overrides = {}) {
   return { room, wall, run: resolvedRun, layout, faceLayouts };
 }
 
+function blindFixture(overrides = {}) {
+  const sourceRun = base('P', {
+    x: 12,
+    width: 24,
+    ends: {
+      left: { type: 'blind', width: 3 },
+      right: { type: 'none', width: null },
+    },
+    autoCount: false,
+    items: [{ id: 'w1', kind: 'cabinet', width: 21 }],
+    blind: { left: 42, right: null },
+    ...overrides,
+  });
+  const room = syncRoom({
+    id: 'P',
+    name: 'Room P',
+    profile: { ...DEFAULT_SETTINGS.defaultProfile },
+    partNumberStart: 1,
+    partNumberOverrides: {},
+    wallOrder: ['P1'],
+    walls: [makeWall('P1', 0, 0, 120, 0, { runs: [sourceRun] })],
+  }, DEFAULT_SETTINGS);
+  const wall = wallSideView(room.walls[0], 'front');
+  const resolvedRun = wall.runs[0];
+  const layout = layoutRun(room, wall, resolvedRun, DEFAULT_SETTINGS);
+  const faceLayouts = runFaceLayouts(
+    room,
+    wall,
+    resolvedRun,
+    DEFAULT_SETTINGS,
+    layout,
+  );
+  return { room, wall, run: resolvedRun, layout, faceLayouts };
+}
+
 describe('plan box and face geometry', () => {
   it('217. builds the box, faces, and cabinet-side filler return', () => {
     const input = fixture();
@@ -181,5 +216,63 @@ describe('plan box and face geometry', () => {
     ];
     expect(topFaces(columns)).toEqual([columns[1], columns[3]]);
     expect(topFaces([])).toEqual([]);
+  });
+
+  it('224. uses blind filler width and return defaults without storing them', () => {
+    const defaults = blindFixture();
+    const defaultResult = planRunPieces(
+      defaults.room,
+      defaults.wall,
+      defaults.run,
+      DEFAULT_SETTINGS,
+      defaults.layout,
+      defaults.faceLayouts,
+    );
+    expect(defaultResult.faces.filter(({ kind }) => kind === 'filler')).toEqual([{
+      key: 'P:left',
+      kind: 'filler',
+      start: 9,
+      end: 15,
+      back: 24.0625,
+      front: 24.875,
+    }]);
+    expect(defaultResult.returns).toEqual([]);
+
+    const returned = blindFixture({
+      endFiller: { left: { returnDepth: 2.5 }, right: null },
+    });
+    const returnedResult = planRunPieces(
+      returned.room,
+      returned.wall,
+      returned.run,
+      DEFAULT_SETTINGS,
+      returned.layout,
+      returned.faceLayouts,
+    );
+    expect(returnedResult.returns).toEqual([{
+      key: 'P:left:right',
+      start: 14.25,
+      end: 15,
+      back: 21.5625,
+      front: 24.0625,
+    }]);
+    expect(returnedResult.faces.filter(({ kind }) => kind === 'filler')).toEqual([
+      expect.objectContaining({ start: 9, end: 15 }),
+    ]);
+
+    const ordered = blindFixture({
+      endFiller: { left: { width: 3 }, right: null },
+    });
+    const orderedResult = planRunPieces(
+      ordered.room,
+      ordered.wall,
+      ordered.run,
+      DEFAULT_SETTINGS,
+      ordered.layout,
+      ordered.faceLayouts,
+    );
+    expect(orderedResult.faces.filter(({ kind }) => kind === 'filler')).toEqual([
+      expect.objectContaining({ start: 12, end: 15 }),
+    ]);
   });
 });

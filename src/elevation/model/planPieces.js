@@ -16,11 +16,33 @@ export function topFaces(faces) {
   return kept.sort((a, b) => a.x - b.x);
 }
 
-function fillerSpan(run, piece) {
-  const side = piece.role === 'end-left'
-    ? 'left'
-    : piece.role === 'end-right' ? 'right' : null;
-  const width = side ? run.endFiller?.[side]?.width : null;
+function endSideOf(piece) {
+  if (piece.role === 'end-left') return 'left';
+  if (piece.role === 'end-right') return 'right';
+  return null;
+}
+
+/** The ordered width of a filler piece, or null when it is what the layout says. */
+export function fillerOrderedWidth(run, piece, settings) {
+  const side = endSideOf(piece);
+  if (!side) return null;
+  const stored = run.endFiller?.[side]?.width;
+  if (stored > 0) return stored;
+  return run.ends?.[side]?.type === 'blind' ? settings.blindFillerWidth : null;
+}
+
+/** How far a filler piece's return runs back behind its face. */
+export function fillerReturnDepth(run, piece, settings) {
+  const side = endSideOf(piece);
+  const stored = side ? run.endFiller?.[side]?.returnDepth : null;
+  if (stored !== undefined && stored !== null) return stored;
+  if (side && run.ends?.[side]?.type === 'blind') return 0;
+  return settings.fillerReturnDepth;
+}
+
+function fillerSpan(run, piece, settings) {
+  const side = endSideOf(piece);
+  const width = fillerOrderedWidth(run, piece, settings);
   if (!(width > 0)) return { start: piece.x, end: piece.x + piece.width };
   if (side === 'left') {
     const end = piece.x + piece.width;
@@ -45,13 +67,13 @@ function cabinetFaces(piece, faceLayouts, faceBack, faceFront) {
   }));
 }
 
-function planFaces(run, layout, faceLayouts, faceBack, faceFront) {
+function planFaces(run, settings, layout, faceLayouts, faceBack, faceFront) {
   return layout.pieces.flatMap((piece) => {
     if (piece.kind === 'cabinet') {
       return cabinetFaces(piece, faceLayouts, faceBack, faceFront);
     }
     if (piece.kind === 'filler') {
-      const { start, end } = fillerSpan(run, piece);
+      const { start, end } = fillerSpan(run, piece, settings);
       return [{
         key: piece.id,
         kind: 'filler',
@@ -79,15 +101,11 @@ function fillerReturns(run, settings, layout, faceBack) {
   return layout.pieces.flatMap((piece, index) => {
     if (piece.kind !== 'filler') return [];
 
-    const span = fillerSpan(run, piece);
+    const span = fillerSpan(run, piece, settings);
     const trueWidth = span.end - span.start;
     const thickness = Math.min(settings.fillerReturnThickness, trueWidth);
-    const endSide = piece.role === 'end-left'
-      ? 'left'
-      : piece.role === 'end-right' ? 'right' : null;
-    const returnDepth = endSide
-      ? run.endFiller?.[endSide]?.returnDepth ?? settings.fillerReturnDepth
-      : settings.fillerReturnDepth;
+    const returnDepth = fillerReturnDepth(run, piece, settings);
+    if (!(returnDepth > 0)) return [];
 
     return ['left', 'right'].flatMap((side) => {
       const neighborIndex = side === 'left' ? index - 1 : index + 1;
@@ -121,7 +139,7 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   return {
     box: { start, end, back: 0, front: run.depth },
     divisions,
-    faces: planFaces(run, layout, faceLayouts, faceBack, faceFront),
+    faces: planFaces(run, settings, layout, faceLayouts, faceBack, faceFront),
     returns: fillerReturns(run, settings, layout, faceBack),
   };
 }

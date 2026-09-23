@@ -131,7 +131,7 @@ export function blindPartWidths(room, wall, run, settings, layout = null) {
   const { entries } = blindEntries(room, wall, run, settings, layout);
   for (const entry of entries) {
     widths.set(entry.pieceId, entry.boxWidth);
-    const endFillerWidth = run.endFiller?.[entry.side]?.width;
+    const endFillerWidth = run.endFiller?.[entry.side]?.width ?? settings.blindFillerWidth;
     if (entry.covered && endFillerWidth != null && entry.endPieceId) {
       widths.set(entry.endPieceId, endFillerWidth);
     } else if (entry.panel && entry.endPieceId) {

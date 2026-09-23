@@ -146,7 +146,12 @@ export {
   wallMoldingBadges,
 } from './partNumbers.js';
 export { neighborProfiles } from './neighborProfiles.js';
-export { planRunPieces, topFaces } from './planPieces.js';
+export {
+  fillerOrderedWidth,
+  fillerReturnDepth,
+  planRunPieces,
+  topFaces,
+} from './planPieces.js';
 export { wallExtent } from './wallExtent.js';
 export {
   SOFFIT_MOLDINGS,
