@@ -8,7 +8,7 @@ import {
   Text,
 } from 'react-konva';
 import { blindEntries } from '../model/blind.js';
-import { CABINET_TYPE_IDS } from '../model/constants.js';
+import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
 import { isJointAnchor } from '../model/joints.js';
@@ -73,6 +73,14 @@ function RunGroup({
     }
     return labels;
   }, [blind]);
+  const panels = useMemo(
+    () => blind.entries.filter((entry) => entry.panel).map((entry) => ({
+      key: `panel:${entry.side}`,
+      x: entry.panel.x,
+      width: entry.panel.width,
+    })),
+    [blind],
+  );
   const drop = panelDrop(run, resolveStyle(settings, room, run), settings);
   const drawnPieces = useMemo(() => (drop > 0
     ? result.pieces.map((piece) => (piece.kind === 'filler' || piece.kind === 'end_panel'
@@ -299,6 +307,23 @@ function RunGroup({
         onMouseEnter={() => cursorKeys.request('body', CURSORS.select)}
         onMouseLeave={() => cursorKeys.release('body')}
       />
+
+      {panels.map((panel) => (
+        <Rect
+          key={panel.key}
+          {...wallRectToScreen({
+            x: panel.x,
+            z: run.z,
+            width: panel.width,
+            height: run.height,
+          }, transform)}
+          fill={KIND_COLORS.end_panel}
+          opacity={0.35}
+          stroke={KIND_COLORS.end_panel}
+          strokeWidth={1}
+          listening={false}
+        />
+      ))}
 
       {drawnPieces.map((piece) => (
         <PieceRect
