@@ -109,9 +109,10 @@ const RUN_TYPES = [
 ];
 
 const END_TYPES = [
-  ['filler', 'Filler'],
   ['end_panel', 'End panel'],
   ['none', 'None'],
+  ['filler', 'Filler'],
+  ['blind', 'Blind corner'],
 ];
 
 const CORNER_CLEARANCE_MODES = [
@@ -200,48 +201,6 @@ function cornerLabel(corner, room) {
   return `Inside corner ${Math.round(corner.angle)}° · ${neighbor
     ? wallLabel(room, neighbor)
     : 'Unknown wall'}`;
-}
-
-function EndEditor({ side, end, onChange }) {
-  const label = `${side[0].toUpperCase()}${side.slice(1)} end`;
-  const hasWidth = end.type === 'filler' || end.type === 'end_panel';
-
-  return (
-    <div className="rounded border border-gray-700 bg-gray-900/45 p-3">
-      <p className="mb-2 text-xs font-medium text-gray-300">{label}</p>
-      <div className="space-y-2">
-        <Field label="Type">
-          <select
-            value={end.type}
-            onChange={(event) => {
-              const type = event.target.value;
-              onChange({
-                type,
-                width: hasWidth && type === end.type ? end.width : null,
-              });
-            }}
-            className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-          >
-            {END_TYPES.map(([value, optionLabel]) => (
-              <option key={value} value={value}>{optionLabel}</option>
-            ))}
-          </select>
-        </Field>
-        {hasWidth && (
-          <Field label={end.type === 'filler'
-            ? 'Width (blank = auto)'
-            : 'Width (blank = default)'}>
-            <InchInput
-              value={end.width}
-              allowBlank
-              onCommit={(width) => onChange({ type: end.type, width })}
-              aria-label={`${label} width`}
-            />
-          </Field>
-        )}
-      </div>
-    </div>
-  );
 }
 
 function WarningsList({ layout }) {
@@ -608,8 +567,6 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
     dispatch(setRunType({ ...actionBase, typeId, resetToDefaults }));
   };
 
-  const changeEnd = (side, end) => dispatch(setRunEnd({ ...actionBase, side, end }));
-
   return (
     <div className="space-y-5">
       <section>
@@ -725,10 +682,11 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
 
       <section>
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Corners &amp; anchors
+          Ends &amp; corners
         </h3>
         <div className="space-y-2">
           {['left', 'right'].map((side) => {
+            const endType = run.ends[side].type;
             const insideCorner = corners[side].type === 'inside';
             const anchor = run.anchors[side];
             const openingAnchor = anchor?.to === 'opening' ? anchor : null;
@@ -762,6 +720,98 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                 key={side}
                 className="rounded border border-gray-700 bg-gray-900/45 p-3"
               >
+                <Field label="End">
+                  <select
+                    value={run.ends[side].type}
+                    onChange={(event) => dispatch(setRunEnd({
+                      ...actionBase,
+                      side,
+                      end: { type: event.target.value, width: null },
+                    }))}
+                    aria-label={`${side} end type`}
+                    className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                  >
+                    {END_TYPES.map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </select>
+                </Field>
+                <p className="mt-1.5 text-xs text-gray-500">
+                  {cornerLabel(corners[side], room)}
+                </p>
+                {endType !== 'none' && (
+                  <Field label="Width">
+                    <InchInput
+                      value={run.ends[side].width}
+                      allowBlank
+                      placeholder={endType === 'end_panel'
+                        ? formatInchesInput(settings.endPanelThickness)
+                        : 'auto'}
+                      onCommit={(width) => dispatch(setRunEnd({
+                        ...actionBase,
+                        side,
+                        end: { type: endType, width },
+                      }))}
+                      aria-label={`${side} end width`}
+                    />
+                  </Field>
+                )}
+                {endType === 'blind' && (
+                  <Field label="Blind box">
+                    <InchInput
+                      value={run.blind?.[side] ?? null}
+                      allowBlank
+                      placeholder="none"
+                      onCommit={(width) => dispatch(setRunBlind({
+                        ...actionBase,
+                        side,
+                        width,
+                      }))}
+                      aria-label={`${side} blind box width`}
+                    />
+                  </Field>
+                )}
+                {(endType === 'filler' || endType === 'blind') && (
+                  <>
+                    <Field label="Ordered width">
+                      <InchInput
+                        value={run.endFiller?.[side]?.width ?? null}
+                        allowBlank
+                        placeholder={endType === 'blind'
+                          ? formatInchesInput(settings.blindFillerWidth)
+                          : 'from layout'}
+                        onCommit={(value) => dispatch(setRunEndFiller({
+                          ...actionBase,
+                          side,
+                          key: 'width',
+                          value,
+                        }))}
+                        aria-label={`${side} end filler ordered width`}
+                      />
+                    </Field>
+                    <Field label="Return">
+                      <InchInput
+                        value={run.endFiller?.[side]?.returnDepth ?? null}
+                        allowBlank
+                        placeholder={endType === 'blind'
+                          ? '0"'
+                          : formatInchesInput(settings.fillerReturnDepth)}
+                        onCommit={(value) => dispatch(setRunEndFiller({
+                          ...actionBase,
+                          side,
+                          key: 'returnDepth',
+                          value,
+                        }))}
+                        aria-label={`${side} end filler return depth`}
+                      />
+                    </Field>
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      {endType === 'blind'
+                        ? 'Box width of the cabinet at this end. The extra runs into the corner. The filler is ordered 6" with no return; the elevation still shows what fits.'
+                        : 'Ordered width and return depth. The elevation still shows what fits.'}
+                    </p>
+                  </>
+                )}
                 <Field label={`Anchor ${side}`}>
                   <select
                     value={anchorValue}
@@ -860,9 +910,6 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                     </optgroup>
                   </select>
                 </Field>
-                <p className="mt-1.5 text-xs text-gray-500">
-                  {cornerLabel(corners[side], room)}
-                </p>
                 {jointAnchor ? (
                   <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
                     <Field label="Offset">
@@ -997,39 +1044,6 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                     </p>
                   </div>
                 ) : null}
-                <Field label="Blind box">
-                  <InchInput
-                    value={run.blind?.[side] ?? null}
-                    allowBlank
-                    placeholder="none"
-                    onCommit={(width) => dispatch(setRunBlind({ ...actionBase, side, width }))}
-                    aria-label={`${side} blind box width`}
-                  />
-                </Field>
-                <p className="mt-1.5 text-xs text-gray-500">
-                  Box width of the cabinet at this end. The extra runs into the corner.
-                </p>
-                <Field label="Filler width">
-                  <InchInput
-                    value={run.endFiller?.[side]?.width ?? null}
-                    allowBlank
-                    placeholder="from layout"
-                    onCommit={(value) => dispatch(setRunEndFiller({ ...actionBase, side, key: 'width', value }))}
-                    aria-label={`${side} end filler ordered width`}
-                  />
-                </Field>
-                <Field label="Filler return">
-                  <InchInput
-                    value={run.endFiller?.[side]?.returnDepth ?? null}
-                    allowBlank
-                    placeholder={formatInchesInput(settings.fillerReturnDepth)}
-                    onCommit={(value) => dispatch(setRunEndFiller({ ...actionBase, side, key: 'returnDepth', value }))}
-                    aria-label={`${side} end filler return depth`}
-                  />
-                </Field>
-                <p className="mt-1.5 text-xs text-gray-500">
-                  Ordered width and return depth. The elevation still shows what fits.
-                </p>
                 {blindEntryData.warnings
                   .filter((warning) => warning.side === side)
                   .map((warning) => (
@@ -1124,24 +1138,6 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
         >
           Reset heights to defaults
         </button>
-      </section>
-
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Ends
-        </h3>
-        <div className="space-y-2">
-          <EndEditor
-            side="left"
-            end={run.ends.left}
-            onChange={(end) => changeEnd('left', end)}
-          />
-          <EndEditor
-            side="right"
-            end={run.ends.right}
-            onChange={(end) => changeEnd('right', end)}
-          />
-        </div>
       </section>
 
       <section>
