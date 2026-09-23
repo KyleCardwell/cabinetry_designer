@@ -7,6 +7,8 @@ import {
 import { wallRectToScreen } from '../canvas/transform.js';
 import { wallMoldingBadges } from '../model/partNumbers.js';
 
+const MOLDING_BADGE_GAP = 4;
+
 export default function MoldingBadges({ room, wall, settings, partNumbers, transform }) {
   if (!partNumbers) return null;
   const badges = wallMoldingBadges(room, wall, settings, partNumbers.byKey);
@@ -17,7 +19,7 @@ export default function MoldingBadges({ room, wall, settings, partNumbers, trans
         const rect = wallRectToScreen(badge, transform);
         const text = `${badge.label} ${badge.number}`;
         const width = partBadgeWidth(text);
-        const centerX = rect.x + rect.width / 2;
+        const centerX = rect.x + rect.width / 2 + badge.slot * (width + MOLDING_BADGE_GAP);
         const centerY = rect.y + rect.height / 2;
         return (
           <Group key={badge.key} listening={false}>
