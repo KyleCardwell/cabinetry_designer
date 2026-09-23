@@ -61,6 +61,12 @@ export {
 } from './units.js';
 export { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
 export {
+  blindEntries,
+  blindPartWidths,
+  coveredRanges,
+  isBlindCovered,
+} from './blind.js';
+export {
   GROW_ENDS,
   positionReadouts,
   startFromReadout,
