@@ -64,6 +64,7 @@ import {
   verticalOpeningChain,
 } from '../model/dimensions.js';
 import { resolveProfile } from '../model/profile.js';
+import { partNumbers } from '../model/partNumbers.js';
 import { elevationLabel, nextWallId } from '../model/topology.js';
 import {
   joinTouchingEdges,
@@ -183,6 +184,10 @@ function ElevationCanvas({
   const wallId = wall?.id ?? null;
   const diagnostics = useMemo(
     () => (room ? roomDiagnostics(room, settings) : {}),
+    [room, settings],
+  );
+  const partNumbering = useMemo(
+    () => (room && settings.showPartNumbers ? partNumbers(room, settings) : null),
     [room, settings],
   );
   const profile = useMemo(
@@ -1503,6 +1508,7 @@ function ElevationCanvas({
                 wall={wall}
                 settings={settings}
                 diagnostic={diagnostics[run.id]}
+                partNumbers={partNumbering}
                 transform={transform}
                 selectedRun={selection.runId === run.id}
                 selectedPieceId={
@@ -1539,6 +1545,7 @@ function ElevationCanvas({
               room={room}
               wall={wall}
               settings={settings}
+              partNumbers={partNumbering}
               transform={transform}
             />
             <NeighborProfiles
