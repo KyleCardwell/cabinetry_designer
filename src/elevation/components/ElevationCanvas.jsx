@@ -104,6 +104,7 @@ import DimensionRow from './DimensionRow.jsx';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import JointMarkers from './JointMarkers.jsx';
 import LiveEntryInput from './LiveEntryInput.jsx';
+import MoldingBadges from './MoldingBadges.jsx';
 import NeighborProfiles from './NeighborProfiles.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
@@ -1558,6 +1559,13 @@ function ElevationCanvas({
               room={room}
               wall={wall}
               settings={settings}
+              transform={transform}
+            />
+            <MoldingBadges
+              room={room}
+              wall={wall}
+              settings={settings}
+              partNumbers={partNumbering}
               transform={transform}
             />
             <ElevationAlignmentGuides

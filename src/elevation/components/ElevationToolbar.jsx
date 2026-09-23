@@ -176,6 +176,18 @@ export default function ElevationToolbar({
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            aria-pressed={settings.showPartNumbers}
+            onClick={() => dispatch(updateSettings({ showPartNumbers: !settings.showPartNumbers }))}
+            className={`rounded px-3 py-1.5 text-sm transition-colors ${
+              settings.showPartNumbers
+                ? 'bg-cyan-700 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            Part #
+          </button>
           <div className="flex items-center gap-1">
             <button
               type="button"

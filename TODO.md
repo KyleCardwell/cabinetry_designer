@@ -181,6 +181,8 @@ Specified in `docs/elevation-mvp/SPEC-8.md`, step prompts in `PROMPTS-8.md`.
 
 - [ ] **[elevation] Neighbour profiles from landed walls and unconnected walls** — SPEC-22 §3 only projects the walls joined at this wall's two ends.
 - [ ] **[model][elevation] Multiple top-of-crown lines per wall** — runs choose which line they grow to. `governingSoffit` (SPEC-21 §2) already compares a soffit against the profile's crown top; the run's chosen line would supply that crownTop.
+- [ ] **[elevation] One crown / top mold / furniture base profile per room** — SPEC-23 numbers one part per molding kind per room; a profile library would number each profile instead.
+- [ ] **[elevation] Soffit molding as its own numbered part** — SPEC-23 §2.1 only counts molding a run carries.
 
 ## Done
 <!-- Keep completed items for project history. -->
