@@ -77,6 +77,7 @@ import {
   setRunHeightMode,
   setRunAnchor,
   setRunBlind,
+  setRunEndFiller,
   joinRunEdges,
   resizeRun,
   setRunCornerClearance,
@@ -1007,6 +1008,27 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                 </Field>
                 <p className="mt-1.5 text-xs text-gray-500">
                   Box width of the cabinet at this end. The extra runs into the corner.
+                </p>
+                <Field label="Filler width">
+                  <InchInput
+                    value={run.endFiller?.[side]?.width ?? null}
+                    allowBlank
+                    placeholder="from layout"
+                    onCommit={(value) => dispatch(setRunEndFiller({ ...actionBase, side, key: 'width', value }))}
+                    aria-label={`${side} end filler ordered width`}
+                  />
+                </Field>
+                <Field label="Filler return">
+                  <InchInput
+                    value={run.endFiller?.[side]?.returnDepth ?? null}
+                    allowBlank
+                    placeholder={formatInchesInput(settings.fillerReturnDepth)}
+                    onCommit={(value) => dispatch(setRunEndFiller({ ...actionBase, side, key: 'returnDepth', value }))}
+                    aria-label={`${side} end filler return depth`}
+                  />
+                </Field>
+                <p className="mt-1.5 text-xs text-gray-500">
+                  Ordered width and return depth. The elevation still shows what fits.
                 </p>
                 {blindEntryData.warnings
                   .filter((warning) => warning.side === side)
