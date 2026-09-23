@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Group, Label, Line, Tag, Text } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
+import { blindEntries } from '../model/blind.js';
 import {
   CABINET_TYPE_COLORS,
   CABINET_TYPE_IDS,
@@ -81,6 +82,7 @@ export default function PlanRunFootprint({
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
     pinTargets: pinTargetsForRun(run, wall, frame.length, settings),
   });
+  const blind = blindEntries(room, wall, run, settings, layout);
   const depth = frontDepth(run, settings);
   const upper = run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
   const color = CABINET_TYPE_COLORS[run.cabinetTypeId] ?? KIND_COLORS.cabinet;
@@ -123,6 +125,26 @@ export default function PlanRunFootprint({
         onSelect(event);
       }}
     >
+      {blind.entries.filter((entry) => entry.extension > 1e-6).map((entry) => {
+        const spanStart = entry.side === 'left' ? entry.boxX : run.x + run.width;
+        const spanEnd = entry.side === 'left' ? run.x : entry.boxX + entry.boxWidth;
+        return (
+          <Line
+            key={`blind:${entry.side}`}
+            points={linePoints([
+              elevationToPlan(frame, spanStart, 0),
+              elevationToPlan(frame, spanEnd, 0),
+              elevationToPlan(frame, spanEnd, depth),
+              elevationToPlan(frame, spanStart, depth),
+            ])}
+            closed
+            fill={upper ? `${color}59` : `${color}8c`}
+            stroke={outline}
+            strokeWidth={(collision || selected ? 2.5 : 1.5) / scale}
+            listening={false}
+          />
+        );
+      })}
       <Line
         points={linePoints(footprint)}
         closed
