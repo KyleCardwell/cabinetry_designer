@@ -768,3 +768,58 @@ describe('SPEC-27 end filler persistence', () => {
     }
   });
 });
+
+describe('SPEC-28 blind end persistence', () => {
+  it('221. defaults and validates blind ends and zero return depth', () => {
+    expect(DEFAULT_SETTINGS.blindFillerWidth).toBe(6);
+
+    const older = tbtDocument();
+    delete older.settings.blindFillerWidth;
+    expect(normalizeV3Document(older).settings.blindFillerWidth).toBe(6);
+
+    const blindEnd = tbtDocument();
+    blindEnd.rooms[0].walls[0].runs[0].ends.left = { type: 'blind', width: null };
+    expect(isElevationDocument(blindEnd)).toBe(true);
+
+    const invalidEnd = tbtDocument();
+    invalidEnd.rooms[0].walls[0].runs[0].ends.left = { type: 'corner', width: null };
+    expect(isElevationDocument(invalidEnd)).toBe(false);
+
+    const zeroReturn = tbtDocument();
+    zeroReturn.rooms[0].walls[0].runs[0].endFiller = {
+      left: { returnDepth: 0 },
+      right: null,
+    };
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(zeroReturn)]]),
+    };
+    expect(loadElevationDocument()).toEqual(zeroReturn);
+
+    for (const endFiller of [{ left: { width: 0 } }, { left: { returnDepth: -1 } }]) {
+      const invalid = tbtDocument();
+      invalid.rooms[0].walls[0].runs[0].endFiller = endFiller;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+  });
+
+  it('222. migrates filler ends carrying blind widths to blind ends', () => {
+    const legacyBlind = tbtDocument();
+    const runWithBlind = legacyBlind.rooms[0].walls[0].runs[0];
+    runWithBlind.ends = {
+      left: { type: 'filler', width: null },
+      right: { type: 'filler', width: null },
+    };
+    runWithBlind.blind = { left: 42, right: null };
+
+    expect(normalizeV3Document(legacyBlind).rooms[0].walls[0].runs[0].ends).toEqual({
+      left: { type: 'blind', width: null },
+      right: { type: 'filler', width: null },
+    });
+
+    const withoutBlind = tbtDocument();
+    const originalEnds = withoutBlind.rooms[0].walls[0].runs[0].ends;
+    delete withoutBlind.rooms[0].walls[0].runs[0].blind;
+    expect(normalizeV3Document(withoutBlind).rooms[0].walls[0].runs[0].ends)
+      .toEqual(originalEnds);
+  });
+});

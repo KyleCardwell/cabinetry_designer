@@ -71,7 +71,7 @@ const blindRoom = (runs) => syncRoom({
 const leftRun = (blind) => base('L', {
   x: 12,
   width: 24,
-  ends: { left: { type: 'filler', width: 3 }, right: { type: 'none', width: null } },
+  ends: { left: { type: 'blind', width: 3 }, right: { type: 'none', width: null } },
   autoCount: false,
   items: [{ id: 'w1', kind: 'cabinet', width: 21 }],
   blind,
@@ -80,7 +80,7 @@ const leftRun = (blind) => base('L', {
 const rightRun = (blind) => base('R', {
   x: 84,
   width: 24,
-  ends: { left: { type: 'none', width: null }, right: { type: 'filler', width: 3 } },
+  ends: { left: { type: 'none', width: null }, right: { type: 'blind', width: 3 } },
   autoCount: false,
   items: [{ id: 'w2', kind: 'cabinet', width: 21 }],
   blind,
@@ -136,7 +136,6 @@ describe('blind overlay model', () => {
     });
 
     const missingEnd = leftRun({ left: 42, right: null });
-    missingEnd.ends.left = { type: 'none', width: null };
     missingEnd.items[0].width = 24;
     const missingRoom = blindRoom([missingEnd]);
     const missingWall = wallSideView(missingRoom.walls[0], 'front');
@@ -145,6 +144,7 @@ describe('blind overlay model', () => {
       missingWall,
       missingWall.runs[0],
       DEFAULT_SETTINGS,
+      { pieces: [{ id: 'w1', kind: 'cabinet', x: 12, width: 24 }] },
     )).toMatchObject({
       entries: [{ panel: null, endPieceId: null }],
       warnings: [{ code: 'blind-needs-end', side: 'left' }],

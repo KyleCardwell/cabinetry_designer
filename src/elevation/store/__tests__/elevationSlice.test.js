@@ -1867,3 +1867,46 @@ describe('SPEC-27 end filler store action', () => {
     expect(currentRun()).toEqual(beforeInvalid);
   });
 });
+
+describe('SPEC-28 blind end store actions', () => {
+  it('223. clears incompatible end data and accepts zero return depth', () => {
+    let state = stateWithRun(run({
+      blind: { left: 42, right: 30 },
+      endFiller: { left: { width: 6 }, right: null },
+    }));
+    const roomId = state.rooms[0].id;
+    const actionBase = { roomId, wallId: 'wall-1', runId: 'run-1' };
+    const currentRun = () => state.rooms[0].walls[0].runs[0];
+
+    state = elevationReducer(state, setRunEnd({
+      ...actionBase,
+      side: 'left',
+      end: { type: 'filler', width: null },
+    }));
+    expect(currentRun().blind).toEqual({ left: null, right: 30 });
+    expect(currentRun().endFiller).toEqual({ left: { width: 6 }, right: null });
+
+    state = elevationReducer(state, setRunEnd({
+      ...actionBase,
+      side: 'left',
+      end: { type: 'end_panel', width: null },
+    }));
+    expect(currentRun().endFiller).toEqual({ left: null, right: null });
+
+    state = elevationReducer(state, setRunEndFiller({
+      ...actionBase,
+      side: 'left',
+      key: 'returnDepth',
+      value: 0,
+    }));
+    expect(currentRun().endFiller.left).toEqual({ width: null, returnDepth: 0 });
+
+    state = elevationReducer(state, setRunEndFiller({
+      ...actionBase,
+      side: 'left',
+      key: 'returnDepth',
+      value: -1,
+    }));
+    expect(currentRun().endFiller.left).toBeNull();
+  });
+});

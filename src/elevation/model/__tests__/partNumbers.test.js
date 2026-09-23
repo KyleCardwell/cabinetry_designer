@@ -289,7 +289,7 @@ describe('partNumbers', () => {
         runs: [base('L', {
           x: 12,
           width: 24,
-          ends: { left: { type: 'filler', width: 3 }, right: { type: 'none', width: null } },
+          ends: { left: { type: 'blind', width: 3 }, right: { type: 'none', width: null } },
           autoCount: false,
           items: [{ id: 'w1', kind: 'cabinet', width: 21 }],
           blind: { left: 42, right: null },

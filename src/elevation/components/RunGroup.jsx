@@ -131,7 +131,7 @@ function RunGroup({
     ['left', 'right'].map((side) => [
       side,
       run.anchors?.[side] === true
-        && run.ends[side].type === 'filler'
+        && ['filler', 'blind'].includes(run.ends[side].type)
         && run.ends[side].width === null
         && cornerAt(room, wall, side).type === 'inside',
     ]),

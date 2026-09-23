@@ -4,15 +4,16 @@ import { floorTo, roundTo } from './units.js';
 
 const WIDTH_EPSILON = 1e-6;
 const FILLER_STEP = 1 / 16;
+const FILLER_END_TYPES = new Set(['filler', 'blind']);
 
 function endWidth(end, settings) {
   if (end.type === 'end_panel') return end.width ?? settings.endPanelThickness;
-  if (end.type === 'filler' && end.width !== null) return end.width;
+  if (FILLER_END_TYPES.has(end.type) && end.width !== null) return end.width;
   return 0;
 }
 
 function isFlexEnd(end) {
-  return end.type === 'filler' && end.width === null;
+  return FILLER_END_TYPES.has(end.type) && end.width === null;
 }
 
 function flexMinimum(side, settings, opts) {
@@ -192,11 +193,12 @@ function splitRunLegacy(run, settings, opts) {
     if (end.type === 'none') return;
     let width = endWidth(end, settings);
     if (isFlexEnd(end)) width = side === 'left' ? leftFlexWidth : rightFlexWidth;
+    const kind = FILLER_END_TYPES.has(end.type) ? 'filler' : end.type;
     const piece = {
       id: `${run.id}:${side}`,
-      kind: end.type,
+      kind,
       role: `end-${side}`,
-      cabinetTypeId: end.type === 'filler'
+      cabinetTypeId: kind === 'filler'
         ? CABINET_TYPE_IDS.FILLER
         : CABINET_TYPE_IDS.END_PANEL,
       width,

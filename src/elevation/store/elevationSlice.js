@@ -910,6 +910,10 @@ const elevationSlice = createSlice({
         width: action.payload.width,
       };
       location.run.ends[side] = { type: end.type, width: end.width };
+      if (end.type !== 'blind' && location.run.blind) location.run.blind[side] = null;
+      if (end.type === 'none' || end.type === 'end_panel') {
+        if (location.run.endFiller) location.run.endFiller[side] = null;
+      }
       syncRoomAt(state, location.roomIndex);
     },
     setRunType(state, action) {
@@ -982,8 +986,9 @@ const elevationSlice = createSlice({
         location.run.ends[side] = { type: 'filler', width: null };
       } else if (value === true) {
         const inside = cornerAt(location.room, wallViewForRun(location.wall, location.run), side).type === 'inside';
-        if (inside) location.run.ends[side] = { type: 'filler', width: null };
-        else if (location.run.ends[side].type !== 'end_panel') {
+        if (inside && location.run.ends[side].type !== 'blind') {
+          location.run.ends[side] = { type: 'filler', width: null };
+        } else if (!inside && location.run.ends[side].type !== 'end_panel') {
           location.run.ends[side] = { type: 'end_panel', width: null };
         }
       }
@@ -1085,9 +1090,10 @@ const elevationSlice = createSlice({
       const run = location.run;
       run.endFiller = { left: null, right: null, ...(run.endFiller ?? {}) };
       const current = run.endFiller[side] ?? { width: null, returnDepth: null };
+      const minimum = key === 'width' ? 0 : -1;
       const next = {
         ...current,
-        [key]: Number.isFinite(value) && value > 0 ? value : null,
+        [key]: Number.isFinite(value) && value > minimum ? value : null,
       };
       run.endFiller[side] = next.width === null && next.returnDepth === null ? null : next;
     },

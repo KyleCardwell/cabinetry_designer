@@ -27,7 +27,7 @@ export const LEGACY_ELEVATION_STORAGE_KEY = 'cd.elevationLab.v1';
 /** Current persisted schema version. */
 export const ELEVATION_SCHEMA_VERSION = 3;
 
-const END_TYPES = new Set(['filler', 'end_panel', 'none']);
+const END_TYPES = new Set(['filler', 'end_panel', 'none', 'blind']);
 const ITEM_KINDS = new Set(['cabinet', 'filler']);
 const PIN_ANCHORS = new Set(['center', 'left', 'right']);
 const PIN_DATUMS = new Set(['left', 'right', 'opening']);
@@ -79,6 +79,7 @@ const V2_NUMERIC_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
 const V2_DEFAULTED_SETTING_KEYS = [
   'fillerReturnDepth',
   'fillerReturnThickness',
+  'blindFillerWidth',
   'defaultSoffitDepth',
   'defaultSoffitMolding',
   'autoEndPanelOnFreeEnd',
@@ -207,6 +208,8 @@ function isBlind(blind) {
       )));
 }
 
+const END_FILLER_MINIMUMS = { width: 0, returnDepth: -1 };
+
 function isEndFillerSide(side) {
   return side === undefined || side === null || (
     Boolean(side)
@@ -215,7 +218,7 @@ function isEndFillerSide(side) {
     && ['width', 'returnDepth'].every((key) => (
       side[key] === undefined
       || side[key] === null
-      || (isFiniteNumber(side[key]) && side[key] > 0)
+      || (isFiniteNumber(side[key]) && side[key] > END_FILLER_MINIMUMS[key])
     ))
   );
 }
@@ -458,6 +461,14 @@ export function normalizeV3Document(document) {
                         : anchor,
                     ]))
                   : run.anchors,
+                ends: run.ends && typeof run.ends === 'object'
+                  ? Object.fromEntries(['left', 'right'].map((side) => [
+                      side,
+                      run.ends[side]?.type === 'filler' && run.blind?.[side] > 0
+                        ? { ...run.ends[side], type: 'blind' }
+                        : run.ends[side],
+                    ]))
+                  : run.ends,
               };
             }) : wall.runs,
           };

@@ -384,7 +384,9 @@ export function pinTargetsForRun(run, wall, wallLengthValue, settings) {
 
 function storedEndMinimum(end, settings) {
   if (end.type === 'end_panel') return end.width ?? settings.endPanelThickness;
-  if (end.type === 'filler') return end.width ?? settings.fillerMinWidth;
+  if (end.type === 'filler' || end.type === 'blind') {
+    return end.width ?? settings.fillerMinWidth;
+  }
   return 0;
 }
 
@@ -1174,8 +1176,9 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
       };
     } else {
       const inside = cornerForRunSide(room, sideWall, proposed, side).type === 'inside';
-      if (inside) proposed.ends[side] = { type: 'filler', width: null };
-      else if (proposed.ends[side].type !== 'end_panel') {
+      if (inside && proposed.ends[side].type !== 'blind') {
+        proposed.ends[side] = { type: 'filler', width: null };
+      } else if (!inside && proposed.ends[side].type !== 'end_panel') {
         proposed.ends[side] = { type: 'end_panel', width: null };
       }
     }

@@ -74,7 +74,7 @@ export function blindEntries(room, wall, run, settings, layout = null) {
   const cornerXs = { left: 0, right: wallLength(wall) };
 
   for (const side of SIDES) {
-    const boxWidth = run.blind?.[side];
+    const boxWidth = run.ends[side]?.type === 'blind' ? run.blind?.[side] : null;
     if (!(boxWidth > 0)) continue;
 
     const piece = outerCabinet(resolvedLayout.pieces, side);
