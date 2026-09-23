@@ -712,3 +712,23 @@ describe('SPEC-23 part number persistence', () => {
     expect(isElevationDocument(invalid)).toBe(false);
   });
 });
+
+describe('SPEC-25 blind corner persistence', () => {
+  it('206. validates optional blind widths and round-trips them unchanged', () => {
+    const omitted = tbtDocument();
+    expect(isElevationDocument(omitted)).toBe(true);
+
+    const present = tbtDocument();
+    present.rooms[0].walls[0].runs[0].blind = { left: 42, right: null };
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(present)]]),
+    };
+    expect(loadElevationDocument()).toEqual(present);
+
+    for (const blind of [{ left: 0 }, { left: -42 }, []]) {
+      const invalid = tbtDocument();
+      invalid.rooms[0].walls[0].runs[0].blind = blind;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+  });
+});

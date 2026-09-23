@@ -193,6 +193,18 @@ function isRunAnchor(anchor) {
   ));
 }
 
+function isBlind(blind) {
+  return blind === undefined
+    || (Boolean(blind)
+      && typeof blind === 'object'
+      && !Array.isArray(blind)
+      && ['left', 'right'].every((side) => (
+        blind[side] === undefined
+        || blind[side] === null
+        || (isFiniteNumber(blind[side]) && blind[side] > 0)
+      )));
+}
+
 function isRun(run) {
   return isV1Run(run)
     && (run.heightMode === 'auto' || run.heightMode === 'manual')
@@ -202,7 +214,8 @@ function isRun(run) {
     && isStyle(run.style)
     && (run.wallSide === undefined || run.wallSide === 'front' || run.wallSide === 'back')
     && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
-    && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top));
+    && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top))
+    && isBlind(run.blind);
 }
 
 function isConnection(connection) {
