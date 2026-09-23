@@ -91,7 +91,7 @@ export default function PlanRunFootprint({
     pinTargets: pinTargetsForRun(run, wall, frame.length, settings),
   });
   const faceLayouts = runFaceLayouts(room, wall, run, settings, layout);
-  const { box, divisions, faces, returns } = planRunPieces(
+  const { span, boxes, faces, returns } = planRunPieces(
     room,
     wall,
     run,
@@ -103,13 +103,7 @@ export default function PlanRunFootprint({
   const upper = run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
   const color = CABINET_TYPE_COLORS[run.cabinetTypeId] ?? KIND_COLORS.cabinet;
   const outline = collision ? '#ef4444' : selected ? '#f8fafc' : color;
-  const boxPoints = depthRangePoints(frame, box);
-  const outlineSegments = footprintOutlineSegments(
-    frame,
-    { x: box.start, width: box.end - box.start },
-    run.depth,
-  );
-  const centerX = boxPoints.reduce((sum, point) => sum + point.x, 0) / boxPoints.length;
+  const collisionAnchor = elevationToPlan(frame, (span.start + span.end) / 2, 0);
   const depthFontSize = PLAN_DIM_FONT_SIZE / scale;
   const depthText = formatInches(depth);
   const depthTextWidth = (depthText.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
@@ -125,7 +119,6 @@ export default function PlanRunFootprint({
   const depthAngle = Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI;
   const depthRotation = readableRotation(depthAngle);
   const depthFlip = readableFlip(depthAngle);
-  const topY = Math.min(...boxPoints.map((point) => point.y));
 
   return (
     <Group
@@ -143,38 +136,33 @@ export default function PlanRunFootprint({
         onSelect(event);
       }}
     >
-      <Line
-        points={linePoints(boxPoints)}
-        closed
-        fill={upper ? `${color}59` : `${color}8c`}
-        hitStrokeWidth={8 / scale}
-      />
-      {outlineSegments.map((segment, index) => (
+      {boxes.map((box) => (
         <Line
-          key={`outline:${index}`}
-          points={linePoints(segment.points)}
-          stroke={outline}
-          strokeWidth={(collision || selected ? 2.5 : 1.5) / scale}
-          dash={segment.overhang
-            ? [2 / scale, 2 / scale]
-            : upper ? [5 / scale, 3 / scale] : undefined}
-          listening={false}
+          key={box.key}
+          points={linePoints(depthRangePoints(frame, box))}
+          closed
+          fill={upper ? `${color}59` : `${color}8c`}
+          hitStrokeWidth={8 / scale}
         />
       ))}
-      {divisions.map((division) => {
-        const back = elevationToPlan(frame, division.x, division.back);
-        const front = elevationToPlan(frame, division.x, division.front);
-        return (
+      {boxes.flatMap((box) => (
+        footprintOutlineSegments(
+          frame,
+          { x: box.start, width: box.end - box.start },
+          run.depth,
+        ).map((segment, index) => (
           <Line
-            key={`division:${division.x}`}
-            points={[back.x, back.y, front.x, front.y]}
-            stroke={KIND_COLORS.cabinet}
-            strokeWidth={0.75 / scale}
-            opacity={0.9}
+            key={`${box.key}:outline:${index}`}
+            points={linePoints(segment.points)}
+            stroke={outline}
+            strokeWidth={(collision || selected ? 2.5 : 1.5) / scale}
+            dash={segment.overhang
+              ? [2 / scale, 2 / scale]
+              : upper ? [5 / scale, 3 / scale] : undefined}
             listening={false}
           />
-        );
-      })}
+        ))
+      ))}
       {returns.map((range) => (
         <Line
           key={range.key}
@@ -187,18 +175,22 @@ export default function PlanRunFootprint({
           listening={false}
         />
       ))}
-      {faces.map((range) => (
-        <Line
-          key={range.key}
-          points={linePoints(depthRangePoints(frame, range))}
-          closed
-          fill={upper ? `${color}59` : `${color}8c`}
-          stroke={outline}
-          strokeWidth={0.75 / scale}
-          dash={upper ? [5 / scale, 3 / scale] : undefined}
-          listening={false}
-        />
-      ))}
+      {faces.map((range) => {
+        const faceColor = range.kind === 'filler'
+          ? KIND_COLORS.filler
+          : range.kind === 'end_panel' ? KIND_COLORS.end_panel : color;
+        return (
+          <Line
+            key={range.key}
+            points={linePoints(depthRangePoints(frame, range))}
+            closed
+            fill={upper ? `${faceColor}59` : `${faceColor}8c`}
+            stroke={outline}
+            strokeWidth={0.75 / scale}
+            dash={upper ? [5 / scale, 3 / scale] : undefined}
+          />
+        );
+      })}
       <Line
         points={[dimensionBack.x, dimensionBack.y, dimensionFront.x, dimensionFront.y]}
         stroke="#e2e8f0"
@@ -247,8 +239,8 @@ export default function PlanRunFootprint({
       />
       {collision && hovered && collisionMessage && (
         <Label
-          x={centerX}
-          y={topY - 5 / scale}
+          x={collisionAnchor.x}
+          y={collisionAnchor.y - 5 / scale}
           opacity={0.98}
           listening={false}
         >
