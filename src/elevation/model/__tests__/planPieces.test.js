@@ -58,6 +58,38 @@ const base = (id, overrides = {}) => run(id, CABINET_TYPE_IDS.BASE, 24, {
   ...overrides,
 });
 
+const cornerRoom = (hostRun, neighborRuns) => syncRoom({
+  id: 'K',
+  name: 'Room K',
+  profile: { ...DEFAULT_SETTINGS.defaultProfile },
+  partNumberStart: 1,
+  partNumberOverrides: {},
+  wallOrder: ['K1', 'K2'],
+  walls: [
+    makeWall('K1', 0, 0, 120, 0, {
+      connections: { start: { wallId: 'K2', endpoint: 'start' }, end: null },
+      runs: [hostRun],
+    }),
+    makeWall('K2', 0, 0, 0, 96, {
+      connections: { start: { wallId: 'K1', endpoint: 'start' }, end: null },
+      runs: neighborRuns,
+    }),
+  ],
+}, DEFAULT_SETTINGS);
+
+const neighborBase = () => base('N', { anchors: { left: false, right: true } });
+const neighborUpper = () => run('U', CABINET_TYPE_IDS.UPPER, 12, {
+  z: 54, height: 36, heightMode: 'manual', anchors: { left: false, right: true },
+});
+
+const tallBlind = () => run('T', CABINET_TYPE_IDS.TALL, 24, {
+  x: 25, width: 24, z: 4, height: 86, heightMode: 'manual',
+  ends: { left: { type: 'blind', width: 3 }, right: { type: 'none', width: null } },
+  autoCount: false,
+  items: [{ id: 't1', kind: 'cabinet', width: 21 }],
+  blind: { left: 42, right: null },
+});
+
 function fixture(overrides = {}) {
   const sourceRun = base('P', {
     x: 0,
@@ -351,5 +383,42 @@ describe('plan box and face geometry', () => {
       { key: 'c1', start: 3, end: 16.5, back: 0, front: 24 },
       { key: 'c2', start: 16.5, end: 30, back: 0, front: 24 },
     ]);
+  });
+
+  it('232. draws the blind panel as a face entry at the face plane', () => {
+    const room = cornerRoom(tallBlind(), [neighborBase(), neighborUpper()]);
+    const wall = wallSideView(room.walls[0], 'front');
+    const resolvedRun = wall.runs[0];
+    const layout = layoutRun(room, wall, resolvedRun, DEFAULT_SETTINGS);
+    const faceLayouts = runFaceLayouts(
+      room,
+      wall,
+      resolvedRun,
+      DEFAULT_SETTINGS,
+      layout,
+    );
+    const result = planRunPieces(
+      room,
+      wall,
+      resolvedRun,
+      DEFAULT_SETTINGS,
+      layout,
+      faceLayouts,
+    );
+
+    expect(result.faces.filter(({ kind }) => kind === 'panel')).toEqual([{
+      key: 'T:left',
+      kind: 'panel',
+      start: 0,
+      end: 27.875,
+      back: 24.0625,
+      front: 24.875,
+    }]);
+    expect(result.faces.some(({ kind }) => kind === 'filler')).toBe(false);
+    expect(result.returns).toEqual([]);
+    expect(result.boxes).toEqual([{
+      key: 't1', start: 7, end: 49, back: 0, front: 24,
+    }]);
+    expect(result.span).toEqual({ start: 0, end: 49 });
   });
 });

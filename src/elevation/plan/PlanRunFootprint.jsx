@@ -178,7 +178,7 @@ export default function PlanRunFootprint({
       {faces.map((range) => {
         const faceColor = range.kind === 'filler'
           ? KIND_COLORS.filler
-          : range.kind === 'end_panel' ? KIND_COLORS.end_panel : color;
+          : ['end_panel', 'panel'].includes(range.kind) ? KIND_COLORS.end_panel : color;
         return (
           <Line
             key={range.key}

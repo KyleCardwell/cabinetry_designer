@@ -67,12 +67,23 @@ function cabinetFaces(piece, faceLayouts, faceBack, faceFront) {
   }));
 }
 
-function planFaces(run, settings, layout, faceLayouts, faceBack, faceFront) {
+function planFaces(run, settings, layout, faceLayouts, panels, faceBack, faceFront) {
   return layout.pieces.flatMap((piece) => {
     if (piece.kind === 'cabinet') {
       return cabinetFaces(piece, faceLayouts, faceBack, faceFront);
     }
     if (piece.kind === 'filler') {
+      const panel = panels.get(endSideOf(piece));
+      if (panel) {
+        return [{
+          key: piece.id,
+          kind: 'panel',
+          start: panel.x,
+          end: panel.x + panel.width,
+          back: faceBack,
+          front: faceFront,
+        }];
+      }
       const { start, end } = fillerSpan(run, piece, settings);
       return [{
         key: piece.id,
@@ -97,9 +108,10 @@ function planFaces(run, settings, layout, faceLayouts, faceBack, faceFront) {
   });
 }
 
-function fillerReturns(run, settings, layout, faceBack) {
+function fillerReturns(run, settings, layout, panels, faceBack) {
   return layout.pieces.flatMap((piece, index) => {
     if (piece.kind !== 'filler') return [];
+    if (panels.has(endSideOf(piece))) return [];
 
     const span = fillerSpan(run, piece, settings);
     const trueWidth = span.end - span.start;
@@ -125,12 +137,16 @@ function fillerReturns(run, settings, layout, faceBack) {
 export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const faceBack = run.depth + settings.bumperThickness;
   const faceFront = frontDepth(run, settings);
-  const blindBoxes = new Map(blindEntries(room, wall, run, settings, layout).entries
+  const blind = blindEntries(room, wall, run, settings, layout);
+  const blindBoxes = new Map(blind.entries
     .filter((entry) => entry.extension > WIDTH_EPSILON)
     .map((entry) => [entry.pieceId, {
       start: entry.boxX,
       end: entry.boxX + entry.boxWidth,
     }]));
+  const panels = new Map(blind.entries
+    .filter((entry) => entry.panel)
+    .map((entry) => [entry.side, entry.panel]));
   const boxes = layout.pieces.flatMap((piece) => {
     if (piece.kind !== 'cabinet') return [];
     const blindBox = blindBoxes.get(piece.id);
@@ -142,8 +158,8 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
       front: run.depth,
     }];
   });
-  const faces = planFaces(run, settings, layout, faceLayouts, faceBack, faceFront);
-  const returns = fillerReturns(run, settings, layout, faceBack);
+  const faces = planFaces(run, settings, layout, faceLayouts, panels, faceBack, faceFront);
+  const returns = fillerReturns(run, settings, layout, panels, faceBack);
   const pieces = [...boxes, ...faces, ...returns];
 
   return {
