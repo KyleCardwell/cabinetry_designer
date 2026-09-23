@@ -276,4 +276,32 @@ describe('partNumbers', () => {
       { id: 'W:endPanel:end', x: 119.25, z: 0, width: 0.75, height: 34.5 },
     ]);
   });
+
+  it('212. reports blind cabinet and panel part widths without changing numbering', () => {
+    const room = syncRoom({
+      id: 'K',
+      name: 'Room K',
+      profile: { ...DEFAULT_SETTINGS.defaultProfile },
+      partNumberStart: 1,
+      partNumberOverrides: {},
+      wallOrder: ['K1'],
+      walls: [makeWall('K1', 0, 0, 120, 0, {
+        runs: [base('L', {
+          x: 12,
+          width: 24,
+          ends: { left: { type: 'filler', width: 3 }, right: { type: 'none', width: null } },
+          autoCount: false,
+          items: [{ id: 'w1', kind: 'cabinet', width: 21 }],
+          blind: { left: 42, right: null },
+        })],
+      })],
+    }, DEFAULT_SETTINGS);
+    const result = partNumbers(room, DEFAULT_SETTINGS);
+
+    expect(result.parts.find(({ key }) => key === 'L:left').width).toBe(15);
+    expect(result.parts.find(({ key }) => key === 'w1').width).toBe(42);
+    expect(result.parts.map(({ key }) => key))
+      .toEqual(['L:left', 'w1', 'molding:toeKick']);
+    expect(result.parts.map(({ number }) => number)).toEqual([1, 2, 3]);
+  });
 });

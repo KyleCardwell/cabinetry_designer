@@ -1,4 +1,5 @@
 import { CABINET_TYPE_IDS } from './constants.js';
+import { blindPartWidths } from './blind.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
 import {
@@ -57,6 +58,7 @@ function runParts(room, wall, side, settings) {
       endCornerAngles: endCornerAnglesForRun(room, view, run),
       pinTargets: pinTargetsForRun(run, view, wallLength(view), settings),
     });
+    const widths = blindPartWidths(room, view, run, settings, layout);
     return layout.pieces
       .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6)
       .map((piece) => ({
@@ -67,7 +69,7 @@ function runParts(room, wall, side, settings) {
         runId: run.id,
         pieceId: piece.id,
         molding: null,
-        width: piece.width,
+        width: widths.get(piece.id) ?? piece.width,
       }));
   });
 }
