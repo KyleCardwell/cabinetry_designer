@@ -104,10 +104,10 @@ import DimensionRow from './DimensionRow.jsx';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import JointMarkers from './JointMarkers.jsx';
 import LiveEntryInput from './LiveEntryInput.jsx';
-import MoldingBadges from './MoldingBadges.jsx';
 import NeighborProfiles from './NeighborProfiles.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
+import PartNumberLayer from './PartNumberLayer.jsx';
 import RunGroup from './RunGroup.jsx';
 import SoffitShapes from './SoffitShapes.jsx';
 import WallEndPanelShapes from './WallEndPanelShapes.jsx';
@@ -1509,7 +1509,6 @@ function ElevationCanvas({
                 wall={wall}
                 settings={settings}
                 diagnostic={diagnostics[run.id]}
-                partNumbers={partNumbering}
                 transform={transform}
                 selectedRun={selection.runId === run.id}
                 selectedPieceId={
@@ -1546,7 +1545,6 @@ function ElevationCanvas({
               room={room}
               wall={wall}
               settings={settings}
-              partNumbers={partNumbering}
               transform={transform}
             />
             <NeighborProfiles
@@ -1559,13 +1557,6 @@ function ElevationCanvas({
               room={room}
               wall={wall}
               settings={settings}
-              transform={transform}
-            />
-            <MoldingBadges
-              room={room}
-              wall={wall}
-              settings={settings}
-              partNumbers={partNumbering}
               transform={transform}
             />
             <ElevationAlignmentGuides
@@ -1736,6 +1727,17 @@ function ElevationCanvas({
                   transform={transform}
                 />
               )}
+            </Layer>
+          )}
+          {partNumbering && (
+            <Layer listening={false}>
+              <PartNumberLayer
+                room={room}
+                wall={wall}
+                settings={settings}
+                partNumbers={partNumbering}
+                transform={transform}
+              />
             </Layer>
           )}
         </Stage>

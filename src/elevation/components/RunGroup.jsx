@@ -25,7 +25,6 @@ import { formatInches } from '../model/units.js';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 import FaceOutlines from './FaceOutlines.jsx';
-import PartNumberBadges from './PartNumberBadges.jsx';
 import PieceRect from './PieceRect.jsx';
 
 function RunGroup({
@@ -34,7 +33,6 @@ function RunGroup({
   wall,
   settings,
   diagnostic,
-  partNumbers = null,
   transform,
   selectedRun,
   selectedPieceId,
@@ -314,15 +312,6 @@ function RunGroup({
           onSelectFace={onSelectFace}
         />
       ))}
-
-      {partNumbers && (
-        <PartNumberBadges
-          pieces={result.pieces}
-          numbers={partNumbers.byKey}
-          overrideKeys={partNumbers.overrideKeys}
-          transform={transform}
-        />
-      )}
 
       {result.pieces.flatMap((piece) => {
         const item = piece.role === 'item'
