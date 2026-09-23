@@ -81,6 +81,7 @@ export function neighborProfiles(room, wall, settings) {
             key: `${neighbor.id}:${side}:${run.id}:${start < 0 ? 'left' : 'right'}`,
             wallId: neighbor.id,
             runId: run.id,
+            cabinetTypeId: run.cabinetTypeId,
             side,
             x: start,
             width: end - start,

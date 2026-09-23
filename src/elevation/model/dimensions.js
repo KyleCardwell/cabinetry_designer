@@ -2,6 +2,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cornerAt } from './corners.js';
 import { wallLength } from './geometry.js';
 import { landingsOn } from './landings.js';
+import { neighborProfiles } from './neighborProfiles.js';
 import { openingGeometry } from './openings.js';
 import { verticalStart } from './overlap.js';
 import { moldingStack, resolveProfile } from './profile.js';
@@ -61,6 +62,21 @@ function runsForBand(wall, band) {
     )
     : (run) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
   return wall.runs.filter(matches).sort((a, b) => a.x - b.x);
+}
+
+function neighborSegments(room, wall, band, settings) {
+  const inBand = band === 'lower'
+    ? (id) => id === CABINET_TYPE_IDS.BASE || id === CABINET_TYPE_IDS.TALL
+    : (id) => id === CABINET_TYPE_IDS.UPPER;
+  return neighborProfiles(room, wall, settings)
+    .filter((profile) => inBand(profile.cabinetTypeId))
+    .map((profile) => ({
+      start: profile.x,
+      end: profile.x + profile.width,
+      kind: 'neighbor',
+      wallId: profile.wallId,
+      neighborRunId: profile.runId,
+    }));
 }
 
 /** Build a full-wall horizontal chain using each opening's stored reference edges. */
@@ -150,13 +166,27 @@ export function openingClearances(room, wall, settings) {
 /** Build the inner piece chain and outer run chain for an elevation band. */
 export function horizontalChains(room, wall, band, settings) {
   const runs = runsForBand(wall, band);
+  const neighbors = neighborSegments(room, wall, band, settings);
+  const outermost = (segments, side, limit) => {
+    const reaching = side === 'left'
+      ? segments.filter((segment) => segment.start < limit - SEGMENT_EPSILON)
+      : segments.filter((segment) => segment.end > limit + SEGMENT_EPSILON);
+    if (reaching.length === 0) return null;
+    const furthest = side === 'left'
+      ? reaching.reduce((a, b) => (b.start < a.start ? b : a))
+      : reaching.reduce((a, b) => (b.end > a.end ? b : a));
+    return side === 'left'
+      ? { ...furthest, end: limit }
+      : { ...furthest, start: limit };
+  };
   if (runs.length === 0) {
     const length = wallLength(wall);
+    const left = outermost(neighbors, 'left', 0);
+    const right = outermost(neighbors, 'right', length);
+    const wallRow = length > SEGMENT_EPSILON ? [{ start: 0, end: length, kind: 'wall' }] : [];
     return {
-      inner: [],
-      outer: length > SEGMENT_EPSILON
-        ? [{ start: 0, end: length, kind: 'wall' }]
-        : [],
+      inner: [left, right].filter(Boolean),
+      outer: [left, ...wallRow, right].filter(Boolean),
     };
   }
 
@@ -165,6 +195,8 @@ export function horizontalChains(room, wall, band, settings) {
   const lastRun = runs[runs.length - 1];
   const rangeStart = Math.min(0, firstRun.x);
   const rangeEnd = Math.max(length, lastRun.x + lastRun.width);
+  const left = outermost(neighbors, 'left', rangeStart);
+  const right = outermost(neighbors, 'right', rangeEnd);
   const leftCornerGap = Boolean(
     firstRun.anchors?.left === true
     && cornerAt(room, wall, 'left').type === 'inside',
@@ -193,6 +225,7 @@ export function horizontalChains(room, wall, band, settings) {
   ].sort((a, b) => a.start - b.start);
 
   const inner = [];
+  if (left) inner.push(left);
   let cursor = rangeStart;
   runs.forEach((run, index) => {
     appendGap(
@@ -225,8 +258,10 @@ export function horizontalChains(room, wall, band, settings) {
     rightCornerGap ? 'corner-gap' : 'open',
     tallRanges,
   );
+  if (right) inner.push(right);
 
   const outer = [];
+  if (left) outer.push(left);
   cursor = rangeStart;
   runs.forEach((run, index) => {
     const start = index === 0 && leftCornerGap ? 0 : run.x;
@@ -238,6 +273,7 @@ export function horizontalChains(room, wall, band, settings) {
     cursor = end;
   });
   appendOpenGap(outer, cursor, rangeEnd, tallRanges);
+  if (right) outer.push(right);
 
   return { inner, outer };
 }

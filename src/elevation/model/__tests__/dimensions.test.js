@@ -10,6 +10,84 @@ import {
   verticalOpeningChain,
 } from '../dimensions.js';
 import { syncRoom } from '../room.js';
+import { wallSideView } from '../wallSides.js';
+
+function makeWall(id, x1, y1, x2, y2, overrides = {}) {
+  return {
+    id,
+    name: '',
+    numberOverride: null,
+    elevationForced: false,
+    x1,
+    y1,
+    x2,
+    y2,
+    height: 108,
+    thickness: 4.5,
+    flipped: false,
+    connections: { start: null, end: null },
+    profile: {},
+    openings: [],
+    joints: [],
+    runs: [],
+    endPanels: { start: null, end: null },
+    landings: { start: null, end: null },
+    soffits: [],
+    ...overrides,
+  };
+}
+
+const run = (id, cabinetTypeId, depth, overrides = {}) => ({
+  id,
+  cabinetTypeId,
+  x: 0,
+  width: 30,
+  z: 0,
+  height: 30,
+  depth,
+  ends: {
+    left: { type: 'end_panel', width: null },
+    right: { type: 'end_panel', width: null },
+  },
+  autoCount: true,
+  maxCabinetWidth: null,
+  items: [],
+  heightMode: 'auto',
+  overrides: {},
+  anchors: { left: false, right: false },
+  wallSide: 'front',
+  ...overrides,
+});
+
+const base = (id, overrides = {}) => run(id, CABINET_TYPE_IDS.BASE, 24, {
+  z: 4,
+  height: 30.5,
+  heightMode: 'manual',
+  ...overrides,
+});
+
+const straightRoom = ({ wallA = {}, wallB = {} } = {}) => syncRoom({
+  id: 'S',
+  name: 'Room S',
+  profile: { ...DEFAULT_SETTINGS.defaultProfile },
+  wallOrder: ['A', 'B'],
+  walls: [
+    makeWall('A', 0, 0, 120, 0, {
+      height: 96,
+      connections: { start: null, end: { wallId: 'B', endpoint: 'start' } },
+      ...wallA,
+    }),
+    makeWall('B', 120, 0, 240, 0, {
+      height: 96,
+      connections: { start: { wallId: 'A', endpoint: 'end' }, end: null },
+      ...wallB,
+    }),
+  ],
+}, DEFAULT_SETTINGS);
+
+function view(room, wallId) {
+  return wallSideView(room.walls.find(({ id }) => id === wallId), 'front');
+}
 
 function cabinetRun(id, cabinetTypeId, overrides = {}) {
   return {
@@ -56,6 +134,8 @@ function roomR({ wallA = {}, wallB = {} } = {}) {
         flipped: false,
         connections: { start: null, end: { wallId: 'B', endpoint: 'start' } },
         profile: {},
+        openings: [],
+        joints: [],
         runs: [],
         ...wallA,
       },
@@ -72,6 +152,8 @@ function roomR({ wallA = {}, wallB = {} } = {}) {
         flipped: false,
         connections: { start: { wallId: 'A', endpoint: 'end' }, end: null },
         profile: {},
+        openings: [],
+        joints: [],
         runs: [],
         ...wallB,
       },
@@ -233,6 +315,75 @@ describe('horizontalChains', () => {
     expect(chains.outer[0]).toMatchObject({ start: -6, end: 54, kind: 'run' });
     expectContiguous(chains.inner, -6, 120);
     expectContiguous(chains.outer, -6, 120);
+  });
+
+  it('228. adds a base neighbour to both lower chains', () => {
+    const room = straightRoom({
+      wallA: { runs: [base('A1', { x: 90 })] },
+      wallB: { runs: [base('B1')] },
+    });
+    const wallA = horizontalChains(room, view(room, 'A'), 'lower', DEFAULT_SETTINGS);
+    const wallB = horizontalChains(room, view(room, 'B'), 'lower', DEFAULT_SETTINGS);
+    const rightNeighbor = {
+      start: 120,
+      end: 150,
+      kind: 'neighbor',
+      wallId: 'B',
+      neighborRunId: 'B1',
+    };
+    const leftNeighbor = {
+      start: -30,
+      end: 0,
+      kind: 'neighbor',
+      wallId: 'A',
+      neighborRunId: 'A1',
+    };
+
+    expect(wallA.inner.at(-1)).toEqual(rightNeighbor);
+    expect(wallA.outer.at(-1)).toEqual(rightNeighbor);
+    expect([...wallA.inner, ...wallA.outer].some(({ runId }) => runId === 'B1')).toBe(false);
+    expect(wallB.inner[0]).toEqual(leftNeighbor);
+    expect(wallB.outer[0]).toEqual(leftNeighbor);
+    expectContiguous(wallA.inner, 0, 150);
+    expectContiguous(wallA.outer, 0, 150);
+    expectContiguous(wallB.inner, -30, 120);
+    expectContiguous(wallB.outer, -30, 120);
+  });
+
+  it('229. adds an upper neighbour only to the upper chains', () => {
+    const room = straightRoom({
+      wallA: { runs: [base('A1', { x: 90 })] },
+      wallB: { runs: [run('U1', CABINET_TYPE_IDS.UPPER, 12, {
+        x: 0, width: 30, z: 54, height: 36, heightMode: 'auto',
+      })] },
+    });
+    const wall = view(room, 'A');
+    const lower = horizontalChains(room, wall, 'lower', DEFAULT_SETTINGS);
+    const upper = horizontalChains(room, wall, 'upper', DEFAULT_SETTINGS);
+
+    expect(lower.inner.some(({ kind }) => kind === 'neighbor')).toBe(false);
+    expect(lower.outer.some(({ kind }) => kind === 'neighbor')).toBe(false);
+    expect(lower.inner.at(-1).end).toBe(120);
+    expect(lower.outer.at(-1).end).toBe(120);
+    expect(upper).toEqual({
+      inner: [{
+        start: 120,
+        end: 150,
+        kind: 'neighbor',
+        wallId: 'B',
+        neighborRunId: 'U1',
+      }],
+      outer: [
+        { start: 0, end: 120, kind: 'wall' },
+        {
+          start: 120,
+          end: 150,
+          kind: 'neighbor',
+          wallId: 'B',
+          neighborRunId: 'U1',
+        },
+      ],
+    });
   });
 });
 
