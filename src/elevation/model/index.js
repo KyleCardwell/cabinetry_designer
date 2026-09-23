@@ -129,6 +129,14 @@ export {
   wallViewForRun,
 } from './wallSides.js';
 export { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
+export {
+  MOLDING_LABELS,
+  PART_MOLDINGS,
+  moldingPartKey,
+  partNumbers,
+  wallEndPanelPartKey,
+  wallMoldingBadges,
+} from './partNumbers.js';
 export { neighborProfiles } from './neighborProfiles.js';
 export { wallExtent } from './wallExtent.js';
 export {
