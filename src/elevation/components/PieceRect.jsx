@@ -12,6 +12,7 @@ export default function PieceRect({
   error,
   selected,
   cornerFiller = false,
+  subLabel = null,
   onSelect,
   cursor,
 }) {
@@ -59,12 +60,25 @@ export default function PieceRect({
           x={rect.x}
           y={rect.y}
           width={rect.width}
-          height={rect.height}
+          height={subLabel ? rect.height - 13 : rect.height}
           align="center"
           verticalAlign="middle"
           text={widthText}
           fill="#f8fafc"
           fontSize={11}
+          listening={false}
+        />
+      )}
+
+      {subLabel && !narrow && (
+        <Text
+          x={rect.x}
+          y={rect.y + rect.height / 2 + 2}
+          width={rect.width}
+          align="center"
+          text={subLabel}
+          fill="#cbd5e1"
+          fontSize={10}
           listening={false}
         />
       )}
@@ -99,7 +113,7 @@ export default function PieceRect({
             pointerHeight={4}
           />
           <Text
-            text={widthText}
+            text={subLabel ? `${widthText} · ${subLabel}` : widthText}
             fill="#f8fafc"
             fontSize={11}
             padding={5}

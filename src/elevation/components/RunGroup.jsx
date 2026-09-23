@@ -7,6 +7,7 @@ import {
   Tag,
   Text,
 } from 'react-konva';
+import { blindEntries } from '../model/blind.js';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
@@ -58,6 +59,20 @@ function RunGroup({
     () => runFaceLayouts(room, wall, run, settings, result),
     [result, room, run, settings, wall],
   );
+  const blind = useMemo(
+    () => blindEntries(room, wall, run, settings, result),
+    [result, room, run, settings, wall],
+  );
+  const subLabels = useMemo(() => {
+    const labels = new Map();
+    for (const entry of blind.entries) {
+      labels.set(entry.pieceId, `Blind ${formatInches(entry.boxWidth)}`);
+      if (entry.panel && entry.endPieceId) {
+        labels.set(entry.endPieceId, `Panel ${formatInches(entry.panel.width)}`);
+      }
+    }
+    return labels;
+  }, [blind]);
   const drop = panelDrop(run, resolveStyle(settings, room, run), settings);
   const drawnPieces = useMemo(() => (drop > 0
     ? result.pieces.map((piece) => (piece.kind === 'filler' || piece.kind === 'end_panel'
@@ -293,6 +308,7 @@ function RunGroup({
           warning={warningPieceIds.has(piece.id)}
           error={hasErrors}
           selected={selectedPieceId === piece.id}
+          subLabel={subLabels.get(piece.id) ?? null}
           cornerFiller={piece.role === 'end-left'
             ? cornerFillers.left
             : piece.role === 'end-right' && cornerFillers.right}
