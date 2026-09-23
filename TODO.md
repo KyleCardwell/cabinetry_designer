@@ -74,6 +74,12 @@ Suggested format:
 - [ ] 
 - [ ] 
 
+- [ ] **[P2][elevation][model] 90° and 45° corner cabinets**
+  - Why: SPEC-25 covers blind corners only. A blind is an ordinary box on one wall that happens to run past the corner, so it belongs to one elevation.
+  - Notes: A lazy-susan or diagonal unit belongs to BOTH walls and shows a different face on each, which needs a piece two wall views share — a corner-unit entity above the run. Nothing in SPEC-25 has to be undone to add it.
+- [ ] **[P3][elevation] Two blinds meeting in one corner**
+  - Notes: SPEC-25 §"Not in this SPEC" — neither run knows about the other. Decide whether that warrants a warning once a real job hits it.
+
 ## Planned
 
 <!-- Move sufficiently defined work here. -->
