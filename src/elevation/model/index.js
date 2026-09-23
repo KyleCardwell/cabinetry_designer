@@ -65,6 +65,7 @@ export {
   blindPartWidths,
   coveredRanges,
   isBlindCovered,
+  panelDepth,
 } from './blind.js';
 export {
   GROW_ENDS,

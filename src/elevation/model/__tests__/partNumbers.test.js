@@ -277,7 +277,7 @@ describe('partNumbers', () => {
     ]);
   });
 
-  it('212. reports blind cabinet and panel part widths without changing numbering', () => {
+  it('212. reports blind cabinet and filler part widths without changing numbering', () => {
     const room = syncRoom({
       id: 'K',
       name: 'Room K',
@@ -298,7 +298,7 @@ describe('partNumbers', () => {
     }, DEFAULT_SETTINGS);
     const result = partNumbers(room, DEFAULT_SETTINGS);
 
-    expect(result.parts.find(({ key }) => key === 'L:left').width).toBe(15);
+    expect(result.parts.find(({ key }) => key === 'L:left').width).toBe(6);
     expect(result.parts.find(({ key }) => key === 'w1').width).toBe(42);
     expect(result.parts.map(({ key }) => key))
       .toEqual(['L:left', 'w1', 'molding:toeKick']);

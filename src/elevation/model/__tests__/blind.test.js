@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { blindEntries, blindPartWidths, isBlindCovered } from '../blind.js';
+import {
+  blindEntries,
+  blindPartWidths,
+  isBlindCovered,
+  panelDepth,
+} from '../blind.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { syncRoom } from '../room.js';
 import { wallSideView } from '../wallSides.js';
@@ -68,6 +73,46 @@ const blindRoom = (runs) => syncRoom({
   walls: [makeWall('K1', 0, 0, 120, 0, { runs })],
 }, DEFAULT_SETTINGS);
 
+const cornerRoom = (hostRun, neighborRuns) => syncRoom({
+  id: 'K',
+  name: 'Room K',
+  profile: { ...DEFAULT_SETTINGS.defaultProfile },
+  partNumberStart: 1,
+  partNumberOverrides: {},
+  wallOrder: ['K1', 'K2'],
+  walls: [
+    makeWall('K1', 0, 0, 120, 0, {
+      connections: { start: { wallId: 'K2', endpoint: 'start' }, end: null },
+      runs: [hostRun],
+    }),
+    makeWall('K2', 0, 0, 0, 96, {
+      connections: { start: { wallId: 'K1', endpoint: 'start' }, end: null },
+      runs: neighborRuns,
+    }),
+  ],
+}, DEFAULT_SETTINGS);
+
+const neighborBase = () => base('N', { anchors: { left: false, right: true } });
+const neighborUpper = () => run('U', CABINET_TYPE_IDS.UPPER, 12, {
+  z: 54, height: 36, heightMode: 'manual', anchors: { left: false, right: true },
+});
+
+const tallBlind = () => run('T', CABINET_TYPE_IDS.TALL, 24, {
+  x: 25, width: 24, z: 4, height: 86, heightMode: 'manual',
+  ends: { left: { type: 'blind', width: 3 }, right: { type: 'none', width: null } },
+  autoCount: false,
+  items: [{ id: 't1', kind: 'cabinet', width: 21 }],
+  blind: { left: 42, right: null },
+});
+
+const lowUpperBlind = () => run('P', CABINET_TYPE_IDS.UPPER, 12, {
+  x: 25, width: 24, z: 40, height: 50, heightMode: 'manual',
+  ends: { left: { type: 'blind', width: 3 }, right: { type: 'none', width: null } },
+  autoCount: false,
+  items: [{ id: 'p1', kind: 'cabinet', width: 21 }],
+  blind: { left: 42, right: null },
+});
+
 const leftRun = (blind) => base('L', {
   x: 12,
   width: 24,
@@ -106,7 +151,7 @@ describe('blind overlay model', () => {
         cornerX: 0,
         covered: false,
         endPieceId: 'L:left',
-        panel: { x: 0, width: 15 },
+        panel: null,
       }],
       warnings: [],
     });
@@ -121,7 +166,7 @@ describe('blind overlay model', () => {
         cornerX: 120,
         covered: false,
         endPieceId: 'R:right',
-        panel: { x: 105, width: 15 },
+        panel: null,
       }],
       warnings: [],
     });
@@ -135,16 +180,16 @@ describe('blind overlay model', () => {
       warnings: [{ code: 'blind-not-past', side: 'left' }],
     });
 
-    const missingEnd = leftRun({ left: 42, right: null });
-    missingEnd.items[0].width = 24;
-    const missingRoom = blindRoom([missingEnd]);
+    const missingEnd = tallBlind();
+    missingEnd.items = [{ id: 't1', kind: 'cabinet', width: 24 }];
+    const missingRoom = cornerRoom(missingEnd, [neighborBase()]);
     const missingWall = wallSideView(missingRoom.walls[0], 'front');
     expect(blindEntries(
       missingRoom,
       missingWall,
       missingWall.runs[0],
       DEFAULT_SETTINGS,
-      { pieces: [{ id: 'w1', kind: 'cabinet', x: 12, width: 24 }] },
+      { pieces: [{ id: 't1', kind: 'cabinet', x: 25, width: 24 }] },
     )).toMatchObject({
       entries: [{ panel: null, endPieceId: null }],
       warnings: [{ code: 'blind-needs-end', side: 'left' }],
@@ -171,7 +216,7 @@ describe('blind overlay model', () => {
     const room = blindRoom([leftRun({ left: 42, right: null })]);
     const wall = wallSideView(room.walls[0], 'front');
     expect(blindPartWidths(room, wall, wall.runs[0], DEFAULT_SETTINGS)).toEqual(
-      new Map([['w1', 42], ['L:left', 15]]),
+      new Map([['w1', 42], ['L:left', 6]]),
     );
 
     const plainRoom = blindRoom([leftRun({ left: null, right: null })]);
@@ -213,16 +258,16 @@ describe('blind overlay model', () => {
       DEFAULT_SETTINGS,
     ).get('L:left')).toBe(6);
 
-    const exposedRun = leftRun({ left: 42, right: null });
+    const exposedRun = tallBlind();
     exposedRun.endFiller = { left: { width: 6 }, right: null };
-    const exposedRoom = blindRoom([exposedRun]);
+    const exposedRoom = cornerRoom(exposedRun, [neighborBase(), neighborUpper()]);
     const exposedWall = wallSideView(exposedRoom.walls[0], 'front');
     expect(blindPartWidths(
       exposedRoom,
       exposedWall,
       exposedWall.runs[0],
       DEFAULT_SETTINGS,
-    ).get('L:left')).toBe(15);
+    ).get('T:left')).toBe(27.875);
   });
 
   it('225. defaults covered blind ordered width without changing exposed width', () => {
@@ -253,14 +298,58 @@ describe('blind overlay model', () => {
       DEFAULT_SETTINGS,
     ).get('L:left')).toBe(6);
 
-    const exposedRun = leftRun({ left: 42, right: null });
-    const exposedRoom = blindRoom([exposedRun]);
+    const exposedRun = tallBlind();
+    const exposedRoom = cornerRoom(exposedRun, [neighborBase(), neighborUpper()]);
     const exposedWall = wallSideView(exposedRoom.walls[0], 'front');
     expect(blindPartWidths(
       exposedRoom,
       exposedWall,
       exposedWall.runs[0],
       DEFAULT_SETTINGS,
-    ).get('L:left')).toBe(15);
+    ).get('T:left')).toBe(27.875);
+  });
+
+  it('230. sizes the panel from the deepest overlapping neighbour plus the filler', () => {
+    const room = cornerRoom(tallBlind(), [neighborBase(), neighborUpper()]);
+    const wall = wallSideView(room.walls[0], 'front');
+    const host = wall.runs[0];
+
+    expect(blindEntries(room, wall, host, DEFAULT_SETTINGS)).toEqual({
+      entries: [{
+        side: 'left',
+        pieceId: 't1',
+        boxWidth: 42,
+        boxX: 7,
+        extension: 21,
+        visibleWidth: 21,
+        cornerX: 0,
+        covered: false,
+        endPieceId: 'T:left',
+        panel: { x: 0, width: 27.875 },
+      }],
+      warnings: [],
+    });
+    expect(panelDepth(room, wall, host, 'left', DEFAULT_SETTINGS)).toBe(24.875);
+    expect(panelDepth(room, wall, host, 'right', DEFAULT_SETTINGS)).toBe(0);
+  });
+
+  it('231. uses vertical overlap to choose panel neighbours', () => {
+    const room = cornerRoom(lowUpperBlind(), [neighborBase(), neighborUpper()]);
+    const wall = wallSideView(room.walls[0], 'front');
+    const host = wall.runs[0];
+    expect(blindEntries(room, wall, host, DEFAULT_SETTINGS).entries[0].panel).toEqual(
+      { x: 0, width: 15.875 },
+    );
+    expect(panelDepth(room, wall, host, 'left', DEFAULT_SETTINGS)).toBe(12.875);
+
+    const baseRoom = cornerRoom(lowUpperBlind(), [neighborBase()]);
+    const baseWall = wallSideView(baseRoom.walls[0], 'front');
+    const baseHost = baseWall.runs[0];
+    expect(blindEntries(baseRoom, baseWall, baseHost, DEFAULT_SETTINGS)).toMatchObject({
+      entries: [{ panel: null }],
+      warnings: [],
+    });
+    expect(panelDepth(baseRoom, baseWall, baseHost, 'left', DEFAULT_SETTINGS)).toBe(0);
+    expect(blindPartWidths(baseRoom, baseWall, baseHost, DEFAULT_SETTINGS).get('P:left')).toBe(6);
   });
 });

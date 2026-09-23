@@ -1,4 +1,4 @@
-import { anchoredToCorner, cornerForRunSide } from './corners.js';
+import { anchoredToCorner, cornerForRunSide, frontDepth } from './corners.js';
 import { wallLength } from './geometry.js';
 import {
   endCornerAnglesForRun,
@@ -29,6 +29,19 @@ function outerCabinet(pieces, side) {
   return pieces.findLast((piece) => piece.kind === 'cabinet') ?? null;
 }
 
+function cornerNeighborRuns(room, wall, run, side) {
+  const corner = cornerForRunSide(room, wall, run, side);
+  if (corner.type !== 'inside') return { corner, runs: [] };
+
+  const neighbor = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
+  const runs = neighbor?.runs.filter((neighborRun) => (
+    wallSideOfRun(neighborRun) === corner.neighborWallSide
+    && anchoredToCorner(neighborRun.anchors?.[corner.neighborSide], corner)
+    && neighborRun.height > 0
+  )) ?? [];
+  return { corner, runs };
+}
+
 /** Merge z-ranges and report whether they cover [z, top] with no gap. */
 export function isBlindCovered(ranges, z, top) {
   if (ranges.length === 0) return false;
@@ -51,19 +64,23 @@ export function isBlindCovered(ranges, z, top) {
 /** Return z-ranges of neighbouring runs that die into this run's corner. */
 export function coveredRanges(room, wall, run, side, settings) {
   void settings;
-  const corner = cornerForRunSide(room, wall, run, side);
-  if (corner.type !== 'inside') return [];
-
-  const neighbor = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
-  if (!neighbor) return [];
-
-  return neighbor.runs
-    .filter((neighborRun) => (
-      wallSideOfRun(neighborRun) === corner.neighborWallSide
-      && anchoredToCorner(neighborRun.anchors?.[corner.neighborSide], corner)
-      && neighborRun.height > 0
-    ))
+  return cornerNeighborRuns(room, wall, run, side).runs
     .map((neighborRun) => [neighborRun.z, neighborRun.z + neighborRun.height]);
+}
+
+/** How far the deepest overlapping neighbour reaches along this wall at a corner. */
+export function panelDepth(room, wall, run, side, settings) {
+  const { corner, runs } = cornerNeighborRuns(room, wall, run, side);
+  if (corner.type !== 'inside') return 0;
+  const sine = Math.sin(corner.angle * Math.PI / 180);
+  if (Math.abs(sine) < 1e-9) return 0;
+
+  return runs.reduce((depth, neighborRun) => {
+    const overlap = Math.min(neighborRun.z + neighborRun.height, run.z + run.height)
+      - Math.max(neighborRun.z, run.z);
+    if (overlap <= WIDTH_EPSILON) return depth;
+    return Math.max(depth, frontDepth(neighborRun, settings) / sine);
+  }, 0);
 }
 
 /** Return blind cabinet overlay geometry and diagnostics for a run. */
@@ -91,20 +108,18 @@ export function blindEntries(room, wall, run, settings, layout = null) {
       run.z + run.height,
     );
     const endPieceId = `${run.id}:${side}`;
-    const hasEndPiece = resolvedLayout.pieces.some(({ id }) => id === endPieceId);
-    const panelX = side === 'left' ? cornerX : piece.x + piece.width;
-    const panelWidth = side === 'left'
-      ? piece.x - cornerX
-      : cornerX - (piece.x + piece.width);
-    let panel = !covered && panelWidth > 0
-      ? { x: panelX, width: panelWidth }
+    const depth = panelDepth(room, wall, run, side, settings);
+    const endPiece = resolvedLayout.pieces.find(({ id }) => id === endPieceId);
+    const hasEndPiece = Boolean(endPiece);
+    const width = depth > WIDTH_EPSILON && endPiece ? depth + endPiece.width : 0;
+    let panel = !covered && width > WIDTH_EPSILON
+      ? { x: side === 'left' ? cornerX : cornerX - width, width }
       : null;
 
     if (extension <= WIDTH_EPSILON) {
       warnings.push({ code: 'blind-not-past', side });
     }
-    if (panel && !hasEndPiece) {
-      panel = null;
+    if (!covered && depth > WIDTH_EPSILON && !hasEndPiece) {
       warnings.push({ code: 'blind-needs-end', side });
     }
 
@@ -131,12 +146,10 @@ export function blindPartWidths(room, wall, run, settings, layout = null) {
   const { entries } = blindEntries(room, wall, run, settings, layout);
   for (const entry of entries) {
     widths.set(entry.pieceId, entry.boxWidth);
-    const endFillerWidth = run.endFiller?.[entry.side]?.width ?? settings.blindFillerWidth;
-    if (entry.covered && endFillerWidth != null && entry.endPieceId) {
-      widths.set(entry.endPieceId, endFillerWidth);
-    } else if (entry.panel && entry.endPieceId) {
-      widths.set(entry.endPieceId, entry.panel.width);
-    }
+    if (!entry.endPieceId) continue;
+    widths.set(entry.endPieceId, entry.panel
+      ? entry.panel.width
+      : run.endFiller?.[entry.side]?.width ?? settings.blindFillerWidth);
   }
   return widths;
 }
