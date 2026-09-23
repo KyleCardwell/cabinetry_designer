@@ -138,8 +138,9 @@ describe('plan box and face geometry', () => {
       input.faceLayouts,
     );
 
-    expect(result.box).toEqual({ start: 0, end: 30, back: 0, front: 24 });
-    expect(result.divisions).toEqual([]);
+    expect(result.boxes).toEqual([{
+      key: 'c1', start: 3, end: 30, back: 0, front: 24,
+    }]);
     expect(result.faces.filter(({ kind }) => kind === 'filler')).toEqual([{
       key: 'P:left',
       kind: 'filler',
@@ -191,7 +192,9 @@ describe('plan box and face geometry', () => {
       back: 20.0625,
       front: 24.0625,
     }]);
-    expect(result.box).toEqual({ start: 0, end: 30, back: 0, front: 24 });
+    expect(result.boxes).toEqual([{
+      key: 'c1', start: 3, end: 30, back: 0, front: 24,
+    }]);
   });
 
   it('219. keeps only the highest face in each horizontal span', () => {
@@ -273,6 +276,80 @@ describe('plan box and face geometry', () => {
     );
     expect(orderedResult.faces.filter(({ kind }) => kind === 'filler')).toEqual([
       expect.objectContaining({ start: 12, end: 15 }),
+    ]);
+  });
+
+  it('226. draws cabinet boxes and an end panel at their true sizes', () => {
+    const input = fixture({
+      x: 0,
+      width: 30,
+      ends: {
+        left: { type: 'end_panel', width: null },
+        right: { type: 'none', width: null },
+      },
+      autoCount: false,
+      items: [{ id: 'c1', kind: 'cabinet', width: 29.25 }],
+    });
+    const result = planRunPieces(
+      input.room,
+      input.wall,
+      input.run,
+      DEFAULT_SETTINGS,
+      input.layout,
+      input.faceLayouts,
+    );
+
+    expect(result.boxes).toEqual([{
+      key: 'c1', start: 0.75, end: 30, back: 0, front: 24,
+    }]);
+    expect(result.faces.filter(({ kind }) => kind === 'end_panel')).toEqual([{
+      key: 'P:left',
+      kind: 'end_panel',
+      start: 0,
+      end: 0.75,
+      back: 0,
+      front: 24.875,
+    }]);
+    expect(result.faces.filter(({ kind }) => kind === 'face').every(({ back, front }) => (
+      back === 24.0625 && front === 24.875
+    ))).toBe(true);
+    expect(result.span).toEqual({ start: 0, end: 30 });
+  });
+
+  it('227. uses one ordered-width box for a blind cabinet', () => {
+    const input = blindFixture();
+    const result = planRunPieces(
+      input.room,
+      input.wall,
+      input.run,
+      DEFAULT_SETTINGS,
+      input.layout,
+      input.faceLayouts,
+    );
+
+    expect(result.boxes).toEqual([{
+      key: 'w1', start: -6, end: 36, back: 0, front: 24,
+    }]);
+    expect(result.span).toEqual({ start: -6, end: 36 });
+    expect(result.boxes.some(({ key }) => key === 'P:left')).toBe(false);
+
+    const twoCabinet = fixture({
+      items: [
+        { id: 'c1', kind: 'cabinet', width: 13.5 },
+        { id: 'c2', kind: 'cabinet', width: 13.5 },
+      ],
+    });
+    const twoCabinetResult = planRunPieces(
+      twoCabinet.room,
+      twoCabinet.wall,
+      twoCabinet.run,
+      DEFAULT_SETTINGS,
+      twoCabinet.layout,
+      twoCabinet.faceLayouts,
+    );
+    expect(twoCabinetResult.boxes).toEqual([
+      { key: 'c1', start: 3, end: 16.5, back: 0, front: 24 },
+      { key: 'c2', start: 16.5, end: 30, back: 0, front: 24 },
     ]);
   });
 });

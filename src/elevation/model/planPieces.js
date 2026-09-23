@@ -89,7 +89,7 @@ function planFaces(run, settings, layout, faceLayouts, faceBack, faceFront) {
         kind: 'end_panel',
         start: piece.x,
         end: piece.x + piece.width,
-        back: faceBack,
+        back: 0,
         front: faceFront,
       }];
     }
@@ -121,25 +121,38 @@ function fillerReturns(run, settings, layout, faceBack) {
   });
 }
 
-/** Return the box, divisions, faces, and filler returns used by the plan view. */
+/** Return the boxes, faces, filler returns, and their overall span used by the plan view. */
 export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const faceBack = run.depth + settings.bumperThickness;
   const faceFront = frontDepth(run, settings);
-  const blindSpans = blindEntries(room, wall, run, settings, layout).entries
+  const blindBoxes = new Map(blindEntries(room, wall, run, settings, layout).entries
     .filter((entry) => entry.extension > WIDTH_EPSILON)
-    .map((entry) => [entry.boxX, entry.boxX + entry.boxWidth]);
-  const start = Math.min(run.x, ...blindSpans.map(([left]) => left));
-  const end = Math.max(run.x + run.width, ...blindSpans.map(([, right]) => right));
-  const divisions = layout.pieces.slice(1).flatMap((piece, index) => (
-    layout.pieces[index].kind === 'cabinet' && piece.kind === 'cabinet'
-      ? [{ x: piece.x, back: 0, front: run.depth }]
-      : []
-  ));
+    .map((entry) => [entry.pieceId, {
+      start: entry.boxX,
+      end: entry.boxX + entry.boxWidth,
+    }]));
+  const boxes = layout.pieces.flatMap((piece) => {
+    if (piece.kind !== 'cabinet') return [];
+    const blindBox = blindBoxes.get(piece.id);
+    return [{
+      key: piece.id,
+      start: blindBox?.start ?? piece.x,
+      end: blindBox?.end ?? piece.x + piece.width,
+      back: 0,
+      front: run.depth,
+    }];
+  });
+  const faces = planFaces(run, settings, layout, faceLayouts, faceBack, faceFront);
+  const returns = fillerReturns(run, settings, layout, faceBack);
+  const pieces = [...boxes, ...faces, ...returns];
 
   return {
-    box: { start, end, back: 0, front: run.depth },
-    divisions,
-    faces: planFaces(run, settings, layout, faceLayouts, faceBack, faceFront),
-    returns: fillerReturns(run, settings, layout, faceBack),
+    span: {
+      start: Math.min(...pieces.map((piece) => piece.start)),
+      end: Math.max(...pieces.map((piece) => piece.end)),
+    },
+    boxes,
+    faces,
+    returns,
   };
 }
