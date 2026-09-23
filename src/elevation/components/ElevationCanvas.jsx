@@ -63,7 +63,6 @@ import {
   verticalChains,
   verticalOpeningChain,
 } from '../model/dimensions.js';
-import { neighborProfiles } from '../model/neighborProfiles.js';
 import { resolveProfile } from '../model/profile.js';
 import { partNumbers } from '../model/partNumbers.js';
 import { elevationLabel, nextWallId } from '../model/topology.js';
@@ -213,24 +212,9 @@ function ElevationCanvas({
       && nearerEdge(openingCenter, wall.length) === edge
       ? verticalOpeningChain(wall, selectedOpening, wall.length, settings)
       : verticalChains(room, wall, pickColumnRuns(wall, selection.runId, edge), settings));
-    const seen = new Set();
-    const neighbors = neighborProfiles(room, wall, settings)
-      .map((profile) => ({
-        start: profile.x,
-        end: profile.x + profile.width,
-        kind: 'neighbor',
-      }))
-      .filter((segment) => {
-        const key = `${segment.start.toFixed(4)}:${segment.end.toFixed(4)}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .sort((a, b) => a.start - b.start);
     return {
       lower,
       upper,
-      neighbors,
       openings: openingChain(room, wall, settings),
       clearances: openingClearances(room, wall, settings),
       vertical: {
@@ -423,13 +407,11 @@ function ElevationCanvas({
       ? fitWallToViewport(wall, viewport, {
         top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
         right: 48,
-        bottom: (dimensionChains?.openings.length > 0 ? 152 : 96)
-          + (dimensionChains?.neighbors.length > 0 ? 28 : 0),
+        bottom: dimensionChains?.openings.length > 0 ? 152 : 96,
         left: 110,
       })
       : null
   ), [
-    dimensionChains?.neighbors.length,
     dimensionChains?.openings.length,
     dimensionChains?.upper.inner.length,
     viewport,
@@ -473,9 +455,6 @@ function ElevationCanvas({
     const openingLevels = layoutDimensionRow(dimensionChains.openings, {
       scale: transform.scale,
     }).levels;
-    const neighborLevels = layoutDimensionRow(dimensionChains.neighbors, {
-      scale: transform.scale,
-    }).levels;
     const clearanceLevels = layoutDimensionRow(dimensionChains.clearances, {
       scale: transform.scale,
     }).levels;
@@ -499,7 +478,6 @@ function ElevationCanvas({
       pieces: lowerLevels,
       overall: lowerOuterLevels,
       openings: openingLevels,
-      neighbors: neighborLevels,
     });
     const upper = dimensionRowOffsets('horizontal', upperLevels);
     const vertical = {
@@ -526,7 +504,6 @@ function ElevationCanvas({
         },
       },
       openings: below.openings + clear.below,
-      neighbors: below.neighbors + clear.below,
       clearances: below.clearances + clear.below,
       label: below.label + clear.below,
       clear,
@@ -1251,7 +1228,7 @@ function ElevationCanvas({
   }, [applyRunMove, beginEntry, cancelEntry, cursor, dispatch, room, settings, transform, wall]);
 
   const handleRunSegmentClick = useCallback((segment) => {
-    if (tool !== 'select') return;
+    if (tool !== 'select' || segment.kind !== 'run') return;
     if (selectionRef.current?.runId !== segment.runId) {
       dispatch(setSelection({ runId: segment.runId, pieceId: null }));
       return;
@@ -1634,16 +1611,6 @@ function ElevationCanvas({
                 orientation="horizontal"
                 side="below"
                 offsetPx={dimensionOffsets.openings}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.below}
-                wallEndMarks={[0, wall.length]}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.neighbors}
-                orientation="horizontal"
-                side="below"
-                offsetPx={dimensionOffsets.neighbors}
                 transform={transform}
                 edgeGapPx={dimensionOffsets.clear.below}
                 wallEndMarks={[0, wall.length]}
