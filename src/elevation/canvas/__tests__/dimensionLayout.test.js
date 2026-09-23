@@ -12,7 +12,8 @@ describe('belowRowOffsets', () => {
       pieces: 42,
       overall: 64,
       openings: 86,
-      label: 108,
+      neighbors: 108,
+      label: 130,
     });
   });
 
@@ -22,7 +23,8 @@ describe('belowRowOffsets', () => {
       pieces: 70,
       overall: 92,
       openings: 114,
-      label: 136,
+      neighbors: 136,
+      label: 158,
     });
   });
 
@@ -32,7 +34,8 @@ describe('belowRowOffsets', () => {
       pieces: 42,
       overall: 78,
       openings: 100,
-      label: 150,
+      neighbors: 150,
+      label: 172,
     });
   });
 });

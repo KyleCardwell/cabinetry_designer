@@ -19,13 +19,15 @@ export function belowRowOffsets({
   pieces: pieceLevels = 0,
   overall: overallLevels = 0,
   openings: openingLevels = 0,
+  neighbors: neighborLevels = 0,
 } = {}) {
   const clearances = 20;
   const pieces = clearances + 22 + clearanceLevels * 14;
   const overall = pieces + 22 + pieceLevels * 14;
   const openings = overall + 22 + overallLevels * 14;
-  const label = openings + 22 + openingLevels * 14;
-  return { clearances, pieces, overall, openings, label };
+  const neighbors = openings + 22 + openingLevels * 14;
+  const label = neighbors + 22 + neighborLevels * 14;
+  return { clearances, pieces, overall, openings, neighbors, label };
 }
 
 function overlaps(candidate, placed) {

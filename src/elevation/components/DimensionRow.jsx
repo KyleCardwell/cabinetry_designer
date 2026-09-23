@@ -22,6 +22,7 @@ const KIND_COLORS = {
   countertop: '#cbd5e1',
   clearance: '#cbd5e1',
   molding: '#cbd5e1',
+  neighbor: '#94a3b8',
   wall: '#e2e8f0',
 };
 
@@ -40,6 +41,7 @@ export default function DimensionRow({
   orientation,
   side,
   offsetPx,
+  edgeGapPx = 0,
   transform,
   onSegmentClick,
   highlightRunId,
@@ -129,7 +131,12 @@ export default function DimensionRow({
         return (
           <Group key={`${value}:${index}`} listening={false}>
             <Line
-              points={[edge.x, edge.y, row.x, row.y]}
+              points={[
+                edge.x + outward.x * edgeGapPx,
+                edge.y + outward.y * edgeGapPx,
+                row.x,
+                row.y,
+              ]}
               stroke="#475569"
               strokeWidth={0.75}
             />
