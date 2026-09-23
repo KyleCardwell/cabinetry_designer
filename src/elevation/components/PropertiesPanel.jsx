@@ -20,6 +20,7 @@ import {
   formatInchesInput,
   frontDepth,
   openingGeometry,
+  partNumbers,
   pinTargetsForRun,
   positionReadouts,
   profileUnderSoffit,
@@ -94,6 +95,7 @@ import {
 } from '../store/elevationSlice.js';
 import InchInput from './InchInput.jsx';
 import FaceProperties from './properties/FaceProperties.jsx';
+import PartNumberField from './properties/PartNumberField.jsx';
 import RunFaceOptions from './properties/RunFaceOptions.jsx';
 import StretchInput from './properties/StretchInput.jsx';
 
@@ -1505,32 +1507,54 @@ function EndProperties({ wallId, run, side }) {
   );
 }
 
-function PieceProperties({ wall, run, layout, selectionContext, settings }) {
+function PieceProperties({ room, wall, run, layout, selectionContext, settings }) {
   const { piece, item, side } = selectionContext;
+  const numbers = useMemo(() => partNumbers(room, settings), [room, settings]);
+  const partKey = piece.id;
+  const partNumberField = (
+    <PartNumberField
+      roomId={room.id}
+      partKey={partKey}
+      autoNumber={numbers.byKey.get(partKey)}
+      override={room.partNumberOverrides?.[partKey]}
+      duplicate={numbers.warnings.some((warning) => warning.keys.includes(partKey))}
+    />
+  );
 
   if (side) {
-    return <EndProperties wallId={wall.id} run={run} side={side} />;
+    return (
+      <>
+        {partNumberField}
+        <EndProperties wallId={wall.id} run={run} side={side} />
+      </>
+    );
   }
   if (!item) return null;
   if (item.kind === 'filler') {
     return (
-      <InteriorFillerProperties
-        wallId={wall.id}
-        run={run}
-        piece={piece}
-        item={item}
-      />
+      <>
+        {partNumberField}
+        <InteriorFillerProperties
+          wallId={wall.id}
+          run={run}
+          piece={piece}
+          item={item}
+        />
+      </>
     );
   }
   return (
-    <CabinetProperties
-      wall={wall}
-      run={run}
-      piece={piece}
-      item={item}
-      layout={layout}
-      settings={settings}
-    />
+    <>
+      {partNumberField}
+      <CabinetProperties
+        wall={wall}
+        run={run}
+        piece={piece}
+        item={item}
+        layout={layout}
+        settings={settings}
+      />
+    </>
   );
 }
 
@@ -2135,6 +2159,7 @@ export default function PropertiesPanel() {
           <WallHeightProperties room={room} wall={wall} plan={view === 'plan'} />
         ) : selectionContext ? (
           <PieceProperties
+            room={room}
             wall={wall}
             run={run}
             layout={layout}

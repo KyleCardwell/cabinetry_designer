@@ -5,6 +5,7 @@ import ElevationToolbar from './components/ElevationToolbar.jsx';
 import JsonToggle from './components/JsonToggle.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
 import RoomHeightsPanel from './components/RoomHeightsPanel.jsx';
+import RoomPartNumbersPanel from './components/RoomPartNumbersPanel.jsx';
 import RoomStylePanel from './components/RoomStylePanel.jsx';
 import RoomPicker from './components/RoomPicker.jsx';
 import SampleRunsButton from './components/SampleRunsButton.jsx';
@@ -42,6 +43,7 @@ export default function ElevationLab() {
         <div className="space-y-5">
           <RoomPicker />
           <RoomHeightsPanel />
+          <RoomPartNumbersPanel />
           <RoomStylePanel />
           <WallList />
           <SampleRunsButton />
