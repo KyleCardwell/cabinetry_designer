@@ -11,6 +11,7 @@ import {
   CABINET_TYPE_IDS,
   KIND_LABELS,
   SOFFIT_MOLDINGS,
+  blindEntries,
   boxTopOf,
   cornerAt,
   cornerReserveParts,
@@ -75,6 +76,7 @@ import {
   setRunEnd,
   setRunHeightMode,
   setRunAnchor,
+  setRunBlind,
   joinRunEdges,
   resizeRun,
   setRunCornerClearance,
@@ -562,6 +564,10 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
     side,
     cornerReserveParts(room, wall, side, run, settings),
   ]));
+  const blindEntryData = useMemo(
+    () => blindEntries(room, wall, run, settings),
+    [room, wall, run, settings],
+  );
   const overhang = formatRunOverhang(run, wall.length);
   const leftGrowLocked = run.anchors.left && !isJointAnchor(run.anchors.left);
   const rightGrowLocked = run.anchors.right && !isJointAnchor(run.anchors.right);
@@ -990,6 +996,27 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                     </p>
                   </div>
                 ) : null}
+                <Field label="Blind box">
+                  <InchInput
+                    value={run.blind?.[side] ?? null}
+                    allowBlank
+                    placeholder="none"
+                    onCommit={(width) => dispatch(setRunBlind({ ...actionBase, side, width }))}
+                    aria-label={`${side} blind box width`}
+                  />
+                </Field>
+                <p className="mt-1.5 text-xs text-gray-500">
+                  Box width of the cabinet at this end. The extra runs into the corner.
+                </p>
+                {blindEntryData.warnings
+                  .filter((warning) => warning.side === side)
+                  .map((warning) => (
+                    <p key={warning.code} className="text-xs text-amber-300">
+                      {warning.code === 'blind-not-past'
+                        ? 'Blind box is no wider than the cabinet.'
+                        : 'Blind is exposed — add a filler or panel at this end.'}
+                    </p>
+                  ))}
               </div>
             );
           })}
