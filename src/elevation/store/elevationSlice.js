@@ -1069,6 +1069,14 @@ const elevationSlice = createSlice({
       };
       syncRoomAt(state, location.roomIndex);
     },
+    setRunBlind(state, action) {
+      const location = runLocation(state, action.payload);
+      const { side, width } = action.payload;
+      if (!location || (side !== 'left' && side !== 'right')) return;
+      const run = location.run;
+      run.blind = { left: null, right: null, ...(run.blind ?? {}) };
+      run.blind[side] = Number.isFinite(width) && width > 0 ? width : null;
+    },
     setAutoCount(state, action) {
       const location = runLocation(state, action.payload);
       if (!location) return;
@@ -1380,6 +1388,7 @@ export const {
   resizeRun,
   replaceWallLayout,
   setRunCornerClearance,
+  setRunBlind,
   setAutoCount,
   setMaxCabinetWidth,
   setItemWidth,

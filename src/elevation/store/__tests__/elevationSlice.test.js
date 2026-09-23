@@ -46,6 +46,7 @@ import elevationReducer, {
   setRunStyle,
   setActiveWall,
   setActiveWallSide,
+  setRunBlind,
   setRunCornerClearance,
   setRunAnchor,
   setRunJointOffset,
@@ -1791,5 +1792,39 @@ describe('SPEC-23 part number store', () => {
 
     state = elevationReducer(state, setPartNumberOverride({ roomId, number: 12 }));
     expect(state.rooms.find((room) => room.id === roomId).partNumberOverrides).toEqual({});
+  });
+});
+
+describe('SPEC-25 blind store action', () => {
+  it('207. sets, clears, and rejects invalid run blind sides', () => {
+    let state = stateWithRun(run());
+    const roomId = state.rooms[0].id;
+    const actionBase = { roomId, wallId: 'wall-1', runId: 'run-1' };
+    const currentRun = () => state.rooms[0].walls[0].runs[0];
+
+    state = elevationReducer(state, setRunBlind({
+      ...actionBase, side: 'left', width: 42,
+    }));
+    expect(currentRun().blind).toEqual({ left: 42, right: null });
+
+    state = elevationReducer(state, setRunBlind({
+      ...actionBase, side: 'right', width: 30,
+    }));
+    expect(currentRun().blind).toEqual({ left: 42, right: 30 });
+
+    state = elevationReducer(state, setRunBlind({
+      ...actionBase, side: 'left', width: null,
+    }));
+    expect(currentRun().blind).toEqual({ left: null, right: 30 });
+
+    state = elevationReducer(state, setRunBlind({
+      ...actionBase, side: 'left', width: 0,
+    }));
+    expect(currentRun().blind).toEqual({ left: null, right: 30 });
+
+    state = elevationReducer(state, setRunBlind({
+      ...actionBase, side: 'middle', width: 24,
+    }));
+    expect(currentRun().blind).toEqual({ left: null, right: 30 });
   });
 });

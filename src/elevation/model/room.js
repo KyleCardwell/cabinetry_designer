@@ -66,6 +66,7 @@ function cloneRun(run) {
     ...(run.cornerClearance
       ? { cornerClearance: { ...run.cornerClearance } }
       : {}),
+    ...(run.blind ? { blind: { ...run.blind } } : {}),
     items: run.items.map((item) => ({ ...item })),
   };
 }
@@ -1474,6 +1475,9 @@ export function flipRunsForWall(wall) {
               right: run.cornerClearance.left,
             },
           }
+        : {}),
+      ...(run.blind
+        ? { blind: { left: run.blind.right, right: run.blind.left } }
         : {}),
       items: [...run.items].reverse().map((item) => ({ ...item })),
     })),
