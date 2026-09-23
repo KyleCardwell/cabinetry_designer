@@ -103,6 +103,8 @@ function createRoom(name = 'Room 1', settings = DEFAULT_SETTINGS, id = uuid()) {
     id,
     name,
     profile: { ...settings.defaultProfile },
+    partNumberStart: 1,
+    partNumberOverrides: {},
     wallOrder: [],
     walls: [],
   };
@@ -333,6 +335,22 @@ const elevationSlice = createSlice({
         for (const run of wall.runs) run.heightMode = 'auto';
       }
       syncRoomAt(state, roomIndex);
+    },
+    setRoomPartNumberStart(state, action) {
+      const roomIndex = roomIndexFor(state, action.payload.roomId);
+      if (roomIndex === -1) return;
+      const value = action.payload.value ?? action.payload.start;
+      state.rooms[roomIndex].partNumberStart = Number.isInteger(value) && value > 0 ? value : 1;
+    },
+    setPartNumberOverride(state, action) {
+      const roomIndex = roomIndexFor(state, action.payload.roomId);
+      const { key } = action.payload;
+      if (roomIndex === -1 || typeof key !== 'string' || key === '') return;
+      const room = state.rooms[roomIndex];
+      room.partNumberOverrides ??= {};
+      const number = action.payload.number ?? action.payload.value ?? null;
+      if (number === null) delete room.partNumberOverrides[key];
+      else if (Number.isInteger(number) && number > 0) room.partNumberOverrides[key] = number;
     },
     centerRoomOnOrigin(state, action) {
       const roomId = action.payload?.roomId ?? action.payload ?? state.activeRoomId;
@@ -1317,6 +1335,8 @@ export const {
   setActiveRoom,
   updateRoomProfile,
   useAutoHeightsForRoom,
+  setRoomPartNumberStart,
+  setPartNumberOverride,
   centerRoomOnOrigin,
   addWall,
   addWallSegment,

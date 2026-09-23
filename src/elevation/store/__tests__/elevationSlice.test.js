@@ -32,6 +32,7 @@ import elevationReducer, {
   setOpeningMeasureMode,
   setOpeningOffsetAnchor,
   setOpeningOffsetSide,
+  setPartNumberOverride,
   setItemAbsorb,
   setItemPin,
   setActiveRoom,
@@ -40,6 +41,7 @@ import elevationReducer, {
   setItemReveals,
   setItemStyle,
   setRoomStyle,
+  setRoomPartNumberStart,
   setRunFaceOptions,
   setRunStyle,
   setActiveWall,
@@ -1744,5 +1746,50 @@ describe('SPEC-19 soffit store', () => {
 
     state = elevationReducer(state, setTool('soffit'));
     expect(state.tool).toBe('soffit');
+  });
+});
+
+describe('SPEC-23 part number store', () => {
+  it('196. initializes and updates a room part number start', () => {
+    let state = elevationReducer(createInitialElevationState(), addRoom({ name: 'Parts' }));
+    const roomId = state.activeRoomId;
+
+    expect(state.rooms.find((room) => room.id === roomId)).toMatchObject({
+      partNumberStart: 1,
+      partNumberOverrides: {},
+    });
+
+    state = elevationReducer(state, setRoomPartNumberStart({ roomId, value: 100 }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberStart).toBe(100);
+
+    state = elevationReducer(state, setRoomPartNumberStart({ roomId, value: 0 }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberStart).toBe(1);
+
+    state = elevationReducer(state, setRoomPartNumberStart({ roomId, value: 2.5 }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberStart).toBe(1);
+  });
+
+  it('197. sets, clears, and rejects invalid part number overrides', () => {
+    let state = elevationReducer(createInitialElevationState(), addRoom({ name: 'Parts' }));
+    const roomId = state.activeRoomId;
+
+    state = elevationReducer(state, setPartNumberOverride({
+      roomId, key: 'piece-1', number: 12,
+    }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberOverrides)
+      .toEqual({ 'piece-1': 12 });
+
+    state = elevationReducer(state, setPartNumberOverride({
+      roomId, key: 'piece-1', number: null,
+    }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberOverrides).toEqual({});
+
+    state = elevationReducer(state, setPartNumberOverride({
+      roomId, key: 'piece-1', number: 0,
+    }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberOverrides).toEqual({});
+
+    state = elevationReducer(state, setPartNumberOverride({ roomId, number: 12 }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberOverrides).toEqual({});
   });
 });
