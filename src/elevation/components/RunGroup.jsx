@@ -81,12 +81,40 @@ function RunGroup({
     })),
     [blind],
   );
+  const panelPieceIds = useMemo(
+    () => new Set(blind.entries
+      .filter((entry) => entry.panel && entry.endPieceId)
+      .map((entry) => entry.endPieceId)),
+    [blind],
+  );
+  const panelBySide = useMemo(() => {
+    const sides = { left: null, right: null };
+    for (const entry of blind.entries) {
+      if (entry.panel) sides[entry.side] = entry.panel;
+    }
+    return sides;
+  }, [blind]);
+  const runEnd = run.x + run.width;
+  const panelStart = panelBySide.left
+    ? Math.min(panelBySide.left.x, run.x)
+    : null;
+  const panelEnd = panelBySide.right
+    ? Math.max(panelBySide.right.x + panelBySide.right.width, runEnd)
+    : null;
+  // A band (toe kick, countertop, molding) runs to the wall wherever a blind
+  // panel does, and keeps its own inset or overhang wherever one does not.
+  const bandStart = (inset) => panelStart ?? run.x + inset;
+  const bandEnd = (inset) => panelEnd ?? runEnd - inset;
   const drop = panelDrop(run, resolveStyle(settings, room, run), settings);
-  const drawnPieces = useMemo(() => (drop > 0
-    ? result.pieces.map((piece) => (piece.kind === 'filler' || piece.kind === 'end_panel'
+  const drawnPieces = useMemo(() => result.pieces.map((piece) => {
+    const dropped = drop > 0
+      && (piece.kind === 'filler' || piece.kind === 'end_panel')
       ? { ...piece, z: piece.z - drop, height: piece.height + drop }
-      : piece))
-    : result.pieces), [drop, result]);
+      : piece;
+    return panelPieceIds.has(piece.id)
+      ? { ...dropped, kind: 'end_panel' }
+      : dropped;
+  }), [drop, panelPieceIds, result]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),
     [room, settings, wall],
@@ -99,16 +127,18 @@ function RunGroup({
       || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
   const molding = runMolding(wall, run, profile);
   const boxTop = run.z + run.height;
+  const bandX = bandStart(0);
+  const bandWidth = bandEnd(0) - bandX;
   const topMold = wallRectToScreen({
-    x: run.x,
+    x: bandX,
     z: boxTop,
-    width: run.width,
+    width: bandWidth,
     height: profile.topMoldHeight,
   }, transform);
   const crown = wallRectToScreen({
-    x: run.x,
+    x: bandX,
     z: boxTop + profile.crownStackHeight - profile.crownHeight,
-    width: run.width,
+    width: bandWidth,
     height: profile.crownHeight,
   }, transform);
   const warningPieceIds = useMemo(
@@ -121,17 +151,20 @@ function RunGroup({
   const hasToeKick = run.cabinetTypeId === CABINET_TYPE_IDS.BASE
     || run.cabinetTypeId === CABINET_TYPE_IDS.TALL;
   const isBase = run.cabinetTypeId === CABINET_TYPE_IDS.BASE;
-  const toeKickWidth = Math.max(0, run.width - 6);
+  const toeKickInset = Math.min(3, run.width / 2);
+  const toeKickX = bandStart(toeKickInset);
+  const toeKickWidth = Math.max(0, bandEnd(toeKickInset) - toeKickX);
   const toeKick = wallRectToScreen({
-    x: run.x + Math.min(3, run.width / 2),
+    x: toeKickX,
     z: 0,
     width: toeKickWidth,
     height: toeKickHeight,
   }, transform);
+  const countertopX = bandStart(-1);
   const countertop = wallRectToScreen({
-    x: run.x - 1,
+    x: countertopX,
     z: run.z + run.height,
-    width: run.width + 2,
+    width: bandEnd(-1) - countertopX,
     height: countertopThickness,
   }, transform);
   const runRect = wallRectToScreen(run, transform);
@@ -318,8 +351,8 @@ function RunGroup({
             height: run.height,
           }, transform)}
           fill={KIND_COLORS.end_panel}
-          opacity={0.35}
-          stroke={KIND_COLORS.end_panel}
+          opacity={0.82}
+          stroke="#1e293b"
           strokeWidth={1}
           listening={false}
         />
@@ -334,9 +367,9 @@ function RunGroup({
           error={hasErrors}
           selected={selectedPieceId === piece.id}
           subLabel={subLabels.get(piece.id) ?? null}
-          cornerFiller={piece.role === 'end-left'
+          cornerFiller={!panelPieceIds.has(piece.id) && (piece.role === 'end-left'
             ? cornerFillers.left
-            : piece.role === 'end-right' && cornerFillers.right}
+            : piece.role === 'end-right' && cornerFillers.right)}
           onSelect={() => onSelectPiece(run.id, piece.id)}
           cursor={cursor}
         />

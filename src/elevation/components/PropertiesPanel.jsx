@@ -209,7 +209,7 @@ function EndFields({ actionBase, run, side, settings, note = null }) {
 
   return (
     <>
-      <Field label="End">
+      <Field label={`${side[0].toUpperCase()}${side.slice(1)} End`}>
         <select
           value={endType}
           onChange={(event) => dispatch(setRunEnd({
@@ -229,7 +229,7 @@ function EndFields({ actionBase, run, side, settings, note = null }) {
         <p className="mt-1.5 text-xs text-gray-500">{note}</p>
       )}
       {endType !== 'none' && (
-        <Field label="Width">
+        <Field label={endType === 'end_panel' ? 'Width' : 'Visible width'}>
           <InchInput
             value={run.ends[side].width}
             allowBlank
