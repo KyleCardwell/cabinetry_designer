@@ -47,6 +47,7 @@ import elevationReducer, {
   setActiveWall,
   setActiveWallSide,
   setRunBlind,
+  setRunEndFiller,
   setRunCornerClearance,
   setRunAnchor,
   setRunJointOffset,
@@ -1826,5 +1827,43 @@ describe('SPEC-25 blind store action', () => {
       ...actionBase, side: 'middle', width: 24,
     }));
     expect(currentRun().blind).toEqual({ left: null, right: 30 });
+  });
+});
+
+describe('SPEC-27 end filler store action', () => {
+  it('216. sets and independently clears end filler width and return depth', () => {
+    let state = stateWithRun(run());
+    const roomId = state.rooms[0].id;
+    const actionBase = { roomId, wallId: 'wall-1', runId: 'run-1' };
+    const currentRun = () => state.rooms[0].walls[0].runs[0];
+
+    state = elevationReducer(state, setRunEndFiller({
+      ...actionBase, side: 'left', key: 'width', value: 6,
+    }));
+    expect(currentRun().endFiller).toEqual({
+      left: { width: 6, returnDepth: null }, right: null,
+    });
+
+    state = elevationReducer(state, setRunEndFiller({
+      ...actionBase, side: 'left', key: 'returnDepth', value: 3,
+    }));
+    expect(currentRun().endFiller.left).toEqual({ width: 6, returnDepth: 3 });
+
+    state = elevationReducer(state, setRunEndFiller({
+      ...actionBase, side: 'left', key: 'width', value: null,
+    }));
+    state = elevationReducer(state, setRunEndFiller({
+      ...actionBase, side: 'left', key: 'returnDepth', value: null,
+    }));
+    expect(currentRun().endFiller).toEqual({ left: null, right: null });
+
+    const beforeInvalid = currentRun();
+    state = elevationReducer(state, setRunEndFiller({
+      ...actionBase, side: 'left', key: 'depth', value: 4,
+    }));
+    state = elevationReducer(state, setRunEndFiller({
+      ...actionBase, side: 'middle', key: 'width', value: 4,
+    }));
+    expect(currentRun()).toEqual(beforeInvalid);
   });
 });

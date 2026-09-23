@@ -732,3 +732,39 @@ describe('SPEC-25 blind corner persistence', () => {
     }
   });
 });
+
+describe('SPEC-27 end filler persistence', () => {
+  it('215. defaults return settings and validates optional end filler details', () => {
+    expect(DEFAULT_SETTINGS.fillerReturnDepth).toBe(2.5);
+    expect(DEFAULT_SETTINGS.fillerReturnThickness).toBe(0.75);
+
+    const older = tbtDocument();
+    delete older.settings.fillerReturnDepth;
+    delete older.settings.fillerReturnThickness;
+    const normalized = normalizeV3Document(older);
+    expect(isElevationDocument(normalized)).toBe(true);
+    expect(normalized.settings).toMatchObject({
+      fillerReturnDepth: 2.5,
+      fillerReturnThickness: 0.75,
+    });
+
+    const omitted = tbtDocument();
+    expect(isElevationDocument(omitted)).toBe(true);
+
+    const present = tbtDocument();
+    present.rooms[0].walls[0].runs[0].endFiller = {
+      left: { width: 6, returnDepth: 3 },
+      right: null,
+    };
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(present)]]),
+    };
+    expect(loadElevationDocument()).toEqual(present);
+
+    for (const endFiller of [{ left: { width: 0 } }, { left: [] }]) {
+      const invalid = tbtDocument();
+      invalid.rooms[0].walls[0].runs[0].endFiller = endFiller;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+  });
+});

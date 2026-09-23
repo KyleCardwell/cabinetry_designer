@@ -77,6 +77,8 @@ const V2_NUMERIC_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
   (key) => typeof DEFAULT_SETTINGS[key] === 'number',
 );
 const V2_DEFAULTED_SETTING_KEYS = [
+  'fillerReturnDepth',
+  'fillerReturnThickness',
   'defaultSoffitDepth',
   'defaultSoffitMolding',
   'autoEndPanelOnFreeEnd',
@@ -205,6 +207,28 @@ function isBlind(blind) {
       )));
 }
 
+function isEndFillerSide(side) {
+  return side === undefined || side === null || (
+    Boolean(side)
+    && typeof side === 'object'
+    && !Array.isArray(side)
+    && ['width', 'returnDepth'].every((key) => (
+      side[key] === undefined
+      || side[key] === null
+      || (isFiniteNumber(side[key]) && side[key] > 0)
+    ))
+  );
+}
+
+function isEndFiller(endFiller) {
+  return endFiller === undefined
+    || (Boolean(endFiller)
+      && typeof endFiller === 'object'
+      && !Array.isArray(endFiller)
+      && isEndFillerSide(endFiller.left)
+      && isEndFillerSide(endFiller.right));
+}
+
 function isRun(run) {
   return isV1Run(run)
     && (run.heightMode === 'auto' || run.heightMode === 'manual')
@@ -215,7 +239,8 @@ function isRun(run) {
     && (run.wallSide === undefined || run.wallSide === 'front' || run.wallSide === 'back')
     && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
     && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top))
-    && isBlind(run.blind);
+    && isBlind(run.blind)
+    && isEndFiller(run.endFiller);
 }
 
 function isConnection(connection) {

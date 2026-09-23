@@ -1077,6 +1077,20 @@ const elevationSlice = createSlice({
       run.blind = { left: null, right: null, ...(run.blind ?? {}) };
       run.blind[side] = Number.isFinite(width) && width > 0 ? width : null;
     },
+    setRunEndFiller(state, action) {
+      const location = runLocation(state, action.payload);
+      const { side, key, value } = action.payload;
+      if (!location || (side !== 'left' && side !== 'right')) return;
+      if (key !== 'width' && key !== 'returnDepth') return;
+      const run = location.run;
+      run.endFiller = { left: null, right: null, ...(run.endFiller ?? {}) };
+      const current = run.endFiller[side] ?? { width: null, returnDepth: null };
+      const next = {
+        ...current,
+        [key]: Number.isFinite(value) && value > 0 ? value : null,
+      };
+      run.endFiller[side] = next.width === null && next.returnDepth === null ? null : next;
+    },
     setAutoCount(state, action) {
       const location = runLocation(state, action.payload);
       if (!location) return;
@@ -1389,6 +1403,7 @@ export const {
   replaceWallLayout,
   setRunCornerClearance,
   setRunBlind,
+  setRunEndFiller,
   setAutoCount,
   setMaxCabinetWidth,
   setItemWidth,

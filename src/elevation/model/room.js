@@ -67,6 +67,15 @@ function cloneRun(run) {
       ? { cornerClearance: { ...run.cornerClearance } }
       : {}),
     ...(run.blind ? { blind: { ...run.blind } } : {}),
+    ...(run.endFiller
+      ? {
+          endFiller: {
+            ...run.endFiller,
+            ...(run.endFiller.left ? { left: { ...run.endFiller.left } } : {}),
+            ...(run.endFiller.right ? { right: { ...run.endFiller.right } } : {}),
+          },
+        }
+      : {}),
     items: run.items.map((item) => ({ ...item })),
   };
 }
@@ -1478,6 +1487,14 @@ export function flipRunsForWall(wall) {
         : {}),
       ...(run.blind
         ? { blind: { left: run.blind.right, right: run.blind.left } }
+        : {}),
+      ...(run.endFiller
+        ? {
+            endFiller: {
+              left: run.endFiller.right ? { ...run.endFiller.right } : run.endFiller.right,
+              right: run.endFiller.left ? { ...run.endFiller.left } : run.endFiller.left,
+            },
+          }
         : {}),
       items: [...run.items].reverse().map((item) => ({ ...item })),
     })),
