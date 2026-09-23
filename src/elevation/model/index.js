@@ -130,10 +130,12 @@ export {
 } from './wallSides.js';
 export { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
 export {
+  MOLDING_BADGE_SLOTS,
   MOLDING_LABELS,
   PART_MOLDINGS,
   moldingPartKey,
   partNumbers,
+  wallBadgeGroups,
   wallEndPanelPartKey,
   wallMoldingBadges,
 } from './partNumbers.js';

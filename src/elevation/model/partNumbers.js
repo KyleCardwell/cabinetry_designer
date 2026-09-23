@@ -14,6 +14,8 @@ import { WALL_SIDES, wallSideView } from './wallSides.js';
 
 export const PART_MOLDINGS = ['toeKick', 'topMold', 'crown'];
 export const MOLDING_LABELS = { toeKick: 'TK', topMold: 'TM', crown: 'CR' };
+/** Horizontal slot for each molding badge: -1 left of centre, 0 centre, 1 right. */
+export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
 
 const PART_KINDS = new Set(['cabinet', 'filler', 'end_panel']);
 const LOWER_TYPES = new Set([CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL]);
@@ -183,6 +185,47 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
           width: run.width,
           height: profile.crownHeight,
         };
-    return [{ molding, key, number, label: MOLDING_LABELS[molding], ...rect }];
+    return [{
+      molding,
+      slot: MOLDING_BADGE_SLOTS[molding],
+      key,
+      number,
+      label: MOLDING_LABELS[molding],
+      ...rect,
+    }];
   });
+}
+
+/**
+ * Every part-badge group on one elevation, in draw order.
+ * Each group lays out independently, exactly as RunGroup laid one run out.
+ * @returns {{key: string, lift: number, pieces: object[]}[]}
+ */
+export function wallBadgeGroups(room, wall, settings) {
+  const groups = wall.runs.map((run) => ({
+    key: `run:${run.id}`,
+    lift: 0,
+    pieces: splitRun(run, settings, {
+      endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+      endCornerAngles: endCornerAnglesForRun(room, wall, run),
+      pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
+    }).pieces,
+  })).filter((group) => group.pieces.length > 0);
+
+  for (const panel of wallEndPanels(room, wall, settings)) {
+    const side = panel[wall.side ?? 'front'];
+    groups.push({
+      key: `panel:${panel.endpoint}`,
+      lift: 1,
+      pieces: [{
+        id: wallEndPanelPartKey(wall.id, panel.endpoint),
+        x: side.x,
+        z: 0,
+        width: panel.width,
+        height: panel.top,
+      }],
+    });
+  }
+
+  return groups;
 }

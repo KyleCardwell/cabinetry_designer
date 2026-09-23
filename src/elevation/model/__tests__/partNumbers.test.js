@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { partNumbers, wallMoldingBadges } from '../partNumbers.js';
+import { partNumbers, wallBadgeGroups, wallMoldingBadges } from '../partNumbers.js';
 import { syncRoom } from '../room.js';
 import { wallSideView } from '../wallSides.js';
 
@@ -119,6 +119,31 @@ const partRoom = (overrides = {}) => syncRoom({
   ...overrides,
 }, DEFAULT_SETTINGS);
 
+const panelRoom = () => {
+  const wBase = () => base('W-base', {
+    width: 120,
+    anchors: { left: true, right: true },
+    ends: {
+      left: { type: 'filler', width: 1.5 },
+      right: { type: 'filler', width: 1.5 },
+    },
+    autoCount: false,
+    items: [{ id: 'w1', kind: 'cabinet', width: 120 }],
+  });
+  return syncRoom({
+    id: 'E',
+    name: 'Room E',
+    profile: { ...DEFAULT_SETTINGS.defaultProfile },
+    partNumberStart: 1,
+    partNumberOverrides: {},
+    wallOrder: ['W'],
+    walls: [makeWall('W', 0, 0, 120, 0, {
+      endPanels: { start: { width: 0.75 }, end: { width: 0.75 } },
+      runs: [wBase()],
+    })],
+  }, DEFAULT_SETTINGS);
+};
+
 describe('partNumbers', () => {
   it('198. walks walls, bands, runs, and pieces in shop order', () => {
     const result = partNumbers(partRoom(), DEFAULT_SETTINGS);
@@ -197,40 +222,19 @@ describe('partNumbers', () => {
     expect(wallMoldingBadges(
       room, wallSideView(wallA, 'front'), DEFAULT_SETTINGS, result.byKey,
     )).toEqual([
-      { molding: 'toeKick', key: 'molding:toeKick', number: 9, label: 'TK', x: 3, z: 0, width: 54, height: 4 },
-      { molding: 'topMold', key: 'molding:topMold', number: 10, label: 'TM', x: 0, z: 90, width: 48, height: 3 },
-      { molding: 'crown', key: 'molding:crown', number: 11, label: 'CR', x: 0, z: 91.5, width: 48, height: 4.5 },
+      { molding: 'toeKick', slot: 0, key: 'molding:toeKick', number: 9, label: 'TK', x: 3, z: 0, width: 54, height: 4 },
+      { molding: 'topMold', slot: -1, key: 'molding:topMold', number: 10, label: 'TM', x: 0, z: 90, width: 48, height: 3 },
+      { molding: 'crown', slot: 1, key: 'molding:crown', number: 11, label: 'CR', x: 0, z: 91.5, width: 48, height: 4.5 },
     ]);
     expect(wallMoldingBadges(
       room, wallSideView(wallB, 'front'), DEFAULT_SETTINGS, result.byKey,
     )).toEqual([
-      { molding: 'toeKick', key: 'molding:toeKick', number: 9, label: 'TK', x: 3, z: 0, width: 24, height: 4 },
+      { molding: 'toeKick', slot: 0, key: 'molding:toeKick', number: 9, label: 'TK', x: 3, z: 0, width: 24, height: 4 },
     ]);
   });
 
   it('203. brackets a wall with its left and right wall end panels', () => {
-    const wBase = () => base('W-base', {
-      width: 120,
-      anchors: { left: true, right: true },
-      ends: {
-        left: { type: 'filler', width: 1.5 },
-        right: { type: 'filler', width: 1.5 },
-      },
-      autoCount: false,
-      items: [{ id: 'w1', kind: 'cabinet', width: 120 }],
-    });
-    const room = syncRoom({
-      id: 'E',
-      name: 'Room E',
-      profile: { ...DEFAULT_SETTINGS.defaultProfile },
-      partNumberStart: 1,
-      partNumberOverrides: {},
-      wallOrder: ['W'],
-      walls: [makeWall('W', 0, 0, 120, 0, {
-        endPanels: { start: { width: 0.75 }, end: { width: 0.75 } },
-        runs: [wBase()],
-      })],
-    }, DEFAULT_SETTINGS);
+    const room = panelRoom();
     const result = partNumbers(room, DEFAULT_SETTINGS);
 
     expect(result.parts.map(({ key }) => key))
@@ -240,5 +244,36 @@ describe('partNumbers', () => {
       kind: 'wall_end_panel', wallId: 'W', side: null, runId: null,
       pieceId: null, width: 0.75,
     });
+  });
+
+  it('205. groups run and wall end-panel badges in elevation draw order', () => {
+    const roomP = partRoom();
+    const wallA = roomP.walls.find(({ id }) => id === 'A');
+    const groupsA = wallBadgeGroups(
+      roomP, wallSideView(wallA, 'front'), DEFAULT_SETTINGS,
+    );
+
+    expect(groupsA.map(({ key }) => key)).toEqual(['run:A-base', 'run:A-upper']);
+    expect(groupsA.map(({ lift }) => lift)).toEqual([0, 0]);
+    expect(groupsA.map(({ pieces }) => pieces.map(({ id }) => id))).toEqual([
+      ['A-base:left', 'a1', 'a2', 'A-base:right'],
+      ['a3'],
+    ]);
+
+    const roomE = panelRoom();
+    const wallW = roomE.walls.find(({ id }) => id === 'W');
+    const groupsW = wallBadgeGroups(
+      roomE, wallSideView(wallW, 'front'), DEFAULT_SETTINGS,
+    );
+
+    expect(groupsW.map(({ key }) => key))
+      .toEqual(['run:W-base', 'panel:start', 'panel:end']);
+    expect(groupsW.map(({ lift }) => lift)).toEqual([0, 1, 1]);
+    expect(groupsW.find(({ key }) => key === 'panel:start').pieces).toEqual([
+      { id: 'W:endPanel:start', x: 0, z: 0, width: 0.75, height: 34.5 },
+    ]);
+    expect(groupsW.find(({ key }) => key === 'panel:end').pieces).toEqual([
+      { id: 'W:endPanel:end', x: 119.25, z: 0, width: 0.75, height: 34.5 },
+    ]);
   });
 });
