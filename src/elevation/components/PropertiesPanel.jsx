@@ -203,6 +203,108 @@ function cornerLabel(corner, room) {
     : 'Unknown wall'}`;
 }
 
+function EndFields({ actionBase, run, side, settings, note = null }) {
+  const dispatch = useDispatch();
+  const endType = run.ends[side].type;
+
+  return (
+    <>
+      <Field label="End">
+        <select
+          value={endType}
+          onChange={(event) => dispatch(setRunEnd({
+            ...actionBase,
+            side,
+            end: { type: event.target.value, width: null },
+          }))}
+          aria-label={`${side} end type`}
+          className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+        >
+          {END_TYPES.map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      </Field>
+      {note && (
+        <p className="mt-1.5 text-xs text-gray-500">{note}</p>
+      )}
+      {endType !== 'none' && (
+        <Field label="Width">
+          <InchInput
+            value={run.ends[side].width}
+            allowBlank
+            placeholder={endType === 'end_panel'
+              ? formatInchesInput(settings.endPanelThickness)
+              : 'auto'}
+            onCommit={(width) => dispatch(setRunEnd({
+              ...actionBase,
+              side,
+              end: { type: endType, width },
+            }))}
+            aria-label={`${side} end width`}
+          />
+        </Field>
+      )}
+      {endType === 'blind' && (
+        <Field label="Blind box">
+          <InchInput
+            value={run.blind?.[side] ?? null}
+            allowBlank
+            placeholder="none"
+            onCommit={(width) => dispatch(setRunBlind({
+              ...actionBase,
+              side,
+              width,
+            }))}
+            aria-label={`${side} blind box width`}
+          />
+        </Field>
+      )}
+      {(endType === 'filler' || endType === 'blind') && (
+        <>
+          <Field label="Ordered width">
+            <InchInput
+              value={run.endFiller?.[side]?.width ?? null}
+              allowBlank
+              placeholder={endType === 'blind'
+                ? formatInchesInput(settings.blindFillerWidth)
+                : 'from layout'}
+              onCommit={(value) => dispatch(setRunEndFiller({
+                ...actionBase,
+                side,
+                key: 'width',
+                value,
+              }))}
+              aria-label={`${side} end filler ordered width`}
+            />
+          </Field>
+          <Field label="Return">
+            <InchInput
+              value={run.endFiller?.[side]?.returnDepth ?? null}
+              allowBlank
+              placeholder={endType === 'blind'
+                ? '0"'
+                : formatInchesInput(settings.fillerReturnDepth)}
+              onCommit={(value) => dispatch(setRunEndFiller({
+                ...actionBase,
+                side,
+                key: 'returnDepth',
+                value,
+              }))}
+              aria-label={`${side} end filler return depth`}
+            />
+          </Field>
+          <p className="mt-1.5 text-xs text-gray-500">
+            {endType === 'blind'
+              ? 'Box width of the cabinet at this end. The extra runs into the corner. The filler is ordered 6" with no return; the elevation still shows what fits.'
+              : 'Ordered width and return depth. The elevation still shows what fits.'}
+          </p>
+        </>
+      )}
+    </>
+  );
+}
+
 function WarningsList({ layout }) {
   const warnings = layout.warnings.filter((warning) => warning.code !== 'overhang');
   const hasOverhang = warnings.length !== layout.warnings.length;
@@ -686,7 +788,6 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
         </h3>
         <div className="space-y-2">
           {['left', 'right'].map((side) => {
-            const endType = run.ends[side].type;
             const insideCorner = corners[side].type === 'inside';
             const anchor = run.anchors[side];
             const openingAnchor = anchor?.to === 'opening' ? anchor : null;
@@ -720,98 +821,13 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
                 key={side}
                 className="rounded border border-gray-700 bg-gray-900/45 p-3"
               >
-                <Field label="End">
-                  <select
-                    value={run.ends[side].type}
-                    onChange={(event) => dispatch(setRunEnd({
-                      ...actionBase,
-                      side,
-                      end: { type: event.target.value, width: null },
-                    }))}
-                    aria-label={`${side} end type`}
-                    className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-                  >
-                    {END_TYPES.map(([value, label]) => (
-                      <option key={value} value={value}>{label}</option>
-                    ))}
-                  </select>
-                </Field>
-                <p className="mt-1.5 text-xs text-gray-500">
-                  {cornerLabel(corners[side], room)}
-                </p>
-                {endType !== 'none' && (
-                  <Field label="Width">
-                    <InchInput
-                      value={run.ends[side].width}
-                      allowBlank
-                      placeholder={endType === 'end_panel'
-                        ? formatInchesInput(settings.endPanelThickness)
-                        : 'auto'}
-                      onCommit={(width) => dispatch(setRunEnd({
-                        ...actionBase,
-                        side,
-                        end: { type: endType, width },
-                      }))}
-                      aria-label={`${side} end width`}
-                    />
-                  </Field>
-                )}
-                {endType === 'blind' && (
-                  <Field label="Blind box">
-                    <InchInput
-                      value={run.blind?.[side] ?? null}
-                      allowBlank
-                      placeholder="none"
-                      onCommit={(width) => dispatch(setRunBlind({
-                        ...actionBase,
-                        side,
-                        width,
-                      }))}
-                      aria-label={`${side} blind box width`}
-                    />
-                  </Field>
-                )}
-                {(endType === 'filler' || endType === 'blind') && (
-                  <>
-                    <Field label="Ordered width">
-                      <InchInput
-                        value={run.endFiller?.[side]?.width ?? null}
-                        allowBlank
-                        placeholder={endType === 'blind'
-                          ? formatInchesInput(settings.blindFillerWidth)
-                          : 'from layout'}
-                        onCommit={(value) => dispatch(setRunEndFiller({
-                          ...actionBase,
-                          side,
-                          key: 'width',
-                          value,
-                        }))}
-                        aria-label={`${side} end filler ordered width`}
-                      />
-                    </Field>
-                    <Field label="Return">
-                      <InchInput
-                        value={run.endFiller?.[side]?.returnDepth ?? null}
-                        allowBlank
-                        placeholder={endType === 'blind'
-                          ? '0"'
-                          : formatInchesInput(settings.fillerReturnDepth)}
-                        onCommit={(value) => dispatch(setRunEndFiller({
-                          ...actionBase,
-                          side,
-                          key: 'returnDepth',
-                          value,
-                        }))}
-                        aria-label={`${side} end filler return depth`}
-                      />
-                    </Field>
-                    <p className="mt-1.5 text-xs text-gray-500">
-                      {endType === 'blind'
-                        ? 'Box width of the cabinet at this end. The extra runs into the corner. The filler is ordered 6" with no return; the elevation still shows what fits.'
-                        : 'Ordered width and return depth. The elevation still shows what fits.'}
-                    </p>
-                  </>
-                )}
+                <EndFields
+                  actionBase={actionBase}
+                  run={run}
+                  side={side}
+                  settings={settings}
+                  note={cornerLabel(corners[side], room)}
+                />
                 <Field label={`Anchor ${side}`}>
                   <select
                     value={anchorValue}
@@ -1529,25 +1545,20 @@ function InteriorFillerProperties({ wallId, run, piece, item }) {
   );
 }
 
-function EndProperties({ wallId, run, side }) {
-  const dispatch = useDispatch();
-  const end = run.ends[side];
-
+function EndProperties({ wallId, run, side, settings }) {
   return (
     <section>
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
         {side} end piece
       </h3>
-      <EndEditor
-        side={side}
-        end={end}
-        onChange={(nextEnd) => dispatch(setRunEnd({
-          wallId,
-          runId: run.id,
-          side,
-          end: nextEnd,
-        }))}
-      />
+      <div className="rounded border border-gray-700 bg-gray-900/45 p-3">
+        <EndFields
+          actionBase={{ wallId, runId: run.id }}
+          run={run}
+          side={side}
+          settings={settings}
+        />
+      </div>
     </section>
   );
 }
@@ -1570,7 +1581,7 @@ function PieceProperties({ room, wall, run, layout, selectionContext, settings }
     return (
       <>
         {partNumberField}
-        <EndProperties wallId={wall.id} run={run} side={side} />
+        <EndProperties wallId={wall.id} run={run} side={side} settings={settings} />
       </>
     );
   }
