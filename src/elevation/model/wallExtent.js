@@ -42,6 +42,9 @@ export function wallExtent(room, wall, settings) {
   for (const profile of neighborProfiles(room, wall, settings)) {
     extent.left = Math.min(extent.left, profile.x);
     extent.right = Math.max(extent.right, profile.x + profile.width);
+    for (const molding of profile.moldings) {
+      extent.top = Math.max(extent.top, molding.z + molding.height);
+    }
   }
 
   return extent;

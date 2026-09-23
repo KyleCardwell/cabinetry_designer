@@ -98,6 +98,7 @@ describe('neighborProfiles and wallExtent', () => {
       width: 30,
       z: 4,
       height: 30.5,
+      moldings: [{ kind: 'toeKick', z: 0, height: 4 }],
     }]);
     expect(neighborProfiles(room, view(room, 'B'), DEFAULT_SETTINGS)).toEqual([{
       key: 'A:front:A1:left',
@@ -108,6 +109,7 @@ describe('neighborProfiles and wallExtent', () => {
       width: 30,
       z: 4,
       height: 30.5,
+      moldings: [{ kind: 'toeKick', z: 0, height: 4 }],
     }]);
   });
 
@@ -168,6 +170,46 @@ describe('neighborProfiles and wallExtent', () => {
     });
     expect(wallExtent(moldingRoom, view(moldingRoom, 'A'), DEFAULT_SETTINGS)).toEqual({
       left: 0, right: 120, top: 96, bottom: 0,
+    });
+  });
+
+  it('213. carries a neighbouring upper\'s top mold and crown', () => {
+    const crownRoom = straightRoom({
+      wallB: {
+        runs: [run('U1', CABINET_TYPE_IDS.UPPER, 12, {
+          x: 0, width: 30, z: 54, height: 36, heightMode: 'auto',
+        })],
+      },
+    });
+
+    expect(neighborProfiles(crownRoom, view(crownRoom, 'A'), DEFAULT_SETTINGS)).toEqual([{
+      key: 'B:front:U1:right',
+      wallId: 'B',
+      runId: 'U1',
+      side: 'front',
+      x: 120,
+      width: 30,
+      z: 54,
+      height: 36,
+      moldings: [
+        { kind: 'topMold', z: 90, height: 3 },
+        { kind: 'crown', z: 91.5, height: 4.5 },
+      ],
+    }]);
+  });
+
+  it('214. grows the extent for a neighbour\'s crown', () => {
+    const crownRoom = straightRoom({
+      wallA: { height: 90 },
+      wallB: {
+        runs: [run('U1', CABINET_TYPE_IDS.UPPER, 12, {
+          x: 0, width: 30, z: 54, height: 36, heightMode: 'auto',
+        })],
+      },
+    });
+
+    expect(wallExtent(crownRoom, view(crownRoom, 'A'), DEFAULT_SETTINGS)).toEqual({
+      left: 0, right: 150, top: 96, bottom: 0,
     });
   });
 });
