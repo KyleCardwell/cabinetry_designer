@@ -11,6 +11,7 @@ import {
   loadElevationDocument,
   migrateV1Document,
   migrateV2Document,
+  normalizeV3Document,
 } from '../persistence.js';
 
 function v1Run(id, x, z, height) {
@@ -662,5 +663,52 @@ describe('SPEC-19 soffit persistence', () => {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(older)]]),
     };
     expect(loadElevationDocument().settings.defaultSoffitDepth).toBe(14);
+  });
+});
+
+describe('SPEC-23 part number persistence', () => {
+  it('194. validates, defaults and preserves room part number fields', () => {
+    const omitted = tbtDocument();
+    delete omitted.rooms[0].partNumberStart;
+    delete omitted.rooms[0].partNumberOverrides;
+    expect(isElevationDocument(omitted)).toBe(true);
+    expect(normalizeV3Document(omitted).rooms[0]).toMatchObject({
+      partNumberStart: 1,
+      partNumberOverrides: {},
+    });
+
+    const present = tbtDocument();
+    present.rooms[0].partNumberStart = 100;
+    present.rooms[0].partNumberOverrides = { 'piece-1': 7 };
+    expect(normalizeV3Document(present).rooms[0]).toMatchObject({
+      partNumberStart: 100,
+      partNumberOverrides: { 'piece-1': 7 },
+    });
+
+    for (const partNumberStart of [0, 1.5]) {
+      const invalid = tbtDocument();
+      invalid.rooms[0].partNumberStart = partNumberStart;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+    const invalidOverride = tbtDocument();
+    invalidOverride.rooms[0].partNumberOverrides = { 'piece-1': 0 };
+    expect(isElevationDocument(invalidOverride)).toBe(false);
+  });
+
+  it('195. validates, defaults and preserves the part number visibility setting', () => {
+    expect(DEFAULT_SETTINGS.showPartNumbers).toBe(true);
+
+    const omitted = tbtDocument();
+    delete omitted.settings.showPartNumbers;
+    expect(isElevationDocument(omitted)).toBe(true);
+    expect(normalizeV3Document(omitted).settings.showPartNumbers).toBe(true);
+
+    const hidden = tbtDocument();
+    hidden.settings.showPartNumbers = false;
+    expect(normalizeV3Document(hidden).settings.showPartNumbers).toBe(false);
+
+    const invalid = tbtDocument();
+    invalid.settings.showPartNumbers = 'yes';
+    expect(isElevationDocument(invalid)).toBe(false);
   });
 });

@@ -80,6 +80,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'defaultSoffitDepth',
   'defaultSoffitMolding',
   'autoEndPanelOnFreeEnd',
+  'showPartNumbers',
   'adjacentRunGap',
   'maxRunOverhang',
   'casingWidth',
@@ -162,6 +163,13 @@ function isOptionalNumericObject(value, allowedKeys) {
     allowedKeys.includes(key)
     && (entry === null || entry === undefined || isFiniteNumber(entry))
   ));
+}
+
+function isPartNumberOverrides(value) {
+  return Boolean(value)
+    && typeof value === 'object'
+    && !Array.isArray(value)
+    && Object.values(value).every((number) => Number.isInteger(number) && number > 0);
 }
 
 function isCompleteProfile(profile, profileKeys = PROFILE_KEYS) {
@@ -321,7 +329,11 @@ function isRoom(room, profileKeys = PROFILE_KEYS) {
     && room.wallOrder.length === room.walls.length
     && new Set(room.wallOrder).size === room.wallOrder.length
     && room.walls.every((wall) => isWall(wall, profileKeys))
-    && room.wallOrder.every((wallId) => room.walls.some((wall) => wall.id === wallId));
+    && room.wallOrder.every((wallId) => room.walls.some((wall) => wall.id === wallId))
+    && (room.partNumberStart === undefined
+      || (Number.isInteger(room.partNumberStart) && room.partNumberStart > 0))
+    && (room.partNumberOverrides === undefined
+      || isPartNumberOverrides(room.partNumberOverrides));
 }
 
 function normalizeDocument(document, schemaVersion) {
@@ -375,6 +387,8 @@ export function normalizeV3Document(document) {
       if (!room || typeof room !== 'object') return room;
       return {
         ...room,
+        partNumberStart: room.partNumberStart ?? 1,
+        partNumberOverrides: room.partNumberOverrides ?? {},
         walls: Array.isArray(room.walls) ? room.walls.map((wall) => {
           if (!wall || typeof wall !== 'object') return wall;
           const joints = wall.joints === undefined ? [] : wall.joints;
@@ -428,6 +442,7 @@ function isSettings(settings, profileKeys = PROFILE_KEYS) {
     && typeof settings.autoEndPanelOnFreeEnd === 'boolean'
     && typeof settings.openingsHaveCasing === 'boolean'
     && typeof settings.orthoWalls === 'boolean'
+    && (settings.showPartNumbers === undefined || typeof settings.showPartNumbers === 'boolean')
     && (settings.defaultOpeningMeasureMode === 'jamb'
       || settings.defaultOpeningMeasureMode === 'casing')
     && hasValidEnds(settings);
@@ -546,6 +561,8 @@ export function migrateV1Document(document) {
     id: uuid(),
     name: 'Room 1',
     profile: { ...defaultProfile },
+    partNumberStart: 1,
+    partNumberOverrides: {},
     wallOrder: [],
     walls: document.walls.map((wall, index) => ({
       id: wall.id,

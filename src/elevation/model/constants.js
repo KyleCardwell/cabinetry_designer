@@ -46,6 +46,7 @@ export const DEFAULT_SETTINGS = {
   autoEndPanelOnFreeEnd: true,
   adjacentRunGap: 1,
   orthoWalls: true,
+  showPartNumbers: true,
   planGrid: 0.5,
   casingWidth: 3,
   casingThickness: 0.75,
