@@ -145,8 +145,57 @@ Notes:
 - Revisions store a settings and options snapshot, so a later rule change never alters an old
   drawing.
 - Storage bucket `cd-drawings` for DXF/PDF, team-scoped paths.
-- Phases are designer-only for now. `design_phases.estimate_id` links to an estimate when one
-  exists; adding `phase_id` to `estimates` later is a one-column migration.
+- Phases are designer-only. The `estimate_*` tables get no new columns and no designer rows (D10).
+
+### D10 — The estimator and the designer share code, not tables
+
+ff-job-schedule stores no finalized prices: opening an estimate recalculates everything from current
+catalogs and settings, so a price change only needs a fresh print. The designer works the same way
+and goes one step further — it writes no estimate rows at all.
+
+- **The estimator is untouched.** Estimates are still created inside it, without regard for the
+  designer. No `phase_id`, no design columns, no design-sourced sections. Creating an estimate on
+  the fly with no drawing works exactly as it does now.
+- **A designer estimate is generated, priced and rendered in the browser**, then saved as a PDF in
+  `design_outputs` (`kind = 'estimate_pdf'`). The PDF is the record. Nothing in `estimates`,
+  `estimate_tasks`, `estimate_sections` or `estimate_cabinets` is written.
+- **The only thing shared is the logic**: the pricing engine in the shared package, plus
+  `designRoomToEstimateItems(room, options, catalogs)` which turns a design room into the
+  estimator-shaped items the engine expects. One pricing implementation, two callers.
+- **Scheduling is its own path.** Hours and prices are computed in the front end either way, and
+  `add_estimate_to_schedule` already takes them as `p_groups` JSONB. The designer gets a sibling RPC
+  taking the same group shape, with the back-link stored on the designer side rather than on
+  `estimate_sections.scheduled_task_id`.
+
+Consequence to accept: there is no queryable history of designer estimates, only PDFs and whatever
+`design_outputs` records about them. That matches how the estimator already treats prices. If a job
+list ever needs "what we quoted", a small totals column on the output row is the cheapest fix, and
+it is the one place a stored number would be legitimate — it records what was sent, not what
+something costs now.
+
+### Writes go through RPCs
+
+Invariants live in `security definer` functions, as they already do in ff-job-schedule
+(`duplicate_estimate_rpc`, `revise_section_rpc`, `move_item_rpc`). Then it does not matter whether
+the browser or the API is calling: the rules are enforced in one place.
+
+| RPC | Why it isn't a plain write |
+|---|---|
+| `save_room_document(room_id, document, expected_version)` | Version check + bump, atomic; returns the new version or the conflict. |
+| `create_design_phase(...)` | Project row if needed, phase, defaults, first room. |
+| `duplicate_room(...)` / `duplicate_phase(...)` | New ids throughout a copied document. |
+| `issue_room_revision(room_id, label)` | number = max + 1 under concurrency, snapshot, supersede the prior revision, update room status. |
+| `release_revision(revision_id)` | Status transition plus the guard against releasing twice. |
+| `record_design_output(revision_id, ...)` | Output row + status, after the file lands in storage. |
+| `add_design_to_schedule(...)` | Schedule project + tasks + subtasks from front-end-computed groups; sibling of `add_estimate_to_schedule`, same `p_groups` shape. |
+
+Rules for every one of them:
+
+1. `security definer` means RLS does not apply inside, so the first statement is a
+   `has_team_permission()` check. No exceptions.
+2. Keep them thin — permission check, validate, write. No pricing and no geometry math in plpgsql;
+   that lives in the shared package where it is tested and shared with the browser.
+3. Reads stay plain RLS-guarded selects and views.
 
 ---
 
@@ -196,7 +245,8 @@ Ordered so something useful works early and nothing is built twice.
 - [ ] Migration: `design_phases`, `design_rooms`, `design_team_settings`, RLS, permissions.
 - [ ] Project/phase/room browser UI; create a phase, create a room, open a room.
 - [ ] Create the `estimate_projects` row when a drawing starts; select an existing project otherwise.
-- [ ] Autosave with the version check; conflict banner ("Mike saved this 2 minutes ago").
+- [ ] RPCs: `save_room_document`, `create_design_phase`, `duplicate_room`, `duplicate_phase`, each opening with a `has_team_permission()` check.
+- [ ] Autosave through `save_room_document`; conflict banner ("Mike saved this 2 minutes ago").
 - [ ] Realtime presence per room; second viewer opens read-only with an explicit take-over.
 - [ ] IndexedDB draft cache so a dropped connection loses nothing.
 - [ ] One-time import of the existing `localStorage` document into a room.
@@ -207,8 +257,8 @@ Ordered so something useful works early and nothing is built twice.
 ### Phase 3 — Revisions and output
 
 - [ ] Migration: `design_room_revisions`, `design_outputs`, storage bucket and policies.
-- [ ] "Issue" flow: validation gate, label, status, immutable snapshot.
-- [ ] Generate from a revision through the API; store DXF + PDF in `design_outputs`.
+- [ ] "Issue" flow: validation gate, label, status, immutable snapshot — through `issue_room_revision`; `release_revision` for the shop release.
+- [ ] Generate from a revision through the API; store DXF + PDF via `record_design_output`.
 - [ ] PDF sheet layout in geometry: title block, room/phase/rev, wall elevations, dimensions.
 - [ ] Revision list per room: who, when, status, the files.
 - [ ] Release-to-shop status, with edits after release flagged.
@@ -241,8 +291,11 @@ Ordered so something useful works early and nothing is built twice.
 - [ ] Extract pricing into the shared package (`getSectionCalculations`, `createSectionContext`, `createCabinetItemFromPresetRow`, defaults chain). ff-job-schedule switches to the package; behavior identical.
 - [ ] Finish groups at phase/room level, mapping to `estimate_sections`.
 - [ ] Live estimate panel in the designer, calculated in the browser, nothing written.
-- [ ] "Create estimate from revision": writes an estimate version recording its source revision.
-- [ ] Reconciliation check: a known room prices the same in both apps.
+- [ ] Migration: `estimates.phase_id`, `estimate_sections.design_finish_group` (nullable, additive).
+- [ ] `designRoomToEstimateItems(room, options, catalogs)` in the shared package: a design room → estimator-shaped cabinet items in memory.
+- [ ] `create_estimate_for_phase` RPC: estimate + one commercial section per finish group.
+- [ ] Estimator: open a design-sourced estimate, derive cabinets at load, render those rooms read-only.
+- [ ] Reconciliation check: a known room prices the same whether entered by hand or drawn.
 
 **Done when:** a drawn room produces an estimate that matches what the estimator would have produced by hand.
 
@@ -260,7 +313,7 @@ Ordered so something useful works early and nothing is built twice.
 ## 7. Open decisions
 
 1. Do phases go into ff-job-schedule now, or stay designer-only with a link added later? (Leaning later.)
-2. Can a phase have several estimates (revisions of price), or one estimate with versions as today?
+2. Does an old estimate re-derive from the current drawing, or pin a revision once it is sent? Live everywhere is simplest and the sent PDF is the record; pinning on send is the fallback if "what did we quote in January" needs to be answerable from data.
 3. Is a revision per room, or per phase (an issue set bundling one revision per room)? Per room is simpler; issue sets can wrap it later.
 4. Does the shared package hold the whole `elevation/model`, or just the parts the server needs?
 5. Geometry as CLI subprocess (today) or a small FastAPI service? CLI is fine until generation gets slow or concurrent.
