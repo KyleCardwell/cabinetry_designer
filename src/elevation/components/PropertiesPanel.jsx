@@ -10,7 +10,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   CABINET_TYPE_IDS,
   KIND_LABELS,
-  SOFFIT_MOLDINGS,
   blindEntries,
   boxTopOf,
   cornerAt,
@@ -21,11 +20,9 @@ import {
   formatInchesInput,
   frontDepth,
   openingGeometry,
-  partNumbers,
   pinTargetsForRun,
   positionReadouts,
   profileUnderSoffit,
-  resolvePinTarget,
   resolveProfile,
   isJointAnchor,
   jointMembers,
@@ -51,7 +48,6 @@ import {
 } from '../model/room.js';
 import {
   formatRunOverhang,
-  formatRunWarning,
   lastCabinetItem,
   lastRunItem,
   prepareRunUpdate,
@@ -60,24 +56,16 @@ import {
 import {
   addItemAfter,
   clearSelection,
-  deleteSoffit,
   deleteOpening,
   detachWallLanding,
   flipWall,
-  lockItem,
   removeItem,
   setAutoCount,
-  setItemWidth,
-  setItemAbsorb,
-  setItemPin,
   setMaxCabinetWidth,
   setMessage,
   setOpeningMeasureMode,
-  setRunEnd,
   setRunHeightMode,
   setRunAnchor,
-  setRunBlind,
-  setRunEndFiller,
   joinRunEdges,
   resizeRun,
   setRunCornerClearance,
@@ -85,35 +73,23 @@ import {
   setRunOverride,
   setRunType,
   setSelection,
-  setSoffitAnchor,
   setWallEndPanel,
   setWallLanding,
   setWallLength,
-  splitItem,
   resizeOpening,
   updateOpening,
   updateRun,
-  updateSoffit,
   updateWall,
 } from '../store/elevationSlice.js';
 import InchInput from './InchInput.jsx';
-import FaceProperties from './properties/FaceProperties.jsx';
-import PartNumberField from './properties/PartNumberField.jsx';
+import EndFields from './properties/EndFields.jsx';
+import Field, { ReadOnlyValue } from './properties/Field.jsx';
+import PieceProperties from './properties/PieceProperties.jsx';
+import SoffitProperties from './properties/SoffitProperties.jsx';
+import WarningsList from './properties/WarningsList.jsx';
+import { RUN_TYPES } from './properties/constants.js';
 import RunFaceOptions from './properties/RunFaceOptions.jsx';
 import StretchInput from './properties/StretchInput.jsx';
-
-const RUN_TYPES = [
-  [CABINET_TYPE_IDS.BASE, 'Base'],
-  [CABINET_TYPE_IDS.UPPER, 'Upper'],
-  [CABINET_TYPE_IDS.TALL, 'Tall'],
-];
-
-const END_TYPES = [
-  ['end_panel', 'End panel'],
-  ['none', 'None'],
-  ['filler', 'Filler'],
-  ['blind', 'Blind corner'],
-];
 
 const CORNER_CLEARANCE_MODES = [
   ['auto', 'Auto'],
@@ -131,21 +107,6 @@ const OPENING_PLACEMENT_MESSAGES = {
   'opening-out-of-bounds': 'Opening casing must stay inside the wall.',
   'opening-too-tall': 'Opening casing must stay below the wall top.',
   'opening-conflict': 'Opening casing overlaps another opening.',
-};
-
-const ERROR_MESSAGES = {
-  'over-constrained': 'Fixed widths exceed the run width.',
-  'does-not-fill': 'The fixed pieces do not fill the run.',
-  'pin-gap': 'The space between pinned cabinets is not filled.',
-  'no-room-for-box': 'The height profile leaves no room for this cabinet box.',
-  'anchor-opening-missing': 'The anchored opening no longer exists.',
-  'anchor-opening-overlap': 'The run anchor datums cross.',
-};
-
-const WARNING_MESSAGES = {
-  'mixed-counter-heights': 'Overlapping base runs have different counter heights.',
-  'crown-above-ceiling': 'The crown profile extends above the wall height.',
-  'soffit-conflict': "Runs into a soffit — anchor it to the soffit's side or split it.",
 };
 
 const RUN_OVERRIDE_FIELDS = {
@@ -173,26 +134,6 @@ const WALL_OVERRIDE_FIELDS = [
   ['crownStackHeight', 'Crown total'],
 ];
 
-function Field({ label, children }) {
-  return (
-    <label className="block text-xs text-gray-400">
-      <span className="mb-1 block">{label}</span>
-      {children}
-    </label>
-  );
-}
-
-function ReadOnlyValue({ value, ariaLabel }) {
-  return (
-    <div
-      aria-label={ariaLabel}
-      className="w-full rounded border border-gray-700 bg-gray-900/60 px-2.5 py-1.5 text-sm text-gray-300"
-    >
-      {formatInches(value)}
-    </div>
-  );
-}
-
 function cornerLabel(corner, room) {
   if (corner.type === 'open') return 'Open end';
   if (corner.type === 'straight') return 'Straight joint';
@@ -201,146 +142,6 @@ function cornerLabel(corner, room) {
   return `Inside corner ${Math.round(corner.angle)}° · ${neighbor
     ? wallLabel(room, neighbor)
     : 'Unknown wall'}`;
-}
-
-function EndFields({ actionBase, run, side, settings, note = null }) {
-  const dispatch = useDispatch();
-  const endType = run.ends[side].type;
-
-  return (
-    <>
-      <Field label={`${side[0].toUpperCase()}${side.slice(1)} End`}>
-        <select
-          value={endType}
-          onChange={(event) => dispatch(setRunEnd({
-            ...actionBase,
-            side,
-            end: { type: event.target.value, width: null },
-          }))}
-          aria-label={`${side} end type`}
-          className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-        >
-          {END_TYPES.map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-      </Field>
-      {note && (
-        <p className="mt-1.5 text-xs text-gray-500">{note}</p>
-      )}
-      {endType !== 'none' && (
-        <Field label={endType === 'end_panel' ? 'Width' : 'Visible width'}>
-          <InchInput
-            value={run.ends[side].width}
-            allowBlank
-            placeholder={endType === 'end_panel'
-              ? formatInchesInput(settings.endPanelThickness)
-              : 'auto'}
-            onCommit={(width) => dispatch(setRunEnd({
-              ...actionBase,
-              side,
-              end: { type: endType, width },
-            }))}
-            aria-label={`${side} end width`}
-          />
-        </Field>
-      )}
-      {endType === 'blind' && (
-        <Field label="Blind box">
-          <InchInput
-            value={run.blind?.[side] ?? null}
-            allowBlank
-            placeholder="none"
-            onCommit={(width) => dispatch(setRunBlind({
-              ...actionBase,
-              side,
-              width,
-            }))}
-            aria-label={`${side} blind box width`}
-          />
-        </Field>
-      )}
-      {(endType === 'filler' || endType === 'blind') && (
-        <>
-          <Field label="Ordered width">
-            <InchInput
-              value={run.endFiller?.[side]?.width ?? null}
-              allowBlank
-              placeholder={endType === 'blind'
-                ? formatInchesInput(settings.blindFillerWidth)
-                : 'from layout'}
-              onCommit={(value) => dispatch(setRunEndFiller({
-                ...actionBase,
-                side,
-                key: 'width',
-                value,
-              }))}
-              aria-label={`${side} end filler ordered width`}
-            />
-          </Field>
-          <Field label="Return">
-            <InchInput
-              value={run.endFiller?.[side]?.returnDepth ?? null}
-              allowBlank
-              placeholder={endType === 'blind'
-                ? '0"'
-                : formatInchesInput(settings.fillerReturnDepth)}
-              onCommit={(value) => dispatch(setRunEndFiller({
-                ...actionBase,
-                side,
-                key: 'returnDepth',
-                value,
-              }))}
-              aria-label={`${side} end filler return depth`}
-            />
-          </Field>
-          <p className="mt-1.5 text-xs text-gray-500">
-            {endType === 'blind'
-              ? 'Box width of the cabinet at this end. The extra runs into the corner. The filler is ordered 6" with no return; the elevation still shows what fits.'
-              : 'Ordered width and return depth. The elevation still shows what fits.'}
-          </p>
-        </>
-      )}
-    </>
-  );
-}
-
-function WarningsList({ layout }) {
-  const warnings = layout.warnings.filter((warning) => warning.code !== 'overhang');
-  const hasOverhang = warnings.length !== layout.warnings.length;
-  const hasIssues = warnings.length > 0 || layout.errors.length > 0;
-
-  return (
-    <section>
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-        Warnings &amp; errors
-      </h3>
-      {!hasIssues ? (
-        <p className="mt-2 text-xs text-gray-500">
-          {hasOverhang ? 'No other warnings or errors.' : 'No warnings or errors.'}
-        </p>
-      ) : (
-        <ul className="mt-2 space-y-2 text-xs">
-          {layout.errors.map((error, index) => (
-            <li
-              key={`${error.code}-${index}`}
-              className="rounded border border-red-900/80 bg-red-950/45 px-2.5 py-2 text-red-300"
-            >
-              {ERROR_MESSAGES[error.code] ?? error.code}
-            </li>
-          ))}
-          {warnings.map((warning, index) => (
-            <li
-              key={`${warning.code}-${warning.pieceId}-${index}`}
-              className="rounded border border-amber-900/80 bg-amber-950/35 px-2.5 py-2 text-amber-300"
-            >
-              {formatRunWarning(warning) ?? WARNING_MESSAGES[warning.code] ?? warning.code}
-            </li>
-          ))}
-        </ul>
-      )}
-    </section>
-  );
 }
 
 function OpeningProperties({ wall, opening, settings, placementMessage }) {
@@ -1264,356 +1065,6 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
   );
 }
 
-function CabinetProperties({ wall, run, piece, item, layout, settings }) {
-  const dispatch = useDispatch();
-  const actionBase = { wallId: wall.id, runId: run.id, itemId: item.id };
-  const locked = item.width !== null;
-  const typeLabel = RUN_TYPES.find(([value]) => value === run.cabinetTypeId)?.[1] ?? 'Unknown';
-  const actualCenter = piece.x + piece.width / 2;
-  const pinCount = run.items.filter((candidate) => candidate.pin).length;
-  const warnsSecondPin = !item.pin && pinCount === 1;
-  const itemIndex = run.items.findIndex((candidate) => candidate.id === item.id);
-  const pinnedIndexes = run.items.flatMap((candidate, index) => (candidate.pin ? [index] : []));
-  const previousPin = [...pinnedIndexes].reverse().find((index) => index < itemIndex);
-  const nextPin = pinnedIndexes.find((index) => index > itemIndex);
-  const interiorAutos = previousPin !== undefined && nextPin !== undefined
-    ? run.items.slice(previousPin + 1, nextPin).filter(
-      (candidate) => candidate.kind === 'cabinet' && candidate.width === null,
-    )
-    : [];
-  const canAbsorb = item.width === null && interiorAutos.length > 1;
-  const resolvedTarget = item.pin
-    ? resolvePinTarget(item.pin, wall, wall.length, settings)
-    : null;
-  const defaultPin = {
-    anchor: 'center',
-    from: 'left',
-    openingId: null,
-    openingAnchor: 'center',
-    value: actualCenter,
-  };
-  const updatePin = (changes) => dispatch(setItemPin({
-    ...actionBase,
-    pin: { ...(item.pin ?? defaultPin), ...changes },
-  }));
-  const datumValue = item.pin?.from === 'opening'
-    ? `opening:${item.pin.openingId}`
-    : item.pin?.from ?? 'left';
-
-  return (
-    <div className="space-y-5">
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Cabinet
-        </h3>
-        <Field label="Width">
-          <InchInput
-            value={piece.width}
-            onCommit={(width) => dispatch(setItemWidth({ ...actionBase, width }))}
-            aria-label="Cabinet width"
-          />
-        </Field>
-        <button
-          type="button"
-          onClick={() => {
-            if (locked) dispatch(setItemWidth({ ...actionBase, width: null }));
-            else dispatch(lockItem({ ...actionBase, computedWidth: piece.width }));
-          }}
-          className="mt-2 w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600"
-        >
-          {locked ? 'Unlock width' : 'Lock width'}
-        </button>
-      </section>
-
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Pin
-        </h3>
-        {warnsSecondPin && (
-          <p className="mb-2 rounded border border-cyan-900/70 bg-cyan-950/30 p-2 text-xs text-cyan-200">
-            A second pin locks both pinned cabinets to their current widths.
-          </p>
-        )}
-        <label className="flex items-center justify-between rounded border border-gray-700 bg-gray-900/45 px-3 py-2 text-sm text-gray-300">
-          Pin cabinet
-          <input
-            type="checkbox"
-            checked={Boolean(item.pin)}
-            onChange={(event) => dispatch(setItemPin({
-              ...actionBase,
-              pin: event.target.checked ? defaultPin : null,
-            }))}
-            className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
-          />
-        </label>
-        {item.pin && (
-          <div className="mt-3 space-y-2.5">
-            <Field label="Datum">
-              <select
-                value={datumValue}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  if (value.startsWith('opening:')) {
-                    updatePin({
-                      from: 'opening',
-                      openingId: value.slice('opening:'.length),
-                      openingAnchor: 'center',
-                      value: 0,
-                    });
-                  } else {
-                    updatePin({
-                      from: value,
-                      openingId: null,
-                      value: value === 'right' ? wall.length - actualCenter : actualCenter,
-                    });
-                  }
-                }}
-                aria-label="Pin datum"
-                className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-              >
-                <option value="left">Left end of wall</option>
-                <option value="right">Right end of wall</option>
-                {item.pin.openingId
-                  && !wall.openings.some((opening) => opening.id === item.pin.openingId)
-                  && (
-                    <option value={`opening:${item.pin.openingId}`}>
-                      Missing opening
-                    </option>
-                  )}
-                {wall.openings.map((opening) => (
-                  <option key={opening.id} value={`opening:${opening.id}`}>
-                    {opening.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Cabinet anchor">
-              <select
-                value={item.pin.anchor}
-                onChange={(event) => updatePin({ anchor: event.target.value })}
-                aria-label="Pinned cabinet anchor"
-                className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-              >
-                <option value="left">Left edge</option>
-                <option value="center">Center</option>
-                <option value="right">Right edge</option>
-              </select>
-            </Field>
-            {item.pin.from === 'opening' && (
-              <Field label="Opening part">
-                <select
-                  value={item.pin.openingAnchor}
-                  onChange={(event) => updatePin({ openingAnchor: event.target.value })}
-                  aria-label="Pinned opening reference"
-                  className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="center">Center</option>
-                  <option value="casing-left">Casing left edge</option>
-                  <option value="casing-right">Casing right edge</option>
-                  <option value="jamb-left">Jamb left edge</option>
-                  <option value="jamb-right">Jamb right edge</option>
-                </select>
-              </Field>
-            )}
-            <Field label="Distance">
-              <InchInput
-                value={item.pin.value}
-                onCommit={(value) => updatePin({ value })}
-                aria-label="Pin distance"
-              />
-            </Field>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Resolved target">
-                {resolvedTarget === null ? (
-                  <div className="rounded border border-gray-700 bg-gray-900/60 px-2.5 py-1.5 text-sm text-amber-300">
-                    Unresolved
-                  </div>
-                ) : (
-                  <ReadOnlyValue value={resolvedTarget} ariaLabel="Resolved pin target" />
-                )}
-              </Field>
-              <Field label="Actual center">
-                <ReadOnlyValue value={actualCenter} ariaLabel="Actual cabinet center" />
-              </Field>
-            </div>
-          </div>
-        )}
-      </section>
-
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Remainder
-        </h3>
-        <label className={`flex items-center justify-between rounded border border-gray-700 bg-gray-900/45 px-3 py-2 text-sm ${canAbsorb ? 'text-gray-300' : 'text-gray-500'}`}>
-          Absorb odd amount
-          <input
-            type="checkbox"
-            checked={Boolean(item.absorb)}
-            disabled={!canAbsorb}
-            onChange={(event) => dispatch(setItemAbsorb({
-              ...actionBase,
-              value: event.target.checked,
-            }))}
-            className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-40"
-          />
-        </label>
-        {!canAbsorb && (
-          <p className="mt-2 text-xs leading-relaxed text-gray-500">
-            This only affects an auto cabinet inside a segment between two pins that contains more than one auto cabinet.
-          </p>
-        )}
-        {Number.isFinite(piece.absorbed) && (
-          <p className="mt-2 text-xs text-cyan-300">
-            Absorbed {formatInches(piece.absorbed)}
-          </p>
-        )}
-      </section>
-
-      <section className="grid grid-cols-2 gap-2 rounded border border-gray-700 bg-gray-900/45 p-3 text-xs">
-        <div>
-          <p className="text-gray-500">Run type</p>
-          <p className="mt-1 text-gray-200">{typeLabel}</p>
-        </div>
-        <div>
-          <p className="text-gray-500">Run height</p>
-          <p className="mt-1 text-gray-200">{formatInches(run.height)}</p>
-        </div>
-      </section>
-
-      <section className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => dispatch(splitItem(actionBase))}
-          className="rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600"
-        >
-          Split in 2
-        </button>
-        <button
-          type="button"
-          onClick={() => dispatch(addItemAfter({ ...actionBase, kind: 'cabinet' }))}
-          className="rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600"
-        >
-          Add cabinet right
-        </button>
-        <button
-          type="button"
-          onClick={() => dispatch(addItemAfter({ ...actionBase, kind: 'filler' }))}
-          className="rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600"
-        >
-          Add filler right
-        </button>
-        <button
-          type="button"
-          onClick={() => dispatch(removeItem(actionBase))}
-          className="rounded bg-red-900/70 px-2.5 py-2 text-xs text-red-100 hover:bg-red-800"
-        >
-          Remove
-        </button>
-      </section>
-
-      <FaceProperties wall={wall} run={run} piece={piece} item={item} layout={layout} settings={settings} />
-    </div>
-  );
-}
-
-function InteriorFillerProperties({ wallId, run, piece, item }) {
-  const dispatch = useDispatch();
-  const actionBase = { wallId, runId: run.id, itemId: item.id };
-
-  return (
-    <div className="space-y-4">
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Interior filler
-        </h3>
-        <Field label="Width">
-          <InchInput
-            value={piece.width}
-            onCommit={(width) => dispatch(setItemWidth({ ...actionBase, width }))}
-            aria-label="Interior filler width"
-          />
-        </Field>
-      </section>
-      <button
-        type="button"
-        onClick={() => dispatch(removeItem(actionBase))}
-        className="w-full rounded bg-red-900/70 px-3 py-2 text-sm text-red-100 hover:bg-red-800"
-      >
-        Remove
-      </button>
-    </div>
-  );
-}
-
-function EndProperties({ wallId, run, side, settings }) {
-  return (
-    <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-        {side} end piece
-      </h3>
-      <div className="rounded border border-gray-700 bg-gray-900/45 p-3">
-        <EndFields
-          actionBase={{ wallId, runId: run.id }}
-          run={run}
-          side={side}
-          settings={settings}
-        />
-      </div>
-    </section>
-  );
-}
-
-function PieceProperties({ room, wall, run, layout, selectionContext, settings }) {
-  const { piece, item, side } = selectionContext;
-  const numbers = useMemo(() => partNumbers(room, settings), [room, settings]);
-  const partKey = piece.id;
-  const partNumberField = (
-    <PartNumberField
-      roomId={room.id}
-      partKey={partKey}
-      autoNumber={numbers.byKey.get(partKey)}
-      override={room.partNumberOverrides?.[partKey]}
-      duplicate={numbers.warnings.some((warning) => warning.keys.includes(partKey))}
-    />
-  );
-
-  if (side) {
-    return (
-      <>
-        {partNumberField}
-        <EndProperties wallId={wall.id} run={run} side={side} settings={settings} />
-      </>
-    );
-  }
-  if (!item) return null;
-  if (item.kind === 'filler') {
-    return (
-      <>
-        {partNumberField}
-        <InteriorFillerProperties
-          wallId={wall.id}
-          run={run}
-          piece={piece}
-          item={item}
-        />
-      </>
-    );
-  }
-  return (
-    <>
-      {partNumberField}
-      <CabinetProperties
-        wall={wall}
-        run={run}
-        piece={piece}
-        item={item}
-        layout={layout}
-        settings={settings}
-      />
-    </>
-  );
-}
-
 function WallHeightProperties({ room, wall, plan }) {
   const dispatch = useDispatch();
   const settings = useSelector((state) => state.elevation.settings);
@@ -1932,179 +1383,6 @@ function WallHeightProperties({ room, wall, plan }) {
           {overlap < 0 ? 'Gap' : 'Overlap'} {formatInches(Math.abs(overlap))}
         </p>
       </section>
-    </div>
-  );
-}
-
-function SoffitProperties({ room, wall, soffit, settings }) {
-  const dispatch = useDispatch();
-  const actionBase = { wallId: wall.id, soffitId: soffit.id };
-  const moldingLabels = {
-    crown: 'Crown',
-    topMold: 'Top mold',
-    none: 'None',
-  };
-
-  return (
-    <div className="space-y-5">
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Soffit
-        </h3>
-        <div className="space-y-2.5">
-          <Field label="Left">
-            {!soffit.anchors?.left && !soffit.anchors?.right ? (
-              <InchInput
-                value={soffit.x}
-                onCommit={(x) => dispatch(updateSoffit({
-                  ...actionBase,
-                  changes: { x },
-                }))}
-                aria-label="Soffit left"
-              />
-            ) : (
-              <ReadOnlyValue value={soffit.x} ariaLabel="Soffit left" />
-            )}
-          </Field>
-          <Field label="Width">
-            {soffit.anchors?.left && soffit.anchors?.right ? (
-              <ReadOnlyValue value={soffit.width} ariaLabel="Soffit width" />
-            ) : (
-              <InchInput
-                value={soffit.width}
-                onCommit={(width) => dispatch(updateSoffit({
-                  ...actionBase,
-                  changes: { width },
-                }))}
-                aria-label="Soffit width"
-              />
-            )}
-          </Field>
-          <Field label="Bottom">
-            <InchInput
-              value={soffit.bottom}
-              onCommit={(bottom) => dispatch(updateSoffit({
-                ...actionBase,
-                changes: { bottom },
-              }))}
-              aria-label="Soffit bottom"
-            />
-          </Field>
-          <Field label="Depth">
-            <InchInput
-              value={soffit.depth ?? settings.defaultSoffitDepth}
-              onCommit={(depth) => dispatch(updateSoffit({
-                ...actionBase,
-                changes: { depth },
-              }))}
-              aria-label="Soffit depth"
-            />
-          </Field>
-          <Field label="Molding">
-            <select
-              value={soffit.molding}
-              onChange={(event) => dispatch(updateSoffit({
-                ...actionBase,
-                changes: { molding: event.target.value },
-              }))}
-              aria-label="Soffit molding"
-              className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-            >
-              {SOFFIT_MOLDINGS.map((molding) => (
-                <option key={molding} value={molding}>{moldingLabels[molding]}</option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      </section>
-
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Ends
-        </h3>
-        <div className="space-y-2">
-          {['left', 'right'].map((side) => {
-            const anchor = soffit.anchors?.[side] ?? false;
-            const anchorValue = anchor?.to === 'end'
-              ? 'end'
-              : anchor?.to === 'wall'
-                ? `wall:${anchor.wallId}`
-                : 'free';
-            return (
-              <div
-                key={side}
-                className="rounded border border-gray-700 bg-gray-900/45 p-3"
-              >
-                <Field label={`${side === 'left' ? 'Left' : 'Right'} end`}>
-                  <select
-                    value={anchorValue}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      const nextAnchor = value === 'free'
-                        ? false
-                        : value === 'end'
-                          ? { to: 'end', offset: 0 }
-                          : {
-                              to: 'wall',
-                              wallId: value.slice('wall:'.length),
-                              offset: 0,
-                            };
-                      dispatch(setSoffitAnchor({
-                        ...actionBase,
-                        side,
-                        anchor: nextAnchor,
-                      }));
-                    }}
-                    aria-label={`${side} soffit anchor`}
-                    className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-                  >
-                    <option value="free">Free</option>
-                    <option value="end">Wall end</option>
-                    {landingsOn(room, wall).map((interval) => {
-                      const landedWall = room.walls.find(
-                        (candidate) => candidate.id === interval.wallId,
-                      );
-                      return landedWall ? (
-                        <option
-                          key={`${interval.wallId}:${interval.endpoint}`}
-                          value={`wall:${interval.wallId}`}
-                        >
-                          {wallLabel(room, landedWall)}
-                        </option>
-                      ) : null;
-                    })}
-                  </select>
-                </Field>
-                {anchor && (
-                  <div className="mt-2">
-                    <Field label="Offset">
-                      <InchInput
-                        value={anchor.offset}
-                        allowBlank
-                        placeholder="0"
-                        onCommit={(offset) => dispatch(setSoffitAnchor({
-                          ...actionBase,
-                          side,
-                          anchor: { ...anchor, offset },
-                        }))}
-                        aria-label={`${side} soffit anchor offset`}
-                      />
-                    </Field>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      <button
-        type="button"
-        onClick={() => dispatch(deleteSoffit(actionBase))}
-        className="w-full rounded border border-red-700 px-3 py-2 text-sm text-red-300 hover:bg-red-950/40"
-      >
-        Delete soffit
-      </button>
     </div>
   );
 }
