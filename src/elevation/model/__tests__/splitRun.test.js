@@ -500,4 +500,13 @@ describe('SPEC-34.1 auto cell kinds', () => {
     ], { autoCount: true }), DEFAULT_SETTINGS);
     expect(synced.items.map(({ id }) => id)).toEqual(['a', 'p']);
   });
+
+  it('carries a panel\'s doors onto its piece', () => {
+    const layout = splitRun(kindRun(30, [
+      { id: 'p', kind: 'panel', width: 0.75, doors: 'cover' },
+      { id: 'a', kind: 'cabinet', width: null },
+    ]), DEFAULT_SETTINGS);
+    expect(layout.pieces[0].doors).toBe('cover');
+    expect(layout.pieces[1]).not.toHaveProperty('doors');
+  });
 });

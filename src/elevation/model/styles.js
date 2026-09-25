@@ -26,6 +26,7 @@ export const REVEAL_SOURCE_LABELS = {
   'rule:upper-counter': 'rule: on counter',
   'rule:stacked-seam': 'rule: stacked seam',
   'rule:captured-single': 'rule: captured single',
+  'rule:covered-panel': 'rule: covered panel',
 };
 
 const STYLE_KEYS = ['cabinetStyleId', 'beadWidth', 'profiledEdge'];
@@ -125,6 +126,7 @@ export function cabinetReveals({
   face,
   captured = { left: false, right: false },
   stacked = { top: false, bottom: false },
+  covered = { top: 0, bottom: 0, left: 0, right: 0 },
   manual = null,
   settings,
 }) {
@@ -152,6 +154,12 @@ export function cabinetReveals({
     const reveal = settings.capturedSingleReveal ?? DEFAULT_SETTINGS.capturedSingleReveal;
     apply('left', reveal, 'rule:captured-single');
     apply('right', reveal, 'rule:captured-single');
+  }
+  if (euro) {
+    const standard = styleReveals(style, cabinetTypeId, settings);
+    for (const key of ['top', 'bottom', 'left', 'right']) {
+      if (covered?.[key] > 0) apply(key, standard[key] - covered[key], 'rule:covered-panel');
+    }
   }
   for (const key of REVEAL_KEYS) {
     if (Number.isFinite(manual?.[key])) apply(key, manual[key], 'manual');

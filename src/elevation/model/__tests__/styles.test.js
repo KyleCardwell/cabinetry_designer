@@ -159,6 +159,22 @@ describe('styles', () => {
     expect(manual.values.bottom).toBe(-0.25);
     expect(manual.sources.bottom).toBe('manual');
   });
+
+  it('55 covered panel rule', () => {
+    const tall = cabinetReveals({ style: EURO, cabinetTypeId: TALL, face: DOOR, covered: { left: 0.75 }, settings: S });
+    expect(tall.values.left).toBe(-0.6875);
+    expect(tall.sources.left).toBe('rule:covered-panel');
+    expect(tall.sources.right).toBe('style');
+    expect(cabinetReveals({ style: EURO, cabinetTypeId: UPPER, face: DOOR, covered: { bottom: 0.75 }, settings: S })
+      .values.bottom).toBe(-0.875);
+    expect(cabinetReveals({ style: EURO, cabinetTypeId: BASE, face: DOOR, covered: { bottom: 0.75 }, settings: S })
+      .values.bottom).toBe(-0.625);
+    expect(cabinetReveals({ style: INSET, cabinetTypeId: TALL, face: DOOR, covered: { left: 0.75 }, settings: S })
+      .sources.left).toBe('style');
+    const manual = cabinetReveals({ style: EURO, cabinetTypeId: TALL, face: DOOR, covered: { left: 0.75 }, manual: { left: 0 }, settings: S });
+    expect(manual.values.left).toBe(0);
+    expect(manual.sources.left).toBe('manual');
+  });
 });
 
 describe('standard drawer heights', () => {

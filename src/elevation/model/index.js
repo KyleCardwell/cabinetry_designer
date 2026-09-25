@@ -282,6 +282,7 @@ export {
   removeGridCell,
   setGridCellDepth,
   setGridCellKind,
+  setGridPanelDoors,
   setGridPanelType,
   setGridShelves,
   setGridTrackSize,
@@ -293,7 +294,10 @@ export {
 export {
   blindCellWidths,
   cellCaptureSides,
+  cellDepth,
   cellPieces,
+  coveredSides,
+  hingeStops,
   MIN_CELL_SIZE,
   panelOrientation,
   partPieces,

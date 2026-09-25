@@ -91,6 +91,7 @@ function resolveGrid(grid, piece, rectangle, depth, grids) {
       depth: cell.node.depth ?? piece.depth,
       auto: track.size === null,
       ...(cell.node.align ? { align: cell.node.align } : {}),
+      ...(cell.node.doors ? { doors: cell.node.doors } : {}),
       ...(cell.node.blind ? { blind: { ...cell.node.blind } } : {}),
       ...(cell.node.shelves ? { shelves: { ...cell.node.shelves } } : {}),
     });
@@ -196,7 +197,8 @@ export function cellCaptureSides(pieces, pieceId) {
   if (!piece) return { left: false, right: false };
   const panels = pieces.filter((candidate) => (
     candidate !== piece && candidate.kind === 'panel'
-    && panelOrientation(candidate) === 'side' && overlapsVertically(candidate, piece)));
+    && panelOrientation(candidate) === 'side' && candidate.doors !== 'cover'
+    && overlapsVertically(candidate, piece)));
   return {
     left: panels.some((panel) => Math.abs(panel.x + panel.width - piece.x) <= EPSILON),
     right: panels.some((panel) => Math.abs(panel.x - piece.x - piece.width) <= EPSILON),
@@ -238,4 +240,49 @@ export function partPieces(pieces, settings) {
     if (piece.kind === 'shelves') return shelfParts(piece, settings);
     return piece.kind === 'void' ? [] : [piece];
   });
+}
+
+/** A cell's true depth: its own, else a flush side/top panel reaches the door face, else the run's box depth. */
+export function cellDepth(piece, leaf, runDepth, settings) {
+  if (leaf?.depth !== undefined) return leaf.depth;
+  const orientation = panelOrientation(piece);
+  if (piece.kind === 'panel' && orientation !== 'back' && leaf?.doors !== 'cover') {
+    return runDepth + settings.bumperThickness + settings.doorThickness;
+  }
+  return runDepth;
+}
+
+/** How thick a covered panel is on each side of a piece (0 = not covered). */
+export function coveredSides(pieces, pieceId) {
+  const result = { top: 0, bottom: 0, left: 0, right: 0 };
+  const piece = pieces.find((candidate) => candidate.id === pieceId);
+  if (!piece) return result;
+  for (const panel of pieces) {
+    if (panel === piece || panel.kind !== 'panel' || panel.doors !== 'cover') continue;
+    const orientation = panelOrientation(panel);
+    if (orientation === 'side' && overlapsVertically(panel, piece)) {
+      if (Math.abs(panel.x + panel.width - piece.x) <= EPSILON) result.left = panel.width;
+      if (Math.abs(panel.x - piece.x - piece.width) <= EPSILON) result.right = panel.width;
+    }
+    if (orientation === 'top' && rangesOverlap(panel, piece)) {
+      if (Math.abs(panel.z - piece.z - piece.height) <= EPSILON) result.top = panel.height;
+      if (Math.abs(panel.z + panel.height - piece.z) <= EPSILON) result.bottom = panel.height;
+    }
+  }
+  return result;
+}
+
+/** Which sides of a piece a door can hinge against: a filler, an end panel or a flush side panel. */
+export function hingeStops(pieces, pieceId) {
+  const piece = pieces.find((candidate) => candidate.id === pieceId);
+  if (!piece) return { left: false, right: false };
+  const stops = pieces.filter((candidate) => candidate !== piece
+    && overlapsVertically(candidate, piece)
+    && (candidate.kind === 'filler' || candidate.kind === 'end_panel'
+      || (candidate.kind === 'panel' && panelOrientation(candidate) === 'side'
+        && candidate.doors !== 'cover')));
+  return {
+    left: stops.some((stop) => Math.abs(stop.x + stop.width - piece.x) <= EPSILON),
+    right: stops.some((stop) => Math.abs(stop.x - piece.x - piece.width) <= EPSILON),
+  };
 }

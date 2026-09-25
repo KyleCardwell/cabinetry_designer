@@ -379,7 +379,9 @@ export function setGridPanelType(grid, leafId, type, thickness) {
     next.depth = thickness;
     next.align = 'back';
   }
-  const sameLeaf = Object.is(next.depth, leaf.depth) && next.align === leaf.align;
+  if (type !== 'back' && leaf.doors) next.doors = leaf.doors;
+  const sameLeaf = Object.is(next.depth, leaf.depth) && next.align === leaf.align
+    && next.doors === leaf.doors;
   const withLeaf = sameLeaf ? grid : replaceLeaf(grid, found, next);
   return setGridTrackSize(withLeaf, found.track.id, type === 'back' ? null : thickness);
 }
@@ -423,4 +425,17 @@ export function addGridPanel(grid, leafId, side, thickness, makeId) {
     });
   }
   return rehomeBlind(grid, next);
+}
+
+/** Sets a panel's doors: 'cover', or 'flush'/null (the default) to clear it. */
+export function setGridPanelDoors(grid, leafId, doors) {
+  const found = cellLeaf(grid, leafId);
+  if (!found || found.cell.node.kind !== 'panel') return grid;
+  if (doors !== 'cover' && doors !== 'flush' && doors !== null) return grid;
+  const leaf = found.cell.node;
+  if ((doors === 'cover') === (leaf.doors === 'cover')) return grid;
+  const next = { ...leaf };
+  if (doors === 'cover') next.doors = 'cover';
+  else delete next.doors;
+  return replaceLeaf(grid, found, next);
 }

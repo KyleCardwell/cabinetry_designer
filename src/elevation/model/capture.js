@@ -6,7 +6,7 @@ function isPanelLike(neighbor, piece) {
   return Boolean(neighbor) && (
     neighbor.kind === 'filler'
     || neighbor.kind === 'end_panel'
-    || panelOrientation(neighbor) === 'side'
+    || (panelOrientation(neighbor) === 'side' && neighbor.doors !== 'cover')
     || neighbor.depth > piece.depth + EPS
   );
 }

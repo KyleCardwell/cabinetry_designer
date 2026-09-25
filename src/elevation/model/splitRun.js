@@ -18,6 +18,7 @@ function itemExtras(item) {
   return {
     ...(item.depth !== undefined ? { depth: item.depth } : {}),
     ...(item.align !== undefined ? { align: item.align } : {}),
+    ...(item.doors !== undefined ? { doors: item.doors } : {}),
     ...(item.shelves !== undefined ? { shelves: { ...item.shelves } } : {}),
   };
 }
