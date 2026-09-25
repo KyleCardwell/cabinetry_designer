@@ -4,7 +4,7 @@ import {
   DEFAULT_SETTINGS,
 } from '../model/constants.js';
 import { isFaceNode } from '../model/faces.js';
-import { gridFromItems, isGridShape, rootItems, runBlind } from '../model/grid.js';
+import { isGridShape, rootItems } from '../model/grid.js';
 import {
   REVEAL_KEYS,
   RUN_TOP_OPTIONS,
@@ -506,23 +506,6 @@ export function loadElevationDocument() {
   }
 }
 
-/** Until step 160 the store holds items; saved documents hold grids. */
-function runToStore(run) {
-  const { grid, ...rest } = run;
-  const blind = runBlind({ grid });
-  return { ...rest, items: rootItems(grid), ...(blind ? { blind } : {}) };
-}
-
-export function storeRoomsFromDocument(rooms) {
-  return rooms.map((room) => ({
-    ...room,
-    walls: room.walls.map((wall) => ({
-      ...wall,
-      runs: wall.runs.map(runToStore),
-    })),
-  }));
-}
-
 /** Return only the current document fields that belong in localStorage. */
 export function toElevationDocument(elevationState) {
   return {
@@ -533,10 +516,9 @@ export function toElevationDocument(elevationState) {
       walls: room.walls.map((wall) => ({
         ...wall,
         runs: wall.runs.map((run) => {
-          // Until step 160 the store holds items; saved documents hold grids.
-          const { _pinWidths, items, blind, ...persistedRun } = run;
+          const { _pinWidths, ...persistedRun } = run;
           void _pinWidths;
-          return { ...persistedRun, grid: gridFromItems(run.id, items, blind) };
+          return persistedRun;
         }),
       })),
     })),

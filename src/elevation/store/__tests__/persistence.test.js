@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
-import { gridFromItems, rootItems, runBlind } from '../../model/grid.js';
+import { gridFromItems, rootItems } from '../../model/grid.js';
 import { resolvePinTarget } from '../../model/room.js';
 import {
   ELEVATION_STORAGE_KEY,
@@ -753,7 +753,7 @@ describe('SPEC-32 grid persistence', () => {
     });
   });
 
-  it('the store adapter reads grids as items and saves them back unchanged', () => {
+  it('the store keeps grids and saves them unchanged', () => {
     const document = currentDocument();
     document.rooms[0].walls[0].runs[0].grid = gridFromItems('a', [
       { id: 'p', kind: 'cabinet', width: null, pin: PIN },
@@ -764,12 +764,9 @@ describe('SPEC-32 grid persistence', () => {
 
     const state = createInitialElevationState(document);
     const storeRun = state.rooms[0].walls[0].runs[0];
-    expect(storeRun.items).toEqual(rootItems(document.rooms[0].walls[0].runs[0].grid));
-    expect(storeRun.blind).toEqual({ left: 36, right: null });
-    expect(storeRun).not.toHaveProperty('grid');
-    expect(document.rooms[0].walls[0].runs[0]).toHaveProperty('grid');
-    expect(document.rooms[0].walls[0].runs[0]).not.toHaveProperty('items');
-    expect(runBlind(document.rooms[0].walls[0].runs[0])).toEqual({ left: 36, right: null });
+    expect(storeRun.grid).toEqual(document.rooms[0].walls[0].runs[0].grid);
+    expect(storeRun).not.toHaveProperty('items');
+    expect(storeRun).not.toHaveProperty('blind');
     expect(toElevationDocument(state).rooms).toEqual(document.rooms);
   });
 });

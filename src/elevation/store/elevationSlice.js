@@ -3,6 +3,13 @@ import { v4 as uuid } from 'uuid';
 import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { wallFrame } from '../model/geometry.js';
+import {
+  insertRootColumn,
+  removeRootColumn,
+  runItems,
+  setGridBlind,
+  updateRootItem,
+} from '../model/grid.js';
 import { isJointAnchor } from '../model/joints.js';
 import {
   LANDING_TO,
@@ -59,7 +66,6 @@ import {
 import {
   ELEVATION_SCHEMA_VERSION,
   loadElevationDocument,
-  storeRoomsFromDocument,
 } from './persistence.js';
 
 function copySettings(settings = DEFAULT_SETTINGS) {
@@ -115,7 +121,7 @@ function createRoom(name = 'Room 1', settings = DEFAULT_SETTINGS, id = uuid()) {
 export function createInitialElevationState(document = loadElevationDocument()) {
   const settings = copySettings(document?.settings ?? DEFAULT_SETTINGS);
   const fallbackRoom = document ? null : createRoom('Room 1', settings);
-  const rooms = document?.rooms ? storeRoomsFromDocument(document.rooms) : [fallbackRoom];
+  const rooms = document?.rooms ?? [fallbackRoom];
   const activeRoomId = document ? document.activeRoomId : fallbackRoom.id;
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
   const activeWallId = document ? document.activeWallId : null;
@@ -232,9 +238,17 @@ function cleanPartial(value, keys, accept = () => true) {
 }
 
 function roomCabinets(room) {
-  return room.walls.flatMap((wall) => wall.runs.flatMap((run) => run.items
+  return room.walls.flatMap((wall) => wall.runs.flatMap((run) => rootLeaves(run)
     .filter((item) => item.kind === 'cabinet')
     .map((item) => ({ run, item }))));
+}
+
+/** A run's root leaves in column order: drafts, so reducers can edit them in place. */
+function rootLeaves(run) {
+  return run.grid.cells
+    .filter((cell) => cell.row === 0)
+    .sort((a, b) => a.col - b.col)
+    .map((cell) => cell.node);
 }
 
 /**
@@ -253,7 +267,7 @@ function withStandardDrawers(state, room, mutate) {
 }
 
 function itemIndexFor(run, itemId) {
-  return run.items.findIndex((item) => item.id === itemId);
+  return runItems(run).findIndex((item) => item.id === itemId);
 }
 
 function clearTransientSelection(state) {
@@ -862,10 +876,10 @@ const elevationSlice = createSlice({
             run.anchors[side] = false;
           }
         }
-        for (const item of run.items) {
-          if (item.pin?.from === 'opening'
-            && item.pin.openingId === action.payload.openingId) {
-            item.pin = null;
+        for (const column of run.grid.cols) {
+          if (column.pin?.from === 'opening'
+            && column.pin.openingId === action.payload.openingId) {
+            column.pin = null;
           }
         }
       }
@@ -911,7 +925,7 @@ const elevationSlice = createSlice({
         width: action.payload.width,
       };
       location.run.ends[side] = { type: end.type, width: end.width };
-      if (end.type !== 'blind' && location.run.blind) location.run.blind[side] = null;
+      if (end.type !== 'blind') location.run.grid = setGridBlind(location.run.grid, side, null);
       if (end.type === 'none' || end.type === 'end_panel') {
         if (location.run.endFiller) location.run.endFiller[side] = null;
       }
@@ -1080,8 +1094,7 @@ const elevationSlice = createSlice({
       const { side, width } = action.payload;
       if (!location || (side !== 'left' && side !== 'right')) return;
       const run = location.run;
-      run.blind = { left: null, right: null, ...(run.blind ?? {}) };
-      run.blind[side] = Number.isFinite(width) && width > 0 ? width : null;
+      run.grid = setGridBlind(run.grid, side, width);
     },
     setRunEndFiller(state, action) {
       const location = runLocation(state, action.payload);
@@ -1117,17 +1130,19 @@ const elevationSlice = createSlice({
       if (!location) return;
       const itemIndex = itemIndexFor(location.run, action.payload.itemId);
       if (itemIndex === -1) return;
-      location.run.items[itemIndex].width = action.payload.width ?? action.payload.value ?? null;
+      location.run.grid = updateRootItem(location.run.grid, action.payload.itemId, {
+        width: action.payload.width ?? action.payload.value ?? null,
+      });
       syncRoomAt(state, location.roomIndex);
     },
     setItemPin(state, action) {
       const location = runLocation(state, action.payload);
       if (!location) return;
       const itemIndex = itemIndexFor(location.run, action.payload.itemId);
-      const item = location.run.items[itemIndex];
+      const item = runItems(location.run)[itemIndex];
       if (!item || item.kind !== 'cabinet') return;
       const pin = action.payload.pin ?? null;
-      const pinCountBefore = location.run.items.filter((candidate) => candidate.pin).length;
+      const pinCountBefore = runItems(location.run).filter((candidate) => candidate.pin).length;
       const addsSecondPin = Boolean(pin) && !item.pin && pinCountBefore === 1;
       const addsPinToPinnedRun = Boolean(pin) && !item.pin && pinCountBefore >= 1;
       let currentWidths = null;
@@ -1148,16 +1163,20 @@ const elevationSlice = createSlice({
         });
         currentWidths = new Map(layout.pieces.map((piece) => [piece.id, piece.width]));
       }
-      item.pin = pin ? { ...pin } : null;
+      location.run.grid = updateRootItem(location.run.grid, item.id, {
+        pin: pin ? { ...pin } : null,
+      });
       if (pin) location.run.autoCount = false;
       if (addsPinToPinnedRun) {
         const itemsToLock = addsSecondPin
-          ? location.run.items.filter((candidate) => candidate.pin)
+          ? runItems(location.run).filter((candidate) => candidate.pin)
           : [item];
         for (const pinnedItem of itemsToLock) {
           const width = currentWidths.get(pinnedItem.id);
           if (Number.isFinite(width)) {
-            pinnedItem.width = roundTo(width, state.settings.roundTo);
+            location.run.grid = updateRootItem(location.run.grid, pinnedItem.id, {
+              width: roundTo(width, state.settings.roundTo),
+            });
           }
         }
       }
@@ -1167,9 +1186,11 @@ const elevationSlice = createSlice({
       const location = runLocation(state, action.payload);
       if (!location) return;
       const itemIndex = itemIndexFor(location.run, action.payload.itemId);
-      const item = location.run.items[itemIndex];
+      const item = runItems(location.run)[itemIndex];
       if (!item || item.kind !== 'cabinet') return;
-      item.absorb = Boolean(action.payload.value ?? action.payload.absorb);
+      location.run.grid = updateRootItem(location.run.grid, item.id, {
+        absorb: Boolean(action.payload.value ?? action.payload.absorb),
+      });
       syncRoomAt(state, location.roomIndex);
     },
     lockItem(state, action) {
@@ -1177,9 +1198,9 @@ const elevationSlice = createSlice({
       if (!location) return;
       const itemIndex = itemIndexFor(location.run, action.payload.itemId);
       if (itemIndex === -1) return;
-      location.run.items[itemIndex].width = action.payload.width
-        ?? action.payload.computedWidth
-        ?? null;
+      location.run.grid = updateRootItem(location.run.grid, action.payload.itemId, {
+        width: action.payload.width ?? action.payload.computedWidth ?? null,
+      });
       syncRoomAt(state, location.roomIndex);
     },
     unlockItem(state, action) {
@@ -1187,20 +1208,17 @@ const elevationSlice = createSlice({
       if (!location) return;
       const itemIndex = itemIndexFor(location.run, action.payload.itemId);
       if (itemIndex === -1) return;
-      location.run.items[itemIndex].width = null;
+      location.run.grid = updateRootItem(location.run.grid, action.payload.itemId, { width: null });
       syncRoomAt(state, location.roomIndex);
     },
     splitItem(state, action) {
       const location = runLocation(state, action.payload);
       if (!location) return;
       const itemIndex = itemIndexFor(location.run, action.payload.itemId);
-      if (itemIndex === -1 || location.run.items[itemIndex].kind !== 'cabinet') return;
-      location.run.items.splice(
-        itemIndex,
-        1,
-        { id: uuid(), kind: 'cabinet', width: null },
-        { id: uuid(), kind: 'cabinet', width: null },
-      );
+      if (itemIndex === -1 || runItems(location.run)[itemIndex].kind !== 'cabinet') return;
+      let grid = insertRootColumn(location.run.grid, itemIndex + 1, { id: uuid(), kind: 'cabinet', width: null });
+      grid = insertRootColumn(grid, itemIndex + 2, { id: uuid(), kind: 'cabinet', width: null });
+      location.run.grid = removeRootColumn(grid, action.payload.itemId);
       location.run.autoCount = false;
       syncRoomAt(state, location.roomIndex);
     },
@@ -1208,12 +1226,16 @@ const elevationSlice = createSlice({
       const location = runLocation(state, action.payload);
       if (!location) return;
       const itemIndex = itemIndexFor(location.run, action.payload.itemId);
-      const appendToEmptyRun = action.payload.itemId == null && location.run.items.length === 0;
+      const appendToEmptyRun = action.payload.itemId == null && runItems(location.run).length === 0;
       if (itemIndex === -1 && !appendToEmptyRun) return;
       const item = action.payload.kind === 'filler'
         ? { id: uuid(), kind: 'filler', width: state.settings.defaultInteriorFillerWidth }
         : { id: uuid(), kind: 'cabinet', width: null };
-      location.run.items.splice(appendToEmptyRun ? 0 : itemIndex + 1, 0, item);
+      location.run.grid = insertRootColumn(
+        location.run.grid,
+        appendToEmptyRun ? 0 : itemIndex + 1,
+        item,
+      );
       location.run.autoCount = false;
       syncRoomAt(state, location.roomIndex);
     },
@@ -1222,7 +1244,7 @@ const elevationSlice = createSlice({
       if (!location) return;
       const itemIndex = itemIndexFor(location.run, action.payload.itemId);
       if (itemIndex === -1) return;
-      location.run.items.splice(itemIndex, 1);
+      location.run.grid = removeRootColumn(location.run.grid, action.payload.itemId);
       location.run.autoCount = false;
       if (state.selection.pieceId === action.payload.itemId) {
         state.selection = {
@@ -1239,7 +1261,7 @@ const elevationSlice = createSlice({
       const location = runLocation(state, action.payload);
       if (!location) return;
       const { itemIds = [], face = null } = action.payload;
-      for (const item of location.run.items) {
+      for (const item of rootLeaves(location.run)) {
         if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
         item.face = face === null ? null : structuredClone(face);
       }
@@ -1278,7 +1300,7 @@ const elevationSlice = createSlice({
       if (!location || !isStyle(style)) return;
       const { itemIds = [] } = action.payload;
       withStandardDrawers(state, location.room, () => {
-        for (const item of location.run.items) {
+        for (const item of rootLeaves(location.run)) {
           if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
           if (style) item.style = { ...style };
           else delete item.style;
@@ -1290,7 +1312,7 @@ const elevationSlice = createSlice({
       if (!location) return;
       const reveals = cleanPartial(action.payload.reveals, REVEAL_KEYS, Number.isFinite);
       const { itemIds = [] } = action.payload;
-      for (const item of location.run.items) {
+      for (const item of rootLeaves(location.run)) {
         if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
         if (reveals) item.reveals = { ...reveals };
         else delete item.reveals;

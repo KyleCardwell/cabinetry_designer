@@ -2,6 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { bandsCompatible, cornerAt } from './corners.js';
 import { clamp, wallFrame } from './geometry.js';
+import { gridFromItems } from './grid.js';
 import { landingsOn } from './landings.js';
 import {
   counterTop,
@@ -131,8 +132,9 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
         depth: typeDefaults.depth,
       };
 
+  const id = uuid();
   const run = {
-    id: uuid(),
+    id,
     cabinetTypeId,
     x: runX,
     width: runWidth,
@@ -140,7 +142,7 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
     ends,
     autoCount: true,
     maxCabinetWidth: null,
-    items: [],
+    grid: gridFromItems(id, []),
     heightMode,
     overrides: {},
     anchors,

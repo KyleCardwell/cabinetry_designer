@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { runFootprint } from '../../model/footprints.js';
 import { wallFrame } from '../../model/geometry.js';
-import { runBlind, runItems } from '../../model/grid.js';
+import { gridFromItems, runBlind, runItems } from '../../model/grid.js';
 import { openingGeometry } from '../../model/openings.js';
 import elevationReducer, {
   addOpening,
@@ -66,6 +66,7 @@ import elevationReducer, {
   updateSoffit,
   updateRoomProfile,
   updateWall,
+  unlockItem,
   useAutoHeightsForRoom,
 } from '../elevationSlice.js';
 
@@ -78,7 +79,7 @@ function fixed(id, width) {
 }
 
 function run(overrides = {}) {
-  return {
+  const { items, blind, ...rest } = {
     id: 'run-1',
     cabinetTypeId: CABINET_TYPE_IDS.BASE,
     x: 0,
@@ -98,6 +99,7 @@ function run(overrides = {}) {
     anchors: { left: false, right: false },
     ...overrides,
   };
+  return { ...rest, grid: gridFromItems(rest.id, items, blind) };
 }
 
 function opening(overrides = {}) {
@@ -1910,5 +1912,53 @@ describe('SPEC-28 blind end store actions', () => {
       value: -1,
     }));
     expect(currentRun().endFiller.left).toBeNull();
+  });
+});
+
+describe('SPEC-32 store holds grids', () => {
+  const actionBase = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
+
+  it('splits a grid item without restoring legacy run fields', () => {
+    const initial = stateWithRun(run({
+      autoCount: false,
+      items: [fixed('a', 30)],
+      blind: { left: 36, right: 24 },
+    }));
+    const state = elevationReducer(initial, splitItem({ ...actionBase, itemId: 'a' }));
+    const storedRun = currentRun(state);
+
+    expect(storedRun).not.toHaveProperty('items');
+    expect(storedRun).not.toHaveProperty('blind');
+    expect(runItems(storedRun)).toHaveLength(2);
+    expect(runItems(storedRun).every((item) => (
+      item.kind === 'cabinet' && item.id !== 'a'
+    ))).toBe(true);
+    expect(runBlind(storedRun)).toEqual({ left: 36, right: 24 });
+  });
+
+  it('locks and unlocks the root grid column', () => {
+    let state = stateWithRun(run({ autoCount: false, items: [fixed('a', 30)] }));
+    state = elevationReducer(state, lockItem({ ...actionBase, itemId: 'a', width: 20 }));
+    expect(currentRun(state).grid.cols[0]).toEqual({
+      id: 'a:col', size: 20, sizeMode: 'manual',
+    });
+
+    state = elevationReducer(state, unlockItem({ ...actionBase, itemId: 'a' }));
+    expect(currentRun(state).grid.cols[0]).toEqual({
+      id: 'a:col', size: null, sizeMode: 'auto',
+    });
+  });
+
+  it('edits a cabinet face through the grid leaf', () => {
+    const initial = stateWithRun(run({ items: [fixed('a', 30)] }));
+    const state = elevationReducer(initial, setItemFace({
+      ...actionBase,
+      itemIds: ['a'],
+      face: { type: 'door', size: null },
+    }));
+
+    expect(currentRun(state).grid.cells[0].node.face).toEqual({
+      type: 'door', size: null,
+    });
   });
 });
