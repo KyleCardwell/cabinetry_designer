@@ -1,5 +1,6 @@
 import { formatInches } from '../model/units.js';
 import { tryPlaceRun } from '../model/room.js';
+import { runItems } from '../model/grid.js';
 
 /** Format a resolved corner reserve for the run properties panel. */
 export function formatCornerReserve(parts) {
@@ -71,7 +72,7 @@ export function resolveSelectedPiece(run, layout, pieceId) {
   if (piece.role === 'item') {
     return {
       piece,
-      item: run.items.find((candidate) => candidate.id === piece.id) ?? null,
+      item: runItems(run).find((candidate) => candidate.id === piece.id) ?? null,
       side: null,
     };
   }
@@ -90,7 +91,8 @@ export function resolveSelectedPiece(run, layout, pieceId) {
  * @returns {object|null}
  */
 export function lastRunItem(run) {
-  return run.items[run.items.length - 1] ?? null;
+  const items = runItems(run);
+  return items[items.length - 1] ?? null;
 }
 
 /**
@@ -100,8 +102,9 @@ export function lastRunItem(run) {
  * @returns {object|null}
  */
 export function lastCabinetItem(run) {
-  for (let index = run.items.length - 1; index >= 0; index -= 1) {
-    if (run.items[index].kind === 'cabinet') return run.items[index];
+  const items = runItems(run);
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (items[index].kind === 'cabinet') return items[index];
   }
   return null;
 }

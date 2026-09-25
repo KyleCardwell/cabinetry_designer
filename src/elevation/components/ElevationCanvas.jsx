@@ -44,6 +44,7 @@ import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
 import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../model/constants.js';
 import { createRun } from '../model/runDefaults.js';
+import { runItems } from '../model/grid.js';
 import {
   createSoffit,
   resolveSoffitSpan,
@@ -598,7 +599,7 @@ function ElevationCanvas({
       if (!selectedRun) return;
 
       if (currentSelection.pieceId) {
-        const selectedItem = selectedRun.items.find(
+        const selectedItem = runItems(selectedRun).find(
           (item) => item.id === currentSelection.pieceId,
         );
         if (!selectedItem) return;

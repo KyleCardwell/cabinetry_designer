@@ -2,6 +2,7 @@ import { useDispatch } from 'react-redux';
 import {
   KIND_LABELS,
   formatInches,
+  runItems,
 } from '../../model/index.js';
 import { setSelection } from '../../store/elevationSlice.js';
 
@@ -16,7 +17,7 @@ export default function RunPiecesSection({ run, layout }) {
         <div className="overflow-hidden rounded border border-gray-700">
           {layout.pieces.map((piece) => {
             const item = piece.role === 'item'
-              ? run.items.find((candidate) => candidate.id === piece.id)
+              ? runItems(run).find((candidate) => candidate.id === piece.id)
               : null;
             const lockState = piece.kind === 'cabinet'
               ? (item?.width === null ? 'Auto' : 'Locked')

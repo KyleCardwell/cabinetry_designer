@@ -1,5 +1,5 @@
 import { useDispatch } from 'react-redux';
-import { formatInchesInput } from '../../model/index.js';
+import { formatInchesInput, runBlind } from '../../model/index.js';
 import { setRunBlind, setRunEnd, setRunEndFiller } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
@@ -56,7 +56,7 @@ export default function EndFields({ actionBase, run, side, settings, note = null
       {endType === 'blind' && (
         <Field label="Blind box">
           <InchInput
-            value={run.blind?.[side] ?? null}
+            value={runBlind(run)?.[side] ?? null}
             allowBlank
             placeholder="none"
             onCommit={(width) => dispatch(setRunBlind({

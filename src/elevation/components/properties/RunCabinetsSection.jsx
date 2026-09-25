@@ -1,4 +1,5 @@
 import { useDispatch } from 'react-redux';
+import { runItems } from '../../model/index.js';
 import {
   lastCabinetItem,
   lastRunItem,
@@ -16,7 +17,7 @@ export default function RunCabinetsSection({ run, actionBase }) {
   const dispatch = useDispatch();
   const finalCabinet = lastCabinetItem(run);
   const finalItem = lastRunItem(run);
-  const cabinetCount = run.items.filter((item) => item.kind === 'cabinet').length;
+  const cabinetCount = runItems(run).filter((item) => item.kind === 'cabinet').length;
 
   return (
       <section>

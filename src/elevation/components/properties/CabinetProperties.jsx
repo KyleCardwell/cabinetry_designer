@@ -1,5 +1,5 @@
 import { useDispatch } from 'react-redux';
-import { formatInches, resolvePinTarget } from '../../model/index.js';
+import { formatInches, resolvePinTarget, runItems } from '../../model/index.js';
 import {
   addItemAfter,
   lockItem,
@@ -20,14 +20,15 @@ export default function CabinetProperties({ wall, run, piece, item, layout, sett
   const locked = item.width !== null;
   const typeLabel = RUN_TYPES.find(([value]) => value === run.cabinetTypeId)?.[1] ?? 'Unknown';
   const actualCenter = piece.x + piece.width / 2;
-  const pinCount = run.items.filter((candidate) => candidate.pin).length;
+  const items = runItems(run);
+  const pinCount = items.filter((candidate) => candidate.pin).length;
   const warnsSecondPin = !item.pin && pinCount === 1;
-  const itemIndex = run.items.findIndex((candidate) => candidate.id === item.id);
-  const pinnedIndexes = run.items.flatMap((candidate, index) => (candidate.pin ? [index] : []));
+  const itemIndex = items.findIndex((candidate) => candidate.id === item.id);
+  const pinnedIndexes = items.flatMap((candidate, index) => (candidate.pin ? [index] : []));
   const previousPin = [...pinnedIndexes].reverse().find((index) => index < itemIndex);
   const nextPin = pinnedIndexes.find((index) => index > itemIndex);
   const interiorAutos = previousPin !== undefined && nextPin !== undefined
-    ? run.items.slice(previousPin + 1, nextPin).filter(
+    ? items.slice(previousPin + 1, nextPin).filter(
       (candidate) => candidate.kind === 'cabinet' && candidate.width === null,
     )
     : [];

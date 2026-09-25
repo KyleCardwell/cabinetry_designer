@@ -11,6 +11,7 @@ import { blindEntries } from '../model/blind.js';
 import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
+import { runItems } from '../model/grid.js';
 import { isJointAnchor } from '../model/joints.js';
 import { panelDrop, resolveStyle } from '../model/styles.js';
 import { centerlineMarkers } from '../model/dimensions.js';
@@ -389,7 +390,7 @@ function RunGroup({
 
       {result.pieces.flatMap((piece) => {
         const item = piece.role === 'item'
-          ? run.items.find((candidate) => candidate.id === piece.id)
+          ? runItems(run).find((candidate) => candidate.id === piece.id)
           : null;
         if (!item?.pin) return [];
         const anchorX = item.pin.anchor === 'right'
