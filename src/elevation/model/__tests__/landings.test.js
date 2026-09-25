@@ -1,0 +1,433 @@
+import { describe, expect, it } from 'vitest';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { cornerAt, cornerReserveParts } from '../corners.js';
+import { horizontalChains } from '../dimensions.js';
+import {
+  landingInterval,
+  landingOffsetFor,
+  landingRefCreatesCycle,
+  landingsOn,
+  landWallEnd,
+  releaseWall,
+  resolveLandings,
+  snapToWallFace,
+} from '../landings.js';
+import { createRun } from '../runDefaults.js';
+import {
+  describeAnchor,
+  moveRun,
+  stretchRun,
+  syncRoom,
+} from '../room.js';
+import { wallEndPanelAt, wallSideView } from '../wallSides.js';
+
+function base(id, overrides = {}) {
+  return {
+    id,
+    cabinetTypeId: CABINET_TYPE_IDS.BASE,
+    x: 0,
+    width: 96,
+    z: 4,
+    height: 30.5,
+    depth: 24,
+    ends: {
+      left: { type: 'end_panel', width: null },
+      right: { type: 'end_panel', width: null },
+    },
+    autoCount: false,
+    maxCabinetWidth: null,
+    items: [{ id: `${id}-cabinet`, kind: 'cabinet', width: null }],
+    heightMode: 'manual',
+    overrides: {},
+    anchors: { left: false, right: false },
+    wallSide: 'front',
+    ...overrides,
+  };
+}
+
+function makeWall(id, x1, y1, x2, y2, overrides = {}) {
+  return {
+    id,
+    name: '',
+    numberOverride: null,
+    elevationForced: false,
+    x1,
+    y1,
+    x2,
+    y2,
+    height: 96,
+    thickness: 4.5,
+    flipped: false,
+    connections: { start: null, end: null },
+    profile: {},
+    openings: [],
+    joints: [],
+    runs: [],
+    endPanels: { start: null, end: null },
+    landings: { start: null, end: null },
+    ...overrides,
+  };
+}
+
+function makeRoom(walls) {
+  return {
+    id: 'room',
+    name: 'Room',
+    profile: { ...DEFAULT_SETTINGS.defaultProfile },
+    wallOrder: walls.map((wall) => wall.id),
+    walls,
+  };
+}
+
+const wallById = (room, id) => room.walls.find((wall) => wall.id === id);
+const moveWall = (room, id, changes) => ({
+  ...room,
+  walls: room.walls.map((wall) => (wall.id === id ? { ...wall, ...changes } : wall)),
+});
+const withLanding = (room, id, changes) => ({
+  ...room,
+  walls: room.walls.map((wall) => (wall.id === id
+    ? {
+      ...wall,
+      landings: {
+        ...wall.landings,
+        start: { ...wall.landings.start, ...changes },
+      },
+    }
+    : wall)),
+});
+const interval = (room, id) => {
+  const entry = landingInterval(room, wallById(room, id), 'start');
+  return [entry.a, entry.b, entry.lineX, entry.backX];
+};
+
+function alcove({ hostRuns = [], w1Runs = [] } = {}) {
+  let room = makeRoom([
+    makeWall('H', 0, 0, 246, 0, { runs: hostRuns }),
+    makeWall('W1', 60, 0, 60, 30, { thickness: 9, runs: w1Runs }),
+    makeWall('W2', 201, 0, 201, 30, { thickness: 12 }),
+  ]);
+  room = landWallEnd(room, 'W1', 'start', { wallId: 'H', side: 'front', x: 60 });
+  room = landWallEnd(room, 'W2', 'start', { wallId: 'H', side: 'front', x: 201 });
+  return room;
+}
+
+function chained(room = alcove()) {
+  return withLanding(room, 'W2', { ref: 'W1', offset: 120 });
+}
+
+function AL(overrides = {}) {
+  return base('AL', {
+    x: 69,
+    width: 120,
+    anchors: {
+      left: { to: 'wall', wallId: 'W1' },
+      right: { to: 'wall', wallId: 'W2' },
+    },
+    ends: {
+      left: { type: 'filler', width: null },
+      right: { type: 'filler', width: null },
+    },
+    ...overrides,
+  });
+}
+
+describe('wall landings', () => {
+  it('133. lands on the near face and orients thickness away from its reference end', () => {
+    const room = alcove();
+
+    expect(wallById(room, 'W1').landings.start).toEqual({
+      wallId: 'H', side: 'front', ref: 'left', to: 'near', offset: 60,
+    });
+    expect(wallById(room, 'W1').flipped).toBe(false);
+    expect(wallById(room, 'W2').landings.start).toEqual({
+      wallId: 'H', side: 'front', ref: 'right', to: 'near', offset: 45,
+    });
+    expect(wallById(room, 'W2').flipped).toBe(true);
+  });
+
+  it('134. derives sorted landing intervals on the landed host side', () => {
+    const room = alcove();
+    const H = wallById(room, 'H');
+
+    expect(interval(room, 'W1')).toEqual([60, 69, 60, 69]);
+    expect(interval(room, 'W2')).toEqual([189, 201, 201, 189]);
+    expect(landingsOn(room, wallSideView(H, 'front')).map(({ wallId, a, b }) => (
+      [wallId, a, b]
+    ))).toEqual([['W1', 60, 69], ['W2', 189, 201]]);
+    expect(landingsOn(room, wallSideView(H, 'back'))).toEqual([]);
+  });
+
+  it('135. measures landing offsets from host ends and other landings', () => {
+    const room = alcove();
+    const W2 = wallById(room, 'W2');
+
+    expect(landingOffsetFor(room, W2, 'start', 'W1', 'near')).toBe(120);
+    expect(landingOffsetFor(room, W2, 'start', 'right', 'far')).toBe(57);
+    expect(landingOffsetFor(room, W2, 'start', 'left', 'center')).toBe(195);
+  });
+
+  it('136. resolves a chained landing after its reference landing', () => {
+    const room = chained();
+    expect(interval(resolveLandings(room), 'W2')).toEqual([189, 201, 201, 189]);
+
+    const resolved = resolveLandings(withLanding(room, 'W1', { offset: 50 }));
+    expect(interval(resolved, 'W1')).toEqual([50, 59, 50, 59]);
+    expect(wallById(resolved, 'W1')).toMatchObject({ x1: 50, y1: 0, x2: 50, y2: 30 });
+    expect(interval(resolved, 'W2')).toEqual([179, 191, 191, 179]);
+  });
+
+  it('137. carries landings with a moved host while preserving chained offsets', () => {
+    const room = chained();
+    const moved = resolveLandings(moveWall(room, 'H', { y1: 10, y2: 10 }));
+    expect(wallById(moved, 'W1')).toMatchObject({ x1: 60, y1: 10, x2: 60, y2: 40 });
+
+    const lengthened = resolveLandings(moveWall(room, 'H', { x2: 256 }));
+    expect(interval(lengthened, 'W2')).toEqual([189, 201, 201, 189]);
+  });
+
+  it('138. stretches a wall when the other endpoint is connected', () => {
+    let room = makeRoom([
+      makeWall('H', 0, 0, 246, 0),
+      makeWall('C', 0, 40, 50, 40, {
+        connections: { start: null, end: { wallId: 'B', endpoint: 'start' } },
+      }),
+      makeWall('B', 50, 40, 50, 0, {
+        connections: { start: { wallId: 'C', endpoint: 'end' }, end: null },
+      }),
+    ]);
+    room = landWallEnd(room, 'B', 'end', { wallId: 'H', side: 'front', x: 50 });
+    const resolved = resolveLandings(moveWall(room, 'H', { y1: -10, y2: -10 }));
+
+    expect(wallById(resolved, 'B')).toMatchObject({ x1: 50, y1: 40, x2: 50, y2: -10 });
+  });
+
+  it('139. snaps to the nearest bounded wall face', () => {
+    const room = makeRoom([makeWall('H', 0, 0, 246, 0)]);
+
+    expect(snapToWallFace(room, { x: 60.3, y: 2 }, 6)).toEqual({
+      wallId: 'H', side: 'front', x: 60.3, point: { x: 60.3, y: 0 },
+    });
+    expect(snapToWallFace(room, { x: 100, y: -6 }, 6)).toEqual({
+      wallId: 'H', side: 'back', x: 146, point: { x: 100, y: -4.5 },
+    });
+    expect(snapToWallFace(room, { x: 100, y: 10 }, 6)).toBeNull();
+    expect(snapToWallFace(room, { x: 250, y: 1 }, 6)).toBeNull();
+  });
+
+  it('140. detects self and indirect landing reference cycles', () => {
+    const room = chained();
+
+    expect(landingRefCreatesCycle(room, 'W1', 'H', 'front', 'W2')).toBe(true);
+    expect(landingRefCreatesCycle(room, 'W1', 'H', 'front', 'W1')).toBe(true);
+    expect(landingRefCreatesCycle(room, 'W2', 'H', 'front', 'left')).toBe(false);
+  });
+
+  it('141. releases landing references, run anchors, and hosted landings', () => {
+    const room = chained(alcove({ hostRuns: [AL()] }));
+    const releasedWing = releaseWall(room, 'W1');
+    expect(wallById(releasedWing, 'W2').landings.start).toEqual({
+      wallId: 'H', side: 'front', ref: 'left', to: 'near', offset: 189,
+    });
+    expect(wallById(releasedWing, 'H').runs[0].anchors).toEqual({
+      left: false,
+      right: { to: 'wall', wallId: 'W2' },
+    });
+    expect(wallById(releasedWing, 'W1').landings.start).not.toBeNull();
+
+    const releasedHost = releaseWall(room, 'H');
+    expect(wallById(releasedHost, 'W1').landings.start).toBeNull();
+    expect(wallById(releasedHost, 'W2').landings.start).toBeNull();
+
+    const detachedHost = releaseWall(room, 'H', { deleting: false });
+    expect(wallById(detachedHost, 'W1').landings.start).toEqual({
+      wallId: 'H', side: 'front', ref: 'left', to: 'near', offset: 60,
+    });
+  });
+
+  it('143. treats a landed wall end as an inside corner on its facing side', () => {
+    const room = alcove();
+    const W1 = wallById(room, 'W1');
+
+    expect(cornerAt(room, wallSideView(W1, 'front'), 'left')).toEqual({
+      type: 'inside',
+      angle: 90,
+      neighborWallId: 'H',
+      neighborSide: 'right',
+      neighborWallSide: 'front',
+      anchorWallId: 'W1',
+    });
+    expect(cornerAt(room, wallSideView(W1, 'front'), 'right')).toEqual({ type: 'open' });
+    expect(cornerAt(room, wallSideView(W1, 'back'), 'right')).toEqual({
+      type: 'inside',
+      angle: 90,
+      neighborWallId: 'H',
+      neighborSide: 'left',
+      neighborWallSide: 'front',
+      anchorWallId: 'W1',
+    });
+    expect(cornerAt(room, wallSideView(W1, 'back'), 'left')).toEqual({ type: 'open' });
+  });
+
+  it('144. resolves host runs anchored flush to landed wall faces', () => {
+    const room = syncRoom(alcove({ hostRuns: [AL()] }), DEFAULT_SETTINGS);
+    const H = wallById(room, 'H');
+    const run = H.runs[0];
+
+    expect(run).toMatchObject({ x: 69, width: 120 });
+    expect(describeAnchor(room, H, run, 'left', DEFAULT_SETTINGS))
+      .toBe('Against Wall 2 · flush');
+    expect(describeAnchor(room, H, run, 'right', DEFAULT_SETTINGS))
+      .toBe('Against Wall 3 · flush');
+  });
+
+  it('145. reserves a host run for a landed wall return', () => {
+    const WR = base('WR', {
+      width: 30,
+      wallSide: 'back',
+      anchors: { left: false, right: true },
+      cornerClearance: { left: 'auto', right: 0 },
+    });
+    const room = syncRoom(
+      alcove({ hostRuns: [AL()], w1Runs: [WR] }),
+      DEFAULT_SETTINGS,
+    );
+    const H = wallById(room, 'H');
+    const W1 = wallById(room, 'W1');
+    const hostRun = H.runs[0];
+    const wingRun = W1.runs[0];
+
+    expect(hostRun).toMatchObject({ x: 93.875, width: 95.125 });
+    expect(describeAnchor(room, H, hostRun, 'left', DEFAULT_SETTINGS))
+      .toBe('Against Wall 2 · reserve 24 7/8"');
+    expect(wingRun).toMatchObject({ x: 0, width: 30 });
+  });
+
+  it('146. applies a host run reserve back to the landed wall run', () => {
+    const WR = base('WR', {
+      width: 30,
+      wallSide: 'back',
+      anchors: { left: false, right: true },
+    });
+    const room = syncRoom(
+      alcove({ hostRuns: [AL()], w1Runs: [WR] }),
+      DEFAULT_SETTINGS,
+    );
+    const W1 = wallById(room, 'W1');
+    const wingRun = W1.runs[0];
+
+    expect(cornerReserveParts(room, W1, 'right', wingRun, DEFAULT_SETTINGS)).toEqual({
+      face: 24.875,
+      back: 0,
+      total: 24.875,
+      source: 'auto',
+    });
+    expect(wingRun.width).toBe(5.125);
+  });
+
+  it('147. supports a custom lap past a landed wall face', () => {
+    const room = syncRoom(alcove({
+      hostRuns: [AL({ cornerClearance: { left: -0.5, right: 'auto' } })],
+    }), DEFAULT_SETTINGS);
+    const H = wallById(room, 'H');
+    const run = H.runs[0];
+
+    expect(run).toMatchObject({ x: 68.5, width: 120.5 });
+    expect(describeAnchor(room, H, run, 'left', DEFAULT_SETTINGS))
+      .toBe('Against Wall 2 · 1/2" past');
+  });
+
+  it('148. suppresses an end panel at a landed endpoint', () => {
+    const room = alcove();
+    const W1 = wallById(room, 'W1');
+    W1.endPanels = { start: { width: null }, end: { width: null } };
+
+    expect(wallEndPanelAt(room, wallSideView(W1, 'front'), 'left', DEFAULT_SETTINGS))
+      .toBeNull();
+    expect(wallEndPanelAt(room, wallSideView(W1, 'front'), 'right', DEFAULT_SETTINGS))
+      .toEqual({ endpoint: 'end', width: 0.75 });
+  });
+
+  it('149. resolves landing offsets before syncing the room', () => {
+    const room = syncRoom(withLanding(alcove(), 'W1', { offset: 50 }), DEFAULT_SETTINGS);
+
+    expect(interval(room, 'W1')).toEqual([50, 59, 50, 59]);
+  });
+
+  it('150. creates a run anchored to a landed wall face', () => {
+    const room = syncRoom(alcove(), DEFAULT_SETTINGS);
+    const H = wallById(room, 'H');
+    const run = createRun(
+      { x: 69.5, width: 100, bottomZ: 4, topZ: 34.5 },
+      {
+        settings: DEFAULT_SETTINGS,
+        room,
+        wall: wallSideView(H, 'front'),
+      },
+    );
+
+    expect(run.anchors).toEqual({
+      left: { to: 'wall', wallId: 'W1' },
+      right: false,
+    });
+    expect(run.ends.left).toEqual({ type: 'filler', width: null });
+  });
+
+  it('151. splits horizontal open gaps at landed wall intervals', () => {
+    const room = syncRoom(alcove({ hostRuns: [AL()] }), DEFAULT_SETTINGS);
+    const H = wallById(room, 'H');
+    const inner = horizontalChains(
+      room,
+      wallSideView(H, 'front'),
+      'lower',
+      DEFAULT_SETTINGS,
+    ).inner;
+
+    expect(inner.map(({ kind, start, end, wallId, runId }) => (
+      [kind, start, end, wallId ?? runId ?? '']
+    ))).toEqual([
+      ['open', 0, 60, ''],
+      ['wall', 60, 69, 'W1'],
+      ['piece', 69, 70.5, 'AL'],
+      ['piece', 70.5, 187.5, 'AL'],
+      ['piece', 187.5, 189, 'AL'],
+      ['wall', 189, 201, 'W2'],
+      ['open', 201, 246, ''],
+    ]);
+  });
+
+  it('152. stretches a run to a landed wall face', () => {
+    const room = syncRoom(alcove({
+      hostRuns: [base('ST', {
+        x: 70,
+        width: 100,
+        anchors: {
+          left: { to: 'wall', wallId: 'W1' },
+          right: false,
+        },
+      })],
+    }), DEFAULT_SETTINGS);
+    const result = stretchRun(room, 'H', 'ST', 'right', 188, DEFAULT_SETTINGS);
+    const run = wallById(result.room, 'H').runs.find(({ id }) => id === 'ST');
+
+    expect(result.ok).toBe(true);
+    expect(run).toMatchObject({
+      x: 69,
+      width: 120,
+      anchors: { right: { to: 'wall', wallId: 'W2' } },
+      ends: { right: { type: 'filler', width: null } },
+    });
+  });
+
+  it('153. moves a free run to a landed wall face', () => {
+    const room = syncRoom(alcove({
+      hostRuns: [base('F', { x: 100, width: 30 })],
+    }), DEFAULT_SETTINGS);
+    const result = moveRun(room, 'H', 'F', 158.5, DEFAULT_SETTINGS);
+    const run = wallById(result.room, 'H').runs.find(({ id }) => id === 'F');
+
+    expect(result.ok).toBe(true);
+    expect(run.x).toBe(159);
+    expect(result.snap).toEqual({ value: 189, edge: 'right' });
+  });
+});
