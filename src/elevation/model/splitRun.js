@@ -530,7 +530,7 @@ export function syncAutoItems(run, settings, opts) {
   } else {
     let toRemove = nAuto - target;
     for (let index = items.length - 1; index >= 0 && toRemove > 0; index -= 1) {
-      if (items[index].kind === 'cabinet' && items[index].width === null) {
+      if (items[index].kind === 'cabinet' && items[index].width === null && !items[index].grid) {
         items.splice(index, 1);
         toRemove -= 1;
       }

@@ -275,3 +275,10 @@ export {
   splitGridCell,
   unsplitGridCell,
 } from './cellTree.js';
+export {
+  blindCellWidths,
+  cellPieces,
+  MIN_CELL_SIZE,
+  resolveTracks,
+  stackedSides,
+} from './cells.js';
