@@ -78,6 +78,8 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'profiledFit',
   'woodTopReveal',
   'capturedSingleReveal',
+  'stackedUpperBottom',
+  'stackedLowerTop',
   'standardDrawerHeights',
   'standardDrawerBelow',
 ];

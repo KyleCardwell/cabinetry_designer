@@ -24,6 +24,7 @@ export const REVEAL_SOURCE_LABELS = {
   'rule:wood-top': 'rule: wood top',
   'rule:upper-flush': 'rule: flush bottom',
   'rule:upper-counter': 'rule: on counter',
+  'rule:stacked-seam': 'rule: stacked seam',
   'rule:captured-single': 'rule: captured single',
 };
 
@@ -61,6 +62,20 @@ export function resolveStyle(settings, ...levels) {
 
 export function isInsetStyle(style) {
   return style.cabinetStyleId !== CABINET_STYLE_IDS.EUROPEAN;
+}
+
+/** REV-009/010: the reveals either side of a seam where one box sits on another. */
+export function stackedSeamReveals(style, settings) {
+  if (!isInsetStyle(style)) {
+    return {
+      upperBottom: settings.stackedUpperBottom ?? DEFAULT_SETTINGS.stackedUpperBottom,
+      lowerTop: settings.stackedLowerTop ?? DEFAULT_SETTINGS.stackedLowerTop,
+    };
+  }
+  const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
+  const bead = style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? style.beadWidth : 0;
+  const half = frame.rail / 2 + bead;   // one shared rail covers both boxes
+  return { upperBottom: half, lowerTop: half };
 }
 
 /**
@@ -109,6 +124,7 @@ export function cabinetReveals({
   run = {},
   face,
   captured = { left: false, right: false },
+  stacked = { top: false, bottom: false },
   manual = null,
   settings,
 }) {
@@ -126,6 +142,11 @@ export function cabinetReveals({
   const upperBottom = run.upperBottom ?? 'overhang';
   if (cabinetTypeId === UPPER && upperBottom !== 'overhang') {
     apply('bottom', styleReveals(style, TALL, settings).bottom, `rule:upper-${upperBottom}`);
+  }
+  if (stacked.top || stacked.bottom) {
+    const seam = stackedSeamReveals(style, settings);
+    if (stacked.top) apply('top', seam.lowerTop, 'rule:stacked-seam');
+    if (stacked.bottom) apply('bottom', seam.upperBottom, 'rule:stacked-seam');
   }
   if (euro && captured.left && captured.right && isSingleColumn(face)) {
     const reveal = settings.capturedSingleReveal ?? DEFAULT_SETTINGS.capturedSingleReveal;

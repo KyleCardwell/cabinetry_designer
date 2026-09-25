@@ -7,14 +7,16 @@ import {
   isStyle,
   panelDrop,
   resolveStyle,
+  stackedSeamReveals,
   standardDrawerHeight,
   styleReveals,
 } from '../styles.js';
 
-const { BASE, UPPER } = CABINET_TYPE_IDS;
+const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;
 const S = DEFAULT_SETTINGS;
 const EURO = { cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false };
 const INSET = { cabinetStyleId: 14, beadWidth: 0.25, profiledEdge: false };
+const BEADED = { cabinetStyleId: 15, beadWidth: 0.25, profiledEdge: false };
 const DOOR = { type: 'door', size: null };
 const PAIR = { type: 'pair_door', size: null };
 const THREE_DF = { direction: 'vertical', size: null, children: [{ type: 'drawer_front', size: 6 }, { type: 'drawer_front', size: null }, { type: 'drawer_front', size: null }] };
@@ -113,6 +115,49 @@ describe('styles', () => {
     expect(panelDrop({ cabinetTypeId: UPPER, upperBottom: 'flush' }, EURO, S)).toBe(0);
     expect(panelDrop({ cabinetTypeId: UPPER, upperBottom: 'overhang' }, INSET, S)).toBe(0.75);
     expect(panelDrop({ cabinetTypeId: BASE }, EURO, S)).toBe(0);
+  });
+
+  it('53 stackedSeamReveals', () => {
+    expect(stackedSeamReveals(EURO, S)).toEqual({ upperBottom: 0, lowerTop: 0.125 });
+    expect(stackedSeamReveals(INSET, S)).toEqual({ upperBottom: 0.75, lowerTop: 0.75 });
+    expect(stackedSeamReveals(BEADED, S)).toEqual({ upperBottom: 1, lowerTop: 1 });
+    expect(stackedSeamReveals(EURO, { ...S, stackedUpperBottom: 0.0625 }).upperBottom).toBe(0.0625);
+  });
+
+  it('54 stacked seam rule', () => {
+    const top = cabinetReveals({
+      style: EURO, cabinetTypeId: TALL, face: DOOR,
+      stacked: { top: true, bottom: false }, settings: S,
+    });
+    expect(top.values.top).toBe(0.125);
+    expect(top.sources.top).toBe('rule:stacked-seam');
+    expect(top.sources.bottom).toBe('style');
+
+    const upper = cabinetReveals({
+      style: EURO, cabinetTypeId: UPPER, run: { upperBottom: 'flush' }, face: DOOR,
+      stacked: { top: false, bottom: true }, settings: S,
+    });
+    expect(upper.values.bottom).toBe(0);
+    expect(upper.sources.bottom).toBe('rule:stacked-seam');
+
+    const base = cabinetReveals({
+      style: EURO, cabinetTypeId: BASE, run: { top: 'wood' }, face: DOOR,
+      stacked: { top: true, bottom: false }, settings: S,
+    });
+    expect(base.sources.top).toBe('rule:stacked-seam');
+
+    const inset = cabinetReveals({
+      style: INSET, cabinetTypeId: TALL, face: DOOR,
+      stacked: { top: true, bottom: true }, settings: S,
+    });
+    expect([inset.values.top, inset.values.bottom]).toEqual([0.75, 0.75]);
+
+    const manual = cabinetReveals({
+      style: EURO, cabinetTypeId: TALL, face: DOOR,
+      stacked: { top: false, bottom: true }, manual: { bottom: -0.25 }, settings: S,
+    });
+    expect(manual.values.bottom).toBe(-0.25);
+    expect(manual.sources.bottom).toBe('manual');
   });
 });
 
