@@ -2,6 +2,8 @@
 
 Conventions in `docs/elevation-mvp/PROMPT-CONVENTIONS.md` apply. Run one step per fresh session, and commit pending work first, including these docs and `CELLS-PLAN.md`.
 
+**Branch:** `elevation-grid-run-split`, off `feature/elevation-mvp` at `9d2d166`. All of the cells work, rounds 32–38, runs on this branch; it merges back into `feature/elevation-mvp` only after round 38, if the whole thing works the way Kyle wants.
+
 **Baseline is 522 passing** at `9d2d166` (step 155 added no tests; the commit since is docs only). Confirm with `npm test` first; if it differs, use that number in the prompts instead.
 
 **Codex can't open the app**, so don't plan browser checks. None of these steps changes anything on screen.
@@ -14,7 +16,7 @@ Conventions in `docs/elevation-mvp/PROMPT-CONVENTIONS.md` apply. Run one step pe
 ## Step 156 — The grid module
 
 ```
-Repo: cabinetry_designer, branch feature/elevation-mvp. SPEC: docs/elevation-mvp/SPEC-32.md (§1–§3). Design background, only if a SPEC line is unclear: docs/elevation-mvp/CELLS-PLAN.md "A run is a grid of cells".
+Repo: cabinetry_designer, branch elevation-grid-run-split (off feature/elevation-mvp). SPEC: docs/elevation-mvp/SPEC-32.md (§1–§3). Design background, only if a SPEC line is unclear: docs/elevation-mvp/CELLS-PLAN.md "A run is a grid of cells".
 If `git status` shows uncommitted changes, stop and tell me.
 
 Add a pure module and its tests. NOTHING calls it yet — no existing file changes except one export block.
@@ -49,7 +51,7 @@ At most five lines of summary: what you built, anything in §2/§3 you had to in
 ## Step 157 — Model readers use runItems / runBlind
 
 ```
-Repo: cabinetry_designer, branch feature/elevation-mvp. SPEC: docs/elevation-mvp/SPEC-32.md §4 "Step 157". Step 156 is in (src/elevation/model/grid.js exists).
+Repo: cabinetry_designer, branch elevation-grid-run-split (off feature/elevation-mvp). SPEC: docs/elevation-mvp/SPEC-32.md §4 "Step 157". Step 156 is in (src/elevation/model/grid.js exists).
 If `git status` shows uncommitted changes, stop and tell me.
 
 Mechanical read-switch. NO behavior change, NO test changes. Every stored run still has run.items / run.blind, and runItems(run) / runBlind(run) return exactly those, so the suite must stay identical.
@@ -112,7 +114,7 @@ At most five lines of summary. Commit "elevation-mvp: step 157 model reads runs 
 ## Step 158 — UI readers use runItems / runBlind
 
 ```
-Repo: cabinetry_designer, branch feature/elevation-mvp. SPEC: docs/elevation-mvp/SPEC-32.md §4 "Step 158". Steps 156 and 157 are in.
+Repo: cabinetry_designer, branch elevation-grid-run-split (off feature/elevation-mvp). SPEC: docs/elevation-mvp/SPEC-32.md §4 "Step 158". Steps 156 and 157 are in.
 If `git status` shows uncommitted changes, stop and tell me.
 
 Mechanical read-switch in the UI. NO behavior change, NO test changes.
