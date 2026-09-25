@@ -62,7 +62,7 @@ export default function PieceProperties({
   const { piece, item, side } = selectionContext;
   const numbers = useMemo(() => partNumbers(room, settings), [room, settings]);
   const partKey = piece.id;
-  const partNumberField = (
+  const partNumberField = piece.kind === 'void' || piece.kind === 'shelves' ? null : (
     <PartNumberField
       roomId={room.id}
       partKey={partKey}

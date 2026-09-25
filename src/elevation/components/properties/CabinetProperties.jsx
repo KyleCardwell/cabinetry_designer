@@ -10,6 +10,7 @@ import {
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
+import CellWrapSection from './CellWrapSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import { RUN_TYPES } from './constants.js';
@@ -234,6 +235,7 @@ export default function CabinetProperties({
       </section>
 
       <CellSplitSection wall={wall} run={run} cellId={item.id} nested={false} />
+      <CellWrapSection wall={wall} run={run} cellId={item.id} />
 
       <section className="grid grid-cols-2 gap-2">
         <button

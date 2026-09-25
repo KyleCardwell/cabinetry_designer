@@ -12,7 +12,9 @@ const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hove
 const REMOVE_CLASS = 'rounded bg-red-900/70 px-2.5 py-2 text-xs text-red-100 hover:bg-red-800';
 const NUMBER_CLASS = 'w-16 rounded border border-gray-600 bg-gray-900 px-2 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 
-export default function CellSplitSection({ wall, run, cellId, nested }) {
+export default function CellSplitSection({
+  wall, run, cellId, nested, canSplit = true,
+}) {
   const dispatch = useDispatch();
   const [count, setCount] = useState(2);
   const actionBase = { wallId: wall.id, runId: run.id, cellId };
@@ -24,6 +26,7 @@ export default function CellSplitSection({ wall, run, cellId, nested }) {
 
   return (
     <section className="space-y-2">
+      {canSplit && (
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Split</h3>
         <label className="flex items-center gap-2 text-xs text-gray-300">
@@ -44,6 +47,8 @@ export default function CellSplitSection({ wall, run, cellId, nested }) {
           />
         </label>
       </div>
+      )}
+      {canSplit && (
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={() => split('across')} className={BUTTON_CLASS}>
           Split across
@@ -52,6 +57,7 @@ export default function CellSplitSection({ wall, run, cellId, nested }) {
           Split down
         </button>
       </div>
+      )}
       {nested && (
         <div className="grid grid-cols-3 gap-2">
           <button
