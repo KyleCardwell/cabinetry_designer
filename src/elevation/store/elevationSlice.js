@@ -7,17 +7,23 @@ import {
   gridLeaves,
   insertRootColumn,
   removeRootColumn,
+  resizeGridBlind,
   runItems,
   setGridBlind,
+  setGridCellBlind,
   updateRootItem,
 } from '../model/grid.js';
 import {
   equalizeGridCells,
   findCell,
   removeGridCell,
+  setGridCellDepth,
+  setGridCellKind,
+  setGridShelves,
   setGridTrackSize,
   splitGridCell,
   unsplitGridCell,
+  wrapGridCell,
 } from '../model/cellTree.js';
 import { isJointAnchor } from '../model/joints.js';
 import {
@@ -1095,7 +1101,7 @@ const elevationSlice = createSlice({
       const { side, width } = action.payload;
       if (!location || (side !== 'left' && side !== 'right')) return;
       const run = location.run;
-      run.grid = setGridBlind(run.grid, side, width);
+      run.grid = resizeGridBlind(run.grid, side, width);
     },
     setRunEndFiller(state, action) {
       const location = runLocation(state, action.payload);
@@ -1317,6 +1323,66 @@ const elevationSlice = createSlice({
       location.run.grid = grid;
       syncRoomAt(state, location.roomIndex);
     },
+    setCellBlind(state, action) {
+      const location = runLocation(state, action.payload);
+      const { cellId, side, width } = action.payload;
+      if (!location || location.run.ends[side]?.type !== 'blind') return;
+      const before = location.run.grid;
+      const grid = setGridCellBlind(before, cellId, side, width ?? null);
+      if (grid === before) return;
+      location.run.grid = grid;
+    },
+    setCellKind(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { cellId, kind } = action.payload;
+      const before = location.run.grid;
+      const grid = setGridCellKind(before, cellId, kind);
+      if (grid === before) return;
+      location.run.grid = grid;
+      if (state.selection.pieceId === cellId && kind !== 'cabinet') state.facePath = null;
+      syncRoomAt(state, location.roomIndex);
+    },
+    setCellDepth(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { cellId } = action.payload;
+      const patch = {};
+      if (Object.hasOwn(action.payload, 'depth')) {
+        const depth = action.payload.depth ?? null;
+        if (depth !== null && depth > location.run.depth + 1e-6) return;
+        patch.depth = depth;
+      }
+      if (Object.hasOwn(action.payload, 'align')) patch.align = action.payload.align ?? null;
+      const before = location.run.grid;
+      const grid = setGridCellDepth(before, cellId, patch);
+      if (grid === before) return;
+      location.run.grid = grid;
+    },
+    setCellShelves(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { cellId } = action.payload;
+      const patch = {};
+      if (Object.hasOwn(action.payload, 'count')) patch.count = action.payload.count;
+      if (Object.hasOwn(action.payload, 'back')) patch.back = action.payload.back;
+      const before = location.run.grid;
+      const grid = setGridShelves(before, cellId, patch);
+      if (grid === before) return;
+      location.run.grid = grid;
+    },
+    wrapCell(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { cellId, through, bottom = false } = action.payload;
+      const before = location.run.grid;
+      const grid = wrapGridCell(
+        before, cellId, through, state.settings.endPanelThickness, uuid, Boolean(bottom),
+      );
+      if (grid === before) return;
+      location.run.grid = grid;
+      syncRoomAt(state, location.roomIndex);
+    },
     setItemFace(state, action) {
       const location = runLocation(state, action.payload);
       if (!location) return;
@@ -1508,6 +1574,11 @@ export const {
   equalizeCells,
   unsplitCell,
   setTrackSize,
+  setCellBlind,
+  setCellKind,
+  setCellDepth,
+  setCellShelves,
+  wrapCell,
   setItemFace,
   setRoomStyle,
   setRunStyle,

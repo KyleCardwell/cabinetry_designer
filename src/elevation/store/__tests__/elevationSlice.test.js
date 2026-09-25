@@ -37,6 +37,10 @@ import elevationReducer, {
   removeItem,
   replaceRun,
   resizeRun,
+  setCellBlind,
+  setCellDepth,
+  setCellKind,
+  setCellShelves,
   setOpeningMeasureMode,
   setOpeningOffsetAnchor,
   setOpeningOffsetSide,
@@ -78,6 +82,7 @@ import elevationReducer, {
   unlockItem,
   unsplitCell,
   useAutoHeightsForRoom,
+  wrapCell,
 } from '../elevationSlice.js';
 
 function auto(id) {
@@ -2063,5 +2068,77 @@ describe('SPEC-33 cell reducers', () => {
       'a', leaves[1].id,
     ]);
     expect(runBlind(currentRun(state))).toEqual({ left: 36, right: null });
+  });
+});
+
+describe('SPEC-34 cell kind reducers', () => {
+  const actionBase = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
+  const BLIND_ENDS = { left: { type: 'blind', width: null }, right: { type: 'filler', width: null } };
+  const splitA = (overrides = {}) => elevationReducer(stateWithRun(run({
+    autoCount: false, items: [fixed('a', 30), auto('b')], ...overrides,
+  })), splitCell({ ...actionBase, cellId: 'a', direction: 'down', count: 2 }));
+  const stackOf = (state) => currentRun(state).grid.cells[0].node;
+  const leafOf = (state, id) => gridLeaves(currentRun(state).grid).find((leaf) => leaf.id === id);
+  const blindIds = (state) => gridLeaves(currentRun(state).grid)
+    .filter((leaf) => leaf.blind).map((leaf) => leaf.id);
+
+  it('sets blind per cell, and the run field resizes only blind cells', () => {
+    let state = splitA({ ends: BLIND_ENDS, blind: { left: 36, right: null } });
+    const lower = stackOf(state).cells[1].node.id;
+    expect(blindIds(state)).toEqual(['a', lower]);
+    state = elevationReducer(state, setCellBlind({ ...actionBase, cellId: lower, side: 'left', width: null }));
+    expect(blindIds(state)).toEqual(['a']);
+    state = elevationReducer(state, setRunBlind({ ...actionBase, side: 'left', width: 30 }));
+    expect(leafOf(state, 'a').blind).toEqual({ left: 30 });
+    expect(blindIds(state)).toEqual(['a']);
+    expect(elevationReducer(state, setCellBlind({ ...actionBase, cellId: 'b', side: 'right', width: 30 })))
+      .toBe(state);
+  });
+
+  it('changes a cell\'s kind and clears the face path', () => {
+    let state = splitA();
+    const lower = stackOf(state).cells[1].node.id;
+    state = elevationReducer(state, setSelection({ runId: 'run-1', pieceId: lower }));
+    state = elevationReducer(state, setFacePath('r'));
+    state = elevationReducer(state, setCellKind({ ...actionBase, cellId: lower, kind: 'shelves' }));
+    expect(leafOf(state, lower)).toEqual({ id: lower, kind: 'shelves', shelves: { count: 2, back: false } });
+    expect(state.facePath).toBeNull();
+    expect(elevationReducer(state, setCellKind({ ...actionBase, cellId: 'b', kind: 'panel' }))).toBe(state);
+  });
+
+  it('sets shelves count and back', () => {
+    let state = splitA();
+    const lower = stackOf(state).cells[1].node.id;
+    state = elevationReducer(state, setCellKind({ ...actionBase, cellId: lower, kind: 'shelves' }));
+    state = elevationReducer(state, setCellShelves({ ...actionBase, cellId: lower, count: 4, back: true }));
+    expect(leafOf(state, lower).shelves).toEqual({ count: 4, back: true });
+    expect(elevationReducer(state, setCellShelves({ ...actionBase, cellId: lower, count: Number.NaN })))
+      .toBe(state);
+  });
+
+  it('sets depth and align, never deeper than the run', () => {
+    let state = splitA();
+    const lower = stackOf(state).cells[1].node.id;
+    state = elevationReducer(state, setCellDepth({ ...actionBase, cellId: lower, depth: 21, align: 'back' }));
+    expect(leafOf(state, lower)).toMatchObject({ depth: 21, align: 'back' });
+    expect(elevationReducer(state, setCellDepth({ ...actionBase, cellId: lower, depth: 30 }))).toBe(state);
+    state = elevationReducer(state, setCellDepth({ ...actionBase, cellId: lower, depth: null }));
+    expect(leafOf(state, lower)).not.toHaveProperty('depth');
+    expect(leafOf(state, lower).align).toBe('back');
+  });
+
+  it('wraps a cell in panels at the run\'s end panel thickness', () => {
+    const state = elevationReducer(
+      stateWithRun(run({ autoCount: false, items: [fixed('a', 30), auto('b')] })),
+      wrapCell({ ...actionBase, cellId: 'a', through: 'sides', bottom: true }),
+    );
+    const outer = stackOf(state);
+    expect(currentRun(state).grid.cols[0]).toEqual({ id: `${outer.id}:col`, size: 30, sizeMode: 'manual' });
+    expect(outer.cols.map((col) => col.size)).toEqual([0.75, null, 0.75]);
+    expect(outer.cells.map((entry) => entry.node.kind ?? 'grid')).toEqual(['panel', 'grid', 'panel']);
+    const inner = outer.cells[1].node;
+    expect(inner.rows.map((row) => row.size)).toEqual([0.75, null, 0.75]);
+    expect(inner.cells.map((entry) => entry.node.id === 'a' ? 'a' : entry.node.kind))
+      .toEqual(['panel', 'a', 'panel']);
   });
 });
