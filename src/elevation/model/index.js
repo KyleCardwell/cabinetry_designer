@@ -247,9 +247,12 @@ export {
 } from './room.js';
 export {
   cloneGrid,
+  edgeLeaves,
   gridFromItems,
+  gridLeaves,
   insertRootColumn,
   isGridShape,
+  isNestedGrid,
   LEAF_KINDS,
   mirrorGrid,
   removeRootColumn,
@@ -261,3 +264,14 @@ export {
   SIZE_MODES,
   updateRootItem,
 } from './grid.js';
+export {
+  CELL_DIRECTIONS,
+  equalizeGridCells,
+  findCell,
+  findLeaf,
+  MAX_CELL_SPLIT,
+  removeGridCell,
+  setGridTrackSize,
+  splitGridCell,
+  unsplitGridCell,
+} from './cellTree.js';

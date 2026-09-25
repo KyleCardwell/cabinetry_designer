@@ -4,13 +4,14 @@ export const SIZE_MODES = ['auto', 'manual', 'solved'];
 function itemParts(item) {
   const leaf = {};
   for (const [key, value] of Object.entries(item)) {
-    if (!['width', 'pin', 'absorb', 'blind'].includes(key)) leaf[key] = value;
+    if (!['width', 'pin', 'absorb', 'blind', 'grid'].includes(key)) leaf[key] = value;
   }
-  const col = { id: `${leaf.id}:col`, size: item.width,
+  const col = { id: `${item.id}:col`, size: item.width,
     sizeMode: item.width === null ? 'auto' : 'manual' };
   if (item.pin !== undefined) col.pin = item.pin;
   if (item.absorb !== undefined) col.absorb = item.absorb;
-  return { col, leaf };
+  const node = item.grid ?? leaf;
+  return { col, node };
 }
 
 function rootCell(grid, col) {
@@ -18,7 +19,7 @@ function rootCell(grid, col) {
 }
 
 function cellsFromParts(parts) {
-  return parts.map(({ leaf }, col) => ({ col, row: 0, colSpan: 1, rowSpan: 1, node: leaf }));
+  return parts.map(({ node }, col) => ({ col, row: 0, colSpan: 1, rowSpan: 1, node }));
 }
 
 function restoreBlind(grid, blind) {
@@ -40,8 +41,28 @@ function setKey(object, key, value) {
   return next;
 }
 
-function isNestedGrid(node) {
+export function isNestedGrid(node) {
   return node != null && typeof node === 'object' && 'cols' in node;
+}
+
+function orderedCells(grid) {
+  return [...grid.cells].sort((a, b) => a.row - b.row || a.col - b.col);
+}
+
+/** Every leaf under a node, depth first; a grid's cells in (row, col) order. Same references. */
+export function gridLeaves(node) {
+  if (!isNestedGrid(node)) return [node];
+  return orderedCells(node).flatMap((cell) => gridLeaves(cell.node));
+}
+
+/** The leaves touching a node's left or right edge, in (row, col) order. A leaf → [leaf]. */
+export function edgeLeaves(node, side) {
+  if (!isNestedGrid(node)) return [node];
+  return orderedCells(node)
+    .filter((cell) => (side === 'left'
+      ? cell.col === 0
+      : cell.col + cell.colSpan === node.cols.length))
+    .flatMap((cell) => edgeLeaves(cell.node, side));
 }
 
 function cloneTrack(track) {
@@ -92,9 +113,15 @@ export function gridFromItems(runId, items, blind) {
 
 export function rootItems(grid) {
   return grid.cols.map((col, index) => {
-    const leaf = { ...rootCell(grid, index).node };
-    delete leaf.blind;
-    const item = { ...leaf, width: col.size };
+    const node = rootCell(grid, index).node;
+    let item;
+    if (isNestedGrid(node)) {
+      item = { id: node.id, kind: 'cabinet', grid: node, width: col.size };
+    } else {
+      const leaf = { ...node };
+      delete leaf.blind;
+      item = { ...leaf, width: col.size };
+    }
     if (col.pin !== undefined) item.pin = col.pin;
     if (col.absorb !== undefined) item.absorb = col.absorb;
     return item;
@@ -108,10 +135,41 @@ export function runItems(run) {
 export function runBlind(run) {
   if (run.blind != null) return run.blind;
   if (!run.grid || run.grid.cols.length === 0) return undefined;
-  const left = rootCell(run.grid, 0)?.node?.blind?.left;
-  const right = rootCell(run.grid, run.grid.cols.length - 1)?.node?.blind?.right;
+  const left = edgeLeaves(rootCell(run.grid, 0).node, 'left')
+    .find((leaf) => leaf.blind?.left != null)?.blind.left;
+  const right = edgeLeaves(rootCell(run.grid, run.grid.cols.length - 1).node, 'right')
+    .find((leaf) => leaf.blind?.right != null)?.blind.right;
   if (left == null && right == null) return undefined;
   return { left: left ?? null, right: right ?? null };
+}
+
+function setNodeBlind(node, side, width, validWidth) {
+  if (!isNestedGrid(node)) {
+    const blind = { ...node.blind };
+    if (validWidth) {
+      if (Object.is(blind[side], width)) return node;
+      blind[side] = width;
+    } else {
+      if (!Object.hasOwn(blind, side)) return node;
+      delete blind[side];
+    }
+    const next = { ...node };
+    if (Object.keys(blind).length) next.blind = blind;
+    else delete next.blind;
+    return next;
+  }
+  let changed = false;
+  const cells = node.cells.map((cell) => {
+    const touches = side === 'left'
+      ? cell.col === 0
+      : cell.col + cell.colSpan === node.cols.length;
+    if (!touches) return cell;
+    const child = setNodeBlind(cell.node, side, width, validWidth);
+    if (child === cell.node) return cell;
+    changed = true;
+    return { ...cell, node: child };
+  });
+  return changed ? { ...node, cells } : node;
 }
 
 export function setGridBlind(grid, side, width) {
@@ -121,17 +179,8 @@ export function setGridBlind(grid, side, width) {
   if (cellIndex < 0) return grid;
   const cell = grid.cells[cellIndex];
   const validWidth = typeof width === 'number' && Number.isFinite(width) && width > 0;
-  const blind = { ...cell.node.blind };
-  if (validWidth) {
-    if (Object.is(blind[side], width)) return grid;
-    blind[side] = width;
-  } else {
-    if (!Object.hasOwn(blind, side)) return grid;
-    delete blind[side];
-  }
-  const node = { ...cell.node };
-  if (Object.keys(blind).length) node.blind = blind;
-  else delete node.blind;
+  const node = setNodeBlind(cell.node, side, width, validWidth);
+  if (node === cell.node) return grid;
   const cells = [...grid.cells];
   cells[cellIndex] = { ...cell, node };
   return { ...grid, cells };
