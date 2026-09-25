@@ -4,7 +4,8 @@ import {
   DEFAULT_SETTINGS,
 } from '../model/constants.js';
 import { isFaceNode } from '../model/faces.js';
-import { isGridShape, rootItems } from '../model/grid.js';
+import { MAX_SHELVES } from '../model/cellTree.js';
+import { LEAF_KINDS, isGridShape, rootItems } from '../model/grid.js';
 import {
   REVEAL_KEYS,
   RUN_TOP_OPTIONS,
@@ -24,6 +25,13 @@ export const ELEVATION_SCHEMA_VERSION = 4;
 
 const END_TYPES = new Set(['filler', 'end_panel', 'none', 'blind']);
 const ITEM_KINDS = new Set(['cabinet', 'filler']);
+const LEAF_KIND_SET = new Set(LEAF_KINDS);
+/** Keys each non-cabinet cell kind may carry. */
+const CELL_KIND_KEYS = {
+  panel: ['id', 'kind', 'depth', 'align'],
+  void: ['id', 'kind'],
+  shelves: ['id', 'kind', 'depth', 'align', 'shelves'],
+};
 const PIN_ANCHORS = new Set(['center', 'left', 'right']);
 const PIN_DATUMS = new Set(['left', 'right', 'opening']);
 const OPENING_PIN_ANCHORS = new Set([
@@ -217,14 +225,29 @@ function isLeafBlind(blind) {
 
 function isLeaf(leaf) {
   return Boolean(leaf) && typeof leaf.id === 'string'
-    && ITEM_KINDS.has(leaf.kind) && isLeafBlind(leaf.blind);
+    && LEAF_KIND_SET.has(leaf.kind) && isLeafBlind(leaf.blind);
 }
 
+function isShelves(shelves) {
+  return Boolean(shelves) && typeof shelves === 'object' && !Array.isArray(shelves)
+    && Object.keys(shelves).every((key) => key === 'count' || key === 'back')
+    && Number.isInteger(shelves.count) && shelves.count >= 1 && shelves.count <= MAX_SHELVES
+    && typeof shelves.back === 'boolean';
+}
+
+/** SPEC-34 cells: cabinets as before, plus panel, void and shelves; depth and align on any but a void. */
 function isCellLeaf(leaf) {
-  return leaf.kind === 'cabinet' && isItem({ ...leaf, width: null });
+  const depthOk = (leaf.depth === undefined || (isFiniteNumber(leaf.depth) && leaf.depth > 0))
+    && (leaf.align === undefined || leaf.align === 'face' || leaf.align === 'back');
+  if (!depthOk) return false;
+  if (leaf.kind === 'cabinet') return isItem({ ...leaf, width: null });
+  const keys = CELL_KIND_KEYS[leaf.kind];
+  return Boolean(keys)
+    && Object.keys(leaf).every((key) => keys.includes(key))
+    && (leaf.kind !== 'shelves' || isShelves(leaf.shelves));
 }
 
-/** SPEC-33 nested grids: one column of 2+ rows or one row of 2+ columns, no spans, cabinet leaves. */
+/** SPEC-33 nested grids: one column of 2+ rows or one row of 2+ columns, no spans. */
 function isCellGrid(grid) {
   const stack = grid.cols.length === 1 && grid.rows.length >= 2;
   const row = grid.rows.length === 1 && grid.cols.length >= 2;

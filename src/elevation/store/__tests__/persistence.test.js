@@ -839,3 +839,63 @@ describe('SPEC-33 split columns', () => {
     expect(toElevationDocument(state).rooms).toEqual(splitDocument().rooms);
   });
 });
+
+describe('SPEC-34 cell kinds', () => {
+  const cellAt = (row, node) => ({ col: 0, row, colSpan: 1, rowSpan: 1, node });
+  const KINDS = {
+    id: 'k',
+    cols: [{ id: 'k:c', size: null, sizeMode: 'auto' }],
+    rows: ['k:r0', 'k:r1', 'k:r2', 'k:r3'].map((id) => ({ id, size: null, sizeMode: 'auto' })),
+    cells: [
+      cellAt(0, { id: 'sh', kind: 'shelves', shelves: { count: 3, back: true }, depth: 12, align: 'back' }),
+      cellAt(1, { id: 'ov', kind: 'cabinet', depth: 21, align: 'back', blind: { left: 30 } }),
+      cellAt(2, { id: 'op', kind: 'void' }),
+      cellAt(3, { id: 'bp', kind: 'panel', depth: 0.75, align: 'back' }),
+    ],
+  };
+  function kindDocument() {
+    const document = currentDocument();
+    const run = document.rooms[0].walls[0].runs[0];
+    run.grid.cols[0] = { id: 'k:col', size: 45, sizeMode: 'manual' };
+    run.grid.cells[0].node = structuredClone(KINDS);
+    return document;
+  }
+
+  it('saves and loads panel, void and shelves cells with depth and align', () => {
+    expect(isElevationDocument(kindDocument())).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(kindDocument())]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(kindDocument()));
+  });
+
+  it('rejects cells that break the kind rules', () => {
+    const rejects = (mutate) => {
+      const document = kindDocument();
+      mutate(document.rooms[0].walls[0].runs[0].grid.cells[0].node.cells.map((entry) => entry.node));
+      expect(isElevationDocument(document)).toBe(false);
+    };
+    rejects(([, , open]) => { open.depth = 12; });
+    rejects(([, , , panel]) => { panel.face = { type: 'door', size: null }; });
+    rejects(([, , , panel]) => { panel.blind = { left: 30 }; });
+    rejects(([, , , panel]) => { panel.kind = 'shelf'; });
+    rejects(([shelves]) => { shelves.shelves = { count: 0, back: true }; });
+    rejects(([shelves]) => { shelves.shelves = { count: 2.5, back: true }; });
+    rejects(([shelves]) => { shelves.shelves = { count: 13, back: false }; });
+    rejects(([shelves]) => { shelves.shelves = { count: 2 }; });
+    rejects(([shelves]) => { shelves.shelves = { count: 2, back: true, gap: 1 }; });
+    rejects(([shelves]) => { delete shelves.shelves; });
+    rejects(([, oven]) => { oven.depth = 0; });
+    rejects(([, oven]) => { oven.align = 'middle'; });
+    const root = currentDocument();
+    root.rooms[0].walls[0].runs[0].grid.cells[0].node.kind = 'panel';
+    expect(isElevationDocument(root)).toBe(false);
+  });
+
+  it('the store loads kinds unchanged', () => {
+    const document = kindDocument();
+    const state = createInitialElevationState(document);
+    expect(state.rooms[0].walls[0].runs[0].grid).toEqual(document.rooms[0].walls[0].runs[0].grid);
+    expect(toElevationDocument(state).rooms).toEqual(kindDocument().rooms);
+  });
+});
