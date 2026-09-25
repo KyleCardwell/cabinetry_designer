@@ -245,3 +245,19 @@ export {
   syncRoom,
   tryPlaceRun,
 } from './room.js';
+export {
+  cloneGrid,
+  gridFromItems,
+  insertRootColumn,
+  isGridShape,
+  LEAF_KINDS,
+  mirrorGrid,
+  removeRootColumn,
+  replaceRootItems,
+  rootItems,
+  runBlind,
+  runItems,
+  setGridBlind,
+  SIZE_MODES,
+  updateRootItem,
+} from './grid.js';
