@@ -1,5 +1,5 @@
-import { isNestedGrid, removeRootColumn, replaceRootItems, rootItems, runBlind,
-  setGridBlind } from './grid.js';
+import { isNestedGrid, rehomeBlind, removeRootColumn, replaceRootItems,
+  rootItems } from './grid.js';
 
 /** Maximum number of cells created by one split. */
 export const MAX_CELL_SPLIT = 8;
@@ -50,32 +50,11 @@ function replaceNestedGrid(root, target, replacement) {
   return visit(root, true);
 }
 
-function stripBlind(node) {
-  if (!isNestedGrid(node)) {
-    if (!Object.hasOwn(node, 'blind')) return node;
-    const next = { ...node };
-    delete next.blind;
-    return next;
-  }
-  let changed = false;
-  const cells = node.cells.map((cell) => {
-    const child = stripBlind(cell.node);
-    if (child === cell.node) return cell;
-    changed = true;
-    return { ...cell, node: child };
-  });
-  return changed ? { ...node, cells } : node;
-}
-
-function rehomeBlind(grid, blind) {
-  let next = stripBlind(grid);
-  if (blind?.left != null) next = setGridBlind(next, 'left', blind.left);
-  if (blind?.right != null) next = setGridBlind(next, 'right', blind.right);
-  return next;
-}
-
 function copiedStyle(leaf) {
-  return Object.hasOwn(leaf, 'style') ? { style: leaf.style } : {};
+  return {
+    ...(Object.hasOwn(leaf, 'style') ? { style: leaf.style } : {}),
+    ...(Object.hasOwn(leaf, 'blind') ? { blind: leaf.blind } : {}),
+  };
 }
 
 function replaceCell(parent, cellIndex, node, renameColumn) {
@@ -138,14 +117,13 @@ export function splitGridCell(grid, leafId, direction, count, makeId) {
   const found = locate(grid, leafId);
   if (!found || isNestedGrid(found.cell.node) || found.cell.node.kind !== 'cabinet') return grid;
   const total = Math.min(MAX_CELL_SPLIT, Math.max(2, Math.round(count)));
-  const blind = runBlind({ grid });
   if (found.depth === 0 && direction === 'across') {
     const items = rootItems(grid);
     const item = { ...items[found.cell.col], width: null };
     const additions = Array.from({ length: total - 1 }, () => (
       { id: makeId(), kind: 'cabinet', width: null, ...copiedStyle(found.cell.node) }));
     items.splice(found.cell.col, 1, item, ...additions);
-    return rehomeBlind(replaceRootItems(grid, items), blind);
+    return replaceRootItems(grid, items);
   }
   let next;
   if (found.depth > 0 && found.axis === splitAxis(direction)) {
@@ -155,7 +133,7 @@ export function splitGridCell(grid, leafId, direction, count, makeId) {
     const parent = replaceCell(found.parent, found.cellIndex, node, found.depth === 0);
     next = found.depth === 0 ? parent : replaceNestedGrid(grid, found.parent, parent);
   }
-  return rehomeBlind(next, blind);
+  return rehomeBlind(grid, next);
 }
 
 function flattenInto(parent, owner, child) {
@@ -176,8 +154,7 @@ function flattenInto(parent, owner, child) {
 export function removeGridCell(grid, leafId) {
   const found = locate(grid, leafId);
   if (!found || isNestedGrid(found.cell.node)) return grid;
-  const blind = runBlind({ grid });
-  if (found.depth === 0) return rehomeBlind(removeRootColumn(grid, leafId), blind);
+  if (found.depth === 0) return removeRootColumn(grid, leafId);
   const { parent, axis, cellIndex } = found;
   const key = trackKey(axis);
   const at = found.cell[axis];
@@ -199,7 +176,7 @@ export function removeGridCell(grid, leafId) {
       next = replaceNestedGrid(grid, parent, survivor);
     }
   }
-  return rehomeBlind(next, blind);
+  return rehomeBlind(grid, next);
 }
 
 /** Makes every track on a nested leaf's parent axis automatic. */
@@ -221,8 +198,7 @@ export function equalizeGridCells(grid, leafId) {
 export function unsplitGridCell(grid, leafId) {
   const found = locate(grid, leafId);
   if (!found || found.depth === 0 || isNestedGrid(found.cell.node)) return grid;
-  const blind = runBlind({ grid });
-  return rehomeBlind(replaceNestedGrid(grid, found.parent, found.cell.node), blind);
+  return rehomeBlind(grid, replaceNestedGrid(grid, found.parent, found.cell.node));
 }
 
 /** Sets any root or nested track to automatic or a positive manual size. */

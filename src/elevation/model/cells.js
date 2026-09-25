@@ -90,6 +90,7 @@ function resolveGrid(grid, piece, rectangle, depth, grids) {
       height,
       depth: piece.depth,
       auto: track.size === null,
+      ...(cell.node.blind ? { blind: { ...cell.node.blind } } : {}),
     });
   }
 
@@ -163,12 +164,13 @@ export function blindCellWidths(pieces, columns, entries) {
     if (!column) continue;
 
     for (const entry of entries) {
-      if (entry.pieceId !== piece.columnId) continue;
+      const boxWidth = piece.blind?.[entry.side];
+      if (entry.pieceId !== piece.columnId || !(boxWidth > 0)) continue;
       const touches = entry.side === 'left'
         ? Math.abs(piece.x - column.x) <= EPSILON
         : entry.side === 'right'
           && Math.abs(piece.x + piece.width - column.x - column.width) <= EPSILON;
-      if (touches) result.set(piece.id, piece.width + entry.boxWidth - column.width);
+      if (touches) result.set(piece.id, piece.width + boxWidth - column.width);
     }
   }
 

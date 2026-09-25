@@ -89,14 +89,20 @@ describe('cells', () => {
     expect(stackedSides(pieces, 'zz')).toEqual({ top: false, bottom: false });
   });
 
-  it('resolves blind cell widths', () => {
-    const { pieces } = cellPieces(RUN, LAYOUT);
+  it('resolves blind cell widths from each cell', () => {
+    const blindStack = structuredClone(STACK);
+    blindStack.cells[0].node.blind = { left: 80, right: 96 };
+    blindStack.cells[1].node.cells[1].node.blind = { right: 96 };
+    const blindRun = { ...RUN, grid: { ...GRID, cells: [GRID.cells[0], cell(1, 0, blindStack)] } };
+    const { pieces } = cellPieces(blindRun, LAYOUT);
+    expect(pieces.find((piece) => piece.id === 't').blind).toEqual({ left: 80, right: 96 });
+    expect(pieces.find((piece) => piece.id === 'p')).not.toHaveProperty('blind');
     expect(blindCellWidths(pieces, LAYOUT.pieces, [
       { side: 'right', pieceId: 'g1', boxWidth: 96 },
     ])).toEqual(new Map([['t', 96], ['q', 60]]));
     expect(blindCellWidths(pieces, LAYOUT.pieces, [
-      { side: 'left', pieceId: 'g1', boxWidth: 96 },
-    ])).toEqual(new Map([['p', 60], ['t', 96]]));
+      { side: 'left', pieceId: 'g1', boxWidth: 80 },
+    ])).toEqual(new Map([['t', 80]]));
     expect(blindCellWidths(pieces, LAYOUT.pieces, [
       { side: 'left', pieceId: 'a', boxWidth: 96 },
     ])).toEqual(new Map());

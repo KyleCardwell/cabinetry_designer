@@ -246,6 +246,7 @@ export {
   tryPlaceRun,
 } from './room.js';
 export {
+  cellBlindSides,
   cloneGrid,
   edgeLeaves,
   gridFromItems,
@@ -255,12 +256,15 @@ export {
   isNestedGrid,
   LEAF_KINDS,
   mirrorGrid,
+  rehomeBlind,
   removeRootColumn,
   replaceRootItems,
+  resizeGridBlind,
   rootItems,
   runBlind,
   runItems,
   setGridBlind,
+  setGridCellBlind,
   SIZE_MODES,
   updateRootItem,
 } from './grid.js';

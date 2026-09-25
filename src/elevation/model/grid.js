@@ -186,6 +186,94 @@ export function setGridBlind(grid, side, width) {
   return { ...grid, cells };
 }
 
+function mapLeaves(node, fn) {
+  if (!isNestedGrid(node)) return fn(node);
+  let changed = false;
+  const cells = node.cells.map((cell) => {
+    const child = mapLeaves(cell.node, fn);
+    if (child === cell.node) return cell;
+    changed = true;
+    return { ...cell, node: child };
+  });
+  return changed ? { ...node, cells } : node;
+}
+
+function withBlindSide(leaf, side, width) {
+  if (width === null) {
+    if (!leaf.blind || !Object.hasOwn(leaf.blind, side)) return leaf;
+    const blind = { ...leaf.blind };
+    delete blind[side];
+    const next = { ...leaf };
+    if (Object.keys(blind).length) next.blind = blind;
+    else delete next.blind;
+    return next;
+  }
+  if (Object.is(leaf.blind?.[side], width)) return leaf;
+  return { ...leaf, blind: { ...leaf.blind, [side]: width } };
+}
+
+function outerNode(grid, side) {
+  if (grid.cols.length === 0) return null;
+  return rootCell(grid, side === 'left' ? 0 : grid.cols.length - 1)?.node ?? null;
+}
+
+function edgeIds(grid, side) {
+  const node = outerNode(grid, side);
+  return new Set(node ? edgeLeaves(node, side).map((leaf) => leaf.id) : []);
+}
+
+/**
+ * Round 34: after a structural edit, each leaf still on an outer edge keeps its own blind;
+ * a wholly new outer edge takes the run's blind on every edge leaf; other leaves lose it.
+ */
+export function rehomeBlind(before, after) {
+  const previous = runBlind({ grid: before });
+  const beforeLeaves = new Map(gridLeaves(before).map((leaf) => [leaf.id, leaf]));
+  let next = after;
+  for (const side of ['left', 'right']) {
+    const width = previous?.[side] ?? null;
+    const oldEdge = edgeIds(before, side);
+    const newEdge = edgeIds(next, side);
+    const kept = [...newEdge].some((id) => oldEdge.has(id));
+    next = mapLeaves(next, (leaf) => {
+      if (width === null || !newEdge.has(leaf.id)) return withBlindSide(leaf, side, null);
+      if (!kept) return withBlindSide(leaf, side, width);
+      if (oldEdge.has(leaf.id)) {
+        return withBlindSide(leaf, side, beforeLeaves.get(leaf.id)?.blind?.[side] ?? null);
+      }
+      return leaf;
+    });
+  }
+  return next;
+}
+
+/** The outer sides ('left', 'right') whose edge leaves include this leaf. */
+export function cellBlindSides(grid, leafId) {
+  return ['left', 'right'].filter((side) => edgeIds(grid, side).has(leafId));
+}
+
+/** Sets or clears one edge cabinet leaf's blind; same reference when nothing changes. */
+export function setGridCellBlind(grid, leafId, side, width) {
+  if (side !== 'left' && side !== 'right') return grid;
+  const valid = typeof width === 'number' && Number.isFinite(width) && width > 0;
+  if (!valid && width !== null) return grid;
+  if (!edgeIds(grid, side).has(leafId)) return grid;
+  return mapLeaves(grid, (leaf) => (
+    leaf.id === leafId && leaf.kind === 'cabinet' ? withBlindSide(leaf, side, width) : leaf));
+}
+
+/** The run's blind width field: resizes the blind edge leaves, or sets every edge leaf when none is blind. */
+export function resizeGridBlind(grid, side, width) {
+  const valid = typeof width === 'number' && Number.isFinite(width) && width > 0;
+  const node = outerNode(grid, side);
+  if (!valid || !node) return setGridBlind(grid, side, width);
+  const blindIds = new Set(edgeLeaves(node, side)
+    .filter((leaf) => leaf.blind?.[side] != null)
+    .map((leaf) => leaf.id));
+  if (blindIds.size === 0) return setGridBlind(grid, side, width);
+  return mapLeaves(grid, (leaf) => (blindIds.has(leaf.id) ? withBlindSide(leaf, side, width) : leaf));
+}
+
 export function insertRootColumn(grid, index, item) {
   const items = rootItems(grid);
   const at = Math.max(0, Math.min(index, items.length));
@@ -231,7 +319,6 @@ export function updateRootItem(grid, leafId, patch) {
 
 export function replaceRootItems(grid, items) {
   if (grid.rows.length !== 1) throw new Error('replaceRootItems needs a one-row grid');
-  const blind = runBlind({ grid });
   const parts = items.map(itemParts);
   const next = {
     ...grid,
@@ -239,7 +326,7 @@ export function replaceRootItems(grid, items) {
     rows: grid.rows,
     cells: cellsFromParts(parts),
   };
-  return restoreBlind(next, blind);
+  return rehomeBlind(grid, next);
 }
 
 export function cloneGrid(grid) {
