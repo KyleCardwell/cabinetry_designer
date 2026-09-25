@@ -8,18 +8,18 @@ Round 32 changes what a run *stores*, and nothing a user can see. `run.items` an
 replaced by `run.grid`. Every existing layout resolves exactly as before.
 
 `run.items` has 54 source references and ~100 test fixtures, so per PROMPT-CONVENTIONS rules 4 and 8
-the round is five small steps, each green on its own:
+the round is six small steps, each green on its own:
 
 | Step | What | Files |
 |---|---|---|
 | **156** | `model/grid.js`: the shape, its constructors, the item view, blind, pure edit helpers, a validator. New file + its test file. Nothing calls it yet. | 2 new, `model/index.js` |
 | **157** | Model readers switch from `run.items` / `run.blind` to `runItems(run)` / `runBlind(run)`. 17 sites. | `splitRun`, `room`, `dimensions`, `faceLayouts`, `blind` |
 | **158** | UI readers switch the same way. 13 sites. | `helpers`, `ElevationCanvas`, `RunGroup`, 4 files in `properties/` |
-| **159** | Disk format v4: saved runs hold `grid`, v3 migrates. The store still holds items; persistence converts at the boundary. | `persistence.js` + its test |
-| **160** | The store flips to `grid`. Writers use the grid helpers, the adapter from 159 goes. | slice, `runDefaults`, `splitRun.syncAutoItems`, `room` clone/mirror |
+| **159** | Saves become v4: runs hold `grid`. All old-save migration (v1–v3) is deleted — nothing saved is worth keeping. The store still holds items; two small adapters convert at load and save. | `persistence.js` + its test, 2 lines in the slice |
+| **160** | Prep for the flip, no behavior change: `syncAutoItems`, `cloneRun` and the mirror accept grid runs; store tests read through `runItems`. | `splitRun`, `room`, 1 new test file, `elevationSlice.test` |
+| **161** | The store flips to `grid`. Slice writers use the grid helpers; `createRun` builds a grid; the 159 adapters go. Last step of round 32. | slice, `runDefaults`, `persistence` + both store test files |
 
-Prompts for 156–158 are in `PROMPTS-32.md`. 159 and 160 get theirs after 158 lands, with line
-numbers taken from that commit.
+All six prompts are in `PROMPTS-32.md`. Round 33 starts after 161.
 
 ## After this round you can
 
@@ -295,21 +295,493 @@ and the rest write. They flip in 160. Also `persistence.js` (159) and `runDefaul
 
 ---
 
-## §5 Steps 159 and 160 (prompts later)
+## §5 Step 159 — saves become v4 grids; old-save migration goes
 
-- **159 — disk v4.** `ELEVATION_SCHEMA_VERSION` 3 → 4. A saved run holds `grid` and no `items` /
-  `blind`; `isV4Run` validates with `isGridShape` and an `isLeaf` built from today's `isItem` rules
-  (face, style, reveals on cabinet leaves) plus pins/absorb on root columns. v3 → v4 is
-  `gridFromItems(run.id, run.items, run.blind)`; v1/v2 already chain into v3. Until 160, load
-  converts grid → items/blind for the store and save converts back — the adapter lives only in
-  `persistence.js`. Test: a v3 document with a pinned, a locked, a filler and a blind-left run
-  round-trips through save/load unchanged in the store.
-- **160 — the store flips.** `createRun` builds `grid: gridFromItems(id, [])`; `syncAutoItems` ends in
-  `replaceRootItems`; `cloneRun`/mirror use `cloneGrid`/`mirrorGrid`; the slice's item and blind
-  reducers use `updateRootItem`, `insertRootColumn`, `removeRootColumn`, `setGridBlind`, and
-  `roomCabinets`/pin-clearing iterate leaves and root columns; the 159 adapter goes. Store tests that
-  read `run.items` read `runItems(run)`. Model-test fixtures keep `items` (§1). Likely two sessions:
-  measure with the PROMPT-CONVENTIONS commands after 159.
+Line numbers are against `9a40318` (step 158); `persistence.js` and its test haven't changed since
+`9d2d166`.
 
-**Done when (round):** no stored run has `items` or `blind`, a v3 save loads as v4, `npm test` and
+There are no saved rooms worth keeping: local storage has been cleared and the database isn't in use
+yet. So this step **removes every old-save migration** (v1, v2, v3 → current) and their tests, and
+makes the one saved format v4: each run stores `grid`, never `items` or `blind`. Loading reads a v4
+save or starts fresh.
+
+The **store keeps items until 160**, so two small adapters convert at the boundary: load-side in
+`createInitialElevationState`, save-side in `toElevationDocument`. Both go in 160.
+
+### Keys and versions
+
+- `ELEVATION_SCHEMA_VERSION` 3 → **4**; `ELEVATION_STORAGE_KEY` → **`'cd.elevationLab.v4'`**.
+- Delete `V2_ELEVATION_STORAGE_KEY` and `LEGACY_ELEVATION_STORAGE_KEY`. Nothing reads
+  `cd.elevationLab.v1/v2/v3` any more. (`feature/elevation-mvp` still reads v3, so switching back
+  starts that branch from whatever it last saved there.)
+
+### Delete from `persistence.js`
+
+| Lines (at `9a40318`) | What | Why it can go |
+|---|---|---|
+| 1 | `uuid` import | only `migrateV1Document` used it |
+| 14 | `wallFrame` import | only `migrateV1Document` used it |
+| 23–26 | v2 and v1 storage keys | nothing reads them |
+| 47–49 | `V2_PROFILE_KEYS` | only the v2 validator used it |
+| 57–75 | `V1_NUMERIC_SETTING_KEYS` | only the v1 validator used it |
+| 150–161 | `isV1Run` | folded into the new `isRun` below |
+| 199–209 | `isBlind` | runs no longer carry `blind` |
+| 464–471 | the `ends:` entry in the normalizer's run map (filler end + `run.blind` → blind end); the run keeps `...run` and `anchors:` | it upgrades v3 data |
+| 516–532 | `isV2ElevationDocument` | nothing reads v2 saves |
+| 534–554 | `isV1ElevationDocument` | nothing reads v1 saves |
+| 556–566 | `migrateProfile` | only the v2 migration used it |
+| 568–586 | `migrateV2Document` | |
+| 588–654 | `migrateV1Document` | |
+
+**Keep, unchanged**: `V2_NUMERIC_SETTING_KEYS` and `V2_DEFAULTED_SETTING_KEYS` (live settings
+checks and defaults, despite the names), the `profileKeys` parameters on `isCompleteProfile`,
+`isWall`, `isRoom`, `isSettings` (they now only ever get the default), and every other normalization
+in the normalizer — joints `[]`, opening `offsetAnchor`, part-number defaults, stale joint anchors →
+`false`, wall name/number/elevationForced/openings, `wallOrder`, settings defaults. Those fill fields
+added after a save was written, which will happen again within v4. Don't rename or tidy any of it.
+
+### The run validator (`235–247`)
+
+```js
+function isRun(run) {
+  return Boolean(run)
+    && typeof run.id === 'string'
+    // …today's isV1Run lines 152–159 (type, x/width/z/height/depth, ends, autoCount, maxCabinetWidth)…
+    // …today's isRun lines 237–244 and 246 (heightMode … top, endFiller) — NOT the isBlind line…
+    && run.items === undefined
+    && run.blind === undefined
+    && isRunGrid(run.grid);
+}
+```
+
+New, next to it:
+
+```js
+function isLeafBlind(blind) {
+  return blind === undefined || (
+    Boolean(blind) && typeof blind === 'object' && !Array.isArray(blind)
+    && Object.keys(blind).length > 0
+    && Object.entries(blind).every(([side, width]) => (
+      (side === 'left' || side === 'right') && isFiniteNumber(width) && width > 0
+    )));
+}
+
+function isLeaf(leaf) {
+  return Boolean(leaf) && typeof leaf.id === 'string'
+    && ITEM_KINDS.has(leaf.kind) && isLeafBlind(leaf.blind);
+}
+
+/** Round 32 grids: one row, no spans, no nesting. Rounds 33+ relax this. */
+function isRunGrid(grid) {
+  return isGridShape(grid, isLeaf)
+    && grid.rows.length === 1
+    && grid.cells.every((cell) => (
+      cell.colSpan === 1 && cell.rowSpan === 1 && !('cols' in cell.node)
+    ))
+    && rootItems(grid).every(isItem);
+}
+```
+
+`rootItems(grid).every(isItem)` reuses every existing item rule (width; pin and absorb only on
+cabinets; face, style and reveals only on cabinets) without restating them. It runs only after the
+shape checks pass, so `rootItems` never meets a column without a row-0 cell. `isItem`, `isItemPin`,
+`ITEM_KINDS` and the pin sets stay.
+
+### The normalizer (`420–479`)
+
+Rename `normalizeV3Document` → **`normalizeElevationDocument`** (no alias). Same body minus the
+`ends:` entry; it still calls `normalizeDocument(document, ELEVATION_SCHEMA_VERSION)`, so it only
+touches v4 documents.
+
+### Loading (`666–681`)
+
+```js
+export function loadElevationDocument() {
+  try {
+    if (typeof window === 'undefined' || !window.localStorage) return null;
+    const current = normalizeElevationDocument(readStored(ELEVATION_STORAGE_KEY));
+    return isElevationDocument(current) ? current : null;
+  } catch {
+    return null;
+  }
+}
+```
+
+`isElevationDocument` keeps its body (it calls `isRoom(room)` → `isWall` → `isRun`, now the grid one).
+
+### The two adapters (removed in 160)
+
+In `persistence.js`, beside `toElevationDocument`:
+
+```js
+/** Until step 160 the store holds items; saved documents hold grids. */
+function runToStore(run) {
+  const { grid, ...rest } = run;
+  const blind = runBlind({ grid });
+  return { ...rest, items: rootItems(grid), ...(blind ? { blind } : {}) };
+}
+
+export function storeRoomsFromDocument(rooms) // rooms → walls → runs.map(runToStore); new objects, input untouched
+```
+
+`toElevationDocument` (683–703): the runs map becomes
+
+```js
+const { _pinWidths, items, blind, ...persistedRun } = run;
+void _pinWidths;
+return { ...persistedRun, grid: gridFromItems(run.id, items, blind) };
+```
+
+`store/elevationSlice.js`: add `storeRoomsFromDocument` to the `./persistence.js` import (59–62);
+line 116 `const rooms = document?.rooms ?? [fallbackRoom];` becomes
+`const rooms = document?.rooms ? storeRoomsFromDocument(document.rooms) : [fallbackRoom];`. Nothing
+else in the slice.
+
+Round trip: a store run with `blind: { left: null, right: null }` saves with no leaf blind and loads
+with no `blind` key. Every reader uses `run.blind?.[side]` / `runBlind`, so it's the same run.
+
+`persistence.js` adds `import { gridFromItems, isGridShape, rootItems, runBlind } from '../model/grid.js';`
+(grid.js imports nothing, so no cycle). It ends up roughly 250 lines shorter.
+
+### Tests — `store/__tests__/persistence.test.js`
+
+**Imports.** From `../persistence.js`: keep `ELEVATION_STORAGE_KEY`, `isElevationDocument`,
+`loadElevationDocument`; rename `normalizeV3Document` → `normalizeElevationDocument`; add
+`toElevationDocument`; drop `LEGACY_ELEVATION_STORAGE_KEY`, `V2_ELEVATION_STORAGE_KEY`,
+`isV2ElevationDocument`, `migrateV1Document`, `migrateV2Document`. Drop the `wallFrame` import (only
+test 18 used it). Add `import { gridFromItems, rootItems, runBlind } from '../../model/grid.js';` and
+`import { createInitialElevationState } from '../elevationSlice.js';`.
+
+**Fixtures.** Delete `v1Run`, `v1Document`, `v2Profile`, `v2Document`. Add, after `storageWith`,
+one literal builder that returns what `migrateV1Document(v1Document())` used to (minus the v1 setting
+values no test reads):
+
+```js
+function currentRun(id, x, z, height) {
+  return {
+    id,
+    cabinetTypeId: CABINET_TYPE_IDS.BASE,
+    x,
+    width: 48,
+    z,
+    height,
+    depth: 24,
+    ends: {
+      left: { type: 'filler', width: null },
+      right: { type: 'filler', width: null },
+    },
+    autoCount: false,
+    maxCabinetWidth: null,
+    heightMode: 'manual',
+    overrides: {},
+    anchors: { left: false, right: false },
+    grid: gridFromItems(id, [{ id: `${id}-cab`, kind: 'cabinet', width: 45 }]),
+  };
+}
+
+function currentWall(id, y, length, height, runs) {
+  return {
+    id,
+    name: '',
+    numberOverride: null,
+    elevationForced: false,
+    x1: 0,
+    y1: y,
+    x2: length,
+    y2: y,
+    height,
+    thickness: 4.5,
+    flipped: false,
+    connections: { start: null, end: null },
+    profile: {},
+    openings: [],
+    runs,
+  };
+}
+
+function currentDocument() {
+  const settings = structuredClone(DEFAULT_SETTINGS);
+  return {
+    schemaVersion: 4,
+    settings,
+    rooms: [{
+      id: 'room-1',
+      name: 'Room 1',
+      profile: { ...settings.defaultProfile },
+      partNumberStart: 1,
+      partNumberOverrides: {},
+      wallOrder: ['wall-a', 'wall-b'],
+      walls: [
+        currentWall('wall-a', 0, 144, 96, [currentRun('a', 12, 4, 30.5)]),
+        currentWall('wall-b', 60, 96, 90, [currentRun('b', 7, 10, 20)]),
+      ],
+    }],
+    activeRoomId: 'room-1',
+    activeWallId: 'wall-b',
+    view: 'elevation',
+  };
+}
+```
+
+Then every `migrateV1Document(v1Document())` in the file becomes `currentDocument()` — in
+`tbtDocument` and in each test that uses it. `tbtDocument`'s `run` helper (line 125) swaps its
+`items` line for:
+
+```js
+    grid: gridFromItems(id, [{ id: `${id}-cabinet`, kind: 'cabinet', width: null }]),
+```
+
+**Delete four tests**, all about upgrading old saves: `18.` (v1 migration), `3.` and `4.` (v2 crown
+migration), `222.` (filler + blind width → blind end).
+
+**Edit these**; every other test stays as it is (after the `currentDocument()` swap):
+
+| Test | Change |
+|---|---|
+| `validates optional cabinet pins…` (335) | `const column = current.rooms[0].walls[0].runs[0].grid.cols[0];` replaces `item`; set `column.pin` / `column.absorb`; the `toMatchObject` reads `rootItems(loaded.rooms[0].walls[0].runs[0].grid)[0]`; `resolvePinTarget(loaded.rooms[0].walls[0].runs[0].grid.cols[0].pin, …)`; the last check sets `column.pin.anchor = 'top'` |
+| `21.` (367) | `const item = current.rooms[0].walls[0].runs[0].grid.cells[0].node;`; the loaded check reads `loaded.rooms[0].walls[0].runs[0].grid.cells[0].node` |
+| `43.` (413) | `const item = run.grid.cells[0].node;`; `loadedRun.items[0]` → `loadedRun.grid.cells[0].node` |
+| `44.` (439) | `const item = run.grid.cells[0].node;` — nothing else |
+| `194.`, `195.`, `215.`, `221.` | `normalizeV3Document` → `normalizeElevationDocument` |
+| `206.` (717) | `present.rooms[0].walls[0].runs[0].grid.cells[0].node.blind = { left: 42 };` and the invalid loop sets `invalid.rooms[0].walls[0].runs[0].grid.cells[0].node.blind = blind;` with the same three values |
+
+**New** `describe('SPEC-32 grid persistence', …)` at the end, three tests. `PIN` is
+`{ anchor: 'center', from: 'left', openingId: null, openingAnchor: 'center', value: 60 }`.
+
+1. **ignores saves under the old keys.** `ELEVATION_STORAGE_KEY` is `'cd.elevationLab.v4'`. With
+   storage holding only `['cd.elevationLab.v3', JSON.stringify({ ...currentDocument(), schemaVersion:
+   3 })]`, `loadElevationDocument()` is `null`. With `currentDocument()` under `ELEVATION_STORAGE_KEY`,
+   it `toEqual`s `currentDocument()`.
+2. **rejects v4 runs that keep items or blind, or hold a malformed grid.**
+   `isElevationDocument(currentDocument())` is true; then, each on a fresh `currentDocument()` with
+   `run = doc.rooms[0].walls[0].runs[0]`, each of these makes it false: `run.items = []`;
+   `run.blind = { left: 36, right: null }`; `delete run.grid`;
+   `run.grid.cols[0].pin = { ...PIN, anchor: 'top' }`; leaf (`run.grid.cells[0].node`) `blind` set to
+   `{ left: 0 }`, then `[]`, then `{ top: 36 }`; leaf `kind = 'shelves'`; leaf
+   `face = { type: 'shelf', size: null }`; `run.grid.rows.push({ id: 'r2', size: null, sizeMode: 'auto' })`.
+3. **the store adapter reads grids as items and saves them back unchanged.**
+   `const document = currentDocument();` set its `runs[0].grid = gridFromItems('a', [{ id: 'p',
+   kind: 'cabinet', width: null, pin: PIN }, { id: 'l', kind: 'cabinet', width: 30 }, { id: 'f', kind:
+   'filler', width: 3 }], { left: 36, right: null })`; `isElevationDocument(document)` true.
+   `const state = createInitialElevationState(document);` — its run has `items` `toEqual`
+   `rootItems(document…grid)`, `blind` `toEqual` `{ left: 36, right: null }`, and no `grid` property;
+   `document`'s run still has `grid` and no `items`. `toElevationDocument(state).rooms` `toEqual`
+   `document.rooms`.
+
+**Count:** 537 before; 4 deleted, 3 added → **536**. No other test file changes.
+
+## §6 Steps 160 and 161 — the store flips to grids
+
+The flip touches ~55 sites across the two largest files in the repo (`elevationSlice.js` 1,438,
+`elevationSlice.test.js` 1,912). That's well over the ~15-site budget in PROMPT-CONVENTIONS rule 8,
+so it's split into a green, no-behavior-change prep step (160) and the flip itself (161). Nothing
+else is left in round 32 after 161.
+
+Line numbers are against `9a40318`. Step 159 adds one line to the slice's persistence import
+(lines 59–62), so slice lines after 62 are **+1** by the time 161 runs. The prompts give the code
+text to match as well, so an off-by-one never matters.
+
+### Step 160 — prep: writers that accept both shapes, store tests that read through `runItems`
+
+**Model writers become shape-preserving.** Each keeps doing exactly what it does for a run with
+`items` (model-test fixtures, splitRun's transient sub-runs), and does the grid equivalent for a run
+with `grid`. The store still holds items after 160, so the grid branch is exercised only by the new
+tests until 161.
+
+- `model/splitRun.js`, `syncAutoItems` (504–540). Line 525 `const items = [...run.items];` →
+  `const items = [...runItems(run)];`. Line 540 `return { ...run, items };` →
+  `return run.items ? { ...run, items } : { ...run, grid: replaceRootItems(run.grid, items) };`. Add
+  `replaceRootItems` to the existing `./grid.js` import (line 3). `replaceRootItems` keeps the grid's
+  id and row and re-homes blind (SPEC §2).
+- `model/room.js`, `cloneRun` (54–82). Line 80 `items: run.items.map((item) => ({ ...item })),`
+  becomes:
+
+  ```js
+      ...(run.items ? { items: run.items.map((item) => ({ ...item })) } : {}),
+      ...(run.grid ? { grid: cloneGrid(run.grid) } : {}),
+  ```
+
+- `model/room.js`, `flipRunsForWall` (1470–1511). Line 1504
+  `items: [...run.items].reverse().map((item) => ({ ...item })),` becomes:
+
+  ```js
+        ...(run.items ? { items: [...run.items].reverse().map((item) => ({ ...item })) } : {}),
+        ...(run.grid ? { grid: mirrorGrid(run.grid) } : {}),
+  ```
+
+  Add `cloneGrid, mirrorGrid` to `room.js`'s `./grid.js` import (line 12).
+- **Leave** the `run.blind` copy lines (`room.js:70` and `1493–1495`). They only fire for runs that
+  still carry `blind` (fixtures); a grid run has none.
+
+**New test file** `src/elevation/model/__tests__/gridRuns.test.js`, 4 tests, `DEFAULT_SETTINGS`
+(`maxCabinetWidth` 36):
+
+```js
+const auto = (id) => ({ id, kind: 'cabinet', width: null });
+const NONE = { type: 'none', width: null };
+function gridRun(width, items, blind) {
+  return {
+    id: 'r', x: 10, width, ends: { left: NONE, right: NONE },
+    anchors: { left: false, right: false },
+    autoCount: true, maxCabinetWidth: null,
+    grid: gridFromItems('r', items, blind),
+  };
+}
+```
+
+1. **syncAutoItems grows a grid run's columns and keeps its blind.**
+   `syncAutoItems(gridRun(96, [auto('a')], { left: 36, right: null }), DEFAULT_SETTINGS)` → no `items`
+   property; `runItems(result)` has length 3 (96 / 36 → 3), first id `'a'`, all `width: null`;
+   `runBlind(result)` `{ left: 36, right: null }`; `result.grid.id` `'r:grid'`;
+   `result.grid.rows[0].id` `'r:row'`.
+2. **syncAutoItems shrinks a grid run and re-homes its right blind.**
+   `gridRun(30, [auto('a'), auto('b'), auto('c')], { left: null, right: 24 })` → `runItems` ids
+   `['a']`; `runBlind` `{ left: null, right: 24 }`.
+3. **syncAutoItems keeps an items run as items.** `{ ...gridRun(96, []), grid: undefined, items:
+   [auto('a')] }` → `result.items` length 3; `result.grid` undefined.
+4. **flipRunsForWall mirrors a grid run.** Wall
+   `{ id: 'w', x1: 0, y1: 0, x2: 120, y2: 0, flipped: false, joints: [], openings: [], runs: [gridRun(60,
+   [auto('a'), auto('b')], { left: 36, right: null })] }` → the run's `x` is `50` (120 − 10 − 60);
+   `runItems` ids `['b', 'a']`; `runBlind` `{ left: null, right: 36 }`; no `items` property.
+
+**Store tests read through `runItems` / `runBlind`** — `store/__tests__/elevationSlice.test.js`.
+Add `import { runBlind, runItems } from '../../model/grid.js';`. Then, reads only (every one of
+these is an `expect` or a helper's `return`):
+
+| Lines | Today | Becomes |
+|---|---|---|
+| 535, 543, 552, 560, 743, 744, 758, 769, 770, 782, 798, 814, 830, 831, 1024, 1207 | `currentRun(X).items` | `runItems(currentRun(X))` |
+| 1069, 1129, 1200 | `return currentRun(state).items.find(` | `return runItems(currentRun(state)).find(` |
+| 1809, 1814, 1819, 1824, 1829, 1886 | `currentRun().blind` | `runBlind(currentRun())` |
+
+And two fixtures get one cabinet, because a blind now lives on a cabinet and an empty run has
+nowhere to hold one (SPEC §1). Both still pass today.
+
+- test `207.` (line 1801): `stateWithRun(run())` → `stateWithRun(run({ items: [auto('a')] }))`
+- test `223.` (line 1873, the `run({` whose next line is the blind): add `items: [auto('a')],` above `blind: { left: 42, right: 30 },`
+
+**Count:** 536 after 159; 4 added → **540**. No source file besides `splitRun.js` and `room.js`.
+
+### Step 161 — the flip
+
+After 161 the store holds `grid`; no stored run has `items` or `blind`.
+
+**`model/runDefaults.js`** (`createRun`, the `const run = {` object at 134–149): hoist `const id = uuid();` above the run object;
+`id: uuid(),` → `id,`; `items: [],` → `grid: gridFromItems(id, []),`. Add
+`import { gridFromItems } from './grid.js';`. `syncAutoItems` (grid branch, from 160) fills it.
+
+**`store/elevationSlice.js`** — add
+`import { insertRootColumn, removeRootColumn, runItems, setGridBlind, updateRootItem } from '../model/grid.js';`
+and, right after `roomCabinets`:
+
+```js
+/** A run's root leaves in column order: drafts, so reducers can edit them in place. */
+function rootLeaves(run) {
+  return run.grid.cells
+    .filter((cell) => cell.row === 0)
+    .sort((a, b) => a.col - b.col)
+    .map((cell) => cell.node);
+}
+```
+
+Every write goes either to a leaf draft (face, style, reveals) or through a `grid.js` helper assigned
+back to `location.run.grid` (width, pin, absorb, structure, blind). Sites (line at `9a40318`, +1
+after 159):
+
+| Where | Today | Becomes |
+|---|---|---|
+| `roomCabinets` 234 | `run.items` | `rootLeaves(run)` (the `item.face = …` in `withStandardDrawers` then edits the leaf) |
+| `itemIndexFor` 255 | `run.items.findIndex(` | `runItems(run).findIndex(` |
+| `deleteOpening` 864–869 | loop `item of run.items`, `item.pin = null` | loop `column of run.grid.cols`, same test on `column.pin`, `column.pin = null` |
+| `setRunEnd` 913 | `if (end.type !== 'blind' && location.run.blind) location.run.blind[side] = null;` | `if (end.type !== 'blind') location.run.grid = setGridBlind(location.run.grid, side, null);` |
+| `setRunBlind` 1082–1083 | the two `run.blind` lines | `run.grid = setGridBlind(run.grid, side, width);` (it clears on null, 0, NaN) |
+| `setItemWidth` 1119 | `location.run.items[itemIndex].width = X;` | `location.run.grid = updateRootItem(location.run.grid, action.payload.itemId, { width: X });` |
+| `setItemPin` 1126–1159 | see below | |
+| `setItemAbsorb` 1169–1171 | `const item = location.run.items[itemIndex]`; `item.absorb = X` | `const item = runItems(location.run)[itemIndex]`; `location.run.grid = updateRootItem(location.run.grid, item.id, { absorb: X })` |
+| `lockItem` 1179 / `unlockItem` 1189 | `location.run.items[itemIndex].width = X` | `location.run.grid = updateRootItem(location.run.grid, action.payload.itemId, { width: X })` |
+| `splitItem` 1196–1202 | kind check + `splice(itemIndex, 1, a, b)` | see below |
+| `addItemAfter` 1210, 1215 | `location.run.items.length`; `splice(i, 0, item)` | `runItems(location.run).length`; `location.run.grid = insertRootColumn(location.run.grid, appendToEmptyRun ? 0 : itemIndex + 1, item)` |
+| `removeItem` 1224 | `location.run.items.splice(itemIndex, 1)` | `location.run.grid = removeRootColumn(location.run.grid, action.payload.itemId)` |
+| `setItemFace` 1241, `setItemStyle` 1280, `setItemReveals` 1292 | `for (const item of location.run.items)` | `for (const item of rootLeaves(location.run))` — loop bodies unchanged |
+
+`setItemPin`: `item` becomes `runItems(location.run)[itemIndex]` (a read-only view) and
+`pinCountBefore` reads `runItems(location.run)`. The splitRun block is unchanged. Then:
+
+```js
+      location.run.grid = updateRootItem(location.run.grid, item.id, {
+        pin: pin ? { ...pin } : null,
+      });
+      if (pin) location.run.autoCount = false;
+      if (addsPinToPinnedRun) {
+        const itemsToLock = addsSecondPin
+          ? runItems(location.run).filter((candidate) => candidate.pin)
+          : [item];
+        for (const pinnedItem of itemsToLock) {
+          const width = currentWidths.get(pinnedItem.id);
+          if (Number.isFinite(width)) {
+            location.run.grid = updateRootItem(location.run.grid, pinnedItem.id, {
+              width: roundTo(width, state.settings.roundTo),
+            });
+          }
+        }
+      }
+```
+
+`itemsToLock` must read `runItems` **after** the pin is written, as today's code reads `run.items`
+after `item.pin = …`, so the new pin is included.
+
+`splitItem`: insert the two new cabinets **after** the original, then remove it. Removing first would
+empty a one-cabinet run and drop its blind.
+
+```js
+      if (itemIndex === -1 || runItems(location.run)[itemIndex].kind !== 'cabinet') return;
+      let grid = insertRootColumn(location.run.grid, itemIndex + 1, { id: uuid(), kind: 'cabinet', width: null });
+      grid = insertRootColumn(grid, itemIndex + 2, { id: uuid(), kind: 'cabinet', width: null });
+      location.run.grid = removeRootColumn(grid, action.payload.itemId);
+```
+
+The two 159 adapters go:
+
+- `elevationSlice.js` `createInitialElevationState`:
+  `document?.rooms ? storeRoomsFromDocument(document.rooms) : [fallbackRoom]` →
+  `document?.rooms ?? [fallbackRoom]`, and `storeRoomsFromDocument` leaves the import.
+- `persistence.js`: delete `runToStore` and `storeRoomsFromDocument`; `toElevationDocument`'s runs map
+  goes back to `const { _pinWidths, ...persistedRun } = run; void _pinWidths; return persistedRun;`.
+  `gridFromItems` and `runBlind` drop out of its `grid.js` import (lint will say so; `isGridShape` and
+  `rootItems` stay for `isRunGrid`).
+
+**Stay as they are:** `splitRun.js` and `room.js` (160 already made them shape-preserving), and all
+model tests (their fixtures keep `items`, §1).
+
+**Tests.**
+
+- `elevationSlice.test.js`, `run()` (lines 79–100): the last line of the object stays `...overrides`,
+  and the function returns a grid run:
+
+  ```js
+  function run(overrides = {}) {
+    const { items, blind, ...rest } = {
+      /* today's object literal, unchanged, including items: [] */
+    };
+    return { ...rest, grid: gridFromItems(rest.id, items, blind) };
+  }
+  ```
+
+  Add `gridFromItems` to the `grid.js` import from 160. Every store test builds runs through `run()`,
+  so nothing else in the existing tests changes.
+- `elevationSlice.test.js`, new `describe('SPEC-32 store holds grids')`, 3 tests:
+  1. `stateWithRun(run({ autoCount: false, items: [fixed('a', 30)], blind: { left: 36, right: 24 } }))`,
+     `splitItem` on `a` → the stored run has no `items` and no `blind` property; `runItems` has 2
+     cabinets, neither `'a'`; `runBlind` `{ left: 36, right: 24 }`.
+  2. Same start without blind: `lockItem` `a` width 20 → the column `'a:col'` is
+     `{ id: 'a:col', size: 20, sizeMode: 'manual' }`; `unlockItem` → `size: null, sizeMode: 'auto'`.
+  3. `setItemFace({ …actionBase, itemIds: ['a'], face: { type: 'door', size: null } })` →
+     `currentRun(state).grid.cells[0].node.face` `toEqual` `{ type: 'door', size: null }`.
+- `persistence.test.js`, SPEC-32 test 3 becomes **the store keeps grids and saves them unchanged**: same
+  `document`; the state's run `grid` `toEqual` the document's, and it has no `items` or `blind`;
+  `toElevationDocument(state).rooms` `toEqual` `document.rooms`.
+
+**Count:** 540 after 160; 3 added → **543**.
+
+**Done when (round):** no stored run has `items` or `blind`, saves are v4 only, `npm test` and
 `npm run lint` are clean, and every run in the sample layouts draws exactly as at `9d2d166`.
