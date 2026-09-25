@@ -77,10 +77,16 @@ export {
 } from './positions.js';
 export { createRun, defaultsForType, inferRunType } from './runDefaults.js';
 export {
+  followCreatesCycle,
+  followersOf,
+  followGlyphs,
+  followLeaders,
+  isFollowAnchor,
   isJointAnchor,
   jointEdgeX,
   jointGlyphs,
   jointMembers,
+  pruneFollows,
   pruneJoints,
   runShortLabel,
 } from './joints.js';

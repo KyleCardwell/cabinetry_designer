@@ -12,10 +12,13 @@ import {
 import { findCollisions } from './footprints.js';
 import { cloneGrid, mirrorGrid, runItems } from './grid.js';
 import {
+  followLeaders,
+  isFollowAnchor,
   isJointAnchor,
   jointEdgeX,
   jointEndTypes,
   jointMembers,
+  pruneFollows,
   pruneJoints,
   runShortLabel,
 } from './joints.js';
@@ -63,7 +66,7 @@ function cloneRun(run) {
     overrides: { ...(run.overrides ?? {}) },
     anchors: Object.fromEntries(Object.entries(anchors).map(([side, anchor]) => [
       side,
-      anchor?.to === 'joint' ? { ...anchor } : anchor,
+      anchor?.to === 'joint' || anchor?.to === 'follow' ? { ...anchor } : anchor,
     ])),
     ...(run.cornerClearance
       ? { cornerClearance: { ...run.cornerClearance } }
@@ -243,6 +246,12 @@ export function resolveRunAnchorDatum(room, wall, run, side, settings) {
       jointId: anchor.jointId,
     };
   }
+  if (isFollowAnchor(anchor)) {
+    const leader = wall.runs.find((candidate) => candidate.id === anchor.runId);
+    if (!leader) return { error: { code: 'anchor-run-missing', side } };
+    const edge = anchor.side === 'left' ? leader.x : leader.x + leader.width;
+    return { x: jointEdgeX({ x: edge }, side, anchor.offset), type: 'follow', runId: anchor.runId };
+  }
   return { x: side === 'left' ? run.x : run.x + run.width, type: 'free' };
 }
 
@@ -269,6 +278,14 @@ export function describeAnchor(room, wall, run, side, settings) {
       ? `${formatInches(offset)} gap`
       : offset < 0 ? `${formatInches(Math.abs(offset))} past` : 'flush';
     return `Joined to ${label} · ${relation}`;
+  }
+  if (isFollowAnchor(anchor)) {
+    const leader = wall.runs.find((candidate) => candidate.id === anchor.runId);
+    const offset = anchor.offset ?? 0;
+    const relation = offset > 0
+      ? `${formatInches(offset)} gap`
+      : offset < 0 ? `${formatInches(Math.abs(offset))} past` : 'flush';
+    return `Follows ${leader ? runShortLabel(leader) : 'a missing run'} · ${relation}`;
   }
   if (anchor?.to === 'soffit') {
     const offset = anchor.offset ?? 0;
@@ -492,6 +509,26 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
   return { ...resolved, _pinWidths: pinWidths };
 }
 
+/** Resolve every run's span, leaders before the runs that follow them. */
+function resolveWallSpans(room, wall, settings) {
+  const resolved = new Map();
+  let pending = wall.runs;
+  while (pending.length > 0) {
+    const waiting = new Set(pending.map((run) => run.id));
+    const ready = pending.filter((run) => (
+      followLeaders(run).every((leaderId) => !waiting.has(leaderId))
+    ));
+    if (ready.length === 0) break;
+    const view = { ...wall, runs: wall.runs.map((run) => resolved.get(run.id) ?? run) };
+    for (const run of ready) {
+      const horizontal = horizontalResolution(room, view, run, settings);
+      resolved.set(run.id, { ...run, x: horizontal.x, width: horizontal.width });
+    }
+    pending = pending.filter((run) => !resolved.has(run.id));
+  }
+  return wall.runs.map((run) => resolved.get(run.id) ?? run);
+}
+
 /**
  * Resolve all stored horizontal, vertical, and automatic-item geometry in a room.
  *
@@ -501,7 +538,7 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
  */
 export function syncRoom(room, settings) {
   let nextRoom = cloneRoom(resolveLandings(room));
-  nextRoom.walls = nextRoom.walls.map(pruneJoints);
+  nextRoom.walls = nextRoom.walls.map((wall) => pruneFollows(pruneJoints(wall)));
 
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
 
@@ -522,15 +559,10 @@ export function syncRoom(room, settings) {
 
   nextRoom = {
     ...nextRoom,
-    walls: nextRoom.walls.map((wall) => {
-      return {
-        ...wall,
-        runs: wall.runs.map((run) => {
-          const horizontal = horizontalResolution(nextRoom, wall, run, settings);
-          return { ...run, x: horizontal.x, width: horizontal.width };
-        }),
-      };
-    }),
+    walls: nextRoom.walls.map((wall) => ({
+      ...wall,
+      runs: resolveWallSpans(nextRoom, wall, settings),
+    })),
   };
 
   nextRoom = {
@@ -587,14 +619,14 @@ export function syncRoom(room, settings) {
           ...run,
           ends: Object.fromEntries(Object.entries(run.ends).map(([side, end]) => {
             const anchor = run.anchors?.[side];
-            if (isJointAnchor(anchor) && end.auto === true) {
+            if ((isJointAnchor(anchor) || isFollowAnchor(anchor)) && end.auto === true) {
               return [side, { type: endTypes.get(run.id)[side], width: null, auto: true }];
             }
             if (run.anchors?.[side] === true
               && wallEndPanelAt(nextRoom, wallViewForRun(wall, run), side, settings)) {
               return [side, { type: 'none', width: null, auto: true }];
             }
-            if (!isJointAnchor(anchor) && end.auto === true) {
+            if (!isJointAnchor(anchor) && !isFollowAnchor(anchor) && end.auto === true) {
               return [side, { type: 'end_panel', width: null }];
             }
             return [side, end];
@@ -1470,6 +1502,12 @@ export function moveRun(room, wallId, runId, newX, settings) {
   };
 }
 
+function flipFollow(anchor) {
+  return isFollowAnchor(anchor)
+    ? { ...anchor, side: anchor.side === 'left' ? 'right' : 'left' }
+    : anchor;
+}
+
 /** Mirror a wall's elevation-facing state and stored run intent. */
 export function flipRunsForWall(wall) {
   const length = wallLength(wall);
@@ -1484,7 +1522,7 @@ export function flipRunsForWall(wall) {
       ...run,
       x: length - run.x - run.width,
       ends: { left: { ...run.ends.right }, right: { ...run.ends.left } },
-      anchors: { left: run.anchors.right, right: run.anchors.left },
+      anchors: { left: flipFollow(run.anchors.right), right: flipFollow(run.anchors.left) },
       ...(run.cornerClearance
         ? {
             cornerClearance: {

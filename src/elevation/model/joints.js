@@ -1,5 +1,6 @@
 import { CABINET_TYPE_IDS } from './constants.js';
 import { formatInches } from './units.js';
+import { wallSideOf } from './wallSides.js';
 
 const RUN_TYPE_LABELS = {
   [CABINET_TYPE_IDS.BASE]: 'Base',
@@ -106,7 +107,9 @@ function endIsCovered(wall, run, side) {
   const edge = runEdgeX(run, side);
   const spans = (wall.runs ?? [])
     .filter((candidate) => candidate.id !== run.id
-      && candidate.anchors?.[opposite]?.jointId === anchor.jointId
+      && (isFollowAnchor(anchor)
+        ? candidate.id === anchor.runId
+        : candidate.anchors?.[opposite]?.jointId === anchor.jointId)
       && Math.abs(runEdgeX(candidate, opposite) - edge) <= JOINT_EPSILON
       && candidate.depth >= run.depth)
     .map((candidate) => [candidate.z, candidate.z + candidate.height])
@@ -123,11 +126,11 @@ function endIsCovered(wall, run, side) {
   return false;
 }
 
-/** Return automatic end types for every run side anchored to a joint. */
+/** Return automatic end types for every run side anchored to a joint or following a run. */
 export function jointEndTypes(wall) {
   return new Map((wall.runs ?? []).flatMap((run) => {
     const types = Object.fromEntries(['left', 'right'].flatMap((side) => (
-      isJointAnchor(run.anchors?.[side])
+      isJointAnchor(run.anchors?.[side]) || isFollowAnchor(run.anchors?.[side])
         ? [[side, endIsCovered(wall, run, side) ? 'none' : 'end_panel']]
         : []
     )));
@@ -179,4 +182,86 @@ export function pruneJoints(wall) {
       };
     }),
   };
+}
+
+/** Return whether an anchor makes a run side follow another run's edge (one-way). */
+export function isFollowAnchor(anchor) {
+  return Boolean(anchor) && anchor.to === 'follow'
+    && typeof anchor.runId === 'string'
+    && (anchor.side === 'left' || anchor.side === 'right');
+}
+
+/** Ids of the runs a run's sides follow. */
+export function followLeaders(run) {
+  return ['left', 'right']
+    .map((side) => run.anchors?.[side])
+    .filter(isFollowAnchor)
+    .map((anchor) => anchor.runId);
+}
+
+/** Ids of every run that follows any of runIds, directly or through another follower. */
+export function followersOf(wall, runIds) {
+  const found = [];
+  const queue = [...runIds];
+  while (queue.length > 0) {
+    const leaderId = queue.shift();
+    for (const run of wall.runs ?? []) {
+      if (found.includes(run.id) || runIds.includes(run.id)) continue;
+      if (followLeaders(run).includes(leaderId)) {
+        found.push(run.id);
+        queue.push(run.id);
+      }
+    }
+  }
+  return found;
+}
+
+/** Whether making sourceRunId follow leaderRunId would close a loop. */
+export function followCreatesCycle(wall, sourceRunId, leaderRunId) {
+  return leaderRunId === sourceRunId || followersOf(wall, [sourceRunId]).includes(leaderRunId);
+}
+
+/** One link glyph per followed side, at the middle of its height overlap with the leader. */
+export function followGlyphs(wall) {
+  const runs = wall.runs ?? [];
+  return runs.flatMap((run) => ['left', 'right'].flatMap((side) => {
+    const anchor = run.anchors?.[side];
+    if (!isFollowAnchor(anchor)) return [];
+    const leader = runs.find((candidate) => candidate.id === anchor.runId);
+    if (!leader) return [];
+    const bottom = Math.max(run.z, leader.z);
+    const top = Math.min(run.z + run.height, leader.z + leader.height);
+    return [{
+      runId: run.id,
+      side,
+      leaderRunId: leader.id,
+      x: runEdgeX(run, side),
+      z: top > bottom ? (bottom + top) / 2 : run.z + run.height / 2,
+    }];
+  }));
+}
+
+/** Free every followed side whose leader is missing, itself, or on the other wall side. */
+export function pruneFollows(wall) {
+  const runs = wall.runs ?? [];
+  const sides = new Map(runs.map((run) => [run.id, wallSideOf(run)]));
+  let changed = false;
+  const next = runs.map((run) => {
+    const dropped = ['left', 'right'].filter((side) => {
+      const anchor = run.anchors?.[side];
+      return isFollowAnchor(anchor)
+        && (anchor.runId === run.id || sides.get(anchor.runId) !== wallSideOf(run));
+    });
+    if (dropped.length === 0) return run;
+    changed = true;
+    return {
+      ...run,
+      anchors: { ...run.anchors, ...Object.fromEntries(dropped.map((side) => [side, false])) },
+      ends: {
+        ...run.ends,
+        ...Object.fromEntries(dropped.map((side) => [side, withoutAuto(run.ends[side])])),
+      },
+    };
+  });
+  return changed ? { ...wall, runs: next } : wall;
 }
