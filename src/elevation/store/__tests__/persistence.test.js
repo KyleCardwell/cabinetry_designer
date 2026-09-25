@@ -1,20 +1,26 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
-import { wallFrame } from '../../model/geometry.js';
+import { gridFromItems, rootItems, runBlind } from '../../model/grid.js';
 import { resolvePinTarget } from '../../model/room.js';
 import {
   ELEVATION_STORAGE_KEY,
-  LEGACY_ELEVATION_STORAGE_KEY,
-  V2_ELEVATION_STORAGE_KEY,
   isElevationDocument,
-  isV2ElevationDocument,
   loadElevationDocument,
-  migrateV1Document,
-  migrateV2Document,
-  normalizeV3Document,
+  normalizeElevationDocument,
+  toElevationDocument,
 } from '../persistence.js';
+import { createInitialElevationState } from '../elevationSlice.js';
 
-function v1Run(id, x, z, height) {
+function storageWith(entries) {
+  const values = new Map(entries);
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => values.set(key, value),
+    removeItem: (key) => values.delete(key),
+  };
+}
+
+function currentRun(id, x, z, height) {
   return {
     id,
     cabinetTypeId: CABINET_TYPE_IDS.BASE,
@@ -29,84 +35,58 @@ function v1Run(id, x, z, height) {
     },
     autoCount: false,
     maxCabinetWidth: null,
-    items: [{ id: `${id}-cab`, kind: 'cabinet', width: 45 }],
+    heightMode: 'manual',
+    overrides: {},
+    anchors: { left: false, right: false },
+    grid: gridFromItems(id, [{ id: `${id}-cab`, kind: 'cabinet', width: 45 }]),
   };
 }
 
-function v1Document() {
+function currentWall(id, y, length, height, runs) {
   return {
-    schemaVersion: 1,
-    settings: {
-      toeKickHeight: 4,
-      baseBoxHeight: 30.5,
-      baseDepth: 24,
-      countertopThickness: 1.5,
-      upperBottomZ: 60,
-      upperBoxHeight: 30,
-      upperDepth: 12,
-      tallBoxHeight: 84,
-      tallDepth: 24,
-      roundTo: 0.5,
-      maxCabinetWidth: 36,
-      minCabinetWidth: 9,
-      fillerMinWidth: 1.5,
-      fillerWarnWidth: 6,
-      endPanelThickness: 0.75,
-      defaultInteriorFillerWidth: 3,
-      minRunWidth: 9,
-      snapHeightsToDefaults: true,
-      defaultEnds: { left: 'filler', right: 'filler' },
-    },
-    walls: [
-      { id: 'wall-a', name: 'Wall A', length: 144, height: 96, runs: [v1Run('a', 12, 4, 30.5)] },
-      { id: 'wall-b', name: 'Wall B', length: 96, height: 90, runs: [v1Run('b', 7, 10, 20)] },
-    ],
+    id,
+    name: '',
+    numberOverride: null,
+    elevationForced: false,
+    x1: 0,
+    y1: y,
+    x2: length,
+    y2: y,
+    height,
+    thickness: 4.5,
+    flipped: false,
+    connections: { start: null, end: null },
+    profile: {},
+    openings: [],
+    runs,
+  };
+}
+
+function currentDocument() {
+  const settings = structuredClone(DEFAULT_SETTINGS);
+  return {
+    schemaVersion: 4,
+    settings,
+    rooms: [{
+      id: 'room-1',
+      name: 'Room 1',
+      profile: { ...settings.defaultProfile },
+      partNumberStart: 1,
+      partNumberOverrides: {},
+      wallOrder: ['wall-a', 'wall-b'],
+      walls: [
+        currentWall('wall-a', 0, 144, 96, [currentRun('a', 12, 4, 30.5)]),
+        currentWall('wall-b', 60, 96, 90, [currentRun('b', 7, 10, 20)]),
+      ],
+    }],
+    activeRoomId: 'room-1',
     activeWallId: 'wall-b',
-  };
-}
-
-function storageWith(entries) {
-  const values = new Map(entries);
-  return {
-    getItem: (key) => values.get(key) ?? null,
-    setItem: (key, value) => values.set(key, value),
-    removeItem: (key) => values.delete(key),
-  };
-}
-
-function v2Profile(profile) {
-  const {
-    crownStackHeight,
-    topMoldHeight,
-    crownHeight,
-    ...rest
-  } = profile;
-  return {
-    ...rest,
-    topMoldHeight,
-    crownHeight,
-    crownOverlap: topMoldHeight + crownHeight - crownStackHeight,
-  };
-}
-
-function v2Document() {
-  const current = migrateV1Document(v1Document());
-  return {
-    ...current,
-    schemaVersion: 2,
-    settings: {
-      ...current.settings,
-      defaultProfile: v2Profile(current.settings.defaultProfile),
-    },
-    rooms: current.rooms.map((room) => ({
-      ...room,
-      profile: v2Profile(room.profile),
-    })),
+    view: 'elevation',
   };
 }
 
 function tbtDocument() {
-  const document = migrateV1Document(v1Document());
+  const document = currentDocument();
   const wall = document.rooms[0].walls[0];
   const run = (id, cabinetTypeId, x, width, height, anchors) => ({
     id,
@@ -122,7 +102,7 @@ function tbtDocument() {
     },
     autoCount: false,
     maxCabinetWidth: null,
-    items: [{ id: `${id}-cabinet`, kind: 'cabinet', width: null }],
+    grid: gridFromItems(id, [{ id: `${id}-cabinet`, kind: 'cabinet', width: null }]),
     heightMode: 'manual',
     overrides: {},
     anchors,
@@ -152,7 +132,7 @@ afterEach(() => {
 
 describe('elevation persistence migration', () => {
   it('60. defaults missing joints and round-trips joined runs unchanged', () => {
-    const withoutJoints = migrateV1Document(v1Document());
+    const withoutJoints = currentDocument();
     globalThis.window = {
       localStorage: storageWith([[
         ELEVATION_STORAGE_KEY,
@@ -190,47 +170,8 @@ describe('elevation persistence migration', () => {
     expect(loadElevationDocument()).toBeNull();
   });
 
-  it('18. migrates v1 walls and runs without deleting the v1 key', () => {
-    const legacy = JSON.stringify(v1Document());
-    const localStorage = storageWith([
-      [LEGACY_ELEVATION_STORAGE_KEY, legacy],
-      [ELEVATION_STORAGE_KEY, '{'],
-    ]);
-    globalThis.window = { localStorage };
-
-    const migrated = loadElevationDocument();
-    const room = migrated.rooms[0];
-    expect(migrated).toMatchObject({
-      schemaVersion: 3,
-      activeRoomId: room.id,
-      activeWallId: 'wall-b',
-      view: 'elevation',
-    });
-    expect(room.name).toBe('Room 1');
-    expect(migrated.settings.defaultProfile).toMatchObject({
-      toeKickHeight: 4,
-      baseBoxHeight: 30.5,
-      countertopThickness: 1.5,
-      upperClearance: 24,
-    });
-    expect(room.profile).toEqual(migrated.settings.defaultProfile);
-    expect(room.walls.map((wall) => [wall.x1, wall.y1, wall.x2, wall.y2]))
-      .toEqual([[0, 0, 144, 0], [0, 60, 96, 60]]);
-    expect(room.walls.every((wall) => wallFrame(room, wall).leftEndpoint === 'start')).toBe(true);
-    expect(room.walls[0].runs[0]).toMatchObject({
-      x: 12,
-      z: 4,
-      height: 30.5,
-      heightMode: 'manual',
-      overrides: {},
-      anchors: { left: false, right: false },
-    });
-    expect(room.walls[1].runs[0]).toMatchObject({ x: 7, z: 10, height: 20 });
-    expect(localStorage.getItem(LEGACY_ELEVATION_STORAGE_KEY)).toBe(legacy);
-  });
-
   it('defaults new optional wall fields and normalizes generated names on current load', () => {
-    const current = migrateV1Document(v1Document());
+    const current = currentDocument();
     current.rooms[0].walls[0].name = 'Wall 7';
     delete current.rooms[0].walls[0].numberOverride;
     delete current.rooms[0].wallOrder;
@@ -281,7 +222,7 @@ describe('elevation persistence migration', () => {
   });
 
   it('14. defaults a missing elevationForced field and rejects non-boolean values', () => {
-    const current = migrateV1Document(v1Document());
+    const current = currentDocument();
     delete current.rooms[0].walls[0].elevationForced;
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
@@ -296,7 +237,7 @@ describe('elevation persistence migration', () => {
   });
 
   it('24. defaults a missing v2 openings array and validates the result', () => {
-    const current = migrateV1Document(v1Document());
+    const current = currentDocument();
     delete current.rooms[0].walls[0].openings;
     expect(isElevationDocument(current)).toBe(true);
     globalThis.window = {
@@ -309,7 +250,7 @@ describe('elevation persistence migration', () => {
   });
 
   it('defaults a missing v3 opening offset anchor to edge', () => {
-    const current = migrateV1Document(v1Document());
+    const current = currentDocument();
     current.rooms[0].walls[0].openings.push({
       id: 'door-1',
       kind: 'door',
@@ -333,40 +274,40 @@ describe('elevation persistence migration', () => {
   });
 
   it('validates optional cabinet pins without requiring the referenced opening', () => {
-    const current = migrateV1Document(v1Document());
-    const item = current.rooms[0].walls[0].runs[0].items[0];
-    item.pin = {
+    const current = currentDocument();
+    const column = current.rooms[0].walls[0].runs[0].grid.cols[0];
+    column.pin = {
       anchor: 'center',
       from: 'opening',
       openingId: 'deleted-opening',
       openingAnchor: 'casing-left',
       value: 0,
     };
-    item.absorb = true;
+    column.absorb = true;
     expect(isElevationDocument(current)).toBe(true);
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
     };
 
     const loaded = loadElevationDocument();
-    expect(loaded.rooms[0].walls[0].runs[0].items[0]).toMatchObject({
+    expect(rootItems(loaded.rooms[0].walls[0].runs[0].grid)[0]).toMatchObject({
       pin: { openingId: 'deleted-opening' },
       absorb: true,
     });
     expect(resolvePinTarget(
-      loaded.rooms[0].walls[0].runs[0].items[0].pin,
+      loaded.rooms[0].walls[0].runs[0].grid.cols[0].pin,
       loaded.rooms[0].walls[0],
       144,
       loaded.settings,
     )).toBeNull();
 
-    item.pin.anchor = 'top';
+    column.pin.anchor = 'top';
     expect(isElevationDocument(current)).toBe(false);
   });
 
   it('21. round-trips a valid cabinet face and rejects a malformed one', () => {
-    const current = migrateV1Document(v1Document());
-    const item = current.rooms[0].walls[0].runs[0].items[0];
+    const current = currentDocument();
+    const item = current.rooms[0].walls[0].runs[0].grid.cells[0].node;
     const face = {
       direction: 'vertical',
       size: null,
@@ -389,7 +330,7 @@ describe('elevation persistence migration', () => {
     };
 
     const loaded = loadElevationDocument();
-    expect(loaded.rooms[0].walls[0].runs[0].items[0]).toMatchObject({ face });
+    expect(loaded.rooms[0].walls[0].runs[0].grid.cells[0].node).toMatchObject({ face });
 
     item.face = { type: 'shelf', size: null };
     expect(isElevationDocument(current)).toBe(false);
@@ -398,7 +339,7 @@ describe('elevation persistence migration', () => {
   });
 
   it('22. defaults the face settings on documents saved before them', () => {
-    const current = migrateV1Document(v1Document());
+    const current = currentDocument();
     delete current.settings.faceReveals;
     delete current.settings.pairDoorAboveWidth;
     globalThis.window = {
@@ -411,10 +352,10 @@ describe('elevation persistence migration', () => {
   });
 
   it('43. round-trips styles, run face options and manual reveals', () => {
-    const current = migrateV1Document(v1Document());
+    const current = currentDocument();
     const room = current.rooms[0];
     const run = room.walls[0].runs[0];
-    const item = run.items[0];
+    const item = run.grid.cells[0].node;
     room.style = { cabinetStyleId: 14 };
     run.style = { beadWidth: 0.5, profiledEdge: null };
     run.upperBottom = 'flush';
@@ -430,17 +371,17 @@ describe('elevation persistence migration', () => {
     const loadedRun = loaded.rooms[0].walls[0].runs[0];
     expect(loaded.rooms[0].style).toEqual({ cabinetStyleId: 14 });
     expect(loadedRun).toMatchObject({ style: { beadWidth: 0.5, profiledEdge: null }, upperBottom: 'flush', top: 'wood' });
-    expect(loadedRun.items[0]).toMatchObject({
+    expect(loadedRun.grid.cells[0].node).toMatchObject({
       style: { cabinetStyleId: 15, profiledEdge: true },
       reveals: { top: 0.1875, left: null },
     });
   });
 
   it('44. rejects malformed styles, run face options and reveals', () => {
-    const current = migrateV1Document(v1Document());
+    const current = currentDocument();
     const room = current.rooms[0];
     const run = room.walls[0].runs[0];
-    const item = run.items[0];
+    const item = run.grid.cells[0].node;
     const check = (mutate, undo) => {
       mutate();
       expect(isElevationDocument(current)).toBe(false);
@@ -456,7 +397,7 @@ describe('elevation persistence migration', () => {
   });
 
   it('45. defaults the style settings on documents saved before them', () => {
-    const current = migrateV1Document(v1Document());
+    const current = currentDocument();
     for (const key of ['defaultStyle', 'insetFrame', 'profiledFit', 'woodTopReveal', 'capturedSingleReveal']) {
       delete current.settings[key];
     }
@@ -473,7 +414,7 @@ describe('elevation persistence migration', () => {
   });
 
   it('54. defaults the standard drawer settings on documents saved before them', () => {
-    const current = migrateV1Document(v1Document());
+    const current = currentDocument();
     delete current.settings.standardDrawerHeights;
     delete current.settings.standardDrawerBelow;
     globalThis.window = {
@@ -486,7 +427,7 @@ describe('elevation persistence migration', () => {
   });
 
   it('validates opening anchors on either run side', () => {
-    const current = migrateV1Document(v1Document());
+    const current = currentDocument();
     const run = current.rooms[0].walls[0].runs[0];
     run.anchors.right = {
       to: 'opening',
@@ -500,7 +441,7 @@ describe('elevation persistence migration', () => {
   });
 
   it('25. rejects a malformed opening so the editor can start fresh', () => {
-    const current = migrateV1Document(v1Document());
+    const current = currentDocument();
     current.rooms[0].walls[0].openings.push({
       id: 'door-1',
       kind: 'door',
@@ -521,46 +462,6 @@ describe('elevation persistence migration', () => {
     expect(loadElevationDocument()).toBeNull();
   });
 
-  it('3. migrates crown totals at every v2 profile level and keeps the v2 key', () => {
-    const previous = v2Document();
-    const room = previous.rooms[0];
-    room.walls[0].profile = {
-      topMoldHeight: 3,
-      crownHeight: 4.5,
-      crownOverlap: 1.5,
-    };
-    const serialized = JSON.stringify(previous);
-    const localStorage = storageWith([[V2_ELEVATION_STORAGE_KEY, serialized]]);
-    globalThis.window = { localStorage };
-
-    expect(isV2ElevationDocument(previous)).toBe(true);
-    const migrated = loadElevationDocument();
-
-    for (const profile of [
-      migrated.settings.defaultProfile,
-      migrated.rooms[0].profile,
-      migrated.rooms[0].walls[0].profile,
-    ]) {
-      expect(profile.crownStackHeight).toBe(6);
-      expect(profile).not.toHaveProperty('crownOverlap');
-    }
-    expect(migrated.schemaVersion).toBe(3);
-    expect(isElevationDocument(migrated)).toBe(true);
-    expect(localStorage.getItem(V2_ELEVATION_STORAGE_KEY)).toBe(serialized);
-  });
-
-  it('4. migrates a partial wall crown profile using inherited room values', () => {
-    const previous = v2Document();
-    previous.rooms[0].walls[0].profile = { crownHeight: 6 };
-
-    const migrated = migrateV2Document(previous);
-
-    expect(migrated.rooms[0].walls[0].profile).toEqual({
-      crownHeight: 6,
-      crownStackHeight: 7.5,
-    });
-    expect(isElevationDocument(migrated)).toBe(true);
-  });
 });
 
 describe('wall side persistence', () => {
@@ -672,7 +573,7 @@ describe('SPEC-23 part number persistence', () => {
     delete omitted.rooms[0].partNumberStart;
     delete omitted.rooms[0].partNumberOverrides;
     expect(isElevationDocument(omitted)).toBe(true);
-    expect(normalizeV3Document(omitted).rooms[0]).toMatchObject({
+    expect(normalizeElevationDocument(omitted).rooms[0]).toMatchObject({
       partNumberStart: 1,
       partNumberOverrides: {},
     });
@@ -680,7 +581,7 @@ describe('SPEC-23 part number persistence', () => {
     const present = tbtDocument();
     present.rooms[0].partNumberStart = 100;
     present.rooms[0].partNumberOverrides = { 'piece-1': 7 };
-    expect(normalizeV3Document(present).rooms[0]).toMatchObject({
+    expect(normalizeElevationDocument(present).rooms[0]).toMatchObject({
       partNumberStart: 100,
       partNumberOverrides: { 'piece-1': 7 },
     });
@@ -701,11 +602,11 @@ describe('SPEC-23 part number persistence', () => {
     const omitted = tbtDocument();
     delete omitted.settings.showPartNumbers;
     expect(isElevationDocument(omitted)).toBe(true);
-    expect(normalizeV3Document(omitted).settings.showPartNumbers).toBe(true);
+    expect(normalizeElevationDocument(omitted).settings.showPartNumbers).toBe(true);
 
     const hidden = tbtDocument();
     hidden.settings.showPartNumbers = false;
-    expect(normalizeV3Document(hidden).settings.showPartNumbers).toBe(false);
+    expect(normalizeElevationDocument(hidden).settings.showPartNumbers).toBe(false);
 
     const invalid = tbtDocument();
     invalid.settings.showPartNumbers = 'yes';
@@ -719,7 +620,7 @@ describe('SPEC-25 blind corner persistence', () => {
     expect(isElevationDocument(omitted)).toBe(true);
 
     const present = tbtDocument();
-    present.rooms[0].walls[0].runs[0].blind = { left: 42, right: null };
+    present.rooms[0].walls[0].runs[0].grid.cells[0].node.blind = { left: 42 };
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(present)]]),
     };
@@ -727,7 +628,7 @@ describe('SPEC-25 blind corner persistence', () => {
 
     for (const blind of [{ left: 0 }, { left: -42 }, []]) {
       const invalid = tbtDocument();
-      invalid.rooms[0].walls[0].runs[0].blind = blind;
+      invalid.rooms[0].walls[0].runs[0].grid.cells[0].node.blind = blind;
       expect(isElevationDocument(invalid)).toBe(false);
     }
   });
@@ -741,7 +642,7 @@ describe('SPEC-27 end filler persistence', () => {
     const older = tbtDocument();
     delete older.settings.fillerReturnDepth;
     delete older.settings.fillerReturnThickness;
-    const normalized = normalizeV3Document(older);
+    const normalized = normalizeElevationDocument(older);
     expect(isElevationDocument(normalized)).toBe(true);
     expect(normalized.settings).toMatchObject({
       fillerReturnDepth: 2.5,
@@ -775,7 +676,7 @@ describe('SPEC-28 blind end persistence', () => {
 
     const older = tbtDocument();
     delete older.settings.blindFillerWidth;
-    expect(normalizeV3Document(older).settings.blindFillerWidth).toBe(6);
+    expect(normalizeElevationDocument(older).settings.blindFillerWidth).toBe(6);
 
     const blindEnd = tbtDocument();
     blindEnd.rooms[0].walls[0].runs[0].ends.left = { type: 'blind', width: null };
@@ -802,24 +703,73 @@ describe('SPEC-28 blind end persistence', () => {
     }
   });
 
-  it('222. migrates filler ends carrying blind widths to blind ends', () => {
-    const legacyBlind = tbtDocument();
-    const runWithBlind = legacyBlind.rooms[0].walls[0].runs[0];
-    runWithBlind.ends = {
-      left: { type: 'filler', width: null },
-      right: { type: 'filler', width: null },
+});
+
+describe('SPEC-32 grid persistence', () => {
+  const PIN = {
+    anchor: 'center',
+    from: 'left',
+    openingId: null,
+    openingAnchor: 'center',
+    value: 60,
+  };
+
+  it('ignores saves under the old keys', () => {
+    expect(ELEVATION_STORAGE_KEY).toBe('cd.elevationLab.v4');
+    globalThis.window = {
+      localStorage: storageWith([[
+        'cd.elevationLab.v3',
+        JSON.stringify({ ...currentDocument(), schemaVersion: 3 }),
+      ]]),
     };
-    runWithBlind.blind = { left: 42, right: null };
+    expect(loadElevationDocument()).toBeNull();
 
-    expect(normalizeV3Document(legacyBlind).rooms[0].walls[0].runs[0].ends).toEqual({
-      left: { type: 'blind', width: null },
-      right: { type: 'filler', width: null },
+    const current = currentDocument();
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(currentDocument()));
+  });
+
+  it('rejects v4 runs that keep items or blind, or hold a malformed grid', () => {
+    expect(isElevationDocument(currentDocument())).toBe(true);
+    const rejects = (mutate) => {
+      const document = currentDocument();
+      mutate(document.rooms[0].walls[0].runs[0]);
+      expect(isElevationDocument(document)).toBe(false);
+    };
+
+    rejects((run) => { run.items = []; });
+    rejects((run) => { run.blind = { left: 36, right: null }; });
+    rejects((run) => { delete run.grid; });
+    rejects((run) => { run.grid.cols[0].pin = { ...PIN, anchor: 'top' }; });
+    rejects((run) => { run.grid.cells[0].node.blind = { left: 0 }; });
+    rejects((run) => { run.grid.cells[0].node.blind = []; });
+    rejects((run) => { run.grid.cells[0].node.blind = { top: 36 }; });
+    rejects((run) => { run.grid.cells[0].node.kind = 'shelves'; });
+    rejects((run) => { run.grid.cells[0].node.face = { type: 'shelf', size: null }; });
+    rejects((run) => {
+      run.grid.rows.push({ id: 'r2', size: null, sizeMode: 'auto' });
     });
+  });
 
-    const withoutBlind = tbtDocument();
-    const originalEnds = withoutBlind.rooms[0].walls[0].runs[0].ends;
-    delete withoutBlind.rooms[0].walls[0].runs[0].blind;
-    expect(normalizeV3Document(withoutBlind).rooms[0].walls[0].runs[0].ends)
-      .toEqual(originalEnds);
+  it('the store adapter reads grids as items and saves them back unchanged', () => {
+    const document = currentDocument();
+    document.rooms[0].walls[0].runs[0].grid = gridFromItems('a', [
+      { id: 'p', kind: 'cabinet', width: null, pin: PIN },
+      { id: 'l', kind: 'cabinet', width: 30 },
+      { id: 'f', kind: 'filler', width: 3 },
+    ], { left: 36, right: null });
+    expect(isElevationDocument(document)).toBe(true);
+
+    const state = createInitialElevationState(document);
+    const storeRun = state.rooms[0].walls[0].runs[0];
+    expect(storeRun.items).toEqual(rootItems(document.rooms[0].walls[0].runs[0].grid));
+    expect(storeRun.blind).toEqual({ left: 36, right: null });
+    expect(storeRun).not.toHaveProperty('grid');
+    expect(document.rooms[0].walls[0].runs[0]).toHaveProperty('grid');
+    expect(document.rooms[0].walls[0].runs[0]).not.toHaveProperty('items');
+    expect(runBlind(document.rooms[0].walls[0].runs[0])).toEqual({ left: 36, right: null });
+    expect(toElevationDocument(state).rooms).toEqual(document.rooms);
   });
 });

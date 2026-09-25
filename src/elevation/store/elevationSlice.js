@@ -59,6 +59,7 @@ import {
 import {
   ELEVATION_SCHEMA_VERSION,
   loadElevationDocument,
+  storeRoomsFromDocument,
 } from './persistence.js';
 
 function copySettings(settings = DEFAULT_SETTINGS) {
@@ -114,7 +115,7 @@ function createRoom(name = 'Room 1', settings = DEFAULT_SETTINGS, id = uuid()) {
 export function createInitialElevationState(document = loadElevationDocument()) {
   const settings = copySettings(document?.settings ?? DEFAULT_SETTINGS);
   const fallbackRoom = document ? null : createRoom('Room 1', settings);
-  const rooms = document?.rooms ?? [fallbackRoom];
+  const rooms = document?.rooms ? storeRoomsFromDocument(document.rooms) : [fallbackRoom];
   const activeRoomId = document ? document.activeRoomId : fallbackRoom.id;
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
   const activeWallId = document ? document.activeWallId : null;
