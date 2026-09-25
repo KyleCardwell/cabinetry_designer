@@ -28,7 +28,7 @@ const ITEM_KINDS = new Set(['cabinet', 'filler']);
 const LEAF_KIND_SET = new Set(LEAF_KINDS);
 /** Keys each non-cabinet cell kind may carry. */
 const CELL_KIND_KEYS = {
-  panel: ['id', 'kind', 'depth', 'align'],
+  panel: ['id', 'kind', 'depth', 'align', 'doors'],
   void: ['id', 'kind'],
   shelves: ['id', 'kind', 'depth', 'align', 'shelves'],
 };
@@ -247,6 +247,10 @@ function isCellLeaf(leaf) {
   const keys = CELL_KIND_KEYS[leaf.kind];
   return Boolean(keys)
     && Object.keys(leaf).every((key) => keys.includes(key))
+    && (leaf.kind !== 'panel'
+      || leaf.doors === undefined
+      || leaf.doors === 'cover'
+      || leaf.doors === 'flush')
     && (leaf.kind !== 'shelves' || isShelves(leaf.shelves));
 }
 

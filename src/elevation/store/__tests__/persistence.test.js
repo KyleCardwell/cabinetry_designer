@@ -934,3 +934,27 @@ describe('SPEC-34.1 top-level cell kinds', () => {
     rejects(([, , , shelf]) => { delete shelf.shelves; });
   });
 });
+
+describe('SPEC-34.2 panel doors and hinges', () => {
+  it('saves and loads panel doors and door hinges', () => {
+    const document = currentDocument();
+    document.rooms[0].walls[0].runs[0].grid = gridFromItems('a', [
+      { id: 'cover', kind: 'panel', width: 0.75, doors: 'cover' },
+      { id: 'flush', kind: 'panel', width: 0.75, doors: 'flush' },
+      {
+        id: 'cab',
+        kind: 'cabinet',
+        width: null,
+        face: { type: 'door', size: null, hinge: 'left' },
+      },
+    ]);
+    expect(isElevationDocument(document)).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(document));
+
+    document.rooms[0].walls[0].runs[0].grid.cells[0].node.doors = 'overlay';
+    expect(isElevationDocument(document)).toBe(false);
+  });
+});
