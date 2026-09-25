@@ -1,0 +1,921 @@
+# Forever Furniture — shop rules
+#
+# Source: "Cabinet Job Processing Checklist 2026.docx" (reorganized; the original is unchanged).
+# How to read and add rules: README.md in this folder.
+#
+# Every rule has the same fields. Only id, title, scope, kind, owner and statement are required.
+#
+#   id         Stable. Never reuse or renumber — reports and dismissed findings point at it.
+#   title      A few words.
+#   scope      Where it applies: room | wall | run | cabinet | section | face | drawer | part
+#   styles     [euro] | [face_frame] | [euro, face_frame]   (omit = both)
+#   kind       check     — a condition the design must meet; a finding when it doesn't
+#              default   — the standard value when nothing says otherwise
+#              derive    — a value calculated from other values
+#              note      — wording the shop expects on a report / order
+#              sourcing  — which vendor supplies a part
+#   owner      code — deterministic; should end up in the designer's model or diagnostics
+#              ai   — needs judgment; AI reviews it against the resolved room
+#   severity   block | warn | info   (checks only; how loud the finding is)
+#   statement  The rule in plain words. This is what AI reads.
+#   note       The wording that goes on the report. Anything in {braces} is filled in from the
+#              design ({material}, {height}); everything else is literal. A list means "one of
+#              these". A note with no braces is always written exactly as shown.
+#   example    A filled-in note from the checklist. Only an illustration — never copied as-is.
+#   values     Numbers, in inches, as fractions: '1 9/16'.
+#              Reveals are measured from the box edge to the face edge (Euro) or to the frame
+#              opening (face frame). Negative means the face runs past the box: '-1/8'.
+#   needs      Data the designer doesn't record yet, so the rule can't be checked yet.
+#              purpose | interior | drawer_boxes | door_style | materials | hardware |
+#              wood_top | appliances | part_shape | scribe | room_settings
+#   status     active (default) | question — unclear or contradicts something; see README
+
+rules:
+
+# ─────────────────────────────────────────────────────────────── General review
+- id: GEN-001
+  title: Appliance handle clearance
+  scope: room
+  kind: check
+  owner: ai
+  severity: warn
+  statement: Nothing may hit appliance handles.
+  needs: [appliances, purpose]
+
+- id: GEN-002
+  title: Corner drawers open clear
+  scope: room
+  kind: check
+  owner: ai
+  severity: warn
+  statement: >
+    Every drawer near an inside corner must open fully without hitting anything —
+    watch farm sinks and appliances near a corner especially.
+  needs: [appliances, purpose]
+
+- id: GEN-003
+  title: Fillers clear casings
+  scope: run
+  kind: check
+  owner: ai
+  severity: warn
+  statement: >
+    Fillers must be wide enough that appliance and cabinet doors clear the house door and
+    window casings on a neighboring wall.
+  needs: [appliances]
+
+# ─────────────────────────────────────────────────────────────── Box construction
+- id: BOX-001
+  title: Box material exceptions
+  scope: cabinet
+  kind: note
+  owner: code
+  statement: >
+    A cabinet whose box material differs from the room default (usually a finished interior)
+    carries its material as a note.
+  note: '{material} BOX'
+  example: 'RIFT WHITE OAK BOX'
+  needs: [materials]
+
+- id: BOX-002
+  title: Full top on bases
+  scope: cabinet
+  kind: default
+  owner: code
+  statement: Every base cabinet gets a full top, except sink and cooktop bases.
+  note: 'full top'
+  needs: [purpose]
+
+- id: BOX-003
+  title: Face frame deck height
+  scope: cabinet
+  styles: [face_frame]
+  kind: default
+  owner: code
+  statement: >
+    Face frame bases and talls get their deck (bottom) raised 1 1/8" with supports:
+    the 1 1/2" rail minus half the 3/4" deck. A taller bottom face frame rail will have the deck up even higher.
+  note: 'deck up {height}" (with supports)'
+  example: 'deck up 1 1/8" (with supports)'
+  values: { deck_up: '1 1/8' }
+
+- id: BOX-004
+  title: Back thickness
+  scope: cabinet
+  kind: default
+  owner: code
+  statement: >
+    Standard back is 1/4" set in dados. Anything else — a 3/4" inset back or a 1/4" applied
+    back — is noted on the cabinet.
+  note: ['{thickness}" inset back', '{thickness}" applied back']
+  example: ['3/4" inset back', '1/4" applied back']
+  values: { standard: '1/4' }
+
+- id: BOX-005
+  title: Finished ends
+  scope: cabinet
+  kind: note
+  owner: code
+  statement: >
+    A cabinet with a finished end gets a note for which side, with a dowel front hole.
+    Assumes the back is not visible, so it can be confirmat construction.
+  note: ['fl/dowel front hole', 'fr/dowel front hole', 'fl/fr - dowel front holes']
+
+- id: BOX-006
+  title: Sink apron height
+  scope: cabinet
+  kind: note
+  owner: code
+  statement: Sink cabinets note their apron height.
+  note: '{height}" apron'
+  example: '7 1/2" apron'
+  needs: [purpose]
+
+- id: BOX-007
+  title: Drawer stabilizers
+  scope: cabinet
+  kind: check
+  owner: code
+  severity: warn
+  statement: A cabinet with any drawer front wider than 36" needs drawer stabilizers noted on the box.
+  note: 'drawer stabilizers'
+  values: { max_front_width: '36' }
+
+- id: BOX-008
+  title: In-cabinet lighting
+  scope: cabinet
+  kind: note
+  owner: code
+  statement: Cabinets with LED lighting get a recessed aluminum track.
+  note: 'FF to recess aluminum track for LEDs'
+  needs: [interior]
+
+# ─────────────────────────────────────────────────────────────── Reveals
+- id: REV-001
+  title: Standard Euro reveals
+  scope: cabinet
+  styles: [euro]
+  kind: default
+  owner: code
+  statement: Standard Euro reveals by cabinet type. Anything different is noted on the cabinet.
+  note: 'RV''s ({value}" {side}, ...)'   # only the sides that differ, in T, B, L, R order
+  example: 'RV''s (1/4" T, 1/8" B)'
+  values:
+    base:  { top: '1/4', bottom: '1/8',  left: '1/16', right: '1/16' }
+    tall:  { top: '1/8', bottom: '1/8',  left: '1/16', right: '1/16' }
+    wall:  { top: '1/8', bottom: '-1/8', left: '1/16', right: '1/16' }   # doors hang 1/8" below the box
+
+- id: REV-002
+  title: Below a shop-built wood top
+  scope: cabinet
+  kind: default
+  owner: code
+  statement: A cabinet directly below a shop-built wood top gets a 1/8" top reveal.
+  note: 'RV''s (1/8" T)'
+  values: { top: '1/8' }
+  needs: [wood_top]
+
+- id: REV-003
+  title: Standard face frame reveals
+  scope: cabinet
+  styles: [face_frame]
+  kind: default
+  owner: code
+  statement: >
+    Standard face frame reveals by cabinet type, measured from the box to the frame opening.
+    The 1 1/2" frame overhangs each box side by 3/4", and on a wall cabinet the bottom rail drops
+    3/4" below the box, so the opening still starts 3/4" above it. Doors and drawer fronts are
+    ordered tight to the opening — the shop fits them — so the drawing and the order use these
+    sizes. (Cabinet Vision used 1 9/16" and 13/16" because it built a 1/16" fitting gap into the
+    reveal; that gap is not part of the order.) Faces with profiled, non-square edges are the
+    exception: see REV-007. Anything different from standard is noted on the cabinet.
+  note: 'RV''s ({value}" {side}, ...)'   # only the sides that differ, in T, B, L, R order
+  example: 'RV''s (3/4" B)'
+  values:
+    base:          { top: '1 1/2', bottom: '1 1/2', left: '3/4', right: '3/4' }
+    hanging_base:  { bottom: '3/4' }
+    tall:          { top: '1 1/2', bottom: '1 1/2', left: '3/4', right: '3/4' }
+    wall:          { top: '1 1/2', bottom: '3/4',   left: '3/4', right: '3/4' }   # frame drops 3/4" below the box
+    fit:           '0'   # faces ordered tight to the opening
+
+- id: REV-004
+  title: Pencil drawers
+  scope: cabinet
+  kind: default
+  owner: code
+  statement: Pencil drawer cabinets (Euro or face frame) get a full top and no deck.
+  note: 'full top, RV''s (1/4" T, 0" B, 1/16" L & R), no deck'
+  values: { top: '1/4', bottom: '0', left: '1/16', right: '1/16' }
+  needs: [purpose]
+
+- id: REV-005
+  title: Euro cabinet captured between panels/fillers — pair doors
+  scope: cabinet
+  styles: [euro]
+  kind: derive
+  owner: code
+  statement: >
+    A single Euro cabinet captured between any combination of end panels and fillers, with a
+    pair of doors: 1/4" total gap (1/8" between the doors plus left and right reveals), so
+    1/16" left and right reveals. If the end panels or T-fillers cover the cabinet's front
+    edges, left and right reveals are 13/16".
+  values: { left_right: '1/16', left_right_edges_covered: '13/16' }
+
+- id: REV-006
+  title: Euro cabinet captured between panels/fillers — single door or drawer front
+  scope: cabinet
+  styles: [euro]
+  kind: derive
+  owner: code
+  statement: >
+    Same situation with a single door or drawer front: 3/16" total, so 3/32" left and right
+    reveals; 27/32" if end panels or T-fillers cover the front edges.
+  values: { left_right: '3/32', left_right_edges_covered: '27/32' }
+
+- id: REV-007
+  title: Face frame doors without square edges
+  scope: face
+  styles: [face_frame]
+  kind: derive
+  owner: code
+  statement: >
+    Face frame doors and drawer fronts whose outside edges are not square are undersized in
+    the opening. Height is always 3/16" less than the opening (3/32" gap top and bottom).
+    Pair doors are 1/4" less overall in width (1/8" gap at each side). Single doors and
+    drawer fronts are 3/16" less in width (3/32" gap each side).
+  values:
+    height_less: '3/16'
+    pair_width_less: '1/4'
+    single_width_less: '3/16'
+  needs: [door_style]
+
+- id: REV-008
+  title: Flipper door outer cabinet
+  scope: cabinet
+  kind: default
+  owner: code
+  statement: >
+    The outer cabinet of a flipper door pair gets a 13/16" top reveal so the doors clear, no
+    line bore and no hinge plate holes. Deck is standard, raised 1 1/8", or none.
+  note: 'RV''s (13/16" T); NLB, NPH (No Doors)'
+  values: { top: '13/16' }
+  needs: [purpose, interior]
+
+- id: REV-009
+  title: Stacked face frame boxes share a rail
+  scope: cabinet
+  styles: [face_frame]
+  kind: derive
+  owner: code
+  statement: >
+    When one face frame box sits directly on another in the same frame, the lower box's full
+    top and the upper box's deck are flush at the seam, and one 1 1/2" rail covers both: the
+    upper box gets a 3/4" bottom reveal and the lower box a 3/4" top reveal. The upper box's
+    deck is not raised (the exception to BOX-003). Anything different from the type standard
+    is noted on each cabinet (REV-003).
+  values: { upper_bottom: '3/4', lower_top: '3/4', upper_deck_up: '0' }
+
+- id: REV-010
+  title: Stacked Euro boxes
+  scope: cabinet
+  styles: [euro]
+  kind: default
+  owner: code
+  statement: >
+    When one Euro box sits directly on another, the upper box gets a 0" bottom reveal and the
+    lower box a 1/8" top reveal. That keeps the standard 1/8" gap between faces without taking
+    1/16" off each face's height. It's a default, not a rule: which box takes the 0 can flip,
+    and either can go negative, when the run has to hold a line with end panels, side panels,
+    appliances or the rest of the room. Set per cabinet. Anything different from the type
+    standard is noted on the cabinet (REV-001).
+  values: { upper_bottom: '0', lower_top: '1/8' }
+
+- id: REV-011
+  title: Doors and the parts below a run
+  scope: run
+  kind: derive
+  owner: code
+  statement: >
+    A light rail, light trough or panel below a run can be covered by the doors, flush with the
+    door faces, or visible. The room's design decides which, not a rule. Covered: the bottom
+    reveal is minus the part's height plus the usual overhang (-7/8" over a 3/4" panel,
+    -1 5/8" over a 1 1/2" light rail behind the doors). Flush: the doors stop above it with a
+    1/8" reveal instead of hanging -1/8". Visible: the standard reveal. Always overridable per
+    cabinet, and noted like any other non-standard reveal.
+  values: { usual_overhang: '-1/8', flush: '1/8', covered_3_4_panel: '-7/8', covered_1_1_2_light_rail: '-1 5/8' }
+
+# ─────────────────────────────────────────────────────────────── Interior
+- id: INT-001
+  title: Partition in wide cabinets
+  scope: cabinet
+  kind: check
+  owner: code
+  severity: warn
+  statement: >
+    A cabinet box wider than 36" needs a vertical partition (pt) or double partition (dbl pt),
+    or nosing on its shelves. The partition is dimensioned to its center from the left or right
+    outside of the box, and each side gets its own section note.
+  note: ['pt {distance}" oc from {L|R}', 'dbl pt {distance}" oc from {L|R}', 'Left Sec ({section note})', 'Right Sec ({section note})']
+  values: { max_width_without_pt: '36' }
+  needs: [interior]
+
+- id: INT-002
+  title: Fixed shelf position
+  scope: cabinet
+  kind: default
+  owner: code
+  statement: >
+    Euro: a fixed shelf usually splits the space between two stacked doors or drawer fronts.
+    Face frame: behind a horizontal frame rail, the shelf's top edge lines up with the top of
+    the rail. Either way it is dimensioned from the bottom of the box to its center.
+  note: 'fs up {height}" oc'
+  example: 'fs up 72 1/4" oc'
+  needs: [interior]
+
+- id: INT-003
+  title: Fixed shelf banding
+  scope: cabinet
+  kind: default
+  owner: code
+  statement: >
+    Fixed shelves are banded as standard on Euro cabinets. Hidden ones (e.g. behind a face
+    frame) are noted "no banding".
+  note: 'no banding'
+  needs: [interior]
+
+- id: INT-004
+  title: Oven shelf
+  scope: cabinet
+  kind: check
+  owner: ai
+  severity: warn
+  statement: An oven usually sits on a double fixed shelf to carry its weight.
+  note: '2 fs (up {height}", {height}")'
+  example: '2 fs (up 12 1/8", 12 7/8")'
+  needs: [purpose, interior]
+
+- id: INT-005
+  title: Section notes
+  scope: section
+  kind: note
+  owner: code
+  statement: >
+    Each section between fixed shelves (or the whole box if there are none) gets its own note,
+    named top to bottom, saying: doors, drawer fronts or no doors; hinge plate holes or none;
+    line bore or none; adjustable shelf count; drawer/roll-out count and depth. With no doors,
+    say what's there — an appliance, open, back or no back.
+  note: '{Top|Mid|Mid Btm|Btm} Sec ({section note})'
+  needs: [interior]
+
+- id: INT-006
+  title: No doors means no hinge plate holes
+  scope: section
+  kind: default
+  owner: code
+  statement: Hinge plate holes are standard; a section with no doors is noted NPH.
+  note: 'NPH (No Doors)'
+  needs: [interior]
+
+- id: INT-007
+  title: Line bore
+  scope: section
+  kind: default
+  owner: code
+  statement: Line bore (adjustable shelf holes) is standard; sections without it are noted NLB.
+  note: 'NLB'
+  needs: [interior]
+
+- id: INT-008
+  title: Adjustable shelf count
+  scope: section
+  kind: derive
+  owner: code
+  statement: Adjustable shelves go roughly 12" apart.
+  note: '{count} as'
+  example: '4 as'
+  values: { spacing: '12' }
+  needs: [interior]
+
+- id: INT-009
+  title: Adjustable shelf nosing
+  scope: section
+  kind: note
+  owner: code
+  statement: >
+    Adjustable shelves are banded as standard. When the shop adds nosing instead, note it; if
+    the shelf isn't hardwood, order it 2" deeper so the shop can cut and fold for the nosing.
+  note: ['no banding – add 1 1/2" nosing', '+2" as depth, FF to cut & fold for 1 1/2" nosing']
+  needs: [interior, materials]
+
+- id: INT-010
+  title: Hinge side
+  scope: face
+  kind: note
+  owner: code
+  statement: A single door notes which side it hinges on.
+  note: ['hl', 'hr']
+
+- id: INT-011
+  title: Hinge bore
+  scope: face
+  kind: default
+  owner: code
+  statement: >
+    Hinge bore is 4" from the door edge as standard. When Alpha's order confirmation shows a
+    different bore, the door's note must say so.
+  note: '{bore}" hinge bore'
+  example: '2 1/2" hinge bore'
+  values: { standard: '4' }
+  needs: [hardware]
+
+- id: INT-012
+  title: Flipper door inner cabinet
+  scope: cabinet
+  kind: derive
+  owner: code
+  statement: >
+    The inner cabinet of a flipper door pair sits inside the outer one. Width is 4" less than
+    the outer box's interior opening; height equals the outer box's interior opening; depth is
+    1 1/4" less than the outer box's exterior (1" for the back, 1/4" at the front so the
+    flipper hinges clear). It has a finished interior.
+  note: '{material} BOX'
+  example: 'MDF BOX'
+  values: { width_less_interior: '4', depth_less_exterior: '1 1/4' }
+  needs: [purpose, interior]
+
+# ─────────────────────────────────────────────────────────────── Doors and panels
+- id: DOOR-001
+  title: Check every door for mid rails and stiles
+  scope: face
+  kind: check
+  owner: ai
+  severity: warn
+  statement: >
+    Glass or mesh panels are noted as sash panels.
+  note: ['sash panel for glass', 'sash panel for mesh']
+  needs: [door_style]
+
+- id: DOOR-002
+  title: Non-standard stiles and rails
+  scope: face
+  kind: note
+  owner: code
+  statement: >
+    Each door or panel notes its top rail, bottom rail, left stile and right stile when they
+    differ from the room standard, and places any mid rail or mid stile on center from the
+    door's edge.
+  note: ['{width}" {TR|BR|LS|RS}', '{width}" MR up {distance}" oc']
+  example: ['3 1/2" LS', '3 5/8" MR up 31 1/2" oc']
+  needs: [door_style]
+
+- id: DOOR-003
+  title: Mid rail width
+  scope: face
+  kind: derive
+  owner: code
+  statement: >
+    A mid rail or mid stile is wider than the outside stiles and rails by one inside molding
+    profile. On a 3" door with a 5/8" profile, the mid rail is 3 5/8".
+  needs: [door_style]
+
+- id: DOOR-004
+  title: Glass and mesh door minimum
+  scope: face
+  kind: check
+  owner: code
+  severity: block
+  statement: 5-piece glass or mesh panel doors must have stiles and rails at least 2 1/2" wide.
+  values: { min_stile_rail: '2 1/2' }
+  needs: [door_style]
+
+- id: DOOR-005
+  title: Slab with outside molding
+  scope: face
+  kind: check
+  owner: code
+  severity: warn
+  statement: Slab doors and drawer fronts with an outside molding are ordered as veneer panels (Slab – MDF CORE).
+  needs: [door_style]
+
+# ─────────────────────────────────────────────────────────────── Drawers and roll-outs
+- id: DRW-001
+  title: Default slides
+  scope: drawer
+  kind: default
+  owner: code
+  statement: >
+    Drawers and roll-outs use Blum soft-close slides. Heavy-duty ones use Accuride 3832,
+    or 4034 for very heavy duty.
+  needs: [drawer_boxes, hardware]
+
+- id: DRW-002
+  title: Shallow drawer with a tall front
+  scope: drawer
+  kind: check
+  owner: code
+  severity: warn
+  statement: A drawer box under 15" deep behind a front taller than 5 7/8" uses Accuride slides (that drawer only).
+  values: { max_box_depth: '15', min_front_height: '5 7/8' }
+  needs: [drawer_boxes, hardware]
+
+- id: DRW-003
+  title: File drawers
+  scope: drawer
+  kind: check
+  owner: code
+  severity: warn
+  statement: >
+    A file drawer (front at least 13" tall, 10 1/4" tall box) uses Accuride 3832, not soft-close.
+    Wider than 24", it uses Accuride 4034, not soft-close.
+  values: { min_front_height: '13', box_height: '10 1/4', heavy_over_width: '24' }
+  needs: [purpose, drawer_boxes, hardware]
+
+- id: DRW-004
+  title: Matching box heights
+  scope: cabinet
+  kind: check
+  owner: code
+  severity: warn
+  statement: Within one cabinet, drawer fronts of the same height get drawer boxes of the same height.
+  needs: [drawer_boxes]
+
+- id: DRW-005
+  title: Drawer clips
+  scope: drawer
+  kind: default
+  owner: code
+  statement: >
+    Drawers in face frame boxes get adjustable clips; drawers in Euro boxes get standard clips.
+    Neither applies to roll-outs. Clips follow the cabinet's own style, not the room's, so a
+    Euro cabinet in a face frame room still gets standard clips.
+  needs: [drawer_boxes]
+
+- id: DRW-006
+  title: Sink cabinet roll-outs and drawers
+  scope: drawer
+  kind: derive
+  owner: code
+  statement: >
+    In any sink cabinet, roll-outs and drawers are 3" shallower than standard to clear the
+    plumbing, and drawers are also noted to be notched around it.
+  note: 'notch drw around plumbing'
+  values: { depth_less: '3' }
+  needs: [purpose, drawer_boxes]
+
+- id: DRW-007
+  title: Pre-finished maple Euro drawers
+  scope: drawer
+  styles: [euro]
+  kind: derive
+  owner: code
+  statement: In pre-finished maple Euro cabinets, drawers are 1/16" wider than usual.
+  values: { width_more: '1/16' }
+  needs: [materials, drawer_boxes]
+
+- id: DRW-008
+  title: Charging drawers
+  scope: drawer
+  kind: check
+  owner: code
+  severity: warn
+  statement: >
+    A charging drawer needs at least 2" clear behind the drawer box. Order the box one size down
+    if necessary.
+  values: { min_clear_behind: '2' }
+  needs: [purpose, drawer_boxes]
+
+- id: DRW-009
+  title: Roll-out trash depth and bottom
+  scope: drawer
+  kind: derive
+  owner: code
+  statement: >
+    Roll-out trash (ROT) depth by cabinet size. 24" deep and 18"–23 7/8" wide: 22" deep ROT
+    with the bottom up 1 3/4" (so it can be modified for 21" Blum soft-close slides).
+    24" deep and under 18" wide: 21" ROT, standard bottom. 24" wide: 21" ROT, standard bottom.
+    26" deep or more: 24" ROT, standard bottom (up 1/2").
+  note: 'bottom up 1 3/4"'
+  values:
+    - { cabinet_depth: '24', width_from: '18', width_to: '23 7/8', rot_depth: '22', bottom_up: '1 3/4' }
+    - { cabinet_depth: '24', width_under: '18', rot_depth: '21', bottom_up: '1/2' }
+    - { cabinet_width: '24', rot_depth: '21', bottom_up: '1/2' }
+    - { cabinet_depth_min: '26', rot_depth: '24', bottom_up: '1/2' }
+  needs: [purpose, drawer_boxes]
+  status: question
+
+- id: DRW-010
+  title: Roll-out hampers
+  scope: drawer
+  kind: check
+  owner: code
+  severity: warn
+  statement: >
+    A roll-out hamper uses a 6 1/4" tall drawer box at least 15" × 22" (either way round),
+    placed near the top of the door, with at least 11" clear below it.
+  values: { box_height: '6 1/4', min_footprint: '15 x 22', min_clear_below: '11' }
+  needs: [purpose, drawer_boxes]
+
+# ─────────────────────────────────────────────────────────────── Fillers and end panels
+- id: FILL-001
+  title: Blind corner filler is its own part
+  scope: cabinet
+  kind: check
+  owner: code
+  severity: block
+  statement: >
+    A blind corner cabinet must have a flat filler as a separate part number, and its note
+    gives both the door width and the blind width.
+  note: 'Door x {door width}", Blind x {blind width}"'
+  example: 'Door x 17 7/8", Blind x 21 1/2"'
+
+- id: FILL-002
+  title: Euro wall fillers and panels
+  scope: part
+  styles: [euro]
+  kind: default
+  owner: code
+  statement: Fillers and end panels on Euro wall cabinets are 1/8" taller than the box, for the 1/8" bottom overhang.
+  values: { taller_than_box: '1/8' }
+
+- id: FILL-003
+  title: Face frame wall end panels
+  scope: part
+  styles: [face_frame]
+  kind: default
+  owner: code
+  statement: End panels on face frame wall cabinets are 3/4" taller than the box, for the 3/4" bottom overhang.
+  values: { taller_than_box: '3/4' }
+
+- id: FILL-004
+  title: Filler shape
+  scope: part
+  kind: note
+  owner: code
+  statement: Every filler says its shape — L, U, T, C, J or other.
+  note: ['L-shape', 'U-shape', 'T-shape', 'C-shape', 'J-shape']
+  needs: [part_shape]
+
+- id: FILL-005
+  title: Fillers beside appliances
+  scope: part
+  kind: default
+  owner: code
+  statement: A filler next to an appliance runs down to match the toe kick.
+  note: 'match toekick'
+  needs: [appliances]
+
+- id: FILL-006
+  title: Scribe
+  scope: part
+  kind: default
+  owner: code
+  statement: >
+    Anything touching a wall or the floor needs scribe, typically 1/2". On an end panel, widen
+    the stile or rail that touches.
+  note: '{width}" {LS|RS|TR|BR}'
+  example: ['3 1/2" LS', '7 1/2" BR']
+  values: { scribe: '1/2' }
+  needs: [scribe]
+
+- id: FILL-007
+  title: T-fillers rabbet the boxes they cover
+  scope: cabinet
+  kind: note
+  owner: code
+  statement: A cabinet box covered by a T-filler is noted so the shop rabbets it.
+  note: 'FF to rabbet {sides|left side|right side|top and bottom} for T-filler'
+  needs: [part_shape]
+
+- id: FILL-008
+  title: Stillwater end panels
+  scope: part
+  kind: note
+  owner: code
+  statement: End panels ordered from Stillwater are noted not to sand the edges.
+  note: 'do not sand edges'
+
+- id: FILL-009
+  title: End panels inset in face frames
+  scope: part
+  styles: [face_frame]
+  kind: derive
+  owner: code
+  statement: >
+    Paint grade: full-size end panels, with stiles and rails ordered wider so they can be kerfed
+    to look like face frame. Not paint grade: the panel is 1/8" wider and 1/8" taller than the
+    face frame opening, with stiles and rails matching the doors.
+  note: 'do not sand edges – {width}" S&R – {width}" MR up {distance}" oc'
+  example: 'do not sand edges – 4 1/2" S&R – 7 1/2" MR up 31 1/4" oc'
+  values: { oversize_not_paint_grade: '1/8' }
+  needs: [materials, door_style]
+
+- id: FILL-010
+  title: Corner cabinets on an angle
+  scope: run
+  kind: check
+  owner: ai
+  severity: warn
+  statement: >
+    Cabinets that die into an angled corner cabinet get L-fillers, and the corner cabinet gets
+    two L-fillers to be mitered on site — four fillers in total when both walls die into it.
+  needs: [part_shape]
+
+- id: FILL-011
+  title: T-filler width
+  scope: part
+  styles: [euro]
+  kind: derive
+  owner: code
+  statement: >
+    A T-filler is applied to Euro cabinets, per run or between two particular cabinets
+    (side by side or stacked). Its return sits in rabbets in both boxes (FILL-007) and its flat
+    covers each box's front edge by 3/4", so between two tight boxes the flat is 1 1/2". When
+    the boxes are spaced apart the flat grows by the spacer; at a run end it can be wider.
+    Covered edges give the 13/16" and 27/32" reveals in REV-005 and REV-006. It is a filler
+    part with its own number, noted "T-shape" (FILL-004).
+  values: { per_box: '3/4', between_tight_boxes: '1 1/2' }
+  needs: [part_shape]
+
+# ─────────────────────────────────────────────────────────────── Face frames
+- id: FF-001
+  title: Scribe included in frame sizes
+  scope: part
+  styles: [face_frame]
+  kind: derive
+  owner: code
+  statement: >
+    Scribe is part of the stile and rail dimensions: a stile showing 1 1/2" after install is
+    ordered 2".
+  note: '{width}" {left|right|left & right} stile(s)'
+  example: '2" left & right stiles'
+  needs: [scribe]
+
+- id: FF-002
+  title: Outside stiles at a miter
+  scope: part
+  styles: [face_frame]
+  kind: default
+  owner: code
+  statement: Outside stiles that miter to an end panel or another face frame are 1 9/16".
+  note: '1 9/16" {Left|Right|Left & Right} Stile(s)'
+  values: { stile: '1 9/16' }
+
+- id: FF-003
+  title: Bookcase frames
+  scope: cabinet
+  styles: [face_frame]
+  kind: check
+  owner: ai
+  severity: info
+  statement: >
+    A bookcase's frame should be proportional to its size. With no doors or drawers, prefer at
+    least 2" so the inside overhang is 1/4"; with LEDs the overhang needs to be bigger (usually
+    3/4"–1"). If the bookcase has doors or drawers lining up with its openings, use 1 1/2".
+    The inside overhang can differ within one open cabinet — it isn't noticeable.
+  values: { min_open: '2', with_faces: '1 1/2', led_overhang: '3/4 – 1' }
+  needs: [purpose]
+
+- id: FF-004
+  title: Wider stiles space the boxes apart
+  scope: part
+  styles: [face_frame]
+  kind: derive
+  owner: code
+  statement: >
+    A stile over a seam always covers 3/4" of each box. Any extra width becomes a spacer between
+    the boxes, so the stile's outside edges land on the inside faces of the box sides: a 2" stile
+    means a 1/2" spacer. Used for beaded inset frames and the occasional spaced layout.
+  values: { per_box: '3/4' }
+
+# ─────────────────────────────────────────────────────────────── Wood tops
+- id: TOP-001
+  title: Wood top depth on a 24" base
+  scope: run
+  kind: derive
+  owner: code
+  statement: >
+    On 24" deep bases a wood top overhangs 3/4" on every finished side: 26 1/8" deep against a
+    wall with scribe, 25 5/8" without.
+  values: { overhang: '3/4', depth_with_scribe: '26 1/8', depth_without_scribe: '25 5/8' }
+  needs: [wood_top, scribe]
+
+# ─────────────────────────────────────────────────────────────── Closets
+- id: CLO-001
+  title: Shelves with rods
+  scope: section
+  kind: note
+  owner: code
+  statement: A closet section with both adjustable shelves and rods gets a third row of line bore.
+  note: '3rd row lb'
+  needs: [interior]
+
+- id: CLO-002
+  title: Fixed rod height
+  scope: section
+  kind: check
+  owner: ai
+  severity: info
+  statement: A fixed rod sits about 40" from the shelf deck to the rod's center, so most clothes hang without dragging.
+  values: { deck_to_rod: '40' }
+  needs: [interior]
+
+# ─────────────────────────────────────────────────────────────── Where parts come from
+# One entry per door style. Vendors: Stillwater, Alpha, Shop.
+- id: SRC-001
+  title: Sourcing by door style
+  scope: room
+  kind: sourcing
+  owner: code
+  statement: Which vendor supplies each part, decided by the room's door style.
+  values:
+    five_piece:
+      doors_and_fronts: Stillwater
+      fillers_slab_end_panels_floating_shelves_toe_kick_top_mold: Shop
+    slab_textured_melamine:
+      doors_and_fronts: Alpha
+      fillers_end_panels_floating_shelves: Alpha
+      toe_kick: Alpha (rips)
+      top_mold: Alpha (rips)
+    slab_veneer_wire_brushed:
+      doors_and_fronts: Alpha
+      fillers_end_panels_floating_shelves: Alpha
+      top_mold: Alpha (rips)
+      toe_kick: Shop
+    slab_veneer_vertical_or_horizontal_grain:
+      doors_and_fronts: Alpha
+      fillers_end_panels_floating_shelves: Alpha
+      top_mold: Alpha (rips)
+      toe_kick: Shop
+    slab_paint_grade:
+      doors_and_fronts: Alpha
+      slab_end_panels_3_4_banded: Alpha
+      fillers_end_panels_with_nosing_floating_shelves_toe_kick_top_mold: Shop
+  needs: [door_style]
+
+- id: SRC-002
+  title: Wire brushed
+  scope: room
+  kind: note
+  owner: code
+  statement: >
+    When doors are wire brushed, "WIRE BRUSHED" appears in the report headers (in the wood or
+    finish). 5-piece doors from Stillwater are then all ordered unassembled — the shop does the
+    wire brushing.
+  note: ['WIRE BRUSHED', 'UNASSEMBLED']
+  needs: [materials]
+
+- id: SRC-003
+  title: Alpha slab parts — banding and oversizing
+  scope: part
+  kind: note
+  owner: code
+  statement: >
+    For slab / sheet-goods parts from Alpha (textured melamine, laminate, slab veneer):
+    fillers and end panels are banded 2 widths, 1 height; top mold and light rail are banded
+    1 height. Fillers, top mold and light rail are ordered wider than their installed size so
+    the shop can cut and fold them — fillers at least 7" wide for an L-shape. Toe kick is
+    ordered as unbanded rips, enough to cover the total length.
+  note: ['band 2w, 1h', 'band 1h', 'cut & fold for L-shape', '{count} ea, {width}" wide rips']
+  example: '3 ea, 3 7/8" wide rips'
+  values: { min_fold_filler_width: '7' }
+  needs: [door_style, part_shape]
+  status: question
+
+- id: SRC-004
+  title: Black melamine edge banding
+  scope: room
+  kind: default
+  owner: code
+  statement: A black melamine box gets black edge banding.
+  note: 'BLACK'
+  needs: [materials]
+
+# ─────────────────────────────────────────────────────────────── Room settings
+# The fields the checklist sets per room. The designer needs these as room-level options
+# (PLATFORM-PLAN §3). Defaults shown where the checklist gives one.
+room_settings:
+  - { key: face_frame,          label: Face frame,             values: [Y, N], note: 'Y adds "- FACE FRAME" to the room name on every report' }
+  - { key: grain_direction,     label: Alpha grain direction,  values: [VH, V, H] }
+  - { key: custom_profile,      label: Custom profile,         note: 'replaces the room''s selected profiles on the door order' }
+  - { key: door_edgeband,       label: Door/DF edgeband,       default: MATCH }
+  - { key: edgeband_alert,      label: Edgeband alert,         values: [N, Y], note: 'Y shows the alert text in red near the top of the main shipping list' }
+  - { key: edgeband_alert_text, label: Edgeband alert text }
+  - { key: box_material,        label: Room box material,      default: WHITE MELAMINE }
+  - { key: drawer_finish,       label: Drawer assembly/finish, example: WALNUT }
+  - { key: drawer_material,     label: Drawer box material,    default: BALTIC BIRCH }
+  - { key: edge_type,           label: Room edge type,         values: ['P (PVC, standard)', 'V (veneer)', 'O (other)'] }
+  - { key: room_edgeband,       label: Room edgeband,          default: ALPHA'S CHOICE }
+  - { key: finish_extra,        label: Finish extra,           note: 'appended to the finish on the title block and reports' }
+  - { key: material_extra,      label: Material extra,         note: 'appended to the wood on the title block and reports' }
+
+# ─────────────────────────────────────────────────────────────── Report visibility
+# Which reports a part appears on. In Cabinet Vision these were words typed into a cabinet's
+# name; in the designer they should be a per-part setting. The flag names are kept so the
+# shop recognizes them.
+report_flags:
+  - { flag: NOCO,        meaning: Not on the cabinet order }
+  - { flag: NOCO NOSIZE, meaning: Not on the cabinet order, and its size is hidden }
+  - { flag: NOSIZE,      meaning: Size is hidden wherever it appears }
+  - { flag: NOAL,        meaning: Not on any list }
+  - { flag: RAS,         meaning: Rev-A-Shelf part; not on the cabinet order }
+  - { flag: HAFELE,      meaning: Hafele part; not on the cabinet order }
