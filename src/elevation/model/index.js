@@ -269,6 +269,7 @@ export {
   updateRootItem,
 } from './grid.js';
 export {
+  addGridPanel,
   CELL_DIRECTIONS,
   CELL_KINDS,
   equalizeGridCells,
@@ -276,9 +277,12 @@ export {
   findLeaf,
   MAX_CELL_SPLIT,
   MAX_SHELVES,
+  PANEL_SIDES,
+  panelTypes,
   removeGridCell,
   setGridCellDepth,
   setGridCellKind,
+  setGridPanelType,
   setGridShelves,
   setGridTrackSize,
   splitGridCell,

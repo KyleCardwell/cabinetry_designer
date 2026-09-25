@@ -149,7 +149,7 @@ At most five lines of summary. Commit "elevation-mvp: step 181 kind, panel type 
 
 1. Rooms drawn before this round look and behave the same.
 2. Select any top-level cabinet: **Kind** is at the top of its panel, with **Add panel** Left / Right / Above / Below under it.
-3. Your case: wrap a cabinet (Sides through), delete the left side panel, select the cabinet, **Add panel → Left**. The panel is back, 3/4" wide, and the cabinet shows `rule: captured single` again (single-door width).
+3. Your case: wrap a cabinet (Sides through), delete the left side panel, select the cabinet, **Add panel → Left**. The panel is back, 3/4" wide, and the cabinet shows `rule: captured single` again (single-door width). Note it runs from the floor to the underside of the top panel (like "top through"), not full height; a full-height side panel next to the top panel means wrapping again. Say if that matters in practice.
 4. Set a top-level cabinet's Kind to **Panel**: it becomes a 3/4" side panel and the run's auto count turns off. **Panel type → Back**: it widens to share the leftover space, depth 3/4", and its label says Back panel. Kind back to **Cabinet**: a normal auto cabinet, full depth.
 5. In a stack, set a cell to **Panel**: it becomes a 3/4" top/bottom panel; Panel type offers Top / bottom and Back only.
 6. **Add panel → Above** on a top-level cabinet: a 3/4" panel appears over it and the cabinet shrinks by 3/4". Add panel → Below on a cell in a stack: the panel joins that stack.

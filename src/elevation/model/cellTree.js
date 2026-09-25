@@ -1,4 +1,4 @@
-import { isNestedGrid, rehomeBlind, removeRootColumn, replaceRootItems,
+import { insertRootColumn, isNestedGrid, rehomeBlind, removeRootColumn, replaceRootItems,
   rootItems } from './grid.js';
 
 /** Maximum number of cells created by one split. */
@@ -15,6 +15,9 @@ export const MAX_SHELVES = 12;
 
 /** Which panels run through when a cell is wrapped. */
 export const WRAP_THROUGH = ['sides', 'top'];
+
+/** Sides addGridPanel accepts. */
+export const PANEL_SIDES = ['left', 'right', 'above', 'below'];
 
 const DEFAULT_SHELVES = { count: 2, back: false };
 
@@ -248,29 +251,36 @@ function replaceLeaf(grid, found, leaf) {
   return found.depth === 0 ? parent : replaceNestedGrid(grid, found.parent, parent);
 }
 
-function nestedLeaf(grid, leafId) {
+function cellLeaf(grid, leafId) {
   const found = locate(grid, leafId);
-  if (!found || found.depth === 0 || isNestedGrid(found.cell.node)) return null;
+  if (!found || isNestedGrid(found.cell.node)) return null;
   return CELL_KINDS.includes(found.cell.node.kind) ? found : null;
 }
 
-/** Changes a nested leaf's kind, keeping only id, depth and align (a void keeps neither). */
+/**
+ * Changes a cell's kind, keeping id, depth and align. A void keeps neither; neither does a former
+ * panel, whose track also goes back to auto.
+ */
 export function setGridCellKind(grid, leafId, kind) {
-  const found = nestedLeaf(grid, leafId);
+  const found = cellLeaf(grid, leafId);
   if (!found || !CELL_KINDS.includes(kind) || found.cell.node.kind === kind) return grid;
   const leaf = found.cell.node;
+  const wasPanel = leaf.kind === 'panel';
   const next = { id: leaf.id, kind };
-  if (kind !== 'void') {
+  if (kind !== 'void' && !wasPanel) {
     if (Object.hasOwn(leaf, 'depth')) next.depth = leaf.depth;
     if (Object.hasOwn(leaf, 'align')) next.align = leaf.align;
   }
   if (kind === 'shelves') next.shelves = { ...DEFAULT_SHELVES };
-  return replaceLeaf(grid, found, next);
+  const replaced = replaceLeaf(grid, found, next);
+  return wasPanel && found.track.size !== null
+    ? setGridTrackSize(replaced, found.track.id, null)
+    : replaced;
 }
 
-/** Sets a nested leaf's depth (null = the run's) and align ('back', or 'face'/null = default). */
+/** Sets a cell's depth (null = the run's) and align ('back', or 'face'/null = default). */
 export function setGridCellDepth(grid, leafId, patch) {
-  const found = nestedLeaf(grid, leafId);
+  const found = cellLeaf(grid, leafId);
   if (!found || found.cell.node.kind === 'void' || !patch) return grid;
   const next = { ...found.cell.node };
   if (Object.hasOwn(patch, 'depth')) {
@@ -291,7 +301,7 @@ export function setGridCellDepth(grid, leafId, patch) {
 
 /** Sets a shelves leaf's count (rounded, 1…MAX_SHELVES) and back panel flag. */
 export function setGridShelves(grid, leafId, patch) {
-  const found = nestedLeaf(grid, leafId);
+  const found = cellLeaf(grid, leafId);
   if (!found || found.cell.node.kind !== 'shelves' || !patch) return grid;
   const leaf = found.cell.node;
   const shelves = { ...DEFAULT_SHELVES, ...leaf.shelves };
@@ -348,4 +358,69 @@ export function wrapGridCell(grid, leafId, through, thickness, makeId, bottom = 
       cell.node === 'inner' ? { ...cell, node: inner } : cell)) };
   }
   return rehomeBlind(grid, replaceLeaf(grid, found, node));
+}
+
+/** The panel types a cell could take: 'side' in a column or row, 'top' in a stack, 'back' anywhere. */
+export function panelTypes(grid, leafId) {
+  const found = cellLeaf(grid, leafId);
+  if (!found) return [];
+  return found.axis === 'row' ? ['top', 'back'] : ['side', 'back'];
+}
+
+/** Sizes a panel cell so its type's dimension is `thickness`; same reference when nothing changes. */
+export function setGridPanelType(grid, leafId, type, thickness) {
+  const found = cellLeaf(grid, leafId);
+  if (!found || found.cell.node.kind !== 'panel') return grid;
+  if (!panelTypes(grid, leafId).includes(type)) return grid;
+  if (!(typeof thickness === 'number' && Number.isFinite(thickness) && thickness > 0)) return grid;
+  const leaf = found.cell.node;
+  const next = { id: leaf.id, kind: 'panel' };
+  if (type === 'back') {
+    next.depth = thickness;
+    next.align = 'back';
+  }
+  const sameLeaf = Object.is(next.depth, leaf.depth) && next.align === leaf.align;
+  const withLeaf = sameLeaf ? grid : replaceLeaf(grid, found, next);
+  return setGridTrackSize(withLeaf, found.track.id, type === 'back' ? null : thickness);
+}
+
+/** Adds a `thickness` panel cell beside a cell: a top-level column, a flat sibling, or a nested pair. */
+export function addGridPanel(grid, leafId, side, thickness, makeId) {
+  if (!PANEL_SIDES.includes(side)) return grid;
+  if (!(typeof thickness === 'number' && Number.isFinite(thickness) && thickness > 0)) return grid;
+  const found = cellLeaf(grid, leafId);
+  if (!found) return grid;
+  const axis = side === 'left' || side === 'right' ? 'col' : 'row';
+  const before = side === 'left' || side === 'above';
+  if (found.depth === 0 && axis === 'col') {
+    return insertRootColumn(grid, found.cell.col + (before ? 0 : 1),
+      { id: makeId(), kind: 'panel', width: thickness });
+  }
+  let next;
+  if (found.depth > 0 && found.axis === axis) {
+    const { parent, cell } = found;
+    const key = trackKey(axis);
+    const at = cell[axis] + (before ? 0 : 1);
+    const tracks = [...parent[key]];
+    tracks.splice(at, 0, { id: makeId(), size: thickness, sizeMode: 'manual' });
+    const panel = { ...cell, [axis]: at, node: { id: makeId(), kind: 'panel' } };
+    const cells = parent.cells.map((entry) => (
+      entry[axis] >= at ? { ...entry, [axis]: entry[axis] + 1 } : entry));
+    next = replaceNestedGrid(grid, parent, { ...parent, [key]: tracks, cells: ordered([...cells, panel]) });
+  } else {
+    const id = makeId();
+    const cross = autoTrack(makeId());
+    const fixed = () => ({ id: makeId(), size: thickness, sizeMode: 'manual' });
+    const tracks = before ? [fixed(), autoTrack(makeId())] : [autoTrack(makeId()), fixed()];
+    const panel = { id: makeId(), kind: 'panel' };
+    const nodes = before ? [panel, found.cell.node] : [found.cell.node, panel];
+    next = replaceLeaf(grid, found, {
+      id,
+      cols: axis === 'col' ? tracks : [cross],
+      rows: axis === 'row' ? tracks : [cross],
+      cells: nodes.map((node, index) => ({ col: axis === 'col' ? index : 0,
+        row: axis === 'row' ? index : 0, colSpan: 1, rowSpan: 1, node })),
+    });
+  }
+  return rehomeBlind(grid, next);
 }

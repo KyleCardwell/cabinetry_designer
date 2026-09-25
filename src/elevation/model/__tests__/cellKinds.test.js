@@ -29,8 +29,8 @@ describe('SPEC-34 cell kinds, depth and wrap', () => {
     expect(findLeaf(back, 'b')).toEqual({ id: 'b', kind: 'panel', depth: 0.75, align: 'back' });
     expect(findLeaf(setGridCellKind(back, 'b', 'void'), 'b')).toEqual({ id: 'b', kind: 'void' });
     expect(findLeaf(setGridCellKind(back, 'b', 'cabinet'), 'b'))
-      .toEqual({ id: 'b', kind: 'cabinet', depth: 0.75, align: 'back' });
-    for (const [id, kind] of [['a', 'panel'], ['b', 'cabinet'], ['b', 'filler'], ['zz', 'panel'], ['n1', 'panel']]) {
+      .toEqual({ id: 'b', kind: 'cabinet' });
+    for (const [id, kind] of [['b', 'cabinet'], ['b', 'filler'], ['zz', 'panel'], ['n1', 'panel']]) {
       expect(setGridCellKind(S, id, kind)).toBe(S);
     }
   });
@@ -43,7 +43,7 @@ describe('SPEC-34 cell kinds, depth and wrap', () => {
     for (const patch of [{ depth: 0 }, { depth: Number.NaN }, { align: 'middle' }, {}]) {
       expect(setGridCellDepth(S, 'n5', patch)).toBe(S);
     }
-    expect(setGridCellDepth(S, 'a', { depth: 12 })).toBe(S);
+    expect(setGridCellDepth(S, 'zz', { depth: 12 })).toBe(S);
     const open = setGridCellKind(S, 'n5', 'void');
     expect(setGridCellDepth(open, 'n5', { depth: 12 })).toBe(open);
   });

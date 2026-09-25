@@ -355,6 +355,8 @@ differently:
 - line 33: drop `['a', 'panel'], ` from the list.
 - line 46: `setGridCellDepth(S, 'a', { depth: 12 })` → `setGridCellDepth(S, 'zz', { depth: 12 })`.
 
+**`elevationSlice.test.js`** — line 2106 (round 34): `cellId: 'b', kind: 'panel'` → `cellId: 'b', kind: 'filler'`. The store's `setCellKind` calls `setGridCellKind`, so once the model allows top-level cells this round-34 assertion fails; it changes here, not in step 180.
+
 **NEW `src/elevation/model/__tests__/cellPanels.test.js` (6):**
 
 ```js
@@ -598,8 +600,7 @@ describe('SPEC-34.1 top-level cell kinds', () => {
 
 ### Tests — `elevationSlice.test.js` (2144)
 
-- Line 2106 (round 34): `cellId: 'b', kind: 'panel'` → `cellId: 'b', kind: 'filler'` (a top-level cabinet
-  can become a panel now; filler still isn't a kind you can choose).
+- (Line 2106 was changed in step 178.)
 - Import `addPanel` and `setPanelType` into the existing import list.
 - New describe at the end:
 
