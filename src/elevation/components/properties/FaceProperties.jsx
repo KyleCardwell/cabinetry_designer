@@ -41,7 +41,7 @@ function groupLabel(node) {
 }
 
 // `layout` is the run's splitRun result; it supplies the same-width targets.
-export default function FaceProperties({ wall, run, piece, item, layout, settings }) {
+export default function FaceProperties({ wall, run, piece, item, layout, cells, settings }) {
   const dispatch = useDispatch();
   const facePath = useSelector((state) => state.elevation.facePath);
   const stored = item.face ?? null;
@@ -53,7 +53,7 @@ export default function FaceProperties({ wall, run, piece, item, layout, setting
   const warnings = faceLayout?.warnings ?? [];
   const [splitCount, setSplitCount] = useState(2);
   const selected = facePath === null ? null : getFaceNode(face, facePath);
-  const sameWidthIds = layout.pieces
+  const sameWidthIds = (cells?.pieces ?? layout.pieces)
     .filter((p) => p.kind === 'cabinet' && p.role === 'item' && Math.abs(p.width - piece.width) < 1e-6)
     .map((p) => p.id);
   const hasOtherMatches = sameWidthIds.some((id) => id !== item.id);

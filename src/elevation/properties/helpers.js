@@ -1,6 +1,7 @@
 import { formatInches } from '../model/units.js';
 import { tryPlaceRun } from '../model/room.js';
 import { runItems } from '../model/grid.js';
+import { findLeaf } from '../model/cellTree.js';
 
 /** Format a resolved corner reserve for the run properties panel. */
 export function formatCornerReserve(parts) {
@@ -72,7 +73,9 @@ export function resolveSelectedPiece(run, layout, pieceId) {
   if (piece.role === 'item') {
     return {
       piece,
-      item: runItems(run).find((candidate) => candidate.id === piece.id) ?? null,
+      item: runItems(run).find((candidate) => candidate.id === piece.id)
+        ?? (piece.columnId ? findLeaf(run.grid, piece.id) : null)
+        ?? null,
       side: null,
     };
   }

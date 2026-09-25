@@ -7,14 +7,16 @@ import {
   setItemAbsorb,
   setItemPin,
   setItemWidth,
-  splitItem,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import CellSplitSection from './CellSplitSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import { RUN_TYPES } from './constants.js';
 
-export default function CabinetProperties({ wall, run, piece, item, layout, settings }) {
+export default function CabinetProperties({
+  wall, run, piece, item, layout, cells, settings,
+}) {
   const dispatch = useDispatch();
   const actionBase = { wallId: wall.id, runId: run.id, itemId: item.id };
   const locked = item.width !== null;
@@ -231,14 +233,9 @@ export default function CabinetProperties({ wall, run, piece, item, layout, sett
         </div>
       </section>
 
+      <CellSplitSection wall={wall} run={run} cellId={item.id} nested={false} />
+
       <section className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => dispatch(splitItem(actionBase))}
-          className="rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600"
-        >
-          Split in 2
-        </button>
         <button
           type="button"
           onClick={() => dispatch(addItemAfter({ ...actionBase, kind: 'cabinet' }))}
@@ -262,8 +259,15 @@ export default function CabinetProperties({ wall, run, piece, item, layout, sett
         </button>
       </section>
 
-      <FaceProperties wall={wall} run={run} piece={piece} item={item} layout={layout} settings={settings} />
+      <FaceProperties
+        wall={wall}
+        run={run}
+        piece={piece}
+        item={item}
+        layout={layout}
+        cells={cells}
+        settings={settings}
+      />
     </div>
   );
 }
-

@@ -8,6 +8,7 @@ import {
   Text,
 } from 'react-konva';
 import { blindEntries } from '../model/blind.js';
+import { blindCellWidths, cellPieces } from '../model/cells.js';
 import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
@@ -56,6 +57,7 @@ function RunGroup({
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
     pinTargets: pinTargetsForRun(run, wall, wall.length, settings),
   }), [room, run, settings, wall]);
+  const cells = useMemo(() => cellPieces(run, result), [result, run]);
   const faceLayouts = useMemo(
     () => runFaceLayouts(room, wall, run, settings, result),
     [result, room, run, settings, wall],
@@ -68,12 +70,15 @@ function RunGroup({
     const labels = new Map();
     for (const entry of blind.entries) {
       labels.set(entry.pieceId, `Blind ${formatInches(entry.boxWidth)}`);
+      for (const [id, width] of blindCellWidths(cells.pieces, result.pieces, [entry])) {
+        labels.set(id, `Blind ${formatInches(width)}`);
+      }
       if (entry.panel && entry.endPieceId) {
         labels.set(entry.endPieceId, `Panel ${formatInches(entry.panel.width)}`);
       }
     }
     return labels;
-  }, [blind]);
+  }, [blind, cells, result]);
   const panels = useMemo(
     () => blind.entries.filter((entry) => entry.panel).map((entry) => ({
       key: `panel:${entry.side}`,
@@ -107,7 +112,7 @@ function RunGroup({
   const bandStart = (inset) => panelStart ?? run.x + inset;
   const bandEnd = (inset) => panelEnd ?? runEnd - inset;
   const drop = panelDrop(run, resolveStyle(settings, room, run), settings);
-  const drawnPieces = useMemo(() => result.pieces.map((piece) => {
+  const drawnPieces = useMemo(() => cells.pieces.map((piece) => {
     const dropped = drop > 0
       && (piece.kind === 'filler' || piece.kind === 'end_panel')
       ? { ...piece, z: piece.z - drop, height: piece.height + drop }
@@ -115,7 +120,7 @@ function RunGroup({
     return panelPieceIds.has(piece.id)
       ? { ...dropped, kind: 'end_panel' }
       : dropped;
-  }), [drop, panelPieceIds, result]);
+  }), [cells, drop, panelPieceIds]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),
     [room, settings, wall],
@@ -144,9 +149,10 @@ function RunGroup({
   }, transform);
   const warningPieceIds = useMemo(
     () => new Set(
-      [...result.warnings, ...(diagnostic?.warnings ?? [])].map((entry) => entry.pieceId),
+      [...result.warnings, ...cells.warnings, ...(diagnostic?.warnings ?? [])]
+        .map((entry) => entry.pieceId),
     ),
-    [diagnostic?.warnings, result.warnings],
+    [cells.warnings, diagnostic?.warnings, result.warnings],
   );
   const hasErrors = (diagnostic?.errors ?? result.errors).length > 0;
   const hasToeKick = run.cabinetTypeId === CABINET_TYPE_IDS.BASE
@@ -364,7 +370,7 @@ function RunGroup({
           key={piece.id}
           piece={piece}
           transform={transform}
-          warning={warningPieceIds.has(piece.id)}
+          warning={warningPieceIds.has(piece.id) || warningPieceIds.has(piece.columnId)}
           error={hasErrors}
           selected={selectedPieceId === piece.id}
           subLabel={subLabels.get(piece.id) ?? null}

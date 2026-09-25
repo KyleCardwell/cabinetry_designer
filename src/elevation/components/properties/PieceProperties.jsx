@@ -4,6 +4,7 @@ import { partNumbers } from '../../model/index.js';
 import { removeItem, setItemWidth } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import CabinetProperties from './CabinetProperties.jsx';
+import CellProperties from './CellProperties.jsx';
 import EndFields from './EndFields.jsx';
 import Field from './Field.jsx';
 import PartNumberField from './PartNumberField.jsx';
@@ -55,7 +56,9 @@ function EndProperties({ wallId, run, side, settings }) {
   );
 }
 
-export default function PieceProperties({ room, wall, run, layout, selectionContext, settings }) {
+export default function PieceProperties({
+  room, wall, run, layout, cells, selectionContext, settings,
+}) {
   const { piece, item, side } = selectionContext;
   const numbers = useMemo(() => partNumbers(room, settings), [room, settings]);
   const partKey = piece.id;
@@ -91,6 +94,22 @@ export default function PieceProperties({ room, wall, run, layout, selectionCont
       </>
     );
   }
+  if (piece.columnId) {
+    return (
+      <>
+        {partNumberField}
+        <CellProperties
+          wall={wall}
+          run={run}
+          piece={piece}
+          item={item}
+          layout={layout}
+          cells={cells}
+          settings={settings}
+        />
+      </>
+    );
+  }
   return (
     <>
       {partNumberField}
@@ -100,9 +119,9 @@ export default function PieceProperties({ room, wall, run, layout, selectionCont
         piece={piece}
         item={item}
         layout={layout}
+        cells={cells}
         settings={settings}
       />
     </>
   );
 }
-

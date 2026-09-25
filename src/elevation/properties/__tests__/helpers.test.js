@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
+import { gridFromItems } from '../../model/grid.js';
 import { describeAnchor } from '../../model/room.js';
 import {
   formatCornerReserve,
@@ -192,6 +193,60 @@ describe('properties helpers', () => {
       side: 'left',
     });
     expect(resolveSelectedPiece(selected, layout, 'missing')).toBeNull();
+  });
+
+  it("finds a nested cell's leaf", () => {
+    const selected = {
+      ...run(),
+      items: undefined,
+      grid: gridFromItems('run-1', [{
+        id: 'g',
+        kind: 'cabinet',
+        width: null,
+        grid: {
+          id: 'g',
+          cols: [{ id: 'g:c', size: null, sizeMode: 'auto' }],
+          rows: [
+            { id: 'g:r0', size: null, sizeMode: 'auto' },
+            { id: 'g:r1', size: null, sizeMode: 'auto' },
+          ],
+          cells: [
+            {
+              col: 0,
+              row: 0,
+              colSpan: 1,
+              rowSpan: 1,
+              node: { id: 'up', kind: 'cabinet' },
+            },
+            {
+              col: 0,
+              row: 1,
+              colSpan: 1,
+              rowSpan: 1,
+              node: { id: 'dn', kind: 'cabinet' },
+            },
+          ],
+        },
+      }]),
+    };
+    const cells = {
+      pieces: [{
+        id: 'dn',
+        kind: 'cabinet',
+        role: 'item',
+        columnId: 'g',
+        x: 0,
+        width: 30,
+        z: 4,
+        height: 15,
+        depth: 24,
+      }],
+    };
+
+    expect(resolveSelectedPiece(selected, cells, 'dn')).toMatchObject({
+      item: { id: 'dn', kind: 'cabinet' },
+      side: null,
+    });
   });
 
   it('finds the final item and the final cabinet independently', () => {

@@ -6,6 +6,7 @@ import {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+  cellPieces,
   pinTargetsForRun,
   soffitsOn,
   splitRun,
@@ -63,6 +64,10 @@ export default function PropertiesPanel() {
     }) : null),
     [room, run, settings, wall],
   );
+  const cells = useMemo(
+    () => (run && layout ? cellPieces(run, layout) : null),
+    [run, layout],
+  );
   const diagnostics = useMemo(
     () => (room ? roomDiagnostics(room, settings) : {}),
     [room, settings],
@@ -71,10 +76,10 @@ export default function PropertiesPanel() {
     ? { ...layout, ...diagnostics[run.id] }
     : layout;
   const selectionContext = useMemo(
-    () => (run && layout
-      ? resolveSelectedPiece(run, layout, selection.pieceId)
+    () => (run && cells
+      ? resolveSelectedPiece(run, cells, selection.pieceId)
       : null),
-    [run, layout, selection.pieceId],
+    [run, cells, selection.pieceId],
   );
 
   const showMessage = useCallback((message) => {
@@ -138,6 +143,7 @@ export default function PropertiesPanel() {
             wall={wall}
             run={run}
             layout={layout}
+            cells={cells}
             selectionContext={selectionContext}
             settings={settings}
           />
