@@ -1,6 +1,7 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cornerAt } from './corners.js';
 import { wallLength } from './geometry.js';
+import { runItems } from './grid.js';
 import { landingsOn } from './landings.js';
 import { neighborProfiles } from './neighborProfiles.js';
 import { openingGeometry } from './openings.js';
@@ -244,7 +245,7 @@ export function horizontalChains(room, wall, band, settings) {
       appendSegment(inner, piece.x, piece.x + piece.width, 'piece', {
         runId: run.id,
         pieceId: piece.id,
-        ...(run.items.find((item) => item.id === piece.id)?.pin
+        ...(runItems(run).find((item) => item.id === piece.id)?.pin
           ? { pinned: true }
           : {}),
       });
@@ -309,7 +310,7 @@ export const CENTERLINE_CALLOUT_Z = 40;
 export function centerlineMarkers(run, pieces, wall, wallLengthValue, settings) {
   return pieces.flatMap((piece) => {
     if (piece.role !== 'item') return [];
-    const item = run.items.find((candidate) => candidate.id === piece.id);
+    const item = runItems(run).find((candidate) => candidate.id === piece.id);
     if (item?.pin?.anchor !== 'center') return [];
     const target = resolvePinTarget(item.pin, wall, wallLengthValue, settings);
     if (!Number.isFinite(target)) return [];

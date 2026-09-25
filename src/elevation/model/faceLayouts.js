@@ -1,6 +1,7 @@
 import { captureSides } from './capture.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { cabinetFaces, defaultFace } from './faces.js';
+import { runItems } from './grid.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
 import { splitRun } from './splitRun.js';
 import { cabinetReveals, resolveStyle } from './styles.js';
@@ -28,7 +29,7 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
   const result = new Map();
   for (const piece of layout.pieces) {
     if (piece.kind !== 'cabinet' || piece.role !== 'item') continue;
-    const item = run.items.find((candidate) => candidate.id === piece.id);
+    const item = runItems(run).find((candidate) => candidate.id === piece.id);
     const style = resolveStyle(settings, room, run, item);
     const reveals = cabinetReveals({
       style,

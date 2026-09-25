@@ -9,6 +9,7 @@ import {
   resolveHorizontal,
 } from './corners.js';
 import { findCollisions } from './footprints.js';
+import { runItems } from './grid.js';
 import {
   isJointAnchor,
   jointEdgeX,
@@ -376,7 +377,7 @@ export function resolvePinTarget(pin, wall, wallLengthValue, settings) {
 /** Resolve all usable pin targets for a run. */
 export function pinTargetsForRun(run, wall, wallLengthValue, settings) {
   wall = wallViewForRun(wall, run);
-  return Object.fromEntries(run.items.flatMap((item) => {
+  return Object.fromEntries(runItems(run).flatMap((item) => {
     const target = resolvePinTarget(item.pin, wall, wallLengthValue, settings);
     return Number.isFinite(target) ? [[item.id, target]] : [];
   }));
@@ -444,7 +445,8 @@ function growRight(run, desiredRight, wall, wallLengthValue, settings) {
 
 /** Grow free outer run ends when that can make the first or last pin reachable. */
 export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTargets) {
-  const pinned = run.items
+  const items = runItems(run);
+  const pinned = items
     .map((item, itemIndex) => ({ item, itemIndex, target: pinTargets[item.id] }))
     .filter(({ item, target }) => item.kind === 'cabinet'
       && item.pin
@@ -467,9 +469,9 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
   const firstWidth = pinWidths[first.item.id];
   const lastWidth = pinWidths[last.item.id];
   const leftMinimum = storedEndMinimum(run.ends.left, settings)
-    + storedItemsMinimum(run.items.slice(0, first.itemIndex), settings);
+    + storedItemsMinimum(items.slice(0, first.itemIndex), settings);
   const rightMinimum = storedEndMinimum(run.ends.right, settings)
-    + storedItemsMinimum(run.items.slice(last.itemIndex + 1), settings);
+    + storedItemsMinimum(items.slice(last.itemIndex + 1), settings);
 
   let resolved = growLeft(
     run,
@@ -658,7 +660,7 @@ export function roomDiagnostics(room, settings) {
       diagnostics[run.id] = {
         warnings: [
           ...layout.warnings,
-          ...run.items.flatMap((item) => (
+          ...runItems(run).flatMap((item) => (
             item.pin && resolvePinTarget(item.pin, wall, length, settings) === null
               ? [{
                   code: 'pin-unresolved',

@@ -1,5 +1,6 @@
 import { anchoredToCorner, cornerForRunSide, frontDepth } from './corners.js';
 import { wallLength } from './geometry.js';
+import { runBlind } from './grid.js';
 import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
@@ -91,7 +92,7 @@ export function blindEntries(room, wall, run, settings, layout = null) {
   const cornerXs = { left: 0, right: wallLength(wall) };
 
   for (const side of SIDES) {
-    const boxWidth = run.ends[side]?.type === 'blind' ? run.blind?.[side] : null;
+    const boxWidth = run.ends[side]?.type === 'blind' ? runBlind(run)?.[side] : null;
     if (!(boxWidth > 0)) continue;
 
     const piece = outerCabinet(resolvedLayout.pieces, side);

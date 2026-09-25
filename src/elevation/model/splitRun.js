@@ -1,5 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS } from './constants.js';
+import { runItems } from './grid.js';
 import { floorTo, roundTo } from './units.js';
 
 const WIDTH_EPSILON = 1e-6;
@@ -21,11 +22,12 @@ function flexMinimum(side, settings, opts) {
 }
 
 function layoutInputs(run, settings, opts) {
+  const items = runItems(run);
   const fixedEnds = endWidth(run.ends.left, settings) + endWidth(run.ends.right, settings);
-  const fixedItems = run.items.reduce((sum, item) => (
+  const fixedItems = items.reduce((sum, item) => (
     sum + (item.width === null ? 0 : item.width)
   ), 0);
-  const nAuto = run.items.filter(
+  const nAuto = items.filter(
     (item) => item.kind === 'cabinet' && item.width === null,
   ).length;
   const flexSides = ['left', 'right'].filter((side) => isFlexEnd(run.ends[side]));
@@ -86,6 +88,7 @@ function warning(code, pieceId, message) {
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 function splitRunLegacy(run, settings, opts) {
+  const items = runItems(run);
   const {
     available,
     flex,
@@ -117,7 +120,7 @@ function splitRunLegacy(run, settings, opts) {
   } else if (nAuto > 0) {
     autoWidth = roundTo(available / nAuto, FILLER_STEP);
     if (Math.abs(autoWidth / settings.roundTo - Math.round(autoWidth / settings.roundTo)) > WIDTH_EPSILON) {
-      const firstAuto = run.items.find(
+      const firstAuto = items.find(
         (item) => item.kind === 'cabinet' && item.width === null,
       );
       warnings.push(warning(
@@ -132,7 +135,7 @@ function splitRunLegacy(run, settings, opts) {
 
   let autoIndex = 0;
   const lastAutoIndex = nAuto - 1;
-  const computedItems = run.items.map((item) => {
+  const computedItems = items.map((item) => {
     if (item.kind !== 'cabinet' || item.width !== null) {
       return { ...item, computedWidth: item.width, auto: false };
     }
@@ -371,8 +374,9 @@ function pinUnreachableWarning(pin, actualLeft) {
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 export function splitRun(run, settings, opts) {
+  const items = runItems(run);
   const targets = opts?.pinTargets ?? {};
-  const pinnedItems = run.items.filter((item) => (
+  const pinnedItems = items.filter((item) => (
     item.kind === 'cabinet'
     && item.pin
     && Number.isFinite(targets[item.id])
@@ -383,7 +387,7 @@ export function splitRun(run, settings, opts) {
   const pass1Pieces = new Map(pass1.pieces.map((piece) => [piece.id, piece]));
   const retainedPinWidths = opts?.pinWidths ?? run._pinWidths ?? {};
   const pins = pinnedItems.map((item) => {
-    const itemIndex = run.items.findIndex((candidate) => candidate.id === item.id);
+    const itemIndex = items.findIndex((candidate) => candidate.id === item.id);
     const piece = pass1Pieces.get(item.id);
     const width = item.width ?? retainedPinWidths[item.id] ?? piece?.width ?? 0;
     const target = targets[item.id];
@@ -399,13 +403,13 @@ export function splitRun(run, settings, opts) {
     };
   });
 
-  const leftItems = run.items.slice(0, pins[0].itemIndex);
-  const rightItems = run.items.slice(pins[pins.length - 1].itemIndex + 1);
+  const leftItems = items.slice(0, pins[0].itemIndex);
+  const rightItems = items.slice(pins[pins.length - 1].itemIndex + 1);
   const leftMinimum = outerMinimum(run, 'left', leftItems, settings, opts);
   const rightMinimum = outerMinimum(run, 'right', rightItems, settings, opts);
   const middleMinimums = pins.slice(0, -1).map((pin, index) => (
     itemsMinimum(
-      run.items.slice(pin.itemIndex + 1, pins[index + 1].itemIndex),
+      items.slice(pin.itemIndex + 1, pins[index + 1].itemIndex),
       settings,
     )
   ));
@@ -472,7 +476,7 @@ export function splitRun(run, settings, opts) {
       appendLayout(interiorLayout(
         run,
         settings,
-        run.items.slice(pin.itemIndex + 1, next.itemIndex),
+        items.slice(pin.itemIndex + 1, next.itemIndex),
         pin.left + pin.width,
         next.left,
         pin,
