@@ -82,6 +82,7 @@ export const DEFAULT_SETTINGS = {
   capturedSingleReveal: 0.09375,
   stackedUpperBottom: 0,
   stackedLowerTop: 0.125,
+  floatingShelfThickness: 1.5,
   standardDrawerHeights: { european: 5.875, faceFrame: 5 },
   standardDrawerBelow: 6,
 };
@@ -91,6 +92,10 @@ export const KIND_LABELS = {
   cabinet: 'Cabinet',
   filler: 'Filler',
   end_panel: 'End panel',
+  panel: 'Panel',
+  void: 'Open',
+  shelves: 'Shelves',
+  shelf: 'Shelf',
 };
 
 /** Display colors for derived piece kinds. */
@@ -98,6 +103,10 @@ export const KIND_COLORS = {
   cabinet: '#3b82f6',
   filler: '#f59e0b',
   end_panel: '#8b5cf6',
+  panel: '#8b5cf6',
+  void: '#475569',
+  shelves: '#0ea5e9',
+  shelf: '#0ea5e9',
 };
 
 /** Display colors for cabinet run types. */

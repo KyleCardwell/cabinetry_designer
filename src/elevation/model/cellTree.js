@@ -7,6 +7,17 @@ export const MAX_CELL_SPLIT = 8;
 /** Directions accepted by splitGridCell. */
 export const CELL_DIRECTIONS = ['across', 'down'];
 
+/** Kinds a nested cell can be. */
+export const CELL_KINDS = ['cabinet', 'panel', 'void', 'shelves'];
+
+/** Most floating shelves in one shelves cell. */
+export const MAX_SHELVES = 12;
+
+/** Which panels run through when a cell is wrapped. */
+export const WRAP_THROUGH = ['sides', 'top'];
+
+const DEFAULT_SHELVES = { count: 2, back: false };
+
 const axisOf = (grid) => (grid.rows.length > 1 ? 'row' : 'col');
 const trackKey = (axis) => (axis === 'row' ? 'rows' : 'cols');
 const splitAxis = (direction) => (direction === 'down' ? 'row' : 'col');
@@ -230,4 +241,111 @@ export function setGridTrackSize(grid, trackId, size) {
   }
   const [next, found] = visit(grid);
   return found ? next : grid;
+}
+
+function replaceLeaf(grid, found, leaf) {
+  const parent = replaceCell(found.parent, found.cellIndex, leaf, found.depth === 0);
+  return found.depth === 0 ? parent : replaceNestedGrid(grid, found.parent, parent);
+}
+
+function nestedLeaf(grid, leafId) {
+  const found = locate(grid, leafId);
+  if (!found || found.depth === 0 || isNestedGrid(found.cell.node)) return null;
+  return CELL_KINDS.includes(found.cell.node.kind) ? found : null;
+}
+
+/** Changes a nested leaf's kind, keeping only id, depth and align (a void keeps neither). */
+export function setGridCellKind(grid, leafId, kind) {
+  const found = nestedLeaf(grid, leafId);
+  if (!found || !CELL_KINDS.includes(kind) || found.cell.node.kind === kind) return grid;
+  const leaf = found.cell.node;
+  const next = { id: leaf.id, kind };
+  if (kind !== 'void') {
+    if (Object.hasOwn(leaf, 'depth')) next.depth = leaf.depth;
+    if (Object.hasOwn(leaf, 'align')) next.align = leaf.align;
+  }
+  if (kind === 'shelves') next.shelves = { ...DEFAULT_SHELVES };
+  return replaceLeaf(grid, found, next);
+}
+
+/** Sets a nested leaf's depth (null = the run's) and align ('back', or 'face'/null = default). */
+export function setGridCellDepth(grid, leafId, patch) {
+  const found = nestedLeaf(grid, leafId);
+  if (!found || found.cell.node.kind === 'void' || !patch) return grid;
+  const next = { ...found.cell.node };
+  if (Object.hasOwn(patch, 'depth')) {
+    const { depth } = patch;
+    if (depth === null) delete next.depth;
+    else if (typeof depth === 'number' && Number.isFinite(depth) && depth > 0) next.depth = depth;
+    else return grid;
+  }
+  if (Object.hasOwn(patch, 'align')) {
+    if (patch.align === 'back') next.align = 'back';
+    else if (patch.align === 'face' || patch.align === null) delete next.align;
+    else return grid;
+  }
+  const leaf = found.cell.node;
+  if (Object.is(next.depth, leaf.depth) && next.align === leaf.align) return grid;
+  return replaceLeaf(grid, found, next);
+}
+
+/** Sets a shelves leaf's count (rounded, 1…MAX_SHELVES) and back panel flag. */
+export function setGridShelves(grid, leafId, patch) {
+  const found = nestedLeaf(grid, leafId);
+  if (!found || found.cell.node.kind !== 'shelves' || !patch) return grid;
+  const leaf = found.cell.node;
+  const shelves = { ...DEFAULT_SHELVES, ...leaf.shelves };
+  if (Object.hasOwn(patch, 'count')) {
+    if (!Number.isFinite(patch.count)) return grid;
+    shelves.count = Math.min(MAX_SHELVES, Math.max(1, Math.round(patch.count)));
+  }
+  if (Object.hasOwn(patch, 'back')) {
+    if (typeof patch.back !== 'boolean') return grid;
+    shelves.back = patch.back;
+  }
+  if (shelves.count === leaf.shelves?.count && shelves.back === leaf.shelves?.back) return grid;
+  return replaceLeaf(grid, found, { ...leaf, shelves });
+}
+
+function wrapGrid(axis, makeId, nodes, sizes) {
+  const id = makeId();
+  const cross = autoTrack(makeId());
+  const tracks = sizes.map((size) => (size === null
+    ? autoTrack(makeId())
+    : { id: makeId(), size, sizeMode: 'manual' }));
+  const leaves = nodes.map((node) => node ?? { id: makeId(), kind: 'panel' });
+  return {
+    id,
+    cols: axis === 'col' ? tracks : [cross],
+    rows: axis === 'row' ? tracks : [cross],
+    cells: leaves.map((node, index) => ({ col: axis === 'col' ? index : 0,
+      row: axis === 'row' ? index : 0, colSpan: 1, rowSpan: 1, node })),
+  };
+}
+
+/**
+ * Wraps a cabinet leaf in panels: left, right and top, plus bottom when asked.
+ * 'sides' runs the side panels full height; 'top' runs the top (and bottom) full width.
+ */
+export function wrapGridCell(grid, leafId, through, thickness, makeId, bottom = false) {
+  if (!WRAP_THROUGH.includes(through)) return grid;
+  if (!(typeof thickness === 'number' && Number.isFinite(thickness) && thickness > 0)) return grid;
+  const found = locate(grid, leafId);
+  if (!found || isNestedGrid(found.cell.node) || found.cell.node.kind !== 'cabinet') return grid;
+  const leaf = found.cell.node;
+  const t = thickness;
+  const downSizes = bottom ? [t, null, t] : [t, null];
+  let node;
+  if (through === 'sides') {
+    const outer = wrapGrid('col', makeId, [null, 'inner', null], [t, null, t]);
+    const inner = wrapGrid('row', makeId, bottom ? [null, leaf, null] : [null, leaf], downSizes);
+    node = { ...outer, cells: outer.cells.map((cell) => (
+      cell.node === 'inner' ? { ...cell, node: inner } : cell)) };
+  } else {
+    const outer = wrapGrid('row', makeId, bottom ? [null, 'inner', null] : [null, 'inner'], downSizes);
+    const inner = wrapGrid('col', makeId, [null, leaf, null], [t, null, t]);
+    node = { ...outer, cells: outer.cells.map((cell) => (
+      cell.node === 'inner' ? { ...cell, node: inner } : cell)) };
+  }
+  return rehomeBlind(grid, replaceLeaf(grid, found, node));
 }

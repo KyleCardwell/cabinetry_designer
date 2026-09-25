@@ -80,6 +80,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'capturedSingleReveal',
   'stackedUpperBottom',
   'stackedLowerTop',
+  'floatingShelfThickness',
   'standardDrawerHeights',
   'standardDrawerBelow',
 ];

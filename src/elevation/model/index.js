@@ -270,19 +270,30 @@ export {
 } from './grid.js';
 export {
   CELL_DIRECTIONS,
+  CELL_KINDS,
   equalizeGridCells,
   findCell,
   findLeaf,
   MAX_CELL_SPLIT,
+  MAX_SHELVES,
   removeGridCell,
+  setGridCellDepth,
+  setGridCellKind,
+  setGridShelves,
   setGridTrackSize,
   splitGridCell,
   unsplitGridCell,
+  WRAP_THROUGH,
+  wrapGridCell,
 } from './cellTree.js';
 export {
   blindCellWidths,
+  cellCaptureSides,
   cellPieces,
   MIN_CELL_SIZE,
+  panelOrientation,
+  partPieces,
   resolveTracks,
+  shelfParts,
   stackedSides,
 } from './cells.js';

@@ -88,9 +88,11 @@ function resolveGrid(grid, piece, rectangle, depth, grids) {
       z: top - height,
       width,
       height,
-      depth: piece.depth,
+      depth: cell.node.depth ?? piece.depth,
       auto: track.size === null,
+      ...(cell.node.align ? { align: cell.node.align } : {}),
       ...(cell.node.blind ? { blind: { ...cell.node.blind } } : {}),
+      ...(cell.node.shelves ? { shelves: { ...cell.node.shelves } } : {}),
     });
   }
 
@@ -126,6 +128,13 @@ export function cellPieces(run, layout) {
           code: 'cell-too-small',
           pieceId: leaf.id,
           message: 'Cell is smaller than 1 inch.',
+        });
+      }
+      if (leaf.depth > piece.depth + EPSILON) {
+        warnings.push({
+          code: 'cell-too-deep',
+          pieceId: leaf.id,
+          message: 'Cell is deeper than its run.',
         });
       }
     }
@@ -175,4 +184,57 @@ export function blindCellWidths(pieces, columns, entries) {
   }
 
   return result;
+}
+
+function overlapsVertically(a, b) {
+  return Math.min(a.z + a.height, b.z + b.height) - Math.max(a.z, b.z) > EPSILON;
+}
+
+/** Whether a panel cell sits against each side of a piece (REV-005/006 inside a split). */
+export function cellCaptureSides(pieces, pieceId) {
+  const piece = pieces.find((candidate) => candidate.id === pieceId);
+  if (!piece) return { left: false, right: false };
+  const panels = pieces.filter((candidate) => (
+    candidate !== piece && candidate.kind === 'panel' && overlapsVertically(candidate, piece)));
+  return {
+    left: panels.some((panel) => Math.abs(panel.x + panel.width - piece.x) <= EPSILON),
+    right: panels.some((panel) => Math.abs(panel.x - piece.x - piece.width) <= EPSILON),
+  };
+}
+
+/** A panel's orientation from its thinnest dimension: 'side', 'top' or 'back'. */
+export function panelOrientation(piece) {
+  if (piece?.kind !== 'panel') return null;
+  const thinnest = Math.min(piece.width, piece.height, piece.depth);
+  if (piece.width === thinnest) return 'side';
+  if (piece.height === thinnest) return 'top';
+  return 'back';
+}
+
+/** A shelves cell's parts: its back panel (if any), then each shelf bottom up, evenly spaced. */
+export function shelfParts(piece, settings) {
+  if (piece?.kind !== 'shelves' || !piece.shelves) return [];
+  const { count, back } = piece.shelves;
+  const thickness = settings.floatingShelfThickness;
+  const backThickness = back ? settings.endPanelThickness : 0;
+  const gap = (piece.height - count * thickness) / (count + 1);
+  const parts = [];
+  if (back) {
+    parts.push({ id: `${piece.id}:back`, kind: 'panel', x: piece.x, z: piece.z,
+      width: piece.width, height: piece.height, depth: backThickness });
+  }
+  for (let index = 1; index <= count; index += 1) {
+    parts.push({ id: `${piece.id}:shelf-${index}`, kind: 'shelf', x: piece.x,
+      z: piece.z + index * gap + (index - 1) * thickness, width: piece.width,
+      height: thickness, depth: piece.depth - backThickness });
+  }
+  return parts;
+}
+
+/** Pieces as parts: a shelves cell becomes its shelves (and back); a void has none. */
+export function partPieces(pieces, settings) {
+  return pieces.flatMap((piece) => {
+    if (piece.kind === 'shelves') return shelfParts(piece, settings);
+    return piece.kind === 'void' ? [] : [piece];
+  });
 }

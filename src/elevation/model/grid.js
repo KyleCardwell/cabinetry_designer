@@ -1,4 +1,6 @@
-export const LEAF_KINDS = ['cabinet', 'filler'];
+export const LEAF_KINDS = ['cabinet', 'filler', 'panel', 'void', 'shelves'];
+/** Leaf kinds that never carry a blind. */
+const BLINDLESS_KINDS = new Set(['panel', 'void', 'shelves']);
 export const SIZE_MODES = ['auto', 'manual', 'solved'];
 
 function itemParts(item) {
@@ -145,6 +147,7 @@ export function runBlind(run) {
 
 function setNodeBlind(node, side, width, validWidth) {
   if (!isNestedGrid(node)) {
+    if (BLINDLESS_KINDS.has(node.kind)) return node;
     const blind = { ...node.blind };
     if (validWidth) {
       if (Object.is(blind[side], width)) return node;
@@ -237,7 +240,7 @@ export function rehomeBlind(before, after) {
     const kept = [...newEdge].some((id) => oldEdge.has(id));
     next = mapLeaves(next, (leaf) => {
       if (width === null || !newEdge.has(leaf.id)) return withBlindSide(leaf, side, null);
-      if (!kept) return withBlindSide(leaf, side, width);
+      if (!kept) return withBlindSide(leaf, side, BLINDLESS_KINDS.has(leaf.kind) ? null : width);
       if (oldEdge.has(leaf.id)) {
         return withBlindSide(leaf, side, beforeLeaves.get(leaf.id)?.blind?.[side] ?? null);
       }
