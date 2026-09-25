@@ -72,4 +72,39 @@ describe('runFaceLayouts', () => {
     expect(inset.get('b').faces).toEqual([{ path: 'r', type: 'door', x: 25.5, z: 5.5, width: 16.5, height: 27.75 }]);
     expect(inset.get('t').faces).toEqual([{ path: 'r', type: 'door', x: 25.5, z: 34.75, width: 16.5, height: 57.75 }]);
   });
+
+  it('51. a cabinet between panel cells is captured', () => {
+    const panel = (id) => ({ id, kind: 'panel' });
+    const cell = (col, row, node) => ({ col, row, colSpan: 1, rowSpan: 1, node });
+    const WRAPPED = {
+      ...RUN, id: 'run-3', width: 18, items: undefined,
+      ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+      grid: {
+        id: 'run-3:grid', cols: [{ id: 'w:col', size: 18, sizeMode: 'manual' }],
+        rows: [{ id: 'run-3:row', size: null, sizeMode: 'auto' }],
+        cells: [cell(0, 0, {
+          id: 'w',
+          cols: [{ id: 'w:l', size: 0.75, sizeMode: 'manual' }, { id: 'w:m', size: null, sizeMode: 'auto' },
+            { id: 'w:r', size: 0.75, sizeMode: 'manual' }],
+          rows: [{ id: 'w:row', size: null, sizeMode: 'auto' }],
+          cells: [
+            cell(0, 0, panel('L')),
+            cell(1, 0, {
+              id: 'm', cols: [{ id: 'm:c', size: null, sizeMode: 'auto' }],
+              rows: [{ id: 'm:t', size: 0.75, sizeMode: 'manual' }, { id: 'm:b', size: null, sizeMode: 'auto' }],
+              cells: [cell(0, 0, panel('T')), cell(0, 1, { id: 'c', kind: 'cabinet' })],
+            }),
+            cell(2, 0, panel('R')),
+          ],
+        })],
+      },
+    };
+    const room = roomWith(WRAPPED);
+    const layouts = runFaceLayouts(room, resolveWall(room, room.walls[0]), WRAPPED, DEFAULT_SETTINGS);
+    expect([...layouts.keys()]).toEqual(['c']);
+    const c = layouts.get('c');
+    expect(c.reveals.sources.left).toBe('rule:captured-single');
+    expect(c.reveals.sources.right).toBe('rule:captured-single');
+    expect(c.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 16.3125, height: 29.375 }]);
+  });
 });

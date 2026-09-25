@@ -1,5 +1,5 @@
 import { captureSides } from './capture.js';
-import { cellPieces, stackedSides } from './cells.js';
+import { cellCaptureSides, cellPieces, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { cabinetFaces, defaultFace } from './faces.js';
@@ -39,11 +39,13 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
       ? layout.pieces.find((candidate) => candidate.id === piece.columnId)
       : piece;
     const columnCaptured = captureSides(layout.pieces, column.id, otherPieces, tolerance);
+    const byPanels = cellCaptureSides(cells.pieces, piece.id);
     const captured = piece.columnId
       ? {
-        left: columnCaptured.left && Math.abs(piece.x - column.x) <= 1e-6,
-        right: columnCaptured.right
-          && Math.abs(piece.x + piece.width - column.x - column.width) <= 1e-6,
+        left: byPanels.left
+          || (columnCaptured.left && Math.abs(piece.x - column.x) <= 1e-6),
+        right: byPanels.right || (columnCaptured.right
+          && Math.abs(piece.x + piece.width - column.x - column.width) <= 1e-6),
       }
       : columnCaptured;
     const style = resolveStyle(settings, room, run, item);

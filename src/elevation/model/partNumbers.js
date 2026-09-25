@@ -1,6 +1,6 @@
 import { CABINET_TYPE_IDS } from './constants.js';
 import { blindEntries, blindPartWidths } from './blind.js';
-import { blindCellWidths, cellPieces } from './cells.js';
+import { blindCellWidths, cellPieces, partPieces } from './cells.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
 import {
@@ -19,7 +19,7 @@ export const MOLDING_LABELS = { toeKick: 'TK', topMold: 'TM', crown: 'CR' };
 /** Horizontal slot for each molding badge: -1 left of centre, 0 centre, 1 right. */
 export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
 
-const PART_KINDS = new Set(['cabinet', 'filler', 'end_panel']);
+const PART_KINDS = new Set(['cabinet', 'filler', 'end_panel', 'panel', 'shelf']);
 const LOWER_TYPES = new Set([CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL]);
 const MOLDING_TYPES = new Set([CABINET_TYPE_IDS.UPPER, CABINET_TYPE_IDS.TALL]);
 
@@ -64,7 +64,7 @@ function runParts(room, wall, side, settings) {
     const cellWidths = blindCellWidths(
       cells.pieces, layout.pieces, blindEntries(room, view, run, settings, layout).entries,
     );
-    return cells.pieces
+    return partPieces(cells.pieces, settings)
       .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6)
       .map((piece) => ({
         key: piece.id,
@@ -212,11 +212,11 @@ export function wallBadgeGroups(room, wall, settings) {
   const groups = wall.runs.map((run) => ({
     key: `run:${run.id}`,
     lift: 0,
-    pieces: cellPieces(run, splitRun(run, settings, {
+    pieces: partPieces(cellPieces(run, splitRun(run, settings, {
       endMinWidths: endMinWidthsForRun(room, wall, run, settings),
       endCornerAngles: endCornerAnglesForRun(room, wall, run),
       pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
-    })).pieces,
+    })).pieces, settings),
   })).filter((group) => group.pieces.length > 0);
 
   for (const panel of wallEndPanels(room, wall, settings)) {
