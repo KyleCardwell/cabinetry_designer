@@ -46,6 +46,7 @@ import elevationReducer, {
   setOpeningOffsetAnchor,
   setOpeningOffsetSide,
   setPanelType,
+  setPanelDoors,
   setPartNumberOverride,
   setItemAbsorb,
   setItemPin,
@@ -2186,5 +2187,14 @@ describe('SPEC-34.1 panel reducers', () => {
     state = elevationReducer(state, addPanel({ ...actionBase, cellId: 'a', side: 'above' }));
     expect(stackOf(state).rows.map(({ size }) => size)).toEqual([0.75, null]);
     expect(stackOf(state).cells.map((entry) => entry.node.kind)).toEqual(['panel', 'cabinet']);
+  });
+
+  it('sets a panel\'s doors', () => {
+    let state = elevationReducer(start(), setCellKind({ ...actionBase, cellId: 'a', kind: 'panel' }));
+    state = elevationReducer(state, setPanelDoors({ ...actionBase, cellId: 'a', doors: 'cover' }));
+    expect(leafOf(state, 'a')).toEqual({ id: 'a', kind: 'panel', doors: 'cover' });
+    expect(elevationReducer(state, setPanelDoors({ ...actionBase, cellId: 'a', doors: 'x' }))).toBe(state);
+    state = elevationReducer(state, setPanelDoors({ ...actionBase, cellId: 'a', doors: 'flush' }));
+    expect(leafOf(state, 'a')).toEqual({ id: 'a', kind: 'panel' });
   });
 });

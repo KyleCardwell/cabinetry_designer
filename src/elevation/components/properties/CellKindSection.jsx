@@ -1,6 +1,11 @@
 import { useDispatch } from 'react-redux';
 import { panelOrientation, panelTypes } from '../../model/index.js';
-import { addPanel, setCellKind, setPanelType } from '../../store/elevationSlice.js';
+import {
+  addPanel,
+  setCellKind,
+  setPanelDoors,
+  setPanelType,
+} from '../../store/elevationSlice.js';
 import Field from './Field.jsx';
 
 const KIND_OPTIONS = [
@@ -64,6 +69,22 @@ export default function CellKindSection({ wall, run, piece, item }) {
             {typeOptions.map((type) => (
               <option key={type} value={type}>{PANEL_TYPE_LABELS[type]}</option>
             ))}
+          </select>
+        </Field>
+      )}
+      {item.kind === 'panel' && (orientation === 'side' || orientation === 'top') && (
+        <Field label="Doors">
+          <select
+            value={item.doors ?? 'flush'}
+            onChange={(event) => dispatch(setPanelDoors({
+              ...actionBase,
+              doors: event.target.value,
+            }))}
+            aria-label="Panel doors"
+            className={SELECT_CLASS}
+          >
+            <option value="flush">Flush — panel to door face</option>
+            <option value="cover">Cover — doors lap over</option>
           </select>
         </Field>
       )}

@@ -1,6 +1,7 @@
 import { useDispatch } from 'react-redux';
 import {
   cellBlindSides,
+  cellDepth,
   findCell,
   formatInchesInput,
   MAX_SHELVES,
@@ -126,7 +127,7 @@ export default function CellProperties({
               <InchInput
                 value={item.depth ?? null}
                 allowBlank
-                placeholder={formatInchesInput(run.depth)}
+                placeholder={formatInchesInput(cellDepth(piece, item, run.depth, settings))}
                 onCommit={(depth) => dispatch(setCellDepth({ ...cellBase, depth }))}
                 aria-label="Cell depth"
               />

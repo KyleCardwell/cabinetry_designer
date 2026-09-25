@@ -15,6 +15,7 @@ import {
   parentFacePath,
   presetsFor,
   removeFace,
+  setFaceHinge,
   setFaceSize,
   setFaceType,
   setGroupCount,
@@ -28,6 +29,11 @@ const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hove
 const DISABLED_CLASS = 'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gray-700';
 const NUMBER_CLASS = 'w-16 rounded border border-gray-600 bg-gray-900 px-2 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
+const WARNING_MESSAGES = {
+  'face-too-small': 'Sections don\'t fit. Reduce a fixed size.',
+  'pair-door-covers-panel': 'A pair door can\'t cover a side panel — it\'s hinged on both sides.',
+  'hinge-on-covered-side': 'This door is hinged on the side that covers a panel.',
+};
 
 function groupLabel(node) {
   if (
@@ -53,6 +59,7 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
   const warnings = faceLayout?.warnings ?? [];
   const [splitCount, setSplitCount] = useState(2);
   const selected = facePath === null ? null : getFaceNode(face, facePath);
+  const resolvedFace = faceLayout?.faces.find((entry) => entry.path === facePath);
   const sameWidthIds = (cells?.pieces ?? layout.pieces)
     .filter((p) => p.kind === 'cabinet' && p.role === 'item' && Math.abs(p.width - piece.width) < 1e-6)
     .map((p) => p.id);
@@ -178,6 +185,27 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
 
       {selected && (
         <div className="space-y-2 rounded border border-gray-700 p-2">
+          {selected.type === 'door' && (
+            <label className="block text-xs text-gray-300">
+              Hinge
+              <select
+                value={selected.hinge ?? ''}
+                onChange={(event) => commitIfChanged(setFaceHinge(
+                  face,
+                  facePath,
+                  event.target.value || null,
+                ))}
+                aria-label="Hinge"
+                className={`${SELECT_CLASS} mt-1`}
+              >
+                <option value="">
+                  {resolvedFace?.hingeRule ? `Auto (${resolvedFace.hinge})` : 'Auto'}
+                </option>
+                <option value="left">Left</option>
+                <option value="right">Right</option>
+              </select>
+            </label>
+          )}
           {selected.type ? (
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-2 text-xs text-gray-300">
@@ -290,9 +318,13 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
         Apply to same-width cabinets
       </button>
 
-      {warnings.length > 0 && (
-        <p className="text-xs font-medium text-amber-300">Sections don&apos;t fit. Reduce a fixed size.</p>
-      )}
+      {[...new Set(warnings.map(({ code }) => code))].map((code) => (
+        WARNING_MESSAGES[code] && (
+          <p key={code} className="text-xs font-medium text-amber-300">
+            {WARNING_MESSAGES[code]}
+          </p>
+        )
+      ))}
     </section>
   );
 }

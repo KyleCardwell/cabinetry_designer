@@ -20,6 +20,7 @@ import {
   removeGridCell,
   setGridCellDepth,
   setGridCellKind,
+  setGridPanelDoors,
   setGridPanelType,
   setGridShelves,
   setGridTrackSize,
@@ -1413,6 +1414,16 @@ const elevationSlice = createSlice({
       if (found.depth === 0 && (side === 'left' || side === 'right')) location.run.autoCount = false;
       syncRoomAt(state, location.roomIndex);
     },
+    setPanelDoors(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { cellId, doors } = action.payload;
+      const before = location.run.grid;
+      const grid = setGridPanelDoors(before, cellId, doors ?? null);
+      if (grid === before) return;
+      location.run.grid = grid;
+      syncRoomAt(state, location.roomIndex);
+    },
     setItemFace(state, action) {
       const location = runLocation(state, action.payload);
       if (!location) return;
@@ -1611,6 +1622,7 @@ export const {
   wrapCell,
   setPanelType,
   addPanel,
+  setPanelDoors,
   setItemFace,
   setRoomStyle,
   setRunStyle,
