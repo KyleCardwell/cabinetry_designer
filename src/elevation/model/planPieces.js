@@ -1,5 +1,8 @@
 import { blindEntries } from './blind.js';
+import { blindCellWidths, cellDepth, cellPieces, panelOrientation } from './cells.js';
+import { findLeaf } from './cellTree.js';
 import { frontDepth } from './corners.js';
+import { runItems } from './grid.js';
 
 const WIDTH_EPSILON = 1e-6;
 
@@ -51,26 +54,42 @@ function fillerSpan(run, piece, settings) {
   return { start: piece.x, end: piece.x + width };
 }
 
-function cabinetFaces(piece, faceLayouts, faceBack, faceFront) {
+function cabinetFaces(piece, faceLayouts) {
   const resolved = faceLayouts.get(piece.id)?.faces;
   const faces = resolved?.length > 0
-    ? topFaces(resolved)
-    : [{ path: 'r', x: piece.x, width: piece.width }];
-
-  return faces.map((face) => ({
-    key: `${piece.id}:${face.path}${face.half ?? ''}`,
-    kind: 'face',
-    start: face.x,
-    end: face.x + face.width,
-    back: faceBack,
-    front: faceFront,
-  }));
+    ? resolved
+    : [{ path: 'r', x: piece.x, z: piece.z, width: piece.width, height: piece.height }];
+  return faces.map((face) => ({ ...face, piece }));
 }
 
-function planFaces(run, settings, layout, faceLayouts, panels, faceBack, faceFront) {
-  return layout.pieces.flatMap((piece) => {
+function planFaces(run, settings, pieces, faceLayouts, panels, band, faceBack, faceFront) {
+  const columns = new Map();
+  for (const piece of pieces) {
+    if (piece.kind !== 'cabinet') continue;
+    const columnId = piece.columnId ?? piece.id;
+    const faces = columns.get(columnId) ?? [];
+    faces.push(...cabinetFaces(piece, faceLayouts));
+    columns.set(columnId, faces);
+  }
+  const handled = new Set();
+
+  return pieces.flatMap((piece) => {
     if (piece.kind === 'cabinet') {
-      return cabinetFaces(piece, faceLayouts, faceBack, faceFront);
+      const columnId = piece.columnId ?? piece.id;
+      if (handled.has(columnId)) return [];
+      handled.add(columnId);
+      return topFaces(columns.get(columnId) ?? []).map((face) => {
+        const depth = band(face.piece);
+        const back = depth.front + settings.bumperThickness;
+        return {
+          key: `${face.piece.id}:${face.path}${face.half ?? ''}`,
+          kind: 'face',
+          start: face.x,
+          end: face.x + face.width,
+          back,
+          front: back + settings.doorThickness,
+        };
+      });
     }
     if (piece.kind === 'filler') {
       const panel = panels.get(endSideOf(piece));
@@ -102,6 +121,15 @@ function planFaces(run, settings, layout, faceLayouts, panels, faceBack, faceFro
         end: piece.x + piece.width,
         back: 0,
         front: faceFront,
+      }];
+    }
+    if (piece.kind === 'panel' && ['side', 'back'].includes(panelOrientation(piece))) {
+      return [{
+        key: piece.id,
+        kind: 'panel',
+        start: piece.x,
+        end: piece.x + piece.width,
+        ...band(piece),
       }];
     }
     return [];
@@ -137,6 +165,18 @@ function fillerReturns(run, settings, layout, panels, faceBack) {
 export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const faceBack = run.depth + settings.bumperThickness;
   const faceFront = frontDepth(run, settings);
+  const cells = cellPieces(run, layout);
+  const leafOf = (piece) => (piece.columnId
+    ? findLeaf(run.grid, piece.id)
+    : runItems(run).find((item) => item.id === piece.id));
+  const band = (piece) => {
+    const depth = cellDepth(piece, leafOf(piece), run.depth, settings);
+    if (piece.align === 'back') return { back: 0, front: depth };
+    const flushPanel = piece.kind === 'panel' && panelOrientation(piece) !== 'back'
+      && piece.doors !== 'cover';
+    const frontLine = flushPanel ? frontDepth(run, settings) : run.depth;
+    return { back: frontLine - depth, front: frontLine };
+  };
   const blind = blindEntries(room, wall, run, settings, layout);
   const blindBoxes = new Map(blind.entries
     .filter((entry) => entry.extension > WIDTH_EPSILON)
@@ -147,18 +187,41 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const panels = new Map(blind.entries
     .filter((entry) => entry.panel)
     .map((entry) => [entry.side, entry.panel]));
-  const boxes = layout.pieces.flatMap((piece) => {
-    if (piece.kind !== 'cabinet') return [];
+  const leftBlindWidths = blindCellWidths(
+    cells.pieces,
+    layout.pieces,
+    blind.entries.filter((entry) => entry.side === 'left'),
+  );
+  const rightBlindWidths = blindCellWidths(
+    cells.pieces,
+    layout.pieces,
+    blind.entries.filter((entry) => entry.side === 'right'),
+  );
+  const boxes = cells.pieces.flatMap((piece) => {
+    if (!['cabinet', 'shelves'].includes(piece.kind)) return [];
     const blindBox = blindBoxes.get(piece.id);
+    const leftBlindWidth = leftBlindWidths.get(piece.id);
+    const rightBlindWidth = rightBlindWidths.get(piece.id);
     return [{
       key: piece.id,
-      start: blindBox?.start ?? piece.x,
-      end: blindBox?.end ?? piece.x + piece.width,
-      back: 0,
-      front: run.depth,
+      start: blindBox?.start ?? (leftBlindWidth
+        ? piece.x + piece.width - leftBlindWidth
+        : piece.x),
+      end: blindBox?.end ?? (rightBlindWidth ? piece.x + rightBlindWidth : piece.x + piece.width),
+      ...band(piece),
+      ...(piece.kind === 'shelves' ? { dashed: true } : {}),
     }];
   });
-  const faces = planFaces(run, settings, layout, faceLayouts, panels, faceBack, faceFront);
+  const faces = planFaces(
+    run,
+    settings,
+    cells.pieces,
+    faceLayouts,
+    panels,
+    band,
+    faceBack,
+    faceFront,
+  );
   const returns = fillerReturns(run, settings, layout, panels, faceBack);
   const pieces = [...boxes, ...faces, ...returns];
 

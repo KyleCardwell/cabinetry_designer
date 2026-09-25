@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { layoutRun, runFaceLayouts } from '../faceLayouts.js';
+import { gridFromItems } from '../grid.js';
 import { planRunPieces, topFaces } from '../planPieces.js';
 import { syncRoom } from '../room.js';
 import { wallSideView } from '../wallSides.js';
@@ -420,5 +421,64 @@ describe('plan box and face geometry', () => {
       key: 't1', start: 7, end: 49, back: 0, front: 24,
     }]);
     expect(result.span).toEqual({ start: 0, end: 49 });
+  });
+});
+
+describe('SPEC-34.2 plan from cells', () => {
+  const planOf = (overrides) => {
+    const input = fixture({
+      x: 0, width: 30,
+      ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+      ...overrides,
+    });
+    return planRunPieces(input.room, input.wall, input.run, DEFAULT_SETTINGS, input.layout, input.faceLayouts);
+  };
+
+  it('draws a top-level side panel at the door face, or box depth when covered', () => {
+    const items = (doors) => [
+      { id: 'c1', kind: 'cabinet', width: 14.25 },
+      { id: 'p', kind: 'panel', width: 0.75, ...(doors ? { doors } : {}) },
+      { id: 'c2', kind: 'cabinet', width: 15 },
+    ];
+    const flush = planOf({ items: items() });
+    expect(flush.boxes).toEqual([
+      { key: 'c1', start: 0, end: 14.25, back: 0, front: 24 },
+      { key: 'c2', start: 15, end: 30, back: 0, front: 24 },
+    ]);
+    expect(flush.faces.filter(({ kind }) => kind === 'panel')).toEqual([
+      { key: 'p', kind: 'panel', start: 14.25, end: 15, back: 0, front: 24.875 },
+    ]);
+    expect(planOf({ items: items('cover') }).faces.filter(({ kind }) => kind === 'panel')).toEqual([
+      { key: 'p', kind: 'panel', start: 14.25, end: 15, back: 0, front: 24 },
+    ]);
+  });
+
+  it('draws a split column\'s cells, not one cabinet', () => {
+    const stack = {
+      id: 'g', cols: [{ id: 'g:c', size: null, sizeMode: 'auto' }],
+      rows: [
+        { id: 'g:r0', size: null, sizeMode: 'auto' },
+        { id: 'g:r1', size: 10, sizeMode: 'manual' },
+        { id: 'g:r2', size: 6, sizeMode: 'manual' },
+      ],
+      cells: [
+        { col: 0, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'sh', kind: 'shelves', shelves: { count: 2, back: false } } },
+        { col: 0, row: 1, colSpan: 1, rowSpan: 1, node: { id: 'ov', kind: 'cabinet', depth: 21, align: 'back' } },
+        { col: 0, row: 2, colSpan: 1, rowSpan: 1, node: { id: 'op', kind: 'void' } },
+      ],
+    };
+    const plan = planOf({
+      items: undefined,
+      grid: gridFromItems('P', [{ id: 'g', kind: 'cabinet', width: null, grid: stack }]),
+    });
+    expect(plan.boxes).toEqual([
+      { key: 'ov', start: 0, end: 30, back: 0, front: 21 },
+      { key: 'sh', start: 0, end: 30, back: 0, front: 24, dashed: true },
+    ]);
+    const faces = plan.faces.filter(({ kind }) => kind === 'face');
+    expect(faces).toHaveLength(2);
+    expect(faces.every(({ key, back, front }) => (
+      key.startsWith('ov:') && back === 21.0625 && front === 21.875
+    ))).toBe(true);
   });
 });
