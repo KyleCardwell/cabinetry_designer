@@ -14,11 +14,13 @@ import {
   updateRootItem,
 } from '../model/grid.js';
 import {
+  addGridPanel,
   equalizeGridCells,
   findCell,
   removeGridCell,
   setGridCellDepth,
   setGridCellKind,
+  setGridPanelType,
   setGridShelves,
   setGridTrackSize,
   splitGridCell,
@@ -1337,9 +1339,15 @@ const elevationSlice = createSlice({
       if (!location) return;
       const { cellId, kind } = action.payload;
       const before = location.run.grid;
-      const grid = setGridCellKind(before, cellId, kind);
+      const found = findCell(before, cellId);
+      let grid = setGridCellKind(before, cellId, kind);
       if (grid === before) return;
+      if (kind === 'panel') {
+        grid = setGridPanelType(grid, cellId, found.axis === 'row' ? 'top' : 'side',
+          state.settings.endPanelThickness);
+      }
       location.run.grid = grid;
+      if (found.depth === 0) location.run.autoCount = false;
       if (state.selection.pieceId === cellId && kind !== 'cabinet') state.facePath = null;
       syncRoomAt(state, location.roomIndex);
     },
@@ -1381,6 +1389,28 @@ const elevationSlice = createSlice({
       );
       if (grid === before) return;
       location.run.grid = grid;
+      syncRoomAt(state, location.roomIndex);
+    },
+    setPanelType(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { cellId, type } = action.payload;
+      const before = location.run.grid;
+      const grid = setGridPanelType(before, cellId, type, state.settings.endPanelThickness);
+      if (grid === before) return;
+      location.run.grid = grid;
+      syncRoomAt(state, location.roomIndex);
+    },
+    addPanel(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { cellId, side } = action.payload;
+      const before = location.run.grid;
+      const found = findCell(before, cellId);
+      const grid = addGridPanel(before, cellId, side, state.settings.endPanelThickness, uuid);
+      if (grid === before) return;
+      location.run.grid = grid;
+      if (found.depth === 0 && (side === 'left' || side === 'right')) location.run.autoCount = false;
       syncRoomAt(state, location.roomIndex);
     },
     setItemFace(state, action) {
@@ -1579,6 +1609,8 @@ export const {
   setCellDepth,
   setCellShelves,
   wrapCell,
+  setPanelType,
+  addPanel,
   setItemFace,
   setRoomStyle,
   setRunStyle,

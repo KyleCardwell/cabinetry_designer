@@ -10,6 +10,7 @@ import {
 } from '../../model/grid.js';
 import { openingGeometry } from '../../model/openings.js';
 import elevationReducer, {
+  addPanel,
   addOpening,
   addSoffit,
   resizeOpening,
@@ -44,6 +45,7 @@ import elevationReducer, {
   setOpeningMeasureMode,
   setOpeningOffsetAnchor,
   setOpeningOffsetSide,
+  setPanelType,
   setPartNumberOverride,
   setItemAbsorb,
   setItemPin,
@@ -2140,5 +2142,49 @@ describe('SPEC-34 cell kind reducers', () => {
     expect(inner.rows.map((row) => row.size)).toEqual([0.75, null, 0.75]);
     expect(inner.cells.map((entry) => entry.node.id === 'a' ? 'a' : entry.node.kind))
       .toEqual(['panel', 'a', 'panel']);
+  });
+});
+
+describe('SPEC-34.1 panel reducers', () => {
+  const actionBase = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
+  const start = (overrides = {}) => stateWithRun(run({
+    autoCount: true, items: [fixed('a', 30), auto('b')], ...overrides,
+  }));
+  const stackOf = (state) => currentRun(state).grid.cells[0].node;
+  const leafOf = (state, id) => gridLeaves(currentRun(state).grid).find((leaf) => leaf.id === id);
+
+  it('turns a top-level cabinet into a side panel, a back panel, and back', () => {
+    let state = elevationReducer(start(), setCellKind({ ...actionBase, cellId: 'a', kind: 'panel' }));
+    expect(leafOf(state, 'a')).toEqual({ id: 'a', kind: 'panel' });
+    expect(currentRun(state).grid.cols[0]).toEqual({ id: 'a:col', size: 0.75, sizeMode: 'manual' });
+    expect(currentRun(state).autoCount).toBe(false);
+    state = elevationReducer(state, setPanelType({ ...actionBase, cellId: 'a', type: 'back' }));
+    expect(currentRun(state).grid.cols[0]).toEqual({ id: 'a:col', size: null, sizeMode: 'auto' });
+    expect(leafOf(state, 'a')).toEqual({ id: 'a', kind: 'panel', depth: 0.75, align: 'back' });
+    state = elevationReducer(state, setCellKind({ ...actionBase, cellId: 'a', kind: 'cabinet' }));
+    expect(leafOf(state, 'a')).toEqual({ id: 'a', kind: 'cabinet' });
+  });
+
+  it('gives a stacked panel the top/bottom type', () => {
+    let state = elevationReducer(start({ autoCount: false }), splitCell({
+      ...actionBase, cellId: 'a', direction: 'down', count: 2,
+    }));
+    const lower = stackOf(state).cells[1].node.id;
+    const trackId = stackOf(state).rows[1].id;
+    state = elevationReducer(state, setCellKind({ ...actionBase, cellId: lower, kind: 'panel' }));
+    expect(stackOf(state).rows[1]).toEqual({ id: trackId, size: 0.75, sizeMode: 'manual' });
+    expect(elevationReducer(state, setPanelType({ ...actionBase, cellId: lower, type: 'side' }))).toBe(state);
+  });
+
+  it('adds panels beside and above cells', () => {
+    let state = elevationReducer(start(), addPanel({ ...actionBase, cellId: 'b', side: 'left' }));
+    const items = runItems(currentRun(state));
+    expect(items.map(({ kind }) => kind)).toEqual(['cabinet', 'panel', 'cabinet']);
+    expect(items[1].width).toBe(0.75);
+    expect(items[2].id).toBe('b');
+    expect(currentRun(state).autoCount).toBe(false);
+    state = elevationReducer(state, addPanel({ ...actionBase, cellId: 'a', side: 'above' }));
+    expect(stackOf(state).rows.map(({ size }) => size)).toEqual([0.75, null]);
+    expect(stackOf(state).cells.map((entry) => entry.node.kind)).toEqual(['panel', 'cabinet']);
   });
 });
