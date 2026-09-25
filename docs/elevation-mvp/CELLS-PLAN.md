@@ -77,6 +77,7 @@ There's no seam object. The frame member or face gap at a seam is the sum of the
 ### Blind corners
 
 - `blind` moves from the run to the cell. Any cell in the outermost column on that side can be blind, one or several.
+- Round 34 (SPEC-34 §1): each edge cell keeps its own blind through splits and removals; only a wholly new outer column takes the run's blind on every edge cell. Panel, void and shelves cells are never blind.
 - The run's end is still one piece, full run height: the 6" flat filler or the full-width panel that already exists (SPEC-28/29). A run has one end type per side.
 
 ### Face frame regions
@@ -146,9 +147,9 @@ The topmost cells are drawn. Lower cells with different seams can be dashed late
 |---|---|---|
 | **32 — Grid shape** | `run.grid` replaces `run.items`; tracks with `sizeMode` and an optional `gap` (inert until 34); migration; `splitRun` solves root columns; pins, absorb, auto count, ends and blind (moved to the cell) keep working. Its own shape step, green and inert (PROMPT-CONVENTIONS rule 4). Every existing layout resolves exactly as before. | nothing visible |
 | **33 — Vertical split** | Split, remove and equalize cells; draw and select cells; cell part numbers; REV-009/010 with sources; vertical chains per split column; editing track sizes on chains. | the too-tall cabinet, 72" over two 36"s, the oven stack (depth in 34) |
-| **34 — Kinds and depth** | `panel`, `void`, `shelves` with back; gaps between boxes (drawn, solved, run default and per-track override); `depth`, `align`, `run.outset`; Wrap in panels; deviation lists for notes. | the desk, back panels, floating shelves |
-| **35 — Tops, bottoms, vertical joins** | `run.top` decoupled from type; the `run.bottom` list and REV-011; joins above and below with fill; one chain per joined stack. | the budgeted room |
-| **36 — Face frame on cells** | FACES-PLAN round 15 rebuilt on cells: frame regions, breaks, stiles and rails from reveals plus gaps (FF-004), opening dimensions. | inset and beaded inset runs |
+| **34 — Kinds and depth** | Blind per cell; `panel`, `void`, `shelves` with back; `depth`, `align`; Wrap in panels (SPEC-34). Re-scoped 2026-09-25: gaps → 36, `run.outset` → 35, deviation lists → reports after 38. | the desk, back panels, floating shelves, the blind tall over a non-blind base |
+| **35 — Tops, bottoms, vertical joins** | `run.top` decoupled from type; the `run.bottom` list and REV-011; joins above and below with fill; one chain per joined stack; `run.outset` (from 34). | the budgeted room |
+| **36 — Face frame on cells** | Gaps between boxes (from 34: drawn, solved, run default and per-track override); FACES-PLAN round 15 rebuilt on cells: frame regions, breaks, stiles and rails from reveals plus gaps (FF-004), opening dimensions. | inset and beaded inset runs |
 | **37 — T-fillers** | FILL-011: run setting, per-side overrides, stile logic, rabbet notes. | Euro T-filler runs |
 | **38 — Combine and full grids** | Rows × columns splits, combine, flatten, spans in the solver, chains and neighbours. | the pinwheel |
 
