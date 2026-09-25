@@ -31,7 +31,8 @@ export function isFaceNode(node) {
   if (!node || typeof node !== 'object' || Array.isArray(node)) return false;
   if (!isSize(node.size)) return false;
   if (FACE_TYPES.includes(node.type)) {
-    return node.children === undefined && node.direction === undefined;
+    return node.children === undefined && node.direction === undefined
+      && (node.hinge === undefined || (node.type === 'door' && (node.hinge === 'left' || node.hinge === 'right')));
   }
   return node.type === undefined
     && FACE_DIRECTIONS.includes(node.direction)
@@ -100,7 +101,7 @@ export function resolveFaces(face, area, reveals) {
           height: leaf.height,
         });
       } else {
-        faces.push({ path, type: node.type, ...leaf });
+        faces.push({ path, type: node.type, ...leaf, ...(node.hinge ? { hinge: node.hinge } : {}) });
       }
       return;
     }
@@ -139,4 +140,40 @@ export function cabinetFaces(item, piece, cabinetTypeId, settings, revealValues 
   const reveals = revealValues ?? faceRevealsFor(cabinetTypeId, settings);
   const face = item?.face ?? defaultFace(piece.width, settings);
   return resolveFaces(face, faceArea(piece, reveals), reveals);
+}
+
+function overlapsHeight(a, b) {
+  return Math.min(a.z + a.height, b.z + b.height) - Math.max(a.z, b.z) > 1e-6;
+}
+
+/**
+ * Hinge side for each resolved 'door' face: stored, else against the one hinge stop it touches,
+ * else away from the one covered side it touches. Warns when a hinge is on a covered side.
+ */
+export function applyHinges(faces, stops, covered) {
+  const warnings = [];
+  const next = faces.map((face) => {
+    if (face.type !== 'door') return face;
+    const beside = faces.filter((other) => other !== face && overlapsHeight(other, face));
+    const touches = {
+      left: !beside.some((other) => other.x + other.width <= face.x + 1e-6),
+      right: !beside.some((other) => other.x >= face.x + face.width - 1e-6),
+    };
+    let hinge = face.hinge ?? null;
+    let rule = false;
+    if (!hinge) {
+      const stopLeft = touches.left && stops.left;
+      const stopRight = touches.right && stops.right;
+      const coverLeft = touches.left && covered.left > 0;
+      const coverRight = touches.right && covered.right > 0;
+      if (stopLeft !== stopRight) hinge = stopLeft ? 'left' : 'right';
+      else if (coverLeft !== coverRight) hinge = coverLeft ? 'right' : 'left';
+      rule = hinge !== null;
+    }
+    if (hinge && touches[hinge] && covered[hinge] > 0) {
+      warnings.push({ code: 'hinge-on-covered-side', path: face.path });
+    }
+    return hinge ? { ...face, hinge, ...(rule ? { hingeRule: true } : {}) } : face;
+  });
+  return { faces: next, warnings };
 }

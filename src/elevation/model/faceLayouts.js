@@ -1,8 +1,8 @@
 import { captureSides } from './capture.js';
-import { cellCaptureSides, cellPieces, stackedSides } from './cells.js';
+import { cellCaptureSides, cellPieces, coveredSides, hingeStops, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
-import { cabinetFaces, defaultFace } from './faces.js';
+import { applyHinges, cabinetFaces, defaultFace } from './faces.js';
 import { runItems } from './grid.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
 import { splitRun } from './splitRun.js';
@@ -48,19 +48,30 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
           && Math.abs(piece.x + piece.width - column.x - column.width) <= 1e-6),
       }
       : columnCaptured;
+    const face = item?.face ?? defaultFace(piece.width, settings);
+    const covered = coveredSides(cells.pieces, piece.id);
+    const pairCovers = face.type === 'pair_door' && (covered.left > 0 || covered.right > 0);
     const style = resolveStyle(settings, room, run, item);
     const reveals = cabinetReveals({
       style,
       cabinetTypeId: run.cabinetTypeId,
       run,
-      face: item?.face ?? defaultFace(piece.width, settings),
+      face,
       captured,
       stacked: stackedSides(cells.pieces, piece.id),
+      covered: pairCovers ? { ...covered, left: 0, right: 0 } : covered,
       manual: item?.reveals ?? null,
       settings,
     });
+    const resolved = cabinetFaces(item, piece, run.cabinetTypeId, settings, reveals.values);
+    const hinged = applyHinges(resolved.faces, hingeStops(cells.pieces, piece.id), covered);
     result.set(piece.id, {
-      ...cabinetFaces(item, piece, run.cabinetTypeId, settings, reveals.values),
+      faces: hinged.faces,
+      warnings: [
+        ...resolved.warnings,
+        ...hinged.warnings,
+        ...(pairCovers ? [{ code: 'pair-door-covers-panel', path: 'r' }] : []),
+      ],
       style,
       reveals,
     });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { cabinetFaces, isFaceNode } from '../faces.js';
+import { applyHinges, cabinetFaces, isFaceNode } from '../faces.js';
 
 const { BASE, UPPER } = CABINET_TYPE_IDS;
 const B18 = { x: 0, z: 4, width: 18, height: 30.5 };
@@ -84,5 +84,24 @@ describe('isFaceNode', () => {
     expect(isFaceNode({ type: 'door', size: -2 })).toBe(false);
     expect(isFaceNode({ type: 'door', size: null, children: [] })).toBe(false);
     expect(isFaceNode({ type: 'door' })).toBe(false);
+  });
+});
+
+describe('applyHinges', () => {
+  it('applies hinge sides and validates hinges', () => {
+    const faces = [
+      { path: 'r.0', type: 'door', x: 0, z: 0, width: 10, height: 30 },
+      { path: 'r.1', type: 'door', x: 10.125, z: 0, width: 10, height: 30 },
+    ];
+    const stopped = applyHinges(faces, { left: true, right: false }, { left: 0, right: 0 });
+    expect(stopped.faces[0]).toEqual({ ...faces[0], hinge: 'left', hingeRule: true });
+    expect(stopped.faces[1]).toBe(faces[1]);
+    const covered = applyHinges(faces, { left: false, right: false }, { left: 0, right: 0.75 });
+    expect(covered.faces[0]).toBe(faces[0]);
+    expect(covered.faces[1]).toEqual({ ...faces[1], hinge: 'left', hingeRule: true });
+    expect(covered.warnings).toEqual([]);
+    expect(isFaceNode({ type: 'door', size: null, hinge: 'left' })).toBe(true);
+    expect(isFaceNode({ type: 'drawer_front', size: null, hinge: 'left' })).toBe(false);
+    expect(isFaceNode({ type: 'door', size: null, hinge: 'up' })).toBe(false);
   });
 });

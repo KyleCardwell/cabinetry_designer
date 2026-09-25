@@ -41,7 +41,7 @@ export function faceOutline(face) {
 export function setFaceType(face, path, type) {
   const target = getFaceNode(face, path);
   if (!target?.type || !FACE_TYPES.includes(type)) return face;
-  return replaceAt(face, path, (node) => ({ ...node, type }));
+  return replaceAt(face, path, (node) => { const next = { ...node, type }; if (type !== 'door') delete next.hinge; return next; });
 }
 
 export function setFaceSize(face, path, size) {
@@ -118,4 +118,18 @@ export function equalizeGroup(face, path) {
     ...node,
     children: node.children.map((child) => ({ ...child, size: null })),
   }));
+}
+
+/** Sets a door leaf's hinge side ('left' / 'right'), or clears it with null. */
+export function setFaceHinge(face, path, hinge) {
+  const target = getFaceNode(face, path);
+  if (target?.type !== 'door') return face;
+  if (hinge !== null && hinge !== 'left' && hinge !== 'right') return face;
+  if ((target.hinge ?? null) === hinge) return face;
+  return replaceAt(face, path, (node) => {
+    const next = { ...node };
+    if (hinge) next.hinge = hinge;
+    else delete next.hinge;
+    return next;
+  });
 }

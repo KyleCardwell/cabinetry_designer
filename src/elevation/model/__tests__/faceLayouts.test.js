@@ -130,4 +130,42 @@ describe('runFaceLayouts', () => {
     expect(b.reveals.sources.left).toBe('style');
     expect(b.reveals.sources.right).toBe('style');
   });
+
+  const COVER = {
+    ...RUN, id: 'run-5',
+    ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+    items: [
+      { id: 'L', kind: 'panel', width: 0.75, doors: 'cover' },
+      { id: 'a', kind: 'cabinet', width: 18 },
+      { id: 'R', kind: 'panel', width: 0.75 },
+    ],
+  };
+  const layoutOf = (run) => {
+    const room = roomWith(run);
+    return runFaceLayouts(room, resolveWall(room, room.walls[0]), run, DEFAULT_SETTINGS).get('a');
+  };
+
+  it('53. a covered side panel pulls the door over it and sets the hinge the other way', () => {
+    const a = layoutOf(COVER);
+    expect(a.reveals.values.left).toBe(-0.6875);
+    expect(a.reveals.sources.left).toBe('rule:covered-panel');
+    expect(a.reveals.sources.right).toBe('style');
+    expect(a.faces).toEqual([{
+      path: 'r', type: 'door', x: 24.0625, z: 4.125, width: 18.625, height: 30.125,
+      hinge: 'right', hingeRule: true,
+    }]);
+    expect(a.warnings).toEqual([]);
+  });
+
+  it('54. warns for a pair door or a hinge on the covered side', () => {
+    const withFace = (face) => ({ ...COVER, items: [COVER.items[0], { ...COVER.items[1], face }, COVER.items[2]] });
+    const pair = layoutOf(withFace({ type: 'pair_door', size: null }));
+    expect(pair.reveals.sources.left).toBe('style');
+    expect(pair.warnings).toContainEqual({ code: 'pair-door-covers-panel', path: 'r' });
+    const hinged = layoutOf(withFace({ type: 'door', size: null, hinge: 'left' }));
+    expect(hinged.faces).toEqual([{
+      path: 'r', type: 'door', x: 24.0625, z: 4.125, width: 18.625, height: 30.125, hinge: 'left',
+    }]);
+    expect(hinged.warnings).toEqual([{ code: 'hinge-on-covered-side', path: 'r' }]);
+  });
 });
