@@ -4,12 +4,21 @@ import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { wallFrame } from '../model/geometry.js';
 import {
+  gridLeaves,
   insertRootColumn,
   removeRootColumn,
   runItems,
   setGridBlind,
   updateRootItem,
 } from '../model/grid.js';
+import {
+  equalizeGridCells,
+  findCell,
+  removeGridCell,
+  setGridTrackSize,
+  splitGridCell,
+  unsplitGridCell,
+} from '../model/cellTree.js';
 import { isJointAnchor } from '../model/joints.js';
 import {
   LANDING_TO,
@@ -238,17 +247,9 @@ function cleanPartial(value, keys, accept = () => true) {
 }
 
 function roomCabinets(room) {
-  return room.walls.flatMap((wall) => wall.runs.flatMap((run) => rootLeaves(run)
+  return room.walls.flatMap((wall) => wall.runs.flatMap((run) => gridLeaves(run.grid)
     .filter((item) => item.kind === 'cabinet')
     .map((item) => ({ run, item }))));
-}
-
-/** A run's root leaves in column order: drafts, so reducers can edit them in place. */
-function rootLeaves(run) {
-  return run.grid.cells
-    .filter((cell) => cell.row === 0)
-    .sort((a, b) => a.col - b.col)
-    .map((cell) => cell.node);
 }
 
 /**
@@ -1257,11 +1258,70 @@ const elevationSlice = createSlice({
       }
       syncRoomAt(state, location.roomIndex);
     },
+    splitCell(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { cellId, direction, count } = action.payload;
+      const before = location.run.grid;
+      const rootAcross = direction === 'across' && findCell(before, cellId)?.depth === 0;
+      const grid = splitGridCell(before, cellId, direction, count, uuid);
+      if (grid === before) return;
+      location.run.grid = grid;
+      if (rootAcross) location.run.autoCount = false;
+      syncRoomAt(state, location.roomIndex);
+    },
+    removeCell(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { cellId } = action.payload;
+      const before = location.run.grid;
+      const atRoot = findCell(before, cellId)?.depth === 0;
+      const grid = removeGridCell(before, cellId);
+      if (grid === before) return;
+      location.run.grid = grid;
+      if (atRoot) location.run.autoCount = false;
+      if (state.selection.pieceId === cellId) {
+        state.selection = {
+          runId: location.run.id, pieceId: null, openingId: null, soffitId: null,
+          wallId: state.selection.wallId,
+        };
+        state.facePath = null;
+      }
+      syncRoomAt(state, location.roomIndex);
+    },
+    equalizeCells(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const before = location.run.grid;
+      const grid = equalizeGridCells(before, action.payload.cellId);
+      if (grid === before) return;
+      location.run.grid = grid;
+      syncRoomAt(state, location.roomIndex);
+    },
+    unsplitCell(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const before = location.run.grid;
+      const grid = unsplitGridCell(before, action.payload.cellId);
+      if (grid === before) return;
+      location.run.grid = grid;
+      syncRoomAt(state, location.roomIndex);
+    },
+    setTrackSize(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { trackId, size } = action.payload;
+      const before = location.run.grid;
+      const grid = setGridTrackSize(before, trackId, size ?? null);
+      if (grid === before) return;
+      location.run.grid = grid;
+      syncRoomAt(state, location.roomIndex);
+    },
     setItemFace(state, action) {
       const location = runLocation(state, action.payload);
       if (!location) return;
       const { itemIds = [], face = null } = action.payload;
-      for (const item of rootLeaves(location.run)) {
+      for (const item of gridLeaves(location.run.grid)) {
         if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
         item.face = face === null ? null : structuredClone(face);
       }
@@ -1300,7 +1360,7 @@ const elevationSlice = createSlice({
       if (!location || !isStyle(style)) return;
       const { itemIds = [] } = action.payload;
       withStandardDrawers(state, location.room, () => {
-        for (const item of rootLeaves(location.run)) {
+        for (const item of gridLeaves(location.run.grid)) {
           if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
           if (style) item.style = { ...style };
           else delete item.style;
@@ -1312,7 +1372,7 @@ const elevationSlice = createSlice({
       if (!location) return;
       const reveals = cleanPartial(action.payload.reveals, REVEAL_KEYS, Number.isFinite);
       const { itemIds = [] } = action.payload;
-      for (const item of rootLeaves(location.run)) {
+      for (const item of gridLeaves(location.run.grid)) {
         if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
         if (reveals) item.reveals = { ...reveals };
         else delete item.reveals;
@@ -1443,6 +1503,11 @@ export const {
   splitItem,
   addItemAfter,
   removeItem,
+  splitCell,
+  removeCell,
+  equalizeCells,
+  unsplitCell,
+  setTrackSize,
   setItemFace,
   setRoomStyle,
   setRunStyle,

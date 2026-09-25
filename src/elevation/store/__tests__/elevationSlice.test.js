@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { runFootprint } from '../../model/footprints.js';
 import { wallFrame } from '../../model/geometry.js';
-import { gridFromItems, runBlind, runItems } from '../../model/grid.js';
+import {
+  gridFromItems,
+  gridLeaves,
+  runBlind,
+  runItems,
+} from '../../model/grid.js';
 import { openingGeometry } from '../../model/openings.js';
 import elevationReducer, {
   addOpening,
@@ -23,10 +28,12 @@ import elevationReducer, {
   deleteSoffit,
   deleteWall,
   dissolveJoint,
+  equalizeCells,
   lockItem,
   moveOpening,
   moveWallEndpoint,
   moveWallPerpendicular,
+  removeCell,
   removeItem,
   replaceRun,
   resizeRun,
@@ -56,10 +63,12 @@ import elevationReducer, {
   setSelection,
   setSoffitAnchor,
   setTool,
+  setTrackSize,
   setView,
   setWallEndPanel,
   setWallLanding,
   setWallLength,
+  splitCell,
   splitItem,
   updateOpening,
   updateRun,
@@ -67,6 +76,7 @@ import elevationReducer, {
   updateRoomProfile,
   updateWall,
   unlockItem,
+  unsplitCell,
   useAutoHeightsForRoom,
 } from '../elevationSlice.js';
 
@@ -1960,5 +1970,98 @@ describe('SPEC-32 store holds grids', () => {
     expect(currentRun(state).grid.cells[0].node.face).toEqual({
       type: 'door', size: null,
     });
+  });
+});
+
+describe('SPEC-33 cell reducers', () => {
+  const actionBase = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
+  const start = (overrides = {}) => stateWithRun(run({
+    autoCount: false, items: [fixed('a', 30), auto('b')], ...overrides,
+  }));
+  const stackOf = (state) => currentRun(state).grid.cells[0].node;
+  const split = (state, cellId, direction, count = 2) => elevationReducer(
+    state, splitCell({ ...actionBase, cellId, direction, count }),
+  );
+
+  it('splits a root cabinet down, then sizes and equalizes its rows', () => {
+    let state = split(start(), 'a', 'down', 3);
+    expect(stackOf(state).rows).toHaveLength(3);
+    expect(stackOf(state).cells[0].node.id).toBe('a');
+    expect(currentRun(state).grid.cols[0]).toEqual({
+      id: `${stackOf(state).id}:col`, size: 30, sizeMode: 'manual',
+    });
+    expect(currentRun(state).autoCount).toBe(false);
+
+    const trackId = stackOf(state).rows[2].id;
+    state = elevationReducer(state, setTrackSize({ ...actionBase, trackId, size: 10 }));
+    expect(stackOf(state).rows[2]).toEqual({ id: trackId, size: 10, sizeMode: 'manual' });
+
+    state = elevationReducer(state, equalizeCells({ ...actionBase, cellId: 'a' }));
+    expect(stackOf(state).rows.every((row) => row.size === null)).toBe(true);
+  });
+
+  it('splits across into root columns and turns auto count off', () => {
+    const state = split(start({ autoCount: true }), 'b', 'across');
+    expect(runItems(currentRun(state))).toHaveLength(3);
+    expect(runItems(currentRun(state))[0].id).toBe('a');
+    expect(runItems(currentRun(state))[1].id).toBe('b');
+    expect(currentRun(state).autoCount).toBe(false);
+  });
+
+  it('removes a nested cell, collapsing the stack and its selection', () => {
+    let state = split(start(), 'a', 'down');
+    const second = stackOf(state).cells[1].node.id;
+    state = elevationReducer(state, setSelection({ runId: 'run-1', pieceId: second }));
+    state = elevationReducer(state, removeCell({ ...actionBase, cellId: second }));
+    expect(currentRun(state).grid.cells[0].node).toEqual({ id: 'a', kind: 'cabinet' });
+    expect(currentRun(state).grid.cols[0].id).toBe('a:col');
+    expect(state.selection.pieceId).toBeNull();
+    expect(state.facePath).toBeNull();
+
+    state = elevationReducer(state, removeCell({ ...actionBase, cellId: 'b' }));
+    expect(runItems(currentRun(state)).map((item) => item.id)).toEqual(['a']);
+  });
+
+  it('unsplits to the chosen cell', () => {
+    let state = split(start(), 'a', 'down', 3);
+    const mid = stackOf(state).cells[1].node.id;
+    state = elevationReducer(state, unsplitCell({ ...actionBase, cellId: mid }));
+    expect(currentRun(state).grid.cells[0].node).toEqual({ id: mid, kind: 'cabinet' });
+    expect(currentRun(state).grid.cols[0]).toEqual({
+      id: `${mid}:col`, size: 30, sizeMode: 'manual',
+    });
+  });
+
+  it('face, style and reveal edits reach nested cells', () => {
+    let state = split(start(), 'a', 'down');
+    const lower = stackOf(state).cells[1].node.id;
+    state = elevationReducer(state, setItemFace({
+      ...actionBase, itemIds: [lower], face: { type: 'drawer_front', size: null },
+    }));
+    state = elevationReducer(state, setItemReveals({
+      ...actionBase, itemIds: [lower], reveals: { top: 0.25 },
+    }));
+    state = elevationReducer(state, setItemStyle({
+      ...actionBase, itemIds: [lower], style: { cabinetStyleId: 14 },
+    }));
+
+    const leaves = gridLeaves(currentRun(state).grid);
+    expect(leaves.find((leaf) => leaf.id === lower)).toMatchObject({
+      face: { type: 'drawer_front', size: null },
+      reveals: { top: 0.25 },
+      style: { cabinetStyleId: 14 },
+    });
+    expect(leaves.find((leaf) => leaf.id === 'a')).not.toHaveProperty('face');
+    expect(leaves.find((leaf) => leaf.id === 'a')).not.toHaveProperty('reveals');
+    expect(leaves.find((leaf) => leaf.id === 'a')).not.toHaveProperty('style');
+  });
+
+  it('a blind column stays blind when split down', () => {
+    const state = split(start({ blind: { left: 36, right: null } }), 'a', 'down');
+    const leaves = gridLeaves(currentRun(state).grid);
+    expect(leaves.filter((leaf) => leaf.blind).map((leaf) => leaf.id)).toEqual([
+      'a', leaves[1].id,
+    ]);
+    expect(runBlind(currentRun(state))).toEqual({ left: 36, right: null });
   });
 });
