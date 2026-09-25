@@ -1,9 +1,12 @@
+import { panelOrientation } from './cells.js';
+
 const EPS = 1e-6;
 
 function isPanelLike(neighbor, piece) {
   return Boolean(neighbor) && (
     neighbor.kind === 'filler'
     || neighbor.kind === 'end_panel'
+    || panelOrientation(neighbor) === 'side'
     || neighbor.depth > piece.depth + EPS
   );
 }

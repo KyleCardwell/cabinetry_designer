@@ -6,6 +6,21 @@ import { floorTo, roundTo } from './units.js';
 const WIDTH_EPSILON = 1e-6;
 const FILLER_STEP = 1 / 16;
 const FILLER_END_TYPES = new Set(['filler', 'blind']);
+const AUTO_KINDS = new Set(['cabinet', 'panel', 'void', 'shelves']);
+
+/** An item that shares leftover width: a cabinet or cell kind with no width. Never a filler. */
+function isAutoItem(item) {
+  return item.width === null && AUTO_KINDS.has(item.kind);
+}
+
+/** A top-level cell's own settings, copied onto its piece. */
+function itemExtras(item) {
+  return {
+    ...(item.depth !== undefined ? { depth: item.depth } : {}),
+    ...(item.align !== undefined ? { align: item.align } : {}),
+    ...(item.shelves !== undefined ? { shelves: { ...item.shelves } } : {}),
+  };
+}
 
 function endWidth(end, settings) {
   if (end.type === 'end_panel') return end.width ?? settings.endPanelThickness;
@@ -27,7 +42,8 @@ function layoutInputs(run, settings, opts) {
   const fixedItems = items.reduce((sum, item) => (
     sum + (item.width === null ? 0 : item.width)
   ), 0);
-  const nAuto = items.filter(
+  const nAuto = items.filter(isAutoItem).length;
+  const nAutoCabinets = items.filter(
     (item) => item.kind === 'cabinet' && item.width === null,
   ).length;
   const flexSides = ['left', 'right'].filter((side) => isFlexEnd(run.ends[side]));
@@ -46,6 +62,7 @@ function layoutInputs(run, settings, opts) {
     flexSides,
     minimumTotal,
     nAuto,
+    nAutoCabinets,
   };
 }
 
@@ -123,11 +140,13 @@ function splitRunLegacy(run, settings, opts) {
       const firstAuto = items.find(
         (item) => item.kind === 'cabinet' && item.width === null,
       );
-      warnings.push(warning(
-        'widths-not-rounded',
-        firstAuto.id,
-        `Auto cabinet widths are not multiples of ${settings.roundTo} inches.`,
-      ));
+      if (firstAuto) {
+        warnings.push(warning(
+          'widths-not-rounded',
+          firstAuto.id,
+          `Auto cabinet widths are not multiples of ${settings.roundTo} inches.`,
+        ));
+      }
     }
   } else if (Math.abs(available) > WIDTH_EPSILON) {
     errors.push({ code: 'does-not-fill' });
@@ -136,7 +155,7 @@ function splitRunLegacy(run, settings, opts) {
   let autoIndex = 0;
   const lastAutoIndex = nAuto - 1;
   const computedItems = items.map((item) => {
-    if (item.kind !== 'cabinet' || item.width !== null) {
+    if (!isAutoItem(item)) {
       return { ...item, computedWidth: item.width, auto: false };
     }
 
@@ -150,7 +169,7 @@ function splitRunLegacy(run, settings, opts) {
 
   const maxWidth = run.maxCabinetWidth ?? settings.maxCabinetWidth;
   for (const item of computedItems) {
-    if (!item.auto) continue;
+    if (!item.auto || item.kind !== 'cabinet') continue;
     if (item.computedWidth > maxWidth + WIDTH_EPSILON) {
       warnings.push(warning(
         'wide-cabinet',
@@ -222,11 +241,10 @@ function splitRunLegacy(run, settings, opts) {
       id: item.id,
       kind: item.kind,
       role: 'item',
-      cabinetTypeId: item.kind === 'cabinet'
-        ? run.cabinetTypeId
-        : CABINET_TYPE_IDS.FILLER,
+      cabinetTypeId: item.kind === 'filler' ? CABINET_TYPE_IDS.FILLER : run.cabinetTypeId,
       width: item.computedWidth,
       auto: item.auto,
+      ...itemExtras(item),
     });
   }
   addEnd('right', run.ends.right);
@@ -238,7 +256,7 @@ function splitRunLegacy(run, settings, opts) {
       x,
       z: run.z,
       height: run.height,
-      depth: piece.kind === 'end_panel' ? settings.endPanelThickness : run.depth,
+      depth: piece.depth ?? (piece.kind === 'end_panel' ? settings.endPanelThickness : run.depth),
     };
     x += piece.width;
     return positioned;
@@ -275,21 +293,20 @@ function positionedItemPiece(run, settings, item, width, x, auto, absorbed) {
     id: item.id,
     kind: item.kind,
     role: 'item',
-    cabinetTypeId: item.kind === 'cabinet'
-      ? run.cabinetTypeId
-      : CABINET_TYPE_IDS.FILLER,
+    cabinetTypeId: item.kind === 'filler' ? CABINET_TYPE_IDS.FILLER : run.cabinetTypeId,
     width,
     auto,
+    ...itemExtras(item),
     ...(Math.abs(absorbed ?? 0) > WIDTH_EPSILON ? { absorbed } : {}),
     x,
     z: run.z,
     height: run.height,
-    depth: run.depth,
+    depth: item.depth ?? run.depth,
   };
 }
 
 function cabinetWidthWarnings(run, settings, item, width, auto) {
-  if (!auto) return [];
+  if (!auto || item.kind !== 'cabinet') return [];
   const warnings = [];
   const maxWidth = run.maxCabinetWidth ?? settings.maxCabinetWidth;
   if (width > maxWidth + WIDTH_EPSILON) {
@@ -315,7 +332,7 @@ function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
     (sum, item) => sum + (item.width === null ? 0 : item.width),
     0,
   );
-  const autos = items.filter((item) => item.kind === 'cabinet' && item.width === null);
+  const autos = items.filter(isAutoItem);
   const available = width - fixedWidth;
   const warnings = [];
   const errors = [];
@@ -337,7 +354,7 @@ function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
 
   let x = start;
   const pieces = items.map((item) => {
-    const auto = item.kind === 'cabinet' && item.width === null;
+    const auto = isAutoItem(item);
     const itemWidth = auto
       ? item.id === absorberId ? absorberWidth : baseWidth
       : item.width;
@@ -512,7 +529,7 @@ export function syncAutoItems(run, settings, opts) {
     available,
     flex,
     minimumTotal,
-    nAuto,
+    nAutoCabinets,
   } = layoutInputs(run, settings, opts);
   const autoSpace = flex > 0
     ? available - minimumTotal
@@ -520,15 +537,15 @@ export function syncAutoItems(run, settings, opts) {
   const maxWidth = run.maxCabinetWidth ?? settings.maxCabinetWidth;
   const target = autoSpace > 0 ? Math.max(1, Math.ceil(autoSpace / maxWidth)) : 0;
 
-  if (target === nAuto) return run;
+  if (target === nAutoCabinets) return run;
 
   const items = [...runItems(run)];
-  if (target > nAuto) {
-    for (let index = nAuto; index < target; index += 1) {
+  if (target > nAutoCabinets) {
+    for (let index = nAutoCabinets; index < target; index += 1) {
       items.push({ id: uuid(), kind: 'cabinet', width: null });
     }
   } else {
-    let toRemove = nAuto - target;
+    let toRemove = nAutoCabinets - target;
     for (let index = items.length - 1; index >= 0 && toRemove > 0; index -= 1) {
       if (items[index].kind === 'cabinet' && items[index].width === null && !items[index].grid) {
         items.splice(index, 1);

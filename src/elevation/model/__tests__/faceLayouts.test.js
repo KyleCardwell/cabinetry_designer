@@ -107,4 +107,27 @@ describe('runFaceLayouts', () => {
     expect(c.reveals.sources.right).toBe('rule:captured-single');
     expect(c.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 16.3125, height: 29.375 }]);
   });
+
+  it('52. top-level side panels capture a cabinet; a back panel does not', () => {
+    const PANELS = {
+      ...RUN, id: 'run-4',
+      ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+      items: [
+        { id: 'L', kind: 'panel', width: 0.75 },
+        { id: 'a', kind: 'cabinet', width: 18 },
+        { id: 'R', kind: 'panel', width: 0.75 },
+      ],
+    };
+    const room = roomWith(PANELS);
+    const a = runFaceLayouts(room, resolveWall(room, room.walls[0]), PANELS, DEFAULT_SETTINGS).get('a');
+    expect(a.reveals.sources.left).toBe('rule:captured-single');
+    expect(a.reveals.sources.right).toBe('rule:captured-single');
+    expect(a.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 17.8125, height: 30.125 }]);
+
+    const BACK = { ...PANELS, items: [PANELS.items[0], PANELS.items[1], { id: 'R', kind: 'panel', width: 0.75, depth: 0.5 }] };
+    const backRoom = roomWith(BACK);
+    const b = runFaceLayouts(backRoom, resolveWall(backRoom, backRoom.walls[0]), BACK, DEFAULT_SETTINGS).get('a');
+    expect(b.reveals.sources.left).toBe('style');
+    expect(b.reveals.sources.right).toBe('style');
+  });
 });

@@ -458,3 +458,46 @@ describe('syncAutoItems', () => {
     expect(synced.items).toEqual([auto('a'), fixed('fixed', 12), interiorFiller]);
   });
 });
+
+describe('SPEC-34.1 auto cell kinds', () => {
+  const NONE = { type: 'none', width: null };
+  const kindRun = (width, items, overrides = {}) => ({
+    id: 'r', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 0, width, z: 4, height: 30.5, depth: 24,
+    ends: { left: NONE, right: NONE }, autoCount: false, maxCabinetWidth: null, items, ...overrides,
+  });
+
+  it('shares auto width with panel, void and shelves items', () => {
+    const layout = splitRun(kindRun(60, [
+      { id: 'a', kind: 'cabinet', width: null },
+      { id: 'p', kind: 'panel', width: null, depth: 0.75, align: 'back' },
+      { id: 'c', kind: 'cabinet', width: 20 },
+    ]), DEFAULT_SETTINGS);
+    expect(layout.pieces.map(({ id, kind, x, width, depth }) => [id, kind, x, width, depth])).toEqual([
+      ['a', 'cabinet', 0, 20, 24], ['p', 'panel', 20, 20, 0.75], ['c', 'cabinet', 40, 20, 24],
+    ]);
+    expect(layout.pieces[1]).toEqual({
+      id: 'p', kind: 'panel', role: 'item', cabinetTypeId: CABINET_TYPE_IDS.BASE, width: 20, auto: true,
+      align: 'back', x: 20, z: 4, height: 30.5, depth: 0.75,
+    });
+    expect(layout.warnings).toEqual([]);
+    expect(layout.errors).toEqual([]);
+  });
+
+  it('never warns about the width of a panel', () => {
+    const layout = splitRun(kindRun(36.75, [
+      { id: 'a', kind: 'cabinet', width: 36 },
+      { id: 'p', kind: 'panel', width: null },
+    ]), DEFAULT_SETTINGS);
+    expect(layout.pieces.map(({ id, width }) => [id, width])).toEqual([['a', 36], ['p', 0.75]]);
+    expect(layout.warnings).toEqual([]);
+  });
+
+  it('auto count never removes a panel', () => {
+    const synced = syncAutoItems(kindRun(30, [
+      { id: 'a', kind: 'cabinet', width: null },
+      { id: 'b', kind: 'cabinet', width: null },
+      { id: 'p', kind: 'panel', width: null },
+    ], { autoCount: true }), DEFAULT_SETTINGS);
+    expect(synced.items.map(({ id }) => id)).toEqual(['a', 'p']);
+  });
+});

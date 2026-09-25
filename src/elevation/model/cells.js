@@ -195,7 +195,8 @@ export function cellCaptureSides(pieces, pieceId) {
   const piece = pieces.find((candidate) => candidate.id === pieceId);
   if (!piece) return { left: false, right: false };
   const panels = pieces.filter((candidate) => (
-    candidate !== piece && candidate.kind === 'panel' && overlapsVertically(candidate, piece)));
+    candidate !== piece && candidate.kind === 'panel'
+    && panelOrientation(candidate) === 'side' && overlapsVertically(candidate, piece)));
   return {
     left: panels.some((panel) => Math.abs(panel.x + panel.width - piece.x) <= EPSILON),
     right: panels.some((panel) => Math.abs(panel.x - piece.x - piece.width) <= EPSILON),

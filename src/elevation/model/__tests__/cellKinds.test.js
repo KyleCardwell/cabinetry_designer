@@ -148,4 +148,11 @@ describe('SPEC-34 cell kinds, depth and wrap', () => {
     expect(cellCaptureSides(pieces.slice(1, 3), 'c')).toEqual({ left: false, right: false });
     expect(cellCaptureSides(pieces, 'zz')).toEqual({ left: false, right: false });
   });
+
+  it('only side panels capture a cell', () => {
+    const side = { id: 'L', kind: 'panel', x: 0, z: 0, width: 0.75, height: 30, depth: 24 };
+    const cab = { id: 'c', kind: 'cabinet', x: 0.75, z: 0, width: 20, height: 30, depth: 24 };
+    const back = { id: 'B', kind: 'panel', x: 20.75, z: 0, width: 20, height: 30, depth: 0.75 };
+    expect(cellCaptureSides([side, cab, back], 'c')).toEqual({ left: true, right: false });
+  });
 });
