@@ -8,7 +8,9 @@ import {
   Text,
 } from 'react-konva';
 import { blindEntries } from '../model/blind.js';
-import { blindCellWidths, cellPieces } from '../model/cells.js';
+import {
+  blindCellWidths, cellPieces, panelOrientation, shelfParts,
+} from '../model/cells.js';
 import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
@@ -30,6 +32,8 @@ import { wallRectToScreen } from '../canvas/transform.js';
 import CellChains from './CellChains.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
 import PieceRect from './PieceRect.jsx';
+
+const PANEL_LABELS = { side: 'Side', top: 'Top', back: 'Back' };
 
 function RunGroup({
   run,
@@ -70,6 +74,13 @@ function RunGroup({
   );
   const subLabels = useMemo(() => {
     const labels = new Map();
+    for (const piece of cells.pieces) {
+      if (piece.kind === 'void') labels.set(piece.id, 'Open');
+      if (piece.kind === 'panel') labels.set(piece.id, `${PANEL_LABELS[panelOrientation(piece)]} panel`);
+      if (piece.kind === 'shelves') {
+        labels.set(piece.id, `${piece.shelves.count} shelves${piece.shelves.back ? ' + back' : ''}`);
+      }
+    }
     for (const entry of blind.entries) {
       labels.set(entry.pieceId, `Blind ${formatInches(entry.boxWidth)}`);
       for (const [id, width] of blindCellWidths(cells.pieces, result.pieces, [entry])) {
@@ -114,6 +125,10 @@ function RunGroup({
   const bandStart = (inset) => panelStart ?? run.x + inset;
   const bandEnd = (inset) => panelEnd ?? runEnd - inset;
   const drop = panelDrop(run, resolveStyle(settings, room, run), settings);
+  const shelves = useMemo(
+    () => cells.pieces.flatMap((piece) => shelfParts(piece, settings)),
+    [cells, settings],
+  );
   const drawnPieces = useMemo(() => cells.pieces.map((piece) => {
     const dropped = drop > 0
       && (piece.kind === 'filler' || piece.kind === 'end_panel')
@@ -381,6 +396,18 @@ function RunGroup({
             : piece.role === 'end-right' && cornerFillers.right)}
           onSelect={() => onSelectPiece(run.id, piece.id)}
           cursor={cursor}
+        />
+      ))}
+
+      {shelves.map((part) => (
+        <Rect
+          key={part.id}
+          {...wallRectToScreen(part, transform)}
+          fill={KIND_COLORS[part.kind]}
+          opacity={part.kind === 'shelf' ? 0.9 : 0.25}
+          stroke="#1e293b"
+          strokeWidth={1}
+          listening={false}
         />
       ))}
 

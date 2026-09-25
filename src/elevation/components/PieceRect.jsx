@@ -31,6 +31,7 @@ export default function PieceRect({
         ? '#7dd3fc'
         : '#1e293b';
   const fixedCabinet = piece.kind === 'cabinet' && !piece.auto;
+  const hollow = piece.kind === 'void' || piece.kind === 'shelves';
 
   return (
     <Group
@@ -49,9 +50,10 @@ export default function PieceRect({
     >
       <Rect
         {...rect}
-        fill={cornerFiller ? '#fbbf24' : KIND_COLORS[piece.kind]}
+        fill={hollow ? 'transparent' : cornerFiller ? '#fbbf24' : KIND_COLORS[piece.kind]}
         opacity={0.82}
-        stroke={outline}
+        dash={piece.kind === 'void' ? [6, 4] : undefined}
+        stroke={piece.kind === 'void' && outline === '#1e293b' ? KIND_COLORS.void : outline}
         strokeWidth={selected ? 3 : error || warning ? 2 : 1}
       />
 
