@@ -94,7 +94,7 @@ export default function PieceProperties({
       </>
     );
   }
-  if (piece.columnId) {
+  if (piece.columnId || item.kind !== 'cabinet') {
     return (
       <>
         {partNumberField}

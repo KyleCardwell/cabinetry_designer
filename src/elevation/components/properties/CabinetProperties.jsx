@@ -9,6 +9,7 @@ import {
   setItemWidth,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
@@ -234,6 +235,7 @@ export default function CabinetProperties({
         </div>
       </section>
 
+      <CellKindSection wall={wall} run={run} piece={piece} item={item} />
       <CellSplitSection wall={wall} run={run} cellId={item.id} nested={false} />
       <CellWrapSection wall={wall} run={run} cellId={item.id} />
 

@@ -4,31 +4,23 @@ import {
   findCell,
   formatInchesInput,
   MAX_SHELVES,
-  panelOrientation,
   runItems,
 } from '../../model/index.js';
 import {
   lockItem,
   setCellBlind,
   setCellDepth,
-  setCellKind,
   setCellShelves,
   setItemWidth,
   setTrackSize,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 
-const KIND_OPTIONS = [
-  ['cabinet', 'Cabinet'],
-  ['panel', 'Panel'],
-  ['void', 'Open (nothing)'],
-  ['shelves', 'Floating shelves'],
-];
-const ORIENTATION_LABELS = { side: 'Side panel', top: 'Top / bottom panel', back: 'Back panel' };
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const HEADING_CLASS = 'mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400';
 
@@ -51,27 +43,13 @@ export default function CellProperties({
   const blindSides = isCabinet
     ? cellBlindSides(run.grid, item.id).filter((side) => run.ends[side].type === 'blind')
     : [];
-  const orientation = panelOrientation(piece);
 
   return (
     <div className="space-y-5">
+      <CellKindSection wall={wall} run={run} piece={piece} item={item} />
+
       <section>
-        <h3 className={HEADING_CLASS}>Cell</h3>
-        <Field label="Kind">
-          <select
-            value={item.kind}
-            onChange={(event) => dispatch(setCellKind({ ...cellBase, kind: event.target.value }))}
-            aria-label="Cell kind"
-            className={SELECT_CLASS}
-          >
-            {KIND_OPTIONS.map(([value, label]) => (
-              <option key={value} value={value}>{label}</option>
-            ))}
-          </select>
-        </Field>
-        {orientation && (
-          <p className="mt-1.5 text-xs text-gray-500">{ORIENTATION_LABELS[orientation]}</p>
-        )}
+        <h3 className={HEADING_CLASS}>Size</h3>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <Field label={axis === 'row' ? 'Height' : 'Width'}>
             <InchInput
@@ -220,7 +198,14 @@ export default function CellProperties({
         </section>
       )}
 
-      <CellSplitSection wall={wall} run={run} cellId={item.id} nested canSplit={isCabinet} />
+      <CellSplitSection
+        wall={wall}
+        run={run}
+        cellId={item.id}
+        nested={context.depth > 0}
+        removable
+        canSplit={isCabinet}
+      />
       {isCabinet && <CellWrapSection wall={wall} run={run} cellId={item.id} />}
 
       {isCabinet && (
