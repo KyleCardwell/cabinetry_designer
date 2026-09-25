@@ -7,6 +7,7 @@ import {
   describeAnchor,
   formatInches,
   formatInchesInput,
+  isFollowAnchor,
   isJointAnchor,
   jointMembers,
   landingsOn,
@@ -68,6 +69,8 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
             const soffitAnchor = anchor?.to === 'soffit' ? anchor : null;
             const wallAnchor = anchor?.to === 'wall' ? anchor : null;
             const jointAnchor = isJointAnchor(anchor) ? anchor : null;
+            const followAnchor = isFollowAnchor(anchor) ? anchor : null;
+            const linkAnchor = jointAnchor ?? followAnchor;
             const otherJointMember = jointAnchor
               ? jointMembers(wall, jointAnchor.jointId)
                 .find((member) => member.runId !== run.id || member.side !== side)
@@ -86,6 +89,8 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                 ? `soffit:${soffitAnchor.soffitId}`
               : wallAnchor
                 ? `wall:${wallAnchor.wallId}`
+              : followAnchor
+                ? `joint:${followAnchor.runId}:${followAnchor.side}`
               : otherJointMember
                 ? `joint:${otherJointMember.runId}:${otherJointMember.side}`
                 : anchor === true ? 'corner' : 'free';
@@ -194,17 +199,22 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                             key={`${candidate.id}:${targetSide}`}
                             value={`joint:${candidate.id}:${targetSide}`}
                           >
-                            {`${runShortLabel(candidate)} · ${targetSide} edge`}
+                            {`${runShortLabel(candidate)} · ${targetSide} edge${
+                              candidate.anchors?.[targetSide]
+                                && !isJointAnchor(candidate.anchors[targetSide])
+                                ? ' · follow'
+                                : ''
+                            }`}
                           </option>
                         )))}
                     </optgroup>
                   </select>
                 </Field>
-                {jointAnchor ? (
+                {linkAnchor ? (
                   <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
                     <Field label="Offset">
                       <InchInput
-                        value={jointAnchor.offset}
+                        value={linkAnchor.offset}
                         allowBlank
                         placeholder="0"
                         onCommit={(value) => dispatch(setRunJointOffset({

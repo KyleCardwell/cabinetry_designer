@@ -8,7 +8,12 @@ import {
 } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
-import { jointGlyphs, jointMembers, runShortLabel } from '../model/joints.js';
+import {
+  followGlyphs,
+  jointGlyphs,
+  jointMembers,
+  runShortLabel,
+} from '../model/joints.js';
 
 function JointMarkers({
   wall,
@@ -27,7 +32,7 @@ function JointMarkers({
     event.cancelBubble = true;
   };
 
-  return (wall.joints ?? []).map((joint) => {
+  const jointMarkers = (wall.joints ?? []).map((joint) => {
     const members = jointMembers(wall, joint.id);
     const glyphs = jointGlyphs(wall, joint.id);
     const memberIds = new Set(members.map((member) => member.runId));
@@ -168,6 +173,85 @@ function JointMarkers({
       </Group>
     );
   });
+
+  const followMarkers = followGlyphs(wall).map((glyph) => {
+    const point = wallToScreen({ x: glyph.x, z: glyph.z }, transform);
+    const glyphId = `follow:${glyph.runId}:${glyph.side}`;
+    const followerRun = wall.runs.find((run) => run.id === glyph.runId);
+    const leaderRun = wall.runs.find((run) => run.id === glyph.leaderRunId);
+    if (!followerRun || !leaderRun) return null;
+    const followerType = runShortLabel(followerRun).split(' ')[0];
+    const leaderType = runShortLabel(leaderRun).split(' ')[0];
+    const glyphHovered = hoveredGlyphId === glyphId;
+    return (
+      <Group key={glyphId}>
+        {glyphHovered && [followerRun, leaderRun].map((run) => (
+          <Rect
+            key={`highlight:${run.id}`}
+            {...wallRectToScreen(run, transform)}
+            fillEnabled={false}
+            stroke="#67e8f9"
+            strokeWidth={2.5}
+            listening={false}
+          />
+        ))}
+        <Text
+          x={point.x - 12}
+          y={point.y - 12}
+          width={24}
+          height={24}
+          align="center"
+          verticalAlign="middle"
+          text="⛓"
+          fontSize={18}
+          fill="#67e8f9"
+          listening={false}
+        />
+        <Rect
+          x={point.x - 12}
+          y={point.y - 12}
+          width={24}
+          height={24}
+          fill="rgba(0,0,0,0.001)"
+          onMouseDown={stopEvent}
+          onMouseUp={stopEvent}
+          onClick={(event) => {
+            stopEvent(event);
+            onUnjoin(glyph.runId, glyph.side);
+          }}
+          onMouseEnter={() => {
+            setHoveredGlyphId(glyphId);
+            cursorKeys.request(glyphId, CURSORS.select);
+          }}
+          onMouseLeave={() => {
+            setHoveredGlyphId(null);
+            cursorKeys.release(glyphId);
+          }}
+        />
+        {glyphHovered && (
+          <Label x={point.x} y={point.y - 12} listening={false}>
+            <Tag
+              fill="#0f172a"
+              stroke="#67e8f9"
+              strokeWidth={1}
+              cornerRadius={3}
+              pointerDirection="down"
+              pointerWidth={8}
+              pointerHeight={5}
+            />
+            <Text
+              text={`Follows the ${leaderType} — click to free the ${followerType}`}
+              fill="#e2e8f0"
+              fontSize={11}
+              padding={6}
+            />
+          </Label>
+        )}
+      </Group>
+    );
+  });
+
+  return [...jointMarkers, ...followMarkers];
 }
 
 export default memo(JointMarkers);

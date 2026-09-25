@@ -79,7 +79,7 @@ import {
 } from '../model/room.js';
 import { wallSideView } from '../model/wallSides.js';
 import { wallExtent } from '../model/wallExtent.js';
-import { isJointAnchor, jointMembers } from '../model/joints.js';
+import { followersOf, isJointAnchor, jointMembers } from '../model/joints.js';
 import { runWidthRange } from '../model/splitRun.js';
 import { formatInches } from '../model/units.js';
 import {
@@ -1750,7 +1750,8 @@ function ElevationCanvas({
           )}
           {stretchPreview && (
             <Layer listening={false}>
-              {stretchPreview.runIds.map((runId) => {
+              {[...stretchPreview.runIds,
+                ...followersOf(stretchPreview.wall, stretchPreview.runIds)].map((runId) => {
                 const previewRun = stretchPreview.wall.runs.find((run) => run.id === runId);
                 return previewRun ? (
                   <RunGroup

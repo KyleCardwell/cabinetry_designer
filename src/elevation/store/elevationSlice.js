@@ -28,7 +28,7 @@ import {
   unsplitGridCell,
   wrapGridCell,
 } from '../model/cellTree.js';
-import { isJointAnchor } from '../model/joints.js';
+import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import {
   LANDING_TO,
   landWallEnd,
@@ -995,7 +995,8 @@ const elevationSlice = createSlice({
         && !validOpeningAnchor
         && !validWallAnchor
         && !validSoffitAnchor) return;
-      if (isJointAnchor(location.run.anchors[side]) && !isJointAnchor(value)) {
+      const previous = location.run.anchors[side];
+      if ((isJointAnchor(previous) || isFollowAnchor(previous)) && !isJointAnchor(value)) {
         location.run.ends[side] = withoutAuto(location.run.ends[side]);
       }
       const anchor = validSoffitAnchor ? { ...value, offset: value.offset ?? 0 } : value;
@@ -1041,7 +1042,8 @@ const elevationSlice = createSlice({
       const location = runLocation(state, action.payload);
       const { side, offset } = action.payload;
       const anchor = location?.run.anchors?.[side];
-      if (!location || !Number.isFinite(offset) || !anchor || anchor.to !== 'joint') return;
+      if (!location || !Number.isFinite(offset) || !anchor
+        || (anchor.to !== 'joint' && anchor.to !== 'follow')) return;
       anchor.offset = offset;
       syncRoomAt(state, location.roomIndex);
     },

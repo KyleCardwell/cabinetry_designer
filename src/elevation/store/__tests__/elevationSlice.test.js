@@ -31,6 +31,7 @@ import elevationReducer, {
   dissolveJoint,
   equalizeCells,
   lockItem,
+  joinRunEdges,
   moveOpening,
   moveWallEndpoint,
   moveWallPerpendicular,
@@ -1367,6 +1368,54 @@ describe('joined run reducers', () => {
 
     expect(end.type).toBe('none');
     expect(end.auto).toBeUndefined();
+  });
+});
+
+describe('SPEC-34.3 follow reducers', () => {
+  function followState() {
+    const state = stateWithRun();
+    const wall = state.rooms[0].walls[0];
+    wall.openings = [opening({
+      id: 'window-1', kind: 'window', label: 'W1', height: 48, sillZ: 36, offset: 42,
+    })];
+    wall.runs = [
+      run({
+        id: 'TA', cabinetTypeId: CABINET_TYPE_IDS.TALL, x: 13, width: 24, height: 80,
+        ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+        autoCount: false, items: [auto('TA-cabinet')],
+        anchors: {
+          left: false,
+          right: { to: 'opening', openingId: 'window-1', edge: 'casing', clearance: 2 },
+        },
+      }),
+      run({
+        id: 'B', x: 37, width: 30,
+        ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+        autoCount: false, items: [auto('B-cabinet')],
+      }),
+    ];
+    return state;
+  }
+  const baseOf = (state) => state.rooms[0].walls[0].runs.find((entry) => entry.id === 'B');
+
+  it('joins to an anchored edge as a follow, offsets it and frees it', () => {
+    let state = elevationReducer(followState(), joinRunEdges({
+      wallId: 'wall-1', runId: 'B', side: 'left', targetRunId: 'TA', targetSide: 'right',
+    }));
+    expect(state.message).toBeNull();
+    expect(baseOf(state).anchors.left).toEqual({ to: 'follow', runId: 'TA', side: 'right', offset: 0 });
+    expect(baseOf(state).ends.left).toEqual({ type: 'none', width: null, auto: true });
+
+    state = elevationReducer(state, setRunJointOffset({
+      wallId: 'wall-1', runId: 'B', side: 'left', offset: 1,
+    }));
+    expect(baseOf(state)).toMatchObject({ x: 38, width: 30 });
+
+    state = elevationReducer(state, setRunAnchor({
+      wallId: 'wall-1', runId: 'B', side: 'left', anchor: false,
+    }));
+    expect(baseOf(state).anchors.left).toBe(false);
+    expect(baseOf(state).ends.left).toEqual({ type: 'end_panel', width: null });
   });
 });
 

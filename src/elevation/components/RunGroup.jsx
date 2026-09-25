@@ -15,7 +15,7 @@ import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
 import { runItems } from '../model/grid.js';
-import { isJointAnchor } from '../model/joints.js';
+import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { panelDrop, resolveStyle } from '../model/styles.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { splitRun } from '../model/splitRun.js';
@@ -220,7 +220,9 @@ function RunGroup({
   };
 
   const renderAnchor = (side) => {
-    if (!run.anchors?.[side] || isJointAnchor(run.anchors[side])) return null;
+    if (!run.anchors?.[side]
+      || isJointAnchor(run.anchors[side])
+      || isFollowAnchor(run.anchors[side])) return null;
     const x = side === 'left' ? runRect.x + 2 : runRect.x + runRect.width - 9;
     const tooltipX = side === 'left' ? runRect.x + 8 : runRect.x + runRect.width - 8;
     return (
