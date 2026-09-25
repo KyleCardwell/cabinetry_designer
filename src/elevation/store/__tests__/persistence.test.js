@@ -888,7 +888,7 @@ describe('SPEC-34 cell kinds', () => {
     rejects(([, oven]) => { oven.depth = 0; });
     rejects(([, oven]) => { oven.align = 'middle'; });
     const root = currentDocument();
-    root.rooms[0].walls[0].runs[0].grid.cells[0].node.kind = 'panel';
+    root.rooms[0].walls[0].runs[0].grid.cells[0].node.kind = 'shelf';
     expect(isElevationDocument(root)).toBe(false);
   });
 
@@ -897,5 +897,40 @@ describe('SPEC-34 cell kinds', () => {
     const state = createInitialElevationState(document);
     expect(state.rooms[0].walls[0].runs[0].grid).toEqual(document.rooms[0].walls[0].runs[0].grid);
     expect(toElevationDocument(state).rooms).toEqual(kindDocument().rooms);
+  });
+});
+
+describe('SPEC-34.1 top-level cell kinds', () => {
+  function rootKindDocument() {
+    const document = currentDocument();
+    document.rooms[0].walls[0].runs[0].grid = gridFromItems('a', [
+      { id: 'side', kind: 'panel', width: 0.75 },
+      { id: 'cab', kind: 'cabinet', width: null, depth: 21, align: 'back' },
+      { id: 'open', kind: 'void', width: null },
+      { id: 'shelf', kind: 'shelves', width: null, shelves: { count: 2, back: false } },
+      { id: 'back', kind: 'panel', width: null, depth: 0.75, align: 'back' },
+    ]);
+    return document;
+  }
+
+  it('saves and loads top-level panel, void and shelves columns', () => {
+    expect(isElevationDocument(rootKindDocument())).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(rootKindDocument())]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(rootKindDocument()));
+  });
+
+  it('rejects top-level cells that break the kind rules', () => {
+    const rejects = (mutate) => {
+      const document = rootKindDocument();
+      mutate(document.rooms[0].walls[0].runs[0].grid.cells.map((entry) => entry.node));
+      expect(isElevationDocument(document)).toBe(false);
+    };
+    rejects(([side]) => { side.face = { type: 'door', size: null }; });
+    rejects(([side]) => { side.kind = 'shelf'; });
+    rejects(([, cab]) => { cab.depth = 0; });
+    rejects(([, , open]) => { open.depth = 3; });
+    rejects(([, , , shelf]) => { delete shelf.shelves; });
   });
 });

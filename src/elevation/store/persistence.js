@@ -235,11 +235,14 @@ function isShelves(shelves) {
     && typeof shelves.back === 'boolean';
 }
 
+function isCellDepth(leaf) {
+  return (leaf.depth === undefined || (isFiniteNumber(leaf.depth) && leaf.depth > 0))
+    && (leaf.align === undefined || leaf.align === 'face' || leaf.align === 'back');
+}
+
 /** SPEC-34 cells: cabinets as before, plus panel, void and shelves; depth and align on any but a void. */
 function isCellLeaf(leaf) {
-  const depthOk = (leaf.depth === undefined || (isFiniteNumber(leaf.depth) && leaf.depth > 0))
-    && (leaf.align === undefined || leaf.align === 'face' || leaf.align === 'back');
-  if (!depthOk) return false;
+  if (!isCellDepth(leaf)) return false;
   if (leaf.kind === 'cabinet') return isItem({ ...leaf, width: null });
   const keys = CELL_KIND_KEYS[leaf.kind];
   return Boolean(keys)
@@ -257,7 +260,15 @@ function isCellGrid(grid) {
   ));
 }
 
-/** Round 33: the root is one row with no spans; a root cell may hold a nested cell grid. */
+/** SPEC-34.1: a top-level column may be a cabinet, a filler, or any cell kind. */
+function isRootItem(item) {
+  if (item.kind === 'filler') return isItem(item) && item.depth === undefined && item.align === undefined;
+  if (item.kind === 'cabinet') return isItem(item) && isCellDepth(item);
+  const { width, ...leaf } = item;
+  return (width === null || (isFiniteNumber(width) && width > 0)) && isCellLeaf(leaf);
+}
+
+/** Round 34.1: the root is one row with no spans; a root cell may be any kind. */
 function isRunGrid(grid) {
   return isGridShape(grid, isLeaf)
     && grid.rows.length === 1
@@ -265,7 +276,7 @@ function isRunGrid(grid) {
       cell.colSpan === 1 && cell.rowSpan === 1
       && (!('cols' in cell.node) || isCellGrid(cell.node))
     ))
-    && rootItems(grid).every(isItem);
+    && rootItems(grid).every(isRootItem);
 }
 
 function isConnection(connection) {
