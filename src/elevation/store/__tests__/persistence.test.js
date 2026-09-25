@@ -770,3 +770,72 @@ describe('SPEC-32 grid persistence', () => {
     expect(toElevationDocument(state).rooms).toEqual(document.rooms);
   });
 });
+
+describe('SPEC-33 split columns', () => {
+  const NESTED = {
+    id: 'g',
+    cols: [{ id: 'g:c', size: null, sizeMode: 'auto' }],
+    rows: [{ id: 'g:r0', size: null, sizeMode: 'auto' }, { id: 'g:r1', size: 12, sizeMode: 'manual' }],
+    cells: [
+      { col: 0, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'top', kind: 'cabinet', face: { type: 'door', size: null } } },
+      { col: 0, row: 1, colSpan: 1, rowSpan: 1, node: {
+        id: 'h',
+        cols: [{ id: 'h:c0', size: null, sizeMode: 'auto' }, { id: 'h:c1', size: null, sizeMode: 'auto' }],
+        rows: [{ id: 'h:r', size: null, sizeMode: 'auto' }],
+        cells: [
+          { col: 0, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'l', kind: 'cabinet' } },
+          { col: 1, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'r', kind: 'cabinet', reveals: { top: 0 } } },
+        ],
+      } },
+    ],
+  };
+  function splitDocument() {
+    const document = currentDocument();
+    const run = document.rooms[0].walls[0].runs[0];
+    run.grid.cols[0] = { id: 'g:col', size: 45, sizeMode: 'manual' };
+    run.grid.cells[0].node = structuredClone(NESTED);
+    return document;
+  }
+
+  it('saves and loads a run with a split column', () => {
+    expect(isElevationDocument(splitDocument())).toBe(true);
+    const current = splitDocument();
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(splitDocument()));
+  });
+
+  it("rejects nested grids the model doesn't allow yet", () => {
+    const rejects = (mutate) => {
+      const document = splitDocument();
+      const node = document.rooms[0].walls[0].runs[0].grid.cells[0].node;
+      mutate(node);
+      expect(isElevationDocument(document)).toBe(false);
+    };
+
+    rejects((node) => {
+      node.cols.push({ id: 'g:c2', size: null, sizeMode: 'auto' });
+      node.cells.push(
+        { col: 1, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'x', kind: 'cabinet' } },
+        { col: 1, row: 1, colSpan: 1, rowSpan: 1, node: { id: 'y', kind: 'cabinet' } },
+      );
+    });
+    rejects((node) => {
+      node.rows = [node.rows[0]];
+      node.cells = [node.cells[0]];
+    });
+    rejects((node) => { node.cells[0].node.kind = 'filler'; });
+    rejects((node) => { node.cells[0].node.face = { type: 'shelf', size: null }; });
+    rejects((node) => { node.cells[0].node.blind = { left: 0 }; });
+    rejects((node) => { node.cells[1].node.cells[1].node.reveals = { top: 'x' }; });
+    rejects((node) => { node.rows[1] = { id: 'g:r1', size: 12, sizeMode: 'auto' }; });
+  });
+
+  it('the store loads a split column unchanged', () => {
+    const document = splitDocument();
+    const state = createInitialElevationState(document);
+    expect(state.rooms[0].walls[0].runs[0].grid).toEqual(document.rooms[0].walls[0].runs[0].grid);
+    expect(toElevationDocument(state).rooms).toEqual(splitDocument().rooms);
+  });
+});

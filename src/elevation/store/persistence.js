@@ -219,12 +219,27 @@ function isLeaf(leaf) {
     && ITEM_KINDS.has(leaf.kind) && isLeafBlind(leaf.blind);
 }
 
-/** Round 32 grids: one row, no spans, no nesting. Rounds 33+ relax this. */
+function isCellLeaf(leaf) {
+  return leaf.kind === 'cabinet' && isItem({ ...leaf, width: null });
+}
+
+/** SPEC-33 nested grids: one column of 2+ rows or one row of 2+ columns, no spans, cabinet leaves. */
+function isCellGrid(grid) {
+  const stack = grid.cols.length === 1 && grid.rows.length >= 2;
+  const row = grid.rows.length === 1 && grid.cols.length >= 2;
+  return (stack || row) && grid.cells.every((cell) => (
+    cell.colSpan === 1 && cell.rowSpan === 1
+    && ('cols' in cell.node ? isCellGrid(cell.node) : isCellLeaf(cell.node))
+  ));
+}
+
+/** Round 33: the root is one row with no spans; a root cell may hold a nested cell grid. */
 function isRunGrid(grid) {
   return isGridShape(grid, isLeaf)
     && grid.rows.length === 1
     && grid.cells.every((cell) => (
-      cell.colSpan === 1 && cell.rowSpan === 1 && !('cols' in cell.node)
+      cell.colSpan === 1 && cell.rowSpan === 1
+      && (!('cols' in cell.node) || isCellGrid(cell.node))
     ))
     && rootItems(grid).every(isItem);
 }
