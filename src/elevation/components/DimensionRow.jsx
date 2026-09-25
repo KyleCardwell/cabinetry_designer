@@ -44,6 +44,7 @@ export default function DimensionRow({
   edgeGapPx = 0,
   transform,
   onSegmentClick,
+  onPieceClick,
   highlightRunId,
   activeRunId = null,
   wallEndMarks = [],
@@ -179,7 +180,8 @@ export default function DimensionRow({
         const midpointValue = (segment.start + segment.end) / 2;
         const midpoint = rowPoint(midpointValue);
         const color = colorFor(segment, highlightRunId);
-        const clickable = segment.kind === 'run' && Boolean(onSegmentClick);
+        const clickable = (segment.kind === 'run' && Boolean(onSegmentClick))
+          || (segment.kind === 'piece' && Boolean(onPieceClick));
         const showsHiddenTooltip = label.mode === 'hidden';
         const showsPointerCursor = clickable
           && !(draggableRuns && segment.kind === 'run' && segment.runId === activeRunId);
@@ -195,7 +197,11 @@ export default function DimensionRow({
               dragMovedRef.current = false;
               return;
             }
-            onSegmentClick(segment);
+            if (segment.kind === 'piece') {
+              onPieceClick(segment, event.target.getStage().getPointerPosition());
+            } else {
+              onSegmentClick(segment);
+            }
           } : undefined,
           onMouseEnter: showsHiddenTooltip || showsPointerCursor
             ? () => {

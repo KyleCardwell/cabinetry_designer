@@ -45,6 +45,7 @@ import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../model/constants.js';
 import { createRun } from '../model/runDefaults.js';
 import { runItems } from '../model/grid.js';
+import { findLeaf } from '../model/cellTree.js';
 import {
   createSoffit,
   resolveSoffitSpan,
@@ -90,10 +91,13 @@ import {
   deleteSoffit,
   dissolveJoint,
   moveOpening,
+  removeCell,
   removeItem,
   replaceRun,
   replaceWallLayout,
+  setItemWidth,
   setRunAnchor,
+  setTrackSize,
   setMessage,
   setSelection,
   setFacePath,
@@ -105,6 +109,7 @@ import DimensionRow from './DimensionRow.jsx';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import JointMarkers from './JointMarkers.jsx';
 import LiveEntryInput from './LiveEntryInput.jsx';
+import TrackSizeInput from './TrackSizeInput.jsx';
 import NeighborProfiles from './NeighborProfiles.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
@@ -158,6 +163,7 @@ function ElevationCanvas({
   const [hoveredGlyphId, setHoveredGlyphId] = useState(null);
   const [alignmentGuides, setAlignmentGuides] = useState([]);
   const [entryPointer, setEntryPointer] = useState(null);
+  const [trackEdit, setTrackEdit] = useState(null);
   const { style: cursorStyle, controller: cursor } = useCanvasCursor(
     elevationBaseCursor(tool, pointerMode),
   );
@@ -602,7 +608,17 @@ function ElevationCanvas({
         const selectedItem = runItems(selectedRun).find(
           (item) => item.id === currentSelection.pieceId,
         );
-        if (!selectedItem) return;
+        if (!selectedItem) {
+          if (findLeaf(selectedRun.grid, currentSelection.pieceId)) {
+            event.preventDefault();
+            dispatch(removeCell({
+              wallId: currentWall.id,
+              runId: selectedRun.id,
+              cellId: currentSelection.pieceId,
+            }));
+          }
+          return;
+        }
         event.preventDefault();
         dispatch(removeItem({
           wallId: currentWall.id,
@@ -952,6 +968,38 @@ function ElevationCanvas({
     if (tool !== 'select' || suppressClickRef.current) return;
     dispatch(setFacePath(path));
   }, [dispatch, tool]);
+
+  const editTrack = useCallback((runId, edit) => setTrackEdit({ ...edit, runId }), []);
+  const editPieceSegment = useCallback((segment, point) => {
+    if (!segment.runId || !segment.pieceId
+      || segment.pieceId.startsWith(`${segment.runId}:`)) return;
+    setTrackEdit({
+      runId: segment.runId,
+      itemId: segment.pieceId,
+      label: 'Width',
+      value: segment.end - segment.start,
+      x: point.x,
+      y: point.y,
+    });
+  }, []);
+  const commitTrackEdit = useCallback((size) => {
+    if (trackEdit && wall) {
+      dispatch(trackEdit.trackId
+        ? setTrackSize({
+          wallId: wall.id,
+          runId: trackEdit.runId,
+          trackId: trackEdit.trackId,
+          size,
+        })
+        : setItemWidth({
+          wallId: wall.id,
+          runId: trackEdit.runId,
+          itemId: trackEdit.itemId,
+          width: size,
+        }));
+    }
+    setTrackEdit(null);
+  }, [dispatch, trackEdit, wall]);
 
   const selectOpening = useCallback((openingId) => {
     if (tool !== 'select' || suppressClickRef.current) return;
@@ -1520,6 +1568,7 @@ function ElevationCanvas({
                 onSelectPiece={selectPiece}
                 selectedFacePath={selection.runId === run.id ? facePath : null}
                 onSelectFace={selectFace}
+                onEditTrack={editTrack}
                 stretchable={tool === 'select'}
                 onStretchStart={startStretch}
                 onStretchMove={updateStretch}
@@ -1578,6 +1627,7 @@ function ElevationCanvas({
                 transform={transform}
                 edgeGapPx={dimensionOffsets.clear.below}
                 wallEndMarks={[0, wall.length]}
+                onPieceClick={tool === 'select' ? editPieceSegment : undefined}
                 cursor={cursor}
               />
               <DimensionRow
@@ -1638,6 +1688,7 @@ function ElevationCanvas({
                 transform={transform}
                 edgeGapPx={dimensionOffsets.clear.above}
                 wallEndMarks={[0, wall.length]}
+                onPieceClick={tool === 'select' ? editPieceSegment : undefined}
                 cursor={cursor}
               />
               <DimensionRow
@@ -1764,6 +1815,13 @@ function ElevationCanvas({
           onCycle={cycleEntry}
           onCommit={commitEntry}
           onCancel={cancelEntry}
+        />
+      )}
+      {trackEdit && (
+        <TrackSizeInput
+          edit={trackEdit}
+          onCommit={commitTrackEdit}
+          onCancel={() => setTrackEdit(null)}
         />
       )}
     </div>

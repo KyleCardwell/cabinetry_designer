@@ -27,6 +27,7 @@ import {
 import { formatInches } from '../model/units.js';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen } from '../canvas/transform.js';
+import CellChains from './CellChains.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
 import PieceRect from './PieceRect.jsx';
 
@@ -43,6 +44,7 @@ function RunGroup({
   onSelectPiece,
   selectedFacePath = null,
   onSelectFace,
+  onEditTrack,
   stretchable = false,
   preview = false,
   onStretchStart,
@@ -393,6 +395,13 @@ function RunGroup({
           onSelectFace={onSelectFace}
         />
       ))}
+
+      <CellChains
+        grids={cells.grids}
+        transform={transform}
+        editable={stretchable && !preview && Boolean(onEditTrack)}
+        onEditTrack={(edit) => onEditTrack(run.id, edit)}
+      />
 
       {result.pieces.flatMap((piece) => {
         const item = piece.role === 'item'
