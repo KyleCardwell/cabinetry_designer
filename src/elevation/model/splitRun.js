@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS } from './constants.js';
-import { runItems } from './grid.js';
+import { replaceRootItems, runItems } from './grid.js';
 import { floorTo, roundTo } from './units.js';
 
 const WIDTH_EPSILON = 1e-6;
@@ -522,7 +522,7 @@ export function syncAutoItems(run, settings, opts) {
 
   if (target === nAuto) return run;
 
-  const items = [...run.items];
+  const items = [...runItems(run)];
   if (target > nAuto) {
     for (let index = nAuto; index < target; index += 1) {
       items.push({ id: uuid(), kind: 'cabinet', width: null });
@@ -537,5 +537,5 @@ export function syncAutoItems(run, settings, opts) {
     }
   }
 
-  return { ...run, items };
+  return run.items ? { ...run, items } : { ...run, grid: replaceRootItems(run.grid, items) };
 }

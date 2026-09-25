@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { runFootprint } from '../../model/footprints.js';
 import { wallFrame } from '../../model/geometry.js';
+import { runBlind, runItems } from '../../model/grid.js';
 import { openingGeometry } from '../../model/openings.js';
 import elevationReducer, {
   addOpening,
@@ -532,7 +533,7 @@ describe('elevation room reducers', () => {
       pin: pin(36),
     }));
     expect(currentRun(first).autoCount).toBe(false);
-    expect(currentRun(first).items.find((item) => item.id === 'b').width).toBeNull();
+    expect(runItems(currentRun(first)).find((item) => item.id === 'b').width).toBeNull();
 
     const second = elevationReducer(first, setItemPin({
       wallId: 'wall-1',
@@ -540,7 +541,7 @@ describe('elevation room reducers', () => {
       itemId: 'd',
       pin: pin(84),
     }));
-    expect(currentRun(second).items.filter((item) => item.pin).map((item) => item.width))
+    expect(runItems(currentRun(second)).filter((item) => item.pin).map((item) => item.width))
       .toEqual([23, 23]);
 
     const removed = elevationReducer(second, setItemPin({
@@ -549,7 +550,7 @@ describe('elevation room reducers', () => {
       itemId: 'b',
       pin: null,
     }));
-    expect(currentRun(removed).items.find((item) => item.id === 'b').width).toBe(23);
+    expect(runItems(currentRun(removed)).find((item) => item.id === 'b').width).toBe(23);
 
     const absorbing = elevationReducer(removed, setItemAbsorb({
       wallId: 'wall-1',
@@ -557,7 +558,7 @@ describe('elevation room reducers', () => {
       itemId: 'c',
       value: true,
     }));
-    expect(currentRun(absorbing).items.find((item) => item.id === 'c').absorb).toBe(true);
+    expect(runItems(currentRun(absorbing)).find((item) => item.id === 'c').absorb).toBe(true);
   });
 
   it('sets wall length from the right by default and reports pure-operation failures', () => {
@@ -740,8 +741,8 @@ describe('elevation run reducers', () => {
       addRun({ wallId: 'wall-1', run: run() }),
     );
 
-    expect(currentRun(next).items).toHaveLength(4);
-    expect(currentRun(next).items.every((item) => item.kind === 'cabinet' && item.width === null)).toBe(true);
+    expect(runItems(currentRun(next))).toHaveLength(4);
+    expect(runItems(currentRun(next)).every((item) => item.kind === 'cabinet' && item.width === null)).toBe(true);
   });
 
   it('replaces a stretched run and re-syncs its automatic cabinet count', () => {
@@ -755,7 +756,7 @@ describe('elevation run reducers', () => {
     );
 
     expect(currentRun(next).width).toBe(110);
-    expect(currentRun(next).items).toHaveLength(3);
+    expect(runItems(currentRun(next))).toHaveLength(3);
   });
 
   it('splits a cabinet into two auto cabinets and disables auto count', () => {
@@ -766,8 +767,8 @@ describe('elevation run reducers', () => {
     );
 
     expect(currentRun(next).autoCount).toBe(false);
-    expect(currentRun(next).items).toHaveLength(2);
-    expect(currentRun(next).items.every((item) => item.kind === 'cabinet' && item.width === null)).toBe(true);
+    expect(runItems(currentRun(next))).toHaveLength(2);
+    expect(runItems(currentRun(next)).every((item) => item.kind === 'cabinet' && item.width === null)).toBe(true);
   });
 
   it('removes only the selected item and disables auto count', () => {
@@ -779,7 +780,7 @@ describe('elevation run reducers', () => {
       removeItem({ wallId: 'wall-1', runId: 'run-1', itemId: 'filler' }),
     );
 
-    expect(currentRun(next).items.map((item) => item.id)).toEqual(['left', 'right']);
+    expect(runItems(currentRun(next)).map((item) => item.id)).toEqual(['left', 'right']);
     expect(currentRun(next).autoCount).toBe(false);
   });
 
@@ -795,7 +796,7 @@ describe('elevation run reducers', () => {
       }),
     );
 
-    expect(currentRun(next).items[0]).toEqual({ id: 'cabinet', kind: 'cabinet', width: 29 });
+    expect(runItems(currentRun(next))[0]).toEqual({ id: 'cabinet', kind: 'cabinet', width: 29 });
   });
 
   it('updates an end and re-syncs the run items', () => {
@@ -811,7 +812,7 @@ describe('elevation run reducers', () => {
     );
 
     expect(currentRun(next).ends.left).toEqual({ type: 'end_panel', width: null });
-    expect(currentRun(next).items).toHaveLength(3);
+    expect(runItems(currentRun(next))).toHaveLength(3);
   });
 
   it('adds the first manual item to an empty run and disables auto count', () => {
@@ -827,8 +828,8 @@ describe('elevation run reducers', () => {
     );
 
     expect(currentRun(next).autoCount).toBe(false);
-    expect(currentRun(next).items).toHaveLength(1);
-    expect(currentRun(next).items[0]).toMatchObject({ kind: 'cabinet', width: null });
+    expect(runItems(currentRun(next))).toHaveLength(1);
+    expect(runItems(currentRun(next))[0]).toMatchObject({ kind: 'cabinet', width: null });
   });
 
   it('switches every room run to auto heights without clearing overrides', () => {
@@ -1021,7 +1022,7 @@ describe('elevation opening reducers', () => {
       openingId: 'door-1',
     }));
     expect(deleted.rooms[0].walls[0].openings).toEqual([]);
-    expect(currentRun(deleted).items[0].pin).toBeNull();
+    expect(runItems(currentRun(deleted))[0].pin).toBeNull();
     expect(deleted.selection).toEqual({
       runId: null, pieceId: null, openingId: null, soffitId: null, wallId: 'wall-1',
     });
@@ -1066,7 +1067,7 @@ describe('cabinet faces', () => {
   }
 
   function item(state, id) {
-    return currentRun(state).items.find((entry) => entry.id === id);
+    return runItems(currentRun(state)).find((entry) => entry.id === id);
   }
 
   it('23. setItemFace sets cabinets only, with copies', () => {
@@ -1126,7 +1127,7 @@ describe('styles and reveals', () => {
   }
 
   function item(state, id) {
-    return currentRun(state).items.find((entry) => entry.id === id);
+    return runItems(currentRun(state)).find((entry) => entry.id === id);
   }
 
   it('46. setRoomStyle and setRunStyle store cleaned partials', () => {
@@ -1197,14 +1198,14 @@ describe('standard drawers on style switch', () => {
   }
 
   function topSize(state, id) {
-    return currentRun(state).items.find((entry) => entry.id === id).face.children[0].size;
+    return runItems(currentRun(state)).find((entry) => entry.id === id).face.children[0].size;
   }
 
   it('53. switching European and face frame resets small drawer fronts', () => {
     let state = elevationReducer(drawerState(), setRoomStyle({ roomId: 'room-1', style: { cabinetStyleId: 14 } }));
     expect(topSize(state, 'a')).toBe(5);
     expect(topSize(state, 'b')).toBe(5.875);
-    expect(currentRun(state).items[2].face).toBeUndefined();
+    expect(runItems(currentRun(state))[2].face).toBeUndefined();
 
     state = elevationReducer(state, setRunStyle({ ...at, style: { cabinetStyleId: 15 } }));
     expect(topSize(state, 'a')).toBe(5);
@@ -1798,7 +1799,7 @@ describe('SPEC-23 part number store', () => {
 
 describe('SPEC-25 blind store action', () => {
   it('207. sets, clears, and rejects invalid run blind sides', () => {
-    let state = stateWithRun(run());
+    let state = stateWithRun(run({ items: [auto('a')] }));
     const roomId = state.rooms[0].id;
     const actionBase = { roomId, wallId: 'wall-1', runId: 'run-1' };
     const currentRun = () => state.rooms[0].walls[0].runs[0];
@@ -1806,27 +1807,27 @@ describe('SPEC-25 blind store action', () => {
     state = elevationReducer(state, setRunBlind({
       ...actionBase, side: 'left', width: 42,
     }));
-    expect(currentRun().blind).toEqual({ left: 42, right: null });
+    expect(runBlind(currentRun())).toEqual({ left: 42, right: null });
 
     state = elevationReducer(state, setRunBlind({
       ...actionBase, side: 'right', width: 30,
     }));
-    expect(currentRun().blind).toEqual({ left: 42, right: 30 });
+    expect(runBlind(currentRun())).toEqual({ left: 42, right: 30 });
 
     state = elevationReducer(state, setRunBlind({
       ...actionBase, side: 'left', width: null,
     }));
-    expect(currentRun().blind).toEqual({ left: null, right: 30 });
+    expect(runBlind(currentRun())).toEqual({ left: null, right: 30 });
 
     state = elevationReducer(state, setRunBlind({
       ...actionBase, side: 'left', width: 0,
     }));
-    expect(currentRun().blind).toEqual({ left: null, right: 30 });
+    expect(runBlind(currentRun())).toEqual({ left: null, right: 30 });
 
     state = elevationReducer(state, setRunBlind({
       ...actionBase, side: 'middle', width: 24,
     }));
-    expect(currentRun().blind).toEqual({ left: null, right: 30 });
+    expect(runBlind(currentRun())).toEqual({ left: null, right: 30 });
   });
 });
 
@@ -1871,6 +1872,7 @@ describe('SPEC-27 end filler store action', () => {
 describe('SPEC-28 blind end store actions', () => {
   it('223. clears incompatible end data and accepts zero return depth', () => {
     let state = stateWithRun(run({
+      items: [auto('a')],
       blind: { left: 42, right: 30 },
       endFiller: { left: { width: 6 }, right: null },
     }));
@@ -1883,7 +1885,7 @@ describe('SPEC-28 blind end store actions', () => {
       side: 'left',
       end: { type: 'filler', width: null },
     }));
-    expect(currentRun().blind).toEqual({ left: null, right: 30 });
+    expect(runBlind(currentRun())).toEqual({ left: null, right: 30 });
     expect(currentRun().endFiller).toEqual({ left: { width: 6 }, right: null });
 
     state = elevationReducer(state, setRunEnd({

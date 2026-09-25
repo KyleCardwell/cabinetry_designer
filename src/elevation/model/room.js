@@ -9,7 +9,7 @@ import {
   resolveHorizontal,
 } from './corners.js';
 import { findCollisions } from './footprints.js';
-import { runItems } from './grid.js';
+import { cloneGrid, mirrorGrid, runItems } from './grid.js';
 import {
   isJointAnchor,
   jointEdgeX,
@@ -77,7 +77,8 @@ function cloneRun(run) {
           },
         }
       : {}),
-    items: run.items.map((item) => ({ ...item })),
+    ...(run.items ? { items: run.items.map((item) => ({ ...item })) } : {}),
+    ...(run.grid ? { grid: cloneGrid(run.grid) } : {}),
   };
 }
 
@@ -1501,7 +1502,8 @@ export function flipRunsForWall(wall) {
             },
           }
         : {}),
-      items: [...run.items].reverse().map((item) => ({ ...item })),
+      ...(run.items ? { items: [...run.items].reverse().map((item) => ({ ...item })) } : {}),
+      ...(run.grid ? { grid: mirrorGrid(run.grid) } : {}),
     })),
     openings: (wall.openings ?? []).map((opening) => ({
       ...opening,
