@@ -12,6 +12,7 @@ import {
 import { findCollisions } from './footprints.js';
 import { cloneGrid, mirrorGrid, runItems } from './grid.js';
 import {
+  followCreatesCycle,
   followLeaders,
   isFollowAnchor,
   isJointAnchor,
@@ -761,7 +762,7 @@ function withoutAuto(end) {
   return manualEnd;
 }
 
-/** Join one run edge to another edge or to its existing joint. */
+/** Join one run edge to another edge or its joint; an already-anchored target edge is followed one-way. */
 export function joinEdges(room, wallId, source, target, settings) {
   const validSide = (side) => side === 'left' || side === 'right';
   if (!validSide(source?.side) || !validSide(target?.side)) {
@@ -783,13 +784,14 @@ export function joinEdges(room, wallId, source, target, settings) {
   }
 
   const targetAnchor = targetRun.anchors?.[target.side];
-  if (targetAnchor && !isJointAnchor(targetAnchor)) {
-    return { ok: false, reason: 'joint-target-anchored', room };
+  const follow = Boolean(targetAnchor) && !isJointAnchor(targetAnchor);
+  if (follow && followCreatesCycle(sourceWall, source.runId, target.runId)) {
+    return { ok: false, reason: 'follow-cycle', room };
   }
 
-  const jointId = isJointAnchor(targetAnchor) ? targetAnchor.jointId : uuid();
+  const jointId = follow ? null : isJointAnchor(targetAnchor) ? targetAnchor.jointId : uuid();
   const otherSide = source.side === 'left' ? 'right' : 'left';
-  if (sourceRun.anchors?.[otherSide]?.jointId === jointId) {
+  if (!follow && sourceRun.anchors?.[otherSide]?.jointId === jointId) {
     return { ok: false, reason: 'joint-same-run', room };
   }
   const jointX = isJointAnchor(targetAnchor)
@@ -803,7 +805,7 @@ export function joinEdges(room, wallId, source, target, settings) {
   const wall = temporary.walls.find((candidate) => candidate.id === wallId);
   const mutableSource = wall.runs.find((run) => run.id === source.runId);
   const mutableTarget = wall.runs.find((run) => run.id === target.runId);
-  if (!isJointAnchor(targetAnchor)) {
+  if (!follow && !isJointAnchor(targetAnchor)) {
     wall.joints ??= [];
     wall.joints.push({ id: jointId, x: jointX, wallSide: wallSideOf(sourceRun) });
     mutableTarget.anchors[target.side] = { to: 'joint', jointId, offset: 0 };
@@ -811,9 +813,13 @@ export function joinEdges(room, wallId, source, target, settings) {
   const otherEdge = runEdgeX(mutableSource, otherSide);
   mutableSource.x = source.side === 'left' ? jointX : otherEdge;
   mutableSource.width = source.side === 'left' ? otherEdge - jointX : jointX - otherEdge;
-  mutableSource.anchors[source.side] = { to: 'joint', jointId, offset: 0 };
+  mutableSource.anchors[source.side] = follow
+    ? { to: 'follow', runId: target.runId, side: target.side, offset: 0 }
+    : { to: 'joint', jointId, offset: 0 };
   mutableSource.ends[source.side] = { ...mutableSource.ends[source.side], auto: true };
-  mutableTarget.ends[target.side] = { ...mutableTarget.ends[target.side], auto: true };
+  if (!follow) {
+    mutableTarget.ends[target.side] = { ...mutableTarget.ends[target.side], auto: true };
+  }
 
   const synced = syncRoom(temporary, settings);
   const resolvedWall = synced.walls.find((candidate) => candidate.id === wallId);
@@ -824,11 +830,11 @@ export function joinEdges(room, wallId, source, target, settings) {
     settings,
   );
   return validation.ok
-    ? { ok: true, reason: null, room: synced }
+    ? { ok: true, reason: null, room: synced, ...(follow ? { follow: true } : {}) }
     : { ok: false, reason: validation.reason, room };
 }
 
-/** Join both touching sides of a newly placed run, preferring existing joints. */
+/** Join or follow both touching sides of a newly placed run, preferring existing joints. */
 export function joinTouchingEdges(room, wallId, runId, settings) {
   let nextRoom = syncRoom(room, settings);
   const joined = [];
@@ -850,9 +856,8 @@ export function joinTouchingEdges(room, wallId, runId, settings) {
         run: candidate,
         anchor: candidate.anchors?.[opposite],
       }))
-      .filter(({ run: candidate, anchor }) => (
+      .filter(({ run: candidate }) => (
         Math.abs(runEdgeX(candidate, opposite) - edge) <= JOIN_EDGE_TOLERANCE
-        && (!anchor || isJointAnchor(anchor))
       ))
       .sort((a, b) => Number(isJointAnchor(b.anchor)) - Number(isJointAnchor(a.anchor)));
     const target = candidates[0]?.run;

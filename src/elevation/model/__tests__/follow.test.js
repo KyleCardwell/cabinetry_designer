@@ -1,7 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { followCreatesCycle, followersOf, followGlyphs } from '../joints.js';
-import { describeAnchor, flipRunsForWall, syncRoom } from '../room.js';
+import {
+  describeAnchor,
+  flipRunsForWall,
+  joinEdges,
+  joinTouchingEdges,
+  stretchRun,
+  syncRoom,
+  tryPlaceRun,
+} from '../room.js';
 
 const S = DEFAULT_SETTINGS;
 const NONE = { type: 'none', width: null };
@@ -137,5 +145,54 @@ describe('SPEC-34.3 follow anchors', () => {
     expect(runOf(synced, 'TA')).toMatchObject({ x: 83, width: 24 });
     expect(runOf(synced, 'TB')).toMatchObject({ x: 13, width: 24 });
     expect(runOf(synced, 'B')).toMatchObject({ x: 37, width: 46 });
+  });
+});
+
+describe('SPEC-34.3 joining to an anchored edge', () => {
+  const free = () => makeRoom({
+    x: 40, width: 40,
+    ends: { left: { ...NONE }, right: { ...NONE } },
+    anchors: { left: false, right: false },
+  });
+
+  it('follows an anchored edge instead of refusing the join', () => {
+    const result = joinEdges(free(), 'A', { runId: 'B', side: 'left' }, { runId: 'TA', side: 'right' }, S);
+    expect(result).toMatchObject({ ok: true, follow: true });
+    const base = runOf(result.room, 'B');
+    expect(base).toMatchObject({ x: 37, width: 43 });
+    expect(base.anchors.left).toEqual(follow('TA', 'right'));
+    expect(base.ends.left).toEqual({ type: 'none', width: null, auto: true });
+    expect(runOf(result.room, 'TA').anchors.right).toEqual(casing());
+    expect(result.room.walls[0].joints).toEqual([]);
+  });
+
+  it('refuses a follow that would loop', () => {
+    const first = joinEdges(free(), 'A', { runId: 'B', side: 'left' }, { runId: 'TA', side: 'right' }, S);
+    expect(joinEdges(first.room, 'A', { runId: 'TA', side: 'right' }, { runId: 'B', side: 'left' }, S))
+      .toMatchObject({ ok: false, reason: 'follow-cycle' });
+  });
+
+  it('follows when a stretch snaps to an anchored edge', () => {
+    const result = stretchRun(free(), 'A', 'B', 'left', 38, S);
+    expect(result).toMatchObject({ ok: true, joined: { runId: 'TA', side: 'right' } });
+    const base = runOf(result.room, 'B');
+    expect(base).toMatchObject({ x: 37, width: 43 });
+    expect(base.anchors.left).toEqual(follow('TA', 'right'));
+  });
+
+  it('follows both anchored neighbours of a newly drawn run', () => {
+    const room = makeRoom();
+    room.walls[0].runs = room.walls[0].runs.filter((run) => run.id !== 'B');
+    const placed = tryPlaceRun(room, 'A', makeRun('B', { x: 37, width: 46 }), S);
+    expect(placed.ok).toBe(true);
+    const result = joinTouchingEdges(placed.room, 'A', 'B', S);
+    expect(result.ok).toBe(true);
+    expect(result.joined).toEqual([{ runId: 'TA', side: 'right' }, { runId: 'TB', side: 'left' }]);
+    expect(runOf(result.room, 'B').anchors).toEqual({
+      left: follow('TA', 'right'),
+      right: follow('TB', 'left'),
+    });
+    result.room.walls[0].openings[0].offset = 36;
+    expect(runOf(syncRoom(result.room, S), 'B')).toMatchObject({ x: 43, width: 46 });
   });
 });
