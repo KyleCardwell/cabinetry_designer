@@ -1,5 +1,6 @@
 import { CABINET_TYPE_IDS } from './constants.js';
-import { blindPartWidths } from './blind.js';
+import { blindEntries, blindPartWidths } from './blind.js';
+import { blindCellWidths, cellPieces } from './cells.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
 import {
@@ -59,7 +60,11 @@ function runParts(room, wall, side, settings) {
       pinTargets: pinTargetsForRun(run, view, wallLength(view), settings),
     });
     const widths = blindPartWidths(room, view, run, settings, layout);
-    return layout.pieces
+    const cells = cellPieces(run, layout);
+    const cellWidths = blindCellWidths(
+      cells.pieces, layout.pieces, blindEntries(room, view, run, settings, layout).entries,
+    );
+    return cells.pieces
       .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6)
       .map((piece) => ({
         key: piece.id,
@@ -69,7 +74,7 @@ function runParts(room, wall, side, settings) {
         runId: run.id,
         pieceId: piece.id,
         molding: null,
-        width: widths.get(piece.id) ?? piece.width,
+        width: cellWidths.get(piece.id) ?? widths.get(piece.id) ?? piece.width,
       }));
   });
 }
@@ -207,11 +212,11 @@ export function wallBadgeGroups(room, wall, settings) {
   const groups = wall.runs.map((run) => ({
     key: `run:${run.id}`,
     lift: 0,
-    pieces: splitRun(run, settings, {
+    pieces: cellPieces(run, splitRun(run, settings, {
       endMinWidths: endMinWidthsForRun(room, wall, run, settings),
       endCornerAngles: endCornerAnglesForRun(room, wall, run),
       pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
-    }).pieces,
+    })).pieces,
   })).filter((group) => group.pieces.length > 0);
 
   for (const panel of wallEndPanels(room, wall, settings)) {

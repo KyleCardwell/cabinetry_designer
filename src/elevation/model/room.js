@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid';
+import { cellPieces } from './cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import {
   cornerAt,
@@ -661,6 +662,7 @@ export function roomDiagnostics(room, settings) {
       diagnostics[run.id] = {
         warnings: [
           ...layout.warnings,
+          ...cellPieces(run, layout).warnings,
           ...runItems(run).flatMap((item) => (
             item.pin && resolvePinTarget(item.pin, wall, length, settings) === null
               ? [{

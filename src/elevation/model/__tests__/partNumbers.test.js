@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { partNumbers, wallBadgeGroups, wallMoldingBadges } from '../partNumbers.js';
-import { syncRoom } from '../room.js';
+import { roomDiagnostics, syncRoom } from '../room.js';
 import { wallSideView } from '../wallSides.js';
 
 function makeWall(id, x1, y1, x2, y2, overrides = {}) {
@@ -303,5 +303,63 @@ describe('partNumbers', () => {
     expect(result.parts.map(({ key }) => key))
       .toEqual(['L:left', 'w1', 'molding:toeKick']);
     expect(result.parts.map(({ number }) => number)).toEqual([1, 2, 3]);
+  });
+});
+
+describe('SPEC-33 cell part numbers', () => {
+  const splitBase = (bottomRow = { id: 's:r1', size: null, sizeMode: 'auto' }) => ({
+    ...aBase(),
+    items: undefined,
+    grid: {
+      id: 'A-base:grid',
+      cols: [{ id: 'a1:col', size: 28.125, sizeMode: 'manual' }, { id: 's:col', size: 28.125, sizeMode: 'manual' }],
+      rows: [{ id: 'A-base:row', size: null, sizeMode: 'auto' }],
+      cells: [
+        { col: 0, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'a1', kind: 'cabinet' } },
+        { col: 1, row: 0, colSpan: 1, rowSpan: 1, node: {
+          id: 's', cols: [{ id: 's:c', size: null, sizeMode: 'auto' }],
+          rows: [{ id: 's:r0', size: null, sizeMode: 'auto' }, bottomRow],
+          cells: [
+            { col: 0, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'top', kind: 'cabinet' } },
+            { col: 0, row: 1, colSpan: 1, rowSpan: 1, node: { id: 'bot', kind: 'cabinet' } },
+          ],
+        } },
+      ],
+    },
+  });
+  const splitRoom = (bottomRow) => partRoom({
+    walls: partWalls({ wallA: { runs: [splitBase(bottomRow), aUpper()] } }),
+  });
+
+  it('numbers split cells left edge first, then bottom up', () => {
+    const room = splitRoom();
+    const result = partNumbers(room, DEFAULT_SETTINGS);
+
+    expect(result.parts.map(({ key }) => key)).toEqual([
+      'A-base:left', 'a1', 'bot', 'top', 'A-base:right', 'a3',
+      'B-base:left', 'b1', 'B-base:right', 'molding:toeKick',
+    ]);
+    expect(result.parts.map(({ number }) => number)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    expect(result.parts.find(({ key }) => key === 'top')).toMatchObject({
+      kind: 'cabinet', runId: 'A-base', pieceId: 'top', width: 28.125,
+    });
+    expect(wallBadgeGroups(
+      room,
+      wallSideView(room.walls.find((wall) => wall.id === 'A'), 'front'),
+      DEFAULT_SETTINGS,
+    )[0].pieces.map(({ id }) => id)).toEqual([
+      'A-base:left', 'a1', 'bot', 'top', 'A-base:right',
+    ]);
+  });
+
+  it('room diagnostics carry cell warnings', () => {
+    expect(roomDiagnostics(
+      splitRoom({ id: 's:r1', size: 30, sizeMode: 'manual' }),
+      DEFAULT_SETTINGS,
+    )['A-base'].warnings).toContainEqual({
+      code: 'cell-too-small',
+      pieceId: 'top',
+      message: 'Cell is smaller than 1 inch.',
+    });
   });
 });
