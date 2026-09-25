@@ -958,3 +958,17 @@ describe('SPEC-34.2 panel doors and hinges', () => {
     expect(isElevationDocument(document)).toBe(false);
   });
 });
+
+describe('SPEC-34.3 follow anchors', () => {
+  it('saves a followed side and rejects bad ones', () => {
+    const withAnchor = (anchor) => {
+      const document = currentDocument();
+      document.rooms[0].walls[0].runs[0].anchors.left = anchor;
+      return document;
+    };
+    expect(isElevationDocument(withAnchor({ to: 'follow', runId: 'x', side: 'right', offset: 0 }))).toBe(true);
+    expect(isElevationDocument(withAnchor({ to: 'follow', runId: 'x', side: 'left', offset: -1.5 }))).toBe(true);
+    expect(isElevationDocument(withAnchor({ to: 'follow', runId: 'x', side: 'up', offset: 0 }))).toBe(false);
+    expect(isElevationDocument(withAnchor({ to: 'follow', side: 'right', offset: 0 }))).toBe(false);
+  });
+});

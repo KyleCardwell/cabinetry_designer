@@ -164,6 +164,10 @@ function isRunAnchor(anchor) {
     || (anchor.to === 'soffit'
       && typeof anchor.soffitId === 'string'
       && (anchor.offset === null || isFiniteNumber(anchor.offset)))
+    || (anchor.to === 'follow'
+      && typeof anchor.runId === 'string'
+      && (anchor.side === 'left' || anchor.side === 'right')
+      && (anchor.offset === null || isFiniteNumber(anchor.offset)))
   ));
 }
 
