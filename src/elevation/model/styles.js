@@ -1,7 +1,7 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { faceRevealsFor } from './faces.js';
 
-const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;
+const { UPPER, TALL } = CABINET_TYPE_IDS;
 
 /** The estimator's cabinet_styles ids (ff-job-schedule). */
 export const CABINET_STYLE_IDS = { EUROPEAN: 13, INSET: 14, BEADED_INSET: 15 };
@@ -127,6 +127,7 @@ export function cabinetReveals({
   captured = { left: false, right: false },
   stacked = { top: false, bottom: false },
   covered = { top: 0, bottom: 0, left: 0, right: 0 },
+  runEdges = { top: true, bottom: true },
   manual = null,
   settings,
 }) {
@@ -138,7 +139,7 @@ export function cabinetReveals({
   };
   const euro = !isInsetStyle(style);
 
-  if (euro && cabinetTypeId === BASE && run.top === 'wood') {
+  if (euro && run.top === 'wood' && runEdges.top) {
     apply('top', settings.woodTopReveal ?? DEFAULT_SETTINGS.woodTopReveal, 'rule:wood-top');
   }
   const upperBottom = run.upperBottom ?? 'overhang';

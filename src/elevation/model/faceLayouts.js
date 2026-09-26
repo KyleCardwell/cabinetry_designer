@@ -52,6 +52,10 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
     const covered = coveredSides(cells.pieces, piece.id);
     const pairCovers = face.type === 'pair_door' && (covered.left > 0 || covered.right > 0);
     const style = resolveStyle(settings, room, run, item);
+    const runEdges = {
+      top: Math.abs(piece.z + piece.height - run.z - run.height) <= 1e-6,
+      bottom: Math.abs(piece.z - run.z) <= 1e-6,
+    };
     const reveals = cabinetReveals({
       style,
       cabinetTypeId: run.cabinetTypeId,
@@ -60,6 +64,7 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
       captured,
       stacked: stackedSides(cells.pieces, piece.id),
       covered: pairCovers ? { ...covered, left: 0, right: 0 } : covered,
+      runEdges,
       manual: item?.reveals ?? null,
       settings,
     });

@@ -62,6 +62,7 @@ export {
   createBottomPart,
   isBottomPart,
 } from './bottoms.js';
+export { TOP_LABELS, defaultRunTop, isCountertop, runTop } from './tops.js';
 export {
   floorTo,
   formatInches,
