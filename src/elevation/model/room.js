@@ -35,6 +35,7 @@ import { validateRunPlacement, verticalStart } from './overlap.js';
 import { resolveProfile, resolveVertical } from './profile.js';
 import { stretchedStart } from './positions.js';
 import { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
+import { pruneStacks, resolveStacks, stackCreatesCycle } from './stacks.js';
 import {
   profileUnderSoffit,
   resolveSoffitSpan,
@@ -548,7 +549,7 @@ function resolveWallSpans(room, wall, settings) {
  */
 export function syncRoom(room, settings) {
   let nextRoom = cloneRoom(resolveLandings(room));
-  nextRoom.walls = nextRoom.walls.map((wall) => pruneFollows(pruneJoints(wall)));
+  nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(wall))));
 
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
 
@@ -615,7 +616,7 @@ export function syncRoom(room, settings) {
           runs[index] = { ...run, z: vertical.z, height: vertical.height };
         }
       }
-      return { ...wall, runs };
+      return resolveStacks({ ...wall, runs }, profile);
     }),
   };
 
@@ -754,6 +755,41 @@ export function tryPlaceRun(room, wallId, run, settings) {
     settings,
   );
   return { ...validation, room: synced };
+}
+
+/** Stack a run on another run's top (edge 'below') or under another run's bottom (edge 'above'), one-way. */
+export function joinStack(room, wallId, runId, edge, leaderRunId, settings) {
+  if (edge !== 'below' && edge !== 'above') return { ok: false, reason: 'stack-edge', room };
+  const resolvedRoom = syncRoom(room, settings);
+  const wall = resolvedRoom.walls.find((candidate) => candidate.id === wallId);
+  const run = wall?.runs.find((candidate) => candidate.id === runId);
+  const leader = wall?.runs.find((candidate) => candidate.id === leaderRunId);
+  if (!run || !leader) return { ok: false, reason: 'run-not-found', room };
+  if (wallSideOf(run) !== wallSideOf(leader)) return { ok: false, reason: 'stack-wall-side', room };
+  if (Math.min(run.x + run.width, leader.x + leader.width) - Math.max(run.x, leader.x) <= PIN_EPSILON) {
+    return { ok: false, reason: 'stack-no-overlap', room };
+  }
+  if (stackCreatesCycle(wall, runId, leaderRunId)) return { ok: false, reason: 'stack-cycle', room };
+
+  const temporary = cloneRoom(resolvedRoom);
+  const mutableRun = temporary.walls.find((candidate) => candidate.id === wallId)
+    .runs.find((candidate) => candidate.id === runId);
+  mutableRun.stack = {
+    below: null,
+    above: null,
+    ...mutableRun.stack,
+    [edge]: { runId: leaderRunId, offset: 0 },
+  };
+  const synced = syncRoom(temporary, settings);
+  const resolvedWall = synced.walls.find((candidate) => candidate.id === wallId);
+  const validation = validateRunPlacement(
+    { ...resolvedWall, length: wallLength(resolvedWall) },
+    resolvedWall.runs.find((candidate) => candidate.id === runId),
+    settings,
+  );
+  return validation.ok
+    ? { ok: true, reason: null, room: synced }
+    : { ok: false, reason: validation.reason, room };
 }
 
 function runEdgeX(run, side) {

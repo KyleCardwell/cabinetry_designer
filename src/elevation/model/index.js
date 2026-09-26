@@ -67,6 +67,19 @@ export {
 } from './bottoms.js';
 export { TOP_LABELS, defaultRunTop, isCountertop, runTop } from './tops.js';
 export {
+  STACK_EDGES,
+  describeStack,
+  outerBottom,
+  outerTop,
+  pruneStacks,
+  resolveStacks,
+  stackCreatesCycle,
+  stackFollowersOf,
+  stackLeaders,
+  stackLink,
+  stackOf,
+} from './stacks.js';
+export {
   floorTo,
   formatInches,
   formatInchesInput,
@@ -251,6 +264,7 @@ export {
   endMinWidthsForRun,
   flipRunsForWall,
   joinEdges,
+  joinStack,
   joinTouchingEdges,
   moveJoint,
   moveRun,

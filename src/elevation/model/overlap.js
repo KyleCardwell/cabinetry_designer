@@ -4,6 +4,7 @@ import { wallSideOf } from './wallSides.js';
 const OVERLAP_EPSILON = 1e-6;
 
 export function verticalStart(run) {
+  if (run.stack?.below) return run.z;
   return run.cabinetTypeId === CABINET_TYPE_IDS.BASE
     || run.cabinetTypeId === CABINET_TYPE_IDS.TALL
     ? 0
