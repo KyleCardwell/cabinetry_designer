@@ -64,11 +64,15 @@ export function resolveVertical(run, profile, baseRunsBelow = [], wallOrHeight) 
     height = boxTop - z;
   } else {
     const overlappingBases = baseRunsBelow.filter((base) => (
-      base.cabinetTypeId === CABINET_TYPE_IDS.BASE
+      (Number.isFinite(base.counterTop)
+        ? base.counterTop < boxTop - 1e-6
+        : base.cabinetTypeId === CABINET_TYPE_IDS.BASE)
       && Math.min(run.x + run.width, base.x + base.width) - Math.max(run.x, base.x) > 1e-6
     ));
     const counterHeights = overlappingBases.map((base) => (
-      counterTop(mergeDefined(profile, base.overrides))
+      Number.isFinite(base.counterTop)
+        ? base.counterTop
+        : counterTop(mergeDefined(profile, base.overrides))
     ));
     let counterReference = counterTop(q);
     if (counterHeights.length > 0) {

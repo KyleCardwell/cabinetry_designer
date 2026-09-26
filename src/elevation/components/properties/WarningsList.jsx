@@ -10,7 +10,7 @@ const ERROR_MESSAGES = {
 };
 
 const WARNING_MESSAGES = {
-  'mixed-counter-heights': 'Overlapping base runs have different counter heights.',
+  'mixed-counter-heights': 'The runs below this one have different top heights.',
   'crown-above-ceiling': 'The crown profile extends above the wall height.',
   'soffit-conflict': "Runs into a soffit — anchor it to the soffit's side or split it.",
 };
@@ -52,4 +52,3 @@ export default function WarningsList({ layout }) {
     </section>
   );
 }
-

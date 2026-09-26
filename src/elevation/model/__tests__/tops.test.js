@@ -142,3 +142,23 @@ describe('SPEC-35 tops in chains and part numbers', () => {
     expect(moldings(makeRoom([makeRun('B', BASE), makeRun('U', UPPER, { top: 'none' })]))).toEqual(['toeKick']);
   });
 });
+
+describe('SPEC-35 uppers clear what is really below them', () => {
+  const upperOf = (runs) => makeRoom(runs).walls[0].runs.find((run) => run.id === 'U');
+
+  it('clears the real top of a manual base, whatever top it carries', () => {
+    expect(upperOf([makeRun('B', BASE, { heightMode: 'manual', height: 38 }), makeRun('U', UPPER)]))
+      .toMatchObject({ z: 61.5, height: 28.5 });
+    expect(upperOf([makeRun('B', BASE, { heightMode: 'manual', height: 24.5 }), makeRun('U', UPPER)]))
+      .toMatchObject({ z: 48, height: 42 });
+    expect(upperOf([makeRun('B', BASE, { top: 'none' }), makeRun('U', UPPER)]))
+      .toMatchObject({ z: 52.5, height: 37.5 });
+  });
+
+  it('clears a short tall, skips a full-height one and falls back to the profile', () => {
+    expect(upperOf([makeRun('T', TALL, { heightMode: 'manual', height: 40 }), makeRun('U', UPPER)]))
+      .toMatchObject({ z: 62, height: 28 });
+    expect(upperOf([makeRun('T', TALL), makeRun('U', UPPER)])).toMatchObject({ z: 54, height: 36 });
+    expect(upperOf([makeRun('U', UPPER)])).toMatchObject({ z: 54, height: 36 });
+  });
+});

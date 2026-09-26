@@ -45,6 +45,7 @@ import {
   soffitsOn,
 } from './soffits.js';
 import { computeWallOrder, wallLabel } from './topology.js';
+import { runTop } from './tops.js';
 import { formatInches, roundTo } from './units.js';
 import {
   WALL_SIDES,
@@ -540,6 +541,14 @@ function resolveWallSpans(room, wall, settings) {
   return wall.runs.map((run) => resolved.get(run.id) ?? run);
 }
 
+/** Base and tall runs standing on the floor, each with counterTop: the top of what it really carries. */
+function floorRunsWithTops(wall, runs, profile) {
+  return runs
+    .filter((run) => (run.cabinetTypeId === CABINET_TYPE_IDS.BASE
+      || run.cabinetTypeId === CABINET_TYPE_IDS.TALL) && !run.stack?.below)
+    .map((run) => ({ ...run, counterTop: run.z + run.height + runTop(wall, run, profile).height }));
+}
+
 /**
  * Resolve all stored horizontal, vertical, and automatic-item geometry in a room.
  *
@@ -609,8 +618,11 @@ export function syncRoom(room, settings) {
           const vertical = resolveVertical(
             run,
             profileUnderSoffit(profile, wall, run),
-            runs.filter((candidate) => candidate.cabinetTypeId === CABINET_TYPE_IDS.BASE
-              && wallSideOf(candidate) === wallSideOf(run)),
+            floorRunsWithTops(
+              wall,
+              runs.filter((candidate) => wallSideOf(candidate) === wallSideOf(run)),
+              profile,
+            ),
             wall,
           );
           runs[index] = { ...run, z: vertical.z, height: vertical.height };
@@ -673,7 +685,7 @@ export function roomDiagnostics(room, settings) {
   ))) {
     const profile = resolveProfile(settings, synced, wall);
     const length = wallLength(wall);
-    const bases = wall.runs.filter((run) => run.cabinetTypeId === CABINET_TYPE_IDS.BASE);
+    const bases = floorRunsWithTops(wall, wall.runs, profile);
     const resolvedWall = { ...wall, length };
     for (const run of wall.runs) {
       const minimums = endMinWidthsForRun(synced, wall, run, settings);
