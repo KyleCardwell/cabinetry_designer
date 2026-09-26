@@ -8,7 +8,7 @@ import {
   Text,
 } from 'react-konva';
 import { blindEntries } from '../model/blind.js';
-import { runBottomParts } from '../model/bottoms.js';
+import { bottomPartSpan, runBottomParts } from '../model/bottoms.js';
 import {
   blindCellWidths, cellPieces, panelOrientation, shelfParts,
 } from '../model/cells.js';
@@ -17,7 +17,7 @@ import { cornerAt } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
 import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
-import { panelDrop, resolveStyle } from '../model/styles.js';
+import { endPieceBottom, resolveStyle } from '../model/styles.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
@@ -29,7 +29,7 @@ import {
 } from '../model/room.js';
 import { formatInches } from '../model/units.js';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
-import { wallRectToScreen } from '../canvas/transform.js';
+import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
 import CellChains from './CellChains.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
 import PieceRect from './PieceRect.jsx';
@@ -125,7 +125,8 @@ function RunGroup({
   // panel does, and keeps its own inset or overhang wherever one does not.
   const bandStart = (inset) => panelStart ?? run.x + inset;
   const bandEnd = (inset) => panelEnd ?? runEnd - inset;
-  const drop = panelDrop(run, resolveStyle(settings, room, run), settings);
+  const endBottom = endPieceBottom(run, resolveStyle(settings, room, run), settings);
+  const { drop } = endBottom;
   const shelves = useMemo(
     () => cells.pieces.flatMap((piece) => shelfParts(piece, settings)),
     [cells, settings],
@@ -160,10 +161,30 @@ function RunGroup({
     width: bandWidth,
     height: profile.crownHeight,
   }, transform);
+  const partSpan = bottomPartSpan(
+    run,
+    drawnPieces,
+    { start: bandX, end: bandX + bandWidth },
+    endBottom.chip > 0,
+  );
   const bottomParts = runBottomParts(run).map((part) => ({
     ...part,
-    rect: wallRectToScreen({ x: bandX, z: part.z, width: bandWidth, height: part.height }, transform),
+    rect: wallRectToScreen({
+      x: partSpan.start,
+      z: part.z,
+      width: partSpan.end - partSpan.start,
+      height: part.height,
+    }, transform),
   }));
+  const chipLines = endBottom.chip > 0
+    ? drawnPieces
+      .filter((piece) => piece.kind === 'filler' || piece.kind === 'end_panel')
+      .map((piece) => {
+        const from = wallToScreen({ x: piece.x, z: piece.z + endBottom.chip }, transform);
+        const to = wallToScreen({ x: piece.x + piece.width, z: piece.z + endBottom.chip }, transform);
+        return { key: `chip:${piece.id}`, points: [from.x, from.y, to.x, to.y] };
+      })
+    : [];
   const warningPieceIds = useMemo(
     () => new Set(
       [...result.warnings, ...cells.warnings, ...(diagnostic?.warnings ?? [])]
@@ -411,6 +432,17 @@ function RunGroup({
             : piece.role === 'end-right' && cornerFillers.right)}
           onSelect={() => onSelectPiece(run.id, piece.id)}
           cursor={cursor}
+        />
+      ))}
+
+      {chipLines.map((line) => (
+        <Line
+          key={line.key}
+          points={line.points}
+          stroke="#e2e8f0"
+          strokeWidth={1}
+          dash={[3, 2]}
+          listening={false}
         />
       ))}
 

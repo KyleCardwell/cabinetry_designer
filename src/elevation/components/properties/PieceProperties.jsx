@@ -1,6 +1,8 @@
 import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
-import { partNumbers } from '../../model/index.js';
+import {
+  endPieceBottom, endPieceNotes, partNumbers, resolveStyle,
+} from '../../model/index.js';
 import { removeItem, setItemWidth } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import CabinetProperties from './CabinetProperties.jsx';
@@ -71,11 +73,18 @@ export default function PieceProperties({
       duplicate={numbers.warnings.some((warning) => warning.keys.includes(partKey))}
     />
   );
+  const endNotes = piece.kind === 'filler' || piece.kind === 'end_panel'
+    ? endPieceNotes(piece.kind, endPieceBottom(run, resolveStyle(settings, room, run), settings))
+    : [];
+  const notesLine = endNotes.length > 0 ? (
+    <p className="text-xs text-cyan-300">{endNotes.join(' · ')}</p>
+  ) : null;
 
   if (side) {
     return (
       <>
         {partNumberField}
+        {notesLine}
         <EndProperties wallId={wall.id} run={run} side={side} settings={settings} />
       </>
     );
@@ -85,6 +94,7 @@ export default function PieceProperties({
     return (
       <>
         {partNumberField}
+        {notesLine}
         <InteriorFillerProperties
           wallId={wall.id}
           run={run}
