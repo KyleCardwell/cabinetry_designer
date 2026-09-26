@@ -172,8 +172,9 @@ function RunGroup({
     [cells.warnings, diagnostic?.warnings, result.warnings],
   );
   const hasErrors = (diagnostic?.errors ?? result.errors).length > 0;
-  const hasToeKick = run.cabinetTypeId === CABINET_TYPE_IDS.BASE
-    || run.cabinetTypeId === CABINET_TYPE_IDS.TALL;
+  const hasToeKick = !run.stack?.below
+    && (run.cabinetTypeId === CABINET_TYPE_IDS.BASE
+      || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
   const toeKickInset = Math.min(3, run.width / 2);
   const toeKickX = bandStart(toeKickInset);
   const toeKickWidth = Math.max(0, bandEnd(toeKickInset) - toeKickX);

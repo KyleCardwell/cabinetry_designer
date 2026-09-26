@@ -53,6 +53,7 @@ import {
   endMinWidthsForRun,
   flipRunsForWall,
   joinEdges,
+  joinStack,
   resizeRun as resizeRunPure,
   resolveWall,
   syncRoom,
@@ -1048,6 +1049,40 @@ const elevationSlice = createSlice({
       anchor.offset = offset;
       syncRoomAt(state, location.roomIndex);
     },
+    joinRunStack(state, action) {
+      const location = wallLocation(state, action.payload);
+      if (!location) return;
+      const { runId, edge, leaderRunId } = action.payload;
+      const result = joinStack(
+        location.room,
+        location.wall.id,
+        runId,
+        edge,
+        leaderRunId,
+        state.settings,
+      );
+      if (!result.ok) state.message = result.reason;
+      else {
+        state.rooms[location.roomIndex] = result.room;
+        state.message = null;
+      }
+      syncRoomAt(state, location.roomIndex);
+    },
+    setRunStackOffset(state, action) {
+      const location = runLocation(state, action.payload);
+      const { edge, offset } = action.payload;
+      const link = location?.run.stack?.[edge];
+      if (!location || !link || !Number.isFinite(offset)) return;
+      link.offset = offset;
+      syncRoomAt(state, location.roomIndex);
+    },
+    freeRunStack(state, action) {
+      const location = runLocation(state, action.payload);
+      const { edge } = action.payload;
+      if (!location || !location.run.stack?.[edge]) return;
+      location.run.stack[edge] = null;
+      syncRoomAt(state, location.roomIndex);
+    },
     dissolveJoint(state, action) {
       const location = wallLocation(state, action.payload);
       if (!location) return;
@@ -1606,6 +1641,9 @@ export const {
   setRunAnchor,
   joinRunEdges,
   setRunJointOffset,
+  joinRunStack,
+  setRunStackOffset,
+  freeRunStack,
   dissolveJoint,
   resizeRun,
   replaceWallLayout,

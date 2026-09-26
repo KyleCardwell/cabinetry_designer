@@ -30,8 +30,10 @@ import elevationReducer, {
   deleteWall,
   dissolveJoint,
   equalizeCells,
+  freeRunStack,
   lockItem,
   joinRunEdges,
+  joinRunStack,
   moveOpening,
   moveWallEndpoint,
   moveWallPerpendicular,
@@ -68,6 +70,7 @@ import elevationReducer, {
   setRunCornerClearance,
   setRunAnchor,
   setRunJointOffset,
+  setRunStackOffset,
   setRunEnd,
   setSelection,
   setSoffitAnchor,
@@ -1450,6 +1453,48 @@ describe('SPEC-34.3 follow reducers', () => {
     }));
     expect(baseOf(state).anchors.left).toBe(false);
     expect(baseOf(state).ends.left).toEqual({ type: 'end_panel', width: null });
+  });
+});
+
+describe('SPEC-35 stack reducers', () => {
+  function stackState() {
+    const state = stateWithRun();
+    state.rooms[0].walls[0].runs = [
+      run({ id: 'B', x: 0, width: 60, heightMode: 'auto', autoCount: false, items: [auto('B-cabinet')] }),
+      run({
+        id: 'U', cabinetTypeId: CABINET_TYPE_IDS.UPPER, x: 0, width: 60, z: 54, height: 36, depth: 12,
+        heightMode: 'auto', autoCount: false, items: [auto('U-cabinet')],
+      }),
+      run({
+        id: 'M', cabinetTypeId: CABINET_TYPE_IDS.UPPER, x: 0, width: 60, z: 40, height: 10, depth: 12,
+        autoCount: false, items: [auto('M-cabinet')],
+      }),
+    ];
+    return state;
+  }
+  const runById = (state, id) => state.rooms[0].walls[0].runs.find((entry) => entry.id === id);
+  const at = { wallId: 'wall-1', runId: 'M' };
+
+  it('stacks a run, gaps it, refuses a loop and frees it', () => {
+    let state = elevationReducer(stackState(), joinRunStack({ ...at, edge: 'below', leaderRunId: 'B' }));
+    expect(state.message).toBeNull();
+    expect(runById(state, 'M')).toMatchObject({ z: 36, height: 10 });
+
+    state = elevationReducer(state, joinRunStack({ ...at, edge: 'above', leaderRunId: 'U' }));
+    expect(runById(state, 'M')).toMatchObject({ z: 36, height: 18 });
+
+    state = elevationReducer(state, setRunStackOffset({ ...at, edge: 'below', offset: 1 }));
+    expect(runById(state, 'M')).toMatchObject({ z: 37, height: 17 });
+
+    state = elevationReducer(state, joinRunStack({
+      wallId: 'wall-1', runId: 'B', edge: 'below', leaderRunId: 'M',
+    }));
+    expect(state.message).toBe('stack-cycle');
+    expect(runById(state, 'B').stack).toBeUndefined();
+
+    state = elevationReducer(state, freeRunStack({ ...at, edge: 'above' }));
+    expect(runById(state, 'M').stack).toEqual({ below: { runId: 'B', offset: 1 }, above: null });
+    expect(runById(state, 'M')).toMatchObject({ z: 37, height: 17 });
   });
 });
 
