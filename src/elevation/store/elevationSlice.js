@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { v4 as uuid } from 'uuid';
+import { isBottomPart } from '../model/bottoms.js';
 import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { wallFrame } from '../model/geometry.js';
@@ -1464,6 +1465,14 @@ const elevationSlice = createSlice({
       }
       syncRoomAt(state, location.roomIndex);
     },
+    setRunBottom(state, action) {
+      const location = runLocation(state, action.payload);
+      const { bottom } = action.payload;
+      if (!location || !Array.isArray(bottom) || !bottom.every(isBottomPart)) return;
+      if (bottom.length === 0) delete location.run.bottom;
+      else location.run.bottom = bottom.map((part) => ({ ...part }));
+      syncRoomAt(state, location.roomIndex);
+    },
     setItemStyle(state, action) {
       const location = runLocation(state, action.payload);
       const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
@@ -1630,6 +1639,7 @@ export const {
   setRoomStyle,
   setRunStyle,
   setRunFaceOptions,
+  setRunBottom,
   setItemStyle,
   setItemReveals,
   setFacePath,

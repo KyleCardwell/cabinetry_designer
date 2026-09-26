@@ -8,6 +8,7 @@ import {
   Text,
 } from 'react-konva';
 import { blindEntries } from '../model/blind.js';
+import { runBottomParts } from '../model/bottoms.js';
 import {
   blindCellWidths, cellPieces, panelOrientation, shelfParts,
 } from '../model/cells.js';
@@ -159,6 +160,10 @@ function RunGroup({
     width: bandWidth,
     height: profile.crownHeight,
   }, transform);
+  const bottomParts = runBottomParts(run).map((part) => ({
+    ...part,
+    rect: wallRectToScreen({ x: bandX, z: part.z, width: bandWidth, height: part.height }, transform),
+  }));
   const warningPieceIds = useMemo(
     () => new Set(
       [...result.warnings, ...cells.warnings, ...(diagnostic?.warnings ?? [])]
@@ -352,6 +357,19 @@ function RunGroup({
           listening={false}
         />
       )}
+
+      {bottomParts.map((part) => (
+        <Rect
+          key={part.id}
+          {...part.rect}
+          fill="#94a3b8"
+          opacity={0.9}
+          stroke="#cbd5e1"
+          strokeWidth={1}
+          dash={part.kind === 'corbels' ? [4, 3] : undefined}
+          listening={false}
+        />
+      ))}
 
       <Rect
         {...runRect}

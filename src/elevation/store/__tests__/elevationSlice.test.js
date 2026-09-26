@@ -59,6 +59,7 @@ import elevationReducer, {
   setRoomStyle,
   setRoomPartNumberStart,
   setRunFaceOptions,
+  setRunBottom,
   setRunStyle,
   setActiveWall,
   setActiveWallSide,
@@ -1207,6 +1208,24 @@ describe('SPEC-35 run top reducer', () => {
     expect(currentRun(state).top).toBe('crown');
     state = elevationReducer(state, setRunFaceOptions({ ...at, top: null }));
     expect('top' in currentRun(state)).toBe(false);
+  });
+});
+
+describe('SPEC-35 parts below reducer', () => {
+  it('sets the list, rejects a bad one and clears it', () => {
+    const at = { wallId: 'wall-1', runId: 'run-1' };
+    const RAIL = { id: 'rail', kind: 'light_rail', height: 1.5, doors: 'cover' };
+    let state = elevationReducer(
+      stateWithRun(run({
+        cabinetTypeId: CABINET_TYPE_IDS.UPPER, z: 54, height: 36, depth: 12, autoCount: false, items: [auto('a')],
+      })),
+      setRunBottom({ ...at, bottom: [RAIL] }),
+    );
+    expect(currentRun(state).bottom).toEqual([RAIL]);
+    const refused = elevationReducer(state, setRunBottom({ ...at, bottom: [{ ...RAIL, kind: 'bottom_cap' }] }));
+    expect(currentRun(refused).bottom).toEqual([RAIL]);
+    state = elevationReducer(state, setRunBottom({ ...at, bottom: [] }));
+    expect('bottom' in currentRun(state)).toBe(false);
   });
 });
 

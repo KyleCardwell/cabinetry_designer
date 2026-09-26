@@ -5,6 +5,7 @@ import {
   updateRun,
 } from '../../store/elevationSlice.js';
 import Field from './Field.jsx';
+import RunBottomSection from './RunBottomSection.jsx';
 import RunCabinetsSection from './RunCabinetsSection.jsx';
 import RunEndsSection from './RunEndsSection.jsx';
 import RunFaceOptions from './RunFaceOptions.jsx';
@@ -95,6 +96,8 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
       <RunPiecesSection run={run} layout={layout} />
 
       <RunFaceOptions room={room} wall={wall} run={run} settings={settings} />
+
+      <RunBottomSection run={run} settings={settings} actionBase={actionBase} />
 
       <WarningsList layout={layout} />
     </div>
