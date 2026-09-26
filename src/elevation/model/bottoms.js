@@ -73,3 +73,19 @@ export function belowRunReveal(run, settings) {
   }
   return null;
 }
+
+/**
+ * Where the parts below a run start and end along the wall: inside the run's end panels, unless the
+ * doors stop flush above the parts (then they run under them). They always run under fillers.
+ * `band` is the full span the parts would take ({ start, end }).
+ */
+export function bottomPartSpan(run, pieces, band, underEndPanels) {
+  if (underEndPanels) return band;
+  const left = pieces.find((piece) => piece.kind === 'end_panel' && piece.x <= run.x + 1e-6);
+  const right = pieces.find((piece) => piece.kind === 'end_panel'
+    && piece.x + piece.width >= run.x + run.width - 1e-6);
+  return {
+    start: left ? Math.max(band.start, left.x + left.width) : band.start,
+    end: right ? Math.min(band.end, right.x) : band.end,
+  };
+}

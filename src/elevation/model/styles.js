@@ -1,6 +1,7 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { belowRunReveal } from './bottoms.js';
 import { faceRevealsFor } from './faces.js';
+import { formatInches } from './units.js';
 
 const { UPPER, TALL } = CABINET_TYPE_IDS;
 
@@ -213,4 +214,24 @@ export function panelDrop(run, style, settings) {
   if (run.cabinetTypeId !== UPPER || (run.upperBottom ?? 'overhang') !== 'overhang') return 0;
   if (!isInsetStyle(style)) return Math.max(0, -faceRevealsFor(UPPER, settings).bottom);
   return { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.upperDrop;
+}
+
+/**
+ * The bottom of a run's end panels and fillers: how far their faces drop below the box to meet the
+ * doors, and the chip detail when they sit on a part the doors stop flush above.
+ */
+export function endPieceBottom(run, style, settings) {
+  const below = isInsetStyle(style) ? null : belowRunReveal(run, settings);
+  return {
+    drop: panelDrop(run, style, settings),
+    chip: below !== null && below > 0 ? below : 0,
+  };
+}
+
+/** Shop notes for an end panel or filler, from endPieceBottom. */
+export function endPieceNotes(kind, bottom) {
+  const notes = [];
+  if (bottom.chip > 0) notes.push(`chip detail bottom ${formatInches(bottom.chip)}`);
+  if (kind === 'filler' && bottom.drop > 0) notes.push(`return up ${formatInches(bottom.drop)}`);
+  return notes;
 }

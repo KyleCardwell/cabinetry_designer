@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   belowRunReveal,
+  bottomPartSpan,
   createBottomPart,
   isBottomPart,
   runBottomHeight,
@@ -9,7 +10,7 @@ import {
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { runFaceLayouts } from '../faceLayouts.js';
 import { syncRoom } from '../room.js';
-import { cabinetReveals, panelDrop } from '../styles.js';
+import { cabinetReveals, endPieceBottom, endPieceNotes, panelDrop } from '../styles.js';
 
 const S = DEFAULT_SETTINGS;
 const { UPPER } = CABINET_TYPE_IDS;
@@ -81,5 +82,33 @@ describe('SPEC-35 parts below a run', () => {
     const wall = room.walls[0];
     const faces = runFaceLayouts(room, wall, wall.runs[0], S).get('U-cabinet').faces;
     expect(faces[0]).toMatchObject({ z: 52.375, height: 37.5 });
+  });
+});
+
+describe('SPEC-35.2 end panels and fillers over parts below', () => {
+  const RAIL_AS = (doors) => ({ cabinetTypeId: UPPER, bottom: [{ ...RAIL, doors }] });
+
+  it('drops to the door bottom, or sits on a flush part with a chip detail', () => {
+    expect(endPieceBottom(RAIL_AS('cover'), EURO, S)).toEqual({ drop: 1.625, chip: 0 });
+    expect(endPieceBottom(RAIL_AS('visible'), EURO, S)).toEqual({ drop: 0.125, chip: 0 });
+    expect(endPieceBottom(RAIL_AS('flush'), EURO, S)).toEqual({ drop: 0, chip: 0.125 });
+    expect(endPieceBottom({ cabinetTypeId: UPPER }, EURO, S)).toEqual({ drop: 0.125, chip: 0 });
+
+    expect(endPieceNotes('filler', { drop: 1.625, chip: 0 })).toEqual(['return up 1 5/8"']);
+    expect(endPieceNotes('end_panel', { drop: 1.625, chip: 0 })).toEqual([]);
+    expect(endPieceNotes('end_panel', { drop: 0, chip: 0.125 })).toEqual(['chip detail bottom 1/8"']);
+    expect(endPieceNotes('filler', { drop: 0, chip: 0.125 })).toEqual(['chip detail bottom 1/8"']);
+  });
+
+  it('stops parts inside end panels unless the doors stop flush above them', () => {
+    const run = { x: 0, width: 60 };
+    const pieces = [
+      { kind: 'end_panel', x: 0, width: 0.75 },
+      { kind: 'cabinet', x: 0.75, width: 55.75 },
+      { kind: 'filler', x: 56.5, width: 3.5 },
+    ];
+    const band = { start: 0, end: 60 };
+    expect(bottomPartSpan(run, pieces, band, false)).toEqual({ start: 0.75, end: 60 });
+    expect(bottomPartSpan(run, pieces, band, true)).toEqual(band);
   });
 });
