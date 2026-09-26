@@ -19,7 +19,6 @@ export default function ElevationToolbar({
   const dispatch = useDispatch();
   const {
     tool,
-    message,
     view,
     settings,
     rooms,
@@ -218,9 +217,6 @@ export default function ElevationToolbar({
       >
         Zoom to fit
       </button>
-      <div className="ml-2 min-w-0 flex-1 text-sm text-amber-300" role="status">
-        {message}
-      </div>
     </div>
   );
 }
