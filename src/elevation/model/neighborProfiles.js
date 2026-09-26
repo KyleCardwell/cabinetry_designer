@@ -36,7 +36,7 @@ export function neighborProfiles(room, wall, settings) {
       for (const run of neighborView.runs) {
         const depth = frontDepth(run, settings);
         const corners = [run.x, run.x + run.width].flatMap((x) => (
-          [0, depth].map((offset) => elevationToPlan(neighborFrame, x, offset))
+          [run.outset ?? 0, depth].map((offset) => elevationToPlan(neighborFrame, x, offset))
         ));
         const furthest = Math.max(...corners.map((point) => (
           dot(subtract(point, frame.leftPoint), frame.n)

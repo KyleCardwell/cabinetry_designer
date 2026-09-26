@@ -163,8 +163,9 @@ function fillerReturns(run, settings, layout, panels, faceBack) {
 
 /** Return the boxes, faces, filler returns, and their overall span used by the plan view. */
 export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
+  const outset = run.outset ?? 0;
   const faceBack = run.depth + settings.bumperThickness;
-  const faceFront = frontDepth(run, settings);
+  const faceFront = frontDepth(run, settings) - outset;
   const cells = cellPieces(run, layout);
   const leafOf = (piece) => (piece.columnId
     ? findLeaf(run.grid, piece.id)
@@ -174,7 +175,7 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
     if (piece.align === 'back') return { back: 0, front: depth };
     const flushPanel = piece.kind === 'panel' && panelOrientation(piece) !== 'back'
       && piece.doors !== 'cover';
-    const frontLine = flushPanel ? frontDepth(run, settings) : run.depth;
+    const frontLine = flushPanel ? faceFront : run.depth;
     return { back: frontLine - depth, front: frontLine };
   };
   const blind = blindEntries(room, wall, run, settings, layout);
@@ -224,14 +225,17 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   );
   const returns = fillerReturns(run, settings, layout, panels, faceBack);
   const pieces = [...boxes, ...faces, ...returns];
+  const shift = (piece) => (outset
+    ? { ...piece, back: piece.back + outset, front: piece.front + outset }
+    : piece);
 
   return {
     span: {
       start: Math.min(...pieces.map((piece) => piece.start)),
       end: Math.max(...pieces.map((piece) => piece.end)),
     },
-    boxes,
-    faces,
-    returns,
+    boxes: boxes.map(shift),
+    faces: faces.map(shift),
+    returns: returns.map(shift),
   };
 }

@@ -83,6 +83,16 @@ export default function RunGeometrySection({
               aria-label="Run depth"
             />
           </Field>
+          <Field label="Outset">
+            <InchInput
+              value={run.outset ?? 0}
+              onCommit={(value) => {
+                if (value === null || value < 0) return false;
+                return validateAndDispatch({ outset: value });
+              }}
+              aria-label="Run outset"
+            />
+          </Field>
         </div>
         <div className="mt-3 grid grid-cols-[auto_1fr_1fr] items-end gap-2">
           <span />

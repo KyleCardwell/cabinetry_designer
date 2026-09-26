@@ -16,9 +16,9 @@ import {
   wallViewForRun,
 } from './wallSides.js';
 
-/** Return the installed front depth of a run. */
+/** Return the installed front depth of a run, measured from the wall (outset included). */
 export function frontDepth(run, settings) {
-  return run.depth + settings.bumperThickness + settings.doorThickness;
+  return (run.outset ?? 0) + run.depth + settings.bumperThickness + settings.doorThickness;
 }
 
 /** Return the minimum width for a filler scribed into an angled corner. */

@@ -6,9 +6,10 @@ import { wallSideFrame, wallSideOf } from './wallSides.js';
 /** Return the four-point plan polygon occupied by a run. */
 export function runFootprint(frame, run, settings) {
   const depth = frontDepth(run, settings);
+  const outset = run.outset ?? 0;
   return [
-    elevationToPlan(frame, run.x, 0),
-    elevationToPlan(frame, run.x + run.width, 0),
+    elevationToPlan(frame, run.x, outset),
+    elevationToPlan(frame, run.x + run.width, outset),
     elevationToPlan(frame, run.x + run.width, depth),
     elevationToPlan(frame, run.x, depth),
   ];
