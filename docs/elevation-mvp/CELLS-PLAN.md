@@ -102,14 +102,15 @@ The inset frame drawing (FACES-PLAN round 15) was never built. It should now be 
 - **`run.top`** is `none` or a top, independent of cabinet type: a base run can take crown, a tall or upper can take a wood top. A type only sets the default a new run starts with. REV-002 (1/8" below a wood top) follows the top on any run type.
 - **`run.bottom`** is `none` (the default) or a list, top to bottom, of `light_rail`, `light_trough`, `panel`, `bottom_cap`, `corbels`. Each part has a height and a `doors` setting: `cover`, `flush` or `visible`. The room's design decides which, not a rule. REV-011 derives the bottom reveal from it: covered = minus the part's height plus the usual overhang (−7/8" over a 3/4" panel, −1 5/8" over a 1 1/2" light rail); flush = 1/8"; visible = standard. Always overridable. A bottom cap and corbels are never covered.
 
-### Vertical joins
+### Stacked runs (revised 2026-09-25 in SPEC-35; was "vertical joins")
 
-- **Runs join above and below** the way they join side to side now (`anchors` with a `jointId` and an `offset`). The offset is the gap.
-- A run joined above and below **fills the gap**, just as a run anchored at both ends fills the wall. Resizing either run adjusts the other.
-- This replaces a separate "float" type, and any number of runs can stack.
+- A run **sits on** another run's top part (`run.stack.below`: its lowest point on the other run's countertop, crown or box top) and/or is **held under** another run's lowest part below (`run.stack.above`), each with an `offset`: the gap.
+- These are one-way links, like 34.3's follow anchors, not joints in `run.anchors`. Almost every run's height already comes from somewhere (a base's auto height, an upper's clearance over the counter, the box top under the crown), and a free joint z would fight it. `run.anchors` stays left/right only.
+- A run linked above and below **fills the gap**, just as a run anchored at both ends fills the wall. Resizing the base or the upper refits the run between them. With one link only, a manual run keeps its height and an auto run keeps its other edge.
+- Any number of runs can stack; a loop keeps its stored heights. This replaces a separate "float" type.
 - **Worked example** (a room from a recent budget):
   1. a base run with a countertop
-  2. a middle run joined to the countertop below and to the upper's cap above: end panels at both ends (ordinary run ends) and one `panel` cell between them, 3/4" deep, backs aligned
+  2. a middle run that sits on the countertop and is held under the upper's cap: end panels at both ends (ordinary run ends) and one `panel` cell between them, 3/4" deep, backs aligned
   3. an upper run with a `bottom_cap`
 
 ### Dimensions
@@ -119,7 +120,7 @@ The inset frame drawing (FACES-PLAN round 15) was never built. It should now be 
   - A split column gets its own vertical chain drawn on that column, inside the run.
   - A nested split gets a short local chain next to it.
   - Only the run's overall height goes out at the wall.
-- **A joined stack gets one vertical chain** across its runs: box | top | box | cap | box. This also removes the overlapping dimensions and selection problem that stacking two unjoined runs by hand causes today.
+- **A stack gets one vertical chain** across its runs: box | top | box | cap | box. This also removes the overlapping dimensions and selection problem that stacking two unjoined runs by hand causes today.
 - Face frame runs dimension openings (rail | opening | rail), vertically as well as across.
 
 ### Part numbers
@@ -148,7 +149,7 @@ The topmost cells are drawn. Lower cells with different seams can be dashed late
 | **32 — Grid shape** | `run.grid` replaces `run.items`; tracks with `sizeMode` and an optional `gap` (inert until 34); migration; `splitRun` solves root columns; pins, absorb, auto count, ends and blind (moved to the cell) keep working. Its own shape step, green and inert (PROMPT-CONVENTIONS rule 4). Every existing layout resolves exactly as before. | nothing visible |
 | **33 — Vertical split** | Split, remove and equalize cells; draw and select cells; cell part numbers; REV-009/010 with sources; vertical chains per split column; editing track sizes on chains. | the too-tall cabinet, 72" over two 36"s, the oven stack (depth in 34) |
 | **34 — Kinds and depth** | Blind per cell; `panel`, `void`, `shelves` with back; `depth`, `align`; Wrap in panels (SPEC-34). Re-scoped 2026-09-25: gaps → 36, `run.outset` → 35, deviation lists → reports after 38. | the desk, back panels, floating shelves, the blind tall over a non-blind base |
-| **35 — Tops, bottoms, vertical joins** | `run.top` decoupled from type; the `run.bottom` list and REV-011; joins above and below with fill; one chain per joined stack; `run.outset` (from 34). | the budgeted room |
+| **35 — Tops, bottoms, stacked runs** | `run.top` decoupled from type; the `run.bottom` list and REV-011; stacked runs (sits on / held under, fill between); one chain per stack; `run.outset` (from 34). SPEC-35, steps 191–200. | the budgeted room |
 | **36 — Face frame on cells** | Gaps between boxes (from 34: drawn, solved, run default and per-track override); FACES-PLAN round 15 rebuilt on cells: frame regions, breaks, stiles and rails from reveals plus gaps (FF-004), opening dimensions. | inset and beaded inset runs |
 | **37 — T-fillers** | FILL-011: run setting, per-side overrides, stile logic, rabbet notes. | Euro T-filler runs |
 | **38 — Combine and full grids** | Rows × columns splits, combine, flatten, spans in the solver, chains and neighbours. | the pinwheel |
