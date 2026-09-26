@@ -16,7 +16,7 @@ export const CABINET_STYLE_LABELS = {
 export const REVEAL_KEYS = ['top', 'bottom', 'left', 'right', 'horizontal', 'vertical'];
 
 export const UPPER_BOTTOM_OPTIONS = ['overhang', 'flush', 'counter'];
-export const RUN_TOP_OPTIONS = ['stone', 'wood'];
+export const RUN_TOP_OPTIONS = ['stone', 'wood', 'crown', 'topMold', 'none'];
 
 export const REVEAL_SOURCE_LABELS = {
   style: 'style',

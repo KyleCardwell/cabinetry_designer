@@ -972,3 +972,43 @@ describe('SPEC-34.3 follow anchors', () => {
     expect(isElevationDocument(withAnchor({ to: 'follow', side: 'right', offset: 0 }))).toBe(false);
   });
 });
+
+describe('SPEC-35 run shape', () => {
+  const withRun = (changes) => {
+    const document = currentDocument();
+    Object.assign(document.rooms[0].walls[0].runs[0], changes);
+    return document;
+  };
+  const RAIL = { id: 'rail', kind: 'light_rail', height: 1.5, doors: 'cover' };
+  const CAP = { id: 'cap', kind: 'bottom_cap', height: 1.5, doors: 'visible' };
+
+  it('saves tops, parts below, stack links and outset, and rejects bad ones', () => {
+    expect(isElevationDocument(withRun({ top: 'crown' }))).toBe(true);
+    expect(isElevationDocument(withRun({ top: 'none' }))).toBe(true);
+    expect(isElevationDocument(withRun({ top: 'marble' }))).toBe(false);
+    expect(isElevationDocument(withRun({ bottom: [RAIL, CAP] }))).toBe(true);
+    expect(isElevationDocument(withRun({ bottom: [{ ...CAP, doors: 'cover' }] }))).toBe(false);
+    expect(isElevationDocument(withRun({ bottom: [{ ...RAIL, height: 0 }] }))).toBe(false);
+    expect(isElevationDocument(withRun({ stack: { below: { runId: 'b', offset: 0 }, above: null } }))).toBe(true);
+    expect(isElevationDocument(withRun({ stack: { below: { offset: 0 }, above: null } }))).toBe(false);
+    expect(isElevationDocument(withRun({ outset: 2 }))).toBe(true);
+    expect(isElevationDocument(withRun({ outset: -1 }))).toBe(false);
+  });
+
+  it('defaults the parts-below settings on documents saved before them', () => {
+    const current = currentDocument();
+    delete current.settings.belowRunOverhang;
+    delete current.settings.belowRunFlushReveal;
+    delete current.settings.bottomPartHeights;
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.settings.belowRunOverhang).toBe(-0.125);
+    expect(loaded.settings.belowRunFlushReveal).toBe(0.125);
+    expect(loaded.settings.bottomPartHeights).toEqual({
+      light_rail: 1.5, light_trough: 3, panel: 0.75, bottom_cap: 1.5, corbels: 6,
+    });
+  });
+});

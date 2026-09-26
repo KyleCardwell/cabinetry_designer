@@ -82,6 +82,15 @@ function cloneRun(run) {
           },
         }
       : {}),
+    ...(run.bottom ? { bottom: run.bottom.map((part) => ({ ...part })) } : {}),
+    ...(run.stack
+      ? {
+          stack: {
+            below: run.stack.below ? { ...run.stack.below } : null,
+            above: run.stack.above ? { ...run.stack.above } : null,
+          },
+        }
+      : {}),
     ...(run.items ? { items: run.items.map((item) => ({ ...item })) } : {}),
     ...(run.grid ? { grid: cloneGrid(run.grid) } : {}),
   };

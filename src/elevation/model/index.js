@@ -55,6 +55,14 @@ export {
 export { captureSides } from './capture.js';
 export { layoutRun, runFaceLayouts } from './faceLayouts.js';
 export {
+  BOTTOM_PART_DOORS,
+  BOTTOM_PART_KINDS,
+  BOTTOM_PART_LABELS,
+  UNCOVERABLE_BOTTOM_PARTS,
+  createBottomPart,
+  isBottomPart,
+} from './bottoms.js';
+export {
   floorTo,
   formatInches,
   formatInchesInput,

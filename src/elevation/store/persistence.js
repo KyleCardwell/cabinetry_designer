@@ -3,6 +3,7 @@ import {
   DEFAULT_PROFILE,
   DEFAULT_SETTINGS,
 } from '../model/constants.js';
+import { isBottomPart } from '../model/bottoms.js';
 import { isFaceNode } from '../model/faces.js';
 import { MAX_SHELVES } from '../model/cellTree.js';
 import { LEAF_KINDS, isGridShape, rootItems } from '../model/grid.js';
@@ -91,6 +92,9 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'floatingShelfThickness',
   'standardDrawerHeights',
   'standardDrawerBelow',
+  'belowRunOverhang',
+  'belowRunFlushReveal',
+  'bottomPartHeights',
 ];
 
 function isFiniteNumber(value) {
@@ -195,6 +199,19 @@ function isEndFiller(endFiller) {
       && isEndFillerSide(endFiller.right));
 }
 
+function isStackLink(link) {
+  return link === null || (Boolean(link) && typeof link === 'object'
+    && typeof link.runId === 'string'
+    && (link.offset === null || isFiniteNumber(link.offset)));
+}
+
+function isRunStack(stack) {
+  return stack === undefined || (Boolean(stack) && typeof stack === 'object' && !Array.isArray(stack)
+    && Object.keys(stack).every((key) => key === 'below' || key === 'above')
+    && isStackLink(stack.below ?? null)
+    && isStackLink(stack.above ?? null));
+}
+
 function isRun(run) {
   return Boolean(run)
     && typeof run.id === 'string'
@@ -212,6 +229,9 @@ function isRun(run) {
     && (run.wallSide === undefined || run.wallSide === 'front' || run.wallSide === 'back')
     && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
     && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top))
+    && (run.bottom === undefined || (Array.isArray(run.bottom) && run.bottom.every(isBottomPart)))
+    && isRunStack(run.stack)
+    && (run.outset === undefined || (isFiniteNumber(run.outset) && run.outset >= 0))
     && isEndFiller(run.endFiller)
     && run.items === undefined
     && run.blind === undefined
