@@ -1,4 +1,5 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { runBottomParts } from './bottoms.js';
 import { cornerAt } from './corners.js';
 import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
@@ -14,6 +15,7 @@ import {
   resolvePinTarget,
 } from './room.js';
 import { splitRun } from './splitRun.js';
+import { stackOf } from './stacks.js';
 import { isCountertop, runTop } from './tops.js';
 
 const SEGMENT_EPSILON = 1e-6;
@@ -333,7 +335,7 @@ export function centerlineMarkers(run, pieces, wall, wallLengthValue, settings) 
 }
 
 /** Choose the lower and upper runs represented by the vertical dimension column. */
-export function pickColumnRuns(wall, selectedRunId, edge = 'left') {
+function pickColumnPair(wall, selectedRunId, edge = 'left') {
   const lowerRuns = wall.runs.filter((run) => (
     run.cabinetTypeId === CABINET_TYPE_IDS.BASE
     || run.cabinetTypeId === CABINET_TYPE_IDS.TALL
@@ -368,8 +370,46 @@ export function pickColumnRuns(wall, selectedRunId, edge = 'left') {
   };
 }
 
+/** Choose the runs the vertical dimension column measures; a joined stack comes back as `stack`. */
+export function pickColumnRuns(wall, selectedRunId, edge = 'left') {
+  const column = pickColumnPair(wall, selectedRunId, edge);
+  const seed = [column.lowerRun, column.upperRun].find((run) => run?.id === selectedRunId)
+    ?? column.lowerRun
+    ?? column.upperRun;
+  const stack = seed ? stackOf(wall, seed.id) : [];
+  return stack.length > 1 ? { ...column, stack } : column;
+}
+
+/** One chain up a joined stack, bottom to top: each run's parts below, box and top, with the gaps. */
+export function stackChain(room, wall, runs, settings) {
+  const profile = resolveProfile(settings, room, wall);
+  const inner = [];
+  let cursor = 0;
+  const append = (end, kind) => {
+    if (end - cursor <= SEGMENT_EPSILON) return;
+    appendSegment(inner, cursor, end, kind);
+    cursor = end;
+  };
+  [...runs].sort((a, b) => a.z - b.z).forEach((run, index) => {
+    const parts = runBottomParts(run);
+    const lower = run.cabinetTypeId === CABINET_TYPE_IDS.BASE
+      || run.cabinetTypeId === CABINET_TYPE_IDS.TALL;
+    append(parts.length > 0 ? parts.at(-1).z : run.z, index === 0 && lower ? 'toe-kick' : 'open');
+    for (const part of [...parts].reverse()) append(part.z + part.height, 'bottom');
+    append(run.z + run.height, 'box');
+    const top = runTop(wall, run, profile);
+    append(run.z + run.height + top.height, isCountertop(top.kind) ? 'countertop' : 'molding');
+  });
+  append(wall.height, 'open');
+  return {
+    inner,
+    outer: wall.height > SEGMENT_EPSILON ? [{ start: 0, end: wall.height, kind: 'wall' }] : [],
+  };
+}
+
 /** Build the vertical cabinet stack and full-wall dimension chains. */
-export function verticalChains(room, wall, { lowerRun, upperRun }, settings) {
+export function verticalChains(room, wall, { lowerRun, upperRun, stack = null }, settings) {
+  if (stack && stack.length > 1) return stackChain(room, wall, stack, settings);
   const inner = [];
   const outer = wall.height > SEGMENT_EPSILON
     ? [{ start: 0, end: wall.height, kind: 'wall' }]
@@ -409,11 +449,13 @@ export function verticalChains(room, wall, { lowerRun, upperRun }, settings) {
   }
 
   if (upperRun) {
+    const parts = runBottomParts(upperRun);
     append(
       cursor,
-      upperRun.z,
+      parts.length > 0 ? parts.at(-1).z : upperRun.z,
       lowerRun?.cabinetTypeId === CABINET_TYPE_IDS.BASE ? 'clearance' : 'open',
     );
+    for (const part of [...parts].reverse()) append(part.z, part.z + part.height, 'bottom');
     if (append(upperRun.z, upperRun.z + upperRun.height, 'box')) {
       rememberBox(upperRun);
     }

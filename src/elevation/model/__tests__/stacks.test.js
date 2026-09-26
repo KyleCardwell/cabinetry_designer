@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { pickColumnRuns, verticalChains } from '../dimensions.js';
 import { resolveProfile } from '../profile.js';
 import { joinStack, syncRoom } from '../room.js';
 import {
@@ -135,5 +136,31 @@ describe('SPEC-35 stacked runs', () => {
     );
     expect(tall.ok).toBe(true);
     expect(runOf(tall.room, 'T')).toMatchObject({ z: 36, height: 20 });
+  });
+});
+
+describe('SPEC-35 stack chain', () => {
+  const kindsAndLengths = (chain) => chain.inner.map(({ kind, start, end }) => [kind, end - start]);
+
+  it('draws one chain up a joined stack', () => {
+    const room = syncRoom(budgeted(), S);
+    const wall = room.walls[0];
+    const column = pickColumnRuns(wall, null, 'left');
+    expect(column.stack.map((run) => run.id)).toEqual(['B', 'M', 'U']);
+    expect(kindsAndLengths(verticalChains(room, wall, column, S))).toEqual([
+      ['toe-kick', 4], ['box', 30.5], ['countertop', 1.5], ['box', 16.5],
+      ['bottom', 1.5], ['box', 36], ['molding', 6],
+    ]);
+  });
+
+  it('shows an upper\'s parts below in the ordinary chain', () => {
+    const room = syncRoom(rawRoom([base(), upper()]), S);
+    const wall = room.walls[0];
+    const column = pickColumnRuns(wall, null, 'left');
+    expect('stack' in column).toBe(false);
+    expect(kindsAndLengths(verticalChains(room, wall, column, S))).toEqual([
+      ['toe-kick', 4], ['box', 30.5], ['countertop', 1.5], ['clearance', 16.5],
+      ['bottom', 1.5], ['box', 36], ['molding', 6],
+    ]);
   });
 });

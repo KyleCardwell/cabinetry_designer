@@ -237,6 +237,7 @@ export {
   openingChain,
   openingClearances,
   pickColumnRuns,
+  stackChain,
   verticalChains,
   verticalOpeningChain,
 } from './dimensions.js';
