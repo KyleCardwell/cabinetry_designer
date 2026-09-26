@@ -1,5 +1,12 @@
 import { useDispatch } from 'react-redux';
-import { CABINET_TYPE_IDS, resolveStyle } from '../../model/index.js';
+import {
+  CABINET_TYPE_IDS,
+  RUN_TOP_OPTIONS,
+  TOP_LABELS,
+  defaultRunTop,
+  resolveProfile,
+  resolveStyle,
+} from '../../model/index.js';
 import { setRunFaceOptions, setRunStyle } from '../../store/elevationSlice.js';
 import StyleFields from './StyleFields.jsx';
 
@@ -14,6 +21,7 @@ const UPPER_BOTTOM_LABELS = {
 export default function RunFaceOptions({ room, wall, run, settings }) {
   const dispatch = useDispatch();
   const at = { wallId: wall.id, runId: run.id };
+  const defaultTop = defaultRunTop(wall, run, resolveProfile(settings, room, wall));
 
   return (
     <section className="space-y-3 border-t border-gray-700 pt-3">
@@ -25,20 +33,20 @@ export default function RunFaceOptions({ room, wall, run, settings }) {
         onChange={(style) => dispatch(setRunStyle({ ...at, style }))}
       />
 
-      {run.cabinetTypeId === CABINET_TYPE_IDS.BASE && (
-        <label className="block text-xs text-gray-400">
-          Top
-          <select
-            value={run.top ?? 'stone'}
-            onChange={(event) => dispatch(setRunFaceOptions({ ...at, top: event.target.value }))}
-            aria-label="Run top"
-            className={`mt-1 ${SELECT_CLASS}`}
-          >
-            <option value="stone">Stone</option>
-            <option value="wood">Shop-built wood</option>
-          </select>
-        </label>
-      )}
+      <label className="block text-xs text-gray-400">
+        Top
+        <select
+          value={run.top ?? ''}
+          onChange={(event) => dispatch(setRunFaceOptions({ ...at, top: event.target.value || null }))}
+          aria-label="Run top"
+          className={`mt-1 ${SELECT_CLASS}`}
+        >
+          <option value="">{`Default · ${TOP_LABELS[defaultTop]}`}</option>
+          {RUN_TOP_OPTIONS.map((value) => (
+            <option key={value} value={value}>{TOP_LABELS[value]}</option>
+          ))}
+        </select>
+      </label>
 
       {run.cabinetTypeId === CABINET_TYPE_IDS.UPPER && (
         <label className="block text-xs text-gray-400">

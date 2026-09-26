@@ -1195,6 +1195,21 @@ describe('styles and reveals', () => {
   });
 });
 
+describe('SPEC-35 run top reducer', () => {
+  it('sets any top on any run type and clears it back to the default', () => {
+    const at = { wallId: 'wall-1', runId: 'run-1' };
+    let state = elevationReducer(
+      stateWithRun(run({ cabinetTypeId: CABINET_TYPE_IDS.TALL, autoCount: false, items: [auto('a')] })),
+      setRunFaceOptions({ ...at, top: 'crown' }),
+    );
+    expect(currentRun(state).top).toBe('crown');
+    state = elevationReducer(state, setRunFaceOptions({ ...at, top: 'marble' }));
+    expect(currentRun(state).top).toBe('crown');
+    state = elevationReducer(state, setRunFaceOptions({ ...at, top: null }));
+    expect('top' in currentRun(state)).toBe(false);
+  });
+});
+
 describe('standard drawers on style switch', () => {
   const at = { wallId: 'wall-1', runId: 'run-1' };
   const THREE_DF = {

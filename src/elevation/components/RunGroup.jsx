@@ -20,7 +20,7 @@ import { panelDrop, resolveStyle } from '../model/styles.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
-import { runMolding } from '../model/soffits.js';
+import { runTop } from '../model/tops.js';
 import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
@@ -143,12 +143,7 @@ function RunGroup({
     [room, settings, wall],
   );
   const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
-  const countertopThickness = run.overrides?.countertopThickness
-    ?? profile.countertopThickness;
-  const showsMolding = run.heightMode === 'auto'
-    && (run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
-      || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
-  const molding = runMolding(wall, run, profile);
+  const top = runTop(wall, run, profile);
   const boxTop = run.z + run.height;
   const bandX = bandStart(0);
   const bandWidth = bandEnd(0) - bandX;
@@ -174,7 +169,6 @@ function RunGroup({
   const hasErrors = (diagnostic?.errors ?? result.errors).length > 0;
   const hasToeKick = run.cabinetTypeId === CABINET_TYPE_IDS.BASE
     || run.cabinetTypeId === CABINET_TYPE_IDS.TALL;
-  const isBase = run.cabinetTypeId === CABINET_TYPE_IDS.BASE;
   const toeKickInset = Math.min(3, run.width / 2);
   const toeKickX = bandStart(toeKickInset);
   const toeKickWidth = Math.max(0, bandEnd(toeKickInset) - toeKickX);
@@ -189,7 +183,7 @@ function RunGroup({
     x: countertopX,
     z: run.z + run.height,
     width: bandEnd(-1) - countertopX,
-    height: countertopThickness,
+    height: top.height,
   }, transform);
   const runRect = wallRectToScreen(run, transform);
   const cornerFillers = useMemo(() => Object.fromEntries(
@@ -327,10 +321,10 @@ function RunGroup({
         />
       )}
 
-      {isBase && (
+      {(top.kind === 'stone' || top.kind === 'wood') && (
         <Rect
           {...countertop}
-          fill="#cbd5e1"
+          fill={top.kind === 'wood' ? '#c8a27a' : '#cbd5e1'}
           opacity={0.9}
           stroke="#64748b"
           strokeWidth={1}
@@ -338,7 +332,7 @@ function RunGroup({
         />
       )}
 
-      {showsMolding && molding !== 'none' && (
+      {(top.kind === 'crown' || top.kind === 'topMold') && (
         <Rect
           {...topMold}
           fill="#94a3b8"
@@ -348,7 +342,7 @@ function RunGroup({
           listening={false}
         />
       )}
-      {showsMolding && molding === 'crown' && (
+      {top.kind === 'crown' && (
         <Rect
           {...crown}
           fill="#e2e8f0"
