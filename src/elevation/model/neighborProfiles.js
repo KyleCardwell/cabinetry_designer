@@ -7,7 +7,7 @@ import {
   subtract,
 } from './geometry.js';
 import { resolveProfile } from './profile.js';
-import { runMolding } from './soffits.js';
+import { runTop } from './tops.js';
 import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
 
 const PROFILE_EPSILON = 1e-6;
@@ -52,10 +52,7 @@ export function neighborProfiles(room, wall, settings) {
         ];
         const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
         const boxTop = run.z + run.height;
-        const showsMolding = run.heightMode === 'auto'
-          && (run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
-            || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
-        const molding = runMolding(neighborView, run, profile);
+        const top = runTop(neighborView, run, profile).kind;
         const moldings = [];
         if (
           (run.cabinetTypeId === CABINET_TYPE_IDS.BASE
@@ -64,10 +61,10 @@ export function neighborProfiles(room, wall, settings) {
         ) {
           moldings.push({ kind: 'toeKick', z: 0, height: toeKickHeight });
         }
-        if (showsMolding && molding !== 'none') {
+        if (top === 'crown' || top === 'topMold') {
           moldings.push({ kind: 'topMold', z: boxTop, height: profile.topMoldHeight });
         }
-        if (showsMolding && molding === 'crown') {
+        if (top === 'crown') {
           moldings.push({
             kind: 'crown',
             z: boxTop + profile.crownStackHeight - profile.crownHeight,

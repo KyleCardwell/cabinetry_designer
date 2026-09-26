@@ -8,8 +8,8 @@ import {
   endMinWidthsForRun,
   pinTargetsForRun,
 } from './room.js';
-import { runMolding } from './soffits.js';
 import { splitRun } from './splitRun.js';
+import { runTop } from './tops.js';
 import { wallNumbers } from './topology.js';
 import { wallEndPanels } from './wallEndPanels.js';
 import { WALL_SIDES, wallSideView } from './wallSides.js';
@@ -21,7 +21,6 @@ export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
 
 const PART_KINDS = new Set(['cabinet', 'filler', 'end_panel', 'panel', 'shelf']);
 const LOWER_TYPES = new Set([CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL]);
-const MOLDING_TYPES = new Set([CABINET_TYPE_IDS.UPPER, CABINET_TYPE_IDS.TALL]);
 
 export function moldingPartKey(molding) {
   return `molding:${molding}`;
@@ -46,9 +45,8 @@ function carriesMolding(wall, run, profile, molding) {
     return LOWER_TYPES.has(run.cabinetTypeId)
       && (run.overrides?.toeKickHeight ?? profile.toeKickHeight) > 0;
   }
-  if (run.heightMode !== 'auto' || !MOLDING_TYPES.has(run.cabinetTypeId)) return false;
-  const resolved = runMolding(wall, run, profile);
-  return molding === 'topMold' ? resolved !== 'none' : resolved === 'crown';
+  const top = runTop(wall, run, profile).kind;
+  return molding === 'topMold' ? top === 'crown' || top === 'topMold' : top === 'crown';
 }
 
 function runParts(room, wall, side, settings) {

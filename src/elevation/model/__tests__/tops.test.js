@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { verticalChains } from '../dimensions.js';
 import { runFaceLayouts } from '../faceLayouts.js';
+import { partNumbers } from '../partNumbers.js';
 import { resolveProfile } from '../profile.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { cabinetReveals } from '../styles.js';
@@ -113,5 +115,30 @@ describe('SPEC-35 run tops', () => {
     expect(layouts.get('t').reveals.sources.top).toBe('rule:wood-top');
     expect(layouts.get('t').reveals.values.top).toBe(0.125);
     expect(layouts.get('b').reveals.sources.top).toBe('rule:stacked-seam');
+  });
+});
+
+describe('SPEC-35 tops in chains and part numbers', () => {
+  const kindsAndLengths = (chain) => chain.inner.map(({ kind, start, end }) => [kind, end - start]);
+
+  it('chains the top each run carries', () => {
+    const plain = makeRoom([makeRun('B', BASE), makeRun('U', UPPER, { top: 'none' })]);
+    const wall = plain.walls[0];
+    expect(kindsAndLengths(verticalChains(plain, wall, { lowerRun: wall.runs[0], upperRun: wall.runs[1] }, S)))
+      .toEqual([['toe-kick', 4], ['box', 30.5], ['countertop', 1.5], ['clearance', 18], ['box', 36], ['open', 6]]);
+
+    const tall = makeRoom([makeRun('T', TALL, { heightMode: 'manual', z: 4, height: 80, top: 'crown' })]);
+    const tallWall = tall.walls[0];
+    expect(kindsAndLengths(verticalChains(tall, tallWall, { lowerRun: tallWall.runs[0], upperRun: null }, S)))
+      .toEqual([['toe-kick', 4], ['box', 80], ['molding', 6], ['open', 6]]);
+  });
+
+  it('numbers the moldings a top brings', () => {
+    const moldings = (room) => partNumbers(room, S).parts
+      .filter((part) => part.kind === 'molding')
+      .map((part) => part.molding);
+    expect(moldings(makeRoom([makeRun('B', BASE)]))).toEqual(['toeKick']);
+    expect(moldings(makeRoom([makeRun('B', BASE, { top: 'crown' })]))).toEqual(['toeKick', 'topMold', 'crown']);
+    expect(moldings(makeRoom([makeRun('B', BASE), makeRun('U', UPPER, { top: 'none' })]))).toEqual(['toeKick']);
   });
 });

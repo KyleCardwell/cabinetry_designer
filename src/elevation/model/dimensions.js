@@ -6,7 +6,7 @@ import { landingsOn } from './landings.js';
 import { neighborProfiles } from './neighborProfiles.js';
 import { openingGeometry } from './openings.js';
 import { verticalStart } from './overlap.js';
-import { moldingStack, resolveProfile } from './profile.js';
+import { resolveProfile } from './profile.js';
 import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
@@ -14,6 +14,7 @@ import {
   resolvePinTarget,
 } from './room.js';
 import { splitRun } from './splitRun.js';
+import { isCountertop, runTop } from './tops.js';
 
 const SEGMENT_EPSILON = 1e-6;
 
@@ -367,14 +368,6 @@ export function pickColumnRuns(wall, selectedRunId, edge = 'left') {
   };
 }
 
-function profileForRun(profile, run) {
-  return resolveProfile(
-    { defaultProfile: profile },
-    null,
-    { profile: run?.overrides },
-  );
-}
-
 /** Build the vertical cabinet stack and full-wall dimension chains. */
 export function verticalChains(room, wall, { lowerRun, upperRun }, settings) {
   const inner = [];
@@ -405,12 +398,11 @@ export function verticalChains(room, wall, { lowerRun, upperRun }, settings) {
     if (append(lowerRun.z, lowerRun.z + lowerRun.height, 'box')) {
       rememberBox(lowerRun);
     }
-    if (lowerRun.cabinetTypeId === CABINET_TYPE_IDS.BASE) {
-      const countertopThickness = profileForRun(wallProfile, lowerRun)
-        .countertopThickness;
+    const lowerTop = runTop(wall, lowerRun, wallProfile);
+    if (isCountertop(lowerTop.kind)) {
       append(
         lowerRun.z + lowerRun.height,
-        lowerRun.z + lowerRun.height + countertopThickness,
+        lowerRun.z + lowerRun.height + lowerTop.height,
         'countertop',
       );
     }
@@ -427,16 +419,11 @@ export function verticalChains(room, wall, { lowerRun, upperRun }, settings) {
     }
   }
 
-  if (
-    highestBox
-    && highestBox.run.heightMode === 'auto'
-    && (
-      highestBox.run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
-      || highestBox.run.cabinetTypeId === CABINET_TYPE_IDS.TALL
-    )
-  ) {
-    const stack = moldingStack(profileForRun(wallProfile, highestBox.run));
-    append(highestBox.top, highestBox.top + stack, 'molding');
+  if (highestBox) {
+    const top = runTop(wall, highestBox.run, wallProfile);
+    if (top.kind === 'crown' || top.kind === 'topMold') {
+      append(highestBox.top, highestBox.top + top.height, 'molding');
+    }
   }
 
   append(cursor, wall.height, 'open');
