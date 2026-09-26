@@ -1,4 +1,5 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { belowRunReveal } from './bottoms.js';
 import { faceRevealsFor } from './faces.js';
 
 const { UPPER, TALL } = CABINET_TYPE_IDS;
@@ -21,6 +22,7 @@ export const RUN_TOP_OPTIONS = ['stone', 'wood', 'crown', 'topMold', 'none'];
 export const REVEAL_SOURCE_LABELS = {
   style: 'style',
   manual: 'manual',
+  'rule:below-run': 'rule: part below',
   'rule:wood-top': 'rule: wood top',
   'rule:upper-flush': 'rule: flush bottom',
   'rule:upper-counter': 'rule: on counter',
@@ -146,6 +148,8 @@ export function cabinetReveals({
   if (cabinetTypeId === UPPER && upperBottom !== 'overhang') {
     apply('bottom', styleReveals(style, TALL, settings).bottom, `rule:upper-${upperBottom}`);
   }
+  const below = euro && runEdges.bottom ? belowRunReveal(run, settings) : null;
+  if (below !== null) apply('bottom', below, 'rule:below-run');
   if (stacked.top || stacked.bottom) {
     const seam = stackedSeamReveals(style, settings);
     if (stacked.top) apply('top', seam.lowerTop, 'rule:stacked-seam');
@@ -200,8 +204,12 @@ export function applyStandardDrawers(face, style, settings) {
   return visit(face);
 }
 
-/** How far an upper run's fillers and end panels extend below the box. */
+/** How far a run's fillers and end panels extend below the box: to the doors. */
 export function panelDrop(run, style, settings) {
+  if (!isInsetStyle(style)) {
+    const below = belowRunReveal(run, settings);
+    if (below !== null) return Math.max(0, -below);
+  }
   if (run.cabinetTypeId !== UPPER || (run.upperBottom ?? 'overhang') !== 'overhang') return 0;
   if (!isInsetStyle(style)) return Math.max(0, -faceRevealsFor(UPPER, settings).bottom);
   return { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.upperDrop;

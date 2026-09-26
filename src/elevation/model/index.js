@@ -59,8 +59,11 @@ export {
   BOTTOM_PART_KINDS,
   BOTTOM_PART_LABELS,
   UNCOVERABLE_BOTTOM_PARTS,
+  belowRunReveal,
   createBottomPart,
   isBottomPart,
+  runBottomHeight,
+  runBottomParts,
 } from './bottoms.js';
 export { TOP_LABELS, defaultRunTop, isCountertop, runTop } from './tops.js';
 export {

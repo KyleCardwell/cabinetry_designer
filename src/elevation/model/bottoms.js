@@ -39,3 +39,37 @@ export function createBottomPart(kind, settings) {
   const heights = { ...DEFAULT_SETTINGS.bottomPartHeights, ...settings?.bottomPartHeights };
   return { id: uuid(), kind, height: heights[kind], doors: DEFAULT_DOORS[kind] };
 }
+
+/** The parts below a run, top to bottom, each with the z of its bottom edge. */
+export function runBottomParts(run) {
+  let top = run.z;
+  return (run.bottom ?? []).map((part) => {
+    top -= part.height;
+    return { ...part, z: top };
+  });
+}
+
+/** The total height of the parts below a run. */
+export function runBottomHeight(run) {
+  return (run.bottom ?? []).reduce((total, part) => total + part.height, 0);
+}
+
+/**
+ * REV-011: the bottom reveal the parts below a run give the cabinets at its bottom, or null for the
+ * standard reveal. Covered parts count from the top down to the first part the doors don't cover.
+ */
+export function belowRunReveal(run, settings) {
+  const parts = run.bottom ?? [];
+  let covered = 0;
+  for (const part of parts) {
+    if (part.doors !== 'cover') break;
+    covered += part.height;
+  }
+  if (covered > 0) {
+    return -covered + (settings.belowRunOverhang ?? DEFAULT_SETTINGS.belowRunOverhang);
+  }
+  if (parts[0]?.doors === 'flush') {
+    return settings.belowRunFlushReveal ?? DEFAULT_SETTINGS.belowRunFlushReveal;
+  }
+  return null;
+}
