@@ -35,7 +35,15 @@ import { validateRunPlacement, verticalStart } from './overlap.js';
 import { resolveProfile, resolveVertical } from './profile.js';
 import { stretchedStart } from './positions.js';
 import { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
-import { pruneStacks, resolveStacks, stackCreatesCycle } from './stacks.js';
+import {
+  STACK_EDGES,
+  outerBottom,
+  outerTop,
+  pruneStacks,
+  resolveStacks,
+  stackCreatesCycle,
+  stackLink,
+} from './stacks.js';
 import {
   profileUnderSoffit,
   resolveSoffitSpan,
@@ -802,6 +810,33 @@ export function joinStack(room, wallId, runId, edge, leaderRunId, settings) {
   return validation.ok
     ? { ok: true, reason: null, room: synced }
     : { ok: false, reason: validation.reason, room };
+}
+
+/** Stack a newly drawn run on the run whose top it touches and under the run whose bottom it touches. */
+export function joinTouchingStack(room, wallId, runId, settings) {
+  let current = syncRoom(room, settings);
+  const joined = [];
+  for (const edge of STACK_EDGES) {
+    const wall = current.walls.find((candidate) => candidate.id === wallId);
+    const run = wall?.runs.find((candidate) => candidate.id === runId);
+    if (!run) return { ok: false, reason: 'run-not-found', room, joined };
+    if (stackLink(run, edge)) continue;
+    const profile = resolveProfile(settings, current, wall);
+    const line = edge === 'below' ? outerBottom(run) : outerTop(wall, run, profile);
+    const leader = wall.runs.find((candidate) => candidate.id !== runId
+      && wallSideOf(candidate) === wallSideOf(run)
+      && Math.min(candidate.x + candidate.width, run.x + run.width)
+        - Math.max(candidate.x, run.x) > PIN_EPSILON
+      && Math.abs((edge === 'below' ? outerTop(wall, candidate, profile) : outerBottom(candidate))
+        - line) <= JOIN_EDGE_TOLERANCE);
+    if (!leader) continue;
+    const result = joinStack(current, wallId, runId, edge, leader.id, settings);
+    if (result.ok) {
+      current = result.room;
+      joined.push({ edge, runId: leader.id });
+    }
+  }
+  return { ok: true, reason: null, room: current, joined };
 }
 
 function runEdgeX(run, side) {

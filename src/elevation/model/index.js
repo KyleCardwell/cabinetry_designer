@@ -266,6 +266,7 @@ export {
   flipRunsForWall,
   joinEdges,
   joinStack,
+  joinTouchingStack,
   joinTouchingEdges,
   moveJoint,
   moveRun,

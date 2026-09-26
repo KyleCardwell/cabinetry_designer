@@ -70,6 +70,7 @@ import { partNumbers } from '../model/partNumbers.js';
 import { elevationLabel, nextWallId } from '../model/topology.js';
 import {
   joinTouchingEdges,
+  joinTouchingStack,
   endMinWidthsForRun,
   moveJoint,
   moveRun,
@@ -796,8 +797,9 @@ function ElevationCanvas({
     }
     dispatch(setMessage(null));
     const joinedPlacement = joinTouchingEdges(placement.room, wall.id, run.id, settings);
-    if (joinedPlacement.joined.length > 0) {
-      const resolvedWall = joinedPlacement.room.walls.find(
+    const stackedPlacement = joinTouchingStack(joinedPlacement.room, wall.id, run.id, settings);
+    if (joinedPlacement.joined.length > 0 || stackedPlacement.joined.length > 0) {
+      const resolvedWall = stackedPlacement.room.walls.find(
         (candidate) => candidate.id === wall.id,
       );
       dispatch(replaceWallLayout({
@@ -1278,7 +1280,7 @@ function ElevationCanvas({
 
   const handleRunSegmentClick = useCallback((segment) => {
     if (tool !== 'select' || segment.kind !== 'run') return;
-    if (selectionRef.current?.runId !== segment.runId) {
+    if (selectionRef.current?.runId !== segment.runId || selectionRef.current?.pieceId) {
       dispatch(setSelection({ runId: segment.runId, pieceId: null }));
       return;
     }

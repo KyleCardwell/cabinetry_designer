@@ -4,6 +4,7 @@ import { bandsCompatible, cornerAt } from './corners.js';
 import { clamp, wallFrame } from './geometry.js';
 import { gridFromItems } from './grid.js';
 import { landingsOn } from './landings.js';
+import { runsConflict } from './overlap.js';
 import {
   counterTop,
   moldingStack,
@@ -11,7 +12,9 @@ import {
 } from './profile.js';
 import { syncAutoItems } from './splitRun.js';
 import { soffitEndType, soffitsOn } from './soffits.js';
+import { outerBottom, outerTop } from './stacks.js';
 import { roundTo } from './units.js';
+import { wallSideOf } from './wallSides.js';
 
 /** Infer a run's cabinet type from its drawn vertical range. */
 export function inferRunType(bottomZ, topZ) {
@@ -80,6 +83,25 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
     cornerAt(room, wall, side),
   ])) : {};
   const heightMode = settings.snapHeightsToDefaults ? 'auto' : 'manual';
+  // A default box that hits a run it overlaps means the run was drawn into a gap: keep the
+  // drawn height, snapped to the top of the run below and the bottom of the run above.
+  const overlapping = (wall?.runs ?? []).filter((run) => (
+    wallSideOf(run) === (wall.side ?? 'front')
+    && Math.min(run.x + run.width, edges.right) - Math.max(run.x, edges.left) > 1e-6
+  ));
+  const inGap = heightMode === 'auto' && overlapping.some((run) => runsConflict(
+    run,
+    { ...typeDefaults, cabinetTypeId, x: edges.left, width: runWidth },
+  ));
+  const snapTo = (value, lines) => lines.reduce((best, line) => (
+    Math.abs(line - value) <= settings.cornerSnapDistance
+      && (best === null || Math.abs(line - value) < Math.abs(best - value))
+      ? line
+      : best
+  ), null);
+  const gapBottom = snapTo(bottomZ, overlapping.map((run) => outerTop(wall, run, profile)))
+    ?? roundTo(bottomZ, 0.5);
+  const gapTop = snapTo(topZ, overlapping.map(outerBottom)) ?? roundTo(topZ, 0.5);
   const runTop = heightMode === 'auto' ? typeDefaults.z + typeDefaults.height : topZ;
   const anchors = Object.fromEntries(['left', 'right'].map((side) => {
     const distance = side === 'left' ? Math.abs(edges.left) : Math.abs(length - edges.right);
@@ -124,13 +146,15 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
     else if (settings.autoEndPanelOnFreeEnd && !isAdjacent(side)) type = 'end_panel';
     return [side, { type, width: null }];
   }));
-  const geometry = heightMode === 'auto'
-    ? typeDefaults
-    : {
-        z: roundTo(bottomZ, 0.5),
-        height: roundTo(topZ - bottomZ, 0.5),
-        depth: typeDefaults.depth,
-      };
+  const geometry = inGap
+    ? { z: gapBottom, height: gapTop - gapBottom, depth: typeDefaults.depth }
+    : heightMode === 'auto'
+      ? typeDefaults
+      : {
+          z: roundTo(bottomZ, 0.5),
+          height: roundTo(topZ - bottomZ, 0.5),
+          depth: typeDefaults.depth,
+        };
 
   const id = uuid();
   const run = {
@@ -143,7 +167,7 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
     autoCount: true,
     maxCabinetWidth: null,
     grid: gridFromItems(id, []),
-    heightMode,
+    heightMode: inGap ? 'manual' : heightMode,
     overrides: {},
     anchors,
     wallSide: wall?.side ?? 'front',

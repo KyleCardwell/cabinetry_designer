@@ -2,7 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { pickColumnRuns, verticalChains } from '../dimensions.js';
 import { resolveProfile } from '../profile.js';
-import { joinStack, syncRoom } from '../room.js';
+import { createRun } from '../runDefaults.js';
+import {
+  joinStack,
+  joinTouchingStack,
+  syncRoom,
+  tryPlaceRun,
+} from '../room.js';
 import {
   describeStack,
   outerBottom,
@@ -162,5 +168,31 @@ describe('SPEC-35 stack chain', () => {
       ['toe-kick', 4], ['box', 30.5], ['countertop', 1.5], ['clearance', 16.5],
       ['bottom', 1.5], ['box', 36], ['molding', 6],
     ]);
+  });
+});
+
+describe('SPEC-35.1 drawing into a stack gap', () => {
+  it('draws into the gap between a countertop and a cap and stacks on both', () => {
+    const room = syncRoom(rawRoom([base(), upper()]), S);
+    const run = createRun({ x: 0, width: 60, bottomZ: 37, topZ: 51 }, { settings: S, room, wall: room.walls[0] });
+    expect(run).toMatchObject({ cabinetTypeId: UPPER, heightMode: 'manual', z: 36, height: 16.5 });
+    const placed = tryPlaceRun(room, 'A', run, S);
+    expect(placed.ok).toBe(true);
+    const result = joinTouchingStack(placed.room, 'A', run.id, S);
+    expect(result.joined).toEqual([{ edge: 'below', runId: 'B' }, { edge: 'above', runId: 'U' }]);
+    expect(runOf(result.room, run.id).stack).toEqual({ below: link('B'), above: link('U') });
+    expect(runOf(result.room, run.id)).toMatchObject({ z: 36, height: 16.5 });
+  });
+
+  it('leaves open-wall drawing alone and doesn\'t snap or stack from too far away', () => {
+    const open = syncRoom(rawRoom([base()]), S);
+    expect(createRun({ x: 70, width: 30, bottomZ: 50, topZ: 80 }, { settings: S, room: open, wall: open.walls[0] }))
+      .toMatchObject({ cabinetTypeId: UPPER, heightMode: 'auto', z: 54, height: 36 });
+
+    const room = syncRoom(rawRoom([base(), upper()]), S);
+    const loose = createRun({ x: 0, width: 60, bottomZ: 41, topZ: 47 }, { settings: S, room, wall: room.walls[0] });
+    expect(loose).toMatchObject({ heightMode: 'manual', z: 41, height: 6 });
+    const placed = tryPlaceRun(room, 'A', loose, S);
+    expect(joinTouchingStack(placed.room, 'A', loose.id, S).joined).toEqual([]);
   });
 });
