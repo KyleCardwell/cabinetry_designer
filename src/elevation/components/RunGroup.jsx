@@ -19,6 +19,7 @@ import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { endPieceBottom, resolveStyle } from '../model/styles.js';
 import { centerlineMarkers } from '../model/dimensions.js';
+import extendPieces from '../model/extensions.js';
 import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
 import { runTop } from '../model/tops.js';
@@ -131,7 +132,7 @@ function RunGroup({
     () => cells.pieces.flatMap((piece) => shelfParts(piece, settings)),
     [cells, settings],
   );
-  const drawnPieces = useMemo(() => cells.pieces.map((piece) => {
+  const drawnPieces = useMemo(() => extendPieces(cells.pieces.map((piece) => {
     const dropped = drop > 0
       && (piece.kind === 'filler' || piece.kind === 'end_panel')
       ? { ...piece, z: piece.z - drop, height: piece.height + drop }
@@ -139,7 +140,7 @@ function RunGroup({
     return panelPieceIds.has(piece.id)
       ? { ...dropped, kind: 'end_panel' }
       : dropped;
-  }), [cells, drop, panelPieceIds]);
+  }), run), [cells, drop, panelPieceIds, run]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),
     [room, settings, wall],
@@ -178,7 +179,8 @@ function RunGroup({
   }));
   const chipLines = endBottom.chip > 0
     ? drawnPieces
-      .filter((piece) => piece.kind === 'filler' || piece.kind === 'end_panel')
+      .filter((piece) => (piece.kind === 'filler' || piece.kind === 'end_panel')
+        && !piece.extend?.down)
       .map((piece) => {
         const from = wallToScreen({ x: piece.x, z: piece.z + endBottom.chip }, transform);
         const to = wallToScreen({ x: piece.x + piece.width, z: piece.z + endBottom.chip }, transform);

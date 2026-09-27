@@ -73,7 +73,8 @@ export default function PieceProperties({
       duplicate={numbers.warnings.some((warning) => warning.keys.includes(partKey))}
     />
   );
-  const endNotes = piece.kind === 'filler' || piece.kind === 'end_panel'
+  const endNotes = (piece.kind === 'filler' || piece.kind === 'end_panel')
+    && !piece.extend?.down
     ? endPieceNotes(piece.kind, endPieceBottom(run, resolveStyle(settings, room, run), settings))
     : [];
   const notesLine = endNotes.length > 0 ? (
