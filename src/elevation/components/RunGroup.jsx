@@ -15,6 +15,7 @@ import {
 import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
+import { frameRegions } from '../model/frames.js';
 import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { endPieceBottom, resolveStyle } from '../model/styles.js';
@@ -33,6 +34,7 @@ import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
 import CellChains from './CellChains.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
+import FrameOutline from './FrameOutline.jsx';
 import PieceRect from './PieceRect.jsx';
 
 const PANEL_LABELS = { side: 'Side', top: 'Top', back: 'Back' };
@@ -70,6 +72,16 @@ function RunGroup({
     () => runFaceLayouts(room, wall, run, settings, result),
     [result, room, run, settings, wall],
   );
+  const frames = useMemo(
+    () => frameRegions(room, run, cells, settings),
+    [cells, room, run, settings],
+  );
+  const framedIds = useMemo(() => new Set(frames.regions.flatMap((region) => [
+    ...region.cabinetIds, ...region.fillerIds, ...region.panelIds,
+  ])), [frames]);
+  const hiddenIds = useMemo(() => new Set(frames.regions.flatMap((region) => [
+    ...region.fillerIds, ...region.panelIds,
+  ])), [frames]);
   const blind = useMemo(
     () => blindEntries(room, wall, run, settings, result),
     [result, room, run, settings, wall],
@@ -180,7 +192,8 @@ function RunGroup({
   const chipLines = endBottom.chip > 0
     ? drawnPieces
       .filter((piece) => (piece.kind === 'filler' || piece.kind === 'end_panel')
-        && !piece.extend?.down)
+        && !piece.extend?.down
+        && !hiddenIds.has(piece.id))
       .map((piece) => {
         const from = wallToScreen({ x: piece.x, z: piece.z + endBottom.chip }, transform);
         const to = wallToScreen({ x: piece.x + piece.width, z: piece.z + endBottom.chip }, transform);
@@ -420,7 +433,7 @@ function RunGroup({
         />
       ))}
 
-      {drawnPieces.map((piece) => (
+      {drawnPieces.filter((piece) => !hiddenIds.has(piece.id)).map((piece) => (
         <PieceRect
           key={piece.id}
           piece={piece}
@@ -429,11 +442,20 @@ function RunGroup({
           error={hasErrors}
           selected={selectedPieceId === piece.id}
           subLabel={subLabels.get(piece.id) ?? null}
+          framed={framedIds.has(piece.id)}
           cornerFiller={!panelPieceIds.has(piece.id) && (piece.role === 'end-left'
             ? cornerFillers.left
             : piece.role === 'end-right' && cornerFillers.right)}
           onSelect={() => onSelectPiece(run.id, piece.id)}
           cursor={cursor}
+        />
+      ))}
+
+      {frames.regions.map((region) => (
+        <FrameOutline
+          key={region.id}
+          region={region}
+          transform={transform}
         />
       ))}
 
