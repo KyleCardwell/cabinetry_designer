@@ -1,5 +1,7 @@
 import { panelOrientation } from './cells.js';
+import { DEFAULT_SETTINGS } from './constants.js';
 import { wallLength } from './geometry.js';
+import { verticalStart } from './overlap.js';
 import { soffitsOn } from './soffits.js';
 import { wallSideOf } from './wallSides.js';
 
@@ -156,4 +158,47 @@ export function extendPieces(wall, run, pieces) {
     return extended.length > 0 ? { ...current, extended } : piece;
   });
   return { pieces: next, warnings };
+}
+
+/** The extended end piece on one side of a run, or null when that end does not extend. */
+export function extendedEndPiece(wall, run, side, settings = DEFAULT_SETTINGS) {
+  const end = run.ends?.[side];
+  if (!end?.extend || (end.type !== 'end_panel' && end.type !== 'filler')) return null;
+  const width = end.width ?? (end.type === 'end_panel'
+    ? settings.endPanelThickness
+    : settings.fillerMinWidth);
+  const z = verticalStart(run, settings);
+  const piece = {
+    id: `${run.id}:${side}`,
+    kind: end.type,
+    x: side === 'left' ? run.x : run.x + run.width - width,
+    z,
+    width,
+    height: run.z + run.height - z,
+    depth: run.depth,
+    extend: end.extend,
+  };
+  const extended = extendPieces(wall, run, [piece]).pieces[0];
+  return extended.extended ? extended : null;
+}
+
+/** Signed inset to an extended end piece's inside face when it reaches a follower's box. */
+export function followInset(wall, leader, follower, side, settings = DEFAULT_SETTINGS) {
+  const piece = extendedEndPiece(wall, leader, side, settings);
+  if (!piece) return 0;
+  const overlaps = piece.z < follower.z + follower.height - EPSILON
+    && piece.z + piece.height > follower.z + EPSILON;
+  if (!overlaps) return 0;
+  return side === 'left' ? piece.width : -piece.width;
+}
+
+/** Whether a same-edge follower's whole box height is covered by the leader's extension. */
+export function extensionCoversEnd(wall, run, side, settings = DEFAULT_SETTINGS) {
+  const anchor = run.anchors?.[side];
+  if (anchor?.side !== side) return false;
+  const leader = (wall.runs ?? []).find((candidate) => candidate.id === anchor.runId);
+  const piece = leader && extendedEndPiece(wall, leader, side, settings);
+  return !!piece
+    && piece.z <= run.z + EPSILON
+    && piece.z + piece.height >= run.z + run.height - EPSILON;
 }

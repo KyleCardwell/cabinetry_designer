@@ -349,8 +349,11 @@ export {
   EXTEND_DIRECTIONS,
   EXTEND_TARGETS,
   extendDirections,
+  extendedEndPiece,
   extendPieces,
+  extensionCoversEnd,
   extensionEdge,
+  followInset,
   isExtend,
   isExtendTarget,
 } from './extensions.js';

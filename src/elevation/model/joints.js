@@ -1,4 +1,5 @@
 import { CABINET_TYPE_IDS } from './constants.js';
+import { extensionCoversEnd } from './extensions.js';
 import { formatInches } from './units.js';
 import { wallSideOf } from './wallSides.js';
 
@@ -105,6 +106,10 @@ function endIsCovered(wall, run, side) {
   const anchor = run.anchors?.[side];
   const opposite = side === 'left' ? 'right' : 'left';
   const edge = runEdgeX(run, side);
+  if (isFollowAnchor(anchor) && anchor.offset === 0
+    && extensionCoversEnd(wall, run, side)) {
+    return true;
+  }
   const spans = (wall.runs ?? [])
     .filter((candidate) => candidate.id !== run.id
       && (isFollowAnchor(anchor)

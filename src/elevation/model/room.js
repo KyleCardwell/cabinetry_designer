@@ -9,7 +9,7 @@ import {
   cornerReserveParts,
   resolveHorizontal,
 } from './corners.js';
-import { extendPieces } from './extensions.js';
+import { extendPieces, followInset } from './extensions.js';
 import { findCollisions } from './footprints.js';
 import { cloneGrid, mirrorGrid, runItems } from './grid.js';
 import {
@@ -271,7 +271,12 @@ export function resolveRunAnchorDatum(room, wall, run, side, settings) {
     const leader = wall.runs.find((candidate) => candidate.id === anchor.runId);
     if (!leader) return { error: { code: 'anchor-run-missing', side } };
     const edge = anchor.side === 'left' ? leader.x : leader.x + leader.width;
-    return { x: jointEdgeX({ x: edge }, side, anchor.offset), type: 'follow', runId: anchor.runId };
+    const inset = side === anchor.side ? followInset(wall, leader, run, side, settings) : 0;
+    return {
+      x: jointEdgeX({ x: edge + inset }, side, anchor.offset),
+      type: 'follow',
+      runId: anchor.runId,
+    };
   }
   return { x: side === 'left' ? run.x : run.x + run.width, type: 'free' };
 }

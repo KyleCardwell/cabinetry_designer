@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { cellPieces } from '../cells.js';
 import { findLeaf, setGridCellKind, setGridLeafExtend, splitGridCell } from '../cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { extendDirections, extendPieces, isExtend } from '../extensions.js';
+import { extendDirections, extendedEndPiece, extendPieces, followInset, isExtend } from '../extensions.js';
 import { gridFromItems } from '../grid.js';
+import { jointEndTypes } from '../joints.js';
+import { resolveRunAnchorDatum } from '../room.js';
 import { splitRun } from '../splitRun.js';
 
 const S = DEFAULT_SETTINGS;
@@ -116,5 +118,38 @@ describe('SPEC-35.3 extending pieces', () => {
       ['extend-short', 'short', 'up'],
     ]);
     expect(pieces.some((piece) => piece.extended)).toBe(false);
+  });
+});
+
+describe('SPEC-35.3 followers stop at extensions', () => {
+  it('uses the inside face and suppresses an end when an extension covers the follower', () => {
+    const leader = {
+      id: 'P', cabinetTypeId: CABINET_TYPE_IDS.UPPER, x: 0, width: 60, z: 36, height: 48, depth: 12,
+      ends: {
+        left: { type: 'end_panel', width: null, extend: { down: { to: 'run', runId: 'B' } } },
+        right: { type: 'end_panel', width: null, extend: { down: { to: 'run', runId: 'B' } } },
+      },
+      anchors: { left: false, right: false },
+    };
+    const follower = {
+      id: 'B', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 0, width: 60, z: 4, height: 30.5, depth: 24,
+      ends: {
+        left: { type: 'end_panel', width: null },
+        right: { type: 'end_panel', width: null },
+      },
+      anchors: {
+        left: { to: 'follow', runId: 'P', side: 'left', offset: 0 },
+        right: { to: 'follow', runId: 'P', side: 'right', offset: 0 },
+      },
+    };
+    const wall = { id: 'A', x1: 0, y1: 0, x2: 96, y2: 0, height: 96, runs: [leader, follower] };
+
+    expect(extendedEndPiece(wall, leader, 'left')).toMatchObject({ x: 0, z: 4, width: 0.75, height: 80 });
+    expect(followInset(wall, leader, follower, 'left')).toBe(0.75);
+    expect(resolveRunAnchorDatum({ walls: [wall] }, wall, follower, 'left', S).x).toBe(0.75);
+    expect(extendedEndPiece(wall, leader, 'right')).toMatchObject({ x: 59.25, z: 4, width: 0.75, height: 80 });
+    expect(followInset(wall, leader, follower, 'right')).toBe(-0.75);
+    expect(resolveRunAnchorDatum({ walls: [wall] }, wall, follower, 'right', S).x).toBe(59.25);
+    expect(jointEndTypes(wall).get('B')).toEqual({ left: 'none', right: 'none' });
   });
 });
