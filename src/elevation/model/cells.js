@@ -94,6 +94,7 @@ function resolveGrid(grid, piece, rectangle, depth, grids) {
       ...(cell.node.doors ? { doors: cell.node.doors } : {}),
       ...(cell.node.blind ? { blind: { ...cell.node.blind } } : {}),
       ...(cell.node.shelves ? { shelves: { ...cell.node.shelves } } : {}),
+      ...(cell.node.extend ? { extend: cell.node.extend } : {}),
     });
   }
 

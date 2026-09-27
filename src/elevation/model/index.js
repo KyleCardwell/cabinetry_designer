@@ -321,6 +321,7 @@ export {
   removeGridCell,
   setGridCellDepth,
   setGridCellKind,
+  setGridLeafExtend,
   setGridPanelDoors,
   setGridPanelType,
   setGridShelves,
@@ -344,3 +345,10 @@ export {
   shelfParts,
   stackedSides,
 } from './cells.js';
+export {
+  EXTEND_DIRECTIONS,
+  EXTEND_TARGETS,
+  extendDirections,
+  isExtend,
+  isExtendTarget,
+} from './extensions.js';

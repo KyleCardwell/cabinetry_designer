@@ -1,5 +1,6 @@
 import { insertRootColumn, isNestedGrid, rehomeBlind, removeRootColumn, replaceRootItems,
   rootItems } from './grid.js';
+import { EXTEND_DIRECTIONS, isExtendTarget } from './extensions.js';
 
 /** Maximum number of cells created by one split. */
 export const MAX_CELL_SPLIT = 8;
@@ -437,5 +438,23 @@ export function setGridPanelDoors(grid, leafId, doors) {
   const next = { ...leaf };
   if (doors === 'cover') next.doors = 'cover';
   else delete next.doors;
+  return replaceLeaf(grid, found, next);
+}
+
+/** Sets one direction of a panel's or filler's extension, or clears it (target null). SPEC-35.3. */
+export function setGridLeafExtend(grid, leafId, direction, target) {
+  const found = locate(grid, leafId);
+  if (!found || isNestedGrid(found.cell.node)) return grid;
+  const leaf = found.cell.node;
+  if (leaf.kind !== 'panel' && leaf.kind !== 'filler') return grid;
+  if (!EXTEND_DIRECTIONS.includes(direction)) return grid;
+  if (target !== null && !isExtendTarget(direction, target)) return grid;
+  if (target === null && !leaf.extend?.[direction]) return grid;
+  const extend = { ...leaf.extend };
+  if (target === null) delete extend[direction];
+  else extend[direction] = { ...target };
+  const next = { ...leaf };
+  if (Object.keys(extend).length > 0) next.extend = extend;
+  else delete next.extend;
   return replaceLeaf(grid, found, next);
 }

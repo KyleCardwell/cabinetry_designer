@@ -20,6 +20,7 @@ function itemExtras(item) {
     ...(item.align !== undefined ? { align: item.align } : {}),
     ...(item.doors !== undefined ? { doors: item.doors } : {}),
     ...(item.shelves !== undefined ? { shelves: { ...item.shelves } } : {}),
+    ...(item.extend !== undefined ? { extend: item.extend } : {}),
   };
 }
 
@@ -226,6 +227,7 @@ function splitRunLegacy(run, settings, opts) {
         : CABINET_TYPE_IDS.END_PANEL,
       width,
       auto: isFlexEnd(end),
+      ...(end.extend ? { extend: end.extend } : {}),
     };
     const cornerAngle = opts?.endCornerAngles?.[side];
     if (isFlexEnd(end)

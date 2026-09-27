@@ -1012,3 +1012,36 @@ describe('SPEC-35 run shape', () => {
     });
   });
 });
+
+describe('SPEC-35.3 extensions shape', () => {
+  const withRun = (changes) => {
+    const document = currentDocument();
+    Object.assign(document.rooms[0].walls[0].runs[0], changes);
+    return document;
+  };
+  const endWith = (extend) => ({
+    left: { type: 'end_panel', width: null, extend },
+    right: { type: 'filler', width: null },
+  });
+  const gridWith = (item) => gridFromItems('a', [item, { id: 'a-cab', kind: 'cabinet', width: null }]);
+
+  it('saves extensions on ends, panels and fillers, and rejects bad ones', () => {
+    expect(isElevationDocument(withRun({ ends: endWith({ down: { to: 'floor' } }) }))).toBe(true);
+    expect(isElevationDocument(withRun({ ends: endWith({ down: { to: 'ceiling' } }) }))).toBe(false);
+    expect(isElevationDocument(withRun({ ends: endWith({}) }))).toBe(false);
+    expect(isElevationDocument(withRun({
+      grid: gridWith({ id: 'p', kind: 'panel', width: 0.75, extend: { up: { to: 'ceiling' } } }),
+    }))).toBe(true);
+    expect(isElevationDocument(withRun({
+      grid: gridWith({ id: 'f', kind: 'filler', width: 3, extend: { down: { to: 'by', amount: 4 } } }),
+    }))).toBe(true);
+    expect(isElevationDocument(withRun({
+      grid: gridWith({ id: 'f', kind: 'filler', width: 3, extend: { down: { to: 'by', amount: -4 } } }),
+    }))).toBe(false);
+    expect(isElevationDocument(withRun({
+      grid: gridWith({
+        id: 's', kind: 'shelves', width: 30, shelves: { count: 2, back: false }, extend: { up: { to: 'ceiling' } },
+      }),
+    }))).toBe(false);
+  });
+});

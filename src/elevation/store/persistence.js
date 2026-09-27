@@ -7,6 +7,7 @@ import { isBottomPart } from '../model/bottoms.js';
 import { isFaceNode } from '../model/faces.js';
 import { MAX_SHELVES } from '../model/cellTree.js';
 import { LEAF_KINDS, isGridShape, rootItems } from '../model/grid.js';
+import { isExtend } from '../model/extensions.js';
 import {
   REVEAL_KEYS,
   RUN_TOP_OPTIONS,
@@ -29,7 +30,7 @@ const ITEM_KINDS = new Set(['cabinet', 'filler']);
 const LEAF_KIND_SET = new Set(LEAF_KINDS);
 /** Keys each non-cabinet cell kind may carry. */
 const CELL_KIND_KEYS = {
-  panel: ['id', 'kind', 'depth', 'align', 'doors'],
+  panel: ['id', 'kind', 'depth', 'align', 'doors', 'extend'],
   void: ['id', 'kind'],
   shelves: ['id', 'kind', 'depth', 'align', 'shelves'],
 };
@@ -105,7 +106,8 @@ function isEnd(end) {
   return Boolean(end)
     && END_TYPES.has(end.type)
     && (end.width === null || isFiniteNumber(end.width))
-    && (end.auto === undefined || typeof end.auto === 'boolean');
+    && (end.auto === undefined || typeof end.auto === 'boolean')
+    && isExtend(end.extend);
 }
 
 function isItemPin(pin) {
@@ -275,6 +277,7 @@ function isCellLeaf(leaf) {
       || leaf.doors === undefined
       || leaf.doors === 'cover'
       || leaf.doors === 'flush')
+    && (leaf.kind !== 'panel' || isExtend(leaf.extend))
     && (leaf.kind !== 'shelves' || isShelves(leaf.shelves));
 }
 
@@ -290,7 +293,9 @@ function isCellGrid(grid) {
 
 /** SPEC-34.1: a top-level column may be a cabinet, a filler, or any cell kind. */
 function isRootItem(item) {
-  if (item.kind === 'filler') return isItem(item) && item.depth === undefined && item.align === undefined;
+  if (item.kind === 'filler') {
+    return isItem(item) && item.depth === undefined && item.align === undefined && isExtend(item.extend);
+  }
   if (item.kind === 'cabinet') return isItem(item) && isCellDepth(item);
   const { width, ...leaf } = item;
   return (width === null || (isFiniteNumber(width) && width > 0)) && isCellLeaf(leaf);
