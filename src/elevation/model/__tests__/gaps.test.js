@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { cellPieces, gapReach, stackedSides } from '../cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { gridFromItems, replaceRootItems, rootItems, updateRootItem } from '../grid.js';
 import { syncRoom } from '../room.js';
@@ -15,6 +16,15 @@ const makeRun = (overrides = {}) => ({
   ...overrides,
 });
 const withItems = (items, overrides = {}) => makeRun({ grid: gridFromItems('r', items), ...overrides });
+const cell = (col, row, node) => ({ col, row, colSpan: 1, rowSpan: 1, node });
+const nestedRun = (node, overrides = {}) => makeRun({
+  width: 36.5, z: 0, height: 60,
+  grid: {
+    id: 'r:grid', cols: [{ id: `${node.id}:col`, size: null, sizeMode: 'auto' }],
+    rows: [{ id: 'r:row', size: null, sizeMode: 'auto' }], cells: [cell(0, 0, node)],
+  },
+  ...overrides,
+});
 
 function roomWith(run, style) {
   return {
@@ -79,5 +89,44 @@ describe('SPEC-36 root gaps', () => {
     const run = withItems([cab('a'), cab('b', 20, { pin }), cab('c')], { width: 60, _seamGap: 0.5 });
     expect(at(splitRun(run, S, { pinTargets: { b: 25 } })))
       .toEqual([['a', 0, 24.5], ['b', 25, 20], ['c', 45.5, 14.5]]);
+  });
+});
+
+describe('SPEC-36 nested gaps', () => {
+  const SIDE_BY_SIDE = {
+    id: 'n',
+    cols: [{ id: 'n:a', size: null, sizeMode: 'auto' }, { id: 'n:b', size: null, sizeMode: 'auto' }],
+    rows: [{ id: 'n:r', size: null, sizeMode: 'auto' }],
+    cells: [cell(0, 0, { id: 'x', kind: 'cabinet' }), cell(1, 0, { id: 'y', kind: 'cabinet' })],
+  };
+
+  it('leaves the seam gap between side-by-side cabinet cells', () => {
+    const run = nestedRun(SIDE_BY_SIDE, { _seamGap: 0.5 });
+    const cells = cellPieces(run, splitRun(run, S));
+    expect(cells.pieces.map(({ id, x, width }) => [id, x, width])).toEqual([['x', 0, 18], ['y', 18.5, 18]]);
+    expect(cells.gaps).toEqual([{ x: 18, z: 0, width: 0.5, height: 60 }]);
+    expect(cells.grids[0].tracks.map(({ start, end }) => [start, end])).toEqual([[0, 18], [18.5, 36.5]]);
+
+    const panel = { ...SIDE_BY_SIDE, cells: [SIDE_BY_SIDE.cells[0], cell(1, 0, { id: 'y', kind: 'panel' })] };
+    const panelRun = nestedRun(panel, { _seamGap: 0.5 });
+    expect(cellPieces(panelRun, splitRun(panelRun, S)).gaps).toEqual([]);
+  });
+
+  it('stacks across a row gap and reports gaps between top-level pieces', () => {
+    const stack = {
+      id: 'm',
+      cols: [{ id: 'm:c', size: null, sizeMode: 'auto' }],
+      rows: [{ id: 'm:t', size: null, sizeMode: 'auto', gap: 1 }, { id: 'm:b', size: 30, sizeMode: 'manual' }],
+      cells: [cell(0, 0, { id: 't', kind: 'cabinet' }), cell(0, 1, { id: 'b', kind: 'cabinet' })],
+    };
+    const run = nestedRun(stack, { width: 20 });
+    const cells = cellPieces(run, splitRun(run, S));
+    expect(cells.pieces.map(({ id, z, height }) => [id, z, height])).toEqual([['b', 0, 30], ['t', 31, 29]]);
+    expect(cells.gaps).toEqual([{ x: 0, z: 30, width: 20, height: 1 }]);
+    expect(stackedSides(cells.pieces, 'b')).toEqual({ top: false, bottom: false });
+    expect(stackedSides(cells.pieces, 'b', gapReach(cells.gaps))).toEqual({ top: true, bottom: false });
+
+    const root = withItems([cab('a'), cab('b')], { width: 36.5, _seamGap: 0.5 });
+    expect(cellPieces(root, splitRun(root, S)).gaps).toEqual([{ x: 18, z: 4, width: 0.5, height: 30.5 }]);
   });
 });

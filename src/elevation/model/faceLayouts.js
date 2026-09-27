@@ -1,5 +1,5 @@
 import { captureSides } from './capture.js';
-import { cellCaptureSides, cellPieces, coveredSides, hingeStops, stackedSides } from './cells.js';
+import { cellCaptureSides, cellPieces, coveredSides, gapReach, hingeStops, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { applyHinges, cabinetFaces, defaultFace } from './faces.js';
@@ -62,7 +62,7 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
       run,
       face,
       captured,
-      stacked: stackedSides(cells.pieces, piece.id),
+      stacked: stackedSides(cells.pieces, piece.id, gapReach(cells.gaps)),
       covered: pairCovers ? { ...covered, left: 0, right: 0 } : covered,
       runEdges,
       manual: item?.reveals ?? null,

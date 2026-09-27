@@ -338,6 +338,7 @@ export {
   cellDepth,
   cellPieces,
   coveredSides,
+  gapReach,
   hingeStops,
   MIN_CELL_SIZE,
   panelOrientation,
@@ -345,6 +346,7 @@ export {
   resolveTracks,
   shelfParts,
   stackedSides,
+  trackGaps,
 } from './cells.js';
 export {
   EXTEND_DIRECTIONS,
