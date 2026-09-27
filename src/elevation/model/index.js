@@ -326,6 +326,7 @@ export {
   setGridPanelDoors,
   setGridPanelType,
   setGridShelves,
+  setGridTrackGap,
   setGridTrackSize,
   splitGridCell,
   unsplitGridCell,

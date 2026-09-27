@@ -63,6 +63,7 @@ import elevationReducer, {
   setRoomPartNumberStart,
   setRunFaceOptions,
   setRunBottom,
+  setRunSeamGap,
   setRunStyle,
   setActiveWall,
   setActiveWallSide,
@@ -78,6 +79,7 @@ import elevationReducer, {
   setSoffitAnchor,
   setTool,
   setTrackSize,
+  setTrackGap,
   setView,
   setWallEndPanel,
   setWallLanding,
@@ -2390,5 +2392,35 @@ describe('SPEC-35.3 extension reducers', () => {
     }));
     expect(gridLeaves(currentRun(state).grid).find(({ id }) => id === 'panel').extend)
       .toBeUndefined();
+  });
+});
+
+describe('SPEC-36 gap reducers', () => {
+  const actionBase = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
+  const NONE = { type: 'none', width: null };
+
+  it('sets and clears the run seam gap and track gaps, and a beaded style sets the default', () => {
+    let state = stateWithRun(run({
+      autoCount: false, width: 36.5, ends: { left: NONE, right: NONE }, items: [auto('a'), auto('b')],
+    }));
+    state = elevationReducer(state, setRunSeamGap({ ...actionBase, gap: 0.5 }));
+    expect(currentRun(state)).toMatchObject({ seamGap: 0.5, _seamGap: 0.5 });
+    expect(elevationReducer(state, setRunSeamGap({ ...actionBase, gap: -1 }))).toBe(state);
+    expect(elevationReducer(state, setRunSeamGap({ ...actionBase, gap: 0.5 }))).toBe(state);
+
+    state = elevationReducer(state, setTrackGap({ ...actionBase, trackId: 'a:col', gap: 1 }));
+    expect(currentRun(state).grid.cols[0].gap).toBe(1);
+    expect(elevationReducer(state, setTrackGap({ ...actionBase, trackId: 'nope', gap: 1 }))).toBe(state);
+    state = elevationReducer(state, setTrackGap({ ...actionBase, trackId: 'a:col', gap: null }));
+    expect('gap' in currentRun(state).grid.cols[0]).toBe(false);
+
+    state = elevationReducer(state, setRunSeamGap({ ...actionBase, gap: null }));
+    expect('seamGap' in currentRun(state)).toBe(false);
+    expect('_seamGap' in currentRun(state)).toBe(false);
+
+    state = elevationReducer(state, setRoomStyle({ roomId: 'room-1', style: { cabinetStyleId: 15 } }));
+    expect(currentRun(state)._seamGap).toBe(0.5);
+    state = elevationReducer(state, setRunStyle({ ...actionBase, style: { cabinetStyleId: 13 } }));
+    expect('_seamGap' in currentRun(state)).toBe(false);
   });
 });

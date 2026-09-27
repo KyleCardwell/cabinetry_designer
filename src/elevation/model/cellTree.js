@@ -458,3 +458,45 @@ export function setGridLeafExtend(grid, leafId, direction, target) {
   else delete next.extend;
   return replaceLeaf(grid, found, next);
 }
+
+function updateTrack(grid, trackId, update) {
+  function visit(node) {
+    for (const key of ['cols', 'rows']) {
+      const index = node[key].findIndex((track) => track.id === trackId);
+      if (index >= 0) {
+        const track = update(node[key][index]);
+        if (track === node[key][index]) return [node, true];
+        const tracks = [...node[key]];
+        tracks[index] = track;
+        return [{ ...node, [key]: tracks }, true];
+      }
+    }
+    for (let index = 0; index < node.cells.length; index += 1) {
+      const cell = node.cells[index];
+      if (!isNestedGrid(cell.node)) continue;
+      const [child, found] = visit(cell.node);
+      if (!found) continue;
+      if (child === cell.node) return [node, true];
+      const cells = [...node.cells];
+      cells[index] = { ...cell, node: child };
+      return [{ ...node, cells }, true];
+    }
+    return [node, false];
+  }
+  const [next, found] = visit(grid);
+  return found ? next : grid;
+}
+
+/** Sets the gap after any root or nested track (SPEC-36), or clears it (null). */
+export function setGridTrackGap(grid, trackId, gap) {
+  if (gap !== null && !(typeof gap === 'number' && Number.isFinite(gap) && gap >= 0)) return grid;
+  return updateTrack(grid, trackId, (track) => {
+    if (gap === null) {
+      if (track.gap === undefined) return track;
+      const next = { ...track };
+      delete next.gap;
+      return next;
+    }
+    return Object.is(track.gap, gap) ? track : { ...track, gap };
+  });
+}

@@ -26,6 +26,7 @@ import {
   setGridPanelDoors,
   setGridPanelType,
   setGridShelves,
+  setGridTrackGap,
   setGridTrackSize,
   splitGridCell,
   unsplitGridCell,
@@ -1177,6 +1178,20 @@ const elevationSlice = createSlice({
         ?? null;
       syncRoomAt(state, location.roomIndex);
     },
+    setRunSeamGap(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { gap = null } = action.payload;
+      if (gap !== null && !(Number.isFinite(gap) && gap >= 0)) return;
+      if (gap === null) {
+        if (location.run.seamGap === undefined) return;
+        delete location.run.seamGap;
+      } else {
+        if (location.run.seamGap === gap) return;
+        location.run.seamGap = gap;
+      }
+      syncRoomAt(state, location.roomIndex);
+    },
     setItemWidth(state, action) {
       const location = runLocation(state, action.payload);
       if (!location) return;
@@ -1364,6 +1379,16 @@ const elevationSlice = createSlice({
       const { trackId, size } = action.payload;
       const before = location.run.grid;
       const grid = setGridTrackSize(before, trackId, size ?? null);
+      if (grid === before) return;
+      location.run.grid = grid;
+      syncRoomAt(state, location.roomIndex);
+    },
+    setTrackGap(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { trackId, gap = null } = action.payload;
+      const before = location.run.grid;
+      const grid = setGridTrackGap(before, trackId, gap);
       if (grid === before) return;
       location.run.grid = grid;
       syncRoomAt(state, location.roomIndex);
@@ -1685,6 +1710,7 @@ export const {
   setRunEndFiller,
   setAutoCount,
   setMaxCabinetWidth,
+  setRunSeamGap,
   setItemWidth,
   setItemPin,
   setItemAbsorb,
@@ -1698,6 +1724,7 @@ export const {
   equalizeCells,
   unsplitCell,
   setTrackSize,
+  setTrackGap,
   setCellBlind,
   setCellKind,
   setCellDepth,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { setGridTrackGap } from '../cellTree.js';
 import { cellPieces, gapReach, stackedSides } from '../cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { gridFromItems, replaceRootItems, rootItems, updateRootItem } from '../grid.js';
@@ -128,5 +129,25 @@ describe('SPEC-36 nested gaps', () => {
 
     const root = withItems([cab('a'), cab('b')], { width: 36.5, _seamGap: 0.5 });
     expect(cellPieces(root, splitRun(root, S)).gaps).toEqual([{ x: 18, z: 4, width: 0.5, height: 30.5 }]);
+  });
+});
+
+describe('SPEC-36 track gap edits', () => {
+  it('sets and clears a gap on any track', () => {
+    const node = {
+      id: 'n',
+      cols: [{ id: 'n:a', size: null, sizeMode: 'auto' }, { id: 'n:b', size: null, sizeMode: 'auto' }],
+      rows: [{ id: 'n:r', size: null, sizeMode: 'auto' }],
+      cells: [cell(0, 0, { id: 'x', kind: 'cabinet' }), cell(1, 0, { id: 'y', kind: 'cabinet' })],
+    };
+    const { grid } = nestedRun(node);
+    const set = setGridTrackGap(grid, 'n:a', 0.25);
+    expect(set.cells[0].node.cols[0]).toEqual({ id: 'n:a', size: null, sizeMode: 'auto', gap: 0.25 });
+    expect(setGridTrackGap(set, 'n:a', 0.25)).toBe(set);
+    expect(setGridTrackGap(set, 'n:a', null)).toEqual(grid);
+    expect(setGridTrackGap(grid, 'n:a', null)).toBe(grid);
+    expect(setGridTrackGap(grid, 'n:a', -1)).toBe(grid);
+    expect(setGridTrackGap(grid, 'nope', 1)).toBe(grid);
+    expect(setGridTrackGap(grid, 'n:col', 0).cols[0].gap).toBe(0);
   });
 });
