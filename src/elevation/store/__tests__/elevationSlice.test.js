@@ -43,6 +43,7 @@ import elevationReducer, {
   resizeRun,
   setCellBlind,
   setCellDepth,
+  setCellExtend,
   setCellKind,
   setCellShelves,
   setOpeningMeasureMode,
@@ -72,6 +73,7 @@ import elevationReducer, {
   setRunJointOffset,
   setRunStackOffset,
   setRunEnd,
+  setRunEndExtend,
   setSelection,
   setSoffitAnchor,
   setTool,
@@ -2324,5 +2326,69 @@ describe('SPEC-34.1 panel reducers', () => {
     expect(elevationReducer(state, setPanelDoors({ ...actionBase, cellId: 'a', doors: 'x' }))).toBe(state);
     state = elevationReducer(state, setPanelDoors({ ...actionBase, cellId: 'a', doors: 'flush' }));
     expect(leafOf(state, 'a')).toEqual({ id: 'a', kind: 'panel' });
+  });
+});
+
+describe('SPEC-35.3 extension reducers', () => {
+  it('sets and clears run-end and panel or filler extensions', () => {
+    let state = stateWithRun(run({
+      items: [
+        { ...fixed('panel', 0.75), kind: 'panel' },
+        { ...auto('filler'), kind: 'filler' },
+      ],
+      ends: {
+        left: { type: 'end_panel', width: 0.75 },
+        right: { type: 'none', width: 0 },
+      },
+    }));
+    const actionBase = {
+      roomId: state.rooms[0].id,
+      wallId: state.rooms[0].walls[0].id,
+      runId: currentRun(state).id,
+    };
+    const target = { to: 'run', runId: 'other-run' };
+    state = elevationReducer(state, setRunEndExtend({
+      ...actionBase,
+      side: 'left',
+      direction: 'up',
+      target,
+    }));
+    expect(currentRun(state).ends.left.extend).toEqual({ up: target });
+    state = elevationReducer(state, setRunEnd({
+      ...actionBase,
+      side: 'left',
+      end: { type: 'filler', width: 2 },
+    }));
+    expect(currentRun(state).ends.left.extend).toEqual({ up: target });
+    expect(elevationReducer(state, setRunEndExtend({
+      ...actionBase,
+      side: 'right',
+      direction: 'up',
+      target,
+    }))).toBe(state);
+    state = elevationReducer(state, setRunEndExtend({
+      ...actionBase,
+      side: 'left',
+      direction: 'up',
+      target: null,
+    }));
+    expect(currentRun(state).ends.left.extend).toBeUndefined();
+
+    state = elevationReducer(state, setCellExtend({
+      ...actionBase,
+      cellId: 'panel',
+      direction: 'down',
+      target,
+    }));
+    expect(gridLeaves(currentRun(state).grid).find(({ id }) => id === 'panel').extend)
+      .toEqual({ down: target });
+    state = elevationReducer(state, setCellExtend({
+      ...actionBase,
+      cellId: 'panel',
+      direction: 'down',
+      target: null,
+    }));
+    expect(gridLeaves(currentRun(state).grid).find(({ id }) => id === 'panel').extend)
+      .toBeUndefined();
   });
 });

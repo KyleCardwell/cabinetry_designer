@@ -3,6 +3,7 @@ import { v4 as uuid } from 'uuid';
 import { isBottomPart } from '../model/bottoms.js';
 import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
+import { isExtendTarget } from '../model/extensions.js';
 import { wallFrame } from '../model/geometry.js';
 import {
   gridLeaves,
@@ -21,6 +22,7 @@ import {
   removeGridCell,
   setGridCellDepth,
   setGridCellKind,
+  setGridLeafExtend,
   setGridPanelDoors,
   setGridPanelType,
   setGridShelves,
@@ -936,7 +938,9 @@ const elevationSlice = createSlice({
         type: action.payload.type,
         width: action.payload.width,
       };
-      location.run.ends[side] = { type: end.type, width: end.width };
+      location.run.ends[side] = end.type === 'none'
+        ? { type: end.type, width: end.width }
+        : { ...location.run.ends[side], type: end.type, width: end.width };
       if (end.type !== 'blind') location.run.grid = setGridBlind(location.run.grid, side, null);
       if (end.type === 'none' || end.type === 'end_panel') {
         if (location.run.endFiller) location.run.endFiller[side] = null;
@@ -1462,6 +1466,33 @@ const elevationSlice = createSlice({
       location.run.grid = grid;
       syncRoomAt(state, location.roomIndex);
     },
+    setRunEndExtend(state, action) {
+      const location = runLocation(state, action.payload);
+      const { side, direction, target = null } = action.payload;
+      if (!location || (side !== 'left' && side !== 'right')) return;
+      if (direction !== 'up' && direction !== 'down') return;
+      if (target !== null && !isExtendTarget(direction, target)) return;
+      const end = location.run.ends[side];
+      if (!end || end.type === 'none') return;
+      if (target === null) {
+        if (!end.extend?.[direction]) return;
+        delete end.extend[direction];
+        if (!end.extend.up && !end.extend.down) delete end.extend;
+      } else {
+        end.extend = { ...(end.extend ?? {}), [direction]: target };
+      }
+      syncRoomAt(state, location.roomIndex);
+    },
+    setCellExtend(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { cellId, direction, target = null } = action.payload;
+      const before = location.run.grid;
+      const grid = setGridLeafExtend(before, cellId, direction, target);
+      if (grid === before) return;
+      location.run.grid = grid;
+      syncRoomAt(state, location.roomIndex);
+    },
     setItemFace(state, action) {
       const location = runLocation(state, action.payload);
       if (!location) return;
@@ -1673,6 +1704,8 @@ export const {
   setPanelType,
   addPanel,
   setPanelDoors,
+  setRunEndExtend,
+  setCellExtend,
   setItemFace,
   setRoomStyle,
   setRunStyle,
