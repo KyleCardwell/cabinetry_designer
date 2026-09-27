@@ -408,3 +408,18 @@ describe('SPEC-34 kind part numbers', () => {
     ]);
   });
 });
+
+describe('SPEC-36 frame fillers', () => {
+  it('numbers no filler inside a face frame', () => {
+    const roomOf = (style) => syncRoom({
+      id: 'F', name: 'Room F', profile: { ...DEFAULT_SETTINGS.defaultProfile }, wallOrder: ['A'],
+      ...(style ? { style } : {}),
+      walls: [makeWall('A', 0, 0, 120, 0, { height: 96, runs: [aBase()] })],
+    }, DEFAULT_SETTINGS);
+    const keys = (room) => partNumbers(room, DEFAULT_SETTINGS).parts
+      .filter((part) => part.runId === 'A-base')
+      .map((part) => part.key);
+    expect(keys(roomOf())).toEqual(['A-base:left', 'a1', 'a2', 'A-base:right']);
+    expect(keys(roomOf({ cabinetStyleId: 14 }))).toEqual(['A-base:left', 'a1', 'a2']);
+  });
+});

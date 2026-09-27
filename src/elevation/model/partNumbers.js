@@ -1,6 +1,7 @@
 import { CABINET_TYPE_IDS } from './constants.js';
 import { blindEntries, blindPartWidths } from './blind.js';
 import { blindCellWidths, cellPieces, partPieces } from './cells.js';
+import { frameRegions } from './frames.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
 import {
@@ -59,11 +60,15 @@ function runParts(room, wall, side, settings) {
     });
     const widths = blindPartWidths(room, view, run, settings, layout);
     const cells = cellPieces(run, layout);
-    const cellWidths = blindCellWidths(
-      cells.pieces, layout.pieces, blindEntries(room, view, run, settings, layout).entries,
-    );
+    const entries = blindEntries(room, view, run, settings, layout).entries;
+    const cellWidths = blindCellWidths(cells.pieces, layout.pieces, entries);
+    const blindPanels = new Set(entries
+      .filter((entry) => entry.panel && entry.endPieceId)
+      .map((entry) => entry.endPieceId));
+    const inFrame = frameRegions(room, run, cells, settings).fillerIds;
     return partPieces(cells.pieces, settings)
-      .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6)
+      .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6
+        && (!inFrame.has(piece.id) || blindPanels.has(piece.id)))
       .map((piece) => ({
         key: piece.id,
         kind: piece.kind,
@@ -207,15 +212,24 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
  * @returns {{key: string, lift: number, pieces: object[]}[]}
  */
 export function wallBadgeGroups(room, wall, settings) {
-  const groups = wall.runs.map((run) => ({
-    key: `run:${run.id}`,
-    lift: 0,
-    pieces: partPieces(cellPieces(run, splitRun(run, settings, {
+  const groups = wall.runs.map((run) => {
+    const layout = splitRun(run, settings, {
       endMinWidths: endMinWidthsForRun(room, wall, run, settings),
       endCornerAngles: endCornerAnglesForRun(room, wall, run),
       pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
-    })).pieces, settings),
-  })).filter((group) => group.pieces.length > 0);
+    });
+    const cells = cellPieces(run, layout);
+    const frames = frameRegions(room, run, cells, settings);
+    const covered = new Set(frames.regions.flatMap((region) => [
+      ...region.fillerIds,
+      ...region.panelIds,
+    ]));
+    return {
+      key: `run:${run.id}`,
+      lift: 0,
+      pieces: partPieces(cells.pieces, settings).filter((piece) => !covered.has(piece.id)),
+    };
+  }).filter((group) => group.pieces.length > 0);
 
   for (const panel of wallEndPanels(room, wall, settings)) {
     const side = panel[wall.side ?? 'front'];

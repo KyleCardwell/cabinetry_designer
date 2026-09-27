@@ -1,6 +1,9 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { runBottomParts } from './bottoms.js';
+import { cellPieces } from './cells.js';
 import { cornerAt } from './corners.js';
+import { runFaceLayouts } from './faceLayouts.js';
+import { frameRegions } from './frames.js';
 import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { landingsOn } from './landings.js';
@@ -167,6 +170,74 @@ export function openingClearances(room, wall, settings) {
   });
 }
 
+/** A face frame region along its bottom row of openings: frame | opening | frame … (SPEC-36). */
+function regionSegments(region, pieces, faceLayouts, runId) {
+  const boxes = pieces.filter((piece) => region.cabinetIds.includes(piece.id));
+  const bottom = Math.min(...boxes.map((piece) => piece.z));
+  const openings = boxes
+    .filter((piece) => Math.abs(piece.z - bottom) <= SEGMENT_EPSILON)
+    .flatMap((piece) => {
+      const own = faceLayouts.get(piece.id)?.openings ?? [];
+      const low = Math.min(...own.map((opening) => opening.z));
+      return own
+        .filter((opening) => Math.abs(opening.z - low) <= SEGMENT_EPSILON)
+        .map((opening) => ({ ...opening, pieceId: piece.id }));
+    })
+    .sort((a, b) => a.x - b.x);
+  const segments = [];
+  let cursor = region.x;
+  for (const opening of openings) {
+    if (opening.x < cursor - SEGMENT_EPSILON) continue;
+    appendSegment(segments, cursor, opening.x, 'frame', { runId });
+    appendSegment(segments, opening.x, opening.x + opening.width, 'frame-opening', {
+      runId,
+      pieceId: opening.pieceId,
+    });
+    cursor = opening.x + opening.width;
+  }
+  appendSegment(segments, cursor, region.x + region.width, 'frame', { runId });
+  return segments;
+}
+
+/**
+ * A run's segments on the inner chain: its pieces, a gap between boxes as its own segment, and each
+ * face frame region as stile and opening segments in place of the pieces it covers (SPEC-36).
+ */
+function runInnerSegments(room, wall, run, settings, layout) {
+  const cells = cellPieces(run, layout);
+  const { regions } = frameRegions(room, run, cells, settings);
+  const faceLayouts = regions.length > 0 ? runFaceLayouts(room, wall, run, settings, layout) : null;
+  const regionOf = (piece) => regions.find((region) => piece.x >= region.x - SEGMENT_EPSILON
+    && piece.x + piece.width <= region.x + region.width + SEGMENT_EPSILON);
+  const segments = [];
+  let cursor = null;
+  const add = (start, end, kind, metadata) => {
+    if (cursor !== null && start - cursor > SEGMENT_EPSILON) {
+      appendSegment(segments, cursor, start, 'gap', { runId: run.id });
+    }
+    appendSegment(segments, start, end, kind, metadata);
+    cursor = end;
+  };
+  const drawn = new Set();
+  for (const piece of layout.pieces) {
+    const region = regionOf(piece);
+    if (region) {
+      if (drawn.has(region.id)) continue;
+      drawn.add(region.id);
+      for (const { start, end, kind, ...metadata } of regionSegments(region, cells.pieces, faceLayouts, run.id)) {
+        add(start, end, kind, metadata);
+      }
+      continue;
+    }
+    add(piece.x, piece.x + piece.width, 'piece', {
+      runId: run.id,
+      pieceId: piece.id,
+      ...(runItems(run).find((item) => item.id === piece.id)?.pin ? { pinned: true } : {}),
+    });
+  }
+  return segments;
+}
+
 /** Build the inner piece chain and outer run chain for an elevation band. */
 export function horizontalChains(room, wall, band, settings) {
   const runs = runsForBand(wall, band);
@@ -244,15 +315,7 @@ export function horizontalChains(room, wall, band, settings) {
       endCornerAngles: endCornerAnglesForRun(room, wall, run),
       pinTargets: pinTargetsForRun(run, wall, length, settings),
     });
-    for (const piece of layout.pieces) {
-      appendSegment(inner, piece.x, piece.x + piece.width, 'piece', {
-        runId: run.id,
-        pieceId: piece.id,
-        ...(runItems(run).find((item) => item.id === piece.id)?.pin
-          ? { pinned: true }
-          : {}),
-      });
-    }
+    inner.push(...runInnerSegments(room, wall, run, settings, layout));
     cursor = run.x + run.width;
   });
   appendGap(
