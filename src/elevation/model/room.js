@@ -45,6 +45,7 @@ import {
   stackCreatesCycle,
   stackLink,
 } from './stacks.js';
+import { runSeamGap } from './styles.js';
 import {
   profileUnderSoffit,
   resolveSoffitSpan,
@@ -563,6 +564,16 @@ function floorRunsWithTops(wall, runs, profile) {
     .map((run) => ({ ...run, counterTop: run.z + run.height + runTop(wall, run, profile).height }));
 }
 
+/** A run with its derived seam gap (SPEC-36), stored only when there is one. */
+function withSeamGap(room, run, settings) {
+  const gap = runSeamGap(room, run, settings);
+  if (gap > 0) return run._seamGap === gap ? run : { ...run, _seamGap: gap };
+  if (run._seamGap === undefined) return run;
+  const { _seamGap, ...rest } = run;
+  void _seamGap;
+  return rest;
+}
+
 /**
  * Resolve all stored horizontal, vertical, and automatic-item geometry in a room.
  *
@@ -573,6 +584,10 @@ function floorRunsWithTops(wall, runs, profile) {
 export function syncRoom(room, settings) {
   let nextRoom = cloneRoom(resolveLandings(room));
   nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(wall))));
+  nextRoom.walls = nextRoom.walls.map((wall) => ({
+    ...wall,
+    runs: wall.runs.map((run) => withSeamGap(nextRoom, run, settings)),
+  }));
 
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
 

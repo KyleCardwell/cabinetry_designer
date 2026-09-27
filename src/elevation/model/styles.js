@@ -235,3 +235,14 @@ export function endPieceNotes(kind, bottom) {
   if (kind === 'filler' && bottom.drop > 0) notes.push(`return up ${formatInches(bottom.drop)}`);
   return notes;
 }
+
+/**
+ * The gap a run leaves at each seam between two cabinet columns (SPEC-36, FF-004): its own
+ * `seamGap`, else twice the bead on beaded inset (the stile covers 3/4" of each box and the bead
+ * widens it), else 0.
+ */
+export function runSeamGap(room, run, settings) {
+  if (Number.isFinite(run.seamGap)) return run.seamGap;
+  const style = resolveStyle(settings, room, run);
+  return style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? 2 * style.beadWidth : 0;
+}

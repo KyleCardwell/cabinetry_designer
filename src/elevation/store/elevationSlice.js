@@ -1510,6 +1510,7 @@ const elevationSlice = createSlice({
         if (style) room.style = style;
         else delete room.style;
       });
+      syncRoomAt(state, roomIndexFor(state, action.payload.roomId));
     },
     setRunStyle(state, action) {
       const location = runLocation(state, action.payload);
@@ -1519,6 +1520,7 @@ const elevationSlice = createSlice({
         if (style) location.run.style = style;
         else delete location.run.style;
       });
+      syncRoomAt(state, location.roomIndex);
     },
     setRunFaceOptions(state, action) {
       const location = runLocation(state, action.payload);

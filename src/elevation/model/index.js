@@ -51,6 +51,7 @@ export {
   isStyle,
   panelDrop,
   resolveStyle,
+  runSeamGap,
   standardDrawerHeight,
   styleReveals,
 } from './styles.js';

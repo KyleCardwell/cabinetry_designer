@@ -6,12 +6,13 @@ export const SIZE_MODES = ['auto', 'manual', 'solved'];
 function itemParts(item) {
   const leaf = {};
   for (const [key, value] of Object.entries(item)) {
-    if (!['width', 'pin', 'absorb', 'blind', 'grid'].includes(key)) leaf[key] = value;
+    if (!['width', 'pin', 'absorb', 'blind', 'grid', 'gap'].includes(key)) leaf[key] = value;
   }
   const col = { id: `${item.id}:col`, size: item.width,
     sizeMode: item.width === null ? 'auto' : 'manual' };
   if (item.pin !== undefined) col.pin = item.pin;
   if (item.absorb !== undefined) col.absorb = item.absorb;
+  if (item.gap !== undefined) col.gap = item.gap;
   const node = item.grid ?? leaf;
   return { col, node };
 }
@@ -126,6 +127,7 @@ export function rootItems(grid) {
     }
     if (col.pin !== undefined) item.pin = col.pin;
     if (col.absorb !== undefined) item.absorb = col.absorb;
+    if (col.gap !== undefined) item.gap = col.gap;
     return item;
   });
 }
@@ -306,7 +308,7 @@ export function updateRootItem(grid, leafId, patch) {
         col = setKey(col, 'size', value);
         col = setKey(col, 'sizeMode', value === null ? 'auto' : 'manual');
       }
-    } else if (key === 'pin' || key === 'absorb') {
+    } else if (key === 'pin' || key === 'absorb' || key === 'gap') {
       col = setKey(col, key, value);
     } else {
       leaf = setKey(leaf, key, value);

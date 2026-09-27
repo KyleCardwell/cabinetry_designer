@@ -1045,3 +1045,25 @@ describe('SPEC-35.3 extensions shape', () => {
     }))).toBe(false);
   });
 });
+
+describe('SPEC-36 gaps shape', () => {
+  const withRun = (changes) => {
+    const document = currentDocument();
+    Object.assign(document.rooms[0].walls[0].runs[0], changes);
+    return document;
+  };
+
+  it('saves a run seam gap and column gaps, and never the derived one', () => {
+    expect(isElevationDocument(withRun({ seamGap: 0.5 }))).toBe(true);
+    expect(isElevationDocument(withRun({ seamGap: -0.5 }))).toBe(false);
+    expect(isElevationDocument(withRun({
+      grid: gridFromItems('a', [
+        { id: 'p', kind: 'panel', width: 0.75, gap: 0.5 },
+        { id: 'a-cab', kind: 'cabinet', width: null },
+      ]),
+    }))).toBe(true);
+    const state = currentDocument();
+    state.rooms[0].walls[0].runs[0]._seamGap = 0.5;
+    expect('_seamGap' in toElevationDocument(state).rooms[0].walls[0].runs[0]).toBe(false);
+  });
+});

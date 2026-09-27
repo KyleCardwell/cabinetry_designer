@@ -234,6 +234,7 @@ function isRun(run) {
     && (run.bottom === undefined || (Array.isArray(run.bottom) && run.bottom.every(isBottomPart)))
     && isRunStack(run.stack)
     && (run.outset === undefined || (isFiniteNumber(run.outset) && run.outset >= 0))
+    && (run.seamGap === undefined || (isFiniteNumber(run.seamGap) && run.seamGap >= 0))
     && isEndFiller(run.endFiller)
     && run.items === undefined
     && run.blind === undefined
@@ -297,7 +298,8 @@ function isRootItem(item) {
     return isItem(item) && item.depth === undefined && item.align === undefined && isExtend(item.extend);
   }
   if (item.kind === 'cabinet') return isItem(item) && isCellDepth(item);
-  const { width, ...leaf } = item;
+  const { width, gap, ...leaf } = item;
+  void gap;
   return (width === null || (isFiniteNumber(width) && width > 0)) && isCellLeaf(leaf);
 }
 
@@ -601,8 +603,9 @@ export function toElevationDocument(elevationState) {
       walls: room.walls.map((wall) => ({
         ...wall,
         runs: wall.runs.map((run) => {
-          const { _pinWidths, ...persistedRun } = run;
+          const { _pinWidths, _seamGap, ...persistedRun } = run;
           void _pinWidths;
+          void _seamGap;
           return persistedRun;
         }),
       })),
