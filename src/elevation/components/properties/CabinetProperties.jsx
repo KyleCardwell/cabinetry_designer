@@ -7,6 +7,7 @@ import {
   setItemAbsorb,
   setItemPin,
   setItemWidth,
+  setTrackGap,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import CellKindSection from './CellKindSection.jsx';
@@ -14,6 +15,7 @@ import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
+import GapField from './GapField.jsx';
 import { RUN_TYPES } from './constants.js';
 
 export default function CabinetProperties({
@@ -28,6 +30,8 @@ export default function CabinetProperties({
   const pinCount = items.filter((candidate) => candidate.pin).length;
   const warnsSecondPin = !item.pin && pinCount === 1;
   const itemIndex = items.findIndex((candidate) => candidate.id === item.id);
+  const next = items[itemIndex + 1];
+  const gapFallback = next && item.kind === 'cabinet' && next.kind === 'cabinet' ? run._seamGap ?? 0 : 0;
   const pinnedIndexes = items.flatMap((candidate, index) => (candidate.pin ? [index] : []));
   const previousPin = [...pinnedIndexes].reverse().find((index) => index < itemIndex);
   const nextPin = pinnedIndexes.find((index) => index > itemIndex);
@@ -78,6 +82,19 @@ export default function CabinetProperties({
         >
           {locked ? 'Unlock width' : 'Lock width'}
         </button>
+        {next && (
+          <div className="mt-2">
+            <GapField
+              label="Gap right (blank = run)"
+              value={item.gap}
+              fallback={gapFallback}
+              onCommit={(gap) => dispatch(setTrackGap({
+                wallId: wall.id, runId: run.id, trackId: `${item.id}:col`, gap,
+              }))}
+              ariaLabel="Gap right"
+            />
+          </div>
+        )}
       </section>
 
       <section>

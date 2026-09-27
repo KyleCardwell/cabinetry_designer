@@ -9,9 +9,11 @@ import {
   removeItem,
   setAutoCount,
   setMaxCabinetWidth,
+  setRunSeamGap,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
+import GapField from './GapField.jsx';
 
 export default function RunCabinetsSection({ run, actionBase }) {
   const dispatch = useDispatch();
@@ -82,6 +84,15 @@ export default function RunCabinetsSection({ run, actionBase }) {
               aria-label="Maximum cabinet width override"
             />
           </Field>
+        </div>
+        <div className="mt-2">
+          <GapField
+            label="Gap between cabinets (blank = style)"
+            value={run.seamGap}
+            fallback={run._seamGap ?? 0}
+            onCommit={(gap) => dispatch(setRunSeamGap({ ...actionBase, gap }))}
+            ariaLabel="Gap between cabinets"
+          />
         </div>
       </section>
   );

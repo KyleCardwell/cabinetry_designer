@@ -13,6 +13,7 @@ import {
   setCellDepth,
   setCellShelves,
   setItemWidth,
+  setTrackGap,
   setTrackSize,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
@@ -21,6 +22,7 @@ import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
+import GapField from './GapField.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const HEADING_CLASS = 'mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400';
@@ -44,6 +46,11 @@ export default function CellProperties({
   const blindSides = isCabinet
     ? cellBlindSides(run.grid, item.id).filter((side) => run.ends[side].type === 'blind')
     : [];
+  const trackKey = axis === 'row' ? 'rows' : 'cols';
+  const span = axis === 'row' ? context.cell.rowSpan : context.cell.colSpan;
+  const hasTrackAfter = context.cell[axis] + span < context.parent[trackKey].length;
+  const columnIndex = runItems(run).findIndex((candidate) => candidate.id === piece.columnId);
+  const hasColumnAfter = columnIndex >= 0 && columnIndex < runItems(run).length - 1;
 
   return (
     <div className="space-y-5">
@@ -81,6 +88,17 @@ export default function CellProperties({
         >
           {locked ? `Unlock ${axis === 'row' ? 'height' : 'width'}` : `Lock ${axis === 'row' ? 'height' : 'width'}`}
         </button>
+        {hasTrackAfter && (
+          <div className="mt-2">
+            <GapField
+              label={axis === 'row' ? 'Gap below (blank = none)' : 'Gap right (blank = run)'}
+              value={context.track.gap}
+              fallback={axis === 'row' ? 0 : run._seamGap ?? 0}
+              onCommit={(gap) => dispatch(setTrackGap({ ...actionBase, trackId: context.track.id, gap }))}
+              ariaLabel={axis === 'row' ? 'Cell gap below' : 'Cell gap right'}
+            />
+          </div>
+        )}
       </section>
 
       {column && (
@@ -116,6 +134,19 @@ export default function CellProperties({
           >
             {columnLocked ? 'Unlock width' : 'Lock width'}
           </button>
+          {hasColumnAfter && (
+            <div className="mt-2">
+              <GapField
+                label="Column gap right (blank = run)"
+                value={columnItem?.gap}
+                fallback={run._seamGap ?? 0}
+                onCommit={(gap) => dispatch(setTrackGap({
+                  ...actionBase, trackId: `${piece.columnId}:col`, gap,
+                }))}
+                ariaLabel="Column gap right"
+              />
+            </div>
+          )}
         </section>
       )}
 
