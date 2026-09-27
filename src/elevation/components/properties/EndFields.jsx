@@ -1,7 +1,10 @@
 import { useDispatch } from 'react-redux';
 import { formatInchesInput, runBlind } from '../../model/index.js';
-import { setRunBlind, setRunEnd, setRunEndFiller } from '../../store/elevationSlice.js';
+import {
+  setRunBlind, setRunEnd, setRunEndExtend, setRunEndFiller,
+} from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import ExtendFields from './ExtendFields.jsx';
 import Field from './Field.jsx';
 
 const END_TYPES = [
@@ -11,7 +14,9 @@ const END_TYPES = [
   ['blind', 'Blind corner'],
 ];
 
-export default function EndFields({ actionBase, run, side, settings, note = null }) {
+export default function EndFields({
+  actionBase, run, side, settings, note = null, extendRuns = [],
+}) {
   const dispatch = useDispatch();
   const endType = run.ends[side].type;
 
@@ -52,6 +57,17 @@ export default function EndFields({ actionBase, run, side, settings, note = null
             aria-label={`${side} end width`}
           />
         </Field>
+      )}
+      {endType !== 'none' && (
+        <ExtendFields
+          directions={['up', 'down']}
+          extend={run.ends[side].extend}
+          runs={extendRuns}
+          label={`${side} end`}
+          onChange={(direction, target) => dispatch(setRunEndExtend({
+            ...actionBase, side, direction, target,
+          }))}
+        />
       )}
       {endType === 'blind' && (
         <Field label="Blind box">
@@ -112,4 +128,3 @@ export default function EndFields({ actionBase, run, side, settings, note = null
     </>
   );
 }
-

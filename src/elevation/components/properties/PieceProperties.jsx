@@ -1,17 +1,18 @@
 import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import {
-  endPieceBottom, endPieceNotes, partNumbers, resolveStyle,
+  endPieceBottom, endPieceNotes, partNumbers, resolveStyle, wallSideOf,
 } from '../../model/index.js';
-import { removeItem, setItemWidth } from '../../store/elevationSlice.js';
+import { removeItem, setCellExtend, setItemWidth } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import CabinetProperties from './CabinetProperties.jsx';
 import CellProperties from './CellProperties.jsx';
 import EndFields from './EndFields.jsx';
+import ExtendFields from './ExtendFields.jsx';
 import Field from './Field.jsx';
 import PartNumberField from './PartNumberField.jsx';
 
-function InteriorFillerProperties({ wallId, run, piece, item }) {
+function InteriorFillerProperties({ wallId, run, piece, item, extendRuns }) {
   const dispatch = useDispatch();
   const actionBase = { wallId, runId: run.id, itemId: item.id };
 
@@ -28,6 +29,15 @@ function InteriorFillerProperties({ wallId, run, piece, item }) {
             aria-label="Interior filler width"
           />
         </Field>
+        <ExtendFields
+          directions={['up', 'down']}
+          extend={item.extend}
+          runs={extendRuns}
+          label="Interior filler"
+          onChange={(direction, target) => dispatch(setCellExtend({
+            wallId, runId: run.id, cellId: item.id, direction, target,
+          }))}
+        />
       </section>
       <button
         type="button"
@@ -40,7 +50,7 @@ function InteriorFillerProperties({ wallId, run, piece, item }) {
   );
 }
 
-function EndProperties({ wallId, run, side, settings }) {
+function EndProperties({ wallId, run, side, settings, extendRuns }) {
   return (
     <section>
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -52,6 +62,7 @@ function EndProperties({ wallId, run, side, settings }) {
           run={run}
           side={side}
           settings={settings}
+          extendRuns={extendRuns}
         />
       </div>
     </section>
@@ -80,13 +91,20 @@ export default function PieceProperties({
   const notesLine = endNotes.length > 0 ? (
     <p className="text-xs text-cyan-300">{endNotes.join(' · ')}</p>
   ) : null;
+  const extendRuns = wall.runs.filter((other) => other.id !== run.id && wallSideOf(other) === wallSideOf(run));
 
   if (side) {
     return (
       <>
         {partNumberField}
         {notesLine}
-        <EndProperties wallId={wall.id} run={run} side={side} settings={settings} />
+        <EndProperties
+          wallId={wall.id}
+          run={run}
+          side={side}
+          settings={settings}
+          extendRuns={extendRuns}
+        />
       </>
     );
   }
@@ -101,6 +119,7 @@ export default function PieceProperties({
           run={run}
           piece={piece}
           item={item}
+          extendRuns={extendRuns}
         />
       </>
     );

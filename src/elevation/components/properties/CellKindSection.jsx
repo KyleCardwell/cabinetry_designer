@@ -1,11 +1,15 @@
 import { useDispatch } from 'react-redux';
-import { panelOrientation, panelTypes } from '../../model/index.js';
+import {
+  extendDirections, panelOrientation, panelTypes, wallSideOf,
+} from '../../model/index.js';
 import {
   addPanel,
   setCellKind,
+  setCellExtend,
   setPanelDoors,
   setPanelType,
 } from '../../store/elevationSlice.js';
+import ExtendFields from './ExtendFields.jsx';
 import Field from './Field.jsx';
 
 const KIND_OPTIONS = [
@@ -87,6 +91,17 @@ export default function CellKindSection({ wall, run, piece, item }) {
             <option value="cover">Cover — doors lap over</option>
           </select>
         </Field>
+      )}
+      {item.kind === 'panel' && extendDirections(piece).length > 0 && (
+        <ExtendFields
+          directions={extendDirections(piece)}
+          extend={item.extend}
+          runs={wall.runs.filter((other) => other.id !== run.id && wallSideOf(other) === wallSideOf(run))}
+          label="Panel"
+          onChange={(direction, target) => dispatch(setCellExtend({
+            ...actionBase, direction, target,
+          }))}
+        />
       )}
       <div>
         <p className="mb-1 text-xs text-gray-400">Add panel</p>
