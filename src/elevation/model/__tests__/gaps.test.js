@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { gridFromItems, replaceRootItems, rootItems, updateRootItem } from '../grid.js';
 import { syncRoom } from '../room.js';
+import { runWidthRange, splitRun } from '../splitRun.js';
 import { runSeamGap } from '../styles.js';
 
 const S = DEFAULT_SETTINGS;
@@ -56,5 +57,27 @@ describe('SPEC-36 gap shape', () => {
     expect(syncRoom(roomWith(run, BEADED), S).walls[0].runs[0]._seamGap).toBe(0.5);
     expect('_seamGap' in syncRoom(roomWith(run), S).walls[0].runs[0]).toBe(false);
     expect('_seamGap' in syncRoom(roomWith({ ...run, _seamGap: 0.5 }), S).walls[0].runs[0]).toBe(false);
+  });
+});
+
+describe('SPEC-36 root gaps', () => {
+  const at = (layout) => layout.pieces.map(({ id, x, width }) => [id, x, width]);
+
+  it('leaves the seam gap between cabinet columns and a column gap where set', () => {
+    const run = withItems([cab('a'), cab('b'), { id: 'f', kind: 'filler', width: 3 }, cab('d')], { _seamGap: 0.5 });
+    expect(at(splitRun(run, S))).toEqual([['a', 0, 19], ['b', 19.5, 19], ['f', 38.5, 3], ['d', 41.5, 19]]);
+    expect(runWidthRange(run, S).min).toBe(30.5);
+
+    const own = withItems([cab('a', null, { gap: 1 }), cab('b')], { width: 37, _seamGap: 0.5 });
+    expect(at(splitRun(own, S))).toEqual([['a', 0, 18], ['b', 19, 18]]);
+    const none = withItems([cab('a', null, { gap: 0 }), cab('b')], { width: 37, _seamGap: 0.5 });
+    expect(at(splitRun(none, S))).toEqual([['a', 0, 18.5], ['b', 18.5, 18.5]]);
+  });
+
+  it('keeps the gaps either side of a pinned cabinet', () => {
+    const pin = { anchor: 'left', from: 'left', openingId: null, openingAnchor: 'center', value: 25 };
+    const run = withItems([cab('a'), cab('b', 20, { pin }), cab('c')], { width: 60, _seamGap: 0.5 });
+    expect(at(splitRun(run, S, { pinTargets: { b: 25 } })))
+      .toEqual([['a', 0, 24.5], ['b', 25, 20], ['c', 45.5, 14.5]]);
   });
 });

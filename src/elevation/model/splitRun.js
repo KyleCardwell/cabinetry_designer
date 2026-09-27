@@ -13,6 +13,25 @@ function isAutoItem(item) {
   return item.width === null && AUTO_KINDS.has(item.kind);
 }
 
+/**
+ * The run's items, each with `gapAfter` (SPEC-36): its column's own `gap`, else the run's seam
+ * gap between two cabinet columns; 0 after the last. Items that already carry one keep it (the
+ * pinned segments pass slices of this list back in).
+ */
+function itemsWithGaps(run) {
+  const items = runItems(run);
+  const seamGap = run._seamGap ?? run.seamGap ?? 0;
+  return items.map((item, index) => {
+    if (item.gapAfter !== undefined) return item;
+    const next = items[index + 1];
+    let gapAfter = 0;
+    if (next) {
+      gapAfter = item.gap ?? (item.kind === 'cabinet' && next.kind === 'cabinet' ? seamGap : 0);
+    }
+    return { ...item, gapAfter };
+  });
+}
+
 /** A top-level cell's own settings, copied onto its piece. */
 function itemExtras(item) {
   return {
@@ -39,10 +58,10 @@ function flexMinimum(side, settings, opts) {
 }
 
 function layoutInputs(run, settings, opts) {
-  const items = runItems(run);
+  const items = itemsWithGaps(run);
   const fixedEnds = endWidth(run.ends.left, settings) + endWidth(run.ends.right, settings);
   const fixedItems = items.reduce((sum, item) => (
-    sum + (item.width === null ? 0 : item.width)
+    sum + (item.width === null ? 0 : item.width) + item.gapAfter
   ), 0);
   const nAuto = items.filter(isAutoItem).length;
   const nAutoCabinets = items.filter(
@@ -107,7 +126,7 @@ function warning(code, pieceId, message) {
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 function splitRunLegacy(run, settings, opts) {
-  const items = runItems(run);
+  const items = itemsWithGaps(run);
   const {
     available,
     flex,
@@ -213,6 +232,7 @@ function splitRunLegacy(run, settings, opts) {
   }
 
   const rawPieces = [];
+  const gapsAfter = [];
   const addEnd = (side, end) => {
     if (end.type === 'none') return;
     let width = endWidth(end, settings);
@@ -236,6 +256,7 @@ function splitRunLegacy(run, settings, opts) {
       piece.cornerAngle = cornerAngle;
     }
     rawPieces.push(piece);
+    gapsAfter.push(0);
   };
 
   addEnd('left', run.ends.left);
@@ -249,11 +270,12 @@ function splitRunLegacy(run, settings, opts) {
       auto: item.auto,
       ...itemExtras(item),
     });
+    gapsAfter.push(item.gapAfter);
   }
   addEnd('right', run.ends.right);
 
   let x = run.x;
-  const pieces = rawPieces.map((piece) => {
+  const pieces = rawPieces.map((piece, index) => {
     const positioned = {
       ...piece,
       x,
@@ -261,7 +283,7 @@ function splitRunLegacy(run, settings, opts) {
       height: run.height,
       depth: piece.depth ?? (piece.kind === 'end_panel' ? settings.endPanelThickness : run.depth),
     };
-    x += piece.width;
+    x += piece.width + gapsAfter[index];
     return positioned;
   });
 
@@ -280,7 +302,7 @@ function itemMinimum(item, settings) {
 }
 
 function itemsMinimum(items, settings) {
-  return items.reduce((sum, item) => sum + itemMinimum(item, settings), 0);
+  return items.reduce((sum, item) => sum + itemMinimum(item, settings) + (item.gapAfter ?? 0), 0);
 }
 
 function outerMinimum(run, side, items, settings, opts) {
@@ -332,7 +354,7 @@ function cabinetWidthWarnings(run, settings, item, width, auto) {
 function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
   const width = end - start;
   const fixedWidth = items.reduce(
-    (sum, item) => sum + (item.width === null ? 0 : item.width),
+    (sum, item) => sum + (item.width === null ? 0 : item.width) + item.gapAfter,
     0,
   );
   const autos = items.filter(isAutoItem);
@@ -364,7 +386,7 @@ function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
     const absorbed = auto && item.id === absorberId ? itemWidth - baseWidth : 0;
     warnings.push(...cabinetWidthWarnings(run, settings, item, itemWidth, auto));
     const piece = positionedItemPiece(run, settings, item, itemWidth, x, auto, absorbed);
-    x += itemWidth;
+    x += itemWidth + item.gapAfter;
     return piece;
   });
 
@@ -394,7 +416,7 @@ function pinUnreachableWarning(pin, actualLeft) {
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 export function splitRun(run, settings, opts) {
-  const items = runItems(run);
+  const items = itemsWithGaps(run);
   const targets = opts?.pinTargets ?? {};
   const pinnedItems = items.filter((item) => (
     item.kind === 'cabinet'
@@ -426,12 +448,12 @@ export function splitRun(run, settings, opts) {
   const leftItems = items.slice(0, pins[0].itemIndex);
   const rightItems = items.slice(pins[pins.length - 1].itemIndex + 1);
   const leftMinimum = outerMinimum(run, 'left', leftItems, settings, opts);
-  const rightMinimum = outerMinimum(run, 'right', rightItems, settings, opts);
+  const rightMinimum = outerMinimum(run, 'right', rightItems, settings, opts) + pins[pins.length - 1].item.gapAfter;
   const middleMinimums = pins.slice(0, -1).map((pin, index) => (
     itemsMinimum(
       items.slice(pin.itemIndex + 1, pins[index + 1].itemIndex),
       settings,
-    )
+    ) + pin.item.gapAfter
   ));
 
   const warnings = [];
@@ -497,7 +519,7 @@ export function splitRun(run, settings, opts) {
         run,
         settings,
         items.slice(pin.itemIndex + 1, next.itemIndex),
-        pin.left + pin.width,
+        pin.left + pin.width + pin.item.gapAfter,
         next.left,
         pin,
         next,
@@ -506,10 +528,11 @@ export function splitRun(run, settings, opts) {
   });
 
   const lastPin = actualPins[actualPins.length - 1];
+  const rightStart = lastPin.left + lastPin.width + lastPin.item.gapAfter;
   appendLayout(splitRunLegacy({
     ...run,
-    x: lastPin.left + lastPin.width,
-    width: run.x + run.width - lastPin.left - lastPin.width,
+    x: rightStart,
+    width: run.x + run.width - rightStart,
     items: rightItems,
     ends: { left: { type: 'none', width: null }, right: run.ends.right },
   }, settings, opts));
