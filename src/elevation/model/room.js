@@ -9,6 +9,7 @@ import {
   cornerReserveParts,
   resolveHorizontal,
 } from './corners.js';
+import { extendPieces } from './extensions.js';
 import { findCollisions } from './footprints.js';
 import { cloneGrid, mirrorGrid, runItems } from './grid.js';
 import {
@@ -726,6 +727,7 @@ export function roomDiagnostics(room, settings) {
         warnings: [
           ...layout.warnings,
           ...cellPieces(run, layout).warnings,
+          ...extendPieces(wall, run, cellPieces(run, layout).pieces).warnings,
           ...runItems(run).flatMap((item) => (
             item.pin && resolvePinTarget(item.pin, wall, length, settings) === null
               ? [{

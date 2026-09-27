@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cellPieces } from '../cells.js';
 import { findLeaf, setGridCellKind, setGridLeafExtend, splitGridCell } from '../cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { extendDirections, isExtend } from '../extensions.js';
+import { extendDirections, extendPieces, isExtend } from '../extensions.js';
 import { gridFromItems } from '../grid.js';
 import { splitRun } from '../splitRun.js';
 
@@ -59,5 +59,62 @@ describe('SPEC-35.3 extension shape', () => {
     expect(setGridLeafExtend(run.grid, 'f', 'down', { to: 'ceiling' })).toBe(run.grid);
     expect(setGridLeafExtend(run.grid, 'f', 'down', null)).toBe(run.grid);
     expect(setGridLeafExtend(run.grid, 'c', 'up', CEILING.up)).toBe(run.grid);
+  });
+});
+
+describe('SPEC-35.3 extending pieces', () => {
+  const { BASE, UPPER } = CABINET_TYPE_IDS;
+  const P = { id: 'P', cabinetTypeId: UPPER, x: 0, width: 60, z: 36, height: 48 };
+  const B = { id: 'B', cabinetTypeId: BASE, x: 0.75, width: 58.5, z: 4, height: 30.5 };
+  const WALL = {
+    id: 'A', x1: 0, y1: 0, x2: 60, y2: 0, height: 96, openings: [],
+    soffits: [{ id: 's', x: 0, width: 60, bottom: 84 }],
+    runs: [P, B],
+  };
+
+  it('grows to the floor, a run, the ceiling, the wall end or by a distance', () => {
+    const panels = [
+      { id: 'P:left', kind: 'end_panel', x: 0, z: 36, width: 0.75, height: 48, extend: FLOOR },
+      { id: 'P:right', kind: 'end_panel', x: 59.25, z: 36, width: 0.75, height: 48,
+        extend: { down: { to: 'run', runId: 'B' } } },
+      { id: 'back', kind: 'panel', x: 0.75, z: 36, width: 58.5, height: 48, depth: 0.75 },
+    ];
+    const above = extendPieces(WALL, P, panels);
+    expect(above.warnings).toEqual([]);
+    expect(above.pieces[0]).toMatchObject({ z: 0, height: 84, extended: ['down'] });
+    expect(above.pieces[1]).toMatchObject({ z: 4, height: 80, extended: ['down'] });
+    expect(above.pieces[2]).toBe(panels[2]);
+
+    const below = extendPieces(WALL, B, [
+      { id: 'f', kind: 'filler', x: 30, z: 4, width: 3, height: 30.5, extend: CEILING },
+      { id: 'g', kind: 'filler', x: 10, z: 4, width: 3, height: 30.5, extend: { down: { to: 'by', amount: 4 } } },
+    ]);
+    expect(below.pieces[0]).toMatchObject({ z: 4, height: 80, extended: ['up'] });
+    expect(below.pieces[1]).toMatchObject({ z: 0, height: 34.5, extended: ['down'] });
+
+    const T = { id: 'T', cabinetTypeId: UPPER, x: 12, width: 36, z: 36, height: 24.75 };
+    const [top] = extendPieces(WALL, T, [{
+      id: 't', kind: 'panel', x: 12, z: 60, width: 36, height: 0.75, depth: 24,
+      extend: { left: { to: 'wall' }, right: { to: 'by', amount: 6 } },
+    }]).pieces;
+    expect(top).toMatchObject({ x: 0, width: 54, extended: ['left', 'right'] });
+  });
+
+  it('warns and leaves the piece when it can\'t extend', () => {
+    const { pieces, warnings } = extendPieces(WALL, P, [
+      { id: 'mid', kind: 'panel', x: 20, z: 50, width: 0.75, height: 10, depth: 24, extend: FLOOR },
+      { id: 'side', kind: 'panel', x: 0.75, z: 36, width: 0.75, height: 48, depth: 24,
+        extend: { left: { to: 'wall' } } },
+      { id: 'gone', kind: 'end_panel', x: 0, z: 36, width: 0.75, height: 48,
+        extend: { down: { to: 'run', runId: 'X' } } },
+      { id: 'short', kind: 'end_panel', x: 59.25, z: 36, width: 0.75, height: 48, extend: CEILING },
+    ]);
+    expect(warnings.map(({ code, pieceId, direction }) => [code, pieceId, direction])).toEqual([
+      ['extend-blocked', 'mid', 'down'],
+      ['extend-blocked', 'side', 'left'],
+      ['extend-target-missing', 'gone', 'down'],
+      ['extend-short', 'short', 'up'],
+    ]);
+    expect(pieces.some((piece) => piece.extended)).toBe(false);
   });
 });
