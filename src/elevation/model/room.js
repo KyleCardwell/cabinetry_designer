@@ -11,6 +11,7 @@ import {
 } from './corners.js';
 import { extendPieces, followInset } from './extensions.js';
 import { findCollisions } from './footprints.js';
+import { frameRegions } from './frames.js';
 import { cloneGrid, mirrorGrid, runItems } from './grid.js';
 import {
   followCreatesCycle,
@@ -748,6 +749,7 @@ export function roomDiagnostics(room, settings) {
           ...layout.warnings,
           ...cellPieces(run, layout).warnings,
           ...extendPieces(wall, run, cellPieces(run, layout).pieces).warnings,
+          ...frameRegions(synced, run, cellPieces(run, layout), settings).warnings,
           ...runItems(run).flatMap((item) => (
             item.pin && resolvePinTarget(item.pin, wall, length, settings) === null
               ? [{

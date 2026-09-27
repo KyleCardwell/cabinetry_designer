@@ -29,6 +29,7 @@ export const REVEAL_SOURCE_LABELS = {
   'rule:upper-counter': 'rule: on counter',
   'rule:stacked-seam': 'rule: stacked seam',
   'rule:captured-single': 'rule: captured single',
+  'rule:bead-seam': 'rule: bead seam',
   'rule:covered-panel': 'rule: covered panel',
 };
 
@@ -128,6 +129,7 @@ export function cabinetReveals({
   run = {},
   face,
   captured = { left: false, right: false },
+  seams = { left: false, right: false },
   stacked = { top: false, bottom: false },
   covered = { top: 0, bottom: 0, left: 0, right: 0 },
   runEdges = { top: true, bottom: true },
@@ -160,6 +162,11 @@ export function cabinetReveals({
     const reveal = settings.capturedSingleReveal ?? DEFAULT_SETTINGS.capturedSingleReveal;
     apply('left', reveal, 'rule:captured-single');
     apply('right', reveal, 'rule:captured-single');
+  }
+  if (style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET) {
+    const stile = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
+    if (seams.left) apply('left', stile, 'rule:bead-seam');
+    if (seams.right) apply('right', stile, 'rule:bead-seam');
   }
   if (euro) {
     const standard = styleReveals(style, cabinetTypeId, settings);

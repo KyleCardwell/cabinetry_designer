@@ -2,7 +2,8 @@ import { captureSides } from './capture.js';
 import { cellCaptureSides, cellPieces, coveredSides, gapReach, hingeStops, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
-import { applyHinges, cabinetFaces, defaultFace } from './faces.js';
+import { applyHinges, cabinetFaces, defaultFace, faceArea } from './faces.js';
+import { faceOpenings, frameRegions } from './frames.js';
 import { runItems } from './grid.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
 import { splitRun } from './splitRun.js';
@@ -30,6 +31,8 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
   const tolerance = settings.adjacentRunGap ?? DEFAULT_SETTINGS.adjacentRunGap;
   const result = new Map();
   const cells = cellPieces(run, layout);
+  const frames = frameRegions(room, run, cells, settings);
+  const overhang = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
   for (const piece of cells.pieces) {
     if (piece.kind !== 'cabinet' || piece.role !== 'item') continue;
     const item = piece.columnId
@@ -48,7 +51,13 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
           && Math.abs(piece.x + piece.width - column.x - column.width) <= 1e-6),
       }
       : columnCaptured;
-    const face = item?.face ?? defaultFace(piece.width, settings);
+    const free = frames.freeSides.get(piece.id) ?? { left: false, right: false };
+    const box = {
+      ...piece,
+      x: piece.x + (free.left ? overhang : 0),
+      width: piece.width - (free.left ? overhang : 0) - (free.right ? overhang : 0),
+    };
+    const face = item?.face ?? defaultFace(box.width, settings);
     const covered = coveredSides(cells.pieces, piece.id);
     const pairCovers = face.type === 'pair_door' && (covered.left > 0 || covered.right > 0);
     const style = resolveStyle(settings, room, run, item);
@@ -62,13 +71,14 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
       run,
       face,
       captured,
+      seams: frames.seamSides.get(piece.id),
       stacked: stackedSides(cells.pieces, piece.id, gapReach(cells.gaps)),
       covered: pairCovers ? { ...covered, left: 0, right: 0 } : covered,
       runEdges,
       manual: item?.reveals ?? null,
       settings,
     });
-    const resolved = cabinetFaces(item, piece, run.cabinetTypeId, settings, reveals.values);
+    const resolved = cabinetFaces(item, box, run.cabinetTypeId, settings, reveals.values);
     const hinged = applyHinges(resolved.faces, hingeStops(cells.pieces, piece.id), covered);
     result.set(piece.id, {
       faces: hinged.faces,
@@ -79,6 +89,8 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
       ],
       style,
       reveals,
+      box,
+      openings: faceOpenings(face, faceArea(box, reveals.values), reveals.values),
     });
   }
   return result;
