@@ -7,6 +7,7 @@ import {
   cornerForRunSide,
   cornerReserve,
   cornerReserveParts,
+  frontDepth,
   resolveHorizontal,
 } from './corners.js';
 import { extendPieces, followInset } from './extensions.js';
@@ -65,6 +66,7 @@ import {
   wallSideView,
   wallViewForRun,
 } from './wallSides.js';
+import { wallEndPanels } from './wallEndPanels.js';
 
 const STRETCH_EDGE_SNAP_DISTANCE = 2;
 const PIN_EPSILON = 1e-6;
@@ -592,6 +594,37 @@ function withFrame(room, run, settings) {
 }
 
 /**
+ * A face frame run beside a wall end panel (SPEC-36.2): `_frame.wallPanels` gives, per side, the
+ * panel's width and top and how the frame meets it. Auto: mitered over the panel's edge unless the
+ * panel stands in front of the frame or above the run's box, then it dies into it. The panel's
+ * `frame` ('miter' or 'butt') overrides.
+ */
+function withWallPanels(room, wall, settings) {
+  const panels = wallEndPanels(room, wall, settings);
+  return {
+    ...wall,
+    runs: wall.runs.map((run) => {
+      if (!run._frame) return run;
+      const found = { left: null, right: null };
+      for (const panel of panels) {
+        const side = panel[wallSideOf(run)];
+        if (!side.runIds.includes(run.id)) continue;
+        const flush = side.depth <= frontDepth(run, settings) + PIN_EPSILON
+          && panel.top <= run.z + run.height + PIN_EPSILON;
+        found[side.side] = {
+          width: panel.width,
+          top: panel.top,
+          join: wall.endPanels?.[panel.endpoint]?.frame ?? (flush ? 'miter' : 'butt'),
+        };
+      }
+      const { wallPanels, ...frame } = run._frame;
+      if (found.left || found.right) return { ...run, _frame: { ...frame, wallPanels: found } };
+      return wallPanels === undefined ? run : { ...run, _frame: frame };
+    }),
+  };
+}
+
+/**
  * Resolve all stored horizontal, vertical, and automatic-item geometry in a room.
  *
  * @param {object} room
@@ -713,6 +746,11 @@ export function syncRoom(room, settings) {
         endMinWidths: endMinWidthsForRun(nextRoom, wall, run, settings),
       })),
     })),
+  };
+
+  nextRoom = {
+    ...nextRoom,
+    walls: nextRoom.walls.map((wall) => withWallPanels(nextRoom, wall, settings)),
   };
 
   return nextRoom;

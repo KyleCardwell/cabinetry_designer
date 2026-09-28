@@ -55,7 +55,8 @@ function boundsOf(pieces) {
  * Face frame regions for a run (SPEC-36). Each face frame cabinet, and each filler beside one,
  * joins a region with the boxes it touches or meets across a gap. A region is the rectangle
  * around its members, grown over a side or end panel at either side (the stile covers the
- * panel's edge) and down by the upper drop on an upper whose doors overhang. A filler in a frame
+ * panel's edge), or a wall end panel the frame is mitered over (SPEC-36.2, `region.wallPanels`),
+ * and down by the upper drop on an upper whose doors overhang. A filler in a frame
  * is part of a wider stile. A cabinet side with nothing framed or covered beside it is free.
  *
  * @returns {{regions: object[], fillerIds: Set<string>, freeSides: Map<string, {left: boolean, right: boolean}>, seamSides: Map<string, {left: boolean, right: boolean}>, warnings: object[]}}
@@ -89,7 +90,21 @@ export function frameRegions(room, run, cells, settings) {
     groups.set(key, [...(groups.get(key) ?? []), piece]);
   }
 
-  const panels = pieces.filter(isSidePanel);
+  // A wall end panel the frame is mitered over (SPEC-36.2) counts as a side panel at the run's edge.
+  const wallPanels = ['left', 'right'].flatMap((edge) => {
+    const panel = run._frame?.wallPanels?.[edge];
+    if (panel?.join !== 'miter') return [];
+    return [{
+      id: `${run.id}:wall-${edge}`,
+      kind: 'end_panel',
+      edge,
+      x: edge === 'left' ? run.x - panel.width : run.x + run.width,
+      z: 0,
+      width: panel.width,
+      height: panel.top,
+    }];
+  });
+  const panels = [...pieces.filter(isSidePanel), ...wallPanels];
   for (const group of groups.values()) {
     const boxes = group.filter((piece) => piece.kind === 'cabinet');
     if (boxes.length === 0) continue;
@@ -111,16 +126,16 @@ export function frameRegions(room, run, cells, settings) {
       fillerIds: group.filter((piece) => piece.kind === 'filler').map((piece) => piece.id),
       panelIds: [],
     };
+    const covered = [];
     for (const panel of panels) {
       if (!overlaps(panel.z, panel.z + panel.height, bounds.z, bounds.z + bounds.height)) continue;
-      if (Math.abs(panel.x + panel.width - bounds.x) <= EPSILON) {
-        region.x = panel.x;
-        region.width += panel.width;
-        region.panelIds.push(panel.id);
-      } else if (Math.abs(panel.x - bounds.x - bounds.width) <= EPSILON) {
-        region.width += panel.width;
-        region.panelIds.push(panel.id);
-      }
+      const before = Math.abs(panel.x + panel.width - bounds.x) <= EPSILON;
+      if (!before && Math.abs(panel.x - bounds.x - bounds.width) > EPSILON) continue;
+      if (before) region.x = panel.x;
+      region.width += panel.width;
+      covered.push(panel);
+      if (panel.edge) (region.wallPanels ??= []).push({ side: panel.edge, x: panel.x, width: panel.width });
+      else region.panelIds.push(panel.id);
     }
     if (run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
       && (run.upperBottom ?? 'overhang') === 'overhang'
@@ -131,7 +146,7 @@ export function frameRegions(room, run, cells, settings) {
     regions.push(region);
     for (const id of region.fillerIds) fillerIds.add(id);
 
-    const covering = [...group, ...panels.filter((panel) => region.panelIds.includes(panel.id))];
+    const covering = [...group, ...covered];
     for (const box of boxes) {
       const beside = (side) => covering.some((other) => other !== box && sideOf(box, other, reach) === side);
       const besideCabinet = (side) => boxes.some((other) => other !== box && sideOf(box, other, reach) === side);
