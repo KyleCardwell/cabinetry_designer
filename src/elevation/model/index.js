@@ -362,4 +362,4 @@ export {
   isExtend,
   isExtendTarget,
 } from './extensions.js';
-export { faceOpenings, frameRegions, sideOf } from './frames.js';
+export { boxInsets, faceOpenings, frameRegions, sideOf } from './frames.js';

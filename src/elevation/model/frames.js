@@ -173,3 +173,29 @@ export function faceOpenings(face, area, reveals) {
   }
   return [...byPath.values()];
 }
+
+/**
+ * How much narrower than its slot each framed box is, per side (SPEC-36.2): the stile's overhang on
+ * a free side, else 0. Keyed by cabinet cell id, and by column id for a split column (from the cells
+ * along its outside edges). Boxes outside a frame aren't in the map.
+ */
+export function boxInsets(frames, cells, settings) {
+  const overhang = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
+  const insets = new Map();
+  for (const [id, free] of frames.freeSides) {
+    insets.set(id, { left: free.left ? overhang : 0, right: free.right ? overhang : 0 });
+  }
+  const columns = new Map();
+  for (const piece of cells.pieces) {
+    if (piece.columnId) columns.set(piece.columnId, [...(columns.get(piece.columnId) ?? []), piece]);
+  }
+  for (const [columnId, pieces] of columns) {
+    const left = Math.min(...pieces.map((piece) => piece.x));
+    const right = Math.max(...pieces.map((piece) => piece.x + piece.width));
+    const free = (side, edge) => pieces.some((piece) => (insets.get(piece.id)?.[side] ?? 0) > 0
+      && Math.abs((side === 'left' ? piece.x : piece.x + piece.width) - edge) <= EPSILON);
+    const inset = { left: free('left', left) ? overhang : 0, right: free('right', right) ? overhang : 0 };
+    if (inset.left > 0 || inset.right > 0) insets.set(columnId, inset);
+  }
+  return insets;
+}
