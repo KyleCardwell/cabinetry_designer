@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { cellPieces } from '../cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { layoutRun } from '../faceLayouts.js';
-import { boxInsets, frameRegions } from '../frames.js';
+import { boxInsets, frameMembers, frameRegions, frameVerticalChains, groupMembers } from '../frames.js';
 import { gridFromItems } from '../grid.js';
+import { partNumbers, wallBadgeGroups } from '../partNumbers.js';
 import { resolveWall } from '../room.js';
 
 const S = DEFAULT_SETTINGS;
@@ -67,5 +68,73 @@ describe('SPEC-36.2 box widths', () => {
     expect(['t', 'u', 's', 'b'].map((id) => stacked.get(id))).toEqual([
       { left: 0.75, right: 0 }, { left: 0.75, right: 0 }, { left: 0.75, right: 0 }, { left: 0, right: 0.75 },
     ]);
+  });
+});
+
+const OPENINGS_A = [
+  { path: 'r', x: 25.5, z: 5.5, width: 15.75, height: 27.5 },
+  { path: 'r', x: 42.75, z: 5.5, width: 15.75, height: 27.5 },
+];
+const REGION_A = { id: 'frame:a', x: 24, z: 4, width: 36, height: 30.5 };
+const REGION_D = { id: 'frame:d', x: 0, z: 0, width: 30, height: 30 };
+const OPENINGS_D = [
+  { path: 'r.0', x: 1.5, z: 22.5, width: 27, height: 6 },
+  { path: 'r.1.0', x: 1.5, z: 1.5, width: 12.75, height: 19.5 },
+  { path: 'r.1.1', x: 15.75, z: 1.5, width: 12.75, height: 19.5 },
+];
+
+describe('SPEC-36.2 the frame as a part', () => {
+  it('cuts stiles full height, rails between them, and mullions between the rails', () => {
+    expect(groupMembers(frameMembers(REGION_A, OPENINGS_A))).toEqual([
+      { kind: 'stile', width: 1.5, length: 30.5, count: 3 },
+      { kind: 'rail', width: 1.5, length: 15.75, count: 4 },
+    ]);
+    const members = frameMembers(REGION_D, OPENINGS_D);
+    expect(members).toEqual([
+      { kind: 'stile', x: 0, z: 0, width: 1.5, height: 30 },
+      { kind: 'stile', x: 28.5, z: 0, width: 1.5, height: 30 },
+      { kind: 'rail', x: 1.5, z: 0, width: 27, height: 1.5 },
+      { kind: 'rail', x: 1.5, z: 21, width: 27, height: 1.5 },
+      { kind: 'rail', x: 1.5, z: 28.5, width: 27, height: 1.5 },
+      { kind: 'mullion', x: 14.25, z: 1.5, width: 1.5, height: 19.5 },
+    ]);
+    expect(groupMembers(members)).toEqual([
+      { kind: 'stile', width: 1.5, length: 30, count: 2 },
+      { kind: 'rail', width: 1.5, length: 27, count: 3 },
+      { kind: 'mullion', width: 1.5, length: 19.5, count: 1 },
+    ]);
+    expect(frameMembers({ x: 0, z: 0, width: 3, height: 3 }, [
+      { x: 0, z: 0, width: 2, height: 1 }, { x: 2, z: 0, width: 1, height: 2 },
+      { x: 1, z: 2, width: 2, height: 1 }, { x: 0, z: 1, width: 1, height: 2 },
+    ])).toBeNull();
+  });
+
+  it('chains each different stack of openings bottom to top', () => {
+    expect(frameVerticalChains(REGION_A, OPENINGS_A)).toEqual([{
+      id: 'frame:a:v0', axis: 'row', x: 25.5, z: 4, width: 15.75, height: 30.5,
+      tracks: [
+        { id: 'frame:a:v0:0', kind: 'frame', start: 4, end: 5.5, manual: false },
+        { id: 'frame:a:v0:1', kind: 'frame-opening', start: 5.5, end: 33, manual: false },
+        { id: 'frame:a:v0:2', kind: 'frame', start: 33, end: 34.5, manual: false },
+      ],
+    }]);
+    expect(frameVerticalChains(REGION_D, OPENINGS_D)[0].tracks.map(({ kind, start, end }) => [kind, start, end]))
+      .toEqual([
+        ['frame', 0, 1.5], ['frame-opening', 1.5, 21], ['frame', 21, 22.5],
+        ['frame-opening', 22.5, 28.5], ['frame', 28.5, 30],
+      ]);
+  });
+
+  it('numbers each frame once after its run\'s pieces, and badges it', () => {
+    const room = roomWith(baseRun(), INSET);
+    const parts = partNumbers(room, S).parts.filter((part) => part.runId === 'r');
+    expect(parts.map(({ key, kind }) => [key, kind])).toEqual([['a', 'cabinet'], ['b', 'cabinet'], ['frame:a', 'frame']]);
+    expect(parts[2]).toMatchObject({ width: 48, pieceId: null });
+    expect(wallBadgeGroups(room, resolveWall(room, room.walls[0]), S)
+      .map(({ key, lift, pieces }) => [key, lift, pieces.map(({ id }) => id)])).toEqual([
+      ['run:r', 0, ['a', 'b']],
+      ['frame:a', 1, ['frame:a']],
+    ]);
+    expect(partNumbers(roomWith(baseRun()), S).parts.some(({ kind }) => kind === 'frame')).toBe(false);
   });
 });

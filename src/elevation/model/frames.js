@@ -199,3 +199,129 @@ export function boxInsets(frames, cells, settings) {
   }
   return insets;
 }
+
+/** Every opening in a frame region, from its cabinets' face layouts (SPEC-36.2). */
+export function regionOpenings(region, faceLayouts) {
+  return region.cabinetIds.flatMap((id) => faceLayouts.get(id)?.openings ?? []);
+}
+
+function mergeSpans(spans) {
+  const merged = [];
+  for (const [start, end] of [...spans].sort((a, b) => a[0] - b[0])) {
+    const last = merged[merged.length - 1];
+    if (last && start < last[1] - EPSILON) last[1] = Math.max(last[1], end);
+    else merged.push([start, end]);
+  }
+  return merged;
+}
+
+function fills(opening, rect) {
+  return Math.abs(opening.x - rect.x) <= EPSILON && Math.abs(opening.z - rect.z) <= EPSILON
+    && Math.abs(opening.width - rect.width) <= EPSILON && Math.abs(opening.height - rect.height) <= EPSILON;
+}
+
+/**
+ * A frame's stiles, rails and mullions (SPEC-36.2), cut from the region around its openings: the
+ * full-height stiles first, then the rails between each pair of stiles, then any mullion between
+ * those rails, and so on. Each is { kind, x, z, width, height }. Null when the openings can't be
+ * cut apart that way (a pinwheel).
+ */
+export function frameMembers(region, openings) {
+  const members = [];
+  const cut = (rect, inside, vertical, depth, stuck) => {
+    if (inside.length === 0 || (inside.length === 1 && fills(inside[0], rect))) return true;
+    if (stuck > 1) return false;
+    const low = vertical ? rect.x : rect.z;
+    const high = low + (vertical ? rect.width : rect.height);
+    const bays = mergeSpans(inside.map((opening) => (vertical
+      ? [opening.x, opening.x + opening.width]
+      : [opening.z, opening.z + opening.height])));
+    const solids = [];
+    let cursor = low;
+    for (const [start, end] of bays) {
+      if (start - cursor > EPSILON) solids.push([cursor, start]);
+      cursor = Math.max(cursor, end);
+    }
+    if (high - cursor > EPSILON) solids.push([cursor, high]);
+    for (const [start, end] of solids) {
+      members.push(vertical
+        ? { kind: depth === 0 ? 'stile' : 'mullion', x: start, z: rect.z, width: end - start, height: rect.height }
+        : { kind: 'rail', x: rect.x, z: start, width: rect.width, height: end - start });
+    }
+    return bays.every(([start, end]) => {
+      const bay = vertical
+        ? { x: start, z: rect.z, width: end - start, height: rect.height }
+        : { x: rect.x, z: start, width: rect.width, height: end - start };
+      const within = inside.filter((opening) => (vertical
+        ? opening.x >= start - EPSILON && opening.x + opening.width <= end + EPSILON
+        : opening.z >= start - EPSILON && opening.z + opening.height <= end + EPSILON));
+      return cut(bay, within, !vertical, depth + 1, solids.length === 0 ? stuck + 1 : 0);
+    });
+  };
+  return cut(region, openings, true, 0, 0) ? members : null;
+}
+
+const MEMBER_ORDER = ['stile', 'rail', 'mullion'];
+
+/**
+ * Frame members counted by kind and size (SPEC-36.2): { kind, width, length, count }, stiles first.
+ * A rail's width is its height and its length runs across; a stile's or mullion's length is its height.
+ */
+export function groupMembers(members) {
+  const groups = new Map();
+  for (const member of members) {
+    const across = member.kind === 'rail' ? member.height : member.width;
+    const length = member.kind === 'rail' ? member.width : member.height;
+    const key = `${member.kind}:${Math.round(across * 10000)}:${Math.round(length * 10000)}`;
+    const group = groups.get(key);
+    if (group) group.count += 1;
+    else groups.set(key, { kind: member.kind, width: across, length, count: 1 });
+  }
+  return [...groups.values()].sort((a, b) => MEMBER_ORDER.indexOf(a.kind) - MEMBER_ORDER.indexOf(b.kind));
+}
+
+/**
+ * A frame region's vertical opening chains (SPEC-36.2): rail | opening | rail … from the region's
+ * bottom to its top, one for each stack of openings (openings whose widths overlap), left to right,
+ * leaving out a stack whose chain repeats one already given. Shaped like a cell grid on a row axis,
+ * so CellChains draws it.
+ */
+export function frameVerticalChains(region, openings) {
+  const stacks = [];
+  for (const opening of [...openings].sort((a, b) => a.x - b.x)) {
+    const last = stacks[stacks.length - 1];
+    if (last && opening.x < last.end - EPSILON) {
+      last.end = Math.max(last.end, opening.x + opening.width);
+      last.openings.push(opening);
+    } else {
+      stacks.push({ start: opening.x, end: opening.x + opening.width, openings: [opening] });
+    }
+  }
+  const top = region.z + region.height;
+  const seen = new Set();
+  return stacks.flatMap((stack, index) => {
+    const tracks = [];
+    let cursor = region.z;
+    for (const [start, end] of mergeSpans(stack.openings.map((opening) => [opening.z, opening.z + opening.height]))) {
+      if (start - cursor > EPSILON) tracks.push({ kind: 'frame', start: cursor, end: start });
+      tracks.push({ kind: 'frame-opening', start, end });
+      cursor = end;
+    }
+    if (top - cursor > EPSILON) tracks.push({ kind: 'frame', start: cursor, end: top });
+    const signature = tracks
+      .map((track) => `${track.kind}:${Math.round((track.end - track.start) * 10000)}`)
+      .join('|');
+    if (seen.has(signature)) return [];
+    seen.add(signature);
+    const id = `${region.id}:v${index}`;
+    return [{
+      id,
+      axis: 'row',
+      x: stack.start,
+      z: region.z,
+      width: stack.end - stack.start,
+      height: region.height,
+      tracks: tracks.map((track, trackIndex) => ({ ...track, id: `${id}:${trackIndex}`, manual: false })),
+    }];
+  });
+}

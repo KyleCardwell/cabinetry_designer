@@ -420,6 +420,6 @@ describe('SPEC-36 frame fillers', () => {
       .filter((part) => part.runId === 'A-base')
       .map((part) => part.key);
     expect(keys(roomOf())).toEqual(['A-base:left', 'a1', 'a2', 'A-base:right']);
-    expect(keys(roomOf({ cabinetStyleId: 14 }))).toEqual(['A-base:left', 'a1', 'a2']);
+    expect(keys(roomOf({ cabinetStyleId: 14 }))).toEqual(['A-base:left', 'a1', 'a2', 'frame:a1']);
   });
 });

@@ -65,20 +65,34 @@ function runParts(room, wall, side, settings) {
     const blindPanels = new Set(entries
       .filter((entry) => entry.panel && entry.endPieceId)
       .map((entry) => entry.endPieceId));
-    const inFrame = frameRegions(room, run, cells, settings).fillerIds;
-    return partPieces(cells.pieces, settings)
-      .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6
-        && (!inFrame.has(piece.id) || blindPanels.has(piece.id)))
-      .map((piece) => ({
-        key: piece.id,
-        kind: piece.kind,
+    const frames = frameRegions(room, run, cells, settings);
+    const inFrame = frames.fillerIds;
+    return [
+      ...partPieces(cells.pieces, settings)
+        .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6
+          && (!inFrame.has(piece.id) || blindPanels.has(piece.id)))
+        .map((piece) => ({
+          key: piece.id,
+          kind: piece.kind,
+          wallId: wall.id,
+          side,
+          runId: run.id,
+          pieceId: piece.id,
+          molding: null,
+          width: cellWidths.get(piece.id) ?? widths.get(piece.id) ?? piece.width,
+        })),
+      // One part per face frame, after its run's pieces (SPEC-36.2).
+      ...frames.regions.map((region) => ({
+        key: region.id,
+        kind: 'frame',
         wallId: wall.id,
         side,
         runId: run.id,
-        pieceId: piece.id,
+        pieceId: null,
         molding: null,
-        width: cellWidths.get(piece.id) ?? widths.get(piece.id) ?? piece.width,
-      }));
+        width: region.width,
+      })),
+    ];
   });
 }
 
@@ -212,7 +226,7 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
  * @returns {{key: string, lift: number, pieces: object[]}[]}
  */
 export function wallBadgeGroups(room, wall, settings) {
-  const groups = wall.runs.map((run) => {
+  const groups = wall.runs.flatMap((run) => {
     const layout = splitRun(run, settings, {
       endMinWidths: endMinWidthsForRun(room, wall, run, settings),
       endCornerAngles: endCornerAnglesForRun(room, wall, run),
@@ -221,11 +235,19 @@ export function wallBadgeGroups(room, wall, settings) {
     const cells = cellPieces(run, layout);
     const frames = frameRegions(room, run, cells, settings);
     const covered = new Set(frames.regions.flatMap((region) => region.fillerIds));
-    return {
-      key: `run:${run.id}`,
-      lift: 0,
-      pieces: partPieces(cells.pieces, settings).filter((piece) => !covered.has(piece.id)),
-    };
+    return [
+      {
+        key: `run:${run.id}`,
+        lift: 0,
+        pieces: partPieces(cells.pieces, settings).filter((piece) => !covered.has(piece.id)),
+      },
+      // Each frame's badge sits on the frame, a level up (SPEC-36.2).
+      ...frames.regions.map((region) => ({
+        key: region.id,
+        lift: 1,
+        pieces: [{ id: region.id, x: region.x, z: region.z, width: region.width, height: region.height }],
+      })),
+    ];
   }).filter((group) => group.pieces.length > 0);
 
   for (const panel of wallEndPanels(room, wall, settings)) {
