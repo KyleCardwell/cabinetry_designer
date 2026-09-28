@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { cellPieces } from '../cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { horizontalChains } from '../dimensions.js';
 import { layoutRun, runFaceLayouts } from '../faceLayouts.js';
 import { frameRegions } from '../frames.js';
 import { gridFromItems } from '../grid.js';
+import { planRunPieces } from '../planPieces.js';
 import { resolveWall, syncRoom } from '../room.js';
+import { wallEndPanelPolygon, wallEndPanelSpans, wallEndPanels } from '../wallEndPanels.js';
 import { wallSideView } from '../wallSides.js';
 
 const S = DEFAULT_SETTINGS;
@@ -83,5 +86,40 @@ describe('SPEC-36.2 wall end panels in a face frame', () => {
       .toBe('butt');
     expect(runOf(island({ back: { height: 36 }, panel: { width: null, frame: 'miter' } }), 'F')
       ._frame.wallPanels.left.join).toBe('miter');
+  });
+});
+
+describe('SPEC-36.2 a mitered wall end panel in plan, chain and elevation', () => {
+  it('miters the frame strip and the panel, and runs the chain over the panel', () => {
+    const room = island();
+    const { wall, run, layout, faces } = frontFrames(room);
+    const plan = planRunPieces(room, wall, run, S, layout, faces);
+    expect(plan.boxes.map(({ key, start, end }) => [key, start, end])).toEqual([['Fa', 0.75, 48], ['Fb', 48, 95.25]]);
+    expect(plan.faces.find(({ kind }) => kind === 'frame')).toEqual({
+      key: 'frame:Fa', kind: 'frame', start: 0, end: 96, back: 24, front: 24.8125,
+      polygon: [[0, 24.8125], [96, 24.8125], [95.25, 24], [0.75, 24]],
+    });
+    const [panel] = wallEndPanels(room, room.walls[0], S);
+    expect(wallEndPanelPolygon(room, room.walls[0], panel)).toEqual([
+      { x: 0, y: -24.8125 }, { x: 0.75, y: -24 }, { x: 0.75, y: 24 }, { x: 0, y: 24.8125 },
+    ]);
+    expect(horizontalChains(room, wall, 'lower', S).inner).toEqual([
+      { start: 0, end: 1.5, kind: 'frame', runId: 'F' },
+      { start: 1.5, end: 47.25, kind: 'frame-opening', runId: 'F', pieceId: 'Fa' },
+      { start: 47.25, end: 48.75, kind: 'frame', runId: 'F' },
+      { start: 48.75, end: 94.5, kind: 'frame-opening', runId: 'F', pieceId: 'Fb' },
+      { start: 94.5, end: 96, kind: 'frame', runId: 'F' },
+    ]);
+  });
+
+  it('shows only the part of the panel the frame doesn\'t cover', () => {
+    const room = island();
+    const [panel] = wallEndPanels(room, room.walls[0], S);
+    expect(wallEndPanelSpans(wallSideView(room.walls[0], 'front'), panel)).toEqual([{ z: 0, height: 4 }]);
+
+    const taller = island({ back: { height: 36 } });
+    const [tall] = wallEndPanels(taller, taller.walls[0], S);
+    expect(wallEndPanelSpans(wallSideView(taller.walls[0], 'front'), tall)).toEqual([{ z: 0, height: 40 }]);
+    expect(wallEndPanelSpans(wallSideView(taller.walls[0], 'back'), tall)).toEqual([{ z: 0, height: 4 }]);
   });
 });

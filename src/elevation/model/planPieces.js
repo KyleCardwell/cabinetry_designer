@@ -164,14 +164,17 @@ function fillerReturns(run, settings, layout, panels, faceBack, hidden = new Set
 
 /**
  * A face frame region in plan (SPEC-36.1): one strip from the box fronts to the frame's front, mitered
- * into the end or side panel it covers at either end; those panels get the matching miter.
+ * into the end, side or wall end panel it covers at either end; those panels get the matching miter.
  */
 function frameStrips(frames, pieces, faces, back, front) {
   const strips = [];
   const mitered = new Map();
   for (const region of frames.regions) {
     const end = region.x + region.width;
-    const panels = pieces.filter((piece) => region.panelIds.includes(piece.id));
+    const panels = [
+      ...pieces.filter((piece) => region.panelIds.includes(piece.id)),
+      ...(region.wallPanels ?? []),
+    ];
     const left = panels.find((panel) => Math.abs(panel.x - region.x) <= WIDTH_EPSILON);
     const right = panels.find((panel) => Math.abs(panel.x + panel.width - end) <= WIDTH_EPSILON);
     strips.push({
@@ -188,8 +191,8 @@ function frameStrips(frames, pieces, faces, back, front) {
         [left ? left.x + left.width : region.x, back],
       ],
     });
-    if (left) mitered.set(left.id, 'left');
-    if (right) mitered.set(right.id, 'right');
+    if (left?.id) mitered.set(left.id, 'left');
+    if (right?.id) mitered.set(right.id, 'right');
   }
   const next = faces.map((range) => {
     const side = mitered.get(range.key);

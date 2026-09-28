@@ -303,20 +303,22 @@ export function horizontalChains(room, wall, band, settings) {
   if (left) inner.push(left);
   let cursor = rangeStart;
   runs.forEach((run, index) => {
-    appendGap(
-      inner,
-      cursor,
-      run.x,
-      index === 0 && leftCornerGap ? 'corner-gap' : 'open',
-      tallRanges,
-    );
     const layout = splitRun(run, settings, {
       endMinWidths: endMinWidthsForRun(room, wall, run, settings),
       endCornerAngles: endCornerAnglesForRun(room, wall, run),
       pinTargets: pinTargetsForRun(run, wall, length, settings),
     });
-    inner.push(...runInnerSegments(room, wall, run, settings, layout));
-    cursor = run.x + run.width;
+    // A frame over a wall end panel starts before the run (SPEC-36.2).
+    const segments = runInnerSegments(room, wall, run, settings, layout);
+    appendGap(
+      inner,
+      cursor,
+      Math.min(run.x, segments[0]?.start ?? run.x),
+      index === 0 && leftCornerGap ? 'corner-gap' : 'open',
+      tallRanges,
+    );
+    inner.push(...segments);
+    cursor = Math.max(run.x + run.width, segments[segments.length - 1]?.end ?? run.x + run.width);
   });
   appendGap(
     inner,

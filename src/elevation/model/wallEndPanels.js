@@ -2,6 +2,17 @@ import { frontDepth } from './corners.js';
 import { wallFrame } from './geometry.js';
 import { wallSideView } from './wallSides.js';
 
+const EPSILON = 1e-6;
+
+/** How far a mitered face frame cuts into the panel's inside corner, front and back (SPEC-36.2). */
+function panelMiters(source, panel) {
+  const depth = (face) => Math.max(0, ...source.runs
+    .filter((run) => panel[face].runIds.includes(run.id)
+      && run._frame?.wallPanels?.[panel[face].side]?.join === 'miter')
+    .map((run) => run._frame.thickness));
+  return { front: depth('front'), back: depth('back') };
+}
+
 function panelSide(room, wall, endpoint, elevationSide, width, settings) {
   const view = wallSideView(wall, elevationSide);
   const frame = wallFrame(room, view);
@@ -46,10 +57,37 @@ export function wallEndPanelPolygon(room, wall, panel) {
   const left = panel.front.x;
   const right = left + panel.width;
   const back = -(panel.thickness + panel.back.depth);
+  const front = panel.front.depth;
+  // A face frame mitered into the panel stops its inside edge at the box fronts (SPEC-36.2).
+  const miter = panelMiters(source, panel);
+  const inside = panel.front.side === 'left' ? right : left;
+  const cut = (x, amount) => (x === inside ? amount : 0);
   return [
-    point(left, back),
-    point(right, back),
-    point(right, panel.front.depth),
-    point(left, panel.front.depth),
+    point(left, back + cut(left, miter.back)),
+    point(right, back + cut(right, miter.back)),
+    point(right, front - cut(right, miter.front)),
+    point(left, front - cut(left, miter.front)),
   ];
+}
+
+/**
+ * The heights of a wall end panel left showing on one elevation (SPEC-36.2): all of it, floor to
+ * top, less where a face frame run on this side is mitered over its edge.
+ */
+export function wallEndPanelSpans(wall, panel) {
+  const side = panel[wall.side ?? 'front'];
+  const covers = (wall.runs ?? [])
+    .filter((run) => side.runIds.includes(run.id)
+      && run._frame?.wallPanels?.[side.side]?.join === 'miter')
+    .map((run) => [run.z - run._frame.drop, run.z + run.height])
+    .sort((a, b) => a[0] - b[0]);
+  const spans = [];
+  let cursor = 0;
+  for (const [bottom, top] of covers) {
+    const end = Math.min(bottom, panel.top);
+    if (end - cursor > EPSILON) spans.push({ z: cursor, height: end - cursor });
+    cursor = Math.max(cursor, top);
+  }
+  if (panel.top - cursor > EPSILON) spans.push({ z: cursor, height: panel.top - cursor });
+  return spans;
 }

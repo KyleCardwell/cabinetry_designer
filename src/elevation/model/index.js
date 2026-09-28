@@ -173,7 +173,7 @@ export {
   wallSideView,
   wallViewForRun,
 } from './wallSides.js';
-export { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
+export { wallEndPanelPolygon, wallEndPanelSpans, wallEndPanels } from './wallEndPanels.js';
 export {
   MOLDING_BADGE_SLOTS,
   MOLDING_LABELS,
