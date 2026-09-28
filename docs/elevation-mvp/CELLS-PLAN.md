@@ -95,7 +95,7 @@ The inset frame drawing (FACES-PLAN round 15) was never built. It should now be 
   - Beaded (1/4" bead standard): each member is its flat plus a bead on each side facing an opening. Seam: 1/4 + 1 1/2 + 1/4 = 2", with 3/4" on each box and a 1/2" gap (a beaded run's seam gap defaults to 2 × bead). End at a mitered panel: 1 1/2 + 1/4 = 1 3/4". Inside-corner filler: the flat stretches, the bead stays at the face.
   - At a free side the frame overhangs the box by 3/4", so the box is 3/4" narrower there (a 30" frame section → a 28 1/2" box).
   - Opening dimensions (stile | opening | stile) replace the box chain; the overall run dimension stays below.
-  - One part number per frame, its stiles and rails listed under it (stiles full height, rails between), derived, never stored (36.1).
+  - One part number per frame, its stiles and rails listed under it (stiles full height, rails between), derived, never stored (36.2).
 
 ### T-fillers (FILL-011)
 
@@ -159,7 +159,9 @@ The topmost cells are drawn. Lower cells with different seams can be dashed late
 | **34 — Kinds and depth** | Blind per cell; `panel`, `void`, `shelves` with back; `depth`, `align`; Wrap in panels (SPEC-34). Re-scoped 2026-09-25: gaps → 36, `run.outset` → 35, deviation lists → reports after 38. | the desk, back panels, floating shelves, the blind tall over a non-blind base |
 | **35 — Tops, bottoms, stacked runs** | `run.top` decoupled from type; the `run.bottom` list and REV-011; stacked runs (sits on / held under, fill between); one chain per stack; `run.outset` (from 34). SPEC-35, steps 191–200. | the budgeted room |
 | **36 — Face frame on cells** | Gaps between boxes (drawn, solved, run default and per-track override); frame regions, breaks, the beaded seam rule, boxes narrower at free ends; the frame drawn as its outside rectangle with fillers and covered end panels hidden; opening dimensions across. SPEC-36, steps 213–220. | inset and beaded inset runs |
-| 36.1 — The frame as a part | One part number per frame with its stiles and rails listed (stiles full height, rails between; derived); vertical opening dimensions (rail \| opening \| rail); the per-split rail/mullion toggle; the 3/4" bottom rail on hanging bases. | frame pricing, drawer stacks with no rails, hanging bases |
+| 36.1 — Face frame fixes | A face frame run's front is box + 13/16 (no bumper, no door); upper clearance measured to the frame's bottom rail; the corner stile minimum (the filler part is the Euro minimum less the side reveal); plan view: no fillers, boxes at their true width, a 13/16 frame strip mitered into its end panels; end panels show on hover in the elevation, clickable and numbered. SPEC-36.1, steps 221–225. | face frame corners, uppers and plan view |
+| 36.2 — The frame as a part | One part number per frame with its stiles and rails listed (stiles full height, rails between; derived, never stored); vertical opening dimensions (rail \| opening \| rail). | frame pricing |
+| 36.3 — Face frame options | The per-split rail/mullion toggle; the 3/4" bottom rail on hanging bases. | drawer stacks with no rails, hanging bases |
 | **37 — T-fillers** | FILL-011: run setting, per-side overrides, stile logic, rabbet notes. | Euro T-filler runs |
 | **38 — Combine and full grids** | Rows × columns splits, combine, flatten, spans in the solver, chains and neighbours. | the pinwheel |
 
