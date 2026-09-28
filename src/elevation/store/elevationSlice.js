@@ -1601,12 +1601,16 @@ const elevationSlice = createSlice({
       const openingId = action.payload.openingId ?? null;
       const soffitId = openingId ? null : action.payload.soffitId ?? null;
       const runId = openingId || soffitId ? null : action.payload.runId ?? null;
+      const endPanel = openingId || soffitId || runId || !['start', 'end'].includes(action.payload.endPanel)
+        ? null
+        : action.payload.endPanel;
       state.selection = {
         runId,
         pieceId: runId ? action.payload.pieceId ?? null : null,
         openingId,
         soffitId,
         wallId: state.selection.wallId ?? null,
+        ...(endPanel ? { endPanel } : {}),
       };
       if (runId) {
         const selectedRun = roomFor(state)?.walls

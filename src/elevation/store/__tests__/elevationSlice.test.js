@@ -2447,3 +2447,17 @@ describe('SPEC-36.2 wall end panel frame join', () => {
     expect(state.rooms[0].walls[0].endPanels.start).toEqual({ width: 0.75 });
   });
 });
+
+describe('SPEC-36.2.1 wall end panel selection', () => {
+  it('selects a wall end panel and drops it for anything else', () => {
+    let state = elevationReducer(stateWithRun(), setSelection({ endPanel: 'start' }));
+    expect(state.selection).toMatchObject({
+      runId: null, pieceId: null, openingId: null, soffitId: null, endPanel: 'start',
+    });
+    state = elevationReducer(state, setSelection({ endPanel: 'middle' }));
+    expect('endPanel' in state.selection).toBe(false);
+    state = elevationReducer(state, setSelection({ endPanel: 'end', soffitId: 's1' }));
+    expect(state.selection.soffitId).toBe('s1');
+    expect('endPanel' in state.selection).toBe(false);
+  });
+});
