@@ -81,7 +81,8 @@ export function resolveVertical(run, profile, baseRunsBelow = [], wallOrHeight) 
         warnings.push({ code: 'mixed-counter-heights' });
       }
     }
-    z = counterReference + q.upperClearance;
+    // The clearance runs to the bottom of a face frame's bottom rail, which drops below the box (SPEC-36.1).
+    z = counterReference + q.upperClearance + (run._frame?.drop ?? 0);
     height = boxTop - z;
   }
 

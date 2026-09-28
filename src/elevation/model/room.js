@@ -46,7 +46,7 @@ import {
   stackCreatesCycle,
   stackLink,
 } from './stacks.js';
-import { runFrame, runSeamGap } from './styles.js';
+import { isInsetStyle, resolveStyle, runFrame, runSeamGap, styleReveals } from './styles.js';
 import {
   profileUnderSoffit,
   resolveSoffitSpan,
@@ -188,13 +188,16 @@ export function compensateRuns(oldRoom, newRoom) {
 /** Return per-side flex-filler minimums for a run in its room context. */
 export function endMinWidthsForRun(room, wall, run, settings) {
   wall = wallViewForRun(wall, run);
+  const style = resolveStyle(settings, room, run);
+  // A face frame's whole stile clears the corner, box-to-opening included (SPEC-36.1).
+  const frameReveal = isInsetStyle(style) ? styleReveals(style, run.cabinetTypeId, settings).left : 0;
   return Object.fromEntries(['left', 'right'].map((side) => {
     const corner = cornerForRunSide(room, wall, run, side);
     return [
       side,
       (run.anchors?.[side] === true || run.anchors?.[side]?.to === 'wall')
         && corner.type === 'inside'
-        ? cornerFillerMin(settings, corner.angle)
+        ? Math.max(0, cornerFillerMin(settings, corner.angle) - frameReveal)
         : settings.fillerMinWidth,
     ];
   }));
