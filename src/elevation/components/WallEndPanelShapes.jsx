@@ -1,7 +1,7 @@
 import { Group, Rect } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { KIND_COLORS } from '../model/constants.js';
-import { wallEndPanels } from '../model/wallEndPanels.js';
+import { wallEndPanelSpans } from '../model/wallEndPanels.js';
 
 export default function WallEndPanelShapes({
   room,
@@ -9,17 +9,17 @@ export default function WallEndPanelShapes({
   settings,
   transform,
 }) {
-  return wallEndPanels(room, wall, settings).map((panel) => {
-    const side = panel[wall.side];
+  return wallEndPanelSpans(room, wall, settings).map((span) => {
+    const side = span[wall.side];
     const piece = {
       x: side.x,
-      z: 0,
-      width: panel.width,
-      height: panel.top,
+      z: span.bottom,
+      width: span.width,
+      height: span.top - span.bottom,
     };
     const rect = wallRectToScreen(piece, transform);
     return (
-      <Group key={panel.endpoint} listening={false}>
+      <Group key={`${span.endpoint}-${span.bottom}`} listening={false}>
         <Rect
           {...rect}
           fill={KIND_COLORS.end_panel}

@@ -304,7 +304,23 @@ export default function WallHeightProperties({ room, wall, plan }) {
                   <p className="mt-1 text-xs text-gray-500">Connected — corner</p>
                 )}
                 {panel && (
-                  <div className="mt-2">
+                  <div className="mt-2 space-y-2.5">
+                    <Field label="Face frame">
+                      <select
+                        value={panel.frame ?? 'auto'}
+                        onChange={(event) => dispatch(setWallEndPanel({
+                          wallId: wall.id,
+                          endpoint,
+                          panel: { ...panel, frame: event.target.value },
+                        }))}
+                        aria-label={`${label} panel face frame`}
+                        className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="auto">Auto</option>
+                        <option value="cover">Frame covers the panel edge</option>
+                        <option value="die">Frame dies into the panel</option>
+                      </select>
+                    </Field>
                     <Field label="Width">
                       <InchInput
                         value={panel.width}
@@ -313,7 +329,7 @@ export default function WallHeightProperties({ room, wall, plan }) {
                         onCommit={(width) => dispatch(setWallEndPanel({
                           wallId: wall.id,
                           endpoint,
-                          panel: { width },
+                          panel: { ...panel, width },
                         }))}
                         aria-label={`${label} panel width`}
                       />
