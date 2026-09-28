@@ -280,13 +280,8 @@ export function groupMembers(members) {
   return [...groups.values()].sort((a, b) => MEMBER_ORDER.indexOf(a.kind) - MEMBER_ORDER.indexOf(b.kind));
 }
 
-/**
- * A frame region's vertical opening chains (SPEC-36.2): rail | opening | rail … from the region's
- * bottom to its top, one for each stack of openings (openings whose widths overlap), left to right,
- * leaving out a stack whose chain repeats one already given. Shaped like a cell grid on a row axis,
- * so CellChains draws it.
- */
-export function frameVerticalChains(region, openings) {
+/** Stacks of openings (widths overlapping), left to right, each with rail | opening | rail tracks, bottom to top. */
+function openingStacks(region, openings) {
   const stacks = [];
   for (const opening of [...openings].sort((a, b) => a.x - b.x)) {
     const last = stacks[stacks.length - 1];
@@ -298,8 +293,7 @@ export function frameVerticalChains(region, openings) {
     }
   }
   const top = region.z + region.height;
-  const seen = new Set();
-  return stacks.flatMap((stack, index) => {
+  return stacks.map((stack) => {
     const tracks = [];
     let cursor = region.z;
     for (const [start, end] of mergeSpans(stack.openings.map((opening) => [opening.z, opening.z + opening.height]))) {
@@ -308,7 +302,18 @@ export function frameVerticalChains(region, openings) {
       cursor = end;
     }
     if (top - cursor > EPSILON) tracks.push({ kind: 'frame', start: cursor, end: top });
-    const signature = tracks
+    return { ...stack, tracks };
+  });
+}
+
+/**
+ * A frame region's vertical opening chains (SPEC-36.2): one per stack of openings, left to right,
+ * leaving out a stack whose chain repeats one already given. Shaped like a cell grid on a row axis.
+ */
+export function frameVerticalChains(region, openings) {
+  const seen = new Set();
+  return openingStacks(region, openings).flatMap((stack, index) => {
+    const signature = stack.tracks
       .map((track) => `${track.kind}:${Math.round((track.end - track.start) * 10000)}`)
       .join('|');
     if (seen.has(signature)) return [];
@@ -321,7 +326,27 @@ export function frameVerticalChains(region, openings) {
       z: region.z,
       width: stack.end - stack.start,
       height: region.height,
-      tracks: tracks.map((track, trackIndex) => ({ ...track, id: `${id}:${trackIndex}`, manual: false })),
+      tracks: stack.tracks.map((track, trackIndex) => ({ ...track, id: `${id}:${trackIndex}`, manual: false })),
     }];
   });
+}
+
+/** Rail | opening | rail up the stack of openings nearest one side of a frame (SPEC-36.2.1). */
+export function frameEdgeTracks(region, openings, edge) {
+  const stacks = openingStacks(region, openings);
+  if (stacks.length === 0) return [];
+  return (edge === 'right' ? stacks[stacks.length - 1] : stacks[0]).tracks;
+}
+
+/**
+ * Where a frame's part badge points (SPEC-36.2.1): the middle of the full-height stile nearest the
+ * frame's centre, clear of the cabinets' own badges; the frame's centre when there's no stile.
+ */
+export function frameBadgeAnchor(region, members) {
+  const middle = region.x + region.width / 2;
+  const stiles = (members ?? []).filter((member) => member.kind === 'stile');
+  if (stiles.length === 0) return { x: middle, z: region.z + region.height / 2 };
+  const offset = (stile) => Math.abs(stile.x + stile.width / 2 - middle);
+  const nearest = stiles.reduce((best, stile) => (offset(stile) < offset(best) - EPSILON ? stile : best));
+  return { x: nearest.x + nearest.width / 2, z: nearest.z + nearest.height / 2 };
 }

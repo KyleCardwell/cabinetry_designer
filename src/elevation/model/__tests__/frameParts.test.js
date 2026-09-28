@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { cellPieces } from '../cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { verticalChains } from '../dimensions.js';
 import { layoutRun } from '../faceLayouts.js';
-import { boxInsets, frameMembers, frameRegions, frameVerticalChains, groupMembers } from '../frames.js';
+import { boxInsets, frameBadgeAnchor, frameMembers, frameRegions, frameVerticalChains, groupMembers } from '../frames.js';
 import { gridFromItems } from '../grid.js';
 import { partNumbers, wallBadgeGroups } from '../partNumbers.js';
 import { resolveWall } from '../room.js';
@@ -133,8 +134,42 @@ describe('SPEC-36.2 the frame as a part', () => {
     expect(wallBadgeGroups(room, resolveWall(room, room.walls[0]), S)
       .map(({ key, lift, pieces }) => [key, lift, pieces.map(({ id }) => id)])).toEqual([
       ['run:r', 0, ['a', 'b']],
-      ['frame:a', 1, ['frame:a']],
+      ['frame:a', 2, ['frame:a']],
     ]);
     expect(partNumbers(roomWith(baseRun()), S).parts.some(({ kind }) => kind === 'frame')).toBe(false);
+  });
+});
+
+describe('SPEC-36.2.1 the frame on the wall chain and its badge', () => {
+  it('dimensions the frame up the wall in place of the box', () => {
+    const room = roomWith(baseRun(), INSET);
+    const wall = resolveWall(room, room.walls[0]);
+    expect(verticalChains(room, wall, { lowerRun: room.walls[0].runs[0], upperRun: null }, S, 'left').inner)
+      .toEqual([
+        { start: 0, end: 4, kind: 'toe-kick' },
+        { start: 4, end: 5.5, kind: 'frame' },
+        { start: 5.5, end: 33, kind: 'frame-opening' },
+        { start: 33, end: 34.5, kind: 'frame' },
+        { start: 34.5, end: 36, kind: 'countertop' },
+        { start: 36, end: 96, kind: 'open' },
+      ]);
+    const euro = roomWith(baseRun());
+    expect(verticalChains(euro, resolveWall(euro, euro.walls[0]), { lowerRun: euro.walls[0].runs[0], upperRun: null }, S, 'right')
+      .inner[1]).toEqual({ start: 4, end: 34.5, kind: 'box' });
+  });
+
+  it('points the frame badge at the stile nearest the frame\'s centre', () => {
+    expect(frameBadgeAnchor(REGION_A, frameMembers(REGION_A, OPENINGS_A))).toEqual({ x: 42, z: 19.25 });
+    expect(frameBadgeAnchor({ x: 24, z: 4, width: 18, height: 30.5 }, [
+      { kind: 'stile', x: 24, z: 4, width: 1.5, height: 30.5 },
+      { kind: 'stile', x: 40.5, z: 4, width: 1.5, height: 30.5 },
+    ])).toEqual({ x: 24.75, z: 19.25 });
+    expect(frameBadgeAnchor(REGION_A, null)).toEqual({ x: 42, z: 19.25 });
+
+    const room = roomWith(baseRun(), INSET);
+    const frame = wallBadgeGroups(room, resolveWall(room, room.walls[0]), S)
+      .find(({ key }) => key === 'frame:a');
+    expect(frame.lift).toBe(2);
+    expect(frame.pieces[0].anchor).toEqual({ x: 48, z: 19.25 });
   });
 });

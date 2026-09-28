@@ -2,8 +2,8 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { runBottomParts } from './bottoms.js';
 import { cellPieces } from './cells.js';
 import { cornerAt } from './corners.js';
-import { runFaceLayouts } from './faceLayouts.js';
-import { frameRegions } from './frames.js';
+import { layoutRun, runFaceLayouts } from './faceLayouts.js';
+import { frameEdgeTracks, frameRegions, regionOpenings } from './frames.js';
 import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { landingsOn } from './landings.js';
@@ -445,8 +445,32 @@ export function pickColumnRuns(wall, selectedRunId, edge = 'left') {
   return stack.length > 1 ? { ...column, stack } : column;
 }
 
+/**
+ * A run's box on the vertical chain (SPEC-36.2.1). On a face frame run, the frame region nearest
+ * the chain's edge is dimensioned rail | opening | rail up its outermost stack of openings, from the
+ * frame's own bottom (below an upper's box when it drops), with any box above or below the frame.
+ * Otherwise the box.
+ */
+function runBoxSegments(room, wall, run, settings, edge) {
+  const box = [{ start: run.z, end: run.z + run.height, kind: 'box' }];
+  const layout = layoutRun(room, wall, run, settings);
+  const { regions } = frameRegions(room, run, cellPieces(run, layout), settings);
+  if (regions.length === 0) return box;
+  const region = regions.reduce((best, candidate) => (edge === 'right'
+    ? (candidate.x + candidate.width > best.x + best.width + SEGMENT_EPSILON ? candidate : best)
+    : (candidate.x < best.x - SEGMENT_EPSILON ? candidate : best)));
+  const openings = regionOpenings(region, runFaceLayouts(room, wall, run, settings, layout));
+  const tracks = frameEdgeTracks(region, openings, edge);
+  if (tracks.length === 0) return box;
+  return [
+    { start: run.z, end: region.z, kind: 'box' },
+    ...tracks.map(({ start, end, kind }) => ({ start, end, kind })),
+    { start: region.z + region.height, end: run.z + run.height, kind: 'box' },
+  ].filter((segment) => segment.end - segment.start > SEGMENT_EPSILON);
+}
+
 /** One chain up a joined stack, bottom to top: each run's parts below, box and top, with the gaps. */
-export function stackChain(room, wall, runs, settings) {
+export function stackChain(room, wall, runs, settings, edge = 'left') {
   const profile = resolveProfile(settings, room, wall);
   const inner = [];
   let cursor = 0;
@@ -459,9 +483,10 @@ export function stackChain(room, wall, runs, settings) {
     const parts = runBottomParts(run);
     const lower = run.cabinetTypeId === CABINET_TYPE_IDS.BASE
       || run.cabinetTypeId === CABINET_TYPE_IDS.TALL;
-    append(parts.length > 0 ? parts.at(-1).z : run.z, index === 0 && lower ? 'toe-kick' : 'open');
+    const box = runBoxSegments(room, wall, run, settings, edge);
+    append(parts.length > 0 ? parts.at(-1).z : box[0].start, index === 0 && lower ? 'toe-kick' : 'open');
     for (const part of [...parts].reverse()) append(part.z + part.height, 'bottom');
-    append(run.z + run.height, 'box');
+    for (const segment of box) append(segment.end, segment.kind);
     const top = runTop(wall, run, profile);
     append(run.z + run.height + top.height, isCountertop(top.kind) ? 'countertop' : 'molding');
   });
@@ -473,8 +498,8 @@ export function stackChain(room, wall, runs, settings) {
 }
 
 /** Build the vertical cabinet stack and full-wall dimension chains. */
-export function verticalChains(room, wall, { lowerRun, upperRun, stack = null }, settings) {
-  if (stack && stack.length > 1) return stackChain(room, wall, stack, settings);
+export function verticalChains(room, wall, { lowerRun, upperRun, stack = null }, settings, edge = 'left') {
+  if (stack && stack.length > 1) return stackChain(room, wall, stack, settings, edge);
   const inner = [];
   const outer = wall.height > SEGMENT_EPSILON
     ? [{ start: 0, end: wall.height, kind: 'wall' }]
@@ -500,9 +525,11 @@ export function verticalChains(room, wall, { lowerRun, upperRun, stack = null },
 
   if (lowerRun) {
     append(0, lowerRun.z, 'toe-kick');
-    if (append(lowerRun.z, lowerRun.z + lowerRun.height, 'box')) {
-      rememberBox(lowerRun);
+    let drawn = false;
+    for (const segment of runBoxSegments(room, wall, lowerRun, settings, edge)) {
+      drawn = append(segment.start, segment.end, segment.kind) || drawn;
     }
+    if (drawn) rememberBox(lowerRun);
     const lowerTop = runTop(wall, lowerRun, wallProfile);
     if (isCountertop(lowerTop.kind)) {
       append(
@@ -515,15 +542,16 @@ export function verticalChains(room, wall, { lowerRun, upperRun, stack = null },
 
   if (upperRun) {
     const parts = runBottomParts(upperRun);
+    const box = runBoxSegments(room, wall, upperRun, settings, edge);
     append(
       cursor,
-      parts.length > 0 ? parts.at(-1).z : upperRun.z,
+      parts.length > 0 ? parts.at(-1).z : box[0].start,
       lowerRun?.cabinetTypeId === CABINET_TYPE_IDS.BASE ? 'clearance' : 'open',
     );
     for (const part of [...parts].reverse()) append(part.z, part.z + part.height, 'bottom');
-    if (append(upperRun.z, upperRun.z + upperRun.height, 'box')) {
-      rememberBox(upperRun);
-    }
+    let drawn = false;
+    for (const segment of box) drawn = append(segment.start, segment.end, segment.kind) || drawn;
+    if (drawn) rememberBox(upperRun);
   }
 
   if (highestBox) {

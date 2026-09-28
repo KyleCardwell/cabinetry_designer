@@ -7,7 +7,7 @@ import { frameRegions } from '../frames.js';
 import { gridFromItems } from '../grid.js';
 import { planRunPieces } from '../planPieces.js';
 import { resolveWall, syncRoom } from '../room.js';
-import { wallEndPanelPolygon, wallEndPanelSpans, wallEndPanels } from '../wallEndPanels.js';
+import { wallEndPanelFramed, wallEndPanelPolygon, wallEndPanelSpans, wallEndPanels } from '../wallEndPanels.js';
 import { wallSideView } from '../wallSides.js';
 
 const S = DEFAULT_SETTINGS;
@@ -121,5 +121,16 @@ describe('SPEC-36.2 a mitered wall end panel in plan, chain and elevation', () =
     const [tall] = wallEndPanels(taller, taller.walls[0], S);
     expect(wallEndPanelSpans(wallSideView(taller.walls[0], 'front'), tall)).toEqual([{ z: 0, height: 40 }]);
     expect(wallEndPanelSpans(wallSideView(taller.walls[0], 'back'), tall)).toEqual([{ z: 0, height: 4 }]);
+  });
+});
+
+describe('SPEC-36.2.1 which wall end panels meet a frame', () => {
+  it('says a panel meets a frame only beside a face frame run', () => {
+    const inset = island();
+    const [framed] = wallEndPanels(inset, inset.walls[0], S);
+    expect(wallEndPanelFramed(inset.walls[0], framed)).toBe(true);
+    const euro = island({ style: null });
+    const [plain] = wallEndPanels(euro, euro.walls[0], S);
+    expect(wallEndPanelFramed(euro.walls[0], plain)).toBe(false);
   });
 });

@@ -1,7 +1,8 @@
 import { CABINET_TYPE_IDS } from './constants.js';
+import { runFaceLayouts } from './faceLayouts.js';
 import { blindEntries, blindPartWidths } from './blind.js';
 import { blindCellWidths, cellPieces, partPieces } from './cells.js';
-import { frameRegions } from './frames.js';
+import { frameBadgeAnchor, frameMembers, frameRegions, regionOpenings } from './frames.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
 import {
@@ -235,18 +236,30 @@ export function wallBadgeGroups(room, wall, settings) {
     const cells = cellPieces(run, layout);
     const frames = frameRegions(room, run, cells, settings);
     const covered = new Set(frames.regions.flatMap((region) => region.fillerIds));
+    let layouts = null;
+    const faceLayouts = () => (layouts ??= runFaceLayouts(room, wall, run, settings, layout));
     return [
       {
         key: `run:${run.id}`,
         lift: 0,
         pieces: partPieces(cells.pieces, settings).filter((piece) => !covered.has(piece.id)),
       },
-      // Each frame's badge sits on the frame, a level up (SPEC-36.2).
-      ...frames.regions.map((region) => ({
-        key: region.id,
-        lift: 1,
-        pieces: [{ id: region.id, x: region.x, z: region.z, width: region.width, height: region.height }],
-      })),
+      // Each frame's badge sits two levels up, over the stile nearest its centre (SPEC-36.2.1).
+      ...frames.regions.map((region) => {
+        const openings = regionOpenings(region, faceLayouts());
+        return {
+          key: region.id,
+          lift: 2,
+          pieces: [{
+            id: region.id,
+            x: region.x,
+            z: region.z,
+            width: region.width,
+            height: region.height,
+            anchor: frameBadgeAnchor(region, frameMembers(region, openings)),
+          }],
+        };
+      }),
     ];
   }).filter((group) => group.pieces.length > 0);
 

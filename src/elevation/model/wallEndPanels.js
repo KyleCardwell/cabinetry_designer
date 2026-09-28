@@ -91,3 +91,10 @@ export function wallEndPanelSpans(wall, panel) {
   if (panel.top - cursor > EPSILON) spans.push({ z: cursor, height: panel.top - cursor });
   return spans;
 }
+
+/** Whether a face frame run meets this wall end panel on either side (SPEC-36.2.1). */
+export function wallEndPanelFramed(wall, panel) {
+  const source = wall.sideSource ?? wall;
+  const ids = [...panel.front.runIds, ...panel.back.runIds];
+  return source.runs.some((run) => ids.includes(run.id) && Boolean(run._frame));
+}
