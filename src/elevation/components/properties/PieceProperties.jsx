@@ -9,6 +9,7 @@ import CabinetProperties from './CabinetProperties.jsx';
 import CellProperties from './CellProperties.jsx';
 import EndFields from './EndFields.jsx';
 import ExtendFields from './ExtendFields.jsx';
+import FrameSection from './FrameSection.jsx';
 import Field from './Field.jsx';
 import PartNumberField from './PartNumberField.jsx';
 
@@ -76,6 +77,18 @@ export default function PieceProperties({
   const numbers = useMemo(() => partNumbers(room, settings), [room, settings]);
   const frames = useMemo(() => frameRegions(room, run, layout, settings), [room, run, layout, settings]);
   const insets = useMemo(() => boxInsets(frames, layout, settings), [frames, layout, settings]);
+  const region = frames.regions.find((candidate) => candidate.cabinetIds.includes(piece.id)) ?? null;
+  const frameSection = region ? (
+    <FrameSection
+      room={room}
+      wall={wall}
+      run={run}
+      layout={layout}
+      region={region}
+      numbers={numbers}
+      settings={settings}
+    />
+  ) : null;
   const partKey = piece.id;
   const partNumberField = piece.kind === 'void' || piece.kind === 'shelves' ? null : (
     <PartNumberField
@@ -140,6 +153,7 @@ export default function PieceProperties({
           settings={settings}
           insets={insets}
         />
+        {frameSection}
       </>
     );
   }
@@ -156,6 +170,7 @@ export default function PieceProperties({
         settings={settings}
         inset={insets.get(piece.id)}
       />
+      {frameSection}
     </>
   );
 }
