@@ -18,14 +18,18 @@ import Field, { ReadOnlyValue } from './Field.jsx';
 import GapField from './GapField.jsx';
 import { RUN_TYPES } from './constants.js';
 
+const NO_INSET = { left: 0, right: 0 };
+
 export default function CabinetProperties({
-  wall, run, piece, item, layout, cells, settings,
+  wall, run, piece, item, layout, cells, settings, inset = NO_INSET,
 }) {
   const dispatch = useDispatch();
   const actionBase = { wallId: wall.id, runId: run.id, itemId: item.id };
   const locked = item.width !== null;
   const typeLabel = RUN_TYPES.find(([value]) => value === run.cabinetTypeId)?.[1] ?? 'Unknown';
   const actualCenter = piece.x + piece.width / 2;
+  const trim = inset.left + inset.right;
+  const boxWidth = piece.width - trim;
   const items = runItems(run);
   const pinCount = items.filter((candidate) => candidate.pin).length;
   const warnsSecondPin = !item.pin && pinCount === 1;
@@ -65,12 +69,17 @@ export default function CabinetProperties({
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Cabinet
         </h3>
-        <Field label="Width">
+        <Field label="Box width">
           <InchInput
-            value={piece.width}
-            onCommit={(width) => dispatch(setItemWidth({ ...actionBase, width }))}
-            aria-label="Cabinet width"
+            value={boxWidth}
+            onCommit={(width) => dispatch(setItemWidth({ ...actionBase, width: width + trim }))}
+            aria-label="Cabinet box width"
           />
+          {boxWidth !== piece.width && (
+            <p className="mt-1 text-xs text-gray-500">
+              Frame section: {formatInches(piece.width)}
+            </p>
+          )}
         </Field>
         <button
           type="button"

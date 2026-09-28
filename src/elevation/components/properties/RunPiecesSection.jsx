@@ -6,7 +6,7 @@ import {
 } from '../../model/index.js';
 import { setSelection } from '../../store/elevationSlice.js';
 
-export default function RunPiecesSection({ run, layout }) {
+export default function RunPiecesSection({ run, layout, insets }) {
   const dispatch = useDispatch();
 
   return (
@@ -16,6 +16,8 @@ export default function RunPiecesSection({ run, layout }) {
         </h3>
         <div className="overflow-hidden rounded border border-gray-700">
           {layout.pieces.map((piece) => {
+            const inset = insets.get(piece.id) ?? { left: 0, right: 0 };
+            const width = piece.width - inset.left - inset.right;
             const item = piece.role === 'item'
               ? runItems(run).find((candidate) => candidate.id === piece.id)
               : null;
@@ -31,7 +33,7 @@ export default function RunPiecesSection({ run, layout }) {
               >
                 <span className="truncate text-gray-200">{KIND_LABELS[piece.kind]}</span>
                 <span className="tabular-nums text-gray-300">
-                  {formatInches(piece.width)}
+                  {formatInches(width)}
                   {Number.isFinite(piece.absorbed)
                     ? ` (${piece.absorbed >= 0 ? '+' : ''}${formatInches(piece.absorbed)})`
                     : ''}

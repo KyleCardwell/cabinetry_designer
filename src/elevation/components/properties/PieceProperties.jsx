@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import {
-  endPieceBottom, endPieceNotes, partNumbers, resolveStyle, wallSideOf,
+  boxInsets, endPieceBottom, endPieceNotes, frameRegions, partNumbers, resolveStyle, wallSideOf,
 } from '../../model/index.js';
 import { removeItem, setCellExtend, setItemWidth } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
@@ -74,6 +74,8 @@ export default function PieceProperties({
 }) {
   const { piece, item, side } = selectionContext;
   const numbers = useMemo(() => partNumbers(room, settings), [room, settings]);
+  const frames = useMemo(() => frameRegions(room, run, layout, settings), [room, run, layout, settings]);
+  const insets = useMemo(() => boxInsets(frames, layout, settings), [frames, layout, settings]);
   const partKey = piece.id;
   const partNumberField = piece.kind === 'void' || piece.kind === 'shelves' ? null : (
     <PartNumberField
@@ -136,6 +138,7 @@ export default function PieceProperties({
           layout={layout}
           cells={cells}
           settings={settings}
+          insets={insets}
         />
       </>
     );
@@ -151,6 +154,7 @@ export default function PieceProperties({
         layout={layout}
         cells={cells}
         settings={settings}
+        inset={insets.get(piece.id)}
       />
     </>
   );

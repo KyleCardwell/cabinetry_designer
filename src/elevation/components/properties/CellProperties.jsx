@@ -3,6 +3,7 @@ import {
   cellBlindSides,
   cellDepth,
   findCell,
+  formatInches,
   formatInchesInput,
   MAX_SHELVES,
   runItems,
@@ -26,9 +27,10 @@ import GapField from './GapField.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const HEADING_CLASS = 'mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400';
+const NO_INSET = { left: 0, right: 0 };
 
 export default function CellProperties({
-  wall, run, piece, item, layout, cells, settings,
+  wall, run, piece, item, layout, cells, settings, insets,
 }) {
   const dispatch = useDispatch();
   const context = findCell(run.grid, piece.id);
@@ -36,9 +38,15 @@ export default function CellProperties({
 
   const actionBase = { wallId: wall.id, runId: run.id };
   const axis = context.axis;
-  const size = axis === 'row' ? piece.height : piece.width;
+  const inset = insets?.get(piece.id) ?? NO_INSET;
+  const trim = inset.left + inset.right;
+  const boxWidth = piece.width - trim;
+  const size = axis === 'row' ? piece.height : boxWidth;
   const locked = context.track.size !== null;
   const column = layout.pieces.find((candidate) => candidate.id === piece.columnId);
+  const columnInset = insets?.get(piece.columnId) ?? NO_INSET;
+  const columnTrim = columnInset.left + columnInset.right;
+  const columnBoxWidth = column ? column.width - columnTrim : 0;
   const columnItem = runItems(run).find((candidate) => candidate.id === piece.columnId);
   const columnLocked = columnItem?.width != null;
   const cellBase = { ...actionBase, cellId: item.id };
@@ -59,22 +67,32 @@ export default function CellProperties({
       <section>
         <h3 className={HEADING_CLASS}>Size</h3>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <Field label={axis === 'row' ? 'Height' : 'Width'}>
+          <Field label={axis === 'row' ? 'Height' : 'Box width'}>
             <InchInput
               value={size}
               onCommit={(value) => dispatch(setTrackSize({
                 ...actionBase,
                 trackId: context.track.id,
-                size: value,
+                size: axis === 'row' ? value : value + trim,
               }))}
               aria-label={`Cell ${axis === 'row' ? 'height' : 'width'}`}
             />
+            {axis === 'col' && boxWidth !== piece.width && (
+              <p className="mt-1 text-xs text-gray-500">
+                Frame section: {formatInches(piece.width)}
+              </p>
+            )}
           </Field>
-          <Field label={axis === 'row' ? 'Width' : 'Height'}>
+          <Field label={axis === 'row' ? 'Box width' : 'Height'}>
             <ReadOnlyValue
-              value={axis === 'row' ? piece.width : piece.height}
+              value={axis === 'row' ? boxWidth : piece.height}
               ariaLabel={`Cell ${axis === 'row' ? 'width' : 'height'}`}
             />
+            {axis === 'row' && boxWidth !== piece.width && (
+              <p className="mt-1 text-xs text-gray-500">
+                Frame section: {formatInches(piece.width)}
+              </p>
+            )}
           </Field>
         </div>
         <button
@@ -82,7 +100,7 @@ export default function CellProperties({
           onClick={() => dispatch(setTrackSize({
             ...actionBase,
             trackId: context.track.id,
-            size: locked ? null : size,
+            size: locked ? null : (axis === 'row' ? size : size + trim),
           }))}
           className="mt-2 w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600"
         >
@@ -106,16 +124,21 @@ export default function CellProperties({
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
             Column
           </h3>
-          <Field label="Column width">
+          <Field label="Box width">
             <InchInput
-              value={column.width}
+              value={columnBoxWidth}
               onCommit={(width) => dispatch(setItemWidth({
                 ...actionBase,
                 itemId: piece.columnId,
-                width,
+                width: width + columnTrim,
               }))}
-              aria-label="Column width"
+              aria-label="Column box width"
             />
+            {columnBoxWidth !== column.width && (
+              <p className="mt-1 text-xs text-gray-500">
+                Frame section: {formatInches(column.width)}
+              </p>
+            )}
           </Field>
           <button
             type="button"
