@@ -46,7 +46,7 @@ import {
   stackCreatesCycle,
   stackLink,
 } from './stacks.js';
-import { runSeamGap } from './styles.js';
+import { runFrame, runSeamGap } from './styles.js';
 import {
   profileUnderSoffit,
   resolveSoffitSpan,
@@ -575,6 +575,19 @@ function withSeamGap(room, run, settings) {
   return rest;
 }
 
+/** A run with its derived face frame, stored only for inset styles. */
+function withFrame(room, run, settings) {
+  const frame = runFrame(room, run, settings);
+  if (frame) {
+    if (run._frame?.thickness === frame.thickness && run._frame?.drop === frame.drop) return run;
+    return { ...run, _frame: frame };
+  }
+  if (run._frame === undefined) return run;
+  const { _frame, ...rest } = run;
+  void _frame;
+  return rest;
+}
+
 /**
  * Resolve all stored horizontal, vertical, and automatic-item geometry in a room.
  *
@@ -587,7 +600,7 @@ export function syncRoom(room, settings) {
   nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(wall))));
   nextRoom.walls = nextRoom.walls.map((wall) => ({
     ...wall,
-    runs: wall.runs.map((run) => withSeamGap(nextRoom, run, settings)),
+    runs: wall.runs.map((run) => withFrame(nextRoom, withSeamGap(nextRoom, run, settings), settings)),
   }));
 
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);

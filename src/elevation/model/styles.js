@@ -253,3 +253,14 @@ export function runSeamGap(room, run, settings) {
   const style = resolveStyle(settings, room, run);
   return style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? 2 * style.beadWidth : 0;
 }
+
+/** The face frame shape carried by an inset run, or null for European. */
+export function runFrame(room, run, settings) {
+  const style = resolveStyle(settings, room, run);
+  if (!isInsetStyle(style)) return null;
+  const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
+  const drop = run.cabinetTypeId === UPPER && (run.upperBottom ?? 'overhang') === 'overhang'
+    ? frame.upperDrop
+    : 0;
+  return { thickness: frame.thickness, drop };
+}

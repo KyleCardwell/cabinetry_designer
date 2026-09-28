@@ -51,6 +51,7 @@ export {
   isStyle,
   panelDrop,
   resolveStyle,
+  runFrame,
   runSeamGap,
   standardDrawerHeight,
   styleReveals,

@@ -603,9 +603,10 @@ export function toElevationDocument(elevationState) {
       walls: room.walls.map((wall) => ({
         ...wall,
         runs: wall.runs.map((run) => {
-          const { _pinWidths, _seamGap, ...persistedRun } = run;
+          const { _pinWidths, _seamGap, _frame, ...persistedRun } = run;
           void _pinWidths;
           void _seamGap;
+          void _frame;
           return persistedRun;
         }),
       })),
