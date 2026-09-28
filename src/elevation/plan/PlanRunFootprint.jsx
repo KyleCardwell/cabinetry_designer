@@ -69,6 +69,12 @@ function depthRangePoints(frame, range) {
   ];
 }
 
+function planPiecePoints(frame, piece) {
+  return piece.polygon
+    ? piece.polygon.map(([u, v]) => elevationToPlan(frame, u, v))
+    : depthRangePoints(frame, piece);
+}
+
 export default function PlanRunFootprint({
   frame,
   room,
@@ -140,7 +146,7 @@ export default function PlanRunFootprint({
         !box.dashed && (
           <Line
             key={box.key}
-            points={linePoints(depthRangePoints(frame, box))}
+            points={linePoints(planPiecePoints(frame, box))}
             closed
             fill={upper ? `${color}59` : `${color}8c`}
             hitStrokeWidth={8 / scale}
@@ -171,7 +177,7 @@ export default function PlanRunFootprint({
       {returns.map((range) => (
         <Line
           key={range.key}
-          points={linePoints(depthRangePoints(frame, range))}
+          points={linePoints(planPiecePoints(frame, range))}
           closed
           fill={upper ? `${KIND_COLORS.filler}59` : `${KIND_COLORS.filler}8c`}
           stroke={KIND_COLORS.filler}
@@ -187,7 +193,7 @@ export default function PlanRunFootprint({
         return (
           <Line
             key={range.key}
-            points={linePoints(depthRangePoints(frame, range))}
+            points={linePoints(planPiecePoints(frame, range))}
             closed
             fill={upper ? `${faceColor}59` : `${faceColor}8c`}
             stroke={outline}
