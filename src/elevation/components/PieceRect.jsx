@@ -14,6 +14,7 @@ export default function PieceRect({
   cornerFiller = false,
   subLabel = null,
   framed = false,
+  ghost = false,
   onSelect,
   cursor,
 }) {
@@ -33,7 +34,9 @@ export default function PieceRect({
         : '#1e293b';
   const fixedCabinet = piece.kind === 'cabinet' && !piece.auto;
   const hollow = piece.kind === 'void' || piece.kind === 'shelves';
-  const showLabels = !framed;
+  // A framed box never shows; a mitered end panel (ghost) shows while hovered or selected (SPEC-36.1).
+  const quiet = framed || (ghost && !hovered && !selected);
+  const showLabels = !quiet;
 
   return (
     <Group
@@ -52,12 +55,12 @@ export default function PieceRect({
     >
       <Rect
         {...rect}
-        fill={framed
+        fill={quiet
           ? 'rgba(0, 0, 0, 0.001)'
           : hollow ? 'transparent' : cornerFiller ? '#fbbf24' : KIND_COLORS[piece.kind]}
         opacity={0.82}
         dash={piece.kind === 'void' ? [6, 4] : undefined}
-        stroke={framed && outline === '#1e293b'
+        stroke={quiet && outline === '#1e293b'
           ? undefined
           : piece.kind === 'void' && outline === '#1e293b' ? KIND_COLORS.void : outline}
         strokeWidth={selected ? 3 : error || warning ? 2 : 1}

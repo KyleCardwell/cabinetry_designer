@@ -76,12 +76,18 @@ function RunGroup({
     () => frameRegions(room, run, cells, settings),
     [cells, room, run, settings],
   );
-  const framedIds = useMemo(() => new Set(frames.regions.flatMap((region) => [
-    ...region.cabinetIds, ...region.fillerIds, ...region.panelIds,
-  ])), [frames]);
-  const hiddenIds = useMemo(() => new Set(frames.regions.flatMap((region) => [
-    ...region.fillerIds, ...region.panelIds,
-  ])), [frames]);
+  const framedIds = useMemo(
+    () => new Set(frames.regions.flatMap((region) => region.cabinetIds)),
+    [frames],
+  );
+  const hiddenIds = useMemo(
+    () => new Set(frames.regions.flatMap((region) => region.fillerIds)),
+    [frames],
+  );
+  const ghostIds = useMemo(
+    () => new Set(frames.regions.flatMap((region) => region.panelIds)),
+    [frames],
+  );
   const blind = useMemo(
     () => blindEntries(room, wall, run, settings, result),
     [result, room, run, settings, wall],
@@ -443,6 +449,7 @@ function RunGroup({
           selected={selectedPieceId === piece.id}
           subLabel={subLabels.get(piece.id) ?? null}
           framed={framedIds.has(piece.id)}
+          ghost={ghostIds.has(piece.id)}
           cornerFiller={!panelPieceIds.has(piece.id) && (piece.role === 'end-left'
             ? cornerFillers.left
             : piece.role === 'end-right' && cornerFillers.right)}
