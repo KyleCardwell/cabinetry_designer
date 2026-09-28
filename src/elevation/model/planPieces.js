@@ -2,6 +2,7 @@ import { blindEntries } from './blind.js';
 import { blindCellWidths, cellDepth, cellPieces, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { frontDepth } from './corners.js';
+import { frameRegions } from './frames.js';
 import { runItems } from './grid.js';
 
 const WIDTH_EPSILON = 1e-6;
@@ -136,9 +137,9 @@ function planFaces(run, settings, pieces, faceLayouts, panels, band, faceBack, f
   });
 }
 
-function fillerReturns(run, settings, layout, panels, faceBack) {
+function fillerReturns(run, settings, layout, panels, faceBack, hidden = new Set()) {
   return layout.pieces.flatMap((piece, index) => {
-    if (piece.kind !== 'filler') return [];
+    if (piece.kind !== 'filler' || hidden.has(piece.id)) return [];
     if (panels.has(endSideOf(piece))) return [];
 
     const span = fillerSpan(run, piece, settings);
@@ -161,12 +162,54 @@ function fillerReturns(run, settings, layout, panels, faceBack) {
   });
 }
 
+/**
+ * A face frame region in plan (SPEC-36.1): one strip from the box fronts to the frame's front, mitered
+ * into the end or side panel it covers at either end; those panels get the matching miter.
+ */
+function frameStrips(frames, pieces, faces, back, front) {
+  const strips = [];
+  const mitered = new Map();
+  for (const region of frames.regions) {
+    const end = region.x + region.width;
+    const panels = pieces.filter((piece) => region.panelIds.includes(piece.id));
+    const left = panels.find((panel) => Math.abs(panel.x - region.x) <= WIDTH_EPSILON);
+    const right = panels.find((panel) => Math.abs(panel.x + panel.width - end) <= WIDTH_EPSILON);
+    strips.push({
+      key: region.id,
+      kind: 'frame',
+      start: region.x,
+      end,
+      back,
+      front,
+      polygon: [
+        [region.x, front],
+        [end, front],
+        [right ? right.x : end, back],
+        [left ? left.x + left.width : region.x, back],
+      ],
+    });
+    if (left) mitered.set(left.id, 'left');
+    if (right) mitered.set(right.id, 'right');
+  }
+  const next = faces.map((range) => {
+    const side = mitered.get(range.key);
+    if (!side) return range;
+    const polygon = side === 'left'
+      ? [[range.start, range.back], [range.end, range.back], [range.end, back], [range.start, range.front]]
+      : [[range.start, range.back], [range.end, range.back], [range.end, range.front], [range.start, back]];
+    return { ...range, polygon };
+  });
+  return [...next, ...strips];
+}
+
 /** Return the boxes, faces, filler returns, and their overall span used by the plan view. */
 export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const outset = run.outset ?? 0;
   const faceBack = run.depth + settings.bumperThickness;
   const faceFront = frontDepth(run, settings) - outset;
   const cells = cellPieces(run, layout);
+  const frames = frameRegions(room, run, cells, settings);
+  const framedIds = new Set(frames.regions.flatMap((region) => region.cabinetIds));
   const leafOf = (piece) => (piece.columnId
     ? findLeaf(run.grid, piece.id)
     : runItems(run).find((item) => item.id === piece.id));
@@ -203,30 +246,38 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
     const blindBox = blindBoxes.get(piece.id);
     const leftBlindWidth = leftBlindWidths.get(piece.id);
     const rightBlindWidth = rightBlindWidths.get(piece.id);
+    const frameBox = framedIds.has(piece.id) ? faceLayouts.get(piece.id)?.box : null;
     return [{
       key: piece.id,
       start: blindBox?.start ?? (leftBlindWidth
         ? piece.x + piece.width - leftBlindWidth
-        : piece.x),
-      end: blindBox?.end ?? (rightBlindWidth ? piece.x + rightBlindWidth : piece.x + piece.width),
+        : frameBox?.x ?? piece.x),
+      end: blindBox?.end ?? (rightBlindWidth
+        ? piece.x + rightBlindWidth
+        : frameBox ? frameBox.x + frameBox.width : piece.x + piece.width),
       ...band(piece),
       ...(piece.kind === 'shelves' ? { dashed: true } : {}),
     }];
   });
-  const faces = planFaces(
+  const faces = frameStrips(frames, cells.pieces, planFaces(
     run,
     settings,
-    cells.pieces,
+    cells.pieces.filter((piece) => !framedIds.has(piece.id) && !frames.fillerIds.has(piece.id)),
     faceLayouts,
     panels,
     band,
     faceBack,
     faceFront,
-  );
-  const returns = fillerReturns(run, settings, layout, panels, faceBack);
+  ), run.depth, faceFront);
+  const returns = fillerReturns(run, settings, layout, panels, faceBack, frames.fillerIds);
   const pieces = [...boxes, ...faces, ...returns];
   const shift = (piece) => (outset
-    ? { ...piece, back: piece.back + outset, front: piece.front + outset }
+    ? {
+      ...piece,
+      back: piece.back + outset,
+      front: piece.front + outset,
+      ...(piece.polygon ? { polygon: piece.polygon.map(([u, v]) => [u, v + outset]) } : {}),
+    }
     : piece);
 
   return {

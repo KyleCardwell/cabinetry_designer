@@ -220,10 +220,7 @@ export function wallBadgeGroups(room, wall, settings) {
     });
     const cells = cellPieces(run, layout);
     const frames = frameRegions(room, run, cells, settings);
-    const covered = new Set(frames.regions.flatMap((region) => [
-      ...region.fillerIds,
-      ...region.panelIds,
-    ]));
+    const covered = new Set(frames.regions.flatMap((region) => region.fillerIds));
     return {
       key: `run:${run.id}`,
       lift: 0,

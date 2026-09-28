@@ -410,7 +410,7 @@ describe('SPEC-34 kind part numbers', () => {
 });
 
 describe('SPEC-36 frame fillers', () => {
-  it('numbers no filler inside a face frame', () => {
+  it('numbers no filler inside a face frame, and badges the mitered end panel', () => {
     const roomOf = (style) => syncRoom({
       id: 'F', name: 'Room F', profile: { ...DEFAULT_SETTINGS.defaultProfile }, wallOrder: ['A'],
       ...(style ? { style } : {}),
