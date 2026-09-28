@@ -219,7 +219,7 @@ function ElevationCanvas({
     const verticalFor = (edge) => (selectedOpening
       && nearerEdge(openingCenter, wall.length) === edge
       ? verticalOpeningChain(wall, selectedOpening, wall.length, settings)
-      : verticalChains(room, wall, pickColumnRuns(wall, selection.runId, edge), settings));
+      : verticalChains(room, wall, pickColumnRuns(wall, selection.runId, edge), settings, edge));
     return {
       lower,
       upper,

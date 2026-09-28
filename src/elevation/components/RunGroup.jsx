@@ -15,7 +15,7 @@ import {
 import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
-import { frameRegions, frameVerticalChains, regionOpenings } from '../model/frames.js';
+import { frameRegions } from '../model/frames.js';
 import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { endPieceBottom, resolveStyle } from '../model/styles.js';
@@ -87,10 +87,6 @@ function RunGroup({
   const ghostIds = useMemo(
     () => new Set(frames.regions.flatMap((region) => region.panelIds)),
     [frames],
-  );
-  const frameChains = useMemo(
-    () => frames.regions.flatMap((region) => frameVerticalChains(region, regionOpenings(region, faceLayouts))),
-    [faceLayouts, frames],
   );
   const blind = useMemo(
     () => blindEntries(room, wall, run, settings, result),
@@ -511,15 +507,6 @@ function RunGroup({
         editable={stretchable && !preview && Boolean(onEditTrack)}
         onEditTrack={(edit) => onEditTrack(run.id, edit)}
       />
-
-      {!preview && (
-        <CellChains
-          grids={frameChains}
-          transform={transform}
-          editable={false}
-          onEditTrack={() => {}}
-        />
-      )}
 
       {result.pieces.flatMap((piece) => {
         const item = piece.role === 'item'

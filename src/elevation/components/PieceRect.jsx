@@ -59,7 +59,6 @@ export default function PieceRect({
           ? 'rgba(0, 0, 0, 0.001)'
           : hollow ? 'transparent' : cornerFiller ? '#fbbf24' : KIND_COLORS[piece.kind]}
         opacity={0.82}
-        dash={piece.kind === 'void' ? [6, 4] : undefined}
         stroke={quiet && outline === '#1e293b'
           ? undefined
           : piece.kind === 'void' && outline === '#1e293b' ? KIND_COLORS.void : outline}

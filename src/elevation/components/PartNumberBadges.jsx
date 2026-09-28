@@ -27,6 +27,14 @@ export default function PartNumberBadges({
     wallRectToScreen(piece, transform),
   ]));
   const firstRect = rects.get(pieces[0].id);
+  const anchors = new Map(pieces.flatMap((piece) => {
+    if (!piece.anchor) return [];
+    return [[piece.id, wallRectToScreen({
+      ...piece.anchor,
+      width: 0,
+      height: 0,
+    }, transform)]];
+  }));
   const entries = pieces.flatMap((piece) => {
     if (!numbers.has(piece.id)) return [];
     const rect = rects.get(piece.id);
@@ -45,20 +53,29 @@ export default function PartNumberBadges({
     <Group listening={false}>
       {badges.map((badge) => {
         const rect = rects.get(badge.key);
+        const anchor = anchors.get(badge.key);
+        const center = anchor?.x ?? badge.center;
         const restY = rect.y + rect.height / 2 - PART_BADGE_LIFT;
-        const y = restY - (badge.level + lift) * PART_BADGE_STEP;
+        const y = anchor
+          ? anchor.y - 2 * PART_BADGE_STEP
+          : restY - (badge.level + lift) * PART_BADGE_STEP;
         return (
           <Group key={badge.key} listening={false}>
-            {badge.level + lift > 0 && (
+            {(anchor || badge.level + lift > 0) && (
               <Line
-                points={[badge.center, y + PART_BADGE_HEIGHT / 2, badge.center, restY]}
+                points={[
+                  center,
+                  y + PART_BADGE_HEIGHT / 2,
+                  center,
+                  anchor?.y ?? restY,
+                ]}
                 stroke="#94a3b8"
                 strokeWidth={0.75}
                 listening={false}
               />
             )}
             <Rect
-              x={badge.center - badge.width / 2}
+              x={center - badge.width / 2}
               y={y - PART_BADGE_HEIGHT / 2}
               width={badge.width}
               height={PART_BADGE_HEIGHT}
@@ -69,7 +86,7 @@ export default function PartNumberBadges({
               listening={false}
             />
             <Text
-              x={badge.center - badge.width / 2}
+              x={center - badge.width / 2}
               y={y - PART_BADGE_HEIGHT / 2}
               width={badge.width}
               height={PART_BADGE_HEIGHT}
