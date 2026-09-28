@@ -96,6 +96,7 @@ The inset frame drawing (FACES-PLAN round 15) was never built. It should now be 
   - At a free side the frame overhangs the box by 3/4", so the box is 3/4" narrower there (a 30" frame section → a 28 1/2" box).
   - Opening dimensions (stile | opening | stile) replace the box chain; the overall run dimension stays below.
   - One part number per frame, its stiles and rails listed under it (stiles full height, rails between), derived, never stored (36.2).
+- **Decided 2026-09-28 (SPEC-36.2):** a face frame covers a wall end panel's edge (mitered) unless the panel is deeper or taller than the run, then the frame dies into it; the wall end panel has an Auto / miter / butt override. Width fields show the box, not the frame section.
 
 ### T-fillers (FILL-011)
 
@@ -160,8 +161,8 @@ The topmost cells are drawn. Lower cells with different seams can be dashed late
 | **35 — Tops, bottoms, stacked runs** | `run.top` decoupled from type; the `run.bottom` list and REV-011; stacked runs (sits on / held under, fill between); one chain per stack; `run.outset` (from 34). SPEC-35, steps 191–200. | the budgeted room |
 | **36 — Face frame on cells** | Gaps between boxes (drawn, solved, run default and per-track override); frame regions, breaks, the beaded seam rule, boxes narrower at free ends; the frame drawn as its outside rectangle with fillers and covered end panels hidden; opening dimensions across. SPEC-36, steps 213–220. | inset and beaded inset runs |
 | 36.1 — Face frame fixes | A face frame run's front is box + 13/16 (no bumper, no door); upper clearance measured to the frame's bottom rail; the corner stile minimum (the filler part is the Euro minimum less the side reveal); plan view: no fillers, boxes at their true width, a 13/16 frame strip mitered into its end panels; end panels show on hover in the elevation, clickable and numbered. SPEC-36.1, steps 221–225. | face frame corners, uppers and plan view |
-| 36.2 — The frame as a part | One part number per frame with its stiles and rails listed (stiles full height, rails between; derived, never stored); vertical opening dimensions (rail \| opening \| rail). | frame pricing |
-| 36.3 — Face frame options | The per-split rail/mullion toggle; the 3/4" bottom rail on hanging bases. | drawer stacks with no rails, hanging bases |
+| 36.2 — Face frame: wall end panels, box widths, the frame as a part | Wall end panels under a face frame: mitered by default (the frame covers the panel edge, the box keeps its side, plan miters both faces), butting when the panel is deeper or taller than the run, with a per-panel override; the panel shows the box width, not the frame section; one part number per frame with its stiles, rails and mullions listed (derived, never stored); vertical opening chains (rail \| opening \| rail) per distinct stack. SPEC-36.2, steps 226–233. | islands, frame pricing |
+| 36.3 — Face frame options, island clearances | The per-split rail/mullion toggle; the 3/4" bottom rail on hanging bases. Plan view: every free-standing wall (island) gets a clearance dimension on each of its 4 sides, always shown, from the outermost part on that side (cabinet front, end panel, or the bare wall edge) to the nearest thing straight across (a cabinet front, end panel or wall face), at the tightest point. Only floor-standing runs count on both ends (base, tall), not uppers. | drawer stacks with no rails, hanging bases, island aisles |
 | **37 — T-fillers** | FILL-011: run setting, per-side overrides, stile logic, rabbet notes. | Euro T-filler runs |
 | **38 — Combine and full grids** | Rows × columns splits, combine, flatten, spans in the solver, chains and neighbours. | the pinwheel |
 
