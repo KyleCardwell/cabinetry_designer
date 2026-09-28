@@ -10,6 +10,7 @@ import {
   pinTargetsForRun,
   soffitsOn,
   splitRun,
+  wallEndPanels,
 } from '../model/index.js';
 import {
   endCornerAnglesForRun,
@@ -28,6 +29,7 @@ import PieceProperties from './properties/PieceProperties.jsx';
 import RunProperties from './properties/RunProperties.jsx';
 import SoffitProperties from './properties/SoffitProperties.jsx';
 import WallHeightProperties from './properties/WallHeightProperties.jsx';
+import WallEndPanelProperties from './properties/WallEndPanelProperties.jsx';
 
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
@@ -54,6 +56,9 @@ export default function PropertiesPanel() {
   ) ?? null;
   const soffit = wall
     ? soffitsOn(wall).find((candidate) => candidate.id === selection.soffitId) ?? null
+    : null;
+  const endPanel = wall && selection.endPanel
+    ? wallEndPanels(room, wall, settings).find((candidate) => candidate.endpoint === selection.endPanel) ?? null
     : null;
   const run = wall?.runs.find((candidate) => candidate.id === selection.runId) ?? null;
   const layout = useMemo(
@@ -133,6 +138,13 @@ export default function PropertiesPanel() {
             room={room}
             wall={wall}
             soffit={soffit}
+            settings={settings}
+          />
+        ) : endPanel ? (
+          <WallEndPanelProperties
+            room={room}
+            wall={wall}
+            panel={endPanel}
             settings={settings}
           />
         ) : !run || !displayLayout ? (

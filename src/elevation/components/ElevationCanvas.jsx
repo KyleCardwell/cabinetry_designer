@@ -961,6 +961,11 @@ function ElevationCanvas({
     dispatch(setSelection({ soffitId }));
   }, [dispatch, tool]);
 
+  const selectEndPanel = useCallback((endPanel) => {
+    if (tool !== 'select' || suppressClickRef.current) return;
+    dispatch(setSelection({ endPanel }));
+  }, [dispatch, tool]);
+
   const selectPiece = useCallback((runId, pieceId) => {
     if (tool !== 'select' || suppressClickRef.current) return;
     dispatch(setSelection({ runId, pieceId }));
@@ -1578,6 +1583,15 @@ function ElevationCanvas({
                 cursor={cursor}
               />
             ))}
+            <WallEndPanelShapes
+              room={room}
+              wall={wall}
+              settings={settings}
+              transform={transform}
+              selectedEndpoint={selection.endPanel ?? null}
+              onSelect={tool === 'select' ? selectEndPanel : undefined}
+              cursor={cursor}
+            />
             {tool === 'select' && (
               <JointMarkers
                 wall={wall}
@@ -1601,12 +1615,6 @@ function ElevationCanvas({
               transform={transform}
             />
             <NeighborProfiles
-              room={room}
-              wall={wall}
-              settings={settings}
-              transform={transform}
-            />
-            <WallEndPanelShapes
               room={room}
               wall={wall}
               settings={settings}

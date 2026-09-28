@@ -7,6 +7,8 @@ import {
   landingRefCreatesCycle,
   landingsOn,
   wallFrame,
+  wallEndPanelFramed,
+  wallEndPanels,
   wallNumbers,
   wallNumberWarnings,
 } from '../../model/index.js';
@@ -22,6 +24,7 @@ import {
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
+import WallEndPanelFields from './WallEndPanelFields.jsx';
 import StretchInput from './StretchInput.jsx';
 
 const WALL_OVERRIDE_FIELDS = [
@@ -46,6 +49,9 @@ export default function WallHeightProperties({ room, wall, plan }) {
     && !wall.landings?.[frame.leftEndpoint];
   const rightFree = !wall.connections?.[frame.rightEndpoint]
     && !wall.landings?.[frame.rightEndpoint];
+  const framedEnds = new Set(wallEndPanels(room, wall, settings)
+    .filter((candidate) => wallEndPanelFramed(wall, candidate))
+    .map((candidate) => candidate.endpoint));
   const preferredGrowEnd = leftFree !== rightFree && leftFree ? 'left' : 'right';
   const [growEnd, setGrowEnd] = useState(preferredGrowEnd);
 
@@ -304,36 +310,15 @@ export default function WallHeightProperties({ room, wall, plan }) {
                   <p className="mt-1 text-xs text-gray-500">Connected — corner</p>
                 )}
                 {panel && (
-                  <div className="mt-2 space-y-2.5">
-                    <Field label="Face frame">
-                      <select
-                        value={panel.frame ?? 'auto'}
-                        onChange={(event) => dispatch(setWallEndPanel({
-                          wallId: wall.id,
-                          endpoint,
-                          panel: { ...panel, frame: event.target.value },
-                        }))}
-                        aria-label={`${label} panel face frame`}
-                        className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-                      >
-                        <option value="auto">Auto</option>
-                        <option value="cover">Frame covers the panel edge</option>
-                        <option value="die">Frame dies into the panel</option>
-                      </select>
-                    </Field>
-                    <Field label="Width">
-                      <InchInput
-                        value={panel.width}
-                        allowBlank
-                        placeholder={formatInches(settings.endPanelThickness)}
-                        onCommit={(width) => dispatch(setWallEndPanel({
-                          wallId: wall.id,
-                          endpoint,
-                          panel: { ...panel, width },
-                        }))}
-                        aria-label={`${label} panel width`}
-                      />
-                    </Field>
+                  <div className="mt-2">
+                    <WallEndPanelFields
+                      wall={wall}
+                      endpoint={endpoint}
+                      panel={panel}
+                      label={label}
+                      framed={framedEnds.has(endpoint)}
+                      settings={settings}
+                    />
                   </div>
                 )}
               </div>
