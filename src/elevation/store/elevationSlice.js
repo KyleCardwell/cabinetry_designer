@@ -1,7 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { v4 as uuid } from 'uuid';
 import { isBottomPart } from '../model/bottoms.js';
-import { DEFAULT_SETTINGS } from '../model/constants.js';
+import { DEFAULT_SETTINGS, FRAME_JOINS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { isExtendTarget } from '../model/extensions.js';
 import { wallFrame } from '../model/geometry.js';
@@ -559,10 +559,14 @@ const elevationSlice = createSlice({
         && typeof panel === 'object'
         && !Array.isArray(panel)
         && (panel.width === null || (Number.isFinite(panel.width) && panel.width >= 0))
+        && (panel.frame === undefined || panel.frame === null || FRAME_JOINS.includes(panel.frame))
       );
       if (!location || !['start', 'end'].includes(endpoint) || !validPanel) return;
       location.wall.endPanels ??= { start: null, end: null };
-      location.wall.endPanels[endpoint] = panel ? { width: panel.width ?? null } : null;
+      location.wall.endPanels[endpoint] = panel ? {
+        width: panel.width ?? null,
+        ...(panel.frame ? { frame: panel.frame } : {}),
+      } : null;
       syncRoomAt(state, location.roomIndex);
     },
     setWallLanding(state, action) {

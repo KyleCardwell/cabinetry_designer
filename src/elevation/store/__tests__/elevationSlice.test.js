@@ -2424,3 +2424,26 @@ describe('SPEC-36 gap reducers', () => {
     expect('_seamGap' in currentRun(state)).toBe(false);
   });
 });
+
+describe('SPEC-36.2 wall end panel frame join', () => {
+  it('sets and clears a wall end panel frame join and rejects invalid values', () => {
+    let state = stateWithRun();
+    const actionBase = { roomId: 'room-1', wallId: 'wall-1', endpoint: 'start' };
+
+    state = elevationReducer(state, setWallEndPanel({
+      ...actionBase,
+      panel: { width: 0.75, frame: 'miter' },
+    }));
+    expect(state.rooms[0].walls[0].endPanels.start).toEqual({ width: 0.75, frame: 'miter' });
+    expect(elevationReducer(state, setWallEndPanel({
+      ...actionBase,
+      panel: { width: 0.75, frame: 'lap' },
+    }))).toBe(state);
+
+    state = elevationReducer(state, setWallEndPanel({
+      ...actionBase,
+      panel: { width: 0.75, frame: null },
+    }));
+    expect(state.rooms[0].walls[0].endPanels.start).toEqual({ width: 0.75 });
+  });
+});

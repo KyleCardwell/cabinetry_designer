@@ -97,6 +97,8 @@ export const DEFAULT_SETTINGS = {
   bottomPartHeights: { light_rail: 1.5, light_trough: 3, panel: 0.75, bottom_cap: 1.5, corbels: 6 },
 };
 
+export const FRAME_JOINS = ['miter', 'butt'];
+
 /** Display labels for derived piece kinds. */
 export const KIND_LABELS = {
   cabinet: 'Cabinet',

@@ -1067,3 +1067,22 @@ describe('SPEC-36 gaps shape', () => {
     expect('_seamGap' in toElevationDocument(state).rooms[0].walls[0].runs[0]).toBe(false);
   });
 });
+
+describe('SPEC-36.2 wall end panel frame join', () => {
+  it('saves valid wall end panel frame joins and rejects invalid ones', () => {
+    const withFrame = (frame) => {
+      const document = currentDocument();
+      document.rooms[0].walls[0].endPanels = {
+        start: { width: 0.75, ...(frame === undefined ? {} : { frame }) },
+        end: null,
+      };
+      return document;
+    };
+
+    expect(isElevationDocument(withFrame(undefined))).toBe(true);
+    expect(isElevationDocument(withFrame('miter'))).toBe(true);
+    expect(isElevationDocument(withFrame('butt'))).toBe(true);
+    expect(isElevationDocument(withFrame(null))).toBe(false);
+    expect(isElevationDocument(withFrame('lap'))).toBe(false);
+  });
+});

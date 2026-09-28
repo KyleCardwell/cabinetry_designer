@@ -2,6 +2,7 @@ import {
   CABINET_TYPE_IDS,
   DEFAULT_PROFILE,
   DEFAULT_SETTINGS,
+  FRAME_JOINS,
 } from '../model/constants.js';
 import { isBottomPart } from '../model/bottoms.js';
 import { isFaceNode } from '../model/faces.js';
@@ -356,6 +357,8 @@ function isEndPanels(endPanels) {
         && Object.hasOwn(endPanels[endpoint], 'width')
         && (endPanels[endpoint].width === null
           || (isFiniteNumber(endPanels[endpoint].width) && endPanels[endpoint].width >= 0))
+        && (endPanels[endpoint].frame === undefined
+          || FRAME_JOINS.includes(endPanels[endpoint].frame))
       ))
     ));
 }
