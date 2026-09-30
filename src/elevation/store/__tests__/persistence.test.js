@@ -359,6 +359,7 @@ describe('elevation persistence migration', () => {
     room.style = { cabinetStyleId: 14 };
     run.style = { beadWidth: 0.5, profiledEdge: null };
     run.upperBottom = 'flush';
+    run.hanging = true;
     run.top = 'wood';
     item.style = { cabinetStyleId: 15, profiledEdge: true };
     item.reveals = { top: 0.1875, left: null };
@@ -370,7 +371,9 @@ describe('elevation persistence migration', () => {
     const loaded = loadElevationDocument();
     const loadedRun = loaded.rooms[0].walls[0].runs[0];
     expect(loaded.rooms[0].style).toEqual({ cabinetStyleId: 14 });
-    expect(loadedRun).toMatchObject({ style: { beadWidth: 0.5, profiledEdge: null }, upperBottom: 'flush', top: 'wood' });
+    expect(loadedRun).toMatchObject({
+      style: { beadWidth: 0.5, profiledEdge: null }, upperBottom: 'flush', hanging: true, top: 'wood',
+    });
     expect(loadedRun.grid.cells[0].node).toMatchObject({
       style: { cabinetStyleId: 15, profiledEdge: true },
       reveals: { top: 0.1875, left: null },
@@ -391,6 +394,8 @@ describe('elevation persistence migration', () => {
     check(() => { room.style = { cabinetStyleId: 99 }; }, () => { delete room.style; });
     check(() => { run.style = { beadWidth: -0.25 }; }, () => { run.style = null; });
     check(() => { run.upperBottom = 'floating'; }, () => { delete run.upperBottom; });
+    check(() => { run.hanging = 'yes'; }, () => { delete run.hanging; });
+    check(() => { item.face = { type: 'door', size: null, noRail: [0] }; }, () => { delete item.face; });
     check(() => { run.top = 'quartz'; }, () => { run.top = 'stone'; });
     check(() => { item.style = { finish: 'paint' }; }, () => { item.style = {}; });
     check(() => { item.reveals = { pair: 0.125 }; }, () => { item.reveals = null; });

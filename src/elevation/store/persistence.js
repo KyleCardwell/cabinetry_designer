@@ -231,6 +231,7 @@ function isRun(run) {
     && isStyle(run.style)
     && (run.wallSide === undefined || run.wallSide === 'front' || run.wallSide === 'back')
     && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
+    && (run.hanging === undefined || run.hanging === true)
     && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top))
     && (run.bottom === undefined || (Array.isArray(run.bottom) && run.bottom.every(isBottomPart)))
     && isRunStack(run.stack)

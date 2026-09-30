@@ -1560,6 +1560,10 @@ const elevationSlice = createSlice({
         if (value === null) delete location.run[key];
         else if (options.includes(value)) location.run[key] = value;
       }
+      if (typeof action.payload.hanging === 'boolean') {
+        if (action.payload.hanging) location.run.hanging = true;
+        else delete location.run.hanging;
+      }
       syncRoomAt(state, location.roomIndex);
     },
     setRunBottom(state, action) {

@@ -26,19 +26,36 @@ function isSize(size) {
   return size === null || (Number.isFinite(size) && size > 0);
 }
 
-/** Whether a value is a valid stored face node (recursively). */
+/** Whether `noRail` is a sorted list of seams (i = between children i and i + 1) that lie between two leaves. */
+function isSeamList(node) {
+  const { noRail, children } = node;
+  return Array.isArray(noRail)
+    && noRail.length > 0
+    && noRail.every((seam, index) => Number.isInteger(seam)
+      && seam >= 0
+      && seam <= children.length - 2
+      && (index === 0 || seam > noRail[index - 1])
+      && Boolean(children[seam].type)
+      && Boolean(children[seam + 1].type));
+}
+
+/**
+ * Whether a value is a valid stored face node (recursively).
+ * A group may carry noRail, a sorted list of seams with no rail or mullion (SPEC-36.3): seam i is between sections i and i + 1, and both must be leaves.
+ */
 export function isFaceNode(node) {
   if (!node || typeof node !== 'object' || Array.isArray(node)) return false;
   if (!isSize(node.size)) return false;
   if (FACE_TYPES.includes(node.type)) {
-    return node.children === undefined && node.direction === undefined
+    return node.children === undefined && node.direction === undefined && node.noRail === undefined
       && (node.hinge === undefined || (node.type === 'door' && (node.hinge === 'left' || node.hinge === 'right')));
   }
   return node.type === undefined
     && FACE_DIRECTIONS.includes(node.direction)
     && Array.isArray(node.children)
     && node.children.length >= 2
-    && node.children.every(isFaceNode);
+    && node.children.every(isFaceNode)
+    && (node.noRail === undefined || isSeamList(node));
 }
 
 /** The face a cabinet shows before anyone edits it. */

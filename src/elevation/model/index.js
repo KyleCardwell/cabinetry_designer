@@ -32,6 +32,7 @@ export {
   setFaceSize,
   setFaceType,
   setGroupCount,
+  setSeamNoRail,
   splitFace,
 } from './faceTree.js';
 export { FACE_PRESETS, presetsFor } from './facePresets.js';

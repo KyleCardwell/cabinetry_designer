@@ -1185,6 +1185,15 @@ describe('styles and reveals', () => {
     expect(currentRun(state).top).toBe('wood');
   });
 
+  it('47b. setRunFaceOptions sets and clears hanging', () => {
+    let state = elevationReducer(styleState(), setRunFaceOptions({ ...at, hanging: true }));
+    expect(currentRun(state).hanging).toBe(true);
+    state = elevationReducer(state, setRunFaceOptions({ ...at, top: 'wood' }));
+    expect(currentRun(state).hanging).toBe(true);
+    state = elevationReducer(state, setRunFaceOptions({ ...at, hanging: false }));
+    expect('hanging' in currentRun(state)).toBe(false);
+  });
+
   it('48. setItemStyle and setItemReveals touch listed cabinets only', () => {
     let state = elevationReducer(styleState(), setItemStyle({
       ...at, itemIds: ['a', 'b', 'f'], style: { cabinetStyleId: 15 },
