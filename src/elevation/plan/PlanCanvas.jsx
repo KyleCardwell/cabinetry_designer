@@ -35,6 +35,7 @@ import useLiveEntry, {
   resolveLiveEntryValue,
 } from '../canvas/useLiveEntry.js';
 import LiveEntryInput from '../components/LiveEntryInput.jsx';
+import { planClearances } from '../model/clearances.js';
 import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { findCollisions, footprintsAtPoint } from '../model/footprints.js';
 import {
@@ -76,6 +77,7 @@ import {
 import { PLAN_BACKGROUND_COLOR } from './constants.js';
 import { elevationMarkers } from './elevationMarkers.js';
 import PlanAlignmentGuides from './PlanAlignmentGuides.jsx';
+import PlanClearances from './PlanClearances.jsx';
 import PlanElevationMarker from './PlanElevationMarker.jsx';
 import PlanOpening from './PlanOpening.jsx';
 import PlanWallShape from './PlanWallShape.jsx';
@@ -133,6 +135,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     }
     return messages;
   }, [room, settings]);
+  const clearances = useMemo(
+    () => (room ? planClearances(room, settings) : []),
+    [room, settings],
+  );
   const orderedFootprints = useMemo(() => {
     if (!room) return [];
     const entries = walls.flatMap((wall) => (
@@ -1061,6 +1067,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 listening={false}
               />
             )))}
+            <PlanClearances dimensions={clearances} scale={scale} />
             {walls.flatMap((wall) => (wall.soffits ?? []).map((soffit) => {
               const frame = wallSideFrame(room, wall, soffit.wallSide);
               return (
