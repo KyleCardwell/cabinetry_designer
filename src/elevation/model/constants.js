@@ -41,6 +41,8 @@ export const DEFAULT_SETTINGS = {
   doorThickness: 0.8125,
   fillerReturnDepth: 2.5,
   fillerReturnThickness: 0.75,
+  teeCover: 0.75,
+  teeThickness: 0.8125,
   blindFillerWidth: 6,
   cornerFillerMinWidth: 1.5,
   cornerSnapDistance: 3,

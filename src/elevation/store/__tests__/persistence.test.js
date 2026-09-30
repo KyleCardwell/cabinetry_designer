@@ -1091,3 +1091,49 @@ describe('SPEC-36.2 wall end panel frame join', () => {
     expect(isElevationDocument(withFrame('lap'))).toBe(false);
   });
 });
+
+describe('SPEC-37 T-filler persistence', () => {
+  const firstRun = (document) => document.rooms[0].walls[0].runs[0];
+
+  it('defaults the cover and thickness and validates the run setting', () => {
+    expect(DEFAULT_SETTINGS.teeCover).toBe(0.75);
+    expect(DEFAULT_SETTINGS.teeThickness).toBe(0.8125);
+    const older = tbtDocument();
+    delete older.settings.teeCover;
+    delete older.settings.teeThickness;
+    const normalized = normalizeElevationDocument(older);
+    expect(normalized.settings.teeCover).toBe(0.75);
+    expect(normalized.settings.teeThickness).toBe(0.8125);
+    expect(isElevationDocument(normalized)).toBe(true);
+
+    for (const value of ['seams', 'all']) {
+      const valid = tbtDocument();
+      firstRun(valid).tFiller = value;
+      expect(isElevationDocument(valid)).toBe(true);
+    }
+    for (const value of ['vertical', true, null]) {
+      const invalid = tbtDocument();
+      firstRun(invalid).tFiller = value;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+  });
+
+  it('validates a cabinet\'s sides and an end filler\'s flag', () => {
+    for (const tFiller of [{ left: true }, { left: true, top: false }, { bottom: false }]) {
+      const valid = tbtDocument();
+      firstRun(valid).grid.cells[0].node.tFiller = tFiller;
+      expect(isElevationDocument(valid)).toBe(true);
+    }
+    for (const tFiller of [{}, { middle: true }, { left: 'yes' }, { left: null }, true]) {
+      const invalid = tbtDocument();
+      firstRun(invalid).grid.cells[0].node.tFiller = tFiller;
+      expect(isElevationDocument(invalid)).toBe(false);
+    }
+
+    const flagged = tbtDocument();
+    firstRun(flagged).endFiller = { left: { tFiller: true }, right: { width: 3, tFiller: false } };
+    expect(isElevationDocument(flagged)).toBe(true);
+    firstRun(flagged).endFiller = { left: { tFiller: 'yes' } };
+    expect(isElevationDocument(flagged)).toBe(false);
+  });
+});

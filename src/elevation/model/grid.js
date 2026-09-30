@@ -76,18 +76,30 @@ function cloneTrack(track) {
 
 function cloneNode(node) {
   if (isNestedGrid(node)) return cloneGrid(node);
-  return node.blind ? { ...node, blind: { ...node.blind } } : { ...node };
+  return {
+    ...node,
+    ...(node.blind ? { blind: { ...node.blind } } : {}),
+    ...(node.tFiller ? { tFiller: { ...node.tFiller } } : {}),
+  };
 }
 
 function mirrorNode(node) {
   if (isNestedGrid(node)) return mirrorGrid(node);
-  if (!node.blind) return { ...node };
+  const copy = { ...node };
+  if (node.tFiller) {
+    const { left, right, ...rest } = node.tFiller;
+    copy.tFiller = {
+      ...rest,
+      ...(right !== undefined ? { left: right } : {}),
+      ...(left !== undefined ? { right: left } : {}),
+    };
+  }
+  if (!node.blind) return copy;
   const { left, right } = node.blind;
   const blind = {
     ...(right !== undefined ? { left: right } : {}),
     ...(left !== undefined ? { right: left } : {}),
   };
-  const copy = { ...node };
   if (Object.keys(blind).length) copy.blind = blind;
   else delete copy.blind;
   return copy;

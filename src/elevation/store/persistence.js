@@ -63,6 +63,8 @@ const V2_NUMERIC_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
 const V2_DEFAULTED_SETTING_KEYS = [
   'fillerReturnDepth',
   'fillerReturnThickness',
+  'teeCover',
+  'teeThickness',
   'blindFillerWidth',
   'defaultSoffitDepth',
   'defaultSoffitMolding',
@@ -121,6 +123,15 @@ function isItemPin(pin) {
     && isFiniteNumber(pin.value);
 }
 
+const T_FILLER_SIDES = ['left', 'right', 'top', 'bottom'];
+
+/** A cabinet's own T-filler choice per side (SPEC-37): true covers, false doesn't, absent inherits. */
+function isTFillerSides(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).length > 0
+    && Object.entries(value).every(([key, entry]) => T_FILLER_SIDES.includes(key) && typeof entry === 'boolean');
+}
+
 function isItem(item) {
   return Boolean(item)
     && typeof item.id === 'string'
@@ -135,7 +146,8 @@ function isItem(item) {
     && (item.style === undefined || item.style === null
       || (item.kind === 'cabinet' && isStyle(item.style)))
     && (item.reveals === undefined || item.reveals === null
-      || (item.kind === 'cabinet' && isOptionalNumericObject(item.reveals, REVEAL_KEYS)));
+      || (item.kind === 'cabinet' && isOptionalNumericObject(item.reveals, REVEAL_KEYS)))
+    && (item.tFiller === undefined || (item.kind === 'cabinet' && isTFillerSides(item.tFiller)));
 }
 
 function isOptionalNumericObject(value, allowedKeys) {
@@ -178,6 +190,7 @@ function isRunAnchor(anchor) {
   ));
 }
 
+const T_FILLER_RUN_VALUES = ['seams', 'all'];
 const END_FILLER_MINIMUMS = { width: 0, returnDepth: -1 };
 
 function isEndFillerSide(side) {
@@ -190,6 +203,7 @@ function isEndFillerSide(side) {
       || side[key] === null
       || (isFiniteNumber(side[key]) && side[key] > END_FILLER_MINIMUMS[key])
     ))
+    && (side.tFiller === undefined || side.tFiller === null || typeof side.tFiller === 'boolean')
   );
 }
 
@@ -237,6 +251,7 @@ function isRun(run) {
     && isRunStack(run.stack)
     && (run.outset === undefined || (isFiniteNumber(run.outset) && run.outset >= 0))
     && (run.seamGap === undefined || (isFiniteNumber(run.seamGap) && run.seamGap >= 0))
+    && (run.tFiller === undefined || T_FILLER_RUN_VALUES.includes(run.tFiller))
     && isEndFiller(run.endFiller)
     && run.items === undefined
     && run.blind === undefined

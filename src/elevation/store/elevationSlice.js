@@ -1157,16 +1157,21 @@ const elevationSlice = createSlice({
       const location = runLocation(state, action.payload);
       const { side, key, value } = action.payload;
       if (!location || (side !== 'left' && side !== 'right')) return;
-      if (key !== 'width' && key !== 'returnDepth') return;
+      if (key !== 'width' && key !== 'returnDepth' && key !== 'tFiller') return;
       const run = location.run;
       run.endFiller = { left: null, right: null, ...(run.endFiller ?? {}) };
       const current = run.endFiller[side] ?? { width: null, returnDepth: null };
       const minimum = key === 'width' ? 0 : -1;
-      const next = {
-        ...current,
-        [key]: Number.isFinite(value) && value > minimum ? value : null,
-      };
-      run.endFiller[side] = next.width === null && next.returnDepth === null ? null : next;
+      const next = { ...current };
+      if (key === 'tFiller') {
+        if (typeof value === 'boolean') next.tFiller = value;
+        else delete next.tFiller;
+      } else {
+        next[key] = Number.isFinite(value) && value > minimum ? value : null;
+      }
+      run.endFiller[side] = next.width === null && next.returnDepth === null && next.tFiller === undefined
+        ? null
+        : next;
     },
     setAutoCount(state, action) {
       const location = runLocation(state, action.payload);
@@ -1195,6 +1200,31 @@ const elevationSlice = createSlice({
         location.run.seamGap = gap;
       }
       syncRoomAt(state, location.roomIndex);
+    },
+    setRunTFiller(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { value = null } = action.payload;
+      if (value !== null && value !== 'seams' && value !== 'all') return;
+      if (value === null) delete location.run.tFiller;
+      else location.run.tFiller = value;
+    },
+    setItemTFiller(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const leaves = new Map(gridLeaves(location.run.grid)
+        .filter((leaf) => leaf.kind === 'cabinet')
+        .map((leaf) => [leaf.id, leaf]));
+      for (const { itemId, side, value } of action.payload.edits ?? []) {
+        const leaf = leaves.get(itemId);
+        if (!leaf || !['left', 'right', 'top', 'bottom'].includes(side)) continue;
+        if (value !== true && value !== false && value !== null) continue;
+        const next = { ...(leaf.tFiller ?? {}) };
+        if (value === null) delete next[side];
+        else next[side] = value;
+        if (Object.keys(next).length === 0) delete leaf.tFiller;
+        else leaf.tFiller = next;
+      }
     },
     setItemWidth(state, action) {
       const location = runLocation(state, action.payload);
@@ -1723,6 +1753,8 @@ export const {
   setAutoCount,
   setMaxCabinetWidth,
   setRunSeamGap,
+  setRunTFiller,
+  setItemTFiller,
   setItemWidth,
   setItemPin,
   setItemAbsorb,

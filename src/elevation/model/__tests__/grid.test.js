@@ -282,3 +282,27 @@ describe('grid shape', () => {
     }, isLeaf)).toBe(true);
   });
 });
+
+describe('SPEC-37 T-filler overrides in a grid', () => {
+  const grid = gridFromItems('r', [
+    { id: 'a', kind: 'cabinet', width: null, tFiller: { left: true, top: false } },
+    { id: 'b', kind: 'cabinet', width: null },
+  ]);
+
+  it('keeps the overrides through the item helpers', () => {
+    expect(rootItems(grid)[0].tFiller).toEqual({ left: true, top: false });
+    expect(replaceRootItems(grid, rootItems(grid))).toEqual(grid);
+    expect(updateRootItem(grid, 'b', { tFiller: { right: true } }).cells[1].node.tFiller).toEqual({ right: true });
+  });
+
+  it('mirrors left and right, leaves top and bottom, and copies on clone', () => {
+    const mirrored = mirrorGrid(grid);
+    expect(mirrored.cells.map((cell) => [cell.node.id, cell.node.tFiller])).toEqual([
+      ['a', { right: true, top: false }],
+      ['b', undefined],
+    ]);
+    const copy = cloneGrid(grid);
+    expect(copy.cells[0].node.tFiller).toEqual({ left: true, top: false });
+    expect(copy.cells[0].node.tFiller).not.toBe(grid.cells[0].node.tFiller);
+  });
+});

@@ -64,6 +64,8 @@ import elevationReducer, {
   setRunFaceOptions,
   setRunBottom,
   setRunSeamGap,
+  setRunTFiller,
+  setItemTFiller,
   setRunStyle,
   setActiveWall,
   setActiveWallSide,
@@ -2468,5 +2470,65 @@ describe('SPEC-36.2.1 wall end panel selection', () => {
     state = elevationReducer(state, setSelection({ endPanel: 'end', soffitId: 's1' }));
     expect(state.selection.soffitId).toBe('s1');
     expect('endPanel' in state.selection).toBe(false);
+  });
+});
+
+describe('SPEC-37 T-filler shape actions', () => {
+  const setup = () => {
+    const state = stateWithRun(run({ items: [auto('a'), auto('b')] }));
+    return { state, base: { roomId: state.rooms[0].id, wallId: 'wall-1', runId: 'run-1' } };
+  };
+  const currentRun = (state) => state.rooms[0].walls[0].runs[0];
+  const leaf = (state, id) => gridLeaves(currentRun(state).grid).find((candidate) => candidate.id === id);
+
+  it('sets and clears the run setting, and rejects other values', () => {
+    let { state, base } = setup();
+    state = elevationReducer(state, setRunTFiller({ ...base, value: 'seams' }));
+    expect(currentRun(state).tFiller).toBe('seams');
+    state = elevationReducer(state, setRunTFiller({ ...base, value: 'all' }));
+    expect(currentRun(state).tFiller).toBe('all');
+    state = elevationReducer(state, setRunTFiller({ ...base, value: 'vertical' }));
+    expect(currentRun(state).tFiller).toBe('all');
+    state = elevationReducer(state, setRunTFiller({ ...base, value: null }));
+    expect('tFiller' in currentRun(state)).toBe(false);
+  });
+
+  it('sets, clears and ignores per-side overrides on cabinets', () => {
+    let { state, base } = setup();
+    state = elevationReducer(state, setItemTFiller({
+      ...base,
+      edits: [
+        { itemId: 'a', side: 'right', value: true },
+        { itemId: 'b', side: 'left', value: true },
+        { itemId: 'b', side: 'top', value: false },
+      ],
+    }));
+    expect(leaf(state, 'a').tFiller).toEqual({ right: true });
+    expect(leaf(state, 'b').tFiller).toEqual({ left: true, top: false });
+    state = elevationReducer(state, setItemTFiller({
+      ...base,
+      edits: [
+        { itemId: 'a', side: 'right', value: null },
+        { itemId: 'b', side: 'top', value: null },
+        { itemId: 'b', side: 'middle', value: true },
+        { itemId: 'b', side: 'bottom', value: 'yes' },
+        { itemId: 'zz', side: 'left', value: true },
+      ],
+    }));
+    expect('tFiller' in leaf(state, 'a')).toBe(false);
+    expect(leaf(state, 'b').tFiller).toEqual({ left: true });
+  });
+
+  it('sets and clears an end filler\'s T-filler choice beside its other details', () => {
+    let { state, base } = setup();
+    state = elevationReducer(state, setRunEndFiller({ ...base, side: 'left', key: 'tFiller', value: true }));
+    expect(currentRun(state).endFiller.left).toEqual({ width: null, returnDepth: null, tFiller: true });
+    state = elevationReducer(state, setRunEndFiller({ ...base, side: 'left', key: 'width', value: 3 }));
+    expect(currentRun(state).endFiller.left).toEqual({ width: 3, returnDepth: null, tFiller: true });
+    state = elevationReducer(state, setRunEndFiller({ ...base, side: 'left', key: 'tFiller', value: false }));
+    expect(currentRun(state).endFiller.left.tFiller).toBe(false);
+    state = elevationReducer(state, setRunEndFiller({ ...base, side: 'left', key: 'tFiller', value: null }));
+    state = elevationReducer(state, setRunEndFiller({ ...base, side: 'left', key: 'width', value: null }));
+    expect(currentRun(state).endFiller).toEqual({ left: null, right: null });
   });
 });
