@@ -67,7 +67,7 @@ Suggested format:
 - [ ] choose light rail/trough/panel below uppers (or all cabinets?)
   - Same for wood tops, lids, furniture base, toekick. Project/Room/Cabinet Overrides
 - [ ] add multiple rows/options of top of crown per room
-- [ ] 
+- [ ] match filler/end stile widths automatically for an upper over a base, etc.
 - [ ] 
 - [ ] 
 - [ ] 
