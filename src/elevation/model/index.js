@@ -364,3 +364,4 @@ export {
   isExtendTarget,
 } from './extensions.js';
 export { boxInsets, faceOpenings, frameBadgeAnchor, frameEdgeTracks, frameMembers, frameRegions, frameVerticalChains, groupMembers, regionOpenings, sideOf } from './frames.js';
+export { teeFillers } from './tees.js';
