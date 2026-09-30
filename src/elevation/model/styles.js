@@ -32,6 +32,7 @@ export const REVEAL_SOURCE_LABELS = {
   'rule:captured-single': 'rule: captured single',
   'rule:bead-seam': 'rule: bead seam',
   'rule:covered-panel': 'rule: covered panel',
+  'rule:t-filler': 'rule: T-filler',
 };
 
 const STYLE_KEYS = ['cabinetStyleId', 'beadWidth', 'profiledEdge'];
@@ -145,6 +146,7 @@ export function cabinetReveals({
   seams = { left: false, right: false },
   stacked = { top: false, bottom: false },
   covered = { top: 0, bottom: 0, left: 0, right: 0 },
+  tCovers = null,
   runEdges = { top: true, bottom: true },
   manual = null,
   settings,
@@ -189,6 +191,16 @@ export function cabinetReveals({
     const standard = styleReveals(style, cabinetTypeId, settings);
     for (const key of ['top', 'bottom', 'left', 'right']) {
       if (covered?.[key] > 0) apply(key, standard[key] - covered[key], 'rule:covered-panel');
+    }
+  }
+  // A T-filler covers the front edge (REV-005/006): the face sits that much farther in, and between
+  // stacked boxes each face takes half the usual gap beside the flat.
+  if (euro && tCovers) {
+    for (const key of ['left', 'right']) {
+      if (tCovers[key] > 0) apply(key, values[key] + tCovers[key], 'rule:t-filler');
+    }
+    for (const key of ['top', 'bottom']) {
+      if (tCovers[key] > 0) apply(key, tCovers[key] + values.horizontal / 2, 'rule:t-filler');
     }
   }
   for (const key of REVEAL_KEYS) {

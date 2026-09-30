@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cellPieces } from '../cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { layoutRun } from '../faceLayouts.js';
+import { layoutRun, runFaceLayouts } from '../faceLayouts.js';
 import { gridFromItems } from '../grid.js';
 import { resolveWall } from '../room.js';
 import { teeFillers } from '../tees.js';
@@ -247,5 +247,59 @@ describe('SPEC-37 T-fillers between stacked boxes', () => {
     const { tees } = teesOf(run);
     expect(summary(tees)).toEqual([['tee:h:a1|a2', 24, 28.75, 18, 2]]);
     expect(tees[0].ret).toEqual({ start: 29.375, end: 30.125 });
+  });
+});
+
+describe('SPEC-37 T-fillers and the faces beside them', () => {
+  function facesOf(run) {
+    const room = roomWith(run);
+    const wall = resolveWall(room, room.walls[0]);
+    return runFaceLayouts(room, wall, run, S, layoutRun(room, wall, run, S));
+  }
+
+  it('sets the reveal at a covered edge to the cover plus the usual one (REV-005)', () => {
+    const faces = facesOf(baseRun());
+    const a = faces.get('a');
+    expect(a.reveals.values).toMatchObject({ left: 0.0625, right: 0.8125 });
+    expect(a.reveals.sources.right).toBe('rule:t-filler');
+    expect(a.reveals.sources.left).toBe('style');
+    expect(a.faces).toEqual([{ path: 'r', type: 'door', x: 24.0625, z: 4.125, width: 17.125, height: 30.125 }]);
+    expect(faces.get('b').faces[0]).toMatchObject({ x: 42.8125, width: 17.125 });
+  });
+
+  it('gives a single door between two T-fillers 27/32 each side (REV-006)', () => {
+    const run = baseRun({ width: 36, grid: gridFromItems('r', [cab('a', 12), cab('b', 12), cab('c', 12)]) });
+    const b = facesOf(run).get('b');
+    expect(b.reveals.values).toMatchObject({ left: 0.84375, right: 0.84375 });
+    expect(b.faces[0]).toMatchObject({ x: 36.84375, width: 10.3125 });
+  });
+
+  it('gives a pair of doors between end T-fillers 13/16 each side (REV-005)', () => {
+    const run = baseRun({
+      width: 42, tFiller: 'seams',
+      ends: { left: { type: 'filler', width: 3 }, right: { type: 'filler', width: 3 } },
+      grid: gridFromItems('r', [cab('a', 36)]),
+    });
+    const a = facesOf(run).get('a');
+    expect(a.reveals.values).toMatchObject({ left: 0.8125, right: 0.8125 });
+    expect(a.faces.map((face) => [face.half, face.x, face.width])).toEqual([
+      ['left', 27.8125, 17.125], ['right', 45.0625, 17.125],
+    ]);
+  });
+
+  it('puts 13/16 between stacked boxes either side of a horizontal T', () => {
+    const faces = facesOf(stackedRun(30, 30, { tFiller: 'all' }));
+    expect(faces.get('a1').reveals.values.bottom).toBe(0.8125);
+    expect(faces.get('a2').reveals.values.top).toBe(0.8125);
+    expect(faces.get('a1').reveals.sources.bottom).toBe('rule:t-filler');
+  });
+
+  it('leaves a manual reveal in charge, and runs without T-fillers alone', () => {
+    const run = baseRun({
+      grid: gridFromItems('r', [cab('a', 18, { reveals: { right: 0.5 } }), cab('b', 18)]),
+    });
+    expect(facesOf(run).get('a').reveals.values.right).toBe(0.5);
+    const plain = facesOf(baseRun({ tFiller: undefined })).get('a');
+    expect(plain.reveals.values).toMatchObject({ left: 0.0625, right: 0.0625 });
   });
 });
