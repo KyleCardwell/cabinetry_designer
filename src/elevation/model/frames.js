@@ -157,19 +157,24 @@ export function frameRegions(room, run, cells, settings) {
   return { regions, fillerIds, freeSides, seamSides, warnings };
 }
 
-/** Each face's opening in the frame: its slot before any fit, a pair door's halves as one. */
+/** Each face's opening in the frame: its slot before any fit, a pair door's halves as one, and the faces on either side of a no-rail seam as one. */
 export function faceOpenings(face, area, reveals) {
   const { faces } = resolveFaces(face, area, { ...reveals, fit: 0, pairFit: 0 });
   const byPath = new Map();
   for (const rect of faces) {
-    const seen = byPath.get(rect.path);
+    // The faces on either side of a no-rail seam are one opening (SPEC-36.3).
+    const key = rect.opening ?? rect.path;
+    const seen = byPath.get(key);
     if (!seen) {
-      byPath.set(rect.path, { path: rect.path, x: rect.x, z: rect.z, width: rect.width, height: rect.height });
+      byPath.set(key, { path: key, x: rect.x, z: rect.z, width: rect.width, height: rect.height });
       continue;
     }
     const right = Math.max(seen.x + seen.width, rect.x + rect.width);
+    const top = Math.max(seen.z + seen.height, rect.z + rect.height);
     seen.x = Math.min(seen.x, rect.x);
+    seen.z = Math.min(seen.z, rect.z);
     seen.width = right - seen.x;
+    seen.height = top - seen.z;
   }
   return [...byPath.values()];
 }

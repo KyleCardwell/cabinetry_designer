@@ -87,6 +87,7 @@ export function stackedSeamReveals(style, settings) {
  * Full reveal values for a style and cabinet type, before rules.
  * Inset values are measured from the box to the frame opening (bead included);
  * `fit` / `pairFit` shrink each face inside its slot; `pair` is the gap between pair doors.
+ * `shared` is the gap between the faces of a group with no rail between (SPEC-36.3).
  */
 export function styleReveals(style, cabinetTypeId, settings) {
   if (!isInsetStyle(style)) {
@@ -109,6 +110,7 @@ export function styleReveals(style, cabinetTypeId, settings) {
     pair: profiled ? profiled.pairGap : 0,
     fit: profiled ? profiled.edge : 0,
     pairFit: profiled ? profiled.pairEdge : 0,
+    shared: profiled ? profiled.sharedGap : 0,
   };
 }
 

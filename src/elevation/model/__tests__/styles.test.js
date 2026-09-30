@@ -47,14 +47,14 @@ describe('styles', () => {
 
   it('29 inset style reveals', () => {
     expect(styleReveals(INSET, BASE, S)).toEqual({
-      top: 1.5, bottom: 1.5, left: 0.75, right: 0.75, horizontal: 1.5, vertical: 1.5, pair: 0, fit: 0, pairFit: 0,
+      top: 1.5, bottom: 1.5, left: 0.75, right: 0.75, horizontal: 1.5, vertical: 1.5, pair: 0, fit: 0, pairFit: 0, shared: 0,
     });
     expect(styleReveals(INSET, UPPER, S).bottom).toBe(0.75);
   });
 
   it('30 beaded, profiled upper', () => {
     expect(styleReveals({ cabinetStyleId: 15, beadWidth: 0.25, profiledEdge: true }, UPPER, S)).toEqual({
-      top: 1.75, bottom: 1, left: 1, right: 1, horizontal: 2, vertical: 2, pair: 0.125, fit: 0.09375, pairFit: 0.0625,
+      top: 1.75, bottom: 1, left: 1, right: 1, horizontal: 2, vertical: 2, pair: 0.125, fit: 0.09375, pairFit: 0.0625, shared: 0.0625,
     });
   });
 

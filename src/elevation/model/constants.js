@@ -84,7 +84,7 @@ export const DEFAULT_SETTINGS = {
     upperDrop: 0.75,
     thickness: 0.8125,
   },
-  profiledFit: { edge: 0.09375, pairEdge: 0.0625, pairGap: 0.125 },
+  profiledFit: { edge: 0.09375, pairEdge: 0.0625, pairGap: 0.125, sharedGap: 0.0625 },
   woodTopReveal: 0.125,
   capturedSingleReveal: 0.09375,
   stackedUpperBottom: 0,
