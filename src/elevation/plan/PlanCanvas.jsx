@@ -1021,6 +1021,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 onSelect={(event) => handleWallSelect(wall.id, event)}
                 onOpen={(event) => handleWallOpen(wall.id, event)}
                 cursor={cursor}
+                settings={settings}
               />
             ))}
             {orderedOpenings.map(({ frame, wall, opening }) => (

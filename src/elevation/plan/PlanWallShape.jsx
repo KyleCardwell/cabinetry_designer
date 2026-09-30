@@ -2,10 +2,10 @@ import { Circle, Group, Line, Text } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { layoutDimensionRow } from '../canvas/dimensionLayout.js';
 import { wallFrame } from '../model/geometry.js';
-import { landingsOn } from '../model/landings.js';
 import { wallNumbers } from '../model/topology.js';
 import { wallOutline } from '../model/wallOutline.js';
-import { wallSideFrame, wallSideView } from '../model/wallSides.js';
+import { wallFaceSegments } from '../model/wallFaceRow.js';
+import { wallSideFrame } from '../model/wallSides.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
 import { readableRotation } from './textRotation.js';
 
@@ -17,6 +17,7 @@ export default function PlanWallShape({
   onSelect,
   onOpen,
   cursor,
+  settings,
 }) {
   const cursorKeys = useCursorKeys(cursor);
   const frame = wallFrame(room, wall);
@@ -32,7 +33,12 @@ export default function PlanWallShape({
   const fontSize = PLAN_DIM_FONT_SIZE / scale;
   const number = wallNumbers(room).get(wall.id);
   const numberRadius = 9 / scale;
-  const hasFrontLandings = landingsOn(room, wallSideView(wall, 'front')).length > 0;
+  // SPEC-36.3.1: wing walls and, on the front, doors and windows share one row inside the wall's length.
+  const faceRows = {
+    front: wallFaceSegments(room, wall, 'front', settings),
+    back: wallFaceSegments(room, wall, 'back', settings),
+  };
+  const hasFrontLandings = faceRows.front.length > 0;
   const innerRowOffset = wall.thickness + 22 / scale;
   const dimensionOffset = innerRowOffset + (hasFrontLandings ? 20 / scale : 0);
   const extensionEndOffset = dimensionOffset + 4 / scale;
@@ -75,20 +81,11 @@ export default function PlanWallShape({
     Math.atan2(wall.y2 - wall.y1, wall.x2 - wall.x1) * 180 / Math.PI,
   );
   const landingRows = ['front', 'back'].flatMap((side) => {
-    const sideView = wallSideView(wall, side);
-    const intervals = landingsOn(room, sideView);
-    if (intervals.length === 0) return [];
+    const segments = faceRows[side];
+    if (segments.length === 0) return [];
     const sideFrame = wallSideFrame(room, wall, side);
     const outward = side === 'front' ? exterior : frame.n;
     const offset = side === 'front' ? innerRowOffset : innerRowOffset + 20 / scale;
-    const segments = [];
-    let cursor = 0;
-    intervals.forEach(({ a, b }) => {
-      segments.push({ start: cursor, end: a });
-      segments.push({ start: a, end: b });
-      cursor = b;
-    });
-    segments.push({ start: cursor, end: sideFrame.length });
     const rowLayout = layoutDimensionRow(segments, {
       scale,
       fontSize: PLAN_DIM_FONT_SIZE,
