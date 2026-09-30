@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import {
-  boxInsets, endPieceBottom, endPieceNotes, frameRegions, partNumbers, resolveStyle, wallSideOf,
+  boxInsets, endPieceBottom, endPieceNotes, frameRegions, partNumbers, resolveStyle, teeFillers, wallSideOf,
 } from '../../model/index.js';
 import { removeItem, setCellExtend, setItemWidth } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
@@ -12,6 +12,8 @@ import ExtendFields from './ExtendFields.jsx';
 import FrameSection from './FrameSection.jsx';
 import Field from './Field.jsx';
 import PartNumberField from './PartNumberField.jsx';
+import TeeProperties from './TeeProperties.jsx';
+import TFillerSection from './TFillerSection.jsx';
 
 function InteriorFillerProperties({ wallId, run, piece, item, extendRuns }) {
   const dispatch = useDispatch();
@@ -73,7 +75,9 @@ function EndProperties({ wallId, run, side, settings, extendRuns }) {
 export default function PieceProperties({
   room, wall, run, layout, cells, selectionContext, settings,
 }) {
-  const { piece, item, side } = selectionContext;
+  const {
+    piece, item, side, tee,
+  } = selectionContext;
   const numbers = useMemo(() => partNumbers(room, settings), [room, settings]);
   const frames = useMemo(() => frameRegions(room, run, layout, settings), [room, run, layout, settings]);
   const insets = useMemo(() => boxInsets(frames, layout, settings), [frames, layout, settings]);
@@ -99,6 +103,10 @@ export default function PieceProperties({
       duplicate={numbers.warnings.some((warning) => warning.keys.includes(partKey))}
     />
   );
+  const teeNotes = tee ? teeFillers(room, run, cells, settings).notes.get(tee.id) ?? [] : [];
+  const tSection = (
+    <TFillerSection room={room} wall={wall} run={run} cells={cells} settings={settings} piece={piece} />
+  );
   const endNotes = (piece.kind === 'filler' || piece.kind === 'end_panel')
     && !piece.extend?.down
     ? endPieceNotes(piece.kind, endPieceBottom(run, resolveStyle(settings, room, run), settings))
@@ -108,6 +116,9 @@ export default function PieceProperties({
   ) : null;
   const extendRuns = wall.runs.filter((other) => other.id !== run.id && wallSideOf(other) === wallSideOf(run));
 
+  if (tee && !side) {
+    return <TeeProperties tee={tee} notes={teeNotes} partNumberField={partNumberField} settings={settings} />;
+  }
   if (side) {
     return (
       <>
@@ -153,6 +164,7 @@ export default function PieceProperties({
           settings={settings}
           insets={insets}
         />
+        {tSection}
         {frameSection}
       </>
     );
@@ -170,6 +182,7 @@ export default function PieceProperties({
         settings={settings}
         inset={insets.get(piece.id)}
       />
+      {tSection}
       {frameSection}
     </>
   );

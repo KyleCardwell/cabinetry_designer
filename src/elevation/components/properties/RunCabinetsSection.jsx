@@ -10,6 +10,7 @@ import {
   setAutoCount,
   setMaxCabinetWidth,
   setRunSeamGap,
+  setRunTFiller,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
@@ -38,6 +39,24 @@ export default function RunCabinetsSection({ run, actionBase }) {
             className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
           />
         </label>
+
+        <div className="mt-2">
+          <Field label="T-fillers (Euro)">
+            <select
+              value={run.tFiller ?? 'none'}
+              onChange={(event) => dispatch(setRunTFiller({
+                ...actionBase,
+                value: event.target.value === 'none' ? null : event.target.value,
+              }))}
+              aria-label="Run T-fillers"
+              className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="none">None</option>
+              <option value="seams">Between cabinets</option>
+              <option value="all">Every edge</option>
+            </select>
+          </Field>
+        </div>
 
         <div className="mt-2 flex items-center justify-between rounded border border-gray-700 bg-gray-900/45 p-2">
           <span className="text-xs text-gray-400">Cabinet count</span>

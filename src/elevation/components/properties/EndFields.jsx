@@ -118,6 +118,26 @@ export default function EndFields({
               aria-label={`${side} end filler return depth`}
             />
           </Field>
+          {endType === 'filler' && (
+            <Field label="T-filler">
+              <select
+                value={run.endFiller?.[side]?.tFiller === true ? 'yes'
+                  : run.endFiller?.[side]?.tFiller === false ? 'no' : 'follow'}
+                onChange={(event) => dispatch(setRunEndFiller({
+                  ...actionBase,
+                  side,
+                  key: 'tFiller',
+                  value: { follow: null, yes: true, no: false }[event.target.value],
+                }))}
+                aria-label={`${side} end filler T-filler`}
+                className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="follow">Follow run</option>
+                <option value="yes">T-filler</option>
+                <option value="no">Plain filler</option>
+              </select>
+            </Field>
+          )}
           <p className="mt-1.5 text-xs text-gray-500">
             {endType === 'blind'
               ? 'Box width of the cabinet at this end. The extra runs into the corner. The filler is ordered 6" with no return; the elevation still shows what fits.'
