@@ -11,6 +11,7 @@ import {
   equalizeGroup,
   faceOutline,
   getFaceNode,
+  isInsetStyle,
   makeDrawerStack,
   parentFacePath,
   presetsFor,
@@ -19,6 +20,7 @@ import {
   setFaceSize,
   setFaceType,
   setGroupCount,
+  setSeamNoRail,
   splitFace,
 } from '../../model/index.js';
 import { setFacePath, setItemFace } from '../../store/elevationSlice.js';
@@ -36,14 +38,16 @@ const WARNING_MESSAGES = {
 };
 
 function groupLabel(node) {
+  const cuts = node.noRail?.length ?? 0;
+  const rail = cuts ? ` · no ${node.direction === 'vertical' ? 'rail' : 'mullion'} at ${cuts}` : '';
   if (
     node.direction === 'vertical'
     && node.children.every((child) => child.type === 'drawer_front')
   ) {
-    return `Drawer stack × ${node.children.length}`;
+    return `Drawer stack × ${node.children.length}${rail}`;
   }
   const name = node.direction === 'horizontal' ? 'Side by side' : 'Stack';
-  return `${name} × ${node.children.length}`;
+  return `${name} × ${node.children.length}${rail}`;
 }
 
 // `layout` is the run's splitRun result; it supplies the same-width targets.
@@ -277,29 +281,49 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2">
-              <label className="flex items-center gap-2 text-xs text-gray-300">
-                Sections
-                <input
-                  type="number"
-                  min={1}
-                  max={MAX_FACE_SPLIT}
-                  value={selected.children.length}
-                  onChange={(event) => {
-                    if (event.target.value === '') return;
-                    commitIfChanged(setGroupCount(face, facePath, Number(event.target.value)));
-                  }}
-                  className={NUMBER_CLASS}
-                />
-              </label>
-              <button
-                type="button"
-                onClick={() => commitIfChanged(equalizeGroup(face, facePath))}
-                className={BUTTON_CLASS}
-              >
-                Make equal
-              </button>
-            </div>
+            <>
+              <div className="flex items-center gap-2">
+                <label className="flex items-center gap-2 text-xs text-gray-300">
+                  Sections
+                  <input
+                    type="number"
+                    min={1}
+                    max={MAX_FACE_SPLIT}
+                    value={selected.children.length}
+                    onChange={(event) => {
+                      if (event.target.value === '') return;
+                      commitIfChanged(setGroupCount(face, facePath, Number(event.target.value)));
+                    }}
+                    className={NUMBER_CLASS}
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => commitIfChanged(equalizeGroup(face, facePath))}
+                  className={BUTTON_CLASS}
+                >
+                  Make equal
+                </button>
+              </div>
+              {faceLayout && isInsetStyle(faceLayout.style) && selected.children.slice(0, -1).map((child, seam) => {
+                if (!child.type || !selected.children[seam + 1].type) return null;
+                const word = selected.direction === 'vertical' ? 'rail' : 'mullion';
+                const label = `No ${word} between ${seam + 1} and ${seam + 2}`;
+                return (
+                  <label key={label} className="flex items-center gap-2 text-xs text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={selected.noRail?.includes(seam) === true}
+                      onChange={(event) => commitIfChanged(
+                        setSeamNoRail(face, facePath, seam, event.target.checked),
+                      )}
+                      aria-label={label}
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+            </>
           )}
           {facePath !== ROOT_FACE_PATH && (
             <button type="button" onClick={remove} className={BUTTON_CLASS}>

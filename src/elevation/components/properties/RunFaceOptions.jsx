@@ -4,6 +4,7 @@ import {
   RUN_TOP_OPTIONS,
   TOP_LABELS,
   defaultRunTop,
+  isInsetStyle,
   resolveProfile,
   resolveStyle,
 } from '../../model/index.js';
@@ -47,6 +48,18 @@ export default function RunFaceOptions({ room, wall, run, settings }) {
           ))}
         </select>
       </label>
+
+      {run.cabinetTypeId === CABINET_TYPE_IDS.BASE && isInsetStyle(resolveStyle(settings, room, run)) && (
+        <label className="flex items-center gap-2 text-xs text-gray-300">
+          <input
+            type="checkbox"
+            checked={run.hanging === true}
+            onChange={(event) => dispatch(setRunFaceOptions({ ...at, hanging: event.target.checked }))}
+            aria-label="Hanging base"
+          />
+          Hanging (bottom rail hangs below the box)
+        </label>
+      )}
 
       {run.cabinetTypeId === CABINET_TYPE_IDS.UPPER && (
         <label className="block text-xs text-gray-400">
