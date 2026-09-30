@@ -11,6 +11,7 @@ import {
   pinTargetsForRun,
 } from './room.js';
 import { splitRun } from './splitRun.js';
+import { teeFillers } from './tees.js';
 import { runTop } from './tops.js';
 import { wallNumbers } from './topology.js';
 import { wallEndPanels } from './wallEndPanels.js';
@@ -68,6 +69,8 @@ function runParts(room, wall, side, settings) {
       .map((entry) => entry.endPieceId));
     const frames = frameRegions(room, run, cells, settings);
     const inFrame = frames.fillerIds;
+    const { tees } = teeFillers(room, run, cells, settings);
+    const teeWidths = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee.partWidth]));
     return [
       ...partPieces(cells.pieces, settings)
         .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6
@@ -80,8 +83,19 @@ function runParts(room, wall, side, settings) {
           runId: run.id,
           pieceId: piece.id,
           molding: null,
-          width: cellWidths.get(piece.id) ?? widths.get(piece.id) ?? piece.width,
+          width: teeWidths.get(piece.id) ?? cellWidths.get(piece.id) ?? widths.get(piece.id) ?? piece.width,
         })),
+      // A T-filler between boxes is a filler part of its own, after its run's pieces (SPEC-37).
+      ...tees.filter((tee) => !tee.end).map((tee) => ({
+        key: tee.id,
+        kind: 'filler',
+        wallId: wall.id,
+        side,
+        runId: run.id,
+        pieceId: tee.id,
+        molding: null,
+        width: tee.partWidth,
+      })),
       // One part per face frame, after its run's pieces (SPEC-36.2).
       ...frames.regions.map((region) => ({
         key: region.id,
@@ -236,6 +250,7 @@ export function wallBadgeGroups(room, wall, settings) {
     const cells = cellPieces(run, layout);
     const frames = frameRegions(room, run, cells, settings);
     const covered = new Set(frames.regions.flatMap((region) => region.fillerIds));
+    const seamTees = teeFillers(room, run, cells, settings).tees.filter((tee) => !tee.end);
     let layouts = null;
     const faceLayouts = () => (layouts ??= runFaceLayouts(room, wall, run, settings, layout));
     return [
@@ -243,6 +258,12 @@ export function wallBadgeGroups(room, wall, settings) {
         key: `run:${run.id}`,
         lift: 0,
         pieces: partPieces(cells.pieces, settings).filter((piece) => !covered.has(piece.id)),
+      },
+      // A T-filler between boxes badges one level up, clear of the boxes' own (SPEC-37).
+      {
+        key: `tees:${run.id}`,
+        lift: 1,
+        pieces: seamTees.map(({ id, x, z, width, height }) => ({ id, x, z, width, height })),
       },
       // Each frame's badge sits two levels up, over the stile nearest its centre (SPEC-36.2.1).
       ...frames.regions.map((region) => {

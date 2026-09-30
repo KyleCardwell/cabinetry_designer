@@ -1,7 +1,7 @@
 import { gapReach } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { runItems } from './grid.js';
-import { endPieceBottom, isInsetStyle, resolveStyle } from './styles.js';
+import { endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle } from './styles.js';
 
 const EPSILON = 1e-6;
 
@@ -24,6 +24,17 @@ function noCovers() {
   return { left: 0, right: 0, top: 0, bottom: 0 };
 }
 
+/** The shop note for a box a T-filler covers (FILL-007): which sides to rabbet. */
+export function rabbetNote(covers) {
+  const sides = ['left', 'right'].filter((side) => covers[side] > 0);
+  const edges = ['top', 'bottom'].filter((side) => covers[side] > 0);
+  const parts = [
+    ...(sides.length === 2 ? ['sides'] : sides.map((side) => `${side} side`)),
+    ...(edges.length === 2 ? ['top and bottom'] : edges),
+  ];
+  return `FF to rabbet ${parts.join(' and ')} for T-filler`;
+}
+
 /**
  * The T-fillers of a run (SPEC-37, FILL-011), derived and never stored. A T covers the front edges
  * of the two Euro boxes either side of a seam, `settings.teeCover` (3/4") of each, so its flat is
@@ -36,15 +47,21 @@ function noCovers() {
  * below the box (the fillers' own drop), and where the return sits along the flat's width, which is
  * centred between boxes and 3/4" off the box side at an end.
  *
- * @returns {{tees: object[], covers: Map<string, {left: number, right: number, top: number, bottom: number}>}}
+ * Also `partWidth` on each (what the shop orders across the flat: the width of a vertical T, the height
+ * of a horizontal one; at an end, any width ordered for the filler plus the cover), `notes` (by T id:
+ * "T-shape" and the filler notes) and `rabbets` (by box id: the FILL-007 note).
+ *
+ * @returns {{tees: object[], covers: Map<string, {left: number, right: number, top: number, bottom: number}>, notes: Map<string, string[]>, rabbets: Map<string, string>}}
  */
 export function teeFillers(room, run, cells, settings) {
   const tees = [];
   const covers = new Map();
+  const notes = new Map();
+  const rabbets = new Map();
   const cover = settings.teeCover;
   const returnThickness = settings.fillerReturnThickness;
   const runStyle = resolveStyle(settings, room, run);
-  if (isInsetStyle(runStyle)) return { tees, covers };
+  if (isInsetStyle(runStyle)) return { tees, covers, notes, rabbets };
   const { drop } = endPieceBottom(run, runStyle, settings);
   const reach = gapReach(cells.gaps ?? []);
   const boxes = cells.pieces.filter((piece) => piece.kind === 'cabinet' && piece.role === 'item')
@@ -106,6 +123,7 @@ export function teeFillers(room, run, cells, settings) {
         width,
         height: flat.height,
         drop: flat.drop,
+        partWidth: width,
         boxIds: [...new Set(joined.flatMap((contact) => [contact.a.id, contact.b.id]))],
         ret: { start, end: start + returnThickness },
       });
@@ -137,6 +155,7 @@ export function teeFillers(room, run, cells, settings) {
       width: piece.width + cover,
       height: flat.height,
       drop: flat.drop,
+      partWidth: (run.endFiller?.[side]?.width > 0 ? run.endFiller[side].width : piece.width) + cover,
       boxIds: beside.map((box) => box.id),
       ret: side === 'left' ? { start: edge - thickness, end: edge } : { start: edge, end: edge + thickness },
     });
@@ -193,6 +212,7 @@ export function teeFillers(room, run, cells, settings) {
         width: joined[joined.length - 1].right - first.left,
         height,
         drop: 0,
+        partWidth: height,
         boxIds: [...new Set(joined.flatMap((stack) => [stack.upper.id, stack.lower.id]))],
         ret: { start, end: start + returnThickness },
       });
@@ -204,5 +224,13 @@ export function teeFillers(room, run, cells, settings) {
   }
 
   tees.sort((p, q) => p.x - q.x || p.z - q.z);
-  return { tees, covers };
+  const bottom = endPieceBottom(run, runStyle, settings);
+  for (const tee of tees) {
+    notes.set(tee.id, [
+      'T-shape',
+      ...(tee.orientation === 'vertical' && tee.drop > 0 ? endPieceNotes('filler', bottom) : []),
+    ]);
+  }
+  for (const [id, sides] of covers) rabbets.set(id, rabbetNote(sides));
+  return { tees, covers, notes, rabbets };
 }

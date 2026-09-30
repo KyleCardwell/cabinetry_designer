@@ -66,7 +66,7 @@ describe('SPEC-37 T-fillers at seams', () => {
     const { tees, covers } = teesOf(baseRun());
     expect(tees).toEqual([{
       id: 'tee:a|b', orientation: 'vertical', end: null, pieceId: null,
-      x: 41.25, z: 4, width: 1.5, height: 30.5, drop: 0, boxIds: ['a', 'b'],
+      x: 41.25, z: 4, width: 1.5, height: 30.5, drop: 0, partWidth: 1.5, boxIds: ['a', 'b'],
       ret: { start: 41.625, end: 42.375 },
     }]);
     expect(covers.get('a')).toEqual({ left: 0, right: 0.75, top: 0, bottom: 0 });
@@ -102,7 +102,7 @@ describe('SPEC-37 T-fillers at seams', () => {
     const { tees, covers } = teesOf(stackedRun(30, 30));
     expect(tees).toEqual([{
       id: 'tee:a2|b2', orientation: 'vertical', end: null, pieceId: null,
-      x: 41.25, z: 0, width: 1.5, height: 60, drop: 0, boxIds: ['a2', 'b2', 'a1', 'b1'],
+      x: 41.25, z: 0, width: 1.5, height: 60, drop: 0, partWidth: 1.5, boxIds: ['a2', 'b2', 'a1', 'b1'],
       ret: { start: 41.625, end: 42.375 },
     }]);
     expect(covers.get('a1').right).toBe(0.75);
