@@ -74,7 +74,7 @@ describe('SPEC-37 T-fillers at seams', () => {
   });
 
   it('widens the flat by the gap between spaced boxes', () => {
-    const { tees } = teesOf(baseRun({ seamGap: 0.5, _seamGap: 0.5 }));
+    const { tees } = teesOf(baseRun({ width: 36.5, seamGap: 0.5 }));
     expect(tees).toHaveLength(1);
     expect(tees[0]).toMatchObject({ x: 41.25, width: 2, ret: { start: 41.875, end: 42.625 } });
   });

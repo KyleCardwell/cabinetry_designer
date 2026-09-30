@@ -20,6 +20,7 @@ import {
 import { soffitsOn } from './soffits.js';
 import { splitRun } from './splitRun.js';
 import { stackOf } from './stacks.js';
+import { teeFillers } from './tees.js';
 import { isCountertop, runTop } from './tops.js';
 
 const SEGMENT_EPSILON = 1e-6;
@@ -202,23 +203,24 @@ function regionSegments(region, pieces, faceLayouts, runId) {
 
 /**
  * A run's segments on the inner chain: its pieces, a gap between boxes as its own segment, and each
- * face frame region as stile and opening segments in place of the pieces it covers (SPEC-36).
+ * face frame region as stile and opening segments in place of the pieces it covers (SPEC-36). A
+ * T-filler is its own `t-filler` segment, and the boxes it covers show what's left of them (SPEC-37).
  */
 function runInnerSegments(room, wall, run, settings, layout) {
   const cells = cellPieces(run, layout);
   const { regions } = frameRegions(room, run, cells, settings);
+  const { tees, covers } = teeFillers(room, run, cells, settings);
   const faceLayouts = regions.length > 0 ? runFaceLayouts(room, wall, run, settings, layout) : null;
   const regionOf = (piece) => regions.find((region) => piece.x >= region.x - SEGMENT_EPSILON
     && piece.x + piece.width <= region.x + region.width + SEGMENT_EPSILON);
-  const segments = [];
-  let cursor = null;
-  const add = (start, end, kind, metadata) => {
-    if (cursor !== null && start - cursor > SEGMENT_EPSILON) {
-      appendSegment(segments, cursor, start, 'gap', { runId: run.id });
-    }
-    appendSegment(segments, start, end, kind, metadata);
-    cursor = end;
-  };
+  const endTees = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee]));
+  // What a T covers along a piece's left and right edges, from the boxes that reach those edges.
+  const coverAt = (piece, side) => Math.max(0, ...cells.pieces
+    .filter((box) => (box.id === piece.id || box.columnId === piece.id) && covers.has(box.id))
+    .filter((box) => Math.abs((side === 'left' ? box.x : box.x + box.width)
+      - (side === 'left' ? piece.x : piece.x + piece.width)) <= SEGMENT_EPSILON)
+    .map((box) => covers.get(box.id)[side]));
+  const entries = [];
   const drawn = new Set();
   for (const piece of layout.pieces) {
     const region = regionOf(piece);
@@ -226,15 +228,46 @@ function runInnerSegments(room, wall, run, settings, layout) {
       if (drawn.has(region.id)) continue;
       drawn.add(region.id);
       for (const { start, end, kind, ...metadata } of regionSegments(region, cells.pieces, faceLayouts, run.id)) {
-        add(start, end, kind, metadata);
+        entries.push({ start, end, kind, metadata });
       }
       continue;
     }
-    add(piece.x, piece.x + piece.width, 'piece', {
-      runId: run.id,
-      pieceId: piece.id,
-      ...(runItems(run).find((item) => item.id === piece.id)?.pin ? { pinned: true } : {}),
+    const tee = endTees.get(piece.id);
+    if (tee) {
+      entries.push({
+        start: tee.x, end: tee.x + tee.width, kind: 't-filler', metadata: { runId: run.id, pieceId: tee.id },
+      });
+      continue;
+    }
+    entries.push({
+      start: piece.x + coverAt(piece, 'left'),
+      end: piece.x + piece.width - coverAt(piece, 'right'),
+      kind: 'piece',
+      metadata: {
+        runId: run.id,
+        pieceId: piece.id,
+        ...(runItems(run).find((item) => item.id === piece.id)?.pin ? { pinned: true } : {}),
+      },
     });
+  }
+  const seams = new Map(tees
+    .filter((tee) => tee.orientation === 'vertical' && !tee.end)
+    .map((tee) => [`${tee.x}:${tee.width}`, tee]));
+  for (const tee of seams.values()) {
+    entries.push({
+      start: tee.x, end: tee.x + tee.width, kind: 't-filler', metadata: { runId: run.id, pieceId: tee.id },
+    });
+  }
+  entries.sort((a, b) => a.start - b.start);
+
+  const segments = [];
+  let cursor = null;
+  for (const { start, end, kind, metadata } of entries) {
+    if (cursor !== null && start - cursor > SEGMENT_EPSILON) {
+      appendSegment(segments, cursor, start, 'gap', { runId: run.id });
+    }
+    appendSegment(segments, start, end, kind, metadata);
+    cursor = end;
   }
   return segments;
 }
@@ -453,6 +486,32 @@ export function pickColumnRuns(wall, selectedRunId, edge = 'left') {
 }
 
 /**
+ * A run's box on the vertical chain split around the horizontal T-fillers in the column at the
+ * chain's edge (SPEC-37): box | T | box, bottom to top. The box alone when there are none.
+ */
+function teeBoxSegments(run, cells, tees, edge) {
+  const boxes = cells.pieces.filter((piece) => piece.kind === 'cabinet' && piece.role === 'item');
+  const outermost = edge === 'right'
+    ? Math.max(...boxes.map((piece) => piece.x + piece.width))
+    : Math.min(...boxes.map((piece) => piece.x));
+  const edgeIds = new Set(boxes
+    .filter((piece) => Math.abs((edge === 'right' ? piece.x + piece.width : piece.x) - outermost) <= SEGMENT_EPSILON)
+    .map((piece) => piece.id));
+  const segments = [];
+  let cursor = run.z;
+  const flats = tees
+    .filter((tee) => tee.orientation === 'horizontal' && tee.boxIds.some((id) => edgeIds.has(id)))
+    .sort((a, b) => a.z - b.z);
+  for (const tee of flats) {
+    appendSegment(segments, cursor, tee.z, 'box');
+    appendSegment(segments, tee.z, tee.z + tee.height, 't-filler');
+    cursor = tee.z + tee.height;
+  }
+  appendSegment(segments, cursor, run.z + run.height, 'box');
+  return segments;
+}
+
+/**
  * A run's box on the vertical chain (SPEC-36.2.1). On a face frame run, the frame region nearest
  * the chain's edge is dimensioned rail | opening | rail up its outermost stack of openings, from the
  * frame's own bottom (below an upper's box when it drops), with any box above or below the frame.
@@ -461,8 +520,9 @@ export function pickColumnRuns(wall, selectedRunId, edge = 'left') {
 function runBoxSegments(room, wall, run, settings, edge) {
   const box = [{ start: run.z, end: run.z + run.height, kind: 'box' }];
   const layout = layoutRun(room, wall, run, settings);
-  const { regions } = frameRegions(room, run, cellPieces(run, layout), settings);
-  if (regions.length === 0) return box;
+  const cells = cellPieces(run, layout);
+  const { regions } = frameRegions(room, run, cells, settings);
+  if (regions.length === 0) return teeBoxSegments(run, cells, teeFillers(room, run, cells, settings).tees, edge);
   const region = regions.reduce((best, candidate) => (edge === 'right'
     ? (candidate.x + candidate.width > best.x + best.width + SEGMENT_EPSILON ? candidate : best)
     : (candidate.x < best.x - SEGMENT_EPSILON ? candidate : best)));
