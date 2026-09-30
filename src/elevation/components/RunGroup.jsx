@@ -19,6 +19,7 @@ import { frameRegions } from '../model/frames.js';
 import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { endPieceBottom, resolveStyle } from '../model/styles.js';
+import { teeFillers } from '../model/tees.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { extendPieces } from '../model/extensions.js';
 import { splitRun } from '../model/splitRun.js';
@@ -150,15 +151,28 @@ function RunGroup({
     () => cells.pieces.flatMap((piece) => shelfParts(piece, settings)),
     [cells, settings],
   );
-  const drawnPieces = useMemo(() => extendPieces(wall, run, cells.pieces.map((piece) => {
-    const dropped = drop > 0
-      && (piece.kind === 'filler' || piece.kind === 'end_panel')
-      ? { ...piece, z: piece.z - drop, height: piece.height + drop }
-      : piece;
-    return panelPieceIds.has(piece.id)
-      ? { ...dropped, kind: 'end_panel' }
-      : dropped;
-  })).pieces, [cells, drop, panelPieceIds, run, wall]);
+  const tees = useMemo(
+    () => teeFillers(room, run, cells, settings).tees,
+    [cells, room, run, settings],
+  );
+  const drawnPieces = useMemo(() => {
+    const endTees = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.pieceId, tee]));
+    const seamTees = tees.filter((tee) => !tee.end).map((tee) => ({
+      id: tee.id, kind: 'filler', role: 'tee', x: tee.x, z: tee.z, width: tee.width, height: tee.height,
+    }));
+    const base = cells.pieces.map((piece) => {
+      const tee = endTees.get(piece.id);
+      const shaped = tee ? { ...piece, x: tee.x, width: tee.width } : piece;
+      const dropped = drop > 0
+        && (shaped.kind === 'filler' || shaped.kind === 'end_panel')
+        ? { ...shaped, z: shaped.z - drop, height: shaped.height + drop }
+        : shaped;
+      return panelPieceIds.has(piece.id)
+        ? { ...dropped, kind: 'end_panel' }
+        : dropped;
+    });
+    return [...extendPieces(wall, run, base).pieces, ...seamTees];
+  }, [cells, drop, panelPieceIds, run, tees, wall]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),
     [room, settings, wall],

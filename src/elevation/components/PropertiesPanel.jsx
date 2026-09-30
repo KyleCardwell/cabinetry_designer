@@ -10,6 +10,7 @@ import {
   pinTargetsForRun,
   soffitsOn,
   splitRun,
+  teeFillers,
   wallEndPanels,
 } from '../model/index.js';
 import {
@@ -80,11 +81,15 @@ export default function PropertiesPanel() {
   const displayLayout = layout && diagnostics[run?.id]
     ? { ...layout, ...diagnostics[run.id] }
     : layout;
+  const tees = useMemo(
+    () => (run && cells ? teeFillers(room, run, cells, settings).tees : []),
+    [room, run, cells, settings],
+  );
   const selectionContext = useMemo(
     () => (run && cells
-      ? resolveSelectedPiece(run, cells, selection.pieceId)
+      ? resolveSelectedPiece(run, cells, selection.pieceId, tees)
       : null),
-    [run, cells, selection.pieceId],
+    [run, cells, selection.pieceId, tees],
   );
 
   const showMessage = useCallback((message) => {

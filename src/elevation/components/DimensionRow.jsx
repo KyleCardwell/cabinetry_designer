@@ -19,6 +19,7 @@ const KIND_COLORS = {
   opening: '#e2e8f0',
   'toe-kick': '#cbd5e1',
   box: '#cbd5e1',
+  't-filler': '#fbbf24',
   countertop: '#cbd5e1',
   clearance: '#cbd5e1',
   molding: '#cbd5e1',
