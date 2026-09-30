@@ -228,9 +228,41 @@ export function teeFillers(room, run, cells, settings) {
   for (const tee of tees) {
     notes.set(tee.id, [
       'T-shape',
-      ...(tee.orientation === 'vertical' && tee.drop > 0 ? endPieceNotes('filler', bottom) : []),
+      ...(tee.orientation === 'vertical' && near(tee.z + tee.drop, run.z) ? endPieceNotes('filler', bottom) : []),
     ]);
   }
   for (const [id, sides] of covers) rabbets.set(id, rabbetNote(sides));
   return { tees, covers, notes, rabbets };
+}
+
+/**
+ * What a box has on each side for the properties panel (SPEC-37): the box touching that side (or
+ * null), the cabinet's own T-filler choice there (true, false, or null to follow the run), and
+ * whether a T-filler is on that side now. Null for anything but a Euro cabinet.
+ */
+export function teeSides(room, run, cells, settings, boxId) {
+  const box = cells.pieces.find((piece) => piece.id === boxId && piece.kind === 'cabinet' && piece.role === 'item');
+  if (!box || isInsetStyle(resolveStyle(settings, room, run, leafOf(run, box)))) return null;
+  const { covers } = teeFillers(room, run, cells, settings);
+  const reach = gapReach(cells.gaps ?? []);
+  const others = cells.pieces.filter((piece) => piece !== box && piece.kind === 'cabinet' && piece.role === 'item');
+  const within = (gap) => gap >= -EPSILON && gap <= reach + EPSILON;
+  const rows = (other) => overlap(box.z, box.z + box.height, other.z, other.z + other.height);
+  const columns = (other) => overlap(box.x, box.x + box.width, other.x, other.x + other.width);
+  const nearest = (candidates, size) => candidates.reduce(
+    (best, other) => (!best || size(other) > size(best) + EPSILON ? other : best),
+    null,
+  )?.id ?? null;
+  const neighbors = {
+    left: nearest(others.filter((other) => rows(other) > EPSILON && within(box.x - other.x - other.width)), rows),
+    right: nearest(others.filter((other) => rows(other) > EPSILON && within(other.x - box.x - box.width)), rows),
+    top: nearest(others.filter((other) => columns(other) > EPSILON && within(other.z - box.z - box.height)), columns),
+    bottom: nearest(others.filter((other) => columns(other) > EPSILON && within(box.z - other.z - other.height)), columns),
+  };
+  const own = leafOf(run, box)?.tFiller ?? {};
+  return Object.fromEntries(['left', 'right', 'top', 'bottom'].map((side) => [side, {
+    neighbor: neighbors[side],
+    own: own[side] ?? null,
+    on: (covers.get(box.id)?.[side] ?? 0) > 0,
+  }]));
 }

@@ -263,3 +263,24 @@ describe('properties helpers', () => {
     expect(lastCabinetItem(run())).toBeNull();
   });
 });
+
+describe('SPEC-37 selecting a T-filler', () => {
+  const layout = { pieces: [{ id: 'r:left', role: 'end-left', kind: 'filler', x: 0, z: 4, width: 3, height: 30.5 }] };
+  const seam = { id: 'tee:a|b', orientation: 'vertical', end: null, x: 41.25, z: 4, width: 1.5, height: 30.5 };
+  const end = { id: 'r:left', orientation: 'vertical', end: 'left', x: 0, z: 4, width: 3.75, height: 30.5 };
+
+  it('finds a seam T by its id, as a filler with no item', () => {
+    expect(resolveSelectedPiece(run(), layout, 'tee:a|b', [seam, end])).toEqual({
+      piece: { id: 'tee:a|b', kind: 'filler', role: 'tee', x: 41.25, z: 4, width: 1.5, height: 30.5 },
+      item: null,
+      side: null,
+      tee: seam,
+    });
+    expect(resolveSelectedPiece(run(), layout, 'tee:a|b', [])).toBeNull();
+  });
+
+  it('keeps an end filler an end piece, and carries its T', () => {
+    expect(resolveSelectedPiece(run(), layout, 'r:left', [seam, end])).toMatchObject({ side: 'left', tee: end });
+    expect(resolveSelectedPiece(run(), layout, 'r:left')).toMatchObject({ side: 'left', tee: null });
+  });
+});

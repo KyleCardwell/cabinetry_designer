@@ -63,13 +63,17 @@ export function prepareRunUpdate(room, wallId, run, settings, changes) {
  * @param {object} run
  * @param {{pieces: object[]}} layout
  * @param {string|null} pieceId
- * @returns {{piece: object, item: object|null, side: 'left'|'right'|null}|null}
+ * @param {object[]} [tees] the run's T-fillers (SPEC-37); a seam T is selected by its id
+ * @returns {{piece: object, item: object|null, side: 'left'|'right'|null, tee: object|null}|null}
  */
-export function resolveSelectedPiece(run, layout, pieceId) {
+export function resolveSelectedPiece(run, layout, pieceId, tees = []) {
   if (!pieceId) return null;
-  const piece = layout.pieces.find((candidate) => candidate.id === pieceId);
+  const tee = tees.find((candidate) => candidate.id === pieceId) ?? null;
+  const piece = layout.pieces.find((candidate) => candidate.id === pieceId)
+    ?? (tee ? { id: tee.id, kind: 'filler', role: 'tee', x: tee.x, z: tee.z, width: tee.width, height: tee.height } : null);
   if (!piece) return null;
 
+  if (piece.role === 'tee') return { piece, item: null, side: null, tee };
   if (piece.role === 'item') {
     return {
       piece,
@@ -77,6 +81,7 @@ export function resolveSelectedPiece(run, layout, pieceId) {
         ?? (piece.columnId ? findLeaf(run.grid, piece.id) : null)
         ?? null,
       side: null,
+      tee,
     };
   }
 
@@ -84,6 +89,7 @@ export function resolveSelectedPiece(run, layout, pieceId) {
     piece,
     item: null,
     side: piece.role === 'end-left' ? 'left' : 'right',
+    tee,
   };
 }
 
