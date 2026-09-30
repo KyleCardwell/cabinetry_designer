@@ -97,4 +97,12 @@ describe('dimensionRowOffsets', () => {
     expect(dimensionRowOffsets('vertical', 0)).toEqual({ inner: 24, outer: 50 });
     expect(dimensionRowOffsets('vertical', 2)).toEqual({ inner: 24, outer: 82 });
   });
+
+  it('adds a middle vertical row before the outer row when present', () => {
+    expect(dimensionRowOffsets('vertical', 2, true)).toEqual({
+      inner: 24,
+      middle: 82,
+      outer: 108,
+    });
+  });
 });

@@ -90,7 +90,6 @@ import {
   deleteOpening,
   deleteRun,
   deleteSoffit,
-  dissolveJoint,
   moveOpening,
   removeCell,
   removeItem,
@@ -414,14 +413,16 @@ function ElevationCanvas({
     wall && viewport.width > 0 && viewport.height > 0
       ? fitWallToViewport(wall, viewport, {
         top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
-        right: 48,
+        right: 48 + (dimensionChains?.vertical.right.middle.length > 0 ? 26 : 0),
         bottom: dimensionChains?.openings.length > 0 ? 152 : 96,
-        left: 110,
+        left: 110 + (dimensionChains?.vertical.left.middle.length > 0 ? 26 : 0),
       })
       : null
   ), [
     dimensionChains?.openings.length,
     dimensionChains?.upper.inner.length,
+    dimensionChains?.vertical.left.middle.length,
+    dimensionChains?.vertical.right.middle.length,
     viewport,
     wall,
   ]);
@@ -489,8 +490,16 @@ function ElevationCanvas({
     });
     const upper = dimensionRowOffsets('horizontal', upperLevels);
     const vertical = {
-      left: dimensionRowOffsets('vertical', verticalLevels.left),
-      right: dimensionRowOffsets('vertical', verticalLevels.right),
+      left: dimensionRowOffsets(
+        'vertical',
+        verticalLevels.left,
+        dimensionChains.vertical.left.middle.length > 0,
+      ),
+      right: dimensionRowOffsets(
+        'vertical',
+        verticalLevels.right,
+        dimensionChains.vertical.right.middle.length > 0,
+      ),
     };
     return {
       lower: {
@@ -504,10 +513,12 @@ function ElevationCanvas({
       vertical: {
         left: {
           inner: vertical.left.inner + clear.left,
+          middle: vertical.left.middle + clear.left,
           outer: vertical.left.outer + clear.left,
         },
         right: {
           inner: vertical.right.inner + clear.right,
+          middle: vertical.right.middle + clear.right,
           outer: vertical.right.outer + clear.right,
         },
       },
@@ -1728,6 +1739,15 @@ function ElevationCanvas({
                 cursor={cursor}
               />
               <DimensionRow
+                segments={dimensionChains.vertical.left.middle}
+                orientation="vertical"
+                side="left"
+                offsetPx={dimensionOffsets.vertical.left.middle}
+                transform={transform}
+                edgeGapPx={dimensionOffsets.clear.left}
+                cursor={cursor}
+              />
+              <DimensionRow
                 segments={dimensionChains.vertical.left.outer}
                 orientation="vertical"
                 side="left"
@@ -1741,6 +1761,16 @@ function ElevationCanvas({
                 orientation="vertical"
                 side="right"
                 offsetPx={dimensionOffsets.vertical.right.inner}
+                transform={transform}
+                edgeGapPx={dimensionOffsets.clear.right}
+                wallLength={wall.length}
+                cursor={cursor}
+              />
+              <DimensionRow
+                segments={dimensionChains.vertical.right.middle}
+                orientation="vertical"
+                side="right"
+                offsetPx={dimensionOffsets.vertical.right.middle}
                 transform={transform}
                 edgeGapPx={dimensionOffsets.clear.right}
                 wallLength={wall.length}

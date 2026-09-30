@@ -22,6 +22,8 @@ const KIND_COLORS = {
   countertop: '#cbd5e1',
   clearance: '#cbd5e1',
   molding: '#cbd5e1',
+  soffit: '#cbd5e1',
+  'counter-height': '#94a3b8',
   neighbor: '#94a3b8',
   wall: '#e2e8f0',
 };
