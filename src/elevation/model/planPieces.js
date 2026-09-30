@@ -4,6 +4,7 @@ import { findLeaf } from './cellTree.js';
 import { frontDepth } from './corners.js';
 import { frameRegions } from './frames.js';
 import { runItems } from './grid.js';
+import { teeFillers } from './tees.js';
 
 const WIDTH_EPSILON = 1e-6;
 
@@ -273,7 +274,44 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
     faceFront,
   ), run.depth, faceFront);
   const returns = fillerReturns(run, settings, layout, panels, faceBack, frames.fillerIds);
-  const pieces = [...boxes, ...faces, ...returns];
+  // T-fillers (SPEC-37): a hardwood flat `teeThickness` (13/16") thick from the box face, with the
+  // filler's 3/4" return behind it into the box. An end T's flat reaches over its box on the
+  // filler's own face; a T between boxes is a flat and a return centred on the seam. Horizontal Ts
+  // don't show in plan.
+  const { tees } = teeFillers(room, run, cells, settings);
+  const teeBack = run.depth;
+  const teeFront = run.depth + settings.teeThickness;
+  const endTees = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee]));
+  const seamTees = tees.filter((tee) => tee.orientation === 'vertical' && !tee.end);
+  const teeFaces = [
+    ...faces.map((face) => {
+      const tee = endTees.get(face.key);
+      if (!tee) return face;
+      const flat = { ...face, back: teeBack, front: teeFront };
+      return tee.end === 'left'
+        ? { ...flat, end: Math.max(face.end, tee.x + tee.width) }
+        : { ...flat, start: Math.min(face.start, tee.x) };
+    }),
+    ...seamTees.map((tee) => ({
+      key: tee.id, kind: 'filler', start: tee.x, end: tee.x + tee.width, back: teeBack, front: teeFront,
+    })),
+  ];
+  const teeReturns = settings.fillerReturnDepth > 0
+    ? seamTees.map((tee) => ({
+      key: `${tee.id}:return`,
+      start: tee.ret.start,
+      end: tee.ret.end,
+      back: teeBack - settings.fillerReturnDepth,
+      front: teeBack,
+    }))
+    : [];
+  const endReturns = returns.map((piece) => {
+    const tee = [...endTees.keys()].find((id) => piece.key.startsWith(`${id}:`));
+    return tee
+      ? { ...piece, back: teeBack - (piece.front - piece.back), front: teeBack }
+      : piece;
+  });
+  const pieces = [...boxes, ...teeFaces, ...endReturns, ...teeReturns];
   const shift = (piece) => (outset
     ? {
       ...piece,
@@ -289,7 +327,7 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
       end: Math.max(...pieces.map((piece) => piece.end)),
     },
     boxes: boxes.map(shift),
-    faces: faces.map(shift),
-    returns: returns.map(shift),
+    faces: teeFaces.map(shift),
+    returns: [...endReturns, ...teeReturns].map(shift),
   };
 }
