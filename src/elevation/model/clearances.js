@@ -297,8 +297,21 @@ function insidePolygon(point, polygon) {
   return inside;
 }
 
-/** Whether `points` lie inside the walls `ids`: inside a closed room's outline, or an open group's bounding box. */
-function within(room, parts, ids, points) {
+function boundsOf(points) {
+  const xs = points.map((point) => point.x);
+  const ys = points.map((point) => point.y);
+  return {
+    left: Math.min(...xs), right: Math.max(...xs), bottom: Math.min(...ys), top: Math.max(...ys),
+  };
+}
+
+const boundsArea = (bounds) => (bounds.right - bounds.left) * (bounds.top - bounds.bottom);
+
+/**
+ * Whether a group's footprint `points` reaches inside the walls `ids` (SPEC-36.3.1): some point inside a
+ * closed room's outline, or bounds overlapping an open group's bounding box. Part of it may lie outside.
+ */
+function reaches(room, parts, ids, points) {
   const cycle = wallComponents(room).find((component) => component.kind === 'cycle'
     && component.walls.every((entry) => ids.includes(entry.wallId)));
   if (cycle) {
@@ -307,24 +320,32 @@ function within(room, parts, ids, points) {
       const wall = byId.get(entry.wallId);
       return entry.from === 'start' ? { x: wall.x1, y: wall.y1 } : { x: wall.x2, y: wall.y2 };
     });
-    return points.every((point) => insidePolygon(point, outline));
+    return points.some((point) => insidePolygon(point, outline));
   }
-  const corners = parts.filter((part) => ids.includes(part.wallId)).flatMap((part) => part.points);
-  const xs = corners.map((corner) => corner.x);
-  const ys = corners.map((corner) => corner.y);
-  return points.every((point) => point.x >= Math.min(...xs) - EPSILON && point.x <= Math.max(...xs) + EPSILON
-    && point.y >= Math.min(...ys) - EPSILON && point.y <= Math.max(...ys) + EPSILON);
+  const outer = boundsOf(parts.filter((part) => ids.includes(part.wallId)).flatMap((part) => part.points));
+  const own = boundsOf(points);
+  return Math.min(own.right, outer.right) - Math.max(own.left, outer.left) > EPSILON
+    && Math.min(own.top, outer.top) - Math.max(own.bottom, outer.bottom) > EPSILON;
 }
 
 /**
- * Island groups (SPEC-36.3): walls joined only to each other (connections, or a wing wall's landing)
- * whose footprint, cabinets included, lies inside another group's outline. Each is a list of wall ids.
+ * Island groups (SPEC-36.3, 36.3.1): walls joined only to each other (connections, or a wing wall's
+ * landing) whose footprint, cabinets included, reaches inside a larger group's outline, even if it
+ * runs out past it. Each is a list of wall ids.
  */
 export function islandGroups(room, parts) {
   const groups = wallGroups(room);
+  const footprint = (ids) => parts.filter((part) => ids.includes(part.wallId)).flatMap((part) => part.points);
   return groups.filter((ids) => {
-    const points = parts.filter((part) => ids.includes(part.wallId)).flatMap((part) => part.points);
-    return points.length > 0 && groups.some((other) => other !== ids && within(room, parts, other, points));
+    const points = footprint(ids);
+    if (points.length === 0) return false;
+    const size = boundsArea(boundsOf(points));
+    return groups.some((other) => {
+      if (other === ids) return false;
+      const around = footprint(other);
+      return around.length > 0 && boundsArea(boundsOf(around)) > size + EPSILON
+        && reaches(room, parts, other, points);
+    });
   });
 }
 

@@ -143,3 +143,27 @@ describe('SPEC-36.3 plan clearances', () => {
     expect(islandGroups(peninsula, clearanceParts(peninsula, S))).toEqual([]);
   });
 });
+
+describe('SPEC-36.3.1 an island that runs out past the room', () => {
+  const openU = () => [
+    wall('U1', 0, 0, 240, 0, { thickness: 4.5, connections: { start: null, end: link('U2', 'start') } }),
+    wall('U2', 240, 0, 240, 180, { thickness: 4.5, connections: { start: link('U1', 'end'), end: link('U3', 'start') } }),
+    wall('U3', 240, 180, 0, 180, { thickness: 4.5, connections: { start: link('U2', 'end'), end: null } }),
+  ];
+  const islandFrom = (x1, x2) => wall('I', x1, 96, x2, 96, {
+    runs: [run('F', 'front', { width: x2 - x1 }), run('K', 'back', { width: x2 - x1 })],
+    endPanels: { start: { width: null }, end: { width: null } },
+  });
+
+  it('still counts, and measures where something is across', () => {
+    const room = build([...openU(), islandFrom(-60, 168)]);
+    expect(islandGroups(room, clearanceParts(room, S))).toEqual([['I']]);
+    expect(rows(planClearances(room, S))).toEqual([
+      ['island', 84, 120.8125, 84, 180, 59.1875],
+      ['island', 84, 71.1875, 84, 0, 71.1875],
+      ['island', 168, 96, 240, 96, 72],
+    ]);
+    const clear = build([...openU(), islandFrom(400, 496)]);
+    expect(islandGroups(clear, clearanceParts(clear, S))).toEqual([]);
+  });
+});
