@@ -3,7 +3,7 @@ import { belowRunReveal } from './bottoms.js';
 import { faceRevealsFor } from './faces.js';
 import { formatInches } from './units.js';
 
-const { UPPER, TALL } = CABINET_TYPE_IDS;
+const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;
 
 /** The estimator's cabinet_styles ids (ff-job-schedule). */
 export const CABINET_STYLE_IDS = { EUROPEAN: 13, INSET: 14, BEADED_INSET: 15 };
@@ -23,6 +23,7 @@ export const RUN_TOP_OPTIONS = ['stone', 'wood', 'crown', 'topMold', 'none'];
 export const REVEAL_SOURCE_LABELS = {
   style: 'style',
   manual: 'manual',
+  'rule:hanging': 'rule: hanging base',
   'rule:below-run': 'rule: part below',
   'rule:wood-top': 'rule: wood top',
   'rule:upper-flush': 'rule: flush bottom',
@@ -67,6 +68,16 @@ export function resolveStyle(settings, ...levels) {
 
 export function isInsetStyle(style) {
   return style.cabinetStyleId !== CABINET_STYLE_IDS.EUROPEAN;
+}
+
+/**
+ * How far a face frame run's bottom rail hangs below its box (SPEC-36.3): the upper drop on an upper
+ * whose doors overhang, and on a base marked hanging. Zero for everything else.
+ */
+export function frameDrop(run, settings) {
+  const { upperDrop } = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
+  if (run.cabinetTypeId === UPPER) return (run.upperBottom ?? 'overhang') === 'overhang' ? upperDrop : 0;
+  return run.cabinetTypeId === BASE && run.hanging === true ? upperDrop : 0;
 }
 
 /** REV-009/010: the reveals either side of a seam where one box sits on another. */
@@ -153,6 +164,10 @@ export function cabinetReveals({
   if (cabinetTypeId === UPPER && upperBottom !== 'overhang') {
     apply('bottom', styleReveals(style, TALL, settings).bottom, `rule:upper-${upperBottom}`);
   }
+  // A hanging base's bottom reveal is an upper's: the frame's rail hangs below the box (SPEC-36.3).
+  if (!euro && cabinetTypeId !== UPPER && runEdges.bottom && frameDrop(run, settings) > 0) {
+    apply('bottom', styleReveals(style, UPPER, settings).bottom, 'rule:hanging');
+  }
   const below = euro && runEdges.bottom ? belowRunReveal(run, settings) : null;
   if (below !== null) apply('bottom', below, 'rule:below-run');
   if (stacked.top || stacked.bottom) {
@@ -216,13 +231,11 @@ export function applyStandardDrawers(face, style, settings) {
 
 /** How far a run's fillers and end panels extend below the box: to the doors. */
 export function panelDrop(run, style, settings) {
-  if (!isInsetStyle(style)) {
-    const below = belowRunReveal(run, settings);
-    if (below !== null) return Math.max(0, -below);
-  }
+  if (isInsetStyle(style)) return frameDrop(run, settings);
+  const below = belowRunReveal(run, settings);
+  if (below !== null) return Math.max(0, -below);
   if (run.cabinetTypeId !== UPPER || (run.upperBottom ?? 'overhang') !== 'overhang') return 0;
-  if (!isInsetStyle(style)) return Math.max(0, -faceRevealsFor(UPPER, settings).bottom);
-  return { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.upperDrop;
+  return Math.max(0, -faceRevealsFor(UPPER, settings).bottom);
 }
 
 /**
@@ -261,8 +274,5 @@ export function runFrame(room, run, settings) {
   const style = resolveStyle(settings, room, run);
   if (!isInsetStyle(style)) return null;
   const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
-  const drop = run.cabinetTypeId === UPPER && (run.upperBottom ?? 'overhang') === 'overhang'
-    ? frame.upperDrop
-    : 0;
-  return { thickness: frame.thickness, drop };
+  return { thickness: frame.thickness, drop: frameDrop(run, settings) };
 }

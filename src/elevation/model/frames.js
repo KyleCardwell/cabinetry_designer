@@ -1,9 +1,9 @@
 import { gapReach, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { DEFAULT_SETTINGS } from './constants.js';
 import { resolveFaces } from './faces.js';
 import { runItems } from './grid.js';
-import { isInsetStyle, resolveStyle } from './styles.js';
+import { frameDrop, isInsetStyle, resolveStyle } from './styles.js';
 
 const EPSILON = 1e-6;
 
@@ -62,7 +62,6 @@ function boundsOf(pieces) {
  * @returns {{regions: object[], fillerIds: Set<string>, freeSides: Map<string, {left: boolean, right: boolean}>, seamSides: Map<string, {left: boolean, right: boolean}>, warnings: object[]}}
  */
 export function frameRegions(room, run, cells, settings) {
-  const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
   const { pieces } = cells;
   const gaps = cells.gaps ?? [];
   const reach = gapReach(gaps);
@@ -137,11 +136,10 @@ export function frameRegions(room, run, cells, settings) {
       if (panel.edge) (region.wallPanels ??= []).push({ side: panel.edge, x: panel.x, width: panel.width });
       else region.panelIds.push(panel.id);
     }
-    if (run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
-      && (run.upperBottom ?? 'overhang') === 'overhang'
-      && Math.abs(bounds.z - run.z) <= EPSILON) {
-      region.z -= frame.upperDrop;
-      region.height += frame.upperDrop;
+    const drop = frameDrop(run, settings);
+    if (drop > 0 && Math.abs(bounds.z - run.z) <= EPSILON) {
+      region.z -= drop;
+      region.height += drop;
     }
     regions.push(region);
     for (const id of region.fillerIds) fillerIds.add(id);

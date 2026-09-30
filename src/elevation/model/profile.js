@@ -57,8 +57,11 @@ export function resolveVertical(run, profile, baseRunsBelow = [], wallOrHeight) 
   let height;
 
   if (run.cabinetTypeId === CABINET_TYPE_IDS.BASE) {
-    z = q.toeKickHeight;
-    height = q.baseBoxHeight;
+    // A hanging base's frame drops below its box (SPEC-36.3): the box starts that much higher and is
+    // that much shorter, so its top, and the counter, stay where they were.
+    const drop = run._frame?.drop ?? 0;
+    z = q.toeKickHeight + drop;
+    height = q.baseBoxHeight - drop;
   } else if (run.cabinetTypeId === CABINET_TYPE_IDS.TALL) {
     z = q.toeKickHeight;
     height = boxTop - z;
