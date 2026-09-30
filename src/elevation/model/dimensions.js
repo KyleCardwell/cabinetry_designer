@@ -480,16 +480,24 @@ export function counterHeight(wall, run, profile) {
   }];
 }
 
-function columnSoffit(room, wall, runs) {
-  return soffitsOn(room, wall)
-    .filter((soffit) => runs.some((run) => rangesOverlap(soffit, run)))
-    .reduce((lowest, soffit) => (
-      !lowest || soffit.z < lowest.z ? soffit : lowest
-    ), null);
+/**
+ * The soffit a vertical chain stops at (SPEC-36.3.2): the lowest one over the column's runs, or when
+ * none is over them (or there are no runs), the lowest one on this side of the wall.
+ */
+function columnSoffit(wall, runs) {
+  const lowest = (soffits) => [...soffits].sort((a, b) => a.bottom - b.bottom)[0] ?? null;
+  const soffits = soffitsOn(wall);
+  return lowest(soffits.filter((soffit) => runs.some((run) => rangesOverlap(soffit, run))))
+    ?? lowest(soffits);
 }
 
-function soffitBreak(room, wall, runs) {
-  return columnSoffit(room, wall, runs)?.z ?? wall.height;
+/** Where the open space at the top of a chain stops: a soffit's bottom above `cursor`, or null. */
+function soffitBreak(wall, runs, cursor) {
+  const soffit = columnSoffit(wall, runs);
+  if (!soffit) return null;
+  return soffit.bottom > cursor - SEGMENT_EPSILON && soffit.bottom < wall.height - SEGMENT_EPSILON
+    ? soffit.bottom
+    : null;
 }
 
 /** One chain up a joined stack, bottom to top: each run's parts below, box and top, with the gaps. */
@@ -513,8 +521,9 @@ export function stackChain(room, wall, runs, settings, edge = 'left') {
     const top = runTop(wall, run, profile);
     append(run.z + run.height + top.height, isCountertop(top.kind) ? 'countertop' : 'molding');
   });
-  append(soffitBreak(room, wall, runs), 'open');
-  append(wall.height, 'soffit');
+  const soffit = soffitBreak(wall, runs, cursor);
+  if (soffit !== null) append(soffit, 'open');
+  append(wall.height, soffit !== null ? 'soffit' : 'open');
   return {
     inner,
     middle: counterHeight(
@@ -595,8 +604,9 @@ export function verticalChains(room, wall, { lowerRun, upperRun, stack = null },
     }
   }
 
-  append(cursor, soffitBreak(room, wall, [lowerRun, upperRun].filter(Boolean)), 'open');
-  append(cursor, wall.height, 'soffit');
+  const soffit = soffitBreak(wall, [lowerRun, upperRun].filter(Boolean), cursor);
+  if (soffit !== null) append(cursor, soffit, 'open');
+  append(cursor, wall.height, soffit !== null ? 'soffit' : 'open');
   return result();
 }
 
