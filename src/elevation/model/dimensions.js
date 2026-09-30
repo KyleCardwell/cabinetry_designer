@@ -17,6 +17,7 @@ import {
   pinTargetsForRun,
   resolvePinTarget,
 } from './room.js';
+import { soffitsOn } from './soffits.js';
 import { splitRun } from './splitRun.js';
 import { stackOf } from './stacks.js';
 import { isCountertop, runTop } from './tops.js';
@@ -469,6 +470,28 @@ function runBoxSegments(room, wall, run, settings, edge) {
   ].filter((segment) => segment.end - segment.start > SEGMENT_EPSILON);
 }
 
+export function counterHeight(wall, run, profile) {
+  if (run?.cabinetTypeId !== CABINET_TYPE_IDS.BASE) return [];
+  const top = runTop(wall, run, profile);
+  return [{
+    start: 0,
+    end: run.z + run.height + top.height,
+    kind: 'counter-height',
+  }];
+}
+
+function columnSoffit(room, wall, runs) {
+  return soffitsOn(room, wall)
+    .filter((soffit) => runs.some((run) => rangesOverlap(soffit, run)))
+    .reduce((lowest, soffit) => (
+      !lowest || soffit.z < lowest.z ? soffit : lowest
+    ), null);
+}
+
+function soffitBreak(room, wall, runs) {
+  return columnSoffit(room, wall, runs)?.z ?? wall.height;
+}
+
 /** One chain up a joined stack, bottom to top: each run's parts below, box and top, with the gaps. */
 export function stackChain(room, wall, runs, settings, edge = 'left') {
   const profile = resolveProfile(settings, room, wall);
@@ -490,9 +513,15 @@ export function stackChain(room, wall, runs, settings, edge = 'left') {
     const top = runTop(wall, run, profile);
     append(run.z + run.height + top.height, isCountertop(top.kind) ? 'countertop' : 'molding');
   });
-  append(wall.height, 'open');
+  append(soffitBreak(room, wall, runs), 'open');
+  append(wall.height, 'soffit');
   return {
     inner,
+    middle: counterHeight(
+      wall,
+      runs.find((run) => run.cabinetTypeId === CABINET_TYPE_IDS.BASE),
+      profile,
+    ),
     outer: wall.height > SEGMENT_EPSILON ? [{ start: 0, end: wall.height, kind: 'wall' }] : [],
   };
 }
@@ -515,7 +544,11 @@ export function verticalChains(room, wall, { lowerRun, upperRun, stack = null },
     cursor = end;
     return true;
   };
-  const result = () => ({ inner, outer });
+  const result = () => ({
+    inner,
+    middle: counterHeight(wall, lowerRun, wallProfile),
+    outer,
+  });
   const rememberBox = (run) => {
     const top = run.z + run.height;
     if (!highestBox || top >= highestBox.top - SEGMENT_EPSILON) {
@@ -524,9 +557,10 @@ export function verticalChains(room, wall, { lowerRun, upperRun, stack = null },
   };
 
   if (lowerRun) {
-    append(0, lowerRun.z, 'toe-kick');
+    const lowerBox = runBoxSegments(room, wall, lowerRun, settings, edge);
+    append(0, lowerBox[0].start, 'toe-kick');
     let drawn = false;
-    for (const segment of runBoxSegments(room, wall, lowerRun, settings, edge)) {
+    for (const segment of lowerBox) {
       drawn = append(segment.start, segment.end, segment.kind) || drawn;
     }
     if (drawn) rememberBox(lowerRun);
@@ -561,7 +595,8 @@ export function verticalChains(room, wall, { lowerRun, upperRun, stack = null },
     }
   }
 
-  append(cursor, wall.height, 'open');
+  append(cursor, soffitBreak(room, wall, [lowerRun, upperRun].filter(Boolean)), 'open');
+  append(cursor, wall.height, 'soffit');
   return result();
 }
 
