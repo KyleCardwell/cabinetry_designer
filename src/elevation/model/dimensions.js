@@ -429,10 +429,16 @@ function pickColumnPair(wall, selectedRunId, edge = 'left') {
     };
   }
 
+  // Only runs reaching into this edge's half of the wall (SPEC-36.3.3): a run at the far end is the
+  // other chain's, so a bare end of the wall gets a chain of its own.
+  const half = wallLength(wall) / 2;
+  const onSide = (run) => (edge === 'right'
+    ? run.x + run.width > half + SEGMENT_EPSILON
+    : run.x < half - SEGMENT_EPSILON);
   const edgeRun = edge === 'right' ? rightmost : leftmost;
   return {
-    lowerRun: edgeRun(lowerRuns),
-    upperRun: edgeRun(upperRuns),
+    lowerRun: edgeRun(lowerRuns.filter(onSide)),
+    upperRun: edgeRun(upperRuns.filter(onSide)),
   };
 }
 
@@ -481,19 +487,24 @@ export function counterHeight(wall, run, profile) {
 }
 
 /**
- * The soffit a vertical chain stops at (SPEC-36.3.2): the lowest one over the column's runs, or when
- * none is over them (or there are no runs), the lowest one on this side of the wall.
+ * The soffit a vertical chain stops at (SPEC-36.3.2, 36.3.3): the lowest one over the column's runs,
+ * or when none is over them (or there are no runs), the one nearest the chain's edge of the wall,
+ * the lowest of those that tie.
  */
-function columnSoffit(wall, runs) {
-  const lowest = (soffits) => [...soffits].sort((a, b) => a.bottom - b.bottom)[0] ?? null;
+function columnSoffit(wall, runs, edge) {
   const soffits = soffitsOn(wall);
-  return lowest(soffits.filter((soffit) => runs.some((run) => rangesOverlap(soffit, run))))
-    ?? lowest(soffits);
+  const over = soffits.filter((soffit) => runs.some((run) => rangesOverlap(soffit, run)));
+  if (over.length > 0) return [...over].sort((a, b) => a.bottom - b.bottom)[0];
+  const length = wallLength(wall);
+  const distance = (soffit) => (edge === 'right' ? length - (soffit.x + soffit.width) : soffit.x);
+  return [...soffits].sort((a, b) => (
+    Math.abs(distance(a) - distance(b)) > SEGMENT_EPSILON ? distance(a) - distance(b) : a.bottom - b.bottom
+  ))[0] ?? null;
 }
 
 /** Where the open space at the top of a chain stops: a soffit's bottom above `cursor`, or null. */
-function soffitBreak(wall, runs, cursor) {
-  const soffit = columnSoffit(wall, runs);
+function soffitBreak(wall, runs, cursor, edge) {
+  const soffit = columnSoffit(wall, runs, edge);
   if (!soffit) return null;
   return soffit.bottom > cursor - SEGMENT_EPSILON && soffit.bottom < wall.height - SEGMENT_EPSILON
     ? soffit.bottom
@@ -521,7 +532,7 @@ export function stackChain(room, wall, runs, settings, edge = 'left') {
     const top = runTop(wall, run, profile);
     append(run.z + run.height + top.height, isCountertop(top.kind) ? 'countertop' : 'molding');
   });
-  const soffit = soffitBreak(wall, runs, cursor);
+  const soffit = soffitBreak(wall, runs, cursor, edge);
   if (soffit !== null) append(soffit, 'open');
   append(wall.height, soffit !== null ? 'soffit' : 'open');
   return {
@@ -604,7 +615,7 @@ export function verticalChains(room, wall, { lowerRun, upperRun, stack = null },
     }
   }
 
-  const soffit = soffitBreak(wall, [lowerRun, upperRun].filter(Boolean), cursor);
+  const soffit = soffitBreak(wall, [lowerRun, upperRun].filter(Boolean), cursor, edge);
   if (soffit !== null) append(cursor, soffit, 'open');
   append(cursor, wall.height, soffit !== null ? 'soffit' : 'open');
   return result();
