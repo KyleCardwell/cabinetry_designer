@@ -177,3 +177,75 @@ describe('SPEC-37 T-fillers at run ends', () => {
     expect(left.boxIds.sort()).toEqual(['a1', 'a2']);
   });
 });
+
+describe('SPEC-37 T-fillers between stacked boxes', () => {
+  const summary = (tees) => tees.map((tee) => [tee.id, tee.x, tee.z, tee.width, tee.height]);
+
+  it('takes the run setting "all", butts into the vertical T, and leaves that T whole', () => {
+    const { tees, covers } = teesOf(stackedRun(30, 30, { tFiller: 'all' }));
+    expect(summary(tees)).toEqual([
+      ['tee:h:a1|a2', 24, 29.25, 17.25, 1.5],
+      ['tee:a2|b2', 41.25, 0, 1.5, 60],
+      ['tee:h:b1|b2', 42.75, 29.25, 17.25, 1.5],
+    ]);
+    expect(tees[0].ret).toEqual({ start: 29.625, end: 30.375 });
+    expect(tees[0].boxIds).toEqual(['a1', 'a2']);
+    expect(covers.get('a1')).toEqual({ left: 0, right: 0.75, top: 0, bottom: 0.75 });
+    expect(covers.get('a2')).toEqual({ left: 0, right: 0.75, top: 0.75, bottom: 0 });
+  });
+
+  it('leaves a horizontal seam alone on "seams"', () => {
+    expect(summary(teesOf(stackedRun(30, 30)).tees)).toEqual([['tee:a2|b2', 41.25, 0, 1.5, 60]]);
+  });
+
+  it('takes one cabinet\'s own bottom, which butts into the vertical T', () => {
+    const run = stackedRun(30, 30, {});
+    run.grid.cells[0].node.cells[0].node.tFiller = { bottom: true };
+    expect(summary(teesOf(run).tees)).toEqual([
+      ['tee:h:a1|a2', 24, 29.25, 17.25, 1.5],
+      ['tee:a2|b2', 41.25, 0, 1.5, 60],
+    ]);
+  });
+
+  it('runs one flat across columns when no vertical T meets it', () => {
+    const run = stackedRun(30, 30, { tFiller: undefined });
+    run.grid.cells[0].node.cells[0].node.tFiller = { bottom: true };
+    run.grid.cells[1].node.cells[0].node.tFiller = { bottom: true };
+    const { tees, covers } = teesOf(run);
+    expect(summary(tees)).toEqual([['tee:h:a1|a2', 24, 29.25, 36, 1.5]]);
+    expect(tees[0].boxIds).toEqual(['a1', 'a2', 'b1', 'b2']);
+    expect(covers.get('b2')).toEqual({ left: 0, right: 0, top: 0.75, bottom: 0 });
+  });
+
+  it('keeps one vertical T where the splits don\'t line up, each horizontal butting into it', () => {
+    const run = stackedRun(30, 20, { tFiller: 'all' });
+    const { tees } = teesOf(run);
+    expect(tees.filter((tee) => tee.orientation === 'vertical').map((tee) => [tee.id, tee.z, tee.height])).toEqual([
+      ['tee:a2|b2', 0, 60],
+    ]);
+    expect(tees.filter((tee) => tee.orientation === 'horizontal').map((tee) => [tee.id, tee.x, tee.z, tee.width])).toEqual([
+      ['tee:h:a1|a2', 24, 29.25, 17.25],
+      ['tee:h:b1|b2', 42.75, 39.25, 17.25],
+    ]);
+  });
+
+  it('widens the flat by the gap between spaced boxes', () => {
+    const run = baseRun({
+      tFiller: undefined, width: 18, z: 0, height: 60,
+      grid: {
+        id: 'r:grid',
+        cols: [{ id: 'a:col', size: null, sizeMode: 'auto' }],
+        rows: [{ id: 'r:row', size: null, sizeMode: 'auto' }],
+        cells: [cell(0, 0, {
+          id: 'a',
+          cols: [{ id: 'a:c', size: null, sizeMode: 'auto' }],
+          rows: [{ id: 'a:t', size: 30, gap: 0.5, sizeMode: 'manual' }, { id: 'a:u', size: null, sizeMode: 'auto' }],
+          cells: [cell(0, 0, cab('a1', null, { tFiller: { bottom: true } })), cell(0, 1, cab('a2'))],
+        })],
+      },
+    });
+    const { tees } = teesOf(run);
+    expect(summary(tees)).toEqual([['tee:h:a1|a2', 24, 28.75, 18, 2]]);
+    expect(tees[0].ret).toEqual({ start: 29.375, end: 30.125 });
+  });
+});

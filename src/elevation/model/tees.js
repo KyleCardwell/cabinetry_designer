@@ -27,8 +27,10 @@ function noCovers() {
 /**
  * The T-fillers of a run (SPEC-37, FILL-011), derived and never stored. A T covers the front edges
  * of the two Euro boxes either side of a seam, `settings.teeCover` (3/4") of each, so its flat is
- * 1 1/2" between tight boxes and wider by the gap between spaced ones. At a run end it stands in for
- * a filler: the flat is the filler's visible width plus the cover over the box. Each is
+ * 1 1/2" between tight boxes and wider by the gap between spaced ones. A vertical T runs the whole
+ * length of its seam, however the boxes either side are split; a horizontal T between boxes one
+ * above the other butts into it and never breaks it. At a run end a T stands in for a
+ * filler: the flat is the filler's visible width plus the cover over the box. Each is
  * `{ id, orientation: 'vertical' | 'horizontal', end: 'left' | 'right' | null, pieceId, x, z, width,
  * height, drop, boxIds, ret: { start, end } }`: the flat in wall coordinates, how far the flat drops
  * below the box (the fillers' own drop), and where the return sits along the flat's width, which is
@@ -55,6 +57,12 @@ export function teeFillers(room, run, cells, settings) {
     ? { z: z - drop, height: height + drop, drop }
     : { z, height, drop: 0 });
 
+  const leaf = (piece) => leafOf(run, piece);
+  // A seam's own choice comes from the box left of it (or above it), then the one right (or below).
+  const verticalOn = (a, b) => leaf(a)?.tFiller?.right ?? leaf(b)?.tFiller?.left ?? Boolean(run.tFiller);
+  const horizontalOn = (upper, lower) => leaf(upper)?.tFiller?.bottom
+    ?? leaf(lower)?.tFiller?.top ?? run.tFiller === 'all';
+
   // Seams between two boxes side by side.
   const contacts = [];
   for (const a of boxes) {
@@ -63,8 +71,7 @@ export function teeFillers(room, run, cells, settings) {
       const low = Math.max(a.z, b.z);
       const high = Math.min(a.z + a.height, b.z + b.height);
       if (a === b || gap < -EPSILON || gap > reach + EPSILON || high - low <= EPSILON) continue;
-      const on = leafOf(run, a)?.tFiller?.right ?? leafOf(run, b)?.tFiller?.left ?? Boolean(run.tFiller);
-      if (on) contacts.push({ a, b, gap: Math.max(0, gap), low, high });
+      if (verticalOn(a, b)) contacts.push({ a, b, gap: Math.max(0, gap), low, high });
     }
   }
   const lines = new Map();
@@ -134,6 +141,66 @@ export function teeFillers(room, run, cells, settings) {
       ret: side === 'left' ? { start: edge - thickness, end: edge } : { start: edge, end: edge + thickness },
     });
     for (const box of beside) addCover(box.id, side, cover);
+  }
+
+  // Seams between two boxes one above the other. A flat stops at the T it meets (the cover).
+  const covered = (piece, side) => covers.get(piece.id)?.[side] ?? 0;
+  const stacks = [];
+  for (const upper of boxes) {
+    for (const lower of boxes) {
+      const gap = upper.z - lower.z - lower.height;
+      const left = Math.max(upper.x + covered(upper, 'left'), lower.x + covered(lower, 'left'));
+      const right = Math.min(
+        upper.x + upper.width - covered(upper, 'right'),
+        lower.x + lower.width - covered(lower, 'right'),
+      );
+      if (upper === lower || gap < -EPSILON || gap > reach + EPSILON || right - left <= EPSILON) continue;
+      if (horizontalOn(upper, lower)) stacks.push({ upper, lower, gap: Math.max(0, gap), left, right });
+    }
+  }
+  const seams = new Map();
+  for (const stack of stacks) {
+    const key = `${Math.round((stack.lower.z + stack.lower.height) * 1e4)}:${Math.round(stack.upper.z * 1e4)}`;
+    seams.set(key, [...(seams.get(key) ?? []), stack]);
+  }
+  for (const seam of seams.values()) {
+    seam.sort((p, q) => p.left - q.left);
+    const chains = [];
+    for (const stack of seam) {
+      const last = chains[chains.length - 1];
+      const before = last?.[last.length - 1];
+      const continues = before
+        && stack.left - before.right >= -EPSILON && stack.left - before.right <= reach + EPSILON
+        && stack.upper !== before.upper && stack.lower !== before.lower
+        && near(before.upper.x + before.upper.width, before.lower.x + before.lower.width)
+        && near(stack.upper.x, stack.lower.x)
+        && !verticalOn(before.upper, stack.upper) && !verticalOn(before.lower, stack.lower);
+      if (continues) last.push(stack);
+      else chains.push([stack]);
+    }
+    for (const joined of chains) {
+      const first = joined[0];
+      const z = first.lower.z + first.lower.height - cover;
+      const height = first.gap + 2 * cover;
+      const start = z + (height - returnThickness) / 2;
+      tees.push({
+        id: `tee:h:${first.upper.id}|${first.lower.id}`,
+        orientation: 'horizontal',
+        end: null,
+        pieceId: null,
+        x: first.left,
+        z,
+        width: joined[joined.length - 1].right - first.left,
+        height,
+        drop: 0,
+        boxIds: [...new Set(joined.flatMap((stack) => [stack.upper.id, stack.lower.id]))],
+        ret: { start, end: start + returnThickness },
+      });
+      for (const stack of joined) {
+        addCover(stack.upper.id, 'bottom', cover);
+        addCover(stack.lower.id, 'top', cover);
+      }
+    }
   }
 
   tees.sort((p, q) => p.x - q.x || p.z - q.z);
