@@ -175,6 +175,7 @@ The topmost cells are drawn. Lower cells with different seams can be dashed late
 | 37.1 — T-filler ends | The inside-corner T end is 3/4" narrower (like the face frame corner stile); L-shaped end panels with a per-end override. SPEC-37.1, steps 260–263. | Euro T-filler runs with end panels and corners |
 | 37.2 — L drawn and mitered | End Ts and Ls draw over the box they cover; the L is mitered in plan, flush with the T-fillers. SPEC-37.2, steps 264–265. | Euro T-filler runs with end panels |
 | 37.3 — T numbering | A seam T's part number comes right after the cabinets it splits off. SPEC-37.3, step 266. | Euro T-filler runs |
+| 37.4 — Fixes | Selecting a door/window no longer crashes the elevation (the opening chain gets an empty counter-height row). The elevation's opening row becomes the wall row: doors, windows and wing walls at their thickness, with or without cabinets (Kyle, 2026-10-01). Plan: a selected run (opening, soffit, wall end panel) isn't a selected wall, and Delete deletes the run. SPEC-37.4, steps 267–269. | walls with wing walls; plan editing |
 | **38 — Combine and full grids** | Rows × columns splits, combine, flatten, spans in the solver, chains and neighbours. | the pinwheel |
 
 Then AI-LAYER-PLAN Stages C–E (provenance, intent, the resolved snapshot). `purpose` and `notes` attach to cells.
