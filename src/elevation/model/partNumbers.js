@@ -52,6 +52,24 @@ function carriesMolding(wall, run, profile, molding) {
   return molding === 'topMold' ? top === 'crown' || top === 'topMold' : top === 'crown';
 }
 
+/**
+ * Where a seam T goes in its run's part list (SPEC-37.3): the key of the part it follows. A vertical T
+ * follows the last part of the boxes on its left (a whole stacked column), a horizontal T the first
+ * of the boxes below it, so it sits between the cabinets of its seam. Null if none of them is a part.
+ */
+function teeAnchor(tee, parts, pieces) {
+  const before = tee.boxIds
+    .map((id) => pieces.find((piece) => piece.id === id))
+    .filter((piece) => piece && (tee.orientation === 'vertical'
+      ? piece.x + piece.width / 2 < tee.x + tee.width / 2
+      : piece.z + piece.height / 2 < tee.z + tee.height / 2));
+  const indexes = before
+    .map((piece) => parts.findIndex((part) => part.pieceId === piece.id))
+    .filter((index) => index >= 0);
+  if (indexes.length === 0) return null;
+  return parts[tee.orientation === 'vertical' ? Math.max(...indexes) : Math.min(...indexes)].key;
+}
+
 function runParts(room, wall, side, settings) {
   const view = wallSideView(wall, side);
   return runsInWalkOrder(view).flatMap((run) => {
@@ -71,22 +89,23 @@ function runParts(room, wall, side, settings) {
     const inFrame = frames.fillerIds;
     const { tees } = teeFillers(room, run, cells, settings);
     const teeWidths = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee.partWidth]));
-    return [
-      ...partPieces(cells.pieces, settings)
-        .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6
-          && (!inFrame.has(piece.id) || blindPanels.has(piece.id)))
-        .map((piece) => ({
-          key: piece.id,
-          kind: piece.kind,
-          wallId: wall.id,
-          side,
-          runId: run.id,
-          pieceId: piece.id,
-          molding: null,
-          width: teeWidths.get(piece.id) ?? cellWidths.get(piece.id) ?? widths.get(piece.id) ?? piece.width,
-        })),
-      // A T-filler between boxes is a filler part of its own, after its run's pieces (SPEC-37).
-      ...tees.filter((tee) => !tee.end).map((tee) => ({
+    const pieceParts = partPieces(cells.pieces, settings)
+      .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6
+        && (!inFrame.has(piece.id) || blindPanels.has(piece.id)))
+      .map((piece) => ({
+        key: piece.id,
+        kind: piece.kind,
+        wallId: wall.id,
+        side,
+        runId: run.id,
+        pieceId: piece.id,
+        molding: null,
+        width: teeWidths.get(piece.id) ?? cellWidths.get(piece.id) ?? widths.get(piece.id) ?? piece.width,
+      }));
+    // A T-filler between boxes is a filler part of its own, numbered beside its seam (SPEC-37.3).
+    const seamParts = tees.filter((tee) => !tee.end).map((tee) => ({
+      anchor: teeAnchor(tee, pieceParts, cells.pieces),
+      part: {
         key: tee.id,
         kind: 'filler',
         wallId: wall.id,
@@ -95,7 +114,14 @@ function runParts(room, wall, side, settings) {
         pieceId: tee.id,
         molding: null,
         width: tee.partWidth,
-      })),
+      },
+    }));
+    return [
+      ...pieceParts.flatMap((part) => [
+        part,
+        ...seamParts.filter((entry) => entry.anchor === part.key).map((entry) => entry.part),
+      ]),
+      ...seamParts.filter((entry) => entry.anchor === null).map((entry) => entry.part),
       // One part per face frame, after its run's pieces (SPEC-36.2).
       ...frames.regions.map((region) => ({
         key: region.id,
