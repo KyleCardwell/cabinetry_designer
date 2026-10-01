@@ -174,7 +174,7 @@ function RunGroup({
         ? { ...dropped, kind: 'end_panel' }
         : dropped;
     });
-    return [...extendPieces(wall, run, base).pieces, ...seamTees];
+    return [...extendPieces(wall, run, base).pieces.sort((a, b) => endTees.has(a.id) - endTees.has(b.id)), ...seamTees];
   }, [cells, drop, ells, panelPieceIds, run, tees, wall]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),
