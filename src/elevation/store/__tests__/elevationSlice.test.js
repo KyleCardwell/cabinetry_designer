@@ -2532,3 +2532,22 @@ describe('SPEC-37 T-filler shape actions', () => {
     expect(currentRun(state).endFiller).toEqual({ left: null, right: null });
   });
 });
+
+describe('SPEC-37.1 an end panel keeps its own T choice', () => {
+  it('keeps the choice when the panel width changes, and clears it when the end type changes', () => {
+    let state = stateWithRun(run({ items: [auto('a')] }));
+    const base = { roomId: state.rooms[0].id, wallId: 'wall-1', runId: 'run-1' };
+    const currentRun = () => state.rooms[0].walls[0].runs[0];
+
+    state = elevationReducer(state, setRunEnd({ ...base, side: 'left', end: { type: 'end_panel', width: null } }));
+    state = elevationReducer(state, setRunEndFiller({ ...base, side: 'left', key: 'tFiller', value: false }));
+    expect(currentRun().endFiller.left).toEqual({ width: null, returnDepth: null, tFiller: false });
+
+    state = elevationReducer(state, setRunEnd({ ...base, side: 'left', end: { type: 'end_panel', width: 0.8125 } }));
+    expect(currentRun().endFiller.left).toEqual({ width: null, returnDepth: null, tFiller: false });
+
+    state = elevationReducer(state, setRunEnd({ ...base, side: 'left', end: { type: 'filler', width: null } }));
+    state = elevationReducer(state, setRunEnd({ ...base, side: 'left', end: { type: 'end_panel', width: null } }));
+    expect(currentRun().endFiller.left).toBeNull();
+  });
+});

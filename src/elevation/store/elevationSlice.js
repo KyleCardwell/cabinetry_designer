@@ -943,11 +943,12 @@ const elevationSlice = createSlice({
         type: action.payload.type,
         width: action.payload.width,
       };
+      const previous = location.run.ends[side]?.type;
       location.run.ends[side] = end.type === 'none'
         ? { type: end.type, width: end.width }
         : { ...location.run.ends[side], type: end.type, width: end.width };
       if (end.type !== 'blind') location.run.grid = setGridBlind(location.run.grid, side, null);
-      if (end.type === 'none' || end.type === 'end_panel') {
+      if (end.type === 'none' || (end.type === 'end_panel' && previous !== 'end_panel')) {
         if (location.run.endFiller) location.run.endFiller[side] = null;
       }
       syncRoomAt(state, location.roomIndex);

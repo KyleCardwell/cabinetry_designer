@@ -47,7 +47,7 @@ import {
   stackCreatesCycle,
   stackLink,
 } from './stacks.js';
-import { isInsetStyle, resolveStyle, runFrame, runSeamGap, styleReveals } from './styles.js';
+import { endCoverOn, isInsetStyle, resolveStyle, runFrame, runSeamGap, styleReveals } from './styles.js';
 import {
   profileUnderSoffit,
   resolveSoffitSpan,
@@ -191,15 +191,20 @@ export function compensateRuns(oldRoom, newRoom) {
 export function endMinWidthsForRun(room, wall, run, settings) {
   wall = wallViewForRun(wall, run);
   const style = resolveStyle(settings, room, run);
+  const inset = isInsetStyle(style);
   // A face frame's whole stile clears the corner, box-to-opening included (SPEC-36.1).
-  const frameReveal = isInsetStyle(style) ? styleReveals(style, run.cabinetTypeId, settings).left : 0;
+  const frameReveal = inset ? styleReveals(style, run.cabinetTypeId, settings).left : 0;
+  // So does a Euro T end's flat: the filler is the cover narrower (SPEC-37.1).
+  const teeCover = (side) => (!inset && run.ends?.[side]?.type === 'filler' && endCoverOn(run, side)
+    ? settings.teeCover
+    : 0);
   return Object.fromEntries(['left', 'right'].map((side) => {
     const corner = cornerForRunSide(room, wall, run, side);
     return [
       side,
       (run.anchors?.[side] === true || run.anchors?.[side]?.to === 'wall')
         && corner.type === 'inside'
-        ? Math.max(0, cornerFillerMin(settings, corner.angle) - frameReveal)
+        ? Math.max(0, cornerFillerMin(settings, corner.angle) - frameReveal - teeCover(side))
         : settings.fillerMinWidth,
     ];
   }));

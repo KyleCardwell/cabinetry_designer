@@ -288,3 +288,11 @@ export function runFrame(room, run, settings) {
   const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
   return { thickness: frame.thickness, drop: frameDrop(run, settings) };
 }
+
+/**
+ * Whether a run end gets a T-filler (a filler end) or an L-shaped end panel (an end panel end)
+ * (SPEC-37, 37.1): the end's own choice, `run.endFiller[side].tFiller`, else the run's setting.
+ */
+export function endCoverOn(run, side) {
+  return run.endFiller?.[side]?.tFiller ?? Boolean(run.tFiller);
+}
