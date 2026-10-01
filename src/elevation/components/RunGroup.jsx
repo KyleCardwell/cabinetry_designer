@@ -151,12 +151,15 @@ function RunGroup({
     () => cells.pieces.flatMap((piece) => shelfParts(piece, settings)),
     [cells, settings],
   );
-  const tees = useMemo(
-    () => teeFillers(room, run, cells, settings).tees,
+  const { tees, ells } = useMemo(
+    () => teeFillers(room, run, cells, settings),
     [cells, room, run, settings],
   );
   const drawnPieces = useMemo(() => {
-    const endTees = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.pieceId, tee]));
+    const endTees = new Map([
+      ...tees.filter((tee) => tee.end).map((tee) => [tee.pieceId, tee]),
+      ...ells.map((ell) => [ell.pieceId, ell]),
+    ]);
     const seamTees = tees.filter((tee) => !tee.end).map((tee) => ({
       id: tee.id, kind: 'filler', role: 'tee', x: tee.x, z: tee.z, width: tee.width, height: tee.height,
     }));
@@ -172,7 +175,7 @@ function RunGroup({
         : dropped;
     });
     return [...extendPieces(wall, run, base).pieces, ...seamTees];
-  }, [cells, drop, panelPieceIds, run, tees, wall]);
+  }, [cells, drop, ells, panelPieceIds, run, tees, wall]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),
     [room, settings, wall],

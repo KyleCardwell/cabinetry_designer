@@ -58,6 +58,26 @@ export default function EndFields({
           />
         </Field>
       )}
+      {endType === 'end_panel' && (
+        <Field label="L-shape">
+          <select
+            value={run.endFiller?.[side]?.tFiller === true ? 'yes'
+              : run.endFiller?.[side]?.tFiller === false ? 'no' : 'follow'}
+            onChange={(event) => dispatch(setRunEndFiller({
+              ...actionBase,
+              side,
+              key: 'tFiller',
+              value: { follow: null, yes: true, no: false }[event.target.value],
+            }))}
+            aria-label={`${side} end panel L-shape`}
+            className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="follow">Follow run</option>
+            <option value="yes">L-shape</option>
+            <option value="no">Plain panel</option>
+          </select>
+        </Field>
+      )}
       {endType !== 'none' && (
         <ExtendFields
           directions={['up', 'down']}

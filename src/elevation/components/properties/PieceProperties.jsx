@@ -111,8 +111,13 @@ export default function PieceProperties({
     && !piece.extend?.down
     ? endPieceNotes(piece.kind, endPieceBottom(run, resolveStyle(settings, room, run), settings))
     : [];
-  const notesLine = endNotes.length > 0 ? (
-    <p className="text-xs text-cyan-300">{endNotes.join(' · ')}</p>
+  const shapeNotes = side
+    ? (teeFillers(room, run, cells, settings).notes.get(piece.id) ?? [])
+      .filter((note) => note === 'T-shape' || note === 'L-shape')
+    : [];
+  const notes = [...shapeNotes, ...endNotes];
+  const notesLine = notes.length > 0 ? (
+    <p className="text-xs text-cyan-300">{notes.join(' · ')}</p>
   ) : null;
   const extendRuns = wall.runs.filter((other) => other.id !== run.id && wallSideOf(other) === wallSideOf(run));
 
