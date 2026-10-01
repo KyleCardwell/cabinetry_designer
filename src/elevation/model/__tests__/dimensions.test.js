@@ -753,6 +753,7 @@ describe('opening dimensions', () => {
         { start: 84, end: 87, kind: 'casing' },
         { start: 87, end: 96, kind: 'above' },
       ],
+      middle: [],
       outer: [{ start: 0, end: 96, kind: 'wall' }],
     });
     expect(verticalOpeningChain(wall, doorOpening(), 120, DEFAULT_SETTINGS)).toEqual({
@@ -761,6 +762,7 @@ describe('opening dimensions', () => {
         { start: 80, end: 83, kind: 'casing' },
         { start: 83, end: 96, kind: 'above' },
       ],
+      middle: [],
       outer: [{ start: 0, end: 96, kind: 'wall' }],
     });
   });

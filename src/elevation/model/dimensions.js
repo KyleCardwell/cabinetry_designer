@@ -706,6 +706,7 @@ export function verticalOpeningChain(wall, opening, wallLengthValue, settings) {
 
   return {
     inner,
+    middle: [],
     outer: wall.height > SEGMENT_EPSILON
       ? [{ start: 0, end: wall.height, kind: 'wall' }]
       : [],
