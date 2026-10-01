@@ -88,24 +88,33 @@ function neighborSegments(room, wall, band, settings) {
     }));
 }
 
-/** Build a full-wall horizontal chain using each opening's stored reference edges. */
+/**
+ * The elevation's wall row (SPEC-37.4): every door and window by its own reference edges (jamb or
+ * casing, per its measure mode), and every wing wall landing on this face at its thickness, with the
+ * gaps between them and to the wall's ends. Shown with or without cabinets; [] when there's nothing.
+ */
 export function openingChain(room, wall, settings) {
-  void room;
-  if ((wall.openings ?? []).length === 0) return [];
   const length = wallLength(wall);
-  const ranges = wall.openings.map((opening) => {
-    const geometry = openingGeometry(opening, length, settings);
-    const reference = opening.measureMode === 'casing' && geometry.casing
-      ? geometry.casing
-      : geometry.jamb;
-    const start = geometry.offsets.left[opening.measureMode].edge;
-    return {
-      start,
-      end: start + reference.width,
-      openingId: opening.id,
-      label: opening.label,
-    };
-  }).sort((a, b) => a.start - b.start || a.end - b.end);
+  const ranges = [
+    ...(wall.openings ?? []).map((opening) => {
+      const geometry = openingGeometry(opening, length, settings);
+      const reference = opening.measureMode === 'casing' && geometry.casing
+        ? geometry.casing
+        : geometry.jamb;
+      const start = geometry.offsets.left[opening.measureMode].edge;
+      return {
+        start,
+        end: start + reference.width,
+        metadata: { kind: 'opening', openingId: opening.id, label: opening.label },
+      };
+    }),
+    ...landingsOn(room, wall).map(({ a, b, wallId }) => ({
+      start: a,
+      end: b,
+      metadata: { kind: 'wall', wallId },
+    })),
+  ].sort((a, b) => a.start - b.start || a.end - b.end);
+  if (ranges.length === 0) return [];
 
   const segments = [];
   let cursor = 0;
@@ -113,13 +122,7 @@ export function openingChain(room, wall, settings) {
     const start = Math.min(length, Math.max(cursor, range.start));
     const end = Math.min(length, Math.max(start, range.end));
     appendSegment(segments, cursor, start, 'gap');
-    segments.push({
-      start,
-      end,
-      kind: 'opening',
-      openingId: range.openingId,
-      label: range.label,
-    });
+    segments.push({ start, end, ...range.metadata });
     cursor = end;
   }
   appendSegment(segments, cursor, length, 'gap');

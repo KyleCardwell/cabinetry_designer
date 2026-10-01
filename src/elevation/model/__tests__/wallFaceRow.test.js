@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
+import { openingChain } from '../dimensions.js';
 import { landWallEnd } from '../landings.js';
 import { wallFaceSegments } from '../wallFaceRow.js';
 
@@ -56,6 +57,30 @@ describe('SPEC-36.3.1 the wall face row in plan', () => {
       ['space', 63, 120],
       ['landing', 120, 129],
       ['space', 129, 246],
+    ]);
+  });
+});
+
+describe('SPEC-37.4 the wall row in elevation', () => {
+  it('shows each wing wall at its thickness beside the doors and windows, with or without them', () => {
+    const wing = makeWall('W1', 120, 0, 120, 30, { thickness: 9 });
+    let room = makeRoom([makeWall('H', 0, 0, 246, 0, { openings: [DOOR] }), wing]);
+    room = landWallEnd(room, 'W1', 'start', { wallId: 'H', side: 'front', x: 120 });
+    expect(openingChain(room, host(room), S)).toEqual([
+      { start: 0, end: 24, kind: 'gap' },
+      { start: 24, end: 60, kind: 'opening', openingId: 'D', label: 'D1' },
+      { start: 60, end: 120, kind: 'gap' },
+      { start: 120, end: 129, kind: 'wall', wallId: 'W1' },
+      { start: 129, end: 246, kind: 'gap' },
+    ]);
+
+    let bare = makeRoom([makeWall('H', 0, 0, 246, 0), wing]);
+    expect(openingChain(bare, host(bare), S)).toEqual([]);
+    bare = landWallEnd(bare, 'W1', 'start', { wallId: 'H', side: 'front', x: 120 });
+    expect(openingChain(bare, host(bare), S)).toEqual([
+      { start: 0, end: 120, kind: 'gap' },
+      { start: 120, end: 129, kind: 'wall', wallId: 'W1' },
+      { start: 129, end: 246, kind: 'gap' },
     ]);
   });
 });
