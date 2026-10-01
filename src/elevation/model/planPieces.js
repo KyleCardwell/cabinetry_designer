@@ -282,9 +282,18 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const teeBack = run.depth;
   const teeFront = run.depth + settings.teeThickness;
   const endTees = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee]));
+  const endElls = new Map(ells.map((ell) => [ell.pieceId, ell]));
   const seamTees = tees.filter((tee) => tee.orientation === 'vertical' && !tee.end);
   const teeFaces = [
     ...faces.map((face) => {
+      const ell = endElls.get(face.key);
+      if (ell) {
+        // An L-shaped end panel (SPEC-37.2): the panel runs to the T-fillers' front and miters into its lip.
+        const polygon = ell.side === 'left'
+          ? [[face.start, face.back], [face.end, face.back], [face.end, teeBack], [face.start, teeFront]]
+          : [[face.start, face.back], [face.end, face.back], [face.end, teeFront], [face.start, teeBack]];
+        return { ...face, front: teeFront, polygon };
+      }
       const tee = endTees.get(face.key);
       if (!tee) return face;
       const flat = { ...face, back: teeBack, front: teeFront };
@@ -295,10 +304,16 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
     ...seamTees.map((tee) => ({
       key: tee.id, kind: 'filler', start: tee.x, end: tee.x + tee.width, back: teeBack, front: teeFront,
     })),
-    // An L-shaped end panel's lip (SPEC-37.1): in front of the box it covers, out to the panel's front.
-    ...ells.map((ell) => ({
-      key: `${ell.id}:lip`, kind: 'end_panel', start: ell.lip.start, end: ell.lip.end, back: teeBack, front: faceFront,
-    })),
+    // An L-shaped end panel's lip (SPEC-37.2): across the panel and the box edge it covers, a T's
+    // thickness from the box face, mitered into the panel.
+    ...ells.map((ell) => {
+      const start = ell.x;
+      const end = ell.x + ell.width;
+      const polygon = ell.side === 'left'
+        ? [[start, teeFront], [end, teeFront], [end, teeBack], [ell.lip.start, teeBack]]
+        : [[start, teeFront], [end, teeFront], [ell.lip.end, teeBack], [start, teeBack]];
+      return { key: `${ell.id}:lip`, kind: 'end_panel', start, end, back: teeBack, front: teeFront, polygon };
+    }),
   ];
   const teeReturns = settings.fillerReturnDepth > 0
     ? seamTees.map((tee) => ({

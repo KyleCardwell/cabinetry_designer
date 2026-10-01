@@ -161,13 +161,30 @@ describe('SPEC-37.1 L-shaped end panels in plan and on the chain', () => {
   };
   const byKey = (pieces, key) => pieces.find((piece) => piece.key === key);
 
-  it('draws the lip in front of the box, out to the panel\'s front', () => {
+  it('miters the panel into its lip, flush with the T-fillers', () => {
     const { faces } = plan(pairRun());
-    expect(byKey(faces, 'r:left')).toEqual({ key: 'r:left', kind: 'end_panel', start: 24, end: 24.75, back: 0, front: 24.875 });
-    expect(byKey(faces, 'r:left:lip')).toEqual({ key: 'r:left:lip', kind: 'end_panel', start: 24.75, end: 25.5, back: 24, front: 24.875 });
-    expect(byKey(faces, 'r:right:lip')).toEqual({ key: 'r:right:lip', kind: 'end_panel', start: 60, end: 60.75, back: 24, front: 24.875 });
-    expect(plan(panelRun({ tFiller: undefined })).faces.some((face) => face.key.endsWith(':lip'))).toBe(false);
-    expect(byKey(plan(panelRun({ outset: 2 })).faces, 'r:left:lip')).toMatchObject({ back: 26, front: 26.875 });
+    expect(byKey(faces, 'r:left')).toEqual({
+      key: 'r:left', kind: 'end_panel', start: 24, end: 24.75, back: 0, front: 24.8125,
+      polygon: [[24, 0], [24.75, 0], [24.75, 24], [24, 24.8125]],
+    });
+    expect(byKey(faces, 'r:left:lip')).toEqual({
+      key: 'r:left:lip', kind: 'end_panel', start: 24, end: 25.5, back: 24, front: 24.8125,
+      polygon: [[24, 24.8125], [25.5, 24.8125], [25.5, 24], [24.75, 24]],
+    });
+    expect(byKey(faces, 'r:right')).toEqual({
+      key: 'r:right', kind: 'end_panel', start: 60.75, end: 61.5, back: 0, front: 24.8125,
+      polygon: [[60.75, 0], [61.5, 0], [61.5, 24.8125], [60.75, 24]],
+    });
+    expect(byKey(faces, 'r:right:lip')).toEqual({
+      key: 'r:right:lip', kind: 'end_panel', start: 60, end: 61.5, back: 24, front: 24.8125,
+      polygon: [[60, 24.8125], [61.5, 24.8125], [60.75, 24], [60, 24]],
+    });
+    const plain = plan(panelRun({ tFiller: undefined })).faces;
+    expect(plain.some((face) => face.key.endsWith(':lip'))).toBe(false);
+    expect(byKey(plain, 'r:left')).toEqual({ key: 'r:left', kind: 'end_panel', start: 24, end: 24.75, back: 0, front: 24.875 });
+    expect(byKey(plan(panelRun({ outset: 2 })).faces, 'r:left:lip')).toMatchObject({
+      back: 26, front: 26.8125, polygon: [[24, 26.8125], [25.5, 26.8125], [25.5, 26], [24.75, 26]],
+    });
   });
 
   it('dimensions the L like a T: its face, then what\'s left of the box', () => {
