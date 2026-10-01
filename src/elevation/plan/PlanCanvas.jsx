@@ -62,6 +62,7 @@ import {
   clearSelection,
   connectWalls,
   deleteOpening,
+  deleteRun,
   deleteWall,
   disconnectWallEndpoint,
   moveWallEndpoint,
@@ -113,7 +114,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   } = useSelector((state) => state.elevation);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const walls = room?.walls ?? [];
-  const selectedWall = walls.find((wall) => wall.id === selection.wallId) ?? null;
+  // The active wall is only selected in plan when nothing on it is (SPEC-37.4): a selected run,
+  // opening, soffit or wall end panel isn't its wall.
+  const wallItselfSelected = !selection.runId && !selection.openingId && !selection.soffitId
+    && !selection.endPanel;
+  const selectedWall = wallItselfSelected
+    ? walls.find((wall) => wall.id === selection.wallId) ?? null
+    : null;
   const adaptedWalls = useMemo(
     () => walls.map((wall) => ({ ...wall, wall_id: wall.id })),
     [walls],
@@ -437,6 +444,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
         }));
         return;
       }
+      if (selection.runId) {
+        const runWall = walls.find((wall) => wall.runs.some((run) => run.id === selection.runId));
+        if (!runWall) return;
+        event.preventDefault();
+        dispatch(deleteRun({ wallId: runWall.id, runId: selection.runId }));
+        return;
+      }
       if (!selectedWall) return;
       event.preventDefault();
       if (selectedWall.runs.length > 0) {
@@ -448,7 +462,8 @@ export default function PlanCanvas({ fitRequest = 0 }) {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrawing, cancelEntry, dispatch, entry, selectedWall, selection.openingId, walls]);
+  }, [cancelDrawing, cancelEntry, dispatch, entry, selectedWall, selection.openingId,
+    selection.runId, walls]);
 
   const toWorld = useCallback((point) => ({
     x: (point.x - pan.x) / scale,
@@ -1016,7 +1031,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 key={wall.id}
                 room={room}
                 wall={wall}
-                isSelected={wall.id === selection.wallId}
+                isSelected={wall.id === selectedWall?.id}
                 scale={scale}
                 onSelect={(event) => handleWallSelect(wall.id, event)}
                 onOpen={(event) => handleWallOpen(wall.id, event)}
