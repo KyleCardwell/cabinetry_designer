@@ -209,11 +209,12 @@ function regionSegments(region, pieces, faceLayouts, runId) {
 function runInnerSegments(room, wall, run, settings, layout) {
   const cells = cellPieces(run, layout);
   const { regions } = frameRegions(room, run, cells, settings);
-  const { tees, covers } = teeFillers(room, run, cells, settings);
+  const { tees, covers, ells } = teeFillers(room, run, cells, settings);
   const faceLayouts = regions.length > 0 ? runFaceLayouts(room, wall, run, settings, layout) : null;
   const regionOf = (piece) => regions.find((region) => piece.x >= region.x - SEGMENT_EPSILON
     && piece.x + piece.width <= region.x + region.width + SEGMENT_EPSILON);
   const endTees = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee]));
+  const endElls = new Map(ells.map((ell) => [ell.pieceId, ell]));
   // What a T covers along a piece's left and right edges, from the boxes that reach those edges.
   const coverAt = (piece, side) => Math.max(0, ...cells.pieces
     .filter((box) => (box.id === piece.id || box.columnId === piece.id) && covers.has(box.id))
@@ -230,6 +231,13 @@ function runInnerSegments(room, wall, run, settings, layout) {
       for (const { start, end, kind, ...metadata } of regionSegments(region, cells.pieces, faceLayouts, run.id)) {
         entries.push({ start, end, kind, metadata });
       }
+      continue;
+    }
+    const ell = endElls.get(piece.id);
+    if (ell) {
+      entries.push({
+        start: ell.x, end: ell.x + ell.width, kind: 'piece', metadata: { runId: run.id, pieceId: piece.id },
+      });
       continue;
     }
     const tee = endTees.get(piece.id);

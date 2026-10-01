@@ -278,7 +278,7 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   // filler's 3/4" return behind it into the box. An end T's flat reaches over its box on the
   // filler's own face; a T between boxes is a flat and a return centred on the seam. Horizontal Ts
   // don't show in plan.
-  const { tees } = teeFillers(room, run, cells, settings);
+  const { tees, ells } = teeFillers(room, run, cells, settings);
   const teeBack = run.depth;
   const teeFront = run.depth + settings.teeThickness;
   const endTees = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee]));
@@ -294,6 +294,10 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
     }),
     ...seamTees.map((tee) => ({
       key: tee.id, kind: 'filler', start: tee.x, end: tee.x + tee.width, back: teeBack, front: teeFront,
+    })),
+    // An L-shaped end panel's lip (SPEC-37.1): in front of the box it covers, out to the panel's front.
+    ...ells.map((ell) => ({
+      key: `${ell.id}:lip`, kind: 'end_panel', start: ell.lip.start, end: ell.lip.end, back: teeBack, front: faceFront,
     })),
   ];
   const teeReturns = settings.fillerReturnDepth > 0

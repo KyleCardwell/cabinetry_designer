@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { cellPieces } from '../cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { horizontalChains } from '../dimensions.js';
 import { layoutRun, runFaceLayouts } from '../faceLayouts.js';
 import { gridFromItems } from '../grid.js';
+import { planRunPieces } from '../planPieces.js';
 import { endMinWidthsForRun, resolveWall } from '../room.js';
 import { endCoverOn } from '../styles.js';
 import { teeFillers } from '../tees.js';
@@ -148,6 +150,35 @@ describe('SPEC-37.1 L-shaped end panels', () => {
     expect(pair.reveals.values).toMatchObject({ left: 0.8125, right: 0.8125 });
     expect(pair.faces.map((face) => [face.half, face.x, face.width])).toEqual([
       ['left', 25.5625, 17.125], ['right', 42.8125, 17.125],
+    ]);
+  });
+});
+
+describe('SPEC-37.1 L-shaped end panels in plan and on the chain', () => {
+  const plan = (run) => {
+    const { room, wall, layout } = context(run);
+    return planRunPieces(room, wall, run, S, layout, runFaceLayouts(room, wall, run, S, layout));
+  };
+  const byKey = (pieces, key) => pieces.find((piece) => piece.key === key);
+
+  it('draws the lip in front of the box, out to the panel\'s front', () => {
+    const { faces } = plan(pairRun());
+    expect(byKey(faces, 'r:left')).toEqual({ key: 'r:left', kind: 'end_panel', start: 24, end: 24.75, back: 0, front: 24.875 });
+    expect(byKey(faces, 'r:left:lip')).toEqual({ key: 'r:left:lip', kind: 'end_panel', start: 24.75, end: 25.5, back: 24, front: 24.875 });
+    expect(byKey(faces, 'r:right:lip')).toEqual({ key: 'r:right:lip', kind: 'end_panel', start: 60, end: 60.75, back: 24, front: 24.875 });
+    expect(plan(panelRun({ tFiller: undefined })).faces.some((face) => face.key.endsWith(':lip'))).toBe(false);
+    expect(byKey(plan(panelRun({ outset: 2 })).faces, 'r:left:lip')).toMatchObject({ back: 26, front: 26.875 });
+  });
+
+  it('dimensions the L like a T: its face, then what\'s left of the box', () => {
+    const room = roomWith(panelRun());
+    const inner = horizontalChains(room, resolveWall(room, room.walls[0]), 'lower', S).inner
+      .filter(({ kind }) => kind !== 'open');
+    expect(inner.map(({ start, end, kind, pieceId }) => [start, end, kind, pieceId])).toEqual([
+      [24, 25.5, 'piece', 'r:left'],
+      [25.5, 42, 'piece', 'a'],
+      [42, 43.5, 't-filler', 'tee:a|b'],
+      [43.5, 60.75, 'piece', 'b'],
     ]);
   });
 });
