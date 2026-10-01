@@ -1,7 +1,7 @@
 import { gapReach } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { runItems } from './grid.js';
-import { endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle } from './styles.js';
+import { endCoverOn, endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle } from './styles.js';
 
 const EPSILON = 1e-6;
 
@@ -50,25 +50,32 @@ export function rabbetNote(covers) {
  * Also `partWidth` on each (what the shop orders across the flat: the width of a vertical T, the height
  * of a horizontal one; at an end, any width ordered for the filler plus the cover), `notes` (by T id:
  * "T-shape" and the filler notes) and `rabbets` (by box id: the FILL-007 note).
+ * `ells` are the L-shaped end panels (SPEC-37.1): `{ id, side, pieceId, x, z, width, height, drop,
+ * boxIds, lip }`; they cover their box like a T but add no rabbet note.
  *
- * @returns {{tees: object[], covers: Map<string, {left: number, right: number, top: number, bottom: number}>, notes: Map<string, string[]>, rabbets: Map<string, string>}}
+ * @returns {{tees: object[], covers: Map<string, {left: number, right: number, top: number, bottom: number}>, notes: Map<string, string[]>, rabbets: Map<string, string>, ells: object[]}}
  */
 export function teeFillers(room, run, cells, settings) {
   const tees = [];
+  const ells = [];
   const covers = new Map();
   const notes = new Map();
   const rabbets = new Map();
   const cover = settings.teeCover;
   const returnThickness = settings.fillerReturnThickness;
   const runStyle = resolveStyle(settings, room, run);
-  if (isInsetStyle(runStyle)) return { tees, covers, notes, rabbets };
+  if (isInsetStyle(runStyle)) return { tees, covers, notes, rabbets, ells };
   const { drop } = endPieceBottom(run, runStyle, settings);
   const reach = gapReach(cells.gaps ?? []);
   const boxes = cells.pieces.filter((piece) => piece.kind === 'cabinet' && piece.role === 'item')
     .filter((piece) => !isInsetStyle(resolveStyle(settings, room, run, leafOf(run, piece))));
-  const addCover = (id, side, amount) => {
+  const rabbetCovers = new Map();
+  const addCover = (id, side, amount, rabbet = true) => {
     const current = covers.get(id) ?? noCovers();
     covers.set(id, { ...current, [side]: Math.max(current[side], amount) });
+    if (!rabbet) return;
+    const sides = rabbetCovers.get(id) ?? noCovers();
+    rabbetCovers.set(id, { ...sides, [side]: Math.max(sides[side], amount) });
   };
   const dropped = (z, height) => (near(z, run.z) && drop > 0
     ? { z: z - drop, height: height + drop, drop }
@@ -138,7 +145,7 @@ export function teeFillers(room, run, cells, settings) {
   for (const side of ['left', 'right']) {
     const piece = cells.pieces.find((candidate) => candidate.role === `end-${side}` && candidate.kind === 'filler');
     if (!piece || run.ends[side].type !== 'filler') continue;
-    if (!(run.endFiller?.[side]?.tFiller ?? Boolean(run.tFiller))) continue;
+    if (!endCoverOn(run, side)) continue;
     const edge = side === 'left' ? piece.x + piece.width : piece.x;
     const beside = boxes.filter((box) => near(side === 'left' ? box.x : box.x + box.width, edge)
       && overlap(box.z, box.z + box.height, piece.z, piece.z + piece.height) > EPSILON);
@@ -160,6 +167,32 @@ export function teeFillers(room, run, cells, settings) {
       ret: side === 'left' ? { start: edge - thickness, end: edge } : { start: edge, end: edge + thickness },
     });
     for (const box of beside) addCover(box.id, side, cover);
+  }
+
+  // An end panel at either end is L-shaped (SPEC-37.1): its lip covers the box's front edge like a
+  // T, so its face is the panel's thickness plus the cover. The box isn't rabbeted for it.
+  for (const side of ['left', 'right']) {
+    const piece = cells.pieces.find((candidate) => candidate.role === `end-${side}` && candidate.kind === 'end_panel');
+    if (!piece || run.ends[side].type !== 'end_panel' || !endCoverOn(run, side)) continue;
+    const edge = side === 'left' ? piece.x + piece.width : piece.x;
+    const beside = boxes.filter((box) => near(side === 'left' ? box.x : box.x + box.width, edge)
+      && overlap(box.z, box.z + box.height, piece.z, piece.z + piece.height) > EPSILON);
+    if (beside.length === 0) continue;
+    const flat = dropped(piece.z, piece.height);
+    const lip = side === 'left' ? { start: edge, end: edge + cover } : { start: edge - cover, end: edge };
+    ells.push({
+      id: piece.id,
+      side,
+      pieceId: piece.id,
+      x: side === 'left' ? piece.x : lip.start,
+      z: flat.z,
+      width: piece.width + cover,
+      height: flat.height,
+      drop: flat.drop,
+      boxIds: beside.map((box) => box.id),
+      lip,
+    });
+    for (const box of beside) addCover(box.id, side, cover, false);
   }
 
   // Seams between two boxes one above the other. A flat stops at the T it meets (the cover).
@@ -231,8 +264,9 @@ export function teeFillers(room, run, cells, settings) {
       ...(tee.orientation === 'vertical' && near(tee.z + tee.drop, run.z) ? endPieceNotes('filler', bottom) : []),
     ]);
   }
-  for (const [id, sides] of covers) rabbets.set(id, rabbetNote(sides));
-  return { tees, covers, notes, rabbets };
+  for (const ell of ells) notes.set(ell.id, ['L-shape']);
+  for (const [id, sides] of rabbetCovers) rabbets.set(id, rabbetNote(sides));
+  return { tees, covers, notes, rabbets, ells };
 }
 
 /**
