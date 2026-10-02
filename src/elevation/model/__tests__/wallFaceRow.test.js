@@ -84,3 +84,43 @@ describe('SPEC-37.4 the wall row in elevation', () => {
     ]);
   });
 });
+
+describe('SPEC-38 recesses in the wall rows', () => {
+  /** 60 to 108, 24" deep, with a 24" door in its back: jamb 72 to 96, 3" casing 69 to 99. */
+  const R = {
+    id: 'R', kind: 'recess', label: 'R1', wallSide: 'front', offsetFrom: 'left', offsetAnchor: 'edge',
+    offset: 60, width: 48, bottom: 0, height: null, depth: 24, molding: 'crown',
+  };
+  const DR = {
+    id: 'DR', kind: 'door', label: 'D2', measureMode: 'jamb', width: 24, height: 80, sillZ: 0,
+    offset: 72, offsetFrom: 'left', casing: { width: 3, thickness: 0.75 }, recessId: 'R',
+  };
+  const B = { ...R, id: 'B', label: 'R2', wallSide: 'back', offset: 20, width: 30, depth: 2 };
+
+  it('splits a recess around the door in it in the elevation row', () => {
+    const room = makeRoom([makeWall('H', 0, 0, 240, 0, { openings: [DR], recesses: [R] })]);
+    expect(openingChain(room, host(room), S)).toEqual([
+      { start: 0, end: 60, kind: 'gap' },
+      { start: 60, end: 72, kind: 'recess', recessId: 'R', label: 'R1' },
+      { start: 72, end: 96, kind: 'opening', openingId: 'DR', label: 'D2' },
+      { start: 96, end: 108, kind: 'recess', recessId: 'R', label: 'R1' },
+      { start: 108, end: 240, kind: 'gap' },
+    ]);
+    const bare = makeRoom([makeWall('H', 0, 0, 240, 0, { recesses: [R] })]);
+    expect(openingChain(bare, host(bare), S)).toEqual([
+      { start: 0, end: 60, kind: 'gap' },
+      { start: 60, end: 108, kind: 'recess', recessId: 'R', label: 'R1' },
+      { start: 108, end: 240, kind: 'gap' },
+    ]);
+  });
+
+  it('shows recesses on each face in plan, the front one split around its door', () => {
+    const room = makeRoom([makeWall('H', 0, 0, 240, 0, { openings: [DR], recesses: [R, B] })]);
+    expect(shown(wallFaceSegments(room, host(room), 'front', S))).toEqual([
+      ['space', 0, 60], ['recess', 60, 69], ['opening', 69, 99], ['recess', 99, 108], ['space', 108, 240],
+    ]);
+    expect(shown(wallFaceSegments(room, host(room), 'back', S))).toEqual([
+      ['space', 0, 20], ['recess', 20, 50], ['space', 50, 240],
+    ]);
+  });
+});

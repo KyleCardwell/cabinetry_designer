@@ -11,6 +11,7 @@ import { neighborProfiles } from './neighborProfiles.js';
 import { openingGeometry } from './openings.js';
 import { verticalStart } from './overlap.js';
 import { resolveProfile } from './profile.js';
+import { recessGeometry, recessesOn, uncoveredSpans } from './recesses.js';
 import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
@@ -89,25 +90,38 @@ function neighborSegments(room, wall, band, settings) {
 }
 
 /**
- * The elevation's wall row (SPEC-37.4): every door and window by its own reference edges (jamb or
- * casing, per its measure mode), and every wing wall landing on this face at its thickness, with the
- * gaps between them and to the wall's ends. Shown with or without cabinets; [] when there's nothing.
+ * The elevation's wall row (SPEC-37.4, SPEC-38): every door and window by its own reference edges (jamb or
+ * casing, per its measure mode), every wing wall landing on this face at its thickness, and every recess on
+ * this face at its width, split around the openings inside it, with the gaps between them and to the wall's
+ * ends. Shown with or without cabinets; [] when there's nothing.
  */
 export function openingChain(room, wall, settings) {
   const length = wallLength(wall);
+  const openings = (wall.openings ?? []).map((opening) => {
+    const geometry = openingGeometry(opening, length, settings);
+    const reference = opening.measureMode === 'casing' && geometry.casing
+      ? geometry.casing
+      : geometry.jamb;
+    const start = geometry.offsets.left[opening.measureMode].edge;
+    return {
+      start,
+      end: start + reference.width,
+      metadata: { kind: 'opening', openingId: opening.id, label: opening.label },
+    };
+  });
+  const recesses = recessesOn(wall).flatMap((recess) => {
+    const { x, width } = recessGeometry(recess, length, wall.height);
+    const inside = openings.filter((range) => (
+      range.start >= x - SEGMENT_EPSILON && range.end <= x + width + SEGMENT_EPSILON
+    ));
+    return uncoveredSpans(x, x + width, inside).map((span) => ({
+      ...span,
+      metadata: { kind: 'recess', recessId: recess.id, label: recess.label },
+    }));
+  });
   const ranges = [
-    ...(wall.openings ?? []).map((opening) => {
-      const geometry = openingGeometry(opening, length, settings);
-      const reference = opening.measureMode === 'casing' && geometry.casing
-        ? geometry.casing
-        : geometry.jamb;
-      const start = geometry.offsets.left[opening.measureMode].edge;
-      return {
-        start,
-        end: start + reference.width,
-        metadata: { kind: 'opening', openingId: opening.id, label: opening.label },
-      };
-    }),
+    ...openings,
+    ...recesses,
     ...landingsOn(room, wall).map(({ a, b, wallId }) => ({
       start: a,
       end: b,
