@@ -47,3 +47,28 @@ export default function RecessShapes({ wall, transform, selectedRecessId, onSele
     );
   });
 }
+
+/** The selected recess's outline, drawn over the runs (SPEC-38.1) so it shows when cabinets fill it. */
+export function RecessOutline({ wall, transform, recessId }) {
+  const recess = recessesOn(wall).find((candidate) => candidate.id === recessId);
+  if (!recess) return null;
+  const geometry = recessGeometry(recess, wall.length, wall.height);
+  const rect = wallRectToScreen({
+    x: geometry.x,
+    z: geometry.bottom,
+    width: geometry.width,
+    height: geometry.top - geometry.bottom,
+  }, transform);
+  return (
+    <Group listening={false}>
+      <Rect
+        {...rect}
+        fillEnabled={false}
+        stroke="#60a5fa"
+        strokeWidth={2}
+        dash={recess.kind === 'projection' ? undefined : [6, 4]}
+      />
+      <Text x={rect.x + 4} y={rect.y + 4} text={recess.label} fontSize={10} fill="#93c5fd" />
+    </Group>
+  );
+}

@@ -124,7 +124,7 @@ import OpeningShape from './OpeningShape.jsx';
 import PartNumberLayer from './PartNumberLayer.jsx';
 import RunGroup from './RunGroup.jsx';
 import SoffitShapes from './SoffitShapes.jsx';
-import RecessShapes from './RecessShapes.jsx';
+import RecessShapes, { RecessOutline } from './RecessShapes.jsx';
 import WallEndPanelShapes from './WallEndPanelShapes.jsx';
 import WallFrame from './WallFrame.jsx';
 
@@ -991,6 +991,16 @@ function ElevationCanvas({
     dispatch(setSelection({ recessId }));
   }, [dispatch, tool]);
 
+  // The wall row selects what's in it (SPEC-38.1): a recess full of cabinets can't be clicked otherwise.
+  const selectFeature = useCallback((segment) => {
+    if (tool !== 'select') return;
+    if (segment.kind === 'recess') {
+      dispatch(setSelection({ recessId: segment.recessId }));
+    } else if (segment.kind === 'opening' && wallRef.current?.side !== 'back') {
+      dispatch(setSelection({ openingId: segment.openingId }));
+    }
+  }, [dispatch, tool]);
+
   const selectEndPanel = useCallback((endPanel) => {
     if (tool !== 'select' || suppressClickRef.current) return;
     dispatch(setSelection({ endPanel }));
@@ -1677,6 +1687,9 @@ function ElevationCanvas({
               settings={settings}
               transform={transform}
             />
+            {selection.recessId && (
+              <RecessOutline wall={wall} transform={transform} recessId={selection.recessId} />
+            )}
             <ElevationAlignmentGuides
               guides={alignmentGuides}
               transform={transform}
@@ -1731,6 +1744,7 @@ function ElevationCanvas({
                 offsetPx={dimensionOffsets.openings}
                 transform={transform}
                 edgeGapPx={dimensionOffsets.clear.below}
+                onFeatureClick={tool === 'select' ? selectFeature : undefined}
                 wallEndMarks={[0, wall.length]}
                 cursor={cursor}
               />

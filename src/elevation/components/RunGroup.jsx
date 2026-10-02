@@ -596,7 +596,7 @@ function RunGroup({
               y={datum.y - 14}
               width={80}
               align="center"
-              text={`℄ ${formatInches(marker.value)}`}
+              text={marker.anchor === 'center' ? `℄ ${formatInches(marker.value)}` : formatInches(marker.value)}
               fontSize={11}
               fill="#facc15"
             />
