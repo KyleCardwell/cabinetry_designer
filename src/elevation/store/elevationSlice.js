@@ -50,6 +50,12 @@ import {
   validateOpeningPlacement,
 } from '../model/openings.js';
 import {
+  recessEndType,
+  recessesOn,
+  resizeRecess as resizeRecessPure,
+  validateRecessPlacement,
+} from '../model/recesses.js';
+import {
   compensateRuns,
   dissolveJoint as dissolveJointPure,
   endCornerAnglesForRun,
@@ -224,6 +230,34 @@ function soffitLocation(state, payload) {
         soffitIndex,
         soffit: location.wall.soffits[soffitIndex],
       };
+}
+
+const RECESS_KEYS = [
+  'label', 'kind', 'width', 'bottom', 'height', 'depth', 'offset', 'offsetFrom', 'offsetAnchor', 'molding',
+];
+
+function recessLocation(state, payload) {
+  const location = wallLocation(state, payload);
+  if (!location) return null;
+  const recessIndex = (location.wall.recesses ?? [])
+    .findIndex((recess) => recess.id === payload.recessId);
+  return recessIndex === -1
+    ? null
+    : { ...location, recessIndex, recess: location.wall.recesses[recessIndex] };
+}
+
+/** The side view a recess is validated in (SPEC-38). */
+function recessView(room, wall, recess) {
+  return wallSideView(resolveWall(room, wall), wallSideOf(recess));
+}
+
+/** Re-pick the ends a run has anchored to recesses (all, or one recess's) after where it sits changes. */
+function refreshRecessEnds(wall, run, recessId = null) {
+  for (const side of ['left', 'right']) {
+    const anchor = run.anchors?.[side];
+    if (anchor?.to !== 'recess' || (recessId && anchor.recessId !== recessId)) continue;
+    run.ends[side] = { type: recessEndType(wallViewForRun(wall, run), run, side), width: null };
+  }
 }
 
 function resolvedSoffitCandidate(room, wall, soffit) {
@@ -766,6 +800,109 @@ const elevationSlice = createSlice({
       if (state.selection.soffitId === location.soffit.id) clearTransientSelection(state);
       syncRoomAt(state, location.roomIndex);
     },
+    addRecess(state, action) {
+      const location = wallLocation(state, action.payload);
+      const { recess } = action.payload;
+      if (!location || !recess?.id) return;
+      const validation = validateRecessPlacement(recessView(location.room, location.wall, recess), recess);
+      if (!validation.ok) {
+        state.message = validation.reason;
+        return;
+      }
+      location.wall.recesses ??= [];
+      location.wall.recesses.push({ ...recess });
+      state.selection = {
+        runId: null,
+        pieceId: null,
+        openingId: null,
+        soffitId: null,
+        recessId: recess.id,
+        wallId: state.selection.wallId ?? null,
+      };
+      state.activeWallSide = wallSideOf(recess);
+      state.facePath = null;
+      state.message = null;
+      syncRoomAt(state, location.roomIndex);
+    },
+    updateRecess(state, action) {
+      const location = recessLocation(state, action.payload);
+      if (!location) return;
+      const candidate = { ...location.recess };
+      const changes = action.payload.changes ?? {};
+      for (const key of RECESS_KEYS) {
+        if (Object.prototype.hasOwnProperty.call(changes, key)) candidate[key] = changes[key];
+      }
+      // A kind change swaps an automatic label's letter and keeps its number: R2 ↔ P2.
+      if (candidate.kind !== location.recess.kind
+        && !Object.prototype.hasOwnProperty.call(changes, 'label')
+        && /^[RP]\d+$/.test(candidate.label)) {
+        candidate.label = `${candidate.kind === 'projection' ? 'P' : 'R'}${candidate.label.slice(1)}`;
+      }
+      const validation = validateRecessPlacement(
+        recessView(location.room, location.wall, candidate),
+        candidate,
+      );
+      if (!validation.ok) {
+        state.message = validation.reason;
+        return;
+      }
+      location.wall.recesses[location.recessIndex] = candidate;
+      state.message = null;
+      for (const run of location.wall.runs) refreshRecessEnds(location.wall, run, candidate.id);
+      syncRoomAt(state, location.roomIndex);
+    },
+    resizeRecess(state, action) {
+      const location = recessLocation(state, action.payload);
+      const { width, grow = 'right' } = action.payload;
+      if (!location || !Number.isFinite(width) || width <= 0) return;
+      const length = wallFrame(location.room, location.wall).length;
+      const candidate = resizeRecessPure(location.recess, width, grow, length);
+      const validation = validateRecessPlacement(
+        recessView(location.room, location.wall, candidate),
+        candidate,
+      );
+      if (!validation.ok) {
+        state.message = validation.reason;
+        return;
+      }
+      location.wall.recesses[location.recessIndex] = candidate;
+      state.message = null;
+      syncRoomAt(state, location.roomIndex);
+    },
+    deleteRecess(state, action) {
+      const location = recessLocation(state, action.payload);
+      if (!location) return;
+      const { id } = location.recess;
+      location.wall.recesses.splice(location.recessIndex, 1);
+      for (const run of location.wall.runs) {
+        if (run.recessId === id) delete run.recessId;
+        for (const side of ['left', 'right']) {
+          if (run.anchors?.[side]?.to === 'recess' && run.anchors[side].recessId === id) {
+            run.anchors[side] = false;
+          }
+        }
+      }
+      for (const opening of location.wall.openings ?? []) {
+        if (opening.recessId === id) delete opening.recessId;
+      }
+      if (state.selection.recessId === id) clearTransientSelection(state);
+      syncRoomAt(state, location.roomIndex);
+    },
+    setRunRecess(state, action) {
+      const location = runLocation(state, action.payload);
+      if (!location) return;
+      const { recessId } = action.payload;
+      if (recessId) {
+        const exists = recessesOn(location.wall, wallSideOf(location.run))
+          .some((recess) => recess.id === recessId);
+        if (!exists) return;
+        location.run.recessId = recessId;
+      } else {
+        delete location.run.recessId;
+      }
+      refreshRecessEnds(location.wall, location.run);
+      syncRoomAt(state, location.roomIndex);
+    },
     addOpening: {
       reducer(state, action) {
         const location = wallLocation(state, action.payload);
@@ -800,8 +937,13 @@ const elevationSlice = createSlice({
         'offsetFrom',
         'offsetAnchor',
         'casing',
+        'recessId',
       ]) {
         if (!Object.prototype.hasOwnProperty.call(changes, key)) continue;
+        if (key === 'recessId' && !changes[key]) {
+          delete candidate.recessId;
+          continue;
+        }
         candidate[key] = key === 'casing' && changes[key]
           ? { ...changes[key] }
           : changes[key];
@@ -1006,21 +1148,33 @@ const elevationSlice = createSlice({
         && value.to === 'soffit'
         && typeof value.soffitId === 'string'
         && (value.offset === null || Number.isFinite(value.offset));
+      const validRecessAnchor = Boolean(value)
+        && typeof value === 'object'
+        && value.to === 'recess'
+        && typeof value.recessId === 'string'
+        && (value.edge === 'left' || value.edge === 'right')
+        && (value.offset === null || value.offset === undefined || Number.isFinite(value.offset));
       if (typeof value !== 'boolean'
         && !validOpeningAnchor
         && !validWallAnchor
-        && !validSoffitAnchor) return;
+        && !validSoffitAnchor
+        && !validRecessAnchor) return;
       const previous = location.run.anchors[side];
       if ((isJointAnchor(previous) || isFollowAnchor(previous)) && !isJointAnchor(value)) {
         location.run.ends[side] = withoutAuto(location.run.ends[side]);
       }
-      const anchor = validSoffitAnchor ? { ...value, offset: value.offset ?? 0 } : value;
-      location.run.anchors[side] = validOpeningAnchor || validWallAnchor || validSoffitAnchor
+      const anchor = validSoffitAnchor || validRecessAnchor ? { ...value, offset: value.offset ?? 0 } : value;
+      location.run.anchors[side] = validOpeningAnchor || validWallAnchor || validSoffitAnchor || validRecessAnchor
         ? { ...anchor }
         : anchor;
       if (validSoffitAnchor) {
         location.run.ends[side] = {
           type: soffitEndType(location.wall, location.run, side, anchor, state.settings),
+          width: null,
+        };
+      } else if (validRecessAnchor) {
+        location.run.ends[side] = {
+          type: recessEndType(wallViewForRun(location.wall, location.run), location.run, side),
           width: null,
         };
       } else if (validWallAnchor) {
@@ -1679,7 +1833,7 @@ const elevationSlice = createSlice({
       clearTransientSelection(state);
     },
     setTool(state, action) {
-      if (!['select', 'draw', 'soffit', 'wall', 'door', 'window'].includes(action.payload)) return;
+      if (!['select', 'draw', 'soffit', 'recess', 'wall', 'door', 'window'].includes(action.payload)) return;
       state.tool = action.payload;
     },
     setMessage(state, action) {
@@ -1737,6 +1891,11 @@ export const {
   updateSoffit,
   setSoffitAnchor,
   deleteSoffit,
+  addRecess,
+  updateRecess,
+  resizeRecess,
+  deleteRecess,
+  setRunRecess,
   addOpening,
   updateOpening,
   resizeOpening,
