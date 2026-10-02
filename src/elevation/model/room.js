@@ -20,6 +20,7 @@ import {
   isFollowAnchor,
   isJointAnchor,
   jointEdgeX,
+  deeperJoinedSides,
   jointEndTypes,
   jointMembers,
   pruneFollows,
@@ -633,6 +634,30 @@ function withFrame(room, run, settings) {
 }
 
 /**
+ * A face frame run's joined ends that die into a deeper neighbour (SPEC-38.4): `_frame.dieIn` gives,
+ * per side, an end of type None whose neighbour is deeper, so the frame's stile overhangs the box
+ * there like a free end.
+ */
+function withDieIns(wall) {
+  const deeper = deeperJoinedSides(wall);
+  return {
+    ...wall,
+    runs: wall.runs.map((run) => {
+      if (!run._frame) return run;
+      const sides = deeper.get(run.id);
+      const found = {
+        left: Boolean(sides?.left) && run.ends.left.type === 'none',
+        right: Boolean(sides?.right) && run.ends.right.type === 'none',
+      };
+      const { dieIn, ...frame } = run._frame;
+      void dieIn;
+      if (found.left || found.right) return { ...run, _frame: { ...frame, dieIn: found } };
+      return dieIn === undefined ? run : { ...run, _frame: frame };
+    }),
+  };
+}
+
+/**
  * A face frame run beside a wall end panel (SPEC-36.2): `_frame.wallPanels` gives, per side, the
  * panel's width and top and how the frame meets it. Auto: mitered over the panel's edge unless the
  * panel stands in front of the frame or above the run's box, then it dies into it. The panel's
@@ -780,6 +805,13 @@ export function syncRoom(room, settings) {
     }),
   };
 
+  nextRoom = { ...nextRoom, walls: nextRoom.walls.map(withDieIns) };
+  // SPEC-38.4: before the auto items, so splitRun knows a wall end panel's join.
+  nextRoom = {
+    ...nextRoom,
+    walls: nextRoom.walls.map((wall) => withWallPanels(nextRoom, wall, settings)),
+  };
+
   nextRoom = {
     ...nextRoom,
     walls: nextRoom.walls.map((wall) => ({
@@ -788,11 +820,6 @@ export function syncRoom(room, settings) {
         endMinWidths: endMinWidthsForRun(nextRoom, wall, run, settings),
       })),
     })),
-  };
-
-  nextRoom = {
-    ...nextRoom,
-    walls: nextRoom.walls.map((wall) => withWallPanels(nextRoom, wall, settings)),
   };
 
   return nextRoom;

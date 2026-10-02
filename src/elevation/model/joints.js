@@ -111,7 +111,7 @@ function edgeDepth(run, side) {
   )));
 }
 
-function endIsCovered(wall, run, side) {
+function endIsCovered(wall, run, side, { deeper = false } = {}) {
   const anchor = run.anchors?.[side];
   const opposite = side === 'left' ? 'right' : 'left';
   const edge = runEdgeX(run, side);
@@ -125,7 +125,9 @@ function endIsCovered(wall, run, side) {
         ? candidate.id === anchor.runId
         : candidate.anchors?.[opposite]?.jointId === anchor.jointId)
       && Math.abs(runEdgeX(candidate, opposite) - edge) <= JOINT_EPSILON
-      && edgeDepth(candidate, opposite) >= run.depth)
+      && (deeper
+        ? edgeDepth(candidate, opposite) > run.depth + JOINT_EPSILON
+        : edgeDepth(candidate, opposite) >= run.depth))
     .map((candidate) => [candidate.z, candidate.z + candidate.height])
     .sort((a, b) => a[0] - b[0]);
 
@@ -149,6 +151,22 @@ export function jointEndTypes(wall) {
         : []
     )));
     return Object.keys(types).length > 0 ? [[run.id, types]] : [];
+  }));
+}
+
+/**
+ * Joined ends that die into a deeper neighbour (SPEC-38.4): per run, the joined or following sides
+ * whose neighbour is deeper than the run over the run's whole height, or whose leader's extended end
+ * panel covers the end.
+ */
+export function deeperJoinedSides(wall) {
+  return new Map((wall.runs ?? []).flatMap((run) => {
+    const sides = Object.fromEntries(['left', 'right'].map((side) => [
+      side,
+      (isJointAnchor(run.anchors?.[side]) || isFollowAnchor(run.anchors?.[side]))
+        && endIsCovered(wall, run, side, { deeper: true }),
+    ]));
+    return sides.left || sides.right ? [[run.id, sides]] : [];
   }));
 }
 

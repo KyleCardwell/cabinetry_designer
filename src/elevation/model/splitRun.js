@@ -36,7 +36,9 @@ const JOINED = new Set(['joint', 'follow']);
 
 /**
  * The gap at each real end of a face frame run (SPEC-38.3), beside a cabinet only: a beaded run's bead,
- * plus, at a free end (None, not joined), the stile's overhang. A pinned run's split points (`_pinSplit`)
+ * plus, at a free end, the stile's overhang. A None end is free unless a run of the same depth is joined
+ * there or a wall end panel is mitered there; one that dies into a deeper run (`_frame.dieIn`) or into
+ * a wall end panel (`join: 'butt'`) is free (SPEC-38.4). A pinned run's split points (`_pinSplit`)
  * aren't ends.
  */
 function endGaps(run, items, settings) {
@@ -47,7 +49,11 @@ function endGaps(run, items, settings) {
     if (run._pinSplit?.[side]) return 0;
     const item = side === 'left' ? items[0] : items[items.length - 1];
     if (item?.kind !== 'cabinet') return 0;
-    const free = run.ends[side].type === 'none' && !JOINED.has(run.anchors?.[side]?.to);
+    const wallPanel = run._frame.wallPanels?.[side];
+    const joined = JOINED.has(run.anchors?.[side]?.to);
+    const free = run.ends[side].type === 'none' && (wallPanel
+      ? wallPanel.join === 'butt'
+      : !joined || run._frame.dieIn?.[side] === true);
     return bead + (free ? overhang : 0);
   };
   return { left: at('left'), right: at('right') };
