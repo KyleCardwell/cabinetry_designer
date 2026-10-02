@@ -557,6 +557,7 @@ describe('centerlineMarkers', () => {
       pieceBottom: 4,
       pieceTop: 34.5,
       from: 'left',
+      anchor: 'center',
     }]);
   });
 
@@ -583,24 +584,34 @@ describe('centerlineMarkers', () => {
       pieceBottom: 4,
       pieceTop: 34.5,
       from: 'right',
+      anchor: 'center',
     }]);
   });
 
-  it('SPEC-12 11. returns nothing for edge-anchored pins and pinless runs', () => {
-    const edgeAnchoredRun = {
+  it('SPEC-38.1 measures an edge pin to that edge; nothing without a pin', () => {
+    const edgePins = {
       items: [
-        { id: 'left', pin: null },
+        { id: 'left', pin: { from: 'right', value: 96, anchor: 'right' } },
         { id: 'mid', pin: { from: 'left', value: 24, anchor: 'left' } },
       ],
     };
 
     expect(centerlineMarkers(
-      edgeAnchoredRun,
+      edgePins,
       pieces,
       { openings: [] },
       120,
       DEFAULT_SETTINGS,
-    )).toEqual([]);
+    )).toEqual([
+      {
+        pieceId: 'left', x: 24, datumX: 120, z: 40, value: 96, pieceBottom: 4, pieceTop: 34.5,
+        from: 'right', anchor: 'right',
+      },
+      {
+        pieceId: 'mid', x: 24, datumX: 0, z: 40, value: 24, pieceBottom: 4, pieceTop: 34.5,
+        from: 'left', anchor: 'left',
+      },
+    ]);
     expect(centerlineMarkers(
       { items: [] },
       pieces,

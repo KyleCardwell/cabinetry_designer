@@ -431,20 +431,23 @@ export function nearerEdge(center, wallLengthValue) {
 export const CENTERLINE_CALLOUT_Z = 40;
 
 /**
- * Describe the centerline dimension for every center-pinned item in a run:
- * the datum it is measured from, the piece centerline, and the measured distance.
+ * A pinned cabinet's position callout (SPEC-12, SPEC-38.1): from the pin's datum (a wall end or an opening
+ * edge) to the point the pin holds, its left edge, center or right edge.
  */
 export function centerlineMarkers(run, pieces, wall, wallLengthValue, settings) {
   return pieces.flatMap((piece) => {
     if (piece.role !== 'item') return [];
     const item = runItems(run).find((candidate) => candidate.id === piece.id);
-    if (item?.pin?.anchor !== 'center') return [];
+    if (!item?.pin) return [];
     const target = resolvePinTarget(item.pin, wall, wallLengthValue, settings);
     if (!Number.isFinite(target)) return [];
     const datumX = item.pin.from === 'right'
       ? target + item.pin.value
       : target - item.pin.value;
-    const x = piece.x + piece.width / 2;
+    const { anchor } = item.pin;
+    const x = anchor === 'left'
+      ? piece.x
+      : anchor === 'right' ? piece.x + piece.width : piece.x + piece.width / 2;
     return [{
       pieceId: piece.id,
       x,
@@ -454,6 +457,7 @@ export function centerlineMarkers(run, pieces, wall, wallLengthValue, settings) 
       pieceBottom: piece.z,
       pieceTop: piece.z + piece.height,
       from: item.pin.from,
+      anchor,
     }];
   });
 }

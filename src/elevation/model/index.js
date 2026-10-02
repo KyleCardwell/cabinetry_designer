@@ -206,6 +206,7 @@ export {
   soffitFlushSides,
   soffitMoldingDrop,
   soffitOverRun,
+  soffitReturns,
   soffitSeams,
   soffitsOn,
   validateSoffitPlacement,

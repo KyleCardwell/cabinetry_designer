@@ -235,8 +235,8 @@ export function recessWarnings(wall, run) {
 
 /**
  * A recess or projection in plan (SPEC-38), in face coordinates [u along the face, v out from it]:
- * `knockout` (cut out of the wall), `fill` (wall added: a deep recess's bump-out, or a projection), `lines`
- * (its outline), `dashed` (raised off the floor: the wall is solid at the floor and only the outline shows),
+ * `knockout` (cut out of the wall), `fill` (wall added: a deep recess's bump-out (raised or not), or a
+ * projection on the floor), `lines` (its outline), `dashed` (raised off the floor: the wall is solid at the floor and only the outline shows),
  * `label` (a point). A recess at least as deep as the wall keeps the wall's thickness around it.
  */
 export function recessPlanShape(recess, length, height, thickness) {
@@ -260,7 +260,7 @@ export function recessPlanShape(recess, length, height, thickness) {
   return {
     dashed,
     knockout: dashed ? null : [[a, 0], [b, 0], [b, -d], [a, -d]],
-    fill: deep && !dashed
+    fill: deep
       ? [[outer[0], -thickness], [outer[1], -thickness], [outer[1], back], [outer[0], back]]
       : null,
     lines: [
