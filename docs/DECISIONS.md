@@ -45,6 +45,7 @@ Still current and not repeated here: `CELLS-PLAN.md`, `ALCOVE-PLAN.md`, `CONSOLI
 - Uppers and talls under (even partly under) a soffit drop to it, less the chosen molding; the lower soffit wins. A wall's crown line can be set below a soffit, and then cabinets follow the crown line. (SPEC-19, SPEC-20, SPEC-21)
 - A run end beside a soffit anchors to its side: filler if cabinets continue under the soffit, end panel if not. (SPEC-19)
 - The vertical chain stops at the lowest soffit over its runs; with none over them, the soffit nearest that chain's edge. Each end of a wall gets its own chain. (SPEC-36.3.2, SPEC-36.3.3)
+- A soffit anchored into a corner or a wing wall shows as a return on that wall's elevation, like corner-anchored cabinets: its depth wide, from its bottom to the ceiling. It counts only when its end is anchored there. (SPEC-38.1, Kyle)
 
 ## Recesses and projections (round 38)
 
@@ -53,8 +54,9 @@ Still current and not repeated here: `CELLS-PLAN.md`, `ALCOVE-PLAN.md`, `CONSOLI
 - **Square corners at recesses:** inside a recess (or beside a projection) its side stops a run like a wall, with a filler; on the face beside a recess (or on a projection) the run ends at an outside corner with an end panel. A box standing out past the corner's wall gets an end panel. (SPEC-38)
 - A recess top below the ceiling acts like a soffit for runs on it. Runs on different planes conflict only where plan depths overlap, so a base on the face can cross a recess with uppers inside. (SPEC-38)
 - Real walls are still the way when a niche's side faces need their own elevations. (SPEC-38)
-- **38.1 (decided, not built):** how a recessed cabinet finishes is a run setting: face frame laps past the recess edge on all sides (1/4"–3/4" depending on the cabinets between); Euro gets an end panel flush with the cabinet face, as deep as the cabinet to the wall face, which can sit in that overlap; a base deeper than the recess gets end panels at its sides; casing on 3 or 4 sides by the shop or by others (a part only when ours). A face run crossing a recess may later go deeper behind the face, front in line with the other bases. (SPEC-38 §12, Kyle)
-- **Panel cutouts (38.1):** hole = box + clearance each side: 0 when the box fits inside the hole, −3/4" when the box interior is flush with the hole and the panel covers the box edges. Inset doors in the hole get 1/16" all four sides for now. The cabinet is sized to the panel opening, not the (oversized, field-measured) wall cutout. Cutout types: cut hole, 5-piece centre removed, frame acts as face frame (rare). Glass/mirror later. (ALCOVE-PLAN, Kyle)
+- A recess full of cabinets is selected from its segment in the wall row, and the selected recess is outlined over the runs. In plan, a deep recess keeps its filled bump-out even when raised, and the wall's dimension rows move out past it. (SPEC-38.1, Kyle)
+- **38.2 (decided, not built):** how a recessed cabinet finishes is a run setting: face frame laps past the recess edge on all sides (1/4"–3/4" depending on the cabinets between); Euro gets an end panel flush with the cabinet face, as deep as the cabinet to the wall face, which can sit in that overlap; a base deeper than the recess gets end panels at its sides; casing on 3 or 4 sides by the shop or by others (a part only when ours). A face run crossing a recess may later go deeper behind the face, front in line with the other bases. (SPEC-38 §12, Kyle)
+- **Panel cutouts (38.2):** hole = box + clearance each side: 0 when the box fits inside the hole, −3/4" when the box interior is flush with the hole and the panel covers the box edges. Inset doors in the hole get 1/16" all four sides for now. The cabinet is sized to the panel opening, not the (oversized, field-measured) wall cutout. Cutout types: cut hole, 5-piece centre removed, frame acts as face frame (rare). Glass/mirror later. (ALCOVE-PLAN, Kyle)
 
 ## Runs: drawing, position and anchors
 
@@ -161,6 +163,7 @@ Still current and not repeated here: `CELLS-PLAN.md`, `ALCOVE-PLAN.md`, `CONSOLI
 - **Each chain sits next to what it measures.** Runs: an inner chain of pieces and an overall chain below; a split column's own chain inside the run. Wall: a row for doors, windows and wing walls; the overall wall length always shows. (SPEC-4, SPEC-10, CELLS-PLAN, SPEC-37.4)
 - **Vertical chains at both wall edges**, each taking only runs that reach into its half; a counter-height row (floor to top of counter) for base runs. (SPEC-22, SPEC-36.3.1, SPEC-36.3.3)
 - Click a dimension to select, then type to move; drag a run by its dimension. (SPEC-12, SPEC-16)
+- A pinned cabinet gets a callout from the pin's datum to the point it holds: ℄ for a centre pin, the distance alone for an edge pin. (SPEC-12, SPEC-38.1)
 - Neighbouring walls' runs that pass this wall's end show as profiles with their moldings, and their reach is dimensioned in the stack. (SPEC-22, SPEC-26, SPEC-28)
 - **Plan:** wall length outermost, with a face row of wing walls and openings inside it; depth dimensions by type lane (base centre, upper left, tall right). (SPEC-21, SPEC-36.3.1)
 - **Plan clearances,** always shown, at the tightest point: island outside edges to the nearest thing across (cabinet front, end panel, wall), and facing base/tall runs front to front (galleys, U legs, peninsulas). Uppers never count; each gap once. (SPEC-36.3, Kyle)

@@ -2,7 +2,7 @@
 
 This plan comes from the 2026-09-26 brainstorm about two bathroom situations: an alcove paneled on its sides, top and back above the base cabinets, and a medicine cabinet set into the wall through one of those side panels. It builds on `CELLS-PLAN.md` (cells, `panel` cells, stacked runs) and SPEC-34.3 (follow anchors). Each round gets its own `SPEC-N.md` / `PROMPTS-N.md` when it's ready to run.
 
-**Now:** round 38 (recesses and projections, SPEC-38, steps 270–279), moved up by Kyle on 2026-10-01, then 38.1 (recessed cabinets and cutouts). Panel construction and nosing come after.
+**Now:** round 38 (recesses and projections, SPEC-38, steps 270–279), moved up by Kyle on 2026-10-01, then 38.1 (fixes, SPEC-38.1, steps 280–283) and 38.2 (recessed cabinets and cutouts). Panel construction and nosing come after.
 
 ## The two situations
 
@@ -28,7 +28,7 @@ This plan comes from the 2026-09-26 brainstorm about two bathroom situations: an
 - **Stored** as `extend` on a run end (`run.ends.left.extend`) and on panel and filler leaves (`leaf.extend`), e.g. `{ down: { to: 'floor' } }`. Targets: `{ to: 'floor' | 'ceiling' | 'wall' }`, `{ to: 'run', runId }`, `{ to: 'by', amount }`. No schema bump; it's optional.
 - **The paneled alcove on one wall:** a base run with a countertop, plus a panel run that sits on the countertop and is held under the soffit (round 35 links). The panel run has end panels at both ends extended down to the floor, a back `panel` cell (3/4" deep, backs aligned), and a top panel. The base follows the panel run's left and right edges, so it fits between the side panels, and the countertop follows it.
 
-### Panel runs and nosing (after 38.1; the panel-only depth fix moved into round 38)
+### Panel runs and nosing (after 38.2; the panel-only depth fix moved into round 38)
 
 This is the other way to draw the alcove (Kyle's option 3), and the better one when a medicine cabinet goes through a side panel. **Each side panel is a panel run on its own return wall**, drawn face-on in that wall's elevation, with its width typed when it's drawn (no anchor to the base). The corner logic (`cornerReserveParts`) already makes the back wall's base run stop at a neighbouring run on the return wall that's anchored into the corner and overlaps it in height. So the base stops at the panel's face and the countertop dies into it.
 
@@ -51,7 +51,7 @@ Kyle's point: from the room's side the walls are 4 1/2" thick, but the shop buil
 - **Plan:** a floor recess is a notch; one as deep as the wall bumps the wall out behind it; a raised one is dashed; a projection is solid wall in front of the face. Doors in a recess are drawn at its back.
 - **Draw real walls instead** when the niche's side faces need cabinets of their own (their own elevations).
 
-### Recessed cabinets and panel cutouts (round 38.1)
+### Recessed cabinets and panel cutouts (round 38.2)
 
 - **How a cabinet in a recess finishes** (Kyle, 2026-10-01): the face frame laps past the recess edge on all sides (1/4" to 3/4", depending on the cabinets between); on Euro runs an end panel flush with the cabinet face, as deep as the cabinet to the wall face, which can also sit in that overlap (more for a wider panel); a base deeper than the recess with end panels at its sides; casing around the recess on 3 or 4 sides, by the shop or the finish carpenter (drawn, a part only when it's ours).
 - **Runs may overlap in the elevation when their plan footprints don't touch.** A recessed cabinet sits behind the wall face, and the panel run sits on it.
@@ -76,7 +76,8 @@ Kyle's point: from the room's side the walls are 4 1/2" thick, but the shop buil
 | **35.3 — Extensions** | `extend` on run ends and panel/filler leaves; pieces grow on screen; warnings; follow anchors stop at extended end pieces; reducers and panel fields. Steps 206–211. | the paneled alcove on one wall; the desk run with side panels to the floor; one filler over a stacked base and upper |
 | 35.4 — Extension follow-ups | A run that overlaps another run's extended piece gets a collision warning; flipping a run swaps left/right extensions on its cells; extended pieces show in neighbouring walls' profiles; an automatic end keeps its extension. | fewer surprises |
 | **38 — Recesses and projections** | Recesses and projections on a wall face; runs and openings on a recess; recess anchors and corners; the top as a soffit; conflicts by plan depth; warnings; wall rows; plan notch, bump-out and projection; panel-only runs reserve only their thickness. SPEC-38, steps 270–279. | fireplace recesses, doors at a recess back, niches |
-| 38.1 — Recessed cabinets and cutouts | Frame lap, end panels to the face, recess casing; overlap by plan footprint; automatic cutouts with signed clearance; inset flush doors. | the medicine cabinet through a side panel |
+| 38.1 — Fixes | Select a recess from its wall-row segment; Add menu; plan rows clear bump-outs; soffit returns on side walls; edge pin callouts. SPEC-38.1, steps 280–283. | recess editing |
+| 38.2 — Recessed cabinets and cutouts | Frame lap, end panels to the face, recess casing; overlap by plan footprint; automatic cutouts with signed clearance; inset flush doors. | the medicine cabinet through a side panel |
 | 40 — Panel construction and nosing | Slab / door-built panels set the default thickness; mitered nosing parts. (Round 39 is now combine and full grids.) | panels thicker than 13/16" |
 
 ## Open

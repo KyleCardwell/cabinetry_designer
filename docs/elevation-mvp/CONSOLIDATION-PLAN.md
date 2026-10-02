@@ -1,6 +1,6 @@
-# Consolidation: plan (round 39, after 38.1)
+# Consolidation: plan (round 39, after 38.2)
 
-Written 2026-10-01 against `3ed8712` (step 269), before round 38 was implemented. Step labels (C1, C2…) are provisional. Real step numbers, line numbers and fan-outs get filled in when `SPEC-39` / `PROMPTS-39` are written against whatever commit 38.1 ends on (PROMPT-CONVENTIONS rules 1–3 need a real commit).
+Written 2026-10-01 against `3ed8712` (step 269), before round 38 was implemented. Step labels (C1, C2…) are provisional. Real step numbers, line numbers and fan-outs get filled in when `SPEC-39` / `PROMPTS-39` are written against whatever commit 38.2 ends on (PROMPT-CONVENTIONS rules 1–3 need a real commit).
 
 ## Why
 
@@ -69,9 +69,9 @@ Expected: roughly 39% → about 16% now, and about 10% once round 38's spec and 
 
 ---
 
-## Part B — Round 39: consolidation (Codex, after 38.1)
+## Part B — Round 39: consolidation (Codex, after 38.2)
 
-**When:** after 38.1, once Kyle has decided about merging `elevation-grid-run-split`. The round runs on whichever branch survives. Doing it before 38 would invalidate SPEC-38's line numbers.
+**When:** after 38.2, once Kyle has decided about merging `elevation-grid-run-split`. The round runs on whichever branch survives. Doing it before 38 would invalidate SPEC-38's line numbers.
 
 **What it promises:** **no behavior changes.** Every step leaves the suite green with the same test count or more, and the C1 snapshots unchanged. A step that needs a snapshot change is a bug in the step.
 
@@ -79,7 +79,7 @@ Expected: roughly 39% → about 16% now, and about 10% once round 38's spec and 
 
 | Step | What | Size guard |
 |---|---|---|
-| **C1** | **Golden rooms.** 6 sample rooms saved as JSON fixtures under `src/elevation/model/__tests__/fixtures/`: Euro kitchen with blind corner and island; face frame kitchen with beaded frame; alcove with side panels and soffit; T-filler run with L end panels; a recess room (38) with a recessed medicine cabinet (38.1); a stacked-run room with light rail. One test snapshots each room's derived output (layouts, part numbers, plan pieces, dimension rows). This is what proves every later step changed nothing. | new files only |
+| **C1** | **Golden rooms.** 6 sample rooms saved as JSON fixtures under `src/elevation/model/__tests__/fixtures/`: Euro kitchen with blind corner and island; face frame kitchen with beaded frame; alcove with side panels and soffit; T-filler run with L end panels; a recess room (38) with a recessed medicine cabinet (38.2); a stacked-run room with light rail. One test snapshots each room's derived output (layouts, part numbers, plan pieces, dimension rows). This is what proves every later step changed nothing. | new files only |
 | **C2** | **Split `elevationSlice.js`** into domain reducer modules under `store/slices/` (walls, openings, soffits, recesses, runs, cells, faces, selection, settings). `elevationSlice.js` stays as the combiner with the same exported actions, so no import outside `store/` changes. | ~1,800 lines; likely two steps (walls/openings/soffits/recesses, then runs/cells/faces) |
 | **C3** | **Split `elevationSlice.test.js`** (2,553 lines) to match C2, one test file per slice. Test count unchanged. | tests only |
 | **C4** | **Split `room.js`**: `syncRoom` stays as the orchestrator, and anchors/follow, corner and end resolution, and conflicts and diagnostics move into their own modules. `room.js` keeps re-exporting what it exports today. | ~1,740 lines |
@@ -109,8 +109,8 @@ How it maps, almost all onto existing pieces:
 | Piece of it | Built from |
 |---|---|
 | The cutout | An existing **opening** (doors already go through the wall) with a new treatment, `fill: 'cabinetry'`: no door, no swing in plan, and runs are allowed to cover it (`runBlocksOpening` skips it). |
-| Jamb panels, sides and top | Derived **lining parts** of that opening, from the back face to the front of the run over it. These are the same kind of part as 38.1's recess casing and lining, just deeper. |
-| Back-face edge panels or casing | The opening's casing setting, extended to the back face (openings only dimension and case on the front face today), with "by shop / by others" from 38.1 (a part only when it's ours). |
+| Jamb panels, sides and top | Derived **lining parts** of that opening, from the back face to the front of the run over it. These are the same kind of part as 38.2's recess casing and lining, just deeper. |
+| Back-face edge panels or casing | The opening's casing setting, extended to the back face (openings only dimension and case on the front face today), with "by shop / by others" from 38.2 (a part only when it's ours). |
 | Doors on the front | A normal run of cabinet cells, plus one new cell option: **faces without a box** (doors hung on the lining). This is the only new cell concept. |
 | Panels and fillers inside | **Freeform parts** (39.1) with `hidden: true`, placed by depth. Dimensioned in plan, and in elevation with a "show hidden parts" toggle. |
 | Catching what wasn't thought through | **AI layer**: doors with nothing to hinge on, hidden parts with no dimensions, lining that doesn't meet the cabinet front. |
@@ -130,6 +130,6 @@ Nothing about this needs to be AI-designed. It's geometry plus one new cell opti
 
 ## Open
 
-- Branch decision after 38.1 decides which code C1–C10 run on.
+- Branch decision after 38.2 decides which code C1–C10 run on.
 - Whether C7's placement half is worth it depends on how much 38's `recesses.js` duplicates `openings.js`. Measure it when writing SPEC-39.
 - Freeform part UI: draw on the elevation only, or also in plan? Assumed elevation first, with depth typed in.

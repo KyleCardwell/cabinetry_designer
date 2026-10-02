@@ -2,7 +2,7 @@
 
 This plan comes from the 2026-09-23 to 09-25 brainstorm on splitting runs vertically. Each round gets its own `SPEC-N.md` / `PROMPTS-N.md` when it's ready to run. It builds on `FACES-PLAN.md` and folds in the two amendments from `docs/platform/AI-LAYER-PLAN.md` §3 (size modes, auto sizes from siblings). Shop rules are cited by ID from `docs/rules/shop-rules.yaml`.
 
-**Branch:** all of rounds 32–38 run on `elevation-grid-run-split`, off `feature/elevation-mvp` at `9d2d166`. Nothing merges back until the whole thing has been tried (Kyle decides after round 38.1, recesses having moved ahead of combine); if it doesn't work the way Kyle wants, the branch is dropped and `feature/elevation-mvp` is untouched.
+**Branch:** all of rounds 32–38 run on `elevation-grid-run-split`, off `feature/elevation-mvp` at `9d2d166`. Nothing merges back until the whole thing has been tried (Kyle decides after round 38.2, recesses having moved ahead of combine); if it doesn't work the way Kyle wants, the branch is dropped and `feature/elevation-mvp` is untouched.
 
 Repo state when this was written: `feature/elevation-mvp` at `57adeb7` (step 155). Nothing is saved to a database yet, so the shape can change freely until PLATFORM-PLAN Phase 2.
 
@@ -177,8 +177,9 @@ The topmost cells are drawn. Lower cells with different seams can be dashed late
 | 37.3 — T numbering | A seam T's part number comes right after the cabinets it splits off. SPEC-37.3, step 266. | Euro T-filler runs |
 | 37.4 — Fixes | Selecting a door/window no longer crashes the elevation (the opening chain gets an empty counter-height row). The elevation's opening row becomes the wall row: doors, windows and wing walls at their thickness, with or without cabinets (Kyle, 2026-10-01). Plan: a selected run (opening, soffit, wall end panel) isn't a selected wall, and Delete deletes the run. SPEC-37.4, steps 267–269. | walls with wing walls; plan editing |
 | **38 — Recesses and projections** | Moved up from ALCOVE-PLAN (Kyle, 2026-10-01). A recess is a section of a wall face pushed back (or, as a projection, built out); runs, doors and windows sit on the face or on a recess, all in one elevation. Planes, recess anchors, the top as a soffit, conflicts by plan depth, warnings, wall rows, plan notch/bump-out; panel-only runs reserve only their thickness. SPEC-38, steps 270–279. | fireplace recesses, a door at the back of a recess, cabinets set in a recess |
-| 38.1 — Recessed cabinets and cutouts | Frame lap past the recess edge, end panels flush to the wall face, recess casing (ours or others'), panel cutouts with signed clearance, inset doors at 1/16". | the medicine cabinet through a side panel |
-| **39 — Combine and full grids** | Rows × columns splits, combine, flatten, spans in the solver, chains and neighbours. Was round 38. Kyle decides on merging the branch after 38.1. | the pinwheel |
+| 38.1 — Fixes | A recess full of cabinets is selected from its wall-row segment and outlined over the runs; Soffit, Recess, Door and Window move behind an Add menu; plan rows clear deep recess bump-outs, and raised deep recesses keep their bump-out; soffits anchored into a corner or wing wall show as returns on that wall's elevation; pin callouts for edge pins too (Kyle, 2026-10-02). SPEC-38.1, steps 280–283. | recess editing |
+| 38.2 — Recessed cabinets and cutouts | Frame lap past the recess edge, end panels flush to the wall face, recess casing (ours or others'), panel cutouts with signed clearance, inset doors at 1/16". | the medicine cabinet through a side panel |
+| **39 — Combine and full grids** | Rows × columns splits, combine, flatten, spans in the solver, chains and neighbours. Was round 38. Kyle decides on merging the branch after 38.2. | the pinwheel |
 
 Then AI-LAYER-PLAN Stages C–E (provenance, intent, the resolved snapshot). `purpose` and `notes` attach to cells.
 
