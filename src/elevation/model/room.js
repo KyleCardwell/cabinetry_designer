@@ -31,6 +31,8 @@ import { openingGeometry, runBlocksOpening } from './openings.js';
 import {
   recessAnchorDatum,
   recessCorner,
+  recessEdges,
+  recessEndType,
   recessesOn,
   recessWarnings,
   withRunPlane,
@@ -1382,6 +1384,10 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
         },
       ];
     }),
+    ...recessEdges(sideWall).map((edge) => ({
+      value: edge.value,
+      anchor: { to: 'recess', recessId: edge.recessId, edge: edge.edge, offset: 0 },
+    })),
   ];
 
   let edge = roundTo(newEdgeX, 0.5);
@@ -1426,6 +1432,8 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
         type: soffitEndType(sideWall, proposed, side, anchorsAtSnap, settings),
         width: null,
       };
+    } else if (anchorsAtSnap.to === 'recess') {
+      proposed.ends[side] = { type: recessEndType(sideWall, proposed, side), width: null };
     } else {
       const inside = cornerForRunSide(room, sideWall, proposed, side).type === 'inside';
       if (inside && proposed.ends[side].type !== 'blind') {
@@ -1506,6 +1514,7 @@ export function moveRun(room, wallId, runId, newX, settings) {
         .flatMap((run) => [run.x, run.x + run.width]),
       ...landingsOn(room, wallViewForRun(sourceWall, sourceRun))
         .flatMap((interval) => [interval.a, interval.b]),
+      ...recessEdges(wallViewForRun(sourceWall, sourceRun)).map((edge) => edge.value),
     ];
 
     let x = roundTo(newX, 0.5);
