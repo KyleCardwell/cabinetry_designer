@@ -8,6 +8,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import {
   cellPieces,
   pinTargetsForRun,
+  recessesOn,
   soffitsOn,
   splitRun,
   teeFillers,
@@ -26,6 +27,7 @@ import {
   setSelection,
 } from '../store/elevationSlice.js';
 import OpeningProperties from './properties/OpeningProperties.jsx';
+import RecessProperties from './properties/RecessProperties.jsx';
 import PieceProperties from './properties/PieceProperties.jsx';
 import RunProperties from './properties/RunProperties.jsx';
 import SoffitProperties from './properties/SoffitProperties.jsx';
@@ -57,6 +59,9 @@ export default function PropertiesPanel() {
   ) ?? null;
   const soffit = wall
     ? soffitsOn(wall).find((candidate) => candidate.id === selection.soffitId) ?? null
+    : null;
+  const recess = wall
+    ? recessesOn(wall).find((candidate) => candidate.id === selection.recessId) ?? null
     : null;
   const endPanel = wall && selection.endPanel
     ? wallEndPanels(room, wall, settings).find((candidate) => candidate.endpoint === selection.endPanel) ?? null
@@ -120,6 +125,10 @@ export default function PropertiesPanel() {
     if (selection.openingId && !opening) dispatch(clearSelection());
   }, [dispatch, opening, selection.openingId]);
 
+  useEffect(() => {
+    if (selection.recessId && !recess) dispatch(clearSelection());
+  }, [dispatch, recess, selection.recessId]);
+
   return (
     <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-700 bg-gray-800/50 p-4">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">
@@ -138,6 +147,8 @@ export default function PropertiesPanel() {
             settings={settings}
             placementMessage={message}
           />
+        ) : recess ? (
+          <RecessProperties wall={wall} recess={recess} placementMessage={message} />
         ) : soffit ? (
           <SoffitProperties
             room={room}

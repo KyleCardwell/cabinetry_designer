@@ -11,6 +11,7 @@ import {
   isJointAnchor,
   jointMembers,
   landingsOn,
+  recessesOn,
   runShortLabel,
   soffitsOn,
 } from '../../model/index.js';
@@ -67,6 +68,7 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
             const anchor = run.anchors[side];
             const openingAnchor = anchor?.to === 'opening' ? anchor : null;
             const soffitAnchor = anchor?.to === 'soffit' ? anchor : null;
+            const recessAnchor = anchor?.to === 'recess' ? anchor : null;
             const wallAnchor = anchor?.to === 'wall' ? anchor : null;
             const jointAnchor = isJointAnchor(anchor) ? anchor : null;
             const followAnchor = isFollowAnchor(anchor) ? anchor : null;
@@ -87,6 +89,8 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
               ? `opening:${openingAnchor.openingId}`
               : soffitAnchor
                 ? `soffit:${soffitAnchor.soffitId}`
+              : recessAnchor
+                ? `recess:${recessAnchor.recessId}:${recessAnchor.edge}`
               : wallAnchor
                 ? `wall:${wallAnchor.wallId}`
               : followAnchor
@@ -130,6 +134,15 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                             to: 'wall',
                             wallId: value.slice('wall:'.length),
                           },
+                        }));
+                        return;
+                      }
+                      if (value.startsWith('recess:')) {
+                        const [, recessId, edge] = value.split(':');
+                        dispatch(setRunAnchor({
+                          ...actionBase,
+                          side,
+                          anchor: { to: 'recess', recessId, edge, offset: 0 },
                         }));
                         return;
                       }
@@ -191,6 +204,13 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                           {`Soffit ${formatInches(soffit.x)}–${formatInches(soffit.x + soffit.width)}`}
                         </option>
                       ))}
+                    </optgroup>
+                    <optgroup label="Recess sides">
+                      {recessesOn(wall).flatMap((recess) => ['left', 'right'].map((edge) => (
+                        <option key={`${recess.id}:${edge}`} value={`recess:${recess.id}:${edge}`}>
+                          {`${recess.label} ${edge} side`}
+                        </option>
+                      )))}
                     </optgroup>
                     <optgroup label="Run edges">
                       {wall.runs.filter((candidate) => candidate.id !== run.id)
@@ -276,19 +296,19 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                       {anchorDescription}
                     </p>
                   </div>
-                ) : soffitAnchor ? (
+                ) : (soffitAnchor || recessAnchor) ? (
                   <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
                     <Field label="Offset">
                       <InchInput
-                        value={soffitAnchor.offset}
+                        value={(soffitAnchor ?? recessAnchor).offset}
                         allowBlank
                         placeholder="0"
                         onCommit={(value) => dispatch(setRunAnchor({
                           ...actionBase,
                           side,
-                          anchor: { ...soffitAnchor, offset: value ?? 0 },
+                          anchor: { ...(soffitAnchor ?? recessAnchor), offset: value ?? 0 },
                         }))}
-                        aria-label={`${side} soffit anchor offset`}
+                        aria-label={`${side} ${recessAnchor ? 'recess' : 'soffit'} anchor offset`}
                       />
                     </Field>
                     <p className="text-xs text-gray-500">

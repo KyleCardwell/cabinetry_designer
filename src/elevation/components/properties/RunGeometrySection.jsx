@@ -8,11 +8,12 @@ import {
   frontDepth,
   isJointAnchor,
   positionReadouts,
+  recessesOn,
   startFromReadout,
   stretchedStart,
 } from '../../model/index.js';
 import { formatRunOverhang } from '../../properties/helpers.js';
-import { resizeRun } from '../../store/elevationSlice.js';
+import { resizeRun, setRunRecess } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import StretchInput from './StretchInput.jsx';
@@ -93,6 +94,28 @@ export default function RunGeometrySection({
               aria-label="Run outset"
             />
           </Field>
+          {(recessesOn(wall).length > 0 || run.recessId) && (
+            <div className="col-span-2">
+              <Field label="Sits on">
+                <select
+                  value={run.recessId ?? ''}
+                  onChange={(event) => dispatch(setRunRecess({
+                    ...actionBase,
+                    recessId: event.target.value || null,
+                  }))}
+                  aria-label="Run plane"
+                  className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="">Wall face</option>
+                  {recessesOn(wall).map((recess) => (
+                    <option key={recess.id} value={recess.id}>
+                      {`${recess.label} ${recess.kind === 'projection' ? 'face' : 'back'}`}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          )}
         </div>
         <div className="mt-3 grid grid-cols-[auto_1fr_1fr] items-end gap-2">
           <span />

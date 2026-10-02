@@ -6,10 +6,13 @@ const ERROR_MESSAGES = {
   'pin-gap': 'The space between pinned cabinets is not filled.',
   'no-room-for-box': 'The height profile leaves no room for this cabinet box.',
   'anchor-opening-missing': 'The anchored opening no longer exists.',
+  'anchor-recess-missing': 'The anchored recess no longer exists.',
   'anchor-opening-overlap': 'The run anchor datums cross.',
 };
 
 const WARNING_MESSAGES = {
+  'recess-overflow': 'Runs past its recess. Keep it inside, or set it on the wall face.',
+  'projection-conflict': 'Runs into a projection. Set it on the projection, or out past its face.',
   'mixed-counter-heights': 'The runs below this one have different top heights.',
   'crown-above-ceiling': 'The crown profile extends above the wall height.',
   'soffit-conflict': "Runs into a soffit — anchor it to the soffit's side or split it.",
