@@ -256,7 +256,7 @@ export default function DimensionRow({
           };
 
         return (
-          <Group key={`${segment.kind}:${segment.start}:${segment.end}`}>
+          <Group key={`${index}:${segment.kind}:${segment.start}:${segment.end}`}>
             <Line
               points={[start.x, start.y, end.x, end.y]}
               stroke={color}

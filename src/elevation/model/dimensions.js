@@ -20,7 +20,7 @@ import {
 } from './room.js';
 import { soffitsOn } from './soffits.js';
 import { splitRun } from './splitRun.js';
-import { stackOf } from './stacks.js';
+import { stackLeaders, stackOf } from './stacks.js';
 import { teeFillers } from './tees.js';
 import { isCountertop, runTop } from './tops.js';
 
@@ -64,6 +64,10 @@ function appendGap(segments, start, end, kind, tallRanges) {
   }
 }
 
+/**
+ * The runs a band's horizontal chains measure, left to right. A run stacked on or under another run
+ * in the same band is left out: its stack's vertical chain measures it (SPEC-38.5).
+ */
 function runsForBand(wall, band) {
   const matches = band === 'lower'
     ? (run) => (
@@ -71,7 +75,11 @@ function runsForBand(wall, band) {
       || run.cabinetTypeId === CABINET_TYPE_IDS.TALL
     )
     : (run) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
-  return wall.runs.filter(matches).sort((a, b) => a.x - b.x);
+  const inBand = wall.runs.filter(matches);
+  const ids = new Set(inBand.map((run) => run.id));
+  return inBand
+    .filter((run) => !stackLeaders(run).some((id) => ids.has(id)))
+    .sort((a, b) => a.x - b.x);
 }
 
 function neighborSegments(room, wall, band, settings) {

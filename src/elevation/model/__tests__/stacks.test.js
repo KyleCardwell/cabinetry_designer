@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { pickColumnRuns, verticalChains } from '../dimensions.js';
+import { horizontalChains, pickColumnRuns, verticalChains } from '../dimensions.js';
 import { resolveProfile } from '../profile.js';
 import { createRun } from '../runDefaults.js';
 import {
@@ -194,5 +194,30 @@ describe('SPEC-35.1 drawing into a stack gap', () => {
     expect(loose).toMatchObject({ heightMode: 'manual', z: 41, height: 6 });
     const placed = tryPlaceRun(room, 'A', loose, S);
     expect(joinTouchingStack(placed.room, 'A', loose.id, S).joined).toEqual([]);
+  });
+});
+
+describe('SPEC-38.5 stacked runs in the horizontal chains', () => {
+  const runIds = (chain) => chain.filter((segment) => segment.kind === 'run').map((segment) => segment.runId);
+  const ranges = (chain) => chain.map((segment) => `${segment.start}:${segment.end}`);
+
+  it('measures only the bottom run of a stack in each band', () => {
+    const room = syncRoom(budgeted(), S);
+    const wall = room.walls[0];
+    const upperChains = horizontalChains(room, wall, 'upper', S);
+    expect(runIds(upperChains.outer)).toEqual(['U']);
+    expect(upperChains.inner.some((segment) => segment.runId === 'M')).toBe(false);
+    expect(runIds(horizontalChains(room, wall, 'lower', S).outer)).toEqual(['B']);
+  });
+
+  it('leaves no overlapping run segments for a base stacked on a base', () => {
+    const top = makeRun('T', BASE, {
+      heightMode: 'manual', z: 36, height: 12, stack: { below: link('B'), above: null },
+    });
+    const room = syncRoom(rawRoom([base(), top]), S);
+    const { inner, outer } = horizontalChains(room, room.walls[0], 'lower', S);
+    expect(runIds(outer)).toEqual(['B']);
+    expect(new Set(ranges(outer)).size).toBe(outer.length);
+    expect(inner.some((segment) => segment.runId === 'T')).toBe(false);
   });
 });
