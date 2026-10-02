@@ -162,6 +162,7 @@ export function createInitialElevationState(document = loadElevationDocument()) 
       pieceId: null,
       openingId: null,
       soffitId: null,
+      recessId: null,
       wallId: document?.view === 'elevation' ? activeWallId : null,
     },
     facePath: null,
@@ -291,6 +292,7 @@ function clearTransientSelection(state) {
     pieceId: null,
     openingId: null,
     soffitId: null,
+    recessId: null,
     wallId: state.view === 'elevation' ? state.activeWallId : null,
   };
   state.facePath = null;
@@ -705,6 +707,7 @@ const elevationSlice = createSlice({
         pieceId: null,
         openingId: null,
         soffitId: candidate.id,
+        recessId: null,
         wallId: state.selection.wallId ?? null,
       };
       state.activeWallSide = wallSideOf(candidate);
@@ -1353,6 +1356,8 @@ const elevationSlice = createSlice({
           runId: location.run.id,
           pieceId: null,
           openingId: null,
+          soffitId: null,
+          recessId: null,
           wallId: state.selection.wallId,
         };
         state.facePath = null;
@@ -1383,7 +1388,7 @@ const elevationSlice = createSlice({
       if (atRoot) location.run.autoCount = false;
       if (state.selection.pieceId === cellId) {
         state.selection = {
-          runId: location.run.id, pieceId: null, openingId: null, soffitId: null,
+          runId: location.run.id, pieceId: null, openingId: null, soffitId: null, recessId: null,
           wallId: state.selection.wallId,
         };
         state.facePath = null;
@@ -1634,9 +1639,11 @@ const elevationSlice = createSlice({
     },
     setSelection(state, action) {
       const openingId = action.payload.openingId ?? null;
-      const soffitId = openingId ? null : action.payload.soffitId ?? null;
-      const runId = openingId || soffitId ? null : action.payload.runId ?? null;
-      const endPanel = openingId || soffitId || runId || !['start', 'end'].includes(action.payload.endPanel)
+      const recessId = openingId ? null : action.payload.recessId ?? null;
+      const soffitId = openingId || recessId ? null : action.payload.soffitId ?? null;
+      const runId = openingId || recessId || soffitId ? null : action.payload.runId ?? null;
+      const endPanel = openingId || recessId || soffitId || runId
+        || !['start', 'end'].includes(action.payload.endPanel)
         ? null
         : action.payload.endPanel;
       state.selection = {
@@ -1644,6 +1651,7 @@ const elevationSlice = createSlice({
         pieceId: runId ? action.payload.pieceId ?? null : null,
         openingId,
         soffitId,
+        recessId,
         wallId: state.selection.wallId ?? null,
         ...(endPanel ? { endPanel } : {}),
       };
@@ -1652,6 +1660,11 @@ const elevationSlice = createSlice({
           .flatMap((wall) => wall.runs)
           .find((run) => run.id === runId);
         if (selectedRun) state.activeWallSide = wallSideOf(selectedRun);
+      } else if (recessId) {
+        const selectedRecess = roomFor(state)?.walls
+          .flatMap((wall) => wall.recesses ?? [])
+          .find((recess) => recess.id === recessId);
+        if (selectedRecess) state.activeWallSide = wallSideOf(selectedRecess);
       } else if (soffitId) {
         const selectedSoffit = roomFor(state)?.walls
           .flatMap((wall) => wall.soffits ?? [])
