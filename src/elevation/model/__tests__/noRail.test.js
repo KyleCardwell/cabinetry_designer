@@ -61,39 +61,39 @@ const INSET = { cabinetStyleId: 14 };
 describe('SPEC-36.3 no rail between', () => {
   it('shares one opening across every seam of a square inset stack, with no gap', () => {
     expect(shown(layouts(INSET, stack()).faces)).toEqual([
-      ['r.0', undefined, 25.5, 24.83333, 21.75, 8.16667],
-      ['r.1', undefined, 25.5, 15.16667, 21.75, 8.16667],
-      ['r.2', undefined, 25.5, 5.5, 21.75, 8.16667],
+      ['r.0', undefined, 24.75, 24.83333, 22.5, 8.16667],
+      ['r.1', undefined, 24.75, 15.16667, 22.5, 8.16667],
+      ['r.2', undefined, 24.75, 5.5, 22.5, 8.16667],
     ]);
     const { faces, openings } = layouts(INSET, stack([0, 1]));
     expect(shown(faces)).toEqual([
-      ['r.0', 'r.0', 25.5, 23.83333, 21.75, 9.16667],
-      ['r.1', 'r.0', 25.5, 14.66667, 21.75, 9.16667],
-      ['r.2', 'r.0', 25.5, 5.5, 21.75, 9.16667],
+      ['r.0', 'r.0', 24.75, 23.83333, 22.5, 9.16667],
+      ['r.1', 'r.0', 24.75, 14.66667, 22.5, 9.16667],
+      ['r.2', 'r.0', 24.75, 5.5, 22.5, 9.16667],
     ]);
     expect(openings.map(({
       path, x, z, width, height,
     }) => [path, round(x), round(z), round(width), round(height)])).toEqual([
-      ['r.0', 25.5, 5.5, 21.75, 27.5],
-      ['r', 48.75, 5.5, 21.75, 27.5],
+      ['r.0', 24.75, 5.5, 22.5, 27.5],
+      ['r', 48.75, 5.5, 22.5, 27.5],
     ]);
   });
 
   it('fits a profiled opening once and leaves 1/16" between its faces', () => {
     const { faces } = layouts({ cabinetStyleId: 14, profiledEdge: true }, stack([0, 1]));
     expect(shown(faces)).toEqual([
-      ['r.0', 'r.0', 25.59375, 23.84375, 21.5625, 9.0625],
-      ['r.1', 'r.0', 25.59375, 14.71875, 21.5625, 9.0625],
-      ['r.2', 'r.0', 25.59375, 5.59375, 21.5625, 9.0625],
+      ['r.0', 'r.0', 24.84375, 23.84375, 22.3125, 9.0625],
+      ['r.1', 'r.0', 24.84375, 14.71875, 22.3125, 9.0625],
+      ['r.2', 'r.0', 24.84375, 5.59375, 22.3125, 9.0625],
     ]);
   });
 
   it('can cut any one seam: the bottom two fronts share, the top keeps its rail', () => {
     const { faces, region, openings } = layouts(INSET, stack([1]));
     expect(shown(faces)).toEqual([
-      ['r.0', undefined, 25.5, 24.33333, 21.75, 8.66667],
-      ['r.1', 'r.1', 25.5, 14.16667, 21.75, 8.66667],
-      ['r.2', 'r.1', 25.5, 5.5, 21.75, 8.66667],
+      ['r.0', undefined, 24.75, 24.33333, 22.5, 8.66667],
+      ['r.1', 'r.1', 24.75, 14.16667, 22.5, 8.66667],
+      ['r.2', 'r.1', 24.75, 5.5, 22.5, 8.66667],
     ]);
     // Cabinet a: top, bottom and one rail between the top front and the pair; cabinet b: top and bottom.
     expect(counts(region, openings)).toEqual([['stile', 3], ['rail', 5]]);
@@ -106,10 +106,10 @@ describe('SPEC-36.3 no rail between', () => {
   it('can make two groups in one stack, each sharing an opening, with a rail between them', () => {
     const { faces, region, openings } = layouts(INSET, stack([0, 2], 4));
     expect(shown(faces)).toEqual([
-      ['r.0', 'r.0', 25.5, 26.5, 21.75, 6.5],
-      ['r.1', 'r.0', 25.5, 20, 21.75, 6.5],
-      ['r.2', 'r.2', 25.5, 12, 21.75, 6.5],
-      ['r.3', 'r.2', 25.5, 5.5, 21.75, 6.5],
+      ['r.0', 'r.0', 24.75, 26.5, 22.5, 6.5],
+      ['r.1', 'r.0', 24.75, 20, 22.5, 6.5],
+      ['r.2', 'r.2', 24.75, 12, 22.5, 6.5],
+      ['r.3', 'r.2', 24.75, 5.5, 22.5, 6.5],
     ]);
     expect(counts(region, openings)).toEqual([['stile', 3], ['rail', 5]]);
     expect(frameVerticalChains(region, openings).map((chain) => chain.tracks.length)).toEqual([5, 3]);
@@ -120,9 +120,9 @@ describe('SPEC-36.3 no rail between', () => {
     const sideBySide = { direction: 'horizontal', size: null, children: [door, door, door], noRail: [0] };
     const { faces, region, openings } = layouts(INSET, sideBySide);
     expect(shown(faces)).toEqual([
-      ['r.0', 'r.0', 25.5, 5.5, 6.75, 27.5],
-      ['r.1', 'r.0', 32.25, 5.5, 6.75, 27.5],
-      ['r.2', undefined, 40.5, 5.5, 6.75, 27.5],
+      ['r.0', 'r.0', 24.75, 5.5, 7, 27.5],
+      ['r.1', 'r.0', 31.75, 5.5, 7, 27.5],
+      ['r.2', undefined, 40.25, 5.5, 7, 27.5],
     ]);
     // Cabinet a's second and third doors keep a mullion between them (4 stiles in all); rails follow the openings.
     expect(counts(region, openings)).toEqual([['stile', 4], ['rail', 6]]);

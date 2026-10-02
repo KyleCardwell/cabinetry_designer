@@ -41,12 +41,12 @@ function framed(run, style = INSET) {
 }
 
 describe('SPEC-36.2 box widths', () => {
-  it('makes a framed box its slot less the stile overhang at each free side', () => {
+  it('keeps framed boxes at full slot width on run-end sides', () => {
     const { cells, frames } = framed(baseRun());
     expect(cells.pieces.map(({ id, width }) => [id, width])).toEqual([['a', 24], ['b', 24]]);
     const insets = boxInsets(frames, cells, S);
-    expect(insets.get('a')).toEqual({ left: 0.75, right: 0 });
-    expect(insets.get('b')).toEqual({ left: 0, right: 0.75 });
+    expect(insets.get('a')).toEqual({ left: 0, right: 0 });
+    expect(insets.get('b')).toEqual({ left: 0, right: 0 });
     expect(boxInsets(framed(baseRun(), null).frames, cells, S).size).toBe(0);
 
     const split = framed(baseRun({
@@ -67,8 +67,21 @@ describe('SPEC-36.2 box widths', () => {
     }));
     const stacked = boxInsets(split.frames, split.cells, S);
     expect(['t', 'u', 's', 'b'].map((id) => stacked.get(id))).toEqual([
-      { left: 0.75, right: 0 }, { left: 0.75, right: 0 }, { left: 0.75, right: 0 }, { left: 0, right: 0.75 },
+      { left: 0, right: 0 }, { left: 0, right: 0 }, undefined, { left: 0, right: 0 },
     ]);
+
+    // End-gap reach must not join boxes across an interior void: those free sides still inset.
+    const interior = framed(baseRun({
+      _frame: { thickness: 0.8125, drop: 0, bead: 0 },
+      grid: gridFromItems('r', [
+        { id: 'a', kind: 'cabinet', width: null },
+        { id: 'v', kind: 'void', width: 1 },
+        { id: 'b', kind: 'cabinet', width: null },
+      ]),
+    }));
+    const interiorInsets = boxInsets(interior.frames, interior.cells, S);
+    expect(interiorInsets.get('a')).toEqual({ left: 0, right: 0.75 });
+    expect(interiorInsets.get('b')).toEqual({ left: 0.75, right: 0 });
   });
 });
 

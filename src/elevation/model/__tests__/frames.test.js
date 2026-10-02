@@ -41,20 +41,20 @@ function framesOf(run, style = INSET) {
 }
 
 describe('SPEC-36 frame regions', () => {
-  it('frames two inset cabinets: the stiles overhang the free ends and the boxes narrow', () => {
+  it('frames two inset cabinets: run-end sides are not free and the boxes keep their full width', () => {
     const { frames, faces } = framesOf(baseRun());
     expect(frames.regions).toEqual([{
       id: 'frame:a', x: 24, z: 4, width: 36, height: 30.5, cabinetIds: ['a', 'b'], fillerIds: [], panelIds: [],
     }]);
-    expect(frames.freeSides.get('a')).toEqual({ left: true, right: false });
-    expect(frames.freeSides.get('b')).toEqual({ left: false, right: true });
+    expect(frames.freeSides.get('a')).toEqual({ left: false, right: false });
+    expect(frames.freeSides.get('b')).toEqual({ left: false, right: false });
     expect(frames.warnings).toEqual([]);
 
     const a = faces.get('a');
-    expect([a.box.x, a.box.width]).toEqual([24.75, 17.25]);
-    expect(a.faces).toEqual([{ path: 'r', type: 'door', x: 25.5, z: 5.5, width: 15.75, height: 27.5 }]);
-    expect(a.openings).toEqual([{ path: 'r', x: 25.5, z: 5.5, width: 15.75, height: 27.5 }]);
-    expect(faces.get('b').openings).toEqual([{ path: 'r', x: 42.75, z: 5.5, width: 15.75, height: 27.5 }]);
+    expect([a.box.x, a.box.width]).toEqual([24, 18]);
+    expect(a.faces).toEqual([{ path: 'r', type: 'door', x: 24.75, z: 5.5, width: 16.5, height: 27.5 }]);
+    expect(a.openings).toEqual([{ path: 'r', x: 24.75, z: 5.5, width: 16.5, height: 27.5 }]);
+    expect(faces.get('b').openings).toEqual([{ path: 'r', x: 42.75, z: 5.5, width: 16.5, height: 27.5 }]);
 
     expect(framesOf(baseRun(), null).frames.regions).toEqual([]);
   });
@@ -100,7 +100,7 @@ describe('SPEC-36 frame regions', () => {
     expect(frames.regions).toEqual([{
       id: 'frame:t', x: 24, z: 53.25, width: 36, height: 30.75, cabinetIds: ['t', 'b'], fillerIds: [], panelIds: [],
     }]);
-    expect(frames.freeSides.get('t')).toEqual({ left: true, right: false });
+    expect(frames.freeSides.get('t')).toEqual({ left: false, right: false });
     expect(frames.warnings.map(({ code, pieceId }) => [code, pieceId])).toEqual([['frame-not-rectangle', 't']]);
   });
 });

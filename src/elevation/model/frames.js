@@ -74,6 +74,12 @@ export function frameRegions(room, run, cells, settings) {
     && isInsetStyle(resolveStyle(settings, room, run, pieceItem(run, piece))));
   if (cabinets.length === 0) return { regions, fillerIds, freeSides, seamSides, warnings };
 
+  // SPEC-38.3: cells.gaps only records gaps between pieces; plain ends also have an end gap.
+  // Include those gaps so a mitered wall end panel can reach the outermost box too.
+  const runBounds = boundsOf(pieces);
+  const wallReach = Math.max(reach, runBounds.x - run.x,
+    run.x + run.width - runBounds.x - runBounds.width);
+
   const members = [...cabinets, ...pieces.filter((piece) => piece.kind === 'filler')];
   const parent = new Map(members.map((piece) => [piece.id, piece.id]));
   const root = (id) => (parent.get(id) === id ? id : root(parent.get(id)));
@@ -128,13 +134,34 @@ export function frameRegions(room, run, cells, settings) {
     const covered = [];
     for (const panel of panels) {
       if (!overlaps(panel.z, panel.z + panel.height, bounds.z, bounds.z + bounds.height)) continue;
-      const before = Math.abs(panel.x + panel.width - bounds.x) <= EPSILON;
-      if (!before && Math.abs(panel.x - bounds.x - bounds.width) > EPSILON) continue;
+      // SPEC-38.3: a panel within the run's gap reach (the bead gap, plus any stile leftover) joins too.
+      const gapBefore = bounds.x - (panel.x + panel.width);
+      const gapAfter = panel.x - (bounds.x + bounds.width);
+      const panelReach = panel.edge ? wallReach : reach;
+      const before = gapBefore >= -EPSILON && gapBefore <= panelReach + EPSILON;
+      const after = gapAfter >= -EPSILON && gapAfter <= panelReach + EPSILON;
+      if (!before && !after) continue;
       if (before) region.x = panel.x;
-      region.width += panel.width;
+      region.width += panel.width + Math.max(0, before ? gapBefore : gapAfter);
       covered.push(panel);
       if (panel.edge) (region.wallPanels ??= []).push({ side: panel.edge, x: panel.x, width: panel.width });
       else region.panelIds.push(panel.id);
+    }
+
+    // SPEC-38.3: at a run end with no panel, the frame runs out to the run's edge, over the bead gap
+    // and any stile leftover, when nothing of the run sits between.
+    const runRight = run.x + run.width;
+    const leftClear = !covered.some((panel) => panel.x < bounds.x)
+      && !pieces.some((piece) => piece.x >= run.x - EPSILON && piece.x + piece.width <= bounds.x + EPSILON);
+    if (leftClear && bounds.x - run.x > EPSILON) {
+      region.width += region.x - run.x;
+      region.x = run.x;
+    }
+    const rightClear = !covered.some((panel) => panel.x > bounds.x)
+      && !pieces.some((piece) => piece.x >= bounds.x + bounds.width - EPSILON
+        && piece.x + piece.width <= runRight + EPSILON);
+    if (rightClear && runRight - (region.x + region.width) > EPSILON) {
+      region.width = runRight - region.x;
     }
     const drop = frameDrop(run, settings);
     if (drop > 0 && Math.abs(bounds.z - run.z) <= EPSILON) {
@@ -145,10 +172,19 @@ export function frameRegions(room, run, cells, settings) {
     for (const id of region.fillerIds) fillerIds.add(id);
 
     const covering = [...group, ...covered];
+    const atRunEnd = {
+      left: (box) => leftClear && Math.abs(box.x - bounds.x) <= EPSILON,
+      right: (box) => rightClear && Math.abs(box.x + box.width - bounds.x - bounds.width) <= EPSILON,
+    };
     for (const box of boxes) {
-      const beside = (side) => covering.some((other) => other !== box && sideOf(box, other, reach) === side);
+      const beside = (side) => covering.some((other) => other !== box
+        && sideOf(box, other, other.edge ? wallReach : reach) === side);
       const besideCabinet = (side) => boxes.some((other) => other !== box && sideOf(box, other, reach) === side);
-      freeSides.set(box.id, { left: !beside('left'), right: !beside('right') });
+      // SPEC-38.3: a run end's overhang is in its end gap, so the box there isn't narrowed.
+      freeSides.set(box.id, {
+        left: !beside('left') && !atRunEnd.left(box),
+        right: !beside('right') && !atRunEnd.right(box),
+      });
       seamSides.set(box.id, { left: besideCabinet('left'), right: besideCabinet('right') });
     }
   }

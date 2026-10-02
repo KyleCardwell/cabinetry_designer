@@ -791,11 +791,11 @@ describe('SPEC-36 opening dimensions', () => {
     const inset = { ...roomR({ wallA: { runs: [F] } }), style: { cabinetStyleId: 14 } };
     expect(horizontalChains(inset, wallOf(inset), 'lower', DEFAULT_SETTINGS).inner).toEqual([
       { start: 0, end: 24, kind: 'open' },
-      { start: 24, end: 25.5, kind: 'frame', runId: 'F' },
-      { start: 25.5, end: 41.25, kind: 'frame-opening', runId: 'F', pieceId: 'a' },
+      { start: 24, end: 24.75, kind: 'frame', runId: 'F' },
+      { start: 24.75, end: 41.25, kind: 'frame-opening', runId: 'F', pieceId: 'a' },
       { start: 41.25, end: 42.75, kind: 'frame', runId: 'F' },
-      { start: 42.75, end: 58.5, kind: 'frame-opening', runId: 'F', pieceId: 'b' },
-      { start: 58.5, end: 60, kind: 'frame', runId: 'F' },
+      { start: 42.75, end: 59.25, kind: 'frame-opening', runId: 'F', pieceId: 'b' },
+      { start: 59.25, end: 60, kind: 'frame', runId: 'F' },
       { start: 60, end: 120, kind: 'open' },
     ]);
 

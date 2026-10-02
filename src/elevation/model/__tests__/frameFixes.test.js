@@ -102,8 +102,7 @@ describe('SPEC-36.1 depth, clearance and corners', () => {
 });
 
 describe('SPEC-36.1 plan pieces', () => {
-  // SPEC-38.3 step 285
-  it.skip('draws a frame strip mitered into its end panel, with no filler', () => {
+  it('draws a frame strip mitered into its end panel, with no filler', () => {
     const run = makeRun({
       _frame: FRAME,
       ends: { left: { type: 'end_panel', width: null }, right: { type: 'filler', width: 2 } },
@@ -114,7 +113,7 @@ describe('SPEC-36.1 plan pieces', () => {
     const layout = layoutRun(room, wall, run, S);
     const plan = planRunPieces(room, wall, run, S, layout, runFaceLayouts(room, wall, run, S, layout));
     expect(plan.boxes.map(({ key, start, end, back, front }) => [key, start, end, back, front]))
-      .toEqual([['a', 24.75, 42.75, 0, 24], ['b', 42.75, 62, 0, 24]]);
+      .toEqual([['a', 24.875, 42.875, 0, 24], ['b', 42.875, 61.875, 0, 24]]);
     expect(plan.faces).toEqual([
       {
         key: 'r:left', kind: 'end_panel', start: 24, end: 24.75, back: 0, front: 24.8125,
