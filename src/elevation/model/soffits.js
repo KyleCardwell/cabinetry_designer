@@ -52,7 +52,17 @@ export function soffitOverRun(wall, run) {
   if (run.cabinetTypeId !== CABINET_TYPE_IDS.UPPER
     && run.cabinetTypeId !== CABINET_TYPE_IDS.TALL) return null;
   const runRight = run.x + run.width;
-  return soffitsOn(wall, wallSideOf(run))
+  // A recess top below the ceiling acts like a soffit for the runs on it (SPEC-38).
+  const recessTop = run._plane && run._plane.top < wall.height - SPAN_EPSILON
+    ? [{
+        id: run._plane.recessId,
+        x: run._plane.x,
+        width: run._plane.width,
+        bottom: run._plane.top,
+        molding: run._plane.molding,
+      }]
+    : [];
+  return [...soffitsOn(wall, wallSideOf(run)), ...recessTop]
     .filter((soffit) => (
       Math.min(runRight, soffit.x + soffit.width) - Math.max(run.x, soffit.x)
         > SPAN_EPSILON

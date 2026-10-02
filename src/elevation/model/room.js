@@ -29,6 +29,13 @@ import {
 import { landingsOn, resolveLandings } from './landings.js';
 import { openingGeometry, runBlocksOpening } from './openings.js';
 import {
+  recessAnchorDatum,
+  recessCorner,
+  recessesOn,
+  recessWarnings,
+  withRunPlane,
+} from './recesses.js';
+import {
   dot,
   subtract,
   wallFrame,
@@ -187,6 +194,20 @@ export function compensateRuns(oldRoom, newRoom) {
   };
 }
 
+/**
+ * The corner a run side meets, and whether the side is anchored into it: a wall end, a wing wall, or the
+ * side of a recess or projection (SPEC-38), which is always square.
+ */
+function runSideCorner(room, wall, run, side) {
+  const recess = recessCorner(wall, run, side);
+  if (recess) return { type: recess.type, angle: recess.angle, anchored: true };
+  const anchor = run.anchors?.[side];
+  return {
+    ...cornerForRunSide(room, wall, run, side),
+    anchored: anchor === true || anchor?.to === 'wall',
+  };
+}
+
 /** Return per-side flex-filler minimums for a run in its room context. */
 export function endMinWidthsForRun(room, wall, run, settings) {
   wall = wallViewForRun(wall, run);
@@ -199,11 +220,10 @@ export function endMinWidthsForRun(room, wall, run, settings) {
     ? settings.teeCover
     : 0);
   return Object.fromEntries(['left', 'right'].map((side) => {
-    const corner = cornerForRunSide(room, wall, run, side);
+    const corner = runSideCorner(room, wall, run, side);
     return [
       side,
-      (run.anchors?.[side] === true || run.anchors?.[side]?.to === 'wall')
-        && corner.type === 'inside'
+      corner.anchored && corner.type === 'inside'
         ? Math.max(0, cornerFillerMin(settings, corner.angle) - frameReveal - teeCover(side))
         : settings.fillerMinWidth,
     ];
@@ -214,12 +234,8 @@ export function endMinWidthsForRun(room, wall, run, settings) {
 export function endCornerAnglesForRun(room, wall, run) {
   wall = wallViewForRun(wall, run);
   return Object.fromEntries(['left', 'right'].map((side) => {
-    const corner = cornerForRunSide(room, wall, run, side);
-    return [
-      side,
-      (run.anchors?.[side] === true || run.anchors?.[side]?.to === 'wall')
-        && corner.type === 'inside' ? corner.angle : undefined,
-    ];
+    const corner = runSideCorner(room, wall, run, side);
+    return [side, corner.anchored && corner.type === 'inside' ? corner.angle : undefined];
   }));
 }
 
@@ -260,6 +276,12 @@ export function resolveRunAnchorDatum(room, wall, run, side, settings) {
     return x === null
       ? { error: { code: 'anchor-soffit-missing', side } }
       : { x, type: 'soffit', soffitId: anchor.soffitId };
+  }
+  if (anchor?.to === 'recess') {
+    const x = recessAnchorDatum(wall, anchor, side);
+    return x === null
+      ? { error: { code: 'anchor-recess-missing', side } }
+      : { x, type: 'recess', recessId: anchor.recessId };
   }
   if (anchor?.to === 'wall') {
     const interval = landingsOn(room, wall).find((entry) => entry.wallId === anchor.wallId);
@@ -331,6 +353,15 @@ export function describeAnchor(room, wall, run, side, settings) {
       ? `${formatInches(offset)} gap`
       : offset < 0 ? `${formatInches(Math.abs(offset))} past` : 'flush';
     return `Against soffit · ${relation}`;
+  }
+  if (anchor?.to === 'recess') {
+    const recess = recessesOn(wall).find((candidate) => candidate.id === anchor.recessId);
+    if (!recess) return 'Anchored recess is missing';
+    const offset = anchor.offset ?? 0;
+    const relation = offset > 0
+      ? `${formatInches(offset)} gap`
+      : offset < 0 ? `${formatInches(Math.abs(offset))} past` : 'flush';
+    return `${recess.label} ${anchor.edge} side · ${relation}`;
   }
   if (anchor?.to === 'wall') {
     const anchoredWall = room.walls.find((candidate) => candidate.id === anchor.wallId);
@@ -641,7 +672,10 @@ export function syncRoom(room, settings) {
   nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(wall))));
   nextRoom.walls = nextRoom.walls.map((wall) => ({
     ...wall,
-    runs: wall.runs.map((run) => withFrame(nextRoom, withSeamGap(nextRoom, run, settings), settings)),
+    runs: wall.runs.map((run) => withRunPlane(
+      wall,
+      withFrame(nextRoom, withSeamGap(nextRoom, run, settings), settings),
+    )),
   }));
 
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
@@ -823,6 +857,7 @@ export function roomDiagnostics(room, settings) {
           ...blockedOpenings,
           ...casingClearanceWarnings(run, wall, length, settings),
           ...soffitConflicts(wall, run),
+          ...recessWarnings(wall, run),
         ],
         errors: [
           ...layout.errors,
@@ -1682,10 +1717,10 @@ export function moveRun(room, wallId, runId, newX, settings) {
   };
 }
 
-function flipFollow(anchor) {
-  return isFollowAnchor(anchor)
-    ? { ...anchor, side: anchor.side === 'left' ? 'right' : 'left' }
-    : anchor;
+function flipAnchor(anchor) {
+  if (isFollowAnchor(anchor)) return { ...anchor, side: anchor.side === 'left' ? 'right' : 'left' };
+  if (anchor?.to === 'recess') return { ...anchor, edge: anchor.edge === 'left' ? 'right' : 'left' };
+  return anchor;
 }
 
 /** Mirror a wall's elevation-facing state and stored run intent. */
@@ -1702,7 +1737,7 @@ export function flipRunsForWall(wall) {
       ...run,
       x: length - run.x - run.width,
       ends: { left: { ...run.ends.right }, right: { ...run.ends.left } },
-      anchors: { left: flipFollow(run.anchors.right), right: flipFollow(run.anchors.left) },
+      anchors: { left: flipAnchor(run.anchors.right), right: flipAnchor(run.anchors.left) },
       ...(run.cornerClearance
         ? {
             cornerClearance: {
@@ -1730,6 +1765,14 @@ export function flipRunsForWall(wall) {
       offsetFrom: opening.offsetFrom === 'left' ? 'right' : 'left',
       casing: opening.casing ? { ...opening.casing } : null,
     })),
+    ...(wall.recesses
+      ? {
+          recesses: wall.recesses.map((recess) => ({
+            ...recess,
+            offsetFrom: recess.offsetFrom === 'left' ? 'right' : 'left',
+          })),
+        }
+      : {}),
   };
 }
 
