@@ -105,7 +105,9 @@ export default function PlanRunFootprint({
     layout,
     faceLayouts,
   );
-  const depth = frontDepth(run, settings);
+  // From the plane the run sits on (SPEC-38): the wall face, or a recess back.
+  const planeBack = run._plane?.offset ?? 0;
+  const depth = frontDepth(run, settings) - planeBack;
   const upper = run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
   const color = CABINET_TYPE_COLORS[run.cabinetTypeId] ?? KIND_COLORS.cabinet;
   const outline = collision ? '#ef4444' : selected ? '#f8fafc' : color;
@@ -114,9 +116,9 @@ export default function PlanRunFootprint({
   const depthText = formatInches(depth);
   const depthTextWidth = (depthText.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
   const dim = depthDimension(run, depth, scale);
-  const dimensionBack = elevationToPlan(frame, dim.x, 0);
-  const dimensionFront = elevationToPlan(frame, dim.x, depth);
-  const depthLabelLocation = elevationToPlan(frame, dim.label.x, dim.label.offset);
+  const dimensionBack = elevationToPlan(frame, dim.x, planeBack);
+  const dimensionFront = elevationToPlan(frame, dim.x, planeBack + depth);
+  const depthLabelLocation = elevationToPlan(frame, dim.label.x, planeBack + dim.label.offset);
   const tickHalf = DEPTH_TICK_HALF_LENGTH / scale;
   const tickDirection = {
     x: (frame.n.x + frame.r.x) / Math.SQRT2,
@@ -225,8 +227,8 @@ export default function PlanRunFootprint({
       {dim.leader && (
         <Line
           points={linePoints([
-            elevationToPlan(frame, dim.leader.x1, dim.leader.offset),
-            elevationToPlan(frame, dim.leader.x2, dim.leader.offset),
+            elevationToPlan(frame, dim.leader.x1, planeBack + dim.leader.offset),
+            elevationToPlan(frame, dim.leader.x2, planeBack + dim.leader.offset),
           ])}
           stroke="#64748b"
           strokeWidth={0.75 / scale}

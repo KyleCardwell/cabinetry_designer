@@ -8,6 +8,7 @@ import {
 } from './geometry.js';
 import { verticalStart } from './overlap.js';
 import { positionReadouts, startFromReadout, stretchedStart } from './positions.js';
+import { openingPlanDepths } from './recesses.js';
 import { roundTo } from './units.js';
 
 const OVERLAP_EPSILON = 1e-6;
@@ -294,16 +295,13 @@ export function openingsAtPoint(room, point, settings) {
     const wallOffset = dot(subtract(point, frame.leftPoint), frame.n);
     for (const opening of wall.openings ?? []) {
       const geometry = openingGeometry(opening, frame.length, settings);
+      const depths = openingPlanDepths(wall, opening);
       const inVoid = contains(wallX, geometry.jamb.x, geometry.jamb.x + geometry.jamb.width)
-        && contains(wallOffset, -wall.thickness, 0);
+        && contains(wallOffset, depths.back, depths.face);
       const inCasing = Boolean(
         geometry.casing
-        && contains(
-          wallX,
-          geometry.casing.x,
-          geometry.casing.x + geometry.casing.width,
-        )
-        && contains(wallOffset, 0, geometry.casing.thickness),
+        && contains(wallX, geometry.casing.x, geometry.casing.x + geometry.casing.width)
+        && contains(wallOffset, depths.face, depths.face + geometry.casing.thickness),
       );
       entries.push({ id: opening.id, containsPoint: inVoid || inCasing });
     }

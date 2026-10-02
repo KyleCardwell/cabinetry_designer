@@ -10,6 +10,7 @@ import {
   openingGeometry,
   openingReferenceBounds,
 } from '../model/openings.js';
+import { openingPlanDepths } from '../model/recesses.js';
 import { formatInches } from '../model/units.js';
 import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
 import { readableRotation } from './textRotation.js';
@@ -36,30 +37,31 @@ export default function PlanOpening({
   const cursorKeys = useCursorKeys(cursor);
   const geometry = openingGeometry(opening, frame.length, settings);
   const { jamb, casing } = geometry;
+  const depths = openingPlanDepths(wall, opening);
   const referenceX = geometry.offsets.left[opening.measureMode].edge;
   const range = openingReferenceBounds(opening, frame.length, settings);
   const voidPolygon = [
-    elevationToPlan(frame, jamb.x, 0),
-    elevationToPlan(frame, jamb.x + jamb.width, 0),
-    elevationToPlan(frame, jamb.x + jamb.width, -wall.thickness),
-    elevationToPlan(frame, jamb.x, -wall.thickness),
+    elevationToPlan(frame, jamb.x, depths.face),
+    elevationToPlan(frame, jamb.x + jamb.width, depths.face),
+    elevationToPlan(frame, jamb.x + jamb.width, depths.back),
+    elevationToPlan(frame, jamb.x, depths.back),
   ];
   const jambLines = [jamb.x, jamb.x + jamb.width].map((x) => [
-    elevationToPlan(frame, x, 0),
-    elevationToPlan(frame, x, -wall.thickness),
+    elevationToPlan(frame, x, depths.face),
+    elevationToPlan(frame, x, depths.back),
   ]);
-  const detailOffset = opening.kind === 'window' ? -wall.thickness / 2 : 0;
+  const detailOffset = opening.kind === 'window' ? (depths.face + depths.back) / 2 : depths.face;
   const detailLine = [
     elevationToPlan(frame, jamb.x, detailOffset),
     elevationToPlan(frame, jamb.x + jamb.width, detailOffset),
   ];
   const casingPolygon = casing ? [
-    elevationToPlan(frame, casing.x, 0),
-    elevationToPlan(frame, casing.x + casing.width, 0),
-    elevationToPlan(frame, casing.x + casing.width, casing.thickness),
-    elevationToPlan(frame, casing.x, casing.thickness),
+    elevationToPlan(frame, casing.x, depths.face),
+    elevationToPlan(frame, casing.x + casing.width, depths.face),
+    elevationToPlan(frame, casing.x + casing.width, depths.face + casing.thickness),
+    elevationToPlan(frame, casing.x, depths.face + casing.thickness),
   ] : null;
-  const labelOffset = (casing?.thickness ?? 0) + 12 / scale;
+  const labelOffset = depths.face + (casing?.thickness ?? 0) + 12 / scale;
   const labelPoint = elevationToPlan(
     frame,
     jamb.x + jamb.width / 2,

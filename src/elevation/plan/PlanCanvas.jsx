@@ -81,6 +81,7 @@ import PlanAlignmentGuides from './PlanAlignmentGuides.jsx';
 import PlanClearances from './PlanClearances.jsx';
 import PlanElevationMarker from './PlanElevationMarker.jsx';
 import PlanOpening from './PlanOpening.jsx';
+import PlanRecess from './PlanRecess.jsx';
 import PlanWallShape from './PlanWallShape.jsx';
 import PlanRunFootprint from './PlanRunFootprint.jsx';
 import {
@@ -117,7 +118,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   // The active wall is only selected in plan when nothing on it is (SPEC-37.4): a selected run,
   // opening, soffit or wall end panel isn't its wall.
   const wallItselfSelected = !selection.runId && !selection.openingId && !selection.soffitId
-    && !selection.endPanel;
+    && !selection.endPanel && !selection.recessId;
   const selectedWall = wallItselfSelected
     ? walls.find((wall) => wall.id === selection.wallId) ?? null
     : null;
@@ -1039,6 +1040,16 @@ export default function PlanCanvas({ fitRequest = 0 }) {
                 settings={settings}
               />
             ))}
+            {walls.flatMap((wall) => (wall.recesses ?? []).map((recess) => (
+              <PlanRecess
+                key={`${wall.id}:${recess.id}`}
+                wall={wall}
+                frame={wallSideFrame(room, wall, recess.wallSide)}
+                recess={recess}
+                scale={scale}
+                selected={selection.recessId === recess.id}
+              />
+            )))}
             {orderedOpenings.map(({ frame, wall, opening }) => (
               <PlanOpening
                 key={opening.id}

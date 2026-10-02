@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { frontDepth, runBackOffset } from '../corners.js';
 import { gridFromItems } from '../grid.js';
+import { openingsAtPoint } from '../openings.js';
 import {
   createRecess,
   openingPlanDepths,
@@ -209,5 +210,19 @@ describe('SPEC-38 recesses', () => {
     };
     expect(frontDepth({ depth: 0.8125, grid: mixed }, S)).toBe(1.6875);
     expect(frontDepth({ depth: 24, grid: gridFromItems('e', []) }, S)).toBe(24.875);
+  });
+
+  it('hits a door in a recess at its back in plan, not in the recess air', () => {
+    const door = {
+      id: 'DR', kind: 'door', label: 'D2', measureMode: 'jamb', width: 24, height: 80, sillZ: 0,
+      offset: 72, offsetFrom: 'left', offsetAnchor: 'edge', casing: null, recessId: 'R',
+    };
+    const host = {
+      ...wall([R]), name: '', numberOverride: null, elevationForced: false,
+      connections: { start: null, end: null }, profile: {}, openings: [door],
+    };
+    const room = { id: 'room', name: 'Room', profile: { ...S.defaultProfile }, wallOrder: ['H'], walls: [host] };
+    expect(openingsAtPoint(room, { x: 84, y: -26 }, S)).toEqual(['DR']);
+    expect(openingsAtPoint(room, { x: 84, y: -2 }, S)).toEqual([]);
   });
 });
