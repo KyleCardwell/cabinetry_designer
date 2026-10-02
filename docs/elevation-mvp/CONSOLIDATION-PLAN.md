@@ -29,7 +29,7 @@ Anything that doesn't fit cleanly yet goes in as a **freeform part** (round 39.1
 
 ## Part A — Docs (Claude, can run any time; doesn't touch code)
 
-**A1. Commit what's uncommitted.** Kyle commits `SPEC-38.md`, `PROMPTS-38.md`, and the `ALCOVE-PLAN.md` / `CELLS-PLAN.md` edits, so git has a copy of every project doc before anything is pruned.
+**A1. Commit what's uncommitted.** Kyle commits `SPEC-38.md`, `PROMPTS-38.md`, and the `ALCOVE-PLAN.md` / `CELLS-PLAN.md` edits, so git has a copy of every project doc before anything is pruned. Three project docs aren't in the repo at all (`cabinetry-designer-review-2026-09-16.md`, `memory-check-2026-09-21.md`, `estimate-integration-notes.md`). Claude copies them into `docs/archive/` (the estimate notes into `docs/platform/`) first.
 
 **A2. `docs/DECISIONS.md`: one place for what's been decided.** Claude writes it from the `§1 Decisions` sections of every SPEC, the plan docs' Decisions sections, `TODO.md`'s decided items and Kyle's answers. Organized by subject, not by round. Each line is the decision plus where it came from (`SPEC-37.1`), so the full reasoning stays findable in git. Sections:
 
@@ -61,7 +61,7 @@ Anything that doesn't fit cleanly yet goes in as a **freeform part** (round 39.1
 | `rules/README.md`, `rules/shop-rules.yaml` | the rules |
 | the current round's `SPEC-N` / `PROMPTS-N` | what Codex is running now |
 
-Deleted from the project (still in `cabinetry_designer/docs/` in git): `SPEC.md`/`PROMPTS.md` through `SPEC-37.4`/`PROMPTS-37.4` (~100 docs), `FACES-PLAN.md` after folding, `memory-check-2026-09-21.md`, and `cabinetry-designer-review-2026-09-16.md` (reviews the old drag-and-drop designer).
+Deleted from the project (all of it kept in `cabinetry_designer/docs/` in git): `SPEC.md`/`PROMPTS.md` through `SPEC-37.4`/`PROMPTS-37.4` (~100 docs), `FACES-PLAN.md` after folding, `memory-check-2026-09-21.md`, and `cabinetry-designer-review-2026-09-16.md` (reviews the old drag-and-drop designer).
 
 Expected: roughly 39% → about 16% now, and about 10% once round 38's spec and prompts (130 KB together) are finished and dropped.
 
