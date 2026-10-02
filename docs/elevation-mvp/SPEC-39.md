@@ -1,6 +1,6 @@
 # Elevation Lab — SPEC-39 (consolidation)
 
-Steps 287–299, after 38.3. Line numbers are at `3afa1ba` (step 283); round 38.3 (steps 284–286) keeps every file's line numbers in the ranges below except `elevationSlice.js`, where `setRunEnd` gains 2 lines, and the slice table below already allows for that. Confirm each range by its first and last names before cutting. Baseline **844**. The design is `docs/elevation-mvp/CONSOLIDATION-PLAN.md`, Part B.
+Steps 287–299, after 38.3. Line numbers are at `3afa1ba` (step 283); round 38.3 (steps 284–286) keeps every file's line numbers in the ranges below except `elevationSlice.js`, where `setRunEnd` gains 2 lines, and the slice table below already allows for that. Confirm each range by its first and last names before cutting. Baseline **844**; round 38.4 (step 286.1) makes it **847** (every count below +3) and adds 27 lines to `room.js` and 18 to `joints.js` (SPEC-38.4 §3). The design is `docs/elevation-mvp/CONSOLIDATION-PLAN.md`, Part B.
 
 **The promise of this round: no behavior changes.** Every step leaves the suite green with the same test count or more, and the golden-room snapshots from step 287 unchanged. A step that needs a snapshot change is a bug in the step: fix the step, never the snapshot.
 

@@ -18,7 +18,7 @@ Conventions in `docs/elevation-mvp/PROMPT-CONVENTIONS.md` apply. Run one step pe
 | 298 | C9 Parts carry rectangle and source | 855 |
 | 299 | C10 Housekeeping | 855 |
 
-**Branch:** `elevation-grid-run-split`. The baseline after step 286 (round 38.3) is **844**. Confirm it with `npm test`; if it differs, shift the counts.
+**Branch:** `elevation-grid-run-split`. The baseline after step 286 (round 38.3) is **844**, and **847 after step 286.1 (round 38.4)**: every count below is then 3 higher, and `room.js` is 27 lines longer (SPEC-38.4 §3). Confirm it with `npm test`; if it differs, shift the counts.
 
 **This round changes no behavior.** From step 288 on, the golden snapshot written in 287 must pass unchanged. Never run vitest with `-u` after step 287; if the snapshot fails, the step is wrong.
 
