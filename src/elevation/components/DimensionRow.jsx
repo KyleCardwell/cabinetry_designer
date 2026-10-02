@@ -24,6 +24,7 @@ const KIND_COLORS = {
   clearance: '#cbd5e1',
   molding: '#cbd5e1',
   soffit: '#94a3b8',
+  recess: '#a5b4fc',
   'counter-height': '#7dd3fc',
   neighbor: '#94a3b8',
   wall: '#e2e8f0',

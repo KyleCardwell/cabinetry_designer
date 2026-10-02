@@ -38,7 +38,7 @@ export default function ElevationToolbar({
   };
   const toolNames = view === 'plan'
     ? ['select', 'wall', 'door', 'window']
-    : ['select', 'draw', 'soffit', 'door', 'window'];
+    : ['select', 'draw', 'soffit', 'recess', 'door', 'window'];
 
   return (
     <div className="flex min-h-12 shrink-0 items-center gap-2 border-b border-gray-700 bg-gray-800 px-4">

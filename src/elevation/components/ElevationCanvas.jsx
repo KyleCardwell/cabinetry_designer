@@ -57,6 +57,12 @@ import {
   validateOpeningPlacement,
 } from '../model/openings.js';
 import {
+  RECESS_PLACEMENT_MESSAGES,
+  createRecess,
+  recessForSpan,
+  validateRecessPlacement,
+} from '../model/recesses.js';
+import {
   horizontalChains,
   nearerEdge,
   openingChain,
@@ -85,9 +91,11 @@ import { runWidthRange } from '../model/splitRun.js';
 import { formatInches } from '../model/units.js';
 import {
   addOpening,
+  addRecess,
   addRun,
   addSoffit,
   deleteOpening,
+  deleteRecess,
   deleteRun,
   deleteSoffit,
   moveOpening,
@@ -116,6 +124,7 @@ import OpeningShape from './OpeningShape.jsx';
 import PartNumberLayer from './PartNumberLayer.jsx';
 import RunGroup from './RunGroup.jsx';
 import SoffitShapes from './SoffitShapes.jsx';
+import RecessShapes from './RecessShapes.jsx';
 import WallEndPanelShapes from './WallEndPanelShapes.jsx';
 import WallFrame from './WallFrame.jsx';
 
@@ -598,6 +607,11 @@ function ElevationCanvas({
         }));
         return;
       }
+      if (currentSelection.recessId) {
+        event.preventDefault();
+        dispatch(deleteRecess({ wallId: currentWall.id, recessId: currentSelection.recessId }));
+        return;
+      }
       if (currentSelection.soffitId) {
         const selectedSoffit = (currentWall.soffits ?? []).find(
           (soffit) => soffit.id === currentSelection.soffitId,
@@ -972,6 +986,11 @@ function ElevationCanvas({
     dispatch(setSelection({ soffitId }));
   }, [dispatch, tool]);
 
+  const selectRecess = useCallback((recessId) => {
+    if (tool !== 'select' || suppressClickRef.current) return;
+    dispatch(setSelection({ recessId }));
+  }, [dispatch, tool]);
+
   const selectEndPanel = useCallback((endPanel) => {
     if (tool !== 'select' || suppressClickRef.current) return;
     dispatch(setSelection({ endPanel }));
@@ -1040,6 +1059,22 @@ function ElevationCanvas({
       dispatch(setSelection({}));
       return;
     }
+    if (tool === 'recess') {
+      if (!room || !wall || !transform) return;
+      const pointer = stageRef.current?.getPointerPosition();
+      if (!pointer) return;
+      const rawPoint = screenToWall(pointer, transform);
+      if (rawPoint.x < 0 || rawPoint.x > wall.length
+        || rawPoint.z < 0 || rawPoint.z > wall.height) return;
+      const recess = createRecess({ kind: 'recess', x: rawPoint.x }, { room, wall });
+      const validation = validateRecessPlacement(wall, recess);
+      if (!validation.ok) {
+        showMessage(RECESS_PLACEMENT_MESSAGES[validation.reason] ?? validation.reason);
+        return;
+      }
+      dispatch(addRecess({ wallId: wall.id, recess }));
+      return;
+    }
     if ((tool !== 'door' && tool !== 'window') || !room || !wall || !transform) return;
     if (wall.side === 'back') {
       showMessage('Add doors and windows from the front');
@@ -1058,7 +1093,12 @@ function ElevationCanvas({
       0,
     );
     const opening = createOpening({ kind: tool, x: point.x }, { settings, room, wall });
-    const validation = validateOpeningPlacement(wall, opening, settings);
+    const jamb = openingGeometry(opening, wall.length, settings).jamb;
+    const host = recessForSpan(wall, {
+      left: jamb.x, right: jamb.x + jamb.width, bottom: jamb.z, top: jamb.z + jamb.height,
+    }, 0, ['recess']);
+    const placed = host ? { ...opening, recessId: host.id } : opening;
+    const validation = validateOpeningPlacement(wall, placed, settings);
     if (!validation.ok) {
       showMessage(validation.reason);
       return;
@@ -1068,8 +1108,8 @@ function ElevationCanvas({
       messageTimeoutRef.current = null;
     }
     dispatch(setMessage(null));
-    dispatch(addOpening({ wallId: wall.id, opening }));
-    dispatch(setSelection({ openingId: opening.id }));
+    dispatch(addOpening({ wallId: wall.id, opening: placed }));
+    dispatch(setSelection({ openingId: placed.id }));
   }, [commitEntry, dispatch, entry, room, settings, showMessage, tool, transform, wall]);
 
   const previewStretch = useCallback((runId, side, newEdgeX) => {
@@ -1548,6 +1588,12 @@ function ElevationCanvas({
             />
           </Layer>
           <Layer>
+            <RecessShapes
+              wall={wall}
+              transform={transform}
+              selectedRecessId={selection.recessId}
+              onSelect={tool === 'select' ? selectRecess : undefined}
+            />
             {(wall.openings ?? []).map((opening) => (
               <OpeningShape
                 key={opening.id}
