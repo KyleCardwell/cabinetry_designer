@@ -34,7 +34,9 @@ export default function EndFields({
           className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
         >
           {END_TYPES.map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
+            <option key={value} value={value}>
+              {value === 'filler' && run._frame ? 'Face frame stile' : label}
+            </option>
           ))}
         </select>
       </Field>

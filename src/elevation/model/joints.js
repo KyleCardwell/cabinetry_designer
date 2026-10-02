@@ -1,5 +1,6 @@
 import { CABINET_TYPE_IDS } from './constants.js';
 import { extensionCoversEnd } from './extensions.js';
+import { edgeLeaves } from './grid.js';
 import { formatInches } from './units.js';
 import { wallSideOf } from './wallSides.js';
 
@@ -102,6 +103,14 @@ function withoutAuto(end) {
   return manualEnd;
 }
 
+/** How deep a run is along one edge (SPEC-38.3): its edge cells' own depths (a void is 0), else the run's. */
+function edgeDepth(run, side) {
+  if (!run.grid) return run.depth;
+  return Math.max(0, ...edgeLeaves(run.grid, side).map((leaf) => (
+    leaf.kind === 'void' ? 0 : leaf.depth ?? run.depth
+  )));
+}
+
 function endIsCovered(wall, run, side) {
   const anchor = run.anchors?.[side];
   const opposite = side === 'left' ? 'right' : 'left';
@@ -116,7 +125,7 @@ function endIsCovered(wall, run, side) {
         ? candidate.id === anchor.runId
         : candidate.anchors?.[opposite]?.jointId === anchor.jointId)
       && Math.abs(runEdgeX(candidate, opposite) - edge) <= JOINT_EPSILON
-      && candidate.depth >= run.depth)
+      && edgeDepth(candidate, opposite) >= run.depth)
     .map((candidate) => [candidate.z, candidate.z + candidate.height])
     .sort((a, b) => a[0] - b[0]);
 
