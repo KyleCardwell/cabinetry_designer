@@ -228,6 +228,7 @@ export {
   cornerReserveParts,
   frontDepth,
   resolveHorizontal,
+  runBackOffset,
   spanCorner,
 } from './corners.js';
 export {
@@ -365,3 +366,26 @@ export {
 } from './extensions.js';
 export { boxInsets, faceOpenings, frameBadgeAnchor, frameEdgeTracks, frameMembers, frameRegions, frameVerticalChains, groupMembers, regionOpenings, sideOf } from './frames.js';
 export { rabbetNote, teeFillers, teeSides } from './tees.js';
+export {
+  DEFAULT_RECESS,
+  MIN_RECESS_WIDTH,
+  RECESS_KINDS,
+  RECESS_MOLDINGS,
+  RECESS_PLACEMENT_MESSAGES,
+  createRecess,
+  openingPlanDepths,
+  recessAnchorDatum,
+  recessCorner,
+  recessEdges,
+  recessEndType,
+  recessForSpan,
+  recessGeometry,
+  recessPlanShape,
+  recessWarnings,
+  recessesOn,
+  resizeRecess,
+  runPlane,
+  uncoveredSpans,
+  validateRecessPlacement,
+  withRunPlane,
+} from './recesses.js';

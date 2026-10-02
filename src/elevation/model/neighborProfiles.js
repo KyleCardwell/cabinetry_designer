@@ -1,4 +1,4 @@
-import { frontDepth } from './corners.js';
+import { frontDepth, runBackOffset } from './corners.js';
 import { CABINET_TYPE_IDS } from './constants.js';
 import {
   dot,
@@ -36,7 +36,7 @@ export function neighborProfiles(room, wall, settings) {
       for (const run of neighborView.runs) {
         const depth = frontDepth(run, settings);
         const corners = [run.x, run.x + run.width].flatMap((x) => (
-          [run.outset ?? 0, depth].map((offset) => elevationToPlan(neighborFrame, x, offset))
+          [runBackOffset(run), depth].map((offset) => elevationToPlan(neighborFrame, x, offset))
         ));
         const furthest = Math.max(...corners.map((point) => (
           dot(subtract(point, frame.leftPoint), frame.n)

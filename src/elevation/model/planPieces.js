@@ -1,7 +1,7 @@
 import { blindEntries } from './blind.js';
 import { blindCellWidths, cellDepth, cellPieces, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
-import { frontDepth } from './corners.js';
+import { frontDepth, runBackOffset } from './corners.js';
 import { frameRegions } from './frames.js';
 import { runItems } from './grid.js';
 import { teeFillers } from './tees.js';
@@ -208,7 +208,7 @@ function frameStrips(frames, pieces, faces, back, front) {
 
 /** Return the boxes, faces, filler returns, and their overall span used by the plan view. */
 export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
-  const outset = run.outset ?? 0;
+  const outset = runBackOffset(run);
   const faceBack = run.depth + settings.bumperThickness;
   const faceFront = frontDepth(run, settings) - outset;
   const cells = cellPieces(run, layout);
