@@ -24,6 +24,11 @@ Suggested format:
 
 ## Idea inbox
 
+- [ ] **[P2][UI][elevation][plan] Pick from everything under the cursor**
+  - Why: since SPEC-38.5 a stacked run has no horizontal dimension segment to click or drag, and a click on a cabinet can't reach the face or run when that's what's wanted.
+  - Decided (Kyle, 2026-10-02): a plain click keeps today's behavior. Right-click (or Alt-click) opens a list of everything under the cursor (face, cabinet, run, stacked runs), each entry highlighting its shape on hover; clicking one selects it. No click-to-cycle. Same list in plan view, where stacked runs overlap.
+  - Completion: every stacked run, cabinet and face can be selected from the list in elevation and plan; dragging a selected run works without its dimension segment.
+
 - [ ] **[P1][model][plan][elevation] Wall configuration: two-faced walls, walls ending on faces, soffits**
   - Why: Alcoves between wing walls, pony walls, notched corners with a wall extending into the room, and islands where the cabinet backs butt together cannot be modeled today. Cabinets need to go on either side of any wall.
   - Decided - faces: every wall has two faces and every run says which face it is on. Thickness 0 is allowed (island, backs butted). With explicit faces, chain orientation only sets defaults and naming, so it stops being a correctness risk.
