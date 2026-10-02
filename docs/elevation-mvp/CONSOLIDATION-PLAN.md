@@ -1,4 +1,4 @@
-# Consolidation: plan (round 39, after 38.2)
+# Consolidation: plan (round 39)
 
 Written 2026-10-01 against `3ed8712` (step 269), before round 38 was implemented. Step labels (C1, C2…) are provisional. Real step numbers, line numbers and fan-outs get filled in when `SPEC-39` / `PROMPTS-39` are written against whatever commit 38.2 ends on (PROMPT-CONVENTIONS rules 1–3 need a real commit).
 
@@ -69,9 +69,11 @@ Expected: roughly 39% → about 16% now, and about 10% once round 38's spec and 
 
 ---
 
-## Part B — Round 39: consolidation (Codex, after 38.2)
+## Part B — Round 39: consolidation (Codex)
 
-**When:** after 38.2, once Kyle has decided about merging `elevation-grid-run-split`. The round runs on whichever branch survives. Doing it before 38 would invalidate SPEC-38's line numbers.
+**Written up 2026-10-02 as `SPEC-39.md` / `PROMPTS-39.md`, steps 287–299 (after round 38.3, steps 284–286), against `3afa1ba` (step 283).** 38.2 is parked, so the round runs now. Changes from the sketch below: C1's fixture is six rooms Kyle draws in the app and exports (no hand-built JSON); C2 and C4 are two steps each; C5 moves the dimension and preview layers into components and four gesture groups into hooks (the draw gestures and main layer stay); C7 drops the placement half (openings and recesses already share `positions.js`) and only `wallFaceSegments` reads `faceFeatures` for now; C9 adds the elevation rectangle and `source`, with plan depth (`planFrom`/`planTo`) left for platform Phase 1's payload; C10 adds a "move code by script" rule to PROMPT-CONVENTIONS.
+
+**When:** now (38.2 parked); Kyle decides about merging `elevation-grid-run-split`. The round runs on whichever branch survives. Doing it before 38 would invalidate SPEC-38's line numbers.
 
 **What it promises:** **no behavior changes.** Every step leaves the suite green with the same test count or more, and the C1 snapshots unchanged. A step that needs a snapshot change is a bug in the step.
 

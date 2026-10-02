@@ -75,6 +75,7 @@ Still current and not repeated here: `CELLS-PLAN.md`, `ALCOVE-PLAN.md`, `CONSOLI
 
 ## Run ends: fillers, end panels, blind corners
 
+- **A chosen end type is manual:** picking one on a joined end sticks (only joining again makes it automatic). A joined end counts as covered by its neighbour only by the neighbour's depth along that edge (a back-panel-only run doesn't hide a base's end). (SPEC-38.3, Kyle)
 - End types: `filler`, `end_panel`, `blind`, `none`. (SPEC-28)
 - **Filler:** a 3/4" face with a return lapping the box beside it, 3/4" × 2 1/2" by default (sometimes deeper). Fillers sit flush with the doors: face from box top to door bottom, the return held up by the doors' negative bottom reveal so a part below runs under it. Any filler whose face drops below the box is noted "return up {drop}". (SPEC-27, SPEC-35.2, Kyle)
 - **Blind corner:** a box that runs past the corner behind the neighbour; a blind belongs to one wall. The filler is ordered ~6" wide (true plan width, room to adjust on site) though ~1 1/2" shows; no return. (SPEC-25, SPEC-28, Kyle)
@@ -128,6 +129,8 @@ Still current and not repeated here: `CELLS-PLAN.md`, `ALCOVE-PLAN.md`, `CONSOLI
 
 - **The frame belongs to the run and covers each rectangle of face frame cells**, breaking at voids, panels, Euro cells (pencil drawers are always Euro) and run edges. One frame spans the run. (CELLS-PLAN, SPEC-36, Kyle)
 - **Stiles 1 1/2", 3/4" over each box.** At a free side the stile overhangs 3/4", so the box is 3/4" narrower (a 30" frame section → 28 1/2" box). Width fields show the box width, with the frame section under it. (SPEC-36, SPEC-36.2, Kyle)
+- **The frame covers exactly 3/4" of every box; a bead lives in gaps.** In a beaded run there's a bead-width gap (1/4" by default; it follows the bead width) at every end: beside an end panel, a neighbour's end panel, a corner filler, or a plain end, as well as between boxes. Side reveals are the 3/4" stile. A mitered end panel's stile is 3/4 + 1/4 + 3/4 = 1 3/4". (SPEC-38.3, Kyle)
+- **Face frame runs (any inset style) round boxes to 1/2" and the end stiles take the leftover**, half each end, so every box and opening matches. A filler end still takes it where there is one. (SPEC-38.3, Kyle)
 - **Fillers in a face frame run are part of a wider stile**, not parts, and aren't drawn; an anchored end gets a wider stile instead of a filler. End panels are mitered into the frame: still parts, shown in plan, hidden in elevation except on hover/select (still numbered and clickable). (SPEC-36, SPEC-36.1, Kyle)
 - **Beaded:** bead 1/4". Box-to-opening is 3/4" everywhere; a beaded seam stile is 1/4 + 1 1/2 + 1/4 = 2", so beaded runs default to a 1/2" gap between boxes; 1 3/4" at an end with a mitered panel. At an inside corner the flat stretches like a filler and the bead stays by the faces. (SPEC-36, Kyle)
 - **Gaps between boxes are spacing, not parts** (`gap` on a track; run seam gap default 2 × bead on beaded). (SPEC-36)
@@ -182,7 +185,7 @@ Still current and not repeated here: `CELLS-PLAN.md`, `ALCOVE-PLAN.md`, `CONSOLI
 ## Data, platform and estimating (summary of PLATFORM-PLAN)
 
 - **Hierarchy:** team → project (`estimate_projects`) → **phase** → room → wall → run → cabinet → face. Phases (new work on the same project over months or years) are critical in the designer; old rooms must never be confused with current ones. Integrating phases into the estimator comes later. (D1, Kyle)
-- **A room is one JSON document**; the document autosaves; a **revision** is created only by issuing, and is frozen. Revision history approach otherwise still open. (D2, D3)
+- **A room is one JSON document** (re-confirmed 2026-10-02: no separate room-layout / cabinet-layout columns; cross-references make a split cost more than it saves; revisit for frequent same-room editing, reusable cabinet layouts, or cross-room queries via a derived parts table); the document autosaves; a **revision** is created only by issuing, and is frozen. Revision history approach otherwise still open. (D2, D3)
 - **One options mechanism** (door edges, panel and molding profiles, furniture bases, light rails/troughs, applied moldings…) resolved through project/room/run/cabinet/face, not a column per feature. Catalogs are shared with the estimator and upgraded, never duplicated. (D4, D5, Kyle)
 - Supabase RLS is the security boundary; writes go through **RPCs** where possible. The API only generates (geometry) and integrates. Geometry is a pure renderer that computes no sizes. The room model and pricing move to a shared JS package. (D6–D9, Kyle)
 - **The estimator keeps its own tables; only pricing logic is shared.** A designer estimate is generated on the fly in the browser from current settings and saved as a PDF; a designer room reaches the scheduler by sending front-end-computed hours and prices. Estimates can still be created without a drawing. (D10, Kyle)

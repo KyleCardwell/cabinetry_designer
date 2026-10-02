@@ -30,6 +30,12 @@ drawing creates the `estimate_projects` row if it doesn't exist.
 **D2 — A room is one JSON document.** `design_rooms.document` holds the elevation document (today's
 v3 shape minus UI state). Walls, runs, items and faces are not separate rows. The model is a tree
 with cross-references (anchors, joints, landings, pins) and is always edited as a unit.
+Re-confirmed 2026-10-02: no separate columns or rows for room layout vs. cabinet layout. Runs
+reference walls, openings, soffits and recesses everywhere, so a split would need its own consistency
+code for no real gain. Revisit only if same-room editing becomes common, cabinet layouts get reused
+across rooms (that would be a library table copied in), or cross-room queries are needed (a derived
+parts table written beside the document). Grouping the document into "space" and "cabinetry"
+sections, if ever, is a schema-versioned migration.
 
 **D3 — Working copy vs. revision.** The document autosaves constantly and nobody thinks about
 versions. A revision is created only by issuing (to a client, or to the shop), and is frozen.

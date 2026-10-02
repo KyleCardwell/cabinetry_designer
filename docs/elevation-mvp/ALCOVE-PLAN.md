@@ -78,7 +78,7 @@ Kyle's point: from the room's side the walls are 4 1/2" thick, but the shop buil
 | **38 — Recesses and projections** | Recesses and projections on a wall face; runs and openings on a recess; recess anchors and corners; the top as a soffit; conflicts by plan depth; warnings; wall rows; plan notch, bump-out and projection; panel-only runs reserve only their thickness. SPEC-38, steps 270–279. | fireplace recesses, doors at a recess back, niches |
 | 38.1 — Fixes | Select a recess from its wall-row segment; Add menu; plan rows clear bump-outs; soffit returns on side walls; edge pin callouts. SPEC-38.1, steps 280–283. | recess editing |
 | 38.2 — Recessed cabinets and cutouts | Frame lap, end panels to the face, recess casing; overlap by plan footprint; automatic cutouts with signed clearance; inset flush doors. | the medicine cabinet through a side panel |
-| 40 — Panel construction and nosing | Slab / door-built panels set the default thickness; mitered nosing parts. (Round 39 is now combine and full grids.) | panels thicker than 13/16" |
+| 41 — Panel construction and nosing | Slab / door-built panels set the default thickness; mitered nosing parts. (Round 39 is consolidation, 40 combine and full grids; 38.2 is parked.) | panels thicker than 13/16" |
 
 ## Open
 
