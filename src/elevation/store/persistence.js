@@ -16,6 +16,7 @@ import {
   isStyle,
 } from '../model/styles.js';
 import { SOFFIT_MOLDINGS } from '../model/soffits.js';
+import { RECESS_KINDS, RECESS_MOLDINGS } from '../model/recesses.js';
 import {
   computeWallOrder,
   normalizeWallName,
@@ -187,6 +188,10 @@ function isRunAnchor(anchor) {
       && typeof anchor.runId === 'string'
       && (anchor.side === 'left' || anchor.side === 'right')
       && (anchor.offset === null || isFiniteNumber(anchor.offset)))
+    || (anchor.to === 'recess'
+      && typeof anchor.recessId === 'string'
+      && (anchor.edge === 'left' || anchor.edge === 'right')
+      && (anchor.offset === null || isFiniteNumber(anchor.offset)))
   ));
 }
 
@@ -250,6 +255,7 @@ function isRun(run) {
     && (run.bottom === undefined || (Array.isArray(run.bottom) && run.bottom.every(isBottomPart)))
     && isRunStack(run.stack)
     && (run.outset === undefined || (isFiniteNumber(run.outset) && run.outset >= 0))
+    && (run.recessId === undefined || typeof run.recessId === 'string')
     && (run.seamGap === undefined || (isFiniteNumber(run.seamGap) && run.seamGap >= 0))
     && (run.tFiller === undefined || T_FILLER_RUN_VALUES.includes(run.tFiller))
     && isEndFiller(run.endFiller)
@@ -357,7 +363,8 @@ export function isOpening(opening) {
       Boolean(opening.casing)
       && isFiniteNumber(opening.casing.width)
       && isFiniteNumber(opening.casing.thickness)
-    ));
+    ))
+    && (opening.recessId === undefined || typeof opening.recessId === 'string');
 }
 
 function isEndPanels(endPanels) {
@@ -415,6 +422,22 @@ function isSoffit(soffit) {
     && isSoffitAnchor(soffit.anchors?.right);
 }
 
+function isRecess(recess) {
+  return Boolean(recess)
+    && typeof recess.id === 'string'
+    && RECESS_KINDS.includes(recess.kind)
+    && typeof recess.label === 'string'
+    && (recess.wallSide === 'front' || recess.wallSide === 'back')
+    && (recess.offsetFrom === 'left' || recess.offsetFrom === 'right')
+    && (recess.offsetAnchor === 'edge' || recess.offsetAnchor === 'center')
+    && ['offset', 'width', 'bottom', 'depth'].every((key) => isFiniteNumber(recess[key]))
+    && recess.width > 0
+    && recess.depth > 0
+    && recess.bottom >= 0
+    && (recess.height === null || (isFiniteNumber(recess.height) && recess.height > 0))
+    && RECESS_MOLDINGS.includes(recess.molding);
+}
+
 function isWall(wall, profileKeys = PROFILE_KEYS) {
   return Boolean(wall)
     && typeof wall.id === 'string'
@@ -435,6 +458,8 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
       || (Array.isArray(wall.openings) && wall.openings.every(isOpening)))
     && (wall.soffits === undefined
       || (Array.isArray(wall.soffits) && wall.soffits.every(isSoffit)))
+    && (wall.recesses === undefined
+      || (Array.isArray(wall.recesses) && wall.recesses.every(isRecess)))
     && (wall.joints === undefined
       || (Array.isArray(wall.joints) && wall.joints.every((joint) => (
         Boolean(joint)
@@ -622,10 +647,11 @@ export function toElevationDocument(elevationState) {
       walls: room.walls.map((wall) => ({
         ...wall,
         runs: wall.runs.map((run) => {
-          const { _pinWidths, _seamGap, _frame, ...persistedRun } = run;
+          const { _pinWidths, _seamGap, _frame, _plane, ...persistedRun } = run;
           void _pinWidths;
           void _seamGap;
           void _frame;
+          void _plane;
           return persistedRun;
         }),
       })),
