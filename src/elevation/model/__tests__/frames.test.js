@@ -74,8 +74,8 @@ describe('SPEC-36 frame regions', () => {
     expect([...frames.fillerIds]).toEqual(['r:right']);
     expect(frames.freeSides.get('a')).toEqual({ left: false, right: false });
     expect(frames.freeSides.get('b')).toEqual({ left: false, right: false });
-    expect(faces.get('a').openings).toEqual([{ path: 'r', x: 25.75, z: 5.75, width: 16.25, height: 27 }]);
-    expect(faces.get('b').openings).toEqual([{ path: 'r', x: 44, z: 5.75, width: 17, height: 27 }]);
+    expect(faces.get('a').openings).toEqual([{ path: 'r', x: 25.5, z: 5.75, width: 16.5, height: 27 }]);
+    expect(faces.get('b').openings).toEqual([{ path: 'r', x: 44, z: 5.75, width: 17.25, height: 27 }]);
   });
 
   it('drops the frame under an upper and warns when it isn\'t a rectangle', () => {

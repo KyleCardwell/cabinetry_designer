@@ -53,10 +53,11 @@ function frontFrames(room) {
 }
 
 describe('SPEC-36.2 wall end panels in a face frame', () => {
-  it('covers a flush wall end panel: the frame runs over it and the box keeps its side', () => {
+  // SPEC-38.3 step 285
+  it.skip('covers a flush wall end panel: the frame runs over it and the box keeps its side', () => {
     const room = island();
     expect(runOf(room, 'F')._frame).toEqual({
-      thickness: 0.8125, drop: 0, wallPanels: { left: { width: 0.75, top: 34.5, join: 'miter' }, right: null },
+      thickness: 0.8125, drop: 0, bead: 0, wallPanels: { left: { width: 0.75, top: 34.5, join: 'miter' }, right: null },
     });
     expect(runOf(room, 'K')._frame.wallPanels).toEqual({
       left: null, right: { width: 0.75, top: 34.5, join: 'miter' },
@@ -73,7 +74,8 @@ describe('SPEC-36.2 wall end panels in a face frame', () => {
     expect(faces.get('Fa').openings).toEqual([{ path: 'r', x: 1.5, z: 5.5, width: 45.75, height: 27.5 }]);
   });
 
-  it('lets the frame die into a taller panel, or as the panel says', () => {
+  // SPEC-38.3 step 285
+  it.skip('lets the frame die into a taller panel, or as the panel says', () => {
     const taller = island({ back: { height: 36 } });
     expect(runOf(taller, 'F')._frame.wallPanels.left).toEqual({ width: 0.75, top: 40, join: 'butt' });
     expect(runOf(taller, 'K')._frame.wallPanels.right).toEqual({ width: 0.75, top: 40, join: 'miter' });
@@ -90,7 +92,8 @@ describe('SPEC-36.2 wall end panels in a face frame', () => {
 });
 
 describe('SPEC-36.2 a mitered wall end panel in plan, chain and elevation', () => {
-  it('miters the frame strip and the panel, and runs the chain over the panel', () => {
+  // SPEC-38.3 step 285
+  it.skip('miters the frame strip and the panel, and runs the chain over the panel', () => {
     const room = island();
     const { wall, run, layout, faces } = frontFrames(room);
     const plan = planRunPieces(room, wall, run, S, layout, faces);

@@ -115,8 +115,9 @@ export function styleReveals(style, cabinetTypeId, settings) {
   return {
     top: frame.rail + bead,
     bottom: bottomRail + bead,
-    left: frame.stile + bead,
-    right: frame.stile + bead,
+    // SPEC-38.3: the bead is in the gaps beside a beaded box, never in its side reveals.
+    left: frame.stile,
+    right: frame.stile,
     horizontal: frame.midRail + bead * 2,
     vertical: frame.mullion + bead * 2,
     pair: profiled ? profiled.pairGap : 0,
@@ -286,7 +287,8 @@ export function runFrame(room, run, settings) {
   const style = resolveStyle(settings, room, run);
   if (!isInsetStyle(style)) return null;
   const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
-  return { thickness: frame.thickness, drop: frameDrop(run, settings) };
+  const bead = style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? style.beadWidth : 0;
+  return { thickness: frame.thickness, drop: frameDrop(run, settings), bead };
 }
 
 /**

@@ -52,7 +52,7 @@ describe('SPEC-36.3 hanging base', () => {
 
     const hanging = build(INSET, { hanging: true });
     expect([hanging.run.z, hanging.run.height]).toEqual([4.75, 29.75]);
-    expect(hanging.run._frame).toEqual({ thickness: 0.8125, drop: 0.75 });
+    expect(hanging.run._frame).toEqual({ thickness: 0.8125, drop: 0.75, bead: 0 });
     expect([hanging.region.z, hanging.region.height]).toEqual([4, 30.5]);
     expect([hanging.face.z, hanging.face.height]).toEqual([5.5, 27.5]);
   });

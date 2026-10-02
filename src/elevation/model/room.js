@@ -216,7 +216,7 @@ export function endMinWidthsForRun(room, wall, run, settings) {
   const style = resolveStyle(settings, room, run);
   const inset = isInsetStyle(style);
   // A face frame's whole stile clears the corner, box-to-opening included (SPEC-36.1).
-  const frameReveal = inset ? styleReveals(style, run.cabinetTypeId, settings).left : 0;
+  const frameReveal = inset ? styleReveals(style, run.cabinetTypeId, settings).left + (run._frame?.bead ?? 0) : 0;
   // So does a Euro T end's flat: the filler is the cover narrower (SPEC-37.1).
   const teeCover = (side) => (!inset && run.ends?.[side]?.type === 'filler' && endCoverOn(run, side)
     ? settings.teeCover
@@ -622,7 +622,8 @@ function withSeamGap(room, run, settings) {
 function withFrame(room, run, settings) {
   const frame = runFrame(room, run, settings);
   if (frame) {
-    if (run._frame?.thickness === frame.thickness && run._frame?.drop === frame.drop) return run;
+    if (run._frame?.thickness === frame.thickness && run._frame?.drop === frame.drop
+      && run._frame?.bead === frame.bead) return run;
     return { ...run, _frame: frame };
   }
   if (run._frame === undefined) return run;

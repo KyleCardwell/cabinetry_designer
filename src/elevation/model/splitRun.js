@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid';
-import { CABINET_TYPE_IDS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { replaceRootItems, runItems } from './grid.js';
 import { floorTo, roundTo } from './units.js';
 
@@ -32,6 +32,27 @@ function itemsWithGaps(run) {
   });
 }
 
+const JOINED = new Set(['joint', 'follow']);
+
+/**
+ * The gap at each real end of a face frame run (SPEC-38.3), beside a cabinet only: a beaded run's bead,
+ * plus, at a free end (None, not joined), the stile's overhang. A pinned run's split points (`_pinSplit`)
+ * aren't ends.
+ */
+function endGaps(run, items, settings) {
+  if (!run._frame) return { left: 0, right: 0 };
+  const bead = run._frame.bead ?? 0;
+  const overhang = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
+  const at = (side) => {
+    if (run._pinSplit?.[side]) return 0;
+    const item = side === 'left' ? items[0] : items[items.length - 1];
+    if (item?.kind !== 'cabinet') return 0;
+    const free = run.ends[side].type === 'none' && !JOINED.has(run.anchors?.[side]?.to);
+    return bead + (free ? overhang : 0);
+  };
+  return { left: at('left'), right: at('right') };
+}
+
 /** A top-level cell's own settings, copied onto its piece. */
 function itemExtras(item) {
   return {
@@ -59,7 +80,9 @@ function flexMinimum(side, settings, opts) {
 
 function layoutInputs(run, settings, opts) {
   const items = itemsWithGaps(run);
-  const fixedEnds = endWidth(run.ends.left, settings) + endWidth(run.ends.right, settings);
+  const gaps = endGaps(run, items, settings);
+  const fixedEnds = endWidth(run.ends.left, settings) + endWidth(run.ends.right, settings)
+    + gaps.left + gaps.right;
   const fixedItems = items.reduce((sum, item) => (
     sum + (item.width === null ? 0 : item.width) + item.gapAfter
   ), 0);
@@ -77,6 +100,7 @@ function layoutInputs(run, settings, opts) {
 
   return {
     available,
+    endGaps: gaps,
     fixedEnds,
     fixedItems,
     flex,
@@ -129,6 +153,7 @@ function splitRunLegacy(run, settings, opts) {
   const items = itemsWithGaps(run);
   const {
     available,
+    endGaps,
     flex,
     minimumTotal,
     nAuto,
@@ -140,6 +165,7 @@ function splitRunLegacy(run, settings, opts) {
   let autoWidth = 0;
   let flexExtra = 0;
   let flexRemainder = 0;
+  const stileExtra = { left: 0, right: 0 };
 
   if (hasAvailableError) {
     errors.push({ code: 'over-constrained' });
@@ -154,6 +180,21 @@ function splitRunLegacy(run, settings, opts) {
       const extra = leftover - minimumTotal;
       flexExtra = floorTo(extra / flex, FILLER_STEP);
       flexRemainder = extra - flex * flexExtra;
+    }
+  } else if (nAuto > 0 && run._frame) {
+    // SPEC-38.3: a face frame run with nothing flexible rounds its boxes down and gives the leftover
+    // to its end stiles, half to each real end, so every box and every opening is the same.
+    autoWidth = floorTo(available / nAuto, settings.roundTo);
+    const leftover = available - nAuto * autoWidth;
+    const realLeft = !run._pinSplit?.left;
+    const realRight = !run._pinSplit?.right;
+    if (realLeft && realRight) {
+      stileExtra.left = floorTo(leftover / 2, FILLER_STEP);
+      stileExtra.right = leftover - stileExtra.left;
+    } else if (realLeft) {
+      stileExtra.left = leftover;
+    } else {
+      stileExtra.right = leftover;
     }
   } else if (nAuto > 0) {
     autoWidth = roundTo(available / nAuto, FILLER_STEP);
@@ -181,7 +222,7 @@ function splitRunLegacy(run, settings, opts) {
     }
 
     let computedWidth = autoWidth;
-    if (flex === 0 && !hasAvailableError && autoIndex === lastAutoIndex) {
+    if (flex === 0 && !run._frame && !hasAvailableError && autoIndex === lastAutoIndex) {
       computedWidth = available - autoWidth * lastAutoIndex;
     }
     autoIndex += 1;
@@ -259,7 +300,10 @@ function splitRunLegacy(run, settings, opts) {
     gapsAfter.push(0);
   };
 
+  const leftGap = endGaps.left + stileExtra.left;
+  const rightGap = endGaps.right + stileExtra.right;
   addEnd('left', run.ends.left);
+  if (gapsAfter.length > 0) gapsAfter[gapsAfter.length - 1] += leftGap;
   for (const item of computedItems) {
     rawPieces.push({
       id: item.id,
@@ -272,9 +316,10 @@ function splitRunLegacy(run, settings, opts) {
     });
     gapsAfter.push(item.gapAfter);
   }
+  if (computedItems.length > 0) gapsAfter[gapsAfter.length - 1] += rightGap;
   addEnd('right', run.ends.right);
 
-  let x = run.x;
+  let x = run.x + (run.ends.left.type === 'none' ? leftGap : 0);
   const pieces = rawPieces.map((piece, index) => {
     const positioned = {
       ...piece,
@@ -447,8 +492,9 @@ export function splitRun(run, settings, opts) {
 
   const leftItems = items.slice(0, pins[0].itemIndex);
   const rightItems = items.slice(pins[pins.length - 1].itemIndex + 1);
-  const leftMinimum = outerMinimum(run, 'left', leftItems, settings, opts);
-  const rightMinimum = outerMinimum(run, 'right', rightItems, settings, opts) + pins[pins.length - 1].item.gapAfter;
+  const leftMinimum = outerMinimum(run, 'left', leftItems, settings, opts) + endGaps(run, items, settings).left;
+  const rightMinimum = outerMinimum(run, 'right', rightItems, settings, opts)
+    + pins[pins.length - 1].item.gapAfter + endGaps(run, items, settings).right;
   const middleMinimums = pins.slice(0, -1).map((pin, index) => (
     itemsMinimum(
       items.slice(pin.itemIndex + 1, pins[index + 1].itemIndex),
@@ -495,6 +541,7 @@ export function splitRun(run, settings, opts) {
     x: run.x,
     width: actualPins[0].left - run.x,
     items: leftItems,
+    _pinSplit: { right: true },
     ends: { left: run.ends.left, right: { type: 'none', width: null } },
   }, settings, opts));
 
@@ -534,6 +581,7 @@ export function splitRun(run, settings, opts) {
     x: rightStart,
     width: run.x + run.width - rightStart,
     items: rightItems,
+    _pinSplit: { left: true },
     ends: { left: { type: 'none', width: null }, right: run.ends.right },
   }, settings, opts));
 

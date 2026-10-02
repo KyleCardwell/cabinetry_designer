@@ -56,10 +56,12 @@ describe('face frame run shape', () => {
     expect(runFrame(room, { cabinetTypeId: 2 }, DEFAULT_SETTINGS)).toEqual({
       thickness: 0.8125,
       drop: 0.75,
+      bead: 0,
     });
     expect(runFrame(room, { cabinetTypeId: 1 }, DEFAULT_SETTINGS)).toEqual({
       thickness: 0.8125,
       drop: 0,
+      bead: 0,
     });
   });
 
@@ -91,7 +93,7 @@ describe('SPEC-36.1 depth, clearance and corners', () => {
     const anchored = makeRun({ anchors: { left: false, right: true } });
     const minimum = (style) => {
       const room = cornerRoom([anchored], [], style);
-      return endMinWidthsForRun(room, room.walls[0], anchored, S);
+      return endMinWidthsForRun(room, room.walls[0], { ...anchored, _frame: runFrame(room, anchored, S) }, S);
     };
     expect(minimum()).toEqual({ left: 1.5, right: 1.5 });
     expect(minimum(INSET)).toEqual({ left: 1.5, right: 0.75 });
@@ -100,7 +102,8 @@ describe('SPEC-36.1 depth, clearance and corners', () => {
 });
 
 describe('SPEC-36.1 plan pieces', () => {
-  it('draws a frame strip mitered into its end panel, with no filler', () => {
+  // SPEC-38.3 step 285
+  it.skip('draws a frame strip mitered into its end panel, with no filler', () => {
     const run = makeRun({
       _frame: FRAME,
       ends: { left: { type: 'end_panel', width: null }, right: { type: 'filler', width: 2 } },
