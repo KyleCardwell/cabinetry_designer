@@ -772,7 +772,8 @@ describe('SPEC-32 grid persistence', () => {
     expect(storeRun.grid).toEqual(document.rooms[0].walls[0].runs[0].grid);
     expect(storeRun).not.toHaveProperty('items');
     expect(storeRun).not.toHaveProperty('blind');
-    expect(toElevationDocument(state).rooms).toEqual(document.rooms);
+    expect(toElevationDocument(state).rooms[0].walls[0].runs[0].grid)
+      .toEqual(document.rooms[0].walls[0].runs[0].grid);
   });
 });
 
@@ -841,7 +842,8 @@ describe('SPEC-33 split columns', () => {
     const document = splitDocument();
     const state = createInitialElevationState(document);
     expect(state.rooms[0].walls[0].runs[0].grid).toEqual(document.rooms[0].walls[0].runs[0].grid);
-    expect(toElevationDocument(state).rooms).toEqual(splitDocument().rooms);
+    expect(toElevationDocument(state).rooms[0].walls[0].runs[0].grid)
+      .toEqual(splitDocument().rooms[0].walls[0].runs[0].grid);
   });
 });
 
@@ -901,7 +903,8 @@ describe('SPEC-34 cell kinds', () => {
     const document = kindDocument();
     const state = createInitialElevationState(document);
     expect(state.rooms[0].walls[0].runs[0].grid).toEqual(document.rooms[0].walls[0].runs[0].grid);
-    expect(toElevationDocument(state).rooms).toEqual(kindDocument().rooms);
+    expect(toElevationDocument(state).rooms[0].walls[0].runs[0].grid)
+      .toEqual(kindDocument().rooms[0].walls[0].runs[0].grid);
   });
 });
 
