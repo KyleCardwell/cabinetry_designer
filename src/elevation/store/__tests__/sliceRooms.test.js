@@ -1,0 +1,927 @@
+import {
+  describe,
+  expect,
+  it,
+} from 'vitest';
+import {
+  DEFAULT_SETTINGS,
+} from '../../model/constants.js';
+import {
+  runFootprint,
+} from '../../model/footprints.js';
+import {
+  wallFrame,
+} from '../../model/geometry.js';
+import {
+  runItems,
+} from '../../model/grid.js';
+import elevationReducer, {
+  addRoom,
+  addWall,
+  addWallSegment,
+  centerRoomOnOrigin,
+  clearSelection,
+  connectWalls,
+  createInitialElevationState,
+  detachWallLanding,
+  deleteOpening,
+  deleteRun,
+  deleteWall,
+  moveWallEndpoint,
+  moveWallPerpendicular,
+  setPartNumberOverride,
+  setItemAbsorb,
+  setItemPin,
+  setActiveRoom,
+  setRoomPartNumberStart,
+  setActiveWall,
+  setActiveWallSide,
+  setRunCornerClearance,
+  setRunAnchor,
+  setSelection,
+  setView,
+  setWallEndPanel,
+  setWallLanding,
+  setWallLength,
+  updateRoomProfile,
+  updateWall,
+} from '../elevationSlice.js';
+import {
+  auto,
+  fixed,
+  run,
+  opening,
+  stateWithRun,
+  currentRun,
+  pin,
+} from './helpers/sliceFixtures.js';
+
+describe('SPEC-12 elevation selection persistence', () => {
+  it('4. keeps the wall selected when deleting a run in elevation', () => {
+    const initial = stateWithRun(run());
+    initial.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
+    };
+
+    const next = elevationReducer(initial, deleteRun({
+      wallId: 'wall-1', runId: 'run-1',
+    }));
+
+    expect(next.selection).toEqual({
+      runId: null, pieceId: null, openingId: null, soffitId: null, recessId: null, wallId: 'wall-1',
+    });
+  });
+
+  it('5. resolves a later selection against the retained wall', () => {
+    const initial = stateWithRun(run());
+    initial.rooms[0].walls[0].runs.push(run({ id: 'run-2' }));
+    initial.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
+    };
+    const deleted = elevationReducer(initial, deleteRun({
+      wallId: 'wall-1', runId: 'run-1',
+    }));
+
+    const next = elevationReducer(deleted, setSelection({ runId: 'run-2' }));
+
+    expect(next.selection.wallId).toBe('wall-1');
+    expect(next.selection.runId).toBe('run-2');
+  });
+
+  it('6. clears the wall when deleting a run in plan', () => {
+    const initial = stateWithRun(run());
+    initial.view = 'plan';
+    initial.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
+    };
+
+    const next = elevationReducer(initial, deleteRun({
+      wallId: 'wall-1', runId: 'run-1',
+    }));
+
+    expect(next.selection.wallId).toBeNull();
+  });
+
+  it('7. keeps the wall selected when deleting an opening in elevation', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls[0].openings = [opening()];
+    initial.selection = {
+      wallId: 'wall-1', runId: null, pieceId: null, openingId: 'door-1',
+    };
+
+    const next = elevationReducer(initial, deleteOpening({
+      wallId: 'wall-1', openingId: 'door-1',
+    }));
+
+    expect(next.selection.wallId).toBe('wall-1');
+    expect(next.selection.openingId).toBeNull();
+  });
+
+  it('8. keeps the wall when clearing elevation selection and clears it in plan', () => {
+    const elevation = stateWithRun(run());
+    elevation.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
+    };
+    const plan = stateWithRun(run());
+    plan.view = 'plan';
+    plan.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: null, openingId: null,
+    };
+
+    expect(elevationReducer(elevation, clearSelection()).selection).toEqual({
+      runId: null, pieceId: null, openingId: null, soffitId: null, recessId: null, wallId: 'wall-1',
+    });
+    expect(elevationReducer(plan, clearSelection()).selection).toEqual({
+      runId: null, pieceId: null, openingId: null, soffitId: null, recessId: null, wallId: null,
+    });
+  });
+});
+
+describe('elevation room reducers', () => {
+  it('1. activates and selects a wall while clearing object selection', () => {
+    const initial = stateWithRun(run());
+    initial.rooms[0].walls.push({
+      ...initial.rooms[0].walls[0],
+      id: 'wall-2',
+      x1: 144,
+      x2: 240,
+      runs: [],
+    });
+    initial.selection = {
+      wallId: 'wall-1',
+      runId: 'run-1',
+      pieceId: 'piece-1',
+      openingId: null,
+    };
+
+    const next = elevationReducer(initial, setActiveWall('wall-2'));
+    expect(next.activeWallId).toBe('wall-2');
+    expect(next.selection).toEqual({
+      wallId: 'wall-2', runId: null, pieceId: null, openingId: null, soffitId: null, recessId: null,
+    });
+  });
+
+  it('2. clears all selection fields without changing the active wall', () => {
+    const initial = stateWithRun(run());
+    initial.selection = {
+      wallId: 'wall-1', runId: 'run-1', pieceId: 'piece-1', openingId: null,
+    };
+
+    const next = elevationReducer(initial, clearSelection());
+    expect(next.selection).toEqual({
+      wallId: 'wall-1', runId: null, pieceId: null, openingId: null, soffitId: null, recessId: null,
+    });
+    expect(next.activeWallId).toBe('wall-1');
+  });
+
+  it('3. selects the active wall when entering elevation view', () => {
+    const initial = elevationReducer(stateWithRun(), setView('plan'));
+
+    const next = elevationReducer(initial, setView('elevation'));
+    expect(next.selection).toEqual({
+      wallId: 'wall-1', runId: null, pieceId: null, openingId: null, soffitId: null, recessId: null,
+    });
+  });
+
+  it('4. clears a deleted wall selection and moves the active wall', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls.push({
+      ...initial.rooms[0].walls[0],
+      id: 'wall-2',
+      x1: 144,
+      x2: 240,
+      runs: [],
+    });
+    initial.rooms[0].wallOrder = ['wall-1', 'wall-2'];
+
+    const next = elevationReducer(initial, deleteWall('wall-1'));
+    expect(next.activeWallId).toBe('wall-2');
+    expect(next.selection).toEqual({
+      wallId: 'wall-2', runId: null, pieceId: null, openingId: null, soffitId: null, recessId: null,
+    });
+  });
+
+  it("8. updates the room's wall height without touching existing walls", () => {
+    const next = elevationReducer(stateWithRun(), updateRoomProfile({
+      roomId: 'room-1',
+      key: 'wallHeight',
+      value: 108,
+    }));
+
+    expect(next.rooms[0].profile.wallHeight).toBe(108);
+    expect(next.rooms[0].walls[0].height).toBe(96);
+  });
+
+  it("9. uses the room's wall height when adding a wall", () => {
+    const initial = stateWithRun();
+    initial.rooms[0].profile.wallHeight = 108;
+
+    const next = elevationReducer(initial, addWall({
+      roomId: 'room-1',
+      id: 'wall-2',
+    }));
+
+    expect(next.rooms[0].walls.find((wall) => wall.id === 'wall-2').height).toBe(108);
+  });
+
+  it('10. uses the room wall height for segments while explicit height wins', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].profile.wallHeight = 108;
+    const payload = {
+      roomId: 'room-1',
+      x1: 0,
+      y1: 60,
+      x2: 120,
+      y2: 60,
+    };
+
+    const defaulted = elevationReducer(initial, addWallSegment({
+      ...payload,
+      id: 'wall-default-height',
+    }));
+    const explicit = elevationReducer(initial, addWallSegment({
+      ...payload,
+      id: 'wall-explicit-height',
+      height: 84,
+    }));
+
+    expect(defaulted.rooms[0].walls.find((wall) => wall.id === 'wall-default-height').height)
+      .toBe(108);
+    expect(explicit.rooms[0].walls.find((wall) => wall.id === 'wall-explicit-height').height)
+      .toBe(84);
+  });
+
+  it('11. translates every wall to center the room on the origin', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls = [
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-a',
+        x1: 0,
+        y1: 0,
+        x2: 120,
+        y2: 0,
+        runs: [],
+      },
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-b',
+        x1: 120,
+        y1: 0,
+        x2: 120,
+        y2: 96,
+        runs: [],
+      },
+    ];
+
+    const next = elevationReducer(initial, centerRoomOnOrigin({ roomId: 'room-1' }));
+
+    expect(next.rooms[0].walls.map(({ x1, y1, x2, y2 }) => ({ x1, y1, x2, y2 })))
+      .toEqual([
+        { x1: -60, y1: -48, x2: 60, y2: -48 },
+        { x1: 60, y1: -48, x2: 60, y2: 48 },
+      ]);
+  });
+
+  it('12. changes nothing when centering an already-centered room', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls = [
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-a',
+        x1: 0,
+        y1: 0,
+        x2: 120,
+        y2: 0,
+        runs: [],
+      },
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-b',
+        x1: 120,
+        y1: 0,
+        x2: 120,
+        y2: 96,
+        runs: [],
+      },
+    ];
+    const centered = elevationReducer(initial, centerRoomOnOrigin({ roomId: 'room-1' }));
+    const centeredAgain = elevationReducer(centered, centerRoomOnOrigin({ roomId: 'room-1' }));
+
+    expect(centeredAgain.rooms[0].walls.map(({ x1, y1, x2, y2 }) => ({ x1, y1, x2, y2 })))
+      .toEqual([
+        { x1: -60, y1: -48, x2: 60, y2: -48 },
+        { x1: 60, y1: -48, x2: 60, y2: 48 },
+      ]);
+  });
+
+  it('13. preserves wall-local content and topology while centering', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls = [
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-a',
+        x1: 0,
+        y1: 0,
+        x2: 120,
+        y2: 0,
+        connections: { start: null, end: { wallId: 'wall-b', endpoint: 'start' } },
+        runs: [run({ x: 12, width: 36 })],
+      },
+      {
+        ...initial.rooms[0].walls[0],
+        id: 'wall-b',
+        x1: 120,
+        y1: 0,
+        x2: 120,
+        y2: 96,
+        connections: { start: { wallId: 'wall-a', endpoint: 'end' }, end: null },
+        runs: [],
+      },
+    ];
+    initial.rooms[0].wallOrder = ['wall-a', 'wall-b'];
+
+    const next = elevationReducer(initial, centerRoomOnOrigin({ roomId: 'room-1' }));
+    const wallA = next.rooms[0].walls.find((wall) => wall.id === 'wall-a');
+
+    expect(wallA.runs[0].x).toBe(12);
+    expect(next.rooms[0].wallOrder).toEqual(['wall-a', 'wall-b']);
+    expect(wallA.connections.end).toEqual({ wallId: 'wall-b', endpoint: 'start' });
+  });
+
+  it('14. leaves an empty room unchanged', () => {
+    const initial = stateWithRun();
+    initial.rooms[0].walls = [];
+
+    const next = elevationReducer(initial, centerRoomOnOrigin({ roomId: 'room-1' }));
+
+    expect(next.rooms[0]).toBe(initial.rooms[0]);
+    expect(next.rooms[0].walls).toEqual([]);
+  });
+
+  it('9. assigns exposed and inside anchored-end treatments', () => {
+    const cornerState = (outside, rightEnd = { type: 'none', width: null }) => {
+      const state = stateWithRun(run({
+        width: 40,
+        ends: {
+          left: { type: 'none', width: null },
+          right: rightEnd,
+        },
+      }));
+      const wallA = state.rooms[0].walls[0];
+      wallA.x2 = 120;
+      wallA.flipped = outside;
+      wallA.connections.end = { wallId: 'wall-2', endpoint: 'start' };
+      state.rooms[0].walls.push({
+        ...wallA,
+        id: 'wall-2',
+        x1: 120,
+        y1: 0,
+        x2: 120,
+        y2: outside ? -96 : 96,
+        flipped: false,
+        connections: { start: { wallId: 'wall-1', endpoint: 'end' }, end: null },
+        runs: [],
+      });
+      state.rooms[0].wallOrder = ['wall-1', 'wall-2'];
+      return state;
+    };
+    const anchorRight = setRunAnchor({
+      wallId: 'wall-1', runId: 'run-1', side: 'right', value: true,
+    });
+
+    expect(currentRun(elevationReducer(cornerState(true), anchorRight)).ends.right)
+      .toEqual({ type: 'end_panel', width: null });
+    expect(currentRun(elevationReducer(cornerState(false), anchorRight)).ends.right)
+      .toEqual({ type: 'filler', width: null });
+    expect(currentRun(elevationReducer(
+      cornerState(true, { type: 'end_panel', width: 0.75 }),
+      anchorRight,
+    )).ends.right).toEqual({ type: 'end_panel', width: 0.75 });
+  });
+
+  it('20. fixes both pinned widths when adding the second pin and keeps them fixed', () => {
+    const initial = stateWithRun(run({
+      items: [auto('a'), auto('b'), auto('c'), auto('d'), auto('e')],
+    }));
+    const first = elevationReducer(initial, setItemPin({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      itemId: 'b',
+      pin: pin(36),
+    }));
+    expect(currentRun(first).autoCount).toBe(false);
+    expect(runItems(currentRun(first)).find((item) => item.id === 'b').width).toBeNull();
+
+    const second = elevationReducer(first, setItemPin({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      itemId: 'd',
+      pin: pin(84),
+    }));
+    expect(runItems(currentRun(second)).filter((item) => item.pin).map((item) => item.width))
+      .toEqual([23, 23]);
+
+    const removed = elevationReducer(second, setItemPin({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      itemId: 'b',
+      pin: null,
+    }));
+    expect(runItems(currentRun(removed)).find((item) => item.id === 'b').width).toBe(23);
+
+    const absorbing = elevationReducer(removed, setItemAbsorb({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      itemId: 'c',
+      value: true,
+    }));
+    expect(runItems(currentRun(absorbing)).find((item) => item.id === 'c').absorb).toBe(true);
+  });
+
+  it('sets wall length from the right by default and reports pure-operation failures', () => {
+    const initial = stateWithRun();
+    const resized = elevationReducer(initial, setWallLength({
+      wallId: 'wall-1',
+      length: 150,
+    }));
+    expect(resized.rooms[0].walls[0]).toMatchObject({ x1: 0, x2: 150 });
+    expect(resized.message).toBeNull();
+
+    const rejected = elevationReducer(resized, setWallLength({
+      wallId: 'wall-1',
+      length: 160,
+      growEnd: 'middle',
+    }));
+    expect(rejected.rooms[0].walls[0]).toMatchObject({ x1: 0, x2: 150 });
+    expect(rejected.message).toBe('invalid-grow-end');
+  });
+
+  it('stores a per-side run corner-clearance override and syncs the room', () => {
+    const initial = stateWithRun(run());
+    const next = elevationReducer(initial, setRunCornerClearance({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      side: 'right',
+      value: 'face',
+    }));
+
+    expect(currentRun(next).cornerClearance).toEqual({ right: 'face' });
+  });
+
+  it('starts a fresh document with an empty room ready to draw walls in plan', () => {
+    const state = createInitialElevationState(null);
+
+    expect(state.rooms).toHaveLength(1);
+    expect(state.rooms[0].walls).toEqual([]);
+    expect(state.activeWallId).toBeNull();
+    expect(state.view).toBe('plan');
+    expect(state.tool).toBe('wall');
+  });
+
+  it('adds an empty room and opens it in plan with Draw Wall selected', () => {
+    const next = elevationReducer(
+      stateWithRun(),
+      addRoom({ name: 'Room 2' }),
+    );
+    const addedRoom = next.rooms[1];
+
+    expect(addedRoom).toMatchObject({ name: 'Room 2', walls: [] });
+    expect(next.activeRoomId).toBe(addedRoom.id);
+    expect(next.activeWallId).toBeNull();
+    expect(next.view).toBe('plan');
+    expect(next.tool).toBe('wall');
+  });
+
+  it('15. defaults, preserves, updates, and validates elevationForced', () => {
+    const defaulted = elevationReducer(stateWithRun(), addWall({
+      roomId: 'room-1',
+      id: 'wall-default',
+    }));
+    expect(defaulted.rooms[0].walls.find((wall) => wall.id === 'wall-default').elevationForced)
+      .toBe(false);
+
+    const forced = elevationReducer(defaulted, addWall({
+      roomId: 'room-1',
+      id: 'wall-forced',
+      elevationForced: true,
+    }));
+    expect(forced.rooms[0].walls.find((wall) => wall.id === 'wall-forced').elevationForced)
+      .toBe(true);
+
+    const updated = elevationReducer(forced, updateWall({
+      wallId: 'wall-default',
+      changes: { elevationForced: true },
+    }));
+    expect(updated.rooms[0].walls.find((wall) => wall.id === 'wall-default').elevationForced)
+      .toBe(true);
+
+    const rejected = elevationReducer(updated, updateWall({
+      wallId: 'wall-default',
+      changes: { elevationForced: 'yes' },
+    }));
+    expect(rejected.rooms[0].walls.find((wall) => wall.id === 'wall-default').elevationForced)
+      .toBe(true);
+  });
+
+  it('selects Draw Wall for empty rooms and Select for populated rooms', () => {
+    const initial = stateWithRun();
+    initial.rooms.push({
+      id: 'room-2',
+      name: 'Room 2',
+      profile: { ...DEFAULT_SETTINGS.defaultProfile },
+      walls: [],
+    });
+
+    const emptySelected = elevationReducer(initial, setActiveRoom('room-2'));
+    expect(emptySelected).toMatchObject({
+      activeRoomId: 'room-2',
+      activeWallId: null,
+      view: 'plan',
+      tool: 'wall',
+    });
+
+    const populatedSelected = elevationReducer(emptySelected, setActiveRoom('room-1'));
+    expect(populatedSelected).toMatchObject({
+      activeRoomId: 'room-1',
+      activeWallId: 'wall-1',
+      view: 'plan',
+      tool: 'select',
+    });
+  });
+
+  it('keeps an unanchored run footprint fixed when its wall left end moves', () => {
+    const initial = stateWithRun(run({
+      x: 30,
+      width: 30,
+      autoCount: false,
+      items: [fixed('cabinet', 27)],
+    }));
+    const oldRoom = initial.rooms[0];
+    const oldWall = oldRoom.walls[0];
+    const oldFootprint = runFootprint(
+      wallFrame(oldRoom, oldWall),
+      oldWall.runs[0],
+      initial.settings,
+    );
+
+    const next = elevationReducer(initial, moveWallEndpoint({
+      wallId: 'wall-1',
+      endpoint: 'start',
+      x: 10,
+      y: 0,
+    }));
+    const nextRoom = next.rooms[0];
+    const nextWall = nextRoom.walls[0];
+    const nextFootprint = runFootprint(
+      wallFrame(nextRoom, nextWall),
+      nextWall.runs[0],
+      next.settings,
+    );
+
+    expect(nextWall.runs[0].x).toBe(20);
+    expect(nextFootprint).toEqual(oldFootprint);
+  });
+
+  it('leaves wall geometry unchanged and reports a rejected perpendicular move', () => {
+    const initial = stateWithRun();
+    const room = initial.rooms[0];
+    room.wallOrder = ['wall-1', 'wall-2'];
+    Object.assign(room.walls[0], {
+      x2: 120,
+      connections: { start: null, end: { wallId: 'wall-2', endpoint: 'start' } },
+    });
+    room.walls.push({
+      ...room.walls[0],
+      id: 'wall-2',
+      x1: 120,
+      y1: 0,
+      x2: 120,
+      y2: 96,
+      connections: { start: { wallId: 'wall-1', endpoint: 'end' }, end: null },
+      runs: [],
+    });
+
+    const next = elevationReducer(initial, moveWallPerpendicular({
+      wallId: 'wall-1',
+      delta: 96,
+    }));
+
+    expect(next.rooms[0]).toEqual(initial.rooms[0]);
+    expect(next.message).toBe('neighbor-too-short');
+  });
+});
+
+describe('SPEC-17 active wall side', () => {
+  it('119. initializes the active wall side to front', () => {
+    expect(createInitialElevationState().activeWallSide).toBe('front');
+  });
+
+  it('120. sets a valid active wall side and clears transient selection', () => {
+    let state = stateWithRun(run({ id: 'F', wallSide: 'front' }));
+    state = elevationReducer(state, setSelection({ runId: 'F' }));
+    state = elevationReducer(state, setActiveWallSide('back'));
+
+    expect(state.activeWallSide).toBe('back');
+    expect(state.selection.runId).toBeNull();
+
+    state = elevationReducer(state, setActiveWallSide('side'));
+    expect(state.activeWallSide).toBe('back');
+  });
+
+  it('121. keeps the active wall side in sync with selected runs and openings', () => {
+    let state = stateWithRun(run({ id: 'F', wallSide: 'front' }));
+    state.rooms[0].walls[0].runs.push(run({
+      id: 'K', x: 0, width: 60, wallSide: 'back',
+    }));
+
+    state = elevationReducer(state, setSelection({ runId: 'K' }));
+    expect(state.activeWallSide).toBe('back');
+
+    state = elevationReducer(state, setSelection({ runId: 'F' }));
+    expect(state.activeWallSide).toBe('front');
+
+    state = elevationReducer(state, setActiveWallSide('back'));
+    state = elevationReducer(state, setSelection({ openingId: 'door-1' }));
+    expect(state.activeWallSide).toBe('front');
+  });
+
+  it('122. resets the active wall side when setting the active wall', () => {
+    const state = stateWithRun();
+    state.activeWallSide = 'back';
+
+    const next = elevationReducer(state, setActiveWall('wall-1'));
+
+    expect(next.activeWallSide).toBe('front');
+  });
+
+  it('123. accepts zero wall thickness and rejects negative thickness', () => {
+    let state = stateWithRun();
+    state = elevationReducer(state, updateWall({
+      wallId: 'wall-1', changes: { thickness: 0 },
+    }));
+    expect(state.rooms[0].walls[0].thickness).toBe(0);
+
+    state = elevationReducer(state, updateWall({
+      wallId: 'wall-1', changes: { thickness: -1 },
+    }));
+    expect(state.rooms[0].walls[0].thickness).toBe(0);
+  });
+});
+
+describe('SPEC-17 wall end panel shape', () => {
+  it('124. creates walls with empty endpoint panels', () => {
+    let state = elevationReducer(stateWithRun(), addWall({}));
+    expect(state.rooms[0].walls.at(-1).endPanels).toEqual({ start: null, end: null });
+
+    state = elevationReducer(state, addWallSegment({
+      x1: 0, y1: 0, x2: 96, y2: 0, thickness: 0,
+    }));
+    expect(state.rooms[0].walls.at(-1).endPanels).toEqual({ start: null, end: null });
+  });
+});
+
+describe('SPEC-17 wall end panel UI', () => {
+  it('132. sets, updates, removes, and validates wall end panels', () => {
+    let state = elevationReducer(stateWithRun(), setWallEndPanel({
+      wallId: 'wall-1', endpoint: 'start', panel: { width: null },
+    }));
+    expect(state.rooms[0].walls[0].endPanels.start).toEqual({ width: null });
+
+    state = elevationReducer(state, setWallEndPanel({
+      wallId: 'wall-1', endpoint: 'end', panel: { width: 1 },
+    }));
+    expect(state.rooms[0].walls[0].endPanels.end).toEqual({ width: 1 });
+
+    state = elevationReducer(state, setWallEndPanel({
+      wallId: 'wall-1', endpoint: 'start', panel: null,
+    }));
+    expect(state.rooms[0].walls[0].endPanels.start).toBeNull();
+
+    const unchanged = elevationReducer(state, setWallEndPanel({
+      wallId: 'wall-1', endpoint: 'middle', panel: { width: 1 },
+    }));
+    expect(unchanged).toBe(state);
+
+    const invalid = elevationReducer(state, setWallEndPanel({
+      wallId: 'wall-1', endpoint: 'end', panel: { width: -1 },
+    }));
+    expect(invalid).toBe(state);
+  });
+});
+
+describe('SPEC-18 wing wall store', () => {
+  function stateWithLandings(existingRun = null) {
+    let state = stateWithRun(existingRun);
+    state = elevationReducer(state, addWallSegment({
+      id: 'W1',
+      x1: 60,
+      y1: 0,
+      x2: 60,
+      y2: 30,
+      thickness: 9,
+      landStart: { wallId: 'wall-1', side: 'front', x: 60 },
+    }));
+    return elevationReducer(state, addWallSegment({
+      id: 'W2',
+      x1: 120,
+      y1: 0,
+      x2: 120,
+      y2: 30,
+      thickness: 9,
+      landStart: { wallId: 'wall-1', side: 'front', x: 120 },
+    }));
+  }
+
+  it('154. lands new wall segments on a host face', () => {
+    const state = stateWithLandings();
+    const wall1 = state.rooms[0].walls.find((wall) => wall.id === 'W1');
+    const wall2 = state.rooms[0].walls.find((wall) => wall.id === 'W2');
+
+    expect(wall1.landings.start).toEqual({
+      wallId: 'wall-1', side: 'front', ref: 'left', to: 'near', offset: 60,
+    });
+    expect(wall1.flipped).toBe(false);
+    expect(wall2.landings.start).toEqual({
+      wallId: 'wall-1', side: 'front', ref: 'right', to: 'near', offset: 24,
+    });
+    expect(wall2.flipped).toBe(true);
+  });
+
+  it('155. edits landing references, targets, and offsets', () => {
+    let state = stateWithLandings();
+    state = elevationReducer(state, setWallLanding({
+      wallId: 'W2', endpoint: 'start', ref: 'W1',
+    }));
+    let wall2 = state.rooms[0].walls.find((wall) => wall.id === 'W2');
+    expect(wall2.landings.start.offset).toBe(42);
+    expect(wall2.x1).toBe(120);
+
+    const cycle = elevationReducer(state, setWallLanding({
+      wallId: 'W1', endpoint: 'start', ref: 'W2',
+    }));
+    expect(cycle).toBe(state);
+    const invalidTo = elevationReducer(state, setWallLanding({
+      wallId: 'W2', endpoint: 'start', to: 'side',
+    }));
+    expect(invalidTo).toBe(state);
+
+    state = elevationReducer(state, setWallLanding({
+      wallId: 'W2', endpoint: 'start', offset: 30,
+    }));
+    wall2 = state.rooms[0].walls.find((wall) => wall.id === 'W2');
+    expect(wall2.x1).toBe(108);
+  });
+
+  it('156. releases wall references and anchors when deleting a wing', () => {
+    let state = stateWithLandings(run({
+      anchors: { left: { to: 'wall', wallId: 'W1' }, right: false },
+    }));
+    state = elevationReducer(state, setWallLanding({
+      wallId: 'W2', endpoint: 'start', ref: 'W1',
+    }));
+    state = elevationReducer(state, deleteWall('W1'));
+
+    const wall2 = state.rooms[0].walls.find((wall) => wall.id === 'W2');
+    const hostRun = state.rooms[0].walls.find((wall) => wall.id === 'wall-1').runs[0];
+    expect(wall2.landings.start).toEqual({
+      wallId: 'wall-1', side: 'front', ref: 'left', to: 'near', offset: 111,
+    });
+    expect(hostRun.anchors.left).toBe(false);
+  });
+
+  it('157. detaches a landing and releases wall anchors', () => {
+    let state = stateWithLandings(run({
+      anchors: { left: false, right: { to: 'wall', wallId: 'W2' } },
+    }));
+    state = elevationReducer(state, detachWallLanding({
+      wallId: 'W2', endpoint: 'start',
+    }));
+
+    const wall2 = state.rooms[0].walls.find((wall) => wall.id === 'W2');
+    const hostRun = state.rooms[0].walls.find((wall) => wall.id === 'wall-1').runs[0];
+    expect(wall2.landings.start).toBeNull();
+    expect(hostRun.anchors.right).toBe(false);
+  });
+
+  it('158. accepts wall run anchors and rejects missing wall ids', () => {
+    let state = stateWithRun(run());
+    state = elevationReducer(state, setRunAnchor({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      side: 'right',
+      anchor: { to: 'wall', wallId: 'W2' },
+    }));
+    expect(state.rooms[0].walls[0].runs[0].anchors.right)
+      .toEqual({ to: 'wall', wallId: 'W2' });
+    expect(state.rooms[0].walls[0].runs[0].ends.right)
+      .toEqual({ type: 'filler', width: null });
+
+    const invalid = elevationReducer(state, setRunAnchor({
+      wallId: 'wall-1',
+      runId: 'run-1',
+      side: 'right',
+      anchor: { to: 'wall' },
+    }));
+    expect(invalid).toBe(state);
+  });
+
+  it('159. clears a landing when its endpoint is connected', () => {
+    let state = stateWithLandings();
+    state = elevationReducer(state, addWallSegment({
+      id: 'C', x1: 200, y1: 50, x2: 250, y2: 50,
+    }));
+    state = elevationReducer(state, connectWalls({
+      wallId1: 'W1',
+      endpoint1: 'start',
+      wallId2: 'C',
+      endpoint2: 'start',
+    }));
+
+    expect(state.rooms[0].walls.find((wall) => wall.id === 'W1').landings.start)
+      .toBeNull();
+  });
+});
+
+describe('SPEC-23 part number store', () => {
+  it('196. initializes and updates a room part number start', () => {
+    let state = elevationReducer(createInitialElevationState(), addRoom({ name: 'Parts' }));
+    const roomId = state.activeRoomId;
+
+    expect(state.rooms.find((room) => room.id === roomId)).toMatchObject({
+      partNumberStart: 1,
+      partNumberOverrides: {},
+    });
+
+    state = elevationReducer(state, setRoomPartNumberStart({ roomId, value: 100 }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberStart).toBe(100);
+
+    state = elevationReducer(state, setRoomPartNumberStart({ roomId, value: 0 }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberStart).toBe(1);
+
+    state = elevationReducer(state, setRoomPartNumberStart({ roomId, value: 2.5 }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberStart).toBe(1);
+  });
+
+  it('197. sets, clears, and rejects invalid part number overrides', () => {
+    let state = elevationReducer(createInitialElevationState(), addRoom({ name: 'Parts' }));
+    const roomId = state.activeRoomId;
+
+    state = elevationReducer(state, setPartNumberOverride({
+      roomId, key: 'piece-1', number: 12,
+    }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberOverrides)
+      .toEqual({ 'piece-1': 12 });
+
+    state = elevationReducer(state, setPartNumberOverride({
+      roomId, key: 'piece-1', number: null,
+    }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberOverrides).toEqual({});
+
+    state = elevationReducer(state, setPartNumberOverride({
+      roomId, key: 'piece-1', number: 0,
+    }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberOverrides).toEqual({});
+
+    state = elevationReducer(state, setPartNumberOverride({ roomId, number: 12 }));
+    expect(state.rooms.find((room) => room.id === roomId).partNumberOverrides).toEqual({});
+  });
+});
+
+describe('SPEC-36.2 wall end panel frame join', () => {
+  it('sets and clears a wall end panel frame join and rejects invalid values', () => {
+    let state = stateWithRun();
+    const actionBase = { roomId: 'room-1', wallId: 'wall-1', endpoint: 'start' };
+
+    state = elevationReducer(state, setWallEndPanel({
+      ...actionBase,
+      panel: { width: 0.75, frame: 'miter' },
+    }));
+    expect(state.rooms[0].walls[0].endPanels.start).toEqual({ width: 0.75, frame: 'miter' });
+    expect(elevationReducer(state, setWallEndPanel({
+      ...actionBase,
+      panel: { width: 0.75, frame: 'lap' },
+    }))).toBe(state);
+
+    state = elevationReducer(state, setWallEndPanel({
+      ...actionBase,
+      panel: { width: 0.75, frame: null },
+    }));
+    expect(state.rooms[0].walls[0].endPanels.start).toEqual({ width: 0.75 });
+  });
+});
+
+describe('SPEC-36.2.1 wall end panel selection', () => {
+  it('selects a wall end panel and drops it for anything else', () => {
+    let state = elevationReducer(stateWithRun(), setSelection({ endPanel: 'start' }));
+    expect(state.selection).toMatchObject({
+      runId: null, pieceId: null, openingId: null, soffitId: null, endPanel: 'start',
+    });
+    state = elevationReducer(state, setSelection({ endPanel: 'middle' }));
+    expect('endPanel' in state.selection).toBe(false);
+    state = elevationReducer(state, setSelection({ endPanel: 'end', soffitId: 's1' }));
+    expect(state.selection.soffitId).toBe('s1');
+    expect('endPanel' in state.selection).toBe(false);
+  });
+});
+
