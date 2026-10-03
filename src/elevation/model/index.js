@@ -393,3 +393,5 @@ export {
   withRunPlane,
 } from './recesses.js';
 export { faceFeatures } from './faceFeatures.js';
+export { runScene } from './runScene.js';
+export { defaultPick, pickStack } from './pick.js';
