@@ -32,6 +32,7 @@ import {
 } from '../model/room.js';
 import { formatInches } from '../model/units.js';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
+import { runHighlight } from '../canvas/selectionHighlight.js';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
 import CellChains from './CellChains.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
@@ -63,6 +64,7 @@ function RunGroup({
 }) {
   const [anchorTooltip, setAnchorTooltip] = useState(null);
   const cursorKeys = useCursorKeys(cursor);
+  const highlight = runHighlight(selectedRun, selectedPieceId, selectedFacePath);
   const result = useMemo(() => splitRun(run, settings, {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
@@ -463,7 +465,7 @@ function RunGroup({
           transform={transform}
           warning={warningPieceIds.has(piece.id) || warningPieceIds.has(piece.columnId)}
           error={hasErrors}
-          selected={selectedPieceId === piece.id}
+          selected={highlight.pieceId === piece.id}
           subLabel={subLabels.get(piece.id) ?? null}
           framed={framedIds.has(piece.id)}
           ghost={ghostIds.has(piece.id)}
@@ -513,7 +515,7 @@ function RunGroup({
           transform={transform}
           selectable={!preview && selectedPieceId === pieceId}
           showSizes={!preview && selectedPieceId === pieceId}
-          selectedPath={selectedPieceId === pieceId ? selectedFacePath : null}
+          selectedPath={selectedPieceId === pieceId ? highlight.facePath : null}
           onSelectFace={onSelectFace}
         />
       ))}
@@ -618,7 +620,7 @@ function RunGroup({
       {renderAnchor('left')}
       {renderAnchor('right')}
 
-      {selectedRun && (
+      {highlight.run && (
         <Rect
           {...runRect}
           fillEnabled={false}

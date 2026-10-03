@@ -47,7 +47,7 @@ export default function ElevationDimensions({
             onSegmentDragStart={startRunMove}
             onSegmentDragMove={updateRunMove}
             onSegmentDragEnd={finishRunMove}
-            highlightRunId={selection.runId}
+            highlightRunId={selection.pieceId ? null : selection.runId}
             activeRunId={selection.runId}
             wallEndMarks={[0, wall.length]}
             cursor={cursor}
@@ -99,7 +99,7 @@ export default function ElevationDimensions({
             onSegmentDragStart={startRunMove}
             onSegmentDragMove={updateRunMove}
             onSegmentDragEnd={finishRunMove}
-            highlightRunId={selection.runId}
+            highlightRunId={selection.pieceId ? null : selection.runId}
             activeRunId={selection.runId}
             wallEndMarks={[0, wall.length]}
             cursor={cursor}
