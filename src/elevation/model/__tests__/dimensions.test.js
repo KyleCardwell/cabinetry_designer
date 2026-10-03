@@ -620,6 +620,36 @@ describe('centerlineMarkers', () => {
       DEFAULT_SETTINGS,
     )).toEqual([]);
   });
+
+  it('SPEC-39.1 puts a pin to an opening inside the opening, with a centre line down from its middle', () => {
+    const sinkWindow = {
+      id: 'W', kind: 'window', label: 'W1', measureMode: 'jamb', width: 36, height: 48, sillZ: 42,
+      offset: 12, offsetFrom: 'right', offsetAnchor: 'edge', casing: { width: 3, thickness: 0.75 },
+    };
+    const run = {
+      items: [
+        { id: 'left', pin: null },
+        { id: 'sink', pin: { from: 'opening', openingId: 'W', openingAnchor: 'center', value: 0, anchor: 'center' } },
+      ],
+    };
+    const sinkPieces = [
+      { id: 'left', role: 'item', x: 0, width: 24, z: 4, height: 30.5 },
+      { id: 'sink', role: 'item', x: 78, width: 24, z: 4, height: 30.5 },
+    ];
+
+    expect(centerlineMarkers(run, sinkPieces, { openings: [sinkWindow] }, 120, DEFAULT_SETTINGS)).toEqual([{
+      pieceId: 'sink',
+      x: 90,
+      datumX: 90,
+      z: 48,
+      value: 0,
+      pieceBottom: 4,
+      pieceTop: 34.5,
+      from: 'opening',
+      anchor: 'center',
+      datumZ: 66,
+    }]);
+  });
 });
 
 function fixedRandom(seed) {

@@ -570,8 +570,19 @@ function RunGroup({
           height: 0,
         }, transform);
         const midX = (datum.x + center.x) / 2;
+        const extensionTop = Number.isFinite(marker.datumZ)
+          ? wallRectToScreen({ x: marker.datumX, z: marker.datumZ, width: 0, height: 0 }, transform)
+          : null;
         return (
           <Group key={`centerline:${marker.pieceId}`} listening={false}>
+            {extensionTop && (
+              <Line
+                points={[datum.x, extensionTop.y, datum.x, datum.y]}
+                stroke="#facc15"
+                strokeWidth={1}
+                dash={[3, 2]}
+              />
+            )}
             <Line
               points={[spanBottom.x, spanBottom.y, spanTop.x, spanTop.y]}
               stroke="#facc15"
