@@ -1,7 +1,7 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { v4 as uuid } from 'uuid';
 import { isBottomPart } from '../model/bottoms.js';
-import { DEFAULT_SETTINGS, FRAME_JOINS } from '../model/constants.js';
+import { DEFAULT_SETTINGS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { isExtendTarget } from '../model/extensions.js';
 import { wallFrame } from '../model/geometry.js';
@@ -32,15 +32,10 @@ import {
   unsplitGridCell,
   wrapGridCell,
 } from '../model/cellTree.js';
-import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import {
-  LANDING_TO,
-  landWallEnd,
-  landingEndpoint,
-  landingOffsetFor,
-  landingRefCreatesCycle,
-  releaseWall,
-} from '../model/landings.js';
+  isFollowAnchor,
+  isJointAnchor,
+} from '../model/joints.js';
 import {
   resizeOpening as resizeOpeningPure,
   setMeasureMode,
@@ -56,95 +51,55 @@ import {
   validateRecessPlacement,
 } from '../model/recesses.js';
 import {
-  compensateRuns,
   dissolveJoint as dissolveJointPure,
   endCornerAnglesForRun,
   endMinWidthsForRun,
-  flipRunsForWall,
   joinEdges,
   joinStack,
   resizeRun as resizeRunPure,
-  resolveWall,
-  syncRoom,
 } from '../model/room.js';
-import {
-  resolveSoffitSpan,
-  soffitEndType,
-  validateSoffitPlacement,
-} from '../model/soffits.js';
+import { soffitEndType } from '../model/soffits.js';
 import { splitRun } from '../model/splitRun.js';
 import {
   REVEAL_KEYS,
   RUN_TOP_OPTIONS,
   UPPER_BOTTOM_OPTIONS,
-  applyStandardDrawers,
-  isInsetStyle,
   isStyle,
-  resolveStyle,
 } from '../model/styles.js';
 import { roundTo } from '../model/units.js';
-import { wallSideOf, wallSideView, wallViewForRun } from '../model/wallSides.js';
 import {
-  addWallWithConnections,
-  connectWallEndpoints,
-  disconnectWallEndpoint as disconnectWallEndpointPure,
-  moveConnectedEndpoint,
-  moveWallPerpendicular as moveWallPerpendicularPure,
-  setWallLength as setWallLengthPure,
-} from '../plan/wallOps.js';
+  wallSideOf,
+  wallViewForRun,
+} from '../model/wallSides.js';
 import {
   ELEVATION_SCHEMA_VERSION,
   loadElevationDocument,
 } from './persistence.js';
-
-function copySettings(settings = DEFAULT_SETTINGS) {
-  return {
-    ...settings,
-    defaultProfile: { ...settings.defaultProfile },
-    defaultEnds: { ...settings.defaultEnds },
-  };
-}
-
-function withoutAuto(end) {
-  const { auto, ...manualEnd } = end;
-  void auto;
-  return manualEnd;
-}
-
-function createWall(name = '', y = 0, length = 144, values = {}) {
-  return {
-    id: values.id ?? uuid(),
-    name: values.name ?? name,
-    numberOverride: values.numberOverride ?? null,
-    elevationForced: values.elevationForced ?? false,
-    x1: values.x1 ?? 0,
-    y1: values.y1 ?? y,
-    x2: values.x2 ?? length,
-    y2: values.y2 ?? y,
-    height: values.height ?? 96,
-    thickness: values.thickness ?? 4.5,
-    flipped: values.flipped ?? false,
-    connections: values.connections ?? { start: null, end: null },
-    endPanels: values.endPanels ?? { start: null, end: null },
-    landings: values.landings ?? { start: null, end: null },
-    profile: values.profile ?? {},
-    runs: values.runs ?? [],
-    openings: values.openings ?? [],
-    soffits: values.soffits ?? [],
-  };
-}
-
-function createRoom(name = 'Room 1', settings = DEFAULT_SETTINGS, id = uuid()) {
-  return {
-    id,
-    name,
-    profile: { ...settings.defaultProfile },
-    partNumberStart: 1,
-    partNumberOverrides: {},
-    wallOrder: [],
-    walls: [],
-  };
-}
+import {
+  copySettings,
+  withoutAuto,
+  createRoom,
+  roomIndexFor,
+  roomFor,
+  wallLocation,
+  runLocation,
+  openingLocation,
+  soffitLocation,
+  RECESS_KEYS,
+  recessLocation,
+  recessView,
+  refreshRecessEnds,
+  resolvedSoffitCandidate,
+  syncRoomAt,
+  STYLE_FIELD_KEYS,
+  cleanPartial,
+  withStandardDrawers,
+  itemIndexFor,
+  clearTransientSelection,
+} from './slices/helpers.js';
+import { roomReducers } from './slices/rooms.js';
+import { wallReducers } from './slices/walls.js';
+import { uiReducers } from './slices/ui.js';
 
 /** Create the elevation slice's initial persisted and transient state. */
 export function createInitialElevationState(document = loadElevationDocument()) {
@@ -177,550 +132,13 @@ export function createInitialElevationState(document = loadElevationDocument()) 
   };
 }
 
-function roomIndexFor(state, roomId) {
-  return state.rooms.findIndex((room) => room.id === (roomId ?? state.activeRoomId));
-}
-
-function roomFor(state, roomId) {
-  return state.rooms[roomIndexFor(state, roomId)] ?? null;
-}
-
-function wallLocation(state, payload = {}) {
-  const roomIndex = roomIndexFor(state, payload.roomId);
-  if (roomIndex === -1) return null;
-  const room = state.rooms[roomIndex];
-  const targetId = payload.wallId ?? payload.id ?? state.activeWallId;
-  const wallIndex = room.walls.findIndex((wall) => wall.id === targetId);
-  if (wallIndex === -1) return null;
-  return { roomIndex, room, wallIndex, wall: room.walls[wallIndex] };
-}
-
-function runLocation(state, payload) {
-  const location = wallLocation(state, payload);
-  if (!location) return null;
-  const runIndex = location.wall.runs.findIndex((run) => run.id === payload.runId);
-  return runIndex === -1
-    ? null
-    : { ...location, runIndex, run: location.wall.runs[runIndex] };
-}
-
-function openingLocation(state, payload) {
-  const location = wallLocation(state, payload);
-  if (!location) return null;
-  const openingIndex = (location.wall.openings ?? [])
-    .findIndex((opening) => opening.id === payload.openingId);
-  return openingIndex === -1
-    ? null
-    : {
-        ...location,
-        openingIndex,
-        opening: location.wall.openings[openingIndex],
-      };
-}
-
-function soffitLocation(state, payload) {
-  const location = wallLocation(state, payload);
-  if (!location) return null;
-  const soffitIndex = (location.wall.soffits ?? [])
-    .findIndex((soffit) => soffit.id === payload.soffitId);
-  return soffitIndex === -1
-    ? null
-    : {
-        ...location,
-        soffitIndex,
-        soffit: location.wall.soffits[soffitIndex],
-      };
-}
-
-const RECESS_KEYS = [
-  'label', 'kind', 'width', 'bottom', 'height', 'depth', 'offset', 'offsetFrom', 'offsetAnchor', 'molding',
-];
-
-function recessLocation(state, payload) {
-  const location = wallLocation(state, payload);
-  if (!location) return null;
-  const recessIndex = (location.wall.recesses ?? [])
-    .findIndex((recess) => recess.id === payload.recessId);
-  return recessIndex === -1
-    ? null
-    : { ...location, recessIndex, recess: location.wall.recesses[recessIndex] };
-}
-
-/** The side view a recess is validated in (SPEC-38). */
-function recessView(room, wall, recess) {
-  return wallSideView(resolveWall(room, wall), wallSideOf(recess));
-}
-
-/** Re-pick the ends a run has anchored to recesses (all, or one recess's) after where it sits changes. */
-function refreshRecessEnds(wall, run, recessId = null) {
-  for (const side of ['left', 'right']) {
-    const anchor = run.anchors?.[side];
-    if (anchor?.to !== 'recess' || (recessId && anchor.recessId !== recessId)) continue;
-    run.ends[side] = { type: recessEndType(wallViewForRun(wall, run), run, side), width: null };
-  }
-}
-
-function resolvedSoffitCandidate(room, wall, soffit) {
-  const resolvedWall = resolveWall(room, wall);
-  const view = {
-    ...wallSideView(resolvedWall, soffit.wallSide),
-    length: resolvedWall.length,
-  };
-  const span = resolveSoffitSpan(room, view, soffit);
-  const candidate = { ...soffit, ...span };
-  return validateSoffitPlacement(view, candidate).ok ? candidate : null;
-}
-
-function syncRoomAt(state, roomIndex) {
-  state.rooms[roomIndex] = syncRoom(state.rooms[roomIndex], state.settings);
-}
-
-function setCompensatedWalls(state, roomIndex, walls) {
-  const oldRoom = state.rooms[roomIndex];
-  state.rooms[roomIndex] = compensateRuns(oldRoom, { ...oldRoom, walls });
-  syncRoomAt(state, roomIndex);
-}
-
-const STYLE_FIELD_KEYS = ['cabinetStyleId', 'beadWidth', 'profiledEdge'];
-
-/**
- * Copy only `keys` whose values are set (not null/undefined) and pass `accept`.
- * Returns null when nothing is left, which clears the stored field.
- */
-function cleanPartial(value, keys, accept = () => true) {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
-  const entries = keys
-    .map((key) => [key, value[key]])
-    .filter(([, entry]) => entry !== null && entry !== undefined && accept(entry));
-  return entries.length === 0 ? null : Object.fromEntries(entries);
-}
-
-function roomCabinets(room) {
-  return room.walls.flatMap((wall) => wall.runs.flatMap((run) => gridLeaves(run.grid)
-    .filter((item) => item.kind === 'cabinet')
-    .map((item) => ({ run, item }))));
-}
-
-/**
- * Run a style edit; every cabinet whose style switches between European and face frame
- * gets its small drawer fronts reset to the new style's standard height.
- */
-function withStandardDrawers(state, room, mutate) {
-  const isInset = ({ run, item }) => isInsetStyle(resolveStyle(state.settings, room, run, item));
-  const before = new Map(roomCabinets(room).map((entry) => [entry.item.id, isInset(entry)]));
-  mutate();
-  for (const entry of roomCabinets(room)) {
-    const { run, item } = entry;
-    if (!item.face || before.get(item.id) === isInset(entry)) continue;
-    item.face = applyStandardDrawers(item.face, resolveStyle(state.settings, room, run, item), state.settings);
-  }
-}
-
-function itemIndexFor(run, itemId) {
-  return runItems(run).findIndex((item) => item.id === itemId);
-}
-
-function clearTransientSelection(state) {
-  state.selection = {
-    runId: null,
-    pieceId: null,
-    openingId: null,
-    soffitId: null,
-    recessId: null,
-    wallId: state.view === 'elevation' ? state.activeWallId : null,
-  };
-  state.facePath = null;
-}
-
-function activateRoom(state, room) {
-  state.activeRoomId = room?.id ?? null;
-  state.activeWallId = room?.walls[0]?.id ?? null;
-  state.activeWallSide = 'front';
-  if (room?.walls.length === 0) {
-    state.view = 'plan';
-    state.tool = 'wall';
-  } else {
-    state.tool = 'select';
-  }
-  clearTransientSelection(state);
-}
 
 const elevationSlice = createSlice({
   name: 'elevation',
   initialState: createInitialElevationState(),
   reducers: {
-    addRoom: {
-      reducer(state, action) {
-        const room = createRoom(action.payload.name, state.settings, action.payload.id);
-        state.rooms.push(syncRoom(room, state.settings));
-        activateRoom(state, room);
-      },
-      prepare(payload = {}) {
-        return { payload: { id: uuid(), name: payload.name ?? 'Room 1' } };
-      },
-    },
-    renameRoom(state, action) {
-      const roomIndex = roomIndexFor(state, action.payload.roomId ?? action.payload.id);
-      if (roomIndex === -1) return;
-      state.rooms[roomIndex].name = action.payload.name;
-      syncRoomAt(state, roomIndex);
-    },
-    deleteRoom(state, action) {
-      const roomId = action.payload.roomId ?? action.payload;
-      const index = state.rooms.findIndex((room) => room.id === roomId);
-      if (index === -1) return;
-      state.rooms.splice(index, 1);
-      if (state.activeRoomId === roomId) {
-        const nextRoom = state.rooms[0] ?? null;
-        activateRoom(state, nextRoom);
-      }
-    },
-    setActiveRoom(state, action) {
-      const roomId = action.payload.roomId ?? action.payload;
-      const room = state.rooms.find((candidate) => candidate.id === roomId);
-      if (!room) return;
-      activateRoom(state, room);
-    },
-    updateRoomProfile(state, action) {
-      const roomIndex = roomIndexFor(state, action.payload.roomId);
-      if (roomIndex === -1) return;
-      const changes = action.payload.changes ?? action.payload.profile ?? {
-        [action.payload.key]: action.payload.value,
-      };
-      for (const [key, value] of Object.entries(changes)) {
-        state.rooms[roomIndex].profile[key] = value === null || value === undefined
-          ? state.settings.defaultProfile[key]
-          : value;
-      }
-      syncRoomAt(state, roomIndex);
-    },
-    useAutoHeightsForRoom(state, action) {
-      const roomIndex = roomIndexFor(state, action.payload.roomId ?? action.payload);
-      if (roomIndex === -1) return;
-      for (const wall of state.rooms[roomIndex].walls) {
-        for (const run of wall.runs) run.heightMode = 'auto';
-      }
-      syncRoomAt(state, roomIndex);
-    },
-    setRoomPartNumberStart(state, action) {
-      const roomIndex = roomIndexFor(state, action.payload.roomId);
-      if (roomIndex === -1) return;
-      const value = action.payload.value ?? action.payload.start;
-      state.rooms[roomIndex].partNumberStart = Number.isInteger(value) && value > 0 ? value : 1;
-    },
-    setPartNumberOverride(state, action) {
-      const roomIndex = roomIndexFor(state, action.payload.roomId);
-      const { key } = action.payload;
-      if (roomIndex === -1 || typeof key !== 'string' || key === '') return;
-      const room = state.rooms[roomIndex];
-      room.partNumberOverrides ??= {};
-      const number = action.payload.number ?? action.payload.value ?? null;
-      if (number === null) delete room.partNumberOverrides[key];
-      else if (Number.isInteger(number) && number > 0) room.partNumberOverrides[key] = number;
-    },
-    centerRoomOnOrigin(state, action) {
-      const roomId = action.payload?.roomId ?? action.payload ?? state.activeRoomId;
-      const roomIndex = roomIndexFor(state, roomId);
-      if (roomIndex === -1) return;
-      const room = state.rooms[roomIndex];
-      if (room.walls.length === 0) return;
-      const xs = room.walls.flatMap((wall) => [wall.x1, wall.x2]);
-      const ys = room.walls.flatMap((wall) => [wall.y1, wall.y2]);
-      const dx = roundTo(-(Math.min(...xs) + Math.max(...xs)) / 2, state.settings.planGrid);
-      const dy = roundTo(-(Math.min(...ys) + Math.max(...ys)) / 2, state.settings.planGrid);
-      if (dx === 0 && dy === 0) return;
-      for (const wall of room.walls) {
-        wall.x1 += dx;
-        wall.y1 += dy;
-        wall.x2 += dx;
-        wall.y2 += dy;
-      }
-      syncRoomAt(state, roomIndex);
-    },
-    addWall: {
-      reducer(state, action) {
-        const roomIndex = roomIndexFor(state, action.payload.roomId);
-        if (roomIndex === -1) return;
-        const room = state.rooms[roomIndex];
-        const y = action.payload.y ?? (room.walls.length === 0
-          ? 0
-          : Math.max(...room.walls.flatMap((wall) => [wall.y1, wall.y2])) + 60);
-        const wall = createWall(
-          action.payload.name ?? '',
-          y,
-          action.payload.length ?? 144,
-          {
-            ...action.payload,
-            height: action.payload.height ?? room.profile.wallHeight,
-          },
-        );
-        room.walls.push(wall);
-        if (wallFrame(room, wall).leftEndpoint !== 'start') wall.flipped = true;
-        state.activeWallId = wall.id;
-        clearTransientSelection(state);
-        syncRoomAt(state, roomIndex);
-      },
-      prepare(payload = {}) {
-        return { payload: { ...payload, id: payload.id ?? uuid() } };
-      },
-    },
-    addWallSegment: {
-      reducer(state, action) {
-        const roomIndex = roomIndexFor(state, action.payload.roomId);
-        if (roomIndex === -1) return;
-        const room = state.rooms[roomIndex];
-        const wall = createWall(
-          action.payload.name ?? '',
-          action.payload.y1,
-          0,
-          {
-            id: action.payload.id,
-            x1: action.payload.x1,
-            y1: action.payload.y1,
-            x2: action.payload.x2,
-            y2: action.payload.y2,
-            height: action.payload.height ?? room.profile.wallHeight,
-            thickness: action.payload.thickness,
-          },
-        );
-        room.walls = addWallWithConnections(
-          room.walls,
-          wall,
-          action.payload.connectStart,
-          action.payload.connectEnd,
-        );
-        for (const [endpoint, land, connect] of [
-          ['start', action.payload.landStart, action.payload.connectStart],
-          ['end', action.payload.landEnd, action.payload.connectEnd],
-        ]) {
-          if (land && !connect) {
-            const landed = landWallEnd(
-              { ...room, walls: room.walls },
-              wall.id,
-              endpoint,
-              land,
-            );
-            if (landed) room.walls = landed.walls;
-          }
-        }
-        state.activeWallId = wall.id;
-        clearTransientSelection(state);
-        syncRoomAt(state, roomIndex);
-      },
-      prepare(payload = {}) {
-        return { payload: { ...payload, id: payload.id ?? uuid() } };
-      },
-    },
-    moveWallEndpoint(state, action) {
-      const roomIndex = roomIndexFor(state, action.payload.roomId);
-      if (roomIndex === -1) return;
-      const wallId = action.payload.wallId ?? action.payload.wall_id;
-      const room = state.rooms[roomIndex];
-      const walls = moveConnectedEndpoint(
-        room.walls,
-        wallId,
-        action.payload.endpoint,
-        { x: action.payload.x, y: action.payload.y },
-      );
-      setCompensatedWalls(state, roomIndex, walls);
-    },
-    connectWalls(state, action) {
-      const roomIndex = roomIndexFor(state, action.payload.roomId);
-      if (roomIndex === -1) return;
-      const room = state.rooms[roomIndex];
-      const walls = connectWallEndpoints(
-        room.walls,
-        action.payload.wallId1,
-        action.payload.endpoint1,
-        action.payload.wallId2,
-        action.payload.endpoint2,
-      );
-      for (const [wallId, endpoint] of [
-        [action.payload.wallId1, action.payload.endpoint1],
-        [action.payload.wallId2, action.payload.endpoint2],
-      ]) {
-        const wall = walls.find((candidate) => candidate.id === wallId);
-        if (wall?.landings) wall.landings[endpoint] = null;
-      }
-      setCompensatedWalls(state, roomIndex, walls);
-    },
-    disconnectWallEndpoint(state, action) {
-      const roomIndex = roomIndexFor(state, action.payload.roomId);
-      if (roomIndex === -1) return;
-      state.rooms[roomIndex].walls = disconnectWallEndpointPure(
-        state.rooms[roomIndex].walls,
-        action.payload.wallId ?? action.payload.wall_id,
-        action.payload.endpoint,
-      );
-      syncRoomAt(state, roomIndex);
-    },
-    setWallLength(state, action) {
-      const location = wallLocation(state, action.payload);
-      const length = action.payload.length ?? action.payload.value;
-      if (!location || !Number.isFinite(length) || length <= 0) return;
-      const result = setWallLengthPure(
-        location.room,
-        location.wall.id,
-        length,
-        action.payload.growEnd ?? 'right',
-      );
-      if (!result.ok) {
-        state.message = result.reason;
-        return;
-      }
-      state.message = null;
-      setCompensatedWalls(state, location.roomIndex, result.walls);
-    },
-    moveWallPerpendicular(state, action) {
-      const roomIndex = roomIndexFor(state, action.payload.roomId);
-      if (roomIndex === -1) return;
-      const room = state.rooms[roomIndex];
-      const result = moveWallPerpendicularPure(
-        room,
-        action.payload.wallId,
-        action.payload.delta,
-      );
-      if (!result.ok) {
-        state.message = result.reason;
-        return;
-      }
-      state.message = null;
-      setCompensatedWalls(state, roomIndex, result.walls);
-    },
-    setWallEndPanel(state, action) {
-      const location = wallLocation(state, action.payload);
-      const { endpoint, panel } = action.payload;
-      const validPanel = panel === null || (
-        panel
-        && typeof panel === 'object'
-        && !Array.isArray(panel)
-        && (panel.width === null || (Number.isFinite(panel.width) && panel.width >= 0))
-        && (panel.frame === undefined || panel.frame === null || FRAME_JOINS.includes(panel.frame))
-      );
-      if (!location || !['start', 'end'].includes(endpoint) || !validPanel) return;
-      location.wall.endPanels ??= { start: null, end: null };
-      location.wall.endPanels[endpoint] = panel ? {
-        width: panel.width ?? null,
-        ...(panel.frame ? { frame: panel.frame } : {}),
-      } : null;
-      syncRoomAt(state, location.roomIndex);
-    },
-    setWallLanding(state, action) {
-      const location = wallLocation(state, action.payload);
-      const { endpoint } = action.payload;
-      const landing = location?.wall.landings?.[endpoint];
-      if (!location || !landing) return;
-      const ref = action.payload.ref ?? landing.ref;
-      const to = action.payload.to ?? landing.to;
-      if (!LANDING_TO.includes(to)) return;
-      if (ref !== 'left' && ref !== 'right') {
-        const refWall = location.room.walls.find((wall) => wall.id === ref);
-        if (!refWall || !landingEndpoint(refWall, landing.wallId, landing.side)) return;
-        if (landingRefCreatesCycle(
-          location.room,
-          location.wall.id,
-          landing.wallId,
-          landing.side,
-          ref,
-        )) return;
-      }
-      const offset = action.payload.offset === undefined
-        ? landingOffsetFor(location.room, location.wall, endpoint, ref, to)
-        : action.payload.offset;
-      if (!Number.isFinite(offset)) return;
-      location.wall.landings[endpoint] = { ...landing, ref, to, offset };
-      syncRoomAt(state, location.roomIndex);
-    },
-    detachWallLanding(state, action) {
-      const location = wallLocation(state, action.payload);
-      const { endpoint } = action.payload;
-      if (!location?.wall.landings?.[endpoint]) return;
-      state.rooms[location.roomIndex] = releaseWall(
-        location.room,
-        location.wall.id,
-        { deleting: false },
-      );
-      const wall = state.rooms[location.roomIndex].walls.find(
-        (candidate) => candidate.id === location.wall.id,
-      );
-      wall.landings[endpoint] = null;
-      syncRoomAt(state, location.roomIndex);
-    },
-    updateWall(state, action) {
-      const location = wallLocation(state, action.payload);
-      if (!location) return;
-      const { wallId, roomId, id, changes, ...inlineChanges } = action.payload;
-      void wallId;
-      void roomId;
-      void id;
-      const allowedChanges = changes ?? inlineChanges;
-      for (const key of ['name', 'height']) {
-        if (allowedChanges[key] !== undefined) location.wall[key] = allowedChanges[key];
-      }
-      const thickness = allowedChanges.thickness;
-      if (Number.isFinite(thickness) && thickness >= 0) location.wall.thickness = thickness;
-      if (allowedChanges.numberOverride !== undefined) {
-        const value = allowedChanges.numberOverride;
-        if (value === null || (Number.isInteger(value) && value > 0)) {
-          location.wall.numberOverride = value;
-        }
-      }
-      if (typeof allowedChanges.elevationForced === 'boolean') location.wall.elevationForced = allowedChanges.elevationForced;
-      const profileChanges = allowedChanges.profile ?? allowedChanges.profileOverrides;
-      if (profileChanges) {
-        for (const [key, value] of Object.entries(profileChanges)) {
-          if (value === null || value === undefined) delete location.wall.profile[key];
-          else location.wall.profile[key] = value;
-        }
-      }
-      syncRoomAt(state, location.roomIndex);
-    },
-    deleteWall(state, action) {
-      const location = wallLocation(state, typeof action.payload === 'string'
-        ? { wallId: action.payload }
-        : action.payload);
-      if (!location) return;
-      const wallId = location.wall.id;
-      location.room.walls = releaseWall(location.room, wallId).walls;
-      const wallIndex = location.room.walls.findIndex((wall) => wall.id === wallId);
-      location.room.walls.splice(wallIndex, 1);
-      for (const wall of location.room.walls) {
-        for (const endpoint of ['start', 'end']) {
-          if (wall.connections[endpoint]?.wallId === wallId) wall.connections[endpoint] = null;
-        }
-      }
-      const deletedActiveWall = state.activeWallId === wallId;
-      const deletedSelectedWall = state.selection.wallId === wallId;
-      if (deletedActiveWall) {
-        state.activeWallId = location.room.walls[0]?.id ?? null;
-        state.activeWallSide = 'front';
-      }
-      if (deletedActiveWall || deletedSelectedWall) {
-        clearTransientSelection(state);
-      }
-      syncRoomAt(state, location.roomIndex);
-    },
-    setActiveWall(state, action) {
-      const wallId = action.payload.wallId ?? action.payload;
-      const room = roomFor(state, action.payload.roomId);
-      if (!room?.walls.some((wall) => wall.id === wallId)) return;
-      state.activeWallId = wallId;
-      state.activeWallSide = 'front';
-      clearTransientSelection(state);
-      state.selection.wallId = wallId;
-    },
-    setActiveWallSide(state, action) {
-      const side = action.payload.side ?? action.payload;
-      if (side !== 'front' && side !== 'back') return;
-      state.activeWallSide = side;
-      clearTransientSelection(state);
-    },
-    flipWall(state, action) {
-      const location = wallLocation(state, action.payload);
-      if (!location) return;
-      location.room.walls[location.wallIndex] = flipRunsForWall(location.wall);
-      syncRoomAt(state, location.roomIndex);
-    },
+    ...roomReducers,
+    ...wallReducers,
     addRun(state, action) {
       const location = wallLocation(state, action.payload);
       const run = action.payload.run ?? action.payload;
@@ -1790,76 +1208,7 @@ const elevationSlice = createSlice({
         else delete item.reveals;
       }
     },
-    setFacePath(state, action) {
-      state.facePath = action.payload ?? null;
-    },
-    setSelection(state, action) {
-      const openingId = action.payload.openingId ?? null;
-      const recessId = openingId ? null : action.payload.recessId ?? null;
-      const soffitId = openingId || recessId ? null : action.payload.soffitId ?? null;
-      const runId = openingId || recessId || soffitId ? null : action.payload.runId ?? null;
-      const endPanel = openingId || recessId || soffitId || runId
-        || !['start', 'end'].includes(action.payload.endPanel)
-        ? null
-        : action.payload.endPanel;
-      state.selection = {
-        runId,
-        pieceId: runId ? action.payload.pieceId ?? null : null,
-        openingId,
-        soffitId,
-        recessId,
-        wallId: state.selection.wallId ?? null,
-        ...(endPanel ? { endPanel } : {}),
-      };
-      if (runId) {
-        const selectedRun = roomFor(state)?.walls
-          .flatMap((wall) => wall.runs)
-          .find((run) => run.id === runId);
-        if (selectedRun) state.activeWallSide = wallSideOf(selectedRun);
-      } else if (recessId) {
-        const selectedRecess = roomFor(state)?.walls
-          .flatMap((wall) => wall.recesses ?? [])
-          .find((recess) => recess.id === recessId);
-        if (selectedRecess) state.activeWallSide = wallSideOf(selectedRecess);
-      } else if (soffitId) {
-        const selectedSoffit = roomFor(state)?.walls
-          .flatMap((wall) => wall.soffits ?? [])
-          .find((soffit) => soffit.id === soffitId);
-        if (selectedSoffit) state.activeWallSide = wallSideOf(selectedSoffit);
-      } else if (openingId) {
-        state.activeWallSide = 'front';
-      }
-      state.facePath = null;
-    },
-    clearSelection(state) {
-      clearTransientSelection(state);
-    },
-    setTool(state, action) {
-      if (!['select', 'draw', 'soffit', 'recess', 'wall', 'door', 'window'].includes(action.payload)) return;
-      state.tool = action.payload;
-    },
-    setMessage(state, action) {
-      state.message = action.payload;
-    },
-    setView(state, action) {
-      const view = action.payload.view ?? action.payload;
-      if (view !== 'plan' && view !== 'elevation') return;
-      state.view = view;
-      state.tool = 'select';
-      clearTransientSelection(state);
-      if (view === 'elevation') state.selection.wallId = state.activeWallId;
-    },
-    updateSettings(state, action) {
-      const changes = action.payload;
-      const defaultEnds = changes.defaultEnds
-        ? { ...state.settings.defaultEnds, ...changes.defaultEnds }
-        : state.settings.defaultEnds;
-      const defaultProfile = changes.defaultProfile
-        ? { ...state.settings.defaultProfile, ...changes.defaultProfile }
-        : state.settings.defaultProfile;
-      Object.assign(state.settings, changes, { defaultEnds, defaultProfile });
-      for (let index = 0; index < state.rooms.length; index += 1) syncRoomAt(state, index);
-    },
+    ...uiReducers,
   },
 });
 
