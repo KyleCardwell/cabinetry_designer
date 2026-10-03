@@ -390,3 +390,4 @@ export {
   validateRecessPlacement,
   withRunPlane,
 } from './recesses.js';
+export { faceFeatures } from './faceFeatures.js';

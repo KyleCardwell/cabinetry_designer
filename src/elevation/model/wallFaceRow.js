@@ -1,7 +1,6 @@
-import { landingsOn } from './landings.js';
-import { openingGeometry } from './openings.js';
-import { recessGeometry, recessesOn, uncoveredSpans } from './recesses.js';
-import { wallSideFrame, wallSideView } from './wallSides.js';
+import { faceFeatures } from './faceFeatures.js';
+import { uncoveredSpans } from './recesses.js';
+import { wallSideFrame } from './wallSides.js';
 
 const EPSILON = 1e-6;
 
@@ -13,21 +12,17 @@ const EPSILON = 1e-6;
  * or [] when the face has nothing to dimension.
  */
 export function wallFaceSegments(room, wall, side, settings) {
-  const view = wallSideView(wall, side);
   const { length } = wallSideFrame(room, wall, side);
-  const spans = landingsOn(room, view).map(({ a, b }) => ({ a, b, kind: 'landing' }));
-  const openings = [];
-  if (side === 'front') {
-    for (const opening of wall.openings ?? []) {
-      const geometry = openingGeometry(opening, length, settings);
-      const outside = geometry.casing ?? geometry.jamb;
-      openings.push({ a: outside.x, b: outside.x + outside.width, kind: 'opening' });
-    }
-  }
+  const features = faceFeatures(room, wall, side, settings);
+  const spans = features
+    .filter(({ kind }) => kind === 'landing')
+    .map(({ x, width }) => ({ a: x, b: x + width, kind: 'landing' }));
+  const openings = features
+    .filter(({ kind }) => kind === 'opening')
+    .map(({ x, width }) => ({ a: x, b: x + width, kind: 'opening' }));
   spans.push(...openings);
   // SPEC-38: each recess on this face at its width, split around the openings inside it.
-  for (const recess of recessesOn(view)) {
-    const { x, width } = recessGeometry(recess, length, wall.height);
+  for (const { x, width } of features.filter(({ kind }) => kind === 'recess' || kind === 'projection')) {
     const inside = openings
       .filter((span) => span.a >= x - EPSILON && span.b <= x + width + EPSILON)
       .map((span) => ({ start: span.a, end: span.b }));

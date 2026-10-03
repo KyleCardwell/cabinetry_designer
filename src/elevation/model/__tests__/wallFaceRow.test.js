@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { openingChain } from '../dimensions.js';
+import { faceFeatures } from '../faceFeatures.js';
 import { landWallEnd } from '../landings.js';
 import { wallFaceSegments } from '../wallFaceRow.js';
 
@@ -122,5 +123,25 @@ describe('SPEC-38 recesses in the wall rows', () => {
     expect(shown(wallFaceSegments(room, host(room), 'back', S))).toEqual([
       ['space', 0, 20], ['recess', 20, 50], ['space', 50, 240],
     ]);
+  });
+});
+
+describe('SPEC-39 face features', () => {
+  it('lists landings, openings, recesses and soffits on a face, left to right', () => {
+    const R = {
+      id: 'R', kind: 'recess', label: 'R1', wallSide: 'front', offsetFrom: 'left', offsetAnchor: 'edge',
+      offset: 120, width: 48, bottom: 0, height: null, depth: 24, molding: 'crown',
+    };
+    const SF = {
+      id: 'SF', wallSide: 'front', x: 180, width: 40, bottom: 84, depth: 14, molding: 'crown',
+      anchors: { left: false, right: false },
+    };
+    const room = makeRoom([makeWall('H', 0, 0, 246, 0, { openings: [DOOR], recesses: [R], soffits: [SF] })]);
+    expect(faceFeatures(room, host(room), 'front', S)).toEqual([
+      { kind: 'opening', id: 'D', x: 21, width: 42, bottom: 0, top: 83, depth: 4.5 },
+      { kind: 'recess', id: 'R', x: 120, width: 48, bottom: 0, top: 108, depth: 24 },
+      { kind: 'soffit', id: 'SF', x: 180, width: 40, bottom: 84, top: 108, depth: 14 },
+    ]);
+    expect(faceFeatures(room, host(room), 'back', S)).toEqual([]);
   });
 });
