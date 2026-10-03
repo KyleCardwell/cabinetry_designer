@@ -1,5 +1,5 @@
-import { Fragment } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import AddToolMenu from './AddToolMenu.jsx';
 import { nextWallId, wallLabel } from '../model/topology.js';
 import {
   centerRoomOnOrigin,
@@ -19,7 +19,6 @@ export default function ElevationToolbar({
   const dispatch = useDispatch();
   const {
     tool,
-    message,
     view,
     settings,
     rooms,
@@ -37,9 +36,10 @@ export default function ElevationToolbar({
     const wallId = nextWallId(room, activeWallId, direction);
     if (wallId) dispatch(setActiveWall(wallId));
   };
-  const toolNames = view === 'plan'
-    ? ['select', 'wall', 'door', 'window']
-    : ['select', 'draw', 'soffit', 'door', 'window'];
+  const toolNames = view === 'plan' ? ['select', 'wall'] : ['select', 'draw'];
+  const addTools = view === 'plan'
+    ? [['door', 'Door'], ['window', 'Window']]
+    : [['soffit', 'Soffit'], ['recess', 'Recess'], ['door', 'Door'], ['window', 'Window']];
 
   return (
     <div className="flex min-h-12 shrink-0 items-center gap-2 border-b border-gray-700 bg-gray-800 px-4">
@@ -59,54 +59,56 @@ export default function ElevationToolbar({
       </div>
       <div className="mx-1 h-5 w-px bg-gray-700" />
       {toolNames.map((toolName) => (
-        <Fragment key={toolName}>
-          <button
-            type="button"
-            disabled={view === 'elevation' && activeWallSide === 'back' && ['door', 'window'].includes(toolName)}
-            title={view === 'elevation' && activeWallSide === 'back' && ['door', 'window'].includes(toolName)
-              ? 'Add doors and windows from the front'
-              : undefined}
-            onClick={() => dispatch(setTool(toolName))}
-            className={`rounded px-3 py-1.5 text-sm capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-              tool === toolName
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-            }`}
-          >
-            {toolName === 'draw'
-              ? 'Draw run'
-              : toolName === 'wall'
-                ? 'Draw wall'
-                : toolName === 'soffit' ? 'Soffit' : toolName}
-          </button>
-          {toolName === 'soffit' && tool === 'soffit' && (
-            <div
-              className="flex rounded bg-gray-950 p-0.5"
-              aria-label="Default soffit molding"
-            >
-              {[
-                ['crown', 'Crown'],
-                ['topMold', 'Top mold'],
-                ['none', 'None'],
-              ].map(([value, label]) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={settings.defaultSoffitMolding === value}
-                  onClick={() => dispatch(updateSettings({ defaultSoffitMolding: value }))}
-                  className={`rounded px-2.5 py-1 text-xs transition-colors ${
-                    settings.defaultSoffitMolding === value
-                      ? 'bg-blue-600 text-white'
-                      : 'text-gray-400 hover:text-gray-200'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-        </Fragment>
+        <button
+          key={toolName}
+          type="button"
+          onClick={() => dispatch(setTool(toolName))}
+          className={`rounded px-3 py-1.5 text-sm capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+            tool === toolName
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+          }`}
+        >
+          {toolName === 'draw'
+            ? 'Draw run'
+            : toolName === 'wall'
+              ? 'Draw wall'
+              : toolName}
+        </button>
       ))}
+      <AddToolMenu
+        tools={addTools}
+        tool={tool}
+        disabledTools={view === 'elevation' && activeWallSide === 'back' ? ['door', 'window'] : []}
+        disabledTitle="Add doors and windows from the front"
+        onPick={(name) => dispatch(setTool(name))}
+      />
+      {view === 'elevation' && tool === 'soffit' && (
+        <div
+          className="flex rounded bg-gray-950 p-0.5"
+          aria-label="Default soffit molding"
+        >
+          {[
+            ['crown', 'Crown'],
+            ['topMold', 'Top mold'],
+            ['none', 'None'],
+          ].map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              aria-pressed={settings.defaultSoffitMolding === value}
+              onClick={() => dispatch(updateSettings({ defaultSoffitMolding: value }))}
+              className={`rounded px-2.5 py-1 text-xs transition-colors ${
+                settings.defaultSoffitMolding === value
+                  ? 'bg-blue-600 text-white'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
       {view === 'plan' && (
         <button
           type="button"
@@ -218,9 +220,6 @@ export default function ElevationToolbar({
       >
         Zoom to fit
       </button>
-      <div className="ml-2 min-w-0 flex-1 text-sm text-amber-300" role="status">
-        {message}
-      </div>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import {
   subtract,
   wallFrame,
 } from './geometry.js';
+import { gridLeaves } from './grid.js';
 import { landingEndpoint } from './landings.js';
 import { roundTo } from './units.js';
 import {
@@ -16,9 +17,21 @@ import {
   wallViewForRun,
 } from './wallSides.js';
 
-/** Return the installed front depth of a run. */
+/** How far a run's back sits from the wall face: its plane (a recess back or projection face, SPEC-38) plus its outset. */
+export function runBackOffset(run) {
+  return (run._plane?.offset ?? 0) + (run.outset ?? 0);
+}
+
+/**
+ * How far a run's front sits from the wall face: box + frame on a face frame run (SPEC-36.1), else box + bumper
+ * + door. A run that's only panels reserves just the panel (SPEC-38). Negative when the run is deep in a recess.
+ */
 export function frontDepth(run, settings) {
-  return run.depth + settings.bumperThickness + settings.doorThickness;
+  const back = runBackOffset(run);
+  const leaves = run.grid ? gridLeaves(run.grid) : [];
+  if (leaves.length > 0 && leaves.every((leaf) => leaf.kind === 'panel')) return back + run.depth;
+  if (run._frame) return back + run.depth + run._frame.thickness;
+  return back + run.depth + settings.bumperThickness + settings.doorThickness;
 }
 
 /** Return the minimum width for a filler scribed into an angled corner. */

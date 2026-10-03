@@ -6,9 +6,13 @@ import {
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+  cellPieces,
   pinTargetsForRun,
+  recessesOn,
   soffitsOn,
   splitRun,
+  teeFillers,
+  wallEndPanels,
 } from '../model/index.js';
 import {
   endCornerAnglesForRun,
@@ -23,10 +27,12 @@ import {
   setSelection,
 } from '../store/elevationSlice.js';
 import OpeningProperties from './properties/OpeningProperties.jsx';
+import RecessProperties from './properties/RecessProperties.jsx';
 import PieceProperties from './properties/PieceProperties.jsx';
 import RunProperties from './properties/RunProperties.jsx';
 import SoffitProperties from './properties/SoffitProperties.jsx';
 import WallHeightProperties from './properties/WallHeightProperties.jsx';
+import WallEndPanelProperties from './properties/WallEndPanelProperties.jsx';
 
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
@@ -54,6 +60,12 @@ export default function PropertiesPanel() {
   const soffit = wall
     ? soffitsOn(wall).find((candidate) => candidate.id === selection.soffitId) ?? null
     : null;
+  const recess = wall
+    ? recessesOn(wall).find((candidate) => candidate.id === selection.recessId) ?? null
+    : null;
+  const endPanel = wall && selection.endPanel
+    ? wallEndPanels(room, wall, settings).find((candidate) => candidate.endpoint === selection.endPanel) ?? null
+    : null;
   const run = wall?.runs.find((candidate) => candidate.id === selection.runId) ?? null;
   const layout = useMemo(
     () => (run ? splitRun(run, settings, {
@@ -63,6 +75,10 @@ export default function PropertiesPanel() {
     }) : null),
     [room, run, settings, wall],
   );
+  const cells = useMemo(
+    () => (run && layout ? cellPieces(run, layout) : null),
+    [run, layout],
+  );
   const diagnostics = useMemo(
     () => (room ? roomDiagnostics(room, settings) : {}),
     [room, settings],
@@ -70,11 +86,15 @@ export default function PropertiesPanel() {
   const displayLayout = layout && diagnostics[run?.id]
     ? { ...layout, ...diagnostics[run.id] }
     : layout;
+  const tees = useMemo(
+    () => (run && cells ? teeFillers(room, run, cells, settings).tees : []),
+    [room, run, cells, settings],
+  );
   const selectionContext = useMemo(
-    () => (run && layout
-      ? resolveSelectedPiece(run, layout, selection.pieceId)
+    () => (run && cells
+      ? resolveSelectedPiece(run, cells, selection.pieceId, tees)
       : null),
-    [run, layout, selection.pieceId],
+    [run, cells, selection.pieceId, tees],
   );
 
   const showMessage = useCallback((message) => {
@@ -105,6 +125,10 @@ export default function PropertiesPanel() {
     if (selection.openingId && !opening) dispatch(clearSelection());
   }, [dispatch, opening, selection.openingId]);
 
+  useEffect(() => {
+    if (selection.recessId && !recess) dispatch(clearSelection());
+  }, [dispatch, recess, selection.recessId]);
+
   return (
     <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-700 bg-gray-800/50 p-4">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">
@@ -123,11 +147,20 @@ export default function PropertiesPanel() {
             settings={settings}
             placementMessage={message}
           />
+        ) : recess ? (
+          <RecessProperties wall={wall} recess={recess} placementMessage={message} />
         ) : soffit ? (
           <SoffitProperties
             room={room}
             wall={wall}
             soffit={soffit}
+            settings={settings}
+          />
+        ) : endPanel ? (
+          <WallEndPanelProperties
+            room={room}
+            wall={wall}
+            panel={endPanel}
             settings={settings}
           />
         ) : !run || !displayLayout ? (
@@ -138,6 +171,7 @@ export default function PropertiesPanel() {
             wall={wall}
             run={run}
             layout={layout}
+            cells={cells}
             selectionContext={selectionContext}
             settings={settings}
           />

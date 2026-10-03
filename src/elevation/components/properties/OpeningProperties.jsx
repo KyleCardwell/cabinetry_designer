@@ -3,6 +3,7 @@ import { useDispatch } from 'react-redux';
 import {
   formatInches,
   openingGeometry,
+  recessesOn,
   runBlocksOpening,
   validateOpeningPlacement,
 } from '../../model/index.js';
@@ -36,6 +37,7 @@ export default function OpeningProperties({ wall, opening, settings, placementMe
     (run) => runBlocksOpening(run, opening, wall, settings),
   );
   const update = (changes) => dispatch(updateOpening({ ...actionBase, changes }));
+  const recesses = recessesOn(wall, 'front').filter((recess) => recess.kind === 'recess');
   // Grow away from the wall end the offset is measured from, so the typed offset holds.
   const preferredOpeningGrow = opening.offsetFrom === 'right' ? 'left' : 'right';
   const [openingGrow, setOpeningGrow] = useState(preferredOpeningGrow);
@@ -86,6 +88,23 @@ export default function OpeningProperties({ wall, opening, settings, placementMe
               <option value="window">Window</option>
             </select>
           </Field>
+          {(recesses.length > 0 || opening.recessId) && (
+            <div className="col-span-2">
+              <Field label="Set in">
+                <select
+                  value={opening.recessId ?? ''}
+                  onChange={(event) => update({ recessId: event.target.value || null })}
+                  aria-label="Opening recess"
+                  className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="">Wall face</option>
+                  {recesses.map((recess) => (
+                    <option key={recess.id} value={recess.id}>{`${recess.label} back`}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+          )}
         </div>
       </section>
 

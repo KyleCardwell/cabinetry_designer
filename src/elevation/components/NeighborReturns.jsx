@@ -12,7 +12,7 @@ import {
   spanCorner,
 } from '../model/corners.js';
 import { landingsOn } from '../model/landings.js';
-import { soffitSeams } from '../model/soffits.js';
+import { soffitReturns, soffitSeams } from '../model/soffits.js';
 import { wallLabel } from '../model/topology.js';
 import { wallSideOf } from '../model/wallSides.js';
 import Hatch from './Hatch.jsx';
@@ -91,6 +91,22 @@ export default function NeighborReturns({ room, wall, settings, transform }) {
         });
       }
     }
+  }
+
+  // SPEC-38.1: soffits on other walls that die into this one, drawn like cabinet returns.
+  for (const entry of soffitReturns(room, wall)) {
+    const neighbor = room.walls.find((candidate) => candidate.id === entry.wallId);
+    returns.push({
+      key: `soffit:${entry.key}`,
+      kind: 'return',
+      label: neighbor ? `${wallLabel(room, neighbor)} soffit` : 'Soffit',
+      rect: wallRectToScreen({
+        x: entry.x,
+        z: entry.bottom,
+        width: entry.width,
+        height: entry.top - entry.bottom,
+      }, transform),
+    });
   }
 
   return returns.map((entry) => {

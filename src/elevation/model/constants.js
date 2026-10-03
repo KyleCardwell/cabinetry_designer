@@ -41,6 +41,8 @@ export const DEFAULT_SETTINGS = {
   doorThickness: 0.8125,
   fillerReturnDepth: 2.5,
   fillerReturnThickness: 0.75,
+  teeCover: 0.75,
+  teeThickness: 0.8125,
   blindFillerWidth: 6,
   cornerFillerMinWidth: 1.5,
   cornerSnapDistance: 3,
@@ -76,19 +78,38 @@ export const DEFAULT_SETTINGS = {
     },
   },
   defaultStyle: { cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false },
-  insetFrame: { stile: 0.75, rail: 1.5, midRail: 1.5, mullion: 1.5, upperDrop: 0.75 },
-  profiledFit: { edge: 0.09375, pairEdge: 0.0625, pairGap: 0.125 },
+  insetFrame: {
+    stile: 0.75,
+    rail: 1.5,
+    midRail: 1.5,
+    mullion: 1.5,
+    upperDrop: 0.75,
+    thickness: 0.8125,
+  },
+  profiledFit: { edge: 0.09375, pairEdge: 0.0625, pairGap: 0.125, sharedGap: 0.0625 },
   woodTopReveal: 0.125,
   capturedSingleReveal: 0.09375,
+  stackedUpperBottom: 0,
+  stackedLowerTop: 0.125,
+  floatingShelfThickness: 1.5,
   standardDrawerHeights: { european: 5.875, faceFrame: 5 },
   standardDrawerBelow: 6,
+  belowRunOverhang: -0.125,
+  belowRunFlushReveal: 0.125,
+  bottomPartHeights: { light_rail: 1.5, light_trough: 3, panel: 0.75, bottom_cap: 1.5, corbels: 6 },
 };
+
+export const FRAME_JOINS = ['miter', 'butt'];
 
 /** Display labels for derived piece kinds. */
 export const KIND_LABELS = {
   cabinet: 'Cabinet',
   filler: 'Filler',
   end_panel: 'End panel',
+  panel: 'Panel',
+  void: 'Open',
+  shelves: 'Shelves',
+  shelf: 'Shelf',
 };
 
 /** Display colors for derived piece kinds. */
@@ -96,6 +117,10 @@ export const KIND_COLORS = {
   cabinet: '#3b82f6',
   filler: '#f59e0b',
   end_panel: '#8b5cf6',
+  panel: '#8b5cf6',
+  void: '#475569',
+  shelves: '#0ea5e9',
+  shelf: '#0ea5e9',
 };
 
 /** Display colors for cabinet run types. */

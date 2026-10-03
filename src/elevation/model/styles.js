@@ -1,5 +1,7 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { belowRunReveal } from './bottoms.js';
 import { faceRevealsFor } from './faces.js';
+import { formatInches } from './units.js';
 
 const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;
 
@@ -16,15 +18,21 @@ export const CABINET_STYLE_LABELS = {
 export const REVEAL_KEYS = ['top', 'bottom', 'left', 'right', 'horizontal', 'vertical'];
 
 export const UPPER_BOTTOM_OPTIONS = ['overhang', 'flush', 'counter'];
-export const RUN_TOP_OPTIONS = ['stone', 'wood'];
+export const RUN_TOP_OPTIONS = ['stone', 'wood', 'crown', 'topMold', 'none'];
 
 export const REVEAL_SOURCE_LABELS = {
   style: 'style',
   manual: 'manual',
+  'rule:hanging': 'rule: hanging base',
+  'rule:below-run': 'rule: part below',
   'rule:wood-top': 'rule: wood top',
   'rule:upper-flush': 'rule: flush bottom',
   'rule:upper-counter': 'rule: on counter',
+  'rule:stacked-seam': 'rule: stacked seam',
   'rule:captured-single': 'rule: captured single',
+  'rule:bead-seam': 'rule: bead seam',
+  'rule:covered-panel': 'rule: covered panel',
+  'rule:t-filler': 'rule: T-filler',
 };
 
 const STYLE_KEYS = ['cabinetStyleId', 'beadWidth', 'profiledEdge'];
@@ -64,9 +72,34 @@ export function isInsetStyle(style) {
 }
 
 /**
+ * How far a face frame run's bottom rail hangs below its box (SPEC-36.3): the upper drop on an upper
+ * whose doors overhang, and on a base marked hanging. Zero for everything else.
+ */
+export function frameDrop(run, settings) {
+  const { upperDrop } = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
+  if (run.cabinetTypeId === UPPER) return (run.upperBottom ?? 'overhang') === 'overhang' ? upperDrop : 0;
+  return run.cabinetTypeId === BASE && run.hanging === true ? upperDrop : 0;
+}
+
+/** REV-009/010: the reveals either side of a seam where one box sits on another. */
+export function stackedSeamReveals(style, settings) {
+  if (!isInsetStyle(style)) {
+    return {
+      upperBottom: settings.stackedUpperBottom ?? DEFAULT_SETTINGS.stackedUpperBottom,
+      lowerTop: settings.stackedLowerTop ?? DEFAULT_SETTINGS.stackedLowerTop,
+    };
+  }
+  const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
+  const bead = style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? style.beadWidth : 0;
+  const half = frame.rail / 2 + bead;   // one shared rail covers both boxes
+  return { upperBottom: half, lowerTop: half };
+}
+
+/**
  * Full reveal values for a style and cabinet type, before rules.
  * Inset values are measured from the box to the frame opening (bead included);
  * `fit` / `pairFit` shrink each face inside its slot; `pair` is the gap between pair doors.
+ * `shared` is the gap between the faces of a group with no rail between (SPEC-36.3).
  */
 export function styleReveals(style, cabinetTypeId, settings) {
   if (!isInsetStyle(style)) {
@@ -82,13 +115,15 @@ export function styleReveals(style, cabinetTypeId, settings) {
   return {
     top: frame.rail + bead,
     bottom: bottomRail + bead,
-    left: frame.stile + bead,
-    right: frame.stile + bead,
+    // SPEC-38.3: the bead is in the gaps beside a beaded box, never in its side reveals.
+    left: frame.stile,
+    right: frame.stile,
     horizontal: frame.midRail + bead * 2,
     vertical: frame.mullion + bead * 2,
     pair: profiled ? profiled.pairGap : 0,
     fit: profiled ? profiled.edge : 0,
     pairFit: profiled ? profiled.pairEdge : 0,
+    shared: profiled ? profiled.sharedGap : 0,
   };
 }
 
@@ -109,6 +144,11 @@ export function cabinetReveals({
   run = {},
   face,
   captured = { left: false, right: false },
+  seams = { left: false, right: false },
+  stacked = { top: false, bottom: false },
+  covered = { top: 0, bottom: 0, left: 0, right: 0 },
+  tCovers = null,
+  runEdges = { top: true, bottom: true },
   manual = null,
   settings,
 }) {
@@ -120,17 +160,49 @@ export function cabinetReveals({
   };
   const euro = !isInsetStyle(style);
 
-  if (euro && cabinetTypeId === BASE && run.top === 'wood') {
+  if (euro && run.top === 'wood' && runEdges.top) {
     apply('top', settings.woodTopReveal ?? DEFAULT_SETTINGS.woodTopReveal, 'rule:wood-top');
   }
   const upperBottom = run.upperBottom ?? 'overhang';
   if (cabinetTypeId === UPPER && upperBottom !== 'overhang') {
     apply('bottom', styleReveals(style, TALL, settings).bottom, `rule:upper-${upperBottom}`);
   }
+  // A hanging base's bottom reveal is an upper's: the frame's rail hangs below the box (SPEC-36.3).
+  if (!euro && cabinetTypeId !== UPPER && runEdges.bottom && frameDrop(run, settings) > 0) {
+    apply('bottom', styleReveals(style, UPPER, settings).bottom, 'rule:hanging');
+  }
+  const below = euro && runEdges.bottom ? belowRunReveal(run, settings) : null;
+  if (below !== null) apply('bottom', below, 'rule:below-run');
+  if (stacked.top || stacked.bottom) {
+    const seam = stackedSeamReveals(style, settings);
+    if (stacked.top) apply('top', seam.lowerTop, 'rule:stacked-seam');
+    if (stacked.bottom) apply('bottom', seam.upperBottom, 'rule:stacked-seam');
+  }
   if (euro && captured.left && captured.right && isSingleColumn(face)) {
     const reveal = settings.capturedSingleReveal ?? DEFAULT_SETTINGS.capturedSingleReveal;
     apply('left', reveal, 'rule:captured-single');
     apply('right', reveal, 'rule:captured-single');
+  }
+  if (style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET) {
+    const stile = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
+    if (seams.left) apply('left', stile, 'rule:bead-seam');
+    if (seams.right) apply('right', stile, 'rule:bead-seam');
+  }
+  if (euro) {
+    const standard = styleReveals(style, cabinetTypeId, settings);
+    for (const key of ['top', 'bottom', 'left', 'right']) {
+      if (covered?.[key] > 0) apply(key, standard[key] - covered[key], 'rule:covered-panel');
+    }
+  }
+  // A T-filler covers the front edge (REV-005/006): the face sits that much farther in, and between
+  // stacked boxes each face takes half the usual gap beside the flat.
+  if (euro && tCovers) {
+    for (const key of ['left', 'right']) {
+      if (tCovers[key] > 0) apply(key, values[key] + tCovers[key], 'rule:t-filler');
+    }
+    for (const key of ['top', 'bottom']) {
+      if (tCovers[key] > 0) apply(key, tCovers[key] + values.horizontal / 2, 'rule:t-filler');
+    }
   }
   for (const key of REVEAL_KEYS) {
     if (Number.isFinite(manual?.[key])) apply(key, manual[key], 'manual');
@@ -170,9 +242,59 @@ export function applyStandardDrawers(face, style, settings) {
   return visit(face);
 }
 
-/** How far an upper run's fillers and end panels extend below the box. */
+/** How far a run's fillers and end panels extend below the box: to the doors. */
 export function panelDrop(run, style, settings) {
+  if (isInsetStyle(style)) return frameDrop(run, settings);
+  const below = belowRunReveal(run, settings);
+  if (below !== null) return Math.max(0, -below);
   if (run.cabinetTypeId !== UPPER || (run.upperBottom ?? 'overhang') !== 'overhang') return 0;
-  if (!isInsetStyle(style)) return Math.max(0, -faceRevealsFor(UPPER, settings).bottom);
-  return { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.upperDrop;
+  return Math.max(0, -faceRevealsFor(UPPER, settings).bottom);
+}
+
+/**
+ * The bottom of a run's end panels and fillers: how far their faces drop below the box to meet the
+ * doors, and the chip detail when they sit on a part the doors stop flush above.
+ */
+export function endPieceBottom(run, style, settings) {
+  const below = isInsetStyle(style) ? null : belowRunReveal(run, settings);
+  return {
+    drop: panelDrop(run, style, settings),
+    chip: below !== null && below > 0 ? below : 0,
+  };
+}
+
+/** Shop notes for an end panel or filler, from endPieceBottom. */
+export function endPieceNotes(kind, bottom) {
+  const notes = [];
+  if (bottom.chip > 0) notes.push(`chip detail bottom ${formatInches(bottom.chip)}`);
+  if (kind === 'filler' && bottom.drop > 0) notes.push(`return up ${formatInches(bottom.drop)}`);
+  return notes;
+}
+
+/**
+ * The gap a run leaves at each seam between two cabinet columns (SPEC-36, FF-004): its own
+ * `seamGap`, else twice the bead on beaded inset (the stile covers 3/4" of each box and the bead
+ * widens it), else 0.
+ */
+export function runSeamGap(room, run, settings) {
+  if (Number.isFinite(run.seamGap)) return run.seamGap;
+  const style = resolveStyle(settings, room, run);
+  return style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? 2 * style.beadWidth : 0;
+}
+
+/** The face frame shape carried by an inset run, or null for European. */
+export function runFrame(room, run, settings) {
+  const style = resolveStyle(settings, room, run);
+  if (!isInsetStyle(style)) return null;
+  const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
+  const bead = style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? style.beadWidth : 0;
+  return { thickness: frame.thickness, drop: frameDrop(run, settings), bead };
+}
+
+/**
+ * Whether a run end gets a T-filler (a filler end) or an L-shaped end panel (an end panel end)
+ * (SPEC-37, 37.1): the end's own choice, `run.endFiller[side].tFiller`, else the run's setting.
+ */
+export function endCoverOn(run, side) {
+  return run.endFiller?.[side]?.tFiller ?? Boolean(run.tFiller);
 }

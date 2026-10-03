@@ -57,18 +57,25 @@ export function resolveVertical(run, profile, baseRunsBelow = [], wallOrHeight) 
   let height;
 
   if (run.cabinetTypeId === CABINET_TYPE_IDS.BASE) {
-    z = q.toeKickHeight;
-    height = q.baseBoxHeight;
+    // A hanging base's frame drops below its box (SPEC-36.3): the box starts that much higher and is
+    // that much shorter, so its top, and the counter, stay where they were.
+    const drop = run._frame?.drop ?? 0;
+    z = q.toeKickHeight + drop;
+    height = q.baseBoxHeight - drop;
   } else if (run.cabinetTypeId === CABINET_TYPE_IDS.TALL) {
     z = q.toeKickHeight;
     height = boxTop - z;
   } else {
     const overlappingBases = baseRunsBelow.filter((base) => (
-      base.cabinetTypeId === CABINET_TYPE_IDS.BASE
+      (Number.isFinite(base.counterTop)
+        ? base.counterTop < boxTop - 1e-6
+        : base.cabinetTypeId === CABINET_TYPE_IDS.BASE)
       && Math.min(run.x + run.width, base.x + base.width) - Math.max(run.x, base.x) > 1e-6
     ));
     const counterHeights = overlappingBases.map((base) => (
-      counterTop(mergeDefined(profile, base.overrides))
+      Number.isFinite(base.counterTop)
+        ? base.counterTop
+        : counterTop(mergeDefined(profile, base.overrides))
     ));
     let counterReference = counterTop(q);
     if (counterHeights.length > 0) {
@@ -77,7 +84,8 @@ export function resolveVertical(run, profile, baseRunsBelow = [], wallOrHeight) 
         warnings.push({ code: 'mixed-counter-heights' });
       }
     }
-    z = counterReference + q.upperClearance;
+    // The clearance runs to the bottom of a face frame's bottom rail, which drops below the box (SPEC-36.1).
+    z = counterReference + q.upperClearance + (run._frame?.drop ?? 0);
     height = boxTop - z;
   }
 

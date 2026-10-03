@@ -7,6 +7,8 @@ import {
   landingRefCreatesCycle,
   landingsOn,
   wallFrame,
+  wallEndPanelFramed,
+  wallEndPanels,
   wallNumbers,
   wallNumberWarnings,
 } from '../../model/index.js';
@@ -22,6 +24,7 @@ import {
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
+import WallEndPanelFields from './WallEndPanelFields.jsx';
 import StretchInput from './StretchInput.jsx';
 
 const WALL_OVERRIDE_FIELDS = [
@@ -46,6 +49,9 @@ export default function WallHeightProperties({ room, wall, plan }) {
     && !wall.landings?.[frame.leftEndpoint];
   const rightFree = !wall.connections?.[frame.rightEndpoint]
     && !wall.landings?.[frame.rightEndpoint];
+  const framedEnds = new Set(wallEndPanels(room, wall, settings)
+    .filter((candidate) => wallEndPanelFramed(wall, candidate))
+    .map((candidate) => candidate.endpoint));
   const preferredGrowEnd = leftFree !== rightFree && leftFree ? 'left' : 'right';
   const [growEnd, setGrowEnd] = useState(preferredGrowEnd);
 
@@ -305,19 +311,14 @@ export default function WallHeightProperties({ room, wall, plan }) {
                 )}
                 {panel && (
                   <div className="mt-2">
-                    <Field label="Width">
-                      <InchInput
-                        value={panel.width}
-                        allowBlank
-                        placeholder={formatInches(settings.endPanelThickness)}
-                        onCommit={(width) => dispatch(setWallEndPanel({
-                          wallId: wall.id,
-                          endpoint,
-                          panel: { width },
-                        }))}
-                        aria-label={`${label} panel width`}
-                      />
-                    </Field>
+                    <WallEndPanelFields
+                      wall={wall}
+                      endpoint={endpoint}
+                      panel={panel}
+                      label={label}
+                      framed={framedEnds.has(endpoint)}
+                      settings={settings}
+                    />
                   </div>
                 )}
               </div>

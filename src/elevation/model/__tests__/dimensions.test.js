@@ -557,6 +557,7 @@ describe('centerlineMarkers', () => {
       pieceBottom: 4,
       pieceTop: 34.5,
       from: 'left',
+      anchor: 'center',
     }]);
   });
 
@@ -583,24 +584,34 @@ describe('centerlineMarkers', () => {
       pieceBottom: 4,
       pieceTop: 34.5,
       from: 'right',
+      anchor: 'center',
     }]);
   });
 
-  it('SPEC-12 11. returns nothing for edge-anchored pins and pinless runs', () => {
-    const edgeAnchoredRun = {
+  it('SPEC-38.1 measures an edge pin to that edge; nothing without a pin', () => {
+    const edgePins = {
       items: [
-        { id: 'left', pin: null },
+        { id: 'left', pin: { from: 'right', value: 96, anchor: 'right' } },
         { id: 'mid', pin: { from: 'left', value: 24, anchor: 'left' } },
       ],
     };
 
     expect(centerlineMarkers(
-      edgeAnchoredRun,
+      edgePins,
       pieces,
       { openings: [] },
       120,
       DEFAULT_SETTINGS,
-    )).toEqual([]);
+    )).toEqual([
+      {
+        pieceId: 'left', x: 24, datumX: 120, z: 40, value: 96, pieceBottom: 4, pieceTop: 34.5,
+        from: 'right', anchor: 'right',
+      },
+      {
+        pieceId: 'mid', x: 24, datumX: 0, z: 40, value: 24, pieceBottom: 4, pieceTop: 34.5,
+        from: 'left', anchor: 'left',
+      },
+    ]);
     expect(centerlineMarkers(
       { items: [] },
       pieces,
@@ -753,6 +764,7 @@ describe('opening dimensions', () => {
         { start: 84, end: 87, kind: 'casing' },
         { start: 87, end: 96, kind: 'above' },
       ],
+      middle: [],
       outer: [{ start: 0, end: 96, kind: 'wall' }],
     });
     expect(verticalOpeningChain(wall, doorOpening(), 120, DEFAULT_SETTINGS)).toEqual({
@@ -761,7 +773,41 @@ describe('opening dimensions', () => {
         { start: 80, end: 83, kind: 'casing' },
         { start: 83, end: 96, kind: 'above' },
       ],
+      middle: [],
       outer: [{ start: 0, end: 96, kind: 'wall' }],
     });
+  });
+});
+
+describe('SPEC-36 opening dimensions', () => {
+  const wallOf = (room) => room.walls.find(({ id }) => id === 'A');
+  const F = cabinetRun('F', CABINET_TYPE_IDS.BASE, {
+    x: 24, width: 36, heightMode: 'manual', autoCount: false,
+    ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+    items: [{ id: 'a', kind: 'cabinet', width: 18 }, { id: 'b', kind: 'cabinet', width: 18 }],
+  });
+
+  it('dimensions a face frame stile to opening, and a gap between boxes', () => {
+    const inset = { ...roomR({ wallA: { runs: [F] } }), style: { cabinetStyleId: 14 } };
+    expect(horizontalChains(inset, wallOf(inset), 'lower', DEFAULT_SETTINGS).inner).toEqual([
+      { start: 0, end: 24, kind: 'open' },
+      { start: 24, end: 24.75, kind: 'frame', runId: 'F' },
+      { start: 24.75, end: 41.25, kind: 'frame-opening', runId: 'F', pieceId: 'a' },
+      { start: 41.25, end: 42.75, kind: 'frame', runId: 'F' },
+      { start: 42.75, end: 59.25, kind: 'frame-opening', runId: 'F', pieceId: 'b' },
+      { start: 59.25, end: 60, kind: 'frame', runId: 'F' },
+      { start: 60, end: 120, kind: 'open' },
+    ]);
+
+    const spaced = {
+      ...F, width: 36.5, _seamGap: 0.5,
+      items: [{ id: 'a', kind: 'cabinet', width: null }, { id: 'b', kind: 'cabinet', width: null }],
+    };
+    const euro = roomR({ wallA: { runs: [spaced] } });
+    expect(horizontalChains(euro, wallOf(euro), 'lower', DEFAULT_SETTINGS).inner.slice(1, 4)).toEqual([
+      { start: 24, end: 42, kind: 'piece', runId: 'F', pieceId: 'a' },
+      { start: 42, end: 42.5, kind: 'gap', runId: 'F' },
+      { start: 42.5, end: 60.5, kind: 'piece', runId: 'F', pieceId: 'b' },
+    ]);
   });
 });

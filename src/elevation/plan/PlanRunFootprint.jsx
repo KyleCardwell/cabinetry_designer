@@ -27,7 +27,7 @@ function linePoints(points) {
   return points.flatMap((point) => [point.x, point.y]);
 }
 
-function footprintOutlineSegments(frame, span, depth) {
+function footprintOutlineSegments(frame, span, back, front) {
   const start = span.x;
   const end = span.x + span.width;
   const ranges = [
@@ -38,22 +38,22 @@ function footprintOutlineSegments(frame, span, depth) {
   const segments = ranges.flatMap((range) => [
     {
       points: [
-        elevationToPlan(frame, range.start, 0),
-        elevationToPlan(frame, range.end, 0),
+        elevationToPlan(frame, range.start, back),
+        elevationToPlan(frame, range.end, back),
       ],
       overhang: range.overhang,
     },
     {
       points: [
-        elevationToPlan(frame, range.start, depth),
-        elevationToPlan(frame, range.end, depth),
+        elevationToPlan(frame, range.start, front),
+        elevationToPlan(frame, range.end, front),
       ],
       overhang: range.overhang,
     },
   ]);
   for (const x of [start, end]) {
     segments.push({
-      points: [elevationToPlan(frame, x, 0), elevationToPlan(frame, x, depth)],
+      points: [elevationToPlan(frame, x, back), elevationToPlan(frame, x, front)],
       overhang: x < 0 || x > frame.length,
     });
   }
@@ -67,6 +67,12 @@ function depthRangePoints(frame, range) {
     elevationToPlan(frame, range.end, range.front),
     elevationToPlan(frame, range.start, range.front),
   ];
+}
+
+function planPiecePoints(frame, piece) {
+  return piece.polygon
+    ? piece.polygon.map(([u, v]) => elevationToPlan(frame, u, v))
+    : depthRangePoints(frame, piece);
 }
 
 export default function PlanRunFootprint({
@@ -99,7 +105,9 @@ export default function PlanRunFootprint({
     layout,
     faceLayouts,
   );
-  const depth = frontDepth(run, settings);
+  // From the plane the run sits on (SPEC-38): the wall face, or a recess back.
+  const planeBack = run._plane?.offset ?? 0;
+  const depth = frontDepth(run, settings) - planeBack;
   const upper = run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
   const color = CABINET_TYPE_COLORS[run.cabinetTypeId] ?? KIND_COLORS.cabinet;
   const outline = collision ? '#ef4444' : selected ? '#f8fafc' : color;
@@ -108,9 +116,9 @@ export default function PlanRunFootprint({
   const depthText = formatInches(depth);
   const depthTextWidth = (depthText.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
   const dim = depthDimension(run, depth, scale);
-  const dimensionBack = elevationToPlan(frame, dim.x, 0);
-  const dimensionFront = elevationToPlan(frame, dim.x, depth);
-  const depthLabelLocation = elevationToPlan(frame, dim.label.x, dim.label.offset);
+  const dimensionBack = elevationToPlan(frame, dim.x, planeBack);
+  const dimensionFront = elevationToPlan(frame, dim.x, planeBack + depth);
+  const depthLabelLocation = elevationToPlan(frame, dim.label.x, planeBack + dim.label.offset);
   const tickHalf = DEPTH_TICK_HALF_LENGTH / scale;
   const tickDirection = {
     x: (frame.n.x + frame.r.x) / Math.SQRT2,
@@ -137,28 +145,33 @@ export default function PlanRunFootprint({
       }}
     >
       {boxes.map((box) => (
-        <Line
-          key={box.key}
-          points={linePoints(depthRangePoints(frame, box))}
-          closed
-          fill={upper ? `${color}59` : `${color}8c`}
-          hitStrokeWidth={8 / scale}
-        />
+        !box.dashed && (
+          <Line
+            key={box.key}
+            points={linePoints(planPiecePoints(frame, box))}
+            closed
+            fill={upper ? `${color}59` : `${color}8c`}
+            hitStrokeWidth={8 / scale}
+          />
+        )
       ))}
       {boxes.flatMap((box) => (
         footprintOutlineSegments(
           frame,
           { x: box.start, width: box.end - box.start },
-          run.depth,
+          box.back,
+          box.front,
         ).map((segment, index) => (
           <Line
             key={`${box.key}:outline:${index}`}
             points={linePoints(segment.points)}
             stroke={outline}
             strokeWidth={(collision || selected ? 2.5 : 1.5) / scale}
-            dash={segment.overhang
-              ? [2 / scale, 2 / scale]
-              : upper ? [5 / scale, 3 / scale] : undefined}
+            dash={box.dashed
+              ? [4 / scale, 3 / scale]
+              : segment.overhang
+                ? [2 / scale, 2 / scale]
+                : upper ? [5 / scale, 3 / scale] : undefined}
             listening={false}
           />
         ))
@@ -166,7 +179,7 @@ export default function PlanRunFootprint({
       {returns.map((range) => (
         <Line
           key={range.key}
-          points={linePoints(depthRangePoints(frame, range))}
+          points={linePoints(planPiecePoints(frame, range))}
           closed
           fill={upper ? `${KIND_COLORS.filler}59` : `${KIND_COLORS.filler}8c`}
           stroke={KIND_COLORS.filler}
@@ -182,7 +195,7 @@ export default function PlanRunFootprint({
         return (
           <Line
             key={range.key}
-            points={linePoints(depthRangePoints(frame, range))}
+            points={linePoints(planPiecePoints(frame, range))}
             closed
             fill={upper ? `${faceColor}59` : `${faceColor}8c`}
             stroke={outline}
@@ -214,8 +227,8 @@ export default function PlanRunFootprint({
       {dim.leader && (
         <Line
           points={linePoints([
-            elevationToPlan(frame, dim.leader.x1, dim.leader.offset),
-            elevationToPlan(frame, dim.leader.x2, dim.leader.offset),
+            elevationToPlan(frame, dim.leader.x1, planeBack + dim.leader.offset),
+            elevationToPlan(frame, dim.leader.x2, planeBack + dim.leader.offset),
           ])}
           stroke="#64748b"
           strokeWidth={0.75 / scale}

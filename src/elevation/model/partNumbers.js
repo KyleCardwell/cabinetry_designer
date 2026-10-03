@@ -1,5 +1,6 @@
-import { CABINET_TYPE_IDS } from './constants.js';
-import { blindPartWidths } from './blind.js';
+import { runFaceLayouts } from './faceLayouts.js';
+import { cellPieces, partPieces } from './cells.js';
+import { frameBadgeAnchor, frameMembers, frameRegions, regionOpenings } from './frames.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
 import {
@@ -7,127 +8,25 @@ import {
   endMinWidthsForRun,
   pinTargetsForRun,
 } from './room.js';
-import { runMolding } from './soffits.js';
 import { splitRun } from './splitRun.js';
-import { wallNumbers } from './topology.js';
+import { teeFillers } from './tees.js';
 import { wallEndPanels } from './wallEndPanels.js';
-import { WALL_SIDES, wallSideView } from './wallSides.js';
+import {
+  PART_MOLDINGS,
+  carriesMolding,
+  compareRuns,
+  moldingPartKey,
+  roomParts,
+  wallEndPanelPartKey,
+} from './parts.js';
 
-export const PART_MOLDINGS = ['toeKick', 'topMold', 'crown'];
+export { PART_MOLDINGS, moldingPartKey, wallEndPanelPartKey } from './parts.js';
 export const MOLDING_LABELS = { toeKick: 'TK', topMold: 'TM', crown: 'CR' };
 /** Horizontal slot for each molding badge: -1 left of centre, 0 centre, 1 right. */
 export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
 
-const PART_KINDS = new Set(['cabinet', 'filler', 'end_panel']);
-const LOWER_TYPES = new Set([CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL]);
-const MOLDING_TYPES = new Set([CABINET_TYPE_IDS.UPPER, CABINET_TYPE_IDS.TALL]);
-
-export function moldingPartKey(molding) {
-  return `molding:${molding}`;
-}
-
-export function wallEndPanelPartKey(wallId, endpoint) {
-  return `${wallId}:endPanel:${endpoint}`;
-}
-
-function compareRuns(a, b) {
-  return a.x - b.x || a.id.localeCompare(b.id);
-}
-
-function runsInWalkOrder(view) {
-  const lower = view.runs.filter((run) => LOWER_TYPES.has(run.cabinetTypeId));
-  const upper = view.runs.filter((run) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER);
-  return [...lower.sort(compareRuns), ...upper.sort(compareRuns)];
-}
-
-function carriesMolding(wall, run, profile, molding) {
-  if (molding === 'toeKick') {
-    return LOWER_TYPES.has(run.cabinetTypeId)
-      && (run.overrides?.toeKickHeight ?? profile.toeKickHeight) > 0;
-  }
-  if (run.heightMode !== 'auto' || !MOLDING_TYPES.has(run.cabinetTypeId)) return false;
-  const resolved = runMolding(wall, run, profile);
-  return molding === 'topMold' ? resolved !== 'none' : resolved === 'crown';
-}
-
-function runParts(room, wall, side, settings) {
-  const view = wallSideView(wall, side);
-  return runsInWalkOrder(view).flatMap((run) => {
-    const layout = splitRun(run, settings, {
-      endMinWidths: endMinWidthsForRun(room, view, run, settings),
-      endCornerAngles: endCornerAnglesForRun(room, view, run),
-      pinTargets: pinTargetsForRun(run, view, wallLength(view), settings),
-    });
-    const widths = blindPartWidths(room, view, run, settings, layout);
-    return layout.pieces
-      .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6)
-      .map((piece) => ({
-        key: piece.id,
-        kind: piece.kind,
-        wallId: wall.id,
-        side,
-        runId: run.id,
-        pieceId: piece.id,
-        molding: null,
-        width: widths.get(piece.id) ?? piece.width,
-      }));
-  });
-}
-
-function wallPanelPart(wall, panel) {
-  return {
-    key: wallEndPanelPartKey(wall.id, panel.endpoint),
-    kind: 'wall_end_panel',
-    wallId: wall.id,
-    side: null,
-    runId: null,
-    pieceId: null,
-    molding: null,
-    width: panel.width,
-  };
-}
-
-function orderedParts(room, settings) {
-  const wallById = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
-  const walls = [...wallNumbers(room).entries()]
-    .sort((a, b) => a[1] - b[1])
-    .map(([wallId]) => wallById.get(wallId))
-    .filter(Boolean);
-
-  const parts = walls.flatMap((wall) => {
-    const panels = wallEndPanels(room, wall, settings);
-    const left = panels.filter((panel) => panel.front.side === 'left');
-    const right = panels.filter((panel) => panel.front.side === 'right');
-    return [
-      ...left.map((panel) => wallPanelPart(wall, panel)),
-      ...WALL_SIDES.flatMap((side) => runParts(room, wall, side, settings)),
-      ...right.map((panel) => wallPanelPart(wall, panel)),
-    ];
-  });
-
-  for (const molding of PART_MOLDINGS) {
-    const present = walls.some((wall) => {
-      const profile = resolveProfile(settings, room, wall);
-      return wall.runs.some((run) => carriesMolding(wall, run, profile, molding));
-    });
-    if (present) {
-      parts.push({
-        key: moldingPartKey(molding),
-        kind: 'molding',
-        wallId: null,
-        side: null,
-        runId: null,
-        pieceId: null,
-        molding,
-        width: null,
-      });
-    }
-  }
-  return parts;
-}
-
 export function partNumbers(room, settings) {
-  const ordered = orderedParts(room, settings);
+  const ordered = roomParts(room, settings);
   const start = Number.isInteger(room?.partNumberStart) && room.partNumberStart > 0
     ? room.partNumberStart
     : 1;
@@ -204,15 +103,48 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
  * @returns {{key: string, lift: number, pieces: object[]}[]}
  */
 export function wallBadgeGroups(room, wall, settings) {
-  const groups = wall.runs.map((run) => ({
-    key: `run:${run.id}`,
-    lift: 0,
-    pieces: splitRun(run, settings, {
+  const groups = wall.runs.flatMap((run) => {
+    const layout = splitRun(run, settings, {
       endMinWidths: endMinWidthsForRun(room, wall, run, settings),
       endCornerAngles: endCornerAnglesForRun(room, wall, run),
       pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
-    }).pieces,
-  })).filter((group) => group.pieces.length > 0);
+    });
+    const cells = cellPieces(run, layout);
+    const frames = frameRegions(room, run, cells, settings);
+    const covered = new Set(frames.regions.flatMap((region) => region.fillerIds));
+    const seamTees = teeFillers(room, run, cells, settings).tees.filter((tee) => !tee.end);
+    let layouts = null;
+    const faceLayouts = () => (layouts ??= runFaceLayouts(room, wall, run, settings, layout));
+    return [
+      {
+        key: `run:${run.id}`,
+        lift: 0,
+        pieces: partPieces(cells.pieces, settings).filter((piece) => !covered.has(piece.id)),
+      },
+      // A T-filler between boxes badges one level up, clear of the boxes' own (SPEC-37).
+      {
+        key: `tees:${run.id}`,
+        lift: 1,
+        pieces: seamTees.map(({ id, x, z, width, height }) => ({ id, x, z, width, height })),
+      },
+      // Each frame's badge sits two levels up, over the stile nearest its centre (SPEC-36.2.1).
+      ...frames.regions.map((region) => {
+        const openings = regionOpenings(region, faceLayouts());
+        return {
+          key: region.id,
+          lift: 2,
+          pieces: [{
+            id: region.id,
+            x: region.x,
+            z: region.z,
+            width: region.width,
+            height: region.height,
+            anchor: frameBadgeAnchor(region, frameMembers(region, openings)),
+          }],
+        };
+      }),
+    ];
+  }).filter((group) => group.pieces.length > 0);
 
   for (const panel of wallEndPanels(room, wall, settings)) {
     const side = panel[wall.side ?? 'front'];

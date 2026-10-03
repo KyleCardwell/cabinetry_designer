@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import ElevationCanvas from './components/ElevationCanvas.jsx';
+import MessageToast from './components/MessageToast.jsx';
 import ElevationToolbar from './components/ElevationToolbar.jsx';
 import JsonToggle from './components/JsonToggle.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
@@ -59,7 +60,8 @@ export default function ElevationLab() {
           onZoomOut={() => elevationCanvasRef.current?.zoomOut()}
           zoom={elevationZoom}
         />
-        <div className="min-h-0 flex-1">
+        <div className="relative min-h-0 flex-1">
+          <MessageToast />
           {view === 'plan' ? (
             <PlanCanvas fitRequest={fitRequest} />
           ) : (

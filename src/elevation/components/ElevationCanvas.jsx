@@ -13,7 +13,6 @@ import {
   Layer,
   Rect,
   Stage,
-  Text,
 } from 'react-konva';
 import {
   belowRowOffsets,
@@ -31,8 +30,6 @@ import {
   fitWallToViewport,
   panView,
   screenToWall,
-  wallRectToScreen,
-  wallToScreen,
   withView,
   zoomViewAt,
 } from '../canvas/transform.js';
@@ -44,6 +41,7 @@ import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
 import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../model/constants.js';
 import { createRun } from '../model/runDefaults.js';
+import { runItems } from '../model/grid.js';
 import {
   createSoffit,
   resolveSoffitSpan,
@@ -55,6 +53,12 @@ import {
   validateOpeningPlacement,
 } from '../model/openings.js';
 import {
+  RECESS_PLACEMENT_MESSAGES,
+  createRecess,
+  recessForSpan,
+  validateRecessPlacement,
+} from '../model/recesses.js';
+import {
   horizontalChains,
   nearerEdge,
   openingChain,
@@ -65,53 +69,46 @@ import {
 } from '../model/dimensions.js';
 import { resolveProfile } from '../model/profile.js';
 import { partNumbers } from '../model/partNumbers.js';
-import { elevationLabel, nextWallId } from '../model/topology.js';
 import {
   joinTouchingEdges,
-  endMinWidthsForRun,
-  moveJoint,
-  moveRun,
+  joinTouchingStack,
   roomDiagnostics,
-  stretchRun,
   tryPlaceRun,
 } from '../model/room.js';
-import { wallSideView } from '../model/wallSides.js';
 import { wallExtent } from '../model/wallExtent.js';
-import { isJointAnchor, jointMembers } from '../model/joints.js';
-import { runWidthRange } from '../model/splitRun.js';
 import { formatInches } from '../model/units.js';
 import {
   addOpening,
+  addRecess,
   addRun,
   addSoffit,
-  deleteOpening,
-  deleteRun,
-  deleteSoffit,
-  dissolveJoint,
   moveOpening,
-  removeItem,
-  replaceRun,
   replaceWallLayout,
-  setRunAnchor,
+  setItemWidth,
+  setTrackSize,
   setMessage,
   setSelection,
   setFacePath,
-  setActiveWall,
-  setTool,
 } from '../store/elevationSlice.js';
-import DragPreview from './DragPreview.jsx';
-import DimensionRow from './DimensionRow.jsx';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
+import ElevationDimensions from './ElevationDimensions.jsx';
+import ElevationPreviews from './ElevationPreviews.jsx';
 import JointMarkers from './JointMarkers.jsx';
 import LiveEntryInput from './LiveEntryInput.jsx';
+import TrackSizeInput from './TrackSizeInput.jsx';
 import NeighborProfiles from './NeighborProfiles.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
 import PartNumberLayer from './PartNumberLayer.jsx';
 import RunGroup from './RunGroup.jsx';
 import SoffitShapes from './SoffitShapes.jsx';
+import RecessShapes, { RecessOutline } from './RecessShapes.jsx';
 import WallEndPanelShapes from './WallEndPanelShapes.jsx';
 import WallFrame from './WallFrame.jsx';
+import useElevationKeys from './canvas/useElevationKeys.js';
+import useRunStretch from './canvas/useRunStretch.js';
+import useRunMove from './canvas/useRunMove.js';
+import useJointDrag from './canvas/useJointDrag.js';
 
 const ALIGNMENT_SNAP_PX = 6;
 const RUN_TYPE_LABELS = {
@@ -157,6 +154,7 @@ function ElevationCanvas({
   const [hoveredGlyphId, setHoveredGlyphId] = useState(null);
   const [alignmentGuides, setAlignmentGuides] = useState([]);
   const [entryPointer, setEntryPointer] = useState(null);
+  const [trackEdit, setTrackEdit] = useState(null);
   const { style: cursorStyle, controller: cursor } = useCanvasCursor(
     elevationBaseCursor(tool, pointerMode),
   );
@@ -211,7 +209,7 @@ function ElevationCanvas({
     const verticalFor = (edge) => (selectedOpening
       && nearerEdge(openingCenter, wall.length) === edge
       ? verticalOpeningChain(wall, selectedOpening, wall.length, settings)
-      : verticalChains(room, wall, pickColumnRuns(wall, selection.runId, edge), settings));
+      : verticalChains(room, wall, pickColumnRuns(wall, selection.runId, edge), settings, edge));
     return {
       lower,
       upper,
@@ -406,14 +404,16 @@ function ElevationCanvas({
     wall && viewport.width > 0 && viewport.height > 0
       ? fitWallToViewport(wall, viewport, {
         top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
-        right: 48,
+        right: 48 + (dimensionChains?.vertical.right.middle.length > 0 ? 26 : 0),
         bottom: dimensionChains?.openings.length > 0 ? 152 : 96,
-        left: 110,
+        left: 110 + (dimensionChains?.vertical.left.middle.length > 0 ? 26 : 0),
       })
       : null
   ), [
     dimensionChains?.openings.length,
     dimensionChains?.upper.inner.length,
+    dimensionChains?.vertical.left.middle.length,
+    dimensionChains?.vertical.right.middle.length,
     viewport,
     wall,
   ]);
@@ -481,8 +481,16 @@ function ElevationCanvas({
     });
     const upper = dimensionRowOffsets('horizontal', upperLevels);
     const vertical = {
-      left: dimensionRowOffsets('vertical', verticalLevels.left),
-      right: dimensionRowOffsets('vertical', verticalLevels.right),
+      left: dimensionRowOffsets(
+        'vertical',
+        verticalLevels.left,
+        dimensionChains.vertical.left.middle.length > 0,
+      ),
+      right: dimensionRowOffsets(
+        'vertical',
+        verticalLevels.right,
+        dimensionChains.vertical.right.middle.length > 0,
+      ),
     };
     return {
       lower: {
@@ -496,10 +504,12 @@ function ElevationCanvas({
       vertical: {
         left: {
           inner: vertical.left.inner + clear.left,
+          middle: vertical.left.middle + clear.left,
           outer: vertical.left.outer + clear.left,
         },
         right: {
           inner: vertical.right.inner + clear.right,
+          middle: vertical.right.middle + clear.right,
           outer: vertical.right.outer + clear.right,
         },
       },
@@ -510,127 +520,25 @@ function ElevationCanvas({
     };
   }, [dimensionChains, room, settings, transform, wall]);
 
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      const tagName = event.target?.tagName?.toLowerCase();
-      if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
-
-      if (event.key === 'Escape') {
-        cursor.releaseHold();
-        if (entry) {
-          event.preventDefault();
-          cancelEntry();
-          return;
-        }
-        if (tool !== 'select') {
-          if (dragRef.current) cancelDrag();
-          setAlignmentGuides([]);
-          dispatch(setTool('select'));
-          dispatch(setSelection({}));
-          return;
-        }
-        setAlignmentGuides([]);
-        if (dragRef.current) cancelDrag();
-        else if (stretchPreview) setStretchPreview(null);
-        else if (facePath) dispatch(setFacePath(null));
-        else dispatch(setSelection({}));
-        return;
-      }
-
-      if (event.key === '[' || event.key === ']') {
-        const currentWall = wallRef.current;
-        const targetWallId = nextWallId(room, currentWall?.id, event.key === '[' ? -1 : 1);
-        if (targetWallId && targetWallId !== currentWall?.id) {
-          event.preventDefault();
-          dispatch(setActiveWall(targetWallId));
-        }
-        return;
-      }
-
-      if (event.key === '+' || event.key === '=') {
-        event.preventDefault();
-        zoomIn();
-        return;
-      }
-      if (event.key === '-') {
-        event.preventDefault();
-        zoomOut();
-        return;
-      }
-      if (event.key === '0') {
-        event.preventDefault();
-        resetView();
-        return;
-      }
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-
-      const currentSelection = selectionRef.current;
-      const currentWall = wallRef.current;
-      if (!currentWall) return;
-      if (currentSelection.openingId) {
-        const selectedOpening = (currentWall.openings ?? []).find(
-          (opening) => opening.id === currentSelection.openingId,
-        );
-        if (!selectedOpening) return;
-        event.preventDefault();
-        dispatch(deleteOpening({
-          wallId: currentWall.id,
-          openingId: selectedOpening.id,
-        }));
-        return;
-      }
-      if (currentSelection.soffitId) {
-        const selectedSoffit = (currentWall.soffits ?? []).find(
-          (soffit) => soffit.id === currentSelection.soffitId,
-        );
-        if (!selectedSoffit) return;
-        event.preventDefault();
-        dispatch(deleteSoffit({
-          wallId: currentWall.id,
-          soffitId: selectedSoffit.id,
-        }));
-        return;
-      }
-      if (!currentSelection.runId) return;
-      const selectedRun = currentWall.runs.find(
-        (run) => run.id === currentSelection.runId,
-      );
-      if (!selectedRun) return;
-
-      if (currentSelection.pieceId) {
-        const selectedItem = selectedRun.items.find(
-          (item) => item.id === currentSelection.pieceId,
-        );
-        if (!selectedItem) return;
-        event.preventDefault();
-        dispatch(removeItem({
-          wallId: currentWall.id,
-          runId: selectedRun.id,
-          itemId: selectedItem.id,
-        }));
-        return;
-      }
-
-      event.preventDefault();
-      dispatch(deleteRun({ wallId: currentWall.id, runId: selectedRun.id }));
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
+  useElevationKeys({
     cancelDrag,
     cancelEntry,
     cursor,
     dispatch,
+    dragRef,
     entry,
     facePath,
     resetView,
     room,
+    selectionRef,
+    setAlignmentGuides,
+    setStretchPreview,
     stretchPreview,
     tool,
+    wallRef,
     zoomIn,
     zoomOut,
-  ]);
+  });
 
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
@@ -779,8 +687,9 @@ function ElevationCanvas({
     }
     dispatch(setMessage(null));
     const joinedPlacement = joinTouchingEdges(placement.room, wall.id, run.id, settings);
-    if (joinedPlacement.joined.length > 0) {
-      const resolvedWall = joinedPlacement.room.walls.find(
+    const stackedPlacement = joinTouchingStack(joinedPlacement.room, wall.id, run.id, settings);
+    if (joinedPlacement.joined.length > 0 || stackedPlacement.joined.length > 0) {
+      const resolvedWall = stackedPlacement.room.walls.find(
         (candidate) => candidate.id === wall.id,
       );
       dispatch(replaceWallLayout({
@@ -942,6 +851,26 @@ function ElevationCanvas({
     dispatch(setSelection({ soffitId }));
   }, [dispatch, tool]);
 
+  const selectRecess = useCallback((recessId) => {
+    if (tool !== 'select' || suppressClickRef.current) return;
+    dispatch(setSelection({ recessId }));
+  }, [dispatch, tool]);
+
+  // The wall row selects what's in it (SPEC-38.1): a recess full of cabinets can't be clicked otherwise.
+  const selectFeature = useCallback((segment) => {
+    if (tool !== 'select') return;
+    if (segment.kind === 'recess') {
+      dispatch(setSelection({ recessId: segment.recessId }));
+    } else if (segment.kind === 'opening' && wallRef.current?.side !== 'back') {
+      dispatch(setSelection({ openingId: segment.openingId }));
+    }
+  }, [dispatch, tool]);
+
+  const selectEndPanel = useCallback((endPanel) => {
+    if (tool !== 'select' || suppressClickRef.current) return;
+    dispatch(setSelection({ endPanel }));
+  }, [dispatch, tool]);
+
   const selectPiece = useCallback((runId, pieceId) => {
     if (tool !== 'select' || suppressClickRef.current) return;
     dispatch(setSelection({ runId, pieceId }));
@@ -951,6 +880,38 @@ function ElevationCanvas({
     if (tool !== 'select' || suppressClickRef.current) return;
     dispatch(setFacePath(path));
   }, [dispatch, tool]);
+
+  const editTrack = useCallback((runId, edit) => setTrackEdit({ ...edit, runId }), []);
+  const editPieceSegment = useCallback((segment, point) => {
+    if (!segment.runId || !segment.pieceId
+      || segment.pieceId.startsWith(`${segment.runId}:`)) return;
+    setTrackEdit({
+      runId: segment.runId,
+      itemId: segment.pieceId,
+      label: 'Width',
+      value: segment.end - segment.start,
+      x: point.x,
+      y: point.y,
+    });
+  }, []);
+  const commitTrackEdit = useCallback((size) => {
+    if (trackEdit && wall) {
+      dispatch(trackEdit.trackId
+        ? setTrackSize({
+          wallId: wall.id,
+          runId: trackEdit.runId,
+          trackId: trackEdit.trackId,
+          size,
+        })
+        : setItemWidth({
+          wallId: wall.id,
+          runId: trackEdit.runId,
+          itemId: trackEdit.itemId,
+          width: size,
+        }));
+    }
+    setTrackEdit(null);
+  }, [dispatch, trackEdit, wall]);
 
   const selectOpening = useCallback((openingId) => {
     if (tool !== 'select' || suppressClickRef.current) return;
@@ -973,6 +934,22 @@ function ElevationCanvas({
       dispatch(setSelection({}));
       return;
     }
+    if (tool === 'recess') {
+      if (!room || !wall || !transform) return;
+      const pointer = stageRef.current?.getPointerPosition();
+      if (!pointer) return;
+      const rawPoint = screenToWall(pointer, transform);
+      if (rawPoint.x < 0 || rawPoint.x > wall.length
+        || rawPoint.z < 0 || rawPoint.z > wall.height) return;
+      const recess = createRecess({ kind: 'recess', x: rawPoint.x }, { room, wall });
+      const validation = validateRecessPlacement(wall, recess);
+      if (!validation.ok) {
+        showMessage(RECESS_PLACEMENT_MESSAGES[validation.reason] ?? validation.reason);
+        return;
+      }
+      dispatch(addRecess({ wallId: wall.id, recess }));
+      return;
+    }
     if ((tool !== 'door' && tool !== 'window') || !room || !wall || !transform) return;
     if (wall.side === 'back') {
       showMessage('Add doors and windows from the front');
@@ -991,7 +968,12 @@ function ElevationCanvas({
       0,
     );
     const opening = createOpening({ kind: tool, x: point.x }, { settings, room, wall });
-    const validation = validateOpeningPlacement(wall, opening, settings);
+    const jamb = openingGeometry(opening, wall.length, settings).jamb;
+    const host = recessForSpan(wall, {
+      left: jamb.x, right: jamb.x + jamb.width, bottom: jamb.z, top: jamb.z + jamb.height,
+    }, 0, ['recess']);
+    const placed = host ? { ...opening, recessId: host.id } : opening;
+    const validation = validateOpeningPlacement(wall, placed, settings);
     if (!validation.ok) {
       showMessage(validation.reason);
       return;
@@ -1001,452 +983,100 @@ function ElevationCanvas({
       messageTimeoutRef.current = null;
     }
     dispatch(setMessage(null));
-    dispatch(addOpening({ wallId: wall.id, opening }));
-    dispatch(setSelection({ openingId: opening.id }));
+    dispatch(addOpening({ wallId: wall.id, opening: placed }));
+    dispatch(setSelection({ openingId: placed.id }));
   }, [commitEntry, dispatch, entry, room, settings, showMessage, tool, transform, wall]);
 
-  const previewStretch = useCallback((runId, side, newEdgeX) => {
-    if (!room || !wall) return;
-    const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).point.x;
-    const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings);
-    if (!result.ok) return;
-    const previewWall = result.room.walls.find((candidate) => candidate.id === wall.id);
-    if (!previewWall?.runs.some((candidate) => candidate.id === runId)) return;
-    setStretchPreview({
-      room: result.room,
-      wall: wallSideView(previewWall, wall.side),
-      runIds: [runId],
-    });
-  }, [applyRunAlignment, room, settings, wall]);
+  const {
+    previewStretch,
+    startStretch,
+    updateStretch,
+    finishStretch,
+  } = useRunStretch({
+    applyRunAlignment,
+    beginEntry,
+    cancelEntry,
+    commitEntry,
+    cursor,
+    dispatch,
+    entryRef,
+    liveGestureRef,
+    messageTimeoutRef,
+    room,
+    RUN_TYPE_LABELS,
+    runEdgeXForWidth,
+    runWidthForEdgeX,
+    setAlignmentGuides,
+    setEntryPointer,
+    setStretchPreview,
+    settings,
+    showMessage,
+    stageRef,
+    updateEntry,
+    wall,
+  });
 
-  const commitStretch = useCallback((runId, side, newEdgeX) => {
-    const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).point.x;
-    setStretchPreview(null);
-    setAlignmentGuides([]);
-    if (!room || !wall) return;
-    const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings);
-    if (!result.ok) {
-      showMessage(result.reason);
-      return;
-    }
-    const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
-    const resolvedRun = resolvedWall?.runs.find((candidate) => candidate.id === runId);
-    if (!resolvedRun) return;
-    if (messageTimeoutRef.current !== null) {
-      globalThis.clearTimeout(messageTimeoutRef.current);
-      messageTimeoutRef.current = null;
-    }
-    dispatch(setMessage(null));
-    if (result.joined) {
-      dispatch(replaceWallLayout({
-        wallId: wall.id,
-        runs: resolvedWall.runs,
-        joints: resolvedWall.joints,
-      }));
-    } else {
-      dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
-    }
-  }, [applyRunAlignment, dispatch, room, settings, showMessage, wall]);
+  const {
+    applyRunMove,
+    startRunMove,
+    handleRunSegmentClick,
+    updateRunMove,
+    finishRunMove,
+  } = useRunMove({
+    beginEntry,
+    cancelEntry,
+    commitEntry,
+    cursor,
+    dispatch,
+    entryRef,
+    liveGestureRef,
+    moveOriginRef,
+    room,
+    selectionRef,
+    setAlignmentGuides,
+    setEntryPointer,
+    setStretchPreview,
+    settings,
+    showMessage,
+    stageRef,
+    tool,
+    transform,
+    updateEntry,
+    wall,
+  });
 
-  const startStretch = useCallback((runId, side) => {
-    if (!room || !wall) return;
-    const run = wall.runs.find((candidate) => candidate.id === runId);
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!run || !pointer) return;
-    cancelEntry();
-    cursor.hold(CURSORS.resizeX);
-    const widthRange = runWidthRange(run, settings, {
-      endMinWidths: endMinWidthsForRun(room, wall, run, settings),
-    });
-    const maxRunOverhang = settings.maxRunOverhang ?? DEFAULT_SETTINGS.maxRunOverhang;
-    const wallMaximum = side === 'left'
-      ? run.x + run.width + maxRunOverhang
-      : wall.length + maxRunOverhang - run.x;
-    const maximum = Math.max(widthRange.min, Math.min(widthRange.max, wallMaximum));
-    const widthModeKey = `run:${run.id}:${side}`;
-    const edgeX = runEdgeXForWidth(run, side, run.width);
-    const edgeLimits = [
-      runEdgeXForWidth(run, side, widthRange.min),
-      runEdgeXForWidth(run, side, maximum),
-    ];
-    const edgeMin = Math.min(...edgeLimits);
-    const edgeMax = Math.max(...edgeLimits);
-    const modes = [
-      {
-        key: widthModeKey,
-        label: `${RUN_TYPE_LABELS[run.cabinetTypeId] ?? 'Run'} width`,
-        value: run.width,
-        min: widthRange.min,
-        max: maximum,
-      },
-      {
-        key: 'from-left',
-        label: 'From left',
-        value: edgeX,
-        min: edgeMin,
-        max: edgeMax,
-      },
-      {
-        key: 'from-right',
-        label: 'From right',
-        value: wall.length - edgeX,
-        min: wall.length - edgeMax,
-        max: wall.length - edgeMin,
-      },
-    ];
-    setEntryPointer(pointer);
-    setStretchPreview({ room, wall, runIds: [run.id] });
-    liveGestureRef.current = { kind: 'run-edge', run, side, jointId: null, offset: 0 };
-    beginEntry({
-      kind: 'run-edge',
-      label: `${RUN_TYPE_LABELS[run.cabinetTypeId] ?? 'Run'} width`,
-      value: run.width,
-      min: widthRange.min,
-      max: maximum,
-      modes,
-      onCommit: (value, modeKey) => {
-        liveGestureRef.current = null;
-        const committedEdgeX = modeKey === 'from-left'
-          ? value
-          : modeKey === 'from-right'
-            ? wall.length - value
-            : runEdgeXForWidth(run, side, value);
-        commitStretch(run.id, side, committedEdgeX);
-      },
-      onCancel: () => {
-        liveGestureRef.current = null;
-        setStretchPreview(null);
-        setAlignmentGuides([]);
-        cursor.releaseHold();
-      },
-    });
-  }, [beginEntry, cancelEntry, commitStretch, cursor, room, settings, wall]);
-
-  const updateStretch = useCallback((runId, side, newEdgeX) => {
-    const gesture = liveGestureRef.current;
-    if (gesture?.kind !== 'run-edge' || gesture.run.id !== runId || gesture.side !== side) return;
-    const pointer = stageRef.current?.getPointerPosition();
-    if (pointer) setEntryPointer(pointer);
-    updateEntry(runWidthForEdgeX(gesture.run, side, newEdgeX));
-  }, [updateEntry]);
-
-  const finishStretch = useCallback((runId, side, newEdgeX) => {
-    updateStretch(runId, side, newEdgeX);
-    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
-    cursor.releaseHold();
-  }, [commitEntry, cursor, updateStretch]);
-
-  const applyRunMove = useCallback((segment, delta, commit) => {
-    const origin = moveOriginRef.current;
-    if (!origin || !room || !wall || origin.runId !== segment.runId) return;
-    const result = moveRun(room, wall.id, segment.runId, origin.x + delta, settings);
-    if (!result.ok) {
-      if (commit) {
-        moveOriginRef.current = null;
-        setStretchPreview(null);
-        setAlignmentGuides([]);
-        showMessage(result.reason === 'anchored'
-          ? 'Anchored — set Anchor to Free to move'
-          : result.reason);
-      }
-      return;
-    }
-    const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
-    const resolvedRun = resolvedWall?.runs.find((candidate) => candidate.id === segment.runId);
-    if (!resolvedRun) return;
-    setAlignmentGuides(result.snap ? [{ axis: 'x', value: result.snap.value }] : []);
-    if (!commit) {
-      const runIds = new Set([resolvedRun.id]);
-      ['left', 'right'].forEach((side) => {
-        const anchor = resolvedRun.anchors?.[side];
-        if (isJointAnchor(anchor)) {
-          jointMembers(resolvedWall, anchor.jointId).forEach((member) => runIds.add(member.runId));
-        }
-      });
-      setStretchPreview({
-        room: result.room,
-        wall: wallSideView(resolvedWall, wall.side),
-        runIds: [...runIds],
-      });
-      return;
-    }
-    moveOriginRef.current = null;
-    setStretchPreview(null);
-    setAlignmentGuides([]);
-    dispatch(setMessage(null));
-    if (result.joints) {
-      dispatch(replaceWallLayout({
-        wallId: wall.id,
-        runs: resolvedWall.runs,
-        joints: resolvedWall.joints,
-      }));
-    } else {
-      dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
-    }
-    if (result.limit?.reason === 'min-width') {
-      showMessage(`${result.limit.type} can't go below ${formatInches(result.limit.min)}`);
-    } else if (result.limit?.reason === 'fixed-width') {
-      showMessage(`${result.limit.type} is fixed at ${formatInches(result.limit.width)} (all cabinets fixed)`);
-    }
-  }, [dispatch, room, settings, showMessage, wall]);
-
-  const startRunMove = useCallback((segment) => {
-    if (!room || !wall) return;
-    const run = wall.runs.find((candidate) => candidate.id === segment.runId);
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!run || !pointer || !transform) return;
-    const result = moveRun(room, wall.id, run.id, run.x, settings);
-    cancelEntry();
-    cursor.hold(CURSORS.move);
-    dispatch(setSelection({ runId: run.id, pieceId: null }));
-    setEntryPointer(pointer);
-    moveOriginRef.current = { runId: run.id, x: run.x };
-    setStretchPreview({ room, wall, runIds: [run.id] });
-    liveGestureRef.current = {
-      kind: 'run-move',
-      segment,
-      pointerStartX: screenToWall(pointer, transform).x,
-    };
-    beginEntry({
-      kind: 'run-move',
-      label: 'Move',
-      value: 0,
-      min: result.joints ? result.range.min : -Infinity,
-      max: result.joints ? result.range.max : Infinity,
-      onCommit: (delta) => {
-        liveGestureRef.current = null;
-        applyRunMove(segment, delta, true);
-      },
-      onCancel: () => {
-        liveGestureRef.current = null;
-        moveOriginRef.current = null;
-        setStretchPreview(null);
-        setAlignmentGuides([]);
-        cursor.releaseHold();
-      },
-    });
-  }, [applyRunMove, beginEntry, cancelEntry, cursor, dispatch, room, settings, transform, wall]);
-
-  const handleRunSegmentClick = useCallback((segment) => {
-    if (tool !== 'select' || segment.kind !== 'run') return;
-    if (selectionRef.current?.runId !== segment.runId) {
-      dispatch(setSelection({ runId: segment.runId, pieceId: null }));
-      return;
-    }
-    startRunMove(segment);
-  }, [dispatch, startRunMove, tool]);
-
-  const updateRunMove = useCallback((segment, delta) => {
-    const gesture = liveGestureRef.current;
-    if (gesture?.kind !== 'run-move' || gesture.segment.runId !== segment.runId) return;
-    const pointer = stageRef.current?.getPointerPosition();
-    if (pointer) setEntryPointer(pointer);
-    updateEntry(delta);
-  }, [updateEntry]);
-
-  const finishRunMove = useCallback((segment, delta) => {
-    updateRunMove(segment, delta);
-    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
-    cursor.releaseHold();
-  }, [commitEntry, cursor, updateRunMove]);
-
-  const previewJointDrag = useCallback((jointId, x) => {
-    if (!room || !wall) return;
-    const result = moveJoint(room, wall.id, jointId, x, settings);
-    if (!result.ok) return;
-    const previewWall = result.room.walls.find((candidate) => candidate.id === wall.id);
-    if (!previewWall) return;
-    setStretchPreview({
-      room: result.room,
-      wall: wallSideView(previewWall, wall.side),
-      runIds: jointMembers(previewWall, jointId).map((member) => member.runId),
-    });
-  }, [room, settings, wall]);
-
-  const commitJointDrag = useCallback((jointId, x) => {
-    setStretchPreview(null);
-    if (!room || !wall) return;
-    const result = moveJoint(room, wall.id, jointId, x, settings);
-    if (!result.ok) {
-      showMessage(result.reason);
-      return;
-    }
-    const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
-    if (!resolvedWall) return;
-    dispatch(replaceWallLayout({
-      wallId: wall.id,
-      runs: resolvedWall.runs,
-      joints: resolvedWall.joints,
-    }));
-
-    const limitingRun = result.limit
-      ? resolvedWall.runs.find((run) => run.id === result.limit.runId)
-      : null;
-    const type = RUN_TYPE_LABELS[limitingRun?.cabinetTypeId] ?? 'Run';
-    if (result.limit?.reason === 'min-width') {
-      showMessage(`${type} can't go below ${formatInches(limitingRun.width)}`);
-    } else if (result.limit?.reason === 'fixed-width') {
-      showMessage(`${type} is fixed at ${formatInches(limitingRun.width)} (all cabinets fixed)`);
-    } else {
-      dispatch(setMessage(null));
-    }
-  }, [dispatch, room, settings, showMessage, wall]);
-
-  const startJointDrag = useCallback((jointId) => {
-    if (!room || !wall) return;
-    const member = jointMembers(wall, jointId).find(
-      (candidate) => candidate.runId === selectionRef.current.runId,
-    );
-    const run = wall.runs.find((candidate) => candidate.id === member?.runId);
-    const joint = (wall.joints ?? []).find((candidate) => candidate.id === jointId);
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!member || !run || !joint || !pointer) return;
-    cancelEntry();
-    const rangeResult = moveJoint(room, wall.id, jointId, joint.x, settings);
-    if (!rangeResult.range || rangeResult.range.min > rangeResult.range.max) return;
-    cursor.hold(CURSORS.resizeX);
-    const offset = member.offset ?? 0;
-    const grabbedEdgeAtJoint = (jointX) => (
-      member.side === 'right' ? jointX - offset : jointX + offset
-    );
-    const edgeMin = grabbedEdgeAtJoint(rangeResult.range.min);
-    const edgeMax = grabbedEdgeAtJoint(rangeResult.range.max);
-    const members = jointMembers(wall, jointId);
-    const orderedMembers = [member, ...members.filter((candidate) => (
-      candidate.runId !== member.runId || candidate.side !== member.side
-    ))];
-    const memberModes = orderedMembers.flatMap((candidate) => {
-      const memberRun = wall.runs.find((wallRun) => wallRun.id === candidate.runId);
-      if (!memberRun) return [];
-      const memberOffset = candidate.offset ?? 0;
-      const memberWidthAtJoint = (jointX) => runWidthForEdgeX(
-        memberRun,
-        candidate.side,
-        candidate.side === 'right'
-          ? jointX - memberOffset
-          : jointX + memberOffset,
-      );
-      const widthLimits = [
-        memberWidthAtJoint(rangeResult.range.min),
-        memberWidthAtJoint(rangeResult.range.max),
-      ];
-      return [{
-        key: `run:${candidate.runId}:${candidate.side}`,
-        label: `${RUN_TYPE_LABELS[memberRun.cabinetTypeId] ?? 'Run'} width`,
-        value: memberRun.width,
-        min: Math.min(...widthLimits),
-        max: Math.max(...widthLimits),
-      }];
-    });
-    const modes = [
-      ...memberModes,
-      {
-        key: 'from-left',
-        label: 'From left',
-        value: grabbedEdgeAtJoint(joint.x),
-        min: edgeMin,
-        max: edgeMax,
-      },
-      {
-        key: 'from-right',
-        label: 'From right',
-        value: wall.length - grabbedEdgeAtJoint(joint.x),
-        min: wall.length - edgeMax,
-        max: wall.length - edgeMin,
-      },
-    ];
-    const runIds = members.map((candidate) => candidate.runId);
-    setEntryPointer(pointer);
-    setStretchPreview({ room, wall, runIds });
-    liveGestureRef.current = {
-      kind: 'run-edge',
-      run,
-      side: member.side,
-      jointId,
-      offset,
-    };
-    beginEntry({
-      kind: 'run-edge',
-      label: `${RUN_TYPE_LABELS[run.cabinetTypeId] ?? 'Run'} width`,
-      value: run.width,
-      min: memberModes[0].min,
-      max: memberModes[0].max,
-      modes,
-      onCommit: (value, modeKey) => {
-        const activeGesture = liveGestureRef.current;
-        liveGestureRef.current = null;
-        const typed = entryRef.current?.typed;
-        const modeMember = orderedMembers.find(
-          (candidate) => `run:${candidate.runId}:${candidate.side}` === modeKey,
-        );
-        const modeRun = wall.runs.find((candidate) => candidate.id === modeMember?.runId);
-        const modeOffset = modeMember?.offset ?? 0;
-        const modeEdgeX = modeRun && modeMember
-          ? runEdgeXForWidth(modeRun, modeMember.side, value)
-          : null;
-        const enteredEdgeX = modeKey === 'from-left'
-          ? value
-          : wall.length - value;
-        const enteredJointX = modeKey === 'from-left' || modeKey === 'from-right'
-          ? member.side === 'right'
-            ? enteredEdgeX + offset
-            : enteredEdgeX - offset
-            : modeMember?.side === 'right'
-              ? modeEdgeX + modeOffset
-              : modeEdgeX - modeOffset;
-        const jointX = typed === null && Number.isFinite(activeGesture?.requestedJointX)
-          ? activeGesture.requestedJointX
-          : enteredJointX;
-        commitJointDrag(jointId, jointX);
-      },
-      onCancel: () => {
-        liveGestureRef.current = null;
-        setStretchPreview(null);
-        setAlignmentGuides([]);
-        cursor.releaseHold();
-      },
-    });
-  }, [beginEntry, cancelEntry, commitJointDrag, cursor, room, settings, wall]);
-
-  const updateJointDrag = useCallback((jointId, x) => {
-    const gesture = liveGestureRef.current;
-    if (gesture?.kind !== 'run-edge' || gesture.jointId !== jointId) return;
-    liveGestureRef.current = { ...gesture, requestedJointX: x };
-    const pointer = stageRef.current?.getPointerPosition();
-    if (pointer) setEntryPointer(pointer);
-    const edgeX = gesture.side === 'right' ? x - gesture.offset : x + gesture.offset;
-    updateEntry(runWidthForEdgeX(gesture.run, gesture.side, edgeX));
-  }, [updateEntry]);
-
-  const finishJointDrag = useCallback((jointId, x) => {
-    updateJointDrag(jointId, x);
-    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
-    cursor.releaseHold();
-  }, [commitEntry, cursor, updateJointDrag]);
-
-  useEffect(() => {
-    const gesture = liveGestureRef.current;
-    if (!entry || entryValue === null || !gesture) return;
-    if (entry.kind === 'run-edge' && gesture.kind === 'run-edge') {
-      const edgeX = runEdgeXForWidth(gesture.run, gesture.side, entryValue);
-      if (gesture.jointId) {
-        const jointX = gesture.side === 'right'
-          ? edgeX + gesture.offset
-          : edgeX - gesture.offset;
-        previewJointDrag(gesture.jointId, jointX);
-      } else {
-        previewStretch(gesture.run.id, gesture.side, edgeX);
-      }
-    } else if (entry.kind === 'run-move' && gesture.kind === 'run-move') {
-      applyRunMove(gesture.segment, entryValue, false);
-    }
-  }, [applyRunMove, entry, entryValue, previewJointDrag, previewStretch]);
-
-  const unjoinRunSide = useCallback((runId, side) => {
-    if (!wall) return;
-    setHoveredGlyphId(null);
-    dispatch(setRunAnchor({ wallId: wall.id, runId, side, anchor: false }));
-  }, [dispatch, wall]);
+  const {
+    previewJointDrag,
+    startJointDrag,
+    finishJointDrag,
+    unjoinRunSide,
+  } = useJointDrag({
+    applyRunMove,
+    beginEntry,
+    cancelEntry,
+    commitEntry,
+    cursor,
+    dispatch,
+    entry,
+    entryRef,
+    entryValue,
+    liveGestureRef,
+    previewStretch,
+    room,
+    RUN_TYPE_LABELS,
+    runEdgeXForWidth,
+    runWidthForEdgeX,
+    selectionRef,
+    setAlignmentGuides,
+    setEntryPointer,
+    setHoveredGlyphId,
+    setStretchPreview,
+    settings,
+    showMessage,
+    stageRef,
+    updateEntry,
+    wall,
+  });
 
   return (
     <div
@@ -1481,6 +1111,12 @@ function ElevationCanvas({
             />
           </Layer>
           <Layer>
+            <RecessShapes
+              wall={wall}
+              transform={transform}
+              selectedRecessId={selection.recessId}
+              onSelect={tool === 'select' ? selectRecess : undefined}
+            />
             {(wall.openings ?? []).map((opening) => (
               <OpeningShape
                 key={opening.id}
@@ -1519,6 +1155,7 @@ function ElevationCanvas({
                 onSelectPiece={selectPiece}
                 selectedFacePath={selection.runId === run.id ? facePath : null}
                 onSelectFace={selectFace}
+                onEditTrack={editTrack}
                 stretchable={tool === 'select'}
                 onStretchStart={startStretch}
                 onStretchMove={updateStretch}
@@ -1526,6 +1163,15 @@ function ElevationCanvas({
                 cursor={cursor}
               />
             ))}
+            <WallEndPanelShapes
+              room={room}
+              wall={wall}
+              settings={settings}
+              transform={transform}
+              selectedEndpoint={selection.endPanel ?? null}
+              onSelect={tool === 'select' ? selectEndPanel : undefined}
+              cursor={cursor}
+            />
             {tool === 'select' && (
               <JointMarkers
                 wall={wall}
@@ -1554,12 +1200,9 @@ function ElevationCanvas({
               settings={settings}
               transform={transform}
             />
-            <WallEndPanelShapes
-              room={room}
-              wall={wall}
-              settings={settings}
-              transform={transform}
-            />
+            {selection.recessId && (
+              <RecessOutline wall={wall} transform={transform} recessId={selection.recessId} />
+            )}
             <ElevationAlignmentGuides
               guides={alignmentGuides}
               transform={transform}
@@ -1567,179 +1210,29 @@ function ElevationCanvas({
               height={viewport.height}
             />
           </Layer>
-          {dimensionChains && dimensionOffsets && (
-            <Layer listening={tool === 'select'}>
-              <DimensionRow
-                segments={dimensionChains.clearances}
-                orientation="horizontal"
-                side="below"
-                offsetPx={dimensionOffsets.clearances}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.below}
-                wallEndMarks={[0, wall.length]}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.lower.inner}
-                orientation="horizontal"
-                side="below"
-                offsetPx={dimensionOffsets.lower.inner}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.below}
-                wallEndMarks={[0, wall.length]}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.lower.outer}
-                orientation="horizontal"
-                side="below"
-                offsetPx={dimensionOffsets.lower.outer}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.below}
-                onSegmentClick={handleRunSegmentClick}
-                draggableRuns={tool === 'select'}
-                onSegmentDragStart={startRunMove}
-                onSegmentDragMove={updateRunMove}
-                onSegmentDragEnd={finishRunMove}
-                highlightRunId={selection.runId}
-                activeRunId={selection.runId}
-                wallEndMarks={[0, wall.length]}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.openings}
-                orientation="horizontal"
-                side="below"
-                offsetPx={dimensionOffsets.openings}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.below}
-                wallEndMarks={[0, wall.length]}
-                cursor={cursor}
-              />
-              {elevationLabel(room, wall) && (
-                <Text
-                  x={wallToScreen({ x: wall.length / 2, z: 0 }, transform).x}
-                  y={wallToScreen({ x: wall.length / 2, z: 0 }, transform).y + dimensionOffsets.label}
-                  text={elevationLabel(room, wall)}
-                  fontSize={20}
-                  fill="#e2e8f0"
-                  align="center"
-                  offsetX={70}
-                  width={140}
-                  listening={false}
-                />
-              )}
-              <DimensionRow
-                segments={dimensionChains.upper.inner}
-                orientation="horizontal"
-                side="above"
-                offsetPx={dimensionOffsets.upper.inner}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.above}
-                wallEndMarks={[0, wall.length]}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.upper.outer}
-                orientation="horizontal"
-                side="above"
-                offsetPx={dimensionOffsets.upper.outer}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.above}
-                onSegmentClick={handleRunSegmentClick}
-                draggableRuns={tool === 'select'}
-                onSegmentDragStart={startRunMove}
-                onSegmentDragMove={updateRunMove}
-                onSegmentDragEnd={finishRunMove}
-                highlightRunId={selection.runId}
-                activeRunId={selection.runId}
-                wallEndMarks={[0, wall.length]}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.vertical.left.inner}
-                orientation="vertical"
-                side="left"
-                offsetPx={dimensionOffsets.vertical.left.inner}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.left}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.vertical.left.outer}
-                orientation="vertical"
-                side="left"
-                offsetPx={dimensionOffsets.vertical.left.outer}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.left}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.vertical.right.inner}
-                orientation="vertical"
-                side="right"
-                offsetPx={dimensionOffsets.vertical.right.inner}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.right}
-                wallLength={wall.length}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.vertical.right.outer}
-                orientation="vertical"
-                side="right"
-                offsetPx={dimensionOffsets.vertical.right.outer}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.right}
-                wallLength={wall.length}
-                cursor={cursor}
-              />
-            </Layer>
-          )}
-          {stretchPreview && (
-            <Layer listening={false}>
-              {stretchPreview.runIds.map((runId) => {
-                const previewRun = stretchPreview.wall.runs.find((run) => run.id === runId);
-                return previewRun ? (
-                  <RunGroup
-                    key={runId}
-                    run={previewRun}
-                    room={stretchPreview.room}
-                    wall={stretchPreview.wall}
-                    settings={settings}
-                    diagnostic={null}
-                    transform={transform}
-                    selectedRun={false}
-                    selectedPieceId={null}
-                    preview
-                  />
-                ) : null;
-              })}
-            </Layer>
-          )}
-          {dragPreview && (
-            <Layer listening={false}>
-              {dragPreview.soffit ? (
-                <Rect
-                  {...wallRectToScreen({
-                    x: dragPreview.soffit.x,
-                    z: dragPreview.soffit.bottomZ,
-                    width: dragPreview.soffit.width,
-                    height: wall.height - dragPreview.soffit.bottomZ,
-                  }, transform)}
-                  stroke="#60a5fa"
-                  strokeWidth={2}
-                  dash={[8, 6]}
-                />
-              ) : (
-                <DragPreview
-                  run={dragPreview.run}
-                  valid={dragPreview.valid}
-                  transform={transform}
-                />
-              )}
-            </Layer>
-          )}
+          <ElevationDimensions
+            dimensionChains={dimensionChains}
+            dimensionOffsets={dimensionOffsets}
+            tool={tool}
+            transform={transform}
+            wall={wall}
+            editPieceSegment={editPieceSegment}
+            cursor={cursor}
+            handleRunSegmentClick={handleRunSegmentClick}
+            startRunMove={startRunMove}
+            updateRunMove={updateRunMove}
+            finishRunMove={finishRunMove}
+            selection={selection}
+            selectFeature={selectFeature}
+            room={room}
+          />
+          <ElevationPreviews
+            stretchPreview={stretchPreview}
+            settings={settings}
+            transform={transform}
+            dragPreview={dragPreview}
+            wall={wall}
+          />
           {partNumbering && (
             <Layer listening={false}>
               <PartNumberLayer
@@ -1763,6 +1256,13 @@ function ElevationCanvas({
           onCycle={cycleEntry}
           onCommit={commitEntry}
           onCancel={cancelEntry}
+        />
+      )}
+      {trackEdit && (
+        <TrackSizeInput
+          edit={trackEdit}
+          onCommit={commitTrackEdit}
+          onCancel={() => setTrackEdit(null)}
         />
       )}
     </div>

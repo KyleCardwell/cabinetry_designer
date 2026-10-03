@@ -2,10 +2,13 @@ import { formatInches } from '../model/units.js';
 
 const POPOUT_GAP = 4;
 
-/** Return the inner and outer row offsets for an elevation dimension pair. */
-export function dimensionRowOffsets(orientation, innerLevels = 0) {
+/** Return the row offsets for an elevation dimension chain. */
+export function dimensionRowOffsets(orientation, innerLevels = 0, hasMiddle = false) {
   if (orientation === 'vertical') {
-    return { inner: 24, outer: 24 + 26 + innerLevels * 16 };
+    const outer = 24 + 26 + innerLevels * 16;
+    return hasMiddle
+      ? { inner: 24, middle: outer, outer: outer + 26 }
+      : { inner: 24, outer };
   }
   return { inner: 20, outer: 20 + 22 + innerLevels * 14 };
 }

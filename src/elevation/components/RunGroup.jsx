@@ -8,15 +8,23 @@ import {
   Text,
 } from 'react-konva';
 import { blindEntries } from '../model/blind.js';
+import { bottomPartSpan, runBottomParts } from '../model/bottoms.js';
+import {
+  blindCellWidths, cellPieces, panelOrientation, shelfParts,
+} from '../model/cells.js';
 import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
-import { isJointAnchor } from '../model/joints.js';
-import { panelDrop, resolveStyle } from '../model/styles.js';
+import { frameRegions } from '../model/frames.js';
+import { runItems } from '../model/grid.js';
+import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
+import { endPieceBottom, resolveStyle } from '../model/styles.js';
+import { teeFillers } from '../model/tees.js';
 import { centerlineMarkers } from '../model/dimensions.js';
+import { extendPieces } from '../model/extensions.js';
 import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
-import { runMolding } from '../model/soffits.js';
+import { runTop } from '../model/tops.js';
 import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
@@ -24,9 +32,13 @@ import {
 } from '../model/room.js';
 import { formatInches } from '../model/units.js';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
-import { wallRectToScreen } from '../canvas/transform.js';
+import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
+import CellChains from './CellChains.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
+import FrameOutline from './FrameOutline.jsx';
 import PieceRect from './PieceRect.jsx';
+
+const PANEL_LABELS = { side: 'Side', top: 'Top', back: 'Back' };
 
 function RunGroup({
   run,
@@ -41,6 +53,7 @@ function RunGroup({
   onSelectPiece,
   selectedFacePath = null,
   onSelectFace,
+  onEditTrack,
   stretchable = false,
   preview = false,
   onStretchStart,
@@ -55,9 +68,26 @@ function RunGroup({
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
     pinTargets: pinTargetsForRun(run, wall, wall.length, settings),
   }), [room, run, settings, wall]);
+  const cells = useMemo(() => cellPieces(run, result), [result, run]);
   const faceLayouts = useMemo(
     () => runFaceLayouts(room, wall, run, settings, result),
     [result, room, run, settings, wall],
+  );
+  const frames = useMemo(
+    () => frameRegions(room, run, cells, settings),
+    [cells, room, run, settings],
+  );
+  const framedIds = useMemo(
+    () => new Set(frames.regions.flatMap((region) => region.cabinetIds)),
+    [frames],
+  );
+  const hiddenIds = useMemo(
+    () => new Set(frames.regions.flatMap((region) => region.fillerIds)),
+    [frames],
+  );
+  const ghostIds = useMemo(
+    () => new Set(frames.regions.flatMap((region) => region.panelIds)),
+    [frames],
   );
   const blind = useMemo(
     () => blindEntries(room, wall, run, settings, result),
@@ -65,14 +95,24 @@ function RunGroup({
   );
   const subLabels = useMemo(() => {
     const labels = new Map();
+    for (const piece of cells.pieces) {
+      if (piece.kind === 'void') labels.set(piece.id, 'Open');
+      if (piece.kind === 'panel') labels.set(piece.id, `${PANEL_LABELS[panelOrientation(piece)]} panel`);
+      if (piece.kind === 'shelves') {
+        labels.set(piece.id, `${piece.shelves.count} shelves${piece.shelves.back ? ' + back' : ''}`);
+      }
+    }
     for (const entry of blind.entries) {
       labels.set(entry.pieceId, `Blind ${formatInches(entry.boxWidth)}`);
+      for (const [id, width] of blindCellWidths(cells.pieces, result.pieces, [entry])) {
+        labels.set(id, `Blind ${formatInches(width)}`);
+      }
       if (entry.panel && entry.endPieceId) {
         labels.set(entry.endPieceId, `Panel ${formatInches(entry.panel.width)}`);
       }
     }
     return labels;
-  }, [blind]);
+  }, [blind, cells, result]);
   const panels = useMemo(
     () => blind.entries.filter((entry) => entry.panel).map((entry) => ({
       key: `panel:${entry.side}`,
@@ -105,27 +145,43 @@ function RunGroup({
   // panel does, and keeps its own inset or overhang wherever one does not.
   const bandStart = (inset) => panelStart ?? run.x + inset;
   const bandEnd = (inset) => panelEnd ?? runEnd - inset;
-  const drop = panelDrop(run, resolveStyle(settings, room, run), settings);
-  const drawnPieces = useMemo(() => result.pieces.map((piece) => {
-    const dropped = drop > 0
-      && (piece.kind === 'filler' || piece.kind === 'end_panel')
-      ? { ...piece, z: piece.z - drop, height: piece.height + drop }
-      : piece;
-    return panelPieceIds.has(piece.id)
-      ? { ...dropped, kind: 'end_panel' }
-      : dropped;
-  }), [drop, panelPieceIds, result]);
+  const endBottom = endPieceBottom(run, resolveStyle(settings, room, run), settings);
+  const { drop } = endBottom;
+  const shelves = useMemo(
+    () => cells.pieces.flatMap((piece) => shelfParts(piece, settings)),
+    [cells, settings],
+  );
+  const { tees, ells } = useMemo(
+    () => teeFillers(room, run, cells, settings),
+    [cells, room, run, settings],
+  );
+  const drawnPieces = useMemo(() => {
+    const endTees = new Map([
+      ...tees.filter((tee) => tee.end).map((tee) => [tee.pieceId, tee]),
+      ...ells.map((ell) => [ell.pieceId, ell]),
+    ]);
+    const seamTees = tees.filter((tee) => !tee.end).map((tee) => ({
+      id: tee.id, kind: 'filler', role: 'tee', x: tee.x, z: tee.z, width: tee.width, height: tee.height,
+    }));
+    const base = cells.pieces.map((piece) => {
+      const tee = endTees.get(piece.id);
+      const shaped = tee ? { ...piece, x: tee.x, width: tee.width } : piece;
+      const dropped = drop > 0
+        && (shaped.kind === 'filler' || shaped.kind === 'end_panel')
+        ? { ...shaped, z: shaped.z - drop, height: shaped.height + drop }
+        : shaped;
+      return panelPieceIds.has(piece.id)
+        ? { ...dropped, kind: 'end_panel' }
+        : dropped;
+    });
+    return [...extendPieces(wall, run, base).pieces.sort((a, b) => endTees.has(a.id) - endTees.has(b.id)), ...seamTees];
+  }, [cells, drop, ells, panelPieceIds, run, tees, wall]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),
     [room, settings, wall],
   );
   const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
-  const countertopThickness = run.overrides?.countertopThickness
-    ?? profile.countertopThickness;
-  const showsMolding = run.heightMode === 'auto'
-    && (run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
-      || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
-  const molding = runMolding(wall, run, profile);
+  const top = runTop(wall, run, profile);
   const boxTop = run.z + run.height;
   const bandX = bandStart(0);
   const bandWidth = bandEnd(0) - bandX;
@@ -141,16 +197,43 @@ function RunGroup({
     width: bandWidth,
     height: profile.crownHeight,
   }, transform);
+  const partSpan = bottomPartSpan(
+    run,
+    drawnPieces,
+    { start: bandX, end: bandX + bandWidth },
+    endBottom.chip > 0,
+  );
+  const bottomParts = runBottomParts(run).map((part) => ({
+    ...part,
+    rect: wallRectToScreen({
+      x: partSpan.start,
+      z: part.z,
+      width: partSpan.end - partSpan.start,
+      height: part.height,
+    }, transform),
+  }));
+  const chipLines = endBottom.chip > 0
+    ? drawnPieces
+      .filter((piece) => (piece.kind === 'filler' || piece.kind === 'end_panel')
+        && !piece.extend?.down
+        && !hiddenIds.has(piece.id))
+      .map((piece) => {
+        const from = wallToScreen({ x: piece.x, z: piece.z + endBottom.chip }, transform);
+        const to = wallToScreen({ x: piece.x + piece.width, z: piece.z + endBottom.chip }, transform);
+        return { key: `chip:${piece.id}`, points: [from.x, from.y, to.x, to.y] };
+      })
+    : [];
   const warningPieceIds = useMemo(
     () => new Set(
-      [...result.warnings, ...(diagnostic?.warnings ?? [])].map((entry) => entry.pieceId),
+      [...result.warnings, ...cells.warnings, ...(diagnostic?.warnings ?? [])]
+        .map((entry) => entry.pieceId),
     ),
-    [diagnostic?.warnings, result.warnings],
+    [cells.warnings, diagnostic?.warnings, result.warnings],
   );
   const hasErrors = (diagnostic?.errors ?? result.errors).length > 0;
-  const hasToeKick = run.cabinetTypeId === CABINET_TYPE_IDS.BASE
-    || run.cabinetTypeId === CABINET_TYPE_IDS.TALL;
-  const isBase = run.cabinetTypeId === CABINET_TYPE_IDS.BASE;
+  const hasToeKick = !run.stack?.below
+    && (run.cabinetTypeId === CABINET_TYPE_IDS.BASE
+      || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
   const toeKickInset = Math.min(3, run.width / 2);
   const toeKickX = bandStart(toeKickInset);
   const toeKickWidth = Math.max(0, bandEnd(toeKickInset) - toeKickX);
@@ -165,7 +248,7 @@ function RunGroup({
     x: countertopX,
     z: run.z + run.height,
     width: bandEnd(-1) - countertopX,
-    height: countertopThickness,
+    height: top.height,
   }, transform);
   const runRect = wallRectToScreen(run, transform);
   const cornerFillers = useMemo(() => Object.fromEntries(
@@ -196,7 +279,9 @@ function RunGroup({
   };
 
   const renderAnchor = (side) => {
-    if (!run.anchors?.[side] || isJointAnchor(run.anchors[side])) return null;
+    if (!run.anchors?.[side]
+      || isJointAnchor(run.anchors[side])
+      || isFollowAnchor(run.anchors[side])) return null;
     const x = side === 'left' ? runRect.x + 2 : runRect.x + runRect.width - 9;
     const tooltipX = side === 'left' ? runRect.x + 8 : runRect.x + runRect.width - 8;
     return (
@@ -301,10 +386,10 @@ function RunGroup({
         />
       )}
 
-      {isBase && (
+      {(top.kind === 'stone' || top.kind === 'wood') && (
         <Rect
           {...countertop}
-          fill="#cbd5e1"
+          fill={top.kind === 'wood' ? '#c8a27a' : '#cbd5e1'}
           opacity={0.9}
           stroke="#64748b"
           strokeWidth={1}
@@ -312,7 +397,7 @@ function RunGroup({
         />
       )}
 
-      {showsMolding && molding !== 'none' && (
+      {(top.kind === 'crown' || top.kind === 'topMold') && (
         <Rect
           {...topMold}
           fill="#94a3b8"
@@ -322,7 +407,7 @@ function RunGroup({
           listening={false}
         />
       )}
-      {showsMolding && molding === 'crown' && (
+      {top.kind === 'crown' && (
         <Rect
           {...crown}
           fill="#e2e8f0"
@@ -332,6 +417,19 @@ function RunGroup({
           listening={false}
         />
       )}
+
+      {bottomParts.map((part) => (
+        <Rect
+          key={part.id}
+          {...part.rect}
+          fill="#94a3b8"
+          opacity={0.9}
+          stroke="#cbd5e1"
+          strokeWidth={1}
+          dash={part.kind === 'corbels' ? [4, 3] : undefined}
+          listening={false}
+        />
+      ))}
 
       <Rect
         {...runRect}
@@ -358,20 +456,53 @@ function RunGroup({
         />
       ))}
 
-      {drawnPieces.map((piece) => (
+      {drawnPieces.filter((piece) => !hiddenIds.has(piece.id)).map((piece) => (
         <PieceRect
           key={piece.id}
           piece={piece}
           transform={transform}
-          warning={warningPieceIds.has(piece.id)}
+          warning={warningPieceIds.has(piece.id) || warningPieceIds.has(piece.columnId)}
           error={hasErrors}
           selected={selectedPieceId === piece.id}
           subLabel={subLabels.get(piece.id) ?? null}
+          framed={framedIds.has(piece.id)}
+          ghost={ghostIds.has(piece.id)}
           cornerFiller={!panelPieceIds.has(piece.id) && (piece.role === 'end-left'
             ? cornerFillers.left
             : piece.role === 'end-right' && cornerFillers.right)}
           onSelect={() => onSelectPiece(run.id, piece.id)}
           cursor={cursor}
+        />
+      ))}
+
+      {frames.regions.map((region) => (
+        <FrameOutline
+          key={region.id}
+          region={region}
+          transform={transform}
+        />
+      ))}
+
+      {chipLines.map((line) => (
+        <Line
+          key={line.key}
+          points={line.points}
+          stroke="#e2e8f0"
+          strokeWidth={1}
+          dash={[3, 2]}
+          listening={false}
+        />
+      ))}
+
+      {shelves.map((part) => (
+        <Rect
+          key={part.id}
+          {...wallRectToScreen(part, transform)}
+          fill={KIND_COLORS[part.kind]}
+          opacity={part.kind === 'shelf' ? 0.9 : 0.25}
+          stroke="#1e293b"
+          strokeWidth={1}
+          listening={false}
         />
       ))}
 
@@ -387,9 +518,16 @@ function RunGroup({
         />
       ))}
 
+      <CellChains
+        grids={cells.grids}
+        transform={transform}
+        editable={stretchable && !preview && Boolean(onEditTrack)}
+        onEditTrack={(edit) => onEditTrack(run.id, edit)}
+      />
+
       {result.pieces.flatMap((piece) => {
         const item = piece.role === 'item'
-          ? run.items.find((candidate) => candidate.id === piece.id)
+          ? runItems(run).find((candidate) => candidate.id === piece.id)
           : null;
         if (!item?.pin) return [];
         const anchorX = item.pin.anchor === 'right'
@@ -458,7 +596,7 @@ function RunGroup({
               y={datum.y - 14}
               width={80}
               align="center"
-              text={`℄ ${formatInches(marker.value)}`}
+              text={marker.anchor === 'center' ? `℄ ${formatInches(marker.value)}` : formatInches(marker.value)}
               fontSize={11}
               fill="#facc15"
             />

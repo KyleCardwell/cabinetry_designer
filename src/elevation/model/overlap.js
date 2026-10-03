@@ -1,9 +1,11 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { frontDepth, runBackOffset } from './corners.js';
 import { wallSideOf } from './wallSides.js';
 
 const OVERLAP_EPSILON = 1e-6;
 
 export function verticalStart(run) {
+  if (run.stack?.below) return run.z;
   return run.cabinetTypeId === CABINET_TYPE_IDS.BASE
     || run.cabinetTypeId === CABINET_TYPE_IDS.TALL
     ? 0
@@ -18,12 +20,16 @@ export function verticalStart(run) {
  * @param {object} settings
  * @returns {boolean}
  */
-export function runsConflict(a, b, settings) {
-  void settings;
+export function runsConflict(a, b, settings = DEFAULT_SETTINGS) {
   const horizontalOverlap = Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x);
   const verticalOverlap = Math.min(a.z + a.height, b.z + b.height)
     - Math.max(verticalStart(a), verticalStart(b));
-  return horizontalOverlap > OVERLAP_EPSILON && verticalOverlap > 0;
+  if (!(horizontalOverlap > OVERLAP_EPSILON && verticalOverlap > 0)) return false;
+  // Runs on different planes (SPEC-38) only conflict where their plan depths overlap.
+  if ((a._plane?.recessId ?? null) === (b._plane?.recessId ?? null)) return true;
+  const depthOverlap = Math.min(frontDepth(a, settings), frontDepth(b, settings))
+    - Math.max(runBackOffset(a), runBackOffset(b));
+  return depthOverlap > OVERLAP_EPSILON;
 }
 
 /**

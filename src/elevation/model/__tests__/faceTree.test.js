@@ -6,6 +6,7 @@ import {
   makeDrawerStack,
   parentFacePath,
   removeFace,
+  setFaceHinge,
   setFaceSize,
   setFaceType,
   setGroupCount,
@@ -154,5 +155,18 @@ describe('faceTree', () => {
       ],
     });
     expect(makeDrawerStack(face, 'r', 3)).toBe(face);
+  });
+
+  it('sets and clears a door\'s hinge; a new type drops it', () => {
+    const face = { direction: 'vertical', size: null, children: [
+      { type: 'drawer_front', size: 6 }, { type: 'door', size: null },
+    ] };
+    const hinged = setFaceHinge(face, 'r.1', 'right');
+    expect(hinged.children[1]).toEqual({ type: 'door', size: null, hinge: 'right' });
+    expect(setFaceHinge(hinged, 'r.1', 'right')).toBe(hinged);
+    expect(setFaceHinge(hinged, 'r.1', null).children[1]).toEqual({ type: 'door', size: null });
+    expect(setFaceHinge(face, 'r.0', 'left')).toBe(face);
+    expect(setFaceHinge(face, 'r.1', 'up')).toBe(face);
+    expect(setFaceType(hinged, 'r.1', 'drawer_front').children[1]).toEqual({ type: 'drawer_front', size: null });
   });
 });

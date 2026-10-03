@@ -1,10 +1,74 @@
 import { v4 as uuid } from 'uuid';
-import { CABINET_TYPE_IDS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { replaceRootItems, runItems } from './grid.js';
 import { floorTo, roundTo } from './units.js';
 
 const WIDTH_EPSILON = 1e-6;
 const FILLER_STEP = 1 / 16;
 const FILLER_END_TYPES = new Set(['filler', 'blind']);
+const AUTO_KINDS = new Set(['cabinet', 'panel', 'void', 'shelves']);
+
+/** An item that shares leftover width: a cabinet or cell kind with no width. Never a filler. */
+function isAutoItem(item) {
+  return item.width === null && AUTO_KINDS.has(item.kind);
+}
+
+/**
+ * The run's items, each with `gapAfter` (SPEC-36): its column's own `gap`, else the run's seam
+ * gap between two cabinet columns; 0 after the last. Items that already carry one keep it (the
+ * pinned segments pass slices of this list back in).
+ */
+function itemsWithGaps(run) {
+  const items = runItems(run);
+  const seamGap = run._seamGap ?? run.seamGap ?? 0;
+  return items.map((item, index) => {
+    if (item.gapAfter !== undefined) return item;
+    const next = items[index + 1];
+    let gapAfter = 0;
+    if (next) {
+      gapAfter = item.gap ?? (item.kind === 'cabinet' && next.kind === 'cabinet' ? seamGap : 0);
+    }
+    return { ...item, gapAfter };
+  });
+}
+
+const JOINED = new Set(['joint', 'follow']);
+
+/**
+ * The gap at each real end of a face frame run (SPEC-38.3), beside a cabinet only: a beaded run's bead,
+ * plus, at a free end, the stile's overhang. A None end is free unless a run of the same depth is joined
+ * there or a wall end panel is mitered there; one that dies into a deeper run (`_frame.dieIn`) or into
+ * a wall end panel (`join: 'butt'`) is free (SPEC-38.4). A pinned run's split points (`_pinSplit`)
+ * aren't ends.
+ */
+function endGaps(run, items, settings) {
+  if (!run._frame) return { left: 0, right: 0 };
+  const bead = run._frame.bead ?? 0;
+  const overhang = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
+  const at = (side) => {
+    if (run._pinSplit?.[side]) return 0;
+    const item = side === 'left' ? items[0] : items[items.length - 1];
+    if (item?.kind !== 'cabinet') return 0;
+    const wallPanel = run._frame.wallPanels?.[side];
+    const joined = JOINED.has(run.anchors?.[side]?.to);
+    const free = run.ends[side].type === 'none' && (wallPanel
+      ? wallPanel.join === 'butt'
+      : !joined || run._frame.dieIn?.[side] === true);
+    return bead + (free ? overhang : 0);
+  };
+  return { left: at('left'), right: at('right') };
+}
+
+/** A top-level cell's own settings, copied onto its piece. */
+function itemExtras(item) {
+  return {
+    ...(item.depth !== undefined ? { depth: item.depth } : {}),
+    ...(item.align !== undefined ? { align: item.align } : {}),
+    ...(item.doors !== undefined ? { doors: item.doors } : {}),
+    ...(item.shelves !== undefined ? { shelves: { ...item.shelves } } : {}),
+    ...(item.extend !== undefined ? { extend: item.extend } : {}),
+  };
+}
 
 function endWidth(end, settings) {
   if (end.type === 'end_panel') return end.width ?? settings.endPanelThickness;
@@ -21,11 +85,15 @@ function flexMinimum(side, settings, opts) {
 }
 
 function layoutInputs(run, settings, opts) {
-  const fixedEnds = endWidth(run.ends.left, settings) + endWidth(run.ends.right, settings);
-  const fixedItems = run.items.reduce((sum, item) => (
-    sum + (item.width === null ? 0 : item.width)
+  const items = itemsWithGaps(run);
+  const gaps = endGaps(run, items, settings);
+  const fixedEnds = endWidth(run.ends.left, settings) + endWidth(run.ends.right, settings)
+    + gaps.left + gaps.right;
+  const fixedItems = items.reduce((sum, item) => (
+    sum + (item.width === null ? 0 : item.width) + item.gapAfter
   ), 0);
-  const nAuto = run.items.filter(
+  const nAuto = items.filter(isAutoItem).length;
+  const nAutoCabinets = items.filter(
     (item) => item.kind === 'cabinet' && item.width === null,
   ).length;
   const flexSides = ['left', 'right'].filter((side) => isFlexEnd(run.ends[side]));
@@ -38,12 +106,14 @@ function layoutInputs(run, settings, opts) {
 
   return {
     available,
+    endGaps: gaps,
     fixedEnds,
     fixedItems,
     flex,
     flexSides,
     minimumTotal,
     nAuto,
+    nAutoCabinets,
   };
 }
 
@@ -86,8 +156,10 @@ function warning(code, pieceId, message) {
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 function splitRunLegacy(run, settings, opts) {
+  const items = itemsWithGaps(run);
   const {
     available,
+    endGaps,
     flex,
     minimumTotal,
     nAuto,
@@ -99,6 +171,7 @@ function splitRunLegacy(run, settings, opts) {
   let autoWidth = 0;
   let flexExtra = 0;
   let flexRemainder = 0;
+  const stileExtra = { left: 0, right: 0 };
 
   if (hasAvailableError) {
     errors.push({ code: 'over-constrained' });
@@ -114,17 +187,34 @@ function splitRunLegacy(run, settings, opts) {
       flexExtra = floorTo(extra / flex, FILLER_STEP);
       flexRemainder = extra - flex * flexExtra;
     }
+  } else if (nAuto > 0 && run._frame) {
+    // SPEC-38.3: a face frame run with nothing flexible rounds its boxes down and gives the leftover
+    // to its end stiles, half to each real end, so every box and every opening is the same.
+    autoWidth = floorTo(available / nAuto, settings.roundTo);
+    const leftover = available - nAuto * autoWidth;
+    const realLeft = !run._pinSplit?.left;
+    const realRight = !run._pinSplit?.right;
+    if (realLeft && realRight) {
+      stileExtra.left = floorTo(leftover / 2, FILLER_STEP);
+      stileExtra.right = leftover - stileExtra.left;
+    } else if (realLeft) {
+      stileExtra.left = leftover;
+    } else {
+      stileExtra.right = leftover;
+    }
   } else if (nAuto > 0) {
     autoWidth = roundTo(available / nAuto, FILLER_STEP);
     if (Math.abs(autoWidth / settings.roundTo - Math.round(autoWidth / settings.roundTo)) > WIDTH_EPSILON) {
-      const firstAuto = run.items.find(
+      const firstAuto = items.find(
         (item) => item.kind === 'cabinet' && item.width === null,
       );
-      warnings.push(warning(
-        'widths-not-rounded',
-        firstAuto.id,
-        `Auto cabinet widths are not multiples of ${settings.roundTo} inches.`,
-      ));
+      if (firstAuto) {
+        warnings.push(warning(
+          'widths-not-rounded',
+          firstAuto.id,
+          `Auto cabinet widths are not multiples of ${settings.roundTo} inches.`,
+        ));
+      }
     }
   } else if (Math.abs(available) > WIDTH_EPSILON) {
     errors.push({ code: 'does-not-fill' });
@@ -132,13 +222,13 @@ function splitRunLegacy(run, settings, opts) {
 
   let autoIndex = 0;
   const lastAutoIndex = nAuto - 1;
-  const computedItems = run.items.map((item) => {
-    if (item.kind !== 'cabinet' || item.width !== null) {
+  const computedItems = items.map((item) => {
+    if (!isAutoItem(item)) {
       return { ...item, computedWidth: item.width, auto: false };
     }
 
     let computedWidth = autoWidth;
-    if (flex === 0 && !hasAvailableError && autoIndex === lastAutoIndex) {
+    if (flex === 0 && !run._frame && !hasAvailableError && autoIndex === lastAutoIndex) {
       computedWidth = available - autoWidth * lastAutoIndex;
     }
     autoIndex += 1;
@@ -147,7 +237,7 @@ function splitRunLegacy(run, settings, opts) {
 
   const maxWidth = run.maxCabinetWidth ?? settings.maxCabinetWidth;
   for (const item of computedItems) {
-    if (!item.auto) continue;
+    if (!item.auto || item.kind !== 'cabinet') continue;
     if (item.computedWidth > maxWidth + WIDTH_EPSILON) {
       warnings.push(warning(
         'wide-cabinet',
@@ -189,6 +279,7 @@ function splitRunLegacy(run, settings, opts) {
   }
 
   const rawPieces = [];
+  const gapsAfter = [];
   const addEnd = (side, end) => {
     if (end.type === 'none') return;
     let width = endWidth(end, settings);
@@ -203,6 +294,7 @@ function splitRunLegacy(run, settings, opts) {
         : CABINET_TYPE_IDS.END_PANEL,
       width,
       auto: isFlexEnd(end),
+      ...(end.extend ? { extend: end.extend } : {}),
     };
     const cornerAngle = opts?.endCornerAngles?.[side];
     if (isFlexEnd(end)
@@ -211,33 +303,38 @@ function splitRunLegacy(run, settings, opts) {
       piece.cornerAngle = cornerAngle;
     }
     rawPieces.push(piece);
+    gapsAfter.push(0);
   };
 
+  const leftGap = endGaps.left + stileExtra.left;
+  const rightGap = endGaps.right + stileExtra.right;
   addEnd('left', run.ends.left);
+  if (gapsAfter.length > 0) gapsAfter[gapsAfter.length - 1] += leftGap;
   for (const item of computedItems) {
     rawPieces.push({
       id: item.id,
       kind: item.kind,
       role: 'item',
-      cabinetTypeId: item.kind === 'cabinet'
-        ? run.cabinetTypeId
-        : CABINET_TYPE_IDS.FILLER,
+      cabinetTypeId: item.kind === 'filler' ? CABINET_TYPE_IDS.FILLER : run.cabinetTypeId,
       width: item.computedWidth,
       auto: item.auto,
+      ...itemExtras(item),
     });
+    gapsAfter.push(item.gapAfter);
   }
+  if (computedItems.length > 0) gapsAfter[gapsAfter.length - 1] += rightGap;
   addEnd('right', run.ends.right);
 
-  let x = run.x;
-  const pieces = rawPieces.map((piece) => {
+  let x = run.x + (run.ends.left.type === 'none' ? leftGap : 0);
+  const pieces = rawPieces.map((piece, index) => {
     const positioned = {
       ...piece,
       x,
       z: run.z,
       height: run.height,
-      depth: piece.kind === 'end_panel' ? settings.endPanelThickness : run.depth,
+      depth: piece.depth ?? (piece.kind === 'end_panel' ? settings.endPanelThickness : run.depth),
     };
-    x += piece.width;
+    x += piece.width + gapsAfter[index];
     return positioned;
   });
 
@@ -256,7 +353,7 @@ function itemMinimum(item, settings) {
 }
 
 function itemsMinimum(items, settings) {
-  return items.reduce((sum, item) => sum + itemMinimum(item, settings), 0);
+  return items.reduce((sum, item) => sum + itemMinimum(item, settings) + (item.gapAfter ?? 0), 0);
 }
 
 function outerMinimum(run, side, items, settings, opts) {
@@ -272,21 +369,20 @@ function positionedItemPiece(run, settings, item, width, x, auto, absorbed) {
     id: item.id,
     kind: item.kind,
     role: 'item',
-    cabinetTypeId: item.kind === 'cabinet'
-      ? run.cabinetTypeId
-      : CABINET_TYPE_IDS.FILLER,
+    cabinetTypeId: item.kind === 'filler' ? CABINET_TYPE_IDS.FILLER : run.cabinetTypeId,
     width,
     auto,
+    ...itemExtras(item),
     ...(Math.abs(absorbed ?? 0) > WIDTH_EPSILON ? { absorbed } : {}),
     x,
     z: run.z,
     height: run.height,
-    depth: run.depth,
+    depth: item.depth ?? run.depth,
   };
 }
 
 function cabinetWidthWarnings(run, settings, item, width, auto) {
-  if (!auto) return [];
+  if (!auto || item.kind !== 'cabinet') return [];
   const warnings = [];
   const maxWidth = run.maxCabinetWidth ?? settings.maxCabinetWidth;
   if (width > maxWidth + WIDTH_EPSILON) {
@@ -309,10 +405,10 @@ function cabinetWidthWarnings(run, settings, item, width, auto) {
 function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
   const width = end - start;
   const fixedWidth = items.reduce(
-    (sum, item) => sum + (item.width === null ? 0 : item.width),
+    (sum, item) => sum + (item.width === null ? 0 : item.width) + item.gapAfter,
     0,
   );
-  const autos = items.filter((item) => item.kind === 'cabinet' && item.width === null);
+  const autos = items.filter(isAutoItem);
   const available = width - fixedWidth;
   const warnings = [];
   const errors = [];
@@ -334,14 +430,14 @@ function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
 
   let x = start;
   const pieces = items.map((item) => {
-    const auto = item.kind === 'cabinet' && item.width === null;
+    const auto = isAutoItem(item);
     const itemWidth = auto
       ? item.id === absorberId ? absorberWidth : baseWidth
       : item.width;
     const absorbed = auto && item.id === absorberId ? itemWidth - baseWidth : 0;
     warnings.push(...cabinetWidthWarnings(run, settings, item, itemWidth, auto));
     const piece = positionedItemPiece(run, settings, item, itemWidth, x, auto, absorbed);
-    x += itemWidth;
+    x += itemWidth + item.gapAfter;
     return piece;
   });
 
@@ -371,8 +467,9 @@ function pinUnreachableWarning(pin, actualLeft) {
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 export function splitRun(run, settings, opts) {
+  const items = itemsWithGaps(run);
   const targets = opts?.pinTargets ?? {};
-  const pinnedItems = run.items.filter((item) => (
+  const pinnedItems = items.filter((item) => (
     item.kind === 'cabinet'
     && item.pin
     && Number.isFinite(targets[item.id])
@@ -383,7 +480,7 @@ export function splitRun(run, settings, opts) {
   const pass1Pieces = new Map(pass1.pieces.map((piece) => [piece.id, piece]));
   const retainedPinWidths = opts?.pinWidths ?? run._pinWidths ?? {};
   const pins = pinnedItems.map((item) => {
-    const itemIndex = run.items.findIndex((candidate) => candidate.id === item.id);
+    const itemIndex = items.findIndex((candidate) => candidate.id === item.id);
     const piece = pass1Pieces.get(item.id);
     const width = item.width ?? retainedPinWidths[item.id] ?? piece?.width ?? 0;
     const target = targets[item.id];
@@ -399,15 +496,16 @@ export function splitRun(run, settings, opts) {
     };
   });
 
-  const leftItems = run.items.slice(0, pins[0].itemIndex);
-  const rightItems = run.items.slice(pins[pins.length - 1].itemIndex + 1);
-  const leftMinimum = outerMinimum(run, 'left', leftItems, settings, opts);
-  const rightMinimum = outerMinimum(run, 'right', rightItems, settings, opts);
+  const leftItems = items.slice(0, pins[0].itemIndex);
+  const rightItems = items.slice(pins[pins.length - 1].itemIndex + 1);
+  const leftMinimum = outerMinimum(run, 'left', leftItems, settings, opts) + endGaps(run, items, settings).left;
+  const rightMinimum = outerMinimum(run, 'right', rightItems, settings, opts)
+    + pins[pins.length - 1].item.gapAfter + endGaps(run, items, settings).right;
   const middleMinimums = pins.slice(0, -1).map((pin, index) => (
     itemsMinimum(
-      run.items.slice(pin.itemIndex + 1, pins[index + 1].itemIndex),
+      items.slice(pin.itemIndex + 1, pins[index + 1].itemIndex),
       settings,
-    )
+    ) + pin.item.gapAfter
   ));
 
   const warnings = [];
@@ -449,6 +547,7 @@ export function splitRun(run, settings, opts) {
     x: run.x,
     width: actualPins[0].left - run.x,
     items: leftItems,
+    _pinSplit: { right: true },
     ends: { left: run.ends.left, right: { type: 'none', width: null } },
   }, settings, opts));
 
@@ -472,8 +571,8 @@ export function splitRun(run, settings, opts) {
       appendLayout(interiorLayout(
         run,
         settings,
-        run.items.slice(pin.itemIndex + 1, next.itemIndex),
-        pin.left + pin.width,
+        items.slice(pin.itemIndex + 1, next.itemIndex),
+        pin.left + pin.width + pin.item.gapAfter,
         next.left,
         pin,
         next,
@@ -482,11 +581,13 @@ export function splitRun(run, settings, opts) {
   });
 
   const lastPin = actualPins[actualPins.length - 1];
+  const rightStart = lastPin.left + lastPin.width + lastPin.item.gapAfter;
   appendLayout(splitRunLegacy({
     ...run,
-    x: lastPin.left + lastPin.width,
-    width: run.x + run.width - lastPin.left - lastPin.width,
+    x: rightStart,
+    width: run.x + run.width - rightStart,
     items: rightItems,
+    _pinSplit: { left: true },
     ends: { left: { type: 'none', width: null }, right: run.ends.right },
   }, settings, opts));
 
@@ -508,7 +609,7 @@ export function syncAutoItems(run, settings, opts) {
     available,
     flex,
     minimumTotal,
-    nAuto,
+    nAutoCabinets,
   } = layoutInputs(run, settings, opts);
   const autoSpace = flex > 0
     ? available - minimumTotal
@@ -516,22 +617,22 @@ export function syncAutoItems(run, settings, opts) {
   const maxWidth = run.maxCabinetWidth ?? settings.maxCabinetWidth;
   const target = autoSpace > 0 ? Math.max(1, Math.ceil(autoSpace / maxWidth)) : 0;
 
-  if (target === nAuto) return run;
+  if (target === nAutoCabinets) return run;
 
-  const items = [...run.items];
-  if (target > nAuto) {
-    for (let index = nAuto; index < target; index += 1) {
+  const items = [...runItems(run)];
+  if (target > nAutoCabinets) {
+    for (let index = nAutoCabinets; index < target; index += 1) {
       items.push({ id: uuid(), kind: 'cabinet', width: null });
     }
   } else {
-    let toRemove = nAuto - target;
+    let toRemove = nAutoCabinets - target;
     for (let index = items.length - 1; index >= 0 && toRemove > 0; index -= 1) {
-      if (items[index].kind === 'cabinet' && items[index].width === null) {
+      if (items[index].kind === 'cabinet' && items[index].width === null && !items[index].grid) {
         items.splice(index, 1);
         toRemove -= 1;
       }
     }
   }
 
-  return { ...run, items };
+  return run.items ? { ...run, items } : { ...run, grid: replaceRootItems(run.grid, items) };
 }

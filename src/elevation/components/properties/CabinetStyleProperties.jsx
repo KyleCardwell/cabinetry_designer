@@ -3,6 +3,7 @@ import {
   REVEAL_KEYS,
   REVEAL_SOURCE_LABELS,
   formatInches,
+  isInsetStyle,
   resolveStyle,
 } from '../../model/index.js';
 import { setItemReveals, setItemStyle } from '../../store/elevationSlice.js';
@@ -41,6 +42,11 @@ export default function CabinetStyleProperties({ room, wall, run, item, settings
         inherited={resolveStyle(settings, room, run)}
         onChange={(style) => dispatch(setItemStyle({ ...at, style }))}
       />
+      {isInsetStyle(faceLayout.style) && faceLayout.box && (
+        <p className="text-xs text-gray-400">
+          {`Box ${formatInches(faceLayout.box.width)} wide`}
+        </p>
+      )}
 
       <div className="space-y-1.5">
         <p className="text-xs text-gray-400">Reveals (blank = automatic)</p>

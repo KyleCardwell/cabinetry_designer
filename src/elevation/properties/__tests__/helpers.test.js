@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
+import { gridFromItems } from '../../model/grid.js';
 import { describeAnchor } from '../../model/room.js';
 import {
   formatCornerReserve,
@@ -194,6 +195,60 @@ describe('properties helpers', () => {
     expect(resolveSelectedPiece(selected, layout, 'missing')).toBeNull();
   });
 
+  it("finds a nested cell's leaf", () => {
+    const selected = {
+      ...run(),
+      items: undefined,
+      grid: gridFromItems('run-1', [{
+        id: 'g',
+        kind: 'cabinet',
+        width: null,
+        grid: {
+          id: 'g',
+          cols: [{ id: 'g:c', size: null, sizeMode: 'auto' }],
+          rows: [
+            { id: 'g:r0', size: null, sizeMode: 'auto' },
+            { id: 'g:r1', size: null, sizeMode: 'auto' },
+          ],
+          cells: [
+            {
+              col: 0,
+              row: 0,
+              colSpan: 1,
+              rowSpan: 1,
+              node: { id: 'up', kind: 'cabinet' },
+            },
+            {
+              col: 0,
+              row: 1,
+              colSpan: 1,
+              rowSpan: 1,
+              node: { id: 'dn', kind: 'cabinet' },
+            },
+          ],
+        },
+      }]),
+    };
+    const cells = {
+      pieces: [{
+        id: 'dn',
+        kind: 'cabinet',
+        role: 'item',
+        columnId: 'g',
+        x: 0,
+        width: 30,
+        z: 4,
+        height: 15,
+        depth: 24,
+      }],
+    };
+
+    expect(resolveSelectedPiece(selected, cells, 'dn')).toMatchObject({
+      item: { id: 'dn', kind: 'cabinet' },
+      side: null,
+    });
+  });
+
   it('finds the final item and the final cabinet independently', () => {
     const selected = run({
       items: [
@@ -206,5 +261,26 @@ describe('properties helpers', () => {
     expect(lastCabinetItem(selected).id).toBe('cab-1');
     expect(lastRunItem(run())).toBeNull();
     expect(lastCabinetItem(run())).toBeNull();
+  });
+});
+
+describe('SPEC-37 selecting a T-filler', () => {
+  const layout = { pieces: [{ id: 'r:left', role: 'end-left', kind: 'filler', x: 0, z: 4, width: 3, height: 30.5 }] };
+  const seam = { id: 'tee:a|b', orientation: 'vertical', end: null, x: 41.25, z: 4, width: 1.5, height: 30.5 };
+  const end = { id: 'r:left', orientation: 'vertical', end: 'left', x: 0, z: 4, width: 3.75, height: 30.5 };
+
+  it('finds a seam T by its id, as a filler with no item', () => {
+    expect(resolveSelectedPiece(run(), layout, 'tee:a|b', [seam, end])).toEqual({
+      piece: { id: 'tee:a|b', kind: 'filler', role: 'tee', x: 41.25, z: 4, width: 1.5, height: 30.5 },
+      item: null,
+      side: null,
+      tee: seam,
+    });
+    expect(resolveSelectedPiece(run(), layout, 'tee:a|b', [])).toBeNull();
+  });
+
+  it('keeps an end filler an end piece, and carries its T', () => {
+    expect(resolveSelectedPiece(run(), layout, 'r:left', [seam, end])).toMatchObject({ side: 'left', tee: end });
+    expect(resolveSelectedPiece(run(), layout, 'r:left')).toMatchObject({ side: 'left', tee: null });
   });
 });

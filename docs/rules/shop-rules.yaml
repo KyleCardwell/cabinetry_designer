@@ -730,7 +730,8 @@ rules:
     A T-filler is applied to Euro cabinets, per run or between two particular cabinets
     (side by side or stacked). Its return sits in rabbets in both boxes (FILL-007) and its flat
     covers each box's front edge by 3/4", so between two tight boxes the flat is 1 1/2". When
-    the boxes are spaced apart the flat grows by the spacer; at a run end it can be wider.
+    the boxes are spaced apart the flat grows by the gap between them (spacing, not a part); at a
+    run end it can be wider.
     Covered edges give the 13/16" and 27/32" reveals in REV-005 and REV-006. It is a filler
     part with its own number, noted "T-shape" (FILL-004).
   values: { per_box: '3/4', between_tight_boxes: '1 1/2' }
@@ -776,15 +777,16 @@ rules:
   needs: [purpose]
 
 - id: FF-004
-  title: Wider stiles space the boxes apart
+  title: Wider stiles leave a gap between boxes
   scope: part
   styles: [face_frame]
   kind: derive
   owner: code
   statement: >
-    A stile over a seam always covers 3/4" of each box. Any extra width becomes a spacer between
+    A stile over a seam always covers 3/4" of each box. Any extra width becomes a gap between
     the boxes, so the stile's outside edges land on the inside faces of the box sides: a 2" stile
-    means a 1/2" spacer. Used for beaded inset frames and the occasional spaced layout.
+    means a 1/2" gap. The gap is just spacing, added when needed; it isn't a part. Used for beaded
+    inset frames and the occasional spaced layout.
   values: { per_box: '3/4' }
 
 # ─────────────────────────────────────────────────────────────── Wood tops

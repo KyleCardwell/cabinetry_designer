@@ -24,6 +24,11 @@ Suggested format:
 
 ## Idea inbox
 
+- [ ] **[P2][UI][elevation][plan] Pick from everything under the cursor**
+  - Why: since SPEC-38.5 a stacked run has no horizontal dimension segment to click or drag, and a click on a cabinet can't reach the face or run when that's what's wanted.
+  - Decided (Kyle, 2026-10-02): a plain click keeps today's behavior. Right-click (or Alt-click) opens a list of everything under the cursor (face, cabinet, run, stacked runs), each entry highlighting its shape on hover; clicking one selects it. No click-to-cycle. Same list in plan view, where stacked runs overlap.
+  - Completion: every stacked run, cabinet and face can be selected from the list in elevation and plan; dragging a selected run works without its dimension segment.
+
 - [ ] **[P1][model][plan][elevation] Wall configuration: two-faced walls, walls ending on faces, soffits**
   - Why: Alcoves between wing walls, pony walls, notched corners with a wall extending into the room, and islands where the cabinet backs butt together cannot be modeled today. Cabinets need to go on either side of any wall.
   - Decided - faces: every wall has two faces and every run says which face it is on. Thickness 0 is allowed (island, backs butted). With explicit faces, chain orientation only sets defaults and naming, so it stops being a correctness risk.
@@ -67,7 +72,7 @@ Suggested format:
 - [ ] choose light rail/trough/panel below uppers (or all cabinets?)
   - Same for wood tops, lids, furniture base, toekick. Project/Room/Cabinet Overrides
 - [ ] add multiple rows/options of top of crown per room
-- [ ] 
+- [ ] match filler/end stile widths automatically for an upper over a base, etc.
 - [ ] 
 - [ ] 
 - [ ] 
@@ -173,10 +178,6 @@ Specified in `docs/elevation-mvp/SPEC-8.md`, step prompts in `PROMPTS-8.md`.
   - Open: Proposed resolution ladder for an unreachable pin, in order: slack in the pinned cabinet's own segment (works today), then the pinned cabinet's own auto width, then free run ends (works today), then move the joints so a pinned run translates and its joined neighbours re-solve through `moveJoint` and its tightest-member clamp, then clamp and warn naming the run that blocked it. Underlying question to settle first: does a pin mean "this cabinet sits here in the run" (what the code does) or "this cabinet sits here on the wall" (what was meant)? If the latter, the pin should probably reuse the Step 33 signed-offset anchor grammar and be allowed to translate the run, not only stretch it.
   - Done when: A pinned cabinet in a run joined on both sides lands on its target or reports why it cannot, the mismatch is visible from the cabinet selection, and the ladder above is covered by tests.
 
-- [ ] **[P1][UI] Split PropertiesPanel.jsx into per-selection sections**
-  - Why: At 1,642 lines it is the largest per-round cost in the project. Nearly every step touches it, and an agent re-reads it three or four times per step - roughly 20k tokens each time. This is a bigger lever on usage than any prompt wording.
-  - Notes: RunSection, PieceSection, OpeningSection, WallSection, SettingsSection under components/properties/, with the shared Field and InchInput wiring staying put. Pure presentation split - no behavior change, no new state.
-  - Done when: No file under components/properties/ exceeds ~400 lines, the whole suite passes untouched, and a step that edits one selection type only has to open one of them.
 - [ ] **[P2][docs] Follow docs/elevation-mvp/PROMPT-CONVENTIONS.md for every future PROMPTS-N round**
   - Why: Steps 32 and 33 produced the least code of the last eight steps (235 and 382 insertions vs step 30's 1,050) and cost the most usage - all of it spent reading and looping, not writing.
   - Notes: Name the files per step, paste fan-out greps instead of asking for them, literal test fixtures, shape changes in their own step, scoped test loop, capped summary. One step per fresh session.
@@ -192,5 +193,10 @@ Specified in `docs/elevation-mvp/SPEC-8.md`, step prompts in `PROMPTS-8.md`.
 
 ## Done
 <!-- Keep completed items for project history. -->
+
+- [x] **[P1][UI] Split PropertiesPanel.jsx into per-selection sections**
+  - Why: At 1,642 lines it is the largest per-round cost in the project. Nearly every step touches it, and an agent re-reads it three or four times per step - roughly 20k tokens each time. This is a bigger lever on usage than any prompt wording.
+  - Notes: RunSection, PieceSection, OpeningSection, WallSection, SettingsSection under components/properties/, with the shared Field and InchInput wiring staying put. Pure presentation split - no behavior change, no new state.
+  - Done when: No file under components/properties/ exceeds ~400 lines, the whole suite passes untouched, and a step that edits one selection type only has to open one of them.
 
 - [ ] save clearances to side objects - i.e. a run needs 4" clearance from door casing, etc.

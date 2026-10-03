@@ -1,7 +1,10 @@
 import { useDispatch } from 'react-redux';
-import { formatInchesInput } from '../../model/index.js';
-import { setRunBlind, setRunEnd, setRunEndFiller } from '../../store/elevationSlice.js';
+import { formatInchesInput, runBlind } from '../../model/index.js';
+import {
+  setRunBlind, setRunEnd, setRunEndExtend, setRunEndFiller,
+} from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import ExtendFields from './ExtendFields.jsx';
 import Field from './Field.jsx';
 
 const END_TYPES = [
@@ -11,7 +14,9 @@ const END_TYPES = [
   ['blind', 'Blind corner'],
 ];
 
-export default function EndFields({ actionBase, run, side, settings, note = null }) {
+export default function EndFields({
+  actionBase, run, side, settings, note = null, extendRuns = [],
+}) {
   const dispatch = useDispatch();
   const endType = run.ends[side].type;
 
@@ -29,7 +34,9 @@ export default function EndFields({ actionBase, run, side, settings, note = null
           className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
         >
           {END_TYPES.map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
+            <option key={value} value={value}>
+              {value === 'filler' && run._frame ? 'Face frame stile' : label}
+            </option>
           ))}
         </select>
       </Field>
@@ -53,10 +60,41 @@ export default function EndFields({ actionBase, run, side, settings, note = null
           />
         </Field>
       )}
+      {endType === 'end_panel' && (
+        <Field label="L-shape">
+          <select
+            value={run.endFiller?.[side]?.tFiller === true ? 'yes'
+              : run.endFiller?.[side]?.tFiller === false ? 'no' : 'follow'}
+            onChange={(event) => dispatch(setRunEndFiller({
+              ...actionBase,
+              side,
+              key: 'tFiller',
+              value: { follow: null, yes: true, no: false }[event.target.value],
+            }))}
+            aria-label={`${side} end panel L-shape`}
+            className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="follow">Follow run</option>
+            <option value="yes">L-shape</option>
+            <option value="no">Plain panel</option>
+          </select>
+        </Field>
+      )}
+      {endType !== 'none' && (
+        <ExtendFields
+          directions={['up', 'down']}
+          extend={run.ends[side].extend}
+          runs={extendRuns}
+          label={`${side} end`}
+          onChange={(direction, target) => dispatch(setRunEndExtend({
+            ...actionBase, side, direction, target,
+          }))}
+        />
+      )}
       {endType === 'blind' && (
         <Field label="Blind box">
           <InchInput
-            value={run.blind?.[side] ?? null}
+            value={runBlind(run)?.[side] ?? null}
             allowBlank
             placeholder="none"
             onCommit={(width) => dispatch(setRunBlind({
@@ -102,6 +140,26 @@ export default function EndFields({ actionBase, run, side, settings, note = null
               aria-label={`${side} end filler return depth`}
             />
           </Field>
+          {endType === 'filler' && (
+            <Field label="T-filler">
+              <select
+                value={run.endFiller?.[side]?.tFiller === true ? 'yes'
+                  : run.endFiller?.[side]?.tFiller === false ? 'no' : 'follow'}
+                onChange={(event) => dispatch(setRunEndFiller({
+                  ...actionBase,
+                  side,
+                  key: 'tFiller',
+                  value: { follow: null, yes: true, no: false }[event.target.value],
+                }))}
+                aria-label={`${side} end filler T-filler`}
+                className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="follow">Follow run</option>
+                <option value="yes">T-filler</option>
+                <option value="no">Plain filler</option>
+              </select>
+            </Field>
+          )}
           <p className="mt-1.5 text-xs text-gray-500">
             {endType === 'blind'
               ? 'Box width of the cabinet at this end. The extra runs into the corner. The filler is ordered 6" with no return; the elevation still shows what fits.'
@@ -112,4 +170,3 @@ export default function EndFields({ actionBase, run, side, settings, note = null
     </>
   );
 }
-

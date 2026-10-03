@@ -13,6 +13,8 @@ export default function PieceRect({
   selected,
   cornerFiller = false,
   subLabel = null,
+  framed = false,
+  ghost = false,
   onSelect,
   cursor,
 }) {
@@ -31,6 +33,10 @@ export default function PieceRect({
         ? '#7dd3fc'
         : '#1e293b';
   const fixedCabinet = piece.kind === 'cabinet' && !piece.auto;
+  const hollow = piece.kind === 'void' || piece.kind === 'shelves';
+  // A framed box never shows; a mitered end panel (ghost) shows while hovered or selected (SPEC-36.1).
+  const quiet = framed || (ghost && !hovered && !selected);
+  const showLabels = !quiet;
 
   return (
     <Group
@@ -49,13 +55,17 @@ export default function PieceRect({
     >
       <Rect
         {...rect}
-        fill={cornerFiller ? '#fbbf24' : KIND_COLORS[piece.kind]}
+        fill={quiet
+          ? 'rgba(0, 0, 0, 0.001)'
+          : hollow ? 'transparent' : cornerFiller ? '#fbbf24' : KIND_COLORS[piece.kind]}
         opacity={0.82}
-        stroke={outline}
+        stroke={quiet && outline === '#1e293b'
+          ? undefined
+          : piece.kind === 'void' && outline === '#1e293b' ? KIND_COLORS.void : outline}
         strokeWidth={selected ? 3 : error || warning ? 2 : 1}
       />
 
-      {!narrow && (
+      {showLabels && !narrow && (
         <Text
           x={rect.x}
           y={rect.y}
@@ -70,7 +80,7 @@ export default function PieceRect({
         />
       )}
 
-      {subLabel && !narrow && (
+      {showLabels && subLabel && !narrow && (
         <Text
           x={rect.x}
           y={rect.y + rect.height / 2 + 2}
@@ -83,7 +93,7 @@ export default function PieceRect({
         />
       )}
 
-      {fixedCabinet && rect.width >= 12 && (
+      {showLabels && fixedCabinet && rect.width >= 12 && (
         <Text
           x={rect.x + rect.width - 11}
           y={rect.y + 3}
@@ -96,7 +106,7 @@ export default function PieceRect({
         />
       )}
 
-      {narrow && hovered && (
+      {showLabels && narrow && hovered && (
         <Label
           x={rect.x + rect.width / 2}
           y={rect.y - 5}

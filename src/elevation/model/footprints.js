@@ -1,4 +1,4 @@
-import { bandsCompatible, frontDepth } from './corners.js';
+import { bandsCompatible, frontDepth, runBackOffset } from './corners.js';
 import { CABINET_TYPE_IDS } from './constants.js';
 import { elevationToPlan } from './geometry.js';
 import { wallSideFrame, wallSideOf } from './wallSides.js';
@@ -6,9 +6,10 @@ import { wallSideFrame, wallSideOf } from './wallSides.js';
 /** Return the four-point plan polygon occupied by a run. */
 export function runFootprint(frame, run, settings) {
   const depth = frontDepth(run, settings);
+  const outset = runBackOffset(run);
   return [
-    elevationToPlan(frame, run.x, 0),
-    elevationToPlan(frame, run.x + run.width, 0),
+    elevationToPlan(frame, run.x, outset),
+    elevationToPlan(frame, run.x + run.width, outset),
     elevationToPlan(frame, run.x + run.width, depth),
     elevationToPlan(frame, run.x, depth),
   ];

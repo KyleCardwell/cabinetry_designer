@@ -1,5 +1,5 @@
 import { useDispatch } from 'react-redux';
-import { formatInches, resolvePinTarget } from '../../model/index.js';
+import { formatInches, resolvePinTarget, runItems } from '../../model/index.js';
 import {
   addItemAfter,
   lockItem,
@@ -7,27 +7,40 @@ import {
   setItemAbsorb,
   setItemPin,
   setItemWidth,
-  splitItem,
+  setTrackGap,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import CellKindSection from './CellKindSection.jsx';
+import CellSplitSection from './CellSplitSection.jsx';
+import CellWrapSection from './CellWrapSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
+import GapField from './GapField.jsx';
 import { RUN_TYPES } from './constants.js';
 
-export default function CabinetProperties({ wall, run, piece, item, layout, settings }) {
+const NO_INSET = { left: 0, right: 0 };
+
+export default function CabinetProperties({
+  wall, run, piece, item, layout, cells, settings, inset = NO_INSET,
+}) {
   const dispatch = useDispatch();
   const actionBase = { wallId: wall.id, runId: run.id, itemId: item.id };
   const locked = item.width !== null;
   const typeLabel = RUN_TYPES.find(([value]) => value === run.cabinetTypeId)?.[1] ?? 'Unknown';
   const actualCenter = piece.x + piece.width / 2;
-  const pinCount = run.items.filter((candidate) => candidate.pin).length;
+  const trim = inset.left + inset.right;
+  const boxWidth = piece.width - trim;
+  const items = runItems(run);
+  const pinCount = items.filter((candidate) => candidate.pin).length;
   const warnsSecondPin = !item.pin && pinCount === 1;
-  const itemIndex = run.items.findIndex((candidate) => candidate.id === item.id);
-  const pinnedIndexes = run.items.flatMap((candidate, index) => (candidate.pin ? [index] : []));
+  const itemIndex = items.findIndex((candidate) => candidate.id === item.id);
+  const next = items[itemIndex + 1];
+  const gapFallback = next && item.kind === 'cabinet' && next.kind === 'cabinet' ? run._seamGap ?? 0 : 0;
+  const pinnedIndexes = items.flatMap((candidate, index) => (candidate.pin ? [index] : []));
   const previousPin = [...pinnedIndexes].reverse().find((index) => index < itemIndex);
   const nextPin = pinnedIndexes.find((index) => index > itemIndex);
   const interiorAutos = previousPin !== undefined && nextPin !== undefined
-    ? run.items.slice(previousPin + 1, nextPin).filter(
+    ? items.slice(previousPin + 1, nextPin).filter(
       (candidate) => candidate.kind === 'cabinet' && candidate.width === null,
     )
     : [];
@@ -56,12 +69,17 @@ export default function CabinetProperties({ wall, run, piece, item, layout, sett
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Cabinet
         </h3>
-        <Field label="Width">
+        <Field label="Box width">
           <InchInput
-            value={piece.width}
-            onCommit={(width) => dispatch(setItemWidth({ ...actionBase, width }))}
-            aria-label="Cabinet width"
+            value={boxWidth}
+            onCommit={(width) => dispatch(setItemWidth({ ...actionBase, width: width + trim }))}
+            aria-label="Cabinet box width"
           />
+          {boxWidth !== piece.width && (
+            <p className="mt-1 text-xs text-gray-500">
+              Frame section: {formatInches(piece.width)}
+            </p>
+          )}
         </Field>
         <button
           type="button"
@@ -73,6 +91,19 @@ export default function CabinetProperties({ wall, run, piece, item, layout, sett
         >
           {locked ? 'Unlock width' : 'Lock width'}
         </button>
+        {next && (
+          <div className="mt-2">
+            <GapField
+              label="Gap right (blank = run)"
+              value={item.gap}
+              fallback={gapFallback}
+              onCommit={(gap) => dispatch(setTrackGap({
+                wallId: wall.id, runId: run.id, trackId: `${item.id}:col`, gap,
+              }))}
+              ariaLabel="Gap right"
+            />
+          </div>
+        )}
       </section>
 
       <section>
@@ -230,14 +261,11 @@ export default function CabinetProperties({ wall, run, piece, item, layout, sett
         </div>
       </section>
 
+      <CellKindSection wall={wall} run={run} piece={piece} item={item} />
+      <CellSplitSection wall={wall} run={run} cellId={item.id} nested={false} />
+      <CellWrapSection wall={wall} run={run} cellId={item.id} />
+
       <section className="grid grid-cols-2 gap-2">
-        <button
-          type="button"
-          onClick={() => dispatch(splitItem(actionBase))}
-          className="rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600"
-        >
-          Split in 2
-        </button>
         <button
           type="button"
           onClick={() => dispatch(addItemAfter({ ...actionBase, kind: 'cabinet' }))}
@@ -261,8 +289,15 @@ export default function CabinetProperties({ wall, run, piece, item, layout, sett
         </button>
       </section>
 
-      <FaceProperties wall={wall} run={run} piece={piece} item={item} layout={layout} settings={settings} />
+      <FaceProperties
+        wall={wall}
+        run={run}
+        piece={piece}
+        item={item}
+        layout={layout}
+        cells={cells}
+        settings={settings}
+      />
     </div>
   );
 }
-

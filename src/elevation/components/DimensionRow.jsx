@@ -19,9 +19,13 @@ const KIND_COLORS = {
   opening: '#e2e8f0',
   'toe-kick': '#cbd5e1',
   box: '#cbd5e1',
+  't-filler': '#fbbf24',
   countertop: '#cbd5e1',
   clearance: '#cbd5e1',
   molding: '#cbd5e1',
+  soffit: '#94a3b8',
+  recess: '#a5b4fc',
+  'counter-height': '#7dd3fc',
   neighbor: '#94a3b8',
   wall: '#e2e8f0',
 };
@@ -44,6 +48,8 @@ export default function DimensionRow({
   edgeGapPx = 0,
   transform,
   onSegmentClick,
+  onPieceClick,
+  onFeatureClick,
   highlightRunId,
   activeRunId = null,
   wallEndMarks = [],
@@ -179,7 +185,10 @@ export default function DimensionRow({
         const midpointValue = (segment.start + segment.end) / 2;
         const midpoint = rowPoint(midpointValue);
         const color = colorFor(segment, highlightRunId);
-        const clickable = segment.kind === 'run' && Boolean(onSegmentClick);
+        const feature = segment.kind === 'recess' || segment.kind === 'opening';
+        const clickable = (segment.kind === 'run' && Boolean(onSegmentClick))
+          || (segment.kind === 'piece' && Boolean(onPieceClick))
+          || (feature && Boolean(onFeatureClick));
         const showsHiddenTooltip = label.mode === 'hidden';
         const showsPointerCursor = clickable
           && !(draggableRuns && segment.kind === 'run' && segment.runId === activeRunId);
@@ -195,7 +204,13 @@ export default function DimensionRow({
               dragMovedRef.current = false;
               return;
             }
-            onSegmentClick(segment);
+            if (segment.kind === 'piece') {
+              onPieceClick(segment, event.target.getStage().getPointerPosition());
+            } else if (feature) {
+              onFeatureClick(segment);
+            } else {
+              onSegmentClick(segment);
+            }
           } : undefined,
           onMouseEnter: showsHiddenTooltip || showsPointerCursor
             ? () => {
@@ -241,7 +256,7 @@ export default function DimensionRow({
           };
 
         return (
-          <Group key={`${segment.kind}:${segment.start}:${segment.end}`}>
+          <Group key={`${index}:${segment.kind}:${segment.start}:${segment.end}`}>
             <Line
               points={[start.x, start.y, end.x, end.y]}
               stroke={color}

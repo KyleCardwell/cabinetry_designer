@@ -7,9 +7,11 @@ import {
   describeAnchor,
   formatInches,
   formatInchesInput,
+  isFollowAnchor,
   isJointAnchor,
   jointMembers,
   landingsOn,
+  recessesOn,
   runShortLabel,
   soffitsOn,
 } from '../../model/index.js';
@@ -66,8 +68,11 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
             const anchor = run.anchors[side];
             const openingAnchor = anchor?.to === 'opening' ? anchor : null;
             const soffitAnchor = anchor?.to === 'soffit' ? anchor : null;
+            const recessAnchor = anchor?.to === 'recess' ? anchor : null;
             const wallAnchor = anchor?.to === 'wall' ? anchor : null;
             const jointAnchor = isJointAnchor(anchor) ? anchor : null;
+            const followAnchor = isFollowAnchor(anchor) ? anchor : null;
+            const linkAnchor = jointAnchor ?? followAnchor;
             const otherJointMember = jointAnchor
               ? jointMembers(wall, jointAnchor.jointId)
                 .find((member) => member.runId !== run.id || member.side !== side)
@@ -84,8 +89,12 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
               ? `opening:${openingAnchor.openingId}`
               : soffitAnchor
                 ? `soffit:${soffitAnchor.soffitId}`
+              : recessAnchor
+                ? `recess:${recessAnchor.recessId}:${recessAnchor.edge}`
               : wallAnchor
                 ? `wall:${wallAnchor.wallId}`
+              : followAnchor
+                ? `joint:${followAnchor.runId}:${followAnchor.side}`
               : otherJointMember
                 ? `joint:${otherJointMember.runId}:${otherJointMember.side}`
                 : anchor === true ? 'corner' : 'free';
@@ -125,6 +134,15 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                             to: 'wall',
                             wallId: value.slice('wall:'.length),
                           },
+                        }));
+                        return;
+                      }
+                      if (value.startsWith('recess:')) {
+                        const [, recessId, edge] = value.split(':');
+                        dispatch(setRunAnchor({
+                          ...actionBase,
+                          side,
+                          anchor: { to: 'recess', recessId, edge, offset: 0 },
                         }));
                         return;
                       }
@@ -187,6 +205,13 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                         </option>
                       ))}
                     </optgroup>
+                    <optgroup label="Recess sides">
+                      {recessesOn(wall).flatMap((recess) => ['left', 'right'].map((edge) => (
+                        <option key={`${recess.id}:${edge}`} value={`recess:${recess.id}:${edge}`}>
+                          {`${recess.label} ${edge} side`}
+                        </option>
+                      )))}
+                    </optgroup>
                     <optgroup label="Run edges">
                       {wall.runs.filter((candidate) => candidate.id !== run.id)
                         .flatMap((candidate) => ['left', 'right'].map((targetSide) => (
@@ -194,17 +219,22 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                             key={`${candidate.id}:${targetSide}`}
                             value={`joint:${candidate.id}:${targetSide}`}
                           >
-                            {`${runShortLabel(candidate)} · ${targetSide} edge`}
+                            {`${runShortLabel(candidate)} · ${targetSide} edge${
+                              candidate.anchors?.[targetSide]
+                                && !isJointAnchor(candidate.anchors[targetSide])
+                                ? ' · follow'
+                                : ''
+                            }`}
                           </option>
                         )))}
                     </optgroup>
                   </select>
                 </Field>
-                {jointAnchor ? (
+                {linkAnchor ? (
                   <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
                     <Field label="Offset">
                       <InchInput
-                        value={jointAnchor.offset}
+                        value={linkAnchor.offset}
                         allowBlank
                         placeholder="0"
                         onCommit={(value) => dispatch(setRunJointOffset({
@@ -266,19 +296,19 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                       {anchorDescription}
                     </p>
                   </div>
-                ) : soffitAnchor ? (
+                ) : (soffitAnchor || recessAnchor) ? (
                   <div className="mt-3 space-y-2 border-t border-gray-700 pt-3">
                     <Field label="Offset">
                       <InchInput
-                        value={soffitAnchor.offset}
+                        value={(soffitAnchor ?? recessAnchor).offset}
                         allowBlank
                         placeholder="0"
                         onCommit={(value) => dispatch(setRunAnchor({
                           ...actionBase,
                           side,
-                          anchor: { ...soffitAnchor, offset: value ?? 0 },
+                          anchor: { ...(soffitAnchor ?? recessAnchor), offset: value ?? 0 },
                         }))}
-                        aria-label={`${side} soffit anchor offset`}
+                        aria-label={`${side} ${recessAnchor ? 'recess' : 'soffit'} anchor offset`}
                       />
                     </Field>
                     <p className="text-xs text-gray-500">

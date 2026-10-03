@@ -1,4 +1,4 @@
-import { frontDepth } from './corners.js';
+import { frontDepth, runBackOffset } from './corners.js';
 import { CABINET_TYPE_IDS } from './constants.js';
 import {
   dot,
@@ -7,7 +7,7 @@ import {
   subtract,
 } from './geometry.js';
 import { resolveProfile } from './profile.js';
-import { runMolding } from './soffits.js';
+import { runTop } from './tops.js';
 import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
 
 const PROFILE_EPSILON = 1e-6;
@@ -36,7 +36,7 @@ export function neighborProfiles(room, wall, settings) {
       for (const run of neighborView.runs) {
         const depth = frontDepth(run, settings);
         const corners = [run.x, run.x + run.width].flatMap((x) => (
-          [0, depth].map((offset) => elevationToPlan(neighborFrame, x, offset))
+          [runBackOffset(run), depth].map((offset) => elevationToPlan(neighborFrame, x, offset))
         ));
         const furthest = Math.max(...corners.map((point) => (
           dot(subtract(point, frame.leftPoint), frame.n)
@@ -52,10 +52,7 @@ export function neighborProfiles(room, wall, settings) {
         ];
         const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
         const boxTop = run.z + run.height;
-        const showsMolding = run.heightMode === 'auto'
-          && (run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
-            || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
-        const molding = runMolding(neighborView, run, profile);
+        const top = runTop(neighborView, run, profile).kind;
         const moldings = [];
         if (
           (run.cabinetTypeId === CABINET_TYPE_IDS.BASE
@@ -64,10 +61,10 @@ export function neighborProfiles(room, wall, settings) {
         ) {
           moldings.push({ kind: 'toeKick', z: 0, height: toeKickHeight });
         }
-        if (showsMolding && molding !== 'none') {
+        if (top === 'crown' || top === 'topMold') {
           moldings.push({ kind: 'topMold', z: boxTop, height: profile.topMoldHeight });
         }
-        if (showsMolding && molding === 'crown') {
+        if (top === 'crown') {
           moldings.push({
             kind: 'crown',
             z: boxTop + profile.crownStackHeight - profile.crownHeight,

@@ -1,10 +1,13 @@
+import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
+import { boxInsets, frameRegions } from '../../model/index.js';
 import { prepareRunUpdate } from '../../properties/helpers.js';
 import {
   setRunType,
   updateRun,
 } from '../../store/elevationSlice.js';
 import Field from './Field.jsx';
+import RunBottomSection from './RunBottomSection.jsx';
 import RunCabinetsSection from './RunCabinetsSection.jsx';
 import RunEndsSection from './RunEndsSection.jsx';
 import RunFaceOptions from './RunFaceOptions.jsx';
@@ -22,6 +25,8 @@ const PLACEMENT_MESSAGES = {
 export default function RunProperties({ room, wall, run, layout, settings, showMessage }) {
   const dispatch = useDispatch();
   const actionBase = { wallId: wall.id, runId: run.id };
+  const frames = useMemo(() => frameRegions(room, run, layout, settings), [room, run, layout, settings]);
+  const insets = useMemo(() => boxInsets(frames, layout, settings), [frames, layout, settings]);
 
   const validateAndDispatch = (changes) => {
     const { validation } = prepareRunUpdate(room, wall.id, run, settings, changes);
@@ -92,9 +97,11 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
 
       <RunCabinetsSection run={run} actionBase={actionBase} />
 
-      <RunPiecesSection run={run} layout={layout} />
+      <RunPiecesSection run={run} layout={layout} insets={insets} />
 
       <RunFaceOptions room={room} wall={wall} run={run} settings={settings} />
+
+      <RunBottomSection run={run} settings={settings} actionBase={actionBase} />
 
       <WarningsList layout={layout} />
     </div>

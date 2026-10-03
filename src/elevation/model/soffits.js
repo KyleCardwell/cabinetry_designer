@@ -1,5 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { cornerAt, spanCorner } from './corners.js';
 import { wallLength } from './geometry.js';
 import { landingProjection, landingsOn } from './landings.js';
 import { boxTopOf, moldingStack } from './profile.js';
@@ -52,7 +53,17 @@ export function soffitOverRun(wall, run) {
   if (run.cabinetTypeId !== CABINET_TYPE_IDS.UPPER
     && run.cabinetTypeId !== CABINET_TYPE_IDS.TALL) return null;
   const runRight = run.x + run.width;
-  return soffitsOn(wall, wallSideOf(run))
+  // A recess top below the ceiling acts like a soffit for the runs on it (SPEC-38).
+  const recessTop = run._plane && run._plane.top < wall.height - SPAN_EPSILON
+    ? [{
+        id: run._plane.recessId,
+        x: run._plane.x,
+        width: run._plane.width,
+        bottom: run._plane.top,
+        molding: run._plane.molding,
+      }]
+    : [];
+  return [...soffitsOn(wall, wallSideOf(run)), ...recessTop]
     .filter((soffit) => (
       Math.min(runRight, soffit.x + soffit.width) - Math.max(run.x, soffit.x)
         > SPAN_EPSILON
@@ -100,6 +111,64 @@ export function soffitSeams(room, view) {
       }];
     });
   });
+}
+
+function anchoredIntoCorner(anchor, corner) {
+  return corner.anchorWallId
+    ? anchor?.to === 'wall' && anchor.wallId === corner.anchorWallId
+    : anchor?.to === 'end';
+}
+
+/**
+ * Soffits on another wall that die into this face's corners or wing walls (SPEC-38.1), as returns for its
+ * elevation, like corner-anchored cabinets: { key, wallId, soffitId, x, width, bottom, top }. A soffit counts
+ * when its end is anchored into the corner: to its wall end at a connected inside corner or at a wing wall's
+ * landed end, or, seen from the wing wall, to the wing wall from the host it lands on.
+ */
+export function soffitReturns(room, view) {
+  const length = wallLength(view);
+  const returns = [];
+  const add = (key, neighbor, soffit, x, width) => returns.push({
+    key,
+    wallId: neighbor.id,
+    soffitId: soffit.id,
+    x,
+    width,
+    bottom: soffit.bottom,
+    top: view.height,
+  });
+
+  for (const side of ['left', 'right']) {
+    const corner = cornerAt(room, view, side);
+    if (corner.type !== 'inside') continue;
+    const neighbor = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
+    const sine = Math.sin(corner.angle * Math.PI / 180);
+    if (!neighbor || Math.abs(sine) < SPAN_EPSILON) continue;
+    for (const soffit of soffitsOn(neighbor, corner.neighborWallSide)) {
+      if (!anchoredIntoCorner(soffit.anchors?.[corner.neighborSide], corner)) continue;
+      const width = Math.min(length, soffit.depth / sine);
+      add(`${side}:${neighbor.id}:${soffit.id}`, neighbor, soffit, side === 'left' ? 0 : length - width, width);
+    }
+  }
+
+  for (const { wallId, a, b } of landingsOn(room, view)) {
+    const landed = room.walls.find((candidate) => candidate.id === wallId);
+    if (!landed) continue;
+    for (const side of ['left', 'right']) {
+      const corner = spanCorner(room, view, {
+        wallSide: view.side,
+        anchors: { [side]: { to: 'wall', wallId } },
+      }, side);
+      const sine = Math.sin(corner.angle * Math.PI / 180);
+      if (corner.type !== 'inside' || Math.abs(sine) < SPAN_EPSILON) continue;
+      for (const soffit of soffitsOn(landed, corner.neighborWallSide)) {
+        if (soffit.anchors?.[corner.neighborSide]?.to !== 'end') continue;
+        const width = soffit.depth / sine;
+        add(`landing:${wallId}:${side}:${soffit.id}`, landed, soffit, side === 'left' ? b : a - width, width);
+      }
+    }
+  }
+  return returns;
 }
 
 /** Apply a covering soffit's box-top limit to a run profile. */

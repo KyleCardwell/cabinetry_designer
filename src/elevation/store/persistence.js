@@ -1,34 +1,41 @@
-import { v4 as uuid } from 'uuid';
 import {
   CABINET_TYPE_IDS,
   DEFAULT_PROFILE,
   DEFAULT_SETTINGS,
+  FRAME_JOINS,
 } from '../model/constants.js';
+import { isBottomPart } from '../model/bottoms.js';
 import { isFaceNode } from '../model/faces.js';
+import { MAX_SHELVES } from '../model/cellTree.js';
+import { LEAF_KINDS, isGridShape, rootItems } from '../model/grid.js';
+import { isExtend } from '../model/extensions.js';
 import {
   REVEAL_KEYS,
   RUN_TOP_OPTIONS,
   UPPER_BOTTOM_OPTIONS,
   isStyle,
 } from '../model/styles.js';
-import { wallFrame } from '../model/geometry.js';
 import { SOFFIT_MOLDINGS } from '../model/soffits.js';
+import { RECESS_KINDS, RECESS_MOLDINGS } from '../model/recesses.js';
 import {
   computeWallOrder,
   normalizeWallName,
 } from '../model/topology.js';
 
 /** Current Elevation Lab localStorage key. */
-export const ELEVATION_STORAGE_KEY = 'cd.elevationLab.v3';
-/** Previous storage key retained for migration and rollback safety. */
-export const V2_ELEVATION_STORAGE_KEY = 'cd.elevationLab.v2';
-/** Original storage key retained for migration and rollback safety. */
-export const LEGACY_ELEVATION_STORAGE_KEY = 'cd.elevationLab.v1';
+export const ELEVATION_STORAGE_KEY = 'cd.elevationLab.v4';
 /** Current persisted schema version. */
-export const ELEVATION_SCHEMA_VERSION = 3;
+export const ELEVATION_SCHEMA_VERSION = 4;
 
 const END_TYPES = new Set(['filler', 'end_panel', 'none', 'blind']);
 const ITEM_KINDS = new Set(['cabinet', 'filler']);
+const LEAF_KIND_SET = new Set(LEAF_KINDS);
+/** Keys each non-cabinet cell kind may carry. */
+const CELL_KIND_KEYS = {
+  panel: ['id', 'kind', 'depth', 'align', 'doors', 'extend'],
+  void: ['id', 'kind'],
+  shelves: ['id', 'kind', 'depth', 'align', 'shelves'],
+};
 const PIN_ANCHORS = new Set(['center', 'left', 'right']);
 const PIN_DATUMS = new Set(['left', 'right', 'opening']);
 const OPENING_PIN_ANCHORS = new Set([
@@ -44,9 +51,6 @@ const RUN_TYPE_IDS = new Set([
   CABINET_TYPE_IDS.TALL,
 ]);
 const PROFILE_KEYS = Object.keys(DEFAULT_PROFILE);
-const V2_PROFILE_KEYS = PROFILE_KEYS
-  .filter((key) => key !== 'crownStackHeight')
-  .concat('crownOverlap');
 const RUN_OVERRIDE_KEYS = [
   'toeKickHeight',
   'baseBoxHeight',
@@ -54,31 +58,14 @@ const RUN_OVERRIDE_KEYS = [
   'upperClearance',
   'boxTop',
 ];
-const V1_NUMERIC_SETTING_KEYS = [
-  'toeKickHeight',
-  'baseBoxHeight',
-  'baseDepth',
-  'countertopThickness',
-  'upperBottomZ',
-  'upperBoxHeight',
-  'upperDepth',
-  'tallBoxHeight',
-  'tallDepth',
-  'roundTo',
-  'maxCabinetWidth',
-  'minCabinetWidth',
-  'fillerMinWidth',
-  'fillerWarnWidth',
-  'endPanelThickness',
-  'defaultInteriorFillerWidth',
-  'minRunWidth',
-];
 const V2_NUMERIC_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
   (key) => typeof DEFAULT_SETTINGS[key] === 'number',
 );
 const V2_DEFAULTED_SETTING_KEYS = [
   'fillerReturnDepth',
   'fillerReturnThickness',
+  'teeCover',
+  'teeThickness',
   'blindFillerWidth',
   'defaultSoffitDepth',
   'defaultSoffitMolding',
@@ -105,8 +92,14 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'profiledFit',
   'woodTopReveal',
   'capturedSingleReveal',
+  'stackedUpperBottom',
+  'stackedLowerTop',
+  'floatingShelfThickness',
   'standardDrawerHeights',
   'standardDrawerBelow',
+  'belowRunOverhang',
+  'belowRunFlushReveal',
+  'bottomPartHeights',
 ];
 
 function isFiniteNumber(value) {
@@ -117,7 +110,8 @@ function isEnd(end) {
   return Boolean(end)
     && END_TYPES.has(end.type)
     && (end.width === null || isFiniteNumber(end.width))
-    && (end.auto === undefined || typeof end.auto === 'boolean');
+    && (end.auto === undefined || typeof end.auto === 'boolean')
+    && isExtend(end.extend);
 }
 
 function isItemPin(pin) {
@@ -128,6 +122,15 @@ function isItemPin(pin) {
     && (pin.from !== 'opening' || typeof pin.openingId === 'string')
     && OPENING_PIN_ANCHORS.has(pin.openingAnchor)
     && isFiniteNumber(pin.value);
+}
+
+const T_FILLER_SIDES = ['left', 'right', 'top', 'bottom'];
+
+/** A cabinet's own T-filler choice per side (SPEC-37): true covers, false doesn't, absent inherits. */
+function isTFillerSides(value) {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).length > 0
+    && Object.entries(value).every(([key, entry]) => T_FILLER_SIDES.includes(key) && typeof entry === 'boolean');
 }
 
 function isItem(item) {
@@ -144,20 +147,8 @@ function isItem(item) {
     && (item.style === undefined || item.style === null
       || (item.kind === 'cabinet' && isStyle(item.style)))
     && (item.reveals === undefined || item.reveals === null
-      || (item.kind === 'cabinet' && isOptionalNumericObject(item.reveals, REVEAL_KEYS)));
-}
-
-function isV1Run(run) {
-  return Boolean(run)
-    && typeof run.id === 'string'
-    && RUN_TYPE_IDS.has(run.cabinetTypeId)
-    && ['x', 'width', 'z', 'height', 'depth'].every((key) => isFiniteNumber(run[key]))
-    && isEnd(run.ends?.left)
-    && isEnd(run.ends?.right)
-    && typeof run.autoCount === 'boolean'
-    && (run.maxCabinetWidth === null || isFiniteNumber(run.maxCabinetWidth))
-    && Array.isArray(run.items)
-    && run.items.every(isItem);
+      || (item.kind === 'cabinet' && isOptionalNumericObject(item.reveals, REVEAL_KEYS)))
+    && (item.tFiller === undefined || (item.kind === 'cabinet' && isTFillerSides(item.tFiller)));
 }
 
 function isOptionalNumericObject(value, allowedKeys) {
@@ -193,21 +184,18 @@ function isRunAnchor(anchor) {
     || (anchor.to === 'soffit'
       && typeof anchor.soffitId === 'string'
       && (anchor.offset === null || isFiniteNumber(anchor.offset)))
+    || (anchor.to === 'follow'
+      && typeof anchor.runId === 'string'
+      && (anchor.side === 'left' || anchor.side === 'right')
+      && (anchor.offset === null || isFiniteNumber(anchor.offset)))
+    || (anchor.to === 'recess'
+      && typeof anchor.recessId === 'string'
+      && (anchor.edge === 'left' || anchor.edge === 'right')
+      && (anchor.offset === null || isFiniteNumber(anchor.offset)))
   ));
 }
 
-function isBlind(blind) {
-  return blind === undefined
-    || (Boolean(blind)
-      && typeof blind === 'object'
-      && !Array.isArray(blind)
-      && ['left', 'right'].every((side) => (
-        blind[side] === undefined
-        || blind[side] === null
-        || (isFiniteNumber(blind[side]) && blind[side] > 0)
-      )));
-}
-
+const T_FILLER_RUN_VALUES = ['seams', 'all'];
 const END_FILLER_MINIMUMS = { width: 0, returnDepth: -1 };
 
 function isEndFillerSide(side) {
@@ -220,6 +208,7 @@ function isEndFillerSide(side) {
       || side[key] === null
       || (isFiniteNumber(side[key]) && side[key] > END_FILLER_MINIMUMS[key])
     ))
+    && (side.tFiller === undefined || side.tFiller === null || typeof side.tFiller === 'boolean')
   );
 }
 
@@ -232,8 +221,28 @@ function isEndFiller(endFiller) {
       && isEndFillerSide(endFiller.right));
 }
 
+function isStackLink(link) {
+  return link === null || (Boolean(link) && typeof link === 'object'
+    && typeof link.runId === 'string'
+    && (link.offset === null || isFiniteNumber(link.offset)));
+}
+
+function isRunStack(stack) {
+  return stack === undefined || (Boolean(stack) && typeof stack === 'object' && !Array.isArray(stack)
+    && Object.keys(stack).every((key) => key === 'below' || key === 'above')
+    && isStackLink(stack.below ?? null)
+    && isStackLink(stack.above ?? null));
+}
+
 function isRun(run) {
-  return isV1Run(run)
+  return Boolean(run)
+    && typeof run.id === 'string'
+    && RUN_TYPE_IDS.has(run.cabinetTypeId)
+    && ['x', 'width', 'z', 'height', 'depth'].every((key) => isFiniteNumber(run[key]))
+    && isEnd(run.ends?.left)
+    && isEnd(run.ends?.right)
+    && typeof run.autoCount === 'boolean'
+    && (run.maxCabinetWidth === null || isFiniteNumber(run.maxCabinetWidth))
     && (run.heightMode === 'auto' || run.heightMode === 'manual')
     && isOptionalNumericObject(run.overrides, RUN_OVERRIDE_KEYS)
     && isRunAnchor(run.anchors?.left)
@@ -241,9 +250,91 @@ function isRun(run) {
     && isStyle(run.style)
     && (run.wallSide === undefined || run.wallSide === 'front' || run.wallSide === 'back')
     && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
+    && (run.hanging === undefined || run.hanging === true)
     && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top))
-    && isBlind(run.blind)
-    && isEndFiller(run.endFiller);
+    && (run.bottom === undefined || (Array.isArray(run.bottom) && run.bottom.every(isBottomPart)))
+    && isRunStack(run.stack)
+    && (run.outset === undefined || (isFiniteNumber(run.outset) && run.outset >= 0))
+    && (run.recessId === undefined || typeof run.recessId === 'string')
+    && (run.seamGap === undefined || (isFiniteNumber(run.seamGap) && run.seamGap >= 0))
+    && (run.tFiller === undefined || T_FILLER_RUN_VALUES.includes(run.tFiller))
+    && isEndFiller(run.endFiller)
+    && run.items === undefined
+    && run.blind === undefined
+    && isRunGrid(run.grid);
+}
+
+function isLeafBlind(blind) {
+  return blind === undefined || (
+    Boolean(blind) && typeof blind === 'object' && !Array.isArray(blind)
+    && Object.keys(blind).length > 0
+    && Object.entries(blind).every(([side, width]) => (
+      (side === 'left' || side === 'right') && isFiniteNumber(width) && width > 0
+    )));
+}
+
+function isLeaf(leaf) {
+  return Boolean(leaf) && typeof leaf.id === 'string'
+    && LEAF_KIND_SET.has(leaf.kind) && isLeafBlind(leaf.blind);
+}
+
+function isShelves(shelves) {
+  return Boolean(shelves) && typeof shelves === 'object' && !Array.isArray(shelves)
+    && Object.keys(shelves).every((key) => key === 'count' || key === 'back')
+    && Number.isInteger(shelves.count) && shelves.count >= 1 && shelves.count <= MAX_SHELVES
+    && typeof shelves.back === 'boolean';
+}
+
+function isCellDepth(leaf) {
+  return (leaf.depth === undefined || (isFiniteNumber(leaf.depth) && leaf.depth > 0))
+    && (leaf.align === undefined || leaf.align === 'face' || leaf.align === 'back');
+}
+
+/** SPEC-34 cells: cabinets as before, plus panel, void and shelves; depth and align on any but a void. */
+function isCellLeaf(leaf) {
+  if (!isCellDepth(leaf)) return false;
+  if (leaf.kind === 'cabinet') return isItem({ ...leaf, width: null });
+  const keys = CELL_KIND_KEYS[leaf.kind];
+  return Boolean(keys)
+    && Object.keys(leaf).every((key) => keys.includes(key))
+    && (leaf.kind !== 'panel'
+      || leaf.doors === undefined
+      || leaf.doors === 'cover'
+      || leaf.doors === 'flush')
+    && (leaf.kind !== 'panel' || isExtend(leaf.extend))
+    && (leaf.kind !== 'shelves' || isShelves(leaf.shelves));
+}
+
+/** SPEC-33 nested grids: one column of 2+ rows or one row of 2+ columns, no spans. */
+function isCellGrid(grid) {
+  const stack = grid.cols.length === 1 && grid.rows.length >= 2;
+  const row = grid.rows.length === 1 && grid.cols.length >= 2;
+  return (stack || row) && grid.cells.every((cell) => (
+    cell.colSpan === 1 && cell.rowSpan === 1
+    && ('cols' in cell.node ? isCellGrid(cell.node) : isCellLeaf(cell.node))
+  ));
+}
+
+/** SPEC-34.1: a top-level column may be a cabinet, a filler, or any cell kind. */
+function isRootItem(item) {
+  if (item.kind === 'filler') {
+    return isItem(item) && item.depth === undefined && item.align === undefined && isExtend(item.extend);
+  }
+  if (item.kind === 'cabinet') return isItem(item) && isCellDepth(item);
+  const { width, gap, ...leaf } = item;
+  void gap;
+  return (width === null || (isFiniteNumber(width) && width > 0)) && isCellLeaf(leaf);
+}
+
+/** Round 34.1: the root is one row with no spans; a root cell may be any kind. */
+function isRunGrid(grid) {
+  return isGridShape(grid, isLeaf)
+    && grid.rows.length === 1
+    && grid.cells.every((cell) => (
+      cell.colSpan === 1 && cell.rowSpan === 1
+      && (!('cols' in cell.node) || isCellGrid(cell.node))
+    ))
+    && rootItems(grid).every(isRootItem);
 }
 
 function isConnection(connection) {
@@ -272,7 +363,8 @@ export function isOpening(opening) {
       Boolean(opening.casing)
       && isFiniteNumber(opening.casing.width)
       && isFiniteNumber(opening.casing.thickness)
-    ));
+    ))
+    && (opening.recessId === undefined || typeof opening.recessId === 'string');
 }
 
 function isEndPanels(endPanels) {
@@ -288,6 +380,8 @@ function isEndPanels(endPanels) {
         && Object.hasOwn(endPanels[endpoint], 'width')
         && (endPanels[endpoint].width === null
           || (isFiniteNumber(endPanels[endpoint].width) && endPanels[endpoint].width >= 0))
+        && (endPanels[endpoint].frame === undefined
+          || FRAME_JOINS.includes(endPanels[endpoint].frame))
       ))
     ));
 }
@@ -328,6 +422,22 @@ function isSoffit(soffit) {
     && isSoffitAnchor(soffit.anchors?.right);
 }
 
+function isRecess(recess) {
+  return Boolean(recess)
+    && typeof recess.id === 'string'
+    && RECESS_KINDS.includes(recess.kind)
+    && typeof recess.label === 'string'
+    && (recess.wallSide === 'front' || recess.wallSide === 'back')
+    && (recess.offsetFrom === 'left' || recess.offsetFrom === 'right')
+    && (recess.offsetAnchor === 'edge' || recess.offsetAnchor === 'center')
+    && ['offset', 'width', 'bottom', 'depth'].every((key) => isFiniteNumber(recess[key]))
+    && recess.width > 0
+    && recess.depth > 0
+    && recess.bottom >= 0
+    && (recess.height === null || (isFiniteNumber(recess.height) && recess.height > 0))
+    && RECESS_MOLDINGS.includes(recess.molding);
+}
+
 function isWall(wall, profileKeys = PROFILE_KEYS) {
   return Boolean(wall)
     && typeof wall.id === 'string'
@@ -348,6 +458,8 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
       || (Array.isArray(wall.openings) && wall.openings.every(isOpening)))
     && (wall.soffits === undefined
       || (Array.isArray(wall.soffits) && wall.soffits.every(isSoffit)))
+    && (wall.recesses === undefined
+      || (Array.isArray(wall.recesses) && wall.recesses.every(isRecess)))
     && (wall.joints === undefined
       || (Array.isArray(wall.joints) && wall.joints.every((joint) => (
         Boolean(joint)
@@ -416,8 +528,8 @@ function normalizeDocument(document, schemaVersion) {
   };
 }
 
-/** Fill fields added within schema v3 while retaining v3 compatibility. */
-export function normalizeV3Document(document) {
+/** Fill fields added within the current schema while retaining compatibility. */
+export function normalizeElevationDocument(document) {
   const normalized = normalizeDocument(document, ELEVATION_SCHEMA_VERSION);
   if (!normalized || normalized.schemaVersion !== ELEVATION_SCHEMA_VERSION) {
     return normalized;
@@ -461,14 +573,6 @@ export function normalizeV3Document(document) {
                         : anchor,
                     ]))
                   : run.anchors,
-                ends: run.ends && typeof run.ends === 'object'
-                  ? Object.fromEntries(['left', 'right'].map((side) => [
-                      side,
-                      run.ends[side]?.type === 'filler' && run.blind?.[side] > 0
-                        ? { ...run.ends[side], type: 'blind' }
-                        : run.ends[side],
-                    ]))
-                  : run.ends,
               };
             }) : wall.runs,
           };
@@ -513,146 +617,6 @@ export function isElevationDocument(value) {
     || Boolean(activeRoom?.walls.some((wall) => wall.id === value.activeWallId));
 }
 
-/** Return whether a value is a valid legacy v2 elevation document. */
-export function isV2ElevationDocument(value) {
-  if (!value || value.schemaVersion !== 2) return false;
-  if (!isSettings(value.settings, V2_PROFILE_KEYS) || !Array.isArray(value.rooms)) {
-    return false;
-  }
-  if (!value.rooms.every((room) => isRoom(room, V2_PROFILE_KEYS))) return false;
-  if (value.view !== 'plan' && value.view !== 'elevation') return false;
-  if (value.activeRoomId !== null && typeof value.activeRoomId !== 'string') return false;
-  const activeRoom = value.activeRoomId === null
-    ? null
-    : value.rooms.find((room) => room.id === value.activeRoomId);
-  if (value.activeRoomId !== null && !activeRoom) return false;
-  if (value.activeWallId !== null && typeof value.activeWallId !== 'string') return false;
-  return value.activeWallId === null
-    || Boolean(activeRoom?.walls.some((wall) => wall.id === value.activeWallId));
-}
-
-/** Return whether a value is a valid legacy v1 elevation document. */
-export function isV1ElevationDocument(value) {
-  if (!value || value.schemaVersion !== 1) return false;
-  const settings = value.settings;
-  if (!settings || !V1_NUMERIC_SETTING_KEYS.every((key) => isFiniteNumber(settings[key]))) {
-    return false;
-  }
-  if (typeof settings.snapHeightsToDefaults !== 'boolean' || !hasValidEnds(settings)) return false;
-  if (!Array.isArray(value.walls) || !value.walls.every((wall) => (
-    Boolean(wall)
-    && typeof wall.id === 'string'
-    && typeof wall.name === 'string'
-    && isFiniteNumber(wall.length)
-    && isFiniteNumber(wall.height)
-    && Array.isArray(wall.runs)
-    && wall.runs.every(isV1Run)
-  ))) return false;
-  return value.activeWallId === null
-    || (typeof value.activeWallId === 'string'
-      && value.walls.some((wall) => wall.id === value.activeWallId));
-}
-
-function migrateProfile(profile, inheritedProfile = {}) {
-  const resolved = { ...inheritedProfile, ...profile };
-  const migrated = {
-    ...profile,
-    crownStackHeight: resolved.topMoldHeight
-      + resolved.crownHeight
-      - resolved.crownOverlap,
-  };
-  delete migrated.crownOverlap;
-  return migrated;
-}
-
-/** Migrate a validated v2 document from crown overlap to crown total height. */
-export function migrateV2Document(document) {
-  return {
-    ...document,
-    schemaVersion: ELEVATION_SCHEMA_VERSION,
-    settings: {
-      ...document.settings,
-      defaultProfile: migrateProfile(document.settings.defaultProfile),
-    },
-    rooms: document.rooms.map((room) => ({
-      ...room,
-      profile: migrateProfile(room.profile, document.settings.defaultProfile),
-      walls: room.walls.map((wall) => ({
-        ...wall,
-        profile: migrateProfile(wall.profile, room.profile),
-      })),
-    })),
-  };
-}
-
-/** Migrate a validated v1 document to the current room model. */
-export function migrateV1Document(document) {
-  const old = document.settings;
-  const defaultProfile = {
-    ...DEFAULT_PROFILE,
-    toeKickHeight: old.toeKickHeight,
-    baseBoxHeight: old.baseBoxHeight,
-    countertopThickness: old.countertopThickness,
-    upperClearance: old.upperBottomZ
-      - (old.toeKickHeight + old.baseBoxHeight + old.countertopThickness),
-  };
-  const settings = {
-    ...DEFAULT_SETTINGS,
-    defaultProfile,
-    defaultEnds: { ...DEFAULT_SETTINGS.defaultEnds, ...old.defaultEnds },
-  };
-  for (const key of V2_NUMERIC_SETTING_KEYS) {
-    if (isFiniteNumber(old[key])) settings[key] = old[key];
-  }
-  settings.snapHeightsToDefaults = old.snapHeightsToDefaults;
-
-  const room = {
-    id: uuid(),
-    name: 'Room 1',
-    profile: { ...defaultProfile },
-    partNumberStart: 1,
-    partNumberOverrides: {},
-    wallOrder: [],
-    walls: document.walls.map((wall, index) => ({
-      id: wall.id,
-      name: normalizeWallName(wall.name),
-      numberOverride: null,
-      elevationForced: false,
-      x1: 0,
-      y1: index * 60,
-      x2: wall.length,
-      y2: index * 60,
-      height: wall.height,
-      thickness: 4.5,
-      flipped: false,
-      connections: { start: null, end: null },
-      profile: {},
-      openings: [],
-      runs: wall.runs.map((run) => ({
-        ...run,
-        ends: { left: { ...run.ends.left }, right: { ...run.ends.right } },
-        items: run.items.map((item) => ({ ...item })),
-        heightMode: 'manual',
-        overrides: {},
-        anchors: { left: false, right: false },
-      })),
-    })),
-  };
-  room.wallOrder = computeWallOrder(room, []);
-  room.walls = room.walls.map((wall) => (
-    wallFrame(room, wall).leftEndpoint === 'start' ? wall : { ...wall, flipped: true }
-  ));
-
-  return {
-    schemaVersion: ELEVATION_SCHEMA_VERSION,
-    settings,
-    rooms: [room],
-    activeRoomId: room.id,
-    activeWallId: document.activeWallId,
-    view: 'elevation',
-  };
-}
-
 function readStored(key) {
   try {
     const serialized = window.localStorage.getItem(key);
@@ -662,18 +626,12 @@ function readStored(key) {
   }
 }
 
-/** Load, validate, and when needed migrate the persisted elevation document. */
+/** Load and validate the persisted elevation document. */
 export function loadElevationDocument() {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return null;
-    const current = normalizeV3Document(readStored(ELEVATION_STORAGE_KEY));
-    if (isElevationDocument(current)) return current;
-    const previous = normalizeDocument(readStored(V2_ELEVATION_STORAGE_KEY), 2);
-    if (isV2ElevationDocument(previous)) {
-      return normalizeV3Document(migrateV2Document(previous));
-    }
-    const legacy = readStored(LEGACY_ELEVATION_STORAGE_KEY);
-    return isV1ElevationDocument(legacy) ? migrateV1Document(legacy) : null;
+    const current = normalizeElevationDocument(readStored(ELEVATION_STORAGE_KEY));
+    return isElevationDocument(current) ? current : null;
   } catch {
     return null;
   }
@@ -689,8 +647,11 @@ export function toElevationDocument(elevationState) {
       walls: room.walls.map((wall) => ({
         ...wall,
         runs: wall.runs.map((run) => {
-          const { _pinWidths, ...persistedRun } = run;
+          const { _pinWidths, _seamGap, _frame, _plane, ...persistedRun } = run;
           void _pinWidths;
+          void _seamGap;
+          void _frame;
+          void _plane;
           return persistedRun;
         }),
       })),

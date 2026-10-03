@@ -2,15 +2,20 @@ import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { bandsCompatible, cornerAt } from './corners.js';
 import { clamp, wallFrame } from './geometry.js';
+import { gridFromItems } from './grid.js';
 import { landingsOn } from './landings.js';
+import { runsConflict } from './overlap.js';
 import {
   counterTop,
   moldingStack,
   resolveProfile,
 } from './profile.js';
+import { recessEdges, recessEndType, recessForSpan } from './recesses.js';
 import { syncAutoItems } from './splitRun.js';
 import { soffitEndType, soffitsOn } from './soffits.js';
+import { outerBottom, outerTop } from './stacks.js';
 import { roundTo } from './units.js';
+import { wallSideOf } from './wallSides.js';
 
 /** Infer a run's cabinet type from its drawn vertical range. */
 export function inferRunType(bottomZ, topZ) {
@@ -79,7 +84,32 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
     cornerAt(room, wall, side),
   ])) : {};
   const heightMode = settings.snapHeightsToDefaults ? 'auto' : 'manual';
+  // A default box that hits a run it overlaps means the run was drawn into a gap: keep the
+  // drawn height, snapped to the top of the run below and the bottom of the run above.
+  const overlapping = (wall?.runs ?? []).filter((run) => (
+    wallSideOf(run) === (wall.side ?? 'front')
+    && Math.min(run.x + run.width, edges.right) - Math.max(run.x, edges.left) > 1e-6
+  ));
+  const inGap = heightMode === 'auto' && overlapping.some((run) => runsConflict(
+    run,
+    { ...typeDefaults, cabinetTypeId, x: edges.left, width: runWidth },
+  ));
+  const snapTo = (value, lines) => lines.reduce((best, line) => (
+    Math.abs(line - value) <= settings.cornerSnapDistance
+      && (best === null || Math.abs(line - value) < Math.abs(best - value))
+      ? line
+      : best
+  ), null);
+  const gapBottom = snapTo(bottomZ, overlapping.map((run) => outerTop(wall, run, profile)))
+    ?? roundTo(bottomZ, 0.5);
+  const gapTop = snapTo(topZ, overlapping.map(outerBottom)) ?? roundTo(topZ, 0.5);
   const runTop = heightMode === 'auto' ? typeDefaults.z + typeDefaults.height : topZ;
+  // Drawn inside a recess (within the corner snap), the run sits on it (SPEC-38).
+  const recess = wall
+    ? recessForSpan(wall, {
+      left: edges.left, right: edges.right, bottom: bottomZ, top: topZ,
+    }, settings.cornerSnapDistance)
+    : null;
   const anchors = Object.fromEntries(['left', 'right'].map((side) => {
     const distance = side === 'left' ? Math.abs(edges.left) : Math.abs(length - edges.right);
     if (wall && distance <= settings.cornerSnapDistance) return [side, true];
@@ -88,6 +118,12 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
         <= settings.cornerSnapDistance
     ));
     if (landing) return [side, { to: 'wall', wallId: landing.wallId }];
+    const recessEdge = wall && recessEdges(wall).find((edge) => (
+      Math.abs(edges[side] - edge.value) <= settings.cornerSnapDistance
+    ));
+    if (recessEdge) {
+      return [side, { to: 'recess', recessId: recessEdge.recessId, edge: recessEdge.edge, offset: 0 }];
+    }
     const soffit = wall
       && cabinetTypeId !== CABINET_TYPE_IDS.BASE
       && soffitsOn(wall).find((candidate) => (
@@ -119,20 +155,31 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
         settings,
       );
     }
+    else if (anchors[side]?.to === 'recess') {
+      type = recessEndType(wall, {
+        anchors,
+        recessId: recess?.id,
+        depth: typeDefaults.depth,
+        wallSide: wall.side ?? 'front',
+      }, side);
+    }
     else if (anchors[side]) type = corners[side].type === 'inside' ? 'filler' : 'end_panel';
     else if (settings.autoEndPanelOnFreeEnd && !isAdjacent(side)) type = 'end_panel';
     return [side, { type, width: null }];
   }));
-  const geometry = heightMode === 'auto'
-    ? typeDefaults
-    : {
-        z: roundTo(bottomZ, 0.5),
-        height: roundTo(topZ - bottomZ, 0.5),
-        depth: typeDefaults.depth,
-      };
+  const geometry = inGap
+    ? { z: gapBottom, height: gapTop - gapBottom, depth: typeDefaults.depth }
+    : heightMode === 'auto'
+      ? typeDefaults
+      : {
+          z: roundTo(bottomZ, 0.5),
+          height: roundTo(topZ - bottomZ, 0.5),
+          depth: typeDefaults.depth,
+        };
 
+  const id = uuid();
   const run = {
-    id: uuid(),
+    id,
     cabinetTypeId,
     x: runX,
     width: runWidth,
@@ -140,11 +187,12 @@ export function createRun({ x, width, bottomZ, topZ }, ctx) {
     ends,
     autoCount: true,
     maxCabinetWidth: null,
-    items: [],
-    heightMode,
+    grid: gridFromItems(id, []),
+    heightMode: inGap ? 'manual' : heightMode,
     overrides: {},
     anchors,
     wallSide: wall?.side ?? 'front',
+    ...(recess ? { recessId: recess.id } : {}),
   };
 
   return syncAutoItems(run, settings);
