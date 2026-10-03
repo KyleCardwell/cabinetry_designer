@@ -12,17 +12,18 @@ Each `PROMPTS-N.md` opens with:
 
 ## Why cost grows even when prompts don't
 
-The repo is 18,800 lines of source plus 5,200 lines of tests across 24 test files. The four largest files are the ones most steps have to touch:
+The repo is 31,226 lines of source plus 18,965 lines under test directories, with 96 test files. The current five largest source files and largest test file are below (paths relative to `src/elevation/`; rough read costs at ~12 tokens a line):
 
 | File | Lines | Rough read cost |
 |---|---:|---:|
-| `components/PropertiesPanel.jsx` | 1,642 | ~20k tokens |
-| `plan/PlanCanvas.jsx` | 1,068 | ~13k |
-| `store/elevationSlice.js` | 887 | ~11k |
-| `components/ElevationCanvas.jsx` | 793 | ~10k |
-| `store/__tests__/elevationSlice.test.js` | 757 | ~9k |
+| `components/ElevationCanvas.jsx` | 1,272 | ~15.3k tokens |
+| `plan/PlanCanvas.jsx` | 944 | ~11.3k |
+| `model/dimensions.js` | 743 | ~8.9k |
+| `store/persistence.js` | 694 | ~8.3k |
+| `model/splitRun.js` | 638 | ~7.7k |
+| `store/__tests__/persistence.test.js` | 1,139 | ~13.7k |
 
-An agent in an edit-test-fix loop reads each touched file three or four times. A step that touches PropertiesPanel and one canvas therefore starts at roughly 100k tokens of reading before it writes a line — and that figure grows every round, for the same prompt. Prompt length is not the variable. **Files touched × times re-read × file size** is the variable.
+An agent in an edit-test-fix loop reads each touched file three or four times. A step that touches both canvases therefore starts at roughly 100k tokens of reading before it writes a line — and that figure grows every round, for the same prompt. Prompt length is not the variable. **Files touched × times re-read × file size** is the variable.
 
 ---
 
@@ -42,11 +43,13 @@ An agent in an edit-test-fix loop reads each touched file three or four times. A
 
 > While iterating, run only `npx vitest run <the one test file>`. Run `npm test && npm run lint` once, at the end. Don't run `npm run build` — Kyle runs that by hand.
 
-The full gate after every fix attempt is 24 test files plus a lint pass per cycle.
+The full gate after every fix attempt is 96 test files plus a lint pass per cycle.
 
 **7. Cap the summary.** "Say which you switched and which you left" asks for a 44-line inventory. Ask for at most five lines: what changed, what surprised you, what you left undone.
 
 **8. Budget the step.** If the named file list exceeds ~2,500 lines, or the fan-out exceeds ~15 sites, split it. Two cheap steps beat one that loops.
+
+**9. Move code by script.** A step that moves code between files cuts it by line range with a script (`sed -n 'a,bp'` or a short Node/Python read-modify-write) and then fixes imports. It never retypes moved code. The prompt gives the line ranges.
 
 ---
 
@@ -130,4 +133,4 @@ This:
 
 ## Standing structural cost
 
-`PropertiesPanel.jsx` at 1,642 lines is now the single largest tax on every round — nearly every step touches it, and it is re-read several times per step. Splitting it into per-selection sections (`RunSection`, `PieceSection`, `OpeningSection`, `WallSection`, `SettingsSection`) under `components/properties/` would cut the per-step read cost more than any prompt wording will. Logged in `TODO.md`.
+After this round, only `components/ElevationCanvas.jsx` (1,272 lines) and `store/__tests__/persistence.test.js` (1,139 lines) remain over 1,000 lines under `src/elevation/`.
