@@ -42,7 +42,6 @@ import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../model/constants.js';
 import { createRun } from '../model/runDefaults.js';
 import { runItems } from '../model/grid.js';
-import { findLeaf } from '../model/cellTree.js';
 import {
   createSoffit,
   resolveSoffitSpan,
@@ -70,44 +69,26 @@ import {
 } from '../model/dimensions.js';
 import { resolveProfile } from '../model/profile.js';
 import { partNumbers } from '../model/partNumbers.js';
-import { nextWallId } from '../model/topology.js';
 import {
   joinTouchingEdges,
   joinTouchingStack,
-  endMinWidthsForRun,
-  moveJoint,
-  moveRun,
   roomDiagnostics,
-  stretchRun,
   tryPlaceRun,
 } from '../model/room.js';
-import { wallSideView } from '../model/wallSides.js';
 import { wallExtent } from '../model/wallExtent.js';
-import { isJointAnchor, jointMembers } from '../model/joints.js';
-import { runWidthRange } from '../model/splitRun.js';
 import { formatInches } from '../model/units.js';
 import {
   addOpening,
   addRecess,
   addRun,
   addSoffit,
-  deleteOpening,
-  deleteRecess,
-  deleteRun,
-  deleteSoffit,
   moveOpening,
-  removeCell,
-  removeItem,
-  replaceRun,
   replaceWallLayout,
   setItemWidth,
-  setRunAnchor,
   setTrackSize,
   setMessage,
   setSelection,
   setFacePath,
-  setActiveWall,
-  setTool,
 } from '../store/elevationSlice.js';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import ElevationDimensions from './ElevationDimensions.jsx';
@@ -124,6 +105,10 @@ import SoffitShapes from './SoffitShapes.jsx';
 import RecessShapes, { RecessOutline } from './RecessShapes.jsx';
 import WallEndPanelShapes from './WallEndPanelShapes.jsx';
 import WallFrame from './WallFrame.jsx';
+import useElevationKeys from './canvas/useElevationKeys.js';
+import useRunStretch from './canvas/useRunStretch.js';
+import useRunMove from './canvas/useRunMove.js';
+import useJointDrag from './canvas/useJointDrag.js';
 
 const ALIGNMENT_SNAP_PX = 6;
 const RUN_TYPE_LABELS = {
@@ -535,142 +520,25 @@ function ElevationCanvas({
     };
   }, [dimensionChains, room, settings, transform, wall]);
 
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      const tagName = event.target?.tagName?.toLowerCase();
-      if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
-
-      if (event.key === 'Escape') {
-        cursor.releaseHold();
-        if (entry) {
-          event.preventDefault();
-          cancelEntry();
-          return;
-        }
-        if (tool !== 'select') {
-          if (dragRef.current) cancelDrag();
-          setAlignmentGuides([]);
-          dispatch(setTool('select'));
-          dispatch(setSelection({}));
-          return;
-        }
-        setAlignmentGuides([]);
-        if (dragRef.current) cancelDrag();
-        else if (stretchPreview) setStretchPreview(null);
-        else if (facePath) dispatch(setFacePath(null));
-        else dispatch(setSelection({}));
-        return;
-      }
-
-      if (event.key === '[' || event.key === ']') {
-        const currentWall = wallRef.current;
-        const targetWallId = nextWallId(room, currentWall?.id, event.key === '[' ? -1 : 1);
-        if (targetWallId && targetWallId !== currentWall?.id) {
-          event.preventDefault();
-          dispatch(setActiveWall(targetWallId));
-        }
-        return;
-      }
-
-      if (event.key === '+' || event.key === '=') {
-        event.preventDefault();
-        zoomIn();
-        return;
-      }
-      if (event.key === '-') {
-        event.preventDefault();
-        zoomOut();
-        return;
-      }
-      if (event.key === '0') {
-        event.preventDefault();
-        resetView();
-        return;
-      }
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-
-      const currentSelection = selectionRef.current;
-      const currentWall = wallRef.current;
-      if (!currentWall) return;
-      if (currentSelection.openingId) {
-        const selectedOpening = (currentWall.openings ?? []).find(
-          (opening) => opening.id === currentSelection.openingId,
-        );
-        if (!selectedOpening) return;
-        event.preventDefault();
-        dispatch(deleteOpening({
-          wallId: currentWall.id,
-          openingId: selectedOpening.id,
-        }));
-        return;
-      }
-      if (currentSelection.recessId) {
-        event.preventDefault();
-        dispatch(deleteRecess({ wallId: currentWall.id, recessId: currentSelection.recessId }));
-        return;
-      }
-      if (currentSelection.soffitId) {
-        const selectedSoffit = (currentWall.soffits ?? []).find(
-          (soffit) => soffit.id === currentSelection.soffitId,
-        );
-        if (!selectedSoffit) return;
-        event.preventDefault();
-        dispatch(deleteSoffit({
-          wallId: currentWall.id,
-          soffitId: selectedSoffit.id,
-        }));
-        return;
-      }
-      if (!currentSelection.runId) return;
-      const selectedRun = currentWall.runs.find(
-        (run) => run.id === currentSelection.runId,
-      );
-      if (!selectedRun) return;
-
-      if (currentSelection.pieceId) {
-        const selectedItem = runItems(selectedRun).find(
-          (item) => item.id === currentSelection.pieceId,
-        );
-        if (!selectedItem) {
-          if (findLeaf(selectedRun.grid, currentSelection.pieceId)) {
-            event.preventDefault();
-            dispatch(removeCell({
-              wallId: currentWall.id,
-              runId: selectedRun.id,
-              cellId: currentSelection.pieceId,
-            }));
-          }
-          return;
-        }
-        event.preventDefault();
-        dispatch(removeItem({
-          wallId: currentWall.id,
-          runId: selectedRun.id,
-          itemId: selectedItem.id,
-        }));
-        return;
-      }
-
-      event.preventDefault();
-      dispatch(deleteRun({ wallId: currentWall.id, runId: selectedRun.id }));
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [
+  useElevationKeys({
     cancelDrag,
     cancelEntry,
     cursor,
     dispatch,
+    dragRef,
     entry,
     facePath,
     resetView,
     room,
+    selectionRef,
+    setAlignmentGuides,
+    setStretchPreview,
     stretchPreview,
     tool,
+    wallRef,
     zoomIn,
     zoomOut,
-  ]);
+  });
 
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
@@ -1119,448 +987,96 @@ function ElevationCanvas({
     dispatch(setSelection({ openingId: placed.id }));
   }, [commitEntry, dispatch, entry, room, settings, showMessage, tool, transform, wall]);
 
-  const previewStretch = useCallback((runId, side, newEdgeX) => {
-    if (!room || !wall) return;
-    const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).point.x;
-    const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings);
-    if (!result.ok) return;
-    const previewWall = result.room.walls.find((candidate) => candidate.id === wall.id);
-    if (!previewWall?.runs.some((candidate) => candidate.id === runId)) return;
-    setStretchPreview({
-      room: result.room,
-      wall: wallSideView(previewWall, wall.side),
-      runIds: [runId],
-    });
-  }, [applyRunAlignment, room, settings, wall]);
+  const {
+    previewStretch,
+    startStretch,
+    updateStretch,
+    finishStretch,
+  } = useRunStretch({
+    applyRunAlignment,
+    beginEntry,
+    cancelEntry,
+    commitEntry,
+    cursor,
+    dispatch,
+    entryRef,
+    liveGestureRef,
+    messageTimeoutRef,
+    room,
+    RUN_TYPE_LABELS,
+    runEdgeXForWidth,
+    runWidthForEdgeX,
+    setAlignmentGuides,
+    setEntryPointer,
+    setStretchPreview,
+    settings,
+    showMessage,
+    stageRef,
+    updateEntry,
+    wall,
+  });
 
-  const commitStretch = useCallback((runId, side, newEdgeX) => {
-    const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).point.x;
-    setStretchPreview(null);
-    setAlignmentGuides([]);
-    if (!room || !wall) return;
-    const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings);
-    if (!result.ok) {
-      showMessage(result.reason);
-      return;
-    }
-    const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
-    const resolvedRun = resolvedWall?.runs.find((candidate) => candidate.id === runId);
-    if (!resolvedRun) return;
-    if (messageTimeoutRef.current !== null) {
-      globalThis.clearTimeout(messageTimeoutRef.current);
-      messageTimeoutRef.current = null;
-    }
-    dispatch(setMessage(null));
-    if (result.joined) {
-      dispatch(replaceWallLayout({
-        wallId: wall.id,
-        runs: resolvedWall.runs,
-        joints: resolvedWall.joints,
-      }));
-    } else {
-      dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
-    }
-  }, [applyRunAlignment, dispatch, room, settings, showMessage, wall]);
+  const {
+    applyRunMove,
+    startRunMove,
+    handleRunSegmentClick,
+    updateRunMove,
+    finishRunMove,
+  } = useRunMove({
+    beginEntry,
+    cancelEntry,
+    commitEntry,
+    cursor,
+    dispatch,
+    entryRef,
+    liveGestureRef,
+    moveOriginRef,
+    room,
+    selectionRef,
+    setAlignmentGuides,
+    setEntryPointer,
+    setStretchPreview,
+    settings,
+    showMessage,
+    stageRef,
+    tool,
+    transform,
+    updateEntry,
+    wall,
+  });
 
-  const startStretch = useCallback((runId, side) => {
-    if (!room || !wall) return;
-    const run = wall.runs.find((candidate) => candidate.id === runId);
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!run || !pointer) return;
-    cancelEntry();
-    cursor.hold(CURSORS.resizeX);
-    const widthRange = runWidthRange(run, settings, {
-      endMinWidths: endMinWidthsForRun(room, wall, run, settings),
-    });
-    const maxRunOverhang = settings.maxRunOverhang ?? DEFAULT_SETTINGS.maxRunOverhang;
-    const wallMaximum = side === 'left'
-      ? run.x + run.width + maxRunOverhang
-      : wall.length + maxRunOverhang - run.x;
-    const maximum = Math.max(widthRange.min, Math.min(widthRange.max, wallMaximum));
-    const widthModeKey = `run:${run.id}:${side}`;
-    const edgeX = runEdgeXForWidth(run, side, run.width);
-    const edgeLimits = [
-      runEdgeXForWidth(run, side, widthRange.min),
-      runEdgeXForWidth(run, side, maximum),
-    ];
-    const edgeMin = Math.min(...edgeLimits);
-    const edgeMax = Math.max(...edgeLimits);
-    const modes = [
-      {
-        key: widthModeKey,
-        label: `${RUN_TYPE_LABELS[run.cabinetTypeId] ?? 'Run'} width`,
-        value: run.width,
-        min: widthRange.min,
-        max: maximum,
-      },
-      {
-        key: 'from-left',
-        label: 'From left',
-        value: edgeX,
-        min: edgeMin,
-        max: edgeMax,
-      },
-      {
-        key: 'from-right',
-        label: 'From right',
-        value: wall.length - edgeX,
-        min: wall.length - edgeMax,
-        max: wall.length - edgeMin,
-      },
-    ];
-    setEntryPointer(pointer);
-    setStretchPreview({ room, wall, runIds: [run.id] });
-    liveGestureRef.current = { kind: 'run-edge', run, side, jointId: null, offset: 0 };
-    beginEntry({
-      kind: 'run-edge',
-      label: `${RUN_TYPE_LABELS[run.cabinetTypeId] ?? 'Run'} width`,
-      value: run.width,
-      min: widthRange.min,
-      max: maximum,
-      modes,
-      onCommit: (value, modeKey) => {
-        liveGestureRef.current = null;
-        const committedEdgeX = modeKey === 'from-left'
-          ? value
-          : modeKey === 'from-right'
-            ? wall.length - value
-            : runEdgeXForWidth(run, side, value);
-        commitStretch(run.id, side, committedEdgeX);
-      },
-      onCancel: () => {
-        liveGestureRef.current = null;
-        setStretchPreview(null);
-        setAlignmentGuides([]);
-        cursor.releaseHold();
-      },
-    });
-  }, [beginEntry, cancelEntry, commitStretch, cursor, room, settings, wall]);
-
-  const updateStretch = useCallback((runId, side, newEdgeX) => {
-    const gesture = liveGestureRef.current;
-    if (gesture?.kind !== 'run-edge' || gesture.run.id !== runId || gesture.side !== side) return;
-    const pointer = stageRef.current?.getPointerPosition();
-    if (pointer) setEntryPointer(pointer);
-    updateEntry(runWidthForEdgeX(gesture.run, side, newEdgeX));
-  }, [updateEntry]);
-
-  const finishStretch = useCallback((runId, side, newEdgeX) => {
-    updateStretch(runId, side, newEdgeX);
-    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
-    cursor.releaseHold();
-  }, [commitEntry, cursor, updateStretch]);
-
-  const applyRunMove = useCallback((segment, delta, commit) => {
-    const origin = moveOriginRef.current;
-    if (!origin || !room || !wall || origin.runId !== segment.runId) return;
-    const result = moveRun(room, wall.id, segment.runId, origin.x + delta, settings);
-    if (!result.ok) {
-      if (commit) {
-        moveOriginRef.current = null;
-        setStretchPreview(null);
-        setAlignmentGuides([]);
-        showMessage(result.reason === 'anchored'
-          ? 'Anchored — set Anchor to Free to move'
-          : result.reason);
-      }
-      return;
-    }
-    const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
-    const resolvedRun = resolvedWall?.runs.find((candidate) => candidate.id === segment.runId);
-    if (!resolvedRun) return;
-    setAlignmentGuides(result.snap ? [{ axis: 'x', value: result.snap.value }] : []);
-    if (!commit) {
-      const runIds = new Set([resolvedRun.id]);
-      ['left', 'right'].forEach((side) => {
-        const anchor = resolvedRun.anchors?.[side];
-        if (isJointAnchor(anchor)) {
-          jointMembers(resolvedWall, anchor.jointId).forEach((member) => runIds.add(member.runId));
-        }
-      });
-      setStretchPreview({
-        room: result.room,
-        wall: wallSideView(resolvedWall, wall.side),
-        runIds: [...runIds],
-      });
-      return;
-    }
-    moveOriginRef.current = null;
-    setStretchPreview(null);
-    setAlignmentGuides([]);
-    dispatch(setMessage(null));
-    if (result.joints) {
-      dispatch(replaceWallLayout({
-        wallId: wall.id,
-        runs: resolvedWall.runs,
-        joints: resolvedWall.joints,
-      }));
-    } else {
-      dispatch(replaceRun({ wallId: wall.id, run: resolvedRun }));
-    }
-    if (result.limit?.reason === 'min-width') {
-      showMessage(`${result.limit.type} can't go below ${formatInches(result.limit.min)}`);
-    } else if (result.limit?.reason === 'fixed-width') {
-      showMessage(`${result.limit.type} is fixed at ${formatInches(result.limit.width)} (all cabinets fixed)`);
-    }
-  }, [dispatch, room, settings, showMessage, wall]);
-
-  const startRunMove = useCallback((segment) => {
-    if (!room || !wall) return;
-    const run = wall.runs.find((candidate) => candidate.id === segment.runId);
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!run || !pointer || !transform) return;
-    const result = moveRun(room, wall.id, run.id, run.x, settings);
-    cancelEntry();
-    cursor.hold(CURSORS.move);
-    dispatch(setSelection({ runId: run.id, pieceId: null }));
-    setEntryPointer(pointer);
-    moveOriginRef.current = { runId: run.id, x: run.x };
-    setStretchPreview({ room, wall, runIds: [run.id] });
-    liveGestureRef.current = {
-      kind: 'run-move',
-      segment,
-      pointerStartX: screenToWall(pointer, transform).x,
-    };
-    beginEntry({
-      kind: 'run-move',
-      label: 'Move',
-      value: 0,
-      min: result.joints ? result.range.min : -Infinity,
-      max: result.joints ? result.range.max : Infinity,
-      onCommit: (delta) => {
-        liveGestureRef.current = null;
-        applyRunMove(segment, delta, true);
-      },
-      onCancel: () => {
-        liveGestureRef.current = null;
-        moveOriginRef.current = null;
-        setStretchPreview(null);
-        setAlignmentGuides([]);
-        cursor.releaseHold();
-      },
-    });
-  }, [applyRunMove, beginEntry, cancelEntry, cursor, dispatch, room, settings, transform, wall]);
-
-  const handleRunSegmentClick = useCallback((segment) => {
-    if (tool !== 'select' || segment.kind !== 'run') return;
-    if (selectionRef.current?.runId !== segment.runId || selectionRef.current?.pieceId) {
-      dispatch(setSelection({ runId: segment.runId, pieceId: null }));
-      return;
-    }
-    startRunMove(segment);
-  }, [dispatch, startRunMove, tool]);
-
-  const updateRunMove = useCallback((segment, delta) => {
-    const gesture = liveGestureRef.current;
-    if (gesture?.kind !== 'run-move' || gesture.segment.runId !== segment.runId) return;
-    const pointer = stageRef.current?.getPointerPosition();
-    if (pointer) setEntryPointer(pointer);
-    updateEntry(delta);
-  }, [updateEntry]);
-
-  const finishRunMove = useCallback((segment, delta) => {
-    updateRunMove(segment, delta);
-    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
-    cursor.releaseHold();
-  }, [commitEntry, cursor, updateRunMove]);
-
-  const previewJointDrag = useCallback((jointId, x) => {
-    if (!room || !wall) return;
-    const result = moveJoint(room, wall.id, jointId, x, settings);
-    if (!result.ok) return;
-    const previewWall = result.room.walls.find((candidate) => candidate.id === wall.id);
-    if (!previewWall) return;
-    setStretchPreview({
-      room: result.room,
-      wall: wallSideView(previewWall, wall.side),
-      runIds: jointMembers(previewWall, jointId).map((member) => member.runId),
-    });
-  }, [room, settings, wall]);
-
-  const commitJointDrag = useCallback((jointId, x) => {
-    setStretchPreview(null);
-    if (!room || !wall) return;
-    const result = moveJoint(room, wall.id, jointId, x, settings);
-    if (!result.ok) {
-      showMessage(result.reason);
-      return;
-    }
-    const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
-    if (!resolvedWall) return;
-    dispatch(replaceWallLayout({
-      wallId: wall.id,
-      runs: resolvedWall.runs,
-      joints: resolvedWall.joints,
-    }));
-
-    const limitingRun = result.limit
-      ? resolvedWall.runs.find((run) => run.id === result.limit.runId)
-      : null;
-    const type = RUN_TYPE_LABELS[limitingRun?.cabinetTypeId] ?? 'Run';
-    if (result.limit?.reason === 'min-width') {
-      showMessage(`${type} can't go below ${formatInches(limitingRun.width)}`);
-    } else if (result.limit?.reason === 'fixed-width') {
-      showMessage(`${type} is fixed at ${formatInches(limitingRun.width)} (all cabinets fixed)`);
-    } else {
-      dispatch(setMessage(null));
-    }
-  }, [dispatch, room, settings, showMessage, wall]);
-
-  const startJointDrag = useCallback((jointId) => {
-    if (!room || !wall) return;
-    const member = jointMembers(wall, jointId).find(
-      (candidate) => candidate.runId === selectionRef.current.runId,
-    );
-    const run = wall.runs.find((candidate) => candidate.id === member?.runId);
-    const joint = (wall.joints ?? []).find((candidate) => candidate.id === jointId);
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!member || !run || !joint || !pointer) return;
-    cancelEntry();
-    const rangeResult = moveJoint(room, wall.id, jointId, joint.x, settings);
-    if (!rangeResult.range || rangeResult.range.min > rangeResult.range.max) return;
-    cursor.hold(CURSORS.resizeX);
-    const offset = member.offset ?? 0;
-    const grabbedEdgeAtJoint = (jointX) => (
-      member.side === 'right' ? jointX - offset : jointX + offset
-    );
-    const edgeMin = grabbedEdgeAtJoint(rangeResult.range.min);
-    const edgeMax = grabbedEdgeAtJoint(rangeResult.range.max);
-    const members = jointMembers(wall, jointId);
-    const orderedMembers = [member, ...members.filter((candidate) => (
-      candidate.runId !== member.runId || candidate.side !== member.side
-    ))];
-    const memberModes = orderedMembers.flatMap((candidate) => {
-      const memberRun = wall.runs.find((wallRun) => wallRun.id === candidate.runId);
-      if (!memberRun) return [];
-      const memberOffset = candidate.offset ?? 0;
-      const memberWidthAtJoint = (jointX) => runWidthForEdgeX(
-        memberRun,
-        candidate.side,
-        candidate.side === 'right'
-          ? jointX - memberOffset
-          : jointX + memberOffset,
-      );
-      const widthLimits = [
-        memberWidthAtJoint(rangeResult.range.min),
-        memberWidthAtJoint(rangeResult.range.max),
-      ];
-      return [{
-        key: `run:${candidate.runId}:${candidate.side}`,
-        label: `${RUN_TYPE_LABELS[memberRun.cabinetTypeId] ?? 'Run'} width`,
-        value: memberRun.width,
-        min: Math.min(...widthLimits),
-        max: Math.max(...widthLimits),
-      }];
-    });
-    const modes = [
-      ...memberModes,
-      {
-        key: 'from-left',
-        label: 'From left',
-        value: grabbedEdgeAtJoint(joint.x),
-        min: edgeMin,
-        max: edgeMax,
-      },
-      {
-        key: 'from-right',
-        label: 'From right',
-        value: wall.length - grabbedEdgeAtJoint(joint.x),
-        min: wall.length - edgeMax,
-        max: wall.length - edgeMin,
-      },
-    ];
-    const runIds = members.map((candidate) => candidate.runId);
-    setEntryPointer(pointer);
-    setStretchPreview({ room, wall, runIds });
-    liveGestureRef.current = {
-      kind: 'run-edge',
-      run,
-      side: member.side,
-      jointId,
-      offset,
-    };
-    beginEntry({
-      kind: 'run-edge',
-      label: `${RUN_TYPE_LABELS[run.cabinetTypeId] ?? 'Run'} width`,
-      value: run.width,
-      min: memberModes[0].min,
-      max: memberModes[0].max,
-      modes,
-      onCommit: (value, modeKey) => {
-        const activeGesture = liveGestureRef.current;
-        liveGestureRef.current = null;
-        const typed = entryRef.current?.typed;
-        const modeMember = orderedMembers.find(
-          (candidate) => `run:${candidate.runId}:${candidate.side}` === modeKey,
-        );
-        const modeRun = wall.runs.find((candidate) => candidate.id === modeMember?.runId);
-        const modeOffset = modeMember?.offset ?? 0;
-        const modeEdgeX = modeRun && modeMember
-          ? runEdgeXForWidth(modeRun, modeMember.side, value)
-          : null;
-        const enteredEdgeX = modeKey === 'from-left'
-          ? value
-          : wall.length - value;
-        const enteredJointX = modeKey === 'from-left' || modeKey === 'from-right'
-          ? member.side === 'right'
-            ? enteredEdgeX + offset
-            : enteredEdgeX - offset
-            : modeMember?.side === 'right'
-              ? modeEdgeX + modeOffset
-              : modeEdgeX - modeOffset;
-        const jointX = typed === null && Number.isFinite(activeGesture?.requestedJointX)
-          ? activeGesture.requestedJointX
-          : enteredJointX;
-        commitJointDrag(jointId, jointX);
-      },
-      onCancel: () => {
-        liveGestureRef.current = null;
-        setStretchPreview(null);
-        setAlignmentGuides([]);
-        cursor.releaseHold();
-      },
-    });
-  }, [beginEntry, cancelEntry, commitJointDrag, cursor, room, settings, wall]);
-
-  const updateJointDrag = useCallback((jointId, x) => {
-    const gesture = liveGestureRef.current;
-    if (gesture?.kind !== 'run-edge' || gesture.jointId !== jointId) return;
-    liveGestureRef.current = { ...gesture, requestedJointX: x };
-    const pointer = stageRef.current?.getPointerPosition();
-    if (pointer) setEntryPointer(pointer);
-    const edgeX = gesture.side === 'right' ? x - gesture.offset : x + gesture.offset;
-    updateEntry(runWidthForEdgeX(gesture.run, gesture.side, edgeX));
-  }, [updateEntry]);
-
-  const finishJointDrag = useCallback((jointId, x) => {
-    updateJointDrag(jointId, x);
-    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
-    cursor.releaseHold();
-  }, [commitEntry, cursor, updateJointDrag]);
-
-  useEffect(() => {
-    const gesture = liveGestureRef.current;
-    if (!entry || entryValue === null || !gesture) return;
-    if (entry.kind === 'run-edge' && gesture.kind === 'run-edge') {
-      const edgeX = runEdgeXForWidth(gesture.run, gesture.side, entryValue);
-      if (gesture.jointId) {
-        const jointX = gesture.side === 'right'
-          ? edgeX + gesture.offset
-          : edgeX - gesture.offset;
-        previewJointDrag(gesture.jointId, jointX);
-      } else {
-        previewStretch(gesture.run.id, gesture.side, edgeX);
-      }
-    } else if (entry.kind === 'run-move' && gesture.kind === 'run-move') {
-      applyRunMove(gesture.segment, entryValue, false);
-    }
-  }, [applyRunMove, entry, entryValue, previewJointDrag, previewStretch]);
-
-  const unjoinRunSide = useCallback((runId, side) => {
-    if (!wall) return;
-    setHoveredGlyphId(null);
-    dispatch(setRunAnchor({ wallId: wall.id, runId, side, anchor: false }));
-  }, [dispatch, wall]);
+  const {
+    previewJointDrag,
+    startJointDrag,
+    finishJointDrag,
+    unjoinRunSide,
+  } = useJointDrag({
+    applyRunMove,
+    beginEntry,
+    cancelEntry,
+    commitEntry,
+    cursor,
+    dispatch,
+    entry,
+    entryRef,
+    entryValue,
+    liveGestureRef,
+    previewStretch,
+    room,
+    RUN_TYPE_LABELS,
+    runEdgeXForWidth,
+    runWidthForEdgeX,
+    selectionRef,
+    setAlignmentGuides,
+    setEntryPointer,
+    setHoveredGlyphId,
+    setStretchPreview,
+    settings,
+    showMessage,
+    stageRef,
+    updateEntry,
+    wall,
+  });
 
   return (
     <div
