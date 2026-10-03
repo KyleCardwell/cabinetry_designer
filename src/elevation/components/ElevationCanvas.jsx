@@ -13,7 +13,6 @@ import {
   Layer,
   Rect,
   Stage,
-  Text,
 } from 'react-konva';
 import {
   belowRowOffsets,
@@ -31,8 +30,6 @@ import {
   fitWallToViewport,
   panView,
   screenToWall,
-  wallRectToScreen,
-  wallToScreen,
   withView,
   zoomViewAt,
 } from '../canvas/transform.js';
@@ -73,7 +70,7 @@ import {
 } from '../model/dimensions.js';
 import { resolveProfile } from '../model/profile.js';
 import { partNumbers } from '../model/partNumbers.js';
-import { elevationLabel, nextWallId } from '../model/topology.js';
+import { nextWallId } from '../model/topology.js';
 import {
   joinTouchingEdges,
   joinTouchingStack,
@@ -86,7 +83,7 @@ import {
 } from '../model/room.js';
 import { wallSideView } from '../model/wallSides.js';
 import { wallExtent } from '../model/wallExtent.js';
-import { followersOf, isJointAnchor, jointMembers } from '../model/joints.js';
+import { isJointAnchor, jointMembers } from '../model/joints.js';
 import { runWidthRange } from '../model/splitRun.js';
 import { formatInches } from '../model/units.js';
 import {
@@ -112,9 +109,9 @@ import {
   setActiveWall,
   setTool,
 } from '../store/elevationSlice.js';
-import DragPreview from './DragPreview.jsx';
-import DimensionRow from './DimensionRow.jsx';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
+import ElevationDimensions from './ElevationDimensions.jsx';
+import ElevationPreviews from './ElevationPreviews.jsx';
 import JointMarkers from './JointMarkers.jsx';
 import LiveEntryInput from './LiveEntryInput.jsx';
 import TrackSizeInput from './TrackSizeInput.jsx';
@@ -1697,202 +1694,29 @@ function ElevationCanvas({
               height={viewport.height}
             />
           </Layer>
-          {dimensionChains && dimensionOffsets && (
-            <Layer listening={tool === 'select'}>
-              <DimensionRow
-                segments={dimensionChains.clearances}
-                orientation="horizontal"
-                side="below"
-                offsetPx={dimensionOffsets.clearances}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.below}
-                wallEndMarks={[0, wall.length]}
-                onPieceClick={tool === 'select' ? editPieceSegment : undefined}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.lower.inner}
-                orientation="horizontal"
-                side="below"
-                offsetPx={dimensionOffsets.lower.inner}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.below}
-                wallEndMarks={[0, wall.length]}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.lower.outer}
-                orientation="horizontal"
-                side="below"
-                offsetPx={dimensionOffsets.lower.outer}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.below}
-                onSegmentClick={handleRunSegmentClick}
-                draggableRuns={tool === 'select'}
-                onSegmentDragStart={startRunMove}
-                onSegmentDragMove={updateRunMove}
-                onSegmentDragEnd={finishRunMove}
-                highlightRunId={selection.runId}
-                activeRunId={selection.runId}
-                wallEndMarks={[0, wall.length]}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.openings}
-                orientation="horizontal"
-                side="below"
-                offsetPx={dimensionOffsets.openings}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.below}
-                onFeatureClick={tool === 'select' ? selectFeature : undefined}
-                wallEndMarks={[0, wall.length]}
-                cursor={cursor}
-              />
-              {elevationLabel(room, wall) && (
-                <Text
-                  x={wallToScreen({ x: wall.length / 2, z: 0 }, transform).x}
-                  y={wallToScreen({ x: wall.length / 2, z: 0 }, transform).y + dimensionOffsets.label}
-                  text={elevationLabel(room, wall)}
-                  fontSize={20}
-                  fill="#e2e8f0"
-                  align="center"
-                  offsetX={70}
-                  width={140}
-                  listening={false}
-                />
-              )}
-              <DimensionRow
-                segments={dimensionChains.upper.inner}
-                orientation="horizontal"
-                side="above"
-                offsetPx={dimensionOffsets.upper.inner}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.above}
-                wallEndMarks={[0, wall.length]}
-                onPieceClick={tool === 'select' ? editPieceSegment : undefined}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.upper.outer}
-                orientation="horizontal"
-                side="above"
-                offsetPx={dimensionOffsets.upper.outer}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.above}
-                onSegmentClick={handleRunSegmentClick}
-                draggableRuns={tool === 'select'}
-                onSegmentDragStart={startRunMove}
-                onSegmentDragMove={updateRunMove}
-                onSegmentDragEnd={finishRunMove}
-                highlightRunId={selection.runId}
-                activeRunId={selection.runId}
-                wallEndMarks={[0, wall.length]}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.vertical.left.inner}
-                orientation="vertical"
-                side="left"
-                offsetPx={dimensionOffsets.vertical.left.inner}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.left}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.vertical.left.middle}
-                orientation="vertical"
-                side="left"
-                offsetPx={dimensionOffsets.vertical.left.middle}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.left}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.vertical.left.outer}
-                orientation="vertical"
-                side="left"
-                offsetPx={dimensionOffsets.vertical.left.outer}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.left}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.vertical.right.inner}
-                orientation="vertical"
-                side="right"
-                offsetPx={dimensionOffsets.vertical.right.inner}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.right}
-                wallLength={wall.length}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.vertical.right.middle}
-                orientation="vertical"
-                side="right"
-                offsetPx={dimensionOffsets.vertical.right.middle}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.right}
-                wallLength={wall.length}
-                cursor={cursor}
-              />
-              <DimensionRow
-                segments={dimensionChains.vertical.right.outer}
-                orientation="vertical"
-                side="right"
-                offsetPx={dimensionOffsets.vertical.right.outer}
-                transform={transform}
-                edgeGapPx={dimensionOffsets.clear.right}
-                wallLength={wall.length}
-                cursor={cursor}
-              />
-            </Layer>
-          )}
-          {stretchPreview && (
-            <Layer listening={false}>
-              {[...stretchPreview.runIds,
-                ...followersOf(stretchPreview.wall, stretchPreview.runIds)].map((runId) => {
-                const previewRun = stretchPreview.wall.runs.find((run) => run.id === runId);
-                return previewRun ? (
-                  <RunGroup
-                    key={runId}
-                    run={previewRun}
-                    room={stretchPreview.room}
-                    wall={stretchPreview.wall}
-                    settings={settings}
-                    diagnostic={null}
-                    transform={transform}
-                    selectedRun={false}
-                    selectedPieceId={null}
-                    preview
-                  />
-                ) : null;
-              })}
-            </Layer>
-          )}
-          {dragPreview && (
-            <Layer listening={false}>
-              {dragPreview.soffit ? (
-                <Rect
-                  {...wallRectToScreen({
-                    x: dragPreview.soffit.x,
-                    z: dragPreview.soffit.bottomZ,
-                    width: dragPreview.soffit.width,
-                    height: wall.height - dragPreview.soffit.bottomZ,
-                  }, transform)}
-                  stroke="#60a5fa"
-                  strokeWidth={2}
-                  dash={[8, 6]}
-                />
-              ) : (
-                <DragPreview
-                  run={dragPreview.run}
-                  valid={dragPreview.valid}
-                  transform={transform}
-                />
-              )}
-            </Layer>
-          )}
+          <ElevationDimensions
+            dimensionChains={dimensionChains}
+            dimensionOffsets={dimensionOffsets}
+            tool={tool}
+            transform={transform}
+            wall={wall}
+            editPieceSegment={editPieceSegment}
+            cursor={cursor}
+            handleRunSegmentClick={handleRunSegmentClick}
+            startRunMove={startRunMove}
+            updateRunMove={updateRunMove}
+            finishRunMove={finishRunMove}
+            selection={selection}
+            selectFeature={selectFeature}
+            room={room}
+          />
+          <ElevationPreviews
+            stretchPreview={stretchPreview}
+            settings={settings}
+            transform={transform}
+            dragPreview={dragPreview}
+            wall={wall}
+          />
           {partNumbering && (
             <Layer listening={false}>
               <PartNumberLayer
