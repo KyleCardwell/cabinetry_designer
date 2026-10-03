@@ -88,7 +88,6 @@ import {
   setTrackSize,
   setMessage,
   setSelection,
-  setFacePath,
 } from '../store/elevationSlice.js';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import ElevationDimensions from './ElevationDimensions.jsx';
@@ -99,6 +98,7 @@ import TrackSizeInput from './TrackSizeInput.jsx';
 import NeighborProfiles from './NeighborProfiles.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
+import SelectionPicker, { PickOutline } from './SelectionPicker.jsx';
 import PartNumberLayer from './PartNumberLayer.jsx';
 import RunGroup from './RunGroup.jsx';
 import SoffitShapes from './SoffitShapes.jsx';
@@ -109,6 +109,7 @@ import useElevationKeys from './canvas/useElevationKeys.js';
 import useRunStretch from './canvas/useRunStretch.js';
 import useRunMove from './canvas/useRunMove.js';
 import useJointDrag from './canvas/useJointDrag.js';
+import usePicker from './canvas/usePicker.js';
 
 const ALIGNMENT_SNAP_PX = 6;
 const RUN_TYPE_LABELS = {
@@ -837,20 +838,9 @@ function ElevationCanvas({
     if (!entryRef.current || entryRef.current.typed === null) commitEntry();
   };
 
-  const selectRun = useCallback((runId) => {
-    if (tool !== 'select' || suppressClickRef.current) return;
-    dispatch(setSelection({ runId, pieceId: null }));
-  }, [dispatch, tool]);
-
-  const selectSoffit = useCallback((soffitId) => {
-    if (tool !== 'select' || suppressClickRef.current) return;
-    dispatch(setSelection({ soffitId }));
-  }, [dispatch, tool]);
-
-  const selectRecess = useCallback((recessId) => {
-    if (tool !== 'select' || suppressClickRef.current) return;
-    dispatch(setSelection({ recessId }));
-  }, [dispatch, tool]);
+  const {
+    picker, hovered, pick, pickFace, choosePick, hoverPick, closePicker,
+  } = usePicker({ room, wall, settings, transform, stageRef, tool, suppressClickRef, dispatch });
 
   // The wall row selects what's in it (SPEC-38.1): a recess full of cabinets can't be clicked otherwise.
   const selectFeature = useCallback((segment) => {
@@ -860,21 +850,6 @@ function ElevationCanvas({
     } else if (segment.kind === 'opening' && wallRef.current?.side !== 'back') {
       dispatch(setSelection({ openingId: segment.openingId }));
     }
-  }, [dispatch, tool]);
-
-  const selectEndPanel = useCallback((endPanel) => {
-    if (tool !== 'select' || suppressClickRef.current) return;
-    dispatch(setSelection({ endPanel }));
-  }, [dispatch, tool]);
-
-  const selectPiece = useCallback((runId, pieceId) => {
-    if (tool !== 'select' || suppressClickRef.current) return;
-    dispatch(setSelection({ runId, pieceId }));
-  }, [dispatch, tool]);
-
-  const selectFace = useCallback((path) => {
-    if (tool !== 'select' || suppressClickRef.current) return;
-    dispatch(setFacePath(path));
   }, [dispatch, tool]);
 
   const editTrack = useCallback((runId, edit) => setTrackEdit({ ...edit, runId }), []);
@@ -1111,7 +1086,7 @@ function ElevationCanvas({
               wall={wall}
               transform={transform}
               selectedRecessId={selection.recessId}
-              onSelect={tool === 'select' ? selectRecess : undefined}
+              onSelect={tool === 'select' ? pick : undefined}
             />
             {(wall.openings ?? []).map((opening) => (
               <OpeningShape
@@ -1122,6 +1097,7 @@ function ElevationCanvas({
                 selected={selection.openingId === opening.id}
                 selectable={tool === 'select' && wall.side !== 'back'}
                 onSelect={selectOpening}
+                onPick={pick}
                 onMove={(x) => moveSelectedOpening(opening.id, x)}
                 cursor={cursor}
               />
@@ -1132,7 +1108,7 @@ function ElevationCanvas({
               settings={settings}
               transform={transform}
               selectedSoffitId={selection.soffitId}
-              onSelect={tool === 'select' ? selectSoffit : undefined}
+              onSelect={tool === 'select' ? pick : undefined}
             />
             {wall.runs.map((run) => (
               <RunGroup
@@ -1147,10 +1123,10 @@ function ElevationCanvas({
                 selectedPieceId={
                   selection.runId === run.id ? selection.pieceId : null
                 }
-                onSelectRun={selectRun}
-                onSelectPiece={selectPiece}
+                onSelectRun={pick}
+                onSelectPiece={pick}
                 selectedFacePath={selection.runId === run.id ? facePath : null}
-                onSelectFace={selectFace}
+                onSelectFace={pickFace}
                 onEditTrack={editTrack}
                 stretchable={tool === 'select'}
                 onStretchStart={startStretch}
@@ -1165,7 +1141,7 @@ function ElevationCanvas({
               settings={settings}
               transform={transform}
               selectedEndpoint={selection.endPanel ?? null}
-              onSelect={tool === 'select' ? selectEndPanel : undefined}
+              onSelect={tool === 'select' ? pick : undefined}
               cursor={cursor}
             />
             {tool === 'select' && (
@@ -1199,6 +1175,7 @@ function ElevationCanvas({
             {selection.recessId && (
               <RecessOutline wall={wall} transform={transform} recessId={selection.recessId} />
             )}
+            <PickOutline candidate={hovered} transform={transform} />
             <ElevationAlignmentGuides
               guides={alignmentGuides}
               transform={transform}
@@ -1261,6 +1238,7 @@ function ElevationCanvas({
           onCancel={() => setTrackEdit(null)}
         />
       )}
+      <SelectionPicker picker={picker} onChoose={choosePick} onHover={hoverPick} onClose={closePicker} />
     </div>
   );
 }

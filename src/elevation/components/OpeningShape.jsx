@@ -12,6 +12,7 @@ export default function OpeningShape({
   selected,
   selectable,
   onSelect,
+  onPick,
   onMove,
   cursor,
 }) {
@@ -55,7 +56,8 @@ export default function OpeningShape({
       onMouseDown={stopEvent}
       onClick={(event) => {
         stopEvent(event);
-        onSelect?.(opening.id);
+        if (onPick) onPick();
+        else onSelect?.(opening.id);
       }}
       onMouseEnter={() => cursorKeys.request(
         opening.id,
