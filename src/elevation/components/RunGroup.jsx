@@ -7,29 +7,15 @@ import {
   Tag,
   Text,
 } from 'react-konva';
-import { blindEntries } from '../model/blind.js';
 import { bottomPartSpan, runBottomParts } from '../model/bottoms.js';
-import {
-  blindCellWidths, cellPieces, panelOrientation, shelfParts,
-} from '../model/cells.js';
 import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
-import { runFaceLayouts } from '../model/faceLayouts.js';
-import { frameRegions } from '../model/frames.js';
 import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
-import { endPieceBottom, resolveStyle } from '../model/styles.js';
-import { teeFillers } from '../model/tees.js';
 import { centerlineMarkers } from '../model/dimensions.js';
-import { extendPieces } from '../model/extensions.js';
-import { splitRun } from '../model/splitRun.js';
 import { resolveProfile } from '../model/profile.js';
+import { runScene } from '../model/runScene.js';
 import { runTop } from '../model/tops.js';
-import {
-  endCornerAnglesForRun,
-  endMinWidthsForRun,
-  pinTargetsForRun,
-} from '../model/room.js';
 import { formatInches } from '../model/units.js';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { runHighlight } from '../canvas/selectionHighlight.js';
@@ -38,8 +24,6 @@ import CellChains from './CellChains.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
 import FrameOutline from './FrameOutline.jsx';
 import PieceRect from './PieceRect.jsx';
-
-const PANEL_LABELS = { side: 'Side', top: 'Top', back: 'Back' };
 
 function RunGroup({
   run,
@@ -65,77 +49,11 @@ function RunGroup({
   const [anchorTooltip, setAnchorTooltip] = useState(null);
   const cursorKeys = useCursorKeys(cursor);
   const highlight = runHighlight(selectedRun, selectedPieceId, selectedFacePath);
-  const result = useMemo(() => splitRun(run, settings, {
-    endMinWidths: endMinWidthsForRun(room, wall, run, settings),
-    endCornerAngles: endCornerAnglesForRun(room, wall, run),
-    pinTargets: pinTargetsForRun(run, wall, wall.length, settings),
-  }), [room, run, settings, wall]);
-  const cells = useMemo(() => cellPieces(run, result), [result, run]);
-  const faceLayouts = useMemo(
-    () => runFaceLayouts(room, wall, run, settings, result),
-    [result, room, run, settings, wall],
-  );
-  const frames = useMemo(
-    () => frameRegions(room, run, cells, settings),
-    [cells, room, run, settings],
-  );
-  const framedIds = useMemo(
-    () => new Set(frames.regions.flatMap((region) => region.cabinetIds)),
-    [frames],
-  );
-  const hiddenIds = useMemo(
-    () => new Set(frames.regions.flatMap((region) => region.fillerIds)),
-    [frames],
-  );
-  const ghostIds = useMemo(
-    () => new Set(frames.regions.flatMap((region) => region.panelIds)),
-    [frames],
-  );
-  const blind = useMemo(
-    () => blindEntries(room, wall, run, settings, result),
-    [result, room, run, settings, wall],
-  );
-  const subLabels = useMemo(() => {
-    const labels = new Map();
-    for (const piece of cells.pieces) {
-      if (piece.kind === 'void') labels.set(piece.id, 'Open');
-      if (piece.kind === 'panel') labels.set(piece.id, `${PANEL_LABELS[panelOrientation(piece)]} panel`);
-      if (piece.kind === 'shelves') {
-        labels.set(piece.id, `${piece.shelves.count} shelves${piece.shelves.back ? ' + back' : ''}`);
-      }
-    }
-    for (const entry of blind.entries) {
-      labels.set(entry.pieceId, `Blind ${formatInches(entry.boxWidth)}`);
-      for (const [id, width] of blindCellWidths(cells.pieces, result.pieces, [entry])) {
-        labels.set(id, `Blind ${formatInches(width)}`);
-      }
-      if (entry.panel && entry.endPieceId) {
-        labels.set(entry.endPieceId, `Panel ${formatInches(entry.panel.width)}`);
-      }
-    }
-    return labels;
-  }, [blind, cells, result]);
-  const panels = useMemo(
-    () => blind.entries.filter((entry) => entry.panel).map((entry) => ({
-      key: `panel:${entry.side}`,
-      x: entry.panel.x,
-      width: entry.panel.width,
-    })),
-    [blind],
-  );
-  const panelPieceIds = useMemo(
-    () => new Set(blind.entries
-      .filter((entry) => entry.panel && entry.endPieceId)
-      .map((entry) => entry.endPieceId)),
-    [blind],
-  );
-  const panelBySide = useMemo(() => {
-    const sides = { left: null, right: null };
-    for (const entry of blind.entries) {
-      if (entry.panel) sides[entry.side] = entry.panel;
-    }
-    return sides;
-  }, [blind]);
+  const scene = useMemo(() => runScene(room, wall, run, settings), [room, run, settings, wall]);
+  const {
+    result, cells, faceLayouts, frames, framedIds, hiddenIds, ghostIds, subLabels,
+    panels, panelPieceIds, panelBySide, endBottom, shelves, drawnPieces,
+  } = scene;
   const runEnd = run.x + run.width;
   const panelStart = panelBySide.left
     ? Math.min(panelBySide.left.x, run.x)
@@ -147,37 +65,6 @@ function RunGroup({
   // panel does, and keeps its own inset or overhang wherever one does not.
   const bandStart = (inset) => panelStart ?? run.x + inset;
   const bandEnd = (inset) => panelEnd ?? runEnd - inset;
-  const endBottom = endPieceBottom(run, resolveStyle(settings, room, run), settings);
-  const { drop } = endBottom;
-  const shelves = useMemo(
-    () => cells.pieces.flatMap((piece) => shelfParts(piece, settings)),
-    [cells, settings],
-  );
-  const { tees, ells } = useMemo(
-    () => teeFillers(room, run, cells, settings),
-    [cells, room, run, settings],
-  );
-  const drawnPieces = useMemo(() => {
-    const endTees = new Map([
-      ...tees.filter((tee) => tee.end).map((tee) => [tee.pieceId, tee]),
-      ...ells.map((ell) => [ell.pieceId, ell]),
-    ]);
-    const seamTees = tees.filter((tee) => !tee.end).map((tee) => ({
-      id: tee.id, kind: 'filler', role: 'tee', x: tee.x, z: tee.z, width: tee.width, height: tee.height,
-    }));
-    const base = cells.pieces.map((piece) => {
-      const tee = endTees.get(piece.id);
-      const shaped = tee ? { ...piece, x: tee.x, width: tee.width } : piece;
-      const dropped = drop > 0
-        && (shaped.kind === 'filler' || shaped.kind === 'end_panel')
-        ? { ...shaped, z: shaped.z - drop, height: shaped.height + drop }
-        : shaped;
-      return panelPieceIds.has(piece.id)
-        ? { ...dropped, kind: 'end_panel' }
-        : dropped;
-    });
-    return [...extendPieces(wall, run, base).pieces.sort((a, b) => endTees.has(a.id) - endTees.has(b.id)), ...seamTees];
-  }, [cells, drop, ells, panelPieceIds, run, tees, wall]);
   const profile = useMemo(
     () => resolveProfile(settings, room, wall),
     [room, settings, wall],
