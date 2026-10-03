@@ -7,25 +7,14 @@ import {
   useState,
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import {
-  Circle,
-  Group,
-  Layer,
-  Line,
-  Rect,
-  Stage,
-  Text,
-} from 'react-konva';
+import { Layer, Stage } from 'react-konva';
 import { snapToEndpoint, snapToGrid } from '../../canvas/SnapEngine.js';
 import AxisGuides from '../../canvas/components/AxisGuides.jsx';
-import WallDrawPreview from '../../canvas/components/WallDrawPreview.jsx';
-import WallEndpoints from '../../canvas/components/WallEndpoints.jsx';
 import {
   endpointAlignmentTargets,
   snapToAlignment,
 } from '../canvas/alignment.js';
 import {
-  CURSORS,
   planBaseCursor,
   useCanvasCursor,
   useCursorKeys,
@@ -36,11 +25,10 @@ import useLiveEntry, {
 } from '../canvas/useLiveEntry.js';
 import LiveEntryInput from '../components/LiveEntryInput.jsx';
 import { planClearances } from '../model/clearances.js';
-import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
+import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { findCollisions, footprintsAtPoint } from '../model/footprints.js';
 import {
   dot,
-  elevationToPlan,
   planPointToWallX,
   subtract,
   wallFrame,
@@ -53,41 +41,26 @@ import {
 } from '../model/openings.js';
 import { wallLabel } from '../model/topology.js';
 import { formatInches, roundTo } from '../model/units.js';
-import { wallEndPanelPolygon, wallEndPanels } from '../model/wallEndPanels.js';
-import { wallOutline } from '../model/wallOutline.js';
 import { wallSideFrame, wallSideOf, wallSideView } from '../model/wallSides.js';
 import {
   addOpening,
   addWallSegment,
   clearSelection,
-  connectWalls,
-  deleteOpening,
-  deleteRun,
   deleteWall,
-  disconnectWallEndpoint,
-  moveWallEndpoint,
-  moveWallPerpendicular,
   moveOpening,
   setActiveWall,
   setMessage,
   setSelection,
   setTool,
   setView,
-  setWallLength,
 } from '../store/elevationSlice.js';
 import { PLAN_BACKGROUND_COLOR } from './constants.js';
-import { elevationMarkers } from './elevationMarkers.js';
 import PlanAlignmentGuides from './PlanAlignmentGuides.jsx';
-import PlanClearances from './PlanClearances.jsx';
-import PlanElevationMarker from './PlanElevationMarker.jsx';
-import PlanOpening from './PlanOpening.jsx';
-import PlanRecess from './PlanRecess.jsx';
-import PlanWallShape from './PlanWallShape.jsx';
-import PlanRunFootprint from './PlanRunFootprint.jsx';
-import {
-  moveWallPerpendicular as previewWallPerpendicular,
-  snapPointOrtho,
-} from './wallOps.js';
+import PlanOverlays from './PlanOverlays.jsx';
+import PlanScene from './PlanScene.jsx';
+import usePlanKeys from './usePlanKeys.js';
+import usePlanWallEdits from './usePlanWallEdits.js';
+import { snapPointOrtho } from './wallOps.js';
 
 const PIXELS_PER_INCH = 4;
 const ENDPOINT_SNAP_RADIUS = 6;
@@ -414,57 +387,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     };
   }, [stopPanning]);
 
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      const tagName = event.target?.tagName?.toLowerCase();
-      if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
-
-      if (event.key === 'Escape') {
-        if (entry) {
-          event.preventDefault();
-          cancelEntry();
-          return;
-        }
-        if (drawStartRef.current) cancelDrawing();
-        dispatch(setTool('select'));
-        dispatch(clearSelection());
-        setPendingDeleteWallId(null);
-        return;
-      }
-
-      if (event.key !== 'Delete' && event.key !== 'Backspace') return;
-      if (selection.openingId) {
-        const openingWall = walls.find((wall) => (
-          (wall.openings ?? []).some((opening) => opening.id === selection.openingId)
-        ));
-        if (!openingWall) return;
-        event.preventDefault();
-        dispatch(deleteOpening({
-          wallId: openingWall.id,
-          openingId: selection.openingId,
-        }));
-        return;
-      }
-      if (selection.runId) {
-        const runWall = walls.find((wall) => wall.runs.some((run) => run.id === selection.runId));
-        if (!runWall) return;
-        event.preventDefault();
-        dispatch(deleteRun({ wallId: runWall.id, runId: selection.runId }));
-        return;
-      }
-      if (!selectedWall) return;
-      event.preventDefault();
-      if (selectedWall.runs.length > 0) {
-        setPendingDeleteWallId(selectedWall.id);
-      } else {
-        dispatch(deleteWall(selectedWall.id));
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrawing, cancelEntry, dispatch, entry, selectedWall, selection.openingId,
-    selection.runId, walls]);
+  usePlanKeys({
+    entry,
+    cancelEntry,
+    drawStartRef,
+    cancelDrawing,
+    dispatch,
+    setPendingDeleteWallId,
+    selection,
+    walls,
+    selectedWall,
+  });
 
   const toWorld = useCallback((point) => ({
     x: (point.x - pan.x) / scale,
@@ -721,131 +654,30 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     wallDrawStart,
   ]);
 
-  const handleWallEndpointDrag = useCallback((wallId, endpoint, event) => {
-    const wall = walls.find((candidate) => candidate.id === wallId);
-    if (!wall) return;
-    const fixed = endpoint === 'start'
-      ? { x: wall.x2, y: wall.y2 }
-      : { x: wall.x1, y: wall.y1 };
-    const snapped = gridAndOrtho(
-      { x: event.target.x(), y: event.target.y() },
-      fixed,
-    );
-    const endpointSnap = snapToEndpoint(
-      snapped,
-      adaptedWalls,
-      ENDPOINT_SNAP_RADIUS,
-      wallId,
-    );
-    let point;
-    if (endpointSnap) {
-      setAlignmentGuides([]);
-      point = { x: endpointSnap.x, y: endpointSnap.y };
-    } else {
-      point = applyAlignment(snapped, { fixed, excludeWallId: wallId });
-    }
-    event.target.position(point);
-    dispatch(moveWallEndpoint({ wallId, endpoint, ...point }));
-
-    if (event.type !== 'dragend') return;
-    setAlignmentGuides([]);
-    if (endpointSnap) {
-      dispatch(connectWalls({
-        wallId1: wallId,
-        endpoint1: endpoint,
-        wallId2: endpointSnap.wallId,
-        endpoint2: endpointSnap.endpoint,
-      }));
-    } else if (wall.connections?.[endpoint]) {
-      dispatch(disconnectWallEndpoint({ wallId, endpoint }));
-    }
-  }, [adaptedWalls, applyAlignment, dispatch, gridAndOrtho, walls]);
-
-  const previewPerpendicularMove = useCallback((delta) => {
-    if (!room || !selectedWall) return;
-    const result = previewWallPerpendicular(room, selectedWall.id, delta);
-    if (!result.ok) {
-      setWallMovePreview({ delta, room: null, affectedWallIds: [] });
-      return;
-    }
-    const affectedWallIds = [
-      selectedWall.id,
-      ...['start', 'end'].map((endpoint) => (
-        selectedWall.connections?.[endpoint]?.wallId
-      )).filter(Boolean),
-    ];
-    setWallMovePreview({
-      delta,
-      room: { ...room, walls: result.walls },
-      affectedWallIds: [...new Set(affectedWallIds)],
-    });
-  }, [room, selectedWall]);
-
-  useEffect(() => {
-    if (entry?.kind === 'wall-perpendicular') {
-      previewPerpendicularMove(entryValue);
-    }
-  }, [entry?.kind, entryValue, previewPerpendicularMove]);
-
-  const beginWallMove = useCallback((event) => {
-    event.cancelBubble = true;
-    if (!selectedWall) return;
-    const pointer = stageRef.current?.getPointerPosition();
-    if (pointer) setEntryPointer(pointer);
-    setWallMovePreview(null);
-    liveGestureRef.current = { kind: 'wall-perpendicular' };
-    beginEntry({
-      kind: 'wall-perpendicular',
-      label: 'Wall offset',
-      value: 0,
-      min: -Infinity,
-      max: Infinity,
-      onCommit: (delta) => {
-        liveGestureRef.current = null;
-        setWallMovePreview(null);
-        dispatch(moveWallPerpendicular({ wallId: selectedWall.id, delta }));
-      },
-      onCancel: () => {
-        liveGestureRef.current = null;
-        setWallMovePreview(null);
-      },
-    });
-  }, [beginEntry, dispatch, selectedWall]);
-
-  const beginWallLength = useCallback((wallId, growEnd, event) => {
-    event.cancelBubble = true;
-    if (!room) return;
-    const targetWall = walls.find((wall) => wall.id === wallId);
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!targetWall || !pointer) return;
-    const frame = wallFrame(room, targetWall);
-    const aOut = growEnd === 'left'
-      ? { x: -frame.r.x, y: -frame.r.y }
-      : frame.r;
-    setEntryPointer(pointer);
-    liveGestureRef.current = {
-      kind: 'wall-length',
-      wallId,
-      growEnd,
-      initialLength: frame.length,
-      pointerStart: toWorld(pointer),
-      aOut,
-    };
-    beginEntry({
-      kind: 'wall-length',
-      label: 'Wall length',
-      value: frame.length,
-      min: settings.planGrid,
-      max: Infinity,
-      onCommit: (length) => {
-        liveGestureRef.current = null;
-        dispatch(setWallLength({ wallId, length, growEnd }));
-      },
-      onCancel: () => {
-        liveGestureRef.current = null;
-      },
-    });
-  }, [beginEntry, dispatch, room, settings.planGrid, toWorld, walls]);
+  const {
+    handleWallEndpointDrag,
+    beginWallMove,
+    beginWallLength,
+  } = usePlanWallEdits({
+    walls,
+    gridAndOrtho,
+    adaptedWalls,
+    ENDPOINT_SNAP_RADIUS,
+    setAlignmentGuides,
+    applyAlignment,
+    dispatch,
+    room,
+    selectedWall,
+    setWallMovePreview,
+    entry,
+    entryValue,
+    stageRef,
+    setEntryPointer,
+    liveGestureRef,
+    beginEntry,
+    toWorld,
+    settings,
+  });
 
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
@@ -1027,213 +859,46 @@ export default function PlanCanvas({ fitRequest = 0 }) {
           >
             <AxisGuides scale={scale} />
             <PlanAlignmentGuides guides={alignmentGuides} scale={scale} />
-            {walls.map((wall) => (
-              <PlanWallShape
-                key={wall.id}
-                room={room}
-                wall={wall}
-                isSelected={wall.id === selectedWall?.id}
-                scale={scale}
-                onSelect={(event) => handleWallSelect(wall.id, event)}
-                onOpen={(event) => handleWallOpen(wall.id, event)}
-                cursor={cursor}
-                settings={settings}
-              />
-            ))}
-            {walls.flatMap((wall) => (wall.recesses ?? []).map((recess) => (
-              <PlanRecess
-                key={`${wall.id}:${recess.id}`}
-                wall={wall}
-                frame={wallSideFrame(room, wall, recess.wallSide)}
-                recess={recess}
-                scale={scale}
-                selected={selection.recessId === recess.id}
-              />
-            )))}
-            {orderedOpenings.map(({ frame, wall, opening }) => (
-              <PlanOpening
-                key={opening.id}
-                room={room}
-                wall={wall}
-                frame={frame}
-                opening={opening}
-                settings={settings}
-                selected={selection.openingId === opening.id}
-                selectable={tool === 'select' && !entry}
-                scale={scale}
-                onSelect={handleOpeningSelect}
-                onMove={(x) => handleOpeningMove(wall.id, opening.id, x)}
-                cursor={cursor}
-              />
-            ))}
-            {orderedFootprints.map(({ frame, wall, run }) => (
-              <PlanRunFootprint
-                key={run.id}
-                frame={frame}
-                room={room}
-                wall={wall}
-                run={run}
-                settings={settings}
-                collision={collisionMessages.has(run.id)}
-                collisionMessage={collisionMessages.get(run.id)}
-                selected={selection.runId === run.id}
-                selectable={tool === 'select' && !entry}
-                scale={scale}
-                onSelect={handleRunSelect}
-                cursor={cursor}
-              />
-            ))}
-            {walls.flatMap((wall) => wallEndPanels(room, wall, settings).map((panel) => (
-              <Line
-                key={`${wall.id}:${panel.endpoint}`}
-                points={wallEndPanelPolygon(room, wall, panel)
-                  .flatMap((point) => [point.x, point.y])}
-                closed
-                fill={KIND_COLORS.end_panel}
-                opacity={0.7}
-                listening={false}
-              />
-            )))}
-            <PlanClearances dimensions={clearances} scale={scale} />
-            {walls.flatMap((wall) => (wall.soffits ?? []).map((soffit) => {
-              const frame = wallSideFrame(room, wall, soffit.wallSide);
-              return (
-                <Line
-                  key={`${wall.id}:${soffit.id}`}
-                  points={[
-                    elevationToPlan(frame, soffit.x, 0),
-                    elevationToPlan(frame, soffit.x + soffit.width, 0),
-                    elevationToPlan(frame, soffit.x + soffit.width, soffit.depth),
-                    elevationToPlan(frame, soffit.x, soffit.depth),
-                  ].flatMap((point) => [point.x, point.y])}
-                  closed
-                  dash={[6 / scale, 4 / scale]}
-                  stroke="#94a3b8"
-                  strokeWidth={1 / scale}
-                  listening={false}
-                />
-              );
-            }))}
-            {elevationMarkers(room, settings, scale).map((marker) => (
-              <PlanElevationMarker
-                key={marker.key}
-                point={marker.point}
-                direction={marker.direction}
-                scale={scale}
-                letter={marker.letter}
-              />
-            ))}
-            {wallMovePreview?.room && (
-              <Group listening={false}>
-                {wallMovePreview.affectedWallIds.map((wallId) => {
-                  const previewWall = wallMovePreview.room.walls.find(
-                    (wall) => wall.id === wallId,
-                  );
-                  if (!previewWall) return null;
-                  return (
-                    <Line
-                      key={wallId}
-                      points={wallOutline(wallMovePreview.room, previewWall)
-                        .flatMap((point) => [point.x, point.y])}
-                      closed
-                      fill="#22d3ee"
-                      opacity={0.16}
-                      stroke="#67e8f9"
-                      strokeWidth={2 / scale}
-                      dash={[6 / scale, 4 / scale]}
-                    />
-                  );
-                })}
-                {(() => {
-                  const previewWall = wallMovePreview.room.walls.find(
-                    (wall) => wall.id === selectedWall?.id,
-                  );
-                  if (!previewWall) return null;
-                  const frame = wallFrame(wallMovePreview.room, previewWall);
-                  const midpoint = {
-                    x: (previewWall.x1 + previewWall.x2) / 2,
-                    y: (previewWall.y1 + previewWall.y2) / 2,
-                  };
-                  const labelOffset = previewWall.thickness + 54 / scale;
-                  return (
-                    <Text
-                      x={midpoint.x - frame.n.x * labelOffset}
-                      y={midpoint.y - frame.n.y * labelOffset}
-                      width={100 / scale}
-                      offsetX={50 / scale}
-                      offsetY={6 / scale}
-                      align="center"
-                      text={signedInches(wallMovePreview.delta)}
-                      fontSize={11 / scale}
-                      fill="#a5f3fc"
-                    />
-                  );
-                })()}
-              </Group>
-            )}
-            {tool === 'select' && selectedWall && !entry && (
-              <WallEndpoints
-                wall={{ ...selectedWall, wall_id: selectedWall.id }}
-                room={room}
-                scale={scale}
-                orthoWalls={settings.orthoWalls}
-                onDrag={handleWallEndpointDrag}
-                onLength={beginWallLength}
-                cursor={cursor}
-              />
-            )}
-            {showsMoveHandle && (
-              <Rect
-                x={moveHandle.point.x}
-                y={moveHandle.point.y}
-                width={10 / scale}
-                height={10 / scale}
-                offsetX={5 / scale}
-                offsetY={5 / scale}
-                fill="#22d3ee"
-                stroke="#ecfeff"
-                strokeWidth={1 / scale}
-                cornerRadius={1.5 / scale}
-                onMouseEnter={() => moveHandleCursor.request('move', CURSORS.move)}
-                onMouseLeave={() => moveHandleCursor.release('move')}
-                onMouseDown={(event) => {
-                  event.cancelBubble = true;
-                }}
-                onClick={(event) => {
-                  moveHandleCursor.release('move');
-                  beginWallMove(event);
-                }}
-                onDblClick={(event) => {
-                  event.cancelBubble = true;
-                }}
-              />
-            )}
-            <WallDrawPreview
-              start={tool === 'wall' ? wallDrawStart : null}
-              end={entry?.kind === 'wall-draw' ? liveWallDrawEnd : mouseWorldPos}
+            <PlanScene
+              walls={walls}
+              room={room}
+              selectedWall={selectedWall}
               scale={scale}
+              handleWallSelect={handleWallSelect}
+              handleWallOpen={handleWallOpen}
+              cursor={cursor}
+              settings={settings}
+              selection={selection}
+              orderedOpenings={orderedOpenings}
+              tool={tool}
+              entry={entry}
+              handleOpeningSelect={handleOpeningSelect}
+              handleOpeningMove={handleOpeningMove}
+              orderedFootprints={orderedFootprints}
+              collisionMessages={collisionMessages}
+              handleRunSelect={handleRunSelect}
+              clearances={clearances}
             />
-            {tool === 'wall' && mouseWorldPos?._faceLabel && (
-              <Group listening={false}>
-                <Circle
-                  x={mouseWorldPos.x}
-                  y={mouseWorldPos.y}
-                  radius={4 / scale}
-                  fill="#22d3ee"
-                  stroke="#ecfeff"
-                  strokeWidth={0.75 / scale}
-                />
-                <Text
-                  x={mouseWorldPos.x}
-                  y={mouseWorldPos.y - 10 / scale}
-                  text={mouseWorldPos._faceLabel}
-                  fontSize={10 / scale}
-                  fill="#22d3ee"
-                  offsetX={mouseWorldPos._faceLabel.length * 3 / scale}
-                  offsetY={10 / scale}
-                />
-              </Group>
-            )}
+            <PlanOverlays
+              room={room}
+              settings={settings}
+              scale={scale}
+              wallMovePreview={wallMovePreview}
+              selectedWall={selectedWall}
+              signedInches={signedInches}
+              tool={tool}
+              entry={entry}
+              handleWallEndpointDrag={handleWallEndpointDrag}
+              beginWallLength={beginWallLength}
+              cursor={cursor}
+              showsMoveHandle={showsMoveHandle}
+              moveHandle={moveHandle}
+              moveHandleCursor={moveHandleCursor}
+              beginWallMove={beginWallMove}
+              wallDrawStart={wallDrawStart}
+              liveWallDrawEnd={liveWallDrawEnd}
+              mouseWorldPos={mouseWorldPos}
+            />
           </Layer>
         </Stage>
       )}
