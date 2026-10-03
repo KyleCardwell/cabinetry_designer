@@ -1,0 +1,1246 @@
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  Layer,
+  Rect,
+  Stage,
+} from 'react-konva';
+import {
+  belowRowOffsets,
+  dimensionRowOffsets,
+  layoutDimensionRow,
+} from '../canvas/dimensionLayout.js';
+import {
+  CURSORS,
+  elevationBaseCursor,
+  useCanvasCursor,
+} from '../canvas/cursor.js';
+import { panExceedsThreshold } from '../canvas/panGesture.js';
+import {
+  DEFAULT_VIEW,
+  fitWallToViewport,
+  panView,
+  screenToWall,
+  withView,
+  zoomViewAt,
+} from '../canvas/transform.js';
+import {
+  dragPointsToRunInput,
+  screenPointToWallSnapped,
+} from '../canvas/drag.js';
+import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
+import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../model/constants.js';
+import { createRun } from '../model/runDefaults.js';
+import { runItems } from '../model/grid.js';
+import {
+  createSoffit,
+  resolveSoffitSpan,
+  validateSoffitPlacement,
+} from '../model/soffits.js';
+import {
+  createOpening,
+  openingGeometry,
+  validateOpeningPlacement,
+} from '../model/openings.js';
+import {
+  RECESS_PLACEMENT_MESSAGES,
+  createRecess,
+  recessForSpan,
+  validateRecessPlacement,
+} from '../model/recesses.js';
+import {
+  horizontalChains,
+  nearerEdge,
+  openingChain,
+  clearanceCallouts,
+  pickColumnRuns,
+  verticalChains,
+  verticalOpeningChain,
+} from '../model/dimensions.js';
+import { resolveProfile } from '../model/profile.js';
+import { partNumbers } from '../model/partNumbers.js';
+import {
+  joinTouchingEdges,
+  joinTouchingStack,
+  roomDiagnostics,
+  tryPlaceRun,
+} from '../model/room.js';
+import { wallExtent } from '../model/wallExtent.js';
+import { formatInches } from '../model/units.js';
+import {
+  addOpening,
+  addRecess,
+  addRun,
+  addSoffit,
+  moveOpening,
+  replaceWallLayout,
+  setItemWidth,
+  setTrackSize,
+  setMessage,
+  setSelection,
+} from '../store/elevationSlice.js';
+import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
+import ElevationDimensions from './ElevationDimensions.jsx';
+import ElevationPreviews from './ElevationPreviews.jsx';
+import JointMarkers from './JointMarkers.jsx';
+import LiveEntryInput from './LiveEntryInput.jsx';
+import TrackSizeInput from './TrackSizeInput.jsx';
+import NeighborProfiles from './NeighborProfiles.jsx';
+import NeighborReturns from './NeighborReturns.jsx';
+import OpeningShape from './OpeningShape.jsx';
+import SelectionPicker, { PickOutline } from './SelectionPicker.jsx';
+import PartNumberLayer from './PartNumberLayer.jsx';
+import RunGroup from './RunGroup.jsx';
+import SoffitShapes from './SoffitShapes.jsx';
+import RecessShapes, { RecessOutline } from './RecessShapes.jsx';
+import WallEndPanelShapes from './WallEndPanelShapes.jsx';
+import WallFrame from './WallFrame.jsx';
+import useElevationKeys from './canvas/useElevationKeys.js';
+import useRunStretch from './canvas/useRunStretch.js';
+import useRunMove from './canvas/useRunMove.js';
+import useJointDrag from './canvas/useJointDrag.js';
+import usePicker from './canvas/usePicker.js';
+
+const ALIGNMENT_SNAP_PX = 6;
+const RUN_TYPE_LABELS = {
+  [CABINET_TYPE_IDS.BASE]: 'Base',
+  [CABINET_TYPE_IDS.UPPER]: 'Upper',
+  [CABINET_TYPE_IDS.TALL]: 'Tall',
+};
+
+function runDrawBounds(start, current, width, fallbackDirection = 1) {
+  const direction = current.x === start.x
+    ? fallbackDirection
+    : Math.sign(current.x - start.x);
+  return dragPointsToRunInput(start, {
+    ...current,
+    x: start.x + direction * width,
+  });
+}
+
+function runEdgeXForWidth(run, side, width) {
+  return side === 'left' ? run.x + run.width - width : run.x + width;
+}
+
+function runWidthForEdgeX(run, side, edgeX) {
+  return side === 'left' ? run.x + run.width - edgeX : edgeX - run.x;
+}
+
+function ElevationCanvas({
+  room,
+  wall,
+  settings,
+  fitRequest = 0,
+  onZoomChange,
+}, ref) {
+  const dispatch = useDispatch();
+  const { tool, selection, facePath } = useSelector((state) => state.elevation);
+  const stageRef = useRef(null);
+  const containerRef = useRef(null);
+  const [viewport, setViewport] = useState({ width: 0, height: 0 });
+  const [view, setView] = useState(DEFAULT_VIEW);
+  const [drag, setDrag] = useState(null);
+  const [stretchPreview, setStretchPreview] = useState(null);
+  const [pointerMode, setPointerMode] = useState('idle');
+  const [hoveredGlyphId, setHoveredGlyphId] = useState(null);
+  const [alignmentGuides, setAlignmentGuides] = useState([]);
+  const [entryPointer, setEntryPointer] = useState(null);
+  const [trackEdit, setTrackEdit] = useState(null);
+  const { style: cursorStyle, controller: cursor } = useCanvasCursor(
+    elevationBaseCursor(tool, pointerMode),
+  );
+  const liveGestureRef = useRef(null);
+  const moveOriginRef = useRef(null);
+  const dragRef = useRef(null);
+  const panRef = useRef(null);
+  const spacePressedRef = useRef(false);
+  const selectionRef = useRef(selection);
+  const wallRef = useRef(wall);
+  const messageTimeoutRef = useRef(null);
+  const clickSuppressionTimeoutRef = useRef(null);
+  const suppressClickRef = useRef(false);
+  const {
+    entry,
+    begin: beginEntry,
+    update: updateEntry,
+    setTyped: setEntryTyped,
+    cycle: cycleEntry,
+    commit: commitEntry,
+    cancel: cancelEntry,
+  } = useLiveEntry();
+  const entryRef = useRef(entry);
+  entryRef.current = entry;
+  const entryValue = resolveLiveEntryValue(entry);
+  const wallId = wall?.id ?? null;
+  const diagnostics = useMemo(
+    () => (room ? roomDiagnostics(room, settings) : {}),
+    [room, settings],
+  );
+  const partNumbering = useMemo(
+    () => (room && settings.showPartNumbers ? partNumbers(room, settings) : null),
+    [room, settings],
+  );
+  const profile = useMemo(
+    () => (room && wall ? resolveProfile(settings, room, wall) : null),
+    [room, settings, wall],
+  );
+  const dimensionChains = useMemo(() => {
+    if (!room || !wall) return null;
+    const lower = horizontalChains(room, wall, 'lower', settings);
+    const upper = horizontalChains(room, wall, 'upper', settings);
+    const selectedOpening = (wall.openings ?? []).find(
+      (opening) => opening.id === selection.openingId,
+    );
+    const openingCenter = selectedOpening
+      ? (() => {
+        const jamb = openingGeometry(selectedOpening, wall.length, settings).jamb;
+        return jamb.x + jamb.width / 2;
+      })()
+      : null;
+    const verticalFor = (edge) => (selectedOpening
+      && nearerEdge(openingCenter, wall.length) === edge
+      ? verticalOpeningChain(wall, selectedOpening, wall.length, settings)
+      : verticalChains(room, wall, pickColumnRuns(wall, selection.runId, edge), settings, edge));
+    return {
+      lower,
+      upper,
+      openings: openingChain(room, wall, settings),
+      clearances: clearanceCallouts(room, wall, settings),
+      vertical: {
+        left: verticalFor('left'),
+        right: verticalFor('right'),
+      },
+    };
+  }, [room, selection.openingId, selection.runId, settings, wall]);
+
+  selectionRef.current = selection;
+  wallRef.current = wall;
+
+  const updateDrag = useCallback((nextDrag) => {
+    dragRef.current = nextDrag;
+    setDrag(nextDrag);
+  }, []);
+
+  const cancelDrag = useCallback(() => updateDrag(null), [updateDrag]);
+
+  const resetView = useCallback(() => {
+    setView(DEFAULT_VIEW);
+  }, []);
+
+  const stopPanning = useCallback(() => {
+    const current = panRef.current;
+    panRef.current = null;
+    setPointerMode(spacePressedRef.current ? 'pan-ready' : 'idle');
+    if (!current?.moved) return;
+    suppressClickRef.current = true;
+    if (clickSuppressionTimeoutRef.current !== null) {
+      globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
+    }
+    clickSuppressionTimeoutRef.current = globalThis.setTimeout(() => {
+      suppressClickRef.current = false;
+      clickSuppressionTimeoutRef.current = null;
+    }, 0);
+  }, []);
+
+  const showMessage = useCallback((message) => {
+    dispatch(setMessage(message));
+    if (messageTimeoutRef.current !== null) {
+      globalThis.clearTimeout(messageTimeoutRef.current);
+    }
+    messageTimeoutRef.current = globalThis.setTimeout(() => {
+      dispatch(setMessage(null));
+      messageTimeoutRef.current = null;
+    }, 3000);
+  }, [dispatch]);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return undefined;
+
+    const updateSize = ({ width, height }) => {
+      const next = {
+        width: Math.max(0, Math.floor(width)),
+        height: Math.max(0, Math.floor(height)),
+      };
+      setViewport((current) => (
+        current.width === next.width && current.height === next.height ? current : next
+      ));
+    };
+
+    const initial = container.getBoundingClientRect();
+    updateSize(initial);
+
+    const observer = new ResizeObserver((entries) => {
+      if (entries[0]) updateSize(entries[0].contentRect);
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    cancelEntry();
+    cancelDrag();
+    setStretchPreview(null);
+    dispatch(setSelection({}));
+  }, [cancelDrag, cancelEntry, dispatch, wallId]);
+
+  useEffect(() => {
+    resetView();
+  }, [fitRequest, resetView, wallId]);
+
+  useEffect(() => {
+    if (tool !== 'draw' && tool !== 'soffit') cancelDrag();
+    if (tool !== 'select') setStretchPreview(null);
+  }, [cancelDrag, tool]);
+
+  useEffect(() => {
+    if (
+      (entry?.kind === 'run-draw' || entry?.kind === 'soffit-draw')
+      && tool !== 'draw'
+      && tool !== 'soffit'
+    ) cancelEntry();
+    else if (
+      (entry?.kind === 'run-edge' || entry?.kind === 'run-move')
+      && tool !== 'select'
+    ) cancelEntry();
+  }, [cancelEntry, entry?.kind, tool]);
+
+  useEffect(() => {
+    setStretchPreview(null);
+  }, [selection.runId]);
+
+  useEffect(() => () => {
+    if (messageTimeoutRef.current !== null) {
+      globalThis.clearTimeout(messageTimeoutRef.current);
+    }
+    if (clickSuppressionTimeoutRef.current !== null) {
+      globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
+    }
+    dispatch(setMessage(null));
+  }, [dispatch]);
+
+  useEffect(() => {
+    const handleSpaceDown = (event) => {
+      const tagName = event.target?.tagName?.toLowerCase();
+      if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
+      if (event.code !== 'Space') return;
+      event.preventDefault();
+      spacePressedRef.current = true;
+      setPointerMode('pan-ready');
+    };
+    const handleSpaceUp = (event) => {
+      if (event.code === 'Space') {
+        spacePressedRef.current = false;
+        setPointerMode('idle');
+      }
+    };
+    const handleBlur = () => {
+      spacePressedRef.current = false;
+      setPointerMode('idle');
+      stopPanning();
+    };
+    const handlePointerMove = (event) => {
+      const current = panRef.current;
+      if (!current || event.pointerId !== current.pointerId) return;
+      const dx = event.clientX - current.x;
+      const dy = event.clientY - current.y;
+      if (dx === 0 && dy === 0) return;
+      const moved = current.moved || panExceedsThreshold(
+        { x: current.originX, y: current.originY },
+        { x: event.clientX, y: event.clientY },
+      );
+      if (moved && !current.moved) setPointerMode('panning');
+      panRef.current = {
+        ...current,
+        x: event.clientX,
+        y: event.clientY,
+        moved,
+      };
+      if (!moved) return;
+      setView((activeView) => panView(activeView, dx, dy));
+    };
+    const handlePointerEnd = (event) => {
+      const current = panRef.current;
+      if (!current || event.pointerId !== current.pointerId) return;
+      stopPanning();
+      // preventDefault on pointerdown suppresses Konva's mouse click, so a plain
+      // left click on empty canvas deselects here instead of in handleStageClick.
+      if (event.type === 'pointerup' && current.clearsSelection && !current.moved) {
+        dispatch(setSelection({}));
+      }
+    };
+    const handlePointerOut = (event) => {
+      if (!event.relatedTarget) stopPanning();
+    };
+
+    window.addEventListener('keydown', handleSpaceDown);
+    window.addEventListener('keyup', handleSpaceUp);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('pointercancel', handlePointerEnd);
+    window.addEventListener('pointerout', handlePointerOut);
+    return () => {
+      window.removeEventListener('keydown', handleSpaceDown);
+      window.removeEventListener('keyup', handleSpaceUp);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerEnd);
+      window.removeEventListener('pointercancel', handlePointerEnd);
+      window.removeEventListener('pointerout', handlePointerOut);
+    };
+  }, [dispatch, stopPanning]);
+
+  const baseTransform = useMemo(() => (
+    wall && viewport.width > 0 && viewport.height > 0
+      ? fitWallToViewport(wall, viewport, {
+        top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
+        right: 48 + (dimensionChains?.vertical.right.middle.length > 0 ? 26 : 0),
+        bottom: dimensionChains?.openings.length > 0 ? 152 : 96,
+        left: 110 + (dimensionChains?.vertical.left.middle.length > 0 ? 26 : 0),
+      })
+      : null
+  ), [
+    dimensionChains?.openings.length,
+    dimensionChains?.upper.inner.length,
+    dimensionChains?.vertical.left.middle.length,
+    dimensionChains?.vertical.right.middle.length,
+    viewport,
+    wall,
+  ]);
+  const transform = useMemo(
+    () => (baseTransform ? withView(baseTransform, view) : null),
+    [baseTransform, view],
+  );
+
+  const zoomAt = useCallback((pointer, factor) => {
+    if (!baseTransform) return;
+    setView((current) => zoomViewAt(baseTransform, current, pointer, factor));
+  }, [baseTransform]);
+
+  const zoomIn = useCallback(() => {
+    zoomAt({ x: viewport.width / 2, y: viewport.height / 2 }, 1.08);
+  }, [viewport.height, viewport.width, zoomAt]);
+
+  const zoomOut = useCallback(() => {
+    zoomAt({ x: viewport.width / 2, y: viewport.height / 2 }, 1 / 1.08);
+  }, [viewport.height, viewport.width, zoomAt]);
+
+  useImperativeHandle(ref, () => ({ zoomIn, zoomOut }), [zoomIn, zoomOut]);
+
+  useEffect(() => {
+    onZoomChange?.(view.zoom);
+  }, [onZoomChange, view.zoom]);
+
+  const dimensionOffsets = useMemo(() => {
+    if (!dimensionChains || !transform) return null;
+    const lowerLevels = layoutDimensionRow(dimensionChains.lower.inner, {
+      scale: transform.scale,
+    }).levels;
+    const upperLevels = layoutDimensionRow(dimensionChains.upper.inner, {
+      scale: transform.scale,
+    }).levels;
+    const lowerOuterLevels = layoutDimensionRow(dimensionChains.lower.outer, {
+      scale: transform.scale,
+    }).levels;
+    const openingLevels = layoutDimensionRow(dimensionChains.openings, {
+      scale: transform.scale,
+    }).levels;
+    const verticalLevels = {
+      left: layoutDimensionRow(dimensionChains.vertical.left.inner, {
+        scale: transform.scale,
+      }).levels,
+      right: layoutDimensionRow(dimensionChains.vertical.right.inner, {
+        scale: transform.scale,
+      }).levels,
+    };
+    const extent = wallExtent(room, wall, settings);
+    const clear = {
+      below: Math.max(0, -extent.bottom) * transform.scale,
+      above: Math.max(0, extent.top - wall.height) * transform.scale,
+      left: Math.max(0, -extent.left) * transform.scale,
+      right: Math.max(0, extent.right - wall.length) * transform.scale,
+    };
+    const below = belowRowOffsets({
+      clearanceRow: false,
+      pieces: lowerLevels,
+      overall: lowerOuterLevels,
+      openings: openingLevels,
+    });
+    const upper = dimensionRowOffsets('horizontal', upperLevels);
+    const vertical = {
+      left: dimensionRowOffsets(
+        'vertical',
+        verticalLevels.left,
+        dimensionChains.vertical.left.middle.length > 0,
+      ),
+      right: dimensionRowOffsets(
+        'vertical',
+        verticalLevels.right,
+        dimensionChains.vertical.right.middle.length > 0,
+      ),
+    };
+    return {
+      lower: {
+        inner: below.pieces + clear.below,
+        outer: below.overall + clear.below,
+      },
+      upper: {
+        inner: upper.inner + clear.above,
+        outer: upper.outer + clear.above,
+      },
+      vertical: {
+        left: {
+          inner: vertical.left.inner + clear.left,
+          middle: vertical.left.middle + clear.left,
+          outer: vertical.left.outer + clear.left,
+        },
+        right: {
+          inner: vertical.right.inner + clear.right,
+          middle: vertical.right.middle + clear.right,
+          outer: vertical.right.outer + clear.right,
+        },
+      },
+      openings: below.openings + clear.below,
+      label: below.label + clear.below,
+      clear,
+    };
+  }, [dimensionChains, room, settings, transform, wall]);
+
+  useElevationKeys({
+    cancelDrag,
+    cancelEntry,
+    cursor,
+    dispatch,
+    dragRef,
+    entry,
+    facePath,
+    resetView,
+    room,
+    selectionRef,
+    setAlignmentGuides,
+    setStretchPreview,
+    stretchPreview,
+    tool,
+    wallRef,
+    zoomIn,
+    zoomOut,
+  });
+
+  const handleWheel = useCallback((event) => {
+    event.evt.preventDefault();
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+    let factor = event.evt.deltaY < 0 ? 1.08 : 1 / 1.08;
+    if (event.evt.ctrlKey || event.evt.metaKey) factor = 1 / factor;
+    zoomAt(pointer, factor);
+  }, [zoomAt]);
+
+  const handlePanPointerDown = useCallback((event) => {
+    const pointerEvent = event.evt;
+    const emptyCanvas = event.target === stageRef.current;
+    const middleDrag = pointerEvent.button === 1;
+    const spaceDrag = pointerEvent.button === 0 && spacePressedRef.current;
+    const selectDrag = pointerEvent.button === 0 && tool === 'select';
+    if (!emptyCanvas || entry || dragRef.current || stretchPreview
+      || (!middleDrag && !spaceDrag && !selectDrag)) return;
+    pointerEvent.preventDefault();
+    panRef.current = {
+      pointerId: pointerEvent.pointerId,
+      x: pointerEvent.clientX,
+      y: pointerEvent.clientY,
+      originX: pointerEvent.clientX,
+      originY: pointerEvent.clientY,
+      moved: false,
+      clearsSelection: selectDrag && !spaceDrag,
+    };
+  }, [entry, stretchPreview, tool]);
+
+  const dragBounds = useMemo(() => {
+    if (!drag) return null;
+    if (entry?.kind !== 'run-draw' && entry?.kind !== 'soffit-draw') {
+      return dragPointsToRunInput(drag.start, drag.current);
+    }
+    return runDrawBounds(
+      drag.start,
+      drag.current,
+      entryValue,
+      liveGestureRef.current?.direction,
+    );
+  }, [drag, entry?.kind, entryValue]);
+  const dragPreview = useMemo(() => {
+    if (!dragBounds || !room || !wall || dragBounds.width <= 0) return null;
+    const gesture = liveGestureRef.current;
+    if (gesture?.kind === 'soffit-draw') return { soffit: dragBounds };
+    const startSide = gesture?.direction < 0 ? 'right' : 'left';
+    const currentSide = startSide === 'left' ? 'right' : 'left';
+    const exactEdges = gesture?.kind === 'run-draw'
+      ? {
+          ...(Number.isFinite(gesture.snappedStartX)
+            ? { [startSide]: gesture.snappedStartX }
+            : {}),
+          ...(Number.isFinite(gesture.snappedCurrentX)
+            ? { [currentSide]: gesture.snappedCurrentX }
+            : {}),
+        }
+      : {};
+    const run = createRun(dragBounds, { settings, room, wall, exactEdges });
+    const placement = tryPlaceRun(room, wall.id, run, settings);
+    const resolvedWall = placement.room.walls.find(
+      (candidate) => candidate.id === wall.id,
+    );
+    return {
+      run: resolvedWall?.runs.find((candidate) => candidate.id === run.id) ?? run,
+      valid: placement.ok,
+    };
+  }, [dragBounds, room, settings, wall]);
+
+  const applyRunAlignment = useCallback((point, excludeRunId = null, axes = ['x']) => {
+    if (!wall || !transform) return { point, guides: [] };
+    const result = snapToAlignment(
+      point,
+      runAlignmentTargets(wall, excludeRunId),
+      ALIGNMENT_SNAP_PX / transform.scale,
+      axes,
+    );
+    setAlignmentGuides(result.guides);
+    return result;
+  }, [transform, wall]);
+
+  const wallPointFromEvent = (event) => {
+    if (!wall || !transform) return null;
+    const pointer = event.target.getStage()?.getPointerPosition();
+    const raw = pointer
+      ? screenPointToWallSnapped(
+        pointer,
+        wall,
+        transform,
+        undefined,
+        settings.maxRunOverhang,
+      )
+      : null;
+    if (!raw) return null;
+    const { point, guides } = applyRunAlignment(raw, null, ['x', 'z']);
+    return {
+      point,
+      snappedX: guides.find((guide) => guide.axis === 'x')?.value ?? null,
+    };
+  };
+
+  const suppressNextClick = useCallback(() => {
+    if (clickSuppressionTimeoutRef.current !== null) {
+      globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
+    }
+    suppressClickRef.current = true;
+    clickSuppressionTimeoutRef.current = globalThis.setTimeout(() => {
+      suppressClickRef.current = false;
+      clickSuppressionTimeoutRef.current = null;
+    }, 0);
+  }, []);
+
+  const commitRunDraw = useCallback((width) => {
+    const gesture = liveGestureRef.current;
+    if (gesture?.kind !== 'run-draw' || !room || !wall) return;
+    const bounds = runDrawBounds(
+      gesture.start,
+      gesture.current,
+      width,
+      gesture.direction,
+    );
+    const startSide = gesture.direction < 0 ? 'right' : 'left';
+    const currentSide = startSide === 'left' ? 'right' : 'left';
+    const exactEdges = {
+      ...(Number.isFinite(gesture.snappedStartX)
+        ? { [startSide]: gesture.snappedStartX }
+        : {}),
+      ...(Number.isFinite(gesture.snappedCurrentX)
+        ? { [currentSide]: gesture.snappedCurrentX }
+        : {}),
+    };
+    liveGestureRef.current = null;
+    cancelDrag();
+    setAlignmentGuides([]);
+
+    const run = createRun(bounds, { settings, room, wall, exactEdges });
+    const placement = tryPlaceRun(room, wall.id, run, settings);
+    if (!placement.ok) {
+      showMessage(placement.reason);
+      return;
+    }
+
+    if (messageTimeoutRef.current !== null) {
+      globalThis.clearTimeout(messageTimeoutRef.current);
+      messageTimeoutRef.current = null;
+    }
+    dispatch(setMessage(null));
+    const joinedPlacement = joinTouchingEdges(placement.room, wall.id, run.id, settings);
+    const stackedPlacement = joinTouchingStack(joinedPlacement.room, wall.id, run.id, settings);
+    if (joinedPlacement.joined.length > 0 || stackedPlacement.joined.length > 0) {
+      const resolvedWall = stackedPlacement.room.walls.find(
+        (candidate) => candidate.id === wall.id,
+      );
+      dispatch(replaceWallLayout({
+        wallId: wall.id,
+        runs: resolvedWall.runs,
+        joints: resolvedWall.joints,
+      }));
+    } else {
+      dispatch(addRun({ wallId: wall.id, run }));
+    }
+    dispatch(setSelection({ runId: run.id, pieceId: null }));
+  }, [cancelDrag, dispatch, room, settings, showMessage, wall]);
+
+  const commitSoffitDraw = useCallback((width) => {
+    const gesture = liveGestureRef.current;
+    if (gesture?.kind !== 'soffit-draw' || !room || !wall) return;
+    const bounds = runDrawBounds(
+      gesture.start,
+      gesture.current,
+      width,
+      gesture.direction,
+    );
+    liveGestureRef.current = null;
+    cancelDrag();
+    setAlignmentGuides([]);
+
+    const soffit = createSoffit(bounds, { settings, room, wall });
+    const resolvedSoffit = {
+      ...soffit,
+      ...resolveSoffitSpan(room, wall, soffit),
+    };
+    const validation = validateSoffitPlacement(wall, resolvedSoffit);
+    if (!validation.ok) {
+      showMessage(validation.reason === 'soffit-overlap'
+        ? "Soffits can't overlap"
+        : 'A soffit needs room below the ceiling');
+      return;
+    }
+
+    dispatch(addSoffit({ wallId: wall.id, soffit }));
+  }, [cancelDrag, dispatch, room, settings, showMessage, wall]);
+
+  const handleMouseDown = (event) => {
+    if ((tool !== 'draw' && tool !== 'soffit') || event.evt.button !== 0
+      || spacePressedRef.current || panRef.current) return;
+    if (entry) return;
+    const wallPoint = wallPointFromEvent(event);
+    if (!wallPoint) return;
+    const { point, snappedX } = wallPoint;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+    dispatch(setSelection({}));
+    updateDrag({ start: point, current: point });
+    setEntryPointer(pointer);
+    const kind = tool === 'soffit' ? 'soffit-draw' : 'run-draw';
+    liveGestureRef.current = {
+      kind,
+      start: point,
+      current: point,
+      direction: 1,
+      snappedStartX: snappedX,
+      pressStart: pointer,
+      awaitingClick: false,
+    };
+    beginEntry({
+      kind,
+      label: 'Width',
+      value: 0,
+      min: settings.minRunWidth,
+      max: Infinity,
+      onCommit: kind === 'soffit-draw' ? commitSoffitDraw : commitRunDraw,
+      onCancel: () => {
+        liveGestureRef.current = null;
+        cancelDrag();
+        setAlignmentGuides([]);
+      },
+    });
+  };
+
+  const handleMouseMove = (event) => {
+    const gesture = liveGestureRef.current;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!entry || !gesture || !pointer) return;
+    setEntryPointer(pointer);
+    if (
+      (entry.kind === 'run-draw' || entry.kind === 'soffit-draw')
+      && gesture.kind === entry.kind
+    ) {
+      const wallPoint = wallPointFromEvent(event);
+      if (!wallPoint) return;
+      const { point, snappedX } = wallPoint;
+      const direction = point.x === gesture.start.x
+        ? gesture.direction
+        : Math.sign(point.x - gesture.start.x);
+      liveGestureRef.current = {
+        ...gesture,
+        current: point,
+        direction,
+        snappedCurrentX: snappedX,
+      };
+      updateDrag({ start: gesture.start, current: point });
+      updateEntry(Math.abs(point.x - gesture.start.x));
+      return;
+    }
+    if (!transform) return;
+    const pointerX = screenToWall(pointer, transform).x;
+    if (entry.kind === 'run-edge' && gesture.kind === 'run-edge') {
+      if (gesture.jointId) {
+        liveGestureRef.current = { ...gesture, requestedJointX: pointerX };
+      }
+      const edgeX = gesture.jointId
+        ? gesture.side === 'right'
+          ? pointerX - gesture.offset
+          : pointerX + gesture.offset
+        : pointerX;
+      updateEntry(runWidthForEdgeX(gesture.run, gesture.side, edgeX));
+    } else if (entry.kind === 'run-move' && gesture.kind === 'run-move') {
+      updateEntry(pointerX - gesture.pointerStartX);
+    }
+  };
+
+  const handleMouseUp = (event) => {
+    const gesture = liveGestureRef.current;
+    if ((entry?.kind !== 'run-draw' && entry?.kind !== 'soffit-draw')
+      || gesture?.kind !== entry.kind
+      || gesture.awaitingClick) return;
+    const { point, snappedX } = wallPointFromEvent(event) ?? {
+      point: gesture.current,
+      snappedX: gesture.snappedCurrentX ?? null,
+    };
+    const pointer = stageRef.current?.getPointerPosition();
+    const direction = point.x === gesture.start.x
+      ? gesture.direction
+      : Math.sign(point.x - gesture.start.x);
+    liveGestureRef.current = {
+      ...gesture,
+      current: point,
+      direction,
+      snappedCurrentX: snappedX,
+    };
+    updateDrag({ start: gesture.start, current: point });
+    updateEntry(Math.abs(point.x - gesture.start.x));
+    suppressNextClick();
+
+    if (!panExceedsThreshold(gesture.pressStart, pointer)) {
+      liveGestureRef.current = { ...liveGestureRef.current, awaitingClick: true };
+      return;
+    }
+    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
+  };
+
+  const {
+    picker, hovered, pick, pickFace, choosePick, hoverPick, closePicker,
+  } = usePicker({ room, wall, settings, transform, stageRef, tool, suppressClickRef, dispatch });
+
+  // The wall row selects what's in it (SPEC-38.1): a recess full of cabinets can't be clicked otherwise.
+  const selectFeature = useCallback((segment) => {
+    if (tool !== 'select') return;
+    if (segment.kind === 'recess') {
+      dispatch(setSelection({ recessId: segment.recessId }));
+    } else if (segment.kind === 'opening' && wallRef.current?.side !== 'back') {
+      dispatch(setSelection({ openingId: segment.openingId }));
+    }
+  }, [dispatch, tool]);
+
+  const editTrack = useCallback((runId, edit) => setTrackEdit({ ...edit, runId }), []);
+  const editPieceSegment = useCallback((segment, point) => {
+    if (!segment.runId || !segment.pieceId
+      || segment.pieceId.startsWith(`${segment.runId}:`)) return;
+    setTrackEdit({
+      runId: segment.runId,
+      itemId: segment.pieceId,
+      label: 'Width',
+      value: segment.end - segment.start,
+      x: point.x,
+      y: point.y,
+    });
+  }, []);
+  const commitTrackEdit = useCallback((size) => {
+    if (trackEdit && wall) {
+      dispatch(trackEdit.trackId
+        ? setTrackSize({
+          wallId: wall.id,
+          runId: trackEdit.runId,
+          trackId: trackEdit.trackId,
+          size,
+        })
+        : setItemWidth({
+          wallId: wall.id,
+          runId: trackEdit.runId,
+          itemId: trackEdit.itemId,
+          width: size,
+        }));
+    }
+    setTrackEdit(null);
+  }, [dispatch, trackEdit, wall]);
+
+  const selectOpening = useCallback((openingId) => {
+    if (tool !== 'select' || suppressClickRef.current) return;
+    dispatch(setSelection({ openingId }));
+  }, [dispatch, tool]);
+
+  const moveSelectedOpening = useCallback((openingId, x) => {
+    if (!wall) return;
+    dispatch(moveOpening({ wallId: wall.id, openingId, x }));
+  }, [dispatch, wall]);
+
+  const handleStageClick = useCallback((event) => {
+    if (suppressClickRef.current) return;
+    if (event.target !== event.target.getStage()) return;
+    if (entry) {
+      commitEntry();
+      return;
+    }
+    if (tool === 'select') {
+      dispatch(setSelection({}));
+      return;
+    }
+    if (tool === 'recess') {
+      if (!room || !wall || !transform) return;
+      const pointer = stageRef.current?.getPointerPosition();
+      if (!pointer) return;
+      const rawPoint = screenToWall(pointer, transform);
+      if (rawPoint.x < 0 || rawPoint.x > wall.length
+        || rawPoint.z < 0 || rawPoint.z > wall.height) return;
+      const recess = createRecess({ kind: 'recess', x: rawPoint.x }, { room, wall });
+      const validation = validateRecessPlacement(wall, recess);
+      if (!validation.ok) {
+        showMessage(RECESS_PLACEMENT_MESSAGES[validation.reason] ?? validation.reason);
+        return;
+      }
+      dispatch(addRecess({ wallId: wall.id, recess }));
+      return;
+    }
+    if ((tool !== 'door' && tool !== 'window') || !room || !wall || !transform) return;
+    if (wall.side === 'back') {
+      showMessage('Add doors and windows from the front');
+      return;
+    }
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer) return;
+    const rawPoint = screenToWall(pointer, transform);
+    if (rawPoint.x < 0 || rawPoint.x > wall.length
+      || rawPoint.z < 0 || rawPoint.z > wall.height) return;
+    const point = screenPointToWallSnapped(
+      pointer,
+      wall,
+      transform,
+      settings.openingSnap,
+      0,
+    );
+    const opening = createOpening({ kind: tool, x: point.x }, { settings, room, wall });
+    const jamb = openingGeometry(opening, wall.length, settings).jamb;
+    const host = recessForSpan(wall, {
+      left: jamb.x, right: jamb.x + jamb.width, bottom: jamb.z, top: jamb.z + jamb.height,
+    }, 0, ['recess']);
+    const placed = host ? { ...opening, recessId: host.id } : opening;
+    const validation = validateOpeningPlacement(wall, placed, settings);
+    if (!validation.ok) {
+      showMessage(validation.reason);
+      return;
+    }
+    if (messageTimeoutRef.current !== null) {
+      globalThis.clearTimeout(messageTimeoutRef.current);
+      messageTimeoutRef.current = null;
+    }
+    dispatch(setMessage(null));
+    dispatch(addOpening({ wallId: wall.id, opening: placed }));
+    dispatch(setSelection({ openingId: placed.id }));
+  }, [commitEntry, dispatch, entry, room, settings, showMessage, tool, transform, wall]);
+
+  const {
+    previewStretch,
+    startStretch,
+    updateStretch,
+    finishStretch,
+  } = useRunStretch({
+    applyRunAlignment,
+    beginEntry,
+    cancelEntry,
+    commitEntry,
+    cursor,
+    dispatch,
+    entryRef,
+    liveGestureRef,
+    messageTimeoutRef,
+    room,
+    RUN_TYPE_LABELS,
+    runEdgeXForWidth,
+    runWidthForEdgeX,
+    setAlignmentGuides,
+    setEntryPointer,
+    setStretchPreview,
+    settings,
+    showMessage,
+    stageRef,
+    updateEntry,
+    wall,
+  });
+
+  const {
+    applyRunMove,
+    startRunMove,
+    handleRunSegmentClick,
+    updateRunMove,
+    finishRunMove,
+  } = useRunMove({
+    beginEntry,
+    cancelEntry,
+    commitEntry,
+    cursor,
+    dispatch,
+    entryRef,
+    liveGestureRef,
+    moveOriginRef,
+    room,
+    selectionRef,
+    setAlignmentGuides,
+    setEntryPointer,
+    setStretchPreview,
+    settings,
+    showMessage,
+    stageRef,
+    tool,
+    transform,
+    updateEntry,
+    wall,
+  });
+
+  const {
+    previewJointDrag,
+    startJointDrag,
+    finishJointDrag,
+    unjoinRunSide,
+  } = useJointDrag({
+    applyRunMove,
+    beginEntry,
+    cancelEntry,
+    commitEntry,
+    cursor,
+    dispatch,
+    entry,
+    entryRef,
+    entryValue,
+    liveGestureRef,
+    previewStretch,
+    room,
+    RUN_TYPE_LABELS,
+    runEdgeXForWidth,
+    runWidthForEdgeX,
+    selectionRef,
+    setAlignmentGuides,
+    setEntryPointer,
+    setHoveredGlyphId,
+    setStretchPreview,
+    settings,
+    showMessage,
+    stageRef,
+    updateEntry,
+    wall,
+  });
+
+  return (
+    <div
+      ref={containerRef}
+      className="relative h-full w-full overflow-hidden bg-gray-900"
+      style={{ cursor: cursorStyle }}
+    >
+      {!wall && (
+        <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-500">
+          Add a wall to begin.
+        </div>
+      )}
+      {wall && transform && (
+        <Stage
+          ref={stageRef}
+          width={viewport.width}
+          height={viewport.height}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onPointerDown={handlePanPointerDown}
+          onPointerCancel={stopPanning}
+          onWheel={handleWheel}
+          onClick={handleStageClick}
+        >
+          <Layer listening={false}>
+            <Rect width={viewport.width} height={viewport.height} fill="#111827" />
+            <WallFrame
+              wall={wall}
+              transform={transform}
+              crownTop={profile?.crownTop}
+            />
+          </Layer>
+          <Layer>
+            <RecessShapes
+              wall={wall}
+              transform={transform}
+              selectedRecessId={selection.recessId}
+              onSelect={tool === 'select' ? pick : undefined}
+            />
+            {(wall.openings ?? []).map((opening) => (
+              <OpeningShape
+                key={opening.id}
+                opening={opening}
+                geometry={openingGeometry(opening, wall.length, settings)}
+                transform={transform}
+                selected={selection.openingId === opening.id}
+                selectable={tool === 'select' && wall.side !== 'back'}
+                onSelect={selectOpening}
+                onPick={pick}
+                onMove={(x) => moveSelectedOpening(opening.id, x)}
+                cursor={cursor}
+              />
+            ))}
+            <SoffitShapes
+              room={room}
+              wall={wall}
+              settings={settings}
+              transform={transform}
+              selectedSoffitId={selection.soffitId}
+              onSelect={tool === 'select' ? pick : undefined}
+            />
+            {wall.runs.map((run) => (
+              <RunGroup
+                key={run.id}
+                run={run}
+                room={room}
+                wall={wall}
+                settings={settings}
+                diagnostic={diagnostics[run.id]}
+                transform={transform}
+                selectedRun={selection.runId === run.id}
+                selectedPieceId={
+                  selection.runId === run.id ? selection.pieceId : null
+                }
+                onSelectRun={pick}
+                onSelectPiece={pick}
+                selectedFacePath={selection.runId === run.id ? facePath : null}
+                onSelectFace={pickFace}
+                onEditTrack={editTrack}
+                stretchable={tool === 'select'}
+                onStretchStart={startStretch}
+                onStretchMove={updateStretch}
+                onStretchEnd={finishStretch}
+                cursor={cursor}
+              />
+            ))}
+            <WallEndPanelShapes
+              room={room}
+              wall={wall}
+              settings={settings}
+              transform={transform}
+              selectedEndpoint={selection.endPanel ?? null}
+              onSelect={tool === 'select' ? pick : undefined}
+              cursor={cursor}
+            />
+            {tool === 'select' && (
+              <JointMarkers
+                wall={wall}
+                transform={transform}
+                selectedRunId={selection.runId}
+                onJointDragStart={startJointDrag}
+                onJointDragMove={previewJointDrag}
+                onJointDragEnd={finishJointDrag}
+                onUnjoin={unjoinRunSide}
+                hoveredGlyphId={hoveredGlyphId}
+                setHoveredGlyphId={setHoveredGlyphId}
+                cursor={cursor}
+              />
+            )}
+          </Layer>
+          <Layer listening={false}>
+            <NeighborReturns
+              room={room}
+              wall={wall}
+              settings={settings}
+              transform={transform}
+            />
+            <NeighborProfiles
+              room={room}
+              wall={wall}
+              settings={settings}
+              transform={transform}
+            />
+            {selection.recessId && (
+              <RecessOutline wall={wall} transform={transform} recessId={selection.recessId} />
+            )}
+            <PickOutline candidate={hovered} transform={transform} />
+            <ElevationAlignmentGuides
+              guides={alignmentGuides}
+              transform={transform}
+              width={viewport.width}
+              height={viewport.height}
+            />
+          </Layer>
+          <ElevationDimensions
+            dimensionChains={dimensionChains}
+            dimensionOffsets={dimensionOffsets}
+            tool={tool}
+            transform={transform}
+            wall={wall}
+            editPieceSegment={editPieceSegment}
+            cursor={cursor}
+            handleRunSegmentClick={handleRunSegmentClick}
+            startRunMove={startRunMove}
+            updateRunMove={updateRunMove}
+            finishRunMove={finishRunMove}
+            selection={selection}
+            selectFeature={selectFeature}
+            room={room}
+          />
+          <ElevationPreviews
+            stretchPreview={stretchPreview}
+            settings={settings}
+            transform={transform}
+            dragPreview={dragPreview}
+            wall={wall}
+          />
+          {partNumbering && (
+            <Layer listening={false}>
+              <PartNumberLayer
+                room={room}
+                wall={wall}
+                settings={settings}
+                partNumbers={partNumbering}
+                transform={transform}
+              />
+            </Layer>
+          )}
+        </Stage>
+      )}
+      {entry && (
+        <LiveEntryInput
+          entry={entry}
+          position={entryPointer}
+          containerRef={containerRef}
+          containerSize={viewport}
+          onTyped={setEntryTyped}
+          onCycle={cycleEntry}
+          onCommit={commitEntry}
+          onCancel={cancelEntry}
+        />
+      )}
+      {trackEdit && (
+        <TrackSizeInput
+          edit={trackEdit}
+          onCommit={commitTrackEdit}
+          onCancel={() => setTrackEdit(null)}
+        />
+      )}
+      <SelectionPicker picker={picker} onChoose={choosePick} onHover={hoverPick} onClose={closePicker} />
+    </div>
+  );
+}
+
+export default forwardRef(ElevationCanvas);

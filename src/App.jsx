@@ -7,6 +7,7 @@ import AppShell from './components/layout/AppShell';
 import ProjectList from './components/projects/ProjectList';
 import RoomEditor from './components/rooms/RoomEditor';
 import Login from './components/auth/Login';
+import ElevationLab from './elevation/ElevationLab';
 
 function App() {
   const dispatch = useDispatch();
@@ -48,6 +49,7 @@ function App() {
     <AppShell>
       <Routes>
         <Route path="/" element={<ProjectList />} />
+        <Route path="/elevation-lab" element={<ElevationLab />} />
         <Route path="/projects/:projectId/rooms/:roomId" element={<RoomEditor />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

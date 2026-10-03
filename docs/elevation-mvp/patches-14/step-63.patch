@@ -1,0 +1,388 @@
+diff --git a/src/elevation/ElevationLab.jsx b/src/elevation/ElevationLab.jsx
+index 40a3e04..350d43e 100644
+--- a/src/elevation/ElevationLab.jsx
++++ b/src/elevation/ElevationLab.jsx
+@@ -5,6 +5,7 @@ import ElevationToolbar from './components/ElevationToolbar.jsx';
+ import JsonToggle from './components/JsonToggle.jsx';
+ import PropertiesPanel from './components/PropertiesPanel.jsx';
+ import RoomHeightsPanel from './components/RoomHeightsPanel.jsx';
++import RoomStylePanel from './components/RoomStylePanel.jsx';
+ import RoomPicker from './components/RoomPicker.jsx';
+ import SampleRunsButton from './components/SampleRunsButton.jsx';
+ import SettingsPanel from './components/SettingsPanel.jsx';
+@@ -39,6 +40,7 @@ export default function ElevationLab() {
+         <div className="space-y-5">
+           <RoomPicker />
+           <RoomHeightsPanel />
++          <RoomStylePanel />
+           <WallList />
+           <SampleRunsButton />
+           <SettingsPanel />
+diff --git a/src/elevation/components/InchInput.jsx b/src/elevation/components/InchInput.jsx
+index 12dc980..f7bc3cf 100644
+--- a/src/elevation/components/InchInput.jsx
++++ b/src/elevation/components/InchInput.jsx
+@@ -1,24 +1,25 @@
+ import { useEffect, useState } from 'react';
+ import { formatInchesInput, parseInches } from '../model/units.js';
+ 
+-function displayValue(value) {
+-  return value === null || value === undefined ? '' : formatInchesInput(value);
++function displayValue(value, step) {
++  return value === null || value === undefined ? '' : formatInchesInput(value, step);
+ }
+ 
+ export default function InchInput({
+   value,
+   onCommit,
+   allowBlank = false,
++  displayStep,
+   className = '',
+   ...inputProps
+ }) {
+-  const [text, setText] = useState(() => displayValue(value));
++  const [text, setText] = useState(() => displayValue(value, displayStep));
+ 
+   useEffect(() => {
+-    setText(displayValue(value));
+-  }, [value]);
++    setText(displayValue(value, displayStep));
++  }, [value, displayStep]);
+ 
+-  const revert = () => setText(displayValue(value));
++  const revert = () => setText(displayValue(value, displayStep));
+ 
+   const commit = () => {
+     const trimmed = text.trim();
+@@ -37,7 +38,7 @@ export default function InchInput({
+ 
+     const accepted = onCommit(parsed);
+     if (accepted === false) revert();
+-    else setText(formatInchesInput(parsed));
++    else setText(formatInchesInput(parsed, displayStep));
+   };
+ 
+   return (
+diff --git a/src/elevation/components/PropertiesPanel.jsx b/src/elevation/components/PropertiesPanel.jsx
+index 87fd61a..59d0314 100644
+--- a/src/elevation/components/PropertiesPanel.jsx
++++ b/src/elevation/components/PropertiesPanel.jsx
+@@ -75,6 +75,7 @@ import {
+ } from '../store/elevationSlice.js';
+ import InchInput from './InchInput.jsx';
+ import FaceProperties from './properties/FaceProperties.jsx';
++import RunFaceOptions from './properties/RunFaceOptions.jsx';
+ 
+ const RUN_TYPES = [
+   [CABINET_TYPE_IDS.BASE, 'Base'],
+@@ -1005,6 +1006,8 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
+         </div>
+       </section>
+ 
++      <RunFaceOptions room={room} wall={wall} run={run} settings={settings} />
++
+       <WarningsList layout={layout} />
+     </div>
+   );
+diff --git a/src/elevation/components/RoomStylePanel.jsx b/src/elevation/components/RoomStylePanel.jsx
+new file mode 100644
+index 0000000..d8cf39f
+--- /dev/null
++++ b/src/elevation/components/RoomStylePanel.jsx
+@@ -0,0 +1,23 @@
++import { useDispatch, useSelector } from 'react-redux';
++import { resolveStyle } from '../model/index.js';
++import { setRoomStyle } from '../store/elevationSlice.js';
++import StyleFields from './properties/StyleFields.jsx';
++
++export default function RoomStylePanel() {
++  const dispatch = useDispatch();
++  const { rooms, activeRoomId, settings } = useSelector((state) => state.elevation);
++  const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
++  if (!room) return null;
++
++  return (
++    <section className="border-t border-gray-700 pt-4">
++      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-300">Cabinet style</h3>
++      <StyleFields
++        label="Room"
++        value={room.style}
++        inherited={resolveStyle(settings)}
++        onChange={(style) => dispatch(setRoomStyle({ roomId: room.id, style }))}
++      />
++    </section>
++  );
++}
+diff --git a/src/elevation/components/properties/CabinetStyleProperties.jsx b/src/elevation/components/properties/CabinetStyleProperties.jsx
+new file mode 100644
+index 0000000..ec7978e
+--- /dev/null
++++ b/src/elevation/components/properties/CabinetStyleProperties.jsx
+@@ -0,0 +1,67 @@
++import { useDispatch } from 'react-redux';
++import {
++  REVEAL_KEYS,
++  REVEAL_SOURCE_LABELS,
++  formatInches,
++  resolveStyle,
++} from '../../model/index.js';
++import { setItemReveals, setItemStyle } from '../../store/elevationSlice.js';
++import InchInput from '../InchInput.jsx';
++import StyleFields from './StyleFields.jsx';
++
++const REVEAL_STEP = 1 / 32;
++
++const REVEAL_LABELS = {
++  top: 'Top',
++  bottom: 'Bottom',
++  left: 'Left',
++  right: 'Right',
++  horizontal: 'Between stacked',
++  vertical: 'Between side by side',
++};
++
++// `faceLayout` is this cabinet's entry from runFaceLayouts (faces, style, reveals).
++export default function CabinetStyleProperties({ room, wall, run, item, settings, faceLayout }) {
++  const dispatch = useDispatch();
++  const at = { wallId: wall.id, runId: run.id, itemIds: [item.id] };
++  const manual = item.reveals ?? {};
++  const { values, sources } = faceLayout.reveals;
++
++  const setReveal = (key, value) => {
++    dispatch(setItemReveals({ ...at, reveals: { ...manual, [key]: value } }));
++    return true;
++  };
++
++  return (
++    <section className="space-y-3">
++      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Cabinet style</h3>
++      <StyleFields
++        label="Cabinet"
++        value={item.style}
++        inherited={resolveStyle(settings, room, run)}
++        onChange={(style) => dispatch(setItemStyle({ ...at, style }))}
++      />
++
++      <div className="space-y-1.5">
++        <p className="text-xs text-gray-400">Reveals (blank = automatic)</p>
++        {REVEAL_KEYS.map((key) => (
++          <div key={key} className="grid grid-cols-[1fr_5rem] items-center gap-2 text-xs">
++            <span className="text-gray-400">
++              {REVEAL_LABELS[key]}
++              <span className="ml-1 text-gray-500">
++                {formatInches(values[key], REVEAL_STEP)} · {REVEAL_SOURCE_LABELS[sources[key]]}
++              </span>
++            </span>
++            <InchInput
++              value={manual[key] ?? null}
++              allowBlank
++              displayStep={REVEAL_STEP}
++              onCommit={(next) => setReveal(key, next)}
++              aria-label={`Manual ${REVEAL_LABELS[key]} reveal`}
++            />
++          </div>
++        ))}
++      </div>
++    </section>
++  );
++}
+diff --git a/src/elevation/components/properties/FaceProperties.jsx b/src/elevation/components/properties/FaceProperties.jsx
+index 200101d..40c9f10 100644
+--- a/src/elevation/components/properties/FaceProperties.jsx
++++ b/src/elevation/components/properties/FaceProperties.jsx
+@@ -5,7 +5,7 @@ import {
+   FACE_TYPES,
+   MAX_FACE_SPLIT,
+   ROOT_FACE_PATH,
+-  cabinetFaces,
++  runFaceLayouts,
+   defaultFace,
+   equalizeGroup,
+   faceOutline,
+@@ -20,6 +20,7 @@ import {
+ } from '../../model/index.js';
+ import { setFacePath, setItemFace } from '../../store/elevationSlice.js';
+ import InchInput from '../InchInput.jsx';
++import CabinetStyleProperties from './CabinetStyleProperties.jsx';
+ 
+ const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600';
+ const DISABLED_CLASS = 'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gray-700';
+@@ -37,7 +38,11 @@ export default function FaceProperties({ wall, run, piece, item, layout, setting
+   const facePath = useSelector((state) => state.elevation.facePath);
+   const stored = item.face ?? null;
+   const face = stored ?? defaultFace(piece.width, settings);
+-  const { warnings } = cabinetFaces(item, piece, run.cabinetTypeId, settings);
++  const room = useSelector((state) => state.elevation.rooms.find(
++    (candidate) => candidate.id === state.elevation.activeRoomId,
++  ));
++  const faceLayout = runFaceLayouts(room, wall, run, settings, layout).get(piece.id);
++  const warnings = faceLayout?.warnings ?? [];
+   const [splitCount, setSplitCount] = useState(2);
+   const selected = facePath === null ? null : getFaceNode(face, facePath);
+   const sameWidthIds = layout.pieces
+@@ -75,6 +80,17 @@ export default function FaceProperties({ wall, run, piece, item, layout, setting
+ 
+   return (
+     <section className="space-y-3">
++      {faceLayout && (
++        <CabinetStyleProperties
++          room={room}
++          wall={wall}
++          run={run}
++          item={item}
++          settings={settings}
++          faceLayout={faceLayout}
++        />
++      )}
++
+       <div className="flex items-center justify-between">
+         <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Faces</h3>
+         {stored === null ? (
+diff --git a/src/elevation/components/properties/RunFaceOptions.jsx b/src/elevation/components/properties/RunFaceOptions.jsx
+new file mode 100644
+index 0000000..8544a6f
+--- /dev/null
++++ b/src/elevation/components/properties/RunFaceOptions.jsx
+@@ -0,0 +1,60 @@
++import { useDispatch } from 'react-redux';
++import { CABINET_TYPE_IDS, resolveStyle } from '../../model/index.js';
++import { setRunFaceOptions, setRunStyle } from '../../store/elevationSlice.js';
++import StyleFields from './StyleFields.jsx';
++
++const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
++
++const UPPER_BOTTOM_LABELS = {
++  overhang: 'Overhang (doors below box)',
++  flush: 'Flush (light rail / trough)',
++  counter: 'On counter (tall reveals)',
++};
++
++export default function RunFaceOptions({ room, wall, run, settings }) {
++  const dispatch = useDispatch();
++  const at = { wallId: wall.id, runId: run.id };
++
++  return (
++    <section className="space-y-3 border-t border-gray-700 pt-3">
++      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Cabinet style</h3>
++      <StyleFields
++        label="Run"
++        value={run.style}
++        inherited={resolveStyle(settings, room)}
++        onChange={(style) => dispatch(setRunStyle({ ...at, style }))}
++      />
++
++      {run.cabinetTypeId === CABINET_TYPE_IDS.BASE && (
++        <label className="block text-xs text-gray-400">
++          Top
++          <select
++            value={run.top ?? 'stone'}
++            onChange={(event) => dispatch(setRunFaceOptions({ ...at, top: event.target.value }))}
++            aria-label="Run top"
++            className={`mt-1 ${SELECT_CLASS}`}
++          >
++            <option value="stone">Stone</option>
++            <option value="wood">Shop-built wood</option>
++          </select>
++        </label>
++      )}
++
++      {run.cabinetTypeId === CABINET_TYPE_IDS.UPPER && (
++        <label className="block text-xs text-gray-400">
++          Bottom
++          <select
++            value={run.upperBottom ?? 'overhang'}
++            onChange={(event) => dispatch(setRunFaceOptions({ ...at, upperBottom: event.target.value }))}
++            aria-label="Upper bottom"
++            className={`mt-1 ${SELECT_CLASS}`}
++          >
++            {Object.entries(UPPER_BOTTOM_LABELS).map(([value, text]) => (
++              <option key={value} value={value}>{text}</option>
++            ))}
++          </select>
++        </label>
++      )}
++    </section>
++  );
++}
+diff --git a/src/elevation/components/properties/StyleFields.jsx b/src/elevation/components/properties/StyleFields.jsx
+new file mode 100644
+index 0000000..74f1566
+--- /dev/null
++++ b/src/elevation/components/properties/StyleFields.jsx
+@@ -0,0 +1,76 @@
++import { CABINET_STYLE_IDS, CABINET_STYLE_LABELS, formatInches } from '../../model/index.js';
++import InchInput from '../InchInput.jsx';
++
++const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
++
++/**
++ * Style / bead / edge controls for one level (room, run or cabinet).
++ * `value` is that level's stored partial style (or undefined); `inherited` is the resolved
++ * style of the level above. onChange receives the next partial; blank / "Inherit" removes a key.
++ */
++export default function StyleFields({ label, value, inherited, onChange }) {
++  const own = value ?? {};
++  const effectiveId = own.cabinetStyleId ?? inherited.cabinetStyleId;
++  const change = (key, next) => onChange({ ...own, [key]: next });
++  const edgeValue = own.profiledEdge === undefined || own.profiledEdge === null
++    ? ''
++    : String(own.profiledEdge);
++
++  return (
++    <div className="space-y-2">
++      <label className="block text-xs text-gray-400">
++        {label}
++        <select
++          value={own.cabinetStyleId ?? ''}
++          onChange={(event) => change(
++            'cabinetStyleId',
++            event.target.value === '' ? null : Number(event.target.value),
++          )}
++          aria-label={`${label} style`}
++          className={`mt-1 ${SELECT_CLASS}`}
++        >
++          <option value="">Inherit ({CABINET_STYLE_LABELS[inherited.cabinetStyleId]})</option>
++          {Object.values(CABINET_STYLE_IDS).map((id) => (
++            <option key={id} value={id}>{CABINET_STYLE_LABELS[id]}</option>
++          ))}
++        </select>
++      </label>
++
++      {effectiveId === CABINET_STYLE_IDS.BEADED_INSET && (
++        <label className="block text-xs text-gray-400">
++          Bead width
++          <InchInput
++            value={own.beadWidth ?? null}
++            allowBlank
++            displayStep={1 / 32}
++            placeholder={formatInches(inherited.beadWidth, 1 / 32)}
++            onCommit={(next) => {
++              if (next !== null && next < 0) return false;
++              change('beadWidth', next);
++              return true;
++            }}
++            aria-label={`${label} bead width`}
++            className="mt-1"
++          />
++        </label>
++      )}
++
++      <label className="block text-xs text-gray-400">
++        Outside edge
++        <select
++          value={edgeValue}
++          onChange={(event) => change(
++            'profiledEdge',
++            event.target.value === '' ? null : event.target.value === 'true',
++          )}
++          aria-label={`${label} outside edge`}
++          className={`mt-1 ${SELECT_CLASS}`}
++        >
++          <option value="">Inherit ({inherited.profiledEdge ? 'Profiled' : 'Square'})</option>
++          <option value="false">Square</option>
++          <option value="true">Profiled / molded</option>
++        </select>
++      </label>
++    </div>
++  );
++}
