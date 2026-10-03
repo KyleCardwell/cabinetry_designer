@@ -244,6 +244,7 @@ export {
   centerlineMarkers,
   horizontalChains,
   openingChain,
+  clearanceCallouts,
   openingClearances,
   pickColumnRuns,
   stackChain,

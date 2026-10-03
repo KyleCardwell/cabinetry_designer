@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { openingClearances } from '../dimensions.js';
+import { clearanceCallouts, openingClearances } from '../dimensions.js';
 import { roomDiagnostics, syncRoom } from '../room.js';
 
 function windowOpening(overrides = {}) {
@@ -149,5 +149,24 @@ describe('openingClearances', () => {
     const [left, right] = openingClearances(room, room.walls[0], settings);
     expect(left).toMatchObject({ start: 67, end: 69, required: 4, violated: true });
     expect(right).toMatchObject({ start: 111, end: 120, required: 4, violated: false });
+  });
+
+  it('SPEC-39.1 draws each clearance at the middle of its run and the casing, or of the casing', () => {
+    const room = testRoom({
+      runs: [
+        cabinetRun({ x: 20, width: 40 }),
+        cabinetRun({
+          id: 'upper', cabinetTypeId: CABINET_TYPE_IDS.UPPER, x: 114, width: 6, z: 54, height: 30, depth: 12,
+        }),
+      ],
+    });
+    expect(clearanceCallouts(room, room.walls[0], DEFAULT_SETTINGS)).toEqual([
+      { openingId: 'window-1', label: 'W1', side: 'left', start: 60, end: 69,
+        targetRunId: 'base', required: 0, violated: false, z: 34.75 },
+      { openingId: 'window-1', label: 'W1', side: 'right', start: 111, end: 114,
+        targetRunId: 'upper', required: 0, violated: false, z: 69 },
+    ]);
+    const alone = testRoom({ runs: [cabinetRun({ x: 20, width: 40 })] });
+    expect(clearanceCallouts(alone, alone.walls[0], DEFAULT_SETTINGS)[1]).toMatchObject({ end: 120, z: 60 });
   });
 });

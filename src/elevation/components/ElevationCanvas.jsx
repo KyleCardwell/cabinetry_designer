@@ -62,7 +62,7 @@ import {
   horizontalChains,
   nearerEdge,
   openingChain,
-  openingClearances,
+  clearanceCallouts,
   pickColumnRuns,
   verticalChains,
   verticalOpeningChain,
@@ -214,7 +214,7 @@ function ElevationCanvas({
       lower,
       upper,
       openings: openingChain(room, wall, settings),
-      clearances: openingClearances(room, wall, settings),
+      clearances: clearanceCallouts(room, wall, settings),
       vertical: {
         left: verticalFor('left'),
         right: verticalFor('right'),
@@ -455,9 +455,6 @@ function ElevationCanvas({
     const openingLevels = layoutDimensionRow(dimensionChains.openings, {
       scale: transform.scale,
     }).levels;
-    const clearanceLevels = layoutDimensionRow(dimensionChains.clearances, {
-      scale: transform.scale,
-    }).levels;
     const verticalLevels = {
       left: layoutDimensionRow(dimensionChains.vertical.left.inner, {
         scale: transform.scale,
@@ -474,7 +471,7 @@ function ElevationCanvas({
       right: Math.max(0, extent.right - wall.length) * transform.scale,
     };
     const below = belowRowOffsets({
-      clearances: clearanceLevels,
+      clearanceRow: false,
       pieces: lowerLevels,
       overall: lowerOuterLevels,
       openings: openingLevels,
@@ -514,7 +511,6 @@ function ElevationCanvas({
         },
       },
       openings: below.openings + clear.below,
-      clearances: below.clearances + clear.below,
       label: below.label + clear.below,
       clear,
     };

@@ -35,6 +35,16 @@ describe('belowRowOffsets', () => {
       label: 150,
     });
   });
+
+  it('SPEC-39.1 drops the clearance row when clearances are drawn in the wall', () => {
+    expect(belowRowOffsets({ clearanceRow: false })).toEqual({
+      clearances: 20,
+      pieces: 20,
+      overall: 42,
+      openings: 64,
+      label: 86,
+    });
+  });
 });
 
 describe('layoutDimensionRow', () => {

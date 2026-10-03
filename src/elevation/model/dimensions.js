@@ -197,6 +197,26 @@ export function openingClearances(room, wall, settings) {
   });
 }
 
+/**
+ * The casing clearances as drawn inside the wall (SPEC-39.1): each openingClearances segment plus the
+ * height `z` it sits at, the middle of where its run and the casing overlap vertically, or the
+ * casing's middle when it runs to the wall end.
+ */
+export function clearanceCallouts(room, wall, settings) {
+  const length = wallLength(wall);
+  return openingClearances(room, wall, settings).map((segment) => {
+    const opening = wall.openings.find((candidate) => candidate.id === segment.openingId);
+    const geometry = openingGeometry(opening, length, settings);
+    const casing = geometry.casing ?? geometry.jamb;
+    const run = wall.runs.find((candidate) => candidate.id === segment.targetRunId) ?? null;
+    const bottom = run ? Math.max(casing.z, verticalStart(run)) : casing.z;
+    const top = run
+      ? Math.min(casing.z + casing.height, run.z + run.height)
+      : casing.z + casing.height;
+    return { ...segment, z: (bottom + top) / 2 };
+  });
+}
+
 /** A face frame region along its bottom row of openings: frame | opening | frame … (SPEC-36). */
 function regionSegments(region, pieces, faceLayouts, runId) {
   const boxes = pieces.filter((piece) => region.cabinetIds.includes(piece.id));

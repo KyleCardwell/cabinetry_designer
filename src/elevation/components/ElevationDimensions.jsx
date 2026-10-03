@@ -2,6 +2,7 @@ import { Layer, Text } from 'react-konva';
 import { wallToScreen } from '../canvas/transform.js';
 import { elevationLabel } from '../model/topology.js';
 import DimensionRow from './DimensionRow.jsx';
+import ClearanceCallouts from './ClearanceCallouts.jsx';
 
 export default function ElevationDimensions({
   dimensionChains,
@@ -23,17 +24,7 @@ export default function ElevationDimensions({
     <>
       {dimensionChains && dimensionOffsets && (
         <Layer listening={tool === 'select'}>
-          <DimensionRow
-            segments={dimensionChains.clearances}
-            orientation="horizontal"
-            side="below"
-            offsetPx={dimensionOffsets.clearances}
-            transform={transform}
-            edgeGapPx={dimensionOffsets.clear.below}
-            wallEndMarks={[0, wall.length]}
-            onPieceClick={tool === 'select' ? editPieceSegment : undefined}
-            cursor={cursor}
-          />
+          <ClearanceCallouts callouts={dimensionChains.clearances} transform={transform} />
           <DimensionRow
             segments={dimensionChains.lower.inner}
             orientation="horizontal"
