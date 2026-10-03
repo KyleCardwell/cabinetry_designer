@@ -97,6 +97,10 @@ function runParts(room, wall, side, settings) {
         pieceId: piece.id,
         molding: null,
         width: teeWidths.get(piece.id) ?? cellWidths.get(piece.id) ?? widths.get(piece.id) ?? piece.width,
+        x: piece.x,
+        z: piece.z,
+        height: piece.height,
+        source: 'piece',
       }));
     // A T-filler between boxes is a filler part of its own, numbered beside its seam (SPEC-37.3).
     const seamParts = tees.filter((tee) => !tee.end).map((tee) => ({
@@ -110,6 +114,10 @@ function runParts(room, wall, side, settings) {
         pieceId: tee.id,
         molding: null,
         width: tee.partWidth,
+        x: tee.x,
+        z: tee.z,
+        height: tee.height,
+        source: 'tee',
       },
     }));
     return [
@@ -128,6 +136,10 @@ function runParts(room, wall, side, settings) {
         pieceId: null,
         molding: null,
         width: region.width,
+        x: region.x,
+        z: region.z,
+        height: region.height,
+        source: 'frame',
       })),
     ];
   });
@@ -143,6 +155,10 @@ function wallPanelPart(wall, panel) {
     pieceId: null,
     molding: null,
     width: panel.width,
+    x: panel.front.x,
+    z: 0,
+    height: panel.top,
+    source: 'wall_end_panel',
   };
 }
 
@@ -184,6 +200,10 @@ export function roomParts(room, settings) {
         pieceId: null,
         molding,
         width: null,
+        x: null,
+        z: null,
+        height: null,
+        source: 'molding',
       });
     }
   }

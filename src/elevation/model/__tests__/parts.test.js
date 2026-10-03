@@ -23,4 +23,23 @@ describe('SPEC-39 the parts list', () => {
         .toEqual(partNumbers(room, settings).parts.map(({ key }) => key));
     }
   });
+
+  it('gives every part its source, and every part but moldings a rectangle', () => {
+    for (const room of synced) {
+      for (const part of roomParts(room, settings)) {
+        expect(['piece', 'tee', 'frame', 'wall_end_panel', 'molding']).toContain(part.source);
+        if (part.source === 'molding') {
+          expect([part.x, part.z, part.height]).toEqual([null, null, null]);
+        } else {
+          expect([part.x, part.z, part.height, part.width].every(Number.isFinite)).toBe(true);
+          expect(part.height).toBeGreaterThan(0);
+        }
+      }
+    }
+  });
+
+  it('keeps the G4 parts list as it is now', () => {
+    const room = synced.find(({ name }) => name === 'G4 T-filler run');
+    expect(roomParts(room, settings)).toMatchSnapshot();
+  });
 });
