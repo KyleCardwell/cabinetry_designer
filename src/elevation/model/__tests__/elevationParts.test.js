@@ -88,4 +88,31 @@ describe('SPEC-41 elevation parts', () => {
     expect(row(byId(parts, '5f4db696-00e1-4303-9881-23a4d8ae7a64')))
       .toEqual(['5f4db696-00e1-4303-9881-23a4d8ae7a64', 'panel', 0.75, 36, 70.5, 41.25, 0, 0.75, false]);
   });
+
+  it('faces: a door sits a bumper off its box; an inset door is flush with its frame', () => {
+    const g1 = partsOf(room('G1 Euro kitchen'), 0);
+    expect(g1).toHaveLength(23);
+    expect(g1.filter((part) => part.kind === 'face')).toHaveLength(11);
+    expect(g1.filter((part) => part.kind === 'face').slice(0, 2).map(row)).toEqual([
+      ['28072a7d-e691-40d1-a005-4d0ed1c9e825:rleft', 'face', 0.8125, 4.125, 14.125, 85.75, 25.0625, 25.875, true],
+      ['28072a7d-e691-40d1-a005-4d0ed1c9e825:rright', 'face', 15.0625, 4.125, 14.125, 85.75, 25.0625, 25.875, true],
+    ]);
+    const g2 = partsOf(room('G2 Face frame kitchen'), 0);
+    expect(g2).toHaveLength(27);
+    expect(row(byId(g2, '352bd8c0-79a1-4210-a428-cfe95038118f:rleft')))
+      .toEqual(['352bd8c0-79a1-4210-a428-cfe95038118f:rleft', 'face', 51.75, 5.75, 11.5, 61.25, 25, 25.8125, true]);
+  });
+
+  it('shelves: the back panel at the back of its cell, each shelf in front of it', () => {
+    const top = '87b307e7-2f67-48a7-a80e-a52d4249d55b';
+    const copy = structuredClone(stored('G4 T-filler run'));
+    copy.walls[0].runs[0].grid.cells[1].node.cells[0].node = { id: top, kind: 'shelves', shelves: { count: 1, back: true } };
+    const synced = syncRoom(copy, settings);
+    const parts = partsOf(synced, 0);
+    expect(parts.filter((part) => part.id.startsWith(`${top}:`)).map(row)).toEqual([
+      [`${top}:back`, 'panel', 48.75, 64, 35, 26, 0, 0.75, false],
+      [`${top}:shelf-1`, 'shelf', 48.75, 76.25, 35, 1.5, 0.75, 24, false],
+    ]);
+    expect(byId(parts, top)).toBeUndefined();
+  });
 });

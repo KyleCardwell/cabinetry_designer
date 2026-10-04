@@ -2,14 +2,15 @@ import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
 import { planRunPieces } from './planPieces.js';
 import { frontDepth, runBackOffset } from './corners.js';
+import { shelfParts } from './cells.js';
 
 const EPSILON = 1e-6;
 
 /**
  * Every part on one wall face as geometry draws it (SPEC-41): its rectangle in elevation coordinates
  * and its depth from the wall face, read from the plan view so the two always agree. Run by run in
- * view order; within a run: boxes, then fillers/end panels/panels/Ts, then frames (step 316 adds
- * shelves, then faces).
+ * view order; within a run: boxes, then fillers/end panels/panels/Ts, then frames, then shelves,
+ * then faces.
  */
 export function elevationParts(room, wall, side, settings) {
   const view = resolveWall(room, wall, side);
@@ -92,6 +93,50 @@ export function elevationParts(room, wall, side, settings) {
         holes: region.cabinetIds.flatMap((id) => scene.faceLayouts.get(id).openings
           .map(({ x, z, width, height }) => ({ x, z, width, height }))),
       });
+    }
+
+    for (const piece of scene.cells.pieces) {
+      if (piece.kind !== 'shelves') continue;
+      const box = boxes.get(piece.id);
+      for (const part of shelfParts(piece, settings)) {
+        const back = part.kind === 'shelf' ? box.front - part.depth : box.back;
+        const front = part.kind === 'shelf' ? box.front : box.back + part.depth;
+        emit({
+          id: part.id,
+          kind: part.kind,
+          runId: run.id,
+          x: part.x,
+          z: part.z,
+          width: part.width,
+          height: part.height,
+          back,
+          front,
+          coversBoxEdges: false,
+        });
+      }
+    }
+
+    for (const [pieceId, layout] of scene.faceLayouts) {
+      const frame = scene.frames.regions.find((region) => region.cabinetIds.includes(pieceId));
+      for (const face of layout.faces) {
+        if (face.type === 'open') continue;
+        const back = frame
+          ? faces.get(frame.id).front - settings.doorThickness
+          : boxes.get(pieceId).front + settings.bumperThickness;
+        const front = frame ? faces.get(frame.id).front : back + settings.doorThickness;
+        emit({
+          id: `${pieceId}:${face.path}${face.half ?? ''}`,
+          kind: 'face',
+          runId: run.id,
+          x: face.x,
+          z: face.z,
+          width: face.width,
+          height: face.height,
+          back,
+          front,
+          coversBoxEdges: true,
+        });
+      }
     }
   }
 
