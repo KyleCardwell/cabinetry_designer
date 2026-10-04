@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { drawingZipName, toDrawingPayload } from '../drawingPayload.js';
+import { elevationParts } from '../elevationParts.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -10,10 +11,20 @@ const document = normalizeElevationDocument(
 const { settings } = document;
 const room = (name) => syncRoom(document.rooms.find((candidate) => candidate.name === name), settings);
 
+/** The round-40 fields only, so the first test keeps checking just those. */
+const withoutParts = (payload) => ({
+  ...payload,
+  elevations: payload.elevations.map((elevation) => {
+    const copy = { ...elevation };
+    delete copy.parts;
+    return copy;
+  }),
+});
+
 describe('SPEC-40 drawing payload', () => {
   it('has one elevation per lettered wall face, in letter order', () => {
     const island = '84063fed-ab0d-4a1d-ae05-ffe67decad5e';
-    expect(toDrawingPayload(room('G1 Euro kitchen'), settings)).toEqual({
+    expect(withoutParts(toDrawingPayload(room('G1 Euro kitchen'), settings))).toEqual({
       payloadVersion: 1,
       units: 'in',
       room: { id: '7ee9fabb-5daf-4fb2-96f9-b24b9e1e546f', name: 'G1 Euro kitchen' },
@@ -45,5 +56,15 @@ describe('SPEC-40 drawing payload', () => {
     expect(drawingZipName('G1 Euro kitchen')).toBe('g1-euro-kitchen.zip');
     expect(drawingZipName('Bath #2 / Main')).toBe('bath-2-main.zip');
     expect(drawingZipName('  ')).toBe('room.zip');
+  });
+
+  it('SPEC-41 carries each wall face\'s parts', () => {
+    const synced = room('G1 Euro kitchen');
+    const payload = toDrawingPayload(synced, settings);
+    expect(payload.elevations.map((elevation) => elevation.parts.length)).toEqual([23, 22, 9, 9]);
+    for (const elevation of payload.elevations) {
+      const wall = synced.walls.find((candidate) => candidate.id === elevation.wallId);
+      expect(elevation.parts).toEqual(elevationParts(synced, wall, elevation.side, settings));
+    }
   });
 });
