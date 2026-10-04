@@ -214,7 +214,6 @@ export default function ElevationToolbar({
           </div>
         </>
       )}
-      <ExportDxfButton />
       <button
         type="button"
         onClick={onZoomToFit}
@@ -222,6 +221,7 @@ export default function ElevationToolbar({
       >
         Zoom to fit
       </button>
+      <ExportDxfButton />
     </div>
   );
 }
