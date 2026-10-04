@@ -2,13 +2,15 @@ import { elevationKey, elevationLetters, wallLabel } from './topology.js';
 import { resolveWall } from './room.js';
 import { WALL_SIDES } from './wallSides.js';
 import { elevationParts } from './elevationParts.js';
+import { bandParts } from './bandParts.js';
 
 export const DRAWING_PAYLOAD_VERSION = 1;
 
 /**
  * What geometry draws for one room (SPEC-40, payload v1): one elevation per lettered wall face, in
  * letter order. Takes a synced room (every room in the store is). Round 40 carries each face's
- * outline; round 41 adds each face's parts. Later rounds add dimensions and the plan to the same records.
+ * outline; round 41 adds each face's parts; round 42 its bands. Later rounds add dimensions and the
+ * plan to the same records.
  */
 export function toDrawingPayload(room, settings) {
   const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
@@ -26,7 +28,10 @@ export function toDrawingPayload(room, settings) {
       wallLabel: wallLabel(room, wall),
       length: resolveWall(room, wall, side).length,
       height: wall.height,
-      parts: elevationParts(room, wall, side, settings),
+      parts: [
+        ...elevationParts(room, wall, side, settings),
+        ...bandParts(room, wall, side, settings),
+      ],
     };
   });
 

@@ -1,5 +1,6 @@
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
+import { runBands } from './runBands.js';
 import { planRunPieces } from './planPieces.js';
 import { frontDepth, runBackOffset } from './corners.js';
 import { shelfParts } from './cells.js';
@@ -10,7 +11,7 @@ const EPSILON = 1e-6;
  * Every part on one wall face as geometry draws it (SPEC-41): its rectangle in elevation coordinates
  * and its depth from the wall face, read from the plan view so the two always agree. Run by run in
  * view order; within a run: boxes, then fillers/end panels/panels/Ts, then frames, then shelves,
- * then faces.
+ * then faces. An end panel or filler with a chip detail carries it as a detail line (SPEC-42).
  */
 export function elevationParts(room, wall, side, settings) {
   const view = resolveWall(room, wall, side);
@@ -26,6 +27,7 @@ export function elevationParts(room, wall, side, settings) {
     const faces = new Map(plan.faces.map((entry) => [entry.key, entry]));
     const cells = new Map(scene.cells.pieces.map((piece) => [piece.id, piece]));
     const outset = runBackOffset(run);
+    const { chipLines } = runBands(room, view, run, settings, scene);
 
     for (const box of boxes.values()) {
       const piece = cells.get(box.key);
@@ -62,6 +64,7 @@ export function elevationParts(room, wall, side, settings) {
       }
       const frame = scene.frames.regions.find((region) => region.panelIds.includes(piece.id));
       if (frame) front = faces.get(frame.id).back;
+      const chip = chipLines.find((line) => line.pieceId === piece.id);
       emit({
         id: piece.id,
         kind: piece.kind,
@@ -74,6 +77,7 @@ export function elevationParts(room, wall, side, settings) {
         front,
         coversBoxEdges: piece.kind === 'filler'
           || scene.ells.some((ell) => ell.pieceId === piece.id),
+        ...(chip ? { lines: [{ x1: chip.x1, z1: chip.z, x2: chip.x2, z2: chip.z }] } : {}),
       });
     }
 

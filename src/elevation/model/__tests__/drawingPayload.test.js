@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { drawingZipName, toDrawingPayload } from '../drawingPayload.js';
+import { bandParts } from '../bandParts.js';
 import { elevationParts } from '../elevationParts.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
@@ -58,13 +59,16 @@ describe('SPEC-40 drawing payload', () => {
     expect(drawingZipName('  ')).toBe('room.zip');
   });
 
-  it('SPEC-41 carries each wall face\'s parts', () => {
+  it('SPEC-42 carries each wall face\'s parts, then its bands', () => {
     const synced = room('G1 Euro kitchen');
     const payload = toDrawingPayload(synced, settings);
-    expect(payload.elevations.map((elevation) => elevation.parts.length)).toEqual([23, 22, 9, 9]);
+    expect(payload.elevations.map((elevation) => elevation.parts.length)).toEqual([30, 26, 11, 11]);
     for (const elevation of payload.elevations) {
       const wall = synced.walls.find((candidate) => candidate.id === elevation.wallId);
-      expect(elevation.parts).toEqual(elevationParts(synced, wall, elevation.side, settings));
+      expect(elevation.parts).toEqual([
+        ...elevationParts(synced, wall, elevation.side, settings),
+        ...bandParts(synced, wall, elevation.side, settings),
+      ]);
     }
   });
 });
