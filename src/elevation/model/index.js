@@ -395,3 +395,4 @@ export {
 export { faceFeatures } from './faceFeatures.js';
 export { runScene } from './runScene.js';
 export { defaultPick, pickStack } from './pick.js';
+export { DRAWING_PAYLOAD_VERSION, drawingZipName, toDrawingPayload } from './drawingPayload.js';
