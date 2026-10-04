@@ -176,6 +176,16 @@ Still current and not repeated here: `CELLS-PLAN.md`, `ALCOVE-PLAN.md`, `CONSOLI
 - Plan draws what's built: boxes, a 1/16" bumper gap, 13/16" doors at true face widths, fillers with their returns, blind boxes at full width, end panels as 3/4" rectangles, face frame strips mitered, T and L lips. The topmost cells are drawn; covered top/bottom panels aren't. (SPEC-27, SPEC-28, SPEC-34.2)
 - Collisions use each run's full installed front depth. (SPEC-27)
 
+## Drawings (DXF output)
+
+- **The designer builds the payload in the browser** (`toDrawingPayload`); the API verifies the login and runs geometry; one zip per room: `payload.json`, then `elevation-<letter>.dxf` per lettered wall face (`plan.dxf` from round 44). (SPEC-40, Kyle)
+- **Geometry is a renderer** and computes no sizes. The payload stays `payloadVersion: 1` while nothing is stored; new fields arrive with defaults, geometry step first. (SPEC-40, SPEC-41)
+- **Elevation parts** carry their rectangle and their depth (`back`, `front` from the wall face, the plan view's own numbers); geometry removes hidden lines. Dashed only where a part is behind a *different* part; a box's edges behind its faces, frame, fillers or T/L fillers are left out (`coversBoxEdges`). Layers: CABINETS, FACES, FILLERS, PANELS, FRAMES, SHELVES, plus one dashed HIDDEN. (SPEC-41, Kyle)
+- **Drawing rounds:** 40 plumbing → 41 elevation parts + hidden lines → 42 elevation extras (toe kicks, tops, moldings, wall end panels, openings, soffits, recesses, corner profiles) → 43 elevation dimensions → 44 plan → 45 plan dimensions and labels → sheet layout. (SPEC-40)
+- **Profiles (Kyle, 2026-10-04, not built):** a profile drawing tool for crown, top mold, toe kick, furniture base, door edges, countertop edges and the like. Profiles are saved per team as option-family catalog rows (`team_options.spec`: a closed outline in depth × height, arcs allowed, with an attachment point) and chosen when drawing; the payload carries the resolved outline and geometry draws it. Until then, round 42 sends toe kicks, tops and moldings as parts with overall height and depth plus an optional `profileId` that geometry ignores. Profiles mostly show in corner side views, end views/sections and plan (countertop and door edges); in a front elevation they only add step lines. (PLATFORM-PLAN Phase 4)
+- **Plot scale (from round 43):** text, dimension and arrow sizes are set in paper inches × a plot scale (default 1/2" = 1'-0", 1:24, so 1/8" text is 3" in the drawing), so drawings print correctly when laid out on sheets. (Kyle, 2026-10-04)
+- **Sheet layout (after round 45, Kyle 2026-10-04):** geometry arranges a room's elevations and plan (or several rooms') onto 36 × 24 sheets at 1/2" = 1'-0" automatically, with a border and title block (job, phase, room, revision, sheet, date, scale), as a sheet DXF (paper-space layouts with viewports) and a print-ready PDF. Not hand-arranged exported DXFs. (PLATFORM-PLAN Phase 3)
+
 ## Part numbers
 
 - Every part gets a number: cabinets, fillers, end panels, panels, shelves, T-fillers, frames, wall end panels, and one per molding kind per room (toe kick, top mold, crown). Faces are part of their cabinet; voids and gaps get none. (SPEC-23, CELLS-PLAN)
@@ -235,4 +245,5 @@ Decisions later reversed. Don't re-propose these without a new reason.
 - T-filler assumptions in SPEC-37 §13 and 37.1 §6 (return position at an end, horizontal T reveal, wall end panels never L). Unconfirmed but built.
 - Back panels extending; the top panel "between" variant; whether a 5-piece cutout moves the panel's rails. (ALCOVE-PLAN)
 - Face presets approach; revision history; phases in the estimator now or later; revision per room or per phase. (Kyle, PLATFORM-PLAN §7)
+- Profile tool: drawn in the app, imported from a DXF, or both; which families get profiles first. (Kyle, 2026-10-04)
 - Two blinds meeting in one corner; 45° and lazy-susan corner units (a part shared by two walls). (TODO)

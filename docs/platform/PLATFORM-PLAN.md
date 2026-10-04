@@ -265,7 +265,7 @@ Ordered so something useful works early and nothing is built twice.
 - [ ] Migration: `design_room_revisions`, `design_outputs`, storage bucket and policies.
 - [ ] "Issue" flow: validation gate, label, status, immutable snapshot — through `issue_room_revision`; `release_revision` for the shop release.
 - [ ] Generate from a revision through the API; store DXF + PDF via `record_design_output`.
-- [ ] PDF sheet layout in geometry: title block, room/phase/rev, wall elevations, dimensions.
+- [ ] Sheet layout in geometry (after drawing round 45; Kyle, 2026-10-04): one or more rooms' elevations and plan arranged automatically onto 36 × 24 sheets at 1/2" = 1'-0", border and title block (job, phase, room, rev, sheet, date, scale); a sheet DXF (paper-space layouts with viewports) and a print-ready PDF. Text and dimension sizes are paper size × plot scale from round 43, so nothing is resized for print.
 - [ ] Revision list per room: who, when, status, the files.
 - [ ] Release-to-shop status, with edits after release flagged.
 
@@ -278,6 +278,7 @@ Ordered so something useful works early and nothing is built twice.
 - [ ] Options UI sections at team / phase / room / run / cabinet / face, showing inherited values.
 - [ ] Two families end to end, one that draws and one that doesn't: `crown` and `door_edge`.
 - [ ] Geometry handler for a drawn profile (outline in `spec`, projection and drop).
+- [ ] Profile drawing tool (Kyle, 2026-10-04): users draw a profile (crown, top mold, toe kick, furniture base, door edge, countertop edge, panel profile…) as a closed outline in depth × height with an attachment point; saved per team as a `team_options` row of that family and chosen when drawing. The payload carries the resolved outline. Drawing round 42 already sends toe kicks, tops and moldings with an optional `profileId`, so this adds detail without reworking the payload.
 - [ ] Unresolved required options become issue-blocking warnings.
 
 **Done when:** adding the third family touches only the registry, a catalog screen and one geometry handler.
