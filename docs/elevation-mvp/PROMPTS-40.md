@@ -172,7 +172,7 @@ Files (only these):
 - NEW src/routes/drawings.js
 - src/middleware/errorHandler.js (19) — also send err.details when present
 - src/server.js — mount the route
-- package.json — add "test": "node --test test/" (scripts only)
+- package.json — add "test": "node --test test/*.test.js" (scripts only)
 - README.md — add the route row and a curl example
 - NEW test/fixtures/fakeEngine.mjs, NEW test/geometryBridge.test.js (4 tests), NEW test/drawings.test.js (4 tests) — as SPEC §6 lists; geometryBridge.test.js sets SUPABASE_URL/SUPABASE_ANON_KEY defaults before a dynamic import of the bridge
 

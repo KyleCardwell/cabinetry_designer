@@ -345,7 +345,7 @@ export const drawingPayloadSchema = z.object({
 
 **`src/server.js`:** `app.use('/api/drawings', requireAuth, drawingRoutes);`. **README:** add the route row and a curl example.
 
-**`package.json`:** `"test": "node --test test/"` (Node's built-in runner; no new dependencies).
+**`package.json`:** `"test": "node --test test/*.test.js"` (Node's built-in runner; no new dependencies).
 
 **NEW `test/fixtures/fakeEngine.mjs`** — stands in for geometry: reads stdin JSON and by `input.mode`: `ok` → stdout `{"payloadVersion":1,"files":["elevation-A.dxf"],"zip_base64":"UEsFBgAAAAAAAAAAAAAAAAAAAAAAAA=="}` exit 0; `invalid` → stderr `{"error":"Invalid drawing payload","details":[{"loc":["units"]}]}` exit 2; `crash` → stderr `boom` exit 1; `hang` → never exits.
 
