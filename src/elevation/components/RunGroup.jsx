@@ -7,15 +7,13 @@ import {
   Tag,
   Text,
 } from 'react-konva';
-import { bottomPartSpan, runBottomParts } from '../model/bottoms.js';
-import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
+import { KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { centerlineMarkers } from '../model/dimensions.js';
-import { resolveProfile } from '../model/profile.js';
+import { runBands } from '../model/runBands.js';
 import { runScene } from '../model/runScene.js';
-import { runTop } from '../model/tops.js';
 import { formatInches } from '../model/units.js';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { runHighlight } from '../canvas/selectionHighlight.js';
@@ -52,66 +50,23 @@ function RunGroup({
   const scene = useMemo(() => runScene(room, wall, run, settings), [room, run, settings, wall]);
   const {
     result, cells, faceLayouts, frames, framedIds, hiddenIds, ghostIds, subLabels,
-    panels, panelPieceIds, panelBySide, endBottom, shelves, drawnPieces,
+    panels, panelPieceIds, shelves, drawnPieces,
   } = scene;
-  const runEnd = run.x + run.width;
-  const panelStart = panelBySide.left
-    ? Math.min(panelBySide.left.x, run.x)
-    : null;
-  const panelEnd = panelBySide.right
-    ? Math.max(panelBySide.right.x + panelBySide.right.width, runEnd)
-    : null;
-  // A band (toe kick, countertop, molding) runs to the wall wherever a blind
-  // panel does, and keeps its own inset or overhang wherever one does not.
-  const bandStart = (inset) => panelStart ?? run.x + inset;
-  const bandEnd = (inset) => panelEnd ?? runEnd - inset;
-  const profile = useMemo(
-    () => resolveProfile(settings, room, wall),
-    [room, settings, wall],
+  const bands = useMemo(
+    () => runBands(room, wall, run, settings, scene),
+    [room, run, scene, settings, wall],
   );
-  const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
-  const top = runTop(wall, run, profile);
-  const boxTop = run.z + run.height;
-  const bandX = bandStart(0);
-  const bandWidth = bandEnd(0) - bandX;
-  const topMold = wallRectToScreen({
-    x: bandX,
-    z: boxTop,
-    width: bandWidth,
-    height: profile.topMoldHeight,
-  }, transform);
-  const crown = wallRectToScreen({
-    x: bandX,
-    z: boxTop + profile.crownStackHeight - profile.crownHeight,
-    width: bandWidth,
-    height: profile.crownHeight,
-  }, transform);
-  const partSpan = bottomPartSpan(
-    run,
-    drawnPieces,
-    { start: bandX, end: bandX + bandWidth },
-    endBottom.chip > 0,
-  );
-  const bottomParts = runBottomParts(run).map((part) => ({
-    ...part,
-    rect: wallRectToScreen({
-      x: partSpan.start,
-      z: part.z,
-      width: partSpan.end - partSpan.start,
-      height: part.height,
-    }, transform),
-  }));
-  const chipLines = endBottom.chip > 0
-    ? drawnPieces
-      .filter((piece) => (piece.kind === 'filler' || piece.kind === 'end_panel')
-        && !piece.extend?.down
-        && !hiddenIds.has(piece.id))
-      .map((piece) => {
-        const from = wallToScreen({ x: piece.x, z: piece.z + endBottom.chip }, transform);
-        const to = wallToScreen({ x: piece.x + piece.width, z: piece.z + endBottom.chip }, transform);
-        return { key: `chip:${piece.id}`, points: [from.x, from.y, to.x, to.y] };
-      })
-    : [];
+  const toScreen = (rect) => rect && wallRectToScreen(rect, transform);
+  const toeKick = toScreen(bands.toeKick);
+  const countertop = toScreen(bands.countertop);
+  const topMold = toScreen(bands.topMold);
+  const crown = toScreen(bands.crown);
+  const bottomParts = bands.bottomParts.map((part) => ({ ...part, rect: toScreen(part) }));
+  const chipLines = bands.chipLines.map((line) => {
+    const from = wallToScreen({ x: line.x1, z: line.z }, transform);
+    const to = wallToScreen({ x: line.x2, z: line.z }, transform);
+    return { key: `chip:${line.pieceId}`, points: [from.x, from.y, to.x, to.y] };
+  });
   const warningPieceIds = useMemo(
     () => new Set(
       [...result.warnings, ...cells.warnings, ...(diagnostic?.warnings ?? [])]
@@ -120,25 +75,6 @@ function RunGroup({
     [cells.warnings, diagnostic?.warnings, result.warnings],
   );
   const hasErrors = (diagnostic?.errors ?? result.errors).length > 0;
-  const hasToeKick = !run.stack?.below
-    && (run.cabinetTypeId === CABINET_TYPE_IDS.BASE
-      || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
-  const toeKickInset = Math.min(3, run.width / 2);
-  const toeKickX = bandStart(toeKickInset);
-  const toeKickWidth = Math.max(0, bandEnd(toeKickInset) - toeKickX);
-  const toeKick = wallRectToScreen({
-    x: toeKickX,
-    z: 0,
-    width: toeKickWidth,
-    height: toeKickHeight,
-  }, transform);
-  const countertopX = bandStart(-1);
-  const countertop = wallRectToScreen({
-    x: countertopX,
-    z: run.z + run.height,
-    width: bandEnd(-1) - countertopX,
-    height: top.height,
-  }, transform);
   const runRect = wallRectToScreen(run, transform);
   const cornerFillers = useMemo(() => Object.fromEntries(
     ['left', 'right'].map((side) => [
@@ -265,7 +201,7 @@ function RunGroup({
 
   return (
     <Group opacity={preview ? 0.72 : 1}>
-      {hasToeKick && toeKickWidth > 0 && (
+      {toeKick && (
         <Rect
           {...toeKick}
           fill="#111827"
@@ -275,10 +211,10 @@ function RunGroup({
         />
       )}
 
-      {(top.kind === 'stone' || top.kind === 'wood') && (
+      {countertop && (
         <Rect
           {...countertop}
-          fill={top.kind === 'wood' ? '#c8a27a' : '#cbd5e1'}
+          fill={bands.top.kind === 'wood' ? '#c8a27a' : '#cbd5e1'}
           opacity={0.9}
           stroke="#64748b"
           strokeWidth={1}
@@ -286,7 +222,7 @@ function RunGroup({
         />
       )}
 
-      {(top.kind === 'crown' || top.kind === 'topMold') && (
+      {topMold && (
         <Rect
           {...topMold}
           fill="#94a3b8"
@@ -296,7 +232,7 @@ function RunGroup({
           listening={false}
         />
       )}
-      {top.kind === 'crown' && (
+      {crown && (
         <Rect
           {...crown}
           fill="#e2e8f0"
