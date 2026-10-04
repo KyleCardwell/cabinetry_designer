@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from 'react-redux';
 import AddToolMenu from './AddToolMenu.jsx';
+import ExportDxfButton from './ExportDxfButton.jsx';
 import { nextWallId, wallLabel } from '../model/topology.js';
 import {
   centerRoomOnOrigin,
@@ -213,6 +214,7 @@ export default function ElevationToolbar({
           </div>
         </>
       )}
+      <ExportDxfButton />
       <button
         type="button"
         onClick={onZoomToFit}
