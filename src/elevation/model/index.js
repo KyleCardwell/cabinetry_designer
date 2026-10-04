@@ -398,3 +398,4 @@ export { defaultPick, pickStack } from './pick.js';
 export { DRAWING_PAYLOAD_VERSION, drawingZipName, toDrawingPayload } from './drawingPayload.js';
 export { elevationParts } from './elevationParts.js';
 export { bandDepths, runBands } from './runBands.js';
+export { bandParts } from './bandParts.js';
