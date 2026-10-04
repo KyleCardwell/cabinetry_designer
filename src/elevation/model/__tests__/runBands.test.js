@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { runBands } from '../runBands.js';
+import { bandDepths, runBands } from '../runBands.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { runScene } from '../runScene.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
@@ -22,23 +22,59 @@ function bandsOf(room, wallIndex, side = 'front', using = settings) {
 const span = (rect) => rect && [rect.x, rect.width];
 
 describe('SPEC-42 run bands', () => {
-  it('gives each run the toe kick, top and moldings the canvas draws today (G1 elevation A)', () => {
+  it('runs a band past a free end by its projection and stops it at a wall or a joined run (G1 elevation A)', () => {
     const bands = bandsOf(syncRoom(stored('G1 Euro kitchen'), settings), 0);
+    // The tall: wall on the left; joined on the right to a lower base, so its top returns there.
     expect(bands.b38f2f11).toEqual({
       top: { kind: 'crown', height: 6 },
-      toeKick: { x: 3, z: 0, width: 24, height: 4 },
+      toeKick: { x: 0, z: 0, width: 30, height: 4 },
       countertop: null,
-      topMold: { x: 0, z: 90, width: 30, height: 3 },
-      crown: { x: 0, z: 91.5, width: 30, height: 4.5 },
+      topMold: { x: 0, z: 90, width: 30.25, height: 3 },
+      crown: { x: 0, z: 91.5, width: 33, height: 4.5 },
       bottomParts: [],
       chipLines: [],
     });
-    expect(bands.b822e8ac.toeKick).toEqual({ x: 33, z: 0, width: 107.125, height: 4 });
-    expect(bands.b822e8ac.countertop).toEqual({ x: 29, z: 34.5, width: 115.125, height: 1.5 });
-    expect([bands.b822e8ac.topMold, bands.b822e8ac.crown]).toEqual([null, null]);
-    expect(bands['434f1164'].toeKick).toBeNull();
-    expect(span(bands['434f1164'].topMold)).toEqual([108.5, 46.625]);
-    expect(span(bands['434f1164'].crown)).toEqual([108.5, 46.625]);
+    // The base: joined to the taller tall on the left, wall on the right.
+    expect(bands.b822e8ac.toeKick).toEqual({ x: 30, z: 0, width: 113.125, height: 4 });
+    expect(bands.b822e8ac.countertop).toEqual({ x: 30, z: 34.5, width: 113.125, height: 1.5 });
+    // The upper: free on the left (end panel), wall on the right.
+    expect(span(bands['434f1164'].topMold)).toEqual([108.25, 46.875]);
+    expect(span(bands['434f1164'].crown)).toEqual([105.5, 49.625]);
+  });
+
+  it('runs a top past a wall end panel; a toe kick stops at the run (G1 island, G2 peninsula)', () => {
+    const g1 = syncRoom(stored('G1 Euro kitchen'), settings);
+    for (const side of ['front', 'back']) {
+      const [island] = Object.values(bandsOf(g1, 3, side));
+      expect(span(island.toeKick)).toEqual([0.75, 90]);
+      expect(span(island.countertop)).toEqual([-0.75, 93]);
+    }
+    const g2 = syncRoom(stored('G2 Face frame kitchen'), settings);
+    expect(span(bandsOf(g2, 1)['4b49c071'].countertop))
+      .toEqual([24.8125, 54.4375]);
+    expect(span(bandsOf(g2, 1, 'back')['2c8ab1e3'].countertop)).toEqual([-0.75, 79.25]);
+  });
+
+  it('a side of the recess a run sits in closes its ends; a free end with a filler or end panel does not (G5, G6)', () => {
+    const g5 = bandsOf(syncRoom(stored('G5 Recess room'), settings), 1);
+    expect(span(g5['1549b66c'].countertop)).toEqual([42.25, 37.75]);
+    expect(span(g5.e9abb5dc.countertop)).toEqual([140, 48]);
+    expect(span(g5.e9abb5dc.toeKick)).toEqual([140, 48]);
+    const g6 = bandsOf(syncRoom(stored('G6 Stacked runs'), settings), 1);
+    expect(span(g6['677ec7a5'].toeKick)).toEqual([0, 98]);
+    expect(span(g6['677ec7a5'].countertop)).toEqual([0, 101.75]);
+    expect(span(g6['01a2a0e1'].countertop)).toEqual([127.75, 72.25]);
+    expect(span(g6.ea4373b3.crown)).toEqual([0, 104]);
+  });
+
+  it('reads the shop\'s band depths from settings over the defaults', () => {
+    expect(bandDepths(settings)).toEqual({
+      toeKickSetback: 3, countertopOverhang: 0.75, topMoldProjection: 0.25, crownProjection: 3,
+    });
+    const wider = { ...settings, bandDepths: { countertopOverhang: 1 } };
+    expect(bandDepths(wider).toeKickSetback).toBe(3);
+    const g6 = bandsOf(syncRoom(stored('G6 Stacked runs'), wider), 1, 'front', wider);
+    expect(span(g6['677ec7a5'].countertop)).toEqual([0, 102]);
   });
 
   it('lists the parts below a run; a run held between two others gets no bands (G6)', () => {
@@ -57,7 +93,6 @@ describe('SPEC-42 run bands', () => {
       chipLines: [],
     });
     expect(bands['01a2a0e1'].top).toEqual({ kind: 'wood', height: 1.5 });
-    expect(span(bands['01a2a0e1'].countertop)).toEqual([127.5, 73.5]);
   });
 
   it('puts a chip line on each end panel and filler when the doors stop flush above a part', () => {
