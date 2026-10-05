@@ -97,7 +97,14 @@ export const DEFAULT_SETTINGS = {
   belowRunOverhang: -0.125,
   belowRunFlushReveal: 0.125,
   bottomPartHeights: { light_rail: 1.5, light_trough: 3, panel: 0.75, bottom_cap: 1.5, corbels: 6 },
-  bandDepths: { toeKickSetback: 3, countertopOverhang: 0.75, topMoldProjection: 0.25, crownProjection: 3 },
+  bandDepths: {
+    toeKickSetback: 3,
+    toeKickEndPanelSetback: 1,
+    toeKickSideSetback: 0.25,
+    countertopOverhang: 0.75,
+    topMoldProjection: 0.25,
+    crownProjection: 3,
+  },
 };
 
 export const FRAME_JOINS = ['miter', 'butt'];

@@ -22,17 +22,17 @@ describe('SPEC-42 band parts', () => {
   it('a toe kick sits back from the boxes; a top runs past the faces (G1 elevation A)', () => {
     const parts = partsOf(room('G1 Euro kitchen'), 0);
     expect(parts.map(row)).toEqual([
-      [`${TALL}:toe_kick`, 'toe_kick', 0, 0, 30, 4, 0, 22, false],
+      [`${TALL}:toe_kick`, 'toe_kick', 0, 0, 29, 4, 0, 22, false],
       [`${TALL}:top_mold`, 'top_mold', 0, 90, 30.25, 3, 0, 26.125, false],
       [`${TALL}:crown`, 'crown', 0, 91.5, 33, 4.5, 0, 28.875, false],
-      [`${BASE}:toe_kick`, 'toe_kick', 30, 0, 113.125, 4, 0, 21, false],
+      [`${BASE}:toe_kick`, 'toe_kick', 29, 0, 114.125, 4, 0, 21, false],
       [`${BASE}:countertop`, 'countertop', 30, 34.5, 113.125, 1.5, 0, 25.625, false],
       [`${UPPER}:top_mold`, 'top_mold', 108.25, 90, 46.875, 3, 0, 13.125, false],
       [`${UPPER}:crown`, 'crown', 105.5, 91.5, 49.625, 4.5, 0, 15.875, false],
     ]);
     expect(parts[0]).toEqual({
       id: `${TALL}:toe_kick`, kind: 'toe_kick', runId: TALL,
-      x: 0, z: 0, width: 30, height: 4, back: 0, front: 22, coversBoxEdges: false,
+      x: 0, z: 0, width: 29, height: 4, back: 0, front: 22, coversBoxEdges: false,
     });
   });
 
@@ -40,7 +40,7 @@ describe('SPEC-42 band parts', () => {
     const g2 = partsOf(room('G2 Face frame kitchen'), 0);
     const frameRun = 'a42e9a57-a98f-47f0-b6b4-9076b513db6e';
     expect(row(g2.find(({ id }) => id === `${frameRun}:crown`)))
-      .toEqual([`${frameRun}:crown`, 'crown', 47, 91.5, 29.5, 4.5, 0, 28.8125, false]);
+      .toEqual([`${frameRun}:crown`, 'crown', 47, 91.5, 32.5, 4.5, 0, 28.8125, false]);
     const recessRun = 'e9abb5dc-e72c-44c9-ac96-d3279b7752d9';
     expect(partsOf(room('G5 Recess room'), 1).filter(({ runId }) => runId === recessRun).map(row)).toEqual([
       [`${recessRun}:toe_kick`, 'toe_kick', 140, 0, 48, 4, -24, -6, false],

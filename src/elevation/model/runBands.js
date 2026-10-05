@@ -1,8 +1,8 @@
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
-import { isJointAnchor, jointMembers } from './joints.js';
+import { frontDepth } from './corners.js';
 import { resolveProfile } from './profile.js';
-import { runTop } from './tops.js';
+import { isCountertop, runTop } from './tops.js';
 import { wallEndPanelAt } from './wallSides.js';
 
 /** The shop's band depths (SPEC-42): settings.bandDepths over the defaults. */
@@ -17,35 +17,87 @@ function hasToeKick(run) {
     && (run.cabinetTypeId === CABINET_TYPE_IDS.BASE || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
 }
 
+const TOP_PAST = { countertop: 'countertopOverhang', topMold: 'topMoldProjection', crown: 'crownProjection' };
+
 /**
- * How a band ends on one side of a run (SPEC-42): 'panel' over a wall end panel, 'closed' against a
- * wall, the side of the recess the run sits in, or a joined run that carries the band on (as tall
- * for a top, with its own toe kick for a toe kick), otherwise 'free'. `band` is 'toeKick' or 'top'.
+ * How far a band runs past a free end of a run (SPEC-42.1): a top by its overhang or projection; a
+ * toe kick stops short (negative), 1" from an end panel's face, else 1/4" from the cabinet's side.
  */
-function bandEnd(room, wall, run, side, band, settings) {
+function bandPast(run, side, band, settings) {
+  const depths = bandDepths(settings);
+  if (band !== 'toeKick') return depths[TOP_PAST[band]];
+  const setback = run.ends?.[side]?.type === 'end_panel'
+    ? depths.toeKickEndPanelSetback
+    : depths.toeKickSideSetback;
+  return -Math.min(setback, run.width / 2);
+}
+
+/** Where a band ends at a free end of a run. */
+function freeEdge(run, side, band, settings) {
+  return side === 'left'
+    ? run.x - bandPast(run, side, band, settings)
+    : run.x + run.width + bandPast(run, side, band, settings);
+}
+
+/** Whether a run carries a band of this kind on: the same top family, or a toe kick of its own. */
+function carries(room, wall, run, band, settings) {
+  if (band === 'toeKick') return hasToeKick(run);
+  const { kind } = runTop(wall, run, resolveProfile(settings, room, wall));
+  if (band === 'countertop') return isCountertop(kind);
+  if (band === 'topMold') return kind === 'topMold' || kind === 'crown';
+  return kind === 'crown';
+}
+
+/** The runs on the same face whose opposite edge meets this side of a run, overlapping it in height. */
+function touching(wall, run, side) {
+  const edge = side === 'left' ? run.x : run.x + run.width;
+  return wall.runs.filter((other) => other.id !== run.id
+    && Math.abs((side === 'left' ? other.x + other.width : other.x) - edge) <= EPSILON
+    && Math.min(run.z + run.height, other.z + other.height) - Math.max(run.z, other.z) > EPSILON);
+}
+
+/**
+ * Where a band ends on one side of a run (SPEC-42, 42.1). `band` is 'toeKick', 'countertop', 'topMold'
+ * or 'crown'. Against a run that carries the band on (a top at the same height, or a toe kick): the
+ * deeper run's band returns as at a free end, and the shallower one's meets it there; at equal depths it
+ * runs straight through. A top dies into a taller run. Otherwise: over a wall end panel a top runs past
+ * the panel; it stops at a wall or at the side of the recess the run sits in; anything else is free.
+ */
+function bandEdge(room, wall, run, side, band, settings) {
+  const edge = side === 'left' ? run.x : run.x + run.width;
+  const opposite = side === 'left' ? 'right' : 'left';
+  const neighbors = touching(wall, run, side);
+  const boxTop = run.z + run.height;
+  if (band !== 'toeKick'
+    && neighbors.some((other) => other.z + other.height > boxTop + EPSILON)) return edge;
+  const carriers = neighbors.filter((other) => (band === 'toeKick'
+    || Math.abs(other.z + other.height - boxTop) <= EPSILON)
+    && carries(room, wall, other, band, settings));
+  if (carriers.length > 0) {
+    const depth = frontDepth(run, settings);
+    const deepest = carriers.reduce((best, other) => (
+      frontDepth(other, settings) > frontDepth(best, settings) ? other : best));
+    const theirs = frontDepth(deepest, settings);
+    if (depth > theirs + EPSILON) return freeEdge(run, side, band, settings);
+    if (depth < theirs - EPSILON) return freeEdge(deepest, opposite, band, settings);
+    return edge;
+  }
   const anchor = run.anchors?.[side];
   if (anchor === true) {
-    return band === 'top' && wallEndPanelAt(room, wall, side, settings) ? 'panel' : 'closed';
+    if (band === 'toeKick' || !wallEndPanelAt(room, wall, side, settings)) return edge;
+    const past = bandPast(run, side, band, settings);
+    return side === 'left' ? -past : wall.length + past;
   }
-  if (anchor?.to === 'wall') return 'closed';
-  if (anchor?.to === 'recess') return run._plane?.recessId === anchor.recessId ? 'closed' : 'free';
-  if (!isJointAnchor(anchor)) return 'free';
-  const boxTop = run.z + run.height;
-  const carries = jointMembers(wall, anchor.jointId)
-    .filter((member) => member.runId !== run.id && member.side !== side)
-    .map((member) => wall.runs.find((candidate) => candidate.id === member.runId))
-    .some((other) => other && (band === 'toeKick'
-      ? hasToeKick(other)
-      : other.z + other.height >= boxTop - EPSILON));
-  return carries ? 'closed' : 'free';
+  if (anchor?.to === 'wall') return edge;
+  if (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId) return edge;
+  return freeEdge(run, side, band, settings);
 }
 
 /**
  * The bands around a run (SPEC-42): its toe kick, its top (countertop, or top mold and crown), the
  * parts below it, and the chip lines on its end panels and fillers, in elevation coordinates. The
  * canvas and the DXF both draw from it. `wall` is the resolved wall face; `scene` is runScene's.
- * At a free end a band runs past the run by its projection (a toe kick stops short by its setback);
- * over a wall end panel a top runs past the panel; a blind panel takes every band to the wall.
+ * Each end follows bandEdge (SPEC-42.1); a blind panel takes every band to the wall.
  */
 export function runBands(room, wall, run, settings, scene) {
   const { drawnPieces, hiddenIds, panelBySide, endBottom } = scene;
@@ -56,37 +108,22 @@ export function runBands(room, wall, run, settings, scene) {
   const panelEnd = panelBySide.right
     ? Math.max(panelBySide.right.x + panelBySide.right.width, runEnd)
     : null;
-  const depths = bandDepths(settings);
-  const bandStart = (past, band) => {
-    if (panelStart !== null) return panelStart;
-    const end = bandEnd(room, wall, run, 'left', band, settings);
-    if (end === 'panel') return -past;
-    return end === 'closed' ? run.x : run.x - past;
-  };
-  const bandFinish = (past, band) => {
-    if (panelEnd !== null) return panelEnd;
-    const end = bandEnd(room, wall, run, 'right', band, settings);
-    if (end === 'panel') return wall.length + past;
-    return end === 'closed' ? runEnd : runEnd + past;
+  /** A band's rectangle from its two ends; a blind panel takes it to the wall. */
+  const band = (kind, z, height) => {
+    const x = panelStart ?? bandEdge(room, wall, run, 'left', kind, settings);
+    const right = panelEnd ?? bandEdge(room, wall, run, 'right', kind, settings);
+    return { x, z, width: right - x, height };
   };
   const profile = resolveProfile(settings, room, wall);
   const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
   const top = runTop(wall, run, profile);
   const boxTop = run.z + run.height;
-  const topMoldX = bandStart(depths.topMoldProjection, 'top');
-  const crownX = bandStart(depths.crownProjection, 'top');
-  const topMold = (top.kind === 'crown' || top.kind === 'topMold') ? {
-    x: topMoldX,
-    z: boxTop,
-    width: bandFinish(depths.topMoldProjection, 'top') - topMoldX,
-    height: profile.topMoldHeight,
-  } : null;
-  const crown = top.kind === 'crown' ? {
-    x: crownX,
-    z: boxTop + profile.crownStackHeight - profile.crownHeight,
-    width: bandFinish(depths.crownProjection, 'top') - crownX,
-    height: profile.crownHeight,
-  } : null;
+  const topMold = (top.kind === 'crown' || top.kind === 'topMold')
+    ? band('topMold', boxTop, profile.topMoldHeight)
+    : null;
+  const crown = top.kind === 'crown'
+    ? band('crown', boxTop + profile.crownStackHeight - profile.crownHeight, profile.crownHeight)
+    : null;
   const span = bottomPartSpan(
     run,
     drawnPieces,
@@ -114,21 +151,8 @@ export function runBands(room, wall, run, settings, scene) {
         z: piece.z + endBottom.chip,
       }))
     : [];
-  const toeKickPast = -Math.min(depths.toeKickSetback, run.width / 2);
-  const toeKickX = bandStart(toeKickPast, 'toeKick');
-  const toeKickWidth = Math.max(0, bandFinish(toeKickPast, 'toeKick') - toeKickX);
-  const toeKick = hasToeKick(run) && toeKickWidth > 0 ? {
-    x: toeKickX,
-    z: 0,
-    width: toeKickWidth,
-    height: toeKickHeight,
-  } : null;
-  const countertopX = bandStart(depths.countertopOverhang, 'top');
-  const countertop = (top.kind === 'stone' || top.kind === 'wood') ? {
-    x: countertopX,
-    z: boxTop,
-    width: bandFinish(depths.countertopOverhang, 'top') - countertopX,
-    height: top.height,
-  } : null;
+  const toeKickBand = band('toeKick', 0, toeKickHeight);
+  const toeKick = hasToeKick(run) && toeKickBand.width > 0 ? toeKickBand : null;
+  const countertop = isCountertop(top.kind) ? band('countertop', boxTop, top.height) : null;
   return { top, toeKick, countertop, topMold, crown, bottomParts, chipLines };
 }
