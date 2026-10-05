@@ -401,3 +401,4 @@ export { bandDepths, runBands } from './runBands.js';
 export { bandParts } from './bandParts.js';
 export { wallParts } from './wallParts.js';
 export { runSide } from './runSide.js';
+export { cornerParts, cornerShapes } from './cornerParts.js';
