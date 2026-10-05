@@ -82,7 +82,7 @@ describe('moveWallPerpendicular', () => {
     expect(room.walls[0]).toMatchObject({ y1: 0, y2: 0 });
   });
 
-  it('14. intersects a 135-degree neighbor on its original line', () => {
+  it('14. bends a 135-degree neighbor; a parallel one stays on its line', () => {
     const room = roomR({ wallB: { x2: 120 + 67.8823, y2: 67.8823 } });
     const oldB = room.walls[1];
     const result = moveWallPerpendicular(room, 'A', 5);
@@ -96,9 +96,9 @@ describe('moveWallPerpendicular', () => {
       { x: wallB.x1, y: wallB.y1 },
     );
 
-    expect(wallB.x1).toBeCloseTo(125, 6);
-    expect(wallB.y1).toBeCloseTo(5, 6);
-    expect(cross(oldDirection, newDirection)).toBeCloseTo(0, 6);
+    // SPEC-42.2: an angled neighbour gives; its corner moves with A and its far end stays.
+    expect(wallB).toMatchObject({ x1: 120, y1: 5, x2: oldB.x2, y2: oldB.y2 });
+    expect(cross(oldDirection, newDirection)).not.toBeCloseTo(0, 6);
 
     const parallel = roomR({ wallB: { x2: 200, y2: 0 } });
     const parallelResult = moveWallPerpendicular(parallel, 'A', 5);

@@ -8,6 +8,8 @@ import {
   wallFrame,
 } from '../model/geometry.js';
 
+const ORTHO_EPSILON = 1e-6;
+
 function cloneWalls(walls) {
   return walls.map((wall) => ({
     ...wall,
@@ -84,12 +86,28 @@ export function moveConnectedEndpoint(walls, wallId, endpoint, point) {
   return next;
 }
 
+/** Whether a wall is drawn at an angle: neither horizontal nor vertical in plan (SPEC-42.2). */
+export function isAngledWall(wall) {
+  return Math.abs(wall.x2 - wall.x1) > ORTHO_EPSILON && Math.abs(wall.y2 - wall.y1) > ORTHO_EPSILON;
+}
+
+/** Whether each wall still has some length and still points the way it did. */
+function wallsHold(before, after, wallIds) {
+  return [...wallIds].every((wallId) => {
+    const old = wallById(before, wallId);
+    const moved = wallById(after, wallId);
+    const oldDirection = subtract({ x: old.x2, y: old.y2 }, { x: old.x1, y: old.y1 });
+    const newDirection = subtract({ x: moved.x2, y: moved.y2 }, { x: moved.x1, y: moved.y1 });
+    return magnitude(newDirection) >= 1 && dot(oldDirection, newDirection) > 0;
+  });
+}
+
 /**
- * Move a wall along its interior normal while preserving connected-neighbor angles.
+ * Move a wall along its interior normal. The wall keeps its angle. A square neighbour keeps its angle too and slides along the moved wall; an angled neighbour gives (SPEC-42.2): only the shared corner moves, so it changes angle and length. `keepAngle` lists walls that keep their angle even if angled.
  *
  * @returns {{ok:boolean,reason:string|null,walls:object[]}}
  */
-export function moveWallPerpendicular(room, wallId, delta) {
+export function moveWallPerpendicular(room, wallId, delta, { keepAngle = [] } = {}) {
   const sourceWall = wallById(room.walls, wallId);
   if (!sourceWall || !Number.isFinite(delta)) {
     return { ok: false, reason: 'wall-not-found', walls: room.walls };
@@ -109,7 +127,11 @@ export function moveWallPerpendicular(room, wallId, delta) {
     const movedNeighbor = connection ? wallById(next, connection.wallId) : null;
     let point = add(oldPoint, shift);
 
-    if (connection && sourceNeighbor && movedNeighbor) {
+    if (connection && sourceNeighbor && movedNeighbor
+      && isAngledWall(sourceNeighbor) && !keepAngle.includes(sourceNeighbor.id)) {
+      setEndpoint(movedNeighbor, connection.endpoint, point);
+      affectedWallIds.add(sourceNeighbor.id);
+    } else if (connection && sourceNeighbor && movedNeighbor) {
       const neighborFrame = wallFrame(room, sourceNeighbor);
       const otherEndpoint = connection.endpoint === 'start' ? 'end' : 'start';
       const neighborLinePoint = endpointPoint(sourceNeighbor, otherEndpoint);
@@ -125,20 +147,8 @@ export function moveWallPerpendicular(room, wallId, delta) {
     setEndpoint(movedWall, endpoint, point);
   }
 
-  for (const affectedWallId of affectedWallIds) {
-    const before = wallById(room.walls, affectedWallId);
-    const after = wallById(next, affectedWallId);
-    const oldDirection = subtract(
-      { x: before.x2, y: before.y2 },
-      { x: before.x1, y: before.y1 },
-    );
-    const newDirection = subtract(
-      { x: after.x2, y: after.y2 },
-      { x: after.x1, y: after.y1 },
-    );
-    if (magnitude(newDirection) < 1 || dot(oldDirection, newDirection) <= 0) {
-      return { ok: false, reason: 'neighbor-too-short', walls: room.walls };
-    }
+  if (!wallsHold(room.walls, next, affectedWallIds)) {
+    return { ok: false, reason: 'neighbor-too-short', walls: room.walls };
   }
 
   return { ok: true, reason: null, walls: next };
@@ -146,7 +156,7 @@ export function moveWallPerpendicular(room, wallId, delta) {
 
 /**
  * Set a wall's length from one elevation-side end ('left' / 'right'), or half from each
- * ('both'), while preserving connected angles.
+ * ('both'). A square neighbour moves square; an angled neighbour gives, so only the shared corner moves (SPEC-42.2).
  *
  * @returns {{ok:boolean,reason:string|null,walls:object[]}}
  */
@@ -197,12 +207,20 @@ export function setWallLength(room, wallId, length, growEnd) {
   if (!neighbor) {
     return { ok: false, reason: 'wall-not-found', walls: room.walls };
   }
+  if (isAngledWall(neighbor)) {
+    // An angled neighbour gives (SPEC-42.2): only the shared corner moves.
+    const corner = add(endpointPoint(sourceWall, endpoint), scale(aOut, delta));
+    const next = moveConnectedEndpoint(room.walls, wallId, endpoint, corner);
+    return wallsHold(room.walls, next, [wallId, neighbor.id])
+      ? { ok: true, reason: null, walls: next }
+      : { ok: false, reason: 'neighbor-too-short', walls: room.walls };
+  }
   const neighborFrame = wallFrame(room, neighbor);
   const projection = dot(aOut, neighborFrame.n);
   if (Math.abs(projection) < 1e-6) {
     return { ok: false, reason: 'parallel-neighbor', walls: room.walls };
   }
-  return moveWallPerpendicular(room, neighbor.id, delta * projection);
+  return moveWallPerpendicular(room, neighbor.id, delta * projection, { keepAngle: [wallId] });
 }
 
 /** Connect two endpoints bidirectionally, replacing their previous connections. */

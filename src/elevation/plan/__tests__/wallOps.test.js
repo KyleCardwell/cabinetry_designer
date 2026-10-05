@@ -118,7 +118,7 @@ describe('elevation plan wall operations', () => {
       .toMatchObject({ x1: 120, y1: 0, x2: 120, y2: 96 });
   });
 
-  it('9. preserves directions and the requested length at a 60-degree corner', () => {
+  it('9. keeps the requested length at a 60-degree corner; the angled neighbor gives', () => {
     const radians = Math.PI / 3;
     const neighbor = wall(
       'B',
@@ -150,8 +150,9 @@ describe('elevation plan wall operations', () => {
     expect(result.ok).toBe(true);
     expect(wallLength(afterA)).toBeCloseTo(132, 6);
     expect(afterA).toMatchObject({ x2: 132, y2: 0 });
-    expect(afterB).toMatchObject({ x1: 132, y1: 0 });
-    expect(cross(beforeDirection, afterDirection)).toBeCloseTo(0, 6);
+    // SPEC-42.2: the angled neighbour gives; only the shared corner moves.
+    expect(afterB).toMatchObject({ x1: 132, y1: 0, x2: beforeB.x2, y2: beforeB.y2 });
+    expect(cross(beforeDirection, afterDirection)).not.toBeCloseTo(0, 6);
   });
 
   it('10. rejects a length that would reverse a connected neighbor', () => {
