@@ -12,7 +12,7 @@ export function bandDepths(settings) {
 
 const EPSILON = 1e-6;
 
-function hasToeKick(run) {
+export function hasToeKick(run) {
   return !run.stack?.below
     && (run.cabinetTypeId === CABINET_TYPE_IDS.BASE || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
 }
