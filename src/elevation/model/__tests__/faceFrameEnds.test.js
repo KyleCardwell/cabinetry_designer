@@ -21,9 +21,9 @@ const shown = ({ pieces }) => pieces.map(({ kind, x, width }) => [kind, x, width
 
 describe('SPEC-38.3 face frame ends', () => {
   it('gives a beaded run equal boxes and a bead gap each end; a free end adds the overhang to its gap', () => {
-    // Joined left: bead + half the leftover each end.
+    // Joined left: a bead gap each end; the boxes take the rest (SPEC-42.1), 29 1/4 each.
     expect(shown(splitRun(run(90, ['none', 'end_panel'], 3, JOINED_LEFT), S))).toEqual([
-      ['cabinet', 0.625, 29], ['cabinet', 30.125, 29], ['cabinet', 59.625, 29], ['end_panel', 89.25, 0.75],
+      ['cabinet', 0.25, 29.25], ['cabinet', 30, 29.25], ['cabinet', 59.75, 29.25], ['end_panel', 89.25, 0.75],
     ]);
     // Free left (None, not joined): bead + 3/4 overhang, no leftover. The box isn't narrowed.
     expect(shown(splitRun(run(90, ['none', 'end_panel'], 3), S))).toEqual([
@@ -31,9 +31,9 @@ describe('SPEC-38.3 face frame ends', () => {
     ]);
   });
 
-  it('floors the left half of an odd leftover to a sixteenth', () => {
+  it('SPEC-42.1 keeps the stiles standard: the boxes take the leftover, the last one the odd sixteenth', () => {
     expect(shown(splitRun(run(65.1875, ['none', 'end_panel'], 2, JOINED_LEFT), S))).toEqual([
-      ['cabinet', 0.4375, 31.5], ['cabinet', 32.4375, 31.5], ['end_panel', 64.4375, 0.75],
+      ['cabinet', 0.25, 31.75], ['cabinet', 32.5, 31.6875], ['end_panel', 64.4375, 0.75],
     ]);
   });
 
@@ -49,10 +49,10 @@ describe('SPEC-38.3 face frame ends', () => {
     ]);
   });
 
-  it('gives an unbeaded inset run no bead gap, a free end its overhang, and the stile leftover', () => {
+  it('gives an unbeaded inset run no bead gap and a free end its overhang; the boxes take the rest', () => {
     const plain = run(60, ['none', 'end_panel'], 2, { _seamGap: 0, _frame: { ...BEADED, bead: 0 } });
     expect(shown(splitRun(plain, S))).toEqual([
-      ['cabinet', 1, 29], ['cabinet', 30, 29], ['end_panel', 59.25, 0.75],
+      ['cabinet', 0.75, 29.25], ['cabinet', 30, 29.25], ['end_panel', 59.25, 0.75],
     ]);
   });
 

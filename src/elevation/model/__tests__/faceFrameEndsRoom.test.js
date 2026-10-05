@@ -51,7 +51,7 @@ describe('SPEC-38.3 the frame covers the end gaps', () => {
   });
 
   it('covers end panels at both ends with equal openings', () => {
-    // 60 − 1 1/2 panels − 1/2 seam − 1/2 bead gaps = 57 1/2 → two 28 1/2 boxes, 1/4 leftover each end.
-    expect(frameOf('B')).toEqual({ region: [100, 60], openings: [27, 27] });
+    // 60 − 1 1/2 panels − 1/2 seam − 1/2 bead gaps = 57 1/2 → two 28 3/4 boxes (SPEC-42.1).
+    expect(frameOf('B')).toEqual({ region: [100, 60], openings: [27.25, 27.25] });
   });
 });

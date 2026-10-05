@@ -69,8 +69,8 @@ describe('SPEC-36.2 wall end panels in a face frame', () => {
       panelIds: ['F:right'], wallPanels: [{ side: 'left', x: 0, width: 0.75 }],
     }]);
     expect(frames.freeSides.get('Fa')).toEqual({ left: false, right: false });
-    expect([faces.get('Fa').box.x, faces.get('Fa').box.width]).toEqual([1, 47]);
-    expect(faces.get('Fa').openings).toEqual([{ path: 'r', x: 1.75, z: 5.5, width: 45.5, height: 27.5 }]);
+    expect([faces.get('Fa').box.x, faces.get('Fa').box.width]).toEqual([0.75, 47.25]);
+    expect(faces.get('Fa').openings).toEqual([{ path: 'r', x: 1.5, z: 5.5, width: 45.75, height: 27.5 }]);
   });
 
   it('lets the frame die into a taller panel, or as the panel says', () => {
@@ -80,7 +80,7 @@ describe('SPEC-36.2 wall end panels in a face frame', () => {
     const { frames, faces } = frontFrames(taller);
     expect(frames.regions[0]).toMatchObject({ x: 0.75, width: 95.25 });
     expect('wallPanels' in frames.regions[0]).toBe(false);
-    expect([faces.get('Fa').box.x, faces.get('Fa').box.width]).toEqual([1.875, 46.5]);
+    expect([faces.get('Fa').box.x, faces.get('Fa').box.width]).toEqual([1.5, 46.875]);
 
     expect(runOf(island({ panel: { width: null, frame: 'butt' } }), 'F')._frame.wallPanels.left.join)
       .toBe('butt');
@@ -94,7 +94,7 @@ describe('SPEC-36.2 a mitered wall end panel in plan, chain and elevation', () =
     const room = island();
     const { wall, run, layout, faces } = frontFrames(room);
     const plan = planRunPieces(room, wall, run, S, layout, faces);
-    expect(plan.boxes.map(({ key, start, end }) => [key, start, end])).toEqual([['Fa', 1, 48], ['Fb', 48, 95]]);
+    expect(plan.boxes.map(({ key, start, end }) => [key, start, end])).toEqual([['Fa', 0.75, 48], ['Fb', 48, 95.25]]);
     expect(plan.faces.find(({ kind }) => kind === 'frame')).toEqual({
       key: 'frame:Fa', kind: 'frame', start: 0, end: 96, back: 24, front: 24.8125,
       polygon: [[0, 24.8125], [96, 24.8125], [95.25, 24], [0.75, 24]],
@@ -104,11 +104,11 @@ describe('SPEC-36.2 a mitered wall end panel in plan, chain and elevation', () =
       { x: 0, y: -24.8125 }, { x: 0.75, y: -24 }, { x: 0.75, y: 24 }, { x: 0, y: 24.8125 },
     ]);
     expect(horizontalChains(room, wall, 'lower', S).inner).toEqual([
-      { start: 0, end: 1.75, kind: 'frame', runId: 'F' },
-      { start: 1.75, end: 47.25, kind: 'frame-opening', runId: 'F', pieceId: 'Fa' },
+      { start: 0, end: 1.5, kind: 'frame', runId: 'F' },
+      { start: 1.5, end: 47.25, kind: 'frame-opening', runId: 'F', pieceId: 'Fa' },
       { start: 47.25, end: 48.75, kind: 'frame', runId: 'F' },
-      { start: 48.75, end: 94.25, kind: 'frame-opening', runId: 'F', pieceId: 'Fb' },
-      { start: 94.25, end: 96, kind: 'frame', runId: 'F' },
+      { start: 48.75, end: 94.5, kind: 'frame-opening', runId: 'F', pieceId: 'Fb' },
+      { start: 94.5, end: 96, kind: 'frame', runId: 'F' },
     ]);
   });
 

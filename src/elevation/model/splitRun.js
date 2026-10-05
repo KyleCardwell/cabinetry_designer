@@ -171,7 +171,6 @@ function splitRunLegacy(run, settings, opts) {
   let autoWidth = 0;
   let flexExtra = 0;
   let flexRemainder = 0;
-  const stileExtra = { left: 0, right: 0 };
 
   if (hasAvailableError) {
     errors.push({ code: 'over-constrained' });
@@ -186,21 +185,6 @@ function splitRunLegacy(run, settings, opts) {
       const extra = leftover - minimumTotal;
       flexExtra = floorTo(extra / flex, FILLER_STEP);
       flexRemainder = extra - flex * flexExtra;
-    }
-  } else if (nAuto > 0 && run._frame) {
-    // SPEC-38.3: a face frame run with nothing flexible rounds its boxes down and gives the leftover
-    // to its end stiles, half to each real end, so every box and every opening is the same.
-    autoWidth = floorTo(available / nAuto, settings.roundTo);
-    const leftover = available - nAuto * autoWidth;
-    const realLeft = !run._pinSplit?.left;
-    const realRight = !run._pinSplit?.right;
-    if (realLeft && realRight) {
-      stileExtra.left = floorTo(leftover / 2, FILLER_STEP);
-      stileExtra.right = leftover - stileExtra.left;
-    } else if (realLeft) {
-      stileExtra.left = leftover;
-    } else {
-      stileExtra.right = leftover;
     }
   } else if (nAuto > 0) {
     autoWidth = roundTo(available / nAuto, FILLER_STEP);
@@ -228,7 +212,7 @@ function splitRunLegacy(run, settings, opts) {
     }
 
     let computedWidth = autoWidth;
-    if (flex === 0 && !run._frame && !hasAvailableError && autoIndex === lastAutoIndex) {
+    if (flex === 0 && !hasAvailableError && autoIndex === lastAutoIndex) {
       computedWidth = available - autoWidth * lastAutoIndex;
     }
     autoIndex += 1;
@@ -306,8 +290,8 @@ function splitRunLegacy(run, settings, opts) {
     gapsAfter.push(0);
   };
 
-  const leftGap = endGaps.left + stileExtra.left;
-  const rightGap = endGaps.right + stileExtra.right;
+  const leftGap = endGaps.left;
+  const rightGap = endGaps.right;
   addEnd('left', run.ends.left);
   if (gapsAfter.length > 0) gapsAfter[gapsAfter.length - 1] += leftGap;
   for (const item of computedItems) {

@@ -74,23 +74,27 @@ describe('SPEC-38.4 a joined end that dies into a deeper run', () => {
     });
   });
 
-  it('keeps the bead-only gap where the neighbour is only as deep (1" stile plus the 3/8 leftover)', () => {
+  it('keeps the bead-only gap where the neighbour is only as deep (a 1" stile; the boxes take the rest)', () => {
     const room = g2({ tallDepth: 24 });
     expect(frameOf(room, 'B')).toEqual({
       leftEnd: 'none', dieIn: undefined,
-      boxes: [[77.125, 34], [111.625, 34]], leftStile: 1.375, rightStile: 2.125, openings: [32.5, 32.5],
+      boxes: [[76.75, 34.375], [111.625, 34.375]], leftStile: 1, rightStile: 1.75, openings: [32.875, 32.875],
     });
   });
 });
 
 describe('SPEC-38.4 a mitered wall end panel in a beaded run', () => {
-  it('gives the end a bead gap only: 1 3/4 over the panel, plus half the 1" leftover', () => {
+  it('gives the end a bead gap only: 1 3/4 over the panel; the boxes take the rest', () => {
     const room = g2({ endPanels: { start: null, end: { width: null } }, upperRight: AUTO_NONE });
     const upper = room.walls[0].runs.find(({ id }) => id === 'U');
     expect(upper._frame.wallPanels.right).toEqual({ width: 0.75, top: 90, join: 'miter' });
-    // 94 3/4 (to the panel) − 1 die-in gap − 1/4 bead − 1 seams = 92 1/2 → 30 1/2 × 3, 1/2 more each end.
+    // 94 3/4 (to the panel) − 1 die-in gap − 1/4 bead − 1 seams = 92 1/2 → 30 13/16, 30 13/16 and the
+    // last 30 7/8 (SPEC-42.1: the stiles stay 1 3/4, the last box takes the odd sixteenth).
     expect(frameOf(room, 'U')).toMatchObject({
-      boxes: [[78, 30.5], [109, 30.5], [140, 30.5]], leftStile: 2.25, rightStile: 2.25, openings: [29, 29, 29],
+      boxes: [[77.5, 30.8125], [108.8125, 30.8125], [140.125, 30.875]],
+      leftStile: 1.75,
+      rightStile: 1.75,
+      openings: [29.3125, 29.3125, 29.375],
     });
   });
 });
