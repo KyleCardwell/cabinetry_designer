@@ -1,6 +1,6 @@
 import { frontDepth, runBackOffset } from './corners.js';
 import { resolveProfile } from './profile.js';
-import { bandDepths, hasToeKick } from './runBands.js';
+import { bandDepths, hasToeKick } from './bandDepths.js';
 import { isCountertop, runTop } from './tops.js';
 
 const EPSILON = 1e-6;

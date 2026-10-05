@@ -1,21 +1,13 @@
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { bandDepths, hasToeKick } from './bandDepths.js';
 import { frontDepth } from './corners.js';
 import { resolveProfile } from './profile.js';
 import { isCountertop, runTop } from './tops.js';
 import { wallEndPanelAt } from './wallSides.js';
 
-/** The shop's band depths (SPEC-42): settings.bandDepths over the defaults. */
-export function bandDepths(settings) {
-  return { ...DEFAULT_SETTINGS.bandDepths, ...settings?.bandDepths };
-}
+export { bandDepths, hasToeKick } from './bandDepths.js';
 
 const EPSILON = 1e-6;
-
-export function hasToeKick(run) {
-  return !run.stack?.below
-    && (run.cabinetTypeId === CABINET_TYPE_IDS.BASE || run.cabinetTypeId === CABINET_TYPE_IDS.TALL);
-}
 
 const TOP_PAST = { countertop: 'countertopOverhang', topMold: 'topMoldProjection', crown: 'crownProjection' };
 
