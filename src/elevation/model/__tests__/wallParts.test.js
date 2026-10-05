@@ -60,4 +60,38 @@ describe('SPEC-42.1 wall parts', () => {
       [door, 'opening', 5, 0, 36, 80, -4.5, 0],
     ]);
   });
+
+  it('outlines a soffit and a wing wall; a soffit as deep as the wing wall runs over it (G3)', () => {
+    const soffit = '5ac8edd3-2c75-476d-bc64-f80ade3f5fba';
+    const wing = '5ab00c5d-9ea6-4d32-9586-d266db26a4d2';
+    expect(partsOf(room('G3 Bath alcove'), 1)).toEqual([
+      {
+        id: soffit, kind: 'soffit', x: 0, z: 84, width: 72, height: 12,
+        back: 0, front: 14, coversBoxEdges: false, opaque: false,
+      },
+      {
+        id: wing, kind: 'wing_wall', x: 72, z: 0, width: 4.5, height: 96,
+        back: 0, front: 30, coversBoxEdges: false, opaque: false,
+        openEdges: ['left', 'right'],
+        lines: [{ x1: 72, z1: 0, x2: 72, z2: 96 }, { x1: 76.5, z1: 0, x2: 76.5, z2: 96 }],
+      },
+    ]);
+    const flush = structuredClone(stored('G3 Bath alcove'));
+    flush.walls[1].soffits[0].depth = 30;
+    const [deep, wall] = partsOf(syncRoom(flush, settings), 1);
+    expect(deep.openEdges).toEqual(['right']);
+    expect(wall.lines).toEqual([{ x1: 72, z1: 0, x2: 72, z2: 84 }, { x1: 76.5, z1: 0, x2: 76.5, z2: 96 }]);
+  });
+
+  it('outlines a recess at the wall face and a projection out from it (G5)', () => {
+    const r1 = '61c07d7e-ec8b-4306-9825-9f3decfb5fa1';
+    const r2 = '56ed5f83-a17f-4d5b-9bcf-b72501cecc4d';
+    expect(partsOf(room('G5 Recess room'), 1).map(row)).toEqual([
+      [r1, 'recess', 32, 0, 48, 96, -12, 0],
+      [r2, 'recess', 140, 0, 48, 96, -24, 0],
+    ]);
+    const built = structuredClone(stored('G5 Recess room'));
+    Object.assign(built.walls[1].recesses[0], { kind: 'projection', bottom: 6, height: 60 });
+    expect(row(partsOf(syncRoom(built, settings), 1)[0])).toEqual([r1, 'projection', 32, 6, 48, 60, 0, 12]);
+  });
 });

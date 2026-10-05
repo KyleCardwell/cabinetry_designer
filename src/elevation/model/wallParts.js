@@ -1,7 +1,9 @@
+import { landingProjection, landingsOn } from './landings.js';
 import { openingGeometry } from './openings.js';
-import { openingPlanDepths } from './recesses.js';
+import { openingPlanDepths, recessGeometry, recessesOn } from './recesses.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
+import { soffitFlushSides, soffitSeams, soffitsOn } from './soffits.js';
 import { wallEndPanelPartKey } from './parts.js';
 import { wallEndPanels } from './wallEndPanels.js';
 
@@ -53,6 +55,35 @@ export function wallParts(room, wall, side, settings) {
       outline(`${opening.id}:casing`, 'casing', geometry.casing, face, face + (opening.casing?.thickness ?? 0));
     }
     outline(opening.id, 'opening', geometry.jamb, face - source.thickness, face);
+  }
+
+  for (const soffit of soffitsOn(view)) {
+    const flush = soffitFlushSides(room, view, soffit);
+    const openEdges = ['left', 'right'].filter((edge) => flush[edge]);
+    outline(soffit.id, 'soffit', {
+      x: soffit.x, z: soffit.bottom, width: soffit.width, height: view.height - soffit.bottom,
+    }, 0, soffit.depth, openEdges.length > 0 ? { openEdges } : {});
+  }
+
+  for (const recess of recessesOn(view)) {
+    const geometry = recessGeometry(recess, view.length, view.height);
+    const rect = { x: geometry.x, z: geometry.bottom, width: geometry.width, height: geometry.top - geometry.bottom };
+    if (geometry.plane < 0) outline(recess.id, 'recess', rect, geometry.plane, 0);
+    else outline(recess.id, 'projection', rect, 0, geometry.plane);
+  }
+
+  const seams = soffitSeams(room, view);
+  for (const { wallId, a, b } of landingsOn(room, view)) {
+    const landed = room.walls.find((candidate) => candidate.id === wallId);
+    if (!landed) continue;
+    // A soffit as deep as the wing wall runs over it: the wing wall's sides stop at its bottom.
+    const sideTop = (x) => seams.find((seam) => seam.wallId === wallId && Math.abs(seam.x - x) <= EPSILON)
+      ?.bottom ?? landed.height;
+    outline(wallId, 'wing_wall', { x: a, z: 0, width: b - a, height: landed.height },
+      0, landingProjection(room, view, wallId) ?? 0, {
+        openEdges: ['left', 'right'],
+        lines: [a, b].map((x) => ({ x1: x, z1: 0, x2: x, z2: sideTop(x) })),
+      });
   }
 
   return parts;
