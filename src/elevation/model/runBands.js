@@ -1,5 +1,6 @@
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
+import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
 import { frontDepth } from './corners.js';
 import { resolveProfile } from './profile.js';
 import { isCountertop, runTop } from './tops.js';
@@ -100,10 +101,18 @@ export function runBands(room, wall, run, settings, scene) {
   const panelEnd = panelBySide.right
     ? Math.max(panelBySide.right.x + panelBySide.right.width, runEnd)
     : null;
-  /** A band's rectangle from its two ends; a blind panel takes it to the wall. */
+  const shapes = lazyCornerShapes(room, wall, settings);
+  /**
+   * A band's rectangle from its two ends: a blind panel takes it to the wall; at a corner it meets the
+   * return's band (SPEC-42.3); otherwise bandEdge.
+   */
   const band = (kind, z, height) => {
-    const x = panelStart ?? bandEdge(room, wall, run, 'left', kind, settings);
-    const right = panelEnd ?? bandEdge(room, wall, run, 'right', kind, settings);
+    const x = panelStart
+      ?? cornerBandEdge(shapes, run, 'left', kind, z)
+      ?? bandEdge(room, wall, run, 'left', kind, settings);
+    const right = panelEnd
+      ?? cornerBandEdge(shapes, run, 'right', kind, z)
+      ?? bandEdge(room, wall, run, 'right', kind, settings);
     return { x, z, width: right - x, height };
   };
   const profile = resolveProfile(settings, room, wall);

@@ -34,12 +34,12 @@ describe('SPEC-42 run bands', () => {
       bottomParts: [],
       chipLines: [],
     });
-    // The base: joined to the taller tall on the left, wall on the right.
-    expect(bands.b822e8ac.toeKick).toEqual({ x: 29, z: 0, width: 114.125, height: 4 });
-    expect(bands.b822e8ac.countertop).toEqual({ x: 30, z: 34.5, width: 113.125, height: 1.5 });
-    // The upper: free on the left (end panel), wall on the right.
-    expect(span(bands['434f1164'].topMold)).toEqual([108.25, 46.875]);
-    expect(span(bands['434f1164'].crown)).toEqual([105.5, 49.625]);
+    // The base: joined to the taller tall on the left; in the right corner it meets wall B's base return (SPEC-42.3).
+    expect(bands.b822e8ac.toeKick).toEqual({ x: 29, z: 0, width: 118, height: 4 });
+    expect(bands.b822e8ac.countertop).toEqual({ x: 30, z: 34.5, width: 112.375, height: 1.5 });
+    // The upper: free on the left (end panel); in the right corner it meets wall B's upper return.
+    expect(span(bands['434f1164'].topMold)).toEqual([108.25, 46.625]);
+    expect(span(bands['434f1164'].crown)).toEqual([105.5, 46.625]);
   });
 
   it('runs a top past a wall end panel; a toe kick stops at the run (G1 island, G2 peninsula)', () => {
@@ -50,8 +50,9 @@ describe('SPEC-42 run bands', () => {
       expect(span(island.countertop)).toEqual([-0.75, 93]);
     }
     const g2 = syncRoom(stored('G2 Face frame kitchen'), settings);
+    // SPEC-42.3: its left end meets wall A's base return; its right runs past the wall end panel.
     expect(span(bandsOf(g2, 1)['4b49c071'].countertop))
-      .toEqual([24.8125, 54.4375]);
+      .toEqual([25.5625, 53.6875]);
     expect(span(bandsOf(g2, 1, 'back')['2c8ab1e3'].countertop)).toEqual([-0.75, 79.25]);
   });
 
@@ -129,13 +130,14 @@ describe('SPEC-42 run bands', () => {
   it('SPEC-42.1 a toe kick stops 1" from an end panel and 1/4" from a cabinet side; a shallower toe kick runs on to the deeper one', () => {
     const g1 = syncRoom(stored('G1 Euro kitchen'), settings);
     const a = bandsOf(g1, 0);
-    // The tall (deeper) stops 1" short of its right end panel; the base's toe kick runs on to meet it.
+    // The tall (deeper) stops 1" short of its right end panel; the base's toe kick runs on to meet it,
+    // and on into the right corner to meet wall B's return (SPEC-42.3).
     expect(span(a.b38f2f11.toeKick)).toEqual([0, 29]);
-    expect(span(a.b822e8ac.toeKick)).toEqual([29, 114.125]);
-    // G1 B: a free filler end, 1/4" short.
-    expect(span(bandsOf(g1, 1)['4b64d096'].toeKick)).toEqual([24.875, 94.875]);
+    expect(span(a.b822e8ac.toeKick)).toEqual([29, 118]);
+    // G1 B: the left end meets wall A's return at 21" (SPEC-42.3); the right is a free filler end, 1/4" short.
+    expect(span(bandsOf(g1, 1)['4b64d096'].toeKick)).toEqual([21, 98.75]);
     const g2 = bandsOf(syncRoom(stored('G2 Face frame kitchen'), settings), 0);
     expect(span(g2.a42e9a57.toeKick)).toEqual([51, 24.5]);
-    expect(span(g2['860a1197'].toeKick)).toEqual([75.5, 71.6875]);
+    expect(span(g2['860a1197'].toeKick)).toEqual([75.5, 75.5]);
   });
 });

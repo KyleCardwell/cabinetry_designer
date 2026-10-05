@@ -25,10 +25,10 @@ describe('SPEC-42 band parts', () => {
       [`${TALL}:toe_kick`, 'toe_kick', 0, 0, 29, 4, 0, 22, false],
       [`${TALL}:top_mold`, 'top_mold', 0, 90, 30.25, 3, 0, 26.125, false],
       [`${TALL}:crown`, 'crown', 0, 91.5, 33, 4.5, 0, 28.875, false],
-      [`${BASE}:toe_kick`, 'toe_kick', 29, 0, 114.125, 4, 0, 21, false],
-      [`${BASE}:countertop`, 'countertop', 30, 34.5, 113.125, 1.5, 0, 25.625, false],
-      [`${UPPER}:top_mold`, 'top_mold', 108.25, 90, 46.875, 3, 0, 13.125, false],
-      [`${UPPER}:crown`, 'crown', 105.5, 91.5, 49.625, 4.5, 0, 15.875, false],
+      [`${BASE}:toe_kick`, 'toe_kick', 29, 0, 118, 4, 0, 21, false],
+      [`${BASE}:countertop`, 'countertop', 30, 34.5, 112.375, 1.5, 0, 25.625, false],
+      [`${UPPER}:top_mold`, 'top_mold', 108.25, 90, 46.625, 3, 0, 13.125, false],
+      [`${UPPER}:crown`, 'crown', 105.5, 91.5, 46.625, 4.5, 0, 15.875, false],
     ]);
     expect(parts[0]).toEqual({
       id: `${TALL}:toe_kick`, kind: 'toe_kick', runId: TALL,
