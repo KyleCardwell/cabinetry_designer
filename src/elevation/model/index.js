@@ -399,3 +399,4 @@ export { DRAWING_PAYLOAD_VERSION, drawingZipName, toDrawingPayload } from './dra
 export { elevationParts } from './elevationParts.js';
 export { bandDepths, runBands } from './runBands.js';
 export { bandParts } from './bandParts.js';
+export { wallParts } from './wallParts.js';
