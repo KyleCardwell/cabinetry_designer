@@ -1,10 +1,10 @@
 import { anchoredToCorner, cornerAt, spanCorner } from './corners.js';
-import { dot, elevationToPlan, subtract } from './geometry.js';
+import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
 import { landingsOn } from './landings.js';
 import { resolveWall } from './room.js';
 import { runSide } from './runSide.js';
 import { soffitReturns } from './soffits.js';
-import { wallSideFrame, wallSideView } from './wallSides.js';
+import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
 
 const EPSILON = 1e-6;
 const BODY = new Set(['box', 'faces']);
@@ -98,7 +98,53 @@ export function cornerShapes(room, wall, side, settings) {
     });
   }
 
-  return shapes;
+  const profiles = [];
+  const handled = new Set();
+  for (const endpoint of ['start', 'end']) {
+    const neighbor = room.walls.find((candidate) => candidate.id === source.connections?.[endpoint]?.wallId);
+    if (!neighbor || handled.has(neighbor.id)) continue;
+    handled.add(neighbor.id);
+    for (const neighborSide of WALL_SIDES) {
+      const neighborView = wallSideView(neighbor, neighborSide);
+      const neighborFrame = wallSideFrame(room, neighbor, neighborSide);
+      // A run in the neighbour's recess sits behind its face: this face never sees it.
+      for (const run of neighborView.runs.filter((candidate) => !candidate.recessId)) {
+        const pieces = runSide(room, neighborView, run, settings);
+        const project = (piece) => [run.x, run.x + run.width].flatMap((x) => [piece.back, piece.front]
+          .map((offset) => elevationToPlan(neighborFrame, x, offset)));
+        const body = pieces.filter((piece) => BODY.has(piece.piece)).flatMap(project);
+        if (body.length === 0 || Math.max(...body.map(depthOf)) <= EPSILON) continue;
+        const bodyStart = Math.min(...body.map((point) => planPointToWallX(frame, point)));
+        for (const past of ['left', 'right']) {
+          const key = `${neighbor.id}:${neighborSide}:${run.id}:${past}`;
+          const parts = pieces.flatMap((piece) => {
+            const points = project(piece);
+            const xs = points.map((point) => planPointToWallX(frame, point));
+            const start = past === 'left' ? Math.min(...xs) : Math.max(Math.min(...xs), length);
+            const finish = past === 'left' ? Math.min(Math.max(...xs), 0) : Math.max(...xs);
+            if (finish - start <= EPSILON) return [];
+            const depths = points.map(depthOf);
+            return [{
+              id: `${key}:${piece.piece}`,
+              kind: BODY.has(piece.piece) ? 'profile' : piece.piece,
+              runId: run.id,
+              x: start, z: piece.z, width: finish - start, height: piece.height,
+              back: Math.min(...depths), front: Math.max(...depths),
+              coversBoxEdges: false,
+            }];
+          });
+          if (parts.length === 0) continue;
+          profiles.push({
+            at: past === 'left' ? bodyStart : Math.max(bodyStart, length),
+            z: run.z,
+            shape: { key, kind: 'profile', wallId: neighbor.id, runId: run.id, parts },
+          });
+        }
+      }
+    }
+  }
+  profiles.sort((a, b) => a.at - b.at || a.z - b.z);
+  return [...shapes, ...profiles.map(({ shape }) => shape)];
 }
 
 /** The parts of cornerShapes, in order: what the payload carries for this face's neighbours (SPEC-42.2). */
