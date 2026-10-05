@@ -4,6 +4,7 @@ import { drawingZipName, toDrawingPayload } from '../drawingPayload.js';
 import { bandParts } from '../bandParts.js';
 import { elevationParts } from '../elevationParts.js';
 import { wallParts } from '../wallParts.js';
+import { cornerParts } from '../cornerParts.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -60,16 +61,17 @@ describe('SPEC-40 drawing payload', () => {
     expect(drawingZipName('  ')).toBe('room.zip');
   });
 
-  it('SPEC-42.1 carries each wall face\'s parts, then its bands, then the wall\'s own parts', () => {
+  it('SPEC-42.2 carries each wall face\'s parts, its bands, the wall\'s own parts, then its neighbours', () => {
     const synced = room('G1 Euro kitchen');
     const payload = toDrawingPayload(synced, settings);
-    expect(payload.elevations.map((elevation) => elevation.parts.length)).toEqual([32, 26, 13, 13]);
+    expect(payload.elevations.map((elevation) => elevation.parts.length)).toEqual([40, 34, 13, 13]);
     for (const elevation of payload.elevations) {
       const wall = synced.walls.find((candidate) => candidate.id === elevation.wallId);
       expect(elevation.parts).toEqual([
         ...elevationParts(synced, wall, elevation.side, settings),
         ...bandParts(synced, wall, elevation.side, settings),
         ...wallParts(synced, wall, elevation.side, settings),
+        ...cornerParts(synced, wall, elevation.side, settings),
       ]);
     }
   });
