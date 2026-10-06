@@ -6,6 +6,7 @@ import { frameRegions } from './frames.js';
 import { endPieceBottom, resolveStyle } from './styles.js';
 import { teeFillers } from './tees.js';
 import { formatInches } from './units.js';
+import { miteredSpan, panelRunMiters } from './wallEndPanels.js';
 
 const PANEL_LABELS = { side: 'Side', top: 'Top', back: 'Back' };
 
@@ -63,9 +64,11 @@ export function runScene(room, wall, run, settings) {
   const seamTees = tees.filter((tee) => !tee.end).map((tee) => ({
     id: tee.id, kind: 'filler', role: 'tee', x: tee.x, z: tee.z, width: tee.width, height: tee.height,
   }));
+  const miters = panelRunMiters(room, wall, run, settings);
   const base = cells.pieces.map((piece) => {
     const tee = endTees.get(piece.id);
-    const shaped = tee ? { ...piece, x: tee.x, width: tee.width } : piece;
+    // A back panel mitered into a wall end panel runs over it (SPEC-43).
+    const shaped = tee ? { ...piece, x: tee.x, width: tee.width } : { ...piece, ...miteredSpan(piece, run, miters) };
     const dropped = drop > 0
       && (shaped.kind === 'filler' || shaped.kind === 'end_panel')
       ? { ...shaped, z: shaped.z - drop, height: shaped.height + drop }

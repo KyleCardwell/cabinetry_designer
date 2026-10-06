@@ -6,7 +6,9 @@ import Field from './Field.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 
-/** A wall end panel's width and, beside a face frame run, how the frame meets it (SPEC-36.2.1). */
+/**
+ * A wall end panel's width and, beside a face frame run (SPEC-36.2.1) or a back panel run (SPEC-43), how that run meets it.
+ */
 export default function WallEndPanelFields({
   wall, endpoint, panel, label, framed, settings,
 }) {
@@ -29,16 +31,16 @@ export default function WallEndPanelFields({
         />
       </Field>
       {framed && (
-        <Field label="Face frame">
+        <Field label="Joint">
           <select
             value={panel.frame ?? 'auto'}
             onChange={(event) => update({ frame: event.target.value === 'auto' ? null : event.target.value })}
-            aria-label={`${label} panel face frame`}
+            aria-label={`${label} panel joint`}
             className={SELECT_CLASS}
           >
             <option value="auto">Auto</option>
-            <option value="miter">Frame covers the panel edge</option>
-            <option value="butt">Frame dies into the panel</option>
+            <option value="miter">Mitered (frame or back panel covers the edge)</option>
+            <option value="butt">Butted (dies into the panel)</option>
           </select>
         </Field>
       )}

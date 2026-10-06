@@ -141,11 +141,15 @@ export function wallEndPanelSpans(wall, panel) {
   return spans;
 }
 
-/** Whether a face frame run meets this wall end panel on either side (SPEC-36.2.1). */
+/**
+ * Whether a face frame run (SPEC-36.2.1) or a back panel run (SPEC-43) meets this wall end panel on
+ * either side, so its joint can be chosen.
+ */
 export function wallEndPanelFramed(wall, panel) {
   const source = wall.sideSource ?? wall;
   const ids = [...panel.front.runIds, ...panel.back.runIds];
-  return source.runs.some((run) => ids.includes(run.id) && Boolean(run._frame));
+  return Boolean(panel.front.panelRun || panel.back.panelRun)
+    || source.runs.some((run) => ids.includes(run.id) && framedRun(run));
 }
 
 /**

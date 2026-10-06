@@ -13,7 +13,7 @@ import { splitRun } from './splitRun.js';
 import { teeFillers } from './tees.js';
 import { runTop } from './tops.js';
 import { wallNumbers } from './topology.js';
-import { wallEndPanels } from './wallEndPanels.js';
+import { miteredSpan, panelRunMiters, wallEndPanels } from './wallEndPanels.js';
 import { WALL_SIDES, wallSideView } from './wallSides.js';
 
 export const PART_MOLDINGS = ['toeKick', 'topMold', 'crown'];
@@ -85,6 +85,7 @@ function runParts(room, wall, side, settings) {
     const inFrame = frames.fillerIds;
     const { tees } = teeFillers(room, run, cells, settings);
     const teeWidths = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee.partWidth]));
+    const miters = panelRunMiters(room, view, run, settings);
     const pieceParts = partPieces(cells.pieces, settings)
       .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6
         && (!inFrame.has(piece.id) || blindPanels.has(piece.id)))
@@ -96,8 +97,10 @@ function runParts(room, wall, side, settings) {
         runId: run.id,
         pieceId: piece.id,
         molding: null,
-        width: teeWidths.get(piece.id) ?? cellWidths.get(piece.id) ?? widths.get(piece.id) ?? piece.width,
-        x: piece.x,
+        // A back panel mitered into a wall end panel is longer by the panel it runs over (SPEC-43).
+        width: teeWidths.get(piece.id) ?? cellWidths.get(piece.id) ?? widths.get(piece.id)
+          ?? miteredSpan(piece, run, miters).width,
+        x: miteredSpan(piece, run, miters).x,
         z: piece.z,
         height: piece.height,
         source: 'piece',
