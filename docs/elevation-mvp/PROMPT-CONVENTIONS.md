@@ -51,6 +51,16 @@ The full gate after every fix attempt is 96 test files plus a lint pass per cycl
 
 **9. Move code by script.** A step that moves code between files cuts it by line range with a script (`sed -n 'a,bp'` or a short Node/Python read-modify-write) and then fixes imports. It never retypes moved code. The prompt gives the line ranges.
 
+**10. Contract, not code (from round 43.2, Kyle 2026-10-06).** The SPEC gives:
+- the rules and decisions;
+- the file list with line counts;
+- function names and signatures, and the data shapes in and out;
+- what to reuse (name the existing helper or pattern to follow);
+- what not to touch;
+- the tests, verbatim, with literal values.
+
+Codex writes the implementation. Give code only for a few lines where an exact library call matters, for example an ezdxf API detail. Never give whole functions or files: that pays Claude to write the code and Codex to retype it. Cover every edge case that matters with a test rather than with code. Claude may check test numbers against a throwaway build, but that build never goes into the SPEC. After a tricky step (geometry, miters, anything touching many files), Claude reviews the commit's diff (`git show`) rather than pre-writing the code.
+
 ---
 
 ## Commands to run before writing a prompt
