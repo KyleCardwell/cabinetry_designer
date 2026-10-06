@@ -1,10 +1,13 @@
+import { CABINET_TYPE_IDS } from './constants.js';
+import { layoutRun, runFaceLayouts } from './faceLayouts.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
 import { openingGeometry } from './openings.js';
 import { wallEndPanelPartKey } from './parts.js';
+import { planRunPieces } from './planPieces.js';
 import { openingPlanDepths, recessPlanShape } from './recesses.js';
 import { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
 import { wallOutline } from './wallOutline.js';
-import { wallSideFrame } from './wallSides.js';
+import { wallSideFrame, wallSideOf } from './wallSides.js';
 
 function flipPoint({ x, y }) {
   return [x + 0, 0 - y];
@@ -94,6 +97,32 @@ export function planParts(room, settings) {
         kind: 'wall_end_panel',
         points: wallEndPanelPolygon(room, wall, panel).map(flipPoint),
       });
+    }
+  }
+  for (const wall of room.walls) {
+    for (const run of wall.runs ?? []) {
+      const frame = wallSideFrame(room, wall, wallSideOf(run));
+      const layout = layoutRun(room, wall, run, settings);
+      const { boxes, faces, returns } = planRunPieces(
+        room, wall, run, settings, layout, runFaceLayouts(room, wall, run, settings, layout),
+      );
+      const upper = run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
+      const addRange = (range, kind, dashed = upper) => {
+        parts.push({
+          id: range.key,
+          kind,
+          points: planPoints(frame, range.polygon ?? rectangle(
+            range.start, range.end, range.back, range.front,
+          )),
+          runId: run.id,
+          ...(dashed ? { dashed: true } : {}),
+        });
+      };
+      for (const box of boxes) {
+        addRange(box, box.dashed ? 'shelf' : 'cabinet', upper || box.dashed);
+      }
+      for (const range of faces) addRange(range, range.kind);
+      for (const range of returns) addRange(range, 'filler');
     }
   }
   return parts;
