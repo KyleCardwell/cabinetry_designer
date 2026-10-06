@@ -1,11 +1,11 @@
+import { cornerParts } from './cornerParts.js';
 import { wallFrame } from './geometry.js';
-import { neighborProfiles } from './neighborProfiles.js';
 import { resolveProfile } from './profile.js';
 import { resolveSoffitSpan, soffitsOn } from './soffits.js';
 import { runTop } from './tops.js';
 import { wallSideView } from './wallSides.js';
 
-/** Return the bounds of everything drawn in one wall elevation. */
+/** The bounds of everything drawn in one wall elevation, its neighbours' corner returns and profiles included, bands and all (SPEC-43.4). */
 export function wallExtent(room, wall, settings) {
   const view = wallSideView(wall, wall.side ?? 'front');
   const length = wallFrame(room, view).length;
@@ -31,12 +31,11 @@ export function wallExtent(room, wall, settings) {
     extent.right = Math.max(extent.right, span.x + span.width);
   }
 
-  for (const profileShape of neighborProfiles(room, wall, settings)) {
-    extent.left = Math.min(extent.left, profileShape.x);
-    extent.right = Math.max(extent.right, profileShape.x + profileShape.width);
-    for (const molding of profileShape.moldings) {
-      extent.top = Math.max(extent.top, molding.z + molding.height);
-    }
+  for (const part of cornerParts(room, wall, wall.side ?? 'front', settings)) {
+    extent.left = Math.min(extent.left, part.x);
+    extent.right = Math.max(extent.right, part.x + part.width);
+    extent.bottom = Math.min(extent.bottom, part.z);
+    extent.top = Math.max(extent.top, part.z + part.height);
   }
 
   return extent;

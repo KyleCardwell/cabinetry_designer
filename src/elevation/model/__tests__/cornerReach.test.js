@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { profileReach } from '../cornerParts.js';
 import { horizontalChains } from '../dimensions.js';
+import { elevationDimensions } from '../elevationDimensions.js';
 import { resolveWall, syncRoom } from '../room.js';
+import { wallExtent } from '../wallExtent.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
 const document = normalizeElevationDocument(
@@ -51,5 +53,34 @@ describe('SPEC-43.4 reach dimensions from cornerShapes', () => {
       const chains = horizontalChains(g5, resolveWall(g5, g5.walls[index], 'front'), 'lower', settings);
       expect(chains).toEqual({ inner: [], outer: [{ start: 0, end: 30, kind: 'wall' }] });
     }
+  });
+});
+
+describe('SPEC-43.4 the extent takes in everything cornerShapes draws', () => {
+  it('reaches a profile\'s countertop and a return above a low wall; drops a recess run (G2, G5)', () => {
+    const g2 = room('G2 Face frame kitchen');
+    const extentOf = (synced, wallIndex, side) => wallExtent(
+      synced, resolveWall(synced, synced.walls[wallIndex], side), settings,
+    );
+    // The peninsula's back run in profile: box to 196, countertop 3/4" past it.
+    expect(extentOf(g2, 0, 'front')).toEqual({ left: 0, right: 196.75, top: 96, bottom: 0 });
+    // Wall A's upper returns into the 36" peninsula's corner, up to its crown at 96".
+    expect(extentOf(g2, 1, 'front')).toEqual({ left: 0, right: 78.5, top: 96, bottom: 0 });
+    expect(extentOf(g2, 1, 'back')).toEqual({ left: 0, right: 78.5, top: 36, bottom: 0 });
+    const g5 = room('G5 Recess room');
+    expect(extentOf(g5, 2, 'front')).toEqual({ left: 0, right: 30, top: 96, bottom: 0 });
+  });
+
+  it('moves the DXF\'s rows and columns out with it (G2 A right edge, the peninsula\'s row above)', () => {
+    const g2 = room('G2 Face frame kitchen');
+    const right = elevationDimensions(g2, g2.walls[0], 'front', settings)
+      .filter(({ row: name }) => name.startsWith('right.'));
+    expect([...new Set(right.map(({ row: name, base, at }) => `${name} ${base} ${at}`))]).toEqual([
+      'right.inner 196.75 205.75', 'right.middle 196.75 222.25', 'right.outer 196.75 231.25',
+    ]);
+    expect(elevationDimensions(g2, g2.walls[1], 'front', settings)
+      .filter(({ row: name }) => name.startsWith('upper.'))
+      .map(({ row: name, kind, start, end, base, at }) => [name, kind, start, end, base, at]))
+      .toEqual([['upper.outer', 'wall', 0, 78.5, 96, 105]]);
   });
 });
