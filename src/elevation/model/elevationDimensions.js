@@ -1,6 +1,7 @@
 import { horizontalChains, openingChain, pickColumnRuns, verticalChains } from './dimensions.js';
 import { plotScale } from './drawingScale.js';
 import { resolveWall } from './room.js';
+import { runScene } from './runScene.js';
 import { formatInches } from './units.js';
 import { wallExtent } from './wallExtent.js';
 
@@ -13,6 +14,9 @@ export const DIMENSION_ROW_SPACING = 0.375;
  */
 export const DIMENSION_TEXT_HEIGHT = 0.09375;
 export const DIMENSION_TEXT_GAP = 0.0625;
+
+/** Paper inches inside a cell grid's left or bottom edge for its chain (SPEC-43.3). */
+const CELL_CHAIN_INSET = 0.25;
 
 /** Arial Narrow's widest-case average character width as a share of the text height (SPEC-43.1). */
 const CHARACTER_WIDTH = 0.5;
@@ -66,6 +70,24 @@ function placeLabels(segments, at, outward, scale, textOutward = outward > 0) {
   return { placed, levels: levels.length, step };
 }
 
+/** Map labels along/across a dimension line to drawing coordinates in either orientation. */
+function labelRecords(placed, row, base, at, vertical) {
+  return placed.map(({ segment, text, along, across }) => ({
+    row,
+    ...(vertical ? { orientation: 'vertical' } : {}),
+    kind: segment.kind,
+    start: segment.start,
+    end: segment.end,
+    base,
+    at,
+    text,
+    ...(along === undefined ? {} : {
+      textX: vertical ? across : along,
+      textZ: vertical ? along : across,
+    }),
+  }));
+}
+
 /**
  * One wall face's horizontal rows (SPEC-43), then vertical columns at both edges (SPEC-43.2): the
  * canvas's chains, one record per segment. Vertical records have `orientation: 'vertical'`; each
@@ -75,6 +97,7 @@ function placeLabels(segments, at, outward, scale, textOutward = outward > 0) {
  * labels moved off the line (SPEC-43.1); an empty chain takes no space. `base` is where the extension
  * lines start (the drawing's bottom/top or left/right edge), `at` the dimension line, `textX`/`textZ`
  * a moved label's middle in drawing coordinates.
+ * Cell chains sit 1/4" (paper) inside the column's left or bottom edge, with no extension lines (SPEC-43.3).
  */
 export function elevationDimensions(room, wall, side, settings) {
   const view = resolveWall(room, wall, side);
@@ -126,20 +149,21 @@ export function elevationDimensions(room, wall, side, settings) {
       const segments = chain.filter((segment) => segment.end - segment.start > EPSILON);
       if (segments.length === 0) continue;
       const { placed, levels, step } = placeLabels(segments, at, outward, scale, edge === 'left');
-      for (const { segment, text, along, across } of placed) {
-        dimensions.push({
-          row: `${edge}.${column}`,
-          orientation: 'vertical',
-          kind: segment.kind,
-          start: segment.start,
-          end: segment.end,
-          base,
-          at,
-          text,
-          ...(along === undefined ? {} : { textX: across, textZ: along }),
-        });
-      }
+      dimensions.push(...labelRecords(placed, `${edge}.${column}`, base, at, true));
       at += outward * (spacing + levels * step);
+    }
+  }
+  for (const run of view.runs) {
+    const { cells } = runScene(room, view, run, settings);
+    for (const grid of cells.grids) {
+      const vertical = grid.axis === 'row';
+      const segments = grid.tracks
+        .filter((track) => track.end - track.start > EPSILON)
+        .sort((a, b) => a.start - b.start)
+        .map(({ start, end }) => ({ kind: 'cell', start, end }));
+      const at = (vertical ? grid.x : grid.z) + CELL_CHAIN_INSET * scale;
+      const { placed } = placeLabels(segments, at, +1, scale, !vertical);
+      dimensions.push(...labelRecords(placed, 'cells', at, at, vertical));
     }
   }
   return dimensions;
