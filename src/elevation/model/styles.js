@@ -133,6 +133,21 @@ export function isSingleColumn(face) {
   return face.direction === 'vertical' && face.children.every(isSingleColumn);
 }
 
+/** How a captured Euro cabinet's faces read: single-wide, mixed with pair doors, or neither (SPEC-44). */
+export function capturedFaces(face) {
+  const collect = (node) => {
+    if (node.type) return [node];
+    if (node.direction !== 'vertical') return null;
+    const children = node.children.map(collect);
+    return children.includes(null) ? null : children.flat();
+  };
+  const leaves = collect(face);
+  if (leaves === null) return null;
+  const pairs = leaves.filter((leaf) => leaf.type === 'pair_door').length;
+  if (pairs === 0) return 'single';
+  return pairs < leaves.length ? 'mixed' : null;
+}
+
 /**
  * Reveals for one cabinet: style, then rules, then manual overrides.
  *
@@ -178,8 +193,11 @@ export function cabinetReveals({
     if (stacked.top) apply('top', seam.lowerTop, 'rule:stacked-seam');
     if (stacked.bottom) apply('bottom', seam.upperBottom, 'rule:stacked-seam');
   }
-  if (euro && captured.left && captured.right && isSingleColumn(face)) {
+  if (euro && captured.left && captured.right && capturedFaces(face) !== null) {
     const reveal = settings.capturedSingleReveal ?? DEFAULT_SETTINGS.capturedSingleReveal;
+    if (capturedFaces(face) === 'mixed') {
+      values.pair -= (reveal - values.left) + (reveal - values.right);
+    }
     apply('left', reveal, 'rule:captured-single');
     apply('right', reveal, 'rule:captured-single');
   }
