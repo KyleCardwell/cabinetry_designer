@@ -13,10 +13,13 @@ const row = ({
   row: name, kind, start, end, base, at, text, textX, textZ,
 }) => [name, kind, start, end, base, at, text, ...(textX === undefined ? [] : [textX, textZ])];
 
+/** The horizontal rows only (SPEC-43.2 adds vertical columns, tested in verticalDimensions.test.js). */
+const horizontal = (dimensions) => dimensions.filter(({ orientation }) => orientation === undefined);
+
 describe('SPEC-43 elevation dimensions', () => {
   it('dimensions every segment of the canvas\'s chains; text that doesn\'t fit moves off the line (G1 elevation A)', () => {
     const g1 = room('G1 Euro kitchen');
-    expect(elevationDimensions(g1, g1.walls[0], 'front', settings).map(row)).toEqual([
+    expect(horizontal(elevationDimensions(g1, g1.walls[0], 'front', settings)).map(row)).toEqual([
       ['lower.inner', 'piece', 0, 0.75, 0, -9, '3/4"', 0.375, -11.625],
       ['lower.inner', 'piece', 0.75, 29.25, 0, -9, '28 1/2"'],
       ['lower.inner', 'piece', 29.25, 30, 0, -9, '3/4"', 29.625, -11.625],
@@ -46,7 +49,7 @@ describe('SPEC-43 elevation dimensions', () => {
 
   it('stacks moved text in levels so neighbours clear, and spaces by the plot scale (G1 elevation B at 1/4" = 1\'-0")', () => {
     const g1 = room('G1 Euro kitchen');
-    const dimensions = elevationDimensions(g1, g1.walls[1], 'front', { ...settings, plotScale: 48 });
+    const dimensions = horizontal(elevationDimensions(g1, g1.walls[1], 'front', { ...settings, plotScale: 48 }));
     // No openings: the wall row takes no space. At 1:48 rows are 18" apart, plus 7 1/2" per level of moved text.
     expect([...new Set(dimensions.map(({ row: name, at }) => `${name} ${at}`))]).toEqual([
       'lower.inner -18', 'lower.outer -43.5', 'upper.inner 114', 'upper.outer 147',
@@ -62,7 +65,7 @@ describe('SPEC-43 elevation dimensions', () => {
 
   it('dimensions the wall above when there are no uppers, and recesses in the wall row (G1 island, G5)', () => {
     const g1 = room('G1 Euro kitchen');
-    expect(elevationDimensions(g1, g1.walls[3], 'back', settings).map(row).slice(5)).toEqual([
+    expect(horizontal(elevationDimensions(g1, g1.walls[3], 'back', settings)).map(row).slice(5)).toEqual([
       ['lower.outer', 'open', 0, 0.75, 0, -21.75, '3/4"', 0.375, -24.375],
       ['lower.outer', 'run', 0.75, 90.75, 0, -21.75, '90"'],
       ['lower.outer', 'open', 90.75, 91.5, 0, -21.75, '3/4"', 91.125, -24.375],

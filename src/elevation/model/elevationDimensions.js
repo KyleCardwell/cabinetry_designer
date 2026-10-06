@@ -1,4 +1,4 @@
-import { horizontalChains, openingChain } from './dimensions.js';
+import { horizontalChains, openingChain, pickColumnRuns, verticalChains } from './dimensions.js';
 import { plotScale } from './drawingScale.js';
 import { resolveWall } from './room.js';
 import { formatInches } from './units.js';
@@ -29,17 +29,18 @@ const ROWS = [
 ];
 
 /**
- * Where each label in a row goes (SPEC-43.1), in drawing inches. A label that fits between its ticks
- * (its estimated width plus a gap each side) stays on the line. One that doesn't moves outward, centred
+ * Where each label in a row or column goes (SPEC-43.1, 43.2), along and across the line in drawing
+ * inches. A label that fits between its ticks (its estimated width plus a gap each side) stays on the
+ * line. One that doesn't moves outward, centred
  * on its segment, into the first level where it clears every label already there; levels are a text
- * height plus a gap apart. Below the wall, level 1 sits just under the line (the on-line text is above
- * it); above the wall, level 1 sits past the on-line text.
+ * height plus a gap apart. When the on-line text is outward, level 1 sits past it; otherwise level 1
+ * sits just past the line. By default the on-line text is outward above the wall, inward below it.
  */
-function placeLabels(segments, at, outward, scale) {
+function placeLabels(segments, at, outward, scale, textOutward = outward > 0) {
   const height = DIMENSION_TEXT_HEIGHT * scale;
   const gap = DIMENSION_TEXT_GAP * scale;
   const step = height + gap;
-  const first = (outward > 0 ? step : 0) + gap + height / 2;
+  const first = (textOutward ? step : 0) + gap + height / 2;
   const levels = [];
   const placed = segments.map((segment) => {
     const text = formatInches(segment.end - segment.start);
@@ -59,18 +60,21 @@ function placeLabels(segments, at, outward, scale) {
       level = levels.length - 1;
     }
     levels[level].push({ left, right });
-    label.textX = center;
-    label.textZ = at + outward * (first + level * step);
+    label.along = center;
+    label.across = at + outward * (first + level * step);
   }
   return { placed, levels: levels.length, step };
 }
 
 /**
- * One wall face's horizontal dimensions as geometry draws them (SPEC-43): the canvas's chains (run
- * pieces and run overall below and above, the wall row of openings below), one record per segment.
- * Rows start 3/8" (paper) past everything drawn and stack 3/8" apart, plus room for any labels moved
- * off the line (SPEC-43.1); an empty row takes no space. `base` is where the extension lines start (the
- * drawing's bottom or top), `at` the dimension line, `textX`/`textZ` a moved label's middle.
+ * One wall face's horizontal rows (SPEC-43), then vertical columns at both edges (SPEC-43.2): the
+ * canvas's chains, one record per segment. Vertical records have `orientation: 'vertical'`; each
+ * edge's columns are inner, middle, outer, bottom to top. Inner or middle columns repeating the
+ * outer column's single wall-height segment are skipped.
+ * Rows and columns start 3/8" (paper) past everything drawn and stack 3/8" apart, plus room for any
+ * labels moved off the line (SPEC-43.1); an empty chain takes no space. `base` is where the extension
+ * lines start (the drawing's bottom/top or left/right edge), `at` the dimension line, `textX`/`textZ`
+ * a moved label's middle in drawing coordinates.
  */
 export function elevationDimensions(room, wall, side, settings) {
   const view = resolveWall(room, wall, side);
@@ -95,7 +99,7 @@ export function elevationDimensions(room, wall, side, settings) {
     const base = where === 'below' ? extent.bottom : extent.top;
     const at = next[where];
     const { placed, levels, step } = placeLabels(segments, at, outward, scale);
-    for (const { segment, text, textX, textZ } of placed) {
+    for (const { segment, text, along, across } of placed) {
       dimensions.push({
         row,
         kind: segment.kind,
@@ -104,10 +108,39 @@ export function elevationDimensions(room, wall, side, settings) {
         base,
         at,
         text,
-        ...(textX === undefined ? {} : { textX, textZ }),
+        ...(along === undefined ? {} : { textX: along, textZ: across }),
       });
     }
     next[where] = at + outward * (spacing + levels * step);
+  }
+  for (const edge of ['left', 'right']) {
+    const columns = verticalChains(room, view, pickColumnRuns(view, null, edge), settings, edge);
+    const base = extent[edge];
+    const outward = edge === 'left' ? -1 : 1;
+    let at = base + outward * spacing;
+    for (const column of ['inner', 'middle', 'outer']) {
+      const chain = columns[column];
+      if (column !== 'outer' && chain.length === 1 && columns.outer.length === 1
+        && Math.abs(chain[0].start - columns.outer[0].start) <= EPSILON
+        && Math.abs(chain[0].end - columns.outer[0].end) <= EPSILON) continue;
+      const segments = chain.filter((segment) => segment.end - segment.start > EPSILON);
+      if (segments.length === 0) continue;
+      const { placed, levels, step } = placeLabels(segments, at, outward, scale, edge === 'left');
+      for (const { segment, text, along, across } of placed) {
+        dimensions.push({
+          row: `${edge}.${column}`,
+          orientation: 'vertical',
+          kind: segment.kind,
+          start: segment.start,
+          end: segment.end,
+          base,
+          at,
+          text,
+          ...(along === undefined ? {} : { textX: across, textZ: along }),
+        });
+      }
+      at += outward * (spacing + levels * step);
+    }
   }
   return dimensions;
 }

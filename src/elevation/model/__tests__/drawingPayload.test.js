@@ -82,7 +82,7 @@ describe('SPEC-40 drawing payload', () => {
   it('SPEC-43 carries each wall face\'s dimensions', () => {
     const synced = room('G1 Euro kitchen');
     const payload = toDrawingPayload(synced, settings);
-    expect(payload.elevations.map((elevation) => elevation.dimensions.length)).toEqual([24, 14, 9, 9]);
+    expect(payload.elevations.map((elevation) => elevation.dimensions.length)).toEqual([36, 30, 17, 17]);
     for (const elevation of payload.elevations) {
       const wall = synced.walls.find((candidate) => candidate.id === elevation.wallId);
       expect(elevation.dimensions).toEqual(elevationDimensions(synced, wall, elevation.side, settings));
