@@ -1,4 +1,4 @@
-import { CABINET_TYPE_IDS } from './constants.js';
+import { cellPieces } from './cells.js';
 import { layoutRun, runFaceLayouts } from './faceLayouts.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
 import { openingGeometry } from './openings.js';
@@ -24,6 +24,8 @@ function rectangle(u0, u1, v0, v1) {
 /**
  * The room in plan for the DXF (SPEC-44): outlines in plan inches with y up,
  * what the plan view draws less its labels and dimensions.
+ * Each part from a run and each wall end panel carries its top, so geometry
+ * cuts the lines of what's under it (SPEC-44.1).
  */
 export function planParts(room, settings) {
   const parts = [];
@@ -96,6 +98,7 @@ export function planParts(room, settings) {
         id: wallEndPanelPartKey(wall.id, panel.endpoint),
         kind: 'wall_end_panel',
         points: wallEndPanelPolygon(room, wall, panel).map(flipPoint),
+        top: panel.top,
       });
     }
   }
@@ -106,8 +109,10 @@ export function planParts(room, settings) {
       const { boxes, faces, returns } = planRunPieces(
         room, wall, run, settings, layout, runFaceLayouts(room, wall, run, settings, layout),
       );
-      const upper = run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
-      const addRange = (range, kind, dashed = upper) => {
+      const tops = new Map([...layout.pieces, ...cellPieces(run, layout).pieces]
+        .map((piece) => [piece.id, piece.z + piece.height]));
+      const topOf = (key) => tops.get(key) ?? tops.get(key.split(':')[0]) ?? run.z + run.height;
+      const addRange = (range, kind) => {
         parts.push({
           id: range.key,
           kind,
@@ -115,11 +120,11 @@ export function planParts(room, settings) {
             range.start, range.end, range.back, range.front,
           )),
           runId: run.id,
-          ...(dashed ? { dashed: true } : {}),
+          top: topOf(range.key),
         });
       };
       for (const box of boxes) {
-        addRange(box, box.dashed ? 'shelf' : 'cabinet', upper || box.dashed);
+        addRange(box, box.dashed ? 'shelf' : 'cabinet');
       }
       for (const range of faces) addRange(range, range.kind);
       for (const range of returns) addRange(range, 'filler');
