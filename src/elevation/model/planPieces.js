@@ -5,6 +5,7 @@ import { frontDepth, runBackOffset } from './corners.js';
 import { frameRegions } from './frames.js';
 import { runItems } from './grid.js';
 import { teeFillers } from './tees.js';
+import { miteredSpan, panelRunMiters } from './wallEndPanels.js';
 
 const WIDTH_EPSILON = 1e-6;
 
@@ -206,6 +207,25 @@ function frameStrips(frames, pieces, faces, back, front) {
   return [...next, ...strips];
 }
 
+/**
+ * A back panel mitered into a wall end panel (SPEC-43): it runs over the end panel to the outside
+ * corner on its outer face and stops at the end panel on its inner face, the 45° cut between.
+ */
+function miterPanels(faces, run, miters) {
+  return faces.map((range) => {
+    const { x, width } = miteredSpan(
+      { kind: range.kind, x: range.start, width: range.end - range.start }, run, miters,
+    );
+    if (Math.abs(x - range.start) <= WIDTH_EPSILON && Math.abs(x + width - range.end) <= WIDTH_EPSILON) return range;
+    return {
+      ...range,
+      start: x,
+      end: x + width,
+      polygon: [[x, range.front], [x + width, range.front], [range.end, range.back], [range.start, range.back]],
+    };
+  });
+}
+
 /** Return the boxes, faces, filler returns, and their overall span used by the plan view. */
 export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const outset = runBackOffset(run);
@@ -263,7 +283,7 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
       ...(piece.kind === 'shelves' ? { dashed: true } : {}),
     }];
   });
-  const faces = frameStrips(frames, cells.pieces, planFaces(
+  const faces = miterPanels(frameStrips(frames, cells.pieces, planFaces(
     run,
     settings,
     cells.pieces.filter((piece) => !framedIds.has(piece.id) && !frames.fillerIds.has(piece.id)),
@@ -272,7 +292,7 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
     band,
     faceBack,
     faceFront,
-  ), run.depth, faceFront);
+  ), run.depth, faceFront), run, panelRunMiters(room, wall, run, settings));
   const returns = fillerReturns(run, settings, layout, panels, faceBack, frames.fillerIds);
   // T-fillers (SPEC-37): a hardwood flat `teeThickness` (13/16") thick from the box face, with the
   // filler's 3/4" return behind it into the box. An end T's flat reaches over its box on the

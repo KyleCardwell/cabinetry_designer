@@ -34,7 +34,9 @@ export function wallParts(room, wall, side, settings) {
       .filter((run) => run._frame && mine.runIds.includes(run.id)
         && runScene(room, view, run, settings).frames.regions
           .some((region) => (region.wallPanels ?? []).some((covered) => covered.side === mine.side)))
-      .map((run) => run._frame.thickness));
+      .map((run) => run._frame.thickness),
+    // A back panel mitered into it does the same (SPEC-43).
+    mine.panelRun?.join === 'miter' ? mine.panelRun.thickness : 0);
     emit({
       id: wallEndPanelPartKey(source.id, panel.endpoint),
       kind: 'wall_end_panel',

@@ -5,13 +5,26 @@ import { wallSideOf, wallSideView } from './wallSides.js';
 
 const EPSILON = 1e-6;
 
-/** How far a mitered face frame cuts into the panel's inside corner, front and back (SPEC-36.2). */
+/** How far a mitered face frame, or back panel (SPEC-43), cuts into the panel's inside corner, front and back (SPEC-36.2). */
 function panelMiters(source, panel) {
   const depth = (face) => Math.max(0, ...source.runs
-    .filter((run) => panel[face].runIds.includes(run.id)
-      && run._frame?.wallPanels?.[panel[face].side]?.join === 'miter')
-    .map((run) => run._frame.thickness));
+    .filter((run) => panel[face].runIds.includes(run.id) && framedRun(run)
+      && run._frame.wallPanels?.[panel[face].side]?.join === 'miter')
+    .map((run) => run._frame.thickness), mitered(panel[face]));
   return { front: depth('front'), back: depth('back') };
+}
+
+/**
+ * A face frame run (SPEC-36). A run that's only panels gets a `_frame` in an inset room too, but it
+ * has no frame: it meets a wall end panel as a back panel (SPEC-43).
+ */
+function framedRun(run) {
+  return Boolean(run._frame) && !panelRunFace(run);
+}
+
+/** How far a back panel run mitered into the panel cuts into it on one face (SPEC-43), else 0. */
+function mitered(side) {
+  return side.panelRun?.join === 'miter' ? side.panelRun.thickness : 0;
 }
 
 /**
@@ -107,14 +120,15 @@ export function wallEndPanelPolygon(room, wall, panel) {
 
 /**
  * The heights of a wall end panel left showing on one elevation (SPEC-36.2): all of it, floor to
- * top, less where a face frame run on this side is mitered over its edge.
+ * top, less where a face frame run or back panel (SPEC-43) on this side is mitered over its edge.
  */
 export function wallEndPanelSpans(wall, panel) {
   const side = panel[wall.side ?? 'front'];
   const covers = (wall.runs ?? [])
     .filter((run) => side.runIds.includes(run.id)
-      && run._frame?.wallPanels?.[side.side]?.join === 'miter')
-    .map((run) => [run.z - run._frame.drop, run.z + run.height])
+      && ((framedRun(run) && run._frame.wallPanels?.[side.side]?.join === 'miter')
+        || (side.panelRun?.runId === run.id && side.panelRun.join === 'miter')))
+    .map((run) => [run.z - (run._frame?.drop ?? 0), run.z + run.height])
     .sort((a, b) => a[0] - b[0]);
   const spans = [];
   let cursor = 0;
