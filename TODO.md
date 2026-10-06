@@ -85,6 +85,14 @@ Suggested format:
 - [ ] **[P3][elevation] Two blinds meeting in one corner**
   - Notes: SPEC-25 §"Not in this SPEC" — neither run knows about the other. Decide whether that warrants a warning once a real job hits it.
 
+- [ ] **[P2][elevation][DXF] End elevations: see the end panels of islands, peninsulas and exposed run ends**
+  - Why (Kyle, 2026-10-05): we need to see what end panels look like, especially island/peninsula wall end panels and the end panels of cabinets beside a door, and more so once end panels get mid rails and mid stiles (panel construction, round 41 onward).
+  - Idea: an end gets its own elevation letter and is drawn face-on: the panel outline floor to top, the toe kick notch if any, the countertop overhang, and the boxes, back panel or face frame on either face cut in section; later the panel's rails and stiles. View only: not edited from that view (edits stay in plan and the face elevations); selecting something may still show its properties.
+  - Which ends: candidates are every wall end panel (islands, peninsulas) and every exposed run end panel (beside an opening, a free run end). The designer chooses which to include, per end.
+  - Open: default on or off? Leaning on for island/peninsula wall end panels, off for run ends. Where do end views sit in the lettering order (after their wall's faces, or after all walls)? One sheet per end, or grouped?
+  - Related: "Cross sections on drawings" and "cabinets on neighbouring faces drawn in section" (wall configuration entry). Back panels miter into wall end panels from SPEC-43 (Auto / miter / butt per panel), so an island end view shows the 45° joint at the back face.
+  - Done when: a chosen end shows in the elevation list with a letter, draws its panel and the runs' edges correctly for Euro and face frame runs, exports to DXF, and has no edit handles.
+
 ## Planned
 
 <!-- Move sufficiently defined work here. -->
