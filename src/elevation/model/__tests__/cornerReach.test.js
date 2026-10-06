@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { profileReach } from '../cornerParts.js';
+import { horizontalChains } from '../dimensions.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -35,5 +36,20 @@ describe('SPEC-43.4 corner reach from cornerShapes', () => {
     expect([0, 1, 2].map((index) => reachOf(g5, index))).toEqual([[], [], []]);
     const g1 = room('G1 Euro kitchen');
     expect([0, 1, 2].map((index) => reachOf(g1, index))).toEqual([[], [], []]);
+  });
+});
+
+describe('SPEC-43.4 reach dimensions from cornerShapes', () => {
+  it('dimensions a profile\'s reach past the wall end, and never a recess run\'s (G2 A, G5)', () => {
+    const g2 = room('G2 Face frame kitchen');
+    const lower = horizontalChains(g2, resolveWall(g2, g2.walls[0], 'front'), 'lower', settings);
+    const reach = { start: 172, end: 196, kind: 'neighbor', wallId: PENINSULA, neighborRunId: BACK_RUN };
+    expect(lower.inner.at(-1)).toEqual(reach);
+    expect(lower.outer.at(-1)).toEqual(reach);
+    const g5 = room('G5 Recess room');
+    for (const index of [0, 2]) {
+      const chains = horizontalChains(g5, resolveWall(g5, g5.walls[index], 'front'), 'lower', settings);
+      expect(chains).toEqual({ inner: [], outer: [{ start: 0, end: 30, kind: 'wall' }] });
+    }
   });
 });

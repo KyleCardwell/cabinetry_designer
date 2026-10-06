@@ -7,7 +7,7 @@ import { frameEdgeTracks, frameRegions, regionOpenings } from './frames.js';
 import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { landingsOn } from './landings.js';
-import { neighborProfiles } from './neighborProfiles.js';
+import { profileReach } from './cornerParts.js';
 import { openingGeometry } from './openings.js';
 import { verticalStart } from './overlap.js';
 import { resolveProfile } from './profile.js';
@@ -82,11 +82,12 @@ function runsForBand(wall, band) {
     .sort((a, b) => a.x - b.x);
 }
 
+/** A neighbour run's reach past this face's end, from what cornerShapes draws (SPEC-43.4). */
 function neighborSegments(room, wall, band, settings) {
   const inBand = band === 'lower'
     ? (id) => id === CABINET_TYPE_IDS.BASE || id === CABINET_TYPE_IDS.TALL
     : (id) => id === CABINET_TYPE_IDS.UPPER;
-  return neighborProfiles(room, wall, settings)
+  return profileReach(room, wall, wall.side ?? 'front', settings)
     .filter((profile) => inBand(profile.cabinetTypeId))
     .map((profile) => ({
       start: profile.x,

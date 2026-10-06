@@ -7228,27 +7228,12 @@ exports[`C1 golden rooms > G5 Recess room derives exactly what it did 1`] = `
         "front": {
           "clearanceRow": [],
           "lower": {
-            "inner": [
-              {
-                "end": 54,
-                "kind": "neighbor",
-                "neighborRunId": "e9abb5dc-e72c-44c9-ac96-d3279b7752d9",
-                "start": 30,
-                "wallId": "9574ded4-3b8f-470a-afad-2ea36e0ef64c",
-              },
-            ],
+            "inner": [],
             "outer": [
               {
                 "end": 30,
                 "kind": "wall",
                 "start": 0,
-              },
-              {
-                "end": 54,
-                "kind": "neighbor",
-                "neighborRunId": "e9abb5dc-e72c-44c9-ac96-d3279b7752d9",
-                "start": 30,
-                "wallId": "9574ded4-3b8f-470a-afad-2ea36e0ef64c",
               },
             ],
           },
@@ -7877,23 +7862,8 @@ exports[`C1 golden rooms > G5 Recess room derives exactly what it did 1`] = `
         "front": {
           "clearanceRow": [],
           "lower": {
-            "inner": [
-              {
-                "end": 0,
-                "kind": "neighbor",
-                "neighborRunId": "e9abb5dc-e72c-44c9-ac96-d3279b7752d9",
-                "start": -24,
-                "wallId": "9574ded4-3b8f-470a-afad-2ea36e0ef64c",
-              },
-            ],
+            "inner": [],
             "outer": [
-              {
-                "end": 0,
-                "kind": "neighbor",
-                "neighborRunId": "e9abb5dc-e72c-44c9-ac96-d3279b7752d9",
-                "start": -24,
-                "wallId": "9574ded4-3b8f-470a-afad-2ea36e0ef64c",
-              },
               {
                 "end": 30,
                 "kind": "wall",
