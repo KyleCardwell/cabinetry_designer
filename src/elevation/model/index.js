@@ -186,7 +186,6 @@ export {
   wallMoldingBadges,
 } from './partNumbers.js';
 export { roomParts } from './parts.js';
-export { neighborProfiles } from './neighborProfiles.js';
 export {
   fillerOrderedWidth,
   fillerReturnDepth,

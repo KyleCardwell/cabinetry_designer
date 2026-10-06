@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { neighborProfiles } from '../neighborProfiles.js';
+import { profileReach } from '../cornerParts.js';
 import { syncRoom } from '../room.js';
 import { wallExtent } from '../wallExtent.js';
 import { wallSideView } from '../wallSides.js';
@@ -82,49 +82,34 @@ function view(room, wallId) {
   return wallSideView(room.walls.find(({ id }) => id === wallId), 'front');
 }
 
-describe('neighborProfiles and wallExtent', () => {
-  it('189. projects visible runs across a straight wall joint', () => {
+describe('profileReach and wallExtent', () => {
+  it('189. reaches neighbour runs across a straight joint, not ones behind it or round a corner (SPEC-43.4)', () => {
     const room = straightRoom({
       wallA: { runs: [base('A1', { x: 90 })] },
       wallB: { runs: [base('B1')] },
     });
-
-    expect(neighborProfiles(room, view(room, 'A'), DEFAULT_SETTINGS)).toEqual([{
-      key: 'B:front:B1:right',
-      wallId: 'B',
-      runId: 'B1',
-      cabinetTypeId: CABINET_TYPE_IDS.BASE,
-      side: 'front',
-      x: 120,
-      width: 30,
-      z: 4,
-      height: 30.5,
-      moldings: [{ kind: 'toeKick', z: 0, height: 4 }],
+    expect(profileReach(room, view(room, 'A'), 'front', DEFAULT_SETTINGS)).toEqual([{
+      key: 'B:front:B1:right', wallId: 'B', runId: 'B1', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 120, width: 30,
     }]);
-    expect(neighborProfiles(room, view(room, 'B'), DEFAULT_SETTINGS)).toEqual([{
-      key: 'A:front:A1:left',
-      wallId: 'A',
-      runId: 'A1',
-      cabinetTypeId: CABINET_TYPE_IDS.BASE,
-      side: 'front',
-      x: -30,
-      width: 30,
-      z: 4,
-      height: 30.5,
-      moldings: [{ kind: 'toeKick', z: 0, height: 4 }],
+    expect(profileReach(room, view(room, 'B'), 'front', DEFAULT_SETTINGS)).toEqual([{
+      key: 'A:front:A1:left', wallId: 'A', runId: 'A1', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: -30, width: 30,
     }]);
-  });
 
-  it("190. omits neighbour runs that aren't visible", () => {
-    const behindRoom = straightRoom({
-      wallB: { runs: [run('B1', CABINET_TYPE_IDS.UPPER, 12, {
-        wallSide: 'back',
-        z: 54,
-        height: 36,
-        heightMode: 'manual',
+    const upperRoom = straightRoom({
+      wallB: { runs: [run('U1', CABINET_TYPE_IDS.UPPER, 12, {
+        x: 0, width: 30, z: 54, height: 36, heightMode: 'auto',
       })] },
     });
-    expect(neighborProfiles(behindRoom, view(behindRoom, 'A'), DEFAULT_SETTINGS)).toEqual([]);
+    expect(profileReach(upperRoom, view(upperRoom, 'A'), 'front', DEFAULT_SETTINGS)).toEqual([{
+      key: 'B:front:U1:right', wallId: 'B', runId: 'U1', cabinetTypeId: CABINET_TYPE_IDS.UPPER, x: 120, width: 30,
+    }]);
+
+    const behindRoom = straightRoom({
+      wallB: { runs: [run('B1', CABINET_TYPE_IDS.UPPER, 12, {
+        wallSide: 'back', z: 54, height: 36, heightMode: 'manual',
+      })] },
+    });
+    expect(profileReach(behindRoom, view(behindRoom, 'A'), 'front', DEFAULT_SETTINGS)).toEqual([]);
 
     const cornerRoom = syncRoom({
       id: 'S',
@@ -141,7 +126,7 @@ describe('neighborProfiles and wallExtent', () => {
         }),
       ],
     }, DEFAULT_SETTINGS);
-    expect(neighborProfiles(cornerRoom, view(cornerRoom, 'A'), DEFAULT_SETTINGS)).toEqual([]);
+    expect(profileReach(cornerRoom, view(cornerRoom, 'A'), 'front', DEFAULT_SETTINGS)).toEqual([]);
   });
 
   it('191. grows wall extents for runs, molding, and neighbour profiles', () => {
@@ -173,32 +158,6 @@ describe('neighborProfiles and wallExtent', () => {
     expect(wallExtent(moldingRoom, view(moldingRoom, 'A'), DEFAULT_SETTINGS)).toEqual({
       left: 0, right: 120, top: 96, bottom: 0,
     });
-  });
-
-  it('213. carries a neighbouring upper\'s top mold and crown', () => {
-    const crownRoom = straightRoom({
-      wallB: {
-        runs: [run('U1', CABINET_TYPE_IDS.UPPER, 12, {
-          x: 0, width: 30, z: 54, height: 36, heightMode: 'auto',
-        })],
-      },
-    });
-
-    expect(neighborProfiles(crownRoom, view(crownRoom, 'A'), DEFAULT_SETTINGS)).toEqual([{
-      key: 'B:front:U1:right',
-      wallId: 'B',
-      runId: 'U1',
-      cabinetTypeId: CABINET_TYPE_IDS.UPPER,
-      side: 'front',
-      x: 120,
-      width: 30,
-      z: 54,
-      height: 36,
-      moldings: [
-        { kind: 'topMold', z: 90, height: 3 },
-        { kind: 'crown', z: 91.5, height: 4.5 },
-      ],
-    }]);
   });
 
   it('214. grows the extent for a neighbour\'s crown', () => {
