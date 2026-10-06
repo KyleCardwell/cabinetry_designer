@@ -5,6 +5,7 @@ import { openingGeometry } from './openings.js';
 import { wallEndPanelPartKey } from './parts.js';
 import { planRunPieces } from './planPieces.js';
 import { openingPlanDepths, recessPlanShape } from './recesses.js';
+import { resolveWall } from './room.js';
 import { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
 import { wallOutline } from './wallOutline.js';
 import { wallSideFrame, wallSideOf } from './wallSides.js';
@@ -102,9 +103,12 @@ export function planParts(room, settings) {
       });
     }
   }
-  for (const wall of room.walls) {
-    for (const run of wall.runs ?? []) {
-      const frame = wallSideFrame(room, wall, wallSideOf(run));
+  for (const stored of room.walls) {
+    for (const run of stored.runs ?? []) {
+      const side = wallSideOf(run);
+      const frame = wallSideFrame(room, stored, side);
+      // the face as the elevation resolves it, length and all, so pins and corner rules lay out the same (SPEC-44.2).
+      const wall = resolveWall(room, stored, side);
       const layout = layoutRun(room, wall, run, settings);
       const { boxes, faces, returns } = planRunPieces(
         room, wall, run, settings, layout, runFaceLayouts(room, wall, run, settings, layout),

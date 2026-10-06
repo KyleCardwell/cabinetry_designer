@@ -107,7 +107,7 @@ describe('SPEC-40 drawing payload', () => {
     const synced = room('G1 Euro kitchen');
     const { plan } = toDrawingPayload(synced, settings);
     expect(Object.keys(plan)).toEqual(['parts']);
-    expect(plan.parts).toHaveLength(77);
+    expect(plan.parts).toHaveLength(76);
     expect(plan.parts).toEqual(planParts(synced, settings));
   });
 });

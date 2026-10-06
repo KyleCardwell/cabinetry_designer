@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { planParts } from '../planParts.js';
-import { syncRoom } from '../room.js';
+import { layoutRun } from '../faceLayouts.js';
+import { resolveWall, syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
 const document = normalizeElevationDocument(
@@ -106,12 +107,28 @@ describe('SPEC-44 the room in plan: runs', () => {
         parts.filter(({ top }) => top !== undefined).length, kinds]];
     }));
     expect(counts).toEqual({
-      'G1 Euro kitchen': [77, 69, 0, 71, { wall: 3, void: 1, opening: 1, casing: 1, wall_end_panel: 2, cabinet: 19, end_panel: 3, face: 36, filler: 11 }],
+      'G1 Euro kitchen': [76, 68, 0, 70, { wall: 3, void: 1, opening: 1, casing: 1, wall_end_panel: 2, cabinet: 19, end_panel: 3, face: 35, filler: 11 }],
       'G2 Face frame kitchen': [22, 17, 0, 18, { wall: 1, void: 1, opening: 1, casing: 1, wall_end_panel: 1, cabinet: 9, end_panel: 3, frame: 4, panel: 1 }],
       'G3 Bath alcove': [18, 14, 1, 14, { wall: 3, soffit: 1, cabinet: 3, filler: 4, face: 4, end_panel: 2, panel: 1 }],
       'G4 T-filler run': [20, 18, 0, 18, { wall: 2, cabinet: 4, end_panel: 2, face: 6, filler: 6 }],
       'G5 Recess room': [27, 20, 0, 20, { wall: 5, void: 2, cabinet: 6, filler: 6, face: 6, end_panel: 2 }],
       'G6 Stacked runs': [37, 34, 0, 34, { wall: 3, cabinet: 8, filler: 6, face: 16, end_panel: 3, panel: 1 }],
     });
+  });
+});
+
+describe('SPEC-44.2 plan runs lay out as the elevation does', () => {
+  it('keeps a pinned cabinet on its pin: G1 wall 1 base, 36" centred on the window', () => {
+    const synced = syncRoom(stored('G1 Euro kitchen'), settings);
+    const run = 'b822e8ac-1a44-47ca-acec-ecb93caf7b8a';
+    const boxes = planParts(synced, settings).filter(({ runId, kind }) => runId === run && kind === 'cabinet');
+    const spans = boxes.map(({ points }) => [points[0][1], points[1][1]]);
+    expect(spans).toEqual([[-54, -30], [-30, 6], [6, 31.5], [31.5, 57]]);
+    // The 36" box is centred on the window (jamb -36 to 12 in plan).
+    expect((spans[1][0] + spans[1][1]) / 2).toBe(-12);
+    const view = resolveWall(synced, synced.walls[0], 'front');
+    const layout = layoutRun(synced, view, view.runs.find(({ id }) => id === run), settings);
+    expect(layout.pieces.filter(({ kind }) => kind === 'cabinet').map(({ width }) => width))
+      .toEqual(spans.map(([start, end]) => end - start));
   });
 });
