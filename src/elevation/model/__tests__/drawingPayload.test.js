@@ -6,6 +6,7 @@ import { elevationParts } from '../elevationParts.js';
 import { wallParts } from '../wallParts.js';
 import { cornerParts } from '../cornerParts.js';
 import { elevationDimensions } from '../elevationDimensions.js';
+import { elevationMarks } from '../elevationMarks.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -22,6 +23,7 @@ const withoutParts = (payload) => ({
     const copy = { ...elevation };
     delete copy.parts;
     delete copy.dimensions;
+    delete copy.marks;
     return copy;
   }),
 });
@@ -86,6 +88,16 @@ describe('SPEC-40 drawing payload', () => {
     for (const elevation of payload.elevations) {
       const wall = synced.walls.find((candidate) => candidate.id === elevation.wallId);
       expect(elevation.dimensions).toEqual(elevationDimensions(synced, wall, elevation.side, settings));
+    }
+  });
+
+  it('SPEC-43.3 carries each wall face\'s centreline marks', () => {
+    const synced = room('G1 Euro kitchen');
+    const payload = toDrawingPayload(synced, settings);
+    expect(payload.elevations.map((elevation) => elevation.marks.length)).toEqual([1, 0, 0, 0]);
+    for (const elevation of payload.elevations) {
+      const wall = synced.walls.find((candidate) => candidate.id === elevation.wallId);
+      expect(elevation.marks).toEqual(elevationMarks(synced, wall, elevation.side, settings));
     }
   });
 });

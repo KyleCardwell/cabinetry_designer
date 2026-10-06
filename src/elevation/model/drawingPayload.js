@@ -7,6 +7,7 @@ import { wallParts } from './wallParts.js';
 import { cornerParts } from './cornerParts.js';
 import { plotScale } from './drawingScale.js';
 import { elevationDimensions } from './elevationDimensions.js';
+import { elevationMarks } from './elevationMarks.js';
 
 export const DRAWING_PAYLOAD_VERSION = 1;
 
@@ -14,7 +15,8 @@ export const DRAWING_PAYLOAD_VERSION = 1;
  * What geometry draws for one room (SPEC-40, payload v1): one elevation per lettered wall face, in
  * letter order. Takes a synced room (every room in the store is). Round 40 carries each face's
  * outline; round 41 adds each face's parts; round 42 its bands; 42.1 the wall's own parts; 42.2 its
- * neighbours (corner returns and profiles). Round 43 adds the drawing scale and each face's dimensions; later rounds add the plan to the same records.
+ * neighbours (corner returns and profiles). Round 43 adds the drawing scale and each face's dimensions;
+ * 43.3 its centreline marks; later rounds add the plan to the same records.
  */
 export function toDrawingPayload(room, settings) {
   const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
@@ -39,6 +41,7 @@ export function toDrawingPayload(room, settings) {
         ...cornerParts(room, wall, side, settings),
       ],
       dimensions: elevationDimensions(room, wall, side, settings),
+      marks: elevationMarks(room, wall, side, settings),
     };
   });
 
