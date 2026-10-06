@@ -30,6 +30,7 @@ describe('SPEC-40 drawing payload', () => {
     expect(withoutParts(toDrawingPayload(room('G1 Euro kitchen'), settings))).toEqual({
       payloadVersion: 1,
       units: 'in',
+      plotScale: 24,
       room: { id: '7ee9fabb-5daf-4fb2-96f9-b24b9e1e546f', name: 'G1 Euro kitchen' },
       elevations: [
         {

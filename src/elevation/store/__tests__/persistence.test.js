@@ -1140,3 +1140,15 @@ describe('SPEC-37 T-filler persistence', () => {
     expect(isElevationDocument(flagged)).toBe(false);
   });
 });
+
+describe('SPEC-43 drawing scale setting', () => {
+  it('defaults the drawing scale on documents saved before it', () => {
+    const current = currentDocument();
+    delete current.settings.plotScale;
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+    };
+
+    expect(loadElevationDocument().settings.plotScale).toBe(24);
+  });
+});

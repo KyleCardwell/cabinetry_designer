@@ -100,6 +100,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'belowRunOverhang',
   'belowRunFlushReveal',
   'bottomPartHeights',
+  'plotScale',
 ];
 
 function isFiniteNumber(value) {

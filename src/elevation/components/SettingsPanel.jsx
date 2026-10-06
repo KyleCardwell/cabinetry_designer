@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { PLOT_SCALES } from '../model/drawingScale.js';
 import { crownOverlap } from '../model/profile.js';
 import { formatInches } from '../model/units.js';
 import { updateSettings } from '../store/elevationSlice.js';
@@ -93,6 +94,20 @@ export default function SettingsPanel() {
               </label>
             ))}
           </div>
+
+          <label className="block text-xs text-gray-400">
+            Drawing scale
+            <select
+              value={settings.plotScale}
+              onChange={(event) => update({ plotScale: Number(event.target.value) })}
+              aria-label="Drawing scale"
+              className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+            >
+              {PLOT_SCALES.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </label>
 
           <div>
             <p className="mb-2 text-xs font-medium text-gray-300">Default height profile</p>
