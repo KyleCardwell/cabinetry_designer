@@ -1,4 +1,6 @@
-import { horizontalChains, openingChain, pickColumnRuns, verticalChains } from './dimensions.js';
+import {
+  centerlineMarkers, clearanceCallouts, horizontalChains, openingChain, pickColumnRuns, verticalChains,
+} from './dimensions.js';
 import { plotScale } from './drawingScale.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
@@ -47,7 +49,7 @@ function placeLabels(segments, at, outward, scale, textOutward = outward > 0) {
   const first = (textOutward ? step : 0) + gap + height / 2;
   const levels = [];
   const placed = segments.map((segment) => {
-    const text = formatInches(segment.end - segment.start);
+    const text = segment.text ?? formatInches(segment.end - segment.start);
     const width = text.length * CHARACTER_WIDTH * height;
     return { segment, text, width, fits: width + 2 * gap <= segment.end - segment.start + EPSILON };
   });
@@ -98,6 +100,8 @@ function labelRecords(placed, row, base, at, vertical) {
  * lines start (the drawing's bottom/top or left/right edge), `at` the dimension line, `textX`/`textZ`
  * a moved label's middle in drawing coordinates.
  * Cell chains sit 1/4" (paper) inside the column's left or bottom edge, with no extension lines (SPEC-43.3).
+ * Then casing clearances to a run and pin callouts sit inside the wall at their own height (SPEC-43.3).
+ * A pin's extension lines start at its datum's and its cabinet's own points.
  */
 export function elevationDimensions(room, wall, side, settings) {
   const view = resolveWall(room, wall, side);
@@ -153,8 +157,9 @@ export function elevationDimensions(room, wall, side, settings) {
       at += outward * (spacing + levels * step);
     }
   }
-  for (const run of view.runs) {
-    const { cells } = runScene(room, view, run, settings);
+  const scenes = view.runs.map((run) => ({ run, scene: runScene(room, view, run, settings) }));
+  for (const { scene } of scenes) {
+    const { cells } = scene;
     for (const grid of cells.grids) {
       const vertical = grid.axis === 'row';
       const segments = grid.tracks
@@ -164,6 +169,33 @@ export function elevationDimensions(room, wall, side, settings) {
       const at = (vertical ? grid.x : grid.z) + CELL_CHAIN_INSET * scale;
       const { placed } = placeLabels(segments, at, +1, scale, !vertical);
       dimensions.push(...labelRecords(placed, 'cells', at, at, vertical));
+    }
+  }
+  for (const { start, end, targetRunId, z } of clearanceCallouts(room, view, settings)) {
+    if (targetRunId === null || end - start <= EPSILON) continue;
+    const segment = { kind: 'clearance', start, end };
+    const { placed } = placeLabels([segment], z, +1, scale);
+    dimensions.push(...labelRecords(placed, 'clearances', z, z, false));
+  }
+  for (const { run, scene } of scenes) {
+    for (const marker of centerlineMarkers(run, scene.result.pieces, view, view.length, settings)) {
+      const { x, datumX, z, value, pieceBottom, pieceTop, anchor, datumZ } = marker;
+      if (value <= EPSILON) continue;
+      const datumBase = datumZ ?? z;
+      const cabinetBase = Math.max(pieceBottom, Math.min(pieceTop, z));
+      const segment = {
+        kind: 'pin',
+        start: Math.min(x, datumX),
+        end: Math.max(x, datumX),
+        text: anchor === 'center' ? `CL ${formatInches(value)}` : formatInches(value),
+      };
+      const { placed } = placeLabels([segment], z, +1, scale);
+      const [record] = labelRecords(placed, 'pins', z, z, false);
+      dimensions.push({
+        ...record,
+        startBase: x <= datumX ? cabinetBase : datumBase,
+        endBase: x <= datumX ? datumBase : cabinetBase,
+      });
     }
   }
   return dimensions;

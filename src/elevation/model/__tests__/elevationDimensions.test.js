@@ -13,8 +13,9 @@ const row = ({
   row: name, kind, start, end, base, at, text, textX, textZ,
 }) => [name, kind, start, end, base, at, text, ...(textX === undefined ? [] : [textX, textZ])];
 
-/** The horizontal rows only (SPEC-43.2 adds vertical columns, tested in verticalDimensions.test.js). */
-const horizontal = (dimensions) => dimensions.filter(({ orientation }) => orientation === undefined);
+/** The rows below and above the wall only (SPEC-43.2 adds vertical columns, SPEC-43.3 cell chains and callouts). */
+const ROWS = ['lower.inner', 'lower.outer', 'openings', 'upper.inner', 'upper.outer'];
+const horizontal = (dimensions) => dimensions.filter(({ row: name }) => ROWS.includes(name));
 
 describe('SPEC-43 elevation dimensions', () => {
   it('dimensions every segment of the canvas\'s chains; text that doesn\'t fit moves off the line (G1 elevation A)', () => {
