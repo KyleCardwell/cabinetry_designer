@@ -151,3 +151,27 @@ export function cornerShapes(room, wall, side, settings) {
 export function cornerParts(room, wall, side, settings) {
   return cornerShapes(room, wall, side, settings).flatMap((shape) => shape.parts);
 }
+
+/**
+ * How far each neighbour run seen in profile past this face's ends reaches (SPEC-43.4):
+ * its box and faces, not its toe kick or top, with its cabinet type so a chain can take it in its band.
+ */
+export function profileReach(room, wall, side, settings) {
+  return cornerShapes(room, wall, side, settings)
+    .filter((shape) => shape.kind === 'profile')
+    .map((shape) => {
+      const parts = shape.parts.filter((part) => part.kind === 'profile');
+      const x = Math.min(...parts.map((part) => part.x));
+      const right = Math.max(...parts.map((part) => part.x + part.width));
+      const run = room.walls.find((candidate) => candidate.id === shape.wallId)
+        ?.runs?.find((candidate) => candidate.id === shape.runId);
+      return {
+        key: shape.key,
+        wallId: shape.wallId,
+        runId: shape.runId,
+        cabinetTypeId: run?.cabinetTypeId ?? null,
+        x,
+        width: right - x,
+      };
+    });
+}
