@@ -5,6 +5,7 @@ import { bandParts } from '../bandParts.js';
 import { elevationParts } from '../elevationParts.js';
 import { wallParts } from '../wallParts.js';
 import { cornerParts } from '../cornerParts.js';
+import { elevationDimensions } from '../elevationDimensions.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -20,6 +21,7 @@ const withoutParts = (payload) => ({
   elevations: payload.elevations.map((elevation) => {
     const copy = { ...elevation };
     delete copy.parts;
+    delete copy.dimensions;
     return copy;
   }),
 });
@@ -74,6 +76,16 @@ describe('SPEC-40 drawing payload', () => {
         ...wallParts(synced, wall, elevation.side, settings),
         ...cornerParts(synced, wall, elevation.side, settings),
       ]);
+    }
+  });
+
+  it('SPEC-43 carries each wall face\'s dimensions', () => {
+    const synced = room('G1 Euro kitchen');
+    const payload = toDrawingPayload(synced, settings);
+    expect(payload.elevations.map((elevation) => elevation.dimensions.length)).toEqual([24, 14, 9, 9]);
+    for (const elevation of payload.elevations) {
+      const wall = synced.walls.find((candidate) => candidate.id === elevation.wallId);
+      expect(elevation.dimensions).toEqual(elevationDimensions(synced, wall, elevation.side, settings));
     }
   });
 });

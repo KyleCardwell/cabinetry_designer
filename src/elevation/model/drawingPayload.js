@@ -6,6 +6,7 @@ import { bandParts } from './bandParts.js';
 import { wallParts } from './wallParts.js';
 import { cornerParts } from './cornerParts.js';
 import { plotScale } from './drawingScale.js';
+import { elevationDimensions } from './elevationDimensions.js';
 
 export const DRAWING_PAYLOAD_VERSION = 1;
 
@@ -37,6 +38,7 @@ export function toDrawingPayload(room, settings) {
         ...wallParts(room, wall, side, settings),
         ...cornerParts(room, wall, side, settings),
       ],
+      dimensions: elevationDimensions(room, wall, side, settings),
     };
   });
 
