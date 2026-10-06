@@ -7,6 +7,7 @@ import { wallParts } from '../wallParts.js';
 import { cornerParts } from '../cornerParts.js';
 import { elevationDimensions } from '../elevationDimensions.js';
 import { elevationMarks } from '../elevationMarks.js';
+import { planParts } from '../planParts.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -19,6 +20,7 @@ const room = (name) => syncRoom(document.rooms.find((candidate) => candidate.nam
 /** The round-40 fields only, so the first test keeps checking just those. */
 const withoutParts = (payload) => ({
   ...payload,
+  plan: undefined,
   elevations: payload.elevations.map((elevation) => {
     const copy = { ...elevation };
     delete copy.parts;
@@ -99,5 +101,13 @@ describe('SPEC-40 drawing payload', () => {
       const wall = synced.walls.find((candidate) => candidate.id === elevation.wallId);
       expect(elevation.marks).toEqual(elevationMarks(synced, wall, elevation.side, settings));
     }
+  });
+
+  it('SPEC-44 carries the room in plan', () => {
+    const synced = room('G1 Euro kitchen');
+    const { plan } = toDrawingPayload(synced, settings);
+    expect(Object.keys(plan)).toEqual(['parts']);
+    expect(plan.parts).toHaveLength(77);
+    expect(plan.parts).toEqual(planParts(synced, settings));
   });
 });
