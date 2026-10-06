@@ -93,6 +93,32 @@ Suggested format:
   - Related: "Cross sections on drawings" and "cabinets on neighbouring faces drawn in section" (wall configuration entry). Back panels miter into wall end panels from SPEC-43 (Auto / miter / butt per panel), so an island end view shows the 45° joint at the back face.
   - Done when: a chosen end shows in the elevation list with a letter, draws its panel and the runs' edges correctly for Euro and face frame runs, exports to DXF, and has no edit handles.
 
+- [ ] **[P2][UI][plan][elevation][DXF] Sketch / CAD layer for details that don't fit standard cabinet drawing**
+  - Why (Kyle, 2026-10-06): unique details we want to add that don't fit standard cabinet drawing. Can come later.
+  - Options discussed: (A) a per-view sketch layer — lines, arcs, polylines, circles, text, leaders, hatches, user dimensions — stored in the room JSON per view (plan, each wall side), optionally attached to an object so it moves with it, exported to DXF on its own layer, no rules; (B) freeform parts (CONSOLIDATION-PLAN 39.1, not built yet) taking a sketched outline instead of only a rectangle, so a one-off becomes a real numbered part; (C) a team detail library — draw once, place many (corbels, appliqués, hood outlines), sharing the planned profile drawing tool's editor; (D) import a DXF snippet drawn in real CAD as a detail attached to a view/object, merged by geometry on export; (E) embed a full web CAD engine — not recommended.
+  - Leaning: A first (with attach-to-object), then B and C on the same primitives. Shapes stay line/arc/polyline so the measure tool, rounded/angled cabinets and DXF export share one vocabulary.
+  - Open: is a sketch entity ever a part (estimate, part number) or always drawing-only unless it's a freeform part? Do sketches show in printed sheets only, or also in the designer?
+  - Done when: a user can draw, select, edit and delete lines/arcs/text on a plan or elevation view, attach them to a run/cabinet so they follow it, and see them in the exported DXF on a separate layer.
+
+- [ ] **[P2][UI][plan][elevation] Measure tool**
+  - Why (Kyle, 2026-10-06): click a point or a line and measure it, or the distance to another point or line.
+  - Notes: snaps to endpoints, midpoints, corners and edges of anything drawn (walls, openings, casings, runs, cabinets, faces, parts, sketch entities). Click a line = its length; point→point = true distance with horizontal/vertical components; point→line = perpendicular distance; line→line = distance if parallel, angle if not. Temporary: Esc or a new measure clears it. Plan and elevation. The old designer's `src/canvas/SnapEngine.js` and elevation `alignment.js` may be reusable.
+  - Open: optional "keep as dimension" button that turns a measurement into a user dimension on the sketch layer?
+  - Done when: in both views a user can measure point–point, point–line, line–line and a single segment with snapping, readouts in fractional inches, and nothing is saved to the room unless kept.
+
+- [ ] **[P2][model][elevation][plan][DXF] Rounded cabinets — arched tops and rounded fronts**
+  - Why (Kyle, 2026-10-06): arched tops or rounded fronts, including rounding the face frame where present.
+  - Notes - arched tops (elevation): a cabinet/cell/run top edge becomes a shape (flat | arch with rise, or radius; segment vs. full half-round; maybe eyebrow). Doors/faces under it follow the arch (top face gets an arched top edge), the face frame top rail is arched (rail width measured at the crown and springline), end panels/fillers follow if they run full height. Crown on an arch is a bent-molding question for later.
+  - Notes - rounded fronts (plan): a run or cabinet face on a radius (bow/convex, concave) or a rounded end (quarter-round end shelves/radius end cabinet). Boxes may be segmented or truly bent; faces become bent doors; face frame bent to the radius; countertop follows. Plan draws arcs; elevation shows the projected widths.
+  - Open: which happens more at the shop — arched tops in elevation or radius fronts in plan? Do arches span one cabinet, a whole run (one arch over several doors), or both? Radius fronts: bent boxes or faceted? What gets ordered for a curved door/frame (chord width, arc length, radius)?
+  - Done when: a run/cabinet can take an arched top and a curved front, faces and face frames follow it, dimensions show rise/radius, and DXF exports true arcs.
+
+- [ ] **[P2][model][elevation][plan][DXF] Angled cabinets under sloped ceilings**
+  - Why (Kyle, 2026-10-06): cabinet tops angled because the ceiling slopes; also applies to the face frame when present.
+  - Notes: today a wall's ceiling is one height (extensions `to: 'ceiling'` reads a flat height). Needs a ceiling profile per wall face (height at each end, or a pitch from a point; maybe a soffit-like sloped segment), the same "profileAt(x)" idea soffits use. Runs/cells under it get a sloped top (low/high height, or follow ceiling minus clearance); faces clip or step to the slope (top door angled vs. square doors under an angled panel); face frame top rail runs at the slope with a constant width; end panels/fillers follow; crown/top mold on a rake. A slope across the elevation (ceiling dropping along the wall) is the elevation case; a slope front-to-back (knee wall, cabinets under eaves) changes the side profile and depth and shows in plan/section.
+  - Open: both directions, or mostly the along-the-wall rake? Do the doors themselves get angled tops, or square doors with an angled panel/frame above? Same shape primitive as arched tops (sloped top edge vs. arched top edge)?
+  - Done when: a wall face can take a sloped ceiling, a run under it gets an angled top, faces and face frame follow with editable rules, dimensions show both heights and the angle, and DXF exports correctly.
+
 ## Planned
 
 <!-- Move sufficiently defined work here. -->
