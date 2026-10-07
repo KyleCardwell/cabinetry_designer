@@ -8,6 +8,7 @@ import { cornerParts } from '../cornerParts.js';
 import { elevationDimensions } from '../elevationDimensions.js';
 import { elevationMarks } from '../elevationMarks.js';
 import { planParts } from '../planParts.js';
+import { planDimensions } from '../planDimensions.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -106,8 +107,15 @@ describe('SPEC-40 drawing payload', () => {
   it('SPEC-44 carries the room in plan', () => {
     const synced = room('G1 Euro kitchen');
     const { plan } = toDrawingPayload(synced, settings);
-    expect(Object.keys(plan)).toEqual(['parts']);
+    expect(Object.keys(plan)).toEqual(['parts', 'dimensions']);
     expect(plan.parts).toHaveLength(76);
     expect(plan.parts).toEqual(planParts(synced, settings));
+  });
+
+  it('SPEC-45 carries the plan dimensions', () => {
+    const synced = room('G1 Euro kitchen');
+    const { plan } = toDrawingPayload(synced, settings);
+    expect(plan.dimensions).toHaveLength(7);
+    expect(plan.dimensions).toEqual(planDimensions(synced, settings));
   });
 });
