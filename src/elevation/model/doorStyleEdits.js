@@ -1,4 +1,4 @@
-import { DEFAULT_DESIGN_ID, DOOR_DESIGNS, DOOR_STYLE_KEYS, findDoorDesign, teamDoorStyle } from './doorStyles.js';
+import { DEFAULT_DESIGN_ID, DOOR_DESIGNS, DOOR_STYLE_KEYS, SHEET_PANEL_THICKNESS, findDoorDesign, teamDoorStyle } from './doorStyles.js';
 import { gridLeaves } from './grid.js';
 import { formatInches } from './units.js';
 import { resolveDoorStyle } from './doorStyleResolve.js';
@@ -137,10 +137,14 @@ export function pickOptions(room, settings, partType, levelsAbove, node = null) 
   const prefix = partType !== 'door' && (source.level === 'team' || source.key === 'doorStyleId')
     ? 'Same as doors' : 'Inherit';
   const teamRow = styleRow(teamDoorStyle(settings), findDoorDesign(DEFAULT_DESIGN_ID), partType, settings);
+  const inheritText = source.level === 'spot'
+    ? `Sheet slab here (${formatInches(SHEET_PANEL_THICKNESS)})`
+    : `${prefix} (${styleRow(style, design, partType, settings)})`;
   return {
-    inherit: { id: style.id, text: `${prefix} (${styleRow(style, design, partType, settings)})` },
+    inherit: { id: style.id, text: inheritText },
     options: [
       { id: 'default', text: `Team default (${teamRow})` },
+      ...(partType === 'panel' ? [{ id: 'sheet', text: `Sheet slab (${formatInches(SHEET_PANEL_THICKNESS)})` }] : []),
       ...(room?.doorStyles ?? []).map((entry) => ({
         id: entry.id,
         text: styleRow(entry, findDoorDesign(entry.designId) ?? DOOR_DESIGNS[0], partType, settings),

@@ -61,6 +61,20 @@ export function teamDoorStyle(settings) {
   };
 }
 
+/** Interim sheet material thickness until materials (SPEC-46.1.1). */
+export const SHEET_PANEL_THICKNESS = 0.75;
+
+export function sheetPanelStyle() {
+  return {
+    ...DEFAULT_DOOR_STYLE,
+    id: 'sheet',
+    label: 'Sheet',
+    name: 'Sheet slab',
+    designId: 'slab',
+    thickness: SHEET_PANEL_THICKNESS,
+  };
+}
+
 export function findDoorDesign(designId, designs = DOOR_DESIGNS) {
   return designs.find((design) => design.id === designId) ?? null;
 }
@@ -125,7 +139,7 @@ export function isDoorStyleList(list) {
   const ids = new Set();
   const labels = new Set();
   for (const doorStyle of list) {
-    if (!isDoorStyle(doorStyle) || doorStyle.id === 'default'
+    if (!isDoorStyle(doorStyle) || doorStyle.id === 'default' || doorStyle.id === 'sheet'
       || ids.has(doorStyle.id) || labels.has(doorStyle.label)) return false;
     ids.add(doorStyle.id);
     labels.add(doorStyle.label);

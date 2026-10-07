@@ -2,6 +2,7 @@ import {
   DEFAULT_DESIGN_ID,
   DOOR_DESIGNS,
   findDoorDesign,
+  sheetPanelStyle,
   teamDoorStyle,
 } from './doorStyles.js';
 import { gridLeaves } from './grid.js';
@@ -21,9 +22,10 @@ export function cabinetFaceLevels(room, wall, run, cabinet, face) {
   ].filter(({ node }) => node !== null && node !== undefined);
 }
 
-export function panelLevels(room, wall, run, part) {
+export function panelLevels(room, wall, run, part, { sheet = false } = {}) {
   return [
     { level: 'part', node: part },
+    ...(sheet ? [{ level: 'spot', node: { panelStyleId: 'sheet' } }] : []),
     { level: 'run', node: run },
     { level: 'wall', node: wall },
     { level: 'room', node: room },
@@ -49,6 +51,15 @@ export function resolveDoorStyle(room, settings, partType, levels, designs = DOO
       style = teamDoorStyle(settings);
       source = { level, key };
       return true;
+    }
+    if (id === 'sheet') {
+      if (partType === 'panel') {
+        style = sheetPanelStyle();
+        source = { level, key };
+        return true;
+      }
+      warnings.push({ code: 'door-style-missing', level, id });
+      return false;
     }
     const candidate = styles.find((entry) => entry.id === id);
     if (!candidate) {
