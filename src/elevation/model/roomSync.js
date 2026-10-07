@@ -1,6 +1,8 @@
 import { cellPieces } from './cells.js';
 import { CABINET_TYPE_IDS } from './constants.js';
 import { frontDepth } from './corners.js';
+import { runDoorThickness } from './doorStyleResolve.js';
+import { teamDoorStyle } from './doorStyles.js';
 import { extendPieces } from './extensions.js';
 import { findCollisions } from './footprints.js';
 import { frameRegions } from './frames.js';
@@ -92,6 +94,20 @@ function withFrame(room, run, settings) {
   return rest;
 }
 
+/** A Euro run's derived front plane thickness, stored only when it differs from the team default. */
+function withDoorThickness(room, wall, run, settings) {
+  if (!run._frame) {
+    const thickness = runDoorThickness(room, wall, run, settings);
+    if (Math.abs(thickness - teamDoorStyle(settings).thickness) > 1e-9) {
+      return run._doorThickness === thickness ? run : { ...run, _doorThickness: thickness };
+    }
+  }
+  if (!Object.hasOwn(run, '_doorThickness')) return run;
+  const { _doorThickness, ...rest } = run;
+  void _doorThickness;
+  return rest;
+}
+
 /**
  * A face frame run's joined ends that die into a deeper neighbour (SPEC-38.4): `_frame.dieIn` gives,
  * per side, an end of type None whose neighbour is deeper, so the frame's stile overhangs the box
@@ -161,7 +177,9 @@ export function syncRoom(room, settings) {
     ...wall,
     runs: wall.runs.map((run) => withRunPlane(
       wall,
-      withFrame(nextRoom, withSeamGap(nextRoom, run, settings), settings),
+      withDoorThickness(
+        nextRoom, wall, withFrame(nextRoom, withSeamGap(nextRoom, run, settings), settings), settings,
+      ),
     )),
   }));
 

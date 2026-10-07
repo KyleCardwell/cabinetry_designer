@@ -315,11 +315,11 @@ export function partPieces(pieces, settings) {
 }
 
 /** A cell's true depth: its own, else a flush side/top panel reaches the door face, else the run's box depth. */
-export function cellDepth(piece, leaf, runDepth, settings) {
+export function cellDepth(piece, leaf, runDepth, settings, doorThickness = settings.doorThickness) {
   if (leaf?.depth !== undefined) return leaf.depth;
   const orientation = panelOrientation(piece);
   if (piece.kind === 'panel' && orientation !== 'back' && leaf?.doors !== 'cover') {
-    return runDepth + settings.bumperThickness + settings.doorThickness;
+    return runDepth + settings.bumperThickness + doorThickness;
   }
   return runDepth;
 }

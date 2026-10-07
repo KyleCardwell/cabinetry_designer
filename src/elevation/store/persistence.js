@@ -670,11 +670,12 @@ export function toElevationDocument(elevationState) {
       walls: room.walls.map((wall) => ({
         ...wall,
         runs: wall.runs.map((run) => {
-          const { _pinWidths, _seamGap, _frame, _plane, ...persistedRun } = run;
+          const { _pinWidths, _seamGap, _frame, _plane, _doorThickness, ...persistedRun } = run;
           void _pinWidths;
           void _seamGap;
           void _frame;
           void _plane;
+          void _doorThickness;
           return persistedRun;
         }),
       })),

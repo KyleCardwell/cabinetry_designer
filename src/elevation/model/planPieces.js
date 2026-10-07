@@ -1,7 +1,7 @@
 import { blindEntries } from './blind.js';
 import { blindCellWidths, cellDepth, cellPieces, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
-import { frontDepth, runBackOffset } from './corners.js';
+import { frontDepth, runBackOffset, runFaceThickness } from './corners.js';
 import { frameRegions } from './frames.js';
 import { runItems } from './grid.js';
 import { teeFillers } from './tees.js';
@@ -238,7 +238,7 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
     ? findLeaf(run.grid, piece.id)
     : runItems(run).find((item) => item.id === piece.id));
   const band = (piece) => {
-    const depth = cellDepth(piece, leafOf(piece), run.depth, settings);
+    const depth = cellDepth(piece, leafOf(piece), run.depth, settings, runFaceThickness(run, settings));
     if (piece.align === 'back') return { back: 0, front: depth };
     const flushPanel = piece.kind === 'panel' && panelOrientation(piece) !== 'back'
       && piece.doors !== 'cover';

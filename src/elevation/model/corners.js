@@ -22,6 +22,11 @@ export function runBackOffset(run) {
   return (run._plane?.offset ?? 0) + (run.outset ?? 0);
 }
 
+/** The run's front plane thickness, its thickest face (SPEC-46 P11). */
+export function runFaceThickness(run, settings) {
+  return run._doorThickness ?? settings.doorThickness;
+}
+
 /**
  * How far a run's front sits from the wall face: box + frame on a face frame run (SPEC-36.1), else box + bumper
  * + door. A run that's only panels reserves just the panel (SPEC-38). Negative when the run is deep in a recess.
@@ -31,7 +36,7 @@ export function frontDepth(run, settings) {
   const leaves = run.grid ? gridLeaves(run.grid) : [];
   if (leaves.length > 0 && leaves.every((leaf) => leaf.kind === 'panel')) return back + run.depth;
   if (run._frame) return back + run.depth + run._frame.thickness;
-  return back + run.depth + settings.bumperThickness + settings.doorThickness;
+  return back + run.depth + settings.bumperThickness + runFaceThickness(run, settings);
 }
 
 /** Return the minimum width for a filler scribed into an angled corner. */
