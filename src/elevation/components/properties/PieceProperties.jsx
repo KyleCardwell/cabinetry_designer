@@ -53,7 +53,7 @@ function InteriorFillerProperties({ wallId, run, piece, item, extendRuns }) {
   );
 }
 
-function EndProperties({ wallId, run, side, settings, extendRuns }) {
+function EndProperties({ room, wall, wallId, run, side, settings, extendRuns }) {
   return (
     <section>
       <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -62,6 +62,8 @@ function EndProperties({ wallId, run, side, settings, extendRuns }) {
       <div className="rounded border border-gray-700 bg-gray-900/45 p-3">
         <EndFields
           actionBase={{ wallId, runId: run.id }}
+          room={room}
+          wall={wall}
           run={run}
           side={side}
           settings={settings}
@@ -130,6 +132,8 @@ export default function PieceProperties({
         {partNumberField}
         {notesLine}
         <EndProperties
+          room={room}
+          wall={wall}
           wallId={wall.id}
           run={run}
           side={side}

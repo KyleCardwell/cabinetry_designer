@@ -171,7 +171,7 @@ export default function EndFields({
           </p>
         </>
       )}
-      {(endType === 'end_panel' || endType === 'blind') && (
+      {room && wall && (endType === 'end_panel' || endType === 'blind') && (
         <PartStyleFields
           room={room}
           settings={settings}
