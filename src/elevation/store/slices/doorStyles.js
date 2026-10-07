@@ -6,12 +6,14 @@ import { findLeaf } from '../../model/cellTree.js';
 import { gridLeaves } from '../../model/grid.js';
 import { roomFor, roomIndexFor, wallLocation, runLocation, syncRoomAt } from './helpers.js';
 
+const isChoice = (room, id) => id === 'default' || room.doorStyles?.some((style) => style.id === id);
+
 export const doorStyleReducers = {
   setDoorStylePick(state, action) {
     const { roomId, level, itemIds = [], key, styleId } = action.payload;
     const room = roomFor(state, roomId);
     if (!room || !DOOR_STYLE_KEYS.includes(key)
-      || (styleId !== null && !room.doorStyles?.some((style) => style.id === styleId))) return;
+      || (styleId !== null && !isChoice(room, styleId))) return;
     let targets;
     if (level === 'room') targets = [room];
     else if (level === 'wall') targets = [wallLocation(state, action.payload)?.wall];
@@ -34,7 +36,7 @@ export const doorStyleReducers = {
     if (!room) return;
     const hasStyle = Object.hasOwn(action.payload, 'styleId');
     const hasSizes = Object.hasOwn(action.payload, 'sizes');
-    if (hasStyle && styleId !== null && !room.doorStyles?.some((style) => style.id === styleId)) return;
+    if (hasStyle && styleId !== null && !isChoice(room, styleId)) return;
     if (hasSizes && sizes !== null && !isPartSizes(sizes)) return;
     let target;
     if (part === 'wallEndPanel') {
@@ -100,7 +102,7 @@ export const doorStyleReducers = {
     const uses = doorStyleUses(current(room), styleId);
     if (uses.length) {
       if (reassignTo !== null
-        && (reassignTo === styleId || !styles.some((style) => style.id === reassignTo))) return;
+        && (reassignTo === styleId || !isChoice(room, reassignTo))) return;
       state.rooms[index] = reassignDoorStyle(current(room), styleId, reassignTo);
     }
     const nextRoom = state.rooms[index];

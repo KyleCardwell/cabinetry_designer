@@ -66,22 +66,39 @@ describe('SPEC-46.1 per-part size edits (P13)', () => {
 });
 
 describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
-  it('lists the room\'s styles and what a level inherits from the levels above it', () => {
+  it('lists the team default and the room\'s styles, and what a level inherits from above', () => {
     const room = { doorStyles: [A, B, C], doorStyleId: 'ds-b' };
     expect(pickOptions(room, DEFAULT_SETTINGS, 'door', [])).toEqual({
       inherit: { id: 'default', text: 'Inherit (Std · 5PC · 13/16")' },
       options: [
+        { id: 'default', text: 'Team default (Std · 5PC · 13/16")' },
         { id: 'ds-a', text: 'A · 5PC · 13/16"' },
         { id: 'ds-b', text: 'B · 5PC · 1"' },
         { id: 'ds-c', text: 'C · Slab AM · 3/4"' },
       ],
     });
-    expect(pickOptions(room, DEFAULT_SETTINGS, 'drawer_front', [{ level: 'room', node: room }]).inherit)
+    expect(pickOptions(room, DEFAULT_SETTINGS, 'door', [{ level: 'room', node: room }], {}).inherit)
       .toEqual({ id: 'ds-b', text: 'Inherit (B · 5PC · 1")' });
-    const panels = { ...room, panelStyleId: 'ds-c' };
-    expect(pickOptions(panels, DEFAULT_SETTINGS, 'panel', [{ level: 'room', node: panels }]).inherit.id).toBe('ds-c');
     expect(pickOptions({}, { ...DEFAULT_SETTINGS, doorThickness: 1 }, 'door', [])).toEqual({
-      inherit: { id: 'default', text: 'Inherit (Std · 5PC · 1")' }, options: [],
+      inherit: { id: 'default', text: 'Inherit (Std · 5PC · 1")' },
+      options: [{ id: 'default', text: 'Team default (Std · 5PC · 1")' }],
+    });
+  });
+
+  it('shows drawer fronts and panels following the doors, counting this level\'s own Doors pick', () => {
+    const room = { doorStyles: [A, B, C], doorStyleId: 'ds-b', drawerFrontStyleId: 'ds-a' };
+    expect(pickOptions(room, DEFAULT_SETTINGS, 'drawer_front', [], room).inherit)
+      .toEqual({ id: 'ds-b', text: 'Same as doors (B · 5PC · 1")' });
+    expect(pickOptions(room, DEFAULT_SETTINGS, 'panel', [], room).inherit)
+      .toEqual({ id: 'ds-b', text: 'Same as doors (B · 5PC · 1")' });
+    const above = [{ level: 'room', node: { ...room, drawerFrontStyleId: 'default', panelStyleId: 'ds-c' } }];
+    expect(pickOptions(room, DEFAULT_SETTINGS, 'drawer_front', above, {}).inherit)
+      .toEqual({ id: 'default', text: 'Inherit (Std · 5PC · 13/16")' });
+    expect(pickOptions(room, DEFAULT_SETTINGS, 'panel', above, {}).inherit)
+      .toEqual({ id: 'ds-c', text: 'Inherit (C · Slab AM · 3/4")' });
+    expect(pickOptions({}, DEFAULT_SETTINGS, 'panel', [], {})).toEqual({
+      inherit: { id: 'default', text: 'Same as doors (Std · 5PC · 3/4")' },
+      options: [{ id: 'default', text: 'Team default (Std · 5PC · 3/4")' }],
     });
   });
 

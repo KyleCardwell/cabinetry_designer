@@ -1,4 +1,4 @@
-import { DOOR_DESIGNS, DOOR_STYLE_KEYS, findDoorDesign } from './doorStyles.js';
+import { DEFAULT_DESIGN_ID, DOOR_DESIGNS, DOOR_STYLE_KEYS, findDoorDesign, teamDoorStyle } from './doorStyles.js';
 import { gridLeaves } from './grid.js';
 import { formatInches } from './units.js';
 import { resolveDoorStyle } from './doorStyleResolve.js';
@@ -121,19 +121,31 @@ export function setPartMids(sizes, kind, mids) {
   return withSizeGroup(sizes, kind, mids);
 }
 
-function styleRow(style, design) {
-  return `${style.label} · ${design.code} · ${formatInches(style.thickness)}`;
+function styleRow(style, design, partType, settings) {
+  const thickness = partType === 'panel' && style.id === 'default'
+    ? settings.endPanelThickness : style.thickness;
+  return `${style.label} · ${design.code} · ${formatInches(thickness)}`;
 }
 
-/** Picker rows in room order, plus the style inherited from levels above. */
-export function pickOptions(room, settings, partType, levelsAbove) {
-  const { style, design } = resolveDoorStyle(room, settings, partType, levelsAbove);
+/** Team and room picker rows, plus the style inherited without this level's own pick. */
+export function pickOptions(room, settings, partType, levelsAbove, node = null) {
+  const ownKey = { door: 'doorStyleId', drawer_front: 'drawerFrontStyleId', panel: 'panelStyleId' }[partType];
+  const here = { ...node };
+  delete here[ownKey];
+  const levels = node ? [{ level: 'here', node: here }, ...levelsAbove] : levelsAbove;
+  const { style, design, source } = resolveDoorStyle(room, settings, partType, levels);
+  const prefix = partType !== 'door' && (source.level === 'team' || source.key === 'doorStyleId')
+    ? 'Same as doors' : 'Inherit';
+  const teamRow = styleRow(teamDoorStyle(settings), findDoorDesign(DEFAULT_DESIGN_ID), partType, settings);
   return {
-    inherit: { id: style.id, text: `Inherit (${styleRow(style, design)})` },
-    options: (room?.doorStyles ?? []).map((entry) => ({
-      id: entry.id,
-      text: styleRow(entry, findDoorDesign(entry.designId) ?? DOOR_DESIGNS[0]),
-    })),
+    inherit: { id: style.id, text: `${prefix} (${styleRow(style, design, partType, settings)})` },
+    options: [
+      { id: 'default', text: `Team default (${teamRow})` },
+      ...(room?.doorStyles ?? []).map((entry) => ({
+        id: entry.id,
+        text: styleRow(entry, findDoorDesign(entry.designId) ?? DOOR_DESIGNS[0], partType, settings),
+      })),
+    ],
   };
 }
 

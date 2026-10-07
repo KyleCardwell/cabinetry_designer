@@ -45,6 +45,11 @@ export function resolveDoorStyle(room, settings, partType, levels, designs = DOO
   function pick({ level, node }, key) {
     const id = node[key];
     if (id === null || id === undefined) return false;
+    if (id === 'default') {
+      style = teamDoorStyle(settings);
+      source = { level, key };
+      return true;
+    }
     const candidate = styles.find((entry) => entry.id === id);
     if (!candidate) {
       warnings.push({ code: 'door-style-missing', level, id });
