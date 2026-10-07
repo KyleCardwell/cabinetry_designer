@@ -5,6 +5,12 @@ import {
   FRAME_JOINS,
 } from '../model/constants.js';
 import { isBottomPart } from '../model/bottoms.js';
+import {
+  DOOR_STYLE_KEYS,
+  isDoorStyleList,
+  isPartSizes,
+  isStyleRef,
+} from '../model/doorStyles.js';
 import { isFaceNode } from '../model/faces.js';
 import { MAX_SHELVES } from '../model/cellTree.js';
 import { LEAF_KINDS, isGridShape, rootItems } from '../model/grid.js';
@@ -32,7 +38,7 @@ const ITEM_KINDS = new Set(['cabinet', 'filler']);
 const LEAF_KIND_SET = new Set(LEAF_KINDS);
 /** Keys each non-cabinet cell kind may carry. */
 const CELL_KIND_KEYS = {
-  panel: ['id', 'kind', 'depth', 'align', 'doors', 'extend'],
+  panel: ['id', 'kind', 'depth', 'align', 'doors', 'extend', 'styleId', 'sizes'],
   void: ['id', 'kind'],
   shelves: ['id', 'kind', 'depth', 'align', 'shelves'],
 };
@@ -107,8 +113,17 @@ function isFiniteNumber(value) {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+function hasStyleRefs(node) {
+  return DOOR_STYLE_KEYS.every((key) => isStyleRef(node[key]));
+}
+
+function isPartPick(entry) {
+  return isStyleRef(entry.styleId) && (entry.sizes === undefined || isPartSizes(entry.sizes));
+}
+
 function isEnd(end) {
   return Boolean(end)
+    && isPartPick(end)
     && END_TYPES.has(end.type)
     && (end.width === null || isFiniteNumber(end.width))
     && (end.auto === undefined || typeof end.auto === 'boolean')
@@ -136,6 +151,7 @@ function isTFillerSides(value) {
 
 function isItem(item) {
   return Boolean(item)
+    && hasStyleRefs(item)
     && typeof item.id === 'string'
     && ITEM_KINDS.has(item.kind)
     && (item.width === null || isFiniteNumber(item.width))
@@ -237,6 +253,7 @@ function isRunStack(stack) {
 
 function isRun(run) {
   return Boolean(run)
+    && hasStyleRefs(run)
     && typeof run.id === 'string'
     && RUN_TYPE_IDS.has(run.cabinetTypeId)
     && ['x', 'width', 'z', 'height', 'depth'].every((key) => isFiniteNumber(run[key]))
@@ -303,6 +320,7 @@ function isCellLeaf(leaf) {
       || leaf.doors === 'cover'
       || leaf.doors === 'flush')
     && (leaf.kind !== 'panel' || isExtend(leaf.extend))
+    && (leaf.kind !== 'panel' || isPartPick(leaf))
     && (leaf.kind !== 'shelves' || isShelves(leaf.shelves));
 }
 
@@ -378,6 +396,7 @@ function isEndPanels(endPanels) {
         Boolean(endPanels[endpoint])
         && typeof endPanels[endpoint] === 'object'
         && !Array.isArray(endPanels[endpoint])
+        && isPartPick(endPanels[endpoint])
         && Object.hasOwn(endPanels[endpoint], 'width')
         && (endPanels[endpoint].width === null
           || (isFiniteNumber(endPanels[endpoint].width) && endPanels[endpoint].width >= 0))
@@ -441,6 +460,7 @@ function isRecess(recess) {
 
 function isWall(wall, profileKeys = PROFILE_KEYS) {
   return Boolean(wall)
+    && hasStyleRefs(wall)
     && typeof wall.id === 'string'
     && typeof wall.name === 'string'
     && (wall.numberOverride === null
@@ -474,6 +494,8 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
 
 function isRoom(room, profileKeys = PROFILE_KEYS) {
   return Boolean(room)
+    && isDoorStyleList(room.doorStyles)
+    && hasStyleRefs(room)
     && typeof room.id === 'string'
     && typeof room.name === 'string'
     && isCompleteProfile(room.profile, profileKeys)

@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from './constants.js';
+import { isPartSizes, isStyleRef } from './doorStyles.js';
 
 /** Leaf face types — the same values as ff-job-schedule FACE_NAMES. */
 export const FACE_TYPES = ['door', 'pair_door', 'drawer_front', 'false_front', 'panel', 'open'];
@@ -48,6 +49,8 @@ export function isFaceNode(node) {
   if (!isSize(node.size)) return false;
   if (FACE_TYPES.includes(node.type)) {
     return node.children === undefined && node.direction === undefined && node.noRail === undefined
+      && isStyleRef(node.styleId)
+      && (node.sizes === undefined || isPartSizes(node.sizes))
       && (node.hinge === undefined || (node.type === 'door' && (node.hinge === 'left' || node.hinge === 'right')));
   }
   return node.type === undefined
