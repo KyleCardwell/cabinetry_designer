@@ -9,6 +9,7 @@ import { elevationDimensions } from '../elevationDimensions.js';
 import { elevationMarks } from '../elevationMarks.js';
 import { planParts } from '../planParts.js';
 import { planDimensions } from '../planDimensions.js';
+import { planMarks } from '../planMarks.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -107,7 +108,7 @@ describe('SPEC-40 drawing payload', () => {
   it('SPEC-44 carries the room in plan', () => {
     const synced = room('G1 Euro kitchen');
     const { plan } = toDrawingPayload(synced, settings);
-    expect(Object.keys(plan)).toEqual(['parts', 'dimensions']);
+    expect(Object.keys(plan)).toEqual(['parts', 'dimensions', 'marks']);
     expect(plan.parts).toHaveLength(76);
     expect(plan.parts).toEqual(planParts(synced, settings));
   });
@@ -117,5 +118,12 @@ describe('SPEC-40 drawing payload', () => {
     const { plan } = toDrawingPayload(synced, settings);
     expect(plan.dimensions).toHaveLength(7);
     expect(plan.dimensions).toEqual(planDimensions(synced, settings));
+  });
+
+  it('SPEC-45.1 carries the plan markers and labels', () => {
+    const synced = room('G1 Euro kitchen');
+    const { plan } = toDrawingPayload(synced, settings);
+    expect(plan.marks).toHaveLength(5);
+    expect(plan.marks).toEqual(planMarks(synced, settings));
   });
 });

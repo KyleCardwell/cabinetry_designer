@@ -10,6 +10,7 @@ import { elevationDimensions } from './elevationDimensions.js';
 import { elevationMarks } from './elevationMarks.js';
 import { planParts } from './planParts.js';
 import { planDimensions } from './planDimensions.js';
+import { planMarks } from './planMarks.js';
 
 export const DRAWING_PAYLOAD_VERSION = 1;
 
@@ -18,7 +19,8 @@ export const DRAWING_PAYLOAD_VERSION = 1;
  * letter order. Takes a synced room (every room in the store is). Round 40 carries each face's
  * outline; round 41 adds each face's parts; round 42 its bands; 42.1 the wall's own parts; 42.2 its
  * neighbours (corner returns and profiles). Round 43 adds the drawing scale and each face's dimensions;
- * 43.3 its centreline marks; round 44 the room in plan; round 45 its dimensions.
+ * 43.3 its centreline marks; round 44 the room in plan; round 45 its dimensions; 45.1 its
+ * markers and labels.
  */
 export function toDrawingPayload(room, settings) {
   const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
@@ -53,7 +55,11 @@ export function toDrawingPayload(room, settings) {
     room: { id: room.id, name: room.name },
     elevations,
     plotScale: plotScale(settings),
-    plan: { parts: planParts(room, settings), dimensions: planDimensions(room, settings) },
+    plan: {
+      parts: planParts(room, settings),
+      dimensions: planDimensions(room, settings),
+      marks: planMarks(room, settings),
+    },
   };
 }
 
