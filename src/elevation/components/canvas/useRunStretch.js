@@ -43,12 +43,12 @@ export default function useRunStretch({
     });
   }, [applyRunAlignment, room, settings, wall]);
 
-  const commitStretch = useCallback((runId, side, newEdgeX) => {
-    const alignedEdgeX = applyRunAlignment({ x: newEdgeX }, runId).point.x;
+  const commitStretch = useCallback((runId, side, newEdgeX, { exact = false } = {}) => {
+    const alignedEdgeX = exact ? newEdgeX : applyRunAlignment({ x: newEdgeX }, runId).point.x;
     setStretchPreview(null);
     setAlignmentGuides([]);
     if (!room || !wall) return;
-    const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings);
+    const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings, { exact });
     if (!result.ok) {
       showMessage(result.reason);
       return;
@@ -129,13 +129,14 @@ export default function useRunStretch({
       max: maximum,
       modes,
       onCommit: (value, modeKey) => {
+        const exact = (entryRef.current?.typed ?? null) !== null;
         liveGestureRef.current = null;
         const committedEdgeX = modeKey === 'from-left'
           ? value
           : modeKey === 'from-right'
             ? wall.length - value
             : runEdgeXForWidth(run, side, value);
-        commitStretch(run.id, side, committedEdgeX);
+        commitStretch(run.id, side, committedEdgeX, { exact });
       },
       onCancel: () => {
         liveGestureRef.current = null;

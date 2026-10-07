@@ -20,7 +20,7 @@ const PIN_EPSILON = 1e-6;
  *
  * @returns {{ok:boolean,reason:string|null,room:object}}
  */
-export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
+export function stretchRun(room, wallId, runId, side, newEdgeX, settings, { exact = false } = {}) {
   if (side !== 'left' && side !== 'right') {
     return { ok: false, reason: 'invalid-side', room };
   }
@@ -91,11 +91,11 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
     })),
   ];
 
-  let edge = roundTo(newEdgeX, 0.5);
+  let edge = exact ? newEdgeX : roundTo(newEdgeX, 0.5);
   let snapped = null;
   for (const candidate of candidates) {
     const distance = Math.abs(candidate.value - edge);
-    if (distance > STRETCH_EDGE_SNAP_DISTANCE + 1e-9) continue;
+    if (distance > (exact ? 1e-9 : STRETCH_EDGE_SNAP_DISTANCE + 1e-9)) continue;
     if (!snapped
       || distance < snapped.distance - 1e-9
       || (Math.abs(distance - snapped.distance) <= 1e-9
@@ -192,7 +192,7 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings) {
  *
  * @returns {{ok:boolean,reason:string|null,room:object,snap:{value:number,edge:string}|null}}
  */
-export function moveRun(room, wallId, runId, newX, settings) {
+export function moveRun(room, wallId, runId, newX, settings, { exact = false } = {}) {
   const sourceWall = room.walls.find((wall) => wall.id === wallId);
   const sourceRun = sourceWall?.runs.find((run) => run.id === runId);
   if (!sourceWall || !sourceRun || !Number.isFinite(newX)) {
@@ -218,13 +218,13 @@ export function moveRun(room, wallId, runId, newX, settings) {
       ...recessEdges(wallViewForRun(sourceWall, sourceRun)).map((edge) => edge.value),
     ];
 
-    let x = roundTo(newX, 0.5);
+    let x = exact ? newX : roundTo(newX, 0.5);
     let snap = null;
     for (const candidate of candidates) {
       for (const edge of ['left', 'right']) {
         const edgeX = edge === 'left' ? x : x + sourceRun.width;
         const distance = Math.abs(candidate - edgeX);
-        if (distance > STRETCH_EDGE_SNAP_DISTANCE + 1e-9) continue;
+        if (distance > (exact ? 1e-9 : STRETCH_EDGE_SNAP_DISTANCE + 1e-9)) continue;
         if (snap && distance >= snap.distance - 1e-9) continue;
         snap = { value: candidate, edge, distance };
       }
@@ -299,13 +299,13 @@ export function moveRun(room, wallId, runId, newX, settings) {
       }),
   ];
 
-  let x = roundTo(newX, 0.5);
+  let x = exact ? newX : roundTo(newX, 0.5);
   let snap = null;
   for (const candidate of candidates) {
     for (const edge of ['left', 'right']) {
       const edgeX = edge === 'left' ? x : x + resolvedRun.width;
       const distance = Math.abs(candidate - edgeX);
-      if (distance > STRETCH_EDGE_SNAP_DISTANCE + 1e-9) continue;
+      if (distance > (exact ? 1e-9 : STRETCH_EDGE_SNAP_DISTANCE + 1e-9)) continue;
       if (snap && distance >= snap.distance - 1e-9) continue;
       snap = { value: candidate, edge, distance };
     }

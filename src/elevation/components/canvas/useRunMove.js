@@ -34,10 +34,10 @@ export default function useRunMove({
   updateEntry,
   wall,
 }) {
-  const applyRunMove = useCallback((segment, delta, commit) => {
+  const applyRunMove = useCallback((segment, delta, commit, { exact = false } = {}) => {
     const origin = moveOriginRef.current;
     if (!origin || !room || !wall || origin.runId !== segment.runId) return;
-    const result = moveRun(room, wall.id, segment.runId, origin.x + delta, settings);
+    const result = moveRun(room, wall.id, segment.runId, origin.x + delta, settings, { exact });
     if (!result.ok) {
       if (commit) {
         moveOriginRef.current = null;
@@ -113,7 +113,7 @@ export default function useRunMove({
       max: result.joints ? result.range.max : Infinity,
       onCommit: (delta) => {
         liveGestureRef.current = null;
-        applyRunMove(segment, delta, true);
+        applyRunMove(segment, delta, true, { exact: (entryRef.current?.typed ?? null) !== null });
       },
       onCancel: () => {
         liveGestureRef.current = null;
