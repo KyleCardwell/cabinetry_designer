@@ -42,7 +42,7 @@ const ROWS = [
  * height plus a gap apart. When the on-line text is outward, level 1 sits past it; otherwise level 1
  * sits just past the line. By default the on-line text is outward above the wall, inward below it.
  */
-function placeLabels(segments, at, outward, scale, textOutward = outward > 0) {
+export function placeLabels(segments, at, outward, scale, textOutward = outward > 0) {
   const height = DIMENSION_TEXT_HEIGHT * scale;
   const gap = DIMENSION_TEXT_GAP * scale;
   const step = height + gap;
