@@ -27,7 +27,6 @@ Suggested format:
 - [ ] **[P2][model][doors] Door style follow-ups from rounds 46.1 / 46.1.1**
   - Why (Kyle, 2026-10-07): known gaps left on purpose so the door rounds stay small; collected here so none get lost.
   - Notes:
-    - Joined runs: `syncRoom` rebuilds a joined run's auto end as `{ type, width, auto }`, dropping a `styleId` / `sizes` picked on that end (roomSync.js, auto-end rebuild).
     - Blind end panels aren't sized by their panel style yet (blind rules still decide).
     - Sheet slab defaults (SPEC-46.1.1): joined run ends and panel cells default to 3/4" sheet slab; a panel below a run and a blind panel that cabinets die into should default to sheet slab too.
     - Tall bottom rail (Kyle, 2026-10-07): a door-matching panel that cabinets die into (e.g. an alcove side panel to the floor with bases against it) gets a bottom rail as tall as the cabinets (e.g. 42") so they die into the flat rail and the paneled part is above them. Today it's typed in the Stiles & rails block; make it automatic from the die-in cabinets' height.

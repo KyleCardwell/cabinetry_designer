@@ -150,3 +150,22 @@ At most three lines of summary. Commit "elevation-mvp: step 400 Door style picke
 ## Running it (Kyle, after 400)
 
 Set Settings → End panel thickness to 13/16", then follow SPEC-46.1.1's end-to-end check: Drawer fronts / Panels read "Same as doors (…)"; Team default in every picker and Sheet slab on panel pickers; a 1" door style makes free end panels and wall end panels 1" (boxes narrower); joined end panels and panel cells stay 3/4" sheet slab unless you pick a style on them; face frame end stiles grow with the panel; type a tall bottom rail on an alcove panel that bases die into.
+
+---
+
+## Step 401 — fix: selecting an end panel on the canvas crashes
+
+```
+Repo: cabinetry_designer, branch elevation-doors. SPEC: docs/elevation-mvp/SPEC-46.1.1.md §7. Step 400 is in (1054 tests).
+If `git status` shows uncommitted changes, stop and tell me.
+
+Clicking an end panel piece on the canvas crashes: PartStyleFields reads room.doorStyles but room is undefined. EndFields is rendered from RunEndsSection.jsx (gets room and wall) and from PieceProperties.jsx's EndProperties (doesn't).
+- src/elevation/components/properties/PieceProperties.jsx (194 lines): EndProperties (line 56) takes room and wall and passes room={room} wall={wall} to <EndFields> (line 63); its caller (line ~132) passes them — PieceProperties already has both props.
+- src/elevation/components/properties/EndFields.jsx: render PartStyleFields only when room and wall are both given.
+
+Files (only these): the two above. DO NOT change anything else. DO NOT grep the repo.
+
+UI only, no new tests. At the end `npm test && npm run lint && npm run build` once: still 1054 tests, lint 0 errors, build succeeds.
+
+At most three lines of summary. Commit "elevation-mvp: step 401 Fix end panel selection crash".
+```

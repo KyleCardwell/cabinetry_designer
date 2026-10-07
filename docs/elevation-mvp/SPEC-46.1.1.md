@@ -555,3 +555,67 @@ Gate: `npm test && npm run lint && npm run build`; 1054 tests.
 - A panel under a run and a blind panel don't default to sheet slab yet; blind end panels aren't sized by style.
 - Existing panel cells keep their size until you change their kind or type.
 - Odd automatic box sizes aren't flagged.
+
+---
+
+## §7 Step 401 — fix: selecting an end panel on the canvas crashes
+
+Kyle, after 400: clicking an end panel piece on the canvas crashes with `Cannot read properties of undefined (reading 'doorStyles')` in `PartStyleFields`. `EndFields` is rendered from two places; step 395 gave `room` and `wall` to the one in `RunEndsSection.jsx` but not to the one in `PieceProperties.jsx` (`EndProperties`, line 56, rendering `<EndFields>` at line 63).
+
+| File | Lines | Change |
+|---|---:|---|
+| `src/elevation/components/properties/PieceProperties.jsx` | 194 | `EndProperties` takes `room` and `wall` and passes them to `<EndFields>`; its caller (line ~132) passes them (`PieceProperties` already has both) |
+| `src/elevation/components/properties/EndFields.jsx` | ~190 | render `PartStyleFields` only when `room` and `wall` are given |
+
+No new tests (UI only). Gate: `npm test && npm run lint && npm run build`; still 1054.
+
+---
+
+## §8 Step 402 — fix: a joined end loses its picked style on every sync
+
+Kyle, after 401: on a joined end panel the picker never shows the choice, though the panel's thickness changes once. Cause (the known gap from 46.1): `syncRoom`'s auto-end pass (roomSync.js lines ~297–309) rebuilds a joined run's auto end as `{ type, width: null, auto: true }`, dropping `styleId` and `sizes`. The first pass has already computed `_endThickness` from the pick, so the panel changes, but the stored end loses the pick at once (and the thickness falls back at the next sync).
+
+| File | Lines | Change |
+|---|---:|---|
+| `src/elevation/model/roomSync.js` | 434 | the three rebuilt ends (lines ~299–308) keep the end's `styleId` and `sizes` when present |
+| NEW `src/elevation/model/__tests__/autoEndPick.test.js` | — | 1 test, verbatim |
+
+**Contract.** A private `withPartPick(next, end)` → `next` plus `end.styleId` and `end.sizes` when they're set. Each of the three rebuilt returns in that `Object.fromEntries(...)` uses it. Nothing else changes.
+
+**NEW `src/elevation/model/__tests__/autoEndPick.test.js`**, verbatim:
+
+```js
+import { readFileSync } from 'node:fs';
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
+import { syncRoom } from '../room.js';
+import { normalizeElevationDocument } from '../../store/persistence.js';
+
+const document = normalizeElevationDocument(
+  JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
+);
+const { settings } = document;
+const P = { ...DEFAULT_DOOR_STYLE, id: 'ds-p', label: 'P' };
+const G1_TALL = 'b38f2f11-5318-42f2-9d95-8b9b3d1b9087';
+const runOf = (room) => room.walls.flatMap((wall) => wall.runs).find((run) => run.id === G1_TALL);
+
+describe('SPEC-46.1.1 a joined end keeps its own style', () => {
+  it('keeps styleId and sizes on an auto end through every sync (G1 tall, right end joined)', () => {
+    const room = structuredClone(document.rooms.find((candidate) => candidate.name === 'G1 Euro kitchen'));
+    room.doorStyles = [P];
+    const stored = runOf(room).ends.right;
+    runOf(room).ends.right = { ...stored, styleId: 'ds-p', sizes: { rails: { bottom: 42 } } };
+    const once = syncRoom(room, settings);
+    const twice = syncRoom(once, settings);
+    for (const synced of [once, twice]) {
+      const end = runOf(synced).ends.right;
+      expect([end.type, end.auto, end.styleId, end.sizes, runOf(synced)._endThickness])
+        .toEqual(['end_panel', true, 'ds-p', { rails: { bottom: 42 } }, { right: 0.8125 }]);
+    }
+  });
+});
+```
+
+**Don't touch:** the first pass, `jointEndTypes`, the store, the UI.
+
+**Count:** 1054 + 1 = **1055**. Golden snapshot unchanged.
