@@ -43,6 +43,14 @@ import { resolvePinTarget, pinTargetsForRun, resolvePinnedSpan } from './runPins
 
 const PIN_EPSILON = 1e-6;
 
+function withPartPick(next, end) {
+  return {
+    ...next,
+    ...(end.styleId != null ? { styleId: end.styleId } : {}),
+    ...(end.sizes != null ? { sizes: end.sizes } : {}),
+  };
+}
+
 /** Resolve every run's span, leaders before the runs that follow them. */
 function resolveWallSpans(room, wall, settings) {
   const resolved = new Map();
@@ -297,14 +305,14 @@ export function syncRoom(room, settings) {
           ends: Object.fromEntries(Object.entries(run.ends).map(([side, end]) => {
             const anchor = run.anchors?.[side];
             if ((isJointAnchor(anchor) || isFollowAnchor(anchor)) && end.auto === true) {
-              return [side, { type: endTypes.get(run.id)[side], width: null, auto: true }];
+              return [side, withPartPick({ type: endTypes.get(run.id)[side], width: null, auto: true }, end)];
             }
             if (run.anchors?.[side] === true
               && wallEndPanelAt(nextRoom, wallViewForRun(wall, run), side, settings)) {
-              return [side, { type: 'none', width: null, auto: true }];
+              return [side, withPartPick({ type: 'none', width: null, auto: true }, end)];
             }
             if (!isJointAnchor(anchor) && !isFollowAnchor(anchor) && end.auto === true) {
-              return [side, { type: 'end_panel', width: null }];
+              return [side, withPartPick({ type: 'end_panel', width: null }, end)];
             }
             return [side, end];
           })),
