@@ -59,7 +59,7 @@ The full gate after every fix attempt is 96 test files plus a lint pass per cycl
 - what not to touch;
 - the tests, verbatim, with literal values.
 
-Codex writes the implementation. Give code only for a few lines where an exact library call matters, for example an ezdxf API detail. Never give whole functions or files: that pays Claude to write the code and Codex to retype it. Cover every edge case that matters with a test rather than with code. Claude may check test numbers against a throwaway build, but that build never goes into the SPEC. After a tricky step (geometry, miters, anything touching many files), Claude reviews the commit's diff (`git show`) rather than pre-writing the code.
+Codex writes the implementation. Give code only for a few lines where an exact library call matters, for example an ezdxf API detail. Never give whole functions or files: that pays Claude to write the code and Codex to retype it. Cover every edge case that matters with a test rather than with code. Claude never builds the implementation, not even a throwaway copy to check test numbers (Kyle, 2026-10-06, all Forever Furniture repos). Claude may run *existing* code read-only to get inputs (what `wallFaceSegments` or `planClearances` returns for a golden room) and works expected values out from the rules. A number Claude can't work out with confidence is marked in the SPEC, and the prompt tells Codex to report what it gets instead of changing the test to match; Claude checks it in the diff review. After a tricky step (geometry, miters, anything touching many files), Claude reviews the commit's diff (`git show`) rather than pre-writing the code.
 
 ---
 
