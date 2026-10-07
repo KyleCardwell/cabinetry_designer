@@ -24,6 +24,18 @@ Suggested format:
 
 ## Idea inbox
 
+- [ ] **[P2][model][doors] Door style follow-ups from rounds 46.1 / 46.1.1**
+  - Why (Kyle, 2026-10-07): known gaps left on purpose so the door rounds stay small; collected here so none get lost.
+  - Notes:
+    - Joined runs: `syncRoom` rebuilds a joined run's auto end as `{ type, width, auto }`, dropping a `styleId` / `sizes` picked on that end (roomSync.js, auto-end rebuild).
+    - Blind end panels aren't sized by their panel style yet (blind rules still decide).
+    - Existing panel cells keep their stored size; only new cells and kind/type changes pick up the style's thickness. Consider re-sizing panel cells when their style (or the style's thickness) changes.
+    - 46.3: fold both `settings.doorThickness` and `settings.endPanelThickness` into the team default style (today the team default panel thickness is the End panel thickness setting).
+    - Reports: note a face frame end stile widened by a mitered end panel (e.g. "1 9/16" — mitered to 13/16" end panel").
+    - Warning when a 5-piece panel's style thickness doesn't match the panel's own thickness (DOORS-PROFILES-PLAN §3.5).
+    - Slab AM molding inset = stile/rail widths with the short-face rule is Claude's default; confirm (DOORS-PROFILES-PLAN open question 9).
+  - Done when: each sub-item is built, moved to its own entry, or dropped by Kyle.
+
 - [ ] **[P2][model][elevation] Odd box sizes from end panel thickness**
   - Why (Kyle, 2026-10-07): end panels that match the doors are 13/16" (SPEC-46.1.1), so a run with end panels at both ends and no filler (e.g. a 90" island) gets automatic boxes like 29 7/16". An automatic box at an odd size isn't acceptable unless someone typed it.
   - Notes: for now the drawn run width wins and the boxes absorb the difference; the user is expected to notice and widen the run (90 1/8"). A face frame end stile mitered to a 13/16" panel becomes 1 9/16" (1 13/16" beaded) and needs a note on reports. Options: flag an automatic box that lands off the round size (setting, e.g. 1/8" or 1/2"), and/or a one-click "grow the run so the boxes come out round" (the run, or the wall/island it belongs to).
