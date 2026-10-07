@@ -9,6 +9,7 @@ import {
 } from 'react-konva';
 import { KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
+import { doorDrawing, runDoorDetails } from '../model/doorDetails.js';
 import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { centerlineMarkers } from '../model/dimensions.js';
@@ -19,6 +20,7 @@ import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { runHighlight } from '../canvas/selectionHighlight.js';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
 import CellChains from './CellChains.jsx';
+import DoorDetails from './DoorDetails.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
 import FrameOutline from './FrameOutline.jsx';
 import PieceRect from './PieceRect.jsx';
@@ -48,6 +50,11 @@ function RunGroup({
   const cursorKeys = useCursorKeys(cursor);
   const highlight = runHighlight(selectedRun, selectedPieceId, selectedFacePath);
   const scene = useMemo(() => runScene(room, wall, run, settings), [room, run, settings, wall]);
+  const drawing = doorDrawing(room);
+  const doorDetails = useMemo(
+    () => runDoorDetails(room, wall, run, settings, scene),
+    [room, run, scene, settings, wall],
+  );
   const {
     result, cells, faceLayouts, frames, framedIds, hiddenIds, ghostIds, subLabels,
     panels, panelPieceIds, shelves, drawnPieces,
@@ -330,6 +337,14 @@ function RunGroup({
           listening={false}
         />
       ))}
+
+      <DoorDetails
+        parts={doorDetails.parts}
+        warnings={doorDetails.warnings}
+        transform={transform}
+        showDetails={drawing.details}
+        showTags={drawing.tags}
+      />
 
       {[...faceLayouts].map(([pieceId, layout]) => (
         <FaceOutlines
