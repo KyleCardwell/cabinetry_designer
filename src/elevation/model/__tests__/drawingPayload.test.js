@@ -116,7 +116,7 @@ describe('SPEC-40 drawing payload', () => {
   it('SPEC-45 carries the plan dimensions', () => {
     const synced = room('G1 Euro kitchen');
     const { plan } = toDrawingPayload(synced, settings);
-    expect(plan.dimensions).toHaveLength(7);
+    expect(plan.dimensions).toHaveLength(14);
     expect(plan.dimensions).toEqual(planDimensions(synced, settings));
   });
 

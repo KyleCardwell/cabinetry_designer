@@ -1,7 +1,8 @@
+import { CABINET_TYPE_IDS } from './constants.js';
 import { frontDepth } from './corners.js';
 import { plotScale } from './drawingScale.js';
 import { DIMENSION_ROW_SPACING, placeLabels } from './elevationDimensions.js';
-import { wallFrame } from './geometry.js';
+import { elevationToPlan, wallFrame } from './geometry.js';
 import { recessesOn } from './recesses.js';
 import { elevationKey, elevationLetters } from './topology.js';
 import { wallFaceSegments } from './wallFaceRow.js';
@@ -67,10 +68,37 @@ function rowRecords(row, segments, base, outward, at, scale) {
   return { records, levels, step };
 }
 
+const DEPTH_LANES = {
+  [CABINET_TYPE_IDS.BASE]: 0,
+  [CABINET_TYPE_IDS.UPPER]: -1,
+  [CABINET_TYPE_IDS.TALL]: 1,
+};
+/** Paper inches: a lane's shift off the run's middle, and the least room kept at a run's ends (SPEC-45.2). */
+export const DEPTH_LANE_SHIFT = 0.375;
+export const DEPTH_MARGIN = 0.25;
+
+/** A run's depth from its plane to its front, across the run in its type's lane (SPEC-45.2). */
+function depthRecords(room, wall, run, settings) {
+  const scale = plotScale(settings);
+  const frame = wallSideFrame(room, wall, wallSideOf(run));
+  const back = run._plane?.offset ?? 0;
+  const depth = frontDepth(run, settings) - back;
+  if (depth <= EPSILON || run.width <= EPSILON) return [];
+  const lane = DEPTH_LANES[run.cabinetTypeId] ?? 0;
+  const margin = Math.min(run.width / 2, DEPTH_MARGIN * scale);
+  const x = Math.max(run.x + margin, Math.min(run.x + run.width - margin,
+    run.x + run.width / 2 + lane * DEPTH_LANE_SHIFT * scale));
+  const side = lane < 0 ? -1 : 1;
+  const base = (t) => elevationToPlan(frame, x, back + t);
+  const outward = { x: frame.r.x * side, y: frame.r.y * side };
+  return rowRecords('depth', [{ start: 0, end: depth, kind: 'depth' }], base, outward, 0, scale).records;
+}
+
 /**
  * The plan's dimensions for the DXF (SPEC-45): aligned, in plan inches with y up, reading from the bottom
  * or the right. Per wall, outside it, the front face row then the overall length, 3/8" (paper) apart past
- * the wall, its bump-out and the lettered face behind it; a back face row on the room side.
+ * the wall, its bump-out and the lettered face behind it; a back face row on the room side. Then each run's depth across it, by type
+ * lane (SPEC-45.2).
  */
 export function planDimensions(room, settings) {
   const scale = plotScale(settings);
@@ -111,6 +139,9 @@ export function planDimensions(room, settings) {
         at += spacing + result.levels * result.step;
       }
     }
+  }
+  for (const wall of room.walls) {
+    for (const run of wall.runs ?? []) records.push(...depthRecords(room, wall, run, settings));
   }
   return records;
 }

@@ -85,3 +85,35 @@ describe('SPEC-45 plan dimensions: each wall\'s length and the rows along its fa
     expect(sloped.end[1]).toBeCloseTo(20.0038, 4);
   });
 });
+
+describe('SPEC-45.2 run depths in plan', () => {
+  const depths = (room) => dimensions(room).filter(({ row }) => row === 'depth');
+  const depth = (start, end, text, textAt) => ({
+    row: 'depth', kind: 'depth', start, end, offset: 0, text, ...(textAt ? { textAt } : {}),
+  });
+
+  it('dimensions every run\'s depth on its own line: bases centred, uppers 3/8" (paper) left, talls right (G1)', () => {
+    expect(depths(stored('G1 Euro kitchen'))).toEqual([
+      depth([-60, -60], [-34.125, -60], '25 7/8"'),
+      depth([-60, 2.5625], [-35.125, 2.5625], '24 7/8"'),
+      depth([-60, 38.8125], [-47.125, 38.8125], '12 7/8"'),
+      depth([-2.5625, 71.125], [-2.5625, 84], '12 7/8"'),
+      depth([12.4375, 59.125], [12.4375, 84], '24 7/8"'),
+      depth([55.25, -3.875], [55.25, 21], '24 7/8"'),
+      depth([55.25, -16.75], [55.25, -3.875], '12 7/8"'),
+    ]);
+  });
+
+  it('moves text that doesn\'t fit beside the line, toward its lane (G2 upper)', () => {
+    expect(depths(stored('G2 Face frame kitchen'))[2])
+      .toEqual(depth([29.25, 2.1875], [29.25, 15], '12 13/16"', [22.875, 8.59375]));
+  });
+
+  it('measures a recessed run from the recess back (G5)', () => {
+    expect(depths(stored('G5 Recess room'))).toEqual([
+      depth([-88.875, -9.875], [-88.875, 15], '24 7/8"'),
+      depth([-48.875, 2.125], [-48.875, 27], '24 7/8"'),
+      depth([54, 17.125], [54, 39], '21 7/8"'),
+    ]);
+  });
+});
