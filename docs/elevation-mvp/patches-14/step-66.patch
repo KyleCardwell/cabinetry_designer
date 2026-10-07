@@ -1,0 +1,523 @@
+diff --git a/src/elevation/components/PropertiesPanel.jsx b/src/elevation/components/PropertiesPanel.jsx
+index 59d0314..e50a4f7 100644
+--- a/src/elevation/components/PropertiesPanel.jsx
++++ b/src/elevation/components/PropertiesPanel.jsx
+@@ -26,6 +26,7 @@ import {
+   runBlocksOpening,
+   splitRun,
+   startFromReadout,
++  stretchedStart,
+   validateOpeningPlacement,
+   wallFrame,
+   wallNumbers,
+@@ -69,6 +70,7 @@ import {
+   setSelection,
+   setWallLength,
+   splitItem,
++  resizeOpening,
+   updateOpening,
+   updateRun,
+   updateWall,
+@@ -76,6 +78,7 @@ import {
+ import InchInput from './InchInput.jsx';
+ import FaceProperties from './properties/FaceProperties.jsx';
+ import RunFaceOptions from './properties/RunFaceOptions.jsx';
++import StretchInput from './properties/StretchInput.jsx';
+ 
+ const RUN_TYPES = [
+   [CABINET_TYPE_IDS.BASE, 'Base'],
+@@ -268,6 +271,12 @@ function OpeningProperties({ wall, opening, settings, placementMessage }) {
+     (run) => runBlocksOpening(run, opening, wall, settings),
+   );
+   const update = (changes) => dispatch(updateOpening({ ...actionBase, changes }));
++  // Grow away from the wall end the offset is measured from, so the typed offset holds.
++  const preferredOpeningGrow = opening.offsetFrom === 'right' ? 'left' : 'right';
++  const [openingGrow, setOpeningGrow] = useState(preferredOpeningGrow);
++  useEffect(() => {
++    setOpeningGrow(preferredOpeningGrow);
++  }, [preferredOpeningGrow, opening.id]);
+   const hasWarnings = Boolean(placementReason) || blockingRuns.length > 0;
+ 
+   return (
+@@ -350,13 +359,20 @@ function OpeningProperties({ wall, opening, settings, placementMessage }) {
+           Size
+         </h3>
+         <div className="grid grid-cols-2 gap-2.5">
+-          <Field label="Width">
+-            <InchInput
++          <div className="col-span-2">
++            <StretchInput
++              label="Width"
+               value={opening.width}
+-              onCommit={(width) => update({ width })}
+-              aria-label="Opening width"
++              grow={openingGrow}
++              onGrowChange={setOpeningGrow}
++              onCommit={(width) => {
++                dispatch(resizeOpening({ ...actionBase, width, grow: openingGrow }));
++                setOpeningGrow(preferredOpeningGrow);
++                return true;
++              }}
++              ariaLabel="Opening width"
+             />
+-          </Field>
++          </div>
+           <Field label="Height">
+             <InchInput
+               value={opening.height}
+@@ -528,6 +544,16 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
+   ]));
+   const overhang = formatRunOverhang(run, wall.length);
+   const bothAnchored = run.anchors.left && run.anchors.right;
++  // An anchored end can't move, so stretch away from it.
++  const preferredRunGrow = run.anchors.right && !run.anchors.left ? 'left' : 'right';
++  const runGrowLocked = [
++    ...(run.anchors.left ? ['left', 'both'] : []),
++    ...(run.anchors.right ? ['right', 'both'] : []),
++  ];
++  const [runGrow, setRunGrow] = useState(preferredRunGrow);
++  useEffect(() => {
++    setRunGrow(preferredRunGrow);
++  }, [preferredRunGrow, run.id]);
+   const runPositions = positionReadouts(run.x, run.width, wall.length);
+ 
+   const validateAndDispatch = (changes) => {
+@@ -579,25 +605,37 @@ function RunProperties({ room, wall, run, layout, settings, showMessage }) {
+           Geometry
+         </h3>
+         <div className="grid grid-cols-2 gap-2.5">
+-          {[
+-            ['width', 'Width'],
+-            ['depth', 'Depth'],
+-          ].map(([key, label]) => (
+-            <Field key={key} label={label}>
+-              {key === 'width' && bothAnchored ? (
+-                <ReadOnlyValue
+-                  value={run[key]}
+-                  ariaLabel={`Resolved run ${label.toLowerCase()}`}
+-                />
+-              ) : (
+-                <InchInput
+-                  value={run[key]}
+-                  onCommit={(value) => validateAndDispatch({ [key]: value })}
+-                  aria-label={`Run ${label.toLowerCase()}`}
+-                />
+-              )}
+-            </Field>
+-          ))}
++          <div className="col-span-2">
++            {bothAnchored ? (
++              <Field label="Width">
++                <ReadOnlyValue value={run.width} ariaLabel="Resolved run width" />
++              </Field>
++            ) : (
++              <StretchInput
++                label="Width"
++                value={run.width}
++                grow={runGrow}
++                onGrowChange={setRunGrow}
++                locked={runGrowLocked}
++                onCommit={(width) => {
++                  const accepted = validateAndDispatch({
++                    width,
++                    x: stretchedStart(run.x, run.width, width, runGrow),
++                  });
++                  if (accepted) setRunGrow(preferredRunGrow);
++                  return accepted;
++                }}
++                ariaLabel="Run width"
++              />
++            )}
++          </div>
++          <Field label="Depth">
++            <InchInput
++              value={run.depth}
++              onCommit={(value) => validateAndDispatch({ depth: value })}
++              aria-label="Run depth"
++            />
++          </Field>
+         </div>
+         <div className="mt-3 grid grid-cols-[auto_1fr_1fr] items-end gap-2">
+           <span />
+@@ -1437,42 +1475,15 @@ function WallHeightProperties({ room, wall, plan }) {
+         {plan ? (
+           <div className="space-y-2.5">
+             <div className="grid grid-cols-2 gap-2.5">
+-              <div className="block text-xs text-gray-400">
+-                <span className="mb-1 block">Length</span>
+-                <div className="flex items-stretch gap-1">
+-                  <button
+-                    type="button"
+-                    onClick={() => setGrowEnd('left')}
+-                    aria-label="Change wall length at left end"
+-                    aria-pressed={growEnd === 'left'}
+-                    className={`w-7 rounded border text-lg leading-none transition-colors ${
+-                      growEnd === 'left'
+-                        ? 'border-cyan-500 bg-cyan-950/70 text-cyan-200'
+-                        : 'border-gray-600 bg-gray-900 text-gray-500 hover:bg-gray-700'
+-                    }`}
+-                  >
+-                    ‹
+-                  </button>
+-                  <InchInput
+-                    value={wall.length}
+-                    onCommit={updateLength}
+-                    aria-label="Wall length"
+-                    className="min-w-0"
+-                  />
+-                  <button
+-                    type="button"
+-                    onClick={() => setGrowEnd('right')}
+-                    aria-label="Change wall length at right end"
+-                    aria-pressed={growEnd === 'right'}
+-                    className={`w-7 rounded border text-lg leading-none transition-colors ${
+-                      growEnd === 'right'
+-                        ? 'border-cyan-500 bg-cyan-950/70 text-cyan-200'
+-                        : 'border-gray-600 bg-gray-900 text-gray-500 hover:bg-gray-700'
+-                    }`}
+-                  >
+-                    ›
+-                  </button>
+-                </div>
++              <div className="col-span-2">
++                <StretchInput
++                  label="Length"
++                  value={wall.length}
++                  grow={growEnd}
++                  onGrowChange={setGrowEnd}
++                  onCommit={updateLength}
++                  ariaLabel="Wall length"
++                />
+               </div>
+               <Field label="Height">
+                 <InchInput
+diff --git a/src/elevation/components/properties/StretchInput.jsx b/src/elevation/components/properties/StretchInput.jsx
+new file mode 100644
+index 0000000..db07f2c
+--- /dev/null
++++ b/src/elevation/components/properties/StretchInput.jsx
+@@ -0,0 +1,61 @@
++import InchInput from '../InchInput.jsx';
++
++const BUTTONS = [
++  { grow: 'left', symbol: '‹', title: 'Stretch toward the left (right end stays)' },
++  { grow: 'right', symbol: '›', title: 'Stretch toward the right (left end stays)' },
++  { grow: 'both', symbol: '↔', title: 'Stretch both ways (center stays)' },
++];
++
++function toggleClass(active) {
++  return `w-7 shrink-0 rounded border text-lg leading-none transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
++    active
++      ? 'border-cyan-500 bg-cyan-950/70 text-cyan-200'
++      : 'border-gray-600 bg-gray-900 text-gray-500 hover:bg-gray-700'
++  }`;
++}
++
++/**
++ * A width/length input with ‹ › arrows on either side and a ↔ button: which way the
++ * change goes. `locked` lists grow values that aren't allowed (e.g. an anchored end).
++ */
++export default function StretchInput({
++  label,
++  value,
++  grow,
++  onGrowChange,
++  onCommit,
++  locked = [],
++  ariaLabel,
++}) {
++  const button = ({ grow: option, symbol, title }) => (
++    <button
++      key={option}
++      type="button"
++      onClick={() => onGrowChange(option)}
++      disabled={locked.includes(option)}
++      title={title}
++      aria-label={`${ariaLabel}: ${title}`}
++      aria-pressed={grow === option}
++      className={toggleClass(grow === option)}
++    >
++      {symbol}
++    </button>
++  );
++
++  return (
++    <div className="block text-xs text-gray-400">
++      <span className="mb-1 block">{label}</span>
++      <div className="flex items-stretch gap-1">
++        {button(BUTTONS[0])}
++        <InchInput
++          value={value}
++          onCommit={onCommit}
++          aria-label={ariaLabel}
++          className="min-w-0"
++        />
++        {button(BUTTONS[1])}
++        {button(BUTTONS[2])}
++      </div>
++    </div>
++  );
++}
+diff --git a/src/elevation/model/__tests__/stretch.test.js b/src/elevation/model/__tests__/stretch.test.js
+new file mode 100644
+index 0000000..4e540eb
+--- /dev/null
++++ b/src/elevation/model/__tests__/stretch.test.js
+@@ -0,0 +1,40 @@
++import { describe, expect, it } from 'vitest';
++import { DEFAULT_SETTINGS } from '../constants.js';
++import { resizeOpening } from '../openings.js';
++import { stretchedStart } from '../positions.js';
++
++function door(overrides = {}) {
++  return {
++    id: 'door-1', kind: 'door', label: 'D1', measureMode: 'jamb', width: 36, height: 80, sillZ: 0,
++    offset: 24, offsetFrom: 'left', offsetAnchor: 'edge', casing: { width: 3, thickness: 0.75 },
++    ...overrides,
++  };
++}
++
++const offsetAfter = (opening, width, grow) => resizeOpening(opening, width, grow, 144, DEFAULT_SETTINGS).offset;
++
++describe('stretching', () => {
++  it('55 stretchedStart keeps the left edge, the right edge or the center', () => {
++    expect(stretchedStart(10, 30, 36, 'right')).toBe(10);
++    expect(stretchedStart(10, 30, 36, 'left')).toBe(4);
++    expect(stretchedStart(10, 30, 36, 'both')).toBe(7);
++    expect(stretchedStart(10, 30, 24, 'both')).toBe(13);
++  });
++
++  it('56 resizeOpening from the left wall end', () => {
++    expect(offsetAfter(door(), 40, 'right')).toBe(24);
++    expect(offsetAfter(door(), 40, 'left')).toBe(20);
++    expect(offsetAfter(door(), 40, 'both')).toBe(22);
++    expect(resizeOpening(door(), 40, 'both', 144, DEFAULT_SETTINGS).width).toBe(40);
++  });
++
++  it('57 resizeOpening from the right wall end, casing mode and center anchor', () => {
++    const fromRight = door({ offsetFrom: 'right' });
++    expect(offsetAfter(fromRight, 40, 'left')).toBe(24);
++    expect(offsetAfter(fromRight, 40, 'right')).toBe(20);
++    expect(offsetAfter(fromRight, 40, 'both')).toBe(22);
++    expect(offsetAfter(door({ measureMode: 'casing', width: 42, offset: 21 }), 48, 'both')).toBe(18);
++    expect(offsetAfter(door({ offsetAnchor: 'center', offset: 42 }), 40, 'right')).toBe(44);
++    expect(resizeOpening(door(), 0, 'right', 144, DEFAULT_SETTINGS)).toEqual(door());
++  });
++});
+diff --git a/src/elevation/model/index.js b/src/elevation/model/index.js
+index 59433b9..f2f3bc9 100644
+--- a/src/elevation/model/index.js
++++ b/src/elevation/model/index.js
+@@ -59,7 +59,12 @@ export {
+   roundTo,
+ } from './units.js';
+ export { splitRun, syncAutoItems } from './splitRun.js';
+-export { positionReadouts, startFromReadout } from './positions.js';
++export {
++  GROW_ENDS,
++  positionReadouts,
++  startFromReadout,
++  stretchedStart,
++} from './positions.js';
+ export { createRun, defaultsForType, inferRunType } from './runDefaults.js';
+ export { runsConflict, validateRunPlacement, verticalStart } from './overlap.js';
+ export {
+@@ -83,6 +88,7 @@ export {
+   openingGeometry,
+   openingReferenceBounds,
+   openingsAtPoint,
++  resizeOpening,
+   runBlocksOpening,
+   setMeasureMode,
+   setOffsetAnchor,
+diff --git a/src/elevation/model/openings.js b/src/elevation/model/openings.js
+index 9c118bd..4c65a80 100644
+--- a/src/elevation/model/openings.js
++++ b/src/elevation/model/openings.js
+@@ -7,7 +7,7 @@ import {
+   wallFrame,
+ } from './geometry.js';
+ import { verticalStart } from './overlap.js';
+-import { positionReadouts, startFromReadout } from './positions.js';
++import { positionReadouts, startFromReadout, stretchedStart } from './positions.js';
+ import { roundTo } from './units.js';
+ 
+ const OVERLAP_EPSILON = 1e-6;
+@@ -168,6 +168,24 @@ export function setOpeningReferenceX(opening, x, wallLength, settings) {
+   };
+ }
+ 
++/**
++ * Change an opening's width, growing toward 'left', 'right' or 'both' (about its center).
++ * The width is in the opening's measure mode; the offset is re-expressed in its own terms
++ * without snapping or clamping (validateOpeningPlacement decides whether it fits).
++ */
++export function resizeOpening(opening, width, grow, wallLength, settings) {
++  if (!Number.isFinite(width) || width <= 0) return opening;
++  const reference = referenceRect(opening, openingGeometry(opening, wallLength, settings));
++  const referenceX = stretchedStart(reference.x, reference.width, reference.width + width - opening.width, grow);
++  const resized = { ...opening, width };
++  const nextReference = referenceRect(resized, openingGeometry(resized, wallLength, settings));
++  return {
++    ...resized,
++    offset: positionReadouts(referenceX, nextReference.width, wallLength)
++      [opening.offsetFrom][opening.offsetAnchor ?? 'edge'],
++  };
++}
++
+ /** Create a catalog-sized opening at a requested wall-local reference edge. */
+ export function createOpening({ kind, x, measureMode }, { settings, room, wall }) {
+   const mode = measureMode ?? settings.defaultOpeningMeasureMode;
+diff --git a/src/elevation/model/positions.js b/src/elevation/model/positions.js
+index 3ccc2ad..8d9d062 100644
+--- a/src/elevation/model/positions.js
++++ b/src/elevation/model/positions.js
+@@ -19,3 +19,17 @@ export function startFromReadout(from, anchor, value, width, wallLength) {
+   }
+   return value - (anchor === 'center' ? width / 2 : 0);
+ }
++
++/** The stretch directions a width input can use. */
++export const GROW_ENDS = ['left', 'both', 'right'];
++
++/**
++ * New start for a span whose width changes: 'right' keeps the left edge, 'left' keeps the
++ * right edge, 'both' keeps the center.
++ */
++export function stretchedStart(start, width, nextWidth, grow) {
++  const delta = nextWidth - width;
++  if (grow === 'left') return start - delta;
++  if (grow === 'both') return start - delta / 2;
++  return start;
++}
+diff --git a/src/elevation/plan/__tests__/wallOps.test.js b/src/elevation/plan/__tests__/wallOps.test.js
+index bb97feb..a327bd5 100644
+--- a/src/elevation/plan/__tests__/wallOps.test.js
++++ b/src/elevation/plan/__tests__/wallOps.test.js
+@@ -185,3 +185,15 @@ describe('elevation plan wall operations', () => {
+       .toEqual({ x: 25, y: 90 });
+   });
+ });
++
++describe('wall length from both ends', () => {
++  it('58 splits the change between the free left end and the connected right end', () => {
++    const result = setWallLength(roomR(), 'A', 132, 'both');
++    expect(result).toMatchObject({ ok: true, reason: null });
++    expect(result.walls.find((item) => item.id === 'A'))
++      .toMatchObject({ x1: -6, y1: 0, x2: 126, y2: 0 });
++    expect(result.walls.find((item) => item.id === 'B'))
++      .toMatchObject({ x1: 126, y1: 0, x2: 126, y2: 96 });
++    expect(setWallLength(roomR(), 'A', -1, 'both')).toMatchObject({ ok: false, reason: 'invalid-length' });
++  });
++});
+diff --git a/src/elevation/plan/wallOps.js b/src/elevation/plan/wallOps.js
+index f9663c3..5966747 100644
+--- a/src/elevation/plan/wallOps.js
++++ b/src/elevation/plan/wallOps.js
+@@ -145,11 +145,24 @@ export function moveWallPerpendicular(room, wallId, delta) {
+ }
+ 
+ /**
+- * Set a wall's length from one elevation-side end while preserving connected angles.
++ * Set a wall's length from one elevation-side end ('left' / 'right'), or half from each
++ * ('both'), while preserving connected angles.
+  *
+  * @returns {{ok:boolean,reason:string|null,walls:object[]}}
+  */
+ export function setWallLength(room, wallId, length, growEnd) {
++  if (growEnd === 'both') {
++    const source = wallById(room.walls, wallId);
++    if (!source) return { ok: false, reason: 'wall-not-found', walls: room.walls };
++    if (!Number.isFinite(length) || length <= 0) {
++      return { ok: false, reason: 'invalid-length', walls: room.walls };
++    }
++    const half = (length - wallFrame(room, source).length) / 2;
++    const first = setWallLength(room, wallId, wallFrame(room, source).length + half, 'left');
++    if (!first.ok) return { ...first, walls: room.walls };
++    const second = setWallLength({ ...room, walls: first.walls }, wallId, length, 'right');
++    return second.ok ? second : { ...second, walls: room.walls };
++  }
+   const sourceWall = wallById(room.walls, wallId);
+   if (!sourceWall) {
+     return { ok: false, reason: 'wall-not-found', walls: room.walls };
+diff --git a/src/elevation/store/__tests__/elevationSlice.test.js b/src/elevation/store/__tests__/elevationSlice.test.js
+index 6337023..95c63c8 100644
+--- a/src/elevation/store/__tests__/elevationSlice.test.js
++++ b/src/elevation/store/__tests__/elevationSlice.test.js
+@@ -5,6 +5,7 @@ import { wallFrame } from '../../model/geometry.js';
+ import { openingGeometry } from '../../model/openings.js';
+ import elevationReducer, {
+   addOpening,
++  resizeOpening,
+   addRoom,
+   addItemAfter,
+   addRun,
+@@ -1198,3 +1199,22 @@ describe('standard drawers on style switch', () => {
+     expect(topSize(state, 'b')).toBe(5.875);
+   });
+ });
++
++describe('resizeOpening', () => {
++  it('59. grows about the center and rejects a size that leaves the wall', () => {
++    const initial = stateWithRun();
++    initial.rooms[0].walls[0].openings = [opening()];
++    const grown = elevationReducer(initial, resizeOpening({
++      wallId: 'wall-1', openingId: 'door-1', width: 40, grow: 'both',
++    }));
++    expect(currentOpening(grown)).toMatchObject({ width: 40, offset: 22 });
++
++    const tight = stateWithRun();
++    tight.rooms[0].walls[0].openings = [opening({ offset: 4 })];
++    const rejected = elevationReducer(tight, resizeOpening({
++      wallId: 'wall-1', openingId: 'door-1', width: 44, grow: 'left',
++    }));
++    expect(currentOpening(rejected)).toMatchObject({ width: 36, offset: 4 });
++    expect(rejected.message).toBeTruthy();
++  });
++});
+diff --git a/src/elevation/store/elevationSlice.js b/src/elevation/store/elevationSlice.js
+index 12e0bc8..915cc39 100644
+--- a/src/elevation/store/elevationSlice.js
++++ b/src/elevation/store/elevationSlice.js
+@@ -4,6 +4,7 @@ import { DEFAULT_SETTINGS } from '../model/constants.js';
+ import { cornerAt } from '../model/corners.js';
+ import { wallFrame } from '../model/geometry.js';
+ import {
++  resizeOpening as resizeOpeningPure,
+   setMeasureMode,
+   setOffsetAnchor,
+   setOffsetSide,
+@@ -548,6 +549,25 @@ const elevationSlice = createSlice({
+       state.message = null;
+       syncRoomAt(state, location.roomIndex);
+     },
++    resizeOpening(state, action) {
++      const location = openingLocation(state, action.payload);
++      const { width, grow = 'right' } = action.payload;
++      if (!location || !Number.isFinite(width) || width <= 0) return;
++      const length = wallFrame(location.room, location.wall).length;
++      const candidate = resizeOpeningPure(location.opening, width, grow, length, state.settings);
++      const validation = validateOpeningPlacement(
++        { ...location.wall, length },
++        candidate,
++        state.settings,
++      );
++      if (!validation.ok) {
++        state.message = validation.reason;
++        return;
++      }
++      location.wall.openings[location.openingIndex] = candidate;
++      state.message = null;
++      syncRoomAt(state, location.roomIndex);
++    },
+     setOpeningMeasureMode(state, action) {
+       const location = openingLocation(state, action.payload);
+       if (!location) return;
+@@ -989,6 +1009,7 @@ export const {
+   addRun,
+   addOpening,
+   updateOpening,
++  resizeOpening,
+   setOpeningMeasureMode,
+   setOpeningOffsetAnchor,
+   setOpeningOffsetSide,

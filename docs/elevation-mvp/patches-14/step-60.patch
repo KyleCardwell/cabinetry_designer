@@ -1,0 +1,662 @@
+diff --git a/src/elevation/model/__tests__/capture.test.js b/src/elevation/model/__tests__/capture.test.js
+new file mode 100644
+index 0000000..047152e
+--- /dev/null
++++ b/src/elevation/model/__tests__/capture.test.js
+@@ -0,0 +1,28 @@
++import { describe, expect, it } from 'vitest';
++import { captureSides } from '../capture.js';
++
++const RUN = [
++  { id: 'L', kind: 'end_panel', x: 0, z: 4, width: 0.75, height: 30.5, depth: 0.75 },
++  { id: 'a', kind: 'cabinet', x: 0.75, z: 4, width: 18, height: 30.5, depth: 24 },
++  { id: 'b', kind: 'cabinet', x: 18.75, z: 4, width: 18, height: 30.5, depth: 24 },
++  { id: 'F', kind: 'filler', x: 36.75, z: 4, width: 3, height: 30.5, depth: 24 },
++];
++const UPPER = [{ id: 'u', kind: 'cabinet', x: 24, z: 54, width: 18, height: 30, depth: 12 }];
++const TALL_PANEL = { id: 'tp', kind: 'end_panel', x: 23.25, z: 4, width: 0.75, height: 80, depth: 0.75 };
++const TALL_BOX = { id: 't2', kind: 'cabinet', x: 42, z: 4, width: 24, height: 80, depth: 24 };
++
++describe('captureSides', () => {
++  it('37 uses neighbors in the run', () => {
++    expect(captureSides(RUN, 'a')).toEqual({ left: true, right: false });
++    expect(captureSides(RUN, 'b')).toEqual({ left: false, right: true });
++    expect(captureSides(RUN, 'zz')).toEqual({ left: false, right: false });
++  });
++
++  it('38 uses touching pieces of other runs at a bare run edge', () => {
++    expect(captureSides(UPPER, 'u', [TALL_PANEL, TALL_BOX])).toEqual({ left: true, right: true });
++    expect(captureSides(UPPER, 'u', [TALL_PANEL, { ...TALL_BOX, depth: 12 }])).toEqual({ left: true, right: false });
++    expect(captureSides(UPPER, 'u', [TALL_PANEL, { ...TALL_BOX, x: 43.5 }])).toEqual({ left: true, right: false });
++    const basePanel = { id: 'bp', kind: 'end_panel', x: 23.25, z: 4, width: 0.75, height: 30.5, depth: 0.75 };
++    expect(captureSides(UPPER, 'u', [basePanel])).toEqual({ left: false, right: false });
++  });
++});
+diff --git a/src/elevation/model/__tests__/faceFit.test.js b/src/elevation/model/__tests__/faceFit.test.js
+new file mode 100644
+index 0000000..1b7c03a
+--- /dev/null
++++ b/src/elevation/model/__tests__/faceFit.test.js
+@@ -0,0 +1,39 @@
++import { describe, expect, it } from 'vitest';
++import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
++import { cabinetFaces, faceArea, resolveFaces } from '../faces.js';
++
++const B18 = { x: 0, z: 4, width: 18, height: 30.5 };
++const B30 = { x: 0, z: 4, width: 30, height: 30.5 };
++const INSET = { top: 1.5, bottom: 1.5, left: 0.75, right: 0.75, horizontal: 1.5, vertical: 1.5, pair: 0, fit: 0, pairFit: 0 };
++const PROFILED = { ...INSET, pair: 0.125, fit: 0.09375, pairFit: 0.0625 };
++const PAIR = { type: 'pair_door', size: null };
++
++describe('face fit and pair gap', () => {
++  it('39 inset square: faces fill the opening, pair gap 0', () => {
++    expect(resolveFaces(PAIR, faceArea(B30, INSET), INSET).faces).toEqual([
++      { path: 'r', type: 'pair_door', half: 'left', x: 0.75, z: 5.5, width: 14.25, height: 27.5 },
++      { path: 'r', type: 'pair_door', half: 'right', x: 15, z: 5.5, width: 14.25, height: 27.5 },
++    ]);
++  });
++
++  it('40 inset profiled pair: 1/16 sides, 1/8 between, 3/32 top and bottom', () => {
++    expect(resolveFaces(PAIR, faceArea(B30, PROFILED), PROFILED).faces).toEqual([
++      { path: 'r', type: 'pair_door', half: 'left', x: 0.8125, z: 5.59375, width: 14.125, height: 27.3125 },
++      { path: 'r', type: 'pair_door', half: 'right', x: 15.0625, z: 5.59375, width: 14.125, height: 27.3125 },
++    ]);
++  });
++
++  it('41 inset profiled stack: sizes are slots, faces are 3/32 inside', () => {
++    const face = { direction: 'vertical', size: null, children: [{ type: 'drawer_front', size: 6 }, { type: 'drawer_front', size: null }] };
++    expect(resolveFaces(face, faceArea(B18, PROFILED), PROFILED).faces).toEqual([
++      { path: 'r.0', type: 'drawer_front', x: 0.84375, z: 27.09375, width: 16.3125, height: 5.8125 },
++      { path: 'r.1', type: 'drawer_front', x: 0.84375, z: 5.59375, width: 16.3125, height: 19.8125 },
++    ]);
++  });
++
++  it('42 cabinetFaces takes reveal values', () => {
++    expect(cabinetFaces({ id: 'a' }, B18, CABINET_TYPE_IDS.BASE, DEFAULT_SETTINGS, INSET).faces).toEqual([
++      { path: 'r', type: 'door', x: 0.75, z: 5.5, width: 16.5, height: 27.5 },
++    ]);
++  });
++});
+diff --git a/src/elevation/model/__tests__/faceLayouts.test.js b/src/elevation/model/__tests__/faceLayouts.test.js
+new file mode 100644
+index 0000000..465cd21
+--- /dev/null
++++ b/src/elevation/model/__tests__/faceLayouts.test.js
+@@ -0,0 +1,37 @@
++import { describe, expect, it } from 'vitest';
++import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
++import { runFaceLayouts } from '../faceLayouts.js';
++import { resolveWall } from '../room.js';
++
++function roomWith(run, style) {
++  const wall = {
++    id: 'wall-1', name: 'Wall 1', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5,
++    flipped: false, connections: { start: null, end: null }, profile: {}, runs: [run], openings: [],
++  };
++  return {
++    id: 'room-1', name: 'Room 1', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall-1'],
++    ...(style ? { style } : {}),
++  };
++}
++
++const RUN = {
++  id: 'run-1', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width: 19.5, z: 4, height: 30.5, depth: 24,
++  ends: { left: { type: 'end_panel', width: null }, right: { type: 'end_panel', width: null } },
++  autoCount: false, maxCabinetWidth: null, items: [{ id: 'a', kind: 'cabinet', width: 18 }],
++  heightMode: 'auto', overrides: {}, anchors: { left: false, right: false },
++};
++
++describe('runFaceLayouts', () => {
++  it('49. captured single door, then the room switched to inset', () => {
++    const room = roomWith(RUN);
++    const wall = resolveWall(room, room.walls[0]);
++    const euro = runFaceLayouts(room, wall, RUN, DEFAULT_SETTINGS).get('a');
++    expect(euro.style.cabinetStyleId).toBe(13);
++    expect(euro.reveals.sources.left).toBe('rule:captured-single');
++    expect(euro.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 17.8125, height: 30.125 }]);
++
++    const insetRoom = roomWith(RUN, { cabinetStyleId: 14 });
++    const inset = runFaceLayouts(insetRoom, resolveWall(insetRoom, insetRoom.walls[0]), RUN, DEFAULT_SETTINGS).get('a');
++    expect(inset.faces).toEqual([{ path: 'r', type: 'door', x: 25.5, z: 5.5, width: 16.5, height: 27.5 }]);
++  });
++});
+diff --git a/src/elevation/model/__tests__/styles.test.js b/src/elevation/model/__tests__/styles.test.js
+new file mode 100644
+index 0000000..dae176b
+--- /dev/null
++++ b/src/elevation/model/__tests__/styles.test.js
+@@ -0,0 +1,115 @@
++import { describe, expect, it } from 'vitest';
++import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
++import {
++  cabinetReveals,
++  isSingleColumn,
++  isStyle,
++  panelDrop,
++  resolveStyle,
++  styleReveals,
++} from '../styles.js';
++
++const { BASE, UPPER } = CABINET_TYPE_IDS;
++const S = DEFAULT_SETTINGS;
++const EURO = { cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false };
++const INSET = { cabinetStyleId: 14, beadWidth: 0.25, profiledEdge: false };
++const DOOR = { type: 'door', size: null };
++const PAIR = { type: 'pair_door', size: null };
++const THREE_DF = { direction: 'vertical', size: null, children: [{ type: 'drawer_front', size: 6 }, { type: 'drawer_front', size: null }, { type: 'drawer_front', size: null }] };
++const DF_PD = { direction: 'vertical', size: null, children: [{ type: 'drawer_front', size: 6 }, PAIR] };
++const SIDE = { direction: 'horizontal', size: null, children: [DOOR, DOOR] };
++
++describe('styles', () => {
++  it('26 resolveStyle layers room, run and item', () => {
++    expect(resolveStyle(S)).toEqual(EURO);
++    const room = { style: { cabinetStyleId: 14 } };
++    expect(resolveStyle(S, room, { style: { profiledEdge: true } }, { style: { cabinetStyleId: 15, beadWidth: 0.375 } }))
++      .toEqual({ cabinetStyleId: 15, beadWidth: 0.375, profiledEdge: true });
++    expect(resolveStyle(S, room, { style: { cabinetStyleId: null } }, {})).toEqual(INSET);
++  });
++
++  it('27 isStyle', () => {
++    [undefined, null, {}, { cabinetStyleId: 14 }, { beadWidth: 0 }, { profiledEdge: null }]
++      .forEach((value) => expect(isStyle(value)).toBe(true));
++    [{ cabinetStyleId: 12 }, { beadWidth: -1 }, { profiledEdge: 'yes' }, { color: 'red' }, [], 'x']
++      .forEach((value) => expect(isStyle(value)).toBe(false));
++  });
++
++  it('28 European style reveals', () => {
++    expect(styleReveals(EURO, BASE, S)).toEqual({
++      top: 0.25, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125, pair: 0.125, fit: 0, pairFit: 0,
++    });
++  });
++
++  it('29 inset style reveals', () => {
++    expect(styleReveals(INSET, BASE, S)).toEqual({
++      top: 1.5, bottom: 1.5, left: 0.75, right: 0.75, horizontal: 1.5, vertical: 1.5, pair: 0, fit: 0, pairFit: 0,
++    });
++    expect(styleReveals(INSET, UPPER, S).bottom).toBe(0.75);
++  });
++
++  it('30 beaded, profiled upper', () => {
++    expect(styleReveals({ cabinetStyleId: 15, beadWidth: 0.25, profiledEdge: true }, UPPER, S)).toEqual({
++      top: 1.75, bottom: 1, left: 1, right: 1, horizontal: 2, vertical: 2, pair: 0.125, fit: 0.09375, pairFit: 0.0625,
++    });
++  });
++
++  it('31 isSingleColumn', () => {
++    expect(isSingleColumn(DOOR)).toBe(true);
++    expect(isSingleColumn(PAIR)).toBe(false);
++    expect(isSingleColumn(THREE_DF)).toBe(true);
++    expect(isSingleColumn(DF_PD)).toBe(false);
++    expect(isSingleColumn(SIDE)).toBe(false);
++  });
++
++  it('32 wood top rule is European only', () => {
++    const euro = cabinetReveals({ style: EURO, cabinetTypeId: BASE, run: { top: 'wood' }, face: DOOR, settings: S });
++    expect(euro.values.top).toBe(0.125);
++    expect(euro.sources.top).toBe('rule:wood-top');
++    const inset = cabinetReveals({ style: INSET, cabinetTypeId: BASE, run: { top: 'wood' }, face: DOOR, settings: S });
++    expect(inset.values.top).toBe(1.5);
++    expect(inset.sources.top).toBe('style');
++  });
++
++  it('33 upper bottom rules', () => {
++    const plain = cabinetReveals({ style: EURO, cabinetTypeId: UPPER, run: {}, face: DOOR, settings: S });
++    expect(plain.values.bottom).toBe(-0.125);
++    expect(plain.sources.bottom).toBe('style');
++    const flush = cabinetReveals({ style: EURO, cabinetTypeId: UPPER, run: { upperBottom: 'flush' }, face: DOOR, settings: S });
++    expect(flush.values.bottom).toBe(0.125);
++    expect(flush.sources.bottom).toBe('rule:upper-flush');
++    const counter = cabinetReveals({ style: INSET, cabinetTypeId: UPPER, run: { upperBottom: 'counter' }, face: DOOR, settings: S });
++    expect(counter.values.bottom).toBe(1.5);
++    expect(counter.sources.bottom).toBe('rule:upper-counter');
++  });
++
++  it('34 captured single rule', () => {
++    const both = { left: true, right: true };
++    const hit = cabinetReveals({ style: EURO, cabinetTypeId: BASE, face: THREE_DF, captured: both, settings: S });
++    expect([hit.values.left, hit.values.right]).toEqual([0.09375, 0.09375]);
++    expect([hit.sources.left, hit.sources.right]).toEqual(['rule:captured-single', 'rule:captured-single']);
++    const oneSide = cabinetReveals({ style: EURO, cabinetTypeId: BASE, face: DOOR, captured: { left: true, right: false }, settings: S });
++    expect(oneSide.values.left).toBe(0.0625);
++    const pair = cabinetReveals({ style: EURO, cabinetTypeId: BASE, face: PAIR, captured: both, settings: S });
++    expect(pair.values.left).toBe(0.0625);
++    const inset = cabinetReveals({ style: INSET, cabinetTypeId: BASE, face: DOOR, captured: both, settings: S });
++    expect(inset.values.left).toBe(0.75);
++  });
++
++  it('35 manual overrides win', () => {
++    const result = cabinetReveals({
++      style: EURO, cabinetTypeId: BASE, run: { top: 'wood' }, face: DOOR, manual: { top: 0.1875, left: null }, settings: S,
++    });
++    expect(result.values.top).toBe(0.1875);
++    expect(result.sources.top).toBe('manual');
++    expect(result.values.left).toBe(0.0625);
++    expect(result.sources.left).toBe('style');
++  });
++
++  it('36 panelDrop', () => {
++    expect(panelDrop({ cabinetTypeId: UPPER }, EURO, S)).toBe(0.125);
++    expect(panelDrop({ cabinetTypeId: UPPER, upperBottom: 'flush' }, EURO, S)).toBe(0);
++    expect(panelDrop({ cabinetTypeId: UPPER, upperBottom: 'overhang' }, INSET, S)).toBe(0.75);
++    expect(panelDrop({ cabinetTypeId: BASE }, EURO, S)).toBe(0);
++  });
++});
+diff --git a/src/elevation/model/__tests__/units.test.js b/src/elevation/model/__tests__/units.test.js
+index e101797..2690e1a 100644
+--- a/src/elevation/model/__tests__/units.test.js
++++ b/src/elevation/model/__tests__/units.test.js
+@@ -51,3 +51,13 @@ describe('step rounding', () => {
+     expect(roundTo(10, -1)).toBeNaN();
+   });
+ });
++
++describe('formatInches with a finer step', () => {
++  it('50. formats thirty-seconds when asked', () => {
++    expect(formatInches(0.09375, 1 / 32)).toBe('3/32"');
++    expect(formatInches(1.09375, 1 / 32)).toBe('1 3/32"');
++    expect(formatInches(-0.125, 1 / 32)).toBe('-1/8"');
++    expect(formatInches(0.09375)).toBe('1/8"');
++    expect(formatInchesInput(0.84375, 1 / 32)).toBe('27/32');
++  });
++});
+diff --git a/src/elevation/model/capture.js b/src/elevation/model/capture.js
+new file mode 100644
+index 0000000..04010ac
+--- /dev/null
++++ b/src/elevation/model/capture.js
+@@ -0,0 +1,44 @@
++const EPS = 1e-6;
++
++function isPanelLike(neighbor, piece) {
++  return Boolean(neighbor) && (
++    neighbor.kind === 'filler'
++    || neighbor.kind === 'end_panel'
++    || neighbor.depth > piece.depth + EPS
++  );
++}
++
++function overlapsVertically(a, b) {
++  return a.z < b.z + b.height - EPS && b.z < a.z + a.height - EPS;
++}
++
++/**
++ * Whether each side of a cabinet piece is against a filler, an end panel or a deeper piece.
++ * Uses the neighbor in its own run; at a run edge with no end piece, uses pieces of other
++ * runs on the wall that touch that edge (within `tolerance`) and overlap it vertically.
++ *
++ * @returns {{left: boolean, right: boolean}}
++ */
++export function captureSides(runPieces, pieceId, otherPieces = [], tolerance = 1) {
++  const index = runPieces.findIndex((candidate) => candidate.id === pieceId);
++  if (index === -1) return { left: false, right: false };
++  const piece = runPieces[index];
++  const side = (neighbor, touches) => {
++    if (neighbor) return isPanelLike(neighbor, piece);
++    return otherPieces.some((candidate) => (
++      touches(candidate)
++      && overlapsVertically(candidate, piece)
++      && isPanelLike(candidate, piece)
++    ));
++  };
++  return {
++    left: side(
++      runPieces[index - 1],
++      (candidate) => Math.abs(candidate.x + candidate.width - piece.x) <= tolerance,
++    ),
++    right: side(
++      runPieces[index + 1],
++      (candidate) => Math.abs(candidate.x - (piece.x + piece.width)) <= tolerance,
++    ),
++  };
++}
+diff --git a/src/elevation/model/constants.js b/src/elevation/model/constants.js
+index 0b4831d..bfac059 100644
+--- a/src/elevation/model/constants.js
++++ b/src/elevation/model/constants.js
+@@ -69,6 +69,11 @@ export const DEFAULT_SETTINGS = {
+       top: 0.125, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125,
+     },
+   },
++  defaultStyle: { cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false },
++  insetFrame: { stile: 0.75, rail: 1.5, midRail: 1.5, mullion: 1.5, upperDrop: 0.75 },
++  profiledFit: { edge: 0.09375, pairEdge: 0.0625, pairGap: 0.125 },
++  woodTopReveal: 0.125,
++  capturedSingleReveal: 0.09375,
+ };
+ 
+ /** Display labels for derived piece kinds. */
+diff --git a/src/elevation/model/faceLayouts.js b/src/elevation/model/faceLayouts.js
+new file mode 100644
+index 0000000..0de62f4
+--- /dev/null
++++ b/src/elevation/model/faceLayouts.js
+@@ -0,0 +1,47 @@
++import { captureSides } from './capture.js';
++import { DEFAULT_SETTINGS } from './constants.js';
++import { cabinetFaces, defaultFace } from './faces.js';
++import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
++import { splitRun } from './splitRun.js';
++import { cabinetReveals, resolveStyle } from './styles.js';
++
++/** splitRun with the same options RunGroup uses. */
++export function layoutRun(room, wall, run, settings) {
++  return splitRun(run, settings, {
++    endMinWidths: endMinWidthsForRun(room, wall, run, settings),
++    endCornerAngles: endCornerAnglesForRun(room, wall, run),
++    pinTargets: pinTargetsForRun(run, wall, wall.length, settings),
++  });
++}
++
++/**
++ * Faces, effective style and reveals for every cabinet piece in a run, keyed by piece id.
++ * `run` may be a preview copy; the wall's other runs supply cross-run neighbors.
++ */
++export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(room, wall, run, settings)) {
++  const otherPieces = wall.runs
++    .filter((other) => other.id !== run.id)
++    .flatMap((other) => layoutRun(room, wall, other, settings).pieces);
++  const tolerance = settings.adjacentRunGap ?? DEFAULT_SETTINGS.adjacentRunGap;
++  const result = new Map();
++  for (const piece of layout.pieces) {
++    if (piece.kind !== 'cabinet' || piece.role !== 'item') continue;
++    const item = run.items.find((candidate) => candidate.id === piece.id);
++    const style = resolveStyle(settings, room, run, item);
++    const reveals = cabinetReveals({
++      style,
++      cabinetTypeId: run.cabinetTypeId,
++      run,
++      face: item?.face ?? defaultFace(piece.width, settings),
++      captured: captureSides(layout.pieces, piece.id, otherPieces, tolerance),
++      manual: item?.reveals ?? null,
++      settings,
++    });
++    result.set(piece.id, {
++      ...cabinetFaces(item, piece, run.cabinetTypeId, settings, reveals.values),
++      style,
++      reveals,
++    });
++  }
++  return result;
++}
+diff --git a/src/elevation/model/faces.js b/src/elevation/model/faces.js
+index 6b2964f..133617b 100644
+--- a/src/elevation/model/faces.js
++++ b/src/elevation/model/faces.js
+@@ -74,22 +74,33 @@ export function resolveFaces(face, area, reveals) {
+   const faces = [];
+   const warnings = [];
+ 
++  const pairGap = reveals.pair ?? reveals.vertical;
++  const fit = reveals.fit ?? 0;
++  const pairFit = reveals.pairFit ?? fit;
++
+   const place = (node, rect, path) => {
+     if (node.type) {
++      const side = node.type === 'pair_door' ? pairFit : fit;
++      const leaf = {
++        x: rect.x + side,
++        z: rect.z + fit,
++        width: rect.width - side * 2,
++        height: rect.height - fit * 2,
++      };
+       if (node.type === 'pair_door') {
+-        const half = (rect.width - reveals.vertical) / 2;
+-        faces.push({ path, type: node.type, half: 'left', x: rect.x, z: rect.z, width: half, height: rect.height });
++        const half = (leaf.width - pairGap) / 2;
++        faces.push({ path, type: node.type, half: 'left', x: leaf.x, z: leaf.z, width: half, height: leaf.height });
+         faces.push({
+           path,
+           type: node.type,
+           half: 'right',
+-          x: rect.x + half + reveals.vertical,
+-          z: rect.z,
++          x: leaf.x + half + pairGap,
++          z: leaf.z,
+           width: half,
+-          height: rect.height,
++          height: leaf.height,
+         });
+       } else {
+-        faces.push({ path, type: node.type, ...rect });
++        faces.push({ path, type: node.type, ...leaf });
+       }
+       return;
+     }
+@@ -123,9 +134,9 @@ export function resolveFaces(face, area, reveals) {
+   return { faces, warnings };
+ }
+ 
+-/** Resolved faces for one cabinet piece from splitRun. */
+-export function cabinetFaces(item, piece, cabinetTypeId, settings) {
+-  const reveals = faceRevealsFor(cabinetTypeId, settings);
++/** Resolved faces for one cabinet piece from splitRun. Pass revealValues to use style/rule reveals. */
++export function cabinetFaces(item, piece, cabinetTypeId, settings, revealValues = null) {
++  const reveals = revealValues ?? faceRevealsFor(cabinetTypeId, settings);
+   const face = item?.face ?? defaultFace(piece.width, settings);
+   return resolveFaces(face, faceArea(piece, reveals), reveals);
+ }
+diff --git a/src/elevation/model/index.js b/src/elevation/model/index.js
+index 8f19fc2..602e12c 100644
+--- a/src/elevation/model/index.js
++++ b/src/elevation/model/index.js
+@@ -32,6 +32,23 @@ export {
+   splitFace,
+ } from './faceTree.js';
+ export { FACE_PRESETS, presetsFor } from './facePresets.js';
++export {
++  CABINET_STYLE_IDS,
++  CABINET_STYLE_LABELS,
++  REVEAL_KEYS,
++  REVEAL_SOURCE_LABELS,
++  RUN_TOP_OPTIONS,
++  UPPER_BOTTOM_OPTIONS,
++  cabinetReveals,
++  isInsetStyle,
++  isSingleColumn,
++  isStyle,
++  panelDrop,
++  resolveStyle,
++  styleReveals,
++} from './styles.js';
++export { captureSides } from './capture.js';
++export { layoutRun, runFaceLayouts } from './faceLayouts.js';
+ export {
+   floorTo,
+   formatInches,
+diff --git a/src/elevation/model/styles.js b/src/elevation/model/styles.js
+new file mode 100644
+index 0000000..bfc8805
+--- /dev/null
++++ b/src/elevation/model/styles.js
+@@ -0,0 +1,146 @@
++import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
++import { faceRevealsFor } from './faces.js';
++
++const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;
++
++/** The estimator's cabinet_styles ids (ff-job-schedule). */
++export const CABINET_STYLE_IDS = { EUROPEAN: 13, INSET: 14, BEADED_INSET: 15 };
++
++export const CABINET_STYLE_LABELS = {
++  13: 'European',
++  14: 'Inset face frame',
++  15: 'Beaded inset face frame',
++};
++
++/** The six reveal keys a user can see, rules can change and a manual override can set. */
++export const REVEAL_KEYS = ['top', 'bottom', 'left', 'right', 'horizontal', 'vertical'];
++
++export const UPPER_BOTTOM_OPTIONS = ['overhang', 'flush', 'counter'];
++export const RUN_TOP_OPTIONS = ['stone', 'wood'];
++
++export const REVEAL_SOURCE_LABELS = {
++  style: 'style',
++  manual: 'manual',
++  'rule:wood-top': 'rule: wood top',
++  'rule:upper-flush': 'rule: flush bottom',
++  'rule:upper-counter': 'rule: on counter',
++  'rule:captured-single': 'rule: captured single',
++};
++
++const STYLE_KEYS = ['cabinetStyleId', 'beadWidth', 'profiledEdge'];
++const STYLE_ID_VALUES = Object.values(CABINET_STYLE_IDS);
++
++/** Whether a value is a valid stored partial style (room, run or item). */
++export function isStyle(style) {
++  if (style === undefined || style === null) return true;
++  if (typeof style !== 'object' || Array.isArray(style)) return false;
++  return Object.entries(style).every(([key, value]) => {
++    if (!STYLE_KEYS.includes(key)) return false;
++    if (value === null) return true;
++    if (key === 'cabinetStyleId') return STYLE_ID_VALUES.includes(value);
++    if (key === 'beadWidth') return Number.isFinite(value) && value >= 0;
++    return typeof value === 'boolean';
++  });
++}
++
++/**
++ * The effective style: settings.defaultStyle, then each level's `style` in order
++ * (room, run, item). Null or missing keys inherit.
++ */
++export function resolveStyle(settings, ...levels) {
++  const resolved = { ...DEFAULT_SETTINGS.defaultStyle, ...settings.defaultStyle };
++  for (const level of levels) {
++    const style = level?.style;
++    if (!style) continue;
++    for (const key of STYLE_KEYS) {
++      if (style[key] !== undefined && style[key] !== null) resolved[key] = style[key];
++    }
++  }
++  return resolved;
++}
++
++export function isInsetStyle(style) {
++  return style.cabinetStyleId !== CABINET_STYLE_IDS.EUROPEAN;
++}
++
++/**
++ * Full reveal values for a style and cabinet type, before rules.
++ * Inset values are measured from the box to the frame opening (bead included);
++ * `fit` / `pairFit` shrink each face inside its slot; `pair` is the gap between pair doors.
++ */
++export function styleReveals(style, cabinetTypeId, settings) {
++  if (!isInsetStyle(style)) {
++    const euro = faceRevealsFor(cabinetTypeId, settings);
++    return { ...euro, pair: euro.vertical, fit: 0, pairFit: 0 };
++  }
++  const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
++  const bead = style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? style.beadWidth : 0;
++  const profiled = style.profiledEdge
++    ? { ...DEFAULT_SETTINGS.profiledFit, ...settings.profiledFit }
++    : null;
++  const bottomRail = cabinetTypeId === UPPER ? frame.rail - frame.upperDrop : frame.rail;
++  return {
++    top: frame.rail + bead,
++    bottom: bottomRail + bead,
++    left: frame.stile + bead,
++    right: frame.stile + bead,
++    horizontal: frame.midRail + bead * 2,
++    vertical: frame.mullion + bead * 2,
++    pair: profiled ? profiled.pairGap : 0,
++    fit: profiled ? profiled.edge : 0,
++    pairFit: profiled ? profiled.pairEdge : 0,
++  };
++}
++
++/** One column of faces: no pair door and no side-by-side group anywhere. */
++export function isSingleColumn(face) {
++  if (face.type) return face.type !== 'pair_door';
++  return face.direction === 'vertical' && face.children.every(isSingleColumn);
++}
++
++/**
++ * Reveals for one cabinet: style, then rules, then manual overrides.
++ *
++ * @returns {{values: object, sources: Record<string, string>}}
++ */
++export function cabinetReveals({
++  style,
++  cabinetTypeId,
++  run = {},
++  face,
++  captured = { left: false, right: false },
++  manual = null,
++  settings,
++}) {
++  const values = styleReveals(style, cabinetTypeId, settings);
++  const sources = Object.fromEntries(REVEAL_KEYS.map((key) => [key, 'style']));
++  const apply = (key, value, source) => {
++    values[key] = value;
++    sources[key] = source;
++  };
++  const euro = !isInsetStyle(style);
++
++  if (euro && cabinetTypeId === BASE && run.top === 'wood') {
++    apply('top', settings.woodTopReveal ?? DEFAULT_SETTINGS.woodTopReveal, 'rule:wood-top');
++  }
++  const upperBottom = run.upperBottom ?? 'overhang';
++  if (cabinetTypeId === UPPER && upperBottom !== 'overhang') {
++    apply('bottom', styleReveals(style, TALL, settings).bottom, `rule:upper-${upperBottom}`);
++  }
++  if (euro && captured.left && captured.right && isSingleColumn(face)) {
++    const reveal = settings.capturedSingleReveal ?? DEFAULT_SETTINGS.capturedSingleReveal;
++    apply('left', reveal, 'rule:captured-single');
++    apply('right', reveal, 'rule:captured-single');
++  }
++  for (const key of REVEAL_KEYS) {
++    if (Number.isFinite(manual?.[key])) apply(key, manual[key], 'manual');
++  }
++  return { values, sources };
++}
++
++/** How far an upper run's fillers and end panels extend below the box. */
++export function panelDrop(run, style, settings) {
++  if (run.cabinetTypeId !== UPPER || (run.upperBottom ?? 'overhang') !== 'overhang') return 0;
++  if (!isInsetStyle(style)) return Math.max(0, -faceRevealsFor(UPPER, settings).bottom);
++  return { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.upperDrop;
++}
+diff --git a/src/elevation/model/units.js b/src/elevation/model/units.js
+index d91d04f..61fb543 100644
+--- a/src/elevation/model/units.js
++++ b/src/elevation/model/units.js
+@@ -48,20 +48,21 @@ export function parseInches(str) {
+  * @param {number} n
+  * @returns {string}
+  */
+-export function formatInches(n) {
++export function formatInches(n, step = DISPLAY_STEP) {
+   if (!Number.isFinite(n)) return '';
+ 
+-  const sixteenths = Math.round((n / DISPLAY_STEP) + MATH_EPSILON);
+-  if (sixteenths === 0) return '0"';
++  const perInch = Math.round(1 / step);
++  const units = Math.round((n * perInch) + MATH_EPSILON);
++  if (units === 0) return '0"';
+ 
+-  const sign = sixteenths < 0 ? '-' : '';
+-  const absolute = Math.abs(sixteenths);
+-  const whole = Math.floor(absolute / 16);
+-  let numerator = absolute % 16;
++  const sign = units < 0 ? '-' : '';
++  const absolute = Math.abs(units);
++  const whole = Math.floor(absolute / perInch);
++  let numerator = absolute % perInch;
+ 
+   if (numerator === 0) return `${sign}${whole}"`;
+ 
+-  let denominator = 16;
++  let denominator = perInch;
+   while (numerator % 2 === 0) {
+     numerator /= 2;
+     denominator /= 2;
+@@ -77,8 +78,8 @@ export function formatInches(n) {
+  * @param {number} n
+  * @returns {string}
+  */
+-export function formatInchesInput(n) {
+-  return formatInches(n).replace(/"$/, '');
++export function formatInchesInput(n, step) {
++  return formatInches(n, step).replace(/"$/, '');
+ }
+ 
+ /**

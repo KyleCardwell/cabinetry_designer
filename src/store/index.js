@@ -5,6 +5,8 @@ import roomReducer from './slices/roomSlice';
 import wallReducer from './slices/wallSlice';
 import objectReducer from './slices/objectSlice';
 import canvasReducer from './slices/canvasSlice';
+import elevationReducer from '../elevation/store/elevationSlice';
+import { setupElevationPersistence } from '../elevation/store/persistence';
 
 export const store = configureStore({
   reducer: {
@@ -14,5 +16,8 @@ export const store = configureStore({
     walls: wallReducer,
     objects: objectReducer,
     canvas: canvasReducer,
+    elevation: elevationReducer,
   },
 });
+
+setupElevationPersistence(store);

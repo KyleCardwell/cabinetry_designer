@@ -1,0 +1,119 @@
+import { formatInches } from '../model/units.js';
+import { tryPlaceRun } from '../model/room.js';
+import { runItems } from '../model/grid.js';
+import { findLeaf } from '../model/cellTree.js';
+
+/** Format a resolved corner reserve for the run properties panel. */
+export function formatCornerReserve(parts) {
+  const resolved = `Reserve ${formatInches(parts.total)}`;
+  if (parts.source === 'face') return `${resolved} · Face only`;
+  if (parts.source === 'custom') return `${resolved} · Custom`;
+  return `${resolved} (face ${formatInches(parts.face)} + back ${formatInches(parts.back)})`;
+}
+
+/** Format any horizontal wall overhang on a run. */
+export function formatRunOverhang(run, wallLength) {
+  const sides = [];
+  const left = Math.max(0, -run.x);
+  const right = Math.max(0, run.x + run.width - wallLength);
+  if (left > 0) sides.push(`left ${formatInches(left)}`);
+  if (right > 0) sides.push(`right ${formatInches(right)}`);
+  return sides.length > 0 ? `Overhangs ${sides.join(' · ')}` : null;
+}
+
+/** Format a run warning that points at an opening. */
+export function formatRunWarning(warning) {
+  if (warning.code === 'blocks-opening') return `Blocks ${warning.label}`;
+  if (warning.code === 'casing-clearance') {
+    return `${warning.label} ${warning.side} clearance ${formatInches(warning.gap)}; ${formatInches(warning.required)} required`;
+  }
+  return warning.message ?? null;
+}
+
+/**
+ * Build and validate a prospective partial update to a run.
+ *
+ * @param {object} room
+ * @param {string} wallId
+ * @param {object} run
+ * @param {object} settings
+ * @param {object} changes
+ * @returns {{patchedRun: object, validation: {ok: boolean, reason: string|null}}}
+ */
+export function prepareRunUpdate(room, wallId, run, settings, changes) {
+  const patchedRun = { ...run, ...changes };
+  const roomWithoutRun = {
+    ...room,
+    walls: room.walls.map((wall) => (
+      wall.id === wallId
+        ? { ...wall, runs: wall.runs.filter((candidate) => candidate.id !== run.id) }
+        : wall
+    )),
+  };
+  const placement = tryPlaceRun(roomWithoutRun, wallId, patchedRun, settings);
+  return {
+    patchedRun,
+    validation: { ok: placement.ok, reason: placement.reason },
+  };
+}
+
+/**
+ * Resolve a selected derived piece back to its stored item or run end.
+ *
+ * @param {object} run
+ * @param {{pieces: object[]}} layout
+ * @param {string|null} pieceId
+ * @param {object[]} [tees] the run's T-fillers (SPEC-37); a seam T is selected by its id
+ * @returns {{piece: object, item: object|null, side: 'left'|'right'|null, tee: object|null}|null}
+ */
+export function resolveSelectedPiece(run, layout, pieceId, tees = []) {
+  if (!pieceId) return null;
+  const tee = tees.find((candidate) => candidate.id === pieceId) ?? null;
+  const piece = layout.pieces.find((candidate) => candidate.id === pieceId)
+    ?? (tee ? { id: tee.id, kind: 'filler', role: 'tee', x: tee.x, z: tee.z, width: tee.width, height: tee.height } : null);
+  if (!piece) return null;
+
+  if (piece.role === 'tee') return { piece, item: null, side: null, tee };
+  if (piece.role === 'item') {
+    return {
+      piece,
+      item: runItems(run).find((candidate) => candidate.id === piece.id)
+        ?? (piece.columnId ? findLeaf(run.grid, piece.id) : null)
+        ?? null,
+      side: null,
+      tee,
+    };
+  }
+
+  return {
+    piece,
+    item: null,
+    side: piece.role === 'end-left' ? 'left' : 'right',
+    tee,
+  };
+}
+
+/**
+ * Return the last stored item in a run.
+ *
+ * @param {object} run
+ * @returns {object|null}
+ */
+export function lastRunItem(run) {
+  const items = runItems(run);
+  return items[items.length - 1] ?? null;
+}
+
+/**
+ * Return the last cabinet item in a run.
+ *
+ * @param {object} run
+ * @returns {object|null}
+ */
+export function lastCabinetItem(run) {
+  const items = runItems(run);
+  for (let index = items.length - 1; index >= 0; index -= 1) {
+    if (items[index].kind === 'cabinet') return items[index];
+  }
+  return null;
+}

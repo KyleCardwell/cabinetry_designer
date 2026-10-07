@@ -1,0 +1,321 @@
+diff --git a/src/elevation/components/properties/FaceProperties.jsx b/src/elevation/components/properties/FaceProperties.jsx
+index 40c9f10..fa50954 100644
+--- a/src/elevation/components/properties/FaceProperties.jsx
++++ b/src/elevation/components/properties/FaceProperties.jsx
+@@ -5,6 +5,7 @@ import {
+   FACE_TYPES,
+   MAX_FACE_SPLIT,
+   ROOT_FACE_PATH,
++  applyStandardDrawers,
+   runFaceLayouts,
+   defaultFace,
+   equalizeGroup,
+@@ -112,7 +113,9 @@ export default function FaceProperties({ wall, run, piece, item, layout, setting
+             key={preset.key}
+             type="button"
+             title={preset.description}
+-            onClick={() => applyPreset(preset.face)}
++            onClick={() => applyPreset(faceLayout
++              ? applyStandardDrawers(preset.face, faceLayout.style, settings)
++              : preset.face)}
+             className={BUTTON_CLASS}
+           >
+             {preset.label}
+diff --git a/src/elevation/model/__tests__/styles.test.js b/src/elevation/model/__tests__/styles.test.js
+index dae176b..d1ff95e 100644
+--- a/src/elevation/model/__tests__/styles.test.js
++++ b/src/elevation/model/__tests__/styles.test.js
+@@ -1,11 +1,13 @@
+ import { describe, expect, it } from 'vitest';
+ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+ import {
++  applyStandardDrawers,
+   cabinetReveals,
+   isSingleColumn,
+   isStyle,
+   panelDrop,
+   resolveStyle,
++  standardDrawerHeight,
+   styleReveals,
+ } from '../styles.js';
+ 
+@@ -113,3 +115,27 @@ describe('styles', () => {
+     expect(panelDrop({ cabinetTypeId: BASE }, EURO, S)).toBe(0);
+   });
+ });
++
++describe('standard drawer heights', () => {
++  const FOUR_DF = { direction: 'vertical', size: null, children: [{ type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: null }, { type: 'drawer_front', size: null }] };
++
++  it('51 standardDrawerHeight by style', () => {
++    expect(standardDrawerHeight(EURO, S)).toBe(5.875);
++    expect(standardDrawerHeight(INSET, S)).toBe(5);
++    expect(standardDrawerHeight({ ...INSET, cabinetStyleId: 15 }, S)).toBe(5);
++  });
++
++  it('52 applyStandardDrawers changes fixed drawer and false fronts under 6"', () => {
++    expect(applyStandardDrawers(FOUR_DF, INSET, S).children.map((child) => child.size)).toEqual([5, 5, null, null]);
++    const mixed = { direction: 'vertical', size: null, children: [{ type: 'false_front', size: 4 }, { type: 'drawer_front', size: 6.5 }, { type: 'open', size: 3 }, { type: 'drawer_front', size: 5 }] };
++    expect(applyStandardDrawers(mixed, EURO, S).children.map((child) => child.size)).toEqual([5.875, 6.5, 3, 5.875]);
++    const tall = { direction: 'vertical', size: null, children: [{ type: 'door', size: null }, { ...FOUR_DF, size: 30.25 }] };
++    const tallInset = applyStandardDrawers(tall, INSET, S);
++    expect(tallInset.children[1].size).toBe(30.25);
++    expect(tallInset.children[1].children.map((child) => child.size)).toEqual([5, 5, null, null]);
++    expect(tallInset.children[0]).toBe(tall.children[0]);
++    expect(applyStandardDrawers(FOUR_DF, EURO, S)).toBe(FOUR_DF);
++    expect(applyStandardDrawers(DOOR, INSET, S)).toBe(DOOR);
++    expect(applyStandardDrawers(null, INSET, S)).toBeNull();
++  });
++});
+diff --git a/src/elevation/model/constants.js b/src/elevation/model/constants.js
+index bfac059..8e1832f 100644
+--- a/src/elevation/model/constants.js
++++ b/src/elevation/model/constants.js
+@@ -74,6 +74,8 @@ export const DEFAULT_SETTINGS = {
+   profiledFit: { edge: 0.09375, pairEdge: 0.0625, pairGap: 0.125 },
+   woodTopReveal: 0.125,
+   capturedSingleReveal: 0.09375,
++  standardDrawerHeights: { european: 5.875, faceFrame: 5 },
++  standardDrawerBelow: 6,
+ };
+ 
+ /** Display labels for derived piece kinds. */
+diff --git a/src/elevation/model/index.js b/src/elevation/model/index.js
+index 602e12c..59433b9 100644
+--- a/src/elevation/model/index.js
++++ b/src/elevation/model/index.js
+@@ -39,12 +39,14 @@ export {
+   REVEAL_SOURCE_LABELS,
+   RUN_TOP_OPTIONS,
+   UPPER_BOTTOM_OPTIONS,
++  applyStandardDrawers,
+   cabinetReveals,
+   isInsetStyle,
+   isSingleColumn,
+   isStyle,
+   panelDrop,
+   resolveStyle,
++  standardDrawerHeight,
+   styleReveals,
+ } from './styles.js';
+ export { captureSides } from './capture.js';
+diff --git a/src/elevation/model/styles.js b/src/elevation/model/styles.js
+index bfc8805..f19ac35 100644
+--- a/src/elevation/model/styles.js
++++ b/src/elevation/model/styles.js
+@@ -138,6 +138,38 @@ export function cabinetReveals({
+   return { values, sources };
+ }
+ 
++/** The standard top drawer front height for a style (a slot size for face frame styles). */
++export function standardDrawerHeight(style, settings) {
++  const heights = { ...DEFAULT_SETTINGS.standardDrawerHeights, ...settings.standardDrawerHeights };
++  return isInsetStyle(style) ? heights.faceFrame : heights.european;
++}
++
++const STANDARD_DRAWER_TYPES = ['drawer_front', 'false_front'];
++
++/**
++ * Set every fixed drawer front / false front smaller than settings.standardDrawerBelow (6")
++ * to the style's standard height. Returns the same tree when nothing changes.
++ */
++export function applyStandardDrawers(face, style, settings) {
++  if (!face) return face;
++  const height = standardDrawerHeight(style, settings);
++  const below = settings.standardDrawerBelow ?? DEFAULT_SETTINGS.standardDrawerBelow;
++  const visit = (node) => {
++    if (node.type) {
++      const change = STANDARD_DRAWER_TYPES.includes(node.type)
++        && Number.isFinite(node.size)
++        && node.size < below
++        && node.size !== height;
++      return change ? { ...node, size: height } : node;
++    }
++    const children = node.children.map(visit);
++    return children.every((child, index) => child === node.children[index])
++      ? node
++      : { ...node, children };
++  };
++  return visit(face);
++}
++
+ /** How far an upper run's fillers and end panels extend below the box. */
+ export function panelDrop(run, style, settings) {
+   if (run.cabinetTypeId !== UPPER || (run.upperBottom ?? 'overhang') !== 'overhang') return 0;
+diff --git a/src/elevation/store/__tests__/elevationSlice.test.js b/src/elevation/store/__tests__/elevationSlice.test.js
+index bb937ad..6337023 100644
+--- a/src/elevation/store/__tests__/elevationSlice.test.js
++++ b/src/elevation/store/__tests__/elevationSlice.test.js
+@@ -1152,3 +1152,49 @@ describe('styles and reveals', () => {
+     expect('reveals' in item(state, 'a')).toBe(false);
+   });
+ });
++
++describe('standard drawers on style switch', () => {
++  const at = { wallId: 'wall-1', runId: 'run-1' };
++  const THREE_DF = {
++    direction: 'vertical',
++    size: null,
++    children: [
++      { type: 'drawer_front', size: 5.875 },
++      { type: 'drawer_front', size: null },
++      { type: 'drawer_front', size: null },
++    ],
++  };
++
++  function drawerState() {
++    return stateWithRun(run({
++      autoCount: false,
++      items: [
++        { ...fixed('a', 18), face: THREE_DF },
++        { ...fixed('b', 18), face: THREE_DF, style: { cabinetStyleId: 13 } },
++        fixed('c', 18),
++      ],
++    }));
++  }
++
++  function topSize(state, id) {
++    return currentRun(state).items.find((entry) => entry.id === id).face.children[0].size;
++  }
++
++  it('53. switching European and face frame resets small drawer fronts', () => {
++    let state = elevationReducer(drawerState(), setRoomStyle({ roomId: 'room-1', style: { cabinetStyleId: 14 } }));
++    expect(topSize(state, 'a')).toBe(5);
++    expect(topSize(state, 'b')).toBe(5.875);
++    expect(currentRun(state).items[2].face).toBeUndefined();
++
++    state = elevationReducer(state, setRunStyle({ ...at, style: { cabinetStyleId: 15 } }));
++    expect(topSize(state, 'a')).toBe(5);
++
++    state = elevationReducer(state, setItemStyle({ ...at, itemIds: ['b'], style: null }));
++    expect(topSize(state, 'b')).toBe(5);
++
++    state = elevationReducer(state, setRoomStyle({ roomId: 'room-1', style: null }));
++    state = elevationReducer(state, setRunStyle({ ...at, style: null }));
++    expect(topSize(state, 'a')).toBe(5.875);
++    expect(topSize(state, 'b')).toBe(5.875);
++  });
++});
+diff --git a/src/elevation/store/__tests__/persistence.test.js b/src/elevation/store/__tests__/persistence.test.js
+index 0a3d6fa..e800072 100644
+--- a/src/elevation/store/__tests__/persistence.test.js
++++ b/src/elevation/store/__tests__/persistence.test.js
+@@ -391,6 +391,19 @@ describe('elevation persistence migration', () => {
+     expect(loaded.settings.capturedSingleReveal).toBe(0.09375);
+   });
+ 
++  it('54. defaults the standard drawer settings on documents saved before them', () => {
++    const current = migrateV1Document(v1Document());
++    delete current.settings.standardDrawerHeights;
++    delete current.settings.standardDrawerBelow;
++    globalThis.window = {
++      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
++    };
++
++    const loaded = loadElevationDocument();
++    expect(loaded.settings.standardDrawerHeights).toEqual({ european: 5.875, faceFrame: 5 });
++    expect(loaded.settings.standardDrawerBelow).toBe(6);
++  });
++
+   it('validates opening anchors on either run side', () => {
+     const current = migrateV1Document(v1Document());
+     const run = current.rooms[0].walls[0].runs[0];
+diff --git a/src/elevation/store/elevationSlice.js b/src/elevation/store/elevationSlice.js
+index 304967e..12e0bc8 100644
+--- a/src/elevation/store/elevationSlice.js
++++ b/src/elevation/store/elevationSlice.js
+@@ -22,7 +22,10 @@ import {
+   REVEAL_KEYS,
+   RUN_TOP_OPTIONS,
+   UPPER_BOTTOM_OPTIONS,
++  applyStandardDrawers,
++  isInsetStyle,
+   isStyle,
++  resolveStyle,
+ } from '../model/styles.js';
+ import { roundTo } from '../model/units.js';
+ import {
+@@ -169,6 +172,27 @@ function cleanPartial(value, keys, accept = () => true) {
+   return entries.length === 0 ? null : Object.fromEntries(entries);
+ }
+ 
++function roomCabinets(room) {
++  return room.walls.flatMap((wall) => wall.runs.flatMap((run) => run.items
++    .filter((item) => item.kind === 'cabinet')
++    .map((item) => ({ run, item }))));
++}
++
++/**
++ * Run a style edit; every cabinet whose style switches between European and face frame
++ * gets its small drawer fronts reset to the new style's standard height.
++ */
++function withStandardDrawers(state, room, mutate) {
++  const isInset = ({ run, item }) => isInsetStyle(resolveStyle(state.settings, room, run, item));
++  const before = new Map(roomCabinets(room).map((entry) => [entry.item.id, isInset(entry)]));
++  mutate();
++  for (const entry of roomCabinets(room)) {
++    const { run, item } = entry;
++    if (!item.face || before.get(item.id) === isInset(entry)) continue;
++    item.face = applyStandardDrawers(item.face, resolveStyle(state.settings, room, run, item), state.settings);
++  }
++}
++
+ function itemIndexFor(run, itemId) {
+   return run.items.findIndex((item) => item.id === itemId);
+ }
+@@ -849,15 +873,19 @@ const elevationSlice = createSlice({
+       const room = roomFor(state, action.payload.roomId);
+       const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
+       if (!room || !isStyle(style)) return;
+-      if (style) room.style = style;
+-      else delete room.style;
++      withStandardDrawers(state, room, () => {
++        if (style) room.style = style;
++        else delete room.style;
++      });
+     },
+     setRunStyle(state, action) {
+       const location = runLocation(state, action.payload);
+       const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
+       if (!location || !isStyle(style)) return;
+-      if (style) location.run.style = style;
+-      else delete location.run.style;
++      withStandardDrawers(state, location.room, () => {
++        if (style) location.run.style = style;
++        else delete location.run.style;
++      });
+     },
+     setRunFaceOptions(state, action) {
+       const location = runLocation(state, action.payload);
+@@ -874,11 +902,13 @@ const elevationSlice = createSlice({
+       const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
+       if (!location || !isStyle(style)) return;
+       const { itemIds = [] } = action.payload;
+-      for (const item of location.run.items) {
+-        if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
+-        if (style) item.style = { ...style };
+-        else delete item.style;
+-      }
++      withStandardDrawers(state, location.room, () => {
++        for (const item of location.run.items) {
++          if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
++          if (style) item.style = { ...style };
++          else delete item.style;
++        }
++      });
+     },
+     setItemReveals(state, action) {
+       const location = runLocation(state, action.payload);
+diff --git a/src/elevation/store/persistence.js b/src/elevation/store/persistence.js
+index 36e02a7..38b2a69 100644
+--- a/src/elevation/store/persistence.js
++++ b/src/elevation/store/persistence.js
+@@ -98,6 +98,8 @@ const V2_DEFAULTED_SETTING_KEYS = [
+   'profiledFit',
+   'woodTopReveal',
+   'capturedSingleReveal',
++  'standardDrawerHeights',
++  'standardDrawerBelow',
+ ];
+ 
+ function isFiniteNumber(value) {

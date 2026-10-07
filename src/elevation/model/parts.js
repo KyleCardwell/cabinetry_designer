@@ -1,0 +1,215 @@
+import { CABINET_TYPE_IDS } from './constants.js';
+import { blindEntries, blindPartWidths } from './blind.js';
+import { blindCellWidths, cellPieces, partPieces } from './cells.js';
+import { frameRegions } from './frames.js';
+import { wallLength } from './geometry.js';
+import { resolveProfile } from './profile.js';
+import {
+  endCornerAnglesForRun,
+  endMinWidthsForRun,
+  pinTargetsForRun,
+} from './room.js';
+import { splitRun } from './splitRun.js';
+import { teeFillers } from './tees.js';
+import { runTop } from './tops.js';
+import { wallNumbers } from './topology.js';
+import { miteredSpan, panelRunMiters, wallEndPanels } from './wallEndPanels.js';
+import { WALL_SIDES, wallSideView } from './wallSides.js';
+
+export const PART_MOLDINGS = ['toeKick', 'topMold', 'crown'];
+
+const PART_KINDS = new Set(['cabinet', 'filler', 'end_panel', 'panel', 'shelf']);
+const LOWER_TYPES = new Set([CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL]);
+
+export function moldingPartKey(molding) {
+  return `molding:${molding}`;
+}
+
+export function wallEndPanelPartKey(wallId, endpoint) {
+  return `${wallId}:endPanel:${endpoint}`;
+}
+
+export function compareRuns(a, b) {
+  return a.x - b.x || a.id.localeCompare(b.id);
+}
+
+function runsInWalkOrder(view) {
+  const lower = view.runs.filter((run) => LOWER_TYPES.has(run.cabinetTypeId));
+  const upper = view.runs.filter((run) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER);
+  return [...lower.sort(compareRuns), ...upper.sort(compareRuns)];
+}
+
+export function carriesMolding(wall, run, profile, molding) {
+  if (molding === 'toeKick') {
+    return LOWER_TYPES.has(run.cabinetTypeId)
+      && (run.overrides?.toeKickHeight ?? profile.toeKickHeight) > 0;
+  }
+  const top = runTop(wall, run, profile).kind;
+  return molding === 'topMold' ? top === 'crown' || top === 'topMold' : top === 'crown';
+}
+
+/**
+ * Where a seam T goes in its run's part list (SPEC-37.3): the key of the part it follows. A vertical T
+ * follows the last part of the boxes on its left (a whole stacked column), a horizontal T the first
+ * of the boxes below it, so it sits between the cabinets of its seam. Null if none of them is a part.
+ */
+function teeAnchor(tee, parts, pieces) {
+  const before = tee.boxIds
+    .map((id) => pieces.find((piece) => piece.id === id))
+    .filter((piece) => piece && (tee.orientation === 'vertical'
+      ? piece.x + piece.width / 2 < tee.x + tee.width / 2
+      : piece.z + piece.height / 2 < tee.z + tee.height / 2));
+  const indexes = before
+    .map((piece) => parts.findIndex((part) => part.pieceId === piece.id))
+    .filter((index) => index >= 0);
+  if (indexes.length === 0) return null;
+  return parts[tee.orientation === 'vertical' ? Math.max(...indexes) : Math.min(...indexes)].key;
+}
+
+function runParts(room, wall, side, settings) {
+  const view = wallSideView(wall, side);
+  return runsInWalkOrder(view).flatMap((run) => {
+    const layout = splitRun(run, settings, {
+      endMinWidths: endMinWidthsForRun(room, view, run, settings),
+      endCornerAngles: endCornerAnglesForRun(room, view, run),
+      pinTargets: pinTargetsForRun(run, view, wallLength(view), settings),
+    });
+    const widths = blindPartWidths(room, view, run, settings, layout);
+    const cells = cellPieces(run, layout);
+    const entries = blindEntries(room, view, run, settings, layout).entries;
+    const cellWidths = blindCellWidths(cells.pieces, layout.pieces, entries);
+    const blindPanels = new Set(entries
+      .filter((entry) => entry.panel && entry.endPieceId)
+      .map((entry) => entry.endPieceId));
+    const frames = frameRegions(room, run, cells, settings);
+    const inFrame = frames.fillerIds;
+    const { tees } = teeFillers(room, run, cells, settings);
+    const teeWidths = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee.partWidth]));
+    const miters = panelRunMiters(room, view, run, settings);
+    const pieceParts = partPieces(cells.pieces, settings)
+      .filter((piece) => PART_KINDS.has(piece.kind) && piece.width > 1e-6
+        && (!inFrame.has(piece.id) || blindPanels.has(piece.id)))
+      .map((piece) => ({
+        key: piece.id,
+        kind: piece.kind,
+        wallId: wall.id,
+        side,
+        runId: run.id,
+        pieceId: piece.id,
+        molding: null,
+        // A back panel mitered into a wall end panel is longer by the panel it runs over (SPEC-43).
+        width: teeWidths.get(piece.id) ?? cellWidths.get(piece.id) ?? widths.get(piece.id)
+          ?? miteredSpan(piece, run, miters).width,
+        x: miteredSpan(piece, run, miters).x,
+        z: piece.z,
+        height: piece.height,
+        source: 'piece',
+      }));
+    // A T-filler between boxes is a filler part of its own, numbered beside its seam (SPEC-37.3).
+    const seamParts = tees.filter((tee) => !tee.end).map((tee) => ({
+      anchor: teeAnchor(tee, pieceParts, cells.pieces),
+      part: {
+        key: tee.id,
+        kind: 'filler',
+        wallId: wall.id,
+        side,
+        runId: run.id,
+        pieceId: tee.id,
+        molding: null,
+        width: tee.partWidth,
+        x: tee.x,
+        z: tee.z,
+        height: tee.height,
+        source: 'tee',
+      },
+    }));
+    return [
+      ...pieceParts.flatMap((part) => [
+        part,
+        ...seamParts.filter((entry) => entry.anchor === part.key).map((entry) => entry.part),
+      ]),
+      ...seamParts.filter((entry) => entry.anchor === null).map((entry) => entry.part),
+      // One part per face frame, after its run's pieces (SPEC-36.2).
+      ...frames.regions.map((region) => ({
+        key: region.id,
+        kind: 'frame',
+        wallId: wall.id,
+        side,
+        runId: run.id,
+        pieceId: null,
+        molding: null,
+        width: region.width,
+        x: region.x,
+        z: region.z,
+        height: region.height,
+        source: 'frame',
+      })),
+    ];
+  });
+}
+
+function wallPanelPart(wall, panel) {
+  return {
+    key: wallEndPanelPartKey(wall.id, panel.endpoint),
+    kind: 'wall_end_panel',
+    wallId: wall.id,
+    side: null,
+    runId: null,
+    pieceId: null,
+    molding: null,
+    width: panel.width,
+    x: panel.front.x,
+    z: 0,
+    height: panel.top,
+    source: 'wall_end_panel',
+  };
+}
+
+/**
+ * Every part the shop makes for a room, in numbering order (SPEC-39 C8): wall by wall (left wall end
+ * panels, then each face's runs in walk order, then right end panels), then one per molding kind in the
+ * room. The single list part numbers, reports, the estimator and the AI layer read.
+ */
+export function roomParts(room, settings) {
+  const wallById = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
+  const walls = [...wallNumbers(room).entries()]
+    .sort((a, b) => a[1] - b[1])
+    .map(([wallId]) => wallById.get(wallId))
+    .filter(Boolean);
+
+  const parts = walls.flatMap((wall) => {
+    const panels = wallEndPanels(room, wall, settings);
+    const left = panels.filter((panel) => panel.front.side === 'left');
+    const right = panels.filter((panel) => panel.front.side === 'right');
+    return [
+      ...left.map((panel) => wallPanelPart(wall, panel)),
+      ...WALL_SIDES.flatMap((side) => runParts(room, wall, side, settings)),
+      ...right.map((panel) => wallPanelPart(wall, panel)),
+    ];
+  });
+
+  for (const molding of PART_MOLDINGS) {
+    const present = walls.some((wall) => {
+      const profile = resolveProfile(settings, room, wall);
+      return wall.runs.some((run) => carriesMolding(wall, run, profile, molding));
+    });
+    if (present) {
+      parts.push({
+        key: moldingPartKey(molding),
+        kind: 'molding',
+        wallId: null,
+        side: null,
+        runId: null,
+        pieceId: null,
+        molding,
+        width: null,
+        x: null,
+        z: null,
+        height: null,
+        source: 'molding',
+      });
+    }
+  }
+  return parts;
+}
+
