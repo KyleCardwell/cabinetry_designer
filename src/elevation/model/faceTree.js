@@ -61,6 +61,28 @@ export function setFaceType(face, path, type) {
   return replaceAt(face, path, (node) => { const next = { ...node, type }; if (type !== 'door') delete next.hinge; return next; });
 }
 
+/** Set or clear a non-open leaf's own style and sizes. */
+export function setFacePart(face, path, patch) {
+  const target = getFaceNode(face, path);
+  if (!target?.type || target.children || target.type === 'open') return face;
+  const keys = ['styleId', 'sizes'].filter((key) => Object.hasOwn(patch, key));
+  const changed = keys.some((key) => {
+    if (patch[key] == null) return Object.hasOwn(target, key);
+    return key === 'sizes'
+      ? JSON.stringify(target[key]) !== JSON.stringify(patch[key])
+      : target[key] !== patch[key];
+  });
+  if (!changed) return face;
+  return replaceAt(face, path, (node) => {
+    const next = { ...node };
+    for (const key of keys) {
+      if (patch[key] == null) delete next[key];
+      else next[key] = patch[key];
+    }
+    return next;
+  });
+}
+
 export function setFaceSize(face, path, size) {
   if (path === ROOT_FACE_PATH || !getFaceNode(face, path)) return face;
   if (size !== null && !(Number.isFinite(size) && size > 0)) return face;
