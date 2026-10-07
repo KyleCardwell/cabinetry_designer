@@ -1,4 +1,5 @@
 import { CABINET_TYPE_IDS } from './constants.js';
+import { planClearances } from './clearances.js';
 import { frontDepth } from './corners.js';
 import { plotScale } from './drawingScale.js';
 import { DIMENSION_ROW_SPACING, placeLabels } from './elevationDimensions.js';
@@ -98,7 +99,7 @@ function depthRecords(room, wall, run, settings) {
  * The plan's dimensions for the DXF (SPEC-45): aligned, in plan inches with y up, reading from the bottom
  * or the right. Per wall, outside it, the front face row then the overall length, 3/8" (paper) apart past
  * the wall, its bump-out and the lettered face behind it; a back face row on the room side. Then each run's depth across it, by type
- * lane (SPEC-45.2).
+ * lane, and the island and aisle clearances (SPEC-45.2).
  */
 export function planDimensions(room, settings) {
   const scale = plotScale(settings);
@@ -142,6 +143,13 @@ export function planDimensions(room, settings) {
   }
   for (const wall of room.walls) {
     for (const run of wall.runs ?? []) records.push(...depthRecords(room, wall, run, settings));
+  }
+  for (const { kind, from, to, length } of planClearances(room, settings)) {
+    if (length <= EPSILON) continue;
+    const unit = { x: (to.x - from.x) / length, y: (to.y - from.y) / length };
+    const base = (t) => ({ x: from.x + unit.x * t, y: from.y + unit.y * t });
+    const outward = { x: -unit.y, y: unit.x };
+    records.push(...rowRecords('clearance', [{ start: 0, end: length, kind }], base, outward, 0, scale).records);
   }
   return records;
 }
