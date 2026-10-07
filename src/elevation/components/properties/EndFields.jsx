@@ -1,11 +1,13 @@
 import { useDispatch } from 'react-redux';
-import { formatInchesInput, runBlind } from '../../model/index.js';
+import { formatInchesInput, frontDepth, runBlind } from '../../model/index.js';
+import { panelLevels } from '../../model/doorStyleResolve.js';
 import {
-  setRunBlind, setRunEnd, setRunEndExtend, setRunEndFiller,
+  setPartStyle, setRunBlind, setRunEnd, setRunEndExtend, setRunEndFiller,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import ExtendFields from './ExtendFields.jsx';
 import Field from './Field.jsx';
+import PartStyleFields from './PartStyleFields.jsx';
 
 const END_TYPES = [
   ['end_panel', 'End panel'],
@@ -15,10 +17,11 @@ const END_TYPES = [
 ];
 
 export default function EndFields({
-  actionBase, run, side, settings, note = null, extendRuns = [],
+  actionBase, room, wall, run, side, settings, note = null, extendRuns = [],
 }) {
   const dispatch = useDispatch();
   const endType = run.ends[side].type;
+  const where = { ...actionBase, part: 'runEnd', side };
 
   return (
     <>
@@ -166,6 +169,19 @@ export default function EndFields({
               : 'Ordered width and return depth. The elevation still shows what fits.'}
           </p>
         </>
+      )}
+      {(endType === 'end_panel' || endType === 'blind') && (
+        <PartStyleFields
+          room={room}
+          settings={settings}
+          partType="panel"
+          part={run.ends[side]}
+          levels={panelLevels(room, wall, run, run.ends[side])}
+          width={frontDepth(run, settings)}
+          height={run.height}
+          label={`${side === 'left' ? 'Left' : 'Right'} end panel`}
+          onChange={(patch) => dispatch(setPartStyle({ ...where, ...patch }))}
+        />
       )}
     </>
   );

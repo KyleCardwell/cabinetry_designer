@@ -3,8 +3,10 @@ import { useDispatch } from 'react-redux';
 import {
   formatInches, partNumbers, wallEndPanelFramed, wallEndPanelPartKey,
 } from '../../model/index.js';
-import { setWallEndPanel } from '../../store/elevationSlice.js';
+import { panelLevels } from '../../model/doorStyleResolve.js';
+import { setPartStyle, setWallEndPanel } from '../../store/elevationSlice.js';
 import PartNumberField from './PartNumberField.jsx';
+import PartStyleFields from './PartStyleFields.jsx';
 import WallEndPanelFields from './WallEndPanelFields.jsx';
 
 /** A selected wall end panel (SPEC-36.2.1). `panel` is one entry of wallEndPanels. */
@@ -17,6 +19,7 @@ export default function WallEndPanelProperties({
   const side = panel[wall.side ?? 'front'];
   const label = side.side === 'left' ? 'Left end' : 'Right end';
   const stored = wall.endPanels?.[panel.endpoint] ?? { width: null };
+  const where = { wallId: wall.id, part: 'wallEndPanel', endpoint: panel.endpoint };
 
   return (
     <div className="space-y-4">
@@ -40,6 +43,17 @@ export default function WallEndPanelProperties({
         label={label}
         framed={wallEndPanelFramed(wall, panel)}
         settings={settings}
+      />
+      <PartStyleFields
+        room={room}
+        settings={settings}
+        partType="panel"
+        part={stored}
+        levels={panelLevels(room, wall, null, stored)}
+        width={side.depth}
+        height={panel.top}
+        label="Wall end panel"
+        onChange={(patch) => dispatch(setPartStyle({ ...where, ...patch }))}
       />
       <button
         type="button"

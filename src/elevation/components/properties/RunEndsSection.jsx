@@ -106,6 +106,8 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
               >
                 <EndFields
                   actionBase={actionBase}
+                  room={room}
+                  wall={wall}
                   run={run}
                   side={side}
                   settings={settings}

@@ -8,6 +8,7 @@ import {
   MAX_SHELVES,
   runItems,
 } from '../../model/index.js';
+import { runFaceThickness } from '../../model/corners.js';
 import {
   lockItem,
   setCellBlind,
@@ -181,7 +182,7 @@ export default function CellProperties({
               <InchInput
                 value={item.depth ?? null}
                 allowBlank
-                placeholder={formatInchesInput(cellDepth(piece, item, run.depth, settings))}
+                placeholder={formatInchesInput(cellDepth(piece, item, run.depth, settings, runFaceThickness(run, settings)))}
                 onCommit={(depth) => dispatch(setCellDepth({ ...cellBase, depth }))}
                 aria-label="Cell depth"
               />

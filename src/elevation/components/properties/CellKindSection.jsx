@@ -1,16 +1,19 @@
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   extendDirections, panelOrientation, panelTypes, wallSideOf,
 } from '../../model/index.js';
+import { panelLevels } from '../../model/doorStyleResolve.js';
 import {
   addPanel,
   setCellKind,
   setCellExtend,
   setPanelDoors,
   setPanelType,
+  setPartStyle,
 } from '../../store/elevationSlice.js';
 import ExtendFields from './ExtendFields.jsx';
 import Field from './Field.jsx';
+import PartStyleFields from './PartStyleFields.jsx';
 
 const KIND_OPTIONS = [
   ['cabinet', 'Cabinet'],
@@ -34,7 +37,12 @@ const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 p
 
 export default function CellKindSection({ wall, run, piece, item }) {
   const dispatch = useDispatch();
+  const room = useSelector((state) => state.elevation.rooms.find(
+    (candidate) => candidate.id === state.elevation.activeRoomId,
+  ));
+  const settings = useSelector((state) => state.elevation.settings);
   const actionBase = { wallId: wall.id, runId: run.id, cellId: item.id };
+  const where = { ...actionBase, part: 'panelCell' };
   const orientation = panelOrientation(piece);
   const offeredTypes = panelTypes(run.grid, item.id);
   const typeOptions = orientation && !offeredTypes.includes(orientation)
@@ -101,6 +109,19 @@ export default function CellKindSection({ wall, run, piece, item }) {
           onChange={(direction, target) => dispatch(setCellExtend({
             ...actionBase, direction, target,
           }))}
+        />
+      )}
+      {item.kind === 'panel' && (
+        <PartStyleFields
+          room={room}
+          settings={settings}
+          partType="panel"
+          part={item}
+          levels={panelLevels(room, wall, run, item)}
+          width={orientation === 'side' ? piece.depth : piece.width}
+          height={orientation === 'top' ? piece.depth : piece.height}
+          label="Panel"
+          onChange={(patch) => dispatch(setPartStyle({ ...where, ...patch }))}
         />
       )}
       <div>
