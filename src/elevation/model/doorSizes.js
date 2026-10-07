@@ -44,3 +44,22 @@ export function partSizes(style, design, { width, height, sizes = {} }) {
     notes: sizes.notes ?? {},
   };
 }
+
+/** A shorter front above must never have a bigger panel than one below (SPEC-46); warns, never fixes. */
+export function frontStackWarnings(parts) {
+  const warnings = [];
+  for (const a of parts) {
+    for (const b of parts) {
+      if (a === b || a.sizes.construction !== 'five_piece' || b.sizes.construction !== 'five_piece') continue;
+      if (
+        Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > 1e-6
+        && a.z >= b.z + b.height - 1e-6
+        && a.height <= b.height + 1e-6
+        && a.sizes.opening.height > b.sizes.opening.height + 1e-6
+      ) {
+        warnings.push({ code: 'front-panel-over-taller', path: a.path, below: b.path });
+      }
+    }
+  }
+  return warnings;
+}

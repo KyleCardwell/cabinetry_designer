@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
-import { partSizes } from '../doorSizes.js';
+import { frontStackWarnings, partSizes } from '../doorSizes.js';
 
 const [SQUARE, SLAB] = DOOR_DESIGNS;
 const withRails = (width) => ({ ...DEFAULT_DOOR_STYLE, rails: { top: width, bottom: width } });
@@ -90,5 +90,33 @@ describe('SPEC-46 stile and rail sizes', () => {
     expect([typed.midRails, typed.midStiles, typed.opening]).toEqual([
       [{ at: 31.5, width: 4 }], [{ at: 7.5, width: 3 }], { width: 9, height: 54 },
     ]);
+  });
+});
+
+describe('SPEC-46 stacking check', () => {
+  const front = (path, z, height, sizes, x = 0) => ({
+    path, x, z, width: 15, height,
+    sizes: partSizes(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height, ...(sizes ? { sizes } : {}) }),
+  });
+
+  it('is quiet for fronts stacking shorter above taller, equal fronts, or a taller one above', () => {
+    expect(frontStackWarnings([front('r.2', 0, 9), front('r.1', 9.125, 7), front('r.0', 16.25, 5.375)])).toEqual([]);
+    expect(frontStackWarnings([front('r.2', 0, 10), front('r.1', 10.125, 10), front('r.0', 20.25, 10)])).toEqual([]);
+    expect(frontStackWarnings([front('r.1', 0, 9), front('r.0', 9.125, 10)])).toEqual([]);
+  });
+
+  it('warns when rounding gives a 7 15/16" front above an 8" one the bigger panel', () => {
+    expect(frontStackWarnings([front('r.1', 0, 8), front('r.0', 8.125, 7.9375)]))
+      .toEqual([{ code: 'front-panel-over-taller', path: 'r.0', below: 'r.1' }]);
+  });
+
+  it('warns when typed rails give a shorter front above the bigger panel', () => {
+    expect(frontStackWarnings([front('r.1', 0, 10), front('r.0', 10.125, 9, { rails: { top: 2, bottom: 2 } })]))
+      .toEqual([{ code: 'front-panel-over-taller', path: 'r.0', below: 'r.1' }]);
+  });
+
+  it('ignores fronts side by side and slab fronts', () => {
+    expect(frontStackWarnings([front('r.1', 0, 8), front('r.0', 8.125, 7.9375, undefined, 16)])).toEqual([]);
+    expect(frontStackWarnings([front('r.1', 0, 8), front('r.0', 8.125, 4.5)])).toEqual([]);
   });
 });
