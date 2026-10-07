@@ -3,9 +3,11 @@ import { useDispatch } from 'react-redux';
 import { boxInsets, frameRegions } from '../../model/index.js';
 import { prepareRunUpdate } from '../../properties/helpers.js';
 import {
+  setDoorStylePick,
   setRunType,
   updateRun,
 } from '../../store/elevationSlice.js';
+import DoorStylePicks from './DoorStylePicks.jsx';
 import Field from './Field.jsx';
 import RunBottomSection from './RunBottomSection.jsx';
 import RunCabinetsSection from './RunCabinetsSection.jsx';
@@ -100,6 +102,24 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
       <RunPiecesSection run={run} layout={layout} insets={insets} />
 
       <RunFaceOptions room={room} wall={wall} run={run} settings={settings} />
+
+      {room.doorStyles?.length > 0 && (
+        <section>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Door styles
+          </h3>
+          <DoorStylePicks
+            room={room}
+            settings={settings}
+            node={run}
+            levelsAbove={[{ level: 'wall', node: wall }, { level: 'room', node: room }]}
+            label="Run"
+            onChange={(key, styleId) => dispatch(setDoorStylePick({
+              level: 'run', ...actionBase, key, styleId,
+            }))}
+          />
+        </section>
+      )}
 
       <RunBottomSection run={run} settings={settings} actionBase={actionBase} />
 

@@ -17,12 +17,14 @@ import { resolveWall } from '../../model/room.js';
 import {
   detachWallLanding,
   flipWall,
+  setDoorStylePick,
   setWallEndPanel,
   setWallLanding,
   setWallLength,
   updateWall,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import DoorStylePicks from './DoorStylePicks.jsx';
 import Field from './Field.jsx';
 import WallEndPanelFields from './WallEndPanelFields.jsx';
 import StretchInput from './StretchInput.jsx';
@@ -352,6 +354,24 @@ export default function WallHeightProperties({ room, wall, plan }) {
           {overlap < 0 ? 'Gap' : 'Overlap'} {formatInches(Math.abs(overlap))}
         </p>
       </section>
+
+      {room.doorStyles?.length > 0 && (
+        <section>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Door styles
+          </h3>
+          <DoorStylePicks
+            room={room}
+            settings={settings}
+            node={room.walls.find((w) => w.id === wall.id)}
+            levelsAbove={[{ level: 'room', node: room }]}
+            label="Wall"
+            onChange={(key, styleId) => dispatch(setDoorStylePick({
+              level: 'wall', wallId: wall.id, key, styleId,
+            }))}
+          />
+        </section>
+      )}
     </div>
   );
 }

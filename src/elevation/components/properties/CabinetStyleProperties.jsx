@@ -6,8 +6,9 @@ import {
   isInsetStyle,
   resolveStyle,
 } from '../../model/index.js';
-import { setItemReveals, setItemStyle } from '../../store/elevationSlice.js';
+import { setDoorStylePick, setItemReveals, setItemStyle } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import DoorStylePicks from './DoorStylePicks.jsx';
 import StyleFields from './StyleFields.jsx';
 
 const REVEAL_STEP = 1 / 32;
@@ -41,6 +42,20 @@ export default function CabinetStyleProperties({ room, wall, run, item, settings
         value={item.style}
         inherited={resolveStyle(settings, room, run)}
         onChange={(style) => dispatch(setItemStyle({ ...at, style }))}
+      />
+      <DoorStylePicks
+        room={room}
+        settings={settings}
+        node={item}
+        levelsAbove={[
+          { level: 'run', node: run },
+          { level: 'wall', node: wall },
+          { level: 'room', node: room },
+        ]}
+        label="Cabinet"
+        onChange={(key, styleId) => dispatch(setDoorStylePick({
+          level: 'cabinet', wallId: wall.id, runId: run.id, itemIds: [item.id], key, styleId,
+        }))}
       />
       {isInsetStyle(faceLayout.style) && faceLayout.box && (
         <p className="text-xs text-gray-400">
