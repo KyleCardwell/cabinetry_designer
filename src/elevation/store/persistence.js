@@ -494,6 +494,8 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
 
 function isRoom(room, profileKeys = PROFILE_KEYS) {
   return Boolean(room)
+    && (room.doorDetails === undefined || typeof room.doorDetails === 'boolean')
+    && (room.doorStyleTags === undefined || typeof room.doorStyleTags === 'boolean')
     && isDoorStyleList(room.doorStyles)
     && hasStyleRefs(room)
     && typeof room.id === 'string'

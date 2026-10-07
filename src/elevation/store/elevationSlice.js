@@ -169,6 +169,7 @@ export const {
   updateDoorStyle,
   deleteDoorStyle,
   setDoorStylePick,
+  setRoomDoorDrawing,
   setPartStyle,
   setFacePath,
   setSelection,

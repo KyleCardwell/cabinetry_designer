@@ -10,6 +10,23 @@ const isChoice = (room, id, { sheet = false } = {}) => (id === 'sheet'
   ? sheet : id === 'default' || room.doorStyles?.some((style) => style.id === id));
 
 export const doorStyleReducers = {
+  setRoomDoorDrawing(state, action) {
+    const { roomId, doorDetails, doorStyleTags } = action.payload;
+    const room = roomFor(state, roomId);
+    if (!room) return;
+    const hasDetails = Object.hasOwn(action.payload, 'doorDetails');
+    const hasTags = Object.hasOwn(action.payload, 'doorStyleTags');
+    if ((hasDetails && typeof doorDetails !== 'boolean')
+      || (hasTags && typeof doorStyleTags !== 'boolean')) return;
+    if (hasDetails) {
+      if (doorDetails) delete room.doorDetails;
+      else room.doorDetails = false;
+    }
+    if (hasTags) {
+      if (doorStyleTags) room.doorStyleTags = true;
+      else delete room.doorStyleTags;
+    }
+  },
   setDoorStylePick(state, action) {
     const { roomId, level, itemIds = [], key, styleId } = action.payload;
     const room = roomFor(state, roomId);
