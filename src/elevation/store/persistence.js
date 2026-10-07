@@ -667,18 +667,23 @@ export function toElevationDocument(elevationState) {
     settings: elevationState.settings,
     rooms: elevationState.rooms.map((room) => ({
       ...room,
-      walls: room.walls.map((wall) => ({
-        ...wall,
-        runs: wall.runs.map((run) => {
-          const { _pinWidths, _seamGap, _frame, _plane, _doorThickness, ...persistedRun } = run;
-          void _pinWidths;
-          void _seamGap;
-          void _frame;
-          void _plane;
-          void _doorThickness;
-          return persistedRun;
-        }),
-      })),
+      walls: room.walls.map((wall) => {
+        const { _endPanelThickness, ...persistedWall } = wall;
+        void _endPanelThickness;
+        return {
+          ...persistedWall,
+          runs: wall.runs.map((run) => {
+            const { _pinWidths, _seamGap, _frame, _plane, _doorThickness, _endThickness, ...persistedRun } = run;
+            void _pinWidths;
+            void _seamGap;
+            void _frame;
+            void _plane;
+            void _doorThickness;
+            void _endThickness;
+            return persistedRun;
+          }),
+        };
+      }),
     })),
     activeRoomId: elevationState.activeRoomId,
     activeWallId: elevationState.activeWallId,

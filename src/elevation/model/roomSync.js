@@ -21,6 +21,7 @@ import { runBlocksOpening } from './openings.js';
 import { recessWarnings, withRunPlane } from './recesses.js';
 import { wallLength } from './geometry.js';
 import { validateRunPlacement } from './overlap.js';
+import { runEndThickness, wallPanelThickness } from './panelThickness.js';
 import { resolveProfile, resolveVertical } from './profile.js';
 import { splitRun, syncAutoItems } from './splitRun.js';
 import { pruneStacks, resolveStacks } from './stacks.js';
@@ -108,6 +109,34 @@ function withDoorThickness(room, wall, run, settings) {
   return rest;
 }
 
+/** A run's derived panel thicknesses, only where they differ from the setting. */
+function withEndThickness(room, wall, run, settings) {
+  const thickness = Object.fromEntries(Object.entries(runEndThickness(room, wall, run, settings))
+    .filter(([, value]) => Math.abs(value - settings.endPanelThickness) > 1e-9));
+  if (Object.keys(thickness).length > 0) {
+    return JSON.stringify(run._endThickness) === JSON.stringify(thickness)
+      ? run : { ...run, _endThickness: thickness };
+  }
+  if (!Object.hasOwn(run, '_endThickness')) return run;
+  const { _endThickness, ...rest } = run;
+  void _endThickness;
+  return rest;
+}
+
+/** A wall's derived panel thicknesses, only where they differ from the setting. */
+function withWallPanelThickness(room, wall, settings) {
+  const thickness = Object.fromEntries(Object.entries(wallPanelThickness(room, wall, settings))
+    .filter(([, value]) => value !== null && Math.abs(value - settings.endPanelThickness) > 1e-9));
+  if (Object.keys(thickness).length > 0) {
+    return JSON.stringify(wall._endPanelThickness) === JSON.stringify(thickness)
+      ? wall : { ...wall, _endPanelThickness: thickness };
+  }
+  if (!Object.hasOwn(wall, '_endPanelThickness')) return wall;
+  const { _endPanelThickness, ...rest } = wall;
+  void _endPanelThickness;
+  return rest;
+}
+
 /**
  * A face frame run's joined ends that die into a deeper neighbour (SPEC-38.4): `_frame.dieIn` gives,
  * per side, an end of type None whose neighbour is deeper, so the frame's stile overhangs the box
@@ -174,11 +203,13 @@ export function syncRoom(room, settings) {
   let nextRoom = cloneRoom(resolveLandings(room));
   nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(wall))));
   nextRoom.walls = nextRoom.walls.map((wall) => ({
-    ...wall,
+    ...withWallPanelThickness(nextRoom, wall, settings),
     runs: wall.runs.map((run) => withRunPlane(
       wall,
-      withDoorThickness(
-        nextRoom, wall, withFrame(nextRoom, withSeamGap(nextRoom, run, settings), settings), settings,
+      withEndThickness(
+        nextRoom, wall, withDoorThickness(
+          nextRoom, wall, withFrame(nextRoom, withSeamGap(nextRoom, run, settings), settings), settings,
+        ), settings,
       ),
     )),
   }));

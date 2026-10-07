@@ -165,7 +165,7 @@ export function extendedEndPiece(wall, run, side, settings = DEFAULT_SETTINGS) {
   const end = run.ends?.[side];
   if (!end?.extend || (end.type !== 'end_panel' && end.type !== 'filler')) return null;
   const width = end.width ?? (end.type === 'end_panel'
-    ? settings.endPanelThickness
+    ? run._endThickness?.[side] ?? settings.endPanelThickness
     : settings.fillerMinWidth);
   const z = verticalStart(run, settings);
   const piece = {

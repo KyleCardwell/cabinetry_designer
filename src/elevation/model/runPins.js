@@ -37,8 +37,8 @@ export function pinTargetsForRun(run, wall, wallLengthValue, settings) {
   }));
 }
 
-function storedEndMinimum(end, settings) {
-  if (end.type === 'end_panel') return end.width ?? settings.endPanelThickness;
+function storedEndMinimum(end, settings, thickness) {
+  if (end.type === 'end_panel') return end.width ?? thickness ?? settings.endPanelThickness;
   if (end.type === 'filler' || end.type === 'blind') {
     return end.width ?? settings.fillerMinWidth;
   }
@@ -122,9 +122,9 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
   const last = pinned[pinned.length - 1];
   const firstWidth = pinWidths[first.item.id];
   const lastWidth = pinWidths[last.item.id];
-  const leftMinimum = storedEndMinimum(run.ends.left, settings)
+  const leftMinimum = storedEndMinimum(run.ends.left, settings, run._endThickness?.left)
     + storedItemsMinimum(items.slice(0, first.itemIndex), settings);
-  const rightMinimum = storedEndMinimum(run.ends.right, settings)
+  const rightMinimum = storedEndMinimum(run.ends.right, settings, run._endThickness?.right)
     + storedItemsMinimum(items.slice(last.itemIndex + 1), settings);
 
   let resolved = growLeft(

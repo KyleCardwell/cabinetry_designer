@@ -70,8 +70,8 @@ function itemExtras(item) {
   };
 }
 
-function endWidth(end, settings) {
-  if (end.type === 'end_panel') return end.width ?? settings.endPanelThickness;
+function endWidth(end, settings, thickness) {
+  if (end.type === 'end_panel') return end.width ?? thickness ?? settings.endPanelThickness;
   if (FILLER_END_TYPES.has(end.type) && end.width !== null) return end.width;
   return 0;
 }
@@ -87,7 +87,8 @@ function flexMinimum(side, settings, opts) {
 function layoutInputs(run, settings, opts) {
   const items = itemsWithGaps(run);
   const gaps = endGaps(run, items, settings);
-  const fixedEnds = endWidth(run.ends.left, settings) + endWidth(run.ends.right, settings)
+  const fixedEnds = endWidth(run.ends.left, settings, run._endThickness?.left)
+    + endWidth(run.ends.right, settings, run._endThickness?.right)
     + gaps.left + gaps.right;
   const fixedItems = items.reduce((sum, item) => (
     sum + (item.width === null ? 0 : item.width) + item.gapAfter
@@ -266,7 +267,7 @@ function splitRunLegacy(run, settings, opts) {
   const gapsAfter = [];
   const addEnd = (side, end) => {
     if (end.type === 'none') return;
-    let width = endWidth(end, settings);
+    let width = endWidth(end, settings, run._endThickness?.[side]);
     if (isFlexEnd(end)) width = side === 'left' ? leftFlexWidth : rightFlexWidth;
     const kind = FILLER_END_TYPES.has(end.type) ? 'filler' : end.type;
     const piece = {
@@ -344,7 +345,7 @@ function outerMinimum(run, side, items, settings, opts) {
   const end = run.ends[side];
   const endMinimum = isFlexEnd(end)
     ? flexMinimum(side, settings, opts)
-    : endWidth(end, settings);
+    : endWidth(end, settings, run._endThickness?.[side]);
   return endMinimum + itemsMinimum(items, settings);
 }
 

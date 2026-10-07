@@ -37,7 +37,11 @@ export function wallEndPanelAt(room, wall, side, settings) {
   if (wall.connections?.[endpoint] || wall.landings?.[endpoint]) return null;
   const panel = wall.endPanels?.[endpoint];
   if (!panel) return null;
-  return { endpoint, width: panel.width ?? settings.endPanelThickness };
+  return {
+    endpoint,
+    width: panel.width ?? (wall.sideSource ?? wall)._endPanelThickness?.[endpoint]
+      ?? settings.endPanelThickness,
+  };
 }
 
 export function wallSideFrame(room, wall, side = 'front') {
