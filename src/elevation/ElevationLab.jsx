@@ -8,6 +8,7 @@ import PropertiesPanel from './components/PropertiesPanel.jsx';
 import RoomHeightsPanel from './components/RoomHeightsPanel.jsx';
 import RoomPartNumbersPanel from './components/RoomPartNumbersPanel.jsx';
 import RoomStylePanel from './components/RoomStylePanel.jsx';
+import RoomDoorStylesPanel from './components/RoomDoorStylesPanel.jsx';
 import RoomPicker from './components/RoomPicker.jsx';
 import SampleRunsButton from './components/SampleRunsButton.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
@@ -46,6 +47,7 @@ export default function ElevationLab() {
           <RoomHeightsPanel />
           <RoomPartNumbersPanel />
           <RoomStylePanel />
+          <RoomDoorStylesPanel />
           <WallList />
           <SampleRunsButton />
           <SettingsPanel />
