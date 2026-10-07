@@ -1,4 +1,4 @@
-# Round 46.1.1 — Codex Prompts, Steps 396–400 (Team default picks, sheet slab panels, panels at their style's thickness)
+# Round 46.1.1 — Codex Prompts, Steps 396–403 (Team default picks, sheet slab panels, panels at their style's thickness)
 
 Conventions in `docs/elevation-mvp/PROMPT-CONVENTIONS.md` apply. Run one step per fresh session. Every step is in **cabinetry_designer**, branch **elevation-doors**; geometry and the API don't change.
 
@@ -11,6 +11,9 @@ Conventions in `docs/elevation-mvp/PROMPT-CONVENTIONS.md` apply. Run one step pe
 | 398 | cabinetry_designer | Run end panels and wall end panels at their style's thickness | 1051 |
 | 399 | cabinetry_designer | Panel cells: sheet slab unless they pick a style | 1054 |
 | 400 | cabinetry_designer | UI: pickers pass their level and spot, Team default in delete, width placeholders | 1054 |
+| 401 ✅ | cabinetry_designer | Fix: end panel selection crash | 1054 |
+| 402 ✅ | cabinetry_designer | Fix: joined ends keep their style | 1055 |
+| 403 | cabinetry_designer | Fix: typed run widths and moves are exact (no 1/2" rounding or snap) | 1057 |
 
 ---
 
@@ -168,4 +171,52 @@ Files (only these): the two above. DO NOT change anything else. DO NOT grep the 
 UI only, no new tests. At the end `npm test && npm run lint && npm run build` once: still 1054 tests, lint 0 errors, build succeeds.
 
 At most three lines of summary. Commit "elevation-mvp: step 401 Fix end panel selection crash".
+```
+
+---
+
+## Step 402 — fix: a joined end loses its picked style on every sync
+
+```
+Repo: cabinetry_designer, branch elevation-doors. SPEC: docs/elevation-mvp/SPEC-46.1.1.md §8. Step 401 is in (1054 tests).
+If `git status` shows uncommitted changes, stop and tell me.
+
+On a joined end panel the style picker never shows the choice: syncRoom's auto-end pass rebuilds a joined run's auto end as { type, width: null, auto: true }, dropping styleId and sizes.
+- src/elevation/model/roomSync.js (434 lines), the ends map at lines ~297–309: add a private withPartPick(next, end) → next plus end.styleId and end.sizes when set, and use it on all three rebuilt ends (the joint/follow auto end, the 'none' end beside a wall end panel, and the formerly-auto 'end_panel' end). Nothing else changes.
+
+Files (only these):
+- src/elevation/model/roomSync.js
+- NEW src/elevation/model/__tests__/autoEndPick.test.js: the SPEC §8 file VERBATIM (1 test)
+
+DO NOT change the first pass, jointEndTypes, the store or the UI. DO NOT grep the repo.
+
+Write the test file first; run `npx vitest run src/elevation/model/__tests__/autoEndPick.test.js` (must fail). Iterate on that file. At the end `npm test && npm run lint` once: 1054 + 1 = 1055, golden snapshot UNCHANGED, lint 0 errors.
+
+At most three lines of summary. Commit "elevation-mvp: step 402 Joined ends keep their style".
+```
+
+---
+
+## Step 403 — fix: a typed run width or move lands where it's typed
+
+```
+Repo: cabinetry_designer, branch elevation-doors. SPEC: docs/elevation-mvp/SPEC-46.1.1.md §9. Step 402 is in (1055 tests).
+If `git status` shows uncommitted changes, stop and tell me.
+
+Typing a width with a fraction (e.g. 30 1/16) in the canvas popup on a run's free end doesn't take: stretchRun rounds the edge to 1/2" and snaps it within 2", and commitStretch runs the screen alignment snap first. moveRun does the same to a typed Move. A typed value must be exact.
+- src/elevation/model/runMoves.js (428 lines):
+  - stretchRun(room, wallId, runId, side, newEdgeX, settings, { exact = false } = {}): when exact, edge starts as newEdgeX (no roundTo, line 94) and a candidate counts only within 1e-9 (instead of STRETCH_EDGE_SNAP_DISTANCE, line 98). Nothing after that changes (clamp, anchorsAtSnap, end types, sync, validation, the butting-edge join).
+  - moveRun(room, wallId, runId, newX, settings, { exact = false } = {}): the same in both branches (lines ~221/227 and ~302/308).
+- src/elevation/components/canvas/useRunStretch.js (170 lines): commitStretch(runId, side, newEdgeX, { exact = false } = {}) uses newEdgeX instead of applyRunAlignment when exact (still clears guides) and passes { exact } to stretchRun. startStretch's onCommit first reads exact = (entryRef.current?.typed ?? null) !== null and passes it.
+- src/elevation/components/canvas/useRunMove.js (158 lines): applyRunMove(segment, delta, commit, { exact = false } = {}) passes { exact } to moveRun; the run-move onCommit passes { exact: (entryRef.current?.typed ?? null) !== null }. Previews and drag ends unchanged.
+
+Files (only these):
+- the three above
+- NEW src/elevation/model/__tests__/exactEntry.test.js: the SPEC §9 file VERBATIM (2 tests)
+
+DO NOT change runJoins.js, useJointDrag.js, useLiveEntry.js, LiveEntryInput.jsx, units.js, the run/soffit/recess drawing code or any existing test. DO NOT grep the repo.
+
+Write the test file first; run `npx vitest run src/elevation/model/__tests__/exactEntry.test.js` (must fail). Iterate on that file. At the end `npm test && npm run lint && npm run build` once: 1055 + 2 = 1057, golden snapshot UNCHANGED, lint 0 errors, build succeeds.
+
+At most three lines of summary. Commit "elevation-mvp: step 403 Typed run widths and moves are exact".
 ```

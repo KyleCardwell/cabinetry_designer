@@ -619,3 +619,108 @@ describe('SPEC-46.1.1 a joined end keeps its own style', () => {
 **Don't touch:** the first pass, `jointEndTypes`, the store, the UI.
 
 **Count:** 1054 + 1 = **1055**. Golden snapshot unchanged.
+
+---
+
+## §9 Step 403 — fix: a typed run width or move lands where it's typed
+
+Kyle, after 402: on a tall run with a free left end, clicking the end and typing a width with a fraction or an equation (e.g. `30 1/16`, `30+1/16`) in the canvas popup doesn't take; the Properties width field works. Cause: the popup's commit goes through the same path as a drag. `stretchRun` (runMoves.js line 94) rounds the edge to the nearest 1/2" and then snaps it to any wall end, corner reserve, landing, soffit, recess or run edge within 2"; `useRunStretch.commitStretch` also runs the 6px screen alignment snap first (about 1" when zoomed out on a tall run). Whole and half inches survive; a 16th never does. `moveRun` (lines 221 and 302) does the same to a typed Move. Joint drags (`moveJoint`) don't round and aren't touched.
+
+**Rule.** A value typed in a canvas popup is exact: no 1/2" rounding, no 2" snap, no screen alignment snap. It still clamps (min run width, wall overhang, conflicts), and a typed edge that lands *exactly* on a snap candidate still anchors / joins, as a drag that snaps there does. Drags (and Enter without typing) behave as today.
+
+| File | Lines | Change |
+|---|---:|---|
+| `src/elevation/model/runMoves.js` | 428 | `stretchRun` and `moveRun` take `{ exact = false } = {}` |
+| `src/elevation/components/canvas/useRunStretch.js` | 170 | a typed commit is exact |
+| `src/elevation/components/canvas/useRunMove.js` | 158 | a typed commit is exact |
+| NEW `src/elevation/model/__tests__/exactEntry.test.js` | — | 2 tests, verbatim |
+
+**Contract.**
+- `stretchRun(room, wallId, runId, side, newEdgeX, settings, { exact = false } = {})`: when `exact`, `edge` starts as `newEdgeX` (no `roundTo`), and a candidate counts only when its distance is ≤ 1e-9 (instead of `STRETCH_EDGE_SNAP_DISTANCE`). Everything after (clamp, `anchorsAtSnap`, end types, sync, validation, `buttingRunEdge` join) is unchanged.
+- `moveRun(room, wallId, runId, newX, settings, { exact = false } = {})`: the same in both branches (no joints, line ~221; joints, line ~302): `x` starts as `newX`, and the snap distance limit is 1e-9 when `exact`.
+- `useRunStretch`: `commitStretch(runId, side, newEdgeX, { exact = false } = {})` skips `applyRunAlignment` when `exact` (uses `newEdgeX`; still clears the alignment guides) and passes `{ exact }` to `stretchRun`. In `startStretch`'s `onCommit`, `exact` = `(entryRef.current?.typed ?? null) !== null` (read before anything else, as `useJointDrag` does; the ref still holds the entry during commit).
+- `useRunMove`: `applyRunMove(segment, delta, commit, { exact = false } = {})` passes `{ exact }` to `moveRun`. `startRunMove`'s `onCommit` passes `{ exact: (entryRef.current?.typed ?? null) !== null }`. Previews and drag ends don't change.
+
+**Don't touch:** `runJoins.js` / `useJointDrag.js` (joint moves are already exact), `useLiveEntry.js`, `LiveEntryInput.jsx`, `units.js`, the existing tests, drawing new runs / soffits / recesses (their 1/2" rounding is for drawing by mouse).
+
+**NEW `src/elevation/model/__tests__/exactEntry.test.js`**, verbatim:
+
+```js
+import { describe, expect, it } from 'vitest';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { moveRun, stretchRun } from '../room.js';
+
+const S = DEFAULT_SETTINGS;
+const EXACT = { exact: true };
+
+function makeRun(id, overrides = {}) {
+  return {
+    id,
+    cabinetTypeId: CABINET_TYPE_IDS.BASE,
+    x: 40,
+    width: 40,
+    z: 4,
+    height: 30.5,
+    depth: 24,
+    ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+    autoCount: false,
+    maxCabinetWidth: null,
+    items: [{ id: `${id}-cabinet`, kind: 'cabinet', width: overrides.width ?? 40 }],
+    heightMode: 'manual',
+    overrides: {},
+    anchors: { left: false, right: false },
+    ...overrides,
+  };
+}
+
+function makeRoom(runs) {
+  return {
+    id: 'room',
+    name: 'Room',
+    profile: { ...S.defaultProfile },
+    wallOrder: ['A'],
+    walls: [{
+      id: 'A', name: '', numberOverride: null,
+      x1: 0, y1: 0, x2: 120, y2: 0, height: 96, thickness: 4.5, flipped: false,
+      connections: { start: null, end: null }, profile: {}, runs,
+    }],
+  };
+}
+
+const withNeighbor = () => makeRoom([makeRun('run'), makeRun('neighbor', { x: 90, width: 20 })]);
+const runIn = (result, id = 'run') => result.room.walls[0].runs.find((run) => run.id === id);
+const at = (result) => [result.ok, runIn(result).x, runIn(result).width];
+
+describe('SPEC-46.1.1 a typed width or move lands where it is typed', () => {
+  it('stretches to a typed edge with no rounding or snapping, but still clamps and joins on an exact hit', () => {
+    const room = makeRoom([makeRun('run')]);
+    expect(at(stretchRun(room, 'A', 'run', 'left', 3.0625, S))).toEqual([true, 3, 77]);
+    expect(at(stretchRun(room, 'A', 'run', 'left', 3.0625, S, EXACT))).toEqual([true, 3.0625, 76.9375]);
+    const near = stretchRun(room, 'A', 'run', 'left', 1.25, S, EXACT);
+    expect([...at(near), runIn(near).anchors.left]).toEqual([true, 1.25, 78.75, false]);
+    const onEnd = stretchRun(room, 'A', 'run', 'left', 0, S, EXACT);
+    expect([...at(onEnd), runIn(onEnd).anchors.left, runIn(onEnd).ends.left.type]).toEqual([true, 0, 80, true, 'end_panel']);
+    expect(at(stretchRun(room, 'A', 'run', 'right', 42, S, EXACT))).toEqual([true, 40, 9]);
+    expect(at(stretchRun(withNeighbor(), 'A', 'run', 'right', 88.5, S, EXACT))).toEqual([true, 40, 48.5]);
+    const snapped = stretchRun(withNeighbor(), 'A', 'run', 'right', 88.5, S);
+    const typed = stretchRun(withNeighbor(), 'A', 'run', 'right', 90, S, EXACT);
+    expect([at(typed), typed.joined]).toEqual([[true, 40, 50], snapped.joined]);
+  });
+
+  it('moves to a typed x with no rounding or snapping, and reports a snap only on an exact hit', () => {
+    const room = makeRoom([makeRun('run')]);
+    const plain = moveRun(room, 'A', 'run', 60.0625, S, EXACT);
+    expect([...at(plain), plain.snap]).toEqual([true, 60.0625, 40, null]);
+    const nearEnd = moveRun(room, 'A', 'run', 1.5, S, EXACT);
+    expect([...at(nearEnd), nearEnd.snap]).toEqual([true, 1.5, 40, null]);
+    const onEnd = moveRun(room, 'A', 'run', 0, S, EXACT);
+    expect([...at(onEnd), onEnd.snap]).toEqual([true, 0, 40, { value: 0, edge: 'left' }]);
+    const nearNeighbor = moveRun(withNeighbor(), 'A', 'run', 49, S, EXACT);
+    expect([...at(nearNeighbor), nearNeighbor.snap]).toEqual([true, 49, 40, null]);
+  });
+});
+```
+
+What the numbers are: the base run is 40" at x 40 on a 120" wall; min run width 9". Today 3 1/16 rounds to 3, 1 1/4 snaps to the wall end, 88 1/2 snaps to the neighbour at 90, and a move to 1 1/2 or 49 snaps to 0 or 50. Typed, each lands where it's typed; exactly 0 still anchors with an end panel, and exactly 90 joins as the 2" snap does.
+
+**Count:** 1055 + 2 = **1057**. Golden snapshot unchanged.
