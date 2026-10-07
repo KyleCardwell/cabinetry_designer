@@ -168,6 +168,8 @@ export const {
   addDoorStyle,
   updateDoorStyle,
   deleteDoorStyle,
+  setDoorStylePick,
+  setPartStyle,
   setFacePath,
   setSelection,
   clearSelection,

@@ -376,13 +376,15 @@ export function setGridPanelType(grid, leafId, type, thickness) {
   if (!(typeof thickness === 'number' && Number.isFinite(thickness) && thickness > 0)) return grid;
   const leaf = found.cell.node;
   const next = { id: leaf.id, kind: 'panel' };
+  if (leaf.styleId !== undefined) next.styleId = leaf.styleId;
+  if (leaf.sizes !== undefined) next.sizes = leaf.sizes;
   if (type === 'back') {
     next.depth = thickness;
     next.align = 'back';
   }
   if (type !== 'back' && leaf.doors) next.doors = leaf.doors;
   const sameLeaf = Object.is(next.depth, leaf.depth) && next.align === leaf.align
-    && next.doors === leaf.doors;
+    && next.doors === leaf.doors && next.styleId === leaf.styleId && next.sizes === leaf.sizes;
   const withLeaf = sameLeaf ? grid : replaceLeaf(grid, found, next);
   return setGridTrackSize(withLeaf, found.track.id, type === 'back' ? null : thickness);
 }

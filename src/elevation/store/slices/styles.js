@@ -25,6 +25,7 @@ export const styleReducers = {
       if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
       item.face = face === null ? null : structuredClone(face);
     }
+    syncRoomAt(state, location.roomIndex);
   },
   setRoomStyle(state, action) {
     const room = roomFor(state, action.payload.roomId);

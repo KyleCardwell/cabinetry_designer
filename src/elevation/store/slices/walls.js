@@ -191,9 +191,12 @@ export const wallReducers = {
       );
       if (!location || !['start', 'end'].includes(endpoint) || !validPanel) return;
       location.wall.endPanels ??= { start: null, end: null };
+      const stored = location.wall.endPanels[endpoint];
       location.wall.endPanels[endpoint] = panel ? {
         width: panel.width ?? null,
         ...(panel.frame ? { frame: panel.frame } : {}),
+        ...(stored?.styleId !== undefined ? { styleId: stored.styleId } : {}),
+        ...(stored?.sizes !== undefined ? { sizes: stored.sizes } : {}),
       } : null;
       syncRoomAt(state, location.roomIndex);
     },
