@@ -90,7 +90,7 @@ function planFaces(run, settings, pieces, faceLayouts, panels, band, faceBack, f
           start: face.x,
           end: face.x + face.width,
           back,
-          front: back + settings.doorThickness,
+          front: back + (face.thickness ?? settings.doorThickness),
         };
       });
     }

@@ -4,7 +4,9 @@ import { frontDepth } from '../corners.js';
 import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { runDoorThickness } from '../doorStyleResolve.js';
 import { elevationParts } from '../elevationParts.js';
-import { syncRoom } from '../room.js';
+import { resolveWall, syncRoom } from '../room.js';
+import { runScene } from '../runScene.js';
+import { planRunPieces } from '../planPieces.js';
 import { normalizeElevationDocument, toElevationDocument } from '../../store/persistence.js';
 
 const document = normalizeElevationDocument(
@@ -98,5 +100,60 @@ describe('SPEC-46 a run\'s front plane follows its thickest face (P11)', () => {
     const saved = toElevationDocument({ ...document, rooms: [room] });
     expect('_doorThickness' in runOf(saved.rooms[0], BASE)).toBe(false);
     expect(runOf(saved.rooms[0], BASE).doorStyleId).toBe('ds-thick');
+  });
+});
+
+describe('SPEC-46 each face at its own thickness: backs line up, fronts move', () => {
+  const G1_BASE_FACES = [
+    `${CAB_24}:r`, `${CAB_36}:rleft`, `${CAB_36}:rright`,
+    '0624c9d5-b951-4191-95f2-1562a6b32343:rleft', '0624c9d5-b951-4191-95f2-1562a6b32343:rright',
+    'e3bfb331-0a5d-4cf2-aaba-929c53ca8c54:rleft', 'e3bfb331-0a5d-4cf2-aaba-929c53ca8c54:rright',
+  ];
+  const faces = (room, runId) => elevationParts(room, room.walls[0], 'front', settings)
+    .filter((part) => part.kind === 'face' && part.runId === runId)
+    .map(({ id, back, front }) => [id, back, front]);
+  const fillerFront = (room) => elevationParts(room, room.walls[0], 'front', settings)
+    .find((part) => part.id === `${BASE}:right`).front;
+
+  it('draws every face of a thicker run 1" thick off the same back (G1)', () => {
+    const room = styled((r) => { runOf(r, BASE).doorStyleId = 'ds-thick'; });
+    expect(faces(room, BASE)).toEqual(G1_BASE_FACES.map((id) => [id, 24.0625, 25.0625]));
+  });
+
+  it('draws only the thicker cabinet\'s face out front; the filler follows the thickest', () => {
+    const room = styled((r) => { leafOf(runOf(r, BASE), CAB_24).doorStyleId = 'ds-thick'; });
+    expect(faces(room, BASE)).toEqual(G1_BASE_FACES.map((id) => [id, 24.0625, id === `${CAB_24}:r` ? 25.0625 : 24.875]));
+    expect(fillerFront(room)).toBe(25.0625);
+  });
+
+  it('lets one face pick a thinner style; the run\'s front stays at the thickest', () => {
+    const room = styled((r) => {
+      leafOf(runOf(r, BASE), CAB_36).face = { type: 'pair_door', size: null, styleId: 'ds-thin' };
+    });
+    expect(faces(room, BASE)).toEqual(G1_BASE_FACES.map((id) => [id, 24.0625, id.startsWith(CAB_36) ? 24.8125 : 24.875]));
+    expect(fillerFront(room)).toBe(24.875);
+  });
+
+  it('sinks a thicker inset door into the frame: face flush with the frame, back deeper (G2)', () => {
+    const room = styled((r) => { runOf(r, FF_BASE).doorStyleId = 'ds-thick'; }, 'G2 Face frame kitchen');
+    expect(faces(room, FF_BASE)).toEqual([
+      'b736ca24-6df8-41d5-88bc-416dbd85eab3:rleft', 'b736ca24-6df8-41d5-88bc-416dbd85eab3:rright',
+      '50803545-180e-4af0-b612-1a8922d48d09:rleft', '50803545-180e-4af0-b612-1a8922d48d09:rright',
+    ].map((id) => [id, 23.8125, 24.8125]));
+    const frame = elevationParts(room, room.walls[0], 'front', settings)
+      .find((part) => part.id === 'frame:b736ca24-6df8-41d5-88bc-416dbd85eab3');
+    expect([frame.back, frame.front]).toEqual([24, 24.8125]);
+  });
+
+  it('draws plan faces at their own thickness too (G1)', () => {
+    const room = styled((r) => { leafOf(runOf(r, BASE), CAB_24).doorStyleId = 'ds-thick'; });
+    const view = resolveWall(room, room.walls[0], 'front');
+    const run = view.runs.find((candidate) => candidate.id === BASE);
+    const scene = runScene(room, view, run, settings);
+    const plan = planRunPieces(room, view, run, settings, scene.result, scene.faceLayouts);
+    const at = (key) => plan.faces.find((entry) => entry.key === key);
+    expect([at(`${CAB_24}:r`).back, at(`${CAB_24}:r`).front]).toEqual([24.0625, 25.0625]);
+    expect([at(`${CAB_36}:rleft`).back, at(`${CAB_36}:rleft`).front]).toEqual([24.0625, 24.875]);
+    expect(at(`${BASE}:right`).front).toBe(25.0625);
   });
 });

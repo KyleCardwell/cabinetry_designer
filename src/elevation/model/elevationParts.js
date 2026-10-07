@@ -124,10 +124,11 @@ export function elevationParts(room, wall, side, settings) {
       const frame = scene.frames.regions.find((region) => region.cabinetIds.includes(pieceId));
       for (const face of layout.faces) {
         if (face.type === 'open') continue;
+        const thickness = face.thickness ?? settings.doorThickness;
         const back = frame
-          ? faces.get(frame.id).front - settings.doorThickness
+          ? faces.get(frame.id).front - thickness
           : boxes.get(pieceId).front + settings.bumperThickness;
-        const front = frame ? faces.get(frame.id).front : back + settings.doorThickness;
+        const front = frame ? faces.get(frame.id).front : back + thickness;
         emit({
           id: `${pieceId}:${face.path}${face.half ?? ''}`,
           kind: 'face',

@@ -2,7 +2,10 @@ import { captureSides } from './capture.js';
 import { cellCaptureSides, cellPieces, coveredSides, gapReach, hingeStops, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
+import { cabinetFaceLevels, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
+import { teamDoorStyle } from './doorStyles.js';
 import { applyHinges, cabinetFaces, defaultFace, faceArea } from './faces.js';
+import { getFaceNode } from './faceTree.js';
 import { faceOpenings, frameRegions } from './frames.js';
 import { runItems } from './grid.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
@@ -89,8 +92,20 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
     });
     const resolved = cabinetFaces(item, box, run.cabinetTypeId, settings, reveals.values);
     const hinged = applyHinges(resolved.faces, hingeStops(cells.pieces, piece.id), covered);
+    const faces = hinged.faces.map((f) => {
+      const partType = facePartType(f.type);
+      if (partType === null) return f;
+      const { style: doorStyle } = resolveDoorStyle(
+        room, settings, partType,
+        cabinetFaceLevels(room, wall, run, item, getFaceNode(face, f.path)),
+      );
+      const { thickness } = doorStyle;
+      return Math.abs(thickness - teamDoorStyle(settings).thickness) > 1e-9
+        ? { ...f, thickness }
+        : f;
+    });
     result.set(piece.id, {
-      faces: hinged.faces,
+      faces,
       warnings: [
         ...resolved.warnings,
         ...hinged.warnings,
