@@ -29,6 +29,8 @@ Suggested format:
   - Notes:
     - Joined runs: `syncRoom` rebuilds a joined run's auto end as `{ type, width, auto }`, dropping a `styleId` / `sizes` picked on that end (roomSync.js, auto-end rebuild).
     - Blind end panels aren't sized by their panel style yet (blind rules still decide).
+    - Sheet slab defaults (SPEC-46.1.1): joined run ends and panel cells default to 3/4" sheet slab; a panel below a run and a blind panel that cabinets die into should default to sheet slab too.
+    - Tall bottom rail (Kyle, 2026-10-07): a door-matching panel that cabinets die into (e.g. an alcove side panel to the floor with bases against it) gets a bottom rail as tall as the cabinets (e.g. 42") so they die into the flat rail and the paneled part is above them. Today it's typed in the Stiles & rails block; make it automatic from the die-in cabinets' height.
     - Existing panel cells keep their stored size; only new cells and kind/type changes pick up the style's thickness. Consider re-sizing panel cells when their style (or the style's thickness) changes.
     - 46.3: fold both `settings.doorThickness` and `settings.endPanelThickness` into the team default style (today the team default panel thickness is the End panel thickness setting).
     - Reports: note a face frame end stile widened by a mitered end panel (e.g. "1 9/16" — mitered to 13/16" end panel").

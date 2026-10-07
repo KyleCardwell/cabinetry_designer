@@ -1,20 +1,22 @@
-# Round 46.1.1 — SPEC: "Team default" picks, panels at their style's thickness
+# Round 46.1.1 — SPEC: "Team default" picks, sheet slab panels, panels at their style's thickness
 
-Steps 396–399, designer only, on branch `elevation-doors` (after step 395). Geometry and the API don't change.
-Follows Kyle's testing of 46.1 (2026-10-07): the Drawer fronts / Panels pickers said "Inherit (Std …)" while they were really following the room's Doors pick, there was no way to choose the team default on purpose, and end panels didn't change with a 1" style.
+Steps 396–400, designer only, on branch `elevation-doors` (after step 395). Geometry and the API don't change.
+Follows Kyle's testing of 46.1 (2026-10-07): the Drawer fronts / Panels pickers said "Inherit (Std …)" while they were really following the room's Doors pick, there was no way to choose the team default on purpose, and end panels didn't change with a 1" style. **Revised after step 396 ran** (Kyle, 2026-10-07): there are two kinds of end panel, door-matching and sheet slab, so steps 397–400 replace the earlier 397–399.
 
 **Done when:**
-- Drawer fronts and Panels pickers read **Same as doors (B · 5PC · 1")** when they follow the doors, counting the Doors pick on the same level.
-- Every picker (Doors, Drawer fronts, Panels, and a part's own picker) offers **Team default (…)**, saved as `'default'`; deleting a used style can move its uses to the team default.
-- End panels, wall end panels and new panel cells are their panel style's thickness (Same as doors by default) unless a width is typed. A face frame end stile over a 13/16" end panel comes out 1/16" wider by itself; the boxes take up the difference.
+- Drawer fronts and Panels pickers read **Same as doors (B · 5PC · 1")** when they follow the doors, counting the Doors pick on the same level. ✅ 396
+- Every picker offers **Team default (…)**, saved as `'default'`; deleting a used style can move its uses to the team default. ✅ 396
+- Panels pickers and panel parts also offer **Sheet slab (3/4")**, saved as `'sheet'`. A run end panel at a join (joined or following run) and every panel cell default to sheet slab; free run ends and wall end panels follow the Panels / Doors picks.
+- End panels, wall end panels and new panel cells are their style's thickness unless a width is typed. A face frame end stile over a 13/16" end panel comes out 1/16" wider by itself; the boxes take up the difference.
 - With no styles in a room, every number is what it is today.
 
 | Step | Repo | What | Tests after |
 |---|---|---|---|
-| **396** | designer | "Team default" pick; picker labels say "Same as doors" | 1037 → **1040** |
-| **397** | designer | Run end panels and wall end panels at their style's thickness | **1047** |
-| **398** | designer | New and converted panel cells at their style's thickness | **1050** |
-| **399** | designer | UI: pickers pass their level, Team default in delete, width placeholders | 1050 |
+| **396** ✅ | designer | "Team default" pick; picker labels say "Same as doors" | 1040 |
+| **397** | designer | "Sheet slab" pick; joined ends and panel cells default to it | **1043** |
+| **398** | designer | Run end panels and wall end panels at their style's thickness | **1050** |
+| **399** | designer | New and converted panel cells at their style's thickness | **1053** |
+| **400** | designer | UI: pickers pass their level and spot, Team default in delete, width placeholders | 1053 |
 
 Codex writes the code (PROMPT-CONVENTIONS rule 10). No throwaway build was made for this SPEC. Today's values in the tests come from running the existing code read-only on the golden rooms; the new values are worked out from the rules here. If a test fails, fix the code, not the number, unless the number contradicts a rule here; then stop and say what you got. Values marked ⚠ are the ones to report rather than change.
 
@@ -22,18 +24,20 @@ Codex writes the code (PROMPT-CONVENTIONS rule 10). No throwaway build was made 
 
 ## §1 Decisions (Kyle, 2026-10-07, unless marked)
 
-- **Drawer fronts and panels still follow the doors** when nothing picks them (P12, P15 unchanged). The picker's blank option says so: *Same as doors (…)* when the style comes from a Doors pick or from the team (nothing picked anywhere), *Inherit (…)* when a Drawer-fronts / Panels pick above supplies it. The label now counts this level's own Doors pick (the room's Drawer fronts picker sees the room's Doors pick).
-- **"Team default" is a pick**, stored as the reserved id `'default'` (already refused as a room style id). It resolves to `teamDoorStyle(settings)` with the level and key it was picked at, at any level and on any part, and stops the walk like any other pick. A missing-style warning never fires for it.
-- **Panels are as thick as their style** (panel chain, then the door chain). A typed width always wins.
-- **Interim team panel thickness (Claude's default).** When a panel resolves to the team default style (nothing picked, or Team default picked), it's `settings.endPanelThickness`, not `settings.doorThickness`. Every saved room and golden room stays as it is; Kyle sets **Settings → End panel thickness** to 13/16" to get 13/16" panels everywhere now. 46.3 folds both settings into the team default style. Pickers show 3/4" (or whatever the setting is) for the team default on the Panels picker.
-- **The drawn run width wins.** Thicker end panels make the boxes narrower; nothing grows the run or rounds the boxes. Face frame end stiles over a mitered end panel follow the panel's thickness on their own (beaded 1 3/4" → 1 13/16", inset 1 1/2" → 1 9/16"). Odd automatic box sizes are a TODO (`TODO.md`, idea inbox: "Odd box sizes from end panel thickness").
-- **Derived, never saved:** `run._endThickness = { left?, right? }` and `wall._endPanelThickness = { start?, end? }`, only for sides whose thickness differs from `settings.endPanelThickness`; computed in the first `syncRoom` pass, for each side whatever its end type (joined runs rebuild auto ends later in the same pass).
-- **Panel cells** get the style's thickness when they're made (add panel, wrap, kind → panel) or their panel type changes. An existing panel cell keeps its size until then (its size is a stored track size).
-- **Not in 46.1.1:** blind end panels (sized by the blind rules), the shelves back panel, `splitRun.js` line 319 (end panel piece depth), rounding or warning on box sizes (TODO), the face frame stile note on reports (reports round).
+- **Drawer fronts and panels still follow the doors** when nothing picks them (P12, P15 unchanged). The picker's blank option says so: *Same as doors (…)* when the style comes from a Doors pick or from the team (nothing picked anywhere), *Inherit (…)* when a Drawer-fronts / Panels pick above supplies it. The label counts this level's own Doors pick.
+- **"Team default" is a pick**, stored as the reserved id `'default'`, resolving to `teamDoorStyle(settings)` at the level it was picked.
+- **Two kinds of end panel.** *Door-matching* panels are built like the doors: a door style, its thickness (13/16" usually). *Sheet slab* panels are cut from sheet material: no stiles/rails, 3/4" (almost always; a typed width covers the rest until materials exist). Sheet slab is the reserved pick `'sheet'`, a style `sheetPanelStyle()` = the team default with `id: 'sheet'`, `label: 'Sheet'`, `name: 'Sheet slab'`, `designId: 'slab'`, `thickness: SHEET_PANEL_THICKNESS` (0.75, interim until materials). It can be picked on the **Panels** key at any level and on any panel part (run end, wall end panel, panel cell), never on Doors or Drawer fronts.
+- **Where sheet slab is the default** ("the spot"): a run end panel whose end is joined to another run (a joint or follow anchor on that side — two runs with end panels at the join, or a run that dies into another), and every panel cell (panels inside a run: sides, tops, backs). There, sheet slab wins over the room / wall / run Panels and Doors picks; only the part's own pick changes it. Free run ends and wall end panels (e.g. alcove side panels) follow Panels, then Doors. *(Claude's reading of Kyle's rules; a panel under a run and a blind panel aren't covered yet — see Not in 46.1.1.)*
+- **Panels are as thick as their style.** A typed width always wins.
+- **Interim team panel thickness (Claude's default).** A door-matching panel that resolves to the team default style (nothing picked, or Team default picked) uses `settings.endPanelThickness`, so saved rooms and golden rooms stay as they are. Kyle sets **Settings → End panel thickness** to 13/16"; sheet slab panels stay 3/4" either way. 46.3 folds both settings into the team default style.
+- **The drawn run width wins.** Thicker end panels make the boxes narrower; nothing grows the run. Face frame end stiles over a mitered end panel follow its thickness (beaded 1 3/4" → 1 13/16", inset 1 1/2" → 1 9/16"). Odd automatic box sizes are a TODO.
+- **Derived, never saved:** `run._endThickness = { left?, right? }` and `wall._endPanelThickness = { start?, end? }`, only for sides that differ from `settings.endPanelThickness`, computed in the first `syncRoom` pass for each side whatever its end type.
+- **Panel cells** get their thickness when they're made (add panel, wrap, kind → panel) or their panel type changes; an existing panel cell keeps its stored size until then.
+- **Not in 46.1.1 (in `TODO.md`):** a door-matching panel that cabinets die into getting a tall bottom rail automatically (e.g. 42" so bases die into the flat rail; type it in the Stiles & rails block for now); a panel below a run and a blind panel defaulting to sheet slab; blind end panels sized by style; the shelves back panel; rounding or warning on box sizes; the face frame stile note on reports.
 
 ---
 
-## §2 Step 396 — "Team default" pick; "Same as doors"
+## §2 Step 396 — "Team default" pick; "Same as doors" ✅ (committed)
 
 **Files:**
 
@@ -147,19 +151,126 @@ describe('SPEC-46.1.1 picking the team default on purpose', () => {
 
 What the numbers are: the room picks T (1") for doors, but the cabinet picks the team default, so its only door is 13/16" and the run has no `_doorThickness`. Panels' team default reads 3/4" because `DEFAULT_SETTINGS.endPanelThickness` is 3/4".
 
-**Don't touch:** `DoorStylePicks.jsx`, `PartStyleFields.jsx`, `RoomDoorStylesPanel.jsx` (step 399), `persistence.js` (`'default'` already passes `isStyleRef`).
+**Don't touch:** `DoorStylePicks.jsx`, `PartStyleFields.jsx`, `RoomDoorStylesPanel.jsx` (step 400), `persistence.js` (`'default'` already passes `isStyleRef`).
 
 **Count:** 1037 − 1 + 2 + 2 = **1040**.
 
 ---
 
-## §3 Step 397 — run end panels and wall end panels at their style's thickness
+## §3 Step 397 — "Sheet slab" pick; the default at a join and inside a run
 
 **Files:**
 
 | File | Lines | Change |
 |---|---:|---|
-| NEW `src/elevation/model/panelThickness.js` | — | `panelThickness`, `runEndThickness`, `wallPanelThickness` |
+| `src/elevation/model/doorStyles.js` | ~160 | `SHEET_PANEL_THICKNESS`, `sheetPanelStyle`; `'sheet'` reserved |
+| `src/elevation/model/doorStyleResolve.js` | ~105 | a `'sheet'` pick on a panel; `panelLevels(…, { sheet })` |
+| `src/elevation/model/doorStyleEdits.js` | ~180 | panel pickers offer Sheet slab; "Sheet slab here" label |
+| `src/elevation/store/slices/doorStyles.js` | ~130 | `'sheet'` valid on Panels picks and panel parts only |
+| `src/elevation/model/__tests__/partStyleEdits.test.js` | ~170 | one expectation (below) |
+| NEW `src/elevation/model/__tests__/sheetPanel.test.js` | — | 3 tests, verbatim |
+
+**Contract.**
+- `doorStyles.js`: export `SHEET_PANEL_THICKNESS = 0.75` (doc: interim sheet material thickness until materials, SPEC-46.1.1) and `sheetPanelStyle()` → `{ ...DEFAULT_DOOR_STYLE, id: 'sheet', label: 'Sheet', name: 'Sheet slab', designId: 'slab', thickness: SHEET_PANEL_THICKNESS }` (a fresh object). `isDoorStyleList` also refuses the id `'sheet'`.
+- `doorStyleResolve.js`:
+  - In `pick()`, an id of `'sheet'`: when `partType === 'panel'` it sets `style = sheetPanelStyle()`, `source = { level, key }` and returns true; otherwise it's treated like a missing style (`door-style-missing` warning, walk goes on).
+  - `panelLevels(room, wall, run, part, { sheet = false } = {})`: when `sheet`, a `{ level: 'spot', node: { panelStyleId: 'sheet' } }` level goes right after the part's level (before run / wall / room), so sheet slab beats every Panels and Doors pick above it and only the part's own `styleId` beats it.
+- `doorStyleEdits.js` `pickOptions`: for `partType === 'panel'`, `options` are Team default, then `{ id: 'sheet', text: `Sheet slab (${formatInches(SHEET_PANEL_THICKNESS)})` }`, then the room's styles. The inherit text is `` `Sheet slab here (${formatInches(SHEET_PANEL_THICKNESS)})` `` when `source.level === 'spot'`; a sheet style reached any other way uses the normal row (`Sheet · Slab · 3/4"`) and prefix.
+- Store (`slices/doorStyles.js`): `'sheet'` is valid for `setDoorStylePick` only when `key === 'panelStyleId'`, and for every `setPartStyle` part (all are panels). It is not a `deleteDoorStyle` reassign target.
+
+**Edit `partStyleEdits.test.js`**: in the `'shows drawer fronts and panels following the doors…'` test, the last expectation's options become
+
+```js
+      options: [{ id: 'default', text: 'Team default (Std · 5PC · 3/4")' }, { id: 'sheet', text: 'Sheet slab (3/4")' }],
+```
+
+Nothing else in the file changes.
+
+**NEW `src/elevation/model/__tests__/sheetPanel.test.js`**, verbatim:
+
+```js
+import { describe, expect, it } from 'vitest';
+import { DEFAULT_SETTINGS } from '../constants.js';
+import { DEFAULT_DOOR_STYLE, SHEET_PANEL_THICKNESS, isDoorStyleList, sheetPanelStyle } from '../doorStyles.js';
+import { pickOptions } from '../doorStyleEdits.js';
+import { panelLevels, resolveDoorStyle } from '../doorStyleResolve.js';
+import elevationReducer, { setDoorStylePick, setPartStyle } from '../../store/elevationSlice.js';
+import { auto, currentRun, run, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
+
+const S = DEFAULT_SETTINGS;
+const P = { ...DEFAULT_DOOR_STYLE, id: 'ds-p', label: 'P' };
+const T = { ...DEFAULT_DOOR_STYLE, id: 'ds-t', label: 'T', thickness: 1 };
+const SHEET = { ...DEFAULT_DOOR_STYLE, id: 'sheet', label: 'Sheet', name: 'Sheet slab', designId: 'slab', thickness: 0.75 };
+
+describe('SPEC-46.1.1 sheet slab panels', () => {
+  it('is a reserved panel style, and the default at a join or inside a run', () => {
+    expect([sheetPanelStyle(), SHEET_PANEL_THICKNESS]).toEqual([SHEET, 0.75]);
+    expect(isDoorStyleList([{ ...P, id: 'sheet' }])).toBe(false);
+    const room = { doorStyles: [P, T], doorStyleId: 'ds-t', panelStyleId: 'ds-p' };
+    const runNode = { doorStyleId: 'ds-t' };
+    const at = (part, options) => {
+      const { style, design, source } = resolveDoorStyle(room, S, 'panel', panelLevels(room, null, runNode, part, options));
+      return [style.id, design.id, source];
+    };
+    expect(at(null)).toEqual(['ds-p', 'five-piece-square', { level: 'room', key: 'panelStyleId' }]);
+    expect(at(null, { sheet: true })).toEqual(['sheet', 'slab', { level: 'spot', key: 'panelStyleId' }]);
+    expect(at({ styleId: 'ds-t' }, { sheet: true })[0]).toBe('ds-t');
+    expect(at({ styleId: 'sheet' })[0]).toBe('sheet');
+    const door = resolveDoorStyle(room, S, 'door', [
+      { level: 'run', node: { doorStyleId: 'sheet' } }, { level: 'room', node: room },
+    ]);
+    expect([door.style.id, door.warnings]).toEqual(['ds-t', [{ code: 'door-style-missing', level: 'run', id: 'sheet' }]]);
+  });
+
+  it('is offered on panel pickers, and says when it is this spot\'s default', () => {
+    const room = { doorStyles: [P] };
+    expect([
+      pickOptions(room, S, 'panel', []).options.map(({ id }) => id),
+      pickOptions(room, S, 'door', []).options.map(({ id }) => id),
+      pickOptions(room, S, 'drawer_front', []).options.map(({ id }) => id),
+    ]).toEqual([['default', 'sheet', 'ds-p'], ['default', 'ds-p'], ['default', 'ds-p']]);
+    expect(pickOptions(room, S, 'panel', []).options[1]).toEqual({ id: 'sheet', text: 'Sheet slab (3/4")' });
+    const levels = panelLevels(room, null, {}, {}, { sheet: true });
+    expect(pickOptions(room, S, 'panel', levels.slice(1)).inherit).toEqual({ id: 'sheet', text: 'Sheet slab here (3/4")' });
+    const sheetRoom = { ...room, panelStyleId: 'sheet' };
+    expect(pickOptions(sheetRoom, S, 'panel', [{ level: 'room', node: sheetRoom }]).inherit)
+      .toEqual({ id: 'sheet', text: 'Inherit (Sheet · Slab · 3/4")' });
+  });
+
+  it('is stored only on Panels picks and panel parts', () => {
+    const state = stateWithRun(run({
+      autoCount: false,
+      ends: { left: { type: 'end_panel', width: null }, right: { type: 'filler', width: null } },
+      items: [auto('c1')],
+    }));
+    state.rooms[0].doorStyles = [P];
+    const at = { wallId: 'wall-1', runId: 'run-1' };
+    const next = [
+      setDoorStylePick({ level: 'room', key: 'panelStyleId', styleId: 'sheet' }),
+      setPartStyle({ ...at, part: 'runEnd', side: 'left', styleId: 'sheet' }),
+    ].reduce(elevationReducer, state);
+    expect([next.rooms[0].panelStyleId, currentRun(next).ends.left.styleId]).toEqual(['sheet', 'sheet']);
+    expect([
+      setDoorStylePick({ level: 'room', key: 'doorStyleId', styleId: 'sheet' }),
+      setDoorStylePick({ level: 'room', key: 'drawerFrontStyleId', styleId: 'sheet' }),
+    ].map((action) => elevationReducer(next, action) === next)).toEqual([true, true]);
+  });
+});
+```
+
+**Don't touch:** `persistence.js` (`'sheet'` passes `isStyleRef`), the UI, `panelThickness` (step 398).
+
+**Count:** 1040 + 3 = **1043**.
+
+---
+
+## §4 Step 398 — run end panels and wall end panels at their style's thickness
+
+**Files:**
+
+| File | Lines | Change |
+|---|---:|---|
+| NEW `src/elevation/model/panelThickness.js` | — | `isJoinedEnd`, `panelThickness`, `runEndThickness`, `wallPanelThickness` |
 | `src/elevation/model/roomSync.js` | 403 | `withEndThickness`, `withWallPanelThickness` in the first pass |
 | `src/elevation/model/splitRun.js` | 622 | `endWidth` takes the derived thickness (lines 73–74, 90, 269, 347) |
 | `src/elevation/model/runPins.js` | 145 | `storedEndMinimum` the same (lines 40–41, 125, 127) |
@@ -167,13 +278,14 @@ What the numbers are: the room picks T (1") for doors, but the cabinet picks the
 | `src/elevation/model/wallSides.js` | 53 | `wallEndPanelAt` line 40 |
 | `src/elevation/model/wallEndPanels.js` | 182 | `wallEndPanels` line 83 |
 | `src/elevation/store/persistence.js` | 718 | `toElevationDocument` strips `_endThickness` (runs) and `_endPanelThickness` (walls) |
-| NEW `src/elevation/model/__tests__/panelThickness.test.js` | — | 7 tests, verbatim |
+| NEW `src/elevation/model/__tests__/panelThickness.test.js` | — | 8 tests, verbatim |
 
 **Contract.**
-- `panelThickness.js` (imports `panelLevels`, `resolveDoorStyle` from `./doorStyleResolve.js`):
-  - `panelThickness(room, wall, run, part, settings)` → `resolveDoorStyle(room, settings, 'panel', panelLevels(room, wall, run, part)).style`; its `thickness`, except `settings.endPanelThickness` when the style's id is `'default'`. Doc comment: interim team panel thickness until 46.3 (SPEC-46.1.1).
-  - `runEndThickness(room, wall, run, settings)` → `{ left, right }`, each `panelThickness(room, wall, run, run.ends?.[side] ?? null, settings)`.
-  - `wallPanelThickness(room, wall, settings)` → `{ start, end }`, each `panelThickness(room, wall, null, panel, settings)` for a non-null `wall.endPanels?.[endpoint]`, else `null`.
+- `panelThickness.js` (imports `panelLevels`, `resolveDoorStyle` from `./doorStyleResolve.js`; `isJointAnchor`, `isFollowAnchor` from `./joints.js`; check there's no import cycle):
+  - `isJoinedEnd(run, side)` → `isJointAnchor(run.anchors?.[side]) || isFollowAnchor(run.anchors?.[side])`.
+  - `panelThickness(room, wall, run, part, settings, { sheet = false } = {})` → the style from `resolveDoorStyle(room, settings, 'panel', panelLevels(room, wall, run, part, { sheet }))`: `settings.endPanelThickness` when its id is `'default'`, else its `thickness` (the sheet style's is 3/4"). Doc comment: interim team panel thickness until 46.3 (SPEC-46.1.1).
+  - `runEndThickness(room, wall, run, settings)` → `{ left, right }`, each `panelThickness(room, wall, run, run.ends?.[side] ?? null, settings, { sheet: isJoinedEnd(run, side) })`.
+  - `wallPanelThickness(room, wall, settings)` → `{ start, end }`, each `panelThickness(room, wall, null, panel, settings)` for a non-null `wall.endPanels?.[endpoint]` (wall end panels are never "the spot"), else `null`.
 - `roomSync.js`, following `withDoorThickness` (line 96):
   - `withEndThickness(room, wall, run, settings)`: keep each side of `runEndThickness` that differs from `settings.endPanelThickness` by more than 1e-9; none → remove `_endThickness` (same run when it has none); else set it (same run when equal by `JSON.stringify`).
   - `withWallPanelThickness(room, wall, settings)`: the same with `wallPanelThickness` (skip `null`) and `_endPanelThickness`.
@@ -195,6 +307,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { elevationParts } from '../elevationParts.js';
 import { layoutRun } from '../faceLayouts.js';
+import { isJoinedEnd } from '../panelThickness.js';
 import { syncRoom } from '../room.js';
 import { wallEndPanels } from '../wallEndPanels.js';
 import { normalizeElevationDocument, toElevationDocument } from '../../store/persistence.js';
@@ -217,8 +330,9 @@ const G2_PANEL_RUN = '4b49c071-463c-461e-b750-005d3fe8bec7';
 
 const wallOf = (room, runId) => room.walls.find((wall) => wall.runs.some((run) => run.id === runId));
 const runOf = (room, runId) => wallOf(room, runId).runs.find((run) => run.id === runId);
-const pieces = (room, runId) => layoutRun(room, wallOf(room, runId), runOf(room, runId), settings).pieces
+const pieces = (room, runId, s = settings) => layoutRun(room, wallOf(room, runId), runOf(room, runId), s).pieces
   .map(({ id, x, width }) => [id, x, width]);
+const widths = (room, runId, s) => pieces(room, runId, s).map(([, , width]) => width);
 
 /** A golden room with P (13/16") and T (1") listed, after `edit` picks where they're used, synced. */
 function styled(name, edit) {
@@ -228,45 +342,59 @@ function styled(name, edit) {
   return syncRoom(room, settings);
 }
 
-describe('SPEC-46.1.1 end panels at their panel style\'s thickness', () => {
-  it('leaves a room with no styles as it was (G1 tall: 3/4" panels, 28 1/2" box)', () => {
+describe('SPEC-46.1.1 end panels at their style\'s thickness', () => {
+  it('leaves a room with no styles as it was (G1 tall: free left end, joined right end, 3/4" panels)', () => {
     const room = syncRoom(stored('G1 Euro kitchen'), settings);
-    expect('_endThickness' in runOf(room, G1_TALL)).toBe(false);
+    const tall = runOf(room, G1_TALL);
+    expect([isJoinedEnd(tall, 'left'), isJoinedEnd(tall, 'right'), '_endThickness' in tall]).toEqual([false, true, false]);
     expect(pieces(room, G1_TALL)).toEqual([
       [`${G1_TALL}:left`, 0, 0.75], [G1_CAB, 0.75, 28.5], [`${G1_TALL}:right`, 29.25, 0.75],
     ]);
   });
 
-  it('makes both end panels 13/16" with a 13/16" panel style; the box takes up the difference', () => {
+  it('makes the free end panel the room\'s Panels style; the joined one stays sheet slab', () => {
     const room = styled('G1 Euro kitchen', (r) => { r.panelStyleId = 'ds-p'; });
-    expect(runOf(room, G1_TALL)._endThickness).toEqual({ left: 0.8125, right: 0.8125 });
+    expect(runOf(room, G1_TALL)._endThickness).toEqual({ left: 0.8125 });
     expect(pieces(room, G1_TALL)).toEqual([
-      [`${G1_TALL}:left`, 0, 0.8125], [G1_CAB, 0.8125, 28.375], [`${G1_TALL}:right`, 29.1875, 0.8125],
+      [`${G1_TALL}:left`, 0, 0.8125], [G1_CAB, 0.8125, 28.4375], [`${G1_TALL}:right`, 29.25, 0.75],
     ]);
   });
 
   it('follows the doors when no panel style is picked', () => {
     const room = styled('G1 Euro kitchen', (r) => { r.doorStyleId = 'ds-t'; });
-    expect([runOf(room, G1_TALL)._endThickness, runOf(room, G1_TALL)._doorThickness])
-      .toEqual([{ left: 1, right: 1 }, 1]);
-    expect(pieces(room, G1_TALL).map(([, , width]) => width)).toEqual([1, 28, 1]);
+    expect([runOf(room, G1_TALL)._endThickness, runOf(room, G1_TALL)._doorThickness]).toEqual([{ left: 1 }, 1]);
+    expect(widths(room, G1_TALL)).toEqual([1, 28.25, 0.75]);
   });
 
-  it('keeps a typed width, the setting for the team default, and an end\'s own style', () => {
+  it('keeps a typed width and the setting for the team default; an end\'s own style beats the sheet default', () => {
     const typed = styled('G1 Euro kitchen', (r) => {
       r.panelStyleId = 'ds-p';
       runOf(r, G1_TALL).ends.left.width = 0.75;
     });
-    expect(pieces(typed, G1_TALL).map(([, , width]) => width)).toEqual([0.75, 28.4375, 0.8125]);
+    expect(widths(typed, G1_TALL)).toEqual([0.75, 28.5, 0.75]);
     const team = styled('G1 Euro kitchen', (r) => { r.doorStyleId = 'ds-t'; r.panelStyleId = 'default'; });
     expect('_endThickness' in runOf(team, G1_TALL)).toBe(false);
-    const own = styled('G1 Euro kitchen', (r) => { runOf(r, G1_TALL).ends.left.styleId = 'ds-t'; });
-    expect([runOf(own, G1_TALL)._endThickness, pieces(own, G1_TALL).map(([, , width]) => width)])
-      .toEqual([{ left: 1 }, [1, 28.25, 0.75]]);
+    const own = styled('G1 Euro kitchen', (r) => {
+      runOf(r, G1_TALL).ends.left.styleId = 'ds-t';
+      runOf(r, G1_TALL).ends.right.styleId = 'ds-p';
+    });
+    expect([runOf(own, G1_TALL)._endThickness, widths(own, G1_TALL)])
+      .toEqual([{ left: 1, right: 0.8125 }, [1, 28.1875, 0.8125]]);
+  });
+
+  it('keeps a joined end 3/4" sheet slab when End panel thickness is set to 13/16"', () => {
+    const s = { ...settings, endPanelThickness: 0.8125 };
+    const room = syncRoom(stored('G1 Euro kitchen'), s);
+    expect(runOf(room, G1_TALL)._endThickness).toEqual({ right: 0.75 });
+    expect(widths(room, G1_TALL, s)).toEqual([0.8125, 28.4375, 0.75]);
   });
 
   it('widens a beaded face frame\'s end stiles by the extra 1/16" (G2 tall)', () => {
-    const room = styled('G2 Face frame kitchen', (r) => { r.panelStyleId = 'ds-p'; });
+    const room = styled('G2 Face frame kitchen', (r) => {
+      r.panelStyleId = 'ds-p';
+      runOf(r, G2_TALL).ends.right.styleId = 'ds-p';
+    });
+    expect(runOf(room, G2_TALL)._endThickness).toEqual({ left: 0.8125, right: 0.8125 });
     expect(pieces(room, G2_TALL)).toEqual([
       [`${G2_TALL}:left`, 50, 0.8125], [G2_CAB, 51.0625, 24.375], [`${G2_TALL}:right`, 75.6875, 0.8125],
     ]);
@@ -301,13 +429,13 @@ describe('SPEC-46.1.1 end panels at their panel style\'s thickness', () => {
 });
 ```
 
-What the numbers are: today G1's tall run is 30" wide with 3/4" end panels and one 28 1/2" box; G2's beaded tall run is 26 1/2" with 3/4" panels, a 1/4" bead gap each side, a 24 1/2" box at 51, and faces at 51 3/4 (1 3/4" stile) and 63 1/4, 11 1/2" wide. A 13/16" panel takes 1/16" more at each end: G1's box 28 3/8" at 13/16; G2's box 24 3/8" at 51 1/16, the left face 1/16" further in (1 13/16" stile) and each leaf 1/16" narrower, so the right leaf still starts at 63 1/4. With 1" panels G1's box is 28". One end typed at 3/4" with the other at 13/16" leaves 28 7/16"; a 1" left end with a 3/4" right one leaves 28 1/4". ⚠ If G2's frame part or faces come out other than above, report it rather than change the test.
+What the numbers are: G1's tall run is 30" wide; its left end is free, its right end is joined to the base run (a joint anchor), and today both panels are 3/4" around a 28 1/2" box. A 13/16" left panel with the right one staying 3/4" sheet slab leaves 28 7/16"; a 1" left one 28 1/4"; 1" and 13/16" leave 28 3/16". G2's beaded tall run is 26 1/2" with 3/4" panels, a 1/4" bead gap each side, a 24 1/2" box at 51 and faces at 51 3/4 (1 3/4" stile) and 63 1/4, 11 1/2" wide; with both panels 13/16" (the joined right end by its own pick) the box is 24 3/8" at 51 1/16, the left face 1/16" further in (1 13/16" stile) and each leaf 1/16" narrower. ⚠ If G2's frame part or faces come out other than above, report it rather than change the test.
 
-**Count:** 1040 + 7 = **1047**. Golden snapshot unchanged.
+**Count:** 1043 + 8 = **1051**. Golden snapshot unchanged.
 
 ---
 
-## §4 Step 398 — panel cells at their style's thickness
+## §5 Step 399 — panel cells: sheet slab by default, or their own style
 
 **Files:**
 
@@ -316,12 +444,12 @@ What the numbers are: today G1's tall run is 30" wide with 3/4" end panels and o
 | `src/elevation/store/slices/cells.js` | 221 | the four `state.settings.endPanelThickness` reads (lines 115, 156, 167, 178) |
 | NEW `src/elevation/store/__tests__/slicePanelThickness.test.js` | — | 3 tests, verbatim |
 
-**Contract.** Import `panelThickness` from `../../model/panelThickness.js`. Each site passes `panelThickness(location.room, location.wall, location.run, part, state.settings)` in place of `state.settings.endPanelThickness`, where `part` is:
-- `setCellKind` (line 115): the new leaf in `grid` after `setGridCellKind` (`findLeaf(grid, cellId)`, no style yet), so the run/wall/room picks decide;
-- `wrapCell` (156) and `addPanel` (178): `null` (new cells);
-- `setPanelType` (167): the existing leaf, `findLeaf(before, cellId)`, so a panel's own style counts.
+**Contract.** Import `panelThickness` from `../../model/panelThickness.js`. Each site passes `panelThickness(location.room, location.wall, location.run, part, state.settings, { sheet: true })` in place of `state.settings.endPanelThickness` (panels inside a run are sheet slab unless they pick a style), where `part` is:
+- `setCellKind` (line 115): `findLeaf(grid, cellId)` on the grid after `setGridCellKind` (a fresh panel, no style);
+- `wrapCell` (156) and `addPanel` (178): `null`;
+- `setPanelType` (167): the existing leaf, `findLeaf(before, cellId)`, so its own `styleId` counts.
 
-The drafts are only read (`resolveDoorStyle` doesn't mutate). Existing panel cells keep their stored sizes until one of these actions runs.
+`findLeaf` is in `../../model/cellTree.js`. The drafts are only read.
 
 **Don't touch:** `cellTree.js`, other reducers, the model.
 
@@ -340,53 +468,53 @@ const at = { wallId: 'wall-1', runId: 'run-1' };
 const apply = (state, ...actions) => actions.reduce(elevationReducer, state);
 const plain = () => stateWithRun(run({ autoCount: false, items: [fixed('a', 30), auto('b')] }));
 
-/** Cabinet a (30") and b (auto), with P (13/16") and T (1") listed and the given room picks. */
-function base(picks) {
+/** Cabinet a (30") and b (auto), with P (13/16") and T (1") listed, the given room picks and End panel thickness. */
+function base(picks, endPanelThickness = 0.75) {
   const state = plain();
   Object.assign(state.rooms[0], { doorStyles: [P, T] }, picks);
+  state.settings.endPanelThickness = endPanelThickness;
   return state;
 }
 
-describe('SPEC-46.1.1 panel cells at their panel style\'s thickness', () => {
-  it('adds and converts panel cells at the room\'s panel style', () => {
-    const added = apply(base({ panelStyleId: 'ds-p' }), addPanel({ ...at, cellId: 'b', side: 'left' }));
-    expect(runItems(currentRun(added))[1].width).toBe(0.8125);
-    const turned = apply(base({ panelStyleId: 'ds-p' }), setCellKind({ ...at, cellId: 'a', kind: 'panel' }));
-    expect(currentRun(turned).grid.cols[0].size).toBe(0.8125);
-  });
-
-  it('follows the doors, and keeps the setting for the team default or no styles', () => {
-    const doors = apply(
-      base({ doorStyleId: 'ds-t' }),
+describe('SPEC-46.1.1 panel cells: sheet slab unless they pick a style', () => {
+  it('makes new and converted panel cells 3/4" sheet slab, whatever the room picks', () => {
+    const picks = { panelStyleId: 'ds-p', doorStyleId: 'ds-t' };
+    const added = apply(base(picks, 0.8125), addPanel({ ...at, cellId: 'b', side: 'left' }));
+    expect(runItems(currentRun(added))[1].width).toBe(0.75);
+    const back = apply(
+      base(picks, 0.8125),
       setCellKind({ ...at, cellId: 'a', kind: 'panel' }),
       setPanelType({ ...at, cellId: 'a', type: 'back' }),
     );
-    const a = gridLeaves(currentRun(doors).grid).find((node) => node.id === 'a');
-    expect([a.depth, a.align]).toEqual([1, 'back']);
-    const kind = setCellKind({ ...at, cellId: 'a', kind: 'panel' });
-    expect([
-      currentRun(apply(plain(), kind)).grid.cols[0].size,
-      currentRun(apply(base({ doorStyleId: 'ds-t', panelStyleId: 'default' }), kind)).grid.cols[0].size,
-    ]).toEqual([0.75, 0.75]);
+    const a = gridLeaves(currentRun(back).grid).find((node) => node.id === 'a');
+    expect([a.depth, a.align]).toEqual([0.75, 'back']);
   });
 
   it('uses a panel\'s own style when its type is set again', () => {
-    const state = apply(
-      base({ panelStyleId: 'ds-p' }),
+    const own = (styleId) => currentRun(apply(
+      base({ panelStyleId: 'ds-p' }, 0.8125),
       setCellKind({ ...at, cellId: 'a', kind: 'panel' }),
-      setPartStyle({ ...at, part: 'panelCell', cellId: 'a', styleId: 'ds-t' }),
+      setPartStyle({ ...at, part: 'panelCell', cellId: 'a', styleId }),
       setPanelType({ ...at, cellId: 'a', type: 'side' }),
-    );
-    expect(currentRun(state).grid.cols[0].size).toBe(1);
+    )).grid.cols[0].size;
+    expect([own('ds-t'), own('default')]).toEqual([1, 0.8125]);
+  });
+
+  it('is 3/4" with no styles too, even with End panel thickness at 13/16"', () => {
+    const state = plain();
+    state.settings.endPanelThickness = 0.8125;
+    expect(currentRun(apply(state, setCellKind({ ...at, cellId: 'a', kind: 'panel' }))).grid.cols[0].size).toBe(0.75);
   });
 });
 ```
 
-**Count:** 1047 + 3 = **1050**.
+What the numbers are: a panel cell is sheet slab (3/4") unless it picks a style; T is 1"; the team default is the End panel thickness setting (13/16" here).
+
+**Count:** 1051 + 3 = **1054**.
 
 ---
 
-## §5 Step 399 — UI: pickers pass their level; Team default in delete; width placeholders
+## §6 Step 400 — UI: pickers pass their level and spot; Team default in delete; width placeholders
 
 **Files:**
 
@@ -394,31 +522,36 @@ describe('SPEC-46.1.1 panel cells at their panel style\'s thickness', () => {
 |---|---:|---|
 | `src/elevation/components/properties/DoorStylePicks.jsx` | ~45 | `pickOptions(…, levelsAbove, node ?? {})` |
 | `src/elevation/components/RoomDoorStylesPanel.jsx` | 156 | "Move them to" select gets **Team default** |
-| `src/elevation/components/properties/EndFields.jsx` | 188 | end panel width placeholder (line ~55) |
+| `src/elevation/components/properties/EndFields.jsx` | 188 | end panel width placeholder; joined ends pass `{ sheet: true }` |
+| `src/elevation/components/properties/CellKindSection.jsx` | ~150 | panel cells pass `{ sheet: true }` |
 | `src/elevation/components/properties/WallEndPanelFields.jsx` | 49 | width placeholder (line 28) |
 
 **Contract.**
-- `DoorStylePicks`: pass `node ?? {}` as `pickOptions`' fifth argument, so the room's Drawer fronts / Panels pickers read *Same as doors (…)* from the room's own Doors pick. The Team default option arrives from `pickOptions`; nothing else changes (a stored `'default'` is in the options, so it never shows as Missing).
-- `RoomDoorStylesPanel`, the delete confirm's select: options become `Inherit` (`''` → `reassignTo: null`), `Team default` (`'default'`), then the other styles. The "No door styles yet" line is unchanged.
-- `EndFields`: the `end_panel` width placeholder is `formatInchesInput(run._endThickness?.[side] ?? settings.endPanelThickness)`.
+- `DoorStylePicks`: pass `node ?? {}` as `pickOptions`' fifth argument. The Team default and Sheet slab options arrive from `pickOptions`.
+- `RoomDoorStylesPanel`, the delete confirm's select: `Inherit` (`''` → `reassignTo: null`), `Team default` (`'default'`), then the other styles.
+- `EndFields`: the `PartStyleFields` levels become `panelLevels(room, wall, run, run.ends[side], { sheet: isJoinedEnd(run, side) })` (`isJoinedEnd` from `../../model/panelThickness.js`), so a joined end's picker reads *Sheet slab here (3/4")*. The `end_panel` width placeholder is `formatInchesInput(run._endThickness?.[side] ?? settings.endPanelThickness)`.
+- `CellKindSection`: the panel cell's levels pass `{ sheet: true }`.
 - `WallEndPanelFields`: the placeholder is `formatInches(wall._endPanelThickness?.[endpoint] ?? settings.endPanelThickness)`.
 
-**Don't touch:** `PartStyleFields.jsx` (its picker already passes the levels above the part), the store, the model.
+**Don't touch:** `PartStyleFields.jsx` (it already passes the levels above the part), the store, the model.
 
-Gate: `npm test && npm run lint && npm run build`; 1050 tests.
+Gate: `npm test && npm run lint && npm run build`; 1054 tests.
 
 ---
 
 ## End-to-end check (Kyle)
 
-- **Settings → End panel thickness = 13/16"** (the team default panel thickness until 46.3).
-- Room: Doors = A (1"). Drawer fronts and Panels read *Same as doors (A · 5PC · 1")*; end panels go to 1" and the boxes beside them get narrower; wall end panels too.
-- Drawer fronts = *Team default*: drawers go back to 13/16" while doors stay A. Same for Panels.
-- A beaded face frame run with end panels: end stiles 1/16" wider than before when its panels are 13/16" and the setting was 3/4".
+- **Settings → End panel thickness = 13/16"** (the door-matching team default until 46.3).
+- Room: Doors = A (1"). Drawer fronts and Panels read *Same as doors (A · 5PC · 1")*; free end panels and wall end panels go to 1" and the boxes beside them get narrower.
+- A tall beside a base (joined): the tall's end panel at the join stays 3/4" and its picker reads *Sheet slab here (3/4")*; pick A on it to make it match the doors. Panel cells (sides, tops, backs inside runs) come out 3/4" sheet slab when you add or change them.
+- Panels = *Sheet slab* at the room: every end panel is 3/4" slab.
+- Drawer fronts = *Team default*: drawers go back to 13/16" while doors stay A.
+- A beaded face frame run with 13/16" end panels: end stiles 1/16" wider than with 3/4" panels.
 - Delete A while used → "Move them to" offers Team default.
-- A 90" island with end panels both ends now shows odd box widths; widen the island (90 1/8") to get them back. The TODO tracks a warning for this.
+- An alcove side panel that bases die into: type its bottom rail (e.g. 42") in the Stiles & rails block for now.
 
-**Known for now:**
+**Known for now:** (all in `TODO.md`)
+- No automatic tall bottom rail where cabinets die into a door-matching panel.
+- A panel under a run and a blind panel don't default to sheet slab yet; blind end panels aren't sized by style.
 - Existing panel cells keep their size until you change their kind or type.
-- Blind end panels aren't sized by style yet.
-- Odd automatic box sizes aren't flagged (TODO).
+- Odd automatic box sizes aren't flagged.
