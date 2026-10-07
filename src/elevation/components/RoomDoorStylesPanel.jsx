@@ -4,6 +4,7 @@ import { findDoorDesign } from '../model/doorStyles.js';
 import { doorStyleUses, pickOptions } from '../model/doorStyleEdits.js';
 import { formatInches } from '../model/units.js';
 import { addDoorStyle, deleteDoorStyle, setDoorStylePick } from '../store/elevationSlice.js';
+import DoorStyleEditor from './DoorStyleEditor.jsx';
 import DoorStylePicks from './properties/DoorStylePicks.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -13,6 +14,7 @@ function RoomDoorStylesContent({ room, settings }) {
   const dispatch = useDispatch();
   const [baseId, setBaseId] = useState('');
   const [deleting, setDeleting] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const styles = room.doorStyles ?? [];
   const { inherit, options } = pickOptions(room, settings, 'door', []);
 
@@ -39,19 +41,24 @@ function RoomDoorStylesContent({ room, settings }) {
                   {style.name && <p className="break-words text-gray-300">{style.name}</p>}
                   <p className="text-gray-400">{uses ? `${uses} uses` : 'unused'}</p>
                 </div>
-                <button
-                  type="button"
-                  className={BUTTON_CLASS}
-                  onClick={() => {
-                    if (uses === 0) {
-                      dispatch(deleteDoorStyle({ roomId: room.id, styleId: style.id }));
-                    } else {
-                      setDeleting({ styleId: style.id, reassignTo: '' });
-                    }
-                  }}
-                >
-                  Delete
-                </button>
+                <div className="flex gap-2">
+                  <button type="button" className={BUTTON_CLASS} onClick={() => setEditingId(style.id)}>
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className={BUTTON_CLASS}
+                    onClick={() => {
+                      if (uses === 0) {
+                        dispatch(deleteDoorStyle({ roomId: room.id, styleId: style.id }));
+                      } else {
+                        setDeleting({ styleId: style.id, reassignTo: '' });
+                      }
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
               </div>
               {deleting?.styleId === style.id && (
                 <div className="space-y-2 rounded border border-gray-700 p-2">
@@ -111,10 +118,14 @@ function RoomDoorStylesContent({ room, settings }) {
           <button
             type="button"
             className={BUTTON_CLASS}
-            onClick={() => dispatch(addDoorStyle({
-              roomId: room.id,
-              baseId: styles.some((style) => style.id === baseId) ? baseId : undefined,
-            }))}
+            onClick={() => {
+              const action = addDoorStyle({
+                roomId: room.id,
+                baseId: styles.some((style) => style.id === baseId) ? baseId : undefined,
+              });
+              dispatch(action);
+              setEditingId(action.payload.id);
+            }}
           >
             New
           </button>
@@ -129,6 +140,9 @@ function RoomDoorStylesContent({ room, settings }) {
           onChange={(key, styleId) => dispatch(setDoorStylePick({ roomId: room.id, level: 'room', key, styleId }))}
         />
       </div>
+      {styles.some((style) => style.id === editingId) && (
+        <DoorStyleEditor key={editingId} room={room} styleId={editingId} onClose={() => setEditingId(null)} />
+      )}
     </section>
   );
 }
