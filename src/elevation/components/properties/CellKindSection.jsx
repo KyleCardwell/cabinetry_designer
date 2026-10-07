@@ -117,7 +117,7 @@ export default function CellKindSection({ wall, run, piece, item }) {
           settings={settings}
           partType="panel"
           part={item}
-          levels={panelLevels(room, wall, run, item)}
+          levels={panelLevels(room, wall, run, item, { sheet: true })}
           width={orientation === 'side' ? piece.depth : piece.width}
           height={orientation === 'top' ? piece.depth : piece.height}
           label="Panel"

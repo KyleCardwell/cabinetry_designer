@@ -71,7 +71,8 @@ function RoomDoorStylesContent({ room, settings }) {
                       className={`mt-1 ${SELECT_CLASS}`}
                     >
                       <option value="">Inherit</option>
-                      {options.filter((option) => option.id !== style.id).map((option) => (
+                      <option value="default">Team default</option>
+                      {options.filter((option) => option.id !== 'default' && option.id !== style.id).map((option) => (
                         <option key={option.id} value={option.id}>{option.text}</option>
                       ))}
                     </select>

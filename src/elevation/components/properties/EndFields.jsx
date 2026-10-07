@@ -1,6 +1,7 @@
 import { useDispatch } from 'react-redux';
 import { formatInchesInput, frontDepth, runBlind } from '../../model/index.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
+import { isJoinedEnd } from '../../model/panelThickness.js';
 import {
   setPartStyle, setRunBlind, setRunEnd, setRunEndExtend, setRunEndFiller,
 } from '../../store/elevationSlice.js';
@@ -52,7 +53,7 @@ export default function EndFields({
             value={run.ends[side].width}
             allowBlank
             placeholder={endType === 'end_panel'
-              ? formatInchesInput(settings.endPanelThickness)
+              ? formatInchesInput(run._endThickness?.[side] ?? settings.endPanelThickness)
               : 'auto'}
             onCommit={(width) => dispatch(setRunEnd({
               ...actionBase,
@@ -176,7 +177,7 @@ export default function EndFields({
           settings={settings}
           partType="panel"
           part={run.ends[side]}
-          levels={panelLevels(room, wall, run, run.ends[side])}
+          levels={panelLevels(room, wall, run, run.ends[side], { sheet: isJoinedEnd(run, side) })}
           width={frontDepth(run, settings)}
           height={run.height}
           label={`${side === 'left' ? 'Left' : 'Right'} end panel`}

@@ -13,7 +13,7 @@ export default function DoorStylePicks({ room, settings, levelsAbove, node, labe
   return (
     <div className="space-y-2">
       {PICKS.map(({ text, partType, key }) => {
-        const { inherit, options } = pickOptions(room, settings, partType, levelsAbove);
+        const { inherit, options } = pickOptions(room, settings, partType, levelsAbove, node ?? {});
         const value = node?.[key] ?? '';
         const missing = value !== '' && !options.some((option) => option.id === value);
 

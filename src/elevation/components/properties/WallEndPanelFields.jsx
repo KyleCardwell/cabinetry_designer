@@ -25,7 +25,7 @@ export default function WallEndPanelFields({
         <InchInput
           value={panel.width}
           allowBlank
-          placeholder={formatInches(settings.endPanelThickness)}
+          placeholder={formatInches(wall._endPanelThickness?.[endpoint] ?? settings.endPanelThickness)}
           onCommit={(width) => update({ width })}
           aria-label={`${label} panel width`}
         />
