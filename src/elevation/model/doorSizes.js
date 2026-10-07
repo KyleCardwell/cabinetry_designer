@@ -1,9 +1,12 @@
 /** Final frame sizes for an installed part, including the short-face rule (SPEC-46). */
 export function partSizes(style, design, { width, height, sizes = {} }) {
-  if (design.construction !== 'five_piece') {
+  if (design.construction !== 'five_piece' && design.construction !== 'slab_applied') {
     return { construction: 'slab', slab: 'design' };
   }
   if (height < style.shortFace.slabBelow - 1e-9) {
+    if (design.construction === 'slab_applied') {
+      return { construction: 'slab', slab: 'rule', molding: false };
+    }
     return { construction: 'slab', slab: 'rule' };
   }
 
@@ -24,7 +27,7 @@ export function partSizes(style, design, { width, height, sizes = {} }) {
   const right = sizes.stiles?.right ?? style.stiles.right;
 
   return {
-    construction: 'five_piece',
+    construction: design.construction,
     slab: null,
     stiles: { left, right },
     rails: { top, bottom },
@@ -45,12 +48,17 @@ export function partSizes(style, design, { width, height, sizes = {} }) {
   };
 }
 
-/** A shorter front above must never have a bigger panel than one below (SPEC-46); warns, never fixes. */
+/**
+ * A shorter front above must never have a bigger panel than one below (SPEC-46); warns, never fixes.
+ * Molding rectangles count as panels (P17).
+ */
 export function frontStackWarnings(parts) {
   const warnings = [];
   for (const a of parts) {
     for (const b of parts) {
-      if (a === b || a.sizes.construction !== 'five_piece' || b.sizes.construction !== 'five_piece') continue;
+      if (a === b
+        || !['five_piece', 'slab_applied'].includes(a.sizes.construction)
+        || !['five_piece', 'slab_applied'].includes(b.sizes.construction)) continue;
       if (
         Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > 1e-6
         && a.z >= b.z + b.height - 1e-6

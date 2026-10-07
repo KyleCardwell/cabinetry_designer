@@ -17,7 +17,8 @@ describe('SPEC-46 door designs and the team default style', () => {
   it('seeds a 5-piece square design and a slab design', () => {
     expect(DOOR_DESIGNS.map(({ id, code, construction, slots }) => [id, code, construction, slots])).toEqual([
       ['five-piece-square', '5PC', 'five_piece', ['outside', 'inside', 'panel', 'applied']],
-      ['slab', 'Slab', 'slab', ['outside', 'applied']],
+      ['slab', 'Slab', 'slab', ['outside']],
+      ['slab-applied', 'Slab AM', 'slab_applied', ['outside', 'applied']],
     ]);
     expect(findDoorDesign('slab')).toBe(DOOR_DESIGNS[1]);
     expect(findDoorDesign('110')).toBeNull();

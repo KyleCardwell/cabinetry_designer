@@ -24,6 +24,16 @@ export const DOOR_DESIGNS = [
     construction: 'slab',
     topRail: { shape: 'flat' },
     bottomRail: { shape: 'flat' },
+    slots: ['outside'],
+  },
+  {
+    id: 'slab-applied',
+    code: 'Slab AM',
+    vendor: null,
+    description: 'Slab with applied molding',
+    construction: 'slab_applied',
+    topRail: { shape: 'flat' },
+    bottomRail: { shape: 'flat' },
     slots: ['outside', 'applied'],
   },
 ];

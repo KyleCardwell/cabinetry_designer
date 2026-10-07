@@ -72,8 +72,6 @@ describe('SPEC-46 stile and rail sizes', () => {
 
   it('makes slab-design parts slab at any size, and short parts slab by the rule', () => {
     expect(partSizes(DEFAULT_DOOR_STYLE, SLAB, { width: 15, height: 30 })).toEqual({ construction: 'slab', slab: 'design' });
-    expect(partSizes(DEFAULT_DOOR_STYLE, { ...SLAB, construction: 'slab_applied' }, { width: 15, height: 30 }))
-      .toEqual({ construction: 'slab', slab: 'design' });
     expect(partSizes(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 4.75 })).toEqual({ construction: 'slab', slab: 'rule' });
   });
 
