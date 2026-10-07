@@ -23,9 +23,12 @@ import {
   setSeamNoRail,
   splitFace,
 } from '../../model/index.js';
+import { facePartType, cabinetFaceLevels } from '../../model/doorStyleResolve.js';
+import { setFacePart } from '../../model/faceTree.js';
 import { setFacePath, setItemFace } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import CabinetStyleProperties from './CabinetStyleProperties.jsx';
+import PartStyleFields from './PartStyleFields.jsx';
 
 const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600';
 const DISABLED_CLASS = 'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gray-700';
@@ -189,6 +192,19 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
 
       {selected && (
         <div className="space-y-2 rounded border border-gray-700 p-2">
+          {selected.type && selected.type !== 'open' && resolvedFace && (
+            <PartStyleFields
+              room={room}
+              settings={settings}
+              partType={facePartType(selected.type)}
+              levels={cabinetFaceLevels(room, wall, run, item, selected)}
+              part={selected}
+              width={resolvedFace.width}
+              height={resolvedFace.height}
+              label={`Face ${facePath}`}
+              onChange={(patch) => commitIfChanged(setFacePart(face, facePath, patch))}
+            />
+          )}
           {selected.type === 'door' && (
             <label className="block text-xs text-gray-300">
               Hinge
