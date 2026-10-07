@@ -1,10 +1,12 @@
 import { v4 as uuid } from 'uuid';
 import { isExtendTarget } from '../../model/extensions.js';
 import { setGridCellBlind } from '../../model/grid.js';
+import { panelThickness } from '../../model/panelThickness.js';
 import {
   addGridPanel,
   equalizeGridCells,
   findCell,
+  findLeaf,
   removeGridCell,
   setGridCellDepth,
   setGridCellKind,
@@ -112,7 +114,7 @@ export const cellReducers = {
     if (grid === before) return;
     if (kind === 'panel') {
       grid = setGridPanelType(grid, cellId, found.axis === 'row' ? 'top' : 'side',
-        state.settings.endPanelThickness);
+        panelThickness(location.room, location.wall, location.run, findLeaf(grid, cellId), state.settings, { sheet: true }));
     }
     location.run.grid = grid;
     if (found.depth === 0) location.run.autoCount = false;
@@ -153,7 +155,9 @@ export const cellReducers = {
     const { cellId, through, bottom = false } = action.payload;
     const before = location.run.grid;
     const grid = wrapGridCell(
-      before, cellId, through, state.settings.endPanelThickness, uuid, Boolean(bottom),
+      before, cellId, through,
+      panelThickness(location.room, location.wall, location.run, null, state.settings, { sheet: true }),
+      uuid, Boolean(bottom),
     );
     if (grid === before) return;
     location.run.grid = grid;
@@ -164,7 +168,8 @@ export const cellReducers = {
     if (!location) return;
     const { cellId, type } = action.payload;
     const before = location.run.grid;
-    const grid = setGridPanelType(before, cellId, type, state.settings.endPanelThickness);
+    const grid = setGridPanelType(before, cellId, type,
+      panelThickness(location.room, location.wall, location.run, findLeaf(before, cellId), state.settings, { sheet: true }));
     if (grid === before) return;
     location.run.grid = grid;
     syncRoomAt(state, location.roomIndex);
@@ -175,7 +180,8 @@ export const cellReducers = {
     const { cellId, side } = action.payload;
     const before = location.run.grid;
     const found = findCell(before, cellId);
-    const grid = addGridPanel(before, cellId, side, state.settings.endPanelThickness, uuid);
+    const grid = addGridPanel(before, cellId, side,
+      panelThickness(location.room, location.wall, location.run, null, state.settings, { sheet: true }), uuid);
     if (grid === before) return;
     location.run.grid = grid;
     if (found.depth === 0 && (side === 'left' || side === 'right')) location.run.autoCount = false;
