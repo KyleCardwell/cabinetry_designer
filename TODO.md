@@ -234,6 +234,10 @@ Specified in `docs/elevation-mvp/SPEC-8.md`, step prompts in `PROMPTS-8.md`.
   - Why: Steps 32 and 33 produced the least code of the last eight steps (235 and 382 insertions vs step 30's 1,050) and cost the most usage - all of it spent reading and looping, not writing.
   - Notes: Name the files per step, paste fan-out greps instead of asking for them, literal test fixtures, shape changes in their own step, scoped test loop, capped summary. One step per fresh session.
 
+- [ ] **[elevation][doors] Door details in end elevations** — SPEC-46.2 draws details only on face-on parts; run end panels and wall end panels (5-piece) need end elevations to show their faces.
+- [ ] **[elevation][doors] Blind corner panel fixture** — no golden room has a visible blind panel; add one so `runDoorDetails` blind panels get a test (SPEC-46.2).
+- [ ] **[model][doors] Blind panels and panels under a run default to sheet slab** — carried from SPEC-46.1.1.
+
 ## Later / Maybe
 
 <!-- Keep worthwhile ideas here when they are not currently planned. -->
