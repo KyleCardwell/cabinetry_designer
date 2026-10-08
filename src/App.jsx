@@ -11,6 +11,7 @@ import ElevationLab from './elevation/ElevationLab';
 import LibraryLayout from './library/LibraryLayout.jsx';
 import DoorDesignsPage from './library/DoorDesignsPage.jsx';
 import TeamDoorStylePage from './library/TeamDoorStylePage.jsx';
+import ProfilesPage from './library/ProfilesPage.jsx';
 
 function App() {
   const dispatch = useDispatch();
@@ -58,6 +59,7 @@ function App() {
           <Route index element={<Navigate to="door-designs" replace />} />
           <Route path="door-designs" element={<DoorDesignsPage />} />
           <Route path="door-style" element={<TeamDoorStylePage />} />
+          <Route path="profiles" element={<ProfilesPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
