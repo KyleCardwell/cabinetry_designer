@@ -139,6 +139,7 @@ export function runBands(room, wall, run, settings, scene) {
     z: part.z,
     width: span.end - span.start,
     height: part.height,
+    ...(part.behind ? { behind: true } : {}),
   }));
   const chipLines = endBottom.chip > 0
     ? drawnPieces

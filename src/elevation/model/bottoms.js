@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid';
-import { DEFAULT_SETTINGS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 
 /** What can hang below a run, listed top to bottom in run.bottom. */
 export const BOTTOM_PART_KINDS = ['light_rail', 'light_trough', 'panel', 'bottom_cap', 'corbels'];
@@ -40,18 +40,42 @@ export function createBottomPart(kind, settings) {
   return { id: uuid(), kind, height: heights[kind], doors: DEFAULT_DOORS[kind] };
 }
 
+/**
+ * On a face frame upper these leading parts are the frame's bottom rail (SPEC-46.2.1).
+ * Callers only use this for face frame runs; the style isn't checked here.
+ */
+export function frameBottomParts(run) {
+  const result = { height: 0, doors: null, count: 0 };
+  if (run.cabinetTypeId !== CABINET_TYPE_IDS.UPPER) return result;
+  for (const part of run.bottom ?? []) {
+    if (!['cover', 'flush'].includes(part.doors) || UNCOVERABLE_BOTTOM_PARTS.includes(part.kind)) break;
+    result.height += part.height;
+    result.doors ??= part.doors;
+    result.count += 1;
+  }
+  return result;
+}
+
 /** The parts below a run, top to bottom, each with the z of its bottom edge. */
 export function runBottomParts(run) {
-  let top = run.z;
-  return (run.bottom ?? []).map((part) => {
+  const { height, count } = frameBottomParts(run);
+  const extra = run._frame ? Math.max(0, run._frame.drop - height) : 0;
+  let top = run.z - extra;
+  return (run.bottom ?? []).map((part, index) => {
     top -= part.height;
-    return { ...part, z: top };
+    return { ...part, z: top, ...(run._frame && index < count ? { behind: true } : {}) };
   });
 }
 
 /** The total height of the parts below a run. */
 export function runBottomHeight(run) {
   return (run.bottom ?? []).reduce((total, part) => total + part.height, 0);
+}
+
+/** How far below the box an upper's clearance is measured to (SPEC-46.2.1). */
+export function runBelowBox(run) {
+  const extra = run._frame ? Math.max(0, run._frame.drop - frameBottomParts(run).height) : 0;
+  return extra + runBottomHeight(run);
 }
 
 /**

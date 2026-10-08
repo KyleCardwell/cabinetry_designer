@@ -1,5 +1,5 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
-import { belowRunReveal } from './bottoms.js';
+import { belowRunReveal, frameBottomParts } from './bottoms.js';
 import { faceRevealsFor } from './faces.js';
 import { formatInches } from './units.js';
 
@@ -73,11 +73,15 @@ export function isInsetStyle(style) {
 
 /**
  * How far a face frame run's bottom rail hangs below its box (SPEC-36.3): the upper drop on an upper
- * whose doors overhang, and on a base marked hanging. Zero for everything else.
+ * whose doors overhang, and on a base marked hanging. An upper's covered or flush parts set its
+ * drop when present (SPEC-46.2.1). Zero for everything else.
  */
 export function frameDrop(run, settings) {
   const { upperDrop } = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
-  if (run.cabinetTypeId === UPPER) return (run.upperBottom ?? 'overhang') === 'overhang' ? upperDrop : 0;
+  if (run.cabinetTypeId === UPPER) {
+    const { height } = frameBottomParts(run);
+    return height > 0 ? height : (run.upperBottom ?? 'overhang') === 'overhang' ? upperDrop : 0;
+  }
   return run.cabinetTypeId === BASE && run.hanging === true ? upperDrop : 0;
 }
 
@@ -185,6 +189,13 @@ export function cabinetReveals({
   // A hanging base's bottom reveal is an upper's: the frame's rail hangs below the box (SPEC-36.3).
   if (!euro && cabinetTypeId !== UPPER && runEdges.bottom && frameDrop(run, settings) > 0) {
     apply('bottom', styleReveals(style, UPPER, settings).bottom, 'rule:hanging');
+  }
+  if (!euro && runEdges.bottom) {
+    const { height, doors } = frameBottomParts(run);
+    if (height > 0) {
+      const bead = style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? style.beadWidth : 0;
+      apply('bottom', doors === 'flush' ? bead : styleReveals(style, UPPER, settings).bottom, 'rule:below-run');
+    }
   }
   const below = euro && runEdges.bottom ? belowRunReveal(run, settings) : null;
   if (below !== null) apply('bottom', below, 'rule:below-run');
