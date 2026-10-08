@@ -4,6 +4,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { deleteProfilePoint, PROFILE_GRID_STEPS } from '../../elevation/model/profileEditing.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateSectionProfile } from '../../elevation/store/elevationSlice.js';
+import AttachPanel from './AttachPanel.jsx';
 import PointsPanel from './PointsPanel.jsx';
 import ProfileCanvas from './ProfileCanvas.jsx';
 import SegmentPanel from './SegmentPanel.jsx';
@@ -165,6 +166,7 @@ export default function ProfileEditorPage() {
             onSelectPoint={(id) => setSelection(id === null ? null : { kind: 'point', id })}
             onApply={apply}
           />
+          <AttachPanel profile={draft} selectedPointId={selection?.kind === 'point' ? selection.id : null} onApply={apply} />
           <section className="space-y-2">
             <h2 className="text-sm font-medium text-gray-200">Loops</h2>
             {draft.geometry.loops.map((loop) => (
