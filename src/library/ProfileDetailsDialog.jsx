@@ -88,7 +88,7 @@ export default function ProfileDetailsDialog({ profile, onClose }) {
           </label>
           <p className="text-xs text-gray-500">Version {profile.version} · {Object.keys(profile.geometry.points).length} points · {profile.geometry.loops.length} loops</p>
           <p className="text-xs text-gray-500">{attachPoints || 'No attach points'}</p>
-          <p className="text-xs text-gray-500">The shape, attach points and drawn points are edited in the profile editor (next round).</p>
+          <p className="text-xs text-gray-500">The shape is edited with Edit shape; attach and drawn points come next round.</p>
           {reason && <p role="status" className="text-xs text-red-400">{reason}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" className={BUTTON_CLASS} onClick={onClose}>Cancel</button>

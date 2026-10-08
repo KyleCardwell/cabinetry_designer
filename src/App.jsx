@@ -12,6 +12,7 @@ import LibraryLayout from './library/LibraryLayout.jsx';
 import DoorDesignsPage from './library/DoorDesignsPage.jsx';
 import TeamDoorStylePage from './library/TeamDoorStylePage.jsx';
 import ProfilesPage from './library/ProfilesPage.jsx';
+import ProfileEditorPage from './library/profileEditor/ProfileEditorPage.jsx';
 
 function App() {
   const dispatch = useDispatch();
@@ -55,6 +56,7 @@ function App() {
         <Route path="/" element={<ProjectList />} />
         <Route path="/elevation-lab" element={<ElevationLab />} />
         <Route path="/projects/:projectId/rooms/:roomId" element={<RoomEditor />} />
+        <Route path="/library/profiles/:profileId" element={<ProfileEditorPage />} />
         <Route path="/library" element={<LibraryLayout />}>
           <Route index element={<Navigate to="door-designs" replace />} />
           <Route path="door-designs" element={<DoorDesignsPage />} />

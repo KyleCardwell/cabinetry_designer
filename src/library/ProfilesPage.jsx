@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import { saveBlob } from '../api/drawings.js';
 import {
   filterSectionProfiles, mergeImportedProfiles, parseProfileFile, profileFile,
@@ -173,6 +174,7 @@ export default function ProfilesPage() {
                   >
                     Details
                   </button>
+                  <Link to={`/library/profiles/${profile.id}`} className={BUTTON_CLASS}>Edit shape</Link>
                   <button
                     type="button"
                     className={BUTTON_CLASS}
@@ -219,7 +221,7 @@ export default function ProfilesPage() {
           ? 'No profiles yet. New profile starts a 3/4" square to work from.'
           : 'No profiles match.'}</p>
       )}
-      <p className="text-xs text-gray-500">Shapes are drawn in the profile editor (next round). Profiles are saved in this browser with the Elevation Lab drawings until the library moves to the team&apos;s account. Export saves every profile to a file; Import adds new ones and replaces any with the same id.</p>
+      <p className="text-xs text-gray-500">Edit shape opens the profile editor. Profiles are saved in this browser with the Elevation Lab drawings until the library moves to the team&apos;s account. Export saves every profile to a file; Import adds new ones and replaces any with the same id.</p>
       {editingProfile && <ProfileDetailsDialog key={editingProfile.id} profile={editingProfile} onClose={closeDialog} />}
     </div>
   );
