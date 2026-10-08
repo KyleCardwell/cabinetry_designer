@@ -33,6 +33,7 @@ export function copySettings(settings = DEFAULT_SETTINGS) {
     defaultEnds: { ...settings.defaultEnds },
     teamDoorStyle: structuredClone(settings.teamDoorStyle ?? DEFAULT_DOOR_STYLE),
     doorDesigns: structuredClone(settings.doorDesigns ?? DOOR_DESIGNS),
+    sectionProfiles: structuredClone(settings.sectionProfiles ?? []),
   };
 }
 

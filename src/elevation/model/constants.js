@@ -42,6 +42,7 @@ export const DEFAULT_SETTINGS = {
   bumperThickness: 0.0625,
   teamDoorStyle: DEFAULT_DOOR_STYLE,
   doorDesigns: DOOR_DESIGNS,
+  sectionProfiles: [],
   fillerReturnDepth: 2.5,
   fillerReturnThickness: 0.75,
   teeCover: 0.75,

@@ -6,6 +6,7 @@ import {
 } from '../model/constants.js';
 import { isBottomPart } from '../model/bottoms.js';
 import { isDoorDesignList } from '../model/doorDesigns.js';
+import { isSectionProfileList } from '../model/sectionProfiles.js';
 import {
   DEFAULT_DOOR_STYLE,
   DOOR_DESIGNS,
@@ -534,6 +535,7 @@ function normalizeDocument(document, schemaVersion) {
       settings.teamDoorStyle = { ...structuredClone(DEFAULT_DOOR_STYLE), thickness };
     }
     if (settings.doorDesigns === undefined) settings.doorDesigns = structuredClone(DOOR_DESIGNS);
+    if (settings.sectionProfiles === undefined) settings.sectionProfiles = [];
     delete settings.doorThickness;
   }
   return {
@@ -630,6 +632,7 @@ function isSettings(settings, profileKeys = PROFILE_KEYS) {
     && isDoorStyle(settings.teamDoorStyle)
     && settings.teamDoorStyle.id === 'default'
     && isDoorDesignList(settings.doorDesigns)
+    && isSectionProfileList(settings.sectionProfiles)
     && findDoorDesign(settings.teamDoorStyle.designId, settings.doorDesigns) !== null
     && V2_NUMERIC_SETTING_KEYS.every((key) => isFiniteNumber(settings[key]))
     && isCompleteProfile(settings.defaultProfile, profileKeys)

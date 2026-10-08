@@ -1,0 +1,81 @@
+{
+  "kind": "section-profiles",
+  "version": 1,
+  "profiles": [
+    {
+      "id": "sp-cove",
+      "name": "Cove 1/4",
+      "tags": ["door_inside"],
+      "geometry": {
+        "units": "in",
+        "points": { "a": [0, 0], "b": [0.5, 0], "c": [0.75, -0.25], "d": [0.75, -0.8125], "e": [0, -0.8125] },
+        "loops": [
+          {
+            "id": "L1",
+            "closed": true,
+            "segs": [
+              { "type": "line", "from": "a", "to": "b" },
+              { "type": "arc", "from": "b", "to": "c", "center": [0.5, -0.25], "ccw": false },
+              { "type": "line", "from": "c", "to": "d" },
+              { "type": "line", "from": "d", "to": "e" },
+              { "type": "line", "from": "e", "to": "a" }
+            ]
+          }
+        ]
+      },
+      "attach": { "frame_edge": "a" },
+      "drawnPoints": { "elevation": ["b", "c"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "sp-bead",
+      "name": "Half bead",
+      "tags": ["applied_molding"],
+      "geometry": {
+        "units": "in",
+        "points": { "s": [0, 0], "t": [0.5, 0] },
+        "loops": [
+          {
+            "id": "L1",
+            "closed": true,
+            "segs": [
+              { "type": "arc", "from": "s", "to": "t", "center": [0.25, 0], "ccw": false },
+              { "type": "line", "from": "t", "to": "s" }
+            ]
+          }
+        ]
+      },
+      "attach": { "frame_edge": "s", "apply_point": "s" },
+      "drawnPoints": { "elevation": ["s", "t"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "sp-crown",
+      "name": "Crown 4 1/2",
+      "tags": ["crown"],
+      "geometry": {
+        "units": "in",
+        "points": { "c1": [0, 0], "c2": [0, 4.5], "c3": [3, 4.5], "c4": [3, 3.75], "c5": [0.5, 0] },
+        "loops": [
+          {
+            "id": "L1",
+            "closed": true,
+            "segs": [
+              { "type": "line", "from": "c1", "to": "c2" },
+              { "type": "line", "from": "c2", "to": "c3" },
+              { "type": "line", "from": "c3", "to": "c4" },
+              { "type": "line", "from": "c4", "to": "c5" },
+              { "type": "line", "from": "c5", "to": "c1" }
+            ]
+          }
+        ]
+      },
+      "attach": { "box_top": "c1", "box_front": "c1" },
+      "drawnPoints": { "elevation": ["c3", "c4", "c5"], "plan": ["c3"] },
+      "version": 1,
+      "archived": false
+    }
+  ]
+}
