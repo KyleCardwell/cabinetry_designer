@@ -171,3 +171,168 @@ export function snapProfilePoint(profile, xy, options) {
   const snapped = xy.map((value) => round6(Math.round(value / grid) * grid));
   return isCoordinate(snapped) ? { xy: snapped, id: null } : null;
 }
+
+const lineSegment = (from, to) => ({ type: 'line', from, to });
+
+function segmentAt(profile, loopId, index) {
+  if (typeof loopId !== 'string' || !Number.isInteger(index) || index < 0) return null;
+  return profile.geometry.loops.find((loop) => loop.id === loopId)?.segs[index] ?? null;
+}
+
+function jointIndex(loop, pointId) {
+  return loop.segs.findIndex((segment, index) => {
+    const next = loop.segs[index + 1] ?? (loop.closed ? loop.segs[0] : null);
+    return segment.to === pointId && next?.from === pointId;
+  });
+}
+
+function deleteUnusedLoopPoints(profile, segments) {
+  const candidates = new Set(segments.flatMap((segment) => [segment.from, segment.to]));
+  const used = new Set([
+    ...profile.geometry.loops.flatMap((loop) => loop.segs.flatMap((segment) => [segment.from, segment.to])),
+    ...Object.values(profile.attach),
+    ...Object.values(profile.drawnPoints).flat(),
+  ]);
+  for (const id of candidates) {
+    if (!used.has(id)) delete profile.geometry.points[id];
+  }
+}
+
+/** SPEC-48 finds the first free numbered loop id. */
+export function nextLoopId(profile) {
+  const ids = new Set(profile.geometry.loops.map((loop) => loop.id));
+  let number = 1;
+  while (ids.has(`L${number}`)) number += 1;
+  return `L${number}`;
+}
+
+/** SPEC-48 appends a line loop through the given points and validates the result. */
+export function addProfileLoop(profile, pointIds, closed) {
+  if (!Array.isArray(pointIds)) return null;
+  return editProfile(profile, (next) => {
+    const segs = pointIds.slice(1).map((id, index) => lineSegment(pointIds[index], id));
+    if (closed) segs.push(lineSegment(pointIds.at(-1), pointIds[0]));
+    next.geometry.loops.push({ id: nextLoopId(next), closed, segs });
+  });
+}
+
+/** SPEC-48 deletes a loop and its unreferenced points while retaining at least one loop. */
+export function deleteProfileLoop(profile, loopId) {
+  return editProfile(profile, (next) => {
+    const { loops } = next.geometry;
+    const index = loops.findIndex((loop) => loop.id === loopId);
+    if (index < 0 || loops.length === 1) return false;
+    const [removed] = loops.splice(index, 1);
+    deleteUnusedLoopPoints(next, removed.segs);
+  });
+}
+
+/** SPEC-48 splits a line at its midpoint or an arc at half its sweep with an appended point. */
+export function splitProfileSegment(profile, loopId, index, id) {
+  return editProfile(profile, (next) => {
+    const segment = segmentAt(next, loopId, index);
+    const pointId = id === undefined ? nextPointId(next) : id;
+    const { points, loops } = next.geometry;
+    if (!segment || !isPointId(pointId) || Object.hasOwn(points, pointId)) return false;
+    const from = points[segment.from];
+    const to = points[segment.to];
+    let xy;
+    if (segment.type === 'line') {
+      xy = [from[0] / 2 + to[0] / 2, from[1] / 2 + to[1] / 2];
+    } else {
+      const [cx, cy] = segment.center;
+      const radius = Math.hypot(from[0] - cx, from[1] - cy);
+      const angle = Math.atan2(from[1] - cy, from[0] - cx)
+        + (segment.ccw ? 1 : -1) * arcSweep(segment, points) * Math.PI / 360;
+      xy = [cx + radius * Math.cos(angle), cy + radius * Math.sin(angle)];
+    }
+    points[pointId] = xy.map(round6);
+    loops.find((loop) => loop.id === loopId).segs.splice(index, 1,
+      { ...segment, to: pointId }, { ...segment, from: pointId });
+  });
+}
+
+/** SPEC-48 lists loops where the point joins consecutive segments, including closed starts. */
+export function profilePointJoints(profile, pointId) {
+  if (!isSectionProfile(profile) || typeof pointId !== 'string') return null;
+  return profile.geometry.loops.filter((loop) => jointIndex(loop, pointId) >= 0)
+    .map((loop) => loop.id);
+}
+
+/** SPEC-48 joins a corner's segments into a line and removes newly unused loop points. */
+export function removeProfileVertex(profile, loopId, pointId) {
+  return editProfile(profile, (next) => {
+    const loop = next.geometry.loops.find((entry) => entry.id === loopId);
+    if (!loop) return false;
+    const index = jointIndex(loop, pointId);
+    if (index < 0) return false;
+    const { segs } = loop;
+    const first = segs[index];
+    const second = segs[(index + 1) % segs.length];
+    const joined = lineSegment(first.from, second.to);
+    if (index === segs.length - 1) {
+      loop.segs = [...segs.slice(1, -1), joined];
+    } else {
+      loop.segs = [...segs.slice(0, index), joined, ...segs.slice(index + 2)];
+    }
+    deleteUnusedLoopPoints(next, segs);
+  });
+}
+
+/** SPEC-48 sets an arc's sweep and direction using the chord-based center rule. */
+export function setSegmentArc(profile, loopId, index, options) {
+  if (options === null || typeof options !== 'object') return null;
+  const { sweep, ccw } = options;
+  return editProfile(profile, (next) => {
+    const segment = segmentAt(next, loopId, index);
+    if (!segment) return false;
+    const { points, loops } = next.geometry;
+    const center = centerFromSweep(points[segment.from], points[segment.to], sweep, ccw);
+    if (center === null) return false;
+    loops.find((loop) => loop.id === loopId).segs[index] = {
+      type: 'arc', from: segment.from, to: segment.to, center, ccw,
+    };
+  });
+}
+
+/** SPEC-48 converts a segment to a line, dropping its arc center and direction. */
+export function setSegmentLine(profile, loopId, index) {
+  return editProfile(profile, (next) => {
+    const segment = segmentAt(next, loopId, index);
+    if (!segment) return false;
+    next.geometry.loops.find((loop) => loop.id === loopId).segs[index] = lineSegment(segment.from, segment.to);
+  });
+}
+
+/** SPEC-48 sets an arc radius while preserving direction and the major or minor sweep. */
+export function setArcRadius(profile, loopId, index, radius) {
+  if (!Number.isFinite(radius)) return null;
+  return editProfile(profile, (next) => {
+    const segment = segmentAt(next, loopId, index);
+    if (segment?.type !== 'arc') return false;
+    const { points } = next.geometry;
+    const from = points[segment.from];
+    const to = points[segment.to];
+    const h = Math.hypot(to[0] - from[0], to[1] - from[1]) / 2;
+    if (radius < h - 1e-9) return false;
+    let sweep = 2 * Math.asin(Math.min(1, h / radius)) * 180 / Math.PI;
+    if (arcSweep(segment, points) > 180) sweep = 360 - sweep;
+    const center = centerFromSweep(from, to, sweep, segment.ccw);
+    if (center === null) return false;
+    segment.center = center;
+  });
+}
+
+/** SPEC-48 reports an arc's rounded center, radius, sweep and direction. */
+export function profileArcInfo(profile, loopId, index) {
+  if (!isSectionProfile(profile)) return null;
+  const segment = segmentAt(profile, loopId, index);
+  if (segment?.type !== 'arc') return null;
+  const from = profile.geometry.points[segment.from];
+  return {
+    center: segment.center.map(round6),
+    radius: round6(Math.hypot(from[0] - segment.center[0], from[1] - segment.center[1])),
+    sweep: round6(arcSweep(segment, profile.geometry.points)),
+    ccw: segment.ccw,
+  };
+}
