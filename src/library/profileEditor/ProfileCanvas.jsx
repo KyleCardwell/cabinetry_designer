@@ -1,5 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { formatProfileCoord } from '../../elevation/model/profileEditing.js';
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
+import {
+  addProfileLoop, addProfilePoint, formatProfileCoord, moveProfilePoint, nextPointId, snapProfilePoint,
+} from '../../elevation/model/profileEditing.js';
 import { fitView, loopScreenPath, segmentScreenPath, toModel, toScreen, zoomAt } from './profileView.js';
 
 function gridScreenPath(view, size, step) {
@@ -24,13 +26,52 @@ function hitSelection(target) {
   return null;
 }
 
-export default function ProfileCanvas({ profile, grid, selection, onSelect, fitSignal }) {
+const LINE_FAILURE = 'A closed shape needs at least 3 points, an open line at least 2.';
+const sameXY = (a, b) => a[0] === b[0] && a[1] === b[1];
+
+export default forwardRef(function ProfileCanvas({ profile, grid, selection, onSelect, fitSignal, tool, onApply, onMessage }, ref) {
   const containerRef = useRef(null);
   const fittedRef = useRef(null);
   const gestureRef = useRef(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const [view, setView] = useState(null);
   const [cursor, setCursor] = useState(null);
+  const [dragPreview, setDragPreview] = useState(null);
+  const [picks, setPicks] = useState([]);
+
+  const finishLine = (closed = false) => {
+    if (picks.length < (closed ? 3 : 2)) return;
+    let next = profile;
+    const newIds = new Map();
+    const ids = [];
+    for (const pick of picks) {
+      if (pick.id === null && !newIds.has(pick)) {
+        const id = nextPointId(next);
+        newIds.set(pick, id);
+        next = addProfilePoint(next, pick.xy, id);
+        if (next === null) break;
+      }
+      ids.push(pick.id ?? newIds.get(pick));
+    }
+    onApply(next && addProfileLoop(next, ids, closed), LINE_FAILURE);
+    setPicks([]);
+  };
+
+  useImperativeHandle(ref, () => ({
+    cancelLine() {
+      if (!picks.length) return false;
+      setPicks([]);
+      onMessage(null);
+      return true;
+    },
+    finishLine,
+  }));
+
+  useEffect(() => {
+    setPicks([]);
+    setDragPreview(null);
+    gestureRef.current = null;
+  }, [tool]);
 
   useEffect(() => {
     const observer = new ResizeObserver(([entry]) => {
@@ -68,12 +109,24 @@ export default function ProfileCanvas({ profile, grid, selection, onSelect, fitS
   };
 
   const movePointer = (event) => {
-    screenPosition(event);
+    const screen = screenPosition(event);
     const gesture = gestureRef.current;
     if (!gesture || gesture.pointerId !== event.pointerId) return;
     const dx = event.clientX - gesture.x;
     const dy = event.clientY - gesture.y;
-    if (gesture.button === 0 && gesture.selection !== null) return;
+    if (gesture.button === 0 && gesture.tool === 'select' && gesture.selection?.kind === 'point') {
+      if (Math.hypot(dx, dy) > 3) gesture.dragging = true;
+      if (gesture.dragging) {
+        const id = gesture.selection.id;
+        const snap = snapProfilePoint(gesture.start, toModel(gesture.view, size, screen), {
+          grid, reach: 8 / gesture.view.scale, exclude: id,
+        });
+        gesture.lastPreview = moveProfilePoint(gesture.start, id, snap.xy) ?? gesture.lastPreview;
+        setDragPreview({ profile: gesture.lastPreview, snapId: snap.id });
+      }
+      return;
+    }
+    if (gesture.button === 0 && gesture.tool === 'select' && gesture.selection !== null) return;
     if (Math.hypot(dx, dy) > 3) gesture.panning = true;
     if (gesture.panning) {
       setView({ ...gesture.view,
@@ -84,6 +137,33 @@ export default function ProfileCanvas({ profile, grid, selection, onSelect, fitS
 
   const origin = view ? toScreen(view, size, [0, 0]) : [0, 0];
   const cursorModel = view && cursor ? toModel(view, size, cursor).map((value) => Math.round(value * 64) / 64) : null;
+  const drawnProfile = dragPreview?.profile ?? profile;
+  const hover = tool === 'line' && view && cursor
+    ? snapProfilePoint(profile, toModel(view, size, cursor), { grid, reach: 8 / view.scale }) : null;
+  const hoverScreen = hover && toScreen(view, size, hover.xy);
+  const pickScreens = view ? picks.map((pick) => toScreen(view, size, pick.xy)) : [];
+  const snapPoint = dragPreview?.snapId && drawnProfile.geometry.points[dragPreview.snapId];
+  const snapScreen = snapPoint && view && toScreen(view, size, snapPoint);
+
+  const pickPoint = (screen) => {
+    if (picks.length >= 3) {
+      const first = toScreen(view, size, picks[0].xy);
+      if (Math.hypot(screen[0] - first[0], screen[1] - first[1]) <= 8) {
+        finishLine(true);
+        return;
+      }
+    }
+    const snap = snapProfilePoint(profile, toModel(view, size, screen), { grid, reach: 8 / view.scale });
+    if (picks.length && sameXY(picks.at(-1).xy, snap.xy)) return;
+    const pick = snap.id === null ? picks.find((entry) => entry.id === null && sameXY(entry.xy, snap.xy)) : null;
+    setPicks([...picks, pick ?? snap]);
+    onMessage(null);
+  };
+
+  const cancelGesture = () => {
+    gestureRef.current = null;
+    setDragPreview(null);
+  };
 
   return (
     <div ref={containerRef} className="relative h-full w-full select-none">
@@ -96,7 +176,8 @@ export default function ProfileCanvas({ profile, grid, selection, onSelect, fitS
           screenPosition(event);
           const hit = hitSelection(event.target);
           gestureRef.current = { pointerId: event.pointerId, button: event.button,
-            x: event.clientX, y: event.clientY, view, selection: hit, panning: event.button === 1 };
+            x: event.clientX, y: event.clientY, view, selection: hit, panning: event.button === 1,
+            tool, start: profile, lastPreview: profile, dragging: false };
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={movePointer}
@@ -105,11 +186,26 @@ export default function ProfileCanvas({ profile, grid, selection, onSelect, fitS
           if (!gesture || gesture.pointerId !== event.pointerId) return;
           movePointer(event);
           gestureRef.current = null;
+          setDragPreview(null);
           if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
-          if (gesture.button === 0 && !gesture.panning) onSelect(gesture.selection);
+          if (gesture.button !== 0 || gesture.panning) return;
+          if (gesture.tool === 'line') {
+            pickPoint(screenPosition(event));
+          } else {
+            onSelect(gesture.selection);
+            if (gesture.dragging && JSON.stringify(gesture.lastPreview) !== JSON.stringify(gesture.start)) {
+              onApply(gesture.lastPreview);
+            }
+          }
         }}
-        onPointerCancel={() => { gestureRef.current = null; setCursor(null); }}
-        onLostPointerCapture={() => { gestureRef.current = null; }}
+        onDoubleClick={(event) => {
+          if (tool === 'line' && event.button === 0) {
+            event.preventDefault();
+            finishLine();
+          }
+        }}
+        onPointerCancel={() => { cancelGesture(); setCursor(null); }}
+        onLostPointerCapture={cancelGesture}
         onPointerLeave={() => setCursor(null)}
       >
         {view && (
@@ -123,12 +219,12 @@ export default function ProfileCanvas({ profile, grid, selection, onSelect, fitS
                 <text x={origin[0] + 5} y={12}>x = 0</text>
               </g>
             </g>
-            {profile.geometry.loops.map((loop) => (
+            {drawnProfile.geometry.loops.map((loop) => (
               <g key={loop.id}>
-                {loop.closed && <path d={loopScreenPath(profile, loop, view, size)} fill="currentColor" fillOpacity={0.08} fillRule="evenodd" stroke="none" className="text-gray-200" pointerEvents="none" />}
+                {loop.closed && <path d={loopScreenPath(drawnProfile, loop, view, size)} fill="currentColor" fillOpacity={0.08} fillRule="evenodd" stroke="none" className="text-gray-200" pointerEvents="none" />}
                 {loop.segs.map((seg, index) => {
                   const selected = selection?.kind === 'segment' && selection.loopId === loop.id && selection.index === index;
-                  const path = segmentScreenPath(profile, seg, view, size);
+                  const path = segmentScreenPath(drawnProfile, seg, view, size);
                   return (
                     <g key={index}>
                       <path d={path} stroke={selected ? '#60a5fa' : '#e5e7eb'} strokeWidth={selected ? 2.5 : 1.5} fill="none" pointerEvents="none" />
@@ -138,7 +234,7 @@ export default function ProfileCanvas({ profile, grid, selection, onSelect, fitS
                 })}
               </g>
             ))}
-            {Object.entries(profile.geometry.points).map(([id, point]) => {
+            {Object.entries(drawnProfile.geometry.points).map(([id, point]) => {
               const [x, y] = toScreen(view, size, point);
               return (
                 <g key={id}>
@@ -148,6 +244,17 @@ export default function ProfileCanvas({ profile, grid, selection, onSelect, fitS
                 </g>
               );
             })}
+            <g pointerEvents="none" stroke="#4ade80" fill="none">
+              {snapScreen && <circle cx={snapScreen[0]} cy={snapScreen[1]} r={9} />}
+              {pickScreens.length > 1 && <polyline points={pickScreens.map((point) => point.join(',')).join(' ')} />}
+              {pickScreens.map(([x, y], index) => <circle key={index} cx={x} cy={y} r={3} fill="#4ade80" />)}
+              {hoverScreen && (
+                <>
+                  {pickScreens.length > 0 && <line x1={pickScreens.at(-1)[0]} y1={pickScreens.at(-1)[1]} x2={hoverScreen[0]} y2={hoverScreen[1]} strokeDasharray="4 3" />}
+                  <path d={`M ${hoverScreen[0] - 5} ${hoverScreen[1]} h 10 M ${hoverScreen[0]} ${hoverScreen[1] - 5} v 10`} />
+                </>
+              )}
+            </g>
           </>
         )}
       </svg>
@@ -156,4 +263,4 @@ export default function ProfileCanvas({ profile, grid, selection, onSelect, fitS
       </div>
     </div>
   );
-}
+});
