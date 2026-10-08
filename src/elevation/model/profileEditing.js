@@ -360,3 +360,58 @@ export function profileSlotGaps(profile) {
       return { tag, slot: tag, missing };
     });
 }
+
+function pointIdsInOrder(points, ids) {
+  const selected = new Set(ids);
+  return Object.keys(points).filter((id) => selected.has(id));
+}
+
+/** SPEC-48.1 copies the drawn points for a view, with plan following elevation by default. */
+export function profileDrawnIn(profile, view) {
+  if (view === 'elevation') return [...profile.drawnPoints.elevation];
+  if (view === 'plan') return [...(profile.drawnPoints.plan ?? profile.drawnPoints.elevation)];
+  return [];
+}
+
+/** SPEC-48.1 lists segment endpoints from every loop in points order. */
+export function profileVertexIds(profile) {
+  const { points, loops } = profile.geometry;
+  return pointIdsInOrder(points, loops.flatMap((loop) => loop.segs
+    .flatMap((segment) => [segment.from, segment.to])));
+}
+
+/** SPEC-48.1 adds or removes a drawn point for one view in points order. */
+export function setProfileDrawnPoint(profile, view, pointId, drawn) {
+  if ((view !== 'elevation' && view !== 'plan')
+    || typeof pointId !== 'string' || typeof drawn !== 'boolean') return null;
+  return editProfile(profile, (next) => {
+    if (!Object.hasOwn(next.geometry.points, pointId)) return false;
+    const ids = profileDrawnIn(next, view).filter((id) => id !== pointId);
+    if (drawn) ids.push(pointId);
+    next.drawnPoints[view] = pointIdsInOrder(next.geometry.points, ids);
+  });
+}
+
+/** SPEC-48.1 replaces one view's drawn points with unique known ids in points order. */
+export function setProfileDrawnPoints(profile, view, ids) {
+  if ((view !== 'elevation' && view !== 'plan') || !Array.isArray(ids)
+    || new Set(ids).size !== ids.length) return null;
+  return editProfile(profile, (next) => {
+    for (const id of ids) {
+      if (typeof id !== 'string' || !Object.hasOwn(next.geometry.points, id)) return false;
+    }
+    next.drawnPoints[view] = pointIdsInOrder(next.geometry.points, ids);
+  });
+}
+
+/** SPEC-48.1 makes plan follow elevation or gives it a separate copy when needed. */
+export function setProfilePlanSameAsElevation(profile, same) {
+  if (typeof same !== 'boolean') return null;
+  return editProfile(profile, (next) => {
+    if (same) {
+      delete next.drawnPoints.plan;
+    } else if (next.drawnPoints.plan === undefined) {
+      next.drawnPoints.plan = [...next.drawnPoints.elevation];
+    }
+  });
+}
