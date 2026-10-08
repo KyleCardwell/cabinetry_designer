@@ -1,24 +1,21 @@
 import { useDispatch } from 'react-redux';
 import {
   cellBlindSides,
-  cellDepth,
   findCell,
   formatInches,
-  formatInchesInput,
   MAX_SHELVES,
   runItems,
 } from '../../model/index.js';
-import { runFaceThickness } from '../../model/corners.js';
 import {
   lockItem,
   setCellBlind,
-  setCellDepth,
   setCellShelves,
   setItemWidth,
   setTrackGap,
   setTrackSize,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import CellDepthSection from './CellDepthSection.jsx';
 import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
@@ -174,33 +171,7 @@ export default function CellProperties({
         </section>
       )}
 
-      {item.kind !== 'void' && (
-        <section>
-          <h3 className={HEADING_CLASS}>Depth</h3>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Depth">
-              <InchInput
-                value={item.depth ?? null}
-                allowBlank
-                placeholder={formatInchesInput(cellDepth(piece, item, run.depth, settings, runFaceThickness(run, settings)))}
-                onCommit={(depth) => dispatch(setCellDepth({ ...cellBase, depth }))}
-                aria-label="Cell depth"
-              />
-            </Field>
-            <Field label="Line up">
-              <select
-                value={item.align ?? 'face'}
-                onChange={(event) => dispatch(setCellDepth({ ...cellBase, align: event.target.value }))}
-                aria-label="Cell align"
-                className={SELECT_CLASS}
-              >
-                <option value="face">Faces</option>
-                <option value="back">Backs</option>
-              </select>
-            </Field>
-          </div>
-        </section>
-      )}
+      <CellDepthSection wall={wall} run={run} piece={piece} item={item} settings={settings} />
 
       {item.kind === 'shelves' && (
         <section>

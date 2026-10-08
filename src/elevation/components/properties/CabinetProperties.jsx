@@ -10,6 +10,7 @@ import {
   setTrackGap,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import CellDepthSection from './CellDepthSection.jsx';
 import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
@@ -262,6 +263,7 @@ export default function CabinetProperties({
       </section>
 
       <CellKindSection wall={wall} run={run} piece={piece} item={item} />
+      <CellDepthSection wall={wall} run={run} piece={piece} item={item} settings={settings} />
       <CellSplitSection wall={wall} run={run} cellId={item.id} nested={false} />
       <CellWrapSection wall={wall} run={run} cellId={item.id} />
 
