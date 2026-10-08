@@ -174,6 +174,7 @@ export const {
   updateDoorDesign,
   deleteDoorDesign,
   setTeamDoorStyle,
+  moveMissingDoorDesign,
   setDoorStylePick,
   setRoomDoorDrawing,
   setPartStyle,

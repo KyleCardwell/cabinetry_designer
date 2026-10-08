@@ -8,7 +8,7 @@ import {
   newDoorDesign,
 } from '../../model/doorDesigns.js';
 import { findDoorDesign, isDoorStyle } from '../../model/doorStyles.js';
-import { syncRoomAt } from './helpers.js';
+import { roomIndexFor, syncRoomAt } from './helpers.js';
 
 export const doorDesignReducers = {
   addDoorDesign: {
@@ -60,5 +60,19 @@ export const doorDesignReducers = {
     if (!isDoorStyle(next) || !findDoorDesign(next.designId, current(state.settings).doorDesigns)) return;
     state.settings.teamDoorStyle = next;
     for (let index = 0; index < state.rooms.length; index += 1) syncRoomAt(state, index);
+  },
+  moveMissingDoorDesign(state, action) {
+    const { roomId, designId, reassignTo } = action.payload;
+    const index = roomIndexFor(state, roomId);
+    if (index === -1) return;
+    const designs = current(state.settings).doorDesigns;
+    if (findDoorDesign(designId, designs)) return;
+    const styles = current(state.rooms[index]).doorStyles ?? [];
+    if (!styles.some((style) => style.designId === designId)) return;
+    if (!findDoorDesign(reassignTo, designs)) return;
+    for (const style of state.rooms[index].doorStyles) {
+      if (style.designId === designId) style.designId = reassignTo;
+    }
+    syncRoomAt(state, index);
   },
 };

@@ -87,3 +87,17 @@ export function doorDesignUses(settings, rooms, designId) {
   }
   return uses;
 }
+
+/** The designs a room's styles name that the library doesn't have (SPEC-46.3.1). */
+export function missingDoorDesigns(room, designs) {
+  const designIds = new Set(designs.map((design) => design.id));
+  const missing = new Map();
+  for (const style of room.doorStyles ?? []) {
+    if (designIds.has(style.designId)) continue;
+    if (!missing.has(style.designId)) {
+      missing.set(style.designId, { designId: style.designId, styles: [] });
+    }
+    missing.get(style.designId).styles.push({ styleId: style.id, label: style.label });
+  }
+  return [...missing.values()];
+}
