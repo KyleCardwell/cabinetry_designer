@@ -8,6 +8,8 @@ import ProjectList from './components/projects/ProjectList';
 import RoomEditor from './components/rooms/RoomEditor';
 import Login from './components/auth/Login';
 import ElevationLab from './elevation/ElevationLab';
+import LibraryLayout from './library/LibraryLayout.jsx';
+import DoorDesignsPage from './library/DoorDesignsPage.jsx';
 
 function App() {
   const dispatch = useDispatch();
@@ -51,6 +53,10 @@ function App() {
         <Route path="/" element={<ProjectList />} />
         <Route path="/elevation-lab" element={<ElevationLab />} />
         <Route path="/projects/:projectId/rooms/:roomId" element={<RoomEditor />} />
+        <Route path="/library" element={<LibraryLayout />}>
+          <Route index element={<Navigate to="door-designs" replace />} />
+          <Route path="door-designs" element={<DoorDesignsPage />} />
+        </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AppShell>
