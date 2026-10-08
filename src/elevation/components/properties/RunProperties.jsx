@@ -121,7 +121,7 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
         </section>
       )}
 
-      <RunBottomSection run={run} settings={settings} actionBase={actionBase} />
+      <RunBottomSection room={room} run={run} settings={settings} actionBase={actionBase} />
 
       <WarningsList layout={layout} />
     </div>

@@ -15,8 +15,7 @@ const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 p
 
 const UPPER_BOTTOM_LABELS = {
   overhang: 'Overhang (doors below box)',
-  flush: 'Flush (light rail / trough)',
-  counter: 'On counter (tall reveals)',
+  counter: 'Flush (on counter / nothing below)',
 };
 
 export default function RunFaceOptions({ room, wall, run, settings }) {
@@ -62,19 +61,23 @@ export default function RunFaceOptions({ room, wall, run, settings }) {
       )}
 
       {run.cabinetTypeId === CABINET_TYPE_IDS.UPPER && (
-        <label className="block text-xs text-gray-400">
-          Bottom
-          <select
-            value={run.upperBottom ?? 'overhang'}
-            onChange={(event) => dispatch(setRunFaceOptions({ ...at, upperBottom: event.target.value }))}
-            aria-label="Upper bottom"
-            className={`mt-1 ${SELECT_CLASS}`}
-          >
-            {Object.entries(UPPER_BOTTOM_LABELS).map(([value, text]) => (
-              <option key={value} value={value}>{text}</option>
-            ))}
-          </select>
-        </label>
+        !(run.bottom?.length) ? (
+          <label className="block text-xs text-gray-400">
+            Bottom
+            <select
+              value={run.upperBottom === 'flush' ? 'counter' : (run.upperBottom ?? 'overhang')}
+              onChange={(event) => dispatch(setRunFaceOptions({ ...at, upperBottom: event.target.value }))}
+              aria-label="Upper bottom"
+              className={`mt-1 ${SELECT_CLASS}`}
+            >
+              {Object.entries(UPPER_BOTTOM_LABELS).map(([value, text]) => (
+                <option key={value} value={value}>{text}</option>
+              ))}
+            </select>
+          </label>
+        ) : (
+          <p className="text-xs text-gray-500">Bottom: set by Below the run</p>
+        )
       )}
     </section>
   );

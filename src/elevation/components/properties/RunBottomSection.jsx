@@ -5,6 +5,8 @@ import {
   BOTTOM_PART_LABELS,
   UNCOVERABLE_BOTTOM_PARTS,
   createBottomPart,
+  isInsetStyle,
+  resolveStyle,
 } from '../../model/index.js';
 import { setRunBottom } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
@@ -17,9 +19,15 @@ const DOORS_LABELS = {
   flush: 'Doors stop flush above',
   visible: 'Visible',
 };
+const FRAME_DOORS_LABELS = {
+  cover: 'Frame rail covers it (lights behind)',
+  flush: 'Frame hangs below, boxes 0" reveal',
+  visible: 'Below the frame',
+};
 
-export default function RunBottomSection({ run, settings, actionBase }) {
+export default function RunBottomSection({ room, run, settings, actionBase }) {
   const dispatch = useDispatch();
+  const frame = isInsetStyle(resolveStyle(settings, room, run));
   const parts = run.bottom ?? [];
   const commit = (next) => dispatch(setRunBottom({ ...actionBase, bottom: next }));
   const change = (index, changes) => commit(parts.map((part, at) => (
@@ -71,8 +79,16 @@ export default function RunBottomSection({ run, settings, actionBase }) {
                   className={SELECT_CLASS}
                 >
                   {BOTTOM_PART_DOORS
-                    .filter((doors) => doors !== 'cover' || !UNCOVERABLE_BOTTOM_PARTS.includes(part.kind))
-                    .map((doors) => <option key={doors} value={doors}>{DOORS_LABELS[doors]}</option>)}
+                    .filter((doors) => {
+                      if (!UNCOVERABLE_BOTTOM_PARTS.includes(part.kind)) return true;
+                      if (!frame) return doors !== 'cover';
+                      return doors === 'visible' || (doors === 'flush' && part.doors === 'flush');
+                    })
+                    .map((doors) => (
+                      <option key={doors} value={doors}>
+                        {(frame ? FRAME_DOORS_LABELS : DOORS_LABELS)[doors]}
+                      </option>
+                    ))}
                 </select>
               </Field>
             </div>
@@ -93,7 +109,9 @@ export default function RunBottomSection({ run, settings, actionBase }) {
         ))}
       </select>
       <p className="text-xs text-gray-500">
-        Listed top to bottom. The bottom reveal follows the parts the doors cover (REV-011).
+        {frame
+          ? 'Face frame: a covered part makes the bottom rail deeper; "hangs below" drops the whole rail under the doors (light trough). Clearance runs to the lowest part.'
+          : 'Listed top to bottom. The bottom reveal follows the parts the doors cover (REV-011). Clearance runs to the lowest part.'}
       </p>
     </section>
   );

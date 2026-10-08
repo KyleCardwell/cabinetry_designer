@@ -254,11 +254,11 @@ function RunGroup({
         <Rect
           key={part.id}
           {...part.rect}
-          fill="#94a3b8"
+          fill={part.behind ? 'transparent' : '#94a3b8'}
           opacity={0.9}
           stroke="#cbd5e1"
           strokeWidth={1}
-          dash={part.kind === 'corbels' ? [4, 3] : undefined}
+          dash={part.behind || part.kind === 'corbels' ? [4, 3] : undefined}
           listening={false}
         />
       ))}
