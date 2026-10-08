@@ -95,23 +95,23 @@ describe('SPEC-46.2 door details for a run', () => {
     ]);
   });
 
-  it('draws a back panel cell as sheet slab by default, and 5-piece when it picks a style (G3)', () => {
+  it('draws a back panel cell in the room\'s styles by default, and plain when it picks sheet slab (G3)', () => {
     expect(details('G3 Bath alcove', G3_UPPER).parts).toEqual([{
       key: `panel:${G3_BACK}`,
       kind: 'panelCell',
       pieceId: G3_BACK,
       path: null,
-      styleId: 'sheet',
-      label: 'Sheet',
-      construction: 'slab',
+      styleId: 'default',
+      label: 'Std',
+      construction: 'five_piece',
       ...box(0.75, 36, 70.5, 41.25),
-      openings: [],
+      openings: [box(3.75, 39, 64.5, 35.25)],
     }]);
-    const styled = details('G3 Bath alcove', G3_UPPER, (r) => {
-      leafOf(runOf(r, G3_UPPER), G3_BACK).styleId = 'ds-p';
+    const sheet = details('G3 Bath alcove', G3_UPPER, (r) => {
+      leafOf(runOf(r, G3_UPPER), G3_BACK).styleId = 'sheet';
     });
-    expect(styled.parts.map(({ label, construction, openings }) => [label, construction, openings]))
-      .toEqual([['P', 'five_piece', [box(3.75, 39, 64.5, 35.25)]]]);
+    expect(sheet.parts.map(({ label, construction, openings }) => [label, construction, openings]))
+      .toEqual([['Sheet', 'slab', []]]);
   });
 
   it('passes on the resolver\'s warnings, one per part, with the part\'s key', () => {

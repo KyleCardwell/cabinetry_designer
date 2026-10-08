@@ -92,7 +92,7 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
     if (piece.kind !== 'panel' || panelOrientation(piece) !== 'back') continue;
     const leaf = findLeaf(run.grid, piece.id);
     const resolved = resolveDoorStyle(
-      room, settings, 'panel', panelLevels(room, levelsWall, run, leaf, { sheet: true }),
+      room, settings, 'panel', panelLevels(room, levelsWall, run, leaf),
     );
     addPart(`panel:${piece.id}`, 'panelCell', piece.id, null, piece, resolved, leaf?.sizes);
   }

@@ -3,6 +3,7 @@ import {
   extendDirections, panelOrientation, panelTypes, wallSideOf,
 } from '../../model/index.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
+import { isSheetCell } from '../../model/panelThickness.js';
 import {
   addPanel,
   setCellKind,
@@ -117,7 +118,7 @@ export default function CellKindSection({ wall, run, piece, item }) {
           settings={settings}
           partType="panel"
           part={item}
-          levels={panelLevels(room, wall, run, item, { sheet: true })}
+          levels={panelLevels(room, wall, run, item, { sheet: isSheetCell(item) })}
           width={orientation === 'side' ? piece.depth : piece.width}
           height={orientation === 'top' ? piece.depth : piece.height}
           label="Panel"

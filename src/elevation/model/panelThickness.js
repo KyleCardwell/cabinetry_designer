@@ -5,6 +5,11 @@ export function isJoinedEnd(run, side) {
   return isJointAnchor(run.anchors?.[side]) || isFollowAnchor(run.anchors?.[side]);
 }
 
+/** A panel cell is sheet slab by default unless it's a back panel, whose face shows (SPEC-46.2.1). */
+export function isSheetCell(leaf) {
+  return leaf?.align !== 'back';
+}
+
 /** Interim team panel thickness until 46.3 (SPEC-46.1.1). */
 export function panelThickness(room, wall, run, part, settings, { sheet = false } = {}) {
   const { style } = resolveDoorStyle(

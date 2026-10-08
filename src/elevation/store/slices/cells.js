@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { isExtendTarget } from '../../model/extensions.js';
 import { setGridCellBlind } from '../../model/grid.js';
-import { panelThickness } from '../../model/panelThickness.js';
+import { isSheetCell, panelThickness } from '../../model/panelThickness.js';
 import {
   addGridPanel,
   equalizeGridCells,
@@ -114,7 +114,7 @@ export const cellReducers = {
     if (grid === before) return;
     if (kind === 'panel') {
       grid = setGridPanelType(grid, cellId, found.axis === 'row' ? 'top' : 'side',
-        panelThickness(location.room, location.wall, location.run, findLeaf(grid, cellId), state.settings, { sheet: true }));
+        panelThickness(location.room, location.wall, location.run, findLeaf(grid, cellId), state.settings, { sheet: isSheetCell(findLeaf(grid, cellId)) }));
     }
     location.run.grid = grid;
     if (found.depth === 0) location.run.autoCount = false;
@@ -169,7 +169,7 @@ export const cellReducers = {
     const { cellId, type } = action.payload;
     const before = location.run.grid;
     const grid = setGridPanelType(before, cellId, type,
-      panelThickness(location.room, location.wall, location.run, findLeaf(before, cellId), state.settings, { sheet: true }));
+      panelThickness(location.room, location.wall, location.run, findLeaf(before, cellId), state.settings, { sheet: type !== 'back' }));
     if (grid === before) return;
     location.run.grid = grid;
     syncRoomAt(state, location.roomIndex);
