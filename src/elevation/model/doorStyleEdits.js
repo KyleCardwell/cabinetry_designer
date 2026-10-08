@@ -129,6 +129,7 @@ function styleRow(style, design, partType, settings) {
 
 /** Team and room picker rows, plus the style inherited without this level's own pick. */
 export function pickOptions(room, settings, partType, levelsAbove, node = null) {
+  const designs = settings?.doorDesigns ?? DOOR_DESIGNS;
   const ownKey = { door: 'doorStyleId', drawer_front: 'drawerFrontStyleId', panel: 'panelStyleId' }[partType];
   const here = { ...node };
   delete here[ownKey];
@@ -136,7 +137,8 @@ export function pickOptions(room, settings, partType, levelsAbove, node = null) 
   const { style, design, source } = resolveDoorStyle(room, settings, partType, levels);
   const prefix = partType !== 'door' && (source.level === 'team' || source.key === 'doorStyleId')
     ? 'Same as doors' : 'Inherit';
-  const teamRow = styleRow(teamDoorStyle(settings), findDoorDesign(DEFAULT_DESIGN_ID), partType, settings);
+  const team = teamDoorStyle(settings);
+  const teamRow = styleRow(team, findDoorDesign(team.designId, designs) ?? findDoorDesign(DEFAULT_DESIGN_ID, designs), partType, settings);
   const inheritText = source.level === 'spot'
     ? `Sheet slab here (${formatInches(SHEET_PANEL_THICKNESS)})`
     : `${prefix} (${styleRow(style, design, partType, settings)})`;
@@ -147,7 +149,7 @@ export function pickOptions(room, settings, partType, levelsAbove, node = null) 
       ...(partType === 'panel' ? [{ id: 'sheet', text: `Sheet slab (${formatInches(SHEET_PANEL_THICKNESS)})` }] : []),
       ...(room?.doorStyles ?? []).map((entry) => ({
         id: entry.id,
-        text: styleRow(entry, findDoorDesign(entry.designId) ?? DOOR_DESIGNS[0], partType, settings),
+        text: styleRow(entry, findDoorDesign(entry.designId, designs) ?? findDoorDesign(DEFAULT_DESIGN_ID, designs), partType, settings),
       })),
     ],
   };

@@ -1,4 +1,4 @@
-import { DOOR_CONSTRUCTIONS, DOOR_DESIGNS, RAIL_SHAPES } from './doorStyles.js';
+import { DOOR_CONSTRUCTIONS, DOOR_DESIGNS, RAIL_SHAPES, teamDoorStyle } from './doorStyles.js';
 
 export const DESIGN_SLOTS = {
   five_piece: ['outside', 'inside', 'panel', 'applied'],
@@ -61,4 +61,29 @@ export function isDoorDesignList(list) {
       && design.topRail.shape === seeded.topRail.shape
       && design.bottomRail.shape === seeded.bottomRail.shape;
   });
+}
+
+/** An independent copy with a fresh identity and the first unused copy code. */
+export function newDoorDesign(designs, base, id) {
+  const codes = new Set(designs.map((design) => design.code.toLowerCase()));
+  let code = `${base.code} copy`;
+  let number = 2;
+  while (codes.has(code.toLowerCase())) {
+    code = `${base.code} copy ${number}`;
+    number += 1;
+  }
+  return { ...structuredClone(base), id, code };
+}
+
+/** Team default first, followed by matching styles in room and style order. */
+export function doorDesignUses(settings, rooms, designId) {
+  const uses = teamDoorStyle(settings).designId === designId ? [{ level: 'team' }] : [];
+  for (const room of rooms) {
+    for (const style of room.doorStyles ?? []) {
+      if (style.designId === designId) {
+        uses.push({ level: 'room', roomId: room.id, styleId: style.id, label: style.label });
+      }
+    }
+  }
+  return uses;
 }

@@ -38,7 +38,7 @@ const CHAIN_KEYS = {
   panel: ['panelStyleId', 'doorStyleId'],
 };
 
-export function resolveDoorStyle(room, settings, partType, levels, designs = DOOR_DESIGNS) {
+export function resolveDoorStyle(room, settings, partType, levels, designs = settings?.doorDesigns ?? DOOR_DESIGNS) {
   const styles = room?.doorStyles ?? [];
   const warnings = [];
   let style;
