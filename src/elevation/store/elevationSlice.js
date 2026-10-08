@@ -18,6 +18,7 @@ import { cellReducers } from './slices/cells.js';
 import { styleReducers } from './slices/styles.js';
 import { doorStyleReducers } from './slices/doorStyles.js';
 import { doorDesignReducers } from './slices/doorDesigns.js';
+import { sectionProfileReducers } from './slices/sectionProfiles.js';
 import { uiReducers } from './slices/ui.js';
 
 /** Create the elevation slice's initial persisted and transient state. */
@@ -65,6 +66,7 @@ const elevationSlice = createSlice({
     ...styleReducers,
     ...doorStyleReducers,
     ...doorDesignReducers,
+    ...sectionProfileReducers,
     ...uiReducers,
   },
 });
@@ -175,6 +177,11 @@ export const {
   deleteDoorDesign,
   setTeamDoorStyle,
   moveMissingDoorDesign,
+  addSectionProfile,
+  updateSectionProfile,
+  setSectionProfileArchived,
+  deleteSectionProfile,
+  importSectionProfiles,
   setDoorStylePick,
   setRoomDoorDrawing,
   setPartStyle,
