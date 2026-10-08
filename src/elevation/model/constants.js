@@ -1,3 +1,5 @@
+import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from './doorStyles.js';
+
 /** Cabinet type identifiers shared with ff-job-schedule. */
 export const CABINET_TYPE_IDS = {
   BASE: 1,
@@ -38,7 +40,8 @@ export const DEFAULT_SETTINGS = {
   snapHeightsToDefaults: true,
   defaultEnds: { left: 'filler', right: 'filler' },
   bumperThickness: 0.0625,
-  doorThickness: 0.8125,
+  teamDoorStyle: DEFAULT_DOOR_STYLE,
+  doorDesigns: DOOR_DESIGNS,
   fillerReturnDepth: 2.5,
   fillerReturnThickness: 0.75,
   teeCover: 0.75,

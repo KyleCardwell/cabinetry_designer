@@ -2,6 +2,7 @@ import { blindEntries } from './blind.js';
 import { blindCellWidths, cellDepth, cellPieces, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { frontDepth, runBackOffset, runFaceThickness } from './corners.js';
+import { teamDoorStyle } from './doorStyles.js';
 import { frameRegions } from './frames.js';
 import { runItems } from './grid.js';
 import { teeFillers } from './tees.js';
@@ -90,7 +91,7 @@ function planFaces(run, settings, pieces, faceLayouts, panels, band, faceBack, f
           start: face.x,
           end: face.x + face.width,
           back,
-          front: back + (face.thickness ?? settings.doorThickness),
+          front: back + (face.thickness ?? teamDoorStyle(settings).thickness),
         };
       });
     }

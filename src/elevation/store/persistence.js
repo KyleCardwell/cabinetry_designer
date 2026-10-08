@@ -5,8 +5,13 @@ import {
   FRAME_JOINS,
 } from '../model/constants.js';
 import { isBottomPart } from '../model/bottoms.js';
+import { isDoorDesignList } from '../model/doorDesigns.js';
 import {
+  DEFAULT_DOOR_STYLE,
+  DOOR_DESIGNS,
   DOOR_STYLE_KEYS,
+  findDoorDesign,
+  isDoorStyle,
   isDoorStyleList,
   isPartSizes,
   isStyleRef,
@@ -522,6 +527,14 @@ function normalizeDocument(document, schemaVersion) {
     for (const key of V2_DEFAULTED_SETTING_KEYS) {
       if (settings[key] === undefined) settings[key] = DEFAULT_SETTINGS[key];
     }
+    if (settings.teamDoorStyle === undefined) {
+      const thickness = Number.isFinite(settings.doorThickness) && settings.doorThickness > 0
+        ? settings.doorThickness
+        : DEFAULT_DOOR_STYLE.thickness;
+      settings.teamDoorStyle = { ...structuredClone(DEFAULT_DOOR_STYLE), thickness };
+    }
+    if (settings.doorDesigns === undefined) settings.doorDesigns = structuredClone(DOOR_DESIGNS);
+    delete settings.doorThickness;
   }
   return {
     ...document,
@@ -614,6 +627,10 @@ function hasValidEnds(settings) {
 
 function isSettings(settings, profileKeys = PROFILE_KEYS) {
   return Boolean(settings)
+    && isDoorStyle(settings.teamDoorStyle)
+    && settings.teamDoorStyle.id === 'default'
+    && isDoorDesignList(settings.doorDesigns)
+    && findDoorDesign(settings.teamDoorStyle.designId, settings.doorDesigns) !== null
     && V2_NUMERIC_SETTING_KEYS.every((key) => isFiniteNumber(settings[key]))
     && isCompleteProfile(settings.defaultProfile, profileKeys)
     && typeof settings.snapHeightsToDefaults === 'boolean'

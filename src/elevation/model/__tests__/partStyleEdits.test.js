@@ -79,7 +79,7 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
     });
     expect(pickOptions(room, DEFAULT_SETTINGS, 'door', [{ level: 'room', node: room }], {}).inherit)
       .toEqual({ id: 'ds-b', text: 'Inherit (B · 5PC · 1")' });
-    expect(pickOptions({}, { ...DEFAULT_SETTINGS, doorThickness: 1 }, 'door', [])).toEqual({
+    expect(pickOptions({}, { ...DEFAULT_SETTINGS, teamDoorStyle: { ...DEFAULT_SETTINGS.teamDoorStyle, thickness: 1 } }, 'door', [])).toEqual({
       inherit: { id: 'default', text: 'Inherit (Std · 5PC · 1")' },
       options: [{ id: 'default', text: 'Team default (Std · 5PC · 1")' }],
     });

@@ -24,7 +24,7 @@ describe('SPEC-46.1 adding, editing and deleting a room\'s door styles', () => {
     ]);
     expect(apply(state, addDoorStyle({ id: 'ds-3', baseId: 'gone' }))).toBe(state);
     const thick = base();
-    thick.settings.doorThickness = 1;
+    thick.settings.teamDoorStyle = { ...thick.settings.teamDoorStyle, thickness: 1 };
     expect(room(apply(thick, addDoorStyle({ id: 'ds-1' }))).doorStyles[0].thickness).toBe(1);
   });
 

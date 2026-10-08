@@ -1,4 +1,5 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { teamDoorStyle } from './doorStyles.js';
 import {
   clamp,
   dot,
@@ -24,7 +25,7 @@ export function runBackOffset(run) {
 
 /** The run's front plane thickness, its thickest face (SPEC-46 P11). */
 export function runFaceThickness(run, settings) {
-  return run._doorThickness ?? settings.doorThickness;
+  return run._doorThickness ?? teamDoorStyle(settings).thickness;
 }
 
 /**

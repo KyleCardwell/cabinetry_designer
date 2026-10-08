@@ -19,7 +19,7 @@ describe('SPEC-46.1.1 picking the team default on purpose', () => {
     expect([drawer.style.id, drawer.source]).toEqual(['default', { level: 'room', key: 'drawerFrontStyleId' }]);
     const face = resolveDoorStyle(room, S, 'door', cabinetFaceLevels(room, null, null, {}, { type: 'door', styleId: 'default' }));
     expect([face.style.id, face.source]).toEqual(['default', { level: 'face', key: 'styleId' }]);
-    expect(resolveDoorStyle(room, { ...S, doorThickness: 1 }, 'door', [{ level: 'run', node: { doorStyleId: 'default' } }]).style.thickness)
+    expect(resolveDoorStyle(room, { ...S, teamDoorStyle: { ...S.teamDoorStyle, thickness: 1 } }, 'door', [{ level: 'run', node: { doorStyleId: 'default' } }]).style.thickness)
       .toBe(1);
   });
 

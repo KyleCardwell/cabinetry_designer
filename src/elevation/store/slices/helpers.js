@@ -1,5 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
+import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
 import {
   gridLeaves,
   runItems,
@@ -30,6 +31,8 @@ export function copySettings(settings = DEFAULT_SETTINGS) {
     ...settings,
     defaultProfile: { ...settings.defaultProfile },
     defaultEnds: { ...settings.defaultEnds },
+    teamDoorStyle: structuredClone(settings.teamDoorStyle ?? DEFAULT_DOOR_STYLE),
+    doorDesigns: structuredClone(settings.doorDesigns ?? DOOR_DESIGNS),
   };
 }
 

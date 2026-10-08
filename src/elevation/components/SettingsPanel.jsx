@@ -21,7 +21,6 @@ const NUMBER_SETTINGS = [
   ['minRunWidth', 'Minimum run width'],
   ['maxRunOverhang', 'Maximum run overhang'],
   ['bumperThickness', 'Bumper thickness'],
-  ['doorThickness', 'Door thickness'],
   ['cornerFillerMinWidth', 'Corner filler minimum'],
   ['cornerSnapDistance', 'Corner snap distance'],
   ['adjacentRunGap', 'Adjacent run gap'],

@@ -4,6 +4,7 @@ import { runBands } from './runBands.js';
 import { planRunPieces } from './planPieces.js';
 import { frontDepth, runBackOffset } from './corners.js';
 import { shelfParts } from './cells.js';
+import { teamDoorStyle } from './doorStyles.js';
 
 const EPSILON = 1e-6;
 
@@ -124,7 +125,7 @@ export function elevationParts(room, wall, side, settings) {
       const frame = scene.frames.regions.find((region) => region.cabinetIds.includes(pieceId));
       for (const face of layout.faces) {
         if (face.type === 'open') continue;
-        const thickness = face.thickness ?? settings.doorThickness;
+        const thickness = face.thickness ?? teamDoorStyle(settings).thickness;
         const back = frame
           ? faces.get(frame.id).front - thickness
           : boxes.get(pieceId).front + settings.bumperThickness;

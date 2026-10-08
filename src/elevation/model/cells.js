@@ -1,4 +1,5 @@
 import { isNestedGrid } from './grid.js';
+import { teamDoorStyle } from './doorStyles.js';
 
 export const MIN_CELL_SIZE = 1;
 
@@ -315,7 +316,7 @@ export function partPieces(pieces, settings) {
 }
 
 /** A cell's true depth: its own, else a flush side/top panel reaches the door face, else the run's box depth. */
-export function cellDepth(piece, leaf, runDepth, settings, doorThickness = settings.doorThickness) {
+export function cellDepth(piece, leaf, runDepth, settings, doorThickness = teamDoorStyle(settings).thickness) {
   if (leaf?.depth !== undefined) return leaf.depth;
   const orientation = panelOrientation(piece);
   if (piece.kind === 'panel' && orientation !== 'back' && leaf?.doors !== 'cover') {

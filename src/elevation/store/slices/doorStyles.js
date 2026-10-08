@@ -89,7 +89,7 @@ export const doorStyleReducers = {
       if (!room) return;
       const styles = room.doorStyles ?? [];
       const base = baseId == null
-        ? teamDoorStyle(state.settings)
+        ? teamDoorStyle(current(state.settings))
         : current(room).doorStyles?.find((style) => style.id === baseId);
       if (!base) return;
       room.doorStyles = [...styles, newDoorStyle(styles, base, id)];

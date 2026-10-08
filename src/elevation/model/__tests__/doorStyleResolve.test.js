@@ -38,7 +38,7 @@ describe('SPEC-46 which door style a part uses', () => {
     expect(pick(resolve('door'))).toEqual({
       id: 'default', design: 'five-piece-square', source: { level: 'team', key: null }, warnings: [],
     });
-    expect(resolve('door', {}, { ...S, doorThickness: 1 }).style.thickness).toBe(1);
+    expect(resolve('door', {}, { ...S, teamDoorStyle: { ...S.teamDoorStyle, thickness: 1 } }).style.thickness).toBe(1);
     expect(resolveDoorStyle({}, S, 'door', []).style).toEqual(DEFAULT_DOOR_STYLE);
   });
 

@@ -74,8 +74,8 @@ describe('SPEC-46 a run\'s front plane follows its thickest face (P11)', () => {
     expect(baseFront(drawers)).toBe(25.0625);
   });
 
-  it('still takes the team default thickness from settings.doorThickness', () => {
-    const thick = { ...settings, doorThickness: 1 };
+  it('still takes the team default thickness from the team style', () => {
+    const thick = { ...settings, teamDoorStyle: { ...settings.teamDoorStyle, thickness: 1 } };
     const plain = syncRoom(stored('G1 Euro kitchen'), thick);
     expect('_doorThickness' in runOf(plain, BASE)).toBe(false);
     expect(baseFront(plain, thick)).toBe(25.0625);

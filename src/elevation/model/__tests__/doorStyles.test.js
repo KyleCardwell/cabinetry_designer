@@ -43,9 +43,9 @@ describe('SPEC-46 door designs and the team default style', () => {
     expect(isDoorStyle(DEFAULT_DOOR_STYLE)).toBe(true);
   });
 
-  it('takes the team default thickness from settings.doorThickness until the team style screen (46.3)', () => {
+  it('takes the team default style from settings.teamDoorStyle (SPEC-46.3)', () => {
     expect(teamDoorStyle(DEFAULT_SETTINGS)).toEqual(DEFAULT_DOOR_STYLE);
-    expect(teamDoorStyle({ ...DEFAULT_SETTINGS, doorThickness: 1 }).thickness).toBe(1);
+    expect(teamDoorStyle({ ...DEFAULT_SETTINGS, teamDoorStyle: { ...DEFAULT_DOOR_STYLE, thickness: 1 } }).thickness).toBe(1);
     expect(teamDoorStyle({}).thickness).toBe(0.8125);
     expect(DEFAULT_DOOR_STYLE.thickness).toBe(0.8125);
   });

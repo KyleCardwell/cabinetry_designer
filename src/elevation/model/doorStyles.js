@@ -53,12 +53,9 @@ export const DEFAULT_DOOR_STYLE = {
   shortFace: { minPanel: 2.125, minRail: 1.625, slabBelow: 4.8125, step: 0.0625 },
 };
 
-/** Interim until the team style screen (SPEC-46, 46.3). */
+/** The team default style from the Library (SPEC-46.3). */
 export function teamDoorStyle(settings) {
-  return {
-    ...DEFAULT_DOOR_STYLE,
-    thickness: settings?.doorThickness ?? DEFAULT_DOOR_STYLE.thickness,
-  };
+  return settings?.teamDoorStyle ?? DEFAULT_DOOR_STYLE;
 }
 
 /** Interim sheet material thickness until materials (SPEC-46.1.1). */
