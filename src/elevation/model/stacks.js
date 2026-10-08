@@ -1,4 +1,4 @@
-import { runBottomHeight } from './bottoms.js';
+import { runBelowBox } from './bottoms.js';
 import { runShortLabel } from './joints.js';
 import { runTop } from './tops.js';
 import { formatInches } from './units.js';
@@ -68,7 +68,7 @@ export function outerTop(wall, run, profile) {
 
 /** The bottom of a run's lowest part below it (light rail, cap, …), or of its box. */
 export function outerBottom(run) {
-  return run.z - runBottomHeight(run);
+  return run.z - runBelowBox(run);
 }
 
 /** A run's z and height from its links; leaders are already resolved. */
@@ -80,7 +80,7 @@ function stackedSpan(wall, run, resolved, profile) {
   let z = run.z;
   let top = run.z + run.height;
   if (belowLeader) {
-    z = outerTop(wall, belowLeader, profile) + (below.offset ?? 0) + runBottomHeight(run);
+    z = outerTop(wall, belowLeader, profile) + (below.offset ?? 0) + runBelowBox(run);
   }
   if (aboveLeader) {
     top = outerBottom(aboveLeader) - (above.offset ?? 0) - runTop(wall, run, profile).height;

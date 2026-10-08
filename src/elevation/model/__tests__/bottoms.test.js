@@ -81,7 +81,7 @@ describe('SPEC-35 parts below a run', () => {
     }, S);
     const wall = room.walls[0];
     const faces = runFaceLayouts(room, wall, wall.runs[0], S).get('U-cabinet').faces;
-    expect(faces[0]).toMatchObject({ z: 52.375, height: 37.5 });
+    expect(faces[0]).toMatchObject({ z: 53.875, height: 36 });
   });
 });
 

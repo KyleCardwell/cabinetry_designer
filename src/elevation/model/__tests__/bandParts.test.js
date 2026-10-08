@@ -53,7 +53,7 @@ describe('SPEC-42 band parts', () => {
     expect(parts.map(({ kind }) => kind)).toEqual([
       'toe_kick', 'countertop', 'bottom_cap', 'top_mold', 'crown', 'toe_kick', 'countertop',
     ]);
-    expect(row(parts[2])).toEqual(['c77d332c-1c0f-46ec-80a7-269fd9db569b', 'bottom_cap', 0, 52.5, 100.25, 1.5, 0, 12, false]);
+    expect(row(parts[2])).toEqual(['c77d332c-1c0f-46ec-80a7-269fd9db569b', 'bottom_cap', 0, 54, 100.25, 1.5, 0, 12, false]);
     const wood = '01a2a0e1-4bd1-434d-9c9b-66bc20ee7e54';
     expect(row(parts[6])).toEqual([`${wood}:countertop`, 'countertop', 127.75, 34.5, 72.25, 1.5, 8, 33.625, false]);
   });

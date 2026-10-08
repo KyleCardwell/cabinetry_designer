@@ -55,6 +55,6 @@ describe('SPEC-42.2 a run seen from its side', () => {
       ['countertop', 34.5, 1.5, 8, 33.625],
     ]);
     expect(sideOf('G5 Recess room', 1, 'e9abb5dc')[1]).toEqual(['box', 4, 30.5, -24, -3]);
-    expect(sideOf('G6 Stacked runs', 1, 'b1ec1b4a')).toEqual([['box', 36, 16.5, 0, 12]]);
+    expect(sideOf('G6 Stacked runs', 1, 'b1ec1b4a')).toEqual([['box', 36, 18, 0, 12]]);
   });
 });

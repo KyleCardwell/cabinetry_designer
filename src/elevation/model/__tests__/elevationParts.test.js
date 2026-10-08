@@ -121,8 +121,8 @@ describe('SPEC-41 elevation parts', () => {
     copy.walls[1].runs.find(({ id }) => id.startsWith('ea4373b3')).bottom[0].doors = 'flush';
     const parts = partsOf(syncRoom(copy, settings), 1);
     const upper = 'ea4373b3-87f2-4f39-a7cc-2c829c839832';
-    expect(byId(parts, `${upper}:left`).lines).toEqual([{ x1: 0, z1: 54.125, x2: 2.75, z2: 54.125 }]);
-    expect(byId(parts, `${upper}:right`).lines).toEqual([{ x1: 100.25, z1: 54.125, x2: 101, z2: 54.125 }]);
+    expect(byId(parts, `${upper}:left`).lines).toEqual([{ x1: 0, z1: 55.625, x2: 2.75, z2: 55.625 }]);
+    expect(byId(parts, `${upper}:right`).lines).toEqual([{ x1: 100.25, z1: 55.625, x2: 101, z2: 55.625 }]);
     expect(partsOf(room('G6 Stacked runs'), 1).some((part) => 'lines' in part)).toBe(false);
   });
 });

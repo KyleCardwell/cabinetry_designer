@@ -1,3 +1,4 @@
+import { runBelowBox } from './bottoms.js';
 import { CABINET_TYPE_IDS } from './constants.js';
 
 function definedEntries(value) {
@@ -85,7 +86,8 @@ export function resolveVertical(run, profile, baseRunsBelow = [], wallOrHeight) 
       }
     }
     // The clearance runs to the bottom of a face frame's bottom rail, which drops below the box (SPEC-36.1).
-    z = counterReference + q.upperClearance + (run._frame?.drop ?? 0);
+    // Or to the bottom of the parts below (SPEC-46.2.1).
+    z = counterReference + q.upperClearance + runBelowBox(run);
     height = boxTop - z;
   }
 

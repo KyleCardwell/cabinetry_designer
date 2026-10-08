@@ -26,7 +26,7 @@ describe('SPEC-39.1 everything under a click', () => {
     const g6 = face('G6 Stacked runs');
     const panelRun = pickStack(g6.room, g6.view, settings, { x: 50, z: 44 });
     expect(summary(panelRun)).toEqual([
-      ['piece', 'Back panel 101" × 16 1/2"'],
+      ['piece', 'Back panel 101" × 18"'],
       ['run', 'Upper run 101"'],
       ['wall', 'Wall 2'],
     ]);

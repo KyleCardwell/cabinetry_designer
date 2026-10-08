@@ -61,16 +61,16 @@ describe('SPEC-35 stacked runs', () => {
   it('fills between a countertop and a cap, and refits when either moves', () => {
     const synced = syncRoom(budgeted(), S);
     expect(runOf(synced, 'B')).toMatchObject({ z: 4, height: 30.5 });
-    expect(runOf(synced, 'U')).toMatchObject({ z: 54, height: 36 });
-    expect(runOf(synced, 'M')).toMatchObject({ z: 36, height: 16.5 });
+    expect(runOf(synced, 'U')).toMatchObject({ z: 55.5, height: 34.5 });
+    expect(runOf(synced, 'M')).toMatchObject({ z: 36, height: 18 });
 
     const moved = syncRoom(budgeted({
       base: { overrides: { baseBoxHeight: 32 } },
       upper: { overrides: { upperClearance: 20 } },
     }), S);
     expect(runOf(moved, 'B')).toMatchObject({ z: 4, height: 32 });
-    expect(runOf(moved, 'U')).toMatchObject({ z: 57.5, height: 32.5 });
-    expect(runOf(moved, 'M')).toMatchObject({ z: 37.5, height: 18.5 });
+    expect(runOf(moved, 'U')).toMatchObject({ z: 59, height: 31 });
+    expect(runOf(moved, 'M')).toMatchObject({ z: 37.5, height: 20 });
   });
 
   it('keeps a manual height or an auto edge when only one side is linked', () => {
@@ -78,7 +78,7 @@ describe('SPEC-35 stacked runs', () => {
     expect(runOf(onBase, 'M')).toMatchObject({ z: 37, height: 10 });
 
     const underUpper = syncRoom(rawRoom([base(), upper(), middle({ below: null, above: link('U', 2) })]), S);
-    expect(runOf(underUpper, 'M')).toMatchObject({ z: 40.5, height: 10 });
+    expect(runOf(underUpper, 'M')).toMatchObject({ z: 42, height: 10 });
 
     const hutch = syncRoom(rawRoom([base(), upper({ stack: { below: link('B'), above: null } })]), S);
     expect(runOf(hutch, 'U')).toMatchObject({ z: 37.5, height: 52.5 });
@@ -107,7 +107,7 @@ describe('SPEC-35 stacked runs', () => {
     const wall = room.walls[0];
     const profile = resolveProfile(S, room, wall);
     expect(outerTop(wall, runOf(room, 'B'), profile)).toBe(36);
-    expect(outerBottom(runOf(room, 'U'))).toBe(52.5);
+    expect(outerBottom(runOf(room, 'U'))).toBe(54);
     expect(stackOf(wall, 'U').map((run) => run.id)).toEqual(['B', 'M', 'U']);
     expect(stackFollowersOf(wall, ['B'])).toEqual(['M']);
     expect(stackFollowersOf(wall, ['U'])).toEqual(['M']);
@@ -129,7 +129,7 @@ describe('SPEC-35 stacked runs', () => {
 
     const second = joinStack(first.room, 'A', 'M', 'above', 'U', S);
     expect(second.ok).toBe(true);
-    expect(runOf(second.room, 'M')).toMatchObject({ z: 36, height: 16.5 });
+    expect(runOf(second.room, 'M')).toMatchObject({ z: 36, height: 18 });
 
     expect(joinStack(second.room, 'A', 'B', 'below', 'M', S)).toMatchObject({ ok: false, reason: 'stack-cycle' });
     expect(joinStack(room, 'A', 'U', 'below', 'B', S)).toMatchObject({ ok: false, reason: 'conflict' });
@@ -154,8 +154,8 @@ describe('SPEC-35 stack chain', () => {
     const column = pickColumnRuns(wall, null, 'left');
     expect(column.stack.map((run) => run.id)).toEqual(['B', 'M', 'U']);
     expect(kindsAndLengths(verticalChains(room, wall, column, S))).toEqual([
-      ['toe-kick', 4], ['box', 30.5], ['countertop', 1.5], ['box', 16.5],
-      ['bottom', 1.5], ['box', 36], ['molding', 6],
+      ['toe-kick', 4], ['box', 30.5], ['countertop', 1.5], ['box', 18],
+      ['bottom', 1.5], ['box', 34.5], ['molding', 6],
     ]);
   });
 
@@ -165,8 +165,8 @@ describe('SPEC-35 stack chain', () => {
     const column = pickColumnRuns(wall, null, 'left');
     expect('stack' in column).toBe(false);
     expect(kindsAndLengths(verticalChains(room, wall, column, S))).toEqual([
-      ['toe-kick', 4], ['box', 30.5], ['countertop', 1.5], ['clearance', 16.5],
-      ['bottom', 1.5], ['box', 36], ['molding', 6],
+      ['toe-kick', 4], ['box', 30.5], ['countertop', 1.5], ['clearance', 18],
+      ['bottom', 1.5], ['box', 34.5], ['molding', 6],
     ]);
   });
 });
@@ -175,13 +175,13 @@ describe('SPEC-35.1 drawing into a stack gap', () => {
   it('draws into the gap between a countertop and a cap and stacks on both', () => {
     const room = syncRoom(rawRoom([base(), upper()]), S);
     const run = createRun({ x: 0, width: 60, bottomZ: 37, topZ: 51 }, { settings: S, room, wall: room.walls[0] });
-    expect(run).toMatchObject({ cabinetTypeId: UPPER, heightMode: 'manual', z: 36, height: 16.5 });
+    expect(run).toMatchObject({ cabinetTypeId: UPPER, heightMode: 'manual', z: 36, height: 18 });
     const placed = tryPlaceRun(room, 'A', run, S);
     expect(placed.ok).toBe(true);
     const result = joinTouchingStack(placed.room, 'A', run.id, S);
     expect(result.joined).toEqual([{ edge: 'below', runId: 'B' }, { edge: 'above', runId: 'U' }]);
     expect(runOf(result.room, run.id).stack).toEqual({ below: link('B'), above: link('U') });
-    expect(runOf(result.room, run.id)).toMatchObject({ z: 36, height: 16.5 });
+    expect(runOf(result.room, run.id)).toMatchObject({ z: 36, height: 18 });
   });
 
   it('leaves open-wall drawing alone and doesn\'t snap or stack from too far away', () => {

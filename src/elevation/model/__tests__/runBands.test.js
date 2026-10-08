@@ -87,7 +87,7 @@ describe('SPEC-42 run bands', () => {
     const bands = bandsOf(syncRoom(stored('G6 Stacked runs'), settings), 1);
     expect(bands.ea4373b3.bottomParts).toEqual([{
       id: 'c77d332c-1c0f-46ec-80a7-269fd9db569b', kind: 'bottom_cap', doors: 'visible',
-      x: 0, z: 52.5, width: 100.25, height: 1.5,
+      x: 0, z: 54, width: 100.25, height: 1.5,
     }]);
     expect(bands.b1ec1b4a).toEqual({
       top: { kind: 'none', height: 0 },
@@ -106,8 +106,8 @@ describe('SPEC-42 run bands', () => {
     copy.walls[1].runs.find(({ id }) => id.startsWith('ea4373b3')).bottom[0].doors = 'flush';
     const bands = bandsOf(syncRoom(copy, settings), 1);
     expect(bands.ea4373b3.chipLines).toEqual([
-      { pieceId: 'ea4373b3-87f2-4f39-a7cc-2c829c839832:left', x1: 0, x2: 2.75, z: 54.125 },
-      { pieceId: 'ea4373b3-87f2-4f39-a7cc-2c829c839832:right', x1: 100.25, x2: 101, z: 54.125 },
+      { pieceId: 'ea4373b3-87f2-4f39-a7cc-2c829c839832:left', x1: 0, x2: 2.75, z: 55.625 },
+      { pieceId: 'ea4373b3-87f2-4f39-a7cc-2c829c839832:right', x1: 100.25, x2: 101, z: 55.625 },
     ]);
     // Flush doors: the part runs under the end panels.
     expect(span(bands.ea4373b3.bottomParts[0])).toEqual([0, 101]);

@@ -1,4 +1,4 @@
-import { isBottomPart } from '../../model/bottoms.js';
+import { isBottomPart, runBelowBox } from '../../model/bottoms.js';
 import { gridLeaves } from '../../model/grid.js';
 import {
   REVEAL_KEYS,
@@ -66,9 +66,21 @@ export const styleReducers = {
     const location = runLocation(state, action.payload);
     const { bottom } = action.payload;
     if (!location || !Array.isArray(bottom) || !bottom.every(isBottomPart)) return;
+    const keepBottom = location.run.heightMode === 'manual' && !location.run.stack?.below;
+    const before = keepBottom ? runBelowBox(location.run) : 0;
     if (bottom.length === 0) delete location.run.bottom;
     else location.run.bottom = bottom.map((part) => ({ ...part }));
     syncRoomAt(state, location.roomIndex);
+    if (keepBottom) {
+      const { run } = runLocation(state, action.payload);
+      const after = runBelowBox(run);
+      const change = after - before;
+      if (Math.abs(change) > 1e-9) {
+        run.z += change;
+        run.height -= change;
+        syncRoomAt(state, location.roomIndex);
+      }
+    }
   },
   setItemStyle(state, action) {
     const location = runLocation(state, action.payload);
