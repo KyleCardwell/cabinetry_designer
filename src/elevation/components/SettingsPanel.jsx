@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { Link } from 'react-router-dom';
 import { PLOT_SCALES } from '../model/drawingScale.js';
 import { crownOverlap } from '../model/profile.js';
 import { formatInches } from '../model/units.js';
@@ -93,6 +94,10 @@ export default function SettingsPanel() {
               </label>
             ))}
           </div>
+          <p className="text-xs text-gray-500">
+            Door thickness is on the team door style —{' '}
+            <Link to="/library/door-style" className="text-blue-400 hover:underline">Library</Link>
+          </p>
 
           <label className="block text-xs text-gray-400">
             Drawing scale

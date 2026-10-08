@@ -54,7 +54,7 @@ function RoomDoorStylesContent({ room, settings }) {
                 <div className="min-w-0 space-y-1">
                   <p>
                     <strong className="font-bold">{style.label}</strong>
-                    {' · '}{findDoorDesign(style.designId)?.code ?? style.designId}
+                    {' · '}{findDoorDesign(style.designId, settings.doorDesigns)?.code ?? style.designId}
                     {' · '}{formatInches(style.thickness)}
                   </p>
                   {style.name && <p className="break-words text-gray-300">{style.name}</p>}

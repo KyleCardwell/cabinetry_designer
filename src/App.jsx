@@ -10,6 +10,7 @@ import Login from './components/auth/Login';
 import ElevationLab from './elevation/ElevationLab';
 import LibraryLayout from './library/LibraryLayout.jsx';
 import DoorDesignsPage from './library/DoorDesignsPage.jsx';
+import TeamDoorStylePage from './library/TeamDoorStylePage.jsx';
 
 function App() {
   const dispatch = useDispatch();
@@ -56,6 +57,7 @@ function App() {
         <Route path="/library" element={<LibraryLayout />}>
           <Route index element={<Navigate to="door-designs" replace />} />
           <Route path="door-designs" element={<DoorDesignsPage />} />
+          <Route path="door-style" element={<TeamDoorStylePage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

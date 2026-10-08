@@ -14,6 +14,14 @@ export default function LibraryLayout() {
           >
             Door designs
           </NavLink>
+          <NavLink
+            to="door-style"
+            className={({ isActive }) => `rounded px-3 py-1.5 transition-colors ${
+              isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
+            }`}
+          >
+            Team door style
+          </NavLink>
         </nav>
       </aside>
       <main className="min-w-0 flex-1 overflow-y-auto p-6">
