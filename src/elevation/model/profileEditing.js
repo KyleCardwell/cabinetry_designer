@@ -1,4 +1,4 @@
-import { isSectionProfile } from './sectionProfiles.js';
+import { ATTACH_POINTS, PROFILE_SLOTS, isSectionProfile, profileFitsSlot } from './sectionProfiles.js';
 import { formatInchesInput } from './units.js';
 
 /** SPEC-48 grid choices in inches for profile editing. */
@@ -335,4 +335,28 @@ export function profileArcInfo(profile, loopId, index) {
     sweep: round6(arcSweep(segment, profile.geometry.points)),
     ccw: segment.ccw,
   };
+}
+
+/** SPEC-48.1 sets or clears a named attach point while preserving key order. */
+export function setProfileAttach(profile, name, pointId) {
+  if (!ATTACH_POINTS.includes(name) || (pointId !== null && typeof pointId !== 'string')) return null;
+  return editProfile(profile, (next) => {
+    if (pointId === null) {
+      delete next.attach[name];
+    } else {
+      if (!Object.hasOwn(next.geometry.points, pointId)) return false;
+      next.attach[name] = pointId;
+    }
+  });
+}
+
+/** SPEC-48.1 reports the fewest missing attach names for each tagged slot that does not fit. */
+export function profileSlotGaps(profile) {
+  return profile.tags.filter((tag) => Object.hasOwn(PROFILE_SLOTS, tag) && !profileFitsSlot(profile, tag))
+    .map((tag) => {
+      const missing = PROFILE_SLOTS[tag]
+        .map((option) => option.filter((name) => !Object.hasOwn(profile.attach, name)))
+        .reduce((best, option) => (option.length < best.length ? option : best));
+      return { tag, slot: tag, missing };
+    });
 }
