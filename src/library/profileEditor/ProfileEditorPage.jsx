@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { PROFILE_GRID_STEPS } from '../../elevation/model/profileEditing.js';
+import { formatInches } from '../../elevation/model/units.js';
 import { updateSectionProfile } from '../../elevation/store/elevationSlice.js';
-import ProfileThumbnail from '../ProfileThumbnail.jsx';
 import PointsPanel from './PointsPanel.jsx';
+import ProfileCanvas from './ProfileCanvas.jsx';
 import useProfileDraft from './useProfileDraft.js';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
@@ -18,6 +20,8 @@ export default function ProfileEditorPage() {
   const [message, setMessage] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [selection, setSelection] = useState(null);
+  const [grid, setGrid] = useState(1 / 16);
+  const [fitSignal, setFitSignal] = useState(0);
 
   useEffect(() => {
     setMessage(null);
@@ -48,6 +52,9 @@ export default function ProfileEditorPage() {
       } else if (event.ctrlKey && key === 'y') {
         event.preventDefault();
         redo();
+      } else if (key === 'f' && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        event.preventDefault();
+        setFitSignal((current) => current + 1);
       }
     };
     window.addEventListener('keydown', onKeyDown);
@@ -73,6 +80,10 @@ export default function ProfileEditorPage() {
       </div>
     );
   }
+
+  const selectedLoop = selection?.kind === 'segment'
+    ? draft.geometry.loops.find((loop) => loop.id === selection.loopId) : null;
+  const selectedSegment = selectedLoop?.segs[selection.index];
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -111,9 +122,19 @@ export default function ProfileEditorPage() {
       {message && <p role="status" className="px-4 py-1 text-sm text-red-300">{message}</p>}
       <div className="flex min-h-0 flex-1">
         <div className="relative min-h-0 flex-1 bg-gray-900">
-          <ProfileThumbnail profile={draft} className="h-full w-full p-8 text-gray-200" />
+          <div className="absolute left-2 top-2 z-10 flex gap-2">
+            <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} onClick={() => setFitSignal((current) => current + 1)}>Fit</button>
+            <label className="flex items-center gap-2 rounded bg-gray-800 px-2 text-sm text-gray-200">
+              Grid
+              <select className="rounded border border-gray-600 bg-gray-900 px-2 py-1 text-sm text-gray-100" value={grid} onChange={(event) => setGrid(Number(event.target.value))}>
+                {PROFILE_GRID_STEPS.map((step) => <option key={step} value={step}>{formatInches(step, step)}</option>)}
+              </select>
+            </label>
+          </div>
+          <ProfileCanvas key={profileId} profile={draft} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} />
         </div>
         <aside className="w-96 shrink-0 overflow-y-auto border-l border-gray-700 p-4 space-y-5">
+          {selectedSegment && <p className="text-xs text-gray-300">Segment {selection.index + 1} of {selectedLoop.segs.length} · {selectedLoop.id} · {selectedSegment.from} → {selectedSegment.to}</p>}
           <PointsPanel
             profile={draft}
             selectedPointId={selection?.kind === 'point' ? selection.id : null}
