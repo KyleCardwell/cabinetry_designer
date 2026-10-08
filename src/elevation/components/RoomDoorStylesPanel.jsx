@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { doorDrawing } from '../model/doorDetails.js';
 import { findDoorDesign } from '../model/doorStyles.js';
 import { doorStyleUses, pickOptions } from '../model/doorStyleEdits.js';
 import { formatInches } from '../model/units.js';
-import { addDoorStyle, deleteDoorStyle, setDoorStylePick } from '../store/elevationSlice.js';
+import { addDoorStyle, deleteDoorStyle, setDoorStylePick, setRoomDoorDrawing } from '../store/elevationSlice.js';
 import DoorStyleEditor from './DoorStyleEditor.jsx';
 import DoorStylePicks from './properties/DoorStylePicks.jsx';
 
@@ -22,6 +23,24 @@ function RoomDoorStylesContent({ room, settings }) {
     <section className="border-t border-gray-700 pt-4">
       <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-300">Door styles</h3>
       <div className="space-y-3">
+        <label className="flex items-center gap-2 text-xs text-gray-300">
+          <input
+            type="checkbox"
+            checked={doorDrawing(room).details}
+            onChange={(event) => dispatch(setRoomDoorDrawing({ roomId: room.id, doorDetails: event.target.checked }))}
+            aria-label="Draw door details"
+          />
+          Draw door details
+        </label>
+        <label className="flex items-center gap-2 text-xs text-gray-300">
+          <input
+            type="checkbox"
+            checked={doorDrawing(room).tags}
+            onChange={(event) => dispatch(setRoomDoorDrawing({ roomId: room.id, doorStyleTags: event.target.checked }))}
+            aria-label="Show style tags"
+          />
+          Show style tags
+        </label>
         {styles.length === 0 && (
           <p className="text-xs text-gray-400">
             No door styles yet — everything uses {inherit.text.slice('Inherit ('.length, -1)}

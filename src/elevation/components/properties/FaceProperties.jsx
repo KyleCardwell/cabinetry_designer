@@ -24,6 +24,7 @@ import {
   splitFace,
 } from '../../model/index.js';
 import { facePartType, cabinetFaceLevels } from '../../model/doorStyleResolve.js';
+import { runDoorDetails } from '../../model/doorDetails.js';
 import { setFacePart } from '../../model/faceTree.js';
 import { setFacePath, setItemFace } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
@@ -38,6 +39,8 @@ const WARNING_MESSAGES = {
   'face-too-small': 'Sections don\'t fit. Reduce a fixed size.',
   'pair-door-covers-panel': 'A pair door can\'t cover a side panel — it\'s hinged on both sides.',
   'hinge-on-covered-side': 'This door is hinged on the side that covers a panel.',
+  'front-panel-over-taller': 'A shorter front above has a bigger panel than the one below it — adjust its rails.',
+  'door-design-missing': 'This face\'s door design is missing — drawn as 5-piece square.',
 };
 
 function groupLabel(node) {
@@ -63,7 +66,12 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
     (candidate) => candidate.id === state.elevation.activeRoomId,
   ));
   const faceLayout = runFaceLayouts(room, wall, run, settings, layout).get(piece.id);
-  const warnings = faceLayout?.warnings ?? [];
+  const warnings = [
+    ...(faceLayout?.warnings ?? []),
+    ...runDoorDetails(room, wall, run, settings).warnings.filter(
+      (warning) => warning.pieceId === piece.id && warning.code !== 'door-style-missing',
+    ),
+  ];
   const [splitCount, setSplitCount] = useState(2);
   const selected = facePath === null ? null : getFaceNode(face, facePath);
   const resolvedFace = faceLayout?.faces.find((entry) => entry.path === facePath);
