@@ -53,7 +53,7 @@ export default function DoorStyleEditor({ room, styleId, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-[36rem] max-h-[90vh] overflow-y-auto rounded border border-gray-700 bg-gray-800 p-5"
+        className="w-[64rem] max-w-[95vw] max-h-[90vh] overflow-y-auto rounded border border-gray-700 bg-gray-800 p-5"
       >
         <h2 id={titleId} className="mb-4 text-lg font-semibold text-gray-100">Door style {draft.label}</h2>
         <div className="space-y-4">

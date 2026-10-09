@@ -20,7 +20,7 @@ function TeamDoorStyleContent({ settings }) {
           Every door, drawer front and panel that doesn't pick a style uses this (shown as Std). New room styles start as a copy of it.
         </p>
       </div>
-      <div className="max-w-xl space-y-4">
+      <div className="max-w-5xl space-y-4">
         <DoorStyleFields draft={draft} setDraft={setDraft} designs={settings.doorDesigns} />
         {reason && <p role="status" className="text-xs text-red-400">{reason}</p>}
         <div className="flex gap-2">
