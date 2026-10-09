@@ -119,6 +119,36 @@ export function profileFitsSlot(profile, slot) {
     && profile.kind === PROFILE_SLOTS[slot];
 }
 
+const DOOR_SLOT_KINDS = {
+  outside: 'door_outside',
+  inside: 'door_inside',
+  panel: 'door_panel',
+  applied: 'applied_molding',
+};
+
+/** SPEC-48.3 the profile kind a door style slot takes. */
+export function doorProfileSlotKind(slot) {
+  return typeof slot === 'string' && Object.hasOwn(DOOR_SLOT_KINDS, slot) ? DOOR_SLOT_KINDS[slot] : null;
+}
+
+/** SPEC-48.3 what a door style slot can pick: Square/None, its kind's live profiles, then a pick that no longer fits. */
+export function doorProfileChoices(profiles, slot, pickedId) {
+  const kind = doorProfileSlotKind(slot);
+  if (kind === null) return [];
+  const choices = [
+    { id: null, name: slot === 'applied' ? 'None' : 'Square', note: null },
+    ...profiles.filter((profile) => profile.kind === kind && !profile.archived)
+      .map(({ id, name }) => ({ id, name, note: null })),
+  ];
+  if (isNonEmptyString(pickedId) && !choices.some(({ id }) => id === pickedId)) {
+    const picked = profiles.find(({ id }) => id === pickedId);
+    choices.push(picked
+      ? { id: picked.id, name: picked.name, note: picked.kind !== kind ? 'wrong kind' : 'archived' }
+      : { id: pickedId, name: 'Missing profile', note: 'missing' });
+  }
+  return choices;
+}
+
 const FULL_TURN = 2 * Math.PI;
 
 function positiveAngle(angle) {
@@ -200,10 +230,11 @@ export function sectionProfileSvgPath(profile) {
   }).join(' ');
 }
 
-/** SPEC-47 creates a square or independent copy with the first unused name. */
-export function newSectionProfile(profiles, id, base = null) {
+/** SPEC-47 creates a square or independent copy with the first unused name; SPEC-48.3 a new square can start as a kind. */
+export function newSectionProfile(profiles, id, base = null, kind = 'other') {
   const names = new Set(profiles.map((profile) => profile.name.toLowerCase()));
-  const initialName = base ? `${base.name} copy` : 'New profile';
+  const k = base ? base.kind : (isProfileKind(kind) ? kind : 'other');
+  const initialName = base ? `${base.name} copy` : k === 'other' ? 'New profile' : `New ${PROFILE_KINDS[k].label.toLowerCase()}`;
   let name = initialName;
   let number = 2;
   while (names.has(name.toLowerCase())) {
@@ -211,7 +242,7 @@ export function newSectionProfile(profiles, id, base = null) {
     number += 1;
   }
   const profile = base ? structuredClone(base) : {
-    kind: 'other',
+    kind: k,
     geometry: {
       units: 'in',
       points: { p1: [0, 0], p2: [0.75, 0], p3: [0.75, -0.75], p4: [0, -0.75] },

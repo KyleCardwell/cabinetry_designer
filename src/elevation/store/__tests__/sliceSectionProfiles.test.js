@@ -83,4 +83,18 @@ describe('SPEC-47 editing the profile library', () => {
     expect(apply(state, importSectionProfiles({ profiles: [{ nope: true }] }))).toBe(state);
     expect(apply(state, importSectionProfiles({ profiles: 'x' }))).toBe(state);
   });
+
+  it('adds a new profile of a kind for a door style slot (SPEC-48.3)', () => {
+    const state = apply(
+      withLibrary(),
+      addSectionProfile({ id: 'sp-1', kind: 'door_outside' }),
+      addSectionProfile({ id: 'sp-2', kind: 'shop_x' }),
+      addSectionProfile({ id: 'sp-3', baseId: 'sp-crown', kind: 'door_outside' }),
+    );
+    expect(state.settings.sectionProfiles.slice(3).map(({ id, name, kind }) => [id, name, kind])).toEqual([
+      ['sp-1', 'New door outside edge', 'door_outside'],
+      ['sp-2', 'New profile', 'other'],
+      ['sp-3', 'Crown 4 1/2 copy', 'crown'],
+    ]);
+  });
 });

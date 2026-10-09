@@ -11,11 +11,11 @@ import {
 export const sectionProfileReducers = {
   addSectionProfile: {
     reducer(state, action) {
-      const { baseId, id } = action.payload;
+      const { baseId, id, kind } = action.payload;
       const list = current(state.settings).sectionProfiles;
       const base = baseId == null ? null : list.find((profile) => profile.id === baseId);
       if (baseId != null && !base) return;
-      const next = [...list, newSectionProfile(list, id, base)];
+      const next = [...list, newSectionProfile(list, id, base, kind)];
       if (!isSectionProfileList(next)) return;
       state.settings.sectionProfiles = next;
     },
