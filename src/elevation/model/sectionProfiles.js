@@ -342,3 +342,67 @@ export function mergeImportedProfiles(profiles, incoming) {
   }
   return { profiles: next, added, replaced, skipped };
 }
+
+/** SPEC-48.1.1 profile kinds in library order with their drawing axes and required pins. */
+export const PROFILE_KINDS = {
+  door_outside: { label: 'Door outside edge', axes: 'door', pins: ['door_edge'] },
+  door_inside: { label: 'Door inside profile', axes: 'door', pins: ['frame_edge'] },
+  door_panel: { label: 'Raised panel', axes: 'door', pins: ['panel_edge'] },
+  applied_molding: { label: 'Applied molding', axes: 'door', pins: ['apply_point'] },
+  crown: { label: 'Crown', axes: 'run', pins: ['box_top', 'box_front'] },
+  top_mold: { label: 'Top mold', axes: 'run', pins: ['box_top', 'box_front'] },
+  furniture_base: { label: 'Furniture base', axes: 'run', pins: ['floor', 'box_front'] },
+  toe_kick: { label: 'Toe kick', axes: 'run', pins: ['floor', 'box_front'] },
+  nosing: { label: 'Nosing', axes: 'run', pins: ['edge_top', 'edge_face'] },
+  other: { label: 'Other', axes: 'free', pins: [] },
+};
+
+/** SPEC-48.1.1 pin point labels in ATTACH_POINTS order. */
+export const PIN_LABELS = {
+  door_edge: 'Door edge',
+  frame_edge: 'Panel opening edge',
+  panel_edge: 'Panel edge',
+  apply_point: 'Molding line',
+  box_top: 'Top of box',
+  box_front: 'Box face',
+  floor: 'Floor',
+  edge_top: 'Top of part',
+  edge_face: 'Part edge',
+};
+
+/** SPEC-48.1.1 recognizes only own string kind names. */
+export function isProfileKind(kind) {
+  return typeof kind === 'string' && Object.hasOwn(PROFILE_KINDS, kind);
+}
+
+/** SPEC-48.1.1 labels known kinds and returns unknown kinds as stored. */
+export function profileKindLabel(kind) {
+  return Object.hasOwn(PROFILE_KINDS, kind) ? PROFILE_KINDS[kind].label : kind;
+}
+
+/** SPEC-48.1.1 lists used kinds in library order, including archived profiles. */
+export function profileKindOptions(profiles) {
+  const used = new Set(profiles.map((profile) => profile.kind));
+  return Object.keys(PROFILE_KINDS).filter((kind) => used.has(kind));
+}
+
+/** SPEC-48.1.1 lists a kind's missing pins in pin order without validating the profile. */
+export function profileMissingPins(profile) {
+  if (!isProfileKind(profile?.kind)) return [];
+  return PROFILE_KINDS[profile.kind].pins.filter((pin) => !Object.hasOwn(profile.attach ?? {}, pin));
+}
+
+/** SPEC-48.1.1 migrates older tags to one kind and retains only its pins without mutation. */
+export function migrateSectionProfile(entry) {
+  if (!isPlainObject(entry) || !Array.isArray(entry.tags) || Object.hasOwn(entry, 'kind')) return entry;
+  const tag = entry.tags.find((value) => (isProfileKind(value) && value !== 'other')
+    || value === 'door_applied' || value === 'slab_applied');
+  const kind = tag === 'door_applied' || tag === 'slab_applied' ? 'applied_molding' : tag ?? 'other';
+  const next = { ...entry, kind };
+  delete next.tags;
+  if (isPlainObject(entry.attach)) {
+    next.attach = Object.fromEntries(Object.entries(entry.attach)
+      .filter(([pin]) => PROFILE_KINDS[kind].pins.includes(pin)));
+  }
+  return next;
+}

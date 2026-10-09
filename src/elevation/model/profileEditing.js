@@ -415,3 +415,42 @@ export function setProfilePlanSameAsElevation(profile, same) {
     }
   });
 }
+
+/** SPEC-48.1.1 rotates points and arc centers by integer quarter turns about the origin. */
+export function rotateProfile(profile, turns) {
+  if (!Number.isInteger(turns)) return null;
+  const t = ((turns % 4) + 4) % 4;
+  return editProfile(profile, (next) => {
+    if (t === 0) return;
+    const rotate = ([x, y]) => {
+      if (t === 1) return [-y, x].map(round6);
+      if (t === 2) return [-x, -y].map(round6);
+      return [y, -x].map(round6);
+    };
+    const { points, loops } = next.geometry;
+    for (const id of Object.keys(points)) points[id] = rotate(points[id]);
+    for (const loop of loops) {
+      for (const segment of loop.segs) {
+        if (segment.type === 'arc') segment.center = rotate(segment.center);
+      }
+    }
+  });
+}
+
+/** SPEC-48.1.1 mirrors points and arc centers on one axis and reverses arc direction. */
+export function mirrorProfile(profile, axis) {
+  if (axis !== 'x' && axis !== 'y') return null;
+  return editProfile(profile, (next) => {
+    const mirror = ([x, y]) => [axis === 'x' ? -x : x, axis === 'y' ? -y : y].map(round6);
+    const { points, loops } = next.geometry;
+    for (const id of Object.keys(points)) points[id] = mirror(points[id]);
+    for (const loop of loops) {
+      for (const segment of loop.segs) {
+        if (segment.type === 'arc') {
+          segment.center = mirror(segment.center);
+          segment.ccw = !segment.ccw;
+        }
+      }
+    }
+  });
+}
