@@ -6,7 +6,7 @@ import { profileKindLabel } from '../../elevation/model/sectionProfiles.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateSectionProfile } from '../../elevation/store/elevationSlice.js';
 import ProfileDetailsDialog from '../ProfileDetailsDialog.jsx';
-import AttachPanel from './AttachPanel.jsx';
+import PinsPanel from './PinsPanel.jsx';
 import DrawnPanel from './DrawnPanel.jsx';
 import PointsPanel from './PointsPanel.jsx';
 import ProfileCanvas from './ProfileCanvas.jsx';
@@ -130,7 +130,7 @@ export default function ProfileEditorPage() {
         ) : <Link to="/library/profiles" className={BUTTON_CLASS}>← Profiles</Link>}
         <span className="font-medium text-gray-100">{saved.name}</span>
         <span className="text-xs text-gray-400">v{saved.version}</span>
-        <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">{profileKindLabel(saved.kind)}</span>
+        <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">{profileKindLabel(draft.kind)}</span>
         {saved.archived && <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">archived</span>}
         {dirty && <span className="text-xs text-amber-300">Unsaved</span>}
         <button type="button" className={BUTTON_CLASS} onClick={() => setDetailsOpen(true)}>Details</button>
@@ -143,7 +143,7 @@ export default function ProfileEditorPage() {
           disabled={!dirty}
           onClick={() => dispatch(updateSectionProfile({
             profileId: saved.id,
-            profile: { ...saved, geometry: draft.geometry, attach: draft.attach, drawnPoints: draft.drawnPoints },
+            profile: { ...saved, kind: draft.kind, geometry: draft.geometry, attach: draft.attach, drawnPoints: draft.drawnPoints },
           }))}
         >
           Save
@@ -173,7 +173,7 @@ export default function ProfileEditorPage() {
             onSelectPoint={(id) => setSelection(id === null ? null : { kind: 'point', id })}
             onApply={apply}
           />
-          <AttachPanel profile={draft} selectedPointId={selection?.kind === 'point' ? selection.id : null} onApply={apply} />
+          <PinsPanel profile={draft} selectedPointId={selection?.kind === 'point' ? selection.id : null} onApply={apply} />
           <DrawnPanel
             profile={draft}
             selectedPointId={selection?.kind === 'point' ? selection.id : null}
@@ -189,7 +189,7 @@ export default function ProfileEditorPage() {
           <p className="text-xs text-gray-500">x runs in from the edge; y = 0 is the front face, negative into the door. Attach points say where the profile sits; drawn points become lines in each view. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
         </aside>
       </div>
-      {detailsOpen && <ProfileDetailsDialog key={saved.id} profile={saved} onClose={() => setDetailsOpen(false)} />}
+      {detailsOpen && <ProfileDetailsDialog key={saved.id} profile={saved} showKind={false} onClose={() => setDetailsOpen(false)} />}
     </div>
   );
 }
