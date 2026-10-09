@@ -6,7 +6,7 @@ import { profileKindLabel } from '../../elevation/model/sectionProfiles.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateSectionProfile } from '../../elevation/store/elevationSlice.js';
 import ProfileDetailsDialog from '../ProfileDetailsDialog.jsx';
-import PinsPanel from './PinsPanel.jsx';
+import KindPanel from './KindPanel.jsx';
 import DrawnPanel from './DrawnPanel.jsx';
 import PointsPanel from './PointsPanel.jsx';
 import ProfileCanvas from './ProfileCanvas.jsx';
@@ -144,7 +144,7 @@ export default function ProfileEditorPage() {
           disabled={!dirty}
           onClick={() => dispatch(updateSectionProfile({
             profileId: saved.id,
-            profile: { ...saved, kind: draft.kind, geometry: draft.geometry, attach: draft.attach, drawnPoints: draft.drawnPoints },
+            profile: { ...saved, kind: draft.kind, geometry: draft.geometry, drawnPoints: draft.drawnPoints },
           }))}
         >
           Save
@@ -178,7 +178,7 @@ export default function ProfileEditorPage() {
             onSelectPoint={(id) => setSelection(id === null ? null : { kind: 'point', id })}
             onApply={apply}
           />
-          <PinsPanel profile={draft} selectedPointId={selection?.kind === 'point' ? selection.id : null} onApply={apply} />
+          <KindPanel profile={draft} onApply={apply} />
           <DrawnPanel
             profile={draft}
             selectedPointId={selection?.kind === 'point' ? selection.id : null}
@@ -191,7 +191,7 @@ export default function ProfileEditorPage() {
               <p key={loop.id} className="text-xs text-gray-400">{loop.id} · {loop.closed ? 'closed' : 'open'} · {loop.segs.length} segments</p>
             ))}
           </section>
-          <p className="text-xs text-gray-500">Pick the kind first: it sets which way the shape is drawn and which pin points it needs. To turn or flip the shape about a pin, press Origin on that point first. Drawn points become lines in each view. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
+          <p className="text-xs text-gray-500">Pick the kind first: it sets which way the shape is drawn and what 0, 0 means. Open lines are cuts; closed shapes are applied pieces. To turn or flip the shape about a point, press Origin on that point first. Drawn points become lines in each view. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
         </aside>
       </div>
       {detailsOpen && <ProfileDetailsDialog key={saved.id} profile={saved} showKind={false} onClose={() => setDetailsOpen(false)} />}

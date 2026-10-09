@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { PIN_LABELS, PROFILE_KINDS } from '../elevation/model/sectionProfiles.js';
+import { PROFILE_KINDS } from '../elevation/model/sectionProfiles.js';
 import { setProfileKind } from '../elevation/model/profileEditing.js';
 import { updateSectionProfile } from '../elevation/store/elevationSlice.js';
 
@@ -14,8 +14,6 @@ export default function ProfileDetailsDialog({ profile, onClose, showKind = true
   const titleId = useId();
   const panelRef = useRef(null);
   const reason = !name.trim() ? 'Name is required' : '';
-  const pinPoints = PROFILE_KINDS[kind].pins
-    .map((pin) => `${PIN_LABELS[pin]} → ${profile.attach[pin] ?? 'not set'}`).join(', ');
 
   useEffect(() => {
     const previousFocus = document.activeElement;
@@ -71,13 +69,12 @@ export default function ProfileDetailsDialog({ profile, onClose, showKind = true
                   ))}
                 </select>
               </label>
-              <p className="text-xs text-gray-500">The kind sets which way the shape is drawn and which pin points it needs. To use the same shape as another kind, Copy it and change the copy&apos;s kind.</p>
-              {kind !== profile.kind && <p className="text-xs text-amber-300">Changing the kind clears pin points the new kind doesn&apos;t use.</p>}
+              <p className="text-xs text-gray-500">The kind sets which way the shape is drawn and what 0, 0 means. To use the same shape as another kind, Copy it and change the copy&apos;s kind.</p>
             </>
           )}
           <p className="text-xs text-gray-500">Version {profile.version} · {Object.keys(profile.geometry.points).length} points · {profile.geometry.loops.length} loops</p>
-          <p className="text-xs text-gray-500">{kind === 'other' ? 'Other profiles have no pin points.' : `Pin points: ${pinPoints}`}</p>
-          <p className="text-xs text-gray-500">The shape, pin points and drawn points are edited with Edit shape.</p>
+          <p className="text-xs text-gray-500">{PROFILE_KINDS[kind].origin ? `0, 0 is ${PROFILE_KINDS[kind].origin}.` : "Other profiles aren't used by doors or runs yet."}</p>
+          <p className="text-xs text-gray-500">The shape and drawn points are edited with Edit shape.</p>
           {reason && <p role="status" className="text-xs text-red-400">{reason}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" className={BUTTON_CLASS} onClick={onClose}>Cancel</button>

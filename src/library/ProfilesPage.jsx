@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { saveBlob } from '../api/drawings.js';
 import {
   filterSectionProfiles, mergeImportedProfiles, parseProfileFile, profileFile,
-  PIN_LABELS, profileKindLabel, profileKindOptions, profileMissingPins, sectionProfileUses,
+  profileKindLabel, profileKindOptions, sectionProfileUses,
 } from '../elevation/model/sectionProfiles.js';
 import {
   addSectionProfile, deleteSectionProfile, importSectionProfiles, setSectionProfileArchived,
@@ -144,10 +144,6 @@ export default function ProfilesPage() {
             const usedBy = uses.map((use) => use.level === 'team'
               ? `Team default ${use.slot}`
               : `${rooms.find((room) => room.id === use.roomId)?.name ?? use.roomId} ${use.label} ${use.slot}`).join(', ');
-            const missingPins = profileMissingPins(profile);
-            const status = profile.kind === 'other' ? 'no pin points'
-              : missingPins.length === 0 ? 'ready'
-                : `needs ${missingPins.map((pin) => PIN_LABELS[pin]).join(', ')}`;
 
             return (
               <div key={profile.id} className={`rounded border border-gray-700 bg-gray-800/60 p-3 space-y-2${profile.archived ? ' opacity-60' : ''}`}>
@@ -161,7 +157,7 @@ export default function ProfilesPage() {
                 <div className="flex flex-wrap gap-1">
                   <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">{profileKindLabel(profile.kind)}</span>
                 </div>
-                <p className="text-xs text-gray-500">v{profile.version} · {status}</p>
+                <p className="text-xs text-gray-500">v{profile.version}{profile.kind === 'other' ? ' · not used by doors or runs yet' : ''}</p>
                 {uses.length > 0 && <p className="text-xs text-gray-400">Used by: {usedBy}</p>}
                 <div className="flex flex-wrap gap-2">
                   <button

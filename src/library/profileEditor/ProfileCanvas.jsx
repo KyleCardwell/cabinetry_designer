@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import {
   addProfileLoop, addProfilePoint, formatProfileCoord, moveProfilePoint, nextPointId, profileDrawnIn, snapProfilePoint,
 } from '../../elevation/model/profileEditing.js';
-import { PIN_LABELS, PROFILE_KINDS } from '../../elevation/model/sectionProfiles.js';
+import { PROFILE_KINDS } from '../../elevation/model/sectionProfiles.js';
 import { fitView, loopScreenPath, segmentScreenPath, toModel, toScreen, zoomAt } from './profileView.js';
 
 function gridScreenPath(view, size, step) {
@@ -140,6 +140,7 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
   const cursorModel = view && cursor ? toModel(view, size, cursor).map((value) => Math.round(value * 64) / 64) : null;
   const drawnProfile = dragPreview?.profile ?? profile;
   const axes = PROFILE_KINDS[drawnProfile.kind]?.axes ?? 'free';
+  const originText = PROFILE_KINDS[drawnProfile.kind]?.origin ?? null;
   const hover = tool === 'line' && view && cursor
     ? snapProfilePoint(profile, toModel(view, size, cursor), { grid, reach: 8 / view.scale }) : null;
   const hoverScreen = hover && toScreen(view, size, hover.xy);
@@ -167,12 +168,6 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
     setDragPreview(null);
   };
 
-  const attachNames = new Map();
-  for (const [name, id] of Object.entries(drawnProfile.attach)) {
-    if (!(PROFILE_KINDS[drawnProfile.kind]?.pins ?? []).includes(name)) continue;
-    if (!attachNames.has(id)) attachNames.set(id, []);
-    attachNames.get(id).push(name);
-  }
   const elevationSet = new Set(profileDrawnIn(drawnProfile, 'elevation'));
   const planSet = new Set(profileDrawnIn(drawnProfile, 'plan'));
 
@@ -249,12 +244,6 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
               const [x, y] = toScreen(view, size, point);
               return (
                 <g key={id}>
-                  {attachNames.has(id) && (
-                    <>
-                      <path d={`M ${x} ${y - 11} L ${x + 11} ${y} L ${x} ${y + 11} L ${x - 11} ${y} Z`} stroke="#f59e0b" strokeWidth={1.5} fill="none" pointerEvents="none" />
-                      <text x={x + 7} y={y + 19} fontSize={10} fill="#f59e0b" pointerEvents="none">{attachNames.get(id).map((name) => PIN_LABELS[name]).join(', ')}</text>
-                    </>
-                  )}
                   {(elevationSet.has(id) || planSet.has(id)) && (
                     <circle cx={x} cy={y} r={7.5} fill="none" stroke="#38bdf8" strokeWidth={1.5} strokeDasharray={elevationSet.has(id) ? undefined : '3 2'} pointerEvents="none" />
                   )}
@@ -279,15 +268,16 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
         )}
       </svg>
       <div className="pointer-events-none absolute right-2 top-2 rounded bg-gray-800/80 px-2 py-1 text-xs text-gray-300">
-        {axes === 'door' ? "Door profile · face on top · x → toward the door's middle · y ↓ into the door"
-          : axes === 'run' ? 'Run molding · x → out from the box · y ↑ up' : 'Other · x → · y ↑'}
+        <div>{axes === 'door' ? "Door profile · face on top · x → toward the door's middle · y ↓ into the door"
+          : axes === 'run' ? 'Run molding · x → out from the box · y ↑ up' : 'Other · x → · y ↑'}</div>
+        {originText && <div>0, 0 = {originText}</div>}
       </div>
       <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-gray-800/80 px-2 py-1 font-mono text-xs text-gray-300">
         {cursorModel && `x ${formatProfileCoord(cursorModel[0])} · y ${formatProfileCoord(cursorModel[1])}`}
       </div>
-      {(attachNames.size > 0 || elevationSet.size > 0 || planSet.size > 0) && (
+      {(elevationSet.size > 0 || planSet.size > 0) && (
         <div className="pointer-events-none absolute bottom-2 right-2 rounded bg-gray-800/80 px-2 py-1 text-xs text-gray-300">
-          ◇ pin point · ○ drawn (solid: elevation, dashed: plan only)
+          ○ drawn (solid: elevation, dashed: plan only)
         </div>
       )}
     </div>
