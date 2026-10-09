@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import {
   addProfileLoop, addProfilePoint, formatProfileCoord, moveProfilePoint, nextPointId, profileDrawnIn, snapProfilePoint,
 } from '../../elevation/model/profileEditing.js';
+import { PIN_LABELS, PROFILE_KINDS } from '../../elevation/model/sectionProfiles.js';
 import { fitView, loopScreenPath, segmentScreenPath, toModel, toScreen, zoomAt } from './profileView.js';
 
 function gridScreenPath(view, size, step) {
@@ -138,6 +139,7 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
   const origin = view ? toScreen(view, size, [0, 0]) : [0, 0];
   const cursorModel = view && cursor ? toModel(view, size, cursor).map((value) => Math.round(value * 64) / 64) : null;
   const drawnProfile = dragPreview?.profile ?? profile;
+  const axes = PROFILE_KINDS[drawnProfile.kind]?.axes ?? 'free';
   const hover = tool === 'line' && view && cursor
     ? snapProfilePoint(profile, toModel(view, size, cursor), { grid, reach: 8 / view.scale }) : null;
   const hoverScreen = hover && toScreen(view, size, hover.xy);
@@ -167,6 +169,7 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
 
   const attachNames = new Map();
   for (const [name, id] of Object.entries(drawnProfile.attach)) {
+    if (!(PROFILE_KINDS[drawnProfile.kind]?.pins ?? []).includes(name)) continue;
     if (!attachNames.has(id)) attachNames.set(id, []);
     attachNames.get(id).push(name);
   }
@@ -223,7 +226,7 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
               {view.scale >= 8 && <path d={gridScreenPath(view, size, 1)} stroke="#374151" />}
               <path d={`M 0 ${origin[1]} H ${size.width} M ${origin[0]} 0 V ${size.height}`} stroke="#6b7280" strokeWidth={1.5} />
               <g fill="#6b7280" fontSize={10}>
-                <text x={6} y={origin[1] - 5}>face (y = 0)</text>
+                <text x={6} y={origin[1] - 5}>{axes === 'door' ? 'face (y = 0)' : 'y = 0'}</text>
                 <text x={origin[0] + 5} y={12}>x = 0</text>
               </g>
             </g>
@@ -249,7 +252,7 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
                   {attachNames.has(id) && (
                     <>
                       <path d={`M ${x} ${y - 11} L ${x + 11} ${y} L ${x} ${y + 11} L ${x - 11} ${y} Z`} stroke="#f59e0b" strokeWidth={1.5} fill="none" pointerEvents="none" />
-                      <text x={x + 7} y={y + 19} fontSize={10} fill="#f59e0b" pointerEvents="none">{attachNames.get(id).join(', ')}</text>
+                      <text x={x + 7} y={y + 19} fontSize={10} fill="#f59e0b" pointerEvents="none">{attachNames.get(id).map((name) => PIN_LABELS[name]).join(', ')}</text>
                     </>
                   )}
                   {(elevationSet.has(id) || planSet.has(id)) && (
@@ -275,12 +278,16 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
           </>
         )}
       </svg>
+      <div className="pointer-events-none absolute right-2 top-2 rounded bg-gray-800/80 px-2 py-1 text-xs text-gray-300">
+        {axes === 'door' ? "Door profile · face on top · x → toward the door's middle · y ↓ into the door"
+          : axes === 'run' ? 'Run molding · x → out from the box · y ↑ up' : 'Other · x → · y ↑'}
+      </div>
       <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-gray-800/80 px-2 py-1 font-mono text-xs text-gray-300">
         {cursorModel && `x ${formatProfileCoord(cursorModel[0])} · y ${formatProfileCoord(cursorModel[1])}`}
       </div>
       {(attachNames.size > 0 || elevationSet.size > 0 || planSet.size > 0) && (
         <div className="pointer-events-none absolute bottom-2 right-2 rounded bg-gray-800/80 px-2 py-1 text-xs text-gray-300">
-          ◇ attach point · ○ drawn (solid: elevation, dashed: plan only)
+          ◇ pin point · ○ drawn (solid: elevation, dashed: plan only)
         </div>
       )}
     </div>

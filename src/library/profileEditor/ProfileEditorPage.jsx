@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { deleteProfilePoint, PROFILE_GRID_STEPS } from '../../elevation/model/profileEditing.js';
+import { deleteProfilePoint, mirrorProfile, PROFILE_GRID_STEPS, rotateProfile } from '../../elevation/model/profileEditing.js';
 import { profileKindLabel } from '../../elevation/model/sectionProfiles.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateSectionProfile } from '../../elevation/store/elevationSlice.js';
@@ -15,6 +15,7 @@ import useProfileDraft from './useProfileDraft.js';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const HISTORY_BUTTON_CLASS = `${BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`;
+const TURN_FAILURE = 'That turn would make the shape invalid.';
 
 export default function ProfileEditorPage() {
   const { profileId } = useParams();
@@ -156,6 +157,10 @@ export default function ProfileEditorPage() {
             <button type="button" className={`${BUTTON_CLASS} ${tool === 'select' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'select'} onClick={() => switchTool('select')}>Select (V)</button>
             <button type="button" className={`${BUTTON_CLASS} ${tool === 'line' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'line'} onClick={() => switchTool('line')}>Line (L)</button>
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} onClick={() => setFitSignal((current) => current + 1)}>Fit</button>
+            <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Rotate 90° counter-clockwise about 0, 0" aria-label="Rotate counter-clockwise" onClick={() => apply(rotateProfile(draft, 1), TURN_FAILURE)}>⟲</button>
+            <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Rotate 90° clockwise about 0, 0" aria-label="Rotate clockwise" onClick={() => apply(rotateProfile(draft, -1), TURN_FAILURE)}>⟳</button>
+            <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Flip left–right across x = 0" aria-label="Flip left-right" onClick={() => apply(mirrorProfile(draft, 'x'), TURN_FAILURE)}>⇆</button>
+            <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Flip up–down across y = 0" aria-label="Flip up-down" onClick={() => apply(mirrorProfile(draft, 'y'), TURN_FAILURE)}>⇅</button>
             <label className="flex items-center gap-2 rounded bg-gray-800 px-2 text-sm text-gray-200">
               Grid
               <select className="rounded border border-gray-600 bg-gray-900 px-2 py-1 text-sm text-gray-100" value={grid} onChange={(event) => setGrid(Number(event.target.value))}>
@@ -186,7 +191,7 @@ export default function ProfileEditorPage() {
               <p key={loop.id} className="text-xs text-gray-400">{loop.id} · {loop.closed ? 'closed' : 'open'} · {loop.segs.length} segments</p>
             ))}
           </section>
-          <p className="text-xs text-gray-500">x runs in from the edge; y = 0 is the front face, negative into the door. Attach points say where the profile sits; drawn points become lines in each view. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
+          <p className="text-xs text-gray-500">Pick the kind first: it sets which way the shape is drawn and which pin points it needs. To turn or flip the shape about a pin, press Origin on that point first. Drawn points become lines in each view. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
         </aside>
       </div>
       {detailsOpen && <ProfileDetailsDialog key={saved.id} profile={saved} showKind={false} onClose={() => setDetailsOpen(false)} />}
