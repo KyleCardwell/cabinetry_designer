@@ -23,7 +23,6 @@
           }
         ]
       },
-      "attach": { "frame_edge": "a" },
       "drawnPoints": { "elevation": ["b", "c"] },
       "version": 1,
       "archived": false
@@ -46,7 +45,6 @@
           }
         ]
       },
-      "attach": { "frame_edge": "s", "apply_point": "s" },
       "drawnPoints": { "elevation": ["s", "t"] },
       "version": 1,
       "archived": false
@@ -72,7 +70,6 @@
           }
         ]
       },
-      "attach": { "box_top": "c1", "box_front": "c1" },
       "drawnPoints": { "elevation": ["c3", "c4", "c5"], "plan": ["c3"] },
       "version": 1,
       "archived": false

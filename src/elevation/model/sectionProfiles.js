@@ -1,11 +1,5 @@
 import { DOOR_PROFILE_SLOTS, teamDoorStyle } from './doorStyles.js';
 
-/** SPEC-47 allowed named attach points for section profiles. */
-export const ATTACH_POINTS = [
-  'door_edge', 'frame_edge', 'panel_edge', 'apply_point', 'box_top', 'box_front', 'floor',
-  'edge_top', 'edge_face',
-];
-
 function isPlainObject(value) {
   if (value === null || typeof value !== 'object') return false;
   const prototype = Object.getPrototypeOf(value);
@@ -78,22 +72,19 @@ function isPointList(list, points) {
     && Array.from(list).every((id) => isNonEmptyString(id) && Object.hasOwn(points, id));
 }
 
-/** SPEC-47 section profiles validate metadata, geometry and named point references. */
+/** SPEC-47 section profiles validate metadata, geometry and drawn point references (SPEC-48.2: no pins). */
 export function isSectionProfile(profile) {
   if (!hasKeys(profile, [
-    'id', 'name', 'kind', 'geometry', 'attach', 'drawnPoints', 'version', 'archived',
+    'id', 'name', 'kind', 'geometry', 'drawnPoints', 'version', 'archived',
   ]) || !isNonEmptyString(profile.id)
     || !isNonEmptyString(profile.name) || profile.name !== profile.name.trim()
     || !isProfileKind(profile.kind)
     || !isProfileGeometry(profile.geometry)
-    || !hasKeys(profile.attach, ATTACH_POINTS, [])
     || !hasKeys(profile.drawnPoints, ['elevation', 'plan'], ['elevation'])
     || !Number.isInteger(profile.version) || profile.version < 1
     || typeof profile.archived !== 'boolean') return false;
   const points = profile.geometry.points;
-  return Reflect.ownKeys(profile.attach).every((name) => (
-    isNonEmptyString(profile.attach[name]) && Object.hasOwn(points, profile.attach[name])
-  )) && isPointList(profile.drawnPoints.elevation, points)
+  return isPointList(profile.drawnPoints.elevation, points)
     && (!Object.hasOwn(profile.drawnPoints, 'plan') || isPointList(profile.drawnPoints.plan, points));
 }
 
@@ -122,10 +113,10 @@ export const PROFILE_SLOTS = {
   nosing: 'nosing',
 };
 
-/** A profile fits a slot of its own kind once all the kind's pins are set (SPEC-48.1.1). */
+/** A profile fits a slot of its own kind (SPEC-48.2). */
 export function profileFitsSlot(profile, slot) {
   return Object.hasOwn(PROFILE_SLOTS, slot)
-    && profile.kind === PROFILE_SLOTS[slot] && profileMissingPins(profile).length === 0;
+    && profile.kind === PROFILE_SLOTS[slot];
 }
 
 const FULL_TURN = 2 * Math.PI;
@@ -235,7 +226,6 @@ export function newSectionProfile(profiles, id, base = null) {
         ],
       }],
     },
-    attach: {},
     drawnPoints: { elevation: [] },
   };
   return { ...profile, id, name, version: 1, archived: false };
@@ -305,31 +295,18 @@ export function mergeImportedProfiles(profiles, incoming) {
   return { profiles: next, added, replaced, skipped };
 }
 
-/** SPEC-48.1.1 profile kinds in library order with their drawing axes and required pins; SPEC-48.2 adds what 0, 0 means. */
+/** SPEC-48.1.1 profile kinds in library order with their drawing axes; SPEC-48.2 adds what 0, 0 means. */
 export const PROFILE_KINDS = {
-  door_outside: { label: 'Door outside edge', axes: 'door', origin: "the door's outside edge, at the front face", pins: ['door_edge'] },
-  door_inside: { label: 'Door inside profile', axes: 'door', origin: 'the edge of the panel opening, at the front face', pins: ['frame_edge'] },
-  door_panel: { label: 'Raised panel', axes: 'door', origin: 'the edge of the panel opening, at the front face', pins: ['panel_edge'] },
-  applied_molding: { label: 'Applied molding', axes: 'door', origin: 'the line the molding is applied along, at the front face', pins: ['apply_point'] },
-  crown: { label: 'Crown', axes: 'run', origin: 'the front face of the box, at the top of the box', pins: ['box_top', 'box_front'] },
-  top_mold: { label: 'Top mold', axes: 'run', origin: 'the front face of the box, at the top of the box', pins: ['box_top', 'box_front'] },
-  furniture_base: { label: 'Furniture base', axes: 'run', origin: 'the front face of the box, at the floor', pins: ['floor', 'box_front'] },
-  toe_kick: { label: 'Toe kick', axes: 'run', origin: "the toe kick's face, at the floor", pins: ['floor', 'box_front'] },
-  nosing: { label: 'Nosing', axes: 'run', origin: 'the front edge of the part, at its top', pins: ['edge_top', 'edge_face'] },
-  other: { label: 'Other', axes: 'free', origin: null, pins: [] },
-};
-
-/** SPEC-48.1.1 pin point labels in ATTACH_POINTS order. */
-export const PIN_LABELS = {
-  door_edge: 'Door edge',
-  frame_edge: 'Panel opening edge',
-  panel_edge: 'Panel edge',
-  apply_point: 'Molding line',
-  box_top: 'Top of box',
-  box_front: 'Box face',
-  floor: 'Floor',
-  edge_top: 'Top of part',
-  edge_face: 'Part edge',
+  door_outside: { label: 'Door outside edge', axes: 'door', origin: "the door's outside edge, at the front face" },
+  door_inside: { label: 'Door inside profile', axes: 'door', origin: 'the edge of the panel opening, at the front face' },
+  door_panel: { label: 'Raised panel', axes: 'door', origin: 'the edge of the panel opening, at the front face' },
+  applied_molding: { label: 'Applied molding', axes: 'door', origin: 'the line the molding is applied along, at the front face' },
+  crown: { label: 'Crown', axes: 'run', origin: 'the front face of the box, at the top of the box' },
+  top_mold: { label: 'Top mold', axes: 'run', origin: 'the front face of the box, at the top of the box' },
+  furniture_base: { label: 'Furniture base', axes: 'run', origin: 'the front face of the box, at the floor' },
+  toe_kick: { label: 'Toe kick', axes: 'run', origin: "the toe kick's face, at the floor" },
+  nosing: { label: 'Nosing', axes: 'run', origin: 'the front edge of the part, at its top' },
+  other: { label: 'Other', axes: 'free', origin: null },
 };
 
 /** SPEC-48.1.1 recognizes only own string kind names. */
@@ -348,23 +325,63 @@ export function profileKindOptions(profiles) {
   return Object.keys(PROFILE_KINDS).filter((kind) => used.has(kind));
 }
 
-/** SPEC-48.1.1 lists a kind's missing pins in pin order without validating the profile. */
-export function profileMissingPins(profile) {
-  if (!isProfileKind(profile?.kind)) return [];
-  return PROFILE_KINDS[profile.kind].pins.filter((pin) => !Object.hasOwn(profile.attach ?? {}, pin));
+const OLD_PINS = {
+  door_outside: { x: 'door_edge', y: 'door_edge' },
+  door_inside: { x: 'frame_edge', y: 'frame_edge' },
+  door_panel: { x: 'panel_edge', y: 'panel_edge' },
+  applied_molding: { x: 'apply_point', y: 'apply_point' },
+  crown: { x: 'box_front', y: 'box_top' },
+  top_mold: { x: 'box_front', y: 'box_top' },
+  furniture_base: { x: 'box_front', y: 'floor' },
+  toe_kick: { x: 'box_front', y: 'floor' },
+  nosing: { x: 'edge_face', y: 'edge_top' },
+};
+
+function round6(value) {
+  const rounded = Number(value.toFixed(6));
+  return rounded === 0 ? 0 : rounded;
 }
 
-/** SPEC-48.1.1 migrates older tags to one kind and retains only its pins without mutation. */
+/** SPEC-48.2 turns older tags into a kind and moves the old pin to 0, 0, without mutating the input. */
 export function migrateSectionProfile(entry) {
-  if (!isPlainObject(entry) || !Array.isArray(entry['tags']) || Object.hasOwn(entry, 'kind')) return entry;
-  const tag = entry['tags'].find((value) => (isProfileKind(value) && value !== 'other')
-    || value === 'door_applied' || value === 'slab_applied');
-  const kind = tag === 'door_applied' || tag === 'slab_applied' ? 'applied_molding' : tag ?? 'other';
-  const next = { ...entry, kind };
-  delete next['tags'];
-  if (isPlainObject(entry.attach)) {
-    next.attach = Object.fromEntries(Object.entries(entry.attach)
-      .filter(([pin]) => PROFILE_KINDS[kind].pins.includes(pin)));
+  if (!isPlainObject(entry)) return entry;
+  const fromTags = Array.isArray(entry.tags) && !Object.hasOwn(entry, 'kind');
+  const hasAttach = Object.hasOwn(entry, 'attach');
+  if (!fromTags && !hasAttach) return entry;
+  const next = structuredClone(entry);
+  if (fromTags) {
+    const tag = entry.tags.find((value) => (isProfileKind(value) && value !== 'other')
+      || value === 'door_applied' || value === 'slab_applied');
+    next.kind = tag === 'door_applied' || tag === 'slab_applied' ? 'applied_molding' : tag ?? 'other';
+    delete next.tags;
+  }
+  if (hasAttach) {
+    const { points, loops } = next.geometry ?? {};
+    const pin = (name) => {
+      const id = isPlainObject(entry.attach) ? entry.attach[name] : null;
+      return isNonEmptyString(id) && isPlainObject(points)
+        && Object.hasOwn(points, id) && isCoordinate(points[id]) ? points[id] : null;
+    };
+    const pins = Object.hasOwn(OLD_PINS, next.kind) ? OLD_PINS[next.kind] : null;
+    const dx = pins ? pin(pins.x)?.[0] ?? 0 : 0;
+    const dy = pins ? pin(pins.y)?.[1] ?? 0 : 0;
+    if (dx !== 0 || dy !== 0) {
+      const move = ([x, y]) => [round6(x - dx), round6(y - dy)];
+      for (const id of Object.keys(points)) {
+        if (isCoordinate(points[id])) points[id] = move(points[id]);
+      }
+      if (Array.isArray(loops)) {
+        for (const loop of loops) {
+          if (!Array.isArray(loop?.segs)) continue;
+          for (const segment of loop.segs) {
+            if (segment?.type === 'arc' && isCoordinate(segment.center)) {
+              segment.center = move(segment.center);
+            }
+          }
+        }
+      }
+    }
+    delete next.attach;
   }
   return next;
 }

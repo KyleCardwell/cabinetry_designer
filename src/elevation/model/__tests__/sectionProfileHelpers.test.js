@@ -25,12 +25,11 @@ const THREE_QUARTER = {
       ],
     }],
   },
-  attach: {},
   drawnPoints: { elevation: [] },
 };
 
 describe('SPEC-47 section profile helpers', () => {
-  it('fits a slot of its own kind once the kind\'s pin points are all set', () => {
+  it('fits a slot of its own kind', () => {
     expect(PROFILE_SLOTS).toEqual({
       door_outside: 'door_outside',
       door_inside: 'door_inside',
@@ -50,12 +49,11 @@ describe('SPEC-47 section profile helpers', () => {
       profileFitsSlot(CROWN, 'crown'),
       profileFitsSlot(COVE, 'door_applied'),
       profileFitsSlot(COVE, 'door_outside'),
-      profileFitsSlot({ ...COVE, attach: {} }, 'door_inside'),
       profileFitsSlot(CROWN, 'top_mold'),
-      profileFitsSlot({ ...CROWN, attach: { box_top: 'c1' } }, 'crown'),
       profileFitsSlot(CROWN, 'sticking'),
-      profileFitsSlot({ ...COVE, kind: 'other', attach: {} }, 'door_inside'),
-    ]).toEqual([true, true, true, true, false, false, false, false, false, false, false]);
+      profileFitsSlot({ ...COVE, kind: 'other' }, 'door_inside'),
+      profileFitsSlot({ ...COVE, kind: 'other' }, 'other'),
+    ]).toEqual([true, true, true, true, false, false, false, false, false, false]);
   });
 
   it('measures a profile, arcs included', () => {
@@ -84,7 +82,6 @@ describe('SPEC-47 section profile helpers', () => {
           { id: 'L2', closed: false, segs: [{ type: 'line', from: 'q', to: 'r' }] },
         ],
       },
-      attach: {},
       drawnPoints: { elevation: [] },
     };
     expect(sectionProfileSvgPath(open)).toBe('M 0.3333 0.1 L 1 0.1 M 1 0.1 L 1 0');
@@ -109,7 +106,6 @@ describe('SPEC-47 section profile helpers', () => {
           ],
         }],
       },
-      attach: {},
       drawnPoints: { elevation: [] },
       version: 1,
       archived: false,
@@ -118,7 +114,7 @@ describe('SPEC-47 section profile helpers', () => {
     expect(newSectionProfile(named, 'sp-2').name).toBe('New profile 3');
     const copy = newSectionProfile(sample.profiles, 'sp-3', { ...CROWN, version: 4, archived: true });
     expect(copy).toEqual({ ...CROWN, id: 'sp-3', name: 'Crown 4 1/2 copy', version: 1, archived: false });
-    expect([copy.geometry === CROWN.geometry, copy.attach === CROWN.attach]).toEqual([false, false]);
+    expect([copy.geometry === CROWN.geometry, copy.drawnPoints === CROWN.drawnPoints]).toEqual([false, false]);
     expect(newSectionProfile([...sample.profiles, { ...COVE, id: 'x', name: 'Crown 4 1/2 COPY' }], 'sp-4', CROWN).name)
       .toBe('Crown 4 1/2 copy 2');
   });

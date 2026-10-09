@@ -32,13 +32,9 @@ describe('SPEC-48 editing profile points', () => {
       addProfilePoint(COVE, [Number.NaN, 1], 'p1'),
     ]).toEqual([null, null, null]);
     expect(deleteProfilePoint(added, 'p1')).toEqual(COVE);
-    const referenced = {
-      ...added,
-      attach: { frame_edge: 'a', door_edge: 'p1' },
-      drawnPoints: { elevation: ['b', 'p1'], plan: ['p1'] },
-    };
+    const referenced = { ...added, drawnPoints: { elevation: ['b', 'p1'], plan: ['p1'] } };
     expect(deleteProfilePoint(referenced, 'p1'))
-      .toEqual({ ...COVE, attach: { frame_edge: 'a' }, drawnPoints: { elevation: ['b'], plan: [] } });
+      .toEqual({ ...COVE, drawnPoints: { elevation: ['b'], plan: [] } });
     expect([deleteProfilePoint(COVE, 'a'), deleteProfilePoint(COVE, 'zz')]).toEqual([null, null]);
   });
 
@@ -48,7 +44,6 @@ describe('SPEC-48 editing profile points', () => {
     expect(renamed.geometry.points.face).toEqual([0, 0]);
     const segs = renamed.geometry.loops[0].segs;
     expect([segs[0].from, segs[4].to]).toEqual(['face', 'face']);
-    expect(renamed.attach).toEqual({ frame_edge: 'face' });
     expect(renamed.drawnPoints).toEqual({ elevation: ['b', 'c'], plan: ['face'] });
     const b1 = renameProfilePoint(COVE, 'b', 'b1');
     expect([b1.drawnPoints, b1.geometry.loops[0].segs[0].to, b1.geometry.loops[0].segs[1].from])

@@ -1,6 +1,4 @@
-import {
-  ATTACH_POINTS, PROFILE_KINDS, isProfileKind, isSectionProfile,
-} from './sectionProfiles.js';
+import { isProfileKind, isSectionProfile } from './sectionProfiles.js';
 import { formatInchesInput } from './units.js';
 
 /** SPEC-48 grid choices in inches for profile editing. */
@@ -92,7 +90,7 @@ export function moveProfilePoint(profile, id, xy) {
   });
 }
 
-/** SPEC-48 renames a point in place and updates segment, attach and drawn references. */
+/** SPEC-48 renames a point in place and updates segment and drawn references. */
 export function renameProfilePoint(profile, id, newId) {
   if (typeof id !== 'string' || !isPointId(newId)) return null;
   return editProfile(profile, (next) => {
@@ -107,16 +105,13 @@ export function renameProfilePoint(profile, id, newId) {
         if (segment.to === id) segment.to = newId;
       }
     }
-    for (const name of Object.keys(next.attach)) {
-      if (next.attach[name] === id) next.attach[name] = newId;
-    }
     for (const view of Object.keys(next.drawnPoints)) {
       next.drawnPoints[view] = next.drawnPoints[view].map((pointId) => (pointId === id ? newId : pointId));
     }
   });
 }
 
-/** SPEC-48 deletes unused points and removes their attach and drawn references. */
+/** SPEC-48 deletes unused points and removes their drawn references. */
 export function deleteProfilePoint(profile, id) {
   if (typeof id !== 'string') return null;
   return editProfile(profile, (next) => {
@@ -126,9 +121,6 @@ export function deleteProfilePoint(profile, id) {
       return false;
     }
     delete points[id];
-    for (const name of Object.keys(next.attach)) {
-      if (next.attach[name] === id) delete next.attach[name];
-    }
     for (const view of Object.keys(next.drawnPoints)) {
       next.drawnPoints[view] = next.drawnPoints[view].filter((pointId) => pointId !== id);
     }
@@ -192,7 +184,6 @@ function deleteUnusedLoopPoints(profile, segments) {
   const candidates = new Set(segments.flatMap((segment) => [segment.from, segment.to]));
   const used = new Set([
     ...profile.geometry.loops.flatMap((loop) => loop.segs.flatMap((segment) => [segment.from, segment.to])),
-    ...Object.values(profile.attach),
     ...Object.values(profile.drawnPoints).flat(),
   ]);
   for (const id of candidates) {
@@ -339,26 +330,11 @@ export function profileArcInfo(profile, loopId, index) {
   };
 }
 
-/** SPEC-48.1 sets or clears a named attach point while preserving key order. */
-export function setProfileAttach(profile, name, pointId) {
-  if (!ATTACH_POINTS.includes(name) || (pointId !== null && typeof pointId !== 'string')) return null;
-  return editProfile(profile, (next) => {
-    if (pointId === null) {
-      delete next.attach[name];
-    } else {
-      if (!Object.hasOwn(next.geometry.points, pointId)) return false;
-      next.attach[name] = pointId;
-    }
-  });
-}
-
-/** SPEC-48.1.1 sets the kind and keeps only its pins in their existing key order. */
+/** SPEC-48.2 sets the kind; nothing else changes. */
 export function setProfileKind(profile, kind) {
   if (!isProfileKind(kind)) return null;
   return editProfile(profile, (next) => {
     next.kind = kind;
-    next.attach = Object.fromEntries(Object.entries(next.attach)
-      .filter(([pin]) => PROFILE_KINDS[kind].pins.includes(pin)));
   });
 }
 

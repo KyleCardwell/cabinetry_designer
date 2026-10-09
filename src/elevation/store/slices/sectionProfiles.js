@@ -29,8 +29,8 @@ export const sectionProfileReducers = {
     const profileIndex = list.findIndex((entry) => entry.id === profileId);
     if (profileIndex === -1) return;
     const existing = list[profileIndex];
-    const changed = JSON.stringify([profile?.geometry, profile?.attach, profile?.drawnPoints])
-      !== JSON.stringify([existing.geometry, existing.attach, existing.drawnPoints]);
+    const changed = JSON.stringify([profile?.geometry, profile?.drawnPoints])
+      !== JSON.stringify([existing.geometry, existing.drawnPoints]);
     const next = {
       ...structuredClone(profile),
       id: existing.id,

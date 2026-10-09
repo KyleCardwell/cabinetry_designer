@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import {
-  ATTACH_POINTS, PROFILE_KINDS, isProfileGeometry, isSectionProfile, isSectionProfileList,
+  PROFILE_KINDS, isProfileGeometry, isSectionProfile, isSectionProfileList,
 } from '../sectionProfiles.js';
 
 const sample = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
@@ -13,12 +13,9 @@ const loop = (patch) => geometry({ loops: [{ ...COVE.geometry.loops[0], ...patch
 const withSegs = (...list) => loop({ segs: list });
 
 describe('SPEC-47 the section profile shape', () => {
-  it('starts with an empty library and names the kinds and attach points', () => {
+  it('starts with an empty library and names the kinds', () => {
     expect(DEFAULT_SETTINGS.sectionProfiles).toEqual([]);
     expect(Object.keys(PROFILE_KINDS)).toHaveLength(10);
-    expect(ATTACH_POINTS).toEqual([
-      'door_edge', 'frame_edge', 'panel_edge', 'apply_point', 'box_top', 'box_front', 'floor', 'edge_top', 'edge_face',
-    ]);
     expect([COVE, BEAD, CROWN].map((profile) => isSectionProfile(profile))).toEqual([true, true, true]);
     expect([COVE.kind, BEAD.kind, CROWN.kind]).toEqual(['door_inside', 'applied_molding', 'crown']);
   });
@@ -51,11 +48,9 @@ describe('SPEC-47 the section profile shape', () => {
     ]);
   });
 
-  it('checks the profile: name, kind, attach and drawn points name real points, version and archived', () => {
+  it('checks the profile: name, kind, drawn points name real points, version and archived; no pins', () => {
     expect([
       isSectionProfile({ ...COVE, kind: 'other' }),
-      isSectionProfile({ ...COVE, attach: { frame_edge: 'a', door_edge: 'b' } }),
-      isSectionProfile({ ...COVE, attach: {} }),
       isSectionProfile({ ...COVE, drawnPoints: { elevation: [] } }),
       isSectionProfile({ ...COVE, drawnPoints: { elevation: ['b'], plan: ['c'] } }),
       isSectionProfile({ ...COVE, name: '' }),
@@ -63,8 +58,8 @@ describe('SPEC-47 the section profile shape', () => {
       isSectionProfile({ ...COVE, kind: 'Door inside' }),
       isSectionProfile({ ...COVE, kind: undefined }),
       isSectionProfile({ ...COVE, tags: ['door_inside'] }),
-      isSectionProfile({ ...COVE, attach: { frame_edge: 'q' } }),
-      isSectionProfile({ ...COVE, attach: { sticking: 'a' } }),
+      isSectionProfile({ ...COVE, attach: {} }),
+      isSectionProfile({ ...COVE, attach: { frame_edge: 'a' } }),
       isSectionProfile({ ...COVE, drawnPoints: { plan: ['c'] } }),
       isSectionProfile({ ...COVE, drawnPoints: { elevation: ['b', 'b'] } }),
       isSectionProfile({ ...COVE, drawnPoints: { elevation: ['q'] } }),
@@ -74,7 +69,7 @@ describe('SPEC-47 the section profile shape', () => {
       isSectionProfile({ ...COVE, thumbnail: 'M 0 0' }),
       isSectionProfile({ ...COVE, id: '' }),
     ]).toEqual([
-      true, true, true, true, true,
+      true, true, true,
       false, false, false, false, false, false, false, false, false, false, false, false, false, false, false,
     ]);
   });

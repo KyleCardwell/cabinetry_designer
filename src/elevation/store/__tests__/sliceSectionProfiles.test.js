@@ -46,7 +46,7 @@ describe('SPEC-47 editing the profile library', () => {
     expect(pointed.settings.sectionProfiles[0].version).toBe(3);
     expect([
       apply(state, updateSectionProfile({ profileId: 'sp-cove', profile: { ...COVE, name: '' } })),
-      apply(state, updateSectionProfile({ profileId: 'sp-cove', profile: { ...COVE, attach: { frame_edge: 'q' } } })),
+      apply(state, updateSectionProfile({ profileId: 'sp-cove', profile: { ...COVE, drawnPoints: { elevation: ['q'] } } })),
       apply(state, updateSectionProfile({ profileId: 'gone', profile: COVE })),
     ].every((next) => next === state)).toBe(true);
   });

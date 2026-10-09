@@ -64,4 +64,16 @@ describe('SPEC-47 saving the profile library in settings', () => {
     expect(parseProfileFile(JSON.stringify({ kind: 'section-profiles', version: 1, profiles: [old] })))
       .toEqual([sample.profiles[0]]);
   });
+
+  it('moves an older profile\'s pin point to 0, 0 and drops the pins, on load and on import', () => {
+    const old = { ...sample.profiles[0], kind: 'door_outside', attach: { door_edge: 'e' } };
+    const saved = older();
+    saved.settings.sectionProfiles = [old];
+    const loaded = normalizeElevationDocument(saved);
+    const [profile] = loaded.settings.sectionProfiles;
+    expect(profile.geometry.points).toEqual({ a: [0, 0.8125], b: [0.5, 0.8125], c: [0.75, 0.5625], d: [0.75, 0], e: [0, 0] });
+    expect(profile.geometry.loops[0].segs[1].center).toEqual([0.5, 0.5625]);
+    expect([Object.hasOwn(profile, 'attach'), isElevationDocument(loaded)]).toEqual([false, true]);
+    expect(parseProfileFile(JSON.stringify({ kind: 'section-profiles', version: 1, profiles: [old] }))).toEqual([profile]);
+  });
 });
