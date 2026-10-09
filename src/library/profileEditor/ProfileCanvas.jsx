@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
-  addProfileLoop, addProfilePoint, formatProfileCoord, moveProfilePoint, nextPointId, snapProfilePoint,
+  addProfileLoop, addProfilePoint, formatProfileCoord, moveProfilePoint, nextPointId, profileDrawnIn, snapProfilePoint,
 } from '../../elevation/model/profileEditing.js';
 import { fitView, loopScreenPath, segmentScreenPath, toModel, toScreen, zoomAt } from './profileView.js';
 
@@ -165,6 +165,14 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
     setDragPreview(null);
   };
 
+  const attachNames = new Map();
+  for (const [name, id] of Object.entries(drawnProfile.attach)) {
+    if (!attachNames.has(id)) attachNames.set(id, []);
+    attachNames.get(id).push(name);
+  }
+  const elevationSet = new Set(profileDrawnIn(drawnProfile, 'elevation'));
+  const planSet = new Set(profileDrawnIn(drawnProfile, 'plan'));
+
   return (
     <div ref={containerRef} className="relative h-full w-full select-none">
       <svg
@@ -238,6 +246,15 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
               const [x, y] = toScreen(view, size, point);
               return (
                 <g key={id}>
+                  {attachNames.has(id) && (
+                    <>
+                      <path d={`M ${x} ${y - 11} L ${x + 11} ${y} L ${x} ${y + 11} L ${x - 11} ${y} Z`} stroke="#f59e0b" strokeWidth={1.5} fill="none" pointerEvents="none" />
+                      <text x={x + 7} y={y + 19} fontSize={10} fill="#f59e0b" pointerEvents="none">{attachNames.get(id).join(', ')}</text>
+                    </>
+                  )}
+                  {(elevationSet.has(id) || planSet.has(id)) && (
+                    <circle cx={x} cy={y} r={7.5} fill="none" stroke="#38bdf8" strokeWidth={1.5} strokeDasharray={elevationSet.has(id) ? undefined : '3 2'} pointerEvents="none" />
+                  )}
                   <circle cx={x} cy={y} r={4} fill={selection?.kind === 'point' && selection.id === id ? '#3b82f6' : '#111827'} stroke="#e5e7eb" pointerEvents="none" />
                   <circle cx={x} cy={y} r={8} fill="transparent" data-point-id={id} />
                   <text x={x + 7} y={y - 7} fontSize={11} fill="#9ca3af" pointerEvents="none">{id}</text>
@@ -261,6 +278,11 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
       <div className="pointer-events-none absolute bottom-2 left-2 rounded bg-gray-800/80 px-2 py-1 font-mono text-xs text-gray-300">
         {cursorModel && `x ${formatProfileCoord(cursorModel[0])} · y ${formatProfileCoord(cursorModel[1])}`}
       </div>
+      {(attachNames.size > 0 || elevationSet.size > 0 || planSet.size > 0) && (
+        <div className="pointer-events-none absolute bottom-2 right-2 rounded bg-gray-800/80 px-2 py-1 text-xs text-gray-300">
+          ◇ attach point · ○ drawn (solid: elevation, dashed: plan only)
+        </div>
+      )}
     </div>
   );
 });

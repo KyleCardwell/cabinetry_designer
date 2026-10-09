@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { deleteProfilePoint, PROFILE_GRID_STEPS } from '../../elevation/model/profileEditing.js';
+import { profileTagLabel } from '../../elevation/model/sectionProfiles.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateSectionProfile } from '../../elevation/store/elevationSlice.js';
+import ProfileDetailsDialog from '../ProfileDetailsDialog.jsx';
 import AttachPanel from './AttachPanel.jsx';
 import DrawnPanel from './DrawnPanel.jsx';
 import PointsPanel from './PointsPanel.jsx';
@@ -22,6 +24,7 @@ export default function ProfileEditorPage() {
   const { draft, apply: applyDraft, undo, redo, canUndo, canRedo, dirty } = useProfileDraft(saved);
   const [message, setMessage] = useState(null);
   const [discarding, setDiscarding] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [selection, setSelection] = useState(null);
   const [grid, setGrid] = useState(1 / 16);
   const [fitSignal, setFitSignal] = useState(0);
@@ -65,6 +68,7 @@ export default function ProfileEditorPage() {
 
   useEffect(() => {
     const onKeyDown = (event) => {
+      if (detailsOpen) return;
       if (event.target.closest?.('input, select, textarea, [contenteditable="true"]')) return;
       const key = event.key.toLowerCase();
       if ((event.ctrlKey || event.metaKey) && key === 'z') {
@@ -98,7 +102,7 @@ export default function ProfileEditorPage() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [undo, redo, tool, selection, draft, apply]);
+  }, [undo, redo, tool, selection, draft, apply, detailsOpen]);
 
   if (!saved || !draft) {
     return (
@@ -126,8 +130,10 @@ export default function ProfileEditorPage() {
         ) : <Link to="/library/profiles" className={BUTTON_CLASS}>← Profiles</Link>}
         <span className="font-medium text-gray-100">{saved.name}</span>
         <span className="text-xs text-gray-400">v{saved.version}</span>
+        {saved.tags.map((tag) => <span key={tag} className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">{profileTagLabel(tag)}</span>)}
         {saved.archived && <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">archived</span>}
         {dirty && <span className="text-xs text-amber-300">Unsaved</span>}
+        <button type="button" className={BUTTON_CLASS} onClick={() => setDetailsOpen(true)}>Details</button>
         <div className="flex-1" />
         <button type="button" className={HISTORY_BUTTON_CLASS} disabled={!canUndo} onClick={undo}>Undo</button>
         <button type="button" className={HISTORY_BUTTON_CLASS} disabled={!canRedo} onClick={redo}>Redo</button>
@@ -180,9 +186,10 @@ export default function ProfileEditorPage() {
               <p key={loop.id} className="text-xs text-gray-400">{loop.id} · {loop.closed ? 'closed' : 'open'} · {loop.segs.length} segments</p>
             ))}
           </section>
-          <p className="text-xs text-gray-500">x runs in from the edge; y = 0 is the front face, negative into the door. Attach and drawn points come next round. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
+          <p className="text-xs text-gray-500">x runs in from the edge; y = 0 is the front face, negative into the door. Attach points say where the profile sits; drawn points become lines in each view. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
         </aside>
       </div>
+      {detailsOpen && <ProfileDetailsDialog key={saved.id} profile={saved} onClose={() => setDetailsOpen(false)} />}
     </div>
   );
 }
