@@ -2,7 +2,7 @@ import { doorDrawing, runDoorDetails } from './doorDetails.js';
 import { resolveWall } from './room.js';
 
 /**
- * Each part's door detail on one wall face as geometry draws it (SPEC-46.4): openings when the room draws details,
+ * Each part's door detail on one wall face as geometry draws it (SPEC-46.4): openings and profile lines (SPEC-50) when the room draws details,
  * the style label when it shows tags; keyed by the part's id in `elevationParts`.
  */
 export function elevationDoorDetails(room, wall, side, settings, partIds = null) {
@@ -25,8 +25,9 @@ export function elevationDoorDetails(room, wall, side, settings, partIds = null)
       if (details && part.openings.length) {
         entry.openings = part.openings.map(({ x, z, width, height }) => ({ x, z, width, height }));
       }
+      if (details && part.lines.length) entry.profileLines = part.lines.map(({ x, z, width, height }) => ({ x, z, width, height }));
       if (tags) entry.tag = part.label;
-      if (entry.openings || tags) result.push(entry);
+      if (entry.openings || entry.profileLines || tags) result.push(entry);
     }
   }
   return result;

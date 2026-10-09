@@ -59,6 +59,7 @@ describe('SPEC-46.2 door details for a run', () => {
       construction: 'five_piece',
       ...box(30.0625, 4.125, 23.875, 30.125),
       openings: [box(33.0625, 7.125, 17.875, 24.125)],
+      lines: [],
     });
     expect(part(result, `${CAB_36}:r:right`).openings).toEqual([box(75.0625, 7.125, 11.875, 24.125)]);
     expect(result.warnings).toEqual([]);
@@ -106,6 +107,7 @@ describe('SPEC-46.2 door details for a run', () => {
       construction: 'five_piece',
       ...box(0.75, 36, 70.5, 41.25),
       openings: [box(3.75, 39, 64.5, 35.25)],
+      lines: [],
     }]);
     const sheet = details('G3 Bath alcove', G3_UPPER, (r) => {
       leafOf(runOf(r, G3_UPPER), G3_BACK).styleId = 'sheet';
@@ -121,5 +123,51 @@ describe('SPEC-46.2 door details for a run', () => {
       code: 'door-style-missing', level: 'room', id: 'gone', pieceId: CAB_24, key: `${CAB_24}:r`,
     });
     expect(part(result, `${CAB_24}:r`).label).toBe('Std');
+  });
+});
+
+describe('SPEC-50 profile lines and profile warnings for a run', () => {
+  const line = (from, to) => ({ type: 'line', from, to });
+  const ROUND = {
+    id: 'sp-round', name: 'Round 1/4', kind: 'door_outside', version: 1, archived: false, drawnPoints: { elevation: ['a'] },
+    geometry: {
+      units: 'in',
+      points: { a: [0.25, 0], b: [0, -0.25], c: [0, -0.8125] },
+      loops: [{ id: 'L1', closed: false, segs: [{ type: 'arc', from: 'a', to: 'b', center: [0.25, -0.25], ccw: true }, line('b', 'c')] }],
+    },
+  };
+  const STEP = {
+    id: 'sp-step', name: 'Step', kind: 'door_inside', version: 1, archived: false, drawnPoints: { elevation: ['p'] },
+    geometry: {
+      units: 'in',
+      points: { p: [-0.25, 0], q: [-0.25, -0.125], r: [0, -0.125] },
+      loops: [{ id: 'L1', closed: false, segs: [line('p', 'q'), line('q', 'r')] }],
+    },
+  };
+  const withProfiles = { ...settings, sectionProfiles: [ROUND, STEP] };
+
+  /** G1's base run with every face in P, P's picks set to `picks`. */
+  function profiled(picks) {
+    const room = structuredClone(stored('G1 Euro kitchen'));
+    room.doorStyles = [{ ...P, profiles: { ...P.profiles, ...picks } }];
+    room.doorStyleId = 'ds-p';
+    const synced = syncRoom(room, withProfiles);
+    const wall = synced.walls.find((candidate) => candidate.runs.some((run) => run.id === G1_BASE));
+    const view = resolveWall(synced, wall, 'front');
+    return runDoorDetails(synced, view, view.runs.find((run) => run.id === G1_BASE), withProfiles);
+  }
+
+  it('gives each door its profile lines, and flags every part when a pick is missing', () => {
+    const result = profiled({ outside: 'sp-round', inside: 'sp-step' });
+    expect(part(result, `${CAB_24}:r`).lines)
+      .toEqual([box(30.3125, 4.375, 23.375, 29.625), box(32.8125, 6.875, 18.375, 24.625)]);
+    expect(part(result, `${CAB_36}:r:right`).lines)
+      .toEqual([box(72.3125, 4.375, 17.375, 29.625), box(74.8125, 6.875, 12.375, 24.625)]);
+    expect(result.warnings).toEqual([]);
+    const missing = profiled({ panel: 'gone' });
+    expect(missing.parts.every(({ lines }) => lines.length === 0)).toBe(true);
+    expect([missing.warnings.length, missing.warnings[0]]).toEqual([
+      7, { code: 'door-profile-missing', slot: 'panel', pieceId: CAB_24, key: `${CAB_24}:r` },
+    ]);
   });
 });

@@ -1,5 +1,6 @@
 import { panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
+import { doorProfileOffsets, partProfileLines } from './doorProfileLines.js';
 import { frontStackWarnings, partSizes } from './doorSizes.js';
 import { cabinetFaceLevels, facePartType, panelLevels, resolveDoorStyle } from './doorStyleResolve.js';
 import { defaultFace } from './faces.js';
@@ -50,22 +51,32 @@ export function partDetail(style, design, rect, sizes) {
   return { construction: r.construction, openings, sizes: r };
 }
 
-/** Every face-on part's door detail and warnings, in drawing order (SPEC-46.2). */
+/** Every face-on part's door detail, profile lines and warnings, in drawing order (SPEC-46.2, SPEC-50). */
 export function runDoorDetails(room, wall, run, settings, scene = runScene(room, wall, run, settings)) {
   const levelsWall = wallViewForRun(wall, run);
   const parts = [];
   const warnings = [];
   const faceParts = new Map();
+  const profiles = settings?.sectionProfiles ?? [];
+  const offsetsByStyle = new Map();
 
   function addPart(key, kind, pieceId, path, rect, resolved, sizes) {
     const { style, design } = resolved;
     const detail = partDetail(style, design, rect, sizes);
+    if (!offsetsByStyle.has(style)) {
+      offsetsByStyle.set(style, doorProfileOffsets(style, design, profiles));
+    }
+    const offsets = offsetsByStyle.get(style);
+    const fit = partProfileLines(offsets, detail, rect);
     const { x, z, width, height } = rect;
     parts.push({
       key, kind, pieceId, path, styleId: style.id, label: style.label,
       construction: detail.construction, x, z, width, height, openings: detail.openings,
+      lines: fit.lines,
     });
     warnings.push(...resolved.warnings.map((warning) => ({ ...warning, pieceId, key })));
+    warnings.push(...offsets.warnings.map((warning) => ({ ...warning, pieceId, key })));
+    warnings.push(...fit.warnings.map((warning) => ({ ...warning, pieceId, key })));
     if (kind === 'face' && detail.construction !== 'slab') {
       faceParts.get(pieceId).push({ path, x, z, width, height, sizes: detail.sizes });
     }

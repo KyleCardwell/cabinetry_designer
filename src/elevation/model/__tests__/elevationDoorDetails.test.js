@@ -100,3 +100,47 @@ describe('SPEC-46.4 door details for one wall face', () => {
     expect(g1A(synced, new Set())).toEqual([]);
   });
 });
+
+describe('SPEC-50 profile lines in the payload', () => {
+  const line = (from, to) => ({ type: 'line', from, to });
+  const ROUND = {
+    id: 'sp-round', name: 'Round 1/4', kind: 'door_outside', version: 1, archived: false, drawnPoints: { elevation: ['a'] },
+    geometry: {
+      units: 'in',
+      points: { a: [0.25, 0], b: [0, -0.25], c: [0, -0.8125] },
+      loops: [{ id: 'L1', closed: false, segs: [{ type: 'arc', from: 'a', to: 'b', center: [0.25, -0.25], ccw: true }, line('b', 'c')] }],
+    },
+  };
+  const STEP = {
+    id: 'sp-step', name: 'Step', kind: 'door_inside', version: 1, archived: false, drawnPoints: { elevation: ['p'] },
+    geometry: {
+      units: 'in',
+      points: { p: [-0.25, 0], q: [-0.25, -0.125], r: [0, -0.125] },
+      loops: [{ id: 'L1', closed: false, segs: [line('p', 'q'), line('q', 'r')] }],
+    },
+  };
+  const withProfiles = { ...settings, sectionProfiles: [ROUND, STEP] };
+  const P = { ...DEFAULT_DOOR_STYLE, id: 'ds-p', label: 'P', profiles: { outside: 'sp-round', inside: 'sp-step', panel: null, applied: null } };
+  const S = { ...SL, profiles: { ...SL.profiles, outside: 'sp-round' } };
+
+  /** G1 A with P on the room and the 36" pair in S (slab), `patch` on the room. */
+  function build(patch) {
+    const copy = { ...structuredClone(stored('G1 Euro kitchen')), ...patch, doorStyles: [P, S], doorStyleId: 'ds-p' };
+    const base = copy.walls.flatMap((wall) => wall.runs).find((run) => run.id === BASE);
+    gridLeaves(base.grid).find((node) => node.id === CAB_36).face = { type: 'pair_door', size: null, styleId: 'ds-s' };
+    const synced = syncRoom(copy, withProfiles);
+    return elevationDoorDetails(synced, wallWith(synced, BASE), 'front', withProfiles);
+  }
+
+  it('sends profile lines beside the openings, a slab part\'s lines alone, and nothing when details are off', () => {
+    const result = build({});
+    expect(result.find(({ partId }) => partId === `${CAB_24}:r`)).toEqual({
+      partId: `${CAB_24}:r`,
+      openings: [box(33.0625, 7.125, 17.875, 24.125)],
+      profileLines: [box(30.3125, 4.375, 23.375, 29.625), box(32.8125, 6.875, 18.375, 24.625)],
+    });
+    expect(result.find(({ partId }) => partId === `${CAB_36}:rright`))
+      .toEqual({ partId: `${CAB_36}:rright`, profileLines: [box(72.3125, 4.375, 17.375, 29.625)] });
+    expect(build({ doorDetails: false })).toEqual([]);
+  });
+});
