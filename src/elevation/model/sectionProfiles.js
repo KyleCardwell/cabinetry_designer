@@ -1,6 +1,7 @@
 import { DOOR_PROFILE_SLOTS, teamDoorStyle } from './doorStyles.js';
 
 /** SPEC-47 known section profile tags in library filter order. */
+// Removed in step 441 (SPEC-48.1.1).
 export const PROFILE_TAG_LABELS = {
   door_outside: 'Door outside edge',
   door_inside: 'Door inside (sticking)',
@@ -40,6 +41,7 @@ const isCoordinate = (value) => Array.isArray(value) && value.length === 2
 const RADIUS_TOLERANCE = 1 / 256;
 
 /** SPEC-47 tags are lowercase snake_case, including custom team tags. */
+// Removed in step 441 (SPEC-48.1.1).
 export function isProfileTag(tag) {
   return typeof tag === 'string' && /^[a-z0-9]+(_[a-z0-9]+)*$/.test(tag);
 }
@@ -101,11 +103,10 @@ function isPointList(list, points) {
 /** SPEC-47 section profiles validate metadata, geometry and named point references. */
 export function isSectionProfile(profile) {
   if (!hasKeys(profile, [
-    'id', 'name', 'tags', 'geometry', 'attach', 'drawnPoints', 'version', 'archived',
+    'id', 'name', 'kind', 'geometry', 'attach', 'drawnPoints', 'version', 'archived',
   ]) || !isNonEmptyString(profile.id)
     || !isNonEmptyString(profile.name) || profile.name !== profile.name.trim()
-    || !Array.isArray(profile.tags) || !Array.from(profile.tags).every(isProfileTag)
-    || new Set(profile.tags).size !== profile.tags.length
+    || !isProfileKind(profile.kind)
     || !isProfileGeometry(profile.geometry)
     || !hasKeys(profile.attach, ATTACH_POINTS, [])
     || !hasKeys(profile.drawnPoints, ['elevation', 'plan'], ['elevation'])
@@ -129,24 +130,24 @@ export function isSectionProfileList(list) {
   return true;
 }
 
-/** SPEC-47 slot options list the attach names required for a profile to fit. */
+/** SPEC-48.1.1 slots take one profile kind. */
 export const PROFILE_SLOTS = {
-  door_outside: [['door_edge']],
-  door_inside: [['frame_edge']],
-  door_panel: [['panel_edge']],
-  door_applied: [['frame_edge'], ['panel_edge']],
-  slab_applied: [['apply_point']],
-  crown: [['box_top', 'box_front']],
-  top_mold: [['box_top', 'box_front']],
-  furniture_base: [['floor', 'box_front']],
-  toe_kick: [['floor', 'box_front']],
-  nosing: [['edge_top', 'edge_face']],
+  door_outside: 'door_outside',
+  door_inside: 'door_inside',
+  door_panel: 'door_panel',
+  door_applied: 'applied_molding',
+  slab_applied: 'applied_molding',
+  crown: 'crown',
+  top_mold: 'top_mold',
+  furniture_base: 'furniture_base',
+  toe_kick: 'toe_kick',
+  nosing: 'nosing',
 };
 
-/** SPEC-47 profiles fit by attach names, independently of their tags. */
+/** A profile fits a slot of its own kind once all the kind's pins are set (SPEC-48.1.1). */
 export function profileFitsSlot(profile, slot) {
   return Object.hasOwn(PROFILE_SLOTS, slot)
-    && PROFILE_SLOTS[slot].some((option) => option.every((name) => Object.hasOwn(profile.attach, name)));
+    && profile.kind === PROFILE_SLOTS[slot] && profileMissingPins(profile).length === 0;
 }
 
 const FULL_TURN = 2 * Math.PI;
@@ -241,7 +242,7 @@ export function newSectionProfile(profiles, id, base = null) {
     number += 1;
   }
   const profile = base ? structuredClone(base) : {
-    tags: [],
+    kind: 'other',
     geometry: {
       units: 'in',
       points: { p1: [0, 0], p2: [0.75, 0], p3: [0.75, -0.75], p4: [0, -0.75] },
@@ -280,15 +281,16 @@ export function sectionProfileUses(settings, rooms, profileId) {
   return uses;
 }
 
-/** SPEC-47 filters library profiles by name, tag and archive status in list order. */
-export function filterSectionProfiles(profiles, { search = '', tag = null, showArchived = false } = {}) {
+/** SPEC-47 filters library profiles by name, kind and archive status in list order. */
+export function filterSectionProfiles(profiles, { search = '', kind = null, showArchived = false } = {}) {
   const query = search.trim().toLowerCase();
   return profiles.filter((profile) => (showArchived || !profile.archived)
     && profile.name.toLowerCase().includes(query)
-    && (tag === null || profile.tags.includes(tag)));
+    && (kind === null || profile.kind === kind));
 }
 
 /** SPEC-47 offers known tags first, then sorted custom tags from the entire library. */
+// Removed in step 441 (SPEC-48.1.1).
 export function profileTagOptions(profiles) {
   const known = Object.keys(PROFILE_TAG_LABELS);
   const custom = new Set(profiles.flatMap((profile) => profile.tags).filter((tag) => !known.includes(tag)));
@@ -296,11 +298,13 @@ export function profileTagOptions(profiles) {
 }
 
 /** SPEC-47 known tags have labels; custom tags display as stored. */
+// Removed in step 441 (SPEC-48.1.1).
 export function profileTagLabel(tag) {
   return PROFILE_TAG_LABELS[tag] ?? tag;
 }
 
 /** SPEC-47 normalizes comma-separated tags without validating them. */
+// Removed in step 441 (SPEC-48.1.1).
 export function normalizeProfileTags(text) {
   return [...new Set(text.split(',').map((piece) => piece.trim().toLowerCase().replace(/[ -]+/g, '_')).filter(Boolean))];
 }
@@ -315,7 +319,7 @@ export function parseProfileFile(text) {
   try {
     const file = JSON.parse(text);
     return file?.kind === 'section-profiles' && file.version === 1 && Array.isArray(file.profiles)
-      ? file.profiles : null;
+      ? file.profiles.map(migrateSectionProfile) : null;
   } catch {
     return null;
   }

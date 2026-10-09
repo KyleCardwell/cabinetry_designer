@@ -29,13 +29,13 @@ describe('SPEC-47 editing the profile library', () => {
     expect(addSectionProfile().payload.id).toEqual(expect.any(String));
   });
 
-  it('saves name and tag edits without a new version; a shape edit bumps it', () => {
+  it('saves name and kind edits without a new version; a shape edit bumps it', () => {
     const state = withLibrary();
     const renamed = apply(state, updateSectionProfile({
       profileId: 'sp-cove',
-      profile: { ...COVE, name: 'Cove 3/8', tags: ['door_inside', 'door_outside'], id: 'x', version: 9, archived: true },
+      profile: { ...COVE, name: 'Cove 3/8', kind: 'other', id: 'x', version: 9, archived: true },
     }));
-    expect(renamed.settings.sectionProfiles[0]).toEqual({ ...COVE, name: 'Cove 3/8', tags: ['door_inside', 'door_outside'] });
+    expect(renamed.settings.sectionProfiles[0]).toEqual({ ...COVE, name: 'Cove 3/8', kind: 'other' });
     const moved = { ...COVE.geometry, points: { ...COVE.geometry.points, d: [0.75, -0.875], e: [0, -0.875] } };
     const reshaped = apply(renamed, updateSectionProfile({ profileId: 'sp-cove', profile: { ...COVE, geometry: moved } }));
     expect([reshaped.settings.sectionProfiles[0].version, reshaped.settings.sectionProfiles[0].name]).toEqual([2, 'Cove 1/4']);

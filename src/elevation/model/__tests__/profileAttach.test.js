@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { profileSlotGaps, setProfileAttach } from '../profileEditing.js';
+import { setProfileAttach, setProfileKind } from '../profileEditing.js';
 
 const sample = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
 const [COVE, BEAD, CROWN] = sample.profiles;
@@ -33,23 +33,15 @@ describe('SPEC-48.1 editing attach points', () => {
     ]).toEqual([null, null, null, null, null]);
   });
 
-  it('reports tagged slots the attach points do not fit yet, with the names still missing', () => {
-    expect([COVE, BEAD, CROWN].map((profile) => profileSlotGaps(profile))).toEqual([[], [], []]);
-    const tagged = { ...COVE, tags: ['door_inside', 'door_outside', 'crown', 'shop_ogee', 'door_panel'] };
-    expect(profileSlotGaps(tagged)).toEqual([
-      { tag: 'door_outside', slot: 'door_outside', missing: ['door_edge'] },
-      { tag: 'crown', slot: 'crown', missing: ['box_top', 'box_front'] },
-      { tag: 'door_panel', slot: 'door_panel', missing: ['panel_edge'] },
-    ]);
-    const half = { ...CROWN, tags: ['crown', 'top_mold', 'toe_kick'], attach: { box_top: 'c1' } };
-    expect(profileSlotGaps(half)).toEqual([
-      { tag: 'crown', slot: 'crown', missing: ['box_front'] },
-      { tag: 'top_mold', slot: 'top_mold', missing: ['box_front'] },
-      { tag: 'toe_kick', slot: 'toe_kick', missing: ['floor', 'box_front'] },
-    ]);
-    expect(profileSlotGaps({ ...COVE, tags: ['door_applied'], attach: {} }))
-      .toEqual([{ tag: 'door_applied', slot: 'door_applied', missing: ['frame_edge'] }]);
-    expect(profileSlotGaps({ ...COVE, tags: ['door_applied'], attach: { panel_edge: 'a' } })).toEqual([]);
-    expect(profileSlotGaps({ ...COVE, tags: [] })).toEqual([]);
+  it('changes the kind and drops pin points the new kind does not use', () => {
+    expect(setProfileKind(COVE, 'door_outside')).toEqual({ ...COVE, kind: 'door_outside', attach: {} });
+    expect(setProfileKind(BEAD, 'applied_molding')).toEqual({ ...BEAD, attach: { apply_point: 's' } });
+    expect(setProfileKind(CROWN, 'top_mold')).toEqual({ ...CROWN, kind: 'top_mold' });
+    expect(setProfileKind(CROWN, 'nosing')).toEqual({ ...CROWN, kind: 'nosing', attach: {} });
+    expect(setProfileKind(COVE, 'other')).toEqual({ ...COVE, kind: 'other', attach: {} });
+    expect(setProfileKind(COVE, 'door_inside')).toEqual(COVE);
+    expect([setProfileKind(COVE, 'door_applied'), setProfileKind(COVE, ''), setProfileKind(COVE, undefined)])
+      .toEqual([null, null, null]);
+    expect(COVE.kind).toBe('door_inside');
   });
 });

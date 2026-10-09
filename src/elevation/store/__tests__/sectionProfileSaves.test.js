@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
+import { parseProfileFile } from '../../model/sectionProfiles.js';
 import { isElevationDocument, normalizeElevationDocument } from '../persistence.js';
 import { copySettings } from '../slices/helpers.js';
 
@@ -50,5 +51,17 @@ describe('SPEC-47 saving the profile library in settings', () => {
       copySettings({ ...DEFAULT_SETTINGS, sectionProfiles: undefined }).sectionProfiles,
     ]).toEqual([[], []]);
     expect(copySettings(DEFAULT_SETTINGS).sectionProfiles).not.toBe(DEFAULT_SETTINGS.sectionProfiles);
+  });
+
+  it('turns an older library\'s tags into kinds, on load and on import', () => {
+    const old = { ...sample.profiles[0], tags: ['shop_ogee', 'door_inside'], attach: { frame_edge: 'a', door_edge: 'e' } };
+    delete old.kind;
+    const saved = older();
+    saved.settings.sectionProfiles = [old];
+    const loaded = normalizeElevationDocument(saved);
+    expect(loaded.settings.sectionProfiles).toEqual([sample.profiles[0]]);
+    expect(isElevationDocument(loaded)).toBe(true);
+    expect(parseProfileFile(JSON.stringify({ kind: 'section-profiles', version: 1, profiles: [old] })))
+      .toEqual([sample.profiles[0]]);
   });
 });

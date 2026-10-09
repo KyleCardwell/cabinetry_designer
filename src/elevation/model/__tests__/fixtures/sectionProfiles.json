@@ -5,7 +5,7 @@
     {
       "id": "sp-cove",
       "name": "Cove 1/4",
-      "tags": ["door_inside"],
+      "kind": "door_inside",
       "geometry": {
         "units": "in",
         "points": { "a": [0, 0], "b": [0.5, 0], "c": [0.75, -0.25], "d": [0.75, -0.8125], "e": [0, -0.8125] },
@@ -31,7 +31,7 @@
     {
       "id": "sp-bead",
       "name": "Half bead",
-      "tags": ["applied_molding"],
+      "kind": "applied_molding",
       "geometry": {
         "units": "in",
         "points": { "s": [0, 0], "t": [0.5, 0] },
@@ -54,7 +54,7 @@
     {
       "id": "sp-crown",
       "name": "Crown 4 1/2",
-      "tags": ["crown"],
+      "kind": "crown",
       "geometry": {
         "units": "in",
         "points": { "c1": [0, 0], "c2": [0, 4.5], "c3": [3, 4.5], "c4": [3, 3.75], "c5": [0.5, 0] },

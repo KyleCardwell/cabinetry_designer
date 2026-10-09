@@ -1,4 +1,6 @@
-import { ATTACH_POINTS, PROFILE_SLOTS, isSectionProfile, profileFitsSlot } from './sectionProfiles.js';
+import {
+  ATTACH_POINTS, PROFILE_KINDS, PROFILE_SLOTS, isProfileKind, isSectionProfile, profileFitsSlot,
+} from './sectionProfiles.js';
 import { formatInchesInput } from './units.js';
 
 /** SPEC-48 grid choices in inches for profile editing. */
@@ -350,7 +352,18 @@ export function setProfileAttach(profile, name, pointId) {
   });
 }
 
+/** SPEC-48.1.1 sets the kind and keeps only its pins in their existing key order. */
+export function setProfileKind(profile, kind) {
+  if (!isProfileKind(kind)) return null;
+  return editProfile(profile, (next) => {
+    next.kind = kind;
+    next.attach = Object.fromEntries(Object.entries(next.attach)
+      .filter(([pin]) => PROFILE_KINDS[kind].pins.includes(pin)));
+  });
+}
+
 /** SPEC-48.1 reports the fewest missing attach names for each tagged slot that does not fit. */
+// Removed in step 441 (SPEC-48.1.1).
 export function profileSlotGaps(profile) {
   return profile.tags.filter((tag) => Object.hasOwn(PROFILE_SLOTS, tag) && !profileFitsSlot(profile, tag))
     .map((tag) => {

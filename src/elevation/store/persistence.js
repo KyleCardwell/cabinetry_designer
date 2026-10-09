@@ -6,7 +6,7 @@ import {
 } from '../model/constants.js';
 import { isBottomPart } from '../model/bottoms.js';
 import { isDoorDesignList } from '../model/doorDesigns.js';
-import { isSectionProfileList } from '../model/sectionProfiles.js';
+import { isSectionProfileList, migrateSectionProfile } from '../model/sectionProfiles.js';
 import {
   DEFAULT_DOOR_STYLE,
   DOOR_DESIGNS,
@@ -536,6 +536,7 @@ function normalizeDocument(document, schemaVersion) {
     }
     if (settings.doorDesigns === undefined) settings.doorDesigns = structuredClone(DOOR_DESIGNS);
     if (settings.sectionProfiles === undefined) settings.sectionProfiles = [];
+    else if (Array.isArray(settings.sectionProfiles)) settings.sectionProfiles = settings.sectionProfiles.map(migrateSectionProfile);
     delete settings.doorThickness;
   }
   return {

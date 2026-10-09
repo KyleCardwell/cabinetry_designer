@@ -3,9 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import {
-  PROFILE_SLOTS, PROFILE_TAG_LABELS, filterSectionProfiles, isProfileTag, mergeImportedProfiles,
-  newSectionProfile, normalizeProfileTags, parseProfileFile, profileFile, profileFitsSlot, profileTagLabel,
-  profileTagOptions, sectionProfileBounds, sectionProfileSvgPath, sectionProfileUses,
+  PROFILE_SLOTS, filterSectionProfiles, mergeImportedProfiles, newSectionProfile, parseProfileFile, profileFile,
+  profileFitsSlot, sectionProfileBounds, sectionProfileSvgPath, sectionProfileUses,
 } from '../sectionProfiles.js';
 
 const sample = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
@@ -31,32 +30,32 @@ const THREE_QUARTER = {
 };
 
 describe('SPEC-47 section profile helpers', () => {
-  it('fits a slot by attach points, never by tags', () => {
+  it('fits a slot of its own kind once the kind\'s pin points are all set', () => {
     expect(PROFILE_SLOTS).toEqual({
-      door_outside: [['door_edge']],
-      door_inside: [['frame_edge']],
-      door_panel: [['panel_edge']],
-      door_applied: [['frame_edge'], ['panel_edge']],
-      slab_applied: [['apply_point']],
-      crown: [['box_top', 'box_front']],
-      top_mold: [['box_top', 'box_front']],
-      furniture_base: [['floor', 'box_front']],
-      toe_kick: [['floor', 'box_front']],
-      nosing: [['edge_top', 'edge_face']],
+      door_outside: 'door_outside',
+      door_inside: 'door_inside',
+      door_panel: 'door_panel',
+      door_applied: 'applied_molding',
+      slab_applied: 'applied_molding',
+      crown: 'crown',
+      top_mold: 'top_mold',
+      furniture_base: 'furniture_base',
+      toe_kick: 'toe_kick',
+      nosing: 'nosing',
     });
-    const withAttach = (attach) => ({ ...COVE, attach });
     expect([
       profileFitsSlot(COVE, 'door_inside'),
-      profileFitsSlot(COVE, 'door_applied'),
-      profileFitsSlot(withAttach({ panel_edge: 'a' }), 'door_applied'),
+      profileFitsSlot(BEAD, 'door_applied'),
       profileFitsSlot(BEAD, 'slab_applied'),
       profileFitsSlot(CROWN, 'crown'),
-      profileFitsSlot(CROWN, 'top_mold'),
+      profileFitsSlot(COVE, 'door_applied'),
       profileFitsSlot(COVE, 'door_outside'),
-      profileFitsSlot(withAttach({}), 'door_inside'),
-      profileFitsSlot(withAttach({ box_top: 'a' }), 'crown'),
+      profileFitsSlot({ ...COVE, attach: {} }, 'door_inside'),
+      profileFitsSlot(CROWN, 'top_mold'),
+      profileFitsSlot({ ...CROWN, attach: { box_top: 'c1' } }, 'crown'),
       profileFitsSlot(CROWN, 'sticking'),
-    ]).toEqual([true, true, true, true, true, true, false, false, false, false]);
+      profileFitsSlot({ ...COVE, kind: 'other', attach: {} }, 'door_inside'),
+    ]).toEqual([true, true, true, true, false, false, false, false, false, false, false]);
   });
 
   it('measures a profile, arcs included', () => {
@@ -95,7 +94,7 @@ describe('SPEC-47 section profile helpers', () => {
     expect(newSectionProfile([], 'sp-1')).toEqual({
       id: 'sp-1',
       name: 'New profile',
-      tags: [],
+      kind: 'other',
       geometry: {
         units: 'in',
         points: { p1: [0, 0], p2: [0.75, 0], p3: [0.75, -0.75], p4: [0, -0.75] },
@@ -119,7 +118,7 @@ describe('SPEC-47 section profile helpers', () => {
     expect(newSectionProfile(named, 'sp-2').name).toBe('New profile 3');
     const copy = newSectionProfile(sample.profiles, 'sp-3', { ...CROWN, version: 4, archived: true });
     expect(copy).toEqual({ ...CROWN, id: 'sp-3', name: 'Crown 4 1/2 copy', version: 1, archived: false });
-    expect([copy.geometry === CROWN.geometry, copy.tags === CROWN.tags]).toEqual([false, false]);
+    expect([copy.geometry === CROWN.geometry, copy.attach === CROWN.attach]).toEqual([false, false]);
     expect(newSectionProfile([...sample.profiles, { ...COVE, id: 'x', name: 'Crown 4 1/2 COPY' }], 'sp-4', CROWN).name)
       .toBe('Crown 4 1/2 copy 2');
   });
@@ -161,12 +160,8 @@ describe('SPEC-47 section profile helpers', () => {
       .toEqual({ profiles: [{ ...CROWN, name: 'Crown 2' }], added: 1, replaced: 1, skipped: 0 });
   });
 
-  it('filters by name, tag and archived, and offers known tags then the team\'s own', () => {
-    const list = [
-      COVE,
-      { ...BEAD, tags: ['applied_molding', 'shop_bead'] },
-      { ...CROWN, archived: true, tags: ['crown', 'a_custom'] },
-    ];
+  it('filters by name, kind and archived', () => {
+    const list = [COVE, BEAD, { ...CROWN, archived: true }];
     const ids = (options) => filterSectionProfiles(list, options).map(({ id }) => id);
     expect([
       ids(undefined),
@@ -174,8 +169,10 @@ describe('SPEC-47 section profile helpers', () => {
       ids({ search: '  COVE ' }),
       ids({ search: 'crown' }),
       ids({ search: 'crown', showArchived: true }),
-      ids({ tag: 'shop_bead' }),
-      ids({ tag: 'door_outside' }),
+      ids({ kind: 'applied_molding' }),
+      ids({ kind: 'crown' }),
+      ids({ kind: 'crown', showArchived: true }),
+      ids({ kind: 'door_outside' }),
     ]).toEqual([
       ['sp-cove', 'sp-bead'],
       ['sp-cove', 'sp-bead', 'sp-crown'],
@@ -184,11 +181,8 @@ describe('SPEC-47 section profile helpers', () => {
       ['sp-crown'],
       ['sp-bead'],
       [],
+      ['sp-crown'],
+      [],
     ]);
-    expect(profileTagOptions(list)).toEqual([...Object.keys(PROFILE_TAG_LABELS), 'a_custom', 'shop_bead']);
-    expect([profileTagLabel('door_inside'), profileTagLabel('shop_bead')]).toEqual(['Door inside (sticking)', 'shop_bead']);
-    expect(normalizeProfileTags(' Shop Bead, door-inside ,,crown, shop_bead ')).toEqual(['shop_bead', 'door_inside', 'crown']);
-    expect([isProfileTag('shop_bead'), isProfileTag('ogee#2'), isProfileTag('_x'), isProfileTag('a__b')])
-      .toEqual([true, false, false, false]);
   });
 });
