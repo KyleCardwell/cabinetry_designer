@@ -305,18 +305,18 @@ export function mergeImportedProfiles(profiles, incoming) {
   return { profiles: next, added, replaced, skipped };
 }
 
-/** SPEC-48.1.1 profile kinds in library order with their drawing axes and required pins. */
+/** SPEC-48.1.1 profile kinds in library order with their drawing axes and required pins; SPEC-48.2 adds what 0, 0 means. */
 export const PROFILE_KINDS = {
-  door_outside: { label: 'Door outside edge', axes: 'door', pins: ['door_edge'] },
-  door_inside: { label: 'Door inside profile', axes: 'door', pins: ['frame_edge'] },
-  door_panel: { label: 'Raised panel', axes: 'door', pins: ['panel_edge'] },
-  applied_molding: { label: 'Applied molding', axes: 'door', pins: ['apply_point'] },
-  crown: { label: 'Crown', axes: 'run', pins: ['box_top', 'box_front'] },
-  top_mold: { label: 'Top mold', axes: 'run', pins: ['box_top', 'box_front'] },
-  furniture_base: { label: 'Furniture base', axes: 'run', pins: ['floor', 'box_front'] },
-  toe_kick: { label: 'Toe kick', axes: 'run', pins: ['floor', 'box_front'] },
-  nosing: { label: 'Nosing', axes: 'run', pins: ['edge_top', 'edge_face'] },
-  other: { label: 'Other', axes: 'free', pins: [] },
+  door_outside: { label: 'Door outside edge', axes: 'door', origin: "the door's outside edge, at the front face", pins: ['door_edge'] },
+  door_inside: { label: 'Door inside profile', axes: 'door', origin: 'the edge of the panel opening, at the front face', pins: ['frame_edge'] },
+  door_panel: { label: 'Raised panel', axes: 'door', origin: 'the edge of the panel opening, at the front face', pins: ['panel_edge'] },
+  applied_molding: { label: 'Applied molding', axes: 'door', origin: 'the line the molding is applied along, at the front face', pins: ['apply_point'] },
+  crown: { label: 'Crown', axes: 'run', origin: 'the front face of the box, at the top of the box', pins: ['box_top', 'box_front'] },
+  top_mold: { label: 'Top mold', axes: 'run', origin: 'the front face of the box, at the top of the box', pins: ['box_top', 'box_front'] },
+  furniture_base: { label: 'Furniture base', axes: 'run', origin: 'the front face of the box, at the floor', pins: ['floor', 'box_front'] },
+  toe_kick: { label: 'Toe kick', axes: 'run', origin: "the toe kick's face, at the floor", pins: ['floor', 'box_front'] },
+  nosing: { label: 'Nosing', axes: 'run', origin: 'the front edge of the part, at its top', pins: ['edge_top', 'edge_face'] },
+  other: { label: 'Other', axes: 'free', origin: null, pins: [] },
 };
 
 /** SPEC-48.1.1 pin point labels in ATTACH_POINTS order. */
