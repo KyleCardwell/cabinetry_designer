@@ -30,7 +30,7 @@ function hitSelection(target) {
 const LINE_FAILURE = 'A closed shape needs at least 3 points, an open line at least 2.';
 const sameXY = (a, b) => a[0] === b[0] && a[1] === b[1];
 
-export default forwardRef(function ProfileCanvas({ profile, grid, selection, onSelect, fitSignal, tool, onApply, onMessage }, ref) {
+export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, selection, onSelect, fitSignal, tool, onApply, onMessage }, ref) {
   const containerRef = useRef(null);
   const fittedRef = useRef(null);
   const gestureRef = useRef(null);
@@ -139,6 +139,7 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
   const origin = view ? toScreen(view, size, [0, 0]) : [0, 0];
   const cursorModel = view && cursor ? toModel(view, size, cursor).map((value) => Math.round(value * 64) / 64) : null;
   const drawnProfile = dragPreview?.profile ?? profile;
+  const ghostProfile = ghost ? { ...profile, geometry: ghost, drawnPoints: { elevation: [] } } : null;
   const axes = PROFILE_KINDS[drawnProfile.kind]?.axes ?? 'free';
   const originText = PROFILE_KINDS[drawnProfile.kind]?.origin ?? null;
   const hover = tool === 'line' && view && cursor
@@ -225,6 +226,13 @@ export default forwardRef(function ProfileCanvas({ profile, grid, selection, onS
                 <text x={origin[0] + 5} y={12}>x = 0</text>
               </g>
             </g>
+            {ghostProfile && (
+              <g pointerEvents="none" className="text-gray-400">
+                {ghostProfile.geometry.loops.map((loop) => (
+                  <path key={loop.id} d={loopScreenPath(ghostProfile, loop, view, size)} fill="currentColor" fillOpacity={0.12} stroke="currentColor" strokeOpacity={0.4} strokeWidth={1} />
+                ))}
+              </g>
+            )}
             {drawnProfile.geometry.loops.map((loop) => (
               <g key={loop.id}>
                 {loop.closed && <path d={loopScreenPath(drawnProfile, loop, view, size)} fill="currentColor" fillOpacity={0.08} fillRule="evenodd" stroke="none" className="text-gray-200" pointerEvents="none" />}

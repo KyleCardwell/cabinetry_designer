@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { teamDoorStyle } from '../../elevation/model/doorStyles.js';
 import { deleteProfilePoint, mirrorProfile, PROFILE_GRID_STEPS, rotateProfile } from '../../elevation/model/profileEditing.js';
-import { profileKindLabel } from '../../elevation/model/sectionProfiles.js';
+import { profileDoorGhost } from '../../elevation/model/profileGhost.js';
+import { PROFILE_KINDS, profileKindLabel } from '../../elevation/model/sectionProfiles.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateSectionProfile } from '../../elevation/store/elevationSlice.js';
 import ProfileDetailsDialog from '../ProfileDetailsDialog.jsx';
@@ -22,6 +24,7 @@ export default function ProfileEditorPage() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const saved = useSelector((state) => state.elevation.settings.sectionProfiles.find((profile) => profile.id === profileId));
+  const teamStyle = useSelector((state) => teamDoorStyle(state.elevation.settings));
   const { draft, apply: applyDraft, undo, redo, canUndo, canRedo, dirty } = useProfileDraft(saved);
   const [message, setMessage] = useState(null);
   const [discarding, setDiscarding] = useState(false);
@@ -30,6 +33,7 @@ export default function ProfileEditorPage() {
   const [grid, setGrid] = useState(1 / 16);
   const [fitSignal, setFitSignal] = useState(0);
   const [tool, setTool] = useState('select');
+  const [showGhost, setShowGhost] = useState(true);
   const canvasRef = useRef(null);
 
   const apply = useCallback((next, failText = 'That change would make the shape invalid.') => {
@@ -114,6 +118,9 @@ export default function ProfileEditorPage() {
     );
   }
 
+  const ghost = showGhost ? profileDoorGhost(draft.kind, teamStyle) : null;
+  const doorKind = PROFILE_KINDS[draft.kind]?.axes === 'door';
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="flex items-center gap-3 border-b border-gray-700 bg-gray-800/60 px-4 py-2">
@@ -161,6 +168,9 @@ export default function ProfileEditorPage() {
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Rotate 90° clockwise about 0, 0" aria-label="Rotate clockwise" onClick={() => apply(rotateProfile(draft, -1), TURN_FAILURE)}>⟳</button>
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Flip left–right across x = 0" aria-label="Flip left-right" onClick={() => apply(mirrorProfile(draft, 'x'), TURN_FAILURE)}>⇆</button>
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Flip up–down across y = 0" aria-label="Flip up-down" onClick={() => apply(mirrorProfile(draft, 'y'), TURN_FAILURE)}>⇅</button>
+            {doorKind && (
+              <button type="button" className={`${BUTTON_CLASS} ${showGhost ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={showGhost} title="Show the team default door (stile, groove and panel) behind the shape" onClick={() => setShowGhost((current) => !current)}>Door</button>
+            )}
             <label className="flex items-center gap-2 rounded bg-gray-800 px-2 text-sm text-gray-200">
               Grid
               <select className="rounded border border-gray-600 bg-gray-900 px-2 py-1 text-sm text-gray-100" value={grid} onChange={(event) => setGrid(Number(event.target.value))}>
@@ -168,7 +178,7 @@ export default function ProfileEditorPage() {
               </select>
             </label>
           </div>
-          <ProfileCanvas ref={canvasRef} key={profileId} profile={draft} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
+          <ProfileCanvas ref={canvasRef} key={profileId} profile={draft} ghost={ghost} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
         </div>
         <aside className="w-96 shrink-0 overflow-y-auto border-l border-gray-700 p-4 space-y-5">
           {selection?.kind === 'segment' && <SegmentPanel profile={draft} loopId={selection.loopId} index={selection.index} onApply={apply} onSelect={setSelection} />}
