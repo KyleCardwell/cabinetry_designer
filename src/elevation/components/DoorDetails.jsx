@@ -24,6 +24,20 @@ export default function DoorDetails({ parts, warnings, transform, showDetails, s
             />
           );
         })}
+        {showDetails && part.lines.map((line, index) => {
+          const lineRect = wallRectToScreen(line, transform);
+          if (lineRect.width < 2 || lineRect.height < 2) return null;
+          return (
+            <Rect
+              key={`line-${index}`}
+              {...lineRect}
+              stroke="#64748b"
+              strokeWidth={0.75}
+              fillEnabled={false}
+              listening={false}
+            />
+          );
+        })}
         {warned && (
           <Rect
             {...rect}

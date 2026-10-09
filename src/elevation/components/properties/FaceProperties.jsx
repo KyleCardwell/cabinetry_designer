@@ -41,6 +41,10 @@ const WARNING_MESSAGES = {
   'hinge-on-covered-side': 'This door is hinged on the side that covers a panel.',
   'front-panel-over-taller': 'A shorter front above has a bigger panel than the one below it — adjust its rails.',
   'door-design-missing': 'This face\'s door design is missing — drawn as 5-piece square.',
+  'door-profile-missing': 'A profile picked in this face\'s door style is missing or the wrong kind — it isn\'t drawn.',
+  'door-profile-too-deep': 'A profile in this face\'s door style cuts deeper than the door is thick.',
+  'door-profile-too-wide': 'The door style\'s edge and inside/applied profiles are wider than a stile or rail on this face.',
+  'door-profile-panel-too-small': 'The panel (or molding) opening is too small for the door style\'s profiles.',
 };
 
 function groupLabel(node) {

@@ -1,6 +1,7 @@
 import { useId } from 'react';
 import { useSelector } from 'react-redux';
 import { doorSection } from '../model/doorSection.js';
+import { doorProfileOffsets } from '../model/doorProfileLines.js';
 import { sectionProfileBounds, sectionProfileSvgPath } from '../model/sectionProfiles.js';
 
 const SLOT_LABELS = {
@@ -14,6 +15,7 @@ export default function DoorSectionView({ style, design }) {
   const profiles = useSelector((state) => state.elevation.settings.sectionProfiles);
   const maskId = useId().replace(/:/g, '');
   const section = doorSection(style, design, profiles);
+  const deep = doorProfileOffsets(style, design, profiles).warnings.filter(({ code }) => code === 'door-profile-too-deep').map(({ slot }) => SLOT_LABELS[slot]);
 
   if (section === null) {
     return <p className="text-xs text-gray-400">Too thin to draw a section (thickness and stile/inset must be over 1/2").</p>;
@@ -103,6 +105,9 @@ export default function DoorSectionView({ style, design }) {
         <p className="text-xs text-amber-300">
           Not shown (missing or wrong kind): {section.skipped.map((slot) => SLOT_LABELS[slot]).join(', ')}.
         </p>
+      )}
+      {deep.length > 0 && (
+        <p className="text-xs text-amber-300">Cuts deeper than the door is thick: {deep.join(', ')}.</p>
       )}
     </>
   );
