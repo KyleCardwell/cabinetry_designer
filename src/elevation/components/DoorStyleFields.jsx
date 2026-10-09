@@ -25,7 +25,7 @@ function SizeField({ label, value, onChange, allowZero = false, disabled = false
   );
 }
 
-export default function DoorStyleFields({ draft, setDraft, designs, onProfileEditorChange }) {
+export default function DoorStyleFields({ draft, setDraft, designs }) {
   const design = findDoorDesign(draft.designId, designs);
   const slab = design?.construction === 'slab';
   const fivePiece = design?.construction === 'five_piece';
@@ -136,7 +136,7 @@ export default function DoorStyleFields({ draft, setDraft, designs, onProfileEdi
       </section>
       <section className="space-y-2">
         <h3 className={HEADING_CLASS}>Profiles</h3>
-        <DoorProfilePickers draft={draft} setDraft={setDraft} design={design} onEditorChange={onProfileEditorChange} />
+        <DoorProfilePickers draft={draft} setDraft={setDraft} design={design} />
       </section>
     </div>
   );
