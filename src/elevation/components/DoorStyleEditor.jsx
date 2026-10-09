@@ -13,6 +13,7 @@ export default function DoorStyleEditor({ room, styleId, onClose }) {
   const [draft, setDraft] = useState(() => structuredClone(room.doorStyles.find((style) => style.id === styleId)));
   const titleId = useId();
   const panelRef = useRef(null);
+  const profileEditorOpen = useRef(false);
   const duplicateLabel = room.doorStyles.some((style) => style.id !== styleId && style.label === draft.label);
   const reason = duplicateLabel ? 'Label already used' : !isDoorStyle(draft) ? 'Every size must be more than 0' : '';
   const change = (key, value) => setDraft((previous) => ({ ...previous, [key]: value }));
@@ -22,6 +23,7 @@ export default function DoorStyleEditor({ room, styleId, onClose }) {
     const panel = panelRef.current;
     panel.querySelector('input')?.focus();
     const onKeyDown = (event) => {
+      if (profileEditorOpen.current) return;
       if (event.key === 'Escape') {
         event.preventDefault();
         onClose();
@@ -86,7 +88,12 @@ export default function DoorStyleEditor({ room, styleId, onClose }) {
               />
             </label>
           </div>
-          <DoorStyleFields draft={draft} setDraft={setDraft} designs={settings.doorDesigns} />
+          <DoorStyleFields
+            draft={draft}
+            setDraft={setDraft}
+            designs={settings.doorDesigns}
+            onProfileEditorChange={(open) => { profileEditorOpen.current = open; }}
+          />
           {reason && <p role="status" className="text-xs text-red-400">{reason}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" className={BUTTON_CLASS} onClick={onClose}>Cancel</button>

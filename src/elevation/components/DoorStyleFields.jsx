@@ -1,4 +1,5 @@
 import { PANEL_TYPES, findDoorDesign } from '../model/doorStyles.js';
+import DoorProfilePickers from './DoorProfilePickers.jsx';
 import InchInput from './InchInput.jsx';
 
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -24,7 +25,7 @@ function SizeField({ label, value, onChange, allowZero = false, disabled = false
   );
 }
 
-export default function DoorStyleFields({ draft, setDraft, designs }) {
+export default function DoorStyleFields({ draft, setDraft, designs, onProfileEditorChange }) {
   const design = findDoorDesign(draft.designId, designs);
   const slab = design?.construction === 'slab';
   const fivePiece = design?.construction === 'five_piece';
@@ -135,7 +136,7 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
       </section>
       <section className="space-y-2">
         <h3 className={HEADING_CLASS}>Profiles</h3>
-        <p className="text-xs text-gray-400">All square — the profile library comes later.</p>
+        <DoorProfilePickers draft={draft} setDraft={setDraft} design={design} onEditorChange={onProfileEditorChange} />
       </section>
     </div>
   );
