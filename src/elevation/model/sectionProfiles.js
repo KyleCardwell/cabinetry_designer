@@ -1,21 +1,5 @@
 import { DOOR_PROFILE_SLOTS, teamDoorStyle } from './doorStyles.js';
 
-/** SPEC-47 known section profile tags in library filter order. */
-// Removed in step 441 (SPEC-48.1.1).
-export const PROFILE_TAG_LABELS = {
-  door_outside: 'Door outside edge',
-  door_inside: 'Door inside (sticking)',
-  door_panel: 'Raised panel',
-  applied_molding: 'Applied molding',
-  crown: 'Crown',
-  top_mold: 'Top mold',
-  furniture_base: 'Furniture base',
-  toe_kick: 'Toe kick',
-  nosing: 'Nosing',
-  countertop_edge: 'Countertop edge',
-  light_rail: 'Light rail',
-};
-
 /** SPEC-47 allowed named attach points for section profiles. */
 export const ATTACH_POINTS = [
   'door_edge', 'frame_edge', 'panel_edge', 'apply_point', 'box_top', 'box_front', 'floor',
@@ -39,12 +23,6 @@ const isNonEmptyString = (value) => typeof value === 'string' && value.length > 
 const isCoordinate = (value) => Array.isArray(value) && value.length === 2
   && Number.isFinite(value[0]) && Number.isFinite(value[1]);
 const RADIUS_TOLERANCE = 1 / 256;
-
-/** SPEC-47 tags are lowercase snake_case, including custom team tags. */
-// Removed in step 441 (SPEC-48.1.1).
-export function isProfileTag(tag) {
-  return typeof tag === 'string' && /^[a-z0-9]+(_[a-z0-9]+)*$/.test(tag);
-}
 
 function isSegment(segment, points) {
   if (!isPlainObject(segment)) return false;
@@ -289,26 +267,6 @@ export function filterSectionProfiles(profiles, { search = '', kind = null, show
     && (kind === null || profile.kind === kind));
 }
 
-/** SPEC-47 offers known tags first, then sorted custom tags from the entire library. */
-// Removed in step 441 (SPEC-48.1.1).
-export function profileTagOptions(profiles) {
-  const known = Object.keys(PROFILE_TAG_LABELS);
-  const custom = new Set(profiles.flatMap((profile) => profile.tags).filter((tag) => !known.includes(tag)));
-  return [...known, ...[...custom].sort()];
-}
-
-/** SPEC-47 known tags have labels; custom tags display as stored. */
-// Removed in step 441 (SPEC-48.1.1).
-export function profileTagLabel(tag) {
-  return PROFILE_TAG_LABELS[tag] ?? tag;
-}
-
-/** SPEC-47 normalizes comma-separated tags without validating them. */
-// Removed in step 441 (SPEC-48.1.1).
-export function normalizeProfileTags(text) {
-  return [...new Set(text.split(',').map((piece) => piece.trim().toLowerCase().replace(/[ -]+/g, '_')).filter(Boolean))];
-}
-
 /** SPEC-47 exports the entire library in a versioned profiles file. */
 export function profileFile(profiles) {
   return { kind: 'section-profiles', version: 1, profiles };
@@ -398,12 +356,12 @@ export function profileMissingPins(profile) {
 
 /** SPEC-48.1.1 migrates older tags to one kind and retains only its pins without mutation. */
 export function migrateSectionProfile(entry) {
-  if (!isPlainObject(entry) || !Array.isArray(entry.tags) || Object.hasOwn(entry, 'kind')) return entry;
-  const tag = entry.tags.find((value) => (isProfileKind(value) && value !== 'other')
+  if (!isPlainObject(entry) || !Array.isArray(entry['tags']) || Object.hasOwn(entry, 'kind')) return entry;
+  const tag = entry['tags'].find((value) => (isProfileKind(value) && value !== 'other')
     || value === 'door_applied' || value === 'slab_applied');
   const kind = tag === 'door_applied' || tag === 'slab_applied' ? 'applied_molding' : tag ?? 'other';
   const next = { ...entry, kind };
-  delete next.tags;
+  delete next['tags'];
   if (isPlainObject(entry.attach)) {
     next.attach = Object.fromEntries(Object.entries(entry.attach)
       .filter(([pin]) => PROFILE_KINDS[kind].pins.includes(pin)));

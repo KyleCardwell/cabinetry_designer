@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { saveBlob } from '../api/drawings.js';
 import {
   filterSectionProfiles, mergeImportedProfiles, parseProfileFile, profileFile,
-  profileTagLabel, profileTagOptions, sectionProfileUses,
+  PIN_LABELS, profileKindLabel, profileKindOptions, profileMissingPins, sectionProfileUses,
 } from '../elevation/model/sectionProfiles.js';
 import {
   addSectionProfile, deleteSectionProfile, importSectionProfiles, setSectionProfileArchived,
@@ -20,7 +20,7 @@ export default function ProfilesPage() {
   const { settings, rooms } = useSelector((state) => state.elevation);
   const profiles = settings.sectionProfiles;
   const [search, setSearch] = useState('');
-  const [tag, setTag] = useState(null);
+  const [kind, setKind] = useState(null);
   const [showArchived, setShowArchived] = useState(false);
   const [confirmingId, setConfirmingId] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -28,7 +28,7 @@ export default function ProfilesPage() {
   const fileInputRef = useRef(null);
   const closeDialog = useCallback(() => setEditingId(null), []);
   const editingProfile = profiles.find((profile) => profile.id === editingId);
-  const filteredProfiles = filterSectionProfiles(profiles, { search, tag, showArchived });
+  const filteredProfiles = filterSectionProfiles(profiles, { search, kind, showArchived });
 
   const importProfiles = async (event) => {
     const input = event.target;
@@ -108,20 +108,20 @@ export default function ProfilesPage() {
           }}
         />
         <div className="flex flex-wrap gap-2">
-          {[null, ...profileTagOptions(profiles)].map((option) => (
+          {[null, ...profileKindOptions(profiles)].map((option) => (
             <button
-              key={option === null ? 'all' : `tag-${option}`}
+              key={`kind-${option}`}
               type="button"
-              aria-pressed={tag === option}
-              className={`rounded-full px-2.5 py-1 text-xs ${tag === option
+              aria-pressed={kind === option}
+              className={`rounded-full px-2.5 py-1 text-xs ${kind === option
                 ? 'bg-blue-600 text-white'
                 : 'border border-gray-600 text-gray-300 hover:bg-gray-700'}`}
               onClick={() => {
-                setTag(tag === option ? null : option);
+                setKind(kind === option ? null : option);
                 setConfirmingId(null);
               }}
             >
-              {option === null ? 'All' : profileTagLabel(option)}
+              {option === null ? 'All' : profileKindLabel(option)}
             </button>
           ))}
         </div>
@@ -144,7 +144,10 @@ export default function ProfilesPage() {
             const usedBy = uses.map((use) => use.level === 'team'
               ? `Team default ${use.slot}`
               : `${rooms.find((room) => room.id === use.roomId)?.name ?? use.roomId} ${use.label} ${use.slot}`).join(', ');
-            const attachPoints = Object.keys(profile.attach);
+            const missingPins = profileMissingPins(profile);
+            const status = profile.kind === 'other' ? 'no pin points'
+              : missingPins.length === 0 ? 'ready'
+                : `needs ${missingPins.map((pin) => PIN_LABELS[pin]).join(', ')}`;
 
             return (
               <div key={profile.id} className={`rounded border border-gray-700 bg-gray-800/60 p-3 space-y-2${profile.archived ? ' opacity-60' : ''}`}>
@@ -156,11 +159,9 @@ export default function ProfilesPage() {
                   {profile.archived && <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">archived</span>}
                 </div>
                 <div className="flex flex-wrap gap-1">
-                  {profile.tags.length > 0 ? profile.tags.map((profileTag) => (
-                    <span key={profileTag} className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">{profileTagLabel(profileTag)}</span>
-                  )) : <span className="text-xs text-gray-500">No tags</span>}
+                  <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">{profileKindLabel(profile.kind)}</span>
                 </div>
-                <p className="text-xs text-gray-500">v{profile.version} · {attachPoints.length > 0 ? `attach: ${attachPoints.join(', ')}` : 'no attach points'}</p>
+                <p className="text-xs text-gray-500">v{profile.version} · {status}</p>
                 {uses.length > 0 && <p className="text-xs text-gray-400">Used by: {usedBy}</p>}
                 <div className="flex flex-wrap gap-2">
                   <button

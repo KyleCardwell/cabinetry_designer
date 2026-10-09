@@ -1,24 +1,21 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { PROFILE_TAG_LABELS, isProfileTag, normalizeProfileTags } from '../elevation/model/sectionProfiles.js';
+import { PIN_LABELS, PROFILE_KINDS } from '../elevation/model/sectionProfiles.js';
+import { setProfileKind } from '../elevation/model/profileEditing.js';
 import { updateSectionProfile } from '../elevation/store/elevationSlice.js';
 
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
-const KNOWN_TAGS = Object.keys(PROFILE_TAG_LABELS);
 
-export default function ProfileDetailsDialog({ profile, onClose }) {
+export default function ProfileDetailsDialog({ profile, onClose, showKind = true }) {
   const dispatch = useDispatch();
   const [name, setName] = useState(profile.name);
-  const [checkedTags, setCheckedTags] = useState(() => profile.tags.filter((tag) => KNOWN_TAGS.includes(tag)));
-  const [other, setOther] = useState(() => profile.tags.filter((tag) => !KNOWN_TAGS.includes(tag)).join(', '));
+  const [kind, setKind] = useState(profile.kind);
   const titleId = useId();
   const panelRef = useRef(null);
-  const knownTags = KNOWN_TAGS.filter((tag) => checkedTags.includes(tag));
-  const tags = [...knownTags, ...normalizeProfileTags(other).filter((tag) => !knownTags.includes(tag))];
-  const reason = !name.trim() ? 'Name is required'
-    : tags.some((tag) => !isProfileTag(tag)) ? 'Tags can use lowercase letters, numbers and single underscores' : '';
-  const attachPoints = Object.entries(profile.attach).map(([key, point]) => `${key} → ${point}`).join(', ');
+  const reason = !name.trim() ? 'Name is required' : '';
+  const pinPoints = PROFILE_KINDS[kind].pins
+    .map((pin) => `${PIN_LABELS[pin]} → ${profile.attach[pin] ?? 'not set'}`).join(', ');
 
   useEffect(() => {
     const previousFocus = document.activeElement;
@@ -64,31 +61,23 @@ export default function ProfileDetailsDialog({ profile, onClose }) {
             Name
             <input required value={name} onChange={(event) => setName(event.target.value)} aria-label="Name" className={`mt-1 ${INPUT_CLASS}`} />
           </label>
-          <fieldset>
-            <legend className="mb-2 text-xs text-gray-400">Tags</legend>
-            <div className="grid grid-cols-2 gap-3">
-              {Object.entries(PROFILE_TAG_LABELS).map(([tag, label]) => (
-                <label key={tag} className="flex items-center gap-2 text-sm text-gray-300">
-                  <input
-                    type="checkbox"
-                    checked={checkedTags.includes(tag)}
-                    onChange={(event) => {
-                      setCheckedTags((previous) => event.target.checked
-                        ? [...previous, tag] : previous.filter((entry) => entry !== tag));
-                    }}
-                  />
-                  {label}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-          <label className="block text-xs text-gray-400">
-            Other tags
-            <input value={other} onChange={(event) => setOther(event.target.value)} aria-label="Other tags" placeholder="e.g. shop_bead, ogee" className={`mt-1 ${INPUT_CLASS}`} />
-          </label>
+          {showKind && (
+            <>
+              <label className="block text-xs text-gray-400">
+                Kind
+                <select value={kind} onChange={(event) => setKind(event.target.value)} aria-label="Kind" className={`mt-1 ${INPUT_CLASS}`}>
+                  {Object.entries(PROFILE_KINDS).map(([key, { label }]) => (
+                    <option key={key} value={key}>{label}</option>
+                  ))}
+                </select>
+              </label>
+              <p className="text-xs text-gray-500">The kind sets which way the shape is drawn and which pin points it needs. To use the same shape as another kind, Copy it and change the copy&apos;s kind.</p>
+              {kind !== profile.kind && <p className="text-xs text-amber-300">Changing the kind clears pin points the new kind doesn&apos;t use.</p>}
+            </>
+          )}
           <p className="text-xs text-gray-500">Version {profile.version} · {Object.keys(profile.geometry.points).length} points · {profile.geometry.loops.length} loops</p>
-          <p className="text-xs text-gray-500">{attachPoints || 'No attach points'}</p>
-          <p className="text-xs text-gray-500">The shape, attach points and drawn points are edited with Edit shape.</p>
+          <p className="text-xs text-gray-500">{kind === 'other' ? 'Other profiles have no pin points.' : `Pin points: ${pinPoints}`}</p>
+          <p className="text-xs text-gray-500">The shape, pin points and drawn points are edited with Edit shape.</p>
           {reason && <p role="status" className="text-xs text-red-400">{reason}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" className={BUTTON_CLASS} onClick={onClose}>Cancel</button>
@@ -98,8 +87,12 @@ export default function ProfileDetailsDialog({ profile, onClose }) {
               className={`${BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
               onClick={() => {
                 if (reason) return;
-                dispatch(updateSectionProfile({ profileId: profile.id, profile: { ...profile, name: name.trim(), tags } }));
-                onClose();
+                const base = { ...profile, name: name.trim() };
+                const next = showKind ? setProfileKind(base, kind) : base;
+                if (next !== null) {
+                  dispatch(updateSectionProfile({ profileId: profile.id, profile: next }));
+                  onClose();
+                }
               }}
             >
               Save

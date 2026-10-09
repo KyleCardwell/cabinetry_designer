@@ -1,5 +1,5 @@
 import {
-  ATTACH_POINTS, PROFILE_KINDS, PROFILE_SLOTS, isProfileKind, isSectionProfile, profileFitsSlot,
+  ATTACH_POINTS, PROFILE_KINDS, isProfileKind, isSectionProfile,
 } from './sectionProfiles.js';
 import { formatInchesInput } from './units.js';
 
@@ -360,18 +360,6 @@ export function setProfileKind(profile, kind) {
     next.attach = Object.fromEntries(Object.entries(next.attach)
       .filter(([pin]) => PROFILE_KINDS[kind].pins.includes(pin)));
   });
-}
-
-/** SPEC-48.1 reports the fewest missing attach names for each tagged slot that does not fit. */
-// Removed in step 441 (SPEC-48.1.1).
-export function profileSlotGaps(profile) {
-  return profile.tags.filter((tag) => Object.hasOwn(PROFILE_SLOTS, tag) && !profileFitsSlot(profile, tag))
-    .map((tag) => {
-      const missing = PROFILE_SLOTS[tag]
-        .map((option) => option.filter((name) => !Object.hasOwn(profile.attach, name)))
-        .reduce((best, option) => (option.length < best.length ? option : best));
-      return { tag, slot: tag, missing };
-    });
 }
 
 function pointIdsInOrder(points, ids) {

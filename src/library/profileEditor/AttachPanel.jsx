@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import {
-  ATTACH_POINTS, PROFILE_SLOTS, profileFitsSlot, profileTagLabel,
+  ATTACH_POINTS, PROFILE_SLOTS, profileFitsSlot,
 } from '../../elevation/model/sectionProfiles.js';
-import { setProfileAttach, profileSlotGaps } from '../../elevation/model/profileEditing.js';
+import { setProfileAttach } from '../../elevation/model/profileEditing.js';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -102,11 +102,6 @@ export default function AttachPanel({ profile, selectedPointId, onApply }) {
           <span key={slot} className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">{SLOT_LABELS[slot]}</span>
         )) : <span>No slot yet — add attach points.</span>}
       </p>
-      {profileSlotGaps(profile).map(({ tag, missing }) => (
-        <p key={tag} className="text-xs text-amber-300">
-          Tagged {profileTagLabel(tag)}, but it still needs {missing.join(', ')} to fit that slot.
-        </p>
-      ))}
     </section>
   );
 }

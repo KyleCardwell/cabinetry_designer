@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { deleteProfilePoint, PROFILE_GRID_STEPS } from '../../elevation/model/profileEditing.js';
-import { profileTagLabel } from '../../elevation/model/sectionProfiles.js';
+import { profileKindLabel } from '../../elevation/model/sectionProfiles.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateSectionProfile } from '../../elevation/store/elevationSlice.js';
 import ProfileDetailsDialog from '../ProfileDetailsDialog.jsx';
@@ -130,7 +130,7 @@ export default function ProfileEditorPage() {
         ) : <Link to="/library/profiles" className={BUTTON_CLASS}>← Profiles</Link>}
         <span className="font-medium text-gray-100">{saved.name}</span>
         <span className="text-xs text-gray-400">v{saved.version}</span>
-        {saved.tags.map((tag) => <span key={tag} className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">{profileTagLabel(tag)}</span>)}
+        <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">{profileKindLabel(saved.kind)}</span>
         {saved.archived && <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">archived</span>}
         {dirty && <span className="text-xs text-amber-300">Unsaved</span>}
         <button type="button" className={BUTTON_CLASS} onClick={() => setDetailsOpen(true)}>Details</button>
