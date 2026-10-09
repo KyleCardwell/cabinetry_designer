@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { PANEL_TYPES, findDoorDesign } from '../model/doorStyles.js';
 import DoorProfilePickers from './DoorProfilePickers.jsx';
 import DoorSectionView from './DoorSectionView.jsx';
@@ -37,6 +38,15 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
     ...previous,
     [group]: { ...previous[group], [key]: value },
   }));
+  const sizes = [draft.stiles.left, draft.stiles.right, draft.rails.top, draft.rails.bottom];
+  const same = sizes.every((size) => size === sizes[0]);
+  const [sides, setSides] = useState(false);
+  const showSides = sides || !same;
+  const setAll = (value) => setDraft((previous) => ({
+    ...previous,
+    stiles: { left: value, right: value },
+    rails: { top: value, bottom: value },
+  }));
 
   return (
     <div className="grid gap-6 md:grid-cols-2">
@@ -58,22 +68,55 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
         <section className="space-y-2">
           <h3 className={HEADING_CLASS}>{applied ? 'Molding inset' : 'Stiles & rails'}</h3>
           {slab && <p className="text-xs text-gray-400">Not used by a slab — kept if you switch back</p>}
-          <div className="grid grid-cols-2 gap-3">
-            {[
-              ['stiles', 'left', applied ? 'Left' : 'Left stile'],
-              ['stiles', 'right', applied ? 'Right' : 'Right stile'],
-              ['rails', 'top', applied ? 'Top' : 'Top rail'],
-              ['rails', 'bottom', applied ? 'Bottom' : 'Bottom rail'],
-            ].map(([group, key, label]) => (
+          {!showSides ? (
+            <>
               <SizeField
-                key={`${group}.${key}`}
-                label={label}
-                value={draft[group][key]}
+                label={applied ? 'Inset' : 'Stile & rail width'}
+                value={draft.stiles.left}
                 disabled={slab}
-                onChange={(value) => changeSize(group, key, value)}
+                onChange={setAll}
               />
-            ))}
-          </div>
+              <button
+                type="button"
+                className="text-xs text-blue-400 hover:underline disabled:opacity-50"
+                disabled={slab}
+                onClick={() => setSides(true)}
+              >
+                Different sizes…
+              </button>
+            </>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  ['stiles', 'left', applied ? 'Left' : 'Left stile'],
+                  ['stiles', 'right', applied ? 'Right' : 'Right stile'],
+                  ['rails', 'top', applied ? 'Top' : 'Top rail'],
+                  ['rails', 'bottom', applied ? 'Bottom' : 'Bottom rail'],
+                ].map(([group, key, label]) => (
+                  <SizeField
+                    key={`${group}.${key}`}
+                    label={label}
+                    value={draft[group][key]}
+                    disabled={slab}
+                    onChange={(value) => changeSize(group, key, value)}
+                  />
+                ))}
+              </div>
+              <button
+                type="button"
+                className="text-xs text-blue-400 hover:underline disabled:opacity-50"
+                disabled={slab}
+                onClick={() => {
+                  setAll(draft.stiles.left);
+                  setSides(false);
+                }}
+              >
+                Use one width
+              </button>
+            </>
+          )}
+          <p className="text-xs text-gray-500">Short doors and drawer fronts still shrink their rails by the short-face rule.</p>
         </section>
         <section className="space-y-2">
           <h3 className={HEADING_CLASS}>Profiles</h3>
