@@ -25,6 +25,7 @@ export default function usePlanKeys({
     const handleKeyDown = (event) => {
       const tagName = event.target?.tagName?.toLowerCase();
       if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
+      if (globalThis.document?.querySelector('[aria-modal="true"]')) return;
 
       if (event.key === 'Escape') {
         if (entry) {
