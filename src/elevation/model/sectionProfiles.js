@@ -74,7 +74,7 @@ function isPointList(list, points) {
 }
 
 /** SPEC-47 section profiles validate metadata, geometry and drawn point references (SPEC-48.2: no pins). */
-export function isSectionProfile(profile) {
+export function isSectionProfile(profile, { draft = false } = {}) {
   if (!hasKeys(profile, [
     'id', 'name', 'kind', 'geometry', 'drawnPoints', 'version', 'archived', 'stretch',
   ], ['id', 'name', 'kind', 'geometry', 'drawnPoints', 'version', 'archived']) || !isNonEmptyString(profile.id)
@@ -85,11 +85,14 @@ export function isSectionProfile(profile) {
     || !Number.isInteger(profile.version) || profile.version < 1
     || typeof profile.archived !== 'boolean'
     || (Object.hasOwn(profile, 'stretch')
-      && (!hasKeys(profile.stretch, ['y']) || !isStretchLine(profile, profile.stretch.y)))) return false;
+      && (!hasKeys(profile.stretch, ['y']) || (draft
+        ? !Number.isFinite(profile.stretch.y) : !isStretchLine(profile, profile.stretch.y))))) return false;
   const points = profile.geometry.points;
   return isPointList(profile.drawnPoints.elevation, points)
     && (!Object.hasOwn(profile.drawnPoints, 'plan') || isPointList(profile.drawnPoints.plan, points));
 }
+
+export const isSectionProfileDraft = (profile) => isSectionProfile(profile, { draft: true });
 
 /** SPEC-47 section profile libraries contain valid profiles with unique ids. */
 export function isSectionProfileList(list) {
@@ -223,6 +226,30 @@ export function isStretchLine(profile, y) {
     } });
     return bounds.maxY < y - EPS || bounds.minY > y + EPS;
   }));
+}
+
+/** SPEC-50.1.1 report a draft stretch line's save-time problem. */
+export function stretchLineProblem(profile) {
+  if (!Object.hasOwn(profile, 'stretch') || isStretchLine(profile, profile.stretch.y)) return null;
+  const y = profile.stretch.y;
+  return sectionProfileBounds(profile).minY + EPS < y && y < -EPS ? 'arc' : 'range';
+}
+
+/** SPEC-50.1.1 choose the valid sixteenth nearest half depth, preferring the deeper tie. */
+export function defaultStretchY(profile) {
+  const { minY } = sectionProfileBounds(profile);
+  const halfDepth = minY / 2;
+  let best = null;
+  let distance = Infinity;
+  for (let tick = Math.floor(minY * 16) + 1; tick < 0; tick += 1) {
+    const y = tick / 16;
+    const nextDistance = Math.abs(y - halfDepth);
+    if (nextDistance < distance && isStretchLine(profile, y)) {
+      best = y;
+      distance = nextDistance;
+    }
+  }
+  return best ?? round6(Math.round(halfDepth * 16) / 16);
 }
 
 /** SPEC-50.1 move the back and any arcs below the stretch line onto the target depth. */

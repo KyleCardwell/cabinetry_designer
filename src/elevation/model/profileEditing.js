@@ -1,4 +1,4 @@
-import { PROFILE_KINDS, isProfileKind, isSectionProfile, isStretchLine } from './sectionProfiles.js';
+import { PROFILE_KINDS, isProfileKind, isSectionProfileDraft } from './sectionProfiles.js';
 import { formatInchesInput } from './units.js';
 
 /** SPEC-48 grid choices in inches for profile editing. */
@@ -13,9 +13,9 @@ function round6(value) {
 }
 
 function editProfile(profile, edit) {
-  if (!isSectionProfile(profile)) return null;
+  if (!isSectionProfileDraft(profile)) return null;
   const next = structuredClone(profile);
-  if (edit(next) === false || !isSectionProfile(next)) return null;
+  if (edit(next) === false || !isSectionProfileDraft(next)) return null;
   return next;
 }
 
@@ -146,7 +146,7 @@ export function moveProfileOrigin(profile, id) {
 
 /** SPEC-48 snaps to the nearest reachable point in key order, otherwise to the grid. */
 export function snapProfilePoint(profile, xy, options) {
-  if (!isSectionProfile(profile) || !isCoordinate(xy)
+  if (!isSectionProfileDraft(profile) || !isCoordinate(xy)
     || options === null || typeof options !== 'object') return null;
   const { grid, reach, exclude = null } = options;
   if (!Number.isFinite(grid) || grid <= 0 || !Number.isFinite(reach) || reach < 0
@@ -209,6 +209,24 @@ export function addProfileLoop(profile, pointIds, closed) {
   });
 }
 
+/** SPEC-50.1.1 close with a straight return segment, or remove the closing segment to open. */
+export function setLoopClosed(profile, loopId, closed) {
+  if (typeof loopId !== 'string' || typeof closed !== 'boolean') return null;
+  return editProfile(profile, (next) => {
+    const loop = next.geometry.loops.find((entry) => entry.id === loopId);
+    if (!loop) return false;
+    if (loop.closed === closed) return;
+    if (closed) {
+      const first = loop.segs[0].from;
+      const last = loop.segs.at(-1).to;
+      if (last !== first) loop.segs.push(lineSegment(last, first));
+    } else {
+      loop.segs.pop();
+    }
+    loop.closed = closed;
+  });
+}
+
 /** SPEC-48 deletes a loop and its unreferenced points while retaining at least one loop. */
 export function deleteProfileLoop(profile, loopId) {
   return editProfile(profile, (next) => {
@@ -247,7 +265,7 @@ export function splitProfileSegment(profile, loopId, index, id) {
 
 /** SPEC-48 lists loops where the point joins consecutive segments, including closed starts. */
 export function profilePointJoints(profile, pointId) {
-  if (!isSectionProfile(profile) || typeof pointId !== 'string') return null;
+  if (!isSectionProfileDraft(profile) || typeof pointId !== 'string') return null;
   return profile.geometry.loops.filter((loop) => jointIndex(loop, pointId) >= 0)
     .map((loop) => loop.id);
 }
@@ -318,7 +336,7 @@ export function setArcRadius(profile, loopId, index, radius) {
 
 /** SPEC-48 reports an arc's rounded center, radius, sweep and direction. */
 export function profileArcInfo(profile, loopId, index) {
-  if (!isSectionProfile(profile)) return null;
+  if (!isSectionProfileDraft(profile)) return null;
   const segment = segmentAt(profile, loopId, index);
   if (segment?.type !== 'arc') return null;
   const from = profile.geometry.points[segment.from];
@@ -339,9 +357,9 @@ export function setProfileKind(profile, kind) {
   });
 }
 
-/** SPEC-50.1 set a valid stretch line, or remove it with null. */
+/** SPEC-50.1.1 set any finite draft stretch line, or remove it with null. */
 export function setProfileStretch(profile, y) {
-  if (y !== null && !isStretchLine(profile, y)) return null;
+  if (y !== null && !Number.isFinite(y)) return null;
   return editProfile(profile, (next) => {
     if (y === null) delete next.stretch;
     else next.stretch = { y };
