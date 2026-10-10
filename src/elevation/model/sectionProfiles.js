@@ -17,6 +17,7 @@ const isNonEmptyString = (value) => typeof value === 'string' && value.length > 
 const isCoordinate = (value) => Array.isArray(value) && value.length === 2
   && Number.isFinite(value[0]) && Number.isFinite(value[1]);
 const RADIUS_TOLERANCE = 1 / 256;
+const EPS = 1e-6;
 
 function isSegment(segment, points) {
   if (!isPlainObject(segment)) return false;
@@ -75,14 +76,16 @@ function isPointList(list, points) {
 /** SPEC-47 section profiles validate metadata, geometry and drawn point references (SPEC-48.2: no pins). */
 export function isSectionProfile(profile) {
   if (!hasKeys(profile, [
-    'id', 'name', 'kind', 'geometry', 'drawnPoints', 'version', 'archived',
-  ]) || !isNonEmptyString(profile.id)
+    'id', 'name', 'kind', 'geometry', 'drawnPoints', 'version', 'archived', 'stretch',
+  ], ['id', 'name', 'kind', 'geometry', 'drawnPoints', 'version', 'archived']) || !isNonEmptyString(profile.id)
     || !isNonEmptyString(profile.name) || profile.name !== profile.name.trim()
     || !isProfileKind(profile.kind)
     || !isProfileGeometry(profile.geometry)
     || !hasKeys(profile.drawnPoints, ['elevation', 'plan'], ['elevation'])
     || !Number.isInteger(profile.version) || profile.version < 1
-    || typeof profile.archived !== 'boolean') return false;
+    || typeof profile.archived !== 'boolean'
+    || (Object.hasOwn(profile, 'stretch')
+      && (!hasKeys(profile.stretch, ['y']) || !isStretchLine(profile, profile.stretch.y)))) return false;
   const points = profile.geometry.points;
   return isPointList(profile.drawnPoints.elevation, points)
     && (!Object.hasOwn(profile.drawnPoints, 'plan') || isPointList(profile.drawnPoints.plan, points));
@@ -203,6 +206,46 @@ export function sectionProfileBounds(profile) {
     }
   }
   return { minX, minY, maxX, maxY };
+}
+
+/** SPEC-50.1 a door profile can stretch below a line that no arc touches or crosses. */
+export function isStretchLine(profile, y) {
+  if (!Number.isFinite(y) || !isProfileKind(profile?.kind)
+    || PROFILE_KINDS[profile.kind].axes !== 'door'
+    || !isProfileGeometry(profile.geometry)) return false;
+  if (!(sectionProfileBounds(profile).minY + EPS < y && y < -EPS)) return false;
+  const { points, loops } = profile.geometry;
+  return loops.every((loop) => loop.segs.every((segment) => {
+    if (segment.type !== 'arc') return true;
+    const bounds = sectionProfileBounds({ geometry: {
+      points: { [segment.from]: points[segment.from], [segment.to]: points[segment.to] },
+      loops: [{ segs: [segment] }],
+    } });
+    return bounds.maxY < y - EPS || bounds.minY > y + EPS;
+  }));
+}
+
+/** SPEC-50.1 move the back and any arcs below the stretch line onto the target depth. */
+export function stretchProfileGeometry(profile, targetY) {
+  if (!Object.hasOwn(profile, 'stretch')) return profile.geometry;
+  const y = profile.stretch.y;
+  if (!Number.isFinite(targetY) || targetY >= y - EPS) return null;
+  const delta = targetY - sectionProfileBounds(profile).minY;
+  const below = (point) => point[1] < y - EPS;
+  const move = ([x, py]) => [round6(x), round6(py + delta)];
+  const geometry = structuredClone(profile.geometry);
+  for (const [id, point] of Object.entries(profile.geometry.points)) {
+    if (below(point)) geometry.points[id] = move(point);
+  }
+  for (const loop of geometry.loops) {
+    for (const segment of loop.segs) {
+      if (segment.type === 'arc'
+        && below(profile.geometry.points[segment.from]) && below(profile.geometry.points[segment.to])) {
+        segment.center = move(segment.center);
+      }
+    }
+  }
+  return geometry;
 }
 
 function svgNumber(value) {

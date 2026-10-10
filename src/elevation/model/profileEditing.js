@@ -1,4 +1,4 @@
-import { isProfileKind, isSectionProfile } from './sectionProfiles.js';
+import { PROFILE_KINDS, isProfileKind, isSectionProfile, isStretchLine } from './sectionProfiles.js';
 import { formatInchesInput } from './units.js';
 
 /** SPEC-48 grid choices in inches for profile editing. */
@@ -330,11 +330,21 @@ export function profileArcInfo(profile, loopId, index) {
   };
 }
 
-/** SPEC-48.2 sets the kind; nothing else changes. */
+/** SPEC-48.2 sets the kind; SPEC-50.1 non-door kinds lose their stretch line. */
 export function setProfileKind(profile, kind) {
   if (!isProfileKind(kind)) return null;
   return editProfile(profile, (next) => {
     next.kind = kind;
+    if (PROFILE_KINDS[kind].axes !== 'door') delete next.stretch;
+  });
+}
+
+/** SPEC-50.1 set a valid stretch line, or remove it with null. */
+export function setProfileStretch(profile, y) {
+  if (y !== null && !isStretchLine(profile, y)) return null;
+  return editProfile(profile, (next) => {
+    if (y === null) delete next.stretch;
+    else next.stretch = { y };
   });
 }
 

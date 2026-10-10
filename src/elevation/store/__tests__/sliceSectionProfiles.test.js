@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE } from '../../model/doorStyles.js';
+import { setProfileKind, setProfileStretch } from '../../model/profileEditing.js';
 import elevationReducer, {
   addSectionProfile, deleteSectionProfile, importSectionProfiles, setSectionProfileArchived, setTeamDoorStyle,
   updateSectionProfile,
@@ -20,6 +21,24 @@ function withLibrary() {
 }
 
 describe('SPEC-47 editing the profile library', () => {
+  it('bumps the version when stretch is added, changed or removed, including a kind change (SPEC-50.1)', () => {
+    const save = (state, profile) => apply(state, updateSectionProfile({ profileId: COVE.id, profile }));
+    const added = save(withLibrary(), setProfileStretch(COVE, -0.5));
+    const picked = (state) => state.settings.sectionProfiles[0];
+    expect(picked(added).version).toBe(2);
+    const same = save(added, setProfileStretch(picked(added), -0.5));
+    expect(picked(same).version).toBe(2);
+    const changed = save(same, setProfileStretch(picked(same), -0.625));
+    expect(picked(changed).version).toBe(3);
+    const removed = save(changed, setProfileStretch(picked(changed), null));
+    expect(picked(removed).version).toBe(4);
+    expect(Object.hasOwn(picked(removed), 'stretch')).toBe(false);
+    const crown = save(changed, setProfileKind(picked(changed), 'crown'));
+    expect(picked(crown).version).toBe(4);
+    expect(Object.hasOwn(picked(crown), 'stretch')).toBe(false);
+    expect(save(added, { ...picked(added), stretch: { y: 0 } })).toBe(added);
+  });
+
   it('adds a new square profile or a copy of one', () => {
     const state = apply(withLibrary(), addSectionProfile({ id: 'sp-1' }), addSectionProfile({ id: 'sp-2', baseId: 'sp-bead' }));
     expect(rows(state).slice(3)).toEqual([['sp-1', 'New profile', 1, false], ['sp-2', 'Half bead copy', 1, false]]);
