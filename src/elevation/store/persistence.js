@@ -520,6 +520,23 @@ function isRoom(room, profileKeys = PROFILE_KEYS) {
       || isPartNumberOverrides(room.partNumberOverrides));
 }
 
+function migrateDoorPanel(style) {
+  return style?.panel?.thickness === 0.25
+    ? { ...style, panel: { ...style.panel, thickness: 0.5 } }
+    : style;
+}
+
+/** Migrate style lists in room and phase scopes without mutating the saved document. */
+function migrateDoorPanelScopes(scope) {
+  if (!scope || typeof scope !== 'object') return scope;
+  const migrated = { ...scope };
+  if (Array.isArray(scope.doorStyles)) migrated.doorStyles = scope.doorStyles.map(migrateDoorPanel);
+  for (const key of ['rooms', 'phases']) {
+    if (Array.isArray(scope[key])) migrated[key] = scope[key].map(migrateDoorPanelScopes);
+  }
+  return migrated;
+}
+
 function normalizeDocument(document, schemaVersion) {
   if (!document || document.schemaVersion !== schemaVersion) return document;
   let settings = document.settings;
@@ -533,6 +550,11 @@ function normalizeDocument(document, schemaVersion) {
         ? settings.doorThickness
         : DEFAULT_DOOR_STYLE.thickness;
       settings.teamDoorStyle = { ...structuredClone(DEFAULT_DOOR_STYLE), thickness };
+    }
+    if (!Object.hasOwn(settings, 'doorPanelDefault')) {
+      settings.teamDoorStyle = migrateDoorPanel(settings.teamDoorStyle);
+      document = migrateDoorPanelScopes(document);
+      settings.doorPanelDefault = 0.5;
     }
     if (settings.doorDesigns === undefined) settings.doorDesigns = structuredClone(DOOR_DESIGNS);
     if (settings.sectionProfiles === undefined) settings.sectionProfiles = [];

@@ -131,6 +131,40 @@ afterEach(() => {
 });
 
 describe('elevation persistence migration', () => {
+  it('460. migrates legacy quarter-inch panels once in team, room and phase styles', () => {
+    const legacy = currentDocument();
+    delete legacy.settings.doorPanelDefault;
+    legacy.settings.teamDoorStyle.panel.thickness = 0.25;
+    const style = (id, thickness) => ({
+      ...structuredClone(DEFAULT_SETTINGS.teamDoorStyle), id, label: id,
+      panel: { type: 'flat', thickness },
+    });
+    legacy.rooms[0].doorStyles = [style('quarter', 0.25), style('custom', 0.375)];
+    legacy.rooms[0].phases = [{ doorStyles: [style('room-phase', 0.25)] }];
+    legacy.phases = [{ doorStyles: [style('phase', 0.25), style('custom-phase', 0.375)] }];
+    const original = structuredClone(legacy);
+    const normalized = normalizeElevationDocument(legacy);
+    expect(normalized.settings.doorPanelDefault).toBe(0.5);
+    expect(normalized.settings.teamDoorStyle.panel.thickness).toBe(0.5);
+    expect(normalized.rooms[0].doorStyles.map(({ panel }) => panel.thickness)).toEqual([0.5, 0.375]);
+    expect(normalized.rooms[0].phases[0].doorStyles[0].panel.thickness).toBe(0.5);
+    expect(normalized.phases[0].doorStyles.map(({ panel }) => panel.thickness)).toEqual([0.5, 0.375]);
+    expect(isElevationDocument(normalized)).toBe(true);
+    expect(legacy).toEqual(original);
+    expect(normalizeElevationDocument(normalized)).toEqual(normalized);
+
+    const marked = { ...legacy, settings: { ...legacy.settings, doorPanelDefault: 0.5 } };
+    const retained = normalizeElevationDocument(marked);
+    expect(retained.settings.teamDoorStyle.panel.thickness).toBe(0.25);
+    expect(retained.rooms[0].doorStyles.map(({ panel }) => panel.thickness)).toEqual([0.25, 0.375]);
+    expect(retained.rooms[0].phases[0].doorStyles[0].panel.thickness).toBe(0.25);
+    expect(retained.phases[0].doorStyles.map(({ panel }) => panel.thickness)).toEqual([0.25, 0.375]);
+
+    const fresh = createInitialElevationState();
+    expect(fresh.settings.doorPanelDefault).toBe(0.5);
+    expect(fresh.settings.teamDoorStyle.panel.thickness).toBe(0.5);
+  });
+
   it('60. defaults missing joints and round-trips joined runs unchanged', () => {
     const withoutJoints = currentDocument();
     globalThis.window = {

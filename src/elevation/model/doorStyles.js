@@ -47,7 +47,7 @@ export const DEFAULT_DOOR_STYLE = {
   stiles: { left: 3, right: 3 },
   rails: { top: 3, bottom: 3 },
   mid: { extra: 0 },
-  panel: { type: 'flat', thickness: 0.25 },
+  panel: { type: 'flat', thickness: 0.5 },
   profiles: { outside: null, inside: null, panel: null, applied: null },
   arch: { rise: 2 },
   shortFace: { minPanel: 2.125, minRail: 1.625, slabBelow: 4.8125, step: 0.0625 },
