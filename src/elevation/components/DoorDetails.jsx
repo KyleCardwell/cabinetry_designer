@@ -31,7 +31,7 @@ export default function DoorDetails({ parts, warnings, transform, showDetails, s
             <Rect
               key={`line-${index}`}
               {...lineRect}
-              stroke="#64748b"
+              stroke="#cbd5e1"
               strokeWidth={0.75}
               fillEnabled={false}
               listening={false}
