@@ -111,34 +111,55 @@ describe('Step 463 profile UI', () => {
     expect(text(render(5))).toContain('Slab');
   });
 
-  it('offers stretch only for the four door kinds and defaults to rounded half depth', () => {
+  it('offers stretch only for the four door kinds and defaults to the nearest valid sixteenth with deeper ties', () => {
     for (const kind of ['door_outside', 'door_inside', 'door_panel', 'applied_molding']) {
       const onApply = vi.fn(() => true);
       const tree = kindPanel({ ...bead, kind }, onApply);
       expect(checkbox(tree).props.checked).toBe(false);
       expect(stretchInput(tree)).toBeUndefined();
       checkbox(tree).props.onChange({ target: { checked: true } });
-      expect(onApply.mock.calls[0][0].stretch).toEqual({ y: -0.375 });
+      expect(onApply.mock.calls[0][0].stretch).toEqual({ y: -0.4375 });
     }
     for (const kind of ['crown', 'top_mold', 'furniture_base', 'toe_kick', 'nosing', 'other']) {
       expect(checkbox(kindPanel({ ...bead, kind }, vi.fn()))).toBeUndefined();
     }
+    const onApply = vi.fn(() => true);
+    const arcAtHalfDepth = { ...round, geometry: { ...round.geometry, points: { ...round.geometry.points, c: [0, -0.5] } } };
+    checkbox(kindPanel(arcAtHalfDepth, onApply)).props.onChange({ target: { checked: true } });
+    expect(onApply.mock.lastCall[0].stretch).toEqual({ y: -0.3125 });
   });
 
-  it('commits valid typed stretch lines and refuses arc crossings and top/bottom values', () => {
+  it('accepts typed stretch lines and shows problems and a Save guard for arc crossings and out-of-range values', () => {
     const onApply = vi.fn((next) => next !== null);
     const shallowArc = { ...round, geometry: { ...round.geometry, points: { a: [0.25, 0], b: [0, -0.25] }, loops: [{ ...round.geometry.loops[0], segs: [round.geometry.loops[0].segs[0]] }] } };
     checkbox(kindPanel(shallowArc, onApply)).props.onChange({ target: { checked: true } });
-    expect(onApply).toHaveBeenLastCalledWith(null, "The stretch line can't cross an arc or sit on the shape's top or bottom.");
+    expect(onApply.mock.lastCall[0].stretch).toEqual({ y: -0.125 });
+    expect(text(kindPanel(onApply.mock.lastCall[0], onApply))).toContain('The stretch line crosses an arc — move it before saving.');
     onApply.mockClear();
     const tree = kindPanel({ ...round, stretch: { y: -0.5 } }, onApply);
     const input = stretchInput(tree);
     expect(input.props.value).toBe(-0.5);
     expect(input.props.onCommit(-0.625)).toBe(true);
     expect(onApply.mock.calls[0][0].stretch).toEqual({ y: -0.625 });
-    for (const y of [-0.125, -0.25, 0, -0.8125]) {
-      expect(input.props.onCommit(y)).toBe(false);
-      expect(onApply).toHaveBeenLastCalledWith(null, "The stretch line can't cross an arc or sit on the shape's top or bottom.");
+    settings.sectionProfiles = [round];
+    for (const y of [-0.625, -0.125, -0.25, 0, -0.8125, 0.25, -1]) {
+      expect(input.props.onCommit(y)).toBe(true);
+      const next = onApply.mock.lastCall[0];
+      expect(next.stretch).toEqual({ y });
+      const panel = kindPanel(next, onApply);
+      const problemNote = find(panel, ({ type, props }) => type === 'p' && props.className === 'text-xs text-amber-300');
+      if (y === -0.625) expect(problemNote).toBeUndefined();
+      else expect(text(problemNote)).toBe(y > -0.8125 && y < 0
+        ? 'The stretch line crosses an arc — move it before saving.'
+        : "The stretch line has to sit between the shape's top and bottom — move it before saving.");
+      useReducer.mockReturnValueOnce([{ draft: next, past: [round], future: [] }, vi.fn()]);
+      const editor = ProfileEditor({ profileId: bead.id, backLabel: 'Back', onClose: vi.fn() });
+      const save = find(editor, ({ type, props }) => type === 'button' && props.children === 'Save');
+      expect(save.props.disabled).toBe(y !== -0.625);
+      expect(text(editor).includes('Move the stretch line to save')).toBe(y !== -0.625);
+      dispatch.mockClear();
+      save.props.onClick();
+      expect(dispatch).toHaveBeenCalledTimes(y === -0.625 ? 1 : 0);
     }
     checkbox(tree).props.onChange({ target: { checked: false } });
     expect(onApply.mock.lastCall[0]).not.toHaveProperty('stretch');
@@ -151,7 +172,10 @@ describe('Step 463 profile UI', () => {
       return ProfileCanvas.render({ profile, grid: 1 / 16, selection: null, tool: 'select' }, null);
     };
     const stretch = find(render({ ...bead, stretch: { y: -0.25 } }), ({ props }) => props['aria-label'] === 'Stretch line');
-    expect(stretch.props).toMatchObject({ x1: 0, x2: 800, y1: 225, y2: 225, strokeDasharray: '6 4', pointerEvents: 'none' });
+    expect(stretch.props).toMatchObject({ x1: 0, x2: 800, y1: 225, y2: 225, stroke: '#fbbf24', strokeDasharray: '6 4', pointerEvents: 'none' });
+    for (const profile of [{ ...round, stretch: { y: -0.125 } }, { ...bead, stretch: { y: 0 } }]) {
+      expect(find(render(profile), ({ props }) => props['aria-label'] === 'Stretch line').props.stroke).toBe('#f87171');
+    }
     expect(find(render(bead), ({ props }) => props['aria-label'] === 'Stretch line')).toBeUndefined();
   });
 
@@ -196,5 +220,69 @@ describe('Step 463 profile UI', () => {
       save.props.onClick();
       expect(dispatch.mock.lastCall[0].payload.profile).toEqual(draft);
     }
+  });
+
+  it('guards Save for unchanged drafts and strict failures beyond stretch problems', () => {
+    for (const draft of [bead, { ...bead, drawnPoints: { elevation: ['missing'] } }]) {
+      useReducer.mockReturnValueOnce([{ draft, past: [], future: [] }, vi.fn()]);
+      const tree = ProfileEditor({ profileId: bead.id, backLabel: 'Back', onClose: vi.fn() });
+      const save = find(tree, ({ type, props }) => type === 'button' && props.children === 'Save');
+      expect(save.props.disabled).toBe(true);
+      expect(text(tree)).not.toContain('Move the stretch line to save');
+      save.props.onClick();
+      expect(dispatch).not.toHaveBeenCalled();
+    }
+  });
+
+  it('validates the profile Save writes, retaining the saved metadata', () => {
+    const draft = { ...bead, name: '', version: 0, stretch: { y: -0.25 } };
+    for (const saved of [bead, { ...bead, name: '' }]) {
+      settings.sectionProfiles = [saved];
+      useReducer.mockReturnValueOnce([{ draft, past: [saved], future: [] }, vi.fn()]);
+      const tree = ProfileEditor({ profileId: bead.id, backLabel: 'Back', onClose: vi.fn() });
+      const save = find(tree, ({ type, props }) => type === 'button' && props.children === 'Save');
+      expect(save.props.disabled).toBe(saved.name === '');
+      dispatch.mockClear();
+      save.props.onClick();
+      if (saved.name === '') expect(dispatch).not.toHaveBeenCalled();
+      else expect(dispatch.mock.lastCall[0].payload.profile).toEqual({ ...bead, stretch: { y: -0.25 } });
+    }
+  });
+
+  it('opens and closes loop rows through draft history and saves the result', () => {
+    let state;
+    useReducer.mockImplementation((reducer, initial, init) => {
+      state ??= init(initial);
+      return [state, (action) => { state = reducer(state, action); }];
+    });
+    const render = () => ProfileEditor({ profileId: bead.id, backLabel: 'Back', onClose: vi.fn() });
+    const button = (tree, label) => find(tree, ({ type, props }) => type === 'button' && text(props.children) === label);
+    expect(text(render())).toContain('L1 · closed · 4 segments');
+    button(render(), 'Open').props.onClick();
+    expect(text(render())).toContain('L1 · open · 3 segments');
+    expect(state.draft.geometry.loops[0]).toMatchObject({ closed: false, segs: bead.geometry.loops[0].segs.slice(0, -1) });
+    expect(text(render())).toContain('Unsaved');
+    button(render(), 'Undo').props.onClick();
+    expect(text(render())).toContain('L1 · closed · 4 segments');
+    button(render(), 'Redo').props.onClick();
+    expect(text(render())).toContain('L1 · open · 3 segments');
+    button(render(), 'Save').props.onClick();
+    expect(dispatch.mock.lastCall[0].payload.profile).toEqual(state.draft);
+    button(render(), 'Close').props.onClick();
+    expect(state.draft).toEqual(bead);
+    expect(text(render())).toContain('L1 · closed · 4 segments');
+  });
+
+  it('reports a refused loop closure without applying an invalid draft', () => {
+    const twoPoints = { ...bead, geometry: { ...bead.geometry, points: { a: [0, 0], b: [0, -0.5] }, loops: [{ id: 'L1', closed: false, segs: [line('a', 'b')] }] } };
+    settings.sectionProfiles = [twoPoints];
+    const applyDraft = vi.fn();
+    const setMessage = vi.fn();
+    useReducer.mockReturnValueOnce([{ draft: twoPoints, past: [], future: [] }, applyDraft]);
+    useState.mockReturnValueOnce([null, setMessage]);
+    const tree = ProfileEditor({ profileId: bead.id, backLabel: 'Back', onClose: vi.fn() });
+    find(tree, ({ type, props }) => type === 'button' && props['aria-label'] === 'Close loop L1').props.onClick();
+    expect(setMessage).toHaveBeenCalledWith('A closed shape needs at least 3 points.');
+    expect(applyDraft).not.toHaveBeenCalled();
   });
 });

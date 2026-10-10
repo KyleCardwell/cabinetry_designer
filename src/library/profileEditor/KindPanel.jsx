@@ -1,8 +1,7 @@
-import { PROFILE_KINDS, PROFILE_SLOTS, isStretchLine, sectionProfileBounds } from '../../elevation/model/sectionProfiles.js';
+import { PROFILE_KINDS, PROFILE_SLOTS, defaultStretchY, stretchLineProblem } from '../../elevation/model/sectionProfiles.js';
 import { setProfileKind, setProfileStretch } from '../../elevation/model/profileEditing.js';
 import InchInput from '../../elevation/components/InchInput.jsx';
 
-const STRETCH_FAILURE = "The stretch line can't cross an arc or sit on the shape's top or bottom.";
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 
 const SLOT_LABELS = {
@@ -24,11 +23,8 @@ export default function KindPanel({ profile, onApply }) {
     .filter((slot) => PROFILE_SLOTS[slot] === profile.kind)
     .map((slot) => SLOT_LABELS[slot]);
 
-  const defaultStretchY = Math.round(sectionProfileBounds(profile).minY / 2 * 16) / 16;
-  const applyStretch = (y) => onApply(
-    y === null || isStretchLine(profile, y) ? setProfileStretch(profile, y) : null,
-    STRETCH_FAILURE,
-  );
+  const stretchProblem = stretchLineProblem(profile);
+  const applyStretch = (y) => onApply(setProfileStretch(profile, y));
 
   return (
     <section className="space-y-3">
@@ -61,7 +57,7 @@ export default function KindPanel({ profile, onApply }) {
             <input
               type="checkbox"
               checked={Boolean(profile.stretch)}
-              onChange={(event) => applyStretch(event.target.checked ? defaultStretchY : null)}
+              onChange={(event) => applyStretch(event.target.checked ? defaultStretchY(profile) : null)}
             />
             Grows with thickness
           </label>
@@ -76,6 +72,13 @@ export default function KindPanel({ profile, onApply }) {
                 className="mt-1"
               />
             </label>
+          )}
+          {stretchProblem && (
+            <p className="text-xs text-amber-300">
+              {stretchProblem === 'arc'
+                ? 'The stretch line crosses an arc — move it before saving.'
+                : "The stretch line has to sit between the shape's top and bottom — move it before saving."}
+            </p>
           )}
           <p className="text-xs text-gray-500">Points below the line move with the door's back (inside profile: with the panel face) when thickness changes; the front shape stays.</p>
         </div>

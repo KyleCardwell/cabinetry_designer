@@ -2,7 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 're
 import {
   addProfileLoop, addProfilePoint, formatProfileCoord, moveProfilePoint, nextPointId, profileDrawnIn, snapProfilePoint,
 } from '../../elevation/model/profileEditing.js';
-import { PROFILE_KINDS } from '../../elevation/model/sectionProfiles.js';
+import { PROFILE_KINDS, stretchLineProblem } from '../../elevation/model/sectionProfiles.js';
 import { fitView, loopScreenPath, segmentScreenPath, toModel, toScreen, zoomAt } from './profileView.js';
 
 function gridScreenPath(view, size, step) {
@@ -250,7 +250,7 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
               </g>
             ))}
             {stretchY !== null && (
-              <line x1={0} y1={stretchY} x2={size.width} y2={stretchY} stroke="#fbbf24" strokeWidth={1.5} strokeDasharray="6 4" pointerEvents="none" aria-label="Stretch line" />
+              <line x1={0} y1={stretchY} x2={size.width} y2={stretchY} stroke={stretchLineProblem(drawnProfile) ? '#f87171' : '#fbbf24'} strokeWidth={1.5} strokeDasharray="6 4" pointerEvents="none" aria-label="Stretch line" />
             )}
             {Object.entries(drawnProfile.geometry.points).map(([id, point]) => {
               const [x, y] = toScreen(view, size, point);

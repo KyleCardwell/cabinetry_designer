@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { teamDoorStyle } from '../../elevation/model/doorStyles.js';
-import { deleteProfilePoint, mirrorProfile, PROFILE_GRID_STEPS, rotateProfile } from '../../elevation/model/profileEditing.js';
+import { deleteProfilePoint, mirrorProfile, PROFILE_GRID_STEPS, rotateProfile, setLoopClosed } from '../../elevation/model/profileEditing.js';
 import { profileDoorGhost } from '../../elevation/model/profileGhost.js';
-import { PROFILE_KINDS, profileKindLabel } from '../../elevation/model/sectionProfiles.js';
+import { PROFILE_KINDS, isSectionProfile, profileKindLabel, stretchLineProblem } from '../../elevation/model/sectionProfiles.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateSectionProfile } from '../../elevation/store/elevationSlice.js';
 import ProfileDetailsDialog from '../ProfileDetailsDialog.jsx';
@@ -121,6 +121,10 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
 
   const ghost = showGhost ? profileDoorGhost(draft.kind, teamStyle) : null;
   const doorKind = PROFILE_KINDS[draft.kind]?.axes === 'door';
+  const profileToSave = { ...saved, kind: draft.kind, geometry: draft.geometry, drawnPoints: draft.drawnPoints };
+  if (draft.stretch) profileToSave.stretch = draft.stretch;
+  else delete profileToSave.stretch;
+  const saveDisabled = !dirty || !isSectionProfile(profileToSave);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -149,17 +153,16 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
         <button
           type="button"
           className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500 disabled:opacity-50"
-          disabled={!dirty}
+          disabled={saveDisabled}
           onClick={() => {
-            const profile = { ...saved, kind: draft.kind, geometry: draft.geometry, drawnPoints: draft.drawnPoints };
-            if (draft.stretch) profile.stretch = draft.stretch;
-            else delete profile.stretch;
-            dispatch(updateSectionProfile({ profileId: saved.id, profile }));
+            if (saveDisabled) return;
+            dispatch(updateSectionProfile({ profileId: saved.id, profile: profileToSave }));
             setSavedOnce(true);
           }}
         >
           Save
         </button>
+        {saveDisabled && stretchLineProblem(profileToSave) && <span className="text-xs text-amber-300">Move the stretch line to save</span>}
       </header>
       {message && <p role="status" className="px-4 py-1 text-sm text-red-300">{message}</p>}
       <div className="flex min-h-0 flex-1">
@@ -202,7 +205,17 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
           <section className="space-y-2">
             <h2 className="text-sm font-medium text-gray-200">Loops</h2>
             {draft.geometry.loops.map((loop) => (
-              <p key={loop.id} className="text-xs text-gray-400">{loop.id} · {loop.closed ? 'closed' : 'open'} · {loop.segs.length} segments</p>
+              <div key={loop.id} className="flex items-center justify-between gap-2 text-xs text-gray-400">
+                <span>{loop.id} · {loop.closed ? 'closed' : 'open'} · {loop.segs.length} segments</span>
+                <button
+                  type="button"
+                  className="rounded border border-gray-600 px-2 py-0.5 text-gray-200 hover:bg-gray-700"
+                  aria-label={`${loop.closed ? 'Open' : 'Close'} loop ${loop.id}`}
+                  onClick={() => apply(setLoopClosed(draft, loop.id, !loop.closed), 'A closed shape needs at least 3 points.')}
+                >
+                  {loop.closed ? 'Open' : 'Close'}
+                </button>
+              </div>
             ))}
           </section>
           <p className="text-xs text-gray-500">Pick the kind first: it sets which way the shape is drawn and what 0, 0 means. Open lines are cuts; closed shapes are applied pieces. To turn or flip the shape about a point, press Origin on that point first. Drawn points become lines in each view. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
