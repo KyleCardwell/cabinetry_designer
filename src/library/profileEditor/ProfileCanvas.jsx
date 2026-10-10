@@ -141,6 +141,7 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
   const drawnProfile = dragPreview?.profile ?? profile;
   const ghostProfile = ghost ? { ...profile, geometry: ghost, drawnPoints: { elevation: [] } } : null;
   const axes = PROFILE_KINDS[drawnProfile.kind]?.axes ?? 'free';
+  const stretchY = view && drawnProfile.stretch ? toScreen(view, size, [0, drawnProfile.stretch.y])[1] : null;
   const originText = PROFILE_KINDS[drawnProfile.kind]?.origin ?? null;
   const hover = tool === 'line' && view && cursor
     ? snapProfilePoint(profile, toModel(view, size, cursor), { grid, reach: 8 / view.scale }) : null;
@@ -248,6 +249,9 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
                 })}
               </g>
             ))}
+            {stretchY !== null && (
+              <line x1={0} y1={stretchY} x2={size.width} y2={stretchY} stroke="#fbbf24" strokeWidth={1.5} strokeDasharray="6 4" pointerEvents="none" aria-label="Stretch line" />
+            )}
             {Object.entries(drawnProfile.geometry.points).map(([id, point]) => {
               const [x, y] = toScreen(view, size, point);
               return (

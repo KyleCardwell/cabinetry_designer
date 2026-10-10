@@ -15,10 +15,19 @@ export default function DoorSectionView({ style, design }) {
   const profiles = useSelector((state) => state.elevation.settings.sectionProfiles);
   const maskId = useId().replace(/:/g, '');
   const section = doorSection(style, design, profiles);
-  const deep = doorProfileOffsets(style, design, profiles).warnings.filter(({ code }) => code === 'door-profile-too-deep').map(({ slot }) => SLOT_LABELS[slot]);
+  const warnings = doorProfileOffsets(style, design, profiles).warnings;
+  const thinMessages = warnings.filter(({ code }) => code === 'door-profile-too-thin').map(({ slot }) => (
+    <p key={slot} className="text-xs text-amber-300">{SLOT_LABELS[slot]} can't shrink to this thickness — shown unstretched</p>
+  ));
+  const deep = warnings.filter(({ code }) => code === 'door-profile-too-deep').map(({ slot }) => SLOT_LABELS[slot]);
 
   if (section === null) {
-    return <p className="text-xs text-gray-400">Too thin to draw a section (thickness and stile/inset must be over 1/2").</p>;
+    return (
+      <>
+        <p className="text-xs text-gray-400">Too thin to draw a section (thickness and stile/inset must be over 1/2").</p>
+        {thinMessages}
+      </>
+    );
   }
 
   const bounds = [section.body, ...section.placed.map(({ geometry }) => geometry)]
@@ -106,6 +115,7 @@ export default function DoorSectionView({ style, design }) {
           Not shown (missing or wrong kind): {section.skipped.map((slot) => SLOT_LABELS[slot]).join(', ')}.
         </p>
       )}
+      {thinMessages}
       {deep.length > 0 && (
         <p className="text-xs text-amber-300">Cuts deeper than the door is thick: {deep.join(', ')}.</p>
       )}

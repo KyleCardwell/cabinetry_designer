@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
 
 const initialState = (saved) => ({ draft: structuredClone(saved), past: [], future: [] });
-const shape = (profile) => JSON.stringify([profile.kind, profile.geometry, profile.drawnPoints]);
+const shape = (profile) => JSON.stringify([profile.kind, profile.geometry, profile.drawnPoints, profile.stretch]);
 
 function reducer(state, action) {
   const { draft, past, future } = state;

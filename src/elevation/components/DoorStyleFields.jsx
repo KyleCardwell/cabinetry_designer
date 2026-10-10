@@ -119,10 +119,6 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
           <p className="text-xs text-gray-500">Short doors and drawer fronts still shrink their rails by the short-face rule.</p>
         </section>
         <section className="space-y-2">
-          <h3 className={HEADING_CLASS}>Profiles</h3>
-          <DoorProfilePickers draft={draft} setDraft={setDraft} design={design} />
-        </section>
-        <section className="space-y-2">
           <h3 className={HEADING_CLASS}>Panel</h3>
           <div className="grid grid-cols-2 gap-3">
             <label className={`block text-xs text-gray-400 ${fivePiece ? '' : 'opacity-50'}`}>
@@ -187,6 +183,10 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
       <div className="space-y-2 self-start md:sticky md:top-0">
         <h3 className={HEADING_CLASS}>Section</h3>
         <DoorSectionView style={draft} design={design} />
+        <section className="space-y-2">
+          <h3 className={HEADING_CLASS}>Profiles</h3>
+          <DoorProfilePickers draft={draft} setDraft={setDraft} design={design} />
+        </section>
       </div>
     </div>
   );

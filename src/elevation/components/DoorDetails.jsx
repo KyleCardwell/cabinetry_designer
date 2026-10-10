@@ -10,7 +10,7 @@ export default function DoorDetails({ parts, warnings, transform, showDetails, s
         && warning.pieceId === part.pieceId && warning.path === part.path));
     return (
       <Fragment key={part.key}>
-        {showDetails && part.openings.map((opening, index) => {
+        {showDetails && part.openingsShown !== false && part.openings.map((opening, index) => {
           const openingRect = wallRectToScreen(opening, transform);
           if (openingRect.width < 2 || openingRect.height < 2) return null;
           return (

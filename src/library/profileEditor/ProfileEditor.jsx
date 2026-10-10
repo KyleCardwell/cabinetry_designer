@@ -151,10 +151,10 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
           className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500 disabled:opacity-50"
           disabled={!dirty}
           onClick={() => {
-            dispatch(updateSectionProfile({
-              profileId: saved.id,
-              profile: { ...saved, kind: draft.kind, geometry: draft.geometry, drawnPoints: draft.drawnPoints },
-            }));
+            const profile = { ...saved, kind: draft.kind, geometry: draft.geometry, drawnPoints: draft.drawnPoints };
+            if (draft.stretch) profile.stretch = draft.stretch;
+            else delete profile.stretch;
+            dispatch(updateSectionProfile({ profileId: saved.id, profile }));
             setSavedOnce(true);
           }}
         >

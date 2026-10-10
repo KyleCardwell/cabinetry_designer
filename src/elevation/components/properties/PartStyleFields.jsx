@@ -5,6 +5,7 @@ import {
   setPartNote,
   setPartSide,
 } from '../../model/doorStyleEdits.js';
+import { doorProfileOffsets } from '../../model/doorProfileLines.js';
 import { resolveDoorStyle } from '../../model/doorStyleResolve.js';
 import { formatInches, formatInchesInput } from '../../model/units.js';
 import InchInput from '../InchInput.jsx';
@@ -22,7 +23,8 @@ export default function PartStyleFields({
     ? pickOptions(room, settings, partType, levels.slice(1))
     : null;
   const { style, design, warnings } = resolveDoorStyle(room, settings, partType, levels);
-  const rows = partSizeRows(style, design, { width, height, sizes: part?.sizes });
+  const edgeOut = doorProfileOffsets(style, design, settings.sectionProfiles).slots.outside?.reachOut ?? 0;
+  const rows = partSizeRows(style, design, { width, height, sizes: part?.sizes }, edgeOut);
   const styleId = part?.styleId ?? '';
   const missingPick = picker && styleId !== ''
     && !picker.options.some((option) => option.id === styleId);

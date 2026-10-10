@@ -35,6 +35,12 @@ const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hove
 const DISABLED_CLASS = 'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gray-700';
 const NUMBER_CLASS = 'w-16 rounded border border-gray-600 bg-gray-900 px-2 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
+const SLOT_LABELS = {
+  outside: 'Outside edge',
+  inside: 'Inside profile',
+  panel: 'Raised panel',
+  applied: 'Applied molding',
+};
 const WARNING_MESSAGES = {
   'face-too-small': 'Sections don\'t fit. Reduce a fixed size.',
   'pair-door-covers-panel': 'A pair door can\'t cover a side panel — it\'s hinged on both sides.',
@@ -370,6 +376,11 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
         Apply to same-width cabinets
       </button>
 
+      {[...new Set(warnings.filter(({ code }) => code === 'door-profile-too-thin').map(({ slot }) => slot))].map((slot) => (
+        <p key={`too-thin:${slot}`} className="text-xs font-medium text-amber-300">
+          {SLOT_LABELS[slot]} can't shrink to this thickness — shown unstretched
+        </p>
+      ))}
       {[...new Set(warnings.map(({ code }) => code))].map((code) => (
         WARNING_MESSAGES[code] && (
           <p key={code} className="text-xs font-medium text-amber-300">
