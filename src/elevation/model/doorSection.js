@@ -1,6 +1,6 @@
 import { profileDoorGhost } from './profileGhost.js';
 import { DOOR_PROFILE_SLOTS } from './doorStyles.js';
-import { doorProfileSlotKind } from './sectionProfiles.js';
+import { doorProfileSlotKind, stretchProfileGeometry } from './sectionProfiles.js';
 
 function round6(v) {
   const rounded = Number(v.toFixed(6));
@@ -82,7 +82,10 @@ export function doorSection(style, design, profiles) {
       skipped.push(slot);
       continue;
     }
-    const geometry = moveGeometry(profile.geometry, slot === 'outside' ? 0 : style.stiles.left);
+    const target = slot === 'inside' && design.construction === 'five_piece'
+      ? -(style.thickness - style.panel.thickness) : -style.thickness;
+    const stretched = stretchProfileGeometry(profile, target) ?? profile.geometry;
+    const geometry = moveGeometry(stretched, slot === 'outside' ? 0 : style.stiles.left);
     placed.push({ slot, profileId, name: profile.name, geometry });
     for (const loop of geometry.loops) {
       if (loop.closed === false) cuts.push({ slot, geometry: cutGeometry(geometry, loop) });

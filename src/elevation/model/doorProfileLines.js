@@ -24,23 +24,43 @@ export function doorProfileOffsets(style, design, profiles = []) {
     }
 
     const b = sectionProfileBounds(profile);
+    const reachOut = round6(Math.max(0, -b.minX));
+    const covers = profile.geometry.loops.some((loop) => {
+      if (!loop.closed) return false;
+      const pointIds = new Set(loop.segs.flatMap(({ from, to }) => [from, to]));
+      const bounds = sectionProfileBounds({ geometry: {
+        ...profile.geometry,
+        points: Object.fromEntries([...pointIds].map((id) => [id, profile.geometry.points[id]])),
+        loops: [loop],
+      } });
+      return bounds.minX < -EPS && bounds.maxX > EPS;
+    });
     const lines = new Set();
     for (const id of profile.drawnPoints?.elevation ?? []) {
       if (!Object.hasOwn(profile.geometry.points, id)) continue;
       const x = round6(profile.geometry.points[id][0]);
-      if (slot === 'outside' || slot === 'panel' ? x > EPS : Math.abs(x) > EPS) lines.add(x);
+      const keep = slot === 'outside' ? Math.abs(x) > EPS && x > -reachOut + EPS
+        : slot === 'panel' ? x > EPS : Math.abs(x) > EPS;
+      if (keep) lines.add(x);
     }
     slots[slot] = {
       profileId,
       name: profile.name,
       lines: [...lines].sort((a, b) => a - b),
       reachIn: round6(Math.max(0, b.maxX)),
-      reachOut: round6(Math.max(0, -b.minX)),
+      reachOut,
+      covers,
     };
     if (Number.isFinite(style.thickness)
+      && !Object.hasOwn(profile, 'stretch')
       && profile.geometry.loops.some((loop) => loop.closed === false)
       && b.minY < -style.thickness - EPS) {
       warnings.push({ code: 'door-profile-too-deep', slot });
+    }
+    const target = slot === 'inside' && design.construction === 'five_piece'
+      ? -(style.thickness - style.panel.thickness) : -style.thickness;
+    if (Object.hasOwn(profile, 'stretch') && target >= profile.stretch.y - EPS) {
+      warnings.push({ code: 'door-profile-too-thin', slot });
     }
   }
   return { slots, warnings };

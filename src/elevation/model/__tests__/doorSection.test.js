@@ -25,6 +25,21 @@ const STEP = {
     loops: [{ id: 'L1', closed: false, segs: [line('p', 'q'), line('q', 'r')] }],
   },
 };
+const BEAD5 = {
+  id: 'sp-bead5', name: 'Flush bead 5/16', kind: 'door_outside', stretch: { y: -0.25 },
+  geometry: {
+    units: 'in',
+    points: { a: [-0.3125, 0], q: [-0.0625, 0], b: [0, 0], c: [0, -0.8125], d: [-0.3125, -0.8125] },
+    loops: [{ id: 'L1', closed: true, segs: [line('a', 'q'), line('q', 'b'), line('b', 'c'), line('c', 'd'), line('d', 'a')] }],
+  },
+};
+const STICK2 = {
+  id: 'sp-stick2', name: 'Stick 1/4', kind: 'door_inside', stretch: { y: -0.28125 },
+  geometry: {
+    units: 'in', points: { s1: [-0.25, 0], s2: [0, -0.25], s3: [0, -0.3125] },
+    loops: [{ id: 'L1', closed: false, segs: [line('s1', 's2'), line('s2', 's3')] }],
+  },
+};
 const LIBRARY = [ROUND, STEP, BEAD, CROWN];
 const picks = (profiles) => ({ ...DEFAULT_DOOR_STYLE, profiles: { outside: null, inside: null, panel: null, applied: null, ...profiles } });
 
@@ -33,6 +48,37 @@ describe('SPEC-48.4 the door style half section', () => {
     expect(doorSection(DEFAULT_DOOR_STYLE, FIVE, LIBRARY)).toEqual({
       units: 'in', body: profileDoorGhost('door_outside', DEFAULT_DOOR_STYLE), placed: [], cuts: [], skipped: [],
     });
+  });
+
+  it('stretches outside to the back and inside to the panel face, then cuts the stretched geometry', () => {
+    const style = { ...picks({ outside: BEAD5.id, inside: STICK2.id }), thickness: 1, panel: { thickness: 0.25 } };
+    const section = doorSection(style, FIVE, [BEAD5, STICK2]);
+    expect(section.placed[0].geometry.points).toEqual({
+      a: [-0.3125, 0], q: [-0.0625, 0], b: [0, 0], c: [0, -1], d: [-0.3125, -1],
+    });
+    expect(section.placed[1].geometry.points).toEqual({ s1: [2.75, 0], s2: [3, -0.25], s3: [3, -0.75] });
+    expect(section.cuts).toEqual([{ slot: 'inside', geometry: {
+      units: 'in', points: { s1: [2.75, 0], s2: [3, -0.25], s3: [3, -0.75], _e: [3, 0] },
+      loops: [{ id: 'L1', closed: true, segs: [line('s1', 's2'), line('s2', 's3'), line('s3', '_e'), line('_e', 's1')] }],
+    } }]);
+    const panel = { ...STICK2, id: 'panel', kind: 'door_panel' };
+    const applied = { ...STICK2, id: 'applied', kind: 'applied_molding' };
+    const all = doorSection({ ...style, profiles: { ...style.profiles, panel: panel.id, applied: applied.id } }, FIVE,
+      [BEAD5, STICK2, panel, applied]);
+    expect(all.placed.map(({ geometry }) => Object.values(geometry.points).at(-1)[1])).toEqual([-1, -0.75, -1, -1]);
+    expect(doorSection({ ...style, thickness: 0.75 }, FIVE, [BEAD5, STICK2]).placed[0].geometry.points.c).toEqual([0, -0.75]);
+    expect(BEAD5.geometry.points.c).toEqual([0, -0.8125]);
+    expect(STICK2.geometry.points.s3).toEqual([0, -0.3125]);
+  });
+
+  it('keeps the default inside depth and places too-thin profiles and their cuts unstretched', () => {
+    const style = picks({ inside: STICK2.id });
+    expect(doorSection(style, FIVE, [STICK2]).placed[0].geometry.points.s3).toEqual([3, -0.3125]);
+    const thin = doorSection({ ...style, thickness: 0.75 }, FIVE, [STICK2]);
+    expect(thin.placed[0].geometry.points).toEqual({ s1: [2.75, 0], s2: [3, -0.25], s3: [3, -0.3125] });
+    expect(thin.cuts[0].geometry.points.s3).toEqual([3, -0.3125]);
+    const outside = doorSection({ ...picks({ outside: BEAD5.id }), thickness: 0.25 }, SLAB, [BEAD5]);
+    expect(outside.placed[0].geometry).toEqual(BEAD5.geometry);
   });
 
   it('places each pick on its line, cuts open lines back to the face, and skips picks that don\'t fit', () => {

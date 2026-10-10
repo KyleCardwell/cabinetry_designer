@@ -24,21 +24,28 @@ const RAISED = profile('sp-raised', 'Raised 2', 'door_panel',
 const AM = profile('sp-am', 'Applied 1', 'applied_molding',
   { u: [-0.25, 0], v: [0.75, 0], w: [0.75, 0.375], k: [-0.25, 0.375] },
   [line('u', 'v'), line('v', 'w'), line('w', 'k'), line('k', 'u')], true, ['v', 'u']);
+const BEAD5 = { ...profile('sp-bead5', 'Flush bead 5/16', 'door_outside',
+  { a: [-0.3125, 0], q: [-0.0625, 0], b: [0, 0], c: [0, -0.8125], d: [-0.3125, -0.8125] },
+  [line('a', 'q'), line('q', 'b'), line('b', 'c'), line('c', 'd'), line('d', 'a')], true, ['q', 'a']),
+stretch: { y: -0.25 } };
+const STICK2 = { ...profile('sp-stick2', 'Stick 1/4', 'door_inside',
+  { s1: [-0.25, 0], s2: [0, -0.25], s3: [0, -0.3125] },
+  [line('s1', 's2'), line('s2', 's3')], false, ['s1']), stretch: { y: -0.28125 } };
 const LIBRARY = [ROUND, STEP, RAISED, AM, BEAD, CROWN];
 const style = (profiles, patch = {}) => ({
   ...DEFAULT_DOOR_STYLE, ...patch, profiles: { outside: null, inside: null, panel: null, applied: null, ...profiles },
 });
 const ALL = style({ outside: 'sp-round', inside: 'sp-step', panel: 'sp-raised', applied: 'sp-bead' });
-const ROUND_SLOT = { profileId: 'sp-round', name: 'Round 1/4', lines: [0.25], reachIn: 0.25, reachOut: 0 };
+const ROUND_SLOT = { profileId: 'sp-round', name: 'Round 1/4', lines: [0.25], reachIn: 0.25, reachOut: 0, covers: false };
 
 describe('SPEC-50 door profile offsets', () => {
   it('reads each pick\'s drawn points as offsets with its reach, and warns on bad picks and cuts past the back', () => {
     expect(doorProfileOffsets(ALL, FIVE, LIBRARY)).toEqual({
       slots: {
         outside: ROUND_SLOT,
-        inside: { profileId: 'sp-step', name: 'Step', lines: [-0.25], reachIn: 0, reachOut: 0.25 },
-        panel: { profileId: 'sp-raised', name: 'Raised 2', lines: [0.125, 1.5], reachIn: 2, reachOut: 0.375 },
-        applied: { profileId: 'sp-bead', name: 'Half bead', lines: [0.5], reachIn: 0.5, reachOut: 0 },
+        inside: { profileId: 'sp-step', name: 'Step', lines: [-0.25], reachIn: 0, reachOut: 0.25, covers: false },
+        panel: { profileId: 'sp-raised', name: 'Raised 2', lines: [0.125, 1.5], reachIn: 2, reachOut: 0.375, covers: false },
+        applied: { profileId: 'sp-bead', name: 'Half bead', lines: [0.5], reachIn: 0.5, reachOut: 0, covers: false },
       },
       warnings: [],
     });
@@ -54,6 +61,55 @@ describe('SPEC-50 door profile offsets', () => {
     expect(doorProfileOffsets(ALL, SLAB, LIBRARY)).toEqual({ slots: { outside: ROUND_SLOT }, warnings: [] });
     expect([doorProfileOffsets(DEFAULT_DOOR_STYLE, FIVE, LIBRARY), doorProfileOffsets(ALL, null, LIBRARY)])
       .toEqual([{ slots: {}, warnings: [] }, { slots: {}, warnings: [] }]);
+  });
+
+  it('keeps overhang points inside the outline and covers only with a closed loop crossing the reference', () => {
+    expect(doorProfileOffsets(style({ outside: BEAD5.id }), FIVE, [BEAD5])).toEqual({
+      slots: { outside: {
+        profileId: BEAD5.id, name: BEAD5.name,
+        lines: [-0.0625], reachIn: 0, reachOut: 0.3125, covers: false,
+      } },
+      warnings: [],
+    });
+    expect(doorProfileOffsets(style({ applied: AM.id }), FIVE, [AM]).slots.applied)
+      .toEqual({ profileId: AM.id, name: AM.name, lines: [-0.25, 0.75], reachIn: 0.75, reachOut: 0.25, covers: true });
+    const covers = (pick) => doorProfileOffsets(style({ applied: pick.id }), FIVE, [pick]).slots.applied.covers;
+    expect(covers({ ...AM, geometry: { ...AM.geometry, loops: [{ ...AM.geometry.loops[0], closed: false }] } })).toBe(false);
+    const separate = { ...AM, geometry: {
+      ...AM.geometry,
+      points: { a: [-1, 0], b: [-0.5, 0], c: [-0.5, 0.5], d: [-1, 0.5],
+        e: [0.5, 0], f: [1, 0], g: [1, 0.5], h: [0.5, 0.5] },
+      loops: [
+        { id: 'left', closed: true, segs: [line('a', 'b'), line('b', 'c'), line('c', 'd'), line('d', 'a')] },
+        { id: 'right', closed: true, segs: [line('e', 'f'), line('f', 'g'), line('g', 'h'), line('h', 'e')] },
+      ],
+    } };
+    expect(covers(separate)).toBe(false);
+    const arc = profile('arc', 'Crossing arc', 'applied_molding', { a: [0.25, 0.5], b: [0.25, -0.5] },
+      [{ type: 'arc', from: 'a', to: 'b', center: [0.25, 0], ccw: true }, line('b', 'a')], true, []);
+    expect(covers(arc)).toBe(true);
+    const touching = { ...AM, geometry: { ...AM.geometry, points: { ...AM.geometry.points, u: [-1e-6, 0], k: [-1e-6, 0.375] } } };
+    expect(covers(touching)).toBe(false);
+  });
+
+  it('warns too-thin at the slot target and never too-deep for stretching picks, in slot order', () => {
+    const picks = style({ inside: STICK2.id });
+    expect(doorProfileOffsets({ ...picks, thickness: 0.75 }, FIVE, [STICK2]).warnings)
+      .toEqual([{ code: 'door-profile-too-thin', slot: 'inside' }]);
+    expect(doorProfileOffsets({ ...picks, thickness: 1 }, FIVE, [STICK2]).warnings).toEqual([]);
+    const library = ['outside', 'panel', 'applied'].map((slot) => ({
+      ...BEAD5, id: slot, kind: { outside: 'door_outside', panel: 'door_panel', applied: 'applied_molding' }[slot],
+      geometry: { ...BEAD5.geometry, loops: [{ ...BEAD5.geometry.loops[0], closed: false, segs: BEAD5.geometry.loops[0].segs.slice(0, -1) }] },
+      stretch: { y: -0.6 },
+    }));
+    const all = style({ outside: 'outside', inside: STICK2.id, panel: 'panel', applied: 'applied' });
+    expect(doorProfileOffsets({ ...all, thickness: 0.6, panel: { thickness: 0.5 } }, FIVE, [...library, STICK2]).warnings)
+      .toEqual(['outside', 'inside', 'panel', 'applied'].map((slot) => ({ code: 'door-profile-too-thin', slot })));
+    expect(doorProfileOffsets({ ...all, thickness: 0.75 }, FIVE, library).warnings)
+      .toEqual([{ code: 'door-profile-missing', slot: 'inside' }]);
+    expect(doorProfileOffsets(style({ outside: 'outside' }, { thickness: 0.6 + 1e-6 }), SLAB, library).warnings)
+      .toEqual([{ code: 'door-profile-too-thin', slot: 'outside' }]);
+    expect(doorProfileOffsets(style({ outside: 'outside' }, { thickness: 0.6 + 2e-6 }), SLAB, library).warnings).toEqual([]);
   });
 
   it('draws each offset as a rectangle from its edge, drops what doesn\'t fit, and checks the frame and the panel', () => {
