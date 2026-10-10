@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
-import { doorSection } from '../doorSection.js';
+import { doorSection, doorSectionDimensions } from '../doorSection.js';
 import { profileDoorGhost } from '../profileGhost.js';
 import { isProfileGeometry } from '../sectionProfiles.js';
 
@@ -38,6 +38,14 @@ const STICK2 = {
   geometry: {
     units: 'in', points: { s1: [-0.25, 0], s2: [0, -0.25], s3: [0, -0.3125] },
     loops: [{ id: 'L1', closed: false, segs: [line('s1', 's2'), line('s2', 's3')] }],
+  },
+};
+const AM = {
+  id: 'sp-am', name: 'Applied 1', kind: 'applied_molding',
+  geometry: {
+    units: 'in',
+    points: { u: [-0.25, 0], v: [0.75, 0], w: [0.75, 0.375], k: [-0.25, 0.375] },
+    loops: [{ id: 'L1', closed: true, segs: [line('u', 'v'), line('v', 'w'), line('w', 'k'), line('k', 'u')] }],
   },
 };
 const LIBRARY = [ROUND, STEP, BEAD, CROWN];
@@ -142,5 +150,82 @@ describe('SPEC-48.4 the door style half section', () => {
       doorSection(DEFAULT_DOOR_STYLE, null, LIBRARY),
       doorSection({ ...DEFAULT_DOOR_STYLE, stiles: { left: 0, right: 3 } }, SLAB_AM, LIBRARY),
     ]).toEqual([null, null, null, null]);
+  });
+});
+
+describe('SPEC-50.1 door section dimension chains', () => {
+  const dim = (label, from, to, value = to - from) => ({ label, from, to, value });
+  const left = [dim('thickness', -0.8125, 0)];
+  const profiles = [...LIBRARY, BEAD5, AM];
+
+  it.each([
+    ['unprofiled 5-piece', picks({}), FIVE,
+      [dim('stile', 0, 3)], [dim('flat', 0, 3)]],
+    ['outside bead and applied molding', picks({ outside: BEAD5.id, applied: AM.id }), FIVE,
+      [dim('molding', -0.3125, 0), dim('stile', 0, 3)],
+      [dim('outside', -0.3125, 0), dim('flat', 0, 2.75), dim('profile', 2.75, 3.75, 1)]],
+    ['outside round and inside step', picks({ outside: ROUND.id, inside: STEP.id }), FIVE,
+      [dim('stile', 0, 3)],
+      [dim('outside', 0, 0.25), dim('flat', 0.25, 2.75), dim('profile', 2.75, 3, 0.25)]],
+    ['slab with outside bead', picks({ outside: BEAD5.id }), SLAB,
+      [dim('molding', -0.3125, 0)], [dim('outside', -0.3125, 0)]],
+  ])('matches the anchor for %s', (_name, style, design, below, above) => {
+    expect(doorSectionDimensions(style, design, profiles)).toEqual({ left, below, above });
+  });
+
+  it('uses the larger inside and applied reaches independently and ignores the panel reach', () => {
+    const inside = { ...AM, id: 'wide-inside', kind: 'door_inside', geometry: {
+      ...AM.geometry, points: { u: [-0.5, 0], v: [0.25, 0], w: [0.25, 0.375], k: [-0.5, 0.375] },
+    } };
+    const panel = { ...AM, id: 'panel', kind: 'door_panel', geometry: {
+      ...AM.geometry, points: { u: [-2, 0], v: [2, 0], w: [2, 0.375], k: [-2, 0.375] },
+    } };
+    expect(doorSectionDimensions(picks({ inside: inside.id, applied: AM.id, panel: panel.id }), FIVE,
+      [inside, AM, panel])).toEqual({
+      left, below: [dim('stile', 0, 3)], above: [dim('flat', 0, 2.5), dim('profile', 2.5, 3.75)],
+    });
+    expect(doorSectionDimensions(picks({ inside: 'gone', applied: ROUND.id }), FIVE, profiles)).toEqual({
+      left, below: [dim('stile', 0, 3)], above: [dim('flat', 0, 3)],
+    });
+  });
+
+  it('dimensions the slab-applied inset and keeps reaches unchanged by stretch', () => {
+    const style = { ...picks({ outside: BEAD5.id, applied: AM.id }), thickness: 1 };
+    expect(doorSectionDimensions(style, SLAB_AM, profiles)).toEqual({
+      left: [dim('thickness', -1, 0)],
+      below: [dim('molding', -0.3125, 0), dim('inset', 0, 3)],
+      above: [dim('outside', -0.3125, 0), dim('flat', 0, 2.75), dim('profile', 2.75, 3.75)],
+    });
+  });
+
+  it('rounds to six decimals, normalizes negative zero, and omits segments at or below EPS', () => {
+    const style = { ...picks({ outside: ROUND.id, inside: STEP.id }),
+      thickness: 0.8125004, stiles: { left: 0.500001, right: 3 } };
+    expect(doorSectionDimensions(style, FIVE, profiles)).toEqual({
+      left, below: [dim('stile', 0, 0.500001)],
+      above: [dim('outside', 0, 0.25), dim('profile', 0.250001, 0.500001, 0.25)],
+    });
+    expect(doorSectionDimensions({ ...DEFAULT_DOOR_STYLE, thickness: 0.000001 }, SLAB, profiles))
+      .toEqual({ left: [], below: [], above: [] });
+    const appliedStep = { ...STEP, kind: 'applied_molding' };
+    const slabStyle = { ...picks({ outside: ROUND.id, applied: STEP.id }), stiles: { left: 0.5, right: 3 } };
+    expect(doorSectionDimensions(slabStyle, SLAB_AM, [ROUND, appliedStep]).above)
+      .toEqual([dim('outside', 0, 0.25), dim('profile', 0.25, 0.5)]);
+    expect(doorSectionDimensions({ ...slabStyle, stiles: { left: 0.25, right: 3 } }, SLAB_AM,
+      [ROUND, appliedStep]).above).toEqual([dim('outside', 0, 0.25), dim('profile', 0, 0.25)]);
+  });
+
+  it('returns null exactly when the half section cannot be drawn', () => {
+    for (const [style, design] of [
+      [{ ...DEFAULT_DOOR_STYLE, thickness: 0.5 }, FIVE],
+      [{ ...DEFAULT_DOOR_STYLE, panel: { thickness: 0 } }, FIVE],
+      [{ ...DEFAULT_DOOR_STYLE, thickness: 0 }, SLAB],
+      [DEFAULT_DOOR_STYLE, null],
+      [{ ...DEFAULT_DOOR_STYLE, stiles: { left: 0, right: 3 } }, SLAB_AM],
+      [DEFAULT_DOOR_STYLE, { construction: 'unknown' }],
+    ]) {
+      expect(doorSection(style, design, profiles)).toBeNull();
+      expect(doorSectionDimensions(style, design, profiles)).toBeNull();
+    }
   });
 });

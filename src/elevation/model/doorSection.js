@@ -1,6 +1,9 @@
 import { profileDoorGhost } from './profileGhost.js';
 import { DOOR_PROFILE_SLOTS } from './doorStyles.js';
 import { doorProfileSlotKind, stretchProfileGeometry } from './sectionProfiles.js';
+import { doorProfileOffsets } from './doorProfileLines.js';
+
+const EPS = 1e-6;
 
 function round6(v) {
   const rounded = Number(v.toFixed(6));
@@ -92,4 +95,35 @@ export function doorSection(style, design, profiles) {
     }
   }
   return { units: 'in', body, placed, cuts, skipped };
+}
+
+/** SPEC-50.1 dimension chains for the door style's half section, measured from the core edge. */
+export function doorSectionDimensions(style, design, profiles) {
+  if (doorSection(style, design, profiles) === null) return null;
+
+  const { slots } = doorProfileOffsets(style, design, profiles);
+  const { outside, inside, applied } = slots;
+  const frameOut = Math.max(inside?.reachOut ?? 0, applied?.reachOut ?? 0);
+  const frameIn = Math.max(inside?.reachIn ?? 0, applied?.reachIn ?? 0);
+  const left = [];
+  const below = [];
+  const above = [];
+  const add = (chain, label, from, to) => {
+    from = round6(from);
+    to = round6(to);
+    const value = round6(to - from);
+    if (value <= EPS) return;
+    chain.push({ label, from, to, value });
+  };
+
+  add(left, 'thickness', -style.thickness, 0);
+  add(below, 'molding', -(outside?.reachOut ?? 0), 0);
+  if (outside) add(above, 'outside', -outside.reachOut, outside.reachIn);
+  if (design.construction !== 'slab') {
+    const S = style.stiles.left;
+    add(below, design.construction === 'five_piece' ? 'stile' : 'inset', 0, S);
+    add(above, 'flat', Math.max(0, outside?.reachIn ?? 0), S - frameOut);
+    if (inside || applied) add(above, 'profile', S - frameOut, S + frameIn);
+  }
+  return { left, below, above };
 }
