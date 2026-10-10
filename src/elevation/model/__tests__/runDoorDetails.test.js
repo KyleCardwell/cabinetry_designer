@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { runDoorDetails } from '../doorDetails.js';
+import { elevationDoorDetails } from '../elevationDoorDetails.js';
 import { gridLeaves } from '../grid.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
@@ -59,7 +60,7 @@ describe('SPEC-46.2 door details for a run', () => {
       construction: 'five_piece',
       ...box(30.0625, 4.125, 23.875, 30.125),
       openings: [box(33.0625, 7.125, 17.875, 24.125)],
-      lines: [],
+      lines: [], openingsShown: true,
     });
     expect(part(result, `${CAB_36}:r:right`).openings).toEqual([box(75.0625, 7.125, 11.875, 24.125)]);
     expect(result.warnings).toEqual([]);
@@ -107,7 +108,7 @@ describe('SPEC-46.2 door details for a run', () => {
       construction: 'five_piece',
       ...box(0.75, 36, 70.5, 41.25),
       openings: [box(3.75, 39, 64.5, 35.25)],
-      lines: [],
+      lines: [], openingsShown: true,
     }]);
     const sheet = details('G3 Bath alcove', G3_UPPER, (r) => {
       leafOf(runOf(r, G3_UPPER), G3_BACK).styleId = 'sheet';
@@ -164,10 +165,73 @@ describe('SPEC-50 profile lines and profile warnings for a run', () => {
     expect(part(result, `${CAB_36}:r:right`).lines)
       .toEqual([box(72.3125, 4.375, 17.375, 29.625), box(74.8125, 6.875, 12.375, 24.625)]);
     expect(result.warnings).toEqual([]);
+    expect(result.parts.every(({ openingsShown }) => openingsShown)).toBe(true);
     const missing = profiled({ panel: 'gone' });
     expect(missing.parts.every(({ lines }) => lines.length === 0)).toBe(true);
     expect([missing.warnings.length, missing.warnings[0]]).toEqual([
       7, { code: 'door-profile-missing', slot: 'panel', pieceId: CAB_24, key: `${CAB_24}:r` },
     ]);
+  });
+});
+
+
+describe('SPEC-50.1 core sizes throughout run details', () => {
+  it('keeps overall part sizes, omits covered payload openings, and compares front stacks by their cores', () => {
+    const line = (from, to) => ({ type: 'line', from, to });
+    const bead = {
+      id: 'sp-bead5', name: 'Flush bead 5/16', kind: 'door_outside', version: 1, archived: false,
+      stretch: { y: -0.25 }, drawnPoints: { elevation: ['q', 'a'] },
+      geometry: { units: 'in',
+        points: { a: [-0.3125, 0], q: [-0.0625, 0], b: [0, 0], c: [0, -0.8125], d: [-0.3125, -0.8125] },
+        loops: [{ id: 'L1', closed: true, segs: [line('a', 'q'), line('q', 'b'), line('b', 'c'), line('c', 'd'), line('d', 'a')] }],
+      },
+    };
+    const applied = {
+      id: 'sp-am', name: 'Applied 1', kind: 'applied_molding', version: 1, archived: false,
+      drawnPoints: { elevation: ['v', 'u'] },
+      geometry: { units: 'in',
+        points: { u: [-0.25, 0], v: [0.75, 0], w: [0.75, 0.375], k: [-0.25, 0.375] },
+        loops: [{ id: 'L1', closed: true, segs: [line('u', 'v'), line('v', 'w'), line('w', 'k'), line('k', 'u')] }],
+      },
+    };
+    const withProfiles = { ...settings, sectionProfiles: [bead, applied] };
+    const edge = { ...P, id: 'ds-edge', profiles: { ...P.profiles, outside: bead.id } };
+    const room = structuredClone(stored('G1 Euro kitchen'));
+    room.doorStyles = [{ ...edge, profiles: { ...edge.profiles, applied: applied.id } }];
+    room.doorStyleId = edge.id;
+    const synced = syncRoom(room, withProfiles);
+    const wall = synced.walls.find((candidate) => candidate.runs.some((run) => run.id === G1_BASE));
+    const view = resolveWall(synced, wall, 'front');
+    const result = runDoorDetails(synced, view, runOf(synced, G1_BASE), withProfiles);
+    const door = part(result, `${CAB_24}:r`);
+    expect([door.x, door.z, door.width, door.height]).toEqual([30.0625, 4.125, 23.875, 30.125]);
+    expect(door.openings).toEqual([box(33.375, 7.4375, 17.25, 23.5)]);
+    expect(door.lines).toEqual([
+      box(30.375, 4.4375, 23.25, 29.5), box(30.3125, 4.375, 23.375, 29.625),
+      box(33.125, 7.1875, 17.75, 24), box(34.125, 8.1875, 15.75, 22),
+    ]);
+    expect(door.openingsShown).toBe(false);
+    expect(result.warnings).toEqual([]);
+    const payload = elevationDoorDetails(synced, wall, 'front', withProfiles);
+    expect(payload.find(({ partId }) => partId === `${CAB_24}:r`))
+      .toEqual({ partId: `${CAB_24}:r`, profileLines: door.lines });
+    expect(payload.every((entry) => !Object.hasOwn(entry, 'openings'))).toBe(true);
+
+    const stackRoom = structuredClone(stored('G3 Bath alcove'));
+    stackRoom.doorStyles = [P, edge];
+    const run = runOf(stackRoom, G3_BASE);
+    const stackWall = stackRoom.walls.find((candidate) => candidate.runs.includes(run));
+    const face = leafOf(run, G3_DRAWERS).face;
+    face.children[0].styleId = P.id;
+    face.children[1].styleId = edge.id;
+    const scene = {
+      faceLayouts: new Map([[G3_DRAWERS, { box: { width: 15 }, faces: [
+        { type: 'drawer_front', path: 'r.0', ...box(0, 9, 15, 8.5) },
+        { type: 'drawer_front', path: 'r.1', ...box(0, 0, 15, 9) },
+      ] }]]), drawnPieces: [], blind: { entries: [] },
+    };
+    const stack = runDoorDetails(stackRoom, stackWall, run, withProfiles, scene);
+    expect(stack.parts.map(({ openings }) => openings[0].height)).toEqual([2.5, 2.375]);
+    expect(stack.warnings).toEqual([]);
   });
 });

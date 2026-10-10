@@ -1,6 +1,6 @@
 import { panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
-import { doorProfileOffsets, partProfileLines } from './doorProfileLines.js';
+import { doorProfileOffsets, inset, partProfileLines } from './doorProfileLines.js';
 import { frontStackWarnings, partSizes } from './doorSizes.js';
 import { cabinetFaceLevels, facePartType, panelLevels, resolveDoorStyle } from './doorStyleResolve.js';
 import { defaultFace } from './faces.js';
@@ -33,22 +33,23 @@ function remainingIntervals(start, end, origin, mids) {
  * Frame openings (5-piece) or molding rectangles (Slab AM) of one part,
  * in wall coordinates (SPEC-46.2, DOORS-PROFILES-PLAN §3.6).
  */
-export function partDetail(style, design, rect, sizes) {
-  const r = partSizes(style, design, { width: rect.width, height: rect.height, sizes });
-  if (r.construction === 'slab') return { ...r, openings: [] };
+export function partDetail(style, design, rect, sizes, edgeOut = 0) {
+  const core = inset(rect, edgeOut);
+  const r = partSizes(style, design, { width: core.width, height: core.height, sizes });
+  if (r.construction === 'slab') return { ...r, core, openings: [] };
 
   const opening = {
-    x: rect.x + r.stiles.left,
-    z: rect.z + r.rails.bottom,
+    x: core.x + r.stiles.left,
+    z: core.z + r.rails.bottom,
     width: r.opening.width,
     height: r.opening.height,
   };
-  const rows = remainingIntervals(opening.z, opening.z + opening.height, rect.z, r.midRails);
-  const columns = remainingIntervals(opening.x, opening.x + opening.width, rect.x, r.midStiles);
+  const rows = remainingIntervals(opening.z, opening.z + opening.height, core.z, r.midRails);
+  const columns = remainingIntervals(opening.x, opening.x + opening.width, core.x, r.midStiles);
   const openings = rows.flatMap(([bottom, top]) => columns.map(([left, right]) => ({
     x: left, z: bottom, width: right - left, height: top - bottom,
   })));
-  return { construction: r.construction, openings, sizes: r };
+  return { construction: r.construction, core, openings, sizes: r };
 }
 
 /** Every face-on part's door detail, profile lines and warnings, in drawing order (SPEC-46.2, SPEC-50). */
@@ -62,23 +63,23 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
 
   function addPart(key, kind, pieceId, path, rect, resolved, sizes) {
     const { style, design } = resolved;
-    const detail = partDetail(style, design, rect, sizes);
     if (!offsetsByStyle.has(style)) {
       offsetsByStyle.set(style, doorProfileOffsets(style, design, profiles));
     }
     const offsets = offsetsByStyle.get(style);
+    const detail = partDetail(style, design, rect, sizes, offsets.slots.outside?.reachOut ?? 0);
     const fit = partProfileLines(offsets, detail, rect);
     const { x, z, width, height } = rect;
     parts.push({
       key, kind, pieceId, path, styleId: style.id, label: style.label,
       construction: detail.construction, x, z, width, height, openings: detail.openings,
-      lines: fit.lines,
+      lines: fit.lines, openingsShown: fit.openingsShown,
     });
     warnings.push(...resolved.warnings.map((warning) => ({ ...warning, pieceId, key })));
     warnings.push(...offsets.warnings.map((warning) => ({ ...warning, pieceId, key })));
     warnings.push(...fit.warnings.map((warning) => ({ ...warning, pieceId, key })));
     if (kind === 'face' && detail.construction !== 'slab') {
-      faceParts.get(pieceId).push({ path, x, z, width, height, sizes: detail.sizes });
+      faceParts.get(pieceId).push({ path, ...detail.core, sizes: detail.sizes });
     }
   }
 

@@ -11,6 +11,7 @@ describe('SPEC-46.2 a part\'s door detail: frame openings in wall coordinates', 
   it('insets a 5-piece door by its stiles and rails (G1 base door)', () => {
     expect(partDetail(S, SQUARE, box(30.0625, 4.125, 23.875, 30.125))).toEqual({
       construction: 'five_piece',
+      core: box(30.0625, 4.125, 23.875, 30.125),
       openings: [box(33.0625, 7.125, 17.875, 24.125)],
       sizes: partSizes(S, SQUARE, { width: 23.875, height: 30.125 }),
     });
@@ -26,9 +27,9 @@ describe('SPEC-46.2 a part\'s door detail: frame openings in wall coordinates', 
       partDetail(S, SLAB, box(0, 0, 15, 30)),
       partDetail(S, SLAB_AM, box(0, 0, 15, 4.75)),
     ]).toEqual([
-      { construction: 'slab', slab: 'rule', openings: [] },
-      { construction: 'slab', slab: 'design', openings: [] },
-      { construction: 'slab', slab: 'rule', molding: false, openings: [] },
+      { construction: 'slab', slab: 'rule', core: box(0, 0, 15, 4.75), openings: [] },
+      { construction: 'slab', slab: 'design', core: box(0, 0, 15, 30), openings: [] },
+      { construction: 'slab', slab: 'rule', molding: false, core: box(0, 0, 15, 4.75), openings: [] },
     ]);
   });
 

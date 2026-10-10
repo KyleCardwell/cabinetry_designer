@@ -123,7 +123,7 @@ describe('SPEC-50 door profile offsets', () => {
         box(4.5, 4.5, 6, 21),
         box(3.5, 3.5, 8, 23),
       ],
-      warnings: [],
+      warnings: [], openingsShown: true,
     });
     expect(lines(box(0, 0, 19.375, 5.875))).toEqual({
       lines: [
@@ -132,7 +132,7 @@ describe('SPEC-50 door profile offsets', () => {
         box(3.125, 2, 13.125, 1.875),
         box(3.5, 2.375, 12.375, 1.125),
       ],
-      warnings: [{ code: 'door-profile-panel-too-small' }],
+      warnings: [{ code: 'door-profile-panel-too-small' }], openingsShown: true,
     });
     expect(lines(box(0, 0, 15, 30), { stiles: { left: 0.375 }, midRails: [{ at: 15, width: 0.375 }] }).warnings).toEqual([
       { code: 'door-profile-too-wide', side: 'left' },
@@ -148,7 +148,7 @@ describe('SPEC-50 door profile offsets', () => {
     const rect = box(0, 0, 15, 30);
     expect(partProfileLines(offsets, partDetail(C, SLAB_AM, rect), rect)).toEqual({
       lines: [box(0.25, 0.25, 14.5, 29.5), box(2.75, 2.75, 9.5, 24.5), box(3.75, 3.75, 7.5, 22.5)],
-      warnings: [],
+      warnings: [], openingsShown: false,
     });
     const narrow = { stiles: { left: 0.375, right: 0.375 } };
     expect(partProfileLines(offsets, partDetail(C, SLAB_AM, rect, narrow), rect).warnings).toEqual([
@@ -157,8 +157,81 @@ describe('SPEC-50 door profile offsets', () => {
     ]);
     const short = box(0, 0, 15, 4.75);
     expect(partProfileLines(offsets, partDetail(C, SLAB_AM, short), short))
-      .toEqual({ lines: [box(0.25, 0.25, 14.5, 4.25)], warnings: [] });
+      .toEqual({ lines: [box(0.25, 0.25, 14.5, 4.25)], warnings: [], openingsShown: true });
     const plain = doorProfileOffsets(ALL, FIVE, LIBRARY);
     expect(partProfileLines(plain, partDetail(ALL, SLAB, rect), rect).lines).toEqual([box(0.25, 0.25, 14.5, 29.5)]);
+  });
+});
+
+
+describe('SPEC-50.1 core and covered opening lines', () => {
+  const build = (picks, rect, sizes) => {
+    const S = style(picks);
+    const offsets = doorProfileOffsets(S, FIVE, [BEAD5, AM]);
+    const detail = partDetail(S, FIVE, rect, sizes, offsets.slots.outside?.reachOut ?? 0);
+    return { detail, offsets, fit: partProfileLines(offsets, detail, rect) };
+  };
+
+  it('keeps overall size while insetting the core and hides an AM-covered opening (anchors 1 and 4)', () => {
+    const rect = box(0, 0, 15, 30);
+    const { detail, offsets, fit } = build({ outside: BEAD5.id, applied: AM.id }, rect);
+    expect(detail.core).toEqual(box(0.3125, 0.3125, 14.375, 29.375));
+    expect(detail.openings).toEqual([box(3.3125, 3.3125, 8.375, 23.375)]);
+    expect(fit).toEqual({
+      lines: [detail.core, box(0.25, 0.25, 14.5, 29.5),
+        box(3.0625, 3.0625, 8.875, 23.875), box(4.0625, 4.0625, 6.875, 21.875)],
+      openingsShown: false, warnings: [],
+    });
+    expect(offsets.warnings).toEqual([]);
+    expect(rect).toEqual(box(0, 0, 15, 30));
+    const plain = build({}, rect);
+    expect(plain.detail.core).toEqual(rect);
+    expect(plain.detail.openings).toEqual([box(3, 3, 9, 24)]);
+    expect(plain.fit).toEqual({ lines: [], openingsShown: true, warnings: [] });
+  });
+
+  it('uses core height for the slab rule and short rails, and core origins for mids (anchors 2 and 3)', () => {
+    const short = build({ outside: BEAD5.id }, box(0, 0, 15, 5));
+    expect(short.detail.core.height).toBe(4.375);
+    expect(short.detail.construction).toBe('slab');
+    expect(short.detail.openings).toEqual([]);
+    expect(short.fit.lines).toEqual([box(0.3125, 0.3125, 14.375, 4.375), box(0.25, 0.25, 14.5, 4.5)]);
+    const taller = build({ outside: BEAD5.id }, box(0, 0, 15, 8.5));
+    expect(taller.detail.core.height).toBe(7.875);
+    expect(taller.detail.sizes.rails).toEqual({ top: 2.875, bottom: 2.875 });
+    expect(taller.detail.openings).toEqual([box(3.3125, 3.1875, 8.375, 2.125)]);
+    expect(taller.fit.openingsShown).toBe(true);
+    expect(short.fit.warnings.concat(taller.fit.warnings)).toEqual([]);
+    const mids = build({ outside: BEAD5.id }, box(10, 20, 30, 40), {
+      midRails: [{ at: 20, width: 2 }], midStiles: [{ at: 15, width: 2 }],
+    });
+    expect(mids.detail.openings).toEqual([
+      box(13.3125, 23.3125, 11, 16), box(26.3125, 23.3125, 10.375, 16),
+      box(13.3125, 41.3125, 11, 15.375), box(26.3125, 41.3125, 10.375, 15.375),
+    ]);
+  });
+
+  it('hides only references covered by a relevant closed pick and checks fit on the smaller opening (anchor 5)', () => {
+    const rect = box(0, 0, 15, 30);
+    for (const slot of ['inside', 'panel', 'applied', 'outside']) {
+      const pick = { ...AM, kind: { inside: 'door_inside', panel: 'door_panel', applied: 'applied_molding', outside: 'door_outside' }[slot] };
+      const S = style({ [slot]: pick.id });
+      const offsets = doorProfileOffsets(S, FIVE, [pick]);
+      const detail = partDetail(S, FIVE, rect, undefined, offsets.slots.outside?.reachOut ?? 0);
+      const fit = partProfileLines(offsets, detail, rect);
+      expect(fit.openingsShown).toBe(slot === 'outside');
+      if (slot === 'outside') expect(fit.lines).toEqual([box(1, 1, 13, 28)]);
+      const open = { ...pick, geometry: { ...pick.geometry, loops: [{ ...pick.geometry.loops[0], closed: false }] } };
+      expect(partProfileLines(doorProfileOffsets(S, FIVE, [open]), detail, rect).openingsShown).toBe(true);
+    }
+    const S = style({ outside: ROUND.id, applied: AM.id });
+    const offsets = doorProfileOffsets(S, SLAB_AM, [ROUND, AM]);
+    expect(partProfileLines(offsets, partDetail(S, SLAB_AM, rect), rect)).toEqual({
+      lines: [box(0.25, 0.25, 14.5, 29.5), box(2.75, 2.75, 9.5, 24.5), box(3.75, 3.75, 7.5, 22.5)],
+      openingsShown: false, warnings: [],
+    });
+    expect(build({ applied: AM.id }, box(0, 0, 7.625, 30)).fit.warnings).toEqual([]);
+    expect(build({ outside: BEAD5.id, applied: AM.id }, box(0, 0, 7.625, 30)).fit.warnings)
+      .toEqual([{ code: 'door-profile-panel-too-small' }]);
   });
 });

@@ -22,7 +22,7 @@ export function elevationDoorDetails(room, wall, side, settings, partIds = null)
       if (partId === null || (partIds && !partIds.has(partId))) continue;
 
       const entry = { partId };
-      if (details && part.openings.length) {
+      if (details && part.openingsShown && part.openings.length) {
         entry.openings = part.openings.map(({ x, z, width, height }) => ({ x, z, width, height }));
       }
       if (details && part.lines.length) entry.profileLines = part.lines.map(({ x, z, width, height }) => ({ x, z, width, height }));

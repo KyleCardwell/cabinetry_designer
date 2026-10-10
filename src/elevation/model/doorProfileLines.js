@@ -66,7 +66,11 @@ export function doorProfileOffsets(style, design, profiles = []) {
   return { slots, warnings };
 }
 
-function inset(r, d) {
+export function inset(r, d) {
+  if (d === 0) {
+    const { x, z, width, height } = r;
+    return { x, z, width, height };
+  }
   return {
     x: round6(r.x + d),
     z: round6(r.z + d),
@@ -80,6 +84,11 @@ export function partProfileLines(offsets, detail, rect) {
   const { slots } = offsets;
   const lines = [];
   const warnings = [];
+  const fivePiece = detail.construction === 'five_piece';
+  const molding = detail.construction === 'slab_applied';
+  const openingsShown = !(fivePiece
+    ? ['inside', 'panel', 'applied'].some((slot) => slots[slot]?.covers)
+    : molding && slots.applied?.covers);
   const addLines = (reference, slot) => {
     for (const d of slots[slot]?.lines ?? []) {
       const r = inset(reference, d);
@@ -93,9 +102,10 @@ export function partProfileLines(offsets, detail, rect) {
     }
   };
 
-  addLines(rect, 'outside');
-  const fivePiece = detail.construction === 'five_piece';
-  if (!fivePiece && detail.construction !== 'slab_applied') return { lines, warnings };
+  if ((slots.outside?.reachOut ?? 0) > EPS && !slots.outside.covers
+    && detail.core.width > EPS && detail.core.height > EPS) lines.push(detail.core);
+  addLines(detail.core, 'outside');
+  if (!fivePiece && !molding) return { lines, warnings, openingsShown };
   for (const opening of detail.openings) {
     if (fivePiece) {
       addLines(opening, 'inside');
@@ -121,5 +131,5 @@ export function partProfileLines(offsets, detail, rect) {
   if (inward > 0 && detail.openings.some(({ width, height }) => 2 * inward > Math.min(width, height) + EPS)) {
     warnings.push({ code: 'door-profile-panel-too-small' });
   }
-  return { lines, warnings };
+  return { lines, warnings, openingsShown };
 }

@@ -3,6 +3,7 @@ import { gridLeaves } from './grid.js';
 import { formatInches } from './units.js';
 import { resolveDoorStyle } from './doorStyleResolve.js';
 import { partSizes } from './doorSizes.js';
+import { inset } from './doorProfileLines.js';
 
 /** First unused letter, followed by the first unused positive integer label. */
 export function nextDoorStyleLabel(styles = []) {
@@ -156,8 +157,9 @@ export function pickOptions(room, settings, partType, levelsAbove, node = null) 
 }
 
 /** Display typed and resolved sizes, or explain why this part is a slab. */
-export function partSizeRows(style, design, part) {
-  const result = partSizes(style, design, part);
+export function partSizeRows(style, design, part, edgeOut = 0) {
+  const core = inset({ x: 0, z: 0, ...part }, edgeOut);
+  const result = partSizes(style, design, { ...core, sizes: part.sizes });
   const sizes = part.sizes ?? {};
   if (result.construction === 'slab') {
     const note = result.slab === 'design'
