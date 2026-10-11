@@ -265,6 +265,20 @@ export function defaultStretchY(profile) {
   return best ?? round6(Math.round(halfDepth * 16) / 16);
 }
 
+/** Plain deep copy of SPEC-47 geometry that also works on Immer drafts. */
+function cloneProfileGeometry(geometry) {
+  return {
+    ...geometry,
+    points: Object.fromEntries(Object.entries(geometry.points).map(([id, [x, y]]) => [id, [x, y]])),
+    loops: geometry.loops.map((loop) => ({
+      ...loop,
+      segs: loop.segs.map((segment) => (segment.center
+        ? { ...segment, center: [segment.center[0], segment.center[1]] }
+        : { ...segment })),
+    })),
+  };
+}
+
 /** Move points and arc centers on the stretchable side to the target depth/height. */
 export function stretchProfileGeometry(profile, targetY) {
   if (!canStretch(profile.kind) || !Object.hasOwn(profile, 'stretch')) return profile.geometry;
@@ -275,7 +289,8 @@ export function stretchProfileGeometry(profile, targetY) {
   const delta = targetY - (up ? bounds.maxY : bounds.minY);
   const moves = (point) => up ? point[1] > y + EPS : point[1] < y - EPS;
   const move = ([x, py]) => [round6(x), round6(py + delta)];
-  const geometry = structuredClone(profile.geometry);
+  // Copy by hand: inside reducers `profile` is an Immer draft (a Proxy), which structuredClone rejects.
+  const geometry = cloneProfileGeometry(profile.geometry);
   for (const [id, point] of Object.entries(profile.geometry.points)) {
     if (moves(point)) geometry.points[id] = move(point);
   }

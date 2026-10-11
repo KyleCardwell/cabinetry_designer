@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { produce } from 'immer';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PROFILE, DEFAULT_SETTINGS } from '../constants.js';
 import { bandDepths } from '../bandDepths.js';
@@ -32,6 +33,17 @@ describe('SPEC-50.2 molding profile model', () => {
     onLine.geometry.points.on = [0, 1.5];
     expect(stretchProfileGeometry(onLine, 8).points.on).toEqual([0, 1.5]);
     expect(tm3).toEqual(before);
+  });
+
+  it('stretches profiles read from an Immer draft, as reducers do on resize', () => {
+    const expected = stretchProfileGeometry(tm3, 8);
+    let stretched;
+    produce({ settings }, (draft) => {
+      const draftTm3 = draft.settings.sectionProfiles.find(({ id }) => id === 'tm3');
+      stretched = stretchProfileGeometry(draftTm3, 8);
+      expect(resolveProfile(draft.settings, null, null)).toBeTruthy();
+    });
+    expect(stretched).toEqual(expected);
   });
 
   it('defaults to half top-mold height, checks range at save, and limits stretch kinds (anchor 2)', () => {
