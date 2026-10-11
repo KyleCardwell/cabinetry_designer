@@ -70,7 +70,7 @@ describe('SPEC-48.2 the door ghost and what 0, 0 means', () => {
       applied_molding: 'the line the molding is applied along, at the front face',
       crown: "its back, at its top (placed on the top mold's face, at the top of crown line)",
       top_mold: 'its front face, at its bottom (placed at the box top, past the faces by the top mold overhang)',
-      furniture_base: 'the front face of the box, at the floor',
+      furniture_base: 'its front face, at its top (placed at the top of the base, proud of the faces)',
       toe_kick: "the toe kick's face, at the floor",
       nosing: 'the front edge of the part, at its top',
       other: null,

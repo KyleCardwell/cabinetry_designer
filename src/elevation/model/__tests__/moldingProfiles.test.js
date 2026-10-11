@@ -53,7 +53,7 @@ describe('SPEC-50.2 molding profile model', () => {
     expect(stretchLineProblem(draft)).toBe('range');
     expect(setProfileStretch(cr45, -1)).toBeNull();
     expect(Object.keys(PROFILE_KINDS).filter(canStretch))
-      .toEqual(['door_outside', 'door_inside', 'door_panel', 'applied_molding', 'top_mold']);
+      .toEqual(['door_outside', 'door_inside', 'door_panel', 'applied_molding', 'top_mold', 'furniture_base']);
     expect(isSectionProfileList(profiles)).toBe(true);
     expect(PROFILE_KINDS.top_mold.origin)
       .toBe('its front face, at its bottom (placed at the box top, past the faces by the top mold overhang)');

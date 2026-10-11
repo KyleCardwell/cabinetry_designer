@@ -48,7 +48,7 @@ export const roomReducers = {
         [action.payload.key]: action.payload.value,
       };
       for (const [key, value] of Object.entries(changes)) {
-        if (key === 'topMoldProfileId' || key === 'crownProfileId') {
+        if (key === 'topMoldProfileId' || key === 'crownProfileId' || key === 'furnitureBaseProfileId') {
           if (value === undefined) delete state.rooms[roomIndex].profile[key];
           else state.rooms[roomIndex].profile[key] = value;
         } else {

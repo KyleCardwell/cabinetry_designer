@@ -211,9 +211,10 @@ export function sectionProfileBounds(profile) {
   return { minX, minY, maxX, maxY };
 }
 
-/** Door profiles stretch down; top mold stretches up (SPEC-50.2). */
+/** Door and furniture base profiles stretch down; top mold stretches up. */
 export function canStretch(kind) {
-  return isProfileKind(kind) && (PROFILE_KINDS[kind].axes === 'door' || kind === 'top_mold');
+  return isProfileKind(kind) && (PROFILE_KINDS[kind].axes === 'door'
+    || kind === 'top_mold' || kind === 'furniture_base');
 }
 
 function stretchRange(profile, y) {
@@ -437,7 +438,7 @@ export const PROFILE_KINDS = {
   applied_molding: { label: 'Applied molding', axes: 'door', origin: 'the line the molding is applied along, at the front face' },
   crown: { label: 'Crown', axes: 'run', origin: "its back, at its top (placed on the top mold's face, at the top of crown line)" },
   top_mold: { label: 'Top mold', axes: 'run', origin: 'its front face, at its bottom (placed at the box top, past the faces by the top mold overhang)' },
-  furniture_base: { label: 'Furniture base', axes: 'run', origin: 'the front face of the box, at the floor' },
+  furniture_base: { label: 'Furniture base', axes: 'run', origin: 'its front face, at its top (placed at the top of the base, proud of the faces)' },
   toe_kick: { label: 'Toe kick', axes: 'run', origin: "the toe kick's face, at the floor" },
   nosing: { label: 'Nosing', axes: 'run', origin: 'the front edge of the part, at its top' },
   other: { label: 'Other', axes: 'free', origin: null },

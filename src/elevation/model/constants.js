@@ -13,6 +13,9 @@ export const CABINET_TYPE_IDS = {
 export const DEFAULT_PROFILE = {
   wallHeight: 96,
   toeKickHeight: 4,
+  baseKind: 'toe_kick',
+  furnitureBaseProud: 0.8125,
+  furnitureBaseProfileId: null,
   baseBoxHeight: 30.5,
   countertopThickness: 1.5,
   upperClearance: 18,

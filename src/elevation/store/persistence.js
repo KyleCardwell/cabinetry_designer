@@ -63,9 +63,12 @@ const RUN_TYPE_IDS = new Set([
   CABINET_TYPE_IDS.TALL,
 ]);
 const PROFILE_KEYS = Object.keys(DEFAULT_PROFILE);
-const PROFILE_PICK_KEYS = ['topMoldProfileId', 'crownProfileId'];
+const PROFILE_PICK_KEYS = ['topMoldProfileId', 'crownProfileId', 'furnitureBaseProfileId'];
 const RUN_OVERRIDE_KEYS = [
   'toeKickHeight',
+  'baseKind',
+  'furnitureBaseProud',
+  'furnitureBaseProfileId',
   'baseBoxHeight',
   'countertopThickness',
   'upperClearance',
@@ -193,6 +196,8 @@ function isPartNumberOverrides(value) {
 function isCompleteProfile(profile, profileKeys = PROFILE_KEYS) {
   return Boolean(profile) && profileKeys.every((key) => {
     if (PROFILE_PICK_KEYS.includes(key)) return isMoldingProfileId(profile[key]);
+    if (key === 'baseKind') return isBaseKind(profile[key]);
+    if (key === 'furnitureBaseProud') return isFurnitureBaseProud(profile[key]);
     if (key === 'topMoldOverhang' && profile[key] === undefined) return true;
     return isFiniteNumber(profile[key]);
   });
@@ -202,11 +207,23 @@ function isMoldingProfileId(value) {
   return value === undefined || value === null || (typeof value === 'string' && value.length > 0);
 }
 
+function isBaseKind(value) {
+  return value === undefined || value === null || value === 'toe_kick' || value === 'furniture_base';
+}
+
+function isFurnitureBaseProud(value) {
+  return value === undefined || value === null || (isFiniteNumber(value) && value >= 0);
+}
+
 function isOptionalHeightProfile(value, profileKeys) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const numeric = Object.fromEntries(Object.entries(value).filter(([key]) => !PROFILE_PICK_KEYS.includes(key)));
-  return isOptionalNumericObject(numeric, profileKeys)
-    && PROFILE_PICK_KEYS.every((key) => isMoldingProfileId(value[key]));
+  return Object.entries(value).every(([key, entry]) => {
+    if (!profileKeys.includes(key)) return false;
+    if (PROFILE_PICK_KEYS.includes(key)) return isMoldingProfileId(entry);
+    if (key === 'baseKind') return isBaseKind(entry);
+    if (key === 'furnitureBaseProud') return isFurnitureBaseProud(entry);
+    return entry === null || entry === undefined || isFiniteNumber(entry);
+  });
 }
 
 function isRunAnchor(anchor) {
@@ -284,7 +301,7 @@ function isRun(run) {
     && typeof run.autoCount === 'boolean'
     && (run.maxCabinetWidth === null || isFiniteNumber(run.maxCabinetWidth))
     && (run.heightMode === 'auto' || run.heightMode === 'manual')
-    && isOptionalNumericObject(run.overrides, RUN_OVERRIDE_KEYS)
+    && isOptionalHeightProfile(run.overrides, RUN_OVERRIDE_KEYS)
     && isRunAnchor(run.anchors?.left)
     && isRunAnchor(run.anchors?.right)
     && isStyle(run.style)

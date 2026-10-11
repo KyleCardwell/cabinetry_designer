@@ -184,6 +184,30 @@
       "drawnPoints": {"elevation": ["v", "u"]},
       "version": 1,
       "archived": false
+    },
+    {
+      "id": "fb4",
+      "name": "Furniture base 4",
+      "kind": "furniture_base",
+      "geometry": {
+        "units": "in",
+        "points": { "a": [-0.8125, 0], "b": [-0.3125, 0], "c": [0, -0.3125], "d": [0, -4], "e": [-0.8125, -4] },
+        "loops": [{
+          "id": "L1",
+          "closed": true,
+          "segs": [
+            { "type": "line", "from": "a", "to": "b" },
+            { "type": "line", "from": "b", "to": "c" },
+            { "type": "line", "from": "c", "to": "d" },
+            { "type": "line", "from": "d", "to": "e" },
+            { "type": "line", "from": "e", "to": "a" }
+          ]
+        }]
+      },
+      "stretch": { "y": -2 },
+      "drawnPoints": { "elevation": ["c"] },
+      "version": 1,
+      "archived": false
     }
   ]
 }

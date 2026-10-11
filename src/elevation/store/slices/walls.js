@@ -264,7 +264,8 @@ export const wallReducers = {
       const profileChanges = allowedChanges.profile ?? allowedChanges.profileOverrides;
       if (profileChanges) {
         for (const [key, value] of Object.entries(profileChanges)) {
-          const isMoldingPick = key === 'topMoldProfileId' || key === 'crownProfileId';
+          const isMoldingPick = key === 'topMoldProfileId' || key === 'crownProfileId'
+            || key === 'furnitureBaseProfileId';
           if (value === undefined || (value === null && !isMoldingPick)) delete location.wall.profile[key];
           else location.wall.profile[key] = value;
         }
