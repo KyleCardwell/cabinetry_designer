@@ -1,9 +1,9 @@
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
-import { bandDepths } from './bandDepths.js';
+import { bandDepths, hasToeKick } from './bandDepths.js';
 import { bandOutline, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
 import { frontDepth } from './corners.js';
-import { runBase } from './furnitureBase.js';
+import { furnitureBaseBand, furnitureBasePast, runBase } from './furnitureBase.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { resolveProfile } from './profile.js';
 import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js';
@@ -19,6 +19,7 @@ const EPSILON = 1e-6;
  * toe kick stops short (negative), 1" from an end panel's face, else 1/4" from the cabinet's side.
  */
 function bandPast(room, wall, run, side, band, settings) {
+  if (band === 'furnitureBase') return furnitureBasePast(runBase(room, wall, run, settings));
   const depths = bandDepths(settings);
   if (band === 'countertop') return depths.countertopOverhang;
   if (band !== 'toeKick') {
@@ -37,27 +38,30 @@ function freeEdge(room, wall, run, side, band, settings) {
     : run.x + run.width + bandPast(room, wall, run, side, band, settings);
 }
 
-/** Whether a run carries a band of this kind on: the same top family, or a toe kick of its own. */
+/** Whether a run carries this top family or floor base kind. */
 function carries(room, wall, run, band, settings) {
   if (band === 'toeKick') return runBase(room, wall, run, settings).kind === 'toe_kick';
+  if (band === 'furnitureBase') return runBase(room, wall, run, settings).kind === 'furniture_base';
   const { kind } = runTop(wall, run, resolveProfile(settings, room, wall));
   if (band === 'countertop') return isCountertop(kind);
   if (band === 'topMold') return kind === 'topMold' || kind === 'crown';
   return kind === 'crown';
 }
 
-/** The runs on the same face whose opposite edge meets this side of a run, overlapping it in height. */
-function touching(wall, run, side) {
+/** Runs meeting this side: other floor bases, or runs overlapping the box in height. */
+function touching(wall, run, side, floorBase = false) {
   const edge = side === 'left' ? run.x : run.x + run.width;
   return wall.runs.filter((other) => other.id !== run.id
     && Math.abs((side === 'left' ? other.x + other.width : other.x) - edge) <= EPSILON
-    && Math.min(run.z + run.height, other.z + other.height) - Math.max(run.z, other.z) > EPSILON);
+    && (floorBase ? hasToeKick(other)
+      : Math.min(run.z + run.height, other.z + other.height) - Math.max(run.z, other.z) > EPSILON));
 }
 
 /**
- * Where a band ends on one side of a run (SPEC-42, 42.1). `band` is 'toeKick', 'countertop', 'topMold'
- * or 'crown'. Against a run that carries the band on (a top at the same height, or a toe kick): the
- * deeper run's band returns as at a free end, and the shallower one's meets it there; at equal depths it
+ * Where a band ends on one side of a run (SPEC-42, 42.1). `band` is 'toeKick', 'countertop', 'topMold',
+ * 'crown' or 'furnitureBase'. Against a run that carries the band on (a top or furniture base at the
+ * same height, or a toe kick): the deeper run's band returns as at a free end, and the shallower one's
+ * meets it there; at equal depths it
  * runs straight through. A top dies into a taller run. Otherwise: over a wall end panel a top runs past
  * the panel; it stops at a wall or at the side of the recess the run sits in; anything else is free.
  */
@@ -67,15 +71,18 @@ function bandEdge(room, wall, run, side, band, settings) {
   const returned = (source, end) => {
     const x = freeEdge(room, wall, source, end, band, settings);
     const s = end === 'left' ? -1 : 1;
-    return { type: 'return', x, side: x - s * bandPast(room, wall, source, end, band, settings), facing: s };
+    return { type: 'return', x, side: x - s * bandPast(room, wall, source, end, band, settings), facing: s,
+      ...(band === 'furnitureBase' ? { base: runBase(room, wall, source, settings) } : {}) };
   };
   const opposite = side === 'left' ? 'right' : 'left';
-  const neighbors = touching(wall, run, side);
+  const furniture = band === 'furnitureBase';
+  const neighbors = touching(wall, run, side, furniture);
   const boxTop = run.z + run.height;
-  if (band !== 'toeKick'
+  if (band !== 'toeKick' && !furniture
     && neighbors.some((other) => other.z + other.height > boxTop + EPSILON)) return square;
-  const carriers = neighbors.filter((other) => (band === 'toeKick'
-    || Math.abs(other.z + other.height - boxTop) <= EPSILON)
+  const carriers = neighbors.filter((other) => (furniture
+    ? Math.abs(runBase(room, wall, other, settings).height - runBase(room, wall, run, settings).height) <= EPSILON
+    : band === 'toeKick' || Math.abs(other.z + other.height - boxTop) <= EPSILON)
     && carries(room, wall, other, band, settings));
   if (carriers.length > 0) {
     const depth = frontDepth(run, settings);
@@ -86,6 +93,9 @@ function bandEdge(room, wall, run, side, band, settings) {
     if (depth < theirs - EPSILON) return { ...returned(deepest, opposite), type: 'cope' };
     return square;
   }
+  if (furniture && neighbors.length > 0) return square;
+  if (band === 'toeKick'
+    && neighbors.some((other) => carries(room, wall, other, 'furnitureBase', settings))) return square;
   const anchor = run.anchors?.[side];
   if (anchor === true) {
     if (band === 'toeKick' || !wallEndPanelAt(room, wall, side, settings)) return square;
@@ -118,12 +128,12 @@ export function runBands(room, wall, run, settings, scene) {
    * A band's rectangle from its two ends: a blind panel takes it to the wall; at a corner it meets the
    * return's band (SPEC-42.3); otherwise bandEdge.
    */
-  const endsFor = (kind, z) => {
+  const endsFor = (kind, z, height) => {
     const left = (panelStart === null ? null : { type: 'square', x: panelStart })
-      ?? cornerBandEdge(shapes, run, 'left', kind, z)
+      ?? cornerBandEdge(shapes, run, 'left', kind, z, height)
       ?? bandEdge(room, wall, run, 'left', kind, settings);
     const right = (panelEnd === null ? null : { type: 'square', x: panelEnd })
-      ?? cornerBandEdge(shapes, run, 'right', kind, z)
+      ?? cornerBandEdge(shapes, run, 'right', kind, z, height)
       ?? bandEdge(room, wall, run, 'right', kind, settings);
     return [left, right];
   };
@@ -200,6 +210,9 @@ export function runBands(room, wall, run, settings, scene) {
     : [];
   const toeKickBand = base.kind === 'toe_kick' ? band('toeKick', 0, base.height) : null;
   const toeKick = toeKickBand?.width > 0 ? toeKickBand : null;
+  const furnitureBand = base.kind === 'furniture_base'
+    ? furnitureBaseBand(base, endsFor('furnitureBase', 0, base.height)) : null;
+  const furnitureBase = furnitureBand?.width > 0 ? furnitureBand : null;
   const countertop = isCountertop(top.kind) ? band('countertop', boxTop, top.height) : null;
-  return { top, toeKick, countertop, topMold, crown, bottomParts, chipLines };
+  return { top, toeKick, furnitureBase, countertop, topMold, crown, bottomParts, chipLines };
 }

@@ -110,7 +110,7 @@ describe('SPEC-50.3 step 476 profiled band ends', () => {
 
   it('keeps every unpicked band and line equal to the existing rectangles (anchor 5)', () => {
     const { bands: [bands] } = setup({ profile: { topMoldProfileId: null, crownProfileId: null } });
-    expect(bands).toEqual({ top: { kind: 'crown', height: 6 }, toeKick: null, countertop: null,
+    expect(bands).toEqual({ top: { kind: 'crown', height: 6 }, toeKick: null, furnitureBase: null, countertop: null,
       topMold: { x: 29.75, z: 90, width: 36.5, height: 3, lines: [] },
       crown: { x: 27, z: 91.5, width: 42, height: 4.5, lines: [] }, bottomParts: [], chipLines: [] });
   });

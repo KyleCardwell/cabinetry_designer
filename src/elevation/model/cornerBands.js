@@ -3,6 +3,7 @@ import { cornerShapes } from './cornerParts.js';
 const EPSILON = 1e-6;
 const PART_KINDS = {
   toeKick: 'toe_kick', countertop: 'countertop', topMold: 'top_mold', crown: 'crown',
+  furnitureBase: 'furniture_base',
 };
 
 /** The key prefix of the returns at one end of a run: its inside corner, or the wing wall it's anchored to. */
@@ -17,17 +18,19 @@ function returnPrefix(run, side) {
  * The cope's x and optional section outline at a corner return (SPEC-42.3), or null. A run whose end
  * is anchored into an inside corner (or to a wing wall) treats the return as the deeper run: when a
  * return carries the same band at the same height (a toe kick, or a countertop, top mold or crown with
- * the same bottom), this run's band ends where the return's does. `getShapes` gives cornerShapes for
+ * the same bottom, or a furniture base with the same bottom and height), this run's band ends where
+ * the return's does. `getShapes` gives cornerShapes for
  * the run's wall face (lazyCornerShapes).
  */
-export function cornerBandEdge(getShapes, run, side, band, z) {
+export function cornerBandEdge(getShapes, run, side, band, z, height) {
   const prefix = returnPrefix(run, side);
   if (!prefix) return null;
   const kind = PART_KINDS[band];
   const parts = getShapes()
     .filter((shape) => shape.kind === 'return' && shape.key.startsWith(prefix))
     .flatMap((shape) => shape.parts)
-    .filter((part) => part.kind === kind && Math.abs(part.z - z) <= EPSILON);
+    .filter((part) => part.kind === kind && Math.abs(part.z - z) <= EPSILON
+      && (band !== 'furnitureBase' || Math.abs(part.height - height) <= EPSILON));
   if (parts.length === 0) return null;
   const edgeOf = (part) => side === 'left' ? part.x + part.width : part.x;
   const part = parts.reduce((best, candidate) => (

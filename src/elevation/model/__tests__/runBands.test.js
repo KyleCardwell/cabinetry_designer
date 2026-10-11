@@ -28,6 +28,7 @@ describe('SPEC-42 run bands', () => {
     expect(bands.b38f2f11).toEqual({
       top: { kind: 'crown', height: 6 },
       toeKick: { x: 0, z: 0, width: 29, height: 4 },
+      furnitureBase: null,
       countertop: null,
       topMold: { x: 0, z: 90, width: 30.25, height: 3, lines: [] },
       crown: { x: 0, z: 91.5, width: 33, height: 4.5, lines: [] },
@@ -92,6 +93,7 @@ describe('SPEC-42 run bands', () => {
     expect(bands.b1ec1b4a).toEqual({
       top: { kind: 'none', height: 0 },
       toeKick: null,
+      furnitureBase: null,
       countertop: null,
       topMold: null,
       crown: null,
