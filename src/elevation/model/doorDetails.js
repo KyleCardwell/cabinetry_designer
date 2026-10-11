@@ -73,7 +73,7 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
     parts.push({
       key, kind, pieceId, path, styleId: style.id, label: style.label,
       construction: detail.construction, x, z, width, height, openings: detail.openings,
-      lines: fit.lines, openingsShown: fit.openingsShown,
+      lines: fit.lines, miters: fit.miters, openingsShown: fit.openingsShown,
     });
     warnings.push(...resolved.warnings.map((warning) => ({ ...warning, pieceId, key })));
     warnings.push(...offsets.warnings.map((warning) => ({ ...warning, pieceId, key })));

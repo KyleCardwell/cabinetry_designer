@@ -60,6 +60,8 @@ export function doorProfileOffsets(style, design, profiles = []) {
         profileId,
         name: profile.name,
         lines: [...lines].sort((a, b) => a - b),
+        minX: b.minX,
+        maxX: b.maxX,
         reachIn: round6(Math.max(0, b.maxX)),
         reachOut,
         covers,
@@ -101,10 +103,12 @@ export function inset(r, d) {
   };
 }
 
-/** SPEC-50 one part's profile lines (rectangles in wall coordinates) and its fit warnings. */
+/** SPEC-50 one part's profile lines and miters in wall coordinates, and its fit warnings. */
 export function partProfileLines(offsets, detail, rect) {
   const { slots, applied = [] } = offsets;
   const lines = [];
+  const miters = [];
+  const miterKeys = new Set();
   const warnings = [];
   const fivePiece = detail.construction === 'five_piece';
   const molding = detail.construction === 'slab_applied';
@@ -127,33 +131,55 @@ export function partProfileLines(offsets, detail, rect) {
     ? slots.inside?.covers || slots.panel?.covers
       || fitted.some(({ offset, covers }) => offset === 0 && covers)
     : molding && applied.length > 0);
+  const drawable = (r) => r.width > EPS && r.height > EPS
+    && r.x >= rect.x - EPS && r.z >= rect.z - EPS
+    && r.x + r.width <= rect.x + rect.width + EPS
+    && r.z + r.height <= rect.z + rect.height + EPS;
   const addLines = (reference, distances) => {
     for (const d of distances) {
       const r = inset(reference, d);
-      if (r.width <= EPS || r.height <= EPS
-        || r.x < rect.x - EPS || r.z < rect.z - EPS
-        || r.x + r.width > rect.x + rect.width + EPS
-        || r.z + r.height > rect.z + rect.height + EPS
-        || lines.some((line) => line.x === r.x && line.z === r.z
+      if (!drawable(r) || lines.some((line) => line.x === r.x && line.z === r.z
           && line.width === r.width && line.height === r.height)) continue;
       lines.push(r);
+    }
+  };
+  const addMiters = (reference, start, end) => {
+    if (!(end - start > EPS)) return;
+    const outer = inset(reference, start);
+    const inner = inset(reference, end);
+    if (!drawable(outer) || !drawable(inner)) return;
+    for (const [right, top] of [[false, false], [true, false], [true, true], [false, true]]) {
+      const segment = {
+        x1: round6(inner.x + (right ? inner.width : 0)),
+        z1: round6(inner.z + (top ? inner.height : 0)),
+        x2: round6(outer.x + (right ? outer.width : 0)),
+        z2: round6(outer.z + (top ? outer.height : 0)),
+      };
+      const key = JSON.stringify(segment);
+      if (miterKeys.has(key)) continue;
+      miterKeys.add(key);
+      miters.push(segment);
     }
   };
 
   if ((slots.outside?.reachOut ?? 0) > EPS && !slots.outside.covers
     && detail.core.width > EPS && detail.core.height > EPS) lines.push(detail.core);
   addLines(detail.core, slots.outside?.lines ?? []);
-  if (!fivePiece && !molding) return { lines, warnings, openingsShown };
+  if (slots.outside) addMiters(detail.core, -slots.outside.reachOut, slots.outside.reachIn);
+  if (!fivePiece && !molding) return { lines, miters, warnings, openingsShown };
   for (const opening of detail.openings) {
     if (fivePiece) {
       addLines(opening, slots.inside?.lines ?? []);
       addLines(opening, slots.panel?.lines ?? []);
+      if (slots.inside) addMiters(opening, slots.inside.minX, slots.inside.maxX);
+      if (slots.panel) addMiters(opening, Math.max(0, slots.panel.minX), slots.panel.maxX);
     }
     for (const pick of fitted) {
       if (pick.applyLine !== null && !(fivePiece && pick.offset === 0)) {
         addLines(opening, [pick.applyLine]);
       }
       addLines(opening, pick.lines);
+      addMiters(opening, pick.offset + pick.minX, pick.offset + pick.maxX);
     }
   }
 
@@ -174,5 +200,5 @@ export function partProfileLines(offsets, detail, rect) {
   if (inward > 0 && detail.openings.some(({ width, height }) => 2 * inward > Math.min(width, height) + EPS)) {
     warnings.push({ code: 'door-profile-panel-too-small' });
   }
-  return { lines, warnings, openingsShown };
+  return { lines, miters, warnings, openingsShown };
 }

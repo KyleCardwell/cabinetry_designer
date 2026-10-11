@@ -60,7 +60,7 @@ describe('SPEC-46.2 door details for a run', () => {
       construction: 'five_piece',
       ...box(30.0625, 4.125, 23.875, 30.125),
       openings: [box(33.0625, 7.125, 17.875, 24.125)],
-      lines: [], openingsShown: true,
+      lines: [], miters: [], openingsShown: true,
     });
     expect(part(result, `${CAB_36}:r:right`).openings).toEqual([box(75.0625, 7.125, 11.875, 24.125)]);
     expect(result.warnings).toEqual([]);
@@ -108,7 +108,7 @@ describe('SPEC-46.2 door details for a run', () => {
       construction: 'five_piece',
       ...box(0.75, 36, 70.5, 41.25),
       openings: [box(3.75, 39, 64.5, 35.25)],
-      lines: [], openingsShown: true,
+      lines: [], miters: [], openingsShown: true,
     }]);
     const sheet = details('G3 Bath alcove', G3_UPPER, (r) => {
       leafOf(runOf(r, G3_UPPER), G3_BACK).styleId = 'sheet';
@@ -214,7 +214,7 @@ describe('SPEC-50.1 core sizes throughout run details', () => {
     expect(result.warnings).toEqual([]);
     const payload = elevationDoorDetails(synced, wall, 'front', withProfiles);
     expect(payload.find(({ partId }) => partId === `${CAB_24}:r`))
-      .toEqual({ partId: `${CAB_24}:r`, profileLines: door.lines });
+      .toEqual({ partId: `${CAB_24}:r`, profileLines: door.lines, miters: door.miters });
     expect(payload.every((entry) => !Object.hasOwn(entry, 'openings'))).toBe(true);
 
     const stackRoom = structuredClone(stored('G3 Bath alcove'));
@@ -234,4 +234,33 @@ describe('SPEC-50.1 core sizes throughout run details', () => {
     expect(stack.parts.map(({ openings }) => openings[0].height)).toEqual([2.5, 2.375]);
     expect(stack.warnings).toEqual([]);
   });
+});
+
+it('Step 481 carries miters through run parts and keeps miter-only payload entries when details are on', () => {
+  const { profiles } = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
+  const outside = { ...profiles.find(({ id }) => id === 'am1'), kind: 'door_outside', drawnPoints: { elevation: [] } };
+  const withProfiles = { ...settings, sectionProfiles: [outside] };
+  const room = structuredClone(stored('G1 Euro kitchen'));
+  room.doorStyles = [{ ...SL, profiles: { ...SL.profiles, outside: outside.id } }];
+  room.doorStyleId = SL.id;
+  const synced = syncRoom(room, withProfiles);
+  const wall = synced.walls.find((candidate) => candidate.runs.some((run) => run.id === G1_BASE));
+  const view = resolveWall(synced, wall, 'front');
+  const result = runDoorDetails(synced, view, runOf(synced, G1_BASE), withProfiles);
+  const door = part(result, `${CAB_24}:r`);
+  expect(result.parts.every(({ miters }) => miters.length === 4)).toBe(true);
+  expect(door.lines).toEqual([]);
+  expect(door.openings).toEqual([]);
+  expect(door.miters).toEqual([
+    { x1: 31.0625, z1: 5.125, x2: 30.0625, z2: 4.125 },
+    { x1: 52.9375, z1: 5.125, x2: 53.9375, z2: 4.125 },
+    { x1: 52.9375, z1: 33.25, x2: 53.9375, z2: 34.25 },
+    { x1: 31.0625, z1: 33.25, x2: 30.0625, z2: 34.25 },
+  ]);
+  const ids = new Set([`${CAB_24}:r`]);
+  expect(elevationDoorDetails(synced, wall, 'front', withProfiles, ids))
+    .toEqual([{ partId: `${CAB_24}:r`, miters: door.miters }]);
+  expect(elevationDoorDetails({ ...synced, doorDetails: false }, wall, 'front', withProfiles, ids)).toEqual([]);
+  expect(elevationDoorDetails({ ...synced, doorDetails: false, doorStyleTags: true }, wall, 'front', withProfiles, ids))
+    .toEqual([{ partId: `${CAB_24}:r`, tag: 'S' }]);
 });
