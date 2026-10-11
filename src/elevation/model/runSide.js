@@ -1,7 +1,7 @@
 import { frontDepth, runBackOffset } from './corners.js';
 import { resolveProfile } from './profile.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
-import { sectionProfileOutline } from './sectionProfileOutline.js';
+import { outlineBounds, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
 import { isCountertop, runTop } from './tops.js';
 
@@ -35,13 +35,11 @@ export function runSide(room, wall, run, settings) {
       add(piece, z, height, back, front);
       return;
     }
-    const outline = loop.map(([x, y]) => [faces + moldings.overhang + x, reference + y]);
-    const xs = outline.map(([x]) => x);
-    const zs = outline.map(([, z]) => z);
-    const bottom = Math.min(...zs);
+    const outline = transformOutline(loop, ([x, y]) => [faces + moldings.overhang + x, reference + y]);
+    const { minX, maxX, minY, maxY } = outlineBounds(outline);
     pieces.push({
-      piece, z: bottom, height: Math.max(...zs) - bottom,
-      back: Math.min(...xs), front: Math.max(...xs), outline,
+      piece, z: minY, height: maxY - minY,
+      back: minX, front: maxX, outline,
     });
   };
 

@@ -3,6 +3,7 @@ import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js'
 import { landingsOn } from './landings.js';
 import { resolveWall } from './room.js';
 import { runSide } from './runSide.js';
+import { transformOutline } from './sectionProfileOutline.js';
 import { soffitReturns } from './soffits.js';
 import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
 
@@ -43,9 +44,9 @@ export function cornerShapes(room, wall, side, settings) {
         x, z: piece.z, width, height: piece.height,
         back: Math.min(...depths), front: Math.max(...depths),
         coversBoxEdges: false,
-        ...(piece.outline ? { outline: piece.outline.map(([depth, z]) => [
+        ...(piece.outline ? { outline: transformOutline(piece.outline, ([depth, z]) => [
           Math.min(length, Math.max(0, xOf(depth))), z,
-        ]) } : {}),
+        ], xOf(1) < xOf(0)) } : {}),
         ...(BODY.has(piece.piece) ? {} : { opaque: false }),
       }];
     });
@@ -127,6 +128,7 @@ export function cornerShapes(room, wall, side, settings) {
             const finish = past === 'left' ? Math.min(Math.max(...xs), 0) : Math.max(...xs);
             if (finish - start <= EPSILON) return [];
             const depths = points.map(depthOf);
+            const xOf = (depth) => planPointToWallX(frame, elevationToPlan(neighborFrame, run.x, depth));
             return [{
               id: `${key}:${piece.piece}`,
               kind: BODY.has(piece.piece) ? 'profile' : piece.piece,
@@ -134,11 +136,9 @@ export function cornerShapes(room, wall, side, settings) {
               x: start, z: piece.z, width: finish - start, height: piece.height,
               back: Math.min(...depths), front: Math.max(...depths),
               coversBoxEdges: false,
-              ...(piece.outline ? { outline: piece.outline.map(([depth, z]) => {
-                const point = elevationToPlan(neighborFrame, run.x, depth);
-                const x = planPointToWallX(frame, point);
-                return [Math.min(finish, Math.max(start, x)), z];
-              }) } : {}),
+              ...(piece.outline ? { outline: transformOutline(piece.outline, ([depth, z]) => [
+                Math.min(finish, Math.max(start, xOf(depth))), z,
+              ], xOf(1) < xOf(0)) } : {}),
             }];
           });
           if (parts.length === 0) continue;

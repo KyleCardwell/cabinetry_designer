@@ -20,8 +20,8 @@ const picks = { topMoldProfileId: 'tm3', crownProfileId: 'cr45' };
 const tm3 = profiles.find(({ id }) => id === 'tm3');
 const cr45 = profiles.find(({ id }) => id === 'cr45');
 const upper = document.rooms[0].walls[0].runs.find(({ id }) => id.startsWith('434f1164'));
-const TOP_OUTLINE = [[13.125, 90], [13.125, 90.75], [13, 90.75], [13, 93], [11.625, 93], [11.625, 90]];
-const CROWN_OUTLINE = [[13.125, 96], [16.125, 96], [16.125, 95], [13.625, 92], [13.625, 91.5], [13.125, 91.5]];
+const TOP_OUTLINE = [[13.125, 90, 0], [13.125, 90.75, 0], [13, 90.75, 0], [13, 93, 0], [11.625, 93, 0], [11.625, 90, 0]];
+const CROWN_OUTLINE = [[13.125, 96, 0], [16.125, 96, 0], [16.125, 95, 0], [13.625, 92, 0], [13.625, 91.5, 0], [13.125, 91.5, 0]];
 
 function setup(profile = picks, using = settings) {
   const stored = structuredClone(document.rooms[0]);
@@ -85,7 +85,7 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     expect(run.z + run.height).toBe(85);
     expect(bands.topMold).toMatchObject({ z: 85, height: 8, lines: lines(19.75, 80.25, 85.75) });
     expect(bands.crown).toMatchObject({ z: 91.5, height: 4.5 });
-    expect(pieces[2].outline).toEqual(TOP_OUTLINE.map(([x, z]) => [x, z < 93 ? z - 5 : z]));
+    expect(pieces[2].outline).toEqual(TOP_OUTLINE.map(([x, z, bulge]) => [x, z < 93 ? z - 5 : z, bulge]));
     expect(pieces[3].outline).toEqual(CROWN_OUTLINE);
   });
 
@@ -101,21 +101,13 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     }
   });
 
-  it('flattens arcs in both directions, selects the largest closed loop and ignores open cuts', () => {
+  it('keeps arcs in both directions, selects the largest closed loop and ignores open cuts', () => {
     const bead = profiles.find(({ id }) => id === 'sp-bead');
     for (const ccw of [false, true]) {
       const geometry = structuredClone(bead.geometry);
       geometry.loops[0].segs[0].ccw = ccw;
       const outline = sectionProfileOutline(geometry);
-      expect(outline).toHaveLength(13);
-      expect(outline[0]).toEqual([0, 0]);
-      expect(outline.at(-1)).toEqual([0.5, 0]);
-      expect(outline[6][1]).toBeCloseTo(ccw ? -0.25 : 0.25);
-      const angles = outline.map(([x, y]) => Math.atan2(y, x - 0.25));
-      for (let i = 1; i < angles.length; i += 1) {
-        const angle = Math.abs(angles[i] - angles[i - 1]);
-        expect(Math.min(angle, 2 * Math.PI - angle)).toBeLessThanOrEqual(Math.PI / 12 + 1e-6);
-      }
+      expect(outline).toEqual([[0, 0, ccw ? 1 : -1], [0.5, 0, 0]]);
     }
     const geometry = structuredClone(tm3.geometry);
     Object.assign(geometry.points, { s: [0, 0], t: [0.1, 0], u: [0, 0.1], cut: [100, 100] });
@@ -123,7 +115,7 @@ describe('SPEC-50.2 step 471 molding placement', () => {
       { type: 'line', from: 's', to: 't' }, { type: 'line', from: 't', to: 'u' }, { type: 'line', from: 'u', to: 's' },
     ] });
     geometry.loops.push({ id: 'cut', closed: false, segs: [{ type: 'line', from: 's', to: 'cut' }] });
-    expect(sectionProfileOutline(geometry)).toEqual(Object.values(tm3.geometry.points));
+    expect(sectionProfileOutline(geometry)).toEqual(Object.values(tm3.geometry.points).map(([x, y]) => [x, y, 0]));
   });
 
   it('deduplicates lines, skips band edges, uses fixed heights and falls back for open or missing profiles', () => {
@@ -176,7 +168,7 @@ describe('SPEC-50.2 step 471 molding placement', () => {
       const run = neighbor.runs.find(({ id }) => id === shape.runId);
       for (const piece of runSide(alcove, neighbor, run, settings).filter(({ outline }) => outline)) {
         expect(shape.parts.find(({ kind }) => kind === piece.piece).outline)
-          .toEqual(piece.outline.map(([depth, z]) => [target.length - depth, z]));
+          .toEqual(piece.outline.map(([depth, z, bulge]) => [target.length - depth, z, -bulge || 0]));
       }
     }
 
@@ -190,7 +182,40 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     const profile = cornerShapes(synced, synced.walls[0], 'front', settings).find(({ kind }) => kind === 'profile');
     for (const piece of source.filter(({ outline }) => outline)) {
       const part = profile.parts.find(({ kind }) => kind === piece.piece);
-      expect(part.outline).toEqual(piece.outline.map(([depth, z]) => [172 + depth, z]));
+      expect(part.outline).toEqual(piece.outline.map(([depth, z, bulge]) => [172 + depth, z, bulge]));
     }
   });
+  it('keeps arc bulges through side placement, mirrored returns, side profiles and payloads', () => {
+    const bead = profiles.find(({ id }) => id === 'sp-bead');
+    const curved = { ...cr45, geometry: bead.geometry, drawnPoints: { elevation: [] } };
+    const using = { ...settings, sectionProfiles: [tm3, curved] };
+    const { pieces } = setup(picks, using);
+    expect(pieces.find(({ piece }) => piece === 'crown').outline)
+      .toEqual([[13.125, 96, -1], [13.625, 96, 0]]);
+    expect(pieces.find(({ piece }) => piece === 'crown').height).toBeCloseTo(0.25);
+    for (const [roomIndex, wallIndex, expected] of [[0, 1, -1], [2, 0, 1]]) {
+      const stored = structuredClone(document.rooms[roomIndex]);
+      stored.profile = { ...stored.profile, ...picks };
+      const room = syncRoom(stored, using);
+      const wall = room.walls[wallIndex];
+      wall.elevationForced = true;
+      const crowns = cornerShapes(room, wall, 'front', using).flatMap(({ parts }) => parts)
+        .filter(({ kind, outline }) => kind === 'crown' && outline);
+      expect(crowns.length).toBeGreaterThan(0);
+      const elevation = toDrawingPayload(room, using).elevations.find(({ wallId }) => wallId === wall.id);
+      for (const crown of crowns) {
+        expect(crown.outline.map(([, , bulge]) => bulge)).toEqual([expected, 0]);
+        expect(elevation.parts).toContainEqual(crown);
+      }
+    }
+    const stored = structuredClone(document.rooms[1]);
+    stored.profile = { ...stored.profile, ...picks };
+    const run = stored.walls[1].runs.find(({ wallSide }) => wallSide === 'back');
+    run.top = 'crown';
+    const room = syncRoom(stored, using);
+    const crown = cornerShapes(room, room.walls[0], 'front', using)
+      .find(({ kind }) => kind === 'profile').parts.find(({ kind }) => kind === 'crown');
+    expect(crown.outline).toEqual([[196.25, 40.5, -1], [196.75, 40.5, 0]]);
+  });
+
 });
