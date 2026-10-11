@@ -49,14 +49,14 @@ function setup(profile = picks) {
 }
 
 describe('Step 472 molding canvas', () => {
-  it('renders the case-2 crown picks as two extra thin lines across the band', () => {
+  it('renders the crown picks as thin lines stopped on the returned front contours', () => {
     const render = (profile) => nodes(RunGroup.type(setup(profile)));
     const picked = render(picks);
     const crown = picked.find(({ type, props }) => type === Rect && props.stroke === '#f8fafc');
     const lines = picked.filter(({ type, props }) => type === Line && props.stroke === crown.props.stroke);
     expect(lines).toHaveLength(2);
     expect(lines.map(({ props }) => props.points)).toEqual([
-      [77, 72, 343, 72], [77, 84, 343, 84],
+      [77, 72, 343, 72], [87, 84, 333, 84],
     ]);
     for (const { props } of lines) {
       expect(props.strokeWidth).toBeLessThan(crown.props.strokeWidth);

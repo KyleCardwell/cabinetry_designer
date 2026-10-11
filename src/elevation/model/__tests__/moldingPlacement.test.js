@@ -69,8 +69,15 @@ describe('SPEC-50.2 step 471 molding placement', () => {
 
   it('places picked lines, front depths and whole side outlines (anchors 2 and 5)', () => {
     const { bands, parts, pieces } = setup();
-    expect(bands.topMold).toEqual({ x: 19.75, z: 90, width: 60.5, height: 3, lines: lines(19.75, 80.25, 90.75) });
-    expect(bands.crown).toEqual({ x: 16.75, z: 91.5, width: 66.5, height: 4.5, lines: lines(16.75, 83.25, 95, 92) });
+    expect(bands.topMold).toEqual({ x: 19.75, z: 90, width: 60.5, height: 3, lines: lines(19.75, 80.25, 90.75),
+      outline: [[19.75, 90, 0], [80.25, 90, 0], [80.25, 90.75, 0], [80.125, 90.75, 0],
+        [80.125, 93, 0], [19.875, 93, 0], [19.875, 90.75, 0], [19.75, 90.75, 0]],
+    });
+    expect(bands.crown).toEqual({ x: 16.75, z: 91.5, width: 66.5, height: 4.5,
+      lines: [...lines(16.75, 83.25, 95), ...lines(19.25, 80.75, 92)],
+      outline: [[19.25, 91.5, 0], [80.75, 91.5, 0], [80.75, 92, 0], [83.25, 95, 0],
+        [83.25, 96, 0], [16.75, 96, 0], [16.75, 95, 0], [19.25, 92, 0]],
+    });
     expect(parts.map(({ front, lines }) => ({ front, lines }))).toEqual([
       { front: 13.125, lines: bands.topMold.lines }, { front: 16.125, lines: bands.crown.lines },
     ]);
@@ -139,6 +146,7 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     const openSettings = { ...settings, sectionProfiles: [open, cr45] };
     const openCase = setup(picks, openSettings);
     expect(openCase.pieces[2]).toEqual({ piece: 'top_mold', z: 90, height: 3, back: 0, front: 13.125 });
+    expect(openCase.bands.topMold.outline).toEqual([[19.75, 90, 0], [80.25, 90, 0], [80.25, 93, 0], [19.75, 93, 0]]);
     expect(moldingProfiles(resolveProfile(openSettings, openCase.room, openCase.wall), openSettings).warnings)
       .toContainEqual({ code: 'molding-profile-open', slot: 'top_mold' });
     expect(setup({ topMoldProfileId: 'missing', crownProfileId: 'tm3' }).pieces).toEqual(setup({}).pieces);

@@ -1,9 +1,11 @@
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
+import { bandOutline, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
 import { frontDepth } from './corners.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { resolveProfile } from './profile.js';
+import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js';
 import { isCountertop, runTop } from './tops.js';
 import { wallEndPanelAt } from './wallSides.js';
 
@@ -60,11 +62,17 @@ function touching(wall, run, side) {
  */
 function bandEdge(room, wall, run, side, band, settings) {
   const edge = side === 'left' ? run.x : run.x + run.width;
+  const square = { type: 'square', x: edge };
+  const returned = (source, end) => {
+    const x = freeEdge(room, wall, source, end, band, settings);
+    const s = end === 'left' ? -1 : 1;
+    return { type: 'return', x, side: x - s * bandPast(room, wall, source, end, band, settings), facing: s };
+  };
   const opposite = side === 'left' ? 'right' : 'left';
   const neighbors = touching(wall, run, side);
   const boxTop = run.z + run.height;
   if (band !== 'toeKick'
-    && neighbors.some((other) => other.z + other.height > boxTop + EPSILON)) return edge;
+    && neighbors.some((other) => other.z + other.height > boxTop + EPSILON)) return square;
   const carriers = neighbors.filter((other) => (band === 'toeKick'
     || Math.abs(other.z + other.height - boxTop) <= EPSILON)
     && carries(room, wall, other, band, settings));
@@ -73,19 +81,20 @@ function bandEdge(room, wall, run, side, band, settings) {
     const deepest = carriers.reduce((best, other) => (
       frontDepth(other, settings) > frontDepth(best, settings) ? other : best));
     const theirs = frontDepth(deepest, settings);
-    if (depth > theirs + EPSILON) return freeEdge(room, wall, run, side, band, settings);
-    if (depth < theirs - EPSILON) return freeEdge(room, wall, deepest, opposite, band, settings);
-    return edge;
+    if (depth > theirs + EPSILON) return returned(run, side);
+    if (depth < theirs - EPSILON) return { ...returned(deepest, opposite), type: 'cope' };
+    return square;
   }
   const anchor = run.anchors?.[side];
   if (anchor === true) {
-    if (band === 'toeKick' || !wallEndPanelAt(room, wall, side, settings)) return edge;
+    if (band === 'toeKick' || !wallEndPanelAt(room, wall, side, settings)) return square;
     const past = bandPast(room, wall, run, side, band, settings);
-    return side === 'left' ? -past : wall.length + past;
+    return { type: 'return', x: side === 'left' ? -past : wall.length + past,
+      side: side === 'left' ? 0 : wall.length, facing: side === 'left' ? -1 : 1 };
   }
-  if (anchor?.to === 'wall') return edge;
-  if (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId) return edge;
-  return freeEdge(room, wall, run, side, band, settings);
+  if (anchor?.to === 'wall') return square;
+  if (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId) return square;
+  return returned(run, side);
 }
 
 /**
@@ -108,14 +117,18 @@ export function runBands(room, wall, run, settings, scene) {
    * A band's rectangle from its two ends: a blind panel takes it to the wall; at a corner it meets the
    * return's band (SPEC-42.3); otherwise bandEdge.
    */
-  const band = (kind, z, height) => {
-    const x = panelStart
+  const endsFor = (kind, z) => {
+    const left = (panelStart === null ? null : { type: 'square', x: panelStart })
       ?? cornerBandEdge(shapes, run, 'left', kind, z)
       ?? bandEdge(room, wall, run, 'left', kind, settings);
-    const right = panelEnd
+    const right = (panelEnd === null ? null : { type: 'square', x: panelEnd })
       ?? cornerBandEdge(shapes, run, 'right', kind, z)
       ?? bandEdge(room, wall, run, 'right', kind, settings);
-    return { x, z, width: right - x, height };
+    return [left, right];
+  };
+  const band = (kind, z, height) => {
+    const [left, right] = endsFor(kind, z);
+    return { x: left.x, z, width: right.x - left.x, height };
   };
   const profile = resolveProfile(settings, room, wall);
   const moldings = moldingProfiles(profile, settings);
@@ -128,17 +141,32 @@ export function runBands(room, wall, run, settings, scene) {
   const crown = top.kind === 'crown'
     ? band('crown', boxTop + profile.crownStackHeight - profile.crownHeight, profile.crownHeight)
     : null;
-  for (const [rect, picked, reference] of [
-    [topMold, moldings.topMold, boxTop],
-    [crown, moldings.crown, boxTop + profile.crownStackHeight],
+  for (const [rect, kind, picked, reference] of [
+    [topMold, 'topMold', moldings.topMold, boxTop],
+    [crown, 'crown', moldings.crown, boxTop + profile.crownStackHeight],
   ]) {
     if (!rect) continue;
+    let edges;
+    if (picked) {
+      const loop = sectionProfileOutline(picked.geometry);
+      edges = endsFor(kind, rect.z).map((end, index) => {
+        const outline = end.outline ?? (loop && end.type !== 'square' && end.side !== undefined
+          ? placeAtEnd(loop, end.side, moldings.overhang, reference, end.facing) : null);
+        return (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
+          ?? [[end.x, rect.z, 0], [end.x, rect.z + rect.height, 0]];
+      });
+      rect.outline = bandOutline(...edges, rect.z, rect.height);
+      const { minX, maxX } = outlineBounds(rect.outline);
+      rect.x = minX;
+      rect.width = maxX - minX;
+    }
     rect.lines = [];
     for (const id of picked?.profile.drawnPoints.elevation ?? []) {
       const z = reference + picked.geometry.points[id][1];
       if (Math.abs(z - rect.z) <= EPSILON || Math.abs(z - rect.z - rect.height) <= EPSILON
         || rect.lines.some((line) => Math.abs(line.z1 - z) <= EPSILON)) continue;
-      rect.lines.push({ x1: rect.x, z1: z, x2: rect.x + rect.width, z2: z });
+      rect.lines.push({ x1: edges ? endEdgeX(edges[0], z, -1) : rect.x, z1: z,
+        x2: edges ? endEdgeX(edges[1], z, 1) : rect.x + rect.width, z2: z });
     }
   }
   const span = bottomPartSpan(

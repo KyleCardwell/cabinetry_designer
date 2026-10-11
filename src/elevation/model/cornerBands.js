@@ -14,7 +14,7 @@ function returnPrefix(run, side) {
 }
 
 /**
- * Where a band meets a corner return's band at one end of a run (SPEC-42.3), or null. A run whose end
+ * The cope's x and optional section outline at a corner return (SPEC-42.3), or null. A run whose end
  * is anchored into an inside corner (or to a wing wall) treats the return as the deeper run: when a
  * return carries the same band at the same height (a toe kick, or a countertop, top mold or crown with
  * the same bottom), this run's band ends where the return's does. `getShapes` gives cornerShapes for
@@ -29,9 +29,11 @@ export function cornerBandEdge(getShapes, run, side, band, z) {
     .flatMap((shape) => shape.parts)
     .filter((part) => part.kind === kind && Math.abs(part.z - z) <= EPSILON);
   if (parts.length === 0) return null;
-  return side === 'left'
-    ? Math.max(...parts.map((part) => part.x + part.width))
-    : Math.min(...parts.map((part) => part.x));
+  const edgeOf = (part) => side === 'left' ? part.x + part.width : part.x;
+  const part = parts.reduce((best, candidate) => (
+    (side === 'left' ? edgeOf(candidate) > edgeOf(best) : edgeOf(candidate) < edgeOf(best))
+      ? candidate : best));
+  return { type: 'cope', x: edgeOf(part), ...(part.outline ? { outline: part.outline } : {}) };
 }
 
 /** cornerShapes for a resolved wall face, computed on first use. */

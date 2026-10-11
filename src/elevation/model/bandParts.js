@@ -30,6 +30,7 @@ export function bandParts(room, wall, side, settings) {
       parts.push({
         id, kind, runId: run.id, x, z, width, height, back, front, coversBoxEdges: false,
         ...(rect.lines?.length ? { lines: rect.lines } : {}),
+        ...(rect.outline ? { outline: rect.outline } : {}),
       });
     };
 
