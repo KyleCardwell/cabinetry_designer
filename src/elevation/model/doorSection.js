@@ -59,7 +59,9 @@ export function doorSection(style, design, profiles) {
   } else if (design.construction === 'slab' || design.construction === 'slab_applied') {
     const applied = design.construction === 'slab_applied';
     if (applied && (!Number.isFinite(style.stiles?.left) || style.stiles.left <= 0)) return null;
-    const w = applied ? style.stiles.left + 3 : 3;
+    const moldings = applied ? doorProfileOffsets(style, design, profiles).applied : [];
+    const w = applied ? Math.max(style.stiles.left + 3,
+      ...moldings.map(({ offset, maxX }) => style.stiles.left + offset + maxX + 1)) : 3;
     const T = style.thickness;
     body = {
       units: 'in',
@@ -78,20 +80,25 @@ export function doorSection(style, design, profiles) {
   const cuts = [];
   const skipped = [];
   for (const slot of DOOR_PROFILE_SLOTS) {
-    const profileId = slot === 'applied' ? style.appliedMoldings?.[0]?.profileId : style.profiles?.[slot];
-    if (!design.slots.includes(slot) || typeof profileId !== 'string') continue;
-    const profile = profiles.find(({ id }) => id === profileId);
-    if (!profile || profile.kind !== doorProfileSlotKind(slot)) {
-      skipped.push(slot);
-      continue;
-    }
-    const target = slot === 'inside' && design.construction === 'five_piece'
-      ? -(style.thickness - style.panel.thickness) : -style.thickness;
-    const stretched = stretchProfileGeometry(profile, target) ?? profile.geometry;
-    const geometry = moveGeometry(stretched, slot === 'outside' ? 0 : style.stiles.left);
-    placed.push({ slot, profileId, name: profile.name, geometry });
-    for (const loop of geometry.loops) {
-      if (loop.closed === false) cuts.push({ slot, geometry: cutGeometry(geometry, loop) });
+    if (!design.slots.includes(slot)) continue;
+    const picks = slot === 'applied' ? (style.appliedMoldings ?? [])
+      : [{ profileId: style.profiles?.[slot] }];
+    for (const [index, { profileId, offset = 0 }] of picks.entries()) {
+      if (typeof profileId !== 'string') continue;
+      const profile = profiles.find(({ id }) => id === profileId);
+      if (!profile || profile.kind !== doorProfileSlotKind(slot)) {
+        skipped.push(slot);
+        continue;
+      }
+      const target = slot === 'inside' && design.construction === 'five_piece'
+        ? -(style.thickness - style.panel.thickness) : -style.thickness;
+      const stretched = stretchProfileGeometry(profile, target) ?? profile.geometry;
+      const geometry = moveGeometry(stretched, slot === 'outside' ? 0 : style.stiles.left + offset);
+      const identity = { slot, ...(slot === 'applied' ? { index } : {}) };
+      placed.push({ ...identity, profileId, name: profile.name, geometry });
+      for (const loop of geometry.loops) {
+        if (loop.closed === false) cuts.push({ ...identity, geometry: cutGeometry(geometry, loop) });
+      }
     }
   }
   return { units: 'in', body, placed, cuts, skipped };
@@ -103,9 +110,6 @@ export function doorSectionDimensions(style, design, profiles) {
 
   const { slots, applied: moldings } = doorProfileOffsets(style, design, profiles);
   const { outside, inside } = slots;
-  const applied = moldings.find(({ index, profileId }) => index === 0 && profileId !== null);
-  const frameOut = Math.max(inside?.reachOut ?? 0, -(applied?.minX ?? 0), 0);
-  const frameIn = Math.max(inside?.reachIn ?? 0, applied?.maxX ?? 0, 0);
   const left = [];
   const below = [];
   const above = [];
@@ -123,8 +127,24 @@ export function doorSectionDimensions(style, design, profiles) {
   if (design.construction !== 'slab') {
     const S = style.stiles.left;
     add(below, design.construction === 'five_piece' ? 'stile' : 'inset', 0, S);
-    add(above, 'flat', Math.max(0, outside?.reachIn ?? 0), S - frameOut);
-    if (inside || applied) add(above, 'profile', S - frameOut, S + frameIn);
+    const spans = [
+      ...(inside ? [[S + inside.minX, S + inside.maxX]] : []),
+      ...moldings.filter(({ profileId }) => profileId !== null)
+        .map(({ offset, minX, maxX }) => [S + offset + minX, S + offset + maxX]),
+    ].filter(([from, to]) => to - from > EPS).sort(([a], [b]) => a - b);
+    const merged = [];
+    for (const [from, to] of spans) {
+      const previous = merged.at(-1);
+      if (previous && from <= previous[1] + EPS) previous[1] = Math.max(previous[1], to);
+      else merged.push([from, to]);
+    }
+    let cursor = Math.max(0, outside?.reachIn ?? 0);
+    for (const [from, to] of merged) {
+      add(above, 'flat', cursor, from);
+      add(above, 'profile', from, to);
+      cursor = Math.max(cursor, to);
+    }
+    add(above, 'flat', cursor, S);
   }
   return { left, below, above };
 }

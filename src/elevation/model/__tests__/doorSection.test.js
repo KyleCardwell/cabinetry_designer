@@ -77,9 +77,14 @@ describe('SPEC-48.4 the door style half section', () => {
     const all = doorSection({ ...style, profiles: { ...style.profiles, panel: panel.id }, appliedMoldings: [{ profileId: applied.id, offset: 0 }] }, FIVE,
       [BEAD5, STICK2, panel, applied]);
     expect(all.placed.map(({ geometry }) => Object.values(geometry.points).at(-1)[1])).toEqual([-1, -0.75, -1, -1]);
-    expect(doorSection({ ...style, profiles: { ...style.profiles, panel: panel.id }, appliedMoldings: [
+    const shifted = doorSection({ ...style, profiles: { ...style.profiles, panel: panel.id }, appliedMoldings: [
       { profileId: applied.id, offset: -0.5 }, { profileId: 'gone', offset: 1 },
-    ] }, FIVE, [BEAD5, STICK2, panel, applied])).toEqual(all);
+    ] }, FIVE, [BEAD5, STICK2, panel, applied]);
+    expect(shifted.placed.at(-1)).toMatchObject({ slot: 'applied', index: 0,
+      geometry: { points: { s1: [2.25, 0], s2: [2.5, -0.25], s3: [2.5, -1] } } });
+    expect(shifted.cuts.at(-1)).toMatchObject({ slot: 'applied', index: 0,
+      geometry: { points: { s1: [2.25, 0], _e: [2.5, 0] } } });
+    expect(shifted.skipped).toEqual(['applied']);
     expect(doorSection({ ...style, thickness: 0.75 }, FIVE, [BEAD5, STICK2]).placed[0].geometry.points.c).toEqual([0, -0.75]);
     expect(BEAD5.geometry.points.c).toEqual([0, -0.8125]);
     expect(STICK2.geometry.points.s3).toEqual([0, -0.3125]);
@@ -104,7 +109,7 @@ describe('SPEC-48.4 the door style half section', () => {
         geometry: { ...STEP.geometry, points: { p: [2.75, 0], q: [2.75, -0.125], r: [3, -0.125] } },
       },
       {
-        slot: 'applied', profileId: 'sp-bead', name: 'Half bead',
+        slot: 'applied', index: 0, profileId: 'sp-bead', name: 'Half bead',
         geometry: {
           units: 'in',
           points: { s: [3, 0], t: [3.5, 0] },
@@ -156,6 +161,54 @@ describe('SPEC-48.4 the door style half section', () => {
       doorSection(DEFAULT_DOOR_STYLE, null, LIBRARY),
       doorSection({ ...DEFAULT_DOOR_STYLE, stiles: { left: 0, right: 3 } }, SLAB_AM, LIBRARY),
     ]).toEqual([null, null, null, null]);
+  });
+});
+
+describe('Step 482 half section with several moldings', () => {
+  const am1 = sample.profiles.find(({ id }) => id === 'am1');
+  const in58 = sample.profiles.find(({ id }) => id === 'in58');
+  const style = { ...DEFAULT_DOOR_STYLE, appliedMoldings: [
+    { profileId: 'am1', offset: 0 }, { profileId: 'am1', offset: 1.5 },
+  ] };
+  const dim = (label, from, to) => ({ label, from, to, value: to - from });
+
+  it('matches anchor 1: extends the slab body and places both moldings at their offsets', () => {
+    const section = doorSection(style, SLAB_AM, sample.profiles);
+    expect(section.body.points.b2).toEqual([6.25, 0]);
+    expect(section.body.points.b3).toEqual([6.25, -0.8125]);
+    expect(section.placed.map(({ slot, index, geometry }) => ({ slot, index, u: geometry.points.u })))
+      .toEqual([{ slot: 'applied', index: 0, u: [2.75, 0] }, { slot: 'applied', index: 1, u: [4.25, 0] }]);
+    expect(am1.geometry.points.u).toEqual([-0.25, 0]);
+  });
+
+  it('matches anchor 2: dimensions both spans and the gap between them', () => {
+    expect(doorSectionDimensions(style, SLAB_AM, sample.profiles)).toEqual({
+      left: [dim('thickness', -0.8125, 0)], below: [dim('inset', 0, 3)],
+      above: [dim('flat', 0, 2.75), dim('profile', 2.75, 3.75),
+        dim('flat', 3.75, 4.25), dim('profile', 4.25, 5.25)],
+    });
+  });
+
+  it('matches anchor 3: merges overlapping inside and molding spans', () => {
+    const five = { ...style, profiles: { ...style.profiles, inside: in58.id },
+      appliedMoldings: style.appliedMoldings.slice(0, 1) };
+    expect(doorSectionDimensions(five, FIVE, sample.profiles).above)
+      .toEqual([dim('flat', 0, 2.375), dim('profile', 2.375, 3.75)]);
+  });
+
+  it('sorts and merges touching spans, keeps original indices, and skips plain or invalid profiles', () => {
+    const mixed = { ...style, appliedMoldings: [
+      { profileId: null, offset: 0 }, { profileId: 'gone', offset: 100 },
+      { profileId: in58.id, offset: 100 }, { profileId: am1.id, offset: 1 },
+      { profileId: am1.id, offset: -1 }, { profileId: am1.id, offset: 0 },
+    ] };
+    const section = doorSection(mixed, SLAB_AM, sample.profiles);
+    expect(section.body.points.b2).toEqual([6, 0]);
+    expect(section.placed.map(({ index, geometry }) => [index, geometry.points.u[0]]))
+      .toEqual([[3, 3.75], [4, 1.75], [5, 2.75]]);
+    expect(section.skipped).toEqual(['applied', 'applied']);
+    expect(doorSectionDimensions(mixed, SLAB_AM, sample.profiles).above)
+      .toEqual([dim('flat', 0, 1.75), dim('profile', 1.75, 4.75)]);
   });
 });
 

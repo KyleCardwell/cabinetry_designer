@@ -48,6 +48,23 @@ beforeEach(() => {
 });
 
 describe('Step 465 door section dimensions', () => {
+  it('numbers repeated moldings and missing picks, with distinct profile and dimension keys', () => {
+    const tree = render({ ...picked, appliedMoldings: [
+      { profileId: applied.id, offset: 0 }, { profileId: 'gone', offset: 1 },
+      { profileId: applied.id, offset: 1.5 },
+    ] }, DOOR_DESIGNS[2]);
+    expect(nodes(tree).filter(({ type }) => type === 'title').map(({ props }) => props.children))
+      .toEqual(['bead', 'Applied molding 1: molding', 'Applied molding 3: molding']);
+    const paths = nodes(tree).filter(({ type, props }) => type === 'path' && props.className === 'text-blue-400');
+    expect(new Set(paths.map(({ key }) => key)).size).toBe(paths.length);
+    const chain = find(tree, 'above dimensions');
+    expect(labels(chain)).toEqual(['5/16"', '2 3/4"', '1"', '1/2"', '1"']);
+    expect(new Set(chain.props.children.map(({ key }) => key)).size).toBe(chain.props.children.length);
+    const warning = nodes(tree).find(({ type, props }) => type === 'p' && nodes(props.children).length === 0
+      && Array.isArray(props.children) && props.children.includes('Applied molding 2'));
+    expect(warning).toBeDefined();
+  });
+
   it('draws all three chains with fraction labels, extensions and ticks, excluding the panel', () => {
     const tree = render();
     expect(labels(find(tree, 'left dimensions'))).toEqual(['13/16"']);

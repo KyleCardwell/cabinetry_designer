@@ -11,6 +11,7 @@ const SLOT_LABELS = {
   panel: 'Raised panel',
   applied: 'Applied molding',
 };
+const slotLabel = (slot, index) => slot === 'applied' ? `Applied molding ${index + 1}` : SLOT_LABELS[slot];
 
 export default function DoorSectionView({ style, design }) {
   const profiles = useSelector((state) => state.elevation.settings.sectionProfiles);
@@ -85,7 +86,7 @@ export default function DoorSectionView({ style, design }) {
           (lanes[lane] ??= []).push([labelLeft, labelRight]);
           const labelY = lineY + direction * (12 + lane * 16);
           return (
-            <g key={label} aria-label={`${label}: ${formatInches(value)}`}>
+            <g key={`${label}-${index}`} aria-label={`${label}: ${formatInches(value)}`}>
               {[start, end].map((point, i) => (
                 <line key={`extension-${i}`} x1={point} y1={measuredY} x2={point} y2={lineY + direction * 4} />
               ))}
@@ -152,9 +153,9 @@ export default function DoorSectionView({ style, design }) {
             strokeDasharray="4 4"
             vectorEffect="non-scaling-stroke"
           />
-          {section.placed.map(({ slot, name, geometry }) => geometry.loops.map((loop) => (
+          {section.placed.map(({ slot, index, name, geometry }) => geometry.loops.map((loop) => (
             <path
-              key={`${slot}-${loop.id}`}
+              key={`${slot}-${index ?? ''}-${loop.id}`}
               d={sectionProfileSvgPath({ geometry: { ...geometry, loops: [loop] } })}
               className="text-blue-400"
               fill={loop.closed ? 'currentColor' : 'none'}
@@ -164,7 +165,7 @@ export default function DoorSectionView({ style, design }) {
               vectorEffect="non-scaling-stroke"
               strokeLinejoin="round"
             >
-              <title>{name}</title>
+              <title>{slot === 'applied' ? `${slotLabel(slot, index)}: ${name}` : name}</title>
             </path>
           )))}
         </g>
@@ -194,7 +195,8 @@ export default function DoorSectionView({ style, design }) {
       </p>
       {section.skipped.length > 0 && (
         <p className="text-xs text-amber-300">
-          Not shown (missing or wrong kind): {section.skipped.map((slot) => SLOT_LABELS[slot]).join(', ')}.
+          Not shown (missing or wrong kind): {warnings.filter(({ code }) => code === 'door-profile-missing')
+            .map(({ slot, index }) => slotLabel(slot, index)).join(', ')}.
         </p>
       )}
       {thinMessages}
