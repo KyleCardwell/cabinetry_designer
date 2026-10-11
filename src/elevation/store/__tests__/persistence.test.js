@@ -131,6 +131,43 @@ afterEach(() => {
 });
 
 describe('elevation persistence migration', () => {
+  it('468. migrates the old base top reveal once without changing saved settings in place', () => {
+    const legacy = currentDocument();
+    delete legacy.settings.stoneTopReveal;
+    legacy.settings.faceReveals[CABINET_TYPE_IDS.BASE].top = 0.25;
+    const before = structuredClone(legacy);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(legacy)]]),
+    };
+
+    const loaded = loadElevationDocument();
+    expect(loaded.settings.faceReveals[CABINET_TYPE_IDS.BASE].top).toBe(0.125);
+    expect(loaded.settings.stoneTopReveal).toBe(0.25);
+    expect(loaded.settings.faceReveals[CABINET_TYPE_IDS.UPPER]).toEqual(legacy.settings.faceReveals[CABINET_TYPE_IDS.UPPER]);
+    expect(loaded.settings.faceReveals[CABINET_TYPE_IDS.BASE].bottom).toBe(0.125);
+    expect(normalizeElevationDocument(legacy)).toEqual(loaded);
+    expect(legacy).toEqual(before);
+    expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+
+    loaded.settings.faceReveals[CABINET_TYPE_IDS.BASE].top = 0.25;
+    loaded.settings.stoneTopReveal = 0.375;
+    expect(normalizeElevationDocument(loaded).settings).toEqual(loaded.settings);
+  });
+
+  it('468. preserves custom base top reveals and supplies the stone default to older documents', () => {
+    const legacy = currentDocument();
+    delete legacy.settings.stoneTopReveal;
+    legacy.settings.faceReveals[CABINET_TYPE_IDS.BASE].top = 0.1875;
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(legacy)]]),
+    };
+    const loaded = loadElevationDocument();
+    expect(loaded.settings.faceReveals[CABINET_TYPE_IDS.BASE].top).toBe(0.1875);
+    expect(loaded.settings.stoneTopReveal).toBe(0.25);
+    delete legacy.settings.faceReveals;
+    expect(normalizeElevationDocument(legacy).settings.faceReveals).toEqual(DEFAULT_SETTINGS.faceReveals);
+  });
+
   it('460. migrates legacy quarter-inch panels once in team, room and phase styles', () => {
     const legacy = currentDocument();
     delete legacy.settings.doorPanelDefault;

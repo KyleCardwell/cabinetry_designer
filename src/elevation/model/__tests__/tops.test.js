@@ -81,7 +81,7 @@ describe('SPEC-35 run tops', () => {
       style: EURO, cabinetTypeId: BASE, run: { top: 'wood' }, face: DOOR,
       runEdges: { top: false, bottom: true }, settings: S,
     });
-    expect(inner.values.top).toBe(0.25);
+    expect(inner.values.top).toBe(0.125);
     expect(inner.sources.top).toBe('style');
   });
 

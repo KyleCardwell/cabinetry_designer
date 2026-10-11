@@ -73,7 +73,7 @@ export const DEFAULT_SETTINGS = {
   pairDoorAboveWidth: 24,
   faceReveals: {
     [CABINET_TYPE_IDS.BASE]: {
-      top: 0.25, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125,
+      top: 0.125, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125,
     },
     [CABINET_TYPE_IDS.UPPER]: {
       top: 0.125, bottom: -0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125,
@@ -93,6 +93,7 @@ export const DEFAULT_SETTINGS = {
   },
   profiledFit: { edge: 0.09375, pairEdge: 0.0625, pairGap: 0.125, sharedGap: 0.0625 },
   woodTopReveal: 0.125,
+  stoneTopReveal: 0.25,
   capturedSingleReveal: 0.09375,
   stackedUpperBottom: 0,
   stackedLowerTop: 0.125,

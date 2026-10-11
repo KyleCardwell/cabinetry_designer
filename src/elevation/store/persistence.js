@@ -545,6 +545,16 @@ function normalizeDocument(document, schemaVersion) {
     for (const key of V2_DEFAULTED_SETTING_KEYS) {
       if (settings[key] === undefined) settings[key] = DEFAULT_SETTINGS[key];
     }
+    if (!Object.hasOwn(settings, 'stoneTopReveal')) {
+      const base = settings.faceReveals?.[CABINET_TYPE_IDS.BASE];
+      if (base?.top === 0.25) {
+        settings.faceReveals = {
+          ...settings.faceReveals,
+          [CABINET_TYPE_IDS.BASE]: { ...base, top: 0.125 },
+        };
+      }
+      settings.stoneTopReveal = DEFAULT_SETTINGS.stoneTopReveal;
+    }
     if (settings.teamDoorStyle === undefined) {
       const thickness = Number.isFinite(settings.doorThickness) && settings.doorThickness > 0
         ? settings.doorThickness

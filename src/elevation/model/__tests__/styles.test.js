@@ -41,7 +41,7 @@ describe('styles', () => {
 
   it('28 European style reveals', () => {
     expect(styleReveals(EURO, BASE, S)).toEqual({
-      top: 0.25, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125, pair: 0.125, fit: 0, pairFit: 0,
+      top: 0.125, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125, pair: 0.125, fit: 0, pairFit: 0,
     });
   });
 

@@ -46,6 +46,7 @@ describe('runFaceLayouts', () => {
     const wall = resolveWall(room, room.walls[0]);
     const euro = runFaceLayouts(room, wall, RUN, DEFAULT_SETTINGS).get('a');
     expect(euro.style.cabinetStyleId).toBe(13);
+    expect(euro.reveals.sources.top).toBe('rule:stone-top');
     expect(euro.reveals.sources.left).toBe('rule:captured-single');
     expect(euro.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 17.8125, height: 30.125 }]);
 
@@ -105,7 +106,9 @@ describe('runFaceLayouts', () => {
     const c = layouts.get('c');
     expect(c.reveals.sources.left).toBe('rule:captured-single');
     expect(c.reveals.sources.right).toBe('rule:captured-single');
-    expect(c.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 16.3125, height: 29.375 }]);
+    expect(c.reveals.values.top).toBe(0.125);
+    expect(c.reveals.sources.top).toBe('style');
+    expect(c.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 16.3125, height: 29.5 }]);
   });
 
   it('52. top-level side panels capture a cabinet; a back panel does not', () => {

@@ -15,6 +15,12 @@ export function isCountertop(kind) {
   return kind === 'stone' || kind === 'wood';
 }
 
+/** Explicit stone, or the default stone top on a base with nothing held above it. */
+export function isStoneTop(run) {
+  return run.top === 'stone'
+    || (run.top == null && run.cabinetTypeId === CABINET_TYPE_IDS.BASE && !run.stack?.above);
+}
+
 /**
  * The top a run gets when run.top is unset — today's behaviour: none under a run it's held under,
  * stone on a base, the soffit's molding (or crown) on an auto-height upper or tall, otherwise none.

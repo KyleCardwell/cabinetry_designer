@@ -1,6 +1,7 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { belowRunReveal, frameBottomParts } from './bottoms.js';
 import { faceRevealsFor } from './faces.js';
+import { isStoneTop } from './tops.js';
 import { formatInches } from './units.js';
 
 const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;
@@ -26,6 +27,7 @@ export const REVEAL_SOURCE_LABELS = {
   'rule:hanging': 'rule: hanging base',
   'rule:below-run': 'rule: part below',
   'rule:wood-top': 'rule: wood top',
+  'rule:stone-top': 'rule: stone top',
   'rule:upper-flush': 'rule: flush bottom',
   'rule:upper-counter': 'rule: on counter',
   'rule:stacked-seam': 'rule: stacked seam',
@@ -179,6 +181,9 @@ export function cabinetReveals({
   };
   const euro = !isInsetStyle(style);
 
+  if (euro && isStoneTop(run) && runEdges.top) {
+    apply('top', settings.stoneTopReveal ?? DEFAULT_SETTINGS.stoneTopReveal, 'rule:stone-top');
+  }
   if (euro && run.top === 'wood' && runEdges.top) {
     apply('top', settings.woodTopReveal ?? DEFAULT_SETTINGS.woodTopReveal, 'rule:wood-top');
   }
