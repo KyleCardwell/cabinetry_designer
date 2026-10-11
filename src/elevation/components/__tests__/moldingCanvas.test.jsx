@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { Group, Line, Rect } from 'react-konva';
+import { Group, Line, Rect, Shape } from 'react-konva';
 import { cornerShapes } from '../../model/cornerParts.js';
 import { resolveWall, syncRoom } from '../../model/room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
@@ -19,7 +19,7 @@ vi.mock('react', async (original) => ({
   useEffect: vi.fn(),
 }));
 vi.mock('react-konva', () => ({
-  Group: 'group', Label: 'label', Line: 'line', Rect: 'rect', Tag: 'tag', Text: 'text',
+  Group: 'group', Label: 'label', Line: 'line', Rect: 'rect', Shape: 'shape', Tag: 'tag', Text: 'text',
 }));
 vi.mock('../../model/cornerParts.js', async (original) => {
   const module = await original();
@@ -33,6 +33,18 @@ const picks = { topMoldProfileId: 'tm3', crownProfileId: 'cr45' };
 const transform = { scale: 4, offsetX: 10, offsetY: 20, wallHeight: 108 };
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
+const trace = (callback) => {
+  const path = [];
+  callback({
+    beginPath: () => path.push('begin'),
+    moveTo: (...point) => path.push(['move', ...point]),
+    lineTo: (...point) => path.push(['line', ...point]),
+    arc: (...args) => path.push(['arc', ...args]),
+    closePath: () => path.push('close'),
+    fillStrokeShape: () => {},
+  });
+  return path;
+};
 
 function setup(profile = picks) {
   const stored = structuredClone(document.rooms[0]);
@@ -52,7 +64,7 @@ describe('Step 472 molding canvas', () => {
   it('renders the crown picks as thin lines stopped on the returned front contours', () => {
     const render = (profile) => nodes(RunGroup.type(setup(profile)));
     const picked = render(picks);
-    const crown = picked.find(({ type, props }) => type === Rect && props.stroke === '#f8fafc');
+    const crown = picked.find(({ type, props }) => type === Shape && props.stroke === '#f8fafc');
     const lines = picked.filter(({ type, props }) => type === Line && props.stroke === crown.props.stroke);
     expect(lines).toHaveLength(2);
     expect(lines.map(({ props }) => props.points)).toEqual([
@@ -70,7 +82,7 @@ describe('Step 472 molding canvas', () => {
 
   it.each([
     ['return', NeighborReturns], ['profile', NeighborProfiles],
-  ])('renders a %s part outline as a closed polygon and keeps plain parts rectangular', (kind, Component) => {
+  ])('renders a %s part outline as a closed path and keeps plain parts rectangular', (kind, Component) => {
     const part = {
       id: 'crown', kind: 'crown', x: 13.125, z: 91.5, width: 3, height: 4.5,
       outline: [[13.125, 96], [16.125, 96], [16.125, 95], [13.625, 92], [13.625, 91.5], [13.125, 91.5]],
@@ -80,11 +92,18 @@ describe('Step 472 molding canvas', () => {
       cornerShapes.mockReturnValueOnce([{ key: 'corner', kind, wallId: wall.id, parts: [piece] }]);
       return nodes(Component({ room, wall, settings, transform }));
     };
-    const polygon = render(part).find(({ type }) => type === Line);
+    const polygon = render(part).find(({ type }) => type === Shape);
     expect(polygon.props).toMatchObject({
-      points: [62.5, 68, 74.5, 68, 74.5, 72, 64.5, 84, 64.5, 86, 62.5, 86],
-      closed: true, strokeWidth: 1, listening: false,
+      strokeWidth: 1, listening: false,
     });
+    expect(trace(polygon.props.sceneFunc)).toEqual([
+      'begin', ['move', 62.5, 68], ['line', 74.5, 68], ['line', 74.5, 72],
+      ['line', 64.5, 84], ['line', 64.5, 86], ['line', 62.5, 86], 'close',
+    ]);
+    const curved = render({ ...part, outline: part.outline.map((point, index) => (
+      [...point, index === 2 ? 0.414214 : 0]
+    )) }).find(({ type }) => type === Shape);
+    expect(trace(curved.props.sceneFunc).filter((command) => command[0] === 'arc')).toHaveLength(1);
     const rect = render({ ...part, outline: undefined }).find(({ type }) => type === Rect);
     expect(rect.props).toMatchObject({ x: 62.5, y: 68, width: 12, height: 18 });
   });
@@ -110,5 +129,33 @@ describe('Step 472 molding canvas', () => {
     const strokes = Hatch(hatch.props);
     expect(strokes.props).toMatchObject({ clipX: 10, clipY: 440, clipWidth: 8, clipHeight: 12 });
     expect(nodes(strokes).filter(({ type }) => type === Line).length).toBeGreaterThan(0);
+  });
+
+  it('renders picked band outlines as paths and unprofiled bands as rectangles', () => {
+    const picked = nodes(RunGroup.type(setup()));
+    const plain = nodes(RunGroup.type(setup({})));
+    for (const stroke of ['#cbd5e1', '#f8fafc']) {
+      const band = picked.find(({ type, props }) => type === Shape && props.stroke === stroke);
+      expect(trace(band.props.sceneFunc).at(-1)).toBe('close');
+      expect(picked.some(({ type, props }) => type === Rect && props.stroke === stroke)).toBe(false);
+      expect(plain.some(({ type, props }) => type === Rect && props.stroke === stroke)).toBe(true);
+    }
+  });
+
+  it('uses the same true arc path for a section and its hatch clip', () => {
+    const { room, wall } = setup();
+    const part = {
+      id: 'section', kind: 'section', x: 0, z: 0, width: 4, height: 4,
+      outline: [[0, 0, 0], [4, 0, 0.414214], [0, 4, 0]],
+    };
+    cornerShapes.mockReturnValueOnce([{ key: 'return', kind: 'return', wallId: wall.id, parts: [part] }]);
+    const tree = nodes(NeighborReturns({ room, wall, settings, transform }));
+    const clip = tree.find(({ type, props }) => type === Group && props.clipFunc);
+    const shape = tree.find(({ type }) => type === Shape);
+    const path = trace(shape.props.sceneFunc);
+    expect(trace(clip.props.clipFunc)).toEqual(path);
+    const arcs = path.filter((command) => command[0] === 'arc');
+    expect(arcs).toHaveLength(1);
+    expect(arcs[0][3]).toBeCloseTo(16, 4);
   });
 });

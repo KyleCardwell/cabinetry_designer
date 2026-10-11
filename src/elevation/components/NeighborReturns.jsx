@@ -2,6 +2,7 @@ import {
   Group,
   Line,
   Rect,
+  Shape,
   Text,
 } from 'react-konva';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
@@ -10,6 +11,7 @@ import { landingsOn } from '../model/landings.js';
 import { soffitSeams } from '../model/soffits.js';
 import { wallLabel } from '../model/topology.js';
 import Hatch from './Hatch.jsx';
+import { outlineGeometry, outlinePath } from './outlinePath.js';
 
 /**
  * What this face sees of its neighbours at its corners and wing walls (SPEC-42.2): each return from
@@ -26,10 +28,6 @@ export default function NeighborReturns({ room, wall, settings, transform }) {
       const parts = shape.parts.map((part) => ({
         ...part,
         rect: wallRectToScreen(part, transform),
-        points: part.outline?.flatMap(([x, z]) => {
-          const point = wallToScreen({ x, z }, transform);
-          return [point.x, point.y];
-        }),
       }));
       const labelPart = parts.find((part) => part.kind === 'section') ?? parts[0];
       return { key: shape.key, label, parts, labelRect: labelPart.rect };
@@ -62,20 +60,13 @@ export default function NeighborReturns({ room, wall, settings, transform }) {
       {returns.map((entry) => (
         <Group key={entry.key} listening={false}>
           {entry.parts.map((part) => {
-            const Shape = part.points ? Line : Rect;
-            const geometry = part.points ? { points: part.points, closed: true } : part.rect;
+            const PartShape = part.outline ? Shape : Rect;
+            const geometry = part.outline ? outlineGeometry(part.outline, transform) : part.rect;
             const section = part.kind === 'section';
-            const clipFunc = part.points ? (context) => {
-              context.beginPath();
-              context.moveTo(part.points[0], part.points[1]);
-              for (let i = 2; i < part.points.length; i += 2) {
-                context.lineTo(part.points[i], part.points[i + 1]);
-              }
-              context.closePath();
-            } : undefined;
+            const clipFunc = part.outline ? outlinePath(part.outline, transform) : undefined;
             return (
               <Group key={part.id} listening={false}>
-                <Shape
+                <PartShape
                   {...geometry}
                   fill={section ? '#475569' : undefined}
                   opacity={section ? 0.26 : 1}

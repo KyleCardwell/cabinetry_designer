@@ -1,6 +1,7 @@
-import { Group, Line, Rect } from 'react-konva';
-import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
+import { Group, Rect, Shape } from 'react-konva';
+import { wallRectToScreen } from '../canvas/transform.js';
 import { cornerShapes } from '../model/cornerParts.js';
+import { outlineGeometry } from './outlinePath.js';
 
 const PART_STYLES = {
   profile: { stroke: '#64748b' },
@@ -17,16 +18,11 @@ export default function NeighborProfiles({ room, wall, settings, transform }) {
     .map((shape) => (
       <Group key={shape.key} listening={false}>
         {shape.parts.map((part) => {
-          const Shape = part.outline ? Line : Rect;
-          const geometry = part.outline ? {
-            points: part.outline.flatMap(([x, z]) => {
-              const point = wallToScreen({ x, z }, transform);
-              return [point.x, point.y];
-            }),
-            closed: true,
-          } : wallRectToScreen(part, transform);
+          const PartShape = part.outline ? Shape : Rect;
+          const geometry = part.outline
+            ? outlineGeometry(part.outline, transform) : wallRectToScreen(part, transform);
           return (
-            <Shape
+            <PartShape
               key={part.id}
               {...geometry}
               {...PART_STYLES[part.kind]}

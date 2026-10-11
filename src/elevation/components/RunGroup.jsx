@@ -4,6 +4,7 @@ import {
   Label,
   Line,
   Rect,
+  Shape,
   Tag,
   Text,
 } from 'react-konva';
@@ -24,6 +25,7 @@ import DoorDetails from './DoorDetails.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
 import FrameOutline from './FrameOutline.jsx';
 import PieceRect from './PieceRect.jsx';
+import { outlineGeometry } from './outlinePath.js';
 
 function RunGroup({
   run,
@@ -66,8 +68,11 @@ function RunGroup({
   const toScreen = (rect) => rect && wallRectToScreen(rect, transform);
   const toeKick = toScreen(bands.toeKick);
   const countertop = toScreen(bands.countertop);
-  const topMold = toScreen(bands.topMold);
-  const crown = toScreen(bands.crown);
+  const toBand = (band) => band?.outline ? outlineGeometry(band.outline, transform) : toScreen(band);
+  const topMold = toBand(bands.topMold);
+  const crown = toBand(bands.crown);
+  const TopMoldShape = bands.topMold?.outline ? Shape : Rect;
+  const CrownShape = bands.crown?.outline ? Shape : Rect;
   const bottomParts = bands.bottomParts.map((part) => ({ ...part, rect: toScreen(part) }));
   const chipLines = bands.chipLines.map((line) => {
     const from = wallToScreen({ x: line.x1, z: line.z }, transform);
@@ -230,7 +235,7 @@ function RunGroup({
       )}
 
       {topMold && (
-        <Rect
+        <TopMoldShape
           {...topMold}
           fill="#94a3b8"
           opacity={0.9}
@@ -240,7 +245,7 @@ function RunGroup({
         />
       )}
       {crown && (
-        <Rect
+        <CrownShape
           {...crown}
           fill="#e2e8f0"
           opacity={0.82}
