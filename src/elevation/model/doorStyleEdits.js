@@ -23,6 +23,33 @@ export function newDoorStyle(styles, base, id) {
   return { ...copy, id, label: nextDoorStyleLabel(styles) };
 }
 
+/** Append a plain molding, up to the style's six-molding limit. */
+export function addAppliedMolding(style) {
+  const moldings = style.appliedMoldings ?? [];
+  if (moldings.length >= 6) return style;
+  return { ...style, appliedMoldings: [...moldings, { profileId: null, offset: 0 }] };
+}
+
+/** Update one molding without changing its position or the other entries. */
+export function updateAppliedMolding(style, index, changes) {
+  const moldings = style.appliedMoldings ?? [];
+  if (!Number.isInteger(index) || index < 0 || index >= moldings.length) return style;
+  const { profileId, offset } = { ...moldings[index], ...changes };
+  if ((profileId !== null && !(typeof profileId === 'string' && profileId.trim()))
+    || !Number.isFinite(offset)) return style;
+  return {
+    ...style,
+    appliedMoldings: moldings.map((molding, at) => (at === index ? { profileId, offset } : molding)),
+  };
+}
+
+/** Remove one molding, preserving the order of the remaining entries. */
+export function removeAppliedMolding(style, index) {
+  const moldings = style.appliedMoldings ?? [];
+  if (!Number.isInteger(index) || index < 0 || index >= moldings.length) return style;
+  return { ...style, appliedMoldings: moldings.filter((molding, at) => at !== index) };
+}
+
 /** Visit matching picks in room, wall, run, grid and face order. */
 function visitDoorStyleUses(room, styleId, visit) {
   const pick = (object, key, use) => {

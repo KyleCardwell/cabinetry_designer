@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useReducer, useState } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Rect } from 'react-konva';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
@@ -77,7 +77,7 @@ beforeEach(() => {
 });
 
 describe('Step 463 profile UI', () => {
-  it('479. reads and edits the first applied molding while retaining offsets and later entries', () => {
+  it('edits an applied molding profile while retaining offsets and later entries', () => {
     settings.sectionProfiles = [{ ...bead, kind: 'applied_molding' }];
     let draft = { ...DEFAULT_DOOR_STYLE, appliedMoldings: [
       { profileId: bead.id, offset: -0.5 }, { profileId: 'later', offset: 1 },
@@ -85,20 +85,16 @@ describe('Step 463 profile UI', () => {
     const render = (design = DOOR_DESIGNS[0]) => DoorProfilePickers({
       draft, design, setDraft: (update) => { draft = update(draft); },
     });
-    const applied = (tree) => find(tree, ({ type, props }) => type === 'select' && props['aria-label'] === 'Applied molding');
+    const applied = (tree) => find(tree, ({ type, props }) => type === 'select' && props['aria-label'] === 'Applied molding 1 profile');
     expect(applied(render()).props.value).toBe(bead.id);
-    expect(applied(render(DOOR_DESIGNS[1])).props.disabled).toBe(true);
+    expect(find(render(DOOR_DESIGNS[1]), ({ type }) => type === 'fieldset').props.disabled).toBe(true);
     applied(render()).props.onChange({ target: { value: '' } });
     expect(draft.appliedMoldings).toEqual([{ profileId: null, offset: -0.5 }, { profileId: 'later', offset: 1 }]);
     expect(applied(render()).props.value).toBe('');
     applied(render()).props.onChange({ target: { value: bead.id } });
     expect(draft.appliedMoldings).toEqual([{ profileId: bead.id, offset: -0.5 }, { profileId: 'later', offset: 1 }]);
     expect(draft.profiles).toEqual(DEFAULT_DOOR_STYLE.profiles);
-    draft = { ...DEFAULT_DOOR_STYLE };
-    applied(render()).props.onChange({ target: { value: bead.id } });
-    expect(draft.appliedMoldings).toEqual([{ profileId: bead.id, offset: 0 }]);
-    applied(render()).props.onChange({ target: { value: '' } });
-    expect(draft.appliedMoldings).toEqual([]);
+
   });
 
   it('places the profile pickers beneath the section in the sticky column', () => {
@@ -311,6 +307,119 @@ describe('Step 463 profile UI', () => {
     find(tree, ({ type, props }) => type === 'button' && props['aria-label'] === 'Close loop L1').props.onClick();
     expect(setMessage).toHaveBeenCalledWith('A closed shape needs at least 3 points.');
     expect(applyDraft).not.toHaveBeenCalled();
+  });
+});
+
+describe('Step 484 applied moldings editor', () => {
+  const control = (tree, label) => find(tree, ({ props }) => props['aria-label'] === label);
+  const add = (tree) => find(tree, ({ type, props }) => type === 'button' && props.children === 'Add molding');
+  const offsetInput = (tree, index) => {
+    const field = control(tree, `Applied molding ${index + 1} offset`);
+    return field.type(field.props);
+  };
+
+  it('adds two plain moldings, updates the second from fraction text immediately, and removes the first', () => {
+    let draft = structuredClone(DEFAULT_DOOR_STYLE);
+    const render = () => DoorProfilePickers({
+      draft, design: DOOR_DESIGNS[0], setDraft: (update) => { draft = update(draft); },
+    });
+    expect(text(render())).toContain('Applied moldings');
+    expect(text(render())).toContain('Offset from the stile/rail line; + toward the centre.');
+    add(render()).props.onClick();
+    add(render()).props.onClick();
+    expect(draft.appliedMoldings).toEqual([{ profileId: null, offset: 0 }, { profileId: null, offset: 0 }]);
+    offsetInput(render(), 1).props.onChange({ target: { value: '1 1/2' } });
+    // The section receives the updated draft before blur or Enter.
+    const fields = DoorStyleFields({ draft, setDraft: vi.fn(), designs: DOOR_DESIGNS });
+    expect(find(fields, ({ type }) => type === DoorSectionView).props.style.appliedMoldings[1].offset).toBe(1.5);
+    control(render(), 'Remove applied molding 1').props.onClick();
+    expect(draft.appliedMoldings).toEqual([{ profileId: null, offset: 1.5 }]);
+    expect(offsetInput(render(), 0).props.value).toBe('1 1/2');
+    control(render(), 'Remove applied molding 1').props.onClick();
+    expect(draft.appliedMoldings).toEqual([]);
+  });
+
+  it('offers only live applied profiles and Plain line, retaining unavailable picks and other profile slots', () => {
+    settings.sectionProfiles = [bead, { ...bead, id: 'am', kind: 'applied_molding' },
+      { ...bead, id: 'archived', kind: 'applied_molding', archived: true }];
+    let draft = { ...DEFAULT_DOOR_STYLE, appliedMoldings: [{ profileId: null, offset: -0.5 }] };
+    const render = () => DoorProfilePickers({
+      draft, design: DOOR_DESIGNS[0], setDraft: (update) => { draft = update(draft); },
+    });
+    const select = () => control(render(), 'Applied molding 1 profile');
+    expect(select().props.children.map(({ props }) => [props.value, text(props.children)]))
+      .toEqual([['', 'Plain line'], ['am', 'Bead']]);
+    select().props.onChange({ target: { value: 'am' } });
+    expect(draft.appliedMoldings).toEqual([{ profileId: 'am', offset: -0.5 }]);
+    select().props.onChange({ target: { value: '' } });
+    expect(draft.appliedMoldings).toEqual([{ profileId: null, offset: -0.5 }]);
+    for (const [profileId, note] of [['bead', 'wrong kind'], ['archived', 'archived'], ['missing', 'missing']]) {
+      draft = { ...draft, appliedMoldings: [{ profileId, offset: -0.5 }] };
+      expect(select().props.value).toBe(profileId);
+      expect(text(select())).toContain(`(${note})`);
+    }
+    control(render(), 'Outside edge').props.onChange({ target: { value: bead.id } });
+    expect(draft.profiles).toEqual({ ...DEFAULT_DOOR_STYLE.profiles, outside: bead.id });
+    expect(draft.appliedMoldings).toEqual([{ profileId: 'missing', offset: -0.5 }]);
+  });
+
+  it('limits additions to six and greys all applied controls without losing rows when switching designs', () => {
+    let draft = structuredClone(DEFAULT_DOOR_STYLE);
+    const render = (design = DOOR_DESIGNS[0]) => DoorProfilePickers({
+      draft, design, setDraft: (update) => { draft = update(draft); },
+    });
+    for (let index = 0; index < 6; index += 1) {
+      expect(add(render()).props.disabled).toBe(false);
+      add(render()).props.onClick();
+    }
+    expect(add(render()).props.disabled).toBe(true);
+    add(render()).props.onClick();
+    expect(draft.appliedMoldings).toHaveLength(6);
+    offsetInput(render(), 0).props.onChange({ target: { value: '-1/4' } });
+    const before = structuredClone(draft);
+    const unused = render(DOOR_DESIGNS[1]);
+    const fieldset = find(unused, ({ type }) => type === 'fieldset');
+    expect(fieldset.props.disabled).toBe(true);
+    expect(fieldset.props.className).toContain('opacity-50');
+    expect(add(unused).props.disabled).toBe(true);
+    expect(text(unused)).toContain('kept if you switch back');
+    expect(draft).toEqual(before);
+    const restored = render(DOOR_DESIGNS[2]);
+    expect(find(restored, ({ type }) => type === 'fieldset').props.disabled).toBe(false);
+    expect(offsetInput(restored, 0).props.value).toBe('-1/4');
+    control(restored, 'Remove applied molding 2').props.onClick();
+    expect(add(render()).props.disabled).toBe(false);
+  });
+
+  it('retains partial text while typing, accepts signed finite inches, and restores invalid input on blur', () => {
+    let draft = { ...DEFAULT_DOOR_STYLE, appliedMoldings: [{ profileId: null, offset: 0 }] };
+    let typed = '0';
+    let effectValue;
+    useState.mockImplementation(() => [typed, (next) => { typed = typeof next === 'function' ? next(typed) : next; }]);
+    const render = () => {
+      const tree = DoorProfilePickers({ draft, design: DOOR_DESIGNS[0], setDraft: (update) => { draft = update(draft); } });
+      useEffect.mockClear();
+      const input = offsetInput(tree, 0);
+      if (effectValue !== draft.appliedMoldings[0].offset) {
+        effectValue = draft.appliedMoldings[0].offset;
+        useEffect.mock.lastCall[0]();
+      }
+      return input;
+    };
+    for (const [entry, expected] of [['1 ', 1], ['1 1/', 1], ['1 1/2', 1.5], ['+1/4', 0.25], ['-1 1/2', -1.5], ['0', 0], ['0.123', 0.123]]) {
+      render().props.onChange({ target: { value: entry } });
+      expect(draft.appliedMoldings[0].offset).toBe(expected);
+      // A value-driven effect must not reformat text and disrupt fraction entry.
+      render();
+      expect(typed).toBe(entry);
+    }
+    for (const entry of ['', '-', 'garbage', 'Infinity', '1/0']) {
+      render().props.onChange({ target: { value: entry } });
+      expect(typed).toBe(entry);
+      expect(draft.appliedMoldings[0].offset).toBe(0.123);
+      render().props.onBlur();
+      expect(typed).toBe('0.123');
+    }
   });
 });
 

@@ -1,12 +1,52 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE, isDoorStyle } from '../doorStyles.js';
-import { doorStyleUses, newDoorStyle, nextDoorStyleLabel, reassignDoorStyle } from '../doorStyleEdits.js';
+import { addAppliedMolding, doorStyleUses, newDoorStyle, nextDoorStyleLabel, reassignDoorStyle, removeAppliedMolding, updateAppliedMolding } from '../doorStyleEdits.js';
 import { gridFromItems, gridLeaves } from '../grid.js';
 
 const A = { ...DEFAULT_DOOR_STYLE, id: 'ds-a', label: 'A' };
 const B = { ...DEFAULT_DOOR_STYLE, id: 'ds-b', label: 'B', thickness: 1 };
 const { name, ...UNNAMED } = DEFAULT_DOOR_STYLE;
 void name;
+
+describe('Step 484 applied molding edits', () => {
+  it('adds, edits and removes by index on copies, retaining other style fields and molding order', () => {
+    const original = structuredClone(DEFAULT_DOOR_STYLE);
+    const added = addAppliedMolding(addAppliedMolding(original));
+    const picked = updateAppliedMolding(added, 0, { profileId: 'am1', offset: -0.25 });
+    const offset = updateAppliedMolding(picked, 1, { offset: 1.5 });
+    expect(offset.appliedMoldings).toEqual([{ profileId: 'am1', offset: -0.25 }, { profileId: null, offset: 1.5 }]);
+    expect(removeAppliedMolding(offset, 0)).toEqual({ ...original, appliedMoldings: [{ profileId: null, offset: 1.5 }] });
+    expect(updateAppliedMolding(offset, 0, { profileId: null }).appliedMoldings[0])
+      .toEqual({ profileId: null, offset: -0.25 });
+    expect(original.appliedMoldings).toEqual([]);
+    expect(added.appliedMoldings).toEqual([{ profileId: null, offset: 0 }, { profileId: null, offset: 0 }]);
+    expect(offset.appliedMoldings[0]).toBe(picked.appliedMoldings[0]);
+    expect(offset.profiles).toBe(original.profiles);
+    const { appliedMoldings, ...withoutList } = original;
+    void appliedMoldings;
+    expect(addAppliedMolding(withoutList).appliedMoldings).toEqual([{ profileId: null, offset: 0 }]);
+  });
+
+  it('enforces the six-entry limit and rejects invalid indices, profiles and nonfinite offsets', () => {
+    const full = { ...DEFAULT_DOOR_STYLE, appliedMoldings: Array.from({ length: 6 }, () => ({ profileId: null, offset: 0 })) };
+    expect(addAppliedMolding(full)).toBe(full);
+    for (const index of [-1, 6, 0.5, NaN]) {
+      expect(updateAppliedMolding(full, index, { offset: 1 })).toBe(full);
+      expect(removeAppliedMolding(full, index)).toBe(full);
+    }
+    for (const offset of [Infinity, -Infinity, NaN, null, '1.5']) {
+      expect(updateAppliedMolding(full, 0, { offset })).toBe(full);
+    }
+    for (const profileId of ['', ' ', undefined, 3]) {
+      expect(updateAppliedMolding(full, 0, { profileId })).toBe(full);
+    }
+    for (const offset of [-100, 0, 0.123, 100]) {
+      expect(updateAppliedMolding(full, 0, { offset }).appliedMoldings[0].offset).toBe(offset);
+    }
+    expect(addAppliedMolding(removeAppliedMolding(full, 0)).appliedMoldings).toHaveLength(6);
+    expect(removeAppliedMolding(DEFAULT_DOOR_STYLE, 0)).toBe(DEFAULT_DOOR_STYLE);
+  });
+});
 
 /** A room picking A and B at every level that can pick a style. */
 function room() {
