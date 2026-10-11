@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
-import { Rect, Text } from 'react-konva';
-import { wallRectToScreen } from '../canvas/transform.js';
+import { Line, Rect, Text } from 'react-konva';
+import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
 
 export default function DoorDetails({ parts, warnings, transform, showDetails, showTags }) {
   return parts.map((part) => {
@@ -34,6 +34,20 @@ export default function DoorDetails({ parts, warnings, transform, showDetails, s
               stroke="#cbd5e1"
               strokeWidth={0.75}
               fillEnabled={false}
+              listening={false}
+            />
+          );
+        })}
+        {showDetails && (part.miters ?? []).map((miter, index) => {
+          const start = wallToScreen({ x: miter.x1, z: miter.z1 }, transform);
+          const end = wallToScreen({ x: miter.x2, z: miter.z2 }, transform);
+          if (Math.hypot(end.x - start.x, end.y - start.y) < 2) return null;
+          return (
+            <Line
+              key={`miter-${index}`}
+              points={[start.x, start.y, end.x, end.y]}
+              stroke="#cbd5e1"
+              strokeWidth={0.75}
               listening={false}
             />
           );
