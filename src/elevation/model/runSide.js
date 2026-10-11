@@ -2,7 +2,8 @@ import { frontDepth, runBackOffset } from './corners.js';
 import { resolveProfile } from './profile.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { outlineBounds, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
-import { bandDepths, hasToeKick } from './bandDepths.js';
+import { bandDepths } from './bandDepths.js';
+import { runBase } from './furnitureBase.js';
 import { isCountertop, runTop } from './tops.js';
 
 const EPSILON = 1e-6;
@@ -43,7 +44,9 @@ export function runSide(room, wall, run, settings) {
     });
   };
 
-  if (hasToeKick(run)) add('toe_kick', 0, toeKickHeight, back, boxFront - depths.toeKickSetback);
+  if (runBase(room, wall, run, settings).kind === 'toe_kick') {
+    add('toe_kick', 0, toeKickHeight, back, boxFront - depths.toeKickSetback);
+  }
   add('box', run.z, run.height, back, boxFront);
   add('faces', run.z, run.height, boxFront, faces);
   if (isCountertop(top.kind)) add('countertop', boxTop, top.height, back, faces + depths.countertopOverhang);

@@ -2,6 +2,7 @@ import { CABINET_TYPE_IDS } from './constants.js';
 import { blindEntries, blindPartWidths } from './blind.js';
 import { blindCellWidths, cellPieces, partPieces } from './cells.js';
 import { frameRegions } from './frames.js';
+import { runBase } from './furnitureBase.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
 import {
@@ -41,8 +42,8 @@ function runsInWalkOrder(view) {
 
 export function carriesMolding(wall, run, profile, molding) {
   if (molding === 'toeKick') {
-    return LOWER_TYPES.has(run.cabinetTypeId)
-      && (run.overrides?.toeKickHeight ?? profile.toeKickHeight) > 0;
+    // Callers already resolved the wall's inherited profile.
+    return runBase(null, { profile }, run, {}).kind === 'toe_kick';
   }
   const top = runTop(wall, run, profile).kind;
   return molding === 'topMold' ? top === 'crown' || top === 'topMold' : top === 'crown';

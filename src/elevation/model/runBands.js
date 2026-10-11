@@ -1,8 +1,9 @@
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
-import { bandDepths, hasToeKick } from './bandDepths.js';
+import { bandDepths } from './bandDepths.js';
 import { bandOutline, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
 import { frontDepth } from './corners.js';
+import { runBase } from './furnitureBase.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { resolveProfile } from './profile.js';
 import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js';
@@ -38,7 +39,7 @@ function freeEdge(room, wall, run, side, band, settings) {
 
 /** Whether a run carries a band of this kind on: the same top family, or a toe kick of its own. */
 function carries(room, wall, run, band, settings) {
-  if (band === 'toeKick') return hasToeKick(run);
+  if (band === 'toeKick') return runBase(room, wall, run, settings).kind === 'toe_kick';
   const { kind } = runTop(wall, run, resolveProfile(settings, room, wall));
   if (band === 'countertop') return isCountertop(kind);
   if (band === 'topMold') return kind === 'topMold' || kind === 'crown';
@@ -132,7 +133,7 @@ export function runBands(room, wall, run, settings, scene) {
   };
   const profile = resolveProfile(settings, room, wall);
   const moldings = moldingProfiles(profile, settings);
-  const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
+  const base = runBase(room, wall, run, settings);
   const top = runTop(wall, run, profile);
   const boxTop = run.z + run.height;
   const topMold = (top.kind === 'crown' || top.kind === 'topMold')
@@ -197,8 +198,8 @@ export function runBands(room, wall, run, settings, scene) {
         z: piece.z + endBottom.chip,
       }))
     : [];
-  const toeKickBand = band('toeKick', 0, toeKickHeight);
-  const toeKick = hasToeKick(run) && toeKickBand.width > 0 ? toeKickBand : null;
+  const toeKickBand = base.kind === 'toe_kick' ? band('toeKick', 0, base.height) : null;
+  const toeKick = toeKickBand?.width > 0 ? toeKickBand : null;
   const countertop = isCountertop(top.kind) ? band('countertop', boxTop, top.height) : null;
   return { top, toeKick, countertop, topMold, crown, bottomParts, chipLines };
 }
