@@ -16,7 +16,7 @@ const rows = (state) => state.settings.sectionProfiles.map(({ id, name, version,
 /** A one-wall room with the sample profiles in its library. */
 function withLibrary() {
   const state = stateWithRun();
-  state.settings.sectionProfiles = structuredClone(sample.profiles);
+  state.settings.sectionProfiles = structuredClone([COVE, BEAD, CROWN]);
   return state;
 }
 

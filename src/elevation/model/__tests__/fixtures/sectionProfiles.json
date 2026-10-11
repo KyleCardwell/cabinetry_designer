@@ -73,6 +73,55 @@
       "drawnPoints": { "elevation": ["c3", "c4", "c5"], "plan": ["c3"] },
       "version": 1,
       "archived": false
+    },
+    {
+      "id": "tm3",
+      "name": "Top mold 3",
+      "kind": "top_mold",
+      "geometry": {
+        "units": "in",
+        "points": { "a": [0, 0], "b": [0, 0.75], "e": [-0.125, 0.75], "f": [-0.125, 3], "c": [-1.5, 3], "d": [-1.5, 0] },
+        "loops": [{
+          "id": "L1",
+          "closed": true,
+          "segs": [
+            { "type": "line", "from": "a", "to": "b" },
+            { "type": "line", "from": "b", "to": "e" },
+            { "type": "line", "from": "e", "to": "f" },
+            { "type": "line", "from": "f", "to": "c" },
+            { "type": "line", "from": "c", "to": "d" },
+            { "type": "line", "from": "d", "to": "a" }
+          ]
+        }]
+      },
+      "stretch": { "y": 1.5 },
+      "drawnPoints": { "elevation": ["b"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "cr45",
+      "name": "Crown 4 1/2",
+      "kind": "crown",
+      "geometry": {
+        "units": "in",
+        "points": { "a": [0, 0], "b": [3, 0], "c": [3, -1], "d": [0.5, -4], "e": [0.5, -4.5], "f": [0, -4.5] },
+        "loops": [{
+          "id": "L1",
+          "closed": true,
+          "segs": [
+            { "type": "line", "from": "a", "to": "b" },
+            { "type": "line", "from": "b", "to": "c" },
+            { "type": "line", "from": "c", "to": "d" },
+            { "type": "line", "from": "d", "to": "e" },
+            { "type": "line", "from": "e", "to": "f" },
+            { "type": "line", "from": "f", "to": "a" }
+          ]
+        }]
+      },
+      "drawnPoints": { "elevation": ["a", "c", "d"] },
+      "version": 1,
+      "archived": false
     }
   ]
 }

@@ -211,12 +211,21 @@ export function sectionProfileBounds(profile) {
   return { minX, minY, maxX, maxY };
 }
 
-/** SPEC-50.1 a door profile can stretch below a line that no arc touches or crosses. */
+/** Door profiles stretch down; top mold stretches up (SPEC-50.2). */
+export function canStretch(kind) {
+  return isProfileKind(kind) && (PROFILE_KINDS[kind].axes === 'door' || kind === 'top_mold');
+}
+
+function stretchRange(profile, y) {
+  const { minY, maxY } = sectionProfileBounds(profile);
+  return minY + EPS < y && y < (profile.kind === 'top_mold' ? maxY : 0) - EPS;
+}
+
+/** A stretch line sits inside the profile and touches or crosses no arc. */
 export function isStretchLine(profile, y) {
-  if (!Number.isFinite(y) || !isProfileKind(profile?.kind)
-    || PROFILE_KINDS[profile.kind].axes !== 'door'
+  if (!Number.isFinite(y) || !canStretch(profile?.kind)
     || !isProfileGeometry(profile.geometry)) return false;
-  if (!(sectionProfileBounds(profile).minY + EPS < y && y < -EPS)) return false;
+  if (!stretchRange(profile, y)) return false;
   const { points, loops } = profile.geometry;
   return loops.every((loop) => loop.segs.every((segment) => {
     if (segment.type !== 'arc') return true;
@@ -232,16 +241,20 @@ export function isStretchLine(profile, y) {
 export function stretchLineProblem(profile) {
   if (!Object.hasOwn(profile, 'stretch') || isStretchLine(profile, profile.stretch.y)) return null;
   const y = profile.stretch.y;
-  return sectionProfileBounds(profile).minY + EPS < y && y < -EPS ? 'arc' : 'range';
+  return canStretch(profile.kind) && stretchRange(profile, y) ? 'arc' : 'range';
 }
 
-/** SPEC-50.1.1 choose the valid sixteenth nearest half depth, preferring the deeper tie. */
+/** Choose the valid sixteenth nearest half depth/height, preferring the deeper/taller tie. */
 export function defaultStretchY(profile) {
-  const { minY } = sectionProfileBounds(profile);
-  const halfDepth = minY / 2;
+  if (!canStretch(profile?.kind)) return null;
+  const { minY, maxY } = sectionProfileBounds(profile);
+  const up = profile.kind === 'top_mold';
+  const halfDepth = (up ? maxY : minY) / 2;
   let best = null;
   let distance = Infinity;
-  for (let tick = Math.floor(minY * 16) + 1; tick < 0; tick += 1) {
+  const start = up ? Math.ceil(maxY * 16) - 1 : Math.floor(minY * 16) + 1;
+  const end = up ? minY * 16 : 0;
+  for (let tick = start; up ? tick > end : tick < end; tick += up ? -1 : 1) {
     const y = tick / 16;
     const nextDistance = Math.abs(y - halfDepth);
     if (nextDistance < distance && isStretchLine(profile, y)) {
@@ -252,22 +265,24 @@ export function defaultStretchY(profile) {
   return best ?? round6(Math.round(halfDepth * 16) / 16);
 }
 
-/** SPEC-50.1 move the back and any arcs below the stretch line onto the target depth. */
+/** Move points and arc centers on the stretchable side to the target depth/height. */
 export function stretchProfileGeometry(profile, targetY) {
-  if (!Object.hasOwn(profile, 'stretch')) return profile.geometry;
+  if (!canStretch(profile.kind) || !Object.hasOwn(profile, 'stretch')) return profile.geometry;
   const y = profile.stretch.y;
-  if (!Number.isFinite(targetY) || targetY >= y - EPS) return null;
-  const delta = targetY - sectionProfileBounds(profile).minY;
-  const below = (point) => point[1] < y - EPS;
+  const up = profile.kind === 'top_mold';
+  if (!Number.isFinite(targetY) || (up ? targetY <= y + EPS : targetY >= y - EPS)) return null;
+  const bounds = sectionProfileBounds(profile);
+  const delta = targetY - (up ? bounds.maxY : bounds.minY);
+  const moves = (point) => up ? point[1] > y + EPS : point[1] < y - EPS;
   const move = ([x, py]) => [round6(x), round6(py + delta)];
   const geometry = structuredClone(profile.geometry);
   for (const [id, point] of Object.entries(profile.geometry.points)) {
-    if (below(point)) geometry.points[id] = move(point);
+    if (moves(point)) geometry.points[id] = move(point);
   }
   for (const loop of geometry.loops) {
     for (const segment of loop.segs) {
       if (segment.type === 'arc'
-        && below(profile.geometry.points[segment.from]) && below(profile.geometry.points[segment.to])) {
+        && moves(profile.geometry.points[segment.from]) && moves(profile.geometry.points[segment.to])) {
         segment.center = move(segment.center);
       }
     }
@@ -402,8 +417,8 @@ export const PROFILE_KINDS = {
   door_inside: { label: 'Door inside profile', axes: 'door', origin: 'the edge of the panel opening, at the front face' },
   door_panel: { label: 'Raised panel', axes: 'door', origin: 'the edge of the panel opening, at the front face' },
   applied_molding: { label: 'Applied molding', axes: 'door', origin: 'the line the molding is applied along, at the front face' },
-  crown: { label: 'Crown', axes: 'run', origin: 'the front face of the box, at the top of the box' },
-  top_mold: { label: 'Top mold', axes: 'run', origin: 'the front face of the box, at the top of the box' },
+  crown: { label: 'Crown', axes: 'run', origin: "its back, at its top (placed on the top mold's face, at the top of crown line)" },
+  top_mold: { label: 'Top mold', axes: 'run', origin: 'its front face, at its bottom (placed at the box top, past the faces by the top mold overhang)' },
   furniture_base: { label: 'Furniture base', axes: 'run', origin: 'the front face of the box, at the floor' },
   toe_kick: { label: 'Toe kick', axes: 'run', origin: "the toe kick's face, at the floor" },
   nosing: { label: 'Nosing', axes: 'run', origin: 'the front edge of the part, at its top' },

@@ -18,6 +18,9 @@ export const DEFAULT_PROFILE = {
   upperClearance: 18,
   crownTop: 96,
   topMoldHeight: 3,
+  topMoldOverhang: 0.25,
+  topMoldProfileId: null,
+  crownProfileId: null,
   crownHeight: 4.5,
   crownStackHeight: 6,
 };
@@ -108,7 +111,6 @@ export const DEFAULT_SETTINGS = {
     toeKickEndPanelSetback: 1,
     toeKickSideSetback: 0.25,
     countertopOverhang: 0.75,
-    topMoldProjection: 0.25,
     crownProjection: 3,
   },
   // Drawing scale for the DXF: 24 is 1/2" = 1'-0" (SPEC-43). Text and dimension sizes are paper inches times this.

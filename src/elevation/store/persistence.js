@@ -63,6 +63,7 @@ const RUN_TYPE_IDS = new Set([
   CABINET_TYPE_IDS.TALL,
 ]);
 const PROFILE_KEYS = Object.keys(DEFAULT_PROFILE);
+const PROFILE_PICK_KEYS = ['topMoldProfileId', 'crownProfileId'];
 const RUN_OVERRIDE_KEYS = [
   'toeKickHeight',
   'baseBoxHeight',
@@ -190,7 +191,22 @@ function isPartNumberOverrides(value) {
 }
 
 function isCompleteProfile(profile, profileKeys = PROFILE_KEYS) {
-  return Boolean(profile) && profileKeys.every((key) => isFiniteNumber(profile[key]));
+  return Boolean(profile) && profileKeys.every((key) => {
+    if (PROFILE_PICK_KEYS.includes(key)) return isMoldingProfileId(profile[key]);
+    if (key === 'topMoldOverhang' && profile[key] === undefined) return true;
+    return isFiniteNumber(profile[key]);
+  });
+}
+
+function isMoldingProfileId(value) {
+  return value === undefined || value === null || (typeof value === 'string' && value.length > 0);
+}
+
+function isOptionalHeightProfile(value, profileKeys) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const numeric = Object.fromEntries(Object.entries(value).filter(([key]) => !PROFILE_PICK_KEYS.includes(key)));
+  return isOptionalNumericObject(numeric, profileKeys)
+    && PROFILE_PICK_KEYS.every((key) => isMoldingProfileId(value[key]));
 }
 
 function isRunAnchor(anchor) {
@@ -478,7 +494,7 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
     && typeof wall.flipped === 'boolean'
     && isConnection(wall.connections?.start)
     && isConnection(wall.connections?.end)
-    && isOptionalNumericObject(wall.profile, profileKeys)
+    && isOptionalHeightProfile(wall.profile, profileKeys)
     && Array.isArray(wall.runs)
     && wall.runs.every(isRun)
     && (wall.openings === undefined

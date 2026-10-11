@@ -1,8 +1,10 @@
 import { runBelowBox } from './bottoms.js';
-import { CABINET_TYPE_IDS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_PROFILE } from './constants.js';
+import { moldingProfiles } from './moldingProfiles.js';
 
 function definedEntries(value) {
-  return Object.entries(value ?? {}).filter(([, entry]) => entry !== null && entry !== undefined);
+  return Object.entries(value ?? {}).filter(([key, entry]) => entry !== undefined
+    && (entry !== null || key === 'topMoldProfileId' || key === 'crownProfileId'));
 }
 
 function mergeDefined(...values) {
@@ -11,7 +13,13 @@ function mergeDefined(...values) {
 
 /** Resolve the inherited height profile for a wall. */
 export function resolveProfile(settings, room, wall) {
-  return mergeDefined(settings.defaultProfile, room?.profile, wall?.profile);
+  const profile = mergeDefined(DEFAULT_PROFILE, settings.defaultProfile, room?.profile, wall?.profile);
+  const { topMold, crown } = moldingProfiles(profile, settings);
+  return {
+    ...profile,
+    topMoldHeight: topMold?.height ?? profile.topMoldHeight,
+    crownHeight: crown?.height ?? profile.crownHeight,
+  };
 }
 
 /** Return the specified total height of the top-mold and crown stack. */

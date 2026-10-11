@@ -69,11 +69,12 @@ describe('SPEC-50.1 profile stretch line', () => {
       expect(isSectionProfile({ ...BEAD5, kind })).toBe(true);
       expect(setProfileKind(BEAD5, kind).stretch).toEqual(BEAD5.stretch);
     }
-    for (const kind of ['crown', 'top_mold', 'furniture_base', 'toe_kick', 'nosing', 'other']) {
-      const draft = setProfileStretch({ ...plain, kind }, -0.5);
-      expect(draft.stretch).toEqual({ y: -0.5 });
-      expect(isSectionProfileDraft(draft)).toBe(true);
-      expect(isSectionProfile(draft)).toBe(false);
+    const topMold = setProfileKind(BEAD5, 'top_mold');
+    expect(topMold.stretch).toEqual(BEAD5.stretch);
+    expect(setProfileStretch(topMold, 1.5).stretch).toEqual({ y: 1.5 });
+    for (const kind of ['crown', 'furniture_base', 'toe_kick', 'nosing', 'other']) {
+      expect(setProfileStretch({ ...plain, kind }, -0.5)).toBeNull();
+      expect(setProfileStretch({ ...plain, kind }, null)).toBeNull();
       expect(Object.hasOwn(setProfileKind(BEAD5, kind), 'stretch')).toBe(false);
     }
     expect(BEAD5.stretch).toEqual({ y: -0.25 });

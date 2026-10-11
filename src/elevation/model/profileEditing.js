@@ -1,4 +1,4 @@
-import { PROFILE_KINDS, isProfileKind, isSectionProfileDraft } from './sectionProfiles.js';
+import { canStretch, isProfileKind, isSectionProfileDraft } from './sectionProfiles.js';
 import { formatInchesInput } from './units.js';
 
 /** SPEC-48 grid choices in inches for profile editing. */
@@ -348,18 +348,18 @@ export function profileArcInfo(profile, loopId, index) {
   };
 }
 
-/** SPEC-48.2 sets the kind; SPEC-50.1 non-door kinds lose their stretch line. */
+/** Set the kind, dropping the stretch line for kinds that cannot stretch. */
 export function setProfileKind(profile, kind) {
   if (!isProfileKind(kind)) return null;
   return editProfile(profile, (next) => {
     next.kind = kind;
-    if (PROFILE_KINDS[kind].axes !== 'door') delete next.stretch;
+    if (!canStretch(kind)) delete next.stretch;
   });
 }
 
 /** SPEC-50.1.1 set any finite draft stretch line, or remove it with null. */
 export function setProfileStretch(profile, y) {
-  if (y !== null && !Number.isFinite(y)) return null;
+  if (!canStretch(profile?.kind) || (y !== null && !Number.isFinite(y))) return null;
   return editProfile(profile, (next) => {
     if (y === null) delete next.stretch;
     else next.stretch = { y };
