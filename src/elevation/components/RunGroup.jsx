@@ -250,6 +250,26 @@ function RunGroup({
         />
       )}
 
+      {[
+        ['toeKick', '#334155', 1],
+        ['countertop', '#64748b', 0.9],
+        ['topMold', '#cbd5e1', 0.9],
+        ['crown', '#f8fafc', 0.82],
+      ].flatMap(([kind, stroke, opacity]) => (bands[kind]?.lines ?? []).map((line, index) => {
+        const from = wallToScreen({ x: line.x1, z: line.z1 }, transform);
+        const to = wallToScreen({ x: line.x2, z: line.z2 }, transform);
+        return (
+          <Line
+            key={`${kind}:line:${index}`}
+            points={[from.x, from.y, to.x, to.y]}
+            stroke={stroke}
+            strokeWidth={0.5}
+            opacity={opacity}
+            listening={false}
+          />
+        );
+      }))}
+
       {bottomParts.map((part) => (
         <Rect
           key={part.id}
