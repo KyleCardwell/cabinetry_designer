@@ -14,13 +14,19 @@ export default function DoorProfilePickers({ draft, setDraft, design }) {
   const profiles = useSelector((state) => state.elevation.settings.sectionProfiles);
   const pickProfile = (slot, id) => setDraft((previous) => ({
     ...previous,
-    profiles: { ...previous.profiles, [slot]: id },
+    ...(slot === 'applied' ? {
+      appliedMoldings: id === null && (previous.appliedMoldings?.length ?? 0) <= 1 ? [] : [
+        { profileId: id, offset: previous.appliedMoldings?.[0]?.offset ?? 0 },
+        ...(previous.appliedMoldings ?? []).slice(1),
+      ],
+    } : { profiles: { ...previous.profiles, [slot]: id } }),
   }));
 
   return (
     <div className="space-y-2">
       {DOOR_PROFILE_SLOTS.map((slot) => {
         const usable = Boolean(design?.slots.includes(slot));
+        const profileId = slot === 'applied' ? draft.appliedMoldings?.[0]?.profileId : draft.profiles?.[slot];
         return (
           <label key={slot} className={`block text-xs text-gray-400 ${usable ? '' : 'opacity-50'}`}>
             {SLOT_LABELS[slot]}
@@ -28,10 +34,10 @@ export default function DoorProfilePickers({ draft, setDraft, design }) {
               className={`mt-1 ${INPUT_CLASS}`}
               aria-label={SLOT_LABELS[slot]}
               disabled={!usable}
-              value={draft.profiles?.[slot] ?? ''}
+              value={profileId ?? ''}
               onChange={(event) => pickProfile(slot, event.target.value === '' ? null : event.target.value)}
             >
-              {doorProfileChoices(profiles, slot, draft.profiles?.[slot] ?? null).map(({ id, name, note }) => (
+              {doorProfileChoices(profiles, slot, profileId ?? null).map(({ id, name, note }) => (
                 <option key={id ?? ''} value={id ?? ''}>{note ? `${name} (${note})` : name}</option>
               ))}
             </select>

@@ -120,8 +120,8 @@ describe('SPEC-47 section profile helpers', () => {
   });
 
   it('lists the door style slots that use a profile: team default first, then each room\'s styles', () => {
-    const team = { ...DEFAULT_DOOR_STYLE, profiles: { outside: null, inside: 'sp-cove', panel: null, applied: 'sp-cove' } };
-    const A = { ...DEFAULT_DOOR_STYLE, id: 'ds-a', label: 'A', profiles: { ...DEFAULT_DOOR_STYLE.profiles, applied: 'sp-bead' } };
+    const team = { ...DEFAULT_DOOR_STYLE, profiles: { outside: null, inside: 'sp-cove', panel: null }, appliedMoldings: [{ profileId: 'sp-cove', offset: 0 }] };
+    const A = { ...DEFAULT_DOOR_STYLE, id: 'ds-a', label: 'A', appliedMoldings: [{ profileId: 'sp-bead', offset: 0 }] };
     const B = { ...DEFAULT_DOOR_STYLE, id: 'ds-b', label: 'B', profiles: { ...DEFAULT_DOOR_STYLE.profiles, inside: 'sp-cove' } };
     const settings = { ...DEFAULT_SETTINGS, teamDoorStyle: team, sectionProfiles: sample.profiles };
     const rooms = [{ id: 'r1', doorStyles: [A, B] }, { id: 'r2' }];

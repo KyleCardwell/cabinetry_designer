@@ -32,8 +32,9 @@ const STICK2 = { ...profile('sp-stick2', 'Stick 1/4', 'door_inside',
   { s1: [-0.25, 0], s2: [0, -0.25], s3: [0, -0.3125] },
   [line('s1', 's2'), line('s2', 's3')], false, ['s1']), stretch: { y: -0.28125 } };
 const LIBRARY = [ROUND, STEP, RAISED, AM, BEAD, CROWN];
-const style = (profiles, patch = {}) => ({
-  ...DEFAULT_DOOR_STYLE, ...patch, profiles: { outside: null, inside: null, panel: null, applied: null, ...profiles },
+const style = ({ applied = null, ...profiles }, patch = {}) => ({
+  ...DEFAULT_DOOR_STYLE, profiles: { ...DEFAULT_DOOR_STYLE.profiles, ...profiles },
+  appliedMoldings: applied === null ? [] : [{ profileId: applied, offset: 0 }], ...patch,
 });
 const ALL = style({ outside: 'sp-round', inside: 'sp-step', panel: 'sp-raised', applied: 'sp-bead' });
 const ROUND_SLOT = { profileId: 'sp-round', name: 'Round 1/4', lines: [0.25], reachIn: 0.25, reachOut: 0, covers: false };
@@ -59,6 +60,12 @@ describe('SPEC-50 door profile offsets', () => {
       { code: 'door-profile-missing', slot: 'panel' },
     ]]);
     expect(doorProfileOffsets(ALL, SLAB, LIBRARY)).toEqual({ slots: { outside: ROUND_SLOT }, warnings: [] });
+    const listStyle = { ...ALL, appliedMoldings: [
+      { profileId: 'sp-bead', offset: -0.5 }, { profileId: 'gone', offset: 1 },
+    ] };
+    expect(doorProfileOffsets(listStyle, FIVE, LIBRARY)).toEqual(doorProfileOffsets(ALL, FIVE, LIBRARY));
+    expect(doorProfileOffsets({ ...listStyle, appliedMoldings: [{ profileId: null, offset: -0.5 }, ...listStyle.appliedMoldings] }, FIVE, LIBRARY).slots)
+      .not.toHaveProperty('applied');
     expect([doorProfileOffsets(DEFAULT_DOOR_STYLE, FIVE, LIBRARY), doorProfileOffsets(ALL, null, LIBRARY)])
       .toEqual([{ slots: {}, warnings: [] }, { slots: {}, warnings: [] }]);
   });

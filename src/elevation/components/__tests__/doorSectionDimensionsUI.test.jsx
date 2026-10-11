@@ -28,7 +28,8 @@ const applied = profile('molding', 'applied_molding', -0.25, 0.75);
 const panel = profile('panel', 'door_panel', 0, 1);
 const picked = {
   ...DEFAULT_DOOR_STYLE,
-  profiles: { outside: outside.id, inside: inside.id, applied: applied.id, panel: panel.id },
+  profiles: { outside: outside.id, inside: inside.id, panel: panel.id },
+  appliedMoldings: [{ profileId: applied.id, offset: 0 }],
 };
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];

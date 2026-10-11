@@ -36,7 +36,8 @@ describe('SPEC-46 door designs and the team default style', () => {
       rails: { top: 3, bottom: 3 },
       mid: { extra: 0 },
       panel: { type: 'flat', thickness: 0.5 },
-      profiles: { outside: null, inside: null, panel: null, applied: null },
+      profiles: { outside: null, inside: null, panel: null },
+      appliedMoldings: [],
       arch: { rise: 2 },
       shortFace: { minPanel: 2.125, minRail: 1.625, slabBelow: 4.8125, step: 0.0625 },
     });
@@ -53,6 +54,34 @@ describe('SPEC-46 door designs and the team default style', () => {
 });
 
 describe('SPEC-46 door style shapes', () => {
+  it('479. accepts up to six strict applied moldings with finite offsets, optionally absent', () => {
+    const { appliedMoldings, ...withoutMoldings } = style();
+    void appliedMoldings;
+    expect([
+      withoutMoldings,
+      style({ appliedMoldings: [] }),
+      style({ appliedMoldings: [{ profileId: null, offset: -0.5 }] }),
+      style({ appliedMoldings: Array.from({ length: 6 }, () => ({ profileId: 'x', offset: 2.5 })) }),
+    ].map(isDoorStyle)).toEqual([true, true, true, true]);
+    const invalid = [
+      [{ profileId: 'x' }],
+      Array.from({ length: 7 }, () => ({ profileId: 'x', offset: 0 })),
+      [{ offset: 0 }],
+      [{ profileId: 42, offset: 0 }],
+      [{ profileId: 'x', offset: Infinity }],
+      [{ profileId: 'x', offset: NaN }],
+      [{ profileId: 'x', offset: '0' }],
+      [{ profileId: 'x', offset: 0, width: 1 }],
+      [null],
+      Array(1),
+      null,
+      {},
+    ];
+    expect(invalid.map((appliedMoldings) => isDoorStyle(style({ appliedMoldings }))))
+      .toEqual(invalid.map(() => false));
+    expect(isDoorStyle(style({ profiles: { ...DEFAULT_DOOR_STYLE.profiles, applied: null } }))).toBe(false);
+  });
+
   it('accepts a complete style, with or without a name, and rejects anything off', () => {
     const { name, ...unnamed } = style();
     void name;

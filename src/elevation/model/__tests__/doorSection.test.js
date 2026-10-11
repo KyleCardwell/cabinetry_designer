@@ -49,7 +49,10 @@ const AM = {
   },
 };
 const LIBRARY = [ROUND, STEP, BEAD, CROWN];
-const picks = (profiles) => ({ ...DEFAULT_DOOR_STYLE, profiles: { outside: null, inside: null, panel: null, applied: null, ...profiles } });
+const picks = ({ applied = null, ...profiles }) => ({
+  ...DEFAULT_DOOR_STYLE, profiles: { ...DEFAULT_DOOR_STYLE.profiles, ...profiles },
+  appliedMoldings: applied === null ? [] : [{ profileId: applied, offset: 0 }],
+});
 
 describe('SPEC-48.4 the door style half section', () => {
   it('is the outside-edge door ghost for a 5-piece style with nothing picked', () => {
@@ -71,9 +74,12 @@ describe('SPEC-48.4 the door style half section', () => {
     } }]);
     const panel = { ...STICK2, id: 'panel', kind: 'door_panel' };
     const applied = { ...STICK2, id: 'applied', kind: 'applied_molding' };
-    const all = doorSection({ ...style, profiles: { ...style.profiles, panel: panel.id, applied: applied.id } }, FIVE,
+    const all = doorSection({ ...style, profiles: { ...style.profiles, panel: panel.id }, appliedMoldings: [{ profileId: applied.id, offset: 0 }] }, FIVE,
       [BEAD5, STICK2, panel, applied]);
     expect(all.placed.map(({ geometry }) => Object.values(geometry.points).at(-1)[1])).toEqual([-1, -0.75, -1, -1]);
+    expect(doorSection({ ...style, profiles: { ...style.profiles, panel: panel.id }, appliedMoldings: [
+      { profileId: applied.id, offset: -0.5 }, { profileId: 'gone', offset: 1 },
+    ] }, FIVE, [BEAD5, STICK2, panel, applied])).toEqual(all);
     expect(doorSection({ ...style, thickness: 0.75 }, FIVE, [BEAD5, STICK2]).placed[0].geometry.points.c).toEqual([0, -0.75]);
     expect(BEAD5.geometry.points.c).toEqual([0, -0.8125]);
     expect(STICK2.geometry.points.s3).toEqual([0, -0.3125]);

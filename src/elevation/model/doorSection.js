@@ -78,8 +78,8 @@ export function doorSection(style, design, profiles) {
   const cuts = [];
   const skipped = [];
   for (const slot of DOOR_PROFILE_SLOTS) {
-    if (!design.slots.includes(slot) || typeof style.profiles?.[slot] !== 'string') continue;
-    const profileId = style.profiles[slot];
+    const profileId = slot === 'applied' ? style.appliedMoldings?.[0]?.profileId : style.profiles?.[slot];
+    if (!design.slots.includes(slot) || typeof profileId !== 'string') continue;
     const profile = profiles.find(({ id }) => id === profileId);
     if (!profile || profile.kind !== doorProfileSlotKind(slot)) {
       skipped.push(slot);

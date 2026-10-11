@@ -77,6 +77,30 @@ beforeEach(() => {
 });
 
 describe('Step 463 profile UI', () => {
+  it('479. reads and edits the first applied molding while retaining offsets and later entries', () => {
+    settings.sectionProfiles = [{ ...bead, kind: 'applied_molding' }];
+    let draft = { ...DEFAULT_DOOR_STYLE, appliedMoldings: [
+      { profileId: bead.id, offset: -0.5 }, { profileId: 'later', offset: 1 },
+    ] };
+    const render = (design = DOOR_DESIGNS[0]) => DoorProfilePickers({
+      draft, design, setDraft: (update) => { draft = update(draft); },
+    });
+    const applied = (tree) => find(tree, ({ type, props }) => type === 'select' && props['aria-label'] === 'Applied molding');
+    expect(applied(render()).props.value).toBe(bead.id);
+    expect(applied(render(DOOR_DESIGNS[1])).props.disabled).toBe(true);
+    applied(render()).props.onChange({ target: { value: '' } });
+    expect(draft.appliedMoldings).toEqual([{ profileId: null, offset: -0.5 }, { profileId: 'later', offset: 1 }]);
+    expect(applied(render()).props.value).toBe('');
+    applied(render()).props.onChange({ target: { value: bead.id } });
+    expect(draft.appliedMoldings).toEqual([{ profileId: bead.id, offset: -0.5 }, { profileId: 'later', offset: 1 }]);
+    expect(draft.profiles).toEqual(DEFAULT_DOOR_STYLE.profiles);
+    draft = { ...DEFAULT_DOOR_STYLE };
+    applied(render()).props.onChange({ target: { value: bead.id } });
+    expect(draft.appliedMoldings).toEqual([{ profileId: bead.id, offset: 0 }]);
+    applied(render()).props.onChange({ target: { value: '' } });
+    expect(draft.appliedMoldings).toEqual([]);
+  });
+
   it('places the profile pickers beneath the section in the sticky column', () => {
     const tree = DoorStyleFields({ draft: DEFAULT_DOOR_STYLE, designs: DOOR_DESIGNS, setDraft: vi.fn() });
     const [left, right] = tree.props.children;

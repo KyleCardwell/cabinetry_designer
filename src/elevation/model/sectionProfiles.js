@@ -366,12 +366,15 @@ export function newSectionProfile(profiles, id, base = null, kind = 'other') {
 export function sectionProfileUses(settings, rooms, profileId) {
   const uses = [];
   for (const slot of DOOR_PROFILE_SLOTS) {
-    if (teamDoorStyle(settings).profiles?.[slot] === profileId) uses.push({ level: 'team', slot });
+    const style = teamDoorStyle(settings);
+    const pick = slot === 'applied' ? style.appliedMoldings?.[0]?.profileId : style.profiles?.[slot];
+    if (pick === profileId) uses.push({ level: 'team', slot });
   }
   for (const room of rooms) {
     for (const style of room.doorStyles ?? []) {
       for (const slot of DOOR_PROFILE_SLOTS) {
-        if (style.profiles?.[slot] === profileId) {
+        const pick = slot === 'applied' ? style.appliedMoldings?.[0]?.profileId : style.profiles?.[slot];
+        if (pick === profileId) {
           uses.push({ level: 'room', roomId: room.id, styleId: style.id, label: style.label, slot });
         }
       }

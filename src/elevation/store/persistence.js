@@ -542,6 +542,30 @@ function migrateDoorPanel(style) {
     : style;
 }
 
+function migrateAppliedMoldings(style) {
+  if (!style || typeof style !== 'object' || Array.isArray(style)
+    || !style.profiles || typeof style.profiles !== 'object' || Array.isArray(style.profiles)) return style;
+  const { applied, ...profiles } = style.profiles;
+  return {
+    ...style,
+    profiles,
+    appliedMoldings: style.appliedMoldings === undefined
+      ? (applied == null ? [] : [{ profileId: applied, offset: 0 }])
+      : style.appliedMoldings,
+  };
+}
+
+/** Migrate molding picks in every room and phase scope without changing the saved document. */
+function migrateAppliedMoldingScopes(scope) {
+  if (!scope || typeof scope !== 'object') return scope;
+  const migrated = { ...scope };
+  if (Array.isArray(scope.doorStyles)) migrated.doorStyles = scope.doorStyles.map(migrateAppliedMoldings);
+  for (const key of ['rooms', 'phases']) {
+    if (Array.isArray(scope[key])) migrated[key] = scope[key].map(migrateAppliedMoldingScopes);
+  }
+  return migrated;
+}
+
 /** Migrate style lists in room and phase scopes without mutating the saved document. */
 function migrateDoorPanelScopes(scope) {
   if (!scope || typeof scope !== 'object') return scope;
@@ -555,6 +579,7 @@ function migrateDoorPanelScopes(scope) {
 
 function normalizeDocument(document, schemaVersion) {
   if (!document || document.schemaVersion !== schemaVersion) return document;
+  document = migrateAppliedMoldingScopes(document);
   let settings = document.settings;
   if (settings && typeof settings === 'object') {
     settings = { ...settings };
@@ -582,6 +607,7 @@ function normalizeDocument(document, schemaVersion) {
       document = migrateDoorPanelScopes(document);
       settings.doorPanelDefault = 0.5;
     }
+    settings.teamDoorStyle = migrateAppliedMoldings(settings.teamDoorStyle);
     if (settings.doorDesigns === undefined) settings.doorDesigns = structuredClone(DOOR_DESIGNS);
     if (settings.sectionProfiles === undefined) settings.sectionProfiles = [];
     else if (Array.isArray(settings.sectionProfiles)) settings.sectionProfiles = settings.sectionProfiles.map(migrateSectionProfile);

@@ -120,7 +120,7 @@ describe('SPEC-50 profile lines in the payload', () => {
     },
   };
   const withProfiles = { ...settings, sectionProfiles: [ROUND, STEP] };
-  const P = { ...DEFAULT_DOOR_STYLE, id: 'ds-p', label: 'P', profiles: { outside: 'sp-round', inside: 'sp-step', panel: null, applied: null } };
+  const P = { ...DEFAULT_DOOR_STYLE, id: 'ds-p', label: 'P', profiles: { outside: 'sp-round', inside: 'sp-step', panel: null } };
   const S = { ...SL, profiles: { ...SL.profiles, outside: 'sp-round' } };
 
   /** G1 A with P on the room and the 36" pair in S (slab), `patch` on the room. */

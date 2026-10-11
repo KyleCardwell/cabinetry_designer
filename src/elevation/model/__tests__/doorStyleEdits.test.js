@@ -55,10 +55,13 @@ describe('SPEC-46.1 the room\'s door style list', () => {
 
   it('copies a style as a new one: new id and label, no name, nothing shared', () => {
     expect(newDoorStyle([A, B], DEFAULT_DOOR_STYLE, 'ds-new')).toEqual({ ...UNNAMED, id: 'ds-new', label: 'C' });
-    const named = { ...B, name: 'Kitchen' };
+    const named = { ...B, name: 'Kitchen', appliedMoldings: [{ profileId: 'am1', offset: -0.5 }] };
     const copy = newDoorStyle([A, named], named, 'ds-c');
     expect([copy.thickness, copy.label, 'name' in copy, copy.stiles === named.stiles, isDoorStyle(copy)])
       .toEqual([1, 'C', false, false, true]);
+    expect(copy.appliedMoldings).toEqual(named.appliedMoldings);
+    expect(copy.appliedMoldings).not.toBe(named.appliedMoldings);
+    expect(copy.appliedMoldings[0]).not.toBe(named.appliedMoldings[0]);
   });
 
   it('lists every place a style is picked, room to face', () => {

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
-import { isElevationDocument, normalizeElevationDocument } from '../persistence.js';
+import { isElevationDocument, normalizeElevationDocument, toElevationDocument } from '../persistence.js';
 import { copySettings } from '../slices/helpers.js';
 
 const golden = JSON.parse(readFileSync(new URL('../../model/__tests__/fixtures/golden.json', import.meta.url), 'utf8'));
@@ -28,6 +28,57 @@ function older(doorThickness) {
 }
 
 describe('SPEC-46.3 saving the team library in settings', () => {
+  it('479. migrates applied picks in the team style and every room and phase scope', () => {
+    const saved = normalizeElevationDocument(structuredClone(golden));
+    const legacyStyle = (id, applied) => {
+      const style = { ...structuredClone(DEFAULT_DOOR_STYLE), id, label: id };
+      delete style.appliedMoldings;
+      if (applied !== undefined) style.profiles.applied = applied;
+      return style;
+    };
+    saved.settings.teamDoorStyle = { ...legacyStyle('default', 'am1'), label: 'Std' };
+    saved.rooms[0].doorStyles = [legacyStyle('room', null), legacyStyle('missing')];
+    saved.rooms[0].phases = [{ doorStyles: [legacyStyle('room-phase', 'am1')] }];
+    saved.phases = [{
+      doorStyles: [legacyStyle('phase', null)],
+      rooms: [{ doorStyles: [legacyStyle('phase-room', 'am1')], phases: [{ doorStyles: [legacyStyle('nested')] }] }],
+    }];
+    const retained = [{ profileId: null, offset: -0.5 }, { profileId: 'x', offset: 2 }];
+    saved.rooms[0].doorStyles.push({ ...legacyStyle('current', 'old'), appliedMoldings: retained });
+    const original = structuredClone(saved);
+    const loaded = normalizeElevationDocument(saved);
+    const styles = [
+      loaded.settings.teamDoorStyle,
+      ...loaded.rooms[0].doorStyles,
+      loaded.rooms[0].phases[0].doorStyles[0],
+      loaded.phases[0].doorStyles[0],
+      loaded.phases[0].rooms[0].doorStyles[0],
+      loaded.phases[0].rooms[0].phases[0].doorStyles[0],
+    ];
+    expect(styles.map(({ appliedMoldings }) => appliedMoldings)).toEqual([
+      [{ profileId: 'am1', offset: 0 }], [], [], retained,
+      [{ profileId: 'am1', offset: 0 }], [], [{ profileId: 'am1', offset: 0 }], [],
+    ]);
+    expect(styles.every(({ profiles }) => !Object.hasOwn(profiles, 'applied'))).toBe(true);
+    expect(styles[0].profiles).toEqual({ outside: null, inside: null, panel: null });
+    expect(isElevationDocument(loaded)).toBe(true);
+    expect(saved).toEqual(original);
+    expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+  });
+
+  it('479. round-trips the golden document with only the migrated molding keys changed', () => {
+    const expected = normalizeElevationDocument(structuredClone(golden));
+    const legacy = structuredClone(expected);
+    delete legacy.settings.teamDoorStyle.appliedMoldings;
+    legacy.settings.teamDoorStyle.profiles.applied = null;
+    const loaded = normalizeElevationDocument(legacy);
+    expect(loaded).toEqual(expected);
+    expect(isElevationDocument(loaded)).toBe(true);
+    const roundTrip = normalizeElevationDocument(JSON.parse(JSON.stringify(toElevationDocument(loaded))));
+    expect(roundTrip).toEqual(expected);
+    expect(isElevationDocument(roundTrip)).toBe(true);
+  });
+
   it('moves an older document\'s door thickness into the team default style and seeds the designs', () => {
     const loaded = normalizeElevationDocument(older(1));
     expect(loaded.settings.teamDoorStyle).toEqual({ ...DEFAULT_DOOR_STYLE, thickness: 1 });
@@ -73,8 +124,9 @@ describe('SPEC-46.3 saving the team library in settings', () => {
     expect([
       copy.teamDoorStyle === DEFAULT_DOOR_STYLE,
       copy.teamDoorStyle.stiles === DEFAULT_DOOR_STYLE.stiles,
+      copy.teamDoorStyle.appliedMoldings === DEFAULT_DOOR_STYLE.appliedMoldings,
       copy.doorDesigns === DOOR_DESIGNS,
       copy.doorDesigns[0].topRail === DOOR_DESIGNS[0].topRail,
-    ]).toEqual([false, false, false, false]);
+    ]).toEqual([false, false, false, false, false]);
   });
 });

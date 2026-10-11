@@ -48,7 +48,8 @@ export const DEFAULT_DOOR_STYLE = {
   rails: { top: 3, bottom: 3 },
   mid: { extra: 0 },
   panel: { type: 'flat', thickness: 0.5 },
-  profiles: { outside: null, inside: null, panel: null, applied: null },
+  profiles: { outside: null, inside: null, panel: null },
+  appliedMoldings: [],
   arch: { rise: 2 },
   shortFace: { minPanel: 2.125, minRail: 1.625, slabBelow: 4.8125, step: 0.0625 },
 };
@@ -78,9 +79,9 @@ export function findDoorDesign(designId, designs = DOOR_DESIGNS) {
 
 const DOOR_STYLE_FIELDS = [
   'id', 'label', 'name', 'designId', 'thickness', 'stiles', 'rails', 'mid',
-  'panel', 'profiles', 'arch', 'shortFace',
+  'panel', 'profiles', 'appliedMoldings', 'arch', 'shortFace',
 ];
-const REQUIRED_DOOR_STYLE_FIELDS = DOOR_STYLE_FIELDS.filter((key) => key !== 'name');
+const REQUIRED_DOOR_STYLE_FIELDS = DOOR_STYLE_FIELDS.filter((key) => key !== 'name' && key !== 'appliedMoldings');
 const PART_SIZE_KEYS = ['rails', 'stiles', 'midRails', 'midStiles', 'archRise', 'notes'];
 
 function isPlainObject(value) {
@@ -120,9 +121,14 @@ export function isDoorStyle(doorStyle) {
     && hasKeys(doorStyle.panel, ['type', 'thickness'])
     && PANEL_TYPES.includes(doorStyle.panel.type)
     && isPositive(doorStyle.panel.thickness)
-    && hasKeys(doorStyle.profiles, DOOR_PROFILE_SLOTS, [])
+    && hasKeys(doorStyle.profiles, ['outside', 'inside', 'panel'], [])
     && Reflect.ownKeys(doorStyle.profiles).every((key) => doorStyle.profiles[key] === null
       || isNonEmptyString(doorStyle.profiles[key]))
+    && (doorStyle.appliedMoldings === undefined
+      || (Array.isArray(doorStyle.appliedMoldings) && doorStyle.appliedMoldings.length <= 6
+        && Array.from(doorStyle.appliedMoldings).every((molding) => hasKeys(molding, ['profileId', 'offset'])
+          && (molding.profileId === null || isNonEmptyString(molding.profileId))
+          && Number.isFinite(molding.offset))))
     && hasKeys(doorStyle.arch, ['rise'])
     && isPositive(doorStyle.arch.rise)
     && hasKeys(doorStyle.shortFace, ['minPanel', 'minRail', 'slabBelow', 'step'])

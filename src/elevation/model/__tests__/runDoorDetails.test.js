@@ -197,7 +197,7 @@ describe('SPEC-50.1 core sizes throughout run details', () => {
     const withProfiles = { ...settings, sectionProfiles: [bead, applied] };
     const edge = { ...P, id: 'ds-edge', profiles: { ...P.profiles, outside: bead.id } };
     const room = structuredClone(stored('G1 Euro kitchen'));
-    room.doorStyles = [{ ...edge, profiles: { ...edge.profiles, applied: applied.id } }];
+    room.doorStyles = [{ ...edge, appliedMoldings: [{ profileId: applied.id, offset: 0 }] }];
     room.doorStyleId = edge.id;
     const synced = syncRoom(room, withProfiles);
     const wall = synced.walls.find((candidate) => candidate.runs.some((run) => run.id === G1_BASE));
