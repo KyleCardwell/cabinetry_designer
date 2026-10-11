@@ -9,7 +9,7 @@ import { isCountertop, runTop } from './tops.js';
 const EPSILON = 1e-6;
 
 /**
- * A run seen from its side (SPEC-42.2): its toe kick, box, faces, then its countertop or its top mold and
+ * A run seen from its side (SPEC-42.2): its floor base, box, faces, then its countertop or its top mold and
  * crown, each as { piece, z, height, back, front } with back and front measured from the run's wall face
  * (the plan view's numbers). With a molding profile, outline carries its placed closed loop. Otherwise,
  * the toe kick sits back from the box by its setback, the faces stand off the box (doors and bumper, or the frame), a top runs past the faces by
@@ -25,18 +25,19 @@ export function runSide(room, wall, run, settings) {
   const faces = frontDepth(run, settings);
   const boxTop = run.z + run.height;
   const crownZ = boxTop + profile.crownStackHeight - profile.crownHeight;
-  const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
+  const base = runBase(room, wall, run, settings);
   const pieces = [];
   const add = (piece, z, height, from, to) => {
     if (height > EPSILON && to - from > EPSILON) pieces.push({ piece, z, height, back: from, front: to });
   };
-  const addMolding = (piece, picked, reference, z, height, front) => {
+  const addMolding = (piece, picked, reference, z, height, front,
+    { from = back, overhang = moldings.overhang } = {}) => {
     const loop = picked && sectionProfileOutline(picked.geometry);
     if (!loop) {
-      add(piece, z, height, back, front);
+      add(piece, z, height, from, front);
       return;
     }
-    const outline = transformOutline(loop, ([x, y]) => [faces + moldings.overhang + x, reference + y]);
+    const outline = transformOutline(loop, ([x, y]) => [faces + overhang + x, reference + y]);
     const { minX, maxX, minY, maxY } = outlineBounds(outline);
     pieces.push({
       piece, z: minY, height: maxY - minY,
@@ -44,8 +45,11 @@ export function runSide(room, wall, run, settings) {
     });
   };
 
-  if (runBase(room, wall, run, settings).kind === 'toe_kick') {
-    add('toe_kick', 0, toeKickHeight, back, boxFront - depths.toeKickSetback);
+  if (base.kind === 'toe_kick') {
+    add('toe_kick', 0, base.height, back, boxFront - depths.toeKickSetback);
+  } else if (base.kind === 'furniture_base') {
+    addMolding('furniture_base', base.picked, base.height, 0, base.height, faces + base.proud,
+      { from: faces, overhang: base.proud });
   }
   add('box', run.z, run.height, back, boxFront);
   add('faces', run.z, run.height, boxFront, faces);
