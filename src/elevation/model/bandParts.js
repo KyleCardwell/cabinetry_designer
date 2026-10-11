@@ -1,5 +1,7 @@
 import { frontDepth, runBackOffset } from './corners.js';
 import { bandDepths, runBands } from './runBands.js';
+import { moldingPast, moldingProfiles } from './moldingProfiles.js';
+import { resolveProfile } from './profile.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
 
@@ -14,6 +16,7 @@ const EPSILON = 1e-6;
 export function bandParts(room, wall, side, settings) {
   const view = resolveWall(room, wall, side);
   const depths = bandDepths(settings);
+  const moldings = moldingProfiles(resolveProfile(settings, room, view), settings);
   const parts = [];
 
   for (const run of view.runs) {
@@ -26,6 +29,7 @@ export function bandParts(room, wall, side, settings) {
       const { x, z, width, height } = rect;
       parts.push({
         id, kind, runId: run.id, x, z, width, height, back, front, coversBoxEdges: false,
+        ...(rect.lines?.length ? { lines: rect.lines } : {}),
       });
     };
 
@@ -34,8 +38,8 @@ export function bandParts(room, wall, side, settings) {
       addPart(part, part.id, part.kind, boxFront);
     }
     addPart(bands.countertop, `${run.id}:countertop`, 'countertop', faces + depths.countertopOverhang);
-    addPart(bands.topMold, `${run.id}:top_mold`, 'top_mold', faces + depths.topMoldProjection);
-    addPart(bands.crown, `${run.id}:crown`, 'crown', faces + depths.crownProjection);
+    addPart(bands.topMold, `${run.id}:top_mold`, 'top_mold', faces + moldingPast(moldings, 'topMold', settings));
+    addPart(bands.crown, `${run.id}:crown`, 'crown', faces + moldingPast(moldings, 'crown', settings));
   }
 
   return parts;

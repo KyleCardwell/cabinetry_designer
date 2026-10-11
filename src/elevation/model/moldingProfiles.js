@@ -1,3 +1,4 @@
+import { bandDepths } from './bandDepths.js';
 import { sectionProfileBounds, stretchProfileGeometry } from './sectionProfiles.js';
 
 /** SPEC-50.2 resolve molding picks, band heights and ordered warnings without fixing inputs. */
@@ -16,6 +17,9 @@ export function moldingProfiles(profile, settings) {
     const { minY, maxY } = sectionProfileBounds(picked);
     const geometry = stretchProfileGeometry(picked, target);
     if (geometry === null) warnings.push({ code: 'top-mold-too-short' });
+    if (!picked.geometry.loops.some((loop) => loop.closed)) {
+      warnings.push({ code: 'molding-profile-open', slot: picked.kind });
+    }
     return {
       profile: picked,
       geometry: geometry ?? picked.geometry,
@@ -29,4 +33,12 @@ export function moldingProfiles(profile, settings) {
   if (topMoldHeight + crownHeight - profile.crownStackHeight < 0) warnings.push({ code: 'crown-gap' });
   if (topMoldHeight > profile.crownStackHeight) warnings.push({ code: 'top-mold-above-crown' });
   return { overhang: profile.topMoldOverhang, topMold, crown, warnings };
+}
+
+/** Molding front projection and free-end return past the run's faces. */
+export function moldingPast(moldings, band, settings) {
+  const picked = moldings[band];
+  const maxX = picked ? sectionProfileBounds({ geometry: picked.geometry }).maxX : 0;
+  if (band === 'topMold') return moldings.overhang + Math.max(0, maxX);
+  return picked ? moldings.overhang + maxX : bandDepths(settings).crownProjection;
 }

@@ -43,6 +43,9 @@ export function cornerShapes(room, wall, side, settings) {
         x, z: piece.z, width, height: piece.height,
         back: Math.min(...depths), front: Math.max(...depths),
         coversBoxEdges: false,
+        ...(piece.outline ? { outline: piece.outline.map(([depth, z]) => [
+          Math.min(length, Math.max(0, xOf(depth))), z,
+        ]) } : {}),
         ...(BODY.has(piece.piece) ? {} : { opaque: false }),
       }];
     });
@@ -131,6 +134,11 @@ export function cornerShapes(room, wall, side, settings) {
               x: start, z: piece.z, width: finish - start, height: piece.height,
               back: Math.min(...depths), front: Math.max(...depths),
               coversBoxEdges: false,
+              ...(piece.outline ? { outline: piece.outline.map(([depth, z]) => {
+                const point = elevationToPlan(neighborFrame, run.x, depth);
+                const x = planPointToWallX(frame, point);
+                return [Math.min(finish, Math.max(start, x)), z];
+              }) } : {}),
             }];
           });
           if (parts.length === 0) continue;

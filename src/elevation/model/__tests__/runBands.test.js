@@ -29,8 +29,8 @@ describe('SPEC-42 run bands', () => {
       top: { kind: 'crown', height: 6 },
       toeKick: { x: 0, z: 0, width: 29, height: 4 },
       countertop: null,
-      topMold: { x: 0, z: 90, width: 30.25, height: 3 },
-      crown: { x: 0, z: 91.5, width: 33, height: 4.5 },
+      topMold: { x: 0, z: 90, width: 30.25, height: 3, lines: [] },
+      crown: { x: 0, z: 91.5, width: 33, height: 4.5, lines: [] },
       bottomParts: [],
       chipLines: [],
     });

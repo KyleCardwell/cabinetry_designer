@@ -1,5 +1,7 @@
 import { frontDepth, runBackOffset } from './corners.js';
 import { resolveProfile } from './profile.js';
+import { moldingPast, moldingProfiles } from './moldingProfiles.js';
+import { sectionProfileOutline } from './sectionProfileOutline.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
 import { isCountertop, runTop } from './tops.js';
 
@@ -8,12 +10,13 @@ const EPSILON = 1e-6;
 /**
  * A run seen from its side (SPEC-42.2): its toe kick, box, faces, then its countertop or its top mold and
  * crown, each as { piece, z, height, back, front } with back and front measured from the run's wall face
- * (the plan view's numbers). The placeholder shape until profiles: the toe kick sits back from the box by
- * its setback, the faces stand off the box (doors and bumper, or the frame), a top runs past the faces by
+ * (the plan view's numbers). With a molding profile, outline carries its placed closed loop. Otherwise,
+ * the toe kick sits back from the box by its setback, the faces stand off the box (doors and bumper, or the frame), a top runs past the faces by
  * its overhang or projection, and the top mold stops under the crown. `wall` is the run's resolved face.
  */
 export function runSide(room, wall, run, settings) {
   const profile = resolveProfile(settings, room, wall);
+  const moldings = moldingProfiles(profile, settings);
   const depths = bandDepths(settings);
   const top = runTop(wall, run, profile);
   const back = runBackOffset(run);
@@ -26,17 +29,35 @@ export function runSide(room, wall, run, settings) {
   const add = (piece, z, height, from, to) => {
     if (height > EPSILON && to - from > EPSILON) pieces.push({ piece, z, height, back: from, front: to });
   };
+  const addMolding = (piece, picked, reference, z, height, front) => {
+    const loop = picked && sectionProfileOutline(picked.geometry);
+    if (!loop) {
+      add(piece, z, height, back, front);
+      return;
+    }
+    const outline = loop.map(([x, y]) => [faces + moldings.overhang + x, reference + y]);
+    const xs = outline.map(([x]) => x);
+    const zs = outline.map(([, z]) => z);
+    const bottom = Math.min(...zs);
+    pieces.push({
+      piece, z: bottom, height: Math.max(...zs) - bottom,
+      back: Math.min(...xs), front: Math.max(...xs), outline,
+    });
+  };
 
   if (hasToeKick(run)) add('toe_kick', 0, toeKickHeight, back, boxFront - depths.toeKickSetback);
   add('box', run.z, run.height, back, boxFront);
   add('faces', run.z, run.height, boxFront, faces);
   if (isCountertop(top.kind)) add('countertop', boxTop, top.height, back, faces + depths.countertopOverhang);
   if (top.kind === 'crown' || top.kind === 'topMold') {
-    const height = top.kind === 'crown'
+    const height = top.kind === 'crown' && !moldings.topMold
       ? Math.min(profile.topMoldHeight, crownZ - boxTop)
       : profile.topMoldHeight;
-    add('top_mold', boxTop, height, back, faces + depths.topMoldProjection);
+    addMolding('top_mold', moldings.topMold, boxTop, boxTop, height,
+      faces + moldingPast(moldings, 'topMold', settings));
   }
-  if (top.kind === 'crown') add('crown', crownZ, profile.crownHeight, back, faces + depths.crownProjection);
+  if (top.kind === 'crown') addMolding('crown', moldings.crown,
+    boxTop + profile.crownStackHeight, crownZ, profile.crownHeight,
+    faces + moldingPast(moldings, 'crown', settings));
   return pieces;
 }

@@ -2,6 +2,7 @@ import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
 import { frontDepth } from './corners.js';
+import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { resolveProfile } from './profile.js';
 import { isCountertop, runTop } from './tops.js';
 import { wallEndPanelAt } from './wallSides.js';
@@ -10,15 +11,16 @@ export { bandDepths, hasToeKick } from './bandDepths.js';
 
 const EPSILON = 1e-6;
 
-const TOP_PAST = { countertop: 'countertopOverhang', topMold: 'topMoldProjection', crown: 'crownProjection' };
-
 /**
  * How far a band runs past a free end of a run (SPEC-42.1): a top by its overhang or projection; a
  * toe kick stops short (negative), 1" from an end panel's face, else 1/4" from the cabinet's side.
  */
-function bandPast(run, side, band, settings) {
+function bandPast(room, wall, run, side, band, settings) {
   const depths = bandDepths(settings);
-  if (band !== 'toeKick') return depths[TOP_PAST[band]];
+  if (band === 'countertop') return depths.countertopOverhang;
+  if (band !== 'toeKick') {
+    return moldingPast(moldingProfiles(resolveProfile(settings, room, wall), settings), band, settings);
+  }
   const setback = run.ends?.[side]?.type === 'end_panel'
     ? depths.toeKickEndPanelSetback
     : depths.toeKickSideSetback;
@@ -26,10 +28,10 @@ function bandPast(run, side, band, settings) {
 }
 
 /** Where a band ends at a free end of a run. */
-function freeEdge(run, side, band, settings) {
+function freeEdge(room, wall, run, side, band, settings) {
   return side === 'left'
-    ? run.x - bandPast(run, side, band, settings)
-    : run.x + run.width + bandPast(run, side, band, settings);
+    ? run.x - bandPast(room, wall, run, side, band, settings)
+    : run.x + run.width + bandPast(room, wall, run, side, band, settings);
 }
 
 /** Whether a run carries a band of this kind on: the same top family, or a toe kick of its own. */
@@ -71,19 +73,19 @@ function bandEdge(room, wall, run, side, band, settings) {
     const deepest = carriers.reduce((best, other) => (
       frontDepth(other, settings) > frontDepth(best, settings) ? other : best));
     const theirs = frontDepth(deepest, settings);
-    if (depth > theirs + EPSILON) return freeEdge(run, side, band, settings);
-    if (depth < theirs - EPSILON) return freeEdge(deepest, opposite, band, settings);
+    if (depth > theirs + EPSILON) return freeEdge(room, wall, run, side, band, settings);
+    if (depth < theirs - EPSILON) return freeEdge(room, wall, deepest, opposite, band, settings);
     return edge;
   }
   const anchor = run.anchors?.[side];
   if (anchor === true) {
     if (band === 'toeKick' || !wallEndPanelAt(room, wall, side, settings)) return edge;
-    const past = bandPast(run, side, band, settings);
+    const past = bandPast(room, wall, run, side, band, settings);
     return side === 'left' ? -past : wall.length + past;
   }
   if (anchor?.to === 'wall') return edge;
   if (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId) return edge;
-  return freeEdge(run, side, band, settings);
+  return freeEdge(room, wall, run, side, band, settings);
 }
 
 /**
@@ -116,6 +118,7 @@ export function runBands(room, wall, run, settings, scene) {
     return { x, z, width: right - x, height };
   };
   const profile = resolveProfile(settings, room, wall);
+  const moldings = moldingProfiles(profile, settings);
   const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
   const top = runTop(wall, run, profile);
   const boxTop = run.z + run.height;
@@ -125,6 +128,19 @@ export function runBands(room, wall, run, settings, scene) {
   const crown = top.kind === 'crown'
     ? band('crown', boxTop + profile.crownStackHeight - profile.crownHeight, profile.crownHeight)
     : null;
+  for (const [rect, picked, reference] of [
+    [topMold, moldings.topMold, boxTop],
+    [crown, moldings.crown, boxTop + profile.crownStackHeight],
+  ]) {
+    if (!rect) continue;
+    rect.lines = [];
+    for (const id of picked?.profile.drawnPoints.elevation ?? []) {
+      const z = reference + picked.geometry.points[id][1];
+      if (Math.abs(z - rect.z) <= EPSILON || Math.abs(z - rect.z - rect.height) <= EPSILON
+        || rect.lines.some((line) => Math.abs(line.z1 - z) <= EPSILON)) continue;
+      rect.lines.push({ x1: rect.x, z1: z, x2: rect.x + rect.width, z2: z });
+    }
+  }
   const span = bottomPartSpan(
     run,
     drawnPieces,
