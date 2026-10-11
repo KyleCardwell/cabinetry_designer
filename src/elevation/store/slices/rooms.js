@@ -48,9 +48,14 @@ export const roomReducers = {
         [action.payload.key]: action.payload.value,
       };
       for (const [key, value] of Object.entries(changes)) {
-        state.rooms[roomIndex].profile[key] = value === null || value === undefined
-          ? state.settings.defaultProfile[key]
-          : value;
+        if (key === 'topMoldProfileId' || key === 'crownProfileId') {
+          if (value === undefined) delete state.rooms[roomIndex].profile[key];
+          else state.rooms[roomIndex].profile[key] = value;
+        } else {
+          state.rooms[roomIndex].profile[key] = value === null || value === undefined
+            ? state.settings.defaultProfile[key]
+            : value;
+        }
       }
       syncRoomAt(state, roomIndex);
     },

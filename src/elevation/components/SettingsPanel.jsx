@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { PLOT_SCALES } from '../model/drawingScale.js';
-import { crownOverlap } from '../model/profile.js';
+import { crownOverlap, resolveProfile } from '../model/profile.js';
 import { formatInches } from '../model/units.js';
 import { updateSettings } from '../store/elevationSlice.js';
+import { moldingProfiles } from '../model/moldingProfiles.js';
 import InchInput from './InchInput.jsx';
 
 const NUMBER_SETTINGS = [
@@ -28,6 +29,13 @@ const NUMBER_SETTINGS = [
   ['planGrid', 'Plan grid'],
 ];
 
+const MOLDING_NOTES = {
+  'top-mold-above-crown': 'The top mold is taller than the crown total.',
+  'top-mold-too-short': "The top mold is shorter than its profile's stretch line; drawn at its own size.",
+  'molding-profile-missing': 'The picked profile is missing; plain molding used.',
+  'molding-profile-open': 'The picked profile has no closed shape; plain molding used.',
+};
+
 const PROFILE_SETTINGS = [
   ['wallHeight', 'Wall height'],
   ['toeKickHeight', 'Toe kick height'],
@@ -38,6 +46,7 @@ const PROFILE_SETTINGS = [
   ['topMoldHeight', 'Top mold'],
   ['crownHeight', 'Crown'],
   ['crownStackHeight', 'Crown total'],
+  ['topMoldOverhang', 'Top mold overhang'],
 ];
 
 const OPENING_NUMBER_SETTINGS = [
@@ -63,7 +72,9 @@ export default function SettingsPanel() {
   const dispatch = useDispatch();
   const settings = useSelector((state) => state.elevation.settings);
   const [open, setOpen] = useState(false);
-  const overlap = crownOverlap(settings.defaultProfile);
+  const resolvedProfile = resolveProfile(settings);
+  const moldings = moldingProfiles(resolvedProfile, settings);
+  const overlap = crownOverlap(resolvedProfile);
 
   const update = (changes) => dispatch(updateSettings(changes));
 
@@ -116,21 +127,63 @@ export default function SettingsPanel() {
           <div>
             <p className="mb-2 text-xs font-medium text-gray-300">Default height profile</p>
             <div className="grid grid-cols-2 gap-2">
-              {PROFILE_SETTINGS.map(([key, label]) => (
-                <label key={key} className="text-xs text-gray-400">
-                  {label}
-                  <InchInput
-                    value={settings.defaultProfile[key]}
-                    onCommit={(value) => update({ defaultProfile: { [key]: value } })}
-                    aria-label={`Default ${label}`}
-                    className="mt-1"
-                  />
-                </label>
-              ))}
+              {PROFILE_SETTINGS.map(([key, label]) => {
+                const fromProfile = (key === 'crownHeight' && Boolean(moldings.crown))
+                  || (key === 'topMoldHeight' && Boolean(moldings.topMold && !moldings.topMold.profile.stretch));
+                return (
+                  <label key={key} className="text-xs text-gray-400">
+                    {label}
+                    <InchInput
+                      value={fromProfile ? resolvedProfile[key] : settings.defaultProfile[key] ?? resolvedProfile[key]}
+                      readOnly={fromProfile}
+                      onCommit={(value) => fromProfile ? undefined : update({ defaultProfile: { [key]: value } })}
+                      aria-label={`Default ${label}`}
+                      className="mt-1"
+                    />
+                    {fromProfile && <span className="mt-1 block text-xs text-gray-500">from profile</span>}
+                  </label>
+                );
+              })}
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              {[
+                ['topMoldProfileId', 'Top mold profile', 'top_mold'],
+                ['crownProfileId', 'Crown profile', 'crown'],
+              ].map(([key, label, kind]) => {
+                const pickedId = settings.defaultProfile[key];
+                const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === kind && !entry.archived);
+                const unavailable = pickedId && !choices.some((entry) => entry.id === pickedId);
+                return (
+                  <label key={key} className="block text-xs text-gray-400">
+                    {label}
+                    <select
+                      aria-label={`Default ${label}`}
+                      value={pickedId === null ? 'plain' : pickedId ?? 'plain'}
+                      onChange={(event) => {
+                        const value = event.target.value === 'plain' ? null : event.target.value || undefined;
+                        update({ defaultProfile: { [key]: value } });
+                      }}
+                      className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                    >
+
+                      <option value="plain">Plain</option>
+                      {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+                      {unavailable && <option value={pickedId} disabled>{settings.sectionProfiles?.find((entry) => entry.id === pickedId)?.name ?? 'Missing profile'} (unavailable)</option>}
+                    </select>
+                  </label>
+                );
+              })}
             </div>
             <p className={`mt-2 text-xs ${overlap < 0 ? 'text-amber-500/80' : 'text-gray-500'}`}>
               {overlap < 0 ? 'Gap' : 'Overlap'} {formatInches(Math.abs(overlap))}
             </p>
+            {moldings.warnings.map(({ code, slot }, index) => (
+              <p key={`${code}-${slot ?? index}`} className="mt-1 text-xs text-amber-400">
+                {code === 'crown-gap'
+                  ? `The top mold doesn't reach the crown (gap of ${formatInches(Math.abs(overlap))}).`
+                  : MOLDING_NOTES[code]}
+              </p>
+            ))}
           </div>
 
           <div>

@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid';
+import { current, isDraft } from '@reduxjs/toolkit';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
 import {
@@ -173,7 +174,9 @@ export function resolvedSoffitCandidate(room, wall, soffit) {
 }
 
 export function syncRoomAt(state, roomIndex) {
-  state.rooms[roomIndex] = syncRoom(state.rooms[roomIndex], state.settings);
+  // Profile stretching clones geometry; pass plain settings rather than Immer proxies.
+  const settings = isDraft(state.settings) ? current(state.settings) : state.settings;
+  state.rooms[roomIndex] = syncRoom(state.rooms[roomIndex], settings);
 }
 
 export function setCompensatedWalls(state, roomIndex, walls) {

@@ -51,7 +51,7 @@ export default function KindPanel({ profile, onApply }) {
       {kind.axes === 'door' && (
         <p className="text-xs text-gray-500">An open line is a cut: the door&apos;s new edge, from the face in. A closed shape is a piece applied to the door. A molding that needs a notch in the door can have both.</p>
       )}
-      {kind.axes === 'door' && (
+      {(kind.axes === 'door' || profile.kind === 'top_mold') && (
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm text-gray-200">
             <input
@@ -59,7 +59,7 @@ export default function KindPanel({ profile, onApply }) {
               checked={Boolean(profile.stretch)}
               onChange={(event) => applyStretch(event.target.checked ? defaultStretchY(profile) : null)}
             />
-            Grows with thickness
+            {profile.kind === 'top_mold' ? 'Grows with height' : 'Grows with thickness'}
           </label>
           {profile.stretch && (
             <label className="block text-xs text-gray-400">
@@ -80,7 +80,11 @@ export default function KindPanel({ profile, onApply }) {
                 : "The stretch line has to sit between the shape's top and bottom — move it before saving."}
             </p>
           )}
-          <p className="text-xs text-gray-500">Points below the line move with the door's back (inside profile: with the panel face) when thickness changes; the front shape stays.</p>
+          <p className="text-xs text-gray-500">
+            {profile.kind === 'top_mold'
+              ? "Points above the line move up to the room's Top mold height."
+              : "Points below the line move with the door's back (inside profile: with the panel face) when thickness changes; the front shape stays."}
+          </p>
         </div>
       )}
       {kind.axes === 'run' && (

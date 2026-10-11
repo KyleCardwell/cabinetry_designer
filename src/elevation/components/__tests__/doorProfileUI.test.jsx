@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useReducer, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -46,6 +47,8 @@ const round = {
     ] }],
   },
 };
+const { profiles: moldingFixtures } = JSON.parse(readFileSync(new URL('../../model/__tests__/fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
+const tm3 = moldingFixtures.find(({ id }) => id === 'tm3');
 const dispatch = vi.fn();
 let settings;
 
@@ -111,7 +114,7 @@ describe('Step 463 profile UI', () => {
     expect(text(render(5))).toContain('Slab');
   });
 
-  it('offers stretch only for the four door kinds and defaults to the nearest valid sixteenth with deeper ties', () => {
+  it('offers thickness stretch for the four door kinds and defaults to the nearest valid sixteenth with deeper ties', () => {
     for (const kind of ['door_outside', 'door_inside', 'door_panel', 'applied_molding']) {
       const onApply = vi.fn(() => true);
       const tree = kindPanel({ ...bead, kind }, onApply);
@@ -120,7 +123,7 @@ describe('Step 463 profile UI', () => {
       checkbox(tree).props.onChange({ target: { checked: true } });
       expect(onApply.mock.calls[0][0].stretch).toEqual({ y: -0.4375 });
     }
-    for (const kind of ['crown', 'top_mold', 'furniture_base', 'toe_kick', 'nosing', 'other']) {
+    for (const kind of ['crown', 'furniture_base', 'toe_kick', 'nosing', 'other']) {
       expect(checkbox(kindPanel({ ...bead, kind }, vi.fn()))).toBeUndefined();
     }
     const onApply = vi.fn(() => true);
@@ -284,5 +287,65 @@ describe('Step 463 profile UI', () => {
     find(tree, ({ type, props }) => type === 'button' && props['aria-label'] === 'Close loop L1').props.onClick();
     expect(setMessage).toHaveBeenCalledWith('A closed shape needs at least 3 points.');
     expect(applyDraft).not.toHaveBeenCalled();
+  });
+});
+
+describe('Step 473 top mold editor', () => {
+  it('offers Grows with height, the same stretch input, and removes stretch when unchecked', () => {
+    const { stretch, ...fixed } = tm3;
+    void stretch;
+    const onApply = vi.fn(() => true);
+    const tree = kindPanel(fixed, onApply);
+    expect(text(tree)).toContain('Grows with height');
+    expect(text(tree)).toContain("Points above the line move up to the room's Top mold height.");
+    expect(text(tree)).not.toContain('Grows with thickness');
+    checkbox(tree).props.onChange({ target: { checked: true } });
+    expect(onApply.mock.lastCall[0].stretch).toEqual({ y: 1.5 });
+    const growing = kindPanel(onApply.mock.lastCall[0], onApply);
+    expect(stretchInput(growing).props.value).toBe(1.5);
+    stretchInput(growing).props.onCommit(2);
+    expect(onApply.mock.lastCall[0].stretch).toEqual({ y: 2 });
+    checkbox(growing).props.onChange({ target: { checked: false } });
+    expect(onApply.mock.lastCall[0]).not.toHaveProperty('stretch');
+    for (const kind of ['crown', 'furniture_base', 'toe_kick', 'nosing', 'other']) {
+      expect(checkbox(kindPanel({ ...fixed, kind }, onApply))).toBeUndefined();
+    }
+  });
+
+  it('guards Save for top mold range and arc problems, and saves a valid stretch edit', () => {
+    const arc = { ...tm3, drawnPoints: { elevation: [] }, geometry: {
+      units: 'in', points: { a: [0.25, 0], b: [0, 0.25], c: [0, 3] },
+      loops: [{ id: 'L1', closed: false, segs: [
+        { type: 'arc', from: 'a', to: 'b', center: [0.25, 0.25], ccw: false }, line('b', 'c'),
+      ] }],
+    } };
+    for (const [draft, valid, problem] of [
+      [{ ...tm3, stretch: { y: 2 } }, true, null],
+      [{ ...tm3, stretch: { y: 0 } }, false, 'range'],
+      [{ ...tm3, stretch: { y: 3 } }, false, 'range'],
+      [{ ...arc, stretch: { y: 0.125 } }, false, 'arc'],
+    ]) {
+      settings.sectionProfiles = [tm3];
+      useReducer.mockReturnValueOnce([{ draft, past: [tm3], future: [] }, vi.fn()]);
+      const tree = ProfileEditor({ profileId: tm3.id, backLabel: 'Back', onClose: vi.fn() });
+      const save = find(tree, ({ type, props }) => type === 'button' && props.children === 'Save');
+      expect(save.props.disabled).toBe(!valid);
+      expect(text(tree).includes('Move the stretch line to save')).toBe(!valid);
+      const panel = text(kindPanel(draft, vi.fn()));
+      if (problem === 'arc') expect(panel).toContain('The stretch line crosses an arc');
+      if (problem === 'range') expect(panel).toContain("The stretch line has to sit between the shape's top and bottom");
+      dispatch.mockClear();
+      save.props.onClick();
+      expect(dispatch).toHaveBeenCalledTimes(valid ? 1 : 0);
+      if (valid) expect(dispatch.mock.lastCall[0].payload.profile).toEqual(draft);
+    }
+  });
+
+  it('draws a dashed top mold stretch line above the origin', () => {
+    useState.mockReturnValueOnce([{ width: 800, height: 400 }, vi.fn()]);
+    useState.mockReturnValueOnce([{ cx: 0, cy: 0, scale: 100 }, vi.fn()]);
+    const tree = ProfileCanvas.render({ profile: tm3, grid: 1 / 16, selection: null, tool: 'select' }, null);
+    expect(find(tree, ({ props }) => props['aria-label'] === 'Stretch line').props)
+      .toMatchObject({ x1: 0, x2: 800, y1: 50, y2: 50, stroke: '#fbbf24', strokeDasharray: '6 4' });
   });
 });
