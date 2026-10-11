@@ -101,10 +101,11 @@ export function doorSection(style, design, profiles) {
 export function doorSectionDimensions(style, design, profiles) {
   if (doorSection(style, design, profiles) === null) return null;
 
-  const { slots } = doorProfileOffsets(style, design, profiles);
-  const { outside, inside, applied } = slots;
-  const frameOut = Math.max(inside?.reachOut ?? 0, applied?.reachOut ?? 0);
-  const frameIn = Math.max(inside?.reachIn ?? 0, applied?.reachIn ?? 0);
+  const { slots, applied: moldings } = doorProfileOffsets(style, design, profiles);
+  const { outside, inside } = slots;
+  const applied = moldings.find(({ index, profileId }) => index === 0 && profileId !== null);
+  const frameOut = Math.max(inside?.reachOut ?? 0, -(applied?.minX ?? 0), 0);
+  const frameIn = Math.max(inside?.reachIn ?? 0, applied?.maxX ?? 0, 0);
   const left = [];
   const below = [];
   const above = [];

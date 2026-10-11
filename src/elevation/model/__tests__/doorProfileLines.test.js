@@ -37,6 +37,10 @@ const style = ({ applied = null, ...profiles }, patch = {}) => ({
   appliedMoldings: applied === null ? [] : [{ profileId: applied, offset: 0 }], ...patch,
 });
 const ALL = style({ outside: 'sp-round', inside: 'sp-step', panel: 'sp-raised', applied: 'sp-bead' });
+const appliedPick = (pick, offset = 0, index = 0) => ({
+  ...pick, index, offset, applyLine: pick.covers ? null : offset,
+  minX: pick.reachOut ? -pick.reachOut : 0, maxX: pick.reachIn,
+});
 const ROUND_SLOT = { profileId: 'sp-round', name: 'Round 1/4', lines: [0.25], reachIn: 0.25, reachOut: 0, covers: false };
 
 describe('SPEC-50 door profile offsets', () => {
@@ -46,8 +50,8 @@ describe('SPEC-50 door profile offsets', () => {
         outside: ROUND_SLOT,
         inside: { profileId: 'sp-step', name: 'Step', lines: [-0.25], reachIn: 0, reachOut: 0.25, covers: false },
         panel: { profileId: 'sp-raised', name: 'Raised 2', lines: [0.125, 1.5], reachIn: 2, reachOut: 0.375, covers: false },
-        applied: { profileId: 'sp-bead', name: 'Half bead', lines: [0.5], reachIn: 0.5, reachOut: 0, covers: false },
       },
+      applied: [appliedPick({ profileId: 'sp-bead', name: 'Half bead', lines: [0.5], reachIn: 0.5, reachOut: 0, covers: false })],
       warnings: [],
     });
     expect(doorProfileOffsets({ ...ALL, thickness: 0.75 }, FIVE, LIBRARY).warnings)
@@ -55,19 +59,13 @@ describe('SPEC-50 door profile offsets', () => {
     const broken = doorProfileOffsets(
       style({ outside: 'sp-round', inside: 'sp-crown', panel: 'gone', applied: 'sp-bead' }), FIVE, LIBRARY,
     );
-    expect([Object.keys(broken.slots), broken.warnings]).toEqual([['outside', 'applied'], [
+    expect([Object.keys(broken.slots), broken.warnings]).toEqual([['outside'], [
       { code: 'door-profile-missing', slot: 'inside' },
       { code: 'door-profile-missing', slot: 'panel' },
     ]]);
-    expect(doorProfileOffsets(ALL, SLAB, LIBRARY)).toEqual({ slots: { outside: ROUND_SLOT }, warnings: [] });
-    const listStyle = { ...ALL, appliedMoldings: [
-      { profileId: 'sp-bead', offset: -0.5 }, { profileId: 'gone', offset: 1 },
-    ] };
-    expect(doorProfileOffsets(listStyle, FIVE, LIBRARY)).toEqual(doorProfileOffsets(ALL, FIVE, LIBRARY));
-    expect(doorProfileOffsets({ ...listStyle, appliedMoldings: [{ profileId: null, offset: -0.5 }, ...listStyle.appliedMoldings] }, FIVE, LIBRARY).slots)
-      .not.toHaveProperty('applied');
+    expect(doorProfileOffsets(ALL, SLAB, LIBRARY)).toEqual({ slots: { outside: ROUND_SLOT }, applied: [], warnings: [] });
     expect([doorProfileOffsets(DEFAULT_DOOR_STYLE, FIVE, LIBRARY), doorProfileOffsets(ALL, null, LIBRARY)])
-      .toEqual([{ slots: {}, warnings: [] }, { slots: {}, warnings: [] }]);
+      .toEqual([{ slots: {}, applied: [], warnings: [] }, { slots: {}, applied: [], warnings: [] }]);
   });
 
   it('keeps overhang points inside the outline and covers only with a closed loop crossing the reference', () => {
@@ -76,11 +74,11 @@ describe('SPEC-50 door profile offsets', () => {
         profileId: BEAD5.id, name: BEAD5.name,
         lines: [-0.0625], reachIn: 0, reachOut: 0.3125, covers: false,
       } },
-      warnings: [],
+      applied: [], warnings: [],
     });
-    expect(doorProfileOffsets(style({ applied: AM.id }), FIVE, [AM]).slots.applied)
-      .toEqual({ profileId: AM.id, name: AM.name, lines: [-0.25, 0.75], reachIn: 0.75, reachOut: 0.25, covers: true });
-    const covers = (pick) => doorProfileOffsets(style({ applied: pick.id }), FIVE, [pick]).slots.applied.covers;
+    expect(doorProfileOffsets(style({ applied: AM.id }), FIVE, [AM]).applied[0])
+      .toEqual(appliedPick({ profileId: AM.id, name: AM.name, lines: [-0.25, 0.75], reachIn: 0.75, reachOut: 0.25, covers: true }));
+    const covers = (pick) => doorProfileOffsets(style({ applied: pick.id }), FIVE, [pick]).applied[0].covers;
     expect(covers({ ...AM, geometry: { ...AM.geometry, loops: [{ ...AM.geometry.loops[0], closed: false }] } })).toBe(false);
     const separate = { ...AM, geometry: {
       ...AM.geometry,
@@ -150,8 +148,8 @@ describe('SPEC-50 door profile offsets', () => {
   it('puts slab-applied molding lines on the inset, and gives a slab or a short front only its edge lines', () => {
     const C = style({ outside: 'sp-round', inside: 'sp-step', applied: 'sp-am' }, { designId: 'slab-applied' });
     const offsets = doorProfileOffsets(C, SLAB_AM, LIBRARY);
-    expect([Object.keys(offsets.slots), offsets.slots.applied.lines, offsets.warnings])
-      .toEqual([['outside', 'applied'], [-0.25, 0.75], []]);
+    expect([Object.keys(offsets.slots), offsets.applied[0].lines, offsets.warnings])
+      .toEqual([['outside'], [-0.25, 0.75], []]);
     const rect = box(0, 0, 15, 30);
     expect(partProfileLines(offsets, partDetail(C, SLAB_AM, rect), rect)).toEqual({
       lines: [box(0.25, 0.25, 14.5, 29.5), box(2.75, 2.75, 9.5, 24.5), box(3.75, 3.75, 7.5, 22.5)],
@@ -239,6 +237,99 @@ describe('SPEC-50.1 core and covered opening lines', () => {
     });
     expect(build({ applied: AM.id }, box(0, 0, 7.625, 30)).fit.warnings).toEqual([]);
     expect(build({ outside: BEAD5.id, applied: AM.id }, box(0, 0, 7.625, 30)).fit.warnings)
-      .toEqual([{ code: 'door-profile-panel-too-small' }]);
+      .toEqual([{ code: 'applied-molding-no-room', index: 0 }]);
+  });
+});
+
+
+describe('Step 480 applied moldings at their offsets', () => {
+  const moldingLibrary = sample.profiles.filter(({ id }) => ['am1', 'out38'].includes(id));
+  const am = (offset) => ({ profileId: 'am1', offset });
+  const build = (design, rect, appliedMoldings, sizes, outside = null) => {
+    const S = style({ outside }, { appliedMoldings });
+    const offsets = doorProfileOffsets(S, design, moldingLibrary);
+    const detail = partDetail(S, design, rect, sizes, offsets.slots.outside?.reachOut ?? 0);
+    return { offsets, detail, fit: partProfileLines(offsets, detail, rect) };
+  };
+
+  it.each([
+    [1, FIVE, box(0, 0, 18, 30), [am(0)], null, false,
+      [box(2.75, 2.75, 12.5, 24.5), box(3.75, 3.75, 10.5, 22.5)], []],
+    [2, SLAB_AM, box(0, 0, 15, 15), [am(0), am(1.5)], null, false,
+      [box(2.75, 2.75, 9.5, 9.5), box(3.75, 3.75, 7.5, 7.5),
+        box(4.25, 4.25, 6.5, 6.5), box(5.25, 5.25, 4.5, 4.5)], []],
+    [3, SLAB_AM, box(0, 0, 15, 15), [{ profileId: null, offset: 1 }], null, false,
+      [box(4, 4, 7, 7)], []],
+    [4, SLAB_AM, box(0, 0, 15, 15), [], null, true, [], []],
+    [5, SLAB_AM, box(0, 0, 15, 15), [am(0), am(5)], null, false,
+      [box(2.75, 2.75, 9.5, 9.5), box(3.75, 3.75, 7.5, 7.5)],
+      [{ code: 'applied-molding-no-room', index: 1 }]],
+    [6, FIVE, box(0, 0, 18, 30), [am(-0.5)], 'out38', true,
+      [box(0.375, 0.375, 17.25, 29.25), box(2.25, 2.25, 13.5, 25.5), box(3.25, 3.25, 11.5, 23.5)], []],
+  ])('anchor %i', (number, design, rect, appliedMoldings, outside, openingsShown, lines, warnings) => {
+    const result = build(design, rect, appliedMoldings, undefined, outside);
+    expect(result.offsets.warnings).toEqual([]);
+    expect(result.fit).toEqual({ lines, warnings, openingsShown });
+    if (number === 4) expect(result.detail.openings).toEqual([box(3, 3, 9, 9)]);
+    if (number === 6) expect(result.offsets.applied[0]).toMatchObject({ reachOut: 0.75, applyLine: null });
+  });
+
+  it('keeps entry indices, skips missing or wrong-kind picks, and shifts profile lines and reaches', () => {
+    const S = style({}, { appliedMoldings: [
+      am(1.5), { profileId: 'gone', offset: 2 },
+      { profileId: 'out38', offset: -1 }, { profileId: null, offset: -0.5 },
+    ] });
+    expect(doorProfileOffsets(S, FIVE, moldingLibrary)).toEqual({
+      slots: {},
+      applied: [
+        { index: 0, profileId: 'am1', name: 'Applied 1', offset: 1.5,
+          lines: [1.25, 2.25], applyLine: null, minX: -0.25, maxX: 0.75,
+          reachIn: 2.25, reachOut: 0, covers: true },
+        { index: 3, profileId: null, name: null, offset: -0.5,
+          lines: [], applyLine: -0.5, minX: 0, maxX: 0, reachIn: 0, reachOut: 0.5, covers: false },
+      ],
+      warnings: [
+        { code: 'door-profile-missing', slot: 'applied', index: 1 },
+        { code: 'door-profile-missing', slot: 'applied', index: 2 },
+      ],
+    });
+    expect(doorProfileOffsets(S, SLAB, moldingLibrary).applied).toEqual([]);
+  });
+
+  it('draws uncovered apply lines once, leaves an offset five-piece opening visible, and follows final sizes', () => {
+    const rect = box(10, 20, 18, 30);
+    const result = build(FIVE, rect, [am(1)]);
+    expect(result.fit.openingsShown).toBe(true);
+    expect(result.fit.lines).toEqual([box(13.75, 23.75, 10.5, 22.5), box(14.75, 24.75, 8.5, 20.5)]);
+    expect(build(FIVE, rect, [{ profileId: null, offset: 0 }]).fit)
+      .toEqual({ lines: [], warnings: [], openingsShown: true });
+    const plain = build(SLAB_AM, box(0, 0, 15, 7.875), [
+      { profileId: null, offset: 1 }, { profileId: null, offset: 1 },
+    ], { stiles: { left: 2, right: 4 } });
+    expect(plain.fit).toEqual({ lines: [box(3, 3.875, 7, 0.125)], warnings: [], openingsShown: false });
+    const open = { ...AM, geometry: { ...AM.geometry, loops: [{ ...AM.geometry.loops[0], closed: false }] } };
+    const S = style({}, { appliedMoldings: [{ profileId: AM.id, offset: 1 }] });
+    expect(partProfileLines(doorProfileOffsets(S, SLAB_AM, [open]), partDetail(S, SLAB_AM, rect), rect).lines)
+      .toEqual([box(14, 24, 10, 22), box(13.75, 23.75, 10.5, 22.5), box(14.75, 24.75, 8.5, 20.5)]);
+  });
+
+  it('uses later moldings in side and mid fit checks and omits a molding from the whole part if one opening has no room', () => {
+    const rect = box(0, 0, 18, 30);
+    const result = build(FIVE, rect, [am(0), am(-1)], {
+      stiles: { left: 1 }, midRails: [{ at: 15, width: 2 }],
+    });
+    expect(result.fit.warnings).toEqual([
+      { code: 'door-profile-too-wide', side: 'left' }, { code: 'door-profile-too-wide', side: 'mid' },
+    ]);
+    const split = build(FIVE, rect, [am(0), am(1)], { midStiles: [{ at: 6, width: 2 }] });
+    expect(split.fit.warnings).toEqual([{ code: 'applied-molding-no-room', index: 1 }]);
+    expect(split.fit.lines).toEqual([
+      box(2.75, 2.75, 2.5, 24.5), box(3.75, 3.75, 0.5, 22.5),
+      box(6.75, 2.75, 8.5, 24.5), box(7.75, 3.75, 6.5, 22.5),
+    ]);
+    expect(build(FIVE, box(0, 0, 6, 30), [am(0)]).fit)
+      .toEqual({ lines: [], warnings: [{ code: 'applied-molding-no-room', index: 0 }], openingsShown: true });
+    expect(build(SLAB_AM, box(0, 0, 15, 15), [{ profileId: null, offset: 4.5 }]).fit)
+      .toEqual({ lines: [], warnings: [{ code: 'applied-molding-no-room', index: 0 }], openingsShown: false });
   });
 });

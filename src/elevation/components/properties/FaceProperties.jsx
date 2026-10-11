@@ -381,6 +381,11 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
           {SLOT_LABELS[slot]} can't shrink to this thickness — shown unstretched
         </p>
       ))}
+      {[...new Set(warnings.filter(({ code }) => code === 'applied-molding-no-room').map(({ index }) => index))].map((index) => (
+        <p key={`applied-no-room:${index}`} className="text-xs font-medium text-amber-300">
+          Applied molding {index + 1} doesn't fit on this face.
+        </p>
+      ))}
       {[...new Set(warnings.map(({ code }) => code))].map((code) => (
         WARNING_MESSAGES[code] && (
           <p key={code} className="text-xs font-medium text-amber-300">

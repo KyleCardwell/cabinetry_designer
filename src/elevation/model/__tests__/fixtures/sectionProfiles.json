@@ -122,6 +122,68 @@
       "drawnPoints": { "elevation": ["a", "c", "d"] },
       "version": 1,
       "archived": false
+    },
+    {
+      "id": "in58",
+      "name": "Ogee 5/8",
+      "kind": "door_inside",
+      "geometry": {
+        "units": "in",
+        "points": {"p": [-0.625, 0], "q": [0, -0.25], "s": [0, -0.5]},
+        "loops": [{
+          "id": "L1",
+          "closed": false,
+          "segs": [
+            {"type": "line", "from": "p", "to": "q"},
+            {"type": "line", "from": "q", "to": "s"}
+          ]
+        }]
+      },
+      "drawnPoints": {"elevation": ["p"]},
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "out38",
+      "name": "Round 3/8",
+      "kind": "door_outside",
+      "geometry": {
+        "units": "in",
+        "points": {"a": [0.375, 0], "b": [0, -0.375], "c": [0, -0.8125]},
+        "loops": [{
+          "id": "L1",
+          "closed": false,
+          "segs": [
+            {"type": "line", "from": "a", "to": "b"},
+            {"type": "line", "from": "b", "to": "c"}
+          ]
+        }]
+      },
+      "drawnPoints": {"elevation": ["a"]},
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "am1",
+      "name": "Applied 1",
+      "kind": "applied_molding",
+      "geometry": {
+        "units": "in",
+        "points": {"u": [-0.25, 0], "v": [0.75, 0], "w": [0.75, 0.375], "k": [-0.25, 0.375]},
+        "loops": [{
+          "id": "L1",
+          "closed": true,
+          "segs": [
+            {"type": "line", "from": "u", "to": "v"},
+            {"type": "line", "from": "v", "to": "w"},
+            {"type": "line", "from": "w", "to": "k"},
+            {"type": "line", "from": "k", "to": "u"}
+          ]
+        }]
+      },
+      "drawnPoints": {"elevation": ["v", "u"]},
+      "version": 1,
+      "archived": false
     }
   ]
 }
