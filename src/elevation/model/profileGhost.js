@@ -12,6 +12,20 @@ function round6(v) {
   return Object.is(rounded, -0) ? 0 : rounded;
 }
 
+/** Plain furniture base board, with its top-front corner at the profile origin. */
+export function profileBaseGhost({ proud, height }) {
+  if (!Number.isFinite(proud) || proud <= 0 || !Number.isFinite(height) || height <= 0) return null;
+  return {
+    units: 'in',
+    points: { b1: [-proud, 0], b2: [0, 0], b3: [0, -height], b4: [-proud, -height] },
+    loops: [{
+      id: 'board', closed: true,
+      segs: [['b1', 'b2'], ['b2', 'b3'], ['b3', 'b4'], ['b4', 'b1']]
+        .map(([from, to]) => ({ type: 'line', from, to })),
+    }],
+  };
+}
+
 /** Door ghost places the stile, groove and flush-back panel relative to the kind's origin. */
 export function profileDoorGhost(kind, style) {
   const P = style?.panel?.thickness;

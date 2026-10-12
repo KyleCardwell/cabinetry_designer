@@ -34,6 +34,8 @@ const NUMBER_SETTINGS = [
 const MOLDING_NOTES = {
   'furniture-base-too-short': "The furniture base is shorter than its profile's stretch line; drawn at its own size.",
   'furniture-base-height-mismatch': 'The furniture base profile height differs from the base height; drawn at its own size.',
+  'furniture-base-cut-bad': 'The furniture base cut goes outside the board; plain board used.',
+  'furniture-base-extra-cuts': 'The furniture base profile has extra open lines; only the first cut is used.',
   'top-mold-above-crown': 'The top mold is taller than the crown total.',
   'top-mold-too-short': "The top mold is shorter than its profile's stretch line; drawn at its own size.",
   'molding-profile-missing': 'The picked profile is missing; plain molding used.',

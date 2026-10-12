@@ -2,7 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { teamDoorStyle } from '../../elevation/model/doorStyles.js';
 import { deleteProfilePoint, mirrorProfile, PROFILE_GRID_STEPS, rotateProfile, setLoopClosed } from '../../elevation/model/profileEditing.js';
-import { profileDoorGhost } from '../../elevation/model/profileGhost.js';
+import { resolveProfile } from '../../elevation/model/profile.js';
+import { profileBaseGhost, profileDoorGhost } from '../../elevation/model/profileGhost.js';
 import { PROFILE_KINDS, isSectionProfile, profileKindLabel, stretchLineProblem } from '../../elevation/model/sectionProfiles.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateSectionProfile } from '../../elevation/store/elevationSlice.js';
@@ -22,6 +23,7 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
   const dispatch = useDispatch();
   const saved = useSelector((state) => state.elevation.settings.sectionProfiles.find((profile) => profile.id === profileId));
   const teamStyle = useSelector((state) => teamDoorStyle(state.elevation.settings));
+  const settings = useSelector((state) => state.elevation.settings);
   const { draft, apply: applyDraft, undo, redo, canUndo, canRedo, dirty } = useProfileDraft(saved);
   const [message, setMessage] = useState(null);
   const [discarding, setDiscarding] = useState(false);
@@ -119,7 +121,11 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
     );
   }
 
-  const ghost = showGhost ? profileDoorGhost(draft.kind, teamStyle) : null;
+  const baseKind = draft.kind === 'furniture_base';
+  const teamProfile = resolveProfile(settings);
+  const ghost = !showGhost ? null : baseKind
+    ? profileBaseGhost({ proud: teamProfile.furnitureBaseProud, height: teamProfile.toeKickHeight })
+    : profileDoorGhost(draft.kind, teamStyle);
   const doorKind = PROFILE_KINDS[draft.kind]?.axes === 'door';
   const profileToSave = { ...saved, kind: draft.kind, geometry: draft.geometry, drawnPoints: draft.drawnPoints };
   if (draft.stretch) profileToSave.stretch = draft.stretch;
@@ -175,8 +181,8 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Rotate 90° clockwise about 0, 0" aria-label="Rotate clockwise" onClick={() => apply(rotateProfile(draft, -1), TURN_FAILURE)}>⟳</button>
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Flip left–right across x = 0" aria-label="Flip left-right" onClick={() => apply(mirrorProfile(draft, 'x'), TURN_FAILURE)}>⇆</button>
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Flip up–down across y = 0" aria-label="Flip up-down" onClick={() => apply(mirrorProfile(draft, 'y'), TURN_FAILURE)}>⇅</button>
-            {doorKind && (
-              <button type="button" className={`${BUTTON_CLASS} ${showGhost ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={showGhost} title="Show the team default door (stile, groove and panel) behind the shape" onClick={() => setShowGhost((current) => !current)}>Door</button>
+            {(baseKind || doorKind) && (
+              <button type="button" className={`${BUTTON_CLASS} ${showGhost ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={showGhost} title={baseKind ? 'Show the team default board (proud × base height) behind the shape' : 'Show the team default door (stile, groove and panel) behind the shape'} onClick={() => setShowGhost((current) => !current)}>{baseKind ? 'Base' : 'Door'}</button>
             )}
             <label className="flex items-center gap-2 rounded bg-gray-800 px-2 text-sm text-gray-200">
               Grid

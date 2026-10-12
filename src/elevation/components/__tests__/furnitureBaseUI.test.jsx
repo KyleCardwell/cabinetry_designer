@@ -54,6 +54,24 @@ beforeEach(() => {
 });
 
 describe('Step 491 furniture base height panels', () => {
+  it('shows bad-cut and extra-cut notes at default, room, wall and run scopes', () => {
+    const cut = profiles.find(({ id }) => id === 'fb4cut');
+    Object.assign(state.settings.defaultProfile, { baseKind: 'furniture_base', furnitureBaseProfileId: cut.id });
+    const bad = structuredClone(cut);
+    bad.geometry.points.b[0] = 0.125;
+    const extra = structuredClone(cut);
+    extra.geometry.loops.push({ ...extra.geometry.loops[0], id: 'extra' });
+    for (const [profile, note] of [
+      [bad, 'The furniture base cut goes outside the board; plain board used.'],
+      [extra, 'The furniture base profile has extra open lines; only the first cut is used.'],
+    ]) {
+      state.settings.sectionProfiles = [profile];
+      for (const render of [...panels.map(([, render]) => render), runPanel]) {
+        expect(warnings(render())).toEqual([note]);
+      }
+    }
+  });
+
   for (const [scope, render, target] of panels) {
     it(`${scope}: switches base kind and saves the active furniture profile and proud`, () => {
       expect(field(render(), scope, 'Furniture base profile')).toBeUndefined();

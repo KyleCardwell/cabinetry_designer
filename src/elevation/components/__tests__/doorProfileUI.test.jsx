@@ -4,6 +4,7 @@ import { useEffect, useReducer, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Rect } from 'react-konva';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
+import { profileDoorGhost } from '../../model/profileGhost.js';
 import DoorDetails from '../DoorDetails.jsx';
 import DoorProfilePickers from '../DoorProfilePickers.jsx';
 import DoorSectionView from '../DoorSectionView.jsx';
@@ -430,7 +431,7 @@ describe('Step 491 furniture base editor', () => {
     void stretch;
     const onApply = vi.fn(() => true);
     const tree = kindPanel(fixed, onApply);
-    expect(text(tree)).toContain("0, 0 is the base's front face at its top. Draw down to the floor; the stretch line lets it grow or shrink with the base height.");
+    expect(text(tree)).toContain("0, 0 is the base's front face at its top. Draw the whole base as a closed shape, or just its edge as an open line: the line cuts the board. Where the line stops short of the floor the face goes straight down; where it starts below the top it goes straight up.");
     expect(text(tree)).toContain('Grows with height');
     expect(text(tree)).toContain('Points below the line move down to the base height; the top shape stays.');
     expect(text(tree)).not.toContain('Grows with thickness');
@@ -442,6 +443,69 @@ describe('Step 491 furniture base editor', () => {
     expect(onApply.mock.lastCall[0].stretch).toEqual({ y: -1.5 });
     checkbox(growing).props.onChange({ target: { checked: false } });
     expect(onApply.mock.lastCall[0]).not.toHaveProperty('stretch');
+  });
+});
+
+describe('Step 491.2 furniture base editor ghost', () => {
+  const ghostButton = (tree, label) => find(tree, ({ type, props }) => type === 'button' && props.children === label);
+
+  it('draws the plain default board behind a cut, toggles it off, and follows team height defaults', () => {
+    const cut = moldingFixtures.find(({ id }) => id === 'fb4cut');
+    settings.sectionProfiles = [cut];
+    const states = [];
+    const render = () => {
+      let index = 0;
+      useState.mockImplementation((initial) => {
+        const slot = index++;
+        if (!(slot in states)) states[slot] = typeof initial === 'function' ? initial() : initial;
+        return [states[slot], (next) => { states[slot] = typeof next === 'function' ? next(states[slot]) : next; }];
+      });
+      return ProfileEditor({ profileId: cut.id, backLabel: 'Back', onClose: vi.fn() });
+    };
+    const canvas = (tree) => find(tree, ({ type }) => type === ProfileCanvas);
+    const paths = (tree) => {
+      useState.mockImplementation((initial) => [initial, vi.fn()]);
+      useState.mockReturnValueOnce([{ width: 800, height: 600 }, vi.fn()]);
+      useState.mockReturnValueOnce([{ cx: 0, cy: 0, scale: 100 }, vi.fn()]);
+      return nodes(ProfileCanvas.render(canvas(tree).props, null))
+        .filter(({ type, props }) => type === 'path' && props.fillOpacity === 0.12);
+    };
+    let tree = render();
+    expect(ghostButton(tree, 'Base').props).toMatchObject({
+      'aria-pressed': true,
+      title: 'Show the team default board (proud × base height) behind the shape',
+    });
+    expect(ghostButton(tree, 'Door')).toBeUndefined();
+    expect(canvas(tree).props.ghost.loops).toHaveLength(1);
+    expect(paths(tree).map(({ props }) => props.d)).toEqual(['M 318.75 300 L 400 300 L 400 700 L 318.75 700 L 318.75 300 Z']);
+    ghostButton(tree, 'Base').props.onClick();
+    tree = render();
+    expect(ghostButton(tree, 'Base').props['aria-pressed']).toBe(false);
+    expect(canvas(tree).props.ghost).toBeNull();
+    expect(paths(tree)).toEqual([]);
+    ghostButton(tree, 'Base').props.onClick();
+    settings.defaultProfile = { furnitureBaseProud: 1.25, toeKickHeight: 6 };
+    expect(Object.values(canvas(render()).props.ghost.points)).toEqual([[-1.25, 0], [0, 0], [0, -6], [-1.25, -6]]);
+    settings.defaultProfile.furnitureBaseProud = 0;
+    expect(canvas(render()).props.ghost).toBeNull();
+  });
+
+  it('hides the ghost toggle for crown and other run kinds, and retains door ghosts', () => {
+    for (const kind of ['crown', 'top_mold', 'toe_kick', 'nosing', 'other']) {
+      settings.sectionProfiles = [{ ...bead, kind }];
+      const tree = ProfileEditor({ profileId: bead.id, backLabel: 'Back', onClose: vi.fn() });
+      expect(ghostButton(tree, 'Base')).toBeUndefined();
+      expect(ghostButton(tree, 'Door')).toBeUndefined();
+      expect(find(tree, ({ type }) => type === ProfileCanvas).props.ghost).toBeNull();
+    }
+    for (const kind of ['door_outside', 'door_inside', 'door_panel', 'applied_molding']) {
+      settings.sectionProfiles = [{ ...bead, kind }];
+      const tree = ProfileEditor({ profileId: bead.id, backLabel: 'Back', onClose: vi.fn() });
+      expect(ghostButton(tree, 'Door').props).toMatchObject({
+        'aria-pressed': true, title: 'Show the team default door (stile, groove and panel) behind the shape',
+      });
+      expect(find(tree, ({ type }) => type === ProfileCanvas).props.ghost).toEqual(profileDoorGhost(kind, DEFAULT_DOOR_STYLE));
+    }
   });
 });
 

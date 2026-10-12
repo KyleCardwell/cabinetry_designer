@@ -188,7 +188,11 @@ export default function RunHeightsSection({
                   ? "The furniture base is shorter than its profile's stretch line; drawn at its own size."
                   : code === 'furniture-base-height-mismatch'
                     ? 'The furniture base profile height differs from the base height; drawn at its own size.'
-                    : 'The picked profile is missing; plain molding used.'}
+                    : code === 'furniture-base-cut-bad'
+                      ? 'The furniture base cut goes outside the board; plain board used.'
+                      : code === 'furniture-base-extra-cuts'
+                        ? 'The furniture base profile has extra open lines; only the first cut is used.'
+                        : 'The picked profile is missing; plain molding used.'}
               </p>
             ))}
           </div>

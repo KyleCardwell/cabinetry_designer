@@ -43,7 +43,7 @@ export default function KindPanel({ profile, onApply }) {
         {kind.axes === 'free' && 'Other: not used by doors or runs yet; draw it any way you like.'}
       </p>
       {profile.kind === 'furniture_base' && (
-        <p className="text-xs text-gray-200">0, 0 is the base&apos;s front face at its top. Draw down to the floor; the stretch line lets it grow or shrink with the base height.</p>
+        <p className="text-xs text-gray-200">0, 0 is the base&apos;s front face at its top. Draw the whole base as a closed shape, or just its edge as an open line: the line cuts the board. Where the line stops short of the floor the face goes straight down; where it starts below the top it goes straight up.</p>
       )}
       {kind.origin && profile.kind !== 'furniture_base' && (
         <>

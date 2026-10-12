@@ -1,9 +1,33 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
-import { profileDoorGhost } from '../profileGhost.js';
+import { profileBaseGhost, profileDoorGhost } from '../profileGhost.js';
 import { PROFILE_KINDS, isProfileGeometry } from '../sectionProfiles.js';
 
 const line = (from, to) => ({ type: 'line', from, to });
+
+describe('Step 491.2 furniture base board ghost', () => {
+  it('anchors the 13/16" × 4" board at its top-front corner', () => {
+    const ghost = profileBaseGhost({ proud: 0.8125, height: 4 });
+    expect(ghost).toEqual({
+      units: 'in',
+      points: { b1: [-0.8125, 0], b2: [0, 0], b3: [0, -4], b4: [-0.8125, -4] },
+      loops: [{ id: 'board', closed: true, segs: [
+        line('b1', 'b2'), line('b2', 'b3'), line('b3', 'b4'), line('b4', 'b1'),
+      ] }],
+    });
+    expect(isProfileGeometry(ghost)).toBe(true);
+    expect(Object.values(profileBaseGhost({ proud: 1.25, height: 6 }).points))
+      .toEqual([[-1.25, 0], [0, 0], [0, -6], [-1.25, -6]]);
+  });
+
+  it('rejects zero proud and any missing, nonfinite or nonpositive board dimension', () => {
+    expect(profileBaseGhost({ proud: 0, height: 4 })).toBeNull();
+    for (const value of [undefined, null, NaN, Infinity, -Infinity, '4', -1, 0]) {
+      expect(profileBaseGhost({ proud: value, height: 4 })).toBeNull();
+      expect(profileBaseGhost({ proud: 0.8125, height: value })).toBeNull();
+    }
+  });
+});
 
 describe('SPEC-48.2 the door ghost and what 0, 0 means', () => {
   it('draws the stile and 3" of panel with the panel opening at 0, 0 for inside, panel and applied kinds', () => {
