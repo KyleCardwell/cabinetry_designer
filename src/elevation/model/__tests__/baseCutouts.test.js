@@ -54,6 +54,106 @@ function setup({ cutouts = [cutout], profile = {}, wallProfile = {}, runProps = 
 
 const codes = (result) => result.base.warnings.map(({ code }) => code);
 
+describe('SPEC-50.7.1 step 497.2 base cutouts follow the base height', () => {
+  const cutg = { ...cut1, id: 'cutg', topGap: 2 };
+  const using = { ...settings, sectionProfiles: [fb4, cutg] };
+  const cutouts = [{ ...cutout, profileId: 'cutg' }];
+  const TALL_TOP = [[66.8125, 0, 0], [66.8125, 5.6875, 0],
+    [66.5, 6, 0], [29.5, 6, 0], [29.1875, 5.6875, 0]];
+
+  it('adds straight legs below the cove and retains both arc bulges (anchor 1)', () => {
+    const before = structuredClone(cutg);
+    const result = setup({ using, cutouts });
+    const outline = [[29.1875, 0, 0], [33, 0, 0], [33, 0.5, 0.414214],
+      [34.5, 2, 0], [61.5, 2, 0.414214], [63, 0.5, 0], [63, 0, 0], ...TOP];
+    expect(result.band.outline).toEqual(outline);
+    expect(result.base.cutouts[0]).toMatchObject({ x0: 33, x1: 63, h: 2 });
+    expect(result.parts.find(({ kind }) => kind === 'furniture_base').outline).toEqual(outline);
+    expect(codes(result)).toEqual([]);
+    expect(cutg).toEqual(before);
+  });
+
+  it('follows a six-inch base with a two-inch top gap (anchor 2)', () => {
+    const result = setup({ using, cutouts, runProps: { overrides: { toeKickHeight: 6 } } });
+    expect(result.band.outline).toEqual([[29.1875, 0, 0], [33, 0, 0], [33, 2.5, 0.414214],
+      [34.5, 4, 0], [61.5, 4, 0.414214], [63, 2.5, 0], [63, 0, 0], ...TALL_TOP]);
+    expect(result.base.cutouts[0]).toMatchObject({ x0: 33, x1: 63, h: 4 });
+    expect(result.band.lines).toEqual([line(29.1875, 66.8125, 5.6875)]);
+    expect(codes(result)).toEqual([]);
+  });
+
+  it('keeps the drawn cove when no extra height is needed (anchor 3)', () => {
+    const result = setup({ using: { ...settings, sectionProfiles: [fb4, { ...cut1, topGap: 2.5 }] },
+      cutouts: [{ ...cutout, profileId: 'cut1' }] });
+    expect(result.band.outline).toEqual(COVE);
+    expect(result.base.cutouts[0].h).toBe(1.5);
+    expect(codes(result)).toEqual([]);
+  });
+
+  it('keeps the drawn size and warns when the base is too short (anchor 4)', () => {
+    const result = setup({ using: { ...settings, sectionProfiles: [fb4, { ...cut1, topGap: 3 }] },
+      cutouts: [{ ...cutout, profileId: 'cut1' }] });
+    expect(result.band.outline).toEqual(COVE);
+    expect(result.base.cutouts[0].h).toBe(1.5);
+    expect(result.base.warnings).toEqual([{ code: 'base-cutout-too-short', cutoutId: 'k1' }]);
+  });
+
+  it('keeps a profile without a top gap fixed on a taller base (anchor 5)', () => {
+    const result = setup({ cutouts: [{ ...cutout, profileId: 'cut1' }],
+      runProps: { overrides: { toeKickHeight: 6 } } });
+    expect(result.band.outline).toEqual([...COVE.slice(0, 5), ...TALL_TOP]);
+    expect(result.base.cutouts[0].h).toBe(1.5);
+    expect(codes(result)).toEqual([]);
+  });
+
+  it('keeps a square notch fixed on a taller base (anchor 6)', () => {
+    const result = setup({ runProps: { overrides: { toeKickHeight: 6 } } });
+    expect(result.band.outline).toEqual([...SQUARE.slice(0, 5), ...TALL_TOP]);
+    expect(result.base.cutouts[0].chain).toEqual([[33, 0, 0], [33, 1.5, 0], [63, 1.5, 0], [63, 0, 0]]);
+    expect(result.base.cutouts[0].h).toBe(1.5);
+    expect(codes(result)).toEqual([]);
+  });
+
+  it('leaves the drawn shape unchanged within the height tolerance', () => {
+    for (const topGap of [2.5 - 0.5e-6, 2.5 + 0.5e-6]) {
+      const result = setup({ using: { ...settings, sectionProfiles: [fb4, { ...cut1, topGap }] },
+        cutouts: [{ ...cutout, profileId: 'cut1' }] });
+      expect(result.band.outline).toEqual(COVE);
+      expect(codes(result)).toEqual([]);
+    }
+  });
+
+  it('checks the unchanged width and the final height after applying the top gap', () => {
+    const narrow = setup({ using, cutouts: [{ ...cutouts[0], width: 2 }] });
+    expect(narrow.band.outline).toEqual(OUTLINE);
+    expect(codes(narrow)).toEqual(['base-cutout-too-narrow']);
+    for (const toeKickHeight of [1.5, 1]) {
+      const short = setup({ using, cutouts, runProps: { overrides: { toeKickHeight } } });
+      expect(short.base.cutouts).toEqual([]);
+      expect(short.base.warnings.filter(({ cutoutId }) => cutoutId === 'k1').map(({ code }) => code))
+        .toEqual(['base-cutout-too-short', 'base-cutout-too-tall']);
+    }
+  });
+
+  it('splits drawn lines at the raised legs, cove and top edge', () => {
+    const changed = structuredClone(fb4);
+    changed.geometry.points.g = [0, -3.75];
+    changed.geometry.points.h = [0, -2.5];
+    changed.geometry.points.i = [0, -2];
+    changed.drawnPoints.elevation = ['g', 'h', 'i', 'c'];
+    const result = setup({ using: { ...using, sectionProfiles: [changed, cutg] }, cutouts });
+    const [legLeft, legRight, arcLeft, arcRight, topLeft, topRight, whole] = result.band.lines;
+    expect([legLeft, legRight]).toEqual([line(29.1875, 33, 0.25), line(63, 66.8125, 0.25)]);
+    expect(arcLeft.x1).toBe(29.1875);
+    expect(arcLeft.x2).toBeCloseTo(33 + Math.sqrt(2), 2);
+    expect(arcRight.x1).toBeCloseTo(63 - Math.sqrt(2), 2);
+    expect(arcRight.x2).toBe(66.8125);
+    expect([topLeft, topRight, whole]).toEqual([
+      line(29.1875, 34.5, 2), line(61.5, 66.8125, 2), line(29.1875, 66.8125, 3.6875),
+    ]);
+  });
+});
+
 describe('SPEC-50.6.1 step 494.1 base cutout clearances', () => {
   it('draws the three square clearance anchors (1–3) at their floor edges', () => {
     for (const [dimensions, x0, x1] of [

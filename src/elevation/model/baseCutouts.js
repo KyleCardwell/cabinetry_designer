@@ -79,8 +79,15 @@ export function resolveBaseCutouts(run, settings, profile, base, pieces, band) {
     const profileId = cutout.profileId === undefined ? profile.baseCutoutProfileId : cutout.profileId;
     let half = null;
     if (profileId !== null && profileId !== undefined) {
-      half = cutoutProfile(settings.sectionProfiles?.find((entry) => entry.id === profileId));
+      const picked = settings.sectionProfiles?.find((entry) => entry.id === profileId);
+      half = cutoutProfile(picked);
       if (!half) warn('base-cutout-profile-bad', id);
+      if (half && Number.isFinite(picked.topGap) && picked.topGap > 0) {
+        const d = base.height - picked.topGap - half.at(-1)[1];
+        if (d > EPSILON) {
+          half = [[0, 0, 0], ...transformOutline(half, ([x, y]) => [x, y + d])];
+        } else if (d < -EPSILON) warn('base-cutout-too-short', id);
+      }
     }
     half ??= [[0, 0, 0], [0, settings.baseCutoutHeight ?? DEFAULT_SETTINGS.baseCutoutHeight, 0]];
     const [farX, h] = half.at(-1);

@@ -11,6 +11,7 @@ const WARNING_MESSAGES = {
   'base-cutout-no-base': 'This run has no furniture base.',
   'base-cutout-profile-bad': 'The profile must be an open line from the floor to its highest point; square notch used.',
   'base-cutout-too-narrow': 'The cutout is too narrow for its profile or feet.',
+  'base-cutout-too-short': 'Base is shorter than this cutout was drawn for — drawn at its drawn size.',
   'base-cutout-too-tall': 'The cutout must be shorter than the base.',
   'base-cutout-overlap': 'The cutout overlaps another cutout or extends past the base ends.',
 };
