@@ -6,6 +6,7 @@ import { nosingProjection } from './nosing.js';
 import { resolveProfile } from './profile.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
+import { topOverhangs } from './topOverhang.js';
 
 const EPSILON = 1e-6;
 
@@ -26,11 +27,11 @@ export function bandParts(room, wall, side, settings) {
     const back = runBackOffset(run);
     const boxFront = back + run.depth;
     const faces = frontDepth(run, settings);
-    const addPart = (rect, id, kind, front) => {
+    const addPart = (rect, id, kind, front, partBack = back) => {
       if (!rect || rect.width <= EPSILON || rect.height <= EPSILON) return;
       const { x, z, width, height } = rect;
       parts.push({
-        id, kind, runId: run.id, x, z, width, height, back, front, coversBoxEdges: false,
+        id, kind, runId: run.id, x, z, width, height, back: partBack, front, coversBoxEdges: false,
         ...(rect.lines?.length ? { lines: rect.lines } : {}),
         ...(rect.outline ? { outline: rect.outline } : {}),
       });
@@ -46,8 +47,9 @@ export function bandParts(room, wall, side, settings) {
     }
     const nosing = bands.top.kind === 'wood'
       ? moldingProfiles(resolveProfile(settings, room, view), settings, run).nosing : null;
+    const overhangs = topOverhangs(room, view, run, settings);
     addPart(bands.countertop, `${run.id}:countertop`, 'countertop',
-      faces + depths.countertopOverhang + nosingProjection(nosing));
+      faces + overhangs.front + nosingProjection(nosing), back - overhangs.back);
     addPart(bands.topMold, `${run.id}:top_mold`, 'top_mold', faces + moldingPast(moldings, 'topMold', settings));
     addPart(bands.crown, `${run.id}:crown`, 'crown', faces + moldingPast(moldings, 'crown', settings));
   }

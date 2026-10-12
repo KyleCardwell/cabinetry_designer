@@ -28,10 +28,10 @@ const nz1 = {
 };
 const settings = { ...document.settings, sectionProfiles: [nz1] };
 const base = document.rooms[0].walls[0].runs.find(({ cabinetTypeId }) => cabinetTypeId === CABINET_TYPE_IDS.BASE);
-const OUTLINE = [[28.75, 34.5, 0], [67.25, 34.5, 0], [67.25, 35.75, 0],
-  [67, 36, 0], [29, 36, 0], [28.75, 35.75, 0]];
-const THIN_OUTLINE = [[28.75, 33.75, 0], [67.25, 33.75, 0], [67.25, 35, 0],
-  [67, 35.25, 0], [29, 35.25, 0], [28.75, 35, 0]];
+const OUTLINE = [[29.5, 34.5, 0], [66.5, 34.5, 0], [66.5, 35.75, 0],
+  [66.25, 36, 0], [29.75, 36, 0], [29.5, 35.75, 0]];
+const THIN_OUTLINE = [[29.5, 33.75, 0], [66.5, 33.75, 0], [66.5, 35, 0],
+  [66.25, 35.25, 0], [29.75, 35.25, 0], [29.5, 35, 0]];
 const line = (x1, x2, z) => ({ x1, z1: z, x2, z2: z });
 
 function setup({ profile = {}, wallProfile = {}, runs = [{}], endPanels } = {}, using = settings) {
@@ -56,31 +56,31 @@ describe('SPEC-50.8 step 499 wood top nosing', () => {
   it('places the band, stops its line on both returns and sends its outline/front (anchor 1)', () => {
     const { room, wall, bands: [bands], parts } = setup();
     expect(wall.runs[0]).toMatchObject({ depth: 24, z: 4, height: 30.5 });
-    expect(bands.countertop).toEqual({ x: 28.75, z: 34.5, width: 38.5, height: 1.5,
-      outline: OUTLINE, lines: [line(28.75, 67.25, 35.75)] });
+    expect(bands.countertop).toEqual({ x: 29.5, z: 34.5, width: 37, height: 1.5,
+      outline: OUTLINE, lines: [line(29.5, 66.5, 35.75)] });
     const part = parts.find(({ kind }) => kind === 'countertop');
-    expect(part).toMatchObject({ outline: OUTLINE, front: 26.125, lines: bands.countertop.lines });
+    expect(part).toMatchObject({ outline: OUTLINE, back: 0, front: 25.375, lines: bands.countertop.lines });
     expect(toDrawingPayload(room, settings).elevations[0].parts).toContainEqual(part);
   });
 
   it('hangs below a thinner core while retaining the nosing height (anchor 2)', () => {
     const { bands: [bands] } = setup({ runs: [{ overrides: { countertopThickness: 0.75 } }] });
     expect(bands.top).toEqual({ kind: 'wood', height: 0.75 });
-    expect(bands.countertop).toEqual({ x: 28.75, z: 33.75, width: 38.5, height: 1.5,
-      outline: THIN_OUTLINE, lines: [line(28.75, 67.25, 35)] });
+    expect(bands.countertop).toEqual({ x: 29.5, z: 33.75, width: 37, height: 1.5,
+      outline: THIN_OUTLINE, lines: [line(29.5, 66.5, 35)] });
   });
 
   it('joins the side core to the nosing and removes straight-through points (anchor 3)', () => {
-    expect(setup().sides[0]).toEqual({ piece: 'countertop', z: 34.5, height: 1.5, back: 0, front: 26.125,
-      outline: [[0, 34.5, 0], [26.125, 34.5, 0], [26.125, 35.75, 0], [25.875, 36, 0], [0, 36, 0]],
+    expect(setup().sides[0]).toEqual({ piece: 'countertop', z: 34.5, height: 1.5, back: 0, front: 25.375,
+      outline: [[0, 34.5, 0], [25.375, 34.5, 0], [25.375, 35.75, 0], [25.125, 36, 0], [0, 36, 0]],
     });
   });
 
   it('keeps the step below the core in the thin top side section (anchor 4)', () => {
     expect(setup({ runs: [{ overrides: { countertopThickness: 0.75 } }] }).sides[0]).toEqual({
-      piece: 'countertop', z: 33.75, height: 1.5, back: 0, front: 26.125,
-      outline: [[0, 34.5, 0], [25.625, 34.5, 0], [25.625, 33.75, 0], [26.125, 33.75, 0],
-        [26.125, 35, 0], [25.875, 35.25, 0], [0, 35.25, 0]],
+      piece: 'countertop', z: 33.75, height: 1.5, back: 0, front: 25.375,
+      outline: [[0, 34.5, 0], [24.875, 34.5, 0], [24.875, 33.75, 0], [25.375, 33.75, 0],
+        [25.375, 35, 0], [25.125, 35.25, 0], [0, 35.25, 0]],
     });
   });
 
@@ -97,15 +97,15 @@ describe('SPEC-50.8 step 499 wood top nosing', () => {
   it('copes the shallower wood top onto the deeper return contour (anchor 6)', () => {
     const { bands: [deep, shallow] } = setup({ runs: [{}, { x: 66, depth: 21 }] });
     expect(deep.countertop.outline).toEqual(OUTLINE);
-    expect(shallow.countertop.outline).toEqual([[67.25, 34.5, 0], [103.25, 34.5, 0],
-      [103.25, 35.75, 0], [103, 36, 0], [67, 36, 0], [67.25, 35.75, 0]]);
-    expect(shallow.countertop.lines).toEqual([line(67.25, 103.25, 35.75)]);
+    expect(shallow.countertop.outline).toEqual([[66.5, 34.5, 0], [102.5, 34.5, 0],
+      [102.5, 35.75, 0], [102.25, 36, 0], [66.25, 36, 0], [66.5, 35.75, 0]]);
+    expect(shallow.countertop.lines).toEqual([line(66.5, 102.5, 35.75)]);
     // The cope belongs to the deeper run, including a different projection or a plain stone return.
     const different = setup({ runs: [{}, { x: 66, depth: 21, overrides: { nosingProfileId: 'wide' } }] },
       { ...settings, sectionProfiles: [nz1, { ...nz1, id: 'wide', geometry: { ...nz1.geometry,
         points: Object.fromEntries(Object.entries(nz1.geometry.points).map(([id, [x, y]]) => [id, [2 * x, y]])),
       } }] });
-    expect(different.bands[1].countertop.outline.slice(-2)).toEqual([[67, 36, 0], [67.25, 35.75, 0]]);
+    expect(different.bands[1].countertop.outline.slice(-2)).toEqual([[66.25, 36, 0], [66.5, 35.75, 0]]);
     const stone = setup({ runs: [{ top: 'stone' }, { x: 66, depth: 21 }] });
     expect(stone.bands[1].countertop.outline[0]).toEqual([66.75, 34.5, 0]);
     expect(stone.bands[1].countertop.outline.at(-1)).toEqual([66.75, 36, 0]);
@@ -155,7 +155,7 @@ describe('SPEC-50.8 step 499 wood top nosing', () => {
     expect(bands[0].countertop.lines).toEqual([line(30, 66, 35.75)]);
     const panels = setup({ runs: [{ x: 0, anchors: { left: true } }],
       endPanels: { start: { depth: 24, thickness: 0.75, z: 0, height: 34.5 }, end: null } });
-    expect(panels.bands[0].countertop.outline[0]).toEqual([-1.25, 34.5, 0]);
+    expect(panels.bands[0].countertop.outline[0]).toEqual([-0.5, 34.5, 0]);
   });
 
   it('retains arcs in the front contour and mirrored ends and uses the largest closed loop', () => {
@@ -174,17 +174,18 @@ describe('SPEC-50.8 step 499 wood top nosing', () => {
     expect(section.outline).toEqual([[-25.625, -1.5, 0], [0.5, -1.5, 0],
       [0.5, -0.25, 0.414214], [0.25, 0, 0], [-25.625, 0, 0]]);
     const { bands: [bands], sides } = setup({}, { ...settings, sectionProfiles: [curved] });
-    expect(bands.countertop.outline).toEqual([[28.75, 34.5, 0], [67.25, 34.5, 0], [67.25, 35.75, 0.414214],
-      [67, 36, 0], [29, 36, 0.414214], [28.75, 35.75, 0]]);
-    expect(sides[0].outline).toEqual([[0, 34.5, 0], [26.125, 34.5, 0],
-      [26.125, 35.75, 0.414214], [25.875, 36, 0], [0, 36, 0]]);
-    expect(sides[0].front).toBe(26.125);
+    expect(bands.countertop.outline).toEqual([[29.5, 34.5, 0], [66.5, 34.5, 0], [66.5, 35.75, 0.414214],
+      [66.25, 36, 0], [29.75, 36, 0.414214], [29.5, 35.75, 0]]);
+    expect(sides[0].outline).toEqual([[0, 34.5, 0], [25.375, 34.5, 0],
+      [25.375, 35.75, 0.414214], [25.125, 36, 0], [0, 36, 0]]);
+    expect(sides[0].front).toBe(25.375);
     expect(curved).toEqual(before);
   });
 
-  it('places a thicker core at the run back and uses the configured core overhang', () => {
+  it('places a thicker core at the run back and keeps typed overhangs with a nosing', () => {
     const using = { ...settings, bandDepths: { ...settings.bandDepths, countertopOverhang: 1 } };
-    const { bands: [bands], parts, sides } = setup({ runs: [{ outset: 8, overrides: { countertopThickness: 2 } }] }, using);
+    const { bands: [bands], parts, sides } = setup({ runs: [{ outset: 8,
+      topOverhang: { front: 1, left: 1, right: 1 }, overrides: { countertopThickness: 2 } }] }, using);
     expect(bands.countertop).toMatchObject({ x: 28.5, z: 34.5, width: 39, height: 2,
       lines: [line(28.5, 67.5, 36.25)] });
     expect(parts.find(({ kind }) => kind === 'countertop')).toMatchObject({ back: 8, front: 34.375 });
@@ -210,12 +211,94 @@ describe('SPEC-50.8 step 499 wood top nosing', () => {
       .find(({ kind, key, parts }) => kind === 'return' && key.startsWith('left:')
         && parts.some(({ kind }) => kind === 'countertop'));
     const part = returned.parts.find(({ kind }) => kind === 'countertop');
-    expect(part.outline).toEqual([[0, 34.5, 0], [26.125, 34.5, 0],
-      [26.125, 35.75, 0], [25.875, 36, 0], [0, 36, 0]]);
-    expect(bands.countertop.outline[0]).toEqual([26.125, 34.5, 0]);
-    expect(bands.countertop.outline.slice(-2)).toEqual([[25.875, 36, 0], [26.125, 35.75, 0]]);
-    expect(bands.countertop.lines[0].x1).toBe(26.125);
+    expect(part.outline).toEqual([[0, 34.5, 0], [25.375, 34.5, 0],
+      [25.375, 35.75, 0], [25.125, 36, 0], [0, 36, 0]]);
+    expect(bands.countertop.outline[0]).toEqual([25.375, 34.5, 0]);
+    expect(bands.countertop.outline.slice(-2)).toEqual([[25.125, 36, 0], [25.375, 35.75, 0]]);
+    expect(bands.countertop.lines[0].x1).toBe(25.375);
     expect(toDrawingPayload(room, settings).elevations.find(({ wallId }) => wallId === view.id).parts)
       .toContainEqual(part);
+  });
+});
+
+describe('SPEC-50.9 step 502 resolved top overhangs', () => {
+  it('uses independent typed stone overhangs, including a real zero (anchor 3)', () => {
+    const { bands: [bands], parts, sides: [side] } = setup({
+      runs: [{ top: 'stone', topOverhang: { front: 1, left: 12, right: 0 } }],
+    });
+    expect(bands.countertop).toEqual({ x: 18, width: 48, z: 34.5, height: 1.5 });
+    expect(parts.find(({ kind }) => kind === 'countertop')).toMatchObject({ back: 0, front: 25.875 });
+    expect(side).toEqual({ piece: 'countertop', z: 34.5, height: 1.5, back: 0, front: 25.875 });
+  });
+
+  it('places the wood core and nosing using all four typed overhangs (anchor 4)', () => {
+    const { bands: [bands], parts, sides: [side] } = setup({
+      runs: [{ topOverhang: { front: 0.25, back: 1, left: 0.5, right: 0.5 } }],
+    });
+    const outline = [[29, 34.5, 0], [67, 34.5, 0], [67, 35.75, 0],
+      [66.75, 36, 0], [29.25, 36, 0], [29, 35.75, 0]];
+    expect(bands.countertop).toEqual({ x: 29, width: 38, z: 34.5, height: 1.5,
+      outline, lines: [line(29, 67, 35.75)] });
+    expect(parts.find(({ kind }) => kind === 'countertop')).toMatchObject({ back: -1, front: 25.625, outline });
+    expect(side).toEqual({ piece: 'countertop', z: 34.5, height: 1.5, back: -1, front: 25.625,
+      outline: [[-1, 34.5, 0], [25.625, 34.5, 0], [25.625, 35.75, 0], [25.375, 36, 0], [-1, 36, 0]],
+    });
+  });
+
+  it('copes onto the source run’s side overhang in both join directions', () => {
+    const { bands: [deep, shallow] } = setup({ runs: [
+      { topOverhang: { left: 2, right: 1 } },
+      { x: 66, depth: 21, topOverhang: { left: 8, right: 3 } },
+    ] });
+    expect(deep.countertop.outline).toEqual([[27.5, 34.5, 0], [67.5, 34.5, 0],
+      [67.5, 35.75, 0], [67.25, 36, 0], [27.75, 36, 0], [27.5, 35.75, 0]]);
+    expect(shallow.countertop.outline).toEqual([[67.5, 34.5, 0], [105.5, 34.5, 0],
+      [105.5, 35.75, 0], [105.25, 36, 0], [67.25, 36, 0], [67.5, 35.75, 0]]);
+    const reversed = setup({ runs: [
+      { depth: 21, topOverhang: { left: 3, right: 8 } },
+      { x: 66, topOverhang: { left: 2, right: 1 } },
+    ] });
+    expect(reversed.bands[0].countertop.outline).toEqual([[26.5, 34.5, 0], [63.5, 34.5, 0],
+      [63.5, 35.75, 0], [63.75, 36, 0], [26.75, 36, 0], [26.5, 35.75, 0]]);
+  });
+
+  it('keeps typed zeros when the nosing is cleared or the top changes to stone', () => {
+    for (const props of [{}, { overrides: { nosingProfileId: null } }, { top: 'stone' }]) {
+      const { bands: [bands], parts, sides: [side] } = setup({
+        runs: [{ topOverhang: { front: 0, left: 0, right: 0 }, ...props }],
+      });
+      const projection = props.top || props.overrides ? 0 : 0.5;
+      expect(bands.countertop).toMatchObject({ x: 30 - projection, width: 36 + 2 * projection });
+      expect(parts.find(({ kind }) => kind === 'countertop')).toMatchObject({ back: 0, front: 24.875 + projection });
+      expect(side).toMatchObject({ back: 0, front: 24.875 + projection });
+    }
+  });
+
+  it('moves only the top back relative to an outset, even at an anchored wall end', () => {
+    for (const top of ['wood', 'stone']) {
+      const { parts, sides: [side], wall, room } = setup({ runs: [{ top, outset: 8,
+        anchors: { left: { to: 'wall' } }, topOverhang: { back: 2 } }] });
+      expect(parts.find(({ kind }) => kind === 'countertop')).toMatchObject({ back: 6 });
+      expect(parts.find(({ kind }) => kind === 'toe_kick')).toMatchObject({ back: 8 });
+      expect(side.back).toBe(6);
+      if (top === 'wood') expect(side.outline[0]).toEqual([6, 34.5, 0]);
+      expect(runSide(room, wall, wall.runs[0], settings).find(({ piece }) => piece === 'box').back).toBe(8);
+    }
+  });
+
+  it('applies side values past wall panels while leaving square stops unchanged', () => {
+    const topOverhang = { left: 12, right: 8 };
+    const panels = setup({ runs: [{ x: 0, anchors: { left: true }, topOverhang }],
+      endPanels: { start: { depth: 24, thickness: 0.75, z: 0, height: 34.5 }, end: null } });
+    expect(panels.bands[0].countertop.outline[0]).toEqual([-12.5, 34.5, 0]);
+    for (const runs of [
+      [{ anchors: { left: { to: 'wall' } }, topOverhang }, { x: 66, topOverhang }],
+      [{ x: 0, width: 30, height: 86 }, { topOverhang }, { x: 66, height: 86 }],
+    ]) {
+      const { bands } = setup({ runs });
+      const band = bands[runs.length === 2 ? 0 : 1].countertop;
+      expect(band.outline).toEqual([[30, 34.5, 0], [66, 34.5, 0], [66, 36, 0], [30, 36, 0]]);
+      expect(band.lines).toEqual([line(30, 66, 35.75)]);
+    }
   });
 });

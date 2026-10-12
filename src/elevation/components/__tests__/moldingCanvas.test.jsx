@@ -88,13 +88,13 @@ describe('SPEC-50.8 step 500 nosing canvas', () => {
     expect(top).toBeDefined();
     expect(top.props).toMatchObject({ fill: '#c8a27a', strokeWidth: 1, opacity: 0.9, listening: false });
     expect(trace(top.props.sceneFunc)).toEqual([
-      'begin', ['move', 125, 314], ['line', 279, 314], ['line', 279, 309],
-      ['line', 278, 308], ['line', 126, 308], ['line', 125, 309], 'close',
+      'begin', ['move', 128, 314], ['line', 276, 314], ['line', 276, 309],
+      ['line', 275, 308], ['line', 129, 308], ['line', 128, 309], 'close',
     ]);
     const lines = tree.filter(({ type, props }) => type === Line && props.stroke === '#64748b');
     expect(lines).toHaveLength(1);
     expect(lines[0].props).toMatchObject({
-      points: [125, 309, 279, 309], strokeWidth: 0.5, opacity: 0.9, listening: false,
+      points: [128, 309, 276, 309], strokeWidth: 0.5, opacity: 0.9, listening: false,
     });
     expect(tree.some(({ type, props }) => type === Rect && props.stroke === '#64748b')).toBe(false);
   });

@@ -10,6 +10,7 @@ import { nosingProjection, woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
 import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js';
 import { isCountertop, runTop } from './tops.js';
+import { topOverhangs } from './topOverhang.js';
 import { wallEndPanelAt } from './wallSides.js';
 
 export { bandDepths, hasToeKick } from './bandDepths.js';
@@ -22,6 +23,7 @@ function countertopProfile(room, wall, run, settings) {
   return {
     picked: top.kind === 'wood' ? moldingProfiles(profile, settings, run).nosing : null,
     reference: run.z + run.height + top.height,
+    overhangs: topOverhangs(room, wall, run, settings),
   };
 }
 
@@ -32,8 +34,10 @@ function countertopProfile(room, wall, run, settings) {
 function bandPast(room, wall, run, side, band, settings) {
   if (band === 'furnitureBase') return furnitureBasePast(runBaseProfile(room, wall, run, settings));
   const depths = bandDepths(settings);
-  if (band === 'countertop') return depths.countertopOverhang
-    + nosingProjection(countertopProfile(room, wall, run, settings).picked);
+  if (band === 'countertop') {
+    const { picked, overhangs } = countertopProfile(room, wall, run, settings);
+    return overhangs[side] + nosingProjection(picked);
+  }
   if (band !== 'toeKick') {
     return moldingPast(moldingProfiles(resolveProfile(settings, room, wall), settings), band, settings);
   }
@@ -239,17 +243,19 @@ export function runBands(room, wall, run, settings, scene) {
     ? furnitureBaseBand(base, endsFor('furnitureBase', 0, base.height)) : null;
   const furnitureBase = furnitureBand?.width > 0 ? furnitureBand : null;
   let countertop = isCountertop(top.kind) ? band('countertop', boxTop, top.height) : null;
+  const overhangs = topOverhangs(room, wall, run, settings);
   const section = top.kind === 'wood' && woodTopSection(moldings.nosing, top.height,
-    runBackOffset(run) - frontDepth(run, settings) - bandDepths(settings).countertopOverhang);
+    (runBackOffset(run) - overhangs.back) - (frontDepth(run, settings) + overhangs.front));
   if (section) {
     const reference = boxTop + top.height;
     const z = reference + section.minY;
     const height = reference - z;
     const edges = endsFor('countertop', z, height).map((end, index) => {
-      const source = end.countertop ?? { picked: moldings.nosing, reference };
+      const source = end.countertop ?? { picked: moldings.nosing, reference, overhangs };
+      const overhang = source.overhangs[end.facing === -1 ? 'left' : 'right'];
       const loop = source.picked && sectionProfileOutline(source.picked.geometry);
       const outline = end.outline ?? (loop && end.type !== 'square' && end.side !== undefined
-        ? placeAtEnd(loop, end.side, bandDepths(settings).countertopOverhang, source.reference, end.facing) : null);
+        ? placeAtEnd(loop, end.side, overhang, source.reference, end.facing) : null);
       return (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
         ?? [[end.x, z, 0], [end.x, reference, 0]];
     });

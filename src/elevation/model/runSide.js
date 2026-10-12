@@ -6,6 +6,7 @@ import { outlineBounds, sectionProfileOutline, transformOutline } from './sectio
 import { bandDepths } from './bandDepths.js';
 import { runBaseProfile as runBase } from './furnitureBase.js';
 import { isCountertop, runTop } from './tops.js';
+import { topOverhangs } from './topOverhang.js';
 
 const EPSILON = 1e-6;
 
@@ -55,15 +56,17 @@ export function runSide(room, wall, run, settings) {
   add('box', run.z, run.height, back, boxFront);
   add('faces', run.z, run.height, boxFront, faces);
   if (isCountertop(top.kind)) {
-    const core = faces + depths.countertopOverhang;
-    const section = top.kind === 'wood' && woodTopSection(moldings.nosing, top.height, back - core);
+    const overhangs = topOverhangs(room, wall, run, settings);
+    const core = faces + overhangs.front;
+    const topBack = back - overhangs.back;
+    const section = top.kind === 'wood' && woodTopSection(moldings.nosing, top.height, topBack - core);
     if (section) {
       const reference = boxTop + top.height;
       pieces.push({ piece: 'countertop', z: reference + section.minY, height: -section.minY,
-        back, front: core + nosingProjection(moldings.nosing),
+        back: topBack, front: core + nosingProjection(moldings.nosing),
         outline: transformOutline(section.outline, ([x, y]) => [core + x, reference + y]),
       });
-    } else add('countertop', boxTop, top.height, back, core);
+    } else add('countertop', boxTop, top.height, topBack, core);
   }
   if (top.kind === 'crown' || top.kind === 'topMold') {
     const height = top.kind === 'crown' && !moldings.topMold
