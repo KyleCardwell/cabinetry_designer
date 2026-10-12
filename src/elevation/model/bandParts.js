@@ -2,6 +2,7 @@ import { frontDepth, runBackOffset } from './corners.js';
 import { furnitureBasePast, runBase } from './furnitureBase.js';
 import { bandDepths, runBands } from './runBands.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
+import { nosingProjection } from './nosing.js';
 import { resolveProfile } from './profile.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
@@ -43,7 +44,10 @@ export function bandParts(room, wall, side, settings) {
     for (const part of bands.bottomParts) {
       addPart(part, part.id, part.kind, boxFront);
     }
-    addPart(bands.countertop, `${run.id}:countertop`, 'countertop', faces + depths.countertopOverhang);
+    const nosing = bands.top.kind === 'wood'
+      ? moldingProfiles(resolveProfile(settings, room, view), settings, run).nosing : null;
+    addPart(bands.countertop, `${run.id}:countertop`, 'countertop',
+      faces + depths.countertopOverhang + nosingProjection(nosing));
     addPart(bands.topMold, `${run.id}:top_mold`, 'top_mold', faces + moldingPast(moldings, 'topMold', settings));
     addPart(bands.crown, `${run.id}:crown`, 'crown', faces + moldingPast(moldings, 'crown', settings));
   }

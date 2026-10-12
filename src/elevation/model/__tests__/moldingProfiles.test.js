@@ -101,6 +101,7 @@ describe('SPEC-50.2 molding profile model', () => {
       overhang: 0.25,
       topMold: { profile: tm3, geometry: tm3.geometry, height: 3 },
       crown: { profile: cr45, geometry: cr45.geometry, height: 4.5 },
+      nosing: null,
       warnings: [],
     });
     const resolved = resolveProfile(settings, { profile: { ...picked, crownHeight: 9 } }, {});
@@ -138,7 +139,7 @@ describe('SPEC-50.2 molding profile model', () => {
     expect(codes(moldingProfiles({ ...picked, topMoldProfileId: 'cr45', crownProfileId: 'tm3' }, settings)))
       .toEqual(['molding-profile-missing', 'molding-profile-missing']);
     expect(moldingProfiles(DEFAULT_PROFILE, settings)).toEqual({
-      overhang: 0.25, topMold: null, crown: null, warnings: [],
+      overhang: 0.25, topMold: null, crown: null, nosing: null, warnings: [],
     });
   });
 

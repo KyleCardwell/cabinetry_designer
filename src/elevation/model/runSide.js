@@ -1,6 +1,7 @@
 import { frontDepth, runBackOffset } from './corners.js';
 import { resolveProfile } from './profile.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
+import { nosingProjection, woodTopSection } from './nosing.js';
 import { outlineBounds, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
 import { bandDepths } from './bandDepths.js';
 import { runBaseProfile as runBase } from './furnitureBase.js';
@@ -17,7 +18,7 @@ const EPSILON = 1e-6;
  */
 export function runSide(room, wall, run, settings) {
   const profile = resolveProfile(settings, room, wall);
-  const moldings = moldingProfiles(profile, settings);
+  const moldings = moldingProfiles(profile, settings, run);
   const depths = bandDepths(settings);
   const top = runTop(wall, run, profile);
   const back = runBackOffset(run);
@@ -53,7 +54,17 @@ export function runSide(room, wall, run, settings) {
   }
   add('box', run.z, run.height, back, boxFront);
   add('faces', run.z, run.height, boxFront, faces);
-  if (isCountertop(top.kind)) add('countertop', boxTop, top.height, back, faces + depths.countertopOverhang);
+  if (isCountertop(top.kind)) {
+    const core = faces + depths.countertopOverhang;
+    const section = top.kind === 'wood' && woodTopSection(moldings.nosing, top.height, back - core);
+    if (section) {
+      const reference = boxTop + top.height;
+      pieces.push({ piece: 'countertop', z: reference + section.minY, height: -section.minY,
+        back, front: core + nosingProjection(moldings.nosing),
+        outline: transformOutline(section.outline, ([x, y]) => [core + x, reference + y]),
+      });
+    } else add('countertop', boxTop, top.height, back, core);
+  }
   if (top.kind === 'crown' || top.kind === 'topMold') {
     const height = top.kind === 'crown' && !moldings.topMold
       ? Math.min(profile.topMoldHeight, crownZ - boxTop)

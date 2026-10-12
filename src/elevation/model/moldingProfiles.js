@@ -2,7 +2,7 @@ import { bandDepths } from './bandDepths.js';
 import { sectionProfileBounds, stretchProfileGeometry } from './sectionProfiles.js';
 
 /** SPEC-50.2 resolve molding picks, band heights and ordered warnings without fixing inputs. */
-export function moldingProfiles(profile, settings) {
+export function moldingProfiles(profile, settings, run) {
   const warnings = [];
   const pick = (id, kind) => {
     if (id === null || id === undefined) return null;
@@ -12,6 +12,8 @@ export function moldingProfiles(profile, settings) {
   };
   const topMoldProfile = pick(profile.topMoldProfileId, 'top_mold');
   const crownProfile = pick(profile.crownProfileId, 'crown');
+  const nosingProfile = pick(run?.overrides?.nosingProfileId === undefined
+    ? profile.nosingProfileId : run.overrides.nosingProfileId, 'nosing');
   const resolve = (picked, target) => {
     if (!picked) return null;
     const { minY, maxY } = sectionProfileBounds(picked);
@@ -28,11 +30,12 @@ export function moldingProfiles(profile, settings) {
   };
   const topMold = resolve(topMoldProfile, profile.topMoldHeight);
   const crown = resolve(crownProfile);
+  const nosing = resolve(nosingProfile);
   const topMoldHeight = topMold?.height ?? profile.topMoldHeight;
   const crownHeight = crown?.height ?? profile.crownHeight;
   if (topMoldHeight + crownHeight - profile.crownStackHeight < 0) warnings.push({ code: 'crown-gap' });
   if (topMoldHeight > profile.crownStackHeight) warnings.push({ code: 'top-mold-above-crown' });
-  return { overhang: profile.topMoldOverhang, topMold, crown, warnings };
+  return { overhang: profile.topMoldOverhang, topMold, crown, nosing, warnings };
 }
 
 /** Molding front projection and free-end return past the run's faces. */

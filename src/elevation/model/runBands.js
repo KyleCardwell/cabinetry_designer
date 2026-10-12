@@ -2,10 +2,11 @@ import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
 import { bandOutline, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
-import { frontDepth } from './corners.js';
+import { frontDepth, runBackOffset } from './corners.js';
 import { furnitureBaseBand, furnitureBasePast, runBase, runBaseProfile } from './furnitureBase.js';
 import { runScene } from './runScene.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
+import { nosingProjection, woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
 import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js';
 import { isCountertop, runTop } from './tops.js';
@@ -15,6 +16,15 @@ export { bandDepths, hasToeKick } from './bandDepths.js';
 
 const EPSILON = 1e-6;
 
+function countertopProfile(room, wall, run, settings) {
+  const profile = resolveProfile(settings, room, wall);
+  const top = runTop(wall, run, profile);
+  return {
+    picked: top.kind === 'wood' ? moldingProfiles(profile, settings, run).nosing : null,
+    reference: run.z + run.height + top.height,
+  };
+}
+
 /**
  * How far a band runs past a free end of a run (SPEC-42.1): a top by its overhang or projection; a
  * toe kick stops short (negative), 1" from an end panel's face, else 1/4" from the cabinet's side.
@@ -22,7 +32,8 @@ const EPSILON = 1e-6;
 function bandPast(room, wall, run, side, band, settings) {
   if (band === 'furnitureBase') return furnitureBasePast(runBaseProfile(room, wall, run, settings));
   const depths = bandDepths(settings);
-  if (band === 'countertop') return depths.countertopOverhang;
+  if (band === 'countertop') return depths.countertopOverhang
+    + nosingProjection(countertopProfile(room, wall, run, settings).picked);
   if (band !== 'toeKick') {
     return moldingPast(moldingProfiles(resolveProfile(settings, room, wall), settings), band, settings);
   }
@@ -73,6 +84,7 @@ function bandEdge(room, wall, run, side, band, settings) {
     const x = freeEdge(room, wall, source, end, band, settings);
     const s = end === 'left' ? -1 : 1;
     return { type: 'return', x, side: x - s * bandPast(room, wall, source, end, band, settings), facing: s,
+      ...(band === 'countertop' ? { countertop: countertopProfile(room, wall, source, settings) } : {}),
       ...(band === 'furnitureBase' ? { base: runBaseProfile(room, wall, source, settings) } : {}) };
   };
   const opposite = side === 'left' ? 'right' : 'left';
@@ -155,7 +167,7 @@ export function runBands(room, wall, run, settings, scene) {
     return { x: left.x, z, width: right.x - left.x, height };
   };
   const profile = resolveProfile(settings, room, wall);
-  const moldings = moldingProfiles(profile, settings);
+  const moldings = moldingProfiles(profile, settings, run);
   const base = runBase(room, wall, run, settings, scene);
   const top = runTop(wall, run, profile);
   const boxTop = run.z + run.height;
@@ -226,6 +238,32 @@ export function runBands(room, wall, run, settings, scene) {
   const furnitureBand = base.kind === 'furniture_base'
     ? furnitureBaseBand(base, endsFor('furnitureBase', 0, base.height)) : null;
   const furnitureBase = furnitureBand?.width > 0 ? furnitureBand : null;
-  const countertop = isCountertop(top.kind) ? band('countertop', boxTop, top.height) : null;
+  let countertop = isCountertop(top.kind) ? band('countertop', boxTop, top.height) : null;
+  const section = top.kind === 'wood' && woodTopSection(moldings.nosing, top.height,
+    runBackOffset(run) - frontDepth(run, settings) - bandDepths(settings).countertopOverhang);
+  if (section) {
+    const reference = boxTop + top.height;
+    const z = reference + section.minY;
+    const height = reference - z;
+    const edges = endsFor('countertop', z, height).map((end, index) => {
+      const source = end.countertop ?? { picked: moldings.nosing, reference };
+      const loop = source.picked && sectionProfileOutline(source.picked.geometry);
+      const outline = end.outline ?? (loop && end.type !== 'square' && end.side !== undefined
+        ? placeAtEnd(loop, end.side, bandDepths(settings).countertopOverhang, source.reference, end.facing) : null);
+      return (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
+        ?? [[end.x, z, 0], [end.x, reference, 0]];
+    });
+    const outline = bandOutline(...edges, z, height);
+    const { minX, maxX } = outlineBounds(outline);
+    const lines = [];
+    for (const id of moldings.nosing.profile.drawnPoints.elevation) {
+      const lineZ = reference + moldings.nosing.geometry.points[id][1];
+      if (lineZ <= z + EPSILON || lineZ >= reference - EPSILON
+        || lines.some((line) => Math.abs(line.z1 - lineZ) <= EPSILON)) continue;
+      lines.push({ x1: endEdgeX(edges[0], lineZ, -1), z1: lineZ,
+        x2: endEdgeX(edges[1], lineZ, 1), z2: lineZ });
+    }
+    countertop = { x: minX, z, width: maxX - minX, height, outline, lines };
+  }
   return { top, toeKick, furnitureBase, countertop, topMold, crown, bottomParts, chipLines };
 }
