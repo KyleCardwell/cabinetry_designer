@@ -3,6 +3,7 @@ import { blindEntries, blindPartWidths } from './blind.js';
 import { blindCellWidths, cellPieces, partPieces } from './cells.js';
 import { frameRegions } from './frames.js';
 import { runBaseProfile as runBase } from './furnitureBase.js';
+import { furnitureBaseGroups } from './furnitureBaseGroups.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
 import {
@@ -169,7 +170,8 @@ function wallPanelPart(wall, panel) {
 /**
  * Every part the shop makes for a room, in numbering order (SPEC-39 C8): wall by wall (left wall end
  * panels, then each face's runs in walk order, then right end panels), then one per molding kind in the
- * room. The single list part numbers, reports, the estimator and the AI layer read.
+ * room, then one per furniture base group. The single list part numbers, reports, the estimator and
+ * the AI layer read.
  */
 export function roomParts(room, settings) {
   const wallById = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
@@ -211,6 +213,8 @@ export function roomParts(room, settings) {
       });
     }
   }
+  for (const { key, runIds } of furnitureBaseGroups(room, settings)) {
+    parts.push({ key, kind: 'furniture_base', runIds });
+  }
   return parts;
 }
-

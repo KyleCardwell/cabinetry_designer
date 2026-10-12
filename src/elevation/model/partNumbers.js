@@ -1,6 +1,7 @@
 import { runFaceLayouts } from './faceLayouts.js';
 import { cellPieces, partPieces } from './cells.js';
 import { frameBadgeAnchor, frameMembers, frameRegions, regionOpenings } from './frames.js';
+import { furnitureBaseGroups } from './furnitureBaseGroups.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
 import {
@@ -9,6 +10,8 @@ import {
   pinTargetsForRun,
 } from './room.js';
 import { splitRun } from './splitRun.js';
+import { runBands } from './runBands.js';
+import { runScene } from './runScene.js';
 import { teeFillers } from './tees.js';
 import { wallEndPanels } from './wallEndPanels.js';
 import {
@@ -21,7 +24,7 @@ import {
 } from './parts.js';
 
 export { PART_MOLDINGS, moldingPartKey, wallEndPanelPartKey } from './parts.js';
-export const MOLDING_LABELS = { toeKick: 'TK', topMold: 'TM', crown: 'CR' };
+export const MOLDING_LABELS = { toeKick: 'TK', topMold: 'TM', crown: 'CR', furniture_base: 'FB' };
 /** Horizontal slot for each molding badge: -1 left of centre, 0 centre, 1 right. */
 export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
 
@@ -64,7 +67,7 @@ export function partNumbers(room, settings) {
 export function wallMoldingBadges(room, wall, settings, byKey) {
   const profile = resolveProfile(settings, room, wall);
   const runs = [...wall.runs].sort(compareRuns);
-  return PART_MOLDINGS.flatMap((molding) => {
+  const badges = PART_MOLDINGS.flatMap((molding) => {
     const key = moldingPartKey(molding);
     const number = byKey.get(key);
     const run = runs.find((candidate) => carriesMolding(wall, candidate, profile, molding));
@@ -95,6 +98,26 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
       ...rect,
     }];
   });
+  for (const group of furnitureBaseGroups(room, settings)) {
+    const face = group.faces.find(({ wallId, side }) => wallId === wall.id && side === (wall.side ?? 'front'));
+    const number = byKey.get(group.key);
+    if (!face || number === undefined) continue;
+    const run = wall.runs.find(({ id }) => id === face.runIds[0]);
+    const band = runBands(room, wall, run, settings, runScene(room, wall, run, settings)).furnitureBase;
+    if (!band) continue;
+    badges.push({
+      molding: 'furniture_base',
+      slot: 0,
+      key: group.key,
+      number,
+      label: MOLDING_LABELS.furniture_base,
+      x: band.x,
+      z: band.z,
+      width: band.width,
+      height: band.height,
+    });
+  }
+  return badges;
 }
 
 /**
