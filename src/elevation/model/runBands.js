@@ -3,6 +3,7 @@ import { bandDepths, hasToeKick } from './bandDepths.js';
 import { bandOutline, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
 import { frontDepth, runBackOffset } from './corners.js';
+import { floorOpenings } from './floorOpenings.js';
 import { furnitureBaseBand, furnitureBasePast, runBase, runBaseProfile } from './furnitureBase.js';
 import { runScene } from './runScene.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
@@ -183,10 +184,47 @@ export function runBandEnds(room, wall, run, settings, scene, kind, z, height, s
   return [left, right];
 }
 
-/** The uncut furniture band, also used to resolve cutout warnings against its real floor ends. */
+/** Floor-base spans, retaining the run's outer ends and returning at each opening. */
+export function runBaseSegments(room, wall, run, settings, scene, kind, base) {
+  const outer = runBandEnds(room, wall, run, settings, scene, kind, 0, base.height);
+  const segments = [];
+  const depths = bandDepths(settings);
+  const openingEnd = (x, side, neighbour) => {
+    const facing = side === 'left' ? -1 : 1;
+    const past = kind === 'furnitureBase' ? furnitureBasePast(base)
+      : -(neighbour === 'panel' ? depths.toeKickEndPanelSetback : depths.toeKickSideSetback);
+    return { type: 'return', x: x + facing * past, side: x, facing,
+      ...(kind === 'furnitureBase' ? { base } : {}) };
+  };
+  let start = run.x;
+  let left = outer[0];
+  for (const opening of floorOpenings(run, scene.cells).filter(({ baseUnder }) => !baseUnder)) {
+    const end = Math.min(opening.x, run.x + run.width);
+    if (end > start + EPSILON) {
+      segments.push({ start, end, ends: [left, openingEnd(end, 'right', opening.left)] });
+    }
+    const next = Math.min(opening.x + opening.width, run.x + run.width);
+    if (next >= start) {
+      start = next;
+      left = openingEnd(start, 'left', opening.right);
+    }
+  }
+  if (run.x + run.width > start + EPSILON) {
+    segments.push({ start, end: run.x + run.width, ends: [left, outer[1]] });
+  }
+  return segments.map((segment) => {
+    const [left, right] = segment.ends;
+    const band = kind === 'furnitureBase' ? furnitureBaseBand(base, segment.ends)
+      : { x: left.x, z: 0, width: right.x - left.x, height: base.height };
+    return { ...segment, band };
+  }).filter(({ band }) => band.width > 0);
+}
+
+/** Furniture bands in x order, with cutouts placed within each segment's floor ends. */
 export function runFurnitureBaseBand(room, wall, run, settings, base, scene = runScene(room, wall, run, settings)) {
   return base.kind === 'furniture_base'
-    ? furnitureBaseBand(base, runBandEnds(room, wall, run, settings, scene, 'furnitureBase', 0, base.height)) : null;
+    ? runBaseSegments(room, wall, run, settings, scene, 'furnitureBase', base)
+      .map(({ band }) => band) : [];
 }
 
 /**
@@ -273,11 +311,9 @@ export function runBands(room, wall, run, settings, scene) {
         z: piece.z + endBottom.chip,
       }))
     : [];
-  const toeKickBand = base.kind === 'toe_kick' ? band('toeKick', 0, base.height) : null;
-  const toeKick = toeKickBand?.width > 0 ? toeKickBand : null;
-  const furnitureBand = base.kind === 'furniture_base'
-    ? furnitureBaseBand(base, endsFor('furnitureBase', 0, base.height)) : null;
-  const furnitureBase = furnitureBand?.width > 0 ? furnitureBand : null;
+  const toeKicks = base.kind === 'toe_kick'
+    ? runBaseSegments(room, wall, run, settings, scene, 'toeKick', base).map(({ band }) => band) : [];
+  const furnitureBases = runFurnitureBaseBand(room, wall, run, settings, base, scene);
   let countertop = isCountertop(top.kind) ? band('countertop', boxTop, top.height) : null;
   const overhangs = topOverhangs(room, wall, run, settings);
   const section = top.kind === 'wood' && woodTopSection(moldings.nosing, top.height,
@@ -316,5 +352,5 @@ export function runBands(room, wall, run, settings, scene) {
       .map((x) => [[x, countertop.z, 0], [x, surface, 0]]);
     countertop = waterfallBand(countertop, edges, waterfall, run, top.height, surface, overhangs);
   }
-  return { top, toeKick, furnitureBase, countertop, topMold, crown, bottomParts, chipLines };
+  return { top, toeKicks, furnitureBases, countertop, topMold, crown, bottomParts, chipLines };
 }

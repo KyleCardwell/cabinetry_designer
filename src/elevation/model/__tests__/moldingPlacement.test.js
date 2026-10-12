@@ -47,7 +47,7 @@ describe('SPEC-50.2 step 471 molding placement', () => {
   it('keeps unpicked bands, parts, side rectangles and corners unchanged (anchor 1)', () => {
     const { room, wall, bands, parts, pieces } = setup({});
     expect(bands).toEqual({
-      top: { kind: 'crown', height: 6 }, toeKick: null, furnitureBase: null, countertop: null,
+      top: { kind: 'crown', height: 6 }, toeKicks: [], furnitureBases: [], countertop: null,
       topMold: { x: 19.75, z: 90, width: 60.5, height: 3, lines: [] },
       crown: { x: 17, z: 91.5, width: 66, height: 4.5, lines: [] },
       bottomParts: [], chipLines: [],

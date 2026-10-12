@@ -37,7 +37,7 @@ function setup(profile = fb4cut, overrides = {}) {
   const wall = resolveWall(room, room.walls[0]);
   const run = wall.runs[0];
   return { base: runBase(room, wall, run, settings),
-    band: runBands(room, wall, run, settings, runScene(room, wall, run, settings)).furnitureBase,
+    band: runBands(room, wall, run, settings, runScene(room, wall, run, settings)).furnitureBases[0],
     pieces: runSide(room, wall, run, settings) };
 }
 

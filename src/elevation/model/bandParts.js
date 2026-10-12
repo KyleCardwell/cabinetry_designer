@@ -37,11 +37,13 @@ export function bandParts(room, wall, side, settings) {
       });
     };
 
-    addPart(bands.toeKick, `${run.id}:toe_kick`, 'toe_kick', boxFront - depths.toeKickSetback);
-    if (bands.furnitureBase) {
-      addPart(bands.furnitureBase, `${run.id}:furniture_base`, 'furniture_base',
+    bands.toeKicks.forEach((band, index) => {
+      addPart(band, `${run.id}:toe_kick${index ? `:${index + 1}` : ''}`, 'toe_kick', boxFront - depths.toeKickSetback);
+    });
+    bands.furnitureBases.forEach((band, index) => {
+      addPart(band, `${run.id}:furniture_base${index ? `:${index + 1}` : ''}`, 'furniture_base',
         faces + furnitureBasePast(runBase(room, view, run, settings)));
-    }
+    });
     for (const part of bands.bottomParts) {
       addPart(part, part.id, part.kind, boxFront);
     }

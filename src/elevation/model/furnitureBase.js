@@ -1,6 +1,6 @@
 import { insertBaseCutouts, resolveBaseCutouts } from './baseCutouts.js';
 import { runScene } from './runScene.js';
-import { runFurnitureBaseBand } from './runBands.js';
+import { runBaseSegments } from './runBands.js';
 import { hasToeKick } from './bandDepths.js';
 import { bandOutline, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
 import { resolveProfile } from './profile.js';
@@ -118,11 +118,25 @@ export function runBase(room, wall, run, settings, scene) {
   if (!run.baseCutouts?.length) return base;
   if (base.kind === 'furniture_base') scene ??= runScene(room, wall, run, settings);
   const pieces = scene?.cells.pieces ?? [];
-  const band = base.kind === 'furniture_base'
-    ? runFurnitureBaseBand(room, wall, run, settings, base, scene) : null;
-  const resolved = resolveBaseCutouts(run, settings, resolveProfile(settings, room, wall), base, pieces, band);
-  base.cutouts = resolved.cutouts;
-  base.warnings.push(...resolved.warnings);
+  const segments = base.kind === 'furniture_base'
+    ? runBaseSegments(room, wall, run, settings, scene, 'furnitureBase', base) : [];
+  const buckets = (segments.length ? segments : [null]).map(() => []);
+  for (const cutout of run.baseCutouts) {
+    const from = pieces.find(({ id }) => id === cutout.from);
+    const index = from ? segments.findIndex(({ start, end }) => from.x + from.width / 2 >= start
+      && from.x + from.width / 2 <= end) : -1;
+    buckets[Math.max(0, index)].push(cutout);
+  }
+  base.cutouts = [];
+  buckets.forEach((baseCutouts, index) => {
+    const segment = segments[index];
+    const segmentPieces = segments.length > 1 ? pieces.filter((piece) => segment
+      && piece.x + piece.width / 2 >= segment.start && piece.x + piece.width / 2 <= segment.end) : pieces;
+    const resolved = resolveBaseCutouts({ ...run, baseCutouts }, settings,
+      resolveProfile(settings, room, wall), base, segmentPieces, segment?.band);
+    base.cutouts.push(...resolved.cutouts);
+    base.warnings.push(...resolved.warnings);
+  });
   return base;
 }
 
@@ -135,8 +149,14 @@ export function furnitureBasePast(base) {
 /** Place the floor band and stop its profile lines on the returned or coped end contours. */
 export function furnitureBaseBand(base, ends) {
   const [left, right] = ends;
+  const withCutouts = (band) => {
+    const floorLeft = band.outline?.[0][0] ?? band.x;
+    const floorRight = band.outline?.[1][0] ?? band.x + band.width;
+    return insertBaseCutouts(band, (base.cutouts ?? [])
+      .filter(({ x0, x1 }) => x0 >= floorLeft - EPSILON && x1 <= floorRight + EPSILON));
+  };
   const rect = { x: left.x, z: 0, width: right.x - left.x, height: base.height, lines: [] };
-  if (!base.picked) return insertBaseCutouts(rect, base.cutouts ?? []);
+  if (!base.picked) return withCutouts(rect);
   const edges = ends.map((end, index) => {
     const source = end.base ?? base;
     const loop = source.picked && sectionProfileOutline(source.picked.geometry);
@@ -156,5 +176,5 @@ export function furnitureBaseBand(base, ends) {
     rect.lines.push({ x1: endEdgeX(edges[0], z, -1), z1: z,
       x2: endEdgeX(edges[1], z, 1), z2: z });
   }
-  return insertBaseCutouts(rect, base.cutouts ?? []);
+  return withCutouts(rect);
 }

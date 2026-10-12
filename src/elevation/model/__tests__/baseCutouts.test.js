@@ -48,7 +48,7 @@ function setup({ cutouts = [cutout], profile = {}, wallProfile = {}, runProps = 
   const run = wall.runs[0];
   const scene = runScene(room, wall, run, using);
   return { room, wall, run, scene, base: runBase(room, wall, run, using),
-    band: runBands(room, wall, run, using, scene).furnitureBase,
+    band: runBands(room, wall, run, using, scene).furnitureBases[0],
     parts: bandParts(room, room.walls[0], 'front', using) };
 }
 
@@ -270,7 +270,7 @@ describe('SPEC-50.6 step 493 base cutouts', () => {
 
   it('draws no cutout on a toe kick or absent base and joins profile warnings (anchor 8)', () => {
     const result = setup({ profile: { baseKind: 'toe_kick' } });
-    expect(result.band).toBeNull();
+    expect(result.band).toBeUndefined();
     expect(result.base.cutouts).toEqual([]);
     expect(codes(result)).toEqual(['base-cutout-no-base']);
     expect(codes(setup({ runProps: { overrides: { toeKickHeight: 0 } } }))).toEqual(['base-cutout-no-base']);
@@ -402,7 +402,7 @@ describe('SPEC-50.6 step 493 base cutouts', () => {
         const base = runBase(cut, view, run, settings);
         if (!base.cutouts?.length) continue;
         drawn += base.cutouts.length;
-        expect(runBands(cut, view, run, settings, runScene(cut, view, run, settings)).furnitureBase.outline
+        expect(runBands(cut, view, run, settings, runScene(cut, view, run, settings)).furnitureBases[0].outline
           .some(([, z]) => z === 1.5)).toBe(true);
       }
     }

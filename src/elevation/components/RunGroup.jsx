@@ -66,14 +66,11 @@ function RunGroup({
     [room, run, scene, settings, wall],
   );
   const toScreen = (rect) => rect && wallRectToScreen(rect, transform);
-  const toeKick = toScreen(bands.toeKick);
   const toBand = (band) => band?.outline ? outlineGeometry(band.outline, transform) : toScreen(band);
   const countertop = toBand(bands.countertop);
-  const furnitureBase = toBand(bands.furnitureBase);
   const topMold = toBand(bands.topMold);
   const crown = toBand(bands.crown);
   const CountertopShape = bands.countertop?.outline ? Shape : Rect;
-  const FurnitureBaseShape = bands.furnitureBase?.outline ? Shape : Rect;
   const TopMoldShape = bands.topMold?.outline ? Shape : Rect;
   const CrownShape = bands.crown?.outline ? Shape : Rect;
   const bottomParts = bands.bottomParts.map((part) => ({ ...part, rect: toScreen(part) }));
@@ -216,26 +213,31 @@ function RunGroup({
 
   return (
     <Group opacity={preview ? 0.72 : 1}>
-      {toeKick && (
+      {bands.toeKicks.map((band, index) => (
         <Rect
-          {...toeKick}
+          key={`toeKick:${index}`}
+          {...toScreen(band)}
           fill="#111827"
           stroke="#334155"
           strokeWidth={1}
           listening={false}
         />
-      )}
+      ))}
 
-      {furnitureBase && (
-        <FurnitureBaseShape
-          {...furnitureBase}
-          fill="#94a3b8"
-          opacity={0.9}
-          stroke="#cbd5e1"
-          strokeWidth={1}
-          listening={false}
-        />
-      )}
+      {bands.furnitureBases.map((band, index) => {
+        const FurnitureBaseShape = band.outline ? Shape : Rect;
+        return (
+          <FurnitureBaseShape
+            key={`furnitureBase:${index}`}
+            {...toBand(band)}
+            fill="#94a3b8"
+            opacity={0.9}
+            stroke="#cbd5e1"
+            strokeWidth={1}
+            listening={false}
+          />
+        );
+      })}
 
       {countertop && (
         <CountertopShape
@@ -270,25 +272,28 @@ function RunGroup({
       )}
 
       {[
-        ['toeKick', '#334155', 1],
-        ['furnitureBase', '#cbd5e1', 0.9],
+        ['toeKicks', '#334155', 1],
+        ['furnitureBases', '#cbd5e1', 0.9],
         ['countertop', '#64748b', 0.9],
         ['topMold', '#cbd5e1', 0.9],
         ['crown', '#f8fafc', 0.82],
-      ].flatMap(([kind, stroke, opacity]) => (bands[kind]?.lines ?? []).map((line, index) => {
-        const from = wallToScreen({ x: line.x1, z: line.z1 }, transform);
-        const to = wallToScreen({ x: line.x2, z: line.z2 }, transform);
-        return (
-          <Line
-            key={`${kind}:line:${index}`}
-            points={[from.x, from.y, to.x, to.y]}
-            stroke={stroke}
-            strokeWidth={0.5}
-            opacity={opacity}
-            listening={false}
-          />
-        );
-      }))}
+      ].flatMap(([kind, stroke, opacity]) => {
+        const segments = Array.isArray(bands[kind]) ? bands[kind] : [bands[kind]];
+        return segments.flatMap((band, segmentIndex) => (band?.lines ?? []).map((line, index) => {
+          const from = wallToScreen({ x: line.x1, z: line.z1 }, transform);
+          const to = wallToScreen({ x: line.x2, z: line.z2 }, transform);
+          return (
+            <Line
+              key={`${kind}:${segmentIndex}:line:${index}`}
+              points={[from.x, from.y, to.x, to.y]}
+              stroke={stroke}
+              strokeWidth={0.5}
+              opacity={opacity}
+              listening={false}
+            />
+          );
+        }));
+      })}
 
       {bottomParts.map((part) => (
         <Rect

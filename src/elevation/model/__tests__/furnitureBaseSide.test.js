@@ -66,7 +66,7 @@ describe('SPEC-50.5 step 489 furniture base side shapes', () => {
     expect(returned.parts.some(({ kind }) => kind === 'toe_kick')).toBe(false);
     expect(cornerBandEdge(lazyCornerShapes(room, wall, settings), run, 'left', 'furnitureBase', 0, 4))
       .toEqual({ type: 'cope', x: 25.6875, outline: OUTLINE });
-    const band = runBands(room, wall, run, settings, runScene(room, wall, run, settings)).furnitureBase;
+    const band = runBands(room, wall, run, settings, runScene(room, wall, run, settings)).furnitureBases[0];
     expect(band.outline[0]).toEqual([25.6875, 0, 0]);
     expect(band.outline.slice(-2)).toEqual([[25.375, 4, 0], [25.6875, 3.6875, 0]]);
   });

@@ -103,7 +103,13 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
     const number = byKey.get(group.key);
     if (!face || number === undefined) continue;
     const run = wall.runs.find(({ id }) => id === face.runIds[0]);
-    const band = runBands(room, wall, run, settings, runScene(room, wall, run, settings)).furnitureBase;
+    const band = runBands(room, wall, run, settings, runScene(room, wall, run, settings)).furnitureBases
+      .find((candidate) => {
+        const center = candidate.x + candidate.width / 2;
+        const x = wall.side === 'back' ? wallLength(wall) - center : center;
+        return group.steps.some((step) => step.wallId === wall.id && step.side === (wall.side ?? 'front')
+          && x >= step.x1 && x <= step.x2);
+      });
     if (!band) continue;
     badges.push({
       molding: 'furniture_base',

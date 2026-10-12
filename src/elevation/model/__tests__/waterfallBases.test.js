@@ -51,7 +51,7 @@ const anchors = [
 describe('SPEC-50.10 step 506 bases at waterfall ends', () => {
   it.each(anchors)('$name', ({ props, profile, kind, x, width }) => {
     const result = setup(props, profile);
-    expect(result.bands[kind]).toMatchObject({ x, width });
+    expect(result.bands[`${kind}s`][0]).toMatchObject({ x, width });
     if (kind === 'furnitureBase') {
       // orderedWidth equal to width proves neither exposed end adds a scribe.
       expect(result.groups).toHaveLength(1);
@@ -63,14 +63,14 @@ describe('SPEC-50.10 step 506 bases at waterfall ends', () => {
   it('retains the toe kick end-panel setback only for a touching leg', () => {
     const ends = { left: { type: 'end_panel' }, right: { type: 'none' } };
     for (const baseToLeg of [false, true]) {
-      expect(setup({ ends, waterfall: { left: { baseToLeg } } }).bands.toeKick)
+      expect(setup({ ends, waterfall: { left: { baseToLeg } } }).bands.toeKicks[0])
         .toMatchObject({ x: 31, width: 34.75 });
     }
-    expect(setup({ ends, topOverhang: { left: 12 } }).bands.toeKick)
+    expect(setup({ ends, topOverhang: { left: 12 } }).bands.toeKicks[0])
       .toMatchObject({ x: 31, width: 34.75 });
-    expect(setup({ ends, topOverhang: { left: 12 }, waterfall: { left: { baseToLeg: true } } }).bands.toeKick)
+    expect(setup({ ends, topOverhang: { left: 12 }, waterfall: { left: { baseToLeg: true } } }).bands.toeKicks[0])
       .toMatchObject({ x: 18, width: 47.75 });
-    expect(setup({ ends }, furniture).bands.furnitureBase).toMatchObject({ x: 30, width: 36.8125 });
+    expect(setup({ ends }, furniture).bands.furnitureBases[0]).toMatchObject({ x: 30, width: 36.8125 });
   });
 
   it('mirrors both legs and squares profiled furniture bases without ordered-width scribe', () => {
@@ -81,10 +81,10 @@ describe('SPEC-50.10 step 506 bases at waterfall ends', () => {
         expect(right.ends(kind)[1]).toEqual({ type: 'square', x: 78 });
         const both = setup({ top, waterfall: { left: {}, right: { baseToLeg: true } },
           topOverhang: { right: 12 } }, profile);
-        expect(both.bands[kind]).toMatchObject({ x: 30, width: 48 });
+        expect(both.bands[`${kind}s`][0]).toMatchObject({ x: 30, width: 48 });
         if (kind === 'furnitureBase') {
-          expect(both.bands.furnitureBase.outline).toEqual([[30, 0, 0], [78, 0, 0], [78, 4, 0], [30, 4, 0]]);
-          expect(both.bands.furnitureBase.lines).toEqual([{ x1: 30, z1: 3.6875, x2: 78, z2: 3.6875 }]);
+          expect(both.bands.furnitureBases[0].outline).toEqual([[30, 0, 0], [78, 0, 0], [78, 4, 0], [30, 4, 0]]);
+          expect(both.bands.furnitureBases[0].lines).toEqual([{ x1: 30, z1: 3.6875, x2: 78, z2: 3.6875 }]);
           expect(both.groups[0]).toMatchObject({ width: 48, orderedWidth: 48 });
         }
       }

@@ -27,7 +27,7 @@ describe('SPEC-42.3 bands meet a corner return\'s bands', () => {
     const b = bandsOf(syncRoom(stored('G1 Euro kitchen'), settings), 1);
     // The blind base: wall A's base return has a 25 5/8" countertop and a toe kick 21" out.
     expect(ends(b['4b64d096'].countertop)).toEqual([25.625, 120.75]);
-    expect(ends(b['4b64d096'].toeKick)).toEqual([21, 119.75]);
+    expect(ends(b['4b64d096'].toeKicks[0])).toEqual([21, 119.75]);
     // The upper: wall A's upper return's top mold is 13 1/8" out, its crown 15 7/8".
     expect(ends(b['4a087225'].topMold)).toEqual([13.125, 120.25]);
     expect(ends(b['4a087225'].crown)).toEqual([15.875, 123]);
@@ -36,18 +36,18 @@ describe('SPEC-42.3 bands meet a corner return\'s bands', () => {
   it('works at a right-hand corner and on a face frame run (G1 elevation A, G2)', () => {
     const a = bandsOf(syncRoom(stored('G1 Euro kitchen'), settings), 0);
     expect(ends(a.b822e8ac.countertop)).toEqual([30, 142.375]);
-    expect(ends(a.b822e8ac.toeKick)).toEqual([29, 147]);
+    expect(ends(a.b822e8ac.toeKicks[0])).toEqual([29, 147]);
     expect(ends(a['434f1164'].topMold)).toEqual([108.25, 154.875]);
     expect(ends(a['434f1164'].crown)).toEqual([105.5, 152.125]);
     const g2 = syncRoom(stored('G2 Face frame kitchen'), settings);
     const g2a = bandsOf(g2, 0);
     expect(ends(g2a['860a1197'].countertop)).toEqual([76.5, 146.4375]);
-    expect(ends(g2a['860a1197'].toeKick)).toEqual([75.5, 151]);
+    expect(ends(g2a['860a1197'].toeKicks[0])).toEqual([75.5, 151]);
     // The upper's right corner has no return (the peninsula has no upper): it still stops at the wall.
     expect(ends(g2a.ab0981ca.crown)).toEqual([79.5, 172]);
     const g2b = bandsOf(g2, 1);
     expect(ends(g2b['4b49c071'].countertop)).toEqual([25.5625, 79.25]);
-    expect(ends(g2b['4b49c071'].toeKick)).toEqual([21, 77.75]);
+    expect(ends(g2b['4b49c071'].toeKicks[0])).toEqual([21, 77.75]);
   });
 
   it('matches band by band: a return without that band, or with it at another height, leaves the end as before (G1)', () => {
@@ -60,7 +60,7 @@ describe('SPEC-42.3 bands meet a corner return\'s bands', () => {
     expect(ends(b['4a087225'].crown)).toEqual([12.875, 123]);
     // The base return has no countertop, but still a toe kick.
     expect(ends(b['4b64d096'].countertop)).toEqual([24.875, 120.75]);
-    expect(ends(b['4b64d096'].toeKick)).toEqual([21, 119.75]);
+    expect(ends(b['4b64d096'].toeKicks[0])).toEqual([21, 119.75]);
   });
 
   it('meets a wing wall\'s return the same way (G3)', () => {
@@ -70,7 +70,7 @@ describe('SPEC-42.3 bands meet a corner return\'s bands', () => {
     const host = bandsOf(syncRoom(copy, settings), 1);
     // The host base is anchored to the wing wall on its right; the wing wall's base returns there.
     expect(ends(host['02c88254'].countertop)).toEqual([0, 49.375]);
-    expect(ends(host['02c88254'].toeKick)).toEqual([0, 54]);
+    expect(ends(host['02c88254'].toeKicks[0])).toEqual([0, 54]);
     // The host upper has no return beside it.
     expect(ends(host.bcdd4e78.crown)).toEqual([0, 72]);
   });

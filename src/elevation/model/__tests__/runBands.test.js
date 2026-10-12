@@ -27,8 +27,8 @@ describe('SPEC-42 run bands', () => {
     // The tall: wall on the left; joined on the right to a lower base, so its top returns there.
     expect(bands.b38f2f11).toEqual({
       top: { kind: 'crown', height: 6 },
-      toeKick: { x: 0, z: 0, width: 29, height: 4 },
-      furnitureBase: null,
+      toeKicks: [{ x: 0, z: 0, width: 29, height: 4 }],
+      furnitureBases: [],
       countertop: null,
       topMold: { x: 0, z: 90, width: 30.25, height: 3, lines: [] },
       crown: { x: 0, z: 91.5, width: 33, height: 4.5, lines: [] },
@@ -36,7 +36,7 @@ describe('SPEC-42 run bands', () => {
       chipLines: [],
     });
     // The base: joined to the taller tall on the left; in the right corner it meets wall B's base return (SPEC-42.3).
-    expect(bands.b822e8ac.toeKick).toEqual({ x: 29, z: 0, width: 118, height: 4 });
+    expect(bands.b822e8ac.toeKicks[0]).toEqual({ x: 29, z: 0, width: 118, height: 4 });
     expect(bands.b822e8ac.countertop).toEqual({ x: 30, z: 34.5, width: 112.375, height: 1.5 });
     // The upper: free on the left (end panel); in the right corner it meets wall B's upper return.
     expect(span(bands['434f1164'].topMold)).toEqual([108.25, 46.625]);
@@ -47,7 +47,7 @@ describe('SPEC-42 run bands', () => {
     const g1 = syncRoom(stored('G1 Euro kitchen'), settings);
     for (const side of ['front', 'back']) {
       const [island] = Object.values(bandsOf(g1, 3, side));
-      expect(span(island.toeKick)).toEqual([0.75, 90]);
+      expect(span(island.toeKicks[0])).toEqual([0.75, 90]);
       expect(span(island.countertop)).toEqual([-0.75, 93]);
     }
     const g2 = syncRoom(stored('G2 Face frame kitchen'), settings);
@@ -61,9 +61,9 @@ describe('SPEC-42 run bands', () => {
     const g5 = bandsOf(syncRoom(stored('G5 Recess room'), settings), 1);
     expect(span(g5['1549b66c'].countertop)).toEqual([43, 37]);
     expect(span(g5.e9abb5dc.countertop)).toEqual([140, 48]);
-    expect(span(g5.e9abb5dc.toeKick)).toEqual([140, 48]);
+    expect(span(g5.e9abb5dc.toeKicks[0])).toEqual([140, 48]);
     const g6 = bandsOf(syncRoom(stored('G6 Stacked runs'), settings), 1);
-    expect(span(g6['677ec7a5'].toeKick)).toEqual([0, 100]);
+    expect(span(g6['677ec7a5'].toeKicks[0])).toEqual([0, 100]);
     expect(span(g6['677ec7a5'].countertop)).toEqual([0, 101.75]);
     expect(span(g6['01a2a0e1'].countertop)).toEqual([127.75, 72.25]);
     expect(span(g6.ea4373b3.crown)).toEqual([0, 104]);
@@ -92,8 +92,8 @@ describe('SPEC-42 run bands', () => {
     }]);
     expect(bands.b1ec1b4a).toEqual({
       top: { kind: 'none', height: 0 },
-      toeKick: null,
-      furnitureBase: null,
+      toeKicks: [],
+      furnitureBases: [],
       countertop: null,
       topMold: null,
       crown: null,
@@ -134,12 +134,12 @@ describe('SPEC-42 run bands', () => {
     const a = bandsOf(g1, 0);
     // The tall (deeper) stops 1" short of its right end panel; the base's toe kick runs on to meet it,
     // and on into the right corner to meet wall B's return (SPEC-42.3).
-    expect(span(a.b38f2f11.toeKick)).toEqual([0, 29]);
-    expect(span(a.b822e8ac.toeKick)).toEqual([29, 118]);
+    expect(span(a.b38f2f11.toeKicks[0])).toEqual([0, 29]);
+    expect(span(a.b822e8ac.toeKicks[0])).toEqual([29, 118]);
     // G1 B: the left end meets wall A's return at 21" (SPEC-42.3); the right is a free filler end, 1/4" short.
-    expect(span(bandsOf(g1, 1)['4b64d096'].toeKick)).toEqual([21, 98.75]);
+    expect(span(bandsOf(g1, 1)['4b64d096'].toeKicks[0])).toEqual([21, 98.75]);
     const g2 = bandsOf(syncRoom(stored('G2 Face frame kitchen'), settings), 0);
-    expect(span(g2.a42e9a57.toeKick)).toEqual([51, 24.5]);
-    expect(span(g2['860a1197'].toeKick)).toEqual([75.5, 75.5]);
+    expect(span(g2.a42e9a57.toeKicks[0])).toEqual([51, 24.5]);
+    expect(span(g2['860a1197'].toeKicks[0])).toEqual([75.5, 75.5]);
   });
 });

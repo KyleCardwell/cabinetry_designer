@@ -94,7 +94,7 @@ describe('SPEC-50.5 runBase resolver', () => {
     const base = wall.runs.find(({ cabinetTypeId }) => cabinetTypeId === CABINET_TYPE_IDS.BASE);
     const drawn = () => runBands(resolved, wall, base, using, runScene(resolved, wall, base, using));
     expect(runBase(resolved, wall, base, using).kind).toBe('furniture_base');
-    expect(drawn().toeKick).toBeNull();
+    expect(drawn().toeKicks).toEqual([]);
     expect(runSide(resolved, wall, base, using).some(({ piece }) => piece === 'toe_kick')).toBe(false);
     expect(carriesMolding(wall, base, resolveProfile(using, resolved, wall), 'toeKick')).toBe(false);
     expect(partNumbers(resolved, using).byKey.has('molding:toeKick')).toBe(false);
@@ -103,7 +103,7 @@ describe('SPEC-50.5 runBase resolver', () => {
     const storedBase = resolved.walls[0].runs.find(({ id }) => id === base.id);
     storedBase.overrides.baseKind = 'toe_kick';
     expect(runBase(resolved, wall, base, using).kind).toBe('toe_kick');
-    expect(drawn().toeKick).toMatchObject({ z: 0, height: 4 });
+    expect(drawn().toeKicks[0]).toMatchObject({ z: 0, height: 4 });
     expect(runSide(resolved, wall, base, using).some(({ piece }) => piece === 'toe_kick')).toBe(true);
     const numbers = partNumbers(resolved, using);
     expect(numbers.byKey.has('molding:toeKick')).toBe(true);
