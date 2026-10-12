@@ -76,7 +76,7 @@ function isPointList(list, points) {
 /** SPEC-47 section profiles validate metadata, geometry and drawn point references (SPEC-48.2: no pins). */
 export function isSectionProfile(profile, { draft = false } = {}) {
   if (!hasKeys(profile, [
-    'id', 'name', 'kind', 'geometry', 'drawnPoints', 'version', 'archived', 'stretch',
+    'id', 'name', 'kind', 'geometry', 'drawnPoints', 'version', 'archived', 'stretch', 'topGap',
   ], ['id', 'name', 'kind', 'geometry', 'drawnPoints', 'version', 'archived']) || !isNonEmptyString(profile.id)
     || !isNonEmptyString(profile.name) || profile.name !== profile.name.trim()
     || !isProfileKind(profile.kind)
@@ -84,6 +84,8 @@ export function isSectionProfile(profile, { draft = false } = {}) {
     || !hasKeys(profile.drawnPoints, ['elevation', 'plan'], ['elevation'])
     || !Number.isInteger(profile.version) || profile.version < 1
     || typeof profile.archived !== 'boolean'
+    || (Object.hasOwn(profile, 'topGap')
+      && (profile.kind !== 'base_cutout' || !Number.isFinite(profile.topGap) || profile.topGap <= 0))
     || (Object.hasOwn(profile, 'stretch')
       && (!hasKeys(profile.stretch, ['y']) || (draft
         ? !Number.isFinite(profile.stretch.y) : !isStretchLine(profile, profile.stretch.y))))) return false;

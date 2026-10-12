@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import {
-  PROFILE_KINDS, isProfileGeometry, isSectionProfile, isSectionProfileList,
+  PROFILE_KINDS, isProfileGeometry, isSectionProfile, isSectionProfileDraft, isSectionProfileList,
 } from '../sectionProfiles.js';
 
 const sample = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
@@ -84,5 +84,47 @@ describe('SPEC-47 the section profile shape', () => {
       isSectionProfileList(undefined),
       isSectionProfileList({}),
     ]).toEqual([true, true, true, false, false, false, false]);
+  });
+});
+
+describe('Step 497.1 base cutout top gap data shape', () => {
+  const cut1 = {
+    id: 'cut1', name: 'Cove cutout', kind: 'base_cutout', version: 1, archived: false,
+    drawnPoints: { elevation: ['b'] },
+    geometry: {
+      units: 'in', points: { a: [0, 0], b: [1.5, 1.5] },
+      loops: [{ id: 'L1', closed: false, segs: [
+        { type: 'arc', from: 'a', to: 'b', center: [0, 1.5], ccw: true },
+      ] }],
+    },
+  };
+  const cutg = { ...cut1, id: 'cutg', name: 'Cove, 2 below top', topGap: 2 };
+  const validators = [isSectionProfile, isSectionProfileDraft];
+
+  it('accepts cutg with a positive finite top gap (anchor 1)', () => {
+    for (const validate of validators) expect(validate(cutg)).toBe(true);
+  });
+
+  it('rejects zero, negative and non-finite top gaps, including drafts (anchor 2)', () => {
+    for (const topGap of [0, -1, NaN, Infinity, -Infinity, undefined, null, '2']) {
+      for (const validate of validators) expect(validate({ ...cutg, topGap })).toBe(false);
+    }
+  });
+
+  it('rejects a top gap on fb4 and every other non-cutout kind, including drafts (anchor 3)', () => {
+    const fb4 = sample.profiles.find(({ id }) => id === 'fb4');
+    for (const validate of validators) {
+      expect(validate({ ...fb4, topGap: 2 })).toBe(false);
+      for (const kind of Object.keys(PROFILE_KINDS).filter((kind) => kind !== 'base_cutout')) {
+        expect(validate({ ...cutg, kind })).toBe(false);
+      }
+    }
+  });
+
+  it('keeps cut1 without a top gap valid and unchanged (anchor 4)', () => {
+    const before = structuredClone(cut1);
+    for (const validate of validators) expect(validate(cut1)).toBe(true);
+    expect(cut1).toEqual(before);
+    expect(cut1).not.toHaveProperty('topGap');
   });
 });
