@@ -423,3 +423,40 @@ describe('SPEC-36 frame fillers', () => {
     expect(keys(roomOf({ cabinetStyleId: 14 }))).toEqual(['A-base:left', 'a1', 'a2', 'frame:a1']);
   });
 });
+
+describe('SPEC-50.12 face frame end panel badges', () => {
+  const badgeGroups = (style) => {
+    const room = partRoom({
+      style,
+      wallOrder: ['A'],
+      walls: [makeWall('A', 0, 0, 120, 0, {
+        runs: [{ ...aBase(), id: 'R' }],
+      })],
+    });
+    return wallBadgeGroups(room, wallSideView(room.walls[0], 'front'), DEFAULT_SETTINGS);
+  };
+
+  it('moves a face frame base run\'s left end panel into its own group at lift 3', () => {
+    const groups = badgeGroups({ cabinetStyleId: 14 });
+
+    expect(groups.find(({ key }) => key === 'end-panels:R')).toMatchObject({
+      lift: 3,
+      pieces: [{ id: 'R:left', kind: 'end_panel', x: 0, z: 4, width: 0.75, height: 30.5 }],
+    });
+    expect(groups.find(({ key }) => key === 'run:R').pieces.map(({ id }) => id))
+      .toEqual(['a1', 'a2']);
+    expect(groups.find(({ key }) => key === 'frame:a1').lift).toBe(2);
+    expect(groups.flatMap(({ pieces }) => pieces).filter(({ id }) => id === 'R:left'))
+      .toHaveLength(1);
+  });
+
+  it('keeps the same Euro run\'s end panel in its run group', () => {
+    const groups = badgeGroups(undefined);
+
+    expect(groups.some(({ key }) => key.startsWith('end-panels:'))).toBe(false);
+    expect(groups.find(({ key }) => key === 'run:R')).toMatchObject({
+      lift: 0,
+      pieces: [{ id: 'R:left', kind: 'end_panel' }, { id: 'a1' }, { id: 'a2' }, { id: 'R:right' }],
+    });
+  });
+});

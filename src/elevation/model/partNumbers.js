@@ -141,6 +141,10 @@ export function wallBadgeGroups(room, wall, settings) {
     const cells = cellPieces(run, layout);
     const frames = frameRegions(room, run, cells, settings);
     const covered = new Set(frames.regions.flatMap((region) => region.fillerIds));
+    const pieces = partPieces(cells.pieces, settings).filter((piece) => !covered.has(piece.id));
+    const endPanels = frames.regions.length > 0
+      ? pieces.filter((piece) => piece.kind === 'end_panel')
+      : [];
     const seamTees = teeFillers(room, run, cells, settings).tees.filter((tee) => !tee.end);
     let layouts = null;
     const faceLayouts = () => (layouts ??= runFaceLayouts(room, wall, run, settings, layout));
@@ -148,7 +152,9 @@ export function wallBadgeGroups(room, wall, settings) {
       {
         key: `run:${run.id}`,
         lift: 0,
-        pieces: partPieces(cells.pieces, settings).filter((piece) => !covered.has(piece.id)),
+        pieces: frames.regions.length > 0
+          ? pieces.filter((piece) => piece.kind !== 'end_panel')
+          : pieces,
       },
       // A T-filler between boxes badges one level up, clear of the boxes' own (SPEC-37).
       {
@@ -172,6 +178,11 @@ export function wallBadgeGroups(room, wall, settings) {
           }],
         };
       }),
+      {
+        key: `end-panels:${run.id}`,
+        lift: 3,
+        pieces: endPanels,
+      },
     ];
   }).filter((group) => group.pieces.length > 0);
 
