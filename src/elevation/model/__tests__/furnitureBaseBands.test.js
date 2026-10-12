@@ -172,7 +172,7 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
     expect(plain.bands[0].furnitureBase.outline.slice(1, 3)).toEqual([[65, 0, 0], [65, 4, 0]]);
   });
 
-  it('skips band-edge lines, deduplicates heights and falls back to a board for missing or open profiles', () => {
+  it('skips band-edge lines, deduplicates heights, falls back for missing picks and closes open cuts', () => {
     const changed = structuredClone(settings.sectionProfiles.find(({ id }) => id === 'fb4'));
     delete changed.stretch;
     Object.assign(changed.geometry.points, { nearTop: [0, -0.0000005], nearBottom: [0, -3.9999995],
@@ -186,6 +186,6 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
     changed.geometry.loops[0].closed = false;
     changed.geometry.loops[0].segs.pop();
     expect(setup({ profile }, using).bands[0].furnitureBase.outline)
-      .toEqual([[29.1875, 0, 0], [66.8125, 0, 0], [66.8125, 4, 0], [29.1875, 4, 0]]);
+      .toEqual(OUTLINE);
   });
 });

@@ -186,6 +186,40 @@
       "archived": false
     },
     {
+      "id": "fb4cut",
+      "name": "Furniture base chamfer (cut)",
+      "kind": "furniture_base",
+      "geometry": {
+        "units": "in",
+        "points": { "b": [-0.3125, 0], "c": [0, -0.3125] },
+        "loops": [{
+          "id": "L1",
+          "closed": false,
+          "segs": [{ "type": "line", "from": "b", "to": "c" }]
+        }]
+      },
+      "drawnPoints": { "elevation": ["c"] },
+      "version": 1,
+      "archived": false
+    },
+    {
+      "id": "fbstep",
+      "name": "Furniture base step (cut)",
+      "kind": "furniture_base",
+      "geometry": {
+        "units": "in",
+        "points": { "p": [-0.5, -0.25], "q": [0, -0.75] },
+        "loops": [{
+          "id": "L1",
+          "closed": false,
+          "segs": [{ "type": "line", "from": "p", "to": "q" }]
+        }]
+      },
+      "drawnPoints": { "elevation": ["q"] },
+      "version": 1,
+      "archived": false
+    },
+    {
       "id": "fb4",
       "name": "Furniture base 4",
       "kind": "furniture_base",

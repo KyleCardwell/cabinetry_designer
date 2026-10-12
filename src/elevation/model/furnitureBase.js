@@ -6,6 +6,72 @@ import { sectionProfileBounds, stretchProfileGeometry } from './sectionProfiles.
 
 const EPSILON = 1e-6;
 
+/** Close the first open cut against the furniture base board, preserving drawn point ids. */
+export function furnitureBaseSection(geometry, proud, height) {
+  const warnings = [];
+  if (geometry.loops.some((loop) => loop.closed)) return { geometry, warnings };
+  const cuts = geometry.loops.filter((loop) => loop.closed === false);
+  if (!cuts.length) return { geometry, warnings };
+  if (cuts.length > 1) warnings.push({ code: 'furniture-base-extra-cuts' });
+  const loop = cuts[0];
+  const cutPoints = Object.fromEntries(loop.segs.flatMap(({ from, to }) => (
+    [[from, geometry.points[from]], [to, geometry.points[to]]]
+  )));
+  const { minX, maxX, minY, maxY } = sectionProfileBounds({
+    geometry: { ...geometry, points: cutPoints, loops: [loop] },
+  });
+  if (maxX > EPSILON || maxY > EPSILON || minY < -height - EPSILON) {
+    warnings.push({ code: 'furniture-base-cut-bad' });
+    return { geometry: null, warnings };
+  }
+
+  let cut = loop.segs;
+  const [sx, sy] = geometry.points[cut[0].from];
+  const [ex, ey] = geometry.points[cut.at(-1).to];
+  if (sy < ey || (sy === ey && sx > ex)) {
+    cut = [...cut].reverse().map((segment) => ({
+      ...segment, from: segment.to, to: segment.from,
+      ...(segment.type === 'arc' ? { ccw: !segment.ccw } : {}),
+    }));
+  }
+  const points = { ...geometry.points };
+  const start = cut[0].from;
+  const end = cut.at(-1).to;
+  const [tx, ty] = points[start];
+  const [bx, by] = points[end];
+  const x0 = Math.min(-proud, minX);
+  const corner = (name, point, adjacent) => {
+    if (points[adjacent][0] === point[0] && points[adjacent][1] === point[1]) return adjacent;
+    let id = name;
+    while (Object.hasOwn(points, id)) id += '_';
+    points[id] = point;
+    return id;
+  };
+  const top = ty < 0 ? corner('_top', [tx, 0], start) : start;
+  const floor = by > -height ? corner('_floor', [bx, -height], end) : end;
+  const backTop = corner('_backTop', [x0, 0], top);
+  const backFloor = corner('_backFloor', [x0, -height], floor);
+  const segs = [];
+  const add = (segment) => {
+    const [x, y] = points[segment.from];
+    const [toX, toY] = points[segment.to];
+    if (x !== toX || y !== toY) segs.push(segment);
+  };
+  const line = (from, to) => add({ type: 'line', from, to });
+  line(backTop, top);
+  line(top, start);
+  cut.forEach(add);
+  line(end, floor);
+  line(floor, backFloor);
+  line(backFloor, backTop);
+  // A dropped zero-length edge can join different ids at the same coordinates.
+  const closedSegs = segs.map((segment, index) => ({
+    ...segment, from: segs[(index + segs.length - 1) % segs.length].to,
+  }));
+  return { geometry: { ...geometry, points,
+    loops: [{ id: loop.id, closed: true, segs: closedSegs }] }, warnings };
+}
+
 /** Resolve a run's floor base and its profile, stretching furniture bases down from their top. */
 export function runBase(room, wall, run, settings) {
   const profile = resolveProfile(settings, room, wall);
@@ -30,13 +96,16 @@ export function runBase(room, wall, run, settings) {
 
   const geometry = stretchProfileGeometry(picked, -height);
   if (geometry === null) warnings.push({ code: 'furniture-base-too-short' });
-  if (!Object.hasOwn(picked, 'stretch')) {
+  const stretched = geometry ?? picked.geometry;
+  if (stretched.loops.some((loop) => loop.closed) && !Object.hasOwn(picked, 'stretch')) {
     const { minY, maxY } = sectionProfileBounds(picked);
     if (Math.abs(maxY - minY - height) > EPSILON) {
       warnings.push({ code: 'furniture-base-height-mismatch' });
     }
   }
-  result.picked = { profile: picked, geometry: geometry ?? picked.geometry };
+  const section = furnitureBaseSection(stretched, proud, height);
+  warnings.push(...section.warnings);
+  result.picked = section.geometry === null ? null : { profile: picked, geometry: section.geometry };
   return result;
 }
 
