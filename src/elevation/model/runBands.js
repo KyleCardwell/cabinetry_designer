@@ -12,6 +12,7 @@ import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js
 import { isCountertop, runTop } from './tops.js';
 import { topOverhangs } from './topOverhang.js';
 import { wallEndPanelAt } from './wallSides.js';
+import { waterfallBand } from './waterfall.js';
 
 export { bandDepths, hasToeKick } from './bandDepths.js';
 
@@ -268,6 +269,7 @@ export function runBands(room, wall, run, settings, scene) {
   const overhangs = topOverhangs(room, wall, run, settings);
   const section = top.kind === 'wood' && woodTopSection(moldings.nosing, top.height,
     (runBackOffset(run) - overhangs.back) - (frontDepth(run, settings) + overhangs.front));
+  let countertopEdges;
   if (section) {
     const reference = boxTop + top.height;
     const z = reference + section.minY;
@@ -281,6 +283,7 @@ export function runBands(room, wall, run, settings, scene) {
       return (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
         ?? [[end.x, z, 0], [end.x, reference, 0]];
     });
+    countertopEdges = edges;
     const outline = bandOutline(...edges, z, height);
     const { minX, maxX } = outlineBounds(outline);
     const lines = [];
@@ -292,6 +295,13 @@ export function runBands(room, wall, run, settings, scene) {
         x2: endEdgeX(edges[1], lineZ, 1), z2: lineZ });
     }
     countertop = { x: minX, z, width: maxX - minX, height, outline, lines };
+  }
+  const waterfall = waterfallEnds(room, wall, run, settings);
+  if (countertop && (waterfall.left || waterfall.right)) {
+    const surface = boxTop + top.height;
+    const edges = countertopEdges ?? [countertop.x, countertop.x + countertop.width]
+      .map((x) => [[x, countertop.z, 0], [x, surface, 0]]);
+    countertop = waterfallBand(countertop, edges, waterfall, run, top.height, surface, overhangs);
   }
   return { top, toeKick, furnitureBase, countertop, topMold, crown, bottomParts, chipLines };
 }
