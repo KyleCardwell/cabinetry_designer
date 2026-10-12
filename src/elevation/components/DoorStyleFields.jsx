@@ -32,6 +32,7 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
   const slab = design?.construction === 'slab';
   const fivePiece = design?.construction === 'five_piece';
   const applied = design?.construction === 'slab_applied';
+  const frameUnused = slab || applied;
   const arched = Boolean(design && (design.topRail.shape !== 'flat' || design.bottomRail.shape !== 'flat'));
   const change = (key, value) => setDraft((previous) => ({ ...previous, [key]: value }));
   const changeSize = (group, key, value) => setDraft((previous) => ({
@@ -68,18 +69,19 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
         <section className="space-y-2">
           <h3 className={HEADING_CLASS}>{applied ? 'Molding inset' : 'Stiles & rails'}</h3>
           {slab && <p className="text-xs text-gray-400">Not used by a slab — kept if you switch back</p>}
+          {applied && <p className="text-xs text-gray-400">Not used by Slab AM — kept if you switch back</p>}
           {!showSides ? (
             <>
               <SizeField
                 label={applied ? 'Inset' : 'Stile & rail width'}
                 value={draft.stiles.left}
-                disabled={slab}
+                disabled={frameUnused}
                 onChange={setAll}
               />
               <button
                 type="button"
                 className="text-xs text-blue-400 hover:underline disabled:opacity-50"
-                disabled={slab}
+                disabled={frameUnused}
                 onClick={() => setSides(true)}
               >
                 Different sizes…
@@ -98,7 +100,7 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
                     key={`${group}.${key}`}
                     label={label}
                     value={draft[group][key]}
-                    disabled={slab}
+                    disabled={frameUnused}
                     onChange={(value) => changeSize(group, key, value)}
                   />
                 ))}
@@ -106,7 +108,7 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
               <button
                 type="button"
                 className="text-xs text-blue-400 hover:underline disabled:opacity-50"
-                disabled={slab}
+                disabled={frameUnused}
                 onClick={() => {
                   setAll(draft.stiles.left);
                   setSides(false);
@@ -116,7 +118,7 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
               </button>
             </>
           )}
-          <p className="text-xs text-gray-500">Short doors and drawer fronts still shrink their rails by the short-face rule.</p>
+          {fivePiece && <p className="text-xs text-gray-500">Short doors and drawer fronts still shrink their rails by the short-face rule.</p>}
         </section>
         <section className="space-y-2">
           <h3 className={HEADING_CLASS}>Panel</h3>
@@ -147,7 +149,7 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
           label="Mid rail/stile extra"
           value={draft.mid.extra}
           allowZero
-          disabled={!fivePiece && !applied}
+          disabled={!fivePiece}
           onChange={(value) => changeSize('mid', 'extra', value)}
         />
         <div className="space-y-1">

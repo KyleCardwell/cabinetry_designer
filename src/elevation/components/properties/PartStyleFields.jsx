@@ -23,8 +23,10 @@ export default function PartStyleFields({
     ? pickOptions(room, settings, partType, levels.slice(1))
     : null;
   const { style, design, warnings } = resolveDoorStyle(room, settings, partType, levels);
-  const edgeOut = doorProfileOffsets(style, design, settings.sectionProfiles).slots.outside?.reachOut ?? 0;
-  const rows = partSizeRows(style, design, { width, height, sizes: part?.sizes }, edgeOut);
+  const offsets = doorProfileOffsets(style, design, settings.sectionProfiles);
+  const edgeOut = offsets.slots.outside?.reachOut ?? 0;
+  const applied = design.construction === 'slab_applied';
+  const rows = partSizeRows(style, design, { width, height, sizes: part?.sizes }, edgeOut, offsets.applied);
   const styleId = part?.styleId ?? '';
   const missingPick = picker && styleId !== ''
     && !picker.options.some((option) => option.id === styleId);
@@ -61,7 +63,7 @@ export default function PartStyleFields({
               onCommit={(value) => editMid(kind, index, 'at', value)}
             />
           </label>
-          <label className="min-w-0 flex-1 text-xs text-gray-400">
+          {!applied && <label className="min-w-0 flex-1 text-xs text-gray-400">
             Width
             <InchInput
               value={part?.sizes?.[kind]?.[index]?.width ?? null}
@@ -71,7 +73,7 @@ export default function PartStyleFields({
               aria-label={`${label} mid ${word} ${index + 1} width`}
               onCommit={(value) => editMid(kind, index, 'width', value)}
             />
-          </label>
+          </label>}
           <button
             type="button"
             aria-label={`${label} remove mid ${word} ${index + 1}`}
@@ -122,7 +124,16 @@ export default function PartStyleFields({
         <p className="text-xs text-gray-400">{rows.note}</p>
       ) : (
         <>
-          {rows.rows.map((row) => (
+          {rows.rows.map((row) => row.readOnly ? (
+            <div key={row.index} className="flex flex-wrap items-center gap-2 text-xs text-gray-400">
+              <span>{row.label}</span>
+              <span>
+                {formatInchesInput(row.value)}
+                {row.note && ` (style ${formatInchesInput(row.typed)})`}
+              </span>
+              {row.note && <span className="text-[10px] text-gray-500">{row.note}</span>}
+            </div>
+          ) : (
             <div key={row.side} className="flex items-center gap-2">
               <span className="w-16 shrink-0 text-xs text-gray-400">{row.label}</span>
               <div className="w-16 shrink-0">

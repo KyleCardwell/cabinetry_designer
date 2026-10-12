@@ -77,6 +77,88 @@ beforeEach(() => {
   useReducer.mockImplementation((reducer, initial, init) => [init(initial), vi.fn()]);
 });
 
+describe('Step 494.5 Slab AM editor and part panel', () => {
+  const slabAM = { ...DEFAULT_DOOR_STYLE, designId: 'slab-applied', appliedMoldings: [{ profileId: 'am1', offset: 2 }] };
+  const field = (tree, label) => {
+    const component = find(tree, ({ props }) => props.label === label);
+    return find(component.type(component.props), ({ type }) => type === InchInput);
+  };
+  const partPanel = (style, height, sizes = {}, onChange = vi.fn()) => PartStyleFields({
+    room: {}, settings: { sectionProfiles: moldingFixtures, teamDoorStyle: style },
+    partType: 'door', levels: [], part: { sizes }, width: 24, height, label: 'Front', onChange,
+  });
+
+  it('disables the Slab AM inset and mid extra, retains their values, and explains door-edge offsets', () => {
+    const render = (draft) => DoorStyleFields({ draft, designs: DOOR_DESIGNS, setDraft: vi.fn() });
+    const tree = render(slabAM);
+    expect(field(tree, 'Inset').props).toMatchObject({ disabled: true, value: 3 });
+    expect(field(tree, 'Mid rail/stile extra').props.disabled).toBe(true);
+    expect(find(tree, ({ type, props }) => type === 'button' && props.children === 'Different sizes…').props.disabled).toBe(true);
+    expect(text(tree)).toContain('Not used by Slab AM — kept if you switch back');
+    expect(text(tree)).not.toContain('shrink their rails');
+    const picker = find(tree, ({ type }) => type === DoorProfilePickers);
+    expect(text(DoorProfilePickers(picker.props))).toContain("Offset from the door edge to the molding's outer edge.");
+    const fivePiece = render({ ...slabAM, designId: DEFAULT_DOOR_STYLE.designId });
+    expect(field(fivePiece, 'Stile & rail width').props).toMatchObject({ disabled: false, value: 3 });
+    expect(field(fivePiece, 'Mid rail/stile extra').props.disabled).toBe(false);
+    expect(text(fivePiece)).toContain('shrink their rails');
+    expect(text(DoorProfilePickers(find(fivePiece, ({ type }) => type === DoorProfilePickers).props)))
+      .toContain('Offset from the stile/rail line; + toward the centre.');
+    const slab = render({ ...slabAM, designId: 'slab' });
+    expect(field(slab, 'Stile & rail width').props.disabled).toBe(true);
+    expect(text(slab)).not.toContain('shrink their rails');
+    const unequal = render({ ...slabAM, stiles: { left: 4, right: 3 } });
+    for (const label of ['Left', 'Right', 'Top', 'Bottom']) {
+      expect(field(unequal, label).props.disabled).toBe(true);
+    }
+  });
+
+  it('shows a 24 × 6 short-front molding offset and style value as read-only text', () => {
+    const tree = partPanel(slabAM, 6);
+    expect(text(tree)).toContain('Applied moldings');
+    expect(text(tree)).toContain('Molding 1');
+    expect(text(tree)).toContain('15/16 (style 2)');
+    expect(text(tree)).toContain('moved out for a short front');
+    expect(text(tree)).toContain('Molding 20 1/8" × 2 1/8"');
+    expect(nodes(tree).filter(({ type }) => type === InchInput || type === 'input')).toHaveLength(0);
+  });
+
+  it('shows each resolved molding in order without a short-front note on a tall part', () => {
+    const style = { ...slabAM, appliedMoldings: [
+      { profileId: 'am1', offset: 2 }, { profileId: 'am2', offset: 4 }, { profileId: null, offset: 1 },
+    ] };
+    const tree = partPanel(style, 30);
+    const rows = nodes(tree).filter(({ type, props }) => type === 'div' && props.className?.includes('flex-wrap'));
+    expect(rows.map(text)).toEqual(['Molding 12', 'Molding 24', 'Molding 31']);
+    expect(text(tree)).not.toContain('moved out');
+    expect(text(tree)).not.toContain('(style');
+    expect(nodes(tree).filter(({ type }) => type === InchInput || type === 'input')).toHaveLength(0);
+  });
+
+  it('keeps editable mid positions while hiding Slab AM widths and retaining stored widths', () => {
+    const sizes = { midRails: [{ at: 15, width: 4 }], midStiles: [{ at: 12, width: 5 }] };
+    const onChange = vi.fn();
+    const tree = partPanel(slabAM, 30, sizes, onChange);
+    const control = (tree, name) => find(tree, ({ props }) => props['aria-label'] === name);
+    for (const word of ['rail', 'stile']) {
+      expect(control(tree, `Front mid ${word} 1 at`)).toBeDefined();
+      expect(control(tree, `Front mid ${word} 1 width`)).toBeUndefined();
+    }
+    control(tree, 'Front mid rail 1 at').props.onCommit(16);
+    expect(onChange.mock.lastCall[0]).toEqual({ sizes: { ...sizes, midRails: [{ at: 16, width: 4 }] } });
+    const fivePiece = partPanel({ ...slabAM, designId: DEFAULT_DOOR_STYLE.designId }, 30, sizes);
+    expect(control(fivePiece, 'Front mid rail 1 width').props.value).toBe(4);
+    expect(control(fivePiece, 'Front mid stile 1 width').props.value).toBe(5);
+  });
+
+  it('keeps the slab-cutoff note and leaves molding rows off', () => {
+    const tree = partPanel(slabAM, 4.75);
+    expect(text(tree)).toContain('Slab under 4 13/16" — molding left off');
+    expect(text(tree)).not.toContain('Molding 1');
+    expect(nodes(tree).filter(({ type }) => type === InchInput || type === 'input')).toHaveLength(0);
+  });
+});
+
 describe('Step 463 profile UI', () => {
   it('edits an applied molding profile while retaining offsets and later entries', () => {
     settings.sectionProfiles = [{ ...bead, kind: 'applied_molding' }];

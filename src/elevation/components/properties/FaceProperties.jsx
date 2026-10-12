@@ -386,7 +386,12 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
           Applied molding {index + 1} doesn't fit on this face.
         </p>
       ))}
-      {[...new Set(warnings.map(({ code }) => code))].map((code) => (
+      {[...new Set(warnings.filter(({ code, side }) => code === 'door-profile-too-wide' && side === 'molding').map(({ index }) => index))].map((index) => (
+        <p key={`molding-too-wide:${index}`} className="text-xs font-medium text-amber-300">
+          Applied molding {index + 1} sits on the edge profile.
+        </p>
+      ))}
+      {[...new Set(warnings.filter(({ code, side }) => code !== 'door-profile-too-wide' || side !== 'molding').map(({ code }) => code))].map((code) => (
         WARNING_MESSAGES[code] && (
           <p key={code} className="text-xs font-medium text-amber-300">
             {WARNING_MESSAGES[code]}

@@ -4,6 +4,7 @@ import { formatInches } from './units.js';
 import { resolveDoorStyle } from './doorStyleResolve.js';
 import { partSizes } from './doorSizes.js';
 import { inset } from './doorProfileLines.js';
+import { partDetail } from './doorDetails.js';
 
 /** First unused letter, followed by the first unused positive integer label. */
 export function nextDoorStyleLabel(styles = []) {
@@ -184,7 +185,7 @@ export function pickOptions(room, settings, partType, levelsAbove, node = null) 
 }
 
 /** Display typed and resolved sizes, or explain why this part is a slab. */
-export function partSizeRows(style, design, part, edgeOut = 0) {
+export function partSizeRows(style, design, part, edgeOut = 0, moldings = []) {
   const core = inset({ x: 0, z: 0, ...part }, edgeOut);
   const sizeRect = design.construction === 'slab_applied' ? part : core;
   const result = partSizes(style, design, { ...sizeRect, sizes: part.sizes });
@@ -197,9 +198,14 @@ export function partSizeRows(style, design, part, edgeOut = 0) {
   }
   const molding = result.construction === 'slab_applied';
   if (molding) {
+    const detail = partDetail(style, design, { x: 0, z: 0, ...part }, part.sizes, edgeOut, moldings);
     return {
-      title: 'Applied moldings', note: null, rows: [],
-      midRails: result.midRails, midStiles: result.midStiles, opening: result.opening,
+      title: 'Applied moldings', note: null,
+      rows: detail.moldings.map(({ index, offset, typed, shifted }) => ({
+        index, label: `Molding ${index + 1}`, value: offset, typed, readOnly: true,
+        note: shifted ? 'moved out for a short front' : null,
+      })),
+      midRails: result.midRails, midStiles: result.midStiles, opening: detail.sizes.opening,
     };
   }
   const labels = ['Top rail', 'Bottom rail', 'Left stile', 'Right stile'];

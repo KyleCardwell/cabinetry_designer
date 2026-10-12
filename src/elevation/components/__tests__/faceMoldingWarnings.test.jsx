@@ -13,6 +13,38 @@ vi.mock('../../model/index.js', async (importOriginal) => ({
 vi.mock('../../model/doorDetails.js', () => ({ runDoorDetails: vi.fn() }));
 
 describe('Step 480 face molding warnings', () => {
+  it('numbers edge-overlap moldings once per face without the frame-fit message', () => {
+    runDoorDetails.mockReturnValue({ warnings: [
+      { code: 'door-profile-too-wide', side: 'molding', index: 0, pieceId: 'cabinet' },
+      { code: 'door-profile-too-wide', side: 'molding', index: 0, pieceId: 'cabinet' },
+      { code: 'door-profile-too-wide', side: 'molding', index: 2, pieceId: 'cabinet' },
+      { code: 'door-profile-too-wide', side: 'molding', index: 4, pieceId: 'other' },
+    ] });
+    const html = renderToStaticMarkup(<FaceProperties
+      wall={{ id: 'wall' }} run={{ id: 'run', cabinetTypeId: 'base' }}
+      piece={{ id: 'cabinet', width: 18 }} item={{ id: 'cabinet', face: { type: 'door', size: null } }}
+      layout={{ pieces: [] }} settings={{}}
+    />);
+    expect(html.match(/Applied molding 1 sits on the edge profile\./g)).toHaveLength(1);
+    expect(html).toContain('Applied molding 3 sits on the edge profile.');
+    expect(html).not.toContain('Applied molding 5');
+    expect(html).not.toContain('wider than a stile or rail');
+  });
+
+  it('retains the frame-fit warning alongside molding overlap warnings', () => {
+    runDoorDetails.mockReturnValue({ warnings: [
+      { code: 'door-profile-too-wide', side: 'molding', index: 1, pieceId: 'cabinet' },
+      { code: 'door-profile-too-wide', side: 'left', pieceId: 'cabinet' },
+    ] });
+    const html = renderToStaticMarkup(<FaceProperties
+      wall={{ id: 'wall' }} run={{ id: 'run', cabinetTypeId: 'base' }}
+      piece={{ id: 'cabinet', width: 18 }} item={{ id: 'cabinet', face: { type: 'door', size: null } }}
+      layout={{ pieces: [] }} settings={{}}
+    />);
+    expect(html).toContain('Applied molding 2 sits on the edge profile.');
+    expect(html).toContain('wider than a stile or rail');
+  });
+
   it('numbers each no-room molding once per face and excludes warnings for other pieces', () => {
     runDoorDetails.mockReturnValue({ warnings: [
       { code: 'applied-molding-no-room', index: 1, pieceId: 'cabinet', key: 'cabinet:r:left' },
