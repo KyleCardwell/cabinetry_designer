@@ -58,7 +58,7 @@ describe('Step 465 door section dimensions', () => {
     const paths = nodes(tree).filter(({ type, props }) => type === 'path' && props.className === 'text-blue-400');
     expect(new Set(paths.map(({ key }) => key)).size).toBe(paths.length);
     const chain = find(tree, 'above dimensions');
-    expect(labels(chain)).toEqual(['5/16"', '2 3/4"', '1"', '1/2"', '1"']);
+    expect(labels(chain)).toEqual(['5/16"', '1"', '1/2"', '1"']);
     expect(new Set(chain.props.children.map(({ key }) => key)).size).toBe(chain.props.children.length);
     const warning = nodes(tree).find(({ type, props }) => type === 'p' && nodes(props.children).length === 0
       && Array.isArray(props.children) && props.children.includes('Applied molding 2'));
@@ -113,12 +113,17 @@ describe('Step 465 door section dimensions', () => {
     }
   });
 
-  it('shows plain slab thickness only, the applied inset, and no SVG for invalid sections', () => {
+  it('shows plain slab thickness only, the applied offset, and no SVG for invalid sections', () => {
     const unpicked = { ...DEFAULT_DOOR_STYLE };
     const slab = render(unpicked, DOOR_DESIGNS[1]);
     expect(labels(slab)).toEqual(['13/16"']);
-    const molding = render(picked, DOOR_DESIGNS[2]);
-    expect(find(molding, 'inset: 3"')).toBeDefined();
+    const molding = render({ ...picked, stiles: undefined,
+      appliedMoldings: [{ profileId: applied.id, offset: 1 }],
+    }, DOOR_DESIGNS[2]);
+    expect(find(molding, 'offset: 1"')).toBeDefined();
+    expect(labels(find(molding, 'below dimensions'))).toEqual(['5/16"', '1"']);
+    expect(labels(find(molding, 'above dimensions'))).toEqual(['5/16"', '11/16"', '1"']);
+    expect(find(molding, 'inset: 3"')).toBeUndefined();
     expect(find(molding, 'stile: 3"')).toBeUndefined();
     expect(nodes(render({ ...unpicked, thickness: 0.25 })).some(({ type }) => type === 'svg')).toBe(false);
   });

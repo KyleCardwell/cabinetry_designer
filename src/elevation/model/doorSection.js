@@ -1,6 +1,6 @@
 import { profileDoorGhost } from './profileGhost.js';
 import { DOOR_PROFILE_SLOTS } from './doorStyles.js';
-import { doorProfileSlotKind, stretchProfileGeometry } from './sectionProfiles.js';
+import { doorProfileSlotKind, sectionProfileBounds, stretchProfileGeometry } from './sectionProfiles.js';
 import { doorProfileOffsets } from './doorProfileLines.js';
 
 const EPS = 1e-6;
@@ -51,17 +51,16 @@ function cutGeometry(geometry, loop) {
 /** SPEC-48.4 the door style's half section: the body, the picked profiles at their lines, and the wood each open line cuts away. */
 export function doorSection(style, design, profiles) {
   if (!design || !Number.isFinite(style?.thickness) || style.thickness <= 0) return null;
+  const slabApplied = design.construction === 'slab_applied';
+  const offsets = slabApplied ? doorProfileOffsets(style, design, profiles) : null;
 
   let body;
   if (design.construction === 'five_piece') {
     body = profileDoorGhost('door_outside', style);
     if (body === null) return null;
   } else if (design.construction === 'slab' || design.construction === 'slab_applied') {
-    const applied = design.construction === 'slab_applied';
-    if (applied && (!Number.isFinite(style.stiles?.left) || style.stiles.left <= 0)) return null;
-    const moldings = applied ? doorProfileOffsets(style, design, profiles).applied : [];
-    const w = applied ? Math.max(style.stiles.left + 3,
-      ...moldings.map(({ offset, maxX }) => style.stiles.left + offset + maxX + 1)) : 3;
+    const moldings = offsets?.applied ?? [];
+    const w = Math.max(3, ...moldings.map(({ offset, width }) => offset + width + 1));
     const T = style.thickness;
     body = {
       units: 'in',
@@ -93,7 +92,10 @@ export function doorSection(style, design, profiles) {
       const target = slot === 'inside' && design.construction === 'five_piece'
         ? -(style.thickness - style.panel.thickness) : -style.thickness;
       const stretched = stretchProfileGeometry(profile, target) ?? profile.geometry;
-      const geometry = moveGeometry(stretched, slot === 'outside' ? 0 : style.stiles.left + offset);
+      const dx = slot === 'outside' ? 0 : slabApplied && slot === 'applied'
+        ? offset - (offsets.slots.outside?.reachOut ?? 0) - sectionProfileBounds({ geometry: stretched }).minX
+        : style.stiles.left + offset;
+      const geometry = moveGeometry(stretched, dx);
       const identity = { slot, ...(slot === 'applied' ? { index } : {}) };
       placed.push({ ...identity, profileId, name: profile.name, geometry });
       for (const loop of geometry.loops) {
@@ -110,6 +112,8 @@ export function doorSectionDimensions(style, design, profiles) {
 
   const { slots, applied: moldings } = doorProfileOffsets(style, design, profiles);
   const { outside, inside } = slots;
+  const slabApplied = design.construction === 'slab_applied';
+  const edge = -(outside?.reachOut ?? 0);
   const left = [];
   const below = [];
   const above = [];
@@ -122,15 +126,21 @@ export function doorSectionDimensions(style, design, profiles) {
   };
 
   add(left, 'thickness', -style.thickness, 0);
-  add(below, 'molding', -(outside?.reachOut ?? 0), 0);
+  add(below, 'molding', edge, 0);
   if (outside) add(above, 'outside', -outside.reachOut, outside.reachIn);
   if (design.construction !== 'slab') {
-    const S = style.stiles.left;
-    add(below, design.construction === 'five_piece' ? 'stile' : 'inset', 0, S);
+    const S = slabApplied ? 0 : style.stiles.left;
+    if (slabApplied) {
+      if (moldings.length) add(below, 'offset', edge, edge + Math.min(...moldings.map(({ offset }) => offset)));
+    } else {
+      add(below, 'stile', 0, S);
+    }
     const spans = [
-      ...(inside ? [[S + inside.minX, S + inside.maxX]] : []),
+      ...(inside && !slabApplied ? [[S + inside.minX, S + inside.maxX]] : []),
       ...moldings.filter(({ profileId }) => profileId !== null)
-        .map(({ offset, minX, maxX }) => [S + offset + minX, S + offset + maxX]),
+        .map(({ offset, minX, maxX, width }) => slabApplied
+          ? [edge + offset, edge + offset + width]
+          : [S + offset + minX, S + offset + maxX]),
     ].filter(([from, to]) => to - from > EPS).sort(([a], [b]) => a - b);
     const merged = [];
     for (const [from, to] of spans) {
@@ -144,7 +154,7 @@ export function doorSectionDimensions(style, design, profiles) {
       add(above, 'profile', from, to);
       cursor = Math.max(cursor, to);
     }
-    add(above, 'flat', cursor, S);
+    if (!slabApplied) add(above, 'flat', cursor, S);
   }
   return { left, below, above };
 }
