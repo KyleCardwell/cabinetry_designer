@@ -24,6 +24,8 @@ import {
   setWallLength,
   updateWall,
 } from '../../store/elevationSlice.js';
+import { CABINET_TYPE_IDS } from '../../model/constants.js';
+import { runBase } from '../../model/furnitureBase.js';
 import { moldingProfiles } from '../../model/moldingProfiles.js';
 import InchInput from '../InchInput.jsx';
 import DoorStylePicks from './DoorStylePicks.jsx';
@@ -32,6 +34,8 @@ import WallEndPanelFields from './WallEndPanelFields.jsx';
 import StretchInput from './StretchInput.jsx';
 
 const MOLDING_NOTES = {
+  'furniture-base-too-short': "The furniture base is shorter than its profile's stretch line; drawn at its own size.",
+  'furniture-base-height-mismatch': 'The furniture base profile height differs from the base height; drawn at its own size.',
   'top-mold-above-crown': 'The top mold is taller than the crown total.',
   'top-mold-too-short': "The top mold is shorter than its profile's stretch line; drawn at its own size.",
   'molding-profile-missing': 'The picked profile is missing; plain molding used.',
@@ -40,7 +44,7 @@ const MOLDING_NOTES = {
 
 const WALL_OVERRIDE_FIELDS = [
   ['crownTop', 'Top of crown'],
-  ['toeKickHeight', 'Toe kick height'],
+  ['toeKickHeight', 'Toe kick / base height'],
   ['countertopThickness', 'Countertop thickness'],
   ['topMoldHeight', 'Top mold'],
   ['crownHeight', 'Crown'],
@@ -57,6 +61,7 @@ export default function WallHeightProperties({ room, wall, plan }) {
   const inheritedProfile = resolveProfile(settings, room);
   const resolvedProfile = resolveProfile(settings, room, wall);
   const moldings = moldingProfiles(resolvedProfile, settings);
+  const base = runBase(room, wall, { cabinetTypeId: CABINET_TYPE_IDS.BASE }, settings);
   const overlap = crownOverlap(resolvedProfile);
   const frame = wallFrame(room, wall);
   const leftFree = !wall.connections?.[frame.leftEndpoint]
@@ -367,9 +372,42 @@ export default function WallHeightProperties({ room, wall, plan }) {
           })}
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2">
+          <label className="block text-xs text-gray-400">
+            Base
+            <select
+              aria-label="Wall Base override"
+              value={wall.profile.baseKind ?? ''}
+              onChange={(event) => {
+                const value = event.target.value || undefined;
+                dispatch(updateWall({ wallId: wall.id, changes: { profile: { baseKind: value } } }));
+              }}
+              className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="">Inherit</option>
+              <option value="toe_kick">Toe kick</option>
+              <option value="furniture_base">Furniture base</option>
+            </select>
+          </label>
+          {resolvedProfile.baseKind === 'furniture_base' && (
+            <label className="block text-xs text-gray-400">
+              Base proud
+              <InchInput
+                aria-label="Wall Base proud override"
+                value={wall.profile.furnitureBaseProud ?? null}
+                allowBlank
+                placeholder={formatInchesInput(inheritedProfile.furnitureBaseProud)}
+                onCommit={(value) => value !== null && value < 0 ? false : dispatch(updateWall({ wallId: wall.id, changes: { profile: { furnitureBaseProud: value } } }))}
+                className="mt-1"
+              />
+            </label>
+          )}
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-2">
           {[
             ['topMoldProfileId', 'Top mold profile', 'top_mold'],
             ['crownProfileId', 'Crown profile', 'crown'],
+            ...(resolvedProfile.baseKind === 'furniture_base'
+              ? [['furnitureBaseProfileId', 'Furniture base profile', 'furniture_base']] : []),
           ].map(([key, label, kind]) => {
             const pickedId = wall.profile[key];
             const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === kind && !entry.archived);
@@ -398,7 +436,7 @@ export default function WallHeightProperties({ room, wall, plan }) {
         <p className={`mt-2 text-xs ${overlap < 0 ? 'text-amber-500/80' : 'text-gray-500'}`}>
           {overlap < 0 ? 'Gap' : 'Overlap'} {formatInches(Math.abs(overlap))}
         </p>
-        {moldings.warnings.map(({ code, slot }, index) => (
+        {[...moldings.warnings, ...base.warnings].map(({ code, slot }, index) => (
           <p key={`${code}-${slot ?? index}`} className="mt-1 text-xs text-amber-400">
             {code === 'crown-gap'
               ? `The top mold doesn't reach the crown (gap of ${formatInches(Math.abs(overlap))}).`

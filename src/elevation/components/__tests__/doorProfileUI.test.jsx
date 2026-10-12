@@ -143,7 +143,7 @@ describe('Step 463 profile UI', () => {
       checkbox(tree).props.onChange({ target: { checked: true } });
       expect(onApply.mock.calls[0][0].stretch).toEqual({ y: -0.4375 });
     }
-    for (const kind of ['crown', 'furniture_base', 'toe_kick', 'nosing', 'other']) {
+    for (const kind of ['crown', 'toe_kick', 'nosing', 'other']) {
       expect(checkbox(kindPanel({ ...bead, kind }, vi.fn()))).toBeUndefined();
     }
     const onApply = vi.fn(() => true);
@@ -423,6 +423,28 @@ describe('Step 484 applied moldings editor', () => {
   });
 });
 
+describe('Step 491 furniture base editor', () => {
+  it('explains the top-front origin and offers height stretch down to the floor', () => {
+    const fb4 = moldingFixtures.find(({ id }) => id === 'fb4');
+    const { stretch, ...fixed } = fb4;
+    void stretch;
+    const onApply = vi.fn(() => true);
+    const tree = kindPanel(fixed, onApply);
+    expect(text(tree)).toContain("0, 0 is the base's front face at its top. Draw down to the floor; the stretch line lets it grow or shrink with the base height.");
+    expect(text(tree)).toContain('Grows with height');
+    expect(text(tree)).toContain('Points below the line move down to the base height; the top shape stays.');
+    expect(text(tree)).not.toContain('Grows with thickness');
+    checkbox(tree).props.onChange({ target: { checked: true } });
+    expect(onApply.mock.lastCall[0].stretch).toEqual({ y: -2 });
+    const growing = kindPanel(onApply.mock.lastCall[0], onApply);
+    expect(stretchInput(growing).props.value).toBe(-2);
+    stretchInput(growing).props.onCommit(-1.5);
+    expect(onApply.mock.lastCall[0].stretch).toEqual({ y: -1.5 });
+    checkbox(growing).props.onChange({ target: { checked: false } });
+    expect(onApply.mock.lastCall[0]).not.toHaveProperty('stretch');
+  });
+});
+
 describe('Step 473 top mold editor', () => {
   it('offers Grows with height, the same stretch input, and removes stretch when unchecked', () => {
     const { stretch, ...fixed } = tm3;
@@ -440,7 +462,7 @@ describe('Step 473 top mold editor', () => {
     expect(onApply.mock.lastCall[0].stretch).toEqual({ y: 2 });
     checkbox(growing).props.onChange({ target: { checked: false } });
     expect(onApply.mock.lastCall[0]).not.toHaveProperty('stretch');
-    for (const kind of ['crown', 'furniture_base', 'toe_kick', 'nosing', 'other']) {
+    for (const kind of ['crown', 'toe_kick', 'nosing', 'other']) {
       expect(checkbox(kindPanel({ ...fixed, kind }, onApply))).toBeUndefined();
     }
   });

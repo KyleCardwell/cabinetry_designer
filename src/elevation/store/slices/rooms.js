@@ -51,6 +51,9 @@ export const roomReducers = {
         if (key === 'topMoldProfileId' || key === 'crownProfileId' || key === 'furnitureBaseProfileId') {
           if (value === undefined) delete state.rooms[roomIndex].profile[key];
           else state.rooms[roomIndex].profile[key] = value;
+        } else if (key === 'baseKind' || key === 'furnitureBaseProud') {
+          if (value === null || value === undefined) delete state.rooms[roomIndex].profile[key];
+          else state.rooms[roomIndex].profile[key] = value;
         } else {
           state.rooms[roomIndex].profile[key] = value === null || value === undefined
             ? state.settings.defaultProfile[key]

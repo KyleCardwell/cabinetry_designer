@@ -19,17 +19,18 @@ import {
   setRunStackOffset,
   setRunType,
 } from '../../store/elevationSlice.js';
+import { runBase } from '../../model/furnitureBase.js';
 import InchInput from '../InchInput.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 
 const RUN_OVERRIDE_FIELDS = {
   [CABINET_TYPE_IDS.BASE]: [
-    ['toeKickHeight', 'Toe kick'],
+    ['toeKickHeight', 'Toe kick / base height'],
     ['baseBoxHeight', 'Box height'],
     ['countertopThickness', 'Countertop'],
   ],
   [CABINET_TYPE_IDS.TALL]: [
-    ['toeKickHeight', 'Toe kick'],
+    ['toeKickHeight', 'Toe kick / base height'],
     ['boxTop', 'Box top'],
   ],
   [CABINET_TYPE_IDS.UPPER]: [
@@ -56,6 +57,12 @@ export default function RunHeightsSection({
   const links = Object.fromEntries(STACK_EDGES.map((edge) => [edge, stackLink(run, edge)]));
   const stacked = Boolean(links.below || links.above);
   const filled = Boolean(links.below && links.above);
+  const floorBase = !links.below && [CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL].includes(run.cabinetTypeId);
+  const base = runBase(room, wall, run, settings);
+  const profileId = run.overrides.furnitureBaseProfileId;
+  const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === 'furniture_base' && !entry.archived);
+  const unavailable = profileId && !choices.some((entry) => entry.id === profileId);
+  const setBaseOverride = (key, value) => dispatch(setRunOverride({ ...actionBase, key, value }));
 
   return (
       <section>
@@ -131,6 +138,59 @@ export default function RunHeightsSection({
                 />
               )}
             </Field>
+          </div>
+        )}
+
+        {floorBase && (
+          <div className="mt-3 space-y-2.5">
+            <Field label="Base override">
+              <select
+                aria-label="Run Base override"
+                value={run.overrides.baseKind ?? ''}
+                onChange={(event) => setBaseOverride('baseKind', event.target.value || undefined)}
+                className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="">Inherit</option>
+                <option value="toe_kick">Toe kick</option>
+                <option value="furniture_base">Furniture base</option>
+              </select>
+            </Field>
+            {base.kind === 'furniture_base' && (
+              <>
+                <Field label="Furniture base profile">
+                  <select
+                    aria-label="Run Furniture base profile override"
+                    value={profileId === null ? 'plain' : profileId ?? ''}
+                    onChange={(event) => setBaseOverride('furnitureBaseProfileId',
+                      event.target.value === 'plain' ? null : event.target.value || undefined)}
+                    className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">Inherit</option>
+                    <option value="plain">Plain</option>
+                    {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+                    {unavailable && <option value={profileId} disabled>{settings.sectionProfiles?.find((entry) => entry.id === profileId)?.name ?? 'Missing profile'} (unavailable)</option>}
+                  </select>
+                </Field>
+                <Field label="Base proud (blank = inherit)">
+                  <InchInput
+                    aria-label="Run Base proud override"
+                    value={run.overrides.furnitureBaseProud ?? null}
+                    allowBlank
+                    placeholder={formatInchesInput(profile.furnitureBaseProud)}
+                    onCommit={(value) => value !== null && value < 0 ? false : setBaseOverride('furnitureBaseProud', value)}
+                  />
+                </Field>
+              </>
+            )}
+            {base.warnings.map(({ code }, index) => (
+              <p key={`${code}-${index}`} className="mt-1 text-xs text-amber-400">
+                {code === 'furniture-base-too-short'
+                  ? "The furniture base is shorter than its profile's stretch line; drawn at its own size."
+                  : code === 'furniture-base-height-mismatch'
+                    ? 'The furniture base profile height differs from the base height; drawn at its own size.'
+                    : 'The picked profile is missing; plain molding used.'}
+              </p>
+            ))}
           </div>
         )}
 

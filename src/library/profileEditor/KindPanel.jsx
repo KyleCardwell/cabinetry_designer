@@ -42,7 +42,10 @@ export default function KindPanel({ profile, onApply }) {
         {kind.axes === 'run' && 'Run molding: x runs out from the box toward the room; y runs up.'}
         {kind.axes === 'free' && 'Other: not used by doors or runs yet; draw it any way you like.'}
       </p>
-      {kind.origin && (
+      {profile.kind === 'furniture_base' && (
+        <p className="text-xs text-gray-200">0, 0 is the base&apos;s front face at its top. Draw down to the floor; the stretch line lets it grow or shrink with the base height.</p>
+      )}
+      {kind.origin && profile.kind !== 'furniture_base' && (
         <>
           <p className="text-xs text-gray-200">0, 0 is {kind.origin}.</p>
           <p className="text-xs text-gray-500">Draw the shape from there, or select a point and press Origin to move the shape so that point sits at 0, 0.</p>
@@ -51,7 +54,7 @@ export default function KindPanel({ profile, onApply }) {
       {kind.axes === 'door' && (
         <p className="text-xs text-gray-500">An open line is a cut: the door&apos;s new edge, from the face in. A closed shape is a piece applied to the door. A molding that needs a notch in the door can have both.</p>
       )}
-      {(kind.axes === 'door' || profile.kind === 'top_mold') && (
+      {(kind.axes === 'door' || profile.kind === 'top_mold' || profile.kind === 'furniture_base') && (
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm text-gray-200">
             <input
@@ -59,7 +62,7 @@ export default function KindPanel({ profile, onApply }) {
               checked={Boolean(profile.stretch)}
               onChange={(event) => applyStretch(event.target.checked ? defaultStretchY(profile) : null)}
             />
-            {profile.kind === 'top_mold' ? 'Grows with height' : 'Grows with thickness'}
+            {kind.axes === 'run' ? 'Grows with height' : 'Grows with thickness'}
           </label>
           {profile.stretch && (
             <label className="block text-xs text-gray-400">
@@ -83,7 +86,9 @@ export default function KindPanel({ profile, onApply }) {
           <p className="text-xs text-gray-500">
             {profile.kind === 'top_mold'
               ? "Points above the line move up to the room's Top mold height."
-              : "Points below the line move with the door's back (inside profile: with the panel face) when thickness changes; the front shape stays."}
+              : profile.kind === 'furniture_base'
+                ? "Points below the line move down to the base height; the top shape stays."
+                : "Points below the line move with the door's back (inside profile: with the panel face) when thickness changes; the front shape stays."}
           </p>
         </div>
       )}

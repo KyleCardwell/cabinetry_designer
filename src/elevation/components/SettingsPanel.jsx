@@ -5,6 +5,8 @@ import { PLOT_SCALES } from '../model/drawingScale.js';
 import { crownOverlap, resolveProfile } from '../model/profile.js';
 import { formatInches } from '../model/units.js';
 import { updateSettings } from '../store/elevationSlice.js';
+import { CABINET_TYPE_IDS } from '../model/constants.js';
+import { runBase } from '../model/furnitureBase.js';
 import { moldingProfiles } from '../model/moldingProfiles.js';
 import InchInput from './InchInput.jsx';
 
@@ -30,6 +32,8 @@ const NUMBER_SETTINGS = [
 ];
 
 const MOLDING_NOTES = {
+  'furniture-base-too-short': "The furniture base is shorter than its profile's stretch line; drawn at its own size.",
+  'furniture-base-height-mismatch': 'The furniture base profile height differs from the base height; drawn at its own size.',
   'top-mold-above-crown': 'The top mold is taller than the crown total.',
   'top-mold-too-short': "The top mold is shorter than its profile's stretch line; drawn at its own size.",
   'molding-profile-missing': 'The picked profile is missing; plain molding used.',
@@ -38,7 +42,7 @@ const MOLDING_NOTES = {
 
 const PROFILE_SETTINGS = [
   ['wallHeight', 'Wall height'],
-  ['toeKickHeight', 'Toe kick height'],
+  ['toeKickHeight', 'Toe kick / base height'],
   ['baseBoxHeight', 'Base box height'],
   ['countertopThickness', 'Countertop thickness'],
   ['upperClearance', 'Upper clearance'],
@@ -74,6 +78,7 @@ export default function SettingsPanel() {
   const [open, setOpen] = useState(false);
   const resolvedProfile = resolveProfile(settings);
   const moldings = moldingProfiles(resolvedProfile, settings);
+  const base = runBase(null, null, { cabinetTypeId: CABINET_TYPE_IDS.BASE }, settings);
   const overlap = crownOverlap(resolvedProfile);
 
   const update = (changes) => dispatch(updateSettings(changes));
@@ -146,9 +151,39 @@ export default function SettingsPanel() {
               })}
             </div>
             <div className="mt-2 grid grid-cols-2 gap-2">
+              <label className="block text-xs text-gray-400">
+                Base
+                <select
+                  aria-label="Default Base"
+                  value={settings.defaultProfile.baseKind ?? resolvedProfile.baseKind}
+                  onChange={(event) => {
+                    const value = event.target.value || undefined;
+                    update({ defaultProfile: { baseKind: value } });
+                  }}
+                  className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                >
+                  <option value="toe_kick">Toe kick</option>
+                  <option value="furniture_base">Furniture base</option>
+                </select>
+              </label>
+              {resolvedProfile.baseKind === 'furniture_base' && (
+                <label className="block text-xs text-gray-400">
+                  Base proud
+                  <InchInput
+                    aria-label="Default Base proud"
+                    value={settings.defaultProfile.furnitureBaseProud ?? resolvedProfile.furnitureBaseProud}
+                    onCommit={(value) => value !== null && value < 0 ? false : update({ defaultProfile: { furnitureBaseProud: value } })}
+                    className="mt-1"
+                  />
+                </label>
+              )}
+            </div>
+            <div className="mt-2 grid grid-cols-2 gap-2">
               {[
                 ['topMoldProfileId', 'Top mold profile', 'top_mold'],
                 ['crownProfileId', 'Crown profile', 'crown'],
+                ...(resolvedProfile.baseKind === 'furniture_base'
+                  ? [['furnitureBaseProfileId', 'Furniture base profile', 'furniture_base']] : []),
               ].map(([key, label, kind]) => {
                 const pickedId = settings.defaultProfile[key];
                 const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === kind && !entry.archived);
@@ -177,7 +212,7 @@ export default function SettingsPanel() {
             <p className={`mt-2 text-xs ${overlap < 0 ? 'text-amber-500/80' : 'text-gray-500'}`}>
               {overlap < 0 ? 'Gap' : 'Overlap'} {formatInches(Math.abs(overlap))}
             </p>
-            {moldings.warnings.map(({ code, slot }, index) => (
+            {[...moldings.warnings, ...base.warnings].map(({ code, slot }, index) => (
               <p key={`${code}-${slot ?? index}`} className="mt-1 text-xs text-amber-400">
                 {code === 'crown-gap'
                   ? `The top mold doesn't reach the crown (gap of ${formatInches(Math.abs(overlap))}).`
