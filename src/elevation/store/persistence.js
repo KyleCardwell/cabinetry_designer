@@ -120,6 +120,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'plotScale',
   'baseCutoutFoot',
   'baseCutoutHeight',
+  'furnitureBaseScribe',
 ];
 
 function isFiniteNumber(value) {

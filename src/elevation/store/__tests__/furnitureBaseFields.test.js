@@ -14,6 +14,25 @@ const fields = { baseKind: 'furniture_base', furnitureBaseProud: 0, furnitureBas
 afterEach(() => { delete globalThis.window; });
 
 describe('SPEC-50.5 saved furniture base fields', () => {
+  it('defaults the furniture base scribe on older saves and round-trips explicit values (step 495)', () => {
+    const older = structuredClone(golden);
+    expect(older.settings.furnitureBaseScribe).toBeUndefined();
+    const saved = normalizeElevationDocument(older);
+    expect(saved.settings.furnitureBaseScribe).toBe(0.5);
+    expect(isElevationDocument(saved)).toBe(true);
+    expect(older.settings.furnitureBaseScribe).toBeUndefined();
+    for (const scribe of [0, 1]) {
+      saved.settings.furnitureBaseScribe = scribe;
+      const reloaded = normalizeElevationDocument(toElevationDocument(saved));
+      expect(isElevationDocument(reloaded)).toBe(true);
+      expect(reloaded.settings.furnitureBaseScribe).toBe(scribe);
+    }
+    for (const invalid of [null, '0.5', NaN, Infinity]) {
+      saved.settings.furnitureBaseScribe = invalid;
+      expect(isElevationDocument(saved)).toBe(false);
+    }
+  });
+
   it('accepts older profiles and round-trips the new fields at every level', () => {
     const saved = savedDocument();
     const room = saved.rooms[0];

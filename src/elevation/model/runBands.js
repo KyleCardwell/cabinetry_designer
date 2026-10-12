@@ -109,7 +109,7 @@ function bandEdge(room, wall, run, side, band, settings) {
   return returned(run, side);
 }
 
-function runBandEnds(room, wall, run, settings, scene, kind, z, height, shapes = lazyCornerShapes(room, wall, settings)) {
+export function runBandEnds(room, wall, run, settings, scene, kind, z, height, shapes = lazyCornerShapes(room, wall, settings)) {
   const { panelBySide } = scene;
   const runEnd = run.x + run.width;
   const panelStart = panelBySide.left

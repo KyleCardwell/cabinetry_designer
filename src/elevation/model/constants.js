@@ -53,6 +53,7 @@ export const DEFAULT_SETTINGS = {
   sectionProfiles: [],
   baseCutoutFoot: 3,
   baseCutoutHeight: 1.5,
+  furnitureBaseScribe: 0.5,
   fillerReturnDepth: 2.5,
   fillerReturnThickness: 0.75,
   teeCover: 0.75,
