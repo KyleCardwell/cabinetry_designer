@@ -161,6 +161,7 @@ export const {
   setCellBlind,
   setCellKind,
   setCellDepth,
+  setCellBaseUnder,
   setCellShelves,
   wrapCell,
   setPanelType,

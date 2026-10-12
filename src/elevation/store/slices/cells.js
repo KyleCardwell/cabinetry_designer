@@ -9,6 +9,7 @@ import {
   findLeaf,
   removeGridCell,
   setGridCellDepth,
+  setGridCellBaseUnder,
   setGridCellKind,
   setGridLeafExtend,
   setGridPanelDoors,
@@ -26,6 +27,15 @@ import {
 } from './helpers.js';
 
 export const cellReducers = {
+  setCellBaseUnder(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const { cellId, baseUnder = null } = action.payload;
+    const before = location.run.grid;
+    const grid = setGridCellBaseUnder(before, cellId, baseUnder);
+    if (grid === before) return;
+    location.run.grid = grid;
+  },
   splitCell(state, action) {
     const location = runLocation(state, action.payload);
     if (!location) return;

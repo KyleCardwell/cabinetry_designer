@@ -85,6 +85,42 @@ function currentDocument() {
   };
 }
 
+it('persists baseUnder only as true on root and nested void or panel leaves', () => {
+  for (const kind of ['void', 'panel']) {
+    for (const nested of [false, true]) {
+      const document = currentDocument();
+      const run = document.rooms[0].walls[0].runs[0];
+      const leaf = { id: 'opening', kind, baseUnder: true };
+      run.grid = gridFromItems('a', [{ id: 'opening', kind, width: null, baseUnder: true }]);
+      if (nested) {
+        run.grid.cells[0].node = {
+          id: 'stack', cols: [{ id: 'col', size: null, sizeMode: 'auto' }],
+          rows: ['top', 'bottom'].map((id) => ({ id, size: null, sizeMode: 'auto' })),
+          cells: [
+            { col: 0, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'drawer', kind: 'cabinet' } },
+            { col: 0, row: 1, colSpan: 1, rowSpan: 1, node: leaf },
+          ],
+        };
+      }
+      const node = nested ? leaf : run.grid.cells[0].node;
+      expect(isElevationDocument(document)).toBe(true);
+      const state = createInitialElevationState(document);
+      expect(toElevationDocument(state).rooms[0].walls[0].runs[0].grid).toEqual(run.grid);
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+      expect(loadElevationDocument().rooms[0].walls[0].runs[0].grid).toEqual(run.grid);
+      for (const invalid of [false, null, 1, 'true']) {
+        node.baseUnder = invalid;
+        expect(isElevationDocument(document)).toBe(false);
+      }
+      node.baseUnder = true;
+      for (const invalidKind of ['cabinet', 'filler', 'shelves']) {
+        node.kind = invalidKind;
+        expect(isElevationDocument(document)).toBe(false);
+      }
+    }
+  }
+});
+
 function tbtDocument() {
   const document = currentDocument();
   const wall = document.rooms[0].walls[0];

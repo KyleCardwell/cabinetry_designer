@@ -16,6 +16,7 @@ import elevationReducer, {
   removeCell,
   removeItem,
   setCellBlind,
+  setCellBaseUnder,
   setCellDepth,
   setCellExtend,
   setCellKind,
@@ -47,6 +48,31 @@ import {
   stateWithRun,
   currentRun,
 } from './helpers/sliceFixtures.js';
+
+it('setCellBaseUnder sets and clears only void and panel leaves', () => {
+  const at = { wallId: 'wall-1', runId: 'run-1' };
+  let state = stateWithRun(run({ autoCount: false, items: [fixed('a', 18), fixed('b', 18)] }));
+  state = elevationReducer(state, splitCell({ ...at, cellId: 'a', direction: 'down', count: 2 }));
+  const nested = currentRun(state).grid.cells[0].node;
+  const cellId = nested.cells[1].node.id;
+  state = elevationReducer(state, setCellKind({ ...at, cellId, kind: 'void' }));
+  const leaf = (s) => gridLeaves(currentRun(s).grid).find((node) => node.id === cellId);
+  const set = elevationReducer(state, setCellBaseUnder({ ...at, cellId, baseUnder: true }));
+  expect(leaf(set).baseUnder).toBe(true);
+  expect(leaf(state)).not.toHaveProperty('baseUnder');
+  expect(elevationReducer(set, setCellBaseUnder({ ...at, cellId, baseUnder: true }))).toBe(set);
+  for (const target of ['b', nested.id, 'missing']) {
+    expect(elevationReducer(set, setCellBaseUnder({ ...at, cellId: target, baseUnder: true }))).toBe(set);
+  }
+  for (const baseUnder of [false, null]) {
+    expect(leaf(elevationReducer(set, setCellBaseUnder({ ...at, cellId, baseUnder }))))
+      .not.toHaveProperty('baseUnder');
+  }
+  const panel = elevationReducer(set, setCellKind({ ...at, cellId, kind: 'panel' }));
+  expect(leaf(panel).baseUnder).toBe(true);
+  const cabinet = elevationReducer(panel, setCellKind({ ...at, cellId, kind: 'cabinet' }));
+  expect(leaf(cabinet)).not.toHaveProperty('baseUnder');
+});
 
 describe('cabinet faces', () => {
   function faceState() {
@@ -550,4 +576,3 @@ describe('SPEC-35.3 extension reducers', () => {
       .toBeUndefined();
   });
 });
-

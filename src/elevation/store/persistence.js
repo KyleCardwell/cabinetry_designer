@@ -44,8 +44,8 @@ const ITEM_KINDS = new Set(['cabinet', 'filler']);
 const LEAF_KIND_SET = new Set(LEAF_KINDS);
 /** Keys each non-cabinet cell kind may carry. */
 const CELL_KIND_KEYS = {
-  panel: ['id', 'kind', 'depth', 'align', 'doors', 'extend', 'styleId', 'sizes'],
-  void: ['id', 'kind'],
+  panel: ['id', 'kind', 'depth', 'align', 'doors', 'extend', 'styleId', 'sizes', 'baseUnder'],
+  void: ['id', 'kind', 'baseUnder'],
   shelves: ['id', 'kind', 'depth', 'align', 'shelves'],
 };
 const PIN_ANCHORS = new Set(['center', 'left', 'right']);
@@ -397,7 +397,9 @@ function isLeafBlind(blind) {
 
 function isLeaf(leaf) {
   return Boolean(leaf) && typeof leaf.id === 'string'
-    && LEAF_KIND_SET.has(leaf.kind) && isLeafBlind(leaf.blind);
+    && LEAF_KIND_SET.has(leaf.kind) && isLeafBlind(leaf.blind)
+    && (leaf.baseUnder === undefined
+      || (['void', 'panel'].includes(leaf.kind) && leaf.baseUnder === true));
 }
 
 function isShelves(shelves) {

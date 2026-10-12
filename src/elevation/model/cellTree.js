@@ -268,6 +268,7 @@ export function setGridCellKind(grid, leafId, kind) {
   const leaf = found.cell.node;
   const wasPanel = leaf.kind === 'panel';
   const next = { id: leaf.id, kind };
+  if ((kind === 'void' || kind === 'panel') && leaf.baseUnder === true) next.baseUnder = true;
   if (kind !== 'void' && !wasPanel) {
     if (Object.hasOwn(leaf, 'depth')) next.depth = leaf.depth;
     if (Object.hasOwn(leaf, 'align')) next.align = leaf.align;
@@ -376,6 +377,7 @@ export function setGridPanelType(grid, leafId, type, thickness) {
   if (!(typeof thickness === 'number' && Number.isFinite(thickness) && thickness > 0)) return grid;
   const leaf = found.cell.node;
   const next = { id: leaf.id, kind: 'panel' };
+  if (leaf.baseUnder === true) next.baseUnder = true;
   if (leaf.styleId !== undefined) next.styleId = leaf.styleId;
   if (leaf.sizes !== undefined) next.sizes = leaf.sizes;
   if (type === 'back') {
@@ -440,6 +442,19 @@ export function setGridPanelDoors(grid, leafId, doors) {
   const next = { ...leaf };
   if (doors === 'cover') next.doors = 'cover';
   else delete next.doors;
+  return replaceLeaf(grid, found, next);
+}
+
+/** Keeps the base under a void or panel cell; false/null clears the override. */
+export function setGridCellBaseUnder(grid, leafId, baseUnder) {
+  const found = cellLeaf(grid, leafId);
+  if (!found || !['void', 'panel'].includes(found.cell.node.kind)) return grid;
+  if (baseUnder !== true && baseUnder !== false && baseUnder !== null) return grid;
+  const leaf = found.cell.node;
+  if ((baseUnder === true) === (leaf.baseUnder === true)) return grid;
+  const next = { ...leaf };
+  if (baseUnder === true) next.baseUnder = true;
+  else delete next.baseUnder;
   return replaceLeaf(grid, found, next);
 }
 
