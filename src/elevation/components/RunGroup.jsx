@@ -69,8 +69,10 @@ function RunGroup({
   const toeKick = toScreen(bands.toeKick);
   const countertop = toScreen(bands.countertop);
   const toBand = (band) => band?.outline ? outlineGeometry(band.outline, transform) : toScreen(band);
+  const furnitureBase = toBand(bands.furnitureBase);
   const topMold = toBand(bands.topMold);
   const crown = toBand(bands.crown);
+  const FurnitureBaseShape = bands.furnitureBase?.outline ? Shape : Rect;
   const TopMoldShape = bands.topMold?.outline ? Shape : Rect;
   const CrownShape = bands.crown?.outline ? Shape : Rect;
   const bottomParts = bands.bottomParts.map((part) => ({ ...part, rect: toScreen(part) }));
@@ -223,6 +225,17 @@ function RunGroup({
         />
       )}
 
+      {furnitureBase && (
+        <FurnitureBaseShape
+          {...furnitureBase}
+          fill="#94a3b8"
+          opacity={0.9}
+          stroke="#cbd5e1"
+          strokeWidth={1}
+          listening={false}
+        />
+      )}
+
       {countertop && (
         <Rect
           {...countertop}
@@ -257,6 +270,7 @@ function RunGroup({
 
       {[
         ['toeKick', '#334155', 1],
+        ['furnitureBase', '#cbd5e1', 0.9],
         ['countertop', '#64748b', 0.9],
         ['topMold', '#cbd5e1', 0.9],
         ['crown', '#f8fafc', 0.82],

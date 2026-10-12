@@ -46,19 +46,51 @@ const trace = (callback) => {
   return path;
 };
 
-function setup(profile = picks) {
+function setup(profile = picks, cabinetTypeId = 2) {
   const stored = structuredClone(document.rooms[0]);
   stored.profile = { ...stored.profile, ...profile };
-  const upper = stored.walls[0].runs.find(({ id }) => id.startsWith('434f1164'));
+  const source = stored.walls[0].runs.find((run) => run.cabinetTypeId === cabinetTypeId);
   stored.walls = [{
     ...stored.walls[0], x1: 0, y1: 0, x2: 120, y2: 0,
     connections: { start: null, end: null }, openings: [], joints: [],
-    runs: [{ ...upper, x: 20, width: 60, anchors: {}, ends: {} }],
+    runs: [{ ...source, x: 20, width: 60, anchors: {}, ends: {} }],
   }];
   const room = syncRoom(stored, settings);
   const wall = resolveWall(room, room.walls[0]);
   return { room, wall, run: wall.runs[0], settings, transform };
 }
+
+describe('Step 490 furniture base canvas', () => {
+  it('renders a profiled furniture base outline and its thin contour line without a toe kick rect', () => {
+    const tree = nodes(RunGroup.type(setup({
+      baseKind: 'furniture_base', furnitureBaseProfileId: 'fb4',
+    }, 1)));
+    const base = tree.find(({ type, props }) => type === Shape && props.stroke === '#cbd5e1');
+    expect(base).toBeDefined();
+    expect(trace(base.props.sceneFunc).at(-1)).toBe('close');
+    expect(base.props).toMatchObject({
+      fill: '#94a3b8', opacity: 0.9, strokeWidth: 1, listening: false,
+    });
+    const lines = tree.filter(({ type, props }) => type === Line && props.stroke === '#cbd5e1');
+    expect(lines).toHaveLength(1);
+    expect(lines[0].props).toMatchObject({
+      points: [86.75, 437.25, 333.25, 437.25],
+      strokeWidth: 0.5, opacity: 0.9, listening: false,
+    });
+    expect(tree.some(({ type, props }) => type === Rect && props.stroke === '#334155')).toBe(false);
+  });
+
+  it('renders a plain furniture base as a molding rectangle without profile lines or a toe kick', () => {
+    const tree = nodes(RunGroup.type(setup({ baseKind: 'furniture_base' }, 1)));
+    const base = tree.find(({ type, props }) => type === Rect && props.stroke === '#cbd5e1');
+    expect(base.props).toMatchObject({
+      x: 86.75, y: 436, width: 246.5, height: 16,
+      fill: '#94a3b8', opacity: 0.9, strokeWidth: 1, listening: false,
+    });
+    expect(tree.some(({ type, props }) => type === Line && props.stroke === '#cbd5e1')).toBe(false);
+    expect(tree.some(({ type, props }) => type === Rect && props.stroke === '#334155')).toBe(false);
+  });
+});
 
 describe('Step 472 molding canvas', () => {
   it('renders the crown picks as thin lines stopped on the returned front contours', () => {
@@ -81,10 +113,12 @@ describe('Step 472 molding canvas', () => {
   });
 
   it.each([
-    ['return', NeighborReturns], ['profile', NeighborProfiles],
-  ])('renders a %s part outline as a closed path and keeps plain parts rectangular', (kind, Component) => {
+    ['return', NeighborReturns, 'crown'], ['profile', NeighborProfiles, 'crown'],
+    ['furniture base return', NeighborReturns, 'furniture_base'],
+  ])('renders a %s part outline as a closed path and keeps plain parts rectangular', (label, Component, partKind) => {
+    const kind = Component === NeighborReturns ? 'return' : 'profile';
     const part = {
-      id: 'crown', kind: 'crown', x: 13.125, z: 91.5, width: 3, height: 4.5,
+      id: partKind, kind: partKind, x: 13.125, z: 91.5, width: 3, height: 4.5,
       outline: [[13.125, 96], [16.125, 96], [16.125, 95], [13.625, 92], [13.625, 91.5], [13.125, 91.5]],
     };
     const { room, wall } = setup();
@@ -96,6 +130,9 @@ describe('Step 472 molding canvas', () => {
     expect(polygon.props).toMatchObject({
       strokeWidth: 1, listening: false,
     });
+    if (kind === 'return') {
+      expect(polygon.props).toMatchObject({ fill: undefined, stroke: '#94a3b8', opacity: 1 });
+    }
     expect(trace(polygon.props.sceneFunc)).toEqual([
       'begin', ['move', 62.5, 68], ['line', 74.5, 68], ['line', 74.5, 72],
       ['line', 64.5, 84], ['line', 64.5, 86], ['line', 62.5, 86], 'close',
