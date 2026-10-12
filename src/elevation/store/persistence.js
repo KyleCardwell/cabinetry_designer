@@ -128,6 +128,25 @@ function isFiniteNumber(value) {
   return typeof value === 'number' && Number.isFinite(value);
 }
 
+const TOP_OVERHANG_SIDES = ['front', 'back', 'left', 'right'];
+
+function isTopOverhang(value) {
+  return value === undefined || (Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).length > 0
+    && Object.entries(value).every(([side, entry]) => TOP_OVERHANG_SIDES.includes(side)
+      && isFiniteNumber(entry) && entry >= 0));
+}
+
+/** Keep only explicit, non-negative core-edge overhangs; an empty pick inherits defaults. */
+function normalizeRunTopOverhang(run) {
+  const { topOverhang, ...rest } = run;
+  const entries = topOverhang && typeof topOverhang === 'object' && !Array.isArray(topOverhang)
+    ? Object.entries(topOverhang).filter(([side, value]) => TOP_OVERHANG_SIDES.includes(side)
+      && isFiniteNumber(value) && value >= 0)
+    : [];
+  return entries.length ? { ...rest, topOverhang: Object.fromEntries(entries) } : rest;
+}
+
 function hasStyleRefs(node) {
   return DOOR_STYLE_KEYS.every((key) => isStyleRef(node[key]));
 }
@@ -332,6 +351,7 @@ function isRun(run) {
     && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
     && (run.hanging === undefined || run.hanging === true)
     && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top))
+    && isTopOverhang(run.topOverhang)
     && (run.bottom === undefined || (Array.isArray(run.bottom) && run.bottom.every(isBottomPart)))
     && isRunStack(run.stack)
     && (run.outset === undefined || (isFiniteNumber(run.outset) && run.outset >= 0))
@@ -720,7 +740,7 @@ export function normalizeElevationDocument(document) {
             runs: Array.isArray(wall.runs) ? wall.runs.map((run) => {
               if (!run || typeof run !== 'object') return run;
               return {
-                ...run,
+                ...normalizeRunTopOverhang(run),
                 anchors: run.anchors && typeof run.anchors === 'object'
                   ? Object.fromEntries(Object.entries(run.anchors).map(([side, anchor]) => [
                       side,
@@ -818,7 +838,7 @@ export function toElevationDocument(elevationState) {
             void _plane;
             void _doorThickness;
             void _endThickness;
-            return persistedRun;
+            return normalizeRunTopOverhang(persistedRun);
           }),
         };
       }),

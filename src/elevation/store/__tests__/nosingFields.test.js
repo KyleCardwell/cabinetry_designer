@@ -19,7 +19,7 @@ describe('SPEC-50.8 step 498 nosing pick data', () => {
     expect(resolveProfile(older.settings, older.rooms[0], older.rooms[0].walls[0]).nosingProfileId).toBeNull();
     expect(PROFILE_KINDS.nosing).toMatchObject({
       axes: 'run',
-      origin: "the top's front edge, at its top surface (placed past the faces by the countertop overhang)",
+      origin: "the top's front edge, at its top surface (its back edge sits on the faces, plus any front overhang)",
     });
     for (const scope of ['team', 'room', 'wall', 'run']) {
       for (const value of ['nz1', null, undefined, '', 1, false, {}]) {

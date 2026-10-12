@@ -110,6 +110,21 @@ export const runReducers = {
     else location.run.overrides[key] = value;
     syncRoomAt(state, location.roomIndex);
   },
+  setRunTopOverhang(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side, value } = action.payload;
+    if (!location || !['front', 'back', 'left', 'right'].includes(side)) return;
+    if (value === null) {
+      if (!location.run.topOverhang) return;
+      delete location.run.topOverhang[side];
+      if (Object.keys(location.run.topOverhang).length === 0) delete location.run.topOverhang;
+    } else {
+      if (!Number.isFinite(value) || value < 0) return;
+      location.run.topOverhang ??= {};
+      location.run.topOverhang[side] = value;
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
   addBaseCutout(state, action) {
     const location = runLocation(state, action.payload);
     if (!location) return;
