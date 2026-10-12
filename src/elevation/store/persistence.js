@@ -147,6 +147,26 @@ function normalizeRunTopOverhang(run) {
   return entries.length ? { ...rest, topOverhang: Object.fromEntries(entries) } : rest;
 }
 
+function isWaterfall(value) {
+  return value === undefined || (Boolean(value) && typeof value === 'object' && !Array.isArray(value)
+    && Object.keys(value).length > 0
+    && Object.entries(value).every(([side, pick]) => ['left', 'right'].includes(side)
+      && Boolean(pick) && typeof pick === 'object' && !Array.isArray(pick)
+      && Object.entries(pick).every(([key, entry]) => key === 'baseToLeg' && entry === true)));
+}
+
+/** A side object enables its waterfall; only a true base-to-leg override is persisted. */
+function normalizeRunWaterfall(run) {
+  const { waterfall, ...rest } = run;
+  const entries = waterfall && typeof waterfall === 'object' && !Array.isArray(waterfall)
+    ? Object.entries(waterfall)
+      .filter(([side, pick]) => ['left', 'right'].includes(side)
+        && Boolean(pick) && typeof pick === 'object' && !Array.isArray(pick))
+      .map(([side, pick]) => [side, pick.baseToLeg === true ? { baseToLeg: true } : {}])
+    : [];
+  return entries.length ? { ...rest, waterfall: Object.fromEntries(entries) } : rest;
+}
+
 function hasStyleRefs(node) {
   return DOOR_STYLE_KEYS.every((key) => isStyleRef(node[key]));
 }
@@ -352,6 +372,7 @@ function isRun(run) {
     && (run.hanging === undefined || run.hanging === true)
     && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top))
     && isTopOverhang(run.topOverhang)
+    && isWaterfall(run.waterfall)
     && (run.bottom === undefined || (Array.isArray(run.bottom) && run.bottom.every(isBottomPart)))
     && isRunStack(run.stack)
     && (run.outset === undefined || (isFiniteNumber(run.outset) && run.outset >= 0))
@@ -740,7 +761,7 @@ export function normalizeElevationDocument(document) {
             runs: Array.isArray(wall.runs) ? wall.runs.map((run) => {
               if (!run || typeof run !== 'object') return run;
               return {
-                ...normalizeRunTopOverhang(run),
+                ...normalizeRunWaterfall(normalizeRunTopOverhang(run)),
                 anchors: run.anchors && typeof run.anchors === 'object'
                   ? Object.fromEntries(Object.entries(run.anchors).map(([side, anchor]) => [
                       side,
@@ -838,7 +859,7 @@ export function toElevationDocument(elevationState) {
             void _plane;
             void _doorThickness;
             void _endThickness;
-            return normalizeRunTopOverhang(persistedRun);
+            return normalizeRunWaterfall(normalizeRunTopOverhang(persistedRun));
           }),
         };
       }),

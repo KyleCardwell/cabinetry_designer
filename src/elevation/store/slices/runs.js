@@ -125,6 +125,28 @@ export const runReducers = {
     }
     syncRoomAt(state, location.roomIndex);
   },
+  toggleRunWaterfall(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side } = action.payload;
+    if (!location || (side !== 'left' && side !== 'right')) return;
+    const run = location.run;
+    if (run.waterfall?.[side]) {
+      delete run.waterfall[side];
+      if (Object.keys(run.waterfall).length === 0) delete run.waterfall;
+    } else {
+      run.waterfall ??= {};
+      run.waterfall[side] = {};
+    }
+  },
+  setRunWaterfallBaseToLeg(state, action) {
+    const location = runLocation(state, action.payload);
+    const { side, value } = action.payload;
+    if (!location || (side !== 'left' && side !== 'right') || typeof value !== 'boolean') return;
+    const pick = location.run.waterfall?.[side];
+    if (!pick) return;
+    if (value) pick.baseToLeg = true;
+    else delete pick.baseToLeg;
+  },
   addBaseCutout(state, action) {
     const location = runLocation(state, action.payload);
     if (!location) return;

@@ -122,6 +122,8 @@ export const {
   setRunHeightMode,
   setRunOverride,
   setRunTopOverhang,
+  toggleRunWaterfall,
+  setRunWaterfallBaseToLeg,
   addBaseCutout,
   updateBaseCutout,
   removeBaseCutout,

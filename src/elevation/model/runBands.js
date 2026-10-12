@@ -125,6 +125,28 @@ function bandEdge(room, wall, run, side, band, settings) {
   return returned(run, side);
 }
 
+/** Effective waterfall picks at free countertop ends; blocked picks stay stored. */
+export function waterfallEnds(room, wall, run, settings) {
+  const result = { left: null, right: null, warnings: [] };
+  if (!run.waterfall || !isCountertop(runTop(wall, run, resolveProfile(settings, room, wall)).kind)) {
+    return result;
+  }
+  let scene;
+  for (const side of ['left', 'right']) {
+    const pick = run.waterfall[side];
+    if (!pick || typeof pick !== 'object' || Array.isArray(pick)) continue;
+    const anchor = run.anchors?.[side];
+    // Do not resolve bandEdge's return here: its overhang consults waterfallEnds.
+    const blocked = touching(wall, run, side).length > 0
+      || anchor === true || anchor?.to === 'wall' || anchor?.to === 'recess'
+      || (run.ends?.[side]?.type === 'blind'
+        && (scene ??= runScene(room, wall, run, settings)).panelBySide[side]);
+    if (blocked) result.warnings.push({ code: 'waterfall-end-blocked', runId: run.id, side });
+    else result[side] = { baseToLeg: pick.baseToLeg === true };
+  }
+  return result;
+}
+
 export function runBandEnds(room, wall, run, settings, scene, kind, z, height, shapes = lazyCornerShapes(room, wall, settings)) {
   const { panelBySide } = scene;
   const runEnd = run.x + run.width;
