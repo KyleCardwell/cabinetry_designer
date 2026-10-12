@@ -3,7 +3,8 @@ import { bandDepths, hasToeKick } from './bandDepths.js';
 import { bandOutline, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
 import { frontDepth } from './corners.js';
-import { furnitureBaseBand, furnitureBasePast, runBase } from './furnitureBase.js';
+import { furnitureBaseBand, furnitureBasePast, runBase, runBaseProfile } from './furnitureBase.js';
+import { runScene } from './runScene.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { resolveProfile } from './profile.js';
 import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js';
@@ -19,7 +20,7 @@ const EPSILON = 1e-6;
  * toe kick stops short (negative), 1" from an end panel's face, else 1/4" from the cabinet's side.
  */
 function bandPast(room, wall, run, side, band, settings) {
-  if (band === 'furnitureBase') return furnitureBasePast(runBase(room, wall, run, settings));
+  if (band === 'furnitureBase') return furnitureBasePast(runBaseProfile(room, wall, run, settings));
   const depths = bandDepths(settings);
   if (band === 'countertop') return depths.countertopOverhang;
   if (band !== 'toeKick') {
@@ -40,8 +41,8 @@ function freeEdge(room, wall, run, side, band, settings) {
 
 /** Whether a run carries this top family or floor base kind. */
 function carries(room, wall, run, band, settings) {
-  if (band === 'toeKick') return runBase(room, wall, run, settings).kind === 'toe_kick';
-  if (band === 'furnitureBase') return runBase(room, wall, run, settings).kind === 'furniture_base';
+  if (band === 'toeKick') return runBaseProfile(room, wall, run, settings).kind === 'toe_kick';
+  if (band === 'furnitureBase') return runBaseProfile(room, wall, run, settings).kind === 'furniture_base';
   const { kind } = runTop(wall, run, resolveProfile(settings, room, wall));
   if (band === 'countertop') return isCountertop(kind);
   if (band === 'topMold') return kind === 'topMold' || kind === 'crown';
@@ -72,7 +73,7 @@ function bandEdge(room, wall, run, side, band, settings) {
     const x = freeEdge(room, wall, source, end, band, settings);
     const s = end === 'left' ? -1 : 1;
     return { type: 'return', x, side: x - s * bandPast(room, wall, source, end, band, settings), facing: s,
-      ...(band === 'furnitureBase' ? { base: runBase(room, wall, source, settings) } : {}) };
+      ...(band === 'furnitureBase' ? { base: runBaseProfile(room, wall, source, settings) } : {}) };
   };
   const opposite = side === 'left' ? 'right' : 'left';
   const furniture = band === 'furnitureBase';
@@ -81,7 +82,7 @@ function bandEdge(room, wall, run, side, band, settings) {
   if (band !== 'toeKick' && !furniture
     && neighbors.some((other) => other.z + other.height > boxTop + EPSILON)) return square;
   const carriers = neighbors.filter((other) => (furniture
-    ? Math.abs(runBase(room, wall, other, settings).height - runBase(room, wall, run, settings).height) <= EPSILON
+    ? Math.abs(runBaseProfile(room, wall, other, settings).height - runBaseProfile(room, wall, run, settings).height) <= EPSILON
     : band === 'toeKick' || Math.abs(other.z + other.height - boxTop) <= EPSILON)
     && carries(room, wall, other, band, settings));
   if (carriers.length > 0) {
@@ -108,6 +109,34 @@ function bandEdge(room, wall, run, side, band, settings) {
   return returned(run, side);
 }
 
+function runBandEnds(room, wall, run, settings, scene, kind, z, height, shapes = lazyCornerShapes(room, wall, settings)) {
+  const { panelBySide } = scene;
+  const runEnd = run.x + run.width;
+  const panelStart = panelBySide.left
+    ? Math.min(panelBySide.left.x, run.x)
+    : null;
+  const panelEnd = panelBySide.right
+    ? Math.max(panelBySide.right.x + panelBySide.right.width, runEnd)
+    : null;
+  /**
+   * A band's rectangle from its two ends: a blind panel takes it to the wall; at a corner it meets the
+   * return's band (SPEC-42.3); otherwise bandEdge.
+   */
+  const left = (panelStart === null ? null : { type: 'square', x: panelStart })
+    ?? cornerBandEdge(shapes, run, 'left', kind, z, height)
+    ?? bandEdge(room, wall, run, 'left', kind, settings);
+  const right = (panelEnd === null ? null : { type: 'square', x: panelEnd })
+    ?? cornerBandEdge(shapes, run, 'right', kind, z, height)
+    ?? bandEdge(room, wall, run, 'right', kind, settings);
+  return [left, right];
+}
+
+/** The uncut furniture band, also used to resolve cutout warnings against its real floor ends. */
+export function runFurnitureBaseBand(room, wall, run, settings, base, scene = runScene(room, wall, run, settings)) {
+  return base.kind === 'furniture_base'
+    ? furnitureBaseBand(base, runBandEnds(room, wall, run, settings, scene, 'furnitureBase', 0, base.height)) : null;
+}
+
 /**
  * The bands around a run (SPEC-42): its toe kick, its top (countertop, or top mold and crown), the
  * parts below it, and the chip lines on its end panels and fillers, in elevation coordinates. The
@@ -117,33 +146,17 @@ function bandEdge(room, wall, run, side, band, settings) {
 export function runBands(room, wall, run, settings, scene) {
   const { drawnPieces, hiddenIds, panelBySide, endBottom } = scene;
   const runEnd = run.x + run.width;
-  const panelStart = panelBySide.left
-    ? Math.min(panelBySide.left.x, run.x)
-    : null;
-  const panelEnd = panelBySide.right
-    ? Math.max(panelBySide.right.x + panelBySide.right.width, runEnd)
-    : null;
+  const panelStart = panelBySide.left ? Math.min(panelBySide.left.x, run.x) : null;
+  const panelEnd = panelBySide.right ? Math.max(panelBySide.right.x + panelBySide.right.width, runEnd) : null;
   const shapes = lazyCornerShapes(room, wall, settings);
-  /**
-   * A band's rectangle from its two ends: a blind panel takes it to the wall; at a corner it meets the
-   * return's band (SPEC-42.3); otherwise bandEdge.
-   */
-  const endsFor = (kind, z, height) => {
-    const left = (panelStart === null ? null : { type: 'square', x: panelStart })
-      ?? cornerBandEdge(shapes, run, 'left', kind, z, height)
-      ?? bandEdge(room, wall, run, 'left', kind, settings);
-    const right = (panelEnd === null ? null : { type: 'square', x: panelEnd })
-      ?? cornerBandEdge(shapes, run, 'right', kind, z, height)
-      ?? bandEdge(room, wall, run, 'right', kind, settings);
-    return [left, right];
-  };
+  const endsFor = (kind, z, height) => runBandEnds(room, wall, run, settings, scene, kind, z, height, shapes);
   const band = (kind, z, height) => {
     const [left, right] = endsFor(kind, z);
     return { x: left.x, z, width: right.x - left.x, height };
   };
   const profile = resolveProfile(settings, room, wall);
   const moldings = moldingProfiles(profile, settings);
-  const base = runBase(room, wall, run, settings);
+  const base = runBase(room, wall, run, settings, scene);
   const top = runTop(wall, run, profile);
   const boxTop = run.z + run.height;
   const topMold = (top.kind === 'crown' || top.kind === 'topMold')

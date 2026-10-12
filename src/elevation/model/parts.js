@@ -2,7 +2,7 @@ import { CABINET_TYPE_IDS } from './constants.js';
 import { blindEntries, blindPartWidths } from './blind.js';
 import { blindCellWidths, cellPieces, partPieces } from './cells.js';
 import { frameRegions } from './frames.js';
-import { runBase } from './furnitureBase.js';
+import { runBaseProfile as runBase } from './furnitureBase.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
 import {

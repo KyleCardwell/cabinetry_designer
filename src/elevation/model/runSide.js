@@ -3,7 +3,7 @@ import { resolveProfile } from './profile.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { outlineBounds, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
 import { bandDepths } from './bandDepths.js';
-import { runBase } from './furnitureBase.js';
+import { runBaseProfile as runBase } from './furnitureBase.js';
 import { isCountertop, runTop } from './tops.js';
 
 const EPSILON = 1e-6;

@@ -1,3 +1,6 @@
+import { insertBaseCutouts, resolveBaseCutouts } from './baseCutouts.js';
+import { runScene } from './runScene.js';
+import { runFurnitureBaseBand } from './runBands.js';
 import { hasToeKick } from './bandDepths.js';
 import { bandOutline, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
 import { resolveProfile } from './profile.js';
@@ -73,7 +76,7 @@ export function furnitureBaseSection(geometry, proud, height) {
 }
 
 /** Resolve a run's floor base and its profile, stretching furniture bases down from their top. */
-export function runBase(room, wall, run, settings) {
+export function runBaseProfile(room, wall, run, settings) {
   const profile = resolveProfile(settings, room, wall);
   const height = run.overrides?.toeKickHeight ?? profile.toeKickHeight;
   const proud = run.overrides?.furnitureBaseProud ?? profile.furnitureBaseProud;
@@ -109,6 +112,20 @@ export function runBase(room, wall, run, settings) {
   return result;
 }
 
+/** Resolve front cutouts and append their warnings to the run's base profile warnings. */
+export function runBase(room, wall, run, settings, scene) {
+  const base = runBaseProfile(room, wall, run, settings);
+  if (!run.baseCutouts?.length) return base;
+  if (base.kind === 'furniture_base') scene ??= runScene(room, wall, run, settings);
+  const pieces = scene?.cells.pieces ?? [];
+  const band = base.kind === 'furniture_base'
+    ? runFurnitureBaseBand(room, wall, run, settings, base, scene) : null;
+  const resolved = resolveBaseCutouts(run, settings, resolveProfile(settings, room, wall), base, pieces, band);
+  base.cutouts = resolved.cutouts;
+  base.warnings.push(...resolved.warnings);
+  return base;
+}
+
 /** Front projection and free-end return, including any profile that projects beyond its origin. */
 export function furnitureBasePast(base) {
   const maxX = base.picked ? sectionProfileBounds({ geometry: base.picked.geometry }).maxX : 0;
@@ -119,7 +136,7 @@ export function furnitureBasePast(base) {
 export function furnitureBaseBand(base, ends) {
   const [left, right] = ends;
   const rect = { x: left.x, z: 0, width: right.x - left.x, height: base.height, lines: [] };
-  if (!base.picked) return rect;
+  if (!base.picked) return insertBaseCutouts(rect, base.cutouts ?? []);
   const edges = ends.map((end, index) => {
     const source = end.base ?? base;
     const loop = source.picked && sectionProfileOutline(source.picked.geometry);
@@ -139,5 +156,5 @@ export function furnitureBaseBand(base, ends) {
     rect.lines.push({ x1: endEdgeX(edges[0], z, -1), z1: z,
       x2: endEdgeX(edges[1], z, 1), z2: z });
   }
-  return rect;
+  return insertBaseCutouts(rect, base.cutouts ?? []);
 }
