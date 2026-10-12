@@ -45,28 +45,33 @@ describe('SPEC-50.7 step 496 furniture base part numbers and badges', () => {
     }
   });
 
-  it('appends one FB after all moldings and badges only the first touching run (anchor 2)', () => {
+  it('places one FB before its first touching run and badges only that run (anchor 2)', () => {
     const room = goldenWithBase();
     const result = partNumbers(room, settings);
     const before = partNumbers(syncRoom(document.rooms[0], settings), settings);
-    expect(roomParts(room, settings).at(-1)).toEqual({ key: KEY, kind: 'furniture_base', runIds: [TALL, BASE] });
-    expect(result.parts.slice(0, -1)).toEqual(before.parts);
-    expect(result.parts.slice(-4).map(({ key, number }) => [key, number])).toEqual([
-      ['molding:toeKick', 31], ['molding:topMold', 32], ['molding:crown', 33], [KEY, 34],
+    const index = result.parts.findIndex(({ key }) => key === KEY);
+    expect(roomParts(room, settings)[index]).toEqual({ key: KEY, kind: 'furniture_base', runIds: [TALL, BASE] });
+    expect(result.parts[index + 1].runId).toBe(TALL);
+    expect(result.parts.filter(({ key }) => key !== KEY).map(({ key }) => key))
+      .toEqual(before.parts.map(({ key }) => key));
+    expect(result.parts.slice(-3).map(({ key, number }) => [key, number])).toEqual([
+      ['molding:toeKick', 32], ['molding:topMold', 33], ['molding:crown', 34],
     ]);
     // The tall's deeper base returns 13/16 inch at the touching shallower run.
     expect(badges(room, room.walls.find(({ id }) => id === WALL), 'front', result)).toEqual([
-      { molding: 'furniture_base', slot: 0, key: KEY, number: 34, label: 'FB', x: 0, z: 0, width: 30.8125, height: 4 },
+      { molding: 'furniture_base', slot: 0, key: KEY, number: result.byKey.get(KEY), label: 'FB', x: 0, z: 0, width: 30.8125, height: 4 },
     ]);
   });
 
-  it('uses the FB key override without moving other numbers (anchor 3)', () => {
+  it('uses the FB key override and allocates the other numbers in walk order (anchor 3)', () => {
     const room = goldenWithBase();
-    const before = partNumbers(room, settings);
+    const before = partNumbers(syncRoom(document.rooms[0], settings), settings);
     room.partNumberOverrides = { ...room.partNumberOverrides, [KEY]: 99 };
     const result = partNumbers(room, settings);
-    expect(result.parts.at(-1)).toEqual({ key: KEY, kind: 'furniture_base', runIds: [TALL, BASE], number: 99 });
-    expect(result.parts.slice(0, -1)).toEqual(before.parts.slice(0, -1));
+    expect(result.parts.find(({ key }) => key === KEY))
+      .toEqual({ key: KEY, kind: 'furniture_base', runIds: [TALL, BASE], number: 99 });
+    expect(result.parts.filter(({ key }) => key !== KEY))
+      .toEqual(before.parts.filter(({ key }) => key !== KEY));
     expect(result.overrideKeys.has(KEY)).toBe(true);
     expect(badges(room, room.walls.find(({ id }) => id === WALL), 'front', result)[0].number).toBe(99);
   });

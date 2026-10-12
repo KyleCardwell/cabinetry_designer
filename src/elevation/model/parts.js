@@ -169,9 +169,9 @@ function wallPanelPart(wall, panel) {
 
 /**
  * Every part the shop makes for a room, in numbering order (SPEC-39 C8): wall by wall (left wall end
- * panels, then each face's runs in walk order, then right end panels), then one per molding kind in the
- * room, then one per furniture base group. The single list part numbers, reports, the estimator and
- * the AI layer read.
+ * panels, then each face's runs in walk order, then right end panels), with each furniture base group
+ * immediately before its earliest run's first part, then one per molding kind in the room. The single
+ * list part numbers, reports, the estimator and the AI layer read.
  */
 export function roomParts(room, settings) {
   const wallById = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
@@ -180,7 +180,7 @@ export function roomParts(room, settings) {
     .map(([wallId]) => wallById.get(wallId))
     .filter(Boolean);
 
-  const parts = walls.flatMap((wall) => {
+  const wallParts = walls.flatMap((wall) => {
     const panels = wallEndPanels(room, wall, settings);
     const left = panels.filter((panel) => panel.front.side === 'left');
     const right = panels.filter((panel) => panel.front.side === 'right');
@@ -190,6 +190,29 @@ export function roomParts(room, settings) {
       ...right.map((panel) => wallPanelPart(wall, panel)),
     ];
   });
+
+  const firstPartByRun = new Map();
+  wallParts.forEach((part, index) => {
+    if (part.runId && !firstPartByRun.has(part.runId)) firstPartByRun.set(part.runId, { part, index });
+  });
+  const basesByIndex = new Map();
+  for (const group of furnitureBaseGroups(room, settings)) {
+    const first = group.runIds.map((id) => firstPartByRun.get(id)).filter(Boolean)
+      .sort((a, b) => a.index - b.index)[0];
+    const index = first?.index ?? wallParts.length;
+    const x = first ? Math.min(...group.steps
+      .filter((step) => step.wallId === first.part.wallId && step.side === first.part.side)
+      .map((step) => first.part.side === 'back'
+        ? wallLength(wallById.get(step.wallId)) - step.x2 : step.x1)) : 0;
+    const bases = basesByIndex.get(index) ?? [];
+    bases.push({ x, part: { key: group.key, kind: 'furniture_base', runIds: group.runIds } });
+    basesByIndex.set(index, bases);
+  }
+  const basesAt = (index) => (basesByIndex.get(index) ?? [])
+    .sort((a, b) => a.x - b.x).map(({ part }) => part);
+  const parts = wallParts.flatMap((part, index) => [...basesAt(index), part]);
+  // Retain a base even when its member runs have no numbered parts, ahead of the moldings.
+  parts.push(...basesAt(wallParts.length));
 
   for (const molding of PART_MOLDINGS) {
     const present = walls.some((wall) => {
@@ -212,9 +235,6 @@ export function roomParts(room, settings) {
         source: 'molding',
       });
     }
-  }
-  for (const { key, runIds } of furnitureBaseGroups(room, settings)) {
-    parts.push({ key, kind: 'furniture_base', runIds });
   }
   return parts;
 }

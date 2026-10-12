@@ -156,7 +156,7 @@ describe('Step 494 base cutout controls', () => {
     add('c2');
     const choices = options(field(render(), 'Cutout 1 From'));
     expect(choices.map(({ props }) => props.value)).toEqual(['c1', 'c2']);
-    expect(choices.map(text)).toEqual(['#1 — 18"', '#2 — 18"']);
+    expect(choices.map(text)).toEqual(['#2 — 18"', '#3 — 18"']);
     change('Cutout 1 From', 'c1');
     expect(run().baseCutouts[0]).toMatchObject({ from: 'c1', to: 'c2' });
     expect(field(render(), 'Cutout 1 Width').props.placeholder).toBe('30');
