@@ -4,12 +4,17 @@ import {
   RUN_TOP_OPTIONS,
   TOP_LABELS,
   defaultRunTop,
+  formatInchesInput,
+  isCountertop,
   isInsetStyle,
   resolveProfile,
   resolveStyle,
   runTop,
 } from '../../model/index.js';
-import { setRunFaceOptions, setRunOverride, setRunStyle } from '../../store/elevationSlice.js';
+import { topOverhangs } from '../../model/topOverhang.js';
+import { setRunFaceOptions, setRunOverride, setRunStyle, setRunTopOverhang } from '../../store/elevationSlice.js';
+import InchInput from '../InchInput.jsx';
+import Field from './Field.jsx';
 import StyleFields from './StyleFields.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -24,7 +29,10 @@ export default function RunFaceOptions({ room, wall, run, settings }) {
   const at = { wallId: wall.id, runId: run.id };
   const profile = resolveProfile(settings, room, wall);
   const defaultTop = defaultRunTop(wall, run, profile);
-  const woodTop = runTop(wall, run, profile).kind === 'wood';
+  const topKind = runTop(wall, run, profile).kind;
+  const woodTop = topKind === 'wood';
+  const overhangDefaults = isCountertop(topKind)
+    ? topOverhangs(room, wall, { ...run, topOverhang: undefined }, settings) : null;
   const pickedId = run.overrides?.nosingProfileId;
   const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === 'nosing' && !entry.archived);
   const unavailable = pickedId && !choices.some((entry) => entry.id === pickedId);
@@ -72,6 +80,29 @@ export default function RunFaceOptions({ room, wall, run, settings }) {
             {unavailable && <option value={pickedId} disabled>{settings.sectionProfiles?.find((entry) => entry.id === pickedId)?.name ?? 'Missing profile'} (unavailable)</option>}
           </select>
         </label>
+      )}
+
+      {overhangDefaults && (
+        <div className="space-y-1">
+          <h4 className="text-xs text-gray-400">Overhang</h4>
+          <div className="grid grid-cols-4 gap-2">
+            {['front', 'back', 'left', 'right'].map((side) => (
+              <Field key={side} label={side[0].toUpperCase() + side.slice(1)}>
+                <InchInput
+                  value={run.topOverhang?.[side] ?? null}
+                  allowBlank
+                  placeholder={formatInchesInput(overhangDefaults[side])}
+                  onCommit={(value) => {
+                    if (value !== null && (!Number.isFinite(value) || value < 0)) return false;
+                    dispatch(setRunTopOverhang({ ...at, side, value }));
+                    return true;
+                  }}
+                  aria-label={`Run ${side} overhang`}
+                />
+              </Field>
+            ))}
+          </div>
+        </div>
       )}
 
       {run.cabinetTypeId === CABINET_TYPE_IDS.BASE && isInsetStyle(resolveStyle(settings, room, run)) && (
