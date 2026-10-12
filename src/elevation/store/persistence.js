@@ -63,12 +63,13 @@ const RUN_TYPE_IDS = new Set([
   CABINET_TYPE_IDS.TALL,
 ]);
 const PROFILE_KEYS = Object.keys(DEFAULT_PROFILE);
-const PROFILE_PICK_KEYS = ['topMoldProfileId', 'crownProfileId', 'furnitureBaseProfileId'];
+const PROFILE_PICK_KEYS = ['topMoldProfileId', 'crownProfileId', 'furnitureBaseProfileId', 'baseCutoutProfileId'];
 const RUN_OVERRIDE_KEYS = [
   'toeKickHeight',
   'baseKind',
   'furnitureBaseProud',
   'furnitureBaseProfileId',
+  'baseCutoutProfileId',
   'baseBoxHeight',
   'countertopThickness',
   'upperClearance',
@@ -117,6 +118,8 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'belowRunFlushReveal',
   'bottomPartHeights',
   'plotScale',
+  'baseCutoutFoot',
+  'baseCutoutHeight',
 ];
 
 function isFiniteNumber(value) {
@@ -290,6 +293,21 @@ function isRunStack(stack) {
     && isStackLink(stack.above ?? null));
 }
 
+/** SPEC-50.6 cutouts keep cabinet references even when their cabinets are gone. */
+export function isBaseCutoutList(value) {
+  if (!Array.isArray(value)) return false;
+  const ids = new Set();
+  return Array.from(value).every((cutout) => {
+    if (!cutout || typeof cutout !== 'object' || Array.isArray(cutout)
+      || !['id', 'from', 'to'].every((key) => typeof cutout[key] === 'string' && cutout[key].length > 0)
+      || ids.has(cutout.id)
+      || (cutout.width !== undefined && !(isFiniteNumber(cutout.width) && cutout.width > 0))
+      || (cutout.profileId !== undefined && cutout.profileId !== null && typeof cutout.profileId !== 'string')) return false;
+    ids.add(cutout.id);
+    return true;
+  });
+}
+
 function isRun(run) {
   return Boolean(run)
     && hasStyleRefs(run)
@@ -316,6 +334,7 @@ function isRun(run) {
     && (run.seamGap === undefined || (isFiniteNumber(run.seamGap) && run.seamGap >= 0))
     && (run.tFiller === undefined || T_FILLER_RUN_VALUES.includes(run.tFiller))
     && isEndFiller(run.endFiller)
+    && (run.baseCutouts === undefined || isBaseCutoutList(run.baseCutouts))
     && run.items === undefined
     && run.blind === undefined
     && isRunGrid(run.grid);

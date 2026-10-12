@@ -27,12 +27,12 @@ describe('SPEC-48.2 profile kinds; 0, 0 is the pin', () => {
   it('names one kind per profile, each with its axes and what 0, 0 means, and no pins', () => {
     expect(Object.keys(PROFILE_KINDS)).toEqual([
       'door_outside', 'door_inside', 'door_panel', 'applied_molding', 'crown', 'top_mold',
-      'furniture_base', 'toe_kick', 'nosing', 'other',
+      'furniture_base', 'base_cutout', 'toe_kick', 'nosing', 'other',
     ]);
     expect(Object.values(PROFILE_KINDS).map((kind) => Object.keys(kind)))
-      .toEqual(Array(10).fill(['label', 'axes', 'origin']));
+      .toEqual(Array(11).fill(['label', 'axes', 'origin']));
     expect(Object.values(PROFILE_KINDS).map(({ axes }) => axes))
-      .toEqual(['door', 'door', 'door', 'door', 'run', 'run', 'run', 'run', 'run', 'free']);
+      .toEqual(['door', 'door', 'door', 'door', 'run', 'run', 'run', 'cutout', 'run', 'run', 'free']);
     expect([profileKindLabel('door_inside'), profileKindLabel('door_panel'), profileKindLabel('other'), profileKindLabel('shop_x')])
       .toEqual(['Door inside profile', 'Raised panel', 'Other', 'shop_x']);
     expect([

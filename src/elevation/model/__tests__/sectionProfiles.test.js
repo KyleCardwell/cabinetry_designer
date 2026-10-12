@@ -15,7 +15,7 @@ const withSegs = (...list) => loop({ segs: list });
 describe('SPEC-47 the section profile shape', () => {
   it('starts with an empty library and names the kinds', () => {
     expect(DEFAULT_SETTINGS.sectionProfiles).toEqual([]);
-    expect(Object.keys(PROFILE_KINDS)).toHaveLength(10);
+    expect(Object.keys(PROFILE_KINDS)).toHaveLength(11);
     expect([COVE, BEAD, CROWN].map((profile) => isSectionProfile(profile))).toEqual([true, true, true]);
     expect([COVE.kind, BEAD.kind, CROWN.kind]).toEqual(['door_inside', 'applied_molding', 'crown']);
   });

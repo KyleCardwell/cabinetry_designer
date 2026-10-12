@@ -17,6 +17,7 @@ import {
 } from '../../model/room.js';
 import { soffitEndType } from '../../model/soffits.js';
 import { wallViewForRun } from '../../model/wallSides.js';
+import { isBaseCutoutList } from '../persistence.js';
 import {
   withoutAuto,
   wallLocation,
@@ -104,9 +105,30 @@ export const runReducers = {
     const location = runLocation(state, action.payload);
     if (!location) return;
     const { key, value } = action.payload;
-    if (value === undefined || (value === null && key !== 'furnitureBaseProfileId')) delete location.run.overrides[key];
+    if (value === undefined || (value === null && key !== 'furnitureBaseProfileId'
+      && key !== 'baseCutoutProfileId')) delete location.run.overrides[key];
     else location.run.overrides[key] = value;
     syncRoomAt(state, location.roomIndex);
+  },
+  addBaseCutout(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const cutouts = [...(location.run.baseCutouts ?? []), action.payload.cutout];
+    if (isBaseCutoutList(cutouts)) location.run.baseCutouts = cutouts;
+  },
+  updateBaseCutout(state, action) {
+    const location = runLocation(state, action.payload);
+    const { cutoutId, changes } = action.payload;
+    if (!location?.run.baseCutouts) return;
+    const cutouts = location.run.baseCutouts.map((cutout) => (
+      cutout.id === cutoutId ? { ...cutout, ...changes } : cutout
+    ));
+    if (isBaseCutoutList(cutouts)) location.run.baseCutouts = cutouts;
+  },
+  removeBaseCutout(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location?.run.baseCutouts) return;
+    location.run.baseCutouts = location.run.baseCutouts.filter((cutout) => cutout.id !== action.payload.cutoutId);
   },
   setRunAnchor(state, action) {
     const location = runLocation(state, action.payload);
