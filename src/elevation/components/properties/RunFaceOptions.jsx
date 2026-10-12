@@ -12,7 +12,11 @@ import {
   runTop,
 } from '../../model/index.js';
 import { topOverhangs } from '../../model/topOverhang.js';
-import { setRunFaceOptions, setRunOverride, setRunStyle, setRunTopOverhang } from '../../store/elevationSlice.js';
+import { waterfallEnds } from '../../model/runBands.js';
+import {
+  setRunEnd, setRunFaceOptions, setRunOverride, setRunStyle, setRunTopOverhang,
+  setRunWaterfallBaseToLeg, toggleRunWaterfall,
+} from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
 import StyleFields from './StyleFields.jsx';
@@ -33,6 +37,8 @@ export default function RunFaceOptions({ room, wall, run, settings }) {
   const woodTop = topKind === 'wood';
   const overhangDefaults = isCountertop(topKind)
     ? topOverhangs(room, wall, { ...run, topOverhang: undefined }, settings) : null;
+  const overhangs = overhangDefaults ? topOverhangs(room, wall, run, settings) : null;
+  const waterfall = overhangDefaults ? waterfallEnds(room, wall, run, settings) : null;
   const pickedId = run.overrides?.nosingProfileId;
   const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === 'nosing' && !entry.archived);
   const unavailable = pickedId && !choices.some((entry) => entry.id === pickedId);
@@ -102,6 +108,58 @@ export default function RunFaceOptions({ room, wall, run, settings }) {
               </Field>
             ))}
           </div>
+        </div>
+      )}
+
+      {waterfall && (
+        <div className="space-y-1">
+          <h4 className="text-xs text-gray-400">Waterfall</h4>
+          {['left', 'right'].map((side) => {
+            const checked = Boolean(run.waterfall?.[side]);
+            const blocked = waterfall.warnings.some((warning) => (
+              warning.code === 'waterfall-end-blocked' && warning.side === side
+            ));
+            const warningId = `waterfall-${run.id}-${side}-warning`;
+            return (
+              <div key={side} className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <label className="flex items-center gap-2 text-xs text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={(event) => {
+                        dispatch(toggleRunWaterfall({ ...at, side }));
+                        if (event.target.checked && run.ends?.[side]?.type === 'end_panel') {
+                          dispatch(setRunEnd({ ...at, side, end: { type: 'none', width: null } }));
+                        }
+                      }}
+                      aria-label={`Run ${side} waterfall`}
+                      aria-describedby={blocked ? warningId : undefined}
+                    />
+                    {side === 'left' ? 'Left' : 'Right'}
+                  </label>
+                  {blocked && (
+                    <span id={warningId} role="alert" className="text-xs text-amber-300">
+                      Blocked: waterfall requires a free end.
+                    </span>
+                  )}
+                </div>
+                {checked && overhangs[side] > 0 && (
+                  <label className="ml-5 flex items-center gap-2 text-xs text-gray-300">
+                    <input
+                      type="checkbox"
+                      checked={run.waterfall[side].baseToLeg === true}
+                      onChange={(event) => dispatch(setRunWaterfallBaseToLeg({
+                        ...at, side, value: event.target.checked,
+                      }))}
+                      aria-label={`Run ${side} base runs to the waterfall`}
+                    />
+                    Base runs to the waterfall
+                  </label>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
