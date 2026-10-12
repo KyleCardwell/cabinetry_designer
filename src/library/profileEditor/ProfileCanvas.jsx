@@ -3,6 +3,7 @@ import {
   addProfileLoop, addProfilePoint, formatProfileCoord, moveProfilePoint, nextPointId, profileDrawnIn, snapProfilePoint,
 } from '../../elevation/model/profileEditing.js';
 import { PROFILE_KINDS, stretchLineProblem } from '../../elevation/model/sectionProfiles.js';
+import { cutoutProfile } from '../../elevation/model/baseCutouts.js';
 import { fitView, loopScreenPath, segmentScreenPath, toModel, toScreen, zoomAt } from './profileView.js';
 
 function gridScreenPath(view, size, step) {
@@ -29,6 +30,12 @@ function hitSelection(target) {
 
 const LINE_FAILURE = 'A closed shape needs at least 3 points, an open line at least 2.';
 const sameXY = (a, b) => a[0] === b[0] && a[1] === b[1];
+
+function baseTopHeight(profile) {
+  if (!Number.isFinite(profile.topGap) || profile.topGap <= 0) return null;
+  const half = cutoutProfile(profile);
+  return half ? half.at(-1)[1] + profile.topGap : null;
+}
 
 export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, selection, onSelect, fitSignal, tool, onApply, onMessage }, ref) {
   const containerRef = useRef(null);
@@ -84,9 +91,13 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
 
   useEffect(() => {
     if (size.width <= 0 || size.height <= 0) return;
-    if (fittedRef.current && fittedRef.current.fitSignal === fitSignal) return;
-    fittedRef.current = { fitSignal };
-    setView(fitView(profile, size.width, size.height));
+    if (fittedRef.current && fittedRef.current.fitSignal === fitSignal && fittedRef.current.topGap === profile.topGap) return;
+    fittedRef.current = { fitSignal, topGap: profile.topGap };
+    const baseTop = baseTopHeight(profile);
+    const fitProfile = baseTop === null ? profile : { ...profile, geometry: { ...profile.geometry,
+      points: { ...profile.geometry.points, [nextPointId(profile)]: [0, baseTop] },
+    } };
+    setView(fitView(fitProfile, size.width, size.height));
   }, [profile, size, fitSignal]);
 
   useEffect(() => {
@@ -142,6 +153,8 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
   const ghostProfile = ghost ? { ...profile, geometry: ghost, drawnPoints: { elevation: [] } } : null;
   const axes = PROFILE_KINDS[drawnProfile.kind]?.axes ?? 'free';
   const stretchY = view && drawnProfile.stretch ? toScreen(view, size, [0, drawnProfile.stretch.y])[1] : null;
+  const baseTop = baseTopHeight(drawnProfile);
+  const baseTopY = view && baseTop !== null ? toScreen(view, size, [0, baseTop])[1] : null;
   const originText = PROFILE_KINDS[drawnProfile.kind]?.origin ?? null;
   const hover = tool === 'line' && view && cursor
     ? snapProfilePoint(profile, toModel(view, size, cursor), { grid, reach: 8 / view.scale }) : null;
@@ -251,6 +264,9 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
             ))}
             {stretchY !== null && (
               <line x1={0} y1={stretchY} x2={size.width} y2={stretchY} stroke={stretchLineProblem(drawnProfile) ? '#f87171' : '#fbbf24'} strokeWidth={1.5} strokeDasharray="6 4" pointerEvents="none" aria-label="Stretch line" />
+            )}
+            {baseTopY !== null && (
+              <line x1={0} y1={baseTopY} x2={size.width} y2={baseTopY} stroke="#9ca3af" strokeWidth={1.5} strokeDasharray="6 4" pointerEvents="none" aria-label="Base top line" />
             )}
             {Object.entries(drawnProfile.geometry.points).map(([id, point]) => {
               const [x, y] = toScreen(view, size, point);

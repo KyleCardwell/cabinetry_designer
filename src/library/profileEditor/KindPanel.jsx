@@ -1,3 +1,6 @@
+import { useSelector } from 'react-redux';
+import { cutoutProfile } from '../../elevation/model/baseCutouts.js';
+import { DEFAULT_PROFILE } from '../../elevation/model/constants.js';
 import { PROFILE_KINDS, PROFILE_SLOTS, defaultStretchY, stretchLineProblem } from '../../elevation/model/sectionProfiles.js';
 import { setProfileKind, setProfileStretch } from '../../elevation/model/profileEditing.js';
 import InchInput from '../../elevation/components/InchInput.jsx';
@@ -18,6 +21,7 @@ const SLOT_LABELS = {
 };
 
 export default function KindPanel({ profile, onApply }) {
+  const teamBaseHeight = useSelector((state) => state.elevation.settings.defaultProfile?.toeKickHeight ?? DEFAULT_PROFILE.toeKickHeight);
   const kind = PROFILE_KINDS[profile.kind];
   const slotLabels = profile.kind === 'base_cutout' ? ['base cutouts'] : Object.keys(PROFILE_SLOTS)
     .filter((slot) => PROFILE_SLOTS[slot] === profile.kind)
@@ -25,6 +29,18 @@ export default function KindPanel({ profile, onApply }) {
 
   const stretchProblem = stretchLineProblem(profile);
   const applyStretch = (y) => onApply(setProfileStretch(profile, y));
+  const applyTopGap = (value) => {
+    if (value !== null && (!Number.isFinite(value) || value < 1 / 16)) return false;
+    const next = { ...profile };
+    if (value === null) delete next.topGap;
+    else next.topGap = value;
+    return onApply(next);
+  };
+  const enableTopGap = () => {
+    const half = cutoutProfile(profile);
+    const gap = half ? Math.round((teamBaseHeight - half.at(-1)[1]) * 16) / 16 : 0;
+    return applyTopGap(Number.isFinite(gap) && gap > 0 ? gap : 2);
+  };
 
   return (
     <section className="space-y-3">
@@ -33,7 +49,11 @@ export default function KindPanel({ profile, onApply }) {
         aria-label="Kind"
         className={INPUT_CLASS}
         value={profile.kind}
-        onChange={(event) => onApply(setProfileKind(profile, event.target.value), "That kind couldn't be set.")}
+        onChange={(event) => {
+          const next = { ...profile };
+          if (event.target.value !== 'base_cutout') delete next.topGap;
+          onApply(setProfileKind(next, event.target.value), "That kind couldn't be set.");
+        }}
       >
         {Object.entries(PROFILE_KINDS).map(([value, { label }]) => <option key={value} value={value}>{label}</option>)}
       </select>
@@ -56,6 +76,34 @@ export default function KindPanel({ profile, onApply }) {
       )}
       {kind.axes === 'door' && (
         <p className="text-xs text-gray-500">An open line is a cut: the door&apos;s new edge, from the face in. A closed shape is a piece applied to the door. A molding that needs a notch in the door can have both.</p>
+      )}
+      {profile.kind === 'base_cutout' && (
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm text-gray-200">
+            <input
+              type="checkbox"
+              checked={Object.hasOwn(profile, 'topGap')}
+              onChange={(event) => event.target.checked ? enableTopGap() : applyTopGap(null)}
+            />
+            Keep a set distance below the top of the base
+          </label>
+          {Object.hasOwn(profile, 'topGap') && (
+            <>
+              <label className="block text-xs text-gray-400">
+                Cutout top below base top
+                <InchInput
+                  value={profile.topGap}
+                  displayStep={1 / 16}
+                  min={1 / 16}
+                  aria-label="Cutout top below base top"
+                  onCommit={applyTopGap}
+                  className="mt-1"
+                />
+              </label>
+              <p className="text-xs text-gray-500">The shape is drawn for a base this much taller than the cutout. On a taller base the shape moves up and straight legs run down to the floor.</p>
+            </>
+          )}
+        </div>
       )}
       {(kind.axes === 'door' || profile.kind === 'top_mold' || profile.kind === 'furniture_base') && (
         <div className="space-y-2">

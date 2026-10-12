@@ -1,7 +1,7 @@
 import { bandOutline } from './bandEnds.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { flattenOutline, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
-import { sectionProfileBounds } from './sectionProfiles.js';
+import { isProfileGeometry, sectionProfileBounds } from './sectionProfiles.js';
 
 const EPSILON = 1e-6;
 
@@ -34,8 +34,8 @@ function reverseChain(chain) {
 }
 
 /** Read an open floor-to-top chain, using the section reader to retain and split arcs. */
-function cutoutProfile(profile) {
-  if (profile?.kind !== 'base_cutout') return null;
+export function cutoutProfile(profile) {
+  if (profile?.kind !== 'base_cutout' || !isProfileGeometry(profile.geometry)) return null;
   const geometry = profile.geometry;
   const loop = geometry.loops.find((entry) => entry.closed === false && entry.segs.length);
   if (!loop || loop.segs.some((seg, i) => i && seg.from !== loop.segs[i - 1].to)) return null;

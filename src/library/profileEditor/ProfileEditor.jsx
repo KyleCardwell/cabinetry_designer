@@ -130,6 +130,8 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
   const profileToSave = { ...saved, kind: draft.kind, geometry: draft.geometry, drawnPoints: draft.drawnPoints };
   if (draft.stretch) profileToSave.stretch = draft.stretch;
   else delete profileToSave.stretch;
+  if (Object.hasOwn(draft, 'topGap')) profileToSave.topGap = draft.topGap;
+  else delete profileToSave.topGap;
   const saveDisabled = !dirty || !isSectionProfile(profileToSave);
 
   return (
