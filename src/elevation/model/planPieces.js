@@ -5,7 +5,13 @@ import { frontDepth, runBackOffset, runFaceThickness } from './corners.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { frameRegions } from './frames.js';
 import { runItems } from './grid.js';
+import { moldingProfiles } from './moldingProfiles.js';
+import { nosingProjection } from './nosing.js';
+import { resolveProfile } from './profile.js';
+import { waterfallEnds } from './runBands.js';
 import { teeFillers } from './tees.js';
+import { topOverhangs } from './topOverhang.js';
+import { runTop } from './tops.js';
 import { miteredSpan, panelRunMiters } from './wallEndPanels.js';
 
 const WIDTH_EPSILON = 1e-6;
@@ -227,7 +233,32 @@ function miterPanels(faces, run, miters) {
   });
 }
 
-/** Return the boxes, faces, filler returns, and their overall span used by the plan view. */
+/** Floor legs in wall coordinates, including the top's overhangs and front nosing. */
+function planWaterfallLegs(room, wall, run, settings) {
+  const ends = waterfallEnds(room, wall, run, settings);
+  if (!ends.left && !ends.right) return [];
+  const profile = resolveProfile(settings, room, wall);
+  const top = runTop(wall, run, profile);
+  const overhangs = topOverhangs(room, wall, run, settings);
+  const projection = top.kind === 'wood'
+    ? nosingProjection(moldingProfiles(profile, settings, run).nosing) : 0;
+  return ['left', 'right'].filter((side) => ends[side]).map((side) => {
+    const start = side === 'left'
+      ? run.x - overhangs.left - top.height
+      : run.x + run.width + overhangs.right;
+    return {
+      key: `${run.id}:waterfall:${side}`,
+      kind: 'countertop',
+      start,
+      end: start + top.height,
+      back: runBackOffset(run) - overhangs.back,
+      front: frontDepth(run, settings) + overhangs.front + projection,
+      top: run.z + run.height + top.height,
+    };
+  });
+}
+
+/** Return the boxes, faces, filler returns, waterfall legs, and overall plan span. */
 export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const outset = runBackOffset(run);
   const faceBack = run.depth + settings.bumperThickness;
@@ -351,7 +382,8 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
       ? { ...piece, back: teeBack - (piece.front - piece.back), front: teeBack }
       : piece;
   });
-  const pieces = [...boxes, ...teeFaces, ...endReturns, ...teeReturns];
+  const waterfallLegs = planWaterfallLegs(room, wall, run, settings);
+  const pieces = [...boxes, ...teeFaces, ...endReturns, ...teeReturns, ...waterfallLegs];
   const shift = (piece) => (outset
     ? {
       ...piece,
@@ -369,5 +401,6 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
     boxes: boxes.map(shift),
     faces: teeFaces.map(shift),
     returns: [...endReturns, ...teeReturns].map(shift),
+    ...(waterfallLegs.length ? { waterfallLegs } : {}),
   };
 }

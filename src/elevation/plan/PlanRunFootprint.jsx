@@ -97,7 +97,7 @@ export default function PlanRunFootprint({
     pinTargets: pinTargetsForRun(run, wall, frame.length, settings),
   });
   const faceLayouts = runFaceLayouts(room, wall, run, settings, layout);
-  const { span, boxes, faces, returns } = planRunPieces(
+  const { span, boxes, faces, returns, waterfallLegs = [] } = planRunPieces(
     room,
     wall,
     run,
@@ -204,6 +204,17 @@ export default function PlanRunFootprint({
           />
         );
       })}
+      {waterfallLegs.map((leg) => (
+        <Line
+          key={leg.key}
+          points={linePoints(planPiecePoints(frame, leg))}
+          closed
+          fill="#cbd5e18c"
+          stroke={outline}
+          strokeWidth={0.75 / scale}
+          hitStrokeWidth={8 / scale}
+        />
+      ))}
       <Line
         points={[dimensionBack.x, dimensionBack.y, dimensionFront.x, dimensionFront.y]}
         stroke="#e2e8f0"

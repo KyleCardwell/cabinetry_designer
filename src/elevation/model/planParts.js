@@ -110,7 +110,7 @@ export function planParts(room, settings) {
       // the face as the elevation resolves it, length and all, so pins and corner rules lay out the same (SPEC-44.2).
       const wall = resolveWall(room, stored, side);
       const layout = layoutRun(room, wall, run, settings);
-      const { boxes, faces, returns } = planRunPieces(
+      const { boxes, faces, returns, waterfallLegs = [] } = planRunPieces(
         room, wall, run, settings, layout, runFaceLayouts(room, wall, run, settings, layout),
       );
       const tops = new Map([...layout.pieces, ...cellPieces(run, layout).pieces]
@@ -124,7 +124,7 @@ export function planParts(room, settings) {
             range.start, range.end, range.back, range.front,
           )),
           runId: run.id,
-          top: topOf(range.key),
+          top: range.top ?? topOf(range.key),
         });
       };
       for (const box of boxes) {
@@ -132,6 +132,7 @@ export function planParts(room, settings) {
       }
       for (const range of faces) addRange(range, range.kind);
       for (const range of returns) addRange(range, 'filler');
+      for (const leg of waterfallLegs) addRange(leg, leg.kind);
     }
   }
   return parts;
