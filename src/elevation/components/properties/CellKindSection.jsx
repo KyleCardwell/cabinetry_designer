@@ -4,9 +4,11 @@ import {
 } from '../../model/index.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
 import { isSheetCell } from '../../model/panelThickness.js';
+import { floorOpenings } from '../../model/floorOpenings.js';
 import {
   addPanel,
   setCellKind,
+  setCellBaseUnder,
   setCellExtend,
   setPanelDoors,
   setPanelType,
@@ -45,6 +47,7 @@ export default function CellKindSection({ wall, run, piece, item }) {
   const actionBase = { wallId: wall.id, runId: run.id, cellId: item.id };
   const where = { ...actionBase, part: 'panelCell' };
   const orientation = panelOrientation(piece);
+  const isFloorOpening = floorOpenings(run, { pieces: [piece] }).length > 0;
   const offeredTypes = panelTypes(run.grid, item.id);
   const typeOptions = orientation && !offeredTypes.includes(orientation)
     ? [...offeredTypes, orientation]
@@ -68,6 +71,19 @@ export default function CellKindSection({ wall, run, piece, item }) {
           ))}
         </select>
       </Field>
+      {isFloorOpening && (
+        <label className="flex items-center gap-2 text-xs text-gray-300">
+          <input
+            type="checkbox"
+            checked={item.baseUnder === true}
+            onChange={(event) => dispatch(setCellBaseUnder({
+              ...actionBase,
+              baseUnder: event.target.checked,
+            }))}
+          />
+          Base runs under the opening
+        </label>
+      )}
       {item.kind === 'panel' && (
         <Field label="Panel type">
           <select
