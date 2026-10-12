@@ -7,8 +7,9 @@ import {
   isInsetStyle,
   resolveProfile,
   resolveStyle,
+  runTop,
 } from '../../model/index.js';
-import { setRunFaceOptions, setRunStyle } from '../../store/elevationSlice.js';
+import { setRunFaceOptions, setRunOverride, setRunStyle } from '../../store/elevationSlice.js';
 import StyleFields from './StyleFields.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -21,7 +22,12 @@ const UPPER_BOTTOM_LABELS = {
 export default function RunFaceOptions({ room, wall, run, settings }) {
   const dispatch = useDispatch();
   const at = { wallId: wall.id, runId: run.id };
-  const defaultTop = defaultRunTop(wall, run, resolveProfile(settings, room, wall));
+  const profile = resolveProfile(settings, room, wall);
+  const defaultTop = defaultRunTop(wall, run, profile);
+  const woodTop = runTop(wall, run, profile).kind === 'wood';
+  const pickedId = run.overrides?.nosingProfileId;
+  const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === 'nosing' && !entry.archived);
+  const unavailable = pickedId && !choices.some((entry) => entry.id === pickedId);
 
   return (
     <section className="space-y-3 border-t border-gray-700 pt-3">
@@ -47,6 +53,26 @@ export default function RunFaceOptions({ room, wall, run, settings }) {
           ))}
         </select>
       </label>
+
+      {woodTop && (
+        <label className="block text-xs text-gray-400">
+          Nosing profile
+          <select
+            value={pickedId === null ? 'plain' : pickedId ?? ''}
+            onChange={(event) => {
+              const value = event.target.value === 'plain' ? null : event.target.value || undefined;
+              dispatch(setRunOverride({ ...at, key: 'nosingProfileId', value }));
+            }}
+            aria-label="Run Nosing profile"
+            className={`mt-1 ${SELECT_CLASS}`}
+          >
+            <option value="">Inherit</option>
+            <option value="plain">None</option>
+            {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+            {unavailable && <option value={pickedId} disabled>{settings.sectionProfiles?.find((entry) => entry.id === pickedId)?.name ?? 'Missing profile'} (unavailable)</option>}
+          </select>
+        </label>
+      )}
 
       {run.cabinetTypeId === CABINET_TYPE_IDS.BASE && isInsetStyle(resolveStyle(settings, room, run)) && (
         <label className="flex items-center gap-2 text-xs text-gray-300">

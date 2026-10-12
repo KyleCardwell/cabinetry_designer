@@ -67,11 +67,12 @@ function RunGroup({
   );
   const toScreen = (rect) => rect && wallRectToScreen(rect, transform);
   const toeKick = toScreen(bands.toeKick);
-  const countertop = toScreen(bands.countertop);
   const toBand = (band) => band?.outline ? outlineGeometry(band.outline, transform) : toScreen(band);
+  const countertop = toBand(bands.countertop);
   const furnitureBase = toBand(bands.furnitureBase);
   const topMold = toBand(bands.topMold);
   const crown = toBand(bands.crown);
+  const CountertopShape = bands.countertop?.outline ? Shape : Rect;
   const FurnitureBaseShape = bands.furnitureBase?.outline ? Shape : Rect;
   const TopMoldShape = bands.topMold?.outline ? Shape : Rect;
   const CrownShape = bands.crown?.outline ? Shape : Rect;
@@ -237,7 +238,7 @@ function RunGroup({
       )}
 
       {countertop && (
-        <Rect
+        <CountertopShape
           {...countertop}
           fill={bands.top.kind === 'wood' ? '#c8a27a' : '#cbd5e1'}
           opacity={0.9}

@@ -60,6 +60,56 @@ function setup(profile = picks, cabinetTypeId = 2) {
   return { room, wall, run: wall.runs[0], settings, transform };
 }
 
+describe('SPEC-50.8 step 500 nosing canvas', () => {
+  const nz1 = {
+    id: 'nz1', name: 'Chamfer nosing', kind: 'nosing',
+    geometry: {
+      units: 'in', points: { a: [0, 0], b: [0.25, 0], c: [0.5, -0.25], d: [0.5, -1.5], e: [0, -1.5] },
+      loops: [{ id: 'L1', closed: true, segs: ['a', 'b', 'c', 'd', 'e'].map((from, i, ids) => ({
+        type: 'line', from, to: ids[(i + 1) % ids.length],
+      })) }],
+    },
+    drawnPoints: { elevation: ['c'] },
+  };
+  const render = (top, nosingProfileId) => {
+    const props = setup({ countertopThickness: 1.5 }, 1);
+    Object.assign(props.run, {
+      x: 30, width: 36, z: 4, height: 30.5, depth: 24, top,
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+      overrides: { nosingProfileId },
+    });
+    props.settings = { ...props.settings, sectionProfiles: [nz1] };
+    return nodes(RunGroup.type(props));
+  };
+
+  it('draws the wood nosing outline as a closed path and its thin elevation line', () => {
+    const tree = render('wood', 'nz1');
+    const top = tree.find(({ type, props }) => type === Shape && props.stroke === '#64748b');
+    expect(top).toBeDefined();
+    expect(top.props).toMatchObject({ fill: '#c8a27a', strokeWidth: 1, opacity: 0.9, listening: false });
+    expect(trace(top.props.sceneFunc)).toEqual([
+      'begin', ['move', 125, 314], ['line', 279, 314], ['line', 279, 309],
+      ['line', 278, 308], ['line', 126, 308], ['line', 125, 309], 'close',
+    ]);
+    const lines = tree.filter(({ type, props }) => type === Line && props.stroke === '#64748b');
+    expect(lines).toHaveLength(1);
+    expect(lines[0].props).toMatchObject({
+      points: [125, 309, 279, 309], strokeWidth: 0.5, opacity: 0.9, listening: false,
+    });
+    expect(tree.some(({ type, props }) => type === Rect && props.stroke === '#64748b')).toBe(false);
+  });
+
+  it.each([['wood', null, '#c8a27a'], ['stone', 'nz1', '#cbd5e1']])(
+    'keeps %s without an applicable nosing rectangular', (kind, pick, fill) => {
+      const tree = render(kind, pick);
+      const top = tree.find(({ type, props }) => type === Rect && props.stroke === '#64748b');
+      expect(top.props).toMatchObject({ x: 127, y: 308, width: 150, height: 6, fill });
+      expect(tree.some(({ type, props }) => type === Shape && props.stroke === '#64748b')).toBe(false);
+      expect(tree.some(({ type, props }) => type === Line && props.stroke === '#64748b')).toBe(false);
+    },
+  );
+});
+
 describe('Step 490 furniture base canvas', () => {
   it('renders a profiled furniture base outline and its thin contour line without a toe kick rect', () => {
     const tree = nodes(RunGroup.type(setup({
