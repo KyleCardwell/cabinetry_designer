@@ -10,7 +10,7 @@ import {
   setTrackGap,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
-import AddBaseCutoutButton from './AddBaseCutoutButton.jsx';
+import RunBaseCutoutsSection from './RunBaseCutoutsSection.jsx';
 import CellDepthSection from './CellDepthSection.jsx';
 import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
@@ -23,7 +23,7 @@ import { RUN_TYPES } from './constants.js';
 const NO_INSET = { left: 0, right: 0 };
 
 export default function CabinetProperties({
-  room, wall, run, piece, item, layout, cells, settings, inset = NO_INSET,
+  room, wall, run, piece, item, layout, cells, settings, numbers, inset = NO_INSET,
 }) {
   const dispatch = useDispatch();
   const actionBase = { wallId: wall.id, runId: run.id, itemId: item.id };
@@ -67,7 +67,7 @@ export default function CabinetProperties({
 
   return (
     <div className="space-y-5">
-      <AddBaseCutoutButton room={room} wall={wall} run={run} piece={piece} settings={settings} />
+      <RunBaseCutoutsSection room={room} wall={wall} run={run} piece={piece} settings={settings} numbers={numbers} />
       <section>
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Cabinet

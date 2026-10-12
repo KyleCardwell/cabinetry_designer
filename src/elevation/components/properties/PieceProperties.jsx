@@ -172,6 +172,7 @@ export default function PieceProperties({
           layout={layout}
           cells={cells}
           settings={settings}
+          numbers={numbers}
           insets={insets}
         />
         {tSection}
@@ -191,6 +192,7 @@ export default function PieceProperties({
         layout={layout}
         cells={cells}
         settings={settings}
+        numbers={numbers}
         inset={insets.get(piece.id)}
       />
       {tSection}

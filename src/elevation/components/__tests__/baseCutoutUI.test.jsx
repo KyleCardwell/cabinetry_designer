@@ -11,6 +11,7 @@ import KindPanel from '../../../library/profileEditor/KindPanel.jsx';
 import InchInput from '../InchInput.jsx';
 import SettingsPanel from '../SettingsPanel.jsx';
 import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
+import BaseCutoutRow from '../properties/BaseCutoutRow.jsx';
 import AddBaseCutoutButton from '../properties/AddBaseCutoutButton.jsx';
 import CabinetProperties from '../properties/CabinetProperties.jsx';
 import CellProperties from '../properties/CellProperties.jsx';
@@ -41,7 +42,24 @@ const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
 const field = (tree, label) => nodes(tree).find(({ props }) => props['aria-label'] === label);
 const options = (picker) => nodes(picker).filter(({ type }) => type === 'option');
 const warnings = (tree) => nodes(tree).filter(({ type, props }) => type === 'p' && props.className?.includes('text-amber-400')).map(text);
-const render = () => RunBaseCutoutsSection(props());
+const expandCutoutRows = (tree) => {
+  if (Array.isArray(tree)) return tree.map(expandCutoutRows);
+  if (!tree || typeof tree !== 'object') return tree;
+  if (tree.type === BaseCutoutRow) return expandCutoutRows(BaseCutoutRow(tree.props));
+  return { ...tree, props: { ...tree.props, children: expandCutoutRows(tree.props.children) } };
+};
+const render = (extra = {}) => expandCutoutRows(RunBaseCutoutsSection({ ...props(), ...extra }));
+const piecePanel = (id = 'c1') => {
+  const scene = runScene(room(), wall(), run(), state.settings);
+  const piece = scene.cells.pieces.find((candidate) => candidate.id === id);
+  const item = { id, kind: 'cabinet', width: piece.width };
+  const outer = PieceProperties({ ...props(), layout: scene.result, cells: scene.cells, selectionContext: { piece, item } });
+  const component = nodes(outer).find(({ type }) => type === CabinetProperties || type === CellProperties);
+  const panel = component.type(component.props);
+  const section = nodes(panel).find(({ type }) => type === RunBaseCutoutsSection);
+  return expandCutoutRows(RunBaseCutoutsSection(section.props));
+};
+const commit = (label, value, panel = render) => field(panel(), `Cutout 1 ${label}`).props.onCommit(value);
 const change = (label, value) => field(render(), label).props.onChange({ target: { value } });
 const add = (id = 'c1') => {
   const scene = runScene(room(), wall(), run(), state.settings);
@@ -92,7 +110,9 @@ describe('Step 494 base cutout controls', () => {
     const outer = PieceProperties({ ...panelProps, selectionContext: { piece, item: panelProps.item } });
     const cabinet = nodes(outer).find(({ type }) => type === CabinetProperties);
     expect(cabinet.props.room).toBe(room());
-    const button = nodes(CabinetProperties(cabinet.props)).find(({ type }) => type === AddBaseCutoutButton);
+    const section = nodes(CabinetProperties(cabinet.props)).find(({ type }) => type === RunBaseCutoutsSection);
+    expect(section.props.numbers).toBe(cabinet.props.numbers);
+    const button = RunBaseCutoutsSection(section.props);
     expect(text(AddBaseCutoutButton(button.props))).toBe('Add base cutout');
     const runPanel = RunProperties({ ...props(), layout: scene.result, showMessage: vi.fn() });
     expect(nodes(runPanel).find(({ type }) => type === RunBaseCutoutsSection).props).toMatchObject(props());
@@ -120,10 +140,15 @@ describe('Step 494 base cutout controls', () => {
     const outer = PieceProperties({ ...panelProps, selectionContext: { piece, item } });
     const cell = nodes(outer).find(({ type }) => type === CellProperties);
     expect(cell.props.room).toBe(room());
-    const button = nodes(CellProperties(cell.props)).find(({ type }) => type === AddBaseCutoutButton);
+    const section = nodes(CellProperties(cell.props)).find(({ type }) => type === RunBaseCutoutsSection);
+    expect(section.props.numbers).toBe(cell.props.numbers);
+    const button = RunBaseCutoutsSection(section.props);
     AddBaseCutoutButton(button.props).props.onClick();
     expect(run().baseCutouts[0]).toMatchObject({ from: 'lower', to: 'lower' });
     expect(options(field(render(), 'Cutout 1 From')).map(({ props }) => props.value)).toEqual(['lower']);
+    expect(field(piecePanel('lower'), 'Cutout 1 From').props.value).toBe('lower');
+    expect(nodes(piecePanel('lower')).some(({ type }) => type === AddBaseCutoutButton)).toBe(false);
+    expect(text(piecePanel('upper'))).toBe('');
     expect(AddBaseCutoutButton({ ...props(), piece: scene.cells.pieces.find(({ id }) => id === 'upper') })).toBeNull();
   });
 
@@ -131,7 +156,7 @@ describe('Step 494 base cutout controls', () => {
     add('c2');
     const choices = options(field(render(), 'Cutout 1 From'));
     expect(choices.map(({ props }) => props.value)).toEqual(['c1', 'c2']);
-    expect(choices.map(text)).toEqual(['1 — 18"', '2 — 18"']);
+    expect(choices.map(text)).toEqual(['#1 — 18"', '#2 — 18"']);
     change('Cutout 1 From', 'c1');
     expect(run().baseCutouts[0]).toMatchObject({ from: 'c1', to: 'c2' });
     expect(field(render(), 'Cutout 1 Width').props.placeholder).toBe('30');
@@ -140,6 +165,125 @@ describe('Step 494 base cutout controls', () => {
     expect(field(render(), 'Cutout 1 Width').props.placeholder).toBe('30');
     state.settings.baseCutoutFoot = 4;
     expect(field(render(), 'Cutout 1 Width').props.placeholder).toBe('28');
+  });
+
+  it('case 1: edits an added single-cabinet cutout in the cabinet panel with 3 / 30 / 3 placeholders', () => {
+    run().grid = gridFromItems(run().id, [fixed('c1', 36)]);
+    add();
+    const panel = piecePanel();
+    expect(text(panel)).toContain('Base cutout');
+    expect(nodes(panel).some(({ type }) => type === AddBaseCutoutButton)).toBe(false);
+    expect(field(panel, 'Cutout 1 From').props.value).toBe('c1');
+    expect(['Left', 'Width', 'Right'].map((label) => field(panel, `Cutout 1 ${label}`).props.placeholder))
+      .toEqual(['3', '30', '3']);
+    commit('Left', 2, piecePanel);
+    expect(run().baseCutouts[0].left).toBe(2);
+    expect(field(render(), 'Cutout 1 Width').props.placeholder).toBe('31');
+    field(piecePanel(), 'Remove base cutout 1').props.onClick();
+    expect(text(AddBaseCutoutButton(piecePanel().props))).toBe('Add base cutout');
+  });
+
+  it('case 2: shows a spanning cutout on the second cabinet with derived width 30', () => {
+    add();
+    change('Cutout 1 To', 'c2');
+    const panel = piecePanel('c2');
+    expect(field(panel, 'Cutout 1 From').props.value).toBe('c1');
+    expect(field(panel, 'Cutout 1 To').props.value).toBe('c2');
+    expect(field(panel, 'Cutout 1 Width').props.placeholder).toBe('30');
+    expect(nodes(panel).some(({ type }) => type === AddBaseCutoutButton)).toBe(false);
+    const scene = runScene(room(), wall(), run(), state.settings);
+    expect(AddBaseCutoutButton({ ...props(), piece: scene.cells.pieces.find(({ id }) => id === 'c2') })).toBeNull();
+    // Coverage uses the full cabinet span, even if the resolved opening is narrower.
+    commit('Width', 1);
+    expect(field(piecePanel('c2'), 'Cutout 1 From')).toBeDefined();
+  });
+
+  it('case 3: keeps Left 2 and Right 5, then centres Width 24 by clearing both clearances', () => {
+    add();
+    commit('Left', 2);
+    commit('Right', 5);
+    const refs = { id: run().baseCutouts[0].id, from: 'c1', to: 'c1' };
+    expect(run().baseCutouts[0]).toEqual({ ...refs, left: 2, right: 5 });
+    commit('Width', 24);
+    expect(run().baseCutouts[0]).toEqual({ ...refs, width: 24 });
+  });
+
+  it('case 4: clears Width 24 when Right 1 is typed alongside Left 4 (and mirrors this for Left)', () => {
+    add();
+    commit('Width', 24);
+    commit('Left', 4);
+    expect(run().baseCutouts[0]).toMatchObject({ width: 24, left: 4 });
+    commit('Right', 1);
+    const refs = { id: run().baseCutouts[0].id, from: 'c1', to: 'c1' };
+    expect(run().baseCutouts[0]).toEqual({ ...refs, left: 4, right: 1 });
+    commit('Left', null);
+    commit('Width', 24);
+    expect(run().baseCutouts[0]).toEqual({ ...refs, width: 24, right: 1 });
+    commit('Left', 2);
+    expect(run().baseCutouts[0]).toEqual({ ...refs, left: 2, right: 1 });
+  });
+
+  it('case 5: labels endpoint options with part-number overrides and falls back to position', () => {
+    room().partNumberOverrides = { c1: 7, c2: 8 };
+    add();
+    for (const panel of [render(), piecePanel()]) {
+      for (const key of ['From', 'To']) {
+        expect(options(field(panel, `Cutout 1 ${key}`)).map(text)).toEqual(['#7 — 18"', '#8 — 18"']);
+      }
+    }
+    expect(options(field(render({ numbers: { byKey: new Map() } }), 'Cutout 1 From')).map(text))
+      .toEqual(['1 — 18"', '2 — 18"']);
+  });
+
+  it('derives placeholders for all dimension pairs and for cutouts skipped by warnings', () => {
+    run().grid = gridFromItems(run().id, [fixed('c1', 36)]);
+    add();
+    const refs = run().baseCutouts[0];
+    for (const [dimensions, expected] of [
+      [{}, ['3', '30', '3']], [{ width: 24 }, ['6', '24', '6']],
+      [{ left: 2 }, ['2', '31', '3']], [{ right: 5 }, ['3', '28', '5']],
+      [{ left: 2, right: 5 }, ['2', '29', '5']],
+      [{ width: 24, left: 4 }, ['4', '24', '8']], [{ width: 24, right: 1 }, ['11', '24', '1']],
+      [{ left: 40, right: 5 }, ['40', '-9', '5']],
+    ]) {
+      run().baseCutouts = [{ ...refs, ...dimensions }];
+      expect(['Left', 'Width', 'Right'].map((label) => field(render(), `Cutout 1 ${label}`).props.placeholder))
+        .toEqual(expected);
+    }
+    expect(warnings(piecePanel())).toEqual(['The cutout is too narrow for its profile or feet.']);
+    run().baseCutouts[0].to = 'missing';
+    expect(['Left', 'Width', 'Right'].map((label) => field(render(), `Cutout 1 ${label}`).props.placeholder))
+      .toEqual(['Auto', 'Auto', 'Auto']);
+  });
+
+  it('accepts zero clearances, rejects negative and nonfinite dimensions, and removes cleared keys', () => {
+    add();
+    for (const label of ['Left', 'Right', 'Width']) {
+      for (const value of [-1, Infinity, NaN]) expect(commit(label, value)).toBe(false);
+    }
+    for (const label of ['Left', 'Right']) {
+      commit(label, 0);
+      expect(run().baseCutouts[0][label.toLowerCase()]).toBe(0);
+      useState.mockReturnValueOnce(['', vi.fn()]);
+      InchInput(field(render(), `Cutout 1 ${label}`).props).props.onBlur();
+      expect(run().baseCutouts[0]).not.toHaveProperty(label.toLowerCase());
+    }
+    expect(toElevationDocument(state).rooms[0].walls[0].runs[0].baseCutouts[0])
+      .toEqual({ id: expect.any(String), from: 'c1', to: 'c1' });
+  });
+
+  it('shows every covering cutout, including coverage of an interior cabinet in a reversed span', () => {
+    run().grid = gridFromItems(run().id, [fixed('c1', 12), fixed('c2', 12), fixed('c3', 12)]);
+    run().baseCutouts = [
+      { id: 'first', from: 'c3', to: 'c1' },
+      { id: 'second', from: 'c2', to: 'c2' },
+    ];
+    const panel = piecePanel('c2');
+    expect(field(panel, 'Cutout 1 From').props.value).toBe('c3');
+    expect(field(panel, 'Cutout 2 From').props.value).toBe('c2');
+    expect(nodes(panel).some(({ type }) => type === AddBaseCutoutButton)).toBe(false);
+    run().baseCutouts = [{ id: 'only', from: 'c1', to: 'c1' }];
+    expect(text(AddBaseCutoutButton(piecePanel('c2').props))).toBe('Add base cutout');
   });
 
   it('distinguishes Inherit, Square and active profiles and retains unavailable picks', () => {
