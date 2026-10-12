@@ -85,6 +85,19 @@ function touching(wall, run, side, floorBase = false) {
 function bandEdge(room, wall, run, side, band, settings) {
   const edge = side === 'left' ? run.x : run.x + run.width;
   const square = { type: 'square', x: edge };
+  if (band === 'toeKick' || band === 'furnitureBase') {
+    const waterfall = waterfallEnds(room, wall, run, settings)[side];
+    if (waterfall) {
+      const overhang = topOverhangs(room, wall, run, settings)[side];
+      if (overhang === 0 || waterfall.baseToLeg) {
+        // A touching leg retains the toe kick's end-panel setback; a bridged gap does not.
+        const x = band === 'toeKick' && overhang === 0 && run.ends?.[side]?.type === 'end_panel'
+          ? freeEdge(room, wall, run, side, band, settings)
+          : edge + (side === 'left' ? -1 : 1) * overhang;
+        return { type: 'square', x };
+      }
+    }
+  }
   const returned = (source, end) => {
     const x = freeEdge(room, wall, source, end, band, settings);
     const s = end === 'left' ? -1 : 1;
