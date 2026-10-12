@@ -121,7 +121,10 @@ export const runReducers = {
     const { cutoutId, changes } = action.payload;
     if (!location?.run.baseCutouts) return;
     const cutouts = location.run.baseCutouts.map((cutout) => (
-      cutout.id === cutoutId ? { ...cutout, ...changes } : cutout
+      cutout.id === cutoutId
+        ? Object.fromEntries(Object.entries({ ...cutout, ...changes })
+          .filter(([key, value]) => !['width', 'profileId'].includes(key) || value !== undefined))
+        : cutout
     ));
     if (isBaseCutoutList(cutouts)) location.run.baseCutouts = cutouts;
   },

@@ -15,6 +15,7 @@ import {
   setTrackSize,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import AddBaseCutoutButton from './AddBaseCutoutButton.jsx';
 import CellDepthSection from './CellDepthSection.jsx';
 import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
@@ -28,7 +29,7 @@ const HEADING_CLASS = 'mb-3 text-xs font-semibold uppercase tracking-wide text-g
 const NO_INSET = { left: 0, right: 0 };
 
 export default function CellProperties({
-  wall, run, piece, item, layout, cells, settings, insets,
+  room, wall, run, piece, item, layout, cells, settings, insets,
 }) {
   const dispatch = useDispatch();
   const context = findCell(run.grid, piece.id);
@@ -60,6 +61,7 @@ export default function CellProperties({
 
   return (
     <div className="space-y-5">
+      <AddBaseCutoutButton room={room} wall={wall} run={run} piece={piece} settings={settings} />
       <CellKindSection wall={wall} run={run} piece={piece} item={item} />
 
       <section>

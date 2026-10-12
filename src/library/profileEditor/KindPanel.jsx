@@ -19,7 +19,7 @@ const SLOT_LABELS = {
 
 export default function KindPanel({ profile, onApply }) {
   const kind = PROFILE_KINDS[profile.kind];
-  const slotLabels = Object.keys(PROFILE_SLOTS)
+  const slotLabels = profile.kind === 'base_cutout' ? ['base cutouts'] : Object.keys(PROFILE_SLOTS)
     .filter((slot) => PROFILE_SLOTS[slot] === profile.kind)
     .map((slot) => SLOT_LABELS[slot]);
 
@@ -45,7 +45,10 @@ export default function KindPanel({ profile, onApply }) {
       {profile.kind === 'furniture_base' && (
         <p className="text-xs text-gray-200">0, 0 is the base&apos;s front face at its top. Draw the whole base as a closed shape, or just its edge as an open line: the line cuts the board. Where the line stops short of the floor the face goes straight down; where it starts below the top it goes straight up.</p>
       )}
-      {kind.origin && profile.kind !== 'furniture_base' && (
+      {profile.kind === 'base_cutout' && (
+        <p className="text-xs text-gray-200">0, 0 is where the cutout leaves the floor. Draw one side as an open line rising to the cutout&apos;s top; it&apos;s mirrored, and a level line joins the two.</p>
+      )}
+      {kind.origin && profile.kind !== 'furniture_base' && profile.kind !== 'base_cutout' && (
         <>
           <p className="text-xs text-gray-200">0, 0 is {kind.origin}.</p>
           <p className="text-xs text-gray-500">Draw the shape from there, or select a point and press Origin to move the shape so that point sits at 0, 0.</p>

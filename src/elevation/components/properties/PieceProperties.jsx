@@ -164,6 +164,7 @@ export default function PieceProperties({
       <>
         {partNumberField}
         <CellProperties
+          room={room}
           wall={wall}
           run={run}
           piece={piece}
@@ -182,6 +183,7 @@ export default function PieceProperties({
     <>
       {partNumberField}
       <CabinetProperties
+        room={room}
         wall={wall}
         run={run}
         piece={piece}

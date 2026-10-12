@@ -409,7 +409,8 @@ export default function WallHeightProperties({ room, wall, plan }) {
             ['topMoldProfileId', 'Top mold profile', 'top_mold'],
             ['crownProfileId', 'Crown profile', 'crown'],
             ...(resolvedProfile.baseKind === 'furniture_base'
-              ? [['furnitureBaseProfileId', 'Furniture base profile', 'furniture_base']] : []),
+              ? [['furnitureBaseProfileId', 'Furniture base profile', 'furniture_base'],
+                 ['baseCutoutProfileId', 'Cutout profile', 'base_cutout']] : []),
           ].map(([key, label, kind]) => {
             const pickedId = wall.profile[key];
             const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === kind && !entry.archived);
@@ -427,7 +428,7 @@ export default function WallHeightProperties({ room, wall, plan }) {
                   className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
                 >
                   <option value="">Inherit</option>
-                  <option value="plain">Plain</option>
+                  <option value="plain">{kind === 'base_cutout' ? 'Square' : 'Plain'}</option>
                   {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
                   {unavailable && <option value={pickedId} disabled>{settings.sectionProfiles?.find((entry) => entry.id === pickedId)?.name ?? 'Missing profile'} (unavailable)</option>}
                 </select>

@@ -182,7 +182,7 @@ export default function RunHeightsSection({
                 </Field>
               </>
             )}
-            {base.warnings.map(({ code }, index) => (
+            {base.warnings.filter((warning) => !warning.cutoutId).map(({ code }, index) => (
               <p key={`${code}-${index}`} className="mt-1 text-xs text-amber-400">
                 {code === 'furniture-base-too-short'
                   ? "The furniture base is shorter than its profile's stretch line; drawn at its own size."

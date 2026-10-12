@@ -10,6 +10,7 @@ import {
 import DoorStylePicks from './DoorStylePicks.jsx';
 import Field from './Field.jsx';
 import RunBottomSection from './RunBottomSection.jsx';
+import RunBaseCutoutsSection from './RunBaseCutoutsSection.jsx';
 import RunCabinetsSection from './RunCabinetsSection.jsx';
 import RunEndsSection from './RunEndsSection.jsx';
 import RunFaceOptions from './RunFaceOptions.jsx';
@@ -98,6 +99,8 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
       />
 
       <RunCabinetsSection run={run} actionBase={actionBase} />
+
+      <RunBaseCutoutsSection room={room} wall={wall} run={run} settings={settings} />
 
       <RunPiecesSection run={run} layout={layout} insets={insets} />
 
