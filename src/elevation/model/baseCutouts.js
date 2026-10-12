@@ -5,6 +5,28 @@ import { sectionProfileBounds } from './sectionProfiles.js';
 
 const EPSILON = 1e-6;
 
+/** Resolve floor edges from at most two stored dimensions, even for skipped cutouts. */
+export function baseCutoutSpan(cutout, cabinets, settings) {
+  const from = cabinets.find((piece) => piece.id === cutout.from);
+  const to = cabinets.find((piece) => piece.id === cutout.to);
+  if (!from || !to) return null;
+  const s0 = Math.min(from.x, to.x);
+  const s1 = Math.max(from.x + from.width, to.x + to.width);
+  const foot = settings.baseCutoutFoot ?? DEFAULT_SETTINGS.baseCutoutFoot;
+  let x0 = s0 + (cutout.left ?? foot);
+  let x1 = s1 - (cutout.right ?? foot);
+  if (cutout.width !== undefined) {
+    if (cutout.left !== undefined) x1 = x0 + cutout.width;
+    else if (cutout.right !== undefined) x0 = x1 - cutout.width;
+    else {
+      const center = (s0 + s1) / 2;
+      x0 = center - cutout.width / 2;
+      x1 = center + cutout.width / 2;
+    }
+  }
+  return { s0, s1, x0, x1, width: x1 - x0 };
+}
+
 function reverseChain(chain) {
   return [...chain].reverse().map(([x, y], index) => [x, y,
     index < chain.length - 1 ? -chain[chain.length - 2 - index][2] || 0 : 0,
@@ -48,16 +70,12 @@ export function resolveBaseCutouts(run, settings, profile, base, pieces, band) {
       warn('base-cutout-no-base', id);
       continue;
     }
-    const from = cabinets.find((piece) => piece.id === cutout.from);
-    const to = cabinets.find((piece) => piece.id === cutout.to);
-    if (!from || !to) {
+    const span = baseCutoutSpan(cutout, cabinets, settings);
+    if (!span) {
       warn('base-cutout-orphaned', id);
       continue;
     }
-    const start = Math.min(from.x, to.x);
-    const end = Math.max(from.x + from.width, to.x + to.width);
-    const width = cutout.width ?? end - start - 2 * (settings.baseCutoutFoot ?? DEFAULT_SETTINGS.baseCutoutFoot);
-    const center = (start + end) / 2;
+    const { x0, x1, width } = span;
     const profileId = cutout.profileId === undefined ? profile.baseCutoutProfileId : cutout.profileId;
     let half = null;
     if (profileId !== null && profileId !== undefined) {
@@ -74,8 +92,6 @@ export function resolveBaseCutouts(run, settings, profile, base, pieces, band) {
       warn('base-cutout-too-tall', id);
       continue;
     }
-    const x0 = center - width / 2;
-    const x1 = center + width / 2;
     const left = transformOutline(half, ([x, y]) => [x0 + x, y]);
     const right = reverseChain(transformOutline(half, ([x, y]) => [x1 - x, y], true));
     // Equal far ends share one point; its outgoing bulge belongs to the descending half.

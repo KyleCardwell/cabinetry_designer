@@ -302,6 +302,9 @@ export function isBaseCutoutList(value) {
       || !['id', 'from', 'to'].every((key) => typeof cutout[key] === 'string' && cutout[key].length > 0)
       || ids.has(cutout.id)
       || (cutout.width !== undefined && !(isFiniteNumber(cutout.width) && cutout.width > 0))
+      || ['left', 'right'].some((key) => cutout[key] !== undefined
+        && !(isFiniteNumber(cutout[key]) && cutout[key] >= 0))
+      || ['width', 'left', 'right'].every((key) => cutout[key] !== undefined)
       || (cutout.profileId !== undefined && cutout.profileId !== null && typeof cutout.profileId !== 'string')) return false;
     ids.add(cutout.id);
     return true;

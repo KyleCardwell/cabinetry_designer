@@ -24,6 +24,53 @@ const load = (saved) => {
 
 afterEach(() => { delete globalThis.window; });
 
+describe('SPEC-50.6.1 step 494.1 base cutout clearance data', () => {
+  it('round-trips valid clearances and rejects invalid dimensions on load (anchor 5)', () => {
+    for (const dimensions of [
+      { left: 0 }, { right: 0 }, { left: 2, right: 5 },
+      { width: 24, left: 0 }, { width: 24, right: 4 },
+    ]) {
+      const saved = savedDocument();
+      currentRun(saved).baseCutouts = [{ ...cutout, ...dimensions }];
+      expect(isElevationDocument(saved)).toBe(true);
+      expect(currentRun(load(toElevationDocument(saved))).baseCutouts)
+        .toEqual(currentRun(saved).baseCutouts);
+    }
+    const invalid = [{ width: 24, left: 1, right: 1 }];
+    for (const key of ['left', 'right']) {
+      for (const value of [-1, Infinity, NaN, '2', null]) invalid.push({ [key]: value });
+    }
+    for (const dimensions of invalid) {
+      const saved = savedDocument();
+      currentRun(saved).baseCutouts = [{ ...cutout, ...dimensions }];
+      expect(isElevationDocument(saved)).toBe(false);
+      expect(load(saved)).toBeNull();
+    }
+  });
+
+  it('rejects invalid additions and edits, and removes undefined clearance keys', () => {
+    const initial = savedDocument();
+    const target = { roomId: initial.rooms[0].id, wallId: initial.rooms[0].walls[0].id, runId: currentRun(initial).id };
+    for (const dimensions of [{ width: 24, left: 1, right: 1 }, { left: -1 }, { right: Infinity }]) {
+      expect(elevationReducer(initial, addBaseCutout({ ...target, cutout: { ...cutout, ...dimensions } })))
+        .toEqual(initial);
+    }
+    let state = elevationReducer(initial, addBaseCutout({ ...target, cutout: { ...cutout, left: 0, right: 5 } }));
+    for (const changes of [{ width: 24 }, { left: -1 }, { right: Infinity }]) {
+      expect(elevationReducer(state, updateBaseCutout({ ...target, cutoutId: 'k1', changes }))).toEqual(state);
+    }
+    state = elevationReducer(state, updateBaseCutout({ ...target, cutoutId: 'k1',
+      changes: { width: 24, right: undefined } }));
+    expect(currentRun(state).baseCutouts).toEqual([{ ...cutout, width: 24, left: 0 }]);
+    state = elevationReducer(state, updateBaseCutout({ ...target, cutoutId: 'k1',
+      changes: { left: undefined, right: 4 } }));
+    expect(currentRun(state).baseCutouts).toEqual([{ ...cutout, width: 24, right: 4 }]);
+    state = elevationReducer(state, updateBaseCutout({ ...target, cutoutId: 'k1',
+      changes: { width: undefined, right: undefined } }));
+    expect(currentRun(state).baseCutouts).toEqual([cutout]);
+  });
+});
+
 describe('SPEC-50.6 step 492 base cutout data', () => {
   it('keeps a loaded single-cabinet cutout (anchor 1), round-trips picks, and defaults older settings', () => {
     const saved = savedDocument();

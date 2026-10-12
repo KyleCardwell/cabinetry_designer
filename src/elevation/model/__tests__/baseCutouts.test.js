@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { bandParts } from '../bandParts.js';
+import { baseCutoutSpan } from '../baseCutouts.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { cornerShapes } from '../cornerParts.js';
 import { toDrawingPayload } from '../drawingPayload.js';
@@ -52,6 +53,62 @@ function setup({ cutouts = [cutout], profile = {}, wallProfile = {}, runProps = 
 }
 
 const codes = (result) => result.base.warnings.map(({ code }) => code);
+
+describe('SPEC-50.6.1 step 494.1 base cutout clearances', () => {
+  it('draws the three square clearance anchors (1–3) at their floor edges', () => {
+    for (const [dimensions, x0, x1] of [
+      [{ left: 2 }, 32, 63],
+      [{ left: 2, right: 5 }, 32, 61],
+      [{ width: 24, right: 4 }, 38, 62],
+    ]) {
+      const result = setup({ cutouts: [{ ...cutout, ...dimensions }] });
+      expect(result.base.cutouts[0].chain)
+        .toEqual([[x0, 0, 0], [x0, 1.5, 0], [x1, 1.5, 0], [x1, 0, 0]]);
+      expect(result.band.outline).toEqual([[29.1875, 0, 0],
+        [x0, 0, 0], [x0, 1.5, 0], [x1, 1.5, 0], [x1, 0, 0], ...TOP]);
+      expect(codes(result)).toEqual([]);
+    }
+  });
+
+  it('resolves all seven dimension combinations, reversed spans, defaults and missing cabinets', () => {
+    const cabinets = [{ id: 'c1', x: 30, width: 18 }, { id: 'c2', x: 48, width: 18 }];
+    for (const [dimensions, x0, x1] of [
+      [{}, 33, 63], [{ width: 24 }, 36, 60], [{ left: 2 }, 32, 63],
+      [{ right: 4 }, 33, 62], [{ left: 2, right: 5 }, 32, 61],
+      [{ width: 24, left: 2 }, 32, 56], [{ width: 24, right: 4 }, 38, 62],
+    ]) {
+      for (const refs of [{ from: 'c1', to: 'c2' }, { from: 'c2', to: 'c1' }]) {
+        expect(baseCutoutSpan({ ...cutout, ...refs, ...dimensions }, cabinets, settings))
+          .toEqual({ s0: 30, s1: 66, x0, x1, width: x1 - x0 });
+      }
+    }
+    const refs = { ...cutout, to: 'c2' };
+    expect(baseCutoutSpan(refs, cabinets, {})).toEqual({ s0: 30, s1: 66, x0: 33, x1: 63, width: 30 });
+    expect(baseCutoutSpan(refs, cabinets, { baseCutoutFoot: 0 }))
+      .toEqual({ s0: 30, s1: 66, x0: 30, x1: 66, width: 36 });
+    for (const key of ['from', 'to']) {
+      expect(baseCutoutSpan({ ...refs, [key]: 'missing' }, cabinets, settings)).toBeNull();
+    }
+  });
+
+  it('keeps resolved dimensions for skipped cutouts and preserves warnings (anchor 4)', () => {
+    const result = setup({ cutouts: [{ ...cutout, width: 40, left: 0 }] });
+    const cabinets = result.scene.cells.pieces.filter(({ kind }) => kind === 'cabinet');
+    expect(baseCutoutSpan(result.run.baseCutouts[0], cabinets, settings))
+      .toEqual({ s0: 30, s1: 66, x0: 30, x1: 70, width: 40 });
+    expect(result.base.cutouts).toEqual([]);
+    expect(result.band.outline).toEqual(OUTLINE);
+    expect(codes(result)).toEqual(['base-cutout-overlap']);
+    for (const left of [33, 34]) {
+      const narrow = setup({ cutouts: [{ ...cutout, left }] });
+      expect(narrow.band.outline).toEqual(OUTLINE);
+      expect(codes(narrow)).toEqual(['base-cutout-too-narrow']);
+      expect(baseCutoutSpan(narrow.run.baseCutouts[0], cabinets, settings).width).toBe(33 - left);
+    }
+    expect(codes(setup({ cutouts: [{ ...cutout, left: 32, profileId: 'cut1' }] })))
+      .toEqual(['base-cutout-too-narrow']);
+  });
+});
 
 describe('SPEC-50.6 step 493 base cutouts', () => {
   it('inserts the automatic square notch into fb4 (anchor 1) and supplies an outline for a plain base', () => {
