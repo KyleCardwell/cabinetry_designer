@@ -106,7 +106,7 @@ export const runReducers = {
     if (!location) return;
     const { key, value } = action.payload;
     if (value === undefined || (value === null && key !== 'furnitureBaseProfileId'
-      && key !== 'baseCutoutProfileId')) delete location.run.overrides[key];
+      && key !== 'baseCutoutProfileId' && key !== 'nosingProfileId')) delete location.run.overrides[key];
     else location.run.overrides[key] = value;
     syncRoomAt(state, location.roomIndex);
   },

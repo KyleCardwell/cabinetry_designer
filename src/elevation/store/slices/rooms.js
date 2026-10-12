@@ -49,7 +49,7 @@ export const roomReducers = {
       };
       for (const [key, value] of Object.entries(changes)) {
         if (key === 'topMoldProfileId' || key === 'crownProfileId' || key === 'furnitureBaseProfileId'
-          || key === 'baseCutoutProfileId') {
+          || key === 'baseCutoutProfileId' || key === 'nosingProfileId') {
           if (value === undefined) delete state.rooms[roomIndex].profile[key];
           else state.rooms[roomIndex].profile[key] = value;
         } else if (key === 'baseKind' || key === 'furnitureBaseProud') {

@@ -443,7 +443,7 @@ export const PROFILE_KINDS = {
   furniture_base: { label: 'Furniture base', axes: 'run', origin: 'its front face, at its top (placed at the top of the base, proud of the faces)' },
   base_cutout: { label: 'Base cutout', axes: 'cutout', origin: "where the cutout leaves the floor; x toward the cutout's centre, y up" },
   toe_kick: { label: 'Toe kick', axes: 'run', origin: "the toe kick's face, at the floor" },
-  nosing: { label: 'Nosing', axes: 'run', origin: 'the front edge of the part, at its top' },
+  nosing: { label: 'Nosing', axes: 'run', origin: "the top's front edge, at its top surface (placed past the faces by the countertop overhang)" },
   other: { label: 'Other', axes: 'free', origin: null },
 };
 

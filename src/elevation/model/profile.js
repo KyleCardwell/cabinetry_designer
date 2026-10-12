@@ -5,7 +5,7 @@ import { moldingProfiles } from './moldingProfiles.js';
 function definedEntries(value) {
   return Object.entries(value ?? {}).filter(([key, entry]) => entry !== undefined
     && (entry !== null || key === 'topMoldProfileId' || key === 'crownProfileId'
-      || key === 'furnitureBaseProfileId' || key === 'baseCutoutProfileId'));
+      || key === 'furnitureBaseProfileId' || key === 'baseCutoutProfileId' || key === 'nosingProfileId'));
 }
 
 function mergeDefined(...values) {

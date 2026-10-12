@@ -19,6 +19,7 @@ export const DEFAULT_PROFILE = {
   baseCutoutProfileId: null,
   baseBoxHeight: 30.5,
   countertopThickness: 1.5,
+  nosingProfileId: null,
   upperClearance: 18,
   crownTop: 96,
   topMoldHeight: 3,

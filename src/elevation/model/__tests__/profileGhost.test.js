@@ -97,7 +97,7 @@ describe('SPEC-48.2 the door ghost and what 0, 0 means', () => {
       furniture_base: 'its front face, at its top (placed at the top of the base, proud of the faces)',
       base_cutout: "where the cutout leaves the floor; x toward the cutout's centre, y up",
       toe_kick: "the toe kick's face, at the floor",
-      nosing: 'the front edge of the part, at its top',
+      nosing: "the top's front edge, at its top surface (placed past the faces by the countertop overhang)",
       other: null,
     });
   });

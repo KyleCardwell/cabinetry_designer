@@ -63,7 +63,7 @@ const RUN_TYPE_IDS = new Set([
   CABINET_TYPE_IDS.TALL,
 ]);
 const PROFILE_KEYS = Object.keys(DEFAULT_PROFILE);
-const PROFILE_PICK_KEYS = ['topMoldProfileId', 'crownProfileId', 'furnitureBaseProfileId', 'baseCutoutProfileId'];
+const PROFILE_PICK_KEYS = ['topMoldProfileId', 'crownProfileId', 'furnitureBaseProfileId', 'baseCutoutProfileId', 'nosingProfileId'];
 const RUN_OVERRIDE_KEYS = [
   'toeKickHeight',
   'baseKind',
@@ -72,6 +72,7 @@ const RUN_OVERRIDE_KEYS = [
   'baseCutoutProfileId',
   'baseBoxHeight',
   'countertopThickness',
+  'nosingProfileId',
   'upperClearance',
   'boxTop',
 ];
