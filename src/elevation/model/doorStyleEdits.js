@@ -186,7 +186,8 @@ export function pickOptions(room, settings, partType, levelsAbove, node = null) 
 /** Display typed and resolved sizes, or explain why this part is a slab. */
 export function partSizeRows(style, design, part, edgeOut = 0) {
   const core = inset({ x: 0, z: 0, ...part }, edgeOut);
-  const result = partSizes(style, design, { ...core, sizes: part.sizes });
+  const sizeRect = design.construction === 'slab_applied' ? part : core;
+  const result = partSizes(style, design, { ...sizeRect, sizes: part.sizes });
   const sizes = part.sizes ?? {};
   if (result.construction === 'slab') {
     const note = result.slab === 'design'
@@ -195,14 +196,18 @@ export function partSizeRows(style, design, part, edgeOut = 0) {
     return { title: 'Slab', note, rows: [], midRails: [], midStiles: [], opening: null };
   }
   const molding = result.construction === 'slab_applied';
-  const labels = molding
-    ? ['Top', 'Bottom', 'Left', 'Right']
-    : ['Top rail', 'Bottom rail', 'Left stile', 'Right stile'];
+  if (molding) {
+    return {
+      title: 'Applied moldings', note: null, rows: [],
+      midRails: result.midRails, midStiles: result.midStiles, opening: result.opening,
+    };
+  }
+  const labels = ['Top rail', 'Bottom rail', 'Left stile', 'Right stile'];
   const mids = (kind) => result[kind].map((entry, index) => ({
     ...entry, typed: sizes[kind][index].width !== undefined,
   }));
   return {
-    title: molding ? 'Molding inset' : 'Stiles & rails',
+    title: 'Stiles & rails',
     note: null,
     rows: PART_SIDES.map((side, index) => ({
       side,

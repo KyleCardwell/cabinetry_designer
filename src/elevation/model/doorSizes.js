@@ -10,6 +10,15 @@ export function partSizes(style, design, { width, height, sizes = {} }) {
     return { construction: 'slab', slab: 'rule' };
   }
 
+  if (design.construction === 'slab_applied') {
+    return {
+      construction: 'slab_applied', slab: null,
+      midRails: (sizes.midRails ?? []).map(({ at }) => ({ at, width: 0 })),
+      midStiles: (sizes.midStiles ?? []).map(({ at }) => ({ at, width: 0 })),
+      opening: { width, height },
+    };
+  }
+
   const { step, minPanel, minRail } = style.shortFace;
   const down = (value) => Math.floor(value / step + 1e-9) * step;
   const typedTop = sizes.rails?.top;

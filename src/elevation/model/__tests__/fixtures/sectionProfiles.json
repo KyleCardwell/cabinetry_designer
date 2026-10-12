@@ -186,6 +186,28 @@
       "archived": false
     },
     {
+      "id": "am2",
+      "name": "Applied 2",
+      "kind": "applied_molding",
+      "geometry": {
+        "units": "in",
+        "points": {"a": [1, 0], "b": [1.75, 0], "c": [1.75, 0.5], "d": [1, 0.5]},
+        "loops": [{
+          "id": "L1",
+          "closed": true,
+          "segs": [
+            {"type": "line", "from": "a", "to": "b"},
+            {"type": "line", "from": "b", "to": "c"},
+            {"type": "line", "from": "c", "to": "d"},
+            {"type": "line", "from": "d", "to": "a"}
+          ]
+        }]
+      },
+      "drawnPoints": {"elevation": ["a"]},
+      "version": 1,
+      "archived": false
+    },
+    {
       "id": "fb4cut",
       "name": "Furniture base chamfer (cut)",
       "kind": "furniture_base",

@@ -14,6 +14,7 @@ export function doorProfileOffsets(style, design, profiles = []) {
   const applied = [];
   const warnings = [];
   if (!design) return { slots, applied, warnings };
+  const slabApplied = design.construction === 'slab_applied';
 
   for (const slot of DOOR_PROFILE_SLOTS) {
     if (!design.slots.includes(slot)) continue;
@@ -23,7 +24,8 @@ export function doorProfileOffsets(style, design, profiles = []) {
       if (slot === 'applied' && profileId === null) {
         applied.push({ index, profileId, name: null, offset, lines: [], applyLine: offset,
           minX: 0, maxX: 0, reachIn: round6(Math.max(0, offset)),
-          reachOut: round6(Math.max(0, -offset)), covers: false });
+          reachOut: round6(Math.max(0, -offset)), covers: false,
+          ...(slabApplied ? { width: 0, lines: [0], applyLine: null } : {}) });
         continue;
       }
       if (typeof profileId !== 'string') continue;
@@ -51,8 +53,9 @@ export function doorProfileOffsets(style, design, profiles = []) {
       const lines = new Set();
       for (const id of profile.drawnPoints?.elevation ?? []) {
         if (!Object.hasOwn(geometry.points, id)) continue;
-        const x = round6(geometry.points[id][0]);
-        const keep = slot === 'outside' ? Math.abs(x) > EPS && x > -reachOut + EPS
+        const x = round6(geometry.points[id][0] - (slot === 'applied' && slabApplied ? b.minX : 0));
+        const keep = slot === 'applied' && slabApplied ? true
+          : slot === 'outside' ? Math.abs(x) > EPS && x > -reachOut + EPS
           : slot === 'panel' ? x > EPS : Math.abs(x) > EPS;
         if (keep) lines.add(x);
       }
@@ -67,11 +70,19 @@ export function doorProfileOffsets(style, design, profiles = []) {
         covers,
       };
       if (slot === 'applied') {
+        const width = round6(b.maxX - b.minX);
         applied.push({ ...picked, index, offset,
           lines: picked.lines.map((x) => round6(offset + x)),
           applyLine: covers ? null : offset, minX: b.minX, maxX: b.maxX,
           reachIn: round6(Math.max(0, offset + b.maxX)),
           reachOut: round6(Math.max(0, -(offset + b.minX))),
+          ...(slabApplied ? {
+            width, applyLine: null,
+            lines: [...new Set([0, width, ...picked.lines])]
+              .sort((a, b) => a - b),
+            reachIn: round6(Math.max(0, offset + width)),
+            reachOut: round6(Math.max(0, -offset)),
+          } : {}),
         });
       } else {
         slots[slot] = picked;
@@ -114,8 +125,12 @@ export function partProfileLines(offsets, detail, rect) {
   const molding = detail.construction === 'slab_applied';
   const fitted = [];
   if (fivePiece || molding) {
-    for (const pick of applied) {
-      const bounds = pick.profileId === null ? [pick.applyLine]
+    for (const original of applied) {
+      const pick = molding ? { ...original,
+        offset: detail.moldings.find(({ index }) => index === original.index)?.offset ?? original.offset,
+      } : original;
+      const bounds = molding ? [pick.offset + pick.width]
+        : pick.profileId === null ? [pick.applyLine]
         : [pick.offset + pick.minX, pick.offset + pick.maxX];
       if (detail.openings.length === 0 || detail.openings.some((opening) => bounds.some((d) => {
         const r = inset(opening, d);
@@ -130,7 +145,7 @@ export function partProfileLines(offsets, detail, rect) {
   const openingsShown = !(fivePiece
     ? slots.inside?.covers || slots.panel?.covers
       || fitted.some(({ offset, covers }) => offset === 0 && covers)
-    : molding && applied.length > 0);
+    : molding || detail.molding === false);
   const drawable = (r) => r.width > EPS && r.height > EPS
     && r.x >= rect.x - EPS && r.z >= rect.z - EPS
     && r.x + r.width <= rect.x + rect.width + EPS
@@ -138,7 +153,9 @@ export function partProfileLines(offsets, detail, rect) {
   const addLines = (reference, distances) => {
     for (const d of distances) {
       const r = inset(reference, d);
-      if (!drawable(r) || lines.some((line) => line.x === r.x && line.z === r.z
+      if (!drawable(r) || (molding && r.x === rect.x && r.z === rect.z
+          && r.width === rect.width && r.height === rect.height)
+        || lines.some((line) => line.x === r.x && line.z === r.z
           && line.width === r.width && line.height === r.height)) continue;
       lines.push(r);
     }
@@ -175,6 +192,11 @@ export function partProfileLines(offsets, detail, rect) {
       if (slots.panel) addMiters(opening, Math.max(0, slots.panel.minX), slots.panel.maxX);
     }
     for (const pick of fitted) {
+      if (molding) {
+        addLines(opening, pick.lines.map((x) => pick.offset + x));
+        if (pick.profileId !== null) addMiters(opening, pick.offset, pick.offset + pick.width);
+        continue;
+      }
       if (pick.applyLine !== null && !(fivePiece && pick.offset === 0)) {
         addLines(opening, [pick.applyLine]);
       }
@@ -184,6 +206,18 @@ export function partProfileLines(offsets, detail, rect) {
   }
 
   const edgeIn = slots.outside?.reachIn ?? 0;
+  if (molding) {
+    for (const pick of applied) {
+      const offset = detail.moldings.find(({ index }) => index === pick.index)?.offset ?? pick.offset;
+      if (offset < edgeIn - EPS) warnings.push({ code: 'door-profile-too-wide', side: 'molding', index: pick.index });
+    }
+    const inward = Math.max(0, ...fitted.map(({ offset, width }) => offset + width));
+    if (fitted.length && detail.openings.some(({ width, height }) =>
+      Math.min(width, height) - 2 * inward < detail.sizes.minPanel - EPS)) {
+      warnings.push({ code: 'door-profile-panel-too-small' });
+    }
+    return { lines, miters, warnings, openingsShown };
+  }
   const frameOut = Math.max(slots.inside?.reachOut ?? 0, ...fitted.map(({ reachOut }) => reachOut));
   const { stiles, rails, midRails, midStiles } = detail.sizes;
   for (const [side, size] of [

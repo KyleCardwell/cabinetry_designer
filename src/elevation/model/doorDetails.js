@@ -29,14 +29,45 @@ function remainingIntervals(start, end, origin, mids) {
   return intervals;
 }
 
+function splitIntervals(start, length, mids) {
+  const cuts = [...new Set(mids.map(({ at }) => at)
+    .filter((at) => at > 1e-6 && at < length - 1e-6))].sort((a, b) => a - b);
+  const edges = [0, ...cuts, length];
+  return edges.slice(1).map((end, index) => [start + edges[index], start + end]);
+}
+
 /**
- * Frame openings (5-piece) or molding rectangles (Slab AM) of one part,
+ * Frame openings (5-piece) or door-edge regions (Slab AM) of one part,
  * in wall coordinates (SPEC-46.2, DOORS-PROFILES-PLAN §3.6).
  */
-export function partDetail(style, design, rect, sizes, edgeOut = 0) {
+export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = []) {
   const core = inset(rect, edgeOut);
-  const r = partSizes(style, design, { width: core.width, height: core.height, sizes });
+  const sizeRect = design.construction === 'slab_applied' ? rect : core;
+  const r = partSizes(style, design, { width: sizeRect.width, height: sizeRect.height, sizes });
   if (r.construction === 'slab') return { ...r, core, openings: [] };
+
+  if (r.construction === 'slab_applied') {
+    const rows = splitIntervals(rect.z, rect.height, r.midRails);
+    const columns = splitIntervals(rect.x, rect.width, r.midStiles);
+    const openings = rows.flatMap(([bottom, top]) => columns.map(([left, right]) => ({
+      x: left, z: bottom, width: right - left, height: top - bottom,
+    })));
+    const extent = Math.max(0, ...moldings.map(({ offset, width }) => offset + width));
+    const smallest = Math.min(...openings.map(({ width, height }) => Math.min(width, height)));
+    const { minPanel, step } = style.shortFace;
+    const allowed = Math.floor((smallest - minPanel) / 2 / step + 1e-9) * step;
+    const shift = moldings.length && extent > allowed + 1e-6
+      ? Math.max(0, Math.min(extent - allowed, ...moldings.map(({ offset }) => offset))) : 0;
+    return {
+      construction: r.construction, core, openings,
+      moldings: moldings.map(({ index, offset }) => ({
+        index, offset: offset - shift, typed: offset, shifted: shift > 0,
+      })),
+      sizes: { ...r, shift, minPanel, opening: {
+        width: rect.width - 2 * (extent - shift), height: rect.height - 2 * (extent - shift),
+      } },
+    };
+  }
 
   const opening = {
     x: core.x + r.stiles.left,
@@ -67,7 +98,7 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
       offsetsByStyle.set(style, doorProfileOffsets(style, design, profiles));
     }
     const offsets = offsetsByStyle.get(style);
-    const detail = partDetail(style, design, rect, sizes, offsets.slots.outside?.reachOut ?? 0);
+    const detail = partDetail(style, design, rect, sizes, offsets.slots.outside?.reachOut ?? 0, offsets.applied);
     const fit = partProfileLines(offsets, detail, rect);
     const { x, z, width, height } = rect;
     parts.push({

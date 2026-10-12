@@ -12,7 +12,7 @@ const am = (offset) => ({ profileId: 'am1', offset });
 function build(design, part, picks = {}, appliedMoldings = [], sizes, library = profiles) {
   const style = { ...DEFAULT_DOOR_STYLE, profiles: { ...DEFAULT_DOOR_STYLE.profiles, ...picks }, appliedMoldings };
   const offsets = doorProfileOffsets(style, design, library);
-  const detail = partDetail(style, design, part, sizes, offsets.slots.outside?.reachOut ?? 0);
+  const detail = partDetail(style, design, part, sizes, offsets.slots.outside?.reachOut ?? 0, offsets.applied);
   return { detail, fit: partProfileLines(offsets, detail, part) };
 }
 
@@ -32,13 +32,12 @@ describe('Step 481 profile miters', () => {
   });
 
   it('anchor 3: covered applied moldings draw miters in list order at their offsets', () => {
-    const { fit } = build(SLAB_AM, rect(15, 15), {}, [am(0), am(1.5)]);
+    const { fit } = build(SLAB_AM, rect(15, 15), {}, [am(1), am(2.5)]);
     expect(fit.openingsShown).toBe(false);
     expect(fit.miters).toEqual(segments([
-      [3.75, 3.75, 2.75, 2.75], [11.25, 3.75, 12.25, 2.75],
-      [11.25, 11.25, 12.25, 12.25], [3.75, 11.25, 2.75, 12.25],
-      [5.25, 5.25, 4.25, 4.25], [9.75, 5.25, 10.75, 4.25],
-      [9.75, 9.75, 10.75, 10.75], [5.25, 9.75, 4.25, 10.75],
+      [2, 2, 1, 1], [13, 2, 14, 1], [13, 13, 14, 14], [2, 13, 1, 14],
+      [3.5, 3.5, 2.5, 2.5], [11.5, 3.5, 12.5, 2.5],
+      [11.5, 11.5, 12.5, 12.5], [3.5, 11.5, 2.5, 12.5],
     ]));
   });
 
@@ -91,7 +90,7 @@ describe('Step 481 profile miters', () => {
 
   it('skips spans with invalid rectangles or negligible width and rounds translated endpoints', () => {
     expect(build(FIVE, rect(18, 30), { inside: 'in58' }, [], { stiles: { left: 0.25 } }).fit.miters).toEqual([]);
-    expect(build(SLAB_AM, rect(15, 15), {}, [am(4.5)]).fit.miters).toEqual([]);
+    expect(build(SLAB_AM, rect(2, 15), {}, [am(0)]).fit.miters).toEqual([]);
     expect(build(FIVE, rect(18, 30), { panel: 'am1' }).fit.miters).toEqual([]); // Wrong kind.
     const zero = { ...profiles.find(({ id }) => id === 'in58'), id: 'zero', geometry: {
       units: 'in', points: { a: [0, 0], b: [1e-6, -0.5] },

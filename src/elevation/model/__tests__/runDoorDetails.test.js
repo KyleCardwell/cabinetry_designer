@@ -66,14 +66,14 @@ describe('SPEC-46.2 door details for a run', () => {
     expect(result.warnings).toEqual([]);
   });
 
-  it('labels each part with its style; Slab AM gets its molding rectangle, a slab face none', () => {
+  it('labels each part with its style; Slab AM gets its door-edge region, a slab face none', () => {
     const result = details('G1 Euro kitchen', G1_BASE, (r) => {
       r.doorStyleId = 'ds-c';
       leafOf(runOf(r, G1_BASE), CAB_36).face = { type: 'pair_door', size: null, styleId: 'ds-s' };
     });
     const cab24 = part(result, `${CAB_24}:r`);
     expect([cab24.styleId, cab24.label, cab24.construction, cab24.openings])
-      .toEqual(['ds-c', 'C', 'slab_applied', [box(33.0625, 7.125, 17.875, 24.125)]]);
+      .toEqual(['ds-c', 'C', 'slab_applied', [box(30.0625, 4.125, 23.875, 30.125)]]);
     expect(['left', 'right'].map((half) => {
       const leaf = part(result, `${CAB_36}:r:${half}`);
       return [leaf.label, leaf.construction, leaf.openings];
@@ -263,4 +263,33 @@ it('Step 481 carries miters through run parts and keeps miter-only payload entri
   expect(elevationDoorDetails({ ...synced, doorDetails: false }, wall, 'front', withProfiles, ids)).toEqual([]);
   expect(elevationDoorDetails({ ...synced, doorDetails: false, doorStyleTags: true }, wall, 'front', withProfiles, ids))
     .toEqual([{ partId: `${CAB_24}:r`, tag: 'S' }]);
+});
+
+it('494.3 passes applied widths to short-front shifts and compares the resulting flats in a run', () => {
+  const { profiles } = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
+  const withProfiles = { ...settings, sectionProfiles: profiles };
+  const room = structuredClone(stored('G3 Bath alcove'));
+  const upper = { ...C, id: 'upper', appliedMoldings: [{ profileId: null, offset: 1 }] };
+  const lower = { ...C, id: 'lower', appliedMoldings: [{ profileId: 'am1', offset: 2 }] };
+  room.doorStyles = [upper, lower];
+  const run = runOf(room, G3_BASE);
+  const wall = room.walls.find((candidate) => candidate.runs.includes(run));
+  const face = leafOf(run, G3_DRAWERS).face;
+  face.children[0].styleId = upper.id;
+  face.children[1].styleId = lower.id;
+  const scene = {
+    faceLayouts: new Map([[G3_DRAWERS, { box: { width: 24 }, faces: [
+      { type: 'drawer_front', path: 'r.0', ...box(0, 6.125, 24, 5) },
+      { type: 'drawer_front', path: 'r.1', ...box(0, 0, 24, 6) },
+    ] }]]), drawnPieces: [], blind: { entries: [] },
+  };
+  const result = runDoorDetails(room, wall, run, withProfiles, scene);
+  expect(result.parts[1]).toMatchObject({
+    openings: [box(0, 0, 24, 6)], openingsShown: false,
+    lines: [box(0.9375, 0.9375, 22.125, 4.125), box(1.9375, 1.9375, 20.125, 2.125)],
+  });
+  expect(result.parts[1].miters).toHaveLength(4);
+  expect(result.warnings).toEqual([
+    { code: 'front-panel-over-taller', pieceId: G3_DRAWERS, path: 'r.0', below: 'r.1' },
+  ]);
 });

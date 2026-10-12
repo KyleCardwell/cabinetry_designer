@@ -49,10 +49,10 @@ describe('SPEC-46.2 a part\'s door detail: frame openings in wall coordinates', 
     expect(partDetail(S, SQUARE, rect, { midRails: [{ at: 2 }] }).openings).toEqual([box(3, 3.5, 24, 33.5)]);
   });
 
-  it('gives Slab AM its molding rectangles the same way', () => {
+  it('splits Slab AM at zero-width centres from the true door edge', () => {
     const molding = partDetail(S, SLAB_AM, box(0, 0, 15, 30));
-    expect([molding.construction, molding.openings]).toEqual(['slab_applied', [box(3, 3, 9, 24)]]);
+    expect([molding.construction, molding.openings]).toEqual(['slab_applied', [box(0, 0, 15, 30)]]);
     expect(partDetail(S, SLAB_AM, box(0, 0, 15, 30), { midStiles: [{ at: 7.5 }] }).openings)
-      .toEqual([box(3, 3, 3, 24), box(9, 3, 3, 24)]);
+      .toEqual([box(0, 0, 7.5, 30), box(7.5, 0, 7.5, 30)]);
   });
 });

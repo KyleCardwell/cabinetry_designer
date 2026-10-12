@@ -120,18 +120,18 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
     });
   });
 
-  it('relabels for a molding inset and says why a part is a slab', () => {
+  it('keeps Slab AM size rows usable without frame sizes and explains plain slabs', () => {
     const coreRows = partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 8.5 }, 0.3125);
     expect(coreRows.rows.map(({ value }) => value)).toEqual([2.875, 2.875, 3, 3]);
     expect(coreRows.opening).toEqual({ width: 8.375, height: 2.125 });
     expect(partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 5 }, 0.3125).title).toBe('Slab');
     expect(partSizeRows(DEFAULT_DOOR_STYLE, SLAB_AM, { width: 15, height: 30 }, 0.3125).opening)
-      .toEqual({ width: 8.375, height: 23.375 });
+      .toEqual({ width: 15, height: 30 });
     const molding = partSizeRows(DEFAULT_DOOR_STYLE, SLAB_AM, {
       width: 15, height: 30, sizes: { midRails: [{ at: 15, width: 4 }] },
     });
     expect([molding.title, molding.rows.map(({ label }) => label), molding.midRails, molding.opening]).toEqual([
-      'Molding inset', ['Top', 'Bottom', 'Left', 'Right'], [{ at: 15, width: 4, typed: true }], { width: 9, height: 24 },
+      'Applied moldings', [], [{ at: 15, width: 0 }], { width: 15, height: 30 },
     ]);
     const slab = { title: 'Slab', rows: [], midRails: [], midStiles: [], opening: null };
     expect([

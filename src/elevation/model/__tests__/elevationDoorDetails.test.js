@@ -75,16 +75,14 @@ describe('SPEC-46.4 door details for one wall face', () => {
     expect(tagsOnly[2]).toEqual({ partId: `${CAB_24}:r`, tag: 'Std' });
   });
 
-  it('sends Slab AM molding rectangles; a slab part only when tags are on', () => {
+  it('omits empty Slab AM details and includes slab parts when tags are on', () => {
     const edit = (r) => {
       r.doorStyleId = 'ds-c';
       const base = r.walls.flatMap((wall) => wall.runs).find((run) => run.id === BASE);
       gridLeaves(base.grid).find((node) => node.id === CAB_36).face = { type: 'pair_door', size: null, styleId: 'ds-s' };
     };
     const result = g1A(room('G1 Euro kitchen', {}, edit));
-    expect(result.map(({ partId }) => partId)).toEqual(G1_A_IDS.filter((id) => !id.startsWith(CAB_36)));
-    expect(result.find(({ partId }) => partId === `${CAB_24}:r`))
-      .toEqual({ partId: `${CAB_24}:r`, openings: [box(33.0625, 7.125, 17.875, 24.125)] });
+    expect(result).toEqual([]);
     const tagged = g1A(room('G1 Euro kitchen', { doorStyleTags: true }, edit));
     expect(tagged.filter(({ partId }) => partId.startsWith(CAB_36))).toEqual([
       { partId: `${CAB_36}:rleft`, tag: 'S' },
