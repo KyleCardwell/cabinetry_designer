@@ -23,6 +23,9 @@ import { splitRun } from './splitRun.js';
 import { stackLeaders, stackOf } from './stacks.js';
 import { teeFillers } from './tees.js';
 import { isCountertop, runTop } from './tops.js';
+import { runBands, waterfallEnds } from './runBands.js';
+import { runScene } from './runScene.js';
+import { topOverhangs } from './topOverhang.js';
 
 const SEGMENT_EPSILON = 1e-6;
 
@@ -326,6 +329,54 @@ function runInnerSegments(room, wall, run, settings, layout) {
   return segments;
 }
 
+/**
+ * What a run's top adds past its ends on the overall row: a waterfall leg (its thickness) plus any side
+ * overhang holding it off the run, or a typed side overhang that differs from the default and reaches
+ * past a free end. Segments run left to right on each side.
+ */
+export function topEndSegments(room, wall, run, settings) {
+  const none = { left: [], right: [] };
+  const profile = resolveProfile(settings, room, wall);
+  const top = runTop(wall, run, profile);
+  if (!isCountertop(top.kind)) return none;
+  const overhangs = topOverhangs(room, wall, run, settings);
+  const waterfall = waterfallEnds(room, wall, run, settings);
+  const typed = (side) => Number.isFinite(run.topOverhang?.[side]) && run.topOverhang[side] >= 0;
+  const defaults = topOverhangs(room, wall, { ...run, topOverhang: undefined }, settings);
+  let band;
+  const countertop = () => {
+    band ??= runBands(room, wall, run, settings, runScene(room, wall, run, settings)).countertop ?? null;
+    return band;
+  };
+  const segments = (side) => {
+    const s = side === 'left' ? -1 : 1;
+    const edge = side === 'left' ? run.x : run.x + run.width;
+    const past = overhangs[side];
+    const metadata = { runId: run.id, side };
+    const list = [];
+    if (waterfall[side]) {
+      const inner = edge + s * past;
+      const outer = inner + s * top.height;
+      list.push({ start: Math.min(inner, outer), end: Math.max(inner, outer), kind: 'waterfall', ...metadata });
+      if (past > SEGMENT_EPSILON) {
+        list.push({ start: Math.min(edge, inner), end: Math.max(edge, inner), kind: 'overhang', ...metadata });
+      }
+    } else if (typed(side) && past > SEGMENT_EPSILON
+      && Math.abs(past - defaults[side]) > SEGMENT_EPSILON) {
+      const rect = countertop();
+      const reaches = rect && (side === 'left'
+        ? rect.x < edge - SEGMENT_EPSILON
+        : rect.x + rect.width > edge + SEGMENT_EPSILON);
+      if (reaches) {
+        const outer = edge + s * past;
+        list.push({ start: Math.min(edge, outer), end: Math.max(edge, outer), kind: 'overhang', ...metadata });
+      }
+    }
+    return list.sort((a, b) => a.start - b.start);
+  };
+  return { left: segments('left'), right: segments('right') };
+}
+
 /** Build the inner piece chain and outer run chain for an elevation band. */
 export function horizontalChains(room, wall, band, settings) {
   const runs = runsForBand(wall, band);
@@ -356,8 +407,11 @@ export function horizontalChains(room, wall, band, settings) {
   const length = wallLength(wall);
   const firstRun = runs[0];
   const lastRun = runs[runs.length - 1];
-  const rangeStart = Math.min(0, firstRun.x);
-  const rangeEnd = Math.max(length, lastRun.x + lastRun.width);
+  const topEnds = new Map(runs.map((run) => [run.id, topEndSegments(room, wall, run, settings)]));
+  const runStart = (run) => topEnds.get(run.id).left[0]?.start ?? run.x;
+  const runEnd = (run) => topEnds.get(run.id).right.at(-1)?.end ?? run.x + run.width;
+  const rangeStart = Math.min(0, firstRun.x, ...runs.map(runStart));
+  const rangeEnd = Math.max(length, lastRun.x + lastRun.width, ...runs.map(runEnd));
   const left = outermost(neighbors, 'left', rangeStart);
   const right = outermost(neighbors, 'right', rangeEnd);
   const leftCornerGap = Boolean(
@@ -401,12 +455,13 @@ export function horizontalChains(room, wall, band, settings) {
     appendGap(
       inner,
       cursor,
-      Math.min(run.x, segments[0]?.start ?? run.x),
+      Math.min(run.x, segments[0]?.start ?? run.x, runStart(run)),
       index === 0 && leftCornerGap ? 'corner-gap' : 'open',
       tallRanges,
     );
     inner.push(...segments);
-    cursor = Math.max(run.x + run.width, segments[segments.length - 1]?.end ?? run.x + run.width);
+    // The top's legs/overhangs are measured on the overall row; the piece row skips over them.
+    cursor = Math.max(run.x + run.width, segments[segments.length - 1]?.end ?? run.x + run.width, runEnd(run));
   });
   appendGap(
     inner,
@@ -425,9 +480,12 @@ export function horizontalChains(room, wall, band, settings) {
     const end = index === runs.length - 1 && rightCornerGap
       ? length
       : run.x + run.width;
-    appendOpenGap(outer, cursor, start, tallRanges);
+    const { left: before, right: after } = topEnds.get(run.id);
+    appendOpenGap(outer, cursor, Math.min(start, before[0]?.start ?? start), tallRanges);
+    for (const segment of before) appendSegment(outer, segment.start, segment.end, segment.kind, { runId: run.id, side: segment.side });
     appendSegment(outer, start, end, 'run', { runId: run.id });
-    cursor = end;
+    for (const segment of after) appendSegment(outer, segment.start, segment.end, segment.kind, { runId: run.id, side: segment.side });
+    cursor = Math.max(end, after.at(-1)?.end ?? end);
   });
   appendOpenGap(outer, cursor, rangeEnd, tallRanges);
   if (right) outer.push(right);

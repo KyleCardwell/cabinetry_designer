@@ -21,6 +21,8 @@ const KIND_COLORS = {
   box: '#cbd5e1',
   't-filler': '#fbbf24',
   countertop: '#cbd5e1',
+  waterfall: '#cbd5e1',
+  overhang: '#cbd5e1',
   clearance: '#cbd5e1',
   molding: '#cbd5e1',
   soffit: '#94a3b8',
