@@ -8,12 +8,13 @@ import { cornerParts } from '../cornerParts.js';
 import { elevationDimensions } from '../elevationDimensions.js';
 import { elevationMarks } from '../elevationMarks.js';
 import { elevationDoorDetails } from '../elevationDoorDetails.js';
+import { partNumbers, wallBadgeGroups, wallMoldingBadges } from '../partNumbers.js';
 import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { gridLeaves } from '../grid.js';
 import { planParts } from '../planParts.js';
 import { planDimensions } from '../planDimensions.js';
 import { planMarks } from '../planMarks.js';
-import { syncRoom } from '../room.js';
+import { resolveWall, syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
 const document = normalizeElevationDocument(
@@ -32,11 +33,43 @@ const withoutParts = (payload) => ({
     delete copy.dimensions;
     delete copy.marks;
     delete copy.doorDetails;
+    delete copy.partNumbers;
     return copy;
   }),
 });
 
 describe('SPEC-40 drawing payload', () => {
+  it('SPEC-50.13 anchor 9: exports every canvas badge once, aligned with front and back parts (G1)', () => {
+    const synced = room('G1 Euro kitchen');
+    const using = { ...settings, showPartNumbers: false };
+    const { byKey } = partNumbers(synced, using);
+    const { elevations } = toDrawingPayload(synced, using);
+    expect(elevations[0].letter).toBe('A');
+    expect(elevations.some(({ side }) => side === 'back')).toBe(true);
+    for (const elevation of elevations) {
+      const wall = synced.walls.find(({ id }) => id === elevation.wallId);
+      const view = resolveWall(synced, wall, elevation.side);
+      const pieces = wallBadgeGroups(synced, view, using).flatMap(({ pieces }) => pieces)
+        .filter(({ id }) => byKey.has(id));
+      const moldings = wallMoldingBadges(synced, view, using, byKey);
+      const expected = [
+        ...pieces.map(({ id }) => [id, String(byKey.get(id))]),
+        ...moldings.map(({ key, label, number }) => [key, `${label} ${number}`]),
+      ];
+      expect(expected.length).toBeGreaterThan(0);
+      expect(elevation.partNumbers.map(({ key, text }) => [key, text])).toEqual(expected);
+      expect(new Set(elevation.partNumbers.map(({ key }) => key)).size).toBe(expected.length);
+      expect(Object.keys(elevation).slice(-2)).toEqual(['doorDetails', 'partNumbers']);
+      for (const { id } of pieces) {
+        const badge = elevation.partNumbers.find(({ key }) => key === id);
+        const part = elevation.parts.find((part) => part.id === id);
+        expect(part, `part for badge ${id} on elevation ${elevation.letter}`).toBeDefined();
+        expect(badge.x).toBeGreaterThanOrEqual(part.x);
+        expect(badge.x).toBeLessThanOrEqual(part.x + part.width);
+      }
+    }
+  });
+
   it('has one elevation per lettered wall face, in letter order', () => {
     const island = '84063fed-ab0d-4a1d-ae05-ffe67decad5e';
     expect(withoutParts(toDrawingPayload(room('G1 Euro kitchen'), settings))).toEqual({

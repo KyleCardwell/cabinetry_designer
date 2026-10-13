@@ -9,6 +9,7 @@ import { plotScale } from './drawingScale.js';
 import { elevationDimensions } from './elevationDimensions.js';
 import { elevationMarks } from './elevationMarks.js';
 import { elevationDoorDetails } from './elevationDoorDetails.js';
+import { elevationPartNumbers } from './elevationPartNumbers.js';
 import { planParts } from './planParts.js';
 import { planDimensions } from './planDimensions.js';
 import { planMarks } from './planMarks.js';
@@ -21,7 +22,7 @@ export const DRAWING_PAYLOAD_VERSION = 1;
  * outline; round 41 adds each face's parts; round 42 its bands; 42.1 the wall's own parts; 42.2 its
  * neighbours (corner returns and profiles). Round 43 adds the drawing scale and each face's dimensions;
  * 43.3 its centreline marks; round 44 the room in plan; round 45 its dimensions; 45.1 its
- * markers and labels; 46.4 each face's door details.
+ * markers and labels; 46.4 each face's door details; 50.13 its part number badges.
  */
 export function toDrawingPayload(room, settings) {
   const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
@@ -49,6 +50,7 @@ export function toDrawingPayload(room, settings) {
       dimensions: elevationDimensions(room, wall, side, settings),
       marks: elevationMarks(room, wall, side, settings),
       doorDetails: elevationDoorDetails(room, wall, side, settings, new Set(parts.map(({ id }) => id))),
+      partNumbers: elevationPartNumbers(room, wall, side, settings),
     };
   });
 

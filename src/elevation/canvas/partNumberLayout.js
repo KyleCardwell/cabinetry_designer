@@ -17,15 +17,17 @@ export function partBadgeLevels(runHeightPx) {
 }
 
 /**
- * Lay out one run's badges in screen space.
+ * Lay out one run's badges in the supplied units (screen pixels by default).
  * entries: [{ key, text, left, right }] in left-to-right order.
  */
-export function layoutPartBadges(entries, { maxLevels = 3, gap = 3 } = {}) {
+export function layoutPartBadges(entries, {
+  maxLevels = 3, gap = 3, fitMargin = 2, widthOf = partBadgeWidth,
+} = {}) {
   const occupied = Array.from({ length: Math.max(0, maxLevels) }, () => -Infinity);
   return entries.map((entry) => {
-    const width = partBadgeWidth(entry.text);
+    const width = widthOf(entry.text);
     const center = (entry.left + entry.right) / 2;
-    const fits = width <= (entry.right - entry.left) - 2;
+    const fits = width <= (entry.right - entry.left) - fitMargin;
     if (fits || occupied.length === 0) {
       return { ...entry, width, center, level: 0, lifted: !fits };
     }

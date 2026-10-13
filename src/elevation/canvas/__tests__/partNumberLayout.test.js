@@ -6,6 +6,13 @@ import {
 } from '../partNumberLayout.js';
 
 describe('part number badge layout', () => {
+  it('accepts custom text widths while keeping the canvas defaults', () => {
+    const entries = [{ key: 'a', text: '105', left: 0, right: 10 }];
+    expect(layoutPartBadges(entries)[0]).toMatchObject({ width: 41, level: 1 });
+    expect(layoutPartBadges(entries, { widthOf: (text) => text.length * 2 })[0])
+      .toMatchObject({ width: 6, level: 0 });
+  });
+
   it('204. sizes badges and assigns lift levels in a single left-to-right sweep', () => {
     const entries = [
       { key: 'wide', text: '1', left: 0, right: 100 },
