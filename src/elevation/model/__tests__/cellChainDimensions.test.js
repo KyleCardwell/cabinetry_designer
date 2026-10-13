@@ -48,7 +48,7 @@ describe('SPEC-43.3 cell chains in the DXF', () => {
     expect(cells(elevationDimensions(g1, g1.walls[0], 'front', settings))).toEqual([]);
   });
 
-  it('dimensions a nested split across its bottom, and shares a popout level for shorter text (G4 split, 1:24 and 1:48)', () => {
+  it('dimensions a nested split across its bottom, and stacks wider Arial text in popout levels (G4 split, 1:24 and 1:48)', () => {
     const g4 = splitG4();
     expect(cells(elevationDimensions(g4, g4.walls[0], 'front', settings)).map(row)).toEqual([
       ['vertical', 'cell', 4, 64, 54.75, 54.75, '60'],
@@ -60,7 +60,7 @@ describe('SPEC-43.3 cell chains in the DXF', () => {
       ['vertical', 'cell', 4, 64, 60.75, 60.75, '60'],
       ['vertical', 'cell', 64, 90, 60.75, 60.75, '26'],
       ['horizontal', 'cell', 48.75, 66.25, 16, 16, '17 1/2', 57.5, 28.75],
-      ['horizontal', 'cell', 66.25, 83.75, 16, 16, '17 1/2', 75, 28.75],
+      ['horizontal', 'cell', 66.25, 83.75, 16, 16, '17 1/2', 75, 36.25],
     ]);
   });
 });

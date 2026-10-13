@@ -34,7 +34,7 @@ describe('SPEC-43.3 callouts in the DXF', () => {
     const g1 = room('G1 Euro kitchen');
     expect(of('clearances')(elevationDimensions(g1, g1.walls[0], 'front', settings)).map(row)).toEqual([
       ['clearance', 30, 45, 64.5, 64.5, '15'],
-      ['clearance', 99, 108.5, 72, 72, '9 1/2'],
+      ['clearance', 99, 108.5, 72, 72, '9 1/2', 103.75, 78.375],
     ]);
     // G2's window is 2" from the wall end with no run there: the wall row already says so.
     const g2 = room('G2 Face frame kitchen');

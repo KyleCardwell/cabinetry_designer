@@ -104,9 +104,9 @@ describe('SPEC-45.2 run depths in plan', () => {
     ]);
   });
 
-  it('keeps the shorter text on the depth line (G2 upper)', () => {
+  it('moves wider Arial text off the depth line (G2 upper)', () => {
     expect(depths(stored('G2 Face frame kitchen'))[2])
-      .toEqual(depth([29.25, 2.1875], [29.25, 15], '12 13/16'));
+      .toEqual(depth([29.25, 2.1875], [29.25, 15], '12 13/16', [22.875, 8.59375]));
   });
 
   it('measures a recessed run from the recess back (G5)', () => {

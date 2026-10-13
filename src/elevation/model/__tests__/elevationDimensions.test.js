@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { elevationDimensions } from '../elevationDimensions.js';
+import { elevationDimensions, placeLabels } from '../elevationDimensions.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -18,6 +18,24 @@ const ROWS = ['lower.inner', 'lower.outer', 'openings', 'upper.inner', 'upper.ou
 const horizontal = (dimensions) => dimensions.filter(({ row: name }) => ROWS.includes(name));
 
 describe('SPEC-43 elevation dimensions', () => {
+  it('SPEC-50.15 step 522 anchors: estimates Arial widths, fits a 10-inch segment and keeps a 3-inch filler moved out', () => {
+    const { placed, levels, step } = placeLabels([
+      { kind: 'piece', start: 0, end: 24.875, text: '24 7/8' },
+      { kind: 'piece', start: 24.875, end: 34.875, text: '10' },
+      { kind: 'filler', start: 34.875, end: 37.875, text: '3' },
+    ], -9, -1, 24);
+    expect(placed[0].width).toBeCloseTo(9.45, 10);
+    expect(placed[0].fits).toBe(true);
+    expect(placed[1].width).toBeCloseTo(3.15, 10);
+    expect(placed[1].fits).toBe(true);
+    expect(placed[1].along).toBeUndefined();
+    expect(placed[1].across).toBeUndefined();
+    expect(placed[2].fits).toBe(false);
+    expect([placed[2].along, placed[2].across]).toEqual([36.375, -11.625]);
+    expect(levels).toBe(1);
+    expect(step).toBe(3.75);
+  });
+
   it('dimensions every segment of the canvas\'s chains; text that doesn\'t fit moves off the line (G1 elevation A)', () => {
     const g1 = room('G1 Euro kitchen');
     expect(horizontal(elevationDimensions(g1, g1.walls[0], 'front', settings)).map(row)).toEqual([
@@ -53,7 +71,13 @@ describe('SPEC-43 elevation dimensions', () => {
     const dimensions = horizontal(elevationDimensions(g1, g1.walls[1], 'front', { ...settings, plotScale: 48 }));
     // No openings: the wall row takes no space. At 1:48 rows are 18" apart, plus 7 1/2" per level of moved text.
     expect([...new Set(dimensions.map(({ row: name, at }) => `${name} ${at}`))]).toEqual([
-      'lower.inner -18', 'lower.outer -43.5', 'upper.inner 114', 'upper.outer 147',
+      'lower.inner -18', 'lower.outer -51', 'upper.inner 114', 'upper.outer 147',
+    ]);
+    // Arial's 24 7/8" label needs 24.9" including gaps, so it moves out and the adjacent filler stacks.
+    expect(dimensions.filter(({ row: name, textX }) => name === 'lower.inner' && textX !== undefined).map(row)).toEqual([
+      ['lower.inner', 'corner-gap', 0, 24.875, 0, -18, '24 7/8', 12.4375, -23.25],
+      ['lower.inner', 'piece', 24.875, 26.6875, 0, -18, '1 13/16', 25.78125, -30.75],
+      ['lower.inner', 'piece', 118.1875, 120, 0, -18, '1 13/16', 119.09375, -23.25],
     ]);
     // Above the wall the 12 7/8" and the 1 13/16" beside it would overlap: the second goes a level further out.
     expect(dimensions.filter(({ row: name, textX }) => name === 'upper.inner' && textX !== undefined).map(row)).toEqual([

@@ -20,8 +20,8 @@ export const DIMENSION_TEXT_GAP = 0.0625;
 /** Paper inches inside a cell grid's left or bottom edge for its chain (SPEC-43.3). */
 const CELL_CHAIN_INSET = 0.25;
 
-/** Arial Narrow's widest-case average character width as a share of the text height (SPEC-43.1). */
-const CHARACTER_WIDTH = 0.5;
+/** Arial's safe average character width as a share of the text height (SPEC-50.15). */
+const CHARACTER_WIDTH = 0.7;
 
 const EPSILON = 1e-6;
 
