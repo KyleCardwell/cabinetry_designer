@@ -5,7 +5,7 @@ import { elevationParts } from './elevationParts.js';
 import { bandParts } from './bandParts.js';
 import { wallParts } from './wallParts.js';
 import { cornerParts } from './cornerParts.js';
-import { plotScale } from './drawingScale.js';
+import { paperSize, plotScale } from './drawingScale.js';
 import { elevationDimensions } from './elevationDimensions.js';
 import { elevationMarks } from './elevationMarks.js';
 import { elevationDoorDetails } from './elevationDoorDetails.js';
@@ -60,6 +60,7 @@ export function toDrawingPayload(room, settings) {
     room: { id: room.id, name: room.name },
     elevations,
     plotScale: plotScale(settings),
+    paperSize: paperSize(settings),
     plan: {
       parts: planParts(room, settings),
       dimensions: planDimensions(room, settings),

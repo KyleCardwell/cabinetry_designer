@@ -5,6 +5,7 @@ import {
   FRAME_JOINS,
 } from '../model/constants.js';
 import { isBottomPart } from '../model/bottoms.js';
+import { PAPER_SIZES, paperSize } from '../model/drawingScale.js';
 import { isDoorDesignList } from '../model/doorDesigns.js';
 import { isSectionProfileList, migrateSectionProfile } from '../model/sectionProfiles.js';
 import {
@@ -670,6 +671,7 @@ function normalizeDocument(document, schemaVersion) {
     for (const key of V2_DEFAULTED_SETTING_KEYS) {
       if (settings[key] === undefined) settings[key] = DEFAULT_SETTINGS[key];
     }
+    settings.paperSize = paperSize(settings);
     if (!Object.hasOwn(settings, 'stoneTopReveal')) {
       const base = settings.faceReveals?.[CABINET_TYPE_IDS.BASE];
       if (base?.top === 0.25) {
@@ -794,6 +796,7 @@ function isSettings(settings, profileKeys = PROFILE_KEYS) {
     && isSectionProfileList(settings.sectionProfiles)
     && findDoorDesign(settings.teamDoorStyle.designId, settings.doorDesigns) !== null
     && V2_NUMERIC_SETTING_KEYS.every((key) => isFiniteNumber(settings[key]))
+    && PAPER_SIZES.some(([value]) => value === settings.paperSize)
     && isCompleteProfile(settings.defaultProfile, profileKeys)
     && typeof settings.snapHeightsToDefaults === 'boolean'
     && typeof settings.autoEndPanelOnFreeEnd === 'boolean'

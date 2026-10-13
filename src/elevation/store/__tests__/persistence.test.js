@@ -1259,3 +1259,22 @@ describe('SPEC-43 drawing scale setting', () => {
     expect(loadElevationDocument().settings.plotScale).toBe(24);
   });
 });
+
+describe('SPEC-50.15 PDF paper setting', () => {
+  it('anchor 3: loads unknown or missing paper as Letter and retains supported paper sizes', () => {
+    for (const paperSize of [undefined, 'a4', null, 'letter', 'ledger', 'archD']) {
+      const current = currentDocument();
+      if (paperSize === undefined) delete current.settings.paperSize;
+      else current.settings.paperSize = paperSize;
+      const valid = ['letter', 'ledger', 'archD'].includes(paperSize);
+      expect(isElevationDocument(current)).toBe(valid);
+      globalThis.window = {
+        localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
+      };
+      const loaded = loadElevationDocument();
+      expect(loaded.settings.paperSize).toBe(valid ? paperSize : 'letter');
+      expect(loaded.rooms).toEqual(normalizeElevationDocument(current).rooms);
+      expect(current.settings.paperSize).toBe(paperSize);
+    }
+  });
+});

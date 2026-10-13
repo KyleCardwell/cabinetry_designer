@@ -123,6 +123,7 @@ export const DEFAULT_SETTINGS = {
   },
   // Drawing scale for the DXF: 24 is 1/2" = 1'-0" (SPEC-43). Text and dimension sizes are paper inches times this.
   plotScale: 24,
+  paperSize: 'letter',
 };
 
 export const FRAME_JOINS = ['miter', 'butt'];

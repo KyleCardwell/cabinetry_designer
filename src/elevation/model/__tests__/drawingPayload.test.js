@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { drawingZipName, toDrawingPayload } from '../drawingPayload.js';
+import { DEFAULT_SETTINGS } from '../constants.js';
 import { bandParts } from '../bandParts.js';
 import { elevationParts } from '../elevationParts.js';
 import { wallParts } from '../wallParts.js';
@@ -39,6 +40,18 @@ const withoutParts = (payload) => ({
 });
 
 describe('SPEC-40 drawing payload', () => {
+  it('SPEC-50.15 anchor 1: includes default Letter paper immediately after plotScale', () => {
+    const synced = room('G1 Euro kitchen');
+    const payload = toDrawingPayload(synced, DEFAULT_SETTINGS);
+    expect(payload.paperSize).toBe('letter');
+    const keys = Object.keys(payload);
+    expect(keys[keys.indexOf('plotScale') + 1]).toBe('paperSize');
+    const { paperSize, ...legacySettings } = settings;
+    void paperSize;
+    expect(toDrawingPayload(synced, legacySettings).paperSize).toBe('letter');
+    expect(toDrawingPayload(synced, { ...settings, paperSize: 'a4' }).paperSize).toBe('letter');
+  });
+
   it('SPEC-50.14 omits inch marks from G1 dimensions and keeps them on plan labels', () => {
     const { elevations, plan } = toDrawingPayload(room('G1 Euro kitchen'), settings);
     expect(elevations.find(({ letter }) => letter === 'A').dimensions.length).toBeGreaterThan(0);
@@ -87,6 +100,7 @@ describe('SPEC-40 drawing payload', () => {
       payloadVersion: 1,
       units: 'in',
       plotScale: 24,
+      paperSize: 'letter',
       room: { id: '7ee9fabb-5daf-4fb2-96f9-b24b9e1e546f', name: 'G1 Euro kitchen' },
       elevations: [
         {
