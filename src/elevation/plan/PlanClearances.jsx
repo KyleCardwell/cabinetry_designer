@@ -1,5 +1,5 @@
 import { Group, Line, Rect, Text } from 'react-konva';
-import { formatInches } from '../model/units.js';
+import { formatDimension } from '../model/units.js';
 import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
 import { readableRotation } from './textRotation.js';
 
@@ -19,7 +19,7 @@ export default function PlanClearances({ dimensions, scale }) {
         const span = Math.hypot(dx, dy);
         const unit = span > 0 ? { x: dx / span, y: dy / span } : { x: 1, y: 0 };
         const tick = { x: (-unit.y * TICK_HALF) / scale, y: (unit.x * TICK_HALF) / scale };
-        const text = formatInches(length);
+        const text = formatDimension(length);
         const width = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
         const height = (PLAN_DIM_FONT_SIZE + 4) / scale;
         const angle = (Math.atan2(dy, dx) * 180) / Math.PI;

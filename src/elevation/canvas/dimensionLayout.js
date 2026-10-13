@@ -1,4 +1,4 @@
-import { formatInches } from '../model/units.js';
+import { formatDimension } from '../model/units.js';
 
 const POPOUT_GAP = 4;
 
@@ -48,13 +48,9 @@ export function layoutDimensionRow(segments, {
   const labels = segments.map((segment, index) => {
     const length = segment.end - segment.start;
     const text = segment.violated && Number.isFinite(segment.required)
-      ? `${formatInches(length)} (${formatInches(segment.required)})`
-      : formatInches(length);
-    // SPEC-QUESTION: Test 13's required 14.6px width excludes the trailing inch mark,
-    // while §4.2 says to measure the full formatInches string. Keep the mark visible
-    // but follow the test's explicit width value.
-    const measuredText = text.endsWith('"') ? text.slice(0, -1) : text;
-    const width = measuredText.length * charWidth + 2 * padding;
+      ? `${formatDimension(length)} (${formatDimension(segment.required)})`
+      : formatDimension(length);
+    const width = text.length * charWidth + 2 * padding;
     const center = ((segment.start + segment.end) / 2) * scale;
     const lengthPx = (segment.end - segment.start) * scale;
     return {

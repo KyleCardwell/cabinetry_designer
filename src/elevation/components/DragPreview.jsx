@@ -1,6 +1,6 @@
 import { Group, Label, Rect, Tag, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
-import { formatInches } from '../model/units.js';
+import { formatDimension } from '../model/units.js';
 
 export default function DragPreview({ run, valid, transform }) {
   const rect = wallRectToScreen(run, transform);
@@ -27,7 +27,7 @@ export default function DragPreview({ run, valid, transform }) {
           pointerHeight={5}
         />
         <Text
-          text={formatInches(run.width)}
+          text={formatDimension(run.width)}
           fill="#dbeafe"
           fontSize={12}
           padding={5}

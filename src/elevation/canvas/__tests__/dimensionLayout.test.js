@@ -48,6 +48,12 @@ describe('belowRowOffsets', () => {
 });
 
 describe('layoutDimensionRow', () => {
+  it('SPEC-50.14 measures the 0–24.875 segment without an inch mark at test 13 inputs', () => {
+    const { labels } = layoutDimensionRow([{ start: 0, end: 24.875 }], { scale: 4, fontSize: 11 });
+    expect(labels[0]).toMatchObject({ text: '24 7/8', mode: 'inline', level: 0 });
+    expect(labels[0].width).toBeCloseTo(6 * 0.6 * 11 + 8);
+  });
+
   it('12. keeps a fitting label inline and pops out a narrow segment', () => {
     const result = layoutDimensionRow([
       { start: 0, end: 30 },
@@ -55,8 +61,8 @@ describe('layoutDimensionRow', () => {
     ], { scale: 4, fontSize: 11 });
 
     expect(result.labels).toMatchObject([
-      { text: '30"', mode: 'inline', level: 0 },
-      { text: '1 1/2"', mode: 'popout', level: 1 },
+      { text: '30', mode: 'inline', level: 0 },
+      { text: '1 1/2', mode: 'popout', level: 1 },
     ]);
     expect(result.levels).toBe(1);
   });
@@ -96,7 +102,8 @@ describe('layoutDimensionRow', () => {
       violated: true,
     }], { scale: 4, fontSize: 11 });
 
-    expect(result.labels[0].text).toBe('2 1/2" (4")');
+    expect(result.labels[0].text).toBe('2 1/2 (4)');
+    expect(result.labels[0].width).toBeCloseTo(9 * 0.6 * 11 + 8);
   });
 });
 

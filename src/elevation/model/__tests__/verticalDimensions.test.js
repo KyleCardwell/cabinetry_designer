@@ -19,18 +19,18 @@ describe('SPEC-43.2 vertical elevation dimensions', () => {
     const g1 = room('G1 Euro kitchen');
     const dimensions = vertical(elevationDimensions(g1, g1.walls[0], 'front', settings));
     expect(dimensions.map(row)).toEqual([
-      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4"', -15.375, 2],
-      ['left.inner', 'box', 4, 90, 0, -9, '86"'],
-      ['left.inner', 'molding', 90, 96, 0, -9, '6"'],
-      ['left.outer', 'wall', 0, 96, 0, -21.75, '96"'],
-      ['right.inner', 'toe-kick', 0, 4, 168, 177, '4"', 179.625, 2],
-      ['right.inner', 'box', 4, 34.5, 168, 177, '30 1/2"'],
-      ['right.inner', 'countertop', 34.5, 36, 168, 177, '1 1/2"', 179.625, 35.25],
-      ['right.inner', 'clearance', 36, 54, 168, 177, '18"'],
-      ['right.inner', 'box', 54, 90, 168, 177, '36"'],
-      ['right.inner', 'molding', 90, 96, 168, 177, '6"'],
-      ['right.middle', 'counter-height', 0, 36, 168, 189.75, '36"'],
-      ['right.outer', 'wall', 0, 96, 168, 198.75, '96"'],
+      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4', -15.375, 2],
+      ['left.inner', 'box', 4, 90, 0, -9, '86'],
+      ['left.inner', 'molding', 90, 96, 0, -9, '6'],
+      ['left.outer', 'wall', 0, 96, 0, -21.75, '96'],
+      ['right.inner', 'toe-kick', 0, 4, 168, 177, '4', 179.625, 2],
+      ['right.inner', 'box', 4, 34.5, 168, 177, '30 1/2'],
+      ['right.inner', 'countertop', 34.5, 36, 168, 177, '1 1/2', 179.625, 35.25],
+      ['right.inner', 'clearance', 36, 54, 168, 177, '18'],
+      ['right.inner', 'box', 54, 90, 168, 177, '36'],
+      ['right.inner', 'molding', 90, 96, 168, 177, '6'],
+      ['right.middle', 'counter-height', 0, 36, 168, 189.75, '36'],
+      ['right.outer', 'wall', 0, 96, 168, 198.75, '96'],
     ]);
   });
 
@@ -38,33 +38,33 @@ describe('SPEC-43.2 vertical elevation dimensions', () => {
     const g2 = room('G2 Face frame kitchen');
     expect(vertical(elevationDimensions(g2, g2.walls[0], 'front', settings))
       .filter(({ row: name }) => name.startsWith('left.')).map(row)).toEqual([
-      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4"', -15.375, 2],
-      ['left.inner', 'frame', 4, 5.75, 0, -9, '1 3/4"', -19.125, 4.875],
-      ['left.inner', 'frame-opening', 5.75, 67, 0, -9, '61 1/4"'],
-      ['left.inner', 'frame', 67, 69, 0, -9, '2"', -15.375, 68],
-      ['left.inner', 'frame-opening', 69, 88.25, 0, -9, '19 1/4"'],
-      ['left.inner', 'frame', 88.25, 90, 0, -9, '1 3/4"', -15.375, 89.125],
-      ['left.inner', 'molding', 90, 96, 0, -9, '6"'],
-      ['left.outer', 'wall', 0, 96, 0, -25.5, '96"'],
+      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4', -15.375, 2],
+      ['left.inner', 'frame', 4, 5.75, 0, -9, '1 3/4', -19.125, 4.875],
+      ['left.inner', 'frame-opening', 5.75, 67, 0, -9, '61 1/4'],
+      ['left.inner', 'frame', 67, 69, 0, -9, '2', -15.375, 68],
+      ['left.inner', 'frame-opening', 69, 88.25, 0, -9, '19 1/4'],
+      ['left.inner', 'frame', 88.25, 90, 0, -9, '1 3/4', -15.375, 89.125],
+      ['left.inner', 'molding', 90, 96, 0, -9, '6'],
+      ['left.outer', 'wall', 0, 96, 0, -25.5, '96'],
     ]);
   });
 
   it('leaves out a column that only repeats the wall height (G1 island, a bare wall in G3)', () => {
     const g1 = room('G1 Euro kitchen');
     expect(vertical(elevationDimensions(g1, g1.walls[3], 'back', settings)).map(row)).toEqual([
-      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4"', -15.375, 2],
-      ['left.inner', 'box', 4, 34.5, 0, -9, '30 1/2"'],
-      ['left.inner', 'countertop', 34.5, 36, 0, -9, '1 1/2"', -15.375, 35.25],
-      ['left.outer', 'wall', 0, 36, 0, -21.75, '36"'],
-      ['right.inner', 'toe-kick', 0, 4, 91.5, 100.5, '4"', 103.125, 2],
-      ['right.inner', 'box', 4, 34.5, 91.5, 100.5, '30 1/2"'],
-      ['right.inner', 'countertop', 34.5, 36, 91.5, 100.5, '1 1/2"', 103.125, 35.25],
-      ['right.outer', 'wall', 0, 36, 91.5, 113.25, '36"'],
+      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4', -15.375, 2],
+      ['left.inner', 'box', 4, 34.5, 0, -9, '30 1/2'],
+      ['left.inner', 'countertop', 34.5, 36, 0, -9, '1 1/2', -15.375, 35.25],
+      ['left.outer', 'wall', 0, 36, 0, -21.75, '36'],
+      ['right.inner', 'toe-kick', 0, 4, 91.5, 100.5, '4', 103.125, 2],
+      ['right.inner', 'box', 4, 34.5, 91.5, 100.5, '30 1/2'],
+      ['right.inner', 'countertop', 34.5, 36, 91.5, 100.5, '1 1/2', 103.125, 35.25],
+      ['right.outer', 'wall', 0, 36, 91.5, 113.25, '36'],
     ]);
     const g3 = room('G3 Bath alcove');
     expect(vertical(elevationDimensions(g3, g3.walls[0], 'front', settings)).map(row)).toEqual([
-      ['left.outer', 'wall', 0, 96, 0, -9, '96"'],
-      ['right.outer', 'wall', 0, 96, 30, 39, '96"'],
+      ['left.outer', 'wall', 0, 96, 0, -9, '96'],
+      ['right.outer', 'wall', 0, 96, 30, 39, '96'],
     ]);
   });
 
@@ -78,8 +78,8 @@ describe('SPEC-43.2 vertical elevation dimensions', () => {
     ]);
     expect(dimensions.filter(({ textX }) => textX !== undefined).map(({ text, textX, textZ }) => [text, textX, textZ]))
       .toEqual([
-        ['4"', -30.75, 2], ['1 1/2"', -30.75, 35.25], ['6"', -30.75, 93],
-        ['4"', 143.25, 2], ['1 1/2"', 143.25, 35.25], ['6"', 143.25, 93],
+        ['4', -30.75, 2], ['1 1/2', -30.75, 35.25], ['6', -30.75, 93],
+        ['4', 143.25, 2], ['1 1/2', 143.25, 35.25], ['6', 143.25, 93],
       ]);
   });
 });

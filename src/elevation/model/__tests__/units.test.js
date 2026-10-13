@@ -1,11 +1,25 @@
 import { describe, expect, it } from 'vitest';
 import {
   floorTo,
+  formatDimension,
   formatInches,
   formatInchesInput,
   parseInches,
   roundTo,
 } from '../units.js';
+import { formatDimension as exportedFormatDimension } from '../index.js';
+
+describe('SPEC-50.14 dimension formatting', () => {
+  it('omits inch marks while preserving fractions, signs, zero and the requested step', () => {
+    expect(exportedFormatDimension).toBe(formatDimension);
+    expect([24.875, 0.1875, 0, -1.5, 30].map((value) => formatDimension(value)))
+      .toEqual(['24 7/8', '3/16', '0', '-1 1/2', '30']);
+    expect(formatDimension(0.09375, 1 / 32)).toBe('3/32');
+    expect(formatDimension(0.09375)).toBe('1/8');
+    expect(formatDimension(NaN)).toBe('');
+    expect(formatInches(24.875)).toBe('24 7/8"');
+  });
+});
 
 describe('parseInches and formatInches', () => {
   it.each([

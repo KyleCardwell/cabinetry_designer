@@ -1,5 +1,5 @@
 import { CABINET_TYPE_IDS } from '../model/constants.js';
-import { formatInches } from '../model/units.js';
+import { formatDimension } from '../model/units.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
 
 export const DEPTH_LANE_SHIFT = 28;
@@ -23,7 +23,7 @@ export function depthDimension(run, depth, scale, fontSize = PLAN_DIM_FONT_SIZE)
     run.x + margin,
     run.x + run.width - margin,
   );
-  const textPx = formatInches(depth).length * 0.6 * fontSize + 8;
+  const textPx = formatDimension(depth).length * 0.6 * fontSize + 8;
   const fits = depth * scale >= textPx + 4;
   const offset = depth / 2;
 

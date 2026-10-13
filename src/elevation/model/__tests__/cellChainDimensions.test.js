@@ -30,37 +30,37 @@ describe('SPEC-43.3 cell chains in the DXF', () => {
   it('dimensions a split column up its left side, 1/4" (paper) inside it (G2, G3, G4)', () => {
     const g2 = room('G2 Face frame kitchen');
     expect(cells(elevationDimensions(g2, g2.walls[0], 'front', settings)).map(row)).toEqual([
-      ['vertical', 'cell', 4, 68, 57, 57, '64"'],
-      ['vertical', 'cell', 68, 90, 57, 57, '22"'],
+      ['vertical', 'cell', 4, 68, 57, 57, '64'],
+      ['vertical', 'cell', 68, 90, 57, 57, '22'],
     ]);
     // The 3/4" top panel's text moves off the line, into the column.
     const g3 = room('G3 Bath alcove');
     expect(cells(elevationDimensions(g3, g3.walls[1], 'front', settings)).map(row)).toEqual([
-      ['vertical', 'cell', 36, 77.25, 6.75, 6.75, '41 1/4"'],
-      ['vertical', 'cell', 77.25, 78, 6.75, 6.75, '3/4"', 9.375, 77.625],
+      ['vertical', 'cell', 36, 77.25, 6.75, 6.75, '41 1/4'],
+      ['vertical', 'cell', 77.25, 78, 6.75, 6.75, '3/4', 9.375, 77.625],
     ]);
     const g4 = room('G4 T-filler run');
     expect(cells(elevationDimensions(g4, g4.walls[0], 'front', settings)).map(row)).toEqual([
-      ['vertical', 'cell', 4, 64, 54.75, 54.75, '60"'],
-      ['vertical', 'cell', 64, 90, 54.75, 54.75, '26"'],
+      ['vertical', 'cell', 4, 64, 54.75, 54.75, '60'],
+      ['vertical', 'cell', 64, 90, 54.75, 54.75, '26'],
     ]);
     const g1 = room('G1 Euro kitchen');
     expect(cells(elevationDimensions(g1, g1.walls[0], 'front', settings))).toEqual([]);
   });
 
-  it('dimensions a nested split across its bottom, and stacks text that doesn\'t fit (G4 split, 1:24 and 1:48)', () => {
+  it('dimensions a nested split across its bottom, and shares a popout level for shorter text (G4 split, 1:24 and 1:48)', () => {
     const g4 = splitG4();
     expect(cells(elevationDimensions(g4, g4.walls[0], 'front', settings)).map(row)).toEqual([
-      ['vertical', 'cell', 4, 64, 54.75, 54.75, '60"'],
-      ['vertical', 'cell', 64, 90, 54.75, 54.75, '26"'],
-      ['horizontal', 'cell', 48.75, 66.25, 10, 10, '17 1/2"'],
-      ['horizontal', 'cell', 66.25, 83.75, 10, 10, '17 1/2"'],
+      ['vertical', 'cell', 4, 64, 54.75, 54.75, '60'],
+      ['vertical', 'cell', 64, 90, 54.75, 54.75, '26'],
+      ['horizontal', 'cell', 48.75, 66.25, 10, 10, '17 1/2'],
+      ['horizontal', 'cell', 66.25, 83.75, 10, 10, '17 1/2'],
     ]);
     expect(cells(elevationDimensions(g4, g4.walls[0], 'front', { ...settings, plotScale: 48 })).map(row)).toEqual([
-      ['vertical', 'cell', 4, 64, 60.75, 60.75, '60"'],
-      ['vertical', 'cell', 64, 90, 60.75, 60.75, '26"'],
-      ['horizontal', 'cell', 48.75, 66.25, 16, 16, '17 1/2"', 57.5, 28.75],
-      ['horizontal', 'cell', 66.25, 83.75, 16, 16, '17 1/2"', 75, 36.25],
+      ['vertical', 'cell', 4, 64, 60.75, 60.75, '60'],
+      ['vertical', 'cell', 64, 90, 60.75, 60.75, '26'],
+      ['horizontal', 'cell', 48.75, 66.25, 16, 16, '17 1/2', 57.5, 28.75],
+      ['horizontal', 'cell', 66.25, 83.75, 16, 16, '17 1/2', 75, 28.75],
     ]);
   });
 });

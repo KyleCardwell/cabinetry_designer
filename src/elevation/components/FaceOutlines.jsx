@@ -1,7 +1,7 @@
 import { Fragment } from 'react';
 import { Rect, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
-import { formatInches } from '../model/units.js';
+import { formatDimension } from '../model/units.js';
 
 const SIZE_FONT = 10;
 const SIZE_INSET = 3;
@@ -18,7 +18,7 @@ export default function FaceOutlines({
     const rect = wallRectToScreen(face, transform);
     const selected = selectedPath !== null
       && (face.path === selectedPath || face.path.startsWith(`${selectedPath}.`));
-    const sizeText = formatInches(face.height);
+    const sizeText = formatDimension(face.height);
     const showSize = showSizes
       && rect.height >= SIZE_FONT + SIZE_INSET * 2
       && rect.width >= sizeText.length * 6 + SIZE_INSET * 2;

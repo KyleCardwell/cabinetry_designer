@@ -39,6 +39,17 @@ const withoutParts = (payload) => ({
 });
 
 describe('SPEC-40 drawing payload', () => {
+  it('SPEC-50.14 omits inch marks from G1 dimensions and keeps them on plan labels', () => {
+    const { elevations, plan } = toDrawingPayload(room('G1 Euro kitchen'), settings);
+    expect(elevations.find(({ letter }) => letter === 'A').dimensions.length).toBeGreaterThan(0);
+    expect(plan.dimensions.filter(({ row }) => row === 'depth')).toHaveLength(7);
+    for (const { text } of [...elevations.flatMap(({ dimensions }) => dimensions), ...plan.dimensions]) {
+      expect(text).not.toContain('"');
+    }
+    expect(plan.marks.filter(({ kind }) => kind === 'label').map(({ text }) => text))
+      .toEqual(['W1 · 48"']);
+  });
+
   it('SPEC-50.13 anchor 9: exports every canvas badge once, aligned with front and back parts (G1)', () => {
     const synced = room('G1 Euro kitchen');
     const using = { ...settings, showPartNumbers: false };

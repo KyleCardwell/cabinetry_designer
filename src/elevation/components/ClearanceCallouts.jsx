@@ -1,6 +1,6 @@
 import { Group, Line, Text } from 'react-konva';
 import { wallToScreen } from '../canvas/transform.js';
-import { formatInches } from '../model/units.js';
+import { formatDimension } from '../model/units.js';
 
 /** Casing clearances drawn inside the wall at their own height (SPEC-39.1); amber when too tight. */
 export default function ClearanceCallouts({ callouts, transform }) {
@@ -12,8 +12,8 @@ export default function ClearanceCallouts({ callouts, transform }) {
         const color = callout.violated ? '#f59e0b' : '#cbd5e1';
         const length = callout.end - callout.start;
         const text = callout.violated && Number.isFinite(callout.required)
-          ? `${formatInches(length)} (${formatInches(callout.required)})`
-          : formatInches(length);
+          ? `${formatDimension(length)} (${formatDimension(callout.required)})`
+          : formatDimension(length);
         return (
           <Group key={`${callout.openingId}:${callout.side}`}>
             <Line points={[from.x, from.y, to.x, to.y]} stroke={color} strokeWidth={1} />

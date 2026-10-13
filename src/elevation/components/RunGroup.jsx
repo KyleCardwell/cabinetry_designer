@@ -16,7 +16,7 @@ import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { runBands } from '../model/runBands.js';
 import { runScene } from '../model/runScene.js';
-import { formatInches } from '../model/units.js';
+import { formatDimension } from '../model/units.js';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { runHighlight } from '../canvas/selectionHighlight.js';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
@@ -492,7 +492,7 @@ function RunGroup({
               y={datum.y - 14}
               width={80}
               align="center"
-              text={marker.anchor === 'center' ? `℄ ${formatInches(marker.value)}` : formatInches(marker.value)}
+              text={marker.anchor === 'center' ? `℄ ${formatDimension(marker.value)}` : formatDimension(marker.value)}
               fontSize={11}
               fill="#facc15"
             />

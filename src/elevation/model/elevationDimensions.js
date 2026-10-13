@@ -4,7 +4,7 @@ import {
 import { plotScale } from './drawingScale.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
-import { formatInches } from './units.js';
+import { formatDimension } from './units.js';
 import { wallExtent } from './wallExtent.js';
 
 /** Paper inches from the drawing to its first dimension row, and between rows (SPEC-43). */
@@ -49,7 +49,7 @@ export function placeLabels(segments, at, outward, scale, textOutward = outward 
   const first = (textOutward ? step : 0) + gap + height / 2;
   const levels = [];
   const placed = segments.map((segment) => {
-    const text = segment.text ?? formatInches(segment.end - segment.start);
+    const text = segment.text ?? formatDimension(segment.end - segment.start);
     const width = text.length * CHARACTER_WIDTH * height;
     return { segment, text, width, fits: width + 2 * gap <= segment.end - segment.start + EPSILON };
   });
@@ -187,7 +187,7 @@ export function elevationDimensions(room, wall, side, settings) {
         kind: 'pin',
         start: Math.min(x, datumX),
         end: Math.max(x, datumX),
-        text: anchor === 'center' ? `CL ${formatInches(value)}` : formatInches(value),
+        text: anchor === 'center' ? `CL ${formatDimension(value)}` : formatDimension(value),
       };
       const { placed } = placeLabels([segment], z, +1, scale);
       const [record] = labelRecords(placed, 'pins', z, z, false);

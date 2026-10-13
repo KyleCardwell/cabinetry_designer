@@ -157,6 +157,11 @@ export function formatInches(n, step = DISPLAY_STEP) {
   return whole > 0 ? `${sign}${whole} ${fraction}"` : `${sign}${fraction}"`;
 }
 
+/** Format a measured dimension without the trailing inch mark, using the same rounding step. */
+export function formatDimension(n, step) {
+  return formatInches(n, step).replace(/"$/, '');
+}
+
 /**
  * Format an inch value for an input, retaining fractions without the inch mark.
  *

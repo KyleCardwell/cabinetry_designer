@@ -6,6 +6,8 @@ const run = (cabinetTypeId, x, width) => ({ cabinetTypeId, x, width });
 
 describe('depthDimension', () => {
   it('184. assigns type lanes and pops out labels that do not fit', () => {
+    // At this scale the shorter dimension fits; the old text with its inch mark did not.
+    expect(depthDimension(run(CABINET_TYPE_IDS.BASE, 20, 60), 24.875, 2.5).fits).toBe(true);
     expect(depthDimension(run(CABINET_TYPE_IDS.BASE, 20, 60), 24.875, 4)).toEqual({
       x: 50, fits: true, label: { x: 50, offset: 12.4375 }, leader: null,
     });

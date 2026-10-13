@@ -87,6 +87,7 @@ export {
 } from './stacks.js';
 export {
   floorTo,
+  formatDimension,
   formatInches,
   formatInchesInput,
   parseInches,

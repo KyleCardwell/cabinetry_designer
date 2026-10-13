@@ -16,7 +16,7 @@ import {
   pinTargetsForRun,
 } from '../model/room.js';
 import { splitRun } from '../model/splitRun.js';
-import { formatInches } from '../model/units.js';
+import { formatDimension } from '../model/units.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
 import { depthDimension } from './depthDimension.js';
 import { readableFlip, readableRotation } from './textRotation.js';
@@ -113,7 +113,7 @@ export default function PlanRunFootprint({
   const outline = collision ? '#ef4444' : selected ? '#f8fafc' : color;
   const collisionAnchor = elevationToPlan(frame, (span.start + span.end) / 2, 0);
   const depthFontSize = PLAN_DIM_FONT_SIZE / scale;
-  const depthText = formatInches(depth);
+  const depthText = formatDimension(depth);
   const depthTextWidth = (depthText.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
   const dim = depthDimension(run, depth, scale);
   const dimensionBack = elevationToPlan(frame, dim.x, planeBack);

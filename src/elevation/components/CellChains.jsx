@@ -5,7 +5,7 @@ import {
   Text,
 } from 'react-konva';
 import { wallToScreen } from '../canvas/transform.js';
-import { formatInches } from '../model/units.js';
+import { formatDimension } from '../model/units.js';
 
 const FONT_SIZE = 10;
 const MIN_LABEL_SPAN = 24;
@@ -77,7 +77,7 @@ function CellChain({ grid, transform, editable, onEditTrack }) {
                 width={span}
                 height={FONT_SIZE}
                 align="center"
-                text={formatInches(track.end - track.start)}
+                text={formatDimension(track.end - track.start)}
                 fontSize={FONT_SIZE}
                 fill={color}
                 listening={false}
@@ -103,7 +103,7 @@ function CellChain({ grid, transform, editable, onEditTrack }) {
               width={span}
               height={FONT_SIZE}
               align="center"
-              text={formatInches(track.end - track.start)}
+              text={formatDimension(track.end - track.start)}
               fontSize={FONT_SIZE}
               fill={color}
               listening={false}
