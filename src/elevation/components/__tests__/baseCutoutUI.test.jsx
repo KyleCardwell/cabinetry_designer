@@ -10,6 +10,8 @@ import { fixed, run as fixtureRun, stateWithRun } from '../../store/__tests__/he
 import KindPanel from '../../../library/profileEditor/KindPanel.jsx';
 import InchInput from '../InchInput.jsx';
 import SettingsPanel from '../SettingsPanel.jsx';
+import SettingGroups from '../SettingGroups.jsx';
+import SettingField from '../SettingField.jsx';
 import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
 import OverrideField from '../OverrideField.jsx';
 import OverrideInput from '../OverrideInput.jsx';
@@ -39,7 +41,7 @@ const run = () => wall().runs[0];
 const props = () => ({ room: room(), wall: wall(), run: run(), settings: state.settings });
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object'
-    ? tree.type === OverrideInput || tree.type === OverrideField
+    ? tree.type === OverrideInput || tree.type === OverrideField || tree.type === SettingGroups || tree.type === SettingField
       ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : text(tree?.props?.children ?? []);
@@ -344,6 +346,7 @@ describe('Step 494 base cutout controls', () => {
   });
 
   it('saves Cutout foot and Square cutout height settings and rejects invalid dimensions', () => {
+    useState.mockImplementation((initial) => [typeof initial === 'object' ? { 'bases-tops-bands': true } : true, vi.fn()]);
     expect(field(SettingsPanel(), 'Cutout foot').props.value).toBe(3);
     expect(field(SettingsPanel(), 'Square cutout height').props.value).toBe(1.5);
     field(SettingsPanel(), 'Cutout foot').props.onCommit(0);
