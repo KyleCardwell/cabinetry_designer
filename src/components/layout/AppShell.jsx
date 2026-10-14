@@ -20,8 +20,7 @@ export default function AppShell({ children }) {
           <h1 className="text-lg font-semibold tracking-tight">Cabinetry Designer</h1>
           <nav className="flex items-center gap-1 text-sm" aria-label="Primary navigation">
             <NavLink
-              to="/"
-              end
+              to="/projects"
               className={({ isActive }) => `px-3 py-1.5 rounded transition-colors ${
                 isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
               }`}

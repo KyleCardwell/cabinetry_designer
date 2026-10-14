@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { supabase } from './api/supabaseClient';
 import { initAuth, setSession, clearAuth } from './store/slices/authSlice';
 import AppShell from './components/layout/AppShell';
-import ProjectList from './components/projects/ProjectList';
+import ProjectsPage from './projects/ProjectsPage.jsx';
 import RoomEditor from './components/rooms/RoomEditor';
 import Login from './components/auth/Login';
 import ElevationLab from './elevation/ElevationLab';
@@ -54,7 +54,8 @@ function App() {
   return (
     <AppShell>
       <Routes>
-        <Route path="/" element={<ProjectList />} />
+        <Route path="/" element={<Navigate to="/projects" replace />} />
+        <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/elevation-lab" element={<ElevationLab />} />
         <Route path="/projects/:projectId/rooms/:roomId" element={<RoomEditor />} />
         <Route path="/settings" element={<SettingsPage />} />
@@ -65,7 +66,7 @@ function App() {
           <Route path="door-style" element={<TeamDoorStylePage />} />
           <Route path="profiles" element={<ProfilesPage />} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>
     </AppShell>
   );
