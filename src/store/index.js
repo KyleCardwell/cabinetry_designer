@@ -8,6 +8,7 @@ import canvasReducer from './slices/canvasSlice';
 import elevationReducer from '../elevation/store/elevationSlice';
 import { setupElevationPersistence } from '../elevation/store/persistence';
 import { getDesignApi } from '../api/designApi';
+import { cloudSync, setupCloudSync } from '../elevation/store/cloudSync';
 
 export const store = configureStore({
   reducer: {
@@ -25,3 +26,4 @@ export const store = configureStore({
 });
 
 setupElevationPersistence(store);
+cloudSync.register(setupCloudSync(store, { getDesignApi }));

@@ -7,6 +7,7 @@ import {
   newSectionProfile,
   sectionProfileUses,
 } from '../../model/sectionProfiles.js';
+import { isUuid } from '../../model/cloudRows.js';
 
 export const sectionProfileReducers = {
   addSectionProfile: {
@@ -55,12 +56,25 @@ export const sectionProfileReducers = {
     if (sectionProfileUses(settings, current(state.rooms), profileId).length) return;
     state.settings.sectionProfiles = list.filter((profile) => profile.id !== profileId);
   },
-  importSectionProfiles(state, action) {
-    const { profiles } = action.payload;
-    if (!Array.isArray(profiles)) return;
-    const list = current(state.settings).sectionProfiles;
-    const { profiles: next, added, replaced } = mergeImportedProfiles(list, structuredClone(profiles));
-    if (added + replaced === 0) return;
-    state.settings.sectionProfiles = next;
+  importSectionProfiles: {
+    reducer(state, action) {
+      const { profiles, freshIds = [] } = action.payload;
+      if (!Array.isArray(profiles)) return;
+      let incoming = structuredClone(profiles);
+      // Shop library rows are keyed by uuid (SPEC-DB4): old-style ids get a new one.
+      if (state.source === 'cloud') {
+        incoming = incoming.map((profile, index) => (
+          profile && typeof profile === 'object' && !isUuid(profile.id) && freshIds[index]
+            ? { ...profile, id: freshIds[index] } : profile));
+      }
+      const list = current(state.settings).sectionProfiles;
+      const { profiles: next, added, replaced } = mergeImportedProfiles(list, incoming);
+      if (added + replaced === 0) return;
+      state.settings.sectionProfiles = next;
+    },
+    prepare(payload = {}) {
+      const count = Array.isArray(payload.profiles) ? payload.profiles.length : 0;
+      return { payload: { ...payload, freshIds: Array.from({ length: count }, () => uuid()) } };
+    },
   },
 };
