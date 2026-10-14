@@ -48,6 +48,8 @@ export default function RunFaceOptions({ room, wall, run, settings }) {
       <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Cabinet style</h3>
       <StyleFields
         label="Run"
+        level="Run"
+        inheritedFrom="Room"
         value={run.style}
         inherited={resolveStyle(settings, room)}
         onChange={(style) => dispatch(setRunStyle({ ...at, style }))}

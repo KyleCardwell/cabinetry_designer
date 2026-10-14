@@ -39,6 +39,8 @@ export default function CabinetStyleProperties({ room, wall, run, item, settings
       <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Cabinet style</h3>
       <StyleFields
         label="Cabinet"
+        level="Cabinet"
+        inheritedFrom="Run"
         value={item.style}
         inherited={resolveStyle(settings, room, run)}
         onChange={(style) => dispatch(setItemStyle({ ...at, style }))}

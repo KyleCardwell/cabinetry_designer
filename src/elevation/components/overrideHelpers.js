@@ -7,6 +7,7 @@ export const LEVEL_LABELS = {
 };
 
 export function sourceLabel(source) {
+  if (typeof source === 'string') return source;
   return LEVEL_LABELS[source?.level ?? 'team'];
 }
 
@@ -16,5 +17,5 @@ export function controlBorder(overridden) {
 
 export function overrideTitle({ level = 'room', overridden, source, inheritedText }) {
   const inherited = `${sourceLabel(source)}: ${inheritedText}`;
-  return overridden ? `${LEVEL_LABELS[level]} override · ${inherited}` : inherited;
+  return overridden ? `${LEVEL_LABELS[level] ?? level} override · ${inherited}` : inherited;
 }

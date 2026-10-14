@@ -16,6 +16,8 @@ export default function RoomStylePanel() {
       <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-300">Cabinet style</h3>
       <StyleFields
         label="Room"
+        level="Room"
+        inheritedFrom="Shop standard"
         value={room.style}
         inherited={resolveStyle(settings)}
         onChange={(style) => dispatch(setRoomStyle({ roomId: room.id, style }))}
