@@ -89,7 +89,9 @@ export function setupCloudSync(store, { getDesignApi, delay = 15000, drafts = nu
   function dirtyKeys() {
     const current = snapshotsOf(elevation());
     const keys = [];
+    const readOnlyRoom = Boolean(elevation().cloud?.room?.readOnly); // nothing to save, nothing to draft
     for (const [key, snap] of current) {
+      if (key === 'room' && readOnlyRoom) continue;
       if (!paused.has(key) && baseline.get(key)?.json !== snap.json) keys.push(key);
     }
     for (const [key, snap] of baseline) {
@@ -148,7 +150,7 @@ export function setupCloudSync(store, { getDesignApi, delay = 15000, drafts = nu
     if (!drafts) return draftQueue;
     const state = elevation();
     const info = state.cloud?.room;
-    if (state.source !== 'cloud' || !info || info.staleDraft) return draftQueue; // a pending choice keeps its copy
+    if (state.source !== 'cloud' || !info || info.staleDraft || info.readOnly) return draftQueue; // a pending choice / read-only keeps its copy
     const snap = snapshotsOf(state).get('room');
     if (!snap) return draftQueue;
     const roomId = info.id;
@@ -298,7 +300,7 @@ export function setupCloudSync(store, { getDesignApi, delay = 15000, drafts = nu
     const { keys, current: snaps } = dirtyKeys();
     reportPending(keys.length);
     if (keys.length) schedule();
-    if (drafts && snaps.has('room') && baseline.get('room')?.json !== snaps.get('room').json) scheduleDraft();
+    if (drafts && snaps.has('room') && !current.cloud?.room?.readOnly && baseline.get('room')?.json !== snaps.get('room').json) scheduleDraft();
   });
 
   // Leaving: copy the draft and send what's waiting now rather than after the quiet period.

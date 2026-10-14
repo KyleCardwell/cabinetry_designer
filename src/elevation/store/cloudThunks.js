@@ -26,6 +26,8 @@ import {
 import { cloudSync } from './cloudSync.js';
 import { loadElevationDocument, roomFromDocument, toRoomDocument } from './persistence.js';
 import { readDraft } from './roomDrafts.js';
+import { selectRoomEditors } from './presenceSlice.js';
+import { joinProjectPresence, setPresenceRoom } from './presenceThunks.js';
 
 function apiFrom(extra) {
   return (extra?.getDesignApi ?? defaultGetDesignApi)();
@@ -191,7 +193,13 @@ const roomText = (room) => JSON.stringify(toRoomDocument(room));
  *  - the room was saved by someone else since → the server's room opens and the draft waits
  *    (`cloud.room.staleDraft`) for `applyStaleRoomDraft` / `discardStaleRoomDraft`.
  * `discardLocal` throws away this room's draft and any unsaved edits instead (after a conflict).
- * → { ok: true, recovered, staleDraft } | { ok: false, reason, message }
+ *
+ * It also joins the project's presence channel and says this tab has the room open. The room
+ * opens read-only (`cloud.room.readOnly`, nothing edits or saves) when the user can't edit
+ * (`readOnlyReason: 'permission'`), the room is archived ('archived'), or another tab is
+ * editing it ('others', listed in `openBy`; `editRoomAnyway` lifts it). Draft recovery waits
+ * while read-only.
+ * → { ok: true, recovered, staleDraft, readOnlyReason, openBy } | { ok: false, reason, message }
  */
 export function openCloudRoom({ estProjectId, roomId, discardLocal = false }) {
   return async (dispatch, getState, extra) => {
@@ -211,7 +219,11 @@ export function openCloudRoom({ estProjectId, roomId, discardLocal = false }) {
       if (!opened.ok) return opened;
     }
     const api = await apiFrom(extra);
-    const [projectReply, roomReply] = await Promise.all([api.getProject(estProjectId), api.getRoom(roomId)]);
+    const [projectReply, roomReply] = await Promise.all([
+      api.getProject(estProjectId),
+      api.getRoom(roomId),
+      dispatch(joinProjectPresence(estProjectId)), // best effort: never blocks for long
+    ]);
     if (seq !== openSeq) return superseded;
     const failed = [projectReply, roomReply].find((reply) => !reply.ok);
     if (failed) return { ok: false, reason: failed.reason, message: `Couldn't open the room: ${failed.message}` };
@@ -227,6 +239,12 @@ export function openCloudRoom({ estProjectId, roomId, discardLocal = false }) {
     const { settings } = getState().elevation;
     const loaded = roomFromDocument(row.document, row.schema_version, settings);
     if (!loaded.ok) return loaded;
+
+    // Read-only when the user can't edit, the room is archived, or someone else is editing it.
+    const openBy = selectRoomEditors(getState(), roomId);
+    const readOnlyReason = !getState().elevation.cloud.permissions?.edit ? 'permission'
+      : row.archived_at ? 'archived'
+        : openBy.length ? 'others' : null;
 
     dispatch(cloudRoomLoaded({
       room: { ...loaded.room, id: row.room_id, name: row.name },
@@ -245,37 +263,70 @@ export function openCloudRoom({ estProjectId, roomId, discardLocal = false }) {
         archived: Boolean(row.archived_at),
         updatedAt: row.updated_at ?? null,
         schemaVersion: row.schema_version,
+        readOnly: Boolean(readOnlyReason),
+        readOnlyReason,
       },
     }));
+    await dispatch(setPresenceRoom({ roomId, readOnly: Boolean(readOnlyReason) }));
 
-    const result = { ok: true, recovered: false, staleDraft: null };
-    const { teamId, permissions } = getState().elevation.cloud;
+    const result = { ok: true, recovered: false, staleDraft: null, readOnlyReason, openBy };
     if (discardLocal) {
       await drafts?.delete(roomId); // again, in case a queued draft write landed after the first delete
       return result;
     }
-    if (!drafts || !permissions?.edit || row.archived_at) return result;
-    const draft = readDraft(await drafts.get(roomId));
-    if (seq !== openSeq) return result;
-    if (!draft) return result;
-    const usable = draft.teamId === teamId ? roomFromDocument(draft.document, draft.schemaVersion, settings) : { ok: false };
-    if (!usable.ok) {
-      await drafts.delete(roomId);
-      return result;
+    if (readOnlyReason) return result; // a draft waits until the room can be edited (editRoomAnyway)
+    const recovery = await recoverDraft(dispatch, getState, drafts, () => seq === openSeq);
+    return { ...result, ...recovery };
+  };
+}
+
+/**
+ * Put back this browser's unsaved draft of the open room, if it has one (see openCloudRoom).
+ * → { recovered, staleDraft }
+ */
+async function recoverDraft(dispatch, getState, drafts, stillCurrent = () => true) {
+  const none = { recovered: false, staleDraft: null };
+  const info = getState().elevation.cloud?.room;
+  if (!drafts || !info) return none;
+  const roomId = info.id;
+  const draft = readDraft(await drafts.get(roomId));
+  if (!stillCurrent() || !draft) return none;
+  const { settings, cloud } = getState().elevation;
+  const usable = draft.teamId === cloud.teamId ? roomFromDocument(draft.document, draft.schemaVersion, settings) : { ok: false };
+  if (!usable.ok) {
+    await drafts.delete(roomId);
+    return none;
+  }
+  if (draft.baseVersion !== info.version) {
+    const staleDraft = { savedAt: draft.savedAt, baseVersion: draft.baseVersion };
+    dispatch(cloudRoomPatch({ staleDraft }));
+    return { recovered: false, staleDraft };
+  }
+  const before = roomText(getState().elevation.rooms[0]);
+  dispatch(cloudRoomRecovered({ room: usable.room, savedAt: draft.savedAt }));
+  if (roomText(getState().elevation.rooms[0]) === before) {
+    dispatch(cloudRoomPatch({ recovered: false, recoveredAt: null }));
+    await drafts.delete(roomId);
+    return none;
+  }
+  return { recovered: true, staleDraft: null };
+}
+
+/**
+ * Someone else has the room open and the user chose to edit anyway: the room becomes editable,
+ * this tab tells the others it's editing, and a draft from an earlier session is offered as on open.
+ * Only for `readOnlyReason: 'others'` (not without permission or for an archived room).
+ * → { ok: true, recovered, staleDraft } | { ok: false, reason, message }
+ */
+export function editRoomAnyway() {
+  return async (dispatch, getState, extra) => {
+    const info = getState().elevation.cloud?.room;
+    if (!info?.readOnly || info.readOnlyReason !== 'others') {
+      return { ok: false, reason: 'not_allowed', message: 'This room can\'t be edited here.' };
     }
-    if (draft.baseVersion !== row.version) {
-      const staleDraft = { savedAt: draft.savedAt, baseVersion: draft.baseVersion };
-      dispatch(cloudRoomPatch({ staleDraft }));
-      return { ...result, staleDraft };
-    }
-    const before = roomText(getState().elevation.rooms[0]);
-    dispatch(cloudRoomRecovered({ room: usable.room, savedAt: draft.savedAt }));
-    if (roomText(getState().elevation.rooms[0]) === before) {
-      dispatch(cloudRoomPatch({ recovered: false, recoveredAt: null }));
-      await drafts.delete(roomId);
-      return result;
-    }
-    return { ...result, recovered: true };
+    dispatch(cloudRoomPatch({ readOnly: false, readOnlyReason: null }));
+    await dispatch(setPresenceRoom({ roomId: info.id, readOnly: false }));
+    return { ok: true, ...(await recoverDraft(dispatch, getState, extra?.drafts ?? null)) };
   };
 }
 
@@ -341,11 +392,11 @@ export function allowRoomDemote() {
   };
 }
 
-/** Leaving the room page: copy unsaved edits to the draft cache and send what can be sent. */
+/** Leaving the room page: copy unsaved edits to the draft cache, send what can be sent, and tell the others. */
 export function leaveCloudRoom() {
   return async (dispatch, getState, extra) => {
-    const sync = syncOf(extra);
-    await sync.saveDraftNow();
-    return sync.flush();
+    const reply = await syncOf(extra).flush();
+    await dispatch(setPresenceRoom({ roomId: null }));
+    return reply;
   };
 }

@@ -1,5 +1,6 @@
 import { configureStore } from '@reduxjs/toolkit';
 import elevationReducer from '../../elevationSlice.js';
+import presenceReducer from '../../presenceSlice.js';
 
 let counter = 0;
 export function fakeUuid() {
@@ -257,8 +258,9 @@ export const ALL = { view: true, edit: true, manage: true };
 export function cloudStore(api, permissions = ALL, teamId = TEAM_ID, extra = {}) {
   return configureStore({
     reducer: {
-      auth: (state = { teamId, permissions }) => state,
+      auth: (state = { teamId, permissions, userName: extra.userName ?? 'Me', session: { user: { id: extra.userId ?? 'user-me' } } }) => state,
       elevation: elevationReducer,
+      presence: presenceReducer,
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware({
       thunk: { extraArgument: { getDesignApi: async () => api, ...extra } },

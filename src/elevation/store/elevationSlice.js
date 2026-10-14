@@ -231,4 +231,22 @@ export const {
   cloudRoomPatch,
 } = elevationSlice.actions;
 
-export default elevationSlice.reducer;
+/**
+ * Read-only rooms (SPEC-DB6a.1): while `cloud.room.readOnly` is set, every action that edits
+ * the room is ignored, wherever it comes from. Built from the room-editing reducer groups, so
+ * a reducer added to one of them is covered too. Selection, views, prefs, the library, shop
+ * settings and the cloud bookkeeping still work.
+ */
+const VIEW_ONLY_ROOM_ACTIONS = new Set(['setActiveRoom', 'setActiveWall', 'setActiveWallSide']);
+export const ROOM_EDIT_ACTION_TYPES = new Set([
+  ...[roomReducers, wallReducers, featureReducers, runReducers, itemReducers, cellReducers, styleReducers, doorStyleReducers]
+    .flatMap((group) => Object.keys(group))
+    .filter((name) => !VIEW_ONLY_ROOM_ACTIONS.has(name)),
+  'moveMissingDoorDesign',
+  'cloudRoomRecovered',
+].map((name) => `${elevationSlice.name}/${name}`));
+
+export default function elevationReducer(state, action) {
+  if (state?.cloud?.room?.readOnly && ROOM_EDIT_ACTION_TYPES.has(action.type)) return state;
+  return elevationSlice.reducer(state, action);
+}

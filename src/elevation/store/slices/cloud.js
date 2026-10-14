@@ -129,7 +129,10 @@ export const cloudReducers = {
       ...cloud,
       loadId: cloud.loadId + 1,
       layerVersions: { project: project?.version ?? null, phase: phase?.version ?? null },
-      room: { demote: false, recovered: false, recoveredAt: null, staleDraft: null, conflictVersion: null, ...meta },
+      room: {
+        demote: false, recovered: false, recoveredAt: null, staleDraft: null, conflictVersion: null,
+        readOnly: false, readOnlyReason: null, ...meta,
+      },
       pending: 0,
       conflict: null,
       error: null,
@@ -159,7 +162,7 @@ export const cloudReducers = {
   cloudRoomPatch(state, action) {
     const info = state.cloud?.room;
     if (!info) return;
-    for (const key of ['status', 'statusAt', 'statusByName', 'archived', 'version', 'demote', 'staleDraft', 'conflictVersion', 'updatedAt', 'recovered', 'recoveredAt']) {
+    for (const key of ['status', 'statusAt', 'statusByName', 'archived', 'version', 'demote', 'staleDraft', 'conflictVersion', 'updatedAt', 'recovered', 'recoveredAt', 'readOnly', 'readOnlyReason']) {
       if (Object.hasOwn(action.payload, key)) info[key] = action.payload[key];
     }
   },

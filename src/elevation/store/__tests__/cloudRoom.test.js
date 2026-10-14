@@ -16,11 +16,13 @@ import {
 import { cloudSync, setupCloudSync } from '../cloudSync.js';
 import { ELEVATION_SCHEMA_VERSION, toRoomDocument } from '../persistence.js';
 import { createMemoryDraftStore } from '../roomDrafts.js';
+import { resetPresenceForTests } from '../presenceThunks.js';
 import { ALL, TEAM_ID, cloudStore, fakeDesignApi } from './helpers/fakeDesignApi.js';
 
 const syncs = [];
 afterEach(() => {
   cloudSync.register(null);
+  resetPresenceForTests();
   while (syncs.length) syncs.pop().stop();
 });
 
@@ -64,7 +66,7 @@ describe('DB6a opening a room', () => {
   it('loads one room with the shop settings, library and its project / phase overrides', async () => {
     const ctx = await setup();
     const reply = await ctx.store.dispatch(openCloudRoom({ estProjectId: 42, roomId: 'rm-1' }));
-    expect(reply).toEqual({ ok: true, recovered: false, staleDraft: null });
+    expect(reply).toEqual({ ok: true, recovered: false, staleDraft: null, readOnlyReason: null, openBy: [] });
     const elevation = elevationOf(ctx.store);
     expect(elevation.source).toBe('cloud');
     expect(elevation.rooms).toHaveLength(1);
@@ -117,8 +119,8 @@ describe('DB6a opening a room', () => {
 
   it('opens an archived room and reports it', async () => {
     const ctx = await setup({ api: roomApi([roomRow('rm-1', 'Kitchen', { archived_at: 't' })]) });
-    expect((await open(ctx))).toMatchObject({ ok: true });
-    expect(elevationOf(ctx.store).cloud.room.archived).toBe(true);
+    expect((await open(ctx))).toMatchObject({ ok: true, readOnlyReason: 'archived' });
+    expect(elevationOf(ctx.store).cloud.room).toMatchObject({ archived: true, readOnly: true });
   });
 });
 
@@ -205,7 +207,7 @@ describe('DB6a saving a room', () => {
     editPart(ctx.store, 4);
     await ctx.sync.flush();
     const reply = await ctx.store.dispatch(reloadRoomAfterConflict());
-    expect(reply).toEqual({ ok: true, recovered: false, staleDraft: null });
+    expect(reply).toMatchObject({ ok: true, recovered: false, staleDraft: null });
     const elevation = elevationOf(ctx.store);
     expect(elevation.rooms[0].partNumberStart).toBe(11);
     expect(elevation.cloud.room.version).toBe(6);
@@ -238,9 +240,10 @@ describe('DB6a saving a room', () => {
     expect(roomSaves(ctx.api).at(-1)).toEqual(['saveRoomDocument', 'rm-1', 6, false]);
   });
 
-  it('an archived room can\'t be saved; restoring it and retrying does', async () => {
-    const ctx = await setup({ api: roomApi([roomRow('rm-1', 'Kitchen', { archived_at: 't' })]) });
+  it('a room archived while open can\'t be saved; restoring it and retrying does', async () => {
+    const ctx = await setup();
     await open(ctx);
+    ctx.api.db.project.phases[0].rooms[0].archived_at = 't';
     editPart(ctx.store, 5);
     expect((await ctx.sync.flush()).ok).toBe(false);
     expect(elevationOf(ctx.store).cloud.error.message).toMatch(/archived/);
@@ -264,13 +267,13 @@ describe('DB6a saving a room', () => {
     expect(await draftOf(ctx.drafts)).toBeNull();
   });
 
-  it('without edit permission nothing is sent', async () => {
+  it('without edit permission the room opens read-only and nothing changes or is sent', async () => {
     const ctx = await setup({ permissions: { view: true, edit: false, manage: false } });
-    await open(ctx);
+    expect(await open(ctx)).toMatchObject({ ok: true, readOnlyReason: 'permission' });
     editPart(ctx.store, 5);
-    expect((await ctx.sync.flush()).ok).toBe(false);
+    expect(elevationOf(ctx.store).rooms[0].partNumberStart).toBe(1);
+    expect((await ctx.sync.flush()).ok).toBe(true);
     expect(roomSaves(ctx.api)).toEqual([]);
-    expect(elevationOf(ctx.store).cloud.error.message).toMatch(/permission/);
   });
 
   it('leaving the room writes the draft copy and sends what it can', async () => {
@@ -307,7 +310,7 @@ describe('DB6a draft recovery', () => {
     await seedDraft(drafts);
     const ctx = await setup({ drafts });
     const reply = await ctx.store.dispatch(openCloudRoom({ estProjectId: 42, roomId: 'rm-1' }));
-    expect(reply).toEqual({ ok: true, recovered: true, staleDraft: null });
+    expect(reply).toMatchObject({ ok: true, recovered: true, staleDraft: null });
     expect(elevationOf(ctx.store).rooms[0].partNumberStart).toBe(12);
     expect(elevationOf(ctx.store).cloud.room).toMatchObject({ recovered: true, recoveredAt: 'earlier' });
     await ctx.sync.flush();
@@ -320,7 +323,7 @@ describe('DB6a draft recovery', () => {
     await seedDraft(drafts, {}, (document) => document);
     const ctx = await setup({ drafts });
     expect(await ctx.store.dispatch(openCloudRoom({ estProjectId: 42, roomId: 'rm-1' })))
-      .toEqual({ ok: true, recovered: false, staleDraft: null });
+      .toMatchObject({ ok: true, recovered: false, staleDraft: null });
     expect(elevationOf(ctx.store).cloud.room.recovered).toBe(false);
     expect(await draftOf(drafts)).toBeNull();
   });
@@ -330,7 +333,7 @@ describe('DB6a draft recovery', () => {
     await seedDraft(drafts, { baseVersion: 4 });
     const ctx = await setup({ drafts });
     const reply = await ctx.store.dispatch(openCloudRoom({ estProjectId: 42, roomId: 'rm-1' }));
-    expect(reply).toEqual({ ok: true, recovered: false, staleDraft: { savedAt: 'earlier', baseVersion: 4 } });
+    expect(reply).toMatchObject({ ok: true, recovered: false, staleDraft: { savedAt: 'earlier', baseVersion: 4 } });
     expect(elevationOf(ctx.store).rooms[0].partNumberStart).toBe(1);
     expect(elevationOf(ctx.store).cloud.room.staleDraft).toEqual({ savedAt: 'earlier', baseVersion: 4 });
     expect(await draftOf(drafts)).not.toBeNull();
