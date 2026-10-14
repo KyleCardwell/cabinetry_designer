@@ -10,6 +10,7 @@ export default function InchInput({
   onCommit,
   allowBlank = false,
   displayStep,
+  borderClass = 'border-gray-600',
   className = '',
   ...inputProps
 }) {
@@ -56,7 +57,7 @@ export default function InchInput({
           event.currentTarget.blur();
         }
       }}
-      className={`w-full px-2.5 py-1.5 bg-gray-900 border border-gray-600 rounded text-sm text-gray-100 focus:outline-none focus:border-blue-500 ${className}`}
+      className={`w-full px-2.5 py-1.5 bg-gray-900 border ${borderClass} rounded text-sm text-gray-100 focus:outline-none focus:border-blue-500 ${className}`}
     />
   );
 }
