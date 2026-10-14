@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { selectSettings } from '../store/selectors.js';
+import { selectRoomInheritedChain, selectSettings } from '../store/selectors.js';
 import { counterTop, crownOverlap, moldingStack, resolveProfile } from '../model/profile.js';
 import { formatInches } from '../model/units.js';
-import { resolveSetting } from '../model/settingsResolve.js';
+import { resolveSetting, resolveSettings } from '../model/settingsResolve.js';
 import {
   updateRoomProfile,
   useAutoHeightsForRoom,
@@ -41,18 +41,19 @@ const PROFILE_FIELDS = [
 
 export default function RoomHeightsPanel() {
   const dispatch = useDispatch();
-  const { rooms, activeRoomId, settings: shopSettings } = useSelector((state) => state.elevation);
+  const { rooms, activeRoomId } = useSelector((state) => state.elevation);
+  const inheritedChain = useSelector(selectRoomInheritedChain);
   const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const [open, setOpen] = useState(true);
 
   if (!room) return null;
-  const inheritedProfile = resolveProfile(shopSettings);
+  const inheritedProfile = resolveProfile(resolveSettings(inheritedChain));
   const resolvedProfile = resolveProfile(settings, room);
   const moldings = moldingProfiles(resolvedProfile, settings);
   const base = runBase(room, null, { cabinetTypeId: CABINET_TYPE_IDS.BASE }, settings);
   const overlap = crownOverlap(resolvedProfile);
-  const inheritedSource = (key) => resolveSetting(`defaultProfile.${key}`, [{ level: 'team', values: shopSettings }]).source;
+  const inheritedSource = (key) => resolveSetting(`defaultProfile.${key}`, inheritedChain).source;
 
   return (
     <section className="border-t border-gray-700 pt-4">

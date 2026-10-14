@@ -86,7 +86,8 @@ export function cleanOverrides(values, level) {
   let result = {};
   for (const entry of SETTINGS_REGISTRY) {
     const value = leafValue(values, entry.key);
-    if (!entry.managedBy && allowedAt(entry.key, level) && isValidSettingValue(entry.key, value)) {
+    // allowedAt already refuses managed keys at room and below; above room they're plain settings.
+    if (allowedAt(entry.key, level) && isValidSettingValue(entry.key, value)) {
       result = writeLeaf(result, entry.key.split('.'), value);
     }
   }

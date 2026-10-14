@@ -66,7 +66,7 @@ describe('DB1 a settings resolver', () => {
     expect(profile.toeKickHeight).toBe(DEFAULT_SETTINGS.defaultProfile.toeKickHeight);
   });
 
-  it('validates finite numbers, strict booleans and choices while rejecting all managed edits', () => {
+  it('validates finite numbers, strict booleans and choices while rejecting managed edits at room and below', () => {
     const input = { roundTo: 0, baseDepth: Infinity, upperDepth: NaN, tallDepth: '24',
       snapHeightsToDefaults: false, autoEndPanelOnFreeEnd: 1, openingsHaveCasing: null,
       defaultEnds: { left: 'none', right: 'bogus' }, defaultSoffitMolding: 'topMold',
@@ -76,8 +76,12 @@ describe('DB1 a settings resolver', () => {
     const expected = { roundTo: 0, snapHeightsToDefaults: false, defaultEnds: { left: 'none' },
       defaultSoffitMolding: 'topMold', defaultOpeningMeasureMode: 'casing', insetFrame: { stile: -0.25 } };
     expect(cleanOverrides(input, 'room')).toEqual(expected);
-    expect(cleanOverrides(input, 'project')).toEqual(expected);
-    expect(cleanOverrides(input, 'team')).toEqual(expected);
+    // DB4: above room, managed keys are plain settings (project heights, styles, max width).
+    const aboveRoom = { ...expected, maxCabinetWidth: 42,
+      defaultProfile: { nosingProfileId: 'profile', crownProfileId: null, baseKind: 'toe_kick' },
+      defaultStyle: { cabinetStyleId: 13 } };
+    expect(cleanOverrides(input, 'project')).toEqual(aboveRoom);
+    expect(cleanOverrides(input, 'team')).toEqual(aboveRoom);
     expect(cleanOverrides({ doorPanelDefault: 0.75 }, 'team')).toEqual({ doorPanelDefault: 0.75 });
     expect(cleanOverrides(input, 'wall')).toEqual({});
     expect(cleanOverrides(input, 'bogus')).toEqual({});

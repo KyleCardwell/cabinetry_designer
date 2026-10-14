@@ -3,6 +3,7 @@ import { registryEntry } from '../model/settingsRegistry.js';
 import { choiceOptions } from '../model/settingGroups.js';
 import { resolveSetting } from '../model/settingsResolve.js';
 import { setRoomSetting, setSetting } from '../store/elevationSlice.js';
+import { selectRoomInheritedChain } from '../store/selectors.js';
 import InchInput from './InchInput.jsx';
 import OverrideInput from './OverrideInput.jsx';
 
@@ -14,6 +15,7 @@ export function ownSettingValue(values, key) {
 export default function SettingField({ settingKey, scope }) {
   const dispatch = useDispatch();
   const { settings, rooms, activeRoomId } = useSelector((state) => state.elevation);
+  const inheritedChain = useSelector(selectRoomInheritedChain);
   const room = rooms.find(({ id }) => id === activeRoomId);
   const entry = registryEntry(settingKey);
   const choices = choiceOptions(settingKey);
@@ -29,7 +31,7 @@ export default function SettingField({ settingKey, scope }) {
   };
 
   if (scope === 'room') {
-    const inherited = resolveSetting(settingKey, [{ level: 'team', values: settings }]);
+    const inherited = resolveSetting(settingKey, inheritedChain);
     return (
       <OverrideInput
         kind={entry.kind}

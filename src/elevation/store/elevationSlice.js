@@ -21,6 +21,7 @@ import { doorStyleReducers } from './slices/doorStyles.js';
 import { doorDesignReducers } from './slices/doorDesigns.js';
 import { sectionProfileReducers } from './slices/sectionProfiles.js';
 import { uiReducers } from './slices/ui.js';
+import { cloudReducers } from './slices/cloud.js';
 
 /** Create the elevation slice's initial persisted and transient state. */
 export function createInitialElevationState(document = loadElevationDocument()) {
@@ -38,6 +39,8 @@ export function createInitialElevationState(document = loadElevationDocument()) 
     schemaVersion: ELEVATION_SCHEMA_VERSION,
     settings,
     prefs,
+    // Project / phase overrides (SPEC-DB4): `{ id, values }` or null. Never saved to localStorage.
+    layers: { project: null, phase: null },
     rooms,
     activeRoomId,
     activeWallId,
@@ -72,6 +75,7 @@ const elevationSlice = createSlice({
     ...doorDesignReducers,
     ...sectionProfileReducers,
     ...uiReducers,
+    ...cloudReducers,
   },
 });
 
@@ -206,6 +210,7 @@ export const {
   setPref,
   setSetting,
   updateSettings,
+  setLayerSetting,
 } = elevationSlice.actions;
 
 export default elevationSlice.reducer;
