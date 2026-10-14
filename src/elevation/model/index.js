@@ -14,6 +14,7 @@ export {
   registryEntry,
   allowedAt,
 } from './settingsRegistry.js';
+export { SETTING_GROUPS, UNGROUPED_KEYS, groupsFor, CHOICE_LABELS, choiceOptions } from './settingGroups.js';
 export { resolveSetting, resolveSettings, withOverride, cleanOverrides } from './settingsResolve.js';
 export {
   FACE_DIRECTIONS,
