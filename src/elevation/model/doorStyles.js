@@ -48,19 +48,6 @@ export const DOOR_DESIGNS = [
     slots: ['outside', 'applied'],
     defaults: { thickness: 0.75 },
   },
-  {
-    id: 'micro-shaker',
-    code: 'Micro Shaker',
-    vendor: null,
-    description: 'Micro shaker, 1 1/2" stiles & rails',
-    construction: 'five_piece',
-    slabCore: null,
-    panelJoint: 'square',
-    topRail: { shape: 'flat' },
-    bottomRail: { shape: 'flat' },
-    slots: ['outside', 'inside', 'panel', 'applied'],
-    defaults: { thickness: 0.8125, stileWidth: 1.5, panelThickness: 0.625, slabBelow: 3.9375 },
-  },
 ];
 
 export const DEFAULT_DOOR_STYLE = {

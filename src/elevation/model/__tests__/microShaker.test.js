@@ -2,12 +2,21 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
 import { applyDesignDefaults } from '../doorStyleEdits.js';
 import { partSizes } from '../doorSizes.js';
+import { isDoorDesign, isDoorDesignList, SEEDED_DESIGN_IDS } from '../doorDesigns.js';
+import { MICRO_SHAKER } from './fixtures/microShakerDesign.js';
 
 const five = DOOR_DESIGNS[0];
-const micro = DOOR_DESIGNS.find(({ id }) => id === 'micro-shaker');
+const micro = MICRO_SHAKER;
 const microStyle = () => applyDesignDefaults(DEFAULT_DOOR_STYLE, five, micro);
 
 describe('Step 530 Micro Shaker', () => {
+  it('is a team design, not a built-in: valid beside the built-ins and never seeded', () => {
+    expect(DOOR_DESIGNS.map(({ id }) => id)).not.toContain('micro-shaker');
+    expect(SEEDED_DESIGN_IDS).not.toContain('micro-shaker');
+    expect(isDoorDesign(micro)).toBe(true);
+    expect(isDoorDesignList([...DOOR_DESIGNS, micro])).toBe(true);
+  });
+
   it('applies the Micro Shaker defaults to the standard 5PC style (anchor 2)', () => {
     expect(micro).toMatchObject({
       code: 'Micro Shaker', description: 'Micro shaker, 1 1/2" stiles & rails',

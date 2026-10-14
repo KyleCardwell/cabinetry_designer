@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
 import { doorSection, doorSectionDimensions } from '../doorSection.js';
 import { profileDoorGhost } from '../profileGhost.js';
+import { MICRO_SHAKER } from './fixtures/microShakerDesign.js';
 import { isProfileGeometry } from '../sectionProfiles.js';
 
 const sample = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
@@ -56,7 +57,7 @@ const picks = ({ applied = null, ...profiles }) => ({
 
 describe('SPEC-48.4 the door style half section', () => {
   it('uses the design panel joint for Micro Shaker and rejects a stile no wider than its tongue', () => {
-    const design = DOOR_DESIGNS.find(({ id }) => id === 'micro-shaker');
+    const design = MICRO_SHAKER;
     const style = {
       ...DEFAULT_DOOR_STYLE, designId: design.id, stiles: { left: 1.5, right: 1.5 },
       panel: { type: 'flat', thickness: 0.625 },

@@ -4,7 +4,7 @@ export const DESIGN_SLOTS = {
   five_piece: ['outside', 'inside', 'panel', 'applied'],
   slab: ['outside', 'applied'],
 };
-export const SEEDED_DESIGN_IDS = ['five-piece-square', 'slab', 'slab-mdf', 'micro-shaker'];
+export const SEEDED_DESIGN_IDS = ['five-piece-square', 'slab', 'slab-mdf'];
 
 const DESIGN_FIELDS = [
   'id', 'code', 'vendor', 'description', 'construction', 'slabCore', 'panelJoint',

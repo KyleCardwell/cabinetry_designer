@@ -9,7 +9,7 @@ import { auto, currentRun, run, stateWithRun } from './helpers/sliceFixtures.js'
 
 const apply = (state, ...actions) => actions.reduce(elevationReducer, state);
 const designs = (state) => state.settings.doorDesigns.map(({ id, code }) => [id, code]);
-const SEEDED = [['five-piece-square', '5PC'], ['slab', 'Slab'], ['slab-mdf', 'Slab - MDF Core'], ['micro-shaker', 'Micro Shaker']];
+const SEEDED = [['five-piece-square', '5PC'], ['slab', 'Slab'], ['slab-mdf', 'Slab - MDF Core']];
 const ARCHED = {
   id: 'ignored',
   code: '114',
@@ -37,15 +37,15 @@ describe('SPEC-46.3 editing the team library', () => {
     expect(designs(state)).toEqual([...SEEDED, ['d-1', '5PC copy'], ['d-2', 'Slab copy']]);
     expect(apply(state, addDoorDesign({ id: 'd-3', baseId: 'gone' }))).toBe(state);
     expect(addDoorDesign().payload.id).toEqual(expect.any(String));
-    expect(DOOR_DESIGNS).toHaveLength(4);
+    expect(DOOR_DESIGNS).toHaveLength(3);
   });
 
   it('saves an edited design with its construction\'s slots; a seeded design keeps its construction and rails', () => {
     const state = apply(base(), addDoorDesign({ id: 'd-1' }));
     const saved = apply(state, updateDoorDesign({ designId: 'd-1', design: ARCHED }));
-    expect(saved.settings.doorDesigns[4]).toEqual({ ...ARCHED, id: 'd-1', slots: ['outside', 'inside', 'panel', 'applied'] });
+    expect(saved.settings.doorDesigns[3]).toEqual({ ...ARCHED, id: 'd-1', slots: ['outside', 'inside', 'panel', 'applied'] });
     const applied = apply(saved, updateDoorDesign({ designId: 'd-1', design: { ...ARCHED, construction: 'slab', slabCore: 'mdf', panelJoint: null } }));
-    expect(applied.settings.doorDesigns[4].slots).toEqual(['outside', 'applied']);
+    expect(applied.settings.doorDesigns[3].slots).toEqual(['outside', 'applied']);
     const renamed = apply(state, updateDoorDesign({ designId: 'slab', design: { ...DOOR_DESIGNS[1], code: 'SL', vendor: 'Shop' } }));
     expect(renamed.settings.doorDesigns[1]).toEqual({ ...DOOR_DESIGNS[1], code: 'SL', vendor: 'Shop' });
     expect([
@@ -96,14 +96,14 @@ it('527. migrates imported designs before validating and merging the library', (
   const state = base();
   const legacy = { ...LEGACY_DOOR_DESIGNS[2], id: 'custom', code: '114' };
   const next = apply(state, importDoorDesigns({ designs: [...LEGACY_DOOR_DESIGNS, legacy] }));
-  expect(next.settings.doorDesigns.slice(0, 4)).toEqual(DOOR_DESIGNS);
-  expect(next.settings.doorDesigns[4]).toEqual({ ...legacy, construction: 'slab', slabCore: 'mdf', panelJoint: null, defaults: {} });
+  expect(next.settings.doorDesigns.slice(0, 3)).toEqual(DOOR_DESIGNS);
+  expect(next.settings.doorDesigns[3]).toEqual({ ...legacy, construction: 'slab', slabCore: 'mdf', panelJoint: null, defaults: {} });
   for (const designs of [[{ ...legacy, defaults: { thickness: 0 } }], [{ ...legacy, code: 'Slab' }], [null]]) {
     expect(apply(state, importDoorDesigns({ designs }))).toBe(state);
   }
   expect(apply(state, importDoorDesigns({ designs: null }))).toBe(state);
   const cloud = apply({ ...state, source: 'cloud' }, importDoorDesigns({ designs: [...LEGACY_DOOR_DESIGNS, legacy] }));
-  expect(cloud.settings.doorDesigns.slice(0, 4)).toEqual(DOOR_DESIGNS);
-  expect(isUuid(cloud.settings.doorDesigns[4].id)).toBe(true);
-  expect(cloud.settings.doorDesigns[4].slabCore).toBe('mdf');
+  expect(cloud.settings.doorDesigns.slice(0, 3)).toEqual(DOOR_DESIGNS);
+  expect(isUuid(cloud.settings.doorDesigns[3].id)).toBe(true);
+  expect(cloud.settings.doorDesigns[3].slabCore).toBe('mdf');
 });

@@ -1,4 +1,5 @@
 import { LEGACY_DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
+import { MICRO_SHAKER } from './fixtures/microShakerDesign.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { DESIGN_SLOTS, SEEDED_DESIGN_IDS, isDoorDesign, isDoorDesignList, migrateDoorDesign, parseDoorDesignFile, doorDesignFile } from '../doorDesigns.js';
@@ -24,7 +25,7 @@ describe('SPEC-46.3 the team\'s door designs and default door style live in sett
     expect(DEFAULT_SETTINGS.doorDesigns).toBe(DOOR_DESIGNS);
     expect(DEFAULT_SETTINGS.teamDoorStyle).toBe(DEFAULT_DOOR_STYLE);
     expect('doorThickness' in DEFAULT_SETTINGS).toBe(false);
-    expect(SEEDED_DESIGN_IDS).toEqual(['five-piece-square', 'slab', 'slab-mdf', 'micro-shaker']);
+    expect(SEEDED_DESIGN_IDS).toEqual(['five-piece-square', 'slab', 'slab-mdf']);
     expect(DESIGN_SLOTS).toEqual({
       five_piece: ['outside', 'inside', 'panel', 'applied'],
       slab: ['outside', 'applied'],
@@ -121,7 +122,7 @@ describe('Step 527 door design migration and shape', () => {
   it('migrates file entries before validation and rejects unsupported envelopes', () => {
     const parsed = parseDoorDesignFile(JSON.stringify(doorDesignFile(LEGACY_DOOR_DESIGNS)));
     expect(parsed).toEqual(DOOR_DESIGNS.slice(0, 3));
-    expect(isDoorDesignList([...parsed, DOOR_DESIGNS[3]])).toBe(true);
+    expect(isDoorDesignList([...parsed, MICRO_SHAKER])).toBe(true);
     expect(parseDoorDesignFile(JSON.stringify(doorDesignFile(DOOR_DESIGNS)))).toEqual(DOOR_DESIGNS);
     for (const text of ['{', 'null', '{}', JSON.stringify({ kind: 'door-designs', version: 2, designs: [] })]) {
       expect(parseDoorDesignFile(text)).toBeNull();

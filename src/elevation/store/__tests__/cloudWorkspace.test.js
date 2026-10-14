@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
 import { newSectionProfile } from '../../model/sectionProfiles.js';
-import { profileToRow } from '../../model/cloudRows.js';
+import { doorDesignToRow, profileToRow } from '../../model/cloudRows.js';
+import { MICRO_SHAKER } from '../../model/__tests__/fixtures/microShakerDesign.js';
 import { setSetting } from '../elevationSlice.js';
 import { loadProjectLayers, openCloudWorkspace, openLocalWorkspace } from '../cloudThunks.js';
 import { ELEVATION_STORAGE_KEY, persistElevationDocument } from '../persistence.js';
@@ -14,7 +15,7 @@ afterEach(() => vi.unstubAllGlobals());
 const VIEW_ONLY = { view: true, edit: false, manage: false };
 
 describe('DB4 e shop workspace', () => {
-  it('opens an empty team on the code defaults and writes the four built-in designs once', async () => {
+  it('opens an empty team on the code defaults and writes the three built-in designs once', async () => {
     const api = fakeDesignApi();
     const store = cloudStore(api);
     expect(await store.dispatch(openCloudWorkspace())).toEqual({ ok: true });
@@ -23,13 +24,13 @@ describe('DB4 e shop workspace', () => {
     expect(elevation.rooms).toEqual([]);
     expect(elevation.settings.roundTo).toBe(0.5);
     expect(elevation.settings.sectionProfiles).toEqual([]);
-    expect(elevation.settings.doorDesigns.map((design) => design.id)).toEqual(['five-piece-square', 'slab', 'slab-mdf', 'micro-shaker']);
-    expect(api.db.doorDesigns.map((row) => row.data.seedId)).toEqual(['five-piece-square', 'slab', 'slab-mdf', 'micro-shaker']);
+    expect(elevation.settings.doorDesigns.map((design) => design.id)).toEqual(['five-piece-square', 'slab', 'slab-mdf']);
+    expect(api.db.doorDesigns.map((row) => row.data.seedId)).toEqual(['five-piece-square', 'slab', 'slab-mdf']);
     expect(elevation.cloud.teamVersion).toBe(0);
     expect(elevation.cloud.rows.doorDesigns.slab).toEqual({ rowId: api.db.doorDesigns[1].design_id, version: 1 });
 
     await store.dispatch(openCloudWorkspace());
-    expect(api.db.doorDesigns).toHaveLength(4);
+    expect(api.db.doorDesigns).toHaveLength(3);
     expect(store.getState().elevation.cloud.loadId).toBe(2);
   });
 
@@ -38,7 +39,7 @@ describe('DB4 e shop workspace', () => {
     const store = cloudStore(api, VIEW_ONLY);
     await store.dispatch(openCloudWorkspace());
     expect(api.db.doorDesigns).toHaveLength(0);
-    expect(store.getState().elevation.settings.doorDesigns).toHaveLength(4);
+    expect(store.getState().elevation.settings.doorDesigns).toHaveLength(3);
     expect(store.getState().elevation.cloud.rows.doorDesigns).toEqual({});
   });
 
@@ -123,9 +124,23 @@ it('527. loads legacy built-in rows in place without rewriting them or resetting
   expect(elevation.settings.teamDoorStyle.designId).toBe('slab-mdf');
   expect(elevation.cloud.rows.doorDesigns['slab-mdf']).toEqual({ rowId: rows[2].design_id, version: 3 });
   expect(api.db.doorDesigns.slice(0, 3)).toEqual(before);
-  expect(api.db.doorDesigns).toHaveLength(4);
-  expect(api.db.doorDesigns[3].data.seedId).toBe('micro-shaker');
+  expect(api.db.doorDesigns).toHaveLength(3);
   await store.dispatch(openCloudWorkspace());
+  expect(api.db.doorDesigns).toHaveLength(3);
+  expect(elevation.message).toBeNull();
+});
+
+it('loads a Micro Shaker row written as a built-in by step 530 as the team\'s own design', async () => {
+  const builtIns = DOOR_DESIGNS.map((design) => ({ design_id: fakeUuid(), ...doorDesignToRow(design), version: 1 }));
+  const { id, code, ...data } = MICRO_SHAKER;
+  const micro = { design_id: fakeUuid(), code, data: { ...data, seedId: id }, version: 1 };
+  const api = fakeDesignApi({ doorDesigns: [...builtIns, micro] });
+  const store = cloudStore(api);
+  expect(await store.dispatch(openCloudWorkspace())).toEqual({ ok: true });
+  const elevation = store.getState().elevation;
+  expect(elevation.settings.doorDesigns).toEqual([...DOOR_DESIGNS, { ...MICRO_SHAKER, id: micro.design_id }]);
+  expect(elevation.cloud.rows.doorDesigns[micro.design_id]).toEqual({ rowId: micro.design_id, version: 1 });
+  expect(doorDesignToRow(elevation.settings.doorDesigns[3]).data).not.toHaveProperty('seedId');
   expect(api.db.doorDesigns).toHaveLength(4);
   expect(elevation.message).toBeNull();
 });

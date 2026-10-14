@@ -101,7 +101,7 @@ describe('SPEC-46.3 saving the team library in settings', () => {
     saved.settings.doorDesigns = [...DOOR_DESIGNS, ARCHED];
     const loaded = normalizeElevationDocument(saved);
     expect([loaded.settings.teamDoorStyle.thickness, loaded.settings.doorDesigns.length, 'doorThickness' in loaded.settings])
-      .toEqual([0.75, 5, false]);
+      .toEqual([0.75, 4, false]);
     expect(isElevationDocument(loaded)).toBe(true);
   });
 

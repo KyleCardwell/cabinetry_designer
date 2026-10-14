@@ -15,6 +15,7 @@ import KindPanel from '../../../library/profileEditor/KindPanel.jsx';
 import ProfileCanvas from '../../../library/profileEditor/ProfileCanvas.jsx';
 import ProfileEditor from '../../../library/profileEditor/ProfileEditor.jsx';
 import useProfileDraft from '../../../library/profileEditor/useProfileDraft.js';
+import { MICRO_SHAKER } from '../../model/__tests__/fixtures/microShakerDesign.js';
 
 // Inspect component output and invoke its UI callbacks without a browser or canvas runtime.
 vi.mock('react', async (importOriginal) => ({
@@ -532,6 +533,7 @@ describe('Step 491.2 furniture base editor ghost', () => {
   const ghostButton = (tree, label) => find(tree, ({ type, props }) => type === 'button' && props.children === label);
 
   it('uses the team style design joint in the door ghost, including edited Library designs', () => {
+    settings.doorDesigns = [...DOOR_DESIGNS, MICRO_SHAKER];
     settings.teamDoorStyle = {
       ...DEFAULT_DOOR_STYLE, designId: 'micro-shaker', stiles: { left: 1.5, right: 1.5 },
       panel: { type: 'flat', thickness: 0.625 },
@@ -540,7 +542,7 @@ describe('Step 491.2 furniture base editor ghost', () => {
       ({ type }) => type === ProfileCanvas).props.ghost;
     expect(ghost().points.p4).toEqual([1.5, -0.8125]);
     expect(ghost().loops[1].segs.every(({ type }) => type === 'line')).toBe(true);
-    settings.doorDesigns = DOOR_DESIGNS.map((design) => design.id === 'micro-shaker'
+    settings.doorDesigns = [...DOOR_DESIGNS, MICRO_SHAKER].map((design) => design.id === 'micro-shaker'
       ? { ...design, panelJoint: 'curved' } : design);
     expect(ghost().points.p4).toEqual([2.125, -0.8125]);
     expect(ghost().loops[1].segs[3].type).toBe('arc');

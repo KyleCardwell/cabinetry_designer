@@ -13,6 +13,7 @@ import {
   toElevationDocument,
 } from '../persistence.js';
 import { createInitialElevationState } from '../elevationSlice.js';
+import { MICRO_SHAKER } from '../../model/__tests__/fixtures/microShakerDesign.js';
 
 function storageWith(entries) {
   const values = new Map(entries);
@@ -1344,28 +1345,27 @@ it('527. appends missing seeds in seed order after the retained saved designs', 
   const custom = { ...structuredClone(LEGACY_DOOR_DESIGNS[0]), id: 'd1', code: '114' };
   saved.settings.doorDesigns = [custom, LEGACY_DOOR_DESIGNS[1]];
   const loaded = normalizeElevationDocument(saved);
-  expect(loaded.settings.doorDesigns.map(({ id }) => id)).toEqual(['d1', 'slab', 'five-piece-square', 'slab-mdf', 'micro-shaker']);
+  expect(loaded.settings.doorDesigns.map(({ id }) => id)).toEqual(['d1', 'slab', 'five-piece-square', 'slab-mdf']);
   expect(loaded.settings.doorDesigns[0].defaults).toEqual({});
   expect(isDoorDesignList(loaded.settings.doorDesigns)).toBe(true);
   expect(normalizeElevationDocument(loaded)).toEqual(loaded);
   expect(saved.settings.doorDesigns).toHaveLength(2);
 });
 
-it('530. loads a 50.18 document and appends Micro Shaker without changing saved designs or storage (anchor 1)', () => {
+it('530. keeps a saved Micro Shaker as the team\'s own design and appends nothing (not a built-in)', () => {
   const saved = currentDocument();
-  saved.settings.doorDesigns = structuredClone(DOOR_DESIGNS.slice(0, 3));
-  saved.settings.doorDesigns[0].defaults.stileWidth = 2.5;
+  saved.settings.doorDesigns = [...structuredClone(DOOR_DESIGNS), structuredClone(MICRO_SHAKER)];
   const encoded = JSON.stringify(saved);
   const storage = storageWith([[ELEVATION_STORAGE_KEY, encoded]]);
   globalThis.window = { localStorage: storage };
   const loaded = loadElevationDocument();
-  expect(loaded.settings.doorDesigns.map(({ id }) => id))
-    .toEqual(['five-piece-square', 'slab', 'slab-mdf', 'micro-shaker']);
-  expect(isDoorDesignList(loaded.settings.doorDesigns)).toBe(true);
-  expect(loaded.settings.doorDesigns.slice(0, 3)).toEqual(saved.settings.doorDesigns);
-  expect(loaded.settings.doorDesigns[3]).toEqual(DOOR_DESIGNS[3]);
+  expect(loaded.settings.doorDesigns).toEqual(saved.settings.doorDesigns);
   expect(isElevationDocument(loaded)).toBe(true);
   expect(normalizeElevationDocument(loaded)).toEqual(loaded);
-  expect(saved.settings.doorDesigns).toHaveLength(3);
   expect(storage.getItem(ELEVATION_STORAGE_KEY)).toBe(encoded);
+
+  const without = currentDocument();
+  without.settings.doorDesigns = structuredClone(DOOR_DESIGNS);
+  expect(normalizeElevationDocument(without).settings.doorDesigns.map(({ id }) => id))
+    .toEqual(['five-piece-square', 'slab', 'slab-mdf']);
 });

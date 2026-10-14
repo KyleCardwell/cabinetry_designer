@@ -6,6 +6,7 @@ import { isDoorDesign } from '../../elevation/model/doorDesigns.js';
 import InchInput from '../../elevation/components/InchInput.jsx';
 import DoorDesignEditor from '../DoorDesignEditor.jsx';
 import DoorDesignsPage from '../DoorDesignsPage.jsx';
+import { MICRO_SHAKER } from '../../elevation/model/__tests__/fixtures/microShakerDesign.js';
 
 vi.mock('react', async (original) => ({
   ...await original(),
@@ -57,7 +58,7 @@ beforeEach(() => {
 });
 
 describe('Step 529 Library door design cores and defaults', () => {
-  it('lists 5PC, hardwood Slab, Slab - MDF Core and Micro Shaker without Slab AM', () => {
+  it('lists 5PC, hardwood Slab and Slab - MDF Core without Slab AM or Micro Shaker', () => {
     const tree = DoorDesignsPage();
     const rows = nodes(tree).filter(({ type }) => type === 'tr');
     const contents = rows.map((row) => nodes(row).filter(({ type }) => type === 'td').map(text));
@@ -65,9 +66,9 @@ describe('Step 529 Library door design cores and defaults', () => {
       ['5PCbuilt-in', '5-piece'],
       ['Slabbuilt-in', 'Slab · Hardwood'],
       ['Slab - MDF Corebuilt-in', 'Slab · MDF core'],
-      ['Micro Shakerbuilt-in', '5-piece'],
     ]);
     expect(text(tree)).not.toContain('Slab AM');
+    expect(text(tree)).not.toContain('Micro Shaker');
   });
 
   it('locks built-in cores and lets custom designs switch construction and save an MDF core', () => {
@@ -134,7 +135,7 @@ it('530. locks built-in panel joints and lets a custom 5-piece save either joint
     save(render()).props.onClick();
     expect(dispatch.mock.lastCall[0].payload.design.panelJoint).toBe(design.panelJoint);
   }
-  const custom = { ...DOOR_DESIGNS[3], id: 'custom', code: 'Micro copy' };
+  const custom = { ...MICRO_SHAKER, id: 'custom', code: 'Micro copy' };
   const { render } = editor(custom);
   const joint = control(render(), 'Panel joint');
   expect(joint.props).toMatchObject({ value: 'square', disabled: false });

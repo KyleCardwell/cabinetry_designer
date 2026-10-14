@@ -19,7 +19,6 @@ describe('SPEC-46 door designs and the team default style', () => {
       ['five-piece-square', '5PC', 'five_piece', ['outside', 'inside', 'panel', 'applied']],
       ['slab', 'Slab', 'slab', ['outside', 'applied']],
       ['slab-mdf', 'Slab - MDF Core', 'slab', ['outside', 'applied']],
-      ['micro-shaker', 'Micro Shaker', 'five_piece', ['outside', 'inside', 'panel', 'applied']],
     ]);
     expect(findDoorDesign('slab')).toBe(DOOR_DESIGNS[1]);
     expect(findDoorDesign('110')).toBeNull();
