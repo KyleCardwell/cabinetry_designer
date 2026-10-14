@@ -10,7 +10,6 @@ const CELL_CLASS = 'px-3 py-3 align-top';
 const CONSTRUCTION_LABELS = {
   five_piece: '5-piece',
   slab: 'Slab',
-  slab_applied: 'Slab + applied molding',
 };
 
 function railsText(design) {
@@ -72,7 +71,10 @@ export default function DoorDesignsPage() {
                     </td>
                     <td className={CELL_CLASS}>{design.vendor ?? '—'}</td>
                     <td className={CELL_CLASS}>{design.description}</td>
-                    <td className={CELL_CLASS}>{CONSTRUCTION_LABELS[design.construction]}</td>
+                    <td className={CELL_CLASS}>
+                      {CONSTRUCTION_LABELS[design.construction]}
+                      {design.construction === 'slab' && ` · ${design.slabCore === 'mdf' ? 'MDF core' : 'Hardwood'}`}
+                    </td>
                     <td className={CELL_CLASS}>{railsText(design)}</td>
                     <td className={CELL_CLASS}>{usedBy || '—'}</td>
                     <td className={CELL_CLASS}>

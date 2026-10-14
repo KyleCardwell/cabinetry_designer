@@ -3,13 +3,13 @@ import { useDispatch } from 'react-redux';
 import { DESIGN_SLOTS, SEEDED_DESIGN_IDS, isDoorDesignList } from '../elevation/model/doorDesigns.js';
 import { DOOR_CONSTRUCTIONS, RAIL_SHAPES } from '../elevation/model/doorStyles.js';
 import { updateDoorDesign } from '../elevation/store/elevationSlice.js';
+import InchInput from '../elevation/components/InchInput.jsx';
 
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const CONSTRUCTION_LABELS = {
   five_piece: '5-piece',
   slab: 'Slab',
-  slab_applied: 'Slab + applied molding',
 };
 
 export default function DoorDesignEditor({ design, designs, onClose }) {
@@ -33,6 +33,22 @@ export default function DoorDesignEditor({ design, designs, onClose }) {
       : !isDoorDesignList(designs.map((entry) => entry.id === design.id ? savedDesign : entry))
         ? 'Not a valid design' : '';
   const change = (key, value) => setDraft((previous) => ({ ...previous, [key]: value }));
+  const changeConstruction = (construction) => setDraft((previous) => ({
+    ...previous,
+    construction,
+    slabCore: construction === 'slab' ? 'hardwood' : null,
+    panelJoint: construction === 'five_piece' ? 'curved' : null,
+  }));
+  const changeDefault = (key, value) => {
+    if (value !== null && (!Number.isFinite(value) || value <= 0)) return false;
+    setDraft((previous) => {
+      const defaults = { ...previous.defaults };
+      if (value === null) delete defaults[key];
+      else defaults[key] = value;
+      return { ...previous, defaults };
+    });
+    return true;
+  };
 
   useEffect(() => {
     const previousFocus = document.activeElement;
@@ -90,12 +106,46 @@ export default function DoorDesignEditor({ design, designs, onClose }) {
           </label>
           <label className={`block text-xs text-gray-400 ${seeded ? 'opacity-50' : ''}`}>
             Construction
-            <select value={draft.construction} disabled={seeded} onChange={(event) => change('construction', event.target.value)} aria-label="Construction" className={`mt-1 ${INPUT_CLASS}`}>
+            <select value={draft.construction} disabled={seeded} onChange={(event) => changeConstruction(event.target.value)} aria-label="Construction" className={`mt-1 ${INPUT_CLASS}`}>
               {DOOR_CONSTRUCTIONS.map((construction) => (
                 <option key={construction} value={construction}>{CONSTRUCTION_LABELS[construction]}</option>
               ))}
             </select>
           </label>
+          {draft.construction === 'slab' && (
+            <label className={`block text-xs text-gray-400 ${seeded ? 'opacity-50' : ''}`}>
+              Core
+              <select value={draft.slabCore} disabled={seeded} onChange={(event) => change('slabCore', event.target.value)} aria-label="Core" className={`mt-1 ${INPUT_CLASS}`}>
+                <option value="hardwood">Hardwood</option>
+                <option value="mdf">MDF core</option>
+              </select>
+            </label>
+          )}
+          <section className="space-y-2">
+            <h3 className="text-sm font-semibold text-gray-300">Defaults</h3>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                ['thickness', 'Thickness'],
+                ...(draft.construction === 'five_piece' ? [
+                  ['stileWidth', 'Stile & rail width'], ['panelThickness', 'Panel thickness'],
+                ] : []),
+                ['slabBelow', 'Slab below'],
+              ].map(([key, label]) => (
+                <label key={key} className="block text-xs text-gray-400">
+                  {label}
+                  <InchInput
+                    value={draft.defaults[key] ?? null}
+                    allowBlank
+                    displayStep={1 / 16}
+                    aria-label={label}
+                    onCommit={(value) => changeDefault(key, value)}
+                    className="mt-1"
+                  />
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400">Leave empty for no default.</p>
+          </section>
           <div className="grid grid-cols-2 gap-3">
             {[['topRail', 'Top rail'], ['bottomRail', 'Bottom rail']].map(([key, label]) => (
               <label key={key} className={`block text-xs text-gray-400 ${seeded ? 'opacity-50' : ''}`}>
@@ -109,7 +159,7 @@ export default function DoorDesignEditor({ design, designs, onClose }) {
             ))}
           </div>
           {arched && <p className="text-xs text-gray-400">Drawn flat until arched rails are added.</p>}
-          {seeded && <p className="text-xs text-gray-400">Built-in design: only the code, vendor and description can change.</p>}
+          {seeded && <p className="text-xs text-gray-400">Built-in design: construction, core and rail shapes are fixed.</p>}
           <p className="text-xs text-gray-400">Profile slots: {DESIGN_SLOTS[draft.construction].join(', ')}</p>
           {reason && <p role="status" className="text-xs text-red-400">{reason}</p>}
           <div className="flex justify-end gap-2">

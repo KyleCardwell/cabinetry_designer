@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { PANEL_TYPES, findDoorDesign } from '../model/doorStyles.js';
+import { applyDesignDefaults } from '../model/doorStyleEdits.js';
 import DoorProfilePickers from './DoorProfilePickers.jsx';
 import DoorSectionView from './DoorSectionView.jsx';
 import InchInput from './InchInput.jsx';
@@ -55,7 +56,12 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
           Design
           <select
             value={draft.designId}
-            onChange={(event) => change('designId', event.target.value)}
+            onChange={(event) => {
+              const nextDesign = findDoorDesign(event.target.value, designs);
+              if (nextDesign) setDraft((previous) => applyDesignDefaults(
+                previous, findDoorDesign(previous.designId, designs), nextDesign,
+              ));
+            }}
             aria-label="Design"
             className={`mt-1 ${INPUT_CLASS}`}
           >
@@ -67,7 +73,7 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
         <SizeField label="Thickness" value={draft.thickness} onChange={(value) => change('thickness', value)} />
         <section className="space-y-2">
           <h3 className={HEADING_CLASS}>{slab ? 'Molding inset' : 'Stiles & rails'}</h3>
-          {slab && <p className="text-xs text-gray-400">Not used by {design.code} — kept if you switch back</p>}
+          {slab && <p className="text-xs text-gray-400">Not used by slab doors — kept if you switch back</p>}
           {!showSides ? (
             <>
               <SizeField
@@ -165,7 +171,7 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
             {[
               ['minPanel', 'Min panel'],
               ['minRail', 'Min rail/inset'],
-              ['slabBelow', 'Slab below'],
+              ['slabBelow', slab ? 'Moldings off below' : 'Slab below'],
               ['step', 'Round to'],
             ].map(([key, label]) => (
               <SizeField

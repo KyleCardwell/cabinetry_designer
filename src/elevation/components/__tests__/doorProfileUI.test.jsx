@@ -94,7 +94,7 @@ describe('Step 494.5 Slab - MDF Core editor and part panel', () => {
     expect(field(tree, 'Inset').props).toMatchObject({ disabled: true, value: 3 });
     expect(field(tree, 'Mid rail/stile extra').props.disabled).toBe(true);
     expect(find(tree, ({ type, props }) => type === 'button' && props.children === 'Different sizes…').props.disabled).toBe(true);
-    expect(text(tree)).toContain('Not used by Slab - MDF Core — kept if you switch back');
+    expect(text(tree)).toContain('Not used by slab doors — kept if you switch back');
     expect(text(tree)).not.toContain('shrink their rails');
     const picker = find(tree, ({ type }) => type === DoorProfilePickers);
     expect(text(DoorProfilePickers(picker.props))).toContain("Offset from the door edge to the molding's outer edge.");
@@ -648,5 +648,81 @@ describe('Step 473 top mold editor', () => {
     const tree = ProfileCanvas.render({ profile: tm3, grid: 1 / 16, selection: null, tool: 'select' }, null);
     expect(find(tree, ({ props }) => props['aria-label'] === 'Stretch line').props)
       .toMatchObject({ x1: 0, x2: 800, y1: 50, y2: 50, stroke: '#fbbf24', strokeDasharray: '6 4' });
+  });
+});
+
+
+describe('Step 529 slab cores in the style tool', () => {
+  const control = (tree, label) => find(tree, ({ props }) => props['aria-label'] === label);
+  const size = (tree, label) => find(tree, ({ props }) => props.label === label);
+
+  it('applies design defaults for room style A, retains matching defaults, and shows slab controls on both cores', () => {
+    let draft = { ...structuredClone(DEFAULT_DOOR_STYLE), id: 'style-a', label: 'A' };
+    const setDraft = (update) => { draft = update(draft); };
+    const render = () => DoorStyleFields({ draft, setDraft, designs: DOOR_DESIGNS });
+    const pick = (id) => control(render(), 'Design').props.onChange({ target: { value: id } });
+    expect(draft.thickness).toBe(13 / 16);
+    pick('slab-mdf');
+    expect(draft.thickness).toBe(3 / 4);
+    expect(size(render(), 'Inset').props.disabled).toBe(true);
+    expect(text(render())).toContain('Not used by slab doors — kept if you switch back');
+    expect(size(render(), 'Moldings off below').props.value).toBe(4 + 13 / 16);
+    expect(size(render(), 'Slab below')).toBeUndefined();
+    for (const id of ['slab-mdf', 'slab']) {
+      pick(id);
+      const tree = render();
+      const picker = DoorProfilePickers(find(tree, ({ type }) => type === DoorProfilePickers).props);
+      expect(find(picker, ({ type }) => type === 'fieldset').props.disabled).toBe(false);
+      expect(text(picker)).toContain('Applied moldings');
+      const part = PartStyleFields({
+        room: {}, settings: { sectionProfiles: moldingFixtures, teamDoorStyle: {
+          ...draft, appliedMoldings: [{ profileId: null, offset: 2 }],
+        }, doorDesigns: DOOR_DESIGNS },
+        partType: 'door', levels: [], part: {}, width: 24, height: 30, label: 'Front', onChange: vi.fn(),
+      });
+      expect(text(part)).toContain('Molding 1');
+      expect(text(part)).toContain('Molding 20" × 26"');
+    }
+    expect(draft.thickness).toBe(13 / 16);
+    draft = { ...draft, thickness: 1 };
+    pick('five-piece-square');
+    expect(draft.thickness).toBe(1);
+    expect(size(render(), 'Slab below')).toBeDefined();
+    expect(size(render(), 'Stile & rail width').props.disabled).toBe(false);
+    expect(text(kindPanel({ ...bead, kind: 'applied_molding' }, vi.fn())))
+      .toContain('Can be picked for applied molding on 5-piece and slab doors.');
+  });
+
+  it('offers bead5 but excludes out38 and mixed routed profiles on MDF, explaining a retained routed pick', () => {
+    const out38 = moldingFixtures.find(({ id }) => id === 'out38');
+    const bead5 = moldingFixtures.find(({ id }) => id === 'bead5');
+    const mixed = { ...bead5, id: 'mixed', name: 'Mixed', geometry: {
+      ...bead5.geometry, loops: [...bead5.geometry.loops, ...out38.geometry.loops],
+    } };
+    settings.sectionProfiles = [out38, bead5, mixed, { ...bead5, id: 'archived', archived: true }];
+    let draft = structuredClone(DEFAULT_DOOR_STYLE);
+    const render = (design = DOOR_DESIGNS[2]) => DoorProfilePickers({
+      draft, design, setDraft: (update) => { draft = update(draft); },
+    });
+    const options = (tree) => control(tree, 'Outside edge').props.children.map(({ props }) => props.value);
+    expect(options(render())).toEqual(['', 'bead5']);
+    expect(text(render())).toContain('MDF core: square or applied edge only — no routed edges');
+    control(render(), 'Outside edge').props.onChange({ target: { value: 'bead5' } });
+    expect(draft.profiles.outside).toBe('bead5');
+    for (const id of ['out38', 'mixed']) {
+      draft = { ...draft, profiles: { ...draft.profiles, outside: id } };
+      const tree = render();
+      expect(control(tree, 'Outside edge').props.value).toBe(id);
+      const retained = find(control(tree, 'Outside edge'), ({ type, props }) => type === 'option' && props.value === id);
+      expect(text(retained)).toContain('(routed — not used on MDF core)');
+      expect(retained.props.disabled).toBe(true);
+      expect(options(tree)).toContain('bead5');
+    }
+    expect(options(render(DOOR_DESIGNS[1]))).toEqual(['', 'out38', 'bead5', 'mixed']);
+    expect(options(render(DOOR_DESIGNS[0]))).toEqual(['', 'out38', 'bead5', 'mixed']);
+    draft = { ...draft, profiles: { ...draft.profiles, outside: 'missing' } };
+    expect(text(control(render(), 'Outside edge'))).toContain('(missing)');
+    draft = { ...draft, profiles: { ...draft.profiles, outside: 'archived' } };
+    expect(text(control(render(), 'Outside edge'))).toContain('(archived)');
   });
 });

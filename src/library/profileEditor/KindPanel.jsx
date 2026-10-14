@@ -11,8 +11,8 @@ const SLOT_LABELS = {
   door_outside: 'door outside edge',
   door_inside: 'door inside profile',
   door_panel: 'door panel',
-  door_applied: 'applied molding on 5-piece doors',
-  slab_applied: 'applied molding on slab doors',
+  door_applied: 'applied molding on 5-piece and slab doors',
+  slab_applied: 'applied molding on 5-piece and slab doors',
   crown: 'crown',
   top_mold: 'top mold',
   furniture_base: 'furniture base',
@@ -23,9 +23,9 @@ const SLOT_LABELS = {
 export default function KindPanel({ profile, onApply }) {
   const teamBaseHeight = useSelector((state) => state.elevation.settings.defaultProfile?.toeKickHeight ?? DEFAULT_PROFILE.toeKickHeight);
   const kind = PROFILE_KINDS[profile.kind];
-  const slotLabels = profile.kind === 'base_cutout' ? ['base cutouts'] : Object.keys(PROFILE_SLOTS)
+  const slotLabels = profile.kind === 'base_cutout' ? ['base cutouts'] : [...new Set(Object.keys(PROFILE_SLOTS)
     .filter((slot) => PROFILE_SLOTS[slot] === profile.kind)
-    .map((slot) => SLOT_LABELS[slot]);
+    .map((slot) => SLOT_LABELS[slot]))];
 
   const stretchProblem = stretchLineProblem(profile);
   const applyStretch = (y) => onApply(setProfileStretch(profile, y));

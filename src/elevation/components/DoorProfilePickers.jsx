@@ -58,6 +58,14 @@ export default function DoorProfilePickers({ draft, setDraft, design }) {
       {DOOR_PROFILE_SLOTS.filter((slot) => slot !== 'applied').map((slot) => {
         const usable = Boolean(design?.slots.includes(slot));
         const profileId = draft.profiles?.[slot];
+        const mdfOutside = slot === 'outside' && design?.slabCore === 'mdf';
+        const routedIds = new Set(mdfOutside
+          ? profiles.filter((profile) => profile.geometry.loops.some((loop) => loop.closed !== true))
+            .map(({ id }) => id) : []);
+        const choices = doorProfileChoices(profiles, slot, profileId ?? null)
+          .filter(({ id }) => !routedIds.has(id) || id === profileId)
+          .map((choice) => routedIds.has(choice.id)
+            ? { ...choice, note: 'routed — not used on MDF core', disabled: true } : choice);
         return (
           <label key={slot} className={`block text-xs text-gray-400 ${usable ? '' : 'opacity-50'}`}>
             {SLOT_LABELS[slot]}
@@ -68,10 +76,11 @@ export default function DoorProfilePickers({ draft, setDraft, design }) {
               value={profileId ?? ''}
               onChange={(event) => pickProfile(slot, event.target.value === '' ? null : event.target.value)}
             >
-              {doorProfileChoices(profiles, slot, profileId ?? null).map(({ id, name, note }) => (
-                <option key={id ?? ''} value={id ?? ''}>{note ? `${name} (${note})` : name}</option>
+              {choices.map(({ id, name, note, disabled }) => (
+                <option key={id ?? ''} value={id ?? ''} disabled={disabled}>{note ? `${name} (${note})` : name}</option>
               ))}
             </select>
+            {mdfOutside && <span className="mt-1 block">MDF core: square or applied edge only — no routed edges</span>}
           </label>
         );
       })}
