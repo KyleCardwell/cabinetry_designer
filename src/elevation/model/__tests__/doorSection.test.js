@@ -55,6 +55,17 @@ const picks = ({ applied = null, ...profiles }) => ({
 });
 
 describe('SPEC-48.4 the door style half section', () => {
+  it('uses the design panel joint for Micro Shaker and rejects a stile no wider than its tongue', () => {
+    const design = DOOR_DESIGNS.find(({ id }) => id === 'micro-shaker');
+    const style = {
+      ...DEFAULT_DOOR_STYLE, designId: design.id, stiles: { left: 1.5, right: 1.5 },
+      panel: { type: 'flat', thickness: 0.625 },
+    };
+    expect(doorSection(style, design, LIBRARY).body).toEqual(profileDoorGhost('door_outside', style, 'square'));
+    expect(doorSection(style, design, LIBRARY).body.points.p4).toEqual([1.5, -0.8125]);
+    expect(doorSection({ ...style, stiles: { left: 0.25, right: 1.5 } }, design, LIBRARY)).toBeNull();
+  });
+
   it('is the outside-edge door ghost for a 5-piece style with nothing picked', () => {
     expect(doorSection(DEFAULT_DOOR_STYLE, FIVE, LIBRARY)).toEqual({
       units: 'in', body: profileDoorGhost('door_outside', DEFAULT_DOOR_STYLE), placed: [], cuts: [], skipped: [],

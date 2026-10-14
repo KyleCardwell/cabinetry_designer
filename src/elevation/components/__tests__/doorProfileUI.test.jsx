@@ -531,6 +531,21 @@ describe('Step 491 furniture base editor', () => {
 describe('Step 491.2 furniture base editor ghost', () => {
   const ghostButton = (tree, label) => find(tree, ({ type, props }) => type === 'button' && props.children === label);
 
+  it('uses the team style design joint in the door ghost, including edited Library designs', () => {
+    settings.teamDoorStyle = {
+      ...DEFAULT_DOOR_STYLE, designId: 'micro-shaker', stiles: { left: 1.5, right: 1.5 },
+      panel: { type: 'flat', thickness: 0.625 },
+    };
+    const ghost = () => find(ProfileEditor({ profileId: bead.id, backLabel: 'Back', onClose: vi.fn() }),
+      ({ type }) => type === ProfileCanvas).props.ghost;
+    expect(ghost().points.p4).toEqual([1.5, -0.8125]);
+    expect(ghost().loops[1].segs.every(({ type }) => type === 'line')).toBe(true);
+    settings.doorDesigns = DOOR_DESIGNS.map((design) => design.id === 'micro-shaker'
+      ? { ...design, panelJoint: 'curved' } : design);
+    expect(ghost().points.p4).toEqual([2.125, -0.8125]);
+    expect(ghost().loops[1].segs[3].type).toBe('arc');
+  });
+
   it('draws the plain default board behind a cut, toggles it off, and follows team height defaults', () => {
     const cut = moldingFixtures.find(({ id }) => id === 'fb4cut');
     settings.sectionProfiles = [cut];

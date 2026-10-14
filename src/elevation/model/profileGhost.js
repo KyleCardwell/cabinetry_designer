@@ -27,12 +27,14 @@ export function profileBaseGhost({ proud, height }) {
 }
 
 /** Door ghost places the stile, groove and flush-back panel relative to the kind's origin. */
-export function profileDoorGhost(kind, style) {
+export function profileDoorGhost(kind, style, joint = 'curved') {
   const P = style?.panel?.thickness;
+  const square = joint === 'square';
+  const tongueIn = square && style?.stiles?.left < 0.75 ? 0.25 : TONGUE_IN;
   if (!Object.hasOwn(GHOST_KINDS, kind)
     || !Number.isFinite(style?.thickness)
     || !Number.isFinite(P) || P <= EPS || P >= style.thickness - EPS
-    || !Number.isFinite(style?.stiles?.left) || style.stiles.left <= TONGUE_IN) return null;
+    || !Number.isFinite(style?.stiles?.left) || style.stiles.left <= tongueIn) return null;
 
   const T = style.thickness;
   const S = style.stiles.left;
@@ -49,18 +51,18 @@ export function profileDoorGhost(kind, style) {
     s1: point(dx, 0),
     s2: point(e, 0),
     s3: point(e, pf),
-    s4: point(e - TONGUE_IN, pf),
-    s5: point(e - TONGUE_IN, tb),
+    s4: point(e - tongueIn, pf),
+    s5: point(e - tongueIn, tb),
     ...(!rabbet ? { s6: point(e, tb), s7: point(e, -T) } : {}),
     s8: point(dx, -T),
-    p1: point(e - TONGUE_IN, pf),
+    p1: point(e - tongueIn, pf),
     p2: point(e + PANEL_SHOWN, pf),
     p3: point(e + PANEL_SHOWN, -T),
     ...(!rabbet ? {
-      p4: point(e + CURVE_END, -T),
-      p5: point(e - TONGUE_IN + TONGUE_LENGTH, tb),
+      p4: point(square ? e : e + CURVE_END, -T),
+      p5: point(square ? e : e - TONGUE_IN + TONGUE_LENGTH, tb),
     } : {}),
-    p6: point(e - TONGUE_IN, tb),
+    p6: point(e - tongueIn, tb),
   };
   const loops = [
     {
@@ -77,7 +79,7 @@ export function profileDoorGhost(kind, style) {
       closed: true,
       segs: [
         line('p1', 'p2'), line('p2', 'p3'),
-        ...(rabbet ? [line('p3', 'p6')] : [line('p3', 'p4'), {
+        ...(rabbet ? [line('p3', 'p6')] : [line('p3', 'p4'), square ? line('p4', 'p5') : {
           type: 'arc', from: 'p4', to: 'p5',
           center: point(e - TONGUE_IN + TONGUE_LENGTH, tb - radius), ccw: true,
         }, line('p5', 'p6')]),

@@ -56,7 +56,7 @@ export function doorSection(style, design, profiles) {
 
   let body;
   if (design.construction === 'five_piece') {
-    body = profileDoorGhost('door_outside', style);
+    body = profileDoorGhost('door_outside', style, design.panelJoint);
     if (body === null) return null;
   } else if (design.construction === 'slab') {
     const moldings = offsets?.applied ?? [];

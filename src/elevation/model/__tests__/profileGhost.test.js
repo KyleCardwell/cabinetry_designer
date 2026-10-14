@@ -5,6 +5,80 @@ import { PROFILE_KINDS, isProfileGeometry } from '../sectionProfiles.js';
 
 const line = (from, to) => ({ type: 'line', from, to });
 
+describe('Step 531 square panel joint', () => {
+  const style = {
+    ...DEFAULT_DOOR_STYLE, stiles: { left: 1.5, right: 1.5 }, panel: { type: 'flat', thickness: 0.625 },
+  };
+
+  it('matches anchor 1: a flush-back panel with a square shoulder at the opening and no arc', () => {
+    const ghost = profileDoorGhost('door_outside', style, 'square');
+    expect(ghost).toEqual({
+      units: 'in',
+      points: {
+        s1: [0, 0], s2: [1.5, 0], s3: [1.5, -0.1875], s4: [1, -0.1875],
+        s5: [1, -0.4375], s6: [1.5, -0.4375], s7: [1.5, -0.8125], s8: [0, -0.8125],
+        p1: [1, -0.1875], p2: [4.5, -0.1875], p3: [4.5, -0.8125],
+        p4: [1.5, -0.8125], p5: [1.5, -0.4375], p6: [1, -0.4375],
+      },
+      loops: [
+        { id: 'stile', closed: true, segs: [
+          line('s1', 's2'), line('s2', 's3'), line('s3', 's4'), line('s4', 's5'),
+          line('s5', 's6'), line('s6', 's7'), line('s7', 's8'), line('s8', 's1'),
+        ] },
+        { id: 'panel', closed: true, segs: [
+          line('p1', 'p2'), line('p2', 'p3'), line('p3', 'p4'),
+          line('p4', 'p5'), line('p5', 'p6'), line('p6', 'p1'),
+        ] },
+      ],
+    });
+    expect(isProfileGeometry(ghost)).toBe(true);
+    for (const kind of ['door_inside', 'door_panel', 'applied_molding']) {
+      const shifted = profileDoorGhost(kind, style, 'square');
+      expect(shifted.points).toEqual(Object.fromEntries(Object.entries(ghost.points)
+        .map(([id, [x, y]]) => [id, [x - 1.5, y]])));
+      expect(shifted.loops).toEqual(ghost.loops);
+      expect(isProfileGeometry(shifted)).toBe(true);
+    }
+  });
+
+  it('matches anchor 2: a 5/8" stile uses a 1/4" tongue-in, switching to 1/2" at 3/4"', () => {
+    const narrow = { ...style, stiles: { left: 0.625, right: 1.5 } };
+    const ghost = profileDoorGhost('door_outside', narrow, 'square');
+    expect(ghost.points).toMatchObject({
+      s4: [0.375, -0.1875], p1: [0.375, -0.1875],
+      s5: [0.375, -0.4375], p6: [0.375, -0.4375], s2: [0.625, 0], p2: [3.625, -0.1875],
+    });
+    expect(isProfileGeometry(ghost)).toBe(true);
+    for (const [left, x] of [[0.749, 0.499], [0.75, 0.25]]) {
+      expect(profileDoorGhost('door_outside', { ...style, stiles: { left, right: 1.5 } }, 'square').points.s4)
+        .toEqual([x, -0.1875]);
+    }
+  });
+
+  it('matches anchor 3: rejects stiles no wider than their tongue-in', () => {
+    for (const left of [0, 0.125, 0.25]) {
+      expect(profileDoorGhost('door_outside', { ...style, stiles: { left, right: 1.5 } }, 'square')).toBeNull();
+    }
+    expect(profileDoorGhost('door_outside', { ...style, stiles: { left: 0.250001, right: 1.5 } }, 'square'))
+      .not.toBeNull();
+  });
+
+  it('matches anchor 4: retains the default curved joint and the thin-panel rabbet', () => {
+    const curved = profileDoorGhost('door_outside', DEFAULT_DOOR_STYLE);
+    expect(profileDoorGhost('door_outside', DEFAULT_DOOR_STYLE, 'curved')).toEqual(curved);
+    expect(curved.loops[1].segs[3]).toEqual({
+      type: 'arc', from: 'p4', to: 'p5', center: [3.25, -0.96875], ccw: true,
+    });
+    for (const thickness of [0.125, 0.25]) {
+      const thin = { ...style, panel: { ...style.panel, thickness } };
+      const rabbet = profileDoorGhost('door_outside', thin, 'square');
+      expect(rabbet).toEqual(profileDoorGhost('door_outside', thin));
+      expect(rabbet.points.s5).toEqual([1, -0.8125]);
+      expect(isProfileGeometry(rabbet)).toBe(true);
+    }
+  });
+});
+
 describe('Step 491.2 furniture base board ghost', () => {
   it('anchors the 13/16" × 4" board at its top-front corner', () => {
     const ghost = profileBaseGhost({ proud: 0.8125, height: 4 });

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { teamDoorStyle } from '../../elevation/model/doorStyles.js';
+import { findDoorDesign, teamDoorStyle } from '../../elevation/model/doorStyles.js';
 import { deleteProfilePoint, mirrorProfile, PROFILE_GRID_STEPS, rotateProfile, setLoopClosed } from '../../elevation/model/profileEditing.js';
 import { resolveProfile } from '../../elevation/model/profile.js';
 import { profileBaseGhost, profileDoorGhost } from '../../elevation/model/profileGhost.js';
@@ -125,7 +125,7 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
   const teamProfile = resolveProfile(settings);
   const ghost = !showGhost ? null : baseKind
     ? profileBaseGhost({ proud: teamProfile.furnitureBaseProud, height: teamProfile.toeKickHeight })
-    : profileDoorGhost(draft.kind, teamStyle);
+    : profileDoorGhost(draft.kind, teamStyle, findDoorDesign(teamStyle.designId, settings.doorDesigns)?.panelJoint);
   const doorKind = PROFILE_KINDS[draft.kind]?.axes === 'door';
   const profileToSave = { ...saved, kind: draft.kind, geometry: draft.geometry, drawnPoints: draft.drawnPoints };
   if (draft.stretch) profileToSave.stretch = draft.stretch;
