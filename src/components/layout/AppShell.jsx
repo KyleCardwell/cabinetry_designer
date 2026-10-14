@@ -44,6 +44,14 @@ export default function AppShell({ children }) {
             >
               Library
             </NavLink>
+            <NavLink
+              to="/settings"
+              className={({ isActive }) => `px-3 py-1.5 rounded transition-colors ${
+                isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
+              }`}
+            >
+              Shop settings
+            </NavLink>
           </nav>
         </div>
         <div className="flex items-center gap-4 text-sm">

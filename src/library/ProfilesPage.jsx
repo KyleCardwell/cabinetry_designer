@@ -17,7 +17,9 @@ const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py
 
 export default function ProfilesPage() {
   const dispatch = useDispatch();
-  const { settings, rooms } = useSelector((state) => state.elevation);
+  const { settings, rooms, source } = useSelector((state) => state.elevation);
+  // Shop data: library items are archived, never deleted (DB8).
+  const shopData = source === 'cloud';
   const profiles = settings.sectionProfiles;
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState(null);
@@ -192,6 +194,7 @@ export default function ProfilesPage() {
                   >
                     {profile.archived ? 'Restore' : 'Archive'}
                   </button>
+                  {!shopData && (
                   <button
                     type="button"
                     className={`${BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
@@ -208,6 +211,7 @@ export default function ProfilesPage() {
                   >
                     {confirmingId === profile.id ? 'Confirm delete' : 'Delete'}
                   </button>
+                  )}
                 </div>
               </div>
             );

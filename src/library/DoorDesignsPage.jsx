@@ -22,7 +22,9 @@ function railsText(design) {
 
 export default function DoorDesignsPage() {
   const dispatch = useDispatch();
-  const { settings, rooms } = useSelector((state) => state.elevation);
+  const { settings, rooms, source } = useSelector((state) => state.elevation);
+  // Shop data: library items are archived, never deleted (DB8).
+  const shopData = source === 'cloud';
   const designs = settings.doorDesigns;
   const [editingId, setEditingId] = useState(null);
   const [deleting, setDeleting] = useState(null);
@@ -93,7 +95,7 @@ export default function DoorDesignsPage() {
                               });
                             }}
                           >
-                            Delete
+                            {shopData ? 'Archive' : 'Delete'}
                           </button>
                         )}
                       </div>
@@ -124,7 +126,7 @@ export default function DoorDesignsPage() {
                               setDeleting(null);
                             }}
                           >
-                            Delete
+                            {shopData ? 'Archive' : 'Delete'}
                           </button>
                           <button type="button" className={BUTTON_CLASS} onClick={() => setDeleting(null)}>Cancel</button>
                         </div>
