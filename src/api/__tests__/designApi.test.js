@@ -78,4 +78,94 @@ describe('designApi', () => {
     const client = fakeClient({ rpc: { get_design_project: { data: { project: { est_project_id: 7 } }, error: null } } });
     expect(await createDesignApi(client).getProject(7)).toEqual({ ok: true, project: { project: { est_project_id: 7 } } });
   });
+
+  it('creates a project with explicit null defaults (anchor 1)', async () => {
+    const data = { ok: true, est_project_id: 4, phase_id: 'p1', room_id: null };
+    const client = fakeClient({ rpc: { create_design_project: { data, error: null } } });
+    expect(await createDesignApi(client).createProject({ teamId: 't', project: { est_project_name: 'Smith' }, phaseName: 'Phase 1' }))
+      .toEqual(data);
+    expect(client.calls).toEqual([{ rpc: 'create_design_project', args: {
+      p_team_id: 't', p_est_project_id: null, p_project: { est_project_name: 'Smith' },
+      p_phase_name: 'Phase 1', p_room_name: null, p_room_document: null, p_schema_version: null,
+    } }]);
+  });
+
+  it('maps project list arrays and preserves permission failures (anchor 2)', async () => {
+    let result = { data: [{ est_project_id: 4 }], error: null };
+    const client = fakeClient({ rpc: {
+      list_design_projects: () => result,
+      list_attachable_estimate_projects: { data: null, error: null },
+    } });
+    const api = createDesignApi(client);
+    expect(await api.listProjects('t', true)).toEqual({ ok: true, rows: [{ est_project_id: 4 }] });
+    result = { error: { code: '42501', message: 'no' } };
+    expect(await api.listProjects('t')).toEqual({ ok: false, reason: 'permission', message: 'no' });
+    expect(await api.listAttachableProjects('t')).toEqual({ ok: true, rows: [] });
+    expect(await api.listAttachableProjects('t', 'Smith')).toEqual({ ok: true, rows: [] });
+    expect(client.calls).toEqual([
+      { rpc: 'list_design_projects', args: { p_team_id: 't', p_include_archived: true } },
+      { rpc: 'list_design_projects', args: { p_team_id: 't', p_include_archived: false } },
+      { rpc: 'list_attachable_estimate_projects', args: { p_team_id: 't', p_search: '' } },
+      { rpc: 'list_attachable_estimate_projects', args: { p_team_id: 't', p_search: 'Smith' } },
+    ]);
+  });
+
+  it('archives a phase and copies a saved room without sending a document (anchor 3)', async () => {
+    const client = fakeClient({ rpc: {
+      update_design_phase: { data: { ok: true }, error: null },
+      copy_design_room: { data: { ok: true, room_id: 'r2', sort: 0, version: 1 }, error: null },
+    } });
+    const api = createDesignApi(client);
+    expect(await api.updatePhase('p1', { archived: true })).toEqual({ ok: true });
+    expect(await api.copyRoom('r1', 'p2', 'Kitchen copy')).toEqual({ ok: true, room_id: 'r2', sort: 0, version: 1 });
+    await api.copyRoom('r1', 'p2');
+    expect(client.calls).toEqual([
+      { rpc: 'update_design_phase', args: { p_phase_id: 'p1', p_name: null, p_sort: null, p_archived: true } },
+      { rpc: 'copy_design_room', args: { p_room_id: 'r1', p_to_phase_id: 'p2', p_name: 'Kitchen copy' } },
+      { rpc: 'copy_design_room', args: { p_room_id: 'r1', p_to_phase_id: 'p2', p_name: null } },
+    ]);
+  });
+
+  it('passes every other D5 write argument and default through', async () => {
+    const names = ['create_design_project', 'update_design_project_info', 'archive_design_project',
+      'create_design_phase', 'update_design_phase', 'create_design_room', 'update_design_room_info'];
+    const client = fakeClient({ rpc: Object.fromEntries(names.map((name) => [name, { data: { ok: true }, error: null }])) });
+    const api = createDesignApi(client);
+    const document = { name: 'Kitchen', walls: [] };
+    const options = { teamId: 't', estProjectId: 4, phaseName: 'Phase 1', roomName: 'Kitchen', roomDocument: document, schemaVersion: 4 };
+    const replies = [
+      await api.createProject(options), await api.updateProjectInfo(4, { city: '' }),
+      await api.archiveProject(4), await api.archiveProject(4, false), await api.createPhase(4, 'Phase 2'),
+      await api.updatePhase('p1'), await api.updatePhase('p1', { name: 'Finish', sort: 0, archived: false }),
+      await api.createRoom('p1', 'Kitchen', document, 4), await api.updateRoomInfo('r1'),
+      await api.updateRoomInfo('r1', { name: 'Kitchen 2', sort: 0, archived: false }),
+    ];
+    expect(replies.every((reply) => reply.ok)).toBe(true);
+    expect(client.calls).toEqual([
+      { rpc: 'create_design_project', args: { p_team_id: 't', p_est_project_id: 4, p_project: null,
+        p_phase_name: 'Phase 1', p_room_name: 'Kitchen', p_room_document: document, p_schema_version: 4 } },
+      { rpc: 'update_design_project_info', args: { p_est_project_id: 4, p_info: { city: '' } } },
+      { rpc: 'archive_design_project', args: { p_est_project_id: 4, p_archived: true } },
+      { rpc: 'archive_design_project', args: { p_est_project_id: 4, p_archived: false } },
+      { rpc: 'create_design_phase', args: { p_est_project_id: 4, p_name: 'Phase 2' } },
+      { rpc: 'update_design_phase', args: { p_phase_id: 'p1', p_name: null, p_sort: null, p_archived: null } },
+      { rpc: 'update_design_phase', args: { p_phase_id: 'p1', p_name: 'Finish', p_sort: 0, p_archived: false } },
+      { rpc: 'create_design_room', args: { p_phase_id: 'p1', p_name: 'Kitchen', p_document: document, p_schema_version: 4 } },
+      { rpc: 'update_design_room_info', args: { p_room_id: 'r1', p_name: null, p_sort: null, p_archived: null } },
+      { rpc: 'update_design_room_info', args: { p_room_id: 'r1', p_name: 'Kitchen 2', p_sort: 0, p_archived: false } },
+    ]);
+  });
+
+  it('resolves D5 read and write failures without throwing', async () => {
+    const failure = { ok: false, reason: 'bad_input', message: 'Bad room' };
+    const client = fakeClient({ rpc: {
+      create_design_room: { data: failure, error: null },
+      list_attachable_estimate_projects: new Error('Offline'),
+      archive_design_project: { error: { code: 'P0002', message: 'Project missing' } },
+    } });
+    const api = createDesignApi(client);
+    expect(await api.createRoom('p1', '', {}, 4)).toEqual(failure);
+    expect(await api.listAttachableProjects('t')).toEqual({ ok: false, reason: 'network', message: 'Offline' });
+    expect(await api.archiveProject(4)).toEqual({ ok: false, reason: 'not_found', message: 'Project missing' });
+  });
 });

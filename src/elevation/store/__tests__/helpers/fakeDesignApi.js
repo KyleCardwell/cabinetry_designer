@@ -11,21 +11,56 @@ export function fakeUuid() {
  * An in-memory stand-in for createDesignApi(): keeps rows, bumps versions, answers conflicts
  * like the RPCs, and records every call. `hold()` makes saves wait until `release()`.
  */
-export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns = [], project = null } = {}) {
+export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns = [], project = null,
+  projects = [], attachableProjects = [] } = {}) {
   const db = {
     teamSettings: teamSettings && { ...teamSettings },
     profiles: profiles.map((row) => ({ ...row })),
     doorDesigns: doorDesigns.map((row) => ({ ...row })),
     project,
+    projects: structuredClone(projects),
+    attachableProjects: structuredClone(attachableProjects),
   };
   const calls = [];
   let gate = null;
   const wait = () => gate?.promise ?? Promise.resolve();
   const conflict = (version) => ({ ok: false, reason: 'conflict', version, updated_by_name: 'Other', updated_at: 't' });
+  const missing = (kind) => ({ ok: false, reason: 'not_found', message: `${kind} not found` });
+  const phaseFor = (id) => db.project?.phases.find((phase) => phase.phase_id === id);
+  const roomFor = (id) => db.project?.phases.flatMap((phase) => phase.rooms).find((room) => room.room_id === id);
+  const nextSort = (rows) => Math.max(-1, ...rows.map((row) => row.sort ?? 0)) + 1;
+  const patchInfo = (row, { name, sort, archived }) => {
+    if (name !== null) row.name = name;
+    if (sort !== null) row.sort = sort;
+    if (archived !== null) row.archived_at = archived ? 't' : null;
+    row.updated_at = 't';
+  };
+  const addPhase = (name) => {
+    const phase = { phase_id: fakeUuid(), name, sort: nextSort(db.project.phases),
+      archived_at: null, overrides: {}, version: 1, rooms: [], updated_at: 't' };
+    db.project.phases.push(phase);
+    return phase;
+  };
+  const addRoom = (phase, name, document, schemaVersion) => {
+    const room = { room_id: fakeUuid(), phase_id: phase.phase_id, name,
+      document: structuredClone(document), schema_version: schemaVersion,
+      sort: nextSort(phase.rooms), archived_at: null, status: 'drafting',
+      version: 1, last_version: null, updated_at: 't' };
+    phase.rooms.push(room);
+    return room;
+  };
+  const d5Call = async (name, args, run) => {
+    calls.push([name, ...structuredClone(args)]);
+    await wait();
+    if (api.failNext) { const reply = api.failNext; api.failNext = null; return reply; }
+    if (name in api.replies) return structuredClone(api.replies[name]);
+    return run();
+  };
   const api = {
     db,
     calls,
     failNext: null,
+    replies: {},
     hold() { let release; gate = { promise: new Promise((resolve) => { release = resolve; }) }; gate.release = release; },
     release() { const current = gate; gate = null; current?.release(); },
     async loadTeamSettings() { calls.push(['loadTeamSettings']); return { ok: true, row: db.teamSettings && structuredClone(db.teamSettings) }; },
@@ -91,6 +126,104 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
       if (phase.version !== expected) return conflict(phase.version);
       Object.assign(phase, { overrides: structuredClone(overrides), version: phase.version + 1 });
       return { ok: true, version: phase.version, updated_at: 't' };
+    },
+    listProjects(teamId, includeArchived = false) {
+      return d5Call('listProjects', [teamId, includeArchived], () => {
+        const rows = db.projects.map((row) => {
+          if (db.project?.project.est_project_id !== row.est_project_id) return row;
+          const phases = db.project.phases.filter((phase) => !phase.archived_at);
+          return { ...row, phase_count: phases.length,
+            room_count: phases.flatMap((phase) => phase.rooms).filter((room) => !room.archived_at).length };
+        }).filter((row) => includeArchived || !row.archived_at);
+        return { ok: true, rows: structuredClone(rows) };
+      });
+    },
+    listAttachableProjects(teamId, search = '') {
+      return d5Call('listAttachableProjects', [teamId, search], () => ({ ok: true,
+        rows: structuredClone(db.attachableProjects.filter((row) =>
+          !db.projects.some((entry) => entry.est_project_id === row.est_project_id)
+          && [row.est_project_name, row.est_client_name].some((value) =>
+            (value ?? '').toLowerCase().includes(search.trim().toLowerCase())))),
+      }));
+    },
+    createProject({ teamId, estProjectId = null, project = null, phaseName = null,
+      roomName = null, roomDocument = null, schemaVersion = null }) {
+      return d5Call('createProject', [{ teamId, estProjectId, project, phaseName,
+        roomName, roomDocument, schemaVersion }], () => {
+        const id = estProjectId ?? Math.max(0, ...db.projects.map((row) => row.est_project_id),
+          ...db.attachableProjects.map((row) => row.est_project_id)) + 1;
+        const info = estProjectId === null ? project
+          : db.attachableProjects.find((row) => row.est_project_id === id);
+        if (!info) return missing('Project');
+        const row = { ...structuredClone(info), est_project_id: id, archived_at: null,
+          phase_count: 0, room_count: 0, updated_at: 't' };
+        db.projects.unshift(row);
+        db.project = { project: { ...row }, design: { overrides: {}, version: 1, archived_at: null }, phases: [] };
+        const phase = phaseName === null ? null : addPhase(phaseName);
+        const room = phase && roomName !== null ? addRoom(phase, roomName, roomDocument, schemaVersion) : null;
+        return { ok: true, est_project_id: id, phase_id: phase?.phase_id ?? null, room_id: room?.room_id ?? null };
+      });
+    },
+    updateProjectInfo(estProjectId, info) {
+      return d5Call('updateProjectInfo', [estProjectId, info], () => {
+        const row = db.projects.find((entry) => entry.est_project_id === estProjectId);
+        const detail = db.project?.project.est_project_id === estProjectId ? db.project.project : null;
+        if (!row && !detail) return missing('Project');
+        if (row) Object.assign(row, info);
+        if (detail) Object.assign(detail, info);
+        return { ok: true };
+      });
+    },
+    archiveProject(estProjectId, archived = true) {
+      return d5Call('archiveProject', [estProjectId, archived], () => {
+        const row = db.projects.find((entry) => entry.est_project_id === estProjectId);
+        const detail = db.project?.project.est_project_id === estProjectId ? db.project.design : null;
+        if (!row && !detail) return missing('Project');
+        if (row) row.archived_at = archived ? 't' : null;
+        if (detail) detail.archived_at = archived ? 't' : null;
+        return { ok: true };
+      });
+    },
+    createPhase(estProjectId, name) {
+      return d5Call('createPhase', [estProjectId, name], () => {
+        if (db.project?.project.est_project_id !== estProjectId) return missing('Project');
+        const phase = addPhase(name);
+        return { ok: true, phase_id: phase.phase_id, sort: phase.sort, version: 1 };
+      });
+    },
+    updatePhase(phaseId, { name = null, sort = null, archived = null } = {}) {
+      return d5Call('updatePhase', [phaseId, { name, sort, archived }], () => {
+        const phase = phaseFor(phaseId);
+        if (!phase) return missing('Phase');
+        patchInfo(phase, { name, sort, archived });
+        return { ok: true };
+      });
+    },
+    createRoom(phaseId, name, document, schemaVersion) {
+      return d5Call('createRoom', [phaseId, name, document, schemaVersion], () => {
+        const phase = phaseFor(phaseId);
+        if (!phase) return missing('Phase');
+        const room = addRoom(phase, name, document, schemaVersion);
+        return { ok: true, room_id: room.room_id, sort: room.sort, version: 1 };
+      });
+    },
+    copyRoom(roomId, toPhaseId, name = null) {
+      return d5Call('copyRoom', [roomId, toPhaseId, name], () => {
+        const source = roomFor(roomId);
+        const phase = phaseFor(toPhaseId);
+        if (!source || !phase) return missing(!source ? 'Room' : 'Phase');
+        const room = addRoom(phase, name ?? source.name, source.document, source.schema_version);
+        room.copied_from_room_id = roomId;
+        return { ok: true, room_id: room.room_id, sort: room.sort, version: 1 };
+      });
+    },
+    updateRoomInfo(roomId, { name = null, sort = null, archived = null } = {}) {
+      return d5Call('updateRoomInfo', [roomId, { name, sort, archived }], () => {
+        const room = roomFor(roomId);
+        if (!room) return missing('Room');
+        patchInfo(room, { name, sort, archived });
+        return { ok: true };
+      });
     },
   };
   return api;

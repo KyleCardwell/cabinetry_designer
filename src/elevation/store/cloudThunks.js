@@ -26,6 +26,14 @@ function apiFrom(extra) {
   return (extra?.getDesignApi ?? defaultGetDesignApi)();
 }
 
+/** Hand a component's call the store's API and return its reply. */
+export function withDesignApi(fn) {
+  return async (dispatch, getState, extra) => {
+    const api = await apiFrom(extra);
+    return await fn(api);
+  };
+}
+
 function plural(count, word) {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
@@ -149,4 +157,3 @@ export function openLocalWorkspace() {
     return { ok: true };
   };
 }
-

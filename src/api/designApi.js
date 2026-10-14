@@ -99,6 +99,53 @@ export function createDesignApi(client) {
         p_phase_id: phaseId, p_overrides: overrides, p_expected_version: expectedVersion,
       });
     },
+    async listProjects(teamId, includeArchived = false) {
+      const reply = await rpc(client, 'list_design_projects', {
+        p_team_id: teamId, p_include_archived: includeArchived,
+      });
+      return reply.ok ? { ok: true, rows: reply.data ?? [] } : reply;
+    },
+    async listAttachableProjects(teamId, search = '') {
+      const reply = await rpc(client, 'list_attachable_estimate_projects', {
+        p_team_id: teamId, p_search: search,
+      });
+      return reply.ok ? { ok: true, rows: reply.data ?? [] } : reply;
+    },
+    createProject({ teamId, estProjectId = null, project = null, phaseName = null,
+      roomName = null, roomDocument = null, schemaVersion = null }) {
+      return rpc(client, 'create_design_project', {
+        p_team_id: teamId, p_est_project_id: estProjectId, p_project: project,
+        p_phase_name: phaseName, p_room_name: roomName, p_room_document: roomDocument,
+        p_schema_version: schemaVersion,
+      });
+    },
+    updateProjectInfo(estProjectId, info) {
+      return rpc(client, 'update_design_project_info', { p_est_project_id: estProjectId, p_info: info });
+    },
+    archiveProject(estProjectId, archived = true) {
+      return rpc(client, 'archive_design_project', { p_est_project_id: estProjectId, p_archived: archived });
+    },
+    createPhase(estProjectId, name) {
+      return rpc(client, 'create_design_phase', { p_est_project_id: estProjectId, p_name: name });
+    },
+    updatePhase(phaseId, { name = null, sort = null, archived = null } = {}) {
+      return rpc(client, 'update_design_phase', {
+        p_phase_id: phaseId, p_name: name, p_sort: sort, p_archived: archived,
+      });
+    },
+    createRoom(phaseId, name, document, schemaVersion) {
+      return rpc(client, 'create_design_room', {
+        p_phase_id: phaseId, p_name: name, p_document: document, p_schema_version: schemaVersion,
+      });
+    },
+    copyRoom(roomId, toPhaseId, name = null) {
+      return rpc(client, 'copy_design_room', { p_room_id: roomId, p_to_phase_id: toPhaseId, p_name: name });
+    },
+    updateRoomInfo(roomId, { name = null, sort = null, archived = null } = {}) {
+      return rpc(client, 'update_design_room_info', {
+        p_room_id: roomId, p_name: name, p_sort: sort, p_archived: archived,
+      });
+    },
   };
 }
 
