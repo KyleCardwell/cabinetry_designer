@@ -7,6 +7,15 @@ export {
   KIND_LABELS,
 } from './constants.js';
 export {
+  SETTING_LEVELS,
+  SETTINGS_REGISTRY,
+  LIBRARY_KEYS,
+  PREF_KEYS,
+  registryEntry,
+  allowedAt,
+} from './settingsRegistry.js';
+export { resolveSetting, resolveSettings, withOverride, cleanOverrides } from './settingsResolve.js';
+export {
   FACE_DIRECTIONS,
   FACE_TYPE_LABELS,
   FACE_TYPES,
