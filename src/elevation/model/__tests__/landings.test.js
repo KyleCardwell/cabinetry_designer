@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../constants.js';
 import { cornerAt, cornerReserveParts } from '../corners.js';
 import { horizontalChains } from '../dimensions.js';
 import {
@@ -360,7 +360,7 @@ describe('wall landings', () => {
     const run = createRun(
       { x: 69.5, width: 100, bottomZ: 4, topZ: 34.5 },
       {
-        settings: DEFAULT_SETTINGS,
+        settings: { ...DEFAULT_SETTINGS, ...DEFAULT_PREFS },
         room,
         wall: wallSideView(H, 'front'),
       },

@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_PREFS } from './constants.js';
 import { cornerAt, spanCorner } from './corners.js';
 import { wallLength } from './geometry.js';
 import { landingProjection, landingsOn } from './landings.js';
@@ -240,7 +240,7 @@ export function createSoffit({ x, width, bottomZ }, { settings, room, wall }) {
   const left = roundTo(x, 0.5);
   const right = roundTo(x + width, 0.5);
   const snapDistance = settings.cornerSnapDistance
-    ?? DEFAULT_SETTINGS.cornerSnapDistance;
+    ?? DEFAULT_PREFS.cornerSnapDistance;
   const length = wallLength(wall);
   const leftAnchor = Math.abs(left) <= snapDistance
     ? { to: 'end', offset: 0 }

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { gridFromItems, rootItems } from '../../model/grid.js';
 import { resolvePinTarget } from '../../model/room.js';
 import {
@@ -296,7 +296,6 @@ describe('elevation persistence migration', () => {
       'defaultWindowHeight',
       'defaultWindowSillZ',
       'minOpeningWidth',
-      'openingSnap',
       'casingClearance',
     ]) delete current.settings[key];
     globalThis.window = {
@@ -323,7 +322,6 @@ describe('elevation persistence migration', () => {
       defaultWindowHeight: DEFAULT_SETTINGS.defaultWindowHeight,
       defaultWindowSillZ: DEFAULT_SETTINGS.defaultWindowSillZ,
       minOpeningWidth: DEFAULT_SETTINGS.minOpeningWidth,
-      openingSnap: DEFAULT_SETTINGS.openingSnap,
       casingClearance: DEFAULT_SETTINGS.casingClearance,
     });
   });
@@ -708,21 +706,13 @@ describe('SPEC-23 part number persistence', () => {
     expect(isElevationDocument(invalidOverride)).toBe(false);
   });
 
-  it('195. validates, defaults and preserves the part number visibility setting', () => {
-    expect(DEFAULT_SETTINGS.showPartNumbers).toBe(true);
-
-    const omitted = tbtDocument();
-    delete omitted.settings.showPartNumbers;
-    expect(isElevationDocument(omitted)).toBe(true);
-    expect(normalizeElevationDocument(omitted).settings.showPartNumbers).toBe(true);
-
-    const hidden = tbtDocument();
-    hidden.settings.showPartNumbers = false;
-    expect(normalizeElevationDocument(hidden).settings.showPartNumbers).toBe(false);
-
-    const invalid = tbtDocument();
-    invalid.settings.showPartNumbers = 'yes';
-    expect(isElevationDocument(invalid)).toBe(false);
+  it('discards legacy part number visibility instead of defaulting it into settings', () => {
+    for (const value of [undefined, false, true, 'yes']) {
+      const document = tbtDocument();
+      if (value !== undefined) document.settings.showPartNumbers = value;
+      expect(isElevationDocument(document)).toBe(true);
+      expect(normalizeElevationDocument(document).settings).not.toHaveProperty('showPartNumbers');
+    }
   });
 });
 
@@ -1249,32 +1239,70 @@ describe('SPEC-37 T-filler persistence', () => {
 });
 
 describe('SPEC-43 drawing scale setting', () => {
-  it('defaults the drawing scale on documents saved before it', () => {
+  it('keeps drawing scale out of settings on documents saved before it', () => {
     const current = currentDocument();
     delete current.settings.plotScale;
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
     };
 
-    expect(loadElevationDocument().settings.plotScale).toBe(24);
+    expect(loadElevationDocument().settings).not.toHaveProperty('plotScale');
+    expect(createInitialElevationState().prefs.plotScale).toBe(24);
   });
 });
 
 describe('SPEC-50.15 PDF paper setting', () => {
-  it('anchor 3: loads unknown or missing paper as Letter and retains supported paper sizes', () => {
+  it('discards saved paper sizes without mutating the original document', () => {
     for (const paperSize of [undefined, 'a4', null, 'letter', 'ledger', 'archD']) {
       const current = currentDocument();
       if (paperSize === undefined) delete current.settings.paperSize;
       else current.settings.paperSize = paperSize;
-      const valid = ['letter', 'ledger', 'archD'].includes(paperSize);
-      expect(isElevationDocument(current)).toBe(valid);
+      expect(isElevationDocument(current)).toBe(true);
       globalThis.window = {
         localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
       };
       const loaded = loadElevationDocument();
-      expect(loaded.settings.paperSize).toBe(valid ? paperSize : 'letter');
+      expect(loaded.settings).not.toHaveProperty('paperSize');
+      expect(createInitialElevationState(loaded).prefs.paperSize).toBe('archD');
       expect(loaded.rooms).toEqual(normalizeElevationDocument(current).rooms);
       expect(current.settings.paperSize).toBe(paperSize);
     }
+  });
+});
+
+describe('DB1 c transient preference persistence', () => {
+  it('loads old settings without any of the seven prefs and resets prefs to defaults (anchor 2)', () => {
+    const document = currentDocument();
+    Object.assign(document.settings, {
+      orthoWalls: false, showPartNumbers: true, plotScale: 48, paperSize: 'letter',
+      planGrid: 2, openingSnap: 1, cornerSnapDistance: 6,
+    });
+    document.prefs = { ...document.settings };
+    expect(isElevationDocument(document)).toBe(true);
+    globalThis.window = {
+      localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]),
+    };
+    const loaded = loadElevationDocument();
+    expect(loaded).not.toBeNull();
+    const initialized = createInitialElevationState(loaded);
+    expect(initialized.prefs).toEqual(DEFAULT_PREFS);
+    for (const key of Object.keys(DEFAULT_PREFS)) {
+      expect(loaded.settings).not.toHaveProperty(key);
+      expect(initialized.settings).not.toHaveProperty(key);
+    }
+    expect(document.settings.paperSize).toBe('letter');
+  });
+
+  it('never serializes preference keys, even if legacy settings still contain them (anchor 5)', () => {
+    const state = createInitialElevationState(null);
+    state.prefs = { ...DEFAULT_PREFS, plotScale: 32, paperSize: 'ledger' };
+    state.settings = { ...state.settings, ...state.prefs };
+    const saved = toElevationDocument(state);
+    expect(saved).not.toHaveProperty('prefs');
+    for (const key of Object.keys(DEFAULT_PREFS)) {
+      expect(JSON.stringify(saved)).not.toContain(`"${key}"`);
+    }
+    expect(state.settings.paperSize).toBe('ledger');
+    expect(isElevationDocument(saved)).toBe(true);
   });
 });

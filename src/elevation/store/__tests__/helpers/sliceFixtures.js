@@ -1,6 +1,7 @@
 import {
   CABINET_TYPE_IDS,
   DEFAULT_SETTINGS,
+  DEFAULT_PREFS,
 } from '../../../model/constants.js';
 import {
   gridFromItems,
@@ -58,6 +59,7 @@ export function opening(overrides = {}) {
 export function stateWithRun(existingRun = null) {
   return {
     schemaVersion: 3,
+    prefs: { ...DEFAULT_PREFS },
     settings: {
       ...DEFAULT_SETTINGS,
       defaultProfile: { ...DEFAULT_SETTINGS.defaultProfile },

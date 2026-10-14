@@ -30,6 +30,17 @@ export const DEFAULT_PROFILE = {
   crownStackHeight: 6,
 };
 
+/** Transient view and input preferences, reset on every load. */
+export const DEFAULT_PREFS = {
+  orthoWalls: true,
+  showPartNumbers: false,
+  plotScale: 24,
+  paperSize: 'archD',
+  planGrid: 0.5,
+  openingSnap: 0.5,
+  cornerSnapDistance: 3,
+};
+
 /** Default persisted settings for Elevation Lab schema v3. */
 export const DEFAULT_SETTINGS = {
   defaultProfile: { ...DEFAULT_PROFILE },
@@ -61,14 +72,10 @@ export const DEFAULT_SETTINGS = {
   teeThickness: 0.8125,
   blindFillerWidth: 6,
   cornerFillerMinWidth: 1.5,
-  cornerSnapDistance: 3,
   defaultSoffitDepth: 14,
   defaultSoffitMolding: 'crown',
   autoEndPanelOnFreeEnd: true,
   adjacentRunGap: 1,
-  orthoWalls: true,
-  showPartNumbers: true,
-  planGrid: 0.5,
   casingWidth: 3,
   casingThickness: 0.75,
   casingClearance: 0,
@@ -80,7 +87,6 @@ export const DEFAULT_SETTINGS = {
   defaultWindowHeight: 48,
   defaultWindowSillZ: 36,
   minOpeningWidth: 6,
-  openingSnap: 0.5,
   pairDoorAboveWidth: 24,
   faceReveals: {
     [CABINET_TYPE_IDS.BASE]: {
@@ -121,9 +127,6 @@ export const DEFAULT_SETTINGS = {
     countertopOverhang: 0.75,
     crownProjection: 3,
   },
-  // Drawing scale for the DXF: 24 is 1/2" = 1'-0" (SPEC-43). Text and dimension sizes are paper inches times this.
-  plotScale: 24,
-  paperSize: 'letter',
 };
 
 export const FRAME_JOINS = ['miter', 'butt'];

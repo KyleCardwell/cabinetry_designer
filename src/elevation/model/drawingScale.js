@@ -1,4 +1,4 @@
-import { DEFAULT_SETTINGS } from './constants.js';
+import { DEFAULT_PREFS } from './constants.js';
 
 /** The DXF's drawing scales (SPEC-43), as [plotScale, label]: plotScale is drawing inches per paper inch. */
 export const PLOT_SCALES = [
@@ -15,14 +15,14 @@ export const PAPER_SIZES = [
   ['archD', 'Arch D (24 × 36)'],
 ];
 
-/** The PDF paper setting; missing or unknown values use Letter. */
+/** The PDF paper setting; missing or unknown values use Arch D. */
 export function paperSize(settings) {
   return PAPER_SIZES.some(([value]) => value === settings?.paperSize)
     ? settings.paperSize
-    : DEFAULT_SETTINGS.paperSize;
+    : DEFAULT_PREFS.paperSize;
 }
 
 /** The drawing scale (SPEC-43): settings.plotScale, else 24 (1/2" = 1'-0"). */
 export function plotScale(settings) {
-  return settings?.plotScale ?? DEFAULT_SETTINGS.plotScale;
+  return settings?.plotScale ?? DEFAULT_PREFS.plotScale;
 }

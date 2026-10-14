@@ -1,5 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { DEFAULT_SETTINGS } from '../model/constants.js';
+import { DEFAULT_PREFS, DEFAULT_SETTINGS } from '../model/constants.js';
 import { effectiveSettings } from '../model/effectiveSettings.js';
 import { syncRoom } from '../model/room.js';
 import {
@@ -25,9 +25,11 @@ import { uiReducers } from './slices/ui.js';
 /** Create the elevation slice's initial persisted and transient state. */
 export function createInitialElevationState(document = loadElevationDocument()) {
   const settings = copySettings(document?.settings ?? DEFAULT_SETTINGS);
+  for (const key of Object.keys(DEFAULT_PREFS)) delete settings[key];
+  const prefs = { ...DEFAULT_PREFS };
   const fallbackRoom = document ? null : createRoom('Room 1', settings);
   // Derived fields aren't saved (SPEC-39.1): rebuild them, or recess runs load at the wall face.
-  const rooms = (document?.rooms ?? [fallbackRoom]).map((room) => syncRoom(room, effectiveSettings({ settings }, room)));
+  const rooms = (document?.rooms ?? [fallbackRoom]).map((room) => syncRoom(room, effectiveSettings({ settings, prefs }, room)));
   const activeRoomId = document ? document.activeRoomId : fallbackRoom.id;
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
   const activeWallId = document ? document.activeWallId : null;
@@ -35,6 +37,7 @@ export function createInitialElevationState(document = loadElevationDocument()) 
   return {
     schemaVersion: ELEVATION_SCHEMA_VERSION,
     settings,
+    prefs,
     rooms,
     activeRoomId,
     activeWallId,
@@ -199,6 +202,7 @@ export const {
   setTool,
   setMessage,
   setView,
+  setPref,
   updateSettings,
 } = elevationSlice.actions;
 

@@ -1,11 +1,11 @@
 import {
   CABINET_TYPE_IDS,
   DEFAULT_PROFILE,
+  DEFAULT_PREFS,
   DEFAULT_SETTINGS,
   FRAME_JOINS,
 } from '../model/constants.js';
 import { isBottomPart } from '../model/bottoms.js';
-import { PAPER_SIZES, paperSize } from '../model/drawingScale.js';
 import { isDoorDesignList } from '../model/doorDesigns.js';
 import { isSectionProfileList, migrateSectionProfile } from '../model/sectionProfiles.js';
 import {
@@ -89,7 +89,6 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'defaultSoffitDepth',
   'defaultSoffitMolding',
   'autoEndPanelOnFreeEnd',
-  'showPartNumbers',
   'adjacentRunGap',
   'maxRunOverhang',
   'casingWidth',
@@ -102,7 +101,6 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'defaultWindowHeight',
   'defaultWindowSillZ',
   'minOpeningWidth',
-  'openingSnap',
   'casingClearance',
   'pairDoorAboveWidth',
   'faceReveals',
@@ -119,7 +117,6 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'belowRunOverhang',
   'belowRunFlushReveal',
   'bottomPartHeights',
-  'plotScale',
   'baseCutoutFoot',
   'baseCutoutHeight',
   'furnitureBaseScribe',
@@ -671,7 +668,7 @@ function normalizeDocument(document, schemaVersion) {
     for (const key of V2_DEFAULTED_SETTING_KEYS) {
       if (settings[key] === undefined) settings[key] = DEFAULT_SETTINGS[key];
     }
-    settings.paperSize = paperSize(settings);
+    for (const key of Object.keys(DEFAULT_PREFS)) delete settings[key];
     if (!Object.hasOwn(settings, 'stoneTopReveal')) {
       const base = settings.faceReveals?.[CABINET_TYPE_IDS.BASE];
       if (base?.top === 0.25) {
@@ -796,13 +793,10 @@ function isSettings(settings, profileKeys = PROFILE_KEYS) {
     && isSectionProfileList(settings.sectionProfiles)
     && findDoorDesign(settings.teamDoorStyle.designId, settings.doorDesigns) !== null
     && V2_NUMERIC_SETTING_KEYS.every((key) => isFiniteNumber(settings[key]))
-    && PAPER_SIZES.some(([value]) => value === settings.paperSize)
     && isCompleteProfile(settings.defaultProfile, profileKeys)
     && typeof settings.snapHeightsToDefaults === 'boolean'
     && typeof settings.autoEndPanelOnFreeEnd === 'boolean'
     && typeof settings.openingsHaveCasing === 'boolean'
-    && typeof settings.orthoWalls === 'boolean'
-    && (settings.showPartNumbers === undefined || typeof settings.showPartNumbers === 'boolean')
     && (settings.defaultOpeningMeasureMode === 'jamb'
       || settings.defaultOpeningMeasureMode === 'casing')
     && hasValidEnds(settings);
@@ -848,7 +842,8 @@ export function loadElevationDocument() {
 export function toElevationDocument(elevationState) {
   return {
     schemaVersion: elevationState.schemaVersion,
-    settings: elevationState.settings,
+    settings: Object.fromEntries(Object.entries(elevationState.settings)
+      .filter(([key]) => !Object.hasOwn(DEFAULT_PREFS, key))),
     rooms: elevationState.rooms.map((room) => ({
       ...room,
       walls: room.walls.map((wall) => {

@@ -40,16 +40,16 @@ const withoutParts = (payload) => ({
 });
 
 describe('SPEC-40 drawing payload', () => {
-  it('SPEC-50.15 anchor 1: includes default Letter paper immediately after plotScale', () => {
+  it('SPEC-50.15 anchor 1: includes default Arch D paper immediately after plotScale', () => {
     const synced = room('G1 Euro kitchen');
     const payload = toDrawingPayload(synced, DEFAULT_SETTINGS);
-    expect(payload.paperSize).toBe('letter');
+    expect(payload.paperSize).toBe('archD');
     const keys = Object.keys(payload);
     expect(keys[keys.indexOf('plotScale') + 1]).toBe('paperSize');
     const { paperSize, ...legacySettings } = settings;
     void paperSize;
-    expect(toDrawingPayload(synced, legacySettings).paperSize).toBe('letter');
-    expect(toDrawingPayload(synced, { ...settings, paperSize: 'a4' }).paperSize).toBe('letter');
+    expect(toDrawingPayload(synced, legacySettings).paperSize).toBe('archD');
+    expect(toDrawingPayload(synced, { ...settings, paperSize: 'a4' }).paperSize).toBe('archD');
   });
 
   it('SPEC-50.14 omits inch marks from G1 dimensions and keeps them on plan labels', () => {
@@ -100,7 +100,7 @@ describe('SPEC-40 drawing payload', () => {
       payloadVersion: 1,
       units: 'in',
       plotScale: 24,
-      paperSize: 'letter',
+      paperSize: 'archD',
       room: { id: '7ee9fabb-5daf-4fb2-96f9-b24b9e1e546f', name: 'G1 Euro kitchen' },
       elevations: [
         {

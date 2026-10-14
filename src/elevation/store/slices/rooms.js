@@ -95,8 +95,8 @@ export const roomReducers = {
       if (room.walls.length === 0) return;
       const xs = room.walls.flatMap((wall) => [wall.x1, wall.x2]);
       const ys = room.walls.flatMap((wall) => [wall.y1, wall.y2]);
-      const dx = roundTo(-(Math.min(...xs) + Math.max(...xs)) / 2, state.settings.planGrid);
-      const dy = roundTo(-(Math.min(...ys) + Math.max(...ys)) / 2, state.settings.planGrid);
+      const dx = roundTo(-(Math.min(...xs) + Math.max(...xs)) / 2, state.prefs.planGrid);
+      const dy = roundTo(-(Math.min(...ys) + Math.max(...ys)) / 2, state.prefs.planGrid);
       if (dx === 0 && dy === 0) return;
       for (const wall of room.walls) {
         wall.x1 += dx;

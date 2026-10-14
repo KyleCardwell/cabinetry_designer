@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS } from '../constants.js';
+import { DEFAULT_PREFS, DEFAULT_SETTINGS } from '../constants.js';
 import { wallFrame } from '../geometry.js';
 import {
   casingSides,
@@ -13,7 +13,7 @@ import {
   validateOpeningPlacement,
 } from '../openings.js';
 
-const settings = DEFAULT_SETTINGS;
+const settings = { ...DEFAULT_SETTINGS, ...DEFAULT_PREFS };
 
 function door(overrides = {}) {
   return {

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../constants.js';
 import { gridFromItems } from '../grid.js';
 import { moveRun, resolveWall, stretchRun, syncRoom, tryPlaceRun } from '../room.js';
 import { createRun } from '../runDefaults.js';
 
-const S = DEFAULT_SETTINGS;
+const S = { ...DEFAULT_SETTINGS, ...DEFAULT_PREFS };
 /** 60 to 108, 24" deep, floor to ceiling. */
 const R = {
   id: 'R', kind: 'recess', label: 'R1', wallSide: 'front', offsetFrom: 'left', offsetAnchor: 'edge',

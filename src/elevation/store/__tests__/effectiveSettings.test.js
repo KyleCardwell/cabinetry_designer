@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { createNextState } from '@reduxjs/toolkit';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS } from '../../model/constants.js';
+import { DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { toDrawingPayload } from '../../model/drawingPayload.js';
 import { effectiveSettings } from '../../model/effectiveSettings.js';
 import { syncRoom } from '../../model/room.js';
@@ -10,26 +10,27 @@ import { normalizeElevationDocument } from '../persistence.js';
 import { selectSettings } from '../selectors.js';
 import { settingsFor } from '../slices/helpers.js';
 
-describe('DB1 b room settings entry points', () => {
-  it('returns the original settings for any room, including inside reducers (anchor 1)', () => {
+describe('DB1 c room settings entry points', () => {
+  it('lays prefs over settings for any room, including inside reducers (anchor 1)', () => {
     const state = {
       settings: { ...DEFAULT_SETTINGS },
-      prefs: { orthoWalls: false },
+      prefs: { ...DEFAULT_PREFS, orthoWalls: false },
       rooms: [{ id: 'kitchen' }, { id: 'bath' }],
     };
     for (const room of [...state.rooms, null, undefined]) {
-      expect(effectiveSettings(state, room)).toBe(state.settings);
-      expect(settingsFor(state, room)).toBe(state.settings);
+      expect(effectiveSettings(state, room)).toEqual({ ...state.settings, ...state.prefs });
+      expect(settingsFor(state, room)).toEqual({ ...state.settings, ...state.prefs });
     }
     createNextState(state, (draft) => {
-      expect(settingsFor(draft, draft.rooms[1])).toBe(draft.settings);
+      expect(settingsFor(draft, draft.rooms[1]).orthoWalls).toBe(false);
     });
-    expect(state.settings.orthoWalls).toBe(DEFAULT_SETTINGS.orthoWalls);
+    expect(state.settings).not.toHaveProperty('orthoWalls');
   });
 
   it('memoizes active room settings across repeated and unrelated state changes (anchor 2)', () => {
     const elevation = {
       settings: { ...DEFAULT_SETTINGS },
+      prefs: { ...DEFAULT_PREFS },
       rooms: [{ id: 'kitchen' }, { id: 'bath' }],
       activeRoomId: 'kitchen',
     };
@@ -40,9 +41,10 @@ describe('DB1 b room settings entry points', () => {
     expect(selectSettings({ elevation: { ...elevation, message: 'Saved' } })).toBe(first);
     expect(selectSettings.recomputations()).toBe(recomputations);
     const settings = { ...elevation.settings, roundTo: 0.25 };
-    expect(selectSettings({ elevation: { ...elevation, settings } })).toBe(settings);
-    expect(selectSettings({ elevation: { ...elevation, activeRoomId: 'bath' } })).toBe(first);
-    expect(selectSettings({ elevation: { ...elevation, rooms: [], activeRoomId: null } })).toBe(first);
+    expect(selectSettings({ elevation: { ...elevation, settings } })).toEqual({ ...settings, ...elevation.prefs });
+    expect(selectSettings({ elevation: { ...elevation, prefs: { ...elevation.prefs, plotScale: 32 } } }).plotScale).toBe(32);
+    expect(selectSettings({ elevation: { ...elevation, activeRoomId: 'bath' } })).toEqual(first);
+    expect(selectSettings({ elevation: { ...elevation, rooms: [], activeRoomId: null } })).toEqual(first);
   });
 
   it('preserves every golden room drawing payload through initialization and selection (anchor 3)', () => {

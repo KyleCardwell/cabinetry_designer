@@ -40,7 +40,10 @@ beforeEach(() => {
   state = stateWithRun();
   state.settings.sectionProfiles = [tm3, cr45, { ...tm3, id: 'archived', archived: true }];
   room().profile = {};
-  useSelector.mockImplementation((selector) => selector({ elevation: state }));
+  // These tests edit fixtures in place; give memoized selectors a fresh settings reference per render.
+  useSelector.mockImplementation((selector) => selector({
+    elevation: { ...state, settings: { ...state.settings } },
+  }));
   useDispatch.mockReturnValue(dispatch);
   useState.mockImplementation(() => [true, vi.fn()]);
 });

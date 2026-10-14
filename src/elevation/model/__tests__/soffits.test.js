@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../constants.js';
 import { landingProjection, landWallEnd } from '../landings.js';
 import {
   describeAnchor,
@@ -141,7 +141,7 @@ describe('SPEC-19 soffit shape and helpers', () => {
     const wall = wallSideView(wallById(room, 'H'), 'front');
     const soffit = createSoffit(
       { x: 69.5, width: 119, bottomZ: 96.2 },
-      { settings: DEFAULT_SETTINGS, room, wall },
+      { settings: { ...DEFAULT_SETTINGS, ...DEFAULT_PREFS }, room, wall },
     );
 
     expect({ ...soffit, id: 'x' }).toEqual({
@@ -249,7 +249,7 @@ describe('SPEC-19 soffit resolution', () => {
       return createRun(
         { x: 100.5, width: 30, bottomZ: 54, topZ: 90 },
         {
-          settings: DEFAULT_SETTINGS,
+          settings: { ...DEFAULT_SETTINGS, ...DEFAULT_PREFS },
           room: synced,
           wall: wallSideView(wallById(synced, 'S'), 'front'),
         },

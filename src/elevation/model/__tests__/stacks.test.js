@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../constants.js';
 import { horizontalChains, pickColumnRuns, verticalChains } from '../dimensions.js';
 import { resolveProfile } from '../profile.js';
 import { createRun } from '../runDefaults.js';
@@ -18,7 +18,7 @@ import {
   stackOf,
 } from '../stacks.js';
 
-const S = DEFAULT_SETTINGS;
+const S = { ...DEFAULT_SETTINGS, ...DEFAULT_PREFS };
 const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;
 const CAP = { id: 'cap', kind: 'bottom_cap', height: 1.5, doors: 'visible' };
 const link = (runId, offset = 0) => ({ runId, offset });

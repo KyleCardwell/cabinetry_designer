@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../constants.js';
 import { createRun, defaultsForType, inferRunType } from '../runDefaults.js';
+
+const settingsWithPrefs = { ...DEFAULT_SETTINGS, ...DEFAULT_PREFS };
 
 describe('run defaults', () => {
   const wall = {
@@ -28,7 +30,7 @@ describe('run defaults', () => {
     profile: { ...DEFAULT_SETTINGS.defaultProfile },
     walls: [wall, wallB],
   };
-  const ctx = { settings: DEFAULT_SETTINGS, room, wall };
+  const ctx = { settings: settingsWithPrefs, room, wall };
 
   it.each([
     [2, 30, CABINET_TYPE_IDS.BASE],
@@ -136,7 +138,7 @@ describe('run defaults', () => {
     const adjacentRoom = { ...room, walls: [adjacentWall, wallB] };
     const run = createRun(
       { x: 60.5, width: 30, bottomZ: 2, topZ: 30 },
-      { settings: DEFAULT_SETTINGS, room: adjacentRoom, wall: adjacentWall },
+      { settings: settingsWithPrefs, room: adjacentRoom, wall: adjacentWall },
     );
 
     expect(run.ends).toMatchObject({
@@ -161,7 +163,7 @@ describe('run defaults', () => {
   it('10. uses a three-inch corner snap distance', () => {
     const run = createRun({ x: 55, width: 60, bottomZ: 2, topZ: 30 }, ctx);
 
-    expect(DEFAULT_SETTINGS.cornerSnapDistance).toBe(3);
+    expect(DEFAULT_PREFS.cornerSnapDistance).toBe(3);
     expect(run.anchors.right).toBe(false);
     expect(run.ends.right.type).toBe('end_panel');
   });
@@ -169,7 +171,7 @@ describe('run defaults', () => {
   it('11a. uses different end treatments for inside and open anchors', () => {
     const inside = createRun(
       { x: 1.5, width: 60, bottomZ: 2, topZ: 30 },
-      { settings: DEFAULT_SETTINGS, room, wall: wallB },
+      { settings: settingsWithPrefs, room, wall: wallB },
     );
     const open = createRun(
       { x: 1.5, width: 60, bottomZ: 2, topZ: 30 },
@@ -191,7 +193,7 @@ describe('run defaults', () => {
     const outsideNeighbor = { ...wallB, x2: 120, y2: -96 };
     const outsideRoom = { ...room, walls: [outsideWall, outsideNeighbor] };
     const outsideContext = {
-      settings: DEFAULT_SETTINGS,
+      settings: settingsWithPrefs,
       room: outsideRoom,
       wall: outsideWall,
     };

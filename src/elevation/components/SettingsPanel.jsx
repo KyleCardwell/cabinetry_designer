@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { PAPER_SIZES, PLOT_SCALES, paperSize } from '../model/drawingScale.js';
 import { crownOverlap, resolveProfile } from '../model/profile.js';
 import { formatInches } from '../model/units.js';
-import { updateSettings } from '../store/elevationSlice.js';
+import { setPref, updateSettings } from '../store/elevationSlice.js';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { runBase } from '../model/furnitureBase.js';
 import { moldingProfiles } from '../model/moldingProfiles.js';
@@ -26,11 +26,15 @@ const NUMBER_SETTINGS = [
   ['maxRunOverhang', 'Maximum run overhang'],
   ['bumperThickness', 'Bumper thickness'],
   ['cornerFillerMinWidth', 'Corner filler minimum'],
-  ['cornerSnapDistance', 'Corner snap distance'],
   ['adjacentRunGap', 'Adjacent run gap'],
-  ['planGrid', 'Plan grid'],
   ['baseCutoutFoot', 'Cutout foot'],
   ['baseCutoutHeight', 'Square cutout height'],
+];
+
+const NUMBER_PREFS = [
+  ['planGrid', 'Plan grid'],
+  ['openingSnap', 'Opening snap'],
+  ['cornerSnapDistance', 'Corner snap distance'],
 ];
 
 const MOLDING_NOTES = {
@@ -67,7 +71,6 @@ const OPENING_NUMBER_SETTINGS = [
   ['defaultWindowHeight', 'Window height'],
   ['defaultWindowSillZ', 'Window sill height'],
   ['minOpeningWidth', 'Minimum opening width'],
-  ['openingSnap', 'Opening snap'],
 ];
 
 const END_OPTIONS = [
@@ -79,6 +82,7 @@ const END_OPTIONS = [
 export default function SettingsPanel() {
   const dispatch = useDispatch();
   const settings = useSelector((state) => state.elevation.settings);
+  const prefs = useSelector((state) => state.elevation.prefs);
   const [open, setOpen] = useState(false);
   const resolvedProfile = resolveProfile(settings);
   const moldings = moldingProfiles(resolvedProfile, settings);
@@ -86,6 +90,7 @@ export default function SettingsPanel() {
   const overlap = crownOverlap(resolvedProfile);
 
   const update = (changes) => dispatch(updateSettings(changes));
+  const updatePref = (key, value) => dispatch(setPref({ key, value }));
 
   return (
     <section className="border-t border-gray-700 pt-4">
@@ -119,33 +124,61 @@ export default function SettingsPanel() {
             <Link to="/library/door-style" className="text-blue-400 hover:underline">Library</Link>
           </p>
 
-          <label className="block text-xs text-gray-400">
-            Drawing scale
-            <select
-              value={settings.plotScale}
-              onChange={(event) => update({ plotScale: Number(event.target.value) })}
-              aria-label="Drawing scale"
-              className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-            >
-              {PLOT_SCALES.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
-              ))}
-            </select>
-          </label>
+          <div className="space-y-3">
+            <h3 className="text-xs font-medium text-gray-300">View (not saved)</h3>
+            <label className="block text-xs text-gray-400">
+              Drawing scale
+              <select
+                value={prefs.plotScale}
+                onChange={(event) => updatePref('plotScale', Number(event.target.value))}
+                aria-label="Drawing scale"
+                className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+              >
+                {PLOT_SCALES.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
 
-          <label className="block text-xs text-gray-400">
-            PDF paper
-            <select
-              value={paperSize(settings)}
-              onChange={(event) => update({ paperSize: event.target.value })}
-              aria-label="PDF paper"
-              className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-            >
-              {PAPER_SIZES.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+            <label className="block text-xs text-gray-400">
+              PDF paper
+              <select
+                value={paperSize(prefs)}
+                onChange={(event) => updatePref('paperSize', event.target.value)}
+                aria-label="PDF paper"
+                className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+              >
+                {PAPER_SIZES.map(([value, label]) => (
+                  <option key={value} value={value}>{label}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="flex items-center gap-2 text-xs text-gray-300">
+              <input
+                type="checkbox"
+                aria-label="Orthogonal plan walls"
+                checked={prefs.orthoWalls}
+                onChange={(event) => updatePref('orthoWalls', event.target.checked)}
+                className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
+              />
+              Orthogonal plan walls
+            </label>
+
+            <div className="grid grid-cols-2 gap-2">
+              {NUMBER_PREFS.map(([key, label]) => (
+                <label key={key} className="text-xs text-gray-400">
+                  {label}
+                  <InchInput
+                    value={prefs[key]}
+                    onCommit={(value) => value <= 0 ? false : updatePref(key, value)}
+                    aria-label={label}
+                    className="mt-1"
+                  />
+                </label>
               ))}
-            </select>
-          </label>
+            </div>
+          </div>
 
           <div>
             <p className="mb-2 text-xs font-medium text-gray-300">Default height profile</p>
@@ -296,16 +329,6 @@ export default function SettingsPanel() {
               className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
             />
             Add end panels to free run ends
-          </label>
-
-          <label className="flex items-center gap-2 text-xs text-gray-300">
-            <input
-              type="checkbox"
-              checked={settings.orthoWalls}
-              onChange={(event) => update({ orthoWalls: event.target.checked })}
-              className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
-            />
-            Orthogonal plan walls
           </label>
 
           <div>

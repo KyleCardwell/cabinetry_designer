@@ -1,3 +1,5 @@
+import { DEFAULT_PREFS } from '../../model/constants.js';
+import { PAPER_SIZES, PLOT_SCALES } from '../../model/drawingScale.js';
 import { wallSideOf } from '../../model/wallSides.js';
 import {
   roomFor,
@@ -65,8 +67,21 @@ export const uiReducers = {
       clearTransientSelection(state);
       if (view === 'elevation') state.selection.wallId = state.activeWallId;
     },
+    setPref(state, action) {
+      const { key, value } = action.payload;
+      if (!Object.hasOwn(DEFAULT_PREFS, key)) return;
+      if (key === 'plotScale') {
+        if (!PLOT_SCALES.some(([choice]) => choice === value)) return;
+      } else if (key === 'paperSize') {
+        if (!PAPER_SIZES.some(([choice]) => choice === value)) return;
+      } else if (typeof DEFAULT_PREFS[key] === 'boolean') {
+        if (typeof value !== 'boolean') return;
+      } else if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return;
+      state.prefs[key] = value;
+    },
     updateSettings(state, action) {
-      const changes = action.payload;
+      const changes = Object.fromEntries(Object.entries(action.payload)
+        .filter(([key]) => !Object.hasOwn(DEFAULT_PREFS, key)));
       const defaultEnds = changes.defaultEnds
         ? { ...state.settings.defaultEnds, ...changes.defaultEnds }
         : state.settings.defaultEnds;

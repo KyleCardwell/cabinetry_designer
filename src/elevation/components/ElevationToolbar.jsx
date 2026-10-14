@@ -9,6 +9,7 @@ import {
   setActiveWallSide,
   setTool,
   setView,
+  setPref,
   updateSettings,
 } from '../store/elevationSlice.js';
 
@@ -115,7 +116,7 @@ export default function ElevationToolbar({
         <button
           type="button"
           aria-pressed={settings.orthoWalls}
-          onClick={() => dispatch(updateSettings({ orthoWalls: !settings.orthoWalls }))}
+          onClick={() => dispatch(setPref({ key: 'orthoWalls', value: !settings.orthoWalls }))}
           className={`rounded px-3 py-1.5 text-sm transition-colors ${
             settings.orthoWalls
               ? 'bg-cyan-700 text-white'
@@ -183,7 +184,7 @@ export default function ElevationToolbar({
           <button
             type="button"
             aria-pressed={settings.showPartNumbers}
-            onClick={() => dispatch(updateSettings({ showPartNumbers: !settings.showPartNumbers }))}
+            onClick={() => dispatch(setPref({ key: 'showPartNumbers', value: !settings.showPartNumbers }))}
             className={`rounded px-3 py-1.5 text-sm transition-colors ${
               settings.showPartNumbers
                 ? 'bg-cyan-700 text-white'
