@@ -46,7 +46,10 @@ describe('SPEC-50.5 saved furniture base fields', () => {
     Object.assign(wall.profile, { ...fields, furnitureBaseProfileId: null });
     Object.assign(wall.runs[0].overrides, fields);
     expect(isElevationDocument(saved)).toBe(true);
-    expect(normalizeElevationDocument(toElevationDocument(saved))).toEqual(saved);
+    const reloaded = normalizeElevationDocument(toElevationDocument(saved));
+    expect(reloaded.rooms[0].profile).toEqual({ furnitureBaseProud: 1 });
+    expect(reloaded.rooms[0].walls).toEqual(saved.rooms[0].walls);
+    expect(resolveProfile(reloaded.settings, reloaded.rooms[0])).toMatchObject({ ...fields, furnitureBaseProud: 1 });
     for (const value of [null, undefined]) {
       wall.runs[0].overrides = {
         baseKind: value, furnitureBaseProud: value, furnitureBaseProfileId: value,
@@ -93,7 +96,7 @@ describe('SPEC-50.5 saved furniture base fields', () => {
     state = elevationReducer(state, updateWall({ roomId, wallId, changes: {
       profile: { baseKind: null, furnitureBaseProud: null, furnitureBaseProfileId: null },
     } }));
-    expect(state.rooms[0].profile.furnitureBaseProfileId).toBeNull();
+    expect(state.rooms[0].profile).not.toHaveProperty('furnitureBaseProfileId');
     expect(state.rooms[0].walls[0].profile).toEqual({ furnitureBaseProfileId: null });
     state = elevationReducer(state, updateRoomProfile({ roomId, changes: { furnitureBaseProfileId: undefined } }));
     state = elevationReducer(state, updateWall({ roomId, wallId, changes: {

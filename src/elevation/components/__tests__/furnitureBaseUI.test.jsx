@@ -91,7 +91,8 @@ describe('Step 491 furniture base height panels', () => {
       expect(field(render(), scope, 'Base proud').props.onCommit(-0.5)).toBe(false);
       expect(target().furnitureBaseProud).toBe(0);
       pick(render, scope, 'Furniture base profile', 'plain');
-      expect(target().furnitureBaseProfileId).toBeNull();
+      if (scope === 'Room') expect(target()).not.toHaveProperty('furnitureBaseProfileId');
+      else expect(target().furnitureBaseProfileId).toBeNull();
       pick(render, scope, 'Base', 'toe_kick');
       expect(target().baseKind).toBe('toe_kick');
       expect(field(render(), scope, 'Furniture base profile')).toBeUndefined();
@@ -117,13 +118,14 @@ describe('Step 491 furniture base height panels', () => {
   }
 
   for (const [scope, render, target] of panels.slice(1)) {
-    it(`${scope}: inherits, clears proud and kind, and distinguishes Plain from Inherit`, () => {
+    it(`${scope}: inherits and clears proud, kind and profile picks according to scope`, () => {
       Object.assign(state.settings.defaultProfile, { baseKind: 'furniture_base', furnitureBaseProfileId: 'fb4', furnitureBaseProud: 0.8125 });
       expect(field(render(), scope, 'Base').props.value).toBe('');
-      expect(field(render(), scope, 'Base proud').props).toMatchObject({ value: null, allowBlank: true, placeholder: '13/16' });
+      expect(field(render(), scope, 'Base proud').props).toMatchObject({ value: scope === 'Room' ? 0.8125 : null, allowBlank: true, placeholder: '13/16' });
       pick(render, scope, 'Furniture base profile', 'plain');
-      expect(target().furnitureBaseProfileId).toBeNull();
-      expect(field(render(), scope, 'Furniture base profile').props.value).toBe('plain');
+      if (scope === 'Room') expect(target()).not.toHaveProperty('furnitureBaseProfileId');
+      else expect(target().furnitureBaseProfileId).toBeNull();
+      expect(field(render(), scope, 'Furniture base profile').props.value).toBe(scope === 'Room' ? '' : 'plain');
       pick(render, scope, 'Furniture base profile', '');
       expect(target()).not.toHaveProperty('furnitureBaseProfileId');
       field(render(), scope, 'Base proud').props.onCommit(1);

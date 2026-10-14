@@ -49,6 +49,18 @@ beforeEach(() => {
 });
 
 describe('Step 473 molding height panels', () => {
+  it('DB1 e: displays resolved room heights before editing and after clearing an override', () => {
+    expect(room().profile).toEqual({});
+    expect(field(RoomHeightsPanel(), 'Room', 'Wall height').props.value).toBe(96);
+    dispatch(updateSettings({ defaultProfile: { wallHeight: 108 } }));
+    expect(field(RoomHeightsPanel(), 'Room', 'Wall height').props.value).toBe(108);
+    field(RoomHeightsPanel(), 'Room', 'Wall height').props.onCommit(100);
+    expect(field(RoomHeightsPanel(), 'Room', 'Wall height').props.value).toBe(100);
+    field(RoomHeightsPanel(), 'Room', 'Wall height').props.onCommit(null);
+    expect(room().profile).toEqual({});
+    expect(field(RoomHeightsPanel(), 'Room', 'Wall height').props.value).toBe(108);
+  });
+
   for (const [scope, render] of panels) {
     it(`${scope}: offers active profiles by kind, Plain, and scoped Inherit; commits picks and overhang`, () => {
       const tree = render();
@@ -79,8 +91,8 @@ describe('Step 473 molding height panels', () => {
       expect(text(tree)).toContain('Overlap 1 1/2"');
       pick(render, scope, 'Top mold profile', 'plain');
       pick(render, scope, 'Crown profile', 'plain');
-      expect(field(render(), scope, 'Top mold').props.readOnly).toBe(false);
-      expect(field(render(), scope, 'Crown').props.readOnly).toBe(false);
+      expect(field(render(), scope, 'Top mold').props.readOnly).toBe(scope === 'Room');
+      expect(field(render(), scope, 'Crown').props.readOnly).toBe(scope === 'Room');
       expect(state.settings.defaultProfile).toMatchObject({ topMoldHeight: 8, crownHeight: 9 });
     });
 
@@ -112,15 +124,15 @@ describe('Step 473 molding height panels', () => {
   }
 
   for (const [scope, render] of panels.slice(1)) {
-    it(`${scope}: distinguishes Plain from Inherit and follows changes to the inherited pick`, () => {
+    it(`${scope}: clears profile picks according to scope and follows inherited changes`, () => {
       state.settings.defaultProfile = { ...state.settings.defaultProfile, topMoldProfileId: 'tm3', crownProfileId: 'cr45', topMoldOverhang: 0.5 };
       expect(field(render(), scope, 'Crown profile').props.value).toBe('');
       expect(field(render(), scope, 'Crown').props).toMatchObject({ value: 4.5, readOnly: true });
       const overhang = field(render(), scope, 'Top mold overhang');
-      expect(overhang.props).toMatchObject({ value: null, allowBlank: true, placeholder: '1/2' });
+      expect(overhang.props).toMatchObject({ value: scope === 'Room' ? 0.5 : null, allowBlank: true, placeholder: '1/2' });
       pick(render, scope, 'Crown profile', 'plain');
-      expect(field(render(), scope, 'Crown profile').props.value).toBe('plain');
-      expect(field(render(), scope, 'Crown').props.readOnly).toBe(false);
+      expect(field(render(), scope, 'Crown profile').props.value).toBe(scope === 'Room' ? '' : 'plain');
+      expect(field(render(), scope, 'Crown').props.readOnly).toBe(scope === 'Room');
       pick(render, scope, 'Crown profile', '');
       expect(scope === 'Room' ? room().profile : wall().profile).not.toHaveProperty('crownProfileId');
       expect(field(render(), scope, 'Crown').props.readOnly).toBe(true);

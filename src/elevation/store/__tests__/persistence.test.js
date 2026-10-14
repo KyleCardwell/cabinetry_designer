@@ -257,7 +257,7 @@ describe('elevation persistence migration', () => {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(joined)]]),
     };
     expect(isElevationDocument(joined)).toBe(true);
-    expect(loadElevationDocument()).toEqual(joined);
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(joined));
   });
 
   it('61. clears missing joint anchors and rejects invalid joint offsets', () => {
@@ -726,7 +726,7 @@ describe('SPEC-25 blind corner persistence', () => {
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(present)]]),
     };
-    expect(loadElevationDocument()).toEqual(present);
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(present));
 
     for (const blind of [{ left: 0 }, { left: -42 }, []]) {
       const invalid = tbtDocument();
@@ -762,7 +762,7 @@ describe('SPEC-27 end filler persistence', () => {
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(present)]]),
     };
-    expect(loadElevationDocument()).toEqual(present);
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(present));
 
     for (const endFiller of [{ left: { width: 0 } }, { left: [] }]) {
       const invalid = tbtDocument();
@@ -796,7 +796,7 @@ describe('SPEC-28 blind end persistence', () => {
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(zeroReturn)]]),
     };
-    expect(loadElevationDocument()).toEqual(zeroReturn);
+    expect(loadElevationDocument()).toEqual(normalizeElevationDocument(zeroReturn));
 
     for (const endFiller of [{ left: { width: 0 } }, { left: { returnDepth: -1 } }]) {
       const invalid = tbtDocument();

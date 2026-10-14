@@ -69,10 +69,11 @@ export function createWall(name = '', y = 0, length = 144, values = {}) {
 }
 
 export function createRoom(name = 'Room 1', settings = DEFAULT_SETTINGS, id = uuid()) {
+  void settings;
   return {
     id,
     name,
-    profile: { ...settings.defaultProfile },
+    profile: {},
     partNumberStart: 1,
     partNumberOverrides: {},
     wallOrder: [],

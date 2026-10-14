@@ -607,7 +607,7 @@ function isRoom(room, profileKeys = PROFILE_KEYS) {
     && hasStyleRefs(room)
     && typeof room.id === 'string'
     && typeof room.name === 'string'
-    && isCompleteProfile(room.profile, profileKeys)
+    && isOptionalHeightProfile(room.profile, profileKeys)
     && isStyle(room.style)
     && Array.isArray(room.walls)
     && Array.isArray(room.wallOrder)
@@ -748,6 +748,12 @@ export function normalizeElevationDocument(document) {
         ...room,
         partNumberStart: room.partNumberStart ?? 1,
         partNumberOverrides: room.partNumberOverrides ?? {},
+        profile: isPlainObject(room.profile) ? Object.fromEntries(
+          Object.entries(room.profile).filter(([key, value]) => (
+            !Object.hasOwn(normalized.settings?.defaultProfile ?? {}, key)
+            || value !== normalized.settings.defaultProfile[key]
+          )),
+        ) : room.profile,
         walls: Array.isArray(room.walls) ? room.walls.map((wall) => {
           if (!wall || typeof wall !== 'object') return wall;
           const joints = wall.joints === undefined ? [] : wall.joints;

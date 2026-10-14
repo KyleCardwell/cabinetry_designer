@@ -21,9 +21,8 @@ const NAMES = [
   'G1 Euro kitchen', 'G2 Face frame kitchen', 'G3 Bath alcove',
   'G4 T-filler run', 'G5 Recess room', 'G6 Stacked runs',
 ];
-const document = normalizeElevationDocument(
-  JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
-);
+const fixture = JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8'));
+const document = normalizeElevationDocument(fixture);
 const { settings } = document;
 
 /** The part fields that exist today; step 298 adds more, and the snapshot mustn't notice. */
@@ -36,7 +35,9 @@ function partsOf({ parts }) {
 function derived(room) {
   const synced = syncRoom(room, settings);
   return {
-    room: synced,
+    // DB1 e changes profile storage only; derive from the migrated room while
+    // keeping the fixture's historical storage shape in the golden comparison.
+    room: { ...synced, profile: fixture.rooms.find(({ id }) => id === room.id).profile },
     diagnostics: roomDiagnostics(room, settings),
     parts: partsOf(partNumbers(synced, settings)),
     clearances: planClearances(synced, settings),

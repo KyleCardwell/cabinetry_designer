@@ -20,6 +20,7 @@ import {
 } from '../../plan/wallOps.js';
 import {
   createWall,
+  settingsFor,
   roomIndexFor,
   roomFor,
   wallLocation,
@@ -43,7 +44,7 @@ export const wallReducers = {
           action.payload.length ?? 144,
           {
             ...action.payload,
-            height: action.payload.height ?? room.profile.wallHeight,
+            height: action.payload.height ?? settingsFor(state, room).defaultProfile.wallHeight,
           },
         );
         room.walls.push(wall);
@@ -71,7 +72,7 @@ export const wallReducers = {
             y1: action.payload.y1,
             x2: action.payload.x2,
             y2: action.payload.y2,
-            height: action.payload.height ?? room.profile.wallHeight,
+            height: action.payload.height ?? settingsFor(state, room).defaultProfile.wallHeight,
             thickness: action.payload.thickness,
           },
         );

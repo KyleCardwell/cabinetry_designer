@@ -73,8 +73,9 @@ describe('SPEC-50.8 step 500 Nosing controls', () => {
       expect(picker(render, scope).props.value).toBe('nz1');
       expect(effective(scope)).toBe('nz1');
       pick(render, scope, 'plain');
-      expect(target().nosingProfileId).toBeNull();
-      expect(picker(render, scope).props.value).toBe('plain');
+      if (scope === 'Room') expect(target()).not.toHaveProperty('nosingProfileId');
+      else expect(target().nosingProfileId).toBeNull();
+      expect(picker(render, scope).props.value).toBe(scope === 'Room' ? '' : 'plain');
       expect(effective(scope)).toBeNull();
     });
 
@@ -91,12 +92,12 @@ describe('SPEC-50.8 step 500 Nosing controls', () => {
   }
 
   for (const [scope, render, target] of panels.slice(1)) {
-    it(`${scope}: Inherit removes the key and None suppresses the inherited nosing`, () => {
+    it(`${scope}: clears nosing picks according to scope and follows inherited changes`, () => {
       state.settings.defaultProfile.nosingProfileId = 'nz1';
       expect(picker(render, scope).props.value).toBe('');
       expect(effective(scope)).toBe('nz1');
       pick(render, scope, 'plain');
-      expect(effective(scope)).toBeNull();
+      expect(effective(scope)).toBe(scope === 'Room' ? 'nz1' : null);
       pick(render, scope, 'nz1');
       pick(render, scope, '');
       expect(target()).not.toHaveProperty('nosingProfileId');

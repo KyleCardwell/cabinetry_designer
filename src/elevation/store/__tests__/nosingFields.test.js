@@ -41,7 +41,7 @@ describe('SPEC-50.8 step 498 nosing pick data', () => {
     }
   });
 
-  it('inherits picks, preserves explicit null at room, wall and run scopes, and removes undefined (anchor 2)', () => {
+  it('inherits picks, clears null at room scope, preserves null at wall and run scopes, and removes undefined', () => {
     let state = savedDocument();
     const target = { roomId: state.rooms[0].id, wallId: state.rooms[0].walls[0].id, runId: currentRun(state).id };
     const resolved = () => resolveProfile(state.settings, state.rooms[0], state.rooms[0].walls[0]);
@@ -67,8 +67,8 @@ describe('SPEC-50.8 step 498 nosing pick data', () => {
     expect(state.rooms[0].walls[0].profile).not.toHaveProperty('nosingProfileId');
     expect(resolved().nosingProfileId).toBe('nz1');
     state = elevationReducer(state, updateRoomProfile({ ...target, changes: { nosingProfileId: null } }));
-    expect(state.rooms[0].profile.nosingProfileId).toBeNull();
-    expect(resolved().nosingProfileId).toBeNull();
+    expect(state.rooms[0].profile).not.toHaveProperty('nosingProfileId');
+    expect(resolved().nosingProfileId).toBe('team-nosing');
     state = elevationReducer(state, updateRoomProfile({ ...target, changes: { nosingProfileId: undefined } }));
     expect(state.rooms[0].profile).not.toHaveProperty('nosingProfileId');
     expect(resolved().nosingProfileId).toBe('team-nosing');

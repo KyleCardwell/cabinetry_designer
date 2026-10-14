@@ -351,7 +351,7 @@ describe('Step 494 base cutout controls', () => {
   });
 
   for (const [scope, panel, target] of panels) {
-    it(`${scope}: saves cutout profiles with the furniture fields and distinguishes Square from Inherit`, () => {
+    it(`${scope}: saves cutout profiles with furniture fields and clears picks according to scope`, () => {
       const label = `${scope} Cutout profile${scope === 'Wall' ? ' override' : ''}`;
       const picker = field(panel(), label);
       expect(options(picker).map(text)).toEqual(scope === 'Default'
@@ -361,7 +361,8 @@ describe('Step 494 base cutout controls', () => {
       state.settings.sectionProfiles[0].archived = true;
       expect(options(field(panel(), label)).at(-1).props.disabled).toBe(true);
       field(panel(), label).props.onChange({ target: { value: 'plain' } });
-      expect(target().baseCutoutProfileId).toBeNull();
+      if (scope === 'Room') expect(target()).not.toHaveProperty('baseCutoutProfileId');
+      else expect(target().baseCutoutProfileId).toBeNull();
       if (scope !== 'Default') {
         field(panel(), label).props.onChange({ target: { value: '' } });
         expect(target()).not.toHaveProperty('baseCutoutProfileId');

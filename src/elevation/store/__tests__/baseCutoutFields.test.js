@@ -153,7 +153,7 @@ describe('SPEC-50.6 step 492 base cutout data', () => {
     expect(load(saved).settings.sectionProfiles).toContainEqual(profile);
   });
 
-  it('inherits team → room → wall picks, preserves null as square, and removes undefined picks', () => {
+  it('inherits team → room → wall picks, clears null in rooms, preserves null in walls, and removes undefined picks', () => {
     let state = savedDocument();
     const roomId = state.rooms[0].id;
     const wallId = state.rooms[0].walls[0].id;
@@ -172,7 +172,8 @@ describe('SPEC-50.6 step 492 base cutout data', () => {
     expect(state.rooms[0].walls[0].profile).not.toHaveProperty('baseCutoutProfileId');
     expect(resolved()).toBe('room-cut');
     state = elevationReducer(state, updateRoomProfile({ roomId, changes: { baseCutoutProfileId: null } }));
-    expect(resolved()).toBeNull();
+    expect(state.rooms[0].profile).not.toHaveProperty('baseCutoutProfileId');
+    expect(resolved()).toBe('team-cut');
     state = elevationReducer(state, updateRoomProfile({ roomId, changes: { baseCutoutProfileId: undefined } }));
     expect(state.rooms[0].profile).not.toHaveProperty('baseCutoutProfileId');
     expect(resolved()).toBe('team-cut');

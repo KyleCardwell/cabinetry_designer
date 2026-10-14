@@ -72,7 +72,7 @@ export default function RoomHeightsPanel() {
                 <label key={key} className="text-xs text-gray-400">
                   {label}
                   <InchInput
-                    value={fromProfile ? resolvedProfile[key] : room.profile[key] ?? null}
+                    value={resolvedProfile[key]}
                     allowBlank
                     placeholder={formatInchesInput(inheritedProfile[key])}
                     readOnly={fromProfile}
@@ -108,7 +108,7 @@ export default function RoomHeightsPanel() {
                 Base proud
                 <InchInput
                   aria-label="Room Base proud"
-                  value={room.profile.furnitureBaseProud ?? null}
+                  value={resolvedProfile.furnitureBaseProud}
                   allowBlank
                   placeholder={formatInchesInput(inheritedProfile.furnitureBaseProud)}
                   onCommit={(value) => value !== null && value < 0 ? false : dispatch(updateRoomProfile({ roomId: room.id, key: 'furnitureBaseProud', value }))}
