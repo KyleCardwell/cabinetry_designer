@@ -14,7 +14,7 @@ afterEach(() => vi.unstubAllGlobals());
 const VIEW_ONLY = { view: true, edit: false, manage: false };
 
 describe('DB4 e shop workspace', () => {
-  it('opens an empty team on the code defaults and writes the three built-in designs once', async () => {
+  it('opens an empty team on the code defaults and writes the four built-in designs once', async () => {
     const api = fakeDesignApi();
     const store = cloudStore(api);
     expect(await store.dispatch(openCloudWorkspace())).toEqual({ ok: true });
@@ -23,13 +23,13 @@ describe('DB4 e shop workspace', () => {
     expect(elevation.rooms).toEqual([]);
     expect(elevation.settings.roundTo).toBe(0.5);
     expect(elevation.settings.sectionProfiles).toEqual([]);
-    expect(elevation.settings.doorDesigns.map((design) => design.id)).toEqual(['five-piece-square', 'slab', 'slab-mdf']);
-    expect(api.db.doorDesigns.map((row) => row.data.seedId)).toEqual(['five-piece-square', 'slab', 'slab-mdf']);
+    expect(elevation.settings.doorDesigns.map((design) => design.id)).toEqual(['five-piece-square', 'slab', 'slab-mdf', 'micro-shaker']);
+    expect(api.db.doorDesigns.map((row) => row.data.seedId)).toEqual(['five-piece-square', 'slab', 'slab-mdf', 'micro-shaker']);
     expect(elevation.cloud.teamVersion).toBe(0);
     expect(elevation.cloud.rows.doorDesigns.slab).toEqual({ rowId: api.db.doorDesigns[1].design_id, version: 1 });
 
     await store.dispatch(openCloudWorkspace());
-    expect(api.db.doorDesigns).toHaveLength(3);
+    expect(api.db.doorDesigns).toHaveLength(4);
     expect(store.getState().elevation.cloud.loadId).toBe(2);
   });
 
@@ -38,7 +38,7 @@ describe('DB4 e shop workspace', () => {
     const store = cloudStore(api, VIEW_ONLY);
     await store.dispatch(openCloudWorkspace());
     expect(api.db.doorDesigns).toHaveLength(0);
-    expect(store.getState().elevation.settings.doorDesigns).toHaveLength(3);
+    expect(store.getState().elevation.settings.doorDesigns).toHaveLength(4);
     expect(store.getState().elevation.cloud.rows.doorDesigns).toEqual({});
   });
 
@@ -122,6 +122,10 @@ it('527. loads legacy built-in rows in place without rewriting them or resetting
   expect(elevation.settings.doorDesigns).toEqual(DOOR_DESIGNS);
   expect(elevation.settings.teamDoorStyle.designId).toBe('slab-mdf');
   expect(elevation.cloud.rows.doorDesigns['slab-mdf']).toEqual({ rowId: rows[2].design_id, version: 3 });
-  expect(api.db.doorDesigns).toEqual(before);
+  expect(api.db.doorDesigns.slice(0, 3)).toEqual(before);
+  expect(api.db.doorDesigns).toHaveLength(4);
+  expect(api.db.doorDesigns[3].data.seedId).toBe('micro-shaker');
+  await store.dispatch(openCloudWorkspace());
+  expect(api.db.doorDesigns).toHaveLength(4);
   expect(elevation.message).toBeNull();
 });

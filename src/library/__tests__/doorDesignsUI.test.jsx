@@ -57,7 +57,7 @@ beforeEach(() => {
 });
 
 describe('Step 529 Library door design cores and defaults', () => {
-  it('lists 5PC, hardwood Slab and Slab - MDF Core without Slab AM', () => {
+  it('lists 5PC, hardwood Slab, Slab - MDF Core and Micro Shaker without Slab AM', () => {
     const tree = DoorDesignsPage();
     const rows = nodes(tree).filter(({ type }) => type === 'tr');
     const contents = rows.map((row) => nodes(row).filter(({ type }) => type === 'td').map(text));
@@ -65,6 +65,7 @@ describe('Step 529 Library door design cores and defaults', () => {
       ['5PCbuilt-in', '5-piece'],
       ['Slabbuilt-in', 'Slab · Hardwood'],
       ['Slab - MDF Corebuilt-in', 'Slab · MDF core'],
+      ['Micro Shakerbuilt-in', '5-piece'],
     ]);
     expect(text(tree)).not.toContain('Slab AM');
   });
@@ -81,8 +82,9 @@ describe('Step 529 Library door design cores and defaults', () => {
     const custom = { ...DOOR_DESIGNS[0], id: 'custom', code: 'Custom', panelJoint: 'square' };
     const { render } = editor(custom);
     expect(control(render(), 'Construction').props.disabled).toBe(false);
-    expect(control(render(), 'Panel joint')).toBeUndefined();
+    expect(control(render(), 'Panel joint').props.value).toBe('square');
     control(render(), 'Construction').props.onChange({ target: { value: 'slab' } });
+    expect(control(render(), 'Panel joint')).toBeUndefined();
     expect(control(render(), 'Core').props).toMatchObject({ value: 'hardwood', disabled: false });
     control(render(), 'Core').props.onChange({ target: { value: 'mdf' } });
     expect(save(render()).props.disabled).toBe(false);
@@ -112,7 +114,7 @@ describe('Step 529 Library door design cores and defaults', () => {
     expect(dispatch.mock.lastCall[0].payload.design.defaults).toEqual({
       thickness: 1.125, stileWidth: 2.75, panelThickness: 0.625,
     });
-    for (const design of DOOR_DESIGNS.slice(1)) {
+    for (const design of DOOR_DESIGNS.filter(({ construction }) => construction === 'slab')) {
       const slab = editor(design);
       expect(control(slab.render(), 'Stile & rail width')).toBeUndefined();
       expect(control(slab.render(), 'Panel thickness')).toBeUndefined();
@@ -123,4 +125,26 @@ describe('Step 529 Library door design cores and defaults', () => {
       expect(dispatch.mock.lastCall[0].payload.design.defaults).toEqual({ slabBelow: 5.25 });
     }
   });
+});
+
+it('530. locks built-in panel joints and lets a custom 5-piece save either joint', () => {
+  for (const design of DOOR_DESIGNS.filter(({ construction }) => construction === 'five_piece')) {
+    const { render } = editor(design);
+    expect(control(render(), 'Panel joint').props).toMatchObject({ value: design.panelJoint, disabled: true });
+    save(render()).props.onClick();
+    expect(dispatch.mock.lastCall[0].payload.design.panelJoint).toBe(design.panelJoint);
+  }
+  const custom = { ...DOOR_DESIGNS[3], id: 'custom', code: 'Micro copy' };
+  const { render } = editor(custom);
+  const joint = control(render(), 'Panel joint');
+  expect(joint.props).toMatchObject({ value: 'square', disabled: false });
+  expect(joint.props.children.map(({ props }) => [props.value, text(props.children)]))
+    .toEqual([['curved', 'Standard (tongue + curve)'], ['square', 'Square shoulder (micro)']]);
+  for (const panelJoint of ['curved', 'square']) {
+    control(render(), 'Panel joint').props.onChange({ target: { value: panelJoint } });
+    expect(save(render()).props.disabled).toBe(false);
+    save(render()).props.onClick();
+    expect(dispatch.mock.lastCall[0].payload.design).toMatchObject({ construction: 'five_piece', panelJoint });
+    expect(isDoorDesign(dispatch.mock.lastCall[0].payload.design)).toBe(true);
+  }
 });

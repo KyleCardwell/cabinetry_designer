@@ -112,6 +112,15 @@ export default function DoorDesignEditor({ design, designs, onClose }) {
               ))}
             </select>
           </label>
+          {draft.construction === 'five_piece' && (
+            <label className={`block text-xs text-gray-400 ${seeded ? 'opacity-50' : ''}`}>
+              Panel joint
+              <select value={draft.panelJoint} disabled={seeded} onChange={(event) => change('panelJoint', event.target.value)} aria-label="Panel joint" className={`mt-1 ${INPUT_CLASS}`}>
+                <option value="curved">Standard (tongue + curve)</option>
+                <option value="square">Square shoulder (micro)</option>
+              </select>
+            </label>
+          )}
           {draft.construction === 'slab' && (
             <label className={`block text-xs text-gray-400 ${seeded ? 'opacity-50' : ''}`}>
               Core
@@ -159,7 +168,7 @@ export default function DoorDesignEditor({ design, designs, onClose }) {
             ))}
           </div>
           {arched && <p className="text-xs text-gray-400">Drawn flat until arched rails are added.</p>}
-          {seeded && <p className="text-xs text-gray-400">Built-in design: construction, core and rail shapes are fixed.</p>}
+          {seeded && <p className="text-xs text-gray-400">Built-in design: construction, core, panel joint and rail shapes are fixed.</p>}
           <p className="text-xs text-gray-400">Profile slots: {DESIGN_SLOTS[draft.construction].join(', ')}</p>
           {reason && <p role="status" className="text-xs text-red-400">{reason}</p>}
           <div className="flex justify-end gap-2">

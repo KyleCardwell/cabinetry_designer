@@ -1344,9 +1344,28 @@ it('527. appends missing seeds in seed order after the retained saved designs', 
   const custom = { ...structuredClone(LEGACY_DOOR_DESIGNS[0]), id: 'd1', code: '114' };
   saved.settings.doorDesigns = [custom, LEGACY_DOOR_DESIGNS[1]];
   const loaded = normalizeElevationDocument(saved);
-  expect(loaded.settings.doorDesigns.map(({ id }) => id)).toEqual(['d1', 'slab', 'five-piece-square', 'slab-mdf']);
+  expect(loaded.settings.doorDesigns.map(({ id }) => id)).toEqual(['d1', 'slab', 'five-piece-square', 'slab-mdf', 'micro-shaker']);
   expect(loaded.settings.doorDesigns[0].defaults).toEqual({});
   expect(isDoorDesignList(loaded.settings.doorDesigns)).toBe(true);
   expect(normalizeElevationDocument(loaded)).toEqual(loaded);
   expect(saved.settings.doorDesigns).toHaveLength(2);
+});
+
+it('530. loads a 50.18 document and appends Micro Shaker without changing saved designs or storage (anchor 1)', () => {
+  const saved = currentDocument();
+  saved.settings.doorDesigns = structuredClone(DOOR_DESIGNS.slice(0, 3));
+  saved.settings.doorDesigns[0].defaults.stileWidth = 2.5;
+  const encoded = JSON.stringify(saved);
+  const storage = storageWith([[ELEVATION_STORAGE_KEY, encoded]]);
+  globalThis.window = { localStorage: storage };
+  const loaded = loadElevationDocument();
+  expect(loaded.settings.doorDesigns.map(({ id }) => id))
+    .toEqual(['five-piece-square', 'slab', 'slab-mdf', 'micro-shaker']);
+  expect(isDoorDesignList(loaded.settings.doorDesigns)).toBe(true);
+  expect(loaded.settings.doorDesigns.slice(0, 3)).toEqual(saved.settings.doorDesigns);
+  expect(loaded.settings.doorDesigns[3]).toEqual(DOOR_DESIGNS[3]);
+  expect(isElevationDocument(loaded)).toBe(true);
+  expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+  expect(saved.settings.doorDesigns).toHaveLength(3);
+  expect(storage.getItem(ELEVATION_STORAGE_KEY)).toBe(encoded);
 });
