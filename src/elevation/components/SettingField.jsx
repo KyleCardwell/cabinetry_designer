@@ -2,8 +2,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { registryEntry } from '../model/settingsRegistry.js';
 import { choiceOptions } from '../model/settingGroups.js';
 import { resolveSetting } from '../model/settingsResolve.js';
-import { setRoomSetting, setSetting } from '../store/elevationSlice.js';
-import { selectRoomInheritedChain } from '../store/selectors.js';
+import { setLayerSetting, setRoomSetting, setSetting } from '../store/elevationSlice.js';
+import { inheritedChain } from '../store/selectors.js';
 import InchInput from './InchInput.jsx';
 import OverrideInput from './OverrideInput.jsx';
 
@@ -14,33 +14,36 @@ export function ownSettingValue(values, key) {
 
 export default function SettingField({ settingKey, scope }) {
   const dispatch = useDispatch();
-  const { settings, rooms, activeRoomId } = useSelector((state) => state.elevation);
-  const inheritedChain = useSelector(selectRoomInheritedChain);
+  const elevation = useSelector((state) => state.elevation);
+  const { settings, rooms, activeRoomId, layers } = elevation;
+  const isLayer = scope === 'project' || scope === 'phase';
   const room = rooms.find(({ id }) => id === activeRoomId);
   const entry = registryEntry(settingKey);
   const choices = choiceOptions(settingKey);
 
-  if (!entry || (scope === 'room' && !room)) return null;
+  if (!entry || (scope === 'room' && !room) || (isLayer && !layers?.[scope])) return null;
 
   const onChange = (value) => {
     if (value !== null && ((settingKey === 'baseCutoutFoot' && value < 0)
       || (settingKey === 'baseCutoutHeight' && value <= 0))) return false;
-    return dispatch(scope === 'room'
+    return dispatch(isLayer
+      ? setLayerSetting({ level: scope, key: settingKey, value })
+      : scope === 'room'
       ? setRoomSetting({ roomId: room.id, key: settingKey, value })
       : setSetting({ key: settingKey, value }));
   };
 
-  if (scope === 'room') {
-    const inherited = resolveSetting(settingKey, inheritedChain);
+  if (scope === 'room' || isLayer) {
+    const inherited = resolveSetting(settingKey, inheritedChain(elevation, scope));
     return (
       <OverrideInput
         kind={entry.kind}
         label={entry.label}
-        aria-label={`Room ${entry.label}`}
-        value={ownSettingValue(room.settingsOverrides, settingKey)}
+        aria-label={`${scope[0].toUpperCase()}${scope.slice(1)} ${entry.label}`}
+        value={ownSettingValue(isLayer ? layers[scope].values : room.settingsOverrides, settingKey)}
         inherited={inherited.value}
         source={inherited.source}
-        level="room"
+        level={scope}
         choices={choices}
         onChange={onChange}
       />

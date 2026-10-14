@@ -8,10 +8,17 @@ import PhaseSection, { InlineName } from '../PhaseSection.jsx';
 import ProjectInfoDialog from '../ProjectInfoDialog.jsx';
 import CopyRoomDialog from '../CopyRoomDialog.jsx';
 import RoomPlaceholderPage from '../RoomPlaceholderPage.jsx';
+import ProjectSettingsPanel from '../ProjectSettingsPanel.jsx';
+import SettingGroups from '../../elevation/components/SettingGroups.jsx';
+import { groupsFor } from '../../elevation/model/settingGroups.js';
+import WorkspaceSourceBar from '../../library/WorkspaceSourceBar.jsx';
+import { cloudSaveStatus, cloudWorkspaceLoaded, layersLoaded } from '../../elevation/store/elevationSlice.js';
+import { cloudSync } from '../../elevation/store/cloudSync.js';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useRef: vi.fn() }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 vi.mock('react-router-dom', async (original) => ({ ...await original(), useParams: vi.fn() }));
+vi.mock('../../elevation/store/cloudSync.js', () => ({ cloudSync: { flush: vi.fn(), retry: vi.fn() } }));
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
@@ -29,6 +36,7 @@ let api;
 let params;
 let current;
 let renders;
+let store;
 
 // Direct JSX-tree rendering, as in workspaceSourceBarUI, with persistent hook
 // state and effect cleanup so event-driven reloads can be exercised.
@@ -49,9 +57,15 @@ function renderComponent(component, props = {}) {
   return renderer;
 }
 
-function setApi(options) {
+function setApi(options, local = false) {
   api = fakeDesignApi(options);
-  useDispatch.mockReturnValue(cloudStore(api, auth.permissions, auth.teamId).dispatch);
+  store = cloudStore(api, { ...auth.permissions }, auth.teamId);
+  if (!local) {
+    store.dispatch(cloudWorkspaceLoaded({ teamId: auth.teamId, permissions: { ...auth.permissions },
+      settings: store.getState().elevation.settings, teamVersion: 0, rows: { profiles: {}, doorDesigns: {} } }));
+    store.dispatch(layersLoaded({ project: { id: 42, values: {}, version: 1 } }));
+  }
+  useDispatch.mockReturnValue(store.dispatch);
 }
 
 beforeEach(() => {
@@ -61,7 +75,8 @@ beforeEach(() => {
   auth = { teamId: 't', permissions: { view: true, edit: true, manage: false } };
   params = { projectId: '42', roomId: 'r1' };
   useParams.mockImplementation(() => params);
-  useSelector.mockImplementation((selector) => selector({ auth }));
+  useSelector.mockImplementation((selector) => selector({ auth, elevation: store.getState().elevation }));
+  cloudSync.flush.mockResolvedValue({ ok: true });
   useState.mockImplementation((initial) => {
     const owner = current;
     const index = owner.cursor++;
@@ -117,6 +132,121 @@ const checkbox = (tree) => nodes(tree).find((node) => node.type === 'input' && n
 const alert = (tree) => nodes(tree).find((node) => node.props.role === 'alert');
 const key = (node, value) => node.props.onKeyDown({ key: value, preventDefault: vi.fn(), stopPropagation: vi.fn() });
 
+describe('DB5 d project and phase settings', () => {
+  it('awaits a sandbox flush before opening shop data, then loads project 42 with no phase (anchor 3)', async () => {
+    setApi({ project: fixture() }, true);
+    let finishFlush;
+    cloudSync.flush.mockReturnValueOnce(new Promise((resolve) => { finishFlush = resolve; }));
+    const page = renderComponent(ProjectPage);
+    await page.flush();
+    expect(cloudSync.flush).toHaveBeenCalledOnce();
+    expect(store.getState().elevation.source).toBe('local');
+    expect(api.calls).toEqual([['getProject', 42]]);
+    finishFlush({ ok: true });
+    await page.flush();
+    expect(api.calls.slice(1, 4)).toEqual([['loadTeamSettings'], ['listProfiles'], ['listDoorDesigns']]);
+    await page.flush();
+    expect(api.calls.at(-1)).toEqual(['getProject', 42]);
+    expect(store.getState().elevation.layers).toEqual({ project: { id: 42, values: {} }, phase: null });
+    expect(component(page.tree, ProjectSettingsPanel).props.level).toBe('project');
+    expect(component(page.tree, WorkspaceSourceBar).props).toMatchObject({ allowSwitch: false, manageNote: false });
+  });
+
+  it('flushes before switching from Phase 1 to Phase 2, opens only one phase, and flushes before closing (anchor 4)', async () => {
+    api.db.project.phases[1].archived_at = null;
+    const page = renderComponent(ProjectPage);
+    await page.flush();
+    await button(phase(page).tree, 'Settings').props.onClick();
+    page.render();
+    await page.flush();
+    expect(store.getState().elevation.layers.phase.id).toBe('p1');
+    expect(component(phase(page).tree, ProjectSettingsPanel).props.level).toBe('phase');
+    const callsBefore = api.calls.length;
+    let finishFlush;
+    cloudSync.flush.mockReturnValueOnce(new Promise((resolve) => { finishFlush = resolve; }));
+    const switching = button(phase(page, 'p2').tree, 'Settings').props.onClick();
+    page.render();
+    await page.flush();
+    expect(store.getState().elevation.layers.phase.id).toBe('p1');
+    expect(api.calls).toHaveLength(callsBefore);
+    finishFlush({ ok: true });
+    await switching;
+    page.render();
+    await page.flush();
+    expect(api.calls.slice(callsBefore)).toEqual([['getProject', 42]]);
+    expect(store.getState().elevation.layers).toMatchObject({ project: { id: 42 }, phase: { id: 'p2' } });
+    expect(component(phase(page).tree, ProjectSettingsPanel)).toBeUndefined();
+    expect(component(phase(page, 'p2').tree, ProjectSettingsPanel).props.level).toBe('phase');
+    cloudSync.flush.mockResolvedValueOnce({ ok: false });
+    await button(phase(page, 'p2').tree, 'Settings').props.onClick();
+    await page.flush();
+    expect(component(phase(page, 'p2').tree, ProjectSettingsPanel)).toBeDefined();
+    await button(phase(page, 'p2').tree, 'Settings').props.onClick();
+    page.render();
+    await page.flush();
+    expect(store.getState().elevation.layers.phase).toBeNull();
+    expect(phaseNodes(page.tree).every(({ props }) => !props.settingsOpen)).toBe(true);
+  });
+
+  it('counts nested overrides in collapsed panels and groups, and disables settings without edit (anchors 5 and 6)', () => {
+    store.dispatch(layersLoaded({
+      project: { id: 42, values: { baseDepth: 25, insetFrame: { stile: 1.75 } } },
+      phase: { id: 'p1', values: {} },
+    }));
+    for (const level of ['project', 'phase']) {
+      const panel = renderComponent(ProjectSettingsPanel, { level });
+      const header = nodes(panel.tree).find(({ type }) => type === 'button');
+      expect(header.props['aria-expanded']).toBe(false);
+      expect(text(header).replace(/\s+/g, ' ')).toContain(level === 'project' ? '2 overridden' : '0 overridden');
+      expect(component(panel.tree, SettingGroups)).toBeUndefined();
+      header.props.onClick();
+      panel.render();
+      expect(nodes(panel.tree).find(({ type }) => type === 'fieldset').props.disabled).toBe(false);
+      const groups = renderComponent(SettingGroups, component(panel.tree, SettingGroups).props);
+      expect(nodes(groups.tree).filter(({ type }) => type === 'button')).toHaveLength(7);
+      expect(groupsFor(level).map(({ keys }) => keys.length)).toEqual([12, 8, 9, 9, 6, 15, 7]);
+      if (level === 'project') {
+        const headers = nodes(groups.tree).filter(({ type }) => type === 'button').map((node) => text(node).replace(/\s+/g, ' '));
+        expect(headers[0]).toContain('Cabinets & depths 1 overridden');
+        expect(headers[4]).toContain('Inset face frame 1 overridden');
+      }
+      auth.permissions.edit = false;
+      panel.render();
+      expect(nodes(panel.tree).find(({ type }) => type === 'fieldset').props.disabled).toBe(true);
+      auth.permissions.edit = true;
+    }
+    expect(text(renderComponent(WorkspaceSourceBar).tree)).toContain('team-management permission');
+    const bar = renderComponent(WorkspaceSourceBar, { allowSwitch: false, manageNote: false });
+    expect(text(bar.tree)).toContain('All changes saved');
+    expect(text(bar.tree)).not.toContain('team-management permission');
+  });
+
+  it('shows layer load failures without automatic retries and reloads layers after Reload shop data clears them', async () => {
+    store.dispatch(layersLoaded({}));
+    vi.spyOn(api, 'getProject').mockResolvedValueOnce({ ok: false, message: 'Settings unavailable' });
+    const page = renderComponent(ProjectPage);
+    await page.flush();
+    expect(text(alert(page.tree))).toContain('Settings unavailable');
+    const attempts = api.getProject.mock.calls.length;
+    await page.flush();
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(api.getProject).toHaveBeenCalledTimes(attempts);
+    button(page.tree, 'Retry').props.onClick();
+    page.render();
+    await page.flush();
+    expect(component(page.tree, ProjectSettingsPanel)).toBeDefined();
+    store.dispatch(cloudSaveStatus({ conflict: { what: 'Project settings', updatedByName: 'Other' } }));
+    const bar = renderComponent(WorkspaceSourceBar, { allowSwitch: false, manageNote: false });
+    await button(bar.tree, 'Reload shop data').props.onClick();
+    expect(store.getState().elevation.layers.project).toBeNull();
+    page.render();
+    await page.flush();
+    expect(store.getState().elevation.layers.project.id).toBe(42);
+    expect(api.getProject).toHaveBeenCalledTimes(attempts + 2);
+    expect(text(bar.render())).toContain('All changes saved');
+  });
+});
+
 describe('DB5 c project page', () => {
   it('loads the project header and live phases and rooms with status, issued label, date and room link (anchor 1)', async () => {
     const page = renderComponent(ProjectPage);
@@ -134,7 +264,7 @@ describe('DB5 c project page', () => {
     expect(text(section.tree).replace(/\s+/g, ' ')).toContain(`${new Date('2026-10-13T18:00:00Z').toLocaleDateString()} · KC`);
     expect(links(section.tree)[0].props.to).toBe('/projects/42/rooms/r1');
     expect(button(page.tree, 'Settings')).toBeUndefined();
-    expect(button(section.tree, 'Settings')).toBeUndefined();
+    expect(button(section.tree, 'Settings').props['aria-expanded']).toBe(false);
   });
 
   it('shows archived phases and rooms, greys their rows, and restores Pantry then reloads (anchor 2)', async () => {
@@ -312,7 +442,7 @@ describe('DB5 c project page', () => {
     expect(button(page.tree, 'Archive project')).toBeUndefined();
     expect(button(page.tree, '+ Phase')).toBeUndefined();
     const section = phase(page);
-    expect(nodes(section.tree).some((node) => node.type === 'button')).toBe(false);
+    expect(nodes(section.tree).filter((node) => node.type === 'button').map(text)).toEqual(['Settings']);
     expect(nodes(section.tree).filter((node) => node.type === InlineName).every((node) => !node.props.editable)).toBe(true);
     expect(renderComponent(ProjectInfoDialog, { project: fixture().project }).tree).toBeNull();
     expect(renderComponent(CopyRoomDialog, { room: fixture().phases[0].rooms[0] }).tree).toBeNull();
@@ -375,8 +505,8 @@ describe('DB5 c project page', () => {
     expect(api.getProject).toHaveBeenCalledTimes(2);
     expect(text(page.tree)).toContain('Smith Kitchen');
     let resolveOld;
-    api.getProject.mockImplementationOnce(() => new Promise((resolve) => { resolveOld = resolve; }))
-      .mockResolvedValueOnce({ ok: true, project: null });
+    const oldReply = new Promise((resolve) => { resolveOld = resolve; });
+    api.getProject.mockImplementation((id) => id === 43 ? oldReply : Promise.resolve({ ok: true, project: null }));
     params.projectId = '43';
     page.render();
     await settle();

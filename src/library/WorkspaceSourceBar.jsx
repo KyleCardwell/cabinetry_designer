@@ -22,7 +22,7 @@ export function useShopReadOnly() {
  * (localStorage, what the Elevation Lab uses) or the team's shop data in Supabase. Shows
  * save status, conflicts and errors for the shop data.
  */
-export default function WorkspaceSourceBar({ allowSwitch = true }) {
+export default function WorkspaceSourceBar({ allowSwitch = true, manageNote = true }) {
   const dispatch = useDispatch();
   const { source, cloud, workspace, message } = useSelector((state) => state.elevation);
   const teamId = useSelector((state) => state.auth?.teamId ?? null);
@@ -76,7 +76,7 @@ export default function WorkspaceSourceBar({ allowSwitch = true }) {
           </div>
         )}
         {status && <span className="text-xs">{status}</span>}
-        {isCloud && !cloud?.permissions?.manage && (
+        {manageNote && isCloud && !cloud?.permissions?.manage && (
           <span className="text-xs text-amber-300">View only — changing the shop library needs team-management permission.</span>
         )}
       </div>

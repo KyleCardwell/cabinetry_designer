@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { newRoomDocument, nextName, ROOM_STATUS_LABELS } from '../elevation/model/designProjects.js';
+import ProjectSettingsPanel from './ProjectSettingsPanel.jsx';
 
 const STATUS_COLORS = { drafting: 'bg-gray-700 text-gray-200', approved: 'bg-teal-950 text-teal-300', released: 'bg-blue-950 text-blue-300' };
 
@@ -25,7 +26,7 @@ export function InlineName({ name, label, editable, busy, onRename, children }) 
   </div>;
 }
 
-export default function PhaseSection({ phase, projectId, edit, busy, includeArchived, onWrite, onCopy }) {
+export default function PhaseSection({ phase, projectId, edit, busy, includeArchived, onWrite, onCopy, settingsOpen, settingsReady, settingsBusy, onSettings }) {
   const archived = Boolean(phase.archived_at);
   const rooms = [...phase.rooms].sort((a, b) => a.sort - b.sort);
   return <section aria-label={phase.name} className={`rounded border border-gray-700 p-4 space-y-4 ${archived ? 'text-gray-500' : ''}`}>
@@ -33,9 +34,10 @@ export default function PhaseSection({ phase, projectId, edit, busy, includeArch
       <InlineName name={phase.name} label="Phase name" editable={edit && !archived} busy={busy} onRename={(name) => onWrite((api) => api.updatePhase(phase.phase_id, { name }))}>
         <h2 className="font-semibold">{phase.name}</h2>
       </InlineName>
-      {/* Phase settings button and panel are added in DB5 d. */}
+      <button type="button" disabled={settingsBusy} aria-expanded={Boolean(settingsOpen)} onClick={onSettings}>Settings</button>
       {edit && <button type="button" disabled={busy} onClick={() => onWrite((api) => api.updatePhase(phase.phase_id, { archived: !archived }))}>{archived ? 'Restore' : 'Archive'}</button>}
     </div>
+    {settingsOpen && (settingsReady ? <ProjectSettingsPanel key={phase.phase_id} level="phase" /> : <p role="status">Loading phase settings…</p>)}
     <div className="overflow-x-auto">
       <table className="w-full text-left text-sm">
         <thead className="text-gray-400"><tr>{['Name', 'Status', 'Last issued', 'Updated', ''].map((heading) => <th key={heading} scope="col" className="px-2 py-2">{heading}</th>)}</tr></thead>

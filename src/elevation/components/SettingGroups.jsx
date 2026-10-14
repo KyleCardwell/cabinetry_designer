@@ -9,14 +9,15 @@ export function countOverrides(keys, overrides) {
 
 export default function SettingGroups({ scope }) {
   const [openGroups, setOpenGroups] = useState({});
-  const { rooms, activeRoomId } = useSelector((state) => state.elevation);
+  const { rooms, activeRoomId, layers } = useSelector((state) => state.elevation);
   const room = rooms.find(({ id }) => id === activeRoomId);
+  const overrides = scope === 'room' ? room?.settingsOverrides : layers?.[scope]?.values;
 
   return (
     <div className="space-y-3">
       {groupsFor(scope).map((group) => {
         const open = Boolean(openGroups[group.id]);
-        const count = scope === 'room' ? countOverrides(group.keys, room?.settingsOverrides) : 0;
+        const count = countOverrides(group.keys, overrides);
         return (
           <section key={group.id}>
             <button
