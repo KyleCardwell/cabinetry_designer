@@ -1,5 +1,6 @@
+import { LEGACY_DOOR_DESIGNS as DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS, findDoorDesign } from '../doorStyles.js';
+import { DEFAULT_DOOR_STYLE, findDoorDesign } from '../doorStyles.js';
 import { frontStackWarnings, partSizes } from '../doorSizes.js';
 import { partDetail } from '../doorDetails.js';
 
@@ -26,7 +27,7 @@ describe('SPEC-46.1 slab with applied molding (P17)', () => {
       slots: ['outside', 'applied'],
     });
     expect(SLAB.slots).toEqual(['outside']);
-    expect(findDoorDesign('slab-applied')).toBe(SLAB_AM);
+    expect(findDoorDesign('slab-applied', DOOR_DESIGNS)).toBe(SLAB_AM);
   });
 
   it('keeps the whole part as the flat before molding placement', () => {

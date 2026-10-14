@@ -1,9 +1,10 @@
+import { LEGACY_DOOR_DESIGNS as DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useReducer, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Rect } from 'react-konva';
-import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
+import { DEFAULT_DOOR_STYLE } from '../../model/doorStyles.js';
 import { profileDoorGhost } from '../../model/profileGhost.js';
 import DoorDetails from '../DoorDetails.jsx';
 import DoorProfilePickers from '../DoorProfilePickers.jsx';
@@ -84,7 +85,7 @@ describe('Step 494.5 Slab AM editor and part panel', () => {
     return find(component.type(component.props), ({ type }) => type === InchInput);
   };
   const partPanel = (style, height, sizes = {}, onChange = vi.fn()) => PartStyleFields({
-    room: {}, settings: { sectionProfiles: moldingFixtures, teamDoorStyle: style },
+    room: {}, settings: { sectionProfiles: moldingFixtures, teamDoorStyle: style, doorDesigns: DOOR_DESIGNS },
     partType: 'door', levels: [], part: { sizes }, width: 24, height, label: 'Front', onChange,
   });
 

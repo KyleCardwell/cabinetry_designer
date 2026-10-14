@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DOOR_STYLE, isDoorStyle } from '../doorStyles.js';
-import { addAppliedMolding, doorStyleUses, newDoorStyle, nextDoorStyleLabel, reassignDoorStyle, removeAppliedMolding, updateAppliedMolding } from '../doorStyleEdits.js';
+import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS, isDoorStyle } from '../doorStyles.js';
+import { addAppliedMolding, applyDesignDefaults, doorStyleUses, newDoorStyle, nextDoorStyleLabel, reassignDoorStyle, removeAppliedMolding, updateAppliedMolding } from '../doorStyleEdits.js';
 import { gridFromItems, gridLeaves } from '../grid.js';
 
 const A = { ...DEFAULT_DOOR_STYLE, id: 'ds-a', label: 'A' };
@@ -152,5 +152,36 @@ describe('SPEC-46.1 the room\'s door style list', () => {
       false,
       [A, B],
     ]);
+  });
+});
+
+
+describe('Step 527 design defaults', () => {
+  const [five, slab, mdf] = DOOR_DESIGNS;
+  it('sets MDF thickness and restores hardwood thickness without clearing other dimensions (anchor 7)', () => {
+    const toMdf = applyDesignDefaults(DEFAULT_DOOR_STYLE, five, mdf);
+    expect(toMdf).toEqual({ ...DEFAULT_DOOR_STYLE, designId: 'slab-mdf', thickness: 0.75 });
+    expect([toMdf.stiles, toMdf.rails, toMdf.panel.thickness, toMdf.shortFace.slabBelow])
+      .toEqual([{ left: 3, right: 3 }, { top: 3, bottom: 3 }, 0.5, 4.8125]);
+    expect(applyDesignDefaults(toMdf, mdf, slab)).toEqual({ ...DEFAULT_DOOR_STYLE, designId: 'slab', thickness: 0.8125 });
+  });
+
+  it('preserves hand-typed values for absent or equal defaults (anchor 8)', () => {
+    const typed = { ...DEFAULT_DOOR_STYLE, thickness: 1 };
+    const custom = { ...five, id: 'd1', defaults: {} };
+    expect(applyDesignDefaults(typed, five, custom)).toEqual({ ...typed, designId: 'd1' });
+    expect(applyDesignDefaults(typed, five, slab)).toEqual({ ...typed, designId: 'slab' });
+    expect(typed).toEqual({ ...DEFAULT_DOOR_STYLE, thickness: 1 });
+  });
+
+  it('applies each changed default on copies, retaining other nested fields', () => {
+    const target = { ...five, id: 'd1', defaults: { thickness: 1, stileWidth: 2, panelThickness: 0.625, slabBelow: 5 } };
+    const next = applyDesignDefaults(DEFAULT_DOOR_STYLE, five, target);
+    expect(next).toEqual({ ...DEFAULT_DOOR_STYLE, designId: 'd1', thickness: 1,
+      stiles: { left: 2, right: 2 }, rails: { top: 2, bottom: 2 },
+      panel: { type: 'flat', thickness: 0.625 }, shortFace: { ...DEFAULT_DOOR_STYLE.shortFace, slabBelow: 5 } });
+    expect(isDoorStyle(next)).toBe(true);
+    expect(DEFAULT_DOOR_STYLE.stiles.left).toBe(3);
+    expect(applyDesignDefaults(DEFAULT_DOOR_STYLE, { defaults: {} }, five)).toEqual(DEFAULT_DOOR_STYLE);
   });
 });

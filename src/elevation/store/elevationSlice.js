@@ -195,6 +195,7 @@ export const {
   addDoorStyle,
   updateDoorStyle,
   deleteDoorStyle,
+  importDoorDesigns,
   addDoorDesign,
   updateDoorDesign,
   deleteDoorDesign,

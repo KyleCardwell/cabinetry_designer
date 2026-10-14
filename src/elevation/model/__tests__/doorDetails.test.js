@@ -1,5 +1,6 @@
+import { LEGACY_DOOR_DESIGNS as DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
+import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { partSizes } from '../doorSizes.js';
 import { partDetail } from '../doorDetails.js';
 

@@ -1,19 +1,24 @@
+import { isUuid } from '../../model/cloudRows.js';
+import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
 import elevationReducer, {
-  addDoorDesign, addDoorStyle, deleteDoorDesign, setTeamDoorStyle, updateDoorDesign, updateDoorStyle,
+  importDoorDesigns, addDoorDesign, addDoorStyle, deleteDoorDesign, setTeamDoorStyle, updateDoorDesign, updateDoorStyle,
 } from '../elevationSlice.js';
 import { auto, currentRun, run, stateWithRun } from './helpers/sliceFixtures.js';
 
 const apply = (state, ...actions) => actions.reduce(elevationReducer, state);
 const designs = (state) => state.settings.doorDesigns.map(({ id, code }) => [id, code]);
-const SEEDED = [['five-piece-square', '5PC'], ['slab', 'Slab'], ['slab-applied', 'Slab AM']];
+const SEEDED = [['five-piece-square', '5PC'], ['slab', 'Slab'], ['slab-mdf', 'Slab - MDF Core']];
 const ARCHED = {
   id: 'ignored',
   code: '114',
   vendor: 'Stillwater',
   description: 'Arched top rail',
   construction: 'five_piece',
+  slabCore: null,
+  panelJoint: 'curved',
+  defaults: {},
   topRail: { shape: 'arch' },
   bottomRail: { shape: 'flat' },
   slots: [],
@@ -39,7 +44,7 @@ describe('SPEC-46.3 editing the team library', () => {
     const state = apply(base(), addDoorDesign({ id: 'd-1' }));
     const saved = apply(state, updateDoorDesign({ designId: 'd-1', design: ARCHED }));
     expect(saved.settings.doorDesigns[3]).toEqual({ ...ARCHED, id: 'd-1', slots: ['outside', 'inside', 'panel', 'applied'] });
-    const applied = apply(saved, updateDoorDesign({ designId: 'd-1', design: { ...ARCHED, construction: 'slab_applied' } }));
+    const applied = apply(saved, updateDoorDesign({ designId: 'd-1', design: { ...ARCHED, construction: 'slab', slabCore: 'mdf', panelJoint: null } }));
     expect(applied.settings.doorDesigns[3].slots).toEqual(['outside', 'applied']);
     const renamed = apply(state, updateDoorDesign({ designId: 'slab', design: { ...DOOR_DESIGNS[1], code: 'SL', vendor: 'Shop' } }));
     expect(renamed.settings.doorDesigns[1]).toEqual({ ...DOOR_DESIGNS[1], code: 'SL', vendor: 'Shop' });
@@ -84,4 +89,21 @@ describe('SPEC-46.3 editing the team library', () => {
     expect(designs(apply(state, deleteDoorDesign({ designId: 'd-1' })))).toEqual(SEEDED);
     expect(apply(state, deleteDoorDesign({ designId: 'slab', reassignTo: 'five-piece-square' }))).toBe(state);
   });
+});
+
+
+it('527. migrates imported designs before validating and merging the library', () => {
+  const state = base();
+  const legacy = { ...LEGACY_DOOR_DESIGNS[2], id: 'custom', code: '114' };
+  const next = apply(state, importDoorDesigns({ designs: [...LEGACY_DOOR_DESIGNS, legacy] }));
+  expect(next.settings.doorDesigns.slice(0, 3)).toEqual(DOOR_DESIGNS);
+  expect(next.settings.doorDesigns[3]).toEqual({ ...legacy, construction: 'slab', slabCore: 'mdf', panelJoint: null, defaults: {} });
+  for (const designs of [[{ ...legacy, defaults: { thickness: 0 } }], [{ ...legacy, code: 'Slab' }], [null]]) {
+    expect(apply(state, importDoorDesigns({ designs }))).toBe(state);
+  }
+  expect(apply(state, importDoorDesigns({ designs: null }))).toBe(state);
+  const cloud = apply({ ...state, source: 'cloud' }, importDoorDesigns({ designs: [...LEGACY_DOOR_DESIGNS, legacy] }));
+  expect(cloud.settings.doorDesigns.slice(0, 3)).toEqual(DOOR_DESIGNS);
+  expect(isUuid(cloud.settings.doorDesigns[3].id)).toBe(true);
+  expect(cloud.settings.doorDesigns[3].slabCore).toBe('mdf');
 });

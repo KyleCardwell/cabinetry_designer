@@ -1,6 +1,7 @@
+import { LEGACY_DOOR_DESIGNS as DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
+import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { partDetail } from '../doorDetails.js';
 import { doorProfileOffsets, partProfileLines } from '../doorProfileLines.js';
 

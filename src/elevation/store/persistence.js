@@ -8,7 +8,7 @@ import {
 } from '../model/constants.js';
 import { isBottomPart } from '../model/bottoms.js';
 import { cleanOverrides } from '../model/settingsResolve.js';
-import { isDoorDesignList } from '../model/doorDesigns.js';
+import { isDoorDesignList, migrateDoorDesign } from '../model/doorDesigns.js';
 import { isSectionProfileList, migrateSectionProfile } from '../model/sectionProfiles.js';
 import {
   DEFAULT_DOOR_STYLE,
@@ -662,9 +662,25 @@ function migrateDoorPanelScopes(scope) {
   return migrated;
 }
 
+function migrateDoorDesignRef(style) {
+  return style?.designId === 'slab-applied' ? { ...style, designId: 'slab-mdf' } : style;
+}
+
+/** Rename design references in every room and phase style list. */
+function migrateDoorDesignScopes(scope) {
+  if (!scope || typeof scope !== 'object') return scope;
+  const migrated = { ...scope };
+  if (Array.isArray(scope.doorStyles)) migrated.doorStyles = scope.doorStyles.map(migrateDoorDesignRef);
+  for (const key of ['rooms', 'phases']) {
+    if (Array.isArray(scope[key])) migrated[key] = scope[key].map(migrateDoorDesignScopes);
+  }
+  return migrated;
+}
+
 function normalizeDocument(document, schemaVersion) {
   if (!document || document.schemaVersion !== schemaVersion) return document;
   document = migrateAppliedMoldingScopes(document);
+  document = migrateDoorDesignScopes(document);
   let settings = document.settings;
   if (settings && typeof settings === 'object') {
     settings = { ...settings };
@@ -694,7 +710,16 @@ function normalizeDocument(document, schemaVersion) {
       settings.doorPanelDefault = 0.5;
     }
     settings.teamDoorStyle = migrateAppliedMoldings(settings.teamDoorStyle);
+    settings.teamDoorStyle = migrateDoorDesignRef(settings.teamDoorStyle);
     if (settings.doorDesigns === undefined) settings.doorDesigns = structuredClone(DOOR_DESIGNS);
+    else if (Array.isArray(settings.doorDesigns)) {
+      settings.doorDesigns = settings.doorDesigns.map(migrateDoorDesign);
+      for (const seed of DOOR_DESIGNS) {
+        if (!settings.doorDesigns.some((design) => design?.id === seed.id)) {
+          settings.doorDesigns.push(structuredClone(seed));
+        }
+      }
+    }
     if (settings.sectionProfiles === undefined) settings.sectionProfiles = [];
     else if (Array.isArray(settings.sectionProfiles)) settings.sectionProfiles = settings.sectionProfiles.map(migrateSectionProfile);
     delete settings.doorThickness;

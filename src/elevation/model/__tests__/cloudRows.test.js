@@ -1,9 +1,12 @@
+import { LEGACY_DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
+import { isDoorDesign } from '../doorDesigns.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { DOOR_DESIGNS, DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { newSectionProfile } from '../sectionProfiles.js';
 import { SETTINGS_REGISTRY } from '../settingsRegistry.js';
 import {
+  doorDesignIdFor,
   doorDesignFromRow,
   doorDesignToRow,
   isUuid,
@@ -86,4 +89,18 @@ describe('cloudRows', () => {
     expect(settings.teamDoorStyle).toEqual(DEFAULT_DOOR_STYLE);
     expect(teamSettingsFromRow(null).roundTo).toBe(0.5);
   });
+});
+
+
+it('527. migrates the old MDF Supabase seed on read without changing the row (anchor 5)', () => {
+  const { id, code, ...data } = structuredClone(LEGACY_DOOR_DESIGNS[2]);
+  const row = { design_id: DID, code, data: { ...data, seedId: id } };
+  const before = structuredClone(row);
+  const migrated = doorDesignFromRow(row);
+  expect(migrated).toEqual(DOOR_DESIGNS[2]);
+  expect(isDoorDesign(migrated)).toBe(true);
+  expect(doorDesignIdFor(row)).toBe('slab-mdf');
+  expect(doorDesignToRow(migrated).data.seedId).toBe('slab-mdf');
+  expect(row).toEqual(before);
+  expect(teamSettingsFromRow({ teamDoorStyle: { ...DEFAULT_DOOR_STYLE, designId: 'slab-applied' } }).teamDoorStyle.designId).toBe('slab-mdf');
 });

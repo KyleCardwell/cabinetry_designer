@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { DEFAULT_DOOR_STYLE } from '../../model/doorStyles.js';
+import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
+import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
 import { newSectionProfile } from '../../model/sectionProfiles.js';
 import { profileToRow } from '../../model/cloudRows.js';
 import { setSetting } from '../elevationSlice.js';
@@ -22,8 +23,8 @@ describe('DB4 e shop workspace', () => {
     expect(elevation.rooms).toEqual([]);
     expect(elevation.settings.roundTo).toBe(0.5);
     expect(elevation.settings.sectionProfiles).toEqual([]);
-    expect(elevation.settings.doorDesigns.map((design) => design.id)).toEqual(['five-piece-square', 'slab', 'slab-applied']);
-    expect(api.db.doorDesigns.map((row) => row.data.seedId)).toEqual(['five-piece-square', 'slab', 'slab-applied']);
+    expect(elevation.settings.doorDesigns.map((design) => design.id)).toEqual(['five-piece-square', 'slab', 'slab-mdf']);
+    expect(api.db.doorDesigns.map((row) => row.data.seedId)).toEqual(['five-piece-square', 'slab', 'slab-mdf']);
     expect(elevation.cloud.teamVersion).toBe(0);
     expect(elevation.cloud.rows.doorDesigns.slab).toEqual({ rowId: api.db.doorDesigns[1].design_id, version: 1 });
 
@@ -104,4 +105,23 @@ describe('DB4 e shop workspace', () => {
     expect(elevation.activeRoomId).toBe(sandboxRoomId);
     expect(elevation.settings.roundTo).toBe(0.5);
   });
+});
+
+
+it('527. loads legacy built-in rows in place without rewriting them or resetting the MDF team style', async () => {
+  const rows = LEGACY_DOOR_DESIGNS.map(({ id, code, ...data }) => ({
+    design_id: fakeUuid(), code, data: { ...data, seedId: id }, version: 3,
+  }));
+  const api = fakeDesignApi({ doorDesigns: rows, teamSettings: {
+    settings: { teamDoorStyle: { ...DEFAULT_DOOR_STYLE, designId: 'slab-applied' } }, version: 2,
+  } });
+  const before = structuredClone(api.db.doorDesigns);
+  const store = cloudStore(api);
+  expect(await store.dispatch(openCloudWorkspace())).toEqual({ ok: true });
+  const elevation = store.getState().elevation;
+  expect(elevation.settings.doorDesigns).toEqual(DOOR_DESIGNS);
+  expect(elevation.settings.teamDoorStyle.designId).toBe('slab-mdf');
+  expect(elevation.cloud.rows.doorDesigns['slab-mdf']).toEqual({ rowId: rows[2].design_id, version: 3 });
+  expect(api.db.doorDesigns).toEqual(before);
+  expect(elevation.message).toBeNull();
 });

@@ -1,4 +1,7 @@
-export const DOOR_CONSTRUCTIONS = ['five_piece', 'slab', 'slab_applied'];
+export const DOOR_CONSTRUCTIONS = ['five_piece', 'slab'];
+export const SLAB_CORES = ['hardwood', 'mdf'];
+export const PANEL_JOINTS = ['curved', 'square'];
+export const DESIGN_DEFAULT_KEYS = ['thickness', 'stileWidth', 'panelThickness', 'slabBelow'];
 export const RAIL_SHAPES = ['flat', 'arch', 'cathedral', 'eyebrow'];
 export const DOOR_PROFILE_SLOTS = ['outside', 'inside', 'panel', 'applied'];
 export const PANEL_TYPES = ['flat', 'raised'];
@@ -12,29 +15,38 @@ export const DOOR_DESIGNS = [
     vendor: null,
     description: '5-piece square',
     construction: 'five_piece',
+    slabCore: null,
+    panelJoint: 'curved',
     topRail: { shape: 'flat' },
     bottomRail: { shape: 'flat' },
     slots: ['outside', 'inside', 'panel', 'applied'],
+    defaults: { thickness: 0.8125, stileWidth: 3, panelThickness: 0.5, slabBelow: 4.8125 },
   },
   {
     id: 'slab',
     code: 'Slab',
     vendor: null,
-    description: 'Slab',
+    description: 'Slab (hardwood)',
     construction: 'slab',
-    topRail: { shape: 'flat' },
-    bottomRail: { shape: 'flat' },
-    slots: ['outside'],
-  },
-  {
-    id: 'slab-applied',
-    code: 'Slab AM',
-    vendor: null,
-    description: 'Slab with applied molding',
-    construction: 'slab_applied',
+    slabCore: 'hardwood',
+    panelJoint: null,
     topRail: { shape: 'flat' },
     bottomRail: { shape: 'flat' },
     slots: ['outside', 'applied'],
+    defaults: { thickness: 0.8125 },
+  },
+  {
+    id: 'slab-mdf',
+    code: 'Slab - MDF Core',
+    vendor: null,
+    description: 'Slab, MDF core, edge banded',
+    construction: 'slab',
+    slabCore: 'mdf',
+    panelJoint: null,
+    topRail: { shape: 'flat' },
+    bottomRail: { shape: 'flat' },
+    slots: ['outside', 'applied'],
+    defaults: { thickness: 0.75 },
   },
 ];
 

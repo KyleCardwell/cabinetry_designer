@@ -1,6 +1,8 @@
+import { LEGACY_DOOR_DESIGNS as DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS } from '../constants.js';
-import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS, isPartSizes } from '../doorStyles.js';
+import { DEFAULT_SETTINGS as CURRENT_SETTINGS } from '../constants.js';
+const DEFAULT_SETTINGS = { ...CURRENT_SETTINGS, doorDesigns: DOOR_DESIGNS };
+import { DEFAULT_DOOR_STYLE, isPartSizes } from '../doorStyles.js';
 import { partSizeRows, pickOptions, setPartMids, setPartNote, setPartSide } from '../doorStyleEdits.js';
 import { setFacePart } from '../faceTree.js';
 

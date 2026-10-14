@@ -1,3 +1,4 @@
+import { LEGACY_DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
@@ -10,7 +11,7 @@ import { normalizeElevationDocument } from '../../store/persistence.js';
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
 );
-const { settings } = document;
+const settings = { ...document.settings, doorDesigns: LEGACY_DOOR_DESIGNS };
 const stored = (name) => document.rooms.find((candidate) => candidate.name === name);
 
 const C = { ...DEFAULT_DOOR_STYLE, id: 'ds-c', label: 'C', designId: 'slab-applied' };

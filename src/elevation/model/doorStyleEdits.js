@@ -1,10 +1,27 @@
-import { DEFAULT_DESIGN_ID, DOOR_DESIGNS, DOOR_STYLE_KEYS, SHEET_PANEL_THICKNESS, findDoorDesign, teamDoorStyle } from './doorStyles.js';
+import { DEFAULT_DESIGN_ID, DESIGN_DEFAULT_KEYS, DOOR_DESIGNS, DOOR_STYLE_KEYS, SHEET_PANEL_THICKNESS, findDoorDesign, teamDoorStyle } from './doorStyles.js';
 import { gridLeaves } from './grid.js';
 import { formatInches } from './units.js';
 import { resolveDoorStyle } from './doorStyleResolve.js';
 import { partSizes } from './doorSizes.js';
 import { inset } from './doorProfileLines.js';
 import { partDetail } from './doorDetails.js';
+
+/** Set only defaults that differ between designs; absent defaults never clear a value. */
+export function applyDesignDefaults(style, fromDesign, toDesign) {
+  const next = { ...style, designId: toDesign.id };
+  for (const key of DESIGN_DEFAULT_KEYS) {
+    const value = toDesign.defaults?.[key];
+    if (value === undefined || value === fromDesign?.defaults?.[key]) continue;
+    if (key === 'thickness') next.thickness = value;
+    if (key === 'stileWidth') {
+      next.stiles = { ...style.stiles, left: value, right: value };
+      next.rails = { ...style.rails, top: value, bottom: value };
+    }
+    if (key === 'panelThickness') next.panel = { ...style.panel, thickness: value };
+    if (key === 'slabBelow') next.shortFace = { ...style.shortFace, slabBelow: value };
+  }
+  return next;
+}
 
 /** First unused letter, followed by the first unused positive integer label. */
 export function nextDoorStyleLabel(styles = []) {

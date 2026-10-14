@@ -1,7 +1,8 @@
+import { LEGACY_DOOR_DESIGNS as DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
+import { DEFAULT_DOOR_STYLE } from '../../model/doorStyles.js';
 import DoorSectionView from '../DoorSectionView.jsx';
 
 vi.mock('react', async (original) => ({

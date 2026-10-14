@@ -1,3 +1,6 @@
+import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
+import { DOOR_DESIGNS, sheetPanelStyle } from '../../model/doorStyles.js';
+import { isDoorDesignList } from '../../model/doorDesigns.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { gridFromItems, rootItems } from '../../model/grid.js';
@@ -1305,4 +1308,45 @@ describe('DB1 c transient preference persistence', () => {
     expect(state.settings.paperSize).toBe('ledger');
     expect(isElevationDocument(saved)).toBe(true);
   });
+});
+
+
+it('527. migrates stored designs and every style scope without writing storage (anchor 4)', () => {
+  const saved = currentDocument();
+  const style = (id) => ({ ...structuredClone(saved.settings.teamDoorStyle), id, label: id,
+    designId: 'slab-applied', appliedMoldings: [{ profileId: 'am1', offset: 2 }] });
+  saved.settings.doorDesigns = structuredClone(LEGACY_DOOR_DESIGNS);
+  saved.settings.teamDoorStyle = { ...style('default'), label: 'Std' };
+  saved.rooms[0].doorStyles = [style('room')];
+  saved.rooms[0].phases = [{ doorStyles: [style('room-phase')] }];
+  saved.phases = [{ doorStyles: [style('phase')], rooms: [{ doorStyles: [style('phase-room')] }] }];
+  const original = structuredClone(saved);
+  const encoded = JSON.stringify(saved);
+  const storage = storageWith([[ELEVATION_STORAGE_KEY, encoded]]);
+  globalThis.window = { localStorage: storage };
+  const loaded = loadElevationDocument();
+  expect(loaded.settings.doorDesigns).toEqual(DOOR_DESIGNS);
+  expect(isDoorDesignList(loaded.settings.doorDesigns)).toBe(true);
+  for (const migrated of [loaded.settings.teamDoorStyle, loaded.rooms[0].doorStyles[0],
+    loaded.rooms[0].phases[0].doorStyles[0], loaded.phases[0].doorStyles[0], loaded.phases[0].rooms[0].doorStyles[0]]) {
+    expect(migrated.designId).toBe('slab-mdf');
+    expect(migrated.appliedMoldings).toEqual([{ profileId: 'am1', offset: 2 }]);
+  }
+  expect(saved).toEqual(original);
+  expect(storage.getItem(ELEVATION_STORAGE_KEY)).toBe(encoded);
+  expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+  expect(isElevationDocument(loaded)).toBe(true);
+  expect(sheetPanelStyle()).toMatchObject({ designId: 'slab', thickness: 0.75 });
+});
+
+it('527. appends missing seeds in seed order after the retained saved designs', () => {
+  const saved = currentDocument();
+  const custom = { ...structuredClone(LEGACY_DOOR_DESIGNS[0]), id: 'd1', code: '114' };
+  saved.settings.doorDesigns = [custom, LEGACY_DOOR_DESIGNS[1]];
+  const loaded = normalizeElevationDocument(saved);
+  expect(loaded.settings.doorDesigns.map(({ id }) => id)).toEqual(['d1', 'slab', 'five-piece-square', 'slab-mdf']);
+  expect(loaded.settings.doorDesigns[0].defaults).toEqual({});
+  expect(isDoorDesignList(loaded.settings.doorDesigns)).toBe(true);
+  expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+  expect(saved.settings.doorDesigns).toHaveLength(2);
 });

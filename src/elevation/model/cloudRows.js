@@ -3,7 +3,7 @@
  * (DATABASE-PLAN §3, SPEC-DB4 §1). Pure: no network, no store.
  */
 import { DEFAULT_SETTINGS } from './constants.js';
-import { SEEDED_DESIGN_IDS, isDoorDesign } from './doorDesigns.js';
+import { SEEDED_DESIGN_IDS, isDoorDesign, migrateDoorDesign } from './doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, isDoorStyle } from './doorStyles.js';
 import { isSectionProfile, migrateSectionProfile } from './sectionProfiles.js';
 import { SETTINGS_REGISTRY } from './settingsRegistry.js';
@@ -52,7 +52,8 @@ export function profileFromRow(row) {
 
 /**
  * A door design → `{ code, data }`. Built-in designs keep their string id in `data.seedId`
- * so room documents can go on referencing `five-piece-square`, `slab` and `slab-applied`.
+ * so room documents can go on referencing `five-piece-square`, `slab` and `slab-mdf`.
+ * Old row data is migrated on read and rewritten only on the next save.
  */
 export function doorDesignToRow(design) {
   const { id, code, ...rest } = structuredClone(design);
@@ -62,7 +63,7 @@ export function doorDesignToRow(design) {
 
 /** The id the app uses for a door design row: its seed id, else the row's uuid. */
 export function doorDesignIdFor(row) {
-  const seedId = row?.data?.seedId;
+  const seedId = row?.data?.seedId === 'slab-applied' ? 'slab-mdf' : row?.data?.seedId;
   return SEEDED_DESIGN_IDS.includes(seedId) ? seedId : row?.design_id;
 }
 
@@ -71,7 +72,7 @@ export function doorDesignFromRow(row) {
   if (!row || !isUuid(row.design_id) || !row.data || typeof row.data !== 'object') return null;
   const { seedId, ...rest } = structuredClone(row.data);
   void seedId;
-  const design = { ...rest, id: doorDesignIdFor(row), code: row.code };
+  const design = migrateDoorDesign({ ...rest, id: doorDesignIdFor(row), code: row.code });
   return isDoorDesign(design) ? design : null;
 }
 
@@ -101,5 +102,6 @@ export function teamSettingsFromRow(stored) {
   settings.teamDoorStyle = isDoorStyle(stored?.teamDoorStyle)
     ? structuredClone(stored.teamDoorStyle)
     : structuredClone(DEFAULT_DOOR_STYLE);
+  if (settings.teamDoorStyle.designId === 'slab-applied') settings.teamDoorStyle.designId = 'slab-mdf';
   return settings;
 }
