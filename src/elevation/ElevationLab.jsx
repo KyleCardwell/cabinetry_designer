@@ -8,6 +8,7 @@ import MissingDoorDesignsNotice from './components/MissingDoorDesignsNotice.jsx'
 import JsonToggle from './components/JsonToggle.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
 import RoomHeightsPanel from './components/RoomHeightsPanel.jsx';
+import RoomSettingsPanel from './components/RoomSettingsPanel.jsx';
 import RoomPartNumbersPanel from './components/RoomPartNumbersPanel.jsx';
 import RoomStylePanel from './components/RoomStylePanel.jsx';
 import RoomDoorStylesPanel from './components/RoomDoorStylesPanel.jsx';
@@ -47,6 +48,7 @@ export default function ElevationLab() {
         <div className="space-y-5">
           <RoomPicker />
           <RoomHeightsPanel />
+          <RoomSettingsPanel />
           <RoomPartNumbersPanel />
           <RoomStylePanel />
           <RoomDoorStylesPanel />
