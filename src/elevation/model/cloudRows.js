@@ -1,0 +1,105 @@
+/**
+ * Mapping between the designer's in-memory shapes and the Supabase `design_` rows
+ * (DATABASE-PLAN §3, SPEC-DB4 §1). Pure: no network, no store.
+ */
+import { DEFAULT_SETTINGS } from './constants.js';
+import { SEEDED_DESIGN_IDS, isDoorDesign } from './doorDesigns.js';
+import { DEFAULT_DOOR_STYLE, isDoorStyle } from './doorStyles.js';
+import { isSectionProfile, migrateSectionProfile } from './sectionProfiles.js';
+import { SETTINGS_REGISTRY } from './settingsRegistry.js';
+import { isValidSettingValue } from './settingsResolve.js';
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isUuid(value) {
+  return typeof value === 'string' && UUID_RE.test(value);
+}
+
+function leaf(values, key) {
+  return key.split('.').reduce((parent, part) => parent?.[part], values);
+}
+
+/** Write a registry leaf in place (null kept: an `id` setting may be null on purpose). */
+function setLeaf(target, key, value) {
+  const parts = key.split('.');
+  let node = target;
+  for (const part of parts.slice(0, -1)) {
+    if (!node[part] || typeof node[part] !== 'object') node[part] = {};
+    node = node[part];
+  }
+  node[parts.at(-1)] = value;
+}
+
+/** A section profile → `{ profile_id, kind, name, data }`. `data.version` is the shape version (P7). */
+export function profileToRow(profile) {
+  const { id, kind, name, archived, ...data } = structuredClone(profile);
+  void archived;
+  return { profile_id: id, kind, name, data };
+}
+
+/** A `design_profiles` row → a section profile, or null when the row isn't a valid profile. */
+export function profileFromRow(row) {
+  if (!row || !isUuid(row.profile_id) || !row.data || typeof row.data !== 'object') return null;
+  const profile = migrateSectionProfile({
+    ...structuredClone(row.data),
+    id: row.profile_id,
+    kind: row.kind,
+    name: row.name,
+    archived: row.archived_at != null,
+  });
+  return isSectionProfile(profile) ? profile : null;
+}
+
+/**
+ * A door design → `{ code, data }`. Built-in designs keep their string id in `data.seedId`
+ * so room documents can go on referencing `five-piece-square`, `slab` and `slab-applied`.
+ */
+export function doorDesignToRow(design) {
+  const { id, code, ...rest } = structuredClone(design);
+  const data = SEEDED_DESIGN_IDS.includes(id) ? { ...rest, seedId: id } : rest;
+  return { code, data };
+}
+
+/** The id the app uses for a door design row: its seed id, else the row's uuid. */
+export function doorDesignIdFor(row) {
+  const seedId = row?.data?.seedId;
+  return SEEDED_DESIGN_IDS.includes(seedId) ? seedId : row?.design_id;
+}
+
+/** A `design_door_designs` row → a door design, or null when the row isn't valid. */
+export function doorDesignFromRow(row) {
+  if (!row || !isUuid(row.design_id) || !row.data || typeof row.data !== 'object') return null;
+  const { seedId, ...rest } = structuredClone(row.data);
+  void seedId;
+  const design = { ...rest, id: doorDesignIdFor(row), code: row.code };
+  return isDoorDesign(design) ? design : null;
+}
+
+/** The shop standard as stored: every registry leaf plus `teamDoorStyle`; no library lists, no prefs. */
+export function teamSettingsToRow(settings) {
+  const row = {};
+  for (const { key } of SETTINGS_REGISTRY) {
+    const value = leaf(settings, key);
+    if (isValidSettingValue(key, value)) setLeaf(row, key, structuredClone(value));
+  }
+  row.teamDoorStyle = structuredClone(settings?.teamDoorStyle ?? DEFAULT_DOOR_STYLE);
+  return row;
+}
+
+/**
+ * Stored shop standard → settings in today's shape (without `doorDesigns` / `sectionProfiles`).
+ * Missing or invalid leaves come from the code defaults; unknown keys are dropped.
+ */
+export function teamSettingsFromRow(stored) {
+  const settings = structuredClone(DEFAULT_SETTINGS);
+  delete settings.doorDesigns;
+  delete settings.sectionProfiles;
+  for (const { key } of SETTINGS_REGISTRY) {
+    const value = leaf(stored, key);
+    if (value !== undefined && isValidSettingValue(key, value)) setLeaf(settings, key, structuredClone(value));
+  }
+  settings.teamDoorStyle = isDoorStyle(stored?.teamDoorStyle)
+    ? structuredClone(stored.teamDoorStyle)
+    : structuredClone(DEFAULT_DOOR_STYLE);
+  return settings;
+}
