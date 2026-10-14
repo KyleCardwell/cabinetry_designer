@@ -5,7 +5,8 @@ import { supabase } from './api/supabaseClient';
 import { initAuth, setSession, clearAuth } from './store/slices/authSlice';
 import AppShell from './components/layout/AppShell';
 import ProjectsPage from './projects/ProjectsPage.jsx';
-import RoomEditor from './components/rooms/RoomEditor';
+import ProjectPage from './projects/ProjectPage.jsx';
+import RoomPlaceholderPage from './projects/RoomPlaceholderPage.jsx';
 import Login from './components/auth/Login';
 import ElevationLab from './elevation/ElevationLab';
 import LibraryLayout from './library/LibraryLayout.jsx';
@@ -56,8 +57,9 @@ function App() {
       <Routes>
         <Route path="/" element={<Navigate to="/projects" replace />} />
         <Route path="/projects" element={<ProjectsPage />} />
+        <Route path="/projects/:projectId" element={<ProjectPage />} />
         <Route path="/elevation-lab" element={<ElevationLab />} />
-        <Route path="/projects/:projectId/rooms/:roomId" element={<RoomEditor />} />
+        <Route path="/projects/:projectId/rooms/:roomId" element={<RoomPlaceholderPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/library/profiles/:profileId" element={<ProfileEditorPage />} />
         <Route path="/library" element={<LibraryLayout />}>
