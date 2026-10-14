@@ -80,6 +80,7 @@ export const {
   renameRoom,
   deleteRoom,
   setActiveRoom,
+  setRoomSetting,
   updateRoomProfile,
   useAutoHeightsForRoom,
   setRoomPartNumberStart,

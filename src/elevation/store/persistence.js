@@ -1,3 +1,4 @@
+import { isPlainObject } from '@reduxjs/toolkit';
 import {
   CABINET_TYPE_IDS,
   DEFAULT_PROFILE,
@@ -6,6 +7,7 @@ import {
   FRAME_JOINS,
 } from '../model/constants.js';
 import { isBottomPart } from '../model/bottoms.js';
+import { cleanOverrides } from '../model/settingsResolve.js';
 import { isDoorDesignList } from '../model/doorDesigns.js';
 import { isSectionProfileList, migrateSectionProfile } from '../model/sectionProfiles.js';
 import {
@@ -598,6 +600,7 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
 
 function isRoom(room, profileKeys = PROFILE_KEYS) {
   return Boolean(room)
+    && (room.settingsOverrides === undefined || isPlainObject(room.settingsOverrides))
     && (room.doorDetails === undefined || typeof room.doorDetails === 'boolean')
     && (room.doorStyleTags === undefined || typeof room.doorStyleTags === 'boolean')
     && isDoorStyleList(room.doorStyles)
@@ -715,6 +718,11 @@ function normalizeDocument(document, schemaVersion) {
             : wall
         )) : room.walls,
       };
+      if (isPlainObject(room.settingsOverrides)) {
+        const overrides = cleanOverrides(room.settingsOverrides, 'room');
+        if (Object.keys(overrides).length) normalized.settingsOverrides = overrides;
+        else delete normalized.settingsOverrides;
+      }
       if (Array.isArray(normalized.walls)) {
         normalized.wallOrder = computeWallOrder(
           normalized,

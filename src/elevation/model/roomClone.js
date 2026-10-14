@@ -2,6 +2,12 @@ import { cloneGrid } from './grid.js';
 import { dot, subtract, wallFrame } from './geometry.js';
 import { WALL_SIDES, wallSideOf, wallSideView } from './wallSides.js';
 
+function cloneOverrides(values) {
+  return Object.fromEntries(Object.entries(values).map(([key, value]) => [
+    key, value && typeof value === 'object' ? cloneOverrides(value) : value,
+  ]));
+}
+
 function cloneRun(run) {
   const anchors = { left: false, right: false, ...(run.anchors ?? {}) };
   return {
@@ -47,6 +53,7 @@ function cloneRoom(room) {
     ...room,
     wallOrder: [...(room.wallOrder ?? [])],
     profile: { ...room.profile },
+    ...(room.settingsOverrides ? { settingsOverrides: cloneOverrides(room.settingsOverrides) } : {}),
     walls: room.walls.map((wall) => ({
       ...wall,
       name: wall.name ?? '',

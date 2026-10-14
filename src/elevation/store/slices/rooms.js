@@ -1,6 +1,8 @@
 import { v4 as uuid } from 'uuid';
 import { syncRoom } from '../../model/room.js';
 import { roundTo } from '../../model/units.js';
+import { allowedAt, registryEntry } from '../../model/settingsRegistry.js';
+import { cleanOverrides, withOverride } from '../../model/settingsResolve.js';
 import {
   createRoom,
   roomIndexFor,
@@ -40,6 +42,19 @@ export const roomReducers = {
       const room = state.rooms.find((candidate) => candidate.id === roomId);
       if (!room) return;
       activateRoom(state, room);
+    },
+    setRoomSetting(state, action) {
+      const { roomId, key, value } = action.payload;
+      const roomIndex = roomIndexFor(state, roomId);
+      const entry = registryEntry(key);
+      if (roomIndex === -1 || !entry || entry.managedBy || !allowedAt(key, 'room')) return;
+      if (value !== null && value !== undefined
+        && Object.keys(cleanOverrides(withOverride({}, key, value), 'room')).length === 0) return;
+      const room = state.rooms[roomIndex];
+      const overrides = withOverride(room.settingsOverrides, key, value);
+      if (Object.keys(overrides).length) room.settingsOverrides = overrides;
+      else delete room.settingsOverrides;
+      syncRoomAt(state, roomIndex);
     },
     updateRoomProfile(state, action) {
       const roomIndex = roomIndexFor(state, action.payload.roomId);
