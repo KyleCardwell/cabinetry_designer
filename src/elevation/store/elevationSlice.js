@@ -21,7 +21,7 @@ import { doorStyleReducers } from './slices/doorStyles.js';
 import { doorDesignReducers } from './slices/doorDesigns.js';
 import { sectionProfileReducers } from './slices/sectionProfiles.js';
 import { uiReducers } from './slices/ui.js';
-import { cloudReducers } from './slices/cloud.js';
+import { cloudReducers, registerInitialStateBuilder } from './slices/cloud.js';
 
 /** Create the elevation slice's initial persisted and transient state. */
 export function createInitialElevationState(document = loadElevationDocument()) {
@@ -41,6 +41,11 @@ export function createInitialElevationState(document = loadElevationDocument()) 
     prefs,
     // Project / phase overrides (SPEC-DB4): `{ id, values }` or null. Never saved to localStorage.
     layers: { project: null, phase: null },
+    // Where settings and the library come from (SPEC-DB4): 'local' = this browser's
+    // localStorage document (Elevation Lab sandbox), 'cloud' = the team's Supabase rows.
+    source: 'local',
+    cloud: null,
+    workspace: { loading: false, error: null },
     rooms,
     activeRoomId,
     activeWallId,
@@ -59,6 +64,8 @@ export function createInitialElevationState(document = loadElevationDocument()) 
     message: null,
   };
 }
+
+registerInitialStateBuilder(createInitialElevationState);
 
 const elevationSlice = createSlice({
   name: 'elevation',
@@ -211,6 +218,13 @@ export const {
   setSetting,
   updateSettings,
   setLayerSetting,
+  localWorkspaceLoaded,
+  cloudWorkspaceLoading,
+  cloudWorkspaceFailed,
+  cloudWorkspaceLoaded,
+  layersLoaded,
+  cloudSaved,
+  cloudSaveStatus,
 } = elevationSlice.actions;
 
 export default elevationSlice.reducer;

@@ -7,6 +7,7 @@ import objectReducer from './slices/objectSlice';
 import canvasReducer from './slices/canvasSlice';
 import elevationReducer from '../elevation/store/elevationSlice';
 import { setupElevationPersistence } from '../elevation/store/persistence';
+import { getDesignApi } from '../api/designApi';
 
 export const store = configureStore({
   reducer: {
@@ -18,6 +19,9 @@ export const store = configureStore({
     canvas: canvasReducer,
     elevation: elevationReducer,
   },
+  middleware: (getDefaultMiddleware) => getDefaultMiddleware({
+    thunk: { extraArgument: { getDesignApi } },
+  }),
 });
 
 setupElevationPersistence(store);

@@ -886,6 +886,8 @@ export function toElevationDocument(elevationState) {
 
 /** Persist a current elevation document without allowing storage failures to escape. */
 export function persistElevationDocument(elevationState) {
+  // Shop (Supabase) data never overwrites this browser's sandbox document (SPEC-DB4).
+  if (elevationState?.source === 'cloud') return;
   try {
     if (typeof window === 'undefined' || !window.localStorage) return;
     window.localStorage.setItem(
