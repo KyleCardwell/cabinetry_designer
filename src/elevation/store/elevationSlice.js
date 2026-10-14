@@ -204,6 +204,7 @@ export const {
   setMessage,
   setView,
   setPref,
+  setSetting,
   updateSettings,
 } = elevationSlice.actions;
 

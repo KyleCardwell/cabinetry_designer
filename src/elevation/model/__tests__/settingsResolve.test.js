@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
-import { cleanOverrides, resolveSetting, resolveSettings, withOverride } from '../settingsResolve.js';
+import { cleanOverrides, isValidSettingValue, resolveSetting, resolveSettings, withOverride } from '../settingsResolve.js';
 
 const team = (values) => ({ level: 'team', id: 'shop', values });
 const room = (values) => ({ level: 'room', id: 'kitchen', values });
@@ -112,5 +112,25 @@ describe('DB1 a settings resolver', () => {
     clean.insetFrame.rail = 99;
     expect(chain).toEqual(before);
     expect(DEFAULT_SETTINGS).toEqual(defaults);
+  });
+});
+
+describe('DB2 c setting value validation', () => {
+  it('checks registry kinds without rejecting managed keys (anchor 6)', () => {
+    expect(isValidSettingValue('roundTo', 0.25)).toBe(true);
+    expect(isValidSettingValue('roundTo', NaN)).toBe(false);
+    expect(isValidSettingValue('defaultEnds.left', 'none')).toBe(true);
+    expect(isValidSettingValue('nope', 1)).toBe(false);
+    for (const value of [Infinity, '0.25', null, undefined]) {
+      expect(isValidSettingValue('roundTo', value)).toBe(false);
+    }
+    expect(isValidSettingValue('openingsHaveCasing', false)).toBe(true);
+    expect(isValidSettingValue('openingsHaveCasing', 0)).toBe(false);
+    expect(isValidSettingValue('defaultEnds.left', 'bogus')).toBe(false);
+    expect(isValidSettingValue('defaultProfile.nosingProfileId', 'profile')).toBe(true);
+    expect(isValidSettingValue('defaultProfile.nosingProfileId', null)).toBe(true);
+    expect(isValidSettingValue('defaultProfile.nosingProfileId', 1)).toBe(false);
+    expect(isValidSettingValue('maxCabinetWidth', 30)).toBe(true);
+    expect(isValidSettingValue(undefined, 1)).toBe(false);
   });
 });

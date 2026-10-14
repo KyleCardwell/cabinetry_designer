@@ -68,7 +68,10 @@ export function withOverride(values, key, value) {
   return writeLeaf(values, parts, value, value === null || value === undefined);
 }
 
-function validValue(entry, value) {
+/** Check a registered leaf's kind, including managed shop-standard settings. */
+export function isValidSettingValue(key, value) {
+  const entry = registryEntry(key);
+  if (!entry) return false;
   switch (entry.kind) {
     case 'number': return Number.isFinite(value);
     case 'bool': return typeof value === 'boolean';
@@ -83,7 +86,7 @@ export function cleanOverrides(values, level) {
   let result = {};
   for (const entry of SETTINGS_REGISTRY) {
     const value = leafValue(values, entry.key);
-    if (!entry.managedBy && allowedAt(entry.key, level) && validValue(entry, value)) {
+    if (!entry.managedBy && allowedAt(entry.key, level) && isValidSettingValue(entry.key, value)) {
       result = writeLeaf(result, entry.key.split('.'), value);
     }
   }

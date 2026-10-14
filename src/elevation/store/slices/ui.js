@@ -1,6 +1,8 @@
 import { DEFAULT_PREFS } from '../../model/constants.js';
 import { PAPER_SIZES, PLOT_SCALES } from '../../model/drawingScale.js';
 import { wallSideOf } from '../../model/wallSides.js';
+import { registryEntry } from '../../model/settingsRegistry.js';
+import { isValidSettingValue, withOverride } from '../../model/settingsResolve.js';
 import {
   roomFor,
   syncRoomAt,
@@ -78,6 +80,12 @@ export const uiReducers = {
         if (typeof value !== 'boolean') return;
       } else if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return;
       state.prefs[key] = value;
+    },
+    setSetting(state, action) {
+      const { key, value } = action.payload;
+      if (value === null || value === undefined || !registryEntry(key) || !isValidSettingValue(key, value)) return;
+      state.settings = withOverride(state.settings, key, value);
+      for (let index = 0; index < state.rooms.length; index += 1) syncRoomAt(state, index);
     },
     updateSettings(state, action) {
       const changes = Object.fromEntries(Object.entries(action.payload)
