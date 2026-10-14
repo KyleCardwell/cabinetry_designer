@@ -31,8 +31,7 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
   const design = findDoorDesign(draft.designId, designs);
   const slab = design?.construction === 'slab';
   const fivePiece = design?.construction === 'five_piece';
-  const applied = design?.construction === 'slab_applied';
-  const frameUnused = slab || applied;
+  const frameUnused = slab;
   const arched = Boolean(design && (design.topRail.shape !== 'flat' || design.bottomRail.shape !== 'flat'));
   const change = (key, value) => setDraft((previous) => ({ ...previous, [key]: value }));
   const changeSize = (group, key, value) => setDraft((previous) => ({
@@ -67,13 +66,12 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
         </label>
         <SizeField label="Thickness" value={draft.thickness} onChange={(value) => change('thickness', value)} />
         <section className="space-y-2">
-          <h3 className={HEADING_CLASS}>{applied ? 'Molding inset' : 'Stiles & rails'}</h3>
-          {slab && <p className="text-xs text-gray-400">Not used by a slab — kept if you switch back</p>}
-          {applied && <p className="text-xs text-gray-400">Not used by Slab AM — kept if you switch back</p>}
+          <h3 className={HEADING_CLASS}>{slab ? 'Molding inset' : 'Stiles & rails'}</h3>
+          {slab && <p className="text-xs text-gray-400">Not used by {design.code} — kept if you switch back</p>}
           {!showSides ? (
             <>
               <SizeField
-                label={applied ? 'Inset' : 'Stile & rail width'}
+                label={slab ? 'Inset' : 'Stile & rail width'}
                 value={draft.stiles.left}
                 disabled={frameUnused}
                 onChange={setAll}
@@ -91,10 +89,10 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
             <>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  ['stiles', 'left', applied ? 'Left' : 'Left stile'],
-                  ['stiles', 'right', applied ? 'Right' : 'Right stile'],
-                  ['rails', 'top', applied ? 'Top' : 'Top rail'],
-                  ['rails', 'bottom', applied ? 'Bottom' : 'Bottom rail'],
+                  ['stiles', 'left', slab ? 'Left' : 'Left stile'],
+                  ['stiles', 'right', slab ? 'Right' : 'Right stile'],
+                  ['rails', 'top', slab ? 'Top' : 'Top rail'],
+                  ['rails', 'bottom', slab ? 'Bottom' : 'Bottom rail'],
                 ].map(([group, key, label]) => (
                   <SizeField
                     key={`${group}.${key}`}
@@ -175,7 +173,6 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
                 label={label}
                 value={draft.shortFace[key]}
                 allowZero={key === 'slabBelow'}
-                disabled={slab}
                 onChange={(value) => changeSize('shortFace', key, value)}
               />
             ))}

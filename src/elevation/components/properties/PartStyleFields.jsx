@@ -25,7 +25,7 @@ export default function PartStyleFields({
   const { style, design, warnings } = resolveDoorStyle(room, settings, partType, levels);
   const offsets = doorProfileOffsets(style, design, settings.sectionProfiles);
   const edgeOut = offsets.slots.outside?.reachOut ?? 0;
-  const applied = design.construction === 'slab_applied';
+  const applied = design.construction === 'slab';
   const rows = partSizeRows(style, design, { width, height, sizes: part?.sizes }, edgeOut, offsets.applied);
   const styleId = part?.styleId ?? '';
   const missingPick = picker && styleId !== ''
@@ -173,7 +173,7 @@ export default function PartStyleFields({
           {width > 0 && midFields('midStiles', 'stile', width)}
           {rows.opening && (
             <p className="text-xs text-gray-400">
-              {design.construction === 'slab_applied' ? 'Molding' : 'Panel'}{' '}
+              {design.construction === 'slab' ? 'Molding' : 'Panel'}{' '}
               {formatInches(rows.opening.width)} × {formatInches(rows.opening.height)}
             </p>
           )}

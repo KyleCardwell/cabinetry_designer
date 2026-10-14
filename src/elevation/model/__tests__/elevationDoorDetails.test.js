@@ -1,7 +1,6 @@
-import { LEGACY_DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
+import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
 import { elevationDoorDetails } from '../elevationDoorDetails.js';
 import { elevationParts } from '../elevationParts.js';
 import { gridLeaves } from '../grid.js';
@@ -11,10 +10,10 @@ import { normalizeElevationDocument } from '../../store/persistence.js';
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
 );
-const settings = { ...document.settings, doorDesigns: LEGACY_DOOR_DESIGNS };
+const settings = { ...document.settings, doorDesigns: DOOR_DESIGNS };
 const stored = (name) => document.rooms.find((candidate) => candidate.name === name);
 
-const C = { ...DEFAULT_DOOR_STYLE, id: 'ds-c', label: 'C', designId: 'slab-applied' };
+const C = { ...DEFAULT_DOOR_STYLE, id: 'ds-c', label: 'C', designId: 'slab-mdf' };
 const SL = { ...DEFAULT_DOOR_STYLE, id: 'ds-s', label: 'S', designId: 'slab' };
 
 const TALL_CAB = '28072a7d-e691-40d1-a005-4d0ed1c9e825';
@@ -35,7 +34,7 @@ const G1_A_IDS = [
   `${CAB_C}:rleft`, `${CAB_C}:rright`, `${CAB_D}:rleft`, `${CAB_D}:rright`, `${UP_1}:r`, `${UP_2}:r`,
 ];
 
-/** A golden room with C (Slab AM) and S (slab) listed, `patch` on the room, after `edit`, synced. */
+/** A golden room with C (Slab - MDF Core) and S (slab) listed, `patch` on the room, after `edit`, synced. */
 function room(name, patch = {}, edit = () => {}) {
   const copy = { ...structuredClone(stored(name)), ...patch, doorStyles: [C, SL] };
   edit(copy);
@@ -76,7 +75,7 @@ describe('SPEC-46.4 door details for one wall face', () => {
     expect(tagsOnly[2]).toEqual({ partId: `${CAB_24}:r`, tag: 'Std' });
   });
 
-  it('omits empty Slab AM details and includes slab parts when tags are on', () => {
+  it('omits empty Slab - MDF Core details and includes slab parts when tags are on', () => {
     const edit = (r) => {
       r.doorStyleId = 'ds-c';
       const base = r.walls.flatMap((wall) => wall.runs).find((run) => run.id === BASE);

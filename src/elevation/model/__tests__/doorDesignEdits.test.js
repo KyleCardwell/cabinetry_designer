@@ -49,7 +49,7 @@ describe('SPEC-46.3 door designs from the team library', () => {
       { level: 'room', roomId: 'r1', styleId: 'ds-b', label: 'B' },
     ]);
     expect(doorDesignUses(S, rooms, 'five-piece-square')).toEqual([{ level: 'team' }]);
-    expect(doorDesignUses(S, rooms, 'slab-applied')).toEqual([]);
+    expect(doorDesignUses(S, rooms, 'slab-mdf')).toEqual([]);
   });
 
   it('resolves a style\'s design from the team\'s designs', () => {

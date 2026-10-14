@@ -1,4 +1,4 @@
-import { LEGACY_DOOR_DESIGNS as DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
+import { DOOR_DESIGNS } from '../doorStyles.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS as CURRENT_SETTINGS } from '../constants.js';
 const DEFAULT_SETTINGS = { ...CURRENT_SETTINGS, doorDesigns: DOOR_DESIGNS };
@@ -9,7 +9,7 @@ import { setFacePart } from '../faceTree.js';
 const [SQUARE, SLAB, SLAB_AM] = DOOR_DESIGNS;
 const A = { ...DEFAULT_DOOR_STYLE, id: 'ds-a', label: 'A' };
 const B = { ...DEFAULT_DOOR_STYLE, id: 'ds-b', label: 'B', thickness: 1 };
-const C = { ...DEFAULT_DOOR_STYLE, id: 'ds-c', label: 'C', designId: 'slab-applied', thickness: 0.75 };
+const C = { ...DEFAULT_DOOR_STYLE, id: 'ds-c', label: 'C', designId: 'slab-mdf', thickness: 0.75 };
 
 describe('SPEC-46.1 a face\'s own style and sizes', () => {
   it('sets and clears styleId and sizes on a face leaf, never on a group or an open face', () => {
@@ -76,7 +76,7 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
         { id: 'default', text: 'Team default (Std · 5PC · 13/16")' },
         { id: 'ds-a', text: 'A · 5PC · 13/16"' },
         { id: 'ds-b', text: 'B · 5PC · 1"' },
-        { id: 'ds-c', text: 'C · Slab AM · 3/4"' },
+        { id: 'ds-c', text: 'C · Slab - MDF Core · 3/4"' },
       ],
     });
     expect(pickOptions(room, DEFAULT_SETTINGS, 'door', [{ level: 'room', node: room }], {}).inherit)
@@ -97,7 +97,7 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
     expect(pickOptions(room, DEFAULT_SETTINGS, 'drawer_front', above, {}).inherit)
       .toEqual({ id: 'default', text: 'Inherit (Std · 5PC · 13/16")' });
     expect(pickOptions(room, DEFAULT_SETTINGS, 'panel', above, {}).inherit)
-      .toEqual({ id: 'ds-c', text: 'Inherit (C · Slab AM · 3/4")' });
+      .toEqual({ id: 'ds-c', text: 'Inherit (C · Slab - MDF Core · 3/4")' });
     expect(pickOptions({}, DEFAULT_SETTINGS, 'panel', [], {})).toEqual({
       inherit: { id: 'default', text: 'Same as doors (Std · 5PC · 3/4")' },
       options: [{ id: 'default', text: 'Team default (Std · 5PC · 3/4")' }, { id: 'sheet', text: 'Sheet slab (3/4")' }],
@@ -122,7 +122,7 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
     });
   });
 
-  it('keeps Slab AM size rows usable without frame sizes and explains plain slabs', () => {
+  it('keeps Slab - MDF Core size rows usable without frame sizes and explains plain slabs', () => {
     const coreRows = partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 8.5 }, 0.3125);
     expect(coreRows.rows.map(({ value }) => value)).toEqual([2.875, 2.875, 3, 3]);
     expect(coreRows.opening).toEqual({ width: 8.375, height: 2.125 });
@@ -141,8 +141,8 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
       partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 4.75 }),
       partSizeRows(DEFAULT_DOOR_STYLE, SLAB_AM, { width: 15, height: 4.75 }),
     ]).toEqual([
-      { ...slab, note: 'Slab design' },
-      { ...slab, note: 'Slab under 4 13/16"' },
+      { title: 'Applied moldings', rows: [], midRails: [], midStiles: [], opening: { width: 15, height: 30 }, note: null },
+      { ...slab, note: 'Slab under 4 13/16" — molding left off' },
       { ...slab, note: 'Slab under 4 13/16" — molding left off' },
     ]);
   });

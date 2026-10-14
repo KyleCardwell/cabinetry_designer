@@ -1,7 +1,6 @@
-import { LEGACY_DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
+import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
 import { runDoorDetails } from '../doorDetails.js';
 import { elevationDoorDetails } from '../elevationDoorDetails.js';
 import { gridLeaves } from '../grid.js';
@@ -11,11 +10,11 @@ import { normalizeElevationDocument } from '../../store/persistence.js';
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
 );
-const settings = { ...document.settings, doorDesigns: LEGACY_DOOR_DESIGNS };
+const settings = { ...document.settings, doorDesigns: DOOR_DESIGNS };
 const stored = (name) => document.rooms.find((candidate) => candidate.name === name);
 
 const P = { ...DEFAULT_DOOR_STYLE, id: 'ds-p', label: 'P' };
-const C = { ...DEFAULT_DOOR_STYLE, id: 'ds-c', label: 'C', designId: 'slab-applied' };
+const C = { ...DEFAULT_DOOR_STYLE, id: 'ds-c', label: 'C', designId: 'slab-mdf' };
 const SL = { ...DEFAULT_DOOR_STYLE, id: 'ds-s', label: 'S', designId: 'slab' };
 
 const G1_BASE = 'b822e8ac-1a44-47ca-acec-ecb93caf7b8a';
@@ -33,7 +32,7 @@ const runOf = (room, id) => room.walls.flatMap((wall) => wall.runs).find((run) =
 const leafOf = (run, id) => gridLeaves(run.grid).find((node) => node.id === id);
 const part = (result, key) => result.parts.find((entry) => entry.key === key);
 
-/** A golden room with P, C (Slab AM) and S (slab) listed, after `edit`, synced; one run's door details. */
+/** A golden room with P, C (Slab - MDF Core) and S (slab) listed, after `edit`, synced; one run's door details. */
 function details(name, runId, edit = () => {}) {
   const room = structuredClone(stored(name));
   room.doorStyles = [P, C, SL];
@@ -67,18 +66,18 @@ describe('SPEC-46.2 door details for a run', () => {
     expect(result.warnings).toEqual([]);
   });
 
-  it('labels each part with its style; Slab AM gets its door-edge region, a slab face none', () => {
+  it('labels each part with its style; Slab - MDF Core gets its door-edge region, both slab cores get door-edge regions', () => {
     const result = details('G1 Euro kitchen', G1_BASE, (r) => {
       r.doorStyleId = 'ds-c';
       leafOf(runOf(r, G1_BASE), CAB_36).face = { type: 'pair_door', size: null, styleId: 'ds-s' };
     });
     const cab24 = part(result, `${CAB_24}:r`);
     expect([cab24.styleId, cab24.label, cab24.construction, cab24.openings])
-      .toEqual(['ds-c', 'C', 'slab_applied', [box(30.0625, 4.125, 23.875, 30.125)]]);
+      .toEqual(['ds-c', 'C', 'slab', [box(30.0625, 4.125, 23.875, 30.125)]]);
     expect(['left', 'right'].map((half) => {
       const leaf = part(result, `${CAB_36}:r:${half}`);
       return [leaf.label, leaf.construction, leaf.openings];
-    })).toEqual([['S', 'slab', []], ['S', 'slab', []]]);
+    })).toEqual([['S', 'slab', [box(54.0625, 4.125, 17.875, 30.125)]], ['S', 'slab', [box(72.0625, 4.125, 17.875, 30.125)]]]);
   });
 
   it('follows the short-face rule on G3\'s drawers, and warns when a shorter front above has a bigger panel', () => {
@@ -115,7 +114,7 @@ describe('SPEC-46.2 door details for a run', () => {
       leafOf(runOf(r, G3_UPPER), G3_BACK).styleId = 'sheet';
     });
     expect(sheet.parts.map(({ label, construction, openings }) => [label, construction, openings]))
-      .toEqual([['Sheet', 'slab', []]]);
+      .toEqual([['Sheet', 'slab', [box(0.75, 36, 70.5, 41.25)]]]);
   });
 
   it('passes on the resolver\'s warnings, one per part, with the part\'s key', () => {
@@ -251,7 +250,8 @@ it('Step 481 carries miters through run parts and keeps miter-only payload entri
   const door = part(result, `${CAB_24}:r`);
   expect(result.parts.every(({ miters }) => miters.length === 4)).toBe(true);
   expect(door.lines).toEqual([]);
-  expect(door.openings).toEqual([]);
+  expect(door.openings).toEqual([box(30.0625, 4.125, 23.875, 30.125)]);
+  expect(door.openingsShown).toBe(false);
   expect(door.miters).toEqual([
     { x1: 31.0625, z1: 5.125, x2: 30.0625, z2: 4.125 },
     { x1: 52.9375, z1: 5.125, x2: 53.9375, z2: 4.125 },

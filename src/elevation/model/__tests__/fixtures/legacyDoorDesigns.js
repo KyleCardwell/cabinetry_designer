@@ -1,6 +1,6 @@
 import { DOOR_DESIGNS } from '../../doorStyles.js';
 
-// Keep pre-50.18 drawing cases explicit until step 528 changes construction behavior.
+// Pre-50.18 designs retained for migration coverage.
 export const LEGACY_DOOR_DESIGNS = DOOR_DESIGNS.map((design, index) => {
   const { slabCore, panelJoint, defaults, ...legacy } = design;
   void slabCore;

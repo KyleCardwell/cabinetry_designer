@@ -264,6 +264,80 @@
       "drawnPoints": { "elevation": ["c"] },
       "version": 1,
       "archived": false
+    },
+    {
+      "id": "bead5",
+      "name": "Flush bead 5/16",
+      "kind": "door_outside",
+      "stretch": {
+        "y": -0.25
+      },
+      "geometry": {
+        "units": "in",
+        "points": {
+          "a": [
+            -0.3125,
+            0
+          ],
+          "q": [
+            -0.0625,
+            0
+          ],
+          "b": [
+            0,
+            0
+          ],
+          "c": [
+            0,
+            -0.8125
+          ],
+          "d": [
+            -0.3125,
+            -0.8125
+          ]
+        },
+        "loops": [
+          {
+            "id": "L1",
+            "closed": true,
+            "segs": [
+              {
+                "type": "line",
+                "from": "a",
+                "to": "q"
+              },
+              {
+                "type": "line",
+                "from": "q",
+                "to": "b"
+              },
+              {
+                "type": "line",
+                "from": "b",
+                "to": "c"
+              },
+              {
+                "type": "line",
+                "from": "c",
+                "to": "d"
+              },
+              {
+                "type": "line",
+                "from": "d",
+                "to": "a"
+              }
+            ]
+          }
+        ]
+      },
+      "drawnPoints": {
+        "elevation": [
+          "q",
+          "a"
+        ]
+      },
+      "version": 1,
+      "archived": false
     }
   ]
 }

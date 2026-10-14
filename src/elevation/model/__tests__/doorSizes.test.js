@@ -71,8 +71,8 @@ describe('SPEC-46 stile and rail sizes', () => {
   });
 
   it('makes slab-design parts slab at any size, and short parts slab by the rule', () => {
-    expect(partSizes(DEFAULT_DOOR_STYLE, SLAB, { width: 15, height: 30 })).toEqual({ construction: 'slab', slab: 'design' });
-    expect(partSizes(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 4.75 })).toEqual({ construction: 'slab', slab: 'rule' });
+    expect(partSizes(DEFAULT_DOOR_STYLE, SLAB, { width: 15, height: 30 })).toEqual({ construction: 'slab', slab: 'design', molding: true, designId: 'slab', midRails: [], midStiles: [], opening: { width: 15, height: 30 } });
+    expect(partSizes(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 4.75 })).toEqual({ construction: 'slab', slab: 'rule', molding: false, designId: 'slab' });
   });
 
   it('places mid rails and stiles, outside width plus the style\'s extra unless typed (DOOR-003)', () => {

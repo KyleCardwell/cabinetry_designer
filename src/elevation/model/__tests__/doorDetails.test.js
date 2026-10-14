@@ -1,6 +1,5 @@
-import { LEGACY_DOOR_DESIGNS as DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
+import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
 import { partSizes } from '../doorSizes.js';
 import { partDetail } from '../doorDetails.js';
 
@@ -28,9 +27,9 @@ describe('SPEC-46.2 a part\'s door detail: frame openings in wall coordinates', 
       partDetail(S, SLAB, box(0, 0, 15, 30)),
       partDetail(S, SLAB_AM, box(0, 0, 15, 4.75)),
     ]).toEqual([
-      { construction: 'slab', slab: 'rule', core: box(0, 0, 15, 4.75), openings: [] },
-      { construction: 'slab', slab: 'design', core: box(0, 0, 15, 30), openings: [] },
-      { construction: 'slab', slab: 'rule', molding: false, core: box(0, 0, 15, 4.75), openings: [] },
+      { construction: 'slab', slab: 'rule', molding: false, designId: 'slab', core: box(0, 0, 15, 4.75), openings: [] },
+      { construction: 'slab', slab: 'design', molding: true, designId: 'slab', core: box(0, 0, 15, 30), openings: [box(0, 0, 15, 30)], moldings: [], sizes: { ...partSizes(S, SLAB, { width: 15, height: 30 }), shift: 0, minPanel: 2.125 } },
+      { construction: 'slab', slab: 'design', molding: false, designId: 'slab-mdf', core: box(0, 0, 15, 4.75), openings: [] },
     ]);
   });
 
@@ -50,9 +49,9 @@ describe('SPEC-46.2 a part\'s door detail: frame openings in wall coordinates', 
     expect(partDetail(S, SQUARE, rect, { midRails: [{ at: 2 }] }).openings).toEqual([box(3, 3.5, 24, 33.5)]);
   });
 
-  it('splits Slab AM at zero-width centres from the true door edge', () => {
+  it('splits Slab - MDF Core at zero-width centres from the true door edge', () => {
     const molding = partDetail(S, SLAB_AM, box(0, 0, 15, 30));
-    expect([molding.construction, molding.openings]).toEqual(['slab_applied', [box(0, 0, 15, 30)]]);
+    expect([molding.construction, molding.openings]).toEqual(['slab', [box(0, 0, 15, 30)]]);
     expect(partDetail(S, SLAB_AM, box(0, 0, 15, 30), { midStiles: [{ at: 7.5 }] }).openings)
       .toEqual([box(0, 0, 7.5, 30), box(7.5, 0, 7.5, 30)]);
   });

@@ -118,7 +118,7 @@ export default function DoorProfilePickers({ draft, setDraft, design }) {
           onClick={() => setDraft(addAppliedMolding)}
         >Add molding</button>
         <p className="text-xs text-gray-400">
-          {design?.construction === 'slab_applied'
+          {design?.construction === 'slab'
             ? "Offset from the door edge to the molding's outer edge."
             : 'Offset from the stile/rail line; + toward the centre.'}
         </p>

@@ -204,16 +204,14 @@ export function pickOptions(room, settings, partType, levelsAbove, node = null) 
 /** Display typed and resolved sizes, or explain why this part is a slab. */
 export function partSizeRows(style, design, part, edgeOut = 0, moldings = []) {
   const core = inset({ x: 0, z: 0, ...part }, edgeOut);
-  const sizeRect = design.construction === 'slab_applied' ? part : core;
-  const result = partSizes(style, design, { ...sizeRect, sizes: part.sizes });
+  const sizeRect = design.construction === 'slab' ? part : core;
+  const result = partSizes(style, design, { ...sizeRect, coreHeight: core.height, sizes: part.sizes });
   const sizes = part.sizes ?? {};
-  if (result.construction === 'slab') {
-    const note = result.slab === 'design'
-      ? 'Slab design'
-      : `Slab under ${formatInches(style.shortFace.slabBelow)}${result.molding === false ? ' — molding left off' : ''}`;
+  if (result.construction === 'slab' && !result.molding) {
+    const note = `Slab under ${formatInches(style.shortFace.slabBelow)} — molding left off`;
     return { title: 'Slab', note, rows: [], midRails: [], midStiles: [], opening: null };
   }
-  const molding = result.construction === 'slab_applied';
+  const molding = result.construction === 'slab' && result.molding;
   if (molding) {
     const detail = partDetail(style, design, { x: 0, z: 0, ...part }, part.sizes, edgeOut, moldings);
     return {

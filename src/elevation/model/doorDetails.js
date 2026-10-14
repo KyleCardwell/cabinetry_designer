@@ -37,16 +37,16 @@ function splitIntervals(start, length, mids) {
 }
 
 /**
- * Frame openings (5-piece) or door-edge regions (Slab AM) of one part,
+ * Frame openings (5-piece) or door-edge regions (slabs with moldings) of one part,
  * in wall coordinates (SPEC-46.2, DOORS-PROFILES-PLAN §3.6).
  */
 export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = []) {
   const core = inset(rect, edgeOut);
-  const sizeRect = design.construction === 'slab_applied' ? rect : core;
-  const r = partSizes(style, design, { width: sizeRect.width, height: sizeRect.height, sizes });
-  if (r.construction === 'slab') return { ...r, core, openings: [] };
+  const sizeRect = design.construction === 'slab' ? rect : core;
+  const r = partSizes(style, design, { width: sizeRect.width, height: sizeRect.height, coreHeight: core.height, sizes });
+  if (r.construction === 'slab' && !r.molding) return { ...r, core, openings: [] };
 
-  if (r.construction === 'slab_applied') {
+  if (r.construction === 'slab' && r.molding) {
     const rows = splitIntervals(rect.z, rect.height, r.midRails);
     const columns = splitIntervals(rect.x, rect.width, r.midStiles);
     const openings = rows.flatMap(([bottom, top]) => columns.map(([left, right]) => ({
@@ -59,7 +59,7 @@ export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = [
     const shift = moldings.length && extent > allowed + 1e-6
       ? Math.max(0, Math.min(extent - allowed, ...moldings.map(({ offset }) => offset))) : 0;
     return {
-      construction: r.construction, core, openings,
+      construction: r.construction, slab: r.slab, molding: r.molding, designId: r.designId, core, openings,
       moldings: moldings.map(({ index, offset }) => ({
         index, offset: offset - shift, typed: offset, shifted: shift > 0,
       })),
@@ -109,7 +109,7 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
     warnings.push(...resolved.warnings.map((warning) => ({ ...warning, pieceId, key })));
     warnings.push(...offsets.warnings.map((warning) => ({ ...warning, pieceId, key })));
     warnings.push(...fit.warnings.map((warning) => ({ ...warning, pieceId, key })));
-    if (kind === 'face' && detail.construction !== 'slab') {
+    if (kind === 'face' && (detail.construction === 'five_piece' || (detail.construction === 'slab' && detail.molding))) {
       faceParts.get(pieceId).push({ path, ...detail.core, sizes: detail.sizes });
     }
   }

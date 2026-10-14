@@ -14,7 +14,7 @@ export function doorProfileOffsets(style, design, profiles = []) {
   const applied = [];
   const warnings = [];
   if (!design) return { slots, applied, warnings };
-  const slabApplied = design.construction === 'slab_applied';
+  const slab = design.construction === 'slab';
 
   for (const slot of DOOR_PROFILE_SLOTS) {
     if (!design.slots.includes(slot)) continue;
@@ -25,13 +25,19 @@ export function doorProfileOffsets(style, design, profiles = []) {
         applied.push({ index, profileId, name: null, offset, lines: [], applyLine: offset,
           minX: 0, maxX: 0, reachIn: round6(Math.max(0, offset)),
           reachOut: round6(Math.max(0, -offset)), covers: false,
-          ...(slabApplied ? { width: 0, lines: [0], applyLine: null } : {}) });
+          ...(slab ? { width: 0, lines: [0], applyLine: null } : {}) });
         continue;
       }
       if (typeof profileId !== 'string') continue;
       const profile = profiles.find(({ id }) => id === profileId);
       if (!profile || profile.kind !== doorProfileSlotKind(slot)) {
         warnings.push({ code: 'door-profile-missing', slot, ...(slot === 'applied' ? { index } : {}) });
+        continue;
+      }
+
+      if (slot === 'outside' && design.slabCore === 'mdf'
+        && profile.geometry.loops.some((loop) => loop.closed !== true)) {
+        warnings.push({ code: 'door-profile-routed-on-mdf', slot: 'outside' });
         continue;
       }
 
@@ -53,8 +59,8 @@ export function doorProfileOffsets(style, design, profiles = []) {
       const lines = new Set();
       for (const id of profile.drawnPoints?.elevation ?? []) {
         if (!Object.hasOwn(geometry.points, id)) continue;
-        const x = round6(geometry.points[id][0] - (slot === 'applied' && slabApplied ? b.minX : 0));
-        const keep = slot === 'applied' && slabApplied ? true
+        const x = round6(geometry.points[id][0] - (slot === 'applied' && slab ? b.minX : 0));
+        const keep = slot === 'applied' && slab ? true
           : slot === 'outside' ? Math.abs(x) > EPS && x > -reachOut + EPS
           : slot === 'panel' ? x > EPS : Math.abs(x) > EPS;
         if (keep) lines.add(x);
@@ -76,7 +82,7 @@ export function doorProfileOffsets(style, design, profiles = []) {
           applyLine: covers ? null : offset, minX: b.minX, maxX: b.maxX,
           reachIn: round6(Math.max(0, offset + b.maxX)),
           reachOut: round6(Math.max(0, -(offset + b.minX))),
-          ...(slabApplied ? {
+          ...(slab ? {
             width, applyLine: null,
             lines: [...new Set([0, width, ...picked.lines])]
               .sort((a, b) => a - b),
@@ -122,7 +128,7 @@ export function partProfileLines(offsets, detail, rect) {
   const miterKeys = new Set();
   const warnings = [];
   const fivePiece = detail.construction === 'five_piece';
-  const molding = detail.construction === 'slab_applied';
+  const molding = detail.construction === 'slab' && detail.molding;
   const fitted = [];
   if (fivePiece || molding) {
     for (const original of applied) {

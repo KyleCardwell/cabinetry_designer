@@ -1,18 +1,15 @@
 /** Final frame sizes for an installed part, including the short-face rule (SPEC-46). */
-export function partSizes(style, design, { width, height, sizes = {} }) {
-  if (design.construction !== 'five_piece' && design.construction !== 'slab_applied') {
-    return { construction: 'slab', slab: 'design' };
-  }
-  if (height < style.shortFace.slabBelow - 1e-9) {
-    if (design.construction === 'slab_applied') {
-      return { construction: 'slab', slab: 'rule', molding: false };
-    }
-    return { construction: 'slab', slab: 'rule' };
+export function partSizes(style, design, { width, height, coreHeight = height, sizes = {} }) {
+  if (coreHeight < style.shortFace.slabBelow - 1e-9) {
+    return {
+      construction: 'slab', slab: design.construction === 'slab' ? 'design' : 'rule',
+      molding: false, designId: design.construction === 'slab' ? design.id : 'slab',
+    };
   }
 
-  if (design.construction === 'slab_applied') {
+  if (design.construction === 'slab') {
     return {
-      construction: 'slab_applied', slab: null,
+      construction: 'slab', slab: 'design', molding: true, designId: design.id,
       midRails: (sizes.midRails ?? []).map(({ at }) => ({ at, width: 0 })),
       midStiles: (sizes.midStiles ?? []).map(({ at }) => ({ at, width: 0 })),
       opening: { width, height },
@@ -63,11 +60,13 @@ export function partSizes(style, design, { width, height, sizes = {} }) {
  */
 export function frontStackWarnings(parts) {
   const warnings = [];
+  const hasOpening = ({ construction, molding }) => construction === 'five_piece'
+    || (construction === 'slab' && molding);
   for (const a of parts) {
     for (const b of parts) {
       if (a === b
-        || !['five_piece', 'slab_applied'].includes(a.sizes.construction)
-        || !['five_piece', 'slab_applied'].includes(b.sizes.construction)) continue;
+        || !hasOpening(a.sizes)
+        || !hasOpening(b.sizes)) continue;
       if (
         Math.min(a.x + a.width, b.x + b.width) - Math.max(a.x, b.x) > 1e-6
         && a.z >= b.z + b.height - 1e-6
