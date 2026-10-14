@@ -172,8 +172,8 @@ describe('SPEC-50.6 step 492 base cutout data', () => {
     expect(state.rooms[0].walls[0].profile).not.toHaveProperty('baseCutoutProfileId');
     expect(resolved()).toBe('room-cut');
     state = elevationReducer(state, updateRoomProfile({ roomId, changes: { baseCutoutProfileId: null } }));
-    expect(state.rooms[0].profile).not.toHaveProperty('baseCutoutProfileId');
-    expect(resolved()).toBe('team-cut');
+    expect(state.rooms[0].profile.baseCutoutProfileId).toBeNull();
+    expect(resolved()).toBeNull();
     state = elevationReducer(state, updateRoomProfile({ roomId, changes: { baseCutoutProfileId: undefined } }));
     expect(state.rooms[0].profile).not.toHaveProperty('baseCutoutProfileId');
     expect(resolved()).toBe('team-cut');

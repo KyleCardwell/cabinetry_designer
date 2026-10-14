@@ -45,7 +45,7 @@ describe('DB1 e room profile overrides', () => {
     expect(settingsFor(state, state.rooms[1]).defaultProfile.wallHeight).toBe(108);
   });
 
-  it('stores height 100 then deletes it on null, and clears every key on null or undefined (anchor 3)', () => {
+  it('stores height 100 then deletes it on null, and clears numeric keys on null and every key on undefined (anchor 3)', () => {
     let state = createInitialElevationState(null);
     const roomId = state.rooms[0].id;
     state = elevationReducer(state, updateRoomProfile({ roomId, key: 'wallHeight', value: 100 }));
@@ -59,7 +59,9 @@ describe('DB1 e room profile overrides', () => {
       state = elevationReducer(state, updateRoomProfile({
         roomId, changes: Object.fromEntries(Object.keys(state.settings.defaultProfile).map((key) => [key, value])),
       }));
-      expect(state.rooms[0].profile).toEqual({});
+      const plainPicks = Object.fromEntries(Object.keys(state.settings.defaultProfile)
+        .filter((key) => key.endsWith('ProfileId')).map((key) => [key, null]));
+      expect(state.rooms[0].profile).toEqual(value === null ? plainPicks : {});
       expect(settingsFor(state, state.rooms[0]).defaultProfile.wallHeight).toBe(96);
     }
   });

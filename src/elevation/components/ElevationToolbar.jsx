@@ -1,5 +1,7 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { selectSettings } from '../store/selectors.js';
+import { resolveSetting } from '../model/settingsResolve.js';
+import { overrideTitle } from './overrideHelpers.js';
 import AddToolMenu from './AddToolMenu.jsx';
 import ExportDxfButton from './ExportDxfButton.jsx';
 import { nextWallId, wallLabel } from '../model/topology.js';
@@ -10,7 +12,7 @@ import {
   setTool,
   setView,
   setPref,
-  updateSettings,
+  setRoomSetting,
 } from '../store/elevationSlice.js';
 
 export default function ElevationToolbar({
@@ -27,6 +29,7 @@ export default function ElevationToolbar({
     activeRoomId,
     activeWallId,
     activeWallSide,
+    settings: shopSettings,
   } = useSelector((state) => state.elevation);
   const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
@@ -43,6 +46,9 @@ export default function ElevationToolbar({
   const addTools = view === 'plan'
     ? [['door', 'Door'], ['window', 'Window']]
     : [['soffit', 'Soffit'], ['recess', 'Recess'], ['door', 'Door'], ['window', 'Window']];
+  const soffitChoices = [['crown', 'Crown'], ['topMold', 'Top mold'], ['none', 'None']];
+  const inheritedSoffit = resolveSetting('defaultSoffitMolding', [{ level: 'team', values: shopSettings }]);
+  const soffitOverridden = room?.settingsOverrides?.defaultSoffitMolding != null;
 
   return (
     <div className="flex min-h-12 shrink-0 items-center gap-2 border-b border-gray-700 bg-gray-800 px-4">
@@ -87,30 +93,43 @@ export default function ElevationToolbar({
         onPick={(name) => dispatch(setTool(name))}
       />
       {view === 'elevation' && tool === 'soffit' && (
-        <div
-          className="flex rounded bg-gray-950 p-0.5"
-          aria-label="Default soffit molding"
-        >
-          {[
-            ['crown', 'Crown'],
-            ['topMold', 'Top mold'],
-            ['none', 'None'],
-          ].map(([value, label]) => (
+        <>
+          <div
+            className="flex rounded bg-gray-950 p-0.5"
+            aria-label="Default soffit molding"
+            title={overrideTitle({
+              overridden: soffitOverridden,
+              source: inheritedSoffit.source,
+              inheritedText: soffitChoices.find(([value]) => value === inheritedSoffit.value)?.[1],
+            })}
+          >
+            {soffitChoices.map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={settings.defaultSoffitMolding === value}
+                onClick={() => dispatch(setRoomSetting({ roomId: activeRoomId, key: 'defaultSoffitMolding', value }))}
+                className={`rounded px-2.5 py-1 text-xs transition-colors ${
+                  settings.defaultSoffitMolding === value
+                    ? `bg-blue-600 text-white${soffitOverridden ? ' ring-1 ring-teal-500' : ''}`
+                    : 'text-gray-400 hover:text-gray-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          {soffitOverridden && (
             <button
-              key={value}
               type="button"
-              aria-pressed={settings.defaultSoffitMolding === value}
-              onClick={() => dispatch(updateSettings({ defaultSoffitMolding: value }))}
-              className={`rounded px-2.5 py-1 text-xs transition-colors ${
-                settings.defaultSoffitMolding === value
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-400 hover:text-gray-200'
-              }`}
+              aria-label="Reset soffit molding"
+              onClick={() => dispatch(setRoomSetting({ roomId: activeRoomId, key: 'defaultSoffitMolding', value: null }))}
+              className="text-xs text-teal-400 hover:underline"
             >
-              {label}
+              Reset
             </button>
-          ))}
-        </div>
+          )}
+        </>
       )}
       {view === 'plan' && (
         <button

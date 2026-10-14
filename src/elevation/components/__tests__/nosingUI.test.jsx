@@ -6,6 +6,8 @@ import elevationReducer, { updateSettings } from '../../store/elevationSlice.js'
 import { run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import SettingsPanel from '../SettingsPanel.jsx';
 import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
+import OverrideField from '../OverrideField.jsx';
+import OverrideInput from '../OverrideInput.jsx';
 import WallHeightProperties from '../properties/WallHeightProperties.jsx';
 import RunFaceOptions from '../properties/RunFaceOptions.jsx';
 
@@ -30,7 +32,9 @@ const room = () => state.rooms[0];
 const wall = () => room().walls[0];
 const run = () => wall().runs[0];
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
-  : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
+  : tree && typeof tree === 'object'
+    ? tree.type === OverrideInput || tree.type === OverrideField
+      ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : text(tree?.props?.children ?? []);
 const panels = [
@@ -73,9 +77,8 @@ describe('SPEC-50.8 step 500 Nosing controls', () => {
       expect(picker(render, scope).props.value).toBe('nz1');
       expect(effective(scope)).toBe('nz1');
       pick(render, scope, 'plain');
-      if (scope === 'Room') expect(target()).not.toHaveProperty('nosingProfileId');
-      else expect(target().nosingProfileId).toBeNull();
-      expect(picker(render, scope).props.value).toBe(scope === 'Room' ? '' : 'plain');
+      expect(target().nosingProfileId).toBeNull();
+      expect(picker(render, scope).props.value).toBe('plain');
       expect(effective(scope)).toBeNull();
     });
 
@@ -97,7 +100,7 @@ describe('SPEC-50.8 step 500 Nosing controls', () => {
       expect(picker(render, scope).props.value).toBe('');
       expect(effective(scope)).toBe('nz1');
       pick(render, scope, 'plain');
-      expect(effective(scope)).toBe(scope === 'Room' ? 'nz1' : null);
+      expect(effective(scope)).toBeNull();
       pick(render, scope, 'nz1');
       pick(render, scope, '');
       expect(target()).not.toHaveProperty('nosingProfileId');

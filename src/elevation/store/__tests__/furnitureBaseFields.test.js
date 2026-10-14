@@ -96,7 +96,7 @@ describe('SPEC-50.5 saved furniture base fields', () => {
     state = elevationReducer(state, updateWall({ roomId, wallId, changes: {
       profile: { baseKind: null, furnitureBaseProud: null, furnitureBaseProfileId: null },
     } }));
-    expect(state.rooms[0].profile).not.toHaveProperty('furnitureBaseProfileId');
+    expect(state.rooms[0].profile.furnitureBaseProfileId).toBeNull();
     expect(state.rooms[0].walls[0].profile).toEqual({ furnitureBaseProfileId: null });
     state = elevationReducer(state, updateRoomProfile({ roomId, changes: { furnitureBaseProfileId: undefined } }));
     state = elevationReducer(state, updateWall({ roomId, wallId, changes: {

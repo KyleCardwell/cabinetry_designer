@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectSettings } from '../store/selectors.js';
 import { counterTop, crownOverlap, moldingStack, resolveProfile } from '../model/profile.js';
-import { formatInches, formatInchesInput } from '../model/units.js';
+import { formatInches } from '../model/units.js';
+import { resolveSetting } from '../model/settingsResolve.js';
 import {
   updateRoomProfile,
   useAutoHeightsForRoom,
@@ -11,6 +12,8 @@ import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { runBase } from '../model/furnitureBase.js';
 import { moldingProfiles } from '../model/moldingProfiles.js';
 import InchInput from './InchInput.jsx';
+import OverrideField from './OverrideField.jsx';
+import OverrideInput from './OverrideInput.jsx';
 
 const MOLDING_NOTES = {
   'furniture-base-too-short': "The furniture base is shorter than its profile's stretch line; drawn at its own size.",
@@ -38,17 +41,18 @@ const PROFILE_FIELDS = [
 
 export default function RoomHeightsPanel() {
   const dispatch = useDispatch();
-  const { rooms, activeRoomId } = useSelector((state) => state.elevation);
+  const { rooms, activeRoomId, settings: shopSettings } = useSelector((state) => state.elevation);
   const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const [open, setOpen] = useState(true);
 
   if (!room) return null;
-  const inheritedProfile = resolveProfile(settings);
+  const inheritedProfile = resolveProfile(shopSettings);
   const resolvedProfile = resolveProfile(settings, room);
   const moldings = moldingProfiles(resolvedProfile, settings);
   const base = runBase(room, null, { cabinetTypeId: CABINET_TYPE_IDS.BASE }, settings);
   const overlap = crownOverlap(resolvedProfile);
+  const inheritedSource = (key) => resolveSetting(`defaultProfile.${key}`, [{ level: 'team', values: shopSettings }]).source;
 
   return (
     <section className="border-t border-gray-700 pt-4">
@@ -68,53 +72,58 @@ export default function RoomHeightsPanel() {
             {PROFILE_FIELDS.map(([key, label]) => {
               const fromProfile = (key === 'crownHeight' && Boolean(moldings.crown))
                 || (key === 'topMoldHeight' && Boolean(moldings.topMold && !moldings.topMold.profile.stretch));
-              return (
+              return fromProfile ? (
                 <label key={key} className="text-xs text-gray-400">
                   {label}
                   <InchInput
                     value={resolvedProfile[key]}
-                    allowBlank
-                    placeholder={formatInchesInput(inheritedProfile[key])}
-                    readOnly={fromProfile}
-                    onCommit={(value) => fromProfile ? undefined : dispatch(updateRoomProfile({ roomId: room.id, key, value }))}
+                    readOnly
+                    onCommit={() => undefined}
                     aria-label={`Room ${label}`}
                     className="mt-1"
                   />
-                  {fromProfile && <span className="mt-1 block text-xs text-gray-500">from profile</span>}
+                  <span className="mt-1 block text-xs text-gray-500">from profile</span>
                 </label>
+              ) : (
+                <OverrideInput
+                  key={key}
+                  kind="number"
+                  readOnly={false}
+                  label={label}
+                  aria-label={`Room ${label}`}
+                  value={room.profile[key] ?? null}
+                  inherited={inheritedProfile[key]}
+                  source={inheritedSource(key)}
+                  onChange={(value) => dispatch(updateRoomProfile({ roomId: room.id, key, value }))}
+                />
               );
             })}
           </div>
 
           <div className="mt-2 grid grid-cols-2 gap-2">
-            <label className="block text-xs text-gray-400">
-              Base
-              <select
-                aria-label="Room Base"
-                value={room.profile.baseKind ?? ''}
-                onChange={(event) => {
-                  const value = event.target.value || undefined;
-                  dispatch(updateRoomProfile({ roomId: room.id, key: 'baseKind', value }));
-                }}
-                className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-              >
-                <option value="">Inherit</option>
-                <option value="toe_kick">Toe kick</option>
-                <option value="furniture_base">Furniture base</option>
-              </select>
-            </label>
+            <OverrideInput
+              kind="enum"
+              label="Base"
+              aria-label="Room Base"
+              value={room.profile.baseKind ?? null}
+              inherited={inheritedProfile.baseKind}
+              source={inheritedSource('baseKind')}
+              choices={[
+                { value: 'toe_kick', label: 'Toe kick' },
+                { value: 'furniture_base', label: 'Furniture base' },
+              ]}
+              onChange={(value) => dispatch(updateRoomProfile({ roomId: room.id, key: 'baseKind', value }))}
+            />
             {resolvedProfile.baseKind === 'furniture_base' && (
-              <label className="block text-xs text-gray-400">
-                Base proud
-                <InchInput
-                  aria-label="Room Base proud"
-                  value={resolvedProfile.furnitureBaseProud}
-                  allowBlank
-                  placeholder={formatInchesInput(inheritedProfile.furnitureBaseProud)}
-                  onCommit={(value) => value !== null && value < 0 ? false : dispatch(updateRoomProfile({ roomId: room.id, key: 'furnitureBaseProud', value }))}
-                  className="mt-1"
-                />
-              </label>
+              <OverrideInput
+                kind="number"
+                label="Base proud"
+                aria-label="Room Base proud"
+                value={room.profile.furnitureBaseProud ?? null}
+                inherited={inheritedProfile.furnitureBaseProud}
+                source={inheritedSource('furnitureBaseProud')}
+                onChange={(value) => value !== null && value < 0 ? false : dispatch(updateRoomProfile({ roomId: room.id, key: 'furnitureBaseProud', value }))}
+              />
             )}
           </div>
           <div className="mt-2 grid grid-cols-2 gap-2">
@@ -129,24 +138,34 @@ export default function RoomHeightsPanel() {
               const pickedId = room.profile[key];
               const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === kind && !entry.archived);
               const unavailable = pickedId && !choices.some((entry) => entry.id === pickedId);
+              const plainLabel = kind === 'nosing' ? 'None' : kind === 'base_cutout' ? 'Square' : 'Plain';
+              const inheritedText = inheritedProfile[key]
+                ? settings.sectionProfiles?.find((entry) => entry.id === inheritedProfile[key])?.name ?? 'Missing profile'
+                : plainLabel;
               return (
-                <label key={key} className="block text-xs text-gray-400">
-                  {label}
-                  <select
+                <OverrideField
+                  key={key}
+                  label={label}
+                  overridden={pickedId !== undefined}
+                  inheritedText={inheritedText}
+                  inheritedSource={inheritedSource(key)}
+                  onReset={() => dispatch(updateRoomProfile({ roomId: room.id, key, value: undefined }))}
+                >
+                  {(borderClass) => <select
                     aria-label={`Room ${label}`}
                     value={pickedId === null ? 'plain' : pickedId ?? ''}
                     onChange={(event) => {
                       const value = event.target.value === 'plain' ? null : event.target.value || undefined;
                       dispatch(updateRoomProfile({ roomId: room.id, key, value }));
                     }}
-                    className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+                    className={`mt-1 w-full rounded border ${borderClass} bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none`}
                   >
-                    <option value="">Inherit</option>
-                    <option value="plain">{kind === 'nosing' ? 'None' : kind === 'base_cutout' ? 'Square' : 'Plain'}</option>
+                    <option value="">{`Inherit (${inheritedText})`}</option>
+                    <option value="plain">{plainLabel}</option>
                     {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
                     {unavailable && <option value={pickedId} disabled>{settings.sectionProfiles?.find((entry) => entry.id === pickedId)?.name ?? 'Missing profile'} (unavailable)</option>}
-                  </select>
-                </label>
+                  </select>}
+                </OverrideField>
               );
             })}
           </div>

@@ -8,6 +8,8 @@ import { stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import InchInput from '../InchInput.jsx';
 import SettingsPanel from '../SettingsPanel.jsx';
 import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
+import OverrideField from '../OverrideField.jsx';
+import OverrideInput from '../OverrideInput.jsx';
 import WallHeightProperties from '../properties/WallHeightProperties.jsx';
 
 vi.mock('react', async (importOriginal) => ({
@@ -23,7 +25,9 @@ const dispatch = vi.fn((action) => { state = elevationReducer(state, action); })
 const room = () => state.rooms[0];
 const wall = () => room().walls[0];
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
-  : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
+  : tree && typeof tree === 'object'
+    ? tree.type === OverrideInput || tree.type === OverrideField
+      ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : text(tree?.props?.children ?? []);
 const panels = [
@@ -49,16 +53,16 @@ beforeEach(() => {
 });
 
 describe('Step 473 molding height panels', () => {
-  it('DB1 e: displays resolved room heights before editing and after clearing an override', () => {
+  it('DB2 e: displays inherited room heights as placeholders before editing and after clearing', () => {
     expect(room().profile).toEqual({});
-    expect(field(RoomHeightsPanel(), 'Room', 'Wall height').props.value).toBe(96);
+    expect(field(RoomHeightsPanel(), 'Room', 'Wall height').props).toMatchObject({ value: null, placeholder: '96' });
     dispatch(updateSettings({ defaultProfile: { wallHeight: 108 } }));
-    expect(field(RoomHeightsPanel(), 'Room', 'Wall height').props.value).toBe(108);
+    expect(field(RoomHeightsPanel(), 'Room', 'Wall height').props).toMatchObject({ value: null, placeholder: '108' });
     field(RoomHeightsPanel(), 'Room', 'Wall height').props.onCommit(100);
     expect(field(RoomHeightsPanel(), 'Room', 'Wall height').props.value).toBe(100);
     field(RoomHeightsPanel(), 'Room', 'Wall height').props.onCommit(null);
     expect(room().profile).toEqual({});
-    expect(field(RoomHeightsPanel(), 'Room', 'Wall height').props.value).toBe(108);
+    expect(field(RoomHeightsPanel(), 'Room', 'Wall height').props).toMatchObject({ value: null, placeholder: '108' });
   });
 
   for (const [scope, render] of panels) {
@@ -91,8 +95,8 @@ describe('Step 473 molding height panels', () => {
       expect(text(tree)).toContain('Overlap 1 1/2"');
       pick(render, scope, 'Top mold profile', 'plain');
       pick(render, scope, 'Crown profile', 'plain');
-      expect(field(render(), scope, 'Top mold').props.readOnly).toBe(scope === 'Room');
-      expect(field(render(), scope, 'Crown').props.readOnly).toBe(scope === 'Room');
+      expect(field(render(), scope, 'Top mold').props.readOnly).toBe(false);
+      expect(field(render(), scope, 'Crown').props.readOnly).toBe(false);
       expect(state.settings.defaultProfile).toMatchObject({ topMoldHeight: 8, crownHeight: 9 });
     });
 
@@ -129,10 +133,10 @@ describe('Step 473 molding height panels', () => {
       expect(field(render(), scope, 'Crown profile').props.value).toBe('');
       expect(field(render(), scope, 'Crown').props).toMatchObject({ value: 4.5, readOnly: true });
       const overhang = field(render(), scope, 'Top mold overhang');
-      expect(overhang.props).toMatchObject({ value: scope === 'Room' ? 0.5 : null, allowBlank: true, placeholder: '1/2' });
+      expect(overhang.props).toMatchObject({ value: null, allowBlank: true, placeholder: '1/2' });
       pick(render, scope, 'Crown profile', 'plain');
-      expect(field(render(), scope, 'Crown profile').props.value).toBe(scope === 'Room' ? '' : 'plain');
-      expect(field(render(), scope, 'Crown').props.readOnly).toBe(scope === 'Room');
+      expect(field(render(), scope, 'Crown profile').props.value).toBe('plain');
+      expect(field(render(), scope, 'Crown').props.readOnly).toBe(false);
       pick(render, scope, 'Crown profile', '');
       expect(scope === 'Room' ? room().profile : wall().profile).not.toHaveProperty('crownProfileId');
       expect(field(render(), scope, 'Crown').props.readOnly).toBe(true);

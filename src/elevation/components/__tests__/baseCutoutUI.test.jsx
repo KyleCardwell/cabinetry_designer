@@ -11,6 +11,8 @@ import KindPanel from '../../../library/profileEditor/KindPanel.jsx';
 import InchInput from '../InchInput.jsx';
 import SettingsPanel from '../SettingsPanel.jsx';
 import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
+import OverrideField from '../OverrideField.jsx';
+import OverrideInput from '../OverrideInput.jsx';
 import BaseCutoutRow from '../properties/BaseCutoutRow.jsx';
 import AddBaseCutoutButton from '../properties/AddBaseCutoutButton.jsx';
 import CabinetProperties from '../properties/CabinetProperties.jsx';
@@ -36,7 +38,9 @@ const wall = () => room().walls[0];
 const run = () => wall().runs[0];
 const props = () => ({ room: room(), wall: wall(), run: run(), settings: state.settings });
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
-  : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
+  : tree && typeof tree === 'object'
+    ? tree.type === OverrideInput || tree.type === OverrideField
+      ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : text(tree?.props?.children ?? []);
 const field = (tree, label) => nodes(tree).find(({ props }) => props['aria-label'] === label);
@@ -355,14 +359,13 @@ describe('Step 494 base cutout controls', () => {
       const label = `${scope} Cutout profile${scope === 'Wall' ? ' override' : ''}`;
       const picker = field(panel(), label);
       expect(options(picker).map(text)).toEqual(scope === 'Default'
-        ? ['Square', 'Cutout cove'] : ['Inherit', 'Square', 'Cutout cove']);
+        ? ['Square', 'Cutout cove'] : [scope === 'Room' ? 'Inherit (Square)' : 'Inherit', 'Square', 'Cutout cove']);
       picker.props.onChange({ target: { value: 'cut1' } });
       expect(target().baseCutoutProfileId).toBe('cut1');
       state.settings.sectionProfiles[0].archived = true;
       expect(options(field(panel(), label)).at(-1).props.disabled).toBe(true);
       field(panel(), label).props.onChange({ target: { value: 'plain' } });
-      if (scope === 'Room') expect(target()).not.toHaveProperty('baseCutoutProfileId');
-      else expect(target().baseCutoutProfileId).toBeNull();
+      expect(target().baseCutoutProfileId).toBeNull();
       if (scope !== 'Default') {
         field(panel(), label).props.onChange({ target: { value: '' } });
         expect(target()).not.toHaveProperty('baseCutoutProfileId');

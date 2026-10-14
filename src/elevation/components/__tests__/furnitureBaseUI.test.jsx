@@ -8,6 +8,8 @@ import elevationReducer, { updateSettings } from '../../store/elevationSlice.js'
 import { run as fixtureRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import SettingsPanel from '../SettingsPanel.jsx';
 import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
+import OverrideField from '../OverrideField.jsx';
+import OverrideInput from '../OverrideInput.jsx';
 import WallHeightProperties from '../properties/WallHeightProperties.jsx';
 import RunHeightsSection from '../properties/RunHeightsSection.jsx';
 
@@ -24,7 +26,9 @@ const room = () => state.rooms[0];
 const wall = () => room().walls[0];
 const run = () => wall().runs[0];
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
-  : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
+  : tree && typeof tree === 'object'
+    ? tree.type === OverrideInput || tree.type === OverrideField
+      ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : text(tree?.props?.children ?? []);
 const field = (tree, scope, label) => nodes(tree).find(({ props }) => props['aria-label'] === `${scope} ${label}${['Wall', 'Run'].includes(scope) ? ' override' : ''}`);
@@ -91,8 +95,7 @@ describe('Step 491 furniture base height panels', () => {
       expect(field(render(), scope, 'Base proud').props.onCommit(-0.5)).toBe(false);
       expect(target().furnitureBaseProud).toBe(0);
       pick(render, scope, 'Furniture base profile', 'plain');
-      if (scope === 'Room') expect(target()).not.toHaveProperty('furnitureBaseProfileId');
-      else expect(target().furnitureBaseProfileId).toBeNull();
+      expect(target().furnitureBaseProfileId).toBeNull();
       pick(render, scope, 'Base', 'toe_kick');
       expect(target().baseKind).toBe('toe_kick');
       expect(field(render(), scope, 'Furniture base profile')).toBeUndefined();
@@ -121,11 +124,10 @@ describe('Step 491 furniture base height panels', () => {
     it(`${scope}: inherits and clears proud, kind and profile picks according to scope`, () => {
       Object.assign(state.settings.defaultProfile, { baseKind: 'furniture_base', furnitureBaseProfileId: 'fb4', furnitureBaseProud: 0.8125 });
       expect(field(render(), scope, 'Base').props.value).toBe('');
-      expect(field(render(), scope, 'Base proud').props).toMatchObject({ value: scope === 'Room' ? 0.8125 : null, allowBlank: true, placeholder: '13/16' });
+      expect(field(render(), scope, 'Base proud').props).toMatchObject({ value: null, allowBlank: true, placeholder: '13/16' });
       pick(render, scope, 'Furniture base profile', 'plain');
-      if (scope === 'Room') expect(target()).not.toHaveProperty('furnitureBaseProfileId');
-      else expect(target().furnitureBaseProfileId).toBeNull();
-      expect(field(render(), scope, 'Furniture base profile').props.value).toBe(scope === 'Room' ? '' : 'plain');
+      expect(target().furnitureBaseProfileId).toBeNull();
+      expect(field(render(), scope, 'Furniture base profile').props.value).toBe('plain');
       pick(render, scope, 'Furniture base profile', '');
       expect(target()).not.toHaveProperty('furnitureBaseProfileId');
       field(render(), scope, 'Base proud').props.onCommit(1);

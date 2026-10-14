@@ -63,7 +63,10 @@ export const roomReducers = {
         [action.payload.key]: action.payload.value,
       };
       for (const [key, value] of Object.entries(changes)) {
-        if (value === null || value === undefined) delete state.rooms[roomIndex].profile[key];
+        // Profile picks use null for explicit Plain/None/Square; undefined inherits.
+        const profilePicker = ['topMoldProfileId', 'crownProfileId', 'nosingProfileId',
+          'furnitureBaseProfileId', 'baseCutoutProfileId'].includes(key);
+        if (value === undefined || (value === null && !profilePicker)) delete state.rooms[roomIndex].profile[key];
         else state.rooms[roomIndex].profile[key] = value;
       }
       syncRoomAt(state, roomIndex);

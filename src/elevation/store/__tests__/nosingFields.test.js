@@ -67,8 +67,8 @@ describe('SPEC-50.8 step 498 nosing pick data', () => {
     expect(state.rooms[0].walls[0].profile).not.toHaveProperty('nosingProfileId');
     expect(resolved().nosingProfileId).toBe('nz1');
     state = elevationReducer(state, updateRoomProfile({ ...target, changes: { nosingProfileId: null } }));
-    expect(state.rooms[0].profile).not.toHaveProperty('nosingProfileId');
-    expect(resolved().nosingProfileId).toBe('team-nosing');
+    expect(state.rooms[0].profile.nosingProfileId).toBeNull();
+    expect(resolved().nosingProfileId).toBeNull();
     state = elevationReducer(state, updateRoomProfile({ ...target, changes: { nosingProfileId: undefined } }));
     expect(state.rooms[0].profile).not.toHaveProperty('nosingProfileId');
     expect(resolved().nosingProfileId).toBe('team-nosing');
