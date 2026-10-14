@@ -4,6 +4,7 @@ import elevationReducer from '../elevation/store/elevationSlice';
 import { setupElevationPersistence } from '../elevation/store/persistence';
 import { getDesignApi } from '../api/designApi';
 import { cloudSync, setupCloudSync } from '../elevation/store/cloudSync';
+import { getDraftStore } from '../elevation/store/roomDrafts';
 
 export const store = configureStore({
   reducer: {
@@ -11,9 +12,9 @@ export const store = configureStore({
     elevation: elevationReducer,
   },
   middleware: (getDefaultMiddleware) => getDefaultMiddleware({
-    thunk: { extraArgument: { getDesignApi } },
+    thunk: { extraArgument: { getDesignApi, drafts: getDraftStore() } },
   }),
 });
 
 setupElevationPersistence(store);
-cloudSync.register(setupCloudSync(store, { getDesignApi }));
+cloudSync.register(setupCloudSync(store, { getDesignApi, drafts: getDraftStore() }));

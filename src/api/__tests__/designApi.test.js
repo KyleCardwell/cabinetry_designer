@@ -168,4 +168,35 @@ describe('designApi', () => {
     expect(await api.listAttachableProjects('t')).toEqual({ ok: false, reason: 'network', message: 'Offline' });
     expect(await api.archiveProject(4)).toEqual({ ok: false, reason: 'not_found', message: 'Project missing' });
   });
+
+  it('reads one room by id and maps a missing room to null', async () => {
+    const row = { room_id: 'r1', name: 'Kitchen', version: 5, document: {} };
+    const client = fakeClient({ tables: { design_rooms: { data: row, error: null } } });
+    expect(await createDesignApi(client).getRoom('r1')).toEqual({ ok: true, room: row });
+    expect(client.calls[0].chain).toEqual([
+      ['select', 'room_id, phase_id, name, status, status_at, version, schema_version, document, archived_at, updated_at'],
+      ['eq', 'room_id', 'r1'],
+      ['maybeSingle'],
+    ]);
+    const empty = fakeClient({ tables: { design_rooms: { data: null, error: null } } });
+    expect(await createDesignApi(empty).getRoom('nope')).toEqual({ ok: true, room: null });
+  });
+
+  it('saves a room document with the expected version and the demote flag', async () => {
+    const client = fakeClient({ rpc: { save_room_document: { data: { ok: true, version: 6, updated_at: 't', status: 'drafting' }, error: null } } });
+    const api = createDesignApi(client);
+    expect(await api.saveRoomDocument({ roomId: 'r1', document: { a: 1 }, schemaVersion: 4, expectedVersion: 5 }))
+      .toEqual({ ok: true, version: 6, updated_at: 't', status: 'drafting' });
+    await api.saveRoomDocument({ roomId: 'r1', document: { a: 1 }, schemaVersion: 4, expectedVersion: 5, demote: true });
+    expect(client.calls.map((call) => call.args)).toEqual([
+      { p_room_id: 'r1', p_document: { a: 1 }, p_schema_version: 4, p_expected_version: 5, p_demote: false },
+      { p_room_id: 'r1', p_document: { a: 1 }, p_schema_version: 4, p_expected_version: 5, p_demote: true },
+    ]);
+  });
+
+  it('passes the status and archived replies of a room save through', async () => {
+    const status = { ok: false, reason: 'status', status: 'approved', status_by_name: 'Kyle', status_at: 't', version: 5 };
+    const client = fakeClient({ rpc: { save_room_document: { data: status, error: null } } });
+    expect(await createDesignApi(client).saveRoomDocument({ roomId: 'r1', document: {}, schemaVersion: 4, expectedVersion: 5 })).toEqual(status);
+  });
 });

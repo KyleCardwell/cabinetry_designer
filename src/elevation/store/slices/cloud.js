@@ -1,3 +1,4 @@
+import { current } from '@reduxjs/toolkit';
 import { allowedAt, registryEntry } from '../../model/settingsRegistry.js';
 import { isValidSettingValue, withOverride } from '../../model/settingsResolve.js';
 import { syncRoomAt } from './helpers.js';
@@ -58,9 +59,11 @@ export const cloudReducers = {
         teamVersion,
         rows,
         layerVersions: { project: null, phase: null },
+        room: null,
         pending: 0,
         conflict: null,
         error: null,
+        statusBlock: null,
       },
       message,
     };
@@ -73,6 +76,16 @@ export const cloudReducers = {
     state.layers = { project: layerFrom(project), phase: layerFrom(phase) };
     state.cloud.layerVersions = { project: project?.version ?? null, phase: phase?.version ?? null };
     state.cloud.loadId += 1;
+    // Loading a page's layers closes an open shop room (its unsaved edits stay in the draft cache).
+    if (state.cloud.room) {
+      state.rooms = [];
+      state.activeRoomId = null;
+      state.activeWallId = null;
+      state.cloud.room = null;
+      state.cloud.statusBlock = null;
+      if (state.cloud.conflict?.target === 'room') state.cloud.conflict = null;
+      if (state.cloud.error?.target === 'room') state.cloud.error = null;
+    }
     for (let index = 0; index < state.rooms.length; index += 1) syncRoomAt(state, index);
   },
 
@@ -84,12 +97,77 @@ export const cloudReducers = {
     else if (target === 'profile') state.cloud.rows.profiles[id] = { rowId: rowId ?? id, version };
     else if (target === 'doorDesign') state.cloud.rows.doorDesigns[id] = { rowId, version };
     else if (LAYER_LEVELS.includes(target)) state.cloud.layerVersions[target] = version;
+    else if (target === 'room' && state.cloud.room) {
+      state.cloud.room.version = version;
+      if (action.payload.status) state.cloud.room.status = action.payload.status;
+      if (action.payload.updatedAt) state.cloud.room.updatedAt = action.payload.updatedAt;
+      state.cloud.room.demote = false;
+      state.cloud.room.conflictVersion = null;
+    }
+  },
+
+  /**
+   * One shop room opened (SPEC-DB6a): the editor holds just this room (`rooms: [room]`, DB16),
+   * with the project / phase overrides it inherits. `meta` is the room's row info:
+   * { id, phaseId, estProjectId, version, status, statusAt, statusByName, archived, updatedAt, schemaVersion }.
+   * The room's own id and name are the row's (set by the thunk).
+   */
+  cloudRoomLoaded(state, action) {
+    if (state.source !== 'cloud' || !state.cloud) return;
+    const { room, layers = {}, meta } = action.payload;
+    const { project = null, phase = null } = layers;
+    const cloud = state.cloud;
+    const message = state.message; // e.g. the workspace's load notes
+    const fresh = buildInitialState({
+      settings: current(state.settings), rooms: [room], activeRoomId: room.id, activeWallId: null, view: 'plan',
+    });
+    for (const key of Object.keys(state)) delete state[key];
+    Object.assign(state, fresh);
+    state.source = 'cloud';
+    state.layers = { project: layerFrom(project), phase: layerFrom(phase) };
+    state.cloud = {
+      ...cloud,
+      loadId: cloud.loadId + 1,
+      layerVersions: { project: project?.version ?? null, phase: phase?.version ?? null },
+      room: { demote: false, recovered: false, recoveredAt: null, staleDraft: null, conflictVersion: null, ...meta },
+      pending: 0,
+      conflict: null,
+      error: null,
+      statusBlock: null,
+    };
+    state.message = message;
+    for (let index = 0; index < state.rooms.length; index += 1) syncRoomAt(state, index);
+  },
+
+  /**
+   * Replace the open room's drawing with a recovered local draft (an unsaved copy from this
+   * browser, `savedAt` = when it was made). It then counts as an edit, so the sync saves it
+   * against the room's current version.
+   */
+  cloudRoomRecovered(state, action) {
+    const info = state.cloud?.room;
+    if (!info || state.rooms.length !== 1) return;
+    const { room, savedAt = null } = action.payload;
+    state.rooms[0] = { ...room, id: info.id, name: state.rooms[0].name };
+    info.recovered = true;
+    info.recoveredAt = savedAt;
+    info.staleDraft = null;
+    syncRoomAt(state, 0);
+  },
+
+  /** Patch what the editor knows about the open room's row (status, version, flags). */
+  cloudRoomPatch(state, action) {
+    const info = state.cloud?.room;
+    if (!info) return;
+    for (const key of ['status', 'statusAt', 'statusByName', 'archived', 'version', 'demote', 'staleDraft', 'conflictVersion', 'updatedAt', 'recovered', 'recoveredAt']) {
+      if (Object.hasOwn(action.payload, key)) info[key] = action.payload[key];
+    }
   },
 
   /** Sync bookkeeping: any of `{ pending, conflict, error }`. */
   cloudSaveStatus(state, action) {
     if (!state.cloud) return;
-    for (const key of ['pending', 'conflict', 'error']) {
+    for (const key of ['pending', 'conflict', 'error', 'statusBlock']) {
       if (Object.hasOwn(action.payload, key)) state.cloud[key] = action.payload[key];
     }
   },

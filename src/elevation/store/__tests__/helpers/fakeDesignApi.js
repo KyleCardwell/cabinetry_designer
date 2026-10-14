@@ -67,6 +67,28 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
     async listProfiles() { calls.push(['listProfiles']); return { ok: true, rows: structuredClone(db.profiles) }; },
     async listDoorDesigns() { calls.push(['listDoorDesigns']); return { ok: true, rows: structuredClone(db.doorDesigns.filter((row) => !row.archived_at)) }; },
     async getProject(id) { calls.push(['getProject', id]); return { ok: true, project: db.project && structuredClone(db.project) }; },
+    async getRoom(roomId) {
+      calls.push(['getRoom', roomId]);
+      await wait();
+      if (api.failNext) { const reply = api.failNext; api.failNext = null; return reply; }
+      const room = roomFor(roomId);
+      return { ok: true, room: room ? structuredClone({ status_at: null, ...room }) : null };
+    },
+    async saveRoomDocument({ roomId, document, schemaVersion, expectedVersion, demote = false }) {
+      calls.push(['saveRoomDocument', roomId, expectedVersion, demote]);
+      await wait();
+      if (api.failNext) { const reply = api.failNext; api.failNext = null; return reply; }
+      const room = roomFor(roomId);
+      if (!room) return missing('Room');
+      if (room.archived_at) return { ok: false, reason: 'archived' };
+      if (room.version !== expectedVersion) return conflict(room.version);
+      if (room.status !== 'drafting' && !demote) {
+        return { ok: false, reason: 'status', status: room.status, status_by_name: 'Other', status_at: 't', version: room.version };
+      }
+      Object.assign(room, { document: structuredClone(document), schema_version: schemaVersion,
+        version: room.version + 1, status: 'drafting', updated_at: 't2' });
+      return { ok: true, version: room.version, updated_at: room.updated_at, status: room.status };
+    },
     async saveTeamSettings(teamId, settings, expected) {
       calls.push(['saveTeamSettings', expected]);
       await wait();
@@ -232,14 +254,14 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
 export const TEAM_ID = '0192a1b2-0000-7000-8000-00000000000a';
 export const ALL = { view: true, edit: true, manage: true };
 
-export function cloudStore(api, permissions = ALL, teamId = TEAM_ID) {
+export function cloudStore(api, permissions = ALL, teamId = TEAM_ID, extra = {}) {
   return configureStore({
     reducer: {
       auth: (state = { teamId, permissions }) => state,
       elevation: elevationReducer,
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware({
-      thunk: { extraArgument: { getDesignApi: async () => api } },
+      thunk: { extraArgument: { getDesignApi: async () => api, ...extra } },
       serializableCheck: false,
       immutableCheck: false,
     }),

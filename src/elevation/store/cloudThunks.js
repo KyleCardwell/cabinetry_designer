@@ -14,13 +14,18 @@ import { SEEDED_DESIGN_IDS, isDoorDesignList } from '../model/doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS, findDoorDesign } from '../model/doorStyles.js';
 import { cleanOverrides } from '../model/settingsResolve.js';
 import {
+  cloudRoomLoaded,
+  cloudRoomPatch,
+  cloudRoomRecovered,
   cloudWorkspaceFailed,
   cloudWorkspaceLoaded,
   cloudWorkspaceLoading,
   layersLoaded,
   localWorkspaceLoaded,
 } from './elevationSlice.js';
-import { loadElevationDocument } from './persistence.js';
+import { cloudSync } from './cloudSync.js';
+import { loadElevationDocument, roomFromDocument, toRoomDocument } from './persistence.js';
+import { readDraft } from './roomDrafts.js';
 
 function apiFrom(extra) {
   return (extra?.getDesignApi ?? defaultGetDesignApi)();
@@ -155,5 +160,192 @@ export function openLocalWorkspace() {
   return (dispatch) => {
     dispatch(localWorkspaceLoaded(loadElevationDocument()));
     return { ok: true };
+  };
+}
+
+// ---------------------------------------------------------------------------------------
+// Opening and saving one shop room (SPEC-DB6a). The thunk extra argument may carry
+// `drafts` (the IndexedDB draft store) and `sync` (the running cloud sync); the app sets
+// `drafts`, and the sync defaults to the registered `cloudSync`.
+// ---------------------------------------------------------------------------------------
+
+const syncOf = (extra) => extra?.sync ?? cloudSync;
+
+// Only the latest openCloudRoom may load: a slow reply for a room the user already left is dropped.
+let openSeq = 0;
+
+function overridesLayer(id, row) {
+  return { id, values: cleanOverrides(row?.overrides, 'project'), version: row?.version ?? 1 };
+}
+
+const roomText = (room) => JSON.stringify(toRoomDocument(room));
+
+/**
+ * Open one room from the shop data: its drawing, with the shop standard, library and the
+ * project / phase overrides it inherits. The editor then holds just this room (`rooms: [room]`).
+ * The room's row id and name win over whatever the document says.
+ *
+ * Unsaved edits are settled first (draft copy written, saves flushed). Then, if this browser
+ * holds a draft of the room from an earlier session, either
+ *  - it started from the room's current version → it is put back as an edit (`recovered`), saved by the sync; or
+ *  - the room was saved by someone else since → the server's room opens and the draft waits
+ *    (`cloud.room.staleDraft`) for `applyStaleRoomDraft` / `discardStaleRoomDraft`.
+ * `discardLocal` throws away this room's draft and any unsaved edits instead (after a conflict).
+ * → { ok: true, recovered, staleDraft } | { ok: false, reason, message }
+ */
+export function openCloudRoom({ estProjectId, roomId, discardLocal = false }) {
+  return async (dispatch, getState, extra) => {
+    const sync = syncOf(extra);
+    const drafts = extra?.drafts ?? null;
+    const seq = ++openSeq;
+    const superseded = { ok: false, reason: 'superseded', message: 'Another room was opened.' };
+
+    if (discardLocal) {
+      await drafts?.delete(roomId);
+    } else if (getState().elevation.source === 'cloud') {
+      await sync.saveDraftNow();
+      await sync.flush(); // best effort: a paused room keeps its draft copy
+    }
+    if (getState().elevation.source !== 'cloud' || !getState().elevation.cloud) {
+      const opened = await dispatch(openCloudWorkspace());
+      if (!opened.ok) return opened;
+    }
+    const api = await apiFrom(extra);
+    const [projectReply, roomReply] = await Promise.all([api.getProject(estProjectId), api.getRoom(roomId)]);
+    if (seq !== openSeq) return superseded;
+    const failed = [projectReply, roomReply].find((reply) => !reply.ok);
+    if (failed) return { ok: false, reason: failed.reason, message: `Couldn't open the room: ${failed.message}` };
+    const { project } = projectReply;
+    const row = roomReply.room;
+    if (!project) return { ok: false, reason: 'not_found', message: 'That project is not in the designer.' };
+    const phase = project.phases?.find((entry) => entry.rooms?.some((candidate) => candidate.room_id === roomId));
+    if (!row || !phase || row.phase_id !== phase.phase_id) {
+      return { ok: false, reason: 'not_found', message: 'That room is not in this project.' };
+    }
+    const listed = phase.rooms.find((candidate) => candidate.room_id === roomId);
+
+    const { settings } = getState().elevation;
+    const loaded = roomFromDocument(row.document, row.schema_version, settings);
+    if (!loaded.ok) return loaded;
+
+    dispatch(cloudRoomLoaded({
+      room: { ...loaded.room, id: row.room_id, name: row.name },
+      layers: {
+        project: overridesLayer(estProjectId, project.design),
+        phase: { id: phase.phase_id, values: cleanOverrides(phase.overrides, 'phase'), version: phase.version },
+      },
+      meta: {
+        id: row.room_id,
+        phaseId: row.phase_id,
+        estProjectId,
+        version: row.version,
+        status: row.status,
+        statusAt: row.status_at ?? null,
+        statusByName: listed?.status_by_name ?? null,
+        archived: Boolean(row.archived_at),
+        updatedAt: row.updated_at ?? null,
+        schemaVersion: row.schema_version,
+      },
+    }));
+
+    const result = { ok: true, recovered: false, staleDraft: null };
+    const { teamId, permissions } = getState().elevation.cloud;
+    if (discardLocal) {
+      await drafts?.delete(roomId); // again, in case a queued draft write landed after the first delete
+      return result;
+    }
+    if (!drafts || !permissions?.edit || row.archived_at) return result;
+    const draft = readDraft(await drafts.get(roomId));
+    if (seq !== openSeq) return result;
+    if (!draft) return result;
+    const usable = draft.teamId === teamId ? roomFromDocument(draft.document, draft.schemaVersion, settings) : { ok: false };
+    if (!usable.ok) {
+      await drafts.delete(roomId);
+      return result;
+    }
+    if (draft.baseVersion !== row.version) {
+      const staleDraft = { savedAt: draft.savedAt, baseVersion: draft.baseVersion };
+      dispatch(cloudRoomPatch({ staleDraft }));
+      return { ...result, staleDraft };
+    }
+    const before = roomText(getState().elevation.rooms[0]);
+    dispatch(cloudRoomRecovered({ room: usable.room, savedAt: draft.savedAt }));
+    if (roomText(getState().elevation.rooms[0]) === before) {
+      dispatch(cloudRoomPatch({ recovered: false, recoveredAt: null }));
+      await drafts.delete(roomId);
+      return result;
+    }
+    return { ...result, recovered: true };
+  };
+}
+
+/** The waiting draft replaces the room as it was saved (others' newer changes are overwritten); the sync saves it. */
+export function applyStaleRoomDraft() {
+  return async (dispatch, getState, extra) => {
+    const info = getState().elevation.cloud?.room;
+    const drafts = extra?.drafts ?? null;
+    if (!info?.staleDraft || !drafts) return { ok: false, reason: 'no_draft', message: 'There is no saved copy to restore.' };
+    const draft = readDraft(await drafts.get(info.id));
+    const usable = draft ? roomFromDocument(draft.document, draft.schemaVersion, getState().elevation.settings) : { ok: false };
+    if (!usable.ok) {
+      await drafts.delete(info.id);
+      dispatch(cloudRoomPatch({ staleDraft: null }));
+      return { ok: false, reason: 'no_draft', message: 'The saved copy could not be read, so it was removed.' };
+    }
+    dispatch(cloudRoomRecovered({ room: usable.room, savedAt: draft.savedAt }));
+    return { ok: true };
+  };
+}
+
+/** Forget the waiting draft; the room stays as the server has it. */
+export function discardStaleRoomDraft() {
+  return async (dispatch, getState, extra) => {
+    const info = getState().elevation.cloud?.room;
+    if (!info) return { ok: false, reason: 'no_room', message: 'No room is open.' };
+    await extra?.drafts?.delete(info.id);
+    dispatch(cloudRoomPatch({ staleDraft: null }));
+    return { ok: true };
+  };
+}
+
+/** Conflict, "keep mine": save over the newer version. The user confirmed overwriting the other save. */
+export function overwriteRoomConflict() {
+  return async (dispatch, getState, extra) => {
+    const info = getState().elevation.cloud?.room;
+    if (!info || info.conflictVersion === null || info.conflictVersion === undefined) {
+      return { ok: false, reason: 'no_conflict', message: 'There is no conflict to settle.' };
+    }
+    dispatch(cloudRoomPatch({ version: info.conflictVersion, conflictVersion: null }));
+    return syncOf(extra).resume('room');
+  };
+}
+
+/** Conflict, "use theirs": drop this browser's edits and open the room as saved. */
+export function reloadRoomAfterConflict() {
+  return (dispatch, getState) => {
+    const info = getState().elevation.cloud?.room;
+    if (!info) return Promise.resolve({ ok: false, reason: 'no_room', message: 'No room is open.' });
+    return dispatch(openCloudRoom({ estProjectId: info.estProjectId, roomId: info.id, discardLocal: true }));
+  };
+}
+
+/**
+ * The user agreed to edit an Approved / Released room: the next save drops it to Drafting.
+ * Resumes the paused save.
+ */
+export function allowRoomDemote() {
+  return (dispatch, getState, extra) => {
+    if (!getState().elevation.cloud?.room) return Promise.resolve({ ok: false, reason: 'no_room', message: 'No room is open.' });
+    dispatch(cloudRoomPatch({ demote: true }));
+    return syncOf(extra).resume('room');
+  };
+}
+
+/** Leaving the room page: copy unsaved edits to the draft cache and send what can be sent. */
+export function leaveCloudRoom() {
+  return async (dispatch, getState, extra) => {
+    const sync = syncOf(extra);
+    await sync.saveDraftNow();
+    return sync.flush();
   };
 }

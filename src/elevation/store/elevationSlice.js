@@ -226,6 +226,9 @@ export const {
   layersLoaded,
   cloudSaved,
   cloudSaveStatus,
+  cloudRoomLoaded,
+  cloudRoomRecovered,
+  cloudRoomPatch,
 } = elevationSlice.actions;
 
 export default elevationSlice.reducer;

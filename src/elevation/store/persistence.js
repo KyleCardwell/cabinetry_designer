@@ -598,7 +598,7 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
     && (wall.landings === undefined || isLandings(wall.landings));
 }
 
-function isRoom(room, profileKeys = PROFILE_KEYS) {
+export function isRoom(room, profileKeys = PROFILE_KEYS) {
   return Boolean(room)
     && (room.settingsOverrides === undefined || isPlainObject(room.settingsOverrides))
     && (room.doorDetails === undefined || typeof room.doorDetails === 'boolean')
@@ -877,32 +877,64 @@ export function loadElevationDocument() {
   }
 }
 
+/** One room as it is stored (localStorage and the shop's `design_rooms.document`): derived fields left out. */
+export function toRoomDocument(room) {
+  return {
+    ...room,
+    walls: room.walls.map((wall) => {
+      const { _endPanelThickness, ...persistedWall } = wall;
+      void _endPanelThickness;
+      return {
+        ...persistedWall,
+        runs: wall.runs.map((run) => {
+          const { _pinWidths, _seamGap, _frame, _plane, _doorThickness, _endThickness, ...persistedRun } = run;
+          void _pinWidths;
+          void _seamGap;
+          void _frame;
+          void _plane;
+          void _doorThickness;
+          void _endThickness;
+          return normalizeRunWaterfall(normalizeRunTopOverhang(persistedRun));
+        }),
+      };
+    }),
+  };
+}
+
+/**
+ * A stored room document → a room ready for the editor (older fields filled in), or a
+ * readable failure. `settings` only feeds the same load-time migrations a full document gets.
+ * → { ok: true, room } | { ok: false, reason: 'bad_document' | 'schema', message }
+ */
+export function roomFromDocument(document, schemaVersion, settings) {
+  if (typeof schemaVersion === 'number' && schemaVersion > ELEVATION_SCHEMA_VERSION) {
+    return { ok: false, reason: 'schema', message: 'This room was saved by a newer version of the designer. Reload the page to update, then open it again.' };
+  }
+  if (schemaVersion !== ELEVATION_SCHEMA_VERSION) {
+    return { ok: false, reason: 'schema', message: `This room uses an unsupported older format (version ${schemaVersion}).` };
+  }
+  if (!isPlainObject(document)) {
+    return { ok: false, reason: 'bad_document', message: 'This room\'s saved drawing could not be read.' };
+  }
+  try {
+    const normalized = normalizeElevationDocument({
+      schemaVersion, settings, rooms: [structuredClone(document)], activeRoomId: null, activeWallId: null, view: 'plan',
+    });
+    const room = normalized?.rooms?.[0];
+    if (!isRoom(room)) return { ok: false, reason: 'bad_document', message: 'This room\'s saved drawing could not be read.' };
+    return { ok: true, room };
+  } catch {
+    return { ok: false, reason: 'bad_document', message: 'This room\'s saved drawing could not be read.' };
+  }
+}
+
 /** Return only the current document fields that belong in localStorage. */
 export function toElevationDocument(elevationState) {
   return {
     schemaVersion: elevationState.schemaVersion,
     settings: Object.fromEntries(Object.entries(elevationState.settings)
       .filter(([key]) => !Object.hasOwn(DEFAULT_PREFS, key))),
-    rooms: elevationState.rooms.map((room) => ({
-      ...room,
-      walls: room.walls.map((wall) => {
-        const { _endPanelThickness, ...persistedWall } = wall;
-        void _endPanelThickness;
-        return {
-          ...persistedWall,
-          runs: wall.runs.map((run) => {
-            const { _pinWidths, _seamGap, _frame, _plane, _doorThickness, _endThickness, ...persistedRun } = run;
-            void _pinWidths;
-            void _seamGap;
-            void _frame;
-            void _plane;
-            void _doorThickness;
-            void _endThickness;
-            return normalizeRunWaterfall(normalizeRunTopOverhang(persistedRun));
-          }),
-        };
-      }),
-    })),
+    rooms: elevationState.rooms.map(toRoomDocument),
     activeRoomId: elevationState.activeRoomId,
     activeWallId: elevationState.activeWallId,
     view: elevationState.view,

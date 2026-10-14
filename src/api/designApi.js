@@ -42,6 +42,7 @@ async function rpc(client, name, args) {
 }
 
 const PROFILE_COLUMNS = 'profile_id, kind, name, data, version, sort, archived_at';
+const ROOM_COLUMNS = 'room_id, phase_id, name, status, status_at, version, schema_version, document, archived_at, updated_at';
 const DESIGN_COLUMNS = 'design_id, code, data, version, sort, archived_at';
 
 export function createDesignApi(client) {
@@ -68,6 +69,26 @@ export function createDesignApi(client) {
     async getProject(estProjectId) {
       const reply = await rpc(client, 'get_design_project', { p_est_project_id: estProjectId });
       return reply.ok ? { ok: true, project: reply.data ?? null } : reply;
+    },
+    /**
+     * One room with its document (a plain select, DB16). → { ok, room: row | null }
+     * Row: room_id, phase_id, name, status, status_at, version, schema_version, document, archived_at, updated_at.
+     */
+    async getRoom(roomId) {
+      const reply = await run(() => client.from('design_rooms')
+        .select(ROOM_COLUMNS).eq('room_id', roomId).maybeSingle());
+      return reply.ok ? { ok: true, room: reply.data ?? null } : reply;
+    },
+    /**
+     * Autosave of a room's document. → { ok, version, updated_at, status } | conflict
+     * | { ok:false, reason:'status', status, status_by_name, status_at, version } | { ok:false, reason:'archived' }
+     * `demote` is true only after the user confirmed editing an Approved/Released room.
+     */
+    saveRoomDocument({ roomId, document, schemaVersion, expectedVersion, demote = false }) {
+      return rpc(client, 'save_room_document', {
+        p_room_id: roomId, p_document: document, p_schema_version: schemaVersion,
+        p_expected_version: expectedVersion, p_demote: demote,
+      });
     },
     saveTeamSettings(teamId, settings, expectedVersion) {
       return rpc(client, 'save_team_settings', {
