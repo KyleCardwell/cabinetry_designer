@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../store/selectors.js';
 import { isDoorStyle } from '../model/doorStyles.js';
 import { updateDoorStyle } from '../store/elevationSlice.js';
 import DoorStyleFields from './DoorStyleFields.jsx';
@@ -9,7 +10,7 @@ const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-
 
 export default function DoorStyleEditor({ room, styleId, onClose }) {
   const dispatch = useDispatch();
-  const settings = useSelector((state) => state.elevation.settings);
+  const settings = useSelector(selectSettings);
   const [draft, setDraft] = useState(() => structuredClone(room.doorStyles.find((style) => style.id === styleId)));
   const titleId = useId();
   const panelRef = useRef(null);

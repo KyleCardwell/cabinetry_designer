@@ -23,6 +23,7 @@ import {
   wallLocation,
   runLocation,
   syncRoomAt,
+  settingsFor,
   clearTransientSelection,
 } from './helpers.js';
 
@@ -214,7 +215,7 @@ export const runReducers = {
       : anchor;
     if (validSoffitAnchor) {
       location.run.ends[side] = {
-        type: soffitEndType(location.wall, location.run, side, anchor, state.settings),
+        type: soffitEndType(location.wall, location.run, side, anchor, settingsFor(state, location.room)),
         width: null,
       };
     } else if (validRecessAnchor) {
@@ -243,7 +244,7 @@ export const runReducers = {
       location.wall.id,
       { runId, side },
       { runId: targetRunId, side: targetSide },
-      state.settings,
+      settingsFor(state, location.room),
     );
     if (!result.ok) state.message = result.reason;
     else {
@@ -271,7 +272,7 @@ export const runReducers = {
       runId,
       edge,
       leaderRunId,
-      state.settings,
+      settingsFor(state, location.room),
     );
     if (!result.ok) state.message = result.reason;
     else {
@@ -302,7 +303,7 @@ export const runReducers = {
       location.room,
       location.wall.id,
       action.payload.jointId,
-      state.settings,
+      settingsFor(state, location.room),
     );
     if (!result.ok) state.message = result.reason;
     else {
@@ -320,7 +321,7 @@ export const runReducers = {
       location.run.id,
       action.payload.width,
       action.payload.grow ?? 'right',
-      state.settings,
+      settingsFor(state, location.room),
     );
     if (!result.ok) state.message = result.reason;
     else {

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../store/selectors.js';
 import { counterTop, crownOverlap, moldingStack, resolveProfile } from '../model/profile.js';
 import { formatInches, formatInchesInput } from '../model/units.js';
 import {
@@ -37,7 +38,8 @@ const PROFILE_FIELDS = [
 
 export default function RoomHeightsPanel() {
   const dispatch = useDispatch();
-  const { rooms, activeRoomId, settings } = useSelector((state) => state.elevation);
+  const { rooms, activeRoomId } = useSelector((state) => state.elevation);
+  const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const [open, setOpen] = useState(true);
 

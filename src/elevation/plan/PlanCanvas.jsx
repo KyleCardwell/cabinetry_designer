@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../store/selectors.js';
 import { Layer, Stage } from 'react-konva';
 import { snapToEndpoint, snapToGrid } from '../../canvas/SnapEngine.js';
 import AxisGuides from '../../canvas/components/AxisGuides.jsx';
@@ -82,10 +83,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const {
     rooms,
     activeRoomId,
-    settings,
     tool,
     selection,
   } = useSelector((state) => state.elevation);
+  const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const walls = room?.walls ?? [];
   // The active wall is only selected in plan when nothing on it is (SPEC-37.4): a selected run,

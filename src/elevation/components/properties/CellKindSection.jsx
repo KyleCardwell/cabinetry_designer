@@ -1,4 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../../store/selectors.js';
 import {
   extendDirections, panelOrientation, panelTypes, wallSideOf,
 } from '../../model/index.js';
@@ -43,7 +44,7 @@ export default function CellKindSection({ wall, run, piece, item }) {
   const room = useSelector((state) => state.elevation.rooms.find(
     (candidate) => candidate.id === state.elevation.activeRoomId,
   ));
-  const settings = useSelector((state) => state.elevation.settings);
+  const settings = useSelector(selectSettings);
   const actionBase = { wallId: wall.id, runId: run.id, cellId: item.id };
   const where = { ...actionBase, part: 'panelCell' };
   const orientation = panelOrientation(piece);

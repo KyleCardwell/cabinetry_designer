@@ -14,6 +14,7 @@ import { roundTo } from '../../model/units.js';
 import {
   runLocation,
   syncRoomAt,
+  settingsFor,
   itemIndexFor,
 } from './helpers.js';
 
@@ -40,12 +41,12 @@ export const itemReducers = {
     const addsPinToPinnedRun = Boolean(pin) && !item.pin && pinCountBefore >= 1;
     let currentWidths = null;
     if (addsPinToPinnedRun) {
-      const layout = splitRun(location.run, state.settings, {
+      const layout = splitRun(location.run, settingsFor(state, location.room), {
         endMinWidths: endMinWidthsForRun(
           location.room,
           location.wall,
           location.run,
-          state.settings,
+          settingsFor(state, location.room),
         ),
         endCornerAngles: endCornerAnglesForRun(
           location.room,
@@ -68,7 +69,7 @@ export const itemReducers = {
         const width = currentWidths.get(pinnedItem.id);
         if (Number.isFinite(width)) {
           location.run.grid = updateRootItem(location.run.grid, pinnedItem.id, {
-            width: roundTo(width, state.settings.roundTo),
+            width: roundTo(width, settingsFor(state, location.room).roundTo),
           });
         }
       }
@@ -122,7 +123,7 @@ export const itemReducers = {
     const appendToEmptyRun = action.payload.itemId == null && runItems(location.run).length === 0;
     if (itemIndex === -1 && !appendToEmptyRun) return;
     const item = action.payload.kind === 'filler'
-      ? { id: uuid(), kind: 'filler', width: state.settings.defaultInteriorFillerWidth }
+      ? { id: uuid(), kind: 'filler', width: settingsFor(state, location.room).defaultInteriorFillerWidth }
       : { id: uuid(), kind: 'cabinet', width: null };
     location.run.grid = insertRootColumn(
       location.run.grid,

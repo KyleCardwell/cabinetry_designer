@@ -25,6 +25,7 @@ import {
   refreshRecessEnds,
   resolvedSoffitCandidate,
   syncRoomAt,
+  settingsFor,
   clearTransientSelection,
 } from './helpers.js';
 
@@ -253,7 +254,7 @@ export const featureReducers = {
       ...location.wall,
       length: wallFrame(location.room, location.wall).length,
     };
-    const validation = validateOpeningPlacement(resolvedWall, candidate, state.settings);
+    const validation = validateOpeningPlacement(resolvedWall, candidate, settingsFor(state, location.room));
     if (!validation.ok) {
       state.message = validation.reason;
       syncRoomAt(state, location.roomIndex);
@@ -268,11 +269,11 @@ export const featureReducers = {
     const { width, grow = 'right' } = action.payload;
     if (!location || !Number.isFinite(width) || width <= 0) return;
     const length = wallFrame(location.room, location.wall).length;
-    const candidate = resizeOpeningPure(location.opening, width, grow, length, state.settings);
+    const candidate = resizeOpeningPure(location.opening, width, grow, length, settingsFor(state, location.room));
     const validation = validateOpeningPlacement(
       { ...location.wall, length },
       candidate,
-      state.settings,
+      settingsFor(state, location.room),
     );
     if (!validation.ok) {
       state.message = validation.reason;
@@ -290,7 +291,7 @@ export const featureReducers = {
       location.opening,
       action.payload.mode,
       length,
-      state.settings,
+      settingsFor(state, location.room),
     );
     syncRoomAt(state, location.roomIndex);
   },
@@ -302,7 +303,7 @@ export const featureReducers = {
       location.opening,
       action.payload.side,
       length,
-      state.settings,
+      settingsFor(state, location.room),
     );
     syncRoomAt(state, location.roomIndex);
   },
@@ -314,7 +315,7 @@ export const featureReducers = {
       location.opening,
       action.payload.anchor,
       length,
-      state.settings,
+      settingsFor(state, location.room),
     );
     syncRoomAt(state, location.roomIndex);
   },
@@ -326,7 +327,7 @@ export const featureReducers = {
       location.opening,
       action.payload.x,
       length,
-      state.settings,
+      settingsFor(state, location.room),
     );
     syncRoomAt(state, location.roomIndex);
   },

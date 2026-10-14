@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../store/selectors.js';
 import { drawingErrorMessage, requestRoomDrawings, saveBlob } from '../../api/drawings.js';
 import { toDrawingPayload, drawingZipName } from '../model/drawingPayload.js';
 import { setMessage } from '../store/elevationSlice.js';
 
 export default function ExportDxfButton() {
   const dispatch = useDispatch();
-  const { rooms, activeRoomId, settings } = useSelector((state) => state.elevation);
+  const { rooms, activeRoomId } = useSelector((state) => state.elevation);
+  const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const [busy, setBusy] = useState(false);
   const messageTimeout = useRef(null);

@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../store/selectors.js';
 import { partNumbers } from '../model/partNumbers.js';
 import { setRoomPartNumberStart } from '../store/elevationSlice.js';
 
 export default function RoomPartNumbersPanel() {
   const dispatch = useDispatch();
-  const { rooms, activeRoomId, settings } = useSelector((state) => state.elevation);
+  const { rooms, activeRoomId } = useSelector((state) => state.elevation);
+  const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const numbers = useMemo(() => partNumbers(room, settings), [room, settings]);
 

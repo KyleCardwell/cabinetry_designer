@@ -1,4 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../store/selectors.js';
 import { createRun } from '../model/runDefaults.js';
 import { addRun } from '../store/elevationSlice.js';
 import { resolveWall } from '../model/room.js';
@@ -21,9 +22,9 @@ export default function SampleRunsButton() {
   const {
     activeRoomId,
     activeWallId,
-    settings,
     rooms,
   } = useSelector((state) => state.elevation);
+  const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId);
   const storedWall = room?.walls.find((candidate) => candidate.id === activeWallId);
   const wall = resolveWall(room, storedWall);

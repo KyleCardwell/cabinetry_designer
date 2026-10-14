@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../../store/selectors.js';
 import {
   crownOverlap,
   formatInches,
@@ -56,7 +57,7 @@ const WALL_OVERRIDE_FIELDS = [
 
 export default function WallHeightProperties({ room, wall, plan }) {
   const dispatch = useDispatch();
-  const settings = useSelector((state) => state.elevation.settings);
+  const settings = useSelector(selectSettings);
   const autoNumber = wallNumbers(room).get(wall.id);
   const duplicateNumber = wallNumberWarnings(room)
     .some((warning) => warning.wallIds.includes(wall.id));

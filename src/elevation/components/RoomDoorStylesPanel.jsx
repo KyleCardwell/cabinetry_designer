@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../store/selectors.js';
 import { doorDrawing } from '../model/doorDetails.js';
 import { findDoorDesign } from '../model/doorStyles.js';
 import { doorStyleUses, pickOptions } from '../model/doorStyleEdits.js';
@@ -168,7 +169,8 @@ function RoomDoorStylesContent({ room, settings }) {
 }
 
 export default function RoomDoorStylesPanel() {
-  const { rooms, activeRoomId, settings } = useSelector((state) => state.elevation);
+  const { rooms, activeRoomId } = useSelector((state) => state.elevation);
+  const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   if (!room) return null;
 

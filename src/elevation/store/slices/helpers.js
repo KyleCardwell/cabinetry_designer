@@ -1,6 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { current, isDraft } from '@reduxjs/toolkit';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
+import { effectiveSettings } from '../../model/effectiveSettings.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
 import {
   gridLeaves,
@@ -77,6 +78,10 @@ export function createRoom(name = 'Room 1', settings = DEFAULT_SETTINGS, id = uu
     wallOrder: [],
     walls: [],
   };
+}
+
+export function settingsFor(state, room) {
+  return effectiveSettings(state, room);
 }
 
 export function roomIndexFor(state, roomId) {
@@ -175,8 +180,9 @@ export function resolvedSoffitCandidate(room, wall, soffit) {
 
 export function syncRoomAt(state, roomIndex) {
   // Profile stretching clones geometry; pass plain settings rather than Immer proxies.
-  const settings = isDraft(state.settings) ? current(state.settings) : state.settings;
-  state.rooms[roomIndex] = syncRoom(state.rooms[roomIndex], settings);
+  const room = state.rooms[roomIndex];
+  const settings = settingsFor(state, room);
+  state.rooms[roomIndex] = syncRoom(room, isDraft(settings) ? current(settings) : settings);
 }
 
 export function setCompensatedWalls(state, roomIndex, walls) {
@@ -210,13 +216,13 @@ export function roomCabinets(room) {
  * gets its small drawer fronts reset to the new style's standard height.
  */
 export function withStandardDrawers(state, room, mutate) {
-  const isInset = ({ run, item }) => isInsetStyle(resolveStyle(state.settings, room, run, item));
+  const isInset = ({ run, item }) => isInsetStyle(resolveStyle(settingsFor(state, room), room, run, item));
   const before = new Map(roomCabinets(room).map((entry) => [entry.item.id, isInset(entry)]));
   mutate();
   for (const entry of roomCabinets(room)) {
     const { run, item } = entry;
     if (!item.face || before.get(item.id) === isInset(entry)) continue;
-    item.face = applyStandardDrawers(item.face, resolveStyle(state.settings, room, run, item), state.settings);
+    item.face = applyStandardDrawers(item.face, resolveStyle(settingsFor(state, room), room, run, item), settingsFor(state, room));
   }
 }
 

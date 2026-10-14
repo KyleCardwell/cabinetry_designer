@@ -1,11 +1,13 @@
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../store/selectors.js';
 import { resolveStyle } from '../model/index.js';
 import { setRoomStyle } from '../store/elevationSlice.js';
 import StyleFields from './properties/StyleFields.jsx';
 
 export default function RoomStylePanel() {
   const dispatch = useDispatch();
-  const { rooms, activeRoomId, settings } = useSelector((state) => state.elevation);
+  const { rooms, activeRoomId } = useSelector((state) => state.elevation);
+  const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   if (!room) return null;
 

@@ -24,6 +24,7 @@ import {
 import {
   runLocation,
   syncRoomAt,
+  settingsFor,
 } from './helpers.js';
 
 export const cellReducers = {
@@ -124,7 +125,7 @@ export const cellReducers = {
     if (grid === before) return;
     if (kind === 'panel') {
       grid = setGridPanelType(grid, cellId, found.axis === 'row' ? 'top' : 'side',
-        panelThickness(location.room, location.wall, location.run, findLeaf(grid, cellId), state.settings, { sheet: isSheetCell(findLeaf(grid, cellId)) }));
+        panelThickness(location.room, location.wall, location.run, findLeaf(grid, cellId), settingsFor(state, location.room), { sheet: isSheetCell(findLeaf(grid, cellId)) }));
     }
     location.run.grid = grid;
     if (found.depth === 0) location.run.autoCount = false;
@@ -166,7 +167,7 @@ export const cellReducers = {
     const before = location.run.grid;
     const grid = wrapGridCell(
       before, cellId, through,
-      panelThickness(location.room, location.wall, location.run, null, state.settings, { sheet: true }),
+      panelThickness(location.room, location.wall, location.run, null, settingsFor(state, location.room), { sheet: true }),
       uuid, Boolean(bottom),
     );
     if (grid === before) return;
@@ -179,7 +180,7 @@ export const cellReducers = {
     const { cellId, type } = action.payload;
     const before = location.run.grid;
     const grid = setGridPanelType(before, cellId, type,
-      panelThickness(location.room, location.wall, location.run, findLeaf(before, cellId), state.settings, { sheet: type !== 'back' }));
+      panelThickness(location.room, location.wall, location.run, findLeaf(before, cellId), settingsFor(state, location.room), { sheet: type !== 'back' }));
     if (grid === before) return;
     location.run.grid = grid;
     syncRoomAt(state, location.roomIndex);
@@ -191,7 +192,7 @@ export const cellReducers = {
     const before = location.run.grid;
     const found = findCell(before, cellId);
     const grid = addGridPanel(before, cellId, side,
-      panelThickness(location.room, location.wall, location.run, null, state.settings, { sheet: true }), uuid);
+      panelThickness(location.room, location.wall, location.run, null, settingsFor(state, location.room), { sheet: true }), uuid);
     if (grid === before) return;
     location.run.grid = grid;
     if (found.depth === 0 && (side === 'left' || side === 'right')) location.run.autoCount = false;

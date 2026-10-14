@@ -5,6 +5,7 @@ import {
   useRef,
 } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../store/selectors.js';
 import {
   cellPieces,
   pinTargetsForRun,
@@ -43,12 +44,12 @@ export default function PropertiesPanel() {
     activeWallId,
     activeWallSide,
     selection,
-    settings,
     view,
     message,
   } = useSelector(
     (state) => state.elevation,
   );
+  const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const storedWall = room?.walls.find(
     (candidate) => candidate.id === selection.wallId,

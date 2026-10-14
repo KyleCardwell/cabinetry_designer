@@ -1,4 +1,5 @@
 import { useDispatch, useSelector } from 'react-redux';
+import { selectSettings } from '../store/selectors.js';
 import AddToolMenu from './AddToolMenu.jsx';
 import ExportDxfButton from './ExportDxfButton.jsx';
 import { nextWallId, wallLabel } from '../model/topology.js';
@@ -21,12 +22,12 @@ export default function ElevationToolbar({
   const {
     tool,
     view,
-    settings,
     rooms,
     activeRoomId,
     activeWallId,
     activeWallSide,
   } = useSelector((state) => state.elevation);
+  const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const orderedWallIds = (room?.wallOrder ?? []).filter((wallId) => (
     room.walls.some((wall) => wall.id === wallId)

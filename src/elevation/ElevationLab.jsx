@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
+import { selectSettings } from './store/selectors.js';
 import ElevationCanvas from './components/ElevationCanvas.jsx';
 import MessageToast from './components/MessageToast.jsx';
 import ElevationToolbar from './components/ElevationToolbar.jsx';
@@ -26,9 +27,9 @@ export default function ElevationLab() {
     activeRoomId,
     activeWallId,
     activeWallSide,
-    settings,
     view,
   } = useSelector((state) => state.elevation);
+  const settings = useSelector(selectSettings);
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
   const activeWall = useMemo(() => resolveWall(
     activeRoom,

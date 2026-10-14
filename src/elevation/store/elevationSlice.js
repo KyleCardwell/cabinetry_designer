@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { DEFAULT_SETTINGS } from '../model/constants.js';
+import { effectiveSettings } from '../model/effectiveSettings.js';
 import { syncRoom } from '../model/room.js';
 import {
   ELEVATION_SCHEMA_VERSION,
@@ -26,7 +27,7 @@ export function createInitialElevationState(document = loadElevationDocument()) 
   const settings = copySettings(document?.settings ?? DEFAULT_SETTINGS);
   const fallbackRoom = document ? null : createRoom('Room 1', settings);
   // Derived fields aren't saved (SPEC-39.1): rebuild them, or recess runs load at the wall face.
-  const rooms = (document?.rooms ?? [fallbackRoom]).map((room) => syncRoom(room, settings));
+  const rooms = (document?.rooms ?? [fallbackRoom]).map((room) => syncRoom(room, effectiveSettings({ settings }, room)));
   const activeRoomId = document ? document.activeRoomId : fallbackRoom.id;
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
   const activeWallId = document ? document.activeWallId : null;
