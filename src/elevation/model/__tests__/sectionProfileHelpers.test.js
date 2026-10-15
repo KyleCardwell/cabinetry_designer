@@ -1,10 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_SETTINGS } from '../constants.js';
-import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import {
   PROFILE_SLOTS, filterSectionProfiles, mergeImportedProfiles, newSectionProfile, parseProfileFile, profileFile,
-  profileFitsSlot, sectionProfileBounds, sectionProfileSvgPath, sectionProfileUses,
+  profileFitsSlot, sectionProfileBounds, sectionProfileSvgPath,
 } from '../sectionProfiles.js';
 
 const sample = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
@@ -117,23 +115,6 @@ describe('SPEC-47 section profile helpers', () => {
     expect([copy.geometry === CROWN.geometry, copy.drawnPoints === CROWN.drawnPoints]).toEqual([false, false]);
     expect(newSectionProfile([...sample.profiles, { ...COVE, id: 'x', name: 'Crown 4 1/2 COPY' }], 'sp-4', CROWN).name)
       .toBe('Crown 4 1/2 copy 2');
-  });
-
-  it('lists the door style slots that use a profile: team default first, then each room\'s styles', () => {
-    const team = { ...DEFAULT_DOOR_STYLE, profiles: { outside: null, inside: 'sp-cove', panel: null }, appliedMoldings: [{ profileId: 'sp-cove', offset: 0 }] };
-    const A = { ...DEFAULT_DOOR_STYLE, id: 'ds-a', label: 'A', appliedMoldings: [{ profileId: 'sp-bead', offset: 0 }] };
-    const B = { ...DEFAULT_DOOR_STYLE, id: 'ds-b', label: 'B', profiles: { ...DEFAULT_DOOR_STYLE.profiles, inside: 'sp-cove' } };
-    const settings = { ...DEFAULT_SETTINGS, teamDoorStyle: team, sectionProfiles: sample.profiles };
-    const rooms = [{ id: 'r1', doorStyles: [A, B] }, { id: 'r2' }];
-    expect(sectionProfileUses(settings, rooms, 'sp-cove')).toEqual([
-      { level: 'team', slot: 'inside' },
-      { level: 'team', slot: 'applied' },
-      { level: 'room', roomId: 'r1', styleId: 'ds-b', label: 'B', slot: 'inside' },
-    ]);
-    expect(sectionProfileUses(settings, rooms, 'sp-bead'))
-      .toEqual([{ level: 'room', roomId: 'r1', styleId: 'ds-a', label: 'A', slot: 'applied' }]);
-    expect(sectionProfileUses(settings, rooms, 'sp-crown')).toEqual([]);
-    expect(sectionProfileUses(DEFAULT_SETTINGS, [], 'sp-cove')).toEqual([]);
   });
 
   it('writes and reads a profiles file, and merges an import by id', () => {

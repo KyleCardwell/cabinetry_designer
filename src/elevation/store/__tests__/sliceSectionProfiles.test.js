@@ -70,8 +70,12 @@ describe('SPEC-47 editing the profile library', () => {
     ].every((next) => next === state)).toBe(true);
   });
 
-  it('archives and restores; deletes only a profile no door style uses', () => {
+  it('archives and restores; deletes a used profile without changing its style slots', () => {
     const state = withLibrary();
+    state.rooms[0].doorStyles = [{
+      ...DEFAULT_DOOR_STYLE, id: 'ds-a', label: 'A',
+      profiles: { ...DEFAULT_DOOR_STYLE.profiles, inside: 'sp-cove' },
+    }];
     const archived = apply(state, setSectionProfileArchived({ profileId: 'sp-crown', archived: true }));
     expect(rows(archived)[2]).toEqual(['sp-crown', 'Crown 4 1/2', 1, true]);
     expect(rows(apply(archived, setSectionProfileArchived({ profileId: 'sp-crown', archived: false })))[2])
@@ -83,7 +87,11 @@ describe('SPEC-47 editing the profile library', () => {
     const used = apply(state, setTeamDoorStyle({
       style: { ...DEFAULT_DOOR_STYLE, profiles: { ...DEFAULT_DOOR_STYLE.profiles, inside: 'sp-cove' } },
     }));
-    expect(apply(used, deleteSectionProfile({ profileId: 'sp-cove' }))).toBe(used);
+    const deleted = apply(used, deleteSectionProfile({ profileId: 'sp-cove' }));
+    expect(rows(deleted).map(([id]) => id)).toEqual(['sp-bead', 'sp-crown']);
+    expect(deleted.rooms).toBe(used.rooms);
+    expect(deleted.rooms[0].doorStyles[0].profiles.inside).toBe('sp-cove');
+    expect(deleted.settings.teamDoorStyle).toBe(used.settings.teamDoorStyle);
     expect(apply(used, deleteSectionProfile({ profileId: 'gone' }))).toBe(used);
     expect(rows(apply(used, deleteSectionProfile({ profileId: 'sp-bead' }))).map(([id]) => id)).toEqual(['sp-cove', 'sp-crown']);
   });

@@ -5,7 +5,6 @@ import {
   isSectionProfileList,
   mergeImportedProfiles,
   newSectionProfile,
-  sectionProfileUses,
 } from '../../model/sectionProfiles.js';
 import { isUuid } from '../../model/cloudRows.js';
 
@@ -53,7 +52,6 @@ export const sectionProfileReducers = {
     const settings = current(state.settings);
     const list = settings.sectionProfiles;
     if (!list.some((profile) => profile.id === profileId)) return;
-    if (sectionProfileUses(settings, current(state.rooms), profileId).length) return;
     state.settings.sectionProfiles = list.filter((profile) => profile.id !== profileId);
   },
   importSectionProfiles: {

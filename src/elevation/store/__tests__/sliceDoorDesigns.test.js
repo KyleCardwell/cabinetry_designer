@@ -1,3 +1,4 @@
+import { missingDoorDesigns } from '../../model/doorDesigns.js';
 import { isUuid } from '../../model/cloudRows.js';
 import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
 import { describe, expect, it } from 'vitest';
@@ -70,24 +71,36 @@ describe('SPEC-46.3 editing the team library', () => {
     expect(DEFAULT_DOOR_STYLE.thickness).toBe(0.8125);
   });
 
-  it('deletes an unused design; a used one moves its styles to another design first', () => {
-    const state = apply(base(), addDoorDesign({ id: 'd-1' }), addDoorStyle({ id: 'ds-1' }));
-    const used = apply(
-      state,
-      updateDoorStyle({ styleId: 'ds-1', style: { ...state.rooms[0].doorStyles[0], designId: 'd-1' } }),
-      setTeamDoorStyle({ style: { ...DEFAULT_DOOR_STYLE, designId: 'd-1' } }),
+  it('deletes a design without touching rooms, leaving their styles missing; built-ins stay', () => {
+    const state = apply(base(), addDoorDesign({ id: 'd-114' }), addDoorStyle({ id: 'ds-a' }));
+    const used = apply(state, updateDoorStyle({
+      styleId: 'ds-a', style: { ...state.rooms[0].doorStyles[0], designId: 'd-114' },
+    }));
+    expect(used.settings.teamDoorStyle.designId).toBe('five-piece-square');
+    expect(used.rooms[0].doorStyles[0].label).toBe('A');
+    const deleted = apply(used, deleteDoorDesign({ designId: 'd-114' }));
+    expect(designs(deleted)).toEqual(SEEDED);
+    expect(deleted.rooms).toBe(used.rooms);
+    expect(deleted.rooms[0].doorStyles[0].designId).toBe('d-114');
+    expect(missingDoorDesigns(deleted.rooms[0], deleted.settings.doorDesigns)).toEqual([
+      { designId: 'd-114', styles: [{ styleId: 'ds-a', label: 'A' }] },
+    ]);
+    for (const reassignTo of ['slab', 'd-114', 'gone']) {
+      expect(apply(used, deleteDoorDesign({ designId: 'd-114', reassignTo }))).toEqual(deleted);
+    }
+    for (const designId of ['five-piece-square', 'slab', 'slab-mdf', 'gone']) {
+      expect(apply(used, deleteDoorDesign({ designId }))).toBe(used);
+    }
+    expect(designs(apply(state, deleteDoorDesign({ designId: 'd-114' })))).toEqual(SEEDED);
+  });
+
+  it('keeps a design used by the team door style, even with a reassignment payload', () => {
+    const state = apply(
+      base(), addDoorDesign({ id: 'd-114' }),
+      setTeamDoorStyle({ style: { ...DEFAULT_DOOR_STYLE, designId: 'd-114' } }),
     );
-    expect([used.settings.teamDoorStyle.designId, used.rooms[0].doorStyles[0].designId]).toEqual(['d-1', 'd-1']);
-    expect([
-      apply(used, deleteDoorDesign({ designId: 'd-1' })),
-      apply(used, deleteDoorDesign({ designId: 'd-1', reassignTo: 'd-1' })),
-      apply(used, deleteDoorDesign({ designId: 'd-1', reassignTo: 'gone' })),
-    ].every((next) => next === used)).toBe(true);
-    const moved = apply(used, deleteDoorDesign({ designId: 'd-1', reassignTo: 'slab' }));
-    expect([designs(moved), moved.settings.teamDoorStyle.designId, moved.rooms[0].doorStyles[0].designId])
-      .toEqual([SEEDED, 'slab', 'slab']);
-    expect(designs(apply(state, deleteDoorDesign({ designId: 'd-1' })))).toEqual(SEEDED);
-    expect(apply(state, deleteDoorDesign({ designId: 'slab', reassignTo: 'five-piece-square' }))).toBe(state);
+    expect(apply(state, deleteDoorDesign({ designId: 'd-114' }))).toBe(state);
+    expect(apply(state, deleteDoorDesign({ designId: 'd-114', reassignTo: 'slab' }))).toBe(state);
   });
 });
 

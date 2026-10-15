@@ -126,7 +126,7 @@ describe('DB4 f cloud sync', () => {
     expect(seedRow).toMatchObject({ code: '110', version: 2 });
     expect(seedRow.data.seedId).toBe('five-piece-square');
     expect(api.db.doorDesigns.at(-1).design_id).toBe(added.id);
-    store.dispatch(deleteDoorDesign({ designId: added.id, reassignTo: 'five-piece-square' }));
+    store.dispatch(deleteDoorDesign({ designId: added.id }));
     await sync.flush();
     expect(saves(api).at(-1)).toEqual(['archiveLibraryItem', 'door_design', added.id, true]);
   });

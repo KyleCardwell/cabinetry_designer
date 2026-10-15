@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
-import { doorDesignUses, newDoorDesign } from '../doorDesigns.js';
+import { newDoorDesign } from '../doorDesigns.js';
 import { pickOptions } from '../doorStyleEdits.js';
 import { resolveDoorStyle } from '../doorStyleResolve.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
@@ -22,7 +22,6 @@ const ARCHED = {
 const WITH_114 = { ...S, doorDesigns: [...DOOR_DESIGNS, ARCHED] };
 const A = { ...DEFAULT_DOOR_STYLE, id: 'ds-a', label: 'A', designId: 'd-114' };
 const B = { ...DEFAULT_DOOR_STYLE, id: 'ds-b', label: 'B', designId: 'slab' };
-const C = { ...A, id: 'ds-c', label: 'C' };
 
 describe('SPEC-46.3 door designs from the team library', () => {
   it('copies a design with a fresh id and the next free code', () => {
@@ -35,21 +34,6 @@ describe('SPEC-46.3 door designs from the team library', () => {
     expect(newDoorDesign(copied, DOOR_DESIGNS[0], 'd-3').code).toBe('5PC copy 3');
     const copy = newDoorDesign(DOOR_DESIGNS, ARCHED, 'd-4');
     expect([copy.code, copy.topRail, copy.topRail === ARCHED.topRail]).toEqual(['114 copy', { shape: 'arch' }, false]);
-  });
-
-  it('lists where a design is used: the team default first, then each room\'s styles', () => {
-    const rooms = [{ id: 'r1', doorStyles: [A, B] }, { id: 'r2' }, { id: 'r3', doorStyles: [C] }];
-    expect(doorDesignUses(WITH_114, rooms, 'd-114')).toEqual([
-      { level: 'room', roomId: 'r1', styleId: 'ds-a', label: 'A' },
-      { level: 'room', roomId: 'r3', styleId: 'ds-c', label: 'C' },
-    ]);
-    const slabTeam = { ...WITH_114, teamDoorStyle: { ...DEFAULT_DOOR_STYLE, designId: 'slab' } };
-    expect(doorDesignUses(slabTeam, rooms, 'slab')).toEqual([
-      { level: 'team' },
-      { level: 'room', roomId: 'r1', styleId: 'ds-b', label: 'B' },
-    ]);
-    expect(doorDesignUses(S, rooms, 'five-piece-square')).toEqual([{ level: 'team' }]);
-    expect(doorDesignUses(S, rooms, 'slab-mdf')).toEqual([]);
   });
 
   it('resolves a style\'s design from the team\'s designs', () => {

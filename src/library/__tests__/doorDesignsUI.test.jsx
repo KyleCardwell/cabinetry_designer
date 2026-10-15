@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { DOOR_DESIGNS } from '../../elevation/model/doorStyles.js';
+import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../elevation/model/doorStyles.js';
 import { isDoorDesign } from '../../elevation/model/doorDesigns.js';
+import { deleteDoorDesign } from '../../elevation/store/elevationSlice.js';
 import InchInput from '../../elevation/components/InchInput.jsx';
 import DoorDesignEditor from '../DoorDesignEditor.jsx';
 import DoorDesignsPage from '../DoorDesignsPage.jsx';
@@ -31,6 +32,20 @@ const control = (tree, label) => nodes(tree).find(({ props }) => props['aria-lab
 const save = (tree) => nodes(tree).find(({ type, props }) => type === 'button' && props.children === 'Save');
 const dispatch = vi.fn();
 
+function library(settings, source) {
+  const values = [];
+  useSelector.mockImplementation((selector) => selector({ elevation: { settings, source } }));
+  return () => {
+    let index = 0;
+    useState.mockImplementation((initial) => {
+      const slot = index++;
+      if (!(slot in values)) values[slot] = initial;
+      return [values[slot], (value) => { values[slot] = value; }];
+    });
+    return DoorDesignsPage();
+  };
+}
+
 function editor(design) {
   let draft = structuredClone(design);
   const designs = DOOR_DESIGNS.some(({ id }) => id === design.id) ? DOOR_DESIGNS : [...DOOR_DESIGNS, design];
@@ -55,6 +70,42 @@ beforeEach(() => {
   useSelector.mockImplementation((selector) => selector({
     elevation: { settings: { doorDesigns: DOOR_DESIGNS }, rooms: [], source: 'local' },
   }));
+});
+
+describe('DB6b a library deletion', () => {
+  const custom = { ...DOOR_DESIGNS[0], id: 'd-114', code: '114' };
+  const settings = { doorDesigns: [...DOOR_DESIGNS, custom], teamDoorStyle: DEFAULT_DOOR_STYLE };
+  const button = (tree, label) => nodes(tree).find(({ type, props }) => type === 'button' && props.children === label);
+
+  it('shows only design columns and confirms archive/delete without choosing a replacement', () => {
+    for (const [source, label, confirm] of [['cloud', 'Archive', 'Confirm archive'], ['local', 'Delete', 'Confirm delete']]) {
+      dispatch.mockClear();
+      const render = library(settings, source);
+      expect(nodes(render()).filter(({ type }) => type === 'th').map(text))
+        .toEqual(['Code', 'Vendor', 'Description', 'Construction', 'Rails', 'Actions']);
+      expect(nodes(render()).filter(({ type, props }) => type === 'button' && props.children === label)).toHaveLength(1);
+      button(render(), label).props.onClick();
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(text(render())).toContain('Rooms that use it will ask for a replacement when opened.');
+      expect(nodes(render()).some(({ type }) => type === 'select')).toBe(false);
+      button(render(), 'Cancel').props.onClick();
+      expect(button(render(), confirm)).toBeUndefined();
+      button(render(), label).props.onClick();
+      button(render(), confirm).props.onClick();
+      expect(dispatch.mock.calls).toEqual([[deleteDoorDesign({ designId: 'd-114' })]]);
+      expect(button(render(), confirm)).toBeUndefined();
+    }
+  });
+
+  it('disables archive/delete for the team door style design with an explanation', () => {
+    for (const [source, label] of [['cloud', 'Archive'], ['local', 'Delete']]) {
+      const render = library({ ...settings, teamDoorStyle: { ...DEFAULT_DOOR_STYLE, designId: 'd-114' } }, source);
+      expect(button(render(), label).props).toMatchObject({
+        disabled: true,
+        title: 'The team door style uses this design. Change it in Library → Team door style first.',
+      });
+    }
+  });
 });
 
 describe('Step 529 Library door design cores and defaults', () => {

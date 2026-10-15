@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { saveBlob } from '../api/drawings.js';
 import {
   filterSectionProfiles, mergeImportedProfiles, parseProfileFile, profileFile,
-  profileKindLabel, profileKindOptions, sectionProfileUses,
+  profileKindLabel, profileKindOptions,
 } from '../elevation/model/sectionProfiles.js';
 import {
   addSectionProfile, deleteSectionProfile, importSectionProfiles, setSectionProfileArchived,
@@ -17,7 +17,7 @@ const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py
 
 export default function ProfilesPage() {
   const dispatch = useDispatch();
-  const { settings, rooms, source } = useSelector((state) => state.elevation);
+  const { settings, source } = useSelector((state) => state.elevation);
   // Shop data: library items are archived, never deleted (DB8).
   const shopData = source === 'cloud';
   const profiles = settings.sectionProfiles;
@@ -142,11 +142,6 @@ export default function ProfilesPage() {
       {filteredProfiles.length > 0 ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredProfiles.map((profile) => {
-            const uses = sectionProfileUses(settings, rooms, profile.id);
-            const usedBy = uses.map((use) => use.level === 'team'
-              ? `Team default ${use.slot}`
-              : `${rooms.find((room) => room.id === use.roomId)?.name ?? use.roomId} ${use.label} ${use.slot}`).join(', ');
-
             return (
               <div key={profile.id} className={`rounded border border-gray-700 bg-gray-800/60 p-3 space-y-2${profile.archived ? ' opacity-60' : ''}`}>
                 <div className="h-32 rounded bg-gray-900 p-2 text-gray-200">
@@ -160,7 +155,6 @@ export default function ProfilesPage() {
                   <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">{profileKindLabel(profile.kind)}</span>
                 </div>
                 <p className="text-xs text-gray-500">v{profile.version}{profile.kind === 'other' ? ' · not used by doors or runs yet' : ''}</p>
-                {uses.length > 0 && <p className="text-xs text-gray-400">Used by: {usedBy}</p>}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
@@ -198,8 +192,6 @@ export default function ProfilesPage() {
                   <button
                     type="button"
                     className={`${BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
-                    disabled={uses.length > 0}
-                    title={uses.length > 0 ? 'Used by a door style — archive it instead' : undefined}
                     onClick={() => {
                       if (confirmingId === profile.id) {
                         dispatch(deleteSectionProfile({ profileId: profile.id }));

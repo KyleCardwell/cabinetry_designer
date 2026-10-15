@@ -1,5 +1,3 @@
-import { DOOR_PROFILE_SLOTS, teamDoorStyle } from './doorStyles.js';
-
 function isPlainObject(value) {
   if (value === null || typeof value !== 'object') return false;
   const prototype = Object.getPrototypeOf(value);
@@ -363,27 +361,6 @@ export function newSectionProfile(profiles, id, base = null, kind = 'other') {
     drawnPoints: { elevation: [] },
   };
   return { ...profile, id, name, version: 1, archived: false };
-}
-
-/** SPEC-47 lists matching team slots first, then slots in room and style order. */
-export function sectionProfileUses(settings, rooms, profileId) {
-  const uses = [];
-  for (const slot of DOOR_PROFILE_SLOTS) {
-    const style = teamDoorStyle(settings);
-    const pick = slot === 'applied' ? style.appliedMoldings?.[0]?.profileId : style.profiles?.[slot];
-    if (pick === profileId) uses.push({ level: 'team', slot });
-  }
-  for (const room of rooms) {
-    for (const style of room.doorStyles ?? []) {
-      for (const slot of DOOR_PROFILE_SLOTS) {
-        const pick = slot === 'applied' ? style.appliedMoldings?.[0]?.profileId : style.profiles?.[slot];
-        if (pick === profileId) {
-          uses.push({ level: 'room', roomId: room.id, styleId: style.id, label: style.label, slot });
-        }
-      }
-    }
-  }
-  return uses;
 }
 
 /** SPEC-47 filters library profiles by name, kind and archive status in list order. */

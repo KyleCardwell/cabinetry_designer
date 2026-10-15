@@ -3,12 +3,11 @@ import { v4 as uuid } from 'uuid';
 import {
   DESIGN_SLOTS,
   SEEDED_DESIGN_IDS,
-  doorDesignUses,
   isDoorDesignList,
   migrateDoorDesign,
   newDoorDesign,
 } from '../../model/doorDesigns.js';
-import { findDoorDesign, isDoorStyle } from '../../model/doorStyles.js';
+import { findDoorDesign, isDoorStyle, teamDoorStyle } from '../../model/doorStyles.js';
 import { isUuid } from '../../model/cloudRows.js';
 import { roomIndexFor, syncRoomAt } from './helpers.js';
 
@@ -62,22 +61,12 @@ export const doorDesignReducers = {
     for (let index = 0; index < state.rooms.length; index += 1) syncRoomAt(state, index);
   },
   deleteDoorDesign(state, action) {
-    const { designId, reassignTo } = action.payload;
+    const { designId } = action.payload;
     const settings = current(state.settings);
     const designs = settings.doorDesigns;
     if (SEEDED_DESIGN_IDS.includes(designId) || !findDoorDesign(designId, designs)) return;
-    const uses = doorDesignUses(settings, current(state.rooms), designId);
-    if (uses.length && (reassignTo === designId || !findDoorDesign(reassignTo, designs))) return;
-    if (uses.some((use) => use.level === 'team')) {
-      state.settings.teamDoorStyle.designId = reassignTo;
-    }
-    for (const room of state.rooms) {
-      for (const style of room.doorStyles ?? []) {
-        if (style.designId === designId) style.designId = reassignTo;
-      }
-    }
+    if (teamDoorStyle(settings).designId === designId) return;
     state.settings.doorDesigns = designs.filter((design) => design.id !== designId);
-    for (let index = 0; index < state.rooms.length; index += 1) syncRoomAt(state, index);
   },
   setTeamDoorStyle(state, action) {
     const { style } = action.payload;

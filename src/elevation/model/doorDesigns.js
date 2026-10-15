@@ -1,4 +1,4 @@
-import { DESIGN_DEFAULT_KEYS, DOOR_CONSTRUCTIONS, DOOR_DESIGNS, PANEL_JOINTS, RAIL_SHAPES, SLAB_CORES, teamDoorStyle } from './doorStyles.js';
+import { DESIGN_DEFAULT_KEYS, DOOR_CONSTRUCTIONS, DOOR_DESIGNS, PANEL_JOINTS, RAIL_SHAPES, SLAB_CORES } from './doorStyles.js';
 
 export const DESIGN_SLOTS = {
   five_piece: ['outside', 'inside', 'panel', 'applied'],
@@ -122,19 +122,6 @@ export function newDoorDesign(designs, base, id) {
     number += 1;
   }
   return { ...structuredClone(base), id, code };
-}
-
-/** Team default first, followed by matching styles in room and style order. */
-export function doorDesignUses(settings, rooms, designId) {
-  const uses = teamDoorStyle(settings).designId === designId ? [{ level: 'team' }] : [];
-  for (const room of rooms) {
-    for (const style of room.doorStyles ?? []) {
-      if (style.designId === designId) {
-        uses.push({ level: 'room', roomId: room.id, styleId: style.id, label: style.label });
-      }
-    }
-  }
-  return uses;
 }
 
 /** The designs a room's styles name that the library doesn't have (SPEC-46.3.1). */

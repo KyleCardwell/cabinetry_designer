@@ -1,11 +1,10 @@
-import { Fragment, useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { SEEDED_DESIGN_IDS, doorDesignUses } from '../elevation/model/doorDesigns.js';
+import { SEEDED_DESIGN_IDS } from '../elevation/model/doorDesigns.js';
 import { addDoorDesign, deleteDoorDesign } from '../elevation/store/elevationSlice.js';
 import DoorDesignEditor from './DoorDesignEditor.jsx';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
-const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const CELL_CLASS = 'px-3 py-3 align-top';
 const CONSTRUCTION_LABELS = {
   five_piece: '5-piece',
@@ -21,7 +20,7 @@ function railsText(design) {
 
 export default function DoorDesignsPage() {
   const dispatch = useDispatch();
-  const { settings, rooms, source } = useSelector((state) => state.elevation);
+  const { settings, source } = useSelector((state) => state.elevation);
   // Shop data: library items are archived, never deleted (DB8).
   const shopData = source === 'cloud';
   const designs = settings.doorDesigns;
@@ -49,7 +48,7 @@ export default function DoorDesignsPage() {
         <table className="w-full text-left text-sm text-gray-300">
           <thead className="bg-gray-800 text-xs text-gray-400">
             <tr>
-              {['Code', 'Vendor', 'Description', 'Construction', 'Rails', 'Used by', 'Actions'].map((heading) => (
+              {['Code', 'Vendor', 'Description', 'Construction', 'Rails', 'Actions'].map((heading) => (
                 <th key={heading} scope="col" className="px-3 py-2 font-medium">{heading}</th>
               ))}
             </tr>
@@ -57,85 +56,52 @@ export default function DoorDesignsPage() {
           <tbody className="divide-y divide-gray-700">
             {designs.map((design) => {
               const seeded = SEEDED_DESIGN_IDS.includes(design.id);
-              const uses = doorDesignUses(settings, rooms, design.id);
-              const usedBy = uses.map((use) => use.level === 'team'
-                ? 'Team default'
-                : `${rooms.find((room) => room.id === use.roomId)?.name ?? use.roomId} ${use.label}`).join(', ');
-              const deletingThis = deleting?.designId === design.id;
+              const teamDesign = settings.teamDoorStyle?.designId === design.id;
+              const deletingThis = deleting === design.id;
               return (
-                <Fragment key={design.id}>
-                  <tr>
-                    <td className={CELL_CLASS}>
-                      <span className="font-medium text-gray-100">{design.code}</span>
-                      {seeded && <span className="ml-2 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">built-in</span>}
-                    </td>
-                    <td className={CELL_CLASS}>{design.vendor ?? '—'}</td>
-                    <td className={CELL_CLASS}>{design.description}</td>
-                    <td className={CELL_CLASS}>
-                      {CONSTRUCTION_LABELS[design.construction]}
-                      {design.construction === 'slab' && ` · ${design.slabCore === 'mdf' ? 'MDF core' : 'Hardwood'}`}
-                    </td>
-                    <td className={CELL_CLASS}>{railsText(design)}</td>
-                    <td className={CELL_CLASS}>{usedBy || '—'}</td>
-                    <td className={CELL_CLASS}>
-                      <div className="flex gap-2">
-                        <button type="button" className={BUTTON_CLASS} onClick={() => setEditingId(design.id)}>Edit</button>
-                        <button type="button" className={BUTTON_CLASS} onClick={() => dispatch(addDoorDesign({ baseId: design.id }))}>Copy</button>
-                        {!seeded && (
-                          <button
-                            type="button"
-                            className={BUTTON_CLASS}
-                            onClick={() => {
-                              if (!uses.length) {
-                                dispatch(deleteDoorDesign({ designId: design.id }));
-                                setDeleting(null);
-                                return;
-                              }
-                              setDeleting({
-                                designId: design.id,
-                                reassignTo: designs.find((entry) => entry.id !== design.id).id,
-                              });
-                            }}
-                          >
-                            {shopData ? 'Archive' : 'Delete'}
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                  {deletingThis && (
-                    <tr className="bg-gray-800/60">
-                      <td colSpan={7} className="px-3 py-3">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <label className="flex items-center gap-3 text-sm text-gray-400">
-                            Used by {uses.length} style(s). Move them to:
-                            <select
-                              aria-label={`Move styles from ${design.code} to`}
-                              value={deleting.reassignTo}
-                              className={INPUT_CLASS}
-                              onChange={(event) => setDeleting({ ...deleting, reassignTo: event.target.value })}
-                            >
-                              {designs.filter((entry) => entry.id !== design.id).map((entry) => (
-                                <option key={entry.id} value={entry.id}>{entry.code}</option>
-                              ))}
-                            </select>
-                          </label>
-                          <button
-                            type="button"
-                            className={BUTTON_CLASS}
-                            onClick={() => {
-                              dispatch(deleteDoorDesign(deleting));
+                <tr key={design.id}>
+                  <td className={CELL_CLASS}>
+                    <span className="font-medium text-gray-100">{design.code}</span>
+                    {seeded && <span className="ml-2 rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">built-in</span>}
+                  </td>
+                  <td className={CELL_CLASS}>{design.vendor ?? '—'}</td>
+                  <td className={CELL_CLASS}>{design.description}</td>
+                  <td className={CELL_CLASS}>
+                    {CONSTRUCTION_LABELS[design.construction]}
+                    {design.construction === 'slab' && ` · ${design.slabCore === 'mdf' ? 'MDF core' : 'Hardwood'}`}
+                  </td>
+                  <td className={CELL_CLASS}>{railsText(design)}</td>
+                  <td className={CELL_CLASS}>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button type="button" className={BUTTON_CLASS} onClick={() => setEditingId(design.id)}>Edit</button>
+                      <button type="button" className={BUTTON_CLASS} onClick={() => dispatch(addDoorDesign({ baseId: design.id }))}>Copy</button>
+                      {!seeded && (
+                        <button
+                          type="button"
+                          className={`${BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`}
+                          disabled={teamDesign}
+                          title={teamDesign ? 'The team door style uses this design. Change it in Library → Team door style first.' : undefined}
+                          onClick={() => {
+                            if (deletingThis) {
+                              dispatch(deleteDoorDesign({ designId: design.id }));
                               setDeleting(null);
-                            }}
-                          >
-                            {shopData ? 'Archive' : 'Delete'}
-                          </button>
+                            } else {
+                              setDeleting(design.id);
+                            }
+                          }}
+                        >
+                          {deletingThis ? (shopData ? 'Confirm archive' : 'Confirm delete') : (shopData ? 'Archive' : 'Delete')}
+                        </button>
+                      )}
+                      {deletingThis && !teamDesign && (
+                        <>
+                          <span className="text-sm text-gray-400">Rooms that use it will ask for a replacement when opened.</span>
                           <button type="button" className={BUTTON_CLASS} onClick={() => setDeleting(null)}>Cancel</button>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
+                        </>
+                      )}
+                    </div>
+                  </td>
+                </tr>
               );
             })}
           </tbody>
