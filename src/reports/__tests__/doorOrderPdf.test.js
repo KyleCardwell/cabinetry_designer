@@ -8,25 +8,34 @@ const header = {
   revision: 'Revision 2', date: '10/15/2026',
 };
 const page = {
+  styleId: 'shaker', type: 'drawer_fronts',
   header: {
-    style: 'SHAKER - SH', wood: null, vendor: 'VENDOR', thickness: '13/16"',
+    style: '110', wood: null, vendor: 'VENDOR', thickness: '13/16"',
     edgeProfile: 'SQUARE', insideProfile: 'BEAD', panelProfile: 'FLAT',
     appliedMoldings: 'COVE', notes: '3" Stiles & Rails - No Midrails Unless Noted',
   },
-  sections: [
-    { title: 'Drawer Fronts', lines: [{ number: 1, qty: 2, size: '25 3/8 x 5 1/32', notes: 'false front' }] },
-    { title: 'Doors', lines: [{ number: 2, qty: 1, size: '25 3/8 x 30 1/2', notes: '' }] },
-    { title: 'Slab', lines: [{ number: '?', qty: 1, size: '3 1/8 x 4 3/4', notes: 'do not sand edges' }] },
-  ],
+  sections: [{
+    id: 'drawer_fronts', title: 'Drawer Fronts',
+    lines: [
+      { number: 1, qty: 2, size: '25 3/8 x 5 1/32', notes: 'false front' },
+      { number: 2, qty: 1, size: '25 3/8 x 30 1/2', notes: '' },
+    ],
+  }],
 };
 const slabPage = {
-  ...page,
+  ...page, type: 'slab',
   header: {
-    ...page.header, style: 'SLAB - SL', wood: 'MAPLE', vendor: null,
+    ...page.header, wood: 'MAPLE', vendor: 'STILLWATER',
     panelProfile: null, insideProfile: null, appliedMoldings: null, notes: null,
   },
+  sections: [{
+    id: 'slab', title: 'Slab',
+    lines: [{ number: '?', qty: 1, size: '3 1/8 x 4 3/4', notes: 'do not sand edges' }],
+  }],
 };
 const order = { pages: [page, slabPage], warnings: [] };
+const allBorders = [true, true, true, true];
+const titleRows = (node) => node.table.body[0][0].table.body;
 
 function texts(value) {
   if (typeof value === 'string') return [value];
@@ -37,7 +46,7 @@ function texts(value) {
 }
 
 describe('door order PDF definition', () => {
-  it('repeats every style in canonical copy order with page breaks (anchor 1)', () => {
+  it('repeats every form in canonical copy order with page breaks (anchor 5)', () => {
     expect(COPIES).toEqual([
       { id: 'master', label: 'MASTER COPY' }, { id: 'shop', label: 'SHOP COPY' },
       { id: 'install', label: 'INSTALL COPY' }, { id: 'nike', label: 'NIKE COPY' },
@@ -48,15 +57,15 @@ describe('door order PDF definition', () => {
     expect(definition.content).toHaveLength(4);
     definition.content.forEach((node, index) => {
       const text = texts(node);
-      expect(text).toContain(`Style: ${index % 2 === 0 ? 'SHAKER - SH' : 'SLAB - SL'}`);
-      expect(text.includes('MASTER COPY')).toBe(index < 2);
+      expect(node.table.body[1][0].text).toBe(index % 2 === 0 ? 'Drawer Fronts' : 'Slab');
       expect(COPIES.filter(({ label }) => label && text.includes(label)).map(({ id }) => id))
         .toEqual(index < 2 ? ['master'] : []);
       expect(node.pageBreak).toBe(index ? 'before' : undefined);
+      expect(titleRows(node).find(([cell]) => cell.text === 'Style:')[2]).toEqual({
+        text: index < 2 ? 'MASTER COPY' : '', bold: true, color: '#DC2626',
+        fontSize: 13, alignment: 'center',
+      });
     });
-    const copyCell = definition.content[0].table.body.flat().flatMap((cell) => cell.columns ?? [])
-      .find(({ text }) => text === 'MASTER COPY');
-    expect(copyCell).toMatchObject({ bold: true, color: '#DC2626', alignment: 'right' });
     expect(order).toEqual(before);
     expect(doorOrderDocument(order, header, ['nike', 'install', 'shop', 'master', 'order', 'master']).content)
       .toHaveLength(10);
@@ -64,7 +73,7 @@ describe('door order PDF definition', () => {
     expect(doorOrderDocument({ pages: [] }, header, ['master']).content).toEqual([]);
   });
 
-  it('numbers overflow pages within each copy and includes revision/date (anchor 2)', () => {
+  it('numbers overflow pages within each copy and includes revision/date', () => {
     const { footer } = doorOrderDocument(order, header, ['order', 'master']);
     expect(texts(footer(3, 4))).toContain('Page 1 of 2');
     expect(texts(footer(6, 6))).toContain('Page 3 of 3');
@@ -73,66 +82,145 @@ describe('door order PDF definition', () => {
     expect(texts(noRevision.footer(1, 2))).not.toContain('Revision 2');
   });
 
-  it('repeats the complete title and column headings with every table (anchor 3)', () => {
+  it('repeats the bordered title block, type title and shaded headings (anchor 1)', () => {
     const definition = doorOrderDocument(order, header, ['master']);
     expect(definition).toMatchObject({
       pageSize: 'LETTER', pageOrientation: 'portrait', pageMargins: [28.8, 28.8, 28.8, 43.2],
-      defaultStyle: { font: 'Roboto' },
+      defaultStyle: { font: 'Roboto', fontSize: 10 },
     });
-    for (const { table } of definition.content) {
-      const titles = texts(table.body.slice(0, table.headerRows));
-      expect(titles).toEqual(expect.arrayContaining([
-        'Door Order Form', 'Job: Cardwell', 'Room: 123 KITCHEN', 'Edge Profile: SQUARE',
-        'Thickness: 13/16"', 'Cabinet ID', 'QTY', 'Size',
-      ]));
-      expect(table.body[table.headerRows - 1]).toEqual([
-        { text: 'Cabinet ID', alignment: 'right', bold: true },
-        { text: 'QTY', alignment: 'right', bold: true },
-        { text: 'Size', alignment: 'center', bold: true },
+    definition.content.forEach(({ table, layout }, index) => {
+      expect(table).toMatchObject({ headerRows: 3, widths: [70, 50, '*'], dontBreakRows: true });
+      expect(table.body[0][0]).toMatchObject({
+        colSpan: 3, border: allBorders, fontSize: 10,
+        table: { widths: [95, '*', 170] }, layout: 'noBorders',
+      });
+      expect(table.body[1]).toEqual([
+        {
+          text: order.pages[index].sections[0].title, colSpan: 3, bold: true, fontSize: 14,
+          margin: [0, 4, 0, 2], border: [false, false, false, false],
+        }, {}, {},
       ]);
-      const body = table.body.slice(table.headerRows);
-      expect(texts(body).filter((text) => ['Drawer Fronts', 'Doors', 'Slab'].includes(text)))
-        .toEqual(['Drawer Fronts', 'Doors', 'Slab']);
-      expect(body[0][0]).toMatchObject({ text: 'Drawer Fronts', bold: true });
-      expect(body[1]).toEqual([
-        { text: '1', alignment: 'right' }, { text: '2', alignment: 'right' },
-        { stack: [
-          { text: '25 3/8 x 5 1/32', alignment: 'center' },
-          { text: 'false front', alignment: 'center', fontSize: 8 },
-        ] },
-      ]);
-    }
-    const titleRows = definition.content[0].table.body;
-    expect(texts(titleRows)).toEqual(expect.arrayContaining([
-      'Wood: WHITE OAK - WIRE BRUSHED', 'Panel Profile: FLAT', 'Inside Profile: BEAD',
-      'Applied Molding: COVE',
-    ]));
-    expect(titleRows.flat().find(({ text }) => text?.startsWith('Notes:')))
-      .toMatchObject({ text: `Notes: ${page.header.notes}`, colSpan: 3, bold: true });
-    expect(titleRows.flat().flatMap((cell) => cell.columns ?? []).find(({ text }) => text === 'VENDOR'))
-      .toMatchObject({ alignment: 'right', italics: true });
-    const slabText = texts(definition.content[1]);
-    expect(slabText).toContain('Wood: MAPLE');
-    expect(slabText.some((text) => /^(Panel Profile|Inside Profile|Applied Molding|Notes):/.test(text))).toBe(false);
+      expect(table.body[2]).toEqual(['Cabinet ID', 'QTY', 'Size'].map((text) => ({
+        text, alignment: 'center', bold: true, fillColor: '#D9D9D9', border: allBorders,
+      })));
+      expect(typeof layout).toBe('object');
+      for (const property of ['hLineWidth', 'vLineWidth']) expect(layout[property]()).toBe(0.75);
+      for (const property of ['hLineColor', 'vLineColor']) expect(layout[property]()).toBe('#000000');
+      for (const property of ['paddingTop', 'paddingBottom']) expect(layout[property]()).toBe(2);
+      for (const property of ['paddingLeft', 'paddingRight']) expect(layout[property]()).toBe(4);
+      expect(table.body).toHaveLength(3 + order.pages[index].sections[0].lines.length);
+    });
   });
 
-  it('shows company and phone while omitting blank fax in title and footer (anchor 4)', () => {
-    const definition = doorOrderDocument(order, header, ['order']);
-    for (const value of [definition.content, definition.footer(1, 2)]) {
-      expect(texts(value).join(' ')).toContain('FOREVER FURNITURE, INC.');
-      expect(texts(value).join(' ')).toContain('Phone: 801-280-5005');
-      expect(texts(value).join(' ')).not.toContain('Fax:');
+  it('borders every line and centers the size with 8 pt notes below it (anchor 2)', () => {
+    const { content } = doorOrderDocument(order, header, ['order']);
+    expect(content[0].table.body[3]).toEqual([
+      { text: '1', alignment: 'right', border: allBorders },
+      { text: '2', alignment: 'right', border: allBorders },
+      { stack: [
+        { text: '25 3/8 x 5 1/32', alignment: 'center' },
+        { text: 'false front', alignment: 'center', fontSize: 8 },
+      ], border: allBorders },
+    ]);
+    expect(content[0].table.body[4][2]).toEqual({
+      text: '25 3/8 x 30 1/2', alignment: 'center', border: allBorders,
+    });
+    for (const node of content) {
+      for (const row of node.table.body.slice(3)) {
+        for (const cell of row) {
+          expect(cell.border).toEqual(allBorders);
+          expect(cell.bold).toBeFalsy();
+        }
+      }
     }
+  });
+
+  it('aligns labels and bold values, combining style and thickness (anchor 7)', () => {
+    const { content } = doorOrderDocument(order, header, ['master']);
+    const rows = titleRows(content[0]);
+    expect(rows[0]).toEqual([
+      { text: 'Door Order Form', alignment: 'center', bold: true, colSpan: 3 }, {}, {},
+    ]);
+    expect(rows.slice(2).map(([cell]) => cell.text)).toEqual([
+      'Job:', 'Room:', 'Wood:', 'Style:', 'Panel Profile:', 'Edge Profile:',
+      'Inside Profile:', 'Applied Molding:', 'Notes:',
+    ]);
+    expect(rows.slice(2).map((row) => row[1].text)).toEqual([
+      'Cardwell', '123 KITCHEN', 'WHITE OAK - WIRE BRUSHED', '110 - 13/16" thick',
+      'FLAT', 'SQUARE', 'BEAD', 'COVE', page.header.notes,
+    ]);
+    expect(rows.find(([cell]) => cell.text === 'Style:').slice(0, 2)).toEqual([
+      { text: 'Style:', bold: false, margin: [0, 8, 0, 0] },
+      { text: '110 - 13/16" thick', bold: true, margin: [0, 8, 0, 0] },
+    ]);
+    expect(rows.find(([cell]) => cell.text === 'Panel Profile:')[2]).toEqual({
+      text: 'VENDOR', bold: true, italics: true, alignment: 'center',
+    });
+    expect(rows.find(([cell]) => cell.text === 'Edge Profile:')[2].text).toBe('');
+    expect(texts(content).some((text) => text.startsWith('Thickness'))).toBe(false);
+  });
+
+  it('keeps notes aligned with values and wrapping across the last two columns (anchor 8)', () => {
+    const rows = titleRows(doorOrderDocument(order, header, ['order']).content[0]);
+    expect(rows.find(([cell]) => cell.text === 'Notes:')).toEqual([
+      { text: 'Notes:', bold: false },
+      { text: '3" Stiles & Rails - No Midrails Unless Noted', bold: true, colSpan: 2 }, {},
+    ]);
+    for (const [label, value] of rows.slice(2)) {
+      expect(label.bold).toBeFalsy();
+      expect(value.bold).toBe(true);
+    }
+  });
+
+  it('omits null or empty optional rows and puts slab vendor beside Edge Profile (anchor 4)', () => {
+    for (const blank of [null, '']) {
+      const slab = {
+        ...slabPage,
+        header: {
+          ...slabPage.header, panelProfile: blank, insideProfile: blank,
+          appliedMoldings: blank, notes: blank,
+        },
+      };
+      const node = doorOrderDocument({ pages: [slab] }, header, ['order']).content[0];
+      const rows = titleRows(node);
+      expect(rows.slice(2).map(([cell]) => cell.text)).toEqual([
+        'Job:', 'Room:', 'Wood:', 'Style:', 'Edge Profile:',
+      ]);
+      expect(rows.find(([cell]) => cell.text === 'Wood:')[1].text).toBe('MAPLE');
+      expect(rows.find(([cell]) => cell.text === 'Edge Profile:')[2]).toEqual({
+        text: 'STILLWATER', bold: true, italics: true, alignment: 'center',
+      });
+    }
+    const noVendor = { ...page, header: { ...page.header, vendor: null } };
+    const rows = titleRows(doorOrderDocument({ pages: [noVendor] }, header, ['order']).content[0]);
+    expect(rows.find(([cell]) => cell.text === 'Panel Profile:')[2].text).toBe('');
+  });
+
+  it('bolds company and contact information while omitting blank phone/fax', () => {
+    const definition = doorOrderDocument(order, header, ['order']);
     const faxOnly = doorOrderDocument(order, {
       ...header, company: { name: '', phone: '', fax: '801-555-1212' },
     }, ['order']);
-    for (const value of [faxOnly.content, faxOnly.footer(1, 2)]) {
-      expect(texts(value).join(' ')).toContain('Fax: 801-555-1212');
-      expect(texts(value).join(' ')).not.toContain('Phone:');
+    for (const [doc, contact, omitted] of [
+      [definition, 'Phone: 801-280-5005', 'Fax:'], [faxOnly, 'Fax: 801-555-1212', 'Phone:'],
+    ]) {
+      expect(titleRows(doc.content[0])[1]).toEqual([
+        { text: doc === definition ? header.company.name : '', bold: true, colSpan: 2 }, {},
+        { text: contact, bold: true, alignment: 'right' },
+      ]);
+      expect(doc.footer(1, 2).stack[0].columns[0].bold).toBe(true);
+      for (const value of [doc.content, doc.footer(1, 2)]) {
+        expect(texts(value).join(' ')).toContain(contact);
+        expect(texts(value).join(' ')).not.toContain(omitted);
+      }
     }
+    const both = doorOrderDocument(order, {
+      ...header, company: { ...header.company, fax: '801-555-1212' },
+    }, ['order']);
+    expect(titleRows(both.content[0])[1][2].text).toBe('Phone: 801-280-5005   Fax: 801-555-1212');
   });
 
-  it('builds and sanitizes download filenames (anchor 5)', () => {
+  it('builds and sanitizes download filenames', () => {
     expect(doorOrderFileName({ job: 'Cardwell' }, 'Kitchen')).toBe('Cardwell - Kitchen - Door Order Form.pdf');
     expect(doorOrderFileName({ job: '' }, 'A/B')).toBe('Room - A-B - Door Order Form.pdf');
     expect(doorOrderFileName({ job: 'A<>:"' }, 'B\\|?*\n')).toBe('A---- - B----- - Door Order Form.pdf');
@@ -143,7 +231,7 @@ describe('door order PDF definition', () => {
     const serialized = JSON.stringify({ ...definition, footer: definition.footer(1, 10) });
     expect(serialized).not.toMatch(/[⅛¼⅜½⅝¾⅞]/);
     expect(texts(definition)).toEqual(expect.arrayContaining([
-      '25 3/8 x 5 1/32', '25 3/8 x 30 1/2', '3 1/8 x 4 3/4', 'Thickness: 13/16"',
+      '25 3/8 x 5 1/32', '25 3/8 x 30 1/2', '3 1/8 x 4 3/4', '110 - 13/16" thick',
     ]));
   });
 });

@@ -1,57 +1,72 @@
 import { COPIES } from './copies.js';
 
+const bordered = (cell) => ({ ...cell, border: [true, true, true, true] });
 const fullRow = (cell) => [{ ...cell, colSpan: 3 }, {}, {}];
-const textRow = (text, options = {}) => fullRow({ text, ...options });
-const columnsRow = (left, right) => fullRow({
-  columns: [{ width: '*', ...left }, { width: '*', alignment: 'right', ...right }],
-  columnGap: 12,
-});
 const contactText = ({ phone, fax }) => [phone && `Phone: ${phone}`, fax && `Fax: ${fax}`]
   .filter(Boolean).join('   ');
-const columnHeadings = () => [
-  { text: 'Cabinet ID', alignment: 'right', bold: true },
-  { text: 'QTY', alignment: 'right', bold: true },
-  { text: 'Size', alignment: 'center', bold: true },
-];
+const columnHeadings = () => ['Cabinet ID', 'QTY', 'Size'].map((text) => bordered({
+  text, alignment: 'center', bold: true, fillColor: '#D9D9D9',
+}));
 
 function styleTable(page, header, copy) {
   const details = page.header;
-  const rows = [
-    textRow('Door Order Form', { alignment: 'center', bold: true, fontSize: 16, margin: [0, 0, 0, 6] }),
-    columnsRow({ text: header.company.name, bold: true }, { text: contactText(header.company) }),
-    textRow(`Job: ${header.job}`),
-    columnsRow({ text: `Room: ${header.orderRoom}` }, {
-      text: copy.label ?? '', bold: true, color: '#DC2626',
-    }),
-    textRow(`Wood: ${details.wood ?? header.wood}`),
-    columnsRow({ text: `Style: ${details.style}` }, { text: details.vendor ?? '', italics: true }),
+  const detailRow = (label, value, right = { text: '' }, options = {}) => [
+    { text: label, bold: false, ...options },
+    { text: value, bold: true, ...options },
+    right,
   ];
-  if (details.panelProfile != null) rows.push(textRow(`Panel Profile: ${details.panelProfile}`));
-  rows.push(textRow(`Edge Profile: ${details.edgeProfile}`));
-  if (details.insideProfile != null) rows.push(textRow(`Inside Profile: ${details.insideProfile}`));
-  if (details.appliedMoldings) rows.push(textRow(`Applied Molding: ${details.appliedMoldings}`));
-  rows.push(textRow(`Thickness: ${details.thickness}`));
-  if (details.notes) rows.push(textRow(`Notes: ${details.notes}`, { bold: true }));
-  rows.push(columnHeadings());
-  const headerRows = rows.length;
+  const vendor = { text: details.vendor ?? '', bold: true, italics: true, alignment: 'center' };
+  const titleRows = [
+    fullRow({ text: 'Door Order Form', alignment: 'center', bold: true }),
+    [
+      { text: header.company.name, bold: true, colSpan: 2 }, {},
+      { text: contactText(header.company), bold: true, alignment: 'right' },
+    ],
+    detailRow('Job:', header.job),
+    detailRow('Room:', header.orderRoom),
+    detailRow('Wood:', details.wood ?? header.wood),
+    detailRow('Style:', `${details.style} - ${details.thickness} thick`, {
+      text: copy.label ?? '', bold: true, color: '#DC2626', fontSize: 13, alignment: 'center',
+    }, { margin: [0, 8, 0, 0] }),
+  ];
+  if (details.panelProfile) titleRows.push(detailRow('Panel Profile:', details.panelProfile, vendor));
+  titleRows.push(detailRow('Edge Profile:', details.edgeProfile, details.panelProfile ? { text: '' } : vendor));
+  if (details.insideProfile) titleRows.push(detailRow('Inside Profile:', details.insideProfile));
+  if (details.appliedMoldings) titleRows.push(detailRow('Applied Molding:', details.appliedMoldings));
+  if (details.notes) titleRows.push([
+    { text: 'Notes:', bold: false }, { text: details.notes, bold: true, colSpan: 2 }, {},
+  ]);
 
-  for (const section of page.sections) {
-    rows.push(textRow(section.title, { bold: true, margin: [0, 8, 0, 2] }));
-    for (const line of section.lines) {
+  const section = page.sections[0];
+  const rows = [
+    fullRow(bordered({
+      table: { widths: [95, '*', 170], body: titleRows }, layout: 'noBorders', fontSize: 10,
+    })),
+    fullRow({
+      text: section.title, bold: true, fontSize: 14, margin: [0, 4, 0, 2],
+      border: [false, false, false, false],
+    }),
+    columnHeadings(),
+    ...section.lines.map((line) => {
       const size = { text: line.size, alignment: 'center' };
-      rows.push([
-        { text: String(line.number), alignment: 'right' },
-        { text: String(line.qty), alignment: 'right' },
-        line.notes ? {
+      return [
+        bordered({ text: String(line.number), alignment: 'right' }),
+        bordered({ text: String(line.qty), alignment: 'right' }),
+        bordered(line.notes ? {
           stack: [size, { text: line.notes, fontSize: 8, alignment: 'center' }],
-        } : size,
-      ]);
-    }
-  }
+        } : size),
+      ];
+    }),
+  ];
 
   return {
-    table: { headerRows, widths: [70, 40, '*'], body: rows, dontBreakRows: true },
-    layout: 'noBorders',
+    table: { headerRows: 3, widths: [70, 50, '*'], body: rows, dontBreakRows: true },
+    layout: {
+      hLineWidth: () => 0.75, vLineWidth: () => 0.75,
+      hLineColor: () => '#000000', vLineColor: () => '#000000',
+      paddingTop: () => 2, paddingBottom: () => 2,
+      paddingLeft: () => 4, paddingRight: () => 4,
+    },
   };
 }
 
@@ -78,7 +93,7 @@ export function doorOrderDocument(order, header, copyIds) {
         stack: [
           {
             columns: [
-              { text: [header.company.name, contactText(header.company)].filter(Boolean).join('   '), width: '*' },
+              { text: [header.company.name, contactText(header.company)].filter(Boolean).join('   '), width: '*', bold: true },
               { text: `Page ${pageNumber} of ${perCopy}`, width: 'auto', alignment: 'right' },
             ],
             columnGap: 12,
