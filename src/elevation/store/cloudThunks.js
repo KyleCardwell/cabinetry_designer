@@ -15,7 +15,7 @@ import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS, findDoorDesign } from '../model/doorS
 import { cleanOverrides } from '../model/settingsResolve.js';
 import { buildSettingsSnapshot, settingsFromSnapshot } from '../model/settingsSnapshot.js';
 import { ROOM_STATUSES, lastVersionFromRow, versionFromRow } from '../model/roomVersions.js';
-import { ROOM_STATUS_LABELS } from '../model/designProjects.js';
+import { ROOM_STATUS_LABELS, projectAddress } from '../model/designProjects.js';
 import {
   cloudRoomLoaded,
   cloudRoomPatch,
@@ -184,6 +184,15 @@ function overridesLayer(id, row) {
   return { id, values: cleanOverrides(row?.overrides, 'project'), version: row?.version ?? 1 };
 }
 
+function projectInfo(id, row = {}) {
+  return {
+    id,
+    name: row.est_project_name ?? '',
+    client: row.est_client_name ?? '',
+    address: projectAddress(row),
+  };
+}
+
 const roomText = (room) => JSON.stringify(toRoomDocument(room));
 
 /**
@@ -252,6 +261,7 @@ export function openCloudRoom({ estProjectId, roomId, discardLocal = false }) {
 
     dispatch(cloudRoomLoaded({
       room: { ...loaded.room, id: row.room_id, name: row.name },
+      project: projectInfo(estProjectId, project.project),
       layers: {
         project: overridesLayer(estProjectId, project.design),
         phase: { id: phase.phase_id, values: cleanOverrides(phase.overrides, 'phase'), version: phase.version },
@@ -608,6 +618,7 @@ export function openRoomVersion({ estProjectId, roomId, versionId }) {
     };
     dispatch(roomVersionLoaded({
       room: { ...loaded.room, id: roomId },
+      project: projectInfo(estProjectId, projectReply.project.project),
       settings: frozen.settings,
       layers: frozen.layers,
       teamId,

@@ -60,6 +60,7 @@ export const cloudReducers = {
         rows,
         layerVersions: { project: null, phase: null },
         room: null,
+        project: null,
         pending: 0,
         conflict: null,
         error: null,
@@ -76,6 +77,7 @@ export const cloudReducers = {
     state.layers = { project: layerFrom(project), phase: layerFrom(phase) };
     state.cloud.layerVersions = { project: project?.version ?? null, phase: phase?.version ?? null };
     state.cloud.loadId += 1;
+    state.cloud.project = null;
     // Loading a page's layers closes an open shop room (its unsaved edits stay in the draft cache).
     if (state.cloud.room) {
       state.rooms = [];
@@ -114,7 +116,7 @@ export const cloudReducers = {
    */
   cloudRoomLoaded(state, action) {
     if (state.source !== 'cloud' || !state.cloud) return;
-    const { room, layers = {}, meta } = action.payload;
+    const { room, layers = {}, meta, project: projectInfo = null } = action.payload;
     const { project = null, phase = null } = layers;
     const cloud = state.cloud;
     const message = state.message; // e.g. the workspace's load notes
@@ -129,6 +131,7 @@ export const cloudReducers = {
       ...cloud,
       loadId: cloud.loadId + 1,
       layerVersions: { project: project?.version ?? null, phase: phase?.version ?? null },
+      project: projectInfo,
       room: {
         demote: false, recovered: false, recoveredAt: null, staleDraft: null, conflictVersion: null,
         readOnly: false, readOnlyReason: null, lastVersion: null, issued: null, ...meta,
@@ -147,11 +150,11 @@ export const cloudReducers = {
    * settings snapshot instead of the live shop standard and library. `source` becomes
    * 'version', so nothing is saved, drafted or written to localStorage, and every page that
    * needs the shop data (Library, Shop settings, project page, the room) loads it again.
-   * Payload: { room, settings, layers: { project, phase }, teamId, permissions, meta }, where
+   * Payload: { room, project, settings, layers: { project, phase }, teamId, permissions, meta }, where
    * meta is the room info as in cloudRoomLoaded plus `issued: { versionId, seq, label, note, issuedAt, issuedByName }`.
    */
   roomVersionLoaded(state, action) {
-    const { room, settings, layers = {}, teamId, permissions, meta } = action.payload;
+    const { room, project = null, settings, layers = {}, teamId, permissions, meta } = action.payload;
     const loadId = state.cloud?.loadId ?? 0;
     const fresh = buildInitialState({
       settings, rooms: [room], activeRoomId: room.id, activeWallId: null, view: 'plan',
@@ -167,6 +170,7 @@ export const cloudReducers = {
       teamVersion: null,
       rows: { profiles: {}, doorDesigns: {} },
       layerVersions: { project: null, phase: null },
+      project,
       room: {
         demote: false, recovered: false, recoveredAt: null, staleDraft: null, conflictVersion: null,
         lastVersion: null, ...meta, version: null, readOnly: true, readOnlyReason: 'version',
