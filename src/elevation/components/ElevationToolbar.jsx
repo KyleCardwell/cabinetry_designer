@@ -20,6 +20,7 @@ export default function ElevationToolbar({
   onZoomIn,
   onZoomOut,
   zoom = 1,
+  readOnly = false,
 }) {
   const dispatch = useDispatch();
   const {
@@ -42,7 +43,7 @@ export default function ElevationToolbar({
     const wallId = nextWallId(room, activeWallId, direction);
     if (wallId) dispatch(setActiveWall(wallId));
   };
-  const toolNames = view === 'plan' ? ['select', 'wall'] : ['select', 'draw'];
+  const toolNames = readOnly ? ['select'] : view === 'plan' ? ['select', 'wall'] : ['select', 'draw'];
   const addTools = view === 'plan'
     ? [['door', 'Door'], ['window', 'Window']]
     : [['soffit', 'Soffit'], ['recess', 'Recess'], ['door', 'Door'], ['window', 'Window']];
@@ -85,14 +86,16 @@ export default function ElevationToolbar({
               : toolName}
         </button>
       ))}
-      <AddToolMenu
-        tools={addTools}
-        tool={tool}
-        disabledTools={view === 'elevation' && activeWallSide === 'back' ? ['door', 'window'] : []}
-        disabledTitle="Add doors and windows from the front"
-        onPick={(name) => dispatch(setTool(name))}
-      />
-      {view === 'elevation' && tool === 'soffit' && (
+      {!readOnly && (
+        <AddToolMenu
+          tools={addTools}
+          tool={tool}
+          disabledTools={view === 'elevation' && activeWallSide === 'back' ? ['door', 'window'] : []}
+          disabledTitle="Add doors and windows from the front"
+          onPick={(name) => dispatch(setTool(name))}
+        />
+      )}
+      {!readOnly && view === 'elevation' && tool === 'soffit' && (
         <>
           <div
             className="flex rounded bg-gray-950 p-0.5"
