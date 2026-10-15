@@ -3,6 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useParams } from 'react-router-dom';
 import { loadProjectLayers, openCloudWorkspace, withDesignApi } from '../elevation/store/cloudThunks.js';
 import { cloudSync } from '../elevation/store/cloudSync.js';
+import { joinProjectPresence } from '../elevation/store/presenceThunks.js';
+import { selectOpenRooms } from '../elevation/store/presenceSlice.js';
 import { nextName, projectAddress } from '../elevation/model/designProjects.js';
 import { selectDesignPermissions } from '../store/permissions.js';
 import PhaseSection from './PhaseSection.jsx';
@@ -17,6 +19,7 @@ export default function ProjectPage() {
   const dispatch = useDispatch();
   const teamId = useSelector((state) => state.auth.teamId);
   const { view, edit } = useSelector(selectDesignPermissions);
+  const openRooms = useSelector(selectOpenRooms);
   const { source, workspace, layers } = useSelector((state) => state.elevation);
   const projectLayerId = layers.project?.id;
   const phaseLayerId = layers.phase?.id ?? null;
@@ -36,6 +39,10 @@ export default function ProjectPage() {
   const [includeArchived, setIncludeArchived] = useState(false);
   const [editingInfo, setEditingInfo] = useState(false);
   const [copying, setCopying] = useState(null);
+
+  useEffect(() => {
+    if (teamId && view) dispatch(joinProjectPresence(estProjectId));
+  }, [dispatch, teamId, view, estProjectId]);
 
   useEffect(() => {
     if (!teamId || !view || source === 'cloud') return;
@@ -152,7 +159,7 @@ export default function ProjectPage() {
         <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={includeArchived} onChange={(event) => setIncludeArchived(event.target.checked)} />Show archived</label>
       </div>
       {phases.filter((phase) => includeArchived || !phase.archived_at).map((phase) => <PhaseSection
-        key={phase.phase_id} phase={phase} projectId={estProjectId} edit={edit} busy={saving}
+        key={phase.phase_id} phase={phase} projectId={estProjectId} edit={edit} busy={saving} openRooms={openRooms}
         includeArchived={includeArchived} onWrite={write} onCopy={(room) => setCopying({ room, phaseId: phase.phase_id })}
         settingsOpen={selectedPhaseId === phase.phase_id} settingsReady={settingsReady}
         settingsBusy={switchingPhase || loadingLayers || !settingsReady} onSettings={() => togglePhaseSettings(phase.phase_id)}

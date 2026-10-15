@@ -6,6 +6,7 @@ import { initAuth, setSession, clearAuth } from './store/slices/authSlice';
 import AppShell from './components/layout/AppShell';
 import ProjectsPage from './projects/ProjectsPage.jsx';
 import ProjectPage from './projects/ProjectPage.jsx';
+import useLeaveProjectPresence from './projects/useLeaveProjectPresence.js';
 import RoomPage from './projects/RoomPage.jsx';
 import Login from './components/auth/Login';
 import ElevationLab from './elevation/ElevationLab';
@@ -52,6 +53,11 @@ function App() {
     return <Login />;
   }
 
+  return <SignedInApp />;
+}
+
+function SignedInApp() {
+  useLeaveProjectPresence();
   return (
     <AppShell>
       <Routes>

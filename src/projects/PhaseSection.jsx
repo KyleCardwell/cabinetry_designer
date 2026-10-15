@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { newRoomDocument, nextName, ROOM_STATUS_LABELS } from '../elevation/model/designProjects.js';
 import ProjectSettingsPanel from './ProjectSettingsPanel.jsx';
+import { openRoomChips } from './roomText.js';
 
 export const ROOM_STATUS_COLORS = { drafting: 'bg-gray-700 text-gray-200', approved: 'bg-teal-950 text-teal-300', released: 'bg-blue-950 text-blue-300' };
 
@@ -26,7 +27,7 @@ export function InlineName({ name, label, editable, busy, onRename, children }) 
   </div>;
 }
 
-export default function PhaseSection({ phase, projectId, edit, busy, includeArchived, onWrite, onCopy, settingsOpen, settingsReady, settingsBusy, onSettings }) {
+export default function PhaseSection({ phase, projectId, edit, busy, includeArchived, openRooms = {}, onWrite, onCopy, settingsOpen, settingsReady, settingsBusy, onSettings }) {
   const archived = Boolean(phase.archived_at);
   const rooms = [...phase.rooms].sort((a, b) => a.sort - b.sort);
   return <section aria-label={phase.name} className={`rounded border border-gray-700 p-4 space-y-4 ${archived ? 'text-gray-500' : ''}`}>
@@ -47,6 +48,7 @@ export default function PhaseSection({ phase, projectId, edit, busy, includeArch
           return <tr key={room.room_id} className={`border-t border-gray-700 ${greyed ? 'text-gray-500' : ''}`}>
             <td className="px-2 py-3"><InlineName name={room.name} label="Room name" editable={edit && !greyed} busy={busy} onRename={(name) => onWrite((api) => api.updateRoomInfo(room.room_id, { name }))}>
               <Link to={`/projects/${projectId}/rooms/${room.room_id}`} className="hover:underline">{room.name}</Link>
+              {openRoomChips(openRooms[room.room_id] ?? []).map((chip) => <span key={chip.label} className={`rounded px-2 py-1 text-xs ${chip.editing ? 'bg-amber-950 text-amber-300' : 'bg-gray-700 text-gray-300'}`}>{chip.label}</span>)}
             </InlineName></td>
             <td className="px-2 py-3"><span className={`rounded px-2 py-1 text-xs ${greyed ? 'bg-gray-800 text-gray-500' : ROOM_STATUS_COLORS[room.status]}`}>{ROOM_STATUS_LABELS[room.status]}</span></td>
             <td className="px-2 py-3">{room.last_version?.label || '—'}</td>

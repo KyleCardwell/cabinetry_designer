@@ -13,11 +13,17 @@ import { groupsFor } from '../../elevation/model/settingGroups.js';
 import WorkspaceSourceBar from '../../library/WorkspaceSourceBar.jsx';
 import { cloudSaveStatus, cloudWorkspaceLoaded, layersLoaded } from '../../elevation/store/elevationSlice.js';
 import { cloudSync } from '../../elevation/store/cloudSync.js';
+import { joinProjectPresence } from '../../elevation/store/presenceThunks.js';
+import { presenceEntries, presenceJoining } from '../../elevation/store/presenceSlice.js';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useRef: vi.fn() }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 vi.mock('react-router-dom', async (original) => ({ ...await original(), useParams: vi.fn() }));
 vi.mock('../../elevation/store/cloudSync.js', () => ({ cloudSync: { flush: vi.fn(), retry: vi.fn() } }));
+vi.mock('../../elevation/store/presenceThunks.js', async (original) => {
+  const actual = await original();
+  return { ...actual, joinProjectPresence: vi.fn(actual.joinProjectPresence) };
+});
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
@@ -74,7 +80,7 @@ beforeEach(() => {
   auth = { teamId: 't', permissions: { view: true, edit: true, manage: false } };
   params = { projectId: '42', roomId: 'r1' };
   useParams.mockImplementation(() => params);
-  useSelector.mockImplementation((selector) => selector({ auth, elevation: store.getState().elevation }));
+  useSelector.mockImplementation((selector) => selector({ ...store.getState(), auth }));
   cloudSync.flush.mockResolvedValue({ ok: true });
   useState.mockImplementation((initial) => {
     const owner = current;
@@ -561,4 +567,58 @@ describe('DB5 c project page', () => {
     expect(onCopied).toHaveBeenCalledOnce();
   });
 
+});
+
+describe('DB6b f project presence', () => {
+  it('joins project 42 on mount with team and view permission, including view-only access (anchor 1)', async () => {
+    auth.permissions.edit = false;
+    const page = renderComponent(ProjectPage);
+    await page.flush();
+    expect(joinProjectPresence).toHaveBeenCalledOnce();
+    expect(joinProjectPresence).toHaveBeenCalledWith(42);
+    params.projectId = '43';
+    await page.flush();
+    expect(joinProjectPresence).toHaveBeenLastCalledWith(43);
+  });
+
+  it.each(['view', 'team'])('does not join without %s (anchor 2)', async (missing) => {
+    if (missing === 'view') auth.permissions.view = false;
+    else auth.teamId = null;
+    const page = renderComponent(ProjectPage);
+    await page.flush();
+    expect(joinProjectPresence).not.toHaveBeenCalled();
+    expect(api.calls).toEqual([]);
+  });
+
+  it('shows live editing and viewing chips only on the matching room, excluding this tab (anchor 3)', async () => {
+    const project = fixture();
+    project.phases[0].rooms[0].room_id = 'rm-1';
+    project.phases[0].rooms[1].archived_at = null;
+    setApi({ project });
+    store.dispatch(presenceJoining({ estProjectId: 42, selfKey: 'self' }));
+    store.dispatch(presenceEntries([
+      { key: 'jane', roomId: 'rm-1', userName: 'Jane', readOnly: false },
+      { key: 'self', roomId: 'r2', userName: 'Me', readOnly: false },
+    ]));
+    const page = renderComponent(ProjectPage);
+    await page.flush();
+    expect(phaseNodes(page.tree)[0].props.openRooms['rm-1']).toMatchObject([{ userName: 'Jane', readOnly: false }]);
+    let section = phase(page);
+    expect(text(row(section.tree, 'Kitchen'))).toContain('Open · Jane');
+    expect(text(row(section.tree, 'Pantry'))).not.toMatch(/Open ·|Viewing ·/);
+    expect(nodes(row(section.tree, 'Kitchen')).find((node) => node.type === 'span' && text(node) === 'Open · Jane').props.className).toContain('bg-amber-950');
+
+    store.dispatch(presenceEntries([
+      { key: 'bob', roomId: 'rm-1', userName: 'Bob', readOnly: true },
+      { key: 'jane', roomId: 'rm-1', userName: 'Jane', readOnly: false },
+    ]));
+    page.render();
+    section = phase(page);
+    const chips = nodes(row(section.tree, 'Kitchen')).filter((node) => node.type === 'span' && /^(Open|Viewing) ·/.test(text(node)));
+    expect(chips.map(text)).toEqual(['Open · Jane', 'Viewing · Bob']);
+    expect(chips[1].props.className).toContain('bg-gray-700');
+    store.dispatch(presenceEntries([]));
+    page.render();
+    expect(text(phase(page).tree)).not.toMatch(/Open ·|Viewing ·/);
+  });
 });
