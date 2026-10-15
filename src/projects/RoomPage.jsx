@@ -7,9 +7,7 @@ import { selectDesignPermissions } from '../store/permissions.js';
 import RoomHeader from './RoomHeader.jsx';
 import RoomBanners from './RoomBanners.jsx';
 import MissingDesignsDialog from './MissingDesignsDialog.jsx';
-
-// A new route (including StrictMode's second mount) waits for the previous leave.
-let leaving = Promise.resolve();
+import { afterLeave, trackLeave } from './roomLeave.js';
 
 export default function RoomPage() {
   const { projectId, roomId } = useParams();
@@ -29,7 +27,7 @@ export default function RoomPage() {
       if (!session.active || session.opening) return;
       session.opening = true;
       setResult({ session, status: 'opening' });
-      await leaving;
+      await afterLeave();
       if (!session.active) return;
       const reply = await dispatch(openCloudRoom({ estProjectId, roomId }));
       if (!session.active) return;
@@ -40,7 +38,7 @@ export default function RoomPage() {
     session.open();
     return () => {
       session.active = false;
-      leaving = Promise.resolve(dispatch(leaveCloudRoom()));
+      trackLeave(dispatch(leaveCloudRoom()));
     };
   }, [dispatch, teamId, view, estProjectId, roomId]);
 

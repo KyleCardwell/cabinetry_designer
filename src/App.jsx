@@ -8,6 +8,7 @@ import ProjectsPage from './projects/ProjectsPage.jsx';
 import ProjectPage from './projects/ProjectPage.jsx';
 import useLeaveProjectPresence from './projects/useLeaveProjectPresence.js';
 import RoomPage from './projects/RoomPage.jsx';
+import VersionPage from './projects/VersionPage.jsx';
 import Login from './components/auth/Login';
 import ElevationLab from './elevation/ElevationLab';
 import LibraryLayout from './library/LibraryLayout.jsx';
@@ -67,6 +68,7 @@ function SignedInApp() {
         <Route path="/projects/:projectId" element={<ProjectPage />} />
         {SANDBOX_ENABLED && <Route path="/elevation-lab" element={<ElevationLab />} />}
         <Route path="/projects/:projectId/rooms/:roomId" element={<RoomPage />} />
+        <Route path="/projects/:projectId/rooms/:roomId/versions/:versionId" element={<VersionPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/library/profiles/:profileId" element={<ProfileEditorPage />} />
         <Route path="/library" element={<LibraryLayout />}>
