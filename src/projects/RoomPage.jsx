@@ -6,6 +6,7 @@ import { leaveCloudRoom, openCloudRoom } from '../elevation/store/cloudThunks.js
 import { selectDesignPermissions } from '../store/permissions.js';
 import RoomHeader from './RoomHeader.jsx';
 import RoomBanners from './RoomBanners.jsx';
+import MissingDesignsDialog from './MissingDesignsDialog.jsx';
 
 // A new route (including StrictMode's second mount) waits for the previous leave.
 let leaving = Promise.resolve();
@@ -63,6 +64,9 @@ export default function RoomPage() {
   if (!current || result.status !== 'ready' || info?.id !== roomId) return <p role="status" className="p-6">Opening room…</p>;
 
   return <DesignerEditor mode="room" header={<RoomHeader projectId={projectId} roomId={roomId} />}
-    banners={<RoomBanners key={roomId} projectId={projectId} roomId={roomId} openBy={result.openBy} />}
+    banners={<>
+      <RoomBanners key={roomId} projectId={projectId} roomId={roomId} openBy={result.openBy} />
+      <MissingDesignsDialog key={`${info.id}:${Boolean(info.readOnly)}`} />
+    </>}
     readOnly={Boolean(info.readOnly)} />;
 }

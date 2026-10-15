@@ -5,10 +5,12 @@ import { Link, useParams } from 'react-router-dom';
 import RoomPage from '../RoomPage.jsx';
 import RoomHeader from '../RoomHeader.jsx';
 import RoomBanners from '../RoomBanners.jsx';
+import MissingDesignsDialog from '../MissingDesignsDialog.jsx';
 import useOnline from '../useOnline.js';
 import { ROOM_STATUS_COLORS } from '../PhaseSection.jsx';
 import DesignerEditor from '../../elevation/DesignerEditor.jsx';
 import { newRoomDocument } from '../../elevation/model/designProjects.js';
+import { DEFAULT_DOOR_STYLE } from '../../elevation/model/doorStyles.js';
 import { leaveCloudRoom, openCloudRoom } from '../../elevation/store/cloudThunks.js';
 import { cloudSync } from '../../elevation/store/cloudSync.js';
 import { cloudRoomPatch, cloudSaveStatus, layersLoaded } from '../../elevation/store/elevationSlice.js';
@@ -143,8 +145,8 @@ describe('DB6b c room page', () => {
     expect(api.calls).toContainEqual(['getRoom', 'rm-1']);
     const editor = component(page.tree, DesignerEditor);
     expect(editor.props).toMatchObject({ mode: 'room', readOnly: false });
-    expect(editor.props.banners.type).toBe(RoomBanners);
-    expect(editor.props.banners.props).toEqual({ projectId: '42', roomId: 'rm-1', openBy: [] });
+    expect(component(editor.props.banners, RoomBanners).props).toEqual({ projectId: '42', roomId: 'rm-1', openBy: [] });
+    expect(component(editor.props.banners, MissingDesignsDialog).key).toBe('rm-1:false');
     const header = renderComponent(RoomHeader, editor.props.header.props);
     expect(text(header.tree)).toContain('Kitchen');
     expect(text(header.tree)).toContain('Drafting');
@@ -219,6 +221,46 @@ describe('DB6b c room page', () => {
     expect(button(header.tree, 'Save now')).toBeUndefined();
     store.dispatch(cloudRoomPatch({ readOnly: false }));
     expect(component(page.render(), DesignerEditor).props.readOnly).toBe(false);
+  });
+
+  it('asks once per opened room, and asks again after Edit anyway makes it editable', async () => {
+    for (const row of api.db.project.phases[0].rooms) {
+      row.document.doorStyles = [{ ...DEFAULT_DOOR_STYLE, id: 'missing', label: 'A', designId: 'old' }];
+      row.document.doorStyleId = 'missing';
+    }
+    const page = await openPage();
+    let dialog;
+    let dialogKey;
+    // Match React's reconciliation of RoomPage's keyed dialog child.
+    const renderDialog = () => {
+      const editor = component(page.render(), DesignerEditor);
+      const child = component(editor.props.banners, MissingDesignsDialog);
+      if (!dialog || child.key !== dialogKey) {
+        dialog?.unmount();
+        dialog = renderComponent(MissingDesignsDialog, child.props);
+        dialogKey = child.key;
+      } else dialog.render();
+      return dialog.tree;
+    };
+    button(renderDialog(), 'Not now').props.onClick();
+    expect(renderDialog()).toBeNull();
+    store.dispatch(cloudRoomPatch({ version: 2 }));
+    expect(renderDialog()).toBeNull();
+
+    store.dispatch(cloudRoomPatch({ readOnly: true, readOnlyReason: 'others' }));
+    expect(renderDialog()).toBeNull();
+    const bannerChild = component(component(page.tree, DesignerEditor).props.banners, RoomBanners);
+    const banners = renderComponent(RoomBanners, bannerChild.props);
+    await button(banners.tree, 'Edit anyway').props.onClick();
+    expect(button(renderDialog(), 'Not now')).toBeDefined();
+    button(dialog.tree, 'Not now').props.onClick();
+    expect(renderDialog()).toBeNull();
+
+    params = { ...params, roomId: 'rm-2' };
+    page.render();
+    await page.flush();
+    expect(button(renderDialog(), 'Not now')).toBeDefined();
+    expect(dialogKey).toBe('rm-2:false');
   });
 
   it('checks team membership and view permission without API calls', async () => {
