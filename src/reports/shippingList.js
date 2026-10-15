@@ -12,12 +12,37 @@ import { fillerReturnDepth } from '../elevation/model/planPieces.js';
 import { resolveProfile } from '../elevation/model/profile.js';
 import { resolveWall } from '../elevation/model/room.js';
 import { runScene } from '../elevation/model/runScene.js';
-import { runFrame } from '../elevation/model/styles.js';
-import { formatSize } from './format.js';
+import { REVEAL_KEYS, runFrame } from '../elevation/model/styles.js';
+import { teeFillers } from '../elevation/model/tees.js';
+import { formatInch, formatSize } from './format.js';
 
 const TYPES = { 1: 'Base', 2: 'Upper', 3: 'Tall' };
 const MOLDINGS = { toeKick: 'Toe Kick', topMold: 'Top Mold', crown: 'Crown' };
 const EPSILON = 1e-6;
+
+function faceOrder(a, b) {
+  const topA = a.z == null ? 0 : a.z + (a.height ?? 0);
+  const topB = b.z == null ? 0 : b.z + (b.height ?? 0);
+  return topB - topA || (a.x ?? 0) - (b.x ?? 0);
+}
+
+/** Group working fronts at report precision, retaining their first top-down appearance. */
+export function drawerFrontNote(faces = []) {
+  const groups = new Map();
+  for (const face of faces.filter((face) => face.type === 'drawer_front').sort(faceOrder)) {
+    const height = Math.round(face.height * 32) / 32;
+    groups.set(height, (groups.get(height) ?? 0) + 1);
+  }
+  return groups.size ? `DF's (${[...groups].map(([height, count]) => `${count} - ${formatInch(height)}`).join(', ')})` : null;
+}
+
+/** Pair halves have implied hinges; only single doors need a shop instruction. */
+export function hingeNote(faces = []) {
+  const doors = faces.filter((face) => face.type === 'door').sort(faceOrder);
+  if (!doors.length) return null;
+  const notes = doors.map(({ hinge }) => hinge === 'left' ? 'hl' : hinge === 'right' ? 'hr' : 'hinge?');
+  return notes[0] !== 'hinge?' && notes.every((note) => note === notes[0]) ? notes[0] : notes.join(', ');
+}
 
 /** Cabinet doors are implied; only working drawer fronts are counted. */
 export function cabinetDescription(typeId, faces = []) {
@@ -36,6 +61,7 @@ export function cabinetDescription(typeId, faces = []) {
 function shippingContext(room, settings) {
   const views = new Map();
   const scenes = new Map();
+  const rabbets = new Map();
   const elevations = new Map();
   let bases;
   return (part) => {
@@ -58,6 +84,9 @@ function shippingContext(room, settings) {
     if (!run) return { wall: view };
     if (!scenes.has(run)) scenes.set(run, runScene(room, view, run, settings));
     const scene = scenes.get(run);
+    if (part.kind === 'cabinet' && !rabbets.has(run)) {
+      rabbets.set(run, teeFillers(room, run, scene.cells, settings).rabbets);
+    }
     const piece = scene.cells.pieces.find(({ id }) => id === part.key)
       ?? scene.shelves.find(({ id }) => id === part.key);
     const leaf = findLeaf(run.grid, part.key);
@@ -71,7 +100,7 @@ function shippingContext(room, settings) {
         panelLevels(room, view, run, end ? run.ends?.[end] : leaf, { sheet })).style;
     }
     return {
-      wall: view, run, scene, piece, end, blindPanel, shelfBack, style,
+      wall: view, run, scene, piece, leaf, rabbets: rabbets.get(run), end, blindPanel, shelfBack, style,
       // Descriptions and the properties placeholder need no elevation geometry.
       rectangle: () => {
         if (!elevations.has(viewKey)) elevations.set(viewKey,
@@ -162,7 +191,29 @@ function shippingSize(room, settings, part, context) {
   }
 }
 
-/** Numbered note groups leave room for steps d–f ahead of the free-text group (#14). */
+function cabinetNotes(room, settings, part, context) {
+  if (part.kind !== 'cabinet') return {};
+  const { scene, leaf, rabbets } = context;
+  const faces = scene.faceLayouts.get(part.key)?.faces ?? [];
+  const boxes = room.reportParts?.[part.key]?.boxes;
+  const reveals = REVEAL_KEYS.filter((key) => Number.isFinite(leaf?.reveals?.[key]))
+    .map((key) => `${formatInch(leaf.reveals[key])} ${key[0].toUpperCase()}`);
+  const blind = scene.blind.entries.find(({ pieceId }) => pieceId === part.key);
+  const doors = faces.filter((face) => face.type === 'door');
+  const doorWidth = doors.length ? Math.max(...doors.map(({ width }) => width)) : blind?.visibleWidth;
+  const falseFronts = faces.filter((face) => face.type === 'false_front').length;
+  return {
+    1: boxes && boxes !== settings.report?.boxMaterial ? `${boxes} BOX` : null,
+    2: reveals.length ? `RV's (${reveals.join(', ')})` : null,
+    3: blind ? `Door x ${formatInch(doorWidth)}, Blind x ${formatInch(blind.extension)}` : null,
+    4: drawerFrontNote(faces),
+    5: falseFronts ? falseFronts === 1 ? 'false front' : `${falseFronts} false fronts` : null,
+    6: hingeNote(faces),
+    7: rabbets.get(part.key),
+  };
+}
+
+/** Numbered note groups leave room for later part notes ahead of free text (#14). */
 function orderedNotes(groups) {
   return Object.entries(groups).sort(([a], [b]) => Number(a) - Number(b))
     .flatMap(([, notes]) => notes).map((note) => note?.trim()).filter(Boolean);
@@ -176,7 +227,7 @@ export function shippingList(room, settings) {
     return {
       number: part.number, key: part.key, kind: part.kind,
       description: describePart(room, settings, part, context),
-      notes: orderedNotes({ 14: [room.reportParts?.[part.key]?.note] }),
+      notes: orderedNotes({ ...cabinetNotes(room, settings, part, context), 14: [room.reportParts?.[part.key]?.note] }),
       size: shippingSize(room, settings, part, context),
     };
   });
