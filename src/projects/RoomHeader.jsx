@@ -6,6 +6,7 @@ import { ROOM_STATUSES } from '../elevation/model/roomVersions.js';
 import { cloudSync } from '../elevation/store/cloudSync.js';
 import { setRoomStatus } from '../elevation/store/cloudThunks.js';
 import { ROOM_STATUS_COLORS } from './PhaseSection.jsx';
+import IssueDialog from './IssueDialog.jsx';
 import useOnline from './useOnline.js';
 
 export default function RoomHeader({ projectId, roomId }) {
@@ -15,8 +16,10 @@ export default function RoomHeader({ projectId, roomId }) {
   const [saving, setSaving] = useState(false);
   const [savingStatus, setSavingStatus] = useState(false);
   const [statusError, setStatusError] = useState(null);
+  const [issuing, setIssuing] = useState(false);
   const room = rooms.find((entry) => entry.id === roomId);
   const info = cloud.room;
+  const canEdit = source === 'cloud' && cloud.permissions.edit && !info.readOnly;
   let saveText = 'All changes saved';
   let saveColor = 'text-teal-400';
   let canSave = false;
@@ -54,7 +57,7 @@ export default function RoomHeader({ projectId, roomId }) {
     <Link to={`/projects/${projectId}`} className="text-sm text-blue-400 hover:underline">← Project</Link>
     <h1 className="text-lg font-semibold">{room?.name}</h1>
     <div>
-      {source === 'cloud' && cloud.permissions.edit && !info.readOnly ? <>
+      {canEdit ? <>
         <select aria-label="Room status" value={info.status} disabled={savingStatus} onChange={changeStatus}
           className={`rounded px-2 py-1 text-xs ${ROOM_STATUS_COLORS[info.status]}`}>
           {ROOM_STATUSES.map((status) => <option key={status} value={status}>{ROOM_STATUS_LABELS[status]}</option>)}
@@ -63,9 +66,16 @@ export default function RoomHeader({ projectId, roomId }) {
       </> : <span className={`inline-block rounded px-2 py-1 text-xs ${ROOM_STATUS_COLORS[info.status]}`}>{ROOM_STATUS_LABELS[info.status]}</span>}
       {statusError && <p role="alert" className="mt-2 text-xs text-red-300">{statusError}</p>}
     </div>
+    <div className="flex flex-wrap items-center gap-2 text-xs">
+      <span className="text-gray-300">{info.lastVersion
+        ? `Last issued: ${info.lastVersion.label} (v${info.lastVersion.seq})`
+        : 'Not issued yet'}</span>
+      {canEdit && <button type="button" className="rounded border border-gray-600 px-2 py-1" onClick={() => setIssuing(true)}>Issue…</button>}
+    </div>
     <div className={`flex flex-wrap items-center gap-2 text-xs ${saveColor}`}>
       <span role="status">{saveText}</span>
       {canSave && <button type="button" disabled={saving} className="rounded border border-gray-600 px-2 py-1" onClick={saveNow}>{saving ? 'Saving…' : 'Save now'}</button>}
     </div>
+    {issuing && canEdit && <IssueDialog onClose={() => setIssuing(false)} />}
   </div>;
 }
