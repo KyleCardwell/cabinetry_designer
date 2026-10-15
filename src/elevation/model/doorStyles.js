@@ -90,10 +90,10 @@ export function findDoorDesign(designId, designs = DOOR_DESIGNS) {
 }
 
 const DOOR_STYLE_FIELDS = [
-  'id', 'label', 'name', 'designId', 'thickness', 'stiles', 'rails', 'mid',
+  'id', 'label', 'name', 'material', 'designId', 'thickness', 'stiles', 'rails', 'mid',
   'panel', 'profiles', 'appliedMoldings', 'arch', 'shortFace',
 ];
-const REQUIRED_DOOR_STYLE_FIELDS = DOOR_STYLE_FIELDS.filter((key) => key !== 'name' && key !== 'appliedMoldings');
+const REQUIRED_DOOR_STYLE_FIELDS = DOOR_STYLE_FIELDS.filter((key) => !['name', 'material', 'appliedMoldings'].includes(key));
 const PART_SIZE_KEYS = ['rails', 'stiles', 'midRails', 'midStiles', 'archRise', 'notes'];
 
 function isPlainObject(value) {
@@ -125,6 +125,8 @@ export function isDoorStyle(doorStyle) {
   return hasKeys(doorStyle, DOOR_STYLE_FIELDS, REQUIRED_DOOR_STYLE_FIELDS)
     && ['id', 'label', 'designId'].every((key) => isNonEmptyString(doorStyle[key]))
     && (doorStyle.name === undefined || typeof doorStyle.name === 'string')
+    && (doorStyle.material === undefined
+      || (typeof doorStyle.material === 'string' && doorStyle.material.trim().length <= 120))
     && isPositive(doorStyle.thickness)
     && isPositivePair(doorStyle.stiles, ['left', 'right'])
     && isPositivePair(doorStyle.rails, ['top', 'bottom'])

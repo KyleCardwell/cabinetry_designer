@@ -4,6 +4,7 @@ import { applyDesignDefaults } from '../model/doorStyleEdits.js';
 import DoorProfilePickers from './DoorProfilePickers.jsx';
 import DoorSectionView from './DoorSectionView.jsx';
 import InchInput from './InchInput.jsx';
+import TextInput from './TextInput.jsx';
 
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const HEADING_CLASS = 'text-sm font-semibold text-gray-300';
@@ -69,6 +70,21 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
               <option key={id} value={id}>{code} — {description}</option>
             ))}
           </select>
+        </label>
+        <label className="block text-xs text-gray-400">
+          Material
+          <TextInput
+            value={draft.material}
+            onCommit={(material) => setDraft((previous) => {
+              const next = { ...previous };
+              if (material) next.material = material;
+              else delete next.material;
+              return next;
+            })}
+            placeholder="Room wood"
+            aria-label="Material"
+            className="mt-1"
+          />
         </label>
         <SizeField label="Thickness" value={draft.thickness} onChange={(value) => change('thickness', value)} />
         <section className="space-y-2">

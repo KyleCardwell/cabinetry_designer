@@ -72,6 +72,25 @@ const renameCrown = (store, name) => {
 };
 
 describe('DB8a issue', () => {
+  it('RP1 b freezes room and team style material and restores both when opening the issue', async () => {
+    const style = { ...DEFAULT_DOOR_STYLE, id: 'a', label: 'A', material: 'MAPLE/MDF' };
+    const api = versionApi(roomRow({}, { doorStyles: [style] }));
+    api.db.teamSettings.settings.teamDoorStyle = { ...DEFAULT_DOOR_STYLE, material: 'WHITE OAK' };
+    const ctx = await setup({ api });
+    const issued = await ctx.store.dispatch(issueRoomVersion({ label: 'KC Material' }));
+    expect(issued.ok).toBe(true);
+    const [version] = api.db.versions;
+    expect(version.document.doorStyles[0].material).toBe('MAPLE/MDF');
+    expect(version.settings_snapshot.settings.teamDoorStyle.material).toBe('WHITE OAK');
+    dbRoom(api).document.doorStyles[0].material = 'CHERRY';
+    api.db.teamSettings.settings.teamDoorStyle.material = 'WALNUT';
+    const reply = await ctx.store.dispatch(openRoomVersion({ estProjectId: 42, roomId: 'rm-1', versionId: issued.versionId }));
+    expect(reply.ok).toBe(true);
+    const elevation = elevationOf(ctx.store);
+    expect(elevation.rooms[0].doorStyles[0].material).toBe('MAPLE/MDF');
+    expect(elevation.settings.teamDoorStyle.material).toBe('WHITE OAK');
+  });
+
   it('saves pending edits first, then freezes that version with its settings snapshot', async () => {
     const ctx = await setup();
     editPart(ctx.store, 7);

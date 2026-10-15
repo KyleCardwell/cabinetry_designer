@@ -10,6 +10,7 @@ import DoorProfilePickers from '../DoorProfilePickers.jsx';
 import DoorSectionView from '../DoorSectionView.jsx';
 import DoorStyleFields from '../DoorStyleFields.jsx';
 import InchInput from '../InchInput.jsx';
+import TextInput from '../TextInput.jsx';
 import PartStyleFields from '../properties/PartStyleFields.jsx';
 import KindPanel from '../../../library/profileEditor/KindPanel.jsx';
 import ProfileCanvas from '../../../library/profileEditor/ProfileCanvas.jsx';
@@ -76,6 +77,45 @@ beforeEach(() => {
   useDispatch.mockReturnValue(dispatch);
   useState.mockImplementation((initial) => [typeof initial === 'function' ? initial() : initial, vi.fn()]);
   useReducer.mockImplementation((reducer, initial, init) => [init(initial), vi.fn()]);
+});
+
+describe('RP1 b door style material', () => {
+  it('trims material on blur, removes blanks and rejects overlong text in room and team styles (anchor 3)', () => {
+    for (const base of [DEFAULT_DOOR_STYLE, { ...DEFAULT_DOOR_STYLE, id: 'a', label: 'A' }]) {
+      let draft = structuredClone(base);
+      let typed = '';
+      const setDraft = (update) => { draft = update(draft); };
+      const input = () => {
+        const tree = DoorStyleFields({ draft, setDraft, designs: DOOR_DESIGNS });
+        const fields = nodes(tree);
+        const material = find(tree, ({ props }) => props['aria-label'] === 'Material');
+        expect(material.type).toBe(TextInput);
+        expect(fields.indexOf(material)).toBeGreaterThan(fields.indexOf(find(tree, ({ props }) => props['aria-label'] === 'Design')));
+        expect(fields.indexOf(material)).toBeLessThan(fields.indexOf(find(tree, ({ props }) => props.label === 'Thickness')));
+        useState.mockReturnValueOnce([typed, (value) => { typed = value; }]);
+        return TextInput(material.props);
+      };
+      const commit = (value) => {
+        input().props.onChange({ target: { value } });
+        input().props.onBlur();
+      };
+      expect(input().props).toMatchObject({ type: 'text', value: '', placeholder: 'Room wood' });
+      input().props.onChange({ target: { value: '  MAPLE/MDF ' } });
+      expect(input().props.value).toBe('  MAPLE/MDF ');
+      expect(draft).not.toHaveProperty('material');
+      input().props.onBlur();
+      expect(draft.material).toBe('MAPLE/MDF');
+      expect(input().props.value).toBe('MAPLE/MDF');
+      commit('x'.repeat(121));
+      expect(draft.material).toBe('MAPLE/MDF');
+      expect(input().props.value).toBe('MAPLE/MDF');
+      commit(` ${'x'.repeat(120)} `);
+      expect(draft.material).toBe('x'.repeat(120));
+      commit('   ');
+      expect(draft).not.toHaveProperty('material');
+      expect(input().props.value).toBe('');
+    }
+  });
 });
 
 describe('Step 494.5 Slab - MDF Core editor and part panel', () => {

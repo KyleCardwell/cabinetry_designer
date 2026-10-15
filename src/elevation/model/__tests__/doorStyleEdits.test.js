@@ -8,6 +8,22 @@ const B = { ...DEFAULT_DOOR_STYLE, id: 'ds-b', label: 'B', thickness: 1 };
 const { name, ...UNNAMED } = DEFAULT_DOOR_STYLE;
 void name;
 
+describe('RP1 b door style material', () => {
+  it('keeps material when copying team or room styles and changing designs', () => {
+    for (const base of [DEFAULT_DOOR_STYLE, A]) {
+      const original = { ...base, material: 'MAPLE/MDF' };
+      const copy = newDoorStyle([A, B], original, 'ds-c');
+      expect(copy).toEqual({ ...original, id: 'ds-c', label: 'C', name: undefined });
+      expect(copy).not.toHaveProperty('name');
+      expect(copy).not.toBe(original);
+      expect(isDoorStyle(copy)).toBe(true);
+      const changed = applyDesignDefaults(copy, DOOR_DESIGNS[0], DOOR_DESIGNS[1]);
+      expect(changed.material).toBe('MAPLE/MDF');
+      expect(original).toEqual({ ...base, material: 'MAPLE/MDF' });
+    }
+  });
+});
+
 describe('Step 484 applied molding edits', () => {
   it('adds, edits and removes by index on copies, retaining other style fields and molding order', () => {
     const original = structuredClone(DEFAULT_DOOR_STYLE);
