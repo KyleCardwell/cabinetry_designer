@@ -13,10 +13,14 @@ import {
 import { SEEDED_DESIGN_IDS, isDoorDesignList } from '../model/doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS, findDoorDesign } from '../model/doorStyles.js';
 import { cleanOverrides } from '../model/settingsResolve.js';
+import { buildSettingsSnapshot, settingsFromSnapshot } from '../model/settingsSnapshot.js';
+import { ROOM_STATUSES, lastVersionFromRow, versionFromRow } from '../model/roomVersions.js';
+import { ROOM_STATUS_LABELS } from '../model/designProjects.js';
 import {
   cloudRoomLoaded,
   cloudRoomPatch,
   cloudRoomRecovered,
+  roomVersionLoaded,
   cloudWorkspaceFailed,
   cloudWorkspaceLoaded,
   cloudWorkspaceLoading,
@@ -265,6 +269,7 @@ export function openCloudRoom({ estProjectId, roomId, discardLocal = false }) {
         schemaVersion: row.schema_version,
         readOnly: Boolean(readOnlyReason),
         readOnlyReason,
+        lastVersion: lastVersionFromRow(listed?.last_version),
       },
     }));
     await dispatch(setPresenceRoom({ roomId, readOnly: Boolean(readOnlyReason) }));
@@ -398,5 +403,229 @@ export function leaveCloudRoom() {
     const reply = await syncOf(extra).flush();
     await dispatch(setPresenceRoom({ roomId: null }));
     return reply;
+  };
+}
+
+// ---------------------------------------------------------------------------------------
+// Status, Issue and issued versions (SPEC-DB8a). Screens are D8b's.
+// ---------------------------------------------------------------------------------------
+
+const fail = (reason, message, extra = {}) => ({ ok: false, reason, message, ...extra });
+
+/** Who saved over us, for a conflict reply's message. */
+function conflictFail(reply, doing) {
+  const who = reply.updated_by_name ? `${reply.updated_by_name} saved this room` : 'This room was saved somewhere else';
+  return fail('conflict', `${who} since you opened it, so it wasn't ${doing}. Reload the room, check it, then try again.`, {
+    updatedByName: reply.updated_by_name ?? null, updatedAt: reply.updated_at ?? null, version: reply.version ?? null,
+  });
+}
+
+/**
+ * The checks Issue and a status change share: an editable shop room is open, and every
+ * change has reached the server (saves are flushed first, so the room the server freezes or
+ * approves is the one on screen). → { ok: true, info, room } | failure
+ */
+async function settledRoom(getState, extra) {
+  const state = () => getState().elevation;
+  const info = state().cloud?.room;
+  if (state().source !== 'cloud' || !info) return fail('no_room', 'No shop room is open.');
+  if (!state().cloud.permissions?.edit) return fail('permission', 'You don\'t have permission to change this room.');
+  if (info.archived) return fail('archived', 'This room is archived. Restore it on the project page first.');
+  if (info.readOnly) {
+    return fail('read_only', info.readOnlyReason === 'others'
+      ? 'Someone else is editing this room. Choose Edit anyway first.'
+      : 'This room is open view-only.');
+  }
+  const flushed = await syncOf(extra).flush();
+  const now = state();
+  if (now.source !== 'cloud' || now.cloud?.room?.id !== info.id) return fail('superseded', 'Another room was opened.');
+  if (!flushed.ok || now.cloud.conflict || now.cloud.error || now.cloud.statusBlock || (now.cloud.pending ?? 0) > 0) {
+    return fail('unsaved', 'Some changes aren\'t saved yet. Settle the message above (retry, conflict or the approved-room warning), then try again.');
+  }
+  const room = now.rooms.find((entry) => entry.id === info.id);
+  if (!room) return fail('no_room', 'No shop room is open.');
+  return { ok: true, info: now.cloud.room, room };
+}
+
+/**
+ * The settings snapshot Issue would freeze for the open room right now (SPEC-DB8a §1), or
+ * null. Builds a new object on every call: use it in a handler or `useMemo`, not as a
+ * `useSelector` selector. D8b can show `missing` before the user presses Issue.
+ */
+export function issueSnapshotOf(state) {
+  const { elevation } = state;
+  const info = elevation.cloud?.room;
+  const room = info ? elevation.rooms.find((entry) => entry.id === info.id) : null;
+  if (elevation.source !== 'cloud' || !room) return null;
+  return buildSettingsSnapshot({
+    settings: elevation.settings,
+    layers: elevation.layers,
+    document: toRoomDocument(room),
+    rows: elevation.cloud.rows,
+    issuedFrom: {
+      teamId: elevation.cloud.teamId,
+      estProjectId: info.estProjectId,
+      phaseId: info.phaseId,
+      roomId: info.id,
+      roomVersion: info.version,
+      teamVersion: elevation.cloud.teamVersion ?? null,
+      projectVersion: elevation.cloud.layerVersions?.project ?? null,
+      phaseVersion: elevation.cloud.layerVersions?.phase ?? null,
+    },
+  });
+}
+
+/**
+ * Issue: freeze the open room as its next version (DB2). Saves are flushed first; the room
+ * the server freezes must be the version this browser last saved or loaded
+ * (`issue_room_version` checks `expected_version`). The settings snapshot (resolved shop
+ * standard → project → phase, and the library items the room draws with) goes with it.
+ * Refused while a door design the room names is missing from the library.
+ * → { ok: true, versionId, seq, label, issuedAt } | { ok: false, reason, message }
+ *   reasons: no_room, permission, archived, read_only, bad_input, unsaved, superseded,
+ *   missing_library, conflict (+ updatedByName, updatedAt), network / error.
+ */
+export function issueRoomVersion({ label, note = '' } = {}) {
+  return async (dispatch, getState, extra) => {
+    const text = String(label ?? '').trim();
+    if (!text) return fail('bad_input', 'Enter a version label.');
+    const settled = await settledRoom(getState, extra);
+    if (!settled.ok) return settled;
+    const { info } = settled;
+    const snapshot = issueSnapshotOf(getState());
+    if (snapshot.missing.doorDesigns.length) {
+      return fail('missing_library', 'This room uses a door design that is no longer in the library. Pick a replacement, then issue.', {
+        missing: snapshot.missing,
+      });
+    }
+    const api = await apiFrom(extra);
+    const reply = await api.issueRoomVersion({
+      roomId: info.id, label: text, note: String(note ?? '').trim() || null,
+      settingsSnapshot: snapshot, expectedVersion: info.version,
+    });
+    if (!reply.ok) return reply.reason === 'conflict' ? conflictFail(reply, 'issued') : reply;
+    const issued = { versionId: reply.version_id, seq: reply.seq, label: reply.label ?? text, issuedAt: reply.issued_at ?? null };
+    if (getState().elevation.cloud?.room?.id === info.id) {
+      dispatch(cloudRoomPatch({ lastVersion: { seq: issued.seq, label: issued.label, issuedAt: issued.issuedAt } }));
+    }
+    return { ok: true, ...issued };
+  };
+}
+
+/**
+ * Set the open room's status: 'drafting' | 'approved' | 'released' (DB4). Saves are flushed
+ * first and the change is checked against the room's version, so the user approves what
+ * they're looking at. Editing an Approved / Released room afterwards goes through the save's
+ * status warning (`cloud.statusBlock` → `allowRoomDemote`, SPEC-DB6a).
+ * → { ok: true, status, statusAt } | { ok: false, reason, message }
+ */
+export function setRoomStatus(status) {
+  return async (dispatch, getState, extra) => {
+    if (!ROOM_STATUSES.includes(status)) return fail('bad_input', `Unknown room status "${status}".`);
+    const settled = await settledRoom(getState, extra);
+    if (!settled.ok) return settled;
+    const { info } = settled;
+    if (info.status === status) return { ok: true, status, statusAt: info.statusAt ?? null };
+    const api = await apiFrom(extra);
+    const reply = await api.setRoomStatus({ roomId: info.id, status, expectedVersion: info.version });
+    if (!reply.ok) return reply.reason === 'conflict' ? conflictFail(reply, `marked ${ROOM_STATUS_LABELS[status]}`) : reply;
+    if (getState().elevation.cloud?.room?.id === info.id) {
+      dispatch(cloudRoomPatch({
+        status: reply.status ?? status, statusAt: reply.status_at ?? null, statusByName: getState().auth?.userName ?? null,
+      }));
+    }
+    return { ok: true, status: reply.status ?? status, statusAt: reply.status_at ?? null };
+  };
+}
+
+/**
+ * A room's issued versions, newest first (no documents). Defaults to the open room.
+ * → { ok: true, versions: [{ versionId, seq, label, note, schemaVersion, issuedBy, issuedByName, issuedAt }] }
+ */
+export function loadRoomVersions(roomId = null) {
+  return async (dispatch, getState, extra) => {
+    const id = roomId ?? getState().elevation.cloud?.room?.id ?? null;
+    if (!id) return fail('no_room', 'No room is open.');
+    const api = await apiFrom(extra);
+    const reply = await api.listRoomVersions(id);
+    return reply.ok ? { ok: true, versions: reply.rows.map(versionFromRow) } : reply;
+  };
+}
+
+/**
+ * Open an issued version read-only: its frozen document drawn with its own settings snapshot,
+ * not the live shop standard or library (DB7). The editor holds just this room, with
+ * `source: 'version'` and `cloud.room.readOnlyReason: 'version'`; nothing saves, and the
+ * snapshot can't be edited. An open shop room is left first (saves flushed, presence cleared).
+ * Any page that needs live shop data reloads it (`source !== 'cloud'`).
+ * → { ok: true, version: { versionId, seq, label, note, issuedAt, issuedByName } } | { ok: false, reason, message }
+ *   reasons: permission, not_found, bad_snapshot, bad_document, schema, superseded, network / error.
+ */
+export function openRoomVersion({ estProjectId, roomId, versionId }) {
+  return async (dispatch, getState, extra) => {
+    const seq = ++openSeq;
+    const superseded = fail('superseded', 'Another room was opened.');
+    const { teamId, permissions = {} } = getState().auth ?? {};
+    const allowed = { view: false, edit: false, manage: false, ...permissions };
+    if (!teamId) return fail('no_team', 'You are not on a team.');
+    if (!allowed.view) return fail('permission', 'You don\'t have permission to view designs.');
+
+    // Leave what's open first: an open room (saves flushed, presence cleared) or pending shop saves.
+    if (getState().elevation.source === 'cloud') {
+      if (getState().elevation.cloud?.room) await dispatch(leaveCloudRoom());
+      else await syncOf(extra).flush();
+    }
+    if (seq !== openSeq) return superseded;
+
+    const api = await apiFrom(extra);
+    const [projectReply, versionsReply, versionReply] = await Promise.all([
+      api.getProject(estProjectId), api.listRoomVersions(roomId), api.getRoomVersion(versionId),
+    ]);
+    if (seq !== openSeq) return superseded;
+    const failed = [projectReply, versionsReply, versionReply].find((reply) => !reply.ok);
+    if (failed) return fail(failed.reason, `Couldn't open the version: ${failed.message}`);
+
+    const row = versionReply.version;
+    const phase = projectReply.project?.phases?.find((entry) => entry.rooms?.some((candidate) => candidate.room_id === roomId));
+    const listedRoom = phase?.rooms.find((candidate) => candidate.room_id === roomId);
+    const listed = versionsReply.rows.find((entry) => entry.version_id === versionId);
+    if (!projectReply.project || !listedRoom || !row || row.room_id !== roomId) {
+      return fail('not_found', 'That version is not in this room.');
+    }
+
+    const frozen = settingsFromSnapshot(row.settings_snapshot);
+    if (!frozen.ok) return frozen;
+    const loaded = roomFromDocument(row.document, row.schema_version, frozen.settings);
+    if (!loaded.ok) return loaded;
+
+    const issued = {
+      versionId: row.version_id,
+      seq: row.seq,
+      label: row.label,
+      note: row.note ?? null,
+      issuedAt: row.issued_at ?? null,
+      issuedByName: listed?.issued_by_name ?? null,
+    };
+    dispatch(roomVersionLoaded({
+      room: { ...loaded.room, id: roomId },
+      settings: frozen.settings,
+      layers: frozen.layers,
+      teamId,
+      permissions: allowed,
+      meta: {
+        id: roomId,
+        phaseId: phase.phase_id,
+        estProjectId,
+        status: listedRoom.status,
+        statusAt: listedRoom.status_at ?? null,
+        statusByName: listedRoom.status_by_name ?? null,
+        archived: Boolean(listedRoom.archived_at),
+        updatedAt: null,
+        schemaVersion: row.schema_version,
+        lastVersion: lastVersionFromRow(listedRoom.last_version),
+        issued,
+      },
+    }));
+    return { ok: true, version: issued };
   };
 }

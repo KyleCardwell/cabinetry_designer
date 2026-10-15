@@ -1,0 +1,149 @@
+/**
+ * The settings snapshot frozen with every issued version (DATABASE-PLAN DB7, SPEC-DB8a).
+ *
+ * A version stores the room document as it was saved, plus this snapshot: everything the
+ * drawing reads from outside the room, so an issued drawing draws the same forever, whatever
+ * happens to the shop standard, the project / phase settings or the library afterwards.
+ *
+ *   {
+ *     format: 1,
+ *     issuedFrom: { teamId, estProjectId, phaseId, roomId, roomVersion,
+ *                   teamVersion, projectVersion, phaseVersion },   // provenance only
+ *     settings:   resolved shop standard → project → phase (no library, no view prefs),
+ *     overrides:  { project, phase }   // the raw override values, so hover still names the source
+ *     doorDesigns:     the built-in designs + every design the room or the settings name,
+ *     sectionProfiles: every profile the room or the settings name (archived ones too),
+ *     library:   { doorDesigns: { id: rowVersion }, profiles: { id: rowVersion } },
+ *     missing:   { doorDesigns: [ids], profiles: [ids] }   // named but not in the library
+ *   }
+ *
+ * The room's own door styles are in the room document. The team door style is in `settings`.
+ */
+import { DEFAULT_PREFS } from './constants.js';
+import { SEEDED_DESIGN_IDS, isDoorDesignList } from './doorDesigns.js';
+import { findDoorDesign } from './doorStyles.js';
+import { isSectionProfileList } from './sectionProfiles.js';
+import { cleanOverrides, resolveSettings } from './settingsResolve.js';
+
+export const SNAPSHOT_FORMAT = 1;
+
+const LIBRARY_LISTS = ['doorDesigns', 'sectionProfiles'];
+const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+
+/**
+ * Every string in `value`, and the ones that name a door design or a profile by their key:
+ * `designId`, `profileId` / `…ProfileId`, and a door style's `profiles` slots.
+ */
+function collectReferences(value, found, parentKey = null) {
+  if (Array.isArray(value)) {
+    for (const entry of value) collectReferences(entry, found, parentKey);
+    return;
+  }
+  if (isPlainObject(value)) {
+    for (const [key, child] of Object.entries(value)) {
+      if (typeof child === 'string') {
+        found.strings.add(child);
+        if (key === 'designId') found.designs.add(child);
+        else if (key === 'profileId' || key.endsWith('ProfileId') || parentKey === 'profiles') found.profiles.add(child);
+      } else {
+        collectReferences(child, found, key);
+      }
+    }
+    return;
+  }
+  if (typeof value === 'string') found.strings.add(value);
+}
+
+/** Shop standard → project → phase, with the library lists and view prefs left out. */
+export function resolvedIssueSettings(settings, layers = {}) {
+  const resolved = resolveSettings([
+    { level: 'team', values: settings ?? {} },
+    ...(layers?.project ? [{ level: 'project', id: layers.project.id, values: layers.project.values ?? {} }] : []),
+    ...(layers?.phase ? [{ level: 'phase', id: layers.phase.id, values: layers.phase.values ?? {} }] : []),
+  ]);
+  for (const key of [...LIBRARY_LISTS, ...Object.keys(DEFAULT_PREFS)]) delete resolved[key];
+  return resolved;
+}
+
+/**
+ * Build the snapshot for issuing `document` (the room as saved, `toRoomDocument(room)`).
+ * `settings` is the workspace's shop standard with its library (`state.elevation.settings`),
+ * `layers` the open room's `{ project, phase }` overrides, `rows` the workspace's row map
+ * (`cloud.rows`, for the library row versions), `issuedFrom` the provenance ids/versions.
+ */
+export function buildSettingsSnapshot({ settings, layers = {}, document, rows = null, issuedFrom = {} }) {
+  const resolved = resolvedIssueSettings(settings, layers);
+  const found = { strings: new Set(), designs: new Set(), profiles: new Set() };
+  collectReferences(document, found);
+  collectReferences(resolved, found);
+
+  const designs = settings?.doorDesigns ?? [];
+  const profiles = settings?.sectionProfiles ?? [];
+  const doorDesigns = designs
+    .filter((design) => SEEDED_DESIGN_IDS.includes(design.id) || found.strings.has(design.id))
+    .map((design) => structuredClone(design));
+  const sectionProfiles = profiles
+    .filter((profile) => found.strings.has(profile.id))
+    .map((profile) => structuredClone(profile));
+
+  const versions = (list, map) => Object.fromEntries(list
+    .filter((entry) => map?.[entry.id]?.version !== undefined)
+    .map((entry) => [entry.id, map[entry.id].version]));
+
+  return {
+    format: SNAPSHOT_FORMAT,
+    issuedFrom: {
+      teamId: null, estProjectId: null, phaseId: null, roomId: null, roomVersion: null,
+      teamVersion: null, projectVersion: null, phaseVersion: null,
+      ...issuedFrom,
+    },
+    settings: resolved,
+    overrides: {
+      project: layers?.project ? structuredClone(layers.project.values ?? {}) : null,
+      phase: layers?.phase ? structuredClone(layers.phase.values ?? {}) : null,
+    },
+    doorDesigns,
+    sectionProfiles,
+    library: {
+      doorDesigns: versions(doorDesigns, rows?.doorDesigns),
+      profiles: versions(sectionProfiles, rows?.profiles),
+    },
+    missing: {
+      doorDesigns: [...found.designs].filter((id) => !findDoorDesign(id, designs)).sort(),
+      profiles: [...found.profiles].filter((id) => !profiles.some((profile) => profile.id === id)).sort(),
+    },
+  };
+}
+
+/** A snapshot this code can draw from (format 1, a settings object, valid library lists). */
+export function isSettingsSnapshot(snapshot) {
+  return isPlainObject(snapshot)
+    && snapshot.format === SNAPSHOT_FORMAT
+    && isPlainObject(snapshot.settings)
+    && isDoorDesignList(snapshot.doorDesigns)
+    && isSectionProfileList(snapshot.sectionProfiles)
+    && (snapshot.overrides === undefined || isPlainObject(snapshot.overrides));
+}
+
+/**
+ * The workspace a version opens with: its frozen settings as the shop standard (library =
+ * the snapshot's designs and profiles), and its override values as the project / phase layers
+ * so the editor can still say where a value came from. Resolving them again gives the same
+ * values the snapshot froze; a setting added after the version was issued takes its code default.
+ * → { ok: true, settings, layers } | { ok: false, reason: 'bad_snapshot', message }
+ */
+export function settingsFromSnapshot(snapshot) {
+  if (!isSettingsSnapshot(snapshot)) {
+    return { ok: false, reason: 'bad_snapshot', message: 'This version\'s saved settings could not be read.' };
+  }
+  const settings = structuredClone(snapshot.settings);
+  for (const key of Object.keys(DEFAULT_PREFS)) delete settings[key];
+  settings.doorDesigns = structuredClone(snapshot.doorDesigns);
+  settings.sectionProfiles = structuredClone(snapshot.sectionProfiles);
+  const { estProjectId = null, phaseId = null } = snapshot.issuedFrom ?? {};
+  const layer = (level, id) => {
+    const values = snapshot.overrides?.[level];
+    return isPlainObject(values) ? { id, values: cleanOverrides(values, level) } : null;
+  };
+  return { ok: true, settings, layers: { project: layer('project', estProjectId), phase: layer('phase', phaseId) } };
+}

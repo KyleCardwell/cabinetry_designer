@@ -200,3 +200,18 @@ describe('DB7 a dev-only sandbox', () => {
     expect(openShop).not.toHaveBeenCalled();
   });
 });
+
+describe('DB8a after an issued version', () => {
+  it('reopens live shop data even with the sandbox on, never showing the frozen library', () => {
+    sandbox.enabled = true;
+    const elevation = { ...store.getState().elevation, source: 'version' };
+    useSelector.mockImplementation((selector) => selector({ ...store.getState(), elevation }));
+    expect(component(render(LibraryLayout).render(), Outlet)).toBeUndefined();
+    const bar = render(WorkspaceSourceBar);
+    const tree = bar.render();
+    expect(text(tree)).toContain('Loading…');
+    expect(text(tree)).not.toContain("Editing this browser's sandbox");
+    bar.render();
+    expect(openShop).toHaveBeenCalledOnce();
+  });
+});

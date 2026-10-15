@@ -18,10 +18,13 @@ export function useShopReadOnly() {
   return elevation.source === 'cloud' && !elevation.cloud?.permissions?.manage;
 }
 
-/** Keep sandbox content hidden until the shop workspace is open in production. */
+/**
+ * Keep sandbox content hidden until the shop workspace is open in production. An issued
+ * version's frozen library (SPEC-DB8a) is never shown here, in dev either.
+ */
 export function useSandboxHidden() {
   const source = useSelector((state) => state.elevation.source);
-  return !SANDBOX_ENABLED && source !== 'cloud';
+  return source !== 'cloud' && (!SANDBOX_ENABLED || source === 'version');
 }
 
 /**
@@ -36,14 +39,16 @@ export default function WorkspaceSourceBar({ allowSwitch = true, manageNote = tr
   const [busy, setBusy] = useState(false);
   const openedShop = useRef(false);
   const isCloud = source === 'cloud';
+  // Coming from an issued version (SPEC-DB8a): always reopen the live shop data.
+  const autoOpen = !SANDBOX_ENABLED || source === 'version';
   const pending = cloud?.pending ?? 0;
   const stuck = Boolean(cloud?.conflict || cloud?.error);
 
   useEffect(() => {
-    if (SANDBOX_ENABLED || isCloud || workspace?.loading || workspace?.error || openedShop.current) return;
+    if (!autoOpen || isCloud || workspace?.loading || workspace?.error || openedShop.current) return;
     openedShop.current = true;
     dispatch(openCloudWorkspace());
-  }, [dispatch, isCloud, workspace?.loading, workspace?.error]);
+  }, [dispatch, autoOpen, isCloud, workspace?.loading, workspace?.error]);
 
   const openShop = async () => {
     setBusy(true);
@@ -58,7 +63,7 @@ export default function WorkspaceSourceBar({ allowSwitch = true, manageNote = tr
   };
 
   let status = null;
-  if (workspace?.loading || busy || (!SANDBOX_ENABLED && !isCloud && !workspace?.error)) status = <span className="text-gray-400">Loading…</span>;
+  if (workspace?.loading || busy || (autoOpen && !isCloud && !workspace?.error)) status = <span className="text-gray-400">Loading…</span>;
   else if (isCloud && pending > 0) status = <span className="text-gray-400">Saving…</span>;
   else if (isCloud && !stuck) status = <span className="text-teal-400">All changes saved</span>;
 
@@ -95,7 +100,7 @@ export default function WorkspaceSourceBar({ allowSwitch = true, manageNote = tr
         )}
       </div>
 
-      {SANDBOX_ENABLED && !isCloud && allowSwitch && (
+      {SANDBOX_ENABLED && source === 'local' && allowSwitch && (
         <p className="text-xs text-gray-500">Editing this browser&apos;s sandbox (the Elevation Lab&apos;s library and settings). Nothing here reaches the shop data.</p>
       )}
       {workspace?.error && <p className="rounded border border-red-500/60 bg-red-500/10 px-3 py-2 text-sm text-red-200">{workspace.error}</p>}

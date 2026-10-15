@@ -44,6 +44,7 @@ async function rpc(client, name, args) {
 const PROFILE_COLUMNS = 'profile_id, kind, name, data, version, sort, archived_at';
 const ROOM_COLUMNS = 'room_id, phase_id, name, status, status_at, version, schema_version, document, archived_at, updated_at';
 const DESIGN_COLUMNS = 'design_id, code, data, version, sort, archived_at';
+const VERSION_COLUMNS = 'version_id, room_id, seq, label, note, document, schema_version, settings_snapshot, issued_by, issued_at';
 
 export function createDesignApi(client) {
   return {
@@ -89,6 +90,33 @@ export function createDesignApi(client) {
         p_room_id: roomId, p_document: document, p_schema_version: schemaVersion,
         p_expected_version: expectedVersion, p_demote: demote,
       });
+    },
+    /** → { ok, status, status_at, version } | conflict */
+    setRoomStatus({ roomId, status, expectedVersion }) {
+      return rpc(client, 'set_room_status', {
+        p_room_id: roomId, p_status: status, p_expected_version: expectedVersion,
+      });
+    },
+    /** Freeze the room's saved draft as its next version. → { ok, version_id, seq, label, issued_at } | conflict */
+    issueRoomVersion({ roomId, label, note = null, settingsSnapshot, expectedVersion }) {
+      return rpc(client, 'issue_room_version', {
+        p_room_id: roomId, p_label: label, p_note: note,
+        p_settings_snapshot: settingsSnapshot, p_expected_version: expectedVersion,
+      });
+    },
+    /** A room's issued versions, newest first, without documents. → { ok, rows } */
+    async listRoomVersions(roomId) {
+      const reply = await rpc(client, 'list_design_room_versions', { p_room_id: roomId });
+      return reply.ok ? { ok: true, rows: reply.data ?? [] } : reply;
+    },
+    /**
+     * One issued version with its document and settings snapshot (a plain select). → { ok, version: row | null }
+     * Row: version_id, room_id, seq, label, note, document, schema_version, settings_snapshot, issued_by, issued_at.
+     */
+    async getRoomVersion(versionId) {
+      const reply = await run(() => client.from('design_room_versions')
+        .select(VERSION_COLUMNS).eq('version_id', versionId).maybeSingle());
+      return reply.ok ? { ok: true, version: reply.data ?? null } : reply;
     },
     saveTeamSettings(teamId, settings, expectedVersion) {
       return rpc(client, 'save_team_settings', {

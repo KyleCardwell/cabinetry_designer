@@ -42,7 +42,8 @@ export function createInitialElevationState(document = loadElevationDocument()) 
     // Project / phase overrides (SPEC-DB4): `{ id, values }` or null. Never saved to localStorage.
     layers: { project: null, phase: null },
     // Where settings and the library come from (SPEC-DB4): 'local' = this browser's
-    // localStorage document (Elevation Lab sandbox), 'cloud' = the team's Supabase rows.
+    // localStorage document (Elevation Lab sandbox), 'cloud' = the team's Supabase rows,
+    // 'version' = one issued room version with its own frozen settings (SPEC-DB8a, read-only).
     source: 'local',
     cloud: null,
     workspace: { loading: false, error: null },
@@ -229,6 +230,7 @@ export const {
   cloudRoomLoaded,
   cloudRoomRecovered,
   cloudRoomPatch,
+  roomVersionLoaded,
 } = elevationSlice.actions;
 
 /**
@@ -246,7 +248,19 @@ export const ROOM_EDIT_ACTION_TYPES = new Set([
   'cloudRoomRecovered',
 ].map((name) => `${elevationSlice.name}/${name}`));
 
+/**
+ * An issued version (SPEC-DB8a, `source: 'version'`) is frozen: besides the room edits, its
+ * settings snapshot and library can't be changed either (nothing would save them anyway).
+ */
+export const VERSION_LOCKED_ACTION_TYPES = new Set([
+  ...ROOM_EDIT_ACTION_TYPES,
+  ...[doorDesignReducers, sectionProfileReducers].flatMap((group) => Object.keys(group))
+    .map((name) => `${elevationSlice.name}/${name}`),
+  ...['setSetting', 'updateSettings', 'setLayerSetting'].map((name) => `${elevationSlice.name}/${name}`),
+]);
+
 export default function elevationReducer(state, action) {
   if (state?.cloud?.room?.readOnly && ROOM_EDIT_ACTION_TYPES.has(action.type)) return state;
+  if (state?.source === 'version' && VERSION_LOCKED_ACTION_TYPES.has(action.type)) return state;
   return elevationSlice.reducer(state, action);
 }

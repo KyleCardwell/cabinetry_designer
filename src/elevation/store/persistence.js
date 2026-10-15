@@ -943,8 +943,8 @@ export function toElevationDocument(elevationState) {
 
 /** Persist a current elevation document without allowing storage failures to escape. */
 export function persistElevationDocument(elevationState) {
-  // Shop (Supabase) data never overwrites this browser's sandbox document (SPEC-DB4).
-  if (elevationState?.source === 'cloud') return;
+  // Shop (Supabase) data and issued versions never overwrite this browser's sandbox document (SPEC-DB4, DB8a).
+  if (elevationState?.source === 'cloud' || elevationState?.source === 'version') return;
   try {
     if (typeof window === 'undefined' || !window.localStorage) return;
     window.localStorage.setItem(

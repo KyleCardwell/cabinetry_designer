@@ -131,7 +131,7 @@ export const cloudReducers = {
       layerVersions: { project: project?.version ?? null, phase: phase?.version ?? null },
       room: {
         demote: false, recovered: false, recoveredAt: null, staleDraft: null, conflictVersion: null,
-        readOnly: false, readOnlyReason: null, ...meta,
+        readOnly: false, readOnlyReason: null, lastVersion: null, issued: null, ...meta,
       },
       pending: 0,
       conflict: null,
@@ -139,6 +139,43 @@ export const cloudReducers = {
       statusBlock: null,
     };
     state.message = message;
+    for (let index = 0; index < state.rooms.length; index += 1) syncRoomAt(state, index);
+  },
+
+  /**
+   * An issued version opened read-only (SPEC-DB8a): its frozen room drawn with its own
+   * settings snapshot instead of the live shop standard and library. `source` becomes
+   * 'version', so nothing is saved, drafted or written to localStorage, and every page that
+   * needs the shop data (Library, Shop settings, project page, the room) loads it again.
+   * Payload: { room, settings, layers: { project, phase }, teamId, permissions, meta }, where
+   * meta is the room info as in cloudRoomLoaded plus `issued: { versionId, seq, label, note, issuedAt, issuedByName }`.
+   */
+  roomVersionLoaded(state, action) {
+    const { room, settings, layers = {}, teamId, permissions, meta } = action.payload;
+    const loadId = state.cloud?.loadId ?? 0;
+    const fresh = buildInitialState({
+      settings, rooms: [room], activeRoomId: room.id, activeWallId: null, view: 'plan',
+    });
+    for (const key of Object.keys(state)) delete state[key];
+    Object.assign(state, fresh);
+    state.source = 'version';
+    state.layers = { project: layerFrom(layers.project), phase: layerFrom(layers.phase) };
+    state.cloud = {
+      teamId,
+      permissions,
+      loadId: loadId + 1,
+      teamVersion: null,
+      rows: { profiles: {}, doorDesigns: {} },
+      layerVersions: { project: null, phase: null },
+      room: {
+        demote: false, recovered: false, recoveredAt: null, staleDraft: null, conflictVersion: null,
+        lastVersion: null, ...meta, version: null, readOnly: true, readOnlyReason: 'version',
+      },
+      pending: 0,
+      conflict: null,
+      error: null,
+      statusBlock: null,
+    };
     for (let index = 0; index < state.rooms.length; index += 1) syncRoomAt(state, index);
   },
 
@@ -162,7 +199,7 @@ export const cloudReducers = {
   cloudRoomPatch(state, action) {
     const info = state.cloud?.room;
     if (!info) return;
-    for (const key of ['status', 'statusAt', 'statusByName', 'archived', 'version', 'demote', 'staleDraft', 'conflictVersion', 'updatedAt', 'recovered', 'recoveredAt', 'readOnly', 'readOnlyReason']) {
+    for (const key of ['status', 'statusAt', 'statusByName', 'archived', 'version', 'demote', 'staleDraft', 'conflictVersion', 'updatedAt', 'recovered', 'recoveredAt', 'readOnly', 'readOnlyReason', 'lastVersion']) {
       if (Object.hasOwn(action.payload, key)) info[key] = action.payload[key];
     }
   },

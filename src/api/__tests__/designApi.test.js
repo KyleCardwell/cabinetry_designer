@@ -199,4 +199,37 @@ describe('designApi', () => {
     const client = fakeClient({ rpc: { save_room_document: { data: status, error: null } } });
     expect(await createDesignApi(client).saveRoomDocument({ roomId: 'r1', document: {}, schemaVersion: 4, expectedVersion: 5 })).toEqual(status);
   });
+
+  it('issues a version and sets a status with the expected version (DB8a)', async () => {
+    const client = fakeClient({ rpc: {
+      issue_room_version: { data: { ok: true, version_id: 'v1', seq: 1, label: 'KC', issued_at: 't' }, error: null },
+      set_room_status: { data: { ok: true, status: 'approved', status_at: 't', version: 5 }, error: null },
+    } });
+    const api = createDesignApi(client);
+    expect(await api.issueRoomVersion({ roomId: 'r1', label: 'KC', settingsSnapshot: { format: 1 }, expectedVersion: 5 }))
+      .toEqual({ ok: true, version_id: 'v1', seq: 1, label: 'KC', issued_at: 't' });
+    expect(await api.setRoomStatus({ roomId: 'r1', status: 'approved', expectedVersion: 5 }))
+      .toEqual({ ok: true, status: 'approved', status_at: 't', version: 5 });
+    expect(client.calls.map((call) => [call.rpc, call.args])).toEqual([
+      ['issue_room_version', { p_room_id: 'r1', p_label: 'KC', p_note: null, p_settings_snapshot: { format: 1 }, p_expected_version: 5 }],
+      ['set_room_status', { p_room_id: 'r1', p_status: 'approved', p_expected_version: 5 }],
+    ]);
+  });
+
+  it('lists versions and reads one with its document and snapshot (DB8a)', async () => {
+    const row = { version_id: 'v1', room_id: 'r1', seq: 1, document: {}, settings_snapshot: {} };
+    const client = fakeClient({
+      rpc: { list_design_room_versions: { data: [{ version_id: 'v1', seq: 1 }], error: null } },
+      tables: { design_room_versions: { data: row, error: null } },
+    });
+    const api = createDesignApi(client);
+    expect(await api.listRoomVersions('r1')).toEqual({ ok: true, rows: [{ version_id: 'v1', seq: 1 }] });
+    expect(await api.getRoomVersion('v1')).toEqual({ ok: true, version: row });
+    expect(client.calls[0]).toEqual({ rpc: 'list_design_room_versions', args: { p_room_id: 'r1' } });
+    expect(client.calls[1].chain).toEqual([
+      ['select', 'version_id, room_id, seq, label, note, document, schema_version, settings_snapshot, issued_by, issued_at'],
+      ['eq', 'version_id', 'v1'],
+      ['maybeSingle'],
+    ]);
+  });
 });

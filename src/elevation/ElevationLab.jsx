@@ -12,16 +12,18 @@ export default function ElevationLab() {
   const dispatch = useDispatch();
   const source = useSelector((state) => state.elevation.source);
 
+  // Shop data or an issued version (SPEC-DB8a) → back to this browser's document.
+  const away = source === 'cloud' || source === 'version';
   useEffect(() => {
-    if (source !== 'cloud') return undefined;
+    if (!away) return undefined;
     let cancelled = false;
     cloudSync.flush().then(() => {
       if (!cancelled) dispatch(openLocalWorkspace());
     });
     return () => { cancelled = true; };
-  }, [dispatch, source]);
+  }, [dispatch, away]);
 
-  if (source === 'cloud') {
+  if (away) {
     return <div className="flex h-full items-center justify-center bg-gray-900 text-gray-400">Opening the sandbox…</div>;
   }
   return <DesignerEditor mode="lab" />;

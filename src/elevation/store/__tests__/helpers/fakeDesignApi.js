@@ -21,6 +21,7 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
     project,
     projects: structuredClone(projects),
     attachableProjects: structuredClone(attachableProjects),
+    versions: [],
   };
   const calls = [];
   let gate = null;
@@ -89,6 +90,51 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
       Object.assign(room, { document: structuredClone(document), schema_version: schemaVersion,
         version: room.version + 1, status: 'drafting', updated_at: 't2' });
       return { ok: true, version: room.version, updated_at: room.updated_at, status: room.status };
+    },
+    async setRoomStatus({ roomId, status, expectedVersion }) {
+      calls.push(['setRoomStatus', roomId, status, expectedVersion]);
+      await wait();
+      if (api.failNext) { const reply = api.failNext; api.failNext = null; return reply; }
+      const room = roomFor(roomId);
+      if (!room) return missing('Room');
+      if (room.version !== expectedVersion) return conflict(room.version);
+      Object.assign(room, { status, status_at: 't-status', status_by_name: 'Me' });
+      return { ok: true, status, status_at: room.status_at, version: room.version };
+    },
+    async issueRoomVersion({ roomId, label, note = null, settingsSnapshot, expectedVersion }) {
+      calls.push(['issueRoomVersion', roomId, label, note, expectedVersion]);
+      await wait();
+      if (api.failNext) { const reply = api.failNext; api.failNext = null; return reply; }
+      const room = roomFor(roomId);
+      if (!room) return missing('Room');
+      if (room.version !== expectedVersion) return conflict(room.version);
+      const seq = db.versions.filter((entry) => entry.room_id === roomId).length + 1;
+      const version = { version_id: fakeUuid(), room_id: roomId, seq, label: label.trim(), note,
+        document: structuredClone(room.document), schema_version: room.schema_version,
+        settings_snapshot: structuredClone(settingsSnapshot), issued_by: 'user-me', issued_by_name: 'Me',
+        issued_at: `t-issued-${seq}` };
+      db.versions.push(version);
+      room.last_version = { seq, label: version.label, issued_at: version.issued_at };
+      return { ok: true, version_id: version.version_id, seq, label: version.label, issued_at: version.issued_at };
+    },
+    async listRoomVersions(roomId) {
+      calls.push(['listRoomVersions', roomId]);
+      const rows = db.versions.filter((entry) => entry.room_id === roomId)
+        .sort((a, b) => b.seq - a.seq)
+        .map((entry) => {
+          const row = structuredClone(entry);
+          for (const key of ['document', 'settings_snapshot', 'room_id']) delete row[key];
+          return row;
+        });
+      return { ok: true, rows };
+    },
+    async getRoomVersion(versionId) {
+      calls.push(['getRoomVersion', versionId]);
+      const row = db.versions.find((entry) => entry.version_id === versionId);
+      if (!row) return { ok: true, version: null };
+      const version = structuredClone(row);
+      delete version.issued_by_name; // a plain select has no names
+      return { ok: true, version };
     },
     async saveTeamSettings(teamId, settings, expected) {
       calls.push(['saveTeamSettings', expected]);
