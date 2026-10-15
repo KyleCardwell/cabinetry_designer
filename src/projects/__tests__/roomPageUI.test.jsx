@@ -11,7 +11,7 @@ import { ROOM_STATUS_COLORS } from '../PhaseSection.jsx';
 import DesignerEditor from '../../elevation/DesignerEditor.jsx';
 import { newRoomDocument } from '../../elevation/model/designProjects.js';
 import { DEFAULT_DOOR_STYLE } from '../../elevation/model/doorStyles.js';
-import { leaveCloudRoom, openCloudRoom } from '../../elevation/store/cloudThunks.js';
+import { leaveCloudRoom, openCloudRoom, setRoomStatus } from '../../elevation/store/cloudThunks.js';
 import { cloudSync } from '../../elevation/store/cloudSync.js';
 import { cloudRoomPatch, cloudSaveStatus, layersLoaded } from '../../elevation/store/elevationSlice.js';
 import { resetPresenceForTests } from '../../elevation/store/presenceThunks.js';
@@ -23,7 +23,7 @@ vi.mock('react-router-dom', async (original) => ({ ...await original(), useParam
 vi.mock('../../elevation/DesignerEditor.jsx', () => ({ default: 'designer-editor' }));
 vi.mock('../../elevation/store/cloudThunks.js', async (original) => {
   const actual = await original();
-  return { ...actual, openCloudRoom: vi.fn(actual.openCloudRoom), leaveCloudRoom: vi.fn(actual.leaveCloudRoom) };
+  return { ...actual, openCloudRoom: vi.fn(actual.openCloudRoom), leaveCloudRoom: vi.fn(actual.leaveCloudRoom), setRoomStatus: vi.fn(actual.setRoomStatus) };
 });
 vi.mock('../../elevation/store/cloudSync.js', () => ({ cloudSync: { flush: vi.fn(), saveDraftNow: vi.fn() } }));
 
@@ -152,7 +152,7 @@ describe('DB6b c room page', () => {
     expect(text(header.tree)).toContain('Drafting');
     expect(text(header.tree)).toContain('All changes saved');
     expect(component(header.tree, Link).props.to).toBe('/projects/42');
-    expect(nodes(header.tree).find((node) => text(node) === 'Drafting').props.className).toContain(ROOM_STATUS_COLORS.drafting);
+    expect(component(header.tree, 'select').props.className).toContain(ROOM_STATUS_COLORS.drafting);
   });
 
   it('shows open failures with Retry and a project link, and retries only on click (anchor 10)', async () => {
@@ -354,6 +354,73 @@ describe('DB6b c room page', () => {
     header.render();
     expect(text(header.tree)).toContain('All changes saved');
     expect(nodes(header.tree).some((node) => node.props.className?.includes('text-teal-400'))).toBe(true);
+  });
+});
+
+describe('DB8b c room status control', () => {
+  it('dispatches Approved once, disables the controlled select while saving, then shows the saved status', async () => {
+    await openPage();
+    const header = renderComponent(RoomHeader, params);
+    const select = component(header.tree, 'select');
+    expect(select.props['aria-label']).toBe('Room status');
+    expect(select.props.value).toBe('drafting');
+    expect(nodes(select).filter((node) => node.type === 'option').map((node) => [node.props.value, text(node)]))
+      .toEqual([['drafting', 'Drafting'], ['approved', 'Approved'], ['released', 'Released to shop']]);
+    const saving = deferred();
+    cloudSync.flush.mockReturnValueOnce(saving.promise);
+    const changed = select.props.onChange({ target: { value: 'approved' } });
+    header.render();
+    expect(setRoomStatus).toHaveBeenCalledOnce();
+    expect(setRoomStatus).toHaveBeenCalledWith('approved');
+    expect(component(header.tree, 'select').props).toMatchObject({ disabled: true, value: 'drafting' });
+    expect(text(header.tree)).toContain('Saving…');
+    saving.resolve({ ok: true });
+    await changed;
+    header.render();
+    expect(component(header.tree, 'select').props).toMatchObject({ disabled: false, value: 'approved' });
+    expect(text(header.tree)).not.toContain('Saving…');
+    expect(api.calls.filter(([name]) => name === 'setRoomStatus')).toHaveLength(1);
+  });
+
+  it('keeps Drafting on failure, shows the alert and clears it on the next change', async () => {
+    await openPage();
+    const header = renderComponent(RoomHeader, params);
+    const message = "Some changes aren't saved yet…";
+    setRoomStatus.mockImplementationOnce(() => async () => ({ ok: false, message }));
+    await component(header.tree, 'select').props.onChange({ target: { value: 'approved' } });
+    header.render();
+    expect(component(header.tree, 'select').props.value).toBe('drafting');
+    expect(text(nodes(header.tree).find((node) => node.props.role === 'alert'))).toBe(message);
+    expect(api.calls.some(([name]) => name === 'setRoomStatus')).toBe(false);
+    const saving = deferred();
+    cloudSync.flush.mockReturnValueOnce(saving.promise);
+    const changed = component(header.tree, 'select').props.onChange({ target: { value: 'released' } });
+    header.render();
+    expect(nodes(header.tree).some((node) => node.props.role === 'alert')).toBe(false);
+    saving.resolve({ ok: true });
+    await changed;
+  });
+
+  it('shows only the status chip for permission/others locks, non-editors and non-cloud sources', async () => {
+    await openPage();
+    const header = renderComponent(RoomHeader, params);
+    for (const readOnlyReason of ['permission', 'others']) {
+      store.dispatch(cloudRoomPatch({ readOnly: true, readOnlyReason }));
+      header.render();
+      expect(component(header.tree, 'select')).toBeUndefined();
+      expect(nodes(header.tree).some((node) => node.type === 'span' && text(node) === 'Drafting')).toBe(true);
+    }
+    store.dispatch(cloudRoomPatch({ readOnly: false }));
+    for (const [source, edit] of [['cloud', false], ['version', true], ['local', true]]) {
+      useSelector.mockImplementation((select) => {
+        const state = store.getState();
+        return select({ ...state, elevation: { ...state.elevation, source,
+          cloud: { ...state.elevation.cloud, permissions: { edit } } } });
+      });
+      header.render();
+      expect(component(header.tree, 'select')).toBeUndefined();
+      expect(text(header.tree)).toContain('Drafting');
+    }
   });
 });
 

@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { ROOM_STATUS_LABELS } from '../elevation/model/designProjects.js';
-import { allowRoomDemote, editRoomAnyway, openCloudWorkspace, overwriteRoomConflict, reloadRoomAfterConflict } from '../elevation/store/cloudThunks.js';
+import { allowRoomDemote, editRoomAnyway, openCloudWorkspace, overwriteRoomConflict, reloadRoomAfterConflict, setRoomStatus } from '../elevation/store/cloudThunks.js';
 import { cloudSync } from '../elevation/store/cloudSync.js';
 import { selectRoomEditors } from '../elevation/store/presenceSlice.js';
 import { editorsText, readOnlyText, statusBlockText } from './roomText.js';
@@ -14,7 +14,22 @@ const dateTime = (at) => `${new Date(at).toLocaleDateString()} ${time(at)}`;
 const amber = 'rounded border border-amber-700 bg-amber-950 p-3 text-amber-200';
 const action = 'rounded border border-current px-2 py-1 text-sm disabled:opacity-50';
 
+function useApprovedEditCheck() {
+  const { source, cloud } = useSelector((state) => state.elevation);
+  const { room, statusBlock, pending = 0, permissions } = cloud;
+  const previous = useRef({ roomId: room?.id, pending });
+  useEffect(() => {
+    const firstEdit = previous.current.roomId === room?.id && previous.current.pending === 0 && pending > 0;
+    previous.current = { roomId: room?.id, pending };
+    if (firstEdit && source === 'cloud' && permissions?.edit && room && !room.readOnly
+      && ['approved', 'released'].includes(room.status) && !room.demote && !statusBlock) {
+      cloudSync.flush();
+    }
+  }, [source, permissions?.edit, room?.id, room?.readOnly, room?.status, room?.demote, statusBlock, pending]);
+}
+
 export default function RoomBanners({ projectId, roomId, openBy = [] }) {
+  useApprovedEditCheck();
   const dispatch = useDispatch();
   const cloud = useSelector((state) => state.elevation.cloud);
   const editors = useSelector((state) => selectRoomEditors(state, roomId));
@@ -23,6 +38,8 @@ export default function RoomBanners({ projectId, roomId, openBy = [] }) {
   const [confirmOverwrite, setConfirmOverwrite] = useState(false);
   const [editError, setEditError] = useState(null);
   const [editing, setEditing] = useState(false);
+  const [movingToDrafting, setMovingToDrafting] = useState(false);
+  const [statusError, setStatusError] = useState(null);
   const [dismissedRecovery, setDismissedRecovery] = useState(null);
   const { room, conflict, error, statusBlock } = cloud;
   const reason = room?.readOnlyReason;
@@ -51,6 +68,15 @@ export default function RoomBanners({ projectId, roomId, openBy = [] }) {
     } finally { setEditing(false); }
   }
 
+  async function moveToDrafting() {
+    setMovingToDrafting(true);
+    setStatusError(null);
+    try {
+      const reply = await dispatch(setRoomStatus('drafting'));
+      if (!reply.ok) setStatusError(reply.message);
+    } finally { setMovingToDrafting(false); }
+  }
+
   const banners = <>
     {readOnlyMessage && <div role="status" className="rounded border border-gray-600 bg-gray-800 p-3 text-gray-200">
       <p>{readOnlyMessage}{reason === 'others' && openedAt ? ` (since ${time(openedAt)})` : ''}</p>
@@ -61,6 +87,8 @@ export default function RoomBanners({ projectId, roomId, openBy = [] }) {
     {!room.readOnly && editors.length > 0 && <div role="status" className={amber}>{names} also {plural ? 'have' : 'has'} this room open.</div>}
     {statusNotice && <div role="status" className="rounded border border-teal-700 bg-teal-950 p-3 text-teal-200">
       This room is {ROOM_STATUS_LABELS[room.status]}{room.statusByName ? ` (by ${room.statusByName})` : ''}. Your next change will ask before moving it back to Drafting.
+      <div className="mt-2"><button type="button" className={action} disabled={movingToDrafting} onClick={moveToDrafting}>Move to Drafting</button></div>
+      {statusError && <p role="alert" className="mt-2 text-red-300">{statusError}</p>}
     </div>}
     {roomBlock && <div role="alert" className={amber}>
       <p>{statusBlockText(statusBlock)}</p>

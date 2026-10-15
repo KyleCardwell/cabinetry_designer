@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import * as thunks from '../../elevation/store/cloudThunks.js';
@@ -8,13 +8,13 @@ import RoomBanners from '../RoomBanners.jsx';
 import StaleDraftDialog from '../StaleDraftDialog.jsx';
 import { statusBlockText } from '../roomText.js';
 
-vi.mock('react', async (original) => ({ ...await original(), useEffect: vi.fn(), useState: vi.fn() }));
+vi.mock('react', async (original) => ({ ...await original(), useEffect: vi.fn(), useRef: vi.fn(), useState: vi.fn() }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 vi.mock('../../elevation/store/cloudThunks.js', () => Object.fromEntries([
   'editRoomAnyway', 'allowRoomDemote', 'overwriteRoomConflict', 'reloadRoomAfterConflict',
-  'openCloudWorkspace', 'applyStaleRoomDraft', 'discardStaleRoomDraft',
+  'openCloudWorkspace', 'applyStaleRoomDraft', 'discardStaleRoomDraft', 'setRoomStatus',
 ].map((name) => [name, vi.fn(() => ({ type: name }))])));
-vi.mock('../../elevation/store/cloudSync.js', () => ({ cloudSync: { retry: vi.fn() } }));
+vi.mock('../../elevation/store/cloudSync.js', () => ({ cloudSync: { retry: vi.fn(), flush: vi.fn() } }));
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
@@ -62,7 +62,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   renders = [];
   state = {
-    elevation: { cloud: { room: { id: 'rm-1', status: 'drafting', readOnly: false }, conflict: null, error: null, statusBlock: null } },
+    elevation: { source: 'cloud', cloud: { permissions: { edit: true }, pending: 0, room: { id: 'rm-1', status: 'drafting', readOnly: false }, conflict: null, error: null, statusBlock: null } },
     presence: { selfKey: 'self', entries: [] },
   };
   dispatch = vi.fn().mockResolvedValue({ ok: true });
@@ -78,6 +78,12 @@ beforeEach(() => {
     return [owner.slots[index], (value) => {
       owner.slots[index] = typeof value === 'function' ? value(owner.slots[index]) : value;
     }];
+  });
+  useRef.mockImplementation((initial) => {
+    const owner = current;
+    const index = owner.cursor++;
+    if (!(index in owner.slots)) owner.slots[index] = { current: initial };
+    return owner.slots[index];
   });
   useEffect.mockImplementation((run, deps) => {
     const owner = current;
@@ -132,9 +138,9 @@ describe('DB6b d room banners', () => {
   it('warns before editing approved or released rooms, until a status block appears (anchor 4)', () => {
     Object.assign(room(), { status: 'approved', statusByName: 'Kyle' });
     const banner = renderBanners();
-    expect(text(banner.tree)).toBe('This room is Approved (by Kyle). Your next change will ask before moving it back to Drafting.');
+    expect(text(banner.tree)).toBe('This room is Approved (by Kyle). Your next change will ask before moving it back to Drafting.Move to Drafting');
     Object.assign(room(), { status: 'released', statusByName: null });
-    expect(text(banner.render())).toBe('This room is Released to shop. Your next change will ask before moving it back to Drafting.');
+    expect(text(banner.render())).toBe('This room is Released to shop. Your next change will ask before moving it back to Drafting.Move to Drafting');
     cloud().statusBlock = { target: 'room', status: 'released' };
     expect(text(banner.render())).not.toContain('Your next change');
   });
@@ -309,5 +315,83 @@ describe('DB6b d room banners', () => {
       'Jane saved this room', "Couldn't save Room: FailedRetry",
       `Recovered unsaved changes from this browser (${dateTime(savedAt)})`,
     ]);
+  });
+});
+
+describe('DB8b c first approved edit', () => {
+  it('flushes exactly once for pending 0 → 1 → 2 in Approved and Released rooms', () => {
+    for (const status of ['approved', 'released']) {
+      room().status = status;
+      cloud().pending = 0;
+      cloudSync.flush.mockClear();
+      const banner = renderBanners();
+      expect(cloudSync.flush).not.toHaveBeenCalled();
+      cloud().pending = 1;
+      banner.render();
+      expect(cloudSync.flush).toHaveBeenCalledOnce();
+      cloud().pending = 2;
+      banner.render();
+      banner.render();
+      expect(cloudSync.flush).toHaveBeenCalledOnce();
+      cloud().statusBlock = { target: 'room', status };
+      expect(button(banner.render(), 'Save and move to Drafting')).toBeDefined();
+      expect(button(banner.tree, 'Discard my changes')).toBeDefined();
+      banner.unmount();
+      cloud().statusBlock = null;
+    }
+  });
+
+  it('does not flush for drafting, blocked, demoting, read-only or otherwise non-editable rooms', () => {
+    for (const condition of ['drafting', 'statusBlock', 'demote', 'readOnly', 'permission', 'version']) {
+      Object.assign(room(), { status: condition === 'drafting' ? 'drafting' : 'approved',
+        demote: condition === 'demote', readOnly: condition === 'readOnly' });
+      Object.assign(cloud(), { pending: 0, statusBlock: condition === 'statusBlock' ? { target: 'room' } : null,
+        permissions: { edit: condition !== 'permission' } });
+      state.elevation.source = condition === 'version' ? 'version' : 'cloud';
+      const banner = renderBanners();
+      cloud().pending = 1;
+      banner.render();
+      cloud().pending = 2;
+      banner.render();
+      expect(cloudSync.flush).not.toHaveBeenCalled();
+      Object.assign(room(), { status: 'approved', demote: false, readOnly: false });
+      Object.assign(cloud(), { statusBlock: null, permissions: { edit: true } });
+      state.elevation.source = 'cloud';
+      banner.render();
+      expect(cloudSync.flush).not.toHaveBeenCalled();
+      banner.unmount();
+    }
+    // Mounting with existing pending changes or switching rooms is not a first edit.
+    state.elevation.source = 'cloud';
+    const banner = renderBanners();
+    expect(cloudSync.flush).not.toHaveBeenCalled();
+    cloud().pending = 0;
+    banner.render();
+    room().id = 'rm-2';
+    cloud().pending = 1;
+    banner.render();
+    expect(cloudSync.flush).not.toHaveBeenCalled();
+  });
+
+  it('moves banner 3 to Drafting and shows failures in the banner while allowing retry', async () => {
+    room().status = 'approved';
+    const banner = renderBanners();
+    const saving = deferred();
+    dispatch.mockReturnValueOnce(saving.promise);
+    const clicked = button(banner.tree, 'Move to Drafting').props.onClick();
+    banner.render();
+    expect(thunks.setRoomStatus).toHaveBeenCalledWith('drafting');
+    expect(dispatch).toHaveBeenCalledWith({ type: 'setRoomStatus' });
+    expect(button(banner.tree, 'Move to Drafting').props.disabled).toBe(true);
+    saving.resolve({ ok: false, message: 'Some changes are not saved yet.' });
+    await clicked;
+    banner.render();
+    const alert = nodes(banner.tree).find((node) => node.props.role === 'alert');
+    expect(text(alert)).toBe('Some changes are not saved yet.');
+    expect(text(nodes(banner.tree).find((node) => node.props.role === 'status'))).toContain(text(alert));
+    expect(button(banner.tree, 'Move to Drafting').props.disabled).toBe(false);
+    await button(banner.tree, 'Move to Drafting').props.onClick();
+    banner.render();
+    expect(nodes(banner.tree).some((node) => node.props.role === 'alert')).toBe(false);
   });
 });
