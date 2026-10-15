@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
+import { gridFromItems } from '../../elevation/model/grid.js';
+import { syncRoom } from '../../elevation/model/room.js';
 import { selectSettings } from '../../elevation/store/selectors.js';
 import ElevationToolbar from '../../elevation/components/ElevationToolbar.jsx';
 import ExportDxfButton from '../../elevation/components/ExportDxfButton.jsx';
@@ -10,6 +12,8 @@ import ReportsDialog from '../ReportsDialog.jsx';
 import { doorOrder } from '../doorOrder.js';
 import { reportHeader } from '../header.js';
 import { doorOrderDocument, doorOrderFileName } from '../doorOrderPdf.js';
+import { shippingList } from '../shippingList.js';
+import { shippingListDocument, shippingListFileName } from '../shippingListPdf.js';
 import { downloadPdf } from '../pdf.js';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn() }));
@@ -17,6 +21,8 @@ vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 vi.mock('../doorOrder.js', async (original) => ({ ...await original(), doorOrder: vi.fn() }));
 vi.mock('../header.js', async (original) => ({ reportHeader: vi.fn((await original()).reportHeader) }));
 vi.mock('../doorOrderPdf.js', async (original) => ({ ...await original(), doorOrderDocument: vi.fn() }));
+vi.mock('../shippingList.js', async (original) => ({ ...await original(), shippingList: vi.fn() }));
+vi.mock('../shippingListPdf.js', async (original) => ({ ...await original(), shippingListDocument: vi.fn() }));
 vi.mock('../pdf.js', () => ({ downloadPdf: vi.fn() }));
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
@@ -80,11 +86,13 @@ beforeEach(() => {
   });
   doorOrder.mockReturnValue({ pages: [{ styleId: 'default' }], warnings: [] });
   doorOrderDocument.mockReturnValue({ content: ['Door Order Form'] });
+  shippingList.mockReturnValue({ rows: [{ number: 1, kind: 'cabinet' }], warnings: [] });
+  shippingListDocument.mockReturnValue({ content: ['Main Shipping List'] });
   downloadPdf.mockResolvedValue(undefined);
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe('RP1 step g Reports', () => {
+describe('RP2 step h Reports', () => {
   it('places Reports beside Export DXF, disables it without a room, and opens with the first-use defaults (anchor 1)', () => {
     for (const readOnly of [false, true]) {
       const toolbar = renderComponent(ElevationToolbar, { readOnly });
@@ -99,7 +107,8 @@ describe('RP1 step g Reports', () => {
     expect(component(dialog.tree, 'h2').props.id).toBe(modal.props['aria-labelledby']);
     expect(text(component(dialog.tree, 'h2'))).toBe('Reports');
     expect(checkbox(dialog.tree, 'Door Order Form').props.checked).toBe(true);
-    expect(checkbox(dialog.tree, 'Main Shipping List (next round)').props).toMatchObject({ checked: false, disabled: true });
+    expect(checkbox(dialog.tree, 'Main Shipping List').props.checked).toBe(true);
+    expect(checkbox(dialog.tree, 'Main Shipping List').props.disabled).not.toBe(true);
     copyNames.forEach((name) => expect(checkbox(dialog.tree, name).props.checked).toBe(true));
     button(dialog.tree, 'Cancel').props.onClick();
     expect(component(trigger.render(), ReportsDialog)).toBeUndefined();
@@ -107,15 +116,19 @@ describe('RP1 step g Reports', () => {
     expect(button(trigger.render(), 'Reports…').props.disabled).toBe(true);
   });
 
-  it('downloads Master, Nike and Order once and remembers them when reopened (anchor 2)', async () => {
+  it('downloads both reports in order with Master, Nike and Order and remembers the copies (anchor 2)', async () => {
     const { trigger, dialog } = openDialog();
     check(dialog, 'Shop', false);
     check(dialog, 'Install', false);
     await submit(dialog);
     expect(doorOrderDocument).toHaveBeenCalledWith(doorOrder.mock.results[0].value,
       reportHeader.mock.results[0].value, ['master', 'nike', 'order']);
-    expect(downloadPdf).toHaveBeenCalledOnce();
-    expect(downloadPdf).toHaveBeenCalledWith(doorOrderDocument.mock.results[0].value, 'Cardwell - Kitchen - Door Order Form.pdf');
+    expect(shippingListDocument).toHaveBeenCalledWith(shippingList.mock.results[0].value,
+      reportHeader.mock.results[0].value, ['master', 'nike', 'order']);
+    expect(downloadPdf.mock.calls).toEqual([
+      [doorOrderDocument.mock.results[0].value, 'Cardwell - Kitchen - Door Order Form.pdf'],
+      [shippingListDocument.mock.results[0].value, 'Cardwell - Kitchen - Main Shipping List.pdf'],
+    ]);
     expect(JSON.parse(storage.get('ff.reportCopies'))).toEqual(['master', 'nike', 'order']);
     button(dialog.tree, 'Cancel').props.onClick();
     trigger.render();
@@ -123,7 +136,94 @@ describe('RP1 step g Reports', () => {
     copyNames.forEach((name) => expect(checkbox(reopened.tree, name).props.checked).toBe(!['Shop', 'Install'].includes(name)));
   });
 
-  it('blocks Download with no copies or no report selected (anchor 3)', async () => {
+  it('downloads only shipping and remembers the report selection when reopened (anchor 3)', async () => {
+    const { trigger, dialog } = openDialog();
+    check(dialog, 'Door Order Form', false);
+    await submit(dialog);
+    expect(downloadPdf).toHaveBeenCalledOnce();
+    expect(downloadPdf).toHaveBeenCalledWith(shippingListDocument.mock.results[0].value,
+      'Cardwell - Kitchen - Main Shipping List.pdf');
+    expect(doorOrder).not.toHaveBeenCalled();
+    expect(JSON.parse(storage.get('ff.reports'))).toEqual(['shipping_list']);
+    button(dialog.tree, 'Cancel').props.onClick();
+    trigger.render();
+    const reopened = openDialog(trigger).dialog;
+    expect(checkbox(reopened.tree, 'Door Order Form').props.checked).toBe(false);
+    expect(checkbox(reopened.tree, 'Main Shipping List').props.checked).toBe(true);
+  });
+
+  it('still downloads shipping for a cabinet with no door-ordered faces or panels (anchor 5)', async () => {
+    const actualDoors = await vi.importActual('../doorOrder.js');
+    const actualShipping = await vi.importActual('../shippingList.js');
+    doorOrder.mockImplementationOnce(actualDoors.doorOrder);
+    shippingList.mockImplementationOnce(actualShipping.shippingList);
+    const settings = selectSettings(state);
+    state.elevation.rooms[0] = syncRoom({ ...state.elevation.rooms[0],
+      profile: { ...settings.defaultProfile }, wallOrder: ['wall'],
+      walls: [{
+        id: 'wall', name: 'Wall', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5,
+        flipped: false, connections: { start: null, end: null }, landings: { start: null, end: null },
+        profile: {}, openings: [], joints: [], soffits: [], endPanels: { start: null, end: null },
+        runs: [{
+          id: 'run', cabinetTypeId: 1, x: 24, width: 18, z: 4, height: 30.5, depth: 24,
+          heightMode: 'manual', autoCount: false, maxCabinetWidth: null, overrides: {},
+          anchors: { left: false, right: false },
+          ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
+          grid: gridFromItems('run', [{ id: 'cab', kind: 'cabinet', width: null, face: { type: 'open', size: null } }]),
+        }],
+      }],
+    }, settings);
+    const { dialog } = openDialog();
+    await submit(dialog);
+    expect(text(alert(dialog.render()))).toBe('No doors, drawer fronts or panels in this room.');
+    expect(shippingList.mock.results[0].value.rows.some(({ kind }) => kind === 'cabinet')).toBe(true);
+    expect(downloadPdf).toHaveBeenCalledOnce();
+    expect(downloadPdf).toHaveBeenCalledWith(shippingListDocument.mock.results[0].value,
+      'Cardwell - Kitchen - Main Shipping List.pdf');
+    expect(doorOrderDocument).not.toHaveBeenCalled();
+  });
+
+  it('shows No parts for an empty room with only shipping selected (anchor 6)', async () => {
+    const actual = await vi.importActual('../shippingList.js');
+    shippingList.mockImplementationOnce(actual.shippingList);
+    const { dialog } = openDialog();
+    check(dialog, 'Door Order Form', false);
+    await submit(dialog);
+    expect(text(alert(dialog.render()))).toBe('No parts in this room.');
+    expect(shippingList.mock.results[0].value.rows.map(({ kind }) => kind)).toEqual(['adjustable_shelves']);
+    expect(downloadPdf).not.toHaveBeenCalled();
+    expect(shippingListDocument).not.toHaveBeenCalled();
+    expect(doorOrder).not.toHaveBeenCalled();
+  });
+
+  it('keeps both empty-report alerts and warnings without downloading either report', async () => {
+    doorOrder.mockReturnValueOnce({ pages: [], warnings: [{ code: 'door-warning', message: 'Check door' }] });
+    shippingList.mockReturnValueOnce({ rows: [{ kind: 'adjustable_shelves' }],
+      warnings: [{ code: 'shipping-warning', message: 'Check shipping' }] });
+    const { dialog } = openDialog();
+    await submit(dialog);
+    dialog.render();
+    expect(text(alert(dialog.tree))).toBe('No doors, drawer fronts or panels in this room. No parts in this room.');
+    expect(text(component(dialog.tree, 'ul'))).toBe('Check doorCheck shipping');
+    expect(downloadPdf).not.toHaveBeenCalled();
+    expect(button(dialog.tree, 'Download').props.disabled).toBe(false);
+  });
+
+  it('falls back to both reports for invalid stored selections and normalizes valid report ids', () => {
+    for (const saved of ['{invalid', 'null', '{}', '["unknown"]', '["door_order", "unknown"]']) {
+      storage.set('ff.reports', saved);
+      const { dialog } = openDialog();
+      expect(checkbox(dialog.tree, 'Door Order Form').props.checked).toBe(true);
+      expect(checkbox(dialog.tree, 'Main Shipping List').props.checked).toBe(true);
+    }
+    storage.set('ff.reports', '["shipping_list", "door_order", "shipping_list"]');
+    const { dialog } = openDialog();
+    check(dialog, 'Main Shipping List', false);
+    expect(JSON.parse(storage.get('ff.reports'))).toEqual(['door_order']);
+    expect(checkbox(openDialog().dialog.tree, 'Main Shipping List').props.checked).toBe(false);
+  });
+
+  it('blocks Download with no copies or no report selected (anchor 4)', async () => {
     const { dialog } = openDialog();
     copyNames.forEach((name) => check(dialog, name, false));
     expect(button(dialog.tree, 'Download').props.disabled).toBe(true);
@@ -132,15 +232,22 @@ describe('RP1 step g Reports', () => {
     expect(copyNames.every((name) => !checkbox(openDialog().dialog.tree, name).props.checked)).toBe(true);
     check(dialog, 'Master', true);
     check(dialog, 'Door Order Form', false);
+    expect(button(dialog.tree, 'Download').props.disabled).toBe(false);
+    check(dialog, 'Main Shipping List', false);
     expect(button(dialog.tree, 'Download').props.disabled).toBe(true);
     await submit(dialog);
     expect(doorOrder).not.toHaveBeenCalled();
+    expect(shippingList).not.toHaveBeenCalled();
+    const reopened = openDialog().dialog;
+    expect(checkbox(reopened.tree, 'Door Order Form').props.checked).toBe(false);
+    expect(checkbox(reopened.tree, 'Main Shipping List').props.checked).toBe(false);
   });
 
-  it('shows the empty-room alert and downloads nothing (anchor 4)', async () => {
+  it('shows the empty door-form alert and downloads nothing when only it is selected', async () => {
     const actual = await vi.importActual('../doorOrder.js');
     doorOrder.mockImplementationOnce(actual.doorOrder);
     const { dialog } = openDialog();
+    check(dialog, 'Main Shipping List', false);
     await submit(dialog);
     dialog.render();
     expect(text(alert(dialog.tree))).toBe('No doors, drawer fronts or panels in this room.');
@@ -149,15 +256,22 @@ describe('RP1 step g Reports', () => {
     expect(button(dialog.tree, 'Download').props.disabled).toBe(false);
   });
 
-  it('works with all copies when storage access throws, and tolerates blocked writes (anchor 5)', async () => {
+  it('defaults to both reports and all copies when storage throws, and tolerates blocked writes (anchor 7)', async () => {
     vi.stubGlobal('localStorage', { getItem() { throw new Error('Blocked'); }, setItem() { throw new Error('Blocked'); } });
     let { dialog } = openDialog();
+    expect(checkbox(dialog.tree, 'Door Order Form').props.checked).toBe(true);
+    expect(checkbox(dialog.tree, 'Main Shipping List').props.checked).toBe(true);
     copyNames.forEach((name) => expect(checkbox(dialog.tree, name).props.checked).toBe(true));
     check(dialog, 'Shop', false);
     await submit(dialog);
-    expect(downloadPdf).toHaveBeenCalledOnce();
+    expect(downloadPdf).toHaveBeenCalledTimes(2);
+    check(dialog, 'Door Order Form', false);
+    await submit(dialog);
+    expect(downloadPdf).toHaveBeenCalledTimes(3);
     vi.stubGlobal('localStorage', { getItem() { return '{invalid'; } });
     dialog = openDialog().dialog;
+    expect(checkbox(dialog.tree, 'Door Order Form').props.checked).toBe(true);
+    expect(checkbox(dialog.tree, 'Main Shipping List').props.checked).toBe(true);
     copyNames.forEach((name) => expect(checkbox(dialog.tree, name).props.checked).toBe(true));
   });
 
@@ -166,14 +280,18 @@ describe('RP1 step g Reports', () => {
       { code: 'report-part-unnumbered', key: 'door-1' },
       { code: 'report-profile-missing', id: 'profile-1', slot: 'outside' },
     ] });
+    shippingList.mockReturnValueOnce({ rows: [{ kind: 'cabinet' }], warnings: [
+      { code: 'shipping-warning', message: 'Check shipping part' },
+    ] });
     const { dialog } = openDialog();
     await submit(dialog);
     dialog.render();
-    expect(downloadPdf).toHaveBeenCalledOnce();
+    expect(downloadPdf).toHaveBeenCalledTimes(2);
     const warnings = component(dialog.tree, 'ul');
     expect(warnings.props.className).toContain('text-amber-300');
     expect(text(warnings)).toContain('Part ? : a door or panel has no part number (door-1)');
     expect(text(warnings)).toContain('Profile missing: profile-1 (outside)');
+    expect(text(warnings)).toContain('Check shipping part');
     expect(nodes(dialog.tree).indexOf(warnings)).toBeGreaterThan(nodes(dialog.tree).indexOf(button(dialog.tree, 'Download')));
   });
 
@@ -211,11 +329,14 @@ describe('RP1 step g Reports', () => {
       await submit(dialog);
       const settings = selectSettings(state);
       expect(doorOrder).toHaveBeenLastCalledWith(state.elevation.rooms[0], settings);
+      expect(shippingList).toHaveBeenLastCalledWith(state.elevation.rooms[0], settings);
       expect(settings.report.wood).toBe('Room oak');
       expect(reportHeader).toHaveBeenLastCalledWith({ project: state.elevation.cloud.project, room: state.elevation.rooms[0], settings, revision });
       const header = reportHeader.mock.results.at(-1).value;
       expect(header.job).toBe(source === 'local' ? '' : 'Cardwell');
-      expect(downloadPdf).toHaveBeenLastCalledWith(doorOrderDocument.mock.results.at(-1).value, doorOrderFileName(header, 'Kitchen'));
+      expect(downloadPdf).toHaveBeenNthCalledWith(downloadPdf.mock.calls.length - 1,
+        doorOrderDocument.mock.results.at(-1).value, doorOrderFileName(header, 'Kitchen'));
+      expect(downloadPdf).toHaveBeenLastCalledWith(shippingListDocument.mock.results.at(-1).value, shippingListFileName(header, 'Kitchen'));
     }
   });
 });
