@@ -5,6 +5,7 @@ import { Link, useParams } from 'react-router-dom';
 import { cloudStore, fakeDesignApi } from '../../elevation/store/__tests__/helpers/fakeDesignApi.js';
 import ProjectPage from '../ProjectPage.jsx';
 import PhaseSection, { InlineName } from '../PhaseSection.jsx';
+import VersionList from '../VersionList.jsx';
 import ProjectInfoDialog from '../ProjectInfoDialog.jsx';
 import CopyRoomDialog from '../CopyRoomDialog.jsx';
 import ProjectSettingsPanel from '../ProjectSettingsPanel.jsx';
@@ -13,6 +14,7 @@ import { groupsFor } from '../../elevation/model/settingGroups.js';
 import WorkspaceSourceBar from '../../library/WorkspaceSourceBar.jsx';
 import { cloudSaveStatus, cloudWorkspaceLoaded, layersLoaded } from '../../elevation/store/elevationSlice.js';
 import { cloudSync } from '../../elevation/store/cloudSync.js';
+import { loadRoomVersions } from '../../elevation/store/cloudThunks.js';
 import { joinProjectPresence } from '../../elevation/store/presenceThunks.js';
 import { presenceEntries, presenceJoining } from '../../elevation/store/presenceSlice.js';
 
@@ -20,6 +22,10 @@ vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), 
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 vi.mock('react-router-dom', async (original) => ({ ...await original(), useParams: vi.fn() }));
 vi.mock('../../elevation/store/cloudSync.js', () => ({ cloudSync: { flush: vi.fn(), retry: vi.fn() } }));
+vi.mock('../../elevation/store/cloudThunks.js', async (original) => {
+  const actual = await original();
+  return { ...actual, loadRoomVersions: vi.fn(actual.loadRoomVersions) };
+});
 vi.mock('../../elevation/store/presenceThunks.js', async (original) => {
   const actual = await original();
   return { ...actual, joinProjectPresence: vi.fn(actual.joinProjectPresence) };
@@ -253,6 +259,45 @@ describe('DB5 d project and phase settings', () => {
 });
 
 describe('DB5 c project page', () => {
+  it('expands Last issued into a full-width version list below the room for viewers (DB8b f anchor 5)', async () => {
+    auth.permissions.edit = false;
+    params.projectId = '12';
+    const project = fixture();
+    project.project.est_project_id = 12;
+    project.phases[0].rooms[0].last_version = { seq: 2, label: 'KC 10/15/26' };
+    project.phases[0].rooms[1].archived_at = null;
+    setApi({ project });
+    api.db.versions.push({ version_id: 'v9', room_id: 'r1', seq: 2, label: 'KC 10/15/26', issued_by_name: 'Jane', issued_at: '2026-10-15T18:30:00Z', note: 'Moved sink' });
+    const page = renderComponent(ProjectPage);
+    await page.flush();
+    const section = phase(page);
+    const issuedButton = button(section.tree, 'KC 10/15/26 (v2)');
+    expect(issuedButton.props['aria-expanded']).toBe(false);
+    expect(component(section.tree, VersionList)).toBeUndefined();
+    expect(loadRoomVersions).not.toHaveBeenCalled();
+    const pantry = row(section.tree, 'Pantry');
+    expect(nodes(pantry).filter((node) => node.type === 'td')[2].props.children).toBe('—');
+    expect(component(pantry, 'button')).toBeUndefined();
+    issuedButton.props.onClick();
+    section.render();
+    expect(button(section.tree, 'KC 10/15/26 (v2)').props['aria-expanded']).toBe(true);
+    const rows = nodes(section.tree).filter((node) => node.type === 'tr');
+    const kitchenIndex = rows.indexOf(row(section.tree, 'Kitchen'));
+    const expanded = rows[kitchenIndex + 1];
+    expect(component(expanded, 'td').props.colSpan).toBe(nodes(section.tree).filter((node) => node.type === 'th').length);
+    const child = component(expanded, VersionList);
+    expect(child.props).toEqual({ projectId: 12, roomId: 'r1' });
+    const list = renderComponent(VersionList, child.props);
+    await list.flush();
+    expect(loadRoomVersions).toHaveBeenCalledOnce();
+    expect(loadRoomVersions).toHaveBeenCalledWith('r1');
+    expect(links(list.tree)[0].props.to).toBe('/projects/12/rooms/r1/versions/v9');
+    expect(api.calls).toContainEqual(['listRoomVersions', 'r1']);
+    button(section.tree, 'KC 10/15/26 (v2)').props.onClick();
+    expect(component(section.render(), VersionList)).toBeUndefined();
+    expect(button(section.tree, 'KC 10/15/26 (v2)').props['aria-expanded']).toBe(false);
+  });
+
   it('loads the project header and live phases and rooms with status, issued label, date and room link (anchor 1)', async () => {
     const page = renderComponent(ProjectPage);
     await page.flush();
@@ -447,7 +492,7 @@ describe('DB5 c project page', () => {
     expect(button(page.tree, 'Archive project')).toBeUndefined();
     expect(button(page.tree, '+ Phase')).toBeUndefined();
     const section = phase(page);
-    expect(nodes(section.tree).filter((node) => node.type === 'button').map(text)).toEqual(['Settings']);
+    expect(nodes(section.tree).filter((node) => node.type === 'button').map(text)).toEqual(['Settings', 'KC 10/13/26 (v2)']);
     expect(nodes(section.tree).filter((node) => node.type === InlineName).every((node) => !node.props.editable)).toBe(true);
     expect(renderComponent(ProjectInfoDialog, { project: fixture().project }).tree).toBeNull();
     expect(renderComponent(CopyRoomDialog, { room: fixture().phases[0].rooms[0] }).tree).toBeNull();

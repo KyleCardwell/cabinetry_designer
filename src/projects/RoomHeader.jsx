@@ -8,6 +8,7 @@ import { setRoomStatus } from '../elevation/store/cloudThunks.js';
 import { ROOM_STATUS_COLORS } from './PhaseSection.jsx';
 import IssueDialog from './IssueDialog.jsx';
 import useOnline from './useOnline.js';
+import VersionList from './VersionList.jsx';
 
 export default function RoomHeader({ projectId, roomId }) {
   const dispatch = useDispatch();
@@ -17,6 +18,7 @@ export default function RoomHeader({ projectId, roomId }) {
   const [savingStatus, setSavingStatus] = useState(false);
   const [statusError, setStatusError] = useState(null);
   const [issuing, setIssuing] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const room = rooms.find((entry) => entry.id === roomId);
   const info = cloud.room;
   const canEdit = source === 'cloud' && cloud.permissions.edit && !info.readOnly;
@@ -76,6 +78,9 @@ export default function RoomHeader({ projectId, roomId }) {
       <span role="status">{saveText}</span>
       {canSave && <button type="button" disabled={saving} className="rounded border border-gray-600 px-2 py-1" onClick={saveNow}>{saving ? 'Saving…' : 'Save now'}</button>}
     </div>
+    <button type="button" aria-expanded={versionsOpen} className="text-sm text-blue-400 hover:underline"
+      onClick={() => setVersionsOpen((value) => !value)}>Versions</button>
+    {versionsOpen && <VersionList key={info.lastVersion?.seq ?? 0} projectId={projectId} roomId={roomId} />}
     {issuing && canEdit && <IssueDialog onClose={() => setIssuing(false)} />}
   </div>;
 }

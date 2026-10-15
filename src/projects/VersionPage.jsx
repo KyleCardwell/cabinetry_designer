@@ -6,9 +6,11 @@ import { openRoomVersion } from '../elevation/store/cloudThunks.js';
 import { selectDesignPermissions } from '../store/permissions.js';
 import { afterLeave } from './roomLeave.js';
 import { readOnlyText } from './roomText.js';
+import VersionList from './VersionList.jsx';
 
-export function VersionHeader({ projectId, roomId }) {
+export function VersionHeader({ projectId, roomId, versionId }) {
   const { rooms, cloud } = useSelector((state) => state.elevation);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const room = rooms.find((entry) => entry.id === roomId);
   const issued = cloud.room.issued;
   return <div className="space-y-2">
@@ -17,6 +19,9 @@ export function VersionHeader({ projectId, roomId }) {
     <p>Version {issued.seq} · {issued.label}</p>
     <p className="text-xs text-gray-400">Issued {new Date(issued.issuedAt).toLocaleString()}{issued.issuedByName ? ` by ${issued.issuedByName}` : ''}</p>
     {issued.note && <p className="text-sm text-gray-400">{issued.note}</p>}
+    <button type="button" aria-expanded={versionsOpen} className="text-sm text-blue-400 hover:underline"
+      onClick={() => setVersionsOpen((value) => !value)}>Versions</button>
+    {versionsOpen && <VersionList projectId={projectId} roomId={roomId} currentVersionId={versionId} />}
   </div>;
 }
 
@@ -78,6 +83,6 @@ export default function VersionPage() {
   </div>;
   if (!current || result.status !== 'ready' || !matchesVersion) return <p role="status" className="p-6">Opening version…</p>;
 
-  return <DesignerEditor mode="room" readOnly header={<VersionHeader projectId={projectId} roomId={roomId} />}
+  return <DesignerEditor mode="room" readOnly header={<VersionHeader projectId={projectId} roomId={roomId} versionId={versionId} />}
     banners={<VersionBanner projectId={projectId} roomId={roomId} />} />;
 }
