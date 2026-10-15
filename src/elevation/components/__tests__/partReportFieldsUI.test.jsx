@@ -119,7 +119,7 @@ describe('RP2 step b report fields', () => {
     const number = nodes(tree).find(({ type }) => type === PartNumberField);
     expect(labels(render(PartNumberField, number.props))).toEqual(['Part number']);
     expect(labels(report)).toEqual(['Name', 'Boxes', 'Shop-built', 'Note']);
-    expect(field(report, 'Name').props).toMatchObject({ placeholder: '', maxLength: 60 });
+    expect(field(report, 'Name').props).toMatchObject({ placeholder: 'Base', maxLength: 60 });
     expect(field(report, 'Boxes').props.maxLength).toBe(120);
     expect(field(report, 'Note').props.maxLength).toBe(200);
     for (const kind of ['void', 'shelves']) {
@@ -146,6 +146,19 @@ describe('RP2 step b report fields', () => {
       numbers: partNumbers(room(), settings()) }), 'frame-1'))).toEqual(expected);
     room().profile.baseKind = 'furniture_base';
     expect(labels(adjacentReport(RunFurnitureBaseSection(props()), 'furniture_base:run-1'))).toEqual(expected);
+  });
+
+  it('uses the shipping description as the cabinet Name placeholder', () => {
+    props().run.grid.cells[0].node.face = {
+      direction: 'vertical', size: null,
+      children: Array.from({ length: 3 }, () => ({ type: 'drawer_front', size: null })),
+    };
+    const placeholder = () => field(adjacentReport(pieceTree(), 'c1'), 'Name').props.placeholder;
+    expect(placeholder()).toBe('Base 3 Drawers');
+    room().reportParts = { c1: { shopBuilt: true } };
+    expect(placeholder()).toBe('Shop-built Base 3 Drawers');
+    room().reportParts.c1.name = 'Pencil Base';
+    expect(placeholder()).toBe('Pencil Base');
   });
 
   it('anchor 3: preserves spaces while typing and saves Microwave Cabinet on blur with an override border', () => {

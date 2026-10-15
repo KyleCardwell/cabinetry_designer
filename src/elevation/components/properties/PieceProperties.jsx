@@ -4,6 +4,7 @@ import {
   boxInsets, endPieceBottom, endPieceNotes, frameRegions, partNumbers, resolveStyle, teeFillers, wallSideOf,
 } from '../../model/index.js';
 import { removeItem, setCellExtend, setItemWidth } from '../../store/elevationSlice.js';
+import { shippingDescription } from '../../../reports/shippingList.js';
 import InchInput from '../InchInput.jsx';
 import CabinetProperties from './CabinetProperties.jsx';
 import CellProperties from './CellProperties.jsx';
@@ -107,7 +108,10 @@ export default function PieceProperties({
     />
   );
   const reportFields = partNumberField ? (
-    <PartReportFields room={room} partKey={partKey} kind={piece.kind} settings={settings} autoName="" />
+    <PartReportFields room={room} partKey={partKey} kind={piece.kind} settings={settings}
+      autoName={shippingDescription(room, settings, {
+        key: partKey, kind: piece.kind, wallId: wall.id, runId: run.id, side: wallSideOf(run),
+      })} />
   ) : null;
   const teeNotes = tee ? teeFillers(room, run, cells, settings).notes.get(tee.id) ?? [] : [];
   const tSection = (
