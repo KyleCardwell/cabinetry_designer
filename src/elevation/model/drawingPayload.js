@@ -24,7 +24,7 @@ export const DRAWING_PAYLOAD_VERSION = 1;
  * 43.3 its centreline marks; round 44 the room in plan; round 45 its dimensions; 45.1 its
  * markers and labels; 46.4 each face's door details; 50.13 its part number badges.
  */
-export function toDrawingPayload(room, settings) {
+export function toDrawingPayload(room, settings, { revision } = {}) {
   const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
     const wall = room.walls.find((candidate) => WALL_SIDES.some(
       (side) => elevationKey(candidate.id, side) === key,
@@ -57,7 +57,11 @@ export function toDrawingPayload(room, settings) {
   return {
     payloadVersion: DRAWING_PAYLOAD_VERSION,
     units: 'in',
-    room: { id: room.id, name: room.name },
+    room: {
+      id: room.id,
+      name: room.name,
+      ...(typeof revision === 'string' && revision.length > 0 ? { revision: revision.slice(0, 80) } : {}),
+    },
     elevations,
     plotScale: plotScale(settings),
     paperSize: paperSize(settings),

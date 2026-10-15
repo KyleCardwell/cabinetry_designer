@@ -26,6 +26,20 @@ export function defaultVersionLabel(userName, date = new Date()) {
   return initials ? `${initials} ${when}` : when;
 }
 
+/** PDF revision text for the current drawing; local rooms have no revision. */
+export function drawingRevision(source, info) {
+  if (!info) return null;
+  if (source === 'version') {
+    return info.issued ? `${info.issued.label} (v${info.issued.seq})` : null;
+  }
+  if (source === 'cloud') {
+    return info.lastVersion
+      ? `DRAFT · last issued ${info.lastVersion.label} (v${info.lastVersion.seq})`
+      : 'DRAFT';
+  }
+  return null;
+}
+
 /** A `list_design_room_versions` row → `{ versionId, seq, label, note, schemaVersion, issuedBy, issuedByName, issuedAt }`. */
 export function versionFromRow(row) {
   return {

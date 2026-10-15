@@ -40,6 +40,24 @@ const withoutParts = (payload) => ({
 });
 
 describe('SPEC-40 drawing payload', () => {
+  it('DB8b omits the revision key unless a non-empty string is supplied', () => {
+    const synced = room('G1 Euro kitchen');
+    const identity = { id: synced.id, name: synced.name };
+    expect(toDrawingPayload(synced, settings).room).toEqual(identity);
+    for (const revision of [null, undefined, '', 2]) {
+      expect(toDrawingPayload(synced, settings, { revision }).room).toEqual(identity);
+    }
+  });
+
+  it('DB8b carries revision text within the geometry limit of 80 characters', () => {
+    const synced = room('G1 Euro kitchen');
+    expect(toDrawingPayload(synced, settings, { revision: 'DRAFT' }).room)
+      .toEqual({ id: synced.id, name: synced.name, revision: 'DRAFT' });
+    const revision = 'R'.repeat(80);
+    expect(toDrawingPayload(synced, settings, { revision }).room.revision).toBe(revision);
+    expect(toDrawingPayload(synced, settings, { revision: `${revision}X` }).room.revision).toBe(revision);
+  });
+
   it('SPEC-50.15 anchor 1: includes default Arch D paper immediately after plotScale', () => {
     const synced = room('G1 Euro kitchen');
     const payload = toDrawingPayload(synced, DEFAULT_SETTINGS);

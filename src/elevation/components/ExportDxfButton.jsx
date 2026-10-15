@@ -3,11 +3,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { selectSettings } from '../store/selectors.js';
 import { drawingErrorMessage, requestRoomDrawings, saveBlob } from '../../api/drawings.js';
 import { toDrawingPayload, drawingZipName } from '../model/drawingPayload.js';
+import { drawingRevision } from '../model/roomVersions.js';
 import { setMessage } from '../store/elevationSlice.js';
 
 export default function ExportDxfButton() {
   const dispatch = useDispatch();
-  const { rooms, activeRoomId } = useSelector((state) => state.elevation);
+  const { rooms, activeRoomId, source, cloud } = useSelector((state) => state.elevation);
   const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const [busy, setBusy] = useState(false);
@@ -25,7 +26,7 @@ export default function ExportDxfButton() {
     if (busy || !room) return;
     setBusy(true);
     try {
-      const payload = toDrawingPayload(room, settings);
+      const payload = toDrawingPayload(room, settings, { revision: drawingRevision(source, cloud?.room) });
       if (payload.elevations.length === 0) {
         showMessage('Nothing to export: no wall has cabinets');
         return;
