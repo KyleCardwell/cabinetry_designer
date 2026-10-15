@@ -1,9 +1,8 @@
 import { COPIES } from './copies.js';
+import { BORDER_LAYOUT, contactText, reportFileName, reportFooter } from './pdfParts.js';
 
 const bordered = (cell) => ({ ...cell, border: [true, true, true, true] });
 const fullRow = (cell) => [{ ...cell, colSpan: 3 }, {}, {}];
-const contactText = ({ phone, fax }) => [phone && `Phone: ${phone}`, fax && `Fax: ${fax}`]
-  .filter(Boolean).join('   ');
 const columnHeadings = () => ['Cabinet ID', 'QTY', 'Size'].map((text) => bordered({
   text, alignment: 'center', bold: true, fillColor: '#D9D9D9',
 }));
@@ -64,12 +63,7 @@ function styleTable(page, header, copy) {
 
   return {
     table: { headerRows: 3, widths: [70, 50, '*'], body: rows, dontBreakRows: true },
-    layout: {
-      hLineWidth: () => 0.75, vLineWidth: () => 0.75,
-      hLineColor: () => '#000000', vLineColor: () => '#000000',
-      paddingTop: () => 2, paddingBottom: () => 2,
-      paddingLeft: () => 4, paddingRight: () => 4,
-    },
+    layout: BORDER_LAYOUT,
   };
 }
 
@@ -87,34 +81,10 @@ export function doorOrderDocument(order, header, copyIds) {
     pageMargins: [28.8, 28.8, 28.8, 43.2],
     defaultStyle: { font: 'Roboto', fontSize: 10 },
     content,
-    footer(currentPage, pageCount) {
-      const perCopy = pageCount / (copies.length || 1);
-      const pageNumber = ((currentPage - 1) % perCopy) + 1;
-      return {
-        margin: [28.8, 8, 28.8, 0],
-        fontSize: 8,
-        stack: [
-          {
-            columns: [
-              { text: [header.company.name, contactText(header.company)].filter(Boolean).join('   '), width: '*', bold: true },
-              { text: `Page ${pageNumber} of ${perCopy}`, width: 'auto', alignment: 'right' },
-            ],
-            columnGap: 12,
-          },
-          {
-            columns: [
-              { text: header.revision ?? '', width: '*' },
-              { text: header.date, width: 'auto', alignment: 'right' },
-            ],
-            margin: [0, 3, 0, 0],
-          },
-        ],
-      };
-    },
+    footer: reportFooter(header, copies.length),
   };
 }
 
 export function doorOrderFileName(header, roomName) {
-  // Windows' reserved filename characters also cover the path separators on macOS/Linux.
-  return `${header.job || 'Room'} - ${roomName} - Door Order Form.pdf`.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '-');
+  return reportFileName(header, roomName, 'Door Order Form');
 }
