@@ -1,11 +1,12 @@
 import { useDispatch, useSelector } from 'react-redux';
-import { registryEntry } from '../model/settingsRegistry.js';
+import { allowedAt, registryEntry } from '../model/settingsRegistry.js';
 import { choiceOptions } from '../model/settingGroups.js';
 import { resolveSetting } from '../model/settingsResolve.js';
 import { setLayerSetting, setRoomSetting, setSetting } from '../store/elevationSlice.js';
 import { inheritedChain } from '../store/selectors.js';
 import InchInput from './InchInput.jsx';
 import OverrideInput from './OverrideInput.jsx';
+import TextInput from './TextInput.jsx';
 
 export function ownSettingValue(values, key) {
   const value = key.split('.').reduce((parent, part) => parent?.[part], values);
@@ -21,7 +22,7 @@ export default function SettingField({ settingKey, scope }) {
   const entry = registryEntry(settingKey);
   const choices = choiceOptions(settingKey);
 
-  if (!entry || (scope === 'room' && !room) || (isLayer && !layers?.[scope])) return null;
+  if (!entry || !allowedAt(settingKey, scope) || (scope === 'room' && !room) || (isLayer && !layers?.[scope])) return null;
 
   const onChange = (value) => {
     if (value !== null && ((settingKey === 'baseCutoutFoot' && value < 0)
@@ -56,6 +57,8 @@ export default function SettingField({ settingKey, scope }) {
       {entry.label}
       {entry.kind === 'number' ? (
         <InchInput aria-label={entry.label} value={value} onCommit={onChange} className="mt-1" />
+      ) : entry.kind === 'text' ? (
+        <TextInput aria-label={entry.label} value={value} onCommit={onChange} className="mt-1" />
       ) : entry.kind === 'bool' ? (
         <input
           type="checkbox"

@@ -37,11 +37,17 @@ function writeLeaf(values, parts, value, remove = false) {
 export function resolveSetting(key, chain = []) {
   let value = leafValue(DEFAULT_SETTINGS, key);
   let source = { level: 'default' };
-  const known = Boolean(registryEntry(key));
+  const entry = registryEntry(key);
+  const known = Boolean(entry);
   for (const layer of chain) {
     if (!known && layer.level !== 'team') continue;
-    const candidate = leafValue(layer.values, key);
+    let candidate = leafValue(layer.values, key);
     if (candidate === undefined) continue;
+    if (entry?.highest && !allowedAt(key, layer.level)) continue;
+    if (entry?.kind === 'text') {
+      if (!allowedAt(key, layer.level) || !isValidSettingValue(key, candidate) || !candidate.trim()) continue;
+      candidate = candidate.trim();
+    }
     value = candidate;
     source = { level: layer.level, ...(layer.id === undefined ? {} : { id: layer.id }) };
   }
@@ -65,7 +71,9 @@ export function withOverride(values, key, value) {
   // Dotted paths may come from external input; never permit prototype traversal.
   const parts = key.split('.');
   if (parts.some((part) => !part || ['__proto__', 'prototype', 'constructor'].includes(part))) return { ...values };
-  return writeLeaf(values, parts, value, value === null || value === undefined);
+  const isText = registryEntry(key)?.kind === 'text';
+  if (isText && typeof value === 'string') value = value.trim();
+  return writeLeaf(values, parts, value, value === null || value === undefined || (isText && value === ''));
 }
 
 /** Check a registered leaf's kind, including managed shop-standard settings. */
@@ -73,6 +81,7 @@ export function isValidSettingValue(key, value) {
   const entry = registryEntry(key);
   if (!entry) return false;
   switch (entry.kind) {
+    case 'text': return typeof value === 'string' && value.trim().length <= 120;
     case 'number': return Number.isFinite(value);
     case 'bool': return typeof value === 'boolean';
     case 'choice': return entry.choices.includes(value);
@@ -88,7 +97,9 @@ export function cleanOverrides(values, level) {
     const value = leafValue(values, entry.key);
     // allowedAt already refuses managed keys at room and below; above room they're plain settings.
     if (allowedAt(entry.key, level) && isValidSettingValue(entry.key, value)) {
-      result = writeLeaf(result, entry.key.split('.'), value);
+      result = entry.kind === 'text'
+        ? withOverride(result, entry.key, value)
+        : writeLeaf(result, entry.key.split('.'), value);
     }
   }
   return result;

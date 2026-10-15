@@ -138,3 +138,58 @@ describe('DB2 c setting value validation', () => {
     expect(isValidSettingValue(undefined, 1)).toBe(false);
   });
 });
+
+
+describe('RP1 a report settings', () => {
+  it('resolves project wood over team wood (anchor 1)', () => {
+    expect(resolveSetting('report.wood', [
+      { level: 'team', values: { report: { wood: 'PAINT GRADE' } } },
+      { level: 'project', values: { report: { wood: 'MAPLE' } } },
+    ])).toEqual({ value: 'MAPLE', source: { level: 'project' } });
+  });
+
+  it('allows Job # from project through room, excluding team (anchor 2)', () => {
+    const values = { report: { jobNumber: '573' } };
+    expect(cleanOverrides(values, 'team')).toEqual({});
+    for (const level of ['project', 'phase', 'room']) expect(cleanOverrides(values, level)).toEqual(values);
+    for (const level of ['wall', 'run', 'cabinet', 'face', 'bogus']) expect(cleanOverrides(values, level)).toEqual({});
+    expect(resolveSetting('report.jobNumber', [{ level: 'team', values }]).value).toBe('');
+  });
+
+  it('rejects room company overrides and permits company fields only at team (anchor 3)', () => {
+    expect(cleanOverrides({ report: { companyName: 'X' } }, 'room')).toEqual({});
+    const report = { companyName: 'X', companyPhone: '555', companyFax: '556', doorFormNote: 'No midrails' };
+    expect(cleanOverrides({ report }, 'team')).toEqual({ report });
+    for (const level of ['project', 'phase', 'room', 'wall', 'run', 'cabinet', 'face']) {
+      expect(cleanOverrides({ report }, level)).toEqual({});
+      expect(resolveSetting('report.companyName', [{ level, values: { report } }]).value).toBe('');
+    }
+  });
+
+  it('validates trimmed strings up to 120 characters (anchor 4)', () => {
+    expect(isValidSettingValue('report.wood', 12)).toBe(false);
+    expect(isValidSettingValue('report.wood', 'x'.repeat(121))).toBe(false);
+    expect(isValidSettingValue('report.wood', 'OAK')).toBe(true);
+    expect(isValidSettingValue('report.wood', ` ${'x'.repeat(120)} `)).toBe(true);
+    for (const value of [null, undefined, {}, [], true]) expect(isValidSettingValue('report.wood', value)).toBe(false);
+  });
+
+  it('defaults every report text to blank and wire brushed to false (anchor 5)', () => {
+    expect(resolveSettings().report).toEqual({
+      companyName: '', companyPhone: '', companyFax: '', doorFormNote: '', jobNumber: '',
+      wood: '', finish: '', boxMaterial: '', wireBrushed: false, edgebandAlert: '',
+    });
+  });
+
+  it('trims stored text, prunes blank overrides and inherits past blank or invalid stored text', () => {
+    const values = { report: { wood: ' OAK ', finish: '   ', wireBrushed: false } };
+    expect(cleanOverrides(values, 'room')).toEqual({ report: { wood: 'OAK', wireBrushed: false } });
+    expect(values.report.wood).toBe(' OAK ');
+    expect(withOverride(values, 'report.wood', ' MAPLE ').report.wood).toBe('MAPLE');
+    expect(withOverride({ report: { wood: 'OAK' } }, 'report.wood', '  ')).toEqual({});
+    for (const wood of ['  ', 12, 'x'.repeat(121)]) {
+      expect(resolveSetting('report.wood', [team({ report: { wood: ' OAK ' } }), room({ report: { wood } })]))
+        .toEqual({ value: 'OAK', source: { level: 'team', id: 'shop' } });
+    }
+  });
+});

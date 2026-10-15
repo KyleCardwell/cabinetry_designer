@@ -109,7 +109,7 @@ beforeEach(() => {
 });
 
 describe('DB2 f shop settings panel', () => {
-  it('anchor 1: starts seven groups collapsed and retains the note, view controls and height profile', () => {
+  it('anchor 1: starts eight groups collapsed and retains the note, view controls and height profile', () => {
     const initial = state;
     expect(header(render(), 'Settings').props['aria-expanded']).toBe(false);
     header(render(), 'Settings').props.onClick();
@@ -117,7 +117,7 @@ describe('DB2 f shop settings panel', () => {
     const groups = [
       ['Cabinets & depths', 12], ['Runs & ends', 8], ['Fillers & corners', 9],
       ['Reveals', 9], ['Inset face frame', 6], ['Bases, tops & bands', 15],
-      ['Openings & soffits', 14],
+      ['Openings & soffits', 14], ['Reports', 9],
     ];
     const collapsed = nodes(tree).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false);
     expect(collapsed.map(text)).toEqual(groups.map(([label]) => `${label}+`));
@@ -213,5 +213,28 @@ describe('DB2 f shop settings panel', () => {
     dispatch(setActiveRoom(roomA));
     expect(field(render(Panels), 'Room Interior filler width').props.value).toBe('2');
     expect(state.rooms[0].settingsOverrides.defaultInteriorFillerWidth).toBe(2);
+  });
+});
+
+
+describe('RP1 a shop report settings', () => {
+  it('shows nine shop fields, trims text without interrupting typing, rejects overlong values and clears blanks', () => {
+    const group = section(openGroup('Reports'), 'Reports');
+    expect(controls(group)).toHaveLength(9);
+    expect(field(group, 'Job #')).toBeUndefined();
+    const input = field(group, 'Company name');
+    expect(input.props).toMatchObject({ type: 'text', value: '' });
+    input.props.onChange({ target: { value: ' FOREVER ' } });
+    expect(field(render(), 'Company name').props.value).toBe(' FOREVER ');
+    field(render(), 'Company name').props.onChange({ target: { value: ' FOREVER FURNITURE, INC. ' } });
+    field(render(), 'Company name').props.onBlur();
+    expect(state.settings.report.companyName).toBe('FOREVER FURNITURE, INC.');
+    commit('Company name', 'x'.repeat(121));
+    expect(field(render(), 'Company name').props.value).toBe('FOREVER FURNITURE, INC.');
+    commit('Company name', '   ');
+    expect(state.settings.report).not.toHaveProperty('companyName');
+    expect(field(render(), 'Company name').props.value).toBe('');
+    field(render(), 'Wire brushed').props.onChange({ target: { checked: true } });
+    expect(state.settings.report.wireBrushed).toBe(true);
   });
 });

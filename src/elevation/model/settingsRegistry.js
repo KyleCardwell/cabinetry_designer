@@ -85,6 +85,20 @@ function numberGroup(key, label) {
 
 /** Each entry describes one settings leaf; managed entries retain their existing fields. */
 export const SETTINGS_REGISTRY = [
+  ...[
+    ['companyName', 'Company name'],
+    ['companyPhone', 'Phone'],
+    ['companyFax', 'Fax'],
+    ['doorFormNote', 'Door form note'],
+  ].map(([key, label]) => ({ key: `report.${key}`, label, kind: 'text', lowest: 'team' })),
+  { key: 'report.jobNumber', label: 'Job #', kind: 'text', highest: 'project', lowest: 'room' },
+  ...[
+    ['wood', 'Wood'],
+    ['finish', 'Finish'],
+    ['boxMaterial', 'Boxes'],
+    ['edgebandAlert', 'Edgeband alert'],
+  ].map(([key, label]) => ({ key: `report.${key}`, label, kind: 'text', lowest: 'room' })),
+  { key: 'report.wireBrushed', label: 'Wire brushed', kind: 'bool', lowest: 'room' },
   ...teamNumbers.map(([key, label]) => ({ key, label, kind: 'number', lowest: 'team' })),
   ...roomNumbers.map(([key, label]) => ({ key, label, kind: 'number', lowest: 'room' })),
   ...[
@@ -131,6 +145,8 @@ export function registryEntry(key) {
 export function allowedAt(key, level) {
   const entry = registryEntry(key);
   const rank = SETTING_LEVELS.indexOf(level);
-  return Boolean(entry && rank >= 0 && rank <= SETTING_LEVELS.indexOf(entry.lowest)
+  return Boolean(entry && rank >= 0
+    && rank >= SETTING_LEVELS.indexOf(entry.highest ?? 'team')
+    && rank <= SETTING_LEVELS.indexOf(entry.lowest)
     && !(entry.managedBy && rank >= SETTING_LEVELS.indexOf('room')));
 }

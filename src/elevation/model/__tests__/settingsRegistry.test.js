@@ -10,22 +10,23 @@ function leaves(values, prefix = '') {
 }
 
 describe('DB1 a settings registry', () => {
-  it('covers exactly 111 settings leaves, with 65 room settings and 7 team-only settings (anchor 1)', () => {
+  it('covers exactly 121 settings leaves, with 71 room settings and 11 team-only settings after RP1', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(111);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(65);
-    expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(7);
+    expect(new Set(keys).size).toBe(121);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(71);
+    expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(11);
   });
 
   it('provides labels, kinds, choices, and managed metadata for every leaf', () => {
     for (const entry of SETTINGS_REGISTRY) {
       expect(entry.label).toEqual(expect.any(String));
       expect(entry.label.length).toBeGreaterThan(0);
-      expect(['number', 'bool', 'choice', 'id']).toContain(entry.kind);
+      expect(['number', 'bool', 'choice', 'id', 'text']).toContain(entry.kind);
       expect(SETTING_LEVELS).toContain(entry.lowest);
+      if (entry.highest) expect(SETTING_LEVELS).toContain(entry.highest);
       if (entry.kind === 'choice') expect(entry.choices.length).toBeGreaterThan(0);
       expect(registryEntry(entry.key)).toBe(entry);
     }

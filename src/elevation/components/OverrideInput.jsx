@@ -1,5 +1,6 @@
 import { formatInches, formatInchesInput } from '../model/units.js';
 import InchInput from './InchInput.jsx';
+import TextInput from './TextInput.jsx';
 import OverrideField from './OverrideField.jsx';
 
 const BOOL_CHOICES = [{ value: true, label: 'On' }, { value: false, label: 'Off' }];
@@ -42,6 +43,15 @@ export default function OverrideInput({
           placeholder={formatInchesInput(inherited, displayStep)}
           displayStep={displayStep}
           onCommit={onChange}
+          borderClass={borderClass}
+          readOnly={readOnly}
+        />
+      ) : kind === 'text' ? (
+        <TextInput
+          aria-label={ariaLabel}
+          value={overridden ? value : null}
+          placeholder={inherited ?? ''}
+          onCommit={(text) => onChange(text || null)}
           borderClass={borderClass}
           readOnly={readOnly}
         />

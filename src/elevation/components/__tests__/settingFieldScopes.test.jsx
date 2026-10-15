@@ -140,3 +140,47 @@ describe('DB5 d setting field scopes', () => {
     }
   });
 });
+
+
+describe('RP1 a report field scopes', () => {
+  it('inherits text in project, phase and room, commits trimmed pins, and resets or clears to inherit', () => {
+    state.settings.report = { ...state.settings.report, wood: 'PAINT GRADE' };
+    for (const scope of ['project', 'phase', 'room']) {
+      state = structuredClone(state);
+      hooks.clear();
+      state.layers.project.values = {};
+      state.layers.phase.values = {};
+      delete state.rooms[0].settingsOverrides;
+      const props = { scope, settingKey: 'report.wood' };
+      const label = `${scope[0].toUpperCase()}${scope.slice(1)} Wood`;
+      let input = field(render(SettingField, props), label);
+      expect(input.props).toMatchObject({ type: 'text', value: '', placeholder: 'PAINT GRADE' });
+      expect(input.props.className).not.toContain('teal');
+      const change = (value) => {
+        field(render(SettingField, props), label).props.onChange({ target: { value } });
+        field(render(SettingField, props), label).props.onBlur();
+        return render(SettingField, props);
+      };
+      let tree = change(' MAPLE ');
+      input = field(tree, label);
+      expect(input.props.value).toBe('MAPLE');
+      expect(input.props.className).toContain('border-teal-500');
+      const own = () => scope === 'room' ? state.rooms[0].settingsOverrides : state.layers[scope].values;
+      expect(own().report.wood).toBe('MAPLE');
+      tree = change('   ');
+      expect(own()?.report).toBeUndefined();
+      expect(field(tree, label).props).toMatchObject({ value: '', placeholder: 'PAINT GRADE' });
+      tree = change('PAINT GRADE');
+      expect(field(tree, label).props.className).toContain('border-teal-500');
+      field(tree, 'Reset Wood').props.onClick();
+      expect(own()?.report).toBeUndefined();
+    }
+    state = structuredClone(state);
+    state.layers.project.values = { report: { wood: 'OAK' } };
+    expect(field(render(SettingField, { scope: 'phase', settingKey: 'report.wood' }), 'Phase Wood').props.placeholder).toBe('OAK');
+    expect(render(SettingField, { scope: 'team', settingKey: 'report.jobNumber' })).toBeNull();
+    expect(render(SettingField, { scope: 'room', settingKey: 'report.companyName' })).toBeNull();
+    const job = field(render(SettingField, { scope: 'project', settingKey: 'report.jobNumber' }), 'Project Job #');
+    expect(job.props.type).toBe('text');
+  });
+});

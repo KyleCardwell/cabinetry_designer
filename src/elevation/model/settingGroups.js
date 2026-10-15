@@ -58,6 +58,14 @@ export const SETTING_GROUPS = [
       'defaultWindowWidth', 'defaultWindowHeight', 'defaultWindowSillZ',
     ],
   },
+  {
+    id: 'reports', label: 'Reports',
+    keys: [
+      'report.companyName', 'report.companyPhone', 'report.companyFax', 'report.doorFormNote',
+      'report.jobNumber', 'report.wood', 'report.finish', 'report.boxMaterial',
+      'report.wireBrushed', 'report.edgebandAlert',
+    ],
+  },
 ];
 
 const groupedKeys = new Set(SETTING_GROUPS.flatMap(({ keys }) => keys));

@@ -107,7 +107,7 @@ describe('DB2 d room settings panel', () => {
     expect(controls(render())).toHaveLength(0);
     header(render(), 'Room settings').props.onClick();
     const groups = nodes(render()).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false);
-    expect(groups).toHaveLength(7);
+    expect(groups).toHaveLength(8);
     groups[0].props.onClick();
     expect(header(render(), 'Cabinets & depths').props['aria-expanded']).toBe(true);
     expect(controls(render())).toHaveLength(11);
@@ -266,7 +266,7 @@ describe('DB2 d room settings panel', () => {
     expect(state.settings.defaultEnds).toEqual({ ...previousEnds, left: 'none' });
     expect(dispatch).toHaveBeenLastCalledWith(setSetting({ key: 'defaultEnds.left', value: 'none' }));
     const groups = render(SettingGroups, { scope: 'team' });
-    expect(nodes(groups).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false)).toHaveLength(7);
+    expect(nodes(groups).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false)).toHaveLength(8);
     expect(text(groups)).not.toContain('overridden');
   });
 });

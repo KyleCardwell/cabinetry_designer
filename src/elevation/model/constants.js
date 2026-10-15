@@ -44,6 +44,18 @@ export const DEFAULT_PREFS = {
 /** Default persisted settings for Elevation Lab schema v3. */
 export const DEFAULT_SETTINGS = {
   defaultProfile: { ...DEFAULT_PROFILE },
+  report: {
+    companyName: '',
+    companyPhone: '',
+    companyFax: '',
+    doorFormNote: '',
+    jobNumber: '',
+    wood: '',
+    finish: '',
+    boxMaterial: '',
+    wireBrushed: false,
+    edgebandAlert: '',
+  },
   baseDepth: 24,
   upperDepth: 12,
   tallDepth: 24,
