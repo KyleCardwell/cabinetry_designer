@@ -5,6 +5,7 @@ import DesignerEditor from '../elevation/DesignerEditor.jsx';
 import { leaveCloudRoom, openCloudRoom } from '../elevation/store/cloudThunks.js';
 import { selectDesignPermissions } from '../store/permissions.js';
 import RoomHeader from './RoomHeader.jsx';
+import RoomBanners from './RoomBanners.jsx';
 
 // A new route (including StrictMode's second mount) waits for the previous leave.
 let leaving = Promise.resolve();
@@ -33,7 +34,7 @@ export default function RoomPage() {
       if (!session.active) return;
       session.opening = false;
       session.opened = reply.ok;
-      setResult({ session, status: reply.ok ? 'ready' : reply.reason === 'superseded' ? 'superseded' : 'failed', message: reply.message });
+      setResult({ session, status: reply.ok ? 'ready' : reply.reason === 'superseded' ? 'superseded' : 'failed', message: reply.message, openBy: reply.openBy });
     };
     session.open();
     return () => {
@@ -61,5 +62,7 @@ export default function RoomPage() {
   </div>;
   if (!current || result.status !== 'ready' || info?.id !== roomId) return <p role="status" className="p-6">Opening room…</p>;
 
-  return <DesignerEditor mode="room" header={<RoomHeader projectId={projectId} roomId={roomId} />} banners={null} readOnly={Boolean(info.readOnly)} />;
+  return <DesignerEditor mode="room" header={<RoomHeader projectId={projectId} roomId={roomId} />}
+    banners={<RoomBanners key={roomId} projectId={projectId} roomId={roomId} openBy={result.openBy} />}
+    readOnly={Boolean(info.readOnly)} />;
 }

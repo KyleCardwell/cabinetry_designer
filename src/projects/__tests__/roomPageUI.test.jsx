@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Link, useParams } from 'react-router-dom';
 import RoomPage from '../RoomPage.jsx';
 import RoomHeader from '../RoomHeader.jsx';
+import RoomBanners from '../RoomBanners.jsx';
 import useOnline from '../useOnline.js';
 import { ROOM_STATUS_COLORS } from '../PhaseSection.jsx';
 import DesignerEditor from '../../elevation/DesignerEditor.jsx';
@@ -141,7 +142,9 @@ describe('DB6b c room page', () => {
     expect(api.calls).toContainEqual(['getProject', 42]);
     expect(api.calls).toContainEqual(['getRoom', 'rm-1']);
     const editor = component(page.tree, DesignerEditor);
-    expect(editor.props).toMatchObject({ mode: 'room', readOnly: false, banners: null });
+    expect(editor.props).toMatchObject({ mode: 'room', readOnly: false });
+    expect(editor.props.banners.type).toBe(RoomBanners);
+    expect(editor.props.banners.props).toEqual({ projectId: '42', roomId: 'rm-1', openBy: [] });
     const header = renderComponent(RoomHeader, editor.props.header.props);
     expect(text(header.tree)).toContain('Kitchen');
     expect(text(header.tree)).toContain('Drafting');
