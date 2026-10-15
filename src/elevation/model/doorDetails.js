@@ -92,7 +92,7 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
   const profiles = settings?.sectionProfiles ?? [];
   const offsetsByStyle = new Map();
 
-  function addPart(key, kind, pieceId, path, rect, resolved, sizes) {
+  function addPart(key, kind, pieceId, path, rect, resolved, sizes, partType = 'panel', faceType = null) {
     const { style, design } = resolved;
     if (!offsetsByStyle.has(style)) {
       offsetsByStyle.set(style, doorProfileOffsets(style, design, profiles));
@@ -103,6 +103,7 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
     const { x, z, width, height } = rect;
     parts.push({
       key, kind, pieceId, path, styleId: style.id, label: style.label,
+      style, design, partType, faceType, sizes: detail.sizes ?? detail,
       construction: detail.construction, x, z, width, height, openings: detail.openings,
       lines: fit.lines, miters: fit.miters, openingsShown: fit.openingsShown,
     });
@@ -127,7 +128,7 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
         room, settings, partType, cabinetFaceLevels(room, levelsWall, run, item, node),
       );
       const key = `${pieceId}:${face.path}${face.half ? `:${face.half}` : ''}`;
-      addPart(key, 'face', pieceId, face.path, face, resolved, node?.sizes);
+      addPart(key, 'face', pieceId, face.path, face, resolved, node?.sizes, partType, face.type);
     }
   }
 

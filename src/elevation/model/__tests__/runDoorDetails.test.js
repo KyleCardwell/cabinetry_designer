@@ -57,6 +57,11 @@ describe('SPEC-46.2 door details for a run', () => {
       path: 'r',
       styleId: 'default',
       label: 'Std',
+      style: settings.teamDoorStyle ?? DEFAULT_DOOR_STYLE,
+      design: DOOR_DESIGNS[0], partType: 'door', faceType: 'door',
+      sizes: expect.objectContaining({
+        construction: 'five_piece', rails: { top: 3, bottom: 3 }, stiles: { left: 3, right: 3 },
+      }),
       construction: 'five_piece',
       ...box(30.0625, 4.125, 23.875, 30.125),
       openings: [box(33.0625, 7.125, 17.875, 24.125)],
@@ -105,6 +110,11 @@ describe('SPEC-46.2 door details for a run', () => {
       path: null,
       styleId: 'default',
       label: 'Std',
+      style: settings.teamDoorStyle ?? DEFAULT_DOOR_STYLE,
+      design: DOOR_DESIGNS[0], partType: 'panel', faceType: null,
+      sizes: expect.objectContaining({
+        construction: 'five_piece', rails: { top: 3, bottom: 3 }, stiles: { left: 3, right: 3 },
+      }),
       construction: 'five_piece',
       ...box(0.75, 36, 70.5, 41.25),
       openings: [box(3.75, 39, 64.5, 35.25)],
