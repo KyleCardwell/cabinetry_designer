@@ -4,6 +4,7 @@ import { resolveSetting } from '../model/settingsResolve.js';
 import { overrideTitle } from './overrideHelpers.js';
 import AddToolMenu from './AddToolMenu.jsx';
 import ExportDxfButton from './ExportDxfButton.jsx';
+import ReportsButton from '../../reports/ReportsButton.jsx';
 import { nextWallId, wallLabel } from '../model/topology.js';
 import {
   centerRoomOnOrigin,
@@ -246,6 +247,7 @@ export default function ElevationToolbar({
         Zoom to fit
       </button>
       <ExportDxfButton />
+      <ReportsButton />
     </div>
   );
 }
