@@ -1,12 +1,15 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
+import { frontDepth, runBackOffset } from '../../elevation/model/corners.js';
 import { gridFromItems } from '../../elevation/model/grid.js';
 import { partNumbers } from '../../elevation/model/partNumbers.js';
-import { syncRoom } from '../../elevation/model/room.js';
+import { resolveWall, syncRoom } from '../../elevation/model/room.js';
+import { runBandEnds, runBands } from '../../elevation/model/runBands.js';
+import { runScene } from '../../elevation/model/runScene.js';
 import { normalizeElevationDocument } from '../../elevation/store/persistence.js';
 import { doorOrderItems } from '../doorOrder.js';
-import { cabinetDescription, drawerFrontNote, hingeNote, shippingDescription, shippingList } from '../shippingList.js';
+import { cabinetDescription, drawerFrontNote, hingeNote, linealFeet, shippingDescription, shippingList } from '../shippingList.js';
 
 const settings = DEFAULT_SETTINGS;
 const face = (type, rest = {}) => ({ type, size: null, ...rest });
@@ -273,13 +276,14 @@ describe('RP2 step c shipping list rows', () => {
     expect(row(r, 'furniture_base:run')).toMatchObject({ description: 'Furniture Base', size: '96 1/2 x 4 1/2 x 24 7/8' });
   });
 
-  it('retains Toe Kick and Crown molding rows with blank sizes (anchor 17)', () => {
+  it('retains Toe Kick and Crown molding rows at their part numbers (anchor 17)', () => {
     const r = room([run('run', undefined, { top: 'crown' })]);
     const rows = shippingList(r, settings).rows;
     expect(rows.filter(({ key }) => ['molding:toeKick', 'molding:crown'].includes(key)))
       .toEqual(['Toe Kick', 'Crown'].map((description, index) => ({
         number: index === 0 ? 2 : 4, key: index === 0 ? 'molding:toeKick' : 'molding:crown',
-        kind: 'molding', description, notes: [], size: '',
+        kind: 'molding', description, notes: [index === 0 ? '4" tall' : '4 1/2" tall'],
+        size: index === 0 ? 'Lineal Feet: 8' : 'Lineal Feet: 16',
       })));
     // Existing part numbering also carries Top Mold with Crown; step c must keep that entry.
     expect(rows.slice(1, -1).map(({ description }) => description)).toEqual(['Toe Kick', 'Top Mold', 'Crown']);
@@ -320,7 +324,8 @@ describe('RP2 step c shipping list rows', () => {
       profile: { ...settings.defaultProfile, crownProfileId: 'crown' },
       reportParts: { 'molding:crown': { shopBuilt: true, note: ' Match existing ' } },
     }, {}, s);
-    expect(row(r, 'molding:crown', s)).toMatchObject({ description: 'Cove', size: '', notes: ['Match existing'] });
+    expect(row(r, 'molding:crown', s)).toMatchObject({ description: 'Cove', size: 'Lineal Feet: 16',
+      notes: ['4 1/2" tall x 1" deep', 'Match existing'] });
   });
 
   it('uses tee thickness and default return for both end and seam T-fillers', () => {
@@ -395,7 +400,8 @@ describe('RP2 step c shipping list rows', () => {
       for (const entry of shippingList(r, document.settings).rows) {
         expect(entry.description).toBeTruthy();
         expect(entry.description).not.toContain('undefined');
-        if (['molding', 'adjustable_shelves'].includes(entry.kind)) expect(entry.size).toBe('');
+        if (entry.kind === 'molding') expect(entry.size).toMatch(/^Lineal Feet: \d+$/);
+        else if (entry.kind === 'adjustable_shelves') expect(entry.size).toBe('');
         else expect(entry.size).toMatch(/^\d[^x]* x \d[^x]* x \d[^x]*$/);
       }
     }
@@ -486,5 +492,112 @@ describe('RP2 step e panel, filler and base notes', () => {
     expect(row(r, 'run:left').notes).toEqual(['L-shape', 'chip detail bottom 1/8"', 'do not sand edges']);
     r.walls[0].runs[0].ends.left.extend = { down: { to: 'floor' } };
     expect(row(syncRoom(r, settings), 'run:left').notes).toEqual(['L-shape', 'do not sand edges']);
+  });
+});
+
+describe('RP2 step f molding rows', () => {
+  function upper(width = 96, anchors = { left: true, right: true }, wallLength = width, extra = {}) {
+    return room([run('upper', [cabinet()], { cabinetTypeId: 2, x: 0, width, depth: 12,
+      z: 54, height: 36, top: 'crown', anchors, ...extra })], {}, { x2: wallLength });
+  }
+  function bandsOf(r, s = settings) {
+    const wall = resolveWall(r, r.walls[0]);
+    const resolved = wall.runs[0];
+    const scene = runScene(r, wall, resolved, s);
+    return { wall, run: resolved, scene, bands: runBands(r, wall, resolved, s, scene) };
+  }
+  function twoWalls(firstWidth, secondWidth, secondProfile = {}) {
+    const anchors = { left: true, right: true };
+    const first = room([run('first', [cabinet('a')], { x: 0, width: firstWidth, anchors })], {}, { x2: firstWidth });
+    const second = { ...structuredClone(first.walls[0]), id: 'wall2', y1: 200, y2: 200,
+      x2: secondWidth, profile: secondProfile,
+      runs: [run('second', [cabinet('b')], { x: 0, width: secondWidth, anchors })] };
+    return syncRoom({ ...first, wallOrder: ['wall', 'wall2'], walls: [...first.walls, second] }, settings);
+  }
+
+  it('rounds the extra two feet into eight-foot stock lengths (anchor 1)', () => {
+    expect([0, 72, 73, 264].map(linealFeet)).toEqual([8, 8, 16, 24]);
+  });
+
+  it('sums 117 and 58 inches of toe kick before rounding (anchor 2)', () => {
+    const r = twoWalls(117, 58);
+    expect(bandsOf(r).bands.toeKicks.map(({ width }) => width)).toEqual([117]);
+    const wall = resolveWall(r, r.walls[1]);
+    const second = wall.runs[0];
+    expect(runBands(r, wall, second, settings, runScene(r, wall, second, settings)).toeKicks
+      .map(({ width }) => width)).toEqual([58]);
+    expect(row(r, 'molding:toeKick').size).toBe('Lineal Feet: 24');
+  });
+
+  it('uses the band width of a square-ended 96-inch crown (anchor 3)', () => {
+    const r = upper();
+    const { wall, run, scene, bands } = bandsOf(r);
+    expect(bands.crown.width).toBe(96);
+    for (const kind of ['topMold', 'crown']) {
+      expect(bands[kind].ends).toEqual(runBandEnds(r, wall, run, settings, scene, kind, bands[kind].z));
+      expect(bands[kind].ends.map(({ type }) => type)).toEqual(['square', 'square']);
+      expect(row(r, `molding:${kind}`).size).toBe('Lineal Feet: 16');
+    }
+  });
+
+  it('adds the 12 7/8-inch face depth and 3-inch crown past at a return (anchor 4)', () => {
+    const r = upper(96, { left: true, right: false }, 144);
+    const { run, bands } = bandsOf(r);
+    expect(frontDepth(run, settings) - runBackOffset(run)).toBe(12.875);
+    expect(bands.crown.width).toBe(99);
+    expect(bands.crown.ends.map(({ type }) => type)).toEqual(['square', 'return']);
+    expect(linealFeet(bands.crown.width + 12.875 + 3)).toBe(16);
+    expect(row(r, 'molding:crown').size).toBe('Lineal Feet: 16');
+    // At 60 inches the same return changes the number of stock lengths ordered.
+    const shorter = upper(60, { left: true, right: false }, 144);
+    expect(row(shorter, 'molding:crown').size).toBe('Lineal Feet: 16');
+    expect(row(shorter, 'molding:topMold').size).toBe('Lineal Feet: 16');
+    const both = upper(50, { left: false, right: false }, 144, { x: 24 });
+    expect(row(both, 'molding:crown').size).toBe('Lineal Feet: 16');
+  });
+
+  it('uses the unpicked toe-kick profile height (anchor 5)', () => {
+    expect(row(room(), 'molding:toeKick').notes).toEqual(['4" tall']);
+  });
+
+  it('prints the picked CV10 height and bounds depth (anchor 6)', () => {
+    const s = { ...settings, sectionProfiles: [{ id: 'cv10', name: 'CV10', kind: 'crown',
+      drawnPoints: { elevation: [], plan: [] }, geometry: {
+        points: { a: [0, 0], b: [4.625, 0], c: [0, -4.625] },
+        loops: [{ closed: true, segs: [{ type: 'line', from: 'a', to: 'b' },
+          { type: 'line', from: 'b', to: 'c' }, { type: 'line', from: 'c', to: 'a' }] }],
+      } }] };
+    const r = upper();
+    r.profile.crownProfileId = 'cv10';
+    expect(row(syncRoom(r, s), 'molding:crown', s)).toMatchObject({ description: 'CV10',
+      notes: ['4 5/8" tall x 4 5/8" deep'] });
+  });
+
+  it('joins distinct wall heights and omits repeated heights (anchor 7)', () => {
+    const r = twoWalls(117, 58, { toeKickHeight: 3.5 });
+    r.walls[0].runs.push(run('repeat', [cabinet('c')], { wallSide: 'back' }));
+    expect(row(syncRoom(r, settings), 'molding:toeKick').notes).toEqual(['4" & 3 1/2" tall']);
+  });
+
+  it('puts the free-text molding note last (anchor 8)', () => {
+    const r = room(undefined, { reportParts: { 'molding:toeKick': { note: ' add scribe if necessary ' } } });
+    expect(row(r, 'molding:toeKick').notes).toEqual(['4" tall', 'add scribe if necessary']);
+  });
+
+  it('includes both wall faces and excludes furniture bases from toe-kick length', () => {
+    const r = room([run('front', [cabinet('a')], { x: 24, width: 74 }),
+      run('back', [cabinet('b')], { wallSide: 'back', x: 24, width: 74 }),
+      run('furniture', [cabinet('c')], { x: 130, width: 36, overrides: { baseKind: 'furniture_base' } })],
+    {}, { x2: 216 });
+    expect(row(r, 'molding:toeKick').size).toBe('Lineal Feet: 16');
+    expect(shippingList(r, settings).rows.filter(({ kind }) => kind === 'molding')).toHaveLength(1);
+    expect(row(r, 'furniture_base:furniture').size).toMatch(/^\d[^x]* x \d[^x]* x \d[^x]*$/);
+  });
+
+  it('subtracts the back offset from return depths and leaves inputs unchanged', () => {
+    const r = upper(120, { left: false, right: false }, 200, { x: 24, outset: 7 });
+    const before = structuredClone(r);
+    expect(row(r, 'molding:crown').size).toBe('Lineal Feet: 16');
+    expect(r).toEqual(before);
   });
 });

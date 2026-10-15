@@ -1,8 +1,10 @@
 import { findLeaf } from '../elevation/model/cellTree.js';
 import { panelOrientation } from '../elevation/model/cells.js';
+import { frontDepth, runBackOffset } from '../elevation/model/corners.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
 import { elevationParts } from '../elevation/model/elevationParts.js';
 import { furnitureBaseGroups } from '../elevation/model/furnitureBaseGroups.js';
+import { moldingPast, moldingProfiles } from '../elevation/model/moldingProfiles.js';
 import {
   isJoinedEnd, isSheetCell, runEndThickness, wallPanelThickness,
 } from '../elevation/model/panelThickness.js';
@@ -11,15 +13,63 @@ import { carriesMolding } from '../elevation/model/parts.js';
 import { fillerReturnDepth } from '../elevation/model/planPieces.js';
 import { resolveProfile } from '../elevation/model/profile.js';
 import { resolveWall } from '../elevation/model/room.js';
+import { runBands } from '../elevation/model/runBands.js';
 import { runScene } from '../elevation/model/runScene.js';
+import { sectionProfileBounds } from '../elevation/model/sectionProfiles.js';
 import { endPieceBottom, endPieceNotes, resolveStyle, REVEAL_KEYS, runFrame } from '../elevation/model/styles.js';
 import { teeFillers } from '../elevation/model/tees.js';
+import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { doorOrderItems } from './doorOrder.js';
 import { formatInch, formatSize } from './format.js';
 
 const TYPES = { 1: 'Base', 2: 'Upper', 3: 'Tall' };
 const MOLDINGS = { toeKick: 'Toe Kick', topMold: 'Top Mold', crown: 'Crown' };
+const MOLDING_EXTRA = 24;
 const EPSILON = 1e-6;
+
+/** Order eight-foot lengths, allowing two extra feet for fitting. */
+export function linealFeet(inches) {
+  return Math.ceil((inches + MOLDING_EXTRA) / 96) * 8;
+}
+
+function shippingMoldings(room, settings) {
+  const result = Object.fromEntries(Object.keys(MOLDINGS).map((kind) => [kind,
+    { measured: 0, dimensions: new Map() }]));
+  for (const stored of room.walls ?? []) {
+    for (const side of WALL_SIDES) {
+      const wall = resolveWall(room, stored, side);
+      const profile = resolveProfile(settings, room, wall);
+      for (const run of wall.runs) {
+        const kinds = Object.keys(MOLDINGS).filter((kind) => carriesMolding(wall, run, profile, kind));
+        if (!kinds.length) continue;
+        const bands = runBands(room, wall, run, settings, runScene(room, wall, run, settings));
+        const moldings = moldingProfiles(profile, settings, run);
+        for (const kind of kinds) {
+          const data = result[kind];
+          const picked = moldings[kind];
+          const height = formatInch(picked?.height ?? profile[`${kind}Height`]);
+          const bounds = picked && sectionProfileBounds({ geometry: picked.geometry });
+          const depth = bounds ? formatInch(bounds.maxX - bounds.minX) : null;
+          data.dimensions.set(`${height}:${depth}`, { height, depth });
+          if (kind === 'toeKick') {
+            data.measured += bands.toeKicks.reduce((sum, band) => sum + band.width, 0);
+          } else {
+            const band = bands[kind];
+            data.measured += band.width + band.ends.filter((end) => end.type === 'return').length
+              * (frontDepth(run, settings) - runBackOffset(run) + moldingPast(moldings, kind, settings));
+          }
+        }
+      }
+    }
+  }
+  for (const data of Object.values(result)) {
+    const dimensions = [...data.dimensions.values()];
+    data.note = dimensions.every(({ depth }) => depth === null)
+      ? `${dimensions.map(({ height }) => height).join(' & ')} tall`
+      : dimensions.map(({ height, depth }) => `${height} tall${depth === null ? '' : ` x ${depth} deep`}`).join(' & ');
+  }
+  return result;
+}
 
 function faceOrder(a, b) {
   const topA = a.z == null ? 0 : a.z + (a.height ?? 0);
@@ -65,7 +115,12 @@ function shippingContext(room, settings) {
   const teeData = new Map();
   const elevations = new Map();
   let bases;
+  let moldings;
   return (part) => {
+    if (part.kind === 'molding') {
+      moldings ??= shippingMoldings(room, settings);
+      return { molding: moldings[part.molding] };
+    }
     if (part.kind === 'furniture_base') {
       bases ??= new Map(furnitureBaseGroups(room, settings).map((group) => [group.key, group]));
       return { base: bases.get(part.key) };
@@ -159,7 +214,7 @@ function orderedThickness(drawn, style) {
 }
 
 function shippingSize(room, settings, part, context) {
-  if (part.kind === 'molding') return '';
+  if (part.kind === 'molding') return `Lineal Feet: ${linealFeet(context.molding.measured)}`;
   const { wall, run, scene, piece, end, blindPanel, style, endpoint, base } = context;
   if (part.kind === 'furniture_base') return formatSize(base.orderedWidth, base.orderedHeight, base.depth);
   if (part.kind === 'wall_end_panel') {
@@ -217,6 +272,7 @@ function cabinetNotes(room, settings, part, context) {
 function partNotes(room, settings, part, context, doorItems) {
   const { run, scene, piece, shapeNotes, style, wall, end, endpoint, base } = context;
   const groups = {};
+  if (part.kind === 'molding') groups[13] = context.molding.note;
   if (part.kind === 'furniture_base') {
     groups[12] = [
       ...(base.orderedHeight - base.height > EPSILON

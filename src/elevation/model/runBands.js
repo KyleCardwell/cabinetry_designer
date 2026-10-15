@@ -242,7 +242,8 @@ export function runBands(room, wall, run, settings, scene) {
   const endsFor = (kind, z, height) => runBandEnds(room, wall, run, settings, scene, kind, z, height, shapes);
   const band = (kind, z, height) => {
     const [left, right] = endsFor(kind, z);
-    return { x: left.x, z, width: right.x - left.x, height };
+    return { x: left.x, z, width: right.x - left.x, height,
+      ...(kind === 'topMold' || kind === 'crown' ? { ends: [left, right] } : {}) };
   };
   const profile = resolveProfile(settings, room, wall);
   const moldings = moldingProfiles(profile, settings, run);

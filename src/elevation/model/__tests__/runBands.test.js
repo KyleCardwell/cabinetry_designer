@@ -30,8 +30,10 @@ describe('SPEC-42 run bands', () => {
       toeKicks: [{ x: 0, z: 0, width: 29, height: 4 }],
       furnitureBases: [],
       countertop: null,
-      topMold: { x: 0, z: 90, width: 30.25, height: 3, lines: [] },
-      crown: { x: 0, z: 91.5, width: 33, height: 4.5, lines: [] },
+      topMold: { x: 0, z: 90, width: 30.25, height: 3, lines: [],
+        ends: [expect.objectContaining({ type: 'square' }), expect.objectContaining({ type: 'return' })] },
+      crown: { x: 0, z: 91.5, width: 33, height: 4.5, lines: [],
+        ends: [expect.objectContaining({ type: 'square' }), expect.objectContaining({ type: 'return' })] },
       bottomParts: [],
       chipLines: [],
     });

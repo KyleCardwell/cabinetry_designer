@@ -71,13 +71,15 @@ function setup({ profile = picks, runs = [{}], corner = false, neighborProfile =
 describe('SPEC-50.3 step 476 profiled band ends', () => {
   it('returns a cove at both free ends, preserving arcs and stopping lines on its contour (anchor 1)', () => {
     const { bands: [{ crown }] } = setup();
-    expect(crown).toEqual({ x: 26.75, z: 92.5, width: 42.5, height: 3.5, outline: CROWN,
+    expect(crown).toEqual({ x: 26.75, z: 92.5, width: 42.5, height: 3.5,
+      ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })], outline: CROWN,
       lines: [line(26.75, 69.25, 95.5), line(29.25, 66.75, 93)] });
   });
 
   it('returns a top mold along its stepped front and sends both band outlines in the payload (anchor 2)', () => {
     const { room, bands: [{ topMold, crown }] } = setup();
-    expect(topMold).toEqual({ x: 29.75, z: 90, width: 36.5, height: 3, outline: TOP,
+    expect(topMold).toEqual({ x: 29.75, z: 90, width: 36.5, height: 3,
+      ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })], outline: TOP,
       lines: [line(29.75, 66.25, 90.75)] });
     const parts = bandParts(room, room.walls[0], 'front', settings);
     expect(parts.map(({ outline }) => outline)).toEqual([TOP, CROWN]);
@@ -111,8 +113,10 @@ describe('SPEC-50.3 step 476 profiled band ends', () => {
   it('keeps every unpicked band and line equal to the existing rectangles (anchor 5)', () => {
     const { bands: [bands] } = setup({ profile: { topMoldProfileId: null, crownProfileId: null } });
     expect(bands).toEqual({ top: { kind: 'crown', height: 6 }, toeKicks: [], furnitureBases: [], countertop: null,
-      topMold: { x: 29.75, z: 90, width: 36.5, height: 3, lines: [] },
-      crown: { x: 27, z: 91.5, width: 42, height: 4.5, lines: [] }, bottomParts: [], chipLines: [] });
+      topMold: { x: 29.75, z: 90, width: 36.5, height: 3, lines: [],
+        ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })] },
+      crown: { x: 27, z: 91.5, width: 42, height: 4.5, lines: [],
+        ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })] }, bottomParts: [], chipLines: [] });
   });
 
   it('keeps an anchored wall end square at its current x (anchor 6), including two square ends', () => {

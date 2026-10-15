@@ -48,8 +48,10 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     const { room, wall, bands, parts, pieces } = setup({});
     expect(bands).toEqual({
       top: { kind: 'crown', height: 6 }, toeKicks: [], furnitureBases: [], countertop: null,
-      topMold: { x: 19.75, z: 90, width: 60.5, height: 3, lines: [] },
-      crown: { x: 17, z: 91.5, width: 66, height: 4.5, lines: [] },
+      topMold: { x: 19.75, z: 90, width: 60.5, height: 3, lines: [],
+        ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })] },
+      crown: { x: 17, z: 91.5, width: 66, height: 4.5, lines: [],
+        ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })] },
       bottomParts: [], chipLines: [],
     });
     expect(parts).toEqual([
@@ -70,10 +72,12 @@ describe('SPEC-50.2 step 471 molding placement', () => {
   it('places picked lines, front depths and whole side outlines (anchors 2 and 5)', () => {
     const { bands, parts, pieces } = setup();
     expect(bands.topMold).toEqual({ x: 19.75, z: 90, width: 60.5, height: 3, lines: lines(19.75, 80.25, 90.75),
+      ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })],
       outline: [[19.75, 90, 0], [80.25, 90, 0], [80.25, 90.75, 0], [80.125, 90.75, 0],
         [80.125, 93, 0], [19.875, 93, 0], [19.875, 90.75, 0], [19.75, 90.75, 0]],
     });
     expect(bands.crown).toEqual({ x: 16.75, z: 91.5, width: 66.5, height: 4.5,
+      ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })],
       lines: [...lines(16.75, 83.25, 95), ...lines(19.25, 80.75, 92)],
       outline: [[19.25, 91.5, 0], [80.75, 91.5, 0], [80.75, 92, 0], [83.25, 95, 0],
         [83.25, 96, 0], [16.75, 96, 0], [16.75, 95, 0], [19.25, 92, 0]],
