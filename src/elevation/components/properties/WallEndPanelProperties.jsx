@@ -6,6 +6,7 @@ import {
 import { panelLevels } from '../../model/doorStyleResolve.js';
 import { setPartStyle, setWallEndPanel } from '../../store/elevationSlice.js';
 import PartNumberField from './PartNumberField.jsx';
+import PartReportFields from './PartReportFields.jsx';
 import PartStyleFields from './PartStyleFields.jsx';
 import WallEndPanelFields from './WallEndPanelFields.jsx';
 
@@ -33,6 +34,7 @@ export default function WallEndPanelProperties({
         override={room.partNumberOverrides?.[key]}
         duplicate={numbers.warnings.some((warning) => warning.keys.includes(key))}
       />
+      <PartReportFields room={room} partKey={key} kind="wall_end_panel" settings={settings} autoName="" />
       <p className="text-xs text-gray-300">
         {formatInches(panel.width)} × {formatInches(panel.top)} · {formatInches(side.depth)} deep on this side
       </p>

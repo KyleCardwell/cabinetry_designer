@@ -1,11 +1,13 @@
 import { formatInches } from '../../model/index.js';
+import PartReportFields from './PartReportFields.jsx';
 
 export default function TeeProperties({
-  tee, notes, partNumberField, settings,
+  room, tee, notes, partNumberField, settings,
 }) {
   return (
     <>
       {partNumberField}
+      <PartReportFields room={room} partKey={tee.id} kind="filler" settings={settings} autoName="" />
       {notes.length > 0 && (
         <p className="text-xs text-cyan-300">{notes.join(' · ')}</p>
       )}

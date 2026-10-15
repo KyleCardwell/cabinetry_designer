@@ -12,6 +12,7 @@ import ExtendFields from './ExtendFields.jsx';
 import FrameSection from './FrameSection.jsx';
 import Field from './Field.jsx';
 import PartNumberField from './PartNumberField.jsx';
+import PartReportFields from './PartReportFields.jsx';
 import TeeProperties from './TeeProperties.jsx';
 import TFillerSection from './TFillerSection.jsx';
 
@@ -105,6 +106,9 @@ export default function PieceProperties({
       duplicate={numbers.warnings.some((warning) => warning.keys.includes(partKey))}
     />
   );
+  const reportFields = partNumberField ? (
+    <PartReportFields room={room} partKey={partKey} kind={piece.kind} settings={settings} autoName="" />
+  ) : null;
   const teeNotes = tee ? teeFillers(room, run, cells, settings).notes.get(tee.id) ?? [] : [];
   const tSection = (
     <TFillerSection room={room} wall={wall} run={run} cells={cells} settings={settings} piece={piece} />
@@ -124,12 +128,17 @@ export default function PieceProperties({
   const extendRuns = wall.runs.filter((other) => other.id !== run.id && wallSideOf(other) === wallSideOf(run));
 
   if (tee && !side) {
-    return <TeeProperties tee={tee} notes={teeNotes} partNumberField={partNumberField} settings={settings} />;
+    return (
+      <TeeProperties
+        room={room} tee={tee} notes={teeNotes} partNumberField={partNumberField} settings={settings}
+      />
+    );
   }
   if (side) {
     return (
       <>
         {partNumberField}
+        {reportFields}
         {notesLine}
         <EndProperties
           room={room}
@@ -148,6 +157,7 @@ export default function PieceProperties({
     return (
       <>
         {partNumberField}
+        {reportFields}
         {notesLine}
         <InteriorFillerProperties
           wallId={wall.id}
@@ -163,6 +173,7 @@ export default function PieceProperties({
     return (
       <>
         {partNumberField}
+        {reportFields}
         <CellProperties
           room={room}
           wall={wall}
@@ -183,6 +194,7 @@ export default function PieceProperties({
   return (
     <>
       {partNumberField}
+      {reportFields}
       <CabinetProperties
         room={room}
         wall={wall}

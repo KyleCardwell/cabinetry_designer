@@ -15,6 +15,7 @@ import {
 import DoorStylePicks from './DoorStylePicks.jsx';
 import Field from './Field.jsx';
 import PartNumberField from './PartNumberField.jsx';
+import PartReportFields from './PartReportFields.jsx';
 import RunBottomSection from './RunBottomSection.jsx';
 import RunBaseCutoutsSection from './RunBaseCutoutsSection.jsx';
 import RunCabinetsSection from './RunCabinetsSection.jsx';
@@ -77,6 +78,7 @@ export function RunFurnitureBaseSection({ room, wall, run, settings }) {
         override={room.partNumberOverrides?.[group.key]}
         duplicate={numbers.warnings.some((warning) => warning.keys.includes(group.key))}
       />
+      <PartReportFields room={room} partKey={group.key} kind="furniture_base" settings={settings} autoName="" />
     </section>
   );
 }

@@ -3,6 +3,7 @@ import {
   formatInches, frameMembers, groupMembers, regionOpenings, runFaceLayouts,
 } from '../../model/index.js';
 import PartNumberField from './PartNumberField.jsx';
+import PartReportFields from './PartReportFields.jsx';
 
 const MEMBER_LABELS = { stile: 'Stile', rail: 'Rail', mullion: 'Mullion' };
 
@@ -26,6 +27,7 @@ export default function FrameSection({
         override={room.partNumberOverrides?.[region.id]}
         duplicate={numbers.warnings.some((warning) => warning.keys.includes(region.id))}
       />
+      <PartReportFields room={room} partKey={region.id} kind="frame" settings={settings} autoName="" />
       <p className="text-xs text-gray-300">
         {formatInches(region.width)} × {formatInches(region.height)}
       </p>

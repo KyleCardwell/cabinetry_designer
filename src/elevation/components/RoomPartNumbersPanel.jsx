@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectSettings } from '../store/selectors.js';
-import { partNumbers } from '../model/partNumbers.js';
-import { setRoomPartNumberStart } from '../store/elevationSlice.js';
+import { MOLDING_LABELS, partNumbers } from '../model/partNumbers.js';
+import { setReportPartField, setRoomPartNumberStart, setRoomReportNote } from '../store/elevationSlice.js';
+import { ReportTextField } from './properties/PartReportFields.jsx';
 
 export default function RoomPartNumbersPanel() {
   const dispatch = useDispatch();
@@ -36,6 +37,28 @@ export default function RoomPartNumbersPanel() {
           className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
         />
       </label>
+      <div className="mt-4 space-y-2">
+        <h4 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Report notes</h4>
+        <ReportTextField
+          key={room.id}
+          label="Room note"
+          value={room.reportNote ?? ''}
+          maxLength={400}
+          multiline
+          onCommit={(value) => dispatch(setRoomReportNote({ roomId: room.id, value }))}
+        />
+        {numbers.parts.filter(({ kind }) => kind === 'molding').map((part) => (
+          <ReportTextField
+            key={`${room.id}:${part.key}`}
+            label={`${MOLDING_LABELS[part.molding]} #${part.number} note`}
+            value={room.reportParts?.[part.key]?.note ?? ''}
+            maxLength={200}
+            onCommit={(value) => dispatch(setReportPartField({
+              roomId: room.id, key: part.key, field: 'note', value,
+            }))}
+          />
+        ))}
+      </div>
       <p className="mt-2 text-xs text-gray-500">
         {numbers.parts.length} numbered parts
       </p>
