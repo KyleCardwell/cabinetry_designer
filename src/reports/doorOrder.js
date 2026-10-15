@@ -72,9 +72,8 @@ function pageHeader(style, design, settings, warnings) {
     return 'MISSING PROFILE';
   }
   const fivePiece = design.construction === 'five_piece';
-  const description = design.description?.toUpperCase();
   return {
-    style: !description || description === design.code.toUpperCase() ? design.code : `${description} - ${design.code}`,
+    style: design.code?.trim() || design.description?.toUpperCase(),
     wood: style.material || null,
     vendor: design.vendor?.toUpperCase() || null,
     thickness: formatInch(style.thickness),
@@ -91,6 +90,7 @@ function pageHeader(style, design, settings, warnings) {
 export function doorOrder(room, settings) {
   const { byKey } = partNumbers(room, settings);
   const pages = new Map();
+  const styles = new Map();
   const warnings = [];
 
   function add(part, panel = false) {
@@ -101,19 +101,29 @@ export function doorOrder(room, settings) {
       number = '?';
       warnings.push({ code: 'report-part-unnumbered', pieceId, key: part.key });
     }
-    if (!pages.has(style.id)) pages.set(style.id, {
-      styleId: style.id, header: pageHeader(style, design, settings, warnings), items: new Map(),
+    if (!styles.has(style.id)) styles.set(style.id, {
+      header: pageHeader(style, design, settings, warnings), firstNumber: Infinity,
     });
-    const page = pages.get(style.id);
-    const section = sizes.construction === 'slab' && sizes.slab === 'rule' ? 'slab'
+    const styleData = styles.get(style.id);
+    styleData.firstNumber = Math.min(styleData.firstNumber, numberOrder(number));
+    const type = sizes.construction === 'slab' && sizes.slab === 'rule' ? 'slab'
       : ['drawer_front', 'false_front'].includes(faceType) ? 'drawer_fronts' : 'doors';
+    const key = `${style.id}:${type}`;
+    if (!pages.has(key)) pages.set(key, {
+      styleId: style.id, type,
+      header: type === 'slab' ? {
+        ...styleData.header, insideProfile: null, panelProfile: null,
+        notes: settings.report?.doorFormNote || null,
+      } : styleData.header,
+      items: [],
+    });
+    const page = pages.get(key);
     const notes = [
       ...(panel ? ['do not sand edges'] : []),
       ...(faceType === 'false_front' ? ['false front'] : []),
       ...stileRailNotes(style, sizes),
     ].join(' - ');
-    if (!page.items.has(section)) page.items.set(section, []);
-    page.items.get(section).push({ number, width, height, notes });
+    page.items.push({ number, width, height, notes });
   }
 
   function addPanel(wall, run, stored, rect, pieceId, sheet = false) {
@@ -159,13 +169,11 @@ export function doorOrder(room, settings) {
     }
   }
 
-  const result = [...pages.values()].map(({ items, ...page }) => ({
-    ...page,
-    sections: SECTIONS.filter(([id]) => items.has(id)).map(([id, title]) => ({
-      id, title, lines: mergeLines(items.get(id)),
-    })),
-  }));
-  const firstNumber = (page) => Math.min(...page.sections.flatMap(({ lines }) => lines.map(({ number }) => numberOrder(number))));
-  result.sort((a, b) => firstNumber(a) - firstNumber(b));
+  const result = [...styles.entries()].sort(([, a], [, b]) => a.firstNumber - b.firstNumber)
+    .flatMap(([styleId]) => SECTIONS.filter(([type]) => pages.has(`${styleId}:${type}`))
+      .map(([id, title]) => {
+        const { items, ...page } = pages.get(`${styleId}:${id}`);
+        return { ...page, sections: [{ id, title, lines: mergeLines(items) }] };
+      }));
   return { pages: result, warnings };
 }

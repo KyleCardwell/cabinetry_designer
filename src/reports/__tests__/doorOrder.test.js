@@ -40,7 +40,12 @@ function room(runs = [run()], overrides = {}, wallOverrides = {}, s = settings) 
     }], ...overrides,
   }, s);
 }
-const sections = (order) => order.pages[0].sections;
+const sections = (order) => order.pages.flatMap((page) => page.sections);
+const pageKeys = (order) => order.pages.map(({ styleId, type, sections }) => {
+  expect(sections).toHaveLength(1);
+  expect(sections[0].id).toBe(type);
+  return { styleId, type };
+});
 const lines = (order) => order.pages.flatMap((page) => page.sections.flatMap((section) => section.lines));
 
 describe('door order form data', () => {
@@ -79,7 +84,9 @@ describe('door order form data', () => {
     const order = doorOrder(r, settings);
     const numbers = partNumbers(r, settings).byKey;
     expect(order.warnings).toEqual([]);
-    expect(order.pages).toHaveLength(1);
+    expect(pageKeys(order)).toEqual([
+      { styleId: 'default', type: 'drawer_fronts' }, { styleId: 'default', type: 'doors' },
+    ]);
     expect(sections(order)).toEqual([
       { id: 'drawer_fronts', title: 'Drawer Fronts', lines: [
         { number: numbers.get('cab'), qty: 2, width: 17.875, height: 12, size: '17 7/8 x 12', notes: '' },
@@ -93,9 +100,15 @@ describe('door order form data', () => {
   });
 
   it('puts a short-face slab in Slab without frame notes (anchor 6)', () => {
-    const order = doorOrder(room([run('run', { id: 'cab', kind: 'cabinet', face: drawers(4.5) })]), settings);
-    expect(sections(order).map(({ id }) => id)).toEqual(['drawer_fronts', 'slab']);
-    expect(sections(order)[1].lines).toEqual([
+    const order = doorOrder(room([run('run', { id: 'cab', kind: 'cabinet', face: drawers(4.5) }, {
+      width: 18.8125,
+      ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null } },
+    })]), settings);
+    expect(pageKeys(order)).toEqual([
+      { styleId: 'default', type: 'drawer_fronts' }, { styleId: 'default', type: 'doors' },
+      { styleId: 'default', type: 'slab' },
+    ]);
+    expect(sections(order)[2].lines).toEqual([
       { number: 1, qty: 1, width: 17.875, height: 4.5, size: '17 7/8 x 4 1/2', notes: '' },
     ]);
   });
@@ -132,9 +145,11 @@ describe('door order form data', () => {
       run('doors', { id: 'door', kind: 'cabinet', face: face('door') }, { x: 60 }),
     ], { doorStyles: [a], doorStyleId: 'A', partNumberOverrides: { door: 1, cab: 9 } }, {}, s);
     const order = doorOrder(r, s);
-    expect(order.pages.map(({ styleId }) => styleId)).toEqual(['A', 'default']);
+    expect(pageKeys(order)).toEqual([
+      { styleId: 'A', type: 'doors' }, { styleId: 'default', type: 'drawer_fronts' },
+    ]);
     expect(order.pages[0].header).toEqual({
-      style: 'SQUARE - 110', wood: 'MAPLE/MDF', vendor: 'STILLWATER', thickness: '13/16"',
+      style: '110', wood: 'MAPLE/MDF', vendor: 'STILLWATER', thickness: '13/16"',
       edgeProfile: 'SQUARE', insideProfile: 'SQUARE', panelProfile: 'FLAT', appliedMoldings: null,
       notes: '3" Stiles & Rails - No Midrails Unless Noted',
     });
@@ -144,6 +159,44 @@ describe('door order form data', () => {
     expect(doorOrder(room([]), settings)).toEqual({ pages: [], warnings: [] });
     expect(doorOrder(room([run('open', { id: 'cab', kind: 'cabinet', face: face('open') })]), settings))
       .toEqual({ pages: [], warnings: [] });
+  });
+
+  it.each(['No Midrails Unless Noted', null])('omits frame details from a rule-slab header with note %s (RP1.1 anchors 4–5)', (note) => {
+    const s = { ...settings, report: { doorFormNote: note } };
+    const order = doorOrder(room([run('run', { id: 'cab', kind: 'cabinet', face: drawers(4.5) })]), s);
+    expect(pageKeys(order)).toEqual([
+      { styleId: 'default', type: 'drawer_fronts' }, { styleId: 'default', type: 'slab' },
+    ]);
+    expect(order.pages[1].header).toEqual({
+      ...order.pages[0].header, insideProfile: null, panelProfile: null, notes: note,
+    });
+    expect(order.pages[0].header).toMatchObject({
+      insideProfile: 'SQUARE', panelProfile: 'FLAT',
+      notes: ['3" Stiles & Rails', note].filter(Boolean).join(' - '),
+    });
+  });
+
+  it.each(['', '   '])('uses the upper-cased description when the design code is %j (RP1.1 anchor 8)', (code) => {
+    const s = { ...settings, doorDesigns: [{ ...DOOR_DESIGNS[0], code, description: 'Square' }] };
+    const order = doorOrder(room(), s);
+    expect(order.pages[0].header.style).toBe('SQUARE');
+  });
+
+  it('keeps all types of a style together before the next style despite interleaved part numbers', () => {
+    const a = { ...style, id: 'A' };
+    const r = room([
+      run('a-door', { id: 'a-door', kind: 'cabinet', face: face('door') }, { x: 0, doorStyleId: 'A' }),
+      run('b-door', { id: 'b-door', kind: 'cabinet', face: face('door') }, { x: 30 }),
+      run('a-fronts', { id: 'a-fronts', kind: 'cabinet', face: drawers(4.5) }, { x: 60, drawerFrontStyleId: 'A' }),
+      run('b-fronts', { id: 'b-fronts', kind: 'cabinet', face: drawers(4.5) }, { x: 90 }),
+    ], { doorStyles: [a], partNumberOverrides: { 'a-door': 1, 'b-door': 2, 'a-fronts': 9, 'b-fronts': 3 } });
+    const order = doorOrder(r, settings);
+    expect(pageKeys(order)).toEqual([
+      { styleId: 'A', type: 'drawer_fronts' }, { styleId: 'A', type: 'doors' }, { styleId: 'A', type: 'slab' },
+      { styleId: 'default', type: 'drawer_fronts' }, { styleId: 'default', type: 'doors' },
+      { styleId: 'default', type: 'slab' },
+    ]);
+    expect(order.pages.map((page) => page.sections[0].lines[0].number)).toEqual([9, 1, 9, 3, 2, 3]);
   });
 
   it('rounds merge keys to 1/32, keeps distinct notes, and sorts by height then width', () => {
@@ -167,9 +220,13 @@ describe('door order form data', () => {
       direction: 'vertical', size: null, children: [face('false_front', 4.5), face('door')],
     } })], { doorStyles: [slab], doorStyleId: slab.id });
     const order = doorOrder(r, { ...settings, report: { doorFormNote: 'Shop note' } });
-    expect(sections(order).map(({ id }) => id)).toEqual(['drawer_fronts', 'doors']);
+    expect(pageKeys(order)).toEqual([
+      { styleId: slab.id, type: 'drawer_fronts' }, { styleId: slab.id, type: 'doors' },
+    ]);
     expect(lines(order).map(({ notes }) => notes)).toEqual(['false front', '']);
-    expect(order.pages[0].header).toMatchObject({ insideProfile: null, panelProfile: null, notes: 'Shop note' });
+    for (const page of order.pages) {
+      expect(page.header).toMatchObject({ style: 'Slab', insideProfile: null, panelProfile: null, notes: 'Shop note' });
+    }
   });
 
   it('lists back panels, blind panels and wall end panels once with their own part numbers', () => {
@@ -209,7 +266,13 @@ describe('door order form data', () => {
     const custom = { ...style, id: 'custom', stiles: { left: 3, right: 3 }, rails: { top: 2.75, bottom: 2.75 },
       panel: { ...style.panel, type: 'raised' }, profiles: { outside: 'edge', inside: 'gone', panel: null },
       appliedMoldings: [{ profileId: 'bead', offset: 0 }, { profileId: 'missing', offset: 0 }, { profileId: null, offset: 1 }] };
-    const order = doorOrder(room([run()], { doorStyles: [custom], doorStyleId: custom.id }, {}, s), s);
+    const order = doorOrder(room([run('run', { id: 'cab', kind: 'cabinet', face: drawers(4.5) }, {
+      ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null } },
+    })], { doorStyles: [custom], doorStyleId: custom.id }, {}, s), s);
+    expect(pageKeys(order)).toEqual([
+      { styleId: 'custom', type: 'drawer_fronts' }, { styleId: 'custom', type: 'doors' },
+      { styleId: 'custom', type: 'slab' },
+    ]);
     expect(order.pages[0].header).toMatchObject({
       wood: null, edgeProfile: 'OGEE', insideProfile: 'MISSING PROFILE', panelProfile: 'RAISED',
       appliedMoldings: 'BEAD, MISSING PROFILE', notes: '3" Stiles, 2 3/4" Rails',
