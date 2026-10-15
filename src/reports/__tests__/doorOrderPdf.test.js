@@ -92,8 +92,9 @@ describe('door order PDF definition', () => {
       expect(table).toMatchObject({ headerRows: 3, widths: [70, 50, '*'], dontBreakRows: true });
       expect(table.body[0][0]).toMatchObject({
         colSpan: 3, border: allBorders, fontSize: 10,
-        table: { widths: [95, '*', 170] }, layout: 'noBorders',
+        table: { widths: ['auto', '*', 170] }, layout: 'noBorders',
       });
+      expect(table.body[0][0].table.body[0][0]).toMatchObject({ text: 'Door Order Form', fontSize: 12 });
       expect(table.body[1]).toEqual([
         {
           text: order.pages[index].sections[0].title, colSpan: 3, bold: true, fontSize: 14,
@@ -112,14 +113,14 @@ describe('door order PDF definition', () => {
     });
   });
 
-  it('borders every line and centers the size with 8 pt notes below it (anchor 2)', () => {
+  it('borders every line and centers the size with 9 pt notes below it (step c anchor 5)', () => {
     const { content } = doorOrderDocument(order, header, ['order']);
     expect(content[0].table.body[3]).toEqual([
       { text: '1', alignment: 'right', border: allBorders },
       { text: '2', alignment: 'right', border: allBorders },
       { stack: [
         { text: '25 3/8 x 5 1/32', alignment: 'center' },
-        { text: 'false front', alignment: 'center', fontSize: 8 },
+        { text: 'false front', alignment: 'center', fontSize: 9 },
       ], border: allBorders },
     ]);
     expect(content[0].table.body[4][2]).toEqual({
@@ -131,15 +132,16 @@ describe('door order PDF definition', () => {
           expect(cell.border).toEqual(allBorders);
           expect(cell.bold).toBeFalsy();
         }
+        if (row[2].stack) expect(row[2].stack[1].fontSize).toBe(9);
       }
     }
   });
 
-  it('aligns labels and bold values, combining style and thickness (anchor 7)', () => {
+  it('aligns bold labels and values, combining style and thickness (step c anchor 2)', () => {
     const { content } = doorOrderDocument(order, header, ['master']);
     const rows = titleRows(content[0]);
     expect(rows[0]).toEqual([
-      { text: 'Door Order Form', alignment: 'center', bold: true, colSpan: 3 }, {}, {},
+      { text: 'Door Order Form', alignment: 'center', bold: true, fontSize: 12, colSpan: 3 }, {}, {},
     ]);
     expect(rows.slice(2).map(([cell]) => cell.text)).toEqual([
       'Job:', 'Room:', 'Wood:', 'Style:', 'Panel Profile:', 'Edge Profile:',
@@ -150,7 +152,7 @@ describe('door order PDF definition', () => {
       'FLAT', 'SQUARE', 'BEAD', 'COVE', page.header.notes,
     ]);
     expect(rows.find(([cell]) => cell.text === 'Style:').slice(0, 2)).toEqual([
-      { text: 'Style:', bold: false, margin: [0, 8, 0, 0] },
+      { text: 'Style:', bold: true, margin: [0, 8, 0, 0] },
       { text: '110 - 13/16" thick', bold: true, margin: [0, 8, 0, 0] },
     ]);
     expect(rows.find(([cell]) => cell.text === 'Panel Profile:')[2]).toEqual({
@@ -163,12 +165,14 @@ describe('door order PDF definition', () => {
   it('keeps notes aligned with values and wrapping across the last two columns (anchor 8)', () => {
     const rows = titleRows(doorOrderDocument(order, header, ['order']).content[0]);
     expect(rows.find(([cell]) => cell.text === 'Notes:')).toEqual([
-      { text: 'Notes:', bold: false },
+      { text: 'Notes:', bold: true },
       { text: '3" Stiles & Rails - No Midrails Unless Noted', bold: true, colSpan: 2 }, {},
     ]);
-    for (const [label, value] of rows.slice(2)) {
-      expect(label.bold).toBeFalsy();
-      expect(value.bold).toBe(true);
+    for (const node of doorOrderDocument(order, header, ['order']).content) {
+      for (const [label, value] of titleRows(node).slice(2)) {
+        expect(label.bold).toBe(true);
+        expect(value.bold).toBe(true);
+      }
     }
   });
 
@@ -205,8 +209,13 @@ describe('door order PDF definition', () => {
       [definition, 'Phone: 801-280-5005', 'Fax:'], [faxOnly, 'Fax: 801-555-1212', 'Phone:'],
     ]) {
       expect(titleRows(doc.content[0])[1]).toEqual([
-        { text: doc === definition ? header.company.name : '', bold: true, colSpan: 2 }, {},
-        { text: contact, bold: true, alignment: 'right' },
+        {
+          colSpan: 3, columnGap: 12,
+          columns: [
+            { text: doc === definition ? header.company.name : '', bold: true, width: '*' },
+            { text: contact, bold: true, width: 'auto', alignment: 'right' },
+          ],
+        }, {}, {},
       ]);
       expect(doc.footer(1, 2).stack[0].columns[0].bold).toBe(true);
       for (const value of [doc.content, doc.footer(1, 2)]) {
@@ -214,10 +223,27 @@ describe('door order PDF definition', () => {
         expect(texts(value).join(' ')).not.toContain(omitted);
       }
     }
-    const both = doorOrderDocument(order, {
-      ...header, company: { ...header.company, fax: '801-555-1212' },
+    const blank = doorOrderDocument(order, {
+      ...header, company: { name: '', phone: '', fax: '' },
     }, ['order']);
-    expect(titleRows(both.content[0])[1][2].text).toBe('Phone: 801-280-5005   Fax: 801-555-1212');
+    expect(titleRows(blank.content[0])[1][0].columns.map(({ text }) => text)).toEqual(['', '']);
+  });
+
+  it('gives phone and fax their natural width across the company row (step c anchor 3)', () => {
+    const both = doorOrderDocument(order, {
+      ...header, company: { name: 'FOREVER FURNITURE, INC.', phone: '801-280-5005', fax: '801-280-5353' },
+    }, ['order']);
+    for (const node of both.content) {
+      expect(titleRows(node)[1]).toEqual([
+        {
+          colSpan: 3, columnGap: 12,
+          columns: [
+            { text: 'FOREVER FURNITURE, INC.', bold: true, width: '*' },
+            { text: 'Phone: 801-280-5005   Fax: 801-280-5353', bold: true, width: 'auto', alignment: 'right' },
+          ],
+        }, {}, {},
+      ]);
+    }
   });
 
   it('builds and sanitizes download filenames', () => {

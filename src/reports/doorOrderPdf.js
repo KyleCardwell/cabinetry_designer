@@ -11,17 +11,20 @@ const columnHeadings = () => ['Cabinet ID', 'QTY', 'Size'].map((text) => bordere
 function styleTable(page, header, copy) {
   const details = page.header;
   const detailRow = (label, value, right = { text: '' }, options = {}) => [
-    { text: label, bold: false, ...options },
+    { text: label, bold: true, ...options },
     { text: value, bold: true, ...options },
     right,
   ];
   const vendor = { text: details.vendor ?? '', bold: true, italics: true, alignment: 'center' };
   const titleRows = [
-    fullRow({ text: 'Door Order Form', alignment: 'center', bold: true }),
-    [
-      { text: header.company.name, bold: true, colSpan: 2 }, {},
-      { text: contactText(header.company), bold: true, alignment: 'right' },
-    ],
+    fullRow({ text: 'Door Order Form', alignment: 'center', bold: true, fontSize: 12 }),
+    fullRow({
+      columns: [
+        { text: header.company.name, bold: true, width: '*' },
+        { text: contactText(header.company), bold: true, width: 'auto', alignment: 'right' },
+      ],
+      columnGap: 12,
+    }),
     detailRow('Job:', header.job),
     detailRow('Room:', header.orderRoom),
     detailRow('Wood:', details.wood ?? header.wood),
@@ -34,13 +37,13 @@ function styleTable(page, header, copy) {
   if (details.insideProfile) titleRows.push(detailRow('Inside Profile:', details.insideProfile));
   if (details.appliedMoldings) titleRows.push(detailRow('Applied Molding:', details.appliedMoldings));
   if (details.notes) titleRows.push([
-    { text: 'Notes:', bold: false }, { text: details.notes, bold: true, colSpan: 2 }, {},
+    { text: 'Notes:', bold: true }, { text: details.notes, bold: true, colSpan: 2 }, {},
   ]);
 
   const section = page.sections[0];
   const rows = [
     fullRow(bordered({
-      table: { widths: [95, '*', 170], body: titleRows }, layout: 'noBorders', fontSize: 10,
+      table: { widths: ['auto', '*', 170], body: titleRows }, layout: 'noBorders', fontSize: 10,
     })),
     fullRow({
       text: section.title, bold: true, fontSize: 14, margin: [0, 4, 0, 2],
@@ -53,7 +56,7 @@ function styleTable(page, header, copy) {
         bordered({ text: String(line.number), alignment: 'right' }),
         bordered({ text: String(line.qty), alignment: 'right' }),
         bordered(line.notes ? {
-          stack: [size, { text: line.notes, fontSize: 8, alignment: 'center' }],
+          stack: [size, { text: line.notes, fontSize: 9, alignment: 'center' }],
         } : size),
       ];
     }),
