@@ -95,6 +95,35 @@ export const roomReducers = {
       if (number === null) delete room.partNumberOverrides[key];
       else if (Number.isInteger(number) && number > 0) room.partNumberOverrides[key] = number;
     },
+    setReportPartField(state, action) {
+      const { roomId, key, field, value } = action.payload;
+      const roomIndex = roomIndexFor(state, roomId);
+      const limits = { name: 60, boxes: 120, note: 200 };
+      if (roomIndex === -1 || typeof key !== 'string' || key === ''
+        || !['name', 'boxes', 'shopBuilt', 'note'].includes(field)) return;
+      let nextValue;
+      if (value === null || value === false) nextValue = undefined;
+      else if (field === 'shopBuilt') {
+        if (value !== true && !(typeof value === 'string' && value.trim() === '')) return;
+        nextValue = value === true ? true : undefined;
+      } else {
+        if (typeof value !== 'string') return;
+        nextValue = value.trim().slice(0, limits[field]).trim() || undefined;
+      }
+      const room = state.rooms[roomIndex];
+      const entry = Object.hasOwn(room.reportParts ?? {}, key) ? { ...room.reportParts[key] } : {};
+      if (nextValue === undefined) delete entry[field];
+      else entry[field] = nextValue;
+      if (Object.keys(entry).length) room.reportParts = { ...room.reportParts, [key]: entry };
+      else if (room.reportParts) delete room.reportParts[key];
+    },
+    setRoomReportNote(state, action) {
+      const { roomId, value } = action.payload;
+      const roomIndex = roomIndexFor(state, roomId);
+      if (roomIndex === -1) return;
+      if (value === null || value === false) state.rooms[roomIndex].reportNote = '';
+      else if (typeof value === 'string') state.rooms[roomIndex].reportNote = value.trim().slice(0, 400).trim();
+    },
     centerRoomOnOrigin(state, action) {
       const roomId = action.payload?.roomId ?? action.payload ?? state.activeRoomId;
       const roomIndex = roomIndexFor(state, roomId);

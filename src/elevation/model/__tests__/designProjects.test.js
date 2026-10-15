@@ -21,7 +21,7 @@ describe('DB5 a project helpers', () => {
     const { document, schemaVersion } = newRoomDocument('Kitchen');
     expect(schemaVersion).toBe(4);
     expect(document).toEqual({ id: expect.any(String), name: 'Kitchen', walls: [], wallOrder: [],
-      profile: {}, partNumberStart: 1, partNumberOverrides: {} });
+      profile: {}, partNumberStart: 1, partNumberOverrides: {}, reportParts: {}, reportNote: '' });
     const second = newRoomDocument('Kitchen');
     expect(second.document.id).not.toBe(document.id);
     document.walls.push({ id: 'wall' });

@@ -76,6 +76,8 @@ export function createRoom(name = 'Room 1', settings = DEFAULT_SETTINGS, id = uu
     profile: {},
     partNumberStart: 1,
     partNumberOverrides: {},
+    reportParts: {},
+    reportNote: '',
     wallOrder: [],
     walls: [],
   };

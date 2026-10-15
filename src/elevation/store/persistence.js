@@ -237,6 +237,22 @@ function isPartNumberOverrides(value) {
     && Object.values(value).every((number) => Number.isInteger(number) && number > 0);
 }
 
+function isReportText(value, maxLength) {
+  return typeof value === 'string' && value === value.trim() && value.length <= maxLength;
+}
+
+function isReportParts(value) {
+  const limits = { name: 60, boxes: 120, note: 200 };
+  return isPlainObject(value) && Object.values(value).every((entry) => (
+    isPlainObject(entry)
+    && Object.keys(entry).length > 0
+    && Object.entries(entry).every(([field, text]) => (
+      field === 'shopBuilt' ? text === true
+        : Object.hasOwn(limits, field) && isReportText(text, limits[field]) && text.length > 0
+    ))
+  ));
+}
+
 function isCompleteProfile(profile, profileKeys = PROFILE_KEYS) {
   return Boolean(profile) && profileKeys.every((key) => {
     if (PROFILE_PICK_KEYS.includes(key)) return isMoldingProfileId(profile[key]);
@@ -618,7 +634,9 @@ export function isRoom(room, profileKeys = PROFILE_KEYS) {
     && (room.partNumberStart === undefined
       || (Number.isInteger(room.partNumberStart) && room.partNumberStart > 0))
     && (room.partNumberOverrides === undefined
-      || isPartNumberOverrides(room.partNumberOverrides));
+      || isPartNumberOverrides(room.partNumberOverrides))
+    && (room.reportParts === undefined || isReportParts(room.reportParts))
+    && (room.reportNote === undefined || isReportText(room.reportNote, 400));
 }
 
 function migrateDoorPanel(style) {
@@ -773,6 +791,8 @@ export function normalizeElevationDocument(document) {
         ...room,
         partNumberStart: room.partNumberStart ?? 1,
         partNumberOverrides: room.partNumberOverrides ?? {},
+        reportParts: room.reportParts ?? {},
+        reportNote: room.reportNote ?? '',
         profile: isPlainObject(room.profile) ? Object.fromEntries(
           Object.entries(room.profile).filter(([key, value]) => (
             !Object.hasOwn(normalized.settings?.defaultProfile ?? {}, key)

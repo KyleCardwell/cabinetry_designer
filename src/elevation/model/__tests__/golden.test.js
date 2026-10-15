@@ -34,10 +34,13 @@ function partsOf({ parts }) {
 
 function derived(room) {
   const synced = syncRoom(room, settings);
+  // RP2 adds report metadata without changing the historical drawing comparison.
+  const { reportParts, reportNote, ...drawingRoom } = synced;
+  expect({ reportParts, reportNote }).toEqual({ reportParts: {}, reportNote: '' });
   return {
     // DB1 e changes profile storage only; derive from the migrated room while
     // keeping the fixture's historical storage shape in the golden comparison.
-    room: { ...synced, profile: fixture.rooms.find(({ id }) => id === room.id).profile },
+    room: { ...drawingRoom, profile: fixture.rooms.find(({ id }) => id === room.id).profile },
     diagnostics: roomDiagnostics(room, settings),
     parts: partsOf(partNumbers(synced, settings)),
     clearances: planClearances(synced, settings),

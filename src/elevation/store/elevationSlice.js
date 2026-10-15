@@ -97,6 +97,8 @@ export const {
   useAutoHeightsForRoom,
   setRoomPartNumberStart,
   setPartNumberOverride,
+  setReportPartField,
+  setRoomReportNote,
   centerRoomOnOrigin,
   addWall,
   addWallSegment,
