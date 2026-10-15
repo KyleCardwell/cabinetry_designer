@@ -6,7 +6,7 @@ import { initAuth, setSession, clearAuth } from './store/slices/authSlice';
 import AppShell from './components/layout/AppShell';
 import ProjectsPage from './projects/ProjectsPage.jsx';
 import ProjectPage from './projects/ProjectPage.jsx';
-import RoomPlaceholderPage from './projects/RoomPlaceholderPage.jsx';
+import RoomPage from './projects/RoomPage.jsx';
 import Login from './components/auth/Login';
 import ElevationLab from './elevation/ElevationLab';
 import LibraryLayout from './library/LibraryLayout.jsx';
@@ -59,7 +59,7 @@ function App() {
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/projects/:projectId" element={<ProjectPage />} />
         <Route path="/elevation-lab" element={<ElevationLab />} />
-        <Route path="/projects/:projectId/rooms/:roomId" element={<RoomPlaceholderPage />} />
+        <Route path="/projects/:projectId/rooms/:roomId" element={<RoomPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/library/profiles/:profileId" element={<ProfileEditorPage />} />
         <Route path="/library" element={<LibraryLayout />}>

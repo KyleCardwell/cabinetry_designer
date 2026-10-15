@@ -7,7 +7,6 @@ import ProjectPage from '../ProjectPage.jsx';
 import PhaseSection, { InlineName } from '../PhaseSection.jsx';
 import ProjectInfoDialog from '../ProjectInfoDialog.jsx';
 import CopyRoomDialog from '../CopyRoomDialog.jsx';
-import RoomPlaceholderPage from '../RoomPlaceholderPage.jsx';
 import ProjectSettingsPanel from '../ProjectSettingsPanel.jsx';
 import SettingGroups from '../../elevation/components/SettingGroups.jsx';
 import { groupsFor } from '../../elevation/model/settingGroups.js';
@@ -562,10 +561,4 @@ describe('DB5 c project page', () => {
     expect(onCopied).toHaveBeenCalledOnce();
   });
 
-  it('renders the room placeholder with links and makes no API call', () => {
-    const page = renderComponent(RoomPlaceholderPage);
-    expect(text(page.tree)).toContain('Opening rooms from the shop data comes in the next rounds. Until then, draw in the Elevation Lab.');
-    expect(links(page.tree).map((link) => link.props.to)).toEqual(['/projects/42', '/elevation-lab']);
-    expect(api.calls).toEqual([]);
-  });
 });

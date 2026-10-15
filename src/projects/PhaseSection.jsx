@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { newRoomDocument, nextName, ROOM_STATUS_LABELS } from '../elevation/model/designProjects.js';
 import ProjectSettingsPanel from './ProjectSettingsPanel.jsx';
 
-const STATUS_COLORS = { drafting: 'bg-gray-700 text-gray-200', approved: 'bg-teal-950 text-teal-300', released: 'bg-blue-950 text-blue-300' };
+export const ROOM_STATUS_COLORS = { drafting: 'bg-gray-700 text-gray-200', approved: 'bg-teal-950 text-teal-300', released: 'bg-blue-950 text-blue-300' };
 
 export function InlineName({ name, label, editable, busy, onRename, children }) {
   const [draft, setDraft] = useState(null);
@@ -48,7 +48,7 @@ export default function PhaseSection({ phase, projectId, edit, busy, includeArch
             <td className="px-2 py-3"><InlineName name={room.name} label="Room name" editable={edit && !greyed} busy={busy} onRename={(name) => onWrite((api) => api.updateRoomInfo(room.room_id, { name }))}>
               <Link to={`/projects/${projectId}/rooms/${room.room_id}`} className="hover:underline">{room.name}</Link>
             </InlineName></td>
-            <td className="px-2 py-3"><span className={`rounded px-2 py-1 text-xs ${greyed ? 'bg-gray-800 text-gray-500' : STATUS_COLORS[room.status]}`}>{ROOM_STATUS_LABELS[room.status]}</span></td>
+            <td className="px-2 py-3"><span className={`rounded px-2 py-1 text-xs ${greyed ? 'bg-gray-800 text-gray-500' : ROOM_STATUS_COLORS[room.status]}`}>{ROOM_STATUS_LABELS[room.status]}</span></td>
             <td className="px-2 py-3">{room.last_version?.label || '—'}</td>
             <td className="px-2 py-3">{room.updated_at ? new Date(room.updated_at).toLocaleDateString() : '—'}{room.updated_by_name && ` · ${room.updated_by_name}`}</td>
             <td className="px-2 py-3"><div className="flex justify-end gap-3">
