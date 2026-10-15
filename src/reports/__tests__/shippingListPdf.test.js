@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COPIES } from '../copies.js';
 import { doorOrderDocument } from '../doorOrderPdf.js';
+import { PAGE_MARGINS } from '../pdfParts.js';
 import { shippingListDocument, shippingListFileName } from '../shippingListPdf.js';
 
 const header = {
@@ -27,7 +28,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     const before = structuredClone({ list, header });
     const definition = document({}, ['order', 'master']);
     expect(definition).toMatchObject({
-      pageSize: 'LETTER', pageOrientation: 'portrait', pageMargins: [28.8, 28.8, 28.8, 43.2],
+      pageSize: 'LETTER', pageOrientation: 'portrait', pageMargins: [18, 18, 18, 36],
       defaultStyle: { font: 'Roboto', fontSize: 10 },
     });
     expect(definition.content).toHaveLength(2);
@@ -70,7 +71,8 @@ describe('RP2 step g shipping list PDF definition', () => {
     const definition = document({}, [...COPIES.map(({ id }) => id)].reverse());
     definition.content.forEach((node, index) => {
       expect(node.table.body[0]).toEqual([
-        expect.objectContaining({ colSpan: 6, border: allBorders, fontSize: 10,
+        expect.objectContaining({ colSpan: 6, border: [false, false, false, false],
+          margin: [0, 0, 0, 4], fontSize: 10,
           table: { widths: ['auto', '*', 'auto'], body: expect.any(Array) }, layout: 'noBorders' }),
         {}, {}, {}, {}, {},
       ]);
@@ -119,6 +121,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     const shipping = document({}, ['order', 'master']);
     const door = doorOrderDocument({ pages: [] }, header, ['order', 'master']);
     expect(shipping.footer(3, 4)).toEqual(door.footer(3, 4));
+    expect(shipping.footer(1, 2).margin).toEqual([18, 6, 18, 0]);
     expect(shipping.footer(3, 4).stack[0].columns).toEqual([
       { text: 'FOREVER FURNITURE, INC.   Phone: 801-280-5005', width: '*', bold: true },
       { text: 'Page 1 of 2', width: 'auto', alignment: 'right' },
@@ -132,6 +135,12 @@ describe('RP2 step g shipping list PDF definition', () => {
     for (const property of ['hLineColor', 'vLineColor']) expect(layout[property]()).toBe('#000000');
     for (const property of ['paddingTop', 'paddingBottom']) expect(layout[property]()).toBe(2);
     for (const property of ['paddingLeft', 'paddingRight']) expect(layout[property]()).toBe(4);
+  });
+
+  it('shares the quarter-inch page margins with the door form (RP2.1 anchor 1)', () => {
+    expect(PAGE_MARGINS).toEqual([18, 18, 18, 36]);
+    expect(document().pageMargins).toBe(PAGE_MARGINS);
+    expect(doorOrderDocument({ pages: [] }, header, ['order']).pageMargins).toBe(PAGE_MARGINS);
   });
 
   it('builds and sanitizes shipping list filenames (anchor 8)', () => {

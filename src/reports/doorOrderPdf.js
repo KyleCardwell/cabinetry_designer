@@ -1,5 +1,5 @@
 import { COPIES } from './copies.js';
-import { BORDER_LAYOUT, contactText, reportFileName, reportFooter } from './pdfParts.js';
+import { BORDER_LAYOUT, PAGE_MARGINS, contactText, reportFileName, reportFooter } from './pdfParts.js';
 
 const bordered = (cell) => ({ ...cell, border: [true, true, true, true] });
 const fullRow = (cell) => [{ ...cell, colSpan: 3 }, {}, {}];
@@ -78,7 +78,7 @@ export function doorOrderDocument(order, header, copyIds) {
   return {
     pageSize: 'LETTER',
     pageOrientation: 'portrait',
-    pageMargins: [28.8, 28.8, 28.8, 43.2],
+    pageMargins: PAGE_MARGINS,
     defaultStyle: { font: 'Roboto', fontSize: 10 },
     content,
     footer: reportFooter(header, copies.length),

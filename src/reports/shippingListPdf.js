@@ -1,5 +1,5 @@
 import { COPIES } from './copies.js';
-import { BORDER_LAYOUT, reportFileName, reportFooter } from './pdfParts.js';
+import { BORDER_LAYOUT, PAGE_MARGINS, reportFileName, reportFooter } from './pdfParts.js';
 
 const bordered = (cell) => ({ ...cell, border: [true, true, true, true] });
 const fullRow = (cell) => [{ ...cell, colSpan: 6 }, {}, {}, {}, {}, {}];
@@ -26,9 +26,10 @@ function shippingTable(list, header, copy) {
   ]);
 
   const rows = [
-    fullRow(bordered({
+    fullRow({
       table: { widths: ['auto', '*', 'auto'], body: titleRows }, layout: 'noBorders', fontSize: 10,
-    })),
+      border: [false, false, false, false], margin: [0, 0, 0, 4],
+    }),
     ['Part #', 'Built', 'Shipped', 'Description', 'Notes', 'Size'].map((text) => bordered({
       text, alignment: 'center', bold: true, fillColor: '#D9D9D9',
     })),
@@ -62,7 +63,7 @@ export function shippingListDocument(list, header, copyIds) {
   return {
     pageSize: 'LETTER',
     pageOrientation: 'portrait',
-    pageMargins: [28.8, 28.8, 28.8, 43.2],
+    pageMargins: PAGE_MARGINS,
     defaultStyle: { font: 'Roboto', fontSize: 10 },
     content,
     footer: reportFooter(header, copies.length),

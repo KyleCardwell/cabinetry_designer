@@ -1,3 +1,5 @@
+export const PAGE_MARGINS = [18, 18, 18, 36];
+
 export const contactText = ({ phone, fax }) => [phone && `Phone: ${phone}`, fax && `Fax: ${fax}`]
   .filter(Boolean).join('   ');
 
@@ -13,7 +15,7 @@ export function reportFooter(header, copyCount) {
     const perCopy = pageCount / (copyCount || 1);
     const pageNumber = ((currentPage - 1) % perCopy) + 1;
     return {
-      margin: [28.8, 8, 28.8, 0],
+      margin: [PAGE_MARGINS[0], 6, PAGE_MARGINS[2], 0],
       fontSize: 8,
       stack: [
         {

@@ -75,6 +75,7 @@ describe('door order PDF definition', () => {
 
   it('numbers overflow pages within each copy and includes revision/date', () => {
     const { footer } = doorOrderDocument(order, header, ['order', 'master']);
+    expect(footer(1, 2).margin).toEqual([18, 6, 18, 0]);
     expect(texts(footer(3, 4))).toContain('Page 1 of 2');
     expect(texts(footer(6, 6))).toContain('Page 3 of 3');
     expect(texts(footer(4, 4))).toEqual(expect.arrayContaining(['Page 2 of 2', 'Revision 2', '10/15/2026']));
@@ -85,7 +86,7 @@ describe('door order PDF definition', () => {
   it('repeats the bordered title block, type title and shaded headings (anchor 1)', () => {
     const definition = doorOrderDocument(order, header, ['master']);
     expect(definition).toMatchObject({
-      pageSize: 'LETTER', pageOrientation: 'portrait', pageMargins: [28.8, 28.8, 28.8, 43.2],
+      pageSize: 'LETTER', pageOrientation: 'portrait', pageMargins: [18, 18, 18, 36],
       defaultStyle: { font: 'Roboto', fontSize: 10 },
     });
     definition.content.forEach(({ table, layout }, index) => {
