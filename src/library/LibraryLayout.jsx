@@ -1,8 +1,9 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import WorkspaceSourceBar, { useShopReadOnly } from './WorkspaceSourceBar.jsx';
+import WorkspaceSourceBar, { useSandboxHidden, useShopReadOnly } from './WorkspaceSourceBar.jsx';
 
 export default function LibraryLayout() {
   const readOnly = useShopReadOnly();
+  const sandboxHidden = useSandboxHidden();
   return (
     <div className="flex h-full min-h-0">
       <aside className="w-56 shrink-0 border-r border-gray-700 bg-gray-800/60 p-4">
@@ -36,9 +37,9 @@ export default function LibraryLayout() {
       </aside>
       <main className="min-w-0 flex-1 overflow-y-auto p-6">
         <WorkspaceSourceBar />
-        <fieldset disabled={readOnly} className="min-w-0">
+        {!sandboxHidden && <fieldset disabled={readOnly} className="min-w-0">
           <Outlet />
-        </fieldset>
+        </fieldset>}
       </main>
     </div>
   );

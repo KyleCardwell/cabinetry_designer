@@ -4,8 +4,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { createInitialElevationState } from '../../elevation/store/elevationSlice.js';
 import WorkspaceSourceBar from '../WorkspaceSourceBar.jsx';
 
-vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn() }));
+vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useRef: () => ({ current: false }) }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
+vi.mock('../../sandbox.js', () => ({ SANDBOX_ENABLED: true }));
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { cloudSync } from '../elevation/store/cloudSync.js';
 import { openCloudWorkspace, openLocalWorkspace } from '../elevation/store/cloudThunks.js';
+import { SANDBOX_ENABLED } from '../sandbox.js';
 
 const TAB = 'px-3 py-1 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50';
 
@@ -17,6 +18,12 @@ export function useShopReadOnly() {
   return elevation.source === 'cloud' && !elevation.cloud?.permissions?.manage;
 }
 
+/** Keep sandbox content hidden until the shop workspace is open in production. */
+export function useSandboxHidden() {
+  const source = useSelector((state) => state.elevation.source);
+  return !SANDBOX_ENABLED && source !== 'cloud';
+}
+
 /**
  * Which data the Library and Shop settings pages edit (SPEC-DB4 g): this browser's sandbox
  * (localStorage, what the Elevation Lab uses) or the team's shop data in Supabase. Shows
@@ -27,9 +34,16 @@ export default function WorkspaceSourceBar({ allowSwitch = true, manageNote = tr
   const { source, cloud, workspace, message } = useSelector((state) => state.elevation);
   const teamId = useSelector((state) => state.auth?.teamId ?? null);
   const [busy, setBusy] = useState(false);
+  const openedShop = useRef(false);
   const isCloud = source === 'cloud';
   const pending = cloud?.pending ?? 0;
   const stuck = Boolean(cloud?.conflict || cloud?.error);
+
+  useEffect(() => {
+    if (SANDBOX_ENABLED || isCloud || workspace?.loading || workspace?.error || openedShop.current) return;
+    openedShop.current = true;
+    dispatch(openCloudWorkspace());
+  }, [dispatch, isCloud, workspace?.loading, workspace?.error]);
 
   const openShop = async () => {
     setBusy(true);
@@ -44,14 +58,14 @@ export default function WorkspaceSourceBar({ allowSwitch = true, manageNote = tr
   };
 
   let status = null;
-  if (workspace?.loading || busy) status = <span className="text-gray-400">Loading…</span>;
+  if (workspace?.loading || busy || (!SANDBOX_ENABLED && !isCloud && !workspace?.error)) status = <span className="text-gray-400">Loading…</span>;
   else if (isCloud && pending > 0) status = <span className="text-gray-400">Saving…</span>;
   else if (isCloud && !stuck) status = <span className="text-teal-400">All changes saved</span>;
 
   return (
     <div className="mb-5 space-y-2">
       <div className="flex flex-wrap items-center gap-3">
-        {allowSwitch && (
+        {SANDBOX_ENABLED && allowSwitch && (
           <div className="flex overflow-hidden rounded border border-gray-600" role="group" aria-label="Data source">
             <button
               type="button"
@@ -81,7 +95,7 @@ export default function WorkspaceSourceBar({ allowSwitch = true, manageNote = tr
         )}
       </div>
 
-      {!isCloud && allowSwitch && (
+      {SANDBOX_ENABLED && !isCloud && allowSwitch && (
         <p className="text-xs text-gray-500">Editing this browser&apos;s sandbox (the Elevation Lab&apos;s library and settings). Nothing here reaches the shop data.</p>
       )}
       {workspace?.error && <p className="rounded border border-red-500/60 bg-red-500/10 px-3 py-2 text-sm text-red-200">{workspace.error}</p>}

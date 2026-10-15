@@ -5,7 +5,7 @@ import { openLocalWorkspace } from './store/cloudThunks.js';
 import DesignerEditor from './DesignerEditor.jsx';
 
 /**
- * The Elevation Lab is the localStorage sandbox until the import (D7): coming here from the
+ * The Elevation Lab is the localStorage dev-only sandbox (SPEC-DB7): coming here from the
  * shop data finishes its saves, then switches back to this browser's document (SPEC-DB4 g).
  */
 export default function ElevationLab() {

@@ -2,6 +2,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { NavLink } from 'react-router-dom';
 import { supabase } from '../../api/supabaseClient';
 import { clearAuth } from '../../store/slices/authSlice';
+import { SANDBOX_ENABLED } from '../../sandbox.js';
 
 export default function AppShell({ children }) {
   const dispatch = useDispatch();
@@ -27,14 +28,14 @@ export default function AppShell({ children }) {
             >
               Projects
             </NavLink>
-            <NavLink
+            {SANDBOX_ENABLED && <NavLink
               to="/elevation-lab"
               className={({ isActive }) => `px-3 py-1.5 rounded transition-colors ${
                 isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
               }`}
             >
               Elevation Lab
-            </NavLink>
+            </NavLink>}
             <NavLink
               to="/library"
               className={({ isActive }) => `px-3 py-1.5 rounded transition-colors ${

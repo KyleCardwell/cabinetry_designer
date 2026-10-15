@@ -16,6 +16,7 @@ import TeamDoorStylePage from './library/TeamDoorStylePage.jsx';
 import ProfilesPage from './library/ProfilesPage.jsx';
 import SettingsPage from './library/SettingsPage.jsx';
 import ProfileEditorPage from './library/profileEditor/ProfileEditorPage.jsx';
+import { SANDBOX_ENABLED } from './sandbox.js';
 
 function App() {
   const dispatch = useDispatch();
@@ -64,7 +65,7 @@ function SignedInApp() {
         <Route path="/" element={<Navigate to="/projects" replace />} />
         <Route path="/projects" element={<ProjectsPage />} />
         <Route path="/projects/:projectId" element={<ProjectPage />} />
-        <Route path="/elevation-lab" element={<ElevationLab />} />
+        {SANDBOX_ENABLED && <Route path="/elevation-lab" element={<ElevationLab />} />}
         <Route path="/projects/:projectId/rooms/:roomId" element={<RoomPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/library/profiles/:profileId" element={<ProfileEditorPage />} />
