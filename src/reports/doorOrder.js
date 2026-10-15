@@ -1,3 +1,4 @@
+import { panelOrientation } from '../elevation/model/cells.js';
 import { findLeaf } from '../elevation/model/cellTree.js';
 import { runDoorDetails } from '../elevation/model/doorDetails.js';
 import { partSizes } from '../elevation/model/doorSizes.js';
@@ -86,50 +87,30 @@ function pageHeader(style, design, settings, warnings) {
   };
 }
 
-/** Installed door order data, using the same dimensions and resolved sizes as the drawings. */
-export function doorOrder(room, settings) {
-  const { byKey } = partNumbers(room, settings);
-  const pages = new Map();
-  const styles = new Map();
+/** Unmerged vendor parts, keyed to their owning shipping part, with ordered note lines. */
+export function doorOrderItems(room, settings) {
+  const items = [];
   const warnings = [];
 
   function add(part, panel = false) {
-    const { style, design, sizes, pieceId, width, height, faceType } = part;
-    if (style.id === 'sheet') return;
-    let number = byKey.get(pieceId);
-    if (number === undefined) {
-      number = '?';
-      warnings.push({ code: 'report-part-unnumbered', pieceId, key: part.key });
-    }
-    if (!styles.has(style.id)) styles.set(style.id, {
-      header: pageHeader(style, design, settings, warnings), firstNumber: Infinity,
-    });
-    const styleData = styles.get(style.id);
-    styleData.firstNumber = Math.min(styleData.firstNumber, numberOrder(number));
+    const { style, design, sizes, pieceId, kind, width, height, faceType } = part;
+    const key = pieceId;
+    if (style.id === 'sheet' || room.reportParts?.[key]?.shopBuilt) return;
     const type = sizes.construction === 'slab' && sizes.slab === 'rule' ? 'slab'
       : ['drawer_front', 'false_front'].includes(faceType) ? 'drawer_fronts' : 'doors';
-    const key = `${style.id}:${type}`;
-    if (!pages.has(key)) pages.set(key, {
-      styleId: style.id, type,
-      header: type === 'slab' ? {
-        ...styleData.header, insideProfile: null, panelProfile: null,
-        notes: settings.report?.doorFormNote || null,
-      } : styleData.header,
-      items: [],
-    });
-    const page = pages.get(key);
     const notes = [
       ...(panel ? ['do not sand edges'] : []),
       ...(faceType === 'false_front' ? ['false front'] : []),
       ...stileRailNotes(style, sizes),
-    ].join(' - ');
-    page.items.push({ number, width, height, notes });
+    ];
+    // Retain the drawing key for the existing unnumbered-part diagnostic.
+    items.push({ key, pieceId, kind, style, design, sizes, width, height, faceType, type, notes, sourceKey: part.key });
   }
 
-  function addPanel(wall, run, stored, rect, pieceId, sheet = false) {
+  function addPanel(wall, run, stored, rect, pieceId, kind, sheet = false) {
     const resolved = resolveDoorStyle(room, settings, 'panel', panelLevels(room, wall, run, stored, { sheet }));
     if (resolved.style.id === 'sheet') return;
-    add({ ...resolved, ...rect, pieceId, sizes: partSizes(resolved.style, resolved.design, {
+    add({ ...resolved, ...rect, pieceId, kind, sizes: partSizes(resolved.style, resolved.design, {
       width: rect.width, height: rect.height, sizes: stored?.sizes,
     }) }, true);
   }
@@ -155,19 +136,59 @@ export function doorOrder(room, settings) {
           const end = ['left', 'right'].find((edge) => part.id === `${run.id}:${edge}`);
           if (part.kind === 'end_panel' && end) {
             addPanel(view, run, run.ends?.[end], { width: part.front - part.back, height: part.height },
-              part.id, isJoinedEnd(run, end));
+              part.id, 'endPanel', isJoinedEnd(run, end));
           } else if (part.kind === 'panel') {
             const leaf = findLeaf(run.grid, part.id);
-            addPanel(view, run, leaf, part, part.id, isSheetCell(leaf));
+            const orientation = panelOrientation({ ...part, depth: part.front - part.back });
+            const rect = orientation === 'side' ? { width: part.front - part.back, height: part.height }
+              : orientation === 'top' ? { width: part.width, height: part.front - part.back } : part;
+            addPanel(view, run, leaf, rect, part.id, 'panelCell', isSheetCell(leaf));
           }
         }
       }
     }
     for (const panel of wallEndPanels(room, wall, settings)) {
       addPanel(wall, null, wall.endPanels[panel.endpoint], { width: panel.width, height: panel.top },
-        wallEndPanelPartKey(wall.id, panel.endpoint));
+        wallEndPanelPartKey(wall.id, panel.endpoint), 'wallEndPanel');
     }
   }
+
+  return { items, warnings };
+}
+
+/** Installed door order pages, preserving vendor grouping and line merging. */
+export function doorOrder(room, settings) {
+  const { byKey } = partNumbers(room, settings);
+  const { items, warnings } = doorOrderItems(room, settings);
+  const pages = new Map();
+  const styles = new Map();
+
+  function add(part) {
+    const { style, design, pieceId, width, height, type } = part;
+    let number = byKey.get(pieceId);
+    if (number === undefined) {
+      number = '?';
+      warnings.push({ code: 'report-part-unnumbered', pieceId, key: part.sourceKey });
+    }
+    if (!styles.has(style.id)) styles.set(style.id, {
+      header: pageHeader(style, design, settings, warnings), firstNumber: Infinity,
+    });
+    const styleData = styles.get(style.id);
+    styleData.firstNumber = Math.min(styleData.firstNumber, numberOrder(number));
+    const key = `${style.id}:${type}`;
+    if (!pages.has(key)) pages.set(key, {
+      styleId: style.id, type,
+      header: type === 'slab' ? {
+        ...styleData.header, insideProfile: null, panelProfile: null,
+        notes: settings.report?.doorFormNote || null,
+      } : styleData.header,
+      items: [],
+    });
+    const page = pages.get(key);
+    page.items.push({ number, width, height, notes: part.notes.join(' - ') });
+  }
+
+  for (const item of items) add(item);
 
   const result = [...styles.entries()].sort(([, a], [, b]) => a.firstNumber - b.firstNumber)
     .flatMap(([styleId]) => SECTIONS.filter(([type]) => pages.has(`${styleId}:${type}`))

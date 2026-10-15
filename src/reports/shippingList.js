@@ -12,8 +12,9 @@ import { fillerReturnDepth } from '../elevation/model/planPieces.js';
 import { resolveProfile } from '../elevation/model/profile.js';
 import { resolveWall } from '../elevation/model/room.js';
 import { runScene } from '../elevation/model/runScene.js';
-import { REVEAL_KEYS, runFrame } from '../elevation/model/styles.js';
+import { endPieceBottom, endPieceNotes, resolveStyle, REVEAL_KEYS, runFrame } from '../elevation/model/styles.js';
 import { teeFillers } from '../elevation/model/tees.js';
+import { doorOrderItems } from './doorOrder.js';
 import { formatInch, formatSize } from './format.js';
 
 const TYPES = { 1: 'Base', 2: 'Upper', 3: 'Tall' };
@@ -61,7 +62,7 @@ export function cabinetDescription(typeId, faces = []) {
 function shippingContext(room, settings) {
   const views = new Map();
   const scenes = new Map();
-  const rabbets = new Map();
+  const teeData = new Map();
   const elevations = new Map();
   let bases;
   return (part) => {
@@ -84,9 +85,7 @@ function shippingContext(room, settings) {
     if (!run) return { wall: view };
     if (!scenes.has(run)) scenes.set(run, runScene(room, view, run, settings));
     const scene = scenes.get(run);
-    if (part.kind === 'cabinet' && !rabbets.has(run)) {
-      rabbets.set(run, teeFillers(room, run, scene.cells, settings).rabbets);
-    }
+    if (!teeData.has(run)) teeData.set(run, teeFillers(room, run, scene.cells, settings));
     const piece = scene.cells.pieces.find(({ id }) => id === part.key)
       ?? scene.shelves.find(({ id }) => id === part.key);
     const leaf = findLeaf(run.grid, part.key);
@@ -100,7 +99,8 @@ function shippingContext(room, settings) {
         panelLevels(room, view, run, end ? run.ends?.[end] : leaf, { sheet })).style;
     }
     return {
-      wall: view, run, scene, piece, leaf, rabbets: rabbets.get(run), end, blindPanel, shelfBack, style,
+      wall: view, run, scene, piece, leaf, end, blindPanel, shelfBack, style,
+      rabbets: teeData.get(run).rabbets, shapeNotes: teeData.get(run).notes,
       // Descriptions and the properties placeholder need no elevation geometry.
       rectangle: () => {
         if (!elevations.has(viewKey)) elevations.set(viewKey,
@@ -153,7 +153,7 @@ export function shippingDescription(room, settings, part) {
   return describePart(room, settings, part, shippingContext(room, settings)(part));
 }
 
-/** Thick door panels are ordered at their style thickness; later note groups describe the nosing. */
+/** Thick door panels are ordered at their style thickness, with a separate nosing note. */
 function orderedThickness(drawn, style) {
   return style && style.id !== 'sheet' && drawn > style.thickness + EPSILON ? style.thickness : drawn;
 }
@@ -213,7 +213,50 @@ function cabinetNotes(room, settings, part, context) {
   };
 }
 
-/** Numbered note groups leave room for later part notes ahead of free text (#14). */
+/** Part notes share vendor annotations and the properties panel's return/chip rules. */
+function partNotes(room, settings, part, context, doorItems) {
+  const { run, scene, piece, shapeNotes, style, wall, end, endpoint, base } = context;
+  const groups = {};
+  if (part.kind === 'furniture_base') {
+    groups[12] = [
+      ...(base.orderedHeight - base.height > EPSILON
+        ? [`+${formatInch(base.orderedHeight - base.height)} scribe bottom`] : []),
+      ...(base.orderedWidth - base.width > EPSILON
+        ? [`+${formatInch(base.orderedWidth - base.width)} scribe left/right`] : []),
+    ];
+  }
+  if (['filler', 'end_panel'].includes(part.kind)) {
+    const tee = scene.tees.find((tee) => tee.id === part.key || tee.pieceId === part.key);
+    const notes = shapeNotes.get(tee?.id ?? part.key) ?? [];
+    groups[8] = notes.filter((note) => note === 'T-shape' || note === 'L-shape');
+    if (!groups[8].length && part.kind === 'filler' && fillerReturnDepth(run, piece, settings) > 0) {
+      const index = scene.cells.pieces.indexOf(piece);
+      const returns = [-1, 1].filter((offset) => scene.cells.pieces[index + offset]?.kind === 'cabinet').length;
+      groups[8] = returns === 2 ? ['U-shape'] : returns === 1 ? ['L-shape'] : [];
+    }
+    if (!piece?.extend?.down) {
+      groups[9] = tee ? notes.filter((note) => note !== 'T-shape')
+        : endPieceNotes(part.kind, endPieceBottom(run, resolveStyle(settings, room, run), settings));
+    }
+  }
+  groups[10] = doorItems.get(part.key)?.notes;
+  if (style && style.id !== 'sheet') {
+    let drawn;
+    if (part.kind === 'wall_end_panel') drawn = wallPanelThickness(room, wall, settings)[endpoint];
+    else if (part.kind === 'end_panel' || context.blindPanel) drawn = runEndThickness(room, wall, run, settings)[end];
+    else if (part.kind === 'panel') {
+      const orientation = panelOrientation(piece);
+      drawn = orientation === 'side' ? part.width : orientation === 'top' ? part.height
+        : context.rectangle().front - context.rectangle().back;
+    }
+    if (drawn > style.thickness + EPSILON) {
+      groups[11] = `add ${formatInch(drawn - style.thickness)} square nosing, mitered (${formatInch(drawn)} thick)`;
+    }
+  }
+  return groups;
+}
+
+/** Keep the specified note order, with free text last (#14). */
 function orderedNotes(groups) {
   return Object.entries(groups).sort(([a], [b]) => Number(a) - Number(b))
     .flatMap(([, notes]) => notes).map((note) => note?.trim()).filter(Boolean);
@@ -222,12 +265,15 @@ function orderedNotes(groups) {
 export function shippingList(room, settings) {
   const { parts, warnings } = partNumbers(room, settings);
   const getContext = shippingContext(room, settings);
+  const doorItems = new Map(doorOrderItems(room, settings).items
+    .filter(({ kind }) => kind !== 'face').map((item) => [item.key, item]));
   const rows = [...parts].sort((a, b) => a.number - b.number).map((part) => {
     const context = getContext(part);
     return {
       number: part.number, key: part.key, kind: part.kind,
       description: describePart(room, settings, part, context),
-      notes: orderedNotes({ ...cabinetNotes(room, settings, part, context), 14: [room.reportParts?.[part.key]?.note] }),
+      notes: orderedNotes({ ...cabinetNotes(room, settings, part, context),
+        ...partNotes(room, settings, part, context, doorItems), 14: [room.reportParts?.[part.key]?.note] }),
       size: shippingSize(room, settings, part, context),
     };
   });

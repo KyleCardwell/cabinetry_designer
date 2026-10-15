@@ -5,7 +5,7 @@ import { partSizes } from '../../elevation/model/doorSizes.js';
 import { partNumbers } from '../../elevation/model/partNumbers.js';
 import * as numbering from '../../elevation/model/partNumbers.js';
 import { syncRoom } from '../../elevation/model/room.js';
-import { doorOrder, mergeLines, stileRailNotes } from '../doorOrder.js';
+import { doorOrder, doorOrderItems, mergeLines, stileRailNotes } from '../doorOrder.js';
 
 const style = DEFAULT_DOOR_STYLE;
 const settings = { ...DEFAULT_SETTINGS, endPanelThickness: 0.8125, doorDesigns: DOOR_DESIGNS };
@@ -291,9 +291,67 @@ describe('door order form data', () => {
       const order = doorOrder(r, settings);
       expect(lines(order).every(({ number }) => number === '?')).toBe(true);
       expect(order.warnings).toHaveLength(3);
-      expect(order.warnings.every(({ code, pieceId }) => code === 'report-part-unnumbered' && pieceId === 'cab')).toBe(true);
+      expect(order.warnings).toEqual(['r.0', 'r.1', 'r.2'].map((path) => ({
+        code: 'report-part-unnumbered', pieceId: 'cab', key: `cab:${path}`,
+      })));
     } finally {
       get.mockRestore();
     }
+  });
+});
+
+describe('RP2 step e vendor items', () => {
+  it('keeps cabinet ownership and unjoined panel note lines (anchor 6)', () => {
+    const r = room([run('run', undefined, {
+      width: 18.8125,
+      ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null,
+        sizes: { stiles: { left: 3.5 }, notes: { left: 'scribe' } } } },
+    })]);
+    const before = structuredClone(r);
+    const result = doorOrderItems(r, settings);
+    expect(result.warnings).toEqual([]);
+    expect(result.items.filter(({ kind }) => kind === 'face')).toHaveLength(3);
+    expect(result.items.filter(({ kind }) => kind === 'face').every(({ key, pieceId }) => key === 'cab' && pieceId === 'cab')).toBe(true);
+    expect(result.items.find(({ key }) => key === 'run:right')).toMatchObject({
+      pieceId: 'run:right', kind: 'endPanel', style, design: DOOR_DESIGNS[0],
+      width: 24.875, height: 30.5, type: 'doors', notes: ['do not sand edges', '3 1/2" LS (scribe)'],
+    });
+    expect(r).toEqual(before);
+  });
+
+  it('orders a side panel cell depth by height rather than its elevation thickness', () => {
+    const r = room([run('run', { id: 'side', kind: 'panel', styleId: 'default' }, { width: 1.5625 })]);
+    expect(lines(doorOrder(r, settings))).toEqual([
+      expect.objectContaining({ size: '24 7/8 x 30 1/2', notes: 'do not sand edges' }),
+    ]);
+    expect(doorOrderItems(r, settings).items[0].sizes.opening).toEqual({ width: 18.875, height: 24.5 });
+  });
+
+  it('orders a top panel cell width by depth and sizes its rails from the face', () => {
+    const r = room([run('run', { id: 'top', kind: 'panel', styleId: 'default' }, { width: 18, height: 0.75 })]);
+    expect(lines(doorOrder(r, settings))).toEqual([
+      expect.objectContaining({ size: '18 x 24', notes: 'do not sand edges' }),
+    ]);
+    expect(doorOrderItems(r, settings).items[0]).toMatchObject({
+      type: 'doors', sizes: { construction: 'five_piece', opening: { width: 12, height: 18 } },
+    });
+  });
+
+  it('omits an explicitly shop-built panel from items and pages (anchor 10)', () => {
+    const r = room([run('run', { id: 'cab', kind: 'cabinet', face: face('open') }, {
+      ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null } },
+    })], { reportParts: { 'run:right': { shopBuilt: true } } });
+    expect(doorOrderItems(r, settings)).toEqual({ items: [], warnings: [] });
+    expect(doorOrder(r, settings)).toEqual({ pages: [], warnings: [] });
+  });
+
+  it('omits all three fronts of a shop-built cabinet and keeps another cabinet (anchor 11)', () => {
+    const r = room([run(), run('other', { id: 'other', kind: 'cabinet', face: face('door') }, { x: 60 })], {
+      reportParts: { cab: { shopBuilt: true } },
+    });
+    expect(doorOrderItems(r, settings).items.map(({ key }) => key)).toEqual(['other']);
+    expect(lines(doorOrder(r, settings))).toEqual([
+      expect.objectContaining({ number: partNumbers(r, settings).byKey.get('other'), qty: 1 }),
+    ]);
   });
 });

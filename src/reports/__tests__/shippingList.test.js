@@ -5,6 +5,7 @@ import { gridFromItems } from '../../elevation/model/grid.js';
 import { partNumbers } from '../../elevation/model/partNumbers.js';
 import { syncRoom } from '../../elevation/model/room.js';
 import { normalizeElevationDocument } from '../../elevation/store/persistence.js';
+import { doorOrderItems } from '../doorOrder.js';
 import { cabinetDescription, drawerFrontNote, hingeNote, shippingDescription, shippingList } from '../shippingList.js';
 
 const settings = DEFAULT_SETTINGS;
@@ -125,7 +126,7 @@ describe('RP2 step d cabinet notes', () => {
       endFiller: { right: { tFiller: true } },
     })]);
     expect(row(r).notes).toEqual(['FF to rabbet right side for T-filler']);
-    expect(row(r, 'run:right').notes).toEqual([]);
+    expect(row(r, 'run:right').notes).toEqual(['T-shape']);
   });
 
   it('keeps box, drawer, hinge and free-text notes in order (anchor 10)', () => {
@@ -371,7 +372,8 @@ describe('RP2 step c shipping list rows', () => {
 
   it('uses the style thickness for a thick door-style panel but retains drawn sheet thickness', () => {
     const r = room([run('run', [{ id: 'panel', kind: 'panel', align: 'back', depth: 1.5625 }])]);
-    expect(row(r, 'panel')).toMatchObject({ description: 'Base Back Panel', size: '18 x 30 1/2 x 13/16', notes: [] });
+    expect(row(r, 'panel')).toMatchObject({ description: 'Base Back Panel', size: '18 x 30 1/2 x 13/16',
+      notes: ['do not sand edges', 'add 3/4" square nosing, mitered (1 9/16" thick)'] });
     r.walls[0].runs[0].grid.cells[0].node.styleId = 'sheet';
     expect(row(syncRoom(r, settings), 'panel')).toMatchObject({ description: 'Shop-built Base Back Panel', size: '18 x 30 1/2 x 1 9/16' });
   });
@@ -397,5 +399,92 @@ describe('RP2 step c shipping list rows', () => {
         else expect(entry.size).toMatch(/^\d[^x]* x \d[^x]* x \d[^x]*$/);
       }
     }
+  });
+});
+
+describe('RP2 step e panel, filler and base notes', () => {
+  it('labels a one-return run end filler L-shape (anchor 1)', () => {
+    const r = room([run('run', undefined, { width: 21, ends: { ...ends(), right: { type: 'filler', width: 3 } } })]);
+    expect(row(r, 'run:right').notes).toEqual(['L-shape']);
+  });
+
+  it('labels a filler between two cabinets U-shape (anchor 2)', () => {
+    const r = room([run('run', [cabinet('a'), { id: 'fill', kind: 'filler', width: 3 }, cabinet('b')], { width: 39 })]);
+    expect(row(r, 'fill').notes).toEqual(['U-shape']);
+  });
+
+  it('leaves a blind filler with no return unannotated (anchor 3)', () => {
+    const r = room([run('run', undefined, { width: 48, blind: { left: 42, right: null }, ends: ends('blind') })]);
+    expect(row(r, 'run:left').notes).toEqual([]);
+  });
+
+  it('retains T-filler notes at ends and seams, before free text (anchor 4)', () => {
+    const r = room([run('run', [cabinet('a'), cabinet('b')], { cabinetTypeId: 2, z: 54, depth: 12,
+      width: 40, tFiller: 'seams', ends: { ...ends(), left: { type: 'filler', width: 3 } },
+      endFiller: { left: { tFiller: true } },
+    })], { reportParts: { 'run:left': { note: 'last' } } });
+    expect(row(r, 'run:left').notes).toEqual(['T-shape', 'return up 1/8"', 'last']);
+    expect(row(r, 'tee:a|b').notes).toEqual(['T-shape', 'return up 1/8"']);
+  });
+
+  it('puts an upper return after shape and omits it when extended down (anchor 5)', () => {
+    const r = room([run('run', undefined, { cabinetTypeId: 2, z: 54, depth: 12, width: 21,
+      ends: { ...ends(), left: { type: 'filler', width: 3 } },
+    })]);
+    expect(row(r, 'run:left').notes).toEqual(['L-shape', 'return up 1/8"']);
+    r.walls[0].runs[0].ends.left.extend = { down: { to: 'floor' } };
+    expect(row(syncRoom(r, settings), 'run:left').notes).toEqual(['L-shape']);
+  });
+
+  it('copies door panel notes including a scribe before free text (anchor 6)', () => {
+    const r = room([run('run', undefined, { width: 18.75, ends: { ...ends(), right: {
+      type: 'end_panel', width: null, sizes: { stiles: { left: 3.5 }, notes: { left: 'scribe' } },
+    } } })], { reportParts: { 'run:right': { note: 'last' } } });
+    const notes = ['do not sand edges', '3 1/2" LS (scribe)'];
+    expect(doorOrderItems(r, settings).items.find(({ key }) => key === 'run:right').notes).toEqual(notes);
+    expect(row(r, 'run:right').notes).toEqual([...notes, 'last']);
+    // A cabinet's vendor face notes never leak into its shipping row.
+    expect(row(r).notes).not.toContain('1 7/8" TR & BR');
+  });
+
+  it('leaves joined sheet panels off the vendor notes (anchor 7)', () => {
+    const r = room([
+      run('run', undefined, { ends: ends('end_panel'),
+        anchors: { left: { to: 'follow', runId: 'other', side: 'right', offset: 0 }, right: false } }),
+      run('other', [cabinet('other')], { x: 60 }),
+    ]);
+    expect(row(r, 'run:left').notes).toEqual([]);
+  });
+
+  it('adds nosing to a thick side panel and prints the style thickness (anchor 8)', () => {
+    const r = room([run('run', [{ id: 'side', kind: 'panel', width: 1.5625, styleId: 'default' }, cabinet()], { width: 19.5625 })]);
+    expect(row(r, 'side')).toMatchObject({ size: '24 7/8 x 30 1/2 x 13/16',
+      notes: ['do not sand edges', 'add 3/4" square nosing, mitered (1 9/16" thick)'] });
+  });
+
+  it('prints only positive base scribes, height then width (anchor 9)', () => {
+    const r = room([run('run', undefined, { anchors: { left: true, right: false } })], {
+      profile: { ...settings.defaultProfile, baseKind: 'furniture_base', furnitureBaseProud: 0 },
+    });
+    expect(row(r, 'furniture_base:run').notes).toEqual(['+1/2" scribe bottom', '+1/2" scribe left/right']);
+    const s = { ...settings, furnitureBaseScribe: 0 };
+    expect(row(r, 'furniture_base:run', s).notes).toEqual([]);
+  });
+
+  it('keeps a shop-built end panel on shipping with its prefix (anchor 10)', () => {
+    const r = room([run('run', undefined, { ends: ends('none', 'end_panel') })], {
+      reportParts: { 'run:right': { shopBuilt: true } },
+    });
+    expect(row(r, 'run:right')).toMatchObject({ description: 'Shop-built Base End Panel', notes: [] });
+  });
+
+  it('keeps L-panel shape and chip notes ahead of vendor notes and suppresses extended chips', () => {
+    const r = room([run('run', undefined, { cabinetTypeId: 2, z: 54, depth: 12,
+      tFiller: 'seams', ends: ends('end_panel'),
+      bottom: [{ id: 'rail', kind: 'light_rail', height: 1.5, doors: 'flush' }],
+    })]);
+    expect(row(r, 'run:left').notes).toEqual(['L-shape', 'chip detail bottom 1/8"', 'do not sand edges']);
+    r.walls[0].runs[0].ends.left.extend = { down: { to: 'floor' } };
+    expect(row(syncRoom(r, settings), 'run:left').notes).toEqual(['L-shape', 'do not sand edges']);
   });
 });
