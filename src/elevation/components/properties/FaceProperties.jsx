@@ -16,6 +16,7 @@ import {
   parentFacePath,
   presetsFor,
   removeFace,
+  setFaceAction,
   setFaceHinge,
   setFaceSize,
   setFaceType,
@@ -223,7 +224,28 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
               onChange={(patch) => commitIfChanged(setFacePart(face, facePath, patch))}
             />
           )}
-          {selected.type === 'door' && (
+          {['door', 'pair_door'].includes(selected.type) && (
+            <label className="block text-xs text-gray-300">
+              Opens
+              <select
+                value={selected.action ?? 'swing'}
+                onChange={(event) => commitIfChanged(setFaceAction(
+                  face,
+                  facePath,
+                  event.target.value === 'swing' ? null : event.target.value,
+                ))}
+                aria-label="Opens"
+                className={`${SELECT_CLASS} mt-1`}
+              >
+                <option value="swing">Swing</option>
+                <option value="flipper">Flipper</option>
+                <option value="pocket">Pocket</option>
+                <option value="sliding">Sliding</option>
+                {selected.type === 'door' && <option value="pullout">Pull-out</option>}
+              </select>
+            </label>
+          )}
+          {selected.type === 'door' && !['sliding', 'pullout'].includes(selected.action) && (
             <label className="block text-xs text-gray-300">
               Hinge
               <select
@@ -241,6 +263,12 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
                 </option>
                 <option value="left">Left</option>
                 <option value="right">Right</option>
+                {!['flipper', 'pocket'].includes(selected.action) && (
+                  <>
+                    <option value="top">Top</option>
+                    <option value="bottom">Bottom</option>
+                  </>
+                )}
               </select>
             </label>
           )}
