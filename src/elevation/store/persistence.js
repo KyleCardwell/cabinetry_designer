@@ -619,6 +619,7 @@ export function isRoom(room, profileKeys = PROFILE_KEYS) {
     && (room.settingsOverrides === undefined || isPlainObject(room.settingsOverrides))
     && (room.doorDetails === undefined || typeof room.doorDetails === 'boolean')
     && (room.doorStyleTags === undefined || typeof room.doorStyleTags === 'boolean')
+    && (room.swingMarks === undefined || typeof room.swingMarks === 'boolean')
     && isDoorStyleList(room.doorStyles)
     && hasStyleRefs(room)
     && typeof room.id === 'string'

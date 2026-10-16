@@ -9,9 +9,13 @@ import { runItems } from './grid.js';
 import { runScene } from './runScene.js';
 import { wallViewForRun } from './wallSides.js';
 
-/** P8: Door details by default; style tags off by default (SPEC-46.2). */
+/** Door details by default; style tags and swing marks off by default. */
 export function doorDrawing(room) {
-  return { details: room?.doorDetails !== false, tags: room?.doorStyleTags === true };
+  return {
+    details: room?.doorDetails !== false,
+    tags: room?.doorStyleTags === true,
+    swings: room?.swingMarks === true,
+  };
 }
 
 function remainingIntervals(start, end, origin, mids) {
