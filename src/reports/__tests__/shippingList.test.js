@@ -43,6 +43,59 @@ const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entr
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
 
+describe('HP1 step d shipping hinge notes', () => {
+  it('keeps a left swing note and omits plain pairs (anchors 1 and 6)', () => {
+    expect(hingeNote([face('door', { hinge: 'left' })])).toBe('hl');
+    expect(hingeNote(['left', 'right'].map((half) => face('pair_door', { path: 'r', half })))).toBeNull();
+  });
+
+  it('spells out vertical hinges and orders mixed notes top-down (anchors 2 and 3)', () => {
+    expect(hingeNote([face('door', { hinge: 'top' })])).toBe('hinge top');
+    expect(hingeNote([face('door', { hinge: 'bottom' })])).toBe('hinge bottom');
+    const faces = [face('door', { z: 0, height: 10, hinge: 'left' }),
+      face('door', { z: 10, height: 10, hinge: 'top' })];
+    const before = structuredClone(faces);
+    expect(hingeNote(faces)).toBe('hinge top, hl');
+    expect(faces).toEqual(before);
+  });
+
+  it('names flipper and pocket actions with their side hinges (anchor 4)', () => {
+    expect(hingeNote([face('door', { action: 'flipper', hinge: 'right' })])).toBe('flipper door hr');
+    expect(hingeNote([face('door', { action: 'flipper', hinge: 'left' })])).toBe('flipper door hl');
+    expect(hingeNote([face('door', { action: 'pocket', hinge: 'left' })])).toBe('pocket door hl');
+    expect(hingeNote([face('door', { action: 'pocket', hinge: 'right' })])).toBe('pocket door hr');
+  });
+
+  it('notes each action pair once by path in face order (anchor 5)', () => {
+    const pair = (action, path, x) => ['right', 'left'].map((half) => face('pair_door', {
+      action, path, half, x: x + (half === 'right' ? 10 : 0), z: 0, height: 10,
+    }));
+    const flipper = pair('flipper', 'r.0', 0);
+    expect(hingeNote(flipper)).toBe('flipper doors');
+    expect(hingeNote(pair('pocket', 'r.1', 20))).toBe('pocket doors');
+    expect(hingeNote(pair('sliding', 'r.2', 40))).toBe('sliding doors');
+    expect(hingeNote([...pair('sliding', 'r.2', 40), ...pair('pocket', 'r.1', 20), ...flipper,
+      ...pair('flipper', 'r.3', 60)]))
+      .toBe('flipper doors, pocket doors, sliding doors, flipper doors');
+  });
+
+  it('notes a pull-out above drawer fronts without a hinge (anchor 7)', () => {
+    expect(hingeNote([face('drawer_front', { z: 0, height: 10 }),
+      face('drawer_front', { z: 10, height: 10 }), face('door', { action: 'pullout', z: 20, height: 10 })]))
+      .toBe('pull-out');
+    const r = room([run('run', [{ ...cabinet(), face: { direction: 'vertical', size: null,
+      children: [face('door', { action: 'pullout', size: 10 }), face('drawer_front'), face('drawer_front')] } }])]);
+    expect(row(r).notes).toContain('pull-out');
+  });
+
+  it('collapses repeated sliding notes and passes pair actions into report rows (anchor 8)', () => {
+    expect(hingeNote([face('door', { action: 'sliding' }), face('door', { action: 'sliding' })]))
+      .toBe('sliding door');
+    const r = room([run('run', [{ ...cabinet(), face: face('pair_door', { action: 'flipper' }) }])]);
+    expect(row(r).notes).toEqual(['flipper doors']);
+  });
+});
+
 describe('RP2 step d cabinet notes', () => {
   it('groups working drawer heights top-down (anchor 1)', () => {
     const faces = [face('drawer_front', { z: 0, height: 12 }),

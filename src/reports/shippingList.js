@@ -87,11 +87,27 @@ export function drawerFrontNote(faces = []) {
   return groups.size ? `DF's (${[...groups].map(([height, count]) => `${count} - ${formatInch(height)}`).join(', ')})` : null;
 }
 
-/** Pair halves have implied hinges; only single doors need a shop instruction. */
+/** Single doors and action pairs need shop instructions; pair halves share a path. */
 export function hingeNote(faces = []) {
-  const doors = faces.filter((face) => face.type === 'door').sort(faceOrder);
-  if (!doors.length) return null;
-  const notes = doors.map(({ hinge }) => hinge === 'left' ? 'hl' : hinge === 'right' ? 'hr' : 'hinge?');
+  const doors = faces.filter((face) => face.type === 'door'
+    || (face.type === 'pair_door' && ['flipper', 'pocket', 'sliding'].includes(face.action))).sort(faceOrder);
+  const pairs = new Set();
+  const notes = [];
+  for (const { type, path, action, hinge } of doors) {
+    if (type === 'pair_door') {
+      if (pairs.has(path)) continue;
+      pairs.add(path);
+      notes.push(`${action} doors`);
+    } else if (action === 'sliding') {
+      notes.push('sliding door');
+    } else if (action === 'pullout') {
+      notes.push('pull-out');
+    } else {
+      const side = { left: 'hl', right: 'hr', top: 'hinge top', bottom: 'hinge bottom' }[hinge] ?? 'hinge?';
+      notes.push(action === 'flipper' || action === 'pocket' ? `${action} door ${side}` : side);
+    }
+  }
+  if (!notes.length) return null;
   return notes[0] !== 'hinge?' && notes.every((note) => note === notes[0]) ? notes[0] : notes.join(', ');
 }
 
