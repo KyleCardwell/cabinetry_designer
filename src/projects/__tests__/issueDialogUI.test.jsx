@@ -162,6 +162,17 @@ describe('DB8b d issue dialog', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  it('HP3c step d anchor 2: blocks issuing missing pulls and shows the amber replacement notice', async () => {
+    issueSnapshotOf.mockReturnValue({ missing: { doorDesigns: [], profiles: [], pulls: ['gone'] } });
+    const { dialog } = openDialog();
+    const notice = nodes(dialog.tree).find((node) => node.type === 'p' && node.props.className?.includes('text-amber-300'));
+    expect(text(notice)).toBe("This room uses pulls that aren't in the Library. Move them with the notice under the toolbar, then issue.");
+    expect(button(dialog.tree, 'Issue').props.disabled).toBe(true);
+    await submit(dialog);
+    expect(issueRoomVersion).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it('warns in grey about missing profiles but still allows issuing', async () => {
     issueSnapshotOf.mockReturnValue({ missing: { doorDesigns: [], profiles: ['p1', 'p2'] } });
     const { dialog } = openDialog();

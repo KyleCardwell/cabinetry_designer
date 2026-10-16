@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { newRoomDocument } from '../../model/designProjects.js';
 import { DEFAULT_DOOR_STYLE } from '../../model/doorStyles.js';
 import { newSectionProfile } from '../../model/sectionProfiles.js';
-import { profileToRow } from '../../model/cloudRows.js';
+import { profileToRow, pullToRow } from '../../model/cloudRows.js';
+import { BUILT_IN_PULLS } from '../../model/pulls.js';
 import { settingsFor } from '../slices/helpers.js';
 import { setRoomPartNumberStart, setSetting, updateSectionProfile } from '../elevationSlice.js';
 import {
@@ -19,6 +20,7 @@ import { ELEVATION_SCHEMA_VERSION, persistElevationDocument } from '../persisten
 import { createMemoryDraftStore } from '../roomDrafts.js';
 import { resetPresenceForTests } from '../presenceThunks.js';
 import { ALL, TEAM_ID, cloudStore, fakeDesignApi } from './helpers/fakeDesignApi.js';
+import { auto, run, stateWithRun } from './helpers/sliceFixtures.js';
 
 const CROWN = '0192a1b2-c3d4-7e5f-8a9b-00000000c001';
 const VIEW_ONLY = { view: true, edit: false, manage: false };
@@ -72,6 +74,51 @@ const renameCrown = (store, name) => {
 };
 
 describe('DB8a issue', () => {
+  const U = '0192a1b2-c3d4-7e5f-8a9b-00000000a001';
+  const pullWalls = (pullId = null) => stateWithRun(run({ autoCount: false, drawerPullId: 'none', items: [
+    { ...auto('c1'), doorPullId: U, face: { type: 'door', size: null, pullId } },
+  ] })).rooms[0].walls;
+  const bar = { ...BUILT_IN_PULLS[0], id: U, name: 'Bar' };
+
+  it('HP3c step d: issues the used pulls with row versions and opens their frozen library', async () => {
+    const api = versionApi(roomRow({}, { walls: pullWalls() }));
+    api.db.pulls.push({ pull_id: U, ...pullToRow(bar), version: 3, archived_at: null });
+    const ctx = await setup({ api });
+    const issued = await ctx.store.dispatch(issueRoomVersion({ label: 'KC Pulls' }));
+    expect(issued.ok).toBe(true);
+    const snapshot = api.db.versions[0].settings_snapshot;
+    expect(snapshot.pulls.map(({ id }) => id)).toEqual(['pull-4', 'knob-1-25', U]);
+    expect(snapshot.library.pulls).toEqual({ 'pull-4': 1, 'knob-1-25': 1, [U]: 3 });
+    expect(snapshot.missing.pulls).toEqual([]);
+    api.db.pulls.find(({ pull_id }) => pull_id === U).archived_at = 'later';
+    expect((await ctx.store.dispatch(openRoomVersion({ estProjectId: 42, roomId: 'rm-1', versionId: issued.versionId }))).ok).toBe(true);
+    const elevation = elevationOf(ctx.store);
+    expect(elevation.source).toBe('version');
+    expect(elevation.settings.pulls).toEqual(snapshot.pulls);
+    expect(settingsFor(elevation, elevation.rooms[0]).pulls.at(-1)).toEqual(bar);
+  });
+
+  it('HP3c step d anchor 2: refuses missing room or resolved pulls, reporting door designs first', async () => {
+    for (const where of ['face', 'settings', 'both']) {
+      const style = { ...structuredClone(DEFAULT_DOOR_STYLE), id: 'ds-a', label: 'A', designId: 'gone-design' };
+      const api = versionApi(roomRow({}, {
+        walls: pullWalls(where === 'settings' ? null : 'gone'),
+        ...(where === 'both' ? { doorStyles: [style] } : {}),
+      }));
+      api.db.pulls.push({ pull_id: U, ...pullToRow(bar), version: 3, archived_at: null });
+      if (where === 'settings') api.db.project.phases[0].overrides.drawerPullId = 'gone';
+      const ctx = await setup({ api });
+      expect(issueSnapshotOf(ctx.store.getState()).missing.pulls).toEqual(['gone']);
+      const reply = await ctx.store.dispatch(issueRoomVersion({ label: 'KC Pulls' }));
+      expect(reply).toMatchObject({ ok: false, reason: 'missing_library', missing: { pulls: ['gone'] } });
+      expect(reply.message).toBe(where === 'both'
+        ? 'This room uses a door design that is no longer in the library. Pick a replacement, then issue.'
+        : 'This room uses a pull that is no longer in the library. Pick a replacement, then issue.');
+      expect(callNames(api)).not.toContain('issueRoomVersion');
+      expect(api.db.versions).toEqual([]);
+    }
+  });
+
   it('RP1 b freezes room and team style material and restores both when opening the issue', async () => {
     const style = { ...DEFAULT_DOOR_STYLE, id: 'a', label: 'A', material: 'MAPLE/MDF' };
     const api = versionApi(roomRow({}, { doorStyles: [style] }));
