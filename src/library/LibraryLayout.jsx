@@ -33,6 +33,14 @@ export default function LibraryLayout() {
           >
             Profiles
           </NavLink>
+          <NavLink
+            to="pulls"
+            className={({ isActive }) => `rounded px-3 py-1.5 transition-colors ${
+              isActive ? 'bg-gray-700 text-white' : 'text-gray-400 hover:text-white hover:bg-gray-700/60'
+            }`}
+          >
+            Pulls
+          </NavLink>
         </nav>
       </aside>
       <main className="min-w-0 flex-1 overflow-y-auto p-6">
