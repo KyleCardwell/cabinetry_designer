@@ -12,12 +12,13 @@ export function fakeUuid() {
  * An in-memory stand-in for createDesignApi(): keeps rows, bumps versions, answers conflicts
  * like the RPCs, and records every call. `hold()` makes saves wait until `release()`.
  */
-export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns = [], project = null,
+export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns = [], pulls = [], project = null,
   projects = [], attachableProjects = [] } = {}) {
   const db = {
     teamSettings: teamSettings && { ...teamSettings },
     profiles: profiles.map((row) => ({ ...row })),
     doorDesigns: doorDesigns.map((row) => ({ ...row })),
+    pulls: structuredClone(pulls),
     project,
     projects: structuredClone(projects),
     attachableProjects: structuredClone(attachableProjects),
@@ -68,6 +69,10 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
     async loadTeamSettings() { calls.push(['loadTeamSettings']); return { ok: true, row: db.teamSettings && structuredClone(db.teamSettings) }; },
     async listProfiles() { calls.push(['listProfiles']); return { ok: true, rows: structuredClone(db.profiles) }; },
     async listDoorDesigns() { calls.push(['listDoorDesigns']); return { ok: true, rows: structuredClone(db.doorDesigns.filter((row) => !row.archived_at)) }; },
+    async listPulls() {
+      calls.push(['listPulls']);
+      return api.replies.listPulls ?? { ok: true, rows: structuredClone(db.pulls.filter((row) => !row.archived_at)) };
+    },
     async getProject(id) { calls.push(['getProject', id]); return { ok: true, project: db.project && structuredClone(db.project) }; },
     async getRoom(roomId) {
       calls.push(['getRoom', roomId]);
@@ -171,11 +176,28 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
       Object.assign(row, { code, data: structuredClone(data), version: row.version + 1 });
       return { ok: true, design_id: designId, version: row.version, updated_at: 't' };
     },
+    async savePull({ pullId, name, data, hardwarePullId = null, sort = null, expectedVersion }) {
+      calls.push(['savePull', pullId, expectedVersion, name]);
+      await wait();
+      if (api.replies.savePull) return structuredClone(api.replies.savePull);
+      if (expectedVersion === 0) {
+        const row = { pull_id: pullId ?? fakeUuid(), name, data: structuredClone(data), hardware_pull_id: hardwarePullId,
+          sort, version: 1, archived_at: null };
+        db.pulls.push(row);
+        return { ok: true, pull_id: row.pull_id, version: 1, updated_at: 't' };
+      }
+      const row = db.pulls.find((entry) => entry.pull_id === pullId);
+      if (!row) return missing('Pull');
+      if (row.version !== expectedVersion) return conflict(row.version);
+      Object.assign(row, { name, data: structuredClone(data), hardware_pull_id: hardwarePullId, version: row.version + 1 });
+      if (sort !== null) row.sort = sort;
+      return { ok: true, pull_id: pullId, version: row.version, updated_at: 't' };
+    },
     async archiveLibraryItem(kind, id, archived) {
       calls.push(['archiveLibraryItem', kind, id, archived]);
       await wait();
-      const list = kind === 'profile' ? db.profiles : db.doorDesigns;
-      const key = kind === 'profile' ? 'profile_id' : 'design_id';
+      const list = kind === 'profile' ? db.profiles : kind === 'pull' ? db.pulls : db.doorDesigns;
+      const key = kind === 'profile' ? 'profile_id' : kind === 'pull' ? 'pull_id' : 'design_id';
       const row = list.find((entry) => entry[key] === id);
       row.archived_at = archived ? 't' : null;
       return { ok: true };

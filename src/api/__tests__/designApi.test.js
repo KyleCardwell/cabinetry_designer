@@ -33,6 +33,31 @@ function fakeClient({ rpc = {}, tables = {} } = {}) {
 }
 
 describe('designApi', () => {
+  it('HP3b c lists live pulls in order and passes save arguments, defaults and conflicts through', async () => {
+    let listed = { data: [{ pull_id: 'p' }], error: null };
+    let saved = { data: { ok: true, pull_id: 'p', version: 3, updated_at: 't' }, error: null };
+    const client = fakeClient({ tables: { design_pulls: () => listed }, rpc: { save_pull: () => saved } });
+    const api = createDesignApi(client);
+    expect(await api.listPulls('team')).toEqual({ ok: true, rows: [{ pull_id: 'p' }] });
+    expect(client.calls[0]).toEqual({ table: 'design_pulls', chain: [
+      ['select', 'pull_id, name, data, hardware_pull_id, version, sort, archived_at'],
+      ['eq', 'team_id', 'team'], ['is', 'archived_at', null], ['order', 'sort'], ['order', 'created_at'],
+    ] });
+    const args = { teamId: 'team', pullId: 'p', name: 'Bar', data: { kind: 'pull' }, hardwarePullId: 3, sort: 4, expectedVersion: 2 };
+    expect(await api.savePull(args)).toEqual(saved.data);
+    expect(client.calls.at(-1)).toEqual({ rpc: 'save_pull', args: {
+      p_team_id: 'team', p_pull_id: 'p', p_name: 'Bar', p_data: { kind: 'pull' },
+      p_hardware_pull_id: 3, p_sort: 4, p_expected_version: 2,
+    } });
+    saved = { data: { ok: false, reason: 'conflict', version: 4 }, error: null };
+    expect(await api.savePull({ teamId: 'team', pullId: null, name: 'Bar', data: {}, expectedVersion: 0 })).toEqual(saved.data);
+    expect(client.calls.at(-1).args).toMatchObject({ p_pull_id: null, p_hardware_pull_id: null, p_sort: null, p_expected_version: 0 });
+    listed = { data: null, error: null };
+    expect(await api.listPulls('team')).toEqual({ ok: true, rows: [] });
+    listed = { error: { code: '42501', message: 'No permission' } };
+    expect(await api.listPulls('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
+  });
+
   it('passes a version-checked reply through', async () => {
     const client = fakeClient({ rpc: { save_team_settings: { data: { ok: true, version: 4, updated_at: 't' }, error: null } } });
     const reply = await createDesignApi(client).saveTeamSettings('team-1', { roundTo: 0.5 }, 3);

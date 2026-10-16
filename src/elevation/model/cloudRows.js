@@ -5,6 +5,7 @@
 import { DEFAULT_SETTINGS } from './constants.js';
 import { SEEDED_DESIGN_IDS, isDoorDesign, migrateDoorDesign } from './doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, isDoorStyle } from './doorStyles.js';
+import { BUILT_IN_PULLS, BUILT_IN_PULL_IDS, isPull } from './pulls.js';
 import { isSectionProfile, migrateSectionProfile } from './sectionProfiles.js';
 import { SETTINGS_REGISTRY } from './settingsRegistry.js';
 import { isValidSettingValue } from './settingsResolve.js';
@@ -76,6 +77,27 @@ export function doorDesignFromRow(row) {
   return isDoorDesign(design) ? design : null;
 }
 
+/** Pull sizes live in data; built-ins keep their stable app id in data.seedId. */
+export function pullToRow(pull) {
+  const { id, name, hardwarePullId, ...rest } = structuredClone(pull);
+  const data = BUILT_IN_PULL_IDS.includes(id) ? { ...rest, seedId: id } : rest;
+  return { name, data, hardware_pull_id: hardwarePullId };
+}
+
+export function pullIdFor(row) {
+  return BUILT_IN_PULL_IDS.includes(row?.data?.seedId) ? row.data.seedId : row?.pull_id;
+}
+
+/** A design_pulls row → a valid pull, or null (including a built-in with the wrong kind). */
+export function pullFromRow(row) {
+  if (!row || !isUuid(row.pull_id) || !row.data || typeof row.data !== 'object') return null;
+  const { seedId, ...rest } = structuredClone(row.data);
+  void seedId;
+  const pull = { ...rest, id: pullIdFor(row), name: row.name, hardwarePullId: row.hardware_pull_id };
+  const seed = BUILT_IN_PULLS.find((entry) => entry.id === pull.id);
+  return isPull(pull) && (!seed || seed.kind === pull.kind) ? pull : null;
+}
+
 /** The shop standard as stored: every registry leaf plus `teamDoorStyle`; no library lists, no prefs. */
 export function teamSettingsToRow(settings) {
   const row = {};
@@ -88,13 +110,14 @@ export function teamSettingsToRow(settings) {
 }
 
 /**
- * Stored shop standard → settings in today's shape (without `doorDesigns` / `sectionProfiles`).
+ * Stored shop standard → settings in today's shape (without library lists).
  * Missing or invalid leaves come from the code defaults; unknown keys are dropped.
  */
 export function teamSettingsFromRow(stored) {
   const settings = structuredClone(DEFAULT_SETTINGS);
   delete settings.doorDesigns;
   delete settings.sectionProfiles;
+  delete settings.pulls;
   for (const { key } of SETTINGS_REGISTRY) {
     const value = leaf(stored, key);
     if (value !== undefined && isValidSettingValue(key, value)) setLeaf(settings, key, structuredClone(value));

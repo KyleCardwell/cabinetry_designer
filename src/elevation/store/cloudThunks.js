@@ -8,10 +8,13 @@ import {
   doorDesignFromRow,
   doorDesignToRow,
   profileFromRow,
+  pullFromRow,
+  pullToRow,
   teamSettingsFromRow,
 } from '../model/cloudRows.js';
 import { SEEDED_DESIGN_IDS, isDoorDesignList } from '../model/doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS, findDoorDesign } from '../model/doorStyles.js';
+import { BUILT_IN_PULLS, BUILT_IN_PULL_IDS, isPullList } from '../model/pulls.js';
 import { cleanOverrides } from '../model/settingsResolve.js';
 import { buildSettingsSnapshot, settingsFromSnapshot } from '../model/settingsSnapshot.js';
 import { ROOM_STATUSES, lastVersionFromRow, versionFromRow } from '../model/roomVersions.js';
@@ -69,10 +72,10 @@ export function openCloudWorkspace() {
     }
     dispatch(cloudWorkspaceLoading());
     const api = await apiFrom(extra);
-    const [settingsReply, profilesReply, designsReply] = await Promise.all([
-      api.loadTeamSettings(teamId), api.listProfiles(teamId), api.listDoorDesigns(teamId),
+    const [settingsReply, profilesReply, designsReply, pullsReply] = await Promise.all([
+      api.loadTeamSettings(teamId), api.listProfiles(teamId), api.listDoorDesigns(teamId), api.listPulls(teamId),
     ]);
-    const failed = [settingsReply, profilesReply, designsReply].find((reply) => !reply.ok);
+    const failed = [settingsReply, profilesReply, designsReply, pullsReply].find((reply) => !reply.ok);
     if (failed) {
       const message = `Couldn't load the shop data: ${failed.message}`;
       dispatch(cloudWorkspaceFailed(message));
@@ -80,7 +83,7 @@ export function openCloudWorkspace() {
     }
 
     const notes = [];
-    const rows = { profiles: {}, doorDesigns: {} };
+    const rows = { profiles: {}, doorDesigns: {}, pulls: {} };
 
     const profiles = [];
     for (const row of profilesReply.rows) {
@@ -122,6 +125,50 @@ export function openCloudWorkspace() {
       return { ok: false, reason: 'bad_input', message };
     }
 
+    const pulls = [];
+    for (const row of pullsReply.rows) {
+      const pull = pullFromRow(row);
+      if (!pull || pulls.some((entry) => entry.id === pull.id)) continue;
+      pulls.push(pull);
+      rows.pulls[pull.id] = { rowId: row.pull_id, version: row.version };
+    }
+    const skippedPulls = pullsReply.rows.length - pulls.length;
+    if (skippedPulls) notes.push(`${plural(skippedPulls, 'pull')} couldn't be read and ${skippedPulls === 1 ? 'was' : 'were'} left out.`);
+
+    for (const seed of BUILT_IN_PULLS) {
+      if (pulls.some((pull) => pull.id === seed.id)) continue;
+      if (permissions?.manage) {
+        const { name, data, hardware_pull_id } = pullToRow(seed);
+        const reply = await api.savePull({
+          teamId, pullId: null, name, data, hardwarePullId: hardware_pull_id, expectedVersion: 0,
+        });
+        if (reply.ok) {
+          pulls.push(structuredClone(seed));
+          rows.pulls[seed.id] = { rowId: reply.pull_id, version: reply.version };
+          continue;
+        }
+        notes.push(`The built-in "${seed.name}" pull couldn't be saved (${reply.message ?? reply.reason}); using it unsaved.`);
+      }
+      const unsaved = structuredClone(seed);
+      const names = new Set(pulls.map((pull) => pull.name.toLowerCase()));
+      if (names.has(unsaved.name.toLowerCase())) {
+        const base = `${seed.name} (built-in)`;
+        unsaved.name = base;
+        let number = 2;
+        while (names.has(unsaved.name.toLowerCase())) unsaved.name = `${base} ${number++}`;
+      }
+      pulls.push(unsaved);
+    }
+    const orderedPulls = [
+      ...BUILT_IN_PULL_IDS.map((id) => pulls.find((pull) => pull.id === id)),
+      ...pulls.filter((pull) => !BUILT_IN_PULL_IDS.includes(pull.id)),
+    ];
+    if (!isPullList(orderedPulls)) {
+      const message = 'The shop\'s pulls conflict (two pulls share a name). Fix them in Supabase, then reload.';
+      dispatch(cloudWorkspaceFailed(message));
+      return { ok: false, reason: 'bad_input', message };
+    }
+
     const settings = teamSettingsFromRow(settingsReply.row?.settings);
     if (!findDoorDesign(settings.teamDoorStyle.designId, designs)) {
       settings.teamDoorStyle = structuredClone(DEFAULT_DOOR_STYLE);
@@ -129,6 +176,7 @@ export function openCloudWorkspace() {
     }
     settings.doorDesigns = designs;
     settings.sectionProfiles = profiles;
+    settings.pulls = orderedPulls;
 
     dispatch(cloudWorkspaceLoaded({
       teamId,

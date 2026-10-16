@@ -44,6 +44,7 @@ async function rpc(client, name, args) {
 const PROFILE_COLUMNS = 'profile_id, kind, name, data, version, sort, archived_at';
 const ROOM_COLUMNS = 'room_id, phase_id, name, status, status_at, version, schema_version, document, archived_at, updated_at';
 const DESIGN_COLUMNS = 'design_id, code, data, version, sort, archived_at';
+const PULL_COLUMNS = 'pull_id, name, data, hardware_pull_id, version, sort, archived_at';
 const VERSION_COLUMNS = 'version_id, room_id, seq, label, note, document, schema_version, settings_snapshot, issued_by, issued_at';
 
 export function createDesignApi(client) {
@@ -63,6 +64,12 @@ export function createDesignApi(client) {
     /** Live door designs only (an archived one shows as missing → reassign). → { ok, rows } */
     async listDoorDesigns(teamId) {
       const reply = await run(() => client.from('design_door_designs').select(DESIGN_COLUMNS)
+        .eq('team_id', teamId).is('archived_at', null).order('sort').order('created_at'));
+      return reply.ok ? { ok: true, rows: reply.data ?? [] } : reply;
+    },
+    /** Live pulls only, in library order. → { ok, rows } */
+    async listPulls(teamId) {
+      const reply = await run(() => client.from('design_pulls').select(PULL_COLUMNS)
         .eq('team_id', teamId).is('archived_at', null).order('sort').order('created_at'));
       return reply.ok ? { ok: true, rows: reply.data ?? [] } : reply;
     },
@@ -133,6 +140,12 @@ export function createDesignApi(client) {
       return rpc(client, 'save_door_design', {
         p_team_id: teamId, p_design_id: designId, p_code: code,
         p_data: data, p_sort: sort, p_expected_version: expectedVersion,
+      });
+    },
+    savePull({ teamId, pullId, name, data, hardwarePullId = null, sort = null, expectedVersion }) {
+      return rpc(client, 'save_pull', {
+        p_team_id: teamId, p_pull_id: pullId, p_name: name, p_data: data,
+        p_hardware_pull_id: hardwarePullId, p_sort: sort, p_expected_version: expectedVersion,
       });
     },
     archiveLibraryItem(kind, id, archived = true) {

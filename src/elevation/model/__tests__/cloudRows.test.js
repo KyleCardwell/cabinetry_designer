@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS } from '../constants.js';
 import { DOOR_DESIGNS, DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { newSectionProfile } from '../sectionProfiles.js';
 import { SETTINGS_REGISTRY } from '../settingsRegistry.js';
+import { BUILT_IN_PULLS } from '../pulls.js';
 import {
   doorDesignIdFor,
   doorDesignFromRow,
@@ -12,6 +13,9 @@ import {
   isUuid,
   profileFromRow,
   profileToRow,
+  pullToRow,
+  pullFromRow,
+  pullIdFor,
   teamSettingsFromRow,
   teamSettingsToRow,
 } from '../cloudRows.js';
@@ -27,6 +31,35 @@ function leafKeys(value, prefix = '') {
 }
 
 describe('cloudRows', () => {
+  it('HP3b c maps built-in and custom pulls without losing the estimator link (anchor 1)', () => {
+    expect(pullToRow(BUILT_IN_PULLS[0])).toEqual({
+      name: '4" pull', data: { kind: 'pull', length: 4.75, centers: 4, width: 0.375, projection: 1.25, seedId: 'pull-4' },
+      hardware_pull_id: null,
+    });
+    const custom = { ...BUILT_IN_PULLS[0], id: DID, hardwarePullId: 3 };
+    const row = pullToRow(custom);
+    expect(row.data).not.toHaveProperty('seedId');
+    expect(row.hardware_pull_id).toBe(3);
+    expect(pullIdFor({ pull_id: DID, ...row })).toBe(DID);
+    expect(pullFromRow({ pull_id: DID, ...row })).toEqual(custom);
+    for (const pull of [BUILT_IN_PULLS[1], { id: DID, name: 'Tab', kind: 'tab', length: 3, height: 0.5, projection: 1, hardwarePullId: 3 }]) {
+      expect(pullFromRow({ pull_id: DID, ...pullToRow(pull) })).toEqual(pull);
+    }
+  });
+
+  it('HP3b c validates pull rows and restores seed ids (anchor 2)', () => {
+    const row = { pull_id: DID, name: 'Bar', data: { kind: 'pull', length: 5, width: 0.375, projection: 1.25 },
+      hardware_pull_id: null, version: 2, archived_at: null };
+    expect(pullFromRow(row)).toEqual({ id: DID, name: 'Bar', kind: 'pull', length: 5, width: 0.375, projection: 1.25, hardwarePullId: null });
+    expect(pullFromRow({ ...row, data: { kind: 'knob', projection: 1 } })).toBeNull();
+    const knob = { ...row, data: { kind: 'knob', diameter: 1.25, projection: 1, seedId: 'knob-1-25' } };
+    expect(pullFromRow(knob).id).toBe('knob-1-25');
+    expect(pullIdFor(knob)).toBe('knob-1-25');
+    for (const invalid of [null, { ...row, pull_id: 'bad' }, { ...row, data: {} },
+      { ...row, hardware_pull_id: 0 }, { ...row, data: { ...row.data, diameter: 1 } },
+      { ...knob, data: { ...knob.data, seedId: 'pull-4' } }]) expect(pullFromRow(invalid)).toBeNull();
+  });
+
   it('recognises uuids only', () => {
     expect(isUuid(PID)).toBe(true);
     expect(isUuid('sp-bead5')).toBe(false);
@@ -75,6 +108,7 @@ describe('cloudRows', () => {
     expect(row.teamDoorStyle).toEqual(DEFAULT_DOOR_STYLE);
     expect(row).not.toHaveProperty('doorDesigns');
     expect(row).not.toHaveProperty('sectionProfiles');
+    expect(row).not.toHaveProperty('pulls');
     expect(row).not.toHaveProperty('orthoWalls');
   });
 
@@ -88,6 +122,7 @@ describe('cloudRows', () => {
     expect(settings).not.toHaveProperty('doorDesigns');
     expect(settings.teamDoorStyle).toEqual(DEFAULT_DOOR_STYLE);
     expect(teamSettingsFromRow(null).roundTo).toBe(0.5);
+    expect(teamSettingsFromRow({})).not.toHaveProperty('pulls');
   });
 });
 
