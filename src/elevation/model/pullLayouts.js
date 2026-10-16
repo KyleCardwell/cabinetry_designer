@@ -1,10 +1,11 @@
 import { findLeaf } from './cellTree.js';
-import { runDoorDetails } from './doorDetails.js';
+import { doorDrawing, runDoorDetails } from './doorDetails.js';
 import { cabinetFaceLevels } from './doorStyleResolve.js';
 import { getFaceNode } from './faceTree.js';
 import { defaultFace } from './faces.js';
 import { runItems } from './grid.js';
 import { pullPartType, resolvePull } from './pulls.js';
+import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
 import { wallViewForRun } from './wallSides.js';
 
@@ -134,4 +135,40 @@ export function runPulls(room, wall, run, settings, scene = runScene(room, wall,
     }
   }
   return { pulls, warnings };
+}
+
+/** Closed pull outlines in wall inches, with bulges on the outgoing segments. */
+export function pullOutlines({ kind, orientation, along: L, across: W, centers }) {
+  return centers.map(({ x: cx, z: cz }) => {
+    if (kind === 'knob') return [[cx + L / 2, cz, 1], [cx - L / 2, cz, 1]];
+    if (kind === 'tab' || L < W) {
+      return [
+        [cx - L / 2, cz - W / 2], [cx + L / 2, cz - W / 2],
+        [cx + L / 2, cz + W / 2], [cx - L / 2, cz + W / 2],
+      ];
+    }
+    const r = W / 2;
+    if (orientation === 'vertical') {
+      const z0 = cz - L / 2 + r;
+      const z1 = cz + L / 2 - r;
+      return [[cx + r, z0], [cx + r, z1, 1], [cx - r, z1], [cx - r, z0, 1]];
+    }
+    const x0 = cx - L / 2 + r;
+    const x1 = cx + L / 2 - r;
+    return [[x0, cz - r], [x1, cz - r, 1], [x1, cz + r], [x0, cz + r, 1]];
+  });
+}
+
+/** Pulls on one resolved wall face, optionally limited to the drawn part ids. */
+export function elevationPulls(room, wall, side, settings, partIds = null) {
+  if (!doorDrawing(room).pulls) return [];
+  const view = resolveWall(room, wall, side);
+  const result = [];
+  for (const run of view.runs) {
+    for (const entry of runPulls(room, view, run, settings).pulls) {
+      if (partIds && !partIds.has(entry.partId)) continue;
+      result.push({ partId: entry.partId, outlines: pullOutlines(entry) });
+    }
+  }
+  return result;
 }

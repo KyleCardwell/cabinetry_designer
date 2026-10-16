@@ -9,12 +9,13 @@ import { runItems } from './grid.js';
 import { runScene } from './runScene.js';
 import { wallViewForRun } from './wallSides.js';
 
-/** Door details by default; style tags and swing marks off by default. */
+/** Door details and pulls by default; style tags and swing marks off by default. */
 export function doorDrawing(room) {
   return {
     details: room?.doorDetails !== false,
     tags: room?.doorStyleTags === true,
     swings: room?.swingMarks === true,
+    pulls: room?.showPulls !== false,
   };
 }
 

@@ -448,4 +448,4 @@ export {
 } from './cloudRows.js';
 
 export { stileFlat } from './doorProfileLines.js';
-export { facePullPlacement, runPulls } from './pullLayouts.js';
+export { facePullPlacement, runPulls, pullOutlines, elevationPulls } from './pullLayouts.js';

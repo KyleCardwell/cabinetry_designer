@@ -11,15 +11,17 @@ const isChoice = (room, id, { sheet = false } = {}) => (id === 'sheet'
 
 export const doorStyleReducers = {
   setRoomDoorDrawing(state, action) {
-    const { roomId, doorDetails, doorStyleTags, swingMarks } = action.payload;
+    const { roomId, doorDetails, doorStyleTags, swingMarks, showPulls } = action.payload;
     const room = roomFor(state, roomId);
     if (!room) return;
     const hasDetails = Object.hasOwn(action.payload, 'doorDetails');
     const hasTags = Object.hasOwn(action.payload, 'doorStyleTags');
     const hasSwings = Object.hasOwn(action.payload, 'swingMarks');
+    const hasPulls = Object.hasOwn(action.payload, 'showPulls');
     if ((hasDetails && typeof doorDetails !== 'boolean')
       || (hasTags && typeof doorStyleTags !== 'boolean')
-      || (hasSwings && typeof swingMarks !== 'boolean')) return;
+      || (hasSwings && typeof swingMarks !== 'boolean')
+      || (hasPulls && typeof showPulls !== 'boolean')) return;
     if (hasDetails) {
       if (doorDetails) delete room.doorDetails;
       else room.doorDetails = false;
@@ -31,6 +33,10 @@ export const doorStyleReducers = {
     if (hasSwings) {
       if (swingMarks) room.swingMarks = true;
       else delete room.swingMarks;
+    }
+    if (hasPulls) {
+      if (showPulls) delete room.showPulls;
+      else room.showPulls = false;
     }
   },
   setDoorStylePick(state, action) {
