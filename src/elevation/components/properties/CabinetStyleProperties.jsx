@@ -6,7 +6,7 @@ import {
   isInsetStyle,
   resolveStyle,
 } from '../../model/index.js';
-import { setDoorStylePick, setPullPick, setItemReveals, setItemStyle } from '../../store/elevationSlice.js';
+import { setCabinetPullHeight, setDoorStylePick, setPullPick, setItemReveals, setItemStyle } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import DoorStylePicks from './DoorStylePicks.jsx';
 import PullPicks from './PullPicks.jsx';
@@ -24,9 +24,10 @@ const REVEAL_LABELS = {
 };
 
 // `faceLayout` is this cabinet's entry from runFaceLayouts (faces, style, reveals).
-export default function CabinetStyleProperties({ room, wall, run, item, settings, faceLayout }) {
+export default function CabinetStyleProperties({ room, wall, run, item, itemIds = [item.id], settings, faceLayout }) {
   const dispatch = useDispatch();
   const at = { wallId: wall.id, runId: run.id, itemIds: [item.id] };
+  const pullTargets = { ...at, itemIds };
   const manual = item.reveals ?? {};
   const { values, sources } = faceLayout.reveals;
 
@@ -65,8 +66,10 @@ export default function CabinetStyleProperties({ room, wall, run, item, settings
         node={item}
         levelsAbove={[{ level: 'run', node: run }, { level: 'wall', node: wall }]}
         label="Cabinet"
+        pullHeight={item.pullHeight ?? null}
+        onPullHeightChange={(value) => dispatch(setCabinetPullHeight({ ...pullTargets, value }))}
         onChange={(key, pullId) => dispatch(setPullPick({
-          roomId: room.id, level: 'cabinet', ...at, key, pullId,
+          roomId: room.id, level: 'cabinet', ...pullTargets, key, pullId,
         }))}
       />
       {isInsetStyle(faceLayout.style) && faceLayout.box && (

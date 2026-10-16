@@ -11,6 +11,9 @@ vi.mock('../../model/index.js', async (importOriginal) => ({
   ...await importOriginal(), runFaceLayouts: () => new Map(),
 }));
 vi.mock('../../model/doorDetails.js', () => ({ runDoorDetails: vi.fn() }));
+vi.mock('../../model/pullLayouts.js', async (importOriginal) => ({
+  ...await importOriginal(), runPulls: () => ({ pulls: [], warnings: [] }),
+}));
 
 describe('Step 480 face molding warnings', () => {
   it('numbers edge-overlap moldings once per face without the frame-fit message', () => {

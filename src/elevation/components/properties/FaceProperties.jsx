@@ -26,8 +26,9 @@ import {
 } from '../../model/index.js';
 import { facePartType, cabinetFaceLevels } from '../../model/doorStyleResolve.js';
 import { runDoorDetails } from '../../model/doorDetails.js';
-import { pullPartType, pullPickOptions } from '../../model/pulls.js';
-import { setFacePull, setFacePart } from '../../model/faceTree.js';
+import { PULL_POSITIONS, pullPartType, pullPickOptions, resolvePull } from '../../model/pulls.js';
+import { facePullPlacement, pullPositionLabel, runPulls } from '../../model/pullLayouts.js';
+import { setFacePull, setFacePart, setFacePullPlacement } from '../../model/faceTree.js';
 import { setFacePath, setItemFace } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import CabinetStyleProperties from './CabinetStyleProperties.jsx';
@@ -53,6 +54,8 @@ const WARNING_MESSAGES = {
   'door-profile-too-deep': 'A profile in this face\'s door style cuts deeper than the door is thick.',
   'door-profile-too-wide': 'The door style\'s edge and inside/applied profiles are wider than a stile or rail on this face.',
   'door-profile-panel-too-small': 'The panel (or molding) opening is too small for the door style\'s profiles.',
+  'pull-needs-hinge': 'Set a hinge side (or pick a centred or rail pull position) so this door\'s pull can be placed.',
+  'pull-too-long': 'This pull is longer than the space it sits in on this face.',
 };
 
 function groupLabel(node) {
@@ -78,10 +81,14 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
     (candidate) => candidate.id === state.elevation.activeRoomId,
   ));
   const faceLayout = runFaceLayouts(room, wall, run, settings, layout).get(piece.id);
+  const doorDetails = runDoorDetails(room, wall, run, settings);
   const warnings = [
     ...(faceLayout?.warnings ?? []),
-    ...runDoorDetails(room, wall, run, settings).warnings.filter(
+    ...doorDetails.warnings.filter(
       (warning) => warning.pieceId === piece.id && warning.code !== 'door-style-missing',
+    ),
+    ...runPulls(room, wall, run, settings, undefined, doorDetails).warnings.filter(
+      (warning) => warning.pieceId === piece.id && (facePath === null || warning.path === facePath),
     ),
   ];
   const [splitCount, setSplitCount] = useState(2);
@@ -90,6 +97,15 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
     ? pullPickOptions(settings, pullPartType(selected.type),
       cabinetFaceLevels(room, wall, run, item, selected).slice(1), selected, 'pullId') : null;
   const resolvedFace = faceLayout?.faces.find((entry) => entry.path === facePath);
+  const resolvedPull = pullPick ? resolvePull(settings, pullPartType(selected.type),
+    cabinetFaceLevels(room, wall, run, item, selected).slice(0, 4)).pull : null;
+  const autoPull = resolvedPull && resolvedFace ? facePullPlacement({
+    face: resolvedFace,
+    part: doorDetails.parts.find((part) => part.key === `${piece.id}:${facePath}${resolvedFace.half ? `:${resolvedFace.half}` : ''}`),
+    pull: resolvedPull,
+    pullHeight: item.pullHeight ?? settings?.pullHeight ?? 45,
+  }) : null;
+  const drawerPulls = ['drawer_front', 'false_front'].includes(selected?.type);
   const sameWidthIds = (cells?.pieces ?? layout.pieces)
     .filter((p) => p.kind === 'cabinet' && p.role === 'item' && Math.abs(p.width - piece.width) < 1e-6)
     .map((p) => p.id);
@@ -241,6 +257,58 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
                 {pullPick.options.map((option) => <option key={option.id} value={option.id}>{option.text}</option>)}
               </select>
             </label>
+          )}
+          {autoPull && (
+            <>
+              <label className="block text-xs text-gray-300">
+                Pull position
+                <select
+                  value={selected.pullAt ?? ''}
+                  onChange={(event) => commitIfChanged(setFacePullPlacement(
+                    face, facePath, { pullAt: event.target.value || null },
+                  ))}
+                  aria-label="Pull position"
+                  className={`${SELECT_CLASS} mt-1`}
+                >
+                  <option value="">{`Auto (${autoPull.warnings.includes('pull-needs-hinge') ? 'needs hinge' : pullPositionLabel(autoPull.at)})`}</option>
+                  {PULL_POSITIONS[drawerPulls ? 'drawer' : 'door'].map((at) => (
+                    <option key={at} value={at}>{pullPositionLabel(at)}</option>
+                  ))}
+                </select>
+              </label>
+              {resolvedPull.kind === 'pull' && (
+                <label className="block text-xs text-gray-300">
+                  Pull direction
+                  <select
+                    value={selected.pullOrientation ?? ''}
+                    onChange={(event) => commitIfChanged(setFacePullPlacement(
+                      face, facePath, { pullOrientation: event.target.value || null },
+                    ))}
+                    aria-label="Pull direction"
+                    className={`${SELECT_CLASS} mt-1`}
+                  >
+                    <option value="">{`Auto (${autoPull.orientation === 'vertical' ? 'Vertical' : 'Horizontal'})`}</option>
+                    <option value="vertical">Vertical</option>
+                    <option value="horizontal">Horizontal</option>
+                  </select>
+                </label>
+              )}
+              {drawerPulls && (
+                <label className="block text-xs text-gray-300">
+                  Pulls across
+                  <select
+                    value={selected.pullCount ?? 1}
+                    onChange={(event) => commitIfChanged(setFacePullPlacement(
+                      face, facePath, { pullCount: Number(event.target.value) },
+                    ))}
+                    aria-label="Pulls across"
+                    className={`${SELECT_CLASS} mt-1`}
+                  >
+                    {[1, 2, 3, 4].map((count) => <option key={count} value={count}>{count}</option>)}
+                  </select>
+                </label>
+              )}
+            </>
           )}
           {['door', 'pair_door'].includes(selected.type) && (
             <label className="block text-xs text-gray-300">

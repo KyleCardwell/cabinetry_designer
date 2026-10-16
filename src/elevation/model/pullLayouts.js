@@ -10,6 +10,19 @@ import { wallViewForRun } from './wallSides.js';
 
 const EPS = 1e-6;
 
+export function pullPositionLabel(at) {
+  return {
+    'top-corner': 'Top corner',
+    'bottom-corner': 'Bottom corner',
+    height: 'Tall pull height',
+    center: 'Centred',
+    'top-rail': 'On top rail',
+    'bottom-rail': 'On bottom rail',
+    'top-edge': 'Top edge',
+    'bottom-edge': 'Bottom edge',
+  }[at];
+}
+
 function pullSize(pull) {
   if (pull.kind === 'knob') return { along: pull.diameter, across: pull.diameter };
   return { along: pull.length, across: pull.kind === 'tab' ? pull.height : pull.width };

@@ -1,4 +1,6 @@
 import { pullPickOptions } from '../../model/pulls.js';
+import { formatInches } from '../../model/units.js';
+import InchInput from '../InchInput.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const PICKS = [
@@ -6,7 +8,7 @@ const PICKS = [
   { text: 'Drawer pull', partType: 'drawer', key: 'drawerPullId' },
 ];
 
-export default function PullPicks({ settings, levelsAbove, node, label, onChange }) {
+export default function PullPicks({ settings, levelsAbove, node, label, onChange, pullHeight, onPullHeightChange }) {
   return (
     <section className="space-y-2">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Pulls</h3>
@@ -27,6 +29,23 @@ export default function PullPicks({ settings, levelsAbove, node, label, onChange
           </label>
         );
       })}
+      {pullHeight !== undefined && (
+        <label className="block text-xs text-gray-400">
+          Tall pull height
+          <InchInput
+            value={pullHeight}
+            allowBlank
+            placeholder={`Inherit (${formatInches(settings?.pullHeight ?? 45)})`}
+            aria-label="Tall pull height"
+            className="mt-1"
+            onCommit={(value) => {
+              if (value !== null && (!Number.isFinite(value) || value <= 0)) return false;
+              onPullHeightChange(value);
+              return true;
+            }}
+          />
+        </label>
+      )}
     </section>
   );
 }
