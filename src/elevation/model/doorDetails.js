@@ -1,6 +1,6 @@
 import { panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
-import { doorProfileOffsets, inset, partProfileLines } from './doorProfileLines.js';
+import { doorProfileOffsets, inset, partProfileLines, stileFlat } from './doorProfileLines.js';
 import { frontStackWarnings, partSizes } from './doorSizes.js';
 import { cabinetFaceLevels, facePartType, panelLevels, resolveDoorStyle } from './doorStyleResolve.js';
 import { defaultFace } from './faces.js';
@@ -107,6 +107,7 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
     const { x, z, width, height } = rect;
     parts.push({
       key, kind, pieceId, path, styleId: style.id, label: style.label,
+      ...(kind === 'face' ? { flat: stileFlat(offsets, detail), core: detail.core } : {}),
       style, design, partType, faceType, sizes: detail.sizes ?? detail,
       construction: detail.construction, x, z, width, height, openings: detail.openings,
       lines: fit.lines, miters: fit.miters, openingsShown: fit.openingsShown,

@@ -120,15 +120,11 @@ export function inset(r, d) {
   };
 }
 
-/** SPEC-50 one part's profile lines and miters in wall coordinates, and its fit warnings. */
-export function partProfileLines(offsets, detail, rect) {
-  const { slots, applied = [] } = offsets;
-  const lines = [];
-  const miters = [];
-  const miterKeys = new Set();
-  const warnings = [];
+function fittedApplied(offsets, detail) {
+  const { applied = [] } = offsets;
   const fivePiece = detail.construction === 'five_piece';
   const molding = detail.construction === 'slab' && detail.molding;
+  const warnings = [];
   const fitted = [];
   if (fivePiece || molding) {
     for (const original of applied) {
@@ -148,6 +144,28 @@ export function partProfileLines(offsets, detail, rect) {
       }
     }
   }
+  return { fitted, warnings };
+}
+
+/** The outside and opening profile reaches that bound a stile or rail's flat. */
+export function stileFlat(offsets, detail) {
+  const edgeIn = offsets.slots.outside?.reachIn ?? 0;
+  if (detail.construction !== 'five_piece') return { edgeIn, frameOut: 0 };
+  const { fitted } = fittedApplied(offsets, detail);
+  return { edgeIn, frameOut: Math.max(
+    offsets.slots.inside?.reachOut ?? 0, ...fitted.map(({ reachOut }) => reachOut),
+  ) };
+}
+
+/** SPEC-50 one part's profile lines and miters in wall coordinates, and its fit warnings. */
+export function partProfileLines(offsets, detail, rect) {
+  const { slots, applied = [] } = offsets;
+  const lines = [];
+  const miters = [];
+  const miterKeys = new Set();
+  const fivePiece = detail.construction === 'five_piece';
+  const molding = detail.construction === 'slab' && detail.molding;
+  const { fitted, warnings } = fittedApplied(offsets, detail);
   const openingsShown = !(fivePiece
     ? slots.inside?.covers || slots.panel?.covers
       || fitted.some(({ offset, covers }) => offset === 0 && covers)
@@ -211,7 +229,7 @@ export function partProfileLines(offsets, detail, rect) {
     }
   }
 
-  const edgeIn = slots.outside?.reachIn ?? 0;
+  const { edgeIn, frameOut } = stileFlat(offsets, detail);
   if (molding) {
     for (const pick of applied) {
       const offset = detail.moldings.find(({ index }) => index === pick.index)?.offset ?? pick.offset;
@@ -224,7 +242,6 @@ export function partProfileLines(offsets, detail, rect) {
     }
     return { lines, miters, warnings, openingsShown };
   }
-  const frameOut = Math.max(slots.inside?.reachOut ?? 0, ...fitted.map(({ reachOut }) => reachOut));
   const { stiles, rails, midRails, midStiles } = detail.sizes;
   for (const [side, size] of [
     ['left', stiles.left], ['right', stiles.right], ['top', rails.top], ['bottom', rails.bottom],

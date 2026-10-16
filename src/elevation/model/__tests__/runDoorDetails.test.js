@@ -63,6 +63,8 @@ describe('SPEC-46.2 door details for a run', () => {
         construction: 'five_piece', rails: { top: 3, bottom: 3 }, stiles: { left: 3, right: 3 },
       }),
       construction: 'five_piece',
+      flat: { edgeIn: 0, frameOut: 0 },
+      core: box(30.0625, 4.125, 23.875, 30.125),
       ...box(30.0625, 4.125, 23.875, 30.125),
       openings: [box(33.0625, 7.125, 17.875, 24.125)],
       lines: [], miters: [], openingsShown: true,
