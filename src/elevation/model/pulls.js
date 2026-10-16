@@ -124,3 +124,24 @@ export function resolvePull(settings, partType, levels, pulls = settings?.pulls 
     warnings: pull ? [] : [{ code: 'pull-missing', level: source.level, id: pullId }],
   };
 }
+
+/** Picker rows and the inherited pull, with this level's own pick removed. */
+export function pullPickOptions(settings, partType, levelsAbove, node = {}, ownKey = PULL_KEYS[partType]) {
+  const here = { ...node };
+  delete here[ownKey];
+  const { pull } = resolvePull(settings, partType, [
+    { level: ownKey === 'pullId' ? 'face' : 'cabinet', node: here },
+    ...levelsAbove,
+  ]);
+  const options = (settings?.pulls ?? BUILT_IN_PULLS).map(({ id, name }) => ({ id, text: name }));
+  if (partType !== 'false_front') options.push({ id: 'none', text: 'No pull' });
+  const value = node?.[ownKey];
+  if (value != null && value !== 'none' && !options.some(({ id }) => id === value)) {
+    options.push({ id: value, text: `Missing (${value})` });
+  }
+  return {
+    inherit: { id: pull?.id ?? 'none', text: partType === 'false_front'
+      ? 'No pull (default)' : `Inherit (${pull?.name ?? 'No pull'})` },
+    options,
+  };
+}

@@ -9,10 +9,12 @@ import { wallSideOf } from '../../model/wallSides.js';
 import { prepareRunUpdate } from '../../properties/helpers.js';
 import {
   setDoorStylePick,
+  setPullPick,
   setRunType,
   updateRun,
 } from '../../store/elevationSlice.js';
 import DoorStylePicks from './DoorStylePicks.jsx';
+import PullPicks from './PullPicks.jsx';
 import Field from './Field.jsx';
 import PartNumberField from './PartNumberField.jsx';
 import PartReportFields from './PartReportFields.jsx';
@@ -183,6 +185,16 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
           />
         </section>
       )}
+
+      <PullPicks
+        settings={settings}
+        node={run}
+        levelsAbove={[{ level: 'wall', node: wall }]}
+        label="Run"
+        onChange={(key, pullId) => dispatch(setPullPick({
+          roomId: room.id, level: 'run', ...actionBase, key, pullId,
+        }))}
+      />
 
       <RunBottomSection room={room} run={run} settings={settings} actionBase={actionBase} />
 

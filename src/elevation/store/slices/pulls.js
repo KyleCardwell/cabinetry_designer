@@ -1,8 +1,32 @@
 import { current } from '@reduxjs/toolkit';
 import { v4 as uuid } from 'uuid';
-import { BUILT_IN_PULL_IDS, findPull, isPullList, newPull } from '../../model/pulls.js';
+import { BUILT_IN_PULL_IDS, PULL_KEYS, findPull, isPullList, newPull } from '../../model/pulls.js';
+import { effectiveSettings } from '../../model/effectiveSettings.js';
+import { gridLeaves } from '../../model/grid.js';
+import { roomFor, roomIndexFor, wallLocation, runLocation, syncRoomAt } from './helpers.js';
 
 export const pullReducers = {
+  setPullPick(state, action) {
+    const { roomId, level, itemIds = [], key, pullId } = action.payload;
+    const room = roomFor(state, roomId);
+    if (!room || !Object.values(PULL_KEYS).includes(key)
+      || (pullId !== null && pullId !== 'none'
+        && !effectiveSettings(state, room).pulls.some((pull) => pull.id === pullId))) return;
+    let targets;
+    if (level === 'wall') targets = [wallLocation(state, action.payload)?.wall];
+    else if (level === 'run' || level === 'cabinet') {
+      const run = runLocation(state, action.payload)?.run;
+      if (!run) return;
+      targets = level === 'run' ? [run] : (run.grid ? gridLeaves(run.grid) : [])
+        .filter((item) => item.kind === 'cabinet' && itemIds.includes(item.id));
+    } else return;
+    if (!targets.length || !targets[0]) return;
+    for (const target of targets) {
+      if (pullId === null) delete target[key];
+      else target[key] = pullId;
+    }
+    syncRoomAt(state, roomIndexFor(state, roomId));
+  },
   addPull: {
     reducer(state, action) {
       const { baseId, id } = action.payload;

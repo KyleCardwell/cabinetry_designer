@@ -1,5 +1,6 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { allowedAt, registryEntry } from '../model/settingsRegistry.js';
+import { BUILT_IN_PULLS } from '../model/pulls.js';
 import { choiceOptions } from '../model/settingGroups.js';
 import { resolveSetting } from '../model/settingsResolve.js';
 import { setLayerSetting, setRoomSetting, setSetting } from '../store/elevationSlice.js';
@@ -20,7 +21,10 @@ export default function SettingField({ settingKey, scope }) {
   const isLayer = scope === 'project' || scope === 'phase';
   const room = rooms.find(({ id }) => id === activeRoomId);
   const entry = registryEntry(settingKey);
-  const choices = choiceOptions(settingKey);
+  const choices = entry?.kind === 'pull'
+    ? [...(settings.pulls ?? BUILT_IN_PULLS).map(({ id, name }) => ({ value: id, label: name })),
+      { value: 'none', label: 'No pull' }]
+    : choiceOptions(settingKey);
 
   if (!entry || !allowedAt(settingKey, scope) || (scope === 'room' && !room) || (isLayer && !layers?.[scope])) return null;
 
@@ -34,8 +38,16 @@ export default function SettingField({ settingKey, scope }) {
       : setSetting({ key: settingKey, value }));
   };
 
+  const addMissing = (value) => {
+    if (entry.kind === 'pull' && value != null && !choices.some((choice) => choice.value === value)) {
+      choices.push({ value, label: `Missing (${value})` });
+    }
+  };
+  addMissing(ownSettingValue(isLayer ? layers[scope].values : scope === 'room' ? room.settingsOverrides : settings, settingKey));
+
   if (scope === 'room' || isLayer) {
     const inherited = resolveSetting(settingKey, inheritedChain(elevation, scope));
+    addMissing(inherited.value);
     return (
       <OverrideInput
         kind={entry.kind}

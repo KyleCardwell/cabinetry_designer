@@ -20,6 +20,7 @@ import {
   detachWallLanding,
   flipWall,
   setDoorStylePick,
+  setPullPick,
   setWallEndPanel,
   setWallLanding,
   setWallLength,
@@ -30,6 +31,7 @@ import { runBase } from '../../model/furnitureBase.js';
 import { moldingProfiles } from '../../model/moldingProfiles.js';
 import InchInput from '../InchInput.jsx';
 import DoorStylePicks from './DoorStylePicks.jsx';
+import PullPicks from './PullPicks.jsx';
 import Field from './Field.jsx';
 import WallEndPanelFields from './WallEndPanelFields.jsx';
 import StretchInput from './StretchInput.jsx';
@@ -467,6 +469,15 @@ export default function WallHeightProperties({ room, wall, plan }) {
           />
         </section>
       )}
+      <PullPicks
+        settings={settings}
+        node={room.walls.find((candidate) => candidate.id === wall.id)}
+        levelsAbove={[]}
+        label="Wall"
+        onChange={(key, pullId) => dispatch(setPullPick({
+          roomId: room.id, level: 'wall', wallId: wall.id, key, pullId,
+        }))}
+      />
     </div>
   );
 }

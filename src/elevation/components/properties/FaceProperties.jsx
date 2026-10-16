@@ -26,7 +26,8 @@ import {
 } from '../../model/index.js';
 import { facePartType, cabinetFaceLevels } from '../../model/doorStyleResolve.js';
 import { runDoorDetails } from '../../model/doorDetails.js';
-import { setFacePart } from '../../model/faceTree.js';
+import { pullPartType, pullPickOptions } from '../../model/pulls.js';
+import { setFacePull, setFacePart } from '../../model/faceTree.js';
 import { setFacePath, setItemFace } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import CabinetStyleProperties from './CabinetStyleProperties.jsx';
@@ -85,6 +86,9 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
   ];
   const [splitCount, setSplitCount] = useState(2);
   const selected = facePath === null ? null : getFaceNode(face, facePath);
+  const pullPick = selected && pullPartType(selected.type)
+    ? pullPickOptions(settings, pullPartType(selected.type),
+      cabinetFaceLevels(room, wall, run, item, selected).slice(1), selected, 'pullId') : null;
   const resolvedFace = faceLayout?.faces.find((entry) => entry.path === facePath);
   const sameWidthIds = (cells?.pieces ?? layout.pieces)
     .filter((p) => p.kind === 'cabinet' && p.role === 'item' && Math.abs(p.width - piece.width) < 1e-6)
@@ -223,6 +227,20 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
               label={`Face ${facePath}`}
               onChange={(patch) => commitIfChanged(setFacePart(face, facePath, patch))}
             />
+          )}
+          {pullPick && (
+            <label className="block text-xs text-gray-300">
+              Pull
+              <select
+                value={selected.type === 'false_front' && selected.pullId === 'none' ? '' : selected.pullId ?? ''}
+                onChange={(event) => commitIfChanged(setFacePull(face, facePath, event.target.value || null))}
+                aria-label="Pull"
+                className={`${SELECT_CLASS} mt-1`}
+              >
+                <option value="">{pullPick.inherit.text}</option>
+                {pullPick.options.map((option) => <option key={option.id} value={option.id}>{option.text}</option>)}
+              </select>
+            </label>
           )}
           {['door', 'pair_door'].includes(selected.type) && (
             <label className="block text-xs text-gray-300">

@@ -204,6 +204,7 @@ export const {
   addDoorDesign,
   updateDoorDesign,
   deleteDoorDesign,
+  setPullPick,
   addPull,
   updatePull,
   deletePull,
@@ -252,6 +253,7 @@ export const ROOM_EDIT_ACTION_TYPES = new Set([
     .flatMap((group) => Object.keys(group))
     .filter((name) => !VIEW_ONLY_ROOM_ACTIONS.has(name)),
   'moveMissingDoorDesign',
+  'setPullPick',
   'cloudRoomRecovered',
 ].map((name) => `${elevationSlice.name}/${name}`));
 
