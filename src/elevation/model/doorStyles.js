@@ -71,17 +71,21 @@ export function teamDoorStyle(settings) {
   return settings?.teamDoorStyle ?? DEFAULT_DOOR_STYLE;
 }
 
-/** Interim sheet material thickness until materials (SPEC-46.1.1). */
-export const SHEET_PANEL_THICKNESS = 0.75;
+/** Sheet material thickness fallback until materials supply it (SPEC-EP1).
+ * Keep the default local: constants.js imports this module's styles.
+ */
+export function sheetThickness(settings) {
+  return settings?.sheetThickness ?? 0.75;
+}
 
-export function sheetPanelStyle() {
+export function sheetPanelStyle(settings) {
   return {
     ...DEFAULT_DOOR_STYLE,
     id: 'sheet',
     label: 'Sheet',
     name: 'Sheet slab',
     designId: 'slab',
-    thickness: SHEET_PANEL_THICKNESS,
+    thickness: sheetThickness(settings),
   };
 }
 

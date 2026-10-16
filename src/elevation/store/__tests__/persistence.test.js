@@ -1465,6 +1465,21 @@ describe('DB1 c transient preference persistence', () => {
 });
 
 
+it('EP1 a defaults sheet thickness on old documents and round-trips room overrides', () => {
+  const saved = currentDocument();
+  delete saved.settings.sheetThickness;
+  saved.rooms[0].settingsOverrides = { sheetThickness: 0.6875 };
+  const loaded = normalizeElevationDocument(saved);
+  expect(loaded.settings.sheetThickness).toBe(0.75);
+  expect(saved.settings).not.toHaveProperty('sheetThickness');
+  expect(isElevationDocument(loaded)).toBe(true);
+  const roundTrip = normalizeElevationDocument(JSON.parse(JSON.stringify(toElevationDocument(loaded))));
+  expect(roundTrip.settings.sheetThickness).toBe(0.75);
+  expect(roundTrip.rooms[0].settingsOverrides).toEqual({ sheetThickness: 0.6875 });
+  loaded.settings.sheetThickness = 0.5;
+  expect(normalizeElevationDocument(toElevationDocument(loaded)).settings.sheetThickness).toBe(0.5);
+});
+
 it('527. migrates stored designs and every style scope without writing storage (anchor 4)', () => {
   const saved = currentDocument();
   const style = (id) => ({ ...structuredClone(saved.settings.teamDoorStyle), id, label: id,
@@ -1490,7 +1505,7 @@ it('527. migrates stored designs and every style scope without writing storage (
   expect(storage.getItem(ELEVATION_STORAGE_KEY)).toBe(encoded);
   expect(normalizeElevationDocument(loaded)).toEqual(loaded);
   expect(isElevationDocument(loaded)).toBe(true);
-  expect(sheetPanelStyle()).toMatchObject({ designId: 'slab', thickness: 0.75 });
+  expect(sheetPanelStyle(loaded.settings)).toMatchObject({ designId: 'slab', thickness: 0.75 });
 });
 
 it('527. appends missing seeds in seed order after the retained saved designs', () => {

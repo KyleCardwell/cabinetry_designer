@@ -84,6 +84,7 @@ const V2_NUMERIC_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
   (key) => typeof DEFAULT_SETTINGS[key] === 'number',
 );
 const V2_DEFAULTED_SETTING_KEYS = [
+  'sheetThickness',
   'fillerReturnDepth',
   'fillerReturnThickness',
   'fillerThickness',

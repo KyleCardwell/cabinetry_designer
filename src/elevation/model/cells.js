@@ -1,5 +1,5 @@
 import { isNestedGrid } from './grid.js';
-import { teamDoorStyle } from './doorStyles.js';
+import { sheetThickness, teamDoorStyle } from './doorStyles.js';
 
 export const MIN_CELL_SIZE = 1;
 
@@ -292,7 +292,7 @@ export function shelfParts(piece, settings) {
   if (piece?.kind !== 'shelves' || !piece.shelves) return [];
   const { count, back } = piece.shelves;
   const thickness = settings.floatingShelfThickness;
-  const backThickness = back ? settings.endPanelThickness : 0;
+  const backThickness = back ? sheetThickness(settings) : 0;
   const gap = (piece.height - count * thickness) / (count + 1);
   const parts = [];
   if (back) {

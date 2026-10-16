@@ -66,6 +66,7 @@ export const DEFAULT_SETTINGS = {
   fillerMinWidth: 1.5,
   fillerWarnWidth: 6,
   endPanelThickness: 0.75,
+  sheetThickness: 0.75,
   defaultInteriorFillerWidth: 3,
   minRunWidth: 9,
   maxRunOverhang: 36,

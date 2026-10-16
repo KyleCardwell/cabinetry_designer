@@ -10,13 +10,13 @@ function leaves(values, prefix = '') {
 }
 
 describe('DB1 a settings registry', () => {
-  it('covers exactly 126 settings leaves, with 76 room settings and 11 team-only settings after HP4', () => {
+  it('covers exactly 127 settings leaves, with 77 room settings and 11 team-only settings after HP4', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(126);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(76);
+    expect(new Set(keys).size).toBe(127);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(77);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(11);
   });
 
@@ -35,6 +35,9 @@ describe('DB1 a settings registry', () => {
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'cabinet')).toHaveLength(3);
     expect(SETTINGS_REGISTRY.filter(({ managedBy }) => managedBy)).toHaveLength(39);
     expect(registryEntry('defaultProfile.nosingProfileId').kind).toBe('id');
+    expect(registryEntry('sheetThickness')).toEqual({
+      key: 'sheetThickness', label: 'Sheet thickness', kind: 'number', lowest: 'room',
+    });
     expect(registryEntry('defaultStyle.cabinetStyleId').choices).toEqual([13, 14, 15]);
   });
 

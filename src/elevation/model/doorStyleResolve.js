@@ -54,7 +54,7 @@ export function resolveDoorStyle(room, settings, partType, levels, designs = set
     }
     if (id === 'sheet') {
       if (partType === 'panel') {
-        style = sheetPanelStyle();
+        style = sheetPanelStyle(settings);
         source = { level, key };
         return true;
       }
