@@ -24,7 +24,7 @@ import { teeFillers } from '../elevation/model/tees.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { doorOrderItems } from './doorOrder.js';
 import { formatInch, formatSize } from './format.js';
-import { frameMemberRoles, frameNotes, frameStandards } from './frameNotes.js';
+import { frameMemberRoles, frameNotes, frameReasons, frameStandards } from './frameNotes.js';
 
 const TYPES = { 1: 'Base', 2: 'Upper', 3: 'Tall' };
 const MOLDINGS = { toeKick: 'Toe Kick', topMold: 'Top Mold', crown: 'Crown' };
@@ -327,8 +327,10 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
     const members = region && frameMembers(region, regionOpenings(region, scene.faceLayouts));
     if (members) {
       const bead = runFrame(room, run, settings).bead;
-      groups[10] = frameNotes(frameMemberRoles(region, members, scene.cells.pieces),
-        frameStandards(shop.insetFrame, bead), { bead, numberOf });
+      const standards = frameStandards(shop.insetFrame, bead);
+      const entries = frameReasons(room, wall, run, scene, region,
+        frameMemberRoles(region, members, scene.cells.pieces), settings, standards);
+      groups[10] = frameNotes(entries, standards, { bead, numberOf });
     }
   }
   if (style && style.id !== 'sheet') {

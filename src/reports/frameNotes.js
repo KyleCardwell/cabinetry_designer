@@ -1,4 +1,9 @@
 import { DEFAULT_SETTINGS } from '../elevation/model/constants.js';
+import { BOTTOM_PART_LABELS, frameBottomParts } from '../elevation/model/bottoms.js';
+import { cornerLap } from '../elevation/model/cornerLaps.js';
+import { runEndThickness, wallPanelThickness } from '../elevation/model/panelThickness.js';
+import { runSeamGap } from '../elevation/model/styles.js';
+import { wallEndPanelAt } from '../elevation/model/wallSides.js';
 import { formatInch } from './format.js';
 
 const EPSILON = 1e-6;
@@ -51,6 +56,55 @@ const WIDTH_EPSILON = 1e-4;
 const sameWidth = (a, b) => Math.abs(a - b) <= WIDTH_EPSILON;
 const uniformWidth = (members) => members.length > 0
   && members.every((member) => sameWidth(member.width, members[0].width));
+
+/** Explain differing widths using the first applicable construction rule. */
+export function frameReasons(room, wall, run, scene, region, entries, settings, standards) {
+  const edge = (rect, side) => rect.x + (side === 'right' ? rect.width : 0);
+  const atEdge = (piece, side) => Math.abs(edge(piece, side) - edge(region, side)) <= EPSILON;
+  const pieces = scene.cells.pieces;
+  const reasonFor = (member) => {
+    if (member.role === 'left-stile' || member.role === 'right-stile') {
+      const side = member.role === 'left-stile' ? 'left' : 'right';
+      if (atEdge(run, side) && cornerLap(room, wall, run, side, settings)?.laps) return 'corner lap';
+      if (pieces.some((piece) => region.fillerIds.includes(piece.id) && atEdge(piece, side))) return 'filler';
+      if (pieces.some((piece) => piece.id === `${run.id}:${side}`
+        && piece.kind === 'end_panel' && region.panelIds.includes(piece.id) && atEdge(piece, side))) {
+        return `mitered to ${formatInch(runEndThickness(room, wall, run, settings)[side])} end panel`;
+      }
+      if (region.wallPanels?.some((panel) => panel.side === side && atEdge(panel, side))) {
+        const { endpoint } = wallEndPanelAt(room, wall, side, settings);
+        return `mitered to ${formatInch(wallPanelThickness(room, wall, settings)[endpoint])} end panel`;
+      }
+    }
+    if (member.role === 'stile') {
+      const boxes = pieces.filter((piece) => member.sitsOn.includes(piece.id));
+      const seam = runSeamGap(room, run, settings);
+      for (const left of boxes) {
+        for (const right of boxes) {
+          const gap = right.x - left.x - left.width;
+          const overlap = Math.min(left.z + left.height, right.z + right.height) - Math.max(left.z, right.z);
+          if (gap - seam > EPSILON && overlap > EPSILON
+            && left.x + left.width >= member.x - EPSILON
+            && right.x <= member.x + member.width + EPSILON) {
+            return `${formatInch(gap - seam)} spacer`;
+          }
+        }
+      }
+    }
+    if (member.role === 'bottom-rail') {
+      const { height, count } = frameBottomParts(run);
+      if (height > 0) {
+        return `${run.bottom.slice(0, count).map((part) => BOTTOM_PART_LABELS[part.kind].toLowerCase()).join(' & ')} behind`;
+      }
+    }
+    return null;
+  };
+  return entries.map((entry) => {
+    const width = STILE_ROLES.has(entry.role) ? entry.width : entry.height;
+    const reason = !sameWidth(width, standards[entry.role]) && reasonFor(entry);
+    return reason ? { ...entry, reason } : entry;
+  });
+}
 
 /** Format frame note text from roles, shop standards and optional member reasons. */
 export function frameNotes(entries, standards, { bead = 0, numberOf = () => null } = {}) {

@@ -11,6 +11,7 @@ import { runBandEnds, runBands } from '../../elevation/model/runBands.js';
 import * as sceneModel from '../../elevation/model/runScene.js';
 import { normalizeElevationDocument } from '../../elevation/store/persistence.js';
 import { doorOrderItems } from '../doorOrder.js';
+import { formatInch } from '../format.js';
 import { cabinetDescription, drawerFrontNote, hingeNote, linealFeet, shippingDescription, shippingList } from '../shippingList.js';
 
 const settings = DEFAULT_SETTINGS;
@@ -45,6 +46,109 @@ function room(runs = [run()], overrides = {}, wallOverrides = {}, s = settings) 
 const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entry) => entry.key === key);
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
+
+describe('RP2.4 step d face frame reasons', () => {
+  const flat = { ...settings, defaultStyle: { ...settings.defaultStyle, cabinetStyleId: 14 } };
+  const door = (id, extra = {}) => ({ id, kind: 'cabinet', face: face('door'), ...extra });
+  const notes = (r, s = flat, shop = s) => shippingList(r, s, shop).rows
+    .filter(({ kind }) => kind === 'frame').map(({ notes }) => notes);
+
+  it.each([
+    ['D1', 14, ['1 9/16" left stile (mitered to 13/16" end panel)']],
+    ['D2', 15, ['beaded face frame - 1 3/4" stiles & rails',
+      '1 13/16" left stile (mitered to 13/16" end panel)']],
+  ])('explains a mitered run end panel (%s)', (_anchor, cabinetStyleId, expected) => {
+    const s = { ...flat, endPanelThickness: 0.8125,
+      defaultStyle: { ...flat.defaultStyle, cabinetStyleId } };
+    const r = room([run('run', [door('a')], { ends: ends('end_panel') })], {}, {}, s);
+    expect(notes(r, s)).toEqual([expected]);
+  });
+
+  it('explains a folded flex filler at a wall (D3)', () => {
+    const r = room([run('run', [door('a', { width: 45 })], {
+      x: 0, width: 48, anchors: { left: true, right: false },
+      ends: { ...ends(), left: { type: 'filler', width: null } },
+    })], {}, {}, flat);
+    const wall = resolveWall(r, r.walls[0], 'front');
+    const scene = runScene(r, wall, wall.runs[0], flat);
+    const filler = scene.cells.pieces.find(({ kind }) => kind === 'filler');
+    expect(notes(r)).toEqual([[`${formatInch(filler.width + 0.75)} left stile (filler)`]]);
+  });
+
+  it('prefers corner lap to filler when a face frame laps a Euro run (D4)', () => {
+    const makeRun = (id) => run(id, [door(`${id}-cab`, { width: 45 })], {
+      x: 0, width: 48, anchors: { left: true, right: true },
+      ends: { left: { type: 'filler', width: null }, right: { type: 'filler', width: null } },
+    });
+    const a = makeRun('a');
+    a.style = { cabinetStyleId: 14 };
+    const b = makeRun('b');
+    const r = syncRoom({ id: 'room', profile: { ...settings.defaultProfile }, walls: [
+      { id: 'A', x1: 0, y1: 0, x2: 84.875, y2: 0, height: 96, thickness: 4.5,
+        connections: { end: { wallId: 'B', endpoint: 'start' } },
+        profile: {}, openings: [], runs: [a] },
+      { id: 'B', x1: 84.875, y1: 0, x2: 84.875, y2: 120.875, height: 96, thickness: 4.5,
+        connections: { start: { wallId: 'A', endpoint: 'end' } },
+        profile: {}, openings: [], runs: [b] },
+    ] }, settings);
+    expect(notes(r, settings)).toHaveLength(1);
+    expect(notes(r, settings)[0]).toContainEqual(expect.stringMatching(/right stile \(corner lap\)$/));
+    expect(notes(r, settings)[0]).not.toContainEqual(expect.stringMatching(/right stile \(filler\)$/));
+  });
+
+  it('explains a half-inch gap between flat boxes (D5)', () => {
+    const r = room([run('run', [door('a', { gap: 0.5 }), door('b')])], {}, {}, flat);
+    expect(notes(r)).toEqual([['2" stile @ #1/#2 (1/2" spacer)']]);
+  });
+
+  it('explains an upper bottom rail covering a light rail (D6)', () => {
+    const r = room([run('run', [door('a')], { cabinetTypeId: 2, z: 54, depth: 12,
+      bottom: [{ id: 'light', kind: 'light_rail', height: 1.5, doors: 'cover' }],
+    })], {}, {}, flat);
+    expect(notes(r)).toEqual([['2 1/4" bottom rail (light rail behind)']]);
+  });
+
+  it('leaves typed reveals without reasons (D7 / C6)', () => {
+    const r = room([run('run', [door('a', { reveals: { left: 2.0625 } }), door('b')])], {}, {}, flat);
+    expect(notes(r)).toEqual([['2 13/16" left stile']]);
+  });
+
+  it('uses the correct wall panel endpoint and style thickness on front and back views', () => {
+    const r = room(['front', 'back'].map((wallSide) => run(wallSide, [door(`${wallSide}-cab`)], {
+      x: 0, width: 48, wallSide, anchors: { left: true, right: true },
+    })), {}, { x2: 48, thickness: 0,
+      endPanels: { start: { width: null, styleId: 'thick' }, end: { width: null } },
+    }, flat);
+    r.doorStyles = [{ ...DEFAULT_DOOR_STYLE, id: 'thick', thickness: 1 }];
+    expect(notes(syncRoom(r, flat))).toEqual([
+      ['1 3/4" left stile (mitered to 1" end panel)'],
+      ['1 3/4" right stile (mitered to 1" end panel)'],
+    ]);
+  });
+
+  it('subtracts the beaded seam gap and ignores gaps equal to the run standard', () => {
+    const s = { ...flat, defaultStyle: { ...flat.defaultStyle, cabinetStyleId: 15 } };
+    const beaded = 'beaded face frame - 1 3/4" outer stiles & rails, 2" interior stiles & rails';
+    const fixture = (gap) => room([run('run', [door('a', { gap }), door('b')])], {}, {}, s);
+    expect(notes(fixture(1), s)).toEqual([[beaded, '2 1/2" stile @ #1/#2 (1/2" spacer)']]);
+    expect(notes(fixture(0.5), s)).toEqual([[beaded]]);
+    const standard = { ...s, insetFrame: { ...s.insetFrame, stile: 1 } };
+    expect(notes(fixture(1), s, standard)).toEqual([[
+      'beaded face frame - 2 1/4" outer stiles & rails, 2 1/2" interior stiles & rails',
+      '1 3/4" left stile', '1 3/4" right stile']]);
+  });
+
+  it('joins only the leading covered bottom part labels', () => {
+    const r = room([run('run', [door('a')], { cabinetTypeId: 2, z: 54, depth: 12,
+      bottom: [
+        { id: 'light', kind: 'light_rail', height: 1.5, doors: 'cover' },
+        { id: 'panel', kind: 'panel', height: 0.75, doors: 'flush' },
+        { id: 'cap', kind: 'bottom_cap', height: 1, doors: 'visible' },
+      ],
+    })], {}, {}, flat);
+    expect(notes(r)).toEqual([['3" bottom rail (light rail & panel behind)']]);
+  });
+});
 
 describe('RP2.4 step c shipping face frame notes', () => {
   function fixture(insetFrame = {}, cabinetStyleId = 14, reveals = []) {
