@@ -28,7 +28,7 @@ function shippingTable(list, header, copy) {
   const rows = [
     fullRow({
       table: { widths: ['auto', '*', 'auto'], body: titleRows }, layout: 'noBorders', fontSize: 10,
-      border: [false, false, false, false], margin: [0, 0, 0, 4],
+      border: [false, false, false, false], margin: [-4, -2, -4, 4],
     }),
     ['Part #', 'Built', 'Shipped', 'Description', 'Notes', 'Size'].map((text) => bordered({
       text, alignment: 'center', bold: true, fillColor: '#D9D9D9',
@@ -48,7 +48,7 @@ function shippingTable(list, header, copy) {
 
   return {
     table: { headerRows: 2, widths: [38, 34, 40, 115, '*', 105], body: rows, dontBreakRows: true },
-    layout: BORDER_LAYOUT,
+    layout: { ...BORDER_LAYOUT, defaultBorder: false },
   };
 }
 

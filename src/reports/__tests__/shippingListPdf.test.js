@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { COPIES } from '../copies.js';
 import { doorOrderDocument } from '../doorOrderPdf.js';
-import { PAGE_MARGINS } from '../pdfParts.js';
+import { BORDER_LAYOUT, PAGE_MARGINS } from '../pdfParts.js';
 import { shippingListDocument, shippingListFileName } from '../shippingListPdf.js';
 
 const header = {
@@ -72,7 +72,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     definition.content.forEach((node, index) => {
       expect(node.table.body[0]).toEqual([
         expect.objectContaining({ colSpan: 6, border: [false, false, false, false],
-          margin: [0, 0, 0, 4], fontSize: 10,
+          margin: [-4, -2, -4, 4], fontSize: 10,
           table: { widths: ['auto', '*', 'auto'], body: expect.any(Array) }, layout: 'noBorders' }),
         {}, {}, {}, {}, {},
       ]);
@@ -141,6 +141,16 @@ describe('RP2 step g shipping list PDF definition', () => {
     expect(PAGE_MARGINS).toEqual([18, 18, 18, 36]);
     expect(document().pageMargins).toBe(PAGE_MARGINS);
     expect(doorOrderDocument({ pages: [] }, header, ['order']).pageMargins).toBe(PAGE_MARGINS);
+  });
+
+  it('disables inherited shipping borders while preserving the door form layout (RP2.2 anchors 1, 5)', () => {
+    expect(document().content[0].layout).toEqual({ ...BORDER_LAYOUT, defaultBorder: false });
+    const door = doorOrderDocument({ pages: [{
+      header: { style: 'Slab', thickness: '3/4' },
+      sections: [{ title: 'Doors', lines: [] }],
+    }] }, header, ['master']);
+    expect(door.content[0].layout).toBe(BORDER_LAYOUT);
+    expect(door.content[0].layout).not.toHaveProperty('defaultBorder');
   });
 
   it('builds and sanitizes shipping list filenames (anchor 8)', () => {
