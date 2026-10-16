@@ -42,6 +42,15 @@ function RoomDoorStylesContent({ room, settings }) {
           />
           Show style tags
         </label>
+        <label className="flex items-center gap-2 text-xs text-gray-300">
+          <input
+            type="checkbox"
+            checked={doorDrawing(room).swings}
+            onChange={(event) => dispatch(setRoomDoorDrawing({ roomId: room.id, swingMarks: event.target.checked }))}
+            aria-label="Show swing marks"
+          />
+          Show swing marks
+        </label>
         {styles.length === 0 && (
           <p className="text-xs text-gray-400">
             No door styles yet — everything uses {inherit.text.slice('Inherit ('.length, -1)}
