@@ -3,6 +3,7 @@ import { panelOrientation } from '../elevation/model/cells.js';
 import { frontDepth, runBackOffset } from '../elevation/model/corners.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
 import { elevationParts } from '../elevation/model/elevationParts.js';
+import { frameMembers, regionOpenings } from '../elevation/model/frames.js';
 import { furnitureBaseGroups } from '../elevation/model/furnitureBaseGroups.js';
 import { moldingPast, moldingProfiles } from '../elevation/model/moldingProfiles.js';
 import {
@@ -23,6 +24,7 @@ import { teeFillers } from '../elevation/model/tees.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { doorOrderItems } from './doorOrder.js';
 import { formatInch, formatSize } from './format.js';
+import { frameMemberRoles, frameNotes, frameStandards } from './frameNotes.js';
 
 const TYPES = { 1: 'Base', 2: 'Upper', 3: 'Tall' };
 const MOLDINGS = { toeKick: 'Toe Kick', topMold: 'Top Mold', crown: 'Crown' };
@@ -293,7 +295,7 @@ function cabinetNotes(room, settings, part, context) {
 }
 
 /** Part notes share vendor annotations and the properties panel's return/chip rules. */
-function partNotes(room, settings, part, context, doorItems) {
+function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
   const { run, scene, piece, shapeNotes, style, wall, end, endpoint, base } = context;
   const groups = {};
   if (part.kind === 'molding') groups[13] = context.molding.note;
@@ -320,6 +322,15 @@ function partNotes(room, settings, part, context, doorItems) {
     }
   }
   groups[10] = doorItems.get(part.key)?.notes;
+  if (part.kind === 'frame') {
+    const region = scene.frames.regions.find(({ id }) => id === part.key);
+    const members = region && frameMembers(region, regionOpenings(region, scene.faceLayouts));
+    if (members) {
+      const bead = runFrame(room, run, settings).bead;
+      groups[10] = frameNotes(frameMemberRoles(region, members, scene.cells.pieces),
+        frameStandards(shop.insetFrame, bead), { bead, numberOf });
+    }
+  }
   if (style && style.id !== 'sheet') {
     let drawn;
     if (part.kind === 'wall_end_panel') drawn = wallPanelThickness(room, wall, settings)[endpoint];
@@ -342,8 +353,10 @@ function orderedNotes(groups) {
     .flatMap(([, notes]) => notes).map((note) => note?.trim()).filter(Boolean);
 }
 
-export function shippingList(room, settings) {
+export function shippingList(room, settings, shop = settings) {
   const { parts, warnings } = partNumbers(room, settings);
+  const numbers = new Map(parts.map(({ key, number }) => [key, number]));
+  const numberOf = (id) => numbers.get(id);
   const getContext = shippingContext(room, settings);
   const doorItems = new Map(doorOrderItems(room, settings).items
     .filter(({ kind }) => kind !== 'face').map((item) => [item.key, item]));
@@ -353,7 +366,7 @@ export function shippingList(room, settings) {
       number: part.number, key: part.key, kind: part.kind,
       description: describePart(room, settings, part, context),
       notes: orderedNotes({ ...cabinetNotes(room, settings, part, context),
-        ...partNotes(room, settings, part, context, doorItems), 14: [room.reportParts?.[part.key]?.note] }),
+        ...partNotes(room, settings, part, context, doorItems, shop, numberOf), 14: [room.reportParts?.[part.key]?.note] }),
       size: shippingSize(room, settings, part, context),
     };
   });

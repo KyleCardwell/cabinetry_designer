@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { frontDepth, runBackOffset } from '../../elevation/model/corners.js';
 import { DEFAULT_DOOR_STYLE } from '../../elevation/model/doorStyles.js';
+import * as frameModel from '../../elevation/model/frames.js';
 import { gridFromItems } from '../../elevation/model/grid.js';
 import { partNumbers } from '../../elevation/model/partNumbers.js';
 import { resolveWall, syncRoom } from '../../elevation/model/room.js';
@@ -44,6 +45,70 @@ function room(runs = [run()], overrides = {}, wallOverrides = {}, s = settings) 
 const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entry) => entry.key === key);
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
+
+describe('RP2.4 step c shipping face frame notes', () => {
+  function fixture(insetFrame = {}, cabinetStyleId = 14, reveals = []) {
+    const s = { ...settings, insetFrame: { ...settings.insetFrame, ...insetFrame },
+      defaultStyle: { ...settings.defaultStyle, cabinetStyleId } };
+    const r = room([run('run', ['a', 'b'].map((id, index) => ({
+      id, kind: 'cabinet', face: face('door', { hinge: 'left' }), reveals: reveals[index],
+    })))], { settingsOverrides: { insetFrame } }, {}, s);
+    return { r, s };
+  }
+
+  it.each([
+    ['C1', {}, 14, [], false, []],
+    ['C2', { stile: 1 }, 14, [], false, ['2" stiles, 1 1/2" rails']],
+    ['C3', { stile: 1, rail: 2 }, 14, [], false, ['2" stiles & rails']],
+    ['C4', {}, 15, [], false, ['beaded face frame - 1 3/4" outer stiles & rails, 2" interior stiles & rails']],
+    ['C5', { stile: 1 }, 14, [], true, []],
+    ['C6', {}, 14, [{ left: 2.0625 }], false, ['2 13/16" left stile']],
+    ['C7', {}, 14, [{ right: 1 }, { left: 1 }], false, ['2" stile @ #1/#2']],
+    ['C8', {}, 14, [{ right: 1 }, { left: 1 }], false, ['2" stile @ #1/#2', 'glue up']],
+  ])('prints the frame row notes for %s', (anchor, insetFrame, style, reveals, sameShop, expected) => {
+    const { r, s } = fixture(insetFrame, style, reveals);
+    const frame = partNumbers(r, s).parts.find(({ kind }) => kind === 'frame');
+    if (anchor === 'C8') r.reportParts = { [frame.key]: { note: 'glue up' } };
+    const result = shippingList(r, s, sameShop ? s : settings);
+    expect(result.rows.filter(({ kind }) => kind === 'cabinet').map(({ number }) => number)).toEqual([1, 2]);
+    expect(result.rows.find(({ kind }) => kind === 'frame')).toMatchObject({ number: 3, notes: expected });
+  });
+
+  it('keeps Euro rows unchanged and has no frame row (C9)', () => {
+    const { r, s } = fixture({}, 13);
+    const result = shippingList(r, s);
+    expect(result.rows.some(({ kind }) => kind === 'frame')).toBe(false);
+    expect(shippingList(r, s, { ...settings, insetFrame: { stile: 2, rail: 3 } })).toEqual(result);
+    expect(result.rows.filter(({ kind }) => kind === 'cabinet')).toEqual([
+      { number: 1, key: 'a', kind: 'cabinet', description: 'Base', notes: ['hl'], size: '9 x 30 1/2 x 24' },
+      { number: 2, key: 'b', kind: 'cabinet', description: 'Base', notes: ['hl'], size: '9 x 30 1/2 x 24' },
+    ]);
+  });
+
+  it('uses room settings as the standards when shop settings are omitted', () => {
+    const { r, s } = fixture({ stile: 1 });
+    expect(shippingList(r, s).rows.find(({ kind }) => kind === 'frame').notes).toEqual([]);
+  });
+
+  it('uses the shipping row part-number overrides for member locations', () => {
+    const { r, s } = fixture({}, 14, [{ right: 1 }, { left: 1 }]);
+    r.partNumberOverrides = { a: 8, b: 5 };
+    expect(shippingList(r, s, settings).rows.find(({ kind }) => kind === 'frame').notes)
+      .toEqual(['2" stile @ #5/#8']);
+  });
+
+  it('preserves free text without frame notes when members cannot be cut apart', () => {
+    const { r, s } = fixture({}, 15);
+    const frame = partNumbers(r, s).parts.find(({ kind }) => kind === 'frame');
+    r.reportParts = { [frame.key]: { note: 'glue up' } };
+    const spy = vi.spyOn(frameModel, 'frameMembers').mockReturnValue(null);
+    try {
+      expect(shippingList(r, s, settings).rows.find(({ kind }) => kind === 'frame').notes).toEqual(['glue up']);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
 
 describe('FL1 step a ordered filler depths', () => {
   const endRun = (overrides = {}) => run('run', undefined, {

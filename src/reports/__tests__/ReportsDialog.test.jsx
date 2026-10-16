@@ -318,6 +318,7 @@ describe('RP2 step h Reports', () => {
   });
 
   it('builds with the active room, effective settings, project and source revision for all three screens', async () => {
+    state.elevation.rooms[0].settingsOverrides.insetFrame = { stile: 1 };
     for (const [source, info, revision] of [
       ['cloud', { lastVersion: { label: 'KC 10/15/26', seq: 2 } }, 'DRAFT · last issued KC 10/15/26 (v2)'],
       ['version', { issued: { label: 'KC 10/15/26', seq: 2 } }, 'KC 10/15/26 (v2)'],
@@ -329,7 +330,9 @@ describe('RP2 step h Reports', () => {
       await submit(dialog);
       const settings = selectSettings(state);
       expect(doorOrder).toHaveBeenLastCalledWith(state.elevation.rooms[0], settings);
-      expect(shippingList).toHaveBeenLastCalledWith(state.elevation.rooms[0], settings);
+      expect(shippingList).toHaveBeenLastCalledWith(state.elevation.rooms[0], settings, state.elevation.settings);
+      expect(settings.insetFrame.stile).toBe(1);
+      expect(state.elevation.settings.insetFrame.stile).toBe(0.75);
       expect(settings.report.wood).toBe('Room oak');
       expect(reportHeader).toHaveBeenLastCalledWith({ project: state.elevation.cloud.project, room: state.elevation.rooms[0], settings, revision });
       const header = reportHeader.mock.results.at(-1).value;

@@ -46,6 +46,7 @@ function warningMessage(warning) {
 export default function ReportsDialog({ onClose }) {
   const { rooms, activeRoomId, source, cloud } = useSelector((state) => state.elevation);
   const settings = useSelector(selectSettings);
+  const shop = useSelector((state) => state.elevation.settings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
   const [selected, setSelected] = useState(savedReports);
   const [copies, setCopies] = useState(savedCopies);
@@ -85,7 +86,7 @@ export default function ReportsDialog({ onClose }) {
         else await downloadPdf(doorOrderDocument(order, header, copies), doorOrderFileName(header, room.name));
       }
       if (selected.includes('shipping_list')) {
-        const list = shippingList(room, settings);
+        const list = shippingList(room, settings, shop);
         reportWarnings.push(...list.warnings);
         if (!list.rows.some((row) => row.kind !== 'adjustable_shelves')) messages.push('No parts in this room.');
         else await downloadPdf(shippingListDocument(list, header, copies), shippingListFileName(header, room.name));
