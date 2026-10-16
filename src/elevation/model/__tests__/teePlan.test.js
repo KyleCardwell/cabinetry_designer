@@ -43,7 +43,7 @@ describe('SPEC-37 T-fillers in plan', () => {
       { key: 'tee:a|b', kind: 'filler', start: 41.25, end: 42.75, back: 24, front: 24.8125 },
     ]);
     expect(returns).toEqual([
-      { key: 'tee:a|b:return', start: 41.625, end: 42.375, back: 21.5, front: 24 },
+      { key: 'tee:a|b:return', start: 41.625, end: 42.375, back: 21.625, front: 24.125 },
     ]);
   });
 
@@ -65,8 +65,8 @@ describe('SPEC-37 T-fillers in plan', () => {
       { key: 'r:right', kind: 'filler', start: 62.25, end: 66, back: 24, front: 24.8125 },
     ]);
     expect(returns).toEqual([
-      { key: 'r:left:right', start: 26.25, end: 27, back: 21.5, front: 24 },
-      { key: 'r:right:left', start: 63, end: 63.75, back: 21.5, front: 24 },
+      { key: 'r:left:right', start: 26.25, end: 27, back: 21.625, front: 24.125 },
+      { key: 'r:right:left', start: 63, end: 63.75, back: 21.625, front: 24.125 },
     ]);
   });
 
@@ -78,13 +78,13 @@ describe('SPEC-37 T-fillers in plan', () => {
     });
     const { faces, returns } = planOf(run);
     expect(faces.find((face) => face.key === 'r:left')).toMatchObject({ start: 21, end: 27.75 });
-    expect(returns).toEqual([{ key: 'r:left:right', start: 26.25, end: 27, back: 20, front: 24 }]);
+    expect(returns).toEqual([{ key: 'r:left:right', start: 26.25, end: 27, back: 20.125, front: 24.125 }]);
   });
 
   it('draws nothing more without T-fillers, and pushes T-fillers out by the outset', () => {
     expect(planOf(baseRun({ tFiller: undefined })).faces.map((face) => face.key)).toEqual(['a:r', 'b:r']);
     const { faces, returns } = planOf(baseRun({ outset: 2 }));
     expect(faces.find((face) => face.key === 'tee:a|b')).toMatchObject({ back: 26, front: 26.8125 });
-    expect(returns[0]).toMatchObject({ back: 23.5, front: 26 });
+    expect(returns[0]).toMatchObject({ back: 23.625, front: 26.125 });
   });
 });

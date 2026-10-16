@@ -269,7 +269,7 @@ describe('SPEC-40 drawing payload', () => {
     }
   });
 
-  it('SPEC-46.4 draws each face in plan at its own thickness; the filler follows the thickest (G1)', () => {
+  it('SPEC-46.4 draws each face in plan at its own thickness; the filler front follows the thickest with its shop thickness (G1)', () => {
     const BASE = 'b822e8ac-1a44-47ca-acec-ecb93caf7b8a';
     const CAB_24 = 'cfc9c904-3a11-43ee-a48d-88bef061b5ae';
     const CAB_36 = '0f652c26-5f80-4387-8a1b-1f35ada26b59';
@@ -284,6 +284,6 @@ describe('SPEC-40 drawing payload', () => {
     expect(points(`${CAB_36}:rleft`))
       .toEqual([[-35.9375, -29.9375], [-35.9375, -12.0625], [-35.125, -12.0625], [-35.125, -29.9375]]);
     expect(points(`${BASE}:right`))
-      .toEqual([[-35.9375, 57], [-35.9375, 59.125], [-34.9375, 59.125], [-34.9375, 57]]);
+      .toEqual([[-35.75, 57], [-35.75, 59.125], [-34.9375, 59.125], [-34.9375, 57]]);
   });
 });

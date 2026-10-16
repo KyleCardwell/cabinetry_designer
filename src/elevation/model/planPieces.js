@@ -68,6 +68,18 @@ export function fillerOrderedDepth(room, wall, run, piece, settings) {
   return depth > 0 ? thickness + depth - settings.fillerReturnTongue : thickness;
 }
 
+/** Open cabinets touching either edge put the filler at the box fronts. */
+export function fillerAtBoxFace(pieces, faceLayouts, filler) {
+  const cabinets = pieces.filter((piece) => piece.kind === 'cabinet'
+    && (Math.abs(piece.x + piece.width - filler.x) <= WIDTH_EPSILON
+      || Math.abs(piece.x - filler.x - filler.width) <= WIDTH_EPSILON)
+    && Math.min(piece.z + piece.height, filler.z + filler.height)
+      - Math.max(piece.z, filler.z) > WIDTH_EPSILON);
+  return cabinets.length > 0 && cabinets.every((piece) => (
+    !(faceLayouts.get(piece.id)?.faces ?? []).some((face) => face.type !== 'open')
+  ));
+}
+
 function fillerSpan(run, piece, settings) {
   const side = endSideOf(piece);
   const width = fillerOrderedWidth(run, piece, settings);
@@ -87,7 +99,7 @@ function cabinetFaces(piece, faceLayouts) {
   return faces.map((face) => ({ ...face, piece }));
 }
 
-function planFaces(run, settings, pieces, faceLayouts, panels, band, faceBack, faceFront) {
+function planFaces(run, settings, pieces, faceLayouts, panels, band, faceBack, faceFront, fillerBand) {
   const columns = new Map();
   for (const piece of pieces) {
     if (piece.kind !== 'cabinet') continue;
@@ -134,8 +146,7 @@ function planFaces(run, settings, pieces, faceLayouts, panels, band, faceBack, f
         kind: 'filler',
         start,
         end,
-        back: faceBack,
-        front: faceFront,
+        ...fillerBand(piece),
       }];
     }
     if (piece.kind === 'end_panel') {
@@ -161,7 +172,7 @@ function planFaces(run, settings, pieces, faceLayouts, panels, band, faceBack, f
   });
 }
 
-function fillerReturns(run, settings, layout, panels, faceBack, hidden = new Set()) {
+function fillerReturns(run, settings, layout, panels, fillerBand, hidden = new Set()) {
   return layout.pieces.flatMap((piece, index) => {
     if (piece.kind !== 'filler' || hidden.has(piece.id)) return [];
     if (panels.has(endSideOf(piece))) return [];
@@ -171,6 +182,7 @@ function fillerReturns(run, settings, layout, panels, faceBack, hidden = new Set
     const thickness = Math.min(settings.fillerReturnThickness, trueWidth);
     const returnDepth = fillerReturnDepth(run, piece, settings);
     if (!(returnDepth > 0)) return [];
+    const front = fillerBand(piece).back + settings.fillerReturnTongue;
 
     return ['left', 'right'].flatMap((side) => {
       const neighborIndex = side === 'left' ? index - 1 : index + 1;
@@ -179,8 +191,8 @@ function fillerReturns(run, settings, layout, panels, faceBack, hidden = new Set
         key: `${piece.id}:${side}`,
         start: side === 'left' ? span.start : span.end - thickness,
         end: side === 'left' ? span.start + thickness : span.end,
-        back: faceBack - returnDepth,
-        front: faceBack,
+        back: front - returnDepth,
+        front,
       }];
     });
   });
@@ -279,6 +291,11 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const faceBack = run.depth + settings.bumperThickness;
   const faceFront = frontDepth(run, settings) - outset;
   const cells = cellPieces(run, layout);
+  const fillerThickness = runFillerThickness(room, wall, run, settings);
+  const fillerBand = (piece) => {
+    const front = fillerAtBoxFace(cells.pieces, faceLayouts, piece) ? run.depth : faceFront;
+    return { back: front - fillerThickness, front };
+  };
   const frames = frameRegions(room, run, cells, settings);
   const framedIds = new Set(frames.regions.flatMap((region) => region.cabinetIds));
   const leafOf = (piece) => (piece.columnId
@@ -339,8 +356,9 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
     band,
     faceBack,
     faceFront,
+    fillerBand,
   ), run.depth, faceFront), run, panelRunMiters(room, wall, run, settings));
-  const returns = fillerReturns(run, settings, layout, panels, faceBack, frames.fillerIds);
+  const returns = fillerReturns(run, settings, layout, panels, fillerBand, frames.fillerIds);
   // T-fillers (SPEC-37): a hardwood flat `teeThickness` (13/16") thick from the box face, with the
   // filler's 3/4" return behind it into the box. An end T's flat reaches over its box on the
   // filler's own face; a T between boxes is a flat and a return centred on the seam. Horizontal Ts
@@ -348,6 +366,7 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const { tees, ells } = teeFillers(room, run, cells, settings);
   const teeBack = run.depth;
   const teeFront = run.depth + settings.teeThickness;
+  const teeReturnFront = teeBack + settings.fillerReturnTongue;
   const endTees = new Map(tees.filter((tee) => tee.end).map((tee) => [tee.id, tee]));
   const endElls = new Map(ells.map((ell) => [ell.pieceId, ell]));
   const seamTees = tees.filter((tee) => tee.orientation === 'vertical' && !tee.end);
@@ -387,14 +406,14 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
       key: `${tee.id}:return`,
       start: tee.ret.start,
       end: tee.ret.end,
-      back: teeBack - settings.fillerReturnDepth,
-      front: teeBack,
+      back: teeReturnFront - settings.fillerReturnDepth,
+      front: teeReturnFront,
     }))
     : [];
   const endReturns = returns.map((piece) => {
     const tee = [...endTees.keys()].find((id) => piece.key.startsWith(`${id}:`));
     return tee
-      ? { ...piece, back: teeBack - (piece.front - piece.back), front: teeBack }
+      ? { ...piece, back: teeReturnFront - (piece.front - piece.back), front: teeReturnFront }
       : piece;
   });
   const waterfallLegs = planWaterfallLegs(room, wall, run, settings);

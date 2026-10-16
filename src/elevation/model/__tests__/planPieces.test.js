@@ -192,8 +192,8 @@ describe('plan box and face geometry', () => {
       key: 'P:left:right',
       start: 2.25,
       end: 3,
-      back: 21.5625,
-      front: 24.0625,
+      back: 21.6875,
+      front: 24.1875,
     }]);
   });
 
@@ -222,8 +222,8 @@ describe('plan box and face geometry', () => {
       key: 'P:left:right',
       start: 2.25,
       end: 3,
-      back: 20.0625,
-      front: 24.0625,
+      back: 20.1875,
+      front: 24.1875,
     }]);
     expect(result.boxes).toEqual([{
       key: 'c1', start: 3, end: 30, back: 0, front: 24,
@@ -289,8 +289,8 @@ describe('plan box and face geometry', () => {
       key: 'P:left:right',
       start: 14.25,
       end: 15,
-      back: 21.5625,
-      front: 24.0625,
+      back: 21.6875,
+      front: 24.1875,
     }]);
     expect(returnedResult.faces.filter(({ kind }) => kind === 'filler')).toEqual([
       expect.objectContaining({ start: 9, end: 15 }),

@@ -92,7 +92,7 @@ describe('SPEC-46 a run\'s front plane follows its thickest face (P11)', () => {
   it('brings fillers out to the new front plane (G1 elevation A)', () => {
     const room = styled((r) => { leafOf(runOf(r, BASE), CAB_36).doorStyleId = 'ds-thick'; });
     const filler = elevationParts(room, room.walls[0], 'front', settings).find((part) => part.id === `${BASE}:right`);
-    expect([filler.back, filler.front]).toEqual([24.0625, 25.0625]);
+    expect([filler.back, filler.front]).toEqual([24.25, 25.0625]);
   });
 
   it('never saves _doorThickness', () => {

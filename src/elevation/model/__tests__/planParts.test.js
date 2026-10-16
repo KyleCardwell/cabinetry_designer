@@ -83,7 +83,7 @@ describe('SPEC-44 the room in plan: runs', () => {
       ['run:right', 'filler', 90, undefined],
       ['run:right:left', 'filler', 90, undefined],
     ]);
-    expect(parts.at(-1).points).toEqual([[-50.4375, 69.25], [-50.4375, 70], [-47.9375, 70], [-47.9375, 69.25]]);
+    expect(parts.at(-1).points).toEqual([[-50.3125, 69.25], [-50.3125, 70], [-47.8125, 70], [-47.8125, 69.25]]);
   });
 
   it('gives each stacked box its own top, so the higher one hides the lower (G4)', () => {
