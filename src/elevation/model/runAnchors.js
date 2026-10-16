@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from './constants.js';
+import { cornerLap } from './cornerLaps.js';
 import {
   cornerAt,
   cornerFillerMin,
@@ -59,6 +60,7 @@ export function endMinWidthsForRun(room, wall, run, settings) {
       side,
       corner.anchored && corner.type === 'inside'
         ? Math.max(0, cornerFillerMin(settings, corner.angle) - frameReveal - teeCover(side))
+          + cornerReserveParts(room, wall, side, run, settings).lap
         : settings.fillerMinWidth,
     ];
   }));
@@ -94,12 +96,12 @@ function openingAnchorDatum(anchor, side, wall, length, settings) {
 }
 
 /** Resolve a run anchor into an absolute wall-local datum. */
-export function resolveRunAnchorDatum(room, wall, run, side, settings) {
+export function resolveRunAnchorDatum(room, wall, run, side, settings, { laps = true } = {}) {
   wall = wallViewForRun(wall, run);
   const anchor = run.anchors?.[side];
   const length = wallLength(wall);
   if (anchor === true) {
-    const reserve = cornerReserve(room, wall, side, run, settings);
+    const reserve = cornerReserve(room, wall, side, run, settings, { laps });
     return { x: side === 'left' ? reserve : length - reserve, type: 'corner' };
   }
   if (anchor?.to === 'opening') {
@@ -120,7 +122,7 @@ export function resolveRunAnchorDatum(room, wall, run, side, settings) {
   if (anchor?.to === 'wall') {
     const interval = landingsOn(room, wall).find((entry) => entry.wallId === anchor.wallId);
     if (!interval) return { error: { code: 'anchor-wall-missing', side } };
-    const reserve = cornerReserve(room, wall, side, run, settings);
+    const reserve = cornerReserve(room, wall, side, run, settings, { laps });
     return {
       x: side === 'left' ? interval.b + reserve : interval.a - reserve,
       type: 'wall',
@@ -222,25 +224,51 @@ export function describeAnchor(room, wall, run, side, settings) {
       : `Held back ${formatInches(parts.total)}`;
   }
   const resolved = `Reserve ${formatInches(parts.total)}`;
-  if (parts.source === 'face') return `${resolved} · Face only`;
+  const lap = parts.lap > 0 ? ` − lap ${formatInches(parts.lap)}` : '';
+  if (parts.source === 'face') return `${resolved} · Face only${lap ? ` (face ${formatInches(parts.face)}${lap})` : ''}`;
   if (parts.source === 'custom') return `${resolved} · Custom`;
-  return `${resolved} (face ${formatInches(parts.face)} + back ${formatInches(parts.back)})`;
+  return `${resolved} (face ${formatInches(parts.face)} + back ${formatInches(parts.back)}${lap})`;
 }
 
-function horizontalResolution(room, wall, run, settings) {
+function horizontalResolution(room, wall, run, settings, { laps = true } = {}) {
   const length = wallLength(wall);
-  const left = resolveRunAnchorDatum(room, wall, run, 'left', settings);
-  const right = resolveRunAnchorDatum(room, wall, run, 'right', settings);
+  const left = resolveRunAnchorDatum(room, wall, run, 'left', settings, { laps });
+  const right = resolveRunAnchorDatum(room, wall, run, 'right', settings, { laps });
   const errors = [left.error, right.error].filter(Boolean);
   if (Boolean(run.anchors?.left) && Boolean(run.anchors?.right)
     && !left.error && !right.error && right.x < left.x) {
     errors.push({ code: 'anchor-opening-overlap' });
   }
   if (errors.length > 0) {
-    return { x: run.x, width: run.width, warnings: [], errors };
+    return {
+      x: run.x,
+      width: run.width - (laps ? 0 : run._cornerLapWidth ?? 0),
+      lapWidth: laps ? run._cornerLapWidth ?? 0 : 0,
+      warnings: [], errors,
+    };
   }
-  const resolved = resolveHorizontal(run, length, left, right, settings);
-  return { ...resolved, errors: [...errors, ...resolved.errors] };
+  // Resolved spans carry their added lap width only in memory. Start from the laps-off width so
+  // syncing again (or changing a manual choice) cannot grow a run a second time.
+  let width = run.width - (run._cornerLapWidth ?? 0);
+  const anchored = ['left', 'right'].filter((side) => run.anchors?.[side]);
+  if (laps && anchored.length === 1) {
+    width += cornerReserveParts(room, wall, anchored[0], run, settings).lap;
+  }
+  const resolved = resolveHorizontal({ ...run, width }, length, left, right, settings);
+  const lapWidth = laps
+    ? resolved.width - horizontalResolution(room, wall, run, settings, { laps: false }).width
+    : 0;
+  return { ...resolved, lapWidth, errors: [...errors, ...resolved.errors] };
+}
+
+/** Report conflicting manual corner choices on each affected run. */
+export function cornerLapWarnings(room, wall, run, settings) {
+  return ['left', 'right'].flatMap((side) => {
+    const decision = cornerLap(room, wall, run, side, settings);
+    return decision?.conflict ? [{
+      code: 'corner-lap-conflict', side, laps: decision.laps,
+    }] : [];
+  });
 }
 
 function casingClearanceWarnings(run, wall, length, settings) {

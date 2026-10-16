@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../constants.js';
 import { cornerAt, cornerReserveParts } from '../corners.js';
+import { cornerLap } from '../cornerLaps.js';
 import { horizontalChains } from '../dimensions.js';
 import {
   landingInterval,
@@ -319,10 +320,25 @@ describe('wall landings', () => {
     expect(cornerReserveParts(room, W1, 'right', wingRun, DEFAULT_SETTINGS)).toEqual({
       face: 24.875,
       back: 0,
+      lap: 0,
       total: 24.875,
       source: 'auto',
+      neighborRunId: 'AL',
     });
     expect(wingRun.width).toBe(5.125);
+  });
+
+  it('FL2 leaves filler pairs at wing-wall landings without a lap', () => {
+    const ends = { left: { type: 'filler', width: null }, right: { type: 'filler', width: null } };
+    const room = syncRoom(alcove({
+      hostRuns: [AL({ ends })],
+      w1Runs: [base('WR', { ends, width: 30, wallSide: 'back', anchors: { left: false, right: true } })],
+    }), DEFAULT_SETTINGS);
+    for (const [id, side] of [['H', 'left'], ['W1', 'right']]) {
+      const wall = wallById(room, id);
+      expect(cornerLap(room, wall, wall.runs[0], side, DEFAULT_SETTINGS)).toBeNull();
+      expect(cornerReserveParts(room, wall, side, wall.runs[0], DEFAULT_SETTINGS).lap).toBe(0);
+    }
   });
 
   it('147. supports a custom lap past a landed wall face', () => {

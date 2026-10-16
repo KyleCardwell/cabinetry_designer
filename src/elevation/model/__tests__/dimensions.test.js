@@ -246,7 +246,7 @@ describe('horizontalChains', () => {
     const wall = room.walls.find(({ id }) => id === 'B');
     const chains = horizontalChains(room, wall, 'lower', DEFAULT_SETTINGS);
 
-    expect(chains.inner[0]).toEqual({ start: 0, end: 24.875, kind: 'corner-gap' });
+    expect(chains.inner[0]).toEqual({ start: 0, end: 24.0625, kind: 'corner-gap' });
     expect(chains.outer[0]).toEqual({
       start: 0,
       end: 72.875,

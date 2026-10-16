@@ -36,10 +36,10 @@ describe('SPEC-42.2 corner returns', () => {
       ['countertop', 'countertop', 0, 34.5, 25.625, 1.5, 24.875, 138, false],
     ]);
     expect(shapes[1].parts.map(row)).toEqual([
-      ['box', 'section', 0, 54, 12, 36, 12.875, 59.5, true],
-      ['faces', 'section', 12, 54, 0.875, 36, 12.875, 59.5, true],
-      ['top_mold', 'top_mold', 0, 90, 13.125, 1.5, 12.875, 59.5, false],
-      ['crown', 'crown', 0, 91.5, 15.875, 4.5, 12.875, 59.5, false],
+      ['box', 'section', 0, 54, 12, 36, 12.0625, 59.5, true],
+      ['faces', 'section', 12, 54, 0.875, 36, 12.0625, 59.5, true],
+      ['top_mold', 'top_mold', 0, 90, 13.125, 1.5, 12.0625, 59.5, false],
+      ['crown', 'crown', 0, 91.5, 15.875, 4.5, 12.0625, 59.5, false],
     ]);
     expect(shapes[0].parts[1]).toEqual({
       id: `left:${G1_A}:b822e8ac-1a44-47ca-acec-ecb93caf7b8a:box`, kind: 'section',

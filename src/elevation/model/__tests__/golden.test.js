@@ -79,6 +79,7 @@ describe('C1 golden rooms', () => {
 
   for (const name of NAMES) {
     it(`${name} derives exactly what it did`, () => {
+      // FL2 expands G1's 434f1164 right filler and G2's 4b49c071 left filler by 13/16".
       const room = document.rooms.find((candidate) => candidate.name === name);
       expect(derived(room)).toMatchSnapshot();
     });

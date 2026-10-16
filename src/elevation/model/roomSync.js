@@ -38,7 +38,7 @@ import {
 } from './wallSides.js';
 import { wallEndPanels } from './wallEndPanels.js';
 import { cloneRun, cloneRoom } from './roomClone.js';
-import { endMinWidthsForRun, endCornerAnglesForRun, horizontalResolution, casingClearanceWarnings } from './runAnchors.js';
+import { endMinWidthsForRun, endCornerAnglesForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
 import { resolvePinTarget, pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
 
 const PIN_EPSILON = 1e-6;
@@ -64,7 +64,12 @@ function resolveWallSpans(room, wall, settings) {
     const view = { ...wall, runs: wall.runs.map((run) => resolved.get(run.id) ?? run) };
     for (const run of ready) {
       const horizontal = horizontalResolution(room, view, run, settings);
-      resolved.set(run.id, { ...run, x: horizontal.x, width: horizontal.width });
+      const { _cornerLapWidth, ...base } = run;
+      void _cornerLapWidth;
+      resolved.set(run.id, {
+        ...base, x: horizontal.x, width: horizontal.width,
+        ...(horizontal.lapWidth ? { _cornerLapWidth: horizontal.lapWidth } : {}),
+      });
     }
     pending = pending.filter((run) => !resolved.has(run.id));
   }
@@ -402,6 +407,7 @@ export function roomDiagnostics(room, settings) {
           ...(overhang.left > 0 || overhang.right > 0 ? [overhang] : []),
           ...blockedOpenings,
           ...casingClearanceWarnings(run, wall, length, settings),
+          ...cornerLapWarnings(synced, wall, run, settings),
           ...soffitConflicts(wall, run),
           ...recessWarnings(wall, run),
         ],

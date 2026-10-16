@@ -36,7 +36,7 @@ describe('SPEC-41 elevation parts', () => {
       ['ae7626bb-d1e5-4396-8b5b-a8630bfed949', 'cabinet', 109.25, 54, 22, 36, 0, 12, false],
       ['2dc1a45e-c462-4c4a-99f3-65c8b6782a2a', 'cabinet', 131.25, 54, 22, 36, 0, 12, false],
       [`${UPPER}:left`, 'end_panel', 108.5, 53.875, 0.75, 36.125, 0, 12.875, false],
-      [`${UPPER}:right`, 'filler', 153.25, 53.875, 1.875, 36.125, 12.0625, 12.875, true],
+      [`${UPPER}:right`, 'filler', 153.25, 53.875, 2.6875, 36.125, 12.0625, 12.875, true],
     ]);
     expect(parts[0]).toEqual({
       id: '28072a7d-e691-40d1-a005-4d0ed1c9e825', kind: 'cabinet', runId: TALL,

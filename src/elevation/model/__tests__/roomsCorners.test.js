@@ -154,7 +154,7 @@ describe('wall frames and corners', () => {
     })];
     const synced = syncRoom(room, DEFAULT_SETTINGS);
     expect(synced.walls[0].runs[0].x).toBe(35.125);
-    expect(synced.walls[1].runs[0].x).toBe(24.875);
+    expect(synced.walls[1].runs[0].x).toBe(24.0625); // FL2: the shorter neighbor laps.
   });
 
   it('11. uses no reserve when the neighboring wall has no runs', () => {
@@ -383,7 +383,7 @@ describe('SPEC-6 angled corner clearance', () => {
         angled.run,
       ),
     };
-    expect(angledOptions.endMinWidths.right).toBeCloseTo(1.7321, 3);
+    expect(angledOptions.endMinWidths.right).toBeCloseTo(2.6702, 3); // FL2: scribe minimum plus the scaled lap.
     const angledPiece = splitRun(angled.run, DEFAULT_SETTINGS, angledOptions).pieces
       .find((piece) => piece.role === 'end-right');
     expect(angledPiece.cornerAngle).toBeCloseTo(60, 6);
@@ -412,17 +412,17 @@ describe('SPEC-9 signed wall-end offsets', () => {
     const room = outsideRoom();
     const run = cabinetRun('A-run', CABINET_TYPE_IDS.BASE);
     expect(cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
-      .toEqual({ face: 0, back: 0, total: 0, source: 'auto' });
+      .toEqual({ face: 0, back: 0, lap: 0, total: 0, source: 'auto', neighborRunId: null });
 
     run.cornerClearance = { right: 2 };
     expect(cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
-      .toEqual({ face: 0, back: 0, total: 2, source: 'custom' });
+      .toEqual({ face: 0, back: 0, lap: 0, total: 2, source: 'custom', neighborRunId: null });
     run.cornerClearance.right = -3;
     expect(cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
-      .toEqual({ face: 0, back: 0, total: -3, source: 'custom' });
+      .toEqual({ face: 0, back: 0, lap: 0, total: -3, source: 'custom', neighborRunId: null });
     run.cornerClearance.right = 'face';
     expect(cornerReserveParts(room, room.walls[0], 'right', run, DEFAULT_SETTINGS))
-      .toEqual({ face: 0, back: 0, total: 0, source: 'auto' });
+      .toEqual({ face: 0, back: 0, lap: 0, total: 0, source: 'auto', neighborRunId: null });
   });
 
   it('6. holds back or carries past an outside-corner datum', () => {

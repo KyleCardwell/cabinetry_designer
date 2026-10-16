@@ -1,4 +1,5 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { cornerLap } from './cornerLaps.js';
 import { teamDoorStyle } from './doorStyles.js';
 import {
   clamp,
@@ -152,20 +153,22 @@ export function anchoredToCorner(anchor, corner) {
     : anchor === true;
 }
 
-/** Return the face and back components of a corner reserve. */
-export function cornerReserveParts(room, wall, side, run, settings) {
+/** Return the face, back, and lap components of a corner reserve and its controlling neighbor. */
+export function cornerReserveParts(room, wall, side, run, settings, { laps = true } = {}) {
   wall = wallViewForRun(wall, run);
   const corner = cornerForRunSide(room, wall, run, side);
   if (corner.type !== 'inside') {
     const override = run.cornerClearance?.[side];
     const custom = typeof override === 'number' && Number.isFinite(override);
     const panel = corner.type === 'open' ? wallEndPanelAt(room, wall, side, settings) : null;
-    if (panel && !custom) return { face: panel.width, back: 0, total: panel.width, source: 'panel' };
+    if (panel && !custom) return { face: panel.width, back: 0, lap: 0, total: panel.width, source: 'panel', neighborRunId: null };
     return {
       face: 0,
       back: 0,
+      lap: 0,
       total: custom ? override : 0,
       source: custom ? 'custom' : 'auto',
+      neighborRunId: null,
     };
   }
   const override = run.cornerClearance?.[side] ?? 'auto';
@@ -174,30 +177,38 @@ export function cornerReserveParts(room, wall, side, run, settings) {
     : override === 'face' ? 'face' : 'auto';
   const neighbor = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
   const sine = Math.sin(corner.angle * Math.PI / 180);
+  let neighborRunId = null;
   const face = !neighbor || Math.abs(sine) < 1e-9 ? 0 : neighbor.runs.reduce((reserve, neighborRun) => {
     if (wallSideOf(neighborRun) !== corner.neighborWallSide) return reserve;
     if (!anchoredToCorner(neighborRun.anchors?.[corner.neighborSide], corner)) return reserve;
     if (!bandsCompatible(run, neighborRun)) return reserve;
-    return Math.max(reserve, frontDepth(neighborRun, settings) / sine);
+    const depth = frontDepth(neighborRun, settings) / sine;
+    if (depth > reserve) {
+      neighborRunId = neighborRun.id;
+      return depth;
+    }
+    return reserve;
   }, 0);
 
   const radians = corner.angle * Math.PI / 180;
   const back = face > 0 && corner.angle < 90
     ? run.depth * (Math.cos(radians) / sine)
     : 0;
+  const decision = laps && source !== 'custom' ? cornerLap(room, wall, run, side, settings) : null;
+  const lap = decision?.laps ? decision.amount / sine : 0;
   if (source === 'custom') {
-    return { face, back, total: override, source: 'custom' };
+    return { face, back, lap, total: override, source: 'custom', neighborRunId };
   }
   if (source === 'face') {
-    return { face, back, total: face, source: 'face' };
+    return { face, back, lap, total: face - lap, source: 'face', neighborRunId };
   }
 
-  return { face, back, total: face + back, source: 'auto' };
+  return { face, back, lap, total: face - lap + back, source: 'auto', neighborRunId };
 }
 
 /** Return the horizontal reserve required by compatible neighboring corner runs. */
-export function cornerReserve(room, wall, side, run, settings) {
-  return cornerReserveParts(room, wall, side, run, settings).total;
+export function cornerReserve(room, wall, side, run, settings, { laps = true } = {}) {
+  return cornerReserveParts(room, wall, side, run, settings, { laps }).total;
 }
 
 /**

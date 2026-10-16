@@ -201,7 +201,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
       "runId": "434f1164-3b6b-4a97-89e7-1c6438c4d95a",
       "side": "front",
       "wallId": "cb33d774-f31e-41c1-bbe4-198cbf981619",
-      "width": 1.875,
+      "width": 2.6875,
     },
     {
       "key": "4b64d096-54b1-49d9-88e9-39c84bc14bb4:left",
@@ -687,6 +687,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
             "z": 4,
           },
           {
+            "_cornerLapWidth": 0.8125,
             "anchors": {
               "left": false,
               "right": true,
@@ -754,7 +755,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
             "maxCabinetWidth": null,
             "overrides": {},
             "wallSide": "front",
-            "width": 46.625,
+            "width": 47.4375,
             "x": 108.5,
             "z": 54,
           },
@@ -1747,7 +1748,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                     "id": "434f1164-3b6b-4a97-89e7-1c6438c4d95a:right",
                     "kind": "filler",
                     "role": "end-right",
-                    "width": 1.875,
+                    "width": 2.6875,
                     "x": 153.25,
                     "z": 54,
                   },
@@ -1798,7 +1799,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                   },
                   {
                     "back": 12.0625,
-                    "end": 155.125,
+                    "end": 155.9375,
                     "front": 12.875,
                     "key": "434f1164-3b6b-4a97-89e7-1c6438c4d95a:right",
                     "kind": "filler",
@@ -1815,7 +1816,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                   },
                 ],
                 "span": {
-                  "end": 155.125,
+                  "end": 155.9375,
                   "start": 108.5,
                 },
               },
@@ -1856,7 +1857,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                 "start": 131.25,
               },
               {
-                "end": 155.125,
+                "end": 155.9375,
                 "kind": "piece",
                 "pieceId": "434f1164-3b6b-4a97-89e7-1c6438c4d95a:right",
                 "runId": "434f1164-3b6b-4a97-89e7-1c6438c4d95a",
@@ -1865,7 +1866,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
               {
                 "end": 168,
                 "kind": "corner-gap",
-                "start": 155.125,
+                "start": 155.9375,
               },
             ],
             "outer": [
@@ -3071,7 +3072,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
       "runId": "4b49c071-463c-461e-b750-005d3fe8bec7",
       "side": "front",
       "wallId": "64da569f-6c94-408d-809a-37c6e1f9755f",
-      "width": 53.6875,
+      "width": 54.5,
     },
     {
       "key": "ec0ad482-c6b9-4d8a-9d94-4e785ade9129",
@@ -3531,6 +3532,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
         "profile": {},
         "runs": [
           {
+            "_cornerLapWidth": 0.8125,
             "_frame": {
               "bead": 0.25,
               "drop": 0,
@@ -3613,8 +3615,8 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
             "maxCabinetWidth": null,
             "overrides": {},
             "wallSide": "front",
-            "width": 52.9375,
-            "x": 24.8125,
+            "width": 53.75,
+            "x": 24,
             "z": 4,
           },
           {
@@ -4511,7 +4513,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
           "lower": {
             "inner": [
               {
-                "end": 24.8125,
+                "end": 24,
                 "kind": "corner-gap",
                 "start": 0,
               },
@@ -4519,7 +4521,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                 "end": 26.75,
                 "kind": "frame",
                 "runId": "4b49c071-463c-461e-b750-005d3fe8bec7",
-                "start": 24.8125,
+                "start": 24,
               },
               {
                 "end": 50.75,
@@ -4577,8 +4579,8 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                     "id": "4b49c071-463c-461e-b750-005d3fe8bec7:left",
                     "kind": "filler",
                     "role": "end-left",
-                    "width": 0.9375,
-                    "x": 24.8125,
+                    "width": 1.75,
+                    "x": 24,
                     "z": 4,
                   },
                   {
@@ -4634,7 +4636,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                     "kind": "frame",
                     "polygon": [
                       [
-                        24.8125,
+                        24,
                         24.8125,
                       ],
                       [
@@ -4646,17 +4648,17 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                         24,
                       ],
                       [
-                        24.8125,
+                        24,
                         24,
                       ],
                     ],
-                    "start": 24.8125,
+                    "start": 24,
                   },
                 ],
                 "returns": [],
                 "span": {
                   "end": 78.5,
-                  "start": 24.8125,
+                  "start": 24,
                 },
               },
             },

@@ -6,9 +6,10 @@ import { findLeaf } from '../model/cellTree.js';
 /** Format a resolved corner reserve for the run properties panel. */
 export function formatCornerReserve(parts) {
   const resolved = `Reserve ${formatInches(parts.total)}`;
-  if (parts.source === 'face') return `${resolved} · Face only`;
+  const lap = parts.lap > 0 ? ` − lap ${formatInches(parts.lap)}` : '';
+  if (parts.source === 'face') return `${resolved} · Face only${lap ? ` (face ${formatInches(parts.face)}${lap})` : ''}`;
   if (parts.source === 'custom') return `${resolved} · Custom`;
-  return `${resolved} (face ${formatInches(parts.face)} + back ${formatInches(parts.back)})`;
+  return `${resolved} (face ${formatInches(parts.face)} + back ${formatInches(parts.back)}${lap})`;
 }
 
 /** Format any horizontal wall overhang on a run. */
@@ -23,6 +24,9 @@ export function formatRunOverhang(run, wallLength) {
 
 /** Format a run warning that points at an opening. */
 export function formatRunWarning(warning) {
+  if (warning.code === 'corner-lap-conflict') {
+    return warning.laps ? 'Both corner fillers are set to lap over' : 'Both corner fillers are set to die in';
+  }
   if (warning.code === 'blocks-opening') return `Blocks ${warning.label}`;
   if (warning.code === 'casing-clearance') {
     return `${warning.label} ${warning.side} clearance ${formatInches(warning.gap)}; ${formatInches(warning.required)} required`;

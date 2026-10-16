@@ -5,6 +5,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { gridFromItems, rootItems } from '../../model/grid.js';
 import { resolvePinTarget } from '../../model/room.js';
+import { cornerLap } from '../../model/cornerLaps.js';
+import { cornerReserve } from '../../model/corners.js';
 import {
   ELEVATION_STORAGE_KEY,
   isElevationDocument,
@@ -88,6 +90,39 @@ function currentDocument() {
     view: 'elevation',
   };
 }
+
+describe('FL2 corner lap persistence', () => {
+  it('A1: loads an older room without adding lap choices and applies automatic laps', () => {
+    const document = currentDocument();
+    const [a, b] = document.rooms[0].walls;
+    Object.assign(a, { x2: 84.875, connections: { start: null, end: { wallId: b.id, endpoint: 'start' } } });
+    Object.assign(b, { x1: 84.875, y1: 0, x2: 84.875, y2: 120.875,
+      connections: { start: { wallId: a.id, endpoint: 'end' }, end: null } });
+    for (const wall of [a, b]) wall.runs[0].anchors = { left: true, right: true };
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+    const loaded = loadElevationDocument();
+    const room = loaded.rooms[0];
+    for (const wall of room.walls) expect(wall.runs[0]).not.toHaveProperty('endFiller');
+    expect(room.walls.map((wall) => wall.runs[0])).toEqual([a.runs[0], b.runs[0]]);
+    expect(cornerLap(room, room.walls[0], room.walls[0].runs[0], 'right', loaded.settings))
+      .toMatchObject({ laps: true, source: 'shorter' });
+    expect(cornerReserve(room, room.walls[0], 'right', room.walls[0].runs[0], loaded.settings)).toBe(24.0625);
+  });
+
+  it('A2: round-trips over and into, and rejects invalid lap values on load', () => {
+    const document = currentDocument();
+    const run = document.rooms[0].walls[0].runs[0];
+    run.endFiller = { left: { cornerLap: 'over' }, right: { cornerLap: 'into' } };
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+    expect(loadElevationDocument().rooms[0].walls[0].runs[0].endFiller).toEqual(run.endFiller);
+    for (const value of ['sideways', 'auto', null, true, 1]) {
+      run.endFiller.left.cornerLap = value;
+      expect(isElevationDocument(document)).toBe(false);
+      window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(document));
+      expect(loadElevationDocument()).toBeNull();
+    }
+  });
+});
 
 it('persists baseUnder only as true on root and nested void or panel leaves', () => {
   for (const kind of ['void', 'panel']) {
