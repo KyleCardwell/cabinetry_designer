@@ -34,7 +34,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     expect(definition.content).toHaveLength(2);
     definition.content.forEach((node, index) => {
       expect(node.table).toMatchObject({
-        headerRows: 2, widths: [38, 34, 40, 115, '*', 105], dontBreakRows: true,
+        headerRows: 2, widths: [38, 34, 40, 100, '*', 140], dontBreakRows: true,
       });
       expect(node.table.body).toHaveLength(6);
       expect(node.pageBreak).toBe(index ? 'before' : undefined);
@@ -60,11 +60,38 @@ describe('RP2 step g shipping list PDF definition', () => {
       { text: '', border: allBorders }, { text: '', border: allBorders },
       { text: 'Base', alignment: 'left', border: allBorders },
       { stack: [{ text: 'MAPLE PLY BOX', fontSize: 9 }, { text: 'hl', fontSize: 9 }], border: allBorders },
-      { text: '24 x 30 1/2 x 23 3/4', alignment: 'center', border: allBorders },
+      { text: '24 x 30\u00a01/2 x 23\u00a03/4', alignment: 'center', border: allBorders },
     ]);
     expect(rows[1][4]).toEqual({ text: '', border: allBorders });
     expect(rows.at(-1).map(({ text }) => text)).toEqual(['', '', '', 'Adjustable Shelves', '', '']);
     for (const row of rows) for (const cell of row) expect(cell.border).toEqual(allBorders);
+  });
+
+  it('keeps mixed numbers together while allowing breaks at x in every copy (RP2.3 anchors 2, 5)', () => {
+    const sizes = [
+      ['1 5/8 x 30 1/2 x 3 3/16', '1\u00a05/8 x 30\u00a01/2 x 3\u00a03/16'],
+      ['34 15/16 x 30 1/2 x 23 15/16', '34\u00a015/16 x 30\u00a01/2 x 23\u00a015/16'],
+      ['24 15/16 x 34 15/32 x 3 11/16', '24\u00a015/16 x 34\u00a015/32 x 3\u00a011/16'],
+      ['120 1/16 x 96 15/32 x 24 15/16', '120\u00a01/16 x 96\u00a015/32 x 24\u00a015/16'],
+    ];
+    const input = { ...list, rows: sizes.map(([size]) => ({ ...list.rows[0], size })) };
+    const before = structuredClone(input);
+    const definition = shippingListDocument(input, header, COPIES.map(({ id }) => id));
+    for (const node of definition.content) {
+      expect(node.table.body.slice(2).map((row) => row[5])).toEqual(
+        sizes.map(([, text]) => ({ text, alignment: 'center', border: allBorders })),
+      );
+    }
+    expect(input).toEqual(before);
+  });
+
+  it('preserves lineal feet, blank shelf sizes, integers and simple fractions (RP2.3 anchors 3, 4, 5)', () => {
+    const sizes = ['Lineal Feet: 24', '', '24 x 30 x 3/4'];
+    const input = { ...list, rows: sizes.map((size) => ({ ...list.rows[0], size })) };
+    const rows = shippingListDocument(input, header, ['master']).content[0].table.body.slice(2);
+    expect(rows.map((row) => row[5])).toEqual(
+      sizes.map((text) => ({ text, alignment: 'center', border: allBorders })),
+    );
   });
 
   it('builds the bold nested title with job, room, materials and right-aligned copy labels (anchor 7)', () => {
@@ -165,7 +192,7 @@ describe('RP2 step g shipping list PDF definition', () => {
     }, COPIES.map(({ id }) => id));
     const serialized = JSON.stringify({ ...definition, footer: definition.footer(1, 10) });
     expect(serialized).not.toMatch(/[\u00bc-\u00be\u2150-\u215e]/);
-    for (const text of ['24 x 30 1/2 x 23 3/4', '3 1/8 x 30 1/2 x 3/4', 'Scribe 3/4',
+    for (const text of ['24 x 30\u00a01/2 x 23\u00a03/4', '3\u00a01/8 x 30\u00a01/2 x 3/4', 'Scribe 3/4',
       '1 1/8 OAK', '1/2 sheen', '3/4 MAPLE', '1/8 EDGEBAND']) expect(serialized).toContain(text);
   });
 });

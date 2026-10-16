@@ -41,13 +41,13 @@ function shippingTable(list, header, copy) {
       bordered(row.notes.length ? {
         stack: row.notes.map((text) => ({ text, fontSize: 9 })),
       } : { text: '' }),
-      bordered({ text: row.size, alignment: 'center' }),
+      bordered({ text: row.size.replace(/(\d) (?=\d)/g, '$1\u00a0'), alignment: 'center' }),
     ]),
   ];
   if (list.roomNote) rows.push(fullRow(bordered({ text: `Room notes: ${list.roomNote}`, bold: true })));
 
   return {
-    table: { headerRows: 2, widths: [38, 34, 40, 115, '*', 105], body: rows, dontBreakRows: true },
+    table: { headerRows: 2, widths: [38, 34, 40, 100, '*', 140], body: rows, dontBreakRows: true },
     layout: { ...BORDER_LAYOUT, defaultBorder: false },
   };
 }
