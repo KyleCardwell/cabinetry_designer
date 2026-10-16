@@ -10,12 +10,12 @@ export function isSheetCell(leaf) {
   return leaf?.align !== 'back';
 }
 
-/** Interim team panel thickness until 46.3 (SPEC-46.1.1). */
+/** Panels use their resolved door style or sheet material thickness (SPEC-EP1). */
 export function panelThickness(room, wall, run, part, settings, { sheet = false } = {}) {
   const { style } = resolveDoorStyle(
     room, settings, 'panel', panelLevels(room, wall, run, part, { sheet }),
   );
-  return style.id === 'default' ? settings.endPanelThickness : style.thickness;
+  return style.thickness;
 }
 
 export function runEndThickness(room, wall, run, settings) {

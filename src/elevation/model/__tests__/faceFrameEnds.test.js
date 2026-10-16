@@ -21,26 +21,26 @@ const shown = ({ pieces }) => pieces.map(({ kind, x, width }) => [kind, x, width
 
 describe('SPEC-38.3 face frame ends', () => {
   it('gives a beaded run equal boxes and a bead gap each end; a free end adds the overhang to its gap', () => {
-    // Joined left: a bead gap each end; the boxes take the rest (SPEC-42.1), 29 1/4 each.
+    // Joined left: a bead gap each end; the boxes take the rest; the last box absorbs the odd sixteenth.
     expect(shown(splitRun(run(90, ['none', 'end_panel'], 3, JOINED_LEFT), S))).toEqual([
-      ['cabinet', 0.25, 29.25], ['cabinet', 30, 29.25], ['cabinet', 59.75, 29.25], ['end_panel', 89.25, 0.75],
+      ['cabinet', 0.25, 29.25], ['cabinet', 30, 29.25], ['cabinet', 59.75, 29.1875], ['end_panel', 89.1875, 0.8125],
     ]);
     // Free left (None, not joined): bead + 3/4 overhang, no leftover. The box isn't narrowed.
     expect(shown(splitRun(run(90, ['none', 'end_panel'], 3), S))).toEqual([
-      ['cabinet', 1, 29], ['cabinet', 30.5, 29], ['cabinet', 60, 29], ['end_panel', 89.25, 0.75],
+      ['cabinet', 1, 29], ['cabinet', 30.5, 29], ['cabinet', 60, 28.9375], ['end_panel', 89.1875, 0.8125],
     ]);
   });
 
-  it('SPEC-42.1 keeps the stiles standard: the boxes take the leftover, the last one the odd sixteenth', () => {
+  it('SPEC-42.1 keeps the rounding leftover in the boxes', () => {
     expect(shown(splitRun(run(65.1875, ['none', 'end_panel'], 2, JOINED_LEFT), S))).toEqual([
-      ['cabinet', 0.25, 31.75], ['cabinet', 32.5, 31.6875], ['end_panel', 64.4375, 0.75],
+      ['cabinet', 0.25, 31.6875], ['cabinet', 32.4375, 31.6875], ['end_panel', 64.375, 0.8125],
     ]);
   });
 
   it('keeps a corner filler taking the leftover, with a bead gap before and after the boxes', () => {
     const wall2 = splitRun(run(59.1875, ['filler', 'end_panel'], 2), S, { endMinWidths: { left: 0.75, right: 1.5 } });
     expect(shown(wall2)).toEqual([
-      ['filler', 0, 1.4375], ['cabinet', 1.6875, 28], ['cabinet', 30.1875, 28], ['end_panel', 58.4375, 0.75],
+      ['filler', 0, 1.375], ['cabinet', 1.625, 28], ['cabinet', 30.125, 28], ['end_panel', 58.375, 0.8125],
     ]);
     // Kyle's G2 base: joined to the tall on the left, corner filler on the right.
     const base = splitRun(run(65.1875, ['none', 'filler'], 2, JOINED_LEFT), S, { endMinWidths: { left: 0, right: 0.5 } });
@@ -52,14 +52,14 @@ describe('SPEC-38.3 face frame ends', () => {
   it('gives an unbeaded inset run no bead gap and a free end its overhang; the boxes take the rest', () => {
     const plain = run(60, ['none', 'end_panel'], 2, { _seamGap: 0, _frame: { ...BEADED, bead: 0 } });
     expect(shown(splitRun(plain, S))).toEqual([
-      ['cabinet', 0.75, 29.25], ['cabinet', 30, 29.25], ['end_panel', 59.25, 0.75],
+      ['cabinet', 0.75, 29.25], ['cabinet', 30, 29.1875], ['end_panel', 59.1875, 0.8125],
     ]);
   });
 
   it('leaves a European run as it was: sixteenths, the last box takes the remainder', () => {
     const euro = run(65.1875, ['none', 'end_panel'], 2, { _seamGap: undefined, _frame: undefined });
     expect(shown(splitRun(euro, S))).toEqual([
-      ['cabinet', 0, 32.25], ['cabinet', 32.25, 32.1875], ['end_panel', 64.4375, 0.75],
+      ['cabinet', 0, 32.1875], ['cabinet', 32.1875, 32.1875], ['end_panel', 64.375, 0.8125],
     ]);
   });
 });

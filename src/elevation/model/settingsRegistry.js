@@ -13,7 +13,6 @@ const roomNumbers = [
   ['minRunWidth', 'Minimum run width'],
   ['maxRunOverhang', 'Maximum run overhang'],
   ['adjacentRunGap', 'Adjacent run gap'],
-  ['endPanelThickness', 'End panel thickness'],
   ['sheetThickness', 'Sheet thickness'],
   ['bumperThickness', 'Bumper thickness'],
   ['baseDepth', 'Base depth'],

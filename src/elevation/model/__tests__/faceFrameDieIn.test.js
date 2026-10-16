@@ -67,7 +67,7 @@ describe('SPEC-38.4 a joined end that dies into a deeper run', () => {
     const room = g2();
     expect(frameOf(room, 'B')).toEqual({
       leftEnd: 'none', dieIn: { left: true, right: false },
-      boxes: [[77.5, 34], [112, 34]], leftStile: 1.75, rightStile: 1.75, openings: [32.5, 32.5],
+      boxes: [[77.5, 34], [112, 33.9375]], leftStile: 1.75, rightStile: 1.8125, openings: [32.5, 32.4375],
     });
     expect(frameOf(room, 'U')).toMatchObject({
       leftEnd: 'none', dieIn: { left: true, right: false }, leftStile: 1.75, openings: [29, 29, 29],
@@ -78,23 +78,22 @@ describe('SPEC-38.4 a joined end that dies into a deeper run', () => {
     const room = g2({ tallDepth: 24 });
     expect(frameOf(room, 'B')).toEqual({
       leftEnd: 'none', dieIn: undefined,
-      boxes: [[76.75, 34.375], [111.625, 34.375]], leftStile: 1, rightStile: 1.75, openings: [32.875, 32.875],
+      boxes: [[76.75, 34.375], [111.625, 34.3125]], leftStile: 1, rightStile: 1.8125, openings: [32.875, 32.8125],
     });
   });
 });
 
 describe('SPEC-38.4 a mitered wall end panel in a beaded run', () => {
-  it('gives the end a bead gap only: 1 3/4 over the panel; the boxes take the rest', () => {
+  it('gives the end a bead gap only and follows the wall panel thickness', () => {
     const room = g2({ endPanels: { start: null, end: { width: null } }, upperRight: AUTO_NONE });
     const upper = room.walls[0].runs.find(({ id }) => id === 'U');
-    expect(upper._frame.wallPanels.right).toEqual({ width: 0.75, top: 90, join: 'miter' });
-    // 94 3/4 (to the panel) − 1 die-in gap − 1/4 bead − 1 seams = 92 1/2 → 30 13/16, 30 13/16 and the
-    // last 30 7/8 (SPEC-42.1: the stiles stay 1 3/4, the last box takes the odd sixteenth).
+    expect(upper._frame.wallPanels.right).toEqual({ width: 0.8125, top: 90, join: 'miter' });
+    // The 13/16" wall panel leaves three 30 13/16" boxes; the right stile follows that panel.
     expect(frameOf(room, 'U')).toMatchObject({
-      boxes: [[77.5, 30.8125], [108.8125, 30.8125], [140.125, 30.875]],
+      boxes: [[77.5, 30.8125], [108.8125, 30.8125], [140.125, 30.8125]],
       leftStile: 1.75,
-      rightStile: 1.75,
-      openings: [29.3125, 29.3125, 29.375],
+      rightStile: 1.8125,
+      openings: [29.3125, 29.3125, 29.3125],
     });
   });
 });

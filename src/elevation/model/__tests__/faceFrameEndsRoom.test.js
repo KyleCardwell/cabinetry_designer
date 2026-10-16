@@ -46,12 +46,12 @@ function frameOf(runId) {
 
 describe('SPEC-38.3 the frame covers the end gaps', () => {
   it('runs out to a free end (overhang in the gap, box not narrowed) and over an end panel past its bead gap', () => {
-    // Free left gap 1/4 + 3/4: boxes 29 at 1, 30 1/2, 60; openings 29 − 3/4 − 3/4.
-    expect(frameOf('U')).toEqual({ region: [0, 90], openings: [27.5, 27.5, 27.5] });
+    // Free left gap 1/4 + 3/4: the last box absorbs the odd sixteenth from the 13/16" end panel.
+    expect(frameOf('U')).toEqual({ region: [0, 90], openings: [27.5, 27.5, 27.4375] });
   });
 
   it('covers end panels at both ends with equal openings', () => {
-    // 60 − 1 1/2 panels − 1/2 seam − 1/2 bead gaps = 57 1/2 → two 28 3/4 boxes (SPEC-42.1).
-    expect(frameOf('B')).toEqual({ region: [100, 60], openings: [27.25, 27.25] });
+    // 60 − 1 5/8 panels − 1/2 seam − 1/2 bead gaps = 57 3/8 → two 28 11/16 boxes.
+    expect(frameOf('B')).toEqual({ region: [100, 60], openings: [27.1875, 27.1875] });
   });
 });

@@ -1,5 +1,6 @@
 import { useDispatch } from 'react-redux';
 import { formatInchesInput, frontDepth, runBlind } from '../../model/index.js';
+import { teamDoorStyle } from '../../model/doorStyles.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
 import { cornerLap } from '../../model/cornerLaps.js';
 import { isJoinedEnd } from '../../model/panelThickness.js';
@@ -56,7 +57,7 @@ export default function EndFields({
             value={run.ends[side].width}
             allowBlank
             placeholder={endType === 'end_panel'
-              ? formatInchesInput(run._endThickness?.[side] ?? settings.endPanelThickness)
+              ? formatInchesInput(run._endThickness?.[side] ?? teamDoorStyle(settings).thickness)
               : 'auto'}
             onCommit={(width) => dispatch(setRunEnd({
               ...actionBase,

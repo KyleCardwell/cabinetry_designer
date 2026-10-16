@@ -1,3 +1,4 @@
+import { teamDoorStyle } from './doorStyles.js';
 import { frontDepth, runBackOffset } from './corners.js';
 import { wallFrame } from './geometry.js';
 import { gridLeaves } from './grid.js';
@@ -80,7 +81,7 @@ export function wallEndPanels(room, wall, settings) {
   return ['start', 'end'].flatMap((endpoint) => {
     const stored = source.endPanels?.[endpoint];
     if (!stored || source.connections?.[endpoint] || source.landings?.[endpoint]) return [];
-    const width = stored.width ?? source._endPanelThickness?.[endpoint] ?? settings.endPanelThickness;
+    const width = stored.width ?? source._endPanelThickness?.[endpoint] ?? teamDoorStyle(settings).thickness;
     const front = panelSide(room, source, endpoint, 'front', width, settings);
     const back = panelSide(room, source, endpoint, 'back', width, settings);
     const top = Math.max(front.top, back.top);

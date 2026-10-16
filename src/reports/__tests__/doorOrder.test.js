@@ -8,7 +8,7 @@ import { syncRoom } from '../../elevation/model/room.js';
 import { doorOrder, doorOrderItems, mergeLines, stileRailNotes } from '../doorOrder.js';
 
 const style = DEFAULT_DOOR_STYLE;
-const settings = { ...DEFAULT_SETTINGS, endPanelThickness: 0.8125, doorDesigns: DOOR_DESIGNS };
+const settings = { ...DEFAULT_SETTINGS, doorDesigns: DOOR_DESIGNS };
 const frame = (sizes = {}) => partSizes(style, DOOR_DESIGNS[0], { width: 18, height: 60, sizes });
 const face = (type, size = null, rest = {}) => ({ type, size, ...rest });
 const drawers = (top = 5.875) => ({

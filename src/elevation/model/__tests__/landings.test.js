@@ -361,7 +361,7 @@ describe('wall landings', () => {
     expect(wallEndPanelAt(room, wallSideView(W1, 'front'), 'left', DEFAULT_SETTINGS))
       .toBeNull();
     expect(wallEndPanelAt(room, wallSideView(W1, 'front'), 'right', DEFAULT_SETTINGS))
-      .toEqual({ endpoint: 'end', width: 0.75 });
+      .toEqual({ endpoint: 'end', width: 0.8125 });
   });
 
   it('149. resolves landing offsets before syncing the room', () => {

@@ -49,15 +49,15 @@ describe('SPEC-43 a wall end panel meets a back panel run', () => {
     const room = flush();
     const back = resolveWall(room, room.walls[1], 'back');
     const front = resolveWall(room, room.walls[1], 'front');
-    const miters = { left: { width: 0.75, thickness: 0.75 }, right: null };
+    const miters = { left: { width: 0.8125, thickness: 0.75 }, right: null };
     expect(panelRunMiters(room, back, back.runs[0], settings)).toEqual(miters);
     // The plan passes the stored wall; the run says which face it's on.
     expect(panelRunMiters(room, room.walls[1], back.runs[0], settings)).toEqual(miters);
     expect(panelRunMiters(room, front, front.runs[0], settings)).toEqual({ left: null, right: null });
 
     const run = back.runs[0];
-    expect([run.x, run.width]).toEqual([0.75, 77.75]);
-    expect(miteredSpan({ kind: 'panel', x: 0.75, width: 77.75 }, run, miters)).toEqual({ x: 0, width: 78.5 });
+    expect([run.x, run.width]).toEqual([0.8125, 77.6875]);
+    expect(miteredSpan({ kind: 'panel', x: 0.8125, width: 77.6875 }, run, miters)).toEqual({ x: 0, width: 78.5 });
     expect(miteredSpan({ kind: 'cabinet', x: 0.75, width: 77.75 }, run, miters)).toEqual({ x: 0.75, width: 77.75 });
     expect(miteredSpan({ kind: 'panel', x: 30, width: 20 }, run, miters)).toEqual({ x: 30, width: 20 });
   });

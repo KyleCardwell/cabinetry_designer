@@ -47,7 +47,7 @@ describe('SPEC-42.3 bands meet a corner return\'s bands', () => {
     expect(ends(g2a.ab0981ca.crown)).toEqual([79.5, 172]);
     const g2b = bandsOf(g2, 1);
     expect(ends(g2b['4b49c071'].countertop)).toEqual([25.5625, 79.25]);
-    expect(ends(g2b['4b49c071'].toeKicks[0])).toEqual([21, 77.75]);
+    expect(ends(g2b['4b49c071'].toeKicks[0])).toEqual([21, 77.6875]);
   });
 
   it('matches band by band: a return without that band, or with it at another height, leaves the end as before (G1)', () => {

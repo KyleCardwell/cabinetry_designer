@@ -258,7 +258,7 @@ describe('splitRun', () => {
       endMinWidths: { left: 1.5, right: 3 },
     });
 
-    expect(widths(result)).toEqual([0.75, 30.5, 30.5, 30.5, 3.75]);
+    expect(widths(result)).toEqual([0.8125, 30.5, 30.5, 30.5, 3.6875]);
     expect(widths(result).reduce((sum, width) => sum + width, 0)).toBe(96);
   });
 
@@ -282,8 +282,8 @@ describe('splitRun', () => {
     });
     const result = splitRun(syncAutoItems(initial, DEFAULT_SETTINGS), DEFAULT_SETTINGS);
 
-    expect(widths(result)).toEqual([0.75, 31, 31, 31, 2.25]);
-    expect(result.pieces.map((piece) => piece.x)).toEqual([0, 0.75, 31.75, 62.75, 93.75]);
+    expect(widths(result)).toEqual([0.8125, 31, 31, 31, 2.1875]);
+    expect(result.pieces.map((piece) => piece.x)).toEqual([0, 0.8125, 31.8125, 62.8125, 93.8125]);
   });
 
   it('uses an explicit end-panel width instead of the default thickness', () => {

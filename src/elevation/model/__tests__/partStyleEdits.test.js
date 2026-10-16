@@ -99,8 +99,8 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
     expect(pickOptions(room, DEFAULT_SETTINGS, 'panel', above, {}).inherit)
       .toEqual({ id: 'ds-c', text: 'Inherit (C · Slab - MDF Core · 3/4")' });
     expect(pickOptions({}, DEFAULT_SETTINGS, 'panel', [], {})).toEqual({
-      inherit: { id: 'default', text: 'Same as doors (Std · 5PC · 3/4")' },
-      options: [{ id: 'default', text: 'Team default (Std · 5PC · 3/4")' }, { id: 'sheet', text: 'Sheet slab (3/4")' }],
+      inherit: { id: 'default', text: "Same as doors (Std · 5PC · 13/16\")" },
+      options: [{ id: 'default', text: "Team default (Std · 5PC · 13/16\")" }, { id: 'sheet', text: 'Sheet slab (3/4")' }],
     });
   });
 

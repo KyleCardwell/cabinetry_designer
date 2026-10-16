@@ -475,7 +475,7 @@ describe('SPEC-34.1 panel reducers', () => {
     expect(currentRun(state).autoCount).toBe(false);
     state = elevationReducer(state, setPanelType({ ...actionBase, cellId: 'a', type: 'back' }));
     expect(currentRun(state).grid.cols[0]).toEqual({ id: 'a:col', size: null, sizeMode: 'auto' });
-    expect(leafOf(state, 'a')).toEqual({ id: 'a', kind: 'panel', depth: 0.75, align: 'back' });
+    expect(leafOf(state, 'a')).toEqual({ id: 'a', kind: 'panel', depth: 0.8125, align: 'back' });
     state = elevationReducer(state, setCellKind({ ...actionBase, cellId: 'a', kind: 'cabinet' }));
     expect(leafOf(state, 'a')).toEqual({ id: 'a', kind: 'cabinet' });
   });

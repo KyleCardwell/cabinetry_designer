@@ -29,9 +29,9 @@ function tall(cabinetStyleId) {
   };
 }
 
-describe('SPEC-42.1 face frame end stiles stay standard', () => {
-  it('gives the box the leftover instead of widening the stiles (G2 tall at 32 7/8)', () => {
-    expect(tall(15)).toEqual({ box: 30.875, leftStile: 1.75, rightStile: 1.75 });
-    expect(tall(14)).toEqual({ box: 31.375, leftStile: 1.5, rightStile: 1.5 });
+describe('SPEC-42.1 face frame end stiles follow panel thickness', () => {
+  it('keeps the rounding leftover in the box and follows the end panel thickness (G2 tall at 32 7/8)', () => {
+    expect(tall(15)).toEqual({ box: 30.8125, leftStile: 1.8125, rightStile: 1.75 });
+    expect(tall(14)).toEqual({ box: 31.3125, leftStile: 1.5625, rightStile: 1.5 });
   });
 });

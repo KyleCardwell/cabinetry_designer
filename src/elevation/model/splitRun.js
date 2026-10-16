@@ -1,5 +1,6 @@
 import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { teamDoorStyle } from './doorStyles.js';
 import { replaceRootItems, runItems } from './grid.js';
 import { floorTo, roundTo } from './units.js';
 
@@ -71,7 +72,7 @@ function itemExtras(item) {
 }
 
 function endWidth(end, settings, thickness) {
-  if (end.type === 'end_panel') return end.width ?? thickness ?? settings.endPanelThickness;
+  if (end.type === 'end_panel') return end.width ?? thickness ?? teamDoorStyle(settings).thickness;
   if (FILLER_END_TYPES.has(end.type) && end.width !== null) return end.width;
   return 0;
 }
@@ -317,7 +318,7 @@ function splitRunLegacy(run, settings, opts) {
       x,
       z: run.z,
       height: run.height,
-      depth: piece.depth ?? (piece.kind === 'end_panel' ? settings.endPanelThickness : run.depth),
+      depth: piece.depth ?? (piece.kind === 'end_panel' ? teamDoorStyle(settings).thickness : run.depth),
     };
     x += piece.width + gapsAfter[index];
     return positioned;

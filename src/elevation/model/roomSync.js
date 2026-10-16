@@ -122,10 +122,10 @@ function withDoorThickness(room, wall, run, settings) {
   return rest;
 }
 
-/** A run's derived panel thicknesses, only where they differ from the setting. */
+/** A run's derived panel thicknesses, only where they differ from the team default. */
 function withEndThickness(room, wall, run, settings) {
   const thickness = Object.fromEntries(Object.entries(runEndThickness(room, wall, run, settings))
-    .filter(([, value]) => Math.abs(value - settings.endPanelThickness) > 1e-9));
+    .filter(([, value]) => Math.abs(value - teamDoorStyle(settings).thickness) > 1e-9));
   if (Object.keys(thickness).length > 0) {
     return JSON.stringify(run._endThickness) === JSON.stringify(thickness)
       ? run : { ...run, _endThickness: thickness };
@@ -136,10 +136,10 @@ function withEndThickness(room, wall, run, settings) {
   return rest;
 }
 
-/** A wall's derived panel thicknesses, only where they differ from the setting. */
+/** A wall's derived panel thicknesses, only where they differ from the team default. */
 function withWallPanelThickness(room, wall, settings) {
   const thickness = Object.fromEntries(Object.entries(wallPanelThickness(room, wall, settings))
-    .filter(([, value]) => value !== null && Math.abs(value - settings.endPanelThickness) > 1e-9));
+    .filter(([, value]) => value !== null && Math.abs(value - teamDoorStyle(settings).thickness) > 1e-9));
   if (Object.keys(thickness).length > 0) {
     return JSON.stringify(wall._endPanelThickness) === JSON.stringify(thickness)
       ? wall : { ...wall, _endPanelThickness: thickness };

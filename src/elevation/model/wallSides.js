@@ -1,3 +1,4 @@
+import { teamDoorStyle } from './doorStyles.js';
 import { add, scale, wallFrame } from './geometry.js';
 
 export const WALL_SIDES = ['front', 'back'];
@@ -40,7 +41,7 @@ export function wallEndPanelAt(room, wall, side, settings) {
   return {
     endpoint,
     width: panel.width ?? (wall.sideSource ?? wall)._endPanelThickness?.[endpoint]
-      ?? settings.endPanelThickness,
+      ?? teamDoorStyle(settings).thickness,
   };
 }
 

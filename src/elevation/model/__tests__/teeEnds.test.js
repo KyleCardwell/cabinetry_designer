@@ -108,8 +108,8 @@ describe('SPEC-37.1 L-shaped end panels', () => {
   it('makes an end panel L-shaped: its thickness plus 3/4" over the box, with no rabbet', () => {
     const { ells, tees, covers, rabbets, notes } = ellsOf(panelRun());
     expect(ells).toEqual([{
-      id: 'r:left', side: 'left', pieceId: 'r:left', x: 24, z: 4, width: 1.5, height: 30.5, drop: 0,
-      boxIds: ['a'], lip: { start: 24.75, end: 25.5 },
+      id: 'r:left', side: 'left', pieceId: 'r:left', x: 24, z: 4, width: 1.5625, height: 30.5, drop: 0,
+      boxIds: ['a'], lip: { start: 24.8125, end: 25.5625 },
     }]);
     expect(tees.map((tee) => tee.id)).toEqual(['tee:a|b']);
     expect(covers.get('a')).toEqual({ left: 0.75, right: 0.75, top: 0, bottom: 0 });
@@ -121,7 +121,7 @@ describe('SPEC-37.1 L-shaped end panels', () => {
     const thick = ellsOf(panelRun({ width: 36.8125, ends: { left: { type: 'end_panel', width: 0.8125 }, right: NONE } }));
     expect(thick.ells[0]).toMatchObject({ x: 24, width: 1.5625, lip: { start: 24.8125, end: 25.5625 } });
     expect(ellsOf(panelRun({ ends: { left: NONE, right: PANEL } })).ells).toEqual([{
-      id: 'r:right', side: 'right', pieceId: 'r:right', x: 59.25, z: 4, width: 1.5, height: 30.5, drop: 0,
+      id: 'r:right', side: 'right', pieceId: 'r:right', x: 59.25, z: 4, width: 1.5625, height: 30.5, drop: 0,
       boxIds: ['b'], lip: { start: 59.25, end: 60 },
     }]);
     const upper = ellsOf(panelRun({ cabinetTypeId: UPPER, z: 54, height: 30, depth: 12 }));
@@ -145,11 +145,11 @@ describe('SPEC-37.1 L-shaped end panels', () => {
     };
     const single = faces(panelRun()).get('a');
     expect(single.reveals.values).toMatchObject({ left: 0.84375, right: 0.84375 });
-    expect(single.faces[0]).toMatchObject({ x: 25.59375, width: 16.3125 });
+    expect(single.faces[0]).toMatchObject({ x: 25.65625, width: 16.3125 });
     const pair = faces(pairRun()).get('a');
     expect(pair.reveals.values).toMatchObject({ left: 0.8125, right: 0.8125 });
     expect(pair.faces.map((face) => [face.half, face.x, face.width])).toEqual([
-      ['left', 25.5625, 17.125], ['right', 42.8125, 17.125],
+      ['left', 25.625, 17.125], ['right', 42.875, 17.125],
     ]);
   });
 });
@@ -164,26 +164,26 @@ describe('SPEC-37.1 L-shaped end panels in plan and on the chain', () => {
   it('miters the panel into its lip, flush with the T-fillers', () => {
     const { faces } = plan(pairRun());
     expect(byKey(faces, 'r:left')).toEqual({
-      key: 'r:left', kind: 'end_panel', start: 24, end: 24.75, back: 0, front: 24.8125,
-      polygon: [[24, 0], [24.75, 0], [24.75, 24], [24, 24.8125]],
+      key: 'r:left', kind: 'end_panel', start: 24, end: 24.8125, back: 0, front: 24.8125,
+      polygon: [[24, 0], [24.8125, 0], [24.8125, 24], [24, 24.8125]],
     });
     expect(byKey(faces, 'r:left:lip')).toEqual({
-      key: 'r:left:lip', kind: 'end_panel', start: 24, end: 25.5, back: 24, front: 24.8125,
-      polygon: [[24, 24.8125], [25.5, 24.8125], [25.5, 24], [24.75, 24]],
+      key: 'r:left:lip', kind: 'end_panel', start: 24, end: 25.5625, back: 24, front: 24.8125,
+      polygon: [[24, 24.8125], [25.5625, 24.8125], [25.5625, 24], [24.8125, 24]],
     });
     expect(byKey(faces, 'r:right')).toEqual({
-      key: 'r:right', kind: 'end_panel', start: 60.75, end: 61.5, back: 0, front: 24.8125,
-      polygon: [[60.75, 0], [61.5, 0], [61.5, 24.8125], [60.75, 24]],
+      key: 'r:right', kind: 'end_panel', start: 60.8125, end: 61.625, back: 0, front: 24.8125,
+      polygon: [[60.8125, 0], [61.625, 0], [61.625, 24.8125], [60.8125, 24]],
     });
     expect(byKey(faces, 'r:right:lip')).toEqual({
-      key: 'r:right:lip', kind: 'end_panel', start: 60, end: 61.5, back: 24, front: 24.8125,
-      polygon: [[60, 24.8125], [61.5, 24.8125], [60.75, 24], [60, 24]],
+      key: 'r:right:lip', kind: 'end_panel', start: 60.0625, end: 61.625, back: 24, front: 24.8125,
+      polygon: [[60.0625, 24.8125], [61.625, 24.8125], [60.8125, 24], [60.0625, 24]],
     });
     const plain = plan(panelRun({ tFiller: undefined })).faces;
     expect(plain.some((face) => face.key.endsWith(':lip'))).toBe(false);
-    expect(byKey(plain, 'r:left')).toEqual({ key: 'r:left', kind: 'end_panel', start: 24, end: 24.75, back: 0, front: 24.875 });
+    expect(byKey(plain, 'r:left')).toEqual({ key: 'r:left', kind: 'end_panel', start: 24, end: 24.8125, back: 0, front: 24.875 });
     expect(byKey(plan(panelRun({ outset: 2 })).faces, 'r:left:lip')).toMatchObject({
-      back: 26, front: 26.8125, polygon: [[24, 26.8125], [25.5, 26.8125], [25.5, 26], [24.75, 26]],
+      back: 26, front: 26.8125, polygon: [[24, 26.8125], [25.5625, 26.8125], [25.5625, 26], [24.8125, 26]],
     });
   });
 
@@ -192,10 +192,10 @@ describe('SPEC-37.1 L-shaped end panels in plan and on the chain', () => {
     const inner = horizontalChains(room, resolveWall(room, room.walls[0]), 'lower', S).inner
       .filter(({ kind }) => kind !== 'open');
     expect(inner.map(({ start, end, kind, pieceId }) => [start, end, kind, pieceId])).toEqual([
-      [24, 25.5, 'piece', 'r:left'],
-      [25.5, 42, 'piece', 'a'],
-      [42, 43.5, 't-filler', 'tee:a|b'],
-      [43.5, 60.75, 'piece', 'b'],
+      [24, 25.5625, 'piece', 'r:left'],
+      [25.5625, 42.0625, 'piece', 'a'],
+      [42.0625, 43.5625, 't-filler', 'tee:a|b'],
+      [43.5625, 60.8125, 'piece', 'b'],
     ]);
   });
 });

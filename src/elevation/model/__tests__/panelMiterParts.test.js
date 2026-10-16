@@ -34,14 +34,14 @@ describe('SPEC-43 a mitered back panel in elevation and the parts list', () => {
       .toEqual([[PANEL, 'panel', 0, 4, 78.5, 30.5, 0, 0.75]]);
     const butted = flush('butt');
     expect(elevationParts(butted, butted.walls[1], 'back', settings).map(row))
-      .toEqual([[PANEL, 'panel', 0.75, 4, 77.75, 30.5, 0, 0.75]]);
+      .toEqual([[PANEL, 'panel', 0.8125, 4, 77.6875, 30.5, 0, 0.75]]);
   });
 
   it('orders the back panel longer by the end panel it runs over', () => {
     const part = roomParts(flush(), settings).find(({ key }) => key === PANEL);
     expect([part.x, part.width, part.height]).toEqual([0, 78.5, 30.5]);
     const butted = roomParts(flush('butt'), settings).find(({ key }) => key === PANEL);
-    expect([butted.x, butted.width]).toEqual([0.75, 77.75]);
+    expect([butted.x, butted.width]).toEqual([0.8125, 77.6875]);
   });
 
   it('offers the joint choice beside a back panel run as well as a face frame', () => {

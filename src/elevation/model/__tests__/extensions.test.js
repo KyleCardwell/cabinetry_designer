@@ -144,12 +144,12 @@ describe('SPEC-35.3 followers stop at extensions', () => {
     };
     const wall = { id: 'A', x1: 0, y1: 0, x2: 96, y2: 0, height: 96, runs: [leader, follower] };
 
-    expect(extendedEndPiece(wall, leader, 'left')).toMatchObject({ x: 0, z: 4, width: 0.75, height: 80 });
-    expect(followInset(wall, leader, follower, 'left')).toBe(0.75);
-    expect(resolveRunAnchorDatum({ walls: [wall] }, wall, follower, 'left', S).x).toBe(0.75);
-    expect(extendedEndPiece(wall, leader, 'right')).toMatchObject({ x: 59.25, z: 4, width: 0.75, height: 80 });
-    expect(followInset(wall, leader, follower, 'right')).toBe(-0.75);
-    expect(resolveRunAnchorDatum({ walls: [wall] }, wall, follower, 'right', S).x).toBe(59.25);
+    expect(extendedEndPiece(wall, leader, 'left')).toMatchObject({ x: 0, z: 4, width: 0.8125, height: 80 });
+    expect(followInset(wall, leader, follower, 'left')).toBe(0.8125);
+    expect(resolveRunAnchorDatum({ walls: [wall] }, wall, follower, 'left', S).x).toBe(0.8125);
+    expect(extendedEndPiece(wall, leader, 'right')).toMatchObject({ x: 59.1875, z: 4, width: 0.8125, height: 80 });
+    expect(followInset(wall, leader, follower, 'right')).toBe(-0.8125);
+    expect(resolveRunAnchorDatum({ walls: [wall] }, wall, follower, 'right', S).x).toBe(59.1875);
     expect(jointEndTypes(wall).get('B')).toEqual({ left: 'none', right: 'none' });
   });
 });

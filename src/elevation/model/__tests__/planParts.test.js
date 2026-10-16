@@ -25,8 +25,8 @@ describe('SPEC-44 the room in plan: walls and what is in them', () => {
       { id: `${window}:casing`, kind: 'casing', points: [[-60, -39], [-60, 15], [-59.25, 15], [-59.25, -39]] },
       { id: '4afd9749-bbe8-4848-8a67-a1d063bdfce8:wall', kind: 'wall', points: [[-60, 84], [60, 84], [64.5, 88.5], [-64.5, 88.5]] },
       { id: '8cf88b99-0a56-4ec4-96c2-ffdcaeef4051:wall', kind: 'wall', points: [[60, 84], [60, 57], [64.5, 57], [64.5, 88.5]] },
-      { id: `${island}:endPanel:start`, kind: 'wall_end_panel', points: [[10.25, -16.75], [9.5, -16.75], [9.5, 21], [10.25, 21]], top: 34.5 },
-      { id: `${island}:endPanel:end`, kind: 'wall_end_panel', points: [[101, -16.75], [100.25, -16.75], [100.25, 21], [101, 21]], top: 34.5 },
+      { id: `${island}:endPanel:start`, kind: 'wall_end_panel', points: [[10.3125, -16.75], [9.5, -16.75], [9.5, 21], [10.3125, 21]], top: 34.5 },
+      { id: `${island}:endPanel:end`, kind: 'wall_end_panel', points: [[101, -16.75], [100.1875, -16.75], [100.1875, 21], [101, 21]], top: 34.5 },
     ]);
   });
 
@@ -62,10 +62,10 @@ describe('SPEC-44 the room in plan: runs', () => {
     const box = '28072a7d-e691-40d1-a005-4d0ed1c9e825';
     const parts = planParts(syncRoom(stored('G1 Euro kitchen'), settings), settings);
     expect(parts.filter(({ runId }) => runId === run)).toEqual([
-      { id: box, kind: 'cabinet', points: [[-60, -83.25], [-60, -54.75], [-35, -54.75], [-35, -83.25]], runId: run, top: 90 },
-      { id: `${run}:left`, kind: 'end_panel', points: [[-60, -84], [-60, -83.25], [-34.125, -83.25], [-34.125, -84]], runId: run, top: 90 },
-      { id: `${box}:rleft`, kind: 'face', points: [[-34.9375, -83.1875], [-34.9375, -69.0625], [-34.125, -69.0625], [-34.125, -83.1875]], runId: run, top: 90 },
-      { id: `${box}:rright`, kind: 'face', points: [[-34.9375, -68.9375], [-34.9375, -54.8125], [-34.125, -54.8125], [-34.125, -68.9375]], runId: run, top: 90 },
+      { id: box, kind: 'cabinet', points: [[-60, -83.1875], [-60, -54.75], [-35, -54.75], [-35, -83.1875]], runId: run, top: 90 },
+      { id: `${run}:left`, kind: 'end_panel', points: [[-60, -84], [-60, -83.1875], [-34.125, -83.1875], [-34.125, -84]], runId: run, top: 90 },
+      { id: `${box}:rleft`, kind: 'face', points: [[-34.9375, -83.125], [-34.9375, -69.03125], [-34.125, -69.03125], [-34.125, -83.125]], runId: run, top: 90 },
+      { id: `${box}:rright`, kind: 'face', points: [[-34.9375, -68.90625], [-34.9375, -54.8125], [-34.125, -54.8125], [-34.125, -68.90625]], runId: run, top: 90 },
       { id: `${run}:right`, kind: 'end_panel', points: [[-60, -54.75], [-60, -54], [-34.125, -54], [-34.125, -54.75]], runId: run, top: 90 },
     ]);
   });
@@ -83,7 +83,7 @@ describe('SPEC-44 the room in plan: runs', () => {
       ['run:right', 'filler', 90, undefined],
       ['run:right:left', 'filler', 90, undefined],
     ]);
-    expect(parts.at(-1).points).toEqual([[-50.3125, 69.25], [-50.3125, 70], [-47.8125, 70], [-47.8125, 69.25]]);
+    expect(parts.at(-1).points).toEqual([[-50.3125, 69.3125], [-50.3125, 70.0625], [-47.8125, 70.0625], [-47.8125, 69.3125]]);
   });
 
   it('gives each stacked box its own top, so the higher one hides the lower (G4)', () => {

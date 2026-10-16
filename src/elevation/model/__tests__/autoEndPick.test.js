@@ -23,7 +23,7 @@ describe('SPEC-46.1.1 a joined end keeps its own style', () => {
     for (const synced of [once, twice]) {
       const end = runOf(synced).ends.right;
       expect([end.type, end.auto, end.styleId, end.sizes, runOf(synced)._endThickness])
-        .toEqual(['end_panel', true, 'ds-p', { rails: { bottom: 42 } }, { right: 0.8125 }]);
+        .toEqual(['end_panel', true, 'ds-p', { rails: { bottom: 42 } }, undefined]);
     }
   });
 });

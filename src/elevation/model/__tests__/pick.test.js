@@ -58,7 +58,7 @@ describe('SPEC-39.1 everything under a click', () => {
       .toEqual([['opening', 'Window W1'], ['wall', 'Wall 1']]);
     const island = face('G1 Euro kitchen', '84063fed-ab0d-4a1d-ae05-ffe67decad5e');
     const endPanel = pickStack(island.room, island.view, settings, { x: 0.375, z: 10 });
-    expect(summary(endPanel)).toEqual([['end_panel', 'Wall end panel 3/4" × 34 1/2"'], ['wall', 'Wall 4']]);
+    expect(summary(endPanel)).toEqual([['end_panel', "Wall end panel 13/16\" × 34 1/2\""], ['wall', 'Wall 4']]);
     expect(endPanel[0].selection).toEqual({ endPanel: 'end' });
   });
 

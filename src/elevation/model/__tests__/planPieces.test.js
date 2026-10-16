@@ -333,20 +333,20 @@ describe('plan box and face geometry', () => {
     );
 
     expect(result.boxes).toEqual([{
-      key: 'c1', start: 0.75, end: 30, back: 0, front: 24,
+      key: 'c1', start: 0.8125, end: 30.0625, back: 0, front: 24,
     }]);
     expect(result.faces.filter(({ kind }) => kind === 'end_panel')).toEqual([{
       key: 'P:left',
       kind: 'end_panel',
       start: 0,
-      end: 0.75,
+      end: 0.8125,
       back: 0,
       front: 24.875,
     }]);
     expect(result.faces.filter(({ kind }) => kind === 'face').every(({ back, front }) => (
       back === 24.0625 && front === 24.875
     ))).toBe(true);
-    expect(result.span).toEqual({ start: 0, end: 30 });
+    expect(result.span).toEqual({ start: 0, end: 30.0625 });
   });
 
   it('227. uses one ordered-width box for a blind cabinet', () => {

@@ -1,3 +1,4 @@
+import { teamDoorStyle } from './doorStyles.js';
 import { panelOrientation } from './cells.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { wallLength } from './geometry.js';
@@ -165,7 +166,7 @@ export function extendedEndPiece(wall, run, side, settings = DEFAULT_SETTINGS) {
   const end = run.ends?.[side];
   if (!end?.extend || (end.type !== 'end_panel' && end.type !== 'filler')) return null;
   const width = end.width ?? (end.type === 'end_panel'
-    ? run._endThickness?.[side] ?? settings.endPanelThickness
+    ? run._endThickness?.[side] ?? teamDoorStyle(settings).thickness
     : settings.fillerMinWidth);
   const z = verticalStart(run, settings);
   const piece = {

@@ -1,3 +1,4 @@
+import { teamDoorStyle } from './doorStyles.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { runItems } from './grid.js';
 import { openingGeometry } from './openings.js';
@@ -38,7 +39,7 @@ export function pinTargetsForRun(run, wall, wallLengthValue, settings) {
 }
 
 function storedEndMinimum(end, settings, thickness) {
-  if (end.type === 'end_panel') return end.width ?? thickness ?? settings.endPanelThickness;
+  if (end.type === 'end_panel') return end.width ?? thickness ?? teamDoorStyle(settings).thickness;
   if (end.type === 'filler' || end.type === 'blind') {
     return end.width ?? settings.fillerMinWidth;
   }

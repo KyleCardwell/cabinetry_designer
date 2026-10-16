@@ -58,7 +58,7 @@ describe('RP2.4 step d face frame reasons', () => {
     ['D2', 15, ['beaded face frame - 1 3/4" stiles & rails',
       '1 13/16" left stile (mitered to 13/16" end panel)']],
   ])('explains a mitered run end panel (%s)', (_anchor, cabinetStyleId, expected) => {
-    const s = { ...flat, endPanelThickness: 0.8125,
+    const s = { ...flat,
       defaultStyle: { ...flat.defaultStyle, cabinetStyleId } };
     const r = room([run('run', [door('a')], { ends: ends('end_panel') })], {}, {}, s);
     expect(notes(r, s)).toEqual([expected]);
@@ -121,8 +121,8 @@ describe('RP2.4 step d face frame reasons', () => {
     }, flat);
     r.doorStyles = [{ ...DEFAULT_DOOR_STYLE, id: 'thick', thickness: 1 }];
     expect(notes(syncRoom(r, flat))).toEqual([
-      ['1 3/4" left stile (mitered to 1" end panel)'],
-      ['1 3/4" right stile (mitered to 1" end panel)'],
+      ['1 3/4" left stile (mitered to 1" end panel)', '1 9/16" right stile (mitered to 13/16" end panel)'],
+      ['1 9/16" left stile (mitered to 13/16" end panel)', '1 3/4" right stile (mitered to 1" end panel)'],
     ]);
   });
 
@@ -579,7 +579,7 @@ describe('RP2 step c shipping list rows', () => {
 
   it('orders a free end by depth and accepts the explicit Shop-built flag (anchors 11, 13)', () => {
     const r = room([run('run', undefined, { width: 18.75, ends: ends('none', 'end_panel') })]);
-    expect(row(r, 'run:right')).toMatchObject({ description: 'Base End Panel', size: '24 7/8 x 30 1/2 x 3/4' });
+    expect(row(r, 'run:right')).toMatchObject({ description: 'Base End Panel', size: '24 7/8 x 30 1/2 x 13/16' });
     r.reportParts = { 'run:right': { shopBuilt: true } };
     expect(row(r, 'run:right').description).toBe('Shop-built Base End Panel');
   });
@@ -605,7 +605,7 @@ describe('RP2 step c shipping list rows', () => {
   it('prints a wall end panel using its part width, top and resolved thickness (anchor 15)', () => {
     const r = room([run('run', undefined, { z: 6, anchors: { left: true, right: false } })], {},
       { endPanels: { start: { width: 25 }, end: null } });
-    expect(row(r, 'wall:endPanel:start')).toMatchObject({ description: 'Wall End Panel', size: '25 x 36 1/2 x 3/4' });
+    expect(row(r, 'wall:endPanel:start')).toMatchObject({ description: 'Wall End Panel', size: '25 x 36 1/2 x 13/16' });
   });
 
   it('uses ordered furniture base dimensions (anchor 16)', () => {
@@ -692,7 +692,7 @@ describe('RP2 step c shipping list rows', () => {
     tall.wallOrder.push('neighbor');
     tall = syncRoom(tall, settings);
     expect(row(tall, 'run:left').description).toBe('Tall Blind Panel');
-    expect(row(tall, 'run:left').size).toBe('27 7/8 x 86 x 3/4');
+    expect(row(tall, 'run:left').size).toBe('27 7/8 x 86 x 13/16');
     expect(row(tall).size).toBe('42 x 86 x 24');
   });
 

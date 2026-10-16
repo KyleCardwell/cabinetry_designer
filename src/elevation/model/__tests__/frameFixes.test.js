@@ -113,15 +113,15 @@ describe('SPEC-36.1 plan pieces', () => {
     const layout = layoutRun(room, wall, run, S);
     const plan = planRunPieces(room, wall, run, S, layout, runFaceLayouts(room, wall, run, S, layout));
     expect(plan.boxes.map(({ key, start, end, back, front }) => [key, start, end, back, front]))
-      .toEqual([['a', 24.75, 42.75, 0, 24], ['b', 42.75, 62, 0, 24]]);
+      .toEqual([['a', 24.8125, 42.8125, 0, 24], ['b', 42.8125, 62, 0, 24]]);
     expect(plan.faces).toEqual([
       {
-        key: 'r:left', kind: 'end_panel', start: 24, end: 24.75, back: 0, front: 24.8125,
-        polygon: [[24, 0], [24.75, 0], [24.75, 24], [24, 24.8125]],
+        key: 'r:left', kind: 'end_panel', start: 24, end: 24.8125, back: 0, front: 24.8125,
+        polygon: [[24, 0], [24.8125, 0], [24.8125, 24], [24, 24.8125]],
       },
       {
         key: 'frame:a', kind: 'frame', start: 24, end: 64, back: 24, front: 24.8125,
-        polygon: [[24, 24.8125], [64, 24.8125], [64, 24], [24.75, 24]],
+        polygon: [[24, 24.8125], [64, 24.8125], [64, 24], [24.8125, 24]],
       },
     ]);
     expect(plan.returns).toEqual([]);

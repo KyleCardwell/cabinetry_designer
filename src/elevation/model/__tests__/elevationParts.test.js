@@ -25,22 +25,22 @@ describe('SPEC-41 elevation parts', () => {
   it('lists each run\'s boxes, then its fillers and panels, with their plan depths (G1 elevation A)', () => {
     const parts = notFaces(partsOf(room('G1 Euro kitchen'), 0));
     expect(parts.map(row)).toEqual([
-      ['28072a7d-e691-40d1-a005-4d0ed1c9e825', 'cabinet', 0.75, 4, 28.5, 86, 0, 25, false],
-      [`${TALL}:left`, 'end_panel', 0, 4, 0.75, 86, 0, 25.875, false],
+      ['28072a7d-e691-40d1-a005-4d0ed1c9e825', 'cabinet', 0.8125, 4, 28.4375, 86, 0, 25, false],
+      [`${TALL}:left`, 'end_panel', 0, 4, 0.8125, 86, 0, 25.875, false],
       [`${TALL}:right`, 'end_panel', 29.25, 4, 0.75, 86, 0, 25.875, false],
       ['cfc9c904-3a11-43ee-a48d-88bef061b5ae', 'cabinet', 30, 4, 24, 30.5, 0, 24, false],
       ['0f652c26-5f80-4387-8a1b-1f35ada26b59', 'cabinet', 54, 4, 36, 30.5, 0, 24, false],
       ['0624c9d5-b951-4191-95f2-1562a6b32343', 'cabinet', 90, 4, 25.5, 30.5, 0, 24, false],
       ['e3bfb331-0a5d-4cf2-aaba-929c53ca8c54', 'cabinet', 115.5, 4, 25.5, 30.5, 0, 24, false],
       [`${BASE}:right`, 'filler', 141, 4, 2.125, 30.5, 24.0625, 24.875, true],
-      ['ae7626bb-d1e5-4396-8b5b-a8630bfed949', 'cabinet', 109.25, 54, 22, 36, 0, 12, false],
-      ['2dc1a45e-c462-4c4a-99f3-65c8b6782a2a', 'cabinet', 131.25, 54, 22, 36, 0, 12, false],
-      [`${UPPER}:left`, 'end_panel', 108.5, 53.875, 0.75, 36.125, 0, 12.875, false],
-      [`${UPPER}:right`, 'filler', 153.25, 53.875, 2.6875, 36.125, 12.0625, 12.875, true],
+      ['ae7626bb-d1e5-4396-8b5b-a8630bfed949', 'cabinet', 109.3125, 54, 22, 36, 0, 12, false],
+      ['2dc1a45e-c462-4c4a-99f3-65c8b6782a2a', 'cabinet', 131.3125, 54, 22, 36, 0, 12, false],
+      [`${UPPER}:left`, 'end_panel', 108.5, 53.875, 0.8125, 36.125, 0, 12.875, false],
+      [`${UPPER}:right`, 'filler', 153.3125, 53.875, 2.625, 36.125, 12.0625, 12.875, true],
     ]);
     expect(parts[0]).toEqual({
       id: '28072a7d-e691-40d1-a005-4d0ed1c9e825', kind: 'cabinet', runId: TALL,
-      x: 0.75, z: 4, width: 28.5, height: 86, back: 0, front: 25, coversBoxEdges: false,
+      x: 0.8125, z: 4, width: 28.4375, height: 86, back: 0, front: 25, coversBoxEdges: false,
     });
   });
 
@@ -51,13 +51,13 @@ describe('SPEC-41 elevation parts', () => {
       id: 'frame:352bd8c0-79a1-4210-a428-cfe95038118f', kind: 'frame', runId: 'a42e9a57-a98f-47f0-b6b4-9076b513db6e',
       x: 50, z: 4, width: 26.5, height: 86, back: 25, front: 25.8125, coversBoxEdges: true,
       holes: [
-        { x: 51.75, z: 5.75, width: 23, height: 61.25 },
-        { x: 51.75, z: 69, width: 23, height: 19.25 },
+        { x: 51.8125, z: 5.75, width: 22.9375, height: 61.25 },
+        { x: 51.8125, z: 69, width: 22.9375, height: 19.25 },
       ],
     });
     // Mitered end panels sit behind the frame (front = the frame's back).
     expect(row(byId(parts, 'a42e9a57-a98f-47f0-b6b4-9076b513db6e:left')))
-      .toEqual(['a42e9a57-a98f-47f0-b6b4-9076b513db6e:left', 'end_panel', 50, 4, 0.75, 86, 0, 25, false]);
+      .toEqual(['a42e9a57-a98f-47f0-b6b4-9076b513db6e:left', 'end_panel', 50, 4, 0.8125, 86, 0, 25, false]);
     expect(row(byId(parts, '860a1197-d14f-4fc2-9499-2d44cd1d8fa3:left')))
       .toEqual(['860a1197-d14f-4fc2-9499-2d44cd1d8fa3:left', 'end_panel', 76.5, 4, 0.75, 30.5, 0, 24, false]);
     // A framed box is its narrowed box; a filler in the frame is stile, not a part.
@@ -73,20 +73,20 @@ describe('SPEC-41 elevation parts', () => {
     expect(parts.map(({ kind }) => kind)).toEqual([
       'cabinet', 'cabinet', 'cabinet', 'cabinet', 'end_panel', 'filler', 'filler', 'filler', 'filler',
     ]);
-    expect(row(byId(parts, `${run}:left`))).toEqual([`${run}:left`, 'end_panel', 13, 4, 1.5, 86, 0, 24.8125, true]);
-    expect(row(byId(parts, `${run}:right`))).toEqual([`${run}:right`, 'filler', 118, 4, 2, 86, 24, 24.8125, true]);
+    expect(row(byId(parts, `${run}:left`))).toEqual([`${run}:left`, 'end_panel', 13, 4, 1.5625, 86, 0, 24.8125, true]);
+    expect(row(byId(parts, `${run}:right`))).toEqual([`${run}:right`, 'filler', 118.0625, 4, 1.9375, 86, 24, 24.8125, true]);
     const seam = 'tee:36718dec-9ae3-48e7-bce7-f3d95d207a1c|0e8d791b-a3a5-4fe6-8b08-a1b8e954b8ba';
-    expect(row(byId(parts, seam))).toEqual([seam, 'filler', 48, 4, 1.5, 86, 24, 24.8125, true]);
+    expect(row(byId(parts, seam))).toEqual([seam, 'filler', 48.0625, 4, 1.5, 86, 24, 24.8125, true]);
     const flat = 'tee:h:87b307e7-2f67-48a7-a80e-a52d4249d55b|0e8d791b-a3a5-4fe6-8b08-a1b8e954b8ba';
-    expect(row(byId(parts, flat))).toEqual([flat, 'filler', 49.5, 63.25, 33.5, 1.5, 24, 24.8125, true]);
+    expect(row(byId(parts, flat))).toEqual([flat, 'filler', 49.5625, 63.25, 33.5, 1.5, 24, 24.8125, true]);
   });
 
   it('a part the plan doesn\'t draw spans its run from the back to the run\'s front (G3 top panel)', () => {
     const parts = notFaces(partsOf(room('G3 Bath alcove'), 1));
     expect(row(byId(parts, 'fbe04e96-9442-4fcd-aafa-b8d49960a63d')))
-      .toEqual(['fbe04e96-9442-4fcd-aafa-b8d49960a63d', 'panel', 0.75, 77.25, 70.5, 0.75, 0, 24, false]);
+      .toEqual(['fbe04e96-9442-4fcd-aafa-b8d49960a63d', 'panel', 0.8125, 77.25, 70.375, 0.75, 0, 24, false]);
     expect(row(byId(parts, '5f4db696-00e1-4303-9881-23a4d8ae7a64')))
-      .toEqual(['5f4db696-00e1-4303-9881-23a4d8ae7a64', 'panel', 0.75, 36, 70.5, 41.25, 0, 0.75, false]);
+      .toEqual(['5f4db696-00e1-4303-9881-23a4d8ae7a64', 'panel', 0.8125, 36, 70.375, 41.25, 0, 0.75, false]);
   });
 
   it('faces: a door sits a bumper off its box; an inset door is flush with its frame', () => {
@@ -94,13 +94,13 @@ describe('SPEC-41 elevation parts', () => {
     expect(g1).toHaveLength(23);
     expect(g1.filter((part) => part.kind === 'face')).toHaveLength(11);
     expect(g1.filter((part) => part.kind === 'face').slice(0, 2).map(row)).toEqual([
-      ['28072a7d-e691-40d1-a005-4d0ed1c9e825:rleft', 'face', 0.8125, 4.125, 14.125, 85.75, 25.0625, 25.875, true],
-      ['28072a7d-e691-40d1-a005-4d0ed1c9e825:rright', 'face', 15.0625, 4.125, 14.125, 85.75, 25.0625, 25.875, true],
+      ['28072a7d-e691-40d1-a005-4d0ed1c9e825:rleft', 'face', 0.875, 4.125, 14.09375, 85.75, 25.0625, 25.875, true],
+      ['28072a7d-e691-40d1-a005-4d0ed1c9e825:rright', 'face', 15.09375, 4.125, 14.09375, 85.75, 25.0625, 25.875, true],
     ]);
     const g2 = partsOf(room('G2 Face frame kitchen'), 0);
     expect(g2).toHaveLength(27);
     expect(row(byId(g2, '352bd8c0-79a1-4210-a428-cfe95038118f:rleft')))
-      .toEqual(['352bd8c0-79a1-4210-a428-cfe95038118f:rleft', 'face', 51.75, 5.75, 11.5, 61.25, 25, 25.8125, true]);
+      .toEqual(['352bd8c0-79a1-4210-a428-cfe95038118f:rleft', 'face', 51.8125, 5.75, 11.46875, 61.25, 25, 25.8125, true]);
   });
 
   it('shelves: the back panel at the back of its cell, each shelf in front of it', () => {
@@ -110,8 +110,8 @@ describe('SPEC-41 elevation parts', () => {
     const synced = syncRoom(copy, settings);
     const parts = partsOf(synced, 0);
     expect(parts.filter((part) => part.id.startsWith(`${top}:`)).map(row)).toEqual([
-      [`${top}:back`, 'panel', 48.75, 64, 35, 26, 0, 0.75, false],
-      [`${top}:shelf-1`, 'shelf', 48.75, 76.25, 35, 1.5, 0.75, 24, false],
+      [`${top}:back`, 'panel', 48.8125, 64, 35, 26, 0, 0.75, false],
+      [`${top}:shelf-1`, 'shelf', 48.8125, 76.25, 35, 1.5, 0.75, 24, false],
     ]);
     expect(byId(parts, top)).toBeUndefined();
   });
@@ -121,8 +121,8 @@ describe('SPEC-41 elevation parts', () => {
     copy.walls[1].runs.find(({ id }) => id.startsWith('ea4373b3')).bottom[0].doors = 'flush';
     const parts = partsOf(syncRoom(copy, settings), 1);
     const upper = 'ea4373b3-87f2-4f39-a7cc-2c829c839832';
-    expect(byId(parts, `${upper}:left`).lines).toEqual([{ x1: 0, z1: 55.625, x2: 2.75, z2: 55.625 }]);
-    expect(byId(parts, `${upper}:right`).lines).toEqual([{ x1: 100.25, z1: 55.625, x2: 101, z2: 55.625 }]);
+    expect(byId(parts, `${upper}:left`).lines).toEqual([{ x1: 0, z1: 55.625, x2: 2.6875, z2: 55.625 }]);
+    expect(byId(parts, `${upper}:right`).lines).toEqual([{ x1: 100.1875, z1: 55.625, x2: 101, z2: 55.625 }]);
     expect(partsOf(room('G6 Stacked runs'), 1).some((part) => 'lines' in part)).toBe(false);
   });
 });

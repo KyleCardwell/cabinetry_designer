@@ -50,8 +50,8 @@ describe('SPEC-46.4 door details for one wall face', () => {
     const result = g1A(synced);
     expect(result.map(({ partId }) => partId)).toEqual(G1_A_IDS);
     expect(result.slice(0, 3)).toEqual([
-      { partId: `${TALL_CAB}:rleft`, openings: [box(3.8125, 7.125, 8.125, 79.75)] },
-      { partId: `${TALL_CAB}:rright`, openings: [box(18.0625, 7.125, 8.125, 79.75)] },
+      { partId: `${TALL_CAB}:rleft`, openings: [box(3.875, 7.125, 8.09375, 79.75)] },
+      { partId: `${TALL_CAB}:rright`, openings: [box(18.09375, 7.125, 8.09375, 79.75)] },
       { partId: `${CAB_24}:r`, openings: [box(33.0625, 7.125, 17.875, 24.125)] },
     ]);
     const ids = new Set(elevationParts(synced, wallWith(synced, BASE), 'front', settings).map(({ id }) => id));
@@ -63,7 +63,7 @@ describe('SPEC-46.4 door details for one wall face', () => {
     const result = elevationDoorDetails(synced, wallWith(synced, G3_UPPER), 'front', settings);
     expect(result).toHaveLength(9);
     expect(result[0]).toEqual({ partId: `${G3_DRAWERS}:r.0`, openings: [box(4.5625, 30.25, 13.375, 2.125)] });
-    expect(result[8]).toEqual({ partId: G3_BACK, openings: [box(3.75, 39, 64.5, 35.25)] });
+    expect(result[8]).toEqual({ partId: G3_BACK, openings: [box(3.8125, 39, 64.375, 35.25)] });
   });
 
   it('follows the room\'s Draw door details and Show style tags choices', () => {

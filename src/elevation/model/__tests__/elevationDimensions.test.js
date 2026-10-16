@@ -39,8 +39,8 @@ describe('SPEC-43 elevation dimensions', () => {
   it('dimensions every segment of the canvas\'s chains; text that doesn\'t fit moves off the line (G1 elevation A)', () => {
     const g1 = room('G1 Euro kitchen');
     expect(horizontal(elevationDimensions(g1, g1.walls[0], 'front', settings)).map(row)).toEqual([
-      ['lower.inner', 'piece', 0, 0.75, 0, -9, '3/4', 0.375, -11.625],
-      ['lower.inner', 'piece', 0.75, 29.25, 0, -9, '28 1/2'],
+      ['lower.inner', 'piece', 0, 0.8125, 0, -9, '13/16', 0.40625, -11.625],
+      ['lower.inner', 'piece', 0.8125, 29.25, 0, -9, '28 7/16'],
       ['lower.inner', 'piece', 29.25, 30, 0, -9, '3/4', 29.625, -11.625],
       ['lower.inner', 'piece', 30, 54, 0, -9, '24'],
       ['lower.inner', 'piece', 54, 90, 0, -9, '36'],
@@ -55,10 +55,10 @@ describe('SPEC-43 elevation dimensions', () => {
       ['openings', 'gap', 96, 168, 0, -30.75, '72'],
       ['upper.inner', 'tall-span', 0, 30, 96, 105, '30'],
       ['upper.inner', 'open', 30, 108.5, 96, 105, '78 1/2'],
-      ['upper.inner', 'piece', 108.5, 109.25, 96, 105, '3/4', 108.875, 111.375],
-      ['upper.inner', 'piece', 109.25, 131.25, 96, 105, '22'],
-      ['upper.inner', 'piece', 131.25, 153.25, 96, 105, '22'],
-      ['upper.inner', 'piece', 153.25, 155.125, 96, 105, '1 7/8', 154.1875, 111.375],
+      ['upper.inner', 'piece', 108.5, 109.3125, 96, 105, '13/16', 108.90625, 111.375],
+      ['upper.inner', 'piece', 109.3125, 131.3125, 96, 105, '22'],
+      ['upper.inner', 'piece', 131.3125, 153.3125, 96, 105, '22'],
+      ['upper.inner', 'piece', 153.3125, 155.125, 96, 105, '1 13/16', 154.21875, 111.375],
       ['upper.inner', 'corner-gap', 155.125, 168, 96, 105, '12 7/8'],
       ['upper.outer', 'tall-span', 0, 30, 96, 117.75, '30'],
       ['upper.outer', 'open', 30, 108.5, 96, 117.75, '78 1/2'],
@@ -91,9 +91,9 @@ describe('SPEC-43 elevation dimensions', () => {
   it('dimensions the wall above when there are no uppers, and recesses in the wall row (G1 island, G5)', () => {
     const g1 = room('G1 Euro kitchen');
     expect(horizontal(elevationDimensions(g1, g1.walls[3], 'back', settings)).map(row).slice(5)).toEqual([
-      ['lower.outer', 'open', 0, 0.75, 0, -21.75, '3/4', 0.375, -24.375],
-      ['lower.outer', 'run', 0.75, 90.75, 0, -21.75, '90'],
-      ['lower.outer', 'open', 90.75, 91.5, 0, -21.75, '3/4', 91.125, -24.375],
+      ['lower.outer', 'open', 0, 0.8125, 0, -21.75, '13/16', 0.40625, -24.375],
+      ['lower.outer', 'run', 0.8125, 90.6875, 0, -21.75, '89 7/8'],
+      ['lower.outer', 'open', 90.6875, 91.5, 0, -21.75, '13/16', 91.09375, -24.375],
       ['upper.outer', 'wall', 0, 91.5, 36, 45, '91 1/2'],
     ]);
     const g5 = room('G5 Recess room');

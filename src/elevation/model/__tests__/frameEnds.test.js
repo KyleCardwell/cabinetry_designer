@@ -56,31 +56,31 @@ describe('SPEC-36.2 wall end panels in a face frame', () => {
   it('covers a flush wall end panel: the frame runs over it and the box keeps its side', () => {
     const room = island();
     expect(runOf(room, 'F')._frame).toEqual({
-      thickness: 0.8125, drop: 0, bead: 0, wallPanels: { left: { width: 0.75, top: 34.5, join: 'miter' }, right: null },
+      thickness: 0.8125, drop: 0, bead: 0, wallPanels: { left: { width: 0.8125, top: 34.5, join: 'miter' }, right: null },
     });
     expect(runOf(room, 'K')._frame.wallPanels).toEqual({
-      left: null, right: { width: 0.75, top: 34.5, join: 'miter' },
+      left: null, right: { width: 0.8125, top: 34.5, join: 'miter' },
     });
     expect('_frame' in runOf(island({ style: null }), 'F')).toBe(false);
 
     const { frames, faces } = frontFrames(room);
     expect(frames.regions).toEqual([{
       id: 'frame:Fa', x: 0, z: 4, width: 96, height: 30.5, cabinetIds: ['Fa', 'Fb'], fillerIds: [],
-      panelIds: ['F:right'], wallPanels: [{ side: 'left', x: 0, width: 0.75 }],
+      panelIds: ['F:right'], wallPanels: [{ side: 'left', x: 0, width: 0.8125 }],
     }]);
     expect(frames.freeSides.get('Fa')).toEqual({ left: false, right: false });
-    expect([faces.get('Fa').box.x, faces.get('Fa').box.width]).toEqual([0.75, 47.25]);
-    expect(faces.get('Fa').openings).toEqual([{ path: 'r', x: 1.5, z: 5.5, width: 45.75, height: 27.5 }]);
+    expect([faces.get('Fa').box.x, faces.get('Fa').box.width]).toEqual([0.8125, 47.1875]);
+    expect(faces.get('Fa').openings).toEqual([{ path: 'r', x: 1.5625, z: 5.5, width: 45.6875, height: 27.5 }]);
   });
 
   it('lets the frame die into a taller panel, or as the panel says', () => {
     const taller = island({ back: { height: 36 } });
-    expect(runOf(taller, 'F')._frame.wallPanels.left).toEqual({ width: 0.75, top: 40, join: 'butt' });
-    expect(runOf(taller, 'K')._frame.wallPanels.right).toEqual({ width: 0.75, top: 40, join: 'miter' });
+    expect(runOf(taller, 'F')._frame.wallPanels.left).toEqual({ width: 0.8125, top: 40, join: 'butt' });
+    expect(runOf(taller, 'K')._frame.wallPanels.right).toEqual({ width: 0.8125, top: 40, join: 'miter' });
     const { frames, faces } = frontFrames(taller);
-    expect(frames.regions[0]).toMatchObject({ x: 0.75, width: 95.25 });
+    expect(frames.regions[0]).toMatchObject({ x: 0.8125, width: 95.1875 });
     expect('wallPanels' in frames.regions[0]).toBe(false);
-    expect([faces.get('Fa').box.x, faces.get('Fa').box.width]).toEqual([1.5, 46.875]);
+    expect([faces.get('Fa').box.x, faces.get('Fa').box.width]).toEqual([1.5625, 46.8125]);
 
     expect(runOf(island({ panel: { width: null, frame: 'butt' } }), 'F')._frame.wallPanels.left.join)
       .toBe('butt');
@@ -94,21 +94,21 @@ describe('SPEC-36.2 a mitered wall end panel in plan, chain and elevation', () =
     const room = island();
     const { wall, run, layout, faces } = frontFrames(room);
     const plan = planRunPieces(room, wall, run, S, layout, faces);
-    expect(plan.boxes.map(({ key, start, end }) => [key, start, end])).toEqual([['Fa', 0.75, 48], ['Fb', 48, 95.25]]);
+    expect(plan.boxes.map(({ key, start, end }) => [key, start, end])).toEqual([['Fa', 0.8125, 48], ['Fb', 48, 95.1875]]);
     expect(plan.faces.find(({ kind }) => kind === 'frame')).toEqual({
       key: 'frame:Fa', kind: 'frame', start: 0, end: 96, back: 24, front: 24.8125,
-      polygon: [[0, 24.8125], [96, 24.8125], [95.25, 24], [0.75, 24]],
+      polygon: [[0, 24.8125], [96, 24.8125], [95.1875, 24], [0.8125, 24]],
     });
     const [panel] = wallEndPanels(room, room.walls[0], S);
     expect(wallEndPanelPolygon(room, room.walls[0], panel)).toEqual([
-      { x: 0, y: -24.8125 }, { x: 0.75, y: -24 }, { x: 0.75, y: 24 }, { x: 0, y: 24.8125 },
+      { x: 0, y: -24.8125 }, { x: 0.8125, y: -24 }, { x: 0.8125, y: 24 }, { x: 0, y: 24.8125 },
     ]);
     expect(horizontalChains(room, wall, 'lower', S).inner).toEqual([
-      { start: 0, end: 1.5, kind: 'frame', runId: 'F' },
-      { start: 1.5, end: 47.25, kind: 'frame-opening', runId: 'F', pieceId: 'Fa' },
+      { start: 0, end: 1.5625, kind: 'frame', runId: 'F' },
+      { start: 1.5625, end: 47.25, kind: 'frame-opening', runId: 'F', pieceId: 'Fa' },
       { start: 47.25, end: 48.75, kind: 'frame', runId: 'F' },
-      { start: 48.75, end: 94.5, kind: 'frame-opening', runId: 'F', pieceId: 'Fb' },
-      { start: 94.5, end: 96, kind: 'frame', runId: 'F' },
+      { start: 48.75, end: 94.4375, kind: 'frame-opening', runId: 'F', pieceId: 'Fb' },
+      { start: 94.4375, end: 96, kind: 'frame', runId: 'F' },
     ]);
   });
 

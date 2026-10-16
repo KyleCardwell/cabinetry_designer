@@ -38,32 +38,32 @@ describe('SPEC-43 a back panel mitered into a wall end panel', () => {
   it('cuts the end panel\'s inside corner by the back panel\'s thickness in plan', () => {
     const room = flush();
     expect(wallEndPanelPolygon(room, room.walls[1], wallEndPanels(room, room.walls[1], settings)[0])).toEqual([
-      { x: 86, y: 62.75 }, { x: 86.75, y: 63.5 }, { x: 61.1875, y: 63.5 }, { x: 62, y: 62.75 },
+      { x: 86, y: 62.6875 }, { x: 86.75, y: 63.5 }, { x: 61.1875, y: 63.5 }, { x: 62, y: 62.6875 },
     ]);
     // As drawn it's butted: the back corner is square. (A panel-only run in an inset room is not a frame.)
     const drawn = asDrawn();
     expect(wallEndPanelPolygon(drawn, drawn.walls[1], wallEndPanels(drawn, drawn.walls[1], settings)[0])).toEqual([
-      { x: 110, y: 62.75 }, { x: 110, y: 63.5 }, { x: 61.1875, y: 63.5 }, { x: 62, y: 62.75 },
+      { x: 110, y: 62.6875 }, { x: 110, y: 63.5 }, { x: 61.1875, y: 63.5 }, { x: 62, y: 62.6875 },
     ]);
   });
 
   it('runs the back panel over the end panel to the outside corner in plan, cut at 45°', () => {
     expect(backPanelPlan(flush())).toEqual([{
       key: PANEL, kind: 'panel', start: 0, end: 78.5, back: 0, front: 0.75,
-      polygon: [[0, 0.75], [78.5, 0.75], [78.5, 0], [0.75, 0]],
+      polygon: [[0, 0.75], [78.5, 0.75], [78.5, 0], [0.8125, 0]],
     }]);
     expect(backPanelPlan(flush('butt'))).toEqual([{
-      key: PANEL, kind: 'panel', start: 0.75, end: 78.5, back: 0, front: 0.75,
+      key: PANEL, kind: 'panel', start: 0.8125, end: 78.5, back: 0, front: 0.75,
     }]);
   });
 
   it('puts the end panel behind the back panel in elevation and shows only what it leaves', () => {
     const room = flush();
     expect(wallParts(room, room.walls[1], 'back', settings).map(row)).toEqual([
-      [`${PENINSULA}:endPanel:end`, 'wall_end_panel', 0, 0, 0.75, 34.5, -24.8125, 0],
+      [`${PENINSULA}:endPanel:end`, 'wall_end_panel', 0, 0, 0.8125, 34.5, -24.8125, 0],
     ]);
     expect(wallParts(room, room.walls[1], 'front', settings).map(row)).toEqual([
-      [`${PENINSULA}:endPanel:end`, 'wall_end_panel', 77.75, 0, 0.75, 34.5, -0.75, 24],
+      [`${PENINSULA}:endPanel:end`, 'wall_end_panel', 77.6875, 0, 0.8125, 34.5, -0.75, 24],
     ]);
     expect(spansOf(room, 'back')).toEqual([{ z: 0, height: 4 }]);
     expect(spansOf(room, 'front')).toEqual([{ z: 0, height: 4 }]);

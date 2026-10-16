@@ -766,6 +766,7 @@ function normalizeDocument(document, schemaVersion) {
     if (settings.sectionProfiles === undefined) settings.sectionProfiles = [];
     else if (Array.isArray(settings.sectionProfiles)) settings.sectionProfiles = settings.sectionProfiles.map(migrateSectionProfile);
     delete settings.doorThickness;
+    delete settings.endPanelThickness;
   }
   return {
     ...document,

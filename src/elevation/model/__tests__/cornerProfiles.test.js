@@ -21,9 +21,9 @@ describe('SPEC-42.2 neighbour profiles', () => {
     expect(shapes.map(({ kind }) => kind)).toEqual(['return', 'profile']);
     expect(shapes[1]).toMatchObject({ key: `${PENINSULA}:back:${BACK_RUN}:right`, wallId: PENINSULA, runId: BACK_RUN });
     expect(shapes[1].parts.map(row)).toEqual([
-      ['toe_kick', 'toe_kick', 172, 0, 21, 4, 0, 77.75],
-      ['box', 'profile', 172, 4, 24, 30.5, 0, 77.75],
-      ['countertop', 'countertop', 172, 34.5, 24.75, 1.5, 0, 77.75],
+      ['toe_kick', 'toe_kick', 172, 0, 21, 4, 0, 77.6875],
+      ['box', 'profile', 172, 4, 24, 30.5, 0, 77.6875],
+      ['countertop', 'countertop', 172, 34.5, 24.75, 1.5, 0, 77.6875],
     ]);
     expect(shapes[1].parts.every((part) => !('opaque' in part))).toBe(true);
   });

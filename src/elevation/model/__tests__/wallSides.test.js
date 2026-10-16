@@ -432,13 +432,13 @@ describe('wall sides', () => {
     const F = byId(I, 'F');
     const K = byId(I, 'K');
 
-    expect(F).toMatchObject({ x: 0.75, width: 95.25 });
-    expect(K).toMatchObject({ x: 0, width: 95.25 });
+    expect(F).toMatchObject({ x: 0.8125, width: 95.1875 });
+    expect(K).toMatchObject({ x: 0, width: 95.1875 });
     expect(F.ends.left).toEqual({ type: 'none', width: null, auto: true });
     expect(F.ends.right).toEqual({ type: 'end_panel', width: null });
     expect(K.ends.right).toEqual({ type: 'none', width: null, auto: true });
     expect(splitRun(F, settings, {}).pieces.map(({ kind, width }) => [kind, width]))
-      .toEqual([['cabinet', 94.5], ['end_panel', 0.75]]);
+      .toEqual([['cabinet', 94.375], ['end_panel', 0.8125]]);
   });
 
   it('127. restores run end panels when a wall end panel is removed', () => {
@@ -470,14 +470,14 @@ describe('wall sides', () => {
     const panels = wallEndPanels(room, I, settings);
 
     expect(panels).toEqual([{
-      endpoint: 'start', width: 0.75, top: 34.5, thickness: 0,
+      endpoint: 'start', width: 0.8125, top: 34.5, thickness: 0,
       front: { side: 'left', x: 0, depth: 24.875, top: 34.5, runIds: ['F'] },
-      back: { side: 'right', x: 95.25, depth: 12.875, top: 34.5, runIds: ['K'] },
+      back: { side: 'right', x: 95.1875, depth: 12.875, top: 34.5, runIds: ['K'] },
     }]);
     expect(wallEndPanelPolygon(room, I, panels[0])).toEqual([
       { x: 0, y: -12.875 },
-      { x: 0.75, y: -12.875 },
-      { x: 0.75, y: 24.875 },
+      { x: 0.8125, y: -12.875 },
+      { x: 0.8125, y: 24.875 },
       { x: 0, y: 24.875 },
     ]);
   });
@@ -492,7 +492,7 @@ describe('wall sides', () => {
 
     expect(F).toMatchObject({ x: 2, width: 94 });
     expect(describeAnchor(panelRoom, I, byId(I, 'F'), 'left', settings))
-      .toBe('Wall end panel 3/4"');
+      .toBe('Wall end panel 13/16"');
   });
 
   it('131. ignores a wall end panel at a connected endpoint', () => {

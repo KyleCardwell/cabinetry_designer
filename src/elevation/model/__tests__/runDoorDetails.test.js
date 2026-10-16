@@ -118,15 +118,15 @@ describe('SPEC-46.2 door details for a run', () => {
         construction: 'five_piece', rails: { top: 3, bottom: 3 }, stiles: { left: 3, right: 3 },
       }),
       construction: 'five_piece',
-      ...box(0.75, 36, 70.5, 41.25),
-      openings: [box(3.75, 39, 64.5, 35.25)],
+      ...box(0.8125, 36, 70.375, 41.25),
+      openings: [box(3.8125, 39, 64.375, 35.25)],
       lines: [], miters: [], openingsShown: true,
     }]);
     const sheet = details('G3 Bath alcove', G3_UPPER, (r) => {
       leafOf(runOf(r, G3_UPPER), G3_BACK).styleId = 'sheet';
     });
     expect(sheet.parts.map(({ label, construction, openings }) => [label, construction, openings]))
-      .toEqual([['Sheet', 'slab', [box(0.75, 36, 70.5, 41.25)]]]);
+      .toEqual([['Sheet', 'slab', [box(0.8125, 36, 70.375, 41.25)]]]);
   });
 
   it('passes on the resolver\'s warnings, one per part, with the part\'s key', () => {

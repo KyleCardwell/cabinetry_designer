@@ -20,26 +20,26 @@ describe('SPEC-42.1 wall parts', () => {
   it('draws an island\'s wall end panels through the wall, as deep as the runs on this side', () => {
     const g1 = room('G1 Euro kitchen');
     expect(partsOf(g1, 3).map(row)).toEqual([
-      [`${ISLAND}:endPanel:start`, 'wall_end_panel', 90.75, 0, 0.75, 34.5, -12.875, 24.875],
-      [`${ISLAND}:endPanel:end`, 'wall_end_panel', 0, 0, 0.75, 34.5, -12.875, 24.875],
+      [`${ISLAND}:endPanel:start`, 'wall_end_panel', 90.6875, 0, 0.8125, 34.5, -12.875, 24.875],
+      [`${ISLAND}:endPanel:end`, 'wall_end_panel', 0, 0, 0.8125, 34.5, -12.875, 24.875],
     ]);
     expect(partsOf(g1, 3, 'back').map(row)).toEqual([
-      [`${ISLAND}:endPanel:start`, 'wall_end_panel', 0, 0, 0.75, 34.5, -24.875, 12.875],
-      [`${ISLAND}:endPanel:end`, 'wall_end_panel', 90.75, 0, 0.75, 34.5, -24.875, 12.875],
+      [`${ISLAND}:endPanel:start`, 'wall_end_panel', 0, 0, 0.8125, 34.5, -24.875, 12.875],
+      [`${ISLAND}:endPanel:end`, 'wall_end_panel', 90.6875, 0, 0.8125, 34.5, -24.875, 12.875],
     ]);
     expect(partsOf(g1, 3)[0]).toEqual({
       id: `${ISLAND}:endPanel:start`, kind: 'wall_end_panel',
-      x: 90.75, z: 0, width: 0.75, height: 34.5, back: -12.875, front: 24.875, coversBoxEdges: false,
+      x: 90.6875, z: 0, width: 0.8125, height: 34.5, back: -12.875, front: 24.875, coversBoxEdges: false,
     });
   });
 
   it('puts a wall end panel a face frame is mitered over behind the frame (G2 peninsula)', () => {
     const g2 = room('G2 Face frame kitchen');
     expect(row(partsOf(g2, 1)[0]))
-      .toEqual([`${PENINSULA}:endPanel:end`, 'wall_end_panel', 77.75, 0, 0.75, 34.5, -24, 24]);
+      .toEqual([`${PENINSULA}:endPanel:end`, 'wall_end_panel', 77.6875, 0, 0.8125, 34.5, -24, 24]);
     // The back face's run is only a back panel: no frame, so nothing is mitered over it.
     expect(row(partsOf(g2, 1, 'back')[0]))
-      .toEqual([`${PENINSULA}:endPanel:end`, 'wall_end_panel', 0, 0, 0.75, 34.5, -24.8125, 24]);
+      .toEqual([`${PENINSULA}:endPanel:end`, 'wall_end_panel', 0, 0, 0.8125, 34.5, -24.8125, 24]);
   });
 
   it('draws a door or window as its casing and its opening, outlines that hide nothing', () => {

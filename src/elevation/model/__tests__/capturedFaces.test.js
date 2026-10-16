@@ -54,11 +54,11 @@ describe('SPEC-44 a captured cabinet with a pair door and single-wide faces', ()
     };
     const { faces } = runFaceLayouts(room, resolveWall(room, room.walls[0]), run, S).get('a');
     expect(faces.map(({ path, half, x, width }) => [path, half ?? null, x, width])).toEqual([
-      ['r.0', 'left', 24.84375, 14.875],
-      ['r.0', 'right', 39.78125, 14.875],
-      ['r.1.0', null, 24.84375, 29.8125],
-      ['r.1.1', null, 24.84375, 29.8125],
-      ['r.1.2', null, 24.84375, 29.8125],
+      ['r.0', 'left', 24.90625, 14.875],
+      ['r.0', 'right', 39.84375, 14.875],
+      ['r.1.0', null, 24.90625, 29.8125],
+      ['r.1.1', null, 24.90625, 29.8125],
+      ['r.1.2', null, 24.90625, 29.8125],
     ]);
   });
 });
