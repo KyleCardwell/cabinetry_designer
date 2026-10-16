@@ -1,4 +1,4 @@
-import { FACE_DIRECTIONS, FACE_TYPES, ROOT_FACE_PATH } from './faces.js';
+import { DOOR_ACTIONS, DOOR_HINGES, FACE_DIRECTIONS, FACE_TYPES, ROOT_FACE_PATH } from './faces.js';
 
 /** Most sections a single split or count can create. */
 export const MAX_FACE_SPLIT = 8;
@@ -58,7 +58,14 @@ export function faceOutline(face) {
 export function setFaceType(face, path, type) {
   const target = getFaceNode(face, path);
   if (!target?.type || !FACE_TYPES.includes(type)) return face;
-  return replaceAt(face, path, (node) => { const next = { ...node, type }; if (type !== 'door') delete next.hinge; return next; });
+  return replaceAt(face, path, (node) => {
+    const next = { ...node, type };
+    if (node.type !== type) {
+      delete next.hinge;
+      delete next.action;
+    }
+    return next;
+  });
 }
 
 /** Set or clear a non-open leaf's own style and sizes. */
@@ -176,16 +183,39 @@ export function equalizeGroup(face, path) {
   }));
 }
 
-/** Sets a door leaf's hinge side ('left' / 'right'), or clears it with null. */
+/** Sets a door leaf's hinge edge, or clears it with null. */
 export function setFaceHinge(face, path, hinge) {
   const target = getFaceNode(face, path);
   if (target?.type !== 'door') return face;
-  if (hinge !== null && hinge !== 'left' && hinge !== 'right') return face;
+  if (hinge !== null) {
+    if (!DOOR_HINGES.includes(hinge) || ['sliding', 'pullout'].includes(target.action)) return face;
+    if (['flipper', 'pocket'].includes(target.action) && !['left', 'right'].includes(hinge)) return face;
+  }
   if ((target.hinge ?? null) === hinge) return face;
   return replaceAt(face, path, (node) => {
     const next = { ...node };
     if (hinge) next.hinge = hinge;
     else delete next.hinge;
+    return next;
+  });
+}
+
+/** Sets a door or pair door's action; swing and null remove the stored action. */
+export function setFaceAction(face, path, action) {
+  const target = getFaceNode(face, path);
+  if (!['door', 'pair_door'].includes(target?.type)) return face;
+  const value = action === 'swing' ? null : action;
+  if (value !== null && !DOOR_ACTIONS.includes(value)) return face;
+  if (target.type === 'pair_door' && value === 'pullout') return face;
+  if ((target.action ?? null) === value) return face;
+  return replaceAt(face, path, (node) => {
+    const next = { ...node };
+    if (value) next.action = value;
+    else delete next.action;
+    if (['sliding', 'pullout'].includes(value)
+      || (['flipper', 'pocket'].includes(value) && ['top', 'bottom'].includes(node.hinge))) {
+      delete next.hinge;
+    }
     return next;
   });
 }

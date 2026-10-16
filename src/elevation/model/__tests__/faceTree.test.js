@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { setFaceAction } from '../index.js';
 import {
   equalizeGroup,
   faceOutline,
@@ -168,5 +169,77 @@ describe('faceTree', () => {
     expect(setFaceHinge(face, 'r.0', 'left')).toBe(face);
     expect(setFaceHinge(face, 'r.1', 'up')).toBe(face);
     expect(setFaceType(hinged, 'r.1', 'drawer_front').children[1]).toEqual({ type: 'drawer_front', size: null });
+  });
+
+  it('HP1 anchor 1: accepts top and bottom hinges and rejects unknown edges', () => {
+    for (const hinge of ['top', 'bottom']) {
+      const hinged = setFaceHinge(DOOR, 'r', hinge);
+      expect(hinged).toEqual({ ...DOOR, hinge });
+      expect(setFaceHinge(hinged, 'r', hinge)).toBe(hinged);
+      expect(setFaceHinge(hinged, 'r', null)).toEqual(DOOR);
+    }
+    expect(setFaceHinge(DOOR, 'r', 'up')).toBe(DOOR);
+  });
+
+  it('HP1 anchor 2: pullout and sliding clear hinges and reject hinge edits', () => {
+    const door = deepFreeze({ ...DOOR, hinge: 'left' });
+    for (const action of ['pullout', 'sliding']) {
+      const next = setFaceAction(door, 'r', action);
+      expect(next).toEqual({ ...DOOR, action });
+      for (const hinge of ['left', 'right', 'top', 'bottom']) {
+        expect(setFaceHinge(next, 'r', hinge)).toBe(next);
+      }
+      expect(setFaceAction(next, 'r', action)).toBe(next);
+      expect(setFaceAction(next, 'r', 'swing')).toEqual(DOOR);
+      expect(setFaceAction(next, 'r', null)).toEqual(DOOR);
+    }
+    expect(door).toEqual({ ...DOOR, hinge: 'left' });
+  });
+
+  it('HP1 anchor 3: flipper and pocket keep only side hinges', () => {
+    for (const action of ['flipper', 'pocket']) {
+      for (const hinge of ['top', 'bottom']) {
+        expect(setFaceAction({ ...DOOR, hinge }, 'r', action)).toEqual({ ...DOOR, action });
+      }
+      const flipper = setFaceAction({ ...DOOR, hinge: 'top' }, 'r', action);
+      const hinged = setFaceHinge(flipper, 'r', 'right');
+      expect(hinged).toEqual({ ...DOOR, action, hinge: 'right' });
+      expect(setFaceAction({ ...DOOR, hinge: 'left' }, 'r', action)).toEqual({ ...DOOR, hinge: 'left', action });
+      expect(setFaceAction(hinged, 'r', null)).toEqual({ ...DOOR, hinge: 'right' });
+      expect(setFaceHinge(hinged, 'r', 'top')).toBe(hinged);
+      expect(setFaceHinge(hinged, 'r', 'bottom')).toBe(hinged);
+    }
+  });
+
+  it('HP1 anchor 4: pair actions exclude pullout and swing is never stored', () => {
+    const pair = deepFreeze({ type: 'pair_door', size: null });
+    expect(setFaceAction(pair, 'r', 'pullout')).toBe(pair);
+    for (const action of ['flipper', 'pocket', 'sliding']) {
+      const next = setFaceAction(pair, 'r', action);
+      expect(next).toEqual({ ...pair, action });
+      expect(setFaceAction(next, 'r', 'swing')).toEqual(pair);
+      expect(setFaceAction(next, 'r', null)).toEqual(pair);
+      expect(setFaceHinge(next, 'r', 'left')).toBe(next);
+    }
+    expect(setFaceAction(DOOR, 'r', 'swing')).toBe(DOOR);
+    expect(setFaceAction(DOOR, 'r', null)).toBe(DOOR);
+    expect(setFaceAction(DOOR, 'r', 'unknown')).toBe(DOOR);
+    expect(setFaceAction(TWO, 'r', 'flipper')).toBe(TWO);
+    expect(setFaceAction(TWO, 'r.0', 'flipper')).toBe(TWO);
+    expect(setFaceAction(TWO, 'r.9', 'flipper')).toBe(TWO);
+    const nested = setFaceAction(TWO, 'r.1', 'pocket');
+    expect(nested.children).toEqual([TWO.children[0], { ...DOOR, action: 'pocket' }]);
+    expect(TWO.children[1]).toEqual(DOOR);
+  });
+
+  it('HP1 anchor 6: changing a leaf type drops hinge and action', () => {
+    const door = deepFreeze({ ...DOOR, hinge: 'left', action: 'pocket' });
+    for (const type of ['drawer_front', 'pair_door']) {
+      expect(setFaceType(door, 'r', type)).toEqual({ type, size: null });
+    }
+    expect(setFaceType(door, 'r', 'door')).toEqual(door);
+    const pair = { type: 'pair_door', size: null, action: 'flipper' };
+    expect(setFaceType(pair, 'r', 'door')).toEqual(DOOR);
+    expect(door).toEqual({ ...DOOR, hinge: 'left', action: 'pocket' });
   });
 });

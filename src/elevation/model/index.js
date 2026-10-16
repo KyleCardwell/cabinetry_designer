@@ -18,6 +18,8 @@ export { SETTING_GROUPS, UNGROUPED_KEYS, groupsFor, CHOICE_LABELS, choiceOptions
 export { resolveSetting, resolveSettings, withOverride, cleanOverrides } from './settingsResolve.js';
 export { projectAddress, nextName, copyName, newRoomDocument, ROOM_STATUS_LABELS } from './designProjects.js';
 export {
+  DOOR_ACTIONS,
+  DOOR_HINGES,
   FACE_DIRECTIONS,
   FACE_TYPE_LABELS,
   FACE_TYPES,
@@ -39,6 +41,7 @@ export {
   makeDrawerStack,
   parentFacePath,
   removeFace,
+  setFaceAction,
   setFaceHinge,
   setFaceSize,
   setFaceType,

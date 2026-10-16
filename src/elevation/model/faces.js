@@ -4,6 +4,9 @@ import { isPartSizes, isStyleRef } from './doorStyles.js';
 /** Leaf face types — the same values as ff-job-schedule FACE_NAMES. */
 export const FACE_TYPES = ['door', 'pair_door', 'drawer_front', 'false_front', 'panel', 'open'];
 
+export const DOOR_HINGES = ['left', 'right', 'top', 'bottom'];
+export const DOOR_ACTIONS = ['flipper', 'pocket', 'sliding', 'pullout'];
+
 export const FACE_TYPE_LABELS = {
   door: 'Door',
   pair_door: 'Pair door',
@@ -48,12 +51,21 @@ export function isFaceNode(node) {
   if (!node || typeof node !== 'object' || Array.isArray(node)) return false;
   if (!isSize(node.size)) return false;
   if (FACE_TYPES.includes(node.type)) {
+    if (node.action !== undefined) {
+      if (!['door', 'pair_door'].includes(node.type) || !DOOR_ACTIONS.includes(node.action)) return false;
+      if (node.type === 'pair_door' && node.action === 'pullout') return false;
+    }
+    if (node.hinge !== undefined) {
+      if (node.type !== 'door' || !DOOR_HINGES.includes(node.hinge)) return false;
+      if (['sliding', 'pullout'].includes(node.action)) return false;
+      if (['flipper', 'pocket'].includes(node.action) && !['left', 'right'].includes(node.hinge)) return false;
+    }
     return node.children === undefined && node.direction === undefined && node.noRail === undefined
       && isStyleRef(node.styleId)
-      && (node.sizes === undefined || isPartSizes(node.sizes))
-      && (node.hinge === undefined || (node.type === 'door' && (node.hinge === 'left' || node.hinge === 'right')));
+      && (node.sizes === undefined || isPartSizes(node.sizes));
   }
   return node.type === undefined
+    && node.hinge === undefined && node.action === undefined
     && FACE_DIRECTIONS.includes(node.direction)
     && Array.isArray(node.children)
     && node.children.length >= 2
@@ -109,7 +121,10 @@ export function resolveFaces(face, area, reveals) {
       width: rect.width - (inset.left + inset.right),
       height: rect.height - (inset.top + inset.bottom),
     };
-    const extra = opening ? { opening } : {};
+    const extra = {
+      ...(opening ? { opening } : {}),
+      ...(node.action ? { action: node.action } : {}),
+    };
     if (node.type === 'pair_door') {
       const half = (leaf.width - pairGap) / 2;
       faces.push({

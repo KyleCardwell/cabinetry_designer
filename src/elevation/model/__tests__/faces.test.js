@@ -74,6 +74,18 @@ describe('cabinetFaces', () => {
     expect(result.faces).toHaveLength(3);
     expect(result.warnings).toEqual([{ code: 'face-too-small', path: 'r' }]);
   });
+
+  it('HP1 anchor 7: carries actions to both pair halves and single doors', () => {
+    const face = { type: 'pair_door', size: null, action: 'flipper' };
+    const resolved = cabinetFaces({ face }, B30, BASE, DEFAULT_SETTINGS);
+    const plain = cabinetFaces({ face: { type: 'pair_door', size: null } }, B30, BASE, DEFAULT_SETTINGS);
+    expect(resolved).toEqual({ ...plain, faces: plain.faces.map((half) => ({ ...half, action: 'flipper' })) });
+    const single = { type: 'door', size: null, action: 'pocket', hinge: 'right' };
+    expect(cabinetFaces({ face: single }, B18, BASE, DEFAULT_SETTINGS).faces[0])
+      .toMatchObject({ type: 'door', action: 'pocket', hinge: 'right' });
+    expect(cabinetFaces({ face: { type: 'door', size: null, hinge: 'bottom' } }, B18, BASE, DEFAULT_SETTINGS).faces[0])
+      .toMatchObject({ type: 'door', hinge: 'bottom' });
+  });
 });
 
 describe('isFaceNode', () => {
@@ -84,6 +96,32 @@ describe('isFaceNode', () => {
     expect(isFaceNode({ type: 'door', size: -2 })).toBe(false);
     expect(isFaceNode({ type: 'door', size: null, children: [] })).toBe(false);
     expect(isFaceNode({ type: 'door' })).toBe(false);
+  });
+
+  it('HP1 anchor 5: validates hinge edges, door actions, and their combinations', () => {
+    const door = { type: 'door', size: null };
+    for (const fields of [
+      { hinge: 'bottom' }, { hinge: 'top' }, { action: 'pullout' }, { action: 'sliding' },
+      { action: 'flipper', hinge: 'left' }, { action: 'pocket', hinge: 'right' },
+    ]) {
+      expect(isFaceNode({ ...door, ...fields })).toBe(true);
+    }
+    for (const fields of [
+      { action: 'pullout', hinge: 'left' }, { action: 'sliding', hinge: 'right' },
+      { action: 'flipper', hinge: 'top' }, { action: 'pocket', hinge: 'bottom' },
+      { action: 'swing' }, { action: null }, { action: 'unknown' }, { hinge: null },
+    ]) {
+      expect(isFaceNode({ ...door, ...fields })).toBe(false);
+    }
+    expect(isFaceNode({ type: 'drawer_front', size: null, action: 'flipper' })).toBe(false);
+    expect(isFaceNode({ type: 'pair_door', size: null, hinge: 'left' })).toBe(false);
+    expect(isFaceNode({ type: 'pair_door', size: null, action: 'pullout' })).toBe(false);
+    for (const action of ['flipper', 'pocket', 'sliding']) {
+      expect(isFaceNode({ type: 'pair_door', size: null, action })).toBe(true);
+    }
+    expect(isFaceNode({ ...NESTED, action: 'flipper' })).toBe(false);
+    expect(isFaceNode({ ...NESTED, hinge: 'left' })).toBe(false);
+    expect(isFaceNode(stack([door, { ...door, action: 'pullout', hinge: 'left' }]))).toBe(false);
   });
 });
 
