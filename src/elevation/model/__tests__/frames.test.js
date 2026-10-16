@@ -52,7 +52,7 @@ describe('SPEC-36 frame regions', () => {
 
     const a = faces.get('a');
     expect([a.box.x, a.box.width]).toEqual([24, 18]);
-    expect(a.faces).toEqual([{ path: 'r', type: 'door', x: 24.75, z: 5.5, width: 16.5, height: 27.5 }]);
+    expect(a.faces).toEqual([{ path: 'r', type: 'door', x: 24.75, z: 5.5, width: 16.5, height: 27.5, hinge: 'left', hingeRule: true }]);
     expect(a.openings).toEqual([{ path: 'r', x: 24.75, z: 5.5, width: 16.5, height: 27.5 }]);
     expect(faces.get('b').openings).toEqual([{ path: 'r', x: 42.75, z: 5.5, width: 16.5, height: 27.5 }]);
 

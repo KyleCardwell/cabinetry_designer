@@ -1,5 +1,5 @@
 import { captureSides } from './capture.js';
-import { cellCaptureSides, cellPieces, coveredSides, gapReach, hingeStops, stackedSides } from './cells.js';
+import { cellCaptureSides, cellPieces, coveredSides, EPSILON, gapReach, hingeStops, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { cabinetFaceLevels, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
@@ -91,7 +91,17 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
       settings,
     });
     const resolved = cabinetFaces(item, box, run.cabinetTypeId, settings, reveals.values);
-    const hinged = applyHinges(resolved.faces, hingeStops(cells.pieces, piece.id), covered);
+    const wallSides = Object.fromEntries(['left', 'right'].map((side) => {
+      const anchor = run.anchors?.[side];
+      const atEdge = side === 'left'
+        ? Math.abs(piece.x - run.x) <= EPSILON
+        : Math.abs(piece.x + piece.width - run.x - run.width) <= EPSILON;
+      return [side, atEdge && (anchor === true || anchor?.to === 'wall')];
+    }));
+    const hinged = applyHinges(resolved.faces, hingeStops(cells.pieces, piece.id), covered, {
+      wallSides,
+      runCenter: run.x + run.width / 2,
+    });
     const faces = hinged.faces.map((f) => {
       const partType = facePartType(f.type);
       if (partType === null) return f;

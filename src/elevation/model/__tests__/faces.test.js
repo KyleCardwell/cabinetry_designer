@@ -126,6 +126,82 @@ describe('isFaceNode', () => {
 });
 
 describe('applyHinges', () => {
+  const door = { path: 'r', type: 'door', x: 0.0625, z: 0, width: 17.875, height: 30 };
+  const noStops = { left: false, right: false };
+  const noCovers = { left: 0, right: 0 };
+
+  it('HP1 b anchor 1: hinges toward the one wall without needing a run centre', () => {
+    for (const side of ['left', 'right']) {
+      expect(applyHinges([door], noStops, noCovers, { wallSides: { [side]: true } }))
+        .toEqual({ faces: [{ ...door, hinge: side, hingeRule: true }], warnings: [] });
+    }
+  });
+
+  it('HP1 b anchor 2: swings, flippers and pockets hinge toward the nearer run end', () => {
+    for (const action of [undefined, 'flipper', 'pocket']) {
+      for (const [x, hinge] of [[0.0625, 'left'], [100.0625, 'right']]) {
+        const face = { ...door, x, ...(action ? { action } : {}) };
+        expect(applyHinges([face], noStops, noCovers, { runCenter: 60 }))
+          .toEqual({ faces: [{ ...face, hinge, hingeRule: true }], warnings: [] });
+      }
+    }
+  });
+
+  it('HP1 b anchor 3: ties within 1e-6 hinge left', () => {
+    for (const delta of [0, -0.5e-6, 0.5e-6, 2e-6]) {
+      const face = { ...door, x: 60 - door.width / 2 + delta };
+      expect(applyHinges([face], noStops, noCovers, { runCenter: 60 }).faces)
+        .toEqual([{ ...face, hinge: delta > 1e-6 ? 'right' : 'left', hingeRule: true }]);
+    }
+  });
+
+  it('HP1 b anchor 4: a stop takes precedence over a wall and the nearer end', () => {
+    expect(applyHinges([door], { left: true, right: false }, noCovers, {
+      wallSides: { right: true }, runCenter: 0,
+    })).toEqual({ faces: [{ ...door, hinge: 'left', hingeRule: true }], warnings: [] });
+  });
+
+  it('HP1 b anchor 5: a covered side takes precedence over a wall without warning', () => {
+    expect(applyHinges([door], noStops, { left: 0, right: 0.75 }, {
+      wallSides: { right: true }, runCenter: 0,
+    })).toEqual({ faces: [{ ...door, hinge: 'left', hingeRule: true }], warnings: [] });
+  });
+
+  it('HP1 b anchor 6: stored hinges win and top/bottom never warn about covered sides', () => {
+    for (const hinge of ['top', 'bottom', 'left', 'right']) {
+      const face = { ...door, hinge };
+      const result = applyHinges([face], { left: true, right: false }, { left: 0.75, right: 0 }, {
+        wallSides: { right: true }, runCenter: 60,
+      });
+      expect(result.faces).toEqual([face]);
+      expect(result.faces[0]).not.toHaveProperty('hingeRule');
+      expect(result.warnings).toEqual(hinge === 'left'
+        ? [{ code: 'hinge-on-covered-side', path: 'r' }] : []);
+    }
+  });
+
+  it('HP1 b anchor 7: sliding and pullout doors get no automatic hinge', () => {
+    for (const action of ['pullout', 'sliding']) {
+      const face = { ...door, action };
+      expect(applyHinges([face], { left: true, right: false }, { left: 0, right: 0.75 }, {
+        wallSides: { left: true }, runCenter: 60,
+      })).toEqual({ faces: [face], warnings: [] });
+    }
+  });
+
+  it('uses only walls a face touches and leaves pair doors and missing-context results alone', () => {
+    const left = { ...door, path: 'r.0' };
+    const right = { ...door, path: 'r.1', x: 18.0625 };
+    expect(applyHinges([left, right], noStops, noCovers, { wallSides: { left: true } }).faces)
+      .toEqual([{ ...left, hinge: 'left', hingeRule: true }, right]);
+    expect(applyHinges([door], noStops, noCovers, { wallSides: { left: true, right: true } }).faces)
+      .toEqual([door]);
+    expect(applyHinges([door], noStops, noCovers).faces).toEqual([door]);
+    const pair = [{ ...left, type: 'pair_door', half: 'left' }, { ...right, type: 'pair_door', half: 'right' }];
+    expect(applyHinges(pair, noStops, noCovers, { wallSides: { left: true }, runCenter: 60 }))
+      .toEqual({ faces: pair, warnings: [] });
+  });
+
   it('applies hinge sides and validates hinges', () => {
     const faces = [
       { path: 'r.0', type: 'door', x: 0, z: 0, width: 10, height: 30 },

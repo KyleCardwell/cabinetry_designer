@@ -263,7 +263,7 @@ describe('SPEC-37 T-fillers and the faces beside them', () => {
     expect(a.reveals.values).toMatchObject({ left: 0.0625, right: 0.8125 });
     expect(a.reveals.sources.right).toBe('rule:t-filler');
     expect(a.reveals.sources.left).toBe('style');
-    expect(a.faces).toEqual([{ path: 'r', type: 'door', x: 24.0625, z: 4.125, width: 17.125, height: 30.125 }]);
+    expect(a.faces).toEqual([{ path: 'r', type: 'door', x: 24.0625, z: 4.125, width: 17.125, height: 30.125, hinge: 'left', hingeRule: true }]);
     expect(faces.get('b').faces[0]).toMatchObject({ x: 42.8125, width: 17.125 });
   });
 

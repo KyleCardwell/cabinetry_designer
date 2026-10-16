@@ -1,3 +1,4 @@
+import { EPSILON } from './cells.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { isPartSizes, isStyleRef } from './doorStyles.js';
 
@@ -227,12 +228,13 @@ function overlapsHeight(a, b) {
 
 /**
  * Hinge side for each resolved 'door' face: stored, else against the one hinge stop it touches,
- * else away from the one covered side it touches. Warns when a hinge is on a covered side.
+ * else away from the one covered side it touches, toward a wall, then toward the nearer run end.
+ * Optional context uses wall coordinates, like the faces. Warns when a hinge is on a covered side.
  */
-export function applyHinges(faces, stops, covered) {
+export function applyHinges(faces, stops, covered, context = {}) {
   const warnings = [];
   const next = faces.map((face) => {
-    if (face.type !== 'door') return face;
+    if (face.type !== 'door' || ['sliding', 'pullout'].includes(face.action)) return face;
     const beside = faces.filter((other) => other !== face && overlapsHeight(other, face));
     const touches = {
       left: !beside.some((other) => other.x + other.width <= face.x + 1e-6),
@@ -245,8 +247,14 @@ export function applyHinges(faces, stops, covered) {
       const stopRight = touches.right && stops.right;
       const coverLeft = touches.left && covered.left > 0;
       const coverRight = touches.right && covered.right > 0;
+      const wallLeft = touches.left && Boolean(context.wallSides?.left);
+      const wallRight = touches.right && Boolean(context.wallSides?.right);
       if (stopLeft !== stopRight) hinge = stopLeft ? 'left' : 'right';
       else if (coverLeft !== coverRight) hinge = coverLeft ? 'right' : 'left';
+      else if (wallLeft !== wallRight) hinge = wallLeft ? 'left' : 'right';
+      else if (Number.isFinite(context.runCenter)) {
+        hinge = face.x + face.width / 2 - context.runCenter > EPSILON ? 'right' : 'left';
+      }
       rule = hinge !== null;
     }
     if (hinge && touches[hinge] && covered[hinge] > 0) {

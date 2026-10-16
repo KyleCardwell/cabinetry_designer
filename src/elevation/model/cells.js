@@ -3,7 +3,7 @@ import { teamDoorStyle } from './doorStyles.js';
 
 export const MIN_CELL_SIZE = 1;
 
-const EPSILON = 1e-6;
+export const EPSILON = 1e-6;
 
 export function resolveTracks(tracks, length, gaps = []) {
   if (tracks.length === 0) return [];

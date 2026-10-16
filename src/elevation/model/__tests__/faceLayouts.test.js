@@ -41,6 +41,42 @@ const STACKED = {
 };
 
 describe('runFaceLayouts', () => {
+  it('HP1 b anchor 8: no-end Euro cabinets hinge toward the wall, then the nearer run end', () => {
+    for (const x of [0, 100]) {
+      for (const anchor of [true, { to: 'wall' }]) {
+        const run = {
+          ...RUN, x, width: 36,
+          items: [{ id: 'a', kind: 'cabinet', width: null }, { id: 'b', kind: 'cabinet', width: null }],
+          ends: { left: { type: 'none' }, right: { type: 'none' } },
+          anchors: { left: anchor, right: false },
+        };
+        const room = roomWith(run);
+        const layouts = [...runFaceLayouts(room, resolveWall(room, room.walls[0]), run, DEFAULT_SETTINGS).values()];
+        expect(layouts).toHaveLength(2);
+        expect(layouts.map(({ box }) => [box.x, box.width])).toEqual([[x, 18], [x + 18, 18]]);
+        expect(layouts.map(({ faces }) => faces[0])).toMatchObject([
+          { x: x + 0.0625, width: 17.875, hinge: 'left', hingeRule: true },
+          { x: x + 18.0625, width: 17.875, hinge: 'right', hingeRule: true },
+        ]);
+      }
+    }
+  });
+
+  it('recognizes only wall anchors at a cabinet edge, with either anchor representation', () => {
+    for (const anchor of [true, { to: 'wall' }, false, { to: 'opening', openingId: 'o' }, undefined]) {
+      const run = {
+        ...RUN, x: 100, width: 18,
+        ends: { left: { type: 'none' }, right: { type: 'none' } },
+        anchors: anchor === undefined ? undefined : { left: false, right: anchor },
+      };
+      const room = roomWith(run);
+      const layouts = runFaceLayouts(room, resolveWall(room, room.walls[0]), run, DEFAULT_SETTINGS);
+      expect(layouts.get('a').faces[0]).toMatchObject({
+        hinge: anchor === true || anchor?.to === 'wall' ? 'right' : 'left', hingeRule: true,
+      });
+    }
+  });
+
   it('49. captured single door, then the room switched to inset', () => {
     const room = roomWith(RUN);
     const wall = resolveWall(room, room.walls[0]);
@@ -48,11 +84,11 @@ describe('runFaceLayouts', () => {
     expect(euro.style.cabinetStyleId).toBe(13);
     expect(euro.reveals.sources.top).toBe('rule:stone-top');
     expect(euro.reveals.sources.left).toBe('rule:captured-single');
-    expect(euro.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 17.8125, height: 30.125 }]);
+    expect(euro.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 17.8125, height: 30.125, hinge: 'left', hingeRule: true }]);
 
     const insetRoom = roomWith(RUN, { cabinetStyleId: 14 });
     const inset = runFaceLayouts(insetRoom, resolveWall(insetRoom, insetRoom.walls[0]), RUN, DEFAULT_SETTINGS).get('a');
-    expect(inset.faces).toEqual([{ path: 'r', type: 'door', x: 25.5, z: 5.5, width: 16.5, height: 27.5 }]);
+    expect(inset.faces).toEqual([{ path: 'r', type: 'door', x: 25.5, z: 5.5, width: 16.5, height: 27.5, hinge: 'left', hingeRule: true }]);
   });
 
   it('50. stacked cells get seam reveals, European and inset', () => {
@@ -62,16 +98,16 @@ describe('runFaceLayouts', () => {
     const b = euro.get('b');
     expect(b.reveals.sources.top).toBe('rule:stacked-seam');
     expect(b.reveals.sources.left).toBe('rule:captured-single');
-    expect(b.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 17.8125, height: 29.75 }]);
+    expect(b.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 17.8125, height: 29.75, hinge: 'left', hingeRule: true }]);
     const t = euro.get('t');
     expect(t.reveals.values.bottom).toBe(0);
-    expect(t.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 34, width: 17.8125, height: 59.875 }]);
+    expect(t.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 34, width: 17.8125, height: 59.875, hinge: 'left', hingeRule: true }]);
     expect(euro.has('s')).toBe(false);
 
     const insetRoom = roomWith(STACKED, { cabinetStyleId: 14 });
     const inset = runFaceLayouts(insetRoom, resolveWall(insetRoom, insetRoom.walls[0]), STACKED, DEFAULT_SETTINGS);
-    expect(inset.get('b').faces).toEqual([{ path: 'r', type: 'door', x: 25.5, z: 5.5, width: 16.5, height: 27.75 }]);
-    expect(inset.get('t').faces).toEqual([{ path: 'r', type: 'door', x: 25.5, z: 34.75, width: 16.5, height: 57.75 }]);
+    expect(inset.get('b').faces).toEqual([{ path: 'r', type: 'door', x: 25.5, z: 5.5, width: 16.5, height: 27.75, hinge: 'left', hingeRule: true }]);
+    expect(inset.get('t').faces).toEqual([{ path: 'r', type: 'door', x: 25.5, z: 34.75, width: 16.5, height: 57.75, hinge: 'left', hingeRule: true }]);
   });
 
   it('51. a cabinet between panel cells is captured', () => {
@@ -108,7 +144,7 @@ describe('runFaceLayouts', () => {
     expect(c.reveals.sources.right).toBe('rule:captured-single');
     expect(c.reveals.values.top).toBe(0.125);
     expect(c.reveals.sources.top).toBe('style');
-    expect(c.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 16.3125, height: 29.5 }]);
+    expect(c.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 16.3125, height: 29.5, hinge: 'left', hingeRule: true }]);
   });
 
   it('52. top-level side panels capture a cabinet; a back panel does not', () => {
@@ -125,7 +161,7 @@ describe('runFaceLayouts', () => {
     const a = runFaceLayouts(room, resolveWall(room, room.walls[0]), PANELS, DEFAULT_SETTINGS).get('a');
     expect(a.reveals.sources.left).toBe('rule:captured-single');
     expect(a.reveals.sources.right).toBe('rule:captured-single');
-    expect(a.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 17.8125, height: 30.125 }]);
+    expect(a.faces).toEqual([{ path: 'r', type: 'door', x: 24.84375, z: 4.125, width: 17.8125, height: 30.125, hinge: 'left', hingeRule: true }]);
 
     const BACK = { ...PANELS, items: [PANELS.items[0], PANELS.items[1], { id: 'R', kind: 'panel', width: 0.75, depth: 0.5 }] };
     const backRoom = roomWith(BACK);
