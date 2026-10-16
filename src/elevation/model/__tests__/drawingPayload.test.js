@@ -40,6 +40,57 @@ const withoutParts = (payload) => ({
 });
 
 describe('SPEC-40 drawing payload', () => {
+  it('HP2 step d anchor 1: omits swing marks from every golden room by default', () => {
+    for (const { name } of document.rooms) {
+      const synced = room(name);
+      expect(synced).not.toHaveProperty('swingMarks');
+      const payload = toDrawingPayload(synced, settings);
+      expect(payload.payloadVersion).toBe(1);
+      expect(payload.elevations.length).toBeGreaterThan(0);
+      for (const elevation of payload.elevations) {
+        expect(elevation).not.toHaveProperty('swingMarks');
+      }
+      expect(toDrawingPayload({ ...synced, swingMarks: false }, settings)).toEqual(payload);
+    }
+  });
+
+  it('HP2 step d anchor 2: carries two swing lines per drawn door on front and back elevations', () => {
+    for (const doorDetails of [true, false]) {
+      const synced = { ...room('G1 Euro kitchen'), swingMarks: true, doorDetails };
+      const payload = toDrawingPayload(synced, settings);
+      expect(payload.payloadVersion).toBe(1);
+      expect(payload.elevations.map(({ side }) => side)).toEqual(['front', 'front', 'front', 'back']);
+      for (const elevation of payload.elevations) {
+        expect(elevation.swingMarks.length).toBeGreaterThan(0);
+        const faceIds = new Set(elevation.parts.filter(({ kind }) => kind === 'face').map(({ id }) => id));
+        for (const { partId, lines } of elevation.swingMarks) {
+          expect(faceIds.has(partId)).toBe(true);
+          expect(lines).toHaveLength(2);
+          for (const line of lines) {
+            expect(Object.keys(line).sort()).toEqual(['x1', 'x2', 'z1', 'z2']);
+            expect(Object.values(line).every(Number.isFinite)).toBe(true);
+          }
+        }
+      }
+    }
+  });
+
+  it('HP2 step d anchor 3: omits swing marks when every front is a drawer front', () => {
+    const copy = structuredClone(room('G1 Euro kitchen'));
+    copy.swingMarks = true;
+    for (const run of copy.walls.flatMap(({ runs }) => runs)) {
+      for (const node of gridLeaves(run.grid)) {
+        if (node.kind === 'cabinet') node.face = { type: 'drawer_front' };
+      }
+    }
+    const { elevations } = toDrawingPayload(syncRoom(copy, settings), settings);
+    expect(elevations.length).toBeGreaterThan(0);
+    for (const elevation of elevations) {
+      expect(elevation.parts.some(({ kind }) => kind === 'face')).toBe(true);
+      expect(elevation).not.toHaveProperty('swingMarks');
+    }
+  });
+
   it('DB8b omits the revision key unless a non-empty string is supplied', () => {
     const synced = room('G1 Euro kitchen');
     const identity = { id: synced.id, name: synced.name };
