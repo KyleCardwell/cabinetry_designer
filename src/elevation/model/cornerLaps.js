@@ -47,7 +47,8 @@ export function cornerLap(room, wall, run, side, settings, { ignoreOwn = false }
   return {
     ...(own ? decision(own) : automatic),
     auto: automatic.laps,
-    amount: runFillerThickness(room, neighborView, neighbor, settings),
+    amount: neighbor._frame ? neighbor._frame.thickness
+      : runFillerThickness(room, neighborView, neighbor, settings),
     neighborRunId: neighbor.id,
     neighborWallId: neighborWall.id,
     conflict: Boolean(own && own === other),

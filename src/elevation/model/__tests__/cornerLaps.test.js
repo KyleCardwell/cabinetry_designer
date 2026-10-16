@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { cornerLap } from '../cornerLaps.js';
-import { cornerReserve, cornerReserveParts } from '../corners.js';
+import { cornerReserve, cornerReserveParts, frontDepth } from '../corners.js';
 import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { gridFromItems } from '../grid.js';
+import { runFillerThickness } from '../planPieces.js';
 import { roomDiagnostics, syncRoom } from '../room.js';
 import { describeAnchor, endMinWidthsForRun, horizontalResolution, resolveRunAnchorDatum } from '../runAnchors.js';
 import { splitRun } from '../splitRun.js';
@@ -89,7 +90,7 @@ describe('FL2 step a corner filler laps', () => {
       laps: name === 'C4' || name === 'C5', conflict: name === 'C5',
       neighborRunId: 'a', neighborWallId: 'A', amount: 0.8125,
     });
-    if (name === 'C2') {
+    if (name === 'C2') { // FL2.1 F4: Euro neighbor keeps the standard filler lap amount.
       expect(horizontalResolution(room, wallA, a, settings, { laps: false }).width).toBe(60);
       expect(horizontalResolution(room, wallB, b, settings, { laps: false }).width).toBe(96);
       expect(resolveRunAnchorDatum(room, wallA, a, 'right', settings, { laps: false }).x).toBe(60);
@@ -197,5 +198,37 @@ describe('FL2 step a corner filler laps', () => {
     a.cornerClearance = { right: 'face' };
     expect(cornerReserve(room, wallA, 'right', a, settings)).toBeCloseTo(off.face - parts.lap);
     expect(cornerReserve(room, wallA, 'right', a, settings, { laps: false })).toBe(off.face);
+  });
+});
+
+describe('FL2.1 step a face frame corner lap amount', () => {
+  it.each([
+    ['F1', 0.8125, false, 24.8125],
+    ['F2', 1, false, 25],
+    ['F3', 0.8125, true, 24.8125],
+  ])('%s: laps over the neighbor frame thickness', (_name, thickness, mdf, expectedFrontDepth) => {
+    const frameSettings = { ...settings, insetFrame: { ...settings.insetFrame, thickness } };
+    for (const ownFrame of [false, true]) {
+      const { room, a, b } = fixture();
+      b.style = { cabinetStyleId: 14 };
+      if (ownFrame) a.style = { cabinetStyleId: 14 };
+      if (mdf) {
+        room.doorStyles = [{ ...DEFAULT_DOOR_STYLE, id: 'mdf', designId: 'slab-mdf', thickness: 0.75 }];
+        b.doorStyleId = 'mdf';
+      }
+      const resolved = syncRoom(room, frameSettings);
+      const [wallA, wallB] = resolved.walls;
+      const [resolvedA] = wallA.runs;
+      const [resolvedB] = wallB.runs;
+      expect(resolvedB._frame.thickness).toBe(thickness);
+      expect(frontDepth(resolvedB, frameSettings)).toBe(expectedFrontDepth);
+      if (mdf) expect(runFillerThickness(resolved, wallB, resolvedB, frameSettings)).toBe(0.75);
+      expect(cornerLap(resolved, wallA, resolvedA, 'right', frameSettings)).toMatchObject({
+        laps: true, amount: thickness, neighborRunId: 'b',
+      });
+      expect(cornerReserve(resolved, wallA, 'right', resolvedA, frameSettings)).toBe(24);
+      expect(cornerLap(resolved, wallB, resolvedB, 'left', frameSettings).amount)
+        .toBe(ownFrame ? thickness : 0.8125);
+    }
   });
 });
