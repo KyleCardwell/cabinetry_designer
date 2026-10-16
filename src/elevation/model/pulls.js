@@ -2,6 +2,12 @@ import { isStyleRef } from './doorStyles.js';
 import { gridLeaves } from './grid.js';
 
 export const PULL_KEYS = { door: 'doorPullId', drawer: 'drawerPullId' };
+export const PULL_POSITIONS = {
+  door: ['top-corner', 'bottom-corner', 'height', 'center', 'top-rail', 'bottom-rail'],
+  drawer: ['center', 'top-rail'],
+};
+export const PULL_ORIENTATIONS = ['vertical', 'horizontal'];
+export const MAX_PULL_COUNT = 4;
 
 export function pullPartType(faceType) {
   switch (faceType) {

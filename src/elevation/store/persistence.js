@@ -125,6 +125,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'baseCutoutFoot',
   'baseCutoutHeight',
   'furnitureBaseScribe',
+  'pullHeight',
 ];
 
 function isFiniteNumber(value) {
@@ -214,6 +215,8 @@ function isItem(item) {
   return Boolean(item)
     && hasStyleRefs(item)
     && hasPullRefs(item)
+    && (item.pullHeight === undefined || item.pullHeight === null
+      || (item.kind === 'cabinet' && isFiniteNumber(item.pullHeight) && item.pullHeight > 0))
     && typeof item.id === 'string'
     && ITEM_KINDS.has(item.kind)
     && (item.width === null || isFiniteNumber(item.width))

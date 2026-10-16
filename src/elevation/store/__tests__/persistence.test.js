@@ -93,6 +93,24 @@ function currentDocument() {
 }
 
 describe('HP3c step a pull reference persistence', () => {
+  it('validates optional positive cabinet pull heights without changing stored leaf placement (HP4 anchor 5)', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    expect(isElevationDocument(base)).toBe(true);
+    for (const [value, valid] of [[0, false], [40, true], [null, true], [-1, false], ['40', false], [Infinity, false]]) {
+      const document = structuredClone(base);
+      const cabinet = document.rooms[0].walls[0].runs[0].grid.cells[0].node;
+      cabinet.pullHeight = value;
+      cabinet.face = { type: 'false_front', size: null, pullId: 'none', pullAt: 'top-rail', pullOrientation: 'horizontal', pullCount: 3 };
+      expect(isElevationDocument(document)).toBe(valid);
+      const normalized = normalizeElevationDocument(document);
+      expect(isElevationDocument(normalized)).toBe(valid);
+      expect(normalized.rooms[0].walls[0].runs[0].grid.cells[0].node.face).toEqual(cabinet.face);
+    }
+    const old = structuredClone(base);
+    delete old.settings.pullHeight;
+    expect(normalizeElevationDocument(old).settings.pullHeight).toBe(45);
+  });
+
   it('validates wall, run, cabinet and leaf picks and loads old rooms with default pulls (anchor 8)', () => {
     const base = normalizeElevationDocument(currentDocument());
     expect(isElevationDocument(base)).toBe(true);

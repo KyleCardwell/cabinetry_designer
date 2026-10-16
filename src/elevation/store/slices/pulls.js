@@ -6,6 +6,20 @@ import { gridLeaves } from '../../model/grid.js';
 import { roomFor, roomIndexFor, wallLocation, runLocation, syncRoomAt } from './helpers.js';
 
 export const pullReducers = {
+  setCabinetPullHeight(state, action) {
+    const { roomId, itemIds = [], value } = action.payload;
+    if (value !== null && !(Number.isFinite(value) && value > 0)) return;
+    const run = runLocation(state, action.payload)?.run;
+    if (!run?.grid) return;
+    const targets = gridLeaves(run.grid)
+      .filter((item) => item.kind === 'cabinet' && itemIds.includes(item.id));
+    if (!targets.length) return;
+    for (const target of targets) {
+      if (value === null) delete target.pullHeight;
+      else target.pullHeight = value;
+    }
+    syncRoomAt(state, roomIndexFor(state, roomId));
+  },
   moveMissingPull(state, action) {
     const { roomId, pullId, reassignTo } = action.payload;
     const index = roomIndexFor(state, roomId);

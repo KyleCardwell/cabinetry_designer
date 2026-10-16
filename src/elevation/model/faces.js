@@ -1,7 +1,7 @@
 import { EPSILON } from './cells.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { isPartSizes, isStyleRef } from './doorStyles.js';
-import { pullPartType } from './pulls.js';
+import { MAX_PULL_COUNT, PULL_ORIENTATIONS, PULL_POSITIONS, pullPartType } from './pulls.js';
 
 /** Leaf face types — the same values as ff-job-schedule FACE_NAMES. */
 export const FACE_TYPES = ['door', 'pair_door', 'drawer_front', 'false_front', 'panel', 'open'];
@@ -62,6 +62,14 @@ export function isFaceNode(node) {
       if (['sliding', 'pullout'].includes(node.action)) return false;
       if (['flipper', 'pocket'].includes(node.action) && !['left', 'right'].includes(node.hinge)) return false;
     }
+    const partType = pullPartType(node.type);
+    const positions = PULL_POSITIONS[partType === 'false_front' ? 'drawer' : partType];
+    if (node.pullAt !== undefined && !positions?.includes(node.pullAt)) return false;
+    if (node.pullOrientation !== undefined
+      && (!partType || !PULL_ORIENTATIONS.includes(node.pullOrientation))) return false;
+    if (node.pullCount !== undefined
+      && (!['drawer', 'false_front'].includes(partType)
+        || !Number.isInteger(node.pullCount) || node.pullCount < 2 || node.pullCount > MAX_PULL_COUNT)) return false;
     return node.children === undefined && node.direction === undefined && node.noRail === undefined
       && (pullPartType(node.type) ? isStyleRef(node.pullId) : node.pullId === undefined)
       && isStyleRef(node.styleId)
@@ -69,6 +77,7 @@ export function isFaceNode(node) {
   }
   return node.type === undefined
     && node.hinge === undefined && node.action === undefined && node.pullId === undefined
+    && node.pullAt === undefined && node.pullOrientation === undefined && node.pullCount === undefined
     && FACE_DIRECTIONS.includes(node.direction)
     && Array.isArray(node.children)
     && node.children.length >= 2

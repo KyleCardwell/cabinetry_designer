@@ -78,6 +78,7 @@ export const DEFAULT_SETTINGS = {
   pulls: BUILT_IN_PULLS,
   doorPullId: 'pull-4',
   drawerPullId: 'pull-4',
+  pullHeight: 45,
   sectionProfiles: [],
   baseCutoutFoot: 3,
   baseCutoutHeight: 1.5,

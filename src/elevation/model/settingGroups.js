@@ -59,7 +59,7 @@ export const SETTING_GROUPS = [
       'defaultWindowWidth', 'defaultWindowHeight', 'defaultWindowSillZ',
     ],
   },
-  { id: 'pulls', label: 'Pulls', keys: ['doorPullId', 'drawerPullId'] },
+  { id: 'pulls', label: 'Pulls', keys: ['doorPullId', 'drawerPullId', 'pullHeight'] },
   {
     id: 'reports', label: 'Reports',
     keys: [

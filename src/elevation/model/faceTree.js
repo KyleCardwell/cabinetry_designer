@@ -1,6 +1,6 @@
 import { DOOR_ACTIONS, DOOR_HINGES, FACE_DIRECTIONS, FACE_TYPES, ROOT_FACE_PATH } from './faces.js';
 import { isStyleRef } from './doorStyles.js';
-import { pullPartType } from './pulls.js';
+import { MAX_PULL_COUNT, PULL_ORIENTATIONS, PULL_POSITIONS, pullPartType } from './pulls.js';
 
 /** Most sections a single split or count can create. */
 export const MAX_FACE_SPLIT = 8;
@@ -66,6 +66,9 @@ export function setFaceType(face, path, type) {
     if (node.type !== type) {
       delete next.hinge;
       delete next.action;
+      delete next.pullAt;
+      delete next.pullOrientation;
+      delete next.pullCount;
     }
     return next;
   });
@@ -196,6 +199,37 @@ export function setFacePull(face, path, pullId) {
     if (pullId == null) delete next.pullId;
     else next.pullId = pullId;
     return next;
+  });
+}
+
+/** Set or clear placement overrides together; reject invalid patches without changing the face. */
+export function setFacePullPlacement(face, path, patch) {
+  const target = getFaceNode(face, path);
+  const partType = pullPartType(target?.type);
+  if (!partType || target.children || !patch || typeof patch !== 'object' || Array.isArray(patch)) return face;
+  const positions = PULL_POSITIONS[partType === 'false_front' ? 'drawer' : partType];
+  const keys = ['pullAt', 'pullOrientation', 'pullCount'].filter((key) => Object.hasOwn(patch, key));
+  const values = {};
+  for (const key of keys) {
+    const value = patch[key];
+    if (key === 'pullCount' && !['drawer', 'false_front'].includes(partType)) return face;
+    if (value === null || value === 'auto' || (key === 'pullCount' && value === 1)) {
+      values[key] = null;
+    } else {
+      const valid = key === 'pullAt' ? positions.includes(value)
+        : key === 'pullOrientation' ? PULL_ORIENTATIONS.includes(value)
+          : Number.isInteger(value) && value >= 2 && value <= MAX_PULL_COUNT;
+      if (!valid) return face;
+      values[key] = value;
+    }
+  }
+  if (!keys.some((key) => values[key] === null ? Object.hasOwn(target, key) : target[key] !== values[key])) return face;
+  return replaceAt(face, path, (node) => {
+    for (const key of keys) {
+      if (values[key] === null) delete node[key];
+      else node[key] = values[key];
+    }
+    return node;
   });
 }
 
