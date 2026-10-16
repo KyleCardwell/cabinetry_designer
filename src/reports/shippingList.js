@@ -10,7 +10,7 @@ import {
 } from '../elevation/model/panelThickness.js';
 import { partNumbers } from '../elevation/model/partNumbers.js';
 import { carriesMolding } from '../elevation/model/parts.js';
-import { fillerReturnDepth } from '../elevation/model/planPieces.js';
+import { fillerOrderedDepth, fillerReturnDepth } from '../elevation/model/planPieces.js';
 import { resolveProfile } from '../elevation/model/profile.js';
 import { resolveWall } from '../elevation/model/room.js';
 import { runBands } from '../elevation/model/runBands.js';
@@ -242,8 +242,8 @@ function shippingSize(room, settings, part, context) {
     orderedThickness(runEndThickness(room, wall, run, settings)[end], style));
   if (part.kind === 'filler') {
     const tee = scene.tees.some((tee) => tee.id === part.key || tee.pieceId === part.key);
-    const thickness = tee ? settings.teeThickness + settings.fillerReturnDepth
-      : settings.endPanelThickness + fillerReturnDepth(run, piece, settings);
+    const thickness = tee ? settings.teeThickness + settings.fillerReturnDepth - settings.fillerReturnTongue
+      : fillerOrderedDepth(room, wall, run, piece, settings);
     return formatSize(part.width, part.height, thickness);
   }
   const rect = context.rectangle();

@@ -85,6 +85,8 @@ const V2_NUMERIC_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
 const V2_DEFAULTED_SETTING_KEYS = [
   'fillerReturnDepth',
   'fillerReturnThickness',
+  'fillerThickness',
+  'fillerReturnTongue',
   'teeCover',
   'teeThickness',
   'blindFillerWidth',

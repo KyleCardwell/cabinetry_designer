@@ -80,6 +80,8 @@ export const DEFAULT_SETTINGS = {
   furnitureBaseScribe: 0.5,
   fillerReturnDepth: 2.5,
   fillerReturnThickness: 0.75,
+  fillerThickness: 0.8125,
+  fillerReturnTongue: 0.125,
   teeCover: 0.75,
   teeThickness: 0.8125,
   blindFillerWidth: 6,

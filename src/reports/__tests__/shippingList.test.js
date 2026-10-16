@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { frontDepth, runBackOffset } from '../../elevation/model/corners.js';
+import { DEFAULT_DOOR_STYLE } from '../../elevation/model/doorStyles.js';
 import { gridFromItems } from '../../elevation/model/grid.js';
 import { partNumbers } from '../../elevation/model/partNumbers.js';
 import { resolveWall, syncRoom } from '../../elevation/model/room.js';
@@ -43,6 +44,45 @@ function room(runs = [run()], overrides = {}, wallOverrides = {}, s = settings) 
 const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entry) => entry.key === key);
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
+
+describe('FL1 step a ordered filler depths', () => {
+  const endRun = (overrides = {}) => run('run', undefined, {
+    width: 19.625, ends: { ...ends(), left: { type: 'filler', width: 1.625 } }, ...overrides,
+  });
+
+  it('keeps the standard filler depth beside one-inch doors (P2)', () => {
+    const r = room([endRun({ doorStyleId: 'thick' })], { doorStyles: [
+      { ...DEFAULT_DOOR_STYLE, id: 'thick', thickness: 1 },
+    ] });
+    expect(r.walls[0].runs[0]._doorThickness).toBe(1);
+    expect(row(r, 'run:left').size).toBe('1 5/8 x 30 1/2 x 3 3/16');
+  });
+
+  it('uses MDF face thickness when every door and drawer front is MDF core (P3)', () => {
+    const r = room([endRun({ doorStyleId: 'mdf' })], { doorStyles: [
+      { ...DEFAULT_DOOR_STYLE, id: 'mdf', designId: 'slab-mdf', thickness: 0.75 },
+    ] });
+    expect(r.walls[0].runs[0]._doorThickness).toBe(0.75);
+    expect(row(r, 'run:left').size).toBe('1 5/8 x 30 1/2 x 3 1/8');
+  });
+
+  it('uses a stored four-inch return (P6) and omits the tongue deduction for a typed zero', () => {
+    const r = room([endRun({ endFiller: { left: { returnDepth: 4 } } })]);
+    expect(row(r, 'run:left').size).toBe('1 5/8 x 30 1/2 x 4 11/16');
+    r.walls[0].runs[0].endFiller.left.returnDepth = 0;
+    expect(row(r, 'run:left').size).toBe('1 5/8 x 30 1/2 x 13/16');
+  });
+
+  it('uses the configured face thickness (P10) and tongue depth for ordinary and T-fillers', () => {
+    const s = { ...settings, fillerThickness: 0.75 };
+    const r = room([endRun()], {}, {}, s);
+    expect(row(r, 'run:left', s).size).toBe('1 5/8 x 30 1/2 x 3 1/8');
+    const tongue = { ...s, fillerReturnTongue: 0.25 };
+    expect(row(r, 'run:left', tongue).size).toBe('1 5/8 x 30 1/2 x 3');
+    const tees = room([run('run', [cabinet('a'), cabinet('b')], { width: 40, tFiller: 'seams' })], {}, {}, tongue);
+    expect(row(tees, 'tee:a|b', tongue).size).toBe('1 1/2 x 30 1/2 x 3 1/16');
+  });
+});
 
 describe('HP1 step d shipping hinge notes', () => {
   it('keeps a left swing note and omits plain pairs (anchors 1 and 6)', () => {
@@ -359,13 +399,13 @@ describe('RP2 step c shipping list rows', () => {
   it('adds the normal filler return to its thickness (anchor 9)', () => {
     const r = room([run('run', undefined, { width: 19.625,
       ends: { ...ends('filler'), left: { type: 'filler', width: 1.625 } } })]);
-    expect(row(r, 'run:left')).toMatchObject({ description: 'Base Filler', size: '1 5/8 x 30 1/2 x 3 1/4' });
+    expect(row(r, 'run:left')).toMatchObject({ description: 'Base Filler', size: '1 5/8 x 30 1/2 x 3 3/16' });
   });
 
   it('orders the blind filler six inches wide with no return (anchor 10)', () => {
     const r = room([run('run', undefined, { width: 48, blind: { left: 42, right: null },
       ends: ends('blind') })]);
-    expect(row(r, 'run:left')).toMatchObject({ description: 'Base Filler', size: '6 x 30 1/2 x 3/4' });
+    expect(row(r, 'run:left')).toMatchObject({ description: 'Base Filler', size: '6 x 30 1/2 x 13/16' });
   });
 
   it('orders a free end by depth and accepts the explicit Shop-built flag (anchors 11, 13)', () => {
@@ -463,13 +503,15 @@ describe('RP2 step c shipping list rows', () => {
       ends: { ...ends(), left: { type: 'filler', width: 3 } }, endFiller: { left: { tFiller: true } } })]);
     const fillers = shippingList(r, settings).rows.filter(({ kind }) => kind === 'filler');
     expect(fillers.length).toBe(2);
-    expect(fillers.every(({ description, size }) => description === 'Base Filler' && size.endsWith(' x 3 5/16'))).toBe(true);
+    expect(fillers.every(({ description }) => description === 'Base Filler')).toBe(true);
+    expect(row(r, 'run:left').size).toBe('3 3/4 x 30 1/2 x 3 3/16');
+    expect(row(r, 'tee:a|b').size).toBe('1 1/2 x 30 1/2 x 3 3/16');
   });
 
   it('uses the blind panel face width, the cabinet ordered width and custom filler returns', () => {
     const r = room([run('run', undefined, { width: 48, blind: { left: 42, right: null }, ends: ends('blind'),
       endFiller: { left: { returnDepth: 1 } } })]);
-    expect(row(r, 'run:left').size).toBe('6 x 30 1/2 x 1 3/4');
+    expect(row(r, 'run:left').size).toBe('6 x 30 1/2 x 1 11/16');
     // Tall blind corners have a separate panel at the blind end.
     let tall = room([run('run', undefined, { width: 24, height: 86, cabinetTypeId: 3,
       blind: { left: 42, right: null }, ends: { ...ends(), left: { type: 'blind', width: 3 } } })]);

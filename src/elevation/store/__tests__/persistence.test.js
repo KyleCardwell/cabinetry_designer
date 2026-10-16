@@ -744,15 +744,21 @@ describe('SPEC-27 end filler persistence', () => {
   it('215. defaults return settings and validates optional end filler details', () => {
     expect(DEFAULT_SETTINGS.fillerReturnDepth).toBe(2.5);
     expect(DEFAULT_SETTINGS.fillerReturnThickness).toBe(0.75);
+    expect(DEFAULT_SETTINGS.fillerThickness).toBe(0.8125);
+    expect(DEFAULT_SETTINGS.fillerReturnTongue).toBe(0.125);
 
     const older = tbtDocument();
     delete older.settings.fillerReturnDepth;
     delete older.settings.fillerReturnThickness;
+    delete older.settings.fillerThickness;
+    delete older.settings.fillerReturnTongue;
     const normalized = normalizeElevationDocument(older);
     expect(isElevationDocument(normalized)).toBe(true);
     expect(normalized.settings).toMatchObject({
       fillerReturnDepth: 2.5,
       fillerReturnThickness: 0.75,
+      fillerThickness: 0.8125,
+      fillerReturnTongue: 0.125,
     });
 
     const omitted = tbtDocument();

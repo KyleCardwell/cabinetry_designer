@@ -21,7 +21,8 @@ export const SETTING_GROUPS = [
     id: 'fillers-corners', label: 'Fillers & corners',
     keys: [
       'fillerMinWidth', 'fillerWarnWidth', 'defaultInteriorFillerWidth', 'fillerReturnDepth',
-      'fillerReturnThickness', 'teeCover', 'teeThickness', 'blindFillerWidth', 'cornerFillerMinWidth',
+      'fillerReturnThickness', 'fillerThickness', 'fillerReturnTongue',
+      'teeCover', 'teeThickness', 'blindFillerWidth', 'cornerFillerMinWidth',
     ],
   },
   {

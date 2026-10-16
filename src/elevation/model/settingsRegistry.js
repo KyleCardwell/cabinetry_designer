@@ -23,6 +23,8 @@ const roomNumbers = [
   ['furnitureBaseScribe', 'Furniture base scribe'],
   ['fillerReturnDepth', 'Filler return depth'],
   ['fillerReturnThickness', 'Filler return thickness'],
+  ['fillerThickness', 'Filler face thickness'],
+  ['fillerReturnTongue', 'Filler return tongue'],
   ['teeCover', 'Tee cover'],
   ['teeThickness', 'Tee thickness'],
   ['blindFillerWidth', 'Blind filler width'],

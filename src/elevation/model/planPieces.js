@@ -2,6 +2,7 @@ import { blindEntries } from './blind.js';
 import { blindCellWidths, cellDepth, cellPieces, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { frontDepth, runBackOffset, runFaceThickness } from './corners.js';
+import { runFaceStyles } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { frameRegions } from './frames.js';
 import { runItems } from './grid.js';
@@ -51,6 +52,20 @@ export function fillerReturnDepth(run, piece, settings) {
   if (stored !== undefined && stored !== null) return stored;
   if (side && run.ends?.[side]?.type === 'blind') return 0;
   return settings.fillerReturnDepth;
+}
+
+/** MDF-core runs use their thickest face; other fillers use the shop face thickness. */
+export function runFillerThickness(room, wall, run, settings) {
+  const faces = runFaceStyles(room, wall, run, settings);
+  return faces.length && faces.every(({ design }) => design.slabCore === 'mdf')
+    ? Math.max(...faces.map(({ style }) => style.thickness)) : settings.fillerThickness;
+}
+
+/** Assembled filler depth, with the return tongue seated into the face. */
+export function fillerOrderedDepth(room, wall, run, piece, settings) {
+  const thickness = runFillerThickness(room, wall, run, settings);
+  const depth = fillerReturnDepth(run, piece, settings);
+  return depth > 0 ? thickness + depth - settings.fillerReturnTongue : thickness;
 }
 
 function fillerSpan(run, piece, settings) {

@@ -96,17 +96,17 @@ export function resolveDoorStyle(room, settings, partType, levels, designs = set
   return { style, design, source, warnings };
 }
 
-/** The thickest non-open cabinet face in a run (SPEC-46 P11). */
-export function runDoorThickness(room, wall, run, settings) {
-  let thickness;
+/** The resolved style and design of every non-open cabinet face in a run. */
+export function runFaceStyles(room, wall, run, settings) {
+  const faces = [];
   function visit(node, cabinet) {
     if (node.type) {
       if (node.type === 'open') return;
-      const { style } = resolveDoorStyle(
+      const { style, design } = resolveDoorStyle(
         room, settings, facePartType(node.type),
         cabinetFaceLevels(room, wall, run, cabinet, node),
       );
-      thickness = thickness === undefined ? style.thickness : Math.max(thickness, style.thickness);
+      faces.push({ style, design });
       return;
     }
     for (const child of node.children) visit(child, cabinet);
@@ -114,5 +114,12 @@ export function runDoorThickness(room, wall, run, settings) {
   for (const cabinet of run.grid ? gridLeaves(run.grid) : []) {
     if (cabinet.kind === 'cabinet') visit(cabinet.face ?? { type: 'door' }, cabinet);
   }
-  return thickness ?? teamDoorStyle(settings).thickness;
+  return faces;
+}
+
+/** The thickest non-open cabinet face in a run (SPEC-46 P11). */
+export function runDoorThickness(room, wall, run, settings) {
+  const faces = runFaceStyles(room, wall, run, settings);
+  return faces.length ? Math.max(...faces.map(({ style }) => style.thickness))
+    : teamDoorStyle(settings).thickness;
 }

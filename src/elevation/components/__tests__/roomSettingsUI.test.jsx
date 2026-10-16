@@ -101,6 +101,23 @@ beforeEach(() => {
 });
 
 describe('DB2 d room settings panel', () => {
+  it('shows FL1 face thickness and return tongue after return thickness with fractional defaults (A4)', () => {
+    const tree = openGroup('Fillers & corners');
+    const labels = controls(tree).map(({ props }) => props['aria-label']);
+    const index = labels.indexOf('Room Filler return thickness');
+    expect(index).toBeGreaterThanOrEqual(0);
+    expect(labels.slice(index, index + 3)).toEqual([
+      'Room Filler return thickness', 'Room Filler face thickness', 'Room Filler return tongue',
+    ]);
+    expect(text(tree)).toContain('Filler face thickness');
+    expect(text(tree)).toContain('Filler return tongue');
+    expect(field(tree, 'Room Filler face thickness').props.placeholder).toBe('13/16');
+    expect(field(tree, 'Room Filler return tongue').props.placeholder).toBe('1/8');
+    commit('Room Filler face thickness', '3/4');
+    commit('Room Filler return tongue', '1/4');
+    expect(state.rooms[0].settingsOverrides).toMatchObject({ fillerThickness: 0.75, fillerReturnTongue: 0.25 });
+  });
+
   it('starts the section and every group closed and keeps expansion out of saved state', () => {
     const initial = state;
     expect(header(render(), 'Room settings').props['aria-expanded']).toBe(false);
@@ -117,9 +134,9 @@ describe('DB2 d room settings panel', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
-  it('anchor 1: opens nine filler fields with an empty inherited width of 3 and no Reset', () => {
+  it('anchor 1: opens eleven filler fields with an empty inherited width of 3 and no Reset', () => {
     const tree = openGroup('Fillers & corners');
-    expect(controls(tree)).toHaveLength(9);
+    expect(controls(tree)).toHaveLength(11);
     expect(field(tree, 'Room Interior filler width').props).toMatchObject({ value: '', placeholder: '3' });
     expect(field(tree, 'Room Interior filler width').props.className).toContain('border-gray-600');
     expect(field(tree, 'Reset Interior filler width')).toBeUndefined();
