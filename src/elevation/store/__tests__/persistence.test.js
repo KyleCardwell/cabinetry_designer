@@ -1,6 +1,7 @@
 import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
 import { DOOR_DESIGNS, sheetPanelStyle } from '../../model/doorStyles.js';
 import { isDoorDesignList } from '../../model/doorDesigns.js';
+import { BUILT_IN_PULLS } from '../../model/pulls.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { gridFromItems, rootItems } from '../../model/grid.js';
@@ -90,6 +91,67 @@ function currentDocument() {
     view: 'elevation',
   };
 }
+
+describe('HP3b step a sandbox pull persistence', () => {
+  const bar = {
+    id: 'p1', name: 'Bar', kind: 'pull', length: 5, centers: 4, width: 0.375,
+    projection: 1.25, hardwarePullId: null,
+  };
+
+  it('loads missing pulls as independent built-ins without writing storage (anchor 5)', () => {
+    const document = currentDocument();
+    delete document.settings.pulls;
+    const serialized = JSON.stringify(document);
+    const storage = storageWith([[ELEVATION_STORAGE_KEY, serialized]]);
+    globalThis.window = { localStorage: storage };
+    const loaded = loadElevationDocument();
+    expect(loaded.settings.pulls).toEqual(BUILT_IN_PULLS);
+    expect(loaded.settings.pulls).not.toBe(BUILT_IN_PULLS);
+    expect(loaded.settings.pulls[0]).not.toBe(BUILT_IN_PULLS[0]);
+    expect(isElevationDocument(loaded)).toBe(true);
+    expect(document.settings).not.toHaveProperty('pulls');
+    expect(storage.getItem(ELEVATION_STORAGE_KEY)).toBe(serialized);
+  });
+
+  it('appends only missing built-ins, retaining custom order and edited built-ins (anchor 5)', () => {
+    const edited = { ...BUILT_IN_PULLS[0], name: 'Shop bar', length: 6, hardwarePullId: 3 };
+    for (const [pulls, expected] of [
+      [[bar], [bar, ...BUILT_IN_PULLS]],
+      [[bar, edited], [bar, edited, BUILT_IN_PULLS[1]]],
+      [[bar, BUILT_IN_PULLS[1], edited], [bar, BUILT_IN_PULLS[1], edited]],
+      [[], BUILT_IN_PULLS],
+    ]) {
+      const document = currentDocument();
+      document.settings.pulls = structuredClone(pulls);
+      const before = structuredClone(document);
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+      const loaded = loadElevationDocument();
+      expect(loaded.settings.pulls).toEqual(expected);
+      expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+      expect(document).toEqual(before);
+      expect(normalizeElevationDocument(document).settings.pulls).toEqual(expected);
+      expect(document).toEqual(before);
+    }
+  });
+
+  it('rejects name clashes and other invalid saved lists without repairing their entries (anchor 6)', () => {
+    for (const pulls of [
+      [...BUILT_IN_PULLS, bar, { ...bar, id: 'p2', name: 'BAR' }],
+      [...BUILT_IN_PULLS, bar, { ...bar, name: 'Other' }],
+      [...BUILT_IN_PULLS, { ...bar, name: BUILT_IN_PULLS[0].name }],
+      [{ ...BUILT_IN_PULLS[1], id: 'pull-4' }],
+      [...BUILT_IN_PULLS, { ...bar, width: 0 }],
+      [...BUILT_IN_PULLS, null], null, {}, 'pulls',
+    ]) {
+      const document = normalizeElevationDocument(currentDocument());
+      document.settings.pulls = pulls;
+      expect(isElevationDocument(document)).toBe(false);
+      expect(isElevationDocument(normalizeElevationDocument(document))).toBe(false);
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+      expect(loadElevationDocument()).toBeNull();
+    }
+  });
+});
 
 describe('FL2 corner lap persistence', () => {
   it('A1: loads an older room without adding lap choices and applies automatic laps', () => {

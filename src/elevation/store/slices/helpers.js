@@ -3,6 +3,7 @@ import { current, isDraft } from '@reduxjs/toolkit';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { effectiveSettings } from '../../model/effectiveSettings.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
+import { BUILT_IN_PULLS } from '../../model/pulls.js';
 import {
   gridLeaves,
   runItems,
@@ -35,6 +36,7 @@ export function copySettings(settings = DEFAULT_SETTINGS) {
     defaultEnds: { ...settings.defaultEnds },
     teamDoorStyle: structuredClone(settings.teamDoorStyle ?? DEFAULT_DOOR_STYLE),
     doorDesigns: structuredClone(settings.doorDesigns ?? DOOR_DESIGNS),
+    pulls: structuredClone(settings.pulls ?? BUILT_IN_PULLS),
     sectionProfiles: structuredClone(settings.sectionProfiles ?? []),
   };
 }

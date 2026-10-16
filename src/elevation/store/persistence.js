@@ -9,6 +9,7 @@ import {
 import { isBottomPart } from '../model/bottoms.js';
 import { cleanOverrides } from '../model/settingsResolve.js';
 import { isDoorDesignList, migrateDoorDesign } from '../model/doorDesigns.js';
+import { BUILT_IN_PULLS, isPullList } from '../model/pulls.js';
 import { isSectionProfileList, migrateSectionProfile } from '../model/sectionProfiles.js';
 import {
   DEFAULT_DOOR_STYLE,
@@ -742,6 +743,15 @@ function normalizeDocument(document, schemaVersion) {
         }
       }
     }
+    if (settings.pulls === undefined) settings.pulls = structuredClone(BUILT_IN_PULLS);
+    else if (Array.isArray(settings.pulls)) {
+      settings.pulls = [...settings.pulls];
+      for (const seed of BUILT_IN_PULLS) {
+        if (!settings.pulls.some((pull) => pull?.id === seed.id)) {
+          settings.pulls.push(structuredClone(seed));
+        }
+      }
+    }
     if (settings.sectionProfiles === undefined) settings.sectionProfiles = [];
     else if (Array.isArray(settings.sectionProfiles)) settings.sectionProfiles = settings.sectionProfiles.map(migrateSectionProfile);
     delete settings.doorThickness;
@@ -853,6 +863,7 @@ function isSettings(settings, profileKeys = PROFILE_KEYS) {
     && isDoorStyle(settings.teamDoorStyle)
     && settings.teamDoorStyle.id === 'default'
     && isDoorDesignList(settings.doorDesigns)
+    && isPullList(settings.pulls)
     && isSectionProfileList(settings.sectionProfiles)
     && findDoorDesign(settings.teamDoorStyle.designId, settings.doorDesigns) !== null
     && V2_NUMERIC_SETTING_KEYS.every((key) => isFiniteNumber(settings[key]))

@@ -1,4 +1,5 @@
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from './doorStyles.js';
+import { BUILT_IN_PULLS } from './pulls.js';
 
 /** Cabinet type identifiers shared with ff-job-schedule. */
 export const CABINET_TYPE_IDS = {
@@ -74,6 +75,7 @@ export const DEFAULT_SETTINGS = {
   teamDoorStyle: DEFAULT_DOOR_STYLE,
   doorPanelDefault: 0.5,
   doorDesigns: DOOR_DESIGNS,
+  pulls: BUILT_IN_PULLS,
   sectionProfiles: [],
   baseCutoutFoot: 3,
   baseCutoutHeight: 1.5,
