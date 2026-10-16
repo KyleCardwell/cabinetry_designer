@@ -10,6 +10,7 @@ import {
   stackedSeamReveals,
   standardDrawerHeight,
   styleReveals,
+  typeStandardReveals,
 } from '../styles.js';
 
 const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;
@@ -50,6 +51,31 @@ describe('styles', () => {
       top: 1.5, bottom: 1.5, left: 0.75, right: 0.75, horizontal: 1.5, vertical: 1.5, pair: 0, fit: 0, pairFit: 0, shared: 0,
     });
     expect(styleReveals(INSET, UPPER, S).bottom).toBe(0.75);
+  });
+
+  it('RP2.2 uses the stone-top standard for Euro bases and saved tall/upper reveals (anchors 1–2)', () => {
+    expect(typeStandardReveals(EURO, BASE, S)).toEqual({
+      top: 0.25, bottom: 0.125, left: 0.0625, right: 0.0625,
+      horizontal: 0.125, vertical: 0.125, pair: 0.125, fit: 0, pairFit: 0,
+    });
+    expect(typeStandardReveals(EURO, TALL, S)).toEqual(styleReveals(EURO, TALL, S));
+    expect(typeStandardReveals(EURO, TALL, S).top).toBe(0.125);
+    expect(typeStandardReveals(EURO, UPPER, S)).toEqual(styleReveals(EURO, UPPER, S));
+    expect(typeStandardReveals(EURO, UPPER, S)).toMatchObject({ top: 0.125, bottom: -0.125 });
+  });
+
+  it('RP2.2 honors shop settings, defaults a missing stone reveal and leaves inset standards intact', () => {
+    const custom = { ...S, stoneTopReveal: 0, faceReveals: {
+      ...S.faceReveals, [BASE]: { ...S.faceReveals[BASE], top: 0.5, bottom: 0.25 },
+    } };
+    const before = structuredClone(custom);
+    expect(typeStandardReveals(EURO, BASE, custom)).toMatchObject({ top: 0, bottom: 0.25 });
+    expect(custom).toEqual(before);
+    expect(styleReveals(EURO, BASE, custom).top).toBe(0.5);
+    expect(typeStandardReveals(EURO, BASE, { ...S, stoneTopReveal: undefined }).top).toBe(0.25);
+    for (const style of [INSET, BEADED]) {
+      expect(typeStandardReveals(style, BASE, custom)).toEqual(styleReveals(style, BASE, custom));
+    }
   });
 
   it('30 beaded, profiled upper', () => {

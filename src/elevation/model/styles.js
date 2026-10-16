@@ -133,6 +133,15 @@ export function styleReveals(style, cabinetTypeId, settings) {
   };
 }
 
+/** Shop standard for report comparisons (REV-001): Euro bases use the stone-top reveal. */
+export function typeStandardReveals(style, cabinetTypeId, settings) {
+  const reveals = styleReveals(style, cabinetTypeId, settings);
+  if (!isInsetStyle(style) && cabinetTypeId === BASE) {
+    reveals.top = settings.stoneTopReveal ?? DEFAULT_SETTINGS.stoneTopReveal;
+  }
+  return reveals;
+}
+
 /** One column of faces: no pair door and no side-by-side group anywhere. */
 export function isSingleColumn(face) {
   if (face.type) return face.type !== 'pair_door';

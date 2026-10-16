@@ -16,7 +16,9 @@ import { resolveWall } from '../elevation/model/room.js';
 import { runBands } from '../elevation/model/runBands.js';
 import { runScene } from '../elevation/model/runScene.js';
 import { sectionProfileBounds } from '../elevation/model/sectionProfiles.js';
-import { endPieceBottom, endPieceNotes, resolveStyle, REVEAL_KEYS, runFrame } from '../elevation/model/styles.js';
+import {
+  endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
+} from '../elevation/model/styles.js';
 import { teeFillers } from '../elevation/model/tees.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { doorOrderItems } from './doorOrder.js';
@@ -264,11 +266,17 @@ function shippingSize(room, settings, part, context) {
 
 function cabinetNotes(room, settings, part, context) {
   if (part.kind !== 'cabinet') return {};
-  const { scene, leaf, rabbets } = context;
-  const faces = scene.faceLayouts.get(part.key)?.faces ?? [];
+  const { scene, leaf, rabbets, run } = context;
+  const layout = scene.faceLayouts.get(part.key);
+  const faces = layout?.faces ?? [];
   const boxes = room.reportParts?.[part.key]?.boxes;
-  const reveals = REVEAL_KEYS.filter((key) => Number.isFinite(leaf?.reveals?.[key]))
-    .map((key) => `${formatInch(leaf.reveals[key])} ${key[0].toUpperCase()}`);
+  const style = resolveStyle(settings, room, run, leaf);
+  const standard = layout && !isInsetStyle(style)
+    ? typeStandardReveals(style, run.cabinetTypeId, settings) : null;
+  const values = standard ? layout.reveals.values : leaf?.reveals;
+  const reveals = REVEAL_KEYS.filter((key) => Number.isFinite(values?.[key])
+    && (!standard || Math.abs(values[key] - standard[key]) > EPSILON))
+    .map((key) => `${formatInch(values[key])} ${key[0].toUpperCase()}`);
   const blind = scene.blind.entries.find(({ pieceId }) => pieceId === part.key);
   const doors = faces.filter((face) => face.type === 'door');
   const doorWidth = doors.length ? Math.max(...doors.map(({ width }) => width)) : blind?.visibleWidth;

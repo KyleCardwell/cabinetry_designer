@@ -1,17 +1,18 @@
 import { readFileSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { frontDepth, runBackOffset } from '../../elevation/model/corners.js';
 import { gridFromItems } from '../../elevation/model/grid.js';
 import { partNumbers } from '../../elevation/model/partNumbers.js';
 import { resolveWall, syncRoom } from '../../elevation/model/room.js';
 import { runBandEnds, runBands } from '../../elevation/model/runBands.js';
-import { runScene } from '../../elevation/model/runScene.js';
+import * as sceneModel from '../../elevation/model/runScene.js';
 import { normalizeElevationDocument } from '../../elevation/store/persistence.js';
 import { doorOrderItems } from '../doorOrder.js';
 import { cabinetDescription, drawerFrontNote, hingeNote, linealFeet, shippingDescription, shippingList } from '../shippingList.js';
 
 const settings = DEFAULT_SETTINGS;
+const { runScene } = sceneModel;
 const face = (type, rest = {}) => ({ type, size: null, ...rest });
 const drawers = { direction: 'vertical', size: null,
   children: [face('drawer_front', { size: 5.875 }), face('drawer_front'), face('drawer_front')] };
@@ -136,13 +137,13 @@ describe('RP2 step d cabinet notes', () => {
     expect(hingeNote([])).toBeNull();
   });
 
-  it('prints only manual reveals in T, B, L, R, H, V order (anchor 6)', () => {
+  it('prints only reveals differing from the standard in T, B, L, R, H, V order (anchor 6)', () => {
     const r = room([run('run', [{ ...cabinet(), face: face('open'), reveals: { top: 0.25, bottom: 0.125 } }])]);
-    expect(row(r).notes).toEqual(['RV\'s (1/4" T, 1/8" B)']);
+    expect(row(r).notes).toEqual([]);
     r.walls[0].runs[0].grid.cells[0].node.reveals = {
       vertical: 0.125, right: 0.25, horizontal: 0, bottom: null, left: 0.125, top: 0.25,
     };
-    expect(row(r).notes).toEqual(['RV\'s (1/4" T, 1/8" L, 1/4" R, 0" H, 1/8" V)']);
+    expect(row(r).notes).toEqual(['RV\'s (1/8" L, 1/4" R, 0" H)']);
     delete r.walls[0].runs[0].grid.cells[0].node.reveals;
     expect(row(r).notes).toEqual([]);
   });
@@ -181,7 +182,7 @@ describe('RP2 step d cabinet notes', () => {
       width: 21, ends: { ...ends(), right: { type: 'filler', width: 3 } },
       endFiller: { right: { tFiller: true } },
     })]);
-    expect(row(r).notes).toEqual(['FF to rabbet right side for T-filler']);
+    expect(row(r).notes).toEqual(['RV\'s (13/16" R)', 'FF to rabbet right side for T-filler']);
     expect(row(r, 'run:right').notes).toEqual(['T-shape']);
   });
 
@@ -211,10 +212,86 @@ describe('RP2 step d cabinet notes', () => {
       endFiller: { right: { tFiller: true } },
     })], { reportParts: { cab: { boxes: 'MAPLE PLY', note: 'last' } } });
     const before = structuredClone(r);
-    expect(row(r).notes).toEqual(['MAPLE PLY BOX', 'RV\'s (1/4" T)',
+    expect(row(r).notes).toEqual(['MAPLE PLY BOX', 'RV\'s (3/32" L, 27/32" R)',
       'Door x 17 1/16", Blind x 21 1/2"', 'DF\'s (1 - 5 7/8")', 'false front', 'hl',
       'FF to rabbet right side for T-filler', 'last']);
     expect(r).toEqual(before);
+  });
+});
+
+describe('RP2.2 step b reveal notes', () => {
+  const revealNotes = (r, s = settings) => row(r, 'cab', s).notes.filter((note) => note.startsWith("RV's"));
+  const uncaptured = (overrides = {}, reveals, roomOverrides = {}) => room([run('run', [
+    { ...cabinet(), width: 24, face: face('door', { hinge: 'left' }), reveals },
+    { ...cabinet('cab2'), width: 24, face: face('door', { hinge: 'left' }) },
+  ], { width: 48, ...overrides })], roomOverrides);
+
+  it('compares final base reveals against the stone standard (anchors 3, 4, 6, 7)', () => {
+    for (const [top, reveals, expected] of [
+      [undefined, undefined, []],
+      ['wood', undefined, ['RV\'s (1/8" T)']],
+      ['wood', { bottom: 0.25 }, ['RV\'s (1/8" T, 1/4" B)']],
+      [undefined, { top: 0.25 }, []],
+    ]) {
+      const r = uncaptured({ top }, reveals);
+      expect(revealNotes(r)).toEqual(expected);
+      expect(row(r, 'cab2').notes.filter((note) => note.startsWith("RV's")))
+        .toEqual(top === 'wood' ? ['RV\'s (1/8" T)'] : []);
+    }
+  });
+
+  it('uses each tall and upper type standard (anchors 5, 9)', () => {
+    expect(revealNotes(uncaptured({ cabinetTypeId: 3, height: 84, z: 0, top: 'wood' }))).toEqual([]);
+    expect(revealNotes(uncaptured({ cabinetTypeId: 2, z: 54, depth: 12 }))).toEqual([]);
+  });
+
+  it('prints rule-made captured side reveals (anchor 8)', () => {
+    const r = room([run('run', [{ ...cabinet(), face: face('door', { hinge: 'left' }) }], {
+      width: 36, ends: {
+        left: { type: 'filler', width: 3 }, right: { type: 'filler', width: 3 },
+      },
+    })]);
+    expect(revealNotes(r)).toEqual(['RV\'s (3/32" L, 3/32" R)']);
+  });
+
+  it('keeps inset notes typed-only and resolves room, run and leaf styles (anchor 10)', () => {
+    const insetRoom = { style: { cabinetStyleId: 14 } };
+    const r = uncaptured({}, { top: 0.25 }, insetRoom);
+    expect(revealNotes(r)).toEqual(['RV\'s (1/4" T)']);
+    const base = r.walls[0].runs[0];
+    delete base.grid.cells[0].node.reveals;
+    expect(revealNotes(r)).toEqual([]);
+    expect(revealNotes(uncaptured({ style: { cabinetStyleId: 13 } }, { top: 0.25 }, insetRoom)))
+      .toEqual([]);
+    const leafEuro = structuredClone(r);
+    leafEuro.walls[0].runs[0].grid.cells[0].node.reveals = { top: 0.25 };
+    leafEuro.walls[0].runs[0].grid.cells[0].node.style = { cabinetStyleId: 13 };
+    expect(revealNotes(leafEuro)).toEqual([]);
+  });
+
+  it('compares at 1e-6 tolerance before formatting and orders all six differences', () => {
+    const r = uncaptured({}, { top: 0.25 + 0.5e-6 });
+    expect(revealNotes(r)).toEqual([]);
+    r.walls[0].runs[0].grid.cells[0].node.reveals.top = 0.25 + 2e-6;
+    expect(revealNotes(r)).toEqual(['RV\'s (1/4" T)']);
+    r.walls[0].runs[0].grid.cells[0].node.reveals = {
+      vertical: 0, right: 0, horizontal: 0, bottom: 0, left: 0, top: 0,
+    };
+    expect(revealNotes(r)).toEqual(['RV\'s (0" T, 0" B, 0" L, 0" R, 0" H, 0" V)']);
+  });
+
+  it('falls back to typed-only notes when a cabinet has no face layout', () => {
+    const r = uncaptured({}, { top: 0.25, bottom: null });
+    const spy = vi.spyOn(sceneModel, 'runScene').mockImplementation((...args) => ({
+      ...runScene(...args), faceLayouts: new Map(),
+    }));
+    try {
+      expect(revealNotes(r)).toEqual(['RV\'s (1/4" T)']);
+      delete r.walls[0].runs[0].grid.cells[0].node.reveals;
+      expect(revealNotes(r)).toEqual([]);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
