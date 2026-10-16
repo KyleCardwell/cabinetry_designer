@@ -101,6 +101,8 @@ export const SETTINGS_REGISTRY = [
     ['edgebandAlert', 'Edgeband alert'],
   ].map(([key, label]) => ({ key: `report.${key}`, label, kind: 'text', lowest: 'room' })),
   { key: 'report.wireBrushed', label: 'Wire brushed', kind: 'bool', lowest: 'room' },
+  { key: 'doorPullId', label: 'Door pull', kind: 'pull', lowest: 'room' },
+  { key: 'drawerPullId', label: 'Drawer pull', kind: 'pull', lowest: 'room' },
   ...teamNumbers.map(([key, label]) => ({ key, label, kind: 'number', lowest: 'team' })),
   ...roomNumbers.map(([key, label]) => ({ key, label, kind: 'number', lowest: 'room' })),
   ...[

@@ -76,6 +76,8 @@ export const DEFAULT_SETTINGS = {
   doorPanelDefault: 0.5,
   doorDesigns: DOOR_DESIGNS,
   pulls: BUILT_IN_PULLS,
+  doorPullId: 'pull-4',
+  drawerPullId: 'pull-4',
   sectionProfiles: [],
   baseCutoutFoot: 3,
   baseCutoutHeight: 1.5,

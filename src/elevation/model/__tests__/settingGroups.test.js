@@ -45,13 +45,13 @@ const expectedGroups = [
 ];
 
 describe('DB2 b setting groups and choice labels', () => {
-  it('partitions every registry key exactly once with 38 ungrouped keys (anchor 1)', () => {
+  it('partitions every registry key exactly once with 40 ungrouped keys before pull pickers (anchor 1)', () => {
     const keys = [...SETTING_GROUPS.flatMap((group) => group.keys), ...UNGROUPED_KEYS];
     expect(keys.toSorted()).toEqual(SETTINGS_REGISTRY.map(({ key }) => key).toSorted());
     expect(new Set(keys).size).toBe(keys.length);
-    expect(UNGROUPED_KEYS).toHaveLength(38);
+    expect(UNGROUPED_KEYS).toHaveLength(40);
     expect(UNGROUPED_KEYS).toEqual(SETTINGS_REGISTRY.map(({ key }) => key)
-      .filter((key) => /^(defaultProfile|faceReveals|defaultStyle)\./.test(key)));
+      .filter((key) => /^(defaultProfile|faceReveals|defaultStyle)\./.test(key) || ['doorPullId', 'drawerPullId'].includes(key)));
   });
 
   it('keeps eight team groups and 84 keys in order, excluding project-only Job #', () => {

@@ -16,6 +16,9 @@ export {
 } from './settingsRegistry.js';
 export { SETTING_GROUPS, UNGROUPED_KEYS, groupsFor, CHOICE_LABELS, choiceOptions } from './settingGroups.js';
 export {
+  PULL_KEYS,
+  pullPartType,
+  resolvePull,
   PULL_KINDS,
   PULL_SIZE_KEYS,
   BUILT_IN_PULLS,
@@ -54,6 +57,7 @@ export {
   removeFace,
   setFaceAction,
   setFaceHinge,
+  setFacePull,
   setFaceSize,
   setFaceType,
   setGroupCount,

@@ -1,7 +1,7 @@
 import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
 import { DOOR_DESIGNS, sheetPanelStyle } from '../../model/doorStyles.js';
 import { isDoorDesignList } from '../../model/doorDesigns.js';
-import { BUILT_IN_PULLS } from '../../model/pulls.js';
+import { BUILT_IN_PULLS, resolvePull } from '../../model/pulls.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { gridFromItems, rootItems } from '../../model/grid.js';
@@ -91,6 +91,38 @@ function currentDocument() {
     view: 'elevation',
   };
 }
+
+describe('HP3c step a pull reference persistence', () => {
+  it('validates wall, run, cabinet and leaf picks and loads old rooms with default pulls (anchor 8)', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    expect(isElevationDocument(base)).toBe(true);
+    for (const target of ['wall', 'run', 'cabinet']) {
+      for (const key of ['doorPullId', 'drawerPullId']) {
+        for (const value of [5, '', false, {}, null, 'none', 'gone']) {
+          const document = structuredClone(base);
+          const wall = document.rooms[0].walls[0];
+          const run = wall.runs[0];
+          const node = target === 'wall' ? wall : target === 'run' ? run : run.grid.cells[0].node;
+          node[key] = value;
+          const valid = value === null || typeof value === 'string' && value.length > 0;
+          expect(isElevationDocument(document), `${target}.${key} = ${JSON.stringify(value)}`).toBe(valid);
+          expect(isElevationDocument(normalizeElevationDocument(document))).toBe(valid);
+        }
+      }
+    }
+    for (const type of ['door', 'pair_door', 'drawer_front', 'false_front', 'panel', 'open']) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.face = { type, size: null, pullId: 'gone' };
+      expect(isElevationDocument(document)).toBe(!['panel', 'open'].includes(type));
+    }
+    const old = currentDocument();
+    delete old.settings.doorPullId;
+    delete old.settings.drawerPullId;
+    const loaded = normalizeElevationDocument(old);
+    expect(isElevationDocument(loaded)).toBe(true);
+    for (const partType of ['door', 'drawer']) expect(resolvePull(loaded.settings, partType, []).pullId).toBe('pull-4');
+  });
+});
 
 describe('HP3b step a sandbox pull persistence', () => {
   const bar = {

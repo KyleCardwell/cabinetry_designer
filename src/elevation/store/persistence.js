@@ -9,7 +9,7 @@ import {
 import { isBottomPart } from '../model/bottoms.js';
 import { cleanOverrides } from '../model/settingsResolve.js';
 import { isDoorDesignList, migrateDoorDesign } from '../model/doorDesigns.js';
-import { BUILT_IN_PULLS, isPullList } from '../model/pulls.js';
+import { BUILT_IN_PULLS, PULL_KEYS, isPullList } from '../model/pulls.js';
 import { isSectionProfileList, migrateSectionProfile } from '../model/sectionProfiles.js';
 import {
   DEFAULT_DOOR_STYLE,
@@ -174,6 +174,10 @@ function hasStyleRefs(node) {
   return DOOR_STYLE_KEYS.every((key) => isStyleRef(node[key]));
 }
 
+function hasPullRefs(node) {
+  return Object.values(PULL_KEYS).every((key) => isStyleRef(node[key]));
+}
+
 function isPartPick(entry) {
   return isStyleRef(entry.styleId) && (entry.sizes === undefined || isPartSizes(entry.sizes));
 }
@@ -209,6 +213,7 @@ function isTFillerSides(value) {
 function isItem(item) {
   return Boolean(item)
     && hasStyleRefs(item)
+    && hasPullRefs(item)
     && typeof item.id === 'string'
     && ITEM_KINDS.has(item.kind)
     && (item.width === null || isFiniteNumber(item.width))
@@ -375,6 +380,7 @@ export function isBaseCutoutList(value) {
 function isRun(run) {
   return Boolean(run)
     && hasStyleRefs(run)
+    && hasPullRefs(run)
     && typeof run.id === 'string'
     && RUN_TYPE_IDS.has(run.cabinetTypeId)
     && ['x', 'width', 'z', 'height', 'depth'].every((key) => isFiniteNumber(run[key]))
@@ -587,6 +593,7 @@ function isRecess(recess) {
 function isWall(wall, profileKeys = PROFILE_KEYS) {
   return Boolean(wall)
     && hasStyleRefs(wall)
+    && hasPullRefs(wall)
     && typeof wall.id === 'string'
     && typeof wall.name === 'string'
     && (wall.numberOverride === null

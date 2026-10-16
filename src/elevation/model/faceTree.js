@@ -1,4 +1,6 @@
 import { DOOR_ACTIONS, DOOR_HINGES, FACE_DIRECTIONS, FACE_TYPES, ROOT_FACE_PATH } from './faces.js';
+import { isStyleRef } from './doorStyles.js';
+import { pullPartType } from './pulls.js';
 
 /** Most sections a single split or count can create. */
 export const MAX_FACE_SPLIT = 8;
@@ -60,6 +62,7 @@ export function setFaceType(face, path, type) {
   if (!target?.type || !FACE_TYPES.includes(type)) return face;
   return replaceAt(face, path, (node) => {
     const next = { ...node, type };
+    if (!pullPartType(type)) delete next.pullId;
     if (node.type !== type) {
       delete next.hinge;
       delete next.action;
@@ -181,6 +184,19 @@ export function equalizeGroup(face, path) {
     ...node,
     children: node.children.map((child) => ({ ...child, size: null })),
   }));
+}
+
+/** Set or clear a pull-bearing leaf's own pick. */
+export function setFacePull(face, path, pullId) {
+  const target = getFaceNode(face, path);
+  if (!pullPartType(target?.type) || target.children || !isStyleRef(pullId)) return face;
+  if ((target.pullId ?? null) === (pullId ?? null)) return face;
+  return replaceAt(face, path, (node) => {
+    const next = { ...node };
+    if (pullId == null) delete next.pullId;
+    else next.pullId = pullId;
+    return next;
+  });
 }
 
 /** Sets a door leaf's hinge edge, or clears it with null. */

@@ -1,6 +1,7 @@
 import { EPSILON } from './cells.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { isPartSizes, isStyleRef } from './doorStyles.js';
+import { pullPartType } from './pulls.js';
 
 /** Leaf face types — the same values as ff-job-schedule FACE_NAMES. */
 export const FACE_TYPES = ['door', 'pair_door', 'drawer_front', 'false_front', 'panel', 'open'];
@@ -62,11 +63,12 @@ export function isFaceNode(node) {
       if (['flipper', 'pocket'].includes(node.action) && !['left', 'right'].includes(node.hinge)) return false;
     }
     return node.children === undefined && node.direction === undefined && node.noRail === undefined
+      && (pullPartType(node.type) ? isStyleRef(node.pullId) : node.pullId === undefined)
       && isStyleRef(node.styleId)
       && (node.sizes === undefined || isPartSizes(node.sizes));
   }
   return node.type === undefined
-    && node.hinge === undefined && node.action === undefined
+    && node.hinge === undefined && node.action === undefined && node.pullId === undefined
     && FACE_DIRECTIONS.includes(node.direction)
     && Array.isArray(node.children)
     && node.children.length >= 2

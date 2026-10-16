@@ -1,3 +1,17 @@
+import { isStyleRef } from './doorStyles.js';
+
+export const PULL_KEYS = { door: 'doorPullId', drawer: 'drawerPullId' };
+
+export function pullPartType(faceType) {
+  switch (faceType) {
+    case 'door':
+    case 'pair_door': return 'door';
+    case 'drawer_front': return 'drawer';
+    case 'false_front': return 'false_front';
+    default: return null;
+  }
+}
+
 export const PULL_KINDS = ['pull', 'knob', 'tab'];
 export const PULL_SIZE_KEYS = {
   pull: ['length', 'centers', 'width'],
@@ -77,4 +91,36 @@ export function newPull(list, base, id) {
 
 export function findPull(id, list) {
   return list.find((pull) => pull.id === id) ?? null;
+}
+
+/** Resolve the nearest pull pick without falling through a missing id. */
+export function resolvePull(settings, partType, levels, pulls = settings?.pulls ?? BUILT_IN_PULLS) {
+  const key = PULL_KEYS[partType];
+  const noPull = { pullId: 'none', pull: null, source: { level: 'default', key: null }, warnings: [] };
+  if (!key && partType !== 'false_front') return noPull;
+  let pullId;
+  let source;
+  for (const { level, node } of levels) {
+    if (!['face', 'cabinet', 'run', 'wall'].includes(level)) continue;
+    if (partType === 'false_front' && level !== 'face') continue;
+    const pickKey = level === 'face' ? 'pullId' : key;
+    const value = node?.[pickKey];
+    if (value == null || !isStyleRef(value)) continue;
+    pullId = value;
+    source = { level, key: pickKey };
+    break;
+  }
+  if (pullId === undefined) {
+    if (partType === 'false_front') return noPull;
+    pullId = settings?.[key] ?? 'pull-4';
+    source = { level: 'settings', key };
+  }
+  if (pullId === 'none') return { pullId, pull: null, source, warnings: [] };
+  const pull = findPull(pullId, pulls);
+  return {
+    pullId,
+    pull: pull ?? findPull('pull-4', BUILT_IN_PULLS),
+    source,
+    warnings: pull ? [] : [{ code: 'pull-missing', level: source.level, id: pullId }],
+  };
 }
