@@ -6,6 +6,7 @@ import ElevationCanvas from './components/ElevationCanvas.jsx';
 import MessageToast from './components/MessageToast.jsx';
 import ElevationToolbar from './components/ElevationToolbar.jsx';
 import MissingDoorDesignsNotice from './components/MissingDoorDesignsNotice.jsx';
+import MissingPullsNotice from './components/MissingPullsNotice.jsx';
 import JsonToggle from './components/JsonToggle.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
 import RoomHeightsPanel from './components/RoomHeightsPanel.jsx';
@@ -90,6 +91,7 @@ export default function DesignerEditor({ mode = 'lab', header = null, banners = 
         />
         {roomMode && banners}
         <MissingDoorDesignsNotice />
+        <MissingPullsNotice />
         <div className="relative min-h-0 flex-1">
           <MessageToast />
           {view === 'plan' ? (

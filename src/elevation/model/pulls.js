@@ -1,4 +1,5 @@
 import { isStyleRef } from './doorStyles.js';
+import { gridLeaves } from './grid.js';
 
 export const PULL_KEYS = { door: 'doorPullId', drawer: 'drawerPullId' };
 
@@ -91,6 +92,64 @@ export function newPull(list, base, id) {
 
 export function findPull(id, list) {
   return list.find((pull) => pull.id === id) ?? null;
+}
+
+/** Stored room picks, including nested cabinet grids and face leaves. */
+export function* roomPullUses(room) {
+  function* picks(node) {
+    for (const key of Object.values(PULL_KEYS)) {
+      if (node?.[key] != null) yield { node, key };
+    }
+  }
+  function* faces(face) {
+    if (!face) return;
+    if (face.children) {
+      for (const child of face.children) yield* faces(child);
+    } else if (pullPartType(face.type) && face.pullId != null) {
+      yield { node: face, key: 'pullId' };
+    }
+  }
+  yield* picks(room?.settingsOverrides);
+  for (const wall of room?.walls ?? []) {
+    yield* picks(wall);
+    for (const run of wall.runs ?? []) {
+      yield* picks(run);
+      for (const item of run.grid ? gridLeaves(run.grid) : []) {
+        if (item.kind !== 'cabinet') continue;
+        yield* picks(item);
+        yield* faces(item.face);
+      }
+    }
+  }
+}
+
+/** Missing ids and every place that stores them, even when overridden below. */
+export function missingPulls(room, settings, layers) {
+  const known = new Set((settings?.pulls ?? BUILT_IN_PULLS).map(({ id }) => id));
+  const missing = new Map();
+  const entry = (pullId) => {
+    if (typeof pullId !== 'string' || !pullId || pullId === 'none' || known.has(pullId)) return null;
+    if (!missing.has(pullId)) missing.set(pullId, { pullId, roomUses: 0, setIn: [] });
+    return missing.get(pullId);
+  };
+  for (const { node, key } of roomPullUses(room)) {
+    const row = entry(node[key]);
+    if (row) row.roomUses += 1;
+  }
+  for (const [level, values] of [
+    ['team', settings], ['project', layers?.project?.values], ['phase', layers?.phase?.values],
+  ]) {
+    for (const pullId of new Set(Object.values(PULL_KEYS).map((key) => values?.[key]))) {
+      const row = entry(pullId);
+      if (row) row.setIn.push(level);
+    }
+  }
+  return [...missing.values()].sort((a, b) => a.pullId.localeCompare(b.pullId));
+}
+
+export function missingPullName(pullId) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pullId)
+    ? 'An archived pull' : `Pull \`${pullId}\``;
 }
 
 /** Resolve the nearest pull pick without falling through a missing id. */

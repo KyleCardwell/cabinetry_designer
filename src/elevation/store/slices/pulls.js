@@ -1,11 +1,22 @@
 import { current } from '@reduxjs/toolkit';
 import { v4 as uuid } from 'uuid';
-import { BUILT_IN_PULL_IDS, PULL_KEYS, findPull, isPullList, newPull } from '../../model/pulls.js';
+import { BUILT_IN_PULL_IDS, PULL_KEYS, findPull, isPullList, newPull, roomPullUses } from '../../model/pulls.js';
 import { effectiveSettings } from '../../model/effectiveSettings.js';
 import { gridLeaves } from '../../model/grid.js';
 import { roomFor, roomIndexFor, wallLocation, runLocation, syncRoomAt } from './helpers.js';
 
 export const pullReducers = {
+  moveMissingPull(state, action) {
+    const { roomId, pullId, reassignTo } = action.payload;
+    const index = roomIndexFor(state, roomId);
+    if (index === -1 || typeof pullId !== 'string' || !pullId || pullId === 'none') return;
+    const pulls = effectiveSettings(state, state.rooms[index]).pulls;
+    if (findPull(pullId, pulls) || (reassignTo !== 'none' && !findPull(reassignTo, pulls))) return;
+    const uses = [...roomPullUses(state.rooms[index])].filter(({ node, key }) => node[key] === pullId);
+    if (!uses.length) return;
+    for (const { node, key } of uses) node[key] = reassignTo;
+    syncRoomAt(state, index);
+  },
   setPullPick(state, action) {
     const { roomId, level, itemIds = [], key, pullId } = action.payload;
     const room = roomFor(state, roomId);
