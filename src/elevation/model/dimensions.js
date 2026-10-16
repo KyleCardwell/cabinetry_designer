@@ -1,7 +1,8 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { runBottomParts } from './bottoms.js';
 import { cellPieces } from './cells.js';
-import { cornerAt } from './corners.js';
+import { cornerLap } from './cornerLaps.js';
+import { cornerAt, cornerReserveParts } from './corners.js';
 import { layoutRun, runFaceLayouts } from './faceLayouts.js';
 import { frameEdgeTracks, frameRegions, regionOpenings } from './frames.js';
 import { wallLength } from './geometry.js';
@@ -452,16 +453,27 @@ export function horizontalChains(room, wall, band, settings) {
     });
     // A frame over a wall end panel starts before the run (SPEC-36.2).
     const segments = runInnerSegments(room, wall, run, settings, layout);
+    const lapAt = (side, cornerGap) => cornerGap
+      && cornerLap(room, wall, run, side, settings)?.laps === true
+      ? cornerReserveParts(room, wall, side, run, settings).lap : 0;
+    const leftLap = lapAt('left', index === 0 && leftCornerGap);
+    const rightLap = lapAt('right', index === runs.length - 1 && rightCornerGap);
+    // Measure the visible filler/stile up to the neighbor's front, excluding the hidden lap.
+    if (segments.length > 0) {
+      if (leftLap) segments[0].start = run.x + leftLap;
+      if (rightLap) segments[segments.length - 1].end = run.x + run.width - rightLap;
+    }
     appendGap(
       inner,
       cursor,
-      Math.min(run.x, segments[0]?.start ?? run.x, runStart(run)),
+      leftLap ? run.x + leftLap : Math.min(run.x, segments[0]?.start ?? run.x, runStart(run)),
       index === 0 && leftCornerGap ? 'corner-gap' : 'open',
       tallRanges,
     );
     inner.push(...segments);
     // The top's legs/overhangs are measured on the overall row; the piece row skips over them.
-    cursor = Math.max(run.x + run.width, segments[segments.length - 1]?.end ?? run.x + run.width, runEnd(run));
+    cursor = rightLap ? run.x + run.width - rightLap
+      : Math.max(run.x + run.width, segments[segments.length - 1]?.end ?? run.x + run.width, runEnd(run));
   });
   appendGap(
     inner,

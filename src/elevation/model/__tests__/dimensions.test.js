@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { cornerReserveParts } from '../corners.js';
 import {
   centerlineMarkers,
   horizontalChains,
@@ -9,6 +10,7 @@ import {
   verticalChains,
   verticalOpeningChain,
 } from '../dimensions.js';
+import { gridFromItems } from '../grid.js';
 import { syncRoom } from '../room.js';
 import { wallSideView } from '../wallSides.js';
 
@@ -201,6 +203,134 @@ function expectContiguous(chain, startOrLength, end) {
     .toBeCloseTo(finish - start, 8);
 }
 
+describe('FL2.1 step b lapped corner dimensions', () => {
+  function fixture({ angle = 90, upper = false, frame = false, mode } = {}) {
+    const type = upper ? CABINET_TYPE_IDS.UPPER : CABINET_TYPE_IDS.BASE;
+    const makeRun = (id, side) => cabinetRun(id, type, {
+      anchors: { left: true, right: true },
+      autoCount: false,
+      items: undefined,
+      grid: gridFromItems(id, [{ id: `${id}-cab`, kind: 'cabinet', width: 45 }]),
+      ...(mode ? { endFiller: { [side]: { cornerLap: mode } } } : {}),
+    });
+    const direction = (180 - angle) * Math.PI / 180;
+    const a = makeRun('a', 'right');
+    const b = makeRun('b', 'left');
+    if (frame) a.style = { cabinetStyleId: 14 };
+    if (mode === 'panel') {
+      delete a.endFiller;
+      delete b.endFiller;
+      b.ends.left.type = 'end_panel';
+    }
+    return roomR({
+      wallA: { x2: 84.875, runs: [a] },
+      wallB: {
+        x1: 84.875,
+        x2: 84.875 + 120.875 * Math.cos(direction),
+        y2: 120.875 * Math.sin(direction),
+        runs: [b],
+      },
+    });
+  }
+
+  function chains(room, upper = false) {
+    return room.walls.map((wall) => horizontalChains(room, wall, upper ? 'upper' : 'lower', DEFAULT_SETTINGS));
+  }
+
+  function checkLapped(options, expectedGap, expectedLap) {
+    const raw = fixture(options);
+    const off = structuredClone(raw);
+    off.walls[0].runs[0].endFiller = { right: { cornerLap: 'into' } };
+    off.walls[1].runs[0].endFiller = { left: { cornerLap: 'into' } };
+    const room = syncRoom(raw, DEFAULT_SETTINGS);
+    const before = chains(syncRoom(off, DEFAULT_SETTINGS), options.upper);
+    const after = chains(room, options.upper);
+    const [wall] = room.walls;
+    const [run] = wall.runs;
+    const gapIndex = after[0].inner.findIndex(({ kind }) => kind === 'corner-gap');
+    const segment = after[0].inner[gapIndex - 1];
+    const gap = after[0].inner[gapIndex];
+    const beforeSegment = before[0].inner[before[0].inner.findIndex(({ kind }) => kind === 'corner-gap') - 1];
+    expect(gap.kind).toBe('corner-gap');
+    expect(gap.end - gap.start).toBeCloseTo(expectedGap, 3);
+    expect(segment.end).toBeCloseTo(run.x + run.width - expectedLap, 8);
+    expect(segment.end).toBeCloseTo(gap.start, 8);
+    expect(segment.end - segment.start).toBeCloseTo(beforeSegment.end - beforeSegment.start, 8);
+    expect(segment).toEqual({ ...beforeSegment, start: segment.start, end: segment.end });
+    expect(segment).toMatchObject({ kind: options.frame ? 'frame' : 'piece', runId: 'a' });
+    expect(after[0].outer).toEqual(before[0].outer);
+    expect(after[1]).toEqual(before[1]);
+    expectContiguous(after[0].inner.filter(({ kind }) => kind !== 'neighbor'), 84.875);
+    return { room, after };
+  }
+
+  it('D1–D2: measures the laps-off filler and 24 7/8 corner gap, leaving the die-in chain unchanged', () => {
+    const { after } = checkLapped({}, 24.875, 0.8125);
+    expect(after[1].inner[0]).toEqual({ start: 0, end: 24.875, kind: 'corner-gap' });
+    expect(after[0].inner.at(-2).pieceId).toBeDefined();
+  });
+
+  it('D3: applies the same boundary to the upper chain', () => {
+    checkLapped({ upper: true }, 12.875, 0.8125);
+  });
+
+  it('D4: shortens the corner frame stile while preserving its kind and metadata', () => {
+    checkLapped({ frame: true }, 24.875, 0.8125);
+  });
+
+  it('D5: uses the lap scaled by the sine of a 135-degree corner', () => {
+    // Exact resolved geometry isolates this chain from resolveHorizontal's existing 1/16 rounding.
+    const room = fixture({ angle: 135 });
+    for (const [index, wall] of room.walls.entries()) {
+      const run = wall.runs[0];
+      const reserve = cornerReserveParts(room, wall, index === 0 ? 'right' : 'left', run, DEFAULT_SETTINGS);
+      run.x = index === 0 ? 0 : reserve.total;
+      run.width = (index === 0 ? 84.875 : 120.875) - reserve.total;
+    }
+    const { inner } = chains(room)[0];
+    const gapIndex = inner.findIndex(({ kind }) => kind === 'corner-gap');
+    const gap = inner[gapIndex];
+    const segment = inner[gapIndex - 1];
+    const run = room.walls[0].runs[0];
+    const lap = 0.8125 / Math.sin(135 * Math.PI / 180);
+    expect(gap.end - gap.start).toBeCloseTo(35.1786, 3);
+    expect(gap.end - gap.start).toBeCloseTo(24.875 / Math.sin(135 * Math.PI / 180), 8);
+    expect(run.x + run.width - segment.end).toBeCloseTo(lap, 8);
+    expect(segment.end).toBe(gap.start);
+    expect(segment).toMatchObject({ kind: 'piece', runId: 'a', pieceId: 'a:right' });
+    expectContiguous(inner.filter(({ kind }) => kind !== 'neighbor'), 84.875);
+  });
+
+  it('D6–D7: keeps non-lapped ends unchanged and adjusts both sides of an over conflict', () => {
+    for (const mode of ['panel', 'into', 'over']) {
+      const room = syncRoom(fixture({ mode }), DEFAULT_SETTINGS);
+      const result = chains(room);
+      room.walls.forEach((wall, index) => {
+        const run = wall.runs[0];
+        const side = index === 0 ? 'right' : 'left';
+        const inner = result[index].inner;
+        const gap = index === 0 ? inner.at(-1) : inner[0];
+        const segment = index === 0 ? inner.at(-2) : inner[1];
+        const lap = mode === 'over' ? 0.8125 : 0;
+        expect(cornerReserveParts(room, wall, side, run, DEFAULT_SETTINGS).lap).toBe(lap);
+        expect(gap.end - gap.start).toBe(24.875);
+        if (index === 0) {
+          expect(segment.end).toBe(run.x + run.width - lap);
+          expect(gap.start).toBe(segment.end);
+        } else {
+          expect(segment.start).toBe(run.x + lap);
+          expect(gap.end).toBe(segment.start);
+        }
+        expect(segment.kind).toBe('piece');
+        expectContiguous(inner, index === 0 ? 84.875 : 120.875);
+        expect(result[index].outer).toEqual([
+          { start: 0, end: index === 0 ? 84.875 : 120.875, kind: 'run', runId: run.id },
+        ]);
+      });
+    }
+  });
+});
+
 describe('horizontalChains', () => {
   it('SPEC-10 4. keeps the full lower wall row when the wall has no runs', () => {
     const room = roomR();
@@ -246,7 +376,7 @@ describe('horizontalChains', () => {
     const wall = room.walls.find(({ id }) => id === 'B');
     const chains = horizontalChains(room, wall, 'lower', DEFAULT_SETTINGS);
 
-    expect(chains.inner[0]).toEqual({ start: 0, end: 24.0625, kind: 'corner-gap' });
+    expect(chains.inner[0]).toEqual({ start: 0, end: 24.875, kind: 'corner-gap' });
     expect(chains.outer[0]).toEqual({
       start: 0,
       end: 72.875,

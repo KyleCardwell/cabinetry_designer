@@ -1857,7 +1857,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                 "start": 131.25,
               },
               {
-                "end": 155.9375,
+                "end": 155.125,
                 "kind": "piece",
                 "pieceId": "434f1164-3b6b-4a97-89e7-1c6438c4d95a:right",
                 "runId": "434f1164-3b6b-4a97-89e7-1c6438c4d95a",
@@ -1866,7 +1866,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
               {
                 "end": 168,
                 "kind": "corner-gap",
-                "start": 155.9375,
+                "start": 155.125,
               },
             ],
             "outer": [
@@ -4513,7 +4513,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
           "lower": {
             "inner": [
               {
-                "end": 24,
+                "end": 24.8125,
                 "kind": "corner-gap",
                 "start": 0,
               },
@@ -4521,7 +4521,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                 "end": 26.75,
                 "kind": "frame",
                 "runId": "4b49c071-463c-461e-b750-005d3fe8bec7",
-                "start": 24,
+                "start": 24.8125,
               },
               {
                 "end": 50.75,
