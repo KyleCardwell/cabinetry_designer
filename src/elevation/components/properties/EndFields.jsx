@@ -1,6 +1,7 @@
 import { useDispatch } from 'react-redux';
 import { formatInchesInput, frontDepth, runBlind } from '../../model/index.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
+import { cornerLap } from '../../model/cornerLaps.js';
 import { isJoinedEnd } from '../../model/panelThickness.js';
 import {
   setPartStyle, setRunBlind, setRunEnd, setRunEndExtend, setRunEndFiller,
@@ -23,6 +24,8 @@ export default function EndFields({
   const dispatch = useDispatch();
   const endType = run.ends[side].type;
   const where = { ...actionBase, part: 'runEnd', side };
+  const lap = endType === 'filler' && room && wall
+    ? cornerLap(room, wall, run, side, settings, { ignoreOwn: true }) : null;
 
   return (
     <>
@@ -144,6 +147,25 @@ export default function EndFields({
               aria-label={`${side} end filler return depth`}
             />
           </Field>
+          {lap && (
+            <Field label="Corner">
+              <select
+                value={run.endFiller?.[side]?.cornerLap ?? 'auto'}
+                onChange={(event) => dispatch(setRunEndFiller({
+                  ...actionBase,
+                  side,
+                  key: 'cornerLap',
+                  value: event.target.value === 'auto' ? null : event.target.value,
+                }))}
+                aria-label={`${side} end filler corner`}
+                className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="auto">{lap.laps ? 'Auto (laps over)' : 'Auto (dies in)'}</option>
+                <option value="over">Laps over</option>
+                <option value="into">Dies in</option>
+              </select>
+            </Field>
+          )}
           {endType === 'filler' && (
             <Field label="T-filler">
               <select

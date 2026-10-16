@@ -361,21 +361,27 @@ export const runReducers = {
     const location = runLocation(state, action.payload);
     const { side, key, value } = action.payload;
     if (!location || (side !== 'left' && side !== 'right')) return;
-    if (key !== 'width' && key !== 'returnDepth' && key !== 'tFiller') return;
+    if (key !== 'width' && key !== 'returnDepth' && key !== 'tFiller' && key !== 'cornerLap') return;
+    if (key === 'cornerLap' && value !== null && value !== 'over' && value !== 'into') return;
     const run = location.run;
     run.endFiller = { left: null, right: null, ...(run.endFiller ?? {}) };
     const current = run.endFiller[side] ?? { width: null, returnDepth: null };
     const minimum = key === 'width' ? 0 : -1;
     const next = { ...current };
-    if (key === 'tFiller') {
+    if (key === 'cornerLap') {
+      if (value === null) delete next.cornerLap;
+      else next.cornerLap = value;
+    } else if (key === 'tFiller') {
       if (typeof value === 'boolean') next.tFiller = value;
       else delete next.tFiller;
     } else {
       next[key] = Number.isFinite(value) && value > minimum ? value : null;
     }
-    run.endFiller[side] = next.width === null && next.returnDepth === null && next.tFiller === undefined
+    run.endFiller[side] = next.width == null && next.returnDepth == null
+      && next.tFiller === undefined && next.cornerLap === undefined
       ? null
       : next;
+    if (key === 'cornerLap') syncRoomAt(state, location.roomIndex);
   },
   setAutoCount(state, action) {
     const location = runLocation(state, action.payload);
