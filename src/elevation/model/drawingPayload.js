@@ -10,6 +10,7 @@ import { elevationDimensions } from './elevationDimensions.js';
 import { elevationMarks } from './elevationMarks.js';
 import { elevationDoorDetails } from './elevationDoorDetails.js';
 import { elevationSwingMarks } from './swingMarks.js';
+import { elevationPulls } from './pullLayouts.js';
 import { elevationPartNumbers } from './elevationPartNumbers.js';
 import { planParts } from './planParts.js';
 import { planDimensions } from './planDimensions.js';
@@ -23,7 +24,8 @@ export const DRAWING_PAYLOAD_VERSION = 1;
  * outline; round 41 adds each face's parts; round 42 its bands; 42.1 the wall's own parts; 42.2 its
  * neighbours (corner returns and profiles). Round 43 adds the drawing scale and each face's dimensions;
  * 43.3 its centreline marks; round 44 the room in plan; round 45 its dimensions; 45.1 its
- * markers and labels; 46.4 each face's door details; 50.13 its part number badges; HP2 its swing marks.
+ * markers and labels; 46.4 each face's door details; 50.13 its part number badges; HP2 its swing marks;
+ * HP5 its pulls.
  */
 export function toDrawingPayload(room, settings, { revision } = {}) {
   const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
@@ -39,6 +41,7 @@ export function toDrawingPayload(room, settings, { revision } = {}) {
     ];
     const partIds = new Set(parts.map(({ id }) => id));
     const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);
+    const pulls = elevationPulls(room, wall, side, settings, partIds);
 
     return {
       key,
@@ -55,6 +58,7 @@ export function toDrawingPayload(room, settings, { revision } = {}) {
       doorDetails: elevationDoorDetails(room, wall, side, settings, partIds),
       partNumbers: elevationPartNumbers(room, wall, side, settings),
       ...(swingMarks.length ? { swingMarks } : {}),
+      ...(pulls.length ? { pulls } : {}),
     };
   });
 

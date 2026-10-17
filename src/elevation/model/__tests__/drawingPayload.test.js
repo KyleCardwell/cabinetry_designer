@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { drawingZipName, toDrawingPayload } from '../drawingPayload.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
@@ -9,6 +10,7 @@ import { cornerParts } from '../cornerParts.js';
 import { elevationDimensions } from '../elevationDimensions.js';
 import { elevationMarks } from '../elevationMarks.js';
 import { elevationDoorDetails } from '../elevationDoorDetails.js';
+import { runPulls } from '../pullLayouts.js';
 import { partNumbers, wallBadgeGroups, wallMoldingBadges } from '../partNumbers.js';
 import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { gridLeaves } from '../grid.js';
@@ -24,6 +26,16 @@ const document = normalizeElevationDocument(
 const { settings } = document;
 const room = (name) => syncRoom(document.rooms.find((candidate) => candidate.name === name), settings);
 
+// Captured before HP5 step d: the existing golden snapshot covers derived rooms, not payloads.
+const preHP5PayloadHashes = {
+  'G1 Euro kitchen': 'c0f7b00ec500b12d3f2fc65b9e172e05f5feae57be9aefc988bdacb1f069c18d',
+  'G2 Face frame kitchen': '920674664ebfe648f37f88ba30872e6b2028c25d6cfdb5ddb9896f359e4a01f6',
+  'G3 Bath alcove': 'fd35d5a3467446c85bc9a9c57b83f893deac61402f1e62e0b35597e66a4ec702',
+  'G4 T-filler run': 'de06c1a25cb6963ae9fdb05014adf6fb469622bf04513d26a36166188fece772',
+  'G5 Recess room': '86f8714cb04ff4d889490283215216c8bb43d2fe73c4dd049c8fc837120a3304',
+  'G6 Stacked runs': 'dc7196687196c99fadf089ece3b342612b011964e72b70b201b6d841df907a36',
+};
+
 /** The round-40 fields only, so the first test keeps checking just those. */
 const withoutParts = (payload) => ({
   ...payload,
@@ -35,11 +47,67 @@ const withoutParts = (payload) => ({
     delete copy.marks;
     delete copy.doorDetails;
     delete copy.partNumbers;
+    delete copy.pulls;
     return copy;
   }),
 });
 
 describe('SPEC-40 drawing payload', () => {
+  it('HP5 step d anchor 1: disabling pulls preserves every pre-HP5 golden payload', () => {
+    for (const { name } of document.rooms) {
+      const synced = room(name);
+      const payload = toDrawingPayload({ ...synced, showPulls: false }, settings);
+      expect(payload.payloadVersion).toBe(1);
+      for (const elevation of payload.elevations) {
+        expect(elevation).not.toHaveProperty('pulls');
+      }
+      expect(createHash('sha256').update(JSON.stringify(payload)).digest('hex'))
+        .toBe(preHP5PayloadHashes[name]);
+      const enabled = toDrawingPayload(synced, settings);
+      for (const elevation of enabled.elevations) delete elevation.pulls;
+      expect(enabled).toEqual(payload);
+    }
+  });
+
+  it('HP5 step d anchor 2: carries every drawn golden face pull and all its centres', () => {
+    for (const { name } of document.rooms) {
+      const synced = room(name);
+      const { elevations } = toDrawingPayload(synced, settings);
+      expect(elevations.length).toBeGreaterThan(0);
+      for (const elevation of elevations) {
+        const wall = synced.walls.find(({ id }) => id === elevation.wallId);
+        const view = resolveWall(synced, wall, elevation.side);
+        const faceIds = new Set(elevation.parts.filter(({ kind }) => kind === 'face').map(({ id }) => id));
+        const placements = view.runs.flatMap((run) => runPulls(synced, view, run, settings).pulls)
+          .filter(({ partId }) => faceIds.has(partId));
+        if (faceIds.size) expect(elevation.pulls.length).toBeGreaterThan(0);
+        else expect(elevation).not.toHaveProperty('pulls');
+        expect((elevation.pulls ?? []).map(({ partId }) => partId))
+          .toEqual(placements.map(({ partId }) => partId));
+        for (const { partId, outlines } of elevation.pulls ?? []) {
+          expect(faceIds.has(partId)).toBe(true);
+          expect(outlines).toHaveLength(placements.find((entry) => entry.partId === partId).centers.length);
+        }
+      }
+      expect(elevations.map(({ letter, pulls }) => ({ letter, ...(pulls ? { pulls } : {}) })))
+        .toMatchSnapshot(`${name} elevation pulls`);
+      // Pulls remain visible with outlines only, independently of swing marks.
+      for (const swingMarks of [true, false]) {
+        expect(toDrawingPayload({ ...synced, doorDetails: false, swingMarks }, settings)
+          .elevations.map(({ pulls }) => pulls)).toEqual(elevations.map(({ pulls }) => pulls));
+      }
+    }
+  });
+
+  it('HP5 step d anchor 3: omits pulls when both door and drawer picks are none', () => {
+    const noPulls = { ...settings, doorPullId: 'none', drawerPullId: 'none' };
+    for (const { name } of document.rooms) {
+      const { elevations } = toDrawingPayload(room(name), noPulls);
+      expect(elevations.length).toBeGreaterThan(0);
+      for (const elevation of elevations) expect(elevation).not.toHaveProperty('pulls');
+    }
+  });
+
   it('HP2 step d anchor 1: omits swing marks from every golden room by default', () => {
     for (const { name } of document.rooms) {
       const synced = room(name);
@@ -152,7 +220,8 @@ describe('SPEC-40 drawing payload', () => {
       expect(expected.length).toBeGreaterThan(0);
       expect(elevation.partNumbers.map(({ key, text }) => [key, text])).toEqual(expected);
       expect(new Set(elevation.partNumbers.map(({ key }) => key)).size).toBe(expected.length);
-      expect(Object.keys(elevation).slice(-2)).toEqual(['doorDetails', 'partNumbers']);
+      expect(Object.keys(elevation).filter((key) => key !== 'pulls').slice(-2))
+        .toEqual(['doorDetails', 'partNumbers']);
       for (const { id } of pieces) {
         const badge = elevation.partNumbers.find(({ key }) => key === id);
         const part = elevation.parts.find((part) => part.id === id);
