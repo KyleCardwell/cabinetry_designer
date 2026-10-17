@@ -92,6 +92,7 @@ export {
   styleReveals,
 } from './styles.js';
 export { captureSides } from './capture.js';
+export { boxConstruction } from './boxConstruction.js';
 export { layoutRun, runFaceLayouts } from './faceLayouts.js';
 export {
   BOTTOM_PART_DOORS,
