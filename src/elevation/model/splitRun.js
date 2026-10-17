@@ -453,6 +453,60 @@ function pinUnreachableWarning(pin, actualLeft) {
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 export function splitRun(run, settings, opts) {
+  const plan = pinPlan(run, settings, opts);
+  if (!plan) return splitRunLegacy(run, settings, opts);
+
+  const { items, actualPins } = plan;
+  const warnings = [...plan.warnings];
+  const pieces = [];
+  const errors = [];
+  const appendLayout = (layout) => {
+    pieces.push(...layout.pieces);
+    warnings.push(...layout.warnings);
+    errors.push(...layout.errors);
+  };
+  appendLayout(splitRunLegacy(leftSegmentRun(run, plan), settings, opts));
+
+  actualPins.forEach((pin, index) => {
+    const pinnedPiece = {
+      ...pin.piece,
+      x: pin.left,
+      width: pin.width,
+    };
+    pieces.push(pinnedPiece);
+    warnings.push(...cabinetWidthWarnings(
+      run,
+      settings,
+      pin.item,
+      pin.width,
+      Boolean(pin.piece?.auto),
+    ));
+
+    const next = actualPins[index + 1];
+    if (next) {
+      appendLayout(interiorLayout(
+        run,
+        settings,
+        items.slice(pin.itemIndex + 1, next.itemIndex),
+        pin.left + pin.width + pin.item.gapAfter,
+        next.left,
+        pin,
+        next,
+      ));
+    }
+  });
+
+  appendLayout(splitRunLegacy(rightSegmentRun(run, plan), settings, opts));
+
+  return { pieces, warnings, errors };
+}
+
+/**
+ * Where a run's pinned cabinets land (SPEC-8): each pin's width and left edge, clamped so the items
+ * around it still fit, plus a warning for every pin that couldn't reach its target. Null when the
+ * run has no pin with a finite target.
+ */
+function pinPlan(run, settings, opts) {
   const items = itemsWithGaps(run);
   const targets = opts?.pinTargets ?? {};
   const pinnedItems = items.filter((item) => (
@@ -460,7 +514,7 @@ export function splitRun(run, settings, opts) {
     && item.pin
     && Number.isFinite(targets[item.id])
   ));
-  if (pinnedItems.length === 0) return splitRunLegacy(run, settings, opts);
+  if (pinnedItems.length === 0) return null;
 
   const pass1 = splitRunLegacy(run, settings, opts);
   const pass1Pieces = new Map(pass1.pieces.map((piece) => [piece.id, piece]));
@@ -521,63 +575,110 @@ export function splitRun(run, settings, opts) {
     }
   }
 
-  const pieces = [];
-  const errors = [];
-  const appendLayout = (layout) => {
-    pieces.push(...layout.pieces);
-    warnings.push(...layout.warnings);
-    errors.push(...layout.errors);
-  };
-  appendLayout(splitRunLegacy({
+  return { items, actualPins, leftItems, rightItems, warnings };
+}
+
+/** The part of a pinned run left of its first pin, as a run of its own. */
+function leftSegmentRun(run, plan) {
+  return {
     ...run,
     x: run.x,
-    width: actualPins[0].left - run.x,
-    items: leftItems,
+    width: plan.actualPins[0].left - run.x,
+    items: plan.leftItems,
     _pinSplit: { right: true },
     ends: { left: run.ends.left, right: { type: 'none', width: null } },
-  }, settings, opts));
+  };
+}
 
-  actualPins.forEach((pin, index) => {
-    const pinnedPiece = {
-      ...pin.piece,
-      x: pin.left,
-      width: pin.width,
-    };
-    pieces.push(pinnedPiece);
-    warnings.push(...cabinetWidthWarnings(
-      run,
-      settings,
-      pin.item,
-      pin.width,
-      Boolean(pin.piece?.auto),
-    ));
-
-    const next = actualPins[index + 1];
-    if (next) {
-      appendLayout(interiorLayout(
-        run,
-        settings,
-        items.slice(pin.itemIndex + 1, next.itemIndex),
-        pin.left + pin.width + pin.item.gapAfter,
-        next.left,
-        pin,
-        next,
-      ));
-    }
-  });
-
-  const lastPin = actualPins[actualPins.length - 1];
+/** The part of a pinned run right of its last pin, as a run of its own. */
+function rightSegmentRun(run, plan) {
+  const lastPin = plan.actualPins[plan.actualPins.length - 1];
   const rightStart = lastPin.left + lastPin.width + lastPin.item.gapAfter;
-  appendLayout(splitRunLegacy({
+  return {
     ...run,
     x: rightStart,
     width: run.x + run.width - rightStart,
-    items: rightItems,
+    items: plan.rightItems,
     _pinSplit: { left: true },
     ends: { left: { type: 'none', width: null }, right: run.ends.right },
-  }, settings, opts));
+  };
+}
 
-  return { pieces, warnings, errors };
+/**
+ * How much one run (or one outer pin segment) would have to grow (+) or shrink (−) for its auto
+ * boxes to come out on the rounding setting (run flex, SPEC-RF1). Typed widths, end panels, fixed
+ * fillers and face frame end gaps stay as they are.
+ *
+ * - No flex filler: `candidates`, the nearer round box size first, then the other (a tie grows).
+ *   Every box typed: the change that makes the run fill exactly.
+ * - A flex filler: nothing to round, since the filler takes the leftover. `elastic` is how far the run can
+ *   shrink or grow with its boxes staying `box` (the filler between its minimum and one rounding
+ *   step per box more), and `raise(box)` the growth that lets the boxes be `box` with the filler at
+ *   its minimum.
+ */
+function roundingNeed(run, settings, opts) {
+  const {
+    available,
+    flex,
+    minimumTotal,
+    nAuto,
+  } = layoutInputs(run, settings, opts);
+  const step = settings.roundTo;
+  const sixteenth = (value) => roundTo(value, FILLER_STEP);
+  if (flex > 0) {
+    const cabSpace = available - minimumTotal;
+    if (cabSpace < -WIDTH_EPSILON) {
+      return { candidates: nAuto === 0 ? [sixteenth(-cabSpace)] : [], box: null };
+    }
+    if (nAuto === 0) {
+      return { candidates: [], box: null, elastic: { lo: sixteenth(-cabSpace), hi: Infinity } };
+    }
+    const box = floorTo(cabSpace / nAuto, step);
+    const extra = sixteenth(cabSpace - nAuto * box);
+    return {
+      candidates: [],
+      box,
+      elastic: { lo: -extra, hi: sixteenth(nAuto * step - extra - FILLER_STEP) },
+      raise: (target) => sixteenth(nAuto * target + minimumTotal - available),
+    };
+  }
+  if (nAuto === 0) {
+    return {
+      candidates: Math.abs(available) > WIDTH_EPSILON ? [sixteenth(-available)] : [],
+      box: null,
+    };
+  }
+  if (available <= WIDTH_EPSILON) return { candidates: [], box: null };
+  const per = available / nAuto;
+  if (Math.abs(per / step - Math.round(per / step)) <= WIDTH_EPSILON) {
+    return { candidates: [], box: null };
+  }
+  const down = floorTo(per, step);
+  const up = down + step;
+  const grow = sixteenth(nAuto * up - available);
+  const shrink = sixteenth(nAuto * down - available);
+  const candidates = down > WIDTH_EPSILON && Math.abs(shrink) < Math.abs(grow) - WIDTH_EPSILON
+    ? [shrink, grow]
+    : [grow, ...(down > WIDTH_EPSILON ? [shrink] : [])];
+  return { candidates, box: null };
+}
+
+/**
+ * What run flex (SPEC-RF1) has to solve for one run: the whole run against both its edges, or, with
+ * pins, the part left of the first pin against the left edge and the part right of the last pin
+ * against the right edge (between pins nothing can move). Empty when a pin can't reach its target.
+ *
+ * @returns {{key: 'run'|'left'|'right', edges: ('left'|'right')[], candidates: number[], box: number|null,
+ *   elastic?: {lo: number, hi: number}, raise?: (box: number) => number}[]}
+ */
+export function runFlexNeeds(run, settings, opts) {
+  const plan = pinPlan(run, settings, opts);
+  if (!plan) return [{ key: 'run', edges: ['left', 'right'], ...roundingNeed(run, settings, opts) }];
+  if (plan.warnings.length > 0) return [];
+  return [
+    { key: 'left', edges: ['left'], ...roundingNeed(leftSegmentRun(run, plan), settings, opts) },
+    { key: 'right', edges: ['right'], ...roundingNeed(rightSegmentRun(run, plan), settings, opts) },
+  ];
 }
 
 /**

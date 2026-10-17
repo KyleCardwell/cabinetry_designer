@@ -59,6 +59,11 @@ function panelRunJoin(runs, depth, override) {
   return { runId: face.runId, thickness: face.thickness, join: override ?? (flush ? 'miter' : 'butt') };
 }
 
+/** How far a free wall end's runs and wall end panel stand out past the wall's end (run flex, SPEC-RF2). */
+export function wallEndFlex(wall, endpoint) {
+  return (wall.sideSource ?? wall)._endFlex?.[endpoint] ?? 0;
+}
+
 function panelSide(room, wall, endpoint, elevationSide, width, settings) {
   const view = wallSideView(wall, elevationSide);
   const frame = wallFrame(room, view);
@@ -68,7 +73,8 @@ function panelSide(room, wall, endpoint, elevationSide, width, settings) {
   const panelRun = panelRunJoin(runs, depth, wall.endPanels?.[endpoint]?.frame);
   return {
     side,
-    x: side === 'left' ? 0 : frame.length - width,
+    // SPEC-RF2: a free wall end's runs may stand out past it; the panel goes with them.
+    x: side === 'left' ? 0 - wallEndFlex(wall, endpoint) : frame.length - width + wallEndFlex(wall, endpoint),
     depth,
     top: runs.reduce((top, run) => Math.max(top, run.z + run.height), 0),
     runIds: runs.map((run) => run.id),

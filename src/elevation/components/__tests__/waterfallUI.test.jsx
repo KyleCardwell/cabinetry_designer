@@ -143,7 +143,8 @@ describe('SPEC-50.10 step 509 Waterfall controls', () => {
   it('updates the warning when a touching neighbor blocks or frees the selected end', () => {
     check(waterfall('left'), true);
     state = structuredClone(state);
-    const neighbor = makeRun({ id: 'neighbor', x: 0, width: 30, top: 'stone' });
+    // SPEC-RF1: the run may have flexed off x 30, so the neighbour is placed against where it is.
+    const neighbor = makeRun({ id: 'neighbor', x: run().x - 30, width: 30, top: 'stone' });
     wall().runs.push(neighbor);
     expect(waterfall('left').props['aria-describedby']).toBeDefined();
     wall().runs = [run()];

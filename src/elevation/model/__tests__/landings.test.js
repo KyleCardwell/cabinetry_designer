@@ -312,7 +312,7 @@ describe('wall landings', () => {
     });
     const room = syncRoom(
       alcove({ hostRuns: [AL()], w1Runs: [WR] }),
-      DEFAULT_SETTINGS,
+      { ...DEFAULT_SETTINGS, runFlex: 0 }, // the reserve, not box rounding (SPEC-RF1)
     );
     const W1 = wallById(room, 'W1');
     const wingRun = W1.runs[0];

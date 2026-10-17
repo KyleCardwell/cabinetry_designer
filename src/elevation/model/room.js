@@ -20,6 +20,12 @@ function flipAnchor(anchor) {
   return anchor;
 }
 
+function mirrorBoxes(boxes) {
+  return Object.fromEntries(Object.entries(boxes).map(([key, box]) => [
+    key === 'left' ? 'right' : key === 'right' ? 'left' : key, box,
+  ]));
+}
+
 /** Mirror a wall's elevation-facing state and stored run intent. */
 export function flipRunsForWall(wall) {
   const length = wallLength(wall);
@@ -33,6 +39,16 @@ export function flipRunsForWall(wall) {
     runs: wall.runs.map((run) => ({
       ...run,
       x: length - run.x - run.width,
+      // SPEC-RF1: the flex record mirrors with the run.
+      ...(run.flex ? {
+        flex: {
+          ...run.flex,
+          left: run.flex.right,
+          right: run.flex.left,
+          x: length - run.flex.x - run.flex.width,
+          ...(run.flex.boxes ? { boxes: mirrorBoxes(run.flex.boxes) } : {}),
+        },
+      } : {}),
       ends: { left: { ...run.ends.right }, right: { ...run.ends.left } },
       anchors: { left: flipAnchor(run.anchors.right), right: flipAnchor(run.anchors.left) },
       ...(run.cornerClearance

@@ -6,6 +6,7 @@ export const PREF_KEYS = ['orthoWalls', 'showPartNumbers', 'plotScale', 'paperSi
 
 const roomNumbers = [
   ['roundTo', 'Cabinet rounding'],
+  ['runFlex', 'Run flex'],
   ['minCabinetWidth', 'Min cabinet width'],
   ['fillerMinWidth', 'Min filler width'],
   ['fillerWarnWidth', 'Filler warning width'],

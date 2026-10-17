@@ -23,7 +23,8 @@ const NAMES = [
 ];
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8'));
 const document = normalizeElevationDocument(fixture);
-const { settings } = document;
+// Run flex off: the snapshot is the layout from before SPEC-RF1, and flex off must derive it exactly.
+const settings = { ...document.settings, runFlex: 0 };
 
 /** The part fields that exist today; step 298 adds more, and the snapshot mustn't notice. */
 function partsOf({ parts }) {

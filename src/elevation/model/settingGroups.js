@@ -13,7 +13,7 @@ export const SETTING_GROUPS = [
   {
     id: 'runs-ends', label: 'Runs & ends',
     keys: [
-      'minRunWidth', 'maxRunOverhang', 'adjacentRunGap', 'defaultEnds.left',
+      'minRunWidth', 'maxRunOverhang', 'runFlex', 'adjacentRunGap', 'defaultEnds.left',
       'defaultEnds.right', 'autoEndPanelOnFreeEnd', 'sheetThickness', 'bumperThickness',
     ],
   },

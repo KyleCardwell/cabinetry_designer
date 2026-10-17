@@ -163,6 +163,7 @@ export const {
   setAutoCount,
   setMaxCabinetWidth,
   setRunSeamGap,
+  setRunHoldWidth,
   setRunTFiller,
   setItemTFiller,
   setItemWidth,

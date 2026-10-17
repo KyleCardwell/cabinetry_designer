@@ -33,11 +33,11 @@ const pieces = (room, runId, s = settings) => layoutRun(room, wallOf(room, runId
 const widths = (room, runId, s) => pieces(room, runId, s).map(([, , width]) => width);
 
 /** A golden room with P (13/16") and T (1") listed, after `edit` picks where they're used, synced. */
-function styled(name, edit) {
+function styled(name, edit, s = settings) {
   const room = structuredClone(stored(name));
   room.doorStyles = [P, T];
   edit(room);
-  return syncRoom(room, settings);
+  return syncRoom(room, s);
 }
 
 describe('SPEC-46.1.1 end panels at their style\'s thickness', () => {

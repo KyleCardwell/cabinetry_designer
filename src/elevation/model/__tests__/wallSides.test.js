@@ -277,7 +277,8 @@ describe('wall sides', () => {
       },
     });
     const QF = base('QF', { width: 60 });
-    const synced = syncRoom(flippedL([PB], [QB, QF]), settings);
+    // Run flex off: this pins down the corner reserves, not the box rounding (SPEC-RF1).
+    const synced = syncRoom(flippedL([PB], [QB, QF]), { ...settings, runFlex: 0 });
 
     expect(byId(synced.walls[0], 'PB')).toMatchObject({ x: 0, width: 71.125 });
     expect(byId(synced.walls[1], 'QB')).toMatchObject({ x: 24.875, width: 60 });

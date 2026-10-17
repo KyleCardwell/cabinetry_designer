@@ -6,7 +6,8 @@ import { frameRegions, regionOpenings } from '../frames.js';
 import { gridFromItems } from '../grid.js';
 import { resolveWall, syncRoom } from '../room.js';
 
-const S = DEFAULT_SETTINGS;
+// Run flex off: these pin down the frame gaps with the boxes taking the rest (SPEC-RF1 is tested on its own).
+const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
 const AUTO_NONE = { type: 'none', width: null, auto: true };
 const PANEL = { type: 'end_panel', width: null };
 const joint = { to: 'joint', jointId: 'J', offset: 0 };

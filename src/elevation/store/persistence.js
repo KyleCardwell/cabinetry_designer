@@ -127,6 +127,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'baseCutoutHeight',
   'furnitureBaseScribe',
   'pullHeight',
+  'runFlex',
 ];
 
 function isFiniteNumber(value) {
@@ -381,6 +382,20 @@ export function isBaseCutoutList(value) {
   });
 }
 
+const RUN_FLEX_BOX_KEYS = ['run', 'left', 'right'];
+
+/** SPEC-RF1: what the last sync's run flex did (how far each edge moved, the span it wrote, filler box sizes). */
+function isRunFlex(flex) {
+  return flex === undefined || (Boolean(flex) && typeof flex === 'object' && !Array.isArray(flex)
+    && Object.keys(flex).every((key) => ['left', 'right', 'x', 'width', 'boxes'].includes(key))
+    && ['left', 'right', 'x'].every((key) => isFiniteNumber(flex[key]))
+    && isFiniteNumber(flex.width) && flex.width > 0
+    && (flex.boxes === undefined || (Boolean(flex.boxes) && typeof flex.boxes === 'object'
+      && !Array.isArray(flex.boxes)
+      && Object.entries(flex.boxes).every(([key, box]) => RUN_FLEX_BOX_KEYS.includes(key)
+        && isFiniteNumber(box) && box >= 0))));
+}
+
 function isRun(run) {
   return Boolean(run)
     && hasStyleRefs(run)
@@ -400,6 +415,8 @@ function isRun(run) {
     && (run.wallSide === undefined || run.wallSide === 'front' || run.wallSide === 'back')
     && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
     && (run.hanging === undefined || run.hanging === true)
+    && (run.holdWidth === undefined || run.holdWidth === true)
+    && isRunFlex(run.flex)
     && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top))
     && isTopOverhang(run.topOverhang)
     && isWaterfall(run.waterfall)
@@ -930,8 +947,9 @@ export function toRoomDocument(room) {
   return {
     ...room,
     walls: room.walls.map((wall) => {
-      const { _endPanelThickness, ...persistedWall } = wall;
+      const { _endPanelThickness, _endFlex, ...persistedWall } = wall;
       void _endPanelThickness;
+      void _endFlex;
       return {
         ...persistedWall,
         runs: wall.runs.map((run) => {

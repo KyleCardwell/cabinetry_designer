@@ -373,6 +373,8 @@ describe('joined run reducers', () => {
 describe('SPEC-34.3 follow reducers', () => {
   function followState() {
     const state = stateWithRun();
+    // Run flex off: these pin down the follow reducers, not the box rounding (SPEC-RF1).
+    state.settings = { ...state.settings, runFlex: 0 };
     const wall = state.rooms[0].walls[0];
     wall.openings = [opening({
       id: 'window-1', kind: 'window', label: 'W1', height: 48, sillZ: 36, offset: 42,

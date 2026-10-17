@@ -6,7 +6,8 @@ import { frameRegions, regionOpenings } from '../frames.js';
 import { gridFromItems } from '../grid.js';
 import { resolveWall, syncRoom } from '../room.js';
 
-const S = DEFAULT_SETTINGS;
+// Run flex off: these pin down the frame gaps with the boxes taking the rest (SPEC-RF1 is tested on its own).
+const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
 
 function makeRun(id, type, x, width, ends, count, extra = {}) {
   const items = Array.from({ length: count }, (_, index) => ({ id: `${id}${index + 1}`, kind: 'cabinet', width: null }));

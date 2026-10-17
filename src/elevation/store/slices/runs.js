@@ -411,6 +411,16 @@ export const runReducers = {
     }
     syncRoomAt(state, location.roomIndex);
   },
+  /** SPEC-RF1: hold the run at its drawn width (no run flex); false/null lets it flex again. */
+  setRunHoldWidth(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const hold = action.payload.hold === true;
+    if (hold === (location.run.holdWidth === true)) return;
+    if (hold) location.run.holdWidth = true;
+    else delete location.run.holdWidth;
+    syncRoomAt(state, location.roomIndex);
+  },
   setRunTFiller(state, action) {
     const location = runLocation(state, action.payload);
     if (!location) return;

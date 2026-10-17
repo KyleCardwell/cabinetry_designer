@@ -40,6 +40,7 @@ import { wallEndPanels } from './wallEndPanels.js';
 import { cloneRun, cloneRoom } from './roomClone.js';
 import { endMinWidthsForRun, endCornerAnglesForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
 import { resolvePinTarget, pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
+import { flexRoom, unflexRoom } from './runFlex.js';
 
 const PIN_EPSILON = 1e-6;
 
@@ -213,7 +214,8 @@ function withWallPanels(room, wall, settings) {
  * @returns {object}
  */
 export function syncRoom(room, settings) {
-  let nextRoom = cloneRoom(resolveLandings(room));
+  // SPEC-RF1: solve every run from its drawn span; the flex goes back on at the end.
+  let nextRoom = cloneRoom(resolveLandings(unflexRoom(room)));
   nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(wall))));
   nextRoom.walls = nextRoom.walls.map((wall) => ({
     ...withWallPanelThickness(nextRoom, wall, settings),
@@ -343,7 +345,8 @@ export function syncRoom(room, settings) {
     })),
   };
 
-  return nextRoom;
+  // SPEC-RF1: after the auto count, so the count follows the drawn width.
+  return flexRoom(nextRoom, settings);
 }
 
 /**

@@ -61,6 +61,7 @@ export const DEFAULT_SETTINGS = {
   upperDepth: 12,
   tallDepth: 24,
   roundTo: 0.5,
+  runFlex: 0,
   maxCabinetWidth: 36,
   minCabinetWidth: 9,
   fillerMinWidth: 1.5,
