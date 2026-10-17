@@ -4,6 +4,7 @@ import { cornerAt, spanCorner } from './corners.js';
 import { wallLength } from './geometry.js';
 import { landingProjection, landingsOn } from './landings.js';
 import { boxTopOf, moldingStack } from './profile.js';
+import { recessGeometry, recessesOn, uncoveredSpans } from './recesses.js';
 import { roundTo } from './units.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
 
@@ -111,6 +112,60 @@ export function soffitSeams(room, view) {
       }];
     });
   });
+}
+
+/**
+ * Where a soffit butts a projection just as deep (Kyle 2026-10-16): they read as one face, so the side they
+ * share isn't drawn where both are there. Each join names the soffit, the projection, the soffit side it's
+ * on (`side`), its x, and the hidden span [bottom, top].
+ */
+export function soffitProjectionJoins(view) {
+  const projections = recessesOn(view)
+    .filter((recess) => recess.kind === 'projection')
+    .map((recess) => ({ id: recess.id, ...recessGeometry(recess, view.length ?? wallLength(view), view.height) }));
+  return soffitsOn(view).flatMap((soffit) => ['left', 'right'].flatMap((side) => {
+    const x = side === 'left' ? soffit.x : soffit.x + soffit.width;
+    return projections.flatMap((projection) => {
+      const edge = side === 'left' ? projection.x + projection.width : projection.x;
+      const bottom = Math.max(soffit.bottom, projection.bottom);
+      const top = Math.min(projection.top, view.height);
+      if (Math.abs(edge - x) > SPAN_EPSILON || Math.abs(projection.depth - soffit.depth) > SPAN_EPSILON
+        || top <= bottom + SPAN_EPSILON) return [];
+      return [{ soffitId: soffit.id, projectionId: projection.id, side, x, bottom, top }];
+    });
+  }));
+}
+
+/**
+ * An outline's sides where flush neighbours join it: `joined` is { left, right } lists of joins. Joined sides
+ * are left open (`openEdges`) and drawn as `lines` only where no join hides them.
+ */
+export function joinedSides(rect, joined) {
+  const openEdges = ['left', 'right'].filter((edge) => joined[edge]?.length > 0);
+  const lines = openEdges.flatMap((edge) => {
+    const x = edge === 'left' ? rect.x : rect.x + rect.width;
+    const hidden = joined[edge].map((join) => ({ start: join.bottom, end: join.top }));
+    return uncoveredSpans(rect.z, rect.z + rect.height, hidden)
+      .map(({ start, end }) => ({ x1: x, z1: start, x2: x, z2: end }));
+  });
+  return { openEdges, lines };
+}
+
+/** The joins on a soffit's sides, by side, leaving out sides already flush with a wing wall. */
+export function soffitJoinsBySide(joins, soffit, flush = {}) {
+  const mine = joins.filter((join) => join.soffitId === soffit.id);
+  return Object.fromEntries(['left', 'right']
+    .filter((side) => !flush[side])
+    .map((side) => [side, mine.filter((join) => join.side === side)]));
+}
+
+/** The joins on a projection's sides, by side: a soffit joined on its left meets the projection's right. */
+export function projectionJoinsBySide(joins, projectionId) {
+  const mine = joins.filter((join) => join.projectionId === projectionId);
+  return {
+    left: mine.filter((join) => join.side === 'right'),
+    right: mine.filter((join) => join.side === 'left'),
+  };
 }
 
 function anchoredIntoCorner(anchor, corner) {

@@ -3,7 +3,15 @@ import { openingGeometry } from './openings.js';
 import { openingPlanDepths, recessGeometry, recessesOn } from './recesses.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
-import { soffitFlushSides, soffitSeams, soffitsOn } from './soffits.js';
+import {
+  joinedSides,
+  projectionJoinsBySide,
+  soffitFlushSides,
+  soffitJoinsBySide,
+  soffitProjectionJoins,
+  soffitSeams,
+  soffitsOn,
+} from './soffits.js';
 import { wallEndPanelPartKey } from './parts.js';
 import { wallEndPanels } from './wallEndPanels.js';
 
@@ -59,19 +67,30 @@ export function wallParts(room, wall, side, settings) {
     outline(opening.id, 'opening', geometry.jamb, face - source.thickness, face);
   }
 
+  // A soffit and a projection just as deep, side by side, read as one face (Kyle 2026-10-16).
+  const joins = soffitProjectionJoins(view);
+  const openSides = ({ openEdges, lines }, extraOpen = []) => {
+    const edges = [...extraOpen, ...openEdges];
+    return edges.length > 0 ? { openEdges: edges, ...(lines.length > 0 ? { lines } : {}) } : {};
+  };
+
   for (const soffit of soffitsOn(view)) {
     const flush = soffitFlushSides(room, view, soffit);
-    const openEdges = ['left', 'right'].filter((edge) => flush[edge]);
-    outline(soffit.id, 'soffit', {
-      x: soffit.x, z: soffit.bottom, width: soffit.width, height: view.height - soffit.bottom,
-    }, 0, soffit.depth, openEdges.length > 0 ? { openEdges } : {});
+    const rect = { x: soffit.x, z: soffit.bottom, width: soffit.width, height: view.height - soffit.bottom };
+    outline(soffit.id, 'soffit', rect, 0, soffit.depth, openSides(
+      joinedSides(rect, soffitJoinsBySide(joins, soffit, flush)),
+      ['left', 'right'].filter((edge) => flush[edge]),
+    ));
   }
 
   for (const recess of recessesOn(view)) {
     const geometry = recessGeometry(recess, view.length, view.height);
     const rect = { x: geometry.x, z: geometry.bottom, width: geometry.width, height: geometry.top - geometry.bottom };
     if (geometry.plane < 0) outline(recess.id, 'recess', rect, geometry.plane, 0);
-    else outline(recess.id, 'projection', rect, 0, geometry.plane);
+    else {
+      outline(recess.id, 'projection', rect, 0, geometry.plane,
+        openSides(joinedSides(rect, projectionJoinsBySide(joins, recess.id))));
+    }
   }
 
   const seams = soffitSeams(room, view);

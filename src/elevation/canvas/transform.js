@@ -144,3 +144,10 @@ export function wallRectToScreen(rectangle, transform) {
     height: bottomRight.y - topLeft.y,
   };
 }
+
+/** A wall-coordinate line ({ x1, z1, x2, z2 }) as Konva points [x1, y1, x2, y2]. */
+export function wallLineToScreen({ x1, z1, x2, z2 }, transform) {
+  const start = wallToScreen({ x: x1, z: z1 }, transform);
+  const end = wallToScreen({ x: x2, z: z2 }, transform);
+  return [start.x, start.y, end.x, end.y];
+}
