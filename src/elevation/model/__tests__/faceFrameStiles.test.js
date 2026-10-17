@@ -37,10 +37,11 @@ describe('SPEC-42.1 face frame end stiles follow panel thickness', () => {
   });
 });
 
-// RF.2: stale since SPEC-42.1 stiles follow the panel thickness; rewrite with the one-run solver.
-describe.skip('SPEC-RF1 run flex on the same tall', () => {
-  it('grows the run by 1/8" so the box comes out round; the stiles stay standard', () => {
-    expect(tall(15, 0.25)).toEqual({ box: 31, leftStile: 1.75, rightStile: 1.75 });
-    expect(tall(14, 0.25)).toEqual({ box: 31.5, leftStile: 1.5, rightStile: 1.5 });
+describe('SPEC-RF1 run flex on the same tall', () => {
+  it('grows the run by 3/16" so the box comes out round; the stiles follow the panels', () => {
+    // EP1 + SPEC-42.1: the 13/16 free panel adds 1/16 to the left stile in either style.
+    // Boxes 30 13/16 and 31 5/16 each need +3/16 to reach 31 and 31 1/2.
+    expect(tall(15, 0.25)).toEqual({ box: 31, leftStile: 1.8125, rightStile: 1.75 });
+    expect(tall(14, 0.25)).toEqual({ box: 31.5, leftStile: 1.5625, rightStile: 1.5 });
   });
 });

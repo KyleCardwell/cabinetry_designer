@@ -1,6 +1,5 @@
 import { DEFAULT_SETTINGS } from './constants.js';
-import { cornerAt } from './corners.js';
-import { wallFrame, wallLength } from './geometry.js';
+import { wallLength } from './geometry.js';
 import { followLeaders } from './joints.js';
 import { validateRunPlacement } from './overlap.js';
 import { endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
@@ -9,30 +8,27 @@ import { runFlexNeeds } from './splitRun.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
 
 /**
- * Run flex (SPEC-RF1, SPEC-RF2): a run grows or shrinks by up to `settings.runFlex` at each edge so
- * its auto boxes come out on the rounding setting, instead of the boxes absorbing a small change (a
- * 13/16" end panel in place of a 3/4" one).
+ * Each run flexes only its own edges on the 1/16" grid, within settings.runFlex. Free ends can
+ * grow or shrink; opening, soffit and recess offsets can grow only into their gap. Wall anchors
+ * (including open island ends), joints, follow edges and edges touching another run hold at zero.
+ * Runs with holdWidth or no needs hold both edges. Flex never changes the drawn auto box count.
  *
- * What can give, per run edge: a free end; a window, door, recess or soffit offset (inward always,
- * outward only into its gap); a free wall end (an island or peninsula end, outward only, shared by
- * every run anchored there on both faces and by the wall end panel); a joint, which passes the change
- * on to the joined run (it slides at its own width, or its flex filler takes it). Wall ends against
- * another wall, corners, follow edges, edges flush against another run and pinned cabinets hold.
+ * A need uses the sum of its listed edges' outward moves. Choose, in order: fewest unmet exact
+ * needs, lowest met candidate indexes, fewest missed filler raises, least offset movement, smallest
+ * largest edge move, least total movement, then most right-edge movement. Elastic needs must stay
+ * in range. Try choices in that order until one places; only growth beyond the drawn span needs
+ * validation, excluding followers, and an already invalid run is not blocked. Leaders solve before
+ * followers on both faces; followers re-resolve against moved leaders before flexing their own ends.
  *
- * The room sync stores the flexed span in `run.x` / `run.width` (what everything draws) and records
- * what it did in `run.flex = { left, right, x, width, boxes? }`: how far each edge moved out (negative =
- * in), the span it wrote, and the auto box size a flex filler left (per segment: `run`, or `left` /
- * `right` beside pins). A moved joint records `joint.flex = { by, x }`; a free wall end's move is the
- * derived `wall._endFlex = { start?, end? }`. The next sync takes all of it back out first
- * (`unflexRoom`), so every run is solved from its drawn span and nothing drifts. An edge or joint
- * someone moved since keeps its new position as drawn; a run moved as a whole keeps its flex.
+ * The room sync stores the result in run.x / run.width and records
+ * run.flex = { left, right, x, width, boxes? }: outward edge moves (+ grows, − shrinks), the written
+ * span, and a flex filler's remembered box sizes (run, or left/right beside pins). unflexRoom takes
+ * the previous flex back out before syncing so nothing drifts. Edited edges keep their drawn
+ * position; a translated run keeps its flex. RF2 never writes wall._endFlex.
  */
 
 const EPSILON = 1e-6;
 const STEP = 1 / 16;
-const SEARCH_LIMIT = 1;
-const MAX_COMBINATIONS = 20000;
-const FIXED = 'fixed';
 
 const grid = (value) => Math.round(value / STEP) * STEP;
 
@@ -110,112 +106,21 @@ function touches(wall, run, side) {
     && Math.abs((side === 'left' ? other.x + other.width : other.x) - edge) <= EPSILON);
 }
 
-/**
- * The node a run edge moves with, and how its own shift (along its face, + right) reads off the
- * node's value: `shift = c × value`. Joints and free wall ends are shared nodes; a free edge or an
- * opening offset is its own node; anything that holds is the one fixed node (value 0).
- */
-function edgeNode(room, wall, run, side, settings, tolerance) {
-  const anchor = run.anchors?.[side];
-  if (anchor === true) {
-    const view = wallViewForRun(wall, run);
-    if (cornerAt(room, view, side).type !== 'open') return { key: FIXED, c: 1 };
-    const frame = wallFrame(room, view);
-    const endpoint = side === 'left' ? frame.leftEndpoint : frame.rightEndpoint;
-    return {
-      key: `end:${endpoint}`,
-      c: side === 'left' ? -1 : 1,
-      range: [0, tolerance],
-      terminal: { kind: 'free', outward: 1 },
-      endpoint,
-    };
+/** The allowed outward movement of one edge; flexEdge already expresses outward ranges. */
+function flexRange(room, wall, run, side, settings, t) {
+  if (run.anchors?.[side] === true || touches(wall, run, side)) {
+    return { kind: 'fixed', lo: 0, hi: 0 };
   }
-  if (touches(wall, run, side)) return { key: FIXED, c: 1 };
-  const edge = flexEdge(run, side, settings, tolerance);
-  if (edge.kind === 'hard') return { key: FIXED, c: 1 };
-  return {
-    key: `edge:${run.id}:${side}`,
-    c: 1,
-    range: side === 'left' ? [-edge.hi, -edge.lo] : [edge.lo, edge.hi],
-    terminal: { kind: edge.kind, outward: side === 'left' ? -1 : 1, right: side === 'right' },
-  };
+  const edge = flexEdge(run, side, settings, t);
+  return edge.kind === 'hard' ? { kind: 'fixed', lo: 0, hi: 0 } : edge;
 }
 
-/**
- * Node values linked by exact changes: every node reads `value = sign × root + offset` off its root,
- * and each root keeps the range its value may take.
- */
-class Links {
-  constructor() {
-    this.links = new Map();
-    this.ranges = new Map([[FIXED, [0, 0]]]);
-    this.links.set(FIXED, null);
-  }
-
-  add(key, range) {
-    if (this.links.has(key)) return;
-    this.links.set(key, null);
-    this.ranges.set(key, range ?? [-Infinity, Infinity]);
-  }
-
-  find(key) {
-    let sign = 1;
-    let offset = 0;
-    let current = key;
-    while (this.links.get(current)) {
-      const link = this.links.get(current);
-      offset = link.sign * offset + link.offset;
-      sign *= link.sign;
-      current = link.root;
-    }
-    return { root: current, sign, offset };
-  }
-
-  /**
-   * Require `cb × b − ca × a = change`. Returns false (and changes nothing) when that can't hold with
-   * the links and ranges already there.
-   */
-  link(a, ca, b, cb, change) {
-    const A = this.find(a);
-    const B = this.find(b);
-    if (A.root === B.root) {
-      const slope = cb * B.sign - ca * A.sign;
-      const rest = change - (cb * B.offset - ca * A.offset);
-      if (slope === 0) return Math.abs(rest) <= EPSILON;
-      const value = grid(rest / slope);
-      const [lo, hi] = this.ranges.get(A.root);
-      if (Math.abs(value * slope - rest) > EPSILON || value < lo - EPSILON || value > hi + EPSILON) return false;
-      this.ranges.set(A.root, [value, value]);
-      return true;
-    }
-    // root(B) = sign × root(A) + offset
-    const k = cb * B.sign;
-    const sign = k * ca * A.sign;
-    const offset = k * (change + ca * A.offset - cb * B.offset);
-    if (B.root === FIXED) return this.link(b, cb, a, ca, -change);
-    const [bLo, bHi] = this.ranges.get(B.root);
-    const mapped = sign > 0 ? [bLo - offset, bHi - offset] : [offset - bHi, offset - bLo];
-    const [aLo, aHi] = this.ranges.get(A.root);
-    const lo = Math.max(aLo, mapped[0]);
-    const hi = Math.min(aHi, mapped[1]);
-    if (lo > hi + EPSILON) return false;
-    this.ranges.set(A.root, [lo, hi]);
-    this.links.set(B.root, { root: A.root, sign, offset });
-    return true;
-  }
-
-  value(key, roots) {
-    const { root, sign, offset } = this.find(key);
-    return sign * (roots.get(root) ?? 0) + offset;
-  }
-}
-
-/** Every value a root may take in the search, on the sixteenth grid. */
-function rootValues([lo, hi]) {
-  const first = Math.ceil((Math.max(lo, -SEARCH_LIMIT) - EPSILON) / STEP);
-  const last = Math.floor((Math.min(hi, SEARCH_LIMIT) + EPSILON) / STEP);
+/** Every sixteenth-grid value inside a range, without rounding past either bound. */
+function rangeValues({ lo, hi }) {
   const values = [];
-  for (let index = first; index <= last; index += 1) values.push(index * STEP);
+  const first = Math.ceil((lo - EPSILON) / STEP);
+  const last = Math.floor((hi + EPSILON) / STEP);
+  for (let index = first; index <= last; index += 1) values.push(index === 0 ? 0 : index * STEP);
   return values;
 }
 
@@ -232,56 +137,37 @@ function placementOk(wall, run, settings) {
   return validateRunPlacement({ ...view, length: wallLength(view) }, run, settings).ok;
 }
 
-/** A run's edges and needs as the solver sees them. */
-function runModel(room, wall, run, settings, tolerance) {
+/** A run's needs, including remembered flex-filler box sizes. */
+function runModel(room, wall, run, settings) {
   const { _flexBoxes: priorBoxes, ...withoutPrior } = run;
   const clean = Object.hasOwn(run, '_flexBoxes') ? withoutPrior : run;
-  const nodes = {
-    left: edgeNode(room, wall, clean, 'left', settings, tolerance),
-    right: edgeNode(room, wall, clean, 'right', settings, tolerance),
-  };
-  const length = wallLength(wall);
   const opts = {
     endMinWidths: endMinWidthsForRun(room, wall, clean, settings),
-    pinTargets: pinTargetsForRun(clean, wall, length, settings),
+    pinTargets: pinTargetsForRun(clean, wall, wallLength(wall), settings),
   };
-  const needs = runFlexNeeds(clean, settings, opts);
-  const elements = [];
-  if (needs.length === 0 || clean.holdWidth === true) {
-    elements.push({ a: nodes.left, b: nodes.right, candidates: [0] });
-  } else {
-    for (const need of needs) {
-      const a = need.edges.includes('left') ? nodes.left : { key: FIXED, c: 1 };
-      const b = need.edges.includes('right') ? nodes.right : { key: FIXED, c: 1 };
-      const prior = priorBoxes?.[need.key];
-      const raise = need.raise && Number.isFinite(prior) && prior > need.box + EPSILON
-        ? need.raise(prior)
-        : null;
-      if (need.elastic) {
-        elements.push({
-          a,
-          b,
-          elastic: raise === null
-            ? need.elastic
-            : { lo: need.elastic.lo, hi: Math.max(need.elastic.hi, raise + (need.elastic.hi - need.elastic.lo)) },
-          raise,
-        });
-      } else {
-        elements.push({ a, b, candidates: [...need.candidates, 0] });
-      }
-    }
-  }
-  return { run: clean, nodes, elements, opts };
+  const needs = runFlexNeeds(clean, settings, opts).map((need) => {
+    const prior = priorBoxes?.[need.key];
+    const raise = need.raise && Number.isFinite(prior) && prior > need.box + EPSILON
+      ? need.raise(prior)
+      : null;
+    return {
+      ...need,
+      ...(need.elastic && raise !== null ? {
+        elastic: { lo: need.elastic.lo, hi: Math.max(need.elastic.hi, raise + (need.elastic.hi - need.elastic.lo)) },
+      } : {}),
+      raise,
+    };
+  });
+  return { run: clean, needs, opts };
 }
 
-/** A run moved by the solved node values, with its flex record (and its filler box sizes). */
-function flexedRun(model, values, settings) {
-  const { run, nodes, opts } = model;
-  const shift = (side) => nodes[side].c * (values.get(nodes[side].key) ?? 0);
-  const left = grid(shift('left'));
-  const right = grid(shift('right'));
+/** A run moved by two outward edge moves, with its flex record and filler box sizes. */
+function flexedRun(model, left, right, settings) {
+  const { run, opts } = model;
+  left = grid(left);
+  right = grid(right);
   const moved = Math.abs(left) > EPSILON || Math.abs(right) > EPSILON;
-  const next = moved ? { ...run, x: run.x + left, width: run.width - left + right } : run;
+  const next = moved ? { ...run, x: run.x - left, width: run.width + left + right } : run;
   const boxes = {};
   for (const need of runFlexNeeds(next, settings, opts)) {
     if (need.box !== null && need.box !== undefined) boxes[need.key] = need.box;
@@ -291,7 +177,7 @@ function flexedRun(model, values, settings) {
   return {
     ...next,
     flex: {
-      left: -left,
+      left,
       right,
       x: next.x,
       width: next.width,
@@ -300,208 +186,100 @@ function flexedRun(model, values, settings) {
   };
 }
 
-/** Group runs that move together: joined at a joint, sharing a free wall end, or one following another. */
-function clusters(models) {
-  const parent = new Map();
-  const find = (key) => {
-    while (parent.get(key) !== key) key = parent.get(key);
-    return key;
-  };
-  const join = (a, b) => {
-    if (!parent.has(a)) parent.set(a, a);
-    if (!parent.has(b)) parent.set(b, b);
-    parent.set(find(a), find(b));
-  };
-  for (const model of models) {
-    const id = `run:${model.run.id}`;
-    join(id, id);
-    for (const side of ['left', 'right']) {
-      const { key } = model.nodes[side];
-      if (key !== FIXED) join(id, key);
-    }
-  }
-  const groups = new Map();
-  for (const model of models) {
-    const root = find(`run:${model.run.id}`);
-    if (!groups.has(root)) groups.set(root, []);
-    groups.get(root).push(model);
-  }
-  return [...groups.values()];
-}
-
-/**
- * Solve one cluster: link its runs' exact changes (best candidate first, a change of 0 when none
- * fits), then try every value of the free roots that keeps the flex fillers in range, cheapest first:
- * a filler keeping its box size, offsets used least (free ends go first), the edges kept even, the
- * least movement, the odd sixteenth on the right. The first that places cleanly wins; none = no flex.
- */
-function solveCluster(wall, cluster, settings) {
-  const links = new Links();
-  const terminals = new Map();
-  for (const model of cluster) {
-    for (const side of ['left', 'right']) {
-      const node = model.nodes[side];
-      links.add(node.key, node.range);
-      if (node.terminal) terminals.set(node.key, node.terminal);
-    }
-  }
-  const elastic = [];
-  for (const model of cluster) {
-    for (const element of model.elements) {
-      if (element.elastic) {
-        elastic.push(element);
-        continue;
-      }
-      for (const change of element.candidates) {
-        if (links.link(element.a.key, element.a.c, element.b.key, element.b.c, change)) break;
-      }
-    }
-  }
-
-  const keys = [...links.links.keys()];
-  const roots = [...new Set(keys.map((key) => links.find(key).root))].filter((root) => root !== FIXED);
-  const choices = roots.map((root) => rootValues(links.ranges.get(root)));
-  if (choices.some((values) => values.length === 0)) return null;
-  const combinations = choices.reduce((count, values) => count * values.length, 1);
-  if (combinations > MAX_COMBINATIONS) return null;
-
+/** Enumerate this run's independent edge choices and take the cheapest one that places. */
+function solveRun(room, wall, run, settings, t) {
+  const model = runModel(room, wall, run, settings);
+  const fixed = run.holdWidth === true || model.needs.length === 0;
+  const ranges = Object.fromEntries(['left', 'right'].map((side) => [
+    side, fixed ? { kind: 'fixed', lo: 0, hi: 0 } : flexRange(room, wall, run, side, settings, t),
+  ]));
   const options = [];
-  const visit = (index, assigned) => {
-    if (index === roots.length) {
-      const values = new Map(keys.map((key) => [key, grid(links.value(key, assigned))]));
+  for (const left of rangeValues(ranges.left)) {
+    for (const right of rangeValues(ranges.right)) {
+      const moves = { left, right };
+      let unmet = 0;
+      let candidateIndexes = 0;
       let missedRaises = 0;
-      for (const element of elastic) {
-        const change = element.b.c * values.get(element.b.key) - element.a.c * values.get(element.a.key);
-        if (change < element.elastic.lo - EPSILON || change > element.elastic.hi + EPSILON) return;
-        if (element.raise !== null && change < element.raise - EPSILON) missedRaises += 1;
+      let feasible = true;
+      for (const need of model.needs) {
+        const change = need.edges.reduce((sum, side) => sum + moves[side], 0);
+        if (need.elastic) {
+          if (change < need.elastic.lo - EPSILON || change > need.elastic.hi + EPSILON) {
+            feasible = false;
+            break;
+          }
+          if (need.raise !== null && change < need.raise - EPSILON) missedRaises += 1;
+        } else {
+          const index = need.candidates.findIndex((candidate) => Math.abs(candidate - change) <= EPSILON);
+          if (index < 0) unmet += 1;
+          else candidateIndexes += index;
+        }
       }
-      const moves = [...terminals].map(([key, terminal]) => ({
-        ...terminal,
-        amount: Math.abs(values.get(key)),
-      }));
+      if (!feasible) continue;
       options.push({
-        values,
+        left,
+        right,
         cost: [
+          unmet,
+          candidateIndexes,
           missedRaises,
-          moves.filter((move) => move.kind === 'offset').reduce((sum, move) => sum + move.amount, 0),
-          Math.max(0, ...moves.map((move) => move.amount)),
-          moves.reduce((sum, move) => sum + move.amount, 0),
-          -moves.filter((move) => move.right).reduce((sum, move) => sum + move.amount, 0),
+          (ranges.left.kind === 'offset' ? Math.abs(left) : 0)
+            + (ranges.right.kind === 'offset' ? Math.abs(right) : 0),
+          Math.max(Math.abs(left), Math.abs(right)),
+          Math.abs(left) + Math.abs(right),
+          -Math.abs(right),
         ],
       });
-      return;
     }
-    for (const value of choices[index]) {
-      assigned.set(roots[index], value);
-      visit(index + 1, assigned);
-    }
-    assigned.delete(roots[index]);
-  };
-  visit(0, new Map());
-  options.sort((a, b) => compareCosts(a.cost, b.cost));
-
-  for (const option of options) {
-    const runs = cluster.map((model) => flexedRun(model, option.values, settings));
-    const view = {
-      ...wall,
-      runs: wall.runs.map((run) => runs.find((candidate) => candidate.id === run.id) ?? run),
-    };
-    const fits = runs.every((run, index) => {
-      const before = cluster[index].run;
-      const grows = run.x < before.x - EPSILON || run.x + run.width > before.x + before.width + EPSILON;
-      if (!grows) return true;
-      const others = { ...view, runs: view.runs.filter((other) => !followsEdge(other, run)) };
-      const beforeView = { ...wall, runs: wall.runs.filter((other) => !followsEdge(other, before)) };
-      return !placementOk(beforeView, before, settings) || placementOk(others, run, settings);
-    });
-    if (fits) return { runs, values: option.values };
   }
-  return null;
+  options.sort((a, b) => compareCosts(a.cost, b.cost));
+  const others = { ...wall, runs: wall.runs.filter((other) => !followsEdge(other, run)) };
+  for (const { left, right } of options) {
+    const next = flexedRun(model, left, right, settings);
+    const grows = next.x < run.x - EPSILON || next.x + next.width > run.x + run.width + EPSILON;
+    if (!grows || !placementOk(others, run, settings) || placementOk(others, next, settings)) return next;
+  }
+  return flexedRun(model, 0, 0, settings);
 }
 
-/** Clusters whose runs follow a run in another cluster go after it. */
-function clusterOrder(groups) {
-  const clusterOf = new Map();
-  groups.forEach((group, index) => group.forEach((model) => clusterOf.set(model.run.id, index)));
-  const after = groups.map((group, index) => new Set(group.flatMap((model) => followLeaders(model.run))
-    .map((leaderId) => clusterOf.get(leaderId))
-    .filter((leader) => leader !== undefined && leader !== index)));
+/** Stable topological order across both faces; retain wall order for any remaining cycle. */
+function runOrder(runs) {
   const order = [];
-  const placed = new Set();
-  while (order.length < groups.length) {
-    const ready = groups.map((_, index) => index)
-      .filter((index) => !placed.has(index) && [...after[index]].every((leader) => placed.has(leader)));
-    const next = ready.length > 0 ? ready : groups.map((_, index) => index).filter((index) => !placed.has(index));
-    for (const index of next) {
-      placed.add(index);
-      order.push(index);
-    }
+  let pending = runs;
+  while (pending.length > 0) {
+    const waiting = new Set(pending.map((run) => run.id));
+    const ready = pending.filter((run) => followLeaders(run).every((id) => !waiting.has(id)));
+    if (ready.length === 0) return [...order, ...pending];
+    order.push(...ready);
+    const placed = new Set(ready.map((run) => run.id));
+    pending = pending.filter((run) => !placed.has(run.id));
   }
   return order;
 }
 
-/** Flex one wall: both faces, cluster by cluster, leaders before the runs that follow them. */
+/** Flex one run at a time, re-resolving followers against moved leaders first. */
 function flexWall(room, wall, settings, tolerance) {
   if (wall.runs.length === 0) return wall;
   let current = wall;
-  const replace = (runs) => {
-    current = {
-      ...current,
-      runs: current.runs.map((run) => runs.find((candidate) => candidate.id === run.id) ?? run),
-    };
-  };
-  const strip = (run) => {
-    if (!Object.hasOwn(run, '_flexBoxes')) return run;
-    const { _flexBoxes, ...rest } = run;
-    void _flexBoxes;
-    return rest;
-  };
-  if (!(tolerance > 0)) {
-    replace(wall.runs.map(strip));
-    return current;
-  }
-
-  const firstModels = wall.runs.map((run) => runModel(room, wall, run, settings, tolerance));
-  const groups = clusters(firstModels);
   const moved = new Set();
-  const endFlex = {};
-  for (const index of clusterOrder(groups)) {
-    const ids = new Set(groups[index].map((model) => model.run.id));
-    // Followers re-resolve against their leaders' flexed edges first.
-    const followers = current.runs.filter((run) => ids.has(run.id)
-      && followLeaders(run).some((leaderId) => moved.has(leaderId)));
-    if (followers.length > 0) {
-      replace(followers.map((run) => {
-        const horizontal = horizontalResolution(room, current, run, settings);
-        return { ...run, x: horizontal.x, width: horizontal.width };
-      }));
+  for (const original of runOrder(wall.runs)) {
+    let run = current.runs.find(({ id }) => id === original.id);
+    const before = run;
+    if (tolerance > 0 && followLeaders(run).some((id) => moved.has(id))) {
+      const horizontal = horizontalResolution(room, current, run, settings);
+      run = { ...run, x: horizontal.x, width: horizontal.width };
     }
-    const cluster = current.runs.filter((run) => ids.has(run.id))
-      .map((run) => runModel(room, current, run, settings, tolerance));
-    const solved = solveCluster(current, cluster, settings);
-    const runs = solved ? solved.runs : cluster.map((model) => flexedRun(model, new Map(), settings));
-    replace(runs.map(strip));
-    for (const run of runs) {
-      const before = cluster.find((model) => model.run.id === run.id).run;
-      if (Math.abs(run.x - before.x) > EPSILON || Math.abs(run.width - before.width) > EPSILON) moved.add(run.id);
+    let next;
+    if (tolerance > 0) next = solveRun(room, current, run, settings, tolerance);
+    else {
+      const { _flexBoxes, ...rest } = run;
+      void _flexBoxes;
+      next = Object.hasOwn(run, '_flexBoxes') ? rest : run;
     }
-    if (!solved) continue;
-    for (const model of cluster) {
-      for (const side of ['left', 'right']) {
-        const node = model.nodes[side];
-        const value = grid(solved.values.get(node.key) ?? 0);
-        if (Math.abs(value) <= EPSILON) continue;
-        if (node.endpoint) endFlex[node.endpoint] = value;
-      }
-    }
+    current = { ...current, runs: current.runs.map((other) => other.id === next.id ? next : other) };
+    if (Math.abs(next.x - before.x) > EPSILON || Math.abs(next.width - before.width) > EPSILON) moved.add(next.id);
   }
-
-  const { _endFlex, ...rest } = current;
-  void _endFlex;
-  return {
-    ...rest,
-    ...(Object.keys(endFlex).length > 0 ? { _endFlex: endFlex } : {}),
-  };
+  return current;
 }
 
 /** The last step of a room sync: flex every wall's runs (see the module comment). */
