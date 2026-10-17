@@ -26,7 +26,8 @@ import {
   wallSideView,
 } from '../wallSides.js';
 
-const settings = DEFAULT_SETTINGS;
+// Keep these layout anchors independent of run flex (RF3).
+const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
 function base(id, overrides = {}) {
   return {
     id, cabinetTypeId: CABINET_TYPE_IDS.BASE,

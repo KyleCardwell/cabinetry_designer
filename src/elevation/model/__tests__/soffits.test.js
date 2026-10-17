@@ -221,6 +221,7 @@ describe('SPEC-19 soffit resolution', () => {
   });
 
   it('168. resolves and describes run anchors against soffit sides', () => {
+    const settings = { ...DEFAULT_SETTINGS, runFlex: 0 }; // Anchor placement, independent of box rounding.
     const room = syncRoom(soffitWall([
       upper('A1', {
         x: 105,
@@ -235,11 +236,11 @@ describe('SPEC-19 soffit resolution', () => {
           right: { to: 'soffit', soffitId: 'SF', offset: 0.5 },
         },
       }),
-    ]), DEFAULT_SETTINGS);
+    ]), settings);
     const wall = wallById(room, 'S');
     expect(runById(room, 'A1').x).toBe(100);
     expect(runById(room, 'A2').x).toBe(9.5);
-    expect(describeAnchor(room, wall, runById(room, 'A2'), 'right', DEFAULT_SETTINGS))
+    expect(describeAnchor(room, wall, runById(room, 'A2'), 'right', settings))
       .toBe('Against soffit · 1/2" gap');
   });
 
@@ -268,10 +269,11 @@ describe('SPEC-19 soffit resolution', () => {
   });
 
   it('170. stretches a run edge to a soffit anchor', () => {
+    const settings = { ...DEFAULT_SETTINGS, runFlex: 0 }; // Anchor placement, independent of box rounding.
     const room = syncRoom(soffitWall([
       upper('B1', { x: 110, width: 30 }),
-    ]), DEFAULT_SETTINGS);
-    const result = stretchRun(room, 'S', 'B1', 'left', 101, DEFAULT_SETTINGS);
+    ]), settings);
+    const result = stretchRun(room, 'S', 'B1', 'left', 101, settings);
     expect(result.ok).toBe(true);
     const run = runById(result.room, 'B1');
     expect({ x: run.x, width: run.width }).toEqual({ x: 100, width: 40 });

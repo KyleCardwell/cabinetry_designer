@@ -8,7 +8,8 @@ import { normalizeElevationDocument } from '../../store/persistence.js';
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
 );
-const { settings } = document;
+// Keep these layout anchors independent of run flex (RF3).
+const settings = { ...document.settings, runFlex: 0 };
 const stored = (name) => document.rooms.find((candidate) => candidate.name === name);
 const room = (name) => syncRoom(stored(name), settings);
 const SINK = '0f652c26-5f80-4387-8a1b-1f35ada26b59';

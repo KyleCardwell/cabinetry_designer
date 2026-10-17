@@ -85,7 +85,7 @@ const straightRoom = ({ wallA = {}, wallB = {} } = {}) => syncRoom({
       ...wallB,
     }),
   ],
-}, DEFAULT_SETTINGS);
+}, { ...DEFAULT_SETTINGS, runFlex: 0 }); // Neighbour geometry, independent of box rounding.
 
 function view(room, wallId) {
   return wallSideView(room.walls.find(({ id }) => id === wallId), 'front');

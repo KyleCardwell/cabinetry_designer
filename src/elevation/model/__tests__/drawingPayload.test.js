@@ -23,7 +23,8 @@ import { normalizeElevationDocument } from '../../store/persistence.js';
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
 );
-const { settings } = document;
+// Historical payload and pull comparisons keep their original layout with flex disabled.
+const settings = { ...document.settings, runFlex: 0 };
 const room = (name) => syncRoom(document.rooms.find((candidate) => candidate.name === name), settings);
 
 // Captured before HP5 step d: the existing golden snapshot covers derived rooms, not payloads.

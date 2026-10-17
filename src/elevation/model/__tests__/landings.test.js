@@ -283,6 +283,7 @@ describe('wall landings', () => {
   });
 
   it('145. reserves a host run for a landed wall return', () => {
+    const settings = { ...DEFAULT_SETTINGS, runFlex: 0 }; // Anchor placement, independent of box rounding.
     const WR = base('WR', {
       width: 30,
       wallSide: 'back',
@@ -291,7 +292,7 @@ describe('wall landings', () => {
     });
     const room = syncRoom(
       alcove({ hostRuns: [AL()], w1Runs: [WR] }),
-      DEFAULT_SETTINGS,
+      settings,
     );
     const H = wallById(room, 'H');
     const W1 = wallById(room, 'W1');
@@ -299,7 +300,7 @@ describe('wall landings', () => {
     const wingRun = W1.runs[0];
 
     expect(hostRun).toMatchObject({ x: 93.875, width: 95.125 });
-    expect(describeAnchor(room, H, hostRun, 'left', DEFAULT_SETTINGS))
+    expect(describeAnchor(room, H, hostRun, 'left', settings))
       .toBe('Against Wall 2 · reserve 24 7/8"');
     expect(wingRun).toMatchObject({ x: 0, width: 30 });
   });
@@ -436,10 +437,11 @@ describe('wall landings', () => {
   });
 
   it('153. moves a free run to a landed wall face', () => {
+    const settings = { ...DEFAULT_SETTINGS, runFlex: 0 }; // Anchor placement, independent of box rounding.
     const room = syncRoom(alcove({
       hostRuns: [base('F', { x: 100, width: 30 })],
-    }), DEFAULT_SETTINGS);
-    const result = moveRun(room, 'H', 'F', 158.5, DEFAULT_SETTINGS);
+    }), settings);
+    const result = moveRun(room, 'H', 'F', 158.5, settings);
     const run = wallById(result.room, 'H').runs.find(({ id }) => id === 'F');
 
     expect(result.ok).toBe(true);

@@ -10,7 +10,8 @@ import { resolveWall, syncRoom } from '../room.js';
 import { wallEndPanelFramed, wallEndPanelPolygon, wallEndPanelSpans, wallEndPanels } from '../wallEndPanels.js';
 import { wallSideView } from '../wallSides.js';
 
-const S = DEFAULT_SETTINGS;
+// Keep these layout anchors independent of run flex (RF3).
+const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
 const INSET = { cabinetStyleId: 14 };
 const PANEL = { type: 'end_panel', width: null };
 

@@ -10,7 +10,8 @@ import { normalizeElevationDocument } from '../../store/persistence.js';
 
 const load = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'));
 const document = normalizeElevationDocument(load('golden'));
-const settings = { ...document.settings, sectionProfiles: load('sectionProfiles').profiles };
+// Keep these layout anchors independent of run flex (RF3).
+const settings = { ...document.settings, runFlex: 0, sectionProfiles: load('sectionProfiles').profiles };
 // cb33d7… identifies the golden wall; its first lower run is this tall.
 const WALL = 'cb33d774-f31e-41c1-bbe4-198cbf981619';
 const TALL = 'b38f2f11-5318-42f2-9d95-8b9b3d1b9087';

@@ -6,7 +6,8 @@ import {
 import { gridFromItems } from '../grid.js';
 import { syncRoom } from '../room.js';
 
-const S = DEFAULT_SETTINGS;
+// Keep these layout anchors independent of run flex (RF3).
+const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
 const INSET = { cabinetStyleId: 14 };
 const PANEL = { type: 'end_panel', width: null };
 const NONE = { type: 'none', width: null };

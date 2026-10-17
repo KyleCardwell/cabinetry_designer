@@ -1,15 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { moveRun, roomDiagnostics, stretchRun, syncRoom } from '../room.js';
+import { moveRun, resolveWall, roomDiagnostics, stretchRun, syncRoom } from '../room.js';
+import { layoutRun } from '../faceLayouts.js';
+import { runItems } from '../grid.js';
+import { wallSideOf } from '../wallSides.js';
 import { unflexRun } from '../runFlex.js';
 import { wallLength } from '../geometry.js';
 import { splitRun } from '../splitRun.js';
 import { wallEndPanels } from '../wallEndPanels.js';
 import { isRoom, normalizeElevationDocument, toRoomDocument } from '../../store/persistence.js';
 
-// Run flex stays off by default; these tests opt in.
-const S = { ...DEFAULT_SETTINGS, runFlex: 0.25 };
+const S = DEFAULT_SETTINGS;
 const PANEL = { type: 'end_panel', width: null };
 const FILLER = { type: 'filler', width: null };
 const auto = (id) => ({ id, kind: 'cabinet', width: null });
@@ -510,14 +512,41 @@ describe('SPEC-RF1 saved fields', () => {
   });
 
   it('flexes Kyle\'s golden rooms by at most 1/4" an edge and is idempotent there', () => {
-    const flexSettings = { ...document.settings, runFlex: 0.25 };
+    const flexSettings = document.settings;
+    expect(DEFAULT_SETTINGS.runFlex).toBe(0.25);
+    expect(flexSettings.runFlex).toBe(0.25); // Missing in the legacy fixture.
+    expect(normalizeElevationDocument({
+      ...fixture, settings: { ...fixture.settings, runFlex: 0 },
+    }).settings.runFlex).toBe(0);
     for (const source of document.rooms) {
+      const drawn = syncRoom(source, { ...flexSettings, runFlex: 0 });
       const once = syncRoom(source, flexSettings);
       expect(syncRoom(once, flexSettings)).toEqual(once);
-      for (const run of once.walls.flatMap((wall) => wall.runs)) {
-        if (!run.flex) continue;
-        expect(Math.abs(run.flex.left)).toBeLessThanOrEqual(0.25);
-        expect(Math.abs(run.flex.right)).toBeLessThanOrEqual(0.25);
+      for (const wall of once.walls) {
+        const oldWall = drawn.walls.find(({ id }) => id === wall.id);
+        const coordinates = ({ x1, y1, x2, y2 }) => [x1, y1, x2, y2];
+        expect(coordinates(wall)).toEqual(coordinates(oldWall));
+        expect(wall.joints).toEqual(oldWall.joints);
+        for (const run of wall.runs) {
+          const oldRun = oldWall.runs.find(({ id }) => id === run.id);
+          const cabinets = (room, wall, run, settings) => layoutRun(
+            room, resolveWall(room, wall, wallSideOf(run)), run, settings,
+          ).pieces.filter(({ kind }) => kind === 'cabinet');
+          const before = cabinets(drawn, oldWall, oldRun, { ...flexSettings, runFlex: 0 });
+          const after = cabinets(once, wall, run, flexSettings);
+          expect(after.map(({ id }) => id)).toEqual(before.map(({ id }) => id));
+          for (const item of runItems(run)) {
+            if (!item.pin) continue;
+            expect(after.find(({ id }) => id === item.id))
+              .toEqual(before.find(({ id }) => id === item.id));
+          }
+          if (!run.flex) continue;
+          expect(Math.abs(run.flex.left)).toBeLessThanOrEqual(0.25);
+          expect(Math.abs(run.flex.right)).toBeLessThanOrEqual(0.25);
+          for (const side of ['left', 'right']) {
+            if (run.anchors?.[side]?.to === 'joint') expect(run.flex[side]).toBe(0);
+          }
+        }
       }
     }
   });

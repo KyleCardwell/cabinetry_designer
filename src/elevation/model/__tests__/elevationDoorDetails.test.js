@@ -10,7 +10,8 @@ import { normalizeElevationDocument } from '../../store/persistence.js';
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
 );
-const settings = { ...document.settings, doorDesigns: DOOR_DESIGNS };
+// Keep these layout anchors independent of run flex (RF3).
+const settings = { ...document.settings, runFlex: 0, doorDesigns: DOOR_DESIGNS };
 const stored = (name) => document.rooms.find((candidate) => candidate.name === name);
 
 const C = { ...DEFAULT_DOOR_STYLE, id: 'ds-c', label: 'C', designId: 'slab-mdf' };
