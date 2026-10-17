@@ -49,10 +49,14 @@ describe('SPEC-43.4 reach dimensions from cornerShapes', () => {
     expect(lower.inner.at(-1)).toEqual(reach);
     expect(lower.outer.at(-1)).toEqual(reach);
     const g5 = room('G5 Recess room');
-    for (const index of [0, 2]) {
-      const chains = horizontalChains(g5, resolveWall(g5, g5.walls[index], 'front'), 'lower', settings);
-      expect(chains).toEqual({ inner: [], outer: [{ start: 0, end: 30, kind: 'wall' }] });
-    }
+    // A base returning into wall 0's corner shows its depth on the piece row (Kyle 2026-10-16); the run in
+    // the recess beside wall 2 shows nothing. The overall row is still just the wall.
+    const chainsOf = (index) => horizontalChains(g5, resolveWall(g5, g5.walls[index], 'front'), 'lower', settings);
+    const ret = chainsOf(0).inner.at(-1);
+    expect(chainsOf(0).inner.map(({ kind }) => kind)).toEqual(['open', 'neighbor']);
+    expect(ret.end - ret.start).toBe(24.875);
+    expect(chainsOf(0).outer).toEqual([{ start: 0, end: 30, kind: 'wall' }]);
+    expect(chainsOf(2)).toEqual({ inner: [], outer: [{ start: 0, end: 30, kind: 'wall' }] });
   });
 });
 
@@ -81,6 +85,11 @@ describe('SPEC-43.4 the extent takes in everything cornerShapes draws', () => {
     expect(elevationDimensions(g2, g2.walls[1], 'front', settings)
       .filter(({ row: name }) => name.startsWith('upper.'))
       .map(({ row: name, kind, start, end, base, at }) => [name, kind, start, end, base, at]))
-      .toEqual([['upper.outer', 'wall', 0, 78.5, 96, 105]]);
+      // The upper returning into the corner reads its depth on the piece row (Kyle 2026-10-16).
+      .toEqual([
+        ['upper.inner', 'neighbor', 0, 12.8125, 96, 105],
+        ['upper.inner', 'open', 12.8125, 78.5, 96, 105],
+        ['upper.outer', 'wall', 0, 78.5, 96, 117.75],
+      ]);
   });
 });

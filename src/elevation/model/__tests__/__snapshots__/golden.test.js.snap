@@ -4779,7 +4779,20 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
             },
           ],
           "upper": {
-            "inner": [],
+            "inner": [
+              {
+                "end": 12.8125,
+                "kind": "neighbor",
+                "neighborRunId": "ab0981ca-8621-45ba-a924-dbe318646f67",
+                "start": 0,
+                "wallId": "e10e98d3-30bd-4ec1-8a67-81d3923598e1",
+              },
+              {
+                "end": 78.5,
+                "kind": "open",
+                "start": 12.8125,
+              },
+            ],
             "outer": [
               {
                 "end": 78.5,
@@ -5397,7 +5410,20 @@ exports[`C1 golden rooms > G3 Bath alcove derives exactly what it did 1`] = `
         "front": {
           "clearanceRow": [],
           "lower": {
-            "inner": [],
+            "inner": [
+              {
+                "end": 8.125,
+                "kind": "open",
+                "start": 0,
+              },
+              {
+                "end": 30,
+                "kind": "neighbor",
+                "neighborRunId": "02c88254-9a83-4002-9fda-912cd06a2a21",
+                "start": 8.125,
+                "wallId": "6d7021c6-5293-4d11-ae7f-47086e301920",
+              },
+            ],
             "outer": [
               {
                 "end": 30,
@@ -5408,7 +5434,20 @@ exports[`C1 golden rooms > G3 Bath alcove derives exactly what it did 1`] = `
           },
           "runs": [],
           "upper": {
-            "inner": [],
+            "inner": [
+              {
+                "end": 6,
+                "kind": "open",
+                "start": 0,
+              },
+              {
+                "end": 30,
+                "kind": "neighbor",
+                "neighborRunId": "bcdd4e78-0d52-40d0-9f5d-2901e590e98a",
+                "start": 6,
+                "wallId": "6d7021c6-5293-4d11-ae7f-47086e301920",
+              },
+            ],
             "outer": [
               {
                 "end": 30,
@@ -5919,7 +5958,20 @@ exports[`C1 golden rooms > G3 Bath alcove derives exactly what it did 1`] = `
         "front": {
           "clearanceRow": [],
           "lower": {
-            "inner": [],
+            "inner": [
+              {
+                "end": 21.875,
+                "kind": "neighbor",
+                "neighborRunId": "02c88254-9a83-4002-9fda-912cd06a2a21",
+                "start": 0,
+                "wallId": "6d7021c6-5293-4d11-ae7f-47086e301920",
+              },
+              {
+                "end": 30,
+                "kind": "open",
+                "start": 21.875,
+              },
+            ],
             "outer": [
               {
                 "end": 30,
@@ -5930,7 +5982,20 @@ exports[`C1 golden rooms > G3 Bath alcove derives exactly what it did 1`] = `
           },
           "runs": [],
           "upper": {
-            "inner": [],
+            "inner": [
+              {
+                "end": 24,
+                "kind": "neighbor",
+                "neighborRunId": "bcdd4e78-0d52-40d0-9f5d-2901e590e98a",
+                "start": 0,
+                "wallId": "6d7021c6-5293-4d11-ae7f-47086e301920",
+              },
+              {
+                "end": 30,
+                "kind": "open",
+                "start": 24,
+              },
+            ],
             "outer": [
               {
                 "end": 30,
@@ -6729,7 +6794,20 @@ exports[`C1 golden rooms > G4 T-filler run derives exactly what it did 1`] = `
         "front": {
           "clearanceRow": [],
           "lower": {
-            "inner": [],
+            "inner": [
+              {
+                "end": 24.875,
+                "kind": "neighbor",
+                "neighborRunId": "738c73a7-adda-40e0-bca9-a881403c1ffa",
+                "start": 0,
+                "wallId": "4ccc3115-c472-46c3-a85d-e6ef528b0533",
+              },
+              {
+                "end": 45,
+                "kind": "open",
+                "start": 24.875,
+              },
+            ],
             "outer": [
               {
                 "end": 45,
@@ -7397,7 +7475,20 @@ exports[`C1 golden rooms > G5 Recess room derives exactly what it did 1`] = `
         "front": {
           "clearanceRow": [],
           "lower": {
-            "inner": [],
+            "inner": [
+              {
+                "end": 5.125,
+                "kind": "open",
+                "start": 0,
+              },
+              {
+                "end": 30,
+                "kind": "neighbor",
+                "neighborRunId": "98b55b5e-3f4c-4e37-8597-f8f7a46b3412",
+                "start": 5.125,
+                "wallId": "9574ded4-3b8f-470a-afad-2ea36e0ef64c",
+              },
+            ],
             "outer": [
               {
                 "end": 30,
@@ -8795,7 +8886,20 @@ exports[`C1 golden rooms > G6 Stacked runs derives exactly what it did 1`] = `
         "front": {
           "clearanceRow": [],
           "lower": {
-            "inner": [],
+            "inner": [
+              {
+                "end": 23.125,
+                "kind": "open",
+                "start": 0,
+              },
+              {
+                "end": 48,
+                "kind": "neighbor",
+                "neighborRunId": "677ec7a5-d97a-4cfd-8843-f960e3334ea2",
+                "start": 23.125,
+                "wallId": "e6ce8769-be99-492d-aca7-ef6355773749",
+              },
+            ],
             "outer": [
               {
                 "end": 48,
@@ -8806,7 +8910,27 @@ exports[`C1 golden rooms > G6 Stacked runs derives exactly what it did 1`] = `
           },
           "runs": [],
           "upper": {
-            "inner": [],
+            "inner": [
+              {
+                "end": 35.125,
+                "kind": "open",
+                "start": 0,
+              },
+              {
+                "end": 48,
+                "kind": "neighbor",
+                "neighborRunId": "ea4373b3-87f2-4f39-a7cc-2c829c839832",
+                "start": 35.125,
+                "wallId": "e6ce8769-be99-492d-aca7-ef6355773749",
+              },
+              {
+                "end": 48,
+                "kind": "neighbor",
+                "neighborRunId": "b1ec1b4a-de2b-4a28-a694-77675f913ebd",
+                "start": 36,
+                "wallId": "e6ce8769-be99-492d-aca7-ef6355773749",
+              },
+            ],
             "outer": [
               {
                 "end": 48,
@@ -9570,7 +9694,25 @@ exports[`C1 golden rooms > G6 Stacked runs derives exactly what it did 1`] = `
         "front": {
           "clearanceRow": [],
           "lower": {
-            "inner": [],
+            "inner": [
+              {
+                "end": 8,
+                "kind": "open",
+                "start": 0,
+              },
+              {
+                "end": 32.875,
+                "kind": "neighbor",
+                "neighborRunId": "01a2a0e1-4bd1-434d-9c9b-66bc20ee7e54",
+                "start": 8,
+                "wallId": "e6ce8769-be99-492d-aca7-ef6355773749",
+              },
+              {
+                "end": 84,
+                "kind": "open",
+                "start": 32.875,
+              },
+            ],
             "outer": [
               {
                 "end": 84,

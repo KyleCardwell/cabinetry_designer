@@ -30,7 +30,7 @@ const room = (name) => syncRoom(document.rooms.find((candidate) => candidate.nam
 // Captured before HP5 step d: the existing golden snapshot covers derived rooms, not payloads.
 const preHP5PayloadHashes = {
   'G1 Euro kitchen': 'c0f7b00ec500b12d3f2fc65b9e172e05f5feae57be9aefc988bdacb1f069c18d',
-  'G2 Face frame kitchen': '920674664ebfe648f37f88ba30872e6b2028c25d6cfdb5ddb9896f359e4a01f6',
+  'G2 Face frame kitchen': '7a562f56f18275cf0645b023f407b19030ae8e7ca25fc4cea0caa665aa29947d',
   'G3 Bath alcove': 'fd35d5a3467446c85bc9a9c57b83f893deac61402f1e62e0b35597e66a4ec702',
   'G4 T-filler run': 'de06c1a25cb6963ae9fdb05014adf6fb469622bf04513d26a36166188fece772',
   'G5 Recess room': '86f8714cb04ff4d889490283215216c8bb43d2fe73c4dd049c8fc837120a3304',

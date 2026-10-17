@@ -8,7 +8,7 @@ import { frameEdgeTracks, frameRegions, regionOpenings } from './frames.js';
 import { wallFrame, wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { landingsOn } from './landings.js';
-import { profileReach } from './cornerParts.js';
+import { cornerShapes, profileReach } from './cornerParts.js';
 import { openingGeometry } from './openings.js';
 import { verticalStart } from './overlap.js';
 import { resolveProfile } from './profile.js';
@@ -379,6 +379,62 @@ export function topEndSegments(room, wall, run, settings) {
   return { left: segments('left'), right: segments('right') };
 }
 
+/**
+ * Neighbour cabinets returning into this face's inside corners in this band, in section (SPEC-42.2): from
+ * the corner to the front of their faces.
+ */
+function cornerReturnSegments(room, wall, band, settings) {
+  const inBand = band === 'lower'
+    ? (id) => id === CABINET_TYPE_IDS.BASE || id === CABINET_TYPE_IDS.TALL
+    : (id) => id === CABINET_TYPE_IDS.UPPER;
+  return cornerShapes(room, wall, wall.side ?? 'front', settings)
+    .filter((shape) => shape.kind === 'return' && shape.runId)
+    .flatMap((shape) => {
+      const run = room.walls.find((candidate) => candidate.id === shape.wallId)
+        ?.runs?.find((candidate) => candidate.id === shape.runId);
+      const sections = shape.parts.filter((part) => part.kind === 'section');
+      if (!run || !inBand(run.cabinetTypeId) || sections.length === 0) return [];
+      return [{
+        start: Math.min(...sections.map((part) => part.x)),
+        end: Math.max(...sections.map((part) => part.x + part.width)),
+        kind: 'neighbor',
+        wallId: shape.wallId,
+        neighborRunId: shape.runId,
+      }];
+    });
+}
+
+/**
+ * The depth of a neighbour's cabinet returning into this face's inside corner (Kyle 2026-10-16): the gap
+ * at that end splits at the return's front, so the piece row reads its depth. With nothing else on the
+ * row, the returns and the space between them make the row.
+ */
+function withCornerReturns(inner, returns, wallStart, wallEnd) {
+  if (returns.length === 0) return inner;
+  if (inner.length === 0) {
+    const row = [];
+    let cursor = wallStart;
+    for (const segment of [...returns].sort((a, b) => a.start - b.start)) {
+      if (segment.start > cursor + SEGMENT_EPSILON) row.push({ start: cursor, end: segment.start, kind: 'open' });
+      row.push(segment);
+      cursor = Math.max(cursor, segment.end);
+    }
+    if (wallEnd > cursor + SEGMENT_EPSILON) row.push({ start: cursor, end: wallEnd, kind: 'open' });
+    return row;
+  }
+  const gaps = new Set(['open', 'corner-gap']);
+  return inner.flatMap((segment) => {
+    if (!gaps.has(segment.kind)) return [segment];
+    const atStart = returns.find((ret) => Math.abs(ret.start - segment.start) <= SEGMENT_EPSILON
+      && ret.end < segment.end - SEGMENT_EPSILON);
+    const atEnd = returns.find((ret) => Math.abs(ret.end - segment.end) <= SEGMENT_EPSILON
+      && ret.start > segment.start + SEGMENT_EPSILON);
+    if (atStart) return [atStart, { ...segment, start: atStart.end }];
+    if (atEnd) return [{ ...segment, end: atEnd.start }, atEnd];
+    return [segment];
+  });
+}
+
 /** Build the inner piece chain and outer run chain for an elevation band. */
 export function horizontalChains(room, wall, band, settings) {
   const runs = runsForBand(wall, band);
@@ -405,7 +461,7 @@ export function horizontalChains(room, wall, band, settings) {
     const wallRow = wallEnd - wallStart > SEGMENT_EPSILON
       ? [{ start: wallStart, end: wallEnd, kind: 'wall' }] : [];
     return {
-      inner: [left, right].filter(Boolean),
+      inner: withCornerReturns([left, right].filter(Boolean), cornerReturnSegments(room, wall, band, settings), wallStart, wallEnd),
       outer: [left, ...wallRow, right].filter(Boolean),
     };
   }
@@ -507,7 +563,7 @@ export function horizontalChains(room, wall, band, settings) {
   appendOpenGap(outer, cursor, rangeEnd, tallRanges);
   if (right) outer.push(right);
 
-  return { inner, outer };
+  return { inner: withCornerReturns(inner, cornerReturnSegments(room, wall, band, settings), wallStart, wallEnd), outer };
 }
 
 function rangesOverlap(a, b) {
