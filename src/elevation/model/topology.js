@@ -223,27 +223,64 @@ export function wallHasCabinets(wall, side = 'front') {
   return (wall?.runs ?? []).some((run) => wallSideOf(run) === side);
 }
 
-/** Return the elevation letter for every wall that has cabinets, or is forced in, in wall order. */
-export function elevationLetters(room) {
+/** Every face's elevation key in lettering order: each wall's front in wall order, then each back. */
+function letteringOrder(room) {
   const walls = room?.walls ?? [];
   const wallById = new Map(walls.map((wall) => [wall.id, wall]));
   const orderedIds = [
     ...(room?.wallOrder ?? []),
     ...walls.map((wall) => wall.id),
   ].filter((wallId, index, ids) => wallById.has(wallId) && ids.indexOf(wallId) === index);
+  return [...orderedIds, ...orderedIds.map((wallId) => elevationKey(wallId, 'back'))];
+}
 
+/** A face key's wall id and side. */
+export function faceKeyParts(key) {
+  const back = key.endsWith(':back');
+  return { wallId: back ? key.slice(0, -':back'.length) : key, side: back ? 'back' : 'front' };
+}
+
+/**
+ * The room's combined elevations that are on (Kyle 2026-10-16): each { id, faces }, its faces as elevation
+ * keys in lettering order, so the first leads (it takes the letter and the plan marker). A face belongs to
+ * the first group that claims it; a group needs two faces that still exist.
+ */
+export function combinedGroups(room) {
+  const rank = new Map(letteringOrder(room).map((key, index) => [key, index]));
+  const claimed = new Set();
+  return (room?.combinedElevations ?? []).filter((group) => group.on).flatMap((group) => {
+    const faces = [...new Set(group.faces)]
+      .filter((key) => rank.has(key) && !claimed.has(key))
+      .sort((one, two) => rank.get(one) - rank.get(two));
+    if (faces.length < 2) return [];
+    for (const key of faces) claimed.add(key);
+    return [{ id: group.id, faces }];
+  });
+}
+
+/** The key that letters a face: its combined elevation's lead, or the face itself. */
+export function elevationLeadKey(room, key) {
+  return combinedGroups(room).find((group) => group.faces.includes(key))?.faces[0] ?? key;
+}
+
+/**
+ * Return the elevation letter for every face that has cabinets (a front can be forced in), fronts in wall
+ * order, then backs. A combined elevation takes one letter, at its lead, when any of its faces would.
+ */
+export function elevationLetters(room) {
+  const wallById = new Map((room?.walls ?? []).map((wall) => [wall.id, wall]));
+  const qualifies = (key) => {
+    const { wallId, side } = faceKeyParts(key);
+    const wall = wallById.get(wallId);
+    return side === 'back' ? wallHasCabinets(wall, 'back') : wallHasCabinets(wall) || Boolean(wall?.elevationForced);
+  };
+  const groupOf = new Map(combinedGroups(room).flatMap((group) => group.faces.map((key) => [key, group])));
   const letters = new Map();
   let next = 1;
-  for (const wallId of orderedIds) {
-    const wall = wallById.get(wallId);
-    if (!wallHasCabinets(wall) && !wall.elevationForced) continue;
-    letters.set(wallId, indexToLetters(next));
-    next += 1;
-  }
-  for (const wallId of orderedIds) {
-    const wall = wallById.get(wallId);
-    if (!wallHasCabinets(wall, 'back')) continue;
-    letters.set(elevationKey(wallId, 'back'), indexToLetters(next));
+  for (const key of letteringOrder(room)) {
+    const group = groupOf.get(key);
+    if (group ? key !== group.faces[0] || !group.faces.some(qualifies) : !qualifies(key)) continue;
+    letters.set(key, indexToLetters(next));
     next += 1;
   }
   return letters;
@@ -255,17 +292,14 @@ export function elevationLetters(room) {
  */
 export function defaultElevationFace(room) {
   const [firstKey] = elevationLetters(room).keys();
-  if (firstKey) {
-    const back = firstKey.endsWith(':back');
-    return { wallId: back ? firstKey.slice(0, -':back'.length) : firstKey, side: back ? 'back' : 'front' };
-  }
+  if (firstKey) return faceKeyParts(firstKey);
   const numbers = [...wallNumbers(room)].sort((one, two) => one[1] - two[1]);
   return numbers.length ? { wallId: numbers[0][0], side: 'front' } : null;
 }
 
 /** "Elevation A", or null when the wall has no letter. */
 export function elevationLabel(room, wallOrView) {
-  const key = elevationKey(wallOrView.id, wallOrView.side ?? 'front');
+  const key = elevationLeadKey(room, elevationKey(wallOrView.id, wallOrView.side ?? 'front'));
   const letter = elevationLetters(room).get(key);
   return letter ? `Elevation ${letter}` : null;
 }

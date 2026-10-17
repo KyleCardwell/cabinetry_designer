@@ -670,7 +670,17 @@ export function isRoom(room, profileKeys = PROFILE_KEYS) {
     && (room.partNumberOverrides === undefined
       || isPartNumberOverrides(room.partNumberOverrides))
     && (room.reportParts === undefined || isReportParts(room.reportParts))
-    && (room.reportNote === undefined || isReportText(room.reportNote, 400));
+    && (room.reportNote === undefined || isReportText(room.reportNote, 400))
+    && (room.combinedElevations === undefined || isCombinedElevations(room.combinedElevations));
+}
+
+/** Combined elevations (Kyle 2026-10-16): `{ id, on, faces }` with faces as elevation keys. */
+function isCombinedElevations(value) {
+  return Array.isArray(value) && value.every((group) => isPlainObject(group)
+    && typeof group.id === 'string'
+    && typeof group.on === 'boolean'
+    && Array.isArray(group.faces)
+    && group.faces.every((key) => typeof key === 'string'));
 }
 
 function migrateDoorPanel(style) {

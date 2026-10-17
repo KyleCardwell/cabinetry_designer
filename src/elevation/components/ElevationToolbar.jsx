@@ -3,6 +3,7 @@ import { selectSettings } from '../store/selectors.js';
 import { resolveSetting } from '../model/settingsResolve.js';
 import { overrideTitle } from './overrideHelpers.js';
 import AddToolMenu from './AddToolMenu.jsx';
+import CombinedElevationControl from './CombinedElevationControl.jsx';
 import ExportDxfButton from './ExportDxfButton.jsx';
 import ReportsButton from '../../reports/ReportsButton.jsx';
 import { nextWallId, wallLabel } from '../model/topology.js';
@@ -204,6 +205,7 @@ export default function ElevationToolbar({
               </button>
             ))}
           </div>
+          <CombinedElevationControl room={room} wallId={activeWallId} side={activeWallSide} readOnly={readOnly} />
           <button
             type="button"
             aria-pressed={settings.showPartNumbers}

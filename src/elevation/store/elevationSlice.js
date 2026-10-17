@@ -120,6 +120,8 @@ export const {
   deleteWall,
   setActiveWall,
   setActiveWallSide,
+  setCombinedElevation,
+  setCombinedFace,
   flipWall,
   addRun,
   addSoffit,

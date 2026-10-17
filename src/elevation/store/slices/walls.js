@@ -9,7 +9,9 @@ import {
   landingRefCreatesCycle,
   releaseWall,
 } from '../../model/landings.js';
+import { autoCombinedFaces, combinableFaces } from '../../model/combinedElevations.js';
 import { flipRunsForWall } from '../../model/room.js';
+import { elevationKey } from '../../model/topology.js';
 import {
   addWallWithConnections,
   connectWallEndpoints,
@@ -307,6 +309,40 @@ export const wallReducers = {
       clearTransientSelection(state);
       state.selection.wallId = wallId;
     },
+    /** Turn a face's combined elevation on or off (Kyle 2026-10-16); the first time on, it takes the auto group. */
+    setCombinedElevation(state, action) {
+      const { wallId, side = 'front', on } = action.payload;
+      const room = roomFor(state, action.payload.roomId);
+      if (!room?.walls.some((wall) => wall.id === wallId) || typeof on !== 'boolean') return;
+      const key = elevationKey(wallId, side);
+      let group = (room.combinedElevations ?? []).find((candidate) => candidate.faces.includes(key));
+      if (!on) {
+        if (group) group.on = false;
+        return;
+      }
+      if (!group) {
+        group = { id: uuid(), on: true, faces: autoCombinedFaces(room, key) };
+        room.combinedElevations = [...(room.combinedElevations ?? []), group];
+      }
+      group.on = true;
+      claimCombinedFaces(room, group);
+    },
+    /** Check a face into, or out of, the combined elevation a face is seen in; it leaves any other one. */
+    setCombinedFace(state, action) {
+      const { wallId, side = 'front', face, included } = action.payload;
+      const room = roomFor(state, action.payload.roomId);
+      if (!room || typeof face !== 'string' || typeof included !== 'boolean') return;
+      const key = elevationKey(wallId, side);
+      const group = (room.combinedElevations ?? []).find((candidate) => candidate.faces.includes(key));
+      if (!group || face === key) return;
+      if (!included) {
+        group.faces = group.faces.filter((candidate) => candidate !== face);
+        return;
+      }
+      if (!combinableFaces(room, key).includes(face) || group.faces.includes(face)) return;
+      group.faces.push(face);
+      claimCombinedFaces(room, group);
+    },
     setActiveWallSide(state, action) {
       const side = action.payload.side ?? action.payload;
       if (side !== 'front' && side !== 'back') return;
@@ -320,3 +356,11 @@ export const wallReducers = {
       syncRoomAt(state, location.roomIndex);
     },
 };
+
+/** A face is in one combined elevation at a time: `group`'s faces leave the others, and empty ones go. */
+function claimCombinedFaces(room, group) {
+  for (const other of room.combinedElevations) {
+    if (other !== group) other.faces = other.faces.filter((key) => !group.faces.includes(key));
+  }
+  room.combinedElevations = room.combinedElevations.filter((other) => other === group || other.faces.length > 0);
+}
