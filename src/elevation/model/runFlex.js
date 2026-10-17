@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS } from './constants.js';
-import { wallLength } from './geometry.js';
+import { cornerAt } from './corners.js';
+import { wallFrame, wallLength } from './geometry.js';
 import { followLeaders } from './joints.js';
 import { validateRunPlacement } from './overlap.js';
 import { endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
@@ -10,8 +11,9 @@ import { wallSideOf, wallViewForRun } from './wallSides.js';
 /**
  * Each run flexes only its own edges on the 1/16" grid, within settings.runFlex. Free ends can
  * grow or shrink; opening, soffit and recess offsets can grow only into their gap. Wall anchors
- * (including open island ends), joints, follow edges and edges touching another run hold at zero.
- * Runs with holdWidth or no needs hold both edges. Flex never changes the drawn auto box count.
+ * at corners, joints, follow edges and edges touching another run hold at zero. Free wall ends grow
+ * only outward, decided by the first front run that moves (lowest z first); other runs follow.
+ * Runs with holdWidth or no needs hold their undecided edges. Flex never changes the drawn auto box count.
  *
  * A need uses the sum of its listed edges' outward moves. Choose, in order: fewest unmet exact
  * needs, lowest met candidate indexes, fewest missed filler raises, least offset movement, smallest
@@ -24,7 +26,7 @@ import { wallSideOf, wallViewForRun } from './wallSides.js';
  * run.flex = { left, right, x, width, boxes? }: outward edge moves (+ grows, − shrinks), the written
  * span, and a flex filler's remembered box sizes (run, or left/right beside pins). unflexRoom takes
  * the previous flex back out before syncing so nothing drifts. Edited edges keep their drawn
- * position; a translated run keeps its flex. RF2 never writes wall._endFlex.
+ * position; a translated run keeps its flex. wall._endFlex records non-zero free wall end moves.
  */
 
 const EPSILON = 1e-6;
@@ -106,17 +108,32 @@ function touches(wall, run, side) {
     && Math.abs((side === 'left' ? other.x + other.width : other.x) - edge) <= EPSILON);
 }
 
+/** The physical free wall endpoint for a wall-anchored edge, viewed from the run's face. */
+function freeWallEndpoint(room, wall, run, side) {
+  if (run.anchors?.[side] !== true) return null;
+  const view = wallViewForRun(wall, run);
+  if (cornerAt(room, view, side).type !== 'open') return null;
+  const frame = wallFrame(room, view);
+  return side === 'left' ? frame.leftEndpoint : frame.rightEndpoint;
+}
+
 /** The allowed outward movement of one edge; flexEdge already expresses outward ranges. */
-function flexRange(room, wall, run, side, settings, t) {
-  if (run.anchors?.[side] === true || touches(wall, run, side)) {
-    return { kind: 'fixed', lo: 0, hi: 0 };
+function flexRange(room, wall, run, side, settings, t, endMoves) {
+  const endpoint = freeWallEndpoint(room, wall, run, side);
+  if (endpoint) {
+    if (wallSideOf(run) === 'front' && !Object.hasOwn(endMoves, endpoint)) {
+      return { kind: 'wallEnd', lo: 0, hi: t, endpoint };
+    }
+    return { kind: 'fixed', move: endMoves[endpoint] ?? 0 };
   }
+  if (run.anchors?.[side] === true || touches(wall, run, side)) return { kind: 'fixed', move: 0 };
   const edge = flexEdge(run, side, settings, t);
-  return edge.kind === 'hard' ? { kind: 'fixed', lo: 0, hi: 0 } : edge;
+  return edge.kind === 'hard' ? { kind: 'fixed', move: 0 } : edge;
 }
 
 /** Every sixteenth-grid value inside a range, without rounding past either bound. */
-function rangeValues({ lo, hi }) {
+function rangeValues({ kind, move, lo, hi }) {
+  if (kind === 'fixed') return [move];
   const values = [];
   const first = Math.ceil((lo - EPSILON) / STEP);
   const last = Math.floor((hi + EPSILON) / STEP);
@@ -187,12 +204,13 @@ function flexedRun(model, left, right, settings) {
 }
 
 /** Enumerate this run's independent edge choices and take the cheapest one that places. */
-function solveRun(room, wall, run, settings, t) {
+function solveRun(room, wall, run, settings, t, endMoves) {
   const model = runModel(room, wall, run, settings);
   const fixed = run.holdWidth === true || model.needs.length === 0;
-  const ranges = Object.fromEntries(['left', 'right'].map((side) => [
-    side, fixed ? { kind: 'fixed', lo: 0, hi: 0 } : flexRange(room, wall, run, side, settings, t),
-  ]));
+  const ranges = Object.fromEntries(['left', 'right'].map((side) => {
+    const range = flexRange(room, wall, run, side, settings, t, endMoves);
+    return [side, fixed && range.kind !== 'fixed' ? { kind: 'fixed', move: 0 } : range];
+  }));
   const options = [];
   for (const left of rangeValues(ranges.left)) {
     for (const right of rangeValues(ranges.right)) {
@@ -239,30 +257,46 @@ function solveRun(room, wall, run, settings, t) {
     const grows = next.x < run.x - EPSILON || next.x + next.width > run.x + run.width + EPSILON;
     if (!grows || !placementOk(others, run, settings) || placementOk(others, next, settings)) return next;
   }
-  return flexedRun(model, 0, 0, settings);
+  return flexedRun(model, ranges.left.move ?? 0, ranges.right.move ?? 0, settings);
 }
 
-/** Stable topological order across both faces; retain wall order for any remaining cycle. */
-function runOrder(runs) {
+/** Leaders first, then front runs at free wall ends by height, then their back-face runs. */
+function runOrder(room, wall) {
   const order = [];
-  let pending = runs;
+  const endpoints = (run) => ['left', 'right']
+    .map((side) => freeWallEndpoint(room, wall, run, side)).filter(Boolean);
+  let pending = wall.runs;
   while (pending.length > 0) {
     const waiting = new Set(pending.map((run) => run.id));
     const ready = pending.filter((run) => followLeaders(run).every((id) => !waiting.has(id)));
     if (ready.length === 0) return [...order, ...pending];
-    order.push(...ready);
-    const placed = new Set(ready.map((run) => run.id));
-    pending = pending.filter((run) => !placed.has(run.id));
+    const preferred = ready.filter((run) => !pending.some((other) => other.id !== run.id
+      && wallSideOf(other) === 'front'
+      && (wallSideOf(run) === 'back' || other.z < run.z)
+      && endpoints(other).some((endpoint) => endpoints(run).includes(endpoint))));
+    const next = preferred[0] ?? ready[0];
+    order.push(next);
+    pending = pending.filter((run) => run.id !== next.id);
   }
   return order;
 }
 
 /** Flex one run at a time, re-resolving followers against moved leaders first. */
-function flexWall(room, wall, settings, tolerance) {
+function flexWall(room, wall, settings, tolerance, decidedMoves = null) {
   if (wall.runs.length === 0) return wall;
   let current = wall;
   const moved = new Set();
-  for (const original of runOrder(wall.runs)) {
+  const deciding = decidedMoves === null;
+  const endMoves = decidedMoves ?? {};
+  if (deciding && tolerance > 0) {
+    for (const run of wall.runs.filter((run) => wallSideOf(run) === 'front' && run.holdWidth === true)) {
+      for (const side of ['left', 'right']) {
+        const endpoint = freeWallEndpoint(room, wall, run, side);
+        if (endpoint) endMoves[endpoint] = 0;
+      }
+    }
+  }
+  for (const original of runOrder(room, wall)) {
     let run = current.runs.find(({ id }) => id === original.id);
     const before = run;
     if (tolerance > 0 && followLeaders(run).some((id) => moved.has(id))) {
@@ -270,16 +304,30 @@ function flexWall(room, wall, settings, tolerance) {
       run = { ...run, x: horizontal.x, width: horizontal.width };
     }
     let next;
-    if (tolerance > 0) next = solveRun(room, current, run, settings, tolerance);
+    if (tolerance > 0) next = solveRun(room, current, run, settings, tolerance, endMoves);
     else {
       const { _flexBoxes, ...rest } = run;
       void _flexBoxes;
       next = Object.hasOwn(run, '_flexBoxes') ? rest : run;
     }
     current = { ...current, runs: current.runs.map((other) => other.id === next.id ? next : other) };
+    if (deciding && tolerance > 0 && wallSideOf(run) === 'front') {
+      for (const side of ['left', 'right']) {
+        const endpoint = freeWallEndpoint(room, current, run, side);
+        const move = next.flex?.[side] ?? 0;
+        if (endpoint && !Object.hasOwn(endMoves, endpoint) && move > EPSILON) endMoves[endpoint] = move;
+      }
+    }
     if (Math.abs(next.x - before.x) > EPSILON || Math.abs(next.width - before.width) > EPSILON) moved.add(next.id);
   }
-  return current;
+  // An earlier run may have held at zero before a higher front run decided this endpoint.
+  // Re-solve from the drawn spans with those decisions fixed, including any followers.
+  if (deciding && current.runs.some((run) => ['left', 'right'].some((side) => {
+    const endpoint = freeWallEndpoint(room, current, run, side);
+    return endpoint && Math.abs((run.flex?.[side] ?? 0) - (endMoves[endpoint] ?? 0)) > EPSILON;
+  }))) return flexWall(room, wall, settings, tolerance, endMoves);
+  const nonzero = Object.fromEntries(Object.entries(endMoves).filter(([, move]) => move > EPSILON));
+  return Object.keys(nonzero).length > 0 ? { ...current, _endFlex: nonzero } : current;
 }
 
 /** The last step of a room sync: flex every wall's runs (see the module comment). */

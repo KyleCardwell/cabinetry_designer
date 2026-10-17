@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { moveRun, roomDiagnostics, stretchRun, syncRoom } from '../room.js';
 import { unflexRun } from '../runFlex.js';
+import { wallLength } from '../geometry.js';
 import { splitRun } from '../splitRun.js';
+import { wallEndPanels } from '../wallEndPanels.js';
 import { isRoom, normalizeElevationDocument, toRoomDocument } from '../../store/persistence.js';
 
 // Run flex stays off by default; these tests opt in.
@@ -275,7 +277,7 @@ describe('SPEC-RF2 independent runs and cost order', () => {
     expect(room.walls[0].joints).toEqual(source.walls[0].joints);
   });
 
-  it('an island wall end holds on both faces in RF2', () => {
+  it('leaves the wall end still when the other free end takes the needed sixteenth on both faces', () => {
     const room = syncRoom(makeRoom(['front', 'back'].map((wallSide) => makeRun({
       id: wallSide, wallSide, anchors: { left: true, right: false },
       ends: { left: { ...PANEL, width: 0.75 }, right: PANEL },
@@ -321,6 +323,170 @@ describe('SPEC-RF2 independent runs and cost order', () => {
     const run = runOf(syncRoom(makeRoom([makeRun()]), S));
     // 90 − 2 × 13/16 = 88 3/8 → 3 × 29 1/2 needs +1/8: 1/16 per edge minimizes the maximum.
     expect(run.flex).toEqual({ left: 0.0625, right: 0.0625, x: 49.9375, width: 90.125 });
+  });
+});
+
+describe('SPEC-RF3 free wall ends', () => {
+  const front = (overrides = {}) => makeRun({
+    x: 0, autoCount: true, anchors: { left: true, right: true }, ...overrides,
+  });
+  const backPanel = () => front({
+    id: 'K', wallSide: 'back', autoCount: false, depth: 0.75,
+    items: [{ id: 'K1', kind: 'panel', width: null, depth: 0.75, align: 'back' }],
+  });
+  const island = (runs = [front()]) => {
+    const room = makeRoom(runs, { length: 90 });
+    room.walls[0].thickness = 0;
+    room.walls[0].endPanels = { start: { width: null }, end: { width: null } };
+    return room;
+  };
+
+  it('moves the 90" island runs and wall panels out 1/16" each, keeping the drawn length', () => {
+    const drawn = syncRoom(island(), { ...S, runFlex: 0 });
+    const room = syncRoom(drawn, S);
+    const wall = room.walls[0];
+    expect(span(runOf(drawn))).toEqual([0.8125, 88.375]);
+    expect(span(runOf(room))).toEqual([0.75, 88.5]);
+    expect(widths(runOf(room))).toEqual([29.5, 29.5, 29.5]);
+    expect(wall._endFlex).toEqual({ start: 0.0625, end: 0.0625 });
+    expect(wallEndPanels(drawn, drawn.walls[0], S).map(({ front }) => front.x)).toEqual([0, 89.1875]);
+    expect(wallEndPanels(room, wall, S).map(({ front }) => front.x)).toEqual([-0.0625, 89.25]);
+    expect(wallLength(wall)).toBe(90);
+    expect(wallLength(wall) + wall._endFlex.start + wall._endFlex.end).toBe(90.125);
+    expect([wall.x1, wall.y1, wall.x2, wall.y2]).toEqual([0, 0, 90, 0]);
+    expect(syncRoom(room, S)).toEqual(room);
+    expect(syncRoom(room, { ...S, runFlex: 0 })).toEqual(drawn);
+  });
+
+  it('carries a back-panel run by the front decision even when the back is stored first', () => {
+    const room = syncRoom(island([backPanel(), front()]), S);
+    expect(span(runOf(room, 'K'))).toEqual([0.75, 88.5]);
+    expect(runOf(room, 'K').flex).toMatchObject({ left: 0.0625, right: 0.0625 });
+    expect(room.walls[0]._endFlex).toEqual({ start: 0.0625, end: 0.0625 });
+    expect(syncRoom(room, S)).toEqual(room);
+  });
+
+  it('lets back cabinets absorb their change when the front already fits', () => {
+    const room = syncRoom(island([
+      front({ id: 'K', wallSide: 'back' }),
+      front({ autoCount: false, items: [typed('A', 29.375), typed('B', 29.5), typed('C', 29.5)] }),
+    ]), S);
+    expect(room.walls[0]).not.toHaveProperty('_endFlex');
+    expect(span(runOf(room))).toEqual([0.8125, 88.375]);
+    expect(span(runOf(room, 'K'))).toEqual([0.8125, 88.375]);
+    expect(roomDiagnostics(room, S).K.warnings.map(({ code }) => code)).toContain('widths-not-rounded');
+  });
+
+  it('moves only the free endpoint of a peninsula and keeps its connected corner fixed', () => {
+    const source = island([front()]);
+    const wall = source.walls[0];
+    wall.connections.start = { wallId: 'B', endpoint: 'start' };
+    source.walls.push({ ...makeRoom([]).walls[0], id: 'B', x2: 0, y2: 100,
+      connections: { start: { wallId: 'A', endpoint: 'start' }, end: null } });
+    source.wallOrder.push('B');
+    const drawn = syncRoom(source, { ...S, runFlex: 0 });
+    const room = syncRoom(drawn, S);
+    expect(span(runOf(drawn))).toEqual([0, 89.1875]);
+    expect(span(runOf(room))).toEqual([0, 89.3125]);
+    expect(room.walls[0]._endFlex).toEqual({ end: 0.125 });
+    expect(widths(runOf(room))).toEqual([0.8125, 29.5, 29.5, 29.5]);
+    expect(syncRoom(room, S)).toEqual(room);
+  });
+
+  it('holds the island exact with front holdWidth and makes the back follow at zero', () => {
+    const before = syncRoom(island([backPanel(), front()]), S);
+    runOf(before).holdWidth = true;
+    const room = syncRoom(before, S);
+    expect(room.walls[0]).not.toHaveProperty('_endFlex');
+    expect(span(runOf(room))).toEqual([0.8125, 88.375]);
+    expect(span(runOf(room, 'K'))).toEqual([0.8125, 88.375]);
+  });
+
+  it('recomputes from a newly typed 120" drawn wall and stays idempotent', () => {
+    const before = syncRoom(island([backPanel(), front()]), S);
+    before.walls[0].x2 = 120;
+    const room = syncRoom(before, S);
+    // Auto count becomes four: neither four 29 1/2" nor four 30" boxes can fit by growing
+    // these edges at most 1/4" each, so §1's allowed zero move applies at this drawn length.
+    expect(span(runOf(room))).toEqual([0.8125, 118.375]);
+    expect(span(runOf(room, 'K'))).toEqual([0.8125, 118.375]);
+    expect(widths(runOf(room))).toEqual([29.625, 29.625, 29.625, 29.5]);
+    expect(room.walls[0]).not.toHaveProperty('_endFlex');
+    expect(wallLength(room.walls[0])).toBe(120);
+    expect(syncRoom(room, S)).toEqual(room);
+  });
+
+  it('returns to the drawn spans when both wall panels are typed back to 3/4"', () => {
+    const before = syncRoom(island([backPanel(), front()]), S);
+    before.walls[0].endPanels = { start: { width: 0.75 }, end: { width: 0.75 } };
+    const room = syncRoom(before, S);
+    expect(room.walls[0]).not.toHaveProperty('_endFlex');
+    for (const id of ['R', 'K']) expect(span(runOf(room, id))).toEqual([0.75, 88.5]);
+    expect(widths(runOf(room))).toEqual([29.5, 29.5, 29.5]);
+    expect(syncRoom(room, S)).toEqual(room);
+  });
+
+  it('keeps back-only wall ends at zero', () => {
+    const room = syncRoom(island([front({ wallSide: 'back' })]), S);
+    expect(span(runOf(room))).toEqual([0.8125, 88.375]);
+    expect(room.walls[0]).not.toHaveProperty('_endFlex');
+  });
+
+  it('fixes the back wall edge to the front move while letting its other free edge flex', () => {
+    const room = syncRoom(island([
+      front({ id: 'K', wallSide: 'back', width: 30.1875, autoCount: false,
+        items: [auto('K1')], anchors: { left: true, right: false } }),
+      front(),
+    ]), S);
+    expect(span(runOf(room, 'K'))).toEqual([0.75, 30.3125]);
+    expect(runOf(room, 'K').flex).toMatchObject({ left: 0.0625, right: 0.0625 });
+    expect(widths(runOf(room, 'K'))).toEqual([29.5, 0.8125]);
+    expect(syncRoom(room, S)).toEqual(room);
+  });
+
+  it('solves the lowest front run first and fixes the upper front and back edges to its move', () => {
+    const room = syncRoom(island([
+      backPanel(),
+      front({ id: 'U', z: 50, height: 30, autoCount: false, items: [auto('U1'), auto('U2')] }),
+      front(),
+    ]), S);
+    for (const id of ['R', 'U', 'K']) {
+      expect(span(runOf(room, id))).toEqual([0.75, 88.5]);
+      expect(runOf(room, id).flex).toMatchObject({ left: 0.0625, right: 0.0625 });
+    }
+    expect(widths(runOf(room, 'U'))).toEqual([44.25, 44.25]);
+    expect(syncRoom(room, S)).toEqual(room);
+  });
+
+  it('maps an asymmetric endpoint move onto the mirrored back face and flipped wall', () => {
+    const source = island([backPanel(), front()]);
+    source.walls[0].flipped = true;
+    source.walls[0].endPanels.end.width = 0.75;
+    const room = syncRoom(source, S);
+    expect(room.walls[0]._endFlex).toEqual({ start: 0.0625 });
+    expect(runOf(room).flex).toMatchObject({ left: 0, right: 0.0625 });
+    expect(runOf(room, 'K').flex).toMatchObject({ left: 0.0625, right: 0 });
+    expect(span(runOf(room))).toEqual([0.75, 88.5]);
+    expect(span(runOf(room, 'K'))).toEqual([0.75, 88.5]);
+    expect(syncRoom(room, S)).toEqual(room);
+  });
+
+  it('lets the first moving front run decide and carries an earlier unmoving front run with it', () => {
+    const lower = { ...backPanel(), id: 'L', wallSide: 'front', z: 0, height: 2 };
+    const room = syncRoom(island([backPanel(), lower, front()]), S);
+    for (const id of ['R', 'L', 'K']) {
+      expect(span(runOf(room, id))).toEqual([0.75, 88.5]);
+      expect(runOf(room, id).flex).toMatchObject({ left: 0.0625, right: 0.0625 });
+    }
+    expect(syncRoom(room, S)).toEqual(room);
+  });
+
+  it('lets an upper front holdWidth keep its wall endpoints exact', () => {
+    const room = syncRoom(island([
+      front(), front({ id: 'U', z: 50, height: 30, holdWidth: true }), backPanel(),
+    ]), S);
+    expect(room.walls[0]).not.toHaveProperty('_endFlex');
+    for (const id of ['R', 'U', 'K']) expect(span(runOf(room, id))).toEqual([0.8125, 88.375]);
   });
 });
 
