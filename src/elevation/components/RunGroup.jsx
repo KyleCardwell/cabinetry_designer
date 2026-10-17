@@ -16,6 +16,7 @@ import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { runBands } from '../model/runBands.js';
 import { runScene } from '../model/runScene.js';
+import { runPulls } from '../model/pullLayouts.js';
 import { runSwingMarks } from '../model/swingMarks.js';
 import { formatDimension } from '../model/units.js';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
@@ -26,6 +27,7 @@ import DoorDetails from './DoorDetails.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
 import FrameOutline from './FrameOutline.jsx';
 import PieceRect from './PieceRect.jsx';
+import Pulls from './Pulls.jsx';
 import SwingMarks from './SwingMarks.jsx';
 import { outlineGeometry } from './outlinePath.js';
 
@@ -60,6 +62,10 @@ function RunGroup({
     [room, run, scene, settings, wall],
   );
   const swingMarks = useMemo(() => runSwingMarks(scene.faceLayouts), [scene]);
+  const pulls = useMemo(
+    () => runPulls(room, wall, run, settings, scene, doorDetails),
+    [room, wall, run, settings, scene, doorDetails],
+  );
   const {
     result, cells, faceLayouts, frames, framedIds, hiddenIds, ghostIds, subLabels,
     panels, panelPieceIds, shelves, drawnPieces,
@@ -394,6 +400,7 @@ function RunGroup({
         showTags={drawing.tags}
       />
       {drawing.swings && <SwingMarks marks={swingMarks} transform={transform} />}
+      {drawing.pulls && <Pulls pulls={pulls.pulls} transform={transform} />}
 
       {[...faceLayouts].map(([pieceId, layout]) => (
         <FaceOutlines

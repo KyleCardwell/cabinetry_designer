@@ -66,7 +66,7 @@ describe('HP2 step b canvas swing marks', () => {
   it('anchor 1: defaults the checkbox off beneath style tags and renders no swing lines', () => {
     const controls = panel().filter(({ props }) => props.type === 'checkbox');
     expect(controls.map(({ props }) => props['aria-label'])).toEqual([
-      'Draw door details', 'Show style tags', 'Show swing marks',
+      'Draw door details', 'Show style tags', 'Show swing marks', 'Show pulls',
     ]);
     expect(checkbox().props.checked).toBe(false);
     expect(state.rooms[0]).not.toHaveProperty('swingMarks');
