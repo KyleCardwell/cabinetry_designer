@@ -3,9 +3,13 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { frontDepth, runBackOffset } from '../corners.js';
 import { gridFromItems } from '../grid.js';
 import { openingsAtPoint } from '../openings.js';
+import { planDimensions } from '../planDimensions.js';
+import { wallFaceSegments } from '../wallFaceRow.js';
 import {
   createRecess,
+  cornerProjectionDepths,
   openingPlanDepths,
+  projectionDepthX,
   projectionTightSides,
   recessAnchorDatum,
   recessCorner,
@@ -232,6 +236,29 @@ describe('SPEC-38 recesses', () => {
     expect(projectionTightSides(room, host, P, 240)).toEqual({ left: false, right: false });
     expect(projectionTightSides(room, host, { ...tightP, offsetFrom: 'left' }, 240)).toEqual({ left: false, right: false });
     expect(projectionTightSides(room, host, { ...R, offset: 0 }, 240)).toEqual({ left: false, right: false });
+  });
+
+  it('dimensions a projection\'s depth, and the corner wall from the face of one tight to it', () => {
+    const tightP = { ...P, offset: 0 };
+    expect(projectionDepthX(P, 240, 108)).toBe(213);
+    expect(projectionDepthX(tightP, 240, 108, { right: true })).toBe(195);
+    const host = wall([tightP], { connections: { start: null, end: { wallId: 'V', endpoint: 'start' } } });
+    const side = {
+      id: 'V', x1: 240, y1: 0, x2: 240, y2: 120, height: 108, thickness: 4.5, flipped: false,
+      runs: [], openings: [], recesses: [], connections: { start: { wallId: 'H', endpoint: 'end' }, end: null },
+    };
+    const room = { walls: [host, side] };
+    const depths = cornerProjectionDepths(room, side, 'front');
+    expect(Object.values(depths).sort()).toEqual([0, 18]);
+    const segments = wallFaceSegments(room, side, 'front', S);
+    const corner = depths.left ? segments[0] : segments[segments.length - 1];
+    expect(corner).toMatchObject({ kind: 'recess' });
+    expect(corner.end - corner.start).toBe(18);
+    expect(segments.map(({ end, start }) => end - start).reduce((one, two) => one + two)).toBe(120);
+    // Off the corner: nothing to dimension from.
+    expect(cornerProjectionDepths({ walls: [{ ...host, recesses: [P] }, side] }, side, 'front')).toEqual({ left: 0, right: 0 });
+    const depthRows = planDimensions(room, S).filter(({ row, text }) => row === 'depth' && text === '18');
+    expect(depthRows).toHaveLength(1);
   });
 
   it('cuts a door through what is left behind a recess back, and splits spans around ranges', () => {

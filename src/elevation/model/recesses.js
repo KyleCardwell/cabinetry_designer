@@ -4,7 +4,7 @@ import { clamp, wallLength } from './geometry.js';
 import { verticalStart } from './overlap.js';
 import { positionReadouts, startFromReadout, stretchedStart } from './positions.js';
 import { roundTo } from './units.js';
-import { wallSideOf, wallSideView } from './wallSides.js';
+import { wallSideFrame, wallSideOf, wallSideView } from './wallSides.js';
 
 /** SPEC-38: a recess is cut back into a wall face; a projection is built out from it. */
 export const RECESS_KINDS = ['recess', 'projection'];
@@ -245,6 +245,35 @@ export function projectionTightSides(room, wall, recess, length) {
     left: x <= EPSILON && cornerAt(room, view, 'left').type === 'inside',
     right: x + width >= length - EPSILON && cornerAt(room, view, 'right').type === 'inside',
   };
+}
+
+/**
+ * Where a projection's depth dimension runs across it in plan (Kyle 2026-10-16): through the middle of its
+ * half away from a corner it's tight to, clear of its centred label. An offset along the face.
+ */
+export function projectionDepthX(recess, length, height, tight = {}) {
+  const { x, width } = recessGeometry(recess, length, height);
+  return tight.right && !tight.left ? x + width / 4 : x + (width * 3) / 4;
+}
+
+/**
+ * How far projections tight into this face's inside corners stand out along it (Kyle 2026-10-16), by end
+ * ({ left, right }, 0 for none): the face is dimensioned from the projection's face there.
+ */
+export function cornerProjectionDepths(room, wall, side = 'front') {
+  const view = wallSideView(wall, side);
+  return Object.fromEntries(['left', 'right'].map((end) => {
+    const corner = cornerAt(room, view, end);
+    const neighbor = corner.type === 'inside'
+      ? room.walls.find((candidate) => candidate.id === corner.neighborWallId)
+      : null;
+    if (!neighbor) return [end, 0];
+    const { length } = wallSideFrame(room, neighbor, corner.neighborWallSide);
+    const depths = recessesOn(neighbor, corner.neighborWallSide)
+      .filter((recess) => projectionTightSides(room, neighbor, recess, length)[corner.neighborSide])
+      .map((recess) => recess.depth);
+    return [end, Math.max(0, ...depths)];
+  }));
 }
 
 /**

@@ -4,7 +4,7 @@ import { frontDepth } from './corners.js';
 import { plotScale } from './drawingScale.js';
 import { DIMENSION_ROW_SPACING, placeLabels } from './elevationDimensions.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
-import { recessesOn } from './recesses.js';
+import { projectionDepthX, projectionTightSides, recessesOn } from './recesses.js';
 import { elevationKey, elevationLetters } from './topology.js';
 import { wallFaceSegments } from './wallFaceRow.js';
 import { wallBuiltEnds } from './wallEndPanels.js';
@@ -96,11 +96,22 @@ function depthRecords(room, wall, run, settings) {
   return rowRecords('depth', [{ start: 0, end: depth, kind: 'depth' }], base, outward, 0, scale).records;
 }
 
+/** A projection's depth from the face it stands on, across it (Kyle 2026-10-16). */
+function projectionDepthRecords(room, wall, recess, settings) {
+  if (recess.kind !== 'projection' || recess.depth <= EPSILON) return [];
+  const frame = wallSideFrame(room, wall, wallSideOf(recess));
+  const tight = projectionTightSides(room, wall, recess, frame.length);
+  const x = projectionDepthX(recess, frame.length, wall.height, tight);
+  const base = (t) => elevationToPlan(frame, x, t);
+  return rowRecords('depth', [{ start: 0, end: recess.depth, kind: 'depth' }], base, frame.r, 0, plotScale(settings))
+    .records;
+}
+
 /**
  * The plan's dimensions for the DXF (SPEC-45): aligned, in plan inches with y up, reading from the bottom
  * or the right. Per wall, outside it, the front face row then the overall length, 3/8" (paper) apart past
  * the wall, its bump-out and the lettered face behind it; a back face row on the room side. Then each run's depth across it, by type
- * lane, and the island and aisle clearances (SPEC-45.2).
+ * lane, each projection's depth across it, and the island and aisle clearances (SPEC-45.2).
  */
 export function planDimensions(room, settings) {
   const scale = plotScale(settings);
@@ -145,6 +156,7 @@ export function planDimensions(room, settings) {
   }
   for (const wall of room.walls) {
     for (const run of wall.runs ?? []) records.push(...depthRecords(room, wall, run, settings));
+    for (const recess of wall.recesses ?? []) records.push(...projectionDepthRecords(room, wall, recess, settings));
   }
   for (const { kind, from, to, length } of planClearances(room, settings)) {
     if (length <= EPSILON) continue;

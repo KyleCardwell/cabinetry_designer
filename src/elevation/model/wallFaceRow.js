@@ -1,5 +1,5 @@
 import { faceFeatures } from './faceFeatures.js';
-import { uncoveredSpans } from './recesses.js';
+import { cornerProjectionDepths, uncoveredSpans } from './recesses.js';
 import { wallSideFrame } from './wallSides.js';
 
 const EPSILON = 1e-6;
@@ -7,7 +7,8 @@ const EPSILON = 1e-6;
 /**
  * The plan dimension row along one face of a wall (SPEC-36.3.1), between the wall and its length:
  * each wing wall landing on that face and, on the front, each door or window from outside casing to
- * outside casing (its jamb when it has no casing), with the spaces between them and the face's ends.
+ * outside casing (its jamb when it has no casing), each recess or projection, and a projection tight into
+ * either corner at its depth, with the spaces between them and the face's ends.
  * Returns segments { start, end, kind: 'space' | 'landing' | 'opening' | 'recess' } left to right along the face,
  * or [] when the face has nothing to dimension.
  */
@@ -30,6 +31,10 @@ export function wallFaceSegments(room, wall, side, settings) {
       spans.push({ a: part.start, b: part.end, kind: 'recess' });
     }
   }
+  // A projection tight into a corner of this face: dimension the face from the projection's face.
+  const corners = cornerProjectionDepths(room, wall, side);
+  if (corners.left > EPSILON) spans.push({ a: 0, b: corners.left, kind: 'recess' });
+  if (corners.right > EPSILON) spans.push({ a: length - corners.right, b: length, kind: 'recess' });
   if (spans.length === 0) return [];
   const segments = [];
   let cursor = 0;
