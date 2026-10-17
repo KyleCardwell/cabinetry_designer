@@ -47,6 +47,7 @@ export default function PlanScene({
       {walls.flatMap((wall) => (wall.recesses ?? []).map((recess) => (
         <PlanRecess
           key={`${wall.id}:${recess.id}`}
+          room={room}
           wall={wall}
           frame={wallSideFrame(room, wall, recess.wallSide)}
           recess={recess}

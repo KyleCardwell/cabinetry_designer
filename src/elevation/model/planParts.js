@@ -4,7 +4,7 @@ import { elevationToPlan, wallFrame } from './geometry.js';
 import { openingGeometry } from './openings.js';
 import { wallEndPanelPartKey } from './parts.js';
 import { planRunPieces } from './planPieces.js';
-import { openingPlanDepths, recessPlanShape } from './recesses.js';
+import { openingPlanDepths, projectionTightSides, recessPlanShape } from './recesses.js';
 import { resolveWall } from './room.js';
 import { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
 import { wallOutline } from './wallOutline.js';
@@ -37,7 +37,8 @@ export function planParts(room, settings) {
 
     for (const recess of wall.recesses ?? []) {
       const frame = wallSideFrame(room, wall, recess.wallSide);
-      const shape = recessPlanShape(recess, frame.length, wall.height, wall.thickness);
+      const tight = projectionTightSides(room, wall, recess, frame.length);
+      const shape = recessPlanShape(recess, frame.length, wall.height, wall.thickness, tight);
       if (shape.fill) {
         parts.push({ id: `${recess.id}:fill`, kind: 'wall', points: planPoints(frame, shape.fill) });
       }

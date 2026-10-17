@@ -1,6 +1,6 @@
 import { Group, Line, Text } from 'react-konva';
 import { elevationToPlan } from '../model/geometry.js';
-import { recessGeometry, recessPlanShape } from '../model/recesses.js';
+import { projectionTightSides, recessGeometry, recessPlanShape } from '../model/recesses.js';
 import { formatInches } from '../model/units.js';
 import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
 import { readableRotation } from './textRotation.js';
@@ -16,8 +16,9 @@ function toPoints(frame, points) {
  * A recess or projection in plan (SPEC-38): wall added (a deep recess's bump-out, a projection), the notch
  * knocked out of the wall, and its outline, dashed when it's raised off the floor. Not clickable.
  */
-export default function PlanRecess({ wall, frame, recess, scale, selected }) {
-  const shape = recessPlanShape(recess, frame.length, wall.height, wall.thickness);
+export default function PlanRecess({ room, wall, frame, recess, scale, selected }) {
+  const tight = projectionTightSides(room, wall, recess, frame.length);
+  const shape = recessPlanShape(recess, frame.length, wall.height, wall.thickness, tight);
   const geometry = recessGeometry(recess, frame.length, wall.height);
   // The knockout's face edge sits a pixel into the room so it also hides the wall's face line.
   const knockout = shape.knockout?.map(([u, v]) => [u, v === 0 ? 1 / scale : v]) ?? null;

@@ -1,10 +1,10 @@
 import { v4 as uuid } from 'uuid';
-import { runBackOffset } from './corners.js';
+import { cornerAt, runBackOffset } from './corners.js';
 import { clamp, wallLength } from './geometry.js';
 import { verticalStart } from './overlap.js';
 import { positionReadouts, startFromReadout, stretchedStart } from './positions.js';
 import { roundTo } from './units.js';
-import { wallSideOf } from './wallSides.js';
+import { wallSideOf, wallSideView } from './wallSides.js';
 
 /** SPEC-38: a recess is cut back into a wall face; a projection is built out from it. */
 export const RECESS_KINDS = ['recess', 'projection'];
@@ -234,18 +234,49 @@ export function recessWarnings(wall, run) {
 }
 
 /**
+ * Which ends of a projection sit tight to an inside corner (Kyle 2026-10-16): there the corner's wall is its
+ * side, so the plan shell has no side of its own and the corner reads as notched. `length` is the face length.
+ */
+export function projectionTightSides(room, wall, recess, length) {
+  if (kindOf(recess) !== 'projection') return { left: false, right: false };
+  const view = wallSideView(wall, wallSideOf(recess));
+  const { x, width } = recessGeometry(recess, length, wall.height);
+  return {
+    left: x <= EPSILON && cornerAt(room, view, 'left').type === 'inside',
+    right: x + width >= length - EPSILON && cornerAt(room, view, 'right').type === 'inside',
+  };
+}
+
+/**
  * A recess or projection in plan (SPEC-38), in face coordinates [u along the face, v out from it]:
  * `knockout` (cut out of the wall), `fill` (wall added: a deep recess's bump-out (raised or not), or a
  * projection on the floor), `lines` (its outline), `dashed` (raised off the floor: the wall is solid at the floor and only the outline shows),
- * `label` (a point). A recess at least as deep as the wall keeps the wall's thickness around it.
+ * `label` (a point). A recess at least as deep as the wall keeps the wall's thickness around it; so does a
+ * projection deeper than the wall, without a side where it's `tight` ({ left, right }) to a corner.
  */
-export function recessPlanShape(recess, length, height, thickness) {
+export function recessPlanShape(recess, length, height, thickness, tight = {}) {
   const geometry = recessGeometry(recess, length, height);
   const a = geometry.x;
   const b = geometry.x + geometry.width;
   const d = geometry.depth;
   const dashed = geometry.bottom > EPSILON;
   if (kindOf(recess) === 'projection') {
+    const t = thickness;
+    const inA = tight.left ? a : a + t;
+    const inB = tight.right ? b : b - t;
+    // Deeper than the wall: framed like a wall, so it's the wall's thickness around a hollow (Kyle 2026-10-16).
+    if (!dashed && t > EPSILON && d > t + EPSILON && inB - inA > EPSILON) {
+      const outer = [...(tight.left ? [] : [[a, 0]]), [a, d], [b, d], ...(tight.right ? [] : [[b, 0]])];
+      const inner = [...(tight.right ? [] : [[inB, 0]]), [inB, d - t], [inA, d - t], ...(tight.left ? [] : [[inA, 0]])];
+      const segments = (path) => path.slice(1).map((point, index) => [path[index], point]);
+      return {
+        dashed,
+        knockout: null,
+        fill: [...outer, ...inner],
+        lines: [...segments(outer), ...segments(inner)],
+        label: [(a + b) / 2, d / 2],
+      };
+    }
     return {
       dashed,
       knockout: null,

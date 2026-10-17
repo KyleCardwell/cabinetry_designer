@@ -6,6 +6,7 @@ import { openingsAtPoint } from '../openings.js';
 import {
   createRecess,
   openingPlanDepths,
+  projectionTightSides,
   recessAnchorDatum,
   recessCorner,
   recessEdges,
@@ -186,13 +187,51 @@ describe('SPEC-38 recesses', () => {
       ],
       label: [84, -12],
     });
+    // Deeper than the wall: the wall's thickness around a hollow (Kyle 2026-10-16).
     expect(recessPlanShape(P, 240, 108, 4.5)).toEqual({
       dashed: false,
       knockout: null,
-      fill: [[168, 0], [228, 0], [228, 18], [168, 18]],
-      lines: [[[168, 0], [168, 18]], [[168, 18], [228, 18]], [[228, 18], [228, 0]]],
+      fill: [[168, 0], [168, 18], [228, 18], [228, 0], [223.5, 0], [223.5, 13.5], [172.5, 13.5], [172.5, 0]],
+      lines: [
+        [[168, 0], [168, 18]], [[168, 18], [228, 18]], [[228, 18], [228, 0]],
+        [[223.5, 0], [223.5, 13.5]], [[223.5, 13.5], [172.5, 13.5]], [[172.5, 13.5], [172.5, 0]],
+      ],
       label: [198, 9],
     });
+    // No wall thickness or no deeper than it: furred out solid.
+    expect(recessPlanShape({ ...P, depth: 4.5 }, 240, 108, 4.5)).toEqual({
+      dashed: false,
+      knockout: null,
+      fill: [[168, 0], [228, 0], [228, 4.5], [168, 4.5]],
+      lines: [[[168, 0], [168, 4.5]], [[168, 4.5], [228, 4.5]], [[228, 4.5], [228, 0]]],
+      label: [198, 2.25],
+    });
+    expect(recessPlanShape(P, 240, 108, 0).fill).toEqual([[168, 0], [228, 0], [228, 18], [168, 18]]);
+  });
+
+  it('notches the corner a projection sits tight to: the corner wall is its side there', () => {
+    const tightP = { ...P, offset: 0 };
+    expect(recessPlanShape(tightP, 240, 108, 4.5, { right: true })).toEqual({
+      dashed: false,
+      knockout: null,
+      fill: [[180, 0], [180, 18], [240, 18], [240, 13.5], [184.5, 13.5], [184.5, 0]],
+      lines: [
+        [[180, 0], [180, 18]], [[180, 18], [240, 18]],
+        [[240, 13.5], [184.5, 13.5]], [[184.5, 13.5], [184.5, 0]],
+      ],
+      label: [210, 9],
+    });
+    const host = wall([tightP], { connections: { start: null, end: { wallId: 'V', endpoint: 'start' } } });
+    const side = {
+      id: 'V', x1: 240, y1: 0, x2: 240, y2: 120, height: 108, thickness: 4.5, flipped: false,
+      runs: [], openings: [], recesses: [], connections: { start: { wallId: 'H', endpoint: 'end' }, end: null },
+    };
+    const room = { walls: [host, side] };
+    expect(projectionTightSides(room, host, tightP, 240)).toEqual({ left: false, right: true });
+    // Off the corner, or at an open end, it keeps both sides.
+    expect(projectionTightSides(room, host, P, 240)).toEqual({ left: false, right: false });
+    expect(projectionTightSides(room, host, { ...tightP, offsetFrom: 'left' }, 240)).toEqual({ left: false, right: false });
+    expect(projectionTightSides(room, host, { ...R, offset: 0 }, 240)).toEqual({ left: false, right: false });
   });
 
   it('cuts a door through what is left behind a recess back, and splits spans around ranges', () => {
