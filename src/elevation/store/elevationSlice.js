@@ -2,6 +2,7 @@ import { createSlice } from '@reduxjs/toolkit';
 import { DEFAULT_PREFS, DEFAULT_SETTINGS } from '../model/constants.js';
 import { effectiveSettings } from '../model/effectiveSettings.js';
 import { syncRoom } from '../model/room.js';
+import { defaultElevationFace } from '../model/topology.js';
 import {
   ELEVATION_SCHEMA_VERSION,
   loadElevationDocument,
@@ -34,8 +35,11 @@ export function createInitialElevationState(document = loadElevationDocument()) 
   const rooms = (document?.rooms ?? [fallbackRoom]).map((room) => syncRoom(room, effectiveSettings({ settings, prefs }, room)));
   const activeRoomId = document ? document.activeRoomId : fallbackRoom.id;
   const activeRoom = rooms.find((room) => room.id === activeRoomId) ?? null;
-  const activeWallId = document ? document.activeWallId : null;
   const emptyActiveRoom = Boolean(activeRoom && activeRoom.walls.length === 0);
+  const openFace = document?.view === 'elevation' && !document.activeWallId
+    ? defaultElevationFace(activeRoom)
+    : null;
+  const activeWallId = document ? document.activeWallId ?? openFace?.wallId ?? null : null;
   return {
     schemaVersion: ELEVATION_SCHEMA_VERSION,
     settings,
@@ -51,7 +55,7 @@ export function createInitialElevationState(document = loadElevationDocument()) 
     rooms,
     activeRoomId,
     activeWallId,
-    activeWallSide: 'front',
+    activeWallSide: openFace?.side ?? 'front',
     view: emptyActiveRoom ? 'plan' : document?.view ?? 'plan',
     selection: {
       runId: null,

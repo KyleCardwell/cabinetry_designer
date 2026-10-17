@@ -7,6 +7,7 @@ import {
   chainOrientation,
   wallHasCabinets,
   elevationLabel,
+  defaultElevationFace,
   elevationLetters,
   indexToLetters,
   nextWallId,
@@ -263,5 +264,23 @@ describe('wall topology and numbering', () => {
     expect(elevationLabel(room, room.walls[1])).toBeNull();
     expect(wallHasCabinets(room.walls[1])).toBe(false);
     expect(wallHasCabinets(room.walls[1], 'back')).toBe(true);
+  });
+
+  it('opens elevation A by default, else wall 1, else nothing', () => {
+    const room = {
+      ...roomR(),
+      wallOrder: ['A', 'B', 'C'],
+      walls: [wall('A', 0, 0, 120, 0), wall('B', 120, 0, 120, 96), wall('C', 120, 96, 0, 96)],
+    };
+    room.walls[2].numberOverride = 1;
+    expect(defaultElevationFace(room)).toEqual({ wallId: 'C', side: 'front' });
+
+    room.walls[1].runs = [{ id: 'back-run', wallSide: 'back' }];
+    expect(defaultElevationFace(room)).toEqual({ wallId: 'B', side: 'back' });
+
+    room.walls[0].runs = [{ id: 'base-run' }];
+    expect(defaultElevationFace(room)).toEqual({ wallId: 'A', side: 'front' });
+
+    expect(defaultElevationFace({ ...roomR(), walls: [] })).toBeNull();
   });
 });

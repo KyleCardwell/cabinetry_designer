@@ -1,6 +1,7 @@
 import { DEFAULT_PREFS } from '../../model/constants.js';
 import { PAPER_SIZES, PLOT_SCALES } from '../../model/drawingScale.js';
 import { wallSideOf } from '../../model/wallSides.js';
+import { defaultElevationFace } from '../../model/topology.js';
 import { registryEntry } from '../../model/settingsRegistry.js';
 import { isValidSettingValue, withOverride } from '../../model/settingsResolve.js';
 import {
@@ -66,6 +67,12 @@ export const uiReducers = {
       if (view !== 'plan' && view !== 'elevation') return;
       state.view = view;
       state.tool = 'select';
+      const room = roomFor(state);
+      if (view === 'elevation' && !room?.walls.some((wall) => wall.id === state.activeWallId)) {
+        const face = defaultElevationFace(room);
+        state.activeWallId = face?.wallId ?? null;
+        state.activeWallSide = face?.side ?? 'front';
+      }
       clearTransientSelection(state);
       if (view === 'elevation') state.selection.wallId = state.activeWallId;
     },

@@ -91,12 +91,15 @@ function fillerSpan(run, piece, settings) {
   return { start: piece.x, end: piece.x + width };
 }
 
+/** A cabinet's faces seen in plan: open sections have no face to draw, so the box front shows instead. */
 function cabinetFaces(piece, faceLayouts) {
   const resolved = faceLayouts.get(piece.id)?.faces;
   const faces = resolved?.length > 0
     ? resolved
     : [{ path: 'r', x: piece.x, z: piece.z, width: piece.width, height: piece.height }];
-  return faces.map((face) => ({ ...face, piece }));
+  return faces
+    .filter((face) => face.type !== 'open')
+    .map((face) => ({ ...face, piece }));
 }
 
 function planFaces(run, settings, pieces, faceLayouts, panels, band, faceBack, faceFront, fillerBand) {

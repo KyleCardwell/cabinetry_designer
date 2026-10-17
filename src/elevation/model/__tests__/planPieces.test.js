@@ -481,4 +481,21 @@ describe('SPEC-34.2 plan from cells', () => {
       key.startsWith('ov:') && back === 21.0625 && front === 21.875
     ))).toBe(true);
   });
+
+  it('draws no face rectangle over an open cabinet or its open sections', () => {
+    const faceRanges = (face) => {
+      const { room, wall, run, layout, faceLayouts } = fixture({
+        items: [{ id: 'c1', kind: 'cabinet', width: 27, face }],
+      });
+      return planRunPieces(room, wall, run, DEFAULT_SETTINGS, layout, faceLayouts)
+        .faces.filter(({ kind }) => kind === 'face');
+    };
+    expect(faceRanges({ type: 'open', size: null })).toEqual([]);
+    expect(faceRanges({
+      direction: 'vertical',
+      size: null,
+      children: [{ type: 'open', size: null }, { type: 'drawer_front', size: 6 }],
+    })).toHaveLength(1);
+  });
 });
+

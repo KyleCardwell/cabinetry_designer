@@ -249,6 +249,20 @@ export function elevationLetters(room) {
   return letters;
 }
 
+/**
+ * The face the elevation view opens to when no wall is picked: elevation A when the room has one,
+ * else wall 1's front. Null for a room without walls.
+ */
+export function defaultElevationFace(room) {
+  const [firstKey] = elevationLetters(room).keys();
+  if (firstKey) {
+    const back = firstKey.endsWith(':back');
+    return { wallId: back ? firstKey.slice(0, -':back'.length) : firstKey, side: back ? 'back' : 'front' };
+  }
+  const numbers = [...wallNumbers(room)].sort((one, two) => one[1] - two[1]);
+  return numbers.length ? { wallId: numbers[0][0], side: 'front' } : null;
+}
+
 /** "Elevation A", or null when the wall has no letter. */
 export function elevationLabel(room, wallOrView) {
   const key = elevationKey(wallOrView.id, wallOrView.side ?? 'front');

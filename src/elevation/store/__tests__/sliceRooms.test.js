@@ -183,6 +183,15 @@ describe('elevation room reducers', () => {
     });
   });
 
+  it('opens elevation A when entering elevation view with no wall picked', () => {
+    const initial = { ...elevationReducer(stateWithRun(), setView('plan')), activeWallId: null };
+
+    const next = elevationReducer(initial, setView('elevation'));
+    expect(next.activeWallId).toBe('wall-1');
+    expect(next.activeWallSide).toBe('front');
+    expect(next.selection.wallId).toBe('wall-1');
+  });
+
   it('4. clears a deleted wall selection and moves the active wall', () => {
     const initial = stateWithRun();
     initial.rooms[0].walls.push({
