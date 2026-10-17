@@ -1,4 +1,6 @@
 import { findLeaf } from '../elevation/model/cellTree.js';
+import { boxConstruction } from '../elevation/model/boxConstruction.js';
+import { CABINET_TYPE_IDS } from '../elevation/model/constants.js';
 import { panelOrientation } from '../elevation/model/cells.js';
 import { frontDepth, runBackOffset } from '../elevation/model/corners.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
@@ -270,7 +272,10 @@ function shippingSize(room, settings, part, context) {
 
 function cabinetNotes(room, settings, part, context) {
   if (part.kind !== 'cabinet') return {};
-  const { scene, leaf, rabbets, run } = context;
+  const { scene, leaf, rabbets, run, wall } = context;
+  const box = boxConstruction(leaf, run, wall);
+  const fullTop = box.top === 'between' || box.top === 'overlay';
+  const base = run.cabinetTypeId === CABINET_TYPE_IDS.BASE;
   const layout = scene.faceLayouts.get(part.key);
   const faces = layout?.faces ?? [];
   const boxes = room.reportParts?.[part.key]?.boxes;
@@ -287,7 +292,24 @@ function cabinetNotes(room, settings, part, context) {
   const falseFronts = faces.filter((face) => face.type === 'false_front').length;
   return {
     1: boxes && boxes !== settings.report?.boxMaterial ? `${boxes} BOX` : null,
+    1.5: [
+      base && fullTop ? 'full top' : null,
+      !base && box.top === 'spreaders' ? 'top spreaders' : null,
+      box.top === 'none' ? 'no top' : null,
+      box.top === 'overlay' && box.bottom === 'overlay' ? 'top & bottom overlay sides'
+        : box.top === 'overlay' ? 'top overlays sides'
+          : box.bottom === 'overlay' ? 'bottom overlays sides' : null,
+      box.finTop ? 'fin top (dowel front holes)' : null,
+      box.finBottom ? 'fin bottom (dowel front holes)' : null,
+    ],
     2: reveals.length ? `RV's (${reveals.join(', ')})` : null,
+    2.5: [
+      box.bottom === 'none' ? 'no deck' : null,
+      box.bottom === 'spreaders' ? 'bottom spreaders' : null,
+      { inset: '3/4" inset back', applied: '1/4" applied back', none: 'no back' }[box.back],
+      box.left === false ? 'no left side' : null,
+      box.right === false ? 'no right side' : null,
+    ],
     3: blind ? `Door x ${formatInch(doorWidth)}, Blind x ${formatInch(blind.extension)}` : null,
     4: drawerFrontNote(faces),
     5: falseFronts ? falseFronts === 1 ? 'false front' : `${falseFronts} false fronts` : null,
