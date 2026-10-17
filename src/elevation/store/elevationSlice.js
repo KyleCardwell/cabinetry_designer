@@ -175,6 +175,7 @@ export const {
   setItemWidth,
   setItemPin,
   setItemAbsorb,
+  setCabinetPurpose,
   lockItem,
   unlockItem,
   splitItem,

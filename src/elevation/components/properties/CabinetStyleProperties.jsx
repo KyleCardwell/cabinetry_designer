@@ -1,14 +1,16 @@
 import { useDispatch } from 'react-redux';
 import {
+  CABINET_PURPOSES,
   REVEAL_KEYS,
   REVEAL_SOURCE_LABELS,
   formatInches,
   isInsetStyle,
   resolveStyle,
 } from '../../model/index.js';
-import { setCabinetPullHeight, setDoorStylePick, setPullPick, setItemReveals, setItemStyle } from '../../store/elevationSlice.js';
+import { setCabinetPullHeight, setCabinetPurpose, setDoorStylePick, setPullPick, setItemReveals, setItemStyle } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import DoorStylePicks from './DoorStylePicks.jsx';
+import Field from './Field.jsx';
 import PullPicks from './PullPicks.jsx';
 import StyleFields from './StyleFields.jsx';
 
@@ -39,6 +41,21 @@ export default function CabinetStyleProperties({ room, wall, run, item, itemIds 
   return (
     <section className="space-y-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Cabinet style</h3>
+      <Field label="Purpose">
+        <select
+          value={item.purpose ?? ''}
+          onChange={(event) => dispatch(setCabinetPurpose({
+            ...pullTargets, purpose: event.target.value || null,
+          }))}
+          aria-label="Cabinet purpose"
+          className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+        >
+          <option value="">None</option>
+          {CABINET_PURPOSES.map(([value, label]) => (
+            <option key={value} value={value}>{label}</option>
+          ))}
+        </select>
+      </Field>
       <StyleFields
         label="Cabinet"
         level="Cabinet"

@@ -1,5 +1,6 @@
 import { isPlainObject } from '@reduxjs/toolkit';
 import {
+  CABINET_PURPOSE_IDS,
   CABINET_TYPE_IDS,
   DEFAULT_PROFILE,
   DEFAULT_PREFS,
@@ -232,7 +233,8 @@ function isItem(item) {
       || (item.kind === 'cabinet' && isStyle(item.style)))
     && (item.reveals === undefined || item.reveals === null
       || (item.kind === 'cabinet' && isOptionalNumericObject(item.reveals, REVEAL_KEYS)))
-    && (item.tFiller === undefined || (item.kind === 'cabinet' && isTFillerSides(item.tFiller)));
+    && (item.tFiller === undefined || (item.kind === 'cabinet' && isTFillerSides(item.tFiller)))
+    && (item.purpose === undefined || (item.kind === 'cabinet' && CABINET_PURPOSE_IDS.has(item.purpose)));
 }
 
 function isOptionalNumericObject(value, allowedKeys) {

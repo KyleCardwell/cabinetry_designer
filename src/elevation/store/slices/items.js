@@ -1,5 +1,7 @@
 import { v4 as uuid } from 'uuid';
+import { CABINET_PURPOSE_IDS } from '../../model/constants.js';
 import {
+  gridLeaves,
   insertRootColumn,
   removeRootColumn,
   runItems,
@@ -85,6 +87,21 @@ export const itemReducers = {
     location.run.grid = updateRootItem(location.run.grid, item.id, {
       absorb: Boolean(action.payload.value ?? action.payload.absorb),
     });
+    syncRoomAt(state, location.roomIndex);
+  },
+  /** IN1a: `purpose` on cabinets (any depth in the grid); null clears it. */
+  setCabinetPurpose(state, action) {
+    const { itemIds = [], purpose } = action.payload;
+    if (purpose !== null && !CABINET_PURPOSE_IDS.has(purpose)) return;
+    const location = runLocation(state, action.payload);
+    if (!location?.run.grid) return;
+    const targets = gridLeaves(location.run.grid)
+      .filter((leaf) => leaf.kind === 'cabinet' && itemIds.includes(leaf.id));
+    if (!targets.length) return;
+    for (const target of targets) {
+      if (purpose === null) delete target.purpose;
+      else target.purpose = purpose;
+    }
     syncRoomAt(state, location.roomIndex);
   },
   lockItem(state, action) {

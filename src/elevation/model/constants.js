@@ -151,6 +151,22 @@ export const DEFAULT_SETTINGS = {
 
 export const FRAME_JOINS = ['miter', 'butt'];
 
+/**
+ * What a cabinet is for (INTERIORS-PLAN ID4). Set by hand, never guessed; shop rules key off it
+ * (spreaders and no "full top" for sink/cooktop, ROT and hamper boxes, slide rules…). Absent = none.
+ */
+export const CABINET_PURPOSES = [
+  ['sink', 'Sink'],
+  ['cooktop', 'Cooktop'],
+  ['oven', 'Oven'],
+  ['trash', 'Trash (ROT)'],
+  ['hamper', 'Hamper'],
+  ['file', 'File drawers'],
+  ['charging', 'Charging drawer'],
+  ['medicine', 'Medicine cabinet'],
+];
+export const CABINET_PURPOSE_IDS = new Set(CABINET_PURPOSES.map(([id]) => id));
+
 /** Display labels for derived piece kinds. */
 export const KIND_LABELS = {
   cabinet: 'Cabinet',

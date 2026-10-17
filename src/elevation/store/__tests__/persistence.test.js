@@ -92,6 +92,21 @@ function currentDocument() {
   };
 }
 
+describe('IN1a cabinet purpose persistence', () => {
+  it('accepts a known purpose on a cabinet only', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    for (const [purpose, valid] of [['sink', true], ['charging', true], ['garage', false], ['', false], [null, false]]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.purpose = purpose;
+      expect(isElevationDocument(document)).toBe(valid);
+    }
+    const document = structuredClone(base);
+    const cell = document.rooms[0].walls[0].runs[0].grid.cells[0];
+    cell.node = { ...cell.node, kind: 'filler', purpose: 'sink' };
+    expect(isElevationDocument(document)).toBe(false);
+  });
+});
+
 describe('HP3c step a pull reference persistence', () => {
   it('validates optional positive cabinet pull heights without changing stored leaf placement (HP4 anchor 5)', () => {
     const base = normalizeElevationDocument(currentDocument());
