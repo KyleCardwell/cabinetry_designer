@@ -1,3 +1,5 @@
+import { formatInches } from '../model/units.js';
+
 const DEFAULT_PADDING = {
   top: 64,
   right: 48,
@@ -39,6 +41,22 @@ export function fitWallToViewport(wall, viewport, padding = DEFAULT_PADDING) {
     offsetY: inset.top + (availableHeight - drawnHeight) / 2,
     wallHeight: wall.height,
   };
+}
+
+/** Place every combined face relative to the opened face's transform, sharing the floor. */
+export function combinedFaceTransforms(transform, combined, activeKey) {
+  if (!combined) return new Map();
+  const active = combined.faces.find((face) => face.key === activeKey);
+  return new Map(combined.faces.map((face) => [face.key, {
+    ...transform,
+    offsetX: transform.offsetX + (face.dx - active.dx) * transform.scale,
+  }]));
+}
+
+/** A face's depth relative to the opened face (not necessarily the group's lead). */
+export function combinedDepthNote(face, reference) {
+  const delta = face.depth - reference.depth;
+  return Math.abs(delta) <= 1e-6 ? null : `${formatInches(Math.abs(delta))} ${delta < 0 ? 'back' : 'out'}`;
 }
 
 /**

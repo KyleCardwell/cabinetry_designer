@@ -12,8 +12,11 @@ const PART_STYLES = {
 };
 
 /** Runs on a connected wall that reach past this face's ends, seen from the side (SPEC-42.2). */
-export default function NeighborProfiles({ room, wall, settings, transform }) {
-  return cornerShapes(room, wall, wall.side ?? 'front', settings)
+export default function NeighborProfiles({
+  room, wall, settings, transform,
+  shapes = cornerShapes(room, wall, wall.side ?? 'front', settings),
+}) {
+  return shapes
     .filter((shape) => shape.kind === 'profile')
     .map((shape) => (
       <Group key={shape.key} listening={false}>

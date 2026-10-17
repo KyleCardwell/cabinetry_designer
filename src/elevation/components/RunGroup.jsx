@@ -47,6 +47,7 @@ function RunGroup({
   onEditTrack,
   stretchable = false,
   preview = false,
+  showDimensions = true,
   onStretchStart,
   onStretchMove,
   onStretchEnd,
@@ -414,14 +415,16 @@ function RunGroup({
         />
       ))}
 
-      <CellChains
-        grids={cells.grids}
-        transform={transform}
-        editable={stretchable && !preview && Boolean(onEditTrack)}
-        onEditTrack={(edit) => onEditTrack(run.id, edit)}
-      />
+      {showDimensions && (
+        <CellChains
+          grids={cells.grids}
+          transform={transform}
+          editable={stretchable && !preview && Boolean(onEditTrack)}
+          onEditTrack={(edit) => onEditTrack(run.id, edit)}
+        />
+      )}
 
-      {result.pieces.flatMap((piece) => {
+      {showDimensions && result.pieces.flatMap((piece) => {
         const item = piece.role === 'item'
           ? runItems(run).find((candidate) => candidate.id === piece.id)
           : null;
@@ -450,7 +453,7 @@ function RunGroup({
         )];
       })}
 
-      {centerlineMarkers(run, result.pieces, wall, wall.length, settings).map((marker) => {
+      {showDimensions && centerlineMarkers(run, result.pieces, wall, wall.length, settings).map((marker) => {
         const datum = wallRectToScreen({ x: marker.datumX, z: marker.z, width: 0, height: 0 }, transform);
         const center = wallRectToScreen({ x: marker.x, z: marker.z, width: 0, height: 0 }, transform);
         const spanTop = wallRectToScreen({

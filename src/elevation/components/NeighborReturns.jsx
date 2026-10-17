@@ -17,9 +17,12 @@ import { outlineGeometry, outlinePath } from './outlinePath.js';
  * What this face sees of its neighbours at its corners and wing walls (SPEC-42.2): each return from
  * cornerShapes (sections hatched, their bands outlined) with its wall's label, and each wing wall's outline.
  */
-export default function NeighborReturns({ room, wall, settings, transform }) {
+export default function NeighborReturns({
+  room, wall, settings, transform,
+  shapes = cornerShapes(room, wall, wall.side ?? 'front', settings),
+}) {
   const seams = soffitSeams(room, wall);
-  const returns = cornerShapes(room, wall, wall.side ?? 'front', settings)
+  const returns = shapes
     .filter((shape) => shape.kind === 'return')
     .map((shape) => {
       const neighbor = room.walls.find((candidate) => candidate.id === shape.wallId);

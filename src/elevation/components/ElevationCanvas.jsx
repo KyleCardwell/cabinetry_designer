@@ -40,6 +40,8 @@ import {
 import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
 import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../model/constants.js';
+import { combinedViewOf } from '../model/combinedElevations.js';
+import { elevationKey } from '../model/topology.js';
 import { createRun } from '../model/runDefaults.js';
 import { runItems } from '../model/grid.js';
 import {
@@ -88,7 +90,10 @@ import {
   setTrackSize,
   setMessage,
   setSelection,
+  setActiveWall,
+  setActiveWallSide,
 } from '../store/elevationSlice.js';
+import CombinedFaces, { resolveCombinedFaces } from './CombinedFaces.jsx';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import ElevationDimensions from './ElevationDimensions.jsx';
 import ElevationPreviews from './ElevationPreviews.jsx';
@@ -182,6 +187,16 @@ function ElevationCanvas({
   entryRef.current = entry;
   const entryValue = resolveLiveEntryValue(entry);
   const wallId = wall?.id ?? null;
+  const activeKey = elevationKey(wallId, wall?.side);
+  const combined = useMemo(
+    () => (room && wall ? combinedViewOf(room, wall.id, wall.side) : null),
+    [room, wall],
+  );
+  const combinedFaces = useMemo(
+    () => (combined ? resolveCombinedFaces(room, combined, settings) : null),
+    [combined, room, settings],
+  );
+  const viewKey = combined?.id ?? activeKey;
   const diagnostics = useMemo(
     () => (room ? roomDiagnostics(room, settings) : {}),
     [room, settings],
@@ -296,7 +311,7 @@ function ElevationCanvas({
 
   useEffect(() => {
     resetView();
-  }, [fitRequest, resetView, wallId]);
+  }, [fitRequest, resetView, viewKey]);
 
   useEffect(() => {
     if (tool !== 'draw' && tool !== 'soffit') cancelDrag();
@@ -401,16 +416,22 @@ function ElevationCanvas({
     };
   }, [dispatch, stopPanning]);
 
-  const baseTransform = useMemo(() => (
-    wall && viewport.width > 0 && viewport.height > 0
-      ? fitWallToViewport(wall, viewport, {
+  const baseTransform = useMemo(() => {
+    if (!wall || viewport.width <= 0 || viewport.height <= 0) return null;
+    // A group's padding stays fixed when the opened face (and its dimension rows) changes.
+    const fitted = fitWallToViewport(combined ?? wall, viewport, combined
+      ? { top: 96, right: 74, bottom: 152, left: 136 }
+      : {
         top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
         right: 48 + (dimensionChains?.vertical.right.middle.length > 0 ? 26 : 0),
         bottom: dimensionChains?.openings.length > 0 ? 152 : 96,
         left: 110 + (dimensionChains?.vertical.left.middle.length > 0 ? 26 : 0),
-      })
-      : null
-  ), [
+      });
+    if (combined) fitted.offsetX += combined.faces.find((face) => face.key === activeKey).dx * fitted.scale;
+    return fitted;
+  }, [
+    activeKey,
+    combined,
     dimensionChains?.openings.length,
     dimensionChains?.upper.inner.length,
     dimensionChains?.vertical.left.middle.length,
@@ -1081,6 +1102,22 @@ function ElevationCanvas({
               crownTop={profile?.crownTop}
             />
           </Layer>
+          {combined && (
+            <CombinedFaces
+              room={room}
+              combined={combined}
+              faces={combinedFaces}
+              activeKey={activeKey}
+              settings={settings}
+              diagnostics={diagnostics}
+              transform={transform}
+              onActivate={(face) => {
+                if (suppressClickRef.current) return;
+                dispatch(setActiveWall(face.wallId));
+                dispatch(setActiveWallSide(face.side));
+              }}
+            />
+          )}
           <Layer>
             <RecessShapes
               wall={wall}
@@ -1165,12 +1202,14 @@ function ElevationCanvas({
               wall={wall}
               settings={settings}
               transform={transform}
+              shapes={combinedFaces?.get(activeKey).shapes}
             />
             <NeighborProfiles
               room={room}
               wall={wall}
               settings={settings}
               transform={transform}
+              shapes={combinedFaces?.get(activeKey).shapes}
             />
             {selection.recessId && (
               <RecessOutline wall={wall} transform={transform} recessId={selection.recessId} />

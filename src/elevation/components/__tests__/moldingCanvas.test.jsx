@@ -8,6 +8,7 @@ import Hatch from '../Hatch.jsx';
 import NeighborProfiles from '../NeighborProfiles.jsx';
 import NeighborReturns from '../NeighborReturns.jsx';
 import RunGroup from '../RunGroup.jsx';
+import CellChains from '../CellChains.jsx';
 
 // Inspect Konva nodes without a browser or canvas runtime.
 vi.mock('react', async (original) => ({
@@ -81,6 +82,13 @@ describe('SPEC-50.8 step 500 nosing canvas', () => {
     props.settings = { ...props.settings, sectionProfiles: [nz1] };
     return nodes(RunGroup.type(props));
   };
+
+  it('suppresses internal dimensions for inactive combined faces without changing normal runs', () => {
+    const props = setup();
+    expect(nodes(RunGroup.type(props)).some(({ type }) => type === CellChains)).toBe(true);
+    const inactive = nodes(RunGroup.type({ ...props, showDimensions: false }));
+    expect(inactive.some(({ type }) => type === CellChains)).toBe(false);
+  });
 
   it('draws the wood nosing outline as a closed path and its thin elevation line', () => {
     const tree = render('wood', 'nz1');
