@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid';
-import { CABINET_PURPOSE_IDS } from '../../model/constants.js';
+import { BOX_BACKS, BOX_KEYS, BOX_TOPS, CABINET_PURPOSE_IDS } from '../../model/constants.js';
 import {
   gridLeaves,
   insertRootColumn,
@@ -101,6 +101,31 @@ export const itemReducers = {
     for (const target of targets) {
       if (purpose === null) delete target.purpose;
       else target.purpose = purpose;
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  /** IN1b: manual box overrides at any grid depth; null restores auto for one key. */
+  setCabinetBox(state, action) {
+    const { itemIds = [], key, value } = action.payload;
+    if (!BOX_KEYS.includes(key)) return;
+    if (value !== null && !(key === 'back' ? BOX_BACKS.includes(value)
+      : key === 'top' || key === 'bottom' ? BOX_TOPS.includes(value)
+        : typeof value === 'boolean')) return;
+    const location = runLocation(state, action.payload);
+    if (!location?.run.grid) return;
+    const targets = gridLeaves(location.run.grid)
+      .filter((leaf) => leaf.kind === 'cabinet' && itemIds.includes(leaf.id));
+    if (!targets.length) return;
+    for (const target of targets) {
+      if (value === null) {
+        if (target.box) {
+          delete target.box[key];
+          if (!Object.keys(target.box).length) delete target.box;
+        }
+      } else {
+        target.box ??= {};
+        target.box[key] = value;
+      }
     }
     syncRoomAt(state, location.roomIndex);
   },

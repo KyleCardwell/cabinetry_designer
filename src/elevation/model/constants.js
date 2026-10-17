@@ -167,6 +167,11 @@ export const CABINET_PURPOSES = [
 ];
 export const CABINET_PURPOSE_IDS = new Set(CABINET_PURPOSES.map(([id]) => id));
 
+/** Cabinet box construction overrides; absent keys use automatic values. */
+export const BOX_BACKS = ['dado', 'inset', 'applied', 'none'];
+export const BOX_TOPS = ['between', 'overlay', 'spreaders', 'none'];
+export const BOX_KEYS = ['back', 'top', 'bottom', 'left', 'right', 'finTop', 'finBottom'];
+
 /** Display labels for derived piece kinds. */
 export const KIND_LABELS = {
   cabinet: 'Cabinet',

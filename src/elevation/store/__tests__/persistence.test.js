@@ -107,6 +107,49 @@ describe('IN1a cabinet purpose persistence', () => {
   });
 });
 
+describe('IN1b cabinet box persistence', () => {
+  it('accepts nonempty cabinet overrides and preserves them through save and load (anchor 4)', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    for (const box of [
+      { top: 'overlay', finTop: true },
+      ...['dado', 'inset', 'applied', 'none'].map((back) => ({ back })),
+      ...['between', 'overlay', 'spreaders', 'none'].map((value) => ({ top: value, bottom: value })),
+      { left: true, right: false, finTop: false, finBottom: true },
+    ]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.box = box;
+      expect(isElevationDocument(document)).toBe(true);
+      const saved = toElevationDocument(createInitialElevationState(document));
+      const loaded = normalizeElevationDocument(JSON.parse(JSON.stringify(saved)));
+      expect(isElevationDocument(loaded)).toBe(true);
+      expect(loaded.rooms[0].walls[0].runs[0].grid.cells[0].node.box).toEqual(box);
+    }
+  });
+
+  it('rejects empty, malformed and non-cabinet box overrides (anchor 4)', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    expect(isElevationDocument(base)).toBe(true);
+    for (const box of [
+      {}, null, [], 'inset', true, 1,
+      { top: 'dado' }, { bottom: 'applied' }, { back: 'between' },
+      { left: 'no' }, { right: 0 }, { finTop: 'true' }, { finBottom: null },
+      { back: undefined }, { back: null }, { back: 'inset', unknown: true },
+    ]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.box = box;
+      expect(isElevationDocument(document), JSON.stringify(box)).toBe(false);
+    }
+    for (const kind of ['panel', 'filler', 'void', 'shelves']) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node = {
+        id: 'not-cabinet', kind, width: 1, box: { top: 'overlay', finTop: true },
+        ...(kind === 'shelves' ? { shelves: { count: 1, back: false } } : {}),
+      };
+      expect(isElevationDocument(document)).toBe(false);
+    }
+  });
+});
+
 describe('HP3c step a pull reference persistence', () => {
   it('validates optional positive cabinet pull heights without changing stored leaf placement (HP4 anchor 5)', () => {
     const base = normalizeElevationDocument(currentDocument());

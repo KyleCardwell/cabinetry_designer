@@ -1,5 +1,8 @@
 import { isPlainObject } from '@reduxjs/toolkit';
 import {
+  BOX_BACKS,
+  BOX_KEYS,
+  BOX_TOPS,
   CABINET_PURPOSE_IDS,
   CABINET_TYPE_IDS,
   DEFAULT_PROFILE,
@@ -214,6 +217,16 @@ function isTFillerSides(value) {
     && Object.entries(value).every(([key, entry]) => T_FILLER_SIDES.includes(key) && typeof entry === 'boolean');
 }
 
+/** IN1b: only nonempty, valid cabinet box overrides belong in storage. */
+function isCabinetBox(value) {
+  return isPlainObject(value) && Object.keys(value).length > 0
+    && Object.entries(value).every(([key, entry]) => BOX_KEYS.includes(key) && (
+      key === 'back' ? BOX_BACKS.includes(entry)
+        : key === 'top' || key === 'bottom' ? BOX_TOPS.includes(entry)
+          : typeof entry === 'boolean'
+    ));
+}
+
 function isItem(item) {
   return Boolean(item)
     && hasStyleRefs(item)
@@ -234,7 +247,8 @@ function isItem(item) {
     && (item.reveals === undefined || item.reveals === null
       || (item.kind === 'cabinet' && isOptionalNumericObject(item.reveals, REVEAL_KEYS)))
     && (item.tFiller === undefined || (item.kind === 'cabinet' && isTFillerSides(item.tFiller)))
-    && (item.purpose === undefined || (item.kind === 'cabinet' && CABINET_PURPOSE_IDS.has(item.purpose)));
+    && (item.purpose === undefined || (item.kind === 'cabinet' && CABINET_PURPOSE_IDS.has(item.purpose)))
+    && (item.box === undefined || (item.kind === 'cabinet' && isCabinetBox(item.box)));
 }
 
 function isOptionalNumericObject(value, allowedKeys) {
