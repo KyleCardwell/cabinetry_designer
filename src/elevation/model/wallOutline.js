@@ -6,6 +6,7 @@ import {
   subtract,
   wallFrame,
 } from './geometry.js';
+import { wallBuiltEnds } from './wallEndPanels.js';
 
 const MITER_LIMIT_MULTIPLIER = 4;
 
@@ -17,9 +18,10 @@ function endpointPoint(wall, endpoint) {
 
 function backLine(room, wall) {
   const frame = wallFrame(room, wall);
+  const ends = wallBuiltEnds(wall);
   const offset = scale(frame.n, -wall.thickness);
-  const start = add({ x: wall.x1, y: wall.y1 }, offset);
-  const end = add({ x: wall.x2, y: wall.y2 }, offset);
+  const start = add(add({ x: wall.x1, y: wall.y1 }, scale(frame.d, -ends.start)), offset);
+  const end = add(add({ x: wall.x2, y: wall.y2 }, scale(frame.d, ends.end)), offset);
   return { start, end, direction: frame.d };
 }
 
@@ -54,8 +56,10 @@ function backPointAt(room, wall, endpoint, ownBackLine) {
  * @returns {Array<{x:number,y:number}>}
  */
 export function wallOutline(room, wall) {
-  const faceStart = { x: wall.x1, y: wall.y1 };
-  const faceEnd = { x: wall.x2, y: wall.y2 };
+  const frame = wallFrame(room, wall);
+  const ends = wallBuiltEnds(wall);
+  const faceStart = add({ x: wall.x1, y: wall.y1 }, scale(frame.d, -ends.start));
+  const faceEnd = add({ x: wall.x2, y: wall.y2 }, scale(frame.d, ends.end));
   const ownBackLine = backLine(room, wall);
   const backStart = backPointAt(room, wall, 'start', ownBackLine);
   const backEnd = backPointAt(room, wall, 'end', ownBackLine);

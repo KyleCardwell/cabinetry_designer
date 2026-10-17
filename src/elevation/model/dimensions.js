@@ -5,7 +5,7 @@ import { cornerLap } from './cornerLaps.js';
 import { cornerAt, cornerReserveParts } from './corners.js';
 import { layoutRun, runFaceLayouts } from './faceLayouts.js';
 import { frameEdgeTracks, frameRegions, regionOpenings } from './frames.js';
-import { wallLength } from './geometry.js';
+import { wallFrame, wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { landingsOn } from './landings.js';
 import { profileReach } from './cornerParts.js';
@@ -27,6 +27,7 @@ import { isCountertop, runTop } from './tops.js';
 import { runBands, waterfallEnds } from './runBands.js';
 import { runScene } from './runScene.js';
 import { topOverhangs } from './topOverhang.js';
+import { wallBuiltEnds } from './wallEndPanels.js';
 
 const SEGMENT_EPSILON = 1e-6;
 
@@ -382,6 +383,10 @@ export function topEndSegments(room, wall, run, settings) {
 export function horizontalChains(room, wall, band, settings) {
   const runs = runsForBand(wall, band);
   const neighbors = neighborSegments(room, wall, band, settings);
+  const frame = wallFrame(room, wall);
+  const ends = wallBuiltEnds(wall);
+  const wallStart = 0 - ends[frame.leftEndpoint];
+  const wallEnd = frame.length + ends[frame.rightEndpoint];
   const outermost = (segments, side, limit) => {
     const reaching = side === 'left'
       ? segments.filter((segment) => segment.start < limit - SEGMENT_EPSILON)
@@ -395,10 +400,10 @@ export function horizontalChains(room, wall, band, settings) {
       : { ...furthest, start: limit };
   };
   if (runs.length === 0) {
-    const length = wallLength(wall);
-    const left = outermost(neighbors, 'left', 0);
-    const right = outermost(neighbors, 'right', length);
-    const wallRow = length > SEGMENT_EPSILON ? [{ start: 0, end: length, kind: 'wall' }] : [];
+    const left = outermost(neighbors, 'left', wallStart);
+    const right = outermost(neighbors, 'right', wallEnd);
+    const wallRow = wallEnd - wallStart > SEGMENT_EPSILON
+      ? [{ start: wallStart, end: wallEnd, kind: 'wall' }] : [];
     return {
       inner: [left, right].filter(Boolean),
       outer: [left, ...wallRow, right].filter(Boolean),
@@ -411,8 +416,8 @@ export function horizontalChains(room, wall, band, settings) {
   const topEnds = new Map(runs.map((run) => [run.id, topEndSegments(room, wall, run, settings)]));
   const runStart = (run) => topEnds.get(run.id).left[0]?.start ?? run.x;
   const runEnd = (run) => topEnds.get(run.id).right.at(-1)?.end ?? run.x + run.width;
-  const rangeStart = Math.min(0, firstRun.x, ...runs.map(runStart));
-  const rangeEnd = Math.max(length, lastRun.x + lastRun.width, ...runs.map(runEnd));
+  const rangeStart = Math.min(wallStart, firstRun.x, ...runs.map(runStart));
+  const rangeEnd = Math.max(wallEnd, lastRun.x + lastRun.width, ...runs.map(runEnd));
   const left = outermost(neighbors, 'left', rangeStart);
   const right = outermost(neighbors, 'right', rangeEnd);
   const leftCornerGap = Boolean(

@@ -25,10 +25,13 @@ export default function PlanWallShape({
   if (frame.length === 0) return null;
 
   const outline = wallOutline(room, wall);
+  const faceEndpoints = outline.slice(0, 2);
+  const builtLength = Math.hypot(faceEndpoints[1].x - faceEndpoints[0].x,
+    faceEndpoints[1].y - faceEndpoints[0].y);
   const exterior = { x: -frame.n.x, y: -frame.n.y };
   const midpoint = {
-    x: (wall.x1 + wall.x2) / 2,
-    y: (wall.y1 + wall.y2) / 2,
+    x: (faceEndpoints[0].x + faceEndpoints[1].x) / 2,
+    y: (faceEndpoints[0].y + faceEndpoints[1].y) / 2,
   };
   const tickLength = 8 / scale;
   const fontSize = PLAN_DIM_FONT_SIZE / scale;
@@ -54,10 +57,6 @@ export default function PlanWallShape({
     y: midpoint.y + exterior.y * numberOffset + frame.d.y * 24 / scale,
   };
   const extensionStartOffset = wall.thickness + bumpOut('front') + 2 / scale;
-  const faceEndpoints = [
-    { x: wall.x1, y: wall.y1 },
-    { x: wall.x2, y: wall.y2 },
-  ];
   const dimensionEndpoints = faceEndpoints.map((point) => ({
     x: point.x + exterior.x * dimensionOffset,
     y: point.y + exterior.y * dimensionOffset,
@@ -68,7 +67,7 @@ export default function PlanWallShape({
   };
   const tickHalfLength = 4 / scale;
   const layout = layoutDimensionRow(
-    [{ start: 0, end: frame.length }],
+    [{ start: 0, end: builtLength }],
     { scale, fontSize: PLAN_DIM_FONT_SIZE },
   );
   const dimensionLabel = layout.labels[0];
@@ -140,7 +139,7 @@ export default function PlanWallShape({
         hitStrokeWidth={8 / scale}
       />
       <Line
-        points={[wall.x1, wall.y1, wall.x2, wall.y2]}
+        points={faceEndpoints.flatMap((point) => [point.x, point.y])}
         stroke={isSelected ? '#bfdbfe' : '#d1d5db'}
         strokeWidth={(wall.thickness === 0 ? 2 : 1) / scale}
         hitStrokeWidth={wall.thickness === 0 ? 8 / scale : undefined}

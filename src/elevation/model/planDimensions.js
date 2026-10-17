@@ -7,6 +7,7 @@ import { elevationToPlan, wallFrame } from './geometry.js';
 import { recessesOn } from './recesses.js';
 import { elevationKey, elevationLetters } from './topology.js';
 import { wallFaceSegments } from './wallFaceRow.js';
+import { wallBuiltEnds } from './wallEndPanels.js';
 import { wallSideFrame, wallSideOf } from './wallSides.js';
 
 /** The elevation marker's circle and flag on paper (SPEC-45.1); geometry draws them the same size. */
@@ -109,6 +110,7 @@ export function planDimensions(room, settings) {
   for (const wall of room.walls) {
     const frame = wallFrame(room, wall);
     if (frame.length <= EPSILON) continue;
+    const ends = wallBuiltEnds(wall);
     const exterior = { x: -frame.n.x, y: -frame.n.y };
     const outside = wall.thickness
       + Math.max(bumpOut(wall, 'front'), markerReach(room, wall, 'back', settings, letters));
@@ -126,7 +128,7 @@ export function planDimensions(room, settings) {
     const sides = [
       [exterior, [
         ['front', wallFaceSegments(room, wall, 'front', settings), front],
-        ['wall', [{ start: 0, end: frame.length, kind: 'wall' }], front],
+        ['wall', [{ start: 0 - ends[frame.leftEndpoint], end: frame.length + ends[frame.rightEndpoint], kind: 'wall' }], front],
       ]],
       [frame.n, [['back', wallFaceSegments(room, wall, 'back', settings), backBase]]],
     ];

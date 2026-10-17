@@ -64,6 +64,11 @@ export function wallEndFlex(wall, endpoint) {
   return (wall.sideSource ?? wall)._endFlex?.[endpoint] ?? 0;
 }
 
+/** Outward moves at the stored wall endpoints; the drawn coordinates stay unchanged. */
+export function wallBuiltEnds(wall) {
+  return { start: wallEndFlex(wall, 'start'), end: wallEndFlex(wall, 'end') };
+}
+
 function panelSide(room, wall, endpoint, elevationSide, width, settings) {
   const view = wallSideView(wall, elevationSide);
   const frame = wallFrame(room, view);
