@@ -102,8 +102,9 @@ function labelRecords(placed, row, base, at, vertical) {
  * Cell chains sit 1/4" (paper) inside the column's left or bottom edge, with no extension lines (SPEC-43.3).
  * Then casing clearances to a run and pin callouts sit inside the wall at their own height (SPEC-43.3).
  * A pin's extension lines start at its datum's and its cabinet's own points.
+ * A combined view can supply shared top/bottom extents for row placement; column edges stay local.
  */
-export function elevationDimensions(room, wall, side, settings) {
+export function elevationDimensions(room, wall, side, settings, { extent: sharedExtent } = {}) {
   const view = resolveWall(room, wall, side);
   const lower = horizontalChains(room, view, 'lower', settings);
   const upper = horizontalChains(room, view, 'upper', settings);
@@ -115,6 +116,10 @@ export function elevationDimensions(room, wall, side, settings) {
     'upper.outer': upper.outer,
   };
   const extent = wallExtent(room, view, settings);
+  if (sharedExtent) {
+    extent.top = sharedExtent.top;
+    extent.bottom = sharedExtent.bottom;
+  }
   const scale = plotScale(settings);
   const spacing = DIMENSION_ROW_SPACING * scale;
   const next = { below: extent.bottom - spacing, above: extent.top + spacing };

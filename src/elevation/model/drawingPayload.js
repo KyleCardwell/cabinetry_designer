@@ -15,8 +15,40 @@ import { elevationPartNumbers } from './elevationPartNumbers.js';
 import { planParts } from './planParts.js';
 import { planDimensions } from './planDimensions.js';
 import { planMarks } from './planMarks.js';
+import { combinedViewOf } from './combinedElevations.js';
+import { combinedElevationPayload } from './combinedPayload.js';
 
 export const DRAWING_PAYLOAD_VERSION = 1;
+
+function facePayload(room, wall, side, key, letter, settings, options) {
+  const parts = [
+    ...elevationParts(room, wall, side, settings),
+    ...bandParts(room, wall, side, settings),
+    ...wallParts(room, wall, side, settings),
+    ...cornerParts(room, wall, side, settings),
+  ];
+  const partIds = new Set(parts.map(({ id }) => id));
+  const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);
+  const pulls = elevationPulls(room, wall, side, settings, partIds);
+
+  return {
+    key,
+    letter,
+    wallId: wall.id,
+    side,
+    title: `Elevation ${letter}`,
+    wallLabel: wallLabel(room, wall),
+    length: resolveWall(room, wall, side).length,
+    height: wall.height,
+    parts,
+    dimensions: elevationDimensions(room, wall, side, settings, options),
+    marks: elevationMarks(room, wall, side, settings),
+    doorDetails: elevationDoorDetails(room, wall, side, settings, partIds),
+    partNumbers: elevationPartNumbers(room, wall, side, settings),
+    ...(swingMarks.length ? { swingMarks } : {}),
+    ...(pulls.length ? { pulls } : {}),
+  };
+}
 
 /**
  * What geometry draws for one room (SPEC-40, payload v1): one elevation per lettered wall face, in
@@ -25,7 +57,7 @@ export const DRAWING_PAYLOAD_VERSION = 1;
  * neighbours (corner returns and profiles). Round 43 adds the drawing scale and each face's dimensions;
  * 43.3 its centreline marks; round 44 the room in plan; round 45 its dimensions; 45.1 its
  * markers and labels; 46.4 each face's door details; 50.13 its part number badges; HP2 its swing marks;
- * HP5 its pulls.
+ * HP5 its pulls; CE combines every saved group into one elevation.
  */
 export function toDrawingPayload(room, settings, { revision } = {}) {
   const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
@@ -33,33 +65,12 @@ export function toDrawingPayload(room, settings, { revision } = {}) {
       (side) => elevationKey(candidate.id, side) === key,
     ));
     const side = WALL_SIDES.find((candidate) => elevationKey(wall.id, candidate) === key);
-    const parts = [
-      ...elevationParts(room, wall, side, settings),
-      ...bandParts(room, wall, side, settings),
-      ...wallParts(room, wall, side, settings),
-      ...cornerParts(room, wall, side, settings),
-    ];
-    const partIds = new Set(parts.map(({ id }) => id));
-    const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);
-    const pulls = elevationPulls(room, wall, side, settings, partIds);
-
-    return {
-      key,
-      letter,
-      wallId: wall.id,
-      side,
-      title: `Elevation ${letter}`,
-      wallLabel: wallLabel(room, wall),
-      length: resolveWall(room, wall, side).length,
-      height: wall.height,
-      parts,
-      dimensions: elevationDimensions(room, wall, side, settings),
-      marks: elevationMarks(room, wall, side, settings),
-      doorDetails: elevationDoorDetails(room, wall, side, settings, partIds),
-      partNumbers: elevationPartNumbers(room, wall, side, settings),
-      ...(swingMarks.length ? { swingMarks } : {}),
-      ...(pulls.length ? { pulls } : {}),
-    };
+    const combined = combinedViewOf(room, wall.id, side);
+    if (combined) {
+      return combinedElevationPayload(room, combined, settings, (faceWall, faceSide, options) =>
+        facePayload(room, faceWall, faceSide, key, letter, settings, options));
+    }
+    return facePayload(room, wall, side, key, letter, settings);
   });
 
   return {
