@@ -44,6 +44,7 @@ function shippingTable(list, header, copy) {
       bordered({ text: row.size.replace(/(\d) (?=\d)/g, '$1\u00a0'), alignment: 'center' }),
     ]),
   ];
+  for (const text of list.wallNotes ?? []) rows.push(fullRow(bordered({ text, fontSize: 9 })));
   if (list.roomNote) rows.push(fullRow(bordered({ text: `Room notes: ${list.roomNote}`, bold: true })));
 
   return {

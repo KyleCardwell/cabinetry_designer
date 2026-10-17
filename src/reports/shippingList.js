@@ -5,6 +5,7 @@ import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResol
 import { elevationParts } from '../elevation/model/elevationParts.js';
 import { frameMembers, regionOpenings } from '../elevation/model/frames.js';
 import { furnitureBaseGroups } from '../elevation/model/furnitureBaseGroups.js';
+import { wallLength } from '../elevation/model/geometry.js';
 import { moldingPast, moldingProfiles } from '../elevation/model/moldingProfiles.js';
 import {
   isJoinedEnd, isSheetCell, runEndThickness, wallPanelThickness,
@@ -21,6 +22,7 @@ import {
   endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
 } from '../elevation/model/styles.js';
 import { teeFillers } from '../elevation/model/tees.js';
+import { wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { doorOrderItems } from './doorOrder.js';
 import { formatInch, formatSize } from './format.js';
@@ -355,6 +357,20 @@ function orderedNotes(groups) {
     .flatMap(([, notes]) => notes).map((note) => note?.trim()).filter(Boolean);
 }
 
+/** One planned-length reason per island/peninsula wall, shared by both faces. */
+function wallLengthNotes(room, settings) {
+  if (settings.runFlex === 0) return [];
+  return (room.walls ?? []).flatMap((wall) => {
+    if (wall.thickness !== 0) return [];
+    const { start, end } = wallBuiltEnds(wall);
+    if (Math.abs(start + end) <= EPSILON) return [];
+    const planned = wallLength(wall);
+    const attached = ['start', 'end'].some((endpoint) => wall.connections?.[endpoint] || wall.landings?.[endpoint]);
+    const name = wall.name?.trim() || (attached ? 'Peninsula' : 'Island');
+    return [`${name} ${formatSize(planned + start + end)} (planned ${formatSize(planned)})`];
+  });
+}
+
 export function shippingList(room, settings, shop = settings) {
   const { parts, warnings } = partNumbers(room, settings);
   const numbers = new Map(parts.map(({ key, number }) => [key, number]));
@@ -374,5 +390,5 @@ export function shippingList(room, settings, shop = settings) {
   });
   rows.push({ number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
     description: 'Adjustable Shelves', notes: [], size: '' });
-  return { rows, roomNote: room.reportNote?.trim() || null, warnings };
+  return { rows, wallNotes: wallLengthNotes(room, settings), roomNote: room.reportNote?.trim() || null, warnings };
 }

@@ -648,7 +648,7 @@ describe('RP2 step c shipping list rows', () => {
   });
 
   it('returns only Adjustable Shelves for an empty room (anchor 20)', () => {
-    expect(shippingList(room([]), settings)).toEqual({ rows: [adjustable], roomNote: null, warnings: [] });
+    expect(shippingList(room([]), settings)).toEqual({ rows: [adjustable], wallNotes: [], roomNote: null, warnings: [] });
   });
 
   it('uses the picked molding profile name without a Shop-built prefix', () => {
