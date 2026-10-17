@@ -5,6 +5,7 @@ import {
 } from 'react';
 import { useDispatch } from 'react-redux';
 import {
+  formatInchesInput,
   frontDepth,
   isJointAnchor,
   positionReadouts,
@@ -13,7 +14,7 @@ import {
   stretchedStart,
 } from '../../model/index.js';
 import { formatRunOverhang } from '../../properties/helpers.js';
-import { resizeRun, setRunRecess } from '../../store/elevationSlice.js';
+import { resizeRun, setRunHoldWidth, setRunRecess } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import StretchInput from './StretchInput.jsx';
@@ -41,6 +42,9 @@ export default function RunGeometrySection({
     setRunGrow(preferredRunGrow);
   }, [preferredRunGrow, run.id]);
   const runPositions = positionReadouts(run.x, run.width, wall.length);
+  const plannedWidth = run.width - (run.flex?.left ?? 0) - (run.flex?.right ?? 0);
+  const showPlannedWidth = settings.runFlex !== 0 && !run.holdWidth && run.flex
+    && Math.abs(run.width - plannedWidth) > 1e-6;
 
   return (
       <section>
@@ -76,6 +80,31 @@ export default function RunGeometrySection({
                 ariaLabel="Run width"
               />
             )}
+            {showPlannedWidth && (
+              <p className="mt-1 text-xs text-gray-500">
+                {`Planned ${formatInchesInput(plannedWidth)} → ${formatInchesInput(run.width)}`}
+              </p>
+            )}
+          </div>
+          <div className="col-span-2">
+            <Field label={(
+              <span className="inline-flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={run.holdWidth === true}
+                  onChange={(event) => dispatch(setRunHoldWidth({
+                    ...actionBase,
+                    hold: event.target.checked,
+                  }))}
+                  aria-label="Hold run width"
+                />
+                Hold run width
+              </span>
+            )}>
+              <span className="text-gray-500">
+                Keep this run exactly as drawn; the boxes take any change.
+              </span>
+            </Field>
           </div>
           <Field label="Depth">
             <InchInput

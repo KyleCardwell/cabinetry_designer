@@ -16,6 +16,7 @@ import {
 import { resolveProfile } from '../../model/profile.js';
 import { wallHasCabinets, wallLabel } from '../../model/topology.js';
 import { resolveWall } from '../../model/room.js';
+import { wallBuiltEnds } from '../../model/wallEndPanels.js';
 import {
   detachWallLanding,
   flipWall,
@@ -69,6 +70,10 @@ export default function WallHeightProperties({ room, wall, plan }) {
   const base = runBase(room, wall, { cabinetTypeId: CABINET_TYPE_IDS.BASE }, settings);
   const overlap = crownOverlap(resolvedProfile);
   const frame = wallFrame(room, wall);
+  const builtEnds = wallBuiltEnds(wall);
+  const builtLength = frame.length + builtEnds.start + builtEnds.end;
+  const showPlannedLength = settings.runFlex !== 0
+    && Math.abs(builtLength - frame.length) > 1e-6;
   const leftFree = !wall.connections?.[frame.leftEndpoint]
     && !wall.landings?.[frame.leftEndpoint];
   const rightFree = !wall.connections?.[frame.rightEndpoint]
@@ -166,6 +171,11 @@ export default function WallHeightProperties({ room, wall, plan }) {
                   onCommit={updateLength}
                   ariaLabel="Wall length"
                 />
+                {showPlannedLength && (
+                  <p className="mt-1 text-xs text-gray-500">
+                    {`Planned ${formatInchesInput(frame.length)} → built ${formatInchesInput(builtLength)}`}
+                  </p>
+                )}
               </div>
               <Field label="Height">
                 <InchInput
