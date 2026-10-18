@@ -4,6 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import MissingDesignsDialog from '../MissingDesignsDialog.jsx';
 import MissingDoorDesignsNotice, { MissingDoorDesignRow } from '../../elevation/components/MissingDoorDesignsNotice.jsx';
 import MissingPullsNotice, { MissingPullRow } from '../../elevation/components/MissingPullsNotice.jsx';
+import MissingSlidesNotice, { MissingSlideRow } from '../../elevation/components/MissingSlidesNotice.jsx';
+import { BUILT_IN_SLIDES } from '../../elevation/model/slides.js';
 import { DEFAULT_DOOR_STYLE } from '../../elevation/model/doorStyles.js';
 import elevationReducer, { moveMissingDoorDesign, moveMissingPull } from '../../elevation/store/elevationSlice.js';
 import { auto, run, stateWithRun } from '../../elevation/store/__tests__/helpers/sliceFixtures.js';
@@ -225,5 +227,69 @@ describe('DB6b e missing door designs on open', () => {
     room().doorStyles[0].designId = 'later';
     expect(dialog.render()).toBeNull();
     expect(renderComponent(MissingDoorDesignsNotice).tree).not.toBeNull();
+  });
+});
+
+
+describe('IN5 e missing slide notices', () => {
+  const slideRows = (tree) => nodes(tree).filter((node) => node.type === MissingSlideRow)
+    .map((node) => renderComponent(MissingSlideRow, node.props));
+
+  it('shows named options and layer guidance, moves both uses and clears a room override', () => {
+    state.elevation = stateWithRun(run({ autoCount: false, items: [
+      { ...auto('c1'), drawerSlideId: archived, face: { type: 'drawer_front', size: null, drawerBox: { slideId: archived } } },
+    ] }));
+    state.elevation.cloud = { room: { id: room().id, readOnly: false } };
+    state.elevation.layers = { project: { values: { drawerSlideId: 'x' } } };
+    const dialog = renderComponent(MissingDesignsDialog);
+    expect(text(dialog.tree)).toContain("This room uses slides that aren't in the Library");
+    const [row, project] = slideRows(dialog.tree);
+    expect(text(row.tree)).toContain("An archived slide isn't in the Library any more. 2 places in this room use it and size from the next slide up until moved.");
+    expect(nodes(row.tree).filter(({ type }) => type === 'option').map(({ props }) => [props.value, text(props.children)]))
+      .toEqual([...BUILT_IN_SLIDES.map(({ id, name }) => [id, name]), ['', 'Clear the pick']]);
+    expect(text(project.tree)).toBe("Slide `x` isn't in the Library any more. Set in the project settings — change it there.");
+    expect(select(project.tree)).toBeUndefined();
+    select(row.tree).props.onChange({ target: { value: 'accuride-3832' } });
+    row.render();
+    button(row.tree, 'Move').props.onClick();
+    expect(slideRows(dialog.render())).toHaveLength(1);
+    // Clearing a pick removes the room override and leaves the higher layers intact.
+    state.elevation = structuredClone(state.elevation);
+    room().settingsOverrides = { drawerSlideId: 'gone' };
+    state.elevation.settings.drawerSlideId = 'gone';
+    state.elevation.layers.phase = { values: { drawerSlideId: 'gone' } };
+    const clear = slideRows(renderComponent(MissingSlidesNotice).tree).find((row) => select(row.tree));
+    expect(text(clear.tree)).toContain('Set in the shop standard — change it there.');
+    expect(text(clear.tree)).toContain('Set in the phase settings — change it there.');
+    select(clear.tree).props.onChange({ target: { value: '' } });
+    clear.render();
+    button(clear.tree, 'Move').props.onClick();
+    expect(room().settingsOverrides).not.toHaveProperty('drawerSlideId');
+    expect(state.elevation.settings.drawerSlideId).toBe('gone');
+    expect(state.elevation.layers.phase.values.drawerSlideId).toBe('gone');
+  });
+
+  it('combines slide rows with existing rows and keeps read-only or version notices without controls', () => {
+    room().settingsOverrides = { drawerSlideId: archived };
+    const dialog = renderComponent(MissingDesignsDialog);
+    expect(text(dialog.tree)).toContain("This room uses door designs and slides that aren't in the Library");
+    expect(slideRows(dialog.tree)).toHaveLength(1);
+    button(dialog.tree, 'Not now').props.onClick();
+    expect(dialog.render()).toBeNull();
+    expect(slideRows(renderComponent(MissingSlidesNotice).tree)).toHaveLength(1);
+    for (const source of ['cloud', 'version']) {
+      state.elevation.source = source;
+      state.elevation.cloud.room.readOnly = source === 'cloud';
+      const [row] = slideRows(renderComponent(MissingSlidesNotice).tree);
+      expect(text(row.tree)).toContain('1 place in this room uses it and size from the next slide up until moved.');
+      expect(text(row.tree)).toContain('Someone who can edit the room can move them.');
+      expect(select(row.tree)).toBeUndefined();
+      expect(button(row.tree, 'Move')).toBeUndefined();
+    }
+    state.elevation = structuredClone(state.elevation);
+    delete room().settingsOverrides.drawerSlideId;
+    expect(renderComponent(MissingSlidesNotice).tree).toBeNull();
+    state.elevation.activeRoomId = 'absent';
+    expect(renderComponent(MissingSlidesNotice).tree).toBeNull();
   });
 });

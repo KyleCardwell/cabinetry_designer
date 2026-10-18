@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { newRoomDocument } from '../../model/designProjects.js';
 import { DEFAULT_DOOR_STYLE } from '../../model/doorStyles.js';
 import { newSectionProfile } from '../../model/sectionProfiles.js';
-import { profileToRow, pullToRow } from '../../model/cloudRows.js';
+import { profileToRow, pullToRow, slideToRow } from '../../model/cloudRows.js';
 import { BUILT_IN_SLIDES } from '../../model/slides.js';
 import { BUILT_IN_PULLS } from '../../model/pulls.js';
 import { settingsFor } from '../slices/helpers.js';
@@ -306,5 +306,47 @@ describe('DB8a opening an issued version', () => {
     await ctx.store.dispatch(openCloudWorkspace());
     expect(elevationOf(ctx.store).source).toBe('cloud');
     expect(elevationOf(ctx.store).settings.sectionProfiles[0].name).toBe('Crown 4 (fixed)');
+  });
+});
+
+
+describe('IN5 e issued slides', () => {
+  const C = { ...structuredClone(BUILT_IN_SLIDES[0]), id: '0192a1b2-c3d4-7e5f-8a9b-00000000a001', name: 'Custom slide' };
+  const walls = (slideId) => stateWithRun(run({ autoCount: false, items: [
+    { ...auto('c1'), drawerSlideId: slideId, face: { type: 'drawer_front', size: null } },
+  ] })).rooms[0].walls;
+
+  it('anchor 4: opens a custom slide from its frozen snapshot and falls back for legacy snapshots', async () => {
+    const api = versionApi(roomRow({}, { walls: walls(C.id) }));
+    api.db.slides.push({ slide_id: C.id, ...slideToRow(C), version: 3, archived_at: null });
+    const ctx = await setup({ api });
+    const issued = await ctx.store.dispatch(issueRoomVersion({ label: 'Slides' }));
+    expect(issued.ok).toBe(true);
+    const snapshot = api.db.versions[0].settings_snapshot;
+    expect(snapshot.slides).toEqual([...BUILT_IN_SLIDES, C]);
+    expect(snapshot.library.slides).toEqual({ 'blum-562h': 1, 'accuride-3832': 1, 'accuride-4034': 1, [C.id]: 3 });
+    api.db.slides.find(({ slide_id }) => slide_id === C.id).archived_at = 'later';
+    api.calls.length = 0;
+    const open = () => ctx.store.dispatch(openRoomVersion({ estProjectId: 42, roomId: 'rm-1', versionId: issued.versionId }));
+    expect((await open()).ok).toBe(true);
+    expect(elevationOf(ctx.store).settings.slides).toEqual([...BUILT_IN_SLIDES, C]);
+    expect(settingsFor(elevationOf(ctx.store), elevationOf(ctx.store).rooms[0]).slides).toEqual([...BUILT_IN_SLIDES, C]);
+    expect(callNames(api)).not.toContain('listSlides');
+    delete api.db.versions[0].settings_snapshot.slides;
+    expect((await open()).ok).toBe(true);
+    expect(elevationOf(ctx.store).settings.slides).toEqual(BUILT_IN_SLIDES);
+  });
+
+  it('anchor 3: refuses missing room and resolved-setting slides before calling the issue API', async () => {
+    for (const where of ['room', 'settings']) {
+      const api = versionApi(roomRow({}, { walls: walls(where === 'room' ? C.id : 'accuride-3832') }));
+      if (where === 'settings') api.db.project.phases[0].overrides.drawerSlideId = C.id;
+      const ctx = await setup({ api });
+      expect(issueSnapshotOf(ctx.store.getState()).missing.slides).toEqual([C.id]);
+      const reply = await ctx.store.dispatch(issueRoomVersion({ label: 'Slides' }));
+      expect(reply).toMatchObject({ ok: false, reason: 'missing_library', missing: { slides: [C.id] },
+        message: 'This room uses a slide that is no longer in the library. Pick a replacement, then issue.' });
+      expect(callNames(api)).not.toContain('issueRoomVersion');
+    }
   });
 });

@@ -609,6 +609,11 @@ export function issueRoomVersion({ label, note = '' } = {}) {
         missing: snapshot.missing,
       });
     }
+    if (snapshot.missing.slides.length) {
+      return fail('missing_library', 'This room uses a slide that is no longer in the library. Pick a replacement, then issue.', {
+        missing: snapshot.missing,
+      });
+    }
     const api = await apiFrom(extra);
     const reply = await api.issueRoomVersion({
       roomId: info.id, label: text, note: String(note ?? '').trim() || null,
@@ -720,7 +725,7 @@ export function openRoomVersion({ estProjectId, roomId, versionId }) {
     dispatch(roomVersionLoaded({
       room: { ...loaded.room, id: roomId },
       project: projectInfo(estProjectId, projectReply.project.project),
-      settings: { ...frozen.settings, slides: structuredClone(BUILT_IN_SLIDES) },
+      settings: frozen.settings,
       layers: frozen.layers,
       teamId,
       permissions: allowed,

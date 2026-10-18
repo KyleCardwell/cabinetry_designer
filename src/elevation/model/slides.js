@@ -1,3 +1,5 @@
+import { gridLeaves } from './grid.js';
+
 export const SLIDE_MOUNTS = ['undermount', 'side'];
 export const BUILT_IN_SLIDE_IDS = ['blum-562h', 'accuride-3832', 'accuride-4034'];
 
@@ -143,4 +145,55 @@ export function fittingLength(slide, interiorDepth) {
 
 export function slideBoxWidth(slide, opening) {
   return opening - 2 * slide.sideClearance;
+}
+
+/** Stored room slide picks, including nested cabinet grids and drawer-front leaves. */
+export function* roomSlideUses(room) {
+  if (room?.settingsOverrides?.drawerSlideId != null) {
+    yield { node: room.settingsOverrides, key: 'drawerSlideId' };
+  }
+  function* faces(face) {
+    if (!face) return;
+    if (face.children) {
+      for (const child of face.children) yield* faces(child);
+    } else if (face.type === 'drawer_front' && face.drawerBox?.slideId != null) {
+      yield { node: face.drawerBox, key: 'slideId', face };
+    }
+  }
+  for (const wall of room?.walls ?? []) {
+    for (const run of wall.runs ?? []) {
+      for (const item of run.grid ? gridLeaves(run.grid) : []) {
+        if (item.kind !== 'cabinet') continue;
+        if (item.drawerSlideId != null) yield { node: item, key: 'drawerSlideId' };
+        yield* faces(item.face);
+      }
+    }
+  }
+}
+
+/** Missing ids and every place that stores them, even when overridden below. */
+export function missingSlides(room, settings, layers) {
+  const known = new Set((settings?.slides ?? BUILT_IN_SLIDES).map(({ id }) => id));
+  const missing = new Map();
+  const entry = (slideId) => {
+    if (typeof slideId !== 'string' || !slideId || known.has(slideId)) return null;
+    if (!missing.has(slideId)) missing.set(slideId, { slideId, roomUses: 0, setIn: [] });
+    return missing.get(slideId);
+  };
+  for (const { node, key } of roomSlideUses(room)) {
+    const row = entry(node[key]);
+    if (row) row.roomUses += 1;
+  }
+  for (const [level, values] of [
+    ['team', settings], ['project', layers?.project?.values], ['phase', layers?.phase?.values],
+  ]) {
+    const row = entry(values?.drawerSlideId);
+    if (row) row.setIn.push(level);
+  }
+  return [...missing.values()].sort((a, b) => a.slideId.localeCompare(b.slideId));
+}
+
+export function missingSlideName(slideId) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slideId)
+    ? 'An archived slide' : `Slide \`${slideId}\``;
 }

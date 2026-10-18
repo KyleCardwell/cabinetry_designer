@@ -16,8 +16,9 @@ export default function IssueDialog({ onClose }) {
   const busy = issuing || reloading;
   const missingDoors = snapshot?.missing.doorDesigns.length > 0;
   const missingPulls = snapshot?.missing.pulls?.length > 0;
+  const missingSlides = snapshot?.missing.slides?.length > 0;
   const missingProfiles = snapshot?.missing.profiles.length ?? 0;
-  const canIssue = snapshot && !missingDoors && !missingPulls && label.trim() && !busy;
+  const canIssue = snapshot && !missingDoors && !missingPulls && !missingSlides && label.trim() && !busy;
 
   async function issue(event) {
     event.preventDefault();
@@ -58,6 +59,7 @@ export default function IssueDialog({ onClose }) {
         </div>
         {missingDoors && <p className="text-sm text-amber-300">This room uses door designs that aren't in the Library. Move them with the notice under the toolbar, then issue.</p>}
         {missingPulls && <p className="text-sm text-amber-300">This room uses pulls that aren't in the Library. Move them with the notice under the toolbar, then issue.</p>}
+        {missingSlides && <p className="text-sm text-amber-300">This room uses a slide that is no longer in the library. Pick a replacement, then issue.</p>}
         {missingProfiles > 0 && <p className="text-sm text-gray-300">{missingProfiles} profile(s) the room names aren't in the Library. The version will show them as missing.</p>}
         {error && <p role="alert" className="text-sm text-red-300">{error.message}</p>}
         <div className="flex flex-wrap gap-3">

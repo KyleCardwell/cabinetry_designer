@@ -4,6 +4,7 @@ import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
 import { newSectionProfile } from '../sectionProfiles.js';
 import { resolveSetting, resolveSettings } from '../settingsResolve.js';
 import { buildSettingsSnapshot, isSettingsSnapshot, resolvedIssueSettings, settingsFromSnapshot } from '../settingsSnapshot.js';
+import { BUILT_IN_SLIDES } from '../slides.js';
 import { BUILT_IN_PULLS } from '../pulls.js';
 import { defaultVersionLabel, nameInitials } from '../roomVersions.js';
 import { MICRO_SHAKER } from './fixtures/microShakerDesign.js';
@@ -75,15 +76,15 @@ describe('DB8a settings snapshot', () => {
     expect(snapshot.sectionProfiles[1].archived).toBe(true);
     expect(snapshot.doorDesigns.map((design) => design.id)).toEqual(['five-piece-square', 'slab', 'slab-mdf', D_SHAKER]);
     expect(snapshot.overrides).toEqual({ project: { roundTo: 0.25 }, phase: { baseDepth: 25 } });
-    expect(snapshot.library).toEqual({ doorDesigns: { [D_SHAKER]: 2 }, profiles: { [P_CROWN]: 4 }, pulls: {} });
-    expect(snapshot.missing).toEqual({ doorDesigns: [], profiles: [], pulls: [] });
+    expect(snapshot.library).toEqual({ doorDesigns: { [D_SHAKER]: 2 }, profiles: { [P_CROWN]: 4 }, pulls: {}, slides: {} });
+    expect(snapshot.missing).toEqual({ doorDesigns: [], profiles: [], pulls: [], slides: [] });
     expect(snapshot.issuedFrom).toMatchObject({ estProjectId: 42, roomVersion: 6, teamVersion: null });
     expect(isSettingsSnapshot(JSON.parse(JSON.stringify(snapshot)))).toBe(true);
   });
 
   it('lists door designs and profiles the room names but the library no longer has', () => {
     const snapshot = buildSettingsSnapshot({ settings: library(), document: roomDocument({ designId: 'gone-design', outside: 'gone-profile' }) });
-    expect(snapshot.missing).toEqual({ doorDesigns: ['gone-design'], profiles: ['gone-profile'], pulls: [] });
+    expect(snapshot.missing).toEqual({ doorDesigns: ['gone-design'], profiles: ['gone-profile'], pulls: [], slides: [] });
     expect(snapshot.sectionProfiles.map((profile) => profile.id)).toEqual([P_CROWN]);
   });
 
@@ -177,6 +178,46 @@ describe('HP3c step d pull snapshots', () => {
     for (const pulls of [null, {}, [], [...BUILT_IN_PULLS, bar, { ...bar, id: 'other', name: 'BAR' }]]) {
       expect(isSettingsSnapshot({ ...snapshot, pulls })).toBe(false);
       expect(settingsFromSnapshot({ ...snapshot, pulls })).toMatchObject({ ok: false, reason: 'bad_snapshot' });
+    }
+  });
+});
+
+
+describe('IN5 step e slide snapshots', () => {
+  it('anchors 3 and 4: freezes used slides and row versions, reports missing ids and opens legacy snapshots', () => {
+    const U = '0192a1b2-c3d4-7e5f-8a9b-00000000a001';
+    const C = { ...structuredClone(BUILT_IN_SLIDES[0]), id: 'custom', name: 'Custom' };
+    const live = { ...library(), slides: [...structuredClone(BUILT_IN_SLIDES), C,
+      { ...C, id: 'settings-slide', name: 'Settings slide' }, { ...C, id: 'unused', name: 'Unused' }],
+      drawerSlideId: 'overridden' };
+    const document = { ...roomDocument(), walls: [{ runs: [{ grid: {
+      kind: 'cabinet', drawerSlideId: 'accuride-3832', face: { type: 'drawer_front', drawerBox: { slideId: U } },
+    } }] }] };
+    const missing = buildSettingsSnapshot({ settings: live, layers: { project: { values: { drawerSlideId: 'blum-562h' } } }, document });
+    expect(missing.slides).toEqual(BUILT_IN_SLIDES);
+    expect(missing.missing.slides).toEqual([U]);
+    document.walls[0].runs[0].grid.drawerSlideId = C.id;
+    const snapshot = buildSettingsSnapshot({ settings: live, document,
+      layers: { phase: { values: { drawerSlideId: 'settings-slide' } } },
+      rows: { slides: { 'blum-562h': { version: 2 }, custom: { version: 3 }, unused: { version: 9 } } } });
+    expect(snapshot.format).toBe(1);
+    expect(snapshot.settings).not.toHaveProperty('slides');
+    expect(snapshot.slides.map(({ id }) => id)).toEqual([...BUILT_IN_SLIDES.map(({ id }) => id), C.id, 'settings-slide']);
+    expect(snapshot.library.slides).toEqual({ 'blum-562h': 2, custom: 3 });
+    expect(snapshot.missing.slides).toEqual([U]);
+    const frozen = settingsFromSnapshot(snapshot);
+    expect(frozen.settings.slides).toEqual(snapshot.slides);
+    expect(frozen.settings.slides).not.toBe(snapshot.slides);
+    C.name = 'Changed later';
+    C.lengths[0].nominal = 1;
+    expect(frozen.settings.slides[3].name).toBe('Custom');
+    expect(snapshot.slides[3].lengths[0].nominal).toBe(9);
+    const { slides, ...legacy } = snapshot;
+    expect(slides).toHaveLength(5);
+    expect(settingsFromSnapshot(legacy).settings.slides).toEqual(BUILT_IN_SLIDES);
+    expect(settingsFromSnapshot(legacy).settings.slides).not.toBe(BUILT_IN_SLIDES);
+    for (const slides of [null, {}, [], [...BUILT_IN_SLIDES, { ...BUILT_IN_SLIDES[0], id: 'bad' }]]) {
+      expect(settingsFromSnapshot({ ...snapshot, slides })).toMatchObject({ ok: false, reason: 'bad_snapshot' });
     }
   });
 });

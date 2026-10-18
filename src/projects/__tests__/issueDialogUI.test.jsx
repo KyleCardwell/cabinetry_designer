@@ -173,6 +173,16 @@ describe('DB8b d issue dialog', () => {
     expect(dispatch).not.toHaveBeenCalled();
   });
 
+  it('IN5 e anchor 3: refuses missing slides with Issue disabled', async () => {
+    issueSnapshotOf.mockReturnValue({ missing: { doorDesigns: [], profiles: [], slides: ['gone'] } });
+    const { dialog } = openDialog();
+    expect(text(dialog.tree)).toContain('This room uses a slide that is no longer in the library. Pick a replacement, then issue.');
+    expect(button(dialog.tree, 'Issue').props.disabled).toBe(true);
+    await submit(dialog);
+    expect(issueRoomVersion).not.toHaveBeenCalled();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+
   it('warns in grey about missing profiles but still allows issuing', async () => {
     issueSnapshotOf.mockReturnValue({ missing: { doorDesigns: [], profiles: ['p1', 'p2'] } });
     const { dialog } = openDialog();
