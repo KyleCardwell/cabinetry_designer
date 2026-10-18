@@ -33,6 +33,7 @@ import { setFacePath, setItemFace } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import CabinetStyleProperties from './CabinetStyleProperties.jsx';
 import BoxConstructionFields from './BoxConstructionFields.jsx';
+import InteriorFields from './InteriorFields.jsx';
 import PartStyleFields from './PartStyleFields.jsx';
 
 const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600';
@@ -154,6 +155,7 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
       )}
 
       <BoxConstructionFields room={room} wall={wall} run={run} item={item} />
+      <InteriorFields key={item.id} room={room} wall={wall} run={run} item={item} settings={settings} />
 
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Faces</h3>

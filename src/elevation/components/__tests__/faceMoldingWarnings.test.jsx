@@ -8,7 +8,7 @@ vi.mock('react-redux', () => ({
   useSelector: (selector) => selector({ elevation: { facePath: null, activeRoomId: 'room', rooms: [{ id: 'room' }] } }),
 }));
 vi.mock('../../model/index.js', async (importOriginal) => ({
-  ...await importOriginal(), runFaceLayouts: () => new Map(),
+  ...await importOriginal(), runFaceLayouts: () => new Map(), cabinetInterior: () => null,
 }));
 vi.mock('../../model/doorDetails.js', () => ({ runDoorDetails: vi.fn() }));
 vi.mock('../../model/pullLayouts.js', async (importOriginal) => ({
