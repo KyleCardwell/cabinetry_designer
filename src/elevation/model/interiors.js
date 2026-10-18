@@ -6,6 +6,7 @@ import { elevationParts } from './elevationParts.js';
 import { MIN_FACE_SIZE, ROOT_FACE_PATH } from './faces.js';
 import { getInteriorNode } from './interiorTree.js';
 import { resolveWall } from './room.js';
+import { roundTo } from './units.js';
 
 export function interiorDepth(boxDepth, back, settings) {
   switch (back) {
@@ -115,8 +116,78 @@ export function cabinetInterior(room, wall, side, settings, itemId) {
   if (!part) return null;
   const view = resolveWall(room, wall, side);
   const run = view.runs.find((entry) => entry.id === part.runId);
-  const leaf = findLeaf(run.grid, itemId);
+  return interiorForPart(part, run, wall, settings);
+}
+
+function interiorForPart(part, run, wall, settings) {
+  const leaf = findLeaf(run.grid, part.id);
   const box = { x: part.x, z: part.z, width: part.width, height: part.height, depth: part.front - part.back };
   const construction = boxConstruction(leaf, run, wall);
   return { box, construction, ...resolveInterior(leaf.interior, box, construction, settings) };
+}
+
+/** Place clear sections and dividers in wall view coordinates without changing their measurements. */
+export function placeInterior(interior) {
+  const place = (rect) => ({ ...rect, x: rect.x + interior.box.x, z: rect.z + interior.box.z });
+  return {
+    ...interior,
+    sections: interior.sections.map(place),
+    dividers: interior.dividers.map(place),
+  };
+}
+
+/** Resolve every cabinet on a face using one shared elevation parts pass. */
+export function wallInteriors(room, wall, side, settings) {
+  const view = resolveWall(room, wall, side);
+  const runs = new Map(view.runs.map((run) => [run.id, run]));
+  return elevationParts(room, wall, side, settings)
+    .filter((part) => part.kind === 'cabinet')
+    .map((part) => ({
+      itemId: part.id,
+      runId: part.runId,
+      ...placeInterior(interiorForPart(part, runs.get(part.runId), wall, settings)),
+    }));
+}
+
+/** Exterior-to-centre dimensions in divider order, with lanes shared only on the same anchor line. */
+export function interiorDimensions(placed) {
+  const { box, dividers } = placed;
+  const lanes = new Map();
+  const dimensions = dividers.map((divider) => {
+    const { path, index, dimFrom: side } = divider;
+    const vertical = side === 'bottom';
+    const z = divider.z + divider.height;
+    const dimension = {
+      key: `${path}:${index}`,
+      path, index,
+      axis: vertical ? 'vertical' : 'horizontal',
+      from: vertical ? { x: divider.x, z: box.z } : {
+        x: side === 'left' ? box.x : box.x + box.width, z,
+      },
+      to: vertical ? { x: divider.x, z: box.z + divider.fromBottom } : {
+        x: box.x + divider.fromLeft, z,
+      },
+      value: vertical ? divider.fromBottom : side === 'left' ? divider.fromLeft : divider.fromRight,
+      side,
+      manual: !divider.auto,
+      lane: 0,
+    };
+    const anchor = vertical ? `vertical:${divider.x}` : `horizontal:${z}:${side}`;
+    if (!lanes.has(anchor)) lanes.set(anchor, []);
+    lanes.get(anchor).push(dimension);
+    return dimension;
+  });
+  for (const group of lanes.values()) {
+    group.sort((a, b) => a.value - b.value)
+      .forEach((dimension, lane) => { dimension.lane = lane; });
+  }
+  return dimensions;
+}
+
+/** Convert a wall-coordinate move into a snapped position on the dimension's stored side. */
+export function dragDividerPosition(dimension, delta) {
+  const { side, value } = dimension;
+  const move = side === 'bottom' ? delta.z : side === 'left' ? delta.x : -delta.x;
+  const at = Math.max(1 / 16, roundTo(value + move, 1 / 16));
+  return side === 'bottom' ? { at } : { at, from: side };
 }

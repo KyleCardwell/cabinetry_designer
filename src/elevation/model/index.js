@@ -98,7 +98,15 @@ export {
 } from './styles.js';
 export { captureSides } from './capture.js';
 export { boxConstruction } from './boxConstruction.js';
-export { cabinetInterior, interiorDepth, resolveInterior } from './interiors.js';
+export {
+  cabinetInterior,
+  dragDividerPosition,
+  interiorDepth,
+  interiorDimensions,
+  placeInterior,
+  resolveInterior,
+  wallInteriors,
+} from './interiors.js';
 export {
   clearSplit,
   equalizeDividers,
