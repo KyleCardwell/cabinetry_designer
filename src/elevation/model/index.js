@@ -98,7 +98,19 @@ export {
 } from './styles.js';
 export { captureSides } from './capture.js';
 export { boxConstruction } from './boxConstruction.js';
-export { isInteriorNode, isStoredInterior } from './interiorTree.js';
+export {
+  clearSplit,
+  equalizeDividers,
+  getInteriorNode,
+  interiorOutline,
+  isInteriorNode,
+  isStoredInterior,
+  removeDivider,
+  setDividerDepth,
+  setDividerKind,
+  setDividerPosition,
+  splitSection,
+} from './interiorTree.js';
 export { layoutRun, runFaceLayouts } from './faceLayouts.js';
 export {
   BOTTOM_PART_DOORS,
