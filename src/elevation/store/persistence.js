@@ -128,6 +128,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'belowRunOverhang',
   'belowRunFlushReveal',
   'bottomPartHeights',
+  'drawerBoxHeights',
   'baseCutoutFoot',
   'baseCutoutHeight',
   'furnitureBaseScribe',

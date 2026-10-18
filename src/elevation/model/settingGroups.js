@@ -61,6 +61,13 @@ export const SETTING_GROUPS = [
   },
   { id: 'pulls', label: 'Pulls', keys: ['doorPullId', 'drawerPullId', 'pullHeight'] },
   {
+    id: 'drawer-boxes', label: 'Drawer boxes',
+    keys: [
+      'drawerBoxHeights.from', 'drawerBoxHeights.to', 'drawerBoxHeights.thenFrom',
+      'drawerBoxHeights.max', 'drawerBoxHeights.step', 'drawerBoxHeights.warnAbove',
+    ],
+  },
+  {
     id: 'reports', label: 'Reports',
     keys: [
       'report.companyName', 'report.companyPhone', 'report.companyFax', 'report.doorFormNote',

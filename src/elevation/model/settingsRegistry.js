@@ -122,6 +122,14 @@ export const SETTINGS_REGISTRY = [
   ...numberGroup('profiledFit', 'Profiled fit'),
   ...numberGroup('standardDrawerHeights', 'Standard drawer height'),
   ...numberGroup('bottomPartHeights', 'Bottom part height'),
+  ...[
+    ['from', 'Drawer box heights from'],
+    ['to', 'Drawer box heights to'],
+    ['thenFrom', 'Drawer box heights then from'],
+    ['max', 'Tallest drawer box'],
+    ['step', 'Drawer box height step'],
+    ['warnAbove', 'Drawer box warning above'],
+  ].map(([leaf, label]) => ({ key: `drawerBoxHeights.${leaf}`, label, kind: 'number', lowest: 'room' })),
   ...numberGroup('bandDepths', 'Band depth'),
   { key: 'maxCabinetWidth', label: 'Max cabinet width', kind: 'number', lowest: 'run', managedBy: 'run.maxCabinetWidth' },
   ...Object.keys(DEFAULT_PROFILE).map((leaf) => ({

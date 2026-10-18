@@ -98,6 +98,7 @@ export {
 } from './styles.js';
 export { captureSides } from './capture.js';
 export { boxConstruction } from './boxConstruction.js';
+export { drawerBoxHeights, isTallDrawerBox } from './drawerBoxes.js';
 export {
   cabinetInterior,
   dragDividerPosition,

@@ -214,8 +214,8 @@ describe('DB5 d project and phase settings', () => {
       panel.render();
       expect(nodes(panel.tree).find(({ type }) => type === 'fieldset').props.disabled).toBe(false);
       const groups = renderComponent(SettingGroups, component(panel.tree, SettingGroups).props);
-      expect(nodes(groups.tree).filter(({ type }) => type === 'button')).toHaveLength(9);
-      expect(groupsFor(level).map(({ keys }) => keys.length)).toEqual([12, 9, 11, 9, 6, 15, 7, 3, 6]);
+      expect(nodes(groups.tree).filter(({ type }) => type === 'button')).toHaveLength(10);
+      expect(groupsFor(level).map(({ keys }) => keys.length)).toEqual([12, 9, 11, 9, 6, 15, 7, 3, 6, 6]);
       if (level === 'project') {
         const headers = nodes(groups.tree).filter(({ type }) => type === 'button').map((node) => text(node).replace(/\s+/g, ' '));
         expect(headers[0]).toContain('Cabinets & depths 1 overridden');
