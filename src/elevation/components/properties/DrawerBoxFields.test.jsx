@@ -42,7 +42,7 @@ const dispatch = vi.fn((action) => { state = elevationReducer(state, action); re
 const render = (overrides = {}) => DrawerBoxFields({ room: room(), wall: wall(), run: run(),
   item: item(), settings: state.settings, ...overrides });
 const field = (label, tree = render()) => nodes(tree).find(({ type, props }) =>
-  (type === 'select' || type === 'div' || type === InchInput) && props['aria-label'] === label);
+  (type === 'select' || type === 'div' || type === 'input' || type === InchInput) && props['aria-label'] === label);
 const change = (label, value, overrides) => field(label, render(overrides)).props.onChange({ target: { value } });
 const commit = (label, value) => field(label).props.onCommit(value);
 const placeholders = (kind) => nodes(render()).filter(({ type, props }) => type === InchInput
@@ -59,6 +59,105 @@ beforeEach(() => {
   useState.mockImplementation((initial) => [typeof initial === 'function' ? initial() : initial, vi.fn()]);
   useDispatch.mockReturnValue(dispatch);
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
+});
+
+describe('IN6 Drawer boxes rules and pull-outs', () => {
+  const pullout = () => ({ type: 'door', action: 'pullout', size: null });
+  const panel = () => {
+    const view = resolveWall(room(), wall());
+    const scene = runScene(room(), view, run(), state.settings);
+    return FaceProperties({ wall: view, run: run(), item: item(),
+      piece: scene.cells.pieces[0], layout: scene.result, cells: scene.cells, settings: state.settings });
+  };
+
+  it('anchor 1: names file slide and height rules and restores them after clearing overrides', () => {
+    edit(() => { item().purpose = 'file'; item().face.children = [drawer(5.875), drawer()]; });
+    expect(options(field('Drawer slide r.1'))[0]).toEqual(['', 'Auto (Accuride 3832, DRW-003)']);
+    expect(placeholders('height')[1]).toBe('Auto (10 1/4", DRW-003)');
+    expect(placeholders('depth')[1]).toBe('Auto (22")');
+    change('Drawer slide r.1', 'blum-562h');
+    commit('Drawer height r.1', 9.25);
+    expect(field('Drawer height r.1').props.value).toBe(9.25);
+    expect(field('Drawer slide r.1').props.value).toBe('blum-562h');
+    commit('Drawer height r.1', null);
+    change('Drawer slide r.1', '');
+    expect(placeholders('height')[1]).toBe('Auto (10 1/4", DRW-003)');
+    expect(options(field('Drawer slide r.1'))[0]).toEqual(['', 'Auto (Accuride 3832, DRW-003)']);
+    edit(() => { delete item().purpose; run().depth = 12; });
+    expect(options(field('Drawer slide r.1'))[0]).toEqual(['', 'Auto (Accuride 3832, DRW-002)']);
+  });
+
+  it('anchor 2: shows sink rule depths, box notes and the cabinet note at the end', () => {
+    edit(() => { item().purpose = 'sink'; item().box = { top: 'spreaders' }; });
+    expect(placeholders('depth')).toEqual(Array(3).fill('Auto (18", DRW-006)'));
+    for (const path of ['r.0', 'r.1', 'r.2']) {
+      expect(text(field(`Drawer box ${path}`))).toContain('notch drw around plumbing');
+    }
+    expect(nodes(render()).filter(({ type }) => type === 'p').map(text).at(-1))
+      .toBe('notch drw around plumbing (DRW-006)');
+    commit('Drawer depth r.0', 20);
+    expect(field('Drawer depth r.0').props.value).toBe(20);
+    expect(text(field('Drawer box r.0'))).toContain('notch drw around plumbing');
+    commit('Drawer depth r.0', null);
+    expect(placeholders('depth')[0]).toBe('Auto (18", DRW-006)');
+    edit(() => { run().width = 42; run().grid.cols[0].size = 42; });
+    expect(nodes(render()).filter(({ type }) => type === 'p').map(text).slice(-2))
+      .toEqual(['notch drw around plumbing (DRW-006)', 'drawer stabilizers (BOX-007)']);
+  });
+
+  it('anchor 3: checks and unchecks Charging with sparse patches and recalculates rule depth', () => {
+    expect(field('Charging r.0').props.checked).toBe(false);
+    field('Charging r.0').props.onChange({ target: { checked: true } });
+    expect(dispatch).toHaveBeenLastCalledWith(setFaceDrawerBox({ ...at, itemId: 'c1', path: 'r.0', patch: { charging: true } }));
+    expect(field('Charging r.0').props.checked).toBe(true);
+    expect(placeholders('depth')[0]).toBe('Auto (21", DRW-008)');
+    field('Charging r.0').props.onChange({ target: { checked: false } });
+    expect(dispatch).toHaveBeenLastCalledWith(setFaceDrawerBox({ ...at, itemId: 'c1', path: 'r.0', patch: { charging: null } }));
+    expect(item().face.children[0].drawerBox).toBeUndefined();
+    expect(placeholders('depth')[0]).toBe('Auto (21")');
+  });
+
+  it('anchor 4: shows ROT rows, rule dimensions and notes, including a pull-out-only cabinet', () => {
+    edit(() => { item().purpose = 'trash'; item().face.children = [drawer(5.875), pullout()]; });
+    expect(nodes(render()).filter(({ type }) => type === 'h4').map(text))
+      .toEqual(['Front 5 7/8"', 'ROT · front 24 1/4"']);
+    expect(placeholders('height')[1]).toBe('Auto (15 1/8", DRW-009)');
+    expect(placeholders('depth')[1]).toBe('Auto (22", DRW-009)');
+    expect(text(field('Drawer box r.1'))).toContain('bottom up 1 3/4"');
+    expect(field('Charging r.0')).toBeDefined();
+    expect(field('Charging r.1')).toBeUndefined();
+    edit(() => { item().face = pullout(); });
+    expect(nodes(panel()).some(({ type }) => type === DrawerBoxFields)).toBe(true);
+    expect(nodes(render()).filter(({ type }) => type === 'h4').map(text)).toEqual(['ROT · front 30 1/4"']);
+    expect(field('Charging r')).toBeUndefined();
+    commit('Drawer height r', 12.125);
+    commit('Drawer depth r', 21);
+    expect(field('Drawer height r').props.value).toBe(12.125);
+    expect(field('Drawer depth r').props.value).toBe(21);
+    expect(text(render())).not.toContain('bottom up 1 3/4"');
+    commit('Drawer height r', null);
+    commit('Drawer depth r', null);
+    expect(placeholders('height')).toEqual(['Auto (15 1/8", DRW-009)']);
+    expect(placeholders('depth')).toEqual(['Auto (22", DRW-009)']);
+  });
+
+  it('shows hamper rows and all new warning messages with the resolved measurements', () => {
+    edit(() => { item().purpose = 'hamper'; item().face = pullout(); });
+    expect(nodes(panel()).some(({ type }) => type === DrawerBoxFields)).toBe(true);
+    expect(nodes(render()).filter(({ type }) => type === 'h4').map(text)).toEqual(['Hamper · front 30 1/4"']);
+    expect(placeholders('height')).toEqual(['Auto (6 1/4", DRW-010)']);
+    expect(field('Charging r')).toBeUndefined();
+    expect(text(render())).toContain('A hamper box needs at least 15 × 22 (this one is 16" × 21").');
+    edit(() => { item().face = { direction: 'vertical', size: null, children: [drawer(5.875), drawer(9), pullout()] }; });
+    expect(text(render())).toContain('A hamper needs 11 clear below the box (8 1/16" here).');
+    edit(() => { item().purpose = 'trash'; });
+    expect(text(render())).toContain('ROT · front 15 1/8": Shorter than the standard 15 1/8 ROT (13 3/4" available).');
+    edit(() => { item().face = pullout(); run().depth = 21; });
+    expect(text(render())).toContain('No ROT depth rule for a 18" × 21" box; sized like a drawer.');
+    edit(() => { delete item().purpose; item().face = drawer(); run().depth = 24;
+      item().face.drawerBox = { charging: true, depth: 22 }; });
+    expect(text(render())).toContain('A charging drawer needs 2 clear behind the box (1" here).');
+  });
 });
 
 describe('IN5 Drawer boxes section', () => {

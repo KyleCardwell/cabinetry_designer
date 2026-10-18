@@ -147,4 +147,17 @@ describe('IN5 doors-off drawer boxes', () => {
     expect(view.interiorNode).toBeUndefined();
     expect(view.boxes).toEqual([]);
   });
+
+  it('draws ROT and hamper boxes with their kind and height in the doors-off label', () => {
+    item().face.children = [drawer(5.875), { type: 'door', action: 'pullout', size: null }];
+    for (const [purpose, label] of [['trash', 'ROT 15 1/8'], ['hamper', 'Hamper 6 1/4']]) {
+      item().purpose = purpose;
+      const view = canvas();
+      expect(view.boxes).toHaveLength(2);
+      expect(nodes(view.boxes[0]).find(({ type }) => type === Text).props.text).toBe('4 1/4');
+      expect(nodes(view.boxes[1]).find(({ type }) => type === Rect)).toBeDefined();
+      expect(nodes(view.boxes[1]).find(({ type }) => type === Text).props.text).toBe(label);
+      expect(nodes(view.boxes[1]).every(({ props }) => props.listening === false)).toBe(true);
+    }
+  });
 });

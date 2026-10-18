@@ -155,7 +155,8 @@ export default function InteriorShapes({
         {(drawerBoxes.find(({ itemId }) => itemId === entry.itemId)?.boxes ?? [])
           .filter((box) => box.height !== null).map((box) => {
             const rect = wallRectToScreen(box, transform);
-            const text = formatInches(box.height).replace(/"$/, '');
+            const label = box.kind === 'rot' ? 'ROT ' : box.kind === 'hamper' ? 'Hamper ' : '';
+            const text = `${label}${formatInches(box.height).replace(/"$/, '')}`;
             const color = box.warnings.length ? '#f59e0b' : '#e2e8f0';
             const showHeight = rect.height >= SIZE_FONT + SIZE_INSET * 2
               && rect.width >= text.length * 6 + SIZE_INSET * 2;

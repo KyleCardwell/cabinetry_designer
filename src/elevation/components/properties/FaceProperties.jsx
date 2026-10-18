@@ -157,7 +157,8 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
 
       <BoxConstructionFields room={room} wall={wall} run={run} item={item} />
       <InteriorFields key={item.id} room={room} wall={wall} run={run} item={item} settings={settings} />
-      {faceLayout?.faces.some(({ type }) => type === 'drawer_front') && (
+      {faceLayout?.faces.some(({ type, action }) => type === 'drawer_front'
+        || (type === 'door' && action === 'pullout' && ['trash', 'hamper'].includes(item.purpose))) && (
         <DrawerBoxFields key={`drawers-${item.id}`} room={room} wall={wall} run={run} item={item}
           itemIds={itemIds} settings={settings} faceLayout={faceLayout} />
       )}

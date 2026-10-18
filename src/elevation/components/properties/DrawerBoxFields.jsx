@@ -1,13 +1,13 @@
 import { useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { DEFAULT_SETTINGS, cabinetDrawerBoxesFor, formatInches, getFaceNode } from '../../model/index.js';
+import { DEFAULT_SETTINGS, cabinetDrawerBoxesFor, formatInches, getFaceNode, wallInteriors } from '../../model/index.js';
 import { BUILT_IN_SLIDES, resolveSlide } from '../../model/slides.js';
 import { setCabinetSlide, setFaceDrawerBox } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
-const frontLabel = (height) => `Front ${formatInches(height)}`;
+const frontLabel = (height, kind) => `${kind === 'rot' ? 'ROT · front' : kind === 'hamper' ? 'Hamper · front' : 'Front'} ${formatInches(height)}`;
 
 function SlideSelect({ value, automatic, slides, label, onChange }) {
   return (
@@ -22,7 +22,7 @@ function SlideSelect({ value, automatic, slides, label, onChange }) {
   );
 }
 
-function warningText(code, box, settings) {
+function warningText(code, box, settings, interior) {
   switch (code) {
     case 'slide-missing': return `A slide picked here isn't in the Library any more; using ${box.slide.name}.`;
     case 'drawer-outside-box': return "This drawer front isn't over the cabinet's interior.";
@@ -33,6 +33,11 @@ function warningText(code, box, settings) {
     case 'drawer-box-tall': return `Taller than ${formatInches(settings.drawerBoxHeights?.warnAbove ?? DEFAULT_SETTINGS.drawerBoxHeights.warnAbove)}, the tallest the shop normally builds.`;
     case 'no-slide-length': return `No ${box.slide.name} length fits ${formatInches(box.interiorDepth)} of depth.`;
     case 'drawer-too-deep': return `Deeper than the interior (${formatInches(box.interiorDepth)}).`;
+    case 'rot-short': return `Shorter than the standard 15 1/8 ROT (${formatInches(box.available)} available).`;
+    case 'rot-size-unlisted': return `No ROT depth rule for a ${formatInches(interior.box.width)} × ${formatInches(interior.box.depth)} box; sized like a drawer.`;
+    case 'hamper-clear-below': return `A hamper needs 11 clear below the box (${formatInches(box.clearBelow)} here).`;
+    case 'hamper-too-small': return `A hamper box needs at least 15 × 22 (this one is ${formatInches(box.width)} × ${formatInches(box.depth)}).`;
+    case 'charging-clearance': return `A charging drawer needs 2 clear behind the box (${formatInches(box.interiorDepth - box.depth)} here).`;
     default: return null;
   }
 }
@@ -46,6 +51,9 @@ export default function DrawerBoxFields({ room, wall, run, item, itemIds = [item
   if (!resolved) return null;
 
   const slides = settings.slides ?? BUILT_IN_SLIDES;
+  const interior = resolved.warnings.some(({ code }) => code === 'rot-size-unlisted')
+    ? wallInteriors(room, wall.sideSource ?? wall, wall.side ?? 'front', settings)
+      .find(({ itemId }) => itemId === item.id) : null;
   const at = { roomId: room.id, wallId: wall.id, runId: run.id };
   const patchBox = (path, patch) => {
     if (Object.values(patch).some((value) => typeof value === 'number' && (!Number.isFinite(value) || value <= 0))) return false;
@@ -63,21 +71,22 @@ export default function DrawerBoxFields({ room, wall, run, item, itemIds = [item
       </Field>
       {resolved.boxes.map((box) => {
         const pick = getFaceNode(item.face, box.path)?.drawerBox ?? {};
-        const label = frontLabel(box.frontHeight);
+        const label = frontLabel(box.frontHeight, box.kind);
         const matched = box.heightSource === 'matched';
-        const height = matched ? box.height : box.heightAuto;
+        const height = matched || box.heightSource === 'rule' ? box.height : box.heightAuto;
         return (
           <div key={box.path} aria-label={`Drawer box ${box.path}`}
             className={`space-y-2 rounded border p-2 ${facePath === box.path ? 'border-blue-500 bg-gray-800/60' : 'border-gray-700'}`}>
             <h4 className="text-xs font-medium text-gray-300">{label}</h4>
             <Field label="Slide">
               <SlideSelect label={`Drawer slide ${box.path}`} value={pick.slideId} slides={slides}
-                automatic={`Auto (${box.slide.name})`} onChange={(slideId) => patchBox(box.path, { slideId })} />
+                automatic={`Auto (${box.slide.name}${box.slideRule ? `, ${box.slideRule}` : ''})`}
+                onChange={(slideId) => patchBox(box.path, { slideId })} />
             </Field>
             <div className="grid grid-cols-2 gap-2">
               <Field label="Height">
                 <InchInput aria-label={`Drawer height ${box.path}`} value={pick.height} allowBlank
-                  placeholder={`Auto (${height === null ? 'none fits' : `${formatInches(height)}${matched ? ', matched' : ''}`})`}
+                  placeholder={`Auto (${height === null ? 'none fits' : formatInches(height)}${matched ? ', matched' : box.heightRule ? `, ${box.heightRule}` : ''})`}
                   onCommit={(height) => patchBox(box.path, { height })} />
               </Field>
               <Field label="Width">
@@ -88,22 +97,35 @@ export default function DrawerBoxFields({ room, wall, run, item, itemIds = [item
             </div>
             <Field label="Depth">
               <InchInput aria-label={`Drawer depth ${box.path}`} value={pick.depth} allowBlank
-                placeholder={`Auto (${box.depthAuto === null ? 'no length fits' : formatInches(box.depthAuto)})`}
+                placeholder={`Auto (${box.depthAuto === null ? 'no length fits' : formatInches(box.depthAuto)}${box.depthRule ? `, ${box.depthRule}` : ''})`}
                 onCommit={(depth) => patchBox(box.path, { depth })} />
             </Field>
+            {box.kind === 'drawer' && (
+              <label className="flex items-center gap-2 text-sm text-gray-300">
+                <input type="checkbox" aria-label={`Charging ${box.path}`} checked={box.charging}
+                  onChange={(event) => patchBox(box.path, { charging: event.target.checked ? true : null })} />
+                Charging
+              </label>
+            )}
+            {box.notes.map((note) => <p key={note} className="text-xs text-gray-400">{note}</p>)}
           </div>
         );
       })}
       {resolved.warnings.map((warning, index) => {
         const box = resolved.boxes.find(({ path }) => path === warning.path);
         const front = box ?? faceLayout?.faces.find(({ path }) => path === warning.path);
-        const label = front ? frontLabel(front.frontHeight ?? front.height) : null;
+        const kind = box?.kind ?? (front?.type === 'door' && front.action === 'pullout'
+          ? item.purpose === 'trash' ? 'rot' : item.purpose === 'hamper' ? 'hamper' : null : null);
+        const label = front ? frontLabel(front.frontHeight ?? front.height, kind) : null;
         return (
           <p key={index} className="text-xs text-amber-400">
-            {`${label ? `${label}: ` : ''}${warningText(warning.code, box, settings)}`}
+            {`${label ? `${label}: ` : ''}${warningText(warning.code, box, settings, interior)}`}
           </p>
         );
       })}
+      {resolved.notes.map(({ rule, text }) => (
+        <p key={rule} className="text-xs text-gray-400">{`${text} (${rule})`}</p>
+      ))}
     </section>
   );
 }
