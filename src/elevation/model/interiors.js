@@ -8,6 +8,11 @@ import { getInteriorNode } from './interiorTree.js';
 import { resolveWall } from './room.js';
 import { roundTo } from './units.js';
 
+/** A raised face frame deck (`box.deckZ`, IN5.2); an overlay bottom stays at the box bottom. */
+function deckRaise(box, construction) {
+  return construction.bottom === 'overlay' ? 0 : box.deckZ ?? 0;
+}
+
 export function interiorDepth(boxDepth, back, settings) {
   switch (back) {
     case 'dado': return boxDepth - DADO_BACK_SETBACK - BACK_PANEL_THICKNESS;
@@ -49,7 +54,7 @@ function dividerCenters(node, rect, box, thicknesses) {
 export function resolveInterior(interior, box, construction, settings) {
   const t = sheetThickness(settings);
   const x = construction.left ? t : 0;
-  const z = construction.bottom === 'none' ? 0 : t;
+  const z = construction.bottom === 'none' ? 0 : deckRaise(box, construction) + t;
   const rect = {
     x, z,
     width: box.width - x - (construction.right ? t : 0),
@@ -126,14 +131,18 @@ export function boxPartLines(box, construction, t) {
     if (kind === 'none') continue;
     const x0 = kind !== 'overlay' && construction.left ? t : 0;
     const x1 = kind !== 'overlay' && construction.right ? w - t : w;
-    lines.push({ part, x: x0, z: part === 'bottom' ? t : h - t, width: x1 - x0, height: 0 });
+    lines.push({ part, x: x0, z: part === 'bottom' ? deckRaise(box, construction) + t : h - t, width: x1 - x0, height: 0 });
+    // A raised deck (IN5.2) shows its underside too, so it reads as one 3/4" part.
+    if (part === 'bottom' && deckRaise(box, construction) > 0) {
+      lines.push({ part: 'deckUnder', x: x0, z: deckRaise(box, construction), width: x1 - x0, height: 0 });
+    }
   }
   return lines;
 }
 
 /** Find the drawn cabinet box on this face, including any blind portion. */
 export function cabinetInterior(room, wall, side, settings, itemId) {
-  const part = elevationParts(room, wall, side, settings)
+  const part = elevationParts(room, wall, side, settings, { withDecks: true })
     .find((entry) => entry.kind === 'cabinet' && entry.id === itemId);
   if (!part) return null;
   const view = resolveWall(room, wall, side);
@@ -143,7 +152,10 @@ export function cabinetInterior(room, wall, side, settings, itemId) {
 
 function interiorForPart(part, run, wall, settings) {
   const leaf = findLeaf(run.grid, part.id);
-  const box = { x: part.x, z: part.z, width: part.width, height: part.height, depth: part.front - part.back };
+  const box = {
+    x: part.x, z: part.z, width: part.width, height: part.height, depth: part.front - part.back,
+    ...(part.deckZ > 0 ? { deckZ: part.deckZ } : {}),
+  };
   const construction = boxConstruction(leaf, run, wall);
   return { box, construction, ...resolveInterior(leaf.interior, box, construction, settings) };
 }
@@ -163,7 +175,7 @@ export function placeInterior(interior) {
 export function wallInteriors(room, wall, side, settings) {
   const view = resolveWall(room, wall, side);
   const runs = new Map(view.runs.map((run) => [run.id, run]));
-  return elevationParts(room, wall, side, settings)
+  return elevationParts(room, wall, side, settings, { withDecks: true })
     .filter((part) => part.kind === 'cabinet')
     .map((part) => ({
       itemId: part.id,

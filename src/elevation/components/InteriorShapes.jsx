@@ -9,6 +9,7 @@ const SIZE_INSET = 3;
 
 export default function InteriorShapes({
   entries,
+  framedIds = null,
   drawerBoxes = [],
   drawnPieces,
   transform,
@@ -74,6 +75,17 @@ export default function InteriorShapes({
             </Fragment>
           );
         })}
+        {/* A face frame box is hidden behind its frame normally (SPEC-36.1); with the doors off its outline shows. */}
+        {framedIds?.has(entry.itemId) && (
+          <Rect
+            key="box"
+            {...wallRectToScreen(entry.box, transform)}
+            stroke="#f8fafc"
+            strokeWidth={1}
+            fillEnabled={false}
+            listening={false}
+          />
+        )}
         {(entry.partLines ?? []).map((line) => {
           const { x, y, width, height } = wallRectToScreen(line, transform);
           return (

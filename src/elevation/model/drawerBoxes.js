@@ -90,7 +90,6 @@ export function cabinetDrawerBoxes({
       x: space.x + slide.sideClearance - (maple ? 1 / 32 : 0), z: space.z + slide.minBelow,
     };
     if (height === null) box.warnings.push({ code: 'drawer-too-short' });
-    if (pick.height > available + 1e-9) box.warnings.push({ code: 'drawer-height-too-tall' });
     if (depth === null) box.warnings.push({ code: 'no-slide-length' });
     if (pick.depth > section.depth + 1e-9) box.warnings.push({ code: 'drawer-too-deep' });
     entries.push({ box, section });
@@ -113,6 +112,19 @@ export function cabinetDrawerBoxes({
       }
       if (typed.size > 1) box.warnings.push({ code: 'drawer-heights-differ' });
     }
+  }
+  // Boxes sit as low in their space as the slide allows; one too tall for that drops lower (the front
+  // overhangs more at the top), down to the box below it in the section, before it's called too tall.
+  const bottomUp = entries.filter(({ box }) => box.height !== null).sort((a, b) => a.box.space.z - b.box.space.z);
+  for (const { box, section } of bottomUp) {
+    const below = bottomUp.filter(({ box: other, section: otherSection }) => other !== box && otherSection === section
+      && other.space.z + other.space.height <= box.space.z + 1e-9);
+    const floor = Math.max(section.z, ...below.map(({ box: other }) => other.z + other.height + other.slide.minAbove))
+      + box.slide.minBelow;
+    const ceiling = box.space.z + box.space.height - box.slide.minAbove;
+    box.maxHeight = Math.max(0, ceiling - floor);
+    box.z = Math.max(floor, Math.min(box.z, ceiling - box.height));
+    if (box.z + box.height > ceiling + 1e-9) box.warnings.push({ code: 'drawer-height-too-tall' });
   }
   for (const { box, section } of entries) {
     if (entries.some((other) => other.box !== box && other.section === section

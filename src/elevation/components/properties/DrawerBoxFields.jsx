@@ -28,7 +28,7 @@ function warningText(code, box, settings) {
     case 'drawer-outside-box': return "This drawer front isn't over the cabinet's interior.";
     case 'drawers-share-section': return 'Side-by-side drawers need a partition between them.';
     case 'drawer-too-short': return `No drawer box fits this front (needs ${formatInches(box.slide.minBelow + box.slide.minAbove + 2.25)}).`;
-    case 'drawer-height-too-tall': return `This box is taller than the space (${formatInches(box.available)} available).`;
+    case 'drawer-height-too-tall': return `This box is taller than the space (${formatInches(box.maxHeight)} available).`;
     case 'drawer-heights-differ': return 'Same-height fronts have different typed box heights.';
     case 'drawer-box-tall': return `Taller than ${formatInches(settings.drawerBoxHeights?.warnAbove ?? DEFAULT_SETTINGS.drawerBoxHeights.warnAbove)}, the tallest the shop normally builds.`;
     case 'no-slide-length': return `No ${box.slide.name} length fits ${formatInches(box.interiorDepth)} of depth.`;

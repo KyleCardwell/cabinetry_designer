@@ -117,11 +117,13 @@ describe('IN5 step b drawer box sizing', () => {
     const boxes = sized({ face }).boxes;
     expect(boxes[2]).toMatchObject({ height: 9.25, heightSource: 'manual', heightAuto: 10.25 });
     expect(boxes[1]).toMatchObject({ height: 9.25, heightSource: 'matched' });
-    for (const [height, expected] of [[3.625, []], [5.25, ['drawer-height-too-tall']],
-      [16.125, ['drawer-height-too-tall', 'drawer-box-tall']]]) {
+    // The middle box (9 1/4) tops out at 22 1/16, so the top box may drop to 22 7/8 (1/4 + 9/16 clear);
+    // its ceiling is 29 1/2 (the box top's underside less 1/4): 6 5/8 at most.
+    for (const [height, z, expected] of [[3.625, 25, []], [5.25, 24.25, []], [6.25, 23.25, []],
+      [7.25, 22.875, ['drawer-height-too-tall']], [16.125, 22.875, ['drawer-height-too-tall', 'drawer-box-tall']]]) {
       face.children[0].drawerBox = { height };
       const top = sized({ face }).boxes[0];
-      expect(top).toMatchObject({ height, heightSource: 'manual' });
+      expect(top).toMatchObject({ height, heightSource: 'manual', z, maxHeight: 6.625 });
       expect(codes(top)).toEqual(expected);
     }
   });

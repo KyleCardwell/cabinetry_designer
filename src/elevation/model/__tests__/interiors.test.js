@@ -5,6 +5,8 @@ import {
   placeInterior, resolveInterior, wallInteriors,
 } from '../index.js';
 import { findLeaf, splitGridCell } from '../cellTree.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { gridFromItems } from '../grid.js';
 import { elevationParts } from '../elevationParts.js';
 import * as elevationPartsModule from '../elevationParts.js';
 import { syncRoom } from '../room.js';
@@ -359,5 +361,60 @@ describe('IN3.1 box part lines (doors-off view)', () => {
       { part: 'right', x: 29.25, z: 0, width: 0, height: 30.5 },
       { part: 'bottom', x: 0, z: 0.75, width: 29.25, height: 0 },
     ]);
+  });
+});
+
+describe('IN5.2 raised face frame decks', () => {
+  const room = (cabinetTypeId, style, height = 30.5) => {
+    const run = {
+      id: 'run', cabinetTypeId, x: 24, width: 30, z: cabinetTypeId === CABINET_TYPE_IDS.UPPER ? 54 : 4,
+      height, depth: cabinetTypeId === CABINET_TYPE_IDS.UPPER ? 12 : 24,
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+      autoCount: false, maxCabinetWidth: null, heightMode: 'manual', overrides: {},
+      anchors: { left: false, right: false },
+      grid: gridFromItems('run', [{ id: 'c', kind: 'cabinet', width: null, face: { type: 'door', size: null }, style }]),
+    };
+    const wall = { id: 'wall', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5,
+      flipped: false, connections: { start: null, end: null }, profile: {}, runs: [run], openings: [] };
+    return { id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] };
+  };
+  const interiorOf = (cabinetTypeId, style) => {
+    const built = room(cabinetTypeId, style);
+    return cabinetInterior(built, built.walls[0], 'front', settings, 'c');
+  };
+  const bottomLine = (interior) => interior.partLines.find(({ part }) => part === 'bottom');
+
+  it('puts a face frame base deck 1 1/8" up on centre: its top flush with the 1 1/2" rail', () => {
+    const interior = interiorOf(CABINET_TYPE_IDS.BASE, { cabinetStyleId: 14 });
+    expect(interior.box.deckZ).toBe(0.75);
+    expect(interior.rect).toMatchObject({ z: 1.5, height: 30.5 - 1.5 - 0.75 });
+    expect(bottomLine(interior).z).toBe(1.5);
+    expect(interior.partLines.find(({ part }) => part === 'deckUnder')).toMatchObject({ z: 0.75, width: 28.5, height: 0 });
+  });
+
+  it('follows the bottom rail: a 1/4" bead lifts the deck to 1 3/8" on centre', () => {
+    const interior = interiorOf(CABINET_TYPE_IDS.BASE, { cabinetStyleId: 15, beadWidth: 0.25 });
+    expect(interior.box.deckZ).toBe(1);
+    expect(interior.rect.z).toBe(1.75);
+  });
+
+  it('leaves Euro bases, face frame uppers and overlay bottoms at the box bottom', () => {
+    const euro = interiorOf(CABINET_TYPE_IDS.BASE, { cabinetStyleId: 13 });
+    expect(euro.box.deckZ).toBeUndefined();
+    expect(euro.rect.z).toBe(0.75);
+    expect(euro.partLines.some(({ part }) => part === 'deckUnder')).toBe(false);
+    const upper = interiorOf(CABINET_TYPE_IDS.UPPER, { cabinetStyleId: 14 });
+    expect(upper.box.deckZ).toBeUndefined();
+    expect(upper.rect.z).toBe(0.75);
+    expect(resolveInterior(undefined, { width: 30, height: 30.5, depth: 24, deckZ: 0.75 },
+      boxConstruction({ box: { bottom: 'overlay' } })).rect.z).toBe(0.75);
+    expect(resolveInterior(undefined, { width: 30, height: 30.5, depth: 24, deckZ: 0.75 },
+      boxConstruction({ box: { bottom: 'none' } })).rect.z).toBe(0);
+  });
+
+  it('never adds the deck to the drawing payload parts', () => {
+    const built = room(CABINET_TYPE_IDS.BASE, { cabinetStyleId: 14 });
+    const part = elevationParts(built, built.walls[0], 'front', settings).find(({ id }) => id === 'c');
+    expect(part).not.toHaveProperty('deckZ');
   });
 });

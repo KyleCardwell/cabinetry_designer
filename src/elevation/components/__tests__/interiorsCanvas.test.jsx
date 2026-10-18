@@ -161,3 +161,25 @@ describe('IN3 doors-off canvas', () => {
     expect(toggle()).toBeUndefined();
   });
 });
+
+describe('IN5.2 face frame boxes with the doors off', () => {
+  const boxRect = (shapes) => shapes.find((node) => node.type === Rect && node.key === 'box');
+
+  it('outlines a framed box in the doors-off view only; Euro boxes keep their piece outline', () => {
+    dispatch(setDoorsOff(true));
+    expect(boxRect(canvas().shapes)).toBeUndefined();
+    state = stateWithRun(run({
+      cabinetTypeId: CABINET_TYPE_IDS.TALL, x: 10, z: 0, width: 24, height: 84,
+      autoCount: false, ends: { left: { type: 'none' }, right: { type: 'none' } },
+      items: [{ id: 'cabinet', kind: 'cabinet', width: 24, face: { type: 'door', hinge: 'left' },
+        style: { cabinetStyleId: 14 } }],
+    }));
+    state.doorsOff = true;
+    const { layer, shapes } = canvas();
+    const entry = layer.props.entries[0];
+    expect(entry.box).toMatchObject({ x: 10, width: 24, height: 84 });
+    expect(boxRect(shapes).props).toMatchObject({ ...wallRectToScreen(entry.box, transform), listening: false });
+    state.doorsOff = false;
+    expect(canvas().layer).toBeUndefined();
+  });
+});

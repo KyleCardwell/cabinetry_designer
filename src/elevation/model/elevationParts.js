@@ -4,7 +4,8 @@ import { runBands } from './runBands.js';
 import { planRunPieces } from './planPieces.js';
 import { frontDepth, runBackOffset } from './corners.js';
 import { shelfParts } from './cells.js';
-import { teamDoorStyle } from './doorStyles.js';
+import { sheetThickness, teamDoorStyle } from './doorStyles.js';
+import { isInsetStyle } from './styles.js';
 
 const EPSILON = 1e-6;
 
@@ -13,8 +14,21 @@ const EPSILON = 1e-6;
  * and its depth from the wall face, read from the plan view so the two always agree. Run by run in
  * view order; within a run: boxes, then fillers/end panels/panels/Ts, then frames, then shelves,
  * then faces. An end panel or filler with a chip detail carries it as a detail line (SPEC-42).
+ * `withDecks` (interiors only, never the payload) adds each face frame cabinet's raised deck:
+ * `deckZ`, how far the deck's underside sits above the box bottom (IN5.2).
  */
-export function elevationParts(room, wall, side, settings) {
+/**
+ * A face frame cabinet's deck top sits flush with the bottom of the frame opening (Kyle 2026-10-18):
+ * a standard 1 1/2" rail puts a 3/4" deck 1 1/8" up on centre, and a bead or a changed bottom rail
+ * moves it with the rail. A rail that hangs below the box (uppers, hanging bases, a shared rail)
+ * leaves 3/4" or less, so the deck stays at the bottom. Euro decks stay at the bottom.
+ */
+function deckZ(layout, settings) {
+  if (!layout || !isInsetStyle(layout.style)) return 0;
+  return Math.max(0, (layout.reveals.values.bottom ?? 0) - sheetThickness(settings));
+}
+
+export function elevationParts(room, wall, side, settings, { withDecks = false } = {}) {
   const view = resolveWall(room, wall, side);
   const parts = [];
   const emit = (part) => {
@@ -44,6 +58,7 @@ export function elevationParts(room, wall, side, settings) {
         back: box.back,
         front: box.front,
         coversBoxEdges: false,
+        ...(withDecks ? { deckZ: deckZ(scene.faceLayouts.get(piece.id), settings) } : {}),
       });
     }
 

@@ -384,6 +384,7 @@ function RunGroup({
       {doorsOff && (
         <InteriorShapes
           entries={interiors}
+          framedIds={framedIds}
           drawerBoxes={drawerBoxes}
           drawnPieces={drawnPieces}
           transform={transform}
