@@ -193,3 +193,29 @@ describe('RP1 a report settings', () => {
     }
   });
 });
+
+
+it('IN4b d validates slide IDs and resolves only through room level', () => {
+  const key = 'drawerSlideId';
+  expect(resolveSetting(key)).toEqual({ value: 'blum-562h', source: { level: 'default' } });
+  for (const level of ['team', 'project', 'phase', 'room']) {
+    for (const value of ['accuride-3832', 'gone']) {
+      expect(isValidSettingValue(key, value)).toBe(true);
+      expect(cleanOverrides({ [key]: value }, level)).toEqual({ [key]: value });
+      expect(resolveSetting(key, [{ level, values: { [key]: value } }]))
+        .toEqual({ value, source: { level } });
+    }
+    for (const value of ['', null, 3, false, [], {}]) {
+      expect(isValidSettingValue(key, value)).toBe(false);
+      expect(cleanOverrides({ [key]: value }, level)).toEqual({});
+      expect(resolveSetting(key, [team({ [key]: 'accuride-3832' }), { level, values: { [key]: value } }]).value)
+        .toBe('accuride-3832');
+    }
+  }
+  const chain = ['team', 'project', 'phase', 'room'].map((level, index) => ({ level, values: { [key]: `slide-${index}` } }));
+  expect(resolveSettings(chain).drawerSlideId).toBe('slide-3');
+  for (const level of ['wall', 'run', 'cabinet', 'face']) {
+    expect(cleanOverrides({ [key]: 'accuride-3832' }, level)).toEqual({});
+    expect(resolveSetting(key, [{ level, values: { [key]: 'accuride-3832' } }]).value).toBe('blum-562h');
+  }
+});

@@ -79,6 +79,7 @@ export const DEFAULT_SETTINGS = {
   doorDesigns: DOOR_DESIGNS,
   pulls: BUILT_IN_PULLS,
   slides: BUILT_IN_SLIDES,
+  drawerSlideId: 'blum-562h',
   doorPullId: 'pull-4',
   drawerPullId: 'pull-4',
   pullHeight: 45,

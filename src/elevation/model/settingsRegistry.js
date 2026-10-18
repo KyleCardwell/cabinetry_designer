@@ -122,6 +122,7 @@ export const SETTINGS_REGISTRY = [
   ...numberGroup('profiledFit', 'Profiled fit'),
   ...numberGroup('standardDrawerHeights', 'Standard drawer height'),
   ...numberGroup('bottomPartHeights', 'Bottom part height'),
+  { key: 'drawerSlideId', label: 'Drawer slide', kind: 'slide', lowest: 'room' },
   ...[
     ['from', 'Drawer box heights from'],
     ['to', 'Drawer box heights to'],

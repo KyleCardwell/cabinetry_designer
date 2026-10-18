@@ -10,13 +10,13 @@ function leaves(values, prefix = '') {
 }
 
 describe('DB1 a settings registry', () => {
-  it('covers exactly 133 settings leaves, with 83 room settings and 11 team-only settings after IN4a', () => {
+  it('covers exactly 134 settings leaves, with 84 room settings and 11 team-only settings after IN4b', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(133);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(83);
+    expect(new Set(keys).size).toBe(134);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(84);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(11);
   });
 
@@ -24,7 +24,7 @@ describe('DB1 a settings registry', () => {
     for (const entry of SETTINGS_REGISTRY) {
       expect(entry.label).toEqual(expect.any(String));
       expect(entry.label.length).toBeGreaterThan(0);
-      expect(['number', 'bool', 'choice', 'id', 'text', 'pull']).toContain(entry.kind);
+      expect(['number', 'bool', 'choice', 'id', 'text', 'pull', 'slide']).toContain(entry.kind);
       expect(SETTING_LEVELS).toContain(entry.lowest);
       if (entry.highest) expect(SETTING_LEVELS).toContain(entry.highest);
       if (entry.kind === 'choice') expect(entry.choices.length).toBeGreaterThan(0);
@@ -35,6 +35,9 @@ describe('DB1 a settings registry', () => {
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'cabinet')).toHaveLength(3);
     expect(SETTINGS_REGISTRY.filter(({ managedBy }) => managedBy)).toHaveLength(39);
     expect(registryEntry('defaultProfile.nosingProfileId').kind).toBe('id');
+    expect(registryEntry('drawerSlideId')).toEqual({
+      key: 'drawerSlideId', label: 'Drawer slide', kind: 'slide', lowest: 'room',
+    });
     expect(registryEntry('sheetThickness')).toEqual({
       key: 'sheetThickness', label: 'Sheet thickness', kind: 'number', lowest: 'room',
     });

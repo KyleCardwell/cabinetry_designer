@@ -181,3 +181,14 @@ it('527. migrates the old MDF Supabase seed on read without changing the row (an
   expect(row).toEqual(before);
   expect(teamSettingsFromRow({ teamDoorStyle: { ...DEFAULT_DOOR_STYLE, designId: 'slab-applied' } }).teamDoorStyle.designId).toBe('slab-mdf');
 });
+
+
+it('IN4b d round-trips the default slide and replaces an empty stored ID (anchor 4)', () => {
+  for (const drawerSlideId of ['blum-562h', 'accuride-3832', 'gone']) {
+    const row = teamSettingsToRow({ ...DEFAULT_SETTINGS, drawerSlideId });
+    expect(row.drawerSlideId).toBe(drawerSlideId);
+    expect(teamSettingsFromRow(row).drawerSlideId).toBe(drawerSlideId);
+  }
+  expect(teamSettingsFromRow({ drawerSlideId: '' }).drawerSlideId).toBe('blum-562h');
+  expect(teamSettingsToRow({ drawerSlideId: '' })).not.toHaveProperty('drawerSlideId');
+});

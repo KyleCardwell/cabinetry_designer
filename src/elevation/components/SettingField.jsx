@@ -1,6 +1,7 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { allowedAt, registryEntry } from '../model/settingsRegistry.js';
 import { BUILT_IN_PULLS } from '../model/pulls.js';
+import { BUILT_IN_SLIDES } from '../model/slides.js';
 import { choiceOptions } from '../model/settingGroups.js';
 import { resolveSetting } from '../model/settingsResolve.js';
 import { setLayerSetting, setRoomSetting, setSetting } from '../store/elevationSlice.js';
@@ -24,6 +25,8 @@ export default function SettingField({ settingKey, scope }) {
   const choices = entry?.kind === 'pull'
     ? [...(settings.pulls ?? BUILT_IN_PULLS).map(({ id, name }) => ({ value: id, label: name })),
       { value: 'none', label: 'No pull' }]
+    : entry?.kind === 'slide'
+    ? (settings.slides ?? BUILT_IN_SLIDES).map(({ id, name }) => ({ value: id, label: name }))
     : choiceOptions(settingKey);
 
   if (!entry || !allowedAt(settingKey, scope) || (scope === 'room' && !room) || (isLayer && !layers?.[scope])) return null;
@@ -39,7 +42,7 @@ export default function SettingField({ settingKey, scope }) {
   };
 
   const addMissing = (value) => {
-    if (entry.kind === 'pull' && value != null && !choices.some((choice) => choice.value === value)) {
+    if (['pull', 'slide'].includes(entry.kind) && value != null && !choices.some((choice) => choice.value === value)) {
       choices.push({ value, label: `Missing (${value})` });
     }
   };

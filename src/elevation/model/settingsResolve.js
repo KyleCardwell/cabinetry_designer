@@ -44,7 +44,7 @@ export function resolveSetting(key, chain = []) {
     let candidate = leafValue(layer.values, key);
     if (candidate === undefined) continue;
     if (entry?.highest && !allowedAt(key, layer.level)) continue;
-    if (entry?.kind === 'pull'
+    if (['pull', 'slide'].includes(entry?.kind)
       && (!allowedAt(key, layer.level) || !isValidSettingValue(key, candidate))) continue;
     if (entry?.kind === 'text') {
       if (!allowedAt(key, layer.level) || !isValidSettingValue(key, candidate) || !candidate.trim()) continue;
@@ -87,7 +87,8 @@ export function isValidSettingValue(key, value) {
     case 'number': return Number.isFinite(value);
     case 'bool': return typeof value === 'boolean';
     case 'choice': return entry.choices.includes(value);
-    case 'pull': return typeof value === 'string' && value.length > 0;
+    case 'pull':
+    case 'slide': return typeof value === 'string' && value.length > 0;
     case 'id': return value === null || typeof value === 'string';
     default: return false;
   }

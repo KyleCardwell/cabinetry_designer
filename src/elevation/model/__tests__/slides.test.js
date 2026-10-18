@@ -3,6 +3,7 @@ import {
   BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, DEFAULT_SETTINGS, SLIDE_MOUNTS,
   findSlide, fittingLength, isSlide, isSlideList, newSlide, slideBoxWidth,
 } from '../index.js';
+import { resolveSlide } from '../slides.js';
 import { copySettings } from '../../store/slices/helpers.js';
 
 const [blum, accuride3832, accuride4034] = BUILT_IN_SLIDES;
@@ -133,5 +134,21 @@ describe('IN4b step a slide model', () => {
       copy.slides[0].lengths[0].nominal = 99;
       expect(expected[0].lengths[0].nominal).not.toBe(99);
     }
+  });
+});
+
+
+describe('IN4b step d slide resolution', () => {
+  it('resolves the selected slide, shop Blum, then the code built-in (anchor 2)', () => {
+    expect(resolveSlide({ drawerSlideId: 'accuride-3832', slides: BUILT_IN_SLIDES })).toBe(accuride3832);
+    expect(resolveSlide({ drawerSlideId: 'gone', slides: BUILT_IN_SLIDES })).toBe(blum);
+    expect(resolveSlide({ drawerSlideId: 'accuride-3832' })).toBe(blum);
+    const editedBlum = { ...blum, name: 'Shop Blum', sideClearance: 0.3125 };
+    const custom = { ...accuride3832, id: 'custom', name: 'Shop slide' };
+    expect(resolveSlide({ drawerSlideId: 'custom', slides: [editedBlum, custom] })).toBe(custom);
+    expect(resolveSlide({ drawerSlideId: 'gone', slides: [editedBlum, custom] })).toBe(editedBlum);
+    expect(resolveSlide({ drawerSlideId: 'gone', slides: [custom] })).toBe(blum);
+    expect(resolveSlide({ slides: [] })).toBe(blum);
+    expect(resolveSlide()).toBe(blum);
   });
 });

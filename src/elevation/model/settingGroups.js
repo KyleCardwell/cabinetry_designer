@@ -63,7 +63,7 @@ export const SETTING_GROUPS = [
   {
     id: 'drawer-boxes', label: 'Drawer boxes',
     keys: [
-      'drawerBoxHeights.from', 'drawerBoxHeights.to', 'drawerBoxHeights.thenFrom',
+      'drawerSlideId', 'drawerBoxHeights.from', 'drawerBoxHeights.to', 'drawerBoxHeights.thenFrom',
       'drawerBoxHeights.max', 'drawerBoxHeights.step', 'drawerBoxHeights.warnAbove',
     ],
   },

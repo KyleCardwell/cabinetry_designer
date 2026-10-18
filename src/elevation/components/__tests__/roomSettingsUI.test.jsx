@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import elevationReducer, { createInitialElevationState, setActiveRoom, setSetting } from '../../store/elevationSlice.js';
+import elevationReducer, { createInitialElevationState, setActiveRoom, setLayerSetting, setRoomSetting, setSetting } from '../../store/elevationSlice.js';
 import { cloneRoom } from '../../model/roomClone.js';
 import RoomSettingsPanel from '../RoomSettingsPanel.jsx';
 import SettingField from '../SettingField.jsx';
@@ -101,6 +101,53 @@ beforeEach(() => {
 });
 
 describe('DB2 d room settings panel', () => {
+  it('IN4b d offers slide names, inherits Blum, saves the room pick and shows missing IDs (anchor 3)', () => {
+    const tree = openGroup('Drawer boxes');
+    expect(controls(tree)).toHaveLength(7);
+    const select = field(tree, 'Room Drawer slide');
+    expect(select.props.value).toBe('');
+    expect(options(select)).toEqual([
+      ['', 'Inherit (Blum Tandem 562H)'], ['blum-562h', 'Blum Tandem 562H'],
+      ['accuride-3832', 'Accuride 3832'], ['accuride-4034', 'Accuride 4034'],
+    ]);
+    select.props.onChange({ target: { value: 'accuride-3832' } });
+    expect(dispatch).toHaveBeenLastCalledWith(setRoomSetting({
+      roomId: state.activeRoomId, key: 'drawerSlideId', value: 'accuride-3832',
+    }));
+    expect(state.rooms[0].settingsOverrides.drawerSlideId).toBe('accuride-3832');
+    dispatch(setRoomSetting({ roomId: state.activeRoomId, key: 'drawerSlideId', value: 'gone' }));
+    expect(options(field(render(), 'Room Drawer slide'))).toContainEqual(['gone', 'Missing (gone)']);
+    expect(field(render(), 'Room Drawer slide').props.value).toBe('gone');
+    field(render(), 'Reset Drawer slide').props.onClick();
+    dispatch(setSetting({ key: 'drawerSlideId', value: 'gone' }));
+    const inherited = field(render(), 'Room Drawer slide');
+    expect(options(inherited)).toContainEqual(['', 'Inherit (Missing (gone))']);
+    expect(options(inherited)).toContainEqual(['gone', 'Missing (gone)']);
+  });
+
+  it('IN4b d supports slide picks at team, project and phase levels with shop names', () => {
+    state.settings.slides[0].name = 'Shop Blum';
+    state.settings.slides.push({ ...state.settings.slides[1], id: 'custom', name: 'Shop custom' });
+    state.layers = { project: { id: 'project', values: {} }, phase: { id: 'phase', values: {} } };
+    for (const scope of ['team', 'project', 'phase']) {
+      const props = { settingKey: 'drawerSlideId', scope };
+      const label = scope === 'team' ? 'Drawer slide' : `${scope[0].toUpperCase()}${scope.slice(1)} Drawer slide`;
+      const select = field(render(SettingField, props), label);
+      expect(options(select)).toContainEqual(['blum-562h', 'Shop Blum']);
+      expect(options(select)).toContainEqual(['custom', 'Shop custom']);
+      expect(options(select).some(([value]) => value === 'none')).toBe(false);
+      select.props.onChange({ target: { value: 'custom' } });
+      expect(dispatch).toHaveBeenLastCalledWith(scope === 'team'
+        ? setSetting({ key: 'drawerSlideId', value: 'custom' })
+        : setLayerSetting({ level: scope, key: 'drawerSlideId', value: 'custom' }));
+      expect(field(render(SettingField, props), label).props.value).toBe('custom');
+      dispatch(scope === 'team'
+        ? setSetting({ key: 'drawerSlideId', value: 'gone' })
+        : setLayerSetting({ level: scope, key: 'drawerSlideId', value: 'gone' }));
+      expect(options(field(render(SettingField, props), label))).toContainEqual(['gone', 'Missing (gone)']);
+    }
+  });
+
   it('shows FL1 face thickness and return tongue after return thickness with fractional defaults (A4)', () => {
     const tree = openGroup('Fillers & corners');
     const labels = controls(tree).map(({ props }) => props['aria-label']);

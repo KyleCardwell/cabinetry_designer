@@ -112,6 +112,12 @@ export function findSlide(id, list) {
   return list.find((slide) => slide.id === id) ?? null;
 }
 
+/** Use the selected slide, then the shop's Blum, then the code built-in. */
+export function resolveSlide(settings = {}) {
+  const list = settings.slides ?? [];
+  return findSlide(settings.drawerSlideId, list) ?? findSlide('blum-562h', list) ?? BUILT_IN_SLIDES[0];
+}
+
 export function fittingLength(slide, interiorDepth) {
   return slide.lengths.findLast(({ nominal }) => nominal <= interiorDepth + 1e-9)?.nominal ?? null;
 }
