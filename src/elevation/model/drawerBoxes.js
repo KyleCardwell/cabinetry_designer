@@ -1,7 +1,7 @@
 import { DEFAULT_SETTINGS } from './constants.js';
 import { findLeaf } from './cellTree.js';
 import { getFaceNode } from './faceTree.js';
-import { DRAWER_RULES, ruleDepth, ruleHeight, ruleSlide } from './drawerRules.js';
+import { DRAWER_RULES, rotDepth, ruleDepth, ruleHeight, ruleSlide } from './drawerRules.js';
 import { wallInteriors } from './interiors.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
@@ -11,6 +11,12 @@ import { roundTo } from './units.js';
 
 const MAX_PRESETS = 200;
 const sixtyFourths = (value) => Math.round(value * 64) / 64;
+
+function boxKind(face, purpose) {
+  if (face.type === 'drawer_front') return 'drawer';
+  if (face.type !== 'door' || face.action !== 'pullout') return null;
+  return purpose === 'trash' ? 'rot' : purpose === 'hamper' ? 'hamper' : null;
+}
 
 function heightSettings(settings) {
   return { ...DEFAULT_SETTINGS.drawerBoxHeights, ...settings?.drawerBoxHeights };
@@ -42,7 +48,7 @@ export function isPrefinishedMaple(material) {
   return typeof material === 'string' && /pre-?\s?finished\s+maple/i.test(material);
 }
 
-/** Size working drawer fronts from their containing clear sections, in wall coordinates. */
+/** Size drawer fronts and qualifying pull-out doors from their clear sections, in wall coordinates. */
 export function cabinetDrawerBoxes({
   faces, openings = [], reveals, inset, interior, leaf, settings, prefinishedMaple = false,
 }) {
@@ -56,7 +62,7 @@ export function cabinetDrawerBoxes({
     const path = face.opening ?? face.path;
     openingUses.set(path, (openingUses.get(path) ?? 0) + 1);
   }
-  const fronts = faces.filter((face) => face.type === 'drawer_front')
+  const fronts = faces.filter((face) => boxKind(face, leaf.purpose))
     .sort((a, b) => (b.z + b.height) - (a.z + a.height) || a.x - b.x);
   for (const face of fronts) {
     const cx = face.x + face.width / 2;
@@ -75,8 +81,8 @@ export function cabinetDrawerBoxes({
       opening ? opening.z + opening.height : face.z + face.height + grow);
     const space = { x: section.x, z: bottom, width: section.width, height: Math.max(0, top - bottom) };
     const pick = getFaceNode(leaf.face, face.path)?.drawerBox ?? {};
-    const kind = 'drawer';
-    const charging = pick.charging === true;
+    const kind = boxKind(face, leaf.purpose);
+    const charging = kind === 'drawer' && pick.charging === true;
     const ruleInput = { kind, purpose: leaf.purpose, front: face };
     const cabinet = leaf.drawerSlideId ?? null;
     const inherited = resolveBoxSlide(settings, { cabinet });
@@ -88,9 +94,12 @@ export function cabinetDrawerBoxes({
     const { slide } = resolved;
     const available = space.height - slide.minBelow - slide.minAbove;
     const heightAuto = presets.findLast((height) => height <= available + 1e-9) ?? null;
-    const heightRule = ruleHeight(ruleInput);
+    const heightRule = kind === 'rot' ? { height: available >= 15.125 ? 15.125 : heightAuto, rule: 'DRW-009' }
+      : kind === 'hamper' ? { height: 6.25, rule: 'DRW-010' } : ruleHeight(ruleInput);
     const height = pick.height ?? heightRule?.height ?? heightAuto;
-    const depthRule = ruleDepth({ ...ruleInput, charging, slide, interiorDepth: section.depth });
+    const rot = kind === 'rot' ? rotDepth(interior.box.width, interior.box.depth) : null;
+    const depthRule = rot ? { depth: rot.depth, rule: 'DRW-009' }
+      : ruleDepth({ ...ruleInput, charging, slide, interiorDepth: section.depth });
     const depthAuto = depthRule ? depthRule.depth : fittingLength(slide, section.depth);
     const depth = pick.depth ?? depthAuto;
     const maple = prefinishedMaple && !inset;
@@ -106,9 +115,13 @@ export function cabinetDrawerBoxes({
       depthRule: pick.depth === undefined ? depthRule?.rule ?? null : null,
       slideLength: depth === null ? null : fittingLength(slide, depth),
       charging, clips: slide.clips === false ? null : inset ? 'adjustable' : 'standard',
-      notes: leaf.purpose === 'sink' ? ['notch drw around plumbing'] : [],
-      x: space.x + slide.sideClearance - (maple ? 1 / 32 : 0), z: space.z + slide.minBelow,
+      notes: kind === 'drawer' && leaf.purpose === 'sink' ? ['notch drw around plumbing']
+        : pick.depth === undefined && rot?.note ? [rot.note] : [],
+      x: space.x + slide.sideClearance - (maple ? 1 / 32 : 0),
+      z: kind === 'hamper' && height !== null ? top - slide.minAbove - height : space.z + slide.minBelow,
     };
+    if (kind === 'rot' && pick.height === undefined && available < 15.125) box.warnings.push({ code: 'rot-short' });
+    if (kind === 'rot' && pick.depth === undefined && !rot) box.warnings.push({ code: 'rot-size-unlisted' });
     if (height === null) box.warnings.push({ code: 'drawer-too-short' });
     if (depth === null) box.warnings.push({ code: 'no-slide-length' });
     if (depth !== null && depth > section.depth + 1e-9) box.warnings.push({ code: 'drawer-too-deep' });
@@ -117,15 +130,16 @@ export function cabinetDrawerBoxes({
     }
     entries.push({ box, section });
   }
-  if (leaf.purpose === 'sink' && entries.length) {
+  if (leaf.purpose === 'sink' && entries.some(({ box }) => box.kind === 'drawer')) {
     notes.push({ rule: 'DRW-006', text: 'notch drw around plumbing' });
   }
-  if (fronts.some((face) => face.width > DRAWER_RULES.stabilizerFrontWidth)) {
+  if (fronts.some((face) => face.type === 'drawer_front' && face.width > DRAWER_RULES.stabilizerFrontWidth)) {
     notes.push({ rule: 'BOX-007', text: 'drawer stabilizers' });
   }
 
   const groups = new Map();
   for (const { box } of entries) {
+    if (box.kind !== 'drawer') continue;
     const key = roundTo(box.frontHeight, 1 / 32);
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(box);
@@ -142,7 +156,7 @@ export function cabinetDrawerBoxes({
       if (typed.size > 1) box.warnings.push({ code: 'drawer-heights-differ' });
     }
   }
-  // Boxes sit as low in their space as the slide allows; one too tall for that drops lower (the front
+  // Drawers and ROTs sit low; hampers start at the top. A box too tall for its space drops lower (the front
   // overhangs more at the top), down to the box below it in the section, before it's called too tall.
   const bottomUp = entries.filter(({ box }) => box.height !== null).sort((a, b) => a.box.space.z - b.box.space.z);
   for (const { box, section } of bottomUp) {
@@ -156,6 +170,13 @@ export function cabinetDrawerBoxes({
     if (box.z + box.height > ceiling + 1e-9) box.warnings.push({ code: 'drawer-height-too-tall' });
   }
   for (const { box, section } of entries) {
+    if (box.kind === 'hamper') {
+      box.clearBelow = box.z - section.z;
+      if (box.clearBelow < 11) box.warnings.push({ code: 'hamper-clear-below' });
+      if (!((box.width >= 15 && box.depth >= 22) || (box.width >= 22 && box.depth >= 15))) {
+        box.warnings.push({ code: 'hamper-too-small' });
+      }
+    }
     if (entries.some((other) => other.box !== box && other.section === section
       && Math.min(box.space.z + box.space.height, other.box.space.z + other.box.space.height)
         > Math.max(box.space.z, other.box.space.z) + 1e-9)) {
@@ -182,8 +203,8 @@ export function wallDrawerBoxes(room, wall, side, settings) {
     const { faceLayouts } = runScene(room, view, run, settings);
     for (const interior of byRun.get(run.id)) {
       const layout = faceLayouts.get(interior.itemId);
-      if (!layout?.faces.some((face) => face.type === 'drawer_front')) continue;
       const leaf = findLeaf(run.grid, interior.itemId);
+      if (!layout?.faces.some((face) => boxKind(face, leaf.purpose))) continue;
       const material = room.reportParts?.[interior.itemId]?.boxes ?? settings.report?.boxMaterial;
       result.set(interior.itemId, {
         runId: run.id,

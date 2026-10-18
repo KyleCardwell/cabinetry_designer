@@ -6,6 +6,7 @@ import {
   DRAWER_RULES, ruleSlide, sinkDepth, chargingDepth,
 } from '../index.js';
 import { boxConstruction } from '../boxConstruction.js';
+import { rotDepth } from '../drawerRules.js';
 import { cabinetFaces, faceArea } from '../faces.js';
 import { faceOpenings } from '../frames.js';
 import { gridFromItems } from '../grid.js';
@@ -416,6 +417,133 @@ describe('IN6 step b drawer rules', () => {
     const deep = sized({ face, leaf: { purpose: 'sink' } }).boxes[1];
     expect(codes(deep)).toEqual(['drawer-too-deep', 'charging-clearance']);
     expect(deep).toMatchObject({ depthSource: 'manual', depthRule: null, slideLength: 24 });
-    expect(sized({ face: { type: 'door', action: 'pullout' }, leaf: { purpose: 'trash' } }).boxes).toEqual([]);
+    expect(sized({ face: { type: 'door', action: 'pullout' }, leaf: { purpose: 'trash' } }).boxes[0])
+      .toMatchObject({ kind: 'rot', slideRule: null });
+  });
+});
+
+describe('IN6 step c ROT and hamper boxes', () => {
+  const pullout = (size = null, drawerBox) => ({ type: 'door', action: 'pullout', size,
+    ...(drawerBox ? { drawerBox } : {}) });
+  const trash = (options = {}) => sized({ face: stack(drawer(5.875), pullout()),
+    leaf: { purpose: 'trash' }, ...options });
+
+  it('anchor 1: sizes the standard trash ROT independently of its top drawer', () => {
+    const args = input({ face: stack(drawer(5.875), pullout()), leaf: { purpose: 'trash' } });
+    const before = structuredClone(args);
+    const { boxes, warnings } = cabinetDrawerBoxes(args);
+    expect(boxes).toHaveLength(2);
+    expect(boxes[0]).toMatchObject({ kind: 'drawer', height: 4.25, width: 16, depth: 21 });
+    expect(boxes[1]).toMatchObject({ kind: 'rot', height: 15.125, heightSource: 'rule', heightRule: 'DRW-009',
+      width: 16, depth: 22, depthSource: 'rule', depthRule: 'DRW-009', slideLength: 21,
+      notes: ['bottom up 1 3/4"'], x: 1, z: 1.3125, clips: 'standard', charging: false, slideRule: null });
+    expect(warnings).toEqual([]);
+    expect(args).toEqual(before);
+  });
+
+  it('anchor 2: follows every ROT depth row using box dimensions, including exact boundaries', () => {
+    for (const [width, expected] of [[15, 13], [24, 22], [30, 28]]) {
+      expect(trash({ width }).boxes[1]).toMatchObject({ width: expected, depth: 21, notes: [] });
+    }
+    expect(trash({ depth: 25 }).boxes[1]).toMatchObject({ depth: 22, interiorDepth: 24,
+      depthSource: 'rule', notes: ['bottom up 1 3/4"'] });
+    expect(trash({ depth: 26 }).boxes[1]).toMatchObject({ depth: 24, slideLength: 24, notes: [] });
+    const shallow = trash({ depth: 21 }).boxes[1];
+    expect(shallow).toMatchObject({ depth: 18, depthSource: 'auto', depthRule: null, notes: [], slideRule: null });
+    expect(codes(shallow)).toEqual(['rot-size-unlisted']);
+    for (const width of [15, 17.999, 18, 23.999, 24, 30]) {
+      expect(rotDepth(width, 23.999)).toBeNull();
+      for (const depth of [24, 25, 25.999]) {
+        expect(rotDepth(width, depth)).toEqual(width >= 18 && width < 24
+          ? { depth: 22, note: 'bottom up 1 3/4"' } : { depth: 21, note: null });
+      }
+      expect(rotDepth(width, 26)).toEqual({ depth: 24, note: null });
+    }
+    // A rule depth, just like a typed depth, must fit the actual clear interior.
+    const args = input({ face: pullout(), leaf: { purpose: 'trash' } });
+    args.interior.sections[0].depth = 21;
+    expect(codes(cabinetDrawerBoxes(args).boxes[0])).toContain('drawer-too-deep');
+  });
+
+  it('anchor 3: keeps ROT overrides and falls back to a shorter preset or an unsized box', () => {
+    expect(trash({ face: stack(drawer(5.875), pullout(null, { depth: 21 })) }).boxes[1])
+      .toMatchObject({ depth: 21, depthSource: 'manual', depthRule: null, notes: [] });
+    expect(trash({ face: stack(drawer(5.875), pullout(null, { height: 12.125 })) }).boxes[1])
+      .toMatchObject({ height: 12.125, heightSource: 'manual', heightRule: null });
+    const short = trash({ face: stack(drawer(5.875), drawer(9), pullout()) }).boxes[2];
+    expect(short).toMatchObject({ space: { z: 0.75, height: 14.5625 }, available: 13.75,
+      height: 13.125, heightSource: 'rule', heightRule: 'DRW-009' });
+    expect(codes(short)).toEqual(['rot-short']);
+    const tiny = trash({ face: pullout(), height: 3.5 }).boxes[0];
+    expect(tiny.height).toBeNull();
+    expect(codes(tiny)).toEqual(['rot-short', 'drawer-too-short']);
+    expect(codes(trash({ face: pullout(null, { height: 1 }), height: 3.5 }).boxes[0]))
+      .not.toContain('rot-short');
+  });
+
+  it('anchor 4: places hampers at the top and checks both footprint orientations', () => {
+    const options = { face: pullout(), leaf: { purpose: 'hamper' }, width: 24 };
+    const hamper = sized(options).boxes[0];
+    expect(hamper).toMatchObject({ kind: 'hamper', height: 6.25, heightSource: 'rule', heightRule: 'DRW-010',
+      z: 23.25, width: 22, depth: 21, depthSource: 'auto', clearBelow: 22.5, warnings: [] });
+    expect(codes(sized({ ...options, width: 18 }).boxes[0])).toEqual(['hamper-too-small']);
+    expect(codes(sized({ ...options, width: 18, depth: 25 }).boxes[0])).toEqual([]);
+    const manual = sized({ ...options, face: pullout(null, { height: 12.125, depth: 15 }) }).boxes[0];
+    expect(manual).toMatchObject({ heightSource: 'manual', heightRule: null, depthSource: 'manual',
+      z: 17.375, clearBelow: 16.625, warnings: [] });
+  });
+
+  it('anchor 5: warns for low hamper clearance and ignores other pull-out purposes and actions', () => {
+    const low = sized({ width: 24, face: stack(drawer(5.875), drawer(9), pullout()),
+      leaf: { purpose: 'hamper' } });
+    expect(low.boxes[2]).toMatchObject({ z: 8.8125, clearBelow: 8.0625 });
+    expect(codes(low.boxes[2])).toEqual(['hamper-clear-below']);
+    expect(low.warnings).toContainEqual({ code: 'hamper-clear-below', path: 'r.2' });
+    for (const purpose of [undefined, 'file', 'sink']) {
+      expect(sized({ face: pullout(), leaf: { purpose } })).toEqual({ boxes: [], warnings: [], notes: [] });
+    }
+    for (const action of [undefined, 'swing', 'sliding']) {
+      expect(sized({ face: { type: 'door', action, size: null }, leaf: { purpose: 'trash' } }).boxes).toEqual([]);
+    }
+    // A typed hamper too tall for its space still uses the existing drop-lower pass.
+    const tall = sized({ width: 24, face: stack(pullout(null, { height: 25 }), drawer(5.875)),
+      leaf: { purpose: 'hamper' } }).boxes[0];
+    expect(tall.z).toBeGreaterThanOrEqual(0.75 + tall.slide.minBelow);
+    expect(codes(tall)).toContain('drawer-height-too-tall');
+  });
+
+  it('excludes ROT and hamper boxes from matching and slide rules while retaining inherited slides and clips', () => {
+    for (const [purpose, height] of [['trash', 15.125], ['hamper', 6.25]]) {
+      const args = input({ face: stack(drawer(), pullout()), leaf: { purpose }, height: 50 });
+      args.faces[1].height = args.faces[0].height;
+      expect(cabinetDrawerBoxes(args).boxes.map(({ height }) => height)).toEqual([22.125, height]);
+      args.leaf.face.children[1].drawerBox = { height: 4.25 };
+      expect(cabinetDrawerBoxes(args).boxes.map(({ height }) => height)).toEqual([22.125, 4.25]);
+      args.leaf.face.children[0].drawerBox = { height: 3.25 };
+      const boxes = cabinetDrawerBoxes(args).boxes;
+      expect(boxes.map(({ height }) => height)).toEqual([3.25, 4.25]);
+      expect(boxes.flatMap(codes)).not.toContain('drawer-heights-differ');
+      const shallow = sized({ face: pullout(), depth: 12, leaf: { purpose } }).boxes[0];
+      expect(shallow).toMatchObject({ slideId: 'blum-562h', slideRule: null });
+      expect(sized({ face: pullout(), inset: true, leaf: { purpose } }).boxes[0].clips).toBe('adjustable');
+      expect(sized({ face: pullout(null, { slideId: 'accuride-3832' }), leaf: { purpose } }).boxes[0])
+        .toMatchObject({ slideId: 'accuride-3832', source: 'box', slideRule: null, clips: null });
+    }
+  });
+
+  it('anchor 5: retains cabinets with only ROT or hamper boxes in wall order and coordinates', () => {
+    const leaves = ['trash', 'hamper', undefined].map((purpose, index) => ({ id: `c${index}`, kind: 'cabinet',
+      purpose, face: pullout(), width: null }));
+    const run = { id: 'run', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width: 54, z: 4, height: 30.5, depth: 24,
+      ends: { left: { type: 'none' }, right: { type: 'none' } }, autoCount: false, maxCabinetWidth: null,
+      heightMode: 'manual', overrides: {}, anchors: { left: false, right: false }, grid: gridFromItems('run', leaves) };
+    const wall = { id: 'wall', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5, flipped: false,
+      connections: { start: null, end: null }, profile: {}, runs: [run], openings: [] };
+    const room = { id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] };
+    const result = wallDrawerBoxes(room, wall, 'front', settings);
+    expect([...result.keys()]).toEqual(['c0', 'c1']);
+    expect(result.get('c0')).toMatchObject({ runId: 'run', boxes: [{ kind: 'rot', x: 25, z: 5.3125 }] });
+    expect(result.get('c0').boxes).toHaveLength(1);
+    expect(result.get('c1')).toMatchObject({ boxes: [{ kind: 'hamper', x: 43, z: 27.25, clearBelow: 22.5 }] });
   });
 });

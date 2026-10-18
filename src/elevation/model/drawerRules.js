@@ -41,6 +41,14 @@ export function chargingDepth(slide, interiorDepth) {
   return fittingLength(slide, interiorDepth - DRAWER_RULES.chargingClearance);
 }
 
+/** DRW-009 uses the cabinet box dimensions, before interior clearances. */
+export function rotDepth(boxWidth, boxDepth) {
+  if (boxDepth >= 26) return { depth: 24, note: null };
+  if (boxDepth < 24) return null;
+  if (boxWidth >= 18 && boxWidth < 24) return { depth: 22, note: 'bottom up 1 3/4"' };
+  return { depth: 21, note: null };
+}
+
 /** Sink and charging constraints combine; a constraint with no fitting length stays unsized. */
 export function ruleDepth({ kind, purpose, charging, slide, interiorDepth }) {
   if (kind !== 'drawer') return null;
