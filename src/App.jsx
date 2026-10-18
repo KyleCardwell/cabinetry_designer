@@ -16,6 +16,7 @@ import DoorDesignsPage from './library/DoorDesignsPage.jsx';
 import TeamDoorStylePage from './library/TeamDoorStylePage.jsx';
 import ProfilesPage from './library/ProfilesPage.jsx';
 import PullsPage from './library/PullsPage.jsx';
+import SlidesPage from './library/SlidesPage.jsx';
 import SettingsPage from './library/SettingsPage.jsx';
 import ProfileEditorPage from './library/profileEditor/ProfileEditorPage.jsx';
 import { SANDBOX_ENABLED } from './sandbox.js';
@@ -78,6 +79,7 @@ function SignedInApp() {
           <Route path="door-style" element={<TeamDoorStylePage />} />
           <Route path="profiles" element={<ProfilesPage />} />
           <Route path="pulls" element={<PullsPage />} />
+          <Route path="slides" element={<SlidesPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>

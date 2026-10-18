@@ -21,6 +21,7 @@ import { styleReducers } from './slices/styles.js';
 import { doorStyleReducers } from './slices/doorStyles.js';
 import { doorDesignReducers } from './slices/doorDesigns.js';
 import { pullReducers } from './slices/pulls.js';
+import { slideReducers } from './slices/slides.js';
 import { sectionProfileReducers } from './slices/sectionProfiles.js';
 import { uiReducers } from './slices/ui.js';
 import { cloudReducers, registerInitialStateBuilder } from './slices/cloud.js';
@@ -90,6 +91,7 @@ const elevationSlice = createSlice({
     ...doorStyleReducers,
     ...doorDesignReducers,
     ...pullReducers,
+    ...slideReducers,
     ...sectionProfileReducers,
     ...uiReducers,
     ...cloudReducers,
@@ -223,6 +225,9 @@ export const {
   addPull,
   updatePull,
   deletePull,
+  addSlide,
+  updateSlide,
+  deleteSlide,
   setTeamDoorStyle,
   moveMissingDoorDesign,
   addSectionProfile,
@@ -282,7 +287,7 @@ export const ROOM_EDIT_ACTION_TYPES = new Set([
  */
 export const VERSION_LOCKED_ACTION_TYPES = new Set([
   ...ROOM_EDIT_ACTION_TYPES,
-  ...[doorDesignReducers, sectionProfileReducers, pullReducers].flatMap((group) => Object.keys(group))
+  ...[doorDesignReducers, sectionProfileReducers, pullReducers, slideReducers].flatMap((group) => Object.keys(group))
     .map((name) => `${elevationSlice.name}/${name}`),
   ...['setSetting', 'updateSettings', 'setLayerSetting'].map((name) => `${elevationSlice.name}/${name}`),
 ]);
