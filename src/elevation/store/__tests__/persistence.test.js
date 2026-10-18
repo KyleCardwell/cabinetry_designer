@@ -4,8 +4,8 @@ import { isDoorDesignList } from '../../model/doorDesigns.js';
 import { BUILT_IN_PULLS, resolvePull } from '../../model/pulls.js';
 import { BUILT_IN_SLIDES } from '../../model/slides.js';
 import { afterEach, describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
-import { gridFromItems, rootItems } from '../../model/grid.js';
+import { CABINET_PURPOSES, CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
+import { gridFromItems, gridLeaves, rootItems } from '../../model/grid.js';
 import { resolvePinTarget } from '../../model/room.js';
 import { cornerLap } from '../../model/cornerLaps.js';
 import { cornerReserve } from '../../model/corners.js';
@@ -14,6 +14,7 @@ import {
   isElevationDocument,
   loadElevationDocument,
   normalizeElevationDocument,
+  roomFromDocument,
   toElevationDocument,
 } from '../persistence.js';
 import { createInitialElevationState } from '../elevationSlice.js';
@@ -94,9 +95,38 @@ function currentDocument() {
 }
 
 describe('IN1a cabinet purpose persistence', () => {
+  it('IN6 a anchor 5: loads retired charging purposes without changing drawer charging picks or other purposes', () => {
+    const document = currentDocument();
+    document.rooms[0].walls[0].runs[0].grid = gridFromItems('outer', [
+      { id: 'nested', kind: 'cabinet', width: null, grid: gridFromItems('nested', [
+        { id: 'charging', kind: 'cabinet', width: null, purpose: 'charging',
+          face: { type: 'drawer_front', size: null, drawerBox: { charging: true } } },
+        { id: 'sink', kind: 'cabinet', width: null, purpose: 'sink',
+          face: { type: 'door', size: null, action: 'pullout', drawerBox: { depth: 21 } } },
+      ]) },
+    ]);
+    document.rooms[0].walls[1].runs[0].grid.cells[0].node.purpose = 'charging';
+    const before = structuredClone(document);
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+    const loaded = loadElevationDocument();
+    expect(loaded).not.toBeNull();
+    expect(isElevationDocument(loaded)).toBe(true);
+    const roomLoaded = roomFromDocument(document.rooms[0], document.schemaVersion, document.settings);
+    expect(roomLoaded).toEqual({ ok: true, room: loaded.rooms[0] });
+    const cabinets = loaded.rooms[0].walls.flatMap((wall) => wall.runs.flatMap((run) => gridLeaves(run.grid)));
+    expect(cabinets.map(({ purpose }) => purpose)).toEqual([undefined, 'sink', undefined]);
+    expect(cabinets[0]).not.toHaveProperty('purpose');
+    expect(cabinets[2]).not.toHaveProperty('purpose');
+    expect(cabinets[0].face.drawerBox).toEqual({ charging: true });
+    expect(cabinets[1].face.drawerBox).toEqual({ depth: 21 });
+    expect(CABINET_PURPOSES.map(([id]) => id)).not.toContain('charging');
+    expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+    expect(document).toEqual(before);
+  });
+
   it('accepts a known purpose on a cabinet only', () => {
     const base = normalizeElevationDocument(currentDocument());
-    for (const [purpose, valid] of [['sink', true], ['charging', true], ['garage', false], ['', false], [null, false]]) {
+    for (const [purpose, valid] of [['sink', true], ['charging', false], ['garage', false], ['', false], [null, false]]) {
       const document = structuredClone(base);
       document.rooms[0].walls[0].runs[0].grid.cells[0].node.purpose = purpose;
       expect(isElevationDocument(document)).toBe(valid);

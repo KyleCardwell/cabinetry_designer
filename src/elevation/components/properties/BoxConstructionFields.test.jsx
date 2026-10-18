@@ -42,6 +42,18 @@ beforeEach(() => {
 });
 
 describe('IN1b Box section', () => {
+  it('IN6 a anchor 5: removes Charging drawer from the cabinet purpose picker', () => {
+    const resolvedWall = resolveWall(room(), wall());
+    const settings = effectiveSettings(state, room());
+    const scene = runScene(room(), resolvedWall, run(), settings);
+    const tree = CabinetStyleProperties({ room: room(), wall: resolvedWall, run: run(), item: item(), settings,
+      faceLayout: scene.faceLayouts.get('c1') });
+    const purposes = options(find(tree, 'Cabinet purpose'));
+    expect(purposes).not.toContainEqual(['charging', 'Charging drawer']);
+    expect(purposes).toContainEqual(['file', 'File drawers']);
+    expect(purposes).toContainEqual(['trash', 'Trash (ROT)']);
+  });
+
   it('anchor 1: selects Auto (Spreaders · sink) for a base sink and shows all part choices', () => {
     item().purpose = 'sink';
     expect(find(render(), 'Top').props.value).toBe('');

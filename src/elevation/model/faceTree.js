@@ -62,9 +62,9 @@ export function setFaceType(face, path, type) {
   if (!target?.type || !FACE_TYPES.includes(type)) return face;
   return replaceAt(face, path, (node) => {
     const next = { ...node, type };
-    if (type !== 'drawer_front') delete next.drawerBox;
     if (!pullPartType(type)) delete next.pullId;
     if (node.type !== type) {
+      delete next.drawerBox;
       delete next.hinge;
       delete next.action;
       delete next.pullAt;
@@ -190,13 +190,14 @@ export function equalizeGroup(face, path) {
   }));
 }
 
-/** Patch a drawer front's own box picks; null clears a key. */
+/** Patch a drawer front or pull-out door's own box picks; null clears a key. */
 export function setFaceDrawerBox(face, path, patch) {
   const target = getFaceNode(face, path);
-  if (target?.type !== 'drawer_front' || target.children
+  if (!(target?.type === 'drawer_front' || (target?.type === 'door' && target.action === 'pullout')) || target.children
     || !patch || typeof patch !== 'object' || Array.isArray(patch)) return face;
   const keys = Reflect.ownKeys(patch);
-  if (!keys.every((key) => ['slideId', 'height', 'depth'].includes(key))) return face;
+  if (!keys.every((key) => ['slideId', 'height', 'depth'].includes(key)
+    || (key === 'charging' && target.type === 'drawer_front'))) return face;
   const drawerBox = { ...target.drawerBox };
   for (const key of keys) {
     if (patch[key] === null) delete drawerBox[key];
@@ -283,6 +284,7 @@ export function setFaceAction(face, path, action) {
     const next = { ...node };
     if (value) next.action = value;
     else delete next.action;
+    if (value !== 'pullout') delete next.drawerBox;
     if (['sliding', 'pullout'].includes(value)
       || (['flipper', 'pocket'].includes(value) && ['top', 'bottom'].includes(node.hinge))) {
       delete next.hinge;

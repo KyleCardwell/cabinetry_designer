@@ -14,6 +14,31 @@ function base() {
 }
 const missing = (state) => missingSlides(state.rooms[0], state.settings, state.layers);
 
+it('IN6 a anchor 4: counts pull-out slide picks and moves or clears them, preserving other picks', () => {
+  const state = base();
+  const cabinet = gridLeaves(state.rooms[0].walls[0].runs[0].grid)[0];
+  delete cabinet.drawerSlideId;
+  cabinet.face = { direction: 'vertical', size: null, children: [
+    { type: 'door', size: null, action: 'pullout', drawerBox: { slideId: U } },
+    { direction: 'horizontal', size: null, children: [
+      { type: 'door', size: null, action: 'pullout', drawerBox: { slideId: U, height: 12.125, depth: 21 } },
+      { type: 'drawer_front', size: null, drawerBox: { slideId: U, charging: true } },
+    ] },
+  ] };
+  expect(missingSlides(state.rooms[0], state.settings)).toEqual([{ slideId: U, roomUses: 3, setIn: [] }]);
+  const action = { roomId: 'room-1', slideId: U, reassignTo: 'accuride-3832' };
+  const moved = elevationReducer(state, moveMissingSlide(action));
+  expect([...roomSlideUses(moved.rooms[0])].map(({ node, key }) => node[key]))
+    .toEqual(['accuride-3832', 'accuride-3832', 'accuride-3832']);
+  const removed = elevationReducer(state, moveMissingSlide({ ...action, reassignTo: null }));
+  const face = gridLeaves(removed.rooms[0].walls[0].runs[0].grid)[0].face;
+  expect(face.children[0]).not.toHaveProperty('drawerBox');
+  expect(face.children[1].children[0].drawerBox).toEqual({ height: 12.125, depth: 21 });
+  expect(face.children[1].children[1].drawerBox).toEqual({ charging: true });
+  expect(missingSlides(removed.rooms[0], removed.settings)).toEqual([]);
+  expect(cabinet.face.children[0].drawerBox).toEqual({ slideId: U });
+});
+
 it('IN5 e anchor 1: counts cabinet and box picks plus layer settings, sorted by id', () => {
   // Kyle confirmed id sorting: UUIDs precede x (the spec table lists these in reverse).
   expect(missing(base())).toEqual([

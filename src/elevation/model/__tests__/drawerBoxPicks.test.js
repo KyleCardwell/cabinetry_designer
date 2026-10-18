@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   BUILT_IN_SLIDES, FACE_TYPES, isFaceNode, makeDrawerStack, resolveBoxSlide,
-  setFaceDrawerBox, setFaceType, splitFace,
+  setFaceAction, setFaceDrawerBox, setFaceType, splitFace,
 } from '../index.js';
 
 const leaf = (type = 'drawer_front', patch = {}) => ({ type, size: null, ...patch });
@@ -10,6 +10,67 @@ const settings = { slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h' };
 const missing = (level, slideId = 'gone') => ({ code: 'slide-missing', level, slideId });
 const resolved = (slideId, source, warnings = []) => ({
   slideId, slide: BUILT_IN_SLIDES.find(({ id }) => id === slideId), source, warnings,
+});
+
+describe('IN6 step a pull-out boxes and charging picks', () => {
+  it('anchor 1: permits pull-out box dimensions and true charging only on drawer fronts', () => {
+    expect(isFaceNode(leaf('door', { action: 'pullout', drawerBox: { height: 12.125 } }))).toBe(true);
+    expect(isFaceNode(leaf('door', { drawerBox: { height: 12.125 } }))).toBe(false);
+    expect(isFaceNode(leaf('drawer_front', { drawerBox: { charging: true } }))).toBe(true);
+    expect(isFaceNode(leaf('drawer_front', { drawerBox: { charging: false } }))).toBe(false);
+    expect(isFaceNode(leaf('door', { action: 'pullout', drawerBox: { charging: true } }))).toBe(false);
+    for (const charging of [null, undefined, 1, 'true']) {
+      expect(isFaceNode(leaf('drawer_front', { drawerBox: { charging } }))).toBe(false);
+    }
+    for (const action of ['sliding', 'pocket', 'flipper']) {
+      expect(isFaceNode(leaf('door', { action, drawerBox: { depth: 21 } }))).toBe(false);
+    }
+    expect(isFaceNode(leaf('pair_door', { action: 'pullout', drawerBox: { depth: 21 } }))).toBe(false);
+  });
+
+  it('anchor 2: patches pull-out boxes and adds or removes a drawer charging pick atomically', () => {
+    const face = { ...tree(), children: [leaf(), leaf('door', { action: 'pullout' })] };
+    const picked = setFaceDrawerBox(face, 'r.1', { depth: 21 });
+    expect(picked.children[1].drawerBox).toEqual({ depth: 21 });
+    expect(setFaceDrawerBox(picked, 'r.1', { charging: true })).toBe(picked);
+    expect(setFaceDrawerBox(picked, 'r.1', { height: 12.125, charging: true })).toBe(picked);
+    expect(setFaceDrawerBox(picked, 'r.1', { charging: null })).toBe(picked);
+    expect(setFaceDrawerBox(picked, 'r.1', { depth: null }).children[1]).not.toHaveProperty('drawerBox');
+    const charging = setFaceDrawerBox(face, 'r.0', { charging: true });
+    expect(charging.children[0].drawerBox).toEqual({ charging: true });
+    expect(setFaceDrawerBox(charging, 'r.0', { charging: true })).toBe(charging);
+    expect(setFaceDrawerBox(charging, 'r.0', { charging: false })).toBe(charging);
+    expect(setFaceDrawerBox(charging, 'r.0', { charging: null }).children[0]).not.toHaveProperty('drawerBox');
+    const sized = setFaceDrawerBox(charging, 'r.0', { depth: 18 });
+    expect(setFaceDrawerBox(sized, 'r.0', { charging: null }).children[0].drawerBox).toEqual({ depth: 18 });
+    expect(face.children[0]).not.toHaveProperty('drawerBox');
+    expect(face.children[1]).not.toHaveProperty('drawerBox');
+  });
+
+  it('anchor 3: drops picks on type or action changes, retains qualifying picks, and starts splits empty', () => {
+    const pullout = leaf('door', { action: 'pullout', drawerBox: { height: 12.125 } });
+    for (const action of [null, 'swing', 'sliding', 'flipper', 'pocket']) {
+      const changed = setFaceAction(pullout, 'r', action);
+      expect(changed).not.toHaveProperty('drawerBox');
+      expect(isFaceNode(changed)).toBe(true);
+    }
+    expect(setFaceAction(pullout, 'r', 'pullout')).toBe(pullout);
+    expect(setFaceType(pullout, 'r', 'door')).toEqual(pullout);
+    for (const type of FACE_TYPES.filter((type) => type !== 'door')) {
+      expect(setFaceType(pullout, 'r', type)).toEqual(leaf(type));
+    }
+    const drawer = leaf('drawer_front', { drawerBox: { charging: true, depth: 18 } });
+    expect(setFaceType(drawer, 'r', 'door')).toEqual(leaf('door'));
+    for (const face of [pullout, drawer]) {
+      for (const direction of ['horizontal', 'vertical']) {
+        const split = splitFace(face, 'r', direction, 2);
+        expect(isFaceNode(split)).toBe(true);
+        expect(split.children).toEqual([leaf(face.type), leaf(face.type)]);
+      }
+      expect(makeDrawerStack(face, 'r', 2).children).toEqual([leaf(), leaf()]);
+    }
+    expect(pullout.drawerBox).toEqual({ height: 12.125 });
+  });
 });
 
 describe('IN5 step a drawer box picks', () => {

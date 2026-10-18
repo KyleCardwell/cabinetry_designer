@@ -862,6 +862,20 @@ function normalizeDocument(document, schemaVersion) {
   };
 }
 
+/** Remove the retired cabinet-wide charging purpose, including inside nested grids. */
+function withoutChargingPurpose(node) {
+  if (!isPlainObject(node)) return node;
+  if (Array.isArray(node.cells)) {
+    return { ...node, cells: node.cells.map((cell) => (
+      isPlainObject(cell) ? { ...cell, node: withoutChargingPurpose(cell.node) } : cell
+    )) };
+  }
+  if (node.kind !== 'cabinet' || node.purpose !== 'charging') return node;
+  const { purpose, ...rest } = node;
+  void purpose;
+  return rest;
+}
+
 /** Fill fields added within the current schema while retaining compatibility. */
 export function normalizeElevationDocument(document) {
   const normalized = normalizeDocument(document, ELEVATION_SCHEMA_VERSION);
@@ -907,6 +921,7 @@ export function normalizeElevationDocument(document) {
               if (!run || typeof run !== 'object') return run;
               return {
                 ...normalizeRunWaterfall(normalizeRunTopOverhang(run)),
+                ...(run.grid !== undefined ? { grid: withoutChargingPurpose(run.grid) } : {}),
                 anchors: run.anchors && typeof run.anchors === 'object'
                   ? Object.fromEntries(Object.entries(run.anchors).map(([side, anchor]) => [
                       side,

@@ -147,7 +147,7 @@ export function slideBoxWidth(slide, opening) {
   return opening - 2 * slide.sideClearance;
 }
 
-/** Stored room slide picks, including nested cabinet grids and drawer-front leaves. */
+/** Stored room slide picks, including nested cabinet grids and box-bearing face leaves. */
 export function* roomSlideUses(room) {
   if (room?.settingsOverrides?.drawerSlideId != null) {
     yield { node: room.settingsOverrides, key: 'drawerSlideId' };
@@ -156,7 +156,8 @@ export function* roomSlideUses(room) {
     if (!face) return;
     if (face.children) {
       for (const child of face.children) yield* faces(child);
-    } else if (face.type === 'drawer_front' && face.drawerBox?.slideId != null) {
+    } else if ((face.type === 'drawer_front' || (face.type === 'door' && face.action === 'pullout'))
+      && face.drawerBox?.slideId != null) {
       yield { node: face.drawerBox, key: 'slideId', face };
     }
   }

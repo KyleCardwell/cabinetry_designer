@@ -32,11 +32,12 @@ function isSize(size) {
   return size === null || (Number.isFinite(size) && size > 0);
 }
 
-function isDrawerBox(box) {
+function isDrawerBox(box, allowCharging) {
   if (!box || typeof box !== 'object' || Array.isArray(box)) return false;
   const keys = Reflect.ownKeys(box);
   return keys.length > 0 && keys.every((key) => (
     key === 'slideId' ? typeof box[key] === 'string' && box[key].length > 0
+      : key === 'charging' ? allowCharging && box[key] === true
       : ['height', 'depth'].includes(key) && Number.isFinite(box[key]) && box[key] > 0
   ));
 }
@@ -62,7 +63,8 @@ export function isFaceNode(node) {
   if (!node || typeof node !== 'object' || Array.isArray(node)) return false;
   if (!isSize(node.size)) return false;
   if (node.drawerBox !== undefined
-    && (node.type !== 'drawer_front' || !isDrawerBox(node.drawerBox))) return false;
+    && (!(node.type === 'drawer_front' || (node.type === 'door' && node.action === 'pullout'))
+      || !isDrawerBox(node.drawerBox, node.type === 'drawer_front'))) return false;
   if (FACE_TYPES.includes(node.type)) {
     if (node.action !== undefined) {
       if (!['door', 'pair_door'].includes(node.type) || !DOOR_ACTIONS.includes(node.action)) return false;

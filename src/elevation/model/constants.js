@@ -167,7 +167,6 @@ export const CABINET_PURPOSES = [
   ['trash', 'Trash (ROT)'],
   ['hamper', 'Hamper'],
   ['file', 'File drawers'],
-  ['charging', 'Charging drawer'],
   ['medicine', 'Medicine cabinet'],
 ];
 export const CABINET_PURPOSE_IDS = new Set(CABINET_PURPOSES.map(([id]) => id));
