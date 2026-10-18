@@ -34,6 +34,7 @@ import InchInput from '../InchInput.jsx';
 import CabinetStyleProperties from './CabinetStyleProperties.jsx';
 import BoxConstructionFields from './BoxConstructionFields.jsx';
 import InteriorFields from './InteriorFields.jsx';
+import DrawerBoxFields from './DrawerBoxFields.jsx';
 import PartStyleFields from './PartStyleFields.jsx';
 
 const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600';
@@ -74,7 +75,7 @@ function groupLabel(node) {
 }
 
 // `layout` is the run's splitRun result; it supplies the same-width targets.
-export default function FaceProperties({ wall, run, piece, item, layout, cells, settings }) {
+export default function FaceProperties({ wall, run, piece, item, itemIds = [item.id], layout, cells, settings }) {
   const dispatch = useDispatch();
   const facePath = useSelector((state) => state.elevation.facePath);
   const stored = item.face ?? null;
@@ -156,6 +157,10 @@ export default function FaceProperties({ wall, run, piece, item, layout, cells, 
 
       <BoxConstructionFields room={room} wall={wall} run={run} item={item} />
       <InteriorFields key={item.id} room={room} wall={wall} run={run} item={item} settings={settings} />
+      {faceLayout?.faces.some(({ type }) => type === 'drawer_front') && (
+        <DrawerBoxFields key={`drawers-${item.id}`} room={room} wall={wall} run={run} item={item}
+          itemIds={itemIds} settings={settings} faceLayout={faceLayout} />
+      )}
 
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Faces</h3>
