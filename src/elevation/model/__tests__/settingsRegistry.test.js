@@ -54,7 +54,7 @@ describe('DB1 a settings registry', () => {
   });
 
   it('excludes the library, all seven prefs, and unknown keys', () => {
-    expect(LIBRARY_KEYS).toEqual(['teamDoorStyle', 'doorDesigns', 'sectionProfiles', 'pulls']);
+    expect(LIBRARY_KEYS).toEqual(['teamDoorStyle', 'doorDesigns', 'sectionProfiles', 'pulls', 'slides']);
     expect(PREF_KEYS).toEqual(['orthoWalls', 'showPartNumbers', 'plotScale', 'paperSize', 'planGrid', 'openingSnap', 'cornerSnapDistance']);
     for (const key of [...LIBRARY_KEYS, ...PREF_KEYS, 'bogus', 'insetFrame']) {
       expect(registryEntry(key)).toBeUndefined();

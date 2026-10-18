@@ -38,6 +38,17 @@ export {
   findPull,
   defaultPullSizes,
 } from './pulls.js';
+export {
+  SLIDE_MOUNTS,
+  BUILT_IN_SLIDES,
+  BUILT_IN_SLIDE_IDS,
+  isSlide,
+  isSlideList,
+  newSlide,
+  findSlide,
+  fittingLength,
+  slideBoxWidth,
+} from './slides.js';
 export { resolveSetting, resolveSettings, withOverride, cleanOverrides } from './settingsResolve.js';
 export { projectAddress, nextName, copyName, newRoomDocument, ROOM_STATUS_LABELS } from './designProjects.js';
 export {

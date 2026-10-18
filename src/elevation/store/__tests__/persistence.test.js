@@ -2,6 +2,7 @@ import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDe
 import { DOOR_DESIGNS, sheetPanelStyle } from '../../model/doorStyles.js';
 import { isDoorDesignList } from '../../model/doorDesigns.js';
 import { BUILT_IN_PULLS, resolvePull } from '../../model/pulls.js';
+import { BUILT_IN_SLIDES } from '../../model/slides.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { gridFromItems, rootItems } from '../../model/grid.js';
@@ -237,6 +238,60 @@ describe('HP3c step a pull reference persistence', () => {
     const loaded = normalizeElevationDocument(old);
     expect(isElevationDocument(loaded)).toBe(true);
     for (const partType of ['door', 'drawer']) expect(resolvePull(loaded.settings, partType, []).pullId).toBe('pull-4');
+  });
+});
+
+describe('IN4b step a sandbox slide persistence', () => {
+  const custom = { ...BUILT_IN_SLIDES[0], id: 'custom', name: 'Shop slide', hardwareSlideId: 3 };
+
+  it('loads missing slides and appends missing built-ins without changing saved data (anchor 6)', () => {
+    const edited = { ...BUILT_IN_SLIDES[0], name: 'Shop Blum', sideClearance: 0.375 };
+    for (const [slides, expected] of [
+      [undefined, BUILT_IN_SLIDES], [[], BUILT_IN_SLIDES],
+      [[custom], [custom, ...BUILT_IN_SLIDES]],
+      [[custom, edited], [custom, edited, ...BUILT_IN_SLIDES.slice(1)]],
+      [[BUILT_IN_SLIDES[2], custom, edited], [BUILT_IN_SLIDES[2], custom, edited, BUILT_IN_SLIDES[1]]],
+    ]) {
+      const document = currentDocument();
+      if (slides === undefined) delete document.settings.slides;
+      else document.settings.slides = structuredClone(slides);
+      const before = structuredClone(document);
+      const serialized = JSON.stringify(document);
+      const storage = storageWith([[ELEVATION_STORAGE_KEY, serialized]]);
+      globalThis.window = { localStorage: storage };
+      const loaded = loadElevationDocument();
+      expect(loaded.settings.slides).toEqual(expected);
+      expect(isElevationDocument(loaded)).toBe(true);
+      expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+      expect(normalizeElevationDocument(document).settings.slides).toEqual(expected);
+      expect(document).toEqual(before);
+      expect(storage.getItem(ELEVATION_STORAGE_KEY)).toBe(serialized);
+      if (slides === undefined || slides.length === 0) {
+        expect(loaded.settings.slides).not.toBe(BUILT_IN_SLIDES);
+        expect(loaded.settings.slides[0].lengths[0]).not.toBe(BUILT_IN_SLIDES[0].lengths[0]);
+      }
+      const roundTrip = normalizeElevationDocument(JSON.parse(JSON.stringify(
+        toElevationDocument(createInitialElevationState(loaded)),
+      )));
+      expect(roundTrip.settings.slides).toEqual(expected);
+    }
+  });
+
+  it('rejects duplicate names and ids, invalid slides and altered built-in mounts (anchor 6)', () => {
+    for (const slides of [
+      [{ ...custom, name: 'X' }, { ...custom, id: 'other', name: 'x' }],
+      [...BUILT_IN_SLIDES, custom, { ...custom, name: 'Other' }],
+      [{ ...custom, name: BUILT_IN_SLIDES[0].name }],
+      [{ ...BUILT_IN_SLIDES[1], mount: 'undermount' }],
+      [{ ...custom, lengths: [] }], [null], null, {}, 'slides',
+    ]) {
+      const document = normalizeElevationDocument(currentDocument());
+      document.settings.slides = slides;
+      expect(isElevationDocument(document)).toBe(false);
+      expect(isElevationDocument(normalizeElevationDocument(document))).toBe(false);
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+      expect(loadElevationDocument()).toBeNull();
+    }
   });
 });
 

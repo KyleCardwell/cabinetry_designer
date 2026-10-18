@@ -1,5 +1,6 @@
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from './doorStyles.js';
 import { BUILT_IN_PULLS } from './pulls.js';
+import { BUILT_IN_SLIDES } from './slides.js';
 
 /** Cabinet type identifiers shared with ff-job-schedule. */
 export const CABINET_TYPE_IDS = {
@@ -77,6 +78,7 @@ export const DEFAULT_SETTINGS = {
   doorPanelDefault: 0.5,
   doorDesigns: DOOR_DESIGNS,
   pulls: BUILT_IN_PULLS,
+  slides: BUILT_IN_SLIDES,
   doorPullId: 'pull-4',
   drawerPullId: 'pull-4',
   pullHeight: 45,
