@@ -7,7 +7,7 @@ import InchInput from '../elevation/components/InchInput.jsx';
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const MOUNT_LABELS = { undermount: 'Undermount', side: 'Side mount' };
-const TEXT_LABELS = { name: 'Name', brand: 'Brand', model: 'Model', description: 'Description', cvName: 'CV name' };
+const TEXT_LABELS = { name: 'Name', brand: 'Brand', model: 'Model', description: 'Description' };
 const SIZE_LABELS = { sideClearance: 'Side clearance (per side)', minBelow: 'Min below', minAbove: 'Min above', height: 'Slide height' };
 const LENGTH_LABELS = { nominal: 'Nominal', length: 'Length', extension: 'Extension' };
 const FLAG_LABELS = { clips: 'Clips', softClose: 'Soft close', heavyDuty: 'Heavy duty' };

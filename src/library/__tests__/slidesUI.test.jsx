@@ -121,7 +121,7 @@ describe('IN4b step b Slides page and editor', () => {
     expect(text(render())).toContain('Each length can only be listed once');
     control(render(), 'Remove length 11').props.onClick();
     expect(button(render(), 'Save').props.disabled).toBe(false);
-    for (const label of ['Brand', 'Model', 'Description', 'CV name']) {
+    for (const label of ['Brand', 'Model', 'Description']) {
       control(render(), label).props.onChange({ target: { value: ` Shop ${label} ` } });
     }
     expect(control(render(), 'Mount').props.disabled).toBe(false);
@@ -143,7 +143,7 @@ describe('IN4b step b Slides page and editor', () => {
     button(render(), 'Save').props.onClick();
     const saved = dispatch.mock.lastCall[0].payload.slide;
     expect(saved).toMatchObject({
-      id: 'custom', name: 'Shop slide', brand: 'Shop Brand', model: 'Shop Model', description: 'Shop Description', cvName: 'Shop CV name',
+      id: 'custom', name: 'Shop slide', brand: 'Shop Brand', model: 'Shop Model', description: 'Shop Description',
       mount: 'side', sideClearance: 0, minBelow: 0, minAbove: 0, height: 1.796875,
       clips: false, softClose: false, heavyDuty: true, hardwareSlideId: 42,
     });

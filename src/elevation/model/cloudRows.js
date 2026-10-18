@@ -6,7 +6,7 @@ import { DEFAULT_SETTINGS } from './constants.js';
 import { SEEDED_DESIGN_IDS, isDoorDesign, migrateDoorDesign } from './doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, isDoorStyle } from './doorStyles.js';
 import { BUILT_IN_PULLS, BUILT_IN_PULL_IDS, isPull } from './pulls.js';
-import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlide } from './slides.js';
+import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlide, withoutRetiredSlideKeys } from './slides.js';
 import { isSectionProfile, migrateSectionProfile } from './sectionProfiles.js';
 import { SETTINGS_REGISTRY } from './settingsRegistry.js';
 import { isValidSettingValue } from './settingsResolve.js';
@@ -113,7 +113,7 @@ export function slideIdFor(row) {
 /** A design_slides row → a valid slide, or null (including a built-in with the wrong mount). */
 export function slideFromRow(row) {
   if (!row || !isUuid(row.slide_id) || !row.data || typeof row.data !== 'object') return null;
-  const { seedId, ...rest } = structuredClone(row.data);
+  const { seedId, ...rest } = withoutRetiredSlideKeys(structuredClone(row.data));
   void seedId;
   const slide = { ...rest, id: slideIdFor(row), name: row.name, hardwareSlideId: row.hardware_slide_id };
   const seed = BUILT_IN_SLIDES.find((entry) => entry.id === slide.id);

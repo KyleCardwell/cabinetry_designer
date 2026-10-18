@@ -67,7 +67,7 @@ describe('cloudRows', () => {
   it('IN4b c maps built-in and uuid slides, preserving lengths and estimator links (anchor 1)', () => {
     const expectedData = {
       brand: 'Blum', model: '562H', description: 'Blum Tandem 562H soft-close',
-      cvName: 'Blum 562H3810B-.25 clrnc-No Notch', mount: 'undermount',
+      mount: 'undermount',
       lengths: [9, 12, 15, 18, 21, 24, 27, 30, 33, 36].map((nominal) => nominal === 15
         ? { nominal, length: 15.515625, extension: 14.953125 } : { nominal }),
       sideClearance: 0.25, minBelow: 0.5625, minAbove: 0.25, height: 1,
@@ -88,6 +88,8 @@ describe('cloudRows', () => {
     expect(slideFromRow(row)).toEqual({ ...BUILT_IN_SLIDES[1], id: DID, name: 'Hettich', hardwareSlideId: null });
     expect(slideIdFor(row)).toBe(DID);
     expect(slideFromRow({ ...row, data: { mount: 'side' } })).toBeNull();
+    expect(slideFromRow({ ...row, data: { ...data, cvName: 'Accuride 3832-8-No Notch' } }))
+      .toEqual({ ...BUILT_IN_SLIDES[1], id: DID, name: 'Hettich', hardwareSlideId: null });
     const seedRow = { ...row, data: { ...data, seedId: 'accuride-4034' } };
     expect(slideFromRow(seedRow).id).toBe('accuride-4034');
     expect(slideIdFor(seedRow)).toBe('accuride-4034');

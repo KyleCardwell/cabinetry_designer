@@ -277,6 +277,15 @@ describe('IN4b step a sandbox slide persistence', () => {
     }
   });
 
+  it('drops the retired Cabinet Vision name from saved sandbox slides', () => {
+    const document = currentDocument();
+    document.settings.slides = [{ ...custom, cvName: 'Shop CV' }, { ...BUILT_IN_SLIDES[0], cvName: 'Blum 562H3810B' }];
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+    const loaded = loadElevationDocument();
+    expect(loaded.settings.slides).toEqual([custom, ...BUILT_IN_SLIDES]);
+    expect(isElevationDocument(loaded)).toBe(true);
+  });
+
   it('rejects duplicate names and ids, invalid slides and altered built-in mounts (anchor 6)', () => {
     for (const slides of [
       [{ ...custom, name: 'X' }, { ...custom, id: 'other', name: 'x' }],

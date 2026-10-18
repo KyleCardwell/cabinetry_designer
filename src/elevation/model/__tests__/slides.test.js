@@ -13,7 +13,8 @@ describe('IN4b step a slide model', () => {
     expect(isSlide(blum)).toBe(true);
     expect(isSlide({ ...blum, brand: '' })).toBe(true);
     expect(isSlide({ ...blum, hardwareSlideId: 3 })).toBe(true);
-    for (const key of ['brand', 'model', 'description', 'cvName']) {
+    expect(isSlide({ ...blum, cvName: '' })).toBe(false);
+    for (const key of ['brand', 'model', 'description']) {
       for (const value of ['', 'x'.repeat(120)]) expect(isSlide({ ...blum, [key]: value })).toBe(true);
       for (const value of ['x'.repeat(121), ' x', 'x ', 3, null, undefined]) {
         expect(isSlide({ ...blum, [key]: value })).toBe(false);
@@ -59,7 +60,7 @@ describe('IN4b step a slide model', () => {
     expect(BUILT_IN_SLIDES.map(({ id }) => id)).toEqual(BUILT_IN_SLIDE_IDS);
     expect(blum).toEqual({
       id: 'blum-562h', name: 'Blum Tandem 562H', brand: 'Blum', model: '562H',
-      description: 'Blum Tandem 562H soft-close', cvName: 'Blum 562H3810B-.25 clrnc-No Notch', mount: 'undermount',
+      description: 'Blum Tandem 562H soft-close', mount: 'undermount',
       lengths: [9, 12, 15, 18, 21, 24, 27, 30, 33, 36].map((nominal) =>
         nominal === 15 ? { nominal: 15, length: 15.515625, extension: 14.953125 } : { nominal }),
       sideClearance: 0.25, minBelow: 0.5625, minAbove: 0.25, height: 1,
@@ -67,7 +68,7 @@ describe('IN4b step a slide model', () => {
     });
     expect(accuride3832).toEqual({
       id: 'accuride-3832', name: 'Accuride 3832', brand: 'Accuride', model: '3832',
-      description: 'Accuride 3832 full extension', cvName: 'Accuride 3832-8-No Notch', mount: 'side',
+      description: 'Accuride 3832 full extension', mount: 'side',
       lengths: [{ nominal: 8, length: 8, extension: 8 }, ...[10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36]
         .map((nominal) => ({ nominal }))],
       sideClearance: 0.5, minBelow: 0.5625, minAbove: 0.25, height: 1.796875,
@@ -76,7 +77,7 @@ describe('IN4b step a slide model', () => {
     expect(accuride3832.lengths).toHaveLength(15);
     expect(accuride4034).toEqual({
       ...accuride3832, id: 'accuride-4034', name: 'Accuride 4034', model: '4034',
-      description: 'Accuride 4034 heavy duty', cvName: '',
+      description: 'Accuride 4034 heavy duty',
       lengths: [8, 10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36].map((nominal) => ({ nominal })),
     });
   });

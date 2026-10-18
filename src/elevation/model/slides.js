@@ -8,7 +8,6 @@ export const BUILT_IN_SLIDES = [
     brand: 'Blum',
     model: '562H',
     description: 'Blum Tandem 562H soft-close',
-    cvName: 'Blum 562H3810B-.25 clrnc-No Notch',
     mount: 'undermount',
     lengths: Array.from({ length: 10 }, (_, index) => {
       const nominal = 9 + 3 * index;
@@ -29,7 +28,6 @@ export const BUILT_IN_SLIDES = [
     brand: 'Accuride',
     model,
     description: `Accuride ${model} ${model === '3832' ? 'full extension' : 'heavy duty'}`,
-    cvName: model === '3832' ? 'Accuride 3832-8-No Notch' : '',
     mount: 'side',
     lengths: Array.from({ length: 15 }, (_, index) => {
       const nominal = 8 + 2 * index;
@@ -56,17 +54,25 @@ function hasKeys(value, allowed, required = allowed) {
 }
 
 const SLIDE_KEYS = [
-  'id', 'name', 'brand', 'model', 'description', 'cvName', 'mount', 'lengths',
+  'id', 'name', 'brand', 'model', 'description', 'mount', 'lengths',
   'sideClearance', 'minBelow', 'minAbove', 'height', 'clips', 'softClose', 'heavyDuty', 'hardwareSlideId',
 ];
 const isPositiveSize = (value) => Number.isFinite(value) && value > 0;
 const isText = (value) => typeof value === 'string' && value === value.trim() && value.length <= 120;
 
+/** Drop keys older slides carried that the designer no longer uses (Cabinet Vision's guide name). */
+export function withoutRetiredSlideKeys(slide) {
+  if (!slide || typeof slide !== 'object' || !Object.hasOwn(slide, 'cvName')) return slide;
+  const { cvName, ...rest } = slide;
+  void cvName;
+  return rest;
+}
+
 export function isSlide(slide) {
   if (!hasKeys(slide, SLIDE_KEYS)
     || typeof slide.id !== 'string' || slide.id.length === 0
     || typeof slide.name !== 'string' || slide.name.length === 0 || slide.name !== slide.name.trim()
-    || !['brand', 'model', 'description', 'cvName'].every((key) => isText(slide[key]))
+    || !['brand', 'model', 'description'].every((key) => isText(slide[key]))
     || !SLIDE_MOUNTS.includes(slide.mount)
     || !['sideClearance', 'minBelow', 'minAbove'].every((key) => Number.isFinite(slide[key]) && slide[key] >= 0)
     || !isPositiveSize(slide.height)
