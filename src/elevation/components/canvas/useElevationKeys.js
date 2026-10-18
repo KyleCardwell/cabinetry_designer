@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { useSelector } from 'react-redux';
 import { runItems } from '../../model/grid.js';
 import { findLeaf } from '../../model/cellTree.js';
 import { nextWallId } from '../../model/topology.js';
@@ -11,6 +12,7 @@ import {
   removeItem,
   setActiveWall,
   setFacePath,
+  setInteriorPath,
   setSelection,
   setTool,
 } from '../../store/elevationSlice.js';
@@ -34,6 +36,7 @@ export default function useElevationKeys({
   zoomIn,
   zoomOut,
 }) {
+  const interiorPath = useSelector((state) => state.elevation.interiorPath);
   useEffect(() => {
     const handleKeyDown = (event) => {
       const tagName = event.target?.tagName?.toLowerCase();
@@ -58,6 +61,7 @@ export default function useElevationKeys({
         if (dragRef.current) cancelDrag();
         else if (stretchPreview) setStretchPreview(null);
         else if (facePath) dispatch(setFacePath(null));
+        else if (interiorPath != null) dispatch(setInteriorPath(null));
         else dispatch(setSelection({}));
         return;
       }
@@ -164,6 +168,7 @@ export default function useElevationKeys({
     dispatch,
     entry,
     facePath,
+    interiorPath,
     resetView,
     room,
     stretchPreview,

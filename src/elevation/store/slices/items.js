@@ -209,6 +209,8 @@ export const itemReducers = {
         wallId: state.selection.wallId,
       };
       state.facePath = null;
+      state.interiorPath = null;
+      state.interiorDivider = null;
     }
     syncRoomAt(state, location.roomIndex);
   },

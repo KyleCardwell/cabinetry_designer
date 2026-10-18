@@ -11,6 +11,24 @@ import {
 } from './helpers.js';
 
 export const uiReducers = {
+    setDoorsOff(state, action) {
+      if (typeof action.payload !== 'boolean') return;
+      state.doorsOff = action.payload;
+      if (action.payload) state.facePath = null;
+    },
+    setInteriorPath(state, action) {
+      const payload = action.payload;
+      if (payload === null) {
+        state.interiorPath = null;
+        state.interiorDivider = null;
+        return;
+      }
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)
+        || typeof payload.path !== 'string' || payload.path.length === 0
+        || (payload.divider != null && (!Number.isInteger(payload.divider) || payload.divider < 0))) return;
+      state.interiorPath = payload.path;
+      state.interiorDivider = payload.divider ?? null;
+    },
     setFacePath(state, action) {
       state.facePath = action.payload ?? null;
     },
@@ -51,6 +69,8 @@ export const uiReducers = {
         state.activeWallSide = 'front';
       }
       state.facePath = null;
+      state.interiorPath = null;
+      state.interiorDivider = null;
     },
     clearSelection(state) {
       clearTransientSelection(state);

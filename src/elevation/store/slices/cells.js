@@ -65,6 +65,8 @@ export const cellReducers = {
         wallId: state.selection.wallId,
       };
       state.facePath = null;
+      state.interiorPath = null;
+      state.interiorDivider = null;
     }
     syncRoomAt(state, location.roomIndex);
   },
@@ -129,7 +131,11 @@ export const cellReducers = {
     }
     location.run.grid = grid;
     if (found.depth === 0) location.run.autoCount = false;
-    if (state.selection.pieceId === cellId && kind !== 'cabinet') state.facePath = null;
+    if (state.selection.pieceId === cellId && kind !== 'cabinet') {
+      state.facePath = null;
+      state.interiorPath = null;
+      state.interiorDivider = null;
+    }
     syncRoomAt(state, location.roomIndex);
   },
   setCellDepth(state, action) {

@@ -245,6 +245,8 @@ export function clearTransientSelection(state) {
     wallId: state.view === 'elevation' ? state.activeWallId : null,
   };
   state.facePath = null;
+  state.interiorPath = null;
+  state.interiorDivider = null;
 }
 
 export function activateRoom(state, room) {

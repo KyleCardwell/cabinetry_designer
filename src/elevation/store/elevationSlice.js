@@ -66,6 +66,9 @@ export function createInitialElevationState(document = loadElevationDocument()) 
       wallId: document?.view === 'elevation' ? activeWallId : null,
     },
     facePath: null,
+    doorsOff: false,
+    interiorPath: null,
+    interiorDivider: null,
     tool: emptyActiveRoom ? 'wall' : 'select',
     message: null,
   };
@@ -231,6 +234,8 @@ export const {
   setRoomDoorDrawing,
   setPartStyle,
   setFacePath,
+  setDoorsOff,
+  setInteriorPath,
   setSelection,
   clearSelection,
   setTool,

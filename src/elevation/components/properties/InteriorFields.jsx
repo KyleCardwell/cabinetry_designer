@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   INTERIOR_DIVIDERS,
   INTERIOR_DIVIDER_LABELS,
@@ -16,7 +16,7 @@ import {
   setDividerPosition,
   splitSection,
 } from '../../model/index.js';
-import { setItemInterior } from '../../store/elevationSlice.js';
+import { setInteriorPath, setItemInterior } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
 
@@ -32,7 +32,9 @@ const WARNING_MESSAGES = {
 export default function InteriorFields({ room, wall, run, item, settings }) {
   const dispatch = useDispatch();
   const interior = item.interior ?? null;
-  const [selectedPath, setSelectedPath] = useState('r');
+  const interiorPath = useSelector((state) => state.elevation.interiorPath);
+  const interiorDivider = useSelector((state) => state.elevation.interiorDivider);
+  const selectedPath = interiorPath ?? 'r';
   const [splitCount, setSplitCount] = useState(2);
   const path = getInteriorNode(interior, selectedPath) ? selectedPath : 'r';
   const selected = getInteriorNode(interior, path);
@@ -41,8 +43,8 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
   ), [room, wall, settings, item.id]);
 
   useEffect(() => {
-    if (path !== selectedPath) setSelectedPath('r');
-  }, [path, selectedPath]);
+    if (path !== selectedPath) dispatch(setInteriorPath(null));
+  }, [dispatch, path, selectedPath]);
 
   const commit = (next) => {
     if (next === interior) return false;
@@ -69,7 +71,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
               type="button"
               aria-label={`Interior ${rowPath}`}
               aria-pressed={rowPath === path}
-              onClick={() => setSelectedPath(rowPath)}
+              onClick={() => dispatch(setInteriorPath({ path: rowPath }))}
               style={{ paddingLeft: depth * 12 }}
               className={`flex w-full items-center border-l-2 py-1 pr-1 text-left text-xs text-gray-300 ${
                 rowPath === path ? 'border-blue-500 bg-gray-800/60' : 'border-transparent'
@@ -100,7 +102,9 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
             const position = stacked ? actual.fromBottom : from === 'right' ? actual.fromRight : actual.fromLeft;
             const canRemove = !selected.children[index].children && !selected.children[index + 1].children;
             return (
-              <div key={index} className="space-y-2 rounded border border-gray-700 p-2">
+              <div key={index} className={`space-y-2 rounded border p-2 ${
+                path === interiorPath && index === interiorDivider ? 'border-blue-500' : 'border-gray-700'
+              }`}>
                 <Field label="Kind">
                   <select
                     aria-label={`Divider kind ${path}.${index}`}

@@ -48,6 +48,8 @@ export const featureReducers = {
     };
     state.activeWallSide = wallSideOf(candidate);
     state.facePath = null;
+    state.interiorPath = null;
+    state.interiorDivider = null;
     syncRoomAt(state, location.roomIndex);
   },
   updateSoffit(state, action) {
@@ -123,6 +125,8 @@ export const featureReducers = {
     };
     state.activeWallSide = wallSideOf(recess);
     state.facePath = null;
+    state.interiorPath = null;
+    state.interiorDivider = null;
     state.message = null;
     syncRoomAt(state, location.roomIndex);
   },

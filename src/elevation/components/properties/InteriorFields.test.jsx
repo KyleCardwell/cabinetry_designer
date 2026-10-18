@@ -5,7 +5,7 @@ import { cabinetInterior } from '../../model/interiors.js';
 import { gridLeaves } from '../../model/grid.js';
 import { resolveWall } from '../../model/room.js';
 import { runScene } from '../../model/runScene.js';
-import elevationReducer, { setItemInterior } from '../../store/elevationSlice.js';
+import elevationReducer, { setInteriorPath, setItemInterior } from '../../store/elevationSlice.js';
 import { fixed, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import BoxConstructionFields from './BoxConstructionFields.jsx';
 import FaceProperties from './FaceProperties.jsx';
@@ -85,6 +85,36 @@ beforeEach(() => {
 });
 
 describe('IN2 Interior section', () => {
+  it('IN3 anchor 4: shares outline selection, highlights only the selected divider, and clears vanished paths', () => {
+    edit(() => {
+      run().height = 84;
+      run().width = run().grid.cols[0].size = 36;
+      item().interior = group('vertical', [{ ...fixedShelf, at: 36 }], [group('horizontal', [partition]), {}]);
+      state.interiorPath = 'r.0';
+      state.interiorDivider = 0;
+    });
+    const dividerRows = () => nodes(render()).filter(({ type, props }) => type === 'div'
+      && props.className?.includes('rounded border p-2'));
+    expect(field('Interior r.0').props['aria-pressed']).toBe(true);
+    expect(dividerRows()[0].props.className).toContain('border-blue-500');
+    click('Stack × 2');
+    expect(dispatch).toHaveBeenLastCalledWith(setInteriorPath({ path: 'r' }));
+    expect(state).toMatchObject({ interiorPath: 'r', interiorDivider: null });
+    expect(field('Interior r').props['aria-pressed']).toBe(true);
+    expect(dividerRows()[0].props.className).toContain('border-gray-700');
+    dispatch(setInteriorPath({ path: 'r', divider: 0 }));
+    expect(dividerRows()[0].props.className).toContain('border-blue-500');
+    edit(() => { item().interior = group('vertical', [fixedShelf, fixedShelf]); });
+    expect(dividerRows().map(({ props }) => props.className.includes('border-blue-500'))).toEqual([true, false]);
+    select('r.1');
+    expect(state).toMatchObject({ interiorPath: 'r.1', interiorDivider: null });
+    edit(() => { delete item().interior; });
+    render();
+    expect(dispatch).toHaveBeenLastCalledWith(setInteriorPath(null));
+    expect(state).toMatchObject({ interiorPath: null, interiorDivider: null });
+    expect(field('Interior r').props['aria-pressed']).toBe(true);
+  });
+
   it('anchor 1: shows the one clear 28 1/2 × 29 section, immediately after Box in the panel', () => {
     const rows = nodes(render()).filter(({ props }) => props['aria-pressed'] !== undefined);
     expect(rows).toHaveLength(1);
