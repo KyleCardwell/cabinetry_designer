@@ -1,5 +1,5 @@
 import { Fragment, useRef } from 'react';
-import { Group, Rect, Text } from 'react-konva';
+import { Group, Line, Rect, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { formatDimension } from '../model/units.js';
 import { dragDividerPosition, interiorDimensions } from '../model/interiors.js';
@@ -71,6 +71,18 @@ export default function InteriorShapes({
                 />
               )}
             </Fragment>
+          );
+        })}
+        {(entry.partLines ?? []).map((line) => {
+          const { x, y, width, height } = wallRectToScreen(line, transform);
+          return (
+            <Line
+              key={`part:${line.part}`}
+              points={[x, y, x + width, y + height]}
+              stroke="#f8fafc"
+              strokeWidth={1}
+              listening={false}
+            />
           );
         })}
         {entry.dividers.map((divider) => {

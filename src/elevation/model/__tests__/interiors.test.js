@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  boxConstruction, cabinetInterior, dragDividerPosition, interiorDepth, interiorDimensions,
+  boxConstruction, boxPartLines, cabinetInterior, dragDividerPosition, interiorDepth, interiorDimensions,
   placeInterior, resolveInterior, wallInteriors,
 } from '../index.js';
 import { findLeaf, splitGridCell } from '../cellTree.js';
@@ -27,6 +27,7 @@ describe('IN2 interior rectangles', () => {
     const rect = { x: 0.75, z: 0.75, width: 28.5, height: 29 };
     expect(resolve(undefined, box(30, 30.5))).toEqual({
       rect, depth: 23, sections: [{ path: 'r', ...rect, depth: 23 }], dividers: [], warnings: [],
+      partLines: boxPartLines(box(30, 30.5), standard, 0.75),
     });
   });
 
@@ -212,7 +213,10 @@ describe('IN3 interior view coordinates and dimensions', () => {
     });
     expect(section(placed, 'r.0').z).toBe(46.375);
     expect(placed.dividers[0]).toEqual({ ...local.dividers[0], x: 30.75, z: 45.625 });
-    expect(placed).toEqual({ ...local, sections: placed.sections, dividers: placed.dividers });
+    expect(placed).toEqual({
+      ...local, sections: placed.sections, dividers: placed.dividers, partLines: placed.partLines,
+    });
+    expect(placed.partLines[0]).toEqual({ part: 'left', x: 30.75, z: 4, width: 0, height: 84 });
     expect(interiorDimensions(placed)).toEqual([{
       key: 'r:0', path: 'r', index: 0, axis: 'vertical',
       from: { x: 30.75, z: 4 }, to: { x: 30.75, z: 46 },
@@ -327,5 +331,33 @@ describe('IN3 interior view coordinates and dimensions', () => {
     const warned = { box: { ...box(30, 30.5), x: 10, z: 4 },
       ...resolve(vertical({ ...fixed, at: 1, depth: 30 }), box(30, 30.5)) };
     expect(placeInterior(warned).warnings).toEqual(warned.warnings);
+  });
+});
+
+describe('IN3.1 box part lines (doors-off view)', () => {
+  const lines = (construction) => boxPartLines({ width: 30, height: 30.5 }, construction, 0.75);
+  it('standard box: sides run the full height, top and bottom run between them', () => {
+    expect(lines(standard)).toEqual([
+      { part: 'left', x: 0.75, z: 0, width: 0, height: 30.5 },
+      { part: 'right', x: 29.25, z: 0, width: 0, height: 30.5 },
+      { part: 'bottom', x: 0.75, z: 0.75, width: 28.5, height: 0 },
+      { part: 'top', x: 0.75, z: 29.75, width: 28.5, height: 0 },
+    ]);
+  });
+
+  it('overlay top and bottom run the full width and cut the side lines between them', () => {
+    expect(lines(boxConstruction({ box: { top: 'overlay', bottom: 'overlay' } }))).toEqual([
+      { part: 'left', x: 0.75, z: 0.75, width: 0, height: 29 },
+      { part: 'right', x: 29.25, z: 0.75, width: 0, height: 29 },
+      { part: 'bottom', x: 0, z: 0.75, width: 30, height: 0 },
+      { part: 'top', x: 0, z: 29.75, width: 30, height: 0 },
+    ]);
+  });
+
+  it('parts left off draw nothing; between parts then run to the open side', () => {
+    expect(lines(boxConstruction({ box: { left: false, top: 'none' } }))).toEqual([
+      { part: 'right', x: 29.25, z: 0, width: 0, height: 30.5 },
+      { part: 'bottom', x: 0, z: 0.75, width: 29.25, height: 0 },
+    ]);
   });
 });

@@ -100,6 +100,7 @@ export { captureSides } from './capture.js';
 export { boxConstruction } from './boxConstruction.js';
 export { drawerBoxHeights, isTallDrawerBox } from './drawerBoxes.js';
 export {
+  boxPartLines,
   cabinetInterior,
   dragDividerPosition,
   interiorDepth,

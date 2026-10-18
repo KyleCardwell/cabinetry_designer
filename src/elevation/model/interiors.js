@@ -106,7 +106,29 @@ export function resolveInterior(interior, box, construction, settings) {
     });
   };
   walk(getInteriorNode(interior, ROOT_FACE_PATH), rect, ROOT_FACE_PATH);
-  return { rect, depth, sections, dividers, warnings };
+  return { rect, depth, sections, dividers, warnings, partLines: boxPartLines(box, construction, t) };
+}
+
+/**
+ * Inner edges of the built box parts, as zero-width/height rectangles (box-local). Sides run the full
+ * box height past between/spreader tops and bottoms; an overlay top or bottom runs the full width and
+ * cuts the side lines short. Parts that aren't built draw nothing.
+ */
+export function boxPartLines(box, construction, t) {
+  const { width: w, height: h } = box;
+  const lines = [];
+  const z0 = construction.bottom === 'overlay' ? t : 0;
+  const z1 = construction.top === 'overlay' ? h - t : h;
+  if (construction.left) lines.push({ part: 'left', x: t, z: z0, width: 0, height: z1 - z0 });
+  if (construction.right) lines.push({ part: 'right', x: w - t, z: z0, width: 0, height: z1 - z0 });
+  for (const part of ['bottom', 'top']) {
+    const kind = construction[part];
+    if (kind === 'none') continue;
+    const x0 = kind !== 'overlay' && construction.left ? t : 0;
+    const x1 = kind !== 'overlay' && construction.right ? w - t : w;
+    lines.push({ part, x: x0, z: part === 'bottom' ? t : h - t, width: x1 - x0, height: 0 });
+  }
+  return lines;
 }
 
 /** Find the drawn cabinet box on this face, including any blind portion. */
@@ -133,6 +155,7 @@ export function placeInterior(interior) {
     ...interior,
     sections: interior.sections.map(place),
     dividers: interior.dividers.map(place),
+    partLines: (interior.partLines ?? []).map(place),
   };
 }
 
