@@ -1,6 +1,8 @@
 import { CABINET_TYPE_IDS } from './constants.js';
 import { blindEntries, blindPartWidths } from './blind.js';
 import { blindCellWidths, cellPieces, partPieces } from './cells.js';
+import { findLeaf } from './cellTree.js';
+import { faceOutline } from './faceTree.js';
 import { frameRegions } from './frames.js';
 import { runBaseProfile as runBase } from './furnitureBase.js';
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
@@ -68,6 +70,31 @@ function teeAnchor(tee, parts, pieces) {
   return parts[tee.orientation === 'vertical' ? Math.max(...indexes) : Math.min(...indexes)].key;
 }
 
+/** ROT positions belong to the stored face tree, even when no box can be sized there. */
+function rotParts(part, run) {
+  if (part.kind !== 'cabinet' || !run.grid) return [];
+  const leaf = findLeaf(run.grid, part.key);
+  if (leaf?.kind !== 'cabinet' || leaf.purpose !== 'trash' || !leaf.face) return [];
+  return faceOutline(leaf.face)
+    .filter(({ node }) => !node.children && node.type === 'door' && node.action === 'pullout')
+    .flatMap(({ path }) => [['rot', 'rot'], ['trash_lid', 'lid']].map(([kind, suffix]) => ({
+      key: `${leaf.id}:${suffix}:${path}`,
+      kind,
+      cabinetId: leaf.id,
+      facePath: path,
+      wallId: part.wallId,
+      side: part.side,
+      runId: part.runId,
+      pieceId: null,
+      molding: null,
+      width: null,
+      x: null,
+      z: null,
+      height: null,
+      source: 'face',
+    })));
+}
+
 function runParts(room, wall, side, settings) {
   const view = wallSideView(wall, side);
   return runsInWalkOrder(view).flatMap((run) => {
@@ -128,6 +155,7 @@ function runParts(room, wall, side, settings) {
     return [
       ...pieceParts.flatMap((part) => [
         part,
+        ...rotParts(part, run),
         ...seamParts.filter((entry) => entry.anchor === part.key).map((entry) => entry.part),
       ]),
       ...seamParts.filter((entry) => entry.anchor === null).map((entry) => entry.part),
