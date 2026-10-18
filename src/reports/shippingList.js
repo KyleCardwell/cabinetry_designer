@@ -4,6 +4,7 @@ import { CABINET_TYPE_IDS } from '../elevation/model/constants.js';
 import { panelOrientation } from '../elevation/model/cells.js';
 import { frontDepth, runBackOffset } from '../elevation/model/corners.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
+import { wallDrawerBoxes } from '../elevation/model/drawerBoxes.js';
 import { elevationParts } from '../elevation/model/elevationParts.js';
 import { frameMembers, regionOpenings } from '../elevation/model/frames.js';
 import { furnitureBaseGroups } from '../elevation/model/furnitureBaseGroups.js';
@@ -20,6 +21,7 @@ import { resolveWall } from '../elevation/model/room.js';
 import { runBands } from '../elevation/model/runBands.js';
 import { runScene } from '../elevation/model/runScene.js';
 import { sectionProfileBounds } from '../elevation/model/sectionProfiles.js';
+import { resolveSlide } from '../elevation/model/slides.js';
 import {
   endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
 } from '../elevation/model/styles.js';
@@ -85,14 +87,18 @@ function faceOrder(a, b) {
   return topB - topA || (a.x ?? 0) - (b.x ?? 0);
 }
 
-/** Group working fronts at report precision, retaining their first top-down appearance. */
-export function drawerFrontNote(faces = []) {
+/** Group working fronts by height and slide, retaining their first top-down appearance. */
+export function drawerFrontNote(faces = [], slideNames = new Map()) {
   const groups = new Map();
   for (const face of faces.filter((face) => face.type === 'drawer_front').sort(faceOrder)) {
     const height = Math.round(face.height * 32) / 32;
-    groups.set(height, (groups.get(height) ?? 0) + 1);
+    const name = slideNames.get(face.path) || null;
+    const key = JSON.stringify([height, name]);
+    if (!groups.has(key)) groups.set(key, { height, name, count: 0 });
+    groups.get(key).count += 1;
   }
-  return groups.size ? `DF's (${[...groups].map(([height, count]) => `${count} - ${formatInch(height)}`).join(', ')})` : null;
+  return groups.size ? `DF's (${[...groups.values()].map(({ height, name, count }) =>
+    `${count} - ${formatInch(height)}${name ? ` (${name})` : ''}`).join(', ')})` : null;
 }
 
 /** Single doors and action pairs need shop instructions; pair halves share a path. */
@@ -138,6 +144,7 @@ function shippingContext(room, settings) {
   const scenes = new Map();
   const teeData = new Map();
   const elevations = new Map();
+  const drawerBoxes = new Map();
   let bases;
   let moldings;
   return (part) => {
@@ -180,6 +187,11 @@ function shippingContext(room, settings) {
     return {
       wall: view, run, scene, piece, leaf, end, blindPanel, shelfBack, style,
       rabbets: teeData.get(run).rabbets, shapeNotes: teeData.get(run).notes,
+      drawerBoxes: () => {
+        if (!drawerBoxes.has(viewKey)) drawerBoxes.set(viewKey,
+          wallDrawerBoxes(room, wall, part.side ?? 'front', settings));
+        return drawerBoxes.get(viewKey).get(part.key)?.boxes ?? [];
+      },
       // Descriptions and the properties placeholder need no elevation geometry.
       rectangle: () => {
         if (!elevations.has(viewKey)) elevations.set(viewKey,
@@ -278,6 +290,9 @@ function cabinetNotes(room, settings, part, context) {
   const base = run.cabinetTypeId === CABINET_TYPE_IDS.BASE;
   const layout = scene.faceLayouts.get(part.key);
   const faces = layout?.faces ?? [];
+  const roomSlideId = resolveSlide(settings).id;
+  const slideNames = new Map(context.drawerBoxes().map(({ path, slideId, slide }) =>
+    [path, slideId !== roomSlideId ? slide.name : null]));
   const boxes = room.reportParts?.[part.key]?.boxes;
   const style = resolveStyle(settings, room, run, leaf);
   const standard = layout && !isInsetStyle(style)
@@ -311,7 +326,7 @@ function cabinetNotes(room, settings, part, context) {
       box.right === false ? 'no right side' : null,
     ],
     3: blind ? `Door x ${formatInch(doorWidth)}, Blind x ${formatInch(blind.extension)}` : null,
-    4: drawerFrontNote(faces),
+    4: drawerFrontNote(faces, slideNames),
     5: falseFronts ? falseFronts === 1 ? 'false front' : `${falseFronts} false fronts` : null,
     6: hingeNote(faces),
     7: rabbets.get(part.key),

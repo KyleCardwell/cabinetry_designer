@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { frontDepth, runBackOffset } from '../../elevation/model/corners.js';
 import { DEFAULT_DOOR_STYLE } from '../../elevation/model/doorStyles.js';
+import * as drawerBoxModel from '../../elevation/model/drawerBoxes.js';
 import * as frameModel from '../../elevation/model/frames.js';
 import { gridFromItems } from '../../elevation/model/grid.js';
 import { partNumbers } from '../../elevation/model/partNumbers.js';
@@ -46,6 +47,71 @@ function room(runs = [run()], overrides = {}, wallOverrides = {}, s = settings) 
 const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entry) => entry.key === key);
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
+
+describe('IN5 step f shipping slide tags', () => {
+  const picked = () => ({ ...cabinet(), face: { ...drawers, children: [
+    face('drawer_front', { size: 5.875 }), face('drawer_front'),
+    face('drawer_front', { drawerBox: { slideId: 'accuride-3832' } }),
+  ] } });
+
+  it('keeps the room slide untagged and splits a picked bottom box (anchors 1, 2)', () => {
+    expect(row(room()).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12")']);
+    const r = room([run('run', [picked()])]);
+    const before = structuredClone(r);
+    expect(row(r).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 12", 1 - 12" (Accuride 3832))']);
+    expect(r).toEqual(before);
+  });
+
+  it('tags every cabinet-picked front relative to the room slide (anchor 3)', () => {
+    const r = room([run('run', [{ ...cabinet(), face: structuredClone(drawers), drawerSlideId: 'accuride-3832' }])]);
+    expect(row(r).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8" (Accuride 3832), 2 - 12" (Accuride 3832))']);
+    r.walls[0].runs[0].grid.cells[0].node.face.children[2].drawerBox = { slideId: 'blum-562h' };
+    expect(row(r).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8" (Accuride 3832), 1 - 12" (Accuride 3832), 1 - 12")']);
+  });
+
+  it('uses the resolved room slide and current library name (anchor 4)', () => {
+    const s = { ...settings, drawerSlideId: 'accuride-3832' };
+    expect(row(room(undefined, {}, {}, s), 'cab', s).notes)
+      .toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12")']);
+    const renamed = { ...settings, slides: settings.slides.map((slide) =>
+      slide.id === 'accuride-3832' ? { ...slide, name: 'Accuride' } : slide) };
+    expect(row(room([run('run', [picked()])], {}, {}, renamed), 'cab', renamed).notes)
+      .toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 12", 1 - 12" (Accuride))']);
+    const missing = { ...settings, drawerSlideId: 'missing-slide' };
+    expect(row(room(), 'cab', missing).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12")']);
+  });
+
+  it('groups rounded heights and tags by first top-down, left-right appearance', () => {
+    const faces = [
+      face('drawer_front', { path: 'bottom', height: 6.001, x: 0, z: 0 }),
+      face('drawer_front', { path: 'right', height: 6, x: 10, z: 10 }),
+      face('drawer_front', { path: 'left', height: 6, x: 0, z: 10 }),
+      face('false_front', { path: 'false', height: 6, z: 30 }),
+    ];
+    const names = new Map([['left', 'Accuride 3832'], ['bottom', 'Accuride 3832']]);
+    const before = structuredClone({ faces, names });
+    expect(drawerFrontNote(faces, names)).toBe('DF\'s (2 - 6" (Accuride 3832), 1 - 6")');
+    expect({ faces, names }).toEqual(before);
+  });
+
+  it('resolves boxes once per wall face across cabinets and runs', () => {
+    const r = room([
+      run('front', [picked(), cabinet('second')], { width: 36 }),
+      run('another', [cabinet('third')], { x: 72 }),
+      run('back', [{ ...picked(), id: 'back-cab' }], { wallSide: 'back' }),
+    ]);
+    const spy = vi.spyOn(drawerBoxModel, 'wallDrawerBoxes');
+    try {
+      const rows = shippingList(r, settings).rows;
+      expect(rows.find(({ key }) => key === 'back-cab').notes)
+        .toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 12", 1 - 12" (Accuride 3832))']);
+      expect(spy.mock.calls.map((args) => [args[1].id, args[2]]))
+        .toEqual([['wall', 'front'], ['wall', 'back']]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
 
 describe('RP2.4 step d face frame reasons', () => {
   const flat = { ...settings, defaultStyle: { ...settings.defaultStyle, cabinetStyleId: 14 } };
