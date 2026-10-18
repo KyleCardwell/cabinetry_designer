@@ -112,7 +112,10 @@ export {
 } from './styles.js';
 export { captureSides } from './capture.js';
 export { boxConstruction } from './boxConstruction.js';
-export { drawerBoxHeights, isTallDrawerBox } from './drawerBoxes.js';
+export {
+  cabinetDrawerBoxes, cabinetDrawerBoxesFor, drawerBoxHeights, isPrefinishedMaple, isTallDrawerBox,
+  wallDrawerBoxes,
+} from './drawerBoxes.js';
 export {
   boxPartLines,
   cabinetInterior,
