@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS } from './constants.js';
 import { SEEDED_DESIGN_IDS, isDoorDesign, migrateDoorDesign } from './doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, isDoorStyle } from './doorStyles.js';
 import { BUILT_IN_PULLS, BUILT_IN_PULL_IDS, isPull } from './pulls.js';
+import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlide } from './slides.js';
 import { isSectionProfile, migrateSectionProfile } from './sectionProfiles.js';
 import { SETTINGS_REGISTRY } from './settingsRegistry.js';
 import { isValidSettingValue } from './settingsResolve.js';
@@ -98,6 +99,27 @@ export function pullFromRow(row) {
   return isPull(pull) && (!seed || seed.kind === pull.kind) ? pull : null;
 }
 
+/** Slide sizes live in data; built-ins keep their stable app id in data.seedId. */
+export function slideToRow(slide) {
+  const { id, name, hardwareSlideId, ...rest } = structuredClone(slide);
+  const data = BUILT_IN_SLIDE_IDS.includes(id) ? { ...rest, seedId: id } : rest;
+  return { name, data, hardware_slide_id: hardwareSlideId };
+}
+
+export function slideIdFor(row) {
+  return BUILT_IN_SLIDE_IDS.includes(row?.data?.seedId) ? row.data.seedId : row?.slide_id;
+}
+
+/** A design_slides row → a valid slide, or null (including a built-in with the wrong mount). */
+export function slideFromRow(row) {
+  if (!row || !isUuid(row.slide_id) || !row.data || typeof row.data !== 'object') return null;
+  const { seedId, ...rest } = structuredClone(row.data);
+  void seedId;
+  const slide = { ...rest, id: slideIdFor(row), name: row.name, hardwareSlideId: row.hardware_slide_id };
+  const seed = BUILT_IN_SLIDES.find((entry) => entry.id === slide.id);
+  return isSlide(slide) && (!seed || seed.mount === slide.mount) ? slide : null;
+}
+
 /** The shop standard as stored: every registry leaf plus `teamDoorStyle`; no library lists, no prefs. */
 export function teamSettingsToRow(settings) {
   const row = {};
@@ -118,6 +140,7 @@ export function teamSettingsFromRow(stored) {
   delete settings.doorDesigns;
   delete settings.sectionProfiles;
   delete settings.pulls;
+  delete settings.slides;
   for (const { key } of SETTINGS_REGISTRY) {
     const value = leaf(stored, key);
     if (value !== undefined && isValidSettingValue(key, value)) setLeaf(settings, key, structuredClone(value));

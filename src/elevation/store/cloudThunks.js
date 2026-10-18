@@ -10,11 +10,14 @@ import {
   profileFromRow,
   pullFromRow,
   pullToRow,
+  slideFromRow,
+  slideToRow,
   teamSettingsFromRow,
 } from '../model/cloudRows.js';
 import { SEEDED_DESIGN_IDS, isDoorDesignList } from '../model/doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS, findDoorDesign } from '../model/doorStyles.js';
 import { BUILT_IN_PULLS, BUILT_IN_PULL_IDS, isPullList } from '../model/pulls.js';
+import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlideList } from '../model/slides.js';
 import { cleanOverrides } from '../model/settingsResolve.js';
 import { buildSettingsSnapshot, settingsFromSnapshot } from '../model/settingsSnapshot.js';
 import { ROOM_STATUSES, lastVersionFromRow, versionFromRow } from '../model/roomVersions.js';
@@ -72,10 +75,10 @@ export function openCloudWorkspace() {
     }
     dispatch(cloudWorkspaceLoading());
     const api = await apiFrom(extra);
-    const [settingsReply, profilesReply, designsReply, pullsReply] = await Promise.all([
-      api.loadTeamSettings(teamId), api.listProfiles(teamId), api.listDoorDesigns(teamId), api.listPulls(teamId),
+    const [settingsReply, profilesReply, designsReply, pullsReply, slidesReply] = await Promise.all([
+      api.loadTeamSettings(teamId), api.listProfiles(teamId), api.listDoorDesigns(teamId), api.listPulls(teamId), api.listSlides(teamId),
     ]);
-    const failed = [settingsReply, profilesReply, designsReply, pullsReply].find((reply) => !reply.ok);
+    const failed = [settingsReply, profilesReply, designsReply, pullsReply, slidesReply].find((reply) => !reply.ok);
     if (failed) {
       const message = `Couldn't load the shop data: ${failed.message}`;
       dispatch(cloudWorkspaceFailed(message));
@@ -83,7 +86,7 @@ export function openCloudWorkspace() {
     }
 
     const notes = [];
-    const rows = { profiles: {}, doorDesigns: {}, pulls: {} };
+    const rows = { profiles: {}, doorDesigns: {}, pulls: {}, slides: {} };
 
     const profiles = [];
     for (const row of profilesReply.rows) {
@@ -169,6 +172,50 @@ export function openCloudWorkspace() {
       return { ok: false, reason: 'bad_input', message };
     }
 
+    const slides = [];
+    for (const row of slidesReply.rows) {
+      const slide = slideFromRow(row);
+      if (!slide || slides.some((entry) => entry.id === slide.id)) continue;
+      slides.push(slide);
+      rows.slides[slide.id] = { rowId: row.slide_id, version: row.version };
+    }
+    const skippedSlides = slidesReply.rows.length - slides.length;
+    if (skippedSlides) notes.push(`${plural(skippedSlides, 'slide')} couldn't be read and ${skippedSlides === 1 ? 'was' : 'were'} left out.`);
+
+    for (const seed of BUILT_IN_SLIDES) {
+      if (slides.some((slide) => slide.id === seed.id)) continue;
+      if (permissions?.manage) {
+        const { name, data, hardware_slide_id } = slideToRow(seed);
+        const reply = await api.saveSlide({
+          teamId, slideId: null, name, data, hardwareSlideId: hardware_slide_id, expectedVersion: 0,
+        });
+        if (reply.ok) {
+          slides.push(structuredClone(seed));
+          rows.slides[seed.id] = { rowId: reply.slide_id, version: reply.version };
+          continue;
+        }
+        notes.push(`The built-in "${seed.name}" slide couldn't be saved (${reply.message ?? reply.reason}); using it unsaved.`);
+      }
+      const unsaved = structuredClone(seed);
+      const names = new Set(slides.map((slide) => slide.name.toLowerCase()));
+      if (names.has(unsaved.name.toLowerCase())) {
+        const base = `${seed.name} (built-in)`;
+        unsaved.name = base;
+        let number = 2;
+        while (names.has(unsaved.name.toLowerCase())) unsaved.name = `${base} ${number++}`;
+      }
+      slides.push(unsaved);
+    }
+    const orderedSlides = [
+      ...BUILT_IN_SLIDE_IDS.map((id) => slides.find((slide) => slide.id === id)),
+      ...slides.filter((slide) => !BUILT_IN_SLIDE_IDS.includes(slide.id)),
+    ];
+    if (!isSlideList(orderedSlides)) {
+      const message = 'The shop\'s slides conflict (two slides share a name). Fix them in Supabase, then reload.';
+      dispatch(cloudWorkspaceFailed(message));
+      return { ok: false, reason: 'bad_input', message };
+    }
+
     const settings = teamSettingsFromRow(settingsReply.row?.settings);
     if (!findDoorDesign(settings.teamDoorStyle.designId, designs)) {
       settings.teamDoorStyle = structuredClone(DEFAULT_DOOR_STYLE);
@@ -177,6 +224,7 @@ export function openCloudWorkspace() {
     settings.doorDesigns = designs;
     settings.sectionProfiles = profiles;
     settings.pulls = orderedPulls;
+    settings.slides = orderedSlides;
 
     dispatch(cloudWorkspaceLoaded({
       teamId,
@@ -672,7 +720,7 @@ export function openRoomVersion({ estProjectId, roomId, versionId }) {
     dispatch(roomVersionLoaded({
       room: { ...loaded.room, id: roomId },
       project: projectInfo(estProjectId, projectReply.project.project),
-      settings: frozen.settings,
+      settings: { ...frozen.settings, slides: structuredClone(BUILT_IN_SLIDES) },
       layers: frozen.layers,
       teamId,
       permissions: allowed,

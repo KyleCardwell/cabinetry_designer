@@ -5,6 +5,7 @@ import { DEFAULT_SETTINGS } from '../constants.js';
 import { DOOR_DESIGNS, DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { newSectionProfile } from '../sectionProfiles.js';
 import { SETTINGS_REGISTRY } from '../settingsRegistry.js';
+import { BUILT_IN_SLIDES } from '../slides.js';
 import { BUILT_IN_PULLS } from '../pulls.js';
 import {
   doorDesignIdFor,
@@ -16,6 +17,9 @@ import {
   pullToRow,
   pullFromRow,
   pullIdFor,
+  slideToRow,
+  slideFromRow,
+  slideIdFor,
   teamSettingsFromRow,
   teamSettingsToRow,
 } from '../cloudRows.js';
@@ -58,6 +62,44 @@ describe('cloudRows', () => {
     for (const invalid of [null, { ...row, pull_id: 'bad' }, { ...row, data: {} },
       { ...row, hardware_pull_id: 0 }, { ...row, data: { ...row.data, diameter: 1 } },
       { ...knob, data: { ...knob.data, seedId: 'pull-4' } }]) expect(pullFromRow(invalid)).toBeNull();
+  });
+
+  it('IN4b c maps built-in and uuid slides, preserving lengths and estimator links (anchor 1)', () => {
+    const expectedData = {
+      brand: 'Blum', model: '562H', description: 'Blum Tandem 562H soft-close',
+      cvName: 'Blum 562H3810B-.25 clrnc-No Notch', mount: 'undermount',
+      lengths: [9, 12, 15, 18, 21, 24, 27, 30, 33, 36].map((nominal) => nominal === 15
+        ? { nominal, length: 15.515625, extension: 14.953125 } : { nominal }),
+      sideClearance: 0.25, minBelow: 0.5625, minAbove: 0.25, height: 1,
+      clips: true, softClose: true, heavyDuty: false,
+    };
+    const row = slideToRow(BUILT_IN_SLIDES[0]);
+    expect(row).toEqual({ name: 'Blum Tandem 562H', data: { ...expectedData, seedId: 'blum-562h' }, hardware_slide_id: null });
+    row.data.lengths[0].nominal = 10;
+    expect(BUILT_IN_SLIDES[0].lengths[0].nominal).toBe(9);
+    const custom = { ...BUILT_IN_SLIDES[0], id: DID, hardwareSlideId: 3 };
+    expect(slideToRow(custom)).toEqual({ name: custom.name, data: expectedData, hardware_slide_id: 3 });
+    expect(slideFromRow({ slide_id: DID, ...slideToRow(custom) })).toEqual(custom);
+  });
+
+  it('IN4b c validates slide rows and restores built-in ids and mounts (anchor 2)', () => {
+    const { data } = slideToRow({ ...BUILT_IN_SLIDES[1], id: DID });
+    const row = { slide_id: DID, name: 'Hettich', data, hardware_slide_id: null, version: 2, archived_at: null };
+    expect(slideFromRow(row)).toEqual({ ...BUILT_IN_SLIDES[1], id: DID, name: 'Hettich', hardwareSlideId: null });
+    expect(slideIdFor(row)).toBe(DID);
+    expect(slideFromRow({ ...row, data: { mount: 'side' } })).toBeNull();
+    const seedRow = { ...row, data: { ...data, seedId: 'accuride-4034' } };
+    expect(slideFromRow(seedRow).id).toBe('accuride-4034');
+    expect(slideIdFor(seedRow)).toBe('accuride-4034');
+    for (const invalid of [null, { ...row, slide_id: 'bad' }, { ...row, data: {} },
+      { ...row, hardware_slide_id: 0 }, { ...row, data: { ...data, price: 3 } },
+      { ...seedRow, data: { ...seedRow.data, mount: 'undermount' } }]) expect(slideFromRow(invalid)).toBeNull();
+  });
+
+  it('IN4b c keeps slides out of the shop-standard row and defaults clone (anchor 6)', () => {
+    expect(teamSettingsToRow({ ...DEFAULT_SETTINGS, slides: BUILT_IN_SLIDES })).not.toHaveProperty('slides');
+    expect(teamSettingsFromRow({})).not.toHaveProperty('slides');
+    expect(teamSettingsFromRow({ slides: BUILT_IN_SLIDES })).not.toHaveProperty('slides');
   });
 
   it('recognises uuids only', () => {

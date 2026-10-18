@@ -3,9 +3,10 @@ import { newRoomDocument } from '../../model/designProjects.js';
 import { DEFAULT_DOOR_STYLE } from '../../model/doorStyles.js';
 import { newSectionProfile } from '../../model/sectionProfiles.js';
 import { profileToRow, pullToRow } from '../../model/cloudRows.js';
+import { BUILT_IN_SLIDES } from '../../model/slides.js';
 import { BUILT_IN_PULLS } from '../../model/pulls.js';
 import { settingsFor } from '../slices/helpers.js';
-import { setRoomPartNumberStart, setSetting, updateSectionProfile } from '../elevationSlice.js';
+import { setRoomPartNumberStart, setSetting, updateSlide, updateSectionProfile } from '../elevationSlice.js';
 import {
   issueRoomVersion,
   issueSnapshotOf,
@@ -94,6 +95,9 @@ describe('DB8a issue', () => {
     expect((await ctx.store.dispatch(openRoomVersion({ estProjectId: 42, roomId: 'rm-1', versionId: issued.versionId }))).ok).toBe(true);
     const elevation = elevationOf(ctx.store);
     expect(elevation.source).toBe('version');
+    expect(elevation.settings.slides).toEqual(BUILT_IN_SLIDES);
+    expect(elevation.cloud.rows.slides).toEqual({});
+    expect(callNames(ctx.api)).not.toContain('listSlides');
     expect(elevation.settings.pulls).toEqual(snapshot.pulls);
     expect(settingsFor(elevation, elevation.rooms[0]).pulls.at(-1)).toEqual(bar);
   });
@@ -225,6 +229,7 @@ describe('DB8a opening an issued version', () => {
     // Afterwards the room, the shop standard, the project settings and the library all change.
     editPart(ctx.store, 9);
     renameCrown(ctx.store, 'Crown 4 (fixed)');
+    ctx.store.dispatch(updateSlide({ slideId: 'blum-562h', slide: { ...BUILT_IN_SLIDES[0], name: 'Shop Blum' } }));
     await ctx.sync.flush();
     ctx.api.db.teamSettings.settings.baseDepth = 30;
     ctx.api.db.project.design.overrides = { roundTo: 0.125 };
@@ -241,6 +246,9 @@ describe('DB8a opening an issued version', () => {
 
     const elevation = elevationOf(ctx.store);
     expect(elevation.source).toBe('version');
+    expect(elevation.settings.slides).toEqual(BUILT_IN_SLIDES);
+    expect(elevation.cloud.rows.slides).toEqual({});
+    expect(callNames(ctx.api)).not.toContain('listSlides');
     expect(elevation.rooms.map((room) => [room.id, room.partNumberStart])).toEqual([['rm-1', 7]]);
     expect(elevation.settings.sectionProfiles.map((profile) => profile.name)).toEqual(['Crown 4']);
     const settings = settingsFor(elevation, elevation.rooms[0]);

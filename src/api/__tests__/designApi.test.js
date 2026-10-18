@@ -58,6 +58,31 @@ describe('designApi', () => {
     expect(await api.listPulls('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
   });
 
+  it('IN4b c lists live slides in order and passes save arguments, defaults and conflicts through', async () => {
+    let listed = { data: [{ slide_id: 'p' }], error: null };
+    let saved = { data: { ok: true, slide_id: 'p', version: 3, updated_at: 't' }, error: null };
+    const client = fakeClient({ tables: { design_slides: () => listed }, rpc: { save_slide: () => saved } });
+    const api = createDesignApi(client);
+    expect(await api.listSlides('team')).toEqual({ ok: true, rows: [{ slide_id: 'p' }] });
+    expect(client.calls[0]).toEqual({ table: 'design_slides', chain: [
+      ['select', 'slide_id, name, data, hardware_slide_id, version, sort, archived_at'],
+      ['eq', 'team_id', 'team'], ['is', 'archived_at', null], ['order', 'sort'], ['order', 'created_at'],
+    ] });
+    const args = { teamId: 'team', slideId: 'p', name: 'Hettich', data: { mount: 'side' }, hardwareSlideId: 3, sort: 4, expectedVersion: 2 };
+    expect(await api.saveSlide(args)).toEqual(saved.data);
+    expect(client.calls.at(-1)).toEqual({ rpc: 'save_slide', args: {
+      p_team_id: 'team', p_slide_id: 'p', p_name: 'Hettich', p_data: { mount: 'side' },
+      p_hardware_slide_id: 3, p_sort: 4, p_expected_version: 2,
+    } });
+    saved = { data: { ok: false, reason: 'conflict', version: 4 }, error: null };
+    expect(await api.saveSlide({ teamId: 'team', slideId: null, name: 'Hettich', data: {}, expectedVersion: 0 })).toEqual(saved.data);
+    expect(client.calls.at(-1).args).toMatchObject({ p_slide_id: null, p_hardware_slide_id: null, p_sort: null, p_expected_version: 0 });
+    listed = { data: null, error: null };
+    expect(await api.listSlides('team')).toEqual({ ok: true, rows: [] });
+    listed = { error: { code: '42501', message: 'No permission' } };
+    expect(await api.listSlides('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
+  });
+
   it('passes a version-checked reply through', async () => {
     const client = fakeClient({ rpc: { save_team_settings: { data: { ok: true, version: 4, updated_at: 't' }, error: null } } });
     const reply = await createDesignApi(client).saveTeamSettings('team-1', { roundTo: 0.5 }, 3);

@@ -5,7 +5,7 @@
  * ones, one at a time, through the RPCs. Leaving (`flush`, the tab hidden or closed) sends
  * at once; the local draft copy covers the gap in between.
  *
- * Targets: the shop standard ('team'), each profile, door design and pull, the project / phase
+ * Targets: the shop standard ('team'), each profile, door design, pull and slide, the project / phase
  * overrides, and the open room's drawing ('room', SPEC-DB6a). Every save sends the version it
  * last saw; a conflict or an error pauses that target (nothing is retried behind the user's
  * back, except a dropped connection when the browser comes back online) and shows in
@@ -16,7 +16,7 @@
  * With a draft store (`drafts`, roomDrafts.js) the room's unsaved edits are also copied to
  * IndexedDB a moment after each edit and removed once the server confirms them.
  */
-import { doorDesignToRow, isUuid, profileToRow, pullToRow, teamSettingsToRow } from '../model/cloudRows.js';
+import { doorDesignToRow, isUuid, profileToRow, pullToRow, slideToRow, teamSettingsToRow } from '../model/cloudRows.js';
 import { cloudRoomPatch, cloudSaveStatus, cloudSaved } from './elevationSlice.js';
 import { ELEVATION_SCHEMA_VERSION, toRoomDocument } from './persistence.js';
 
@@ -54,6 +54,12 @@ function snapshotsOf(elevation) {
     const row = pullToRow(pull);
     map.set(`pull:${pull.id}`, {
       kind: 'pull', id: pull.id, label: `Pull "${pull.name}"`, row, json: JSON.stringify(row),
+    });
+  }
+  for (const slide of settings.slides ?? []) {
+    const row = slideToRow(slide);
+    map.set(`slide:${slide.id}`, {
+      kind: 'slide', id: slide.id, label: `Slide "${slide.name}"`, row, json: JSON.stringify(row),
     });
   }
   for (const level of ['project', 'phase']) {
@@ -101,7 +107,7 @@ export function setupCloudSync(store, { getDesignApi, delay = 15000, drafts = nu
       if (!paused.has(key) && baseline.get(key)?.json !== snap.json) keys.push(key);
     }
     for (const [key, snap] of baseline) {
-      if (!current.has(key) && !paused.has(key) && ['profile', 'doorDesign', 'pull'].includes(snap.kind)
+      if (!current.has(key) && !paused.has(key) && ['profile', 'doorDesign', 'pull', 'slide'].includes(snap.kind)
         && !(snap.kind === 'profile' && snap.archived)) keys.push(key);
     }
     return { keys, current };
@@ -251,6 +257,17 @@ export function setupCloudSync(store, { getDesignApi, delay = 15000, drafts = nu
         expectedVersion: known?.version ?? 0,
       });
       return reply.ok ? { ...reply, saved: { target: 'pull', id: snap.id, rowId: reply.pull_id, version: reply.version } } : reply;
+    }
+
+    if (kind === 'slide') {
+      const known = cloud.rows.slides[before?.id ?? snap.id];
+      if (!snap) return known ? api.archiveLibraryItem('slide', known.rowId, true) : { ok: true };
+      const reply = await api.saveSlide({
+        teamId, slideId: known?.rowId ?? (isUuid(snap.id) ? snap.id : null),
+        name: snap.row.name, data: snap.row.data, hardwareSlideId: snap.row.hardware_slide_id,
+        expectedVersion: known?.version ?? 0,
+      });
+      return reply.ok ? { ...reply, saved: { target: 'slide', id: snap.id, rowId: reply.slide_id, version: reply.version } } : reply;
     }
 
     // Door design
