@@ -48,6 +48,7 @@ function RunGroup({
   onSelectFace,
   doorsOff = false,
   interiors = [],
+  drawerBoxes = [],
   interiorPath = null,
   interiorDivider = null,
   onSelectInterior,
@@ -383,6 +384,7 @@ function RunGroup({
       {doorsOff && (
         <InteriorShapes
           entries={interiors}
+          drawerBoxes={drawerBoxes}
           drawnPieces={drawnPieces}
           transform={transform}
           selectedPieceId={preview ? null : selectedPieceId}

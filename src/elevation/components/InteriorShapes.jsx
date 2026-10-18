@@ -1,7 +1,7 @@
 import { Fragment, useRef } from 'react';
 import { Group, Line, Rect, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
-import { formatDimension } from '../model/units.js';
+import { formatDimension, formatInches } from '../model/units.js';
 import { dragDividerPosition, interiorDimensions } from '../model/interiors.js';
 
 const SIZE_FONT = 10;
@@ -9,6 +9,7 @@ const SIZE_INSET = 3;
 
 export default function InteriorShapes({
   entries,
+  drawerBoxes = [],
   drawnPieces,
   transform,
   selectedPieceId,
@@ -139,6 +140,30 @@ export default function InteriorShapes({
             />
           );
         })}
+        {(drawerBoxes.find(({ itemId }) => itemId === entry.itemId)?.boxes ?? [])
+          .filter((box) => box.height !== null).map((box) => {
+            const rect = wallRectToScreen(box, transform);
+            const text = formatInches(box.height).replace(/"$/, '');
+            const color = box.warnings.length ? '#f59e0b' : '#e2e8f0';
+            const showHeight = rect.height >= SIZE_FONT + SIZE_INSET * 2
+              && rect.width >= text.length * 6 + SIZE_INSET * 2;
+            return (
+              <Group key={`drawer:${box.path}`} listening={false}>
+                <Rect {...rect} stroke={color} strokeWidth={1} listening={false} />
+                {showHeight && (
+                  <Text
+                    {...rect}
+                    text={text}
+                    fontSize={SIZE_FONT}
+                    fill={color}
+                    align="center"
+                    verticalAlign="middle"
+                    listening={false}
+                  />
+                )}
+              </Group>
+            );
+          })}
       </Group>
     );
   });

@@ -45,6 +45,7 @@ import { elevationKey } from '../model/topology.js';
 import { createRun } from '../model/runDefaults.js';
 import { runItems } from '../model/grid.js';
 import { wallInteriors } from '../model/interiors.js';
+import { wallDrawerBoxes } from '../model/drawerBoxes.js';
 import { setDividerPosition } from '../model/interiorTree.js';
 import {
   createSoffit,
@@ -214,6 +215,12 @@ function ElevationCanvas({
   const interiors = useMemo(
     () => (doorsOff && room && wall
       ? wallInteriors(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : []),
+    [doorsOff, room, wall, settings],
+  );
+  const drawerBoxes = useMemo(
+    () => (doorsOff && room && wall
+      ? [...wallDrawerBoxes(room, wall.sideSource ?? wall, wall.side ?? 'front', settings)]
+        .map(([itemId, entry]) => ({ itemId, ...entry })) : []),
     [doorsOff, room, wall, settings],
   );
   const profile = useMemo(
@@ -1203,6 +1210,7 @@ function ElevationCanvas({
                 onSelectFace={pickFace}
                 doorsOff={doorsOff}
                 interiors={interiors.filter((entry) => entry.runId === run.id)}
+                drawerBoxes={drawerBoxes.filter((entry) => entry.runId === run.id)}
                 interiorPath={interiorPath}
                 interiorDivider={interiorDivider}
                 onSelectInterior={pickInterior}
