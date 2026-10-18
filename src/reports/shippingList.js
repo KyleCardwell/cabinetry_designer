@@ -4,6 +4,7 @@ import { CABINET_TYPE_IDS } from '../elevation/model/constants.js';
 import { panelOrientation } from '../elevation/model/cells.js';
 import { frontDepth, runBackOffset } from '../elevation/model/corners.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
+import { sheetThickness } from '../elevation/model/doorStyles.js';
 import { wallDrawerBoxes } from '../elevation/model/drawerBoxes.js';
 import { elevationParts } from '../elevation/model/elevationParts.js';
 import { frameMembers, regionOpenings } from '../elevation/model/frames.js';
@@ -184,14 +185,16 @@ function shippingContext(room, settings) {
       style = resolveDoorStyle(room, settings, 'panel',
         panelLevels(room, view, run, end ? run.ends?.[end] : leaf, { sheet })).style;
     }
+    const drawerData = () => {
+      if (!drawerBoxes.has(viewKey)) drawerBoxes.set(viewKey,
+        wallDrawerBoxes(room, wall, part.side ?? 'front', settings));
+      return drawerBoxes.get(viewKey).get(part.cabinetId ?? part.key);
+    };
     return {
       wall: view, run, scene, piece, leaf, end, blindPanel, shelfBack, style,
       rabbets: teeData.get(run).rabbets, shapeNotes: teeData.get(run).notes,
-      drawerBoxes: () => {
-        if (!drawerBoxes.has(viewKey)) drawerBoxes.set(viewKey,
-          wallDrawerBoxes(room, wall, part.side ?? 'front', settings));
-        return drawerBoxes.get(viewKey).get(part.key)?.boxes ?? [];
-      },
+      drawerData,
+      drawerBox: () => drawerData()?.boxes.find(({ path }) => path === part.facePath),
       // Descriptions and the properties placeholder need no elevation geometry.
       rectangle: () => {
         if (!elevations.has(viewKey)) elevations.set(viewKey,
@@ -236,6 +239,8 @@ function describePart(room, settings, part, context) {
     case 'wall_end_panel': description = 'Wall End Panel'; break;
     case 'frame': description = 'Face Frame'; break;
     case 'furniture_base': description = 'Furniture Base'; break;
+    case 'rot': description = 'ROT Drawer Box'; break;
+    case 'trash_lid': description = 'Trash Lid'; break;
   }
   return entry?.shopBuilt || style?.id === 'sheet' ? `Shop-built ${description}` : description;
 }
@@ -251,6 +256,12 @@ function orderedThickness(drawn, style) {
 
 function shippingSize(room, settings, part, context) {
   if (part.kind === 'molding') return `Lineal Feet: ${linealFeet(context.molding.measured)}`;
+  if (part.kind === 'rot' || part.kind === 'trash_lid') {
+    const box = context.drawerBox?.();
+    if (!box || ![box.width, box.height, box.depth].every(Number.isFinite)) return '';
+    return part.kind === 'rot' ? formatSize(box.width, box.height, box.depth)
+      : formatSize(box.width, box.depth, sheetThickness(settings));
+  }
   const { wall, run, scene, piece, end, blindPanel, style, endpoint, base } = context;
   if (part.kind === 'furniture_base') return formatSize(base.orderedWidth, base.orderedHeight, base.depth);
   if (part.kind === 'wall_end_panel') {
@@ -291,7 +302,8 @@ function cabinetNotes(room, settings, part, context) {
   const layout = scene.faceLayouts.get(part.key);
   const faces = layout?.faces ?? [];
   const roomSlideId = resolveSlide(settings).id;
-  const slideNames = new Map(context.drawerBoxes().map(({ path, slideId, slide }) =>
+  const drawerData = context.drawerData();
+  const slideNames = new Map((drawerData?.boxes ?? []).map(({ path, slideId, slide }) =>
     [path, slideId !== roomSlideId ? slide.name : null]));
   const boxes = room.reportParts?.[part.key]?.boxes;
   const style = resolveStyle(settings, room, run, leaf);
@@ -327,6 +339,7 @@ function cabinetNotes(room, settings, part, context) {
     ],
     3: blind ? `Door x ${formatInch(doorWidth)}, Blind x ${formatInch(blind.extension)}` : null,
     4: drawerFrontNote(faces, slideNames),
+    4.5: drawerData?.notes.map(({ text }) => text),
     5: falseFronts ? falseFronts === 1 ? 'false front' : `${falseFronts} false fronts` : null,
     6: hingeNote(faces),
     7: rabbets.get(part.key),
@@ -337,6 +350,11 @@ function cabinetNotes(room, settings, part, context) {
 function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
   const { run, scene, piece, shapeNotes, style, wall, end, endpoint, base } = context;
   const groups = {};
+  if (part.kind === 'rot') {
+    const box = context.drawerBox?.();
+    if (box) groups[4.5] = [...box.notes,
+      box.slideId !== resolveSlide(settings).id ? box.slide.name : null];
+  }
   if (part.kind === 'molding') groups[13] = context.molding.note;
   if (part.kind === 'furniture_base') {
     groups[12] = [

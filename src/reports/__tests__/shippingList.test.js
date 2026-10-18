@@ -12,7 +12,7 @@ import { runBandEnds, runBands } from '../../elevation/model/runBands.js';
 import * as sceneModel from '../../elevation/model/runScene.js';
 import { normalizeElevationDocument } from '../../elevation/store/persistence.js';
 import { doorOrderItems } from '../doorOrder.js';
-import { formatInch } from '../format.js';
+import { formatInch, formatSize } from '../format.js';
 import { cabinetDescription, drawerFrontNote, hingeNote, linealFeet, shippingDescription, shippingList } from '../shippingList.js';
 
 const settings = DEFAULT_SETTINGS;
@@ -47,6 +47,108 @@ function room(runs = [run()], overrides = {}, wallOverrides = {}, s = settings) 
 const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entry) => entry.key === key);
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
+
+describe('IN6 step f ROT rows and cabinet rule notes', () => {
+  const pullout = (drawerBox) => face('door', { action: 'pullout', ...(drawerBox ? { drawerBox } : {}) });
+  const trash = (width = 18, drawerBox) => ({ id: 'T', kind: 'cabinet', width, purpose: 'trash',
+    face: { direction: 'vertical', size: null,
+      children: [face('drawer_front', { size: 5.875 }), pullout(drawerBox)] } });
+  const fixture = (t = trash()) => room([run('run', [
+    { ...cabinet('A'), width: 18 }, t, { id: 'B', kind: 'cabinet', face: face('door') },
+  ], { width: 72 })]);
+
+  it('anchor 1: ships the ROT and outside-sized lid after the trash cabinet', () => {
+    const r = fixture();
+    const before = structuredClone(r);
+    const rows = shippingList(r, settings).rows;
+    expect(rows.find(({ number }) => number === 3)).toEqual({
+      number: 3, key: 'T:rot:r.1', kind: 'rot', description: 'ROT Drawer Box',
+      size: formatSize(16, 15.125, 22), notes: ['bottom up 1 3/4"'],
+    });
+    expect(rows.find(({ number }) => number === 4)).toEqual({
+      number: 4, key: 'T:lid:r.1', kind: 'trash_lid', description: 'Trash Lid',
+      size: formatSize(16, 22, 0.75), notes: [],
+    });
+    expect(rows.find(({ key }) => key === 'T').notes)
+      .toEqual(['full top', 'DF\'s (1 - 5 7/8")', 'pull-out']);
+    expect(r).toEqual(before);
+  });
+
+  it('anchor 2: uses the narrow depth row and tags a box slide that differs from the room', () => {
+    const narrow = shippingList(fixture(trash(15)), settings).rows.find(({ kind }) => kind === 'rot');
+    expect(narrow).toMatchObject({ size: '13 x 15 1/8 x 21', notes: [] });
+    const r = fixture(trash(18, { slideId: 'accuride-3832' }));
+    expect(row(r, 'T:rot:r.1')).toMatchObject({
+      size: '15 1/2 x 15 1/8 x 22', notes: ['bottom up 1 3/4"', 'Accuride 3832'],
+    });
+    expect(row(r, 'T:lid:r.1')).toMatchObject({ size: '15 1/2 x 22 x 3/4', notes: [] });
+    expect(row(r, 'T:lid:r.1', { ...settings, sheetThickness: 0.6875 }).size)
+      .toBe('15 5/8 x 22 x 11/16');
+  });
+
+  it('anchor 3: places sink and stabilizer notes immediately after the drawer front note', () => {
+    // The model anchors use 1/8-inch Euro reveals, including the top.
+    const s = { ...settings, stoneTopReveal: 0.125 };
+    const r = room([run('run', [{ ...cabinet('A'), purpose: 'sink' }])], {}, {}, s);
+    expect(row(r, 'A', s).notes).toEqual([
+      'DF\'s (1 - 5 7/8", 2 - 12 1/16")', 'notch drw around plumbing',
+    ]);
+    const wide = room([run('run', [cabinet('A')], { width: 42 })], {}, {}, s);
+    expect(row(wide, 'A', s).notes).toEqual([
+      'full top', 'DF\'s (1 - 5 7/8", 2 - 12 1/16")', 'drawer stabilizers',
+    ]);
+    const both = room([run('run', [{ ...cabinet('A'), purpose: 'sink' }], { width: 42 })]);
+    expect(row(both, 'A').notes.slice(-2)).toEqual(['notch drw around plumbing', 'drawer stabilizers']);
+  });
+
+  it('anchor 4: retains the drawer front slide tag when a file rule picks the slide', () => {
+    const s = { ...settings, stoneTopReveal: 0.125 };
+    const r = room([run('run', [{ ...cabinet(), purpose: 'file', face: {
+      direction: 'vertical', size: null,
+      children: [face('drawer_front', { size: 5.875 }), face('drawer_front')],
+    } }])], {}, {}, s);
+    expect(row(r, 'cab', s).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 24 1/4" (Accuride 3832))']);
+  });
+
+  it('shares the wall-face cache and looks up each nested ROT path on both faces', () => {
+    const pair = { ...trash(), width: null, face: { direction: 'horizontal', size: null,
+      children: [pullout({ height: 10.25, depth: 18 }), pullout({ height: 12.125, depth: 21 })] } };
+    const r = room([
+      run('front', [pair], { width: 36 }),
+      run('back', [{ ...trash(), id: 'back-T' }], { wallSide: 'back' }),
+    ]);
+    const spy = vi.spyOn(drawerBoxModel, 'wallDrawerBoxes');
+    try {
+      const rows = shippingList(r, settings).rows;
+      expect(rows.find(({ key }) => key === 'T:rot:r.0').size).toBe('34 x 10 1/4 x 18');
+      expect(rows.find(({ key }) => key === 'T:rot:r.1').size).toBe('34 x 12 1/8 x 21');
+      expect(rows.find(({ key }) => key === 'back-T:rot:r.1').size).toBe('16 x 15 1/8 x 22');
+      expect(spy.mock.calls.map((args) => [args[1].id, args[2]]))
+        .toEqual([['wall', 'front'], ['wall', 'back']]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('keeps overrides and free text, and leaves both sizes blank without a sized box', () => {
+    const r = fixture();
+    r.reportParts = {
+      'T:rot:r.1': { name: ' Custom ROT ', note: ' check fit ', shopBuilt: true },
+      'T:lid:r.1': { shopBuilt: true, note: ' lid note ' },
+    };
+    expect(row(r, 'T:rot:r.1')).toMatchObject({
+      description: 'Custom ROT', notes: ['bottom up 1 3/4"', 'check fit'],
+    });
+    expect(row(r, 'T:lid:r.1')).toMatchObject({ description: 'Shop-built Trash Lid', notes: ['lid note'] });
+    delete r.reportParts['T:rot:r.1'].name;
+    expect(row(r, 'T:rot:r.1').description).toBe('Shop-built ROT Drawer Box');
+    for (const height of [1, 3.5]) {
+      const tiny = room([run('run', [{ ...trash(), face: pullout() }], { height })]);
+      expect(shippingList(tiny, settings).rows.filter(({ kind }) => ['rot', 'trash_lid'].includes(kind))
+        .map(({ size }) => size)).toEqual(['', '']);
+    }
+  });
+});
 
 describe('IN5 step f shipping slide tags', () => {
   const picked = () => ({ ...cabinet(), face: { ...drawers, children: [
