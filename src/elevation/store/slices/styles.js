@@ -1,4 +1,6 @@
+import { current } from '@reduxjs/toolkit';
 import { isBottomPart, runBelowBox } from '../../model/bottoms.js';
+import { setFaceDrawerBox as patchFaceDrawerBox } from '../../model/faceTree.js';
 import { gridLeaves } from '../../model/grid.js';
 import {
   REVEAL_KEYS,
@@ -17,6 +19,19 @@ import {
 } from './helpers.js';
 
 export const styleReducers = {
+  setFaceDrawerBox(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location?.run.grid) return;
+    const { itemId, path, patch } = action.payload;
+    const target = gridLeaves(location.run.grid)
+      .find((leaf) => leaf.kind === 'cabinet' && leaf.id === itemId);
+    if (!target?.face) return;
+    const face = current(target.face);
+    const next = patchFaceDrawerBox(face, path, patch);
+    if (next === face) return;
+    target.face = next;
+    syncRoomAt(state, location.roomIndex);
+  },
   setItemFace(state, action) {
     const location = runLocation(state, action.payload);
     if (!location) return;

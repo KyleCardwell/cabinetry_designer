@@ -1,4 +1,4 @@
-import { DOOR_ACTIONS, DOOR_HINGES, FACE_DIRECTIONS, FACE_TYPES, ROOT_FACE_PATH } from './faces.js';
+import { DOOR_ACTIONS, DOOR_HINGES, FACE_DIRECTIONS, FACE_TYPES, ROOT_FACE_PATH, isFaceNode } from './faces.js';
 import { isStyleRef } from './doorStyles.js';
 import { MAX_PULL_COUNT, PULL_ORIENTATIONS, PULL_POSITIONS, pullPartType } from './pulls.js';
 
@@ -62,6 +62,7 @@ export function setFaceType(face, path, type) {
   if (!target?.type || !FACE_TYPES.includes(type)) return face;
   return replaceAt(face, path, (node) => {
     const next = { ...node, type };
+    if (type !== 'drawer_front') delete next.drawerBox;
     if (!pullPartType(type)) delete next.pullId;
     if (node.type !== type) {
       delete next.hinge;
@@ -187,6 +188,26 @@ export function equalizeGroup(face, path) {
     ...node,
     children: node.children.map((child) => ({ ...child, size: null })),
   }));
+}
+
+/** Patch a drawer front's own box picks; null clears a key. */
+export function setFaceDrawerBox(face, path, patch) {
+  const target = getFaceNode(face, path);
+  if (target?.type !== 'drawer_front' || target.children
+    || !patch || typeof patch !== 'object' || Array.isArray(patch)) return face;
+  const keys = Reflect.ownKeys(patch);
+  if (!keys.every((key) => ['slideId', 'height', 'depth'].includes(key))) return face;
+  const drawerBox = { ...target.drawerBox };
+  for (const key of keys) {
+    if (patch[key] === null) delete drawerBox[key];
+    else drawerBox[key] = patch[key];
+  }
+  const next = { ...target };
+  if (Object.keys(drawerBox).length) next.drawerBox = drawerBox;
+  else delete next.drawerBox;
+  if (!isFaceNode(next) || !keys.some((key) => patch[key] === null
+    ? Object.hasOwn(target.drawerBox ?? {}, key) : target.drawerBox?.[key] !== patch[key])) return face;
+  return replaceAt(face, path, () => next);
 }
 
 /** Set or clear a pull-bearing leaf's own pick. */

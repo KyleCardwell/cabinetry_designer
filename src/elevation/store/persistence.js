@@ -251,6 +251,8 @@ function isItem(item) {
       || (item.kind === 'cabinet' && isOptionalNumericObject(item.reveals, REVEAL_KEYS)))
     && (item.tFiller === undefined || (item.kind === 'cabinet' && isTFillerSides(item.tFiller)))
     && (item.purpose === undefined || (item.kind === 'cabinet' && CABINET_PURPOSE_IDS.has(item.purpose)))
+    && (item.drawerSlideId === undefined || (item.kind === 'cabinet'
+      && typeof item.drawerSlideId === 'string' && item.drawerSlideId.length > 0))
     && (item.box === undefined || (item.kind === 'cabinet' && isCabinetBox(item.box)))
     && (item.interior === undefined || (item.kind === 'cabinet' && isStoredInterior(item.interior)));
 }

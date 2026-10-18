@@ -105,6 +105,21 @@ export const itemReducers = {
     }
     syncRoomAt(state, location.roomIndex);
   },
+  /** A cabinet's slide pick at any grid depth; null restores inheritance. */
+  setCabinetSlide(state, action) {
+    const { itemIds = [], slideId } = action.payload;
+    if (slideId !== null && !(typeof slideId === 'string' && slideId.length > 0)) return;
+    const location = runLocation(state, action.payload);
+    if (!location?.run.grid) return;
+    const targets = gridLeaves(location.run.grid)
+      .filter((leaf) => leaf.kind === 'cabinet' && itemIds.includes(leaf.id));
+    if (!targets.length) return;
+    for (const target of targets) {
+      if (slideId === null) delete target.drawerSlideId;
+      else target.drawerSlideId = slideId;
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
   /** IN1b: manual box overrides at any grid depth; null restores auto for one key. */
   setCabinetBox(state, action) {
     const { itemIds = [], key, value } = action.payload;

@@ -32,6 +32,15 @@ function isSize(size) {
   return size === null || (Number.isFinite(size) && size > 0);
 }
 
+function isDrawerBox(box) {
+  if (!box || typeof box !== 'object' || Array.isArray(box)) return false;
+  const keys = Reflect.ownKeys(box);
+  return keys.length > 0 && keys.every((key) => (
+    key === 'slideId' ? typeof box[key] === 'string' && box[key].length > 0
+      : ['height', 'depth'].includes(key) && Number.isFinite(box[key]) && box[key] > 0
+  ));
+}
+
 /** Whether `noRail` is a sorted list of seams (i = between children i and i + 1) that lie between two leaves. */
 function isSeamList(node) {
   const { noRail, children } = node;
@@ -52,6 +61,8 @@ function isSeamList(node) {
 export function isFaceNode(node) {
   if (!node || typeof node !== 'object' || Array.isArray(node)) return false;
   if (!isSize(node.size)) return false;
+  if (node.drawerBox !== undefined
+    && (node.type !== 'drawer_front' || !isDrawerBox(node.drawerBox))) return false;
   if (FACE_TYPES.includes(node.type)) {
     if (node.action !== undefined) {
       if (!['door', 'pair_door'].includes(node.type) || !DOOR_ACTIONS.includes(node.action)) return false;
@@ -76,6 +87,7 @@ export function isFaceNode(node) {
       && (node.sizes === undefined || isPartSizes(node.sizes));
   }
   return node.type === undefined
+    && node.drawerBox === undefined
     && node.hinge === undefined && node.action === undefined && node.pullId === undefined
     && node.pullAt === undefined && node.pullOrientation === undefined && node.pullCount === undefined
     && FACE_DIRECTIONS.includes(node.direction)

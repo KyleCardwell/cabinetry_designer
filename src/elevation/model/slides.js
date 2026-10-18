@@ -124,6 +124,19 @@ export function resolveSlide(settings = {}) {
   return findSlide(settings.drawerSlideId, list) ?? findSlide('blum-562h', list) ?? BUILT_IN_SLIDES[0];
 }
 
+/** Nearest valid slide wins; missing picks warn and fall through to the next level. */
+export function resolveBoxSlide(settings = {}, { box = null, rule = null, cabinet = null } = {}) {
+  const warnings = [];
+  for (const [level, slideId] of [['box', box], ['rule', rule], ['cabinet', cabinet]]) {
+    if (slideId === null) continue;
+    const slide = findSlide(slideId, settings.slides ?? []);
+    if (slide) return { slideId, slide, source: level, warnings };
+    warnings.push({ code: 'slide-missing', level, slideId });
+  }
+  const slide = resolveSlide(settings);
+  return { slideId: slide.id, slide, source: 'room', warnings };
+}
+
 export function fittingLength(slide, interiorDepth) {
   return slide.lengths.findLast(({ nominal }) => nominal <= interiorDepth + 1e-9)?.nominal ?? null;
 }

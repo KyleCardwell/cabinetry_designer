@@ -46,6 +46,8 @@ export {
   isSlideList,
   newSlide,
   findSlide,
+  resolveSlide,
+  resolveBoxSlide,
   fittingLength,
   slideBoxWidth,
 } from './slides.js';
@@ -76,6 +78,7 @@ export {
   parentFacePath,
   removeFace,
   setFaceAction,
+  setFaceDrawerBox,
   setFaceHinge,
   setFacePull,
   setFacePullPlacement,
