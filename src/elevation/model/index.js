@@ -4,6 +4,11 @@ export {
   CABINET_TYPE_COLORS,
   DEFAULT_PROFILE,
   DEFAULT_SETTINGS,
+  INTERIOR_DIVIDERS,
+  INTERIOR_DIVIDER_LABELS,
+  STRETCHER_DEPTH,
+  DADO_BACK_SETBACK,
+  BACK_PANEL_THICKNESS,
   KIND_COLORS,
   KIND_LABELS,
 } from './constants.js';
@@ -93,6 +98,7 @@ export {
 } from './styles.js';
 export { captureSides } from './capture.js';
 export { boxConstruction } from './boxConstruction.js';
+export { isInteriorNode, isStoredInterior } from './interiorTree.js';
 export { layoutRun, runFaceLayouts } from './faceLayouts.js';
 export {
   BOTTOM_PART_DOORS,

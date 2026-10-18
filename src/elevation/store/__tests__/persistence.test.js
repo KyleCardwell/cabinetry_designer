@@ -150,6 +150,46 @@ describe('IN1b cabinet box persistence', () => {
   });
 });
 
+describe('IN2 interior persistence', () => {
+  it('round-trips root and nested cabinet interiors and rejects other stored shapes and leaf kinds (anchor 5)', () => {
+    const interior = {
+      direction: 'horizontal',
+      children: [{ direction: 'vertical', children: [{}, {}], dividers: [{ kind: 'fixed', at: 36 }] }, {}],
+      dividers: [{ kind: 'double_partition', at: 12, from: 'right', depth: 10 }],
+    };
+    const base = normalizeElevationDocument(currentDocument());
+    expect(isElevationDocument(base)).toBe(true);
+    for (const nested of [false, true]) {
+      const document = structuredClone(base);
+      const cell = document.rooms[0].walls[0].runs[0].grid.cells[0];
+      cell.node.interior = interior;
+      if (nested) cell.node = gridFromItems('nested', [{ ...cell.node, width: null }, { id: 'other', kind: 'cabinet', width: null }]);
+      expect(isElevationDocument(document)).toBe(true);
+      const saved = toElevationDocument(createInitialElevationState(document));
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+      const loaded = loadElevationDocument();
+      expect(isElevationDocument(loaded)).toBe(true);
+      const node = loaded.rooms[0].walls[0].runs[0].grid.cells[0].node;
+      expect((nested ? node.cells[0].node : node).interior).toEqual(interior);
+    }
+    for (const invalid of [{}, null, [], { ...interior, dividers: [] }]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = invalid;
+      expect(isElevationDocument(document)).toBe(false);
+    }
+    for (const kind of ['panel', 'filler', 'void', 'shelves']) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node = {
+        id: 'not-cabinet', kind, width: 1, interior,
+        ...(kind === 'shelves' ? { shelves: { count: 1, back: false } } : {}),
+      };
+      expect(isElevationDocument(document)).toBe(false);
+      delete document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior;
+      expect(isElevationDocument(document)).toBe(true);
+    }
+  });
+});
+
 describe('HP3c step a pull reference persistence', () => {
   it('validates optional positive cabinet pull heights without changing stored leaf placement (HP4 anchor 5)', () => {
     const base = normalizeElevationDocument(currentDocument());

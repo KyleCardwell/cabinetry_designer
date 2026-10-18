@@ -26,6 +26,7 @@ import {
   isStyleRef,
 } from '../model/doorStyles.js';
 import { isFaceNode } from '../model/faces.js';
+import { isStoredInterior } from '../model/interiorTree.js';
 import { MAX_SHELVES } from '../model/cellTree.js';
 import { LEAF_KINDS, isGridShape, rootItems } from '../model/grid.js';
 import { isExtend } from '../model/extensions.js';
@@ -248,7 +249,8 @@ function isItem(item) {
       || (item.kind === 'cabinet' && isOptionalNumericObject(item.reveals, REVEAL_KEYS)))
     && (item.tFiller === undefined || (item.kind === 'cabinet' && isTFillerSides(item.tFiller)))
     && (item.purpose === undefined || (item.kind === 'cabinet' && CABINET_PURPOSE_IDS.has(item.purpose)))
-    && (item.box === undefined || (item.kind === 'cabinet' && isCabinetBox(item.box)));
+    && (item.box === undefined || (item.kind === 'cabinet' && isCabinetBox(item.box)))
+    && (item.interior === undefined || (item.kind === 'cabinet' && isStoredInterior(item.interior)));
 }
 
 function isOptionalNumericObject(value, allowedKeys) {

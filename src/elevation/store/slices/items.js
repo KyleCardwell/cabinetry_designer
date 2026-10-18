@@ -13,6 +13,7 @@ import {
 } from '../../model/room.js';
 import { splitRun } from '../../model/splitRun.js';
 import { roundTo } from '../../model/units.js';
+import { isInteriorNode, isStoredInterior } from '../../model/interiorTree.js';
 import {
   runLocation,
   syncRoomAt,
@@ -126,6 +127,22 @@ export const itemReducers = {
         target.box ??= {};
         target.box[key] = value;
       }
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  /** IN2: store an independent interior tree per cabinet; null or one section clears it. */
+  setItemInterior(state, action) {
+    const { itemIds = [], interior } = action.payload;
+    const clear = interior === null || (isInteriorNode(interior) && Object.keys(interior).length === 0);
+    if (!clear && !isStoredInterior(interior)) return;
+    const location = runLocation(state, action.payload);
+    if (!location?.run.grid) return;
+    const targets = gridLeaves(location.run.grid)
+      .filter((leaf) => leaf.kind === 'cabinet' && itemIds.includes(leaf.id));
+    if (!targets.length) return;
+    for (const target of targets) {
+      if (clear) delete target.interior;
+      else target.interior = structuredClone(interior);
     }
     syncRoomAt(state, location.roomIndex);
   },

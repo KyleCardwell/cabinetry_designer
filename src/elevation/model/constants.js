@@ -172,6 +172,22 @@ export const BOX_BACKS = ['dado', 'inset', 'applied', 'none'];
 export const BOX_TOPS = ['between', 'overlay', 'spreaders', 'none'];
 export const BOX_KEYS = ['back', 'top', 'bottom', 'left', 'right', 'finTop', 'finBottom'];
 
+/** Interior divider families follow the group's stacking direction. */
+export const INTERIOR_DIVIDERS = {
+  vertical: ['fixed', 'double_fixed', 'stretcher'],
+  horizontal: ['partition', 'double_partition'],
+};
+export const INTERIOR_DIVIDER_LABELS = {
+  fixed: 'Fixed shelf',
+  double_fixed: 'Double fixed shelf',
+  stretcher: 'Stretcher',
+  partition: 'Partition',
+  double_partition: 'Double partition',
+};
+export const STRETCHER_DEPTH = 4;
+export const DADO_BACK_SETBACK = 0.75;
+export const BACK_PANEL_THICKNESS = 0.25;
+
 /** Display labels for derived piece kinds. */
 export const KIND_LABELS = {
   cabinet: 'Cabinet',

@@ -177,6 +177,7 @@ export const {
   setItemAbsorb,
   setCabinetPurpose,
   setCabinetBox,
+  setItemInterior,
   lockItem,
   unlockItem,
   splitItem,
