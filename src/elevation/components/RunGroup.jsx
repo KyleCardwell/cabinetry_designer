@@ -27,6 +27,7 @@ import DoorDetails from './DoorDetails.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
 import FrameOutline from './FrameOutline.jsx';
 import InteriorShapes from './InteriorShapes.jsx';
+import InteriorDimensions from './InteriorDimensions.jsx';
 import PieceRect from './PieceRect.jsx';
 import Pulls from './Pulls.jsx';
 import SwingMarks from './SwingMarks.jsx';
@@ -50,6 +51,8 @@ function RunGroup({
   interiorPath = null,
   interiorDivider = null,
   onSelectInterior,
+  onEditDivider,
+  onMoveDivider,
   onEditTrack,
   stretchable = false,
   preview = false,
@@ -60,6 +63,7 @@ function RunGroup({
   cursor,
 }) {
   const [anchorTooltip, setAnchorTooltip] = useState(null);
+  const [dividerPreview, setDividerPreview] = useState(null);
   const cursorKeys = useCursorKeys(cursor);
   const highlight = runHighlight(selectedRun, selectedPieceId, selectedFacePath);
   const scene = useMemo(() => runScene(room, wall, run, settings), [room, run, settings, wall]);
@@ -385,8 +389,32 @@ function RunGroup({
           interiorPath={interiorPath}
           interiorDivider={interiorDivider}
           onSelectInterior={onSelectInterior}
+          draggable={stretchable && !preview && Boolean(onMoveDivider)}
+          dragPreview={dividerPreview}
+          onPreviewDivider={setDividerPreview}
+          onMoveDivider={onMoveDivider}
         />
       )}
+      {doorsOff && !preview && interiors.filter((entry) => entry.itemId === selectedPieceId).map((entry) => {
+        const clip = toScreen(drawnPieces.find(({ id }) => id === entry.itemId));
+        return (
+          <Group
+            key={entry.itemId}
+            clipX={clip?.x}
+            clipY={clip?.y}
+            clipWidth={clip?.width}
+            clipHeight={clip?.height}
+          >
+            <InteriorDimensions
+              entry={entry}
+              transform={transform}
+              editable={stretchable && Boolean(onEditDivider)}
+              onEditDivider={onEditDivider}
+              dragPreview={dividerPreview}
+            />
+          </Group>
+        );
+      })}
 
       {chipLines.map((line) => (
         <Line

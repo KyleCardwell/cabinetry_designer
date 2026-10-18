@@ -1,7 +1,8 @@
-import { Fragment } from 'react';
+import { Fragment, useRef } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { formatDimension } from '../model/units.js';
+import { dragDividerPosition, interiorDimensions } from '../model/interiors.js';
 
 const SIZE_FONT = 10;
 const SIZE_INSET = 3;
@@ -14,16 +15,23 @@ export default function InteriorShapes({
   interiorPath = null,
   interiorDivider = null,
   onSelectInterior,
+  draggable = false,
+  dragPreview,
+  onPreviewDivider,
+  onMoveDivider,
 }) {
+  const draggedRef = useRef(false);
   const selectedPath = interiorPath ?? 'r';
   const click = (interior) => (event) => {
     event.cancelBubble = true;
+    if (draggedRef.current) return;
     onSelectInterior?.(interior);
   };
   return entries.map((entry) => {
     const piece = drawnPieces.find(({ id }) => id === entry.itemId);
     const clip = piece ? wallRectToScreen(piece, transform) : null;
     const selectable = selectedPieceId === entry.itemId;
+    const dimensions = interiorDimensions(entry);
     return (
       <Group
         key={entry.itemId}
@@ -31,6 +39,8 @@ export default function InteriorShapes({
         clipY={clip?.y}
         clipWidth={clip?.width}
         clipHeight={clip?.height}
+        onMouseDown={() => { draggedRef.current = false; }}
+        onTouchStart={() => { draggedRef.current = false; }}
       >
         {entry.sections.map((section) => {
           const rect = wallRectToScreen(section, transform);
@@ -66,15 +76,53 @@ export default function InteriorShapes({
         {entry.dividers.map((divider) => {
           const selected = selectable && divider.path === selectedPath
             && divider.index === interiorDivider;
+          const dimension = dimensions.find(({ path, index }) => path === divider.path && index === divider.index);
+          const rect = wallRectToScreen(divider, transform);
+          const vertical = dimension.axis === 'vertical';
+          const preview = dragPreview?.itemId === entry.itemId && dragPreview.key === dimension.key
+            ? dragPreview.delta : { x: 0, z: 0 };
+          const deltaFrom = (event) => ({
+            x: vertical ? 0 : (event.target.x() - rect.x) / transform.scale,
+            z: vertical ? (rect.y - event.target.y()) / transform.scale : 0,
+          });
           return (
             <Rect
               key={`${divider.path}:${divider.index}`}
-              {...wallRectToScreen(divider, transform)}
+              {...rect}
+              x={rect.x + preview.x * transform.scale}
+              y={rect.y - preview.z * transform.scale}
               fill="#cbd5e1"
               opacity={0.9}
               stroke={selected ? '#7dd3fc' : '#1e293b'}
               strokeWidth={selected ? 2 : 1}
               listening={selectable}
+              draggable={selectable && draggable}
+              dragDistance={3}
+              dragBoundFunc={(position) => vertical
+                ? { x: rect.x, y: position.y } : { x: position.x, y: rect.y }}
+              onDragStart={(event) => {
+                event.cancelBubble = true;
+                draggedRef.current = true;
+              }}
+              onDragMove={(event) => {
+                event.cancelBubble = true;
+                onPreviewDivider?.({ itemId: entry.itemId, key: dimension.key, delta: deltaFrom(event) });
+              }}
+              onDragEnd={(event) => {
+                event.cancelBubble = true;
+                const delta = deltaFrom(event);
+                event.target.position({ x: rect.x, y: rect.y });
+                onPreviewDivider?.(null);
+                if (Math.abs(vertical ? delta.z : delta.x) * transform.scale < 3) {
+                  onSelectInterior?.({ path: divider.path, divider: divider.index });
+                  return;
+                }
+                const position = dragDividerPosition(dimension, delta);
+                onMoveDivider?.({
+                  runId: entry.runId, itemId: entry.itemId,
+                  path: divider.path, index: divider.index, side: dimension.side,
+                }, position.at);
+              }}
               onClick={selectable ? click({ path: divider.path, divider: divider.index }) : undefined}
             />
           );

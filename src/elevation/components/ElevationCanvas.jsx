@@ -45,6 +45,7 @@ import { elevationKey } from '../model/topology.js';
 import { createRun } from '../model/runDefaults.js';
 import { runItems } from '../model/grid.js';
 import { wallInteriors } from '../model/interiors.js';
+import { setDividerPosition } from '../model/interiorTree.js';
 import {
   createSoffit,
   resolveSoffitSpan,
@@ -88,6 +89,7 @@ import {
   moveOpening,
   replaceWallLayout,
   setItemWidth,
+  setItemInterior,
   setTrackSize,
   setMessage,
   setSelection,
@@ -164,6 +166,7 @@ function ElevationCanvas({
   const [alignmentGuides, setAlignmentGuides] = useState([]);
   const [entryPointer, setEntryPointer] = useState(null);
   const [trackEdit, setTrackEdit] = useState(null);
+  const [dividerEdit, setDividerEdit] = useState(null);
   const { style: cursorStyle, controller: cursor } = useCanvasCursor(
     elevationBaseCursor(tool, pointerMode),
   );
@@ -913,6 +916,32 @@ function ElevationCanvas({
     setTrackEdit(null);
   }, [dispatch, trackEdit, wall]);
 
+  const commitDividerEdit = useCallback((edit, value) => {
+    if (!wall || !room || tool !== 'select' || !doorsOff) return;
+    const run = wall.runs.find((candidate) => candidate.id === edit.runId);
+    const item = run && runItems(run).find((candidate) => candidate.id === edit.itemId);
+    if (!item) return;
+    dispatch(setItemInterior({
+      roomId: room.id,
+      wallId: wall.id,
+      runId: run.id,
+      itemIds: [item.id],
+      interior: setDividerPosition(item.interior, edit.path, edit.index, value,
+        edit.side === 'bottom' ? undefined : edit.side),
+    }));
+    setDividerEdit(null);
+  }, [dispatch, doorsOff, room, tool, wall]);
+
+  const moveDivider = useCallback((edit, value) => {
+    suppressNextClick();
+    closePicker();
+    commitDividerEdit(edit, value);
+  }, [closePicker, commitDividerEdit, suppressNextClick]);
+
+  useEffect(() => {
+    setDividerEdit(null);
+  }, [doorsOff, room?.id, wallId, wall?.side, selection.runId, selection.pieceId, tool]);
+
   const selectOpening = useCallback((openingId) => {
     if (tool !== 'select' || suppressClickRef.current) return;
     dispatch(setSelection({ openingId }));
@@ -1177,6 +1206,8 @@ function ElevationCanvas({
                 interiorPath={interiorPath}
                 interiorDivider={interiorDivider}
                 onSelectInterior={pickInterior}
+                onEditDivider={setDividerEdit}
+                onMoveDivider={moveDivider}
                 onEditTrack={editTrack}
                 stretchable={tool === 'select'}
                 onStretchStart={startStretch}
@@ -1288,6 +1319,14 @@ function ElevationCanvas({
           edit={trackEdit}
           onCommit={commitTrackEdit}
           onCancel={() => setTrackEdit(null)}
+        />
+      )}
+      {dividerEdit && (
+        <TrackSizeInput
+          key={`${dividerEdit.runId}:${dividerEdit.itemId}:${dividerEdit.path}:${dividerEdit.index}`}
+          edit={dividerEdit}
+          onCommit={(value) => commitDividerEdit(dividerEdit, value)}
+          onCancel={() => setDividerEdit(null)}
         />
       )}
       <SelectionPicker picker={picker} onChoose={choosePick} onHover={hoverPick} onClose={closePicker} />
