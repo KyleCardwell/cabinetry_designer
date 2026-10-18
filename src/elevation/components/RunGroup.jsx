@@ -26,6 +26,7 @@ import CellChains from './CellChains.jsx';
 import DoorDetails from './DoorDetails.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
 import FrameOutline from './FrameOutline.jsx';
+import InteriorShapes from './InteriorShapes.jsx';
 import PieceRect from './PieceRect.jsx';
 import Pulls from './Pulls.jsx';
 import SwingMarks from './SwingMarks.jsx';
@@ -44,6 +45,11 @@ function RunGroup({
   onSelectPiece,
   selectedFacePath = null,
   onSelectFace,
+  doorsOff = false,
+  interiors = [],
+  interiorPath = null,
+  interiorDivider = null,
+  onSelectInterior,
   onEditTrack,
   stretchable = false,
   preview = false,
@@ -370,6 +376,18 @@ function RunGroup({
         />
       ))}
 
+      {doorsOff && (
+        <InteriorShapes
+          entries={interiors}
+          drawnPieces={drawnPieces}
+          transform={transform}
+          selectedPieceId={preview ? null : selectedPieceId}
+          interiorPath={interiorPath}
+          interiorDivider={interiorDivider}
+          onSelectInterior={onSelectInterior}
+        />
+      )}
+
       {chipLines.map((line) => (
         <Line
           key={line.key}
@@ -393,17 +411,19 @@ function RunGroup({
         />
       ))}
 
-      <DoorDetails
-        parts={doorDetails.parts}
-        warnings={doorDetails.warnings}
-        transform={transform}
-        showDetails={drawing.details}
-        showTags={drawing.tags}
-      />
-      {drawing.swings && <SwingMarks marks={swingMarks} transform={transform} />}
-      {drawing.pulls && <Pulls pulls={pulls.pulls} transform={transform} />}
+      {!doorsOff && (
+        <DoorDetails
+          parts={doorDetails.parts}
+          warnings={doorDetails.warnings}
+          transform={transform}
+          showDetails={drawing.details}
+          showTags={drawing.tags}
+        />
+      )}
+      {!doorsOff && drawing.swings && <SwingMarks marks={swingMarks} transform={transform} />}
+      {!doorsOff && drawing.pulls && <Pulls pulls={pulls.pulls} transform={transform} />}
 
-      {[...faceLayouts].map(([pieceId, layout]) => (
+      {!doorsOff && [...faceLayouts].map(([pieceId, layout]) => (
         <FaceOutlines
           key={`faces:${pieceId}`}
           faces={layout.faces}

@@ -15,6 +15,7 @@ import {
   setView,
   setPref,
   setRoomSetting,
+  setDoorsOff,
 } from '../store/elevationSlice.js';
 
 export default function ElevationToolbar({
@@ -28,6 +29,7 @@ export default function ElevationToolbar({
   const {
     tool,
     view,
+    doorsOff,
     rooms,
     activeRoomId,
     activeWallId,
@@ -217,6 +219,18 @@ export default function ElevationToolbar({
             }`}
           >
             Part #
+          </button>
+          <button
+            type="button"
+            aria-pressed={doorsOff}
+            onClick={() => dispatch(setDoorsOff(!doorsOff))}
+            className={`rounded px-3 py-1.5 text-sm transition-colors ${
+              doorsOff
+                ? 'bg-cyan-700 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            Doors off
           </button>
           <div className="flex items-center gap-1">
             <button

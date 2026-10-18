@@ -44,6 +44,7 @@ import { combinedViewOf } from '../model/combinedElevations.js';
 import { elevationKey } from '../model/topology.js';
 import { createRun } from '../model/runDefaults.js';
 import { runItems } from '../model/grid.js';
+import { wallInteriors } from '../model/interiors.js';
 import {
   createSoffit,
   resolveSoffitSpan,
@@ -149,7 +150,9 @@ function ElevationCanvas({
   onZoomChange,
 }, ref) {
   const dispatch = useDispatch();
-  const { tool, selection, facePath } = useSelector((state) => state.elevation);
+  const {
+    tool, selection, facePath, doorsOff, interiorPath, interiorDivider,
+  } = useSelector((state) => state.elevation);
   const stageRef = useRef(null);
   const containerRef = useRef(null);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
@@ -204,6 +207,11 @@ function ElevationCanvas({
   const partNumbering = useMemo(
     () => (room && settings.showPartNumbers ? partNumbers(room, settings) : null),
     [room, settings],
+  );
+  const interiors = useMemo(
+    () => (doorsOff && room && wall
+      ? wallInteriors(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : []),
+    [doorsOff, room, wall, settings],
   );
   const profile = useMemo(
     () => (room && wall ? resolveProfile(settings, room, wall) : null),
@@ -860,8 +868,8 @@ function ElevationCanvas({
   };
 
   const {
-    picker, hovered, pick, pickFace, choosePick, hoverPick, closePicker,
-  } = usePicker({ room, wall, settings, transform, stageRef, tool, suppressClickRef, dispatch });
+    picker, hovered, pick, pickFace, pickInterior, choosePick, hoverPick, closePicker,
+  } = usePicker({ room, wall, settings, transform, stageRef, tool, suppressClickRef, dispatch, doorsOff });
 
   // The wall row selects what's in it (SPEC-38.1): a recess full of cabinets can't be clicked otherwise.
   const selectFeature = useCallback((segment) => {
@@ -1164,6 +1172,11 @@ function ElevationCanvas({
                 onSelectPiece={pick}
                 selectedFacePath={selection.runId === run.id ? facePath : null}
                 onSelectFace={pickFace}
+                doorsOff={doorsOff}
+                interiors={interiors.filter((entry) => entry.runId === run.id)}
+                interiorPath={interiorPath}
+                interiorDivider={interiorDivider}
+                onSelectInterior={pickInterior}
                 onEditTrack={editTrack}
                 stretchable={tool === 'select'}
                 onStretchStart={startStretch}

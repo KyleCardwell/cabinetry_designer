@@ -1,9 +1,10 @@
-import { CABINET_TYPE_IDS, KIND_LABELS } from './constants.js';
+import { CABINET_TYPE_IDS, INTERIOR_DIVIDER_LABELS, KIND_LABELS } from './constants.js';
 import { faceFeatures } from './faceFeatures.js';
 import { FACE_TYPE_LABELS } from './faces.js';
+import { wallInteriors } from './interiors.js';
 import { runScene } from './runScene.js';
 import { wallLabel } from './topology.js';
-import { formatInches } from './units.js';
+import { formatDimension, formatInches } from './units.js';
 import { wallEndPanels } from './wallEndPanels.js';
 
 const PICK_EPSILON = 1e-6;
@@ -27,20 +28,24 @@ function size(rect) {
 }
 
 /**
- * Everything under a point on an elevation (SPEC-39.1), front to back: faces, then pieces (as drawn,
+ * Everything under a point on an elevation (SPEC-39.1), front to back: faces (or interiors), then pieces (as drawn,
  * T-fillers first), then runs, wall end panels, openings, soffits, recesses and projections, and last
  * the wall itself. `point` is in the view's coordinates ({ x, z }, inches). Each candidate:
- * { kind, key, label, rect, selection, facePath }, where `selection` is a setSelection payload
- * (null for the wall: clear the selection) and `facePath` is set only on faces.
+ * { kind, key, label, rect, selection, facePath, interior }, where `selection` is a setSelection payload
+ * (null for the wall: clear the selection), `facePath` is set only on faces, and `interior` only on interiors.
  */
-export function pickStack(room, wall, settings, point) {
+export function pickStack(room, wall, settings, point, { doorsOff = false } = {}) {
   const faces = [];
+  const dividers = [];
+  const sections = [];
   const pieces = [];
   const runs = [];
+  const interiors = doorsOff
+    ? wallInteriors(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : [];
   for (const run of wall.runs) {
     const runRect = { x: run.x, z: run.z, width: run.width, height: run.height };
     const scene = runScene(room, wall, run, settings);
-    for (const [pieceId, layout] of scene.faceLayouts) {
+    for (const [pieceId, layout] of doorsOff ? [] : scene.faceLayouts) {
       const face = layout.faces.find((candidate) => contains(candidate, point));
       if (!face) continue;
       faces.push({
@@ -53,6 +58,37 @@ export function pickStack(room, wall, settings, point) {
       });
     }
     const drawn = scene.drawnPieces.filter((piece) => !scene.hiddenIds.has(piece.id));
+    for (const entry of interiors.filter(({ runId }) => runId === run.id)) {
+      const clip = drawn.find(({ id }) => id === entry.itemId);
+      if (clip && !contains(clip, point)) continue;
+      const candidate = (rect) => ({
+        rect: { x: rect.x, z: rect.z, width: rect.width, height: rect.height },
+        selection: { runId: run.id, pieceId: entry.itemId },
+        facePath: null,
+      });
+      for (const divider of entry.dividers.filter((rect) => contains(rect, point))) {
+        const side = divider.dimFrom;
+        const value = side === 'bottom' ? divider.fromBottom
+          : side === 'left' ? divider.fromLeft : divider.fromRight;
+        dividers.push({
+          ...candidate(divider),
+          kind: 'divider',
+          key: `divider:${run.id}:${entry.itemId}:${divider.path}:${divider.index}`,
+          label: `${INTERIOR_DIVIDER_LABELS[divider.kind]} oc ${formatDimension(value)}${
+            side === 'bottom' ? '' : ` from ${side}`}`,
+          interior: { path: divider.path, divider: divider.index },
+        });
+      }
+      for (const section of entry.sections.filter((rect) => contains(rect, point))) {
+        sections.push({
+          ...candidate(section),
+          kind: 'section',
+          key: `section:${run.id}:${entry.itemId}:${section.path}`,
+          label: `Section ${formatDimension(section.width)} × ${formatDimension(section.height)}`,
+          interior: { path: section.path, divider: null },
+        });
+      }
+    }
     for (const piece of [...drawn].reverse()) {
       if (!contains(piece, point)) continue;
       const name = piece.role === 'tee'
@@ -123,6 +159,8 @@ export function pickStack(room, wall, settings, point) {
     }];
   }).sort((a, b) => FEATURE_ORDER[a.kind] - FEATURE_ORDER[b.kind]);
   return [
+    ...dividers,
+    ...sections,
     ...faces,
     ...pieces,
     ...runs,
@@ -136,16 +174,18 @@ export function pickStack(room, wall, settings, point) {
       selection: null,
       facePath: null,
     },
-  ];
+  ].map((candidate) => ({ interior: null, ...candidate }));
 }
 
 /**
  * What a click selects (SPEC-39.1): the `prefer`red kind if it's under the click (the canvas prefers
- * 'face' when the click landed on a face of the selected cabinet), else the front-most candidate that
- * isn't a face, which is what a click always selected.
+ * 'face' or 'interior' when clicking inside the selected cabinet), else the front-most candidate that
+ * isn't a face, section or divider, which is what a click always selected.
  */
 export function defaultPick(candidates, prefer = null) {
-  return (prefer && candidates.find((candidate) => candidate.kind === prefer))
-    || candidates.find((candidate) => candidate.kind !== 'face')
+  const interior = (candidate) => ['divider', 'section'].includes(candidate.kind);
+  return (prefer && candidates.find((candidate) => (prefer === 'interior'
+    ? interior(candidate) : candidate.kind === prefer)))
+    || candidates.find((candidate) => candidate.kind !== 'face' && !interior(candidate))
     || null;
 }

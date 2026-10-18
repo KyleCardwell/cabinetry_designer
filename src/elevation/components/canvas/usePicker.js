@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { screenToWall } from '../../canvas/transform.js';
 import { defaultPick, pickStack } from '../../model/pick.js';
-import { setFacePath, setSelection } from '../../store/elevationSlice.js';
+import { setFacePath, setInteriorPath, setSelection } from '../../store/elevationSlice.js';
 
 /**
  * Click-to-pick (SPEC-39.1). A click on anything in the elevation selects what a click always
@@ -10,9 +10,10 @@ import { setFacePath, setSelection } from '../../store/elevationSlice.js';
  */
 export default function usePicker({
   room, wall, settings, transform, stageRef, tool, suppressClickRef, dispatch,
+  doorsOff = false,
 }) {
   const [picker, setPicker] = useState(null);
-  const context = `${room?.id}:${wall?.id}:${wall?.side ?? 'front'}:${tool}`;
+  const context = `${room?.id}:${wall?.id}:${wall?.side ?? 'front'}:${tool}:${doorsOff}`;
 
   const apply = useCallback((candidate) => {
     if (!candidate?.selection) {
@@ -21,13 +22,14 @@ export default function usePicker({
     }
     dispatch(setSelection(candidate.selection));
     if (candidate.facePath) dispatch(setFacePath(candidate.facePath));
+    if (candidate.interior) dispatch(setInteriorPath(candidate.interior));
   }, [dispatch]);
 
   const pickWith = useCallback((prefer) => {
     if (tool !== 'select' || suppressClickRef.current || !room || !wall || !transform) return;
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
-    const candidates = pickStack(room, wall, settings, screenToWall(pointer, transform));
+    const candidates = pickStack(room, wall, settings, screenToWall(pointer, transform), { doorsOff });
     const chosen = defaultPick(candidates, prefer);
     apply(chosen);
     setPicker(candidates.length > 2 ? {
@@ -38,10 +40,11 @@ export default function usePicker({
       activeKey: chosen?.key ?? null,
       hoverKey: null,
     } : null);
-  }, [apply, context, room, settings, stageRef, suppressClickRef, tool, transform, wall]);
+  }, [apply, context, doorsOff, room, settings, stageRef, suppressClickRef, tool, transform, wall]);
 
   const pick = useCallback(() => pickWith(null), [pickWith]);
   const pickFace = useCallback(() => pickWith('face'), [pickWith]);
+  const pickInterior = useCallback(() => pickWith('interior'), [pickWith]);
   const closePicker = useCallback(() => setPicker(null), []);
   const hoverPick = useCallback((key) => {
     setPicker((current) => (current ? { ...current, hoverKey: key } : current));
@@ -58,6 +61,7 @@ export default function usePicker({
     hovered: open?.candidates.find((candidate) => candidate.key === open.hoverKey) ?? null,
     pick,
     pickFace,
+    pickInterior,
     choosePick,
     hoverPick,
     closePicker,
