@@ -1,6 +1,14 @@
 import { COPIES } from './copies.js';
 import { BORDER_LAYOUT, PAGE_MARGINS, reportFileName, reportFooter } from './pdfParts.js';
 
+/**
+ * A size wraps only before an "x", carrying the x to the next line with its number; a whole number and its
+ * fraction never split ("34 15/16 x 30 1/2" / "x 23 15/16").
+ */
+export function sizeText(size) {
+  return size.replace(/(\d) (?=\d)/g, '$1\u00a0').replace(/ x /g, ' x\u00a0');
+}
+
 const bordered = (cell) => ({ ...cell, border: [true, true, true, true] });
 const fullRow = (cell) => [{ ...cell, colSpan: 6 }, {}, {}, {}, {}, {}];
 
@@ -41,14 +49,14 @@ function shippingTable(list, header, copy) {
       bordered(row.notes.length ? {
         stack: row.notes.map((text) => ({ text, fontSize: 9 })),
       } : { text: '' }),
-      bordered({ text: row.size.replace(/(\d) (?=\d)/g, '$1\u00a0'), alignment: 'center' }),
+      bordered({ text: sizeText(row.size), alignment: 'center' }),
     ]),
   ];
   for (const text of list.wallNotes ?? []) rows.push(fullRow(bordered({ text, fontSize: 9 })));
   if (list.roomNote) rows.push(fullRow(bordered({ text: `Room notes: ${list.roomNote}`, bold: true })));
 
   return {
-    table: { headerRows: 2, widths: [38, 34, 40, 100, '*', 140], body: rows, dontBreakRows: true },
+    table: { headerRows: 2, widths: [38, 34, 40, 100, '*', 105], body: rows, dontBreakRows: true },
     layout: { ...BORDER_LAYOUT, defaultBorder: false },
   };
 }
