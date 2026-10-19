@@ -42,18 +42,18 @@ function nestedInput() {
 
 describe('IN10 step a interior notes', () => {
   it('prints a single unwrapped section (anchor 1)', () => {
-    expect(interiorNotes(input())).toEqual({ dividers: [], sections: ['1 as'] });
+    expect(interiorNotes(input())).toMatchObject({ dividers: [], sections: ['1 as'] });
   });
 
   it('prints the resolved open-box flags (anchor 2)', () => {
     expect(interiorNotes(input(null, [['r', S(0, { lineBore: false, hinges: false })]])))
-      .toEqual({ dividers: [], sections: ['NLB, NPH (No Doors)'] });
+      .toMatchObject({ dividers: [], sections: ['NLB, NPH (No Doors)'] });
   });
 
   it('prints a fixed shelf and top/bottom sections (anchor 3)', () => {
     expect(interiorNotes(input(vertical(2), [['r.0', S(3)], ['r.1', S(1)]],
       [divider('fixed', { fromBottom: 42 })])))
-      .toEqual({ dividers: ['fs up 42" oc'], sections: ['Top Sec (3 as)', 'Btm Sec (1 as)'] });
+      .toMatchObject({ dividers: ['fs up 42" oc'], sections: ['Top Sec (3 as)', 'Btm Sec (1 as)'] });
   });
 
   it('prints both shelf centres lower first and no banding (anchor 4)', () => {
@@ -68,7 +68,7 @@ describe('IN10 step a interior notes', () => {
   it('uses the partition dimension origin (anchor 5)', () => {
     const data = input(group('horizontal', [{}, {}]), [['r.0', S(1)], ['r.1', S(1)]],
       [divider('partition', { fromLeft: 21, dimFrom: 'left' })]);
-    expect(interiorNotes(data)).toEqual({ dividers: ['pt 21" oc from L'],
+    expect(interiorNotes(data)).toMatchObject({ dividers: ['pt 21" oc from L'],
       sections: ['Left Sec (1 as)', 'Right Sec (1 as)'] });
     data.interior.dividers = [divider('double_partition', { fromRight: 20.25, dimFrom: 'right' })];
     expect(interiorNotes(data).dividers).toEqual(['dbl pt 20 1/4" oc from R']);
@@ -79,7 +79,7 @@ describe('IN10 step a interior notes', () => {
     const before = structuredClone(data);
     for (const kind of ['drawer', 'rot', 'hamper']) {
       data.boxes[0].kind = kind;
-      expect(interiorNotes(data)).toEqual({ dividers: ['fs up 30" oc'],
+      expect(interiorNotes(data)).toMatchObject({ dividers: ['fs up 30" oc'],
         sections: ['Top Sec (pt 15" oc from L, Left Sec (1 as), Right Sec (1 as))'] });
     }
     data.boxes[0].kind = 'drawer';
@@ -124,7 +124,7 @@ describe('IN10 step a interior notes', () => {
   it('groups roll-outs before the section flags (anchor 10)', () => {
     const data = input(null, [['r', S(0, { lineBore: false })]]);
     data.rollouts.set('r', { rollouts: [rollout(18, 60), rollout(18, 80)] });
-    expect(interiorNotes(data).sections).toEqual(['2 ro - 18", NLB']);
+    expect(interiorNotes(data).sections).toEqual(['NLB', '2 ro - 18"']);
   });
 
   it('lists roll-out groups top-down and tags other slides (anchor 11)', () => {
@@ -133,11 +133,11 @@ describe('IN10 step a interior notes', () => {
       slideId: 'accuride-3832', slide: { name: 'Accuride 3832' },
     })] });
     const before = structuredClone(data);
-    expect(interiorNotes(data).sections).toEqual(['1 as, 1 ro - 22" (Accuride 3832), 1 ro - 21"']);
+    expect(interiorNotes(data).sections).toEqual(['1 as', '1 ro - 22" (Accuride 3832), 1 ro - 21"']);
     expect(data).toEqual(before);
     data.roomSlideId = 'accuride-3832';
     expect(interiorNotes(data).sections)
-      .toEqual(['1 as, 1 ro - 22", 1 ro - 21" (Blum Tandem 562H)']);
+      .toEqual(['1 as', '1 ro - 22", 1 ro - 21" (Blum Tandem 562H)']);
   });
 
   it('prints stretcher centres and keeps empty siblings in naming (anchor 12)', () => {
@@ -146,12 +146,12 @@ describe('IN10 step a interior notes', () => {
       ['r.1', S(1)],
     ], [divider('stretcher', { fromBottom: 24.3125 })]);
     data.boxes = [{ space: { x: 105, z: 85, width: 20, height: 20 } }];
-    expect(interiorNotes(data)).toEqual({ dividers: ['stretcher up 24 5/16" oc'], sections: ['Btm Sec (1 as)'] });
+    expect(interiorNotes(data)).toMatchObject({ dividers: ['stretcher up 24 5/16" oc'], sections: ['Btm Sec (1 as)'] });
   });
 
   it('omits empty contents and uses shelf settings with default fallbacks', () => {
     const data = input(null, [['r', S(0, { nosing: { kind: 'hardwood' }, glass: true })]]);
-    expect(interiorNotes(data)).toEqual({ dividers: [], sections: [] });
+    expect(interiorNotes(data)).toMatchObject({ dividers: [], sections: [] });
     data.settings = { glassShelfThickness: 0.375, shelfNosingHeight: 2, foldedNosingExtra: 2.5 };
     data.shelves.get('r').count = 2;
     expect(interiorNotes(data).sections).toEqual(['2 as (3/8" glass)']);
@@ -166,11 +166,41 @@ describe('IN10 step a interior notes', () => {
       divider('fixed', { index: 1, fromBottom: 20 }), divider('fixed', { index: 0, fromBottom: 40 }),
     ]);
     data.rollouts.set('r.0', { rollouts: [rollout(18, 100, { x: 120 }), rollout(null, 100, { x: 100 })] });
-    expect(interiorNotes(data)).toEqual({ dividers: ['fs up 40" oc', 'fs up 20" oc'],
+    expect(interiorNotes(data)).toMatchObject({ dividers: ['fs up 40" oc', 'fs up 20" oc'],
       sections: ['Top Sec (1 ro, 1 ro - 18")'] });
     // A box outside this section must not hide its flags, even if it overlaps the section.
     data.shelves.get('r.0').lineBore = false;
     data.boxes = [{ space: { x: 100, z: 50, width: 30, height: 60 } }];
-    expect(interiorNotes(data).sections).toEqual(['Top Sec (1 ro, 1 ro - 18", NLB)']);
+    expect(interiorNotes(data).sections).toEqual(['Top Sec (NLB, 1 ro, 1 ro - 18")']);
+  });
+
+  describe('IN10.1 drawer fronts in their section, flags first', () => {
+    const front = (path, height, z) => ({ type: 'drawer_front', path, x: 105, width: 20, height, z });
+
+    it('prints a tall\'s bottom drawers inside Btm Sec, with the depth', () => {
+      const data = input(vertical(2), [['r.0', S(3)],
+        ['r.1', S(0, { lineBore: false, hinges: false, lineBoreSource: 'auto', hingesSource: 'auto' })]],
+      [divider('fixed', { fromBottom: 30 })]);
+      data.faces = [front('a', 12, 52), front('b', 12, 66)];
+      data.depths = new Map([['a', 21], ['b', 21]]);
+      data.boxes = [{ space: { x: 100, z: 52, width: 30, height: 12 } }];
+      expect(interiorNotes(data)).toEqual({ dividers: ['fs up 30" oc'],
+        sections: ['Top Sec (3 as)', 'Btm Sec (DF\'s (2 - 12", 21" drws))'], fronts: null });
+    });
+
+    it('puts flags first and each item on its own line in a single section', () => {
+      const data = input(null, [['r', S(1, { lineBore: false, lineBoreSource: 'manual' })]]);
+      data.faces = [front('a', 5.875, 100)];
+      data.depths = new Map([['a', 21]]);
+      data.rollouts.set('r', { rollouts: [rollout(21, 60)] });
+      expect(interiorNotes(data)).toEqual({ dividers: [],
+        sections: ['NLB', 'DF\'s (1 - 5 7/8", 21" drw)', '1 as', '1 ro - 21"'], fronts: null });
+    });
+
+    it('keeps fronts outside every section at the cabinet level', () => {
+      const data = input();
+      data.faces = [{ type: 'drawer_front', path: 'x', x: 0, width: 10, height: 6, z: 0 }];
+      expect(interiorNotes(data)).toEqual({ dividers: [], sections: ['1 as'], fronts: 'DF\'s (1 - 6")' });
+    });
   });
 });

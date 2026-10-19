@@ -32,7 +32,9 @@ import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { doorOrderItems } from './doorOrder.js';
 import { formatInch, formatSize } from './format.js';
 import { frameMemberRoles, frameNotes, frameReasons, frameStandards } from './frameNotes.js';
-import { interiorNotes } from './interiorNotes.js';
+import { drawerFrontNote, faceOrder, interiorNotes } from './interiorNotes.js';
+
+export { drawerFrontNote };
 
 const TYPES = { 1: 'Base', 2: 'Upper', 3: 'Tall' };
 const MOLDINGS = { toeKick: 'Toe Kick', topMold: 'Top Mold', crown: 'Crown' };
@@ -81,40 +83,6 @@ function shippingMoldings(room, settings) {
       : dimensions.map(({ height, depth }) => `${height} tall${depth === null ? '' : ` x ${depth} deep`}`).join(' & ');
   }
   return result;
-}
-
-function faceOrder(a, b) {
-  const topA = a.z == null ? 0 : a.z + (a.height ?? 0);
-  const topB = b.z == null ? 0 : b.z + (b.height ?? 0);
-  return topB - topA || (a.x ?? 0) - (b.x ?? 0);
-}
-
-/** Group working fronts by height and slide, retaining their first top-down appearance. */
-export function drawerFrontNote(faces = [], slideNames = new Map(), depths = new Map()) {
-  const fronts = faces.filter((face) => face.type === 'drawer_front').sort(faceOrder);
-  const depthCounts = new Map();
-  for (const face of fronts) {
-    const depth = depths.get(face.path);
-    if (depth != null) depthCounts.set(depth, (depthCounts.get(depth) ?? 0) + 1);
-  }
-  // Map order breaks equal-frequency ties by the first top-down appearance.
-  const commonDepth = [...depthCounts.keys()].reduce((best, depth) =>
-    best === null || depthCounts.get(depth) > depthCounts.get(best) ? depth : best, null);
-  const groups = new Map();
-  for (const face of fronts) {
-    const height = Math.round(face.height * 32) / 32;
-    const name = slideNames.get(face.path) || null;
-    const depth = depths.get(face.path);
-    const tag = [name, depth != null && depth !== commonDepth ? `${formatInch(depth)} deep` : null]
-      .filter(Boolean).join(', ');
-    const key = JSON.stringify([height, tag]);
-    if (!groups.has(key)) groups.set(key, { height, tag, count: 0 });
-    groups.get(key).count += 1;
-  }
-  const notes = [...groups.values()].map(({ height, tag, count }) =>
-    `${count} - ${formatInch(height)}${tag ? ` (${tag})` : ''}`);
-  if (commonDepth !== null) notes.push(`${formatInch(commonDepth)} ${fronts.length === 1 ? 'drw' : 'drws'}`);
-  return groups.size ? `DF's (${notes.join(', ')})` : null;
 }
 
 /** Single doors and action pairs need shop instructions; pair halves share a path. */
@@ -325,7 +293,8 @@ function cabinetNotes(room, settings, part, context) {
   const data = context.interiorData();
   const interior = data.interiors.get(part.key);
   const notes = interior ? interiorNotes({ interior, shelves: data.shelves.get(part.key),
-    rollouts: data.rollouts.get(part.key), boxes: drawerData?.boxes ?? [], roomSlideId, settings }) : null;
+    rollouts: data.rollouts.get(part.key), boxes: drawerData?.boxes ?? [], roomSlideId, settings,
+    faces, slideNames, depths }) : null;
   const boxes = room.reportParts?.[part.key]?.boxes;
   const style = resolveStyle(settings, room, run, leaf);
   const standard = layout && !isInsetStyle(style)
@@ -333,7 +302,8 @@ function cabinetNotes(room, settings, part, context) {
   const values = standard ? layout.reveals.values : leaf?.reveals;
   const reveals = REVEAL_KEYS.filter((key) => Number.isFinite(values?.[key])
     && (!standard || Math.abs(values[key] - standard[key]) > EPSILON))
-    .map((key) => `${formatInch(values[key])} ${key[0].toUpperCase()}`);
+    // A negative reveal is an overhang: "1 5/8" OH B", not "-1 5/8" B" (Kyle 2026-10-19).
+    .map((key) => `${formatInch(Math.abs(values[key]))} ${values[key] < 0 ? 'OH ' : ''}${key[0].toUpperCase()}`);
   const blind = scene.blind.entries.find(({ pieceId }) => pieceId === part.key);
   const doors = faces.filter((face) => face.type === 'door');
   const doorWidth = doors.length ? Math.max(...doors.map(({ width }) => width)) : blind?.visibleWidth;
@@ -359,11 +329,13 @@ function cabinetNotes(room, settings, part, context) {
       box.right === false ? 'no right side' : null,
     ],
     3: blind ? `Door x ${formatInch(doorWidth)}, Blind x ${formatInch(blind.extension)}` : null,
-    4: drawerFrontNote(faces, slideNames, depths),
-    4.5: drawerData?.notes.map(({ text }) => text),
+    // Drawer fronts print inside their section (IN10.1); only fronts outside every section stay here.
+    4: notes ? notes.fronts : drawerFrontNote(faces, slideNames, depths),
     5: falseFronts ? falseFronts === 1 ? 'false front' : `${falseFronts} false fronts` : null,
     5.4: notes?.dividers,
     5.5: notes?.sections,
+    // Drawer rule notes follow the DF's, which now sit in their section (IN10.1).
+    5.6: drawerData?.notes.map(({ text }) => text),
     6: hingeNote(faces),
     7: rabbets.get(part.key),
   };
