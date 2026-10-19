@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import InchInput from '../InchInput.jsx';
+import { CABINET_TYPE_IDS } from '../../model/constants.js';
 import { cabinetInterior } from '../../model/interiors.js';
 import { gridLeaves } from '../../model/grid.js';
 import { resolveWall } from '../../model/room.js';
@@ -251,5 +253,119 @@ describe('IN2 Interior section', () => {
     expect(render({ wall: view, run: view.runs[0] })).not.toBeNull();
     expect(cabinetInterior).toHaveBeenLastCalledWith(room(), wall(), 'back', state.settings, 'c1');
     expect(render()).toBeNull();
+  });
+});
+
+
+const autoDoors = () => edit(() => {
+  run().cabinetTypeId = CABINET_TYPE_IDS.TALL;
+  run().height = 84;
+  item().face = { direction: 'vertical', size: null,
+    children: [{ type: 'door', size: null }, { type: 'door', size: null }] };
+});
+const linkedShelf = { kind: 'fixed', seam: 'r:0' };
+
+describe('IN7 effective interior edits', () => {
+  it('anchors 1–3: shows automatic outlines, edits, relinks via auto or blank, and restores Auto', () => {
+    autoDoors();
+    expect(item()).not.toHaveProperty('interior');
+    expect(text(render())).toContain('Auto from faces');
+    expect(text(field('Interior r'))).toBe('Stack × 2');
+    expect(field('Divider position r.0').props.placeholder).toBe('Auto (42" · Seam)');
+    select('r.1');
+    expect(field('Interior r.1').props['aria-pressed']).toBe(true);
+    select('r');
+    for (const value of ['auto', '']) {
+      commit('Divider position r.0', 40);
+      expectInterior(group('vertical', [{ ...linkedShelf, at: 40 }]));
+      expect(text(render())).toContain('Edited');
+      expect(field('Divider position r.0').props.value).toBe(40);
+      expect(text(render())).toContain('type auto to return to the seam');
+      const props = field('Divider position r.0').props;
+      const input = () => {
+        hookIndex = 1;
+        return InchInput(props);
+      };
+      input().props.onChange({ target: { value } });
+      input().props.onBlur();
+      expectInterior(group('vertical', [linkedShelf]));
+      expect(field('Divider position r.0').props.placeholder).toBe('Auto (42" · Seam)');
+      expect(text(render())).toContain('Edited');
+      expect(text(render())).not.toContain('type auto to return to the seam');
+    }
+    click('Auto');
+    expectInterior(null);
+    expect(text(render())).toContain('Auto from faces');
+    expect(button('Auto')).toBeUndefined();
+  });
+
+  it('anchor 4: removing the last automatic shelf stores an edited empty section; nested edits retain the auto tree', () => {
+    autoDoors();
+    field('Remove divider r.0').props.onClick();
+    expectInterior({});
+    expect(text(render())).toContain('Edited');
+    expect(field('Divider position r.0')).toBeUndefined();
+    click('Auto');
+    select('r.0');
+    click('Partitions');
+    expectInterior(group('vertical', [linkedShelf], [group('horizontal', [partition]), {}]));
+    click('Auto');
+    select('r');
+    click('Clear');
+    expectInterior({});
+  });
+
+  it('edits effective kinds, depths and banding, preserving seams and explicit picks until reset', () => {
+    autoDoors();
+    const tick = (checked) => field('Divider banding r.0').props.onChange({ target: { checked } });
+    expect(field('Divider banding r.0').props.checked).toBe(true);
+    tick(true); // An explicit pick sticks even when it matches the default.
+    expectInterior(group('vertical', [{ ...linkedShelf, banding: true }]));
+    edit(() => { item().style = { cabinetStyleId: 14 }; });
+    expect(field('Divider banding r.0').props.checked).toBe(true);
+    field('Reset divider banding r.0').props.onClick();
+    expectInterior(group('vertical', [linkedShelf]));
+    expect(field('Divider banding r.0').props.checked).toBe(false);
+    expect(field('Reset divider banding r.0')).toBeUndefined();
+    tick(false);
+    edit(() => { item().style = { cabinetStyleId: 13 }; });
+    expect(field('Divider banding r.0').props.checked).toBe(false);
+    click('Auto');
+    commit('Divider depth r.0', 10);
+    expectInterior(group('vertical', [{ ...linkedShelf, depth: 10 }]));
+    click('Auto');
+    change('Divider kind r.0', 'double_fixed');
+    expectInterior(group('vertical', [{ ...linkedShelf, kind: 'double_fixed' }]));
+    tick(false);
+    expect(item().interior.dividers[0].banding).toBe(false);
+    change('Divider kind r.0', 'stretcher');
+    expectInterior(group('vertical', [{ kind: 'stretcher', seam: 'r:0' }]));
+    expect(field('Divider banding r.0')).toBeUndefined();
+    click('Auto');
+    commit('Divider position r.0', 40);
+    click('Equal spacing');
+    expectInterior(group('vertical', [linkedShelf]));
+    expect(field('Divider position r.0').props.placeholder).toBe('Auto (42" · Seam)');
+    edit(() => {
+      run().width = run().grid.cols[0].size = item().width = 42;
+      item().face = { type: 'pair_door', size: null };
+      delete item().interior;
+    });
+    expect(field('Divider banding r.0')).toBeUndefined();
+    change('Divider kind r.0', 'double_partition');
+    expectInterior(group('horizontal', [{ kind: 'double_partition', seam: 'r:pair' }]));
+  });
+
+  it('explains missing seam and wide box warnings', () => {
+    autoDoors();
+    commit('Divider position r.0', 40);
+    edit(() => { item().face = { type: 'door', size: null }; });
+    expect(text(render())).toContain("A shelf or partition lost its door seam; it's spaced evenly.");
+    edit(() => {
+      run().width = run().grid.cols[0].size = item().width = 42;
+      item().face = { type: 'pair_door', size: null };
+      item().interior = {};
+    });
+    expect(text(render())).toContain('Box is over 36" wide with no partition between the doors.');
   });
 });

@@ -11,6 +11,7 @@ import {
   getInteriorNode,
   interiorOutline,
   removeDivider,
+  setDividerBanding,
   setDividerDepth,
   setDividerKind,
   setDividerPosition,
@@ -27,20 +28,22 @@ const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 p
 const WARNING_MESSAGES = {
   'section-too-small': 'A section is smaller than 1". Move a divider.',
   'divider-too-deep': 'A divider is deeper than the box interior.',
+  'divider-seam-missing': 'A shelf or partition lost its door seam; it\'s spaced evenly.',
+  'wide-no-partition': 'Box is over 36" wide with no partition between the doors.',
 };
 
 export default function InteriorFields({ room, wall, run, item, settings }) {
   const dispatch = useDispatch();
-  const interior = item.interior ?? null;
   const interiorPath = useSelector((state) => state.elevation.interiorPath);
   const interiorDivider = useSelector((state) => state.elevation.interiorDivider);
   const selectedPath = interiorPath ?? 'r';
   const [splitCount, setSplitCount] = useState(2);
-  const path = getInteriorNode(interior, selectedPath) ? selectedPath : 'r';
-  const selected = getInteriorNode(interior, path);
   const resolved = useMemo(() => cabinetInterior(
     room, wall.sideSource ?? wall, wall.side ?? 'front', settings, item.id,
   ), [room, wall, settings, item.id]);
+  const interior = resolved?.tree ?? null;
+  const path = getInteriorNode(interior, selectedPath) ? selectedPath : 'r';
+  const selected = getInteriorNode(interior, path);
 
   useEffect(() => {
     if (path !== selectedPath) dispatch(setInteriorPath(null));
@@ -59,6 +62,12 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
   return (
     <section className="space-y-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Interior</h3>
+      <div className="flex items-center justify-between text-xs text-gray-400">
+        <span>{resolved.auto ? 'Auto from faces' : 'Edited'}</span>
+        {!resolved.auto && (
+          <button type="button" className={BUTTON_CLASS} onClick={() => commit(null)}>Auto</button>
+        )}
+      </div>
       <div className="space-y-1">
         {interiorOutline(interior).map(({ path: rowPath, depth, node }) => {
           const rect = resolved.sections.find((section) => section.path === rowPath);
@@ -143,12 +152,16 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                         aria-label={`Divider position ${path}.${index}`}
                         value={divider.at}
                         allowBlank
-                        placeholder={`Auto (${formatInches(position)})`}
+                        allowAuto
+                        placeholder={`Auto (${formatInches(position)}${actual.linked ? ' · Seam' : ''})`}
                         onCommit={(value) => commit(setDividerPosition(
                           interior, path, index, value, stacked ? undefined : from,
                         ))}
                       />
                     </Field>
+                    {divider.seam && divider.at !== undefined && (
+                      <p className="mt-1 text-xs text-gray-400">type auto to return to the seam</p>
+                    )}
                   </div>
                 </div>
                 <Field label="Depth">
@@ -160,6 +173,31 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                     onCommit={(value) => commit(setDividerDepth(interior, path, index, value))}
                   />
                 </Field>
+                {actual.banding !== null && (
+                  <div className="flex items-center justify-between text-xs text-gray-400">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        aria-label={`Divider banding ${path}.${index}`}
+                        checked={actual.banding}
+                        onChange={(event) => commit(setDividerBanding(
+                          interior, path, index, event.target.checked,
+                        ))}
+                      />
+                      Banded
+                    </label>
+                    {actual.bandingSource === 'manual' && (
+                      <button
+                        type="button"
+                        aria-label={`Reset divider banding ${path}.${index}`}
+                        className="text-teal-400 hover:underline"
+                        onClick={() => commit(setDividerBanding(interior, path, index, null))}
+                      >
+                        Reset
+                      </button>
+                    )}
+                  </div>
+                )}
                 <button
                   type="button"
                   aria-label={`Remove divider ${path}.${index}`}

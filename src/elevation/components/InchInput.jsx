@@ -9,6 +9,7 @@ export default function InchInput({
   value,
   onCommit,
   allowBlank = false,
+  allowAuto = false,
   displayStep,
   borderClass = 'border-gray-600',
   className = '',
@@ -24,7 +25,7 @@ export default function InchInput({
 
   const commit = () => {
     const trimmed = text.trim();
-    if (allowBlank && trimmed === '') {
+    if ((allowBlank && trimmed === '') || (allowAuto && trimmed.toLowerCase() === 'auto')) {
       const accepted = onCommit(null);
       if (accepted === false) revert();
       else setText('');

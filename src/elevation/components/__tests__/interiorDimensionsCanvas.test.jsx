@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDispatch, useSelector } from 'react-redux';
 import { Group, Line, Rect, Stage, Text } from 'react-konva';
 import { CABINET_TYPE_IDS } from '../../model/constants.js';
-import { runItems } from '../../model/grid.js';
+import { gridLeaves, runItems } from '../../model/grid.js';
 import { interiorDimensions } from '../../model/interiors.js';
 import { resolveWall, syncRoom } from '../../model/room.js';
 import { wallToScreen } from '../../canvas/transform.js';
@@ -251,5 +251,36 @@ describe('IN3 divider dimensions, typed edits and dragging', () => {
     pointer = { x: divider.props.x + 40, y: divider.props.y + 40 };
     small.shapes.filter(({ type }) => type === Rect)[1].props.onClick({});
     expect(state).toMatchObject({ interiorPath: 'r.1', interiorDivider: null });
+  });
+});
+
+
+describe('IN7 automatic divider canvas edits', () => {
+  it('anchors 1–2: dragging an automatic shelf stores its effective tree; typing auto returns it to 42', () => {
+    state = structuredClone(state);
+    const leaf = gridLeaves(state.rooms[0].walls[0].runs[0].grid)[0];
+    delete leaf.interior;
+    leaf.face = { direction: 'vertical', size: null,
+      children: [{ type: 'door', size: null }, { type: 'door', size: null }] };
+    const view = canvas();
+    expect(view.dimensionNode.props.entry).toMatchObject({ auto: true });
+    expect(view.dimensions.find(({ type }) => type === Text).props.text).toBe('42');
+    const divider = view.shapes.filter(({ type }) => type === Rect).at(-1);
+    const { x, y } = divider.props;
+    const scale = view.runNode.props.transform.scale;
+    divider.props.onDragEnd({ target: { x: () => x, y: () => y + 2 * scale, position: vi.fn() } });
+    expectInterior(group('vertical', [{ kind: 'fixed', seam: 'r:0', at: 40 }]));
+    expect(canvas().dimensionNode.props.entry.auto).toBe(false);
+    clickLabel();
+    typeAndEnter('auto');
+    expectInterior(group('vertical', [{ kind: 'fixed', seam: 'r:0' }]));
+    expect(canvas().dimensionNode.props.entry).toMatchObject({ auto: false });
+    expect(canvas().dimensions.find(({ type }) => type === Text).props.text).toBe('42');
+    state = structuredClone(state);
+    delete gridLeaves(state.rooms[0].walls[0].runs[0].grid)[0].interior;
+    expect(canvas().dimensionNode.props.entry.auto).toBe(true);
+    clickLabel();
+    typeAndEnter('40');
+    expectInterior(group('vertical', [{ kind: 'fixed', seam: 'r:0', at: 40 }]));
   });
 });

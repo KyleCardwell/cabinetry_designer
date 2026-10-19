@@ -927,17 +927,18 @@ function ElevationCanvas({
     if (!wall || !room || tool !== 'select' || !doorsOff) return;
     const run = wall.runs.find((candidate) => candidate.id === edit.runId);
     const item = run && runItems(run).find((candidate) => candidate.id === edit.itemId);
-    if (!item) return;
+    const entry = interiors.find((candidate) => candidate.runId === edit.runId && candidate.itemId === edit.itemId);
+    if (!item || !entry) return;
     dispatch(setItemInterior({
       roomId: room.id,
       wallId: wall.id,
       runId: run.id,
       itemIds: [item.id],
-      interior: setDividerPosition(item.interior, edit.path, edit.index, value,
+      interior: setDividerPosition(entry.tree, edit.path, edit.index, value,
         edit.side === 'bottom' ? undefined : edit.side),
     }));
     setDividerEdit(null);
-  }, [dispatch, doorsOff, room, tool, wall]);
+  }, [dispatch, doorsOff, interiors, room, tool, wall]);
 
   const moveDivider = useCallback((edit, value) => {
     suppressNextClick();
