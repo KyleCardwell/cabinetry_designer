@@ -182,6 +182,49 @@ describe('IN1b cabinet box persistence', () => {
 });
 
 describe('IN2 interior persistence', () => {
+  it('IN7 round-trips empty sections and seam/banding keys and rejects invalid divider data', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    const linked = {
+      direction: 'horizontal',
+      children: [{ direction: 'vertical', children: [{}, {}],
+        dividers: [{ kind: 'fixed', seam: 'r.1:2', at: 30, banding: false }] }, {}],
+      dividers: [{ kind: 'partition', seam: 'r:pair' }],
+    };
+    for (const interior of [{}, linked]) {
+      for (const nested of [false, true]) {
+        const document = structuredClone(base);
+        const cell = document.rooms[0].walls[0].runs[0].grid.cells[0];
+        cell.node.interior = interior;
+        if (nested) cell.node = gridFromItems('nested', [{ ...cell.node, width: null }, { id: 'other', kind: 'cabinet', width: null }]);
+        expect(isElevationDocument(document)).toBe(true);
+        const saved = toElevationDocument(createInitialElevationState(document));
+        globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+        const loaded = loadElevationDocument();
+        expect(isElevationDocument(loaded)).toBe(true);
+        const node = loaded.rooms[0].walls[0].runs[0].grid.cells[0].node;
+        expect(nested ? node.cells[0].node : node).toHaveProperty('interior', interior);
+      }
+    }
+    for (const divider of [
+      { kind: 'fixed', seam: 'r:pair' }, { kind: 'fixed', seam: 'x' },
+      { kind: 'fixed', banding: null }, { kind: 'stretcher', banding: false },
+    ]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = {
+        direction: 'vertical', children: [{}, {}], dividers: [divider],
+      };
+      expect(isElevationDocument(document)).toBe(false);
+    }
+    for (const kind of ['panel', 'filler', 'void', 'shelves']) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node = {
+        id: 'not-cabinet', kind, width: 1, interior: {},
+        ...(kind === 'shelves' ? { shelves: { count: 1, back: false } } : {}),
+      };
+      expect(isElevationDocument(document)).toBe(false);
+    }
+  });
+
   it('round-trips root and nested cabinet interiors and rejects other stored shapes and leaf kinds (anchor 5)', () => {
     const interior = {
       direction: 'horizontal',
@@ -203,7 +246,7 @@ describe('IN2 interior persistence', () => {
       const node = loaded.rooms[0].walls[0].runs[0].grid.cells[0].node;
       expect((nested ? node.cells[0].node : node).interior).toEqual(interior);
     }
-    for (const invalid of [{}, null, [], { ...interior, dividers: [] }]) {
+    for (const invalid of [null, [], { ...interior, dividers: [] }]) {
       const document = structuredClone(base);
       document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = invalid;
       expect(isElevationDocument(document)).toBe(false);

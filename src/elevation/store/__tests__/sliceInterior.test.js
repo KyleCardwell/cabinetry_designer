@@ -7,8 +7,8 @@ describe('IN2 setItemInterior', () => {
   const at = { wallId: 'wall-1', runId: 'run-1' };
   const tree = () => ({
     direction: 'horizontal',
-    children: [{ direction: 'vertical', children: [{}, {}], dividers: [{ kind: 'fixed', at: 36 }] }, {}],
-    dividers: [{ kind: 'double_partition', at: 12, from: 'right', depth: 10 }],
+    children: [{ direction: 'vertical', children: [{}, {}], dividers: [{ kind: 'fixed', at: 36, seam: 'r.0:0', banding: false }] }, {}],
+    dividers: [{ kind: 'double_partition', at: 12, from: 'right', depth: 10, seam: 'r:pair' }],
   });
   const base = () => {
     const state = stateWithRun(run({ autoCount: false, items: [
@@ -37,15 +37,13 @@ describe('IN2 setItemInterior', () => {
     expect(first.interior.children[0].dividers[0].at).toBe(36);
   });
 
-  it('deletes the key for {} or null and ignores an invalid tree with identical state (anchor 4)', () => {
+  it('deletes the key for null and ignores an invalid tree with identical state (anchor 4)', () => {
     const before = elevationReducer(base(), setItemInterior({ ...at, itemIds: ['c1', 'c2'], interior: tree() }));
-    for (const interior of [{}, null]) {
-      const cleared = elevationReducer(before, setItemInterior({ ...at, itemIds: ['c1'], interior }));
-      expect(leaves(cleared)[0]).not.toHaveProperty('interior');
-      expect(leaves(cleared)[1].interior).toEqual(tree());
-      for (const invalid of [undefined, [], { direction: 'vertical', children: [{}, {}], dividers: [] }]) {
-        expect(elevationReducer(cleared, setItemInterior({ ...at, itemIds: ['c1'], interior: invalid }))).toBe(cleared);
-      }
+    const cleared = elevationReducer(before, setItemInterior({ ...at, itemIds: ['c1'], interior: null }));
+    expect(leaves(cleared)[0]).not.toHaveProperty('interior');
+    expect(leaves(cleared)[1].interior).toEqual(tree());
+    for (const invalid of [undefined, [], { direction: 'vertical', children: [{}, {}], dividers: [] }]) {
+      expect(elevationReducer(cleared, setItemInterior({ ...at, itemIds: ['c1'], interior: invalid }))).toBe(cleared);
     }
   });
 
@@ -59,5 +57,21 @@ describe('IN2 setItemInterior', () => {
     for (const locked of [{ ...state, cloud: { room: { readOnly: true } } }, { ...state, source: 'version' }]) {
       expect(elevationReducer(locked, setItemInterior(payload))).toBe(locked);
     }
+  });
+
+  it('IN7 anchors 3 and 4: stores independent empty sections and only null restores auto', () => {
+    const before = elevationReducer(base(), setItemInterior({ ...at, itemIds: ['c1'], interior: tree() }));
+    const interior = {};
+    const edited = elevationReducer(before, setItemInterior({ ...at, itemIds: ['c1', 'c2', 'p1', 'f1'], interior }));
+    const [first, second] = leaves(edited);
+    expect(first).toHaveProperty('interior', {});
+    expect(second).toHaveProperty('interior', {});
+    expect(first.interior).not.toBe(interior);
+    expect(first.interior).not.toBe(second.interior);
+    expect(leaves(edited).slice(2).every((leaf) => !Object.hasOwn(leaf, 'interior'))).toBe(true);
+    const reset = elevationReducer(edited, setItemInterior({ ...at, itemIds: ['c1'], interior: null }));
+    expect(leaves(reset)[0]).not.toHaveProperty('interior');
+    expect(leaves(reset)[1]).toHaveProperty('interior', {});
+    expect(leaves(before)[0].interior).toEqual(tree());
   });
 });

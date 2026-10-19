@@ -3,12 +3,19 @@ import { INTERIOR_DIVIDERS } from './constants.js';
 import { MAX_FACE_SPLIT, parentFacePath } from './faceTree.js';
 import { ROOT_FACE_PATH } from './faces.js';
 
+const BANDED_KINDS = ['fixed', 'double_fixed'];
+
 function isDivider(divider, direction) {
   return isPlainObject(divider)
-    && Object.keys(divider).every((key) => ['kind', 'at', 'from', 'depth'].includes(key))
+    && Object.keys(divider).every((key) => ['kind', 'at', 'from', 'depth', 'seam', 'banding'].includes(key))
     && INTERIOR_DIVIDERS[direction].includes(divider.kind)
     && (!Object.hasOwn(divider, 'at') || (Number.isFinite(divider.at) && divider.at > 0))
     && (!Object.hasOwn(divider, 'depth') || (Number.isFinite(divider.depth) && divider.depth > 0))
+    && (!Object.hasOwn(divider, 'seam') || (typeof divider.seam === 'string'
+      && /^r(\.\d+)*:(\d+|pair)$/.test(divider.seam)
+      && (direction === 'horizontal' || !divider.seam.endsWith(':pair'))))
+    && (!Object.hasOwn(divider, 'banding') || (BANDED_KINDS.includes(divider.kind)
+      && typeof divider.banding === 'boolean'))
     && (!Object.hasOwn(divider, 'from')
       || (direction === 'horizontal' && divider.from === 'right' && Object.hasOwn(divider, 'at')));
 }
@@ -27,9 +34,9 @@ export function isInteriorNode(node) {
     && Array.from(node.dividers).every((divider) => isDivider(divider, node.direction));
 }
 
-/** Only groups are stored; one section is represented by an absent interior key. */
+/** Stored {} is a hand-edited section; an absent interior key means auto. */
 export function isStoredInterior(value) {
-  return isInteriorNode(value) && Object.hasOwn(value, 'direction');
+  return isInteriorNode(value);
 }
 
 /** An absent interior is one empty root section. Missing paths return null. */
@@ -53,8 +60,7 @@ export function interiorOutline(interior) {
 
 function replaceAt(interior, path, replacer) {
   if (path === ROOT_FACE_PATH) {
-    const next = replacer(interior ?? {});
-    return next.children ? next : null;
+    return replacer(interior ?? {});
   }
   const parentPath = parentFacePath(path);
   const index = Number(path.split('.').at(-1));
@@ -68,16 +74,16 @@ function replaceAt(interior, path, replacer) {
 export function splitSection(interior, path, direction, count, kind) {
   const target = getInteriorNode(interior, path);
   if (!target || target.children || !Object.hasOwn(INTERIOR_DIVIDERS, direction)
-    || !Number.isFinite(count)) return interior;
+    || !Number.isFinite(count)) return interior ?? {};
   const dividerKind = kind === undefined ? INTERIOR_DIVIDERS[direction][0] : kind;
-  if (!INTERIOR_DIVIDERS[direction].includes(dividerKind)) return interior;
+  if (!INTERIOR_DIVIDERS[direction].includes(dividerKind)) return interior ?? {};
   const n = Math.min(MAX_FACE_SPLIT, Math.max(2, Math.round(count)));
   const children = Array.from({ length: n }, () => ({}));
   const dividers = Array.from({ length: n - 1 }, () => ({ kind: dividerKind }));
   const parentPath = parentFacePath(path);
   const parent = parentPath === null ? null : getInteriorNode(interior, parentPath);
   if (parent?.direction === direction) {
-    if (parent.children.length + n - 1 > MAX_FACE_SPLIT) return interior;
+    if (parent.children.length + n - 1 > MAX_FACE_SPLIT) return interior ?? {};
     const index = Number(path.split('.').at(-1));
     return replaceAt(interior, parentPath, (node) => ({
       ...node,
@@ -94,10 +100,10 @@ function dividerGroup(interior, path, index) {
     ? group : null;
 }
 
-/** Merge only adjacent sections; a collapsed root is no stored interior. */
+/** Merge only adjacent sections; a collapsed root is a stored empty section. */
 export function removeDivider(interior, groupPath, index) {
   const group = dividerGroup(interior, groupPath, index);
-  if (!group || group.children[index].children || group.children[index + 1].children) return interior;
+  if (!group || group.children[index].children || group.children[index + 1].children) return interior ?? {};
   return replaceAt(interior, groupPath, (node) => node.children.length === 2 ? {} : ({
     ...node,
     children: [...node.children.slice(0, index), {}, ...node.children.slice(index + 2)],
@@ -107,11 +113,11 @@ export function removeDivider(interior, groupPath, index) {
 
 function editDivider(interior, path, index, edit) {
   const group = dividerGroup(interior, path, index);
-  if (!group) return interior;
+  if (!group) return interior ?? {};
   const current = group.dividers[index];
   const next = edit(current, group.direction);
   if (!next || (Object.keys(current).length === Object.keys(next).length
-    && Object.keys(current).every((key) => current[key] === next[key]))) return interior;
+    && Object.keys(current).every((key) => current[key] === next[key]))) return interior ?? {};
   return replaceAt(interior, path, (node) => ({
     ...node,
     dividers: node.dividers.map((divider, i) => i === index ? next : divider),
@@ -119,9 +125,24 @@ function editDivider(interior, path, index, edit) {
 }
 
 export function setDividerKind(interior, groupPath, index, kind) {
-  return editDivider(interior, groupPath, index, (divider, direction) => (
-    INTERIOR_DIVIDERS[direction].includes(kind) ? { ...divider, kind } : null
-  ));
+  return editDivider(interior, groupPath, index, (divider, direction) => {
+    if (!INTERIOR_DIVIDERS[direction].includes(kind)) return null;
+    const next = { ...divider, kind };
+    if (!BANDED_KINDS.includes(kind)) delete next.banding;
+    return next;
+  });
+}
+
+/** A stored pick overrides automatic banding; null restores the default. */
+export function setDividerBanding(interior, groupPath, index, value) {
+  if (value !== null && typeof value !== 'boolean') return interior ?? {};
+  return editDivider(interior, groupPath, index, (divider) => {
+    if (!BANDED_KINDS.includes(divider.kind)) return null;
+    const next = { ...divider };
+    if (value === null) delete next.banding;
+    else next.banding = value;
+    return next;
+  });
 }
 
 function autoPosition(divider) {
@@ -133,7 +154,7 @@ function autoPosition(divider) {
 
 /** Positions are kept as typed; only partitions accept an origin side. */
 export function setDividerPosition(interior, groupPath, index, at, from) {
-  if (at !== null && !(Number.isFinite(at) && at > 0)) return interior;
+  if (at !== null && !(Number.isFinite(at) && at > 0)) return interior ?? {};
   return editDivider(interior, groupPath, index, (divider, direction) => {
     if (from !== undefined && (direction !== 'horizontal' || !['left', 'right'].includes(from))) return null;
     const next = autoPosition(divider);
@@ -146,7 +167,7 @@ export function setDividerPosition(interior, groupPath, index, at, from) {
 }
 
 export function setDividerDepth(interior, groupPath, index, depth) {
-  if (depth !== null && !(Number.isFinite(depth) && depth > 0)) return interior;
+  if (depth !== null && !(Number.isFinite(depth) && depth > 0)) return interior ?? {};
   return editDivider(interior, groupPath, index, (divider) => {
     const next = { ...divider };
     if (depth === null) delete next.depth;
@@ -158,13 +179,13 @@ export function setDividerDepth(interior, groupPath, index, depth) {
 /** Clear positions in this group only, retaining kinds and depth overrides. */
 export function equalizeDividers(interior, groupPath) {
   const group = getInteriorNode(interior, groupPath);
-  if (!group?.children || !group.dividers.some((divider) => Object.hasOwn(divider, 'at'))) return interior;
+  if (!group?.children || !group.dividers.some((divider) => Object.hasOwn(divider, 'at'))) return interior ?? {};
   return replaceAt(interior, groupPath, (node) => ({
     ...node, dividers: node.dividers.map(autoPosition),
   }));
 }
 
 export function clearSplit(interior, groupPath) {
-  if (!getInteriorNode(interior, groupPath)?.children) return interior;
+  if (!getInteriorNode(interior, groupPath)?.children) return interior ?? {};
   return replaceAt(interior, groupPath, () => ({}));
 }

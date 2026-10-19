@@ -135,6 +135,7 @@ export {
   isInteriorNode,
   isStoredInterior,
   removeDivider,
+  setDividerBanding,
   setDividerDepth,
   setDividerKind,
   setDividerPosition,

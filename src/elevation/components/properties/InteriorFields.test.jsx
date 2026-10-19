@@ -225,7 +225,7 @@ describe('IN2 Interior section', () => {
     select('r');
     expect(field('Remove divider r.0').props.disabled).toBe(false);
     field('Remove divider r.0').props.onClick();
-    expectInterior(null);
+    expectInterior({});
     click('Partitions');
     select('r.1');
     edit(() => { delete item().interior; });
@@ -234,7 +234,7 @@ describe('IN2 Interior section', () => {
     expect(field('Interior r').props['aria-pressed']).toBe(true);
     expect(field('Interior r.1').props['aria-pressed']).toBe(false);
     click('Clear');
-    expectInterior(null);
+    expectInterior({});
   });
 
   it('shows warning text and auto depths, and resolves front and back views from the source wall', () => {

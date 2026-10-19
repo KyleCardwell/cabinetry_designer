@@ -3,7 +3,7 @@ import {
   BACK_PANEL_THICKNESS, DADO_BACK_SETBACK, INTERIOR_DIVIDERS, INTERIOR_DIVIDER_LABELS,
   MAX_FACE_SPLIT, STRETCHER_DEPTH, clearSplit, equalizeDividers, getInteriorNode,
   interiorOutline, isInteriorNode, isStoredInterior, removeDivider, setDividerDepth,
-  setDividerKind, setDividerPosition, splitSection,
+  setDividerBanding, setDividerKind, setDividerPosition, splitSection,
 } from '../index.js';
 
 describe('IN2 stored interior tree', () => {
@@ -11,9 +11,9 @@ describe('IN2 stored interior tree', () => {
     direction: 'vertical', children: [{}, {}], dividers: [{ kind: 'fixed', at: 36 }],
   });
 
-  it('accepts sections and recursive groups, storing only groups (anchors 1 and 3)', () => {
+  it('accepts stored sections and recursive groups (anchors 1 and 3)', () => {
     expect(isInteriorNode({})).toBe(true);
-    expect(isStoredInterior({})).toBe(false);
+    expect(isStoredInterior({})).toBe(true);
     expect(isStoredInterior(vertical())).toBe(true);
     expect(isStoredInterior({
       direction: 'horizontal', children: [vertical(), {}],
@@ -73,6 +73,99 @@ function deepFreeze(value) {
   return value;
 }
 
+describe('IN7 divider data', () => {
+  const group = (divider, direction = 'vertical') => deepFreeze({
+    direction, children: [{}, {}], dividers: [divider],
+  });
+
+  it('anchor 1: accepts seam links, typed linked positions and shelf banding', () => {
+    for (const divider of [
+      { kind: 'fixed', seam: 'r:0' },
+      { kind: 'fixed', seam: 'r.1:2', at: 30 },
+      { kind: 'double_fixed', banding: false },
+      { kind: 'fixed', seam: 'r.1.2:10', banding: true },
+    ]) expect(isStoredInterior(group(divider))).toBe(true);
+    expect(isStoredInterior(group({ kind: 'partition', seam: 'r.0:2' }, 'horizontal'))).toBe(true);
+  });
+
+  it('anchor 2: restricts pair seams and banding and rejects malformed fields', () => {
+    expect(isStoredInterior(group({ kind: 'fixed', seam: 'r:pair' }))).toBe(false);
+    expect(isStoredInterior(group({ kind: 'partition', seam: 'r:pair' }, 'horizontal'))).toBe(true);
+    for (const kind of ['partition', 'double_partition', 'stretcher']) {
+      const direction = kind === 'stretcher' ? 'vertical' : 'horizontal';
+      for (const banding of [true, false]) expect(isStoredInterior(group({ kind, banding }, direction))).toBe(false);
+    }
+    for (const seam of ['x', 'r:', 'r:0:1', 'r.-1:0', 'r:pairx', 'r:0\n', 0, null, undefined]) {
+      expect(isStoredInterior(group({ kind: 'fixed', seam }))).toBe(false);
+    }
+    for (const banding of [0, 'false', null, undefined]) {
+      expect(isStoredInterior(group({ kind: 'fixed', banding }))).toBe(false);
+    }
+  });
+
+  it('anchor 5: keeps seam links through position, depth and equalize edits', () => {
+    const linked = group({ kind: 'fixed', seam: 'r:0' });
+    const positioned = setDividerPosition(linked, 'r', 0, 30);
+    expect(positioned.dividers[0]).toEqual({ kind: 'fixed', seam: 'r:0', at: 30 });
+    expect(setDividerPosition(positioned, 'r', 0, null)).toEqual(linked);
+    expect(equalizeDividers(positioned, 'r')).toEqual(linked);
+    expect(setDividerDepth(linked, 'r', 0, 10).dividers[0]).toEqual({ kind: 'fixed', seam: 'r:0', depth: 10 });
+    const pair = group({ kind: 'partition', seam: 'r:pair' }, 'horizontal');
+    const right = setDividerPosition(pair, 'r', 0, 12, 'right');
+    expect(setDividerPosition(right, 'r', 0, null)).toEqual(pair);
+    expect(equalizeDividers(right, 'r')).toEqual(pair);
+  });
+
+  it('anchor 6: drops banding for stretchers and preserves links and other overrides', () => {
+    expect(setDividerKind(group({ kind: 'fixed', banding: false }), 'r', 0, 'stretcher').dividers[0])
+      .toEqual({ kind: 'stretcher' });
+    const linked = group({ kind: 'fixed', seam: 'r:0', banding: true, at: 30, depth: 10 });
+    expect(setDividerKind(linked, 'r', 0, 'double_fixed').dividers[0])
+      .toEqual({ ...linked.dividers[0], kind: 'double_fixed' });
+    expect(setDividerKind(linked, 'r', 0, 'stretcher').dividers[0])
+      .toEqual({ kind: 'stretcher', seam: 'r:0', at: 30, depth: 10 });
+  });
+
+  it('sets explicit shelf banding picks and resets them without losing other fields', () => {
+    for (const kind of ['fixed', 'double_fixed']) {
+      const tree = group({ kind, seam: 'r:0', at: 30, depth: 10 });
+      for (const value of [true, false]) {
+        const picked = deepFreeze(setDividerBanding(tree, 'r', 0, value));
+        expect(picked.dividers[0]).toEqual({ ...tree.dividers[0], banding: value });
+        expect(setDividerBanding(picked, 'r', 0, value)).toBe(picked);
+        expect(setDividerBanding(picked, 'r', 0, null)).toEqual(tree);
+      }
+      expect(setDividerBanding(tree, 'r', 0, null)).toBe(tree);
+      for (const value of [undefined, 0, 'false']) expect(setDividerBanding(tree, 'r', 0, value)).toBe(tree);
+      expect(setDividerBanding(tree, 'r.2', 0, true)).toBe(tree);
+      expect(setDividerBanding(tree, 'r', 1, true)).toBe(tree);
+      const nested = deepFreeze({ ...tree, children: [tree, {}] });
+      expect(setDividerBanding(nested, 'r.0', 0, false).children[0].dividers[0].banding).toBe(false);
+    }
+    for (const [kind, direction] of [['stretcher', 'vertical'], ['partition', 'horizontal'], ['double_partition', 'horizontal']]) {
+      const tree = group({ kind }, direction);
+      for (const value of [true, false, null]) expect(setDividerBanding(tree, 'r', 0, value)).toBe(tree);
+    }
+  });
+
+  it('anchor 3: returns stored empty sections when collapsing or editing an absent tree', () => {
+    const tree = group({ kind: 'fixed' });
+    expect(removeDivider(tree, 'r', 0)).toEqual({});
+    expect(clearSplit(tree, 'r')).toEqual({});
+    expect(isStoredInterior({})).toBe(true);
+    for (const absent of [null, undefined]) {
+      for (const result of [
+        splitSection(absent, 'bad', 'vertical', 2), removeDivider(absent, 'r', 0),
+        clearSplit(absent, 'r'), equalizeDividers(absent, 'r'),
+        setDividerPosition(absent, 'r', 0, null), setDividerPosition(absent, 'r', 0, -1),
+        setDividerKind(absent, 'r', 0, 'fixed'), setDividerDepth(absent, 'r', 0, null),
+        setDividerDepth(absent, 'r', 0, -1), setDividerBanding(absent, 'r', 0, true),
+        setDividerBanding(absent, 'r', 0, 'invalid'),
+      ]) expect(result).toEqual({});
+    }
+  });
+});
+
 describe('IN2 interior tree edits', () => {
   const two = deepFreeze({
     direction: 'vertical', children: [{}, {}], dividers: [{ kind: 'fixed' }],
@@ -131,7 +224,7 @@ describe('IN2 interior tree edits', () => {
   it('anchors 4 and 5: removes only seams between sections and collapses the last split', () => {
     expect(removeDivider(nested, 'r', 0)).toBe(nested);
     expect(removeDivider(nested, 'r.0', 0)).toEqual(two);
-    expect(removeDivider(two, 'r', 0)).toBeNull();
+    expect(removeDivider(two, 'r', 0)).toEqual({});
     const three = deepFreeze({
       direction: 'vertical', children: [{}, {}, {}],
       dividers: [{ kind: 'fixed', at: 36 }, { kind: 'stretcher', depth: 5 }],
@@ -205,7 +298,7 @@ describe('IN2 interior tree edits', () => {
     expect(equalizeDividers(equal, 'r')).toBe(equal);
     expect(clearSplit(nested, 'r.0')).toEqual(two);
     expect(clearSplit(manual, 'r.0')).toEqual({ ...manual, children: [{}, {}, {}] });
-    expect(clearSplit(manual, 'r')).toBeNull();
+    expect(clearSplit(manual, 'r')).toEqual({});
     expect(clearSplit(two, 'r.0')).toBe(two);
   });
 
@@ -230,16 +323,19 @@ describe('IN2 interior tree edits', () => {
       for (const path of ['r', 'r.0', 'r.9']) {
         for (const index of [-1, 0, 1, 0.5, '0', NaN]) {
           if (tree === two && path === 'r' && index === 0) continue;
-          expect(removeDivider(tree, path, index)).toBe(tree);
-          expect(setDividerKind(tree, path, index, 'stretcher')).toBe(tree);
-          expect(setDividerPosition(tree, path, index, 12)).toBe(tree);
-          expect(setDividerDepth(tree, path, index, 10)).toBe(tree);
+          for (const result of [
+            removeDivider(tree, path, index), setDividerKind(tree, path, index, 'stretcher'),
+            setDividerPosition(tree, path, index, 12), setDividerDepth(tree, path, index, 10),
+          ]) {
+            if (tree) expect(result).toBe(tree);
+            else expect(result).toEqual({});
+          }
         }
       }
     }
     for (const tree of [null, undefined]) {
-      expect(clearSplit(tree, 'r')).toBe(tree);
-      expect(equalizeDividers(tree, 'r')).toBe(tree);
+      expect(clearSplit(tree, 'r')).toEqual({});
+      expect(equalizeDividers(tree, 'r')).toEqual({});
     }
   });
 });
