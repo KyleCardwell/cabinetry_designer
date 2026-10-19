@@ -1,11 +1,15 @@
 import { BACK_PANEL_THICKNESS, DADO_BACK_SETBACK, STRETCHER_DEPTH } from './constants.js';
+import { autoInterior } from './autoInterior.js';
 import { boxConstruction } from './boxConstruction.js';
 import { findLeaf } from './cellTree.js';
 import { sheetThickness } from './doorStyles.js';
 import { elevationParts } from './elevationParts.js';
-import { MIN_FACE_SIZE, ROOT_FACE_PATH } from './faces.js';
+import { defaultFace, MIN_FACE_SIZE, ROOT_FACE_PATH } from './faces.js';
+import { getFaceNode } from './faceTree.js';
 import { getInteriorNode } from './interiorTree.js';
 import { resolveWall } from './room.js';
+import { runScene } from './runScene.js';
+import { isInsetStyle } from './styles.js';
 import { roundTo } from './units.js';
 
 /** A raised face frame deck (`box.deckZ`, IN5.2); an overlay bottom stays at the box bottom. */
@@ -23,12 +27,12 @@ export function interiorDepth(boxDepth, back, settings) {
 }
 
 /** Divider centres along the outline axis: left to right, or top to bottom (-z). */
-function dividerCenters(node, rect, box, thicknesses) {
+function dividerCenters(node, rect, box, thicknesses, seams) {
   const stacked = node.direction === 'vertical';
   const start = stacked ? -rect.z - rect.height : rect.x;
   const end = stacked ? -rect.z : rect.x + rect.width;
-  const centers = node.dividers.map((divider) => {
-    if (divider.at === undefined) return null;
+  const centers = node.dividers.map((divider, index) => {
+    if (divider.at === undefined) return seams[index] === null ? null : stacked ? -seams[index] : seams[index];
     if (stacked) return -divider.at;
     return divider.from === 'right' ? box.width - divider.at : divider.at;
   });
@@ -50,8 +54,49 @@ function dividerCenters(node, rect, box, thicknesses) {
   return { centers, start, end };
 }
 
-/** Resolve the stored tree into box-local clear sections and full-span dividers. */
-export function resolveInterior(interior, box, construction, settings) {
+/** A valid seam in wall coordinates becomes an exterior-to-centre box-local position. */
+function seamCenter(seam, direction, thickness, box, context) {
+  if (!context || !seam) return null;
+  const [path, key] = seam.split(':');
+  const node = getFaceNode(context.faceTree, path);
+  const under = (entries, prefix) => (entries ?? [])
+    .filter((entry) => entry.path === prefix || entry.path.startsWith(`${prefix}.`));
+  if (key === 'pair') {
+    if (direction !== 'horizontal' || node?.type !== 'pair_door') return null;
+    const halves = under(context.faces, path);
+    const left = halves.find((face) => face.half === 'left');
+    const right = halves.find((face) => face.half === 'right');
+    return left && right ? (left.x + left.width + right.x) / 2 - (box.x ?? 0) : null;
+  }
+  const index = Number(key);
+  if (!node?.children || node.direction !== direction || !Number.isInteger(index)
+    || index < 0 || index >= node.children.length - 1) return null;
+  const above = under(context.faces, `${path}.${index}`);
+  const below = under(context.faces, `${path}.${index + 1}`);
+  if (!above.length || !below.length) return null;
+  if (direction === 'horizontal') {
+    return (Math.max(...above.map((face) => face.x + face.width))
+      + Math.min(...below.map((face) => face.x))) / 2 - (box.x ?? 0);
+  }
+  if (context.inset && !node.noRail?.includes(index)) {
+    const openings = under(context.openings, `${path}.${index}`);
+    return openings.length ? Math.min(...openings.map((opening) => opening.z))
+      - thickness / 2 - (box.z ?? 0) : null;
+  }
+  return (Math.min(...above.map((face) => face.z))
+    + Math.max(...below.map((face) => face.z + face.height))) / 2 - (box.z ?? 0);
+}
+
+function hasPartition(tree) {
+  return Boolean(tree?.dividers?.some(({ kind }) => ['partition', 'double_partition'].includes(kind))
+    || tree?.children?.some(hasPartition));
+}
+
+/** Resolve the effective tree into box-local clear sections and full-span dividers. */
+export function resolveInterior(interior, box, construction, settings, context) {
+  const automatic = context ? autoInterior(context.faceTree, box.width) : null;
+  const auto = interior === undefined && Boolean(context);
+  const tree = auto ? automatic : interior ?? null;
   const t = sheetThickness(settings);
   const x = construction.left ? t : 0;
   const z = construction.bottom === 'none' ? 0 : deckRaise(box, construction) + t;
@@ -79,13 +124,17 @@ export function resolveInterior(interior, box, construction, settings) {
     }
     const stacked = node.direction === 'vertical';
     const thicknesses = node.dividers.map(({ kind }) => kind.startsWith('double_') ? 2 * t : t);
-    const { centers, start, end } = dividerCenters(node, clear, box, thicknesses);
+    const seams = node.dividers.map((divider, index) => (
+      seamCenter(divider.seam, node.direction, thicknesses[index], box, context)
+    ));
+    const { centers, start, end } = dividerCenters(node, clear, box, thicknesses, seams);
     node.dividers.forEach((divider, index) => {
       const thickness = thicknesses[index];
       const center = stacked ? -centers[index] : centers[index];
       const auto = divider.at === undefined;
       const depthAuto = divider.depth === undefined;
       const dividerDepth = divider.depth ?? (divider.kind === 'stretcher' ? STRETCHER_DEPTH : depth);
+      const banded = ['fixed', 'double_fixed'].includes(divider.kind);
       const dimensions = stacked ? { fromBottom: center, dimFrom: 'bottom' } : {
         fromLeft: center,
         fromRight: box.width - center,
@@ -98,7 +147,13 @@ export function resolveInterior(interior, box, construction, settings) {
         width: stacked ? clear.width : thickness,
         height: stacked ? thickness : clear.height,
         depth: dividerDepth, ...dimensions, auto, depthAuto,
+        seam: divider.seam ?? null, linked: auto && seams[index] !== null,
+        banding: banded ? divider.banding ?? !context?.inset : null,
+        bandingSource: banded ? divider.banding === undefined ? 'auto' : 'manual' : null,
       });
+      if (context && divider.seam && seams[index] === null) {
+        warnings.push({ code: 'divider-seam-missing', path, index });
+      }
       if (dividerDepth > depth) warnings.push({ code: 'divider-too-deep', path, index });
     });
     node.children.forEach((child, index) => {
@@ -110,8 +165,9 @@ export function resolveInterior(interior, box, construction, settings) {
       walk(child, childRect, `${path}.${index}`);
     });
   };
-  walk(getInteriorNode(interior, ROOT_FACE_PATH), rect, ROOT_FACE_PATH);
-  return { rect, depth, sections, dividers, warnings, partLines: boxPartLines(box, construction, t) };
+  walk(getInteriorNode(tree, ROOT_FACE_PATH), rect, ROOT_FACE_PATH);
+  if (hasPartition(automatic) && !hasPartition(tree)) warnings.push({ code: 'wide-no-partition' });
+  return { tree, auto, rect, depth, sections, dividers, warnings, partLines: boxPartLines(box, construction, t) };
 }
 
 /**
@@ -147,17 +203,22 @@ export function cabinetInterior(room, wall, side, settings, itemId) {
   if (!part) return null;
   const view = resolveWall(room, wall, side);
   const run = view.runs.find((entry) => entry.id === part.runId);
-  return interiorForPart(part, run, wall, settings);
+  const { faceLayouts } = runScene(room, view, run, settings);
+  return interiorForPart(part, run, wall, settings, faceLayouts.get(itemId));
 }
 
-function interiorForPart(part, run, wall, settings) {
+function interiorForPart(part, run, wall, settings, layout) {
   const leaf = findLeaf(run.grid, part.id);
   const box = {
     x: part.x, z: part.z, width: part.width, height: part.height, depth: part.front - part.back,
     ...(part.deckZ > 0 ? { deckZ: part.deckZ } : {}),
   };
   const construction = boxConstruction(leaf, run, wall);
-  return { box, construction, ...resolveInterior(leaf.interior, box, construction, settings) };
+  const context = layout ? {
+    faceTree: leaf.face ?? defaultFace(layout.box.width, settings),
+    faces: layout.faces, openings: layout.openings, inset: isInsetStyle(layout.style),
+  } : undefined;
+  return { box, construction, ...resolveInterior(leaf.interior, box, construction, settings, context) };
 }
 
 /** Place clear sections and dividers in wall view coordinates without changing their measurements. */
@@ -172,16 +233,22 @@ export function placeInterior(interior) {
 }
 
 /** Resolve every cabinet on a face using one shared elevation parts pass. */
-export function wallInteriors(room, wall, side, settings) {
+export function wallInteriors(room, wall, side, settings, faceLayoutsByRun = new Map()) {
   const view = resolveWall(room, wall, side);
   const runs = new Map(view.runs.map((run) => [run.id, run]));
   return elevationParts(room, wall, side, settings, { withDecks: true })
     .filter((part) => part.kind === 'cabinet')
-    .map((part) => ({
-      itemId: part.id,
-      runId: part.runId,
-      ...placeInterior(interiorForPart(part, runs.get(part.runId), wall, settings)),
-    }));
+    .map((part) => {
+      const run = runs.get(part.runId);
+      if (!faceLayoutsByRun.has(run.id)) {
+        faceLayoutsByRun.set(run.id, runScene(room, view, run, settings).faceLayouts);
+      }
+      return {
+        itemId: part.id,
+        runId: part.runId,
+        ...placeInterior(interiorForPart(part, run, wall, settings, faceLayoutsByRun.get(run.id).get(part.id))),
+      };
+    });
 }
 
 /** Exterior-to-centre dimensions in divider order, with lanes shared only on the same anchor line. */

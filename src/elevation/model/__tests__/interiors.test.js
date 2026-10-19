@@ -28,7 +28,7 @@ describe('IN2 interior rectangles', () => {
   it('anchor 1: an absent interior is one clear root section', () => {
     const rect = { x: 0.75, z: 0.75, width: 28.5, height: 29 };
     expect(resolve(undefined, box(30, 30.5))).toEqual({
-      rect, depth: 23, sections: [{ path: 'r', ...rect, depth: 23 }], dividers: [], warnings: [],
+      tree: null, auto: false, rect, depth: 23, sections: [{ path: 'r', ...rect, depth: 23 }], dividers: [], warnings: [],
       partLines: boxPartLines(box(30, 30.5), standard, 0.75),
     });
   });
@@ -42,6 +42,7 @@ describe('IN2 interior rectangles', () => {
     expect(result.dividers).toEqual([{
       path: 'r', index: 0, kind: 'fixed', x: 0.75, z: 41.625, width: 22.5, height: 0.75,
       depth: 23, fromBottom: 42, dimFrom: 'bottom', auto: true, depthAuto: true,
+      seam: null, linked: false, banding: true, bandingSource: 'auto',
     }]);
   });
 
@@ -58,6 +59,7 @@ describe('IN2 interior rectangles', () => {
     expect(result.dividers[1]).toEqual({
       path: 'r.0', index: 0, kind: 'partition', x: 17.625, z: 36.375, width: 0.75, height: 46.875,
       depth: 23, fromLeft: 18, fromRight: 18, dimFrom: 'left', auto: true, depthAuto: true,
+      seam: null, linked: false, banding: null, bandingSource: null,
     });
     expect(result.sections.map(({ path }) => path)).toEqual(['r.0.0', 'r.0.1', 'r.1']);
     expect(section(result, 'r.0.0')).toMatchObject({ x: 0.75, width: 16.875 });
@@ -302,8 +304,10 @@ describe('IN3 interior view coordinates and dimensions', () => {
       itemId: part.id, runId: run.id,
       ...placeInterior(cabinetInterior(room, syncedWall, 'front', settings, part.id)),
     })));
-    expect(interiors[1].sections).toHaveLength(1);
-    expect(interiorDimensions(interiors[1])).toEqual([]);
+    expect(interiors[1].sections).toHaveLength(2);
+    expect(interiors[1].auto).toBe(true);
+    expect(interiors[1].dividers[0].linked).toBe(true);
+    expect(interiorDimensions(interiors[1])).toHaveLength(1);
     expect(wallInteriors(room, syncedWall, 'back', settings)).toEqual([]);
     syncedWall.runs.forEach((entry) => { entry.wallSide = 'back'; });
     expect(wallInteriors(room, syncedWall, 'back', settings)).toEqual(

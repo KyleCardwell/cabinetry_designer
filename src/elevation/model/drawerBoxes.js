@@ -4,7 +4,6 @@ import { getFaceNode } from './faceTree.js';
 import { DRAWER_RULES, rotDepth, ruleDepth, ruleHeight, ruleSlide } from './drawerRules.js';
 import { wallInteriors } from './interiors.js';
 import { resolveWall } from './room.js';
-import { runScene } from './runScene.js';
 import { fittingLength, resolveBoxSlide, slideBoxWidth } from './slides.js';
 import { isInsetStyle } from './styles.js';
 import { roundTo } from './units.js';
@@ -191,7 +190,8 @@ export function cabinetDrawerBoxes({
 /** Resolve a whole wall face with shared interior and per-run face layout passes. */
 export function wallDrawerBoxes(room, wall, side, settings) {
   const view = resolveWall(room, wall, side);
-  const interiors = wallInteriors(room, wall, side, settings);
+  const faceLayoutsByRun = new Map();
+  const interiors = wallInteriors(room, wall, side, settings, faceLayoutsByRun);
   const byRun = new Map();
   for (const interior of interiors) {
     if (!byRun.has(interior.runId)) byRun.set(interior.runId, []);
@@ -200,7 +200,7 @@ export function wallDrawerBoxes(room, wall, side, settings) {
   const result = new Map();
   for (const run of view.runs) {
     if (!byRun.has(run.id)) continue;
-    const { faceLayouts } = runScene(room, view, run, settings);
+    const faceLayouts = faceLayoutsByRun.get(run.id);
     for (const interior of byRun.get(run.id)) {
       const layout = faceLayouts.get(interior.itemId);
       const leaf = findLeaf(run.grid, interior.itemId);
