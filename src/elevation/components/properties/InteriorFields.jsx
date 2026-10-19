@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+  DEFAULT_SETTINGS,
   INTERIOR_DIVIDERS,
   INTERIOR_DIVIDER_LABELS,
   MAX_FACE_SPLIT,
@@ -20,13 +21,19 @@ import {
   setDividerKind,
   setDividerPosition,
   setSectionShelves,
+  setSectionRollouts,
+  setRolloutItem,
   setSectionFlag,
   splitSection,
 } from '../../model/index.js';
+import { drawerBoxOptions } from '../../model/drawerBoxes.js';
+import { sectionRollouts } from '../../model/rollouts.js';
+import { BUILT_IN_SLIDES, resolveBoxSlide, resolveSlide } from '../../model/slides.js';
 import { sectionShelves } from '../../model/shelves.js';
-import { setInteriorPath, setItemInterior, setItemShelves } from '../../store/elevationSlice.js';
+import { setCabinetSlide, setInteriorPath, setItemInterior, setItemShelves } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
+import SlideSelect from './SlideSelect.jsx';
 
 const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600';
 const DISABLED_CLASS = 'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gray-700';
@@ -35,12 +42,28 @@ const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 p
 const NOSINGS = [['none', 'None'], ['hardwood', 'Hardwood'], ['folded', 'Folded']];
 const size = (value) => formatInches(value, 1 / 64).replace(/"$/, '');
 const WARNING_MESSAGES = {
+  'rollouts-overlap': 'Roll-outs overlap; move one or use fewer.',
+  'rollout-outside': "A roll-out runs past the section's clear space.",
+  'rollouts-dont-fit': "These roll-outs don't fit the section's height.",
+  'rollout-hinge-unknown': 'The door has no hinge side, so the roll-out has spacers on both sides.',
+  'rollout-pair-invalid': 'Side by side needs 2 roll-outs behind a pair door; stacked instead.',
+  'rollout-too-narrow': 'No roll-out fits this width.',
   'shelves-crowded': 'Adjustable shelves have less than 3" of clear space between them.',
   'section-too-small': 'A section is smaller than 1". Move a divider.',
   'divider-too-deep': 'A divider is deeper than the box interior.',
   'divider-seam-missing': 'A shelf or partition lost its door seam; it\'s spaced evenly.',
   'wide-no-partition': 'Box is over 36" wide with no partition between the doors.',
 };
+
+function rolloutWarning(code, rollout, settings) {
+  switch (code) {
+    case 'rollout-too-deep': return `Deeper than the interior (${formatInches(rollout.interiorDepth)}).`;
+    case 'slide-missing': return `A slide picked here isn't in the Library any more; using ${rollout.slide.name}.`;
+    case 'no-slide-length': return `No ${rollout.slide.name} length fits ${formatInches(rollout.interiorDepth)} of depth.`;
+    case 'drawer-box-tall': return `Taller than ${formatInches(settings.drawerBoxHeights?.warnAbove ?? DEFAULT_SETTINGS.drawerBoxHeights.warnAbove)}, the tallest the shop normally builds.`;
+    default: return WARNING_MESSAGES[code];
+  }
+}
 
 export default function InteriorFields({ room, wall, run, item, settings }) {
   const dispatch = useDispatch();
@@ -59,11 +82,21 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
     if (!resolved) return null;
     const view = resolveWall(room, wall.sideSource ?? wall, wall.side ?? 'front');
     const viewRun = view.runs.find(({ id }) => id === run.id);
-    const faces = runScene(room, view, viewRun, settings).faceLayouts.get(item.id)?.faces ?? [];
+    const layout = runScene(room, view, viewRun, settings).faceLayouts.get(item.id);
+    const faces = layout?.faces ?? [];
     const boxes = cabinetDrawerBoxesFor(room, wall.sideSource ?? wall, wall.side ?? 'front', settings, item.id)?.boxes ?? [];
     // Faces and drawer boxes are in wall coordinates, so the sections must be too.
     const placed = placeInterior(resolved);
     const args = { interior: placed, faces, boxes, leaf: item, settings };
+    const rolloutArgs = { ...args, ...drawerBoxOptions(room, item.id, layout, settings) };
+    const rollouts = sectionRollouts(rolloutArgs);
+    args.rollouts = rollouts;
+    const rollout = rollouts.get(path);
+    const resolveTree = (tree) => sectionRollouts({ ...rolloutArgs, interior: { ...placed, tree } }).get(path);
+    const autoLayout = rollout && resolveTree(setSectionRollouts(interior, path, { layout: null })).layout;
+    const autoItems = rollout?.rollouts.map(({ index }) => resolveTree(
+      setRolloutItem(interior, path, index, { at: null, depth: null }),
+    ).rollouts[index]);
     const shelves = sectionShelves(args);
     const autoCount = sectionShelves({ ...args,
       interior: { ...placed, tree: setSectionShelves(interior, path, { count: null }) },
@@ -71,7 +104,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
     const autoFlags = sectionShelves({ ...args,
       interior: { ...placed, tree: setSectionFlag(setSectionFlag(interior, path, 'hinges', null), path, 'lineBore', null) },
     }).get(path);
-    return { shelves, autoCount, autoFlags };
+    return { shelves, autoCount, autoFlags, rollouts, rollout, autoLayout, autoItems, hasBoxes: boxes.length > 0 };
   }, [resolved, room, wall, run.id, settings, item, interior, path]);
 
   useEffect(() => {
@@ -89,6 +122,11 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
   if (!resolved) return null;
 
   const shelf = shelfData.shelves.get(path);
+  const { rollout, autoLayout, autoItems } = shelfData;
+  const slides = settings.slides ?? BUILT_IN_SLIDES;
+  const autoSlide = resolveBoxSlide(settings, { cabinet: item.drawerSlideId ?? null }).slide;
+  const patchRollouts = (patch) => commit(setSectionRollouts(interior, path, patch));
+  const patchRollout = (index, patch) => commit(setRolloutItem(interior, path, index, patch));
   const cabinetGlass = item.shelves?.glass ?? false;
   const cabinetNosing = item.shelves?.nosing ?? 'none';
   const patchCabinet = (patch) => dispatch(setItemShelves({
@@ -107,6 +145,15 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
       </div>
       {interiorPath == null && (
         <div className="space-y-2">
+          {shelfData.rollouts.size > 0 && !shelfData.hasBoxes && (
+            <Field label="Slide">
+              <SlideSelect label="Cabinet drawer slide" value={item.drawerSlideId} slides={slides}
+                automatic={`Inherit (${resolveSlide(settings).name})`}
+                onChange={(slideId) => dispatch(setCabinetSlide({
+                  roomId: room.id, wallId: wall.id, runId: run.id, itemIds: [item.id], slideId,
+                }))} />
+            </Field>
+          )}
           <h4 className="text-xs font-medium text-gray-300">Shelves</h4>
           <Field label="Nosing">
             <select aria-label="Cabinet shelf nosing" className={SELECT_CLASS} value={cabinetNosing}
@@ -202,6 +249,67 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
           {shelf.warnings.map(({ code }) => (
             <p key={code} className="text-xs text-amber-400">{WARNING_MESSAGES[code]}</p>
           ))}
+          {[...new Set(rollout?.warnings.filter(({ index }) => index === undefined).map(({ code }) => code))].map((code) => (
+            <p key={code} className="text-xs text-amber-400">{WARNING_MESSAGES[code]}</p>
+          ))}
+        </div>
+      )}
+      {interiorPath != null && shelf && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-medium text-gray-300">Roll-outs</h4>
+          <Field label="Count">
+            <InchInput aria-label={`Roll-out count ${path}`} value={selected.rollouts?.count}
+              allowBlank allowAuto placeholder="None" className="placeholder:text-gray-500"
+              onCommit={(count) => patchRollouts({ count })} />
+          </Field>
+          {(selected.rollouts?.count === 2 || selected.rollouts?.layout) && (
+            <Field label="Layout">
+              <select aria-label={`Roll-out layout ${path}`} className={SELECT_CLASS}
+                value={selected.rollouts.layout ?? ''}
+                onChange={(event) => patchRollouts({ layout: event.target.value || null })}>
+                <option value="">{`Auto (${autoLayout === 'pair' ? 'Side by side' : 'Stacked'})`}</option>
+                <option value="stack">Stacked</option>
+                <option value="pair">Side by side</option>
+              </select>
+            </Field>
+          )}
+          {rollout?.rollouts.map((box) => {
+            const pick = selected.rollouts.items?.[box.index] ?? {};
+            const automatic = autoItems[box.index];
+            const key = `${path}.${box.index}`;
+            const spacers = box.spacers.left && box.spacers.right ? 'spacers left & right'
+              : box.spacers.left ? 'spacer left' : box.spacers.right ? 'spacer right' : 'no spacers';
+            return (
+              <div key={key} aria-label={`Roll-out ${key}`} className="space-y-2 rounded border border-gray-700 p-2">
+                <h4 className="text-xs font-medium text-gray-300">
+                  {rollout.layout === 'pair' ? (box.side === 'left' ? 'Left' : 'Right')
+                    : `Roll-out ${box.index + 1}${box.index === 0 ? ' (bottom)' : ''}`}
+                </h4>
+                <Field label="Slide">
+                  <SlideSelect label={`Roll-out slide ${key}`} value={pick.slideId} slides={slides}
+                    automatic={`Auto (${autoSlide.name})`}
+                    onChange={(slideId) => patchRollout(box.index, { slideId })} />
+                </Field>
+                {[
+                  ['height', 'Height', size(settings.rolloutHeight ?? DEFAULT_SETTINGS.rolloutHeight)],
+                  ['depth', 'Depth', `${automatic.depthAuto === null ? 'no length fits' : size(automatic.depthAuto)}${automatic.depthRule ? `, ${automatic.depthRule}` : ''}`],
+                  ['at', 'Up from section bottom', size(automatic.at)],
+                ].map(([field, label, placeholder]) => (
+                  <Field key={field} label={label}>
+                    <InchInput aria-label={`Roll-out ${field} ${key}`} value={pick[field]} allowBlank allowAuto
+                      displayStep={1 / 64} placeholder={`Auto (${placeholder})`} className="placeholder:text-gray-500"
+                      onCommit={(value) => patchRollout(box.index, { [field]: value })} />
+                  </Field>
+                ))}
+                <p aria-label={`Roll-out size ${key}`} className="text-xs text-gray-400">
+                  {`${size(box.width)} wide · ${spacers}${box.maple ? ' · +1/16 maple' : ''}`}
+                </p>
+                {box.warnings.map(({ code }) => (
+                  <p key={code} className="text-xs text-amber-400">{rolloutWarning(code, box, settings)}</p>
+                ))}
+              </div>
+            );
+          })}
         </div>
       )}
       {selected.children ? (

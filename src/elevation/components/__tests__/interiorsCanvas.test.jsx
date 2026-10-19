@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDispatch, useSelector } from 'react-redux';
 import { Group, Rect, Text } from 'react-konva';
 import { CABINET_TYPE_IDS, INTERIOR_DIVIDERS } from '../../model/constants.js';
+import { gridLeaves } from '../../model/grid.js';
 import { boxConstruction } from '../../model/boxConstruction.js';
 import { placeInterior, resolveInterior, wallInteriors } from '../../model/interiors.js';
 import { resolveWall, syncRoom } from '../../model/room.js';
+import { wallRollouts } from '../../model/rollouts.js';
+import { wallShelves } from '../../model/shelves.js';
 import { wallRectToScreen } from '../../canvas/transform.js';
 import elevationReducer, { setDoorsOff, setSelection, setView } from '../../store/elevationSlice.js';
 import { run, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
@@ -201,5 +204,63 @@ describe('IN5.2 face frame boxes with the doors off', () => {
     expect(boxRect(shapes).props).toMatchObject({ ...wallRectToScreen(entry.box, transform), listening: false });
     state.doorsOff = false;
     expect(canvas().layer).toBeUndefined();
+  });
+});
+
+
+describe('IN9 doors-off roll-outs', () => {
+  it('anchors 1–3: draws roll-out boxes, shared column spacers, typed heights and warning colors through RunGroup', () => {
+    state = stateWithRun(run({
+      cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, z: 40, width: 24, height: 30.5,
+      autoCount: false, ends: { left: { type: 'none' }, right: { type: 'none' } },
+      items: [{ id: 'cabinet', kind: 'cabinet', width: 24, face: { type: 'door', hinge: 'left' },
+        interior: { rollouts: { count: 2 } } }],
+    }));
+    state.settings.drawerSlideId = 'blum-562h';
+    const render = (extra = {}) => {
+      const room = syncRoom(state.rooms[0], state.settings);
+      const source = room.walls[0];
+      const rollouts = wallRollouts(room, source, 'front', state.settings);
+      return { ...canvas({ rollouts, adjustableShelves: wallShelves(room, source, 'front', state.settings), ...extra }),
+        entry: rollouts.get('cabinet').get('r') };
+    };
+    const groups = (shapes) => shapes.filter(({ type, key }) => type === Group && String(key).startsWith('rollout:'));
+    const boxRects = (shapes) => groups(shapes).flatMap((group) => nodes(group).filter(({ type, props }) => type === Rect && props.stroke));
+    expect(render().layer).toBeUndefined();
+    state.doorsOff = true;
+    const onSelectInterior = vi.fn();
+    const first = render({ onSelectInterior });
+    expect(first.layer.props.rollouts.get('cabinet').get('r')).toEqual(first.entry);
+    expect(groups(first.shapes)).toHaveLength(2);
+    expect(boxRects(first.shapes).map(({ props }) => props)).toEqual(first.entry.rollouts.map((box) => expect.objectContaining({
+      ...wallRectToScreen(box, transform), stroke: '#e2e8f0', listening: false,
+    })));
+    expect(first.shapes.filter(({ type, props }) => type === Text && props.text === 'RO 4 1/4')).toHaveLength(2);
+    const spacers = first.shapes.filter(({ type, props }) => type === Rect && props.opacity === 0.5);
+    expect(spacers).toHaveLength(1);
+    expect(spacers[0].props).toMatchObject({
+      ...wallRectToScreen({ x: 24.75, z: 40.75, width: 1.25, height: first.entry.top - 40.75 }, transform),
+      fill: '#cbd5e1', listening: false,
+    });
+    expect(groups(first.shapes).every(({ props }) => props.listening === false)).toBe(true);
+    const section = first.shapes.find(({ type, props }) => type === Rect && props.onClick);
+    section.props.onClick({});
+    expect(onSelectInterior).toHaveBeenLastCalledWith({ path: 'r', divider: null });
+    expect(first.shapes.filter(({ type, key }) => type === Rect && String(key).startsWith('shelf:'))).toHaveLength(0);
+    const changeRollouts = (patch) => Object.assign(gridLeaves(state.rooms[0].walls[0].runs[0].grid)[0], patch);
+    changeRollouts({ interior: { rollouts: { count: 2, items: [{}, { at: 10 }] } } });
+    const moved = render();
+    expect(boxRects(moved.shapes)[1].props).toMatchObject(wallRectToScreen(moved.entry.rollouts[1], transform));
+    expect(moved.entry.rollouts[1].z).toBe(50.75);
+    changeRollouts({ interior: { rollouts: { count: 2, items: [{}, { at: 3 }] } } });
+    expect(boxRects(render().shapes).every(({ props }) => props.stroke === '#f59e0b')).toBe(true);
+    const small = render({ transform: { ...transform, scale: 0.1 } });
+    expect(small.shapes.some(({ type, props }) => type === Text && props.text.startsWith('RO '))).toBe(false);
+    expect(boxRects(small.shapes)).toHaveLength(2);
+    changeRollouts({ purpose: 'sink', face: { type: 'pair_door', size: null }, interior: { rollouts: { count: 2 } } });
+    const paired = render();
+    expect(paired.entry.layout).toBe('pair');
+    expect(paired.shapes.filter(({ type, props }) => type === Rect && props.opacity === 0.5)).toHaveLength(2);
+    expect(boxRects(paired.shapes)).toHaveLength(2);
   });
 });

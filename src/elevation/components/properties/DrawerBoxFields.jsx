@@ -5,22 +5,9 @@ import { BUILT_IN_SLIDES, resolveSlide } from '../../model/slides.js';
 import { setCabinetSlide, setFaceDrawerBox } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
+import SlideSelect from './SlideSelect.jsx';
 
-const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const frontLabel = (height, kind) => `${kind === 'rot' ? 'ROT · front' : kind === 'hamper' ? 'Hamper · front' : 'Front'} ${formatInches(height)}`;
-
-function SlideSelect({ value, automatic, slides, label, onChange }) {
-  return (
-    <select aria-label={label} className={SELECT_CLASS} value={value ?? ''}
-      onChange={(event) => onChange(event.target.value || null)}>
-      <option value="">{automatic}</option>
-      {slides.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
-      {value && !slides.some(({ id }) => id === value) && (
-        <option value={value}>{`Missing (${value})`}</option>
-      )}
-    </select>
-  );
-}
 
 function warningText(code, box, settings, interior) {
   switch (code) {

@@ -12,6 +12,7 @@ export default function InteriorShapes({
   framedIds = null,
   drawerBoxes = [],
   shelves = new Map(),
+  rollouts = new Map(),
   drawnPieces,
   transform,
   selectedPieceId,
@@ -111,6 +112,35 @@ export default function InteriorShapes({
             );
           });
           return [...rects, ...labels];
+        })}
+        {entry.sections.flatMap((section) => {
+          const rollout = rollouts.get(entry.itemId)?.get(section.path);
+          return (rollout?.rollouts ?? []).map((box) => {
+            const rect = wallRectToScreen(box, transform);
+            const text = `RO ${formatInches(box.height).replace(/"$/, '')}`;
+            const color = box.warnings.length || rollout.warnings.some(({ index }) => index === undefined)
+              ? '#f59e0b' : '#e2e8f0';
+            const showHeight = rect.height >= SIZE_FONT + SIZE_INSET * 2
+              && rect.width >= text.length * 6 + SIZE_INSET * 2;
+            return (
+              <Group key={`rollout:${section.path}:${box.index}`} listening={false}>
+                {['left', 'right'].filter((side) => box.spacers[side] > 0
+                  && !rollout.rollouts.slice(0, box.index).some((other) =>
+                    other.column.x === box.column.x && other.column.width === box.column.width
+                    && other.spacers[side] === box.spacers[side])).map((side) => (
+                  <Rect key={side} {...wallRectToScreen({
+                    x: side === 'left' ? box.column.x : box.column.x + box.column.width - box.spacers.right,
+                    z: rollout.zone.z, width: box.spacers[side], height: rollout.top - rollout.zone.z,
+                  }, transform)} fill="#cbd5e1" opacity={0.5} listening={false} />
+                ))}
+                <Rect {...rect} stroke={color} strokeWidth={1} listening={false} />
+                {showHeight && (
+                  <Text {...rect} text={text} fontSize={SIZE_FONT} fill={color}
+                    align="center" verticalAlign="middle" listening={false} />
+                )}
+              </Group>
+            );
+          });
         })}
         {/* A face frame box is hidden behind its frame normally (SPEC-36.1); with the doors off its outline shows. */}
         {framedIds?.has(entry.itemId) && (

@@ -12,6 +12,8 @@ import { fixed, run as makeRun, stateWithRun } from '../../store/__tests__/helpe
 import BoxConstructionFields from './BoxConstructionFields.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import InteriorFields from './InteriorFields.jsx';
+import SlideSelect from './SlideSelect.jsx';
+import { wallRollouts } from '../../model/rollouts.js';
 
 vi.mock('react', async (original) => ({
   ...await original(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn(),
@@ -23,7 +25,7 @@ vi.mock('../../model/interiors.js', async (original) => {
 });
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
-  : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
+  : tree && typeof tree === 'object' ? [tree, ...nodes(tree.type === SlideSelect ? SlideSelect(tree.props) : tree.props?.children)] : [];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : tree && typeof tree === 'object' ? text(tree.props?.children)
     : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : '';
@@ -470,5 +472,125 @@ describe('IN8 shelf controls', () => {
     expectInterior(group('vertical', [linkedShelf]));
     select('r');
     expect(field('Shelf count r')).toBeUndefined();
+  });
+});
+
+
+describe('IN9 roll-out controls', () => {
+  const base = (width = 24, type = 'door') => edit(() => {
+    run().width = run().grid.cols[0].size = item().width = width;
+    item().face = { type, size: null, ...(type === 'door' ? { hinge: 'left' } : {}) };
+    state.settings.drawerSlideId = 'blum-562h';
+  });
+  const cards = () => nodes(render()).filter(({ props }) => props['aria-label']?.match(/^Roll-out r\.\d+$/));
+
+  it('anchor 1: saves the effective auto section and shows two auto cards and zero shelves', () => {
+    base();
+    expect(field('Roll-out count r')).toBeUndefined();
+    select('r');
+    expect(field('Roll-out count r').props).toMatchObject({ placeholder: 'None', value: undefined });
+    commit('Roll-out count r', 2);
+    expectInterior({ rollouts: { count: 2 } });
+    expect(cards()).toHaveLength(2);
+    expect(nodes(render()).filter(({ type }) => type === 'h4').map(text))
+      .toContain('Roll-out 1 (bottom)');
+    expect(field('Roll-out at r.0').props.placeholder).toBe('Auto (9/16)');
+    expect(field('Roll-out at r.1').props.placeholder).toBe('Auto (14 25/32)');
+    expect(field('Roll-out height r.0').props.placeholder).toBe('Auto (4 1/4)');
+    expect(field('Shelf count r').props.placeholder).toBe('Auto (0)');
+    expect(text(field('Roll-out size r.0'))).toBe('20 3/4 wide · spacer left');
+  });
+
+  it('anchor 2: stores a sparse position override and moves the box above the deck', () => {
+    base();
+    edit(() => { run().x = 24; run().z = 40; });
+    select('r');
+    commit('Roll-out count r', 2);
+    commit('Roll-out at r.1', 10);
+    expectInterior({ rollouts: { count: 2, items: [{}, { at: 10 }] } });
+    const boxes = wallRollouts(room(), wall(), 'front', state.settings).get('c1').get('r').rollouts;
+    expect(boxes[1].z).toBe(50.75);
+    expect(field('Roll-out at r.1').props).toMatchObject({ value: 10, placeholder: 'Auto (14 25/32)' });
+    commit('Roll-out at r.1', null);
+    expectInterior({ rollouts: { count: 2 } });
+    click('Auto');
+    expectInterior(null);
+    expect(cards()).toHaveLength(0);
+  });
+
+  it('anchor 3: shows the sink pair labels, outer spacers and automatic sink depths', () => {
+    base(36, 'pair_door');
+    edit(() => { item().purpose = 'sink'; });
+    select('r');
+    commit('Roll-out count r', 2);
+    expect(options(field('Roll-out layout r'))[0]).toEqual(['', 'Auto (Side by side)']);
+    expect(cards().map((card) => nodes(card).find(({ type }) => type === 'h4')).map(text)).toEqual(['Left', 'Right']);
+    expect(text(field('Roll-out size r.0'))).toBe('15 1/2 wide · spacer left');
+    expect(text(field('Roll-out size r.1'))).toBe('15 1/2 wide · spacer right');
+    for (const index of [0, 1]) expect(field(`Roll-out depth r.${index}`).props.placeholder).toBe('Auto (18, DRW-006)');
+    change('Roll-out layout r', 'stack');
+    expect(item().interior.rollouts.layout).toBe('stack');
+    expect(text(cards()[0])).toContain('Roll-out 1 (bottom)');
+    expect(text(field('Roll-out size r.0'))).toBe('31 1/2 wide · spacers left & right');
+    change('Roll-out layout r', '');
+    expect(item().interior.rollouts).toEqual({ count: 2 });
+  });
+
+  it('anchor 4: edits the cabinet slide without a section selection and inherits it in cards', () => {
+    base();
+    edit(() => { item().interior = { rollouts: { count: 2 } }; });
+    expect(options(field('Cabinet drawer slide'))[0]).toEqual(['', 'Inherit (Blum Tandem 562H)']);
+    change('Cabinet drawer slide', 'accuride-3832');
+    expect(item().drawerSlideId).toBe('accuride-3832');
+    select('r');
+    for (const index of [0, 1]) expect(options(field(`Roll-out slide r.${index}`))[0])
+      .toEqual(['', 'Auto (Accuride 3832)']);
+    change('Roll-out slide r.0', 'blum-562h');
+    expect(item().interior.rollouts.items).toEqual([{ slideId: 'blum-562h' }]);
+    expect(options(field('Roll-out slide r.0'))[0]).toEqual(['', 'Auto (Accuride 3832)']);
+    change('Roll-out slide r.0', '');
+    expect(item().interior.rollouts).toEqual({ count: 2 });
+    edit(() => { state.interiorPath = null; item().face = { type: 'drawer_front', size: null }; });
+    expect(field('Cabinet drawer slide')).toBeUndefined();
+  });
+
+  it('validates edits, clears blank/auto picks and count, and shows item and section warnings', () => {
+    base();
+    select('r');
+    commit('Roll-out count r', 2);
+    for (const count of [-1, 9, 1.5, NaN, Infinity]) expect(commit('Roll-out count r', count)).toBe(false);
+    for (const key of ['height', 'depth', 'at']) {
+      for (const value of [-1, NaN, Infinity]) expect(commit(`Roll-out ${key} r.0`, value)).toBe(false);
+      expect(field(`Roll-out ${key} r.0`).props).toMatchObject({ allowBlank: true, allowAuto: true });
+      expect(field(`Roll-out ${key} r.0`).props.className).toContain('placeholder:text-gray-500');
+    }
+    for (const key of ['height', 'depth']) expect(commit(`Roll-out ${key} r.0`, 0)).toBe(false);
+    commit('Roll-out at r.1', 3);
+    expect(text(cards()[1])).toContain('Roll-outs overlap; move one or use fewer.');
+    change('Roll-out layout r', 'pair');
+    expect(text(render())).toContain('Side by side needs 2 roll-outs behind a pair door; stacked instead.');
+    commit('Roll-out height r.0', 40);
+    commit('Roll-out depth r.0', 25);
+    expect(text(cards()[0])).toContain('Taller than 15 1/8');
+    expect(text(cards()[0])).toContain('Deeper than the interior (23").');
+    expect(text(cards()[0])).toContain("A roll-out runs past the section's clear space.");
+    change('Roll-out slide r.0', 'missing-slide');
+    expect(options(field('Roll-out slide r.0'))).toContainEqual(['missing-slide', 'Missing (missing-slide)']);
+    expect(text(cards()[0])).toContain("A slide picked here isn't in the Library any more; using Blum Tandem 562H.");
+    for (const value of ['', 'auto']) {
+      const props = field('Roll-out height r.0').props;
+      const input = () => { hookIndex = 1; return InchInput(props); };
+      input().props.onChange({ target: { value } });
+      input().props.onBlur();
+      expect(item().interior.rollouts.items[0]).not.toHaveProperty('height');
+    }
+    commit('Roll-out count r', 1);
+    expect(item().interior.rollouts.items).toHaveLength(1);
+    for (const count of [0, null]) {
+      commit('Roll-out count r', count);
+      expect(item().interior).not.toHaveProperty('rollouts');
+      expect(cards()).toHaveLength(0);
+      commit('Roll-out count r', 2);
+    }
   });
 });
