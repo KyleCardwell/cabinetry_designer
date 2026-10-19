@@ -1,15 +1,18 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
+  CABINET_TYPE_IDS,
   FACE_TYPE_LABELS,
   FACE_TYPES,
   MAX_FACE_SPLIT,
   ROOT_FACE_PATH,
   applyStandardDrawers,
+  baseBankHeight,
   runFaceLayouts,
   defaultFace,
   equalizeGroup,
   faceOutline,
+  formatInches,
   getFaceNode,
   isInsetStyle,
   makeDrawerStack,
@@ -18,6 +21,7 @@ import {
   removeFace,
   setFaceAction,
   setFaceHinge,
+  setFaceMatch,
   setFaceSize,
   setFaceType,
   setGroupCount,
@@ -84,6 +88,7 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
     (candidate) => candidate.id === state.elevation.activeRoomId,
   ));
   const faceLayout = runFaceLayouts(room, wall, run, settings, layout).get(piece.id);
+  const matchedHeight = faceLayout ? baseBankHeight(room, wall, faceLayout.style, settings) : null;
   const doorDetails = runDoorDetails(room, wall, run, settings);
   const warnings = [
     ...(faceLayout?.warnings ?? []),
@@ -221,11 +226,11 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
               )}
             </div>
             {path !== ROOT_FACE_PATH && (
-              <div className="w-20 shrink-0">
+              <div className={`${node.match === 'base' ? 'w-32' : 'w-20'} shrink-0`}>
                 <InchInput
                   value={node.size}
                   allowBlank
-                  placeholder="auto"
+                  placeholder={node.match === 'base' ? `base (${formatInches(matchedHeight)})` : 'auto'}
                   aria-label={`Face size ${path}`}
                   onCommit={(value) => {
                     const next = setFaceSize(face, path, value);
@@ -433,6 +438,7 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
                   face,
                   facePath,
                   Number(splitCount),
+                  { match: run.cabinetTypeId === CABINET_TYPE_IDS.TALL },
                 ))}
                 className={BUTTON_CLASS}
               >
@@ -464,6 +470,20 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
                   Make equal
                 </button>
               </div>
+              {facePath !== ROOT_FACE_PATH
+                && getFaceNode(face, parentFacePath(facePath))?.direction === 'vertical' && (
+                <label className="flex items-center gap-2 text-xs text-gray-300">
+                  <input
+                    type="checkbox"
+                    checked={selected.match === 'base'}
+                    onChange={(event) => commitIfChanged(setFaceMatch(
+                      face, facePath, event.target.checked ? 'base' : null,
+                    ))}
+                    aria-label="Match base drawers"
+                  />
+                  Match base drawers
+                </label>
+              )}
               {faceLayout && isInsetStyle(faceLayout.style) && selected.children.slice(0, -1).map((child, seam) => {
                 if (!child.type || !selected.children[seam + 1].type) return null;
                 const word = selected.direction === 'vertical' ? 'rail' : 'mullion';
@@ -515,6 +535,10 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
         <p key={`molding-too-wide:${index}`} className="text-xs font-medium text-amber-300">
           Applied molding {index + 1} sits on the edge profile.
         </p>
+      ))}
+      {[...new Set(warnings.filter(({ code }) => code === 'drawer-stack-base-mismatch')
+        .map(({ baseHeight, matchedHeight }) => `Base drawers on this wall are ${formatInches(baseHeight)}; this stack matches the ${formatInches(matchedHeight)} standard.`))].map((message) => (
+        <p key={message} className="text-xs font-medium text-amber-300">{message}</p>
       ))}
       {[...new Set(warnings.filter(({ code, side }) => code !== 'door-profile-too-wide' || side !== 'molding').map(({ code }) => code))].map((code) => (
         WARNING_MESSAGES[code] && (

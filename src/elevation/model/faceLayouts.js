@@ -5,7 +5,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cabinetFaceLevels, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { applyHinges, cabinetFaces, defaultFace, faceArea } from './faces.js';
-import { getFaceNode } from './faceTree.js';
+import { faceOutline, getFaceNode } from './faceTree.js';
 import { faceOpenings, frameRegions } from './frames.js';
 import { runItems } from './grid.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
@@ -36,7 +36,7 @@ function resolveFaceMatches(face, height) {
  * Faces, effective style and reveals for every cabinet piece in a run, keyed by piece id.
  * `run` may be a preview copy; the wall's other runs supply cross-run neighbors.
  */
-export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(room, wall, run, settings)) {
+function layoutFaces(room, wall, run, settings, layout) {
   wall = wallViewForRun(wall, run);
   const otherPieces = wall.runs
     .filter((other) => other.id !== run.id)
@@ -141,6 +141,51 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
       box,
       openings: faceOpenings(face, faceArea(box, reveals.values), reveals.values),
     });
+  }
+  return result;
+}
+
+function storedFaceFor(run, piece) {
+  return (piece.columnId ? findLeaf(run.grid, piece.id)
+    : runItems(run).find((item) => item.id === piece.id))?.face;
+}
+
+/** Height of the contiguous drawer/false-front bank touching the top of a root stack. */
+function topDrawerBankHeight(face, faces) {
+  if (face?.direction !== 'vertical') return null;
+  const isFront = (node) => node.type ? ['drawer_front', 'false_front'].includes(node.type)
+    : node.children.every(isFront);
+  const paths = [];
+  for (const [index, child] of face.children.entries()) {
+    if (!isFront(child)) break;
+    paths.push(`r.${index}`);
+  }
+  const bank = faces.filter(({ path }) => paths.some((prefix) => path === prefix || path.startsWith(`${prefix}.`)));
+  return bank.length ? Math.max(...bank.map(({ z, height }) => z + height))
+    - Math.min(...bank.map(({ z }) => z)) : null;
+}
+
+/** Shared face warnings compare resolved base fronts on this wall face with each matched group. */
+export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(room, wall, run, settings)) {
+  wall = wallViewForRun(wall, run);
+  const result = layoutFaces(room, wall, run, settings, layout);
+  let baseHeights;
+  for (const entry of result.values()) {
+    const storedFace = storedFaceFor(run, entry.box);
+    const matches = storedFace ? faceOutline(storedFace).filter(({ node }) => node.match === 'base') : [];
+    if (!matches.length) continue;
+    baseHeights ??= [...new Set(wall.runs.filter((other) => other.cabinetTypeId === CABINET_TYPE_IDS.BASE)
+      .flatMap((base) => [...layoutFaces(room, wall, base, settings, layoutRun(room, wall, base, settings)).values()]
+        .map((entry) => topDrawerBankHeight(storedFaceFor(base, entry.box), entry.faces)))
+      .filter((height) => height !== null))];
+    const matchedHeight = baseBankHeight(room, wall, entry.style, settings);
+    for (const { path } of matches) {
+      for (const baseHeight of baseHeights) {
+        if (Math.abs(baseHeight - matchedHeight) > 1 / 32 + EPSILON) {
+          entry.warnings.push({ code: 'drawer-stack-base-mismatch', path, baseHeight, matchedHeight });
+        }
+      }
+    }
   }
   return result;
 }

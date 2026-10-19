@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { findLeaf } from '../../model/cellTree.js';
+import { CABINET_TYPE_IDS } from '../../model/constants.js';
 import { resolveWall } from '../../model/room.js';
 import { runScene } from '../../model/runScene.js';
 import elevationReducer from '../../store/elevationSlice.js';
@@ -35,6 +36,14 @@ const picker = (label) => nodes(render()).find(({ props }) => props['aria-label'
 const options = (label) => nodes(picker(label)).filter(({ type }) => type === 'option');
 const values = (label) => options(label).map(({ props }) => props.value);
 const pick = (label, value) => picker(label).props.onChange({ target: { value } });
+
+const doorOverStack = () => ({ direction: 'vertical', size: null, children: [
+  { type: 'door', size: null },
+  { direction: 'vertical', size: null, children: [
+    { type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: 5.875 },
+    { type: 'drawer_front', size: null }, { type: 'drawer_front', size: null },
+  ] },
+] });
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -114,5 +123,89 @@ describe('HP1 step c face hinge and opens pickers', () => {
     pick('Opens', 'swing');
     expect(item().face).not.toHaveProperty('action');
     expect(picker('Opens').props.value).toBe('swing');
+  });
+});
+
+describe('IN7.3 step b match base drawers', () => {
+  const tick = (checked) => picker('Match base drawers').props.onChange({ target: { checked } });
+  const tallStack = () => {
+    run().cabinetTypeId = CABINET_TYPE_IDS.TALL;
+    run().height = 90;
+    item().face = doorOverStack();
+    state.facePath = 'r.1';
+  };
+
+  it('anchors 1–2: ticking matches the bank; typing 29 clears the match and tick', () => {
+    tallStack();
+    expect(picker('Match base drawers').props.checked).toBe(false);
+    tick(true);
+    expect(item().face.children[1]).toMatchObject({ match: 'base', size: null });
+    expect(picker('Face size r.1').props.placeholder).toBe('base (30 1/8")');
+    expect(picker('Match base drawers').props.checked).toBe(true);
+    expect(picker('Face size r.1').props.onCommit(29)).toBe(true);
+    expect(item().face.children[1].size).toBe(29);
+    expect(item().face.children[1]).not.toHaveProperty('match');
+    expect(picker('Match base drawers').props.checked).toBe(false);
+    expect(picker('Face size r.1').props.placeholder).toBe('auto');
+    tick(true);
+    tick(false);
+    expect(item().face.children[1].size).toBeNull();
+    expect(item().face.children[1]).not.toHaveProperty('match');
+  });
+
+  it('anchor 3: prints the wood-top base mismatch with the resolved heights', () => {
+    tallStack();
+    tick(true);
+    state = structuredClone(state);
+    room().walls[0].runs.push(makeRun({ id: 'base', x: 30, width: 18, autoCount: false, top: 'wood',
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+      items: [{ id: 'base-cabinet', kind: 'cabinet', width: 18, face: doorOverStack().children[1] }],
+    }));
+    expect(text(render())).toContain('Base drawers on this wall are 30 1/4"; this stack matches the 30 1/8" standard.');
+  });
+
+  it('anchor 4: the same base on stone has no mismatch warning', () => {
+    tallStack();
+    tick(true);
+    state = structuredClone(state);
+    room().walls[0].runs.push(makeRun({ id: 'base', x: 30, width: 18, autoCount: false, top: 'stone',
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+      items: [{ id: 'base-cabinet', kind: 'cabinet', width: 18, face: doorOverStack().children[1] }],
+    }));
+    expect(text(render())).not.toContain('Base drawers on this wall');
+  });
+
+  it('anchor 5: hides the tick for root groups, width-sized groups, and leaves', () => {
+    tallStack();
+    state.facePath = 'r';
+    expect(picker('Match base drawers')).toBeUndefined();
+    item().face.direction = 'horizontal';
+    state.facePath = 'r.1';
+    expect(picker('Match base drawers')).toBeUndefined();
+    state.facePath = 'r.0';
+    expect(picker('Match base drawers')).toBeUndefined();
+  });
+
+  it('anchor 6: Drawer stack (4) defaults to match only in a height-sized tall section', () => {
+    for (const [type, path, direction, matched] of [
+      [CABINET_TYPE_IDS.TALL, 'r.1', 'vertical', true],
+      [CABINET_TYPE_IDS.BASE, 'r.1', 'vertical', false],
+      [CABINET_TYPE_IDS.TALL, 'r', 'vertical', false],
+      [CABINET_TYPE_IDS.TALL, 'r.1', 'horizontal', false],
+    ]) {
+      state = structuredClone(state);
+      run().cabinetTypeId = type;
+      run().height = type === CABINET_TYPE_IDS.TALL ? 90 : 30.5;
+      item().face = path === 'r' ? { type: 'door', size: null } : {
+        direction, size: null, children: [{ type: 'door', size: null }, { type: 'door', size: null }],
+      };
+      state.facePath = path;
+      useState.mockImplementation(() => [4, vi.fn()]);
+      nodes(render()).find((node) => node.type === 'button' && text(node) === 'Drawer stack').props.onClick();
+      const stack = path === 'r' ? item().face : item().face.children[1];
+      expect(stack.children).toHaveLength(4);
+      expect(stack.match === 'base').toBe(matched);
+      if (matched) expect(picker('Match base drawers').props.checked).toBe(true);
+    }
   });
 });

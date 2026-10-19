@@ -99,6 +99,62 @@ describe('IN7.3 matched base drawer banks', () => {
       expect(height(bank(layout))).toBe(expected);
     }
   });
+
+  const mismatchWarnings = (room, run) => runFaceLayouts(room, resolveWall(room, room.walls[0]), run, DEFAULT_SETTINGS)
+    .get('a').warnings.filter(({ code }) => code === 'drawer-stack-base-mismatch');
+  const base = (overrides = {}) => ({ ...RUN, id: 'base', x: 60, top: 'wood',
+    items: [{ id: 'b', kind: 'cabinet', width: 18, face: {
+      direction: 'vertical', size: null, children: structuredClone(face.children[1].children),
+    } }], ...overrides });
+
+  it('compares resolved front bounds, includes false fronts and gaps, and uses a strict 1/32 threshold', () => {
+    for (const [extra, expected] of [[0, false], [1 / 32, false], [-1 / 32, false],
+      [1 / 32 + 1 / 1024, true], [1 / 8, true], [-1 / 8, true]]) {
+      const run = tall();
+      const room = roomWith(run);
+      const neighbor = base({ top: 'stone', height: 30.5 + extra });
+      neighbor.items[0].face.children = neighbor.items[0].face.children.map((child, index) => ({
+        ...child, type: index === 0 ? 'false_front' : child.type,
+      }));
+      room.walls[0].runs.push(neighbor);
+      const before = structuredClone(room);
+      const warnings = mismatchWarnings(room, run);
+      expect(warnings.length > 0).toBe(expected);
+      if (expected) expect(warnings).toEqual([{
+        code: 'drawer-stack-base-mismatch', path: 'r.1', baseHeight: 30.125 + extra, matchedHeight: 30.125,
+      }]);
+      expect(room).toEqual(before);
+    }
+  });
+
+  it('ignores opposite-wall-face bases, other cabinet types, non-top banks, and unmatched groups', () => {
+    const run = tall();
+    const room = roomWith(run);
+    const belowDoor = base({ id: 'below-door' });
+    belowDoor.items[0].face = { direction: 'vertical', size: null, children: [
+      { type: 'door', size: null }, ...belowDoor.items[0].face.children,
+    ] };
+    room.walls[0].runs.push(base({ wallSide: 'back' }), base({ id: 'upper', cabinetTypeId: CABINET_TYPE_IDS.UPPER }), belowDoor);
+    expect(mismatchWarnings(room, run)).toEqual([]);
+    room.walls[0].runs.push(base({ id: 'same-face' }));
+    expect(mismatchWarnings(room, run)).toHaveLength(1);
+    run.items[0].face = structuredClone(face);
+    delete run.items[0].face.children[1].match;
+    expect(mismatchWarnings(room, run)).toEqual([]);
+  });
+
+  it('uses the matched cabinet own style and detects a face-frame base bank', () => {
+    const run = { ...tall(), style: { cabinetStyleId: 14 } };
+    const room = roomWith(run);
+    const neighbor = base({ top: 'stone', style: { cabinetStyleId: 14 }, height: 32 });
+    room.walls[0].runs.push(neighbor);
+    const warnings = mismatchWarnings(room, run);
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].matchedHeight).toBe(27.5);
+    const resolved = runFaceLayouts(room, resolveWall(room, room.walls[0]), neighbor, DEFAULT_SETTINGS).get('b');
+    expect(warnings[0].baseHeight).toBe(height(resolved.faces));
+    expect(warnings[0].baseHeight).toBeGreaterThan(27.5);
+  });
 });
 
 describe('runFaceLayouts', () => {
