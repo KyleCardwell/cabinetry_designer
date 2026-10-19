@@ -58,10 +58,18 @@ function isSeamList(node) {
 /**
  * Whether a value is a valid stored face node (recursively).
  * A group may carry noRail, a sorted list of seams with no rail or mullion (SPEC-36.3): seam i is between sections i and i + 1, and both must be leaves.
+ * A non-root group sized by a vertical parent may match the base bank instead of storing a height.
  */
 export function isFaceNode(node) {
+  return isFaceNodeWithin(node, null);
+}
+
+function isFaceNodeWithin(node, parentDirection) {
   if (!node || typeof node !== 'object' || Array.isArray(node)) return false;
   if (!isSize(node.size)) return false;
+  if (Object.hasOwn(node, 'match')
+    && (node.match !== 'base' || node.type !== undefined
+      || parentDirection !== 'vertical' || node.size !== null)) return false;
   if (node.drawerBox !== undefined
     && (!(node.type === 'drawer_front' || (node.type === 'door' && node.action === 'pullout'))
       || !isDrawerBox(node.drawerBox, node.type === 'drawer_front'))) return false;
@@ -95,7 +103,7 @@ export function isFaceNode(node) {
     && FACE_DIRECTIONS.includes(node.direction)
     && Array.isArray(node.children)
     && node.children.length >= 2
-    && node.children.every(isFaceNode)
+    && node.children.every((child) => isFaceNodeWithin(child, node.direction))
     && (node.noRail === undefined || isSeamList(node));
 }
 

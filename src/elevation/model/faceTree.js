@@ -100,7 +100,27 @@ export function setFacePart(face, path, patch) {
 export function setFaceSize(face, path, size) {
   if (path === ROOT_FACE_PATH || !getFaceNode(face, path)) return face;
   if (size !== null && !(Number.isFinite(size) && size > 0)) return face;
-  return replaceAt(face, path, (node) => ({ ...node, size }));
+  return replaceAt(face, path, (node) => {
+    const next = { ...node, size };
+    if (size !== null) delete next.match;
+    return next;
+  });
+}
+
+/** Match a height-sized group's bank to the base standard, or return it to auto. */
+export function setFaceMatch(face, path, match) {
+  const parentPath = parentFacePath(path);
+  if (parentPath === null) return face;
+  const target = getFaceNode(face, path);
+  const parent = getFaceNode(face, parentPath);
+  if (!target?.children || parent?.direction !== 'vertical'
+    || (match !== 'base' && match !== null)) return face;
+  return replaceAt(face, path, (node) => {
+    const next = { ...node, size: null };
+    if (match === null) delete next.match;
+    else next.match = match;
+    return next;
+  });
 }
 
 /**
@@ -133,19 +153,22 @@ export function splitFace(face, path, direction, count) {
   return withoutSeams(nested, parentPath, [index - 1, index]);
 }
 
-/** Replace a leaf with a nested vertical stack of drawer fronts. */
-export function makeDrawerStack(face, path, count) {
+/** Replace a leaf with a nested vertical stack; optionally match its height to the base bank. */
+export function makeDrawerStack(face, path, count, { match = false } = {}) {
   const target = getFaceNode(face, path);
   if (!target?.type || !Number.isFinite(count)) return face;
   const n = Math.min(MAX_FACE_SPLIT, Math.max(2, Math.round(count)));
   const children = Array.from({ length: n }, () => ({ type: 'drawer_front', size: null }));
+  const parentPath = parentFacePath(path);
+  const matched = match && parentPath !== null && getFaceNode(face, parentPath)?.direction === 'vertical';
   const stacked = replaceAt(face, path, (node) => ({
     direction: 'vertical',
-    size: node.size,
+    size: matched ? null : node.size,
+    ...(matched ? { match: 'base' } : {}),
     children,
   }));
   const index = indexesOf(path).at(-1);
-  return withoutSeams(stacked, parentFacePath(path), [index - 1, index]);
+  return withoutSeams(stacked, parentPath, [index - 1, index]);
 }
 
 /** Change how many sections a group has. Added ones copy the last leaf's type; 1 collapses the group. */

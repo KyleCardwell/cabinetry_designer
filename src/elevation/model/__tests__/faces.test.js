@@ -89,6 +89,20 @@ describe('cabinetFaces', () => {
 });
 
 describe('isFaceNode', () => {
+  it('IN7.3 anchor 4: match is only valid on an auto group sized by its vertical parent', () => {
+    const matched = { ...stack([drawer(), drawer()]), match: 'base' };
+    expect(isFaceNode(stack([drawer(), matched]))).toBe(true);
+    expect(isFaceNode(stack([drawer(), { ...matched, direction: 'horizontal' }]))).toBe(true);
+    expect(isFaceNode(matched)).toBe(false);
+    expect(isFaceNode({ ...drawer(), match: 'base' })).toBe(false);
+    expect(isFaceNode(stack([drawer(), { ...drawer(), match: 'base' }]))).toBe(false);
+    expect(isFaceNode({ ...stack([drawer(), matched]), direction: 'horizontal' })).toBe(false);
+    for (const match of ['tall', null, undefined, true]) {
+      expect(isFaceNode(stack([drawer(), { ...matched, match }]))).toBe(false);
+    }
+    expect(isFaceNode(stack([drawer(), { ...matched, size: 30 }]))).toBe(false);
+  });
+
   it('8. accepts valid trees and rejects malformed nodes', () => {
     expect(isFaceNode(NESTED)).toBe(true);
     expect(isFaceNode(stack([drawer()]))).toBe(false);

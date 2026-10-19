@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { setFaceAction } from '../index.js';
+import { isFaceNode, setFaceAction, setFaceMatch } from '../index.js';
 import {
   equalizeGroup,
   faceOutline,
@@ -54,6 +54,77 @@ const NESTED = deepFreeze({
     },
     { type: 'door', size: null },
   ],
+});
+
+describe('IN7.3 face group matches', () => {
+  const face = deepFreeze({ direction: 'vertical', size: null, children: [
+    DOOR,
+    { direction: 'vertical', size: null, match: 'base', children: [
+      { type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: 5.875 },
+      { type: 'drawer_front', size: null }, { type: 'drawer_front', size: null },
+    ] },
+  ] });
+
+  it('anchors 5–6: typing a height removes match; clearing match returns to auto', () => {
+    const typed = setFaceSize(face, 'r.1', 30);
+    expect(typed.children[1]).toEqual({ direction: 'vertical', size: 30, children: face.children[1].children });
+    const cleared = setFaceMatch(face, 'r.1', null);
+    expect(cleared.children[1]).toEqual({ direction: 'vertical', size: null, children: face.children[1].children });
+    expect(setFaceMatch(typed, 'r.1', 'base')).toEqual(face);
+    expect(face.children[1]).toMatchObject({ match: 'base', size: null });
+  });
+
+  it('rejects match edits on leaves, roots, width-sized groups and unknown values', () => {
+    for (const path of ['r', 'r.0', 'r.1.0', 'r.9']) {
+      expect(setFaceMatch(face, path, 'base')).toBe(face);
+    }
+    const row = { ...face, direction: 'horizontal' };
+    expect(setFaceMatch(row, 'r.1', 'base')).toBe(row);
+    expect(setFaceMatch(face, 'r.1', 'tall')).toBe(face);
+  });
+
+  it('anchor 7: the drawer stack option matches an eligible group and clears the old size', () => {
+    const source = deepFreeze({ direction: 'vertical', size: null, children: [DOOR, { ...DOOR, size: 30 }] });
+    const stacked = makeDrawerStack(source, 'r.1', 4, { match: true });
+    expect(stacked.children[1]).toEqual({
+      direction: 'vertical', size: null, match: 'base',
+      children: Array.from({ length: 4 }, () => ({ type: 'drawer_front', size: null })),
+    });
+    expect(isFaceNode(stacked)).toBe(true);
+    expect(source.children[1]).toEqual({ ...DOOR, size: 30 });
+  });
+
+  it('anchor 8: the root, horizontal children and stacks without the option keep their sizes', () => {
+    const source = { direction: 'vertical', size: null, children: [DOOR, { ...DOOR, size: 30 }] };
+    for (const options of [undefined, { match: false }]) {
+      const stacked = makeDrawerStack(source, 'r.1', 4, options);
+      expect(stacked.children[1].size).toBe(30);
+      expect(stacked.children[1]).not.toHaveProperty('match');
+    }
+    const root = makeDrawerStack(DOOR, 'r', 4, { match: true });
+    expect(root).not.toHaveProperty('match');
+    expect(root.size).toBeNull();
+    const row = makeDrawerStack({ ...source, direction: 'horizontal' }, 'r.1', 4, { match: true });
+    expect(row.children[1]).not.toHaveProperty('match');
+    expect(row.children[1].size).toBe(30);
+    expect(isFaceNode(row)).toBe(true);
+  });
+
+  it('keeps the group match when its children are split, stacked or counted', () => {
+    for (const next of [
+      splitFace(face, 'r.1.0', 'vertical', 2),
+      splitFace(face, 'r.1.0', 'horizontal', 2),
+      makeDrawerStack(face, 'r.1.0', 3, { match: true }),
+      setGroupCount(face, 'r.1', 5),
+      setGroupCount(face, 'r.1', 2),
+    ]) {
+      expect(next.children[1]).toMatchObject({ match: 'base', size: null });
+      expect(isFaceNode(next)).toBe(true);
+    }
+    const collapsed = setGroupCount(face, 'r.1', 1);
+    expect(collapsed.children[1]).not.toHaveProperty('match');
+    expect(isFaceNode(collapsed)).toBe(true);
+  });
 });
 
 describe('faceTree', () => {

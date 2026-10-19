@@ -11,7 +11,7 @@ import { runItems } from './grid.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
 import { splitRun } from './splitRun.js';
 import { teeFillers } from './tees.js';
-import { cabinetReveals, growStandardFronts, isInsetStyle, resolveStyle, typeStandardReveals } from './styles.js';
+import { baseBankHeight, cabinetReveals, growStandardFronts, isInsetStyle, resolveStyle, typeStandardReveals } from './styles.js';
 import { wallViewForRun } from './wallSides.js';
 
 /** splitRun with the same options RunGroup uses. */
@@ -21,6 +21,15 @@ export function layoutRun(room, wall, run, settings) {
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
     pinTargets: pinTargetsForRun(run, wall, wall.length, settings),
   });
+}
+
+/** Resolve matches in a layout copy, leaving the stored tree and its auto sizes intact. */
+function resolveFaceMatches(face, height) {
+  if (!face.children) return face;
+  const children = face.children.map((child) => resolveFaceMatches(child, height));
+  return face.match === 'base' || children.some((child, index) => child !== face.children[index])
+    ? { ...face, size: face.match === 'base' ? height : face.size, children }
+    : face;
 }
 
 /**
@@ -94,7 +103,8 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
     const topGrowth = !isInsetStyle(style) && run.cabinetTypeId === CABINET_TYPE_IDS.BASE
       && (reveals.sources.top === 'manual' || (runEdges.top && ['style', 'rule:wood-top'].includes(reveals.sources.top)))
       ? typeStandardReveals(style, CABINET_TYPE_IDS.BASE, settings).top - reveals.values.top : 0;
-    const face = growStandardFronts(storedFace, topGrowth, style, settings);
+    const matchedFace = resolveFaceMatches(storedFace, baseBankHeight(room, wall, style, settings));
+    const face = growStandardFronts(matchedFace, topGrowth, style, settings);
     const resolved = cabinetFaces({ ...item, face }, box, run.cabinetTypeId, settings, reveals.values);
     const wallSides = Object.fromEntries(['left', 'right'].map((side) => {
       const anchor = run.anchors?.[side];

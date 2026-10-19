@@ -1,6 +1,7 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { belowRunReveal, frameBottomParts } from './bottoms.js';
 import { faceRevealsFor } from './faces.js';
+import { resolveProfile } from './profile.js';
 import { isStoneTop } from './tops.js';
 import { formatInches } from './units.js';
 
@@ -140,6 +141,13 @@ export function typeStandardReveals(style, cabinetTypeId, settings) {
     reveals.top = settings.stoneTopReveal ?? DEFAULT_SETTINGS.stoneTopReveal;
   }
   return reveals;
+}
+
+/** Base face-area height with the shop's standard stone top, in the matched cabinet's style. */
+export function baseBankHeight(room, wall, style, settings) {
+  return resolveProfile(settings, room, wall).baseBoxHeight
+    - typeStandardReveals(style, BASE, settings).top
+    - styleReveals(style, BASE, settings).bottom;
 }
 
 /** One column of faces: no pair door and no side-by-side group anywhere. */

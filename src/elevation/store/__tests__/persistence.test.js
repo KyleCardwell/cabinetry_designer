@@ -796,6 +796,27 @@ describe('elevation persistence migration', () => {
     expect(isElevationDocument(current)).toBe(false);
   });
 
+  it('IN7.3 round-trips a matched face group and rejects misplaced matches', () => {
+    const current = normalizeElevationDocument(currentDocument());
+    const item = current.rooms[0].walls[0].runs[0].grid.cells[0].node;
+    const matched = { direction: 'vertical', size: null, match: 'base', children: [
+      { type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: null },
+    ] };
+    item.face = { direction: 'vertical', size: null, children: [{ type: 'door', size: null }, matched] };
+    expect(isElevationDocument(current)).toBe(true);
+    const saved = toElevationDocument(createInitialElevationState(current));
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+    const loaded = loadElevationDocument();
+    expect(loaded.rooms[0].walls[0].runs[0].grid.cells[0].node.face).toEqual(item.face);
+    for (const invalid of [matched, { type: 'door', size: null, match: 'base' },
+      { ...item.face, direction: 'horizontal' },
+      { ...item.face, children: [item.face.children[0], { ...matched, match: 'tall' }] },
+    ]) {
+      item.face = invalid;
+      expect(isElevationDocument(current)).toBe(false);
+    }
+  });
+
   it('21. round-trips a valid cabinet face and rejects a malformed one', () => {
     const current = currentDocument();
     const item = current.rooms[0].walls[0].runs[0].grid.cells[0].node;

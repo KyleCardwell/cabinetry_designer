@@ -40,6 +40,67 @@ const STACKED = {
   },
 };
 
+describe('IN7.3 matched base drawer banks', () => {
+  const face = { direction: 'vertical', size: null, children: [
+    { type: 'door', size: null },
+    { direction: 'vertical', size: null, match: 'base', children: [
+      { type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: 5.875 },
+      { type: 'drawer_front', size: null }, { type: 'drawer_front', size: null },
+    ] },
+  ] };
+  const tall = () => ({ ...RUN, cabinetTypeId: CABINET_TYPE_IDS.TALL, height: 90,
+    items: [{ id: 'a', kind: 'cabinet', width: 18, face }] });
+  const bank = (layout) => layout.faces.filter((front) => front.path.startsWith('r.1.'));
+  const height = (rects) => Math.max(...rects.map((rect) => rect.z + rect.height)) - Math.min(...rects.map((rect) => rect.z));
+
+  it('anchor 1: Euro tall resolves 30 1/8 and fronts 5 7/8, 5 7/8, 9, 9 without changing storage', () => {
+    const run = tall();
+    const room = roomWith(run);
+    const before = structuredClone(room);
+    const layout = runFaceLayouts(room, resolveWall(room, room.walls[0]), run, DEFAULT_SETTINGS).get('a');
+    expect(height(bank(layout))).toBe(30.125);
+    expect(bank(layout).map((front) => front.height)).toEqual([5.875, 5.875, 9, 9]);
+    expect(height(layout.openings.filter((opening) => opening.path.startsWith('r.1.')))).toBe(30.125);
+    expect(room).toEqual(before);
+  });
+
+  it('anchor 2: face frame tall uses a 27 1/2 bank and inset slots', () => {
+    const run = tall();
+    const room = roomWith(run, { cabinetStyleId: 14 });
+    const layout = runFaceLayouts(room, resolveWall(room, room.walls[0]), run, DEFAULT_SETTINGS).get('a');
+    expect(height(bank(layout))).toBe(27.5);
+    expect(bank(layout).map((front) => front.height)).toEqual([5.875, 5.875, 5.625, 5.625]);
+    expect(height(layout.openings.filter((opening) => opening.path.startsWith('r.1.')))).toBe(27.5);
+  });
+
+  it('anchor 3: inherits base box height from settings, room, then wall', () => {
+    for (const level of ['settings', 'room', 'wall']) {
+      const run = tall();
+      const room = roomWith(run);
+      room.profile = {};
+      const wall = room.walls[0];
+      const settings = { ...DEFAULT_SETTINGS, defaultProfile: { ...DEFAULT_SETTINGS.defaultProfile, baseBoxHeight: 31 } };
+      if (level !== 'settings') room.profile.baseBoxHeight = 32;
+      if (level === 'wall') wall.profile.baseBoxHeight = 33;
+      const layout = runFaceLayouts(room, resolveWall(room, wall), run, settings).get('a');
+      expect(height(bank(layout))).toBe(level === 'settings' ? 30.625 : level === 'room' ? 31.625 : 32.625);
+    }
+  });
+
+  it('uses the matched cabinet style and stone standard even beside a wood-top base', () => {
+    for (const [roomStyle, runStyle, itemStyle, expected] of [
+      [14, 13, undefined, 30.125], [13, 14, 13, 30.125], [13, 13, 14, 27.5],
+    ]) {
+      const run = { ...tall(), style: { cabinetStyleId: runStyle } };
+      run.items = [{ ...run.items[0], ...(itemStyle ? { style: { cabinetStyleId: itemStyle } } : {}) }];
+      const room = roomWith(run, { cabinetStyleId: roomStyle });
+      room.walls[0].runs.push({ ...RUN, id: 'base', x: 60, top: 'wood' });
+      const layout = runFaceLayouts(room, resolveWall(room, room.walls[0]), run, DEFAULT_SETTINGS).get('a');
+      expect(height(bank(layout))).toBe(expected);
+    }
+  });
+});
+
 describe('runFaceLayouts', () => {
   it('HP1 b anchor 8: no-end Euro cabinets hinge toward the wall, then the nearer run end', () => {
     for (const x of [0, 100]) {
