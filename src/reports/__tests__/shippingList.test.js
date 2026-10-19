@@ -10,6 +10,7 @@ import { partNumbers } from '../../elevation/model/partNumbers.js';
 import { resolveWall, syncRoom } from '../../elevation/model/room.js';
 import { runBandEnds, runBands } from '../../elevation/model/runBands.js';
 import * as sceneModel from '../../elevation/model/runScene.js';
+import * as shelfModel from '../../elevation/model/shelves.js';
 import { normalizeElevationDocument } from '../../elevation/store/persistence.js';
 import { doorOrderItems } from '../doorOrder.js';
 import { formatInch, formatSize } from '../format.js';
@@ -48,6 +49,88 @@ const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entr
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
 
+describe('IN10 step b interior shipping notes', () => {
+  const fixture = (leaf = {}, overrides = {}, s = settings) => room([
+    run('run', [{ id: 'cab', kind: 'cabinet', face: face('door', { hinge: 'left' }), ...leaf }],
+      { width: 24, ...overrides }),
+  ], {}, {}, s);
+
+  it('anchor 1: puts one adjustable shelf between the full top and left hinge', () => {
+    expect(row(fixture()).notes).toEqual(['full top', '1 as', 'hl']);
+  });
+
+  it('anchor 2: adds the common drawer depth without automatic section flags', () => {
+    expect(row(fixture({ face: drawers }, { width: 18 })).notes)
+      .toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 21" drws)']);
+  });
+
+  it('anchor 3: keeps the shelf below the single drawer and prints singular depth', () => {
+    expect(row(fixture({ face: { direction: 'vertical', size: null,
+      children: [face('drawer_front', { size: 5.875 }), face('door', { hinge: 'left' })] } })).notes)
+      .toEqual(['full top', 'DF\'s (1 - 5 7/8", 21" drw)', '1 as', 'hl']);
+  });
+
+  it('anchor 4: puts the automatic partition before its left and right sections', () => {
+    expect(row(fixture({ face: face('pair_door') }, { width: 42 })).notes)
+      .toEqual(['full top', 'pt 21" oc from L', 'Left Sec (1 as)', 'Right Sec (1 as)']);
+  });
+
+  it('anchor 5: groups the sink pair roll-outs and keeps its automatic NLB', () => {
+    expect(row(fixture({ purpose: 'sink', face: face('pair_door'), interior: { rollouts: { count: 2 } } },
+      { width: 36 })).notes).toEqual(['2 ro - 18", NLB']);
+  });
+
+  it('anchor 6: tags a cabinet-picked roll-out relative to the room slide', () => {
+    expect(row(fixture({ drawerSlideId: 'accuride-3832', interior: { rollouts: { count: 1 } } })).notes)
+      .toEqual(['full top', '1 as, 1 ro - 22" (Accuride 3832)', 'hl']);
+  });
+
+  it('anchor 7: prints resolved tall shelf positions and section counts in Euro and face frame', () => {
+    for (const cabinetStyleId of [13, 14]) {
+      const r = fixture({ face: { direction: 'vertical', size: null,
+        children: [face('door', { hinge: 'left' }), face('door', { hinge: 'left' })] } },
+      { cabinetTypeId: 3, height: 84, z: 0, style: { cabinetStyleId } });
+      const data = shelfModel.wallInteriorData(r, r.walls[0], 'front', settings);
+      const interior = data.interiors.get('cab');
+      expect(interior.dividers).toHaveLength(1);
+      const banding = cabinetStyleId === 14 ? ', no banding' : '';
+      expect(row(r).notes).toEqual([
+        `fs up ${formatInch(interior.dividers[0].fromBottom)} oc${banding}`,
+        `Top Sec (${data.shelves.get('cab').get('r.0').count} as)`,
+        `Btm Sec (${data.shelves.get('cab').get('r.1').count} as)`, 'hl',
+      ]);
+    }
+  });
+
+  it('shares one interior data pass per wall face across cabinets and runs', () => {
+    const r = room([
+      run('front', [cabinet(), cabinet('second')], { width: 36 }),
+      run('another', [cabinet('third')], { x: 72 }),
+      run('back', [cabinet('back-cab')], { wallSide: 'back' }),
+    ]);
+    const spy = vi.spyOn(shelfModel, 'wallInteriorData');
+    try {
+      shippingList(r, settings);
+      expect(spy.mock.calls.map((args) => [args[1].id, args[2]]))
+        .toEqual([['wall', 'front'], ['wall', 'back']]);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('omits interior notes when the cabinet has no interior entry', () => {
+    const resolve = shelfModel.wallInteriorData;
+    const spy = vi.spyOn(shelfModel, 'wallInteriorData').mockImplementation((...args) => ({
+      ...resolve(...args), interiors: new Map(),
+    }));
+    try {
+      expect(row(fixture()).notes).toEqual(['full top', 'hl']);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+});
+
 describe('IN6 step f ROT rows and cabinet rule notes', () => {
   const pullout = (drawerBox) => face('door', { action: 'pullout', ...(drawerBox ? { drawerBox } : {}) });
   const trash = (width = 18, drawerBox) => ({ id: 'T', kind: 'cabinet', width, purpose: 'trash',
@@ -70,7 +153,7 @@ describe('IN6 step f ROT rows and cabinet rule notes', () => {
       size: formatSize(16, 22, 0.75), notes: [],
     });
     expect(rows.find(({ key }) => key === 'T').notes)
-      .toEqual(['full top', 'DF\'s (1 - 5 7/8")', 'pull-out']);
+      .toEqual(['full top', 'DF\'s (1 - 5 7/8", 21" drw)', 'pull-out']);
     expect(r).toEqual(before);
   });
 
@@ -91,11 +174,11 @@ describe('IN6 step f ROT rows and cabinet rule notes', () => {
     const s = { ...settings, stoneTopReveal: 0.125 };
     const r = room([run('run', [{ ...cabinet('A'), purpose: 'sink' }])], {}, {}, s);
     expect(row(r, 'A', s).notes).toEqual([
-      'DF\'s (1 - 5 7/8", 2 - 12 1/16")', 'notch drw around plumbing',
+      'DF\'s (1 - 5 7/8", 2 - 12 1/16", 18" drws)', 'notch drw around plumbing',
     ]);
     const wide = room([run('run', [cabinet('A')], { width: 42 })], {}, {}, s);
     expect(row(wide, 'A', s).notes).toEqual([
-      'full top', 'DF\'s (1 - 5 7/8", 2 - 12 1/16")', 'drawer stabilizers',
+      'full top', 'DF\'s (1 - 5 7/8", 2 - 12 1/16", 21" drws)', 'drawer stabilizers',
     ]);
     const both = room([run('run', [{ ...cabinet('A'), purpose: 'sink' }], { width: 42 })]);
     expect(row(both, 'A').notes.slice(-2)).toEqual(['notch drw around plumbing', 'drawer stabilizers']);
@@ -107,7 +190,7 @@ describe('IN6 step f ROT rows and cabinet rule notes', () => {
       direction: 'vertical', size: null,
       children: [face('drawer_front', { size: 5.875 }), face('drawer_front')],
     } }])], {}, {}, s);
-    expect(row(r, 'cab', s).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 24 1/4" (Accuride 3832))']);
+    expect(row(r, 'cab', s).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 24 1/4" (Accuride 3832, 22" deep), 21" drws)']);
   });
 
   it('shares the wall-face cache and looks up each nested ROT path on both faces', () => {
@@ -157,30 +240,30 @@ describe('IN5 step f shipping slide tags', () => {
   ] } });
 
   it('keeps the room slide untagged and splits a picked bottom box (anchors 1, 2)', () => {
-    expect(row(room()).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12")']);
+    expect(row(room()).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 21" drws)']);
     const r = room([run('run', [picked()])]);
     const before = structuredClone(r);
-    expect(row(r).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 12", 1 - 12" (Accuride 3832))']);
+    expect(row(r).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 12", 1 - 12" (Accuride 3832, 22" deep), 21" drws)']);
     expect(r).toEqual(before);
   });
 
   it('tags every cabinet-picked front relative to the room slide (anchor 3)', () => {
     const r = room([run('run', [{ ...cabinet(), face: structuredClone(drawers), drawerSlideId: 'accuride-3832' }])]);
-    expect(row(r).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8" (Accuride 3832), 2 - 12" (Accuride 3832))']);
+    expect(row(r).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8" (Accuride 3832), 2 - 12" (Accuride 3832), 22" drws)']);
     r.walls[0].runs[0].grid.cells[0].node.face.children[2].drawerBox = { slideId: 'blum-562h' };
-    expect(row(r).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8" (Accuride 3832), 1 - 12" (Accuride 3832), 1 - 12")']);
+    expect(row(r).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8" (Accuride 3832), 1 - 12" (Accuride 3832), 1 - 12" (21" deep), 22" drws)']);
   });
 
   it('uses the resolved room slide and current library name (anchor 4)', () => {
     const s = { ...settings, drawerSlideId: 'accuride-3832' };
     expect(row(room(undefined, {}, {}, s), 'cab', s).notes)
-      .toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12")']);
+      .toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 22" drws)']);
     const renamed = { ...settings, slides: settings.slides.map((slide) =>
       slide.id === 'accuride-3832' ? { ...slide, name: 'Accuride' } : slide) };
     expect(row(room([run('run', [picked()])], {}, {}, renamed), 'cab', renamed).notes)
-      .toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 12", 1 - 12" (Accuride))']);
+      .toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 12", 1 - 12" (Accuride, 22" deep), 21" drws)']);
     const missing = { ...settings, drawerSlideId: 'missing-slide' };
-    expect(row(room(), 'cab', missing).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12")']);
+    expect(row(room(), 'cab', missing).notes).toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 21" drws)']);
   });
 
   it('groups rounded heights and tags by first top-down, left-right appearance', () => {
@@ -206,7 +289,7 @@ describe('IN5 step f shipping slide tags', () => {
     try {
       const rows = shippingList(r, settings).rows;
       expect(rows.find(({ key }) => key === 'back-cab').notes)
-        .toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 12", 1 - 12" (Accuride 3832))']);
+        .toEqual(['full top', 'DF\'s (1 - 5 7/8", 1 - 12", 1 - 12" (Accuride 3832, 22" deep), 21" drws)']);
       expect(spy.mock.calls.map((args) => [args[1].id, args[2]]))
         .toEqual([['wall', 'front'], ['wall', 'back']]);
     } finally {
@@ -352,8 +435,8 @@ describe('RP2.4 step c shipping face frame notes', () => {
     expect(result.rows.some(({ kind }) => kind === 'frame')).toBe(false);
     expect(shippingList(r, s, { ...settings, insetFrame: { stile: 2, rail: 3 } })).toEqual(result);
     expect(result.rows.filter(({ kind }) => kind === 'cabinet')).toEqual([
-      { number: 1, key: 'a', kind: 'cabinet', description: 'Base', notes: ['full top', 'hl'], size: '9 x 30 1/2 x 24' },
-      { number: 2, key: 'b', kind: 'cabinet', description: 'Base', notes: ['full top', 'hl'], size: '9 x 30 1/2 x 24' },
+      { number: 1, key: 'a', kind: 'cabinet', description: 'Base', notes: ['full top', '1 as', 'hl'], size: '9 x 30 1/2 x 24' },
+      { number: 2, key: 'b', kind: 'cabinet', description: 'Base', notes: ['full top', '1 as', 'hl'], size: '9 x 30 1/2 x 24' },
     ]);
   });
 
@@ -470,7 +553,7 @@ describe('HP1 step d shipping hinge notes', () => {
     expect(hingeNote([face('door', { action: 'sliding' }), face('door', { action: 'sliding' })]))
       .toBe('sliding door');
     const r = room([run('run', [{ ...cabinet(), face: face('pair_door', { action: 'flipper' }) }])]);
-    expect(row(r).notes).toEqual(['full top', 'flipper doors']);
+    expect(row(r).notes).toEqual(['full top', 'NLB, NPH (No Doors)', 'flipper doors']);
   });
 });
 
@@ -480,30 +563,30 @@ describe('IN1b step c box construction notes', () => {
   ], roomOverrides, wallOverrides);
 
   it('prints full top for a standard base (anchor 1)', () => {
-    expect(row(fixture()).notes).toEqual(['full top']);
+    expect(row(fixture()).notes).toEqual(['full top', '1 as, NPH (No Doors)']);
   });
 
   it('omits the standard base sink spreaders note (anchor 2)', () => {
-    expect(row(fixture({ purpose: 'sink' })).notes).toEqual([]);
-    expect(row(fixture({ purpose: 'cooktop' })).notes).toEqual([]);
+    expect(row(fixture({ purpose: 'sink' })).notes).toEqual(['NLB, NPH (No Doors)']);
+    expect(row(fixture({ purpose: 'cooktop' })).notes).toEqual(['NLB, NPH (No Doors)']);
   });
 
   it('combines upper overlays before the finished bottom note (anchor 3)', () => {
     const r = fixture({ box: { top: 'overlay', bottom: 'overlay', finBottom: true } },
       { cabinetTypeId: 2, z: 54, depth: 12 });
-    expect(row(r).notes).toEqual(['top & bottom overlay sides', 'fin bottom (dowel front holes)']);
+    expect(row(r).notes).toEqual(['top & bottom overlay sides', 'fin bottom (dowel front holes)', '1 as, NPH (No Doors)']);
   });
 
   it('orders full top, reveals, no deck, inset back and missing side (anchor 4)', () => {
     const r = fixture({ box: { bottom: 'none', right: false }, reveals: { left: 0.125 } },
       {}, { thickness: 0 });
-    expect(row(r).notes).toEqual(['full top', 'RV\'s (1/8" L)', 'no deck', '3/4" inset back', 'no right side']);
+    expect(row(r).notes).toEqual(['full top', 'RV\'s (1/8" L)', 'no deck', '3/4" inset back', 'no right side', '1 as, NPH (No Doors)']);
   });
 
   it('prints tall spreaders before an applied back (anchor 5)', () => {
     const r = fixture({ box: { top: 'spreaders', back: 'applied' } },
       { cabinetTypeId: 3, z: 0, height: 84 });
-    expect(row(r).notes).toEqual(['top spreaders', '1/4" applied back']);
+    expect(row(r).notes).toEqual(['top spreaders', '1/4" applied back', '6 as, NPH (No Doors)']);
   });
 
   it('orders individual overlays and finishes between Boxes and reveals, with free text last', () => {
@@ -514,7 +597,7 @@ describe('IN1b step c box construction notes', () => {
       const r = fixture({ box: { ...box, finTop: true, finBottom: true }, reveals: { left: 0.125 } },
         {}, {}, { reportParts: { cab: { boxes: 'MAPLE PLY', note: 'last' } } });
       expect(row(r).notes).toEqual(['MAPLE PLY BOX', 'full top', overlay,
-        'fin top (dowel front holes)', 'fin bottom (dowel front holes)', 'RV\'s (1/8" L)', 'last']);
+        'fin top (dowel front holes)', 'fin bottom (dowel front holes)', 'RV\'s (1/8" L)', '1 as, NPH (No Doors)', 'last']);
     }
   });
 
@@ -523,10 +606,10 @@ describe('IN1b step c box construction notes', () => {
       top: 'none', bottom: 'spreaders', back: 'none', left: false, right: false, finTop: true, finBottom: true,
     } });
     const before = structuredClone(r);
-    expect(row(r).notes).toEqual(['no top', 'bottom spreaders', 'no back', 'no left side', 'no right side']);
+    expect(row(r).notes).toEqual(['no top', 'bottom spreaders', 'no back', 'no left side', 'no right side', '1 as, NPH (No Doors)']);
     expect(r).toEqual(before);
     expect(row(fixture({ box: { top: 'spreaders', bottom: 'none', finTop: true, finBottom: true } })).notes)
-      .toEqual(['no deck', '3/4" inset back']);
+      .toEqual(['no deck', '3/4" inset back', '1 as, NPH (No Doors)']);
   });
 
   it('uses nested cabinet leaves and keeps construction notes off filler rows', () => {
@@ -535,7 +618,7 @@ describe('IN1b step c box construction notes', () => {
       { id: 'fill', kind: 'filler', width: 3 },
     ]);
     const r = room([run('run', [{ id: 'group', grid }])]);
-    expect(row(r).notes).toEqual(['full top', 'no back']);
+    expect(row(r).notes).toEqual(['full top', 'no back', '1 as, NPH (No Doors)']);
     expect(row(r, 'fill').notes).toEqual(['L-shape']);
   });
 });
@@ -582,13 +665,13 @@ describe('RP2 step d cabinet notes', () => {
 
   it('prints only reveals differing from the standard in T, B, L, R, H, V order (anchor 6)', () => {
     const r = room([run('run', [{ ...cabinet(), face: face('open'), reveals: { top: 0.25, bottom: 0.125 } }])]);
-    expect(row(r).notes).toEqual(['full top']);
+    expect(row(r).notes).toEqual(['full top', '1 as, NPH (No Doors)']);
     r.walls[0].runs[0].grid.cells[0].node.reveals = {
       vertical: 0.125, right: 0.25, horizontal: 0, bottom: null, left: 0.125, top: 0.25,
     };
-    expect(row(r).notes).toEqual(['full top', 'RV\'s (1/8" L, 1/4" R, 0" H)']);
+    expect(row(r).notes).toEqual(['full top', 'RV\'s (1/8" L, 1/4" R, 0" H)', '1 as, NPH (No Doors)']);
     delete r.walls[0].runs[0].grid.cells[0].node.reveals;
-    expect(row(r).notes).toEqual(['full top']);
+    expect(row(r).notes).toEqual(['full top', '1 as, NPH (No Doors)']);
   });
 
   it('prints an override only when it differs from room Boxes (anchor 7)', () => {
@@ -596,18 +679,18 @@ describe('RP2 step d cabinet notes', () => {
     const r = room([run('run', [{ ...cabinet(), face: face('open') }])], {
       reportParts: { cab: { boxes: 'MAPLE PLY' } },
     }, {}, s);
-    expect(row(r, 'cab', s).notes).toEqual(['MAPLE PLY BOX', 'full top']);
+    expect(row(r, 'cab', s).notes).toEqual(['MAPLE PLY BOX', 'full top', '1 as, NPH (No Doors)']);
     r.reportParts.cab.boxes = 'WHITE MELAMINE';
-    expect(row(r, 'cab', s).notes).toEqual(['full top']);
+    expect(row(r, 'cab', s).notes).toEqual(['full top', '1 as, NPH (No Doors)']);
     delete r.reportParts.cab.boxes;
-    expect(row(r, 'cab', s).notes).toEqual(['full top']);
+    expect(row(r, 'cab', s).notes).toEqual(['full top', '1 as, NPH (No Doors)']);
   });
 
   it('uses the widest resolved single door and the blind extension (anchor 8)', () => {
     const r = room([run('run', [{ ...cabinet(), face: face('door') }], {
       width: 24, blind: { left: 39.5, right: null }, ends: { ...ends(), left: { type: 'blind', width: 6 } },
     })]);
-    expect(row(r).notes).toEqual(['full top', 'Door x 17 7/8", Blind x 21 1/2"', 'hl']);
+    expect(row(r).notes).toEqual(['full top', 'Door x 17 7/8", Blind x 21 1/2"', '1 as', 'hl']);
     r.walls[0].runs[0].grid.cells[0].node.face = { direction: 'horizontal', size: null,
       children: [face('door', { size: 6 }), face('door')] };
     expect(row(r).notes[1]).toBe('Door x 11 3/4", Blind x 21 1/2"');
@@ -617,7 +700,8 @@ describe('RP2 step d cabinet notes', () => {
     const r = room([run('run', [{ ...cabinet(), face: face('pair_door') }], {
       width: 24, blind: { left: null, right: 39.5 }, ends: { ...ends(), right: { type: 'blind', width: 6 } },
     })]);
-    expect(row(r).notes).toEqual(['full top', 'Door x 18", Blind x 21 1/2"']);
+    expect(row(r).notes).toEqual(['full top', 'Door x 18", Blind x 21 1/2"',
+      'pt 9" oc from L', 'Left Sec (1 as)', 'Right Sec (1 as)']);
   });
 
   it('passes through the right-side T-filler rabbet note (anchor 9)', () => {
@@ -625,7 +709,7 @@ describe('RP2 step d cabinet notes', () => {
       width: 21, ends: { ...ends(), right: { type: 'filler', width: 3 } },
       endFiller: { right: { tFiller: true } },
     })]);
-    expect(row(r).notes).toEqual(['full top', 'RV\'s (13/16" R)', 'FF to rabbet right side for T-filler']);
+    expect(row(r).notes).toEqual(['full top', 'RV\'s (13/16" R)', '1 as, NPH (No Doors)', 'FF to rabbet right side for T-filler']);
     expect(row(r, 'run:right').notes).toEqual(['T-shape']);
   });
 
@@ -635,15 +719,15 @@ describe('RP2 step d cabinet notes', () => {
       reportParts: { cab: { boxes: 'MAPLE PLY', note: ' x ' } },
     });
     expect(row(r)).toMatchObject({ description: 'Base Top Drawer',
-      notes: ['MAPLE PLY BOX', 'full top', 'DF\'s (1 - 5 7/8")', 'hl', 'x'] });
+      notes: ['MAPLE PLY BOX', 'full top', 'DF\'s (1 - 5 7/8", 21" drw)', '1 as', 'hl', 'x'] });
   });
 
   it('counts false fronts separately from drawers and ignores pair hinges (anchor 11)', () => {
     const sink = { ...cabinet(), face: { direction: 'vertical', size: null,
       children: [face('false_front', { size: 5.875 }), face('pair_door')] } };
-    expect(row(room([run('run', [sink])])).notes).toEqual(['full top', 'false front']);
+    expect(row(room([run('run', [sink])])).notes).toEqual(['full top', 'false front', '1 as']);
     sink.face.children.unshift(face('false_front', { size: 5.875 }));
-    expect(row(room([run('run', [sink])])).notes).toEqual(['full top', '2 false fronts']);
+    expect(row(room([run('run', [sink])])).notes).toEqual(['full top', '2 false fronts', '1 as']);
   });
 
   it('orders all seven groups before free text and preserves the room', () => {
@@ -656,7 +740,7 @@ describe('RP2 step d cabinet notes', () => {
     })], { reportParts: { cab: { boxes: 'MAPLE PLY', note: 'last' } } });
     const before = structuredClone(r);
     expect(row(r).notes).toEqual(['MAPLE PLY BOX', 'full top', 'RV\'s (3/32" L, 27/32" R)',
-      'Door x 17 1/16", Blind x 21 1/2"', 'DF\'s (1 - 5 7/8")', 'false front', 'hl',
+      'Door x 17 1/16", Blind x 21 1/2"', 'DF\'s (1 - 5 7/8", 21" drw)', 'false front', '1 as', 'hl',
       'FF to rabbet right side for T-filler', 'last']);
     expect(r).toEqual(before);
   });
@@ -725,6 +809,8 @@ describe('RP2.2 step b reveal notes', () => {
 
   it('falls back to typed-only notes when a cabinet has no face layout', () => {
     const r = uncaptured({}, { top: 0.25, bottom: null });
+    const data = shelfModel.wallInteriorData(r, r.walls[0], 'front', settings);
+    const interiorSpy = vi.spyOn(shelfModel, 'wallInteriorData').mockReturnValue(data);
     const spy = vi.spyOn(sceneModel, 'runScene').mockImplementation((...args) => ({
       ...runScene(...args), faceLayouts: new Map(),
     }));
@@ -734,6 +820,7 @@ describe('RP2.2 step b reveal notes', () => {
       expect(revealNotes(r)).toEqual([]);
     } finally {
       spy.mockRestore();
+      interiorSpy.mockRestore();
     }
   });
 });
@@ -785,7 +872,7 @@ describe('RP2 step c shipping list rows', () => {
     const r = room();
     const before = structuredClone(r);
     expect(row(r)).toEqual({ number: 1, key: 'cab', kind: 'cabinet',
-      description: 'Base 3 Drawers', notes: ['full top', 'DF\'s (1 - 5 7/8", 2 - 12")'], size: '18 x 30 1/2 x 24' });
+      description: 'Base 3 Drawers', notes: ['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 21" drws)'], size: '18 x 30 1/2 x 24' });
     const part = partNumbers(r, settings).parts.find(({ key }) => key === 'cab');
     expect(shippingDescription(r, settings, part)).toBe('Base 3 Drawers');
     expect(r).toEqual(before);
@@ -793,10 +880,10 @@ describe('RP2 step c shipping list rows', () => {
 
   it('lets the typed name replace the entire description and keeps free text last (anchor 8)', () => {
     const r = room(undefined, { reportParts: { cab: { name: 'Pencil Base', note: 'check pulls', shopBuilt: true } } });
-    expect(row(r)).toMatchObject({ description: 'Pencil Base', notes: ['full top', 'DF\'s (1 - 5 7/8", 2 - 12")', 'check pulls'] });
+    expect(row(r)).toMatchObject({ description: 'Pencil Base', notes: ['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 21" drws)', 'check pulls'] });
     r.reportParts.cab.name = '  ';
     r.reportParts.cab.note = '   ';
-    expect(row(r)).toMatchObject({ description: 'Shop-built Base 3 Drawers', notes: ['full top', 'DF\'s (1 - 5 7/8", 2 - 12")'] });
+    expect(row(r)).toMatchObject({ description: 'Shop-built Base 3 Drawers', notes: ['full top', 'DF\'s (1 - 5 7/8", 2 - 12", 21" drws)'] });
   });
 
   it('adds the normal filler return to its thickness (anchor 9)', () => {

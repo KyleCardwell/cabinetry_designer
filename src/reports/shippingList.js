@@ -5,7 +5,6 @@ import { panelOrientation } from '../elevation/model/cells.js';
 import { frontDepth, runBackOffset } from '../elevation/model/corners.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
 import { sheetThickness } from '../elevation/model/doorStyles.js';
-import { wallDrawerBoxes } from '../elevation/model/drawerBoxes.js';
 import { elevationParts } from '../elevation/model/elevationParts.js';
 import { frameMembers, regionOpenings } from '../elevation/model/frames.js';
 import { furnitureBaseGroups } from '../elevation/model/furnitureBaseGroups.js';
@@ -22,6 +21,7 @@ import { resolveWall } from '../elevation/model/room.js';
 import { runBands } from '../elevation/model/runBands.js';
 import { runScene } from '../elevation/model/runScene.js';
 import { sectionProfileBounds } from '../elevation/model/sectionProfiles.js';
+import { wallInteriorData } from '../elevation/model/shelves.js';
 import { resolveSlide } from '../elevation/model/slides.js';
 import {
   endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
@@ -32,6 +32,7 @@ import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { doorOrderItems } from './doorOrder.js';
 import { formatInch, formatSize } from './format.js';
 import { frameMemberRoles, frameNotes, frameReasons, frameStandards } from './frameNotes.js';
+import { interiorNotes } from './interiorNotes.js';
 
 const TYPES = { 1: 'Base', 2: 'Upper', 3: 'Tall' };
 const MOLDINGS = { toeKick: 'Toe Kick', topMold: 'Top Mold', crown: 'Crown' };
@@ -159,7 +160,7 @@ function shippingContext(room, settings) {
   const scenes = new Map();
   const teeData = new Map();
   const elevations = new Map();
-  const drawerBoxes = new Map();
+  const interiorData = new Map();
   let bases;
   let moldings;
   return (part) => {
@@ -199,15 +200,16 @@ function shippingContext(room, settings) {
       style = resolveDoorStyle(room, settings, 'panel',
         panelLevels(room, view, run, end ? run.ends?.[end] : leaf, { sheet })).style;
     }
-    const drawerData = () => {
-      if (!drawerBoxes.has(viewKey)) drawerBoxes.set(viewKey,
-        wallDrawerBoxes(room, wall, part.side ?? 'front', settings));
-      return drawerBoxes.get(viewKey).get(part.cabinetId ?? part.key);
+    const wallData = () => {
+      if (!interiorData.has(viewKey)) interiorData.set(viewKey,
+        wallInteriorData(room, wall, part.side ?? 'front', settings));
+      return interiorData.get(viewKey);
     };
+    const drawerData = () => wallData().boxes.get(part.cabinetId ?? part.key);
     return {
       wall: view, run, scene, piece, leaf, end, blindPanel, shelfBack, style,
       rabbets: teeData.get(run).rabbets, shapeNotes: teeData.get(run).notes,
-      drawerData,
+      drawerData, interiorData: wallData,
       drawerBox: () => drawerData()?.boxes.find(({ path }) => path === part.facePath),
       // Descriptions and the properties placeholder need no elevation geometry.
       rectangle: () => {
@@ -319,6 +321,11 @@ function cabinetNotes(room, settings, part, context) {
   const drawerData = context.drawerData();
   const slideNames = new Map((drawerData?.boxes ?? []).map(({ path, slideId, slide }) =>
     [path, slideId !== roomSlideId ? slide.name : null]));
+  const depths = new Map((drawerData?.boxes ?? []).map(({ path, depth }) => [path, depth]));
+  const data = context.interiorData();
+  const interior = data.interiors.get(part.key);
+  const notes = interior ? interiorNotes({ interior, shelves: data.shelves.get(part.key),
+    rollouts: data.rollouts.get(part.key), boxes: drawerData?.boxes ?? [], roomSlideId, settings }) : null;
   const boxes = room.reportParts?.[part.key]?.boxes;
   const style = resolveStyle(settings, room, run, leaf);
   const standard = layout && !isInsetStyle(style)
@@ -352,9 +359,11 @@ function cabinetNotes(room, settings, part, context) {
       box.right === false ? 'no right side' : null,
     ],
     3: blind ? `Door x ${formatInch(doorWidth)}, Blind x ${formatInch(blind.extension)}` : null,
-    4: drawerFrontNote(faces, slideNames),
+    4: drawerFrontNote(faces, slideNames, depths),
     4.5: drawerData?.notes.map(({ text }) => text),
     5: falseFronts ? falseFronts === 1 ? 'false front' : `${falseFronts} false fronts` : null,
+    5.4: notes?.dividers,
+    5.5: notes?.sections,
     6: hingeNote(faces),
     7: rabbets.get(part.key),
   };

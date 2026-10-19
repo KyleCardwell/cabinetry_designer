@@ -7,12 +7,13 @@ import { cabinetFaces, faceArea } from '../faces.js';
 import { faceOpenings } from '../frames.js';
 import { gridFromItems } from '../grid.js';
 import { cabinetInterior, placeInterior, resolveInterior } from '../interiors.js';
-import { sectionShelves, wallShelves } from '../shelves.js';
+import { sectionShelves, wallInteriorData, wallShelves } from '../shelves.js';
 import { BUILT_IN_SLIDES } from '../slides.js';
 import * as drawerBoxesModule from '../drawerBoxes.js';
 import * as interiorsModule from '../interiors.js';
 import * as partsModule from '../elevationParts.js';
 import * as scenesModule from '../runScene.js';
+import * as rolloutsModule from '../rollouts.js';
 
 const settings = { ...DEFAULT_SETTINGS, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h' };
 const face = (type = 'door', extra = {}) => ({ type, size: null, ...extra });
@@ -46,6 +47,42 @@ function roomWith(leaves, { width = 24 * leaves.length, height = 30.5, depth = 2
 }
 
 describe('IN8 shelves and section flags', () => {
+  it('IN10 anchor 8: shares resolved interior data and preserves shelf Maps on either face', () => {
+    for (const cabinetStyleId of [13, 14]) {
+      const room = roomWith([
+        { id: 'a', face: stack(face('drawer_front', { size: 5.875 }), face()),
+          interior: { rollouts: { count: 1 } } },
+        { id: 'b', face: face('pair_door') },
+      ], { width: 84 });
+      room.style = { cabinetStyleId };
+      const wall = room.walls[0];
+      const back = structuredClone(wall.runs[0]);
+      back.id = 'back';
+      back.wallSide = 'back';
+      back.grid = gridFromItems('back', [{ id: 'c', kind: 'cabinet', width: null, face: face() }]);
+      wall.runs.push(back);
+      const before = structuredClone(room);
+      for (const side of ['front', 'back']) {
+        const expected = wallShelves(room, wall, side, settings);
+        const spies = [vi.spyOn(interiorsModule, 'wallInteriors'),
+          vi.spyOn(drawerBoxesModule, 'wallDrawerBoxes'), vi.spyOn(rolloutsModule, 'wallRollouts')];
+        try {
+          const data = wallInteriorData(room, wall, side, settings);
+          expect(spies.map((spy) => spy.mock.calls.length)).toEqual([1, 1, 1]);
+          expect(data.interiors).toEqual(new Map(spies[0].mock.results[0].value
+            .map((interior) => [interior.itemId, interior])));
+          expect(data.boxes).toBe(spies[1].mock.results[0].value);
+          expect(data.rollouts).toBe(spies[2].mock.results[0].value);
+          expect(data.shelves).toEqual(expected);
+          expect([...data.shelves.keys()]).toEqual(side === 'front' ? ['a', 'b'] : ['c']);
+        } finally {
+          spies.forEach((spy) => spy.mockRestore());
+        }
+      }
+      expect(room).toEqual(before);
+    }
+  });
+
   it('anchor 1: sizes one base shelf from the clear section and enables both flags', () => {
     const args = input();
     expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23 }]);

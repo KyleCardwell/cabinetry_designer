@@ -82,14 +82,14 @@ export function sectionShelves({ interior, faces, boxes = [], leaf, settings, ro
   return result;
 }
 
-/** Share one interiors pass and one drawer-box pass across every cabinet on the wall face. */
-export function wallShelves(room, wall, side, settings) {
+/** Share all interior passes across every cabinet on the wall face. */
+export function wallInteriorData(room, wall, side, settings) {
   const faceLayoutsByRun = new Map();
   const interiors = wallInteriors(room, wall, side, settings, faceLayoutsByRun);
   const boxes = wallDrawerBoxes(room, wall, side, settings, { interiors, faceLayoutsByRun });
   const rollouts = wallRollouts(room, wall, side, settings, { interiors, faceLayoutsByRun, boxes });
   const runs = new Map(resolveWall(room, wall, side).runs.map((run) => [run.id, run]));
-  return new Map(interiors.map((interior) => [interior.itemId, sectionShelves({
+  const shelves = new Map(interiors.map((interior) => [interior.itemId, sectionShelves({
     interior,
     faces: faceLayoutsByRun.get(interior.runId)?.get(interior.itemId)?.faces ?? [],
     boxes: boxes.get(interior.itemId)?.boxes ?? [],
@@ -97,4 +97,10 @@ export function wallShelves(room, wall, side, settings) {
     leaf: findLeaf(runs.get(interior.runId).grid, interior.itemId),
     settings,
   })]));
+  return { interiors: new Map(interiors.map((interior) => [interior.itemId, interior])), boxes, rollouts, shelves };
+}
+
+/** Adjustable shelves retain the same wall-coordinate results as the shared interior data. */
+export function wallShelves(room, wall, side, settings) {
+  return wallInteriorData(room, wall, side, settings).shelves;
 }
