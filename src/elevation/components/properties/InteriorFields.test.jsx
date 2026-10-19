@@ -406,6 +406,16 @@ describe('IN8 shelf controls', () => {
     expectInterior(null);
   });
 
+  it('IN8.1: counts shelves in wall coordinates for a cabinet away from the origin, and shows the clear spacing', () => {
+    base();
+    edit(() => { run().x = 40; run().z = 36; });
+    select('r');
+    expect(field('Shelf count r').props.placeholder).toBe('Auto (1)');
+    expect(text(field('Shelf spacing r'))).toBe('14 1/8 clear between shelves');
+    commit('Shelf count r', 0);
+    expect(field('Shelf spacing r')).toBeUndefined();
+  });
+
   it('anchor 2: cabinet hardwood removes the auto wide partition without storing a tree', () => {
     base(42, 'pair_door');
     expect(field('Interior r.0')).toBeDefined();

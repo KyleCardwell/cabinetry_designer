@@ -9,6 +9,8 @@ import { resolveWall } from './room.js';
 const door = (face) => ['door', 'pair_door'].includes(face.type);
 const shelfFace = (face) => face.type === 'open'
   || (door(face) && (face.action === undefined || ['pocket', 'sliding'].includes(face.action)));
+// Top- and bottom-hinged doors don't hinge on the box sides, so they need no hinge plate holes (Kyle 2026-10-19).
+const sideHinged = (face) => door(face) && face.action === undefined && !['top', 'bottom'].includes(face.hinge);
 const covers = (face, section) => (
   Math.min(face.x + face.width, section.x + section.width) - Math.max(face.x, section.x) > 1 / 4
   && Math.min(face.z + face.height, section.z + section.height) - Math.max(face.z, section.z) > 1 / 4
@@ -52,17 +54,22 @@ export function sectionShelves({ interior, faces, boxes = [], leaf, settings }) 
     const zone = shelfZone(section, boxes);
     const covering = faces.filter((face) => covers(face, section));
     const eligible = !['sink', 'cooktop', 'oven'].includes(leaf.purpose) && covering.some(shelfFace);
-    const count = pick.count ?? (eligible ? Math.max(0, Math.round(zone.height / setting('shelfSpacing') - 1)) : 0);
     const visible = nosing?.height ?? thickness;
+    // Auto: the most shelves that still leave at least `shelfSpacing` (11" default) clear between them (Kyle 2026-10-19).
+    const spacing = setting('shelfSpacing');
+    const count = pick.count ?? (eligible
+      ? Math.max(0, Math.floor((zone.height - spacing) / (spacing + visible) + 1e-9)) : 0);
     const gap = (zone.height - count * visible) / (count + 1);
     result.set(section.path, {
       count, countSource: pick.count === undefined ? 'auto' : 'manual', zone, width, depth,
       orderedDepth: kind === 'folded' ? depth + setting('foldedNosingExtra')
         : kind === 'hardwood' ? depth - nosing.thickness : depth,
+      // Equal clear space between shelves (and above/below them), for information only.
+      gap: count > 0 ? gap : null,
       thickness, glass, glassSource: source('glass'), nosing, nosingSource: source('nosing'),
       banding: glass ? null : !nosing,
       positions: Array.from({ length: count }, (_, index) => zone.z + gap + index * (visible + gap)),
-      hinges: node.hinges ?? covering.some((face) => door(face) && face.action === undefined),
+      hinges: node.hinges ?? covering.some(sideHinged),
       hingesSource: node.hinges === undefined ? 'auto' : 'manual',
       lineBore: node.lineBore ?? count > 0,
       lineBoreSource: node.lineBore === undefined ? 'auto' : 'manual',

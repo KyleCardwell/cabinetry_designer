@@ -168,7 +168,7 @@ describe('DB2 d room settings panel', () => {
   it('IN8 shows seven inherited shelf settings and supports a room pick and reset', () => {
     const tree = openGroup('Shelves');
     const defaults = [
-      ['Shelf spacing', '12'], ['Shelf width clearance', '1/16'], ['Shelf front setback', '1/8'],
+      ['Min clear between shelves', '11'], ['Shelf width clearance', '1/16'], ['Shelf front setback', '1/8'],
       ['Glass shelf thickness', '1/4'], ['Shelf nosing height', '1 1/2'],
       ['Shelf nosing thickness', '13/16'], ['Folded nosing extra depth', '2'],
     ];
@@ -176,12 +176,12 @@ describe('DB2 d room settings panel', () => {
     for (const [label, placeholder] of defaults) {
       expect(field(tree, `Room ${label}`).props).toMatchObject({ value: '', placeholder });
     }
-    const picked = commit('Room Shelf spacing', '10');
+    const picked = commit('Room Min clear between shelves', '10');
     expect(state.rooms[0].settingsOverrides).toEqual({ shelfSpacing: 10 });
     expect(text(header(picked, 'Shelves'))).toContain('1 overridden');
-    field(picked, 'Reset Shelf spacing').props.onClick();
+    field(picked, 'Reset Min clear between shelves').props.onClick();
     expect(state.rooms[0]).not.toHaveProperty('settingsOverrides');
-    expect(field(render(), 'Room Shelf spacing').props).toMatchObject({ value: '', placeholder: '12' });
+    expect(field(render(), 'Room Min clear between shelves').props).toMatchObject({ value: '', placeholder: '11' });
   });
 
   it('starts the section and every group closed and keeps expansion out of saved state', () => {

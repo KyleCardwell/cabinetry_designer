@@ -143,6 +143,26 @@ describe('IN3 doors-off canvas', () => {
       .map(({ props }) => props.stroke)).toEqual(['#7dd3fc', '#7dd3fc', '#64748b', '#1e293b', '#1e293b']);
   });
 
+  it('IN8.1: labels the clear space below, between and above the selected cabinet\'s shelves', () => {
+    const box = { x: 10, z: 4, width: 24, height: 84, depth: 24 };
+    const entry = { itemId: 'cabinet', ...placeInterior({
+      box, ...resolveInterior(undefined, box, boxConstruction({}), state.settings),
+    }) };
+    const shelf = { width: 22.4375, thickness: 0.75, nosing: null, zone: { z: 4.75, height: 82.5 },
+      positions: [31.75, 59.5], gap: 27 };
+    const render = (extra = {}) => nodes(InteriorShapes({
+      entries: [entry], shelves: new Map([['cabinet', new Map([['r', shelf]])]]),
+      drawnPieces: [], transform, selectedPieceId: 'cabinet', ...extra,
+    }));
+    const gaps = (shapes) => shapes.filter(({ type, key }) => type === Text && String(key).startsWith('shelf-gap'));
+    const labels = gaps(render());
+    expect(labels.map(({ props }) => props.text)).toEqual(['27', '27', '27']);
+    expect(labels.map(({ props }) => props.y)).toEqual([4.75, 32.5, 60.25]
+      .map((z) => wallRectToScreen({ x: 10.75, z, width: 22.5, height: 27 }, transform).y));
+    expect(gaps(render({ selectedPieceId: 'other' }))).toHaveLength(0);
+    expect(render({ selectedPieceId: 'other' }).filter(({ type }) => type === Rect)).toHaveLength(3);
+  });
+
   it('anchor 5: toggles Doors off beside part numbers in elevation, including read-only, and hides it in plan', () => {
     const buttons = () => nodes(ElevationToolbar({ readOnly: true })).filter(({ type }) => type === 'button');
     const toggle = () => buttons().find(({ props }) => props.children === 'Doors off');

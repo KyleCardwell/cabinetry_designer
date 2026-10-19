@@ -69,7 +69,7 @@ describe('DB1 a settings registry', () => {
 
 it('IN8 registers the seven shelf defaults and inherits/resets them through the room level', () => {
   const defaults = {
-    shelfSpacing: 12, shelfWidthClearance: 1 / 16, shelfSetback: 1 / 8,
+    shelfSpacing: 11, shelfWidthClearance: 1 / 16, shelfSetback: 1 / 8,
     glassShelfThickness: 1 / 4, shelfNosingHeight: 1.5, shelfNosingThickness: 13 / 16,
     foldedNosingExtra: 2,
   };

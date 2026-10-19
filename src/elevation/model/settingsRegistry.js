@@ -42,7 +42,7 @@ const roomNumbers = [
   ['stackedLowerTop', 'Stacked lower top reveal'],
   ['floatingShelfThickness', 'Floating shelf thickness'],
   ['drawerBoxAdjustment', 'Drawer box vertical adjustment'],
-  ['shelfSpacing', 'Shelf spacing'],
+  ['shelfSpacing', 'Min clear between shelves'],
   ['shelfWidthClearance', 'Shelf width clearance'],
   ['shelfSetback', 'Shelf front setback'],
   ['glassShelfThickness', 'Glass shelf thickness'],

@@ -11,6 +11,7 @@ import {
   formatInches,
   getInteriorNode,
   interiorOutline,
+  placeInterior,
   removeDivider,
   resolveWall,
   runScene,
@@ -60,13 +61,15 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
     const viewRun = view.runs.find(({ id }) => id === run.id);
     const faces = runScene(room, view, viewRun, settings).faceLayouts.get(item.id)?.faces ?? [];
     const boxes = cabinetDrawerBoxesFor(room, wall.sideSource ?? wall, wall.side ?? 'front', settings, item.id)?.boxes ?? [];
-    const args = { interior: resolved, faces, boxes, leaf: item, settings };
+    // Faces and drawer boxes are in wall coordinates, so the sections must be too.
+    const placed = placeInterior(resolved);
+    const args = { interior: placed, faces, boxes, leaf: item, settings };
     const shelves = sectionShelves(args);
     const autoCount = sectionShelves({ ...args,
-      interior: { ...resolved, tree: setSectionShelves(interior, path, { count: null }) },
+      interior: { ...placed, tree: setSectionShelves(interior, path, { count: null }) },
     }).get(path);
     const autoFlags = sectionShelves({ ...args,
-      interior: { ...resolved, tree: setSectionFlag(setSectionFlag(interior, path, 'hinges', null), path, 'lineBore', null) },
+      interior: { ...placed, tree: setSectionFlag(setSectionFlag(interior, path, 'hinges', null), path, 'lineBore', null) },
     }).get(path);
     return { shelves, autoCount, autoFlags };
   }, [resolved, room, wall, run.id, settings, item, interior, path]);
@@ -191,6 +194,11 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
             {shelf.nosing?.kind === 'hardwood' && ` + ${size(shelf.nosing.height)} × ${size(shelf.nosing.thickness)} nosing`}
             {shelf.nosing?.kind === 'folded' && ` · order ${size(shelf.orderedDepth)} deep (folded)`}
           </p>
+          {shelf.gap !== null && (
+            <p aria-label={`Shelf spacing ${path}`} className="text-xs text-gray-400">
+              {`${size(shelf.gap)} clear between shelves`}
+            </p>
+          )}
           {shelf.warnings.map(({ code }) => (
             <p key={code} className="text-xs text-amber-400">{WARNING_MESSAGES[code]}</p>
           ))}

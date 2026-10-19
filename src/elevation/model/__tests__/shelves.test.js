@@ -62,6 +62,7 @@ describe('IN8 shelves and section flags', () => {
       reveals: { ...euro, top: 0.25 } });
     expect(args.interior.dividers).toEqual([]);
     expect(args.boxes[0].space.z).toBe(24.3125);
+    // One shelf leaves 11 13/32 each side, over the 11" default minimum (Kyle 2026-10-19).
     expect(sectionShelves(args).get('r')).toMatchObject({ count: 1, zone: { z: 0.75, height: 23.5625 } });
   });
 
@@ -109,11 +110,21 @@ describe('IN8 shelves and section flags', () => {
     expect(resolved.zone.z + resolved.zone.height - 4).toBe(29.75);
   });
 
+  it('IN8.2: auto count keeps at least the minimum clear between shelves', () => {
+    // 11" minimum. Clear zone → count: base 29 → 1, tall top 78 9/16 → 5 (not 6), upper 76 1/2 → 5, upper 57 → 3 (not 4).
+    const count = (height) => sectionShelves({ ...input(), interior: { ...input().interior,
+      sections: input().interior.sections.map((section) => ({ ...section, height })) } }).get('r');
+    expect([29, 78.5625, 76.5, 57, 34.5, 34.49].map((height) => count(height).count)).toEqual([1, 5, 5, 3, 2, 1]);
+    expect(count(78.5625).positions[0] - count(78.5625).zone.z).toBeCloseTo(12.46875, 9);
+  });
+
   it('anchor 8: spaces typed shelves with equal clear gaps and warns below three inches', () => {
     const three = root({ leaf: { interior: { shelves: { count: 3 } } } });
     expect(three).toMatchObject({ count: 3, countSource: 'manual', warnings: [],
       positions: [7.4375, 14.875, 22.3125] });
     expect(three.positions[0] - three.zone.z).toBe(6.6875);
+    expect(three.gap).toBe(6.6875);
+    expect(root({ leaf: { interior: { shelves: { count: 0 } } } }).gap).toBeNull();
     const eight = root({ leaf: { interior: { shelves: { count: 8 } } } });
     expect(eight.count).toBe(8);
     expect(eight.positions[0] - eight.zone.z).toBeCloseTo(23 / 9, 9);
@@ -131,7 +142,7 @@ describe('IN8 shelves and section flags', () => {
       }
     }
     for (const hinge of ['left', 'right', 'top', 'bottom']) {
-      expect(root({ leaf: { face: face('door', { hinge }) } }).hinges).toBe(true);
+      expect(root({ leaf: { face: face('door', { hinge }) } }).hinges).toBe(['left', 'right'].includes(hinge));
     }
     expect(root({ leaf: { face: face('open') } })).toMatchObject({ count: 1, hinges: false });
     for (const type of ['panel', 'false_front']) {
@@ -184,14 +195,14 @@ describe('IN8 shelves and section flags', () => {
       shelfNosingThickness: 1, foldedNosingExtra: 3 };
     const hardwood = root({ settings: effective, leaf: { shelves: { nosing: 'hardwood' } } });
     expect(hardwood)
-      .toMatchObject({ count: 2, width: 22.875, depth: 22.75, thickness: 0.5, orderedDepth: 21.75,
+      .toMatchObject({ count: 1, width: 22.875, depth: 22.75, thickness: 0.5, orderedDepth: 21.75,
         nosing: { height: 2, thickness: 1 }, nosingSource: 'cabinet' });
-    expect(hardwood.positions[0] - hardwood.zone.z).toBe(8.5);
+    expect(hardwood.positions[0] - hardwood.zone.z).toBe(13.75); // (29 1/2 - 10) / (10 + 2) = 1.6
     expect(root({ settings: effective, leaf: { shelves: { nosing: 'folded' } } }).orderedDepth).toBe(25.75);
     const glass = root({ settings: effective, leaf: { shelves: { glass: true, nosing: 'hardwood' } } });
     expect(glass).toMatchObject({ glass: true, glassSource: 'cabinet', thickness: 0.375,
       nosing: null, orderedDepth: 22.75, banding: null });
-    expect(glass.positions[0] - glass.zone.z).toBeCloseTo((30.5 - 1 - 2 * 0.375) / 3, 9);
+    expect(glass.positions[0] - glass.zone.z).toBeCloseTo((30.5 - 1 - 0.375) / 2, 9);
     expect(root({ leaf: { shelves: { glass: true, nosing: 'hardwood' },
       interior: { shelves: { glass: false, nosing: 'folded' } } } }))
       .toMatchObject({ glass: false, glassSource: 'manual', nosingSource: 'manual',

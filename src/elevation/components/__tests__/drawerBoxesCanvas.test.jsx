@@ -203,7 +203,9 @@ describe('IN8 doors-off shelves', () => {
       });
       expect(rect.props.onClick).toBeUndefined();
     });
-    expect(view.shapes.filter(({ type }) => type === Text)).toHaveLength(1); // Section size only.
+    // The section size plus the clear space below, between and above the shelves (IN8.1, information only).
+    expect(view.shapes.filter(({ type }) => type === Text).map(({ props }) => props.text))
+      .toEqual(['22 1/2 × 29', '9 3/16', '9 3/16', '9 3/16']);
     const stage = view.tree.find(({ type }) => type === Stage);
     stage.ref.current = { getPointerPosition: () => wallToScreen({ x: 42, z: shelf.positions[0] }, view.runNode.props.transform) };
     const section = view.shapes.find(({ type, props }) => type === Rect && props.listening);

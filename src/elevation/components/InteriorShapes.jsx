@@ -78,12 +78,13 @@ export default function InteriorShapes({
         })}
         {entry.sections.flatMap((section) => {
           const shelf = shelves.get(entry.itemId)?.get(section.path);
-          return (shelf?.positions ?? []).map((z, index) => (
+          const visible = shelf?.nosing?.height ?? shelf?.thickness;
+          const rects = (shelf?.positions ?? []).map((z, index) => (
             <Rect
               key={`shelf:${section.path}:${index}`}
               {...wallRectToScreen({
                 x: section.x + (section.width - shelf.width) / 2,
-                z, width: shelf.width, height: shelf.nosing?.height ?? shelf.thickness,
+                z, width: shelf.width, height: visible,
               }, transform)}
               stroke="#94a3b8"
               strokeWidth={0.75}
@@ -91,6 +92,25 @@ export default function InteriorShapes({
               listening={false}
             />
           ));
+          // The selected cabinet labels the clear space below, between and above its shelves (information only).
+          if (!selectable || !shelf?.gap) return rects;
+          const label = formatDimension(shelf.gap);
+          const labels = [shelf.zone.z, ...shelf.positions.map((z) => z + visible)].map((z, index) => {
+            const rect = wallRectToScreen({ x: section.x, z, width: section.width, height: shelf.gap }, transform);
+            return rect.height < SIZE_FONT || rect.width < label.length * 6 ? null : (
+              <Text
+                key={`shelf-gap:${section.path}:${index}`}
+                {...rect}
+                text={label}
+                fontSize={SIZE_FONT}
+                fill="#94a3b8"
+                align="center"
+                verticalAlign="middle"
+                listening={false}
+              />
+            );
+          });
+          return [...rects, ...labels];
         })}
         {/* A face frame box is hidden behind its frame normally (SPEC-36.1); with the doors off its outline shows. */}
         {framedIds?.has(entry.itemId) && (
