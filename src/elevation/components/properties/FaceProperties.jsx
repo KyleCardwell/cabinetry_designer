@@ -6,7 +6,6 @@ import {
   FACE_TYPES,
   MAX_FACE_SPLIT,
   ROOT_FACE_PATH,
-  baseBankHeight,
   runFaceLayouts,
   defaultFace,
   equalizeGroup,
@@ -87,7 +86,6 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
     (candidate) => candidate.id === state.elevation.activeRoomId,
   ));
   const faceLayout = runFaceLayouts(room, wall, run, settings, layout).get(piece.id);
-  const matchedHeight = faceLayout ? baseBankHeight(room, wall, faceLayout.style, settings) : null;
   const doorDetails = runDoorDetails(room, wall, run, settings);
   const warnings = [
     ...(faceLayout?.warnings ?? []),
@@ -132,6 +130,17 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
 
   const commitIfChanged = (nextFace) => {
     if (nextFace !== face) commit(nextFace);
+  };
+
+  const allowStandard = (path) => setFaceMatch(face, path, 'standard') !== face;
+  const sizePlaceholder = (node, path) => {
+    const rule = node.match === 'standard' ? 'std' : node.match ?? 'auto';
+    const laidOut = faceLayout?.layoutFace ? getFaceNode(faceLayout.layoutFace, path) : null;
+    const resolved = faceLayout?.faces.find((entry) => entry.path === path);
+    const direction = getFaceNode(face, parentFacePath(path))?.direction;
+    const size = node.match ? laidOut?.size
+      : resolved?.[direction === 'vertical' ? 'height' : 'width'];
+    return Number.isFinite(size) ? `${rule} (${formatInches(size)})` : rule;
   };
 
   const remove = () => {
@@ -223,30 +232,29 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
               )}
             </div>
             {path !== ROOT_FACE_PATH && (
-              <div className={`${node.match === 'base' ? 'w-32' : 'w-20'} shrink-0`}>
+              <div className={`${node.size === null ? 'w-32' : 'w-20'} shrink-0`}>
                 <InchInput
                   value={node.size}
                   allowBlank
-                  placeholder={node.match === 'base' ? `base (${formatInches(matchedHeight)})` : 'auto'}
+                  allowAuto
+                  allowStandard={allowStandard(path)}
+                  onStandard={() => {
+                    const next = setFaceMatch(face, path, 'standard');
+                    if (next === face) return false;
+                    commit(next);
+                    return true;
+                  }}
+                  placeholder={sizePlaceholder(node, path)}
+                  className="placeholder:text-gray-500"
                   aria-label={`Face size ${path}`}
                   onCommit={(value) => {
-                    const next = setFaceSize(face, path, value);
+                    const next = value === null && node.match
+                      ? setFaceMatch(face, path, null) : setFaceSize(face, path, value);
                     if (next === face) return false;
                     commit(next);
                     return true;
                   }}
                 />
-                {(() => {
-                  // A standard front grown by a smaller top reveal (IN7.2) keeps its stored size; show the real one.
-                  const laidOut = faceLayout?.layoutFace ? getFaceNode(faceLayout.layoutFace, path) : null;
-                  return Number.isFinite(node.size) && Number.isFinite(laidOut?.size)
-                    && Math.abs(laidOut.size - node.size) > 1e-9 && (
-                    <p aria-label={`Face size used ${path}`} title="Grown by the smaller top reveal"
-                      className="mt-0.5 text-[10px] leading-tight text-sky-300">
-                      {`${formatInches(laidOut.size)} with top`}
-                    </p>
-                  );
-                })()}
               </div>
             )}
           </div>
@@ -255,6 +263,19 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
 
       {selected && (
         <div className="space-y-2 rounded border border-gray-700 p-2">
+          {allowStandard(facePath) && (
+            <label className="flex items-center gap-2 text-xs text-gray-300">
+              <input
+                type="checkbox"
+                checked={selected.match === 'standard'}
+                onChange={(event) => commitIfChanged(setFaceMatch(
+                  face, facePath, event.target.checked ? 'standard' : null,
+                ))}
+                aria-label="Standard"
+              />
+              Standard
+            </label>
+          )}
           {selected.type && selected.type !== 'open' && resolvedFace && (
             <PartStyleFields
               room={room}

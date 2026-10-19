@@ -10,6 +10,8 @@ export default function InchInput({
   onCommit,
   allowBlank = false,
   allowAuto = false,
+  allowStandard = false,
+  onStandard,
   displayStep,
   borderClass = 'border-gray-600',
   className = '',
@@ -25,6 +27,12 @@ export default function InchInput({
 
   const commit = () => {
     const trimmed = text.trim();
+    if (allowStandard && ['std', 'standard'].includes(trimmed.toLowerCase())) {
+      const accepted = onStandard();
+      if (accepted === false) revert();
+      else setText('');
+      return;
+    }
     if ((allowBlank && trimmed === '') || (allowAuto && trimmed.toLowerCase() === 'auto')) {
       const accepted = onCommit(null);
       if (accepted === false) revert();

@@ -5,11 +5,14 @@ import { findLeaf } from '../../model/cellTree.js';
 import { CABINET_TYPE_IDS } from '../../model/constants.js';
 import { resolveWall } from '../../model/room.js';
 import { runScene } from '../../model/runScene.js';
+import { runFaceLayouts } from '../../model/faceLayouts.js';
+import { formatInches } from '../../model/units.js';
 import elevationReducer from '../../store/elevationSlice.js';
 import { run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import FaceProperties from '../properties/FaceProperties.jsx';
+import InchInput from '../InchInput.jsx';
 
-vi.mock('react', async (importOriginal) => ({ ...await importOriginal(), useState: vi.fn() }));
+vi.mock('react', async (importOriginal) => ({ ...await importOriginal(), useState: vi.fn(), useEffect: vi.fn() }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 
 let state;
@@ -210,20 +213,171 @@ describe('IN7.3 step b match base drawers', () => {
   });
 });
 
-describe('IN7.4 typed heights in the face list', () => {
-  it('keeps typed 5 7/8 unchanged with either top and shows no growth hint', () => {
-    for (const top of ['wood', 'stone']) {
-      state = stateWithRun(makeRun({
-        width: 18, autoCount: false, top,
-        ends: { left: { type: 'none' }, right: { type: 'none' } },
-        items: [{ id: 'cabinet', kind: 'cabinet', width: 18, face: { direction: 'vertical', size: null, children: [
-          { type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: null }, { type: 'drawer_front', size: null },
-        ] } }],
-      }));
-      state.facePath = 'r';
-      expect(picker('Face size r.0').props.value).toBe(5.875);
-      expect(picker('Face size used r.0')).toBeUndefined();
-      expect(picker('Face size used r.1')).toBeUndefined();
-    }
+// Render the real input with its hook state, including the blur/parse/commit path.
+function sizeInput(path, typed) {
+  const field = picker(`Face size ${path}`);
+  const setText = vi.fn();
+  useState.mockImplementationOnce((initial) => [typed ?? initial(), setText]);
+  return { input: InchInput(field.props), setText };
+}
+
+function faceLayouts() {
+  const wall = resolveWall(room(), room().walls[0]);
+  return runFaceLayouts(room(), wall, run(), state.settings).get('cabinet');
+}
+
+function preset(label) {
+  nodes(render()).find((node) => node.type === 'button' && text(node) === label).props.onClick();
+  state = structuredClone(state);
+}
+
+describe('IN7.4 step b rule-made sizes in the face list', () => {
+  beforeEach(() => {
+    run().top = 'wood';
+    preset('4Df');
+    state = { ...state, facePath: 'r.0' };
+  });
+
+  it('anchor 1: shows empty gray inputs with resolved standard and auto heights', () => {
+    const standard = sizeInput('r.0').input;
+    expect(standard.props.value).toBe('');
+    expect(standard.props.placeholder).toBe('std (5 15/16")');
+    expect(standard.props.className).toContain('placeholder:text-gray-500');
+    const auto = sizeInput('r.2').input;
+    expect(auto.props.value).toBe('');
+    expect(auto.props.placeholder).toBe('auto (9")');
+    expect(auto.props.className).toContain('placeholder:text-gray-500');
+  });
+
+  it('anchor 2: typing 5 7/8 pins the white value and the canvas height', () => {
+    sizeInput('r.0', '5 7/8').input.props.onBlur();
+    expect(item().face.children[0]).toEqual({ type: 'drawer_front', size: 5.875 });
+    const input = sizeInput('r.0').input;
+    expect(input.props.value).toBe('5 7/8');
+    expect(input.props.className).toContain('text-gray-100');
+    expect(faceLayouts().faces.find(({ path }) => path === 'r.0').height).toBe(5.875);
+  });
+
+  it.each(['std', 'standard', ' StD ', ' STANDARD '])('anchor 3: typing %s restores standard', (typed) => {
+    sizeInput('r.0', '5 7/8').input.props.onBlur();
+    const { input, setText } = sizeInput('r.0', typed);
+    input.props.onBlur();
+    expect(setText).toHaveBeenLastCalledWith('');
+    expect(item().face.children[0]).toEqual({ type: 'drawer_front', size: null, match: 'standard' });
+    expect(sizeInput('r.0').input.props.value).toBe('');
+    expect(sizeInput('r.0').input.props.placeholder).toBe('std (5 15/16")');
+  });
+
+  it('anchor 4: std on a door reverts without dispatching', () => {
+    preset('Df/D');
+    state = { ...state, facePath: 'r.1' };
+    sizeInput('r.1', '12').input.props.onBlur();
+    dispatch.mockClear();
+    const { input, setText } = sizeInput('r.1', 'std');
+    input.props.onBlur();
+    expect(setText).toHaveBeenLastCalledWith('12');
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(picker('Standard')).toBeUndefined();
+  });
+
+  it('anchor 5: a tall D/4Df stack shows the resolved base bank height', () => {
+    run().cabinetTypeId = CABINET_TYPE_IDS.TALL;
+    run().height = 90;
+    preset('D/4Df');
+    const input = sizeInput('r.1').input;
+    expect(input.props.value).toBe('');
+    expect(input.props.placeholder).toBe('base (30 1/8")');
+  });
+
+  it('anchor 6: the Standard tick turns an auto drawer to standard and back to auto', () => {
+    state = { ...state, facePath: 'r.2' };
+    expect(picker('Standard').props.checked).toBe(false);
+    picker('Standard').props.onChange({ target: { checked: true } });
+    expect(item().face.children[2]).toEqual({ type: 'drawer_front', size: null, match: 'standard' });
+    expect(picker('Standard').props.checked).toBe(true);
+    picker('Standard').props.onChange({ target: { checked: false } });
+    expect(item().face.children[2]).toEqual({ type: 'drawer_front', size: null });
+    expect(picker('Standard').props.checked).toBe(false);
+  });
+
+  it.each(['', 'auto', ' AUTO '])('clears standard and base matches with %j', (typed) => {
+    sizeInput('r.0', typed).input.props.onBlur();
+    expect(item().face.children[0]).toEqual({ type: 'drawer_front', size: null });
+    expect(sizeInput('r.0').input.props.value).toBe('');
+    expect(sizeInput('r.0').input.props.placeholder).toMatch(/^auto \(/);
+    state = structuredClone(state);
+    run().cabinetTypeId = CABINET_TYPE_IDS.TALL;
+    run().height = 90;
+    preset('D/4Df');
+    sizeInput('r.1', typed).input.props.onBlur();
+    expect(item().face.children[1].size).toBeNull();
+    expect(item().face.children[1]).not.toHaveProperty('match');
+    expect(sizeInput('r.1').input.props.placeholder).toBe('auto');
+  });
+
+  it('uses width for auto leaves in a horizontal parent and keeps auto groups plain', () => {
+    item().face = { direction: 'vertical', size: null, children: [
+      { direction: 'horizontal', size: null, children: [
+        { type: 'drawer_front', size: null }, { type: 'false_front', size: null },
+      ] },
+      { type: 'door', size: null },
+    ] };
+    expect(sizeInput('r.0').input.props.placeholder).toBe('auto');
+    const resolved = faceLayouts().faces.find(({ path }) => path === 'r.0.0');
+    expect(sizeInput('r.0.0').input.props.placeholder).toBe(`auto (${formatInches(resolved.width)})`);
+    state = { ...state, facePath: 'r.0.0' };
+    expect(picker('Standard')).toBeUndefined();
+    const { input, setText } = sizeInput('r.0.0', 'std');
+    dispatch.mockClear();
+    input.props.onBlur();
+    expect(setText).toHaveBeenLastCalledWith('');
+    expect(dispatch).not.toHaveBeenCalled();
+    state = { ...state, facePath: 'r.0' };
+    expect(picker('Standard')).toBeDefined();
+    sizeInput('r.0', 'std').input.props.onBlur();
+    expect(item().face.children[0].match).toBe('standard');
+    expect(sizeInput('r.0').input.props.placeholder).toBe('std (6")');
+    expect(picker('Standard').props.checked).toBe(true);
+    state = { ...state, facePath: 'r' };
+    expect(picker('Standard')).toBeUndefined();
+  });
+
+  it('allows a false front but rejects a horizontal group containing a door', () => {
+    item().face = { direction: 'vertical', size: null, children: [
+      { type: 'false_front', size: null },
+      { direction: 'horizontal', size: null, children: [
+        { type: 'drawer_front', size: null }, { type: 'door', size: null },
+      ] },
+    ] };
+    sizeInput('r.0', 'std').input.props.onBlur();
+    expect(item().face.children[0].match).toBe('standard');
+    expect(picker('Standard')).toBeDefined();
+    state = { ...state, facePath: 'r.1' };
+    expect(picker('Standard')).toBeUndefined();
+    dispatch.mockClear();
+    sizeInput('r.1', 'std').input.props.onBlur();
+    expect(dispatch).not.toHaveBeenCalled();
+  });
+});
+
+describe('InchInput standard opt-in', () => {
+  it('keeps std invalid for other callers', () => {
+    const onCommit = vi.fn();
+    const onStandard = vi.fn();
+    const setText = vi.fn();
+    useState.mockReturnValueOnce(['std', setText]);
+    InchInput({ value: 5, onCommit, onStandard }).props.onBlur();
+    expect(setText).toHaveBeenCalledWith('5');
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onStandard).not.toHaveBeenCalled();
+  });
+
+  it('reverts when the standard callback rejects the edit', () => {
+    const setText = vi.fn();
+    const onStandard = vi.fn(() => false);
+    useState.mockReturnValueOnce(['standard', setText]);
+    InchInput({ value: 5, allowStandard: true, onStandard }).props.onBlur();
+    expect(onStandard).toHaveBeenCalledOnce();
+    expect(setText).toHaveBeenCalledWith('5');
   });
 });
