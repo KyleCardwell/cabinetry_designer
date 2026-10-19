@@ -176,6 +176,7 @@ describe('RP1 a report settings', () => {
 
   it('defaults every report text to blank and wire brushed to false (anchor 5)', () => {
     expect(resolveSettings().report).toEqual({
+      companyAddress: '', companyCity: '', companyState: '', companyZip: '',
       companyName: '', companyPhone: '', companyFax: '', doorFormNote: '', jobNumber: '',
       wood: '', finish: '', boxMaterial: '', wireBrushed: false, edgebandAlert: '',
     });

@@ -11,14 +11,14 @@ function leaves(values, prefix = '') {
 }
 
 describe('DB1 a settings registry', () => {
-  it('covers exactly 143 settings leaves, with 93 room settings and 11 team-only settings after IN9', () => {
+  it('covers exactly 154 settings leaves, with 100 room settings and 15 team-only settings after IN11a', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(143);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(93);
-    expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(11);
+    expect(new Set(keys).size).toBe(154);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(100);
+    expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(15);
   });
 
   it('provides labels, kinds, choices, and managed metadata for every leaf', () => {
@@ -111,6 +111,48 @@ it('IN8 registers the seven shelf defaults and inherits/resets them through the 
     for (const level of ['wall', 'run', 'cabinet', 'face']) {
       expect(allowedAt(key, level)).toBe(false);
       expect(cleanOverrides({ [key]: value }, level)).toEqual({});
+    }
+  }
+});
+
+
+it('IN11a registers ProBox text defaults through room scope and company address only at team scope', () => {
+  const defaults = {
+    sideMaterial: 'Baltic Birch Ply', sideThickness: '5/8"', bottomMaterial: '1/4" Baltic Birch Ply',
+    topEdge: 'Flat Flush', bottomPlacement: 'Standard', assembly: 'Pre-finished & assembled',
+    comments: 'Cross Grain Bottoms',
+  };
+  const labels = ['Box side material', 'Box side thickness', 'Box bottom material', 'Box top edge',
+    'Box bottom placement', 'Box assembly & finish', 'Box order comments'];
+  expect(DEFAULT_SETTINGS.drawerBoxOrder).toEqual(defaults);
+  Object.entries(defaults).forEach(([leaf, value], index) => {
+    const key = `drawerBoxOrder.${leaf}`;
+    expect(registryEntry(key)).toEqual({ key, label: labels[index], kind: 'text', lowest: 'room' });
+    expect(resolveSetting(key).value).toBe(value);
+    const chain = ['team', 'project', 'phase', 'room'].map((level) => ({
+      level, values: { drawerBoxOrder: { [leaf]: `${level} pick` } },
+    }));
+    chain.forEach((layer, i) => {
+      expect(cleanOverrides(layer.values, layer.level)).toEqual(layer.values);
+      expect(resolveSetting(key, chain.slice(0, i + 1)).value).toBe(`${layer.level} pick`);
+    });
+    chain[3].values = withOverride(chain[3].values, key, null);
+    expect(resolveSetting(key, chain).value).toBe('phase pick');
+    for (const level of ['wall', 'run', 'cabinet', 'face']) {
+      expect(allowedAt(key, level)).toBe(false);
+      expect(cleanOverrides({ drawerBoxOrder: { [leaf]: 'Custom' } }, level)).toEqual({});
+    }
+  });
+  for (const [leaf, label] of [['companyAddress', 'Address'], ['companyCity', 'City'],
+    ['companyState', 'State'], ['companyZip', 'Zip']]) {
+    const key = `report.${leaf}`;
+    expect(DEFAULT_SETTINGS.report[leaf]).toBe('');
+    expect(registryEntry(key)).toEqual({ key, label, kind: 'text', lowest: 'team' });
+    expect(cleanOverrides({ report: { [leaf]: 'Shop' } }, 'team')).toEqual({ report: { [leaf]: 'Shop' } });
+    for (const level of ['project', 'phase', 'room', 'wall', 'run', 'cabinet', 'face']) {
+      expect(allowedAt(key, level)).toBe(false);
+      expect(cleanOverrides({ report: { [leaf]: 'Other' } }, level)).toEqual({});
+      expect(resolveSetting(key, [{ level, values: { report: { [leaf]: 'Other' } } }]).value).toBe('');
     }
   }
 });

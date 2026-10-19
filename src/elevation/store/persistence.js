@@ -129,6 +129,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'belowRunFlushReveal',
   'bottomPartHeights',
   'drawerBoxHeights',
+  'drawerBoxOrder',
   'drawerBoxAdjustment',
   'rolloutHeight',
   'rolloutSpacer',
@@ -778,6 +779,7 @@ function normalizeDocument(document, schemaVersion) {
   let settings = document.settings;
   if (settings && typeof settings === 'object') {
     settings = { ...settings };
+    settings.report = { ...DEFAULT_SETTINGS.report, ...settings.report };
     for (const key of V2_DEFAULTED_SETTING_KEYS) {
       if (settings[key] === undefined) settings[key] = DEFAULT_SETTINGS[key];
     }

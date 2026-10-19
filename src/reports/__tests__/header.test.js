@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
+import { resolveSettings } from '../../elevation/model/settingsResolve.js';
 import { reportHeader } from '../header.js';
 
 const project = { name: 'Cardwell', address: '4311 W 8480 S, West Jordan, UT 84088' };
@@ -30,7 +31,9 @@ describe('report header', () => {
       finish: 'SW6885 - KNOCKOUT ORANGE',
       boxes: 'WHITE MELAMINE',
       edgebandAlert: null,
-      company: { name: '', phone: '', fax: '' },
+      faceFrame: false,
+      drawerBoxOrder: DEFAULT_SETTINGS.drawerBoxOrder,
+      company: { name: '', address: '', city: '', state: '', zip: '', phone: '', fax: '' },
       date: '10/15/2026',
       revision: null,
     });
@@ -46,6 +49,7 @@ describe('report header', () => {
           report: { ...settings.report, jobNumber: '', wireBrushed: true },
         },
       })).toMatchObject({
+        faceFrame: true,
         room: 'KITCHEN - FACE FRAME',
         orderRoom: 'KITCHEN - FACE FRAME',
         wood: 'PAINT GRADE - WIRE BRUSHED',
@@ -95,4 +99,38 @@ describe('report header', () => {
       vi.useRealTimers();
     }
   });
+});
+
+
+it('IN11a includes face-frame, company address and ProBox defaults (anchor 2)', () => {
+  expect(reportHeader({
+    ...input,
+    room: { name: 'Kitchen Opt 2' },
+    settings: {
+      ...settings,
+      defaultStyle: { ...settings.defaultStyle, cabinetStyleId: 14 },
+      report: { ...settings.report, companyAddress: '4311 W 8480 S',
+        companyCity: 'West Jordan', companyState: 'UT', companyZip: '84088' },
+    },
+  })).toMatchObject({
+    job: 'Cardwell', faceFrame: true, orderRoom: '573 KITCHEN OPT 2 - FACE FRAME',
+    company: { address: '4311 W 8480 S', city: 'West Jordan', state: 'UT', zip: '84088' },
+    drawerBoxOrder: { sideThickness: '5/8"' },
+  });
+});
+
+it('IN11a carries a room box-spec override and fills missing header leaves (anchor 3)', () => {
+  const effective = resolveSettings([
+    { level: 'team', values: { drawerBoxOrder: { assembly: 'Shop finish' } } },
+    { level: 'room', values: { drawerBoxOrder: { sideMaterial: 'Soft Maple' } } },
+  ]);
+  expect(reportHeader({ ...input, settings: effective }).drawerBoxOrder).toEqual({
+    ...DEFAULT_SETTINGS.drawerBoxOrder, sideMaterial: 'Soft Maple', assembly: 'Shop finish',
+  });
+  const partial = { ...settings, drawerBoxOrder: { sideMaterial: 'Soft Maple' } };
+  const header = reportHeader({ ...input, settings: partial });
+  expect(header.drawerBoxOrder).toEqual({ ...DEFAULT_SETTINGS.drawerBoxOrder, sideMaterial: 'Soft Maple' });
+  expect(partial.drawerBoxOrder).toEqual({ sideMaterial: 'Soft Maple' });
+  const { drawerBoxOrder, ...older } = settings;
+  expect(reportHeader({ ...input, settings: older }).drawerBoxOrder).toEqual(drawerBoxOrder);
 });

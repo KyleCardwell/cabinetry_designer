@@ -1893,3 +1893,29 @@ describe('IN8 shelf and flag persistence', () => {
     }
   });
 });
+
+
+it('IN11a loads older settings and rooms with ProBox defaults and preserves saved overrides (anchor 3)', () => {
+  const document = currentDocument();
+  delete document.settings.drawerBoxOrder;
+  for (const leaf of ['companyAddress', 'companyCity', 'companyState', 'companyZip']) {
+    delete document.settings.report[leaf];
+  }
+  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+  const loaded = loadElevationDocument();
+  expect(loaded.settings.drawerBoxOrder).toEqual(DEFAULT_SETTINGS.drawerBoxOrder);
+  expect(document.settings).not.toHaveProperty('drawerBoxOrder');
+  expect(roomFromDocument(document.rooms[0], document.schemaVersion, document.settings).ok).toBe(true);
+  expect(createInitialElevationState(loaded).settings.report).toMatchObject({
+    companyAddress: '', companyCity: '', companyState: '', companyZip: '',
+  });
+  loaded.settings.drawerBoxOrder = { ...DEFAULT_SETTINGS.drawerBoxOrder, assembly: 'Custom finish' };
+  loaded.settings.report = { ...DEFAULT_SETTINGS.report, companyAddress: '4311 W 8480 S' };
+  loaded.rooms[0].settingsOverrides = { drawerBoxOrder: { sideMaterial: 'Soft Maple' } };
+  const saved = toElevationDocument(createInitialElevationState(loaded));
+  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+  const roundTrip = loadElevationDocument();
+  expect(roundTrip.settings.drawerBoxOrder).toEqual(loaded.settings.drawerBoxOrder);
+  expect(roundTrip.settings.report.companyAddress).toBe('4311 W 8480 S');
+  expect(roundTrip.rooms[0].settingsOverrides).toEqual({ drawerBoxOrder: { sideMaterial: 'Soft Maple' } });
+});

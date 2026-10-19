@@ -99,6 +99,10 @@ function numberGroup(key, label) {
 export const SETTINGS_REGISTRY = [
   ...[
     ['companyName', 'Company name'],
+    ['companyAddress', 'Address'],
+    ['companyCity', 'City'],
+    ['companyState', 'State'],
+    ['companyZip', 'Zip'],
     ['companyPhone', 'Phone'],
     ['companyFax', 'Fax'],
     ['doorFormNote', 'Door form note'],
@@ -140,6 +144,15 @@ export const SETTINGS_REGISTRY = [
     ['step', 'Drawer box height step'],
     ['warnAbove', 'Drawer box warning above'],
   ].map(([leaf, label]) => ({ key: `drawerBoxHeights.${leaf}`, label, kind: 'number', lowest: 'room' })),
+  ...[
+    ['sideMaterial', 'Box side material'],
+    ['sideThickness', 'Box side thickness'],
+    ['bottomMaterial', 'Box bottom material'],
+    ['topEdge', 'Box top edge'],
+    ['bottomPlacement', 'Box bottom placement'],
+    ['assembly', 'Box assembly & finish'],
+    ['comments', 'Box order comments'],
+  ].map(([leaf, label]) => ({ key: `drawerBoxOrder.${leaf}`, label, kind: 'text', lowest: 'room' })),
   ...numberGroup('bandDepths', 'Band depth'),
   { key: 'maxCabinetWidth', label: 'Max cabinet width', kind: 'number', lowest: 'run', managedBy: 'run.maxCabinetWidth' },
   ...Object.keys(DEFAULT_PROFILE).map((leaf) => ({

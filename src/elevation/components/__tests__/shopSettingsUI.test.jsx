@@ -117,7 +117,7 @@ describe('DB2 f shop settings panel', () => {
     const groups = [
       ['Cabinets & depths', 11], ['Runs & ends', 9], ['Fillers & corners', 11],
       ['Reveals', 9], ['Inset face frame', 6], ['Bases, tops & bands', 15],
-      ['Openings & soffits', 14], ['Pulls', 3], ['Drawer boxes', 10], ['Shelves', 7], ['Reports', 9],
+      ['Openings & soffits', 14], ['Pulls', 3], ['Drawer boxes', 17], ['Shelves', 7], ['Reports', 13],
     ];
     const collapsed = nodes(tree).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false);
     expect(collapsed.map(text)).toEqual(groups.map(([label]) => `${label}+`));
@@ -218,9 +218,9 @@ describe('DB2 f shop settings panel', () => {
 
 
 describe('RP1 a shop report settings', () => {
-  it('shows nine shop fields, trims text without interrupting typing, rejects overlong values and clears blanks', () => {
+  it('shows thirteen shop fields, trims text without interrupting typing, rejects overlong values and clears blanks', () => {
     const group = section(openGroup('Reports'), 'Reports');
-    expect(controls(group)).toHaveLength(9);
+    expect(controls(group)).toHaveLength(13);
     expect(field(group, 'Job #')).toBeUndefined();
     const input = field(group, 'Company name');
     expect(input.props).toMatchObject({ type: 'text', value: '' });

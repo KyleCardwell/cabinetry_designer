@@ -66,6 +66,9 @@ export const SETTING_GROUPS = [
       'drawerSlideId', 'drawerBoxHeights.from', 'drawerBoxHeights.to', 'drawerBoxHeights.thenFrom',
       'drawerBoxHeights.max', 'drawerBoxHeights.step', 'drawerBoxHeights.warnAbove',
       'drawerBoxAdjustment', 'rolloutHeight', 'rolloutSpacer',
+      'drawerBoxOrder.sideMaterial', 'drawerBoxOrder.sideThickness', 'drawerBoxOrder.bottomMaterial',
+      'drawerBoxOrder.topEdge', 'drawerBoxOrder.bottomPlacement', 'drawerBoxOrder.assembly',
+      'drawerBoxOrder.comments',
     ],
   },
   {
@@ -78,7 +81,8 @@ export const SETTING_GROUPS = [
   {
     id: 'reports', label: 'Reports',
     keys: [
-      'report.companyName', 'report.companyPhone', 'report.companyFax', 'report.doorFormNote',
+      'report.companyName', 'report.companyAddress', 'report.companyCity', 'report.companyState',
+      'report.companyZip', 'report.companyPhone', 'report.companyFax', 'report.doorFormNote',
       'report.jobNumber', 'report.wood', 'report.finish', 'report.boxMaterial',
       'report.wireBrushed', 'report.edgebandAlert',
     ],

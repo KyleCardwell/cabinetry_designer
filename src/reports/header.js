@@ -1,3 +1,5 @@
+import { DEFAULT_SETTINGS } from '../elevation/model/constants.js';
+
 /** Build shared report labels from the room's effective settings. */
 export function reportHeader({ project, room, settings, revision, date = new Date() }) {
   const report = settings.report;
@@ -12,6 +14,8 @@ export function reportHeader({ project, room, settings, revision, date = new Dat
     jobNumber,
     address: project?.address ?? '',
     room: roomName,
+    faceFrame,
+    drawerBoxOrder: { ...DEFAULT_SETTINGS.drawerBoxOrder, ...settings.drawerBoxOrder },
     orderRoom: jobNumber ? `${jobNumber} ${roomName}` : roomName,
     wood: report.wood + (report.wireBrushed ? ' - WIRE BRUSHED' : ''),
     finish: report.finish,
@@ -19,6 +23,10 @@ export function reportHeader({ project, room, settings, revision, date = new Dat
     edgebandAlert: report.edgebandAlert.trim() || null,
     company: {
       name: report.companyName,
+      address: report.companyAddress,
+      city: report.companyCity,
+      state: report.companyState,
+      zip: report.companyZip,
       phone: report.companyPhone,
       fax: report.companyFax,
     },
