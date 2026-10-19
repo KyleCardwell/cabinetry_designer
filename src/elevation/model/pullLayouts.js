@@ -29,16 +29,25 @@ function pullSize(pull) {
   return { along: pull.length, across: pull.kind === 'tab' ? pull.height : pull.width };
 }
 
+/** Room-wide placement defaults for a face type; 'auto' means use the built-in rules. */
+export function pullDefaults(settings, faceType) {
+  const prefix = ['drawer_front', 'false_front'].includes(faceType) ? 'drawer' : 'door';
+  const pick = (key) => (settings?.[`${prefix}${key}`] ?? 'auto') === 'auto' ? undefined : settings[`${prefix}${key}`];
+  return { at: pick('PullAt'), orientation: pick('PullOrientation') };
+}
+
 /** Place one resolved face's hardware in wall inches, with z measured from the floor. */
-export function facePullPlacement({ face, part, pull, pullHeight = 45, overrides = {} }) {
+export function facePullPlacement({ face, part, pull, pullHeight = 45, overrides = {}, defaults = {} }) {
   const drawer = ['drawer_front', 'false_front'].includes(face.type);
   const hinge = face.type === 'pair_door' ? face.half : face.hinge;
   const railAuto = hinge === 'top' ? 'bottom-rail'
     : hinge === 'bottom' || face.action === 'pullout' ? 'top-rail' : null;
-  const at = overrides.pullAt ?? (drawer ? 'center' : railAuto
+  // Room defaults skip top/bottom-hinged doors and pull-outs, which keep their rail rule.
+  const room = railAuto ? {} : defaults;
+  const at = overrides.pullAt ?? (drawer ? room.at ?? 'center' : railAuto ?? room.at
     ?? (face.z + face.height <= pullHeight ? 'top-corner'
       : face.z >= pullHeight ? 'bottom-corner' : 'height'));
-  const autoOrientation = drawer || railAuto ? 'horizontal' : 'vertical';
+  const autoOrientation = room.orientation ?? (drawer || railAuto ? 'horizontal' : 'vertical');
   const orientation = pull.kind === 'tab' ? 'horizontal'
     : pull.kind === 'knob' ? autoOrientation : overrides.pullOrientation ?? autoOrientation;
   const result = { at, orientation, centers: [], warnings: [] };
@@ -126,7 +135,8 @@ export function runPulls(room, wall, run, settings, scene = runScene(room, wall,
       warnings.push(...resolved.warnings.map(({ code }) => ({ code, ...identity })));
       const part = parts.get(`${pieceId}:${path}${half ? `:${half}` : ''}`);
       const placement = facePullPlacement({ face, part, pull: resolved.pull,
-        pullHeight: item?.pullHeight ?? settings?.pullHeight ?? 45, overrides: node ?? {} });
+        pullHeight: item?.pullHeight ?? settings?.pullHeight ?? 45, overrides: node ?? {},
+        defaults: pullDefaults(settings, face.type) });
       warnings.push(...placement.warnings.map((code) => ({ code, ...identity })));
       if (!placement.centers.length) continue;
       pulls.push({ partId: `${pieceId}:${path}${half ?? ''}`, pieceId, path, half,

@@ -118,6 +118,11 @@ export const SETTINGS_REGISTRY = [
   { key: 'doorPullId', label: 'Door pull', kind: 'pull', lowest: 'room' },
   { key: 'drawerPullId', label: 'Drawer pull', kind: 'pull', lowest: 'room' },
   { key: 'pullHeight', label: 'Tall door pull height', kind: 'number', lowest: 'room' },
+  { key: 'doorPullAt', label: 'Door pull position', kind: 'choice', lowest: 'room',
+    choices: ['auto', 'top-corner', 'bottom-corner', 'height', 'center', 'top-rail', 'bottom-rail'] },
+  { key: 'doorPullOrientation', label: 'Door pull direction', kind: 'choice', lowest: 'room', choices: ['auto', 'vertical', 'horizontal'] },
+  { key: 'drawerPullAt', label: 'Drawer pull position', kind: 'choice', lowest: 'room', choices: ['center', 'top-rail'] },
+  { key: 'drawerPullOrientation', label: 'Drawer pull direction', kind: 'choice', lowest: 'room', choices: ['auto', 'vertical', 'horizontal'] },
   ...teamNumbers.map(([key, label]) => ({ key, label, kind: 'number', lowest: 'team' })),
   ...roomNumbers.map(([key, label]) => ({ key, label, kind: 'number', lowest: 'room' })),
   ...[

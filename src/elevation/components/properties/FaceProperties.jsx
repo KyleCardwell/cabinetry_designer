@@ -29,7 +29,7 @@ import {
 import { facePartType, cabinetFaceLevels } from '../../model/doorStyleResolve.js';
 import { runDoorDetails } from '../../model/doorDetails.js';
 import { PULL_POSITIONS, pullPartType, pullPickOptions, resolvePull } from '../../model/pulls.js';
-import { facePullPlacement, pullPositionLabel, runPulls } from '../../model/pullLayouts.js';
+import { facePullPlacement, pullDefaults, pullPositionLabel, runPulls } from '../../model/pullLayouts.js';
 import { setFacePull, setFacePart, setFacePullPlacement } from '../../model/faceTree.js';
 import { setFacePath, setItemFace } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
@@ -109,6 +109,7 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
     part: doorDetails.parts.find((part) => part.key === `${piece.id}:${facePath}${resolvedFace.half ? `:${resolvedFace.half}` : ''}`),
     pull: resolvedPull,
     pullHeight: item.pullHeight ?? settings?.pullHeight ?? 45,
+    defaults: pullDefaults(settings, resolvedFace.type),
   }) : null;
   const drawerPulls = ['drawer_front', 'false_front'].includes(selected?.type);
   const sameWidthIds = (cells?.pieces ?? layout.pieces)

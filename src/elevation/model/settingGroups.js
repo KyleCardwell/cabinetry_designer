@@ -59,7 +59,10 @@ export const SETTING_GROUPS = [
       'defaultWindowWidth', 'defaultWindowHeight', 'defaultWindowSillZ',
     ],
   },
-  { id: 'pulls', label: 'Pulls', keys: ['doorPullId', 'drawerPullId', 'pullHeight'] },
+  { id: 'pulls', label: 'Pulls', keys: [
+    'doorPullId', 'doorPullAt', 'doorPullOrientation', 'pullHeight',
+    'drawerPullId', 'drawerPullAt', 'drawerPullOrientation',
+  ] },
   {
     id: 'drawer-boxes', label: 'Drawer boxes',
     keys: [
@@ -110,6 +113,15 @@ export const CHOICE_LABELS = {
   casing: 'Outside casing',
   toe_kick: 'Toe kick',
   furniture_base: 'Furniture base',
+  auto: 'Auto',
+  'top-corner': 'Top corner',
+  'bottom-corner': 'Bottom corner',
+  height: 'Tall pull height',
+  center: 'Centred',
+  'top-rail': 'On top rail',
+  'bottom-rail': 'On bottom rail',
+  vertical: 'Vertical',
+  horizontal: 'Horizontal',
 };
 
 function plainWords(value) {

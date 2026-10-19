@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import {
   BUILT_IN_PULLS, DEFAULT_SETTINGS,
-  facePullPlacement, runPulls, stileFlat,
+  facePullPlacement, pullDefaults, runPulls, stileFlat,
 } from '../index.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
 import { partDetail, runDoorDetails } from '../doorDetails.js';
@@ -238,5 +238,40 @@ describe('HP4 placement boundaries and integration', () => {
     expect(runDoorDetails(room, wall, run, settings).parts.filter(({ kind }) => kind === 'face')
       .every(({ flat, core }) => flat && core)).toBe(true);
     expect({ room, settings }).toEqual(before);
+  });
+});
+
+describe('PR1 room-wide pull placement defaults', () => {
+  const withDefaults = (face, settings, overrides = {}) => facePullPlacement({
+    face, part: facePart(face), pull: BAR, pullHeight: 45, overrides,
+    defaults: pullDefaults(settings, face.type),
+  });
+
+  it('reads drawer and door defaults, treating auto as no default', () => {
+    expect(pullDefaults(DEFAULT_SETTINGS, 'drawer_front')).toEqual({ at: 'center', orientation: undefined });
+    expect(pullDefaults(DEFAULT_SETTINGS, 'door')).toEqual({ at: undefined, orientation: undefined });
+    expect(pullDefaults({ drawerPullAt: 'top-rail', drawerPullOrientation: 'vertical' }, 'false_front'))
+      .toEqual({ at: 'top-rail', orientation: 'vertical' });
+    expect(pullDefaults(undefined, 'door')).toEqual({ at: undefined, orientation: undefined });
+  });
+
+  it('puts every drawer pull on the top rail when the room says so, unless the front overrides', () => {
+    const room = { ...DEFAULT_SETTINGS, drawerPullAt: 'top-rail' };
+    expect(withDefaults(DRAWER, room)).toEqual(place(DRAWER, { pullAt: 'top-rail' }));
+    expect(withDefaults(DRAWER, room, { pullAt: 'center' })).toEqual(place(DRAWER));
+  });
+
+  it('applies door position and direction to side-hinged doors only', () => {
+    const room = { ...DEFAULT_SETTINGS, doorPullAt: 'center', doorPullOrientation: 'horizontal' };
+    expect(withDefaults(BASE, room)).toEqual(place(BASE, { pullAt: 'center', pullOrientation: 'horizontal' }));
+    expect(withDefaults(BASE, room, { pullOrientation: 'vertical' }).orientation).toBe('vertical');
+    const flip = { ...BASE, hinge: 'top' };
+    expect(withDefaults(flip, room)).toEqual(place(flip));
+  });
+
+  it('feeds room settings through runPulls', () => {
+    const f = fixture([DRAWER]);
+    const [pull] = fromRun(f, { ...DEFAULT_SETTINGS, drawerPullAt: 'top-rail' }).pulls;
+    expect(pull.at).toBe('top-rail');
   });
 });
