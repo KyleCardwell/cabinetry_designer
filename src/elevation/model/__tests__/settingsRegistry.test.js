@@ -11,13 +11,13 @@ function leaves(values, prefix = '') {
 }
 
 describe('DB1 a settings registry', () => {
-  it('covers exactly 141 settings leaves, with 91 room settings and 11 team-only settings after IN8', () => {
+  it('covers exactly 143 settings leaves, with 93 room settings and 11 team-only settings after IN9', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(141);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(91);
+    expect(new Set(keys).size).toBe(143);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(93);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(11);
   });
 
@@ -65,6 +65,28 @@ describe('DB1 a settings registry', () => {
       expect(allowedAt(key, 'team')).toBe(false);
     }
   });
+});
+
+it('IN9 registers roll-out defaults with labels, room inheritance and reset', () => {
+  for (const [key, value, label] of [
+    ['rolloutHeight', 4.25, 'Roll-out height'], ['rolloutSpacer', 1.25, 'Roll-out hinge spacer'],
+  ]) {
+    expect(DEFAULT_SETTINGS[key]).toBe(value);
+    expect(registryEntry(key)).toEqual({ key, label, kind: 'number', lowest: 'room' });
+    expect(resolveSetting(key)).toEqual({ value, source: { level: 'default' } });
+    const chain = ['team', 'project', 'phase', 'room'].map((level, index) => ({ level, values: { [key]: value + index + 1 } }));
+    for (let index = 0; index < chain.length; index += 1) {
+      expect(cleanOverrides(chain[index].values, chain[index].level)).toEqual(chain[index].values);
+      expect(resolveSetting(key, chain.slice(0, index + 1)))
+        .toEqual({ value: value + index + 1, source: { level: chain[index].level } });
+    }
+    chain[3].values = withOverride(chain[3].values, key, null);
+    expect(resolveSetting(key, chain)).toEqual({ value: value + 3, source: { level: 'phase' } });
+    for (const level of ['wall', 'run', 'cabinet', 'face']) {
+      expect(allowedAt(key, level)).toBe(false);
+      expect(cleanOverrides({ [key]: value }, level)).toEqual({});
+    }
+  }
 });
 
 it('IN8 registers the seven shelf defaults and inherits/resets them through the room level', () => {

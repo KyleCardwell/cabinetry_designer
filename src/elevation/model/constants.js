@@ -143,6 +143,8 @@ export const DEFAULT_SETTINGS = {
   drawerBoxHeights: { from: 2.25, to: 10.25, thenFrom: 11.125, max: 22.125, step: 1, warnAbove: 15.125 },
   /** Vertical adjustment on the slide clips: how much too tall a drawer box can be and still fit (IN7.1). */
   drawerBoxAdjustment: 0.125,
+  rolloutHeight: 4.25,
+  rolloutSpacer: 1.25,
   shelfSpacing: 11,
   shelfWidthClearance: 1 / 16,
   shelfSetback: 1 / 8,
@@ -185,6 +187,8 @@ export const BOX_TOPS = ['between', 'overlay', 'spreaders', 'none'];
 export const BOX_KEYS = ['back', 'top', 'bottom', 'left', 'right', 'finTop', 'finBottom'];
 
 export const SHELF_NOSINGS = ['none', 'hardwood', 'folded'];
+export const ROLLOUT_LAYOUTS = ['stack', 'pair'];
+export const MAX_ROLLOUTS = 8;
 
 /** Interior divider families follow the group's stacking direction. */
 export const INTERIOR_DIVIDERS = {

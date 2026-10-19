@@ -130,6 +130,8 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'bottomPartHeights',
   'drawerBoxHeights',
   'drawerBoxAdjustment',
+  'rolloutHeight',
+  'rolloutSpacer',
   'shelfSpacing',
   'shelfWidthClearance',
   'shelfSetback',

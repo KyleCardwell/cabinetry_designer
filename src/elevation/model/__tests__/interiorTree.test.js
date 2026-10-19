@@ -5,6 +5,7 @@ import {
   interiorOutline, isInteriorNode, isStoredInterior, removeDivider, setDividerDepth,
   setDividerBanding, setDividerKind, setDividerPosition, splitSection,
   SHELF_NOSINGS, setSectionShelves, setSectionFlag,
+  MAX_ROLLOUTS, ROLLOUT_LAYOUTS, isRollouts, setSectionRollouts, setRolloutItem,
 } from '../index.js';
 
 describe('IN2 stored interior tree', () => {
@@ -431,5 +432,170 @@ describe('IN8 section shelf and flag data', () => {
     expect(removeDivider(group([{ shelves: { count: 3 } }, second]), 'r', 0)).toEqual({});
     expect(removeDivider(group([two, {}]), 'r.0', 0).children[0]).toEqual({ shelves: { nosing: 'hardwood' } });
     expect(removeDivider(group([two, {}]), 'r', 0)).toEqual(group([two, {}]));
+  });
+});
+
+describe('IN9 roll-out data', () => {
+  const group = (children, direction = 'vertical') => ({
+    direction, children,
+    dividers: Array.from({ length: children.length - 1 }, () => ({
+      kind: direction === 'vertical' ? 'fixed' : 'partition',
+    })),
+  });
+  const section = deepFreeze({
+    rollouts: { count: 2, items: [{ at: 1 }, { height: 6 }] }, shelves: { glass: true },
+  });
+
+  it('anchor 1: validates roll-outs only on sections, including count and layout boundaries', () => {
+    expect(ROLLOUT_LAYOUTS).toEqual(['stack', 'pair']);
+    expect(MAX_ROLLOUTS).toBe(8);
+    expect(isInteriorNode({ rollouts: { count: 2, items: [{}, { at: 10, slideId: 'accuride-3832' }] } }))
+      .toBe(true);
+    expect(isInteriorNode({ rollouts: { count: 1, items: [{}, {}] } })).toBe(false);
+    expect(isInteriorNode({ rollouts: { count: 2, layout: 'side' } })).toBe(false);
+    expect(isInteriorNode({ rollouts: { count: 0 } })).toBe(false);
+    for (const layout of ROLLOUT_LAYOUTS) {
+      // Geometry decides whether a pair is usable, so count 1 remains valid stored data.
+      expect(isRollouts({ count: 1, layout })).toBe(true);
+      expect(isStoredInterior(group([{ rollouts: { count: 8, layout, items: [{ height: 1000, depth: 1000, at: 0 }] } }, {}])))
+        .toBe(true);
+    }
+    expect(isRollouts({ count: 2, items: [] })).toBe(true);
+    expect(isInteriorNode({ ...group([{}, {}]), rollouts: { count: 2 } })).toBe(false);
+  });
+
+  it('rejects malformed objects, unknown fields, sparse items and invalid item dimensions', () => {
+    for (const value of [
+      null, [], new Date(), {}, { items: [] }, { count: 1, extra: true },
+      { count: 1, [Symbol('extra')]: true }, Object.create({ count: 1 }),
+      ...[0, -1, 9, 1.5, NaN, Infinity, '2', null, undefined].map((count) => ({ count })),
+      ...[null, undefined, '', 1].map((layout) => ({ count: 2, layout })),
+      ...[null, undefined, {}, [null], [undefined], Array(1), [{ extra: 1 }],
+        [{ [Symbol('extra')]: 1 }], [new Date()], [Object.create({ height: 6 })]]
+        .map((items) => ({ count: 2, items })),
+      ...['height', 'depth', 'at'].flatMap((key) =>
+        [-1, NaN, Infinity, -Infinity, '6', null, undefined, ...(key === 'at' ? [] : [0])]
+          .map((value) => ({ count: 1, items: [{ [key]: value }] }))),
+      ...['', null, undefined, 1].map((slideId) => ({ count: 1, items: [{ slideId }] })),
+    ]) {
+      expect(isRollouts(value)).toBe(false);
+      expect(isStoredInterior({ rollouts: value })).toBe(false);
+    }
+  });
+
+  it('anchor 2: pads automatic items and removes trailing empty items after a reset', () => {
+    const added = deepFreeze(setSectionRollouts({}, 'r', { count: 2 }));
+    expect(added).toEqual({ rollouts: { count: 2 } });
+    const typed = deepFreeze(setRolloutItem(added, 'r', 1, { height: 6 }));
+    expect(typed).toEqual({ rollouts: { count: 2, items: [{}, { height: 6 }] } });
+    expect(setRolloutItem(typed, 'r', 1, { height: null })).toEqual(added);
+    const picks = deepFreeze(setRolloutItem(typed, 'r', 0, { at: 0, depth: 18, slideId: 'x' }));
+    expect(setRolloutItem(picks, 'r', 0, { depth: null }).rollouts.items)
+      .toEqual([{ at: 0, slideId: 'x' }, { height: 6 }]);
+    expect(setRolloutItem(picks, 'r', 0, { at: null, depth: null, slideId: null })).toEqual(typed);
+  });
+
+  it('anchor 3: truncates items when lowering count, removes roll-outs and resets layout', () => {
+    const three = deepFreeze({ rollouts: { count: 3, items: [{}, {}, { depth: 18 }] } });
+    const two = deepFreeze(setSectionRollouts(three, 'r', { count: 2 }));
+    expect(two).toEqual({ rollouts: { count: 2 } });
+    expect(setSectionRollouts(two, 'r', { count: 0 })).toEqual({});
+    expect(setSectionRollouts(two, 'r', { count: null })).toEqual({});
+    const pair = deepFreeze(setSectionRollouts(three, 'r', { layout: 'pair' }));
+    expect(pair.rollouts).toEqual({ ...three.rollouts, layout: 'pair' });
+    expect(setSectionRollouts(pair, 'r', { layout: null })).toEqual(three);
+    expect(setSectionRollouts(pair, 'r', { count: 8, layout: 'stack' }).rollouts)
+      .toEqual({ count: 8, layout: 'stack', items: three.rollouts.items });
+  });
+
+  it('ignores invalid patches, invalid indices, group paths and sections without roll-outs', () => {
+    const tree = deepFreeze(group([section, {}]));
+    for (const patch of [null, [], { extra: null }, { items: [] }, { count: 2, layout: 'side' },
+      { count: -1 }, { count: 9 }, { count: 1.5 }, { count: '2' }, { count: NaN },
+      { count: Infinity }, { count: undefined }, { layout: undefined }, { layout: 1 },
+      { [Symbol('extra')]: true }]) {
+      expect(setSectionRollouts(tree, 'r.0', patch)).toBe(tree);
+    }
+    for (const patch of [null, [], { unknown: null }, { count: 1 }, { height: 0 }, { depth: -1 },
+      { at: -1 }, { at: Infinity }, { height: NaN }, { height: '6' }, { height: undefined },
+      { slideId: '' }, { slideId: 1 }, { height: 6, depth: 0 }, { [Symbol('extra')]: null }]) {
+      expect(setRolloutItem(tree, 'r.0', 0, patch)).toBe(tree);
+    }
+    for (const index of [-1, 2, 0.5, '0', NaN, Infinity, null, undefined]) {
+      expect(setRolloutItem(tree, 'r.0', index, { height: 6 })).toBe(tree);
+    }
+    for (const path of ['r', 'r.8', 'bad', null]) {
+      expect(setSectionRollouts(tree, path, { count: 2 })).toBe(tree);
+      expect(setRolloutItem(tree, path, 0, { height: 6 })).toBe(tree);
+    }
+    expect(setRolloutItem(tree, 'r.1', 0, { height: 6 })).toBe(tree);
+    expect(setSectionRollouts(tree, 'r.1', { layout: 'pair' })).toBe(tree);
+    for (const absent of [null, undefined]) {
+      expect(setSectionRollouts(absent, 'r', { count: 1 })).toEqual({ rollouts: { count: 1 } });
+      expect(setRolloutItem(absent, 'r', 0, { height: 6 })).toEqual({});
+    }
+  });
+
+  it('edits nested leaves immutably while preserving other section picks and item overrides', () => {
+    const leaf = { ...section, hinges: false, lineBore: true };
+    const tree = deepFreeze(group([{}, group([leaf, {}], 'horizontal')]));
+    const edited = setRolloutItem(tree, 'r.1.0', 1, { depth: 21, slideId: 'x' });
+    expect(edited.children[1].children[0]).toEqual({
+      ...leaf, rollouts: { count: 2, items: [{ at: 1 }, { height: 6, depth: 21, slideId: 'x' }] },
+    });
+    expect(edited.children[0]).toBe(tree.children[0]);
+    expect(edited.children[1].children[1]).toBe(tree.children[1].children[1]);
+    expect(edited.children[1].children[0].rollouts.items[0]).toBe(leaf.rollouts.items[0]);
+    expect(setSectionRollouts(tree, 'r.1.0', { count: null }).children[1].children[0])
+      .toEqual({ shelves: { glass: true }, hinges: false, lineBore: true });
+    expect(isStoredInterior(edited)).toBe(true);
+  });
+
+  it('anchor 4: vertical splits retain roll-outs only in the bottom section and clear positions', () => {
+    const result = splitSection(section, 'r', 'vertical', 2);
+    expect(result.children).toEqual([
+      { shelves: { glass: true } },
+      { shelves: { glass: true }, rollouts: { count: 2, items: [{}, { height: 6 }] } },
+    ]);
+    expect(result.children[1].rollouts.items[1]).not.toBe(section.rollouts.items[1]);
+    expect(isStoredInterior(result)).toBe(true);
+  });
+
+  it('anchor 5: horizontal splits remove roll-outs from every new section', () => {
+    expect(splitSection(section, 'r', 'horizontal', 2).children)
+      .toEqual([{ shelves: { glass: true } }, { shelves: { glass: true } }]);
+  });
+
+  it('anchor 6: merges prefer first-section roll-outs, falling back to second and clearing positions', () => {
+    expect(removeDivider(group([{}, { rollouts: { count: 1, items: [{ at: 3 }] } }]), 'r', 0))
+      .toEqual({ rollouts: { count: 1 } });
+    const first = { shelves: { count: 2, glass: false }, hinges: false, lineBore: true };
+    const second = { ...section, hinges: true };
+    for (const direction of ['vertical', 'horizontal']) {
+      expect(removeDivider(group([first, second], direction), 'r', 0)).toEqual({
+        shelves: { glass: false }, hinges: false, lineBore: true,
+        rollouts: { count: 2, items: [{}, { height: 6 }] },
+      });
+      expect(removeDivider(group([second, { rollouts: { count: 1 } }], direction), 'r', 0))
+        .toEqual({ shelves: { glass: true }, hinges: true, rollouts: { count: 2, items: [{}, { height: 6 }] } });
+    }
+  });
+
+  it('carries roll-outs through flattened splits and nested multi-section merges without changing neighbors', () => {
+    for (const direction of ['vertical', 'horizontal']) {
+      const tree = deepFreeze(group([{}, section, {}], direction));
+      const result = splitSection(tree, 'r.1', direction, 3);
+      expect(result.children.map(({ rollouts }) => rollouts)).toEqual(direction === 'vertical'
+        ? [undefined, undefined, undefined, { count: 2, items: [{}, { height: 6 }] }, undefined]
+        : Array(5).fill(undefined));
+      expect(result.children[0]).toBe(tree.children[0]);
+      expect(result.children[4]).toBe(tree.children[2]);
+      const merged = removeDivider(deepFreeze(group([tree, {}])), 'r.0', 0);
+      expect(merged.children[0].children).toEqual([
+        { rollouts: { count: 2, items: [{}, { height: 6 }] } }, {},
+      ]);
+      expect(merged.children[0].dividers).toEqual([tree.dividers[1]]);
+      expect(isStoredInterior(merged)).toBe(true);
+    }
   });
 });

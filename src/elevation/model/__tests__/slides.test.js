@@ -3,10 +3,41 @@ import {
   BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, DEFAULT_SETTINGS, SLIDE_MOUNTS,
   findSlide, fittingLength, isSlide, isSlideList, newSlide, slideBoxWidth,
 } from '../index.js';
-import { resolveSlide } from '../slides.js';
+import { missingSlides, resolveSlide, roomSlideUses } from '../slides.js';
+import { gridFromItems } from '../grid.js';
 import { copySettings } from '../../store/slices/helpers.js';
 
 const [blum, accuride3832, accuride4034] = BUILT_IN_SLIDES;
+
+it('IN9 anchor 7: counts stored roll-out slide picks across nested interiors and cabinet grids', () => {
+  const item = { slideId: 'x' };
+  const cabinet = { id: 'c', kind: 'cabinet', interior: { rollouts: { count: 1, items: [item] } } };
+  const room = { walls: [{ runs: [{ grid: gridFromItems('g', [cabinet]) }] }] };
+  expect([...roomSlideUses(room)]).toEqual([{ node: item, key: 'slideId' }]);
+  expect([...roomSlideUses(room)][0].node).toBe(item);
+  expect(missingSlides(room, DEFAULT_SETTINGS)).toEqual([{ slideId: 'x', roomUses: 1, setIn: [] }]);
+
+  const other = { height: 6, slideId: 'accuride-3832' };
+  const group = (children) => ({
+    direction: 'vertical', children, dividers: children.slice(1).map(() => ({ kind: 'fixed' })),
+  });
+  cabinet.interior = group([{}, group([
+    { rollouts: { count: 2, items: [{}, item] } },
+    { rollouts: { count: 1, items: [other] } },
+  ])]);
+  room.walls[0].runs[0].grid = gridFromItems('outer', [{
+    id: 'wrapper', grid: gridFromItems('inner', [cabinet, { id: 'auto', kind: 'cabinet', purpose: 'sink' }]),
+  }]);
+  room.walls[0].runs.push({ grid: gridFromItems('back', [{
+    id: 'back-c', kind: 'cabinet', interior: { rollouts: { count: 1, items: [{ slideId: 'x' }] } },
+  }]) });
+  const uses = [...roomSlideUses(room)];
+  expect(uses.map(({ node, key }) => node[key])).toEqual(['x', 'accuride-3832', 'x']);
+  expect(uses[0].node).toBe(item);
+  expect(uses[1].node).toBe(other);
+  expect(missingSlides(room, DEFAULT_SETTINGS)).toEqual([{ slideId: 'x', roomUses: 2, setIn: [] }]);
+  expect([...roomSlideUses({})]).toEqual([]);
+});
 
 describe('IN4b step a slide model', () => {
   it('validates exact slide fields, bounded text, ascending lengths and estimator links (anchor 1)', () => {

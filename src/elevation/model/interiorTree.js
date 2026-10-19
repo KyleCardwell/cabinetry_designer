@@ -1,5 +1,5 @@
 import { isPlainObject } from '@reduxjs/toolkit';
-import { INTERIOR_DIVIDERS, SHELF_NOSINGS } from './constants.js';
+import { INTERIOR_DIVIDERS, MAX_ROLLOUTS, ROLLOUT_LAYOUTS, SHELF_NOSINGS } from './constants.js';
 import { MAX_FACE_SPLIT, parentFacePath } from './faceTree.js';
 import { ROOT_FACE_PATH } from './faces.js';
 
@@ -45,12 +45,43 @@ export function patchShelfSettings(shelves, patch, allowCount = false) {
   return next;
 }
 
+function isRolloutItemValue(key, value) {
+  if (key === 'slideId') return typeof value === 'string' && value.length > 0;
+  return ['height', 'depth', 'at'].includes(key) && Number.isFinite(value)
+    && (key === 'at' ? value >= 0 : value > 0);
+}
+
+function isRolloutItem(item) {
+  return isPlainObject(item)
+    && Reflect.ownKeys(item).every((key) => isRolloutItemValue(key, item[key]));
+}
+
+/** Only leaf sections store roll-outs; omitted items are automatic. */
+export function isRollouts(value) {
+  return isPlainObject(value)
+    && Reflect.ownKeys(value).every((key) => ['count', 'layout', 'items'].includes(key))
+    && Number.isInteger(value.count) && value.count >= 1 && value.count <= MAX_ROLLOUTS
+    && (!Object.hasOwn(value, 'layout') || ROLLOUT_LAYOUTS.includes(value.layout))
+    && (!Object.hasOwn(value, 'items') || (Array.isArray(value.items)
+      && value.items.length <= value.count && Array.from(value.items).every(isRolloutItem)));
+}
+
+function trimRolloutItems(rollouts) {
+  const next = { ...rollouts };
+  const items = (next.items ?? []).slice(0, next.count);
+  while (items.length && !Object.keys(items.at(-1)).length) items.pop();
+  if (items.length) next.items = items;
+  else delete next.items;
+  return next;
+}
+
 /** A plain or customized leaf section, or a valid interior group, recursively. */
 export function isInteriorNode(node) {
   if (!isPlainObject(node)) return false;
   if (!Object.hasOwn(node, 'children')) {
-    return Object.keys(node).every((key) => ['shelves', 'hinges', 'lineBore'].includes(key))
+    return Object.keys(node).every((key) => ['shelves', 'hinges', 'lineBore', 'rollouts'].includes(key))
       && (!Object.hasOwn(node, 'shelves') || isShelfSettings(node.shelves, true))
+      && (!Object.hasOwn(node, 'rollouts') || isRollouts(node.rollouts))
       && ['hinges', 'lineBore'].every((key) => !Object.hasOwn(node, key) || typeof node[key] === 'boolean');
   }
   return Object.keys(node).every((key) => ['direction', 'children', 'dividers'].includes(key))
@@ -121,8 +152,60 @@ export function setSectionFlag(interior, path, key, value) {
   return replaceAt(interior, path, () => next);
 }
 
-function withoutShelfCount(section) {
+/** Count zero/null removes roll-outs; layout null restores automatic layout. */
+export function setSectionRollouts(interior, path, patch) {
+  const target = getInteriorNode(interior, path);
+  if (!target || target.children || !isPlainObject(patch)
+    || !Reflect.ownKeys(patch).every((key) => key === 'count'
+      ? patch[key] === null || (Number.isInteger(patch[key]) && patch[key] >= 0 && patch[key] <= MAX_ROLLOUTS)
+      : key === 'layout' && (patch[key] === null || ROLLOUT_LAYOUTS.includes(patch[key])))) return interior ?? {};
+  const next = { ...target };
+  if (Object.hasOwn(patch, 'count') && (patch.count === 0 || patch.count === null)) {
+    delete next.rollouts;
+  } else {
+    const rollouts = { ...target.rollouts, ...patch };
+    if (rollouts.layout === null) delete rollouts.layout;
+    const trimmed = trimRolloutItems(rollouts);
+    if (!isRollouts(trimmed)) return interior ?? {};
+    next.rollouts = trimmed;
+  }
+  return replaceAt(interior, path, () => next);
+}
+
+/** Null resets one item pick; pad preceding auto items and prune trailing auto items. */
+export function setRolloutItem(interior, path, index, patch) {
+  const target = getInteriorNode(interior, path);
+  if (!target || target.children || !target.rollouts || !Number.isInteger(index)
+    || index < 0 || index >= target.rollouts.count || !isPlainObject(patch)
+    || !Reflect.ownKeys(patch).every((key) => ['height', 'depth', 'at', 'slideId'].includes(key)
+      && (patch[key] === null || isRolloutItemValue(key, patch[key])))) return interior ?? {};
+  const items = [...(target.rollouts.items ?? [])];
+  while (items.length <= index) items.push({});
+  const item = { ...items[index] };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) delete item[key];
+    else item[key] = value;
+  }
+  items[index] = item;
+  return replaceAt(interior, path, () => ({
+    ...target, rollouts: trimRolloutItems({ ...target.rollouts, items }),
+  }));
+}
+
+/** Resizing clears shelf counts and roll-out positions, retaining only the chosen roll-outs. */
+function sectionAfterResize(section, rollouts = null) {
   const next = { ...section };
+  delete next.rollouts;
+  if (rollouts) {
+    next.rollouts = trimRolloutItems({
+      ...rollouts,
+      items: (rollouts.items ?? []).map((item) => {
+        const copy = { ...item };
+        delete copy.at;
+        return copy;
+      }),
+    });
+  }
   if (section.shelves) {
     next.shelves = { ...section.shelves };
     delete next.shelves.count;
@@ -139,7 +222,8 @@ export function splitSection(interior, path, direction, count, kind) {
   const dividerKind = kind === undefined ? INTERIOR_DIVIDERS[direction][0] : kind;
   if (!INTERIOR_DIVIDERS[direction].includes(dividerKind)) return interior ?? {};
   const n = Math.min(MAX_FACE_SPLIT, Math.max(2, Math.round(count)));
-  const children = Array.from({ length: n }, () => withoutShelfCount(target));
+  const children = Array.from({ length: n }, (_, index) => sectionAfterResize(target,
+    direction === 'vertical' && index === n - 1 ? target.rollouts : null));
   const dividers = Array.from({ length: n - 1 }, () => ({ kind: dividerKind }));
   const parentPath = parentFacePath(path);
   const parent = parentPath === null ? null : getInteriorNode(interior, parentPath);
@@ -161,11 +245,12 @@ function dividerGroup(interior, path, index) {
     ? group : null;
 }
 
-/** Merge only adjacent sections, retaining the first section's picks without count. */
+/** Merge adjacent sections, preferring first-section picks and the first available roll-outs. */
 export function removeDivider(interior, groupPath, index) {
   const group = dividerGroup(interior, groupPath, index);
   if (!group || group.children[index].children || group.children[index + 1].children) return interior ?? {};
-  const merged = withoutShelfCount(group.children[index]);
+  const first = group.children[index];
+  const merged = sectionAfterResize(first, first.rollouts ?? group.children[index + 1].rollouts);
   return replaceAt(interior, groupPath, (node) => node.children.length === 2 ? merged : ({
     ...node,
     children: [...node.children.slice(0, index), merged, ...node.children.slice(index + 2)],

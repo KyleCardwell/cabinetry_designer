@@ -1794,6 +1794,45 @@ it('530. keeps a saved Micro Shaker as the team\'s own design and appends nothin
     .toEqual(['five-piece-square', 'slab', 'slab-mdf']);
 });
 
+it('IN9 defaults older roll-out settings, preserves picks and validates stored roll-outs on load/save', () => {
+  const legacy = currentDocument();
+  delete legacy.settings.rolloutHeight;
+  delete legacy.settings.rolloutSpacer;
+  const normalized = normalizeElevationDocument(legacy);
+  expect(normalized.settings).toMatchObject({ rolloutHeight: 4.25, rolloutSpacer: 1.25 });
+  expect(isElevationDocument(normalized)).toBe(true);
+  expect(gridLeaves(normalized.rooms[0].walls[0].runs[0].grid)[0]).not.toHaveProperty('interior');
+  legacy.settings.rolloutHeight = 6;
+  legacy.settings.rolloutSpacer = 1.5;
+  expect(normalizeElevationDocument(legacy).settings).toMatchObject({ rolloutHeight: 6, rolloutSpacer: 1.5 });
+  const interior = {
+    direction: 'vertical', children: [{}, {
+      rollouts: { count: 2, layout: 'pair', items: [{ at: 0 }, { height: 6, depth: 18, slideId: 'x' }] },
+    }], dividers: [{ kind: 'fixed' }],
+  };
+  for (const nested of [false, true]) {
+    const document = structuredClone(normalized);
+    const cell = document.rooms[0].walls[0].runs[0].grid.cells[0];
+    cell.node.interior = structuredClone(interior);
+    if (nested) cell.node = gridFromItems('nested', [
+      { ...cell.node, width: null }, { id: 'other', kind: 'cabinet', width: null },
+    ]);
+    expect(isElevationDocument(document)).toBe(true);
+    const saved = toElevationDocument(createInitialElevationState(document));
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+    const loaded = loadElevationDocument();
+    expect(isElevationDocument(loaded)).toBe(true);
+    expect(gridLeaves(loaded.rooms[0].walls[0].runs[0].grid)[0].interior).toEqual(interior);
+  }
+  for (const rollouts of [{ count: 0 }, { count: 1, items: [{ depth: 0 }] }, { count: 2, layout: 'side' }]) {
+    const invalid = structuredClone(normalized);
+    invalid.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = { rollouts };
+    expect(isElevationDocument(invalid)).toBe(false);
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(invalid)]]) };
+    expect(loadElevationDocument()).toBeNull();
+  }
+});
+
 describe('IN8 shelf and flag persistence', () => {
   it('round-trips cabinet picks and customized nested sections on root and nested cabinets', () => {
     const legacy = currentDocument();
