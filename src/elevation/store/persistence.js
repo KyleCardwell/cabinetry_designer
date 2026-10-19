@@ -27,7 +27,7 @@ import {
   isStyleRef,
 } from '../model/doorStyles.js';
 import { isFaceNode } from '../model/faces.js';
-import { isStoredInterior } from '../model/interiorTree.js';
+import { isShelfSettings, isStoredInterior } from '../model/interiorTree.js';
 import { MAX_SHELVES } from '../model/cellTree.js';
 import { LEAF_KINDS, isGridShape, rootItems } from '../model/grid.js';
 import { isExtend } from '../model/extensions.js';
@@ -130,6 +130,13 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'bottomPartHeights',
   'drawerBoxHeights',
   'drawerBoxAdjustment',
+  'shelfSpacing',
+  'shelfWidthClearance',
+  'shelfSetback',
+  'glassShelfThickness',
+  'shelfNosingHeight',
+  'shelfNosingThickness',
+  'foldedNosingExtra',
   'baseCutoutFoot',
   'baseCutoutHeight',
   'furnitureBaseScribe',
@@ -254,6 +261,7 @@ function isItem(item) {
     && (item.drawerSlideId === undefined || (item.kind === 'cabinet'
       && typeof item.drawerSlideId === 'string' && item.drawerSlideId.length > 0))
     && (item.box === undefined || (item.kind === 'cabinet' && isCabinetBox(item.box)))
+    && (item.shelves === undefined || (item.kind === 'cabinet' && isShelfSettings(item.shelves)))
     && (item.interior === undefined || (item.kind === 'cabinet' && isStoredInterior(item.interior)));
 }
 

@@ -109,7 +109,7 @@ beforeEach(() => {
 });
 
 describe('DB2 f shop settings panel', () => {
-  it('anchor 1: starts ten groups collapsed and retains the note, view controls and height profile', () => {
+  it('anchor 1: starts eleven groups collapsed and retains the note, view controls and height profile', () => {
     const initial = state;
     expect(header(render(), 'Settings').props['aria-expanded']).toBe(false);
     header(render(), 'Settings').props.onClick();
@@ -117,7 +117,7 @@ describe('DB2 f shop settings panel', () => {
     const groups = [
       ['Cabinets & depths', 11], ['Runs & ends', 9], ['Fillers & corners', 11],
       ['Reveals', 9], ['Inset face frame', 6], ['Bases, tops & bands', 15],
-      ['Openings & soffits', 14], ['Pulls', 3], ['Drawer boxes', 8], ['Reports', 9],
+      ['Openings & soffits', 14], ['Pulls', 3], ['Drawer boxes', 8], ['Shelves', 7], ['Reports', 9],
     ];
     const collapsed = nodes(tree).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false);
     expect(collapsed.map(text)).toEqual(groups.map(([label]) => `${label}+`));

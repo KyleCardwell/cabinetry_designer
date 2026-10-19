@@ -1793,3 +1793,64 @@ it('530. keeps a saved Micro Shaker as the team\'s own design and appends nothin
   expect(normalizeElevationDocument(without).settings.doorDesigns.map(({ id }) => id))
     .toEqual(['five-piece-square', 'slab', 'slab-mdf']);
 });
+
+describe('IN8 shelf and flag persistence', () => {
+  it('round-trips cabinet picks and customized nested sections on root and nested cabinets', () => {
+    const legacy = currentDocument();
+    const keys = ['shelfSpacing', 'shelfWidthClearance', 'shelfSetback', 'glassShelfThickness',
+      'shelfNosingHeight', 'shelfNosingThickness', 'foldedNosingExtra'];
+    for (const key of keys) delete legacy.settings[key];
+    const normalized = normalizeElevationDocument(legacy);
+    expect(isElevationDocument(normalized)).toBe(true);
+    for (const key of keys) expect(normalized.settings[key]).toBe(DEFAULT_SETTINGS[key]);
+    legacy.settings.shelfSpacing = 10;
+    expect(normalizeElevationDocument(legacy).settings.shelfSpacing).toBe(10);
+    const interior = {
+      direction: 'vertical',
+      children: [{ shelves: { count: 0, glass: false, nosing: 'none' }, hinges: true, lineBore: false },
+        { shelves: { count: 20, glass: true, nosing: 'folded' }, hinges: false, lineBore: true }],
+      dividers: [{ kind: 'fixed' }],
+    };
+    const shelves = { glass: false, nosing: 'hardwood' };
+    for (const nested of [false, true]) {
+      const document = normalizeElevationDocument(currentDocument());
+      const cell = document.rooms[0].walls[0].runs[0].grid.cells[0];
+      Object.assign(cell.node, { interior, shelves });
+      if (nested) cell.node = gridFromItems('nested', [{ ...cell.node, width: null }, { id: 'other', kind: 'cabinet', width: null }]);
+      expect(isElevationDocument(document)).toBe(true);
+      const saved = toElevationDocument(createInitialElevationState(document));
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+      const loaded = loadElevationDocument();
+      expect(isElevationDocument(loaded)).toBe(true);
+      expect(gridLeaves(loaded.rooms[0].walls[0].runs[0].grid)[0]).toMatchObject({ interior, shelves });
+    }
+  });
+
+  it('rejects malformed cabinet or section picks and keeps legacy shelves-cell validation separate', () => {
+    const base = normalizeElevationDocument(currentDocument());
+    for (const shelves of [{}, null, [], { count: 0 }, { back: false }, { glass: 0 }, { glass: null }, { nosing: 'oak' }]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.shelves = shelves;
+      expect(isElevationDocument(document), JSON.stringify(shelves)).toBe(false);
+    }
+    for (const interior of [
+      { shelves: {} }, { shelves: { count: 21 } }, { hinges: null }, { lineBore: 1 },
+      { direction: 'vertical', children: [{}, {}], dividers: [{ kind: 'fixed' }], shelves: { glass: true } },
+    ]) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = interior;
+      expect(isElevationDocument(document)).toBe(false);
+    }
+    for (const kind of ['filler', 'panel', 'void', 'shelves']) {
+      const document = structuredClone(base);
+      document.rooms[0].walls[0].runs[0].grid.cells[0].node = {
+        id: 'other', kind, width: 1, shelves: { glass: true },
+      };
+      expect(isElevationDocument(document)).toBe(false);
+      if (kind === 'shelves') {
+        document.rooms[0].walls[0].runs[0].grid.cells[0].node.shelves = { count: 1, back: false };
+        expect(isElevationDocument(document)).toBe(true);
+      }
+    }
+  });
+});

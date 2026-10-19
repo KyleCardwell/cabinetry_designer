@@ -143,6 +143,13 @@ export const DEFAULT_SETTINGS = {
   drawerBoxHeights: { from: 2.25, to: 10.25, thenFrom: 11.125, max: 22.125, step: 1, warnAbove: 15.125 },
   /** Vertical adjustment on the slide clips: how much too tall a drawer box can be and still fit (IN7.1). */
   drawerBoxAdjustment: 0.125,
+  shelfSpacing: 12,
+  shelfWidthClearance: 1 / 16,
+  shelfSetback: 1 / 8,
+  glassShelfThickness: 1 / 4,
+  shelfNosingHeight: 1.5,
+  shelfNosingThickness: 13 / 16,
+  foldedNosingExtra: 2,
   belowRunOverhang: -0.125,
   belowRunFlushReveal: 0.125,
   bottomPartHeights: { light_rail: 1.5, light_trough: 3, panel: 0.75, bottom_cap: 1.5, corbels: 6 },
@@ -176,6 +183,8 @@ export const CABINET_PURPOSE_IDS = new Set(CABINET_PURPOSES.map(([id]) => id));
 export const BOX_BACKS = ['dado', 'inset', 'applied', 'none'];
 export const BOX_TOPS = ['between', 'overlay', 'spreaders', 'none'];
 export const BOX_KEYS = ['back', 'top', 'bottom', 'left', 'right', 'finTop', 'finBottom'];
+
+export const SHELF_NOSINGS = ['none', 'hardwood', 'folded'];
 
 /** Interior divider families follow the group's stacking direction. */
 export const INTERIOR_DIVIDERS = {

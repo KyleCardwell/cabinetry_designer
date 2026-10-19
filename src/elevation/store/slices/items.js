@@ -13,7 +13,7 @@ import {
 } from '../../model/room.js';
 import { splitRun } from '../../model/splitRun.js';
 import { roundTo } from '../../model/units.js';
-import { isStoredInterior } from '../../model/interiorTree.js';
+import { isStoredInterior, patchShelfSettings } from '../../model/interiorTree.js';
 import {
   runLocation,
   syncRoomAt,
@@ -158,6 +158,22 @@ export const itemReducers = {
     for (const target of targets) {
       if (clear) delete target.interior;
       else target.interior = structuredClone(interior);
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
+  /** Cabinet shelf material picks never store or alter the interior tree. */
+  setItemShelves(state, action) {
+    const { itemId, itemIds = itemId ? [itemId] : [], patch } = action.payload;
+    if (!patchShelfSettings(undefined, patch)) return;
+    const location = runLocation(state, action.payload);
+    if (!location?.run.grid) return;
+    const targets = gridLeaves(location.run.grid)
+      .filter((leaf) => leaf.kind === 'cabinet' && itemIds.includes(leaf.id));
+    if (!targets.length) return;
+    for (const target of targets) {
+      const shelves = patchShelfSettings(target.shelves, patch);
+      if (Object.keys(shelves).length) target.shelves = shelves;
+      else delete target.shelves;
     }
     syncRoomAt(state, location.roomIndex);
   },

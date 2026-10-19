@@ -1,5 +1,5 @@
 import { isPlainObject } from '@reduxjs/toolkit';
-import { INTERIOR_DIVIDERS } from './constants.js';
+import { INTERIOR_DIVIDERS, SHELF_NOSINGS } from './constants.js';
 import { MAX_FACE_SPLIT, parentFacePath } from './faceTree.js';
 import { ROOT_FACE_PATH } from './faces.js';
 
@@ -20,10 +20,39 @@ function isDivider(divider, direction) {
       || (direction === 'horizontal' && divider.from === 'right' && Object.hasOwn(divider, 'at')));
 }
 
-/** An empty section or a valid interior group, recursively. */
+function isShelfValue(key, value, allowCount) {
+  return key === 'glass' ? typeof value === 'boolean'
+    : key === 'nosing' ? SHELF_NOSINGS.includes(value)
+      : key === 'count' && allowCount && Number.isInteger(value) && value >= 0 && value <= 20;
+}
+
+/** Stored shelf picks are nonempty; only sections may specify a count. */
+export function isShelfSettings(shelves, allowCount = false) {
+  return isPlainObject(shelves) && Object.keys(shelves).length > 0
+    && Object.entries(shelves).every(([key, value]) => isShelfValue(key, value, allowCount));
+}
+
+/** Null resets one pick. An invalid patch returns null; an empty result is pruned by the caller. */
+export function patchShelfSettings(shelves, patch, allowCount = false) {
+  if (!isPlainObject(patch) || !Object.entries(patch).every(([key, value]) =>
+    ['glass', 'nosing', ...(allowCount ? ['count'] : [])].includes(key)
+      && (value === null || isShelfValue(key, value, allowCount)))) return null;
+  const next = { ...shelves };
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) delete next[key];
+    else next[key] = value;
+  }
+  return next;
+}
+
+/** A plain or customized leaf section, or a valid interior group, recursively. */
 export function isInteriorNode(node) {
   if (!isPlainObject(node)) return false;
-  if (Object.keys(node).length === 0) return true;
+  if (!Object.hasOwn(node, 'children')) {
+    return Object.keys(node).every((key) => ['shelves', 'hinges', 'lineBore'].includes(key))
+      && (!Object.hasOwn(node, 'shelves') || isShelfSettings(node.shelves, true))
+      && ['hinges', 'lineBore'].every((key) => !Object.hasOwn(node, key) || typeof node[key] === 'boolean');
+  }
   return Object.keys(node).every((key) => ['direction', 'children', 'dividers'].includes(key))
     && ['vertical', 'horizontal'].includes(node.direction)
     && Array.isArray(node.children)
@@ -70,6 +99,38 @@ function replaceAt(interior, path, replacer) {
   }));
 }
 
+/** Shelf overrides belong only to leaf sections; explicit default picks remain stored. */
+export function setSectionShelves(interior, path, patch) {
+  const target = getInteriorNode(interior, path);
+  if (!target || target.children) return interior ?? {};
+  const shelves = patchShelfSettings(target.shelves, patch, true);
+  if (!shelves) return interior ?? {};
+  const next = { ...target };
+  if (Object.keys(shelves).length) next.shelves = shelves;
+  else delete next.shelves;
+  return replaceAt(interior, path, () => next);
+}
+
+export function setSectionFlag(interior, path, key, value) {
+  const target = getInteriorNode(interior, path);
+  if (!target || target.children || !['hinges', 'lineBore'].includes(key)
+    || (value !== null && typeof value !== 'boolean')) return interior ?? {};
+  const next = { ...target };
+  if (value === null) delete next[key];
+  else next[key] = value;
+  return replaceAt(interior, path, () => next);
+}
+
+function withoutShelfCount(section) {
+  const next = { ...section };
+  if (section.shelves) {
+    next.shelves = { ...section.shelves };
+    delete next.shelves.count;
+    if (!Object.keys(next.shelves).length) delete next.shelves;
+  }
+  return next;
+}
+
 /** Same-direction splits add siblings, keeping existing seams on either side. */
 export function splitSection(interior, path, direction, count, kind) {
   const target = getInteriorNode(interior, path);
@@ -78,7 +139,7 @@ export function splitSection(interior, path, direction, count, kind) {
   const dividerKind = kind === undefined ? INTERIOR_DIVIDERS[direction][0] : kind;
   if (!INTERIOR_DIVIDERS[direction].includes(dividerKind)) return interior ?? {};
   const n = Math.min(MAX_FACE_SPLIT, Math.max(2, Math.round(count)));
-  const children = Array.from({ length: n }, () => ({}));
+  const children = Array.from({ length: n }, () => withoutShelfCount(target));
   const dividers = Array.from({ length: n - 1 }, () => ({ kind: dividerKind }));
   const parentPath = parentFacePath(path);
   const parent = parentPath === null ? null : getInteriorNode(interior, parentPath);
@@ -100,13 +161,14 @@ function dividerGroup(interior, path, index) {
     ? group : null;
 }
 
-/** Merge only adjacent sections; a collapsed root is a stored empty section. */
+/** Merge only adjacent sections, retaining the first section's picks without count. */
 export function removeDivider(interior, groupPath, index) {
   const group = dividerGroup(interior, groupPath, index);
   if (!group || group.children[index].children || group.children[index + 1].children) return interior ?? {};
-  return replaceAt(interior, groupPath, (node) => node.children.length === 2 ? {} : ({
+  const merged = withoutShelfCount(group.children[index]);
+  return replaceAt(interior, groupPath, (node) => node.children.length === 2 ? merged : ({
     ...node,
-    children: [...node.children.slice(0, index), {}, ...node.children.slice(index + 2)],
+    children: [...node.children.slice(0, index), merged, ...node.children.slice(index + 2)],
     dividers: node.dividers.filter((_, i) => i !== index),
   }));
 }

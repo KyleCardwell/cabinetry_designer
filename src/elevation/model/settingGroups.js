@@ -69,6 +69,13 @@ export const SETTING_GROUPS = [
     ],
   },
   {
+    id: 'shelves', label: 'Shelves',
+    keys: [
+      'shelfSpacing', 'shelfWidthClearance', 'shelfSetback', 'glassShelfThickness',
+      'shelfNosingHeight', 'shelfNosingThickness', 'foldedNosingExtra',
+    ],
+  },
+  {
     id: 'reports', label: 'Reports',
     keys: [
       'report.companyName', 'report.companyPhone', 'report.companyFax', 'report.doorFormNote',

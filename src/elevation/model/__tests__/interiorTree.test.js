@@ -4,6 +4,7 @@ import {
   MAX_FACE_SPLIT, STRETCHER_DEPTH, clearSplit, equalizeDividers, getInteriorNode,
   interiorOutline, isInteriorNode, isStoredInterior, removeDivider, setDividerDepth,
   setDividerBanding, setDividerKind, setDividerPosition, splitSection,
+  SHELF_NOSINGS, setSectionShelves, setSectionFlag,
 } from '../index.js';
 
 describe('IN2 stored interior tree', () => {
@@ -337,5 +338,98 @@ describe('IN2 interior tree edits', () => {
       expect(clearSplit(tree, 'r')).toEqual({});
       expect(equalizeDividers(tree, 'r')).toEqual({});
     }
+  });
+});
+
+describe('IN8 section shelf and flag data', () => {
+  const group = (children, direction = 'vertical') => ({
+    direction, children,
+    dividers: Array.from({ length: children.length - 1 }, () => ({
+      kind: direction === 'vertical' ? 'fixed' : 'partition',
+    })),
+  });
+
+  it('anchor 1: validates section picks, count boundaries and group restrictions', () => {
+    expect(SHELF_NOSINGS).toEqual(['none', 'hardwood', 'folded']);
+    expect(isInteriorNode({ shelves: { count: 0 }, lineBore: true })).toBe(true);
+    expect(isInteriorNode({ ...group([{}, {}]), shelves: {} })).toBe(false);
+    expect(isInteriorNode({ shelves: { nosing: 'oak' } })).toBe(false);
+    for (const nosing of SHELF_NOSINGS) {
+      expect(isInteriorNode(group([{ shelves: { count: 20, glass: false, nosing }, hinges: false }, {}])))
+        .toBe(true);
+    }
+    for (const shelves of [
+      {}, null, [], { unknown: true }, { glass: 1 }, { glass: null }, { nosing: undefined },
+      ...[-1, 21, 1.5, NaN, Infinity, '3', null, undefined].map((count) => ({ count })),
+    ]) expect(isInteriorNode({ shelves })).toBe(false);
+    for (const key of ['hinges', 'lineBore']) {
+      for (const value of [null, undefined, 0, 'false']) expect(isInteriorNode({ [key]: value })).toBe(false);
+      expect(isInteriorNode({ ...group([{}, {}]), [key]: false })).toBe(false);
+    }
+  });
+
+  it('anchor 2: patches and resets shelves without retaining empty objects or dropping explicit defaults', () => {
+    const picked = deepFreeze(setSectionShelves({}, 'r', { count: 3 }));
+    expect(picked).toEqual({ shelves: { count: 3 } });
+    expect(setSectionShelves(picked, 'r', { count: null })).toEqual({});
+    const tree = deepFreeze(group([picked, { hinges: false }]));
+    const edited = setSectionShelves(tree, 'r.0', { count: 0, glass: false, nosing: 'none' });
+    expect(edited.children[0]).toEqual({ shelves: { count: 0, glass: false, nosing: 'none' } });
+    expect(edited.children[1]).toBe(tree.children[1]);
+    expect(setSectionShelves(edited, 'r.0', { glass: null }).children[0])
+      .toEqual({ shelves: { count: 0, nosing: 'none' } });
+    for (const patch of [null, [], { count: 21 }, { count: -1 }, { count: 2.5 }, { count: '3' },
+      { glass: undefined }, { nosing: 'oak' }, { count: 4, glass: 0 }, { unknown: null }]) {
+      expect(setSectionShelves(tree, 'r.0', patch)).toBe(tree);
+    }
+    for (const path of ['r', 'bad', 'r.8']) expect(setSectionShelves(tree, path, { count: 1 })).toBe(tree);
+  });
+
+  it('sets and clears boolean flags only on sections, preserving shelves and the other flag', () => {
+    const tree = deepFreeze(group([{ shelves: { count: 2 }, hinges: false }, {}]));
+    for (const value of [true, false]) {
+      const picked = deepFreeze(setSectionFlag(tree, 'r.0', 'lineBore', value));
+      expect(picked.children[0]).toEqual({ shelves: { count: 2 }, hinges: false, lineBore: value });
+      expect(setSectionFlag(picked, 'r.0', 'lineBore', null)).toEqual(tree);
+      expect(setSectionFlag(picked, 'r.0', 'hinges', null).children[0])
+        .toEqual({ shelves: { count: 2 }, lineBore: value });
+    }
+    expect(setSectionFlag({}, 'r', 'hinges', false)).toEqual({ hinges: false });
+    expect(setSectionFlag({ hinges: true }, 'r', 'hinges', null)).toEqual({});
+    for (const value of [undefined, 0, 'false']) expect(setSectionFlag(tree, 'r.0', 'hinges', value)).toBe(tree);
+    for (const path of ['r', 'bad', 'r.8']) expect(setSectionFlag(tree, path, 'hinges', true)).toBe(tree);
+    expect(setSectionFlag(tree, 'r.0', 'unknown', null)).toBe(tree);
+  });
+
+  it('anchor 3: copies picks to independent split children and resets count, including flattened splits', () => {
+    const section = deepFreeze({ shelves: { count: 2, glass: true }, hinges: false });
+    const expected = { shelves: { glass: true }, hinges: false };
+    const split = splitSection(section, 'r', 'vertical', 2);
+    expect(split.children).toEqual([expected, expected]);
+    expect(split.children[0]).not.toBe(split.children[1]);
+    expect(split.children[0].shelves).not.toBe(split.children[1].shelves);
+    const full = deepFreeze({ shelves: { count: 0, glass: false, nosing: 'folded' }, hinges: true, lineBore: false });
+    for (const direction of ['vertical', 'horizontal']) {
+      const result = splitSection(group([{}, full, {}]), 'r.1', direction, 2);
+      const children = direction === 'vertical' ? result.children.slice(1, 3) : result.children[1].children;
+      expect(children).toEqual(Array(2).fill({ shelves: { glass: false, nosing: 'folded' }, hinges: true, lineBore: false }));
+      expect(isInteriorNode(result)).toBe(true);
+    }
+    expect(splitSection({ shelves: { count: 1 } }, 'r', 'vertical', 2).children).toEqual([{}, {}]);
+  });
+
+  it('anchor 4: merges customized leaves using first-section picks without count', () => {
+    const first = { shelves: { nosing: 'hardwood', count: 1 } };
+    const second = { lineBore: false };
+    const two = deepFreeze(group([first, second]));
+    expect(removeDivider(two, 'r', 0)).toEqual({ shelves: { nosing: 'hardwood' } });
+    const three = deepFreeze(group([{}, { ...first, hinges: false, lineBore: true }, second], 'horizontal'));
+    const merged = removeDivider(three, 'r', 1);
+    expect(merged.children).toEqual([{}, { shelves: { nosing: 'hardwood' }, hinges: false, lineBore: true }]);
+    expect(merged.dividers).toEqual([three.dividers[0]]);
+    expect(removeDivider(group([{}, second]), 'r', 0)).toEqual({});
+    expect(removeDivider(group([{ shelves: { count: 3 } }, second]), 'r', 0)).toEqual({});
+    expect(removeDivider(group([two, {}]), 'r.0', 0).children[0]).toEqual({ shelves: { nosing: 'hardwood' } });
+    expect(removeDivider(group([two, {}]), 'r', 0)).toEqual(group([two, {}]));
   });
 });

@@ -4,6 +4,7 @@ export {
   CABINET_TYPE_COLORS,
   DEFAULT_PROFILE,
   DEFAULT_SETTINGS,
+  SHELF_NOSINGS,
   INTERIOR_DIVIDERS,
   INTERIOR_DIVIDER_LABELS,
   STRETCHER_DEPTH,
@@ -141,6 +142,8 @@ export {
   setDividerDepth,
   setDividerKind,
   setDividerPosition,
+  setSectionShelves,
+  setSectionFlag,
   splitSection,
 } from './interiorTree.js';
 export { layoutRun, runFaceLayouts } from './faceLayouts.js';

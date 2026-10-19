@@ -184,6 +184,7 @@ export const {
   setCabinetSlide,
   setCabinetBox,
   setItemInterior,
+  setItemShelves,
   lockItem,
   unlockItem,
   splitItem,

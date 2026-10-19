@@ -42,6 +42,13 @@ const roomNumbers = [
   ['stackedLowerTop', 'Stacked lower top reveal'],
   ['floatingShelfThickness', 'Floating shelf thickness'],
   ['drawerBoxAdjustment', 'Drawer box vertical adjustment'],
+  ['shelfSpacing', 'Shelf spacing'],
+  ['shelfWidthClearance', 'Shelf width clearance'],
+  ['shelfSetback', 'Shelf front setback'],
+  ['glassShelfThickness', 'Glass shelf thickness'],
+  ['shelfNosingHeight', 'Shelf nosing height'],
+  ['shelfNosingThickness', 'Shelf nosing thickness'],
+  ['foldedNosingExtra', 'Folded nosing extra depth'],
   ['belowRunOverhang', 'Below run overhang'],
   ['belowRunFlushReveal', 'Below run flush reveal'],
 ];

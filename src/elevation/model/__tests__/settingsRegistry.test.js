@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
+import { cleanOverrides, resolveSetting, withOverride } from '../settingsResolve.js';
 import { LIBRARY_KEYS, PREF_KEYS, SETTING_LEVELS, SETTINGS_REGISTRY, allowedAt, registryEntry } from '../settingsRegistry.js';
 
 function leaves(values, prefix = '') {
@@ -10,13 +11,13 @@ function leaves(values, prefix = '') {
 }
 
 describe('DB1 a settings registry', () => {
-  it('covers exactly 134 settings leaves, with 84 room settings and 11 team-only settings after IN4b', () => {
+  it('covers exactly 141 settings leaves, with 91 room settings and 11 team-only settings after IN8', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(134);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(84);
+    expect(new Set(keys).size).toBe(141);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(91);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(11);
   });
 
@@ -64,4 +65,30 @@ describe('DB1 a settings registry', () => {
       expect(allowedAt(key, 'team')).toBe(false);
     }
   });
+});
+
+it('IN8 registers the seven shelf defaults and inherits/resets them through the room level', () => {
+  const defaults = {
+    shelfSpacing: 12, shelfWidthClearance: 1 / 16, shelfSetback: 1 / 8,
+    glassShelfThickness: 1 / 4, shelfNosingHeight: 1.5, shelfNosingThickness: 13 / 16,
+    foldedNosingExtra: 2,
+  };
+  for (const [key, value] of Object.entries(defaults)) {
+    expect(DEFAULT_SETTINGS[key]).toBe(value);
+    expect(registryEntry(key)).toMatchObject({ kind: 'number', lowest: 'room' });
+    expect(resolveSetting(key)).toEqual({ value, source: { level: 'default' } });
+    const chain = ['team', 'project', 'phase', 'room'].map((level, i) => ({ level, values: { [key]: value + i + 1 } }));
+    for (let i = 0; i < chain.length; i += 1) {
+      expect(allowedAt(key, chain[i].level)).toBe(true);
+      expect(cleanOverrides(chain[i].values, chain[i].level)).toEqual(chain[i].values);
+      expect(resolveSetting(key, chain.slice(0, i + 1)))
+        .toEqual({ value: value + i + 1, source: { level: chain[i].level } });
+    }
+    chain[3].values = withOverride(chain[3].values, key, null);
+    expect(resolveSetting(key, chain)).toEqual({ value: value + 3, source: { level: 'phase' } });
+    for (const level of ['wall', 'run', 'cabinet', 'face']) {
+      expect(allowedAt(key, level)).toBe(false);
+      expect(cleanOverrides({ [key]: value }, level)).toEqual({});
+    }
+  }
 });

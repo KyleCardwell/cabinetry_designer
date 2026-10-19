@@ -165,13 +165,32 @@ describe('DB2 d room settings panel', () => {
     expect(state.rooms[0].settingsOverrides).toMatchObject({ fillerThickness: 0.75, fillerReturnTongue: 0.25 });
   });
 
+  it('IN8 shows seven inherited shelf settings and supports a room pick and reset', () => {
+    const tree = openGroup('Shelves');
+    const defaults = [
+      ['Shelf spacing', '12'], ['Shelf width clearance', '1/16'], ['Shelf front setback', '1/8'],
+      ['Glass shelf thickness', '1/4'], ['Shelf nosing height', '1 1/2'],
+      ['Shelf nosing thickness', '13/16'], ['Folded nosing extra depth', '2'],
+    ];
+    expect(controls(tree)).toHaveLength(7);
+    for (const [label, placeholder] of defaults) {
+      expect(field(tree, `Room ${label}`).props).toMatchObject({ value: '', placeholder });
+    }
+    const picked = commit('Room Shelf spacing', '10');
+    expect(state.rooms[0].settingsOverrides).toEqual({ shelfSpacing: 10 });
+    expect(text(header(picked, 'Shelves'))).toContain('1 overridden');
+    field(picked, 'Reset Shelf spacing').props.onClick();
+    expect(state.rooms[0]).not.toHaveProperty('settingsOverrides');
+    expect(field(render(), 'Room Shelf spacing').props).toMatchObject({ value: '', placeholder: '12' });
+  });
+
   it('starts the section and every group closed and keeps expansion out of saved state', () => {
     const initial = state;
     expect(header(render(), 'Room settings').props['aria-expanded']).toBe(false);
     expect(controls(render())).toHaveLength(0);
     header(render(), 'Room settings').props.onClick();
     const groups = nodes(render()).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false);
-    expect(groups).toHaveLength(10);
+    expect(groups).toHaveLength(11);
     groups[0].props.onClick();
     expect(header(render(), 'Cabinets & depths').props['aria-expanded']).toBe(true);
     expect(controls(render())).toHaveLength(10);
@@ -330,7 +349,7 @@ describe('DB2 d room settings panel', () => {
     expect(state.settings.defaultEnds).toEqual({ ...previousEnds, left: 'none' });
     expect(dispatch).toHaveBeenLastCalledWith(setSetting({ key: 'defaultEnds.left', value: 'none' }));
     const groups = render(SettingGroups, { scope: 'team' });
-    expect(nodes(groups).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false)).toHaveLength(10);
+    expect(nodes(groups).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false)).toHaveLength(11);
     expect(text(groups)).not.toContain('overridden');
   });
 });
