@@ -60,7 +60,7 @@ export function faceOutline(face) {
 export function setFaceType(face, path, type) {
   const target = getFaceNode(face, path);
   if (!target?.type || !FACE_TYPES.includes(type)) return face;
-  return replaceAt(face, path, (node) => {
+  let changed = replaceAt(face, path, (node) => {
     const next = { ...node, type };
     if (!pullPartType(type)) delete next.pullId;
     if (node.type !== type) {
@@ -73,6 +73,17 @@ export function setFaceType(face, path, type) {
     }
     return next;
   });
+  if (!['drawer_front', 'false_front'].includes(type)) {
+    for (let at = path; at !== null; at = parentFacePath(at)) {
+      if (getFaceNode(changed, at).match !== 'standard') continue;
+      changed = replaceAt(changed, at, (node) => {
+        const next = { ...node };
+        delete next.match;
+        return next;
+      });
+    }
+  }
+  return changed;
 }
 
 /** Set or clear a non-open leaf's own style and sizes. */
@@ -107,20 +118,22 @@ export function setFaceSize(face, path, size) {
   });
 }
 
-/** Match a height-sized group's bank to the base standard, or return it to auto. */
+/** Match an eligible height to the standard front or base bank, or return it to auto. */
 export function setFaceMatch(face, path, match) {
   const parentPath = parentFacePath(path);
   if (parentPath === null) return face;
   const target = getFaceNode(face, path);
   const parent = getFaceNode(face, parentPath);
-  if (!target?.children || parent?.direction !== 'vertical'
-    || (match !== 'base' && match !== null)) return face;
-  return replaceAt(face, path, (node) => {
+  if (!target || parent?.direction !== 'vertical'
+    || !['standard', 'base', null].includes(match)
+    || (match === null && !target.children && !['drawer_front', 'false_front'].includes(target.type))) return face;
+  const next = replaceAt(face, path, (node) => {
     const next = { ...node, size: null };
     if (match === null) delete next.match;
     else next.match = match;
     return next;
   });
+  return isFaceNode(next) ? next : face;
 }
 
 /**
@@ -149,7 +162,7 @@ export function splitFace(face, path, direction, count) {
       }, [...moved, ...added].sort((a, b) => a - b));
     });
   }
-  const nested = replaceAt(face, path, (node) => ({ direction, size: node.size, children: copies }));
+  const nested = replaceAt(face, path, (node) => ({ direction, size: node.size, ...(node.match ? { match: node.match } : {}), children: copies }));
   return withoutSeams(nested, parentPath, [index - 1, index]);
 }
 
@@ -158,7 +171,9 @@ export function makeDrawerStack(face, path, count, { match = false } = {}) {
   const target = getFaceNode(face, path);
   if (!target?.type || !Number.isFinite(count)) return face;
   const n = Math.min(MAX_FACE_SPLIT, Math.max(2, Math.round(count)));
-  const children = Array.from({ length: n }, () => ({ type: 'drawer_front', size: null }));
+  const children = Array.from({ length: n }, (_, index) => ({
+    type: 'drawer_front', size: null, ...(index < n - 2 ? { match: 'standard' } : {}),
+  }));
   const parentPath = parentFacePath(path);
   const matched = match && parentPath !== null && getFaceNode(face, parentPath)?.direction === 'vertical';
   const stacked = replaceAt(face, path, (node) => ({
@@ -171,14 +186,23 @@ export function makeDrawerStack(face, path, count, { match = false } = {}) {
   return withoutSeams(stacked, parentPath, [index - 1, index]);
 }
 
+/** Collapse a group while retaining its size and any match valid on the remaining node. */
+function collapseGroup(node, child) {
+  const next = { ...child, size: node.size };
+  delete next.match;
+  if ((node.match === 'standard' && (child.type || child.direction === 'horizontal'))
+    || (node.match === 'base' && child.children)) next.match = node.match;
+  return next;
+}
+
 /** Change how many sections a group has. Added ones copy the last leaf's type; 1 collapses the group. */
 export function setGroupCount(face, path, count) {
   const target = getFaceNode(face, path);
   if (!target?.children || !Number.isFinite(count)) return face;
   const n = Math.min(MAX_FACE_SPLIT, Math.max(1, Math.round(count)));
-  if (n === 1) return replaceAt(face, path, (node) => ({ ...node.children[0], size: node.size }));
+  if (n === 1) return replaceAt(face, path, (node) => collapseGroup(node, node.children[0]));
   return replaceAt(face, path, (node) => {
-    const fillType = node.children.at(-1).type ?? 'door';
+    const fillType = node.children.at(-1).type ?? (node.match === 'standard' ? 'drawer_front' : 'door');
     const children = node.children.slice(0, n);
     while (children.length < n) children.push({ type: fillType, size: null });
     return withSeams({ ...node, children }, (node.noRail ?? []).filter((seam) => seam <= n - 2));
@@ -192,7 +216,7 @@ export function removeFace(face, path) {
   const index = indexesOf(path).at(-1);
   return replaceAt(face, parentPath, (node) => {
     const children = node.children.filter((_, childIndex) => childIndex !== index);
-    if (children.length === 1) return { ...children[0], size: node.size };
+    if (children.length === 1) return collapseGroup(node, children[0]);
     // The seams beside the removed section join into one, kept only if both were cut.
     const seams = node.noRail ?? [];
     const joined = seams.includes(index - 1) && seams.includes(index) ? [index - 1] : [];
@@ -209,7 +233,11 @@ export function equalizeGroup(face, path) {
   if (!target?.children) return face;
   return replaceAt(face, path, (node) => ({
     ...node,
-    children: node.children.map((child) => ({ ...child, size: null })),
+    children: node.children.map((child) => {
+      const next = { ...child, size: null };
+      delete next.match;
+      return next;
+    }),
   }));
 }
 

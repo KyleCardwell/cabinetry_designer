@@ -20,11 +20,6 @@ import {
   validateSoffitPlacement,
 } from '../../model/soffits.js';
 import {
-  applyStandardDrawers,
-  isInsetStyle,
-  resolveStyle,
-} from '../../model/styles.js';
-import {
   wallSideOf,
   wallSideView,
   wallViewForRun,
@@ -216,21 +211,6 @@ export function roomCabinets(room) {
   return room.walls.flatMap((wall) => wall.runs.flatMap((run) => gridLeaves(run.grid)
     .filter((item) => item.kind === 'cabinet')
     .map((item) => ({ run, item }))));
-}
-
-/**
- * Run a style edit; every cabinet whose style switches between European and face frame
- * gets its small drawer fronts reset to the new style's standard height.
- */
-export function withStandardDrawers(state, room, mutate) {
-  const isInset = ({ run, item }) => isInsetStyle(resolveStyle(settingsFor(state, room), room, run, item));
-  const before = new Map(roomCabinets(room).map((entry) => [entry.item.id, isInset(entry)]));
-  mutate();
-  for (const entry of roomCabinets(room)) {
-    const { run, item } = entry;
-    if (!item.face || before.get(item.id) === isInset(entry)) continue;
-    item.face = applyStandardDrawers(item.face, resolveStyle(settingsFor(state, room), room, run, item), settingsFor(state, room));
-  }
 }
 
 export function itemIndexFor(run, itemId) {

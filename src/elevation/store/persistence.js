@@ -125,7 +125,6 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'stackedLowerTop',
   'floatingShelfThickness',
   'standardDrawerHeights',
-  'standardDrawerBelow',
   'belowRunOverhang',
   'belowRunFlushReveal',
   'bottomPartHeights',
@@ -827,6 +826,7 @@ function normalizeDocument(document, schemaVersion) {
     else if (Array.isArray(settings.sectionProfiles)) settings.sectionProfiles = settings.sectionProfiles.map(migrateSectionProfile);
     delete settings.doorThickness;
     delete settings.endPanelThickness;
+    delete settings.standardDrawerBelow;
   }
   return {
     ...document,

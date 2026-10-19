@@ -174,7 +174,7 @@ describe('DB2 d room settings panel', () => {
     expect(groups).toHaveLength(10);
     groups[0].props.onClick();
     expect(header(render(), 'Cabinets & depths').props['aria-expanded']).toBe(true);
-    expect(controls(render())).toHaveLength(11);
+    expect(controls(render())).toHaveLength(10);
     header(render(), 'Cabinets & depths').props.onClick();
     expect(controls(render())).toHaveLength(0);
     expect(state).toBe(initial);
@@ -236,14 +236,14 @@ describe('DB2 d room settings panel', () => {
     expect(field(render(), 'Room Default ends left').props.className).toContain('border-teal-500');
   });
 
-  it('anchor 6: shows seven opening fields and eleven cabinet fields without team-only settings', () => {
+  it('anchor 6: shows seven opening fields and ten cabinet fields without team-only settings', () => {
     const tree = openGroup('Openings & soffits');
     expect(controls(tree)).toHaveLength(7);
     expect(field(tree, 'Room Door width')).toBeUndefined();
     expect(field(tree, 'Room Door panel thickness')).toBeUndefined();
     header(tree, 'Openings & soffits').props.onClick();
     const cabinets = openGroup('Cabinets & depths');
-    expect(controls(cabinets)).toHaveLength(11);
+    expect(controls(cabinets)).toHaveLength(10);
     expect(field(cabinets, 'Room Max cabinet width')).toBeUndefined();
   });
 

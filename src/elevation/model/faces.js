@@ -58,7 +58,7 @@ function isSeamList(node) {
 /**
  * Whether a value is a valid stored face node (recursively).
  * A group may carry noRail, a sorted list of seams with no rail or mullion (SPEC-36.3): seam i is between sections i and i + 1, and both must be leaves.
- * A non-root group sized by a vertical parent may match the base bank instead of storing a height.
+ * A height-sized group may match the base bank; drawer / false fronts and horizontal rows of them may match standard.
  */
 export function isFaceNode(node) {
   return isFaceNodeWithin(node, null);
@@ -67,9 +67,17 @@ export function isFaceNode(node) {
 function isFaceNodeWithin(node, parentDirection) {
   if (!node || typeof node !== 'object' || Array.isArray(node)) return false;
   if (!isSize(node.size)) return false;
-  if (Object.hasOwn(node, 'match')
-    && (node.match !== 'base' || node.type !== undefined
-      || parentDirection !== 'vertical' || node.size !== null)) return false;
+  if (Object.hasOwn(node, 'match')) {
+    if (parentDirection !== 'vertical' || node.size !== null) return false;
+    if (node.match === 'base') {
+      if (node.type !== undefined) return false;
+    } else if (node.match === 'standard') {
+      const fronts = (face) => Boolean(face && (face.type
+        ? ['drawer_front', 'false_front'].includes(face.type)
+        : Array.isArray(face.children) && face.children.every(fronts)));
+      if (!(node.type ? fronts(node) : node.direction === 'horizontal' && fronts(node))) return false;
+    } else return false;
+  }
   if (node.drawerBox !== undefined
     && (!(node.type === 'drawer_front' || (node.type === 'door' && node.action === 'pullout'))
       || !isDrawerBox(node.drawerBox, node.type === 'drawer_front'))) return false;

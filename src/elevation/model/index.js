@@ -97,7 +97,6 @@ export {
   REVEAL_SOURCE_LABELS,
   RUN_TOP_OPTIONS,
   UPPER_BOTTOM_OPTIONS,
-  applyStandardDrawers,
   baseBankHeight,
   cabinetReveals,
   endPieceBottom,

@@ -210,9 +210,9 @@ describe('IN7.3 step b match base drawers', () => {
   });
 });
 
-describe('IN7.2 grown standard fronts in the face list', () => {
-  it('keeps the stored 5 7/8 in the input and shows the 6" a wood top lays out', () => {
-    for (const [top, used] of [['wood', '6" with top'], ['stone', null]]) {
+describe('IN7.4 typed heights in the face list', () => {
+  it('keeps typed 5 7/8 unchanged with either top and shows no growth hint', () => {
+    for (const top of ['wood', 'stone']) {
       state = stateWithRun(makeRun({
         width: 18, autoCount: false, top,
         ends: { left: { type: 'none' }, right: { type: 'none' } },
@@ -222,8 +222,7 @@ describe('IN7.2 grown standard fronts in the face list', () => {
       }));
       state.facePath = 'r';
       expect(picker('Face size r.0').props.value).toBe(5.875);
-      const hint = picker('Face size used r.0');
-      expect(hint ? text(hint) : null).toBe(used);
+      expect(picker('Face size used r.0')).toBeUndefined();
       expect(picker('Face size used r.1')).toBeUndefined();
     }
   });

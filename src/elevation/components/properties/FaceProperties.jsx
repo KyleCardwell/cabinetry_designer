@@ -6,7 +6,6 @@ import {
   FACE_TYPES,
   MAX_FACE_SPLIT,
   ROOT_FACE_PATH,
-  applyStandardDrawers,
   baseBankHeight,
   runFaceLayouts,
   defaultFace,
@@ -189,9 +188,7 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
             key={preset.key}
             type="button"
             title={preset.description}
-            onClick={() => applyPreset(faceLayout
-              ? applyStandardDrawers(preset.face, faceLayout.style, settings)
-              : preset.face)}
+            onClick={() => applyPreset(preset.face)}
             className={BUTTON_CLASS}
           >
             {preset.label}

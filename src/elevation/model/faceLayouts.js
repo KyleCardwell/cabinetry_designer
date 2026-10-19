@@ -11,7 +11,7 @@ import { runItems } from './grid.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
 import { splitRun } from './splitRun.js';
 import { teeFillers } from './tees.js';
-import { baseBankHeight, cabinetReveals, growStandardFronts, isInsetStyle, resolveStyle, typeStandardReveals } from './styles.js';
+import { baseBankHeight, cabinetReveals, growStandardFronts, isInsetStyle, resolveStyle, standardDrawerHeight, typeStandardReveals } from './styles.js';
 import { wallViewForRun } from './wallSides.js';
 
 /** splitRun with the same options RunGroup uses. */
@@ -24,11 +24,10 @@ export function layoutRun(room, wall, run, settings) {
 }
 
 /** Resolve matches in a layout copy, leaving the stored tree and its auto sizes intact. */
-function resolveFaceMatches(face, height) {
-  if (!face.children) return face;
-  const children = face.children.map((child) => resolveFaceMatches(child, height));
-  return face.match === 'base' || children.some((child, index) => child !== face.children[index])
-    ? { ...face, size: face.match === 'base' ? height : face.size, children }
+function resolveFaceMatches(face, match, height) {
+  const children = face.children?.map((child) => resolveFaceMatches(child, match, height));
+  return face.match === match || children?.some((child, index) => child !== face.children[index])
+    ? { ...face, size: face.match === match ? height : face.size, ...(children ? { children } : {}) }
     : face;
 }
 
@@ -103,8 +102,8 @@ function layoutFaces(room, wall, run, settings, layout) {
     const topGrowth = !isInsetStyle(style) && run.cabinetTypeId === CABINET_TYPE_IDS.BASE
       && (reveals.sources.top === 'manual' || (runEdges.top && ['style', 'rule:wood-top'].includes(reveals.sources.top)))
       ? typeStandardReveals(style, CABINET_TYPE_IDS.BASE, settings).top - reveals.values.top : 0;
-    const matchedFace = resolveFaceMatches(storedFace, baseBankHeight(room, wall, style, settings));
-    const face = growStandardFronts(matchedFace, topGrowth, style, settings);
+    const matchedFace = resolveFaceMatches(storedFace, 'base', baseBankHeight(room, wall, style, settings));
+    const face = growStandardFronts(resolveFaceMatches(matchedFace, 'standard', standardDrawerHeight(style, settings)), topGrowth);
     const resolved = cabinetFaces({ ...item, face }, box, run.cabinetTypeId, settings, reveals.values);
     const wallSides = Object.fromEntries(['left', 'right'].map((side) => {
       const anchor = run.anchors?.[side];

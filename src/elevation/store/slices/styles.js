@@ -15,7 +15,6 @@ import {
   syncRoomAt,
   STYLE_FIELD_KEYS,
   cleanPartial,
-  withStandardDrawers,
 } from './helpers.js';
 
 export const styleReducers = {
@@ -46,20 +45,16 @@ export const styleReducers = {
     const room = roomFor(state, action.payload.roomId);
     const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
     if (!room || !isStyle(style)) return;
-    withStandardDrawers(state, room, () => {
-      if (style) room.style = style;
-      else delete room.style;
-    });
+    if (style) room.style = style;
+    else delete room.style;
     syncRoomAt(state, roomIndexFor(state, action.payload.roomId));
   },
   setRunStyle(state, action) {
     const location = runLocation(state, action.payload);
     const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
     if (!location || !isStyle(style)) return;
-    withStandardDrawers(state, location.room, () => {
-      if (style) location.run.style = style;
-      else delete location.run.style;
-    });
+    if (style) location.run.style = style;
+    else delete location.run.style;
     syncRoomAt(state, location.roomIndex);
   },
   setRunFaceOptions(state, action) {
@@ -102,13 +97,11 @@ export const styleReducers = {
     const style = cleanPartial(action.payload.style, STYLE_FIELD_KEYS);
     if (!location || !isStyle(style)) return;
     const { itemIds = [] } = action.payload;
-    withStandardDrawers(state, location.room, () => {
-      for (const item of gridLeaves(location.run.grid)) {
-        if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
-        if (style) item.style = { ...style };
-        else delete item.style;
-      }
-    });
+    for (const item of gridLeaves(location.run.grid)) {
+      if (item.kind !== 'cabinet' || !itemIds.includes(item.id)) continue;
+      if (style) item.style = { ...style };
+      else delete item.style;
+    }
   },
   setItemReveals(state, action) {
     const location = runLocation(state, action.payload);

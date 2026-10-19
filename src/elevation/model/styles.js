@@ -267,49 +267,19 @@ export function standardDrawerHeight(style, settings) {
   return isInsetStyle(style) ? heights.faceFrame : heights.european;
 }
 
-const STANDARD_DRAWER_TYPES = ['drawer_front', 'false_front'];
-
-/**
- * Set every fixed drawer front / false front smaller than settings.standardDrawerBelow (6")
- * to the style's standard height. Returns the same tree when nothing changes.
- */
-export function applyStandardDrawers(face, style, settings) {
-  if (!face) return face;
-  const height = standardDrawerHeight(style, settings);
-  const below = settings.standardDrawerBelow ?? DEFAULT_SETTINGS.standardDrawerBelow;
-  const visit = (node) => {
-    if (node.type) {
-      const change = STANDARD_DRAWER_TYPES.includes(node.type)
-        && Number.isFinite(node.size)
-        && node.size < below
-        && node.size !== height;
-      return change ? { ...node, size: height } : node;
-    }
-    const children = node.children.map(visit);
-    return children.every((child, index) => child === node.children[index])
-      ? node
-      : { ...node, children };
-  };
-  return visit(face);
-}
-
 const STANDARD_STEP = 1 / 16;
 
 /**
  * A Euro base's standard drawer fronts are sized for the stone top reveal (IN7.2, Kyle 2026-10-19). When
  * the top reveal is smaller (wood top, manual), the difference goes to the standard-height fronts in
- * 1/16" steps, top down, one step each in turn. A standard front is a drawer / false front, or a
- * side-by-side row of them, whose height is the standard; a row grows as one. Groups with any other
- * typed height keep their fronts. Returns the same tree when nothing changes.
+ * 1/16" steps, top down, one step each in turn. Only nodes matched to standard grow;
+ * side-by-side rows grow as one. Groups with a typed height keep their fronts.
+ * Receives a layout copy with matches already resolved to numeric sizes.
  */
-export function growStandardFronts(face, extra, style, settings) {
+export function growStandardFronts(face, extra) {
   const steps = Math.floor(extra / STANDARD_STEP + 1e-6);
   if (!face || steps <= 0) return face;
-  const height = standardDrawerHeight(style, settings);
-  const fronts = (node) => (node.type ? STANDARD_DRAWER_TYPES.includes(node.type) : node.children.every(fronts));
-  // `tall`: the node's size is a height (root or a child of a vertical group), not a width.
-  const standard = (node, tall) => tall && Number.isFinite(node.size) && Math.abs(node.size - height) <= 1e-9
-    && (node.type ? STANDARD_DRAWER_TYPES.includes(node.type) : node.direction === 'horizontal' && fronts(node));
+  const standard = (node, tall) => tall && node.match === 'standard';
   const takes = (node, tall) => standard(node, tall)
     || (!node.type && !(tall && Number.isFinite(node.size))
       && node.children.some((child) => takes(child, node.direction === 'vertical')));

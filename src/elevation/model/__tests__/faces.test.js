@@ -233,3 +233,32 @@ describe('applyHinges', () => {
     expect(isFaceNode({ type: 'door', size: null, hinge: 'up' })).toBe(false);
   });
 });
+
+describe('IN7.4 standard match validation', () => {
+  const standard = { type: 'drawer_front', size: null, match: 'standard' };
+  const tree = (node) => ({ direction: 'vertical', size: null, children: [node, { type: 'door', size: null }] });
+  const row = { direction: 'horizontal', size: null, match: 'standard', children: [
+    { type: 'drawer_front', size: null }, { type: 'false_front', size: null },
+  ] };
+
+  it('accepts height-sized drawer / false fronts and all-front horizontal groups', () => {
+    expect(isFaceNode(tree(standard))).toBe(true);
+    expect(isFaceNode(tree({ ...standard, type: 'false_front' }))).toBe(true);
+    expect(isFaceNode(tree(row))).toBe(true);
+    expect(isFaceNode(tree({ ...row, children: [row.children[0], {
+      direction: 'vertical', size: null, children: row.children,
+    }] }))).toBe(true);
+  });
+
+  it('anchor 7: rejects doors, roots, rows containing a door, and a typed standard', () => {
+    expect(isFaceNode(tree({ ...standard, type: 'door' }))).toBe(false);
+    expect(isFaceNode(standard)).toBe(false);
+    expect(isFaceNode(row)).toBe(false);
+    expect(isFaceNode(tree({ ...row, children: [row.children[0], { type: 'door', size: null }] }))).toBe(false);
+    expect(isFaceNode(tree({ ...standard, size: 5 }))).toBe(false);
+    expect(isFaceNode(tree({ ...row, size: 5 }))).toBe(false);
+    expect(isFaceNode({ ...tree(standard), direction: 'horizontal' })).toBe(false);
+    expect(isFaceNode(tree({ ...row, direction: 'vertical' }))).toBe(false);
+    expect(isFaceNode(tree({ ...row, children: [null, row.children[0]] }))).toBe(false);
+  });
+});

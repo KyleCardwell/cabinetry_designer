@@ -88,7 +88,9 @@ describe('IN7.3 face group matches', () => {
     const stacked = makeDrawerStack(source, 'r.1', 4, { match: true });
     expect(stacked.children[1]).toEqual({
       direction: 'vertical', size: null, match: 'base',
-      children: Array.from({ length: 4 }, () => ({ type: 'drawer_front', size: null })),
+      children: Array.from({ length: 4 }, (_, index) => ({
+        type: 'drawer_front', size: null, ...(index < 2 ? { match: 'standard' } : {}),
+      })),
     });
     expect(isFaceNode(stacked)).toBe(true);
     expect(source.children[1]).toEqual({ ...DOOR, size: 30 });
@@ -211,7 +213,7 @@ describe('faceTree', () => {
           direction: 'vertical',
           size: 30.25,
           children: [
-            { type: 'drawer_front', size: null },
+            { type: 'drawer_front', size: null, match: 'standard' },
             { type: 'drawer_front', size: null },
             { type: 'drawer_front', size: null },
           ],
@@ -312,5 +314,74 @@ describe('faceTree', () => {
     const pair = { type: 'pair_door', size: null, action: 'flipper' };
     expect(setFaceType(pair, 'r', 'door')).toEqual(DOOR);
     expect(door).toEqual({ ...DOOR, hinge: 'left', action: 'pocket' });
+  });
+});
+
+describe('IN7.4 standard face editing', () => {
+  const front = { type: 'drawer_front', size: null, match: 'standard' };
+  const tree = (node = front) => deepFreeze({ direction: 'vertical', size: null, children: [node, DOOR] });
+
+  it.each([2, 3, 4, 5])('anchor 8: %i drawers make all but the bottom two standard', (count) => {
+    const next = makeDrawerStack(DOOR, 'r', count);
+    expect(next.children.map(({ match }) => match ?? null))
+      .toEqual(Array.from({ length: count }, (_, index) => index < count - 2 ? 'standard' : null));
+    expect(isFaceNode(next)).toBe(true);
+  });
+
+  it('sets standard on drawer / false fronts and rows; typing wins; clearing returns to auto', () => {
+    for (const node of [{ type: 'drawer_front', size: 5 }, { type: 'false_front', size: 4 }, {
+      direction: 'horizontal', size: 6, children: [{ type: 'drawer_front', size: null }, { type: 'false_front', size: null }],
+    }]) {
+      const source = tree(node);
+      const matched = setFaceMatch(source, 'r.0', 'standard');
+      expect(matched.children[0]).toMatchObject({ size: null, match: 'standard' });
+      const typed = setFaceSize(matched, 'r.0', 5.875);
+      expect(typed.children[0].size).toBe(5.875);
+      expect(typed.children[0]).not.toHaveProperty('match');
+      const auto = setFaceMatch(matched, 'r.0', null);
+      expect(auto.children[0].size).toBeNull();
+      expect(auto.children[0]).not.toHaveProperty('match');
+      expect(source.children[0]).toEqual(node);
+    }
+  });
+
+  it('rejects standard matches on roots, doors, vertical groups and width-sized fronts', () => {
+    const source = tree();
+    for (const path of ['r', 'r.1', 'r.9']) expect(setFaceMatch(source, path, 'standard')).toBe(source);
+    const vertical = tree({ direction: 'vertical', size: null, children: [front, DOOR] });
+    expect(setFaceMatch(vertical, 'r.0', 'standard')).toBe(vertical);
+    const horizontal = { ...source, direction: 'horizontal' };
+    expect(setFaceMatch(horizontal, 'r.0', 'standard')).toBe(horizontal);
+  });
+
+  it('type changes clear ineligible standard matches on the leaf and enclosing row', () => {
+    const source = tree();
+    expect(setFaceType(source, 'r.0', 'door').children[0]).not.toHaveProperty('match');
+    expect(setFaceType(source, 'r.0', 'false_front').children[0].match).toBe('standard');
+    const split = splitFace(source, 'r.0', 'horizontal', 2);
+    const changed = setFaceType(split, 'r.0.0', 'door');
+    expect(changed.children[0]).not.toHaveProperty('match');
+    expect(isFaceNode(changed)).toBe(true);
+  });
+
+  it('collapsing a standard row keeps its match, while collapsing to a root clears child matches', () => {
+    const split = splitFace(tree(), 'r.0', 'horizontal', 2);
+    for (const next of [setGroupCount(split, 'r.0', 1), removeFace(split, 'r.0.1')]) {
+      expect(next.children[0]).toEqual(front);
+      expect(isFaceNode(next)).toBe(true);
+    }
+    for (const next of [setGroupCount(tree(), 'r', 1), removeFace(tree(), 'r.1')]) {
+      expect(next).toEqual({ type: 'drawer_front', size: null });
+      expect(isFaceNode(next)).toBe(true);
+    }
+    expect(equalizeGroup(tree(), 'r').children[0]).not.toHaveProperty('match');
+  });
+
+  it('splitting a standard front sideways preserves the row match through count and drawer stack edits', () => {
+    const split = splitFace(tree(), 'r.0', 'horizontal', 2);
+    for (const next of [split, setGroupCount(split, 'r.0', 3), makeDrawerStack(split, 'r.0.0', 3)]) {
+      expect(next.children[0]).toMatchObject({ size: null, match: 'standard' });
+      expect(isFaceNode(next)).toBe(true);
+    }
   });
 });

@@ -6,7 +6,7 @@ export const SETTING_GROUPS = [
     keys: [
       'roundTo', 'minCabinetWidth', 'maxCabinetWidth', 'snapHeightsToDefaults',
       'baseDepth', 'upperDepth', 'tallDepth', 'standardDrawerHeights.european',
-      'standardDrawerHeights.faceFrame', 'standardDrawerBelow', 'pairDoorAboveWidth',
+      'standardDrawerHeights.faceFrame', 'pairDoorAboveWidth',
       'floatingShelfThickness',
     ],
   },

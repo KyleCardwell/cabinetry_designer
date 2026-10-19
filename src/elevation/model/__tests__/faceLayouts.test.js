@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { runFaceLayouts } from '../faceLayouts.js';
+import { FACE_PRESETS } from '../facePresets.js';
 import { resolveWall } from '../room.js';
 
 function roomWith(run, style) {
@@ -328,6 +329,7 @@ describe('runFaceLayouts', () => {
 
 describe('IN7.2 a smaller top reveal grows the standard drawer fronts', () => {
   const drawer = (size = null) => ({ type: 'drawer_front', size });
+  const standard = () => ({ ...drawer(), match: 'standard' });
   const heights = (face, top) => {
     const run = { ...RUN, ...(top ? { top } : {}), items: [{ id: 'a', kind: 'cabinet', width: 18, face }] };
     const room = roomWith(run);
@@ -336,32 +338,109 @@ describe('IN7.2 a smaller top reveal grows the standard drawer fronts', () => {
   };
 
   it('4-drawer: the two standard fronts split the 1/8; the bottom fronts stay 9', () => {
-    const face = { direction: 'vertical', size: null, children: [drawer(5.875), drawer(5.875), drawer(), drawer()] };
+    const face = { direction: 'vertical', size: null, children: [standard(), standard(), drawer(), drawer()] };
     expect(heights(face)).toEqual([5.875, 5.875, 9, 9]);
     expect(heights(face, 'wood')).toEqual([5.9375, 5.9375, 9, 9]);
   });
 
   it('3-drawer: the one standard front grows to 6', () => {
-    const face = { direction: 'vertical', size: null, children: [drawer(5.875), drawer(), drawer()] };
+    const face = { direction: 'vertical', size: null, children: [standard(), drawer(), drawer()] };
     expect(heights(face)).toEqual([5.875, 12, 12]);
     expect(heights(face, 'wood')).toEqual([6, 12, 12]);
   });
 
   it('a side-by-side row at the standard height grows as one; the doors below give it up', () => {
     const face = { direction: 'vertical', size: null, children: [
-      { direction: 'horizontal', size: 5.875, children: [drawer(), drawer()] },
+      { direction: 'horizontal', size: null, match: 'standard', children: [drawer(), drawer()] },
       { type: 'pair_door', size: null },
     ] };
     expect(heights(face)).toEqual([5.875, 5.875, 24.125, 24.125]);
     expect(heights(face, 'wood')).toEqual([6, 6, 24.125, 24.125]);
     // Widths in a row are never grown; a group with another typed height keeps its fronts.
     const row = { direction: 'vertical', size: null, children: [
-      { direction: 'horizontal', size: 5.875, children: [drawer(5.875), drawer()] },
-      { direction: 'vertical', size: 20, children: [drawer(5.875), { type: 'door', size: null }] },
+      { direction: 'horizontal', size: null, match: 'standard', children: [drawer(5.875), drawer()] },
+      { direction: 'vertical', size: 20, children: [standard(), { type: 'door', size: null }] },
       { type: 'door', size: null },
     ] };
     const grown = heights(row, 'wood');
     expect(grown.slice(0, 2)).toEqual([6, 6]);
     expect(grown[2]).toBe(5.875);
+  });
+});
+
+describe('IN7.4 standard face sizes', () => {
+  const preset = (key) => FACE_PRESETS.find((entry) => entry.key === key).face;
+  const layoutOf = (face, { top = 'stone', style, type = CABINET_TYPE_IDS.BASE, settings = DEFAULT_SETTINGS } = {}) => {
+    const run = { ...RUN, cabinetTypeId: type, top,
+      ...(type !== CABINET_TYPE_IDS.BASE ? { height: 90 } : {}),
+      items: [{ id: 'a', kind: 'cabinet', width: 18, face }] };
+    const room = roomWith(run, style);
+    const before = structuredClone(room);
+    const layout = runFaceLayouts(room, resolveWall(room, room.walls[0]), run, settings).get('a');
+    expect(room).toEqual(before);
+    return layout;
+  };
+
+  it.each([
+    ['4df', 'stone', [5.875, 5.875, 9, 9]],
+    ['4df', 'wood', [5.9375, 5.9375, 9, 9]],
+    ['3df', 'wood', [6, 12, 12]],
+  ])('anchors 1–3: %s with %s top', (key, top, expected) => {
+    expect(layoutOf(preset(key), { top }).faces.map(({ height }) => height)).toEqual(expected);
+  });
+
+  it('anchor 4: typed 5 7/8 fronts never grow', () => {
+    const face = structuredClone(preset('4df'));
+    face.children = face.children.map((child, index) => index < 2 ? { type: 'drawer_front', size: 5.875 } : child);
+    expect(layoutOf(face, { top: 'wood' }).faces.map(({ height }) => height))
+      .toEqual([5.875, 5.875, 9.0625, 9.0625]);
+  });
+
+  it('distributes manual reveal growth in 1/16 steps from the top and leaves typed fronts alone', () => {
+    const face = { direction: 'vertical', size: null, children: [
+      { type: 'false_front', size: null, match: 'standard' },
+      { type: 'drawer_front', size: null, match: 'standard' },
+      { type: 'drawer_front', size: null, match: 'standard' },
+      { type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: null },
+    ] };
+    for (const [top, expected] of [[0.0625, [5.9375, 5.9375, 5.9375, 5.875]],
+      [0.125, [5.9375, 5.9375, 5.875, 5.875]], [0.21875, [5.875, 5.875, 5.875, 5.875]]]) {
+      const run = { ...RUN, items: [{ id: 'a', kind: 'cabinet', width: 18, face, reveals: { top } }] };
+      const room = roomWith(run);
+      const layout = runFaceLayouts(room, resolveWall(room, room.walls[0]), run, DEFAULT_SETTINGS).get('a');
+      expect(layout.faces.slice(0, 4).map(({ height }) => height)).toEqual(expected);
+    }
+  });
+
+  it('anchor 5: face frame standard slots are 5, with no wood-top growth', () => {
+    for (const top of ['stone', 'wood']) {
+      const layout = layoutOf(preset('4df'), { top, style: { cabinetStyleId: 14 } });
+      expect(layout.layoutFace.children.slice(0, 2).map(({ size }) => size)).toEqual([5, 5]);
+    }
+  });
+
+  it('anchor 9: tall D/4Df stores a base match and standard fronts, resolving a 30 1/8 bank', () => {
+    const face = preset('d_4df');
+    expect(face.children[1]).toMatchObject({ size: null, match: 'base' });
+    expect(face.children[1].children.slice(0, 2)).toEqual([
+      { type: 'drawer_front', size: null, match: 'standard' },
+      { type: 'drawer_front', size: null, match: 'standard' },
+    ]);
+    const layout = layoutOf(face, { type: CABINET_TYPE_IDS.TALL, top: 'wood' });
+    expect(layout.layoutFace.children[1].size).toBe(30.125);
+    expect(layout.faces.filter(({ path }) => path.startsWith('r.1.')).map(({ height }) => height))
+      .toEqual([5.875, 5.875, 9, 9]);
+  });
+
+  it('resolves standard false fronts in uppers and talls without growth and follows custom settings', () => {
+    const face = { direction: 'vertical', size: null, children: [
+      { type: 'false_front', size: null, match: 'standard' }, { type: 'door', size: null },
+    ] };
+    for (const type of [CABINET_TYPE_IDS.UPPER, CABINET_TYPE_IDS.TALL]) {
+      expect(layoutOf(face, { type, top: 'wood' }).faces[0].height).toBe(5.875);
+    }
+    const settings = { ...DEFAULT_SETTINGS, standardDrawerHeights: { european: 6.25, faceFrame: 5.5 } };
+    expect(layoutOf(face, { settings }).faces[0].height).toBe(6.25);
+    expect(layoutOf(face, { settings, style: { cabinetStyleId: 14 } }).layoutFace.children[0].size).toBe(5.5);
   });
 });

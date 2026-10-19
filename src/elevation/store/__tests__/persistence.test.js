@@ -796,11 +796,11 @@ describe('elevation persistence migration', () => {
     expect(isElevationDocument(current)).toBe(false);
   });
 
-  it('IN7.3 round-trips a matched face group and rejects misplaced matches', () => {
+  it('IN7.4 round-trips base and standard matches and rejects misplaced matches', () => {
     const current = normalizeElevationDocument(currentDocument());
     const item = current.rooms[0].walls[0].runs[0].grid.cells[0].node;
     const matched = { direction: 'vertical', size: null, match: 'base', children: [
-      { type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: null },
+      { type: 'drawer_front', size: null, match: 'standard' }, { type: 'drawer_front', size: null },
     ] };
     item.face = { direction: 'vertical', size: null, children: [{ type: 'door', size: null }, matched] };
     expect(isElevationDocument(current)).toBe(true);
@@ -933,14 +933,14 @@ describe('elevation persistence migration', () => {
   it('54. defaults the standard drawer settings on documents saved before them', () => {
     const current = currentDocument();
     delete current.settings.standardDrawerHeights;
-    delete current.settings.standardDrawerBelow;
+    current.settings.standardDrawerBelow = 6;
     globalThis.window = {
       localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(current)]]),
     };
 
     const loaded = loadElevationDocument();
     expect(loaded.settings.standardDrawerHeights).toEqual({ european: 5.875, faceFrame: 5 });
-    expect(loaded.settings.standardDrawerBelow).toBe(6);
+    expect(loaded.settings).not.toHaveProperty('standardDrawerBelow');
   });
 
   it('validates opening anchors on either run side', () => {

@@ -115,7 +115,7 @@ describe('DB2 f shop settings panel', () => {
     header(render(), 'Settings').props.onClick();
     const tree = render();
     const groups = [
-      ['Cabinets & depths', 12], ['Runs & ends', 9], ['Fillers & corners', 11],
+      ['Cabinets & depths', 11], ['Runs & ends', 9], ['Fillers & corners', 11],
       ['Reveals', 9], ['Inset face frame', 6], ['Bases, tops & bands', 15],
       ['Openings & soffits', 14], ['Pulls', 3], ['Drawer boxes', 8], ['Reports', 9],
     ];

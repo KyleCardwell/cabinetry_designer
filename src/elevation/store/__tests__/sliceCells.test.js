@@ -207,7 +207,7 @@ describe('standard drawers on style switch', () => {
     direction: 'vertical',
     size: null,
     children: [
-      { type: 'drawer_front', size: 5.875 },
+      { type: 'drawer_front', size: 5.75 },
       { type: 'drawer_front', size: null },
       { type: 'drawer_front', size: null },
     ],
@@ -228,22 +228,22 @@ describe('standard drawers on style switch', () => {
     return runItems(currentRun(state)).find((entry) => entry.id === id).face.children[0].size;
   }
 
-  it('53. switching European and face frame resets small drawer fronts', () => {
+  it('IN7.4 anchor 6: room, run and item style switches preserve typed 5 3/4 fronts', () => {
     let state = elevationReducer(drawerState(), setRoomStyle({ roomId: 'room-1', style: { cabinetStyleId: 14 } }));
-    expect(topSize(state, 'a')).toBe(5);
-    expect(topSize(state, 'b')).toBe(5.875);
+    expect(topSize(state, 'a')).toBe(5.75);
+    expect(topSize(state, 'b')).toBe(5.75);
     expect(runItems(currentRun(state))[2].face).toBeUndefined();
 
     state = elevationReducer(state, setRunStyle({ ...at, style: { cabinetStyleId: 15 } }));
-    expect(topSize(state, 'a')).toBe(5);
+    expect(topSize(state, 'a')).toBe(5.75);
 
     state = elevationReducer(state, setItemStyle({ ...at, itemIds: ['b'], style: null }));
-    expect(topSize(state, 'b')).toBe(5);
+    expect(topSize(state, 'b')).toBe(5.75);
 
     state = elevationReducer(state, setRoomStyle({ roomId: 'room-1', style: null }));
     state = elevationReducer(state, setRunStyle({ ...at, style: null }));
-    expect(topSize(state, 'a')).toBe(5.875);
-    expect(topSize(state, 'b')).toBe(5.875);
+    expect(topSize(state, 'a')).toBe(5.75);
+    expect(topSize(state, 'b')).toBe(5.75);
   });
 });
 
