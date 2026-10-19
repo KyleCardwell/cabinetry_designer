@@ -83,6 +83,34 @@ describe('designApi', () => {
     expect(await api.listSlides('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
   });
 
+  it('IN12a lists live accessories in order and passes save arguments, defaults and conflicts through', async () => {
+    let listed = { data: [{ accessory_id: 'a' }], error: null };
+    let saved = { data: { ok: true, accessory_id: 'a', version: 3, updated_at: 't' }, error: null };
+    const client = fakeClient({ tables: { design_accessories: () => listed }, rpc: { save_accessory: () => saved } });
+    const api = createDesignApi(client);
+    expect(await api.listAccessories('team')).toEqual({ ok: true, rows: [{ accessory_id: 'a' }] });
+    expect(client.calls[0]).toEqual({ table: 'design_accessories', chain: [
+      ['select', 'accessory_id, name, data, accessory_catalog_id, version, sort, archived_at'],
+      ['eq', 'team_id', 'team'], ['is', 'archived_at', null], ['order', 'sort'], ['order', 'created_at'],
+    ] });
+    const args = { teamId: 'team', accessoryId: 'a', name: 'Lazy susan', data: { attachesTo: 'section' }, accessoryCatalogId: 3, sort: 4, expectedVersion: 2 };
+    expect(await api.saveAccessory(args)).toEqual(saved.data);
+    expect(client.calls.at(-1)).toEqual({ rpc: 'save_accessory', args: {
+      p_team_id: 'team', p_accessory_id: 'a', p_name: 'Lazy susan', p_data: { attachesTo: 'section' },
+      p_accessory_catalog_id: 3, p_sort: 4, p_expected_version: 2,
+    } });
+    saved = { data: { ok: false, reason: 'conflict', version: 4 }, error: null };
+    expect(await api.saveAccessory({ teamId: 'team', accessoryId: null, name: 'Lazy susan', data: {}, expectedVersion: 0 })).toEqual(saved.data);
+    expect(client.calls.at(-1).args).toMatchObject({ p_accessory_id: null, p_accessory_catalog_id: null, p_sort: null, p_expected_version: 0 });
+    saved = { error: { code: '23505', message: 'duplicate key' } };
+    expect(await api.saveAccessory({ teamId: 'team', accessoryId: null, name: 'lazy susan', data: {}, expectedVersion: 0 }))
+      .toEqual({ ok: false, reason: 'duplicate', message: 'duplicate key' });
+    listed = { data: null, error: null };
+    expect(await api.listAccessories('team')).toEqual({ ok: true, rows: [] });
+    listed = { error: { code: '42501', message: 'No permission' } };
+    expect(await api.listAccessories('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
+  });
+
   it('passes a version-checked reply through', async () => {
     const client = fakeClient({ rpc: { save_team_settings: { data: { ok: true, version: 4, updated_at: 't' }, error: null } } });
     const reply = await createDesignApi(client).saveTeamSettings('team-1', { roundTo: 0.5 }, 3);

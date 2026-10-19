@@ -46,6 +46,7 @@ const ROOM_COLUMNS = 'room_id, phase_id, name, status, status_at, version, schem
 const DESIGN_COLUMNS = 'design_id, code, data, version, sort, archived_at';
 const PULL_COLUMNS = 'pull_id, name, data, hardware_pull_id, version, sort, archived_at';
 const SLIDE_COLUMNS = 'slide_id, name, data, hardware_slide_id, version, sort, archived_at';
+const ACCESSORY_COLUMNS = 'accessory_id, name, data, accessory_catalog_id, version, sort, archived_at';
 const VERSION_COLUMNS = 'version_id, room_id, seq, label, note, document, schema_version, settings_snapshot, issued_by, issued_at';
 
 export function createDesignApi(client) {
@@ -77,6 +78,12 @@ export function createDesignApi(client) {
     /** Live slides only, in library order. → { ok, rows } */
     async listSlides(teamId) {
       const reply = await run(() => client.from('design_slides').select(SLIDE_COLUMNS)
+        .eq('team_id', teamId).is('archived_at', null).order('sort').order('created_at'));
+      return reply.ok ? { ok: true, rows: reply.data ?? [] } : reply;
+    },
+    /** Live accessories only, in library order. → { ok, rows } */
+    async listAccessories(teamId) {
+      const reply = await run(() => client.from('design_accessories').select(ACCESSORY_COLUMNS)
         .eq('team_id', teamId).is('archived_at', null).order('sort').order('created_at'));
       return reply.ok ? { ok: true, rows: reply.data ?? [] } : reply;
     },
@@ -159,6 +166,12 @@ export function createDesignApi(client) {
       return rpc(client, 'save_slide', {
         p_team_id: teamId, p_slide_id: slideId, p_name: name, p_data: data,
         p_hardware_slide_id: hardwareSlideId, p_sort: sort, p_expected_version: expectedVersion,
+      });
+    },
+    saveAccessory({ teamId, accessoryId, name, data, accessoryCatalogId = null, sort = null, expectedVersion }) {
+      return rpc(client, 'save_accessory', {
+        p_team_id: teamId, p_accessory_id: accessoryId, p_name: name, p_data: data,
+        p_accessory_catalog_id: accessoryCatalogId, p_sort: sort, p_expected_version: expectedVersion,
       });
     },
     archiveLibraryItem(kind, id, archived = true) {
