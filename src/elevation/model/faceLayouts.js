@@ -139,6 +139,8 @@ function layoutFaces(room, wall, run, settings, layout) {
       style,
       reveals,
       box,
+      // The tree as laid out: matched groups and grown standard fronts carry their real sizes (IN7.2/IN7.3).
+      layoutFace: face,
       openings: faceOpenings(face, faceArea(box, reveals.values), reveals.values),
     });
   }

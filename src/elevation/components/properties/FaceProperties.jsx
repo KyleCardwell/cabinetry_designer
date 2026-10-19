@@ -239,6 +239,17 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
                     return true;
                   }}
                 />
+                {(() => {
+                  // A standard front grown by a smaller top reveal (IN7.2) keeps its stored size; show the real one.
+                  const laidOut = faceLayout?.layoutFace ? getFaceNode(faceLayout.layoutFace, path) : null;
+                  return Number.isFinite(node.size) && Number.isFinite(laidOut?.size)
+                    && Math.abs(laidOut.size - node.size) > 1e-9 && (
+                    <p aria-label={`Face size used ${path}`} title="Grown by the smaller top reveal"
+                      className="mt-0.5 text-[10px] leading-tight text-sky-300">
+                      {`${formatInches(laidOut.size)} with top`}
+                    </p>
+                  );
+                })()}
               </div>
             )}
           </div>

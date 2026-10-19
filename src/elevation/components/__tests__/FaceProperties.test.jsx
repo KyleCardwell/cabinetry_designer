@@ -209,3 +209,22 @@ describe('IN7.3 step b match base drawers', () => {
     }
   });
 });
+
+describe('IN7.2 grown standard fronts in the face list', () => {
+  it('keeps the stored 5 7/8 in the input and shows the 6" a wood top lays out', () => {
+    for (const [top, used] of [['wood', '6" with top'], ['stone', null]]) {
+      state = stateWithRun(makeRun({
+        width: 18, autoCount: false, top,
+        ends: { left: { type: 'none' }, right: { type: 'none' } },
+        items: [{ id: 'cabinet', kind: 'cabinet', width: 18, face: { direction: 'vertical', size: null, children: [
+          { type: 'drawer_front', size: 5.875 }, { type: 'drawer_front', size: null }, { type: 'drawer_front', size: null },
+        ] } }],
+      }));
+      state.facePath = 'r';
+      expect(picker('Face size r.0').props.value).toBe(5.875);
+      const hint = picker('Face size used r.0');
+      expect(hint ? text(hint) : null).toBe(used);
+      expect(picker('Face size used r.1')).toBeUndefined();
+    }
+  });
+});
