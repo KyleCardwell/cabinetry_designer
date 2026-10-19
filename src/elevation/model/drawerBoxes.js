@@ -192,10 +192,10 @@ export function cabinetDrawerBoxes({
 }
 
 /** Resolve a whole wall face with shared interior and per-run face layout passes. */
-export function wallDrawerBoxes(room, wall, side, settings) {
+export function wallDrawerBoxes(room, wall, side, settings, shared = {}) {
   const view = resolveWall(room, wall, side);
-  const faceLayoutsByRun = new Map();
-  const interiors = wallInteriors(room, wall, side, settings, faceLayoutsByRun);
+  const faceLayoutsByRun = shared.faceLayoutsByRun ?? new Map();
+  const interiors = shared.interiors ?? wallInteriors(room, wall, side, settings, faceLayoutsByRun);
   const byRun = new Map();
   for (const interior of interiors) {
     if (!byRun.has(interior.runId)) byRun.set(interior.runId, []);

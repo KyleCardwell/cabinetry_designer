@@ -45,8 +45,8 @@ function shelfLevels(face, dividers, path) {
 }
 
 /** Structure derived from faces; null means one clear section. Face paths survive merged sections. */
-export function autoInterior(faceTree, boxWidth) {
-  const wide = boxWidth > 36;
+export function autoInterior(faceTree, boxWidth, { nosing } = {}) {
+  const wide = boxWidth > 36 && !nosing;
   const walk = (face, path, inColumns = false) => {
     if (!face.children) {
       return wide && !inColumns && face.type === 'pair_door'

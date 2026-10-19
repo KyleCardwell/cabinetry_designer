@@ -94,7 +94,9 @@ function hasPartition(tree) {
 
 /** Resolve the effective tree into box-local clear sections and full-span dividers. */
 export function resolveInterior(interior, box, construction, settings, context) {
-  const automatic = context ? autoInterior(context.faceTree, box.width) : null;
+  const automatic = context ? autoInterior(context.faceTree, box.width, {
+    nosing: context.nosing === 'none' ? null : context.nosing,
+  }) : null;
   const auto = interior === undefined && Boolean(context);
   const tree = auto ? automatic : interior ?? null;
   const t = sheetThickness(settings);
@@ -217,6 +219,7 @@ function interiorForPart(part, run, wall, settings, layout) {
   const context = layout ? {
     faceTree: leaf.face ?? defaultFace(layout.box.width, settings),
     faces: layout.faces, openings: layout.openings, inset: isInsetStyle(layout.style),
+    nosing: leaf.shelves?.nosing,
   } : undefined;
   return { box, construction, ...resolveInterior(leaf.interior, box, construction, settings, context) };
 }
