@@ -107,6 +107,9 @@ export default function DrawerBoxFields({ room, wall, run, item, itemIds = [item
                 Charging
               </label>
             )}
+            {box.adjustment > 0 && (
+              <p className="text-xs text-gray-400">{`Fits using ${formatInches(box.adjustment)} of the slide's vertical adjustment.`}</p>
+            )}
             {box.notes.map((note) => <p key={note} className="text-xs text-gray-400">{note}</p>)}
           </div>
         );

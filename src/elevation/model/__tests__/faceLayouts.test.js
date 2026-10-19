@@ -208,3 +208,43 @@ describe('runFaceLayouts', () => {
     expect(hinged.warnings).toEqual([{ code: 'hinge-on-covered-side', path: 'r' }]);
   });
 });
+
+describe('IN7.2 a smaller top reveal grows the standard drawer fronts', () => {
+  const drawer = (size = null) => ({ type: 'drawer_front', size });
+  const heights = (face, top) => {
+    const run = { ...RUN, ...(top ? { top } : {}), items: [{ id: 'a', kind: 'cabinet', width: 18, face }] };
+    const room = roomWith(run);
+    return runFaceLayouts(room, resolveWall(room, room.walls[0]), run, DEFAULT_SETTINGS).get('a').faces
+      .map(({ height }) => height);
+  };
+
+  it('4-drawer: the two standard fronts split the 1/8; the bottom fronts stay 9', () => {
+    const face = { direction: 'vertical', size: null, children: [drawer(5.875), drawer(5.875), drawer(), drawer()] };
+    expect(heights(face)).toEqual([5.875, 5.875, 9, 9]);
+    expect(heights(face, 'wood')).toEqual([5.9375, 5.9375, 9, 9]);
+  });
+
+  it('3-drawer: the one standard front grows to 6', () => {
+    const face = { direction: 'vertical', size: null, children: [drawer(5.875), drawer(), drawer()] };
+    expect(heights(face)).toEqual([5.875, 12, 12]);
+    expect(heights(face, 'wood')).toEqual([6, 12, 12]);
+  });
+
+  it('a side-by-side row at the standard height grows as one; the doors below give it up', () => {
+    const face = { direction: 'vertical', size: null, children: [
+      { direction: 'horizontal', size: 5.875, children: [drawer(), drawer()] },
+      { type: 'pair_door', size: null },
+    ] };
+    expect(heights(face)).toEqual([5.875, 5.875, 24.125, 24.125]);
+    expect(heights(face, 'wood')).toEqual([6, 6, 24.125, 24.125]);
+    // Widths in a row are never grown; a group with another typed height keeps its fronts.
+    const row = { direction: 'vertical', size: null, children: [
+      { direction: 'horizontal', size: 5.875, children: [drawer(5.875), drawer()] },
+      { direction: 'vertical', size: 20, children: [drawer(5.875), { type: 'door', size: null }] },
+      { type: 'door', size: null },
+    ] };
+    const grown = heights(row, 'wood');
+    expect(grown.slice(0, 2)).toEqual([6, 6]);
+    expect(grown[2]).toBe(5.875);
+  });
+});

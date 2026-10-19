@@ -1,7 +1,7 @@
 import { captureSides } from './capture.js';
 import { cellCaptureSides, cellPieces, coveredSides, EPSILON, gapReach, hingeStops, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
-import { DEFAULT_SETTINGS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cabinetFaceLevels, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { applyHinges, cabinetFaces, defaultFace, faceArea } from './faces.js';
@@ -11,7 +11,7 @@ import { runItems } from './grid.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
 import { splitRun } from './splitRun.js';
 import { teeFillers } from './tees.js';
-import { cabinetReveals, resolveStyle } from './styles.js';
+import { cabinetReveals, growStandardFronts, isInsetStyle, resolveStyle, typeStandardReveals } from './styles.js';
 import { wallViewForRun } from './wallSides.js';
 
 /** splitRun with the same options RunGroup uses. */
@@ -68,9 +68,9 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
       x: piece.x + (free.left ? overhang : 0),
       width: piece.width - (free.left ? overhang : 0) - (free.right ? overhang : 0),
     };
-    const face = item?.face ?? defaultFace(box.width, settings);
+    const storedFace = item?.face ?? defaultFace(box.width, settings);
     const covered = coveredSides(cells.pieces, piece.id);
-    const pairCovers = face.type === 'pair_door' && (covered.left > 0 || covered.right > 0);
+    const pairCovers = storedFace.type === 'pair_door' && (covered.left > 0 || covered.right > 0);
     const style = resolveStyle(settings, room, run, item);
     const runEdges = {
       top: Math.abs(piece.z + piece.height - run.z - run.height) <= 1e-6,
@@ -80,7 +80,7 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
       style,
       cabinetTypeId: run.cabinetTypeId,
       run,
-      face,
+      face: storedFace,
       captured,
       seams: frames.seamSides.get(piece.id),
       stacked: stackedSides(cells.pieces, piece.id, gapReach(cells.gaps)),
@@ -90,7 +90,12 @@ export function runFaceLayouts(room, wall, run, settings, layout = layoutRun(roo
       manual: item?.reveals ?? null,
       settings,
     });
-    const resolved = cabinetFaces(item, box, run.cabinetTypeId, settings, reveals.values);
+    // A smaller top reveal than stone grows the standard drawer fronts, not the others (IN7.2).
+    const topGrowth = !isInsetStyle(style) && run.cabinetTypeId === CABINET_TYPE_IDS.BASE
+      && (reveals.sources.top === 'manual' || (runEdges.top && ['style', 'rule:wood-top'].includes(reveals.sources.top)))
+      ? typeStandardReveals(style, CABINET_TYPE_IDS.BASE, settings).top - reveals.values.top : 0;
+    const face = growStandardFronts(storedFace, topGrowth, style, settings);
+    const resolved = cabinetFaces({ ...item, face }, box, run.cabinetTypeId, settings, reveals.values);
     const wallSides = Object.fromEntries(['left', 'right'].map((side) => {
       const anchor = run.anchors?.[side];
       const atEdge = side === 'left'

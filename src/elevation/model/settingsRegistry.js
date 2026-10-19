@@ -42,6 +42,7 @@ const roomNumbers = [
   ['stackedLowerTop', 'Stacked lower top reveal'],
   ['floatingShelfThickness', 'Floating shelf thickness'],
   ['standardDrawerBelow', 'Standard drawer below'],
+  ['drawerBoxAdjustment', 'Drawer box vertical adjustment'],
   ['belowRunOverhang', 'Below run overhang'],
   ['belowRunFlushReveal', 'Below run flush reveal'],
 ];

@@ -117,7 +117,7 @@ describe('DB2 f shop settings panel', () => {
     const groups = [
       ['Cabinets & depths', 12], ['Runs & ends', 9], ['Fillers & corners', 11],
       ['Reveals', 9], ['Inset face frame', 6], ['Bases, tops & bands', 15],
-      ['Openings & soffits', 14], ['Pulls', 3], ['Drawer boxes', 7], ['Reports', 9],
+      ['Openings & soffits', 14], ['Pulls', 3], ['Drawer boxes', 8], ['Reports', 9],
     ];
     const collapsed = nodes(tree).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false);
     expect(collapsed.map(text)).toEqual(groups.map(([label]) => `${label}+`));

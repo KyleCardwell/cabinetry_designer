@@ -52,7 +52,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   state = stateWithRun(makeRun({ width: 18, autoCount: false, items: [fixed('c1', 18)],
     ends: { left: { type: 'none' }, right: { type: 'none' } } }));
-  state.settings = { ...state.settings, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h', runFlex: 0 };
+  state.settings = { ...state.settings, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h', runFlex: 0 ,
+    // These fixtures type a 1/8" top reveal; keep the standard fronts at 5 7/8 (IN7.2).
+    stoneTopReveal: 0.125 };
   item().face = { direction: 'vertical', size: null, children: [drawer(5.875), drawer(), drawer()] };
   item().reveals = { top: 0.125, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125 };
   state.facePath = 'r.1';

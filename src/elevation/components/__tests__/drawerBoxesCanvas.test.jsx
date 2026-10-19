@@ -63,7 +63,9 @@ beforeEach(() => {
       reveals: { top: 0.125, bottom: 0.125, left: 0.0625, right: 0.0625, horizontal: 0.125, vertical: 0.125 },
     }],
   }));
-  state.settings = { ...state.settings, runFlex: 0, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h' };
+  state.settings = { ...state.settings, runFlex: 0, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h',
+    // These fixtures type a 1/8" top reveal; keep the standard fronts at 5 7/8 (IN7.2).
+    stoneTopReveal: 0.125 };
   state.doorsOff = true;
   state.selection = { runId: 'run-1', pieceId: 'cabinet' };
   dispatch = vi.fn((action) => { state = elevationReducer(state, action); });

@@ -55,6 +55,7 @@ export function cabinetDrawerBoxes({
   const notes = [];
   const entries = [];
   const presets = drawerBoxHeights(settings);
+  const adjustment = Math.max(0, settings.drawerBoxAdjustment ?? DEFAULT_SETTINGS.drawerBoxAdjustment);
   const openingByPath = new Map(openings.map((opening) => [opening.path, opening]));
   const openingUses = new Map();
   for (const face of faces) {
@@ -166,7 +167,10 @@ export function cabinetDrawerBoxes({
     const ceiling = box.space.z + box.space.height - box.slide.minAbove;
     box.maxHeight = Math.max(0, ceiling - floor);
     box.z = Math.max(floor, Math.min(box.z, ceiling - box.height));
-    if (box.z + box.height > ceiling + 1e-9) box.warnings.push({ code: 'drawer-height-too-tall' });
+    // A box a little too tall still fits on the slide's vertical adjustment (IN7.1); auto heights never count on it.
+    const over = box.z + box.height - ceiling;
+    box.adjustment = over > 1e-9 && over <= adjustment + 1e-9 ? over : 0;
+    if (over > adjustment + 1e-9) box.warnings.push({ code: 'drawer-height-too-tall' });
   }
   for (const { box, section } of entries) {
     if (box.kind === 'hamper') {

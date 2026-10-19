@@ -285,6 +285,41 @@ export function applyStandardDrawers(face, style, settings) {
   return visit(face);
 }
 
+const STANDARD_STEP = 1 / 16;
+
+/**
+ * A Euro base's standard drawer fronts are sized for the stone top reveal (IN7.2, Kyle 2026-10-19). When
+ * the top reveal is smaller (wood top, manual), the difference goes to the standard-height fronts in
+ * 1/16" steps, top down, one step each in turn. A standard front is a drawer / false front, or a
+ * side-by-side row of them, whose height is the standard; a row grows as one. Groups with any other
+ * typed height keep their fronts. Returns the same tree when nothing changes.
+ */
+export function growStandardFronts(face, extra, style, settings) {
+  const steps = Math.floor(extra / STANDARD_STEP + 1e-6);
+  if (!face || steps <= 0) return face;
+  const height = standardDrawerHeight(style, settings);
+  const fronts = (node) => (node.type ? STANDARD_DRAWER_TYPES.includes(node.type) : node.children.every(fronts));
+  // `tall`: the node's size is a height (root or a child of a vertical group), not a width.
+  const standard = (node, tall) => tall && Number.isFinite(node.size) && Math.abs(node.size - height) <= 1e-9
+    && (node.type ? STANDARD_DRAWER_TYPES.includes(node.type) : node.direction === 'horizontal' && fronts(node));
+  const takes = (node, tall) => standard(node, tall)
+    || (!node.type && !(tall && Number.isFinite(node.size))
+      && node.children.some((child) => takes(child, node.direction === 'vertical')));
+  const grow = (node, n, tall) => {
+    if (n <= 0 || !takes(node, tall)) return node;
+    if (standard(node, tall)) return { ...node, size: node.size + n * STANDARD_STEP };
+    const childTall = node.direction === 'vertical';
+    if (!childTall) return { ...node, children: node.children.map((child) => grow(child, n, false)) };
+    const units = node.children.filter((child) => takes(child, true));
+    const share = (child) => {
+      const index = units.indexOf(child);
+      return Math.floor(n / units.length) + (index < n % units.length ? 1 : 0);
+    };
+    return { ...node, children: node.children.map((child) => (units.includes(child) ? grow(child, share(child), true) : child)) };
+  };
+  return grow(face, steps, true);
+}
+
 /** How far a run's fillers and end panels extend below the box: to the doors. */
 export function panelDrop(run, style, settings) {
   if (isInsetStyle(style)) return frameDrop(run, settings);

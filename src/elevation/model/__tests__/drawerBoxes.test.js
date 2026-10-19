@@ -547,3 +547,22 @@ describe('IN6 step c ROT and hamper boxes', () => {
     expect(result.get('c1')).toMatchObject({ boxes: [{ kind: 'hamper', x: 43, z: 27.25, clearBelow: 22.5 }] });
   });
 });
+
+describe('IN7.1 drawer box vertical adjustment', () => {
+  it('lets a typed box up to 1/8 too tall fit (setting), never changing auto heights', () => {
+    const face = base();
+    face.children[2].drawerBox = { height: 9.25 };
+    // The top box tops out at 6 5/8 (anchor 5).
+    for (const [height, adjustment, expected] of [[6.6875, 0.0625, []], [6.75, 0.125, []],
+      [6.8125, 0, ['drawer-height-too-tall']]]) {
+      face.children[0].drawerBox = { height };
+      const top = sized({ face }).boxes[0];
+      expect(top.adjustment).toBeCloseTo(adjustment, 9);
+      expect(codes(top)).toEqual(expected);
+    }
+    face.children[0].drawerBox = { height: 6.75 };
+    const strict = cabinetDrawerBoxes({ ...input({ face }), settings: { ...settings, drawerBoxAdjustment: 0 } });
+    expect(codes(strict.boxes[0])).toEqual(['drawer-height-too-tall']);
+    expect(sized().boxes.map(({ height, adjustment }) => [height, adjustment])).toEqual([[4.25, 0], [10.25, 0], [10.25, 0]]);
+  });
+});

@@ -142,6 +142,8 @@ export const DEFAULT_SETTINGS = {
   standardDrawerBelow: 6,
   /** ProBox preset drawer box heights (INTERIORS-PLAN ID11): from..to, then thenFrom..max, by step. */
   drawerBoxHeights: { from: 2.25, to: 10.25, thenFrom: 11.125, max: 22.125, step: 1, warnAbove: 15.125 },
+  /** Vertical adjustment on the slide clips: how much too tall a drawer box can be and still fit (IN7.1). */
+  drawerBoxAdjustment: 0.125,
   belowRunOverhang: -0.125,
   belowRunFlushReveal: 0.125,
   bottomPartHeights: { light_rail: 1.5, light_trough: 3, panel: 0.75, bottom_cap: 1.5, corbels: 6 },
