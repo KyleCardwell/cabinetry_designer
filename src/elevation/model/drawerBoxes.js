@@ -47,6 +47,12 @@ export function isPrefinishedMaple(material) {
   return typeof material === 'string' && /pre-?\s?finished\s+maple/i.test(material);
 }
 
+/** Shared style and material inputs for drawer boxes and section roll-outs. */
+export function drawerBoxOptions(room, itemId, layout, settings) {
+  const material = room.reportParts?.[itemId]?.boxes ?? settings.report?.boxMaterial;
+  return { inset: isInsetStyle(layout.style), prefinishedMaple: isPrefinishedMaple(material) };
+}
+
 /** Size drawer fronts and qualifying pull-out doors from their clear sections, in wall coordinates. */
 export function cabinetDrawerBoxes({
   faces, openings = [], reveals, inset, interior, leaf, settings, prefinishedMaple = false,
@@ -209,13 +215,11 @@ export function wallDrawerBoxes(room, wall, side, settings, shared = {}) {
       const layout = faceLayouts.get(interior.itemId);
       const leaf = findLeaf(run.grid, interior.itemId);
       if (!layout?.faces.some((face) => boxKind(face, leaf.purpose))) continue;
-      const material = room.reportParts?.[interior.itemId]?.boxes ?? settings.report?.boxMaterial;
       result.set(interior.itemId, {
         runId: run.id,
         ...cabinetDrawerBoxes({
           faces: layout.faces, openings: layout.openings, reveals: layout.reveals.values,
-          inset: isInsetStyle(layout.style), interior, leaf, settings,
-          prefinishedMaple: isPrefinishedMaple(material),
+          interior, leaf, settings, ...drawerBoxOptions(room, interior.itemId, layout, settings),
         }),
       });
     }

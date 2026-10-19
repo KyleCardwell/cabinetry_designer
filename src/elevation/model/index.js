@@ -122,6 +122,8 @@ export {
   cabinetDrawerBoxes, cabinetDrawerBoxesFor, drawerBoxHeights, isPrefinishedMaple, isTallDrawerBox,
   wallDrawerBoxes,
 } from './drawerBoxes.js';
+export { sectionRollouts, wallRollouts } from './rollouts.js';
+export { covers, sectionShelves, shelfZone, sideHinged, wallShelves } from './shelves.js';
 export {
   boxPartLines,
   cabinetInterior,
