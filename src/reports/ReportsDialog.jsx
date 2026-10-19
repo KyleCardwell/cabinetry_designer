@@ -8,6 +8,8 @@ import { doorOrder } from './doorOrder.js';
 import { doorOrderDocument, doorOrderFileName } from './doorOrderPdf.js';
 import { shippingList } from './shippingList.js';
 import { shippingListDocument, shippingListFileName } from './shippingListPdf.js';
+import { proBoxOrder } from './proBoxOrder.js';
+import { proBoxOrderDocument, proBoxOrderFileName } from './proBoxOrderPdf.js';
 import { downloadPdf } from './pdf.js';
 
 const copiesKey = 'ff.reportCopies';
@@ -15,6 +17,7 @@ const reportsKey = 'ff.reports';
 const REPORTS = [
   { id: 'door_order', label: 'Door Order Form' },
   { id: 'shipping_list', label: 'Main Shipping List' },
+  { id: 'probox_order', label: 'ProBox Drawer Box Order' },
 ];
 
 function savedReports() {
@@ -90,6 +93,12 @@ export default function ReportsDialog({ onClose }) {
         reportWarnings.push(...list.warnings);
         if (!list.rows.some((row) => row.kind !== 'adjustable_shelves')) messages.push('No parts in this room.');
         else await downloadPdf(shippingListDocument(list, header, copies), shippingListFileName(header, room.name));
+      }
+      if (selected.includes('probox_order')) {
+        const order = proBoxOrder(room, settings, header);
+        reportWarnings.push(...order.warnings);
+        if (!order.lines.length) messages.push('No drawer boxes or roll-outs in this room.');
+        else await downloadPdf(proBoxOrderDocument(order, header, copies), proBoxOrderFileName(header, room.name));
       }
     } catch (failure) {
       messages.push(failure.message || String(failure));

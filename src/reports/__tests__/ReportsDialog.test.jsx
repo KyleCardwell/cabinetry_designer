@@ -14,6 +14,8 @@ import { reportHeader } from '../header.js';
 import { doorOrderDocument, doorOrderFileName } from '../doorOrderPdf.js';
 import { shippingList } from '../shippingList.js';
 import { shippingListDocument, shippingListFileName } from '../shippingListPdf.js';
+import { proBoxOrder } from '../proBoxOrder.js';
+import { proBoxOrderDocument, proBoxOrderFileName } from '../proBoxOrderPdf.js';
 import { downloadPdf } from '../pdf.js';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn() }));
@@ -23,6 +25,8 @@ vi.mock('../header.js', async (original) => ({ reportHeader: vi.fn((await origin
 vi.mock('../doorOrderPdf.js', async (original) => ({ ...await original(), doorOrderDocument: vi.fn() }));
 vi.mock('../shippingList.js', async (original) => ({ ...await original(), shippingList: vi.fn() }));
 vi.mock('../shippingListPdf.js', async (original) => ({ ...await original(), shippingListDocument: vi.fn() }));
+vi.mock('../proBoxOrder.js', async (original) => ({ ...await original(), proBoxOrder: vi.fn() }));
+vi.mock('../proBoxOrderPdf.js', async (original) => ({ ...await original(), proBoxOrderDocument: vi.fn() }));
 vi.mock('../pdf.js', () => ({ downloadPdf: vi.fn() }));
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
@@ -64,7 +68,8 @@ function check(dialog, label, checked) {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  storage = new Map();
+  // Exercise saved selections from before ProBox existed throughout the older report tests.
+  storage = new Map([['ff.reports', '["door_order","shipping_list"]']]);
   vi.stubGlobal('localStorage', {
     getItem: vi.fn((key) => storage.get(key) ?? null),
     setItem: vi.fn((key, value) => storage.set(key, value)),
@@ -88,12 +93,15 @@ beforeEach(() => {
   doorOrderDocument.mockReturnValue({ content: ['Door Order Form'] });
   shippingList.mockReturnValue({ rows: [{ number: 1, kind: 'cabinet' }], warnings: [] });
   shippingListDocument.mockReturnValue({ content: ['Main Shipping List'] });
+  proBoxOrder.mockReturnValue({ lines: [{ cab: 1 }], warnings: [] });
+  proBoxOrderDocument.mockReturnValue({ content: ['ProBox Drawer Box Order'] });
   downloadPdf.mockResolvedValue(undefined);
 });
 afterEach(() => vi.unstubAllGlobals());
 
 describe('RP2 step h Reports', () => {
   it('places Reports beside Export DXF, disables it without a room, and opens with the first-use defaults (anchor 1)', () => {
+    storage.delete('ff.reports');
     for (const readOnly of [false, true]) {
       const toolbar = renderComponent(ElevationToolbar, { readOnly });
       const children = nodes(toolbar.tree);
@@ -109,6 +117,9 @@ describe('RP2 step h Reports', () => {
     expect(checkbox(dialog.tree, 'Door Order Form').props.checked).toBe(true);
     expect(checkbox(dialog.tree, 'Main Shipping List').props.checked).toBe(true);
     expect(checkbox(dialog.tree, 'Main Shipping List').props.disabled).not.toBe(true);
+    expect(nodes(component(dialog.tree, 'fieldset')).filter((node) => node.type === 'label').map(text))
+      .toEqual(['Door Order Form', 'Main Shipping List', 'ProBox Drawer Box Order']);
+    expect(checkbox(dialog.tree, 'ProBox Drawer Box Order').props.checked).toBe(true);
     copyNames.forEach((name) => expect(checkbox(dialog.tree, name).props.checked).toBe(true));
     button(dialog.tree, 'Cancel').props.onClick();
     expect(component(trigger.render(), ReportsDialog)).toBeUndefined();
@@ -209,18 +220,20 @@ describe('RP2 step h Reports', () => {
     expect(button(dialog.tree, 'Download').props.disabled).toBe(false);
   });
 
-  it('falls back to both reports for invalid stored selections and normalizes valid report ids', () => {
+  it('falls back to all three reports for invalid stored selections and normalizes valid report ids', () => {
     for (const saved of ['{invalid', 'null', '{}', '["unknown"]', '["door_order", "unknown"]']) {
       storage.set('ff.reports', saved);
       const { dialog } = openDialog();
       expect(checkbox(dialog.tree, 'Door Order Form').props.checked).toBe(true);
       expect(checkbox(dialog.tree, 'Main Shipping List').props.checked).toBe(true);
+      expect(checkbox(dialog.tree, 'ProBox Drawer Box Order').props.checked).toBe(true);
     }
     storage.set('ff.reports', '["shipping_list", "door_order", "shipping_list"]');
     const { dialog } = openDialog();
     check(dialog, 'Main Shipping List', false);
     expect(JSON.parse(storage.get('ff.reports'))).toEqual(['door_order']);
     expect(checkbox(openDialog().dialog.tree, 'Main Shipping List').props.checked).toBe(false);
+    expect(checkbox(openDialog().dialog.tree, 'ProBox Drawer Box Order').props.checked).toBe(false);
   });
 
   it('blocks Download with no copies or no report selected (anchor 4)', async () => {
@@ -256,22 +269,24 @@ describe('RP2 step h Reports', () => {
     expect(button(dialog.tree, 'Download').props.disabled).toBe(false);
   });
 
-  it('defaults to both reports and all copies when storage throws, and tolerates blocked writes (anchor 7)', async () => {
+  it('defaults to all three reports and all copies when storage throws, and tolerates blocked writes (anchor 7)', async () => {
     vi.stubGlobal('localStorage', { getItem() { throw new Error('Blocked'); }, setItem() { throw new Error('Blocked'); } });
     let { dialog } = openDialog();
     expect(checkbox(dialog.tree, 'Door Order Form').props.checked).toBe(true);
     expect(checkbox(dialog.tree, 'Main Shipping List').props.checked).toBe(true);
+    expect(checkbox(dialog.tree, 'ProBox Drawer Box Order').props.checked).toBe(true);
     copyNames.forEach((name) => expect(checkbox(dialog.tree, name).props.checked).toBe(true));
     check(dialog, 'Shop', false);
     await submit(dialog);
-    expect(downloadPdf).toHaveBeenCalledTimes(2);
+    expect(downloadPdf).toHaveBeenCalledTimes(3);
     check(dialog, 'Door Order Form', false);
     await submit(dialog);
-    expect(downloadPdf).toHaveBeenCalledTimes(3);
+    expect(downloadPdf).toHaveBeenCalledTimes(5);
     vi.stubGlobal('localStorage', { getItem() { return '{invalid'; } });
     dialog = openDialog().dialog;
     expect(checkbox(dialog.tree, 'Door Order Form').props.checked).toBe(true);
     expect(checkbox(dialog.tree, 'Main Shipping List').props.checked).toBe(true);
+    expect(checkbox(dialog.tree, 'ProBox Drawer Box Order').props.checked).toBe(true);
     copyNames.forEach((name) => expect(checkbox(dialog.tree, name).props.checked).toBe(true));
   });
 
@@ -342,4 +357,49 @@ describe('RP2 step h Reports', () => {
       expect(downloadPdf).toHaveBeenLastCalledWith(shippingListDocument.mock.results.at(-1).value, shippingListFileName(header, 'Kitchen'));
     }
   });
+
+  it('downloads all three reports, combines ProBox warnings, and remembers a ProBox-only selection', async () => {
+    storage.delete('ff.reports');
+    proBoxOrder.mockReturnValue({ lines: [{ cab: 1 }], warnings: [
+      { code: 'report-drawer-box-unsized', message: 'Cab 2: a drawer box has no size; not on the ProBox order.' },
+    ] });
+    doorOrder.mockReturnValueOnce({ pages: [{}], warnings: [{ code: 'door-warning', message: 'Check door' }] });
+    shippingList.mockReturnValueOnce({ rows: [{ kind: 'cabinet' }], warnings: [{ code: 'shipping-warning', message: 'Check shipping' }] });
+    const { dialog } = openDialog();
+    check(dialog, 'Shop', false);
+    await submit(dialog);
+    const header = reportHeader.mock.results.at(-1).value;
+    expect(proBoxOrder).toHaveBeenCalledWith(state.elevation.rooms[0], selectSettings(state), header);
+    expect(proBoxOrderDocument).toHaveBeenCalledWith(proBoxOrder.mock.results[0].value, header, ['master', 'install', 'nike', 'order']);
+    expect(downloadPdf.mock.calls).toEqual([
+      [doorOrderDocument.mock.results[0].value, doorOrderFileName(header, 'Kitchen')],
+      [shippingListDocument.mock.results[0].value, shippingListFileName(header, 'Kitchen')],
+      [proBoxOrderDocument.mock.results[0].value, proBoxOrderFileName(header, 'Kitchen')],
+    ]);
+    expect(text(component(dialog.render(), 'ul'))).toBe('Check doorCheck shippingCab 2: a drawer box has no size; not on the ProBox order.');
+    check(dialog, 'Door Order Form', false);
+    check(dialog, 'Main Shipping List', false);
+    expect(JSON.parse(storage.get('ff.reports'))).toEqual(['probox_order']);
+    const reopened = openDialog().dialog;
+    expect(checkbox(reopened.tree, 'ProBox Drawer Box Order').props.checked).toBe(true);
+    expect(checkbox(reopened.tree, 'Door Order Form').props.checked).toBe(false);
+    expect(checkbox(reopened.tree, 'Main Shipping List').props.checked).toBe(false);
+    await submit(reopened);
+    expect(downloadPdf).toHaveBeenCalledTimes(4);
+    expect(downloadPdf).toHaveBeenLastCalledWith(proBoxOrderDocument.mock.results.at(-1).value, proBoxOrderFileName(header, 'Kitchen'));
+  });
+
+  it('shows the ProBox empty-room message and builds no PDF with only ProBox selected (IN11 anchor 4)', async () => {
+    storage.set('ff.reports', '["probox_order"]');
+    proBoxOrder.mockImplementationOnce((await vi.importActual('../proBoxOrder.js')).proBoxOrder);
+    const { dialog } = openDialog();
+    await submit(dialog);
+    expect(text(alert(dialog.render()))).toBe('No drawer boxes or roll-outs in this room.');
+    expect(downloadPdf).not.toHaveBeenCalled();
+    expect(proBoxOrderDocument).not.toHaveBeenCalled();
+    expect(doorOrder).not.toHaveBeenCalled();
+    expect(shippingList).not.toHaveBeenCalled();
+    expect(button(dialog.tree, 'Download').props.disabled).toBe(false);
+  });
+
 });
