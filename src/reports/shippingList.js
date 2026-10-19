@@ -89,17 +89,31 @@ function faceOrder(a, b) {
 }
 
 /** Group working fronts by height and slide, retaining their first top-down appearance. */
-export function drawerFrontNote(faces = [], slideNames = new Map()) {
+export function drawerFrontNote(faces = [], slideNames = new Map(), depths = new Map()) {
+  const fronts = faces.filter((face) => face.type === 'drawer_front').sort(faceOrder);
+  const depthCounts = new Map();
+  for (const face of fronts) {
+    const depth = depths.get(face.path);
+    if (depth != null) depthCounts.set(depth, (depthCounts.get(depth) ?? 0) + 1);
+  }
+  // Map order breaks equal-frequency ties by the first top-down appearance.
+  const commonDepth = [...depthCounts.keys()].reduce((best, depth) =>
+    best === null || depthCounts.get(depth) > depthCounts.get(best) ? depth : best, null);
   const groups = new Map();
-  for (const face of faces.filter((face) => face.type === 'drawer_front').sort(faceOrder)) {
+  for (const face of fronts) {
     const height = Math.round(face.height * 32) / 32;
     const name = slideNames.get(face.path) || null;
-    const key = JSON.stringify([height, name]);
-    if (!groups.has(key)) groups.set(key, { height, name, count: 0 });
+    const depth = depths.get(face.path);
+    const tag = [name, depth != null && depth !== commonDepth ? `${formatInch(depth)} deep` : null]
+      .filter(Boolean).join(', ');
+    const key = JSON.stringify([height, tag]);
+    if (!groups.has(key)) groups.set(key, { height, tag, count: 0 });
     groups.get(key).count += 1;
   }
-  return groups.size ? `DF's (${[...groups.values()].map(({ height, name, count }) =>
-    `${count} - ${formatInch(height)}${name ? ` (${name})` : ''}`).join(', ')})` : null;
+  const notes = [...groups.values()].map(({ height, tag, count }) =>
+    `${count} - ${formatInch(height)}${tag ? ` (${tag})` : ''}`);
+  if (commonDepth !== null) notes.push(`${formatInch(commonDepth)} ${fronts.length === 1 ? 'drw' : 'drws'}`);
+  return groups.size ? `DF's (${notes.join(', ')})` : null;
 }
 
 /** Single doors and action pairs need shop instructions; pair halves share a path. */
