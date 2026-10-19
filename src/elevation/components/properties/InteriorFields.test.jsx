@@ -7,7 +7,7 @@ import { cabinetInterior } from '../../model/interiors.js';
 import { gridLeaves } from '../../model/grid.js';
 import { resolveWall } from '../../model/room.js';
 import { runScene } from '../../model/runScene.js';
-import elevationReducer, { setInteriorPath, setItemInterior } from '../../store/elevationSlice.js';
+import elevationReducer, { setInteriorPath, setItemInterior, setItemShelves } from '../../store/elevationSlice.js';
 import { fixed, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import BoxConstructionFields from './BoxConstructionFields.jsx';
 import FaceProperties from './FaceProperties.jsx';
@@ -367,5 +367,98 @@ describe('IN7 effective interior edits', () => {
       item().interior = {};
     });
     expect(text(render())).toContain('Box is over 36" wide with no partition between the doors.');
+  });
+});
+
+
+describe('IN8 shelf controls', () => {
+  const base = (width = 24, type = 'door') => edit(() => {
+    run().width = run().grid.cols[0].size = item().width = width;
+    item().face = { type, size: null };
+  });
+  const tick = (label, checked) => field(label).props.onChange({ target: { checked } });
+
+  it('anchor 1: stores count 2 on the effective auto section, accepts zero, and resets with blank or auto', () => {
+    base();
+    expect(field('Shelf count r')).toBeUndefined();
+    select('r');
+    expect(field('Shelf count r').props).toMatchObject({ value: undefined, placeholder: 'Auto (1)', allowAuto: true });
+    expect(field('Shelf count r').props.className).toContain('placeholder:text-gray-500');
+    expect(text(field('Shelf size r'))).toBe('22 7/16 × 22 7/8 × 3/4');
+    commit('Shelf count r', 2);
+    expectInterior({ shelves: { count: 2 } });
+    expect(field('Shelf count r').props.placeholder).toBe('Auto (1)');
+    const calls = dispatch.mock.calls.length;
+    for (const count of [-1, 21, 1.5, NaN, Infinity]) expect(commit('Shelf count r', count)).toBe(false);
+    expect(dispatch).toHaveBeenCalledTimes(calls);
+    commit('Shelf count r', 0);
+    expectInterior({ shelves: { count: 0 } });
+    expect(options(field('Line bore r'))[0]).toEqual(['', 'Auto (No)']);
+    for (const value of ['', 'auto']) {
+      commit('Shelf count r', 2);
+      const props = field('Shelf count r').props;
+      const input = () => { hookIndex = 1; return InchInput(props); };
+      input().props.onChange({ target: { value } });
+      input().props.onBlur();
+      expectInterior({});
+    }
+    click('Auto');
+    expectInterior(null);
+  });
+
+  it('anchor 2: cabinet hardwood removes the auto wide partition without storing a tree', () => {
+    base(42, 'pair_door');
+    expect(field('Interior r.0')).toBeDefined();
+    change('Cabinet shelf nosing', 'hardwood');
+    expect(dispatch).toHaveBeenLastCalledWith(setItemShelves({ ...at, patch: { nosing: 'hardwood' } }));
+    expect(item()).not.toHaveProperty('interior');
+    expect(field('Interior r.0')).toBeUndefined();
+    select('r');
+    expect(text(field('Shelf size r'))).toBe('40 7/16 × 22 7/8 × 3/4 + 1 1/2 × 13/16 nosing');
+    expect(options(field('Shelf nosing r'))[0]).toEqual(['', 'Auto (Hardwood)']);
+  });
+
+  it('anchor 3: glass disables nosing and shows quarter-inch size; explicit material picks reset to cabinet values', () => {
+    base();
+    change('Cabinet shelf nosing', 'folded');
+    tick('Cabinet glass shelves', true);
+    expect(field('Cabinet shelf nosing').props.disabled).toBe(true);
+    expect(item()).not.toHaveProperty('interior');
+    select('r');
+    expect(field('Glass shelves r').props.checked).toBe(true);
+    expect(field('Shelf nosing r').props.disabled).toBe(true);
+    expect(text(field('Shelf size r'))).toBe('22 7/16 × 22 7/8 × 1/4');
+    tick('Glass shelves r', false);
+    expectInterior({ shelves: { glass: false } });
+    expect(field('Shelf nosing r').props.disabled).toBe(false);
+    expect(text(field('Shelf size r'))).toContain('order 24 7/8 deep (folded)');
+    change('Shelf nosing r', 'none');
+    expectInterior({ shelves: { glass: false, nosing: 'none' } });
+    change('Shelf nosing r', '');
+    field('Auto glass shelves r').props.onClick();
+    expectInterior({});
+    tick('Glass shelves r', true); // Explicit cabinet-equal pick sticks.
+    expectInterior({ shelves: { glass: true } });
+    expect(field('Auto glass shelves r').props['aria-pressed']).toBe(false);
+  });
+
+  it('edits effective child flags, preserves explicit auto-equal picks, and shows crowded warnings on that section', () => {
+    autoDoors();
+    select('r.0');
+    expect(options(field('Hinge plates r.0'))).toEqual([['', 'Auto (Yes)'], ['true', 'Yes'], ['false', 'No']]);
+    change('Hinge plates r.0', 'true');
+    change('Line bore r.0', 'false');
+    expectInterior(group('vertical', [linkedShelf], [{ hinges: true, lineBore: false }, {}]));
+    commit('Shelf count r.0', 20);
+    expect(text(render())).toContain('Adjustable shelves have less than 3" of clear space between them.');
+    select('r.1');
+    expect(text(render())).not.toContain('Adjustable shelves have less than 3" of clear space between them.');
+    select('r.0');
+    change('Hinge plates r.0', '');
+    change('Line bore r.0', '');
+    commit('Shelf count r.0', null);
+    expectInterior(group('vertical', [linkedShelf]));
+    select('r');
+    expect(field('Shelf count r')).toBeUndefined();
   });
 });

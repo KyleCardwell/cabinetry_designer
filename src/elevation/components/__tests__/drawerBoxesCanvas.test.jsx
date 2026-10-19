@@ -1,12 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDispatch, useSelector } from 'react-redux';
 import { Group, Rect, Stage, Text } from 'react-konva';
+import { wallShelves } from '../../model/shelves.js';
 import { wallDrawerBoxes } from '../../model/drawerBoxes.js';
 import { gridLeaves } from '../../model/grid.js';
 import { resolveWall, syncRoom } from '../../model/room.js';
 import { BUILT_IN_SLIDES } from '../../model/slides.js';
 import { wallRectToScreen, wallToScreen } from '../../canvas/transform.js';
-import elevationReducer from '../../store/elevationSlice.js';
+import elevationReducer, { setDoorsOff, setItemInterior, setItemShelves } from '../../store/elevationSlice.js';
 import { run, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import ElevationCanvas from '../ElevationCanvas.jsx';
 import InteriorShapes from '../InteriorShapes.jsx';
@@ -29,6 +30,10 @@ vi.mock('react-konva', () => ({
   Group: 'group', Label: 'label', Layer: 'layer', Line: 'line', Rect: 'rect', Shape: 'shape',
   Stage: 'stage', Tag: 'tag', Text: 'text',
 }));
+vi.mock('../../model/shelves.js', async (original) => {
+  const actual = await original();
+  return { ...actual, wallShelves: vi.fn(actual.wallShelves) };
+});
 vi.mock('../../model/drawerBoxes.js', async (original) => {
   const actual = await original();
   return { ...actual, wallDrawerBoxes: vi.fn(actual.wallDrawerBoxes) };
@@ -39,6 +44,7 @@ const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
 const drawer = (size = null) => ({ type: 'drawer_front', size });
 let state;
 let dispatch;
+const at = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1', itemIds: ['cabinet'] };
 const item = () => gridLeaves(state.rooms[0].walls[0].runs[0].grid)[0];
 
 function canvas() {
@@ -161,5 +167,66 @@ describe('IN5 doors-off drawer boxes', () => {
       expect(nodes(view.boxes[1]).find(({ type }) => type === Text).props.text).toBe(label);
       expect(nodes(view.boxes[1]).every(({ props }) => props.listening === false)).toBe(true);
     }
+  });
+});
+
+
+describe('IN8 doors-off shelves', () => {
+  const shelfRects = (view) => view.shapes.filter(({ key }) => key?.startsWith('shelf:'));
+  const base = (width = 24, type = 'door') => {
+    state = structuredClone(state);
+    const run = state.rooms[0].walls[0].runs[0];
+    run.width = run.grid.cols[0].size = item().width = width;
+    item().face = { type, size: null };
+    delete item().reveals;
+  };
+
+  it('anchor 1: draws two undimensioned outlines at unrounded positions; clicks reach the section; doors-on skips resolution', () => {
+    base();
+    dispatch(setItemInterior({ ...at, interior: { shelves: { count: 2 } } }));
+    const view = canvas();
+    const entry = view.interiorNode.props.entries[0];
+    const shelf = view.interiorNode.props.shelves.get('cabinet').get('r');
+    expect(shelf.positions.map((z) => z - entry.box.z)).toEqual([
+      0.75 + (29 - 1.5) / 3,
+      0.75 + (29 - 1.5) / 3 * 2 + 0.75,
+    ]);
+    expect(shelf.positions[0] - entry.box.z).toBeCloseTo(9.917, 3);
+    expect(shelf.positions[1] - entry.box.z).toBeCloseTo(19.833, 3);
+    expect(shelfRects(view)).toHaveLength(2);
+    shelfRects(view).forEach((rect, index) => {
+      expect(rect.type).toBe(Rect);
+      expect(rect.props).toMatchObject({
+        ...wallRectToScreen({ x: entry.sections[0].x + 1 / 32, z: shelf.positions[index],
+          width: 22.4375, height: 0.75 }, view.runNode.props.transform),
+        stroke: '#94a3b8', strokeWidth: 0.75, fillEnabled: false, listening: false,
+      });
+      expect(rect.props.onClick).toBeUndefined();
+    });
+    expect(view.shapes.filter(({ type }) => type === Text)).toHaveLength(1); // Section size only.
+    const stage = view.tree.find(({ type }) => type === Stage);
+    stage.ref.current = { getPointerPosition: () => wallToScreen({ x: 42, z: shelf.positions[0] }, view.runNode.props.transform) };
+    const section = view.shapes.find(({ type, props }) => type === Rect && props.listening);
+    section.props.onClick({});
+    expect(state).toMatchObject({ interiorPath: 'r', interiorDivider: null });
+    dispatch(setDoorsOff(false));
+    wallShelves.mockClear();
+    expect(canvas().interiorNode).toBeUndefined();
+    expect(wallShelves).not.toHaveBeenCalled();
+  });
+
+  it('anchor 2: cabinet hardwood removes the wide partition and draws a 1 1/2-inch shelf; glass draws 1/4-inch', () => {
+    base(42, 'pair_door');
+    expect(canvas().interiorNode.props.entries[0].dividers).toHaveLength(1);
+    dispatch(setItemShelves({ ...at, patch: { nosing: 'hardwood' } }));
+    const view = canvas();
+    expect(item()).not.toHaveProperty('interior');
+    expect(view.interiorNode.props.entries[0].sections).toHaveLength(1);
+    expect(view.interiorNode.props.entries[0].dividers).toEqual([]);
+    expect(shelfRects(view)).toHaveLength(1);
+    expect(shelfRects(view)[0].props.height).toBeCloseTo(1.5 * view.runNode.props.transform.scale);
+    dispatch(setItemInterior({ ...at, interior: { shelves: { glass: true } } }));
+    const glass = canvas();
+    expect(shelfRects(glass)[0].props.height).toBeCloseTo(0.25 * glass.runNode.props.transform.scale);
   });
 });

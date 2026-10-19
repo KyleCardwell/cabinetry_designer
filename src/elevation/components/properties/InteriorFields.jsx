@@ -5,19 +5,25 @@ import {
   INTERIOR_DIVIDER_LABELS,
   MAX_FACE_SPLIT,
   cabinetInterior,
+  cabinetDrawerBoxesFor,
   clearSplit,
   equalizeDividers,
   formatInches,
   getInteriorNode,
   interiorOutline,
   removeDivider,
+  resolveWall,
+  runScene,
   setDividerBanding,
   setDividerDepth,
   setDividerKind,
   setDividerPosition,
+  setSectionShelves,
+  setSectionFlag,
   splitSection,
 } from '../../model/index.js';
-import { setInteriorPath, setItemInterior } from '../../store/elevationSlice.js';
+import { sectionShelves } from '../../model/shelves.js';
+import { setInteriorPath, setItemInterior, setItemShelves } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
 
@@ -25,7 +31,10 @@ const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hove
 const DISABLED_CLASS = 'disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-gray-700';
 const NUMBER_CLASS = 'w-16 rounded border border-gray-600 bg-gray-900 px-2 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
+const NOSINGS = [['none', 'None'], ['hardwood', 'Hardwood'], ['folded', 'Folded']];
+const size = (value) => formatInches(value, 1 / 64).replace(/"$/, '');
 const WARNING_MESSAGES = {
+  'shelves-crowded': 'Adjustable shelves have less than 3" of clear space between them.',
   'section-too-small': 'A section is smaller than 1". Move a divider.',
   'divider-too-deep': 'A divider is deeper than the box interior.',
   'divider-seam-missing': 'A shelf or partition lost its door seam; it\'s spaced evenly.',
@@ -45,6 +54,23 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
   const path = getInteriorNode(interior, selectedPath) ? selectedPath : 'r';
   const selected = getInteriorNode(interior, path);
 
+  const shelfData = useMemo(() => {
+    if (!resolved) return null;
+    const view = resolveWall(room, wall.sideSource ?? wall, wall.side ?? 'front');
+    const viewRun = view.runs.find(({ id }) => id === run.id);
+    const faces = runScene(room, view, viewRun, settings).faceLayouts.get(item.id)?.faces ?? [];
+    const boxes = cabinetDrawerBoxesFor(room, wall.sideSource ?? wall, wall.side ?? 'front', settings, item.id)?.boxes ?? [];
+    const args = { interior: resolved, faces, boxes, leaf: item, settings };
+    const shelves = sectionShelves(args);
+    const autoCount = sectionShelves({ ...args,
+      interior: { ...resolved, tree: setSectionShelves(interior, path, { count: null }) },
+    }).get(path);
+    const autoFlags = sectionShelves({ ...args,
+      interior: { ...resolved, tree: setSectionFlag(setSectionFlag(interior, path, 'hinges', null), path, 'lineBore', null) },
+    }).get(path);
+    return { shelves, autoCount, autoFlags };
+  }, [resolved, room, wall, run.id, settings, item, interior, path]);
+
   useEffect(() => {
     if (path !== selectedPath) dispatch(setInteriorPath(null));
   }, [dispatch, path, selectedPath]);
@@ -59,6 +85,14 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
 
   if (!resolved) return null;
 
+  const shelf = shelfData.shelves.get(path);
+  const cabinetGlass = item.shelves?.glass ?? false;
+  const cabinetNosing = item.shelves?.nosing ?? 'none';
+  const patchCabinet = (patch) => dispatch(setItemShelves({
+    roomId: room.id, wallId: wall.id, runId: run.id, itemIds: [item.id], patch,
+  }));
+  const patchShelves = (patch) => commit(setSectionShelves(interior, path, patch));
+
   return (
     <section className="space-y-3">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Interior</h3>
@@ -68,6 +102,22 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
           <button type="button" className={BUTTON_CLASS} onClick={() => commit(null)}>Auto</button>
         )}
       </div>
+      {interiorPath == null && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-medium text-gray-300">Shelves</h4>
+          <Field label="Nosing">
+            <select aria-label="Cabinet shelf nosing" className={SELECT_CLASS} value={cabinetNosing}
+              disabled={cabinetGlass} onChange={(event) => patchCabinet({ nosing: event.target.value })}>
+              {NOSINGS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </Field>
+          <label className="flex items-center gap-2 text-sm text-gray-300">
+            <input type="checkbox" aria-label="Cabinet glass shelves" checked={cabinetGlass}
+              onChange={(event) => patchCabinet({ glass: event.target.checked })} />
+            Glass
+          </label>
+        </div>
+      )}
       <div className="space-y-1">
         {interiorOutline(interior).map(({ path: rowPath, depth, node }) => {
           const rect = resolved.sections.find((section) => section.path === rowPath);
@@ -94,6 +144,58 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
       {[...new Set(resolved.warnings.map(({ code }) => code))].map((code) => (
         <p key={code} className="text-xs text-amber-400">{WARNING_MESSAGES[code]}</p>
       ))}
+      {interiorPath != null && shelf && (
+        <div className="space-y-2">
+          <Field label="Adj. shelves">
+            <InchInput aria-label={`Shelf count ${path}`} value={selected.shelves?.count} allowBlank allowAuto
+              placeholder={`Auto (${shelfData.autoCount.count})`} className="placeholder:text-gray-500"
+              onCommit={(count) => {
+                if (count !== null && (!Number.isInteger(count) || count < 0 || count > 20)) return false;
+                return patchShelves({ count });
+              }} />
+          </Field>
+          <div className="flex items-center justify-between text-xs text-gray-400">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" aria-label={`Glass shelves ${path}`} checked={shelf.glass}
+                onChange={(event) => patchShelves({ glass: event.target.checked })} />
+              Glass
+            </label>
+            <button type="button" aria-label={`Auto glass shelves ${path}`}
+              aria-pressed={selected.shelves?.glass === undefined}
+              className="text-teal-400 hover:underline" onClick={() => patchShelves({ glass: null })}>
+              {`Auto (${cabinetGlass ? 'Yes' : 'No'})`}
+            </button>
+          </div>
+          <Field label="Nosing">
+            <select aria-label={`Shelf nosing ${path}`} className={SELECT_CLASS}
+              value={selected.shelves?.nosing ?? ''} disabled={shelf.glass}
+              onChange={(event) => patchShelves({ nosing: event.target.value || null })}>
+              <option value="">{`Auto (${NOSINGS.find(([value]) => value === cabinetNosing)[1]})`}</option>
+              {NOSINGS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select>
+          </Field>
+          {[['hinges', 'Hinge plates'], ['lineBore', 'Line bore']].map(([key, label]) => (
+            <Field key={key} label={label}>
+              <select aria-label={`${label} ${path}`} className={SELECT_CLASS}
+                value={selected[key] === undefined ? '' : String(selected[key])}
+                onChange={(event) => commit(setSectionFlag(interior, path, key,
+                  event.target.value === '' ? null : event.target.value === 'true'))}>
+                <option value="">{`Auto (${shelfData.autoFlags[key] ? 'Yes' : 'No'})`}</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </Field>
+          ))}
+          <p aria-label={`Shelf size ${path}`} className="text-xs text-gray-400">
+            {`${size(shelf.width)} × ${size(shelf.depth)} × ${size(shelf.thickness)}`}
+            {shelf.nosing?.kind === 'hardwood' && ` + ${size(shelf.nosing.height)} × ${size(shelf.nosing.thickness)} nosing`}
+            {shelf.nosing?.kind === 'folded' && ` · order ${size(shelf.orderedDepth)} deep (folded)`}
+          </p>
+          {shelf.warnings.map(({ code }) => (
+            <p key={code} className="text-xs text-amber-400">{WARNING_MESSAGES[code]}</p>
+          ))}
+        </div>
+      )}
       {selected.children ? (
         <>
           <div className="flex gap-2">

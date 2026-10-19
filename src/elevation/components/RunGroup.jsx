@@ -49,6 +49,7 @@ function RunGroup({
   doorsOff = false,
   interiors = [],
   drawerBoxes = [],
+  adjustableShelves,
   interiorPath = null,
   interiorDivider = null,
   onSelectInterior,
@@ -386,6 +387,7 @@ function RunGroup({
           entries={interiors}
           framedIds={framedIds}
           drawerBoxes={drawerBoxes}
+          shelves={adjustableShelves}
           drawnPieces={drawnPieces}
           transform={transform}
           selectedPieceId={preview ? null : selectedPieceId}

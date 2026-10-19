@@ -11,6 +11,7 @@ export default function InteriorShapes({
   entries,
   framedIds = null,
   drawerBoxes = [],
+  shelves = new Map(),
   drawnPieces,
   transform,
   selectedPieceId,
@@ -74,6 +75,22 @@ export default function InteriorShapes({
               )}
             </Fragment>
           );
+        })}
+        {entry.sections.flatMap((section) => {
+          const shelf = shelves.get(entry.itemId)?.get(section.path);
+          return (shelf?.positions ?? []).map((z, index) => (
+            <Rect
+              key={`shelf:${section.path}:${index}`}
+              {...wallRectToScreen({
+                x: section.x + (section.width - shelf.width) / 2,
+                z, width: shelf.width, height: shelf.nosing?.height ?? shelf.thickness,
+              }, transform)}
+              stroke="#94a3b8"
+              strokeWidth={0.75}
+              fillEnabled={false}
+              listening={false}
+            />
+          ));
         })}
         {/* A face frame box is hidden behind its frame normally (SPEC-36.1); with the doors off its outline shows. */}
         {framedIds?.has(entry.itemId) && (
