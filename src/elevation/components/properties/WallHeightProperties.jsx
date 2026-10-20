@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { selectSettings } from '../../store/selectors.js';
+import { selectRoomInheritedChain, selectSettings } from '../../store/selectors.js';
+import { resolveSetting } from '../../model/settingsResolve.js';
 import {
   crownOverlap,
   formatInches,
@@ -31,6 +32,7 @@ import { CABINET_TYPE_IDS } from '../../model/constants.js';
 import { runBase } from '../../model/furnitureBase.js';
 import { moldingProfiles } from '../../model/moldingProfiles.js';
 import InchInput from '../InchInput.jsx';
+import OverrideInput from '../OverrideInput.jsx';
 import DoorStylePicks from './DoorStylePicks.jsx';
 import PullPicks from './PullPicks.jsx';
 import Field from './Field.jsx';
@@ -61,6 +63,7 @@ const WALL_OVERRIDE_FIELDS = [
 export default function WallHeightProperties({ room, wall, plan }) {
   const dispatch = useDispatch();
   const settings = useSelector(selectSettings);
+  const inheritedChain = useSelector(selectRoomInheritedChain);
   const autoNumber = wallNumbers(room).get(wall.id);
   const duplicateNumber = wallNumberWarnings(room)
     .some((warning) => warning.wallIds.includes(wall.id));
@@ -81,6 +84,20 @@ export default function WallHeightProperties({ room, wall, plan }) {
   const framedEnds = new Set(wallEndPanels(room, wall, settings)
     .filter((candidate) => wallEndPanelFramed(wall, candidate))
     .map((candidate) => candidate.endpoint));
+  const heightField = (
+    <OverrideInput
+      kind="number"
+      label="Height"
+      aria-label="Wall height"
+      level="Wall"
+      value={wall.profile?.wallHeight ?? null}
+      inherited={inheritedProfile.wallHeight}
+      source={room.profile?.wallHeight != null
+        ? 'Room'
+        : resolveSetting('defaultProfile.wallHeight', inheritedChain).source}
+      onChange={(height) => dispatch(updateWall({ wallId: wall.id, changes: { height } }))}
+    />
+  );
   const preferredGrowEnd = leftFree !== rightFree && leftFree ? 'left' : 'right';
   const [growEnd, setGrowEnd] = useState(preferredGrowEnd);
 
@@ -177,16 +194,7 @@ export default function WallHeightProperties({ room, wall, plan }) {
                   </p>
                 )}
               </div>
-              <Field label="Height">
-                <InchInput
-                  value={wall.height}
-                  onCommit={(height) => dispatch(updateWall({
-                    wallId: wall.id,
-                    changes: { height },
-                  }))}
-                  aria-label="Wall height"
-                />
-              </Field>
+              {heightField}
               <Field label="Thickness">
                 <InchInput
                   value={wall.thickness}
@@ -208,16 +216,7 @@ export default function WallHeightProperties({ room, wall, plan }) {
           </div>
         ) : (
           <>
-            <Field label="Wall height">
-              <InchInput
-                value={wall.height}
-                onCommit={(height) => dispatch(updateWall({
-                  wallId: wall.id,
-                  changes: { height },
-                }))}
-                aria-label="Wall height"
-              />
-            </Field>
+            {heightField}
           </>
         )}
       </section>

@@ -1100,7 +1100,9 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
         "name": "",
         "numberOverride": null,
         "openings": [],
-        "profile": {},
+        "profile": {
+          "wallHeight": 36,
+        },
         "runs": [
           {
             "anchors": {
@@ -3635,7 +3637,9 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
         "name": "",
         "numberOverride": null,
         "openings": [],
-        "profile": {},
+        "profile": {
+          "wallHeight": 36,
+        },
         "runs": [
           {
             "_cornerLapWidth": 0.8125,

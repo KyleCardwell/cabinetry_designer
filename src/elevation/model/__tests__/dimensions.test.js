@@ -526,7 +526,7 @@ function verticalRoom({ height = 96, baseOverrides = {}, tall = false } = {}) {
   const runs = tall
     ? [lower]
     : [lower, cabinetRun('upper', CABINET_TYPE_IDS.UPPER, { width: 60 })];
-  return syncRoom(roomR({ wallA: { height, runs } }), DEFAULT_SETTINGS);
+  return syncRoom(roomR({ wallA: { height, profile: { wallHeight: height }, runs } }), DEFAULT_SETTINGS);
 }
 
 function selectedColumn(room, lowerId, upperId = null) {

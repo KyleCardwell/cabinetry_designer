@@ -210,7 +210,7 @@ describe('elevation room reducers', () => {
     });
   });
 
-  it("8. updates the room's wall height without touching existing walls", () => {
+  it("8. FX1: the room's wall height redraws walls without their own height", () => {
     const next = elevationReducer(stateWithRun(), updateRoomProfile({
       roomId: 'room-1',
       key: 'wallHeight',
@@ -218,7 +218,21 @@ describe('elevation room reducers', () => {
     }));
 
     expect(next.rooms[0].profile.wallHeight).toBe(108);
-    expect(next.rooms[0].walls[0].height).toBe(96);
+    expect(next.rooms[0].walls[0].height).toBe(108);
+  });
+
+  it('8b. FX1: a typed wall height overrides the room until reset', () => {
+    let next = elevationReducer(stateWithRun(), updateWall({
+      wallId: stateWithRun().rooms[0].walls[0].id, changes: { height: 120 },
+    }));
+    expect(next.rooms[0].walls[0].profile.wallHeight).toBe(120);
+    next = elevationReducer(next, updateRoomProfile({ roomId: 'room-1', key: 'wallHeight', value: 108 }));
+    expect(next.rooms[0].walls[0].height).toBe(120);
+    next = elevationReducer(next, updateWall({
+      wallId: next.rooms[0].walls[0].id, changes: { height: null },
+    }));
+    expect(next.rooms[0].walls[0].profile.wallHeight).toBeUndefined();
+    expect(next.rooms[0].walls[0].height).toBe(108);
   });
 
   it("9. uses the room's wall height when adding a wall", () => {

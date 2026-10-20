@@ -724,7 +724,9 @@
                         "start": null,
                         "end": null
                     },
-                    "profile": {},
+                    "profile": {
+                        "wallHeight": 36
+                    },
                     "runs": [
                         {
                             "id": "19d681d0-c6a0-45e3-9c56-640aa9eae1af",
@@ -1288,7 +1290,9 @@
                         "start": null,
                         "end": null
                     },
-                    "profile": {},
+                    "profile": {
+                        "wallHeight": 36
+                    },
                     "runs": [
                         {
                             "id": "4b49c071-463c-461e-b750-005d3fe8bec7",

@@ -22,7 +22,6 @@ import {
 } from '../../plan/wallOps.js';
 import {
   createWall,
-  settingsFor,
   roomIndexFor,
   roomFor,
   wallLocation,
@@ -46,7 +45,10 @@ export const wallReducers = {
           action.payload.length ?? 144,
           {
             ...action.payload,
-            height: action.payload.height ?? settingsFor(state, room).defaultProfile.wallHeight,
+            profile: {
+              ...action.payload.profile,
+              ...(Number.isFinite(action.payload.height) ? { wallHeight: action.payload.height } : {}),
+            },
           },
         );
         room.walls.push(wall);
@@ -74,7 +76,7 @@ export const wallReducers = {
             y1: action.payload.y1,
             x2: action.payload.x2,
             y2: action.payload.y2,
-            height: action.payload.height ?? settingsFor(state, room).defaultProfile.wallHeight,
+            profile: Number.isFinite(action.payload.height) ? { wallHeight: action.payload.height } : {},
             thickness: action.payload.thickness,
           },
         );
@@ -252,8 +254,11 @@ export const wallReducers = {
       void roomId;
       void id;
       const allowedChanges = changes ?? inlineChanges;
-      for (const key of ['name', 'height']) {
-        if (allowedChanges[key] !== undefined) location.wall[key] = allowedChanges[key];
+      if (allowedChanges.name !== undefined) location.wall.name = allowedChanges.name;
+      // FX1: a typed height is a wall override; null goes back to the room's wall height.
+      if (allowedChanges.height === null) delete location.wall.profile.wallHeight;
+      else if (Number.isFinite(allowedChanges.height) && allowedChanges.height > 0) {
+        location.wall.profile.wallHeight = allowedChanges.height;
       }
       const thickness = allowedChanges.thickness;
       if (Number.isFinite(thickness) && thickness >= 0) location.wall.thickness = thickness;

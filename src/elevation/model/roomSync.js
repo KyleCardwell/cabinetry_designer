@@ -217,6 +217,11 @@ export function syncRoom(room, settings) {
   // SPEC-RF1: solve every run from its drawn span; the flex goes back on at the end.
   let nextRoom = cloneRoom(resolveLandings(unflexRoom(room)));
   nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(wall))));
+  // FX1: a wall's height is derived (team → … → room → wall.profile.wallHeight); only a typed wall height overrides.
+  nextRoom.walls = nextRoom.walls.map((wall) => ({
+    ...wall,
+    height: resolveProfile(settings, nextRoom, wall).wallHeight,
+  }));
   nextRoom.walls = nextRoom.walls.map((wall) => ({
     ...withWallPanelThickness(nextRoom, wall, settings),
     runs: wall.runs.map((run) => withRunPlane(
