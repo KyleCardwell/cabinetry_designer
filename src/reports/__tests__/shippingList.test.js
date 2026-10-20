@@ -16,6 +16,8 @@ import * as shelfModel from '../../elevation/model/shelves.js';
 import { normalizeElevationDocument } from '../../elevation/store/persistence.js';
 import { doorOrderItems } from '../doorOrder.js';
 import { formatInch, formatSize } from '../format.js';
+import { reportHeader } from '../header.js';
+import { proBoxOrder } from '../proBoxOrder.js';
 import { cabinetDescription, drawerFrontNote, hingeNote, linealFeet, shippingDescription, shippingList } from '../shippingList.js';
 
 const settings = DEFAULT_SETTINGS;
@@ -50,6 +52,68 @@ function room(runs = [run()], overrides = {}, wallOverrides = {}, s = settings) 
 const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entry) => entry.key === key);
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
+
+describe('IN4c step c shipping cabinet back notch notes', () => {
+  const notchedDrawers = { ...drawers, children: drawers.children.map((front, index) =>
+    index === 0 ? { ...front, drawerBox: { depth: 21 } } : front) };
+  const fixture = (leaf = {}, overrides = {}, s = settings) => room([
+    run('run', [{ ...cabinet(), face: notchedDrawers, ...leaf }], { depth: 22.5, ...overrides }),
+  ], {}, {}, s);
+  const notches = (r, s = settings) => row(r, 'cab', s).notes
+    .filter((note) => note.startsWith('notch back for slides'));
+
+  it('anchor 1: prints the quarter-inch notch after drawer rule notes', () => {
+    const r = fixture({}, { width: 42 });
+    const data = shelfModel.wallInteriorData(r, r.walls[0], 'front', settings);
+    expect(data.boxes.get('cab').boxes[0]).toMatchObject({
+      depth: 21, slideLength: 21, interiorDepth: 21.5, notch: 0.25,
+    });
+    expect(notches(r)).toEqual(['notch back for slides (1/4")']);
+    expect(row(r).notes.slice(-2)).toEqual(['drawer stabilizers', 'notch back for slides (1/4")']);
+  });
+
+  it('anchor 2: prints one largest notch across drawer boxes and roll-outs', () => {
+    const slide = { ...settings.slides[0], id: 'extra-clearance', backClearance: 1.25 };
+    const s = { ...settings, slides: [...settings.slides, slide] };
+    const r = fixture({
+      face: { direction: 'vertical', size: null, children: [
+        notchedDrawers.children[0], face('door', { hinge: 'left' }),
+      ] },
+      interior: { rollouts: { count: 2, items: [{ depth: 21, slideId: slide.id }, {}] } },
+    }, {}, s);
+    const data = shelfModel.wallInteriorData(r, r.walls[0], 'front', s);
+    expect(data.boxes.get('cab').boxes[0].notch).toBe(0.25);
+    expect(data.rollouts.get('cab').get('r').rollouts.map(({ notch }) => notch)).toEqual([0.75, null]);
+    expect(notches(r, s)).toEqual(['notch back for slides (3/4")']);
+    const header = reportHeader({ room: r, settings: s });
+    const before = proBoxOrder(r, s, header);
+    shippingList(r, s);
+    expect(proBoxOrder(r, s, header)).toEqual(before);
+    expect(before.lines.every(({ instructions }) => !instructions.includes('notch back for slides'))).toBe(true);
+    expect(notches(fixture({ face: face('door', { hinge: 'left' }),
+      interior: { rollouts: { count: 1, items: [{ depth: 21 }] } } })))
+      .toEqual(['notch back for slides (1/4")']);
+  });
+
+  it('anchor 3: places the sink plumbing and stabilizer rules before the back notch', () => {
+    expect(row(fixture({ purpose: 'sink' }, { width: 42 })).notes.slice(-3)).toEqual([
+      'notch drw around plumbing', 'drawer stabilizers', 'notch back for slides (1/4")',
+    ]);
+  });
+
+  it('anchor 4: omits the note without notches and preserves the ProBox order', () => {
+    const r = fixture({ face: { direction: 'vertical', size: null, children: [
+      face('drawer_front', { size: 5.875 }), face('door', { hinge: 'left' }),
+    ] }, interior: { rollouts: { count: 1 } } });
+    const header = reportHeader({ room: r, settings });
+    const before = proBoxOrder(r, settings, header);
+    const original = structuredClone(r);
+    expect(notches(r)).toEqual([]);
+    expect(notches(fixture({ face: face('door', { hinge: 'left' }) }))).toEqual([]);
+    expect(proBoxOrder(r, settings, header)).toEqual(before);
+    expect(r).toEqual(original);
+  });
+});
 
 describe('IN12c step f drawer accessory tags', () => {
   const cu = { ...newAccessory([], 'CU'), name: 'Charging unit', reportText: 'charging unit',

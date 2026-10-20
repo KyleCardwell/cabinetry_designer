@@ -296,6 +296,10 @@ function cabinetNotes(room, settings, part, context) {
       .map(({ accessory, qty }) => `${qty > 1 ? `${qty} ` : ''}${accessoryText(accessory)}`).join(', '),
   ]));
   const data = context.interiorData();
+  const notch = Math.max(0,
+    ...(drawerData?.boxes ?? []).map(({ notch }) => notch ?? 0),
+    ...[...(data.rollouts.get(part.key)?.values() ?? [])]
+      .flatMap(({ rollouts }) => rollouts.map(({ notch }) => notch ?? 0)));
   const interior = data.interiors.get(part.key);
   const notes = interior ? interiorNotes({ interior, shelves: data.shelves.get(part.key),
     rollouts: data.rollouts.get(part.key), accessories: data.accessories.get(part.key),
@@ -341,7 +345,10 @@ function cabinetNotes(room, settings, part, context) {
     5.4: notes?.dividers,
     5.5: notes?.sections,
     // Drawer rule notes follow the DF's, which now sit in their section (IN10.1).
-    5.6: drawerData?.notes.map(({ text }) => text),
+    5.6: [
+      ...(drawerData?.notes ?? []).map(({ text }) => text),
+      notch > 0 ? `notch back for slides (${formatInch(notch)})` : null,
+    ],
     6: hingeNote(faces),
     7: rabbets.get(part.key),
   };
