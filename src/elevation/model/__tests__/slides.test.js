@@ -9,6 +9,16 @@ import { copySettings } from '../../store/slices/helpers.js';
 
 const [blum, accuride3832, accuride4034] = BUILT_IN_SLIDES;
 
+it('IN4c a anchor 4: requires a finite, nonnegative back clearance', () => {
+  for (const backClearance of [0, 0.75, 1.25]) expect(isSlide({ ...blum, backClearance })).toBe(true);
+  for (const backClearance of [-0.25, NaN, Infinity, -Infinity, '0.75', null, undefined]) {
+    expect(isSlide({ ...blum, backClearance })).toBe(false);
+  }
+  const legacy = { ...blum };
+  delete legacy.backClearance;
+  expect(isSlide(legacy)).toBe(false);
+});
+
 it('IN9 anchor 7: counts stored roll-out slide picks across nested interiors and cabinet grids', () => {
   const item = { slideId: 'x' };
   const cabinet = { id: 'c', kind: 'cabinet', interior: { rollouts: { count: 1, items: [item] } } };
@@ -94,7 +104,7 @@ describe('IN4b step a slide model', () => {
       description: 'Blum Tandem 562H soft-close', mount: 'undermount',
       lengths: [9, 12, 15, 18, 21, 24, 27, 30, 33, 36].map((nominal) =>
         nominal === 15 ? { nominal: 15, length: 15.515625, extension: 14.953125 } : { nominal }),
-      sideClearance: 0.25, minBelow: 0.5625, minAbove: 0.25, height: 1,
+      sideClearance: 0.25, backClearance: 0.75, minBelow: 0.5625, minAbove: 0.25, height: 1,
       clips: true, softClose: true, heavyDuty: false, hardwareSlideId: null, price: null, actualCost: null, labor: {},
     });
     expect(accuride3832).toEqual({
@@ -102,7 +112,7 @@ describe('IN4b step a slide model', () => {
       description: 'Accuride 3832 full extension', mount: 'side',
       lengths: [{ nominal: 8, length: 8, extension: 8 }, ...[10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36]
         .map((nominal) => ({ nominal }))],
-      sideClearance: 0.5, minBelow: 0.5625, minAbove: 0.25, height: 1.796875,
+      sideClearance: 0.5, backClearance: 0, minBelow: 0.5625, minAbove: 0.25, height: 1.796875,
       clips: false, softClose: false, heavyDuty: true, hardwareSlideId: null, price: null, actualCost: null, labor: {},
     });
     expect(accuride3832.lengths).toHaveLength(15);

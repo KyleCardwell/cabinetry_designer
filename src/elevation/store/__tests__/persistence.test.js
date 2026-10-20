@@ -30,6 +30,28 @@ function storageWith(entries) {
   };
 }
 
+it('IN4c a: defaults missing sandbox slide back clearance by id without changing saved data', () => {
+  const document = currentDocument();
+  document.settings.slides = structuredClone([
+    ...BUILT_IN_SLIDES, { ...BUILT_IN_SLIDES[0], id: 'custom', name: 'Custom slide' },
+  ]);
+  for (const slide of document.settings.slides) delete slide.backClearance;
+  const before = structuredClone(document);
+  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+  const loaded = loadElevationDocument();
+  expect(isElevationDocument(loaded)).toBe(true);
+  expect(loaded.settings.slides.map(({ backClearance }) => backClearance)).toEqual([0.75, 0, 0, 0]);
+  expect(document).toEqual(before);
+  for (const backClearance of [0, 0.25]) {
+    document.settings.slides[0].backClearance = backClearance;
+    expect(normalizeElevationDocument(document).settings.slides[0].backClearance).toBe(backClearance);
+  }
+  for (const backClearance of [-0.25, null, '0.75']) {
+    document.settings.slides[0].backClearance = backClearance;
+    expect(isElevationDocument(normalizeElevationDocument(document))).toBe(false);
+  }
+});
+
 it('LP1 anchor 3: loads pre-LP1 sandbox pull and slide pricing without repairing invalid values', () => {
   const document = currentDocument();
   document.settings.pulls = structuredClone(BUILT_IN_PULLS);

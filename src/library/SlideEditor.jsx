@@ -9,7 +9,7 @@ const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const MOUNT_LABELS = { undermount: 'Undermount', side: 'Side mount' };
 const TEXT_LABELS = { name: 'Name', brand: 'Brand', model: 'Model', description: 'Description' };
-const SIZE_LABELS = { sideClearance: 'Side clearance (per side)', minBelow: 'Min below', minAbove: 'Min above', height: 'Slide height' };
+const SIZE_LABELS = { sideClearance: 'Side clearance (per side)', backClearance: 'Back clearance (behind box)', minBelow: 'Min below', minAbove: 'Min above', height: 'Slide height' };
 const LENGTH_LABELS = { nominal: 'Nominal', length: 'Length', extension: 'Extension' };
 const FLAG_LABELS = { clips: 'Clips', softClose: 'Soft close', heavyDuty: 'Heavy duty' };
 

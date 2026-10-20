@@ -17,6 +17,7 @@ export const BUILT_IN_SLIDES = [
       return nominal === 15 ? { nominal, length: 15.515625, extension: 14.953125 } : { nominal };
     }),
     sideClearance: 0.25,
+    backClearance: 0.75,
     minBelow: 0.5625,
     minAbove: 0.25,
     height: 1,
@@ -41,6 +42,7 @@ export const BUILT_IN_SLIDES = [
     }),
     // The 4034 dimensions copy the 3832 until the shop confirms them.
     sideClearance: 0.5,
+    backClearance: 0,
     minBelow: 0.5625,
     minAbove: 0.25,
     height: 1.796875,
@@ -64,7 +66,7 @@ function hasKeys(value, allowed, required = allowed) {
 
 const SLIDE_KEYS = [
   'id', 'name', 'brand', 'model', 'description', 'mount', 'lengths',
-  'sideClearance', 'minBelow', 'minAbove', 'height', 'clips', 'softClose', 'heavyDuty', 'hardwareSlideId',
+  'sideClearance', 'backClearance', 'minBelow', 'minAbove', 'height', 'clips', 'softClose', 'heavyDuty', 'hardwareSlideId',
   'price', 'actualCost', 'labor',
 ];
 const isPositiveSize = (value) => Number.isFinite(value) && value > 0;
@@ -78,13 +80,20 @@ export function withoutRetiredSlideKeys(slide) {
   return rest;
 }
 
+/** Older stored slides inherit their built-in's back clearance, or zero for custom slides. */
+export function withSlideDefaults(slide) {
+  if (!slide || typeof slide !== 'object' || Array.isArray(slide) || Object.hasOwn(slide, 'backClearance')) return slide;
+  const seed = BUILT_IN_SLIDES.find((entry) => entry.id === slide.id);
+  return { ...slide, backClearance: seed?.backClearance ?? 0 };
+}
+
 export function isSlide(slide) {
   if (!hasKeys(slide, SLIDE_KEYS)
     || typeof slide.id !== 'string' || slide.id.length === 0
     || typeof slide.name !== 'string' || slide.name.length === 0 || slide.name !== slide.name.trim()
     || !['brand', 'model', 'description'].every((key) => isText(slide[key]))
     || !SLIDE_MOUNTS.includes(slide.mount)
-    || !['sideClearance', 'minBelow', 'minAbove'].every((key) => Number.isFinite(slide[key]) && slide[key] >= 0)
+    || !['sideClearance', 'backClearance', 'minBelow', 'minAbove'].every((key) => Number.isFinite(slide[key]) && slide[key] >= 0)
     || !isPositiveSize(slide.height)
     || !['clips', 'softClose', 'heavyDuty'].every((key) => typeof slide[key] === 'boolean')
     || !(slide.hardwareSlideId === null || (Number.isInteger(slide.hardwareSlideId) && slide.hardwareSlideId > 0))

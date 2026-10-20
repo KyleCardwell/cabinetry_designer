@@ -14,7 +14,7 @@ import { isBottomPart } from '../model/bottoms.js';
 import { cleanOverrides } from '../model/settingsResolve.js';
 import { isDoorDesignList, migrateDoorDesign } from '../model/doorDesigns.js';
 import { BUILT_IN_PULLS, PULL_KEYS, isPullList } from '../model/pulls.js';
-import { BUILT_IN_SLIDES, isSlideList, withoutRetiredSlideKeys } from '../model/slides.js';
+import { BUILT_IN_SLIDES, isSlideList, withoutRetiredSlideKeys, withSlideDefaults } from '../model/slides.js';
 import { isAccessoryList } from '../model/accessories.js';
 import { withPricingDefaults } from '../model/libraryPricing.js';
 import { isSectionProfileList, migrateSectionProfile } from '../model/sectionProfiles.js';
@@ -829,7 +829,7 @@ function normalizeDocument(document, schemaVersion) {
     }
     if (settings.slides === undefined) settings.slides = structuredClone(BUILT_IN_SLIDES);
     else if (Array.isArray(settings.slides)) {
-      settings.slides = settings.slides.map((slide) => withPricingDefaults(withoutRetiredSlideKeys(slide)));
+      settings.slides = settings.slides.map((slide) => withPricingDefaults(withSlideDefaults(withoutRetiredSlideKeys(slide))));
       for (const seed of BUILT_IN_SLIDES) {
         if (!settings.slides.some((slide) => slide?.id === seed.id)) {
           settings.slides.push(structuredClone(seed));

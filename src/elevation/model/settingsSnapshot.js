@@ -29,7 +29,7 @@ import { SEEDED_DESIGN_IDS, isDoorDesignList } from './doorDesigns.js';
 import { findDoorDesign } from './doorStyles.js';
 import { isSectionProfileList } from './sectionProfiles.js';
 import { BUILT_IN_PULLS, BUILT_IN_PULL_IDS, isPullList } from './pulls.js';
-import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlideList } from './slides.js';
+import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlideList, withSlideDefaults } from './slides.js';
 import { cleanOverrides, resolveSettings } from './settingsResolve.js';
 import { withPricingDefaults } from './libraryPricing.js';
 
@@ -162,7 +162,8 @@ export function isSettingsSnapshot(snapshot) {
     && isDoorDesignList(snapshot.doorDesigns)
     && isSectionProfileList(snapshot.sectionProfiles)
     && (snapshot.pulls === undefined || (Array.isArray(snapshot.pulls) && isPullList(snapshot.pulls.map(withPricingDefaults))))
-    && (snapshot.slides === undefined || (Array.isArray(snapshot.slides) && isSlideList(snapshot.slides.map(withPricingDefaults))))
+    && (snapshot.slides === undefined || (Array.isArray(snapshot.slides)
+      && isSlideList(snapshot.slides.map((slide) => withPricingDefaults(withSlideDefaults(slide))))))
     && (snapshot.accessories === undefined || isAccessoryList(snapshot.accessories))
     && (snapshot.overrides === undefined || isPlainObject(snapshot.overrides));
 }
@@ -183,7 +184,7 @@ export function settingsFromSnapshot(snapshot) {
   settings.doorDesigns = structuredClone(snapshot.doorDesigns);
   settings.sectionProfiles = structuredClone(snapshot.sectionProfiles);
   settings.pulls = structuredClone((snapshot.pulls ?? BUILT_IN_PULLS).map(withPricingDefaults));
-  settings.slides = structuredClone((snapshot.slides ?? BUILT_IN_SLIDES).map(withPricingDefaults));
+  settings.slides = structuredClone((snapshot.slides ?? BUILT_IN_SLIDES).map((slide) => withPricingDefaults(withSlideDefaults(slide))));
   settings.accessories = structuredClone(snapshot.accessories ?? []);
   const { estProjectId = null, phaseId = null } = snapshot.issuedFrom ?? {};
   const layer = (level, id) => {

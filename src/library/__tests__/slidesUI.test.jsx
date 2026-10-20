@@ -84,6 +84,22 @@ beforeEach(() => {
 });
 
 describe('IN4b step b Slides page and editor', () => {
+  it('IN4c a: edits fractional back clearance, permits zero and rejects negatives', () => {
+    const edit = editor(BUILT_IN_SLIDES[0], BUILT_IN_SLIDES);
+    const label = 'Back clearance (behind box)';
+    expect(control(edit.render(), label).props.value).toBe(0.75);
+    edit.enter(label, '1 1/4');
+    expect(control(edit.render(), label).props.value).toBe(1.25);
+    edit.enter(label, '-1/4');
+    expect(control(edit.render(), label).props.value).toBe(1.25);
+    edit.enter(label, '0');
+    expect(control(edit.render(), label).props.value).toBe(0);
+    expect(button(edit.render(), 'Save').props.disabled).toBe(false);
+    button(edit.render(), 'Save').props.onClick();
+    const saved = elevationReducer(createInitialElevationState(), dispatch.mock.lastCall[0]);
+    expect(saved.settings.slides[0].backClearance).toBe(0);
+  });
+
   it('saves built-in Blum price and cost per pair with Shop minutes and formats the row price', () => {
     const services = [{ id: 7, name: 'Shop', active: true }];
     const page = library('cloud', BUILT_IN_SLIDES, services);

@@ -29,6 +29,28 @@ import {
 const PID = '0192a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 const DID = '0192a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c';
 
+it('IN4c a anchors 2 and 3: defaults missing slide back clearance by seedId, else zero', () => {
+  for (const [base, expected] of [
+    [BUILT_IN_SLIDES[0], 0.75], [BUILT_IN_SLIDES[1], 0], [BUILT_IN_SLIDES[2], 0],
+    [{ ...BUILT_IN_SLIDES[0], id: DID, name: 'Custom slide' }, 0],
+  ]) {
+    const row = { ...slideToRow(base), slide_id: DID };
+    delete row.data.backClearance;
+    const before = structuredClone(row);
+    const loaded = slideFromRow(row);
+    expect(loaded.backClearance).toBe(expected);
+    expect(isSlide(loaded)).toBe(true);
+    expect(row).toEqual(before);
+    expect(slideToRow(loaded).data.backClearance).toBe(expected);
+    for (const backClearance of [0, 0.25, 1.5]) {
+      expect(slideFromRow({ ...row, data: { ...row.data, backClearance } }).backClearance).toBe(backClearance);
+    }
+    for (const backClearance of [-0.25, null, '0.75', Infinity, NaN, undefined]) {
+      expect(slideFromRow({ ...row, data: { ...row.data, backClearance } })).toBeNull();
+    }
+  }
+});
+
 it('LP1 anchor 4: defaults legacy shop row pricing and skips invalid present values', () => {
   for (const [base, toRow, fromRow, idKey, validate] of [
     [BUILT_IN_PULLS[0], pullToRow, pullFromRow, 'pull_id', isPull],
@@ -107,7 +129,7 @@ describe('cloudRows', () => {
       mount: 'undermount',
       lengths: [9, 12, 15, 18, 21, 24, 27, 30, 33, 36].map((nominal) => nominal === 15
         ? { nominal, length: 15.515625, extension: 14.953125 } : { nominal }),
-      sideClearance: 0.25, minBelow: 0.5625, minAbove: 0.25, height: 1,
+      sideClearance: 0.25, backClearance: 0.75, minBelow: 0.5625, minAbove: 0.25, height: 1,
       clips: true, softClose: true, heavyDuty: false, price: null, actualCost: null, labor: {},
     };
     const row = slideToRow(BUILT_IN_SLIDES[0]);

@@ -50,6 +50,26 @@ const P_UNUSED = '0192a1b2-c3d4-7e5f-8a9b-00000000f001';
 const D_SHAKER = '0192a1b2-c3d4-7e5f-8a9b-00000000d001';
 const D_UNUSED = '0192a1b2-c3d4-7e5f-8a9b-00000000d002';
 
+it('IN4c a: opens legacy snapshot slides with back clearance defaults and preserves saved values', () => {
+  const snapshot = buildSettingsSnapshot({ settings: library(), document: roomDocument() });
+  snapshot.slides.push({ ...structuredClone(BUILT_IN_SLIDES[0]), id: 'custom', name: 'Custom slide' });
+  for (const slide of snapshot.slides) delete slide.backClearance;
+  const before = structuredClone(snapshot);
+  expect(isSettingsSnapshot(snapshot)).toBe(true);
+  const loaded = settingsFromSnapshot(snapshot);
+  expect(loaded.ok).toBe(true);
+  expect(loaded.settings.slides.map(({ backClearance }) => backClearance)).toEqual([0.75, 0, 0, 0]);
+  expect(snapshot).toEqual(before);
+  for (const backClearance of [0, 0.25]) {
+    snapshot.slides[0].backClearance = backClearance;
+    expect(settingsFromSnapshot(snapshot).settings.slides[0].backClearance).toBe(backClearance);
+  }
+  for (const backClearance of [-0.25, null, '0.75', undefined]) {
+    snapshot.slides[0].backClearance = backClearance;
+    expect(settingsFromSnapshot(snapshot)).toMatchObject({ ok: false, reason: 'bad_snapshot' });
+  }
+});
+
 it('LP1 anchor 5: opens pre-LP1 snapshots with pricing defaults and independent labor', () => {
   const snapshot = buildSettingsSnapshot({ settings: library(), document: roomDocument() });
   for (const key of ['pulls', 'slides']) {
