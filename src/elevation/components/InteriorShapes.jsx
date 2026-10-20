@@ -8,6 +8,37 @@ import { rolloutSpacerSides } from '../model/rollouts.js';
 const SIZE_FONT = 10;
 const SIZE_INSET = 3;
 
+export function placedAccessoryShape({ shapeKey, box, line, rect, text, color }) {
+  const labelWidth = text.length * 6 + SIZE_INSET * 2;
+  const inside = box && box.height >= SIZE_FONT && box.width >= labelWidth;
+  const rightX = box && box.x + box.width + SIZE_INSET;
+  const beside = box && !inside && rect.height >= SIZE_FONT + SIZE_INSET * 2
+    && rect.x + rect.width - rightX >= labelWidth;
+  const above = line && rect.width >= labelWidth
+    && line.y - SIZE_FONT - SIZE_INSET >= rect.y + SIZE_INSET;
+  return (
+    <Group key={shapeKey} listening={false}>
+      {box ? (
+        <Rect {...box} stroke={color} strokeWidth={1} fillEnabled={false} listening={false} />
+      ) : (
+        <Line points={[line.x, line.y, line.x + line.width, line.y]}
+          stroke={color} strokeWidth={1} listening={false} />
+      )}
+      {inside ? (
+        <Text {...box} text={text} fontSize={SIZE_FONT} fill={color}
+          align="center" verticalAlign="middle" listening={false} />
+      ) : beside ? (
+        <Text x={rightX} y={Math.max(rect.y + SIZE_INSET,
+          Math.min(box.y + (box.height - SIZE_FONT) / 2, rect.y + rect.height - SIZE_FONT - SIZE_INSET))}
+          text={text} fontSize={SIZE_FONT} fill={color} listening={false} />
+      ) : above ? (
+        <Text x={rect.x + SIZE_INSET} y={line.y - SIZE_FONT - SIZE_INSET}
+          text={text} fontSize={SIZE_FONT} fill={color} listening={false} />
+      ) : null}
+    </Group>
+  );
+}
+
 export default function InteriorShapes({
   entries,
   framedIds = null,
@@ -86,34 +117,10 @@ export default function InteriorShapes({
                 const line = box ? null : wallRectToScreen({
                   x: section.x, z: item.centerZ, width: section.width, height: 0,
                 }, transform);
-                const labelWidth = item.text.length * 6 + SIZE_INSET * 2;
-                const inside = box && box.height >= SIZE_FONT && box.width >= labelWidth;
-                const rightX = box && box.x + box.width + SIZE_INSET;
-                const beside = box && !inside && rect.height >= SIZE_FONT + SIZE_INSET * 2
-                  && rect.x + rect.width - rightX >= labelWidth;
-                const above = line && rect.width >= labelWidth
-                  && line.y - SIZE_FONT - SIZE_INSET >= rect.y + SIZE_INSET;
-                return (
-                  <Group key={`placed-accessory:${section.path}:${item.index}`} listening={false}>
-                    {box ? (
-                      <Rect {...box} stroke={color} strokeWidth={1} fillEnabled={false} listening={false} />
-                    ) : (
-                      <Line points={[line.x, line.y, line.x + line.width, line.y]}
-                        stroke={color} strokeWidth={1} listening={false} />
-                    )}
-                    {inside ? (
-                      <Text {...box} text={item.text} fontSize={SIZE_FONT} fill={color}
-                        align="center" verticalAlign="middle" listening={false} />
-                    ) : beside ? (
-                      <Text x={rightX} y={Math.max(rect.y + SIZE_INSET,
-                        Math.min(box.y + (box.height - SIZE_FONT) / 2, rect.y + rect.height - SIZE_FONT - SIZE_INSET))}
-                        text={item.text} fontSize={SIZE_FONT} fill={color} listening={false} />
-                    ) : above ? (
-                      <Text x={rect.x + SIZE_INSET} y={line.y - SIZE_FONT - SIZE_INSET}
-                        text={item.text} fontSize={SIZE_FONT} fill={color} listening={false} />
-                    ) : null}
-                  </Group>
-                );
+                return placedAccessoryShape({
+                  shapeKey: `placed-accessory:${section.path}:${item.index}`,
+                  box, line, rect, text: item.text, color,
+                });
               })}
               {showSize && (
                 <Text

@@ -49,6 +49,7 @@ import { wallDrawerBoxes } from '../model/drawerBoxes.js';
 import { wallShelves } from '../model/shelves.js';
 import { wallRollouts } from '../model/rollouts.js';
 import { wallAccessories } from '../model/accessories.js';
+import { wallShowThrough } from '../model/showThrough.js';
 import { setDividerPosition } from '../model/interiorTree.js';
 import {
   createSoffit,
@@ -219,6 +220,17 @@ function ElevationCanvas({
     () => (doorsOff && room && wall
       ? wallInteriors(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : []),
     [doorsOff, room, wall, settings],
+  );
+  const showThrough = useMemo(
+    () => (!doorsOff && room && wall
+      ? [...wallShowThrough(room, wall.sideSource ?? wall, wall.side ?? 'front', settings).values()] : []),
+    [doorsOff, room, wall, settings],
+  );
+  const previewShowThrough = useMemo(
+    () => (!doorsOff && stretchPreview
+      ? [...wallShowThrough(stretchPreview.room, stretchPreview.wall.sideSource ?? stretchPreview.wall,
+        stretchPreview.wall.side ?? 'front', settings).values()] : []),
+    [doorsOff, stretchPreview, settings],
   );
   const drawerBoxes = useMemo(
     () => (doorsOff && room && wall
@@ -1171,6 +1183,7 @@ function ElevationCanvas({
               combined={combined}
               faces={combinedFaces}
               activeKey={activeKey}
+              doorsOff={doorsOff}
               settings={settings}
               diagnostics={diagnostics}
               transform={transform}
@@ -1228,6 +1241,7 @@ function ElevationCanvas({
                 selectedFacePath={selection.runId === run.id ? facePath : null}
                 onSelectFace={pickFace}
                 doorsOff={doorsOff}
+                showThrough={showThrough.filter((entry) => entry.runId === run.id)}
                 interiors={interiors.filter((entry) => entry.runId === run.id)}
                 drawerBoxes={drawerBoxes.filter((entry) => entry.runId === run.id)}
                 adjustableShelves={adjustableShelves}
@@ -1314,6 +1328,7 @@ function ElevationCanvas({
           />
           <ElevationPreviews
             stretchPreview={stretchPreview}
+            showThrough={previewShowThrough}
             settings={settings}
             transform={transform}
             dragPreview={dragPreview}

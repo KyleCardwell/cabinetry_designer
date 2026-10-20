@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Group, Layer, Rect, Text } from 'react-konva';
 import {
   combinedDepthNote,
@@ -8,6 +9,7 @@ import { cornerShapes } from '../model/cornerParts.js';
 import { openingGeometry } from '../model/openings.js';
 import { resolveProfile } from '../model/profile.js';
 import { resolveWall } from '../model/room.js';
+import { wallShowThrough } from '../model/showThrough.js';
 import NeighborProfiles from './NeighborProfiles.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
 import OpeningShape from './OpeningShape.jsx';
@@ -39,8 +41,14 @@ export function resolveCombinedFaces(room, combined, settings) {
 
 /** Display-only faces: a separate hit surface switches faces without exposing editing handlers. */
 export default function CombinedFaces({
-  room, combined, faces, activeKey, settings, diagnostics, transform, onActivate,
+  room, combined, faces, activeKey, settings, diagnostics, transform, onActivate, doorsOff = false,
 }) {
+  const showThrough = useMemo(() => new Map(combined.faces.filter((face) => face.key !== activeKey)
+    .map((face) => {
+      const { wall } = faces.get(face.key);
+      return [face.key, doorsOff ? []
+        : [...wallShowThrough(room, wall.sideSource ?? wall, face.side, settings).values()]];
+    })), [room, combined, faces, activeKey, settings, doorsOff]);
   const transforms = combinedFaceTransforms(transform, combined, activeKey);
   const active = combined.faces.find((face) => face.key === activeKey);
   return (
@@ -74,6 +82,7 @@ export default function CombinedFaces({
                   room={room}
                   wall={wall}
                   settings={settings}
+                  showThrough={showThrough.get(face.key).filter((entry) => entry.runId === run.id)}
                   diagnostic={diagnostics[run.id]}
                   transform={faceTransform}
                   onSelectRun={noop}

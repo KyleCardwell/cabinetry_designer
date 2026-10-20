@@ -6,6 +6,7 @@ import RunGroup from './RunGroup.jsx';
 
 export default function ElevationPreviews({
   stretchPreview,
+  showThrough = [],
   settings,
   transform,
   dragPreview,
@@ -30,6 +31,7 @@ export default function ElevationPreviews({
                 selectedRun={false}
                 selectedPieceId={null}
                 preview
+                showThrough={showThrough.filter((entry) => entry.runId === runId)}
               />
             ) : null;
           })}

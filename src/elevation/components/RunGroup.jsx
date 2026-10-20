@@ -31,6 +31,7 @@ import InteriorDimensions from './InteriorDimensions.jsx';
 import PieceRect from './PieceRect.jsx';
 import Pulls from './Pulls.jsx';
 import SwingMarks from './SwingMarks.jsx';
+import ShowThroughInteriors from './ShowThroughInteriors.jsx';
 import { outlineGeometry } from './outlinePath.js';
 
 function RunGroup({
@@ -48,6 +49,7 @@ function RunGroup({
   onSelectFace,
   doorsOff = false,
   interiors = [],
+  showThrough = [],
   drawerBoxes = [],
   adjustableShelves,
   rollouts,
@@ -384,6 +386,11 @@ function RunGroup({
         />
       ))}
 
+      {!doorsOff && showThrough.length > 0 && (
+        <ShowThroughInteriors entries={showThrough} transform={transform}
+          room={room} wall={wall} settings={settings} />
+      )}
+
       {doorsOff && (
         <InteriorShapes
           entries={interiors}
@@ -450,7 +457,9 @@ function RunGroup({
 
       {!doorsOff && (
         <DoorDetails
-          parts={doorDetails.parts}
+          parts={doorDetails.parts.map((part) => showThrough.some((entry) => entry.glass.some(
+            ({ partId }) => partId === part.key.replace(/:(left|right)$/, '$1'),
+          )) ? { ...part, openingsShown: false } : part)}
           warnings={doorDetails.warnings}
           transform={transform}
           showDetails={drawing.details}

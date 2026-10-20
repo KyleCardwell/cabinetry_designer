@@ -6,11 +6,13 @@ import { combinedDepthNote, combinedFaceTransforms, fitWallToViewport, wallToScr
 import CombinedFaces, { resolveCombinedFaces } from '../../components/CombinedFaces.jsx';
 import RunGroup from '../../components/RunGroup.jsx';
 
+vi.mock('react', async (original) => ({ ...await original(), useMemo: (callback) => callback() }));
 vi.mock('react-konva', () => ({
   Group: 'group', Layer: 'layer', Rect: 'rect', Text: 'text', Line: 'line',
   Shape: 'shape', Label: 'label', Tag: 'tag',
 }));
 vi.mock('../../model/cornerParts.js', () => ({ cornerShapes: vi.fn(() => []) }));
+vi.mock('../../model/showThrough.js', () => ({ wallShowThrough: vi.fn(() => new Map()) }));
 
 const wall = (id, x1, y1, x2, y2, start, end, runs = []) => ({
   id, name: '', x1, y1, x2, y2, height: 96, thickness: 4.5, flipped: false,
