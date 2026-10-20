@@ -30,9 +30,14 @@ export default function AccessoryEditor({ accessory, accessories, slides = [], s
         : !isAccessoryList(accessories.map((entry) => entry.id === accessory.id ? savedAccessory : entry))
           ? 'Not a valid accessory' : '';
   const change = (key, value) => setDraft((previous) => ({ ...previous, [key]: value }));
-  const changeSize = (key, value) => {
+  const changeDimension = (group, key, value) => {
     if (value !== null && (!Number.isFinite(value) || value <= 0)) return false;
-    setDraft((previous) => ({ ...previous, minOpening: { ...previous.minOpening, [key]: value } }));
+    setDraft((previous) => ({ ...previous, [group]: { ...previous[group], [key]: value } }));
+    return true;
+  };
+  const changeLengthDeduction = (value) => {
+    if (value !== null && (!Number.isFinite(value) || value < 0)) return false;
+    change('lengthDeduction', value);
     return true;
   };
 
@@ -88,7 +93,9 @@ export default function AccessoryEditor({ accessory, accessories, slides = [], s
               onChange={(event) => {
                 const attachesTo = event.target.value;
                 setDraft((previous) => ({ ...previous, attachesTo, wholeSection: attachesTo === 'section' && previous.wholeSection,
-                  effects: attachesTo === 'section' ? [] : previous.effects }));
+                  size: { ...previous.size, width: attachesTo === 'drawer_box' && previous.size.width === 'section' ? null : previous.size.width },
+                  lengthDeduction: attachesTo === 'drawer_box' ? null : previous.lengthDeduction,
+                  effects: [] }));
               }}>
               <option value="section">Section</option>
               <option value="drawer_box">Drawer box</option>
@@ -104,10 +111,54 @@ export default function AccessoryEditor({ accessory, accessories, slides = [], s
               <label key={key} className="block text-xs text-gray-400">
                 Min {key}
                 <InchInput value={draft.minOpening[key]} allowBlank displayStep={1 / 64}
-                  onCommit={(value) => changeSize(key, value)} aria-label={`Min ${key}`} className="mt-1" />
+                  onCommit={(value) => changeDimension('minOpening', key, value)} aria-label={`Min ${key}`} className="mt-1" />
               </label>
             ))}
           </div>
+          <fieldset className="space-y-3">
+            <legend className="mb-2 text-sm font-medium text-gray-100">Size</legend>
+            <div className="grid grid-cols-3 gap-3">
+              {['width', 'height', 'depth'].map((key) => {
+                const label = key[0].toUpperCase() + key.slice(1);
+                const sectionWidth = key === 'width' && draft.size.width === 'section';
+                return (
+                  <div key={key}>
+                    <label className="block text-xs text-gray-400">
+                      {label}
+                      <InchInput value={sectionWidth ? null : draft.size[key]} allowBlank displayStep={1 / 64}
+                        disabled={sectionWidth} placeholder={sectionWidth ? 'Section width' : undefined}
+                        onCommit={(value) => changeDimension('size', key, value)} aria-label={label} className="mt-1" />
+                    </label>
+                    {key === 'width' && draft.attachesTo === 'section' && (
+                      <label className="mt-2 flex items-center gap-2 text-xs text-gray-300">
+                        <input type="checkbox" checked={sectionWidth} aria-label="Section width"
+                          onChange={(event) => setDraft((previous) => ({ ...previous,
+                            size: { ...previous.size, width: event.target.checked ? 'section' : null } }))} />
+                        Section width
+                      </label>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+            {draft.attachesTo === 'section' && (
+              <>
+                <label className="block text-xs text-gray-400">
+                  Ordered length = section width −
+                  <InchInput value={draft.lengthDeduction} allowBlank displayStep={1 / 64}
+                    onCommit={changeLengthDeduction} aria-label="Ordered length = section width −" className="mt-1" />
+                </label>
+                <p className="text-xs text-gray-400">For rods and other parts cut to the section. Leave blank if not cut to size.</p>
+                <label className="flex items-center gap-2 text-sm text-gray-300">
+                  <input type="checkbox" checked={draft.effects.some((effect) => effect.kind === 'line_bore_row')}
+                    aria-label="Needs a 3rd row of line bore with shelves (3rd row lb)"
+                    onChange={(event) => change('effects', event.target.checked ? [{ kind: 'line_bore_row' }] : [])} />
+                  Needs a 3rd row of line bore with shelves (3rd row lb)
+                </label>
+              </>
+            )}
+            <p className="text-xs text-gray-400">Used to draw the accessory. Min opening is still the smallest space it fits in.</p>
+          </fieldset>
           <label className="flex items-center gap-2 text-sm text-gray-300">
             <input type="checkbox" checked={draft.ownSlides} aria-label="Brings its own slides"
               onChange={(event) => change('ownSlides', event.target.checked)} />

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { newAccessory } from '../../elevation/model/accessories.js';
+import { newAccessory, withAccessoryDefaults } from '../../elevation/model/accessories.js';
 import elevationReducer, { createInitialElevationState } from '../../elevation/store/elevationSlice.js';
 import InchInput from '../../elevation/components/InchInput.jsx';
 import AccessoryEditor from '../AccessoryEditor.jsx';
@@ -90,7 +90,7 @@ describe('IN12b step b Accessories page and editor', () => {
   it('shows a fresh sandbox empty state, opens uniquely named new accessories, and copies without an editor', () => {
     const page = library();
     expect(rows(page.render())).toEqual([]);
-    expect(nodes(page.render()).filter(({ type }) => type === 'th').map(text)).toEqual(['Name', 'Goes in', 'Min opening', 'Report text', 'Price', 'Actions']);
+    expect(nodes(page.render()).filter(({ type }) => type === 'th').map(text)).toEqual(['Name', 'Goes in', 'Min opening', 'Size', 'Report text', 'Price', 'Actions']);
     expect(text(page.render())).toContain('Organizers, inserts and other parts placed in cabinet interiors.');
     expect(text(page.render())).toContain('No accessories yet. Add the ones the shop uses with New accessory.');
     expect(button(page.render(), 'New accessory').props.disabled).toBeFalsy();
@@ -106,8 +106,8 @@ describe('IN12b step b Accessories page and editor', () => {
     button(rows(page.render())[0], 'Copy').props.onClick();
     expect(page.state().settings.accessories.map(({ name }) => name)).toEqual(['New accessory', 'New accessory 2', 'New accessory copy']);
     expect(nodes(page.render()).some(({ type }) => type === AccessoryEditor)).toBe(false);
-    expect(nodes(rows(page.render())[0]).filter(({ type }) => type === 'td').map(text)).toEqual(['New accessory', 'Section', '—', 'New accessory', '—', 'EditCopyDelete']);
-    expect(nodes(rows(page.render())[0]).filter(({ type }) => type === 'td')[3].props.className).toContain('text-gray-500');
+    expect(nodes(rows(page.render())[0]).filter(({ type }) => type === 'td').map(text)).toEqual(['New accessory', 'Section', '—', '—', 'New accessory', '—', 'EditCopyDelete']);
+    expect(nodes(rows(page.render())[0]).filter(({ type }) => type === 'td')[4].props.className).toContain('text-gray-500');
     button(rows(page.render())[0], 'Edit').props.onClick();
     expect(nodes(page.render()).find(({ type }) => type === AccessoryEditor).props.accessory.id).toBe(page.state().settings.accessories[0].id);
   });
@@ -149,7 +149,7 @@ describe('IN12b step b Accessories page and editor', () => {
     expect(saved).toMatchObject({ name: 'Lazy susan 28', brand: 'Shop Brand', model: 'Shop Model', description: 'Shop Description', reportText: '6472-28 lazy susan', attachesTo: 'drawer_box', wholeSection: false, ownSlides: true, minOpening: { width: 27, depth: 22, height: null }, effects: [] });
     expect(onClose).toHaveBeenCalledOnce();
     const page = library('local', [saved]);
-    expect(nodes(rows(page.render())[0]).filter(({ type }) => type === 'td').map(text)).toEqual(['Lazy susan 28', 'Drawer box', '27" W · 22" D', '6472-28 lazy susan', '—', 'EditCopyDelete']);
+    expect(nodes(rows(page.render())[0]).filter(({ type }) => type === 'td').map(text)).toEqual(['Lazy susan 28', 'Drawer box', '27" W · 22" D', '—', '6472-28 lazy susan', '—', 'EditCopyDelete']);
     const whole = library('local', [{ ...saved, attachesTo: 'section', wholeSection: true, minOpening: { width: 27, depth: 22, height: 5 } }]);
     expect(text(whole.render())).toContain('Section · whole section');
     expect(text(whole.render())).toContain('27" W · 22" D · 5" H');
@@ -266,6 +266,128 @@ describe('IN12b step b Accessories page and editor', () => {
   });
 });
 
+describe('IN13a step b accessory size and ordered length', () => {
+  const orderedLength = 'Ordered length = section width −';
+  const lineBoreRow = 'Needs a 3rd row of line bore with shelves (3rd row lb)';
+  const cells = (page) => nodes(rows(page.render())[0]).filter(({ type }) => type === 'td');
+  const fixedRod = () => ({ ...newAccessory([], 'rod'), name: 'Fixed rod',
+    size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,
+    effects: [{ kind: 'line_bore_row' }] });
+
+  it('creates Fixed rod with section width, fractional size, ordered length and a third line bore row', () => {
+    const page = library();
+    button(page.render(), 'New accessory').props.onClick();
+    const props = nodes(page.render()).find(({ type }) => type === AccessoryEditor).props;
+    const edit = editor(props.accessory, props.accessories);
+    control(edit.render(), 'Name').props.onChange({ target: { value: 'Fixed rod' } });
+    control(edit.render(), 'Section width').props.onChange({ target: { checked: true } });
+    expect(control(edit.render(), 'Width').props).toMatchObject({ value: null, disabled: true, placeholder: 'Section width' });
+    edit.enter('Height', '1 1/4');
+    edit.enter('Depth', '1 1/4');
+    edit.enter(orderedLength, '1/4');
+    control(edit.render(), lineBoreRow).props.onChange({ target: { checked: true } });
+    expect(text(edit.render())).toContain('For rods and other parts cut to the section. Leave blank if not cut to size.');
+    expect(text(edit.render())).toContain('Used to draw the accessory. Min opening is still the smallest space it fits in.');
+    expect(button(edit.render(), 'Save').props.disabled).toBe(false);
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.accessories[0]).toMatchObject({
+      name: 'Fixed rod', size: { width: 'section', height: 1.25, depth: 1.25 },
+      lengthDeduction: 0.25, effects: [{ kind: 'line_bore_row' }],
+    });
+    const rowCells = cells(page);
+    expect(text(rowCells[3])).toBe('section W · 1 1/4" H · 1 1/4" Dordered at section − 1/4"');
+    expect(nodes(rowCells[3]).find(({ type }) => type === 'div').props.className).toContain('text-gray-400');
+    expect(text(rowCells[1])).toBe('Section3rd row lb');
+  });
+
+  it('clears section-only values when switching Fixed rod to Drawer box and retains height and depth', () => {
+    const edit = editor(fixedRod());
+    control(edit.render(), 'Goes in').props.onChange({ target: { value: 'drawer_box' } });
+    for (const label of ['Section width', orderedLength, lineBoreRow]) expect(control(edit.render(), label)).toBeUndefined();
+    expect(control(edit.render(), 'Width').props).toMatchObject({ value: null, disabled: false });
+    button(edit.render(), 'Save').props.onClick();
+    expect(dispatch.mock.lastCall[0].payload.accessory).toMatchObject({
+      attachesTo: 'drawer_box', size: { width: null, height: 1.25, depth: 1.25 }, lengthDeduction: null, effects: [],
+    });
+    control(edit.render(), 'Goes in').props.onChange({ target: { value: 'section' } });
+    expect(control(edit.render(), 'Section width').props.checked).toBe(false);
+    expect(control(edit.render(), orderedLength).props.value).toBeNull();
+    expect(control(edit.render(), lineBoreRow).props.checked).toBe(false);
+  });
+
+  it('saves Robe hook fixed dimensions in W, H, D order without an ordered-length line', () => {
+    const accessory = { ...newAccessory([], 'hook'), name: 'Robe hook' };
+    const page = library('local', [accessory]);
+    const edit = editor(accessory);
+    edit.enter('Width', '3');
+    edit.enter('Height', '2');
+    edit.enter('Depth', '3');
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.accessories[0].size).toEqual({ width: 3, height: 2, depth: 3 });
+    expect(text(cells(page)[3])).toBe('3" W · 2" H · 3" D');
+    expect(nodes(cells(page)[3]).some(({ type }) => type === 'div')).toBe(false);
+    control(edit.render(), 'Goes in').props.onChange({ target: { value: 'drawer_box' } });
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.accessories[0].size.width).toBe(3);
+  });
+
+  it('accepts zero ordered-length deduction as the full section width and clears a blank deduction', () => {
+    const accessory = newAccessory([], 'full-length');
+    const page = library('local', [accessory]);
+    const edit = editor(accessory);
+    edit.enter(orderedLength, '0');
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.accessories[0].lengthDeduction).toBe(0);
+    expect(text(cells(page)[3])).toBe('—ordered at section width');
+    edit.enter(orderedLength, '');
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.accessories[0].lengthDeduction).toBeNull();
+    expect(text(cells(page)[3])).toBe('—');
+  });
+
+  it('shows blank size fields for a legacy accessory loaded with defaults and saves it unchanged', () => {
+    const legacy = { ...newAccessory([], 'old'), name: 'Old accessory' };
+    delete legacy.size;
+    delete legacy.lengthDeduction;
+    const accessory = withAccessoryDefaults(legacy);
+    const page = library('local', [accessory]);
+    const edit = editor(accessory);
+    expect(text(cells(page)[3])).toBe('—');
+    for (const label of ['Width', 'Height', 'Depth', orderedLength]) {
+      const field = control(edit.render(), label);
+      expect(field.props.value).toBeNull();
+      useState.mockImplementationOnce((initial) => [initial(), vi.fn()]);
+      expect(InchInput(field.props).props.value).toBe('');
+    }
+    expect(button(edit.render(), 'Save').props.disabled).toBe(false);
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.accessories[0]).toEqual(accessory);
+  });
+
+  it('rejects invalid dimensions and deductions, clears blank sizes, and unticks section options', () => {
+    const edit = editor(fixedRod());
+    control(edit.render(), 'Section width').props.onChange({ target: { checked: false } });
+    expect(control(edit.render(), 'Width').props).toMatchObject({ value: null, disabled: false });
+    for (const label of ['Width', 'Height', 'Depth']) {
+      edit.enter(label, '2 1/2');
+      for (const invalid of ['0', '-1', 'nonsense', 'Infinity']) edit.enter(label, invalid);
+      expect(control(edit.render(), label).props.value).toBe(2.5);
+      for (const invalid of [NaN, Infinity, -Infinity]) expect(control(edit.render(), label).props.onCommit(invalid)).toBe(false);
+      edit.enter(label, '');
+      expect(control(edit.render(), label).props.value).toBeNull();
+    }
+    for (const invalid of ['-1', 'nonsense', 'Infinity']) edit.enter(orderedLength, invalid);
+    for (const invalid of [NaN, Infinity, -Infinity]) expect(control(edit.render(), orderedLength).props.onCommit(invalid)).toBe(false);
+    expect(control(edit.render(), orderedLength).props.value).toBe(0.25);
+    control(edit.render(), lineBoreRow).props.onChange({ target: { checked: false } });
+    button(edit.render(), 'Save').props.onClick();
+    expect(dispatch.mock.lastCall[0].payload.accessory).toMatchObject({
+      size: { width: null, height: null, depth: null }, effects: [], lengthDeduction: 0.25,
+    });
+    expect(text(library('local', [{ ...fixedRod(), size: { width: null, height: 2, depth: null } }]).render())).toContain('2" Hordered at section − 1/4"');
+  });
+});
+
 describe('IN12c step b drawer box effects editor', () => {
   const options = (tree, label) => nodes(control(tree, label)).filter(({ type }) => type === 'option');
   const add = (edit, kind) => control(edit.render(), 'Add effect').props.onChange({ target: { value: kind } });
@@ -312,7 +434,7 @@ describe('IN12c step b drawer box effects editor', () => {
     edit.enter('Max height', '3 1/4');
     for (const invalid of ['0', '-2', 'nonsense', '']) edit.enter('Max height', invalid);
     expect(control(edit.render(), 'Max height').props.value).toBe(3.25);
-    expect(nodes(edit.render()).filter(({ type }) => type === InchInput).slice(3).map(({ props }) => props['aria-label']))
+    expect(nodes(edit.render()).filter(({ type }) => type === InchInput).slice(6).map(({ props }) => props['aria-label']))
       .toEqual(['Max depth', 'Max height', 'Clear behind']);
     button(edit.render(), 'Save').props.onClick();
     const saved = dispatch.mock.lastCall[0].payload.accessory;

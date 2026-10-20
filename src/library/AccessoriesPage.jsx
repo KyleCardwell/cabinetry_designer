@@ -16,6 +16,13 @@ function openingText(accessory) {
     .join(' · ') || '—';
 }
 
+function sizeText(accessory) {
+  return [['width', 'W'], ['height', 'H'], ['depth', 'D']]
+    .filter(([key]) => accessory.size[key] !== null)
+    .map(([key, label]) => accessory.size[key] === 'section' ? 'section W' : `${formatInches(accessory.size[key])} ${label}`)
+    .join(' · ') || '—';
+}
+
 export default function AccessoriesPage() {
   const dispatch = useDispatch();
   const { settings, source, teamServices = [] } = useSelector((state) => state.elevation);
@@ -45,7 +52,7 @@ export default function AccessoriesPage() {
         <table className="w-full text-left text-sm text-gray-300">
           <thead className="bg-gray-800 text-xs text-gray-400">
             <tr>
-              {['Name', 'Goes in', 'Min opening', 'Report text', 'Price', 'Actions'].map((heading) => (
+              {['Name', 'Goes in', 'Min opening', 'Size', 'Report text', 'Price', 'Actions'].map((heading) => (
                 <th key={heading} scope="col" className="px-3 py-2 font-medium">{heading}</th>
               ))}
             </tr>
@@ -65,6 +72,14 @@ export default function AccessoriesPage() {
                     )}
                   </td>
                   <td className={CELL_CLASS}>{openingText(accessory)}</td>
+                  <td className={CELL_CLASS}>
+                    {sizeText(accessory)}
+                    {accessory.lengthDeduction !== null && (
+                      <div className="mt-1 text-xs text-gray-400">
+                        {accessory.lengthDeduction === 0 ? 'ordered at section width' : `ordered at section − ${formatInches(accessory.lengthDeduction)}`}
+                      </div>
+                    )}
+                  </td>
                   <td className={`${CELL_CLASS} ${accessory.reportText ? '' : 'text-gray-500'}`}>{accessoryText(accessory)}</td>
                   <td className={CELL_CLASS}>{formatPrice(accessory.price, PRICING_UNIT_LABELS[accessory.pricing])}</td>
                   <td className={CELL_CLASS}>
