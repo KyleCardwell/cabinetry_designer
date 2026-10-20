@@ -107,11 +107,11 @@ describe('IN6 Drawer boxes rules and pull-outs', () => {
       .toEqual(['notch drw around plumbing (DRW-006)', 'drawer stabilizers (BOX-007)']);
   });
 
-  it('IN12c c: keeps Charging visible until step e but ignores its retired patches', () => {
-    expect(field('Charging r.0').props.checked).toBe(false);
+  it('IN12c d: keeps Charging visible until step e without a resolved charging field', () => {
+    expect(field('Charging r.0').props.checked).toBeUndefined();
     field('Charging r.0').props.onChange({ target: { checked: true } });
     expect(dispatch).toHaveBeenLastCalledWith(setFaceDrawerBox({ ...at, itemId: 'c1', path: 'r.0', patch: { charging: true } }));
-    expect(field('Charging r.0').props.checked).toBe(false);
+    expect(field('Charging r.0').props.checked).toBeUndefined();
     expect(item().face.children[0]).not.toHaveProperty('drawerBox');
     expect(placeholders('depth')[0]).toBe('Auto (21")');
     field('Charging r.0').props.onChange({ target: { checked: false } });
@@ -144,7 +144,7 @@ describe('IN6 Drawer boxes rules and pull-outs', () => {
     expect(placeholders('depth')).toEqual(['Auto (22", DRW-009)']);
   });
 
-  it('shows hamper rows and all new warning messages with the resolved measurements', () => {
+  it('shows hamper rows and ROT warning messages with the resolved measurements', () => {
     edit(() => { item().purpose = 'hamper'; item().face = pullout(); });
     expect(nodes(panel()).some(({ type }) => type === DrawerBoxFields)).toBe(true);
     expect(nodes(render()).filter(({ type }) => type === 'h4').map(text)).toEqual(['Hamper · front 30 1/4"']);
@@ -157,9 +157,6 @@ describe('IN6 Drawer boxes rules and pull-outs', () => {
     expect(text(render())).toContain('ROT · front 15 1/8": Shorter than the standard 15 1/8 ROT (13 3/4" available).');
     edit(() => { item().face = pullout(); run().depth = 21; });
     expect(text(render())).toContain('No ROT depth rule for a 18" × 21" box; sized like a drawer.');
-    edit(() => { delete item().purpose; item().face = drawer(); run().depth = 24;
-      item().face.drawerBox = { charging: true, depth: 22 }; });
-    expect(text(render())).toContain('A charging drawer needs 2 clear behind the box (1" here).');
   });
 });
 

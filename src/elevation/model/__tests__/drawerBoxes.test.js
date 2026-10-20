@@ -3,7 +3,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import {
   cabinetDrawerBoxes, cabinetDrawerBoxesFor, drawerBoxHeights, isPrefinishedMaple, isTallDrawerBox,
   wallDrawerBoxes,
-  DRAWER_RULES, ruleSlide, sinkDepth, chargingDepth,
+  DRAWER_RULES, ruleSlide, sinkDepth, boxAccessoryEffects, newAccessory,
 } from '../index.js';
 import { boxConstruction } from '../boxConstruction.js';
 import { rotDepth } from '../drawerRules.js';
@@ -40,7 +40,19 @@ describe('IN4a drawer box preset heights', () => {
   });
 });
 
-const settings = { ...DEFAULT_SETTINGS, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h' };
+const accessory = (id, name, effects, minOpening = {}) => ({
+  ...newAccessory([], id), name, attachesTo: 'drawer_box', effects,
+  minOpening: { width: null, depth: null, height: null, ...minOpening },
+});
+const accessories = [
+  accessory('CU', 'Charging unit', [{ kind: 'clear_behind', inches: 2 }]),
+  accessory('KN', 'Knife insert', [{ kind: 'max_height', inches: 4.25 }], { width: 15, depth: 18 }),
+  accessory('SP', 'Spice insert', [{ kind: 'fixed_height', inches: 3.25 }]),
+  accessory('PO', 'Pot organizer', [{ kind: 'slide', slideId: 'accuride-4034' }, { kind: 'probox_note', text: '1/2" bottom' }]),
+  accessory('OS', 'Outlet strip', [{ kind: 'max_depth', inches: 15 }]),
+  { ...newAccessory([], 'Susan'), name: 'Lazy susan 28' },
+];
+const settings = { ...DEFAULT_SETTINGS, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h', accessories };
 const drawer = (size = null, drawerBox) => ({ type: 'drawer_front', size, ...(drawerBox ? { drawerBox } : {}) });
 const stack = (...children) => ({ direction: 'vertical', size: null, children });
 const base = () => stack(drawer(5.875), drawer(), drawer());
@@ -320,19 +332,20 @@ describe('IN6 step b drawer rules', () => {
 
   it('anchor 5: reserves charging clearance and warns when a typed depth consumes it', () => {
     const face = base();
-    face.children[0].drawerBox = { charging: true };
+    face.children[0].drawerBox = { accessories: [{ accessoryId: 'CU' }] };
     const blum = sized({ face });
-    expect(blum.boxes[0]).toMatchObject({ slideId: 'blum-562h', charging: true,
-      depth: 21, depthSource: 'rule', depthRule: 'DRW-008', slideRule: null });
+    expect(blum.boxes[0]).toMatchObject({ slideId: 'blum-562h',
+      depth: 21, depthSource: 'accessory', depthRule: null, depthAccessory: 'CU', slideRule: null });
     expect(blum.warnings).toEqual([]);
+    expect(blum.boxes.slice(1).map(({ depth, depthSource }) => [depth, depthSource])).toEqual([[21, 'auto'], [21, 'auto']]);
     const leaf = { drawerSlideId: 'accuride-3832' };
     const side = sized({ face, leaf });
-    expect(side.boxes[0]).toMatchObject({ depth: 20, depthSource: 'rule', depthRule: 'DRW-008' });
+    expect(side.boxes[0]).toMatchObject({ depth: 20, depthSource: 'accessory', depthRule: null, depthAccessory: 'CU' });
     expect(side.boxes.slice(1).map(({ depth }) => depth)).toEqual([22, 22]);
     face.children[0].drawerBox.depth = 22;
     const typed = sized({ face, leaf });
     expect(typed.boxes[0]).toMatchObject({ depth: 22, depthSource: 'manual', depthRule: null });
-    expect(typed.warnings).toEqual([{ code: 'charging-clearance', path: 'r.0' }]);
+    expect(typed.warnings).toEqual([{ code: 'accessory-depth', path: 'r.0', index: 0, name: 'Charging unit', limit: 'clear_behind', inches: 2, has: 1 }]);
   });
 
   it('anchor 6: selects clips by cabinet style and notes stabilizers only above 36-inch fronts', () => {
@@ -361,7 +374,6 @@ describe('IN6 step b drawer rules', () => {
     expect(ruleSlide({ ...baseRule, purpose: null, depth: null })).toBeNull();
     for (const kind of ['rot', 'hamper']) expect(ruleSlide({ ...baseRule, kind })).toBeNull();
     expect(sinkDepth(BUILT_IN_SLIDES[1], 22)).toBe(18);
-    expect(chargingDepth(BUILT_IN_SLIDES[1], 23)).toBe(20);
     expect(sinkDepth(BUILT_IN_SLIDES[0], null)).toBeNull();
   });
 
@@ -401,21 +413,21 @@ describe('IN6 step b drawer rules', () => {
 
   it('combines sink and charging depths before slide selection and handles unsized and deep boxes', () => {
     const face = base();
-    face.children[1].drawerBox = { charging: true };
+    face.children[1].drawerBox = { accessories: [{ accessoryId: 'CU' }] };
     const args = input({ face, depth: 18, leaf: { purpose: 'sink' } });
     const before = structuredClone(args);
     const middle = cabinetDrawerBoxes(args).boxes[1];
     expect(middle).toMatchObject({ slideId: 'accuride-3832', slideRule: 'DRW-002',
-      depth: 12, depthRule: 'DRW-006', slideLength: 12, charging: true });
+      depth: 12, depthRule: 'DRW-006', slideLength: 12 });
     expect(args).toEqual(before);
     expect(sized({ face, depth: 17 }).boxes[1]).toMatchObject({ slideId: 'accuride-3832',
-      slideRule: 'DRW-002', depth: 14, depthRule: 'DRW-008' });
+      slideRule: 'DRW-002', depth: 14, depthSource: 'accessory', depthAccessory: 'CU' });
     const shallow = sized({ face, depth: 10, leaf: { purpose: 'sink' } }).boxes[1];
     expect(shallow).toMatchObject({ depth: null, slideLength: null, depthRule: 'DRW-006' });
     expect(codes(shallow)).toContain('no-slide-length');
     face.children[1].drawerBox.depth = 24;
     const deep = sized({ face, leaf: { purpose: 'sink' } }).boxes[1];
-    expect(codes(deep)).toEqual(['drawer-too-deep', 'charging-clearance']);
+    expect(codes(deep)).toEqual(['drawer-too-deep', 'accessory-depth']);
     expect(deep).toMatchObject({ depthSource: 'manual', depthRule: null, slideLength: 24 });
     expect(sized({ face: { type: 'door', action: 'pullout' }, leaf: { purpose: 'trash' } }).boxes[0])
       .toMatchObject({ kind: 'rot', slideRule: null });
@@ -436,7 +448,7 @@ describe('IN6 step c ROT and hamper boxes', () => {
     expect(boxes[0]).toMatchObject({ kind: 'drawer', height: 4.25, width: 16, depth: 21 });
     expect(boxes[1]).toMatchObject({ kind: 'rot', height: 15.125, heightSource: 'rule', heightRule: 'DRW-009',
       width: 16, depth: 22, depthSource: 'rule', depthRule: 'DRW-009', slideLength: 21,
-      notes: ['bottom up 1 3/4"'], x: 1, z: 1.3125, clips: 'standard', charging: false, slideRule: null });
+      notes: ['bottom up 1 3/4"'], x: 1, z: 1.3125, clips: 'standard', slideRule: null });
     expect(warnings).toEqual([]);
     expect(args).toEqual(before);
   });
@@ -564,5 +576,139 @@ describe('IN7.1 drawer box vertical adjustment', () => {
     const strict = cabinetDrawerBoxes({ ...input({ face }), settings: { ...settings, drawerBoxAdjustment: 0 } });
     expect(codes(strict.boxes[0])).toEqual(['drawer-height-too-tall']);
     expect(sized().boxes.map(({ height, adjustment }) => [height, adjustment])).toEqual([[4.25, 0], [10.25, 0], [10.25, 0]]);
+  });
+});
+
+
+describe('IN12c d accessory sizing', () => {
+  const items = (...ids) => ids.map((accessoryId) => ({ accessoryId }));
+  const withItems = (index, ids, options = {}, pick = {}) => {
+    const face = options.face ?? base();
+    face.children[index].drawerBox = { ...pick, accessories: items(...ids) };
+    return input({ ...options, face });
+  };
+
+  it('anchor 2: caps knife boxes, leaves twins at their inherited height, and checks manual height and outside width', () => {
+    const args = withItems(2, ['KN']);
+    const result = cabinetDrawerBoxes(args);
+    expect(result.boxes[2]).toMatchObject({ height: 4.25, heightSource: 'accessory', heightAccessory: 'KN', heightRule: null });
+    expect(result.boxes[1]).toMatchObject({ height: 10.25, heightSource: 'auto' });
+    args.leaf.face.children[2].drawerBox.height = 6.25;
+    const manual = cabinetDrawerBoxes(args).boxes[2];
+    expect(manual).toMatchObject({ height: 6.25, heightSource: 'manual', heightAccessory: null });
+    expect(manual.accessories[0].warnings).toEqual([{ code: 'accessory-height', name: 'Knife insert', limit: 'max', inches: 4.25 }]);
+    const narrow = cabinetDrawerBoxes(withItems(2, ['KN'], { width: 15 })).boxes[2];
+    expect(narrow).toMatchObject({ width: 13, accessories: [{ warnings: [{ code: 'accessory-too-small', name: 'Knife insert',
+      sizes: [{ dim: 'width', needs: 15, has: 13 }] }] }] });
+  });
+
+  it('anchor 3: fixes spice height independently of twins and file height rules', () => {
+    const result = cabinetDrawerBoxes(withItems(1, ['SP'])).boxes;
+    expect(result[1]).toMatchObject({ height: 3.25, heightSource: 'accessory', heightAccessory: 'SP' });
+    expect(result[2]).toMatchObject({ height: 10.25, heightSource: 'auto' });
+    const file = cabinetDrawerBoxes(withItems(1, ['SP'], { face: stack(drawer(5.875), drawer()), leaf: { purpose: 'file' } })).boxes[1];
+    expect(file).toMatchObject({ height: 3.25, heightSource: 'accessory', heightRule: null, slideId: 'accuride-3832',
+      source: 'rule', slideRule: 'DRW-003', depth: 22 });
+  });
+
+  it('anchor 4: applies organizer slides and notes, with box overrides and archived-slide fallthrough', () => {
+    const args = withItems(0, ['PO']);
+    const before = structuredClone(args);
+    expect(cabinetDrawerBoxes(args).boxes[0]).toMatchObject({ slideId: 'accuride-4034', source: 'accessory',
+      slideAccessory: 'PO', width: 15.5, depth: 22, clips: null, notes: ['1/2" bottom'] });
+    expect(args).toEqual(before);
+    args.leaf.face.children[0].drawerBox.slideId = 'blum-562h';
+    const picked = cabinetDrawerBoxes(args).boxes[0];
+    expect(picked).toMatchObject({ slideId: 'blum-562h', source: 'box', slideAccessory: null, width: 16, depth: 21 });
+    expect(picked.warnings).toEqual([{ code: 'accessory-slide', name: 'Pot organizer', slideId: 'accuride-4034', index: 0 }]);
+    delete args.leaf.face.children[0].drawerBox.slideId;
+    args.settings = { ...settings, slides: BUILT_IN_SLIDES.filter(({ id }) => id !== 'accuride-4034') };
+    expect(cabinetDrawerBoxes(args).boxes[0]).toMatchObject({ slideId: 'blum-562h', source: 'room', slideAccessory: null,
+      notes: ['1/2" bottom'], warnings: [{ code: 'slide-missing', level: 'accessory', slideId: 'accuride-4034' }] });
+  });
+
+  it('anchors 5–6: chooses the smallest sink/accessory candidate and preserves sink notes', () => {
+    const sink = { leaf: { purpose: 'sink' } };
+    expect(cabinetDrawerBoxes(withItems(0, ['CU'], sink)).boxes[0]).toMatchObject({ depth: 18, depthSource: 'rule',
+      depthRule: 'DRW-006', depthAccessory: null, notes: ['notch drw around plumbing'] });
+    expect(cabinetDrawerBoxes(withItems(0, ['OS'], sink)).boxes[0]).toMatchObject({ depth: 15, depthSource: 'accessory',
+      depthRule: null, depthAccessory: 'OS', notes: ['notch drw around plumbing'] });
+    expect(cabinetDrawerBoxes(withItems(0, ['CU', 'OS'])).boxes[0]).toMatchObject({ depth: 15, depthAccessory: 'OS' });
+  });
+
+  it('anchors 7–8: retains indexed missing/wrong-place items and leaves ordinary boxes unchanged', () => {
+    const args = withItems(0, ['gone', 'Susan']);
+    const before = structuredClone(args);
+    const result = cabinetDrawerBoxes(args);
+    expect(result.warnings).toEqual([{ code: 'accessory-missing', index: 0, path: 'r.0' },
+      { code: 'accessory-wrong-place', index: 1, path: 'r.0', name: 'Lazy susan 28' }]);
+    expect(result.boxes.map(({ width, depth, height }) => [width, depth, height]))
+      .toEqual([[16, 21, 4.25], [16, 21, 10.25], [16, 21, 10.25]]);
+    expect(result.boxes[0].accessories[0]).toEqual({ accessoryId: 'gone', accessory: null, qty: 1, index: 0,
+      warnings: [{ code: 'accessory-missing' }] });
+    for (const box of sized().boxes) {
+      expect(box).toMatchObject({ accessories: [], slideAccessory: null, depthAccessory: null, heightAccessory: null });
+      expect(box).not.toHaveProperty('charging');
+    }
+    expect(args).toEqual(before);
+  });
+
+  it('resolves effects purely in item order, ignores wrong-place rules and deduplicates notes regardless of qty', () => {
+    const another = accessory('other', 'Other', [{ kind: 'slide', slideId: 'blum-562h' },
+      { kind: 'probox_note', text: '1/2" bottom' }, { kind: 'max_height', inches: 2.25 }]);
+    const list = [...accessories, another];
+    const stored = [{ accessoryId: 'PO', qty: 3 }, ...items('other', 'KN', 'CU', 'OS', 'SP', 'gone', 'Susan')];
+    const before = structuredClone([stored, list]);
+    const resolved = boxAccessoryEffects(stored, list);
+    expect(resolved).toMatchObject({ slide: { accessoryId: 'PO', slideId: 'accuride-4034' },
+      fixedHeight: { accessoryId: 'SP', inches: 3.25 }, maxHeight: { accessoryId: 'other', inches: 2.25 },
+      depthLimits: [{ accessoryId: 'CU', kind: 'clear_behind' }, { accessoryId: 'OS', kind: 'max_depth' }], notes: ['1/2" bottom'] });
+    const args = withItems(1, ['PO', 'other'], { depth: 12, leaf: { purpose: 'file' } });
+    args.settings = { ...settings, accessories: list };
+    const box = cabinetDrawerBoxes(args).boxes[1];
+    expect(box).toMatchObject({ source: 'accessory', slideRule: null, height: 2.25, heightSource: 'accessory', notes: ['1/2" bottom'] });
+    expect(box.accessories[1].warnings).toContainEqual({ code: 'accessory-slide', name: 'Other', slideId: 'blum-562h' });
+    expect([stored, list]).toEqual(before);
+    expect(boxAccessoryEffects()).toEqual({ items: [], slide: null, fixedHeight: null, maxHeight: null, depthLimits: [], notes: [] });
+  });
+
+  it('keeps nonbinding heights, names the first tied limit, and retains file heights with accessory slides', () => {
+    const args = withItems(0, ['CU', 'OS']);
+    const loose = accessory('loose', 'Loose insert', [{ kind: 'max_height', inches: 12 }, { kind: 'max_depth', inches: 21 }]);
+    args.settings = { ...settings, accessories: [...accessories, loose] };
+    args.leaf.face.children[0].drawerBox.accessories = items('CU', 'loose');
+    expect(cabinetDrawerBoxes(args).boxes[0]).toMatchObject({ depth: 21, depthAccessory: 'CU', height: 4.25,
+      heightSource: 'auto', heightAccessory: null });
+    args.leaf.face.children[0].drawerBox.accessories.reverse();
+    expect(cabinetDrawerBoxes(args).boxes[0].depthAccessory).toBe('loose');
+    const file = withItems(1, ['PO'], { face: stack(drawer(5.875), drawer()), leaf: { purpose: 'file' } });
+    expect(cabinetDrawerBoxes(file).boxes[1]).toMatchObject({ source: 'accessory', slideRule: null,
+      height: 10.25, heightSource: 'rule', heightRule: 'DRW-003' });
+    file.settings = { ...settings, slides: BUILT_IN_SLIDES.slice(0, 2) };
+    expect(cabinetDrawerBoxes(file).boxes[1]).toMatchObject({ source: 'rule', slideRule: 'DRW-003', slideAccessory: null,
+      warnings: [{ code: 'slide-missing', level: 'accessory', slideId: 'accuride-4034' }] });
+  });
+
+  it('handles ties and impossible limits, checks all final dimensions, and warns for manual fixed/depth limits', () => {
+    const limits = accessory('limits', 'Limits', [{ kind: 'max_depth', inches: 21 }, { kind: 'max_height', inches: 1 }],
+      { width: 16 + 5e-10, depth: 24, height: 8 });
+    const args = withItems(0, ['limits']);
+    args.settings = { ...settings, accessories: [...accessories, limits] };
+    expect(cabinetDrawerBoxes(args).boxes[0]).toMatchObject({ depth: 21, depthSource: 'accessory', depthAccessory: 'limits',
+      height: null, heightSource: 'accessory', warnings: [{ code: 'drawer-too-short' },
+        { code: 'accessory-too-small', name: 'Limits', index: 0, sizes: [{ dim: 'depth', needs: 24, has: 21 }] }] });
+    limits.effects = [{ kind: 'max_depth', inches: 1 }];
+    expect(cabinetDrawerBoxes(args).boxes[0]).toMatchObject({ depth: null, depthAccessory: 'limits' });
+    limits.effects = [{ kind: 'max_depth', inches: 18 }];
+    args.leaf.purpose = 'sink';
+    expect(cabinetDrawerBoxes(args).boxes[0]).toMatchObject({ depth: 18, depthSource: 'rule', depthRule: 'DRW-006' });
+    const manual = cabinetDrawerBoxes(withItems(0, ['SP', 'OS'], {}, { height: 4.25, depth: 21 })).boxes[0];
+    expect(manual.accessories.map(({ warnings }) => warnings)).toEqual([
+      [{ code: 'accessory-height', name: 'Spice insert', limit: 'fixed', inches: 3.25 }],
+      [{ code: 'accessory-depth', name: 'Outlet strip', limit: 'max_depth', inches: 15, has: 21 }],
+    ]);
+    expect(codes(cabinetDrawerBoxes(withItems(0, ['SP'], {}, { height: 3.25 })).boxes[0])).not.toContain('accessory-height');
+    limits.effects = [{ kind: 'fixed_height', inches: 40 }];
+    expect(codes(cabinetDrawerBoxes(args).boxes[0])).toContain('drawer-height-too-tall');
   });
 });

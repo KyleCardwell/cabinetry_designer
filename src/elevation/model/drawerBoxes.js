@@ -1,3 +1,4 @@
+import { boxAccessoryEffects, findEffect } from './accessoryEffects.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { findLeaf } from './cellTree.js';
 import { getFaceNode } from './faceTree.js';
@@ -53,6 +54,21 @@ export function drawerBoxOptions(room, itemId, layout, settings) {
   return { inset: isInsetStyle(layout.style), prefinishedMaple: isPrefinishedMaple(material) };
 }
 
+/** Sink wins ties, then accessory limits in stored item order; an unsized limit is smallest. */
+function limitedDepth(ruleInput, slide, interiorDepth, effects) {
+  const standard = fittingLength(slide, interiorDepth);
+  const sink = ruleDepth({ ...ruleInput, slide, interiorDepth });
+  let result = sink ? { ...sink, accessoryId: null } : null;
+  for (const limit of effects.depthLimits) {
+    const depth = fittingLength(slide, limit.kind === 'clear_behind'
+      ? interiorDepth - limit.inches : Math.min(standard ?? 0, limit.inches));
+    if (!result || (result.depth !== null && (depth === null || depth < result.depth))) {
+      result = { depth, rule: null, accessoryId: limit.accessoryId };
+    }
+  }
+  return result ?? { depth: standard, rule: null, accessoryId: null };
+}
+
 /** Size drawer fronts and qualifying pull-out doors from their clear sections, in wall coordinates. */
 export function cabinetDrawerBoxes({
   faces, openings = [], reveals, inset, interior, leaf, settings, prefinishedMaple = false,
@@ -88,15 +104,17 @@ export function cabinetDrawerBoxes({
     const space = { x: section.x, z: bottom, width: section.width, height: Math.max(0, top - bottom) };
     const pick = getFaceNode(leaf.face, face.path)?.drawerBox ?? {};
     const kind = boxKind(face, leaf.purpose);
-    const charging = kind === 'drawer' && pick.charging === true;
+    const effects = boxAccessoryEffects(kind === 'drawer' ? pick.accessories : [], settings.accessories);
+    const accessorySlide = effects.slide?.slideId ?? null;
     const ruleInput = { kind, purpose: leaf.purpose, front: face };
     const cabinet = leaf.drawerSlideId ?? null;
     const inherited = resolveBoxSlide(settings, { cabinet });
-    const inheritedDepth = ruleDepth({ ...ruleInput, charging, slide: inherited.slide, interiorDepth: section.depth });
-    const slideRule = pick.slideId == null ? ruleSlide({ ...ruleInput, inheritedSlide: inherited.slide,
-      depth: pick.depth ?? (inheritedDepth ? inheritedDepth.depth : fittingLength(inherited.slide, section.depth)),
+    const inheritedDepth = limitedDepth(ruleInput, inherited.slide, section.depth, effects);
+    const accessoryResolved = resolveBoxSlide(settings, { accessory: accessorySlide, cabinet });
+    const slideRule = pick.slideId == null && accessoryResolved.source !== 'accessory' ? ruleSlide({ ...ruleInput, inheritedSlide: inherited.slide,
+      depth: pick.depth ?? inheritedDepth.depth,
     }) : null;
-    const resolved = resolveBoxSlide(settings, { box: pick.slideId ?? null, rule: slideRule?.slideId ?? null, cabinet });
+    const resolved = resolveBoxSlide(settings, { box: pick.slideId ?? null, accessory: accessorySlide, rule: slideRule?.slideId ?? null, cabinet });
     const { slide } = resolved;
     const available = space.height - slide.minBelow - slide.minAbove;
     const heightAuto = presets.findLast((height) => height <= available + 1e-9) ?? null;
@@ -104,23 +122,26 @@ export function cabinetDrawerBoxes({
       : kind === 'hamper' ? { height: 6.25, rule: 'DRW-010' } : ruleHeight(ruleInput);
     const height = pick.height ?? heightRule?.height ?? heightAuto;
     const rot = kind === 'rot' ? rotDepth(interior.box.width, interior.box.depth) : null;
-    const depthRule = rot ? { depth: rot.depth, rule: 'DRW-009' }
-      : ruleDepth({ ...ruleInput, charging, slide, interiorDepth: section.depth });
-    const depthAuto = depthRule ? depthRule.depth : fittingLength(slide, section.depth);
+    const depthRule = rot ? { depth: rot.depth, rule: 'DRW-009', accessoryId: null }
+      : limitedDepth(ruleInput, slide, section.depth, effects);
+    const depthAuto = depthRule.depth;
     const depth = pick.depth ?? depthAuto;
     const maple = prefinishedMaple && !inset;
     const box = {
       path: face.path, frontHeight: face.height, kind,
       ...resolved, space, available,
       slideRule: resolved.source === 'rule' ? slideRule.rule : null,
+      slideAccessory: resolved.source === 'accessory' ? effects.slide.accessoryId : null,
+      accessories: effects.items, heightAccessory: null,
       height, heightAuto, heightSource: pick.height !== undefined ? 'manual' : heightRule ? 'rule' : 'auto',
       heightRule: pick.height === undefined ? heightRule?.rule ?? null : null,
       width: roundTo(slideBoxWidth(slide, space.width) + (maple ? 1 / 16 : 0), 1 / 64), maple,
       depth, depthAuto, interiorDepth: section.depth,
-      depthSource: pick.depth !== undefined ? 'manual' : depthRule ? 'rule' : 'auto',
+      depthSource: pick.depth !== undefined ? 'manual' : depthRule.accessoryId ? 'accessory' : depthRule.rule ? 'rule' : 'auto',
+      depthAccessory: pick.depth === undefined ? depthRule.accessoryId : null,
       depthRule: pick.depth === undefined ? depthRule?.rule ?? null : null,
       slideLength: depth === null ? null : fittingLength(slide, depth),
-      charging, clips: slide.clips === false ? null : inset ? 'adjustable' : 'standard',
+      clips: slide.clips === false ? null : inset ? 'adjustable' : 'standard',
       notes: kind === 'drawer' && leaf.purpose === 'sink' ? ['notch drw around plumbing']
         : pick.depth === undefined && rot?.note ? [rot.note] : [],
       x: space.x + slide.sideClearance - (maple ? 1 / 32 : 0),
@@ -131,10 +152,7 @@ export function cabinetDrawerBoxes({
     if (height === null) box.warnings.push({ code: 'drawer-too-short' });
     if (depth === null) box.warnings.push({ code: 'no-slide-length' });
     if (depth !== null && depth > section.depth + 1e-9) box.warnings.push({ code: 'drawer-too-deep' });
-    if (charging && pick.depth !== undefined && section.depth - depth < DRAWER_RULES.chargingClearance) {
-      box.warnings.push({ code: 'charging-clearance' });
-    }
-    entries.push({ box, section });
+    entries.push({ box, section, effects, pick });
   }
   if (leaf.purpose === 'sink' && entries.some(({ box }) => box.kind === 'drawer')) {
     notes.push({ rule: 'DRW-006', text: 'notch drw around plumbing' });
@@ -150,11 +168,40 @@ export function cabinetDrawerBoxes({
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(box);
   }
+  // IN5's normal matching establishes the inherited height before accessory limits apply.
   for (const group of groups.values()) {
-    const heights = group.map((box) => box.height).filter((height) => height !== null);
-    const smallest = Math.min(...heights);
-    const typed = new Set(group.filter((box) => ['manual', 'rule'].includes(box.heightSource)).map((box) => box.height));
+    const smallest = Math.min(...group.map((box) => box.height).filter((height) => height !== null));
     for (const box of group) {
+      if (box.heightSource === 'auto' && box.height !== null && box.height > smallest) {
+        box.height = smallest;
+        box.heightSource = 'matched';
+      }
+    }
+  }
+  for (const { box, effects, pick } of entries) {
+    if (pick.height !== undefined) continue;
+    const fixed = effects.fixedHeight;
+    const max = effects.maxHeight;
+    if (fixed || (max && box.height !== null && max.inches < box.height)) {
+      box.height = fixed ? fixed.inches
+        : presets.findLast((height) => height <= Math.min(box.available, max.inches) + 1e-9) ?? null;
+      box.heightSource = 'accessory';
+      box.heightRule = null;
+      box.heightAccessory = (fixed ?? max).accessoryId;
+      if (box.height === null && !box.warnings.some(({ code }) => code === 'drawer-too-short')) {
+        box.warnings.push({ code: 'drawer-too-short' });
+      }
+      if (box.height !== null) box.warnings = box.warnings.filter(({ code }) => code !== 'drawer-too-short');
+    }
+  }
+  for (const group of groups.values()) {
+    const matching = group.filter((box) => box.heightSource !== 'accessory');
+    if (matching.length !== group.length) {
+      for (const box of matching) if (box.heightSource === 'matched') box.heightSource = 'auto';
+    }
+    const smallest = Math.min(...matching.map((box) => box.height).filter((height) => height !== null));
+    const typed = new Set(matching.filter((box) => ['manual', 'rule'].includes(box.heightSource)).map((box) => box.height));
+    for (const box of matching) {
       if (box.heightSource === 'auto' && box.height !== null && box.height > smallest) {
         box.height = smallest;
         box.heightSource = 'matched';
@@ -178,7 +225,38 @@ export function cabinetDrawerBoxes({
     box.adjustment = over > 1e-9 && over <= adjustment + 1e-9 ? over : 0;
     if (over > adjustment + 1e-9) box.warnings.push({ code: 'drawer-height-too-tall' });
   }
-  for (const { box, section } of entries) {
+  for (const { box, section, effects, pick } of entries) {
+    for (const item of box.accessories) {
+      const { accessory } = item;
+      if (accessory?.attachesTo === 'drawer_box') {
+        const slide = findEffect(accessory, 'slide');
+        if (slide && (slide.slideId !== effects.slide.slideId
+          || (box.source === 'box' && slide.slideId !== box.slideId))) {
+          item.warnings.push({ code: 'accessory-slide', name: accessory.name, slideId: slide.slideId });
+        }
+        for (const effect of accessory.effects) {
+          if (pick.height !== undefined && box.height !== null
+            && ((effect.kind === 'fixed_height' && Math.abs(box.height - effect.inches) > 1e-9)
+              || (effect.kind === 'max_height' && box.height > effect.inches + 1e-9))) {
+            item.warnings.push({ code: 'accessory-height', name: accessory.name,
+              limit: effect.kind === 'fixed_height' ? 'fixed' : 'max', inches: effect.inches });
+          }
+          const has = effect.kind === 'clear_behind' ? section.depth - box.depth : box.depth;
+          if (pick.depth !== undefined && box.depth !== null
+            && ((effect.kind === 'clear_behind' && has + 1e-9 < effect.inches)
+              || (effect.kind === 'max_depth' && has > effect.inches + 1e-9))) {
+            item.warnings.push({ code: 'accessory-depth', name: accessory.name,
+              limit: effect.kind, inches: effect.inches, has });
+          }
+        }
+        const sizes = ['width', 'depth', 'height'].filter((dim) => accessory.minOpening?.[dim] != null
+          && box[dim] !== null && accessory.minOpening[dim] > box[dim] + 1e-9)
+          .map((dim) => ({ dim, needs: accessory.minOpening[dim], has: box[dim] }));
+        if (sizes.length) item.warnings.push({ code: 'accessory-too-small', name: accessory.name, sizes });
+      }
+      box.warnings.push(...item.warnings.map((warning) => ({ ...warning, index: item.index })));
+    }
+    box.notes = [...new Set([...box.notes, ...effects.notes])];
     if (box.kind === 'hamper') {
       box.clearBelow = box.z - section.z;
       if (box.clearBelow < 11) box.warnings.push({ code: 'hamper-clear-below' });

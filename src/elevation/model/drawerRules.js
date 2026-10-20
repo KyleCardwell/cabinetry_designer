@@ -6,7 +6,6 @@ export const DRAWER_RULES = Object.freeze({
   shallowDepth: 15,
   wideFileFront: 24,
   sinkReduction: 3,
-  chargingClearance: 2,
   fileHeight: 10.25,
   stabilizerFrontWidth: 36,
   fileSlideId: 'accuride-3832',
@@ -37,10 +36,6 @@ export function sinkDepth(slide, standard) {
   return standard === null ? null : fittingLength(slide, standard - DRAWER_RULES.sinkReduction);
 }
 
-export function chargingDepth(slide, interiorDepth) {
-  return fittingLength(slide, interiorDepth - DRAWER_RULES.chargingClearance);
-}
-
 /** DRW-009 uses the cabinet box dimensions, before interior clearances. */
 export function rotDepth(boxWidth, boxDepth) {
   if (boxDepth >= 26) return { depth: 24, note: null };
@@ -49,13 +44,8 @@ export function rotDepth(boxWidth, boxDepth) {
   return { depth: 21, note: null };
 }
 
-/** Sink and charging constraints combine; a constraint with no fitting length stays unsized. */
-export function ruleDepth({ kind, purpose, charging, slide, interiorDepth }) {
-  if (kind !== 'drawer') return null;
-  const sink = purpose === 'sink'
+/** Sink constraints are evaluated against the standard fitting length. */
+export function ruleDepth({ kind, purpose, slide, interiorDepth }) {
+  return kind === 'drawer' && purpose === 'sink'
     ? { depth: sinkDepth(slide, fittingLength(slide, interiorDepth)), rule: 'DRW-006' } : null;
-  const charge = charging ? { depth: chargingDepth(slide, interiorDepth), rule: 'DRW-008' } : null;
-  if (!sink) return charge;
-  if (!charge) return sink;
-  return sink.depth === null || (charge.depth !== null && sink.depth <= charge.depth) ? sink : charge;
 }

@@ -136,9 +136,9 @@ export function resolveSlide(settings = {}) {
 }
 
 /** Nearest valid slide wins; missing picks warn and fall through to the next level. */
-export function resolveBoxSlide(settings = {}, { box = null, rule = null, cabinet = null } = {}) {
+export function resolveBoxSlide(settings = {}, { box = null, accessory = null, rule = null, cabinet = null } = {}) {
   const warnings = [];
-  for (const [level, slideId] of [['box', box], ['rule', rule], ['cabinet', cabinet]]) {
+  for (const [level, slideId] of [['box', box], ['accessory', accessory], ['rule', rule], ['cabinet', cabinet]]) {
     if (slideId === null) continue;
     const slide = findSlide(slideId, settings.slides ?? []);
     if (slide) return { slideId, slide, source: level, warnings };

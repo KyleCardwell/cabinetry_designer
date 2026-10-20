@@ -58,7 +58,7 @@ export {
   slideBoxWidth,
 } from './slides.js';
 export { isAccessory, isAccessoryList, newAccessory, copyAccessory, findAccessory, accessoryText, sectionAccessories, wallAccessories } from './accessories.js';
-export { ACCESSORY_EFFECT_KINDS, isAccessoryEffect, isEffectList, effectText, findEffect } from './accessoryEffects.js';
+export { ACCESSORY_EFFECT_KINDS, isAccessoryEffect, isEffectList, effectText, findEffect, boxAccessoryEffects } from './accessoryEffects.js';
 export { isAccessoryItems, addAccessoryItem, setAccessoryItem, removeAccessoryItem, mergeAccessoryItems } from './accessoryItems.js';
 export { PRICING_UNITS, PRICING_UNIT_LABELS, isMoney, isLabor, formatPrice } from './libraryPricing.js';
 export { resolveSetting, resolveSettings, withOverride, cleanOverrides } from './settingsResolve.js';
@@ -124,7 +124,7 @@ export {
 export { captureSides } from './capture.js';
 export { boxConstruction } from './boxConstruction.js';
 export { autoInterior } from './autoInterior.js';
-export { DRAWER_RULES, ruleSlide, ruleHeight, sinkDepth, chargingDepth, ruleDepth } from './drawerRules.js';
+export { DRAWER_RULES, ruleSlide, ruleHeight, sinkDepth, ruleDepth } from './drawerRules.js';
 export {
   cabinetDrawerBoxes, cabinetDrawerBoxesFor, drawerBoxHeights, isPrefinishedMaple, isTallDrawerBox,
   wallDrawerBoxes,

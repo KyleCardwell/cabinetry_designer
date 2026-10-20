@@ -134,6 +134,17 @@ describe('IN5 step a drawer box picks', () => {
       .toEqual({ slideId: 'custom', slide: custom, source: 'rule', warnings: [] });
   });
 
+  it('resolves accessory slides between box and rule picks and falls through missing accessory slides', () => {
+    expect(resolveBoxSlide(settings, { accessory: 'accuride-4034', rule: 'accuride-3832' }))
+      .toEqual(resolved('accuride-4034', 'accessory'));
+    expect(resolveBoxSlide(settings, { box: 'blum-562h', accessory: 'accuride-4034' }))
+      .toEqual(resolved('blum-562h', 'box'));
+    expect(resolveBoxSlide(settings, { box: 'gone', accessory: 'accuride-4034' }))
+      .toEqual(resolved('accuride-4034', 'accessory', [missing('box')]));
+    expect(resolveBoxSlide(settings, { accessory: 'gone', rule: 'accuride-3832' }))
+      .toEqual(resolved('accuride-3832', 'rule', [missing('accessory')]));
+  });
+
   it('warns for missing picks and falls through to the next valid slide (anchor 6)', () => {
     expect(resolveBoxSlide(settings, { box: 'gone', cabinet: 'accuride-3832' }))
       .toEqual(resolved('accuride-3832', 'cabinet', [missing('box')]));

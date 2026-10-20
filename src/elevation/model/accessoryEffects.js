@@ -49,3 +49,33 @@ export function effectText(effect, slides = []) {
 export function findEffect(accessory, kind) {
   return accessory?.effects?.find((effect) => effect.kind === kind) ?? null;
 }
+
+/** Resolve box items in stored order; quantities never multiply sizing effects. */
+export function boxAccessoryEffects(items = [], accessoryList = []) {
+  const result = { items: [], slide: null, fixedHeight: null, maxHeight: null, depthLimits: [], notes: [] };
+  result.items = items.map(({ accessoryId, qty = 1 }, index) => {
+    const accessory = accessoryList.find((entry) => entry.id === accessoryId) ?? null;
+    const warnings = [];
+    if (!accessory) warnings.push({ code: 'accessory-missing' });
+    else if (accessory.attachesTo !== 'drawer_box') {
+      warnings.push({ code: 'accessory-wrong-place', name: accessory.name });
+    } else {
+      const effect = (kind) => {
+        const value = findEffect(accessory, kind);
+        return value ? { ...value, index, accessoryId } : null;
+      };
+      result.slide ??= effect('slide');
+      result.fixedHeight ??= effect('fixed_height');
+      const max = effect('max_height');
+      if (max && (!result.maxHeight || max.inches < result.maxHeight.inches)) result.maxHeight = max;
+      for (const kind of ['clear_behind', 'max_depth']) {
+        const limit = effect(kind);
+        if (limit) result.depthLimits.push(limit);
+      }
+      const note = effect('probox_note');
+      if (note && !result.notes.includes(note.text)) result.notes.push(note.text);
+    }
+    return { index, accessoryId, accessory, qty, warnings };
+  });
+  return result;
+}
