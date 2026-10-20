@@ -293,7 +293,8 @@ function cabinetNotes(room, settings, part, context) {
   const data = context.interiorData();
   const interior = data.interiors.get(part.key);
   const notes = interior ? interiorNotes({ interior, shelves: data.shelves.get(part.key),
-    rollouts: data.rollouts.get(part.key), boxes: drawerData?.boxes ?? [], roomSlideId, settings,
+    rollouts: data.rollouts.get(part.key), accessories: data.accessories.get(part.key),
+    boxes: drawerData?.boxes ?? [], roomSlideId, settings,
     faces, slideNames, depths }) : null;
   const boxes = room.reportParts?.[part.key]?.boxes;
   const style = resolveStyle(settings, room, run, leaf);

@@ -1,11 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
+import { newAccessory } from '../../elevation/model/accessories.js';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { frontDepth, runBackOffset } from '../../elevation/model/corners.js';
 import { DEFAULT_DOOR_STYLE } from '../../elevation/model/doorStyles.js';
 import * as drawerBoxModel from '../../elevation/model/drawerBoxes.js';
 import * as frameModel from '../../elevation/model/frames.js';
 import { gridFromItems } from '../../elevation/model/grid.js';
+import { splitSection } from '../../elevation/model/interiorTree.js';
 import { partNumbers } from '../../elevation/model/partNumbers.js';
 import { resolveWall, syncRoom } from '../../elevation/model/room.js';
 import { runBandEnds, runBands } from '../../elevation/model/runBands.js';
@@ -48,6 +50,35 @@ function room(runs = [run()], overrides = {}, wallOverrides = {}, s = settings) 
 const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entry) => entry.key === key);
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
+
+describe('IN12b step g shipping accessory notes', () => {
+  it('anchor 1: prints NLB then the Susan report text in a single-section 24-inch base', () => {
+    const susan = { ...newAccessory([], 'susan'), name: 'Susan', reportText: '6472-28 lazy susan', wholeSection: true };
+    const s = { ...settings, accessories: [susan] };
+    const r = room([run('run', [{ id: 'cab', kind: 'cabinet', face: face('door', { hinge: 'left' }),
+      interior: { accessories: [{ accessoryId: 'susan' }] } }], { width: 24 })], {}, {}, s);
+    const data = shelfModel.wallInteriorData(r, r.walls[0], 'front', s);
+    expect(row(r, 'cab', s).notes).toEqual(['full top', 'NLB', '6472-28 lazy susan', 'hl']);
+    expect(row(r, 'cab', s).notes.slice(1, -1)).toEqual(['NLB', '6472-28 lazy susan']);
+    expect(data.shelves.get('cab').get('r').count).toBe(0);
+  });
+
+  it('anchors 2–3: prints tall section shelves, then roll-outs, then accessory quantity and fallback name', () => {
+    const tray = { ...newAccessory([], 'tray'), name: 'Tray dividers' };
+    const s = { ...settings, accessories: [tray] };
+    for (const count of [0, 2]) {
+      const interior = splitSection({}, 'r', 'vertical', 2);
+      interior.children[0] = { shelves: { count: 2 }, accessories: [{ accessoryId: 'tray', qty: 2 }],
+        ...(count ? { rollouts: { count } } : {}) };
+      const r = room([run('run', [{ id: 'cab', kind: 'cabinet', face: face('door', { hinge: 'left' }), interior }],
+        { cabinetTypeId: 3, width: 24, height: 84, z: 0 })], {}, {}, s);
+      const data = shelfModel.wallInteriorData(r, r.walls[0], 'front', s);
+      expect(data.interiors.get('cab').dividers).toHaveLength(1);
+      const rolloutText = count ? `, 2 ro - ${formatInch(data.rollouts.get('cab').get('r.0').rollouts[0].depth)}` : '';
+      expect(row(r, 'cab', s).notes).toContain(`Top Sec (2 as${rolloutText}, 2 Tray dividers)`);
+    }
+  });
+});
 
 describe('IN10 step b interior shipping notes', () => {
   const fixture = (leaf = {}, overrides = {}, s = settings) => room([

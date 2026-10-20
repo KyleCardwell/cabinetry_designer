@@ -40,6 +40,32 @@ function nestedInput() {
   return data;
 }
 
+describe('IN12b step g accessory notes', () => {
+  it('keeps stored order in one note after roll-outs regardless of sizing or whole-section warnings', () => {
+    const data = input();
+    data.rollouts.set('r', { rollouts: [rollout(21, 60), rollout(21, 80)] });
+    const whole = { accessory: { name: 'Susan', reportText: '6472-28 lazy susan', attachesTo: 'section', wholeSection: true },
+      qty: 1, warnings: [{ code: 'accessory-too-small' }] };
+    data.accessories = new Map([['r', { items: [whole,
+      { accessory: { name: 'Tray dividers', reportText: '', attachesTo: 'section' }, qty: 2, warnings: [] }],
+    whole, warnings: [{ code: 'accessory-whole-section' }] }]]);
+    const before = structuredClone(data);
+    expect(interiorNotes(data).sections).toEqual(['1 as', '2 ro - 21"', '6472-28 lazy susan, 2 Tray dividers']);
+    expect(data).toEqual(before);
+  });
+
+  it('anchor 4: omits missing and wrong-place items without changing other notes', () => {
+    const data = input();
+    const withoutAccessories = interiorNotes(data);
+    data.accessories = new Map([['r', { whole: null, warnings: [], items: [
+      { accessory: null, qty: 1, warnings: [{ code: 'accessory-missing' }] },
+      { accessory: { name: 'Drawer accessory', reportText: 'Do not print', attachesTo: 'drawer_box' },
+        qty: 2, warnings: [{ code: 'accessory-wrong-place' }] },
+    ] }]]);
+    expect(interiorNotes(data)).toEqual(withoutAccessories);
+  });
+});
+
 describe('IN10 step a interior notes', () => {
   it('prints a single unwrapped section (anchor 1)', () => {
     expect(interiorNotes(input())).toMatchObject({ dividers: [], sections: ['1 as'] });

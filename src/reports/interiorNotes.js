@@ -1,3 +1,4 @@
+import { accessoryText } from '../elevation/model/accessories.js';
 import { DEFAULT_SETTINGS } from '../elevation/model/constants.js';
 import { sheetThickness } from '../elevation/model/doorStyles.js';
 import { getInteriorNode } from '../elevation/model/interiorTree.js';
@@ -76,7 +77,7 @@ function rolloutNotes(entry, roomSlideId) {
 
 /** Format already-resolved interior data without changing or resolving the inputs. */
 export function interiorNotes({
-  interior, shelves = new Map(), rollouts = new Map(), boxes = [], roomSlideId, settings,
+  interior, shelves = new Map(), rollouts = new Map(), accessories = new Map(), boxes = [], roomSlideId, settings,
   faces = [], slideNames = new Map(), depths = new Map(),
 }) {
   const setting = (key) => settings?.[key] ?? DEFAULT_SETTINGS[key];
@@ -88,7 +89,7 @@ export function interiorNotes({
   const frontsIn = (section) => faces.filter((face) => face.type === 'drawer_front'
     && inside(face.x + face.width / 2, face.z + face.height / 2, section));
 
-  /** One item per note: flags first (Kyle 2026-10-19), then drawer fronts, shelves and roll-outs. */
+  /** One item per note: flags first (Kyle 2026-10-19), then drawer fronts, shelves, roll-outs and accessories. */
   const leafContents = (path) => {
     const shelf = shelves.get(path);
     const section = sections.get(path);
@@ -110,6 +111,10 @@ export function interiorNotes({
     }
     // All roll-out groups are one note, like the DF's.
     notes.push(rolloutNotes(rollouts.get(path), roomSlideId).join(', '));
+    notes.push((accessories.get(path)?.items ?? [])
+      .filter(({ accessory }) => accessory?.attachesTo === 'section')
+      .map(({ accessory, qty }) => `${qty > 1 ? `${qty} ` : ''}${accessoryText(accessory)}`)
+      .join(', '));
     return notes.filter(Boolean);
   };
 
