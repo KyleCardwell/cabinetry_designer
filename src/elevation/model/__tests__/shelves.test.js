@@ -88,10 +88,16 @@ describe('IN8 shelves and section flags', () => {
     expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23 }]);
     const before = structuredClone(args);
     expect(sectionShelves(args).get('r')).toMatchObject({ count: 1, countSource: 'auto',
-      zone: { z: 0.75, height: 29 }, width: 22.4375, depth: 22.875, orderedDepth: 22.875, thickness: 0.75,
+      zone: { z: 0.75, height: 29 }, width: 22.375, depth: 22.875, orderedDepth: 22.875, thickness: 0.75,
       glass: false, glassSource: 'auto', nosing: null, nosingSource: 'auto', banding: true,
       hinges: true, hingesSource: 'auto', lineBore: true, lineBoreSource: 'auto', warnings: [] });
     expect(args).toEqual(before);
+  });
+
+  it('IN8.2: deducts shelf clearance on both sides of a 30-inch section', () => {
+    const args = input({ width: 31.5, settings: { ...settings, shelfWidthClearance: 0.25 } });
+    expect(args.interior.sections[0].width).toBe(30);
+    expect(sectionShelves(args).get('r').width).toBe(29.5);
   });
 
   it('anchor 2: leaves a 23 9/16 shelf zone below the top drawer space', () => {
@@ -110,7 +116,7 @@ describe('IN8 shelves and section flags', () => {
 
   it('anchor 4: sizes an upper pair-door shelf using its 28 1/2 clear height and 11 depth', () => {
     expect(root({ width: 30, height: 30, depth: 12, leaf: { face: face('pair_door') } }))
-      .toMatchObject({ zone: { z: 0.75, height: 28.5 }, count: 1, width: 28.4375, depth: 10.875 });
+      .toMatchObject({ zone: { z: 0.75, height: 28.5 }, count: 1, width: 28.375, depth: 10.875 });
   });
 
   it('anchor 5: wide pairs partition unless cabinet nosing supplies the full-width shelf', () => {
@@ -118,16 +124,16 @@ describe('IN8 shelves and section flags', () => {
     expect(plain.interior.dividers).toMatchObject([{ kind: 'partition', seam: 'r:pair' }]);
     expect(plain.interior.sections.map(({ width }) => width)).toEqual([19.875, 19.875]);
     expect([...sectionShelves(plain).values()]).toMatchObject([
-      { count: 1, width: 19.8125 }, { count: 1, width: 19.8125 },
+      { count: 1, width: 19.75 }, { count: 1, width: 19.75 },
     ]);
     for (const nosing of ['hardwood', 'folded']) {
       const args = input({ width: 42, leaf: { face: face('pair_door'), shelves: { nosing } } });
       expect(args.interior.dividers).toEqual([]);
       expect(args.interior.warnings).toEqual([]);
       expect(args.interior.sections[0].width).toBe(40.5);
-      expect(sectionShelves(args).get('r')).toMatchObject({ width: 40.4375, depth: 22.875,
+      expect(sectionShelves(args).get('r')).toMatchObject({ width: 40.375, depth: 22.875,
         orderedDepth: nosing === 'hardwood' ? 22.0625 : 24.875, banding: false, nosingSource: 'cabinet',
-        nosing: { kind: nosing, length: 40.4375, height: 1.5, thickness: 0.8125 } });
+        nosing: { kind: nosing, length: 40.375, height: 1.5, thickness: 0.8125 } });
     }
     expect(input({ width: 42, leaf: { face: face('pair_door'), shelves: { nosing: 'none' } } })
       .interior.dividers).toHaveLength(1);
@@ -232,7 +238,7 @@ describe('IN8 shelves and section flags', () => {
       shelfNosingThickness: 1, foldedNosingExtra: 3 };
     const hardwood = root({ settings: effective, leaf: { shelves: { nosing: 'hardwood' } } });
     expect(hardwood)
-      .toMatchObject({ count: 1, width: 22.875, depth: 22.75, thickness: 0.5, orderedDepth: 21.75,
+      .toMatchObject({ count: 1, width: 22.75, depth: 22.75, thickness: 0.5, orderedDepth: 21.75,
         nosing: { height: 2, thickness: 1 }, nosingSource: 'cabinet' });
     expect(hardwood.positions[0] - hardwood.zone.z).toBe(13.75); // (29 1/2 - 10) / (10 + 2) = 1.6
     expect(root({ settings: effective, leaf: { shelves: { nosing: 'folded' } } }).orderedDepth).toBe(25.75);
@@ -304,7 +310,7 @@ describe('IN8 shelves and section flags', () => {
     }
     expect([...result.keys()]).toEqual(['a', 'b', 'c', 'd']);
     expect(result.get('a').get('r')).toMatchObject({ count: 1, zone: { z: 4.75, height: 23.5625 } });
-    expect(result.get('b').get('r')).toMatchObject({ width: 40.4375, nosing: { kind: 'hardwood' } });
+    expect(result.get('b').get('r')).toMatchObject({ width: 40.375, nosing: { kind: 'hardwood' } });
     expect(result.get('c').get('r')).toMatchObject({ count: 0, hinges: false });
     expect(result.get('d').get('r')).toMatchObject({ count: 1, zone: { z: 54.75, height: 28.5 } });
     expect(cabinetInterior(room, wall, 'front', settings, 'b').dividers).toEqual([]);

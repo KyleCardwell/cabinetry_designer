@@ -166,7 +166,7 @@ export const DEFAULT_SETTINGS = {
     comments: 'Cross Grain Bottoms',
   },
   shelfSpacing: 11,
-  shelfWidthClearance: 1 / 16,
+  shelfWidthClearance: 1 / 16, // per side
   shelfSetback: 1 / 8,
   glassShelfThickness: 1 / 4,
   shelfNosingHeight: 1.5,

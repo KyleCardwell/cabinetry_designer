@@ -45,7 +45,7 @@ const roomNumbers = [
   ['rolloutHeight', 'Roll-out height'],
   ['rolloutSpacer', 'Roll-out hinge spacer'],
   ['shelfSpacing', 'Min clear between shelves'],
-  ['shelfWidthClearance', 'Shelf width clearance'],
+  ['shelfWidthClearance', 'Shelf side clearance'],
   ['shelfSetback', 'Shelf front setback'],
   ['glassShelfThickness', 'Glass shelf thickness'],
   ['shelfNosingHeight', 'Shelf nosing height'],

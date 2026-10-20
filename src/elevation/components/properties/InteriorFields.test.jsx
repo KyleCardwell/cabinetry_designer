@@ -387,7 +387,7 @@ describe('IN8 shelf controls', () => {
     select('r');
     expect(field('Shelf count r').props).toMatchObject({ value: undefined, placeholder: 'Auto (1)', allowAuto: true });
     expect(field('Shelf count r').props.className).toContain('placeholder:text-gray-500');
-    expect(text(field('Shelf size r'))).toBe('22 7/16 × 22 7/8 × 3/4');
+    expect(text(field('Shelf size r'))).toBe('22 3/8 × 22 7/8 × 3/4');
     commit('Shelf count r', 2);
     expectInterior({ shelves: { count: 2 } });
     expect(field('Shelf count r').props.placeholder).toBe('Auto (1)');
@@ -427,7 +427,7 @@ describe('IN8 shelf controls', () => {
     expect(item()).not.toHaveProperty('interior');
     expect(field('Interior r.0')).toBeUndefined();
     select('r');
-    expect(text(field('Shelf size r'))).toBe('40 7/16 × 22 7/8 × 3/4 + 1 1/2 × 13/16 nosing');
+    expect(text(field('Shelf size r'))).toBe('40 3/8 × 22 7/8 × 3/4 + 1 1/2 × 13/16 nosing');
     expect(options(field('Shelf nosing r'))[0]).toEqual(['', 'Auto (Hardwood)']);
   });
 
@@ -440,7 +440,7 @@ describe('IN8 shelf controls', () => {
     select('r');
     expect(field('Glass shelves r').props.checked).toBe(true);
     expect(field('Shelf nosing r').props.disabled).toBe(true);
-    expect(text(field('Shelf size r'))).toBe('22 7/16 × 22 7/8 × 1/4');
+    expect(text(field('Shelf size r'))).toBe('22 3/8 × 22 7/8 × 1/4');
     tick('Glass shelves r', false);
     expectInterior({ shelves: { glass: false } });
     expect(field('Shelf nosing r').props.disabled).toBe(false);

@@ -47,7 +47,8 @@ export function sectionShelves({ interior, faces, boxes = [], leaf, settings, ro
     const source = (key) => pick[key] !== undefined ? 'manual' : cabinet[key] !== undefined ? 'cabinet' : 'auto';
     const glass = pick.glass ?? cabinet.glass ?? false;
     const kind = glass ? 'none' : pick.nosing ?? cabinet.nosing ?? 'none';
-    const width = section.width - setting('shelfWidthClearance');
+    // Clearance is per side, 1/16" each side (Kyle 2026-10-20).
+    const width = section.width - 2 * setting('shelfWidthClearance');
     const depth = section.depth - setting('shelfSetback');
     const thickness = glass ? setting('glassShelfThickness') : sheetThickness(settings);
     const nosing = kind === 'none' ? null : {
