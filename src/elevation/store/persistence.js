@@ -878,18 +878,32 @@ function normalizeDocument(document, schemaVersion) {
   };
 }
 
-/** Remove the retired cabinet-wide charging purpose, including inside nested grids. */
-function withoutChargingPurpose(node) {
+/** Remove retired charging picks throughout nested face trees before validation. */
+function withoutDrawerCharging(face) {
+  if (!isPlainObject(face)) return face;
+  const next = { ...face };
+  if (Array.isArray(face.children)) next.children = face.children.map(withoutDrawerCharging);
+  if (isPlainObject(face.drawerBox) && Object.hasOwn(face.drawerBox, 'charging')) {
+    next.drawerBox = { ...face.drawerBox };
+    delete next.drawerBox.charging;
+    if (!Object.keys(next.drawerBox).length) delete next.drawerBox;
+  }
+  return next;
+}
+
+/** Remove the retired cabinet purpose and box charging picks, including nested grids. */
+function withoutRetiredCharging(node) {
   if (!isPlainObject(node)) return node;
   if (Array.isArray(node.cells)) {
     return { ...node, cells: node.cells.map((cell) => (
-      isPlainObject(cell) ? { ...cell, node: withoutChargingPurpose(cell.node) } : cell
+      isPlainObject(cell) ? { ...cell, node: withoutRetiredCharging(cell.node) } : cell
     )) };
   }
-  if (node.kind !== 'cabinet' || node.purpose !== 'charging') return node;
-  const { purpose, ...rest } = node;
-  void purpose;
-  return rest;
+  if (node.kind !== 'cabinet') return node;
+  const next = { ...node };
+  if (next.purpose === 'charging') delete next.purpose;
+  if (node.face !== undefined) next.face = withoutDrawerCharging(node.face);
+  return next;
 }
 
 /** Fill fields added within the current schema while retaining compatibility. */
@@ -937,7 +951,7 @@ export function normalizeElevationDocument(document) {
               if (!run || typeof run !== 'object') return run;
               return {
                 ...normalizeRunWaterfall(normalizeRunTopOverhang(run)),
-                ...(run.grid !== undefined ? { grid: withoutChargingPurpose(run.grid) } : {}),
+                ...(run.grid !== undefined ? { grid: withoutRetiredCharging(run.grid) } : {}),
                 anchors: run.anchors && typeof run.anchors === 'object'
                   ? Object.fromEntries(Object.entries(run.anchors).map(([side, anchor]) => [
                       side,

@@ -22,7 +22,7 @@ it('IN6 a anchor 4: counts pull-out slide picks and moves or clears them, preser
     { type: 'door', size: null, action: 'pullout', drawerBox: { slideId: U } },
     { direction: 'horizontal', size: null, children: [
       { type: 'door', size: null, action: 'pullout', drawerBox: { slideId: U, height: 12.125, depth: 21 } },
-      { type: 'drawer_front', size: null, drawerBox: { slideId: U, charging: true } },
+      { type: 'drawer_front', size: null, drawerBox: { slideId: U, accessories: [{ accessoryId: 'a' }] } },
     ] },
   ] };
   expect(missingSlides(state.rooms[0], state.settings)).toEqual([{ slideId: U, roomUses: 3, setIn: [] }]);
@@ -34,7 +34,7 @@ it('IN6 a anchor 4: counts pull-out slide picks and moves or clears them, preser
   const face = gridLeaves(removed.rooms[0].walls[0].runs[0].grid)[0].face;
   expect(face.children[0]).not.toHaveProperty('drawerBox');
   expect(face.children[1].children[0].drawerBox).toEqual({ height: 12.125, depth: 21 });
-  expect(face.children[1].children[1].drawerBox).toEqual({ charging: true });
+  expect(face.children[1].children[1].drawerBox).toEqual({ accessories: [{ accessoryId: 'a' }] });
   expect(missingSlides(removed.rooms[0], removed.settings)).toEqual([]);
   expect(cabinet.face.children[0].drawerBox).toEqual({ slideId: U });
 });

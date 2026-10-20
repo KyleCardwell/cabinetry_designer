@@ -248,7 +248,7 @@ export function setFaceDrawerBox(face, path, patch) {
     || !patch || typeof patch !== 'object' || Array.isArray(patch)) return face;
   const keys = Reflect.ownKeys(patch);
   if (!keys.every((key) => ['slideId', 'height', 'depth'].includes(key)
-    || (key === 'charging' && target.type === 'drawer_front'))) return face;
+    || (key === 'accessories' && target.type === 'drawer_front'))) return face;
   const drawerBox = { ...target.drawerBox };
   for (const key of keys) {
     if (patch[key] === null) delete drawerBox[key];

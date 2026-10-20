@@ -319,7 +319,7 @@ it('IN12b f anchors 1 and 6: combines missing slides and accessories and moves a
   expect(nodes(dialog.tree).filter(({ type }) => [MissingSlideRow, MissingAccessoryRow].includes(type)).map(({ type }) => type))
     .toEqual([MissingSlideRow, MissingAccessoryRow]);
   const [row] = accessoryRows(renderComponent(MissingAccessoriesNotice).tree);
-  expect(text(row.tree)).toContain("Accessory `gone` isn't in the Library any more. 2 places in this room use it.");
+  expect(text(row.tree)).toContain("Accessory `gone` isn't in the Library any more. 2 places in this room use it in sections.");
   expect(nodes(row.tree).filter(({ type }) => type === 'option').map(({ props }) => [props.value, text(props.children)]))
     .toEqual([['susan', 'Susan'], ['tray', 'Tray'], ['', 'Remove them']]);
   expect(select(row.tree).props.value).toBe('susan');
@@ -327,7 +327,7 @@ it('IN12b f anchors 1 and 6: combines missing slides and accessories and moves a
   row.render();
   button(row.tree, 'Move').props.onClick();
   expect(dispatch).toHaveBeenCalledWith({ type: 'elevation/moveMissingAccessory', payload: {
-    roomId: room().id, accessoryId: 'gone', reassignTo: 'tray',
+    roomId: room().id, accessoryId: 'gone', place: 'section', reassignTo: 'tray',
   } });
   expect(renderComponent(MissingAccessoriesNotice).tree).toBeNull();
   expect(nodes(dialog.render()).filter(({ type }) => type === MissingSlideRow)).toHaveLength(1);
@@ -351,10 +351,38 @@ it('IN12b f: removes items with an empty library and keeps archived notices with
     state.elevation.cloud.room.readOnly = source === 'cloud';
     room().walls[0].runs[0].grid.cells[0].node.interior.accessories[0].accessoryId = archived;
     const notice = accessoryRows(renderComponent(MissingAccessoriesNotice).tree).find((row) => text(row.tree).startsWith('An archived'));
-    expect(text(notice.tree)).toBe("An archived accessory isn't in the Library any more. 1 place in this room uses it. Someone who can edit the room can move them.");
+    expect(text(notice.tree)).toBe("An archived accessory isn't in the Library any more. 1 place in this room uses it in sections. Someone who can edit the room can move them.");
     expect(select(notice.tree)).toBeUndefined();
     expect(button(notice.tree, 'Move')).toBeUndefined();
   }
   state.elevation.activeRoomId = 'absent';
   expect(renderComponent(MissingAccessoriesNotice).tree).toBeNull();
+});
+
+
+it('IN12c c anchor 4: shows two rows per missing id by place in the notice and dialog with place-specific choices', () => {
+  accessoryRoom();
+  const cabinets = room().walls[0].runs[0].grid.cells.map(({ node }) => node);
+  delete cabinets[1].interior;
+  for (const cabinet of cabinets) cabinet.face = {
+    type: 'drawer_front', size: null, drawerBox: { accessories: [{ accessoryId: 'gone' }] },
+  };
+  for (const Component of [MissingAccessoriesNotice, MissingDesignsDialog]) {
+    const tree = renderComponent(Component).tree;
+    const elements = nodes(tree).filter(({ type }) => type === MissingAccessoryRow);
+    expect(elements.map(({ props }) => [props.accessoryId, props.place, props.roomUses]))
+      .toEqual([['gone', 'section', 1], ['gone', 'drawer_box', 2]]);
+    expect(new Set(elements.map(({ key }) => key)).size).toBe(2);
+  }
+  const [section, box] = accessoryRows(renderComponent(MissingAccessoriesNotice).tree);
+  expect(text(section.tree)).toContain('1 place in this room uses it in sections.');
+  expect(text(box.tree)).toContain('2 places in this room use it on drawer boxes.');
+  expect(select(box.tree).props['aria-label']).toBe('Move drawer boxes using gone to');
+  expect(nodes(box.tree).filter(({ type }) => type === 'option').map(({ props }) => [props.value, text(props.children)]))
+    .toEqual([['drawer', 'Drawer insert'], ['', 'Remove them']]);
+  button(box.tree, 'Move').props.onClick();
+  expect(dispatch.mock.lastCall[0].payload).toEqual({
+    roomId: room().id, accessoryId: 'gone', place: 'drawer_box', reassignTo: 'drawer',
+  });
+  expect(accessoryRows(renderComponent(MissingAccessoriesNotice).tree)).toHaveLength(1);
 });

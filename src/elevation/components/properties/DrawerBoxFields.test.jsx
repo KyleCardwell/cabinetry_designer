@@ -107,12 +107,13 @@ describe('IN6 Drawer boxes rules and pull-outs', () => {
       .toEqual(['notch drw around plumbing (DRW-006)', 'drawer stabilizers (BOX-007)']);
   });
 
-  it('anchor 3: checks and unchecks Charging with sparse patches and recalculates rule depth', () => {
+  it('IN12c c: keeps Charging visible until step e but ignores its retired patches', () => {
     expect(field('Charging r.0').props.checked).toBe(false);
     field('Charging r.0').props.onChange({ target: { checked: true } });
     expect(dispatch).toHaveBeenLastCalledWith(setFaceDrawerBox({ ...at, itemId: 'c1', path: 'r.0', patch: { charging: true } }));
-    expect(field('Charging r.0').props.checked).toBe(true);
-    expect(placeholders('depth')[0]).toBe('Auto (21", DRW-008)');
+    expect(field('Charging r.0').props.checked).toBe(false);
+    expect(item().face.children[0]).not.toHaveProperty('drawerBox');
+    expect(placeholders('depth')[0]).toBe('Auto (21")');
     field('Charging r.0').props.onChange({ target: { checked: false } });
     expect(dispatch).toHaveBeenLastCalledWith(setFaceDrawerBox({ ...at, itemId: 'c1', path: 'r.0', patch: { charging: null } }));
     expect(item().face.children[0].drawerBox).toBeUndefined();

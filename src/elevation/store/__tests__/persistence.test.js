@@ -156,7 +156,7 @@ it('IN12b anchor 6: defaults missing accessories, round trips saved entries and 
 });
 
 describe('IN1a cabinet purpose persistence', () => {
-  it('IN6 a anchor 5: loads retired charging purposes without changing drawer charging picks or other purposes', () => {
+  it('IN6 a anchor 5: loads retired charging purposes and box picks without changing other purposes', () => {
     const document = currentDocument();
     document.rooms[0].walls[0].runs[0].grid = gridFromItems('outer', [
       { id: 'nested', kind: 'cabinet', width: null, grid: gridFromItems('nested', [
@@ -178,7 +178,7 @@ describe('IN1a cabinet purpose persistence', () => {
     expect(cabinets.map(({ purpose }) => purpose)).toEqual([undefined, 'sink', undefined]);
     expect(cabinets[0]).not.toHaveProperty('purpose');
     expect(cabinets[2]).not.toHaveProperty('purpose');
-    expect(cabinets[0].face.drawerBox).toEqual({ charging: true });
+    expect(cabinets[0].face).not.toHaveProperty('drawerBox');
     expect(cabinets[1].face.drawerBox).toEqual({ depth: 21 });
     expect(CABINET_PURPOSES.map(([id]) => id)).not.toContain('charging');
     expect(normalizeElevationDocument(loaded)).toEqual(loaded);
@@ -1979,4 +1979,35 @@ it('IN11a loads older settings and rooms with ProBox defaults and preserves save
   expect(roundTrip.settings.drawerBoxOrder).toEqual(loaded.settings.drawerBoxOrder);
   expect(roundTrip.settings.report.companyAddress).toBe('4311 W 8480 S');
   expect(roundTrip.rooms[0].settingsOverrides).toEqual({ drawerBoxOrder: { sideMaterial: 'Soft Maple' } });
+});
+
+
+it('IN12c c anchor 3: strips charging before sandbox and shop validation through nested grids and face groups', () => {
+  const document = currentDocument();
+  const face = { direction: 'vertical', size: null, children: [
+    { type: 'drawer_front', size: null, drawerBox: { charging: true, depth: 20 } },
+    { direction: 'horizontal', size: null, children: [
+      { type: 'drawer_front', size: null, drawerBox: { charging: true } },
+      { type: 'drawer_front', size: null, drawerBox: { charging: true, accessories: [{ accessoryId: 'a' }] } },
+    ] },
+  ] };
+  document.rooms[0].walls[0].runs[0].grid = gridFromItems('outer', [
+    { id: 'nested', kind: 'cabinet', width: null, grid: gridFromItems('nested', [
+      { id: 'cab', kind: 'cabinet', width: null, face },
+      { id: 'other', kind: 'cabinet', width: null },
+    ]) },
+  ]);
+  const before = structuredClone(document);
+  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+  const loaded = loadElevationDocument();
+  expect(loaded).not.toBeNull();
+  expect(isElevationDocument(loaded)).toBe(true);
+  expect(roomFromDocument(document.rooms[0], document.schemaVersion, document.settings))
+    .toEqual({ ok: true, room: loaded.rooms[0] });
+  const children = gridLeaves(loaded.rooms[0].walls[0].runs[0].grid)[0].face.children;
+  expect(children[0].drawerBox).toEqual({ depth: 20 });
+  expect(children[1].children[0]).not.toHaveProperty('drawerBox');
+  expect(children[1].children[1].drawerBox).toEqual({ accessories: [{ accessoryId: 'a' }] });
+  expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+  expect(document).toEqual(before);
 });

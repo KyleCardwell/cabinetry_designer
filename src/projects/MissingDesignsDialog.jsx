@@ -37,7 +37,7 @@ export default function MissingDesignsDialog() {
       ))}
       {pulls.map((row) => <MissingPullRow key={row.pullId} room={room} {...row} readOnly={false} />)}
       {slides.map((row) => <MissingSlideRow key={row.slideId} room={room} {...row} readOnly={false} />)}
-      {accessories.map((row) => <MissingAccessoryRow key={row.accessoryId} room={room} {...row} readOnly={false} />)}
+      {accessories.map((row) => <MissingAccessoryRow key={`${row.accessoryId}:${row.place}`} room={room} {...row} readOnly={false} />)}
       <button autoFocus type="button" className="rounded border border-gray-600 px-3 py-2" onClick={() => setDismissed(true)}>Not now</button>
     </section>
   </div>;

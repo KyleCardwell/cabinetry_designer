@@ -142,20 +142,32 @@ export function wallAccessories(room, wall, side, settings, shared = {}) {
   })]));
 }
 
-/** Stored section accessory picks, including nested grids and interior groups. */
+/** Stored accessory picks by place, including nested grids, faces and interior groups. */
 export function* roomAccessoryUses(room) {
   function* sections(node) {
     if (!node) return;
     if (node.children) {
       for (const child of node.children) yield* sections(child);
     } else {
-      for (const item of node.accessories ?? []) yield { node: item, key: 'accessoryId' };
+      for (const item of node.accessories ?? []) yield { node: item, key: 'accessoryId', place: 'section' };
+    }
+  }
+  function* faces(face) {
+    if (!face) return;
+    if (face.children) {
+      for (const child of face.children) yield* faces(child);
+    } else if (face.type === 'drawer_front') {
+      for (const item of face.drawerBox?.accessories ?? []) {
+        yield { node: item, key: 'accessoryId', place: 'drawer_box' };
+      }
     }
   }
   for (const wall of room?.walls ?? []) {
     for (const run of wall.runs ?? []) {
       for (const item of run.grid ? gridLeaves(run.grid) : []) {
-        if (item.kind === 'cabinet') yield* sections(item.interior);
+        if (item.kind !== 'cabinet') continue;
+        yield* sections(item.interior);
+        yield* faces(item.face);
       }
     }
   }
@@ -164,13 +176,15 @@ export function* roomAccessoryUses(room) {
 export function missingAccessories(room, settings) {
   const known = new Set((settings?.accessories ?? []).map(({ id }) => id));
   const missing = new Map();
-  for (const { node, key } of roomAccessoryUses(room)) {
+  for (const { node, key, place } of roomAccessoryUses(room)) {
     const accessoryId = node[key];
     if (typeof accessoryId !== 'string' || !accessoryId || known.has(accessoryId)) continue;
-    if (!missing.has(accessoryId)) missing.set(accessoryId, { accessoryId, roomUses: 0 });
-    missing.get(accessoryId).roomUses += 1;
+    const idAndPlace = JSON.stringify([accessoryId, place]);
+    if (!missing.has(idAndPlace)) missing.set(idAndPlace, { accessoryId, place, roomUses: 0 });
+    missing.get(idAndPlace).roomUses += 1;
   }
-  return [...missing.values()].sort((a, b) => a.accessoryId.localeCompare(b.accessoryId));
+  return [...missing.values()].sort((a, b) => a.accessoryId.localeCompare(b.accessoryId)
+    || (a.place === b.place ? 0 : a.place === 'section' ? -1 : 1));
 }
 
 export function missingAccessoryName(accessoryId) {

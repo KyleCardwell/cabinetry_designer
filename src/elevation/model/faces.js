@@ -1,3 +1,4 @@
+import { isAccessoryItems } from './accessoryItems.js';
 import { EPSILON } from './cells.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { isPartSizes, isStyleRef } from './doorStyles.js';
@@ -32,12 +33,12 @@ function isSize(size) {
   return size === null || (Number.isFinite(size) && size > 0);
 }
 
-function isDrawerBox(box, allowCharging) {
+function isDrawerBox(box, allowAccessories) {
   if (!box || typeof box !== 'object' || Array.isArray(box)) return false;
   const keys = Reflect.ownKeys(box);
   return keys.length > 0 && keys.every((key) => (
     key === 'slideId' ? typeof box[key] === 'string' && box[key].length > 0
-      : key === 'charging' ? allowCharging && box[key] === true
+      : key === 'accessories' ? allowAccessories && isAccessoryItems(box[key])
       : ['height', 'depth'].includes(key) && Number.isFinite(box[key]) && box[key] > 0
   ));
 }

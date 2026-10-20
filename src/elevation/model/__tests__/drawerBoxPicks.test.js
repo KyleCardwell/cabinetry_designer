@@ -12,11 +12,11 @@ const resolved = (slideId, source, warnings = []) => ({
   slideId, slide: BUILT_IN_SLIDES.find(({ id }) => id === slideId), source, warnings,
 });
 
-describe('IN6 step a pull-out boxes and charging picks', () => {
-  it('anchor 1: permits pull-out box dimensions and true charging only on drawer fronts', () => {
+describe('IN6 step a pull-out boxes', () => {
+  it('anchor 1: permits pull-out box dimensions and rejects retired charging picks', () => {
     expect(isFaceNode(leaf('door', { action: 'pullout', drawerBox: { height: 12.125 } }))).toBe(true);
     expect(isFaceNode(leaf('door', { drawerBox: { height: 12.125 } }))).toBe(false);
-    expect(isFaceNode(leaf('drawer_front', { drawerBox: { charging: true } }))).toBe(true);
+    expect(isFaceNode(leaf('drawer_front', { drawerBox: { charging: true } }))).toBe(false);
     expect(isFaceNode(leaf('drawer_front', { drawerBox: { charging: false } }))).toBe(false);
     expect(isFaceNode(leaf('door', { action: 'pullout', drawerBox: { charging: true } }))).toBe(false);
     for (const charging of [null, undefined, 1, 'true']) {
@@ -28,21 +28,16 @@ describe('IN6 step a pull-out boxes and charging picks', () => {
     expect(isFaceNode(leaf('pair_door', { action: 'pullout', drawerBox: { depth: 21 } }))).toBe(false);
   });
 
-  it('anchor 2: patches pull-out boxes and adds or removes a drawer charging pick atomically', () => {
+  it('anchor 2: patches pull-out boxes and ignores retired charging patches atomically', () => {
     const face = { ...tree(), children: [leaf(), leaf('door', { action: 'pullout' })] };
     const picked = setFaceDrawerBox(face, 'r.1', { depth: 21 });
     expect(picked.children[1].drawerBox).toEqual({ depth: 21 });
-    expect(setFaceDrawerBox(picked, 'r.1', { charging: true })).toBe(picked);
-    expect(setFaceDrawerBox(picked, 'r.1', { height: 12.125, charging: true })).toBe(picked);
-    expect(setFaceDrawerBox(picked, 'r.1', { charging: null })).toBe(picked);
+    for (const path of ['r.0', 'r.1']) {
+      for (const patch of [{ charging: true }, { height: 12.125, charging: true }, { charging: null }]) {
+        expect(setFaceDrawerBox(picked, path, patch)).toBe(picked);
+      }
+    }
     expect(setFaceDrawerBox(picked, 'r.1', { depth: null }).children[1]).not.toHaveProperty('drawerBox');
-    const charging = setFaceDrawerBox(face, 'r.0', { charging: true });
-    expect(charging.children[0].drawerBox).toEqual({ charging: true });
-    expect(setFaceDrawerBox(charging, 'r.0', { charging: true })).toBe(charging);
-    expect(setFaceDrawerBox(charging, 'r.0', { charging: false })).toBe(charging);
-    expect(setFaceDrawerBox(charging, 'r.0', { charging: null }).children[0]).not.toHaveProperty('drawerBox');
-    const sized = setFaceDrawerBox(charging, 'r.0', { depth: 18 });
-    expect(setFaceDrawerBox(sized, 'r.0', { charging: null }).children[0].drawerBox).toEqual({ depth: 18 });
     expect(face.children[0]).not.toHaveProperty('drawerBox');
     expect(face.children[1]).not.toHaveProperty('drawerBox');
   });
@@ -59,7 +54,7 @@ describe('IN6 step a pull-out boxes and charging picks', () => {
     for (const type of FACE_TYPES.filter((type) => type !== 'door')) {
       expect(setFaceType(pullout, 'r', type)).toEqual(leaf(type));
     }
-    const drawer = leaf('drawer_front', { drawerBox: { charging: true, depth: 18 } });
+    const drawer = leaf('drawer_front', { drawerBox: { accessories: [{ accessoryId: 'a' }], depth: 18 } });
     expect(setFaceType(drawer, 'r', 'door')).toEqual(leaf('door'));
     for (const face of [pullout, drawer]) {
       for (const direction of ['horizontal', 'vertical']) {
@@ -155,5 +150,39 @@ describe('IN5 step a drawer box picks', () => {
     expect(resolveBoxSlide({ slides: [editedBlum], drawerSlideId: 'gone' }).slide).toBe(editedBlum);
     expect(resolveBoxSlide()).toEqual(resolved('blum-562h', 'room'));
     expect(resolveBoxSlide(settings, { box: 'blum-562h', rule: 'gone', cabinet: 'gone' }).warnings).toEqual([]);
+  });
+});
+
+
+describe('IN12c c drawer box accessories', () => {
+  it('anchor 1: validates shared item lists only on drawer fronts', () => {
+    expect(isFaceNode(leaf('drawer_front', { drawerBox: { accessories: [{ accessoryId: 'a' }] } }))).toBe(true);
+    expect(isFaceNode(leaf('drawer_front', { drawerBox: { accessories: [] } }))).toBe(false);
+    expect(isFaceNode(leaf('drawer_front', { drawerBox: { charging: true } }))).toBe(false);
+    expect(isFaceNode(leaf('door', { action: 'pullout', drawerBox: { accessories: [{ accessoryId: 'a' }] } }))).toBe(false);
+    for (const accessories of [null, [{ accessoryId: 'a', qty: 1 }], [{ accessoryId: 'a', qty: 21 }],
+      [{ accessoryId: 'a' }, { accessoryId: 'a' }], [{ accessoryId: '' }],
+      Array.from({ length: 13 }, (_, i) => ({ accessoryId: String(i) }))]) {
+      expect(isFaceNode(leaf('drawer_front', { drawerBox: { accessories } }))).toBe(false);
+    }
+    expect(isFaceNode(leaf('drawer_front', { drawerBox: {
+      accessories: Array.from({ length: 12 }, (_, i) => ({ accessoryId: String(i), qty: 20 })),
+    } }))).toBe(true);
+  });
+
+  it('anchor 2: stores and clears items, prunes empty boxes, and rejects invalid patches atomically', () => {
+    const face = tree();
+    const accessories = [{ accessoryId: 'a', qty: 2 }];
+    const picked = setFaceDrawerBox(face, 'r.0', { accessories });
+    expect(picked.children[0].drawerBox).toEqual({ accessories });
+    expect(setFaceDrawerBox(picked, 'r.0', { accessories: null }).children[0]).not.toHaveProperty('drawerBox');
+    const sized = setFaceDrawerBox(picked, 'r.0', { depth: 20 });
+    expect(setFaceDrawerBox(sized, 'r.0', { accessories: null }).children[0].drawerBox).toEqual({ depth: 20 });
+    for (const patch of [{ accessories: [] }, { accessories: undefined }, { accessories, charging: true }]) {
+      expect(setFaceDrawerBox(picked, 'r.0', patch)).toBe(picked);
+    }
+    const pullout = leaf('door', { action: 'pullout' });
+    expect(setFaceDrawerBox(pullout, 'r', { accessories })).toBe(pullout);
+    expect(face).toEqual(tree());
   });
 });
