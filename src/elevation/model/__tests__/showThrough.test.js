@@ -85,7 +85,7 @@ describe('IN14 show-through model', () => {
     expect(entry.windows[0]).toEqual(rect(layout.faces.find(({ type }) => type === 'open')));
   });
 
-  it('anchor 6: uses the framed glass openings and marks while preserving the normal interior', () => {
+  it('anchor 6: uses the framed glass openings and marks, keeping only overlapping interior items', () => {
     const room = single({ face: face('door', { panelMaterial: 'glass' }) });
     const entry = show(room).get('a');
     const detail = detailsModule.runDoorDetails(room, room.walls[0], room.walls[0].runs[0], settings)
@@ -93,9 +93,8 @@ describe('IN14 show-through model', () => {
     expect(entry.windows).toEqual(detail.openings);
     expect(entry.glass).toEqual([{ partId: 'a:r', openings: detail.openings,
       marks: detail.openings.flatMap(glassMarks) }]);
-    // Anchor 6 expects all five items; §1 overlap filtering keeps only the shelf.
-    // Preserve the anchor so this spec discrepancy remains visible.
-    expect(entry.items).toEqual(openItems);
+    // Kyle confirmed §1 takes precedence: the frame hides all four box edges.
+    expect(entry.items).toEqual([openItems[4]]);
   });
 
   it('anchor 7: gives each pair half its elevation part id, window and three marks', () => {
