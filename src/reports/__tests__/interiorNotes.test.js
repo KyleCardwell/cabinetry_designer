@@ -66,6 +66,24 @@ describe('IN12b step g accessory notes', () => {
   });
 });
 
+describe('IN12c step f drawer accessory tags', () => {
+  it('passes tags to section and cabinet fronts, separating equal heights by tag in top-down order', () => {
+    const data = input();
+    data.faces = [
+      { type: 'drawer_front', path: 'bottom', x: 105, width: 20, height: 6, z: 60 },
+      { type: 'drawer_front', path: 'top', x: 105, width: 20, height: 6, z: 90 },
+      { type: 'drawer_front', path: 'outside', x: 0, width: 10, height: 6, z: 0 },
+    ];
+    data.depths = new Map([['bottom', 21], ['top', 21], ['outside', 21]]);
+    data.accessoryTags = new Map([['top', 'charging unit'], ['outside', '2 Knife insert']]);
+    const before = structuredClone(data);
+    expect(interiorNotes(data)).toEqual({ dividers: [],
+      sections: ['DF\'s (1 - 6" (charging unit), 1 - 6", 21" drws)', '1 as'],
+      fronts: 'DF\'s (1 - 6" (2 Knife insert), 21" drw)' });
+    expect(data).toEqual(before);
+  });
+});
+
 describe('IN10 step a interior notes', () => {
   it('prints a single unwrapped section (anchor 1)', () => {
     expect(interiorNotes(input())).toMatchObject({ dividers: [], sections: ['1 as'] });

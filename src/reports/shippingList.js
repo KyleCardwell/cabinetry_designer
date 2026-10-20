@@ -1,3 +1,4 @@
+import { accessoryText } from '../elevation/model/accessories.js';
 import { findLeaf } from '../elevation/model/cellTree.js';
 import { boxConstruction } from '../elevation/model/boxConstruction.js';
 import { CABINET_TYPE_IDS } from '../elevation/model/constants.js';
@@ -290,12 +291,16 @@ function cabinetNotes(room, settings, part, context) {
   const slideNames = new Map((drawerData?.boxes ?? []).map(({ path, slideId, slide }) =>
     [path, slideId !== roomSlideId ? slide.name : null]));
   const depths = new Map((drawerData?.boxes ?? []).map(({ path, depth }) => [path, depth]));
+  const accessoryTags = new Map((drawerData?.boxes ?? []).map(({ path, accessories }) => [path,
+    (accessories ?? []).filter(({ accessory }) => accessory?.attachesTo === 'drawer_box')
+      .map(({ accessory, qty }) => `${qty > 1 ? `${qty} ` : ''}${accessoryText(accessory)}`).join(', '),
+  ]));
   const data = context.interiorData();
   const interior = data.interiors.get(part.key);
   const notes = interior ? interiorNotes({ interior, shelves: data.shelves.get(part.key),
     rollouts: data.rollouts.get(part.key), accessories: data.accessories.get(part.key),
     boxes: drawerData?.boxes ?? [], roomSlideId, settings,
-    faces, slideNames, depths }) : null;
+    faces, slideNames, depths, accessoryTags }) : null;
   const boxes = room.reportParts?.[part.key]?.boxes;
   const style = resolveStyle(settings, room, run, leaf);
   const standard = layout && !isInsetStyle(style)
@@ -331,7 +336,7 @@ function cabinetNotes(room, settings, part, context) {
     ],
     3: blind ? `Door x ${formatInch(doorWidth)}, Blind x ${formatInch(blind.extension)}` : null,
     // Drawer fronts print inside their section (IN10.1); only fronts outside every section stay here.
-    4: notes ? notes.fronts : drawerFrontNote(faces, slideNames, depths),
+    4: notes ? notes.fronts : drawerFrontNote(faces, slideNames, depths, accessoryTags),
     5: falseFronts ? falseFronts === 1 ? 'false front' : `${falseFronts} false fronts` : null,
     5.4: notes?.dividers,
     5.5: notes?.sections,

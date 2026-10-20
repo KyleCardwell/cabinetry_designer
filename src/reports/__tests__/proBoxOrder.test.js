@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { newAccessory } from '../../elevation/model/accessories.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { gridFromItems } from '../../elevation/model/grid.js';
 import * as numbering from '../../elevation/model/partNumbers.js';
@@ -56,6 +57,21 @@ const framed = { ...settings, defaultStyle: { ...settings.defaultStyle, cabinetS
 afterEach(() => vi.restoreAllMocks());
 
 describe('ProBox order model', () => {
+  it('IN12c step f anchor 4: carries the accessory slide and note onto the top box line', () => {
+    const po = { ...newAccessory([], 'PO'), name: 'Pot organizer', attachesTo: 'drawer_box', effects: [
+      { kind: 'slide', slideId: 'accuride-4034' }, { kind: 'probox_note', text: '1/2" bottom' },
+    ] };
+    const s = { ...settings, stoneTopReveal: 0.125, accessories: [po] };
+    const fronts = drawers();
+    fronts.children[0].drawerBox = { accessories: [{ accessoryId: 'PO' }] };
+    const r = room([run('cab', 18, { face: fronts })], { partNumberStart: 1 }, s);
+    const before = structuredClone({ r, s });
+    expect(tuples(order(r, s))).toEqual([
+      [1, 1, 4.25, 15.5, 22, 'No Notch, No Clips, 1/2" bottom'], [1, 2, 10.25, 16, 21, ''],
+    ]);
+    expect({ r, s }).toEqual(before);
+  });
+
   it('anchor 1: groups and orders the Euro sample with the default form spec', () => {
     const r = sample();
     const before = structuredClone(r);

@@ -10,8 +10,8 @@ export function faceOrder(a, b) {
   return topB - topA || (a.x ?? 0) - (b.x ?? 0);
 }
 
-/** Group working fronts by height and slide, retaining their first top-down appearance. */
-export function drawerFrontNote(faces = [], slideNames = new Map(), depths = new Map()) {
+/** Group working fronts by height and tag, retaining their first top-down appearance. */
+export function drawerFrontNote(faces = [], slideNames = new Map(), depths = new Map(), accessoryTags = new Map()) {
   const fronts = faces.filter((face) => face.type === 'drawer_front').sort(faceOrder);
   const depthCounts = new Map();
   for (const face of fronts) {
@@ -26,7 +26,8 @@ export function drawerFrontNote(faces = [], slideNames = new Map(), depths = new
     const height = Math.round(face.height * 32) / 32;
     const name = slideNames.get(face.path) || null;
     const depth = depths.get(face.path);
-    const tag = [name, depth != null && depth !== commonDepth ? `${formatInch(depth)} deep` : null]
+    const tag = [name, depth != null && depth !== commonDepth ? `${formatInch(depth)} deep` : null,
+      accessoryTags.get(face.path)]
       .filter(Boolean).join(', ');
     const key = JSON.stringify([height, tag]);
     if (!groups.has(key)) groups.set(key, { height, tag, count: 0 });
@@ -78,7 +79,7 @@ function rolloutNotes(entry, roomSlideId) {
 /** Format already-resolved interior data without changing or resolving the inputs. */
 export function interiorNotes({
   interior, shelves = new Map(), rollouts = new Map(), accessories = new Map(), boxes = [], roomSlideId, settings,
-  faces = [], slideNames = new Map(), depths = new Map(),
+  faces = [], slideNames = new Map(), depths = new Map(), accessoryTags = new Map(),
 }) {
   const setting = (key) => settings?.[key] ?? DEFAULT_SETTINGS[key];
   const dividersFor = (path) => interior.dividers.filter((divider) => divider.path === path)
@@ -98,7 +99,7 @@ export function interiorNotes({
     const flags = [['lineBore', 'NLB'], ['hinges', 'NPH (No Doors)']]
       .filter(([flag]) => shelf?.[flag] === false && (!hasBox || shelf[`${flag}Source`] === 'manual'))
       .map(([, text]) => text);
-    const notes = [flags.join(', '), section ? drawerFrontNote(frontsIn(section), slideNames, depths) : null];
+    const notes = [flags.join(', '), section ? drawerFrontNote(frontsIn(section), slideNames, depths, accessoryTags) : null];
     if (shelf?.count > 0) {
       let text = `${shelf.count} as`;
       if (shelf.glass) text += ` (${formatInch(setting('glassShelfThickness'))} glass)`;
@@ -134,6 +135,6 @@ export function interiorNotes({
     // One section prints each item on its own line; named sections join them inside their parentheses.
     dividers: root.children ? dividersFor('r') : [],
     sections: root.children ? childNotes('r', root) : leafContents('r'),
-    fronts: drawerFrontNote(outside, slideNames, depths),
+    fronts: drawerFrontNote(outside, slideNames, depths, accessoryTags),
   };
 }

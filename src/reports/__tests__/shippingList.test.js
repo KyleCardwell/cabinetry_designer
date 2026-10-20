@@ -51,6 +51,55 @@ const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entr
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
 
+describe('IN12c step f drawer accessory tags', () => {
+  const cu = { ...newAccessory([], 'CU'), name: 'Charging unit', reportText: 'charging unit',
+    attachesTo: 'drawer_box', effects: [{ kind: 'clear_behind', inches: 2 }] };
+  const knife = { ...newAccessory([], 'KN'), name: 'Knife insert', reportText: '',
+    attachesTo: 'drawer_box', effects: [{ kind: 'max_height', inches: 4.25 }] };
+  // Match the model anchors' 1/8-inch Euro top reveal.
+  const s = { ...settings, stoneTopReveal: 0.125, drawerSlideId: 'blum-562h', accessories: [cu, knife] };
+  const fixture = (items, drawerSlideId, library = s) => {
+    const fronts = structuredClone(drawers);
+    items.forEach((accessories, index) => {
+      if (accessories.length) fronts.children[index].drawerBox = { accessories };
+    });
+    return room([run('run', [{ ...cabinet(), face: fronts, ...(drawerSlideId ? { drawerSlideId } : {}) }])],
+      {}, {}, library);
+  };
+
+  it.each([
+    [1, undefined, 'DF\'s (1 - 5 7/8" (charging unit), 2 - 12 1/16", 21" drws)'],
+    [2, 'accuride-3832', 'DF\'s (1 - 5 7/8" (Accuride 3832, 20" deep, charging unit), 2 - 12 1/16" (Accuride 3832), 22" drws)'],
+  ])('anchor %i: appends the charging text after slide and depth', (_anchor, slideId, expected) => {
+    const r = fixture([[{ accessoryId: 'CU' }], [], []], slideId);
+    const before = structuredClone({ r, s });
+    expect(row(r, 'cab', s).notes).toEqual(['full top', expected]);
+    expect({ r, s }).toEqual(before);
+  });
+
+  it('anchor 3: groups equal quantity tags and uses the name when report text is empty', () => {
+    const r = fixture([[], [{ accessoryId: 'KN', qty: 2 }], [{ accessoryId: 'KN', qty: 2 }]]);
+    expect(row(r, 'cab', s).notes)
+      .toEqual(['full top', 'DF\'s (1 - 5 7/8", 2 - 12 1/16" (2 Knife insert), 21" drws)']);
+  });
+
+  it('anchor 5: omits missing and wrong-place items and keeps counted items in stored order', () => {
+    const section = { ...newAccessory([], 'section'), name: 'Section only' };
+    const library = { ...s, accessories: [...s.accessories, section] };
+    const missing = [{ accessoryId: 'gone' }];
+    const wrong = [{ accessoryId: 'section' }];
+    const plain = row(fixture([[], [], []], undefined, library), 'cab', library).notes;
+    for (const items of [missing, wrong, [...missing, ...wrong]]) {
+      expect(row(fixture([items, [], []], undefined, library), 'cab', library).notes).toEqual(plain);
+    }
+    const r = fixture([[...missing, { accessoryId: 'KN', qty: 2 }, ...wrong, { accessoryId: 'CU' }], [], []],
+      undefined, library);
+    expect(row(r, 'cab', library).notes).toEqual([
+      'full top', 'DF\'s (1 - 5 7/8" (2 Knife insert, charging unit), 2 - 12 1/16", 21" drws)',
+    ]);
+  });
+});
+
 describe('IN12b step g shipping accessory notes', () => {
   it('anchor 1: prints NLB then the Susan report text in a single-section 24-inch base', () => {
     const susan = { ...newAccessory([], 'susan'), name: 'Susan', reportText: '6472-28 lazy susan', wholeSection: true };
