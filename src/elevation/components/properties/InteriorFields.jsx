@@ -78,6 +78,8 @@ function accessoryWarning(warning, accessory) {
       `Needs ${formatInches(needs)} ${{ width: 'wide', depth: 'deep', height: 'tall' }[dim]} (${formatInches(has)} here)`
     ).join('; ')}.`;
     case 'accessory-whole-section': return `${warning.name} takes the whole section; remove the roll-outs, typed shelves or other accessories.`;
+    case 'accessory-outside': return `Placed outside the section (${formatInches(warning.sectionHeight)} tall here).`;
+    case 'accessory-length': return `${accessory.name} is ordered at section width − ${formatInches(warning.deduction)} (${formatInches(warning.has)} wide here).`;
     default: return null;
   }
 }
@@ -335,7 +337,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
       {interiorPath != null && shelf && (
         <div className="space-y-2">
           <h4 className="text-xs font-medium text-gray-300">Accessories</h4>
-          {shelfData.accessories?.items.map(({ index, accessoryId, accessory, qty, warnings }) => {
+          {shelfData.accessories?.items.map(({ index, accessoryId, accessory, qty, fromBottom, orderedLength, warnings }) => {
             const name = accessory?.name ?? 'Missing';
             const key = `${path}.${index}`;
             return (
@@ -350,6 +352,16 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                     min={1} max={20} step={1} value={qty}
                     onChange={(event) => commit(setSectionAccessory(interior, path, index, { qty: Number(event.target.value) }))} />
                 </Field>
+                {accessory?.attachesTo === 'section' && (
+                  <Field label="Up (oc)">
+                    <InchInput aria-label={`Accessory up ${key}`} value={fromBottom} allowBlank
+                      placeholder="Not placed"
+                      onCommit={(value) => commit(setSectionAccessory(interior, path, index, { fromBottom: value }))} />
+                  </Field>
+                )}
+                {orderedLength != null && (
+                  <p className="text-xs text-gray-400">Ordered length {formatInches(orderedLength)}</p>
+                )}
                 <button type="button" aria-label={`Remove ${name}`} className={BUTTON_CLASS}
                   onClick={() => commit(removeSectionAccessory(interior, path, index))}>Remove</button>
                 {warnings.map((warning) => (
@@ -358,6 +370,9 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
               </div>
             );
           })}
+          {shelfData.accessories?.items.some(({ accessory }) => accessory?.attachesTo === 'section') && (
+            <p className="text-xs text-gray-400">Height from the bottom of the section to the accessory's centre.</p>
+          )}
           {shelfData.accessories?.warnings.map((warning) => (
             <p key={warning.code} className="text-xs text-amber-400">{accessoryWarning(warning)}</p>
           ))}

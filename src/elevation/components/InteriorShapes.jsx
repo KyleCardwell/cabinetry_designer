@@ -56,8 +56,9 @@ export default function InteriorShapes({
             && rect.height >= SIZE_FONT + SIZE_INSET * 2
             && rect.width >= text.length * 6 + SIZE_INSET * 2;
           const accessory = accessories.get(entry.itemId)?.get(section.path);
-          const labels = (accessory?.items ?? []).filter(({ accessory }) => accessory?.attachesTo === 'section')
+          const items = (accessory?.items ?? []).filter(({ accessory }) => accessory?.attachesTo === 'section')
             .map((item) => ({ ...item, text: `${item.qty > 1 ? `${item.qty} × ` : ''}${item.accessory.name}` }));
+          const labels = items.filter(({ centerZ }) => centerZ == null);
           const showAccessories = rect.height >= labels.length * SIZE_FONT + SIZE_INSET * 2
             && labels.every(({ text }) => rect.width >= text.length * 6 + SIZE_INSET * 2);
           return (
@@ -77,6 +78,42 @@ export default function InteriorShapes({
                   fill={warnings.length || accessory.warnings.length ? '#f59e0b' : selected ? '#7dd3fc' : '#64748b'}
                   listening={false} />
               ))}
+              {items.filter(({ centerZ }) => centerZ != null).map((item) => {
+                const color = item.warnings.length || accessory.warnings.length
+                  ? '#f59e0b' : selected ? '#7dd3fc' : '#64748b';
+                const box = item.rect ? wallRectToScreen(item.rect, transform) : null;
+                const line = box ? null : wallRectToScreen({
+                  x: section.x, z: item.centerZ, width: section.width, height: 0,
+                }, transform);
+                const labelWidth = item.text.length * 6 + SIZE_INSET * 2;
+                const inside = box && box.height >= SIZE_FONT && box.width >= labelWidth;
+                const rightX = box && box.x + box.width + SIZE_INSET;
+                const beside = box && !inside && rect.height >= SIZE_FONT + SIZE_INSET * 2
+                  && rect.x + rect.width - rightX >= labelWidth;
+                const above = line && rect.width >= labelWidth
+                  && line.y - SIZE_FONT - SIZE_INSET >= rect.y + SIZE_INSET;
+                return (
+                  <Group key={`placed-accessory:${section.path}:${item.index}`} listening={false}>
+                    {box ? (
+                      <Rect {...box} stroke={color} strokeWidth={1} fillEnabled={false} listening={false} />
+                    ) : (
+                      <Line points={[line.x, line.y, line.x + line.width, line.y]}
+                        stroke={color} strokeWidth={1} listening={false} />
+                    )}
+                    {inside ? (
+                      <Text {...box} text={item.text} fontSize={SIZE_FONT} fill={color}
+                        align="center" verticalAlign="middle" listening={false} />
+                    ) : beside ? (
+                      <Text x={rightX} y={Math.max(rect.y + SIZE_INSET,
+                        Math.min(box.y + (box.height - SIZE_FONT) / 2, rect.y + rect.height - SIZE_FONT - SIZE_INSET))}
+                        text={item.text} fontSize={SIZE_FONT} fill={color} listening={false} />
+                    ) : above ? (
+                      <Text x={rect.x + SIZE_INSET} y={line.y - SIZE_FONT - SIZE_INSET}
+                        text={item.text} fontSize={SIZE_FONT} fill={color} listening={false} />
+                    ) : null}
+                  </Group>
+                );
+              })}
               {showSize && (
                 <Text
                   x={rect.x + SIZE_INSET}

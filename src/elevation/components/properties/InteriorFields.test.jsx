@@ -15,6 +15,7 @@ import InteriorFields from './InteriorFields.jsx';
 import SlideSelect from './SlideSelect.jsx';
 import { newAccessory } from '../../model/accessories.js';
 import { wallRollouts } from '../../model/rollouts.js';
+import { formatInches } from '../../model/units.js';
 
 vi.mock('react', async (original) => ({
   ...await original(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn(),
@@ -714,5 +715,66 @@ describe('IN12b section accessory controls', () => {
     commit('Shelf count r', null);
     commit('Roll-out count r', 1);
     expect(text(render())).toContain(wholeMessage);
+  });
+});
+
+describe('IN13a step d placed accessory controls', () => {
+  beforeEach(() => {
+    edit(() => {
+      run().cabinetTypeId = CABINET_TYPE_IDS.TALL;
+      run().height = 84;
+      run().width = run().grid.cols[0].size = item().width = 24;
+      item().face = { type: 'door', size: null, hinge: 'left' };
+      state.settings.accessories = [
+        { ...newAccessory([], 'FR'), name: 'Fixed rod',
+          size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25 },
+        { ...newAccessory([], 'HK'), name: 'Robe hook', size: { width: 3, height: 2, depth: 3 } },
+        { ...newAccessory([], 'BIG'), name: 'Big rod', lengthDeduction: 30 },
+        { ...newAccessory([], 'CU'), name: 'Drawer insert', attachesTo: 'drawer_box' },
+      ];
+    });
+    select('r');
+  });
+
+  it('anchors 1–2: commits Up 40 and blank through InchInput, shows ordered length and one hint', () => {
+    change('Add accessory r', 'FR');
+    expect(field('Accessory up r.0').props).toMatchObject({ value: null, allowBlank: true, placeholder: 'Not placed' });
+    expect(nodes(render()).some(({ props }) => props.label === 'Up (oc)')).toBe(true);
+    expect(text(render())).toContain('Ordered length 22 1/4"');
+    const typeUp = (value) => {
+      const props = field('Accessory up r.0').props;
+      const input = () => { hookIndex = 1; return InchInput(props); };
+      input().props.onChange({ target: { value } });
+      input().props.onBlur();
+    };
+    typeUp('40');
+    expectInterior({ accessories: [{ accessoryId: 'FR', fromBottom: 40 }] });
+    expect(field('Accessory up r.0').props.value).toBe(40);
+    for (const value of [0, -1, Infinity, NaN]) {
+      expect(commit('Accessory up r.0', value)).toBe(false);
+      expect(item().interior.accessories[0].fromBottom).toBe(40);
+    }
+    typeUp('');
+    expectInterior({ accessories: [{ accessoryId: 'FR' }] });
+    change('Add accessory r', 'HK');
+    const hint = "Height from the bottom of the section to the accessory's centre.";
+    expect(nodes(render()).filter((node) => node.type === 'p' && text(node) === hint)).toHaveLength(1);
+    edit(() => {
+      item().interior.accessories = [{ accessoryId: 'gone', fromBottom: 10 }, { accessoryId: 'CU', fromBottom: 10 }];
+    });
+    expect(field('Accessory up r.0')).toBeUndefined();
+    expect(field('Accessory up r.1')).toBeUndefined();
+    expect(text(render())).not.toContain(hint);
+  });
+
+  it('anchor 3: renders outside and invalid ordered-length warnings in amber', () => {
+    change('Add accessory r', 'HK');
+    const height = cabinetInterior(room(), wall(), 'front', state.settings, item().id).sections[0].height;
+    commit('Accessory up r.0', height - 0.5);
+    change('Add accessory r', 'BIG');
+    const messages = nodes(render()).filter(({ type, props }) => type === 'p' && props.className?.includes('text-amber-400')).map(text);
+    expect(messages).toContain(`Placed outside the section (${formatInches(height)} tall here).`);
+    expect(messages).toContain('Big rod is ordered at section width − 30" (22 1/2" wide here).');
+    expect(text(render())).not.toContain('Ordered length');
   });
 });
