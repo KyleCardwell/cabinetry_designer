@@ -1,5 +1,6 @@
 import { doorDrawing, runDoorDetails } from './doorDetails.js';
 import { resolveWall } from './room.js';
+import { panelMaterial } from './constants.js';
 
 /**
  * Each part's door detail on one wall face as geometry draws it (SPEC-46.4): openings, profile lines and miters (SPEC-50) when the room draws details,
@@ -22,7 +23,9 @@ export function elevationDoorDetails(room, wall, side, settings, partIds = null)
       if (partId === null || (partIds && !partIds.has(partId))) continue;
 
       const entry = { partId };
-      if (details && part.openingsShown && part.openings.length) {
+      const seeThrough = part.kind === 'face' && part.construction === 'five_piece'
+        && panelMaterial(part.panelMaterial)?.seeThrough;
+      if (details && !seeThrough && part.openingsShown && part.openings.length) {
         entry.openings = part.openings.map(({ x, z, width, height }) => ({ x, z, width, height }));
       }
       if (details && part.lines.length) entry.profileLines = part.lines.map(({ x, z, width, height }) => ({ x, z, width, height }));

@@ -3,7 +3,7 @@ import { wallLabel } from './topology.js';
 import { formatInches } from './units.js';
 import { wallExtent } from './wallExtent.js';
 
-const COLLECTIONS = ['parts', 'dimensions', 'marks', 'doorDetails', 'partNumbers', 'swingMarks', 'pulls'];
+const COLLECTIONS = ['parts', 'dimensions', 'marks', 'doorDetails', 'partNumbers', 'swingMarks', 'pulls', 'interiors', 'glassMarks'];
 const X_FIELDS = new Set(['x', 'x1', 'x2', 'textX']);
 const shiftPoint = ([x, ...rest], dx) => [x + dx, ...rest];
 
@@ -58,6 +58,8 @@ export function combinedElevationPayload(room, combined, settings, buildFace) {
   // Preserve the existing omission of empty optional collections.
   if (!records.swingMarks.length) delete records.swingMarks;
   if (!records.pulls.length) delete records.pulls;
+  if (!records.interiors.length) delete records.interiors;
+  if (!records.glassMarks.length) delete records.glassMarks;
   return {
     ...lead,
     length: combined.length,

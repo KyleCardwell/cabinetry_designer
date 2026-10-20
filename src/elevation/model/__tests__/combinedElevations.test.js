@@ -10,6 +10,11 @@ import { combinedGroups, elevationLabel, elevationLetters } from '../topology.js
 import { isRoom, normalizeElevationDocument } from '../../store/persistence.js';
 import elevationReducer, { setCombinedElevation, setCombinedFace } from '../../store/elevationSlice.js';
 import { stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
+import { toDrawingPayload } from '../drawingPayload.js';
+import { DEFAULT_SETTINGS } from '../constants.js';
+import { newAccessory } from '../accessories.js';
+import { gridLeaves } from '../grid.js';
+import { roomWith } from './helpers/showThroughRoom.js';
 
 const wall = (id, x1, y1, x2, y2, start, end, runs = []) => ({
   id, name: '', x1, y1, x2, y2, height: 96, thickness: 4.5, flipped: false,
@@ -34,6 +39,60 @@ function steppedRoom(extra = {}) {
 }
 
 describe('combined elevations (Kyle 2026-10-16)', () => {
+  it('IN14 anchor 5: shifts whole interior lines and labels by dx 100, along with glass marks and holes', () => {
+    const room = roomWith([{ id: 'a', face: { type: 'open', size: null } }]);
+    const first = room.walls[0];
+    const second = roomWith([{ id: 'b', face: { type: 'door', size: null, panelMaterial: 'glass' } }]).walls[0];
+    Object.assign(second, { id: 'other', x1: -100, x2: 0 });
+    second.runs[0].id = 'other-run';
+    room.walls.push(second);
+    room.wallOrder.push(second.id);
+    const open = toDrawingPayload(room, DEFAULT_SETTINGS).elevations[0].interiors[0];
+    expect(open.lines).toHaveLength(8);
+    room.combinedElevations = [{ id: 'g', on: true, faces: [first.id, second.id] }];
+    const shifted = toDrawingPayload(room, DEFAULT_SETTINGS).elevations[0].interiors[0];
+    expect(shifted).toEqual({ ...open,
+      lines: open.lines.map((line) => ({ ...line, x1: line.x1 + 100, x2: line.x2 + 100 })),
+    });
+    delete room.combinedElevations;
+    const rod = { ...newAccessory([], 'FR'), name: 'Fixed rod',
+      size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25 };
+    gridLeaves(first.runs[0].grid)[0].interior = { accessories: [{ accessoryId: 'FR', fromBottom: 20 }] };
+    const settings = { ...DEFAULT_SETTINGS, accessories: [rod] };
+    const original = toDrawingPayload(room, settings).elevations;
+    room.combinedElevations = [{ id: 'g', on: true, faces: [first.id, second.id] }];
+    const [combined] = toDrawingPayload(room, settings).elevations;
+    expect(combined.faces.find(({ wallId }) => wallId === first.id).dx).toBe(100);
+    expect(original[0].interiors[0].lines).toHaveLength(12);
+    expect(original[0].interiors[0].labels).toHaveLength(1);
+    for (const elevation of original) {
+      const dx = combined.faces.find(({ wallId }) => wallId === elevation.wallId).dx;
+      for (const interior of elevation.interiors) {
+        expect(combined.interiors.find(({ partId }) => partId === interior.partId)).toEqual({
+          partId: interior.partId,
+          lines: interior.lines.map((line) => ({ ...line, x1: line.x1 + dx, x2: line.x2 + dx })),
+          labels: interior.labels.map((label) => ({ ...label, x: label.x + dx })),
+        });
+      }
+      for (const mark of elevation.glassMarks ?? []) {
+        expect(combined.glassMarks.find(({ partId }) => partId === mark.partId)).toEqual({
+          partId: mark.partId,
+          lines: mark.lines.map((line) => ({ ...line, x1: line.x1 + dx, x2: line.x2 + dx })),
+        });
+      }
+      for (const part of elevation.parts.filter(({ holes }) => holes)) {
+        expect(combined.parts.find(({ id }) => id === part.id).holes)
+          .toEqual(part.holes.map((hole) => ({ ...hole, x: hole.x + dx })));
+      }
+    }
+    for (const source of room.walls) {
+      gridLeaves(source.runs[0].grid)[0].face = { type: 'door', size: null };
+    }
+    const closed = toDrawingPayload(room, settings).elevations[0];
+    expect(closed).not.toHaveProperty('interiors');
+    expect(closed).not.toHaveProperty('glassMarks');
+  });
+
   it('groups faces facing the same way, passing through square jogs', () => {
     const room = steppedRoom();
     expect(autoCombinedFaces(room, 'A')).toEqual(['A', 'B', 'C']);

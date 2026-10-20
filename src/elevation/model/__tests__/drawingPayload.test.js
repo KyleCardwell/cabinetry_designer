@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { drawingZipName, toDrawingPayload } from '../drawingPayload.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { bandParts } from '../bandParts.js';
@@ -19,6 +19,12 @@ import { planDimensions } from '../planDimensions.js';
 import { planMarks } from '../planMarks.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
+import { newAccessory } from '../accessories.js';
+import { glassMarks } from '../glassMarks.js';
+import { openingGeometry } from '../openings.js';
+import { runDoorDetails } from '../doorDetails.js';
+import * as showThroughModule from '../showThrough.js';
+import { roomWith } from './helpers/showThroughRoom.js';
 
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
@@ -49,6 +55,8 @@ const withoutParts = (payload) => ({
     delete copy.doorDetails;
     delete copy.partNumbers;
     delete copy.pulls;
+    delete copy.interiors;
+    delete copy.glassMarks;
     return copy;
   }),
 });
@@ -62,7 +70,9 @@ describe('SPEC-40 drawing payload', () => {
       for (const elevation of payload.elevations) {
         expect(elevation).not.toHaveProperty('pulls');
       }
-      expect(createHash('sha256').update(JSON.stringify(payload)).digest('hex'))
+      const legacy = structuredClone(payload);
+      for (const elevation of legacy.elevations) delete elevation.glassMarks;
+      expect(createHash('sha256').update(JSON.stringify(legacy)).digest('hex'))
         .toBe(preHP5PayloadHashes[name]);
       const enabled = toDrawingPayload(synced, settings);
       for (const elevation of enabled.elevations) delete elevation.pulls;
@@ -221,7 +231,7 @@ describe('SPEC-40 drawing payload', () => {
       expect(expected.length).toBeGreaterThan(0);
       expect(elevation.partNumbers.map(({ key, text }) => [key, text])).toEqual(expected);
       expect(new Set(elevation.partNumbers.map(({ key }) => key)).size).toBe(expected.length);
-      expect(Object.keys(elevation).filter((key) => key !== 'pulls').slice(-2))
+      expect(Object.keys(elevation).filter((key) => !['pulls', 'interiors', 'glassMarks'].includes(key)).slice(-2))
         .toEqual(['doorDetails', 'partNumbers']);
       for (const { id } of pieces) {
         const badge = elevation.partNumbers.find(({ key }) => key === id);
@@ -355,5 +365,149 @@ describe('SPEC-40 drawing payload', () => {
       .toEqual([[-35.9375, -29.9375], [-35.9375, -12.0625], [-35.125, -12.0625], [-35.125, -29.9375]]);
     expect(points(`${BASE}:right`))
       .toEqual([[-35.75, 57], [-35.75, 59.125], [-34.9375, 59.125], [-34.9375, 57]]);
+  });
+});
+
+const in14Room = (type = 'open', extra = {}) => roomWith([
+  { id: 'a', face: { type, size: null, ...extra } },
+]);
+const in14Elevation = (room, effective = DEFAULT_SETTINGS) => toDrawingPayload(room, effective).elevations[0];
+const shelfLines = [
+  { x1: 24.8125, z1: 18.875, x2: 47.1875, z2: 18.875 },
+  { x1: 47.1875, z1: 18.875, x2: 47.1875, z2: 19.625 },
+  { x1: 47.1875, z1: 19.625, x2: 24.8125, z2: 19.625 },
+  { x1: 24.8125, z1: 19.625, x2: 24.8125, z2: 18.875 },
+];
+
+afterEach(() => vi.restoreAllMocks());
+
+describe('IN14 step e payload', () => {
+  it('anchor 1: adds only window glass marks to the golden rooms and preserves legacy hashes', () => {
+    const records = [];
+    for (const { name } of document.rooms) {
+      const synced = room(name);
+      const payload = toDrawingPayload({ ...synced, showPulls: false }, settings);
+      expect(payload.payloadVersion).toBe(1);
+      for (const elevation of payload.elevations) {
+        expect(elevation).not.toHaveProperty('interiors');
+        const wall = synced.walls.find(({ id }) => id === elevation.wallId);
+        const view = resolveWall(synced, wall, elevation.side);
+        const expected = view.openings.filter(({ kind }) => kind === 'window').map((opening) => ({
+          partId: opening.id, lines: glassMarks(openingGeometry(opening, view.length, settings).jamb),
+        }));
+        expect(elevation.glassMarks ?? []).toEqual(expected);
+        records.push(...expected);
+        delete elevation.glassMarks;
+      }
+      expect(createHash('sha256').update(JSON.stringify(payload)).digest('hex'))
+        .toBe(preHP5PayloadHashes[name]);
+    }
+    expect(records).toHaveLength(1);
+    expect(records[0].lines).toHaveLength(3);
+  });
+
+  it('anchor 2: exports four box edges and four whole shelf sides for the open cabinet', () => {
+    const room = in14Room();
+    const before = structuredClone(room);
+    const elevation = in14Elevation(room);
+    expect(elevation.interiors).toEqual([{ partId: 'a', lines: [
+      { x1: 24.75, z1: 4, x2: 24.75, z2: 34.5 },
+      { x1: 47.25, z1: 4, x2: 47.25, z2: 34.5 },
+      { x1: 24.75, z1: 4.75, x2: 47.25, z2: 4.75 },
+      { x1: 24.75, z1: 33.75, x2: 47.25, z2: 33.75 },
+      ...shelfLines,
+    ], labels: [] }]);
+    expect(elevation).not.toHaveProperty('glassMarks');
+    expect(room).toEqual(before);
+  });
+
+  it('anchor 3: turns framed glass openings into holes and keeps just the shelf and three marks', () => {
+    for (const doorDetails of [true, false]) {
+      const room = { ...in14Room('door', { panelMaterial: 'glass' }), doorDetails, doorStyleTags: true };
+      const elevation = in14Elevation(room);
+      const details = runDoorDetails(room, room.walls[0], room.walls[0].runs[0], DEFAULT_SETTINGS)
+        .parts.find(({ key }) => key === 'a:r');
+      expect(elevation.parts.find(({ id }) => id === 'a:r').holes).toEqual(details.openings);
+      expect(elevation.doorDetails.find(({ partId }) => partId === 'a:r')).not.toHaveProperty('openings');
+      expect(elevation.doorDetails.find(({ partId }) => partId === 'a:r').tag).toEqual(details.label);
+      expect(elevation.interiors).toEqual([{ partId: 'a', lines: shelfLines, labels: [] }]);
+      expect(elevation.glassMarks).toEqual([{ partId: 'a:r', lines: details.openings.flatMap(glassMarks) }]);
+      expect(elevation.glassMarks[0].lines).toHaveLength(3);
+      if (doorDetails) {
+        const record = elevation.doorDetails.find(({ partId }) => partId === 'a:r');
+        expect(record.profileLines ?? []).toEqual(details.lines);
+        expect(record.miters ?? []).toEqual(details.miters);
+      }
+    }
+  });
+
+  it('anchor 4: labels the placed rod rectangle and omits unplaced and line-only accessory labels', () => {
+    const rod = { ...newAccessory([], 'FR'), name: 'Fixed rod',
+      size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,
+      effects: [{ kind: 'line_bore_row' }] };
+    const hook = { ...newAccessory([], 'HK'), name: 'Robe hook', size: { width: 3, height: 2, depth: 3 } };
+    const line = { ...newAccessory([], 'LN'), name: 'Line only' };
+    const room = in14Room();
+    gridLeaves(room.walls[0].runs[0].grid)[0].interior = { accessories: [
+      { accessoryId: 'FR', fromBottom: 20 }, { accessoryId: 'HK' },
+      { accessoryId: 'LN', fromBottom: 10, qty: 2 },
+    ] };
+    const elevation = in14Elevation(room, { ...DEFAULT_SETTINGS, accessories: [rod, hook, line] });
+    expect(elevation.interiors[0].labels).toEqual([
+      { text: 'Fixed rod', x: 24.75, z: 24.125, width: 22.5, height: 1.25 },
+    ]);
+    expect(elevation.interiors[0].lines).toContainEqual({ x1: 24.75, z1: 14.75, x2: 47.25, z2: 14.75 });
+  });
+
+  it('anchor 6: omits the optional collections and face holes for closed opaque doors', () => {
+    const elevation = in14Elevation(in14Room('door'));
+    expect(elevation).not.toHaveProperty('interiors');
+    expect(elevation).not.toHaveProperty('glassMarks');
+    const faces = elevation.parts.filter(({ kind }) => kind === 'face');
+    expect(faces).toHaveLength(1);
+    expect(faces[0]).not.toHaveProperty('holes');
+    expect(elevation.doorDetails.find(({ partId }) => partId === faces[0].id).openings).toHaveLength(1);
+  });
+
+  it('exports holes and marks for each pair half, but none for slab or short-face glass', () => {
+    const room = { ...in14Room('pair_door', { panelMaterial: 'glass' }), doorStyleTags: true };
+    const elevation = in14Elevation(room);
+    expect(elevation.glassMarks.map(({ partId }) => partId)).toEqual(['a:rleft', 'a:rright']);
+    for (const { partId, lines } of elevation.glassMarks) {
+      const part = elevation.parts.find(({ id }) => id === partId);
+      expect(part.holes).toHaveLength(1);
+      expect(lines).toEqual(part.holes.flatMap(glassMarks));
+      expect(elevation.doorDetails.find((detail) => detail.partId === partId)).not.toHaveProperty('openings');
+    }
+    for (const teamDoorStyle of [
+      { ...DEFAULT_DOOR_STYLE, designId: 'slab' },
+      { ...DEFAULT_DOOR_STYLE, shortFace: { ...DEFAULT_DOOR_STYLE.shortFace, slabBelow: 40 } },
+    ]) {
+      const slab = in14Elevation(room, { ...DEFAULT_SETTINGS, teamDoorStyle });
+      expect(slab).not.toHaveProperty('interiors');
+      expect(slab).not.toHaveProperty('glassMarks');
+      for (const part of slab.parts) expect(part).not.toHaveProperty('holes');
+    }
+  });
+
+  it('deduplicates segments, filters missing part ids and drops records with no lines', () => {
+    const rect = { kind: 'shelf', x: 1, z: 2, width: 3, height: 4 };
+    const entry = { itemId: 'a', glass: [{ partId: 'missing', openings: [rect], marks: shelfLines }],
+      items: [rect, { ...rect }, { kind: 'edge', x: 1, z: 2, width: 0, height: 4 }] };
+    const show = vi.spyOn(showThroughModule, 'wallShowThrough').mockReturnValue(new Map([
+      ['a', entry], ['missing', { ...entry, itemId: 'missing' }],
+    ]));
+    const elevation = in14Elevation(in14Room());
+    expect(elevation.interiors).toHaveLength(1);
+    expect(elevation.interiors[0].lines).toHaveLength(4);
+    expect(elevation.interiors[0].labels).toEqual([]);
+    expect(elevation).not.toHaveProperty('glassMarks');
+    show.mockReturnValue(new Map([['a', { ...entry, glass: [], items: [] }]]));
+    expect(in14Elevation(in14Room())).not.toHaveProperty('interiors');
+    const glass = { partId: 'a:r', openings: [rect], marks: [] };
+    show.mockReturnValue(new Map([['a', { ...entry, glass: [glass], items: [] }]]));
+    const emptyMarks = in14Elevation(in14Room('door'));
+    expect(emptyMarks).not.toHaveProperty('glassMarks');
+    expect(emptyMarks.parts.find(({ id }) => id === 'a:r').holes).toEqual([rect]);
   });
 });

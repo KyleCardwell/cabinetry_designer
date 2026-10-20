@@ -17,8 +17,35 @@ import { planDimensions } from './planDimensions.js';
 import { planMarks } from './planMarks.js';
 import { combinedViewOf } from './combinedElevations.js';
 import { combinedElevationPayload } from './combinedPayload.js';
+import { wallShowThrough } from './showThrough.js';
+import { glassMarks } from './glassMarks.js';
+import { openingGeometry } from './openings.js';
 
 export const DRAWING_PAYLOAD_VERSION = 1;
+
+function itemLines({ x, z, width, height }) {
+  if (width === 0 || height === 0) return [{ x1: x, z1: z, x2: x + width, z2: z + height }];
+  return [
+    { x1: x, z1: z, x2: x + width, z2: z },
+    { x1: x + width, z1: z, x2: x + width, z2: z + height },
+    { x1: x + width, z1: z + height, x2: x, z2: z + height },
+    { x1: x, z1: z + height, x2: x, z2: z },
+  ];
+}
+
+function interiorRecord({ itemId, items }) {
+  const seen = new Set();
+  const lines = items.flatMap(itemLines).filter(({ x1, z1, x2, z2 }) => {
+    const ends = [[x1, z1], [x2, z2]].sort(([ax, az], [bx, bz]) => ax - bx || az - bz);
+    const key = JSON.stringify(ends);
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  const labels = items.filter(({ kind, width, height }) => kind === 'accessory' && width > 0 && height > 0)
+    .map(({ label, x, z, width, height }) => ({ text: label, x, z, width, height }));
+  return { partId: itemId, lines, labels };
+}
 
 function facePayload(room, wall, side, key, letter, settings, options) {
   const parts = [
@@ -30,6 +57,21 @@ function facePayload(room, wall, side, key, letter, settings, options) {
   const partIds = new Set(parts.map(({ id }) => id));
   const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);
   const pulls = elevationPulls(room, wall, side, settings, partIds);
+  const showThrough = [...wallShowThrough(room, wall, side, settings).values()];
+  const interiors = showThrough.map(interiorRecord)
+    .filter(({ partId, lines }) => partIds.has(partId) && lines.length);
+  const glass = showThrough.flatMap(({ glass }) => glass);
+  const openingsByPart = new Map(glass.map(({ partId, openings }) => [partId, openings]));
+  for (const part of parts) {
+    if (part.kind === 'face' && openingsByPart.has(part.id)) part.holes = openingsByPart.get(part.id);
+  }
+  const view = resolveWall(room, wall, side);
+  const marks = [
+    ...glass.map(({ partId, marks }) => ({ partId, lines: marks })),
+    ...(view.openings ?? []).filter(({ kind }) => kind === 'window').map((opening) => ({
+      partId: opening.id, lines: glassMarks(openingGeometry(opening, view.length, settings).jamb),
+    })),
+  ].filter(({ partId, lines }) => partIds.has(partId) && lines.length);
 
   return {
     key,
@@ -38,7 +80,7 @@ function facePayload(room, wall, side, key, letter, settings, options) {
     side,
     title: `Elevation ${letter}`,
     wallLabel: wallLabel(room, wall),
-    length: resolveWall(room, wall, side).length,
+    length: view.length,
     height: wall.height,
     parts,
     dimensions: elevationDimensions(room, wall, side, settings, options),
@@ -47,6 +89,8 @@ function facePayload(room, wall, side, key, letter, settings, options) {
     partNumbers: elevationPartNumbers(room, wall, side, settings),
     ...(swingMarks.length ? { swingMarks } : {}),
     ...(pulls.length ? { pulls } : {}),
+    ...(interiors.length ? { interiors } : {}),
+    ...(marks.length ? { glassMarks: marks } : {}),
   };
 }
 
@@ -57,7 +101,7 @@ function facePayload(room, wall, side, key, letter, settings, options) {
  * neighbours (corner returns and profiles). Round 43 adds the drawing scale and each face's dimensions;
  * 43.3 its centreline marks; round 44 the room in plan; round 45 its dimensions; 45.1 its
  * markers and labels; 46.4 each face's door details; 50.13 its part number badges; HP2 its swing marks;
- * HP5 its pulls; CE combines every saved group into one elevation.
+ * HP5 its pulls; CE combines every saved group into one elevation; IN14 its visible interiors and glass.
  */
 export function toDrawingPayload(room, settings, { revision } = {}) {
   const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
