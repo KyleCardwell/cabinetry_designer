@@ -40,6 +40,30 @@ function nestedInput() {
   return data;
 }
 
+describe('IN13b step c shoe shelf notes', () => {
+  it('orders flat shelves, shoes, third-row line bore, roll-outs and accessories without changing inputs', () => {
+    const data = input(null, [['r', S(2, { shoe: { count: 4, nosing: { kind: 'folded' } } })]]);
+    data.rollouts.set('r', { rollouts: [rollout(18, 80)] });
+    data.accessories = new Map([['r', { lineBoreRow: true, items: [
+      { accessory: { name: 'Fixed rod', reportText: 'fixed rod', attachesTo: 'section' },
+        qty: 1, orderedLength: 22.25 },
+    ] }]]);
+    const before = structuredClone(data);
+    expect(interiorNotes(data).sections)
+      .toEqual(['2 as', '4 shoe shelves', '3rd row lb', '1 ro - 18"', 'fixed rod - 22 1/4"']);
+    expect(data).toEqual(before);
+    data.shelves.set('r', S(0, { shoe: { count: 1 } }));
+    expect(interiorNotes(data).sections)
+      .toEqual(['1 shoe shelf', '3rd row lb', '1 ro - 18"', 'fixed rod - 22 1/4"']);
+    for (const shoe of [undefined, null, { count: 0 }]) {
+      data.shelves.set('r', S(0, { shoe }));
+      expect(interiorNotes(data).sections).toEqual(['1 ro - 18"', 'fixed rod - 22 1/4"']);
+    }
+    data.shelves.clear();
+    expect(interiorNotes(data).sections).toEqual(['1 ro - 18"', 'fixed rod - 22 1/4"']);
+  });
+});
+
 describe('IN13a step e accessory notes', () => {
   it('anchor 6: preserves notes without length or line-bore effects, including legacy entries', () => {
     const data = input(null, [['r', S(2)]]);

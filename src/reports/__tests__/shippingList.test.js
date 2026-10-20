@@ -53,6 +53,60 @@ const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entr
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
 
+describe('IN13b step c shipping shoe shelf notes', () => {
+  const rod = { ...newAccessory([], 'FR'), name: 'Fixed rod', reportText: 'fixed rod',
+    size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,
+    effects: [{ kind: 'line_bore_row' }] };
+  const s = { ...settings, accessories: [rod] };
+  const fixture = (interior, overrides = {}, leaf = {}) => room([run('run', [{
+    id: 'cab', kind: 'cabinet', face: face('door', { hinge: 'left' }), interior, ...leaf,
+  }], { width: 24, z: 0, ...overrides })], {}, {}, s);
+
+  it('anchor 1: prints shoe-only base sections without nosing text', () => {
+    for (const nosing of ['none', 'hardwood', 'folded']) {
+      const r = fixture({ shelves: { shoe: 2 } }, {}, { shelves: { nosing } });
+      expect(row(r, 'cab', s).notes).toEqual(['full top', '2 shoe shelves', 'hl']);
+    }
+  });
+
+  // §1 retains auto flat shelves above the stack: one shoe shelf leaves room for 1 as.
+  // Keep the exact anchor expectation visible until the spec's conflicting case is resolved.
+  it.fails('anchor 3: expects only a singular shoe shelf in the base despite the auto flat shelf', () => {
+    const r = fixture({ shelves: { shoe: 1 } });
+    expect(row(r, 'cab', s).notes).toEqual(['full top', '1 shoe shelf', 'hl']);
+  });
+
+  it('anchor 2: prints the auto flat count before four shoe shelves in an 84-inch base', () => {
+    const r = fixture({ shelves: { shoe: 4 } }, { height: 84 });
+    const before = structuredClone({ r, s });
+    expect(row(r, 'cab', s).notes).toEqual(['full top', '4 as', '4 shoe shelves', 'hl']);
+    expect({ r, s }).toEqual(before);
+  });
+
+  it('anchor 4: keeps glass material on the typed flat shelf only', () => {
+    const r = fixture({ shelves: { glass: true, count: 1, shoe: 2 } });
+    expect(row(r, 'cab', s).notes).toEqual(['full top', '1 as (1/4" glass)', '2 shoe shelves', 'hl']);
+  });
+
+  it('anchors 5 and 6: adds third-row line bore for shoe-only sections unless line bore is manually off', () => {
+    for (const [flags, notes] of [
+      [{}, ['2 shoe shelves', '3rd row lb', 'fixed rod - 22 1/4"']],
+      [{ lineBore: false }, ['NLB', '2 shoe shelves', 'fixed rod - 22 1/4"']],
+    ]) {
+      const r = fixture({ shelves: { count: 0, shoe: 2 }, accessories: [{ accessoryId: 'FR' }], ...flags },
+        { cabinetTypeId: 3, height: 84 });
+      expect(row(r, 'cab', s).notes).toEqual([...notes, 'hl']);
+    }
+  });
+
+  it('anchor 7: keeps flat and shoe shelf counts inside the named top section above a fixed shelf', () => {
+    const interior = splitSection({}, 'r', 'vertical', 2);
+    interior.children[0] = { shelves: { count: 2, shoe: 3 } };
+    const r = fixture(interior, { cabinetTypeId: 3, height: 84 });
+    expect(row(r, 'cab', s).notes).toContain('Top Sec (2 as, 3 shoe shelves)');
+  });
+});
+
 describe('IN13a step e shipping accessory notes', () => {
   const rod = { ...newAccessory([], 'FR'), name: 'Fixed rod', reportText: 'fixed rod',
     size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,

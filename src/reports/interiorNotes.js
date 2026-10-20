@@ -110,8 +110,10 @@ export function interiorNotes({
         text += `, +${formatInch(setting('foldedNosingExtra'))} as depth - FF to cut & fold for ${formatInch(setting('shelfNosingHeight'))} nosing`;
       }
       notes.push(text);
-      if (accessoryEntry?.lineBoreRow && shelf.lineBore) notes.push('3rd row lb');
     }
+    const shoeCount = shelf?.shoe?.count ?? 0;
+    if (shoeCount > 0) notes.push(`${shoeCount} shoe ${shoeCount === 1 ? 'shelf' : 'shelves'}`);
+    if ((shelf?.count ?? 0) + shoeCount > 0 && accessoryEntry?.lineBoreRow && shelf.lineBore) notes.push('3rd row lb');
     // All roll-out groups are one note, like the DF's.
     notes.push(rolloutNotes(rollouts.get(path), roomSlideId).join(', '));
     notes.push((accessoryEntry?.items ?? [])
