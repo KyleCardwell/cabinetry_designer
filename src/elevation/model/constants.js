@@ -2,6 +2,8 @@ import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from './doorStyles.js';
 import { BUILT_IN_PULLS } from './pulls.js';
 import { BUILT_IN_SLIDES } from './slides.js';
 
+export const ACCESSORY_PLACES = ['section', 'drawer_box'];
+
 /** Cabinet type identifiers shared with ff-job-schedule. */
 export const CABINET_TYPE_IDS = {
   BASE: 1,
@@ -83,6 +85,7 @@ export const DEFAULT_SETTINGS = {
   doorDesigns: DOOR_DESIGNS,
   pulls: BUILT_IN_PULLS,
   slides: BUILT_IN_SLIDES,
+  accessories: [],
   drawerSlideId: 'blum-562h',
   doorPullId: 'pull-4',
   drawerPullId: 'pull-4',

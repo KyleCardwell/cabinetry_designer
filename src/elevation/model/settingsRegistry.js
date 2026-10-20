@@ -1,7 +1,7 @@
 import { DEFAULT_PROFILE, DEFAULT_SETTINGS } from './constants.js';
 
 export const SETTING_LEVELS = ['team', 'project', 'phase', 'room', 'wall', 'run', 'cabinet', 'face'];
-export const LIBRARY_KEYS = ['teamDoorStyle', 'doorDesigns', 'sectionProfiles', 'pulls', 'slides'];
+export const LIBRARY_KEYS = ['teamDoorStyle', 'doorDesigns', 'sectionProfiles', 'pulls', 'slides', 'accessories'];
 export const PREF_KEYS = ['orthoWalls', 'showPartNumbers', 'plotScale', 'paperSize', 'planGrid', 'openingSnap', 'cornerSnapDistance'];
 
 const roomNumbers = [

@@ -34,6 +34,7 @@ export function copySettings(settings = DEFAULT_SETTINGS) {
     doorDesigns: structuredClone(settings.doorDesigns ?? DOOR_DESIGNS),
     pulls: structuredClone(settings.pulls ?? BUILT_IN_PULLS),
     slides: structuredClone(settings.slides ?? BUILT_IN_SLIDES),
+    accessories: structuredClone(settings.accessories ?? []),
     sectionProfiles: structuredClone(settings.sectionProfiles ?? []),
   };
 }

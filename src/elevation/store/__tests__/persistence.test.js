@@ -3,6 +3,7 @@ import { DOOR_DESIGNS, sheetPanelStyle } from '../../model/doorStyles.js';
 import { isDoorDesignList } from '../../model/doorDesigns.js';
 import { BUILT_IN_PULLS, resolvePull } from '../../model/pulls.js';
 import { BUILT_IN_SLIDES } from '../../model/slides.js';
+import { newAccessory } from '../../model/accessories.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CABINET_PURPOSES, CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { gridFromItems, gridLeaves, rootItems } from '../../model/grid.js';
@@ -93,6 +94,32 @@ function currentDocument() {
     view: 'elevation',
   };
 }
+
+it('IN12b anchor 6: defaults missing accessories, round trips saved entries and rejects invalid libraries', () => {
+  const document = currentDocument();
+  delete document.settings.accessories;
+  const serialized = JSON.stringify(document);
+  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, serialized]]) };
+  const loaded = loadElevationDocument();
+  expect(loaded).not.toBeNull();
+  expect(loaded.settings.accessories).toEqual([]);
+  expect(isElevationDocument(loaded)).toBe(true);
+  expect(document.settings).not.toHaveProperty('accessories');
+  expect(window.localStorage.getItem(ELEVATION_STORAGE_KEY)).toBe(serialized);
+  const accessory = { ...newAccessory([], 'a'), labor: { '7': 15 }, price: 185 };
+  loaded.settings.accessories = [accessory];
+  const saved = toElevationDocument(createInitialElevationState(loaded));
+  window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(saved));
+  expect(loadElevationDocument().settings.accessories).toEqual([accessory]);
+  for (const accessories of [[{ ...accessory, minOpening: { width: 0 } }], [null],
+    [accessory, { ...accessory, id: 'b' }], [accessory, { ...accessory, name: 'Other' }],
+    null, {}, 'accessories']) {
+    const invalid = { ...loaded, settings: { ...loaded.settings, accessories } };
+    expect(isElevationDocument(invalid)).toBe(false);
+    window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(invalid));
+    expect(loadElevationDocument()).toBeNull();
+  }
+});
 
 describe('IN1a cabinet purpose persistence', () => {
   it('IN6 a anchor 5: loads retired charging purposes without changing drawer charging picks or other purposes', () => {

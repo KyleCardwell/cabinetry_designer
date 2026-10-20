@@ -1,4 +1,5 @@
 export {
+  ACCESSORY_PLACES,
   CABINET_PURPOSES,
   CABINET_TYPE_IDS,
   CABINET_TYPE_COLORS,
@@ -54,6 +55,8 @@ export {
   fittingLength,
   slideBoxWidth,
 } from './slides.js';
+export { isAccessory, isAccessoryList, newAccessory, copyAccessory, findAccessory, accessoryText } from './accessories.js';
+export { PRICING_UNITS, PRICING_UNIT_LABELS, isMoney, isLabor, formatPrice } from './libraryPricing.js';
 export { resolveSetting, resolveSettings, withOverride, cleanOverrides } from './settingsResolve.js';
 export { projectAddress, nextName, copyName, newRoomDocument, ROOM_STATUS_LABELS } from './designProjects.js';
 export {

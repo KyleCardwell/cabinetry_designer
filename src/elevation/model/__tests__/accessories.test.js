@@ -1,0 +1,121 @@
+import { expect, it } from 'vitest';
+import {
+  ACCESSORY_PLACES, DEFAULT_SETTINGS, LIBRARY_KEYS, accessoryText, allowedAt, copyAccessory,
+  findAccessory, isAccessory, isAccessoryList, newAccessory, registryEntry,
+} from '../index.js';
+import { copySettings } from '../../store/slices/helpers.js';
+
+const susan = {
+  ...newAccessory([], 'susan'),
+  name: 'Lazy susan 28', brand: 'Rev-A-Shelf', model: '6472-28',
+  description: '28" kidney lazy susan', reportText: '6472-28 lazy susan',
+  wholeSection: true, minOpening: { width: 27, depth: 22, height: null },
+  price: 185, actualCost: 112.4, labor: { '7': 15, '9': 5 },
+};
+
+it('IN12b anchor 1: validates the exact accessory shape and field limits', () => {
+  const blank = newAccessory([], 'x');
+  expect(blank).toEqual({
+    id: 'x', name: 'New accessory', brand: '', model: '', description: '', reportText: '',
+    attachesTo: 'section', wholeSection: false, minOpening: { width: null, depth: null, height: null },
+    ownSlides: false, effects: [], pricing: 'unit', price: null, actualCost: null, labor: {},
+  });
+  expect(isAccessory(blank)).toBe(true);
+  expect(isAccessory(susan)).toBe(true);
+  expect(ACCESSORY_PLACES).toEqual(['section', 'drawer_box']);
+  for (const change of [
+    { minOpening: { ...blank.minOpening, width: 0 } }, { minOpening: { width: 12 } },
+    { effects: [{}] }, { attachesTo: 'shelf' }, { attachesTo: 'drawer_box', wholeSection: true },
+    { seedId: 'a' }, { accessoryCatalogId: 3 }, { price: -1 }, { pricing: 'each' },
+    { labor: { '7': -1 } }, { labor: { abc: 1 } }, { labor: { '07': 1 } },
+    { name: ' Susan' }, { reportText: 'a'.repeat(121) }, { id: '' }, { name: '' },
+    { wholeSection: 1 }, { ownSlides: 'false' }, { effects: null }, { minOpening: null },
+    { minOpening: { ...blank.minOpening, extra: null } },
+    { [Symbol('extra')]: true },
+    ...['brand', 'model', 'description', 'reportText'].flatMap((key) => [
+      { [key]: ' text' }, { [key]: 'text ' }, { [key]: 'a'.repeat(121) }, { [key]: 1 },
+    ]),
+    ...['width', 'depth', 'height'].flatMap((key) => [-1, Infinity, NaN, '12'].map((value) => (
+      { minOpening: { ...blank.minOpening, [key]: value } }
+    ))),
+    ...['price', 'actualCost'].flatMap((key) => [-1, Infinity, NaN, '12', undefined].map((value) => ({ [key]: value }))),
+  ]) expect(isAccessory({ ...blank, ...change }), JSON.stringify(change)).toBe(false);
+  for (const key of Object.keys(blank)) {
+    const missing = { ...blank };
+    delete missing[key];
+    expect(isAccessory(missing), key).toBe(false);
+  }
+  for (const invalid of [null, [], new Date(), 'accessory']) expect(isAccessory(invalid)).toBe(false);
+  expect(isAccessory({ ...blank, price: 0 })).toBe(true);
+  expect(isAccessory({ ...blank, labor: { '7': 15 } })).toBe(true);
+  expect(isAccessory({ ...blank, attachesTo: 'drawer_box', ownSlides: true })).toBe(true);
+  expect(isAccessory({ ...blank, reportText: 'a'.repeat(120) })).toBe(true);
+});
+
+it('IN12b anchor 2: picks the first unused new accessory name ignoring case', () => {
+  const first = newAccessory([], 'x');
+  expect(newAccessory([first], 'y').name).toBe('New accessory 2');
+  const second = { ...newAccessory([], 'y'), name: 'new accessory 2' };
+  expect(newAccessory([first, second], 'z').name).toBe('New accessory 3');
+  expect(newAccessory([second], 'z').name).toBe('New accessory');
+  expect(newAccessory([], 'y').minOpening).not.toBe(first.minOpening);
+});
+
+it('IN12b anchor 3: deep copies pricing and labor and picks a unique copy name', () => {
+  const base = { ...susan, labor: { '7': 15 } };
+  const before = structuredClone(base);
+  const copy = copyAccessory([base], base, 'z');
+  expect(copy).toEqual({ ...base, id: 'z', name: 'Lazy susan 28 copy' });
+  for (const key of ['minOpening', 'labor', 'effects']) {
+    expect(copy[key]).toEqual(base[key]);
+    expect(copy[key]).not.toBe(base[key]);
+  }
+  const list = [base, { ...copy, name: 'lazy SUSAN 28 COPY' }];
+  expect(copyAccessory(list, base, 'y').name).toBe('Lazy susan 28 copy 2');
+  list.push({ ...copy, id: 'y', name: 'Lazy susan 28 copy 2' });
+  expect(copyAccessory(list, base, 'w').name).toBe('Lazy susan 28 copy 3');
+  copy.minOpening.width = 1;
+  copy.labor['7'] = 0;
+  expect(base).toEqual(before);
+});
+
+it('IN12b anchor 4: requires valid entries and unique ids and names ignoring case', () => {
+  const first = { ...susan, id: 'a', name: 'Susan' };
+  expect(isAccessoryList([])).toBe(true);
+  expect(isAccessoryList([first, newAccessory([], 'b')])).toBe(true);
+  for (const list of [
+    [first, { ...first, id: 'b', name: 'susan' }],
+    [first, { ...first, name: 'Other' }], [first, { ...first, id: 'b', effects: [{}] }],
+    [null], null, {}, 'accessories',
+  ]) expect(isAccessoryList(list)).toBe(false);
+});
+
+it('IN12b anchor 5: looks up accessories and uses report text or the name', () => {
+  expect(findAccessory('susan', [susan])).toBe(susan);
+  expect(findAccessory('missing', [susan])).toBeNull();
+  expect(findAccessory('susan', [])).toBeNull();
+  expect(accessoryText({ ...susan, reportText: '' })).toBe('Lazy susan 28');
+  expect(accessoryText(susan)).toBe('6472-28 lazy susan');
+});
+
+it('IN12b keeps accessories in an independent settings library with empty defaults', () => {
+  expect(DEFAULT_SETTINGS.accessories).toEqual([]);
+  expect(LIBRARY_KEYS).toContain('accessories');
+  expect(registryEntry('accessories')).toBeUndefined();
+  for (const level of ['team', 'project', 'phase', 'room', 'wall', 'run', 'cabinet', 'face']) {
+    expect(allowedAt('accessories', level)).toBe(false);
+  }
+  for (const settings of [undefined, { ...DEFAULT_SETTINGS, accessories: undefined },
+    { ...DEFAULT_SETTINGS, accessories: [susan] }]) {
+    const expected = settings?.accessories ?? [];
+    const copy = copySettings(settings);
+    expect(copy.accessories).toEqual(expected);
+    expect(copy.accessories).not.toBe(expected);
+    if (expected.length) {
+      expect(copy.accessories[0]).not.toBe(susan);
+      expect(copy.accessories[0].minOpening).not.toBe(susan.minOpening);
+      expect(copy.accessories[0].labor).not.toBe(susan.labor);
+      expect(copy.accessories[0].effects).not.toBe(susan.effects);
+    }
+  }
+});
