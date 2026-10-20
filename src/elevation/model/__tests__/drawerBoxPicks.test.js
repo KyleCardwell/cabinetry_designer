@@ -42,6 +42,15 @@ describe('IN6 step a pull-out boxes', () => {
     expect(face.children[1]).not.toHaveProperty('drawerBox');
   });
 
+  it('patches std-matched drawer fronts inside their vertical parent', () => {
+    const face = { ...tree(), children: [leaf('drawer_front', { match: 'standard' }), leaf('door')] };
+    const items = [{ accessoryId: 'charging' }];
+    expect(setFaceDrawerBox(face, 'r.0', { accessories: items }).children[0])
+      .toEqual({ type: 'drawer_front', size: null, match: 'standard', drawerBox: { accessories: items } });
+    expect(setFaceDrawerBox(face, 'r.0', { height: 4.125, slideId: 'blum-562h' }).children[0].drawerBox)
+      .toEqual({ height: 4.125, slideId: 'blum-562h' });
+  });
+
   it('anchor 3: drops picks on type or action changes, retains qualifying picks, and starts splits empty', () => {
     const pullout = leaf('door', { action: 'pullout', drawerBox: { height: 12.125 } });
     for (const action of [null, 'swing', 'sliding', 'flipper', 'pocket']) {

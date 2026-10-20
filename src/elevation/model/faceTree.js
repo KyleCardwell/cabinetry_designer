@@ -257,9 +257,11 @@ export function setFaceDrawerBox(face, path, patch) {
   const next = { ...target };
   if (Object.keys(drawerBox).length) next.drawerBox = drawerBox;
   else delete next.drawerBox;
-  if (!isFaceNode(next) || !keys.some((key) => patch[key] === null
+  if (!keys.some((key) => patch[key] === null
     ? Object.hasOwn(target.drawerBox ?? {}, key) : target.drawerBox?.[key] !== patch[key])) return face;
-  return replaceAt(face, path, () => next);
+  // Validate the whole tree: a std-matched front is only valid inside its vertical parent.
+  const result = replaceAt(face, path, () => next);
+  return isFaceNode(result) ? result : face;
 }
 
 /** Set or clear a pull-bearing leaf's own pick. */
