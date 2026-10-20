@@ -77,7 +77,7 @@ function trimRolloutItems(rollouts) {
 }
 
 export function isSectionAccessories(value) {
-  return isAccessoryItems(value);
+  return isAccessoryItems(value, { placed: true });
 }
 
 /** A plain or customized leaf section, or a valid interior group, recursively. */

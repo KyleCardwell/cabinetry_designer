@@ -1,7 +1,7 @@
 import { expect, it } from 'vitest';
 import {
   ACCESSORY_PLACES, DEFAULT_SETTINGS, LIBRARY_KEYS, accessoryText, allowedAt, copyAccessory,
-  findAccessory, isAccessory, isAccessoryList, newAccessory, registryEntry,
+  findAccessory, isAccessory, isAccessoryList, newAccessory, registryEntry, withAccessoryDefaults,
 } from '../index.js';
 import { copySettings } from '../../store/slices/helpers.js';
 
@@ -18,6 +18,7 @@ it('IN12b anchor 1: validates the exact accessory shape and field limits', () =>
   expect(blank).toEqual({
     id: 'x', name: 'New accessory', brand: '', model: '', description: '', reportText: '',
     attachesTo: 'section', wholeSection: false, minOpening: { width: null, depth: null, height: null },
+    size: { width: null, height: null, depth: null }, lengthDeduction: null,
     ownSlides: false, effects: [], pricing: 'unit', price: null, actualCost: null, labor: {},
   });
   expect(isAccessory(blank)).toBe(true);
@@ -50,6 +51,58 @@ it('IN12b anchor 1: validates the exact accessory shape and field limits', () =>
   expect(isAccessory({ ...blank, labor: { '7': 15 } })).toBe(true);
   expect(isAccessory({ ...blank, attachesTo: 'drawer_box', ownSlides: true })).toBe(true);
   expect(isAccessory({ ...blank, reportText: 'a'.repeat(120) })).toBe(true);
+});
+
+it('IN13a a anchors 1–2: validates size and ordered-length deduction for each place and deep copies size', () => {
+  const blank = newAccessory([], 'x');
+  expect(isAccessory(blank)).toBe(true);
+  expect(blank.size).toEqual({ width: null, height: null, depth: null });
+  expect(blank.lengthDeduction).toBeNull();
+  expect(newAccessory([], 'y').size).not.toBe(blank.size);
+  const rod = { ...blank, size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25 };
+  expect(isAccessory(rod)).toBe(true);
+  expect(isAccessory({ ...blank, lengthDeduction: 0 })).toBe(true);
+  for (const size of [
+    { width: 3 }, null, [], { ...blank.size, extra: null }, { ...blank.size, [Symbol('extra')]: 1 },
+    ...['width', 'height', 'depth'].flatMap((key) => [0, -1, Infinity, NaN, '3', undefined]
+      .map((value) => ({ ...blank.size, [key]: value }))),
+    { ...blank.size, height: 'section' }, { ...blank.size, depth: 'section' },
+  ]) expect(isAccessory({ ...blank, size })).toBe(false);
+  for (const lengthDeduction of [-1 / 8, Infinity, NaN, '0.25', undefined]) {
+    expect(isAccessory({ ...blank, lengthDeduction })).toBe(false);
+  }
+  const box = { ...blank, attachesTo: 'drawer_box' };
+  expect(isAccessory({ ...box, size: { ...box.size, width: 'section' } })).toBe(false);
+  expect(isAccessory({ ...box, lengthDeduction: 0.25 })).toBe(false);
+  expect(isAccessory({ ...box, lengthDeduction: 0 })).toBe(false);
+  expect(isAccessory({ ...box, size: { width: 3, height: 2, depth: 1 } })).toBe(true);
+  const copy = copyAccessory([rod], rod, 'copy');
+  expect(copy.size).toEqual(rod.size);
+  expect(copy.size).not.toBe(rod.size);
+  expect(copy.lengthDeduction).toBe(0.25);
+  copy.size.height = 2;
+  expect(rod.size.height).toBe(1.25);
+});
+
+it('IN13a a anchor 4: defaults only missing accessory keys without changing old fields or invalid values', () => {
+  const legacy = structuredClone(susan);
+  delete legacy.size;
+  delete legacy.lengthDeduction;
+  const before = structuredClone(legacy);
+  const loaded = withAccessoryDefaults(legacy);
+  expect(loaded).toEqual({ ...before, size: { width: null, height: null, depth: null }, lengthDeduction: null });
+  expect(isAccessory(loaded)).toBe(true);
+  expect(legacy).toEqual(before);
+  expect(withAccessoryDefaults(legacy).size).not.toBe(loaded.size);
+  const rod = { ...susan, size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25 };
+  expect(withAccessoryDefaults(rod)).toEqual(rod);
+  expect(withAccessoryDefaults({ ...legacy, size: rod.size })).toEqual({ ...legacy, size: rod.size, lengthDeduction: null });
+  expect(withAccessoryDefaults({ ...legacy, lengthDeduction: 0 })).toEqual({ ...legacy, size: loaded.size, lengthDeduction: 0 });
+  for (const change of [{ size: null }, { size: undefined }, { size: { width: 3 } }, { lengthDeduction: undefined }]) {
+    const invalid = { ...legacy, ...change };
+    expect(isAccessory(withAccessoryDefaults(invalid))).toBe(false);
+  }
+  for (const value of [null, undefined, 'x', 3, false, []]) expect(withAccessoryDefaults(value)).toBe(value);
 });
 
 it('IN12b anchor 2: picks the first unused new accessory name ignoring case', () => {

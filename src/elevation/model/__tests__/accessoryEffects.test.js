@@ -6,7 +6,7 @@ import {
 
 it('IN12c a anchor 1: validates the exact effect vocabulary, keys and value limits', () => {
   expect(ACCESSORY_EFFECT_KINDS).toEqual([
-    'clear_behind', 'max_depth', 'max_height', 'fixed_height', 'slide', 'probox_note',
+    'clear_behind', 'max_depth', 'max_height', 'fixed_height', 'slide', 'probox_note', 'line_bore_row',
   ]);
   for (const kind of ACCESSORY_EFFECT_KINDS.slice(0, 4)) {
     expect(isAccessoryEffect({ kind, inches: 2 })).toBe(true);
@@ -25,6 +25,20 @@ it('IN12c a anchor 1: validates the exact effect vocabulary, keys and value limi
     Object.assign(Object.create({ kind: 'slide' }), { slideId: 'a' }),
     null, [], new Date(), 'slide',
   ]) expect(isAccessoryEffect(effect)).toBe(false);
+});
+
+it('IN13a a anchor 3: allows a single kind-only line bore effect on section accessories', () => {
+  const effect = { kind: 'line_bore_row' };
+  expect(isAccessoryEffect(effect)).toBe(true);
+  expect(isEffectList([effect], 'section')).toBe(true);
+  expect(isEffectList([effect], 'drawer_box')).toBe(false);
+  expect(isEffectList([{ ...effect, inches: 1 }], 'section')).toBe(false);
+  expect(isEffectList([{ kind: 'clear_behind', inches: 2 }], 'section')).toBe(false);
+  expect(isEffectList([effect, effect], 'section')).toBe(false);
+  expect(isEffectList([effect, { kind: 'clear_behind', inches: 2 }], 'section')).toBe(false);
+  expect(isAccessoryEffect({ ...effect, [Symbol('extra')]: true })).toBe(false);
+  expect(isAccessory({ ...newAccessory([], 'a'), effects: [effect] })).toBe(true);
+  expect(effectText(effect)).toBe('3rd row lb');
 });
 
 it('IN12c a anchor 2: permits effects only on drawer boxes, without duplicates or conflicting heights', () => {

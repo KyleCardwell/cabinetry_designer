@@ -9,7 +9,7 @@ const DEFAULT_INCHES = { clear_behind: 2, max_depth: 18, max_height: 4.25, fixed
 
 export default function AccessoryEffectsFields({ effects, slides, onChange, inputClass, buttonClass }) {
   const kinds = new Set(effects.map((effect) => effect.kind));
-  const available = ACCESSORY_EFFECT_KINDS.filter((kind) => !kinds.has(kind)
+  const available = ACCESSORY_EFFECT_KINDS.filter((kind) => Object.hasOwn(LABELS, kind) && !kinds.has(kind)
     && !(kind === 'max_height' && kinds.has('fixed_height'))
     && !(kind === 'fixed_height' && kinds.has('max_height')));
   const change = (index, value) => onChange(effects.map((effect, i) => i === index ? { ...effect, ...value } : effect));

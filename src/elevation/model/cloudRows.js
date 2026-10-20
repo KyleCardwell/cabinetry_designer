@@ -2,7 +2,7 @@
  * Mapping between the designer's in-memory shapes and the Supabase `design_` rows
  * (DATABASE-PLAN §3, SPEC-DB4 §1). Pure: no network, no store.
  */
-import { isAccessory } from './accessories.js';
+import { isAccessory, withAccessoryDefaults } from './accessories.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { SEEDED_DESIGN_IDS, isDoorDesign, migrateDoorDesign } from './doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, isDoorStyle } from './doorStyles.js';
@@ -132,7 +132,7 @@ export function accessoryToRow(accessory) {
 /** A design_accessories row → a valid accessory, or null. */
 export function accessoryFromRow(row) {
   if (!row || !isUuid(row.accessory_id) || !row.data || typeof row.data !== 'object') return null;
-  const accessory = { ...structuredClone(row.data), id: row.accessory_id, name: row.name };
+  const accessory = withAccessoryDefaults({ ...structuredClone(row.data), id: row.accessory_id, name: row.name });
   return isAccessory(accessory) ? accessory : null;
 }
 

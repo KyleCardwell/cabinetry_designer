@@ -1,5 +1,6 @@
 import { LEGACY_DOOR_DESIGNS } from './fixtures/legacyDoorDesigns.js';
 import { isDoorDesign } from '../doorDesigns.js';
+import { isAccessory } from '../accessories.js';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { DOOR_DESIGNS, DEFAULT_DOOR_STYLE } from '../doorStyles.js';
@@ -258,6 +259,7 @@ const susan = {
   id: DID, name: 'Lazy susan 28', brand: 'Rev-A-Shelf', model: '6472-28',
   description: '28" kidney lazy susan', reportText: '6472-28 lazy susan',
   attachesTo: 'section', wholeSection: true, minOpening: { width: 27, depth: 22, height: null },
+  size: { width: null, height: null, depth: null }, lengthDeduction: null,
   ownSlides: false, effects: [], pricing: 'unit', price: 185, actualCost: 112.4, labor: { '7': 15, '9': 5 },
 };
 
@@ -265,6 +267,7 @@ it('IN12b c maps every accessory field except id and name into data (anchor 1)',
   const expectedData = {
     brand: 'Rev-A-Shelf', model: '6472-28', description: '28" kidney lazy susan', reportText: '6472-28 lazy susan',
     attachesTo: 'section', wholeSection: true, minOpening: { width: 27, depth: 22, height: null },
+    size: { width: null, height: null, depth: null }, lengthDeduction: null,
     ownSlides: false, effects: [], pricing: 'unit', price: 185, actualCost: 112.4, labor: { '7': 15, '9': 5 },
   };
   const row = accessoryToRow(susan);
@@ -291,4 +294,20 @@ it('IN12b c keeps accessories out of the shop standard and defaults clone (ancho
   expect(teamSettingsToRow({ ...DEFAULT_SETTINGS, accessories: [susan] })).not.toHaveProperty('accessories');
   expect(teamSettingsFromRow({})).not.toHaveProperty('accessories');
   expect(teamSettingsFromRow({ accessories: [susan] })).not.toHaveProperty('accessories');
+});
+
+it('IN13a a anchor 4: loads legacy cloud accessories before validation and round trips saved size', () => {
+  const row = { accessory_id: DID, ...accessoryToRow(susan) };
+  delete row.data.size;
+  delete row.data.lengthDeduction;
+  const before = structuredClone(row);
+  const loaded = accessoryFromRow(row);
+  expect(isAccessory(loaded)).toBe(true);
+  expect(loaded).toEqual(susan);
+  expect(row).toEqual(before);
+  const rod = { ...susan, size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25 };
+  expect(accessoryFromRow({ accessory_id: DID, ...accessoryToRow(rod) })).toEqual(rod);
+  for (const data of [{ ...row.data, size: null }, { ...row.data, lengthDeduction: -1 / 8 }]) {
+    expect(accessoryFromRow({ ...row, data })).toBeNull();
+  }
 });

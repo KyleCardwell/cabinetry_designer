@@ -1,7 +1,7 @@
 import { formatInches } from './units.js';
 
 export const ACCESSORY_EFFECT_KINDS = [
-  'clear_behind', 'max_depth', 'max_height', 'fixed_height', 'slide', 'probox_note',
+  'clear_behind', 'max_depth', 'max_height', 'fixed_height', 'slide', 'probox_note', 'line_bore_row',
 ];
 
 function hasKeys(value, keys) {
@@ -17,6 +17,7 @@ const isText = (value) => typeof value === 'string' && value === value.trim()
 
 export function isAccessoryEffect(effect) {
   if (!effect || !ACCESSORY_EFFECT_KINDS.includes(effect.kind)) return false;
+  if (effect.kind === 'line_bore_row') return hasKeys(effect, ['kind']);
   const key = effect.kind === 'slide' ? 'slideId' : effect.kind === 'probox_note' ? 'text' : 'inches';
   return hasKeys(effect, ['kind', key])
     && (key === 'slideId' ? typeof effect.slideId === 'string' && effect.slideId.length > 0
@@ -24,11 +25,14 @@ export function isAccessoryEffect(effect) {
         : Number.isFinite(effect.inches) && effect.inches > 0);
 }
 
-/** Effects belong only to drawer-box accessories, with one entry per compatible kind. */
+/** Section effects request line bore; drawer-box effects have one entry per compatible kind. */
 export function isEffectList(effects, attachesTo) {
   if (!['section', 'drawer_box'].includes(attachesTo) || !Array.isArray(effects)
-    || effects.length > 5 || (attachesTo === 'section' && effects.length)) return false;
+    || effects.length > 5) return false;
   if (!Array.from(effects).every(isAccessoryEffect)) return false;
+  if (attachesTo === 'section') return effects.length === 0
+    || (effects.length === 1 && effects[0].kind === 'line_bore_row');
+  if (effects.some((effect) => effect.kind === 'line_bore_row')) return false;
   const kinds = new Set(effects.map((effect) => effect.kind));
   return kinds.size === effects.length && !(kinds.has('max_height') && kinds.has('fixed_height'));
 }
@@ -36,6 +40,7 @@ export function isEffectList(effects, attachesTo) {
 export function effectText(effect, slides = []) {
   if (!isAccessoryEffect(effect)) return '';
   switch (effect.kind) {
+    case 'line_bore_row': return '3rd row lb';
     case 'clear_behind': return `${formatInches(effect.inches)} clear behind`;
     case 'max_depth': return `max ${formatInches(effect.inches)} deep`;
     case 'max_height': return `max ${formatInches(effect.inches)} tall`;

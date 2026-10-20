@@ -12,7 +12,7 @@ import { PRICING_UNITS, isLabor, isMoney } from './libraryPricing.js';
 
 const ACCESSORY_KEYS = [
   'id', 'name', 'brand', 'model', 'description', 'reportText', 'attachesTo', 'wholeSection',
-  'minOpening', 'ownSlides', 'effects', 'pricing', 'price', 'actualCost', 'labor',
+  'minOpening', 'ownSlides', 'effects', 'pricing', 'price', 'actualCost', 'labor', 'size', 'lengthDeduction',
 ];
 const OPENING_KEYS = ['width', 'depth', 'height'];
 
@@ -37,6 +37,12 @@ export function isAccessory(accessory) {
     && hasKeys(accessory.minOpening, OPENING_KEYS)
     && OPENING_KEYS.every((key) => accessory.minOpening[key] === null
       || (Number.isFinite(accessory.minOpening[key]) && accessory.minOpening[key] > 0))
+    && hasKeys(accessory.size, OPENING_KEYS)
+    && OPENING_KEYS.every((key) => accessory.size[key] === null
+      || (Number.isFinite(accessory.size[key]) && accessory.size[key] > 0)
+      || (key === 'width' && accessory.size[key] === 'section' && accessory.attachesTo === 'section'))
+    && (accessory.lengthDeduction === null || (accessory.attachesTo === 'section'
+      && Number.isFinite(accessory.lengthDeduction) && accessory.lengthDeduction >= 0))
     && typeof accessory.ownSlides === 'boolean'
     && isEffectList(accessory.effects, accessory.attachesTo)
     && PRICING_UNITS.includes(accessory.pricing)
@@ -78,12 +84,24 @@ export function newAccessory(list, id) {
     attachesTo: 'section',
     wholeSection: false,
     minOpening: { width: null, depth: null, height: null },
+    size: { width: null, height: null, depth: null },
+    lengthDeduction: null,
     ownSlides: false,
     effects: [],
     pricing: 'unit',
     price: null,
     actualCost: null,
     labor: {},
+  };
+}
+
+/** Older stored accessories have no drawing size or ordered-length deduction. */
+export function withAccessoryDefaults(accessory) {
+  if (!accessory || typeof accessory !== 'object' || Array.isArray(accessory)) return accessory;
+  return {
+    ...accessory,
+    ...(!Object.hasOwn(accessory, 'size') ? { size: { width: null, height: null, depth: null } } : {}),
+    ...(!Object.hasOwn(accessory, 'lengthDeduction') ? { lengthDeduction: null } : {}),
   };
 }
 

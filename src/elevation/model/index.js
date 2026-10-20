@@ -57,7 +57,7 @@ export {
   fittingLength,
   slideBoxWidth,
 } from './slides.js';
-export { isAccessory, isAccessoryList, newAccessory, copyAccessory, findAccessory, accessoryText, sectionAccessories, wallAccessories } from './accessories.js';
+export { isAccessory, isAccessoryList, newAccessory, withAccessoryDefaults, copyAccessory, findAccessory, accessoryText, sectionAccessories, wallAccessories } from './accessories.js';
 export { ACCESSORY_EFFECT_KINDS, isAccessoryEffect, isEffectList, effectText, findEffect, boxAccessoryEffects } from './accessoryEffects.js';
 export { isAccessoryItems, addAccessoryItem, setAccessoryItem, removeAccessoryItem, mergeAccessoryItems } from './accessoryItems.js';
 export { PRICING_UNITS, PRICING_UNIT_LABELS, isMoney, isLabor, formatPrice } from './libraryPricing.js';

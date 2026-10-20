@@ -23,7 +23,7 @@
  * The room's own door styles are in the room document. The team door style is in `settings`.
  */
 import { findEffect } from './accessoryEffects.js';
-import { isAccessoryList } from './accessories.js';
+import { isAccessoryList, withAccessoryDefaults } from './accessories.js';
 import { DEFAULT_PREFS } from './constants.js';
 import { SEEDED_DESIGN_IDS, isDoorDesignList } from './doorDesigns.js';
 import { findDoorDesign } from './doorStyles.js';
@@ -164,7 +164,8 @@ export function isSettingsSnapshot(snapshot) {
     && (snapshot.pulls === undefined || (Array.isArray(snapshot.pulls) && isPullList(snapshot.pulls.map(withPricingDefaults))))
     && (snapshot.slides === undefined || (Array.isArray(snapshot.slides)
       && isSlideList(snapshot.slides.map((slide) => withPricingDefaults(withSlideDefaults(slide))))))
-    && (snapshot.accessories === undefined || isAccessoryList(snapshot.accessories))
+    && (snapshot.accessories === undefined || (Array.isArray(snapshot.accessories)
+      && isAccessoryList(snapshot.accessories.map(withAccessoryDefaults))))
     && (snapshot.overrides === undefined || isPlainObject(snapshot.overrides));
 }
 
@@ -185,7 +186,7 @@ export function settingsFromSnapshot(snapshot) {
   settings.sectionProfiles = structuredClone(snapshot.sectionProfiles);
   settings.pulls = structuredClone((snapshot.pulls ?? BUILT_IN_PULLS).map(withPricingDefaults));
   settings.slides = structuredClone((snapshot.slides ?? BUILT_IN_SLIDES).map((slide) => withPricingDefaults(withSlideDefaults(slide))));
-  settings.accessories = structuredClone(snapshot.accessories ?? []);
+  settings.accessories = structuredClone((snapshot.accessories ?? []).map(withAccessoryDefaults));
   const { estProjectId = null, phaseId = null } = snapshot.issuedFrom ?? {};
   const layer = (level, id) => {
     const values = snapshot.overrides?.[level];

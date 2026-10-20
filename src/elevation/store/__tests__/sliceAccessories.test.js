@@ -18,6 +18,7 @@ describe('IN12b step b accessory reducers', () => {
     expect(state.settings.accessories[0]).toEqual({
       id: first.payload.id, name: 'New accessory', brand: '', model: '', description: '', reportText: '',
       attachesTo: 'section', wholeSection: false, minOpening: { width: null, depth: null, height: null },
+      size: { width: null, height: null, depth: null }, lengthDeduction: null,
       ownSlides: false, effects: [], pricing: 'unit', price: null, actualCost: null, labor: {},
     });
     state = elevationReducer(state, updateAccessory({ accessoryId: first.payload.id, accessory: {
@@ -27,7 +28,7 @@ describe('IN12b step b accessory reducers', () => {
     const copy = addAccessory({ baseId: first.payload.id });
     const copied = elevationReducer(state, copy);
     expect(copied.settings.accessories[2]).toEqual({ ...state.settings.accessories[0], id: copy.payload.id, name: 'New accessory copy' });
-    for (const key of ['minOpening', 'effects', 'labor']) {
+    for (const key of ['minOpening', 'size', 'effects', 'labor']) {
       expect(copied.settings.accessories[2][key]).not.toBe(state.settings.accessories[0][key]);
     }
     expect(elevationReducer(copied, addAccessory({ baseId: first.payload.id })).settings.accessories[3].name).toBe('New accessory copy 2');

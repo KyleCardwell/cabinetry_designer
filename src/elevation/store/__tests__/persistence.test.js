@@ -3,7 +3,7 @@ import { DOOR_DESIGNS, sheetPanelStyle } from '../../model/doorStyles.js';
 import { isDoorDesignList } from '../../model/doorDesigns.js';
 import { BUILT_IN_PULLS, resolvePull } from '../../model/pulls.js';
 import { BUILT_IN_SLIDES } from '../../model/slides.js';
-import { newAccessory } from '../../model/accessories.js';
+import { isAccessory, newAccessory } from '../../model/accessories.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CABINET_PURPOSES, CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { gridFromItems, gridLeaves, rootItems } from '../../model/grid.js';
@@ -173,6 +173,32 @@ it('IN12b anchor 6: defaults missing accessories, round trips saved entries and 
     const invalid = { ...loaded, settings: { ...loaded.settings, accessories } };
     expect(isElevationDocument(invalid)).toBe(false);
     window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(invalid));
+    expect(loadElevationDocument()).toBeNull();
+  }
+});
+
+it('IN13a a anchor 4: defaults legacy sandbox accessories before validation without rewriting storage', () => {
+  const document = currentDocument();
+  const accessory = { ...newAccessory([], 'a'), labor: { '7': 15 }, price: 185 };
+  const legacy = structuredClone(accessory);
+  delete legacy.size;
+  delete legacy.lengthDeduction;
+  document.settings.accessories = [legacy];
+  const before = structuredClone(document);
+  const serialized = JSON.stringify(document);
+  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, serialized]]) };
+  const loaded = loadElevationDocument();
+  expect(isElevationDocument(loaded)).toBe(true);
+  expect(isAccessory(loaded.settings.accessories[0])).toBe(true);
+  expect(loaded.settings.accessories).toEqual([accessory]);
+  expect(document).toEqual(before);
+  expect(window.localStorage.getItem(ELEVATION_STORAGE_KEY)).toBe(serialized);
+  document.settings.accessories = [{ ...accessory, size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25 }];
+  window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(document));
+  expect(loadElevationDocument().settings.accessories).toEqual(document.settings.accessories);
+  for (const change of [{ size: null }, { size: { width: 3 } }, { lengthDeduction: -1 / 8 }]) {
+    document.settings.accessories = [{ ...legacy, ...change }];
+    window.localStorage.setItem(ELEVATION_STORAGE_KEY, JSON.stringify(document));
     expect(loadElevationDocument()).toBeNull();
   }
 });

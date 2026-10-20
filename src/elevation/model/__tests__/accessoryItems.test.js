@@ -15,6 +15,24 @@ it('IN12c a: shared items retain the IN12b storage shape and limits', () => {
   }
 });
 
+it('IN13a a anchor 7: merges positions from the first placed occurrence and preserves a rename destination', () => {
+  const placed = { accessoryId: 'a', fromBottom: 40 };
+  const second = { accessoryId: 'a', fromBottom: 60 };
+  expect(mergeAccessoryItems([a], [second])).toEqual([{ ...second, qty: 2 }]);
+  expect(mergeAccessoryItems([placed], [second])).toEqual([{ ...placed, qty: 2 }]);
+  expect(mergeAccessoryItems([placed], [a])).toEqual([{ ...placed, qty: 2 }]);
+  expect(addAccessoryItem([placed], 'a')).toEqual([{ ...placed, qty: 2 }]);
+  for (const destination of [a, placed]) {
+    const items = [{ accessoryId: 'b', qty: 2, fromBottom: 60 }, destination];
+    const before = structuredClone(items);
+    expect(setAccessoryItem(items, 0, { accessoryId: 'a', fromBottom: 80 }))
+      .toEqual([{ ...destination, qty: 3 }]);
+    expect(items).toEqual(before);
+  }
+  expect(placed).toEqual({ accessoryId: 'a', fromBottom: 40 });
+  expect(second).toEqual({ accessoryId: 'a', fromBottom: 60 });
+});
+
 it('IN12c a anchor 4: adds, increments, resets, merges renamed ids and removes without mutation', () => {
   const once = addAccessoryItem(undefined, 'a');
   expect(addAccessoryItem(once, 'a')).toEqual([{ accessoryId: 'a', qty: 2 }]);

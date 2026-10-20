@@ -6,7 +6,37 @@ import {
   setDividerBanding, setDividerKind, setDividerPosition, splitSection,
   SHELF_NOSINGS, setSectionShelves, setSectionFlag,
   MAX_ROLLOUTS, ROLLOUT_LAYOUTS, isRollouts, setSectionRollouts, setRolloutItem,
+  addSectionAccessory, isAccessoryItems, isFaceNode, isSectionAccessories, setFaceDrawerBox, setSectionAccessory,
 } from '../index.js';
+
+it('IN13a a anchors 5–6: validates section-only placement and preserves it through edits and splits', () => {
+  const item = { accessoryId: 'a', fromBottom: 40 };
+  expect(isSectionAccessories([item])).toBe(true);
+  expect(isAccessoryItems([item], { placed: true })).toBe(true);
+  expect(isAccessoryItems([item])).toBe(false);
+  expect(isFaceNode({ type: 'drawer_front', size: null, drawerBox: { accessories: [item] } })).toBe(false);
+  const front = { type: 'drawer_front', size: null, drawerBox: { accessories: [{ accessoryId: 'a' }] } };
+  expect(isFaceNode(front)).toBe(true);
+  expect(setFaceDrawerBox(front, 'r', { accessories: [item] })).toBe(front);
+  const start = { accessories: [{ accessoryId: 'a' }] };
+  const placed = setSectionAccessory(start, 'r', 0, { fromBottom: 40 });
+  expect(placed.accessories).toEqual([item]);
+  expect(start.accessories).toEqual([{ accessoryId: 'a' }]);
+  expect(isInteriorNode(placed)).toBe(true);
+  expect(setSectionAccessory(placed, 'r', 0, { fromBottom: null })).toEqual(start);
+  expect(addSectionAccessory(placed, 'r', 'a').accessories).toEqual([{ ...item, qty: 2 }]);
+  for (const fromBottom of [0, -1, Infinity, NaN, '40', undefined, null]) {
+    expect(isSectionAccessories([{ ...item, fromBottom }])).toBe(false);
+    if (fromBottom !== null) expect(setSectionAccessory(placed, 'r', 0, { fromBottom })).toBe(placed);
+  }
+  const split = splitSection(placed, 'r', 'vertical', 2);
+  expect(split.children[0].accessories).toEqual([item]);
+  expect(split.children[0].accessories[0]).not.toBe(placed.accessories[0]);
+  expect(split.children[1]).not.toHaveProperty('accessories');
+  expect(removeDivider(split, 'r', 0)).toEqual(placed);
+  split.children[1].accessories = [{ ...item, fromBottom: 60 }];
+  expect(removeDivider(split, 'r', 0).accessories).toEqual([{ ...item, qty: 2 }]);
+});
 
 describe('IN2 stored interior tree', () => {
   const vertical = () => ({

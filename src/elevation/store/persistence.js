@@ -15,7 +15,7 @@ import { cleanOverrides } from '../model/settingsResolve.js';
 import { isDoorDesignList, migrateDoorDesign } from '../model/doorDesigns.js';
 import { BUILT_IN_PULLS, PULL_KEYS, isPullList } from '../model/pulls.js';
 import { BUILT_IN_SLIDES, isSlideList, withoutRetiredSlideKeys, withSlideDefaults } from '../model/slides.js';
-import { isAccessoryList } from '../model/accessories.js';
+import { isAccessoryList, withAccessoryDefaults } from '../model/accessories.js';
 import { withPricingDefaults } from '../model/libraryPricing.js';
 import { isSectionProfileList, migrateSectionProfile } from '../model/sectionProfiles.js';
 import {
@@ -837,6 +837,7 @@ function normalizeDocument(document, schemaVersion) {
       }
     }
     if (settings.accessories === undefined) settings.accessories = [];
+    else if (Array.isArray(settings.accessories)) settings.accessories = settings.accessories.map(withAccessoryDefaults);
     if (settings.sectionProfiles === undefined) settings.sectionProfiles = [];
     else if (Array.isArray(settings.sectionProfiles)) settings.sectionProfiles = settings.sectionProfiles.map(migrateSectionProfile);
     delete settings.doorThickness;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { newAccessory } from '../accessories.js';
+import { isAccessory, newAccessory } from '../accessories.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
 import { newSectionProfile } from '../sectionProfiles.js';
@@ -49,6 +49,30 @@ const P_EDGE = '0192a1b2-c3d4-7e5f-8a9b-00000000e001';
 const P_UNUSED = '0192a1b2-c3d4-7e5f-8a9b-00000000f001';
 const D_SHAKER = '0192a1b2-c3d4-7e5f-8a9b-00000000d001';
 const D_UNUSED = '0192a1b2-c3d4-7e5f-8a9b-00000000d002';
+
+it('IN13a a anchor 4: validates and restores legacy snapshot accessories with defaults and independent data', () => {
+  const accessory = { ...newAccessory([], 'a'), labor: { '7': 15 }, minOpening: { width: 3, height: null, depth: null } };
+  const snapshot = buildSettingsSnapshot({ settings: { ...library(), accessories: [accessory] }, document: { accessoryId: 'a' } });
+  delete snapshot.accessories[0].size;
+  delete snapshot.accessories[0].lengthDeduction;
+  const before = structuredClone(snapshot);
+  expect(isSettingsSnapshot(snapshot)).toBe(true);
+  const restored = settingsFromSnapshot(snapshot);
+  expect(restored.ok).toBe(true);
+  expect(isAccessory(restored.settings.accessories[0])).toBe(true);
+  expect(restored.settings.accessories).toEqual([accessory]);
+  restored.settings.accessories[0].labor['7'] = 25;
+  restored.settings.accessories[0].minOpening.width = 4;
+  expect(snapshot).toEqual(before);
+  snapshot.accessories[0].size = { width: 'section', height: 1.25, depth: 1.25 };
+  snapshot.accessories[0].lengthDeduction = 0;
+  expect(settingsFromSnapshot(snapshot).settings.accessories).toEqual(snapshot.accessories);
+  for (const change of [{ size: null }, { size: { width: 3 } }, { lengthDeduction: -1 / 8 }]) {
+    const invalid = { ...snapshot, accessories: [{ ...snapshot.accessories[0], ...change }] };
+    expect(isSettingsSnapshot(invalid)).toBe(false);
+    expect(settingsFromSnapshot(invalid).ok).toBe(false);
+  }
+});
 
 it('IN4c a: opens legacy snapshot slides with back clearance defaults and preserves saved values', () => {
   const snapshot = buildSettingsSnapshot({ settings: library(), document: roomDocument() });
