@@ -46,17 +46,44 @@ export function sectionShelves({ interior, faces, boxes = [], leaf, settings, ro
     const cabinet = leaf.shelves ?? {};
     const source = (key) => pick[key] !== undefined ? 'manual' : cabinet[key] !== undefined ? 'cabinet' : 'auto';
     const glass = pick.glass ?? cabinet.glass ?? false;
-    const kind = glass ? 'none' : pick.nosing ?? cabinet.nosing ?? 'none';
+    const nosingKind = pick.nosing ?? cabinet.nosing ?? 'none';
+    const kind = glass ? 'none' : nosingKind;
     // Clearance is per side, 1/16" each side (Kyle 2026-10-20).
     const width = section.width - 2 * setting('shelfWidthClearance');
     const depth = section.depth - setting('shelfSetback');
     const thickness = glass ? setting('glassShelfThickness') : sheetThickness(settings);
-    const nosing = kind === 'none' ? null : {
+    const makeNosing = (kind) => ({
       kind, height: setting('shelfNosingHeight'), thickness: setting('shelfNosingThickness'), length: width,
-    };
+    });
+    const nosing = kind === 'none' ? null : makeNosing(kind);
     const clear = shelfZone(section, boxes);
     const entry = rollouts.get(section.path);
-    const zone = entry ? { z: entry.top, height: Math.max(0, clear.z + clear.height - entry.top) } : clear;
+    let zone = entry ? { z: entry.top, height: Math.max(0, clear.z + clear.height - entry.top) } : clear;
+    const shoeCount = pick.shoe ?? 0;
+    let shoe = null;
+    if (shoeCount > 0) {
+      const angle = setting('shoeShelfAngle');
+      const radians = angle * Math.PI / 180;
+      const s = Math.sin(radians);
+      const c = Math.cos(radians);
+      const shoeNosing = makeNosing(nosingKind === 'none' ? 'hardwood' : nosingKind);
+      const shoeThickness = sheetThickness(settings);
+      const shoeDepth = (depth - shoeNosing.height * s) / c;
+      const nosingTop = shoeNosing.height / c;
+      const pitch = setting('shoeShelfClear') + nosingTop;
+      const positions = Array.from({ length: shoeCount }, (_, index) => zone.z + index * pitch);
+      const top = positions[shoeCount - 1] + nosingTop;
+      shoe = {
+        count: shoeCount, angle, width, depth: shoeDepth,
+        orderedDepth: shoeNosing.kind === 'folded' ? shoeDepth + setting('foldedNosingExtra')
+          : shoeDepth - shoeNosing.thickness,
+        thickness: shoeThickness, nosing: shoeNosing, pitch, nosingTop,
+        frontHeight: shoeNosing.height * c, rise: shoeDepth * s + shoeThickness * c,
+        positions, top,
+      };
+      const zoneTop = zone.z + zone.height;
+      zone = { z: Math.min(top, zoneTop), height: Math.max(0, zoneTop - top) };
+    }
     const covering = faces.filter((face) => covers(face, section));
     const eligible = !accessories.get(section.path)?.whole && !['sink', 'cooktop', 'oven'].includes(leaf.purpose) && covering.some(shelfFace);
     const visible = nosing?.height ?? thickness;
@@ -65,6 +92,11 @@ export function sectionShelves({ interior, faces, boxes = [], leaf, settings, ro
     const count = pick.count ?? (eligible
       ? Math.max(0, Math.floor((zone.height - spacing) / (spacing + visible) + 1e-9)) : 0);
     const gap = (zone.height - count * visible) / (count + 1);
+    const warnings = count > 0 && gap < 3 ? [{ code: 'shelves-crowded' }] : [];
+    const shoeClear = count > 0 ? gap : zone.height;
+    if (shoe && shoeClear < setting('shoeShelfClear') - 1e-9) {
+      warnings.push({ code: 'shoe-shelves-tight', clear: Math.max(0, shoeClear) });
+    }
     result.set(section.path, {
       count, countSource: pick.count === undefined ? 'auto' : 'manual', zone, width, depth,
       orderedDepth: kind === 'folded' ? depth + setting('foldedNosingExtra')
@@ -76,9 +108,10 @@ export function sectionShelves({ interior, faces, boxes = [], leaf, settings, ro
       positions: Array.from({ length: count }, (_, index) => zone.z + gap + index * (visible + gap)),
       hinges: node.hinges ?? covering.some(sideHinged),
       hingesSource: node.hinges === undefined ? 'auto' : 'manual',
-      lineBore: node.lineBore ?? count > 0,
+      shoe,
+      lineBore: node.lineBore ?? count + shoeCount > 0,
       lineBoreSource: node.lineBore === undefined ? 'auto' : 'manual',
-      warnings: count > 0 && gap < 3 ? [{ code: 'shelves-crowded' }] : [],
+      warnings,
     });
   }
   return result;

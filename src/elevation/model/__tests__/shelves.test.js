@@ -320,3 +320,144 @@ describe('IN8 shelves and section flags', () => {
     expect([...wallShelves(room, wall, 'back', settings).keys()]).toEqual(['a', 'b', 'c', 'd']);
   });
 });
+
+describe('IN13b shoe shelves', () => {
+  const shoeRoot = (shoe, { leaf = {}, ...options } = {}) => root({ ...options,
+    leaf: { ...leaf, interior: { ...leaf.interior, shelves: { ...leaf.interior?.shelves, shoe } } } });
+  const closeArray = (actual, expected) => {
+    expect(actual).toHaveLength(expected.length);
+    expected.forEach((value, index) => expect(actual[index]).toBeCloseTo(value, 5));
+  };
+
+  it('anchor 1: resolves two hardwood shoe shelves and the flat zone above their nosing', () => {
+    const args = input({ leaf: { interior: { shelves: { shoe: 2 } } } });
+    const before = structuredClone(args);
+    const entry = sectionShelves(args).get('r');
+    expect(entry).toMatchObject({ count: 0, countSource: 'auto', gap: null,
+      lineBore: true, lineBoreSource: 'auto', warnings: [] });
+    expect(entry.shoe).toMatchObject({ count: 2, angle: 12, width: 22.375, thickness: 0.75,
+      nosing: { kind: 'hardwood', height: 1.5, thickness: 0.8125, length: 22.375 } });
+    for (const [key, value] of Object.entries({ depth: 23.067206, orderedDepth: 22.254706,
+      pitch: 7.533511, nosingTop: 1.533511, frontHeight: 1.467221, rise: 5.529553, top: 9.817022 })) {
+      expect(entry.shoe[key]).toBeCloseTo(value, 5);
+    }
+    closeArray(entry.shoe.positions, [0.75, 8.283511]);
+    expect(entry.zone.z).toBeCloseTo(9.817022, 5);
+    expect(entry.zone.height).toBeCloseTo(19.932978, 5);
+    expect(args).toEqual(before);
+  });
+
+  it('anchor 2: computes auto flat shelves in the zone above four tall-cabinet shoe shelves', () => {
+    const entry = shoeRoot(4, { height: 84 });
+    expect(root({ height: 84 }).count).toBe(6);
+    closeArray(entry.shoe.positions, [0.75, 8.283511, 15.817022, 23.350533]);
+    expect(entry.shoe.top).toBeCloseTo(24.884044, 5);
+    expect(entry.zone.z).toBeCloseTo(24.884044, 5);
+    expect(entry.zone.height).toBeCloseTo(58.365956, 5);
+    expect(entry.count).toBe(4);
+    expect(entry.gap).toBeCloseTo(11.073191, 5);
+    closeArray(entry.positions, [35.957235, 47.780426, 59.603617, 71.426809]);
+    expect(entry.warnings).toEqual([]);
+  });
+
+  it('anchor 3: warns about shoe clearance using the typed flat count gap', () => {
+    const entry = shoeRoot(4, { height: 84, leaf: { interior: { shelves: { count: 8 } } } });
+    expect(entry).toMatchObject({ count: 8, countSource: 'manual' });
+    expect(entry.gap).toBeCloseTo(5.818440, 5);
+    expect(entry.warnings).toHaveLength(1);
+    expect(entry.warnings[0].code).toBe('shoe-shelves-tight');
+    expect(entry.warnings[0].clear).toBeCloseTo(5.818440, 5);
+    const crowded = shoeRoot(4, { leaf: { interior: { shelves: { count: 8 } } } });
+    expect(crowded.warnings.map(({ code }) => code)).toEqual(['shelves-crowded', 'shoe-shelves-tight']);
+    expect(crowded.warnings[1].clear).toBe(0);
+  });
+
+  it('anchor 4: warns when the shoe-only stack leaves less than six inches above it', () => {
+    const entry = shoeRoot(4);
+    expect(entry).toMatchObject({ count: 0, gap: null });
+    expect(entry.shoe.top).toBeCloseTo(24.884044, 5);
+    expect(entry.zone.height).toBeCloseTo(4.865956, 5);
+    expect(entry.warnings).toHaveLength(1);
+    expect(entry.warnings[0].code).toBe('shoe-shelves-tight');
+    expect(entry.warnings[0].clear).toBeCloseTo(4.865956, 5);
+  });
+
+  it('anchor 5: retains an overflowing typed stack and clamps the flat zone and clearance', () => {
+    const entry = shoeRoot(5);
+    expect(entry.shoe.top).toBeCloseTo(32.417554, 5);
+    expect(entry).toMatchObject({ zone: { z: 29.75, height: 0 }, count: 0,
+      warnings: [{ code: 'shoe-shelves-tight', clear: 0 }] });
+  });
+
+  it('anchor 6: keeps shoe shelves solid with nosing when flat shelves are glass', () => {
+    const entry = shoeRoot(2, { leaf: { interior: { shelves: { glass: true } } } });
+    expect(entry).toMatchObject({ thickness: 0.25, glass: true, nosing: null });
+    expect(entry.shoe).toMatchObject({ thickness: 0.75, nosing: { kind: 'hardwood' } });
+  });
+
+  it('anchor 7: inherits folded nosing and its extra ordered depth', () => {
+    const entry = shoeRoot(2, { leaf: { shelves: { nosing: 'folded' } } });
+    expect(entry.shoe.nosing.kind).toBe('folded');
+    expect(entry.shoe.orderedDepth).toBeCloseTo(25.067206, 5);
+  });
+
+  it('anchor 8: honors typed shoe shelves for appliance sections, missing shelf faces and whole accessories', () => {
+    for (const purpose of ['sink', 'cooktop', 'oven']) {
+      expect(shoeRoot(2, { leaf: { purpose } })).toMatchObject({ shoe: { count: 2 }, count: 0, lineBore: true });
+    }
+    const args = input({ leaf: { interior: { shelves: { shoe: 2 } } } });
+    for (const overrides of [{ faces: [] }, { accessories: new Map([['r', { whole: {} }]]) }]) {
+      expect(sectionShelves({ ...args, ...overrides }).get('r'))
+        .toMatchObject({ shoe: { count: 2 }, count: 0, lineBore: true });
+    }
+  });
+
+  it('anchor 9: preserves a manual line bore override on a shoe-only section', () => {
+    expect(shoeRoot(2, { leaf: { interior: { lineBore: false } } }))
+      .toMatchObject({ count: 0, lineBore: false, lineBoreSource: 'manual' });
+  });
+
+  it('anchor 10: reduces to flat geometry at a zero-degree slope', () => {
+    const { shoe } = shoeRoot(1, { settings: { ...settings, shoeShelfAngle: 0 } });
+    for (const [key, value] of Object.entries({ angle: 0, depth: 22.875, rise: 0.75,
+      pitch: 7.5, nosingTop: 1.5, frontHeight: 1.5 })) expect(shoe[key]).toBeCloseTo(value, 5);
+  });
+
+  it('anchor 11: adds only shoe: null when shoe shelves are absent or zero', () => {
+    const absent = root();
+    expect(absent.shoe).toBeNull();
+    expect(shoeRoot(0)).toEqual(absent);
+    expect(root({ leaf: { shelves: { shoe: 2 } } })).toEqual(absent);
+  });
+
+  it('stacks above the existing drawer and roll-out zone in wall coordinates', () => {
+    const args = input({ z: 40, leaf: { interior: { shelves: { shoe: 2 } } } });
+    const boxes = [{ space: { x: 0.75, z: 40.75, width: 22.5, height: 4 } }];
+    const rollouts = new Map([['r', { top: 50 }]]);
+    const entry = sectionShelves({ ...args, boxes, rollouts }).get('r');
+    closeArray(entry.shoe.positions, [50, 57.533511]);
+    expect(entry.zone.z).toBeCloseTo(59.067022, 5);
+    expect(entry.zone.height).toBeCloseTo(10.682978, 5);
+  });
+
+  it('uses section nosing before cabinet nosing even with glass, and applies custom dimensions and clearance', () => {
+    const effective = { ...settings, shoeShelfAngle: 0, shoeShelfClear: 4,
+      shelfNosingHeight: 2, shelfNosingThickness: 1, sheetThickness: 0.5,
+      shelfWidthClearance: 0.125, shelfSetback: 0.25, foldedNosingExtra: 3 };
+    const leaf = { shelves: { nosing: 'hardwood' }, interior: { shelves: { glass: true, nosing: 'folded' } } };
+    const entry = shoeRoot(1, { settings: effective, leaf });
+    expect(entry).toMatchObject({ glass: true, nosing: null, thickness: 0.25, warnings: [] });
+    expect(entry.shoe).toMatchObject({ width: 22.75, depth: 22.75, orderedDepth: 25.75,
+      thickness: 0.5, pitch: 6, nosingTop: 2, frontHeight: 2, rise: 0.5,
+      nosing: { kind: 'folded', height: 2, thickness: 1, length: 22.75 } });
+    const plain = shoeRoot(1, { settings: effective,
+      leaf: { ...leaf, interior: { shelves: { glass: true, nosing: 'none' } } } });
+    expect(plain.shoe).toMatchObject({ orderedDepth: 21.75, nosing: { kind: 'hardwood' } });
+    const args = input({ leaf: { interior: { shelves: { shoe: 2 } } } });
+    expect(sectionShelves({ ...args, settings: undefined }).get('r')).toEqual(shoeRoot(2));
+    for (const offset of [0, -5e-10, -2e-9]) {
+      const boundary = shoeRoot(1, { height: 7 + offset, settings: { ...settings, shoeShelfAngle: 0, shoeShelfClear: 4 } });
+      expect(boundary.warnings.map(({ code }) => code)).toEqual(offset < -1e-9 ? ['shoe-shelves-tight'] : []);
+    }
+  });
+});
