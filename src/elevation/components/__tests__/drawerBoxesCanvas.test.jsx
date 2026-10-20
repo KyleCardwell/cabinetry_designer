@@ -131,6 +131,34 @@ describe('IN5 doors-off drawer boxes', () => {
     }
   });
 
+  it('IN12c e anchor 5: shows counted accessories when they fit, falls back to height, and keeps warnings amber', () => {
+    state.settings.accessories = [
+      { id: 'CU', name: 'Charging unit', attachesTo: 'drawer_box', effects: [{ kind: 'clear_behind', inches: 2 }] },
+      { id: 'KN', name: 'Knife insert', attachesTo: 'drawer_box', effects: [] },
+      { id: 'Susan', name: 'Lazy susan', attachesTo: 'section', effects: [] },
+    ];
+    item().face.children[0].drawerBox = { accessories: [{ accessoryId: 'CU' }] };
+    let view = canvas();
+    const fitting = nodes(InteriorShapes({ ...view.interiorNode.props,
+      transform: { ...view.runNode.props.transform, scale: 10 } }));
+    expect(nodes(fitting.find(({ key }) => key === 'drawer:r.0')).find(({ type }) => type === Text).props.text)
+      .toBe('4 1/4 · Charging unit');
+    const narrow = nodes(InteriorShapes({ ...view.interiorNode.props,
+      transform: { ...view.runNode.props.transform, scale: 4 } }));
+    const top = narrow.find(({ key }) => key === 'drawer:r.0');
+    expect(nodes(top).find(({ type }) => type === Text).props.text).toBe('4 1/4');
+    item().face.children[0].drawerBox = { accessories: [
+      { accessoryId: 'CU', qty: 2 }, { accessoryId: 'KN' }, { accessoryId: 'gone' }, { accessoryId: 'Susan' },
+    ] };
+    view = canvas();
+    const wide = nodes(InteriorShapes({ ...view.interiorNode.props,
+      transform: { ...view.runNode.props.transform, scale: 30 } }));
+    const labelled = wide.find(({ key }) => key === 'drawer:r.0');
+    expect(nodes(labelled).find(({ type }) => type === Text).props)
+      .toMatchObject({ text: '4 1/4 · 2 × Charging unit, Knife insert', fill: '#f59e0b' });
+    expect(nodes(labelled).find(({ type }) => type === Rect).props.stroke).toBe('#f59e0b');
+  });
+
   it('anchor 3: passes a click inside a box through to the underlying section', () => {
     const view = canvas();
     for (const box of view.boxes) {

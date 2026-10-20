@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { cabinetDrawerBoxesFor } from '../../model/drawerBoxes.js';
+import { newAccessory } from '../../model/accessories.js';
 import { gridLeaves } from '../../model/grid.js';
 import { resolveWall } from '../../model/room.js';
 import { runScene } from '../../model/runScene.js';
@@ -31,6 +32,18 @@ const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
 const options = (field) => nodes(field).filter(({ type }) => type === 'option')
   .map(({ props }) => [props.value, text(props.children)]);
 const drawer = (size = null) => ({ type: 'drawer_front', size });
+const accessory = (id, name, effects = [], minOpening = {}) => ({
+  ...newAccessory([], id), name, attachesTo: 'drawer_box', effects,
+  minOpening: { width: null, depth: null, height: null, ...minOpening },
+});
+const accessories = [
+  accessory('CU', 'Charging unit', [{ kind: 'clear_behind', inches: 2 }]),
+  accessory('KN', 'Knife insert', [{ kind: 'max_height', inches: 4.25 }], { width: 15, depth: 18 }),
+  accessory('SP', 'Spice insert', [{ kind: 'fixed_height', inches: 3.25 }]),
+  accessory('PO', 'Pot organizer', [{ kind: 'slide', slideId: 'accuride-4034' }, { kind: 'probox_note', text: '1/2" bottom' }]),
+  accessory('OS', 'Outlet strip', [{ kind: 'max_depth', inches: 15 }]),
+  { ...newAccessory([], 'Susan'), name: 'Lazy susan 28' },
+];
 const at = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
 let state;
 const room = () => state.rooms[0];
@@ -52,7 +65,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   state = stateWithRun(makeRun({ width: 18, autoCount: false, items: [fixed('c1', 18)],
     ends: { left: { type: 'none' }, right: { type: 'none' } } }));
-  state.settings = { ...state.settings, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h', runFlex: 0 ,
+  state.settings = { ...state.settings, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h', accessories, runFlex: 0 ,
     // These fixtures type a 1/8" top reveal; keep the standard fronts at 5 7/8 (IN7.2).
     stoneTopReveal: 0.125 };
   item().face = { direction: 'vertical', size: null, children: [drawer(5.875), drawer(), drawer()] };
@@ -107,19 +120,6 @@ describe('IN6 Drawer boxes rules and pull-outs', () => {
       .toEqual(['notch drw around plumbing (DRW-006)', 'drawer stabilizers (BOX-007)']);
   });
 
-  it('IN12c d: keeps Charging visible until step e without a resolved charging field', () => {
-    expect(field('Charging r.0').props.checked).toBeUndefined();
-    field('Charging r.0').props.onChange({ target: { checked: true } });
-    expect(dispatch).toHaveBeenLastCalledWith(setFaceDrawerBox({ ...at, itemId: 'c1', path: 'r.0', patch: { charging: true } }));
-    expect(field('Charging r.0').props.checked).toBeUndefined();
-    expect(item().face.children[0]).not.toHaveProperty('drawerBox');
-    expect(placeholders('depth')[0]).toBe('Auto (21")');
-    field('Charging r.0').props.onChange({ target: { checked: false } });
-    expect(dispatch).toHaveBeenLastCalledWith(setFaceDrawerBox({ ...at, itemId: 'c1', path: 'r.0', patch: { charging: null } }));
-    expect(item().face.children[0].drawerBox).toBeUndefined();
-    expect(placeholders('depth')[0]).toBe('Auto (21")');
-  });
-
   it('anchor 4: shows ROT rows, rule dimensions and notes, including a pull-out-only cabinet', () => {
     edit(() => { item().purpose = 'trash'; item().face.children = [drawer(5.875), pullout()]; });
     expect(nodes(render()).filter(({ type }) => type === 'h4').map(text))
@@ -127,12 +127,12 @@ describe('IN6 Drawer boxes rules and pull-outs', () => {
     expect(placeholders('height')[1]).toBe('Auto (15 1/8", DRW-009)');
     expect(placeholders('depth')[1]).toBe('Auto (22", DRW-009)');
     expect(text(field('Drawer box r.1'))).toContain('bottom up 1 3/4"');
-    expect(field('Charging r.0')).toBeDefined();
-    expect(field('Charging r.1')).toBeUndefined();
+    expect(field('Add drawer accessory r.0')).toBeDefined();
+    expect(field('Add drawer accessory r.1')).toBeUndefined();
     edit(() => { item().face = pullout(); });
     expect(nodes(panel()).some(({ type }) => type === DrawerBoxFields)).toBe(true);
     expect(nodes(render()).filter(({ type }) => type === 'h4').map(text)).toEqual(['ROT · front 30 1/4"']);
-    expect(field('Charging r')).toBeUndefined();
+    expect(field('Add drawer accessory r')).toBeUndefined();
     commit('Drawer height r', 12.125);
     commit('Drawer depth r', 21);
     expect(field('Drawer height r').props.value).toBe(12.125);
@@ -149,7 +149,7 @@ describe('IN6 Drawer boxes rules and pull-outs', () => {
     expect(nodes(panel()).some(({ type }) => type === DrawerBoxFields)).toBe(true);
     expect(nodes(render()).filter(({ type }) => type === 'h4').map(text)).toEqual(['Hamper · front 30 1/4"']);
     expect(placeholders('height')).toEqual(['Auto (6 1/4", DRW-010)']);
-    expect(field('Charging r')).toBeUndefined();
+    expect(field('Add drawer accessory r')).toBeUndefined();
     expect(text(render())).toContain('A hamper box needs at least 15 × 22 (this one is 16" × 21").');
     edit(() => { item().face = { direction: 'vertical', size: null, children: [drawer(5.875), drawer(9), pullout()] }; });
     expect(text(render())).toContain('A hamper needs 11 clear below the box (8 1/16" here).');
@@ -277,5 +277,94 @@ describe('IN5 Drawer boxes section', () => {
     expect(render({ wall: back, run: back.runs[0] })).not.toBeNull();
     expect(cabinetDrawerBoxesFor).toHaveBeenLastCalledWith(room(), wall(), 'back', state.settings, 'c1');
     expect(render()).toBeNull();
+  });
+});
+
+
+describe('IN12c e drawer box accessories', () => {
+  const top = () => item().face.children[0];
+  const remove = (name) => nodes(render()).find(({ type, props }) => type === 'button' && props['aria-label'] === `Remove ${name}`).props.onClick();
+
+  it('anchor 1: replaces Charging on every drawer row with sorted drawer-box accessory choices', () => {
+    expect(nodes(render()).some(({ props }) => props.type === 'checkbox')).toBe(false);
+    expect(nodes(render()).filter(({ type }) => type === 'h5').map(text)).toEqual(Array(3).fill('Accessories'));
+    for (const path of ['r.0', 'r.1', 'r.2']) {
+      expect(options(field(`Add drawer accessory ${path}`))).toEqual([
+        ['', 'Add accessory…'], ['CU', 'Charging unit'], ['KN', 'Knife insert'], ['OS', 'Outlet strip'],
+        ['PO', 'Pot organizer'], ['SP', 'Spice insert'],
+      ]);
+    }
+  });
+
+  it('anchor 2: adds CU through the shared helpers, edits quantity, merges picks and removes the last item', () => {
+    change('Cabinet drawer slide', 'accuride-3832');
+    change('Add drawer accessory r.0', 'CU');
+    expect(dispatch).toHaveBeenLastCalledWith(setFaceDrawerBox({ ...at, itemId: 'c1', path: 'r.0',
+      patch: { accessories: [{ accessoryId: 'CU' }] } }));
+    expect(placeholders('depth')[0]).toBe('Auto (20", Charging unit)');
+    expect(field('Drawer accessory qty r.0.0').props).toMatchObject({ min: 1, max: 20, step: 1, value: 1 });
+    change('Add drawer accessory r.0', 'CU');
+    expect(top().drawerBox.accessories).toEqual([{ accessoryId: 'CU', qty: 2 }]);
+    change('Drawer accessory qty r.0.0', '20');
+    change('Add drawer accessory r.0', 'CU');
+    expect(top().drawerBox.accessories).toEqual([{ accessoryId: 'CU', qty: 20 }]);
+    change('Drawer accessory qty r.0.0', '1');
+    expect(top().drawerBox.accessories).toEqual([{ accessoryId: 'CU' }]);
+    for (const qty of ['0', '21', '1.5', '']) change('Drawer accessory qty r.0.0', qty);
+    expect(top().drawerBox.accessories).toEqual([{ accessoryId: 'CU' }]);
+    change('Add drawer accessory r.0', 'KN');
+    change('Drawer accessory pick r.0.1', 'CU');
+    expect(top().drawerBox.accessories).toEqual([{ accessoryId: 'CU', qty: 2 }]);
+    remove('Charging unit');
+    expect(dispatch).toHaveBeenLastCalledWith(setFaceDrawerBox({ ...at, itemId: 'c1', path: 'r.0', patch: { accessories: null } }));
+    expect(top()).not.toHaveProperty('drawerBox');
+    expect(placeholders('depth')[0]).toBe('Auto (22")');
+  });
+
+  it('anchor 3: names the accessory slide, includes its note and names automatic height sources', () => {
+    change('Add drawer accessory r.0', 'PO');
+    expect(options(field('Drawer slide r.0'))[0]).toEqual(['', 'Auto (Accuride 4034, Pot organizer)']);
+    expect(text(field('Drawer box r.0'))).toContain('1/2" bottom');
+    change('Add drawer accessory r.0', 'SP');
+    expect(placeholders('height')[0]).toBe('Auto (3 1/4", Spice insert)');
+    change('Add drawer accessory r.1', 'KN');
+    expect(placeholders('height')[1]).toBe('Auto (4 1/4", Knife insert)');
+  });
+
+  it('anchor 4: shows amber accessory warnings with front labels and resolved sizes', () => {
+    change('Cabinet drawer slide', 'accuride-3832');
+    change('Add drawer accessory r.0', 'CU');
+    commit('Drawer depth r.0', 22);
+    const message = 'Front 5 7/8": Charging unit needs 2" clear behind the box (1" here).';
+    expect(nodes(render()).find(({ type, props }) => type === 'p' && text(props.children) === message).props.className).toContain('text-amber-400');
+    change('Add drawer accessory r.0', 'PO');
+    change('Drawer slide r.0', 'blum-562h');
+    expect(text(render())).toContain('Front 5 7/8": Pot organizer rides on Accuride 4034; this box is on Blum Tandem 562H.');
+    change('Add drawer accessory r.0', 'KN');
+    commit('Drawer height r.0', 5.25);
+    expect(text(render())).toContain('Front 5 7/8": Knife insert needs a box no taller than 4 1/4".');
+    change('Add drawer accessory r.0', 'SP');
+    expect(text(render())).toContain('Front 5 7/8": Spice insert needs a 3 1/4" tall box.');
+    change('Add drawer accessory r.0', 'OS');
+    expect(text(render())).toContain('Front 5 7/8": Outlet strip needs a box no deeper than 15".');
+    edit(() => { run().width = run().grid.cols[0].size = 15; });
+    expect(text(render())).toContain('Front 5 7/8": Knife insert needs a box 15" wide (13" here).');
+    commit('Drawer depth r.0', 16);
+    expect(text(render())).toContain('Knife insert needs a box 15" wide (13" here); 18" deep (16" here).');
+  });
+
+  it('keeps missing and wrong-place picks editable and explains an empty Library', () => {
+    edit(() => { top().drawerBox = { accessories: [{ accessoryId: 'gone' }, { accessoryId: 'Susan' }] }; });
+    expect(options(field('Drawer accessory pick r.0.0'))[0]).toEqual(['gone', 'Missing']);
+    expect(options(field('Drawer accessory pick r.0.1'))[0]).toEqual(['Susan', 'Lazy susan 28']);
+    expect(text(render())).toContain(`Front 5 7/8": An accessory here isn't in the Library any more.`);
+    expect(text(render())).toContain('Front 5 7/8": Lazy susan 28 goes in a section, not on a drawer box.');
+    change('Drawer accessory pick r.0.0', 'CU');
+    expect(top().drawerBox.accessories[0]).toEqual({ accessoryId: 'CU' });
+    remove('Lazy susan 28');
+    expect(top().drawerBox.accessories).toEqual([{ accessoryId: 'CU' }]);
+    edit(() => { state.settings.accessories = []; });
+    expect(field('Add drawer accessory r.0').props.disabled).toBe(true);
+    expect(text(render())).toContain('Add drawer box accessories in Library → Accessories.');
   });
 });

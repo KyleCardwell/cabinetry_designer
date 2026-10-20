@@ -236,7 +236,11 @@ export default function InteriorShapes({
           .filter((box) => box.height !== null).map((box) => {
             const rect = wallRectToScreen(box, transform);
             const label = box.kind === 'rot' ? 'ROT ' : box.kind === 'hamper' ? 'Hamper ' : '';
-            const text = `${label}${formatInches(box.height).replace(/"$/, '')}`;
+            const heightText = `${label}${formatInches(box.height).replace(/"$/, '')}`;
+            const names = (box.accessories ?? []).filter(({ accessory }) => accessory?.attachesTo === 'drawer_box')
+              .map(({ accessory, qty }) => `${qty > 1 ? `${qty} × ` : ''}${accessory.name}`);
+            const fullText = names.length ? `${heightText} · ${names.join(', ')}` : heightText;
+            const text = rect.width >= fullText.length * 6 + SIZE_INSET * 2 ? fullText : heightText;
             const color = box.warnings.length ? '#f59e0b' : '#e2e8f0';
             const showHeight = rect.height >= SIZE_FONT + SIZE_INSET * 2
               && rect.width >= text.length * 6 + SIZE_INSET * 2;
