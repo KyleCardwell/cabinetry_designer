@@ -69,7 +69,7 @@ describe('HP1 step c face hinge and opens pickers', () => {
     expect(options('Hinge').map(text)).toEqual(['Auto (left)', 'Left', 'Right', 'Top', 'Bottom']);
     expect(values('Hinge')).toEqual(['', 'left', 'right', 'top', 'bottom']);
     const fields = nodes(render()).filter(({ type }) => type === 'select');
-    expect(fields.map(({ props }) => props['aria-label']).slice(-2)).toEqual(['Opens', 'Hinge']);
+    expect(fields.map(({ props }) => props['aria-label']).slice(-3)).toEqual(['Opens', 'Panel', 'Hinge']);
     for (const hinge of ['left', 'right', 'top', 'bottom']) {
       pick('Hinge', hinge);
       expect(item().face.hinge).toBe(hinge);
@@ -126,6 +126,52 @@ describe('HP1 step c face hinge and opens pickers', () => {
     pick('Opens', 'swing');
     expect(item().face).not.toHaveProperty('action');
     expect(picker('Opens').props.value).toBe('swing');
+  });
+});
+
+describe('IN14 step b panel picker', () => {
+  it('anchor 1: stores Glass, removes Standard, and skips unchanged commits', () => {
+    expect(picker('Panel').props.value).toBe('');
+    expect(options('Panel').map(text)).toEqual(['Standard', 'Glass']);
+    expect(values('Panel')).toEqual(['', 'glass']);
+    pick('Panel', '');
+    expect(dispatch).not.toHaveBeenCalled();
+    pick('Panel', 'glass');
+    expect(item().face.panelMaterial).toBe('glass');
+    expect(picker('Panel').props.value).toBe('glass');
+    dispatch.mockClear();
+    pick('Panel', 'glass');
+    expect(dispatch).not.toHaveBeenCalled();
+    pick('Panel', '');
+    expect(item().face).not.toHaveProperty('panelMaterial');
+    expect(picker('Panel').props.value).toBe('');
+  });
+
+  it('anchor 2: shows Panel on pair doors and hides it on pull-outs, other leaves and groups', () => {
+    item().face = { direction: 'vertical', size: null, children: [
+      { type: 'pair_door', size: null }, { type: 'drawer_front', size: null },
+    ] };
+    expect(picker('Panel')).toBeUndefined();
+    state.facePath = 'r.0';
+    expect(picker('Panel')).toBeDefined();
+    pick('Panel', 'glass');
+    expect(item().face.children[0].panelMaterial).toBe('glass');
+    state = structuredClone(state);
+    item().face = { type: 'door', size: null, action: 'pullout' };
+    state.facePath = 'r';
+    expect(picker('Panel')).toBeUndefined();
+    for (const type of ['drawer_front', 'false_front', 'open']) {
+      item().face = { type, size: null };
+      expect(picker('Panel')).toBeUndefined();
+    }
+    state.facePath = null;
+    expect(picker('Panel')).toBeUndefined();
+  });
+
+  it('anchor 4: warns about glass on a slab-style door using the material label', () => {
+    state.settings.teamDoorStyle = { ...state.settings.teamDoorStyle, designId: 'slab' };
+    item().face = { type: 'door', size: null, panelMaterial: 'glass' };
+    expect(text(render())).toContain("A glass panel needs a 5-piece door — this face's style is a slab here.");
   });
 });
 

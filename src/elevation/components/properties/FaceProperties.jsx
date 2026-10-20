@@ -5,6 +5,7 @@ import {
   FACE_TYPE_LABELS,
   FACE_TYPES,
   MAX_FACE_SPLIT,
+  PANEL_MATERIALS,
   ROOT_FACE_PATH,
   runFaceLayouts,
   defaultFace,
@@ -15,11 +16,13 @@ import {
   isInsetStyle,
   makeDrawerStack,
   parentFacePath,
+  panelMaterial,
   presetsFor,
   removeFace,
   setFaceAction,
   setFaceHinge,
   setFaceMatch,
+  setFacePanelMaterial,
   setFaceSize,
   setFaceType,
   setGroupCount,
@@ -59,6 +62,7 @@ const WARNING_MESSAGES = {
   'door-profile-too-deep': 'A profile in this face\'s door style cuts deeper than the door is thick.',
   'door-profile-too-wide': 'The door style\'s edge and inside/applied profiles are wider than a stile or rail on this face.',
   'door-profile-panel-too-small': 'The panel (or molding) opening is too small for the door style\'s profiles.',
+  'panel-material-needs-frame': (material) => `A ${material} panel needs a 5-piece door — this face's style is a slab here.`,
   'pull-needs-hinge': 'Set a hinge side (or pick a centred or rail pull position) so this door\'s pull can be placed.',
   'pull-too-long': 'This pull is longer than the space it sits in on this face.',
 };
@@ -97,6 +101,12 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
     ),
   ];
   const [splitCount, setSplitCount] = useState(2);
+  const warningMessage = ({ code, key }) => {
+    const message = WARNING_MESSAGES[code];
+    if (typeof message !== 'function') return message;
+    const material = panelMaterial(doorDetails.parts.find((part) => part.key === key)?.panelMaterial);
+    return material ? message(material.label.toLowerCase()) : null;
+  };
   const selected = facePath === null ? null : getFaceNode(face, facePath);
   const pullPick = selected && pullPartType(selected.type)
     ? pullPickOptions(settings, pullPartType(selected.type),
@@ -377,6 +387,23 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
               </select>
             </label>
           )}
+          {['door', 'pair_door'].includes(selected.type) && selected.action !== 'pullout' && (
+            <div>
+              <label className="block text-xs text-gray-300">
+                Panel
+                <select
+                  value={selected.panelMaterial ?? ''}
+                  onChange={(event) => commitIfChanged(setFacePanelMaterial(face, facePath, event.target.value || null))}
+                  aria-label="Panel"
+                  className={`${SELECT_CLASS} mt-1`}
+                >
+                  <option value="">Standard</option>
+                  {PANEL_MATERIALS.map(({ id, label }) => <option key={id} value={id}>{label}</option>)}
+                </select>
+              </label>
+              {/* Material-specific options can follow the picker here. */}
+            </div>
+          )}
           {selected.type === 'door' && !['sliding', 'pullout'].includes(selected.action) && (
             <label className="block text-xs text-gray-300">
               Hinge
@@ -570,12 +597,9 @@ export default function FaceProperties({ wall, run, piece, item, itemIds = [item
         .map(({ baseHeight, matchedHeight }) => `Base drawers on this wall are ${formatInches(baseHeight)}; this stack matches the ${formatInches(matchedHeight)} standard.`))].map((message) => (
         <p key={message} className="text-xs font-medium text-amber-300">{message}</p>
       ))}
-      {[...new Set(warnings.filter(({ code, side }) => code !== 'door-profile-too-wide' || side !== 'molding').map(({ code }) => code))].map((code) => (
-        WARNING_MESSAGES[code] && (
-          <p key={code} className="text-xs font-medium text-amber-300">
-            {WARNING_MESSAGES[code]}
-          </p>
-        )
+      {[...new Set(warnings.filter(({ code, side }) => code !== 'door-profile-too-wide' || side !== 'molding')
+        .map(warningMessage).filter(Boolean))].map((message) => (
+        <p key={message} className="text-xs font-medium text-amber-300">{message}</p>
       ))}
     </section>
   );

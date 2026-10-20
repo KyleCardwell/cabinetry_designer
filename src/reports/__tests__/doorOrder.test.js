@@ -49,6 +49,27 @@ const pageKeys = (order) => order.pages.map(({ styleId, type, sections }) => {
 const lines = (order) => order.pages.flatMap((page) => page.sections.flatMap((section) => section.lines));
 
 describe('door order form data', () => {
+  it('IN14 anchor 3: keeps same-size glass and standard doors on separate lines with the sash note first', () => {
+    const r = room([run('run', { id: 'cab', kind: 'cabinet', face: {
+      direction: 'horizontal', size: null, children: [
+        face('door', null, { panelMaterial: 'glass', sizes: { stiles: { left: 3.5 } } }),
+        face('door'),
+      ],
+    } }, { width: 36 })]);
+    const items = doorOrderItems(r, settings).items;
+    expect(items.map(({ notes }) => notes)).toEqual([
+      ['sash panel (glass)', '3 1/2" LS'], [],
+    ]);
+    const result = lines(doorOrder(r, settings));
+    expect(result).toHaveLength(2);
+    expect(result.map(({ number, width, height }) => [number, width, height])).toEqual([
+      [1, 17.875, 30.125], [1, 17.875, 30.125],
+    ]);
+    expect(result.map(({ qty, notes }) => [qty, notes])).toEqual([
+      [1, 'sash panel (glass) - 3 1/2" LS'], [1, ''],
+    ]);
+  });
+
   it('collapses equal short-face rail exceptions (anchor 1)', () => {
     expect(stileRailNotes(style, frame({ rails: { top: 1.875, bottom: 1.875 } })))
       .toEqual(['1 7/8" TR & BR']);

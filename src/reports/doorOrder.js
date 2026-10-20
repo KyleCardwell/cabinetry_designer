@@ -1,5 +1,6 @@
 import { panelOrientation } from '../elevation/model/cells.js';
 import { findLeaf } from '../elevation/model/cellTree.js';
+import { panelMaterial } from '../elevation/model/constants.js';
 import { runDoorDetails } from '../elevation/model/doorDetails.js';
 import { partSizes } from '../elevation/model/doorSizes.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
@@ -101,6 +102,7 @@ export function doorOrderItems(room, settings) {
     const notes = [
       ...(panel ? ['do not sand edges'] : []),
       ...(faceType === 'false_front' ? ['false front'] : []),
+      ...(part.panelMaterial ? [panelMaterial(part.panelMaterial).orderText] : []),
       ...stileRailNotes(style, sizes),
     ];
     // Retain the drawing key for the existing unnumbered-part diagnostic.
