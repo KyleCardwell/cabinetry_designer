@@ -93,6 +93,7 @@ export function interiorNotes({
   /** One item per note: flags first (Kyle 2026-10-19), then drawer fronts, shelves, roll-outs and accessories. */
   const leafContents = (path) => {
     const shelf = shelves.get(path);
+    const accessoryEntry = accessories.get(path);
     const section = sections.get(path);
     // Match shelfZone's ownership test, including ROT and hamper drawer spaces.
     const hasBox = section && boxes.some(({ space }) => inside(space.x + space.width / 2, space.z + space.height / 2, section));
@@ -109,12 +110,14 @@ export function interiorNotes({
         text += `, +${formatInch(setting('foldedNosingExtra'))} as depth - FF to cut & fold for ${formatInch(setting('shelfNosingHeight'))} nosing`;
       }
       notes.push(text);
+      if (accessoryEntry?.lineBoreRow && shelf.lineBore) notes.push('3rd row lb');
     }
     // All roll-out groups are one note, like the DF's.
     notes.push(rolloutNotes(rollouts.get(path), roomSlideId).join(', '));
-    notes.push((accessories.get(path)?.items ?? [])
+    notes.push((accessoryEntry?.items ?? [])
       .filter(({ accessory }) => accessory?.attachesTo === 'section')
-      .map(({ accessory, qty }) => `${qty > 1 ? `${qty} ` : ''}${accessoryText(accessory)}`)
+      .map(({ accessory, qty, orderedLength }) =>
+        `${qty > 1 ? `${qty} ` : ''}${accessoryText(accessory)}${orderedLength == null ? '' : ` - ${formatInch(orderedLength)}`}`)
       .join(', '));
     return notes.filter(Boolean);
   };

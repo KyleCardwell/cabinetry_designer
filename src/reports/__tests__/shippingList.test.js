@@ -53,6 +53,48 @@ const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entr
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
 
+describe('IN13a step e shipping accessory notes', () => {
+  const rod = { ...newAccessory([], 'FR'), name: 'Fixed rod', reportText: 'fixed rod',
+    size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,
+    effects: [{ kind: 'line_bore_row' }] };
+  const hook = { ...newAccessory([], 'HK'), name: 'Robe hook', reportText: 'robe hook',
+    size: { width: 3, height: 2, depth: 3 } };
+  const s = { ...settings, accessories: [rod, hook] };
+  const fixture = (interior) => room([run('run', [{ id: 'cab', kind: 'cabinet',
+    face: face('door', { hinge: 'left' }), interior }],
+    { cabinetTypeId: 3, width: 24, height: 84, z: 0 })], {}, {}, s);
+
+  it('anchor 1: puts third-row line bore immediately after shelves and prints the ordered rod length', () => {
+    const r = fixture({ shelves: { count: 2 }, accessories: [{ accessoryId: 'FR' }] });
+    const before = structuredClone({ r, s });
+    expect(row(r, 'cab', s).notes).toEqual(['2 as', '3rd row lb', 'fixed rod - 22 1/4"', 'hl']);
+    expect({ r, s }).toEqual(before);
+  });
+
+  it('anchor 2: prints rod quantity and length with NLB and no third row when there are no shelves', () => {
+    const r = fixture({ shelves: { count: 0 }, accessories: [{ accessoryId: 'FR', qty: 2 }] });
+    expect(row(r, 'cab', s).notes).toEqual(['NLB', '2 fixed rod - 22 1/4"', 'hl']);
+  });
+
+  it('anchor 3: omits the third row when line bore is manually disabled', () => {
+    const r = fixture({ shelves: { count: 2 }, lineBore: false, accessories: [{ accessoryId: 'FR' }] });
+    expect(row(r, 'cab', s).notes).toEqual(['NLB', '2 as', 'fixed rod - 22 1/4"', 'hl']);
+  });
+
+  it('anchor 4: keeps shelves, third row and rod length together inside the named top section', () => {
+    const interior = splitSection({}, 'r', 'vertical', 2);
+    interior.children[0] = { shelves: { count: 2 }, accessories: [{ accessoryId: 'FR' }] };
+    const r = fixture(interior);
+    expect(row(r, 'cab', s).notes).toContain('Top Sec (2 as, 3rd row lb, fixed rod - 22 1/4")');
+    expect(row(r, 'cab', s).notes.filter((note) => note.includes('3rd row lb'))).toHaveLength(1);
+  });
+
+  it('anchor 5: prints a placed hook without length or position', () => {
+    const r = fixture({ shelves: { count: 2 }, accessories: [{ accessoryId: 'HK', fromBottom: 60 }] });
+    expect(row(r, 'cab', s).notes).toEqual(['2 as', 'robe hook', 'hl']);
+  });
+});
+
 describe('IN4c step c shipping cabinet back notch notes', () => {
   const notchedDrawers = { ...drawers, children: drawers.children.map((front, index) =>
     index === 0 ? { ...front, drawerBox: { depth: 21 } } : front) };

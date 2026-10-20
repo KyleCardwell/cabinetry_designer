@@ -40,6 +40,27 @@ function nestedInput() {
   return data;
 }
 
+describe('IN13a step e accessory notes', () => {
+  it('anchor 6: preserves notes without length or line-bore effects, including legacy entries', () => {
+    const data = input(null, [['r', S(2)]]);
+    data.rollouts.set('r', { rollouts: [rollout(18, 80)] });
+    const plain = { dividers: [], sections: ['2 as', '1 ro - 18"'], fronts: null };
+    expect(interiorNotes(data)).toEqual(plain);
+    data.accessories = new Map([['r', { items: [
+      { accessory: { name: 'Tray dividers', attachesTo: 'section' }, qty: 2 },
+      { accessory: { name: 'Hook', reportText: 'robe hook', attachesTo: 'section' }, qty: 1,
+        orderedLength: null, fromBottom: 60 },
+    ] }]]);
+    const before = structuredClone(data);
+    const expected = { ...plain, sections: [...plain.sections, '2 Tray dividers, robe hook'] };
+    expect(interiorNotes(data)).toEqual(expected);
+    data.accessories.get('r').lineBoreRow = false;
+    expect(interiorNotes(data)).toEqual(expected);
+    delete data.accessories.get('r').lineBoreRow;
+    expect(data).toEqual(before);
+  });
+});
+
 describe('IN12b step g accessory notes', () => {
   it('keeps stored order in one note after roll-outs regardless of sizing or whole-section warnings', () => {
     const data = input();
