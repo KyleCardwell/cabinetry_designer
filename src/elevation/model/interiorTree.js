@@ -1,5 +1,6 @@
 import { isPlainObject } from '@reduxjs/toolkit';
-import { INTERIOR_DIVIDERS, MAX_ACCESSORY_QTY, MAX_SECTION_ACCESSORIES, MAX_ROLLOUTS, ROLLOUT_LAYOUTS, SHELF_NOSINGS } from './constants.js';
+import { INTERIOR_DIVIDERS, MAX_ROLLOUTS, ROLLOUT_LAYOUTS, SHELF_NOSINGS } from './constants.js';
+import { addAccessoryItem, isAccessoryItems, mergeAccessoryItems, removeAccessoryItem, setAccessoryItem } from './accessoryItems.js';
 import { MAX_FACE_SPLIT, parentFacePath } from './faceTree.js';
 import { ROOT_FACE_PATH } from './faces.js';
 
@@ -75,32 +76,8 @@ function trimRolloutItems(rollouts) {
   return next;
 }
 
-/** Section accessories are ordered, unique references; quantity one is implicit. */
 export function isSectionAccessories(value) {
-  return Array.isArray(value) && value.length >= 1 && value.length <= MAX_SECTION_ACCESSORIES
-    && Array.from(value).every((item) => isPlainObject(item)
-      && Reflect.ownKeys(item).every((key) => ['accessoryId', 'qty'].includes(key))
-      && typeof item.accessoryId === 'string' && item.accessoryId.length > 0
-      && (!Object.hasOwn(item, 'qty') || (Number.isInteger(item.qty) && item.qty >= 2 && item.qty <= MAX_ACCESSORY_QTY)))
-    && new Set(value.map((item) => item.accessoryId)).size === value.length;
-}
-
-function withAccessoryQty(item, qty) {
-  const next = { ...item };
-  if (qty === 1) delete next.qty;
-  else next.qty = Math.min(MAX_ACCESSORY_QTY, qty);
-  return next;
-}
-
-/** Preserve first occurrence order and combine quantities when sections or references merge. */
-function mergeAccessories(items) {
-  const merged = [];
-  for (const item of items) {
-    const index = merged.findIndex(({ accessoryId }) => accessoryId === item.accessoryId);
-    if (index >= 0) merged[index] = withAccessoryQty(merged[index], (merged[index].qty ?? 1) + (item.qty ?? 1));
-    else merged.push({ ...item });
-  }
-  return merged;
+  return isAccessoryItems(value);
 }
 
 /** A plain or customized leaf section, or a valid interior group, recursively. */
@@ -223,7 +200,7 @@ export function setRolloutItem(interior, path, index, patch) {
 
 function replaceSectionAccessories(interior, path, target, items) {
   const next = { ...target };
-  if (items.length) next.accessories = items;
+  if (items?.length) next.accessories = items;
   else delete next.accessories;
   return replaceAt(interior, path, () => next);
 }
@@ -231,38 +208,25 @@ function replaceSectionAccessories(interior, path, target, items) {
 /** Add in stored order, increasing an existing reference even when the section is full. */
 export function addSectionAccessory(interior, path, accessoryId) {
   const target = getInteriorNode(interior, path);
-  if (!target || target.children || typeof accessoryId !== 'string' || !accessoryId.length) return interior ?? {};
+  if (!target || target.children) return interior ?? {};
   const items = target.accessories ?? [];
-  const index = items.findIndex((item) => item.accessoryId === accessoryId);
-  if (index >= 0) return setSectionAccessory(interior, path, index, { qty: Math.min(MAX_ACCESSORY_QTY, (items[index].qty ?? 1) + 1) });
-  if (items.length >= MAX_SECTION_ACCESSORIES) return interior ?? {};
-  return replaceSectionAccessories(interior, path, target, [...items, { accessoryId }]);
+  const next = addAccessoryItem(items, accessoryId);
+  return next === items ? interior ?? {} : replaceSectionAccessories(interior, path, target, next);
 }
 
 /** Quantity one/null restores the implicit quantity; changing to an existing id merges into it. */
 export function setSectionAccessory(interior, path, index, patch) {
   const target = getInteriorNode(interior, path);
-  if (!target || target.children || !Number.isInteger(index) || index < 0
-    || index >= (target.accessories?.length ?? 0) || !isPlainObject(patch)
-    || !Reflect.ownKeys(patch).every((key) => key === 'accessoryId'
-      ? typeof patch[key] === 'string' && patch[key].length > 0
-      : key === 'qty' && (patch[key] === null || (Number.isInteger(patch[key]) && patch[key] >= 1 && patch[key] <= MAX_ACCESSORY_QTY)))) return interior ?? {};
-  const items = target.accessories.map((item) => ({ ...item }));
-  const item = { ...items[index], ...patch };
-  items[index] = withAccessoryQty(item, item.qty ?? 1);
-  const duplicate = items.findIndex((entry, i) => i !== index && entry.accessoryId === item.accessoryId);
-  if (duplicate >= 0) {
-    items[duplicate] = withAccessoryQty(items[duplicate], (items[duplicate].qty ?? 1) + (items[index].qty ?? 1));
-    items.splice(index, 1);
-  }
-  return replaceSectionAccessories(interior, path, target, items);
+  if (!target || target.children) return interior ?? {};
+  const next = setAccessoryItem(target.accessories, index, patch);
+  return next === target.accessories ? interior ?? {} : replaceSectionAccessories(interior, path, target, next);
 }
 
 export function removeSectionAccessory(interior, path, index) {
   const target = getInteriorNode(interior, path);
-  if (!target || target.children || !Number.isInteger(index) || index < 0
-    || index >= (target.accessories?.length ?? 0)) return interior ?? {};
-  return replaceSectionAccessories(interior, path, target, target.accessories.filter((_, i) => i !== index));
+  if (!target || target.children) return interior ?? {};
+  const next = removeAccessoryItem(target.accessories, index);
+  return next === target.accessories ? interior ?? {} : replaceSectionAccessories(interior, path, target, next);
 }
 
 /** Resizing clears shelf counts and roll-out positions, retaining only the chosen roll-outs. */
@@ -326,9 +290,9 @@ export function removeDivider(interior, groupPath, index) {
   if (!group || group.children[index].children || group.children[index + 1].children) return interior ?? {};
   const first = group.children[index];
   const merged = sectionAfterResize(first, first.rollouts ?? group.children[index + 1].rollouts);
-  const accessories = mergeAccessories([...(first.accessories ?? []), ...(group.children[index + 1].accessories ?? [])]);
-  if (accessories.length > MAX_SECTION_ACCESSORIES) return interior ?? {};
-  if (accessories.length) merged.accessories = accessories;
+  const accessories = mergeAccessoryItems(first.accessories, group.children[index + 1].accessories);
+  if (accessories && accessories === first.accessories) return interior ?? {};
+  if (accessories?.length) merged.accessories = accessories;
   return replaceAt(interior, groupPath, (node) => node.children.length === 2 ? merged : ({
     ...node,
     children: [...node.children.slice(0, index), merged, ...node.children.slice(index + 2)],

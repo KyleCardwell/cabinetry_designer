@@ -58,6 +58,8 @@ export {
   slideBoxWidth,
 } from './slides.js';
 export { isAccessory, isAccessoryList, newAccessory, copyAccessory, findAccessory, accessoryText, sectionAccessories, wallAccessories } from './accessories.js';
+export { ACCESSORY_EFFECT_KINDS, isAccessoryEffect, isEffectList, effectText, findEffect } from './accessoryEffects.js';
+export { isAccessoryItems, addAccessoryItem, setAccessoryItem, removeAccessoryItem, mergeAccessoryItems } from './accessoryItems.js';
 export { PRICING_UNITS, PRICING_UNIT_LABELS, isMoney, isLabor, formatPrice } from './libraryPricing.js';
 export { resolveSetting, resolveSettings, withOverride, cleanOverrides } from './settingsResolve.js';
 export { projectAddress, nextName, copyName, newRoomDocument, ROOM_STATUS_LABELS } from './designProjects.js';

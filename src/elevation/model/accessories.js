@@ -1,3 +1,4 @@
+import { isEffectList } from './accessoryEffects.js';
 import { gridLeaves } from './grid.js';
 import { findLeaf } from './cellTree.js';
 import { wallDrawerBoxes } from './drawerBoxes.js';
@@ -37,7 +38,7 @@ export function isAccessory(accessory) {
     && OPENING_KEYS.every((key) => accessory.minOpening[key] === null
       || (Number.isFinite(accessory.minOpening[key]) && accessory.minOpening[key] > 0))
     && typeof accessory.ownSlides === 'boolean'
-    && Array.isArray(accessory.effects) && accessory.effects.length === 0
+    && isEffectList(accessory.effects, accessory.attachesTo)
     && PRICING_UNITS.includes(accessory.pricing)
     && isMoney(accessory.price) && isMoney(accessory.actualCost)
     && isLabor(accessory.labor);

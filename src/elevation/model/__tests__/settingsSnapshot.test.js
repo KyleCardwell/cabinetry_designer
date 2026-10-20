@@ -10,6 +10,40 @@ import { BUILT_IN_PULLS } from '../pulls.js';
 import { defaultVersionLabel, nameInitials } from '../roomVersions.js';
 import { MICRO_SHAKER } from './fixtures/microShakerDesign.js';
 
+it('IN12c a anchor 5: snapshots slides named by drawer-box accessory effects, including missing slides', () => {
+  const pot = { ...newAccessory([], 'pot'), name: 'Pot organizer', attachesTo: 'drawer_box',
+    effects: [{ kind: 'slide', slideId: 'accuride-4034' }] };
+  const unused = { ...pot, id: 'unused', name: 'Unused', effects: [{ kind: 'slide', slideId: 'unused-slide' }] };
+  const document = { walls: [{ runs: [{ grid: { face: { type: 'drawer_front', drawerBox: {
+    accessories: [{ accessoryId: pot.id }],
+  } } } }] }] };
+  const live = { ...library(), accessories: [pot, unused] };
+  const snapshot = buildSettingsSnapshot({ settings: live, document });
+  expect(snapshot.accessories).toEqual([pot]);
+  expect(snapshot.slides.find(({ id }) => id === 'accuride-4034')).toEqual(BUILT_IN_SLIDES.find(({ id }) => id === 'accuride-4034'));
+  expect(snapshot.missing.slides).toEqual([]);
+  expect(settingsFromSnapshot(snapshot).settings.accessories).toEqual([pot]);
+  // A cloud library can archive a built-in; the snapshot must record that missing dependency.
+  const archived = buildSettingsSnapshot({ settings: { ...live,
+    slides: BUILT_IN_SLIDES.filter(({ id }) => id !== 'accuride-4034') }, document });
+  expect(archived.missing.slides).toEqual(['accuride-4034']);
+  expect(archived.slides.some(({ id }) => id === 'accuride-4034')).toBe(false);
+  // Custom slide dependencies must be selected too, with row versions and independent data.
+  const custom = { ...structuredClone(BUILT_IN_SLIDES[0]), id: 'custom-slide', name: 'Custom slide' };
+  pot.effects[0].slideId = custom.id;
+  live.slides = [...BUILT_IN_SLIDES, custom];
+  const frozen = buildSettingsSnapshot({ settings: live, document,
+    rows: { slides: { [custom.id]: { version: 4 } }, accessories: { pot: { version: 3 } } } });
+  expect(frozen.slides.at(-1)).toEqual(custom);
+  expect(frozen.slides.at(-1)).not.toBe(custom);
+  expect(frozen.library.slides).toEqual({ [custom.id]: 4 });
+  expect(frozen.library.accessories).toEqual({ pot: 3 });
+  expect(frozen.missing.slides).toEqual([]);
+  expect(snapshot.accessories[0].effects[0].slideId).toBe('accuride-4034');
+  pot.effects[0].slideId = 'gone';
+  expect(buildSettingsSnapshot({ settings: live, document }).missing.slides).toEqual(['gone']);
+});
+
 const P_CROWN = '0192a1b2-c3d4-7e5f-8a9b-00000000c001';
 const P_EDGE = '0192a1b2-c3d4-7e5f-8a9b-00000000e001';
 const P_UNUSED = '0192a1b2-c3d4-7e5f-8a9b-00000000f001';

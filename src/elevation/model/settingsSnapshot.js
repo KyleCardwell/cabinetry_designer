@@ -22,6 +22,7 @@
  *
  * The room's own door styles are in the room document. The team door style is in `settings`.
  */
+import { findEffect } from './accessoryEffects.js';
 import { isAccessoryList } from './accessories.js';
 import { DEFAULT_PREFS } from './constants.js';
 import { SEEDED_DESIGN_IDS, isDoorDesignList } from './doorDesigns.js';
@@ -102,13 +103,18 @@ export function buildSettingsSnapshot({ settings, layers = {}, document, rows = 
     .filter((pull) => BUILT_IN_PULL_IDS.includes(pull.id) || found.strings.has(pull.id))
     .map((pull) => structuredClone(pull));
 
-  const slides = slideList
-    .filter((slide) => BUILT_IN_SLIDE_IDS.includes(slide.id) || found.slides.has(slide.id))
-    .map((slide) => structuredClone(slide));
-
   const accessories = accessoryList
     .filter((accessory) => found.accessories.has(accessory.id))
     .map((accessory) => structuredClone(accessory));
+
+  for (const accessory of accessories) {
+    const slide = findEffect(accessory, 'slide');
+    if (slide) found.slides.add(slide.slideId);
+  }
+
+  const slides = slideList
+    .filter((slide) => BUILT_IN_SLIDE_IDS.includes(slide.id) || found.slides.has(slide.id))
+    .map((slide) => structuredClone(slide));
 
   const versions = (list, map) => Object.fromEntries(list
     .filter((entry) => map?.[entry.id]?.version !== undefined)
