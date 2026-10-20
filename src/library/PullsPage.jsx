@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { BUILT_IN_PULL_IDS } from '../elevation/model/pulls.js';
+import { formatPrice } from '../elevation/model/libraryPricing.js';
 import { formatInches } from '../elevation/model/units.js';
 import { addPull, deletePull } from '../elevation/store/elevationSlice.js';
 import PullEditor from './PullEditor.jsx';
@@ -18,7 +19,7 @@ function sizeText(pull) {
 
 export default function PullsPage() {
   const dispatch = useDispatch();
-  const { settings, source } = useSelector((state) => state.elevation);
+  const { settings, source, teamServices } = useSelector((state) => state.elevation);
   const shopData = source === 'cloud';
   const pulls = settings.pulls;
   const [editingId, setEditingId] = useState(null);
@@ -45,7 +46,7 @@ export default function PullsPage() {
         <table className="w-full text-left text-sm text-gray-300">
           <thead className="bg-gray-800 text-xs text-gray-400">
             <tr>
-              {['Name', 'Kind', 'Size', 'Projection', 'Actions'].map((heading) => (
+              {['Name', 'Kind', 'Size', 'Projection', 'Price', 'Actions'].map((heading) => (
                 <th key={heading} scope="col" className="px-3 py-2 font-medium">{heading}</th>
               ))}
             </tr>
@@ -63,6 +64,7 @@ export default function PullsPage() {
                   <td className={CELL_CLASS}>{KIND_LABELS[pull.kind]}</td>
                   <td className={CELL_CLASS}>{sizeText(pull)}</td>
                   <td className={CELL_CLASS}>{formatInches(pull.projection)}</td>
+                  <td className={CELL_CLASS}>{formatPrice(pull.price, 'each')}</td>
                   <td className={CELL_CLASS}>
                     <div className="flex flex-wrap items-center gap-2">
                       <button type="button" className={BUTTON_CLASS} onClick={() => setEditingId(pull.id)}>Edit</button>
@@ -97,7 +99,7 @@ export default function PullsPage() {
           </tbody>
         </table>
       </div>
-      {editingPull && <PullEditor key={editingPull.id} pull={editingPull} pulls={pulls} onClose={closeEditor} />}
+      {editingPull && <PullEditor key={editingPull.id} pull={editingPull} pulls={pulls} services={teamServices} onClose={closeEditor} />}
     </div>
   );
 }

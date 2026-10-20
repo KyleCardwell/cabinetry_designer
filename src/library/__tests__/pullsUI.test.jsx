@@ -6,6 +6,7 @@ import elevationReducer, { createInitialElevationState } from '../../elevation/s
 import InchInput from '../../elevation/components/InchInput.jsx';
 import PullEditor from '../PullEditor.jsx';
 import PullsPage from '../PullsPage.jsx';
+import PricingFields from '../PricingFields.jsx';
 
 vi.mock('react', async (original) => ({
   ...await original(),
@@ -31,9 +32,9 @@ const button = (tree, label) => nodes(tree).find(({ type, props }) => type === '
 const rows = (tree) => nodes(tree).filter(({ type }) => type === 'tr').slice(1);
 const dispatch = vi.fn();
 
-function library(source = 'local', pulls = BUILT_IN_PULLS) {
+function library(source = 'local', pulls = BUILT_IN_PULLS, teamServices = []) {
   let state = createInitialElevationState();
-  state = { ...state, source, settings: { ...state.settings, pulls } };
+  state = { ...state, source, teamServices, settings: { ...state.settings, pulls } };
   const values = [];
   dispatch.mockImplementation((action) => { state = elevationReducer(state, action); });
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
@@ -49,12 +50,12 @@ function library(source = 'local', pulls = BUILT_IN_PULLS) {
   return { render, state: () => state };
 }
 
-function editor(pull, pulls = [...BUILT_IN_PULLS, pull]) {
+function editor(pull, pulls = [...BUILT_IN_PULLS, pull], services = []) {
   let draft = structuredClone(pull);
   const onClose = vi.fn();
   const render = () => {
     useState.mockImplementation(() => [draft, (update) => { draft = update(draft); }]);
-    return PullEditor({ pull, pulls, onClose });
+    return PullEditor({ pull, pulls, services, onClose });
   };
   const enter = (label, typed) => {
     const field = control(render(), label);
@@ -63,6 +64,15 @@ function editor(pull, pulls = [...BUILT_IN_PULLS, pull]) {
     InchInput(field.props).props.onBlur();
   };
   return { render, enter, onClose };
+}
+
+function pricing(tree) {
+  return PricingFields(nodes(tree).find(({ type }) => type === PricingFields).props);
+}
+function money(tree, label) {
+  const field = nodes(tree).find(({ type, props }) => typeof type === 'function' && props.label === label);
+  useState.mockReturnValueOnce([false, vi.fn()]);
+  return control(field.type(field.props), label);
 }
 
 beforeEach(() => {
@@ -74,13 +84,52 @@ beforeEach(() => {
 });
 
 describe('HP3b step b Pulls page and editor', () => {
+  it('prices the built-in 4" pull each, with shop services passed through to the editor', () => {
+    const services = [{ id: 7, name: 'Shop', active: true }];
+    const page = library('cloud', BUILT_IN_PULLS, services);
+    button(rows(page.render())[0], 'Edit').props.onClick();
+    const dialog = nodes(page.render()).find(({ type }) => type === PullEditor);
+    expect(dialog.props.services).toEqual(services);
+    const edit = editor(dialog.props.pull, dialog.props.pulls, dialog.props.services);
+    let fields = pricing(edit.render());
+    expect(control(fields, 'Priced by')).toBeUndefined();
+    expect(money(fields, 'Price each').props).toMatchObject({ value: '', disabled: false });
+    expect(money(fields, 'Actual cost each').props.value).toBe('');
+    expect(text(fields)).toContain('Labour (minutes each)');
+    money(fields, 'Price each').props.onChange({ target: { value: '6.25' } });
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.pulls[0]).toEqual({ ...BUILT_IN_PULLS[0], price: 6.25 });
+    expect(nodes(rows(page.render())[0]).filter(({ type }) => type === 'td').map(text).at(-2)).toBe('$6.25 each');
+    expect(page.state().settings.pulls[0]).not.toHaveProperty('pricing');
+    fields = pricing(edit.render());
+    money(fields, 'Price each').props.onChange({ target: { value: '-1' } });
+    expect(button(edit.render(), 'Save').props.disabled).toBe(true);
+    money(pricing(edit.render()), 'Price each').props.onChange({ target: { value: '' } });
+    expect(button(edit.render(), 'Save').props.disabled).toBe(false);
+  });
+
+  it('shows an em dash for an unpriced pull and keeps sandbox pricing usable without services', () => {
+    const page = library();
+    expect(nodes(rows(page.render())[0]).filter(({ type }) => type === 'td').map(text).at(-2)).toBe('—');
+    button(rows(page.render())[0], 'Edit').props.onClick();
+    const dialog = nodes(page.render()).find(({ type }) => type === PullEditor);
+    const edit = editor(dialog.props.pull, dialog.props.pulls, dialog.props.services);
+    const fields = pricing(edit.render());
+    expect(control(fields, 'Add service').props.disabled).toBe(true);
+    expect(text(fields)).toContain("Services load with the shop's data.");
+    expect(money(fields, 'Price each').props.disabled).toBe(false);
+    money(fields, 'Price each').props.onChange({ target: { value: '6.25' } });
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.pulls[0].price).toBe(6.25);
+  });
+
   it('shows the two built-ins with exact sizes and badges, and formats tabs and pulls without centers', () => {
     const { render } = library();
-    expect(nodes(render()).filter(({ type }) => type === 'th').map(text)).toEqual(['Name', 'Kind', 'Size', 'Projection', 'Actions']);
+    expect(nodes(render()).filter(({ type }) => type === 'th').map(text)).toEqual(['Name', 'Kind', 'Size', 'Projection', 'Price', 'Actions']);
     expect(text(render())).toContain('Pulls, knobs and tab pulls drawn on doors and drawer fronts. Never on reports.');
     expect(rows(render()).map((row) => nodes(row).filter(({ type }) => type === 'td').map(text))).toEqual([
-      ['4" pullbuilt-in', 'Pull', '4 3/4" long · 4" centers', '1 1/4"', 'EditCopy'],
-      ['1 1/4" knobbuilt-in', 'Knob', '1 1/4" dia.', '1"', 'EditCopy'],
+      ['4" pullbuilt-in', 'Pull', '4 3/4" long · 4" centers', '1 1/4"', '—', 'EditCopy'],
+      ['1 1/4" knobbuilt-in', 'Knob', '1 1/4" dia.', '1"', '—', 'EditCopy'],
     ]);
     const noCenters = newPull(BUILT_IN_PULLS, BUILT_IN_PULLS[0], 'custom');
     delete noCenters.centers;

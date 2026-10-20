@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { BUILT_IN_SLIDE_IDS } from '../elevation/model/slides.js';
+import { formatPrice } from '../elevation/model/libraryPricing.js';
 import { formatInches } from '../elevation/model/units.js';
 import { addSlide, deleteSlide } from '../elevation/store/elevationSlice.js';
 import SlideEditor from './SlideEditor.jsx';
@@ -21,7 +22,7 @@ function clearancesText(slide) {
 
 export default function SlidesPage() {
   const dispatch = useDispatch();
-  const { settings, source } = useSelector((state) => state.elevation);
+  const { settings, source, teamServices } = useSelector((state) => state.elevation);
   const shopData = source === 'cloud';
   const slides = settings.slides;
   const [editingId, setEditingId] = useState(null);
@@ -48,7 +49,7 @@ export default function SlidesPage() {
         <table className="w-full text-left text-sm text-gray-300">
           <thead className="bg-gray-800 text-xs text-gray-400">
             <tr>
-              {['Name', 'Mount', 'Lengths', 'Clearances', 'Actions'].map((heading) => (
+              {['Name', 'Mount', 'Lengths', 'Clearances', 'Price', 'Actions'].map((heading) => (
                 <th key={heading} scope="col" className="px-3 py-2 font-medium">{heading}</th>
               ))}
             </tr>
@@ -66,6 +67,7 @@ export default function SlidesPage() {
                   <td className={CELL_CLASS}>{MOUNT_LABELS[slide.mount]}</td>
                   <td className={CELL_CLASS}>{lengthsText(slide)}</td>
                   <td className={CELL_CLASS}>{clearancesText(slide)}</td>
+                  <td className={CELL_CLASS}>{formatPrice(slide.price, 'pair')}</td>
                   <td className={CELL_CLASS}>
                     <div className="flex flex-wrap items-center gap-2">
                       <button type="button" className={BUTTON_CLASS} onClick={() => setEditingId(slide.id)}>Edit</button>
@@ -100,7 +102,7 @@ export default function SlidesPage() {
           </tbody>
         </table>
       </div>
-      {editingSlide && <SlideEditor key={editingSlide.id} slide={editingSlide} slides={slides} onClose={closeEditor} />}
+      {editingSlide && <SlideEditor key={editingSlide.id} slide={editingSlide} slides={slides} services={teamServices} onClose={closeEditor} />}
     </div>
   );
 }

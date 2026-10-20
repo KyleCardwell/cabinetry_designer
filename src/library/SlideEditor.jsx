@@ -3,6 +3,7 @@ import { useDispatch } from 'react-redux';
 import { BUILT_IN_SLIDE_IDS, SLIDE_MOUNTS, isSlideList } from '../elevation/model/slides.js';
 import { updateSlide } from '../elevation/store/elevationSlice.js';
 import InchInput from '../elevation/components/InchInput.jsx';
+import PricingFields from './PricingFields.jsx';
 
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
@@ -12,7 +13,7 @@ const SIZE_LABELS = { sideClearance: 'Side clearance (per side)', minBelow: 'Min
 const LENGTH_LABELS = { nominal: 'Nominal', length: 'Length', extension: 'Extension' };
 const FLAG_LABELS = { clips: 'Clips', softClose: 'Soft close', heavyDuty: 'Heavy duty' };
 
-export default function SlideEditor({ slide, slides, onClose }) {
+export default function SlideEditor({ slide, slides, services = [], onClose }) {
   const dispatch = useDispatch();
   const [draft, setDraft] = useState(() => structuredClone(slide));
   const titleId = useId();
@@ -185,6 +186,9 @@ export default function SlideEditor({ slide, slides, onClose }) {
             </table>
             <button type="button" className={`${BUTTON_CLASS} disabled:opacity-50`} disabled={draft.lengths.length >= 40} onClick={addLength}>Add length</button>
           </div>
+          <PricingFields value={{ price: draft.price, actualCost: draft.actualCost, labor: draft.labor }}
+            onChange={(value) => setDraft((previous) => ({ ...previous, ...value }))}
+            showPricing={false} unitLabel="pair" services={services} />
           {reason && <p role="status" className="text-xs text-red-400">{reason}</p>}
           <div className="flex justify-end gap-2">
             <button type="button" className={BUTTON_CLASS} onClick={onClose}>Cancel</button>

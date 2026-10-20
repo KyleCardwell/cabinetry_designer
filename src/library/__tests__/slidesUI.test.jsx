@@ -6,6 +6,7 @@ import elevationReducer, { createInitialElevationState } from '../../elevation/s
 import InchInput from '../../elevation/components/InchInput.jsx';
 import SlideEditor from '../SlideEditor.jsx';
 import SlidesPage from '../SlidesPage.jsx';
+import PricingFields from '../PricingFields.jsx';
 
 vi.mock('react', async (original) => ({
   ...await original(),
@@ -31,9 +32,9 @@ const button = (tree, label) => nodes(tree).find(({ type, props }) => type === '
 const rows = (tree) => nodes(tree).filter(({ type }) => type === 'tr').slice(1);
 const dispatch = vi.fn();
 
-function library(source = 'local', slides = BUILT_IN_SLIDES) {
+function library(source = 'local', slides = BUILT_IN_SLIDES, teamServices = []) {
   let state = createInitialElevationState();
-  state = { ...state, source, settings: { ...state.settings, slides } };
+  state = { ...state, source, teamServices, settings: { ...state.settings, slides } };
   const values = [];
   dispatch.mockImplementation((action) => { state = elevationReducer(state, action); });
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
@@ -49,12 +50,12 @@ function library(source = 'local', slides = BUILT_IN_SLIDES) {
   return { render, state: () => state };
 }
 
-function editor(slide, slides = [...BUILT_IN_SLIDES, slide]) {
+function editor(slide, slides = [...BUILT_IN_SLIDES, slide], services = []) {
   let draft = structuredClone(slide);
   const onClose = vi.fn();
   const render = () => {
     useState.mockImplementation(() => [draft, (update) => { draft = update(draft); }]);
-    return SlideEditor({ slide, slides, onClose });
+    return SlideEditor({ slide, slides, services, onClose });
   };
   const enter = (label, typed) => {
     const field = control(render(), label);
@@ -63,6 +64,15 @@ function editor(slide, slides = [...BUILT_IN_SLIDES, slide]) {
     InchInput(field.props).props.onBlur();
   };
   return { render, enter, onClose };
+}
+
+function pricing(tree) {
+  return PricingFields(nodes(tree).find(({ type }) => type === PricingFields).props);
+}
+function money(tree, label) {
+  const field = nodes(tree).find(({ type, props }) => typeof type === 'function' && props.label === label);
+  useState.mockReturnValueOnce([false, vi.fn()]);
+  return control(field.type(field.props), label);
 }
 
 beforeEach(() => {
@@ -74,14 +84,58 @@ beforeEach(() => {
 });
 
 describe('IN4b step b Slides page and editor', () => {
+  it('saves built-in Blum price and cost per pair with Shop minutes and formats the row price', () => {
+    const services = [{ id: 7, name: 'Shop', active: true }];
+    const page = library('cloud', BUILT_IN_SLIDES, services);
+    button(rows(page.render())[0], 'Edit').props.onClick();
+    const dialog = nodes(page.render()).find(({ type }) => type === SlideEditor);
+    expect(dialog.props.services).toEqual(services);
+    const edit = editor(dialog.props.slide, dialog.props.slides, dialog.props.services);
+    let fields = pricing(edit.render());
+    expect(control(fields, 'Priced by')).toBeUndefined();
+    expect(money(fields, 'Price per pair').props.disabled).toBe(false);
+    expect(money(fields, 'Actual cost per pair').props.disabled).toBe(false);
+    expect(text(fields)).toContain('Labour (minutes per pair)');
+    money(fields, 'Price per pair').props.onChange({ target: { value: '38' } });
+    money(pricing(edit.render()), 'Actual cost per pair').props.onChange({ target: { value: '24.5' } });
+    control(pricing(edit.render()), 'Add service').props.onChange({ target: { value: '7' } });
+    fields = pricing(edit.render());
+    expect(control(fields, 'Minutes for Shop').props.value).toBe(0);
+    control(fields, 'Minutes for Shop').props.onChange({ target: { value: '3' } });
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.slides[0]).toEqual({ ...BUILT_IN_SLIDES[0], price: 38, actualCost: 24.5, labor: { '7': 3 } });
+    expect(nodes(rows(page.render())[0]).filter(({ type }) => type === 'td').map(text).at(-2)).toBe('$38.00 a pair');
+    expect(page.state().settings.slides[0]).not.toHaveProperty('pricing');
+    money(pricing(edit.render()), 'Actual cost per pair').props.onChange({ target: { value: '-1' } });
+    expect(button(edit.render(), 'Save').props.disabled).toBe(true);
+    money(pricing(edit.render()), 'Actual cost per pair').props.onChange({ target: { value: '' } });
+    expect(button(edit.render(), 'Save').props.disabled).toBe(false);
+  });
+
+  it('disables adding labour without sandbox services while allowing slide prices and costs', () => {
+    const page = library();
+    button(rows(page.render())[0], 'Edit').props.onClick();
+    const dialog = nodes(page.render()).find(({ type }) => type === SlideEditor);
+    const edit = editor(dialog.props.slide, dialog.props.slides, dialog.props.services);
+    const fields = pricing(edit.render());
+    expect(control(fields, 'Add service').props.disabled).toBe(true);
+    expect(text(fields)).toContain("Services load with the shop's data.");
+    expect(money(fields, 'Price per pair').props.disabled).toBe(false);
+    expect(money(fields, 'Actual cost per pair').props.disabled).toBe(false);
+    money(fields, 'Price per pair').props.onChange({ target: { value: '38' } });
+    money(pricing(edit.render()), 'Actual cost per pair').props.onChange({ target: { value: '24.5' } });
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.slides[0]).toMatchObject({ price: 38, actualCost: 24.5, labor: {} });
+  });
+
   it('shows three protected built-ins with exact mounts, lengths and clearances, and formats a single length', () => {
     const { render } = library();
-    expect(nodes(render()).filter(({ type }) => type === 'th').map(text)).toEqual(['Name', 'Mount', 'Lengths', 'Clearances', 'Actions']);
+    expect(nodes(render()).filter(({ type }) => type === 'th').map(text)).toEqual(['Name', 'Mount', 'Lengths', 'Clearances', 'Price', 'Actions']);
     expect(text(render())).toContain('Drawer slides for drawer boxes and roll-outs. Sizes come from the slide.');
     expect(rows(render()).map((row) => nodes(row).filter(({ type }) => type === 'td').map(text))).toEqual([
-      ['Blum Tandem 562Hbuilt-in', 'Undermount', '9"–36" (10)', '1/4" per side · 9/16" below · 1/4" above', 'EditCopy'],
-      ['Accuride 3832built-in', 'Side mount', '8"–36" (15)', '1/2" per side · 9/16" below · 1/4" above', 'EditCopy'],
-      ['Accuride 4034built-in', 'Side mount', '8"–36" (15)', '1/2" per side · 9/16" below · 1/4" above', 'EditCopy'],
+      ['Blum Tandem 562Hbuilt-in', 'Undermount', '9"–36" (10)', '1/4" per side · 9/16" below · 1/4" above', '—', 'EditCopy'],
+      ['Accuride 3832built-in', 'Side mount', '8"–36" (15)', '1/2" per side · 9/16" below · 1/4" above', '—', 'EditCopy'],
+      ['Accuride 4034built-in', 'Side mount', '8"–36" (15)', '1/2" per side · 9/16" below · 1/4" above', '—', 'EditCopy'],
     ]);
     const custom = { ...newSlide(BUILT_IN_SLIDES, BUILT_IN_SLIDES[0], 'custom'), lengths: [{ nominal: 15 }] };
     const single = library('local', [...BUILT_IN_SLIDES, custom]);
