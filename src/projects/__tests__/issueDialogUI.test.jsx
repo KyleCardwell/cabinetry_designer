@@ -247,3 +247,14 @@ describe('DB8b d issue dialog', () => {
     }
   });
 });
+
+
+it('IN12b f anchor 4: blocks issuing missing accessories with the replacement message', async () => {
+  issueSnapshotOf.mockReturnValue({ missing: { doorDesigns: [], profiles: [], accessories: ['gone'] } });
+  const { dialog } = openDialog();
+  expect(text(dialog.tree)).toContain('This room uses an accessory that is no longer in the library. Pick a replacement, then issue.');
+  expect(button(dialog.tree, 'Issue').props.disabled).toBe(true);
+  await submit(dialog);
+  expect(issueRoomVersion).not.toHaveBeenCalled();
+  expect(dispatch).not.toHaveBeenCalled();
+});

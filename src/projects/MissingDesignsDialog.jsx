@@ -6,6 +6,8 @@ import { MissingPullRow } from '../elevation/components/MissingPullsNotice.jsx';
 import { missingPulls } from '../elevation/model/pulls.js';
 import { MissingSlideRow } from '../elevation/components/MissingSlidesNotice.jsx';
 import { missingSlides } from '../elevation/model/slides.js';
+import { MissingAccessoryRow } from '../elevation/components/MissingAccessoriesNotice.jsx';
+import { missingAccessories } from '../elevation/model/accessories.js';
 
 // RoomPage keys this by cloud room id and readOnly, so Edit anyway asks again.
 export default function MissingDesignsDialog() {
@@ -14,7 +16,8 @@ export default function MissingDesignsDialog() {
   const missing = room ? missingDoorDesigns(room, settings.doorDesigns) : [];
   const pulls = room ? missingPulls(room, settings, layers) : [];
   const slides = room ? missingSlides(room, settings, layers) : [];
-  const count = missing.length + pulls.length + slides.length;
+  const accessories = room ? missingAccessories(room, settings) : [];
+  const count = missing.length + pulls.length + slides.length + accessories.length;
   const [dismissed, setDismissed] = useState(() => count === 0);
 
   useEffect(() => {
@@ -22,7 +25,7 @@ export default function MissingDesignsDialog() {
   }, [count]);
 
   if (!room || cloud.room.readOnly || dismissed || count === 0) return null;
-  const names = [missing.length && 'door designs', pulls.length && 'pulls', slides.length && 'slides'].filter(Boolean);
+  const names = [missing.length && 'door designs', pulls.length && 'pulls', slides.length && 'slides', accessories.length && 'accessories'].filter(Boolean);
   const kinds = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
 
   return <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
@@ -34,6 +37,7 @@ export default function MissingDesignsDialog() {
       ))}
       {pulls.map((row) => <MissingPullRow key={row.pullId} room={room} {...row} readOnly={false} />)}
       {slides.map((row) => <MissingSlideRow key={row.slideId} room={room} {...row} readOnly={false} />)}
+      {accessories.map((row) => <MissingAccessoryRow key={row.accessoryId} room={room} {...row} readOnly={false} />)}
       <button autoFocus type="button" className="rounded border border-gray-600 px-3 py-2" onClick={() => setDismissed(true)}>Not now</button>
     </section>
   </div>;

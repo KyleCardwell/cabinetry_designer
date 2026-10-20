@@ -8,6 +8,8 @@ import ElevationCanvas from '../components/ElevationCanvas.jsx';
 import PlanCanvas from '../plan/PlanCanvas.jsx';
 import ElevationToolbar from '../components/ElevationToolbar.jsx';
 import AddToolMenu from '../components/AddToolMenu.jsx';
+import MissingAccessoriesNotice from '../components/MissingAccessoriesNotice.jsx';
+import MissingSlidesNotice from '../components/MissingSlidesNotice.jsx';
 import MissingDoorDesignsNotice from '../components/MissingDoorDesignsNotice.jsx';
 import PropertiesPanel from '../components/PropertiesPanel.jsx';
 import RoomHeightsPanel from '../components/RoomHeightsPanel.jsx';
@@ -113,6 +115,8 @@ describe('DB6b b shared designer editor', () => {
     const header = <p>H</p>;
     const banners = <p>B</p>;
     const { tree } = renderComponent(DesignerEditor, { mode: 'room', header, banners });
+    const notices = nodes(tree).filter(({ type }) => [MissingSlidesNotice, MissingAccessoriesNotice].includes(type));
+    expect(notices.map(({ type }) => type)).toEqual([MissingSlidesNotice, MissingAccessoriesNotice]);
     expect(component(tree, RoomPicker)).toBeUndefined();
     expect(component(tree, SampleRunsButton)).toBeUndefined();
     expect(nodes(tree)).toContain(header);

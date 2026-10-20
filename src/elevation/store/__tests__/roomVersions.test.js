@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { newAccessory } from '../../model/accessories.js';
+import { gridLeaves } from '../../model/grid.js';
 import { newRoomDocument } from '../../model/designProjects.js';
 import { DEFAULT_DOOR_STYLE } from '../../model/doorStyles.js';
 import { newSectionProfile } from '../../model/sectionProfiles.js';
-import { profileToRow, pullToRow, slideToRow } from '../../model/cloudRows.js';
+import { accessoryToRow, profileToRow, pullToRow, slideToRow } from '../../model/cloudRows.js';
 import { BUILT_IN_SLIDES } from '../../model/slides.js';
 import { BUILT_IN_PULLS } from '../../model/pulls.js';
 import { settingsFor } from '../slices/helpers.js';
@@ -348,5 +350,51 @@ describe('IN5 e issued slides', () => {
         message: 'This room uses a slide that is no longer in the library. Pick a replacement, then issue.' });
       expect(callNames(api)).not.toContain('issueRoomVersion');
     }
+  });
+});
+
+
+describe('IN12b f issued accessories', () => {
+  const susan = { ...newAccessory([], '0192a1b2-c3d4-7e5f-8a9b-00000000a001'), name: 'Susan', labor: { '7': 15 } };
+  const walls = (accessoryId) => stateWithRun(run({ autoCount: false, items: [
+    { ...auto('c1'), interior: { accessories: [{ accessoryId }] } },
+  ] })).rooms[0].walls;
+
+  it('anchors 4–5: issues used accessories and opens the frozen library after archiving, with legacy fallback', async () => {
+    const api = versionApi(roomRow({}, { walls: walls(susan.id) }));
+    api.db.accessories.push({ accessory_id: susan.id, ...accessoryToRow(susan), version: 3, archived_at: null });
+    api.db.accessories.push({ accessory_id: 'tray', ...accessoryToRow({ ...newAccessory([], 'tray'), name: 'Tray' }), version: 2, archived_at: null });
+    const ctx = await setup({ api });
+    const issued = await ctx.store.dispatch(issueRoomVersion({ label: 'Accessories' }));
+    expect(issued.ok).toBe(true);
+    const snapshot = api.db.versions[0].settings_snapshot;
+    expect(snapshot.accessories).toEqual([susan]);
+    expect(snapshot.library.accessories).toEqual({ [susan.id]: 3 });
+    expect(snapshot.missing.accessories).toEqual([]);
+    api.db.accessories[0].archived_at = 'later';
+    api.db.accessories[0].data.labor['7'] = 50;
+    api.calls.length = 0;
+    const open = () => ctx.store.dispatch(openRoomVersion({ estProjectId: 42, roomId: 'rm-1', versionId: issued.versionId }));
+    expect((await open()).ok).toBe(true);
+    const elevation = elevationOf(ctx.store);
+    expect(elevation.source).toBe('version');
+    expect(elevation.settings.accessories).toEqual([susan]);
+    expect(settingsFor(elevation, elevation.rooms[0]).accessories).toEqual([susan]);
+    expect(elevation.cloud.rows.accessories).toEqual({});
+    expect(gridLeaves(elevation.rooms[0].walls[0].runs[0].grid)[0].interior.accessories).toEqual([{ accessoryId: susan.id }]);
+    expect(callNames(api)).not.toContain('listAccessories');
+    delete snapshot.accessories;
+    expect((await open()).ok).toBe(true);
+    expect(elevationOf(ctx.store).settings.accessories).toEqual([]);
+  });
+
+  it('anchor 4: rejects missing accessories before calling the issue API', async () => {
+    const api = versionApi(roomRow({}, { walls: walls('gone') }));
+    const ctx = await setup({ api });
+    const reply = await ctx.store.dispatch(issueRoomVersion({ label: 'Accessories' }));
+    expect(reply).toMatchObject({ ok: false, reason: 'missing_library', missing: { accessories: ['gone'] },
+      message: 'This room uses an accessory that is no longer in the library. Pick a replacement, then issue.' });
+    expect(callNames(api)).not.toContain('issueRoomVersion');
+    expect(api.db.versions).toEqual([]);
   });
 });

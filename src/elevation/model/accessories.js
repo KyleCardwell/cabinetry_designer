@@ -1,3 +1,4 @@
+import { gridLeaves } from './grid.js';
 import { findLeaf } from './cellTree.js';
 import { wallDrawerBoxes } from './drawerBoxes.js';
 import { getInteriorNode } from './interiorTree.js';
@@ -138,4 +139,40 @@ export function wallAccessories(room, wall, side, settings, shared = {}) {
     interior, boxes: boxes.get(interior.itemId)?.boxes ?? [], rollouts: rollouts.get(interior.itemId),
     leaf: findLeaf(runs.get(interior.runId).grid, interior.itemId), settings,
   })]));
+}
+
+/** Stored section accessory picks, including nested grids and interior groups. */
+export function* roomAccessoryUses(room) {
+  function* sections(node) {
+    if (!node) return;
+    if (node.children) {
+      for (const child of node.children) yield* sections(child);
+    } else {
+      for (const item of node.accessories ?? []) yield { node: item, key: 'accessoryId' };
+    }
+  }
+  for (const wall of room?.walls ?? []) {
+    for (const run of wall.runs ?? []) {
+      for (const item of run.grid ? gridLeaves(run.grid) : []) {
+        if (item.kind === 'cabinet') yield* sections(item.interior);
+      }
+    }
+  }
+}
+
+export function missingAccessories(room, settings) {
+  const known = new Set((settings?.accessories ?? []).map(({ id }) => id));
+  const missing = new Map();
+  for (const { node, key } of roomAccessoryUses(room)) {
+    const accessoryId = node[key];
+    if (typeof accessoryId !== 'string' || !accessoryId || known.has(accessoryId)) continue;
+    if (!missing.has(accessoryId)) missing.set(accessoryId, { accessoryId, roomUses: 0 });
+    missing.get(accessoryId).roomUses += 1;
+  }
+  return [...missing.values()].sort((a, b) => a.accessoryId.localeCompare(b.accessoryId));
+}
+
+export function missingAccessoryName(accessoryId) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(accessoryId)
+    ? 'An archived accessory' : `Accessory \`${accessoryId}\``;
 }

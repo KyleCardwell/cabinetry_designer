@@ -5,6 +5,8 @@ import MissingDesignsDialog from '../MissingDesignsDialog.jsx';
 import MissingDoorDesignsNotice, { MissingDoorDesignRow } from '../../elevation/components/MissingDoorDesignsNotice.jsx';
 import MissingPullsNotice, { MissingPullRow } from '../../elevation/components/MissingPullsNotice.jsx';
 import MissingSlidesNotice, { MissingSlideRow } from '../../elevation/components/MissingSlidesNotice.jsx';
+import MissingAccessoriesNotice, { MissingAccessoryRow } from '../../elevation/components/MissingAccessoriesNotice.jsx';
+import { newAccessory } from '../../elevation/model/accessories.js';
 import { BUILT_IN_SLIDES } from '../../elevation/model/slides.js';
 import { DEFAULT_DOOR_STYLE } from '../../elevation/model/doorStyles.js';
 import elevationReducer, { moveMissingDoorDesign, moveMissingPull } from '../../elevation/store/elevationSlice.js';
@@ -292,4 +294,67 @@ describe('IN5 e missing slide notices', () => {
     state.elevation.activeRoomId = 'absent';
     expect(renderComponent(MissingSlidesNotice).tree).toBeNull();
   });
+});
+
+
+const accessoryRows = (tree) => nodes(tree).filter((node) => node.type === MissingAccessoryRow)
+  .map((node) => renderComponent(MissingAccessoryRow, node.props));
+function accessoryRoom() {
+  state.elevation = stateWithRun(run({ autoCount: false, items: [
+    { ...auto('c1'), interior: { accessories: [{ accessoryId: 'gone' }] } },
+    { ...auto('c2'), interior: { accessories: [{ accessoryId: 'gone' }] } },
+  ] }));
+  state.elevation.settings.accessories = [
+    { ...newAccessory([], 'tray'), name: 'Tray' }, { ...newAccessory([], 'susan'), name: 'Susan' },
+    { ...newAccessory([], 'drawer'), name: 'Drawer insert', attachesTo: 'drawer_box' },
+  ];
+  state.elevation.cloud = { room: { id: room().id, readOnly: false } };
+}
+
+it('IN12b f anchors 1 and 6: combines missing slides and accessories and moves all accessory uses from the notice', () => {
+  accessoryRoom();
+  room().settingsOverrides = { drawerSlideId: 'old-slide' };
+  const dialog = renderComponent(MissingDesignsDialog);
+  expect(text(dialog.tree)).toContain("This room uses slides and accessories that aren't in the Library");
+  expect(nodes(dialog.tree).filter(({ type }) => [MissingSlideRow, MissingAccessoryRow].includes(type)).map(({ type }) => type))
+    .toEqual([MissingSlideRow, MissingAccessoryRow]);
+  const [row] = accessoryRows(renderComponent(MissingAccessoriesNotice).tree);
+  expect(text(row.tree)).toContain("Accessory `gone` isn't in the Library any more. 2 places in this room use it.");
+  expect(nodes(row.tree).filter(({ type }) => type === 'option').map(({ props }) => [props.value, text(props.children)]))
+    .toEqual([['susan', 'Susan'], ['tray', 'Tray'], ['', 'Remove them']]);
+  expect(select(row.tree).props.value).toBe('susan');
+  select(row.tree).props.onChange({ target: { value: 'tray' } });
+  row.render();
+  button(row.tree, 'Move').props.onClick();
+  expect(dispatch).toHaveBeenCalledWith({ type: 'elevation/moveMissingAccessory', payload: {
+    roomId: room().id, accessoryId: 'gone', reassignTo: 'tray',
+  } });
+  expect(renderComponent(MissingAccessoriesNotice).tree).toBeNull();
+  expect(nodes(dialog.render()).filter(({ type }) => type === MissingSlideRow)).toHaveLength(1);
+  expect(accessoryRows(dialog.tree)).toHaveLength(0);
+});
+
+it('IN12b f: removes items with an empty library and keeps archived notices without controls in locked rooms', () => {
+  accessoryRoom();
+  state.elevation.settings.accessories = [];
+  const dialog = renderComponent(MissingDesignsDialog);
+  expect(text(dialog.tree)).toContain("This room uses accessories that aren't in the Library");
+  button(dialog.tree, 'Not now').props.onClick();
+  expect(dialog.render()).toBeNull();
+  const [row] = accessoryRows(renderComponent(MissingAccessoriesNotice).tree);
+  expect(select(row.tree).props.value).toBe('');
+  button(row.tree, 'Move').props.onClick();
+  expect(renderComponent(MissingAccessoriesNotice).tree).toBeNull();
+  for (const source of ['cloud', 'version']) {
+    accessoryRoom();
+    state.elevation.source = source;
+    state.elevation.cloud.room.readOnly = source === 'cloud';
+    room().walls[0].runs[0].grid.cells[0].node.interior.accessories[0].accessoryId = archived;
+    const notice = accessoryRows(renderComponent(MissingAccessoriesNotice).tree).find((row) => text(row.tree).startsWith('An archived'));
+    expect(text(notice.tree)).toBe("An archived accessory isn't in the Library any more. 1 place in this room uses it. Someone who can edit the room can move them.");
+    expect(select(notice.tree)).toBeUndefined();
+    expect(button(notice.tree, 'Move')).toBeUndefined();
+  }
+  state.elevation.activeRoomId = 'absent';
+  expect(renderComponent(MissingAccessoriesNotice).tree).toBeNull();
 });

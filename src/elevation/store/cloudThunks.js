@@ -608,7 +608,7 @@ export function issueSnapshotOf(state) {
  * the server freezes must be the version this browser last saved or loaded
  * (`issue_room_version` checks `expected_version`). The settings snapshot (resolved shop
  * standard → project → phase, and the library items the room draws with) goes with it.
- * Refused while a door design or pull the room names is missing from the library.
+ * Refused while a door design, pull, slide or accessory the room names is missing from the library.
  * → { ok: true, versionId, seq, label, issuedAt } | { ok: false, reason, message }
  *   reasons: no_room, permission, archived, read_only, bad_input, unsaved, superseded,
  *   missing_library, conflict (+ updatedByName, updatedAt), network / error.
@@ -633,6 +633,11 @@ export function issueRoomVersion({ label, note = '' } = {}) {
     }
     if (snapshot.missing.slides.length) {
       return fail('missing_library', 'This room uses a slide that is no longer in the library. Pick a replacement, then issue.', {
+        missing: snapshot.missing,
+      });
+    }
+    if (snapshot.missing.accessories.length) {
+      return fail('missing_library', 'This room uses an accessory that is no longer in the library. Pick a replacement, then issue.', {
         missing: snapshot.missing,
       });
     }
@@ -733,7 +738,6 @@ export function openRoomVersion({ estProjectId, roomId, versionId }) {
 
     const frozen = settingsFromSnapshot(row.settings_snapshot);
     if (!frozen.ok) return frozen;
-    frozen.settings.accessories = [];
     const loaded = roomFromDocument(row.document, row.schema_version, frozen.settings);
     if (!loaded.ok) return loaded;
 

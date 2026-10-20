@@ -229,6 +229,7 @@ export const {
   setCabinetPullHeight,
   moveMissingPull,
   moveMissingSlide,
+  moveMissingAccessory,
   addPull,
   updatePull,
   deletePull,
@@ -289,6 +290,7 @@ export const ROOM_EDIT_ACTION_TYPES = new Set([
   'setCabinetPullHeight',
   'moveMissingPull',
   'moveMissingSlide',
+  'moveMissingAccessory',
   'cloudRoomRecovered',
 ].map((name) => `${elevationSlice.name}/${name}`));
 

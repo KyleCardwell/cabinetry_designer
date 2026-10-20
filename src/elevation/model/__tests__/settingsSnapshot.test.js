@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { newAccessory } from '../accessories.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
 import { newSectionProfile } from '../sectionProfiles.js';
@@ -76,15 +77,15 @@ describe('DB8a settings snapshot', () => {
     expect(snapshot.sectionProfiles[1].archived).toBe(true);
     expect(snapshot.doorDesigns.map((design) => design.id)).toEqual(['five-piece-square', 'slab', 'slab-mdf', D_SHAKER]);
     expect(snapshot.overrides).toEqual({ project: { roundTo: 0.25 }, phase: { baseDepth: 25 } });
-    expect(snapshot.library).toEqual({ doorDesigns: { [D_SHAKER]: 2 }, profiles: { [P_CROWN]: 4 }, pulls: {}, slides: {} });
-    expect(snapshot.missing).toEqual({ doorDesigns: [], profiles: [], pulls: [], slides: [] });
+    expect(snapshot.library).toEqual({ doorDesigns: { [D_SHAKER]: 2 }, profiles: { [P_CROWN]: 4 }, pulls: {}, slides: {}, accessories: {} });
+    expect(snapshot.missing).toEqual({ doorDesigns: [], profiles: [], pulls: [], slides: [], accessories: [] });
     expect(snapshot.issuedFrom).toMatchObject({ estProjectId: 42, roomVersion: 6, teamVersion: null });
     expect(isSettingsSnapshot(JSON.parse(JSON.stringify(snapshot)))).toBe(true);
   });
 
   it('lists door designs and profiles the room names but the library no longer has', () => {
     const snapshot = buildSettingsSnapshot({ settings: library(), document: roomDocument({ designId: 'gone-design', outside: 'gone-profile' }) });
-    expect(snapshot.missing).toEqual({ doorDesigns: ['gone-design'], profiles: ['gone-profile'], pulls: [], slides: [] });
+    expect(snapshot.missing).toEqual({ doorDesigns: ['gone-design'], profiles: ['gone-profile'], pulls: [], slides: [], accessories: [] });
     expect(snapshot.sectionProfiles.map((profile) => profile.id)).toEqual([P_CROWN]);
   });
 
@@ -220,4 +221,40 @@ describe('IN5 step e slide snapshots', () => {
       expect(settingsFromSnapshot({ ...snapshot, slides })).toMatchObject({ ok: false, reason: 'bad_snapshot' });
     }
   });
+});
+
+
+it('IN12b f anchors 4–5: freezes only keyed accessories in library order, restores deep copies and accepts legacy snapshots', () => {
+  const susan = { ...newAccessory([], 'susan'), name: 'Susan', labor: { '7': 15 } };
+  const tray = { ...newAccessory([], 'tray'), name: 'Tray' };
+  const live = { ...library(), accessories: [susan, tray] };
+  const document = { walls: [{ runs: [{ grid: { interior: { accessories: [{ accessoryId: susan.id }] } } }] }], note: tray.id };
+  const snapshot = buildSettingsSnapshot({ settings: live, document,
+    rows: { accessories: { susan: { version: 4 }, tray: { version: 9 } } } });
+  expect(snapshot.accessories).toEqual([susan]);
+  expect(snapshot.accessories[0]).not.toBe(susan);
+  expect(snapshot.library.accessories).toEqual({ susan: 4 });
+  expect(snapshot.missing.accessories).toEqual([]);
+  expect(snapshot.settings).not.toHaveProperty('accessories');
+  const restored = settingsFromSnapshot(snapshot);
+  expect(restored.settings.accessories).toEqual([susan]);
+  restored.settings.accessories[0].labor['7'] = 25;
+  live.accessories[0].minOpening.width = 27;
+  expect(snapshot.accessories[0].labor).toEqual({ '7': 15 });
+  expect(snapshot.accessories[0].minOpening.width).toBeNull();
+  document.extra = [{ accessoryId: 'gone' }, { accessoryId: 'aaa' }, { accessoryId: 'gone' }];
+  expect(buildSettingsSnapshot({ settings: live, document }).missing.accessories).toEqual(['aaa', 'gone']);
+  // Settings references count as well, but unrelated strings and suffixed keys do not.
+  live.accessoryId = tray.id;
+  expect(buildSettingsSnapshot({ settings: live, document: { accessoryId: susan.id, otherAccessoryId: 'ignored' } }).accessories)
+    .toEqual([susan, tray]);
+  expect(buildSettingsSnapshot({ settings: library(), document: {} })).toMatchObject({
+    accessories: [], library: { accessories: {} }, missing: { accessories: [] },
+  });
+  const legacy = { ...snapshot };
+  delete legacy.accessories;
+  expect(settingsFromSnapshot(legacy).settings.accessories).toEqual([]);
+  for (const accessories of [null, {}, [{ ...susan, price: -1 }], [susan, { ...tray, name: 'SUSAN' }]]) {
+    expect(settingsFromSnapshot({ ...snapshot, accessories })).toMatchObject({ ok: false, reason: 'bad_snapshot' });
+  }
 });

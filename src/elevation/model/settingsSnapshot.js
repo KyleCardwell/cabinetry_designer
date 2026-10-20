@@ -15,12 +15,14 @@
  *     sectionProfiles: every profile the room or the settings name (archived ones too),
  *     pulls:           the built-in pulls + every pull the room or the settings name,
  *     slides:          the built-in slides + every slide the room or resolved settings name,
- *     library:   { doorDesigns: { id: rowVersion }, profiles: { id: rowVersion }, pulls: { id: rowVersion }, slides: { id: rowVersion } },
- *     missing:   { doorDesigns: [ids], profiles: [ids], pulls: [ids], slides: [ids] } // named but not in the library
+ *     accessories:     every accessory the room or resolved settings name by accessoryId,
+ *     library:   { doorDesigns: { id: rowVersion }, profiles: { id: rowVersion }, pulls: { id: rowVersion }, slides: { id: rowVersion }, accessories: { id: rowVersion } },
+ *     missing:   { doorDesigns: [ids], profiles: [ids], pulls: [ids], slides: [ids], accessories: [ids] } // named but not in the library
  *   }
  *
  * The room's own door styles are in the room document. The team door style is in `settings`.
  */
+import { isAccessoryList } from './accessories.js';
 import { DEFAULT_PREFS } from './constants.js';
 import { SEEDED_DESIGN_IDS, isDoorDesignList } from './doorDesigns.js';
 import { findDoorDesign } from './doorStyles.js';
@@ -31,12 +33,12 @@ import { cleanOverrides, resolveSettings } from './settingsResolve.js';
 
 export const SNAPSHOT_FORMAT = 1;
 
-const LIBRARY_LISTS = ['doorDesigns', 'sectionProfiles', 'pulls', 'slides'];
+const LIBRARY_LISTS = ['doorDesigns', 'sectionProfiles', 'pulls', 'slides', 'accessories'];
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 
 /**
- * Every string in `value`, and the ones that name a door design, profile, pull or slide by their key:
- * `designId`, `profileId` / `…ProfileId`, a door style's `profiles` slots, `pullId` / `…PullId`, `slideId` / `…SlideId`.
+ * Every string in `value`, and the ones that name a door design, profile, pull, slide or accessory by their key:
+ * `designId`, `profileId` / `…ProfileId`, a door style's `profiles` slots, `pullId` / `…PullId`, `slideId` / `…SlideId`, `accessoryId`.
  */
 function collectReferences(value, found, parentKey = null) {
   if (Array.isArray(value)) {
@@ -51,6 +53,7 @@ function collectReferences(value, found, parentKey = null) {
         else if (key === 'profileId' || key.endsWith('ProfileId') || parentKey === 'profiles') found.profiles.add(child);
         if ((key === 'pullId' || key.endsWith('PullId')) && child !== 'none') found.pulls.add(child);
         if (key === 'slideId' || key.endsWith('SlideId')) found.slides.add(child);
+        if (key === 'accessoryId') found.accessories.add(child);
       } else {
         collectReferences(child, found, key);
       }
@@ -79,7 +82,7 @@ export function resolvedIssueSettings(settings, layers = {}) {
  */
 export function buildSettingsSnapshot({ settings, layers = {}, document, rows = null, issuedFrom = {} }) {
   const resolved = resolvedIssueSettings(settings, layers);
-  const found = { strings: new Set(), designs: new Set(), profiles: new Set(), pulls: new Set(), slides: new Set() };
+  const found = { strings: new Set(), designs: new Set(), profiles: new Set(), pulls: new Set(), slides: new Set(), accessories: new Set() };
   collectReferences(document, found);
   collectReferences(resolved, found);
 
@@ -87,6 +90,7 @@ export function buildSettingsSnapshot({ settings, layers = {}, document, rows = 
   const profiles = settings?.sectionProfiles ?? [];
   const pullList = settings?.pulls ?? BUILT_IN_PULLS;
   const slideList = settings?.slides ?? BUILT_IN_SLIDES;
+  const accessoryList = settings?.accessories ?? [];
   const doorDesigns = designs
     .filter((design) => SEEDED_DESIGN_IDS.includes(design.id) || found.strings.has(design.id))
     .map((design) => structuredClone(design));
@@ -100,6 +104,10 @@ export function buildSettingsSnapshot({ settings, layers = {}, document, rows = 
   const slides = slideList
     .filter((slide) => BUILT_IN_SLIDE_IDS.includes(slide.id) || found.slides.has(slide.id))
     .map((slide) => structuredClone(slide));
+
+  const accessories = accessoryList
+    .filter((accessory) => found.accessories.has(accessory.id))
+    .map((accessory) => structuredClone(accessory));
 
   const versions = (list, map) => Object.fromEntries(list
     .filter((entry) => map?.[entry.id]?.version !== undefined)
@@ -121,17 +129,20 @@ export function buildSettingsSnapshot({ settings, layers = {}, document, rows = 
     sectionProfiles,
     pulls,
     slides,
+    accessories,
     library: {
       doorDesigns: versions(doorDesigns, rows?.doorDesigns),
       profiles: versions(sectionProfiles, rows?.profiles),
       pulls: versions(pulls, rows?.pulls),
       slides: versions(slides, rows?.slides),
+      accessories: versions(accessories, rows?.accessories),
     },
     missing: {
       doorDesigns: [...found.designs].filter((id) => !findDoorDesign(id, designs)).sort(),
       profiles: [...found.profiles].filter((id) => !profiles.some((profile) => profile.id === id)).sort(),
       pulls: [...found.pulls].filter((id) => !pullList.some((pull) => pull.id === id)).sort(),
       slides: [...found.slides].filter((id) => !slideList.some((slide) => slide.id === id)).sort(),
+      accessories: [...found.accessories].filter((id) => !accessoryList.some((accessory) => accessory.id === id)).sort(),
     },
   };
 }
@@ -145,12 +156,13 @@ export function isSettingsSnapshot(snapshot) {
     && isSectionProfileList(snapshot.sectionProfiles)
     && (snapshot.pulls === undefined || isPullList(snapshot.pulls))
     && (snapshot.slides === undefined || isSlideList(snapshot.slides))
+    && (snapshot.accessories === undefined || isAccessoryList(snapshot.accessories))
     && (snapshot.overrides === undefined || isPlainObject(snapshot.overrides));
 }
 
 /**
  * The workspace a version opens with: its frozen settings as the shop standard (library =
- * the snapshot's designs, profiles, pulls and slides), and its override values as the project / phase layers
+ * the snapshot's designs, profiles, pulls, slides and accessories), and its override values as the project / phase layers
  * so the editor can still say where a value came from. Resolving them again gives the same
  * values the snapshot froze; a setting added after the version was issued takes its code default.
  * → { ok: true, settings, layers } | { ok: false, reason: 'bad_snapshot', message }
@@ -165,6 +177,7 @@ export function settingsFromSnapshot(snapshot) {
   settings.sectionProfiles = structuredClone(snapshot.sectionProfiles);
   settings.pulls = structuredClone(snapshot.pulls ?? BUILT_IN_PULLS);
   settings.slides = structuredClone(snapshot.slides ?? BUILT_IN_SLIDES);
+  settings.accessories = structuredClone(snapshot.accessories ?? []);
   const { estProjectId = null, phaseId = null } = snapshot.issuedFrom ?? {};
   const layer = (level, id) => {
     const values = snapshot.overrides?.[level];
