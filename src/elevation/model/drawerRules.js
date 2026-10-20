@@ -1,4 +1,5 @@
 import { fittingLength } from './slides.js';
+import { roundTo } from './units.js';
 
 export const DRAWER_RULES = Object.freeze({
   fileFrontMinHeight: 13,
@@ -45,7 +46,14 @@ export function rotDepth(boxWidth, boxDepth) {
 }
 
 /** Sink constraints are evaluated against the standard fitting length. */
-export function ruleDepth({ kind, purpose, slide, interiorDepth }) {
+export function ruleDepth({ kind, purpose, slide, usableDepth }) {
   return kind === 'drawer' && purpose === 'sink'
-    ? { depth: sinkDepth(slide, fittingLength(slide, interiorDepth)), rule: 'DRW-006' } : null;
+    ? { depth: sinkDepth(slide, fittingLength(slide, usableDepth)), rule: 'DRW-006' } : null;
+}
+
+/** Extra cabinet back relief needed for the actual nominal slide length. */
+export function slideNotch(slide, slideLength, interiorDepth) {
+  if (slideLength === null) return null;
+  const notch = slideLength + slide.backClearance - interiorDepth;
+  return notch > 1 / 64 + 1e-9 ? roundTo(notch, 1 / 16) : null;
 }

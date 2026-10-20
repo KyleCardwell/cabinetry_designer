@@ -2,7 +2,7 @@ import { boxAccessoryEffects, findEffect } from './accessoryEffects.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { findLeaf } from './cellTree.js';
 import { getFaceNode } from './faceTree.js';
-import { DRAWER_RULES, rotDepth, ruleDepth, ruleHeight, ruleSlide } from './drawerRules.js';
+import { DRAWER_RULES, rotDepth, ruleDepth, ruleHeight, ruleSlide, slideNotch } from './drawerRules.js';
 import { wallInteriors } from './interiors.js';
 import { resolveWall } from './room.js';
 import { fittingLength, resolveBoxSlide, slideBoxWidth } from './slides.js';
@@ -56,12 +56,13 @@ export function drawerBoxOptions(room, itemId, layout, settings) {
 
 /** Sink wins ties, then accessory limits in stored item order; an unsized limit is smallest. */
 function limitedDepth(ruleInput, slide, interiorDepth, effects) {
-  const standard = fittingLength(slide, interiorDepth);
-  const sink = ruleDepth({ ...ruleInput, slide, interiorDepth });
+  const usableDepth = interiorDepth - slide.backClearance;
+  const standard = fittingLength(slide, usableDepth);
+  const sink = ruleDepth({ ...ruleInput, slide, usableDepth });
   let result = sink ? { ...sink, accessoryId: null } : null;
   for (const limit of effects.depthLimits) {
     const depth = fittingLength(slide, limit.kind === 'clear_behind'
-      ? interiorDepth - limit.inches : Math.min(standard ?? 0, limit.inches));
+      ? interiorDepth - Math.max(limit.inches, slide.backClearance) : Math.min(standard ?? 0, limit.inches));
     if (!result || (result.depth !== null && (depth === null || depth < result.depth))) {
       result = { depth, rule: null, accessoryId: limit.accessoryId };
     }
@@ -126,6 +127,8 @@ export function cabinetDrawerBoxes({
       : limitedDepth(ruleInput, slide, section.depth, effects);
     const depthAuto = depthRule.depth;
     const depth = pick.depth ?? depthAuto;
+    const slideLength = depth === null ? null : fittingLength(slide, depth);
+    const notch = slideNotch(slide, slideLength, section.depth);
     const maple = prefinishedMaple && !inset;
     const box = {
       path: face.path, frontHeight: face.height, kind,
@@ -140,7 +143,7 @@ export function cabinetDrawerBoxes({
       depthSource: pick.depth !== undefined ? 'manual' : depthRule.accessoryId ? 'accessory' : depthRule.rule ? 'rule' : 'auto',
       depthAccessory: pick.depth === undefined ? depthRule.accessoryId : null,
       depthRule: pick.depth === undefined ? depthRule?.rule ?? null : null,
-      slideLength: depth === null ? null : fittingLength(slide, depth),
+      slideLength, notch,
       clips: slide.clips === false ? null : inset ? 'adjustable' : 'standard',
       notes: kind === 'drawer' && leaf.purpose === 'sink' ? ['notch drw around plumbing']
         : pick.depth === undefined && rot?.note ? [rot.note] : [],
@@ -152,6 +155,7 @@ export function cabinetDrawerBoxes({
     if (height === null) box.warnings.push({ code: 'drawer-too-short' });
     if (depth === null) box.warnings.push({ code: 'no-slide-length' });
     if (depth !== null && depth > section.depth + 1e-9) box.warnings.push({ code: 'drawer-too-deep' });
+    if (notch !== null) box.warnings.push({ code: 'slide-notch', notch, backClearance: slide.backClearance });
     entries.push({ box, section, effects, pick });
   }
   if (leaf.purpose === 'sink' && entries.some(({ box }) => box.kind === 'drawer')) {

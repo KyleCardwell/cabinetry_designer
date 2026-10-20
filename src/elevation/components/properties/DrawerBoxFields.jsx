@@ -25,6 +25,7 @@ function warningText(warning, box, settings, interior) {
     case 'drawer-box-tall': return `Taller than ${formatInches(settings.drawerBoxHeights?.warnAbove ?? DEFAULT_SETTINGS.drawerBoxHeights.warnAbove)}, the tallest the shop normally builds.`;
     case 'no-slide-length': return `No ${box.slide.name} length fits ${formatInches(box.interiorDepth)} of depth.`;
     case 'drawer-too-deep': return `Deeper than the interior (${formatInches(box.interiorDepth)}).`;
+    case 'slide-notch': return `${box.slide.name} needs ${formatInches(warning.backClearance)} behind the box; notch the cabinet back ${formatInches(warning.notch)}.`;
     case 'rot-short': return `Shorter than the standard 15 1/8 ROT (${formatInches(box.available)} available).`;
     case 'rot-size-unlisted': return `No ROT depth rule for a ${formatInches(interior.box.width)} × ${formatInches(interior.box.depth)} box; sized like a drawer.`;
     case 'hamper-clear-below': return `A hamper needs 11 clear below the box (${formatInches(box.clearBelow)} here).`;

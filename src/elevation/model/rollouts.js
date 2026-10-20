@@ -1,7 +1,7 @@
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { drawerBoxOptions, isTallDrawerBox, wallDrawerBoxes } from './drawerBoxes.js';
-import { sinkDepth } from './drawerRules.js';
+import { sinkDepth, slideNotch } from './drawerRules.js';
 import { getInteriorNode } from './interiorTree.js';
 import { wallInteriors } from './interiors.js';
 import { resolveWall } from './room.js';
@@ -89,17 +89,19 @@ export function sectionRollouts({ interior, faces, boxes = [], leaf, settings, i
       const { slide } = resolved;
       const { spacers, unknown } = columnSpacers(column, covering, setting('rolloutSpacer'));
       const maple = prefinishedMaple && !inset;
-      const standard = fittingLength(slide, section.depth);
+      const standard = fittingLength(slide, section.depth - slide.backClearance);
       const sink = leaf.purpose === 'sink';
       const depthAuto = sink ? sinkDepth(slide, standard) : standard;
       const depth = item.depth ?? depthAuto;
+      const slideLength = depth === null ? null : fittingLength(slide, depth);
+      const notch = slideNotch(slide, slideLength, section.depth);
       const height = item.height ?? setting('rolloutHeight');
       const width = slideBoxWidth(slide, column.width - spacers.left - spacers.right) + (maple ? 1 / 16 : 0);
       const rollout = {
         index, side, ...resolved, height, heightSource: item.height === undefined ? 'auto' : 'manual',
         width, depth, depthAuto, depthSource: item.depth !== undefined ? 'manual' : sink ? 'rule' : 'auto',
         depthRule: item.depth === undefined && sink ? 'DRW-006' : null,
-        slideLength: depth === null ? null : fittingLength(slide, depth), interiorDepth: section.depth,
+        slideLength, notch, interiorDepth: section.depth,
         spacers, maple, clips: slide.clips === false ? null : 'standard',
         x: column.x + spacers.left + slide.sideClearance - (maple ? 1 / 32 : 0),
         z: item.at === undefined ? zone.z + slide.minBelow : section.z + item.at,
@@ -108,6 +110,7 @@ export function sectionRollouts({ interior, faces, boxes = [], leaf, settings, i
       if (unknown) rollout.warnings.push({ code: 'rollout-hinge-unknown' });
       if (depth === null || rollout.slideLength === null) rollout.warnings.push({ code: 'no-slide-length' });
       if (depth !== null && depth > section.depth + EPSILON) rollout.warnings.push({ code: 'rollout-too-deep' });
+      if (notch !== null) rollout.warnings.push({ code: 'slide-notch', notch, backClearance: slide.backClearance });
       if (width <= 0) rollout.warnings.push({ code: 'rollout-too-narrow' });
       if (isTallDrawerBox(height, settings)) rollout.warnings.push({ code: 'drawer-box-tall' });
       return rollout;

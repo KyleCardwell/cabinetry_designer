@@ -77,6 +77,17 @@ beforeEach(() => {
 });
 
 describe('IN6 Drawer boxes rules and pull-outs', () => {
+  it('IN4c anchor 3: shows the exact amber notch note for a typed drawer depth', () => {
+    edit(() => { run().depth = 22.5; });
+    expect(placeholders('depth')[0]).toBe('Auto (18")');
+    commit('Drawer depth r.0', 21);
+    const note = nodes(render()).find(({ type, props }) => type === 'p'
+      && text(props.children).includes('Blum Tandem 562H needs 3/4" behind the box; notch the cabinet back 1/4".'));
+    expect(note.props.className).toContain('text-amber-400');
+    commit('Drawer depth r.0', null);
+    expect(text(render())).not.toContain('notch the cabinet back');
+  });
+
   const pullout = () => ({ type: 'door', action: 'pullout', size: null });
   const panel = () => {
     const view = resolveWall(room(), wall());

@@ -34,6 +34,32 @@ const root = (options) => sectionRollouts(input(options)).get('r');
 const codes = (entry) => entry.warnings.map(({ code }) => code);
 const shelves = (args) => sectionShelves({ ...args, rollouts: sectionRollouts(args) }).get('r');
 
+describe('IN4c usable roll-out depth and cabinet back notches', () => {
+  it('anchor 6: sizes from usable depth, preserves overrides and aggregates the notch warning', () => {
+    const args = input();
+    args.interior.sections[0].depth = 21.5;
+    expect(sectionRollouts(args).get('r').rollouts[0])
+      .toMatchObject({ depth: 18, slideLength: 18, interiorDepth: 21.5, notch: null });
+    args.interior.tree.rollouts.items = [{ depth: 21, slideId: 'blum-562h' }];
+    const entry = sectionRollouts(args).get('r');
+    expect(entry.rollouts[0]).toMatchObject({ depth: 21, depthSource: 'manual', slideLength: 21,
+      notch: 0.25, source: 'box', warnings: [{ code: 'slide-notch', notch: 0.25, backClearance: 0.75 }] });
+    expect(entry.warnings).toEqual([{ code: 'slide-notch', notch: 0.25, backClearance: 0.75, index: 0 }]);
+    args.interior.tree.rollouts.items[0].depth = 24;
+    expect(codes(sectionRollouts(args).get('r'))).toEqual(['rollout-too-deep', 'slide-notch']);
+  });
+
+  it('uses usable depth for sink roll-outs and leaves unsized roll-outs without a notch', () => {
+    const args = input({ leaf: { purpose: 'sink' } });
+    args.interior.sections[0].depth = 21.5;
+    expect(sectionRollouts(args).get('r').rollouts[0])
+      .toMatchObject({ depth: 15, depthRule: 'DRW-006', notch: null });
+    args.interior.sections[0].depth = 7;
+    expect(sectionRollouts(args).get('r').rollouts[0])
+      .toMatchObject({ depth: null, slideLength: null, notch: null });
+  });
+});
+
 function roomWith(leaves, { width = 24 * leaves.length } = {}) {
   const run = { id: 'run', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width, z: 4, height: 30.5, depth: 24,
     ends: { left: { type: 'none' }, right: { type: 'none' } }, autoCount: false, maxCabinetWidth: null,

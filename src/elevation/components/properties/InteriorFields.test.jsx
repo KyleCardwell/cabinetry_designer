@@ -485,6 +485,20 @@ describe('IN9 roll-out controls', () => {
   });
   const cards = () => nodes(render()).filter(({ props }) => props['aria-label']?.match(/^Roll-out r\.\d+$/));
 
+  it('IN4c anchor 6: shows the exact amber notch note under the typed roll-out', () => {
+    base();
+    edit(() => { run().depth = 22.5; });
+    select('r');
+    commit('Roll-out count r', 1);
+    expect(field('Roll-out depth r.0').props.placeholder).toBe('Auto (18)');
+    commit('Roll-out depth r.0', 21);
+    const note = nodes(cards()[0]).find(({ type, props }) => type === 'p'
+      && text(props.children) === 'Blum Tandem 562H needs 3/4" behind the box; notch the cabinet back 1/4".');
+    expect(note.props.className).toContain('text-amber-400');
+    commit('Roll-out depth r.0', null);
+    expect(text(cards()[0])).not.toContain('notch the cabinet back');
+  });
+
   it('anchor 1: saves the effective auto section and shows two auto cards and zero shelves', () => {
     base();
     expect(field('Roll-out count r')).toBeUndefined();

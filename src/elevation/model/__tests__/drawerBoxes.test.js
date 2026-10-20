@@ -70,6 +70,58 @@ function input({ face = base(), width = 18, height = 30.5, depth = 24, inset = f
 const sized = (options) => cabinetDrawerBoxes(input(options));
 const codes = (box) => box.warnings.map(({ code }) => code);
 
+describe('IN4c usable drawer depth and cabinet back notches', () => {
+  const atDepth = (interiorDepth, pick = {}, options = {}) => {
+    const args = input({ face: stack(drawer(5.875, pick), drawer(), drawer()), ...options });
+    args.interior.sections[0].depth = interiorDepth;
+    return cabinetDrawerBoxes(args).boxes[0];
+  };
+
+  it.each([
+    ['anchor 1', 21.5, 'blum-562h', 18],
+    ['anchor 2', 21.75, 'blum-562h', 21],
+    ['anchor 4', 21.5, 'accuride-3832', 20],
+  ])('%s: picks an automatic length from usable depth', (_anchor, interiorDepth, slideId, depth) => {
+    const box = atDepth(interiorDepth, {}, { leaf: { drawerSlideId: slideId } });
+    expect(box).toMatchObject({ depth, interiorDepth, slideLength: depth, notch: null });
+    expect(codes(box)).not.toContain('slide-notch');
+  });
+
+  it('anchor 3: keeps a typed depth and reports the nominal slide notch', () => {
+    const box = atDepth(21.5, { depth: 21, slideId: 'blum-562h' });
+    expect(box).toMatchObject({ depth: 21, depthSource: 'manual', slideLength: 21, notch: 0.25, source: 'box' });
+    expect(box.warnings).toEqual([{ code: 'slide-notch', notch: 0.25, backClearance: 0.75 }]);
+    expect(codes(atDepth(21.5, { depth: 24 }))).toEqual(['drawer-too-deep', 'slide-notch']);
+  });
+
+  it('anchor 5: uses the larger behind clearance and caps accessory max depth by usable depth', () => {
+    const box = atDepth(22.5, { accessories: [{ accessoryId: 'CU' }] });
+    expect(box).toMatchObject({ depth: 18, notch: null, depthSource: 'accessory', depthAccessory: 'CU' });
+    const args = input({ face: drawer(5.875, { accessories: [{ accessoryId: 'CU' }, { accessoryId: 'OS' }] }) });
+    args.interior.sections[0].depth = 21.5;
+    args.settings = { ...settings, accessories: accessories.map((item) => item.id === 'CU'
+      ? { ...item, effects: [{ kind: 'clear_behind', inches: 0.25 }] }
+      : item.id === 'OS' ? { ...item, effects: [{ kind: 'max_depth', inches: 21 }] } : item) };
+    expect(cabinetDrawerBoxes(args).boxes[0]).toMatchObject({ depth: 18, notch: null });
+  });
+
+  it('anchor 7: applies the sink reduction after choosing the usable standard length', () => {
+    expect(atDepth(22.5, {}, { leaf: { purpose: 'sink' } }))
+      .toMatchObject({ depth: 18, depthRule: 'DRW-006', notch: null });
+  });
+
+  it('uses the 1/64 threshold, rounds to 1/16, skips missing lengths and checks unchanged ROT depths', () => {
+    expect(atDepth(21.75 - 1 / 64, { depth: 21 }).notch).toBeNull();
+    expect(atDepth(21.75 - 0.09, { depth: 21 }).notch).toBe(0.0625);
+    expect(atDepth(21.5, { depth: 22 })).toMatchObject({ slideLength: 21, notch: 0.25 });
+    expect(atDepth(7)).toMatchObject({ depth: null, slideLength: null, notch: null });
+    const rot = atDepth(21.5, {}, { face: { type: 'door', action: 'pullout', size: null },
+      leaf: { purpose: 'trash' }, width: 24 });
+    expect(rot).toMatchObject({ kind: 'rot', depth: 21, depthRule: 'DRW-009', notch: 0.25 });
+    expect(codes(rot)).toContain('slide-notch');
+  });
+});
+
 describe('IN5 step b drawer box sizing', () => {
   it('anchor 1: clips Euro spaces to the box and matches equal fronts down', () => {
     const args = input();
@@ -143,7 +195,7 @@ describe('IN5 step b drawer box sizing', () => {
   });
 
   it('anchor 6: keeps typed depth and chooses only nominal lengths that fit the interior', () => {
-    for (const [depth, warnings] of [[18, []], [24, ['drawer-too-deep']]]) {
+    for (const [depth, warnings] of [[18, []], [24, ['drawer-too-deep', 'slide-notch']]]) {
       const face = base();
       face.children[2].drawerBox = { depth };
       const bottom = sized({ face }).boxes[2];
@@ -280,7 +332,11 @@ describe('IN6 step b drawer rules', () => {
     sized({ depth: 12, leaf: { drawerSlideId: 'accuride-4034' } }).boxes.forEach((box) => {
       expect(box).toMatchObject({ slideId: 'accuride-4034', source: 'cabinet', slideRule: null });
     });
-    sized({ depth: 16 }).boxes.forEach((box) => expect(box).toMatchObject({ slideId: 'blum-562h',
+    const shallow = sized({ depth: 16 }).boxes;
+    expect(shallow[0]).toMatchObject({ slideId: 'blum-562h', source: 'room', depth: 12, slideRule: null });
+    shallow.slice(1).forEach((box) => expect(box).toMatchObject({ slideId: 'accuride-3832',
+      source: 'rule', depth: 14, slideRule: 'DRW-002' }));
+    sized({ depth: 16.75 }).boxes.forEach((box) => expect(box).toMatchObject({ slideId: 'blum-562h',
       source: 'room', depth: 15, slideRule: null }));
     face.children[2].drawerBox = { depth: 14 };
     expect(sized({ face }).boxes[2]).toMatchObject({ slideId: 'accuride-3832', source: 'rule',
@@ -427,7 +483,7 @@ describe('IN6 step b drawer rules', () => {
     expect(codes(shallow)).toContain('no-slide-length');
     face.children[1].drawerBox.depth = 24;
     const deep = sized({ face, leaf: { purpose: 'sink' } }).boxes[1];
-    expect(codes(deep)).toEqual(['drawer-too-deep', 'accessory-depth']);
+    expect(codes(deep)).toEqual(['drawer-too-deep', 'slide-notch', 'accessory-depth']);
     expect(deep).toMatchObject({ depthSource: 'manual', depthRule: null, slideLength: 24 });
     expect(sized({ face: { type: 'door', action: 'pullout' }, leaf: { purpose: 'trash' } }).boxes[0])
       .toMatchObject({ kind: 'rot', slideRule: null });
@@ -499,7 +555,8 @@ describe('IN6 step c ROT and hamper boxes', () => {
     expect(hamper).toMatchObject({ kind: 'hamper', height: 6.25, heightSource: 'rule', heightRule: 'DRW-010',
       z: 23.25, width: 22, depth: 21, depthSource: 'auto', clearBelow: 22.5, warnings: [] });
     expect(codes(sized({ ...options, width: 18 }).boxes[0])).toEqual(['hamper-too-small']);
-    expect(codes(sized({ ...options, width: 18, depth: 25 }).boxes[0])).toEqual([]);
+    expect(codes(sized({ ...options, width: 18, depth: 25 }).boxes[0])).toEqual(['hamper-too-small']);
+    expect(codes(sized({ ...options, width: 18, depth: 26 }).boxes[0])).toEqual([]);
     const manual = sized({ ...options, face: pullout(null, { height: 12.125, depth: 15 }) }).boxes[0];
     expect(manual).toMatchObject({ heightSource: 'manual', heightRule: null, depthSource: 'manual',
       z: 17.375, clearBelow: 16.625, warnings: [] });

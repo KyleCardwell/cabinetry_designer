@@ -62,6 +62,7 @@ const WARNING_MESSAGES = {
 function rolloutWarning(code, rollout, settings) {
   switch (code) {
     case 'rollout-too-deep': return `Deeper than the interior (${formatInches(rollout.interiorDepth)}).`;
+    case 'slide-notch': return `${rollout.slide.name} needs ${formatInches(rollout.slide.backClearance)} behind the box; notch the cabinet back ${formatInches(rollout.notch)}.`;
     case 'slide-missing': return `A slide picked here isn't in the Library any more; using ${rollout.slide.name}.`;
     case 'no-slide-length': return `No ${rollout.slide.name} length fits ${formatInches(rollout.interiorDepth)} of depth.`;
     case 'drawer-box-tall': return `Taller than ${formatInches(settings.drawerBoxHeights?.warnAbove ?? DEFAULT_SETTINGS.drawerBoxHeights.warnAbove)}, the tallest the shop normally builds.`;
