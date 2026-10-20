@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { boxConstruction } from '../boxConstruction.js';
+import { findLeaf } from '../cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { cabinetDrawerBoxes } from '../drawerBoxes.js';
 import { cabinetFaces, faceArea } from '../faces.js';
@@ -52,6 +53,7 @@ const susan = { ...newAccessory([], 'a'), name: 'Lazy susan 28', wholeSection: t
 const effective = { ...settings, accessories: [susan] };
 const resolve = (args) => sectionAccessories({ ...args, rollouts: rolloutsModule.sectionRollouts(args) });
 const warning = { code: 'accessory-whole-section', name: 'Lazy susan 28' };
+const unresolvedGeometry = { size: null, orderedLength: null, fromBottom: null, centerZ: null, rect: null };
 
 describe('IN12b step d section accessories', () => {
   it('anchor 1: accepts only 1–12 unique references with implicit one or quantity 2–20', () => {
@@ -143,6 +145,7 @@ describe('IN12b step d section accessories', () => {
     const before = structuredClone(args);
     const entry = resolve(args).get('r');
     expect(entry.items).toEqual([{ index: 0, accessoryId: 'a', accessory: susan, qty: 1,
+      ...unresolvedGeometry, size: { width: null, height: null, depth: null },
       warnings: [{ code: 'accessory-too-small', sizes: [{ dim: 'width', needs: 27, has: 22.5 }] }] }]);
     expect(entry.whole).toBe(entry.items[0]);
     expect(entry.warnings).toEqual([]);
@@ -179,9 +182,11 @@ describe('IN12b step d section accessories', () => {
     const args = input({ leaf: { interior: { accessories: [{ accessoryId: 'gone-id' }, { accessoryId: 'box', qty: 2 }] } },
       settings: { ...settings, accessories: [misplaced] } });
     const accessories = resolve(args);
-    expect(accessories.get('r')).toEqual({ whole: null, warnings: [], items: [
-      { index: 0, accessoryId: 'gone-id', accessory: null, qty: 1, warnings: [{ code: 'accessory-missing' }] },
-      { index: 1, accessoryId: 'box', accessory: misplaced, qty: 2, warnings: [{ code: 'accessory-wrong-place' }] },
+    expect(accessories.get('r')).toEqual({ whole: null, warnings: [], lineBoreRow: false, items: [
+      { index: 0, accessoryId: 'gone-id', accessory: null, qty: 1, ...unresolvedGeometry,
+        warnings: [{ code: 'accessory-missing' }] },
+      { index: 1, accessoryId: 'box', accessory: misplaced, qty: 2, ...unresolvedGeometry,
+        warnings: [{ code: 'accessory-wrong-place' }] },
     ] });
     expect(sectionShelves({ ...args, accessories })).toEqual(sectionShelves(args));
     expect(sectionShelves({ ...args, accessories }).get('r').count).toBe(1);
@@ -246,5 +251,121 @@ describe('IN12b step d section accessories', () => {
     expect(room).toEqual(before);
     wall.runs[0].wallSide = 'back';
     expect(wallInteriorData(room, wall, 'back', effective).accessories).toEqual(data.accessories);
+  });
+});
+
+describe('IN13a step c accessory size, ordered length and position', () => {
+  const rod = { ...newAccessory([], 'FR'), name: 'Fixed rod',
+    size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,
+    effects: [{ kind: 'line_bore_row' }] };
+  const hook = { ...newAccessory([], 'HK'), name: 'Robe hook', size: { width: 3, height: 2, depth: 3 } };
+  const tray = { ...newAccessory([], 'TR'), name: 'Tray' };
+  const cup = { ...newAccessory([], 'CU'), attachesTo: 'drawer_box', size: { width: 2, height: 3, depth: 4 } };
+  const big = { ...rod, id: 'BIG', lengthDeduction: 30 };
+  const library = { ...settings, accessories: [rod, hook, tray, cup, big] };
+
+  function closet(items, effective = library, extra = {}) {
+    const room = roomWith([{ id: 'c', face: face(), interior: { ...extra, accessories: items } }],
+      { height: 84, cabinetTypeId: CABINET_TYPE_IDS.TALL });
+    const before = structuredClone({ room, effective });
+    const data = wallInteriorData(room, room.walls[0], 'front', effective);
+    const section = data.interiors.get('c').sections[0];
+    expect(section).toMatchObject({ width: 22.5, depth: 23 });
+    expect({ room, effective }).toEqual(before);
+    return { room, data, section, entry: data.accessories.get('c').get('r') };
+  }
+
+  it('anchor 1: resolves a section-width rod and ordered length without placing it', () => {
+    const { entry } = closet([{ accessoryId: 'FR' }]);
+    expect(entry).toEqual({ whole: null, warnings: [], lineBoreRow: true, items: [
+      { index: 0, accessoryId: 'FR', accessory: rod, qty: 1, warnings: [],
+        size: { width: 22.5, height: 1.25, depth: 1.25 }, orderedLength: 22.25,
+        fromBottom: null, centerZ: null, rect: null },
+    ] });
+  });
+
+  it('anchors 2–3: places rods and hooks at wall coordinates without changing shelves or roll-outs', () => {
+    for (const [id, fromBottom, offsetX, offsetZ, width, height] of [
+      ['FR', 40, 0, 39.375, 22.5, 1.25], ['HK', 60, 9.75, 59, 3, 2],
+    ]) {
+      const before = closet([{ accessoryId: id, qty: 3 }], library, { rollouts: { count: 1 } });
+      const { data, section, entry } = closet([{ accessoryId: id, qty: 3, fromBottom }], library,
+        { rollouts: { count: 1 } });
+      expect(entry.items[0]).toMatchObject({ qty: 3, fromBottom, centerZ: section.z + fromBottom,
+        rect: { x: section.x + offsetX, z: section.z + offsetZ, width, height }, warnings: [] });
+      expect(entry.lineBoreRow).toBe(id === 'FR');
+      expect(data.shelves).toEqual(before.data.shelves);
+      expect(data.rollouts).toEqual(before.data.rollouts);
+      expect(data.boxes).toEqual(before.data.boxes);
+    }
+  });
+
+  it('anchor 4: retains the rectangle when its top extends outside the section', () => {
+    const { section } = closet([{ accessoryId: 'HK' }]);
+    const { entry } = closet([{ accessoryId: 'HK', fromBottom: section.height - 0.5 }]);
+    expect(entry.items[0].warnings).toEqual([{ code: 'accessory-outside', sectionHeight: section.height }]);
+    expect(entry.items[0].rect).toEqual({ x: section.x + 9.75,
+      z: section.z + section.height - 1.5, width: 3, height: 2 });
+  });
+
+  it('anchor 5: resolves a placed unsized tray centre without a rectangle', () => {
+    const { section, entry } = closet([{ accessoryId: 'TR', fromBottom: 30 }]);
+    expect(entry.items[0]).toMatchObject({ size: { width: null, height: null, depth: null },
+      orderedLength: null, fromBottom: 30, centerZ: section.z + 30, rect: null, warnings: [] });
+    expect(entry.lineBoreRow).toBe(false);
+  });
+
+  it('anchor 6: warns and clears a nonpositive ordered length', () => {
+    const { entry } = closet([{ accessoryId: 'BIG' }]);
+    expect(entry.items[0]).toMatchObject({ orderedLength: null,
+      warnings: [{ code: 'accessory-length', deduction: 30, has: 22.5 }] });
+    expect(entry.lineBoreRow).toBe(true);
+  });
+
+  it('anchor 7: missing and wrong-place picks have null geometry even when placed or sized', () => {
+    const { entry } = closet([{ accessoryId: 'gone', fromBottom: 30 }, { accessoryId: 'CU', fromBottom: 100 }]);
+    expect(entry).toEqual({ whole: null, warnings: [], lineBoreRow: false, items: [
+      { index: 0, accessoryId: 'gone', accessory: null, qty: 1, ...unresolvedGeometry,
+        warnings: [{ code: 'accessory-missing' }] },
+      { index: 1, accessoryId: 'CU', accessory: cup, qty: 1, ...unresolvedGeometry,
+        warnings: [{ code: 'accessory-wrong-place' }] },
+    ] });
+  });
+
+  it('anchor 8: unsized, unplaced picks preserve shelf results and add only null geometry and a false flag', () => {
+    const { room, data, entry } = closet([{ accessoryId: 'TR' }]);
+    expect(entry).toEqual({ whole: null, warnings: [], lineBoreRow: false, items: [
+      { index: 0, accessoryId: 'TR', accessory: tray, qty: 1, warnings: [],
+        ...unresolvedGeometry, size: { width: null, height: null, depth: null } },
+    ] });
+    delete findLeaf(room.walls[0].runs[0].grid, 'c').interior.accessories;
+    expect(data.shelves).toEqual(wallInteriorData(room, room.walls[0], 'front', library).shelves);
+  });
+
+  it('checks centre and rectangle bounds and ordered-length tolerance, allowing unknown depth', () => {
+    const { section } = closet([{ accessoryId: 'TR' }]);
+    for (const [size, fromBottom, outside] of [
+      [{ width: 3, height: 2, depth: null }, 0.5, true],
+      [{ width: 23, height: 2, depth: null }, 30, true],
+      [{ width: 22.5 + 1e-9, height: 2, depth: null }, 30, false],
+      [{ width: 3, height: 2, depth: null }, 1 - 5e-10, false],
+      [{ width: 3, height: 2, depth: null }, section.height - 1 + 5e-10, false],
+      [{ width: null, height: 2, depth: 3 }, section.height + 1, true],
+      [{ width: 3, height: null, depth: 3 }, section.height + 5e-10, false],
+    ]) {
+      const custom = { ...hook, size };
+      const { entry } = closet([{ accessoryId: 'HK', fromBottom }], { ...library, accessories: [custom] });
+      expect(entry.items[0].warnings).toEqual(outside
+        ? [{ code: 'accessory-outside', sectionHeight: section.height }] : []);
+      expect(entry.items[0].rect !== null).toBe(size.width !== null && size.height !== null);
+    }
+    for (const length of [0, 5e-10, 2e-9, 22.5]) {
+      const deduction = 22.5 - length;
+      const { entry } = closet([{ accessoryId: 'FR' }],
+        { ...library, accessories: [{ ...rod, lengthDeduction: deduction }] });
+      expect(entry.items[0].orderedLength).toBe(length <= 1e-9 ? null : 22.5 - deduction);
+      expect(entry.items[0].warnings).toEqual(length <= 1e-9
+        ? [{ code: 'accessory-length', deduction, has: 22.5 }] : []);
+    }
   });
 });

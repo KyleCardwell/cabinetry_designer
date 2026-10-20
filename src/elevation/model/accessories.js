@@ -1,4 +1,4 @@
-import { isEffectList } from './accessoryEffects.js';
+import { findEffect, isEffectList } from './accessoryEffects.js';
 import { gridLeaves } from './grid.js';
 import { findLeaf } from './cellTree.js';
 import { wallDrawerBoxes } from './drawerBoxes.js';
@@ -124,9 +124,14 @@ export function sectionAccessories({ interior, boxes = [], settings, rollouts = 
     const node = getInteriorNode(interior.tree, section.path) ?? {};
     if (!node.accessories) continue;
     const opening = { width: section.width, depth: section.depth, height: shelfZone(section, boxes).height };
-    const items = node.accessories.map(({ accessoryId, qty = 1 }, index) => {
+    const items = node.accessories.map(({ accessoryId, qty = 1, fromBottom: placed = null }, index) => {
       const accessory = findAccessory(accessoryId, settings?.accessories ?? []);
       const warnings = [];
+      let size = null;
+      let orderedLength = null;
+      let fromBottom = null;
+      let centerZ = null;
+      let rect = null;
       if (!accessory) warnings.push({ code: 'accessory-missing' });
       else if (accessory.attachesTo !== 'section') warnings.push({ code: 'accessory-wrong-place' });
       else {
@@ -134,15 +139,41 @@ export function sectionAccessories({ interior, boxes = [], settings, rollouts = 
           && accessory.minOpening[dim] > opening[dim] + 1e-9)
           .map((dim) => ({ dim, needs: accessory.minOpening[dim], has: opening[dim] }));
         if (sizes.length) warnings.push({ code: 'accessory-too-small', sizes });
+        size = {
+          width: accessory.size?.width === 'section' ? section.width : accessory.size?.width ?? null,
+          height: accessory.size?.height ?? null,
+          depth: accessory.size?.depth ?? null,
+        };
+        if (accessory.lengthDeduction != null) {
+          orderedLength = section.width - accessory.lengthDeduction;
+          if (orderedLength <= 1e-9) {
+            orderedLength = null;
+            warnings.push({ code: 'accessory-length', deduction: accessory.lengthDeduction, has: section.width });
+          }
+        }
+        fromBottom = placed;
+        if (fromBottom !== null) {
+          centerZ = section.z + fromBottom;
+          if (size.width !== null && size.height !== null) {
+            rect = { x: section.x + (section.width - size.width) / 2,
+              z: centerZ - size.height / 2, width: size.width, height: size.height };
+          }
+          if (centerZ < section.z - 1e-9 || centerZ > section.z + section.height + 1e-9
+            || (rect && (rect.x < section.x - 1e-9 || rect.x + rect.width > section.x + section.width + 1e-9
+              || rect.z < section.z - 1e-9 || rect.z + rect.height > section.z + section.height + 1e-9))) {
+            warnings.push({ code: 'accessory-outside', sectionHeight: section.height });
+          }
+        }
       }
-      return { index, accessoryId, accessory, qty, warnings };
+      return { index, accessoryId, accessory, qty, warnings, size, orderedLength, fromBottom, centerZ, rect };
     });
     const counted = items.filter(({ accessory }) => accessory?.attachesTo === 'section');
     const whole = counted.find(({ accessory }) => accessory.wholeSection) ?? null;
     const warnings = whole && (node.rollouts?.count > 0 || rollouts.get(section.path)?.rollouts.length > 0
       || node.shelves?.count > 0 || counted.length > 1)
       ? [{ code: 'accessory-whole-section', name: whole.accessory.name }] : [];
-    result.set(section.path, { items, whole, warnings });
+    const lineBoreRow = counted.some(({ accessory }) => findEffect(accessory, 'line_bore_row'));
+    result.set(section.path, { items, whole, warnings, lineBoreRow });
   }
   return result;
 }
