@@ -14,6 +14,13 @@ const base = () => {
 const leaves = (state) => gridLeaves(currentRun(state).grid);
 
 describe('IN8 cabinet shelf storage', () => {
+  it('IN13b anchor 6: rejects cabinet shoe counts without changing state', () => {
+    const state = base();
+    for (const patch of [{ shoe: 2 }, { shoe: null }, { glass: true, shoe: 2 }]) {
+      expect(elevationReducer(state, setItemShelves({ ...at, itemIds: ['c1', 'c2'], patch }))).toBe(state);
+    }
+  });
+
   it('stores independent root and nested picks, patches and resets them without storing an auto interior', () => {
     const before = base();
     const patch = { glass: false, nosing: 'none' };

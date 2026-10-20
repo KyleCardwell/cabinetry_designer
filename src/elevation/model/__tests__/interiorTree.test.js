@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { isShelfSettings, patchShelfSettings } from '../interiorTree.js';
 import {
   BACK_PANEL_THICKNESS, DADO_BACK_SETBACK, INTERIOR_DIVIDERS, INTERIOR_DIVIDER_LABELS,
   MAX_FACE_SPLIT, STRETCHER_DEPTH, clearSplit, equalizeDividers, getInteriorNode,
@@ -462,6 +463,55 @@ describe('IN8 section shelf and flag data', () => {
     expect(removeDivider(group([{ shelves: { count: 3 } }, second]), 'r', 0)).toEqual({});
     expect(removeDivider(group([two, {}]), 'r.0', 0).children[0]).toEqual({ shelves: { nosing: 'hardwood' } });
     expect(removeDivider(group([two, {}]), 'r', 0)).toEqual(group([two, {}]));
+  });
+});
+
+describe('IN13b step a shoe shelf data', () => {
+  const group = (children) => ({ direction: 'vertical', children, dividers: [{ kind: 'fixed' }] });
+
+  it('anchors 1–2: accepts only section shoe counts from 0 to 20', () => {
+    for (const shoe of [0, 4, 20]) expect(isInteriorNode({ shelves: { shoe } })).toBe(true);
+    for (const shoe of [-1, 21, 1.5, NaN, Infinity, '3', null, undefined]) {
+      expect(isInteriorNode({ shelves: { shoe } })).toBe(false);
+      expect(patchShelfSettings({}, { shoe }, true)).toEqual(shoe === null ? {} : null);
+    }
+    expect(isInteriorNode({ ...group([{}, {}]), shelves: { shoe: 2 } })).toBe(false);
+    expect(isShelfSettings({ shoe: 2 })).toBe(false);
+    expect(patchShelfSettings({}, { shoe: 2 })).toBeNull();
+    expect(patchShelfSettings({}, { shoe: null })).toBeNull();
+    expect(patchShelfSettings({}, { glass: true, shoe: 2 })).toBeNull();
+  });
+
+  it('anchor 3: sets and removes shoe counts while preserving other section picks', () => {
+    const picked = deepFreeze(setSectionShelves({}, 'r', { shoe: 3 }));
+    expect(picked).toEqual({ shelves: { shoe: 3 } });
+    expect(setSectionShelves(picked, 'r', { shoe: null })).toEqual({});
+    const tree = deepFreeze(group([{ shelves: { count: 2, glass: true } }, {}]));
+    const edited = deepFreeze(setSectionShelves(tree, 'r.0', { shoe: 0 }));
+    expect(edited.children[0].shelves).toEqual({ count: 2, glass: true, shoe: 0 });
+    expect(edited.children[1]).toBe(tree.children[1]);
+    expect(setSectionShelves(edited, 'r.0', { shoe: null })).toEqual(tree);
+    expect(setSectionShelves(tree, 'r.0', { shoe: 21 })).toBe(tree);
+  });
+
+  it('anchor 4: drops both shelf counts when splitting, including flattened splits', () => {
+    const section = deepFreeze({ shelves: { shoe: 3, count: 2, glass: true } });
+    const expected = { shelves: { glass: true } };
+    expect(splitSection(section, 'r', 'vertical', 2).children).toEqual([expected, expected]);
+    for (const direction of ['vertical', 'horizontal']) {
+      const result = splitSection(group([section, {}]), 'r.0', direction, 2);
+      const children = direction === 'vertical' ? result.children.slice(0, 2) : result.children[0].children;
+      expect(children).toEqual([expected, expected]);
+      expect(isInteriorNode(result)).toBe(true);
+    }
+    expect(splitSection({ shelves: { shoe: 3 } }, 'r', 'vertical', 2).children).toEqual([{}, {}]);
+  });
+
+  it('anchor 5: drops shoe counts on merge and retains first-section material picks', () => {
+    const tree = deepFreeze(group([{ shelves: { shoe: 2, nosing: 'hardwood' } }, {}]));
+    expect(removeDivider(tree, 'r', 0)).toEqual({ shelves: { nosing: 'hardwood' } });
+    expect(removeDivider(group([{ shelves: { shoe: 2, count: 3 } }, {}]), 'r', 0)).toEqual({});
+    expect(removeDivider(group([{}, { shelves: { shoe: 2 } }]), 'r', 0)).toEqual({});
   });
 });
 

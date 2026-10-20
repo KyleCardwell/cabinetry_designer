@@ -24,7 +24,7 @@ function isDivider(divider, direction) {
 function isShelfValue(key, value, allowCount) {
   return key === 'glass' ? typeof value === 'boolean'
     : key === 'nosing' ? SHELF_NOSINGS.includes(value)
-      : key === 'count' && allowCount && Number.isInteger(value) && value >= 0 && value <= 20;
+      : ['count', 'shoe'].includes(key) && allowCount && Number.isInteger(value) && value >= 0 && value <= 20;
 }
 
 /** Stored shelf picks are nonempty; only sections may specify a count. */
@@ -36,7 +36,7 @@ export function isShelfSettings(shelves, allowCount = false) {
 /** Null resets one pick. An invalid patch returns null; an empty result is pruned by the caller. */
 export function patchShelfSettings(shelves, patch, allowCount = false) {
   if (!isPlainObject(patch) || !Object.entries(patch).every(([key, value]) =>
-    ['glass', 'nosing', ...(allowCount ? ['count'] : [])].includes(key)
+    ['glass', 'nosing', ...(allowCount ? ['count', 'shoe'] : [])].includes(key)
       && (value === null || isShelfValue(key, value, allowCount)))) return null;
   const next = { ...shelves };
   for (const [key, value] of Object.entries(patch)) {
@@ -247,6 +247,7 @@ function sectionAfterResize(section, rollouts = null) {
   if (section.shelves) {
     next.shelves = { ...section.shelves };
     delete next.shelves.count;
+    delete next.shelves.shoe;
     if (!Object.keys(next.shelves).length) delete next.shelves;
   }
   return next;

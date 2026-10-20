@@ -79,6 +79,7 @@ export const SETTING_GROUPS = [
     keys: [
       'shelfSpacing', 'shelfWidthClearance', 'shelfSetback', 'glassShelfThickness',
       'shelfNosingHeight', 'shelfNosingThickness', 'foldedNosingExtra',
+      'shoeShelfAngle', 'shoeShelfClear',
     ],
   },
   {

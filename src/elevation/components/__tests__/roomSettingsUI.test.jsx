@@ -165,14 +165,15 @@ describe('DB2 d room settings panel', () => {
     expect(state.rooms[0].settingsOverrides).toMatchObject({ fillerThickness: 0.75, fillerReturnTongue: 0.25 });
   });
 
-  it('IN8 shows seven inherited shelf settings and supports a room pick and reset', () => {
+  it('IN8 / IN13b shows nine inherited shelf settings and supports a room pick and reset', () => {
     const tree = openGroup('Shelves');
     const defaults = [
       ['Min clear between shelves', '11'], ['Shelf side clearance', '1/16'], ['Shelf front setback', '1/8'],
       ['Glass shelf thickness', '1/4'], ['Shelf nosing height', '1 1/2'],
       ['Shelf nosing thickness', '13/16'], ['Folded nosing extra depth', '2'],
+      ['Shoe shelf slope (degrees)', '12'], ['Min clear above shoe shelves', '6'],
     ];
-    expect(controls(tree)).toHaveLength(7);
+    expect(controls(tree)).toHaveLength(9);
     for (const [label, placeholder] of defaults) {
       expect(field(tree, `Room ${label}`).props).toMatchObject({ value: '', placeholder });
     }

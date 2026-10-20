@@ -170,7 +170,7 @@ export function sectionAccessories({ interior, boxes = [], settings, rollouts = 
     const counted = items.filter(({ accessory }) => accessory?.attachesTo === 'section');
     const whole = counted.find(({ accessory }) => accessory.wholeSection) ?? null;
     const warnings = whole && (node.rollouts?.count > 0 || rollouts.get(section.path)?.rollouts.length > 0
-      || node.shelves?.count > 0 || counted.length > 1)
+      || node.shelves?.count > 0 || node.shelves?.shoe > 0 || counted.length > 1)
       ? [{ code: 'accessory-whole-section', name: whole.accessory.name }] : [];
     const lineBoreRow = counted.some(({ accessory }) => findEffect(accessory, 'line_bore_row'));
     result.set(section.path, { items, whole, warnings, lineBoreRow });

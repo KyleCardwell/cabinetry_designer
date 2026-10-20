@@ -142,6 +142,8 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'shelfNosingHeight',
   'shelfNosingThickness',
   'foldedNosingExtra',
+  'shoeShelfAngle',
+  'shoeShelfClear',
   'baseCutoutFoot',
   'baseCutoutHeight',
   'furnitureBaseScribe',

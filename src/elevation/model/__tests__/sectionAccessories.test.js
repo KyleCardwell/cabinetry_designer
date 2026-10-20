@@ -176,6 +176,13 @@ describe('IN12b step d section accessories', () => {
     expect(sectionShelves({ ...manualFlags, accessories: resolve(manualFlags) }).get('r').lineBore).toBe(true);
   });
 
+  it('IN13b anchor 8: warns when shoe shelves share a section with a whole-section accessory', () => {
+    for (const shoe of [0, 1]) {
+      const args = input({ leaf: { interior: { accessories: [a], shelves: { shoe } } }, settings: effective });
+      expect(resolve(args).get('r').warnings).toEqual(shoe > 0 ? [warning] : []);
+    }
+  });
+
   it('anchor 7: missing and drawer-box accessories remain visible with warnings and do not affect shelves', () => {
     const misplaced = { ...newAccessory([], 'box'), attachesTo: 'drawer_box',
       minOpening: { width: 100, depth: 100, height: 100 } };

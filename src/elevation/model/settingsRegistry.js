@@ -51,6 +51,8 @@ const roomNumbers = [
   ['shelfNosingHeight', 'Shelf nosing height'],
   ['shelfNosingThickness', 'Shelf nosing thickness'],
   ['foldedNosingExtra', 'Folded nosing extra depth'],
+  ['shoeShelfAngle', 'Shoe shelf slope (degrees)'],
+  ['shoeShelfClear', 'Min clear above shoe shelves'],
   ['belowRunOverhang', 'Below run overhang'],
   ['belowRunFlushReveal', 'Below run flush reveal'],
 ];

@@ -1943,6 +1943,31 @@ it('IN9 defaults older roll-out settings, preserves picks and validates stored r
 });
 
 describe('IN8 shelf and flag persistence', () => {
+  it('IN13b anchor 7: defaults older settings and round-trips shoe settings and section counts', () => {
+    expect(DEFAULT_SETTINGS.shoeShelfAngle).toBe(12);
+    expect(DEFAULT_SETTINGS.shoeShelfClear).toBe(6);
+    const legacy = currentDocument();
+    delete legacy.settings.shoeShelfAngle;
+    delete legacy.settings.shoeShelfClear;
+    const document = normalizeElevationDocument(legacy);
+    expect(document.settings).toMatchObject({ shoeShelfAngle: 12, shoeShelfClear: 6 });
+    Object.assign(document.settings, { shoeShelfAngle: 15, shoeShelfClear: 7 });
+    document.rooms[0].settingsOverrides = { shoeShelfAngle: 10, shoeShelfClear: 8 };
+    const interior = {
+      direction: 'vertical', children: [{ shelves: { shoe: 0 } }, { shelves: { shoe: 20, count: 2 } }],
+      dividers: [{ kind: 'fixed' }],
+    };
+    document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = interior;
+    expect(isElevationDocument(document)).toBe(true);
+    const saved = toElevationDocument(createInitialElevationState(document));
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+    const loaded = loadElevationDocument();
+    expect(isElevationDocument(loaded)).toBe(true);
+    expect(loaded.settings).toMatchObject({ shoeShelfAngle: 15, shoeShelfClear: 7 });
+    expect(loaded.rooms[0].settingsOverrides).toEqual({ shoeShelfAngle: 10, shoeShelfClear: 8 });
+    expect(gridLeaves(loaded.rooms[0].walls[0].runs[0].grid)[0].interior).toEqual(interior);
+  });
+
   it('round-trips cabinet picks and customized nested sections on root and nested cabinets', () => {
     const legacy = currentDocument();
     const keys = ['shelfSpacing', 'shelfWidthClearance', 'shelfSetback', 'glassShelfThickness',

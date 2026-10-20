@@ -172,6 +172,8 @@ export const DEFAULT_SETTINGS = {
   shelfNosingHeight: 1.5,
   shelfNosingThickness: 13 / 16,
   foldedNosingExtra: 2,
+  shoeShelfAngle: 12,
+  shoeShelfClear: 6,
   belowRunOverhang: -0.125,
   belowRunFlushReveal: 0.125,
   bottomPartHeights: { light_rail: 1.5, light_trough: 3, panel: 0.75, bottom_cap: 1.5, corbels: 6 },
