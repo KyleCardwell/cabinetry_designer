@@ -90,18 +90,18 @@ describe('designApi', () => {
     const api = createDesignApi(client);
     expect(await api.listAccessories('team')).toEqual({ ok: true, rows: [{ accessory_id: 'a' }] });
     expect(client.calls[0]).toEqual({ table: 'design_accessories', chain: [
-      ['select', 'accessory_id, name, data, accessory_catalog_id, version, sort, archived_at'],
+      ['select', 'accessory_id, name, data, version, sort, archived_at'],
       ['eq', 'team_id', 'team'], ['is', 'archived_at', null], ['order', 'sort'], ['order', 'created_at'],
     ] });
-    const args = { teamId: 'team', accessoryId: 'a', name: 'Lazy susan', data: { attachesTo: 'section' }, accessoryCatalogId: 3, sort: 4, expectedVersion: 2 };
+    const args = { teamId: 'team', accessoryId: 'a', name: 'Lazy susan', data: { attachesTo: 'section' }, sort: 4, expectedVersion: 2 };
     expect(await api.saveAccessory(args)).toEqual(saved.data);
     expect(client.calls.at(-1)).toEqual({ rpc: 'save_accessory', args: {
       p_team_id: 'team', p_accessory_id: 'a', p_name: 'Lazy susan', p_data: { attachesTo: 'section' },
-      p_accessory_catalog_id: 3, p_sort: 4, p_expected_version: 2,
+      p_sort: 4, p_expected_version: 2,
     } });
     saved = { data: { ok: false, reason: 'conflict', version: 4 }, error: null };
     expect(await api.saveAccessory({ teamId: 'team', accessoryId: null, name: 'Lazy susan', data: {}, expectedVersion: 0 })).toEqual(saved.data);
-    expect(client.calls.at(-1).args).toMatchObject({ p_accessory_id: null, p_accessory_catalog_id: null, p_sort: null, p_expected_version: 0 });
+    expect(client.calls.at(-1).args).toEqual({ p_team_id: 'team', p_accessory_id: null, p_name: 'Lazy susan', p_data: {}, p_sort: null, p_expected_version: 0 });
     saved = { error: { code: '23505', message: 'duplicate key' } };
     expect(await api.saveAccessory({ teamId: 'team', accessoryId: null, name: 'lazy susan', data: {}, expectedVersion: 0 }))
       .toEqual({ ok: false, reason: 'duplicate', message: 'duplicate key' });
@@ -109,6 +109,22 @@ describe('designApi', () => {
     expect(await api.listAccessories('team')).toEqual({ ok: true, rows: [] });
     listed = { error: { code: '42501', message: 'No permission' } };
     expect(await api.listAccessories('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
+  });
+
+  it('IN12a lists the team services for labour minutes', async () => {
+    let listed = { data: [{ team_service_id: 7, name: 'Finish', is_active: true }, { team_service_id: 3, name: 'Shop', is_active: false }], error: null };
+    const client = fakeClient({ tables: { team_services_view: () => listed } });
+    const api = createDesignApi(client);
+    expect(await api.listTeamServices('team')).toEqual({ ok: true, rows: [
+      { id: 7, name: 'Finish', active: true }, { id: 3, name: 'Shop', active: false },
+    ] });
+    expect(client.calls[0]).toEqual({ table: 'team_services_view', chain: [
+      ['select', 'team_service_id, name, is_active'], ['eq', 'team_id', 'team'], ['order', 'name'],
+    ] });
+    listed = { data: null, error: null };
+    expect(await api.listTeamServices('team')).toEqual({ ok: true, rows: [] });
+    listed = { error: { code: '42501', message: 'No permission' } };
+    expect(await api.listTeamServices('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
   });
 
   it('passes a version-checked reply through', async () => {

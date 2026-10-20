@@ -46,7 +46,7 @@ const ROOM_COLUMNS = 'room_id, phase_id, name, status, status_at, version, schem
 const DESIGN_COLUMNS = 'design_id, code, data, version, sort, archived_at';
 const PULL_COLUMNS = 'pull_id, name, data, hardware_pull_id, version, sort, archived_at';
 const SLIDE_COLUMNS = 'slide_id, name, data, hardware_slide_id, version, sort, archived_at';
-const ACCESSORY_COLUMNS = 'accessory_id, name, data, accessory_catalog_id, version, sort, archived_at';
+const ACCESSORY_COLUMNS = 'accessory_id, name, data, version, sort, archived_at';
 const VERSION_COLUMNS = 'version_id, room_id, seq, label, note, document, schema_version, settings_snapshot, issued_by, issued_at';
 
 export function createDesignApi(client) {
@@ -86,6 +86,17 @@ export function createDesignApi(client) {
       const reply = await run(() => client.from('design_accessories').select(ACCESSORY_COLUMNS)
         .eq('team_id', teamId).is('archived_at', null).order('sort').order('created_at'));
       return reply.ok ? { ok: true, rows: reply.data ?? [] } : reply;
+    },
+    /**
+     * The shop's services (the estimator's team_services_view), for library labour minutes.
+     * → { ok, rows: [{ id, name, active }] } with id = team_service_id, in name order.
+     */
+    async listTeamServices(teamId) {
+      const reply = await run(() => client.from('team_services_view')
+        .select('team_service_id, name, is_active').eq('team_id', teamId).order('name'));
+      return reply.ok ? { ok: true, rows: (reply.data ?? []).map((row) => ({
+        id: row.team_service_id, name: row.name, active: row.is_active !== false,
+      })) } : reply;
     },
     /** → { ok, project: <get_design_project reply> | null } */
     async getProject(estProjectId) {
@@ -168,10 +179,10 @@ export function createDesignApi(client) {
         p_hardware_slide_id: hardwareSlideId, p_sort: sort, p_expected_version: expectedVersion,
       });
     },
-    saveAccessory({ teamId, accessoryId, name, data, accessoryCatalogId = null, sort = null, expectedVersion }) {
+    saveAccessory({ teamId, accessoryId, name, data, sort = null, expectedVersion }) {
       return rpc(client, 'save_accessory', {
         p_team_id: teamId, p_accessory_id: accessoryId, p_name: name, p_data: data,
-        p_accessory_catalog_id: accessoryCatalogId, p_sort: sort, p_expected_version: expectedVersion,
+        p_sort: sort, p_expected_version: expectedVersion,
       });
     },
     archiveLibraryItem(kind, id, archived = true) {
