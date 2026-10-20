@@ -37,6 +37,66 @@ function closet(items, library = [rod, tray, hook]) {
 }
 const placed = (shapes) => shapes.filter(({ type, key }) => type === Group && String(key).startsWith('placed-accessory:'));
 
+function shoeCabinet(height = 30.5) {
+  const state = stateWithRun(run({
+    x: 40, z: 12, width: 24, height, autoCount: false,
+    ends: { left: { type: 'none' }, right: { type: 'none' } },
+    items: [{ id: 'cabinet', kind: 'cabinet', width: 24, face: { type: 'door', size: null },
+      interior: { shelves: { shoe: 2 } } }],
+  }));
+  const room = state.rooms[0];
+  const data = wallInteriorData(room, room.walls[0], 'front', state.settings);
+  const entry = data.interiors.get('cabinet');
+  return { entry, shelf: data.shelves.get('cabinet').get('r'), render: (extra = {}) => nodes(InteriorShapes({
+    entries: [entry], shelves: data.shelves, drawnPieces: [], transform, selectedPieceId: 'cabinet', ...extra,
+  })) };
+}
+const shoeShapes = (shapes) => nodes(shapes.filter(({ key }) => String(key).startsWith('shoe-shelf:')));
+
+describe('IN13b step d doors-off shoe shelves', () => {
+  it('anchor 7: draws two centered shoe fronts at the anchored heights with centered labels', () => {
+    const { entry, render } = shoeCabinet();
+    const shapes = shoeShapes(render());
+    const rects = shapes.filter(({ type }) => type === Rect);
+    const labels = shapes.filter(({ type }) => type === Text);
+    expect(rects).toHaveLength(2);
+    expect(labels).toHaveLength(2);
+    rects.forEach(({ props }, index) => {
+      const section = entry.sections[0];
+      expect(props.x).toBeCloseTo((section.x + (section.width - 22.375) / 2) * transform.scale + transform.offsetX);
+      expect(props.width / transform.scale).toBe(22.375);
+      expect(props.height / transform.scale).toBeCloseTo(1.467221, 6);
+      const z = transform.wallHeight - (props.y - transform.offsetY + props.height) / transform.scale;
+      expect(z - entry.box.z).toBeCloseTo([0.75, 8.283511][index], 6);
+      expect(props).toMatchObject({ stroke: '#94a3b8', strokeWidth: 0.75, fillEnabled: false, listening: false });
+      expect(labels[index].props).toMatchObject({ x: props.x, y: props.y, width: props.width, height: props.height,
+        text: 'shoe', fontSize: 10, fill: '#94a3b8', align: 'center', verticalAlign: 'middle', listening: false });
+    });
+    expect(shoeShapes(render({ selectedPieceId: null })).filter(({ type }) => type === Rect)).toHaveLength(2);
+  });
+
+  it('hides labels that cannot fit and starts flat gap labels above the shoe stack', () => {
+    const { render, shelf, entry } = shoeCabinet(84);
+    for (const scale of [0.1, 1]) {
+      const shapes = shoeShapes(render({ transform: { ...transform, scale } }));
+      expect(shapes.filter(({ type }) => type === Rect)).toHaveLength(2);
+      expect(shapes.filter(({ type }) => type === Text)).toHaveLength(0);
+    }
+    const shapes = render();
+    const labels = shapes.filter(({ type, key }) => type === Text && String(key).startsWith('shelf-gap:'));
+    expect(labels).toHaveLength(shelf.count + 1);
+    expect(labels[0].props).toMatchObject(wallRectToScreen({
+      x: entry.sections[0].x, z: shelf.shoe.top, width: entry.sections[0].width, height: shelf.gap,
+    }, transform));
+    const tiny = render({ transform: { ...transform, scale: 0.1 } });
+    expect(tiny.some(({ key }) => String(key).startsWith('shelf-gap:'))).toBe(false);
+    expect(render({ selectedPieceId: null }).some(({ key }) => String(key).startsWith('shelf-gap:'))).toBe(false);
+    const narrow = { ...entry, sections: entry.sections.map((section) => ({ ...section, width: 2 })) };
+    const narrowShelves = new Map([['cabinet', new Map([['r', { ...shelf, shoe: { ...shelf.shoe, width: 2 } }]])]]);
+    expect(shoeShapes(render({ entries: [narrow], shelves: narrowShelves })).some(({ type }) => type === Text)).toBe(false);
+  });
+});
+
 describe('IN13a step d doors-off placed accessories', () => {
   it('anchor 4: draws one section-width rod at 40, labels it once, and keeps the unplaced tray in the list', () => {
     const { render, accessory, section } = closet([{ accessoryId: 'FR', fromBottom: 40 }, { accessoryId: 'TR' }]);

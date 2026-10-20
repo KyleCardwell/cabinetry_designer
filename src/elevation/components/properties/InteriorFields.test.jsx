@@ -375,6 +375,76 @@ describe('IN7 effective interior edits', () => {
 });
 
 
+describe('IN13b step d shoe shelf controls', () => {
+  beforeEach(() => {
+    edit(() => {
+      run().width = run().grid.cols[0].size = item().width = 24;
+      item().face = { type: 'door', size: null };
+    });
+    select('r');
+  });
+
+  it('anchor 1: stores shoe count on the effective section and shows hardwood dimensions after the flat size', () => {
+    expect(field('Shoe shelves r').props).toMatchObject({ value: undefined, allowBlank: true, placeholder: '0' });
+    const fields = nodes(render()).filter(({ type }) => type === InchInput);
+    expect(fields[fields.findIndex(({ props }) => props['aria-label'] === 'Shelf count r') + 1]
+      .props['aria-label']).toBe('Shoe shelves r');
+    expect(commit('Shoe shelves r', 2)).toBe(true);
+    expectInterior({ shelves: { shoe: 2 } });
+    expect(text(field('Shoe shelf size r'))).toBe('Shoe: 22 3/8 × 23 1/16 × 3/4 + 1 1/2 × 13/16 nosing · 12°');
+    const sizes = nodes(render()).filter(({ props }) => props['aria-label']?.includes('size r'));
+    expect(sizes.map(({ props }) => props['aria-label'])).toEqual(['Shelf size r', 'Shoe shelf size r']);
+  });
+
+  it('anchor 2: removes shoe count with zero and a blank input and hides its size', () => {
+    commit('Shoe shelves r', 2);
+    expect(commit('Shoe shelves r', 0)).toBe(true);
+    expectInterior({});
+    expect(field('Shoe shelf size r')).toBeUndefined();
+    commit('Shoe shelves r', 2);
+    const props = field('Shoe shelves r').props;
+    const input = () => { hookIndex = 1; return InchInput(props); };
+    input().props.onChange({ target: { value: '' } });
+    input().props.onBlur();
+    expectInterior({});
+    expect(field('Shoe shelf size r')).toBeUndefined();
+  });
+
+  it('anchor 3: rejects out-of-range and fractional counts without changing the tree', () => {
+    commit('Shoe shelves r', 2);
+    const before = item().interior;
+    const calls = dispatch.mock.calls.length;
+    for (const shoe of [21, 2.5, -1, NaN, Infinity]) expect(commit('Shoe shelves r', shoe)).toBe(false);
+    expect(item().interior).toBe(before);
+    expect(dispatch).toHaveBeenCalledTimes(calls);
+    expect(commit('Shoe shelves r', 20)).toBe(true);
+    expectInterior({ shelves: { shoe: 20 } });
+  });
+
+  it('anchors 4–5: resolves the auto flat count above shoes and renders the exact amber clearance warning', () => {
+    commit('Shoe shelves r', 4);
+    const message = 'Shoe shelves leave less than 6" clear above the top one (4 7/8" here).';
+    const warning = nodes(render()).find(({ type, props }) => type === 'p' && text(props.children) === message);
+    expect(warning.props.className).toContain('text-amber-400');
+    edit(() => { run().height = 84; });
+    expect(field('Shelf count r').props.placeholder).toBe('Auto (4)');
+    expect(text(render())).not.toContain(message);
+  });
+
+  it('anchor 6: displays folded order depth and retains the shoe material when glass disables nosing', () => {
+    edit(() => { item().shelves = { nosing: 'folded' }; });
+    commit('Shoe shelves r', 2);
+    const expected = 'Shoe: 22 3/8 × 23 1/16 × 3/4 · order 25 1/16 deep (folded) · 12°';
+    expect(text(field('Shoe shelf size r'))).toBe(expected);
+    field('Glass shelves r').props.onChange({ target: { checked: true } });
+    expect(field('Shelf nosing r').props.disabled).toBe(true);
+    expect(text(field('Shelf size r'))).toBe('22 3/8 × 22 7/8 × 1/4');
+    expect(text(field('Shoe shelf size r'))).toBe(expected);
+    commit('Shoe shelves r', 1);
+    expect(item().interior.shelves.shoe).toBe(1);
+  });
+});
+
 describe('IN8 shelf controls', () => {
   const base = (width = 24, type = 'door') => edit(() => {
     run().width = run().grid.cols[0].size = item().width = width;

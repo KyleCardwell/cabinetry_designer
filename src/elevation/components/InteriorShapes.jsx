@@ -143,6 +143,23 @@ export default function InteriorShapes({
               listening={false}
             />
           ));
+          (shelf?.shoe?.positions ?? []).forEach((z, index) => {
+            const { shoe } = shelf;
+            const rect = wallRectToScreen({
+              x: section.x + (section.width - shoe.width) / 2,
+              z, width: shoe.width, height: shoe.frontHeight,
+            }, transform);
+            const label = 'shoe';
+            rects.push(
+              <Fragment key={`shoe-shelf:${section.path}:${index}`}>
+                <Rect {...rect} stroke="#94a3b8" strokeWidth={0.75} fillEnabled={false} listening={false} />
+                {rect.height >= SIZE_FONT && rect.width >= label.length * 6 + SIZE_INSET * 2 && (
+                  <Text {...rect} text={label} fontSize={SIZE_FONT} fill="#94a3b8"
+                    align="center" verticalAlign="middle" listening={false} />
+                )}
+              </Fragment>,
+            );
+          });
           // The selected cabinet labels the clear space below, between and above its shelves (information only).
           if (!selectable || !shelf?.gap) return rects;
           const label = formatDimension(shelf.gap);

@@ -226,6 +226,14 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                 return patchShelves({ count });
               }} />
           </Field>
+          <Field label="Shoe shelves">
+            <InchInput aria-label={`Shoe shelves ${path}`} value={selected.shelves?.shoe} allowBlank
+              placeholder="0"
+              onCommit={(shoe) => {
+                if (shoe !== null && (!Number.isInteger(shoe) || shoe < 0 || shoe > 20)) return false;
+                return patchShelves({ shoe: shoe === 0 ? null : shoe });
+              }} />
+          </Field>
           <div className="flex items-center justify-between text-xs text-gray-400">
             <label className="flex items-center gap-2">
               <input type="checkbox" aria-label={`Glass shelves ${path}`} checked={shelf.glass}
@@ -263,13 +271,25 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
             {shelf.nosing?.kind === 'hardwood' && ` + ${size(shelf.nosing.height)} × ${size(shelf.nosing.thickness)} nosing`}
             {shelf.nosing?.kind === 'folded' && ` · order ${size(shelf.orderedDepth)} deep (folded)`}
           </p>
+          {shelf.shoe && (
+            <p aria-label={`Shoe shelf size ${path}`} className="text-xs text-gray-400">
+              {`Shoe: ${size(shelf.shoe.width)} × ${size(shelf.shoe.depth)} × ${size(shelf.shoe.thickness)}`}
+              {shelf.shoe.nosing.kind === 'hardwood' && ` + ${size(shelf.shoe.nosing.height)} × ${size(shelf.shoe.nosing.thickness)} nosing`}
+              {shelf.shoe.nosing.kind === 'folded' && ` · order ${size(shelf.shoe.orderedDepth)} deep (folded)`}
+              {` · ${shelf.shoe.angle}°`}
+            </p>
+          )}
           {shelf.gap !== null && (
             <p aria-label={`Shelf spacing ${path}`} className="text-xs text-gray-400">
               {`${size(shelf.gap)} clear between shelves`}
             </p>
           )}
-          {shelf.warnings.map(({ code }) => (
-            <p key={code} className="text-xs text-amber-400">{WARNING_MESSAGES[code]}</p>
+          {shelf.warnings.map(({ code, clear }) => (
+            <p key={code} className="text-xs text-amber-400">
+              {code === 'shoe-shelves-tight'
+                ? `Shoe shelves leave less than ${formatInches(settings.shoeShelfClear ?? DEFAULT_SETTINGS.shoeShelfClear, 1 / 16)} clear above the top one (${formatInches(clear, 1 / 16)} here).`
+                : WARNING_MESSAGES[code]}
+            </p>
           ))}
           {[...new Set(rollout?.warnings.filter(({ index }) => index === undefined).map(({ code }) => code))].map((code) => (
             <p key={code} className="text-xs text-amber-400">{WARNING_MESSAGES[code]}</p>
