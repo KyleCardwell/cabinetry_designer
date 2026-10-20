@@ -6,6 +6,7 @@ import { gridLeaves } from '../../model/grid.js';
 import { boxConstruction } from '../../model/boxConstruction.js';
 import { placeInterior, resolveInterior, wallInteriors } from '../../model/interiors.js';
 import { resolveWall, syncRoom } from '../../model/room.js';
+import { newAccessory, wallAccessories } from '../../model/accessories.js';
 import { wallRollouts } from '../../model/rollouts.js';
 import { wallShelves } from '../../model/shelves.js';
 import { wallRectToScreen } from '../../canvas/transform.js';
@@ -262,5 +263,52 @@ describe('IN9 doors-off roll-outs', () => {
     expect(paired.entry.layout).toBe('pair');
     expect(paired.shapes.filter(({ type, props }) => type === Rect && props.opacity === 0.5)).toHaveLength(2);
     expect(boxRects(paired.shapes)).toHaveLength(2);
+  });
+});
+
+
+describe('IN12b doors-off accessory labels', () => {
+  it('anchor 5: threads ordered lines through RunGroup, colors warnings and skips ignored or cramped labels', () => {
+    state = stateWithRun(run({
+      cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, z: 40, width: 24, height: 30.5,
+      autoCount: false, ends: { left: { type: 'none' }, right: { type: 'none' } },
+      items: [{ id: 'cabinet', kind: 'cabinet', width: 24, face: { type: 'door', hinge: 'left' },
+        interior: { accessories: [{ accessoryId: 'susan' }, { accessoryId: 'tray', qty: 2 },
+          { accessoryId: 'missing' }, { accessoryId: 'drawer' }] } }],
+    }));
+    state.settings.accessories = [
+      { ...newAccessory([], 'susan'), name: 'Lazy susan 28' },
+      { ...newAccessory([], 'tray'), name: 'Tray dividers' },
+      { ...newAccessory([], 'drawer'), name: 'Drawer insert', attachesTo: 'drawer_box' },
+    ];
+    const render = (extra = {}) => {
+      const room = syncRoom(state.rooms[0], state.settings);
+      const accessories = wallAccessories(room, room.walls[0], 'front', state.settings);
+      return canvas({ accessories, ...extra });
+    };
+    const labels = (extra) => render(extra).shapes.filter(({ type, key }) => type === Text && String(key).startsWith('accessory:'));
+    expect(render().layer).toBeUndefined();
+    state.doorsOff = true;
+    const { layer } = render();
+    expect(layer.props.accessories.get('cabinet').get('r').items).toHaveLength(4);
+    expect(labels().map(({ props }) => props.text)).toEqual(['Lazy susan 28', '2 × Tray dividers']);
+    const rect = wallRectToScreen(layer.props.entries[0].sections[0], transform);
+    expect(labels().map(({ props }) => props)).toEqual([0, 1].map((line) => expect.objectContaining({
+      x: rect.x + 3, y: rect.y + 3 + line * 10, fontSize: 10, fill: '#7dd3fc', listening: false,
+    })));
+    expect(labels({ selectedPieceId: null }).map(({ props }) => props.fill)).toEqual(['#64748b', '#64748b']);
+    state.settings.accessories[0].minOpening.width = 27;
+    expect(labels().map(({ props }) => props.fill)).toEqual(['#f59e0b', '#7dd3fc']);
+    state.settings.accessories[0].wholeSection = true;
+    expect(labels().map(({ props }) => props.fill)).toEqual(['#f59e0b', '#f59e0b']);
+    expect(labels({ transform: { ...transform, scale: 0.1 } })).toHaveLength(0);
+    const entry = layer.props.entries[0];
+    const resized = (patch) => ({ interiors: [{ ...entry, sections: entry.sections.map((section) => ({ ...section, ...patch })) }] });
+    expect(labels(resized({ width: 5 }))).toHaveLength(0);
+    // Enough height for one line but not both; both appear at the exact block height.
+    expect(labels(resized({ height: 2.5 }))).toHaveLength(0);
+    expect(labels(resized({ height: 3.25 }))).toHaveLength(2);
+    state.doorsOff = false;
+    expect(render().layer).toBeUndefined();
   });
 });

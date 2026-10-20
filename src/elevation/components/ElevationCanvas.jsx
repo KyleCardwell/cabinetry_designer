@@ -48,6 +48,7 @@ import { wallInteriors } from '../model/interiors.js';
 import { wallDrawerBoxes } from '../model/drawerBoxes.js';
 import { wallShelves } from '../model/shelves.js';
 import { wallRollouts } from '../model/rollouts.js';
+import { wallAccessories } from '../model/accessories.js';
 import { setDividerPosition } from '../model/interiorTree.js';
 import {
   createSoffit,
@@ -233,6 +234,11 @@ function ElevationCanvas({
   const rollouts = useMemo(
     () => (doorsOff && room && wall
       ? wallRollouts(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : new Map()),
+    [doorsOff, room, wall, settings],
+  );
+  const accessories = useMemo(
+    () => (doorsOff && room && wall
+      ? wallAccessories(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : new Map()),
     [doorsOff, room, wall, settings],
   );
   const profile = useMemo(
@@ -1226,6 +1232,7 @@ function ElevationCanvas({
                 drawerBoxes={drawerBoxes.filter((entry) => entry.runId === run.id)}
                 adjustableShelves={adjustableShelves}
                 rollouts={rollouts}
+                accessories={accessories}
                 interiorPath={interiorPath}
                 interiorDivider={interiorDivider}
                 onSelectInterior={pickInterior}

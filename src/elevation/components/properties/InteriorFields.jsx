@@ -5,6 +5,7 @@ import {
   INTERIOR_DIVIDERS,
   INTERIOR_DIVIDER_LABELS,
   MAX_FACE_SPLIT,
+  addSectionAccessory,
   cabinetInterior,
   cabinetDrawerBoxesFor,
   clearSplit,
@@ -14,12 +15,14 @@ import {
   interiorOutline,
   placeInterior,
   removeDivider,
+  removeSectionAccessory,
   resolveWall,
   runScene,
   setDividerBanding,
   setDividerDepth,
   setDividerKind,
   setDividerPosition,
+  setSectionAccessory,
   setSectionShelves,
   setSectionRollouts,
   setRolloutItem,
@@ -27,6 +30,7 @@ import {
   splitSection,
 } from '../../model/index.js';
 import { drawerBoxOptions } from '../../model/drawerBoxes.js';
+import { sectionAccessories } from '../../model/accessories.js';
 import { sectionRollouts } from '../../model/rollouts.js';
 import { BUILT_IN_SLIDES, resolveBoxSlide, resolveSlide } from '../../model/slides.js';
 import { sectionShelves } from '../../model/shelves.js';
@@ -65,6 +69,18 @@ function rolloutWarning(code, rollout, settings) {
   }
 }
 
+function accessoryWarning(warning, accessory) {
+  switch (warning.code) {
+    case 'accessory-missing': return "This accessory isn't in the Library any more.";
+    case 'accessory-wrong-place': return `${accessory.name} goes on a drawer box, not in a section.`;
+    case 'accessory-too-small': return `${warning.sizes.map(({ dim, needs, has }) =>
+      `Needs ${formatInches(needs)} ${{ width: 'wide', depth: 'deep', height: 'tall' }[dim]} (${formatInches(has)} here)`
+    ).join('; ')}.`;
+    case 'accessory-whole-section': return `${warning.name} takes the whole section; remove the roll-outs, typed shelves or other accessories.`;
+    default: return null;
+  }
+}
+
 export default function InteriorFields({ room, wall, run, item, settings }) {
   const dispatch = useDispatch();
   const interiorPath = useSelector((state) => state.elevation.interiorPath);
@@ -91,6 +107,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
     const rolloutArgs = { ...args, ...drawerBoxOptions(room, item.id, layout, settings) };
     const rollouts = sectionRollouts(rolloutArgs);
     args.rollouts = rollouts;
+    args.accessories = sectionAccessories(args);
     const rollout = rollouts.get(path);
     const resolveTree = (tree) => sectionRollouts({ ...rolloutArgs, interior: { ...placed, tree } }).get(path);
     const autoLayout = rollout && resolveTree(setSectionRollouts(interior, path, { layout: null })).layout;
@@ -104,7 +121,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
     const autoFlags = sectionShelves({ ...args,
       interior: { ...placed, tree: setSectionFlag(setSectionFlag(interior, path, 'hinges', null), path, 'lineBore', null) },
     }).get(path);
-    return { shelves, autoCount, autoFlags, rollouts, rollout, autoLayout, autoItems, hasBoxes: boxes.length > 0 };
+    return { shelves, autoCount, autoFlags, rollouts, rollout, autoLayout, autoItems, accessories: args.accessories.get(path), hasBoxes: boxes.length > 0 };
   }, [resolved, room, wall, run.id, settings, item, interior, path]);
 
   useEffect(() => {
@@ -123,6 +140,8 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
 
   const shelf = shelfData.shelves.get(path);
   const { rollout, autoLayout, autoItems } = shelfData;
+  const accessoryOptions = (settings.accessories ?? []).filter(({ attachesTo }) => attachesTo === 'section')
+    .sort((a, b) => a.name.localeCompare(b.name));
   const slides = settings.slides ?? BUILT_IN_SLIDES;
   const autoSlide = resolveBoxSlide(settings, { cabinet: item.drawerSlideId ?? null }).slide;
   const patchRollouts = (patch) => commit(setSectionRollouts(interior, path, patch));
@@ -310,6 +329,46 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
               </div>
             );
           })}
+        </div>
+      )}
+      {interiorPath != null && shelf && (
+        <div className="space-y-2">
+          <h4 className="text-xs font-medium text-gray-300">Accessories</h4>
+          {shelfData.accessories?.items.map(({ index, accessoryId, accessory, qty, warnings }) => {
+            const name = accessory?.name ?? 'Missing';
+            const key = `${path}.${index}`;
+            return (
+              <div key={key} aria-label={`Accessory ${key}`} className="space-y-2 rounded border border-gray-700 p-2">
+                <select aria-label={`Accessory pick ${key}`} className={SELECT_CLASS} value={accessoryId}
+                  onChange={(event) => commit(setSectionAccessory(interior, path, index, { accessoryId: event.target.value }))}>
+                  {accessory?.attachesTo !== 'section' && <option value={accessoryId}>{name}</option>}
+                  {accessoryOptions.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+                </select>
+                <Field label="Qty">
+                  <input type="number" aria-label={`Accessory qty ${key}`} className={NUMBER_CLASS}
+                    min={1} max={20} step={1} value={qty}
+                    onChange={(event) => commit(setSectionAccessory(interior, path, index, { qty: Number(event.target.value) }))} />
+                </Field>
+                <button type="button" aria-label={`Remove ${name}`} className={BUTTON_CLASS}
+                  onClick={() => commit(removeSectionAccessory(interior, path, index))}>Remove</button>
+                {warnings.map((warning) => (
+                  <p key={warning.code} className="text-xs text-amber-400">{accessoryWarning(warning, accessory)}</p>
+                ))}
+              </div>
+            );
+          })}
+          {shelfData.accessories?.warnings.map((warning) => (
+            <p key={warning.code} className="text-xs text-amber-400">{accessoryWarning(warning)}</p>
+          ))}
+          <select aria-label={`Add accessory ${path}`} className={SELECT_CLASS} value=""
+            disabled={accessoryOptions.length === 0}
+            onChange={(event) => commit(addSectionAccessory(interior, path, event.target.value))}>
+            <option value="">Add accessory…</option>
+            {accessoryOptions.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+          </select>
+          {accessoryOptions.length === 0 && (
+            <p className="text-xs text-gray-400">Add accessories in Library → Accessories.</p>
+          )}
         </div>
       )}
       {selected.children ? (

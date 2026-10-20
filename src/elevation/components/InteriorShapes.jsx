@@ -13,6 +13,7 @@ export default function InteriorShapes({
   drawerBoxes = [],
   shelves = new Map(),
   rollouts = new Map(),
+  accessories = new Map(),
   drawnPieces,
   transform,
   selectedPieceId,
@@ -54,6 +55,11 @@ export default function InteriorShapes({
           const showSize = selectable
             && rect.height >= SIZE_FONT + SIZE_INSET * 2
             && rect.width >= text.length * 6 + SIZE_INSET * 2;
+          const accessory = accessories.get(entry.itemId)?.get(section.path);
+          const labels = (accessory?.items ?? []).filter(({ accessory }) => accessory?.attachesTo === 'section')
+            .map((item) => ({ ...item, text: `${item.qty > 1 ? `${item.qty} × ` : ''}${item.accessory.name}` }));
+          const showAccessories = rect.height >= labels.length * SIZE_FONT + SIZE_INSET * 2
+            && labels.every(({ text }) => rect.width >= text.length * 6 + SIZE_INSET * 2);
           return (
             <Fragment key={section.path}>
               <Rect
@@ -64,6 +70,13 @@ export default function InteriorShapes({
                 listening={selectable}
                 onClick={selectable ? click({ path: section.path, divider: null }) : undefined}
               />
+              {showAccessories && labels.map(({ index, text, warnings }, line) => (
+                <Text key={`accessory:${section.path}:${index}`}
+                  x={rect.x + SIZE_INSET} y={rect.y + SIZE_INSET + line * SIZE_FONT}
+                  text={text} fontSize={SIZE_FONT}
+                  fill={warnings.length || accessory.warnings.length ? '#f59e0b' : selected ? '#7dd3fc' : '#64748b'}
+                  listening={false} />
+              ))}
               {showSize && (
                 <Text
                   x={rect.x + SIZE_INSET}

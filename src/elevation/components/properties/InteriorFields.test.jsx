@@ -13,6 +13,7 @@ import BoxConstructionFields from './BoxConstructionFields.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import InteriorFields from './InteriorFields.jsx';
 import SlideSelect from './SlideSelect.jsx';
+import { newAccessory } from '../../model/accessories.js';
 import { wallRollouts } from '../../model/rollouts.js';
 
 vi.mock('react', async (original) => ({
@@ -592,5 +593,112 @@ describe('IN9 roll-out controls', () => {
       expect(cards()).toHaveLength(0);
       commit('Roll-out count r', 2);
     }
+  });
+});
+
+
+describe('IN12b section accessory controls', () => {
+  const base = () => edit(() => {
+    run().width = run().grid.cols[0].size = item().width = 24;
+    item().face = { type: 'door', size: null, hinge: 'left' };
+    state.settings.accessories = [
+      { ...newAccessory([], 'susan'), name: 'Lazy susan 28', wholeSection: true,
+        minOpening: { width: 27, depth: null, height: null } },
+      { ...newAccessory([], 'tray'), name: 'Tray dividers' },
+      { ...newAccessory([], 'drawer'), name: 'Drawer insert', attachesTo: 'drawer_box' },
+    ];
+  });
+  const cards = () => nodes(render()).filter(({ props }) => props['aria-label']?.match(/^Accessory r\.\d+$/));
+
+  it('anchors 1–2: adds to the auto section, shows zero Auto shelves and the exact width warning', () => {
+    base();
+    expect(field('Add accessory r')).toBeUndefined();
+    select('r');
+    expect(cards()).toHaveLength(0);
+    expect(nodes(render()).filter(({ type }) => type === 'h4').map(text)).toContain('Accessories');
+    expect(options(field('Add accessory r'))).toEqual([
+      ['', 'Add accessory…'], ['susan', 'Lazy susan 28'], ['tray', 'Tray dividers'],
+    ]);
+    change('Add accessory r', 'susan');
+    expectInterior({ accessories: [{ accessoryId: 'susan' }] });
+    expect(cards()).toHaveLength(1);
+    expect(field('Add accessory r').props.value).toBe('');
+    expect(field('Shelf count r').props.placeholder).toBe('Auto (0)');
+    expect(options(field('Line bore r'))[0]).toEqual(['', 'Auto (No)']);
+    expect(text(cards()[0])).toContain('Needs 27" wide (22 1/2" here).');
+    expect(nodes(cards()[0]).find(({ type }) => type === 'p').props.className).toContain('text-amber-400');
+    change('Add accessory r', 'susan');
+    expect(item().interior.accessories).toEqual([{ accessoryId: 'susan', qty: 2 }]);
+    click('Auto');
+    expectInterior(null);
+    expect(cards()).toHaveLength(0);
+    expect(field('Shelf count r').props.placeholder).toBe('Auto (1)');
+  });
+
+  it('anchor 3: edits quantities, clears qty at one, replaces picks and removes the final key', () => {
+    base();
+    select('r');
+    change('Add accessory r', 'tray');
+    expect(field('Accessory qty r.0').props).toMatchObject({ type: 'number', min: 1, max: 20, step: 1, value: 1 });
+    change('Accessory qty r.0', '3');
+    expectInterior({ accessories: [{ accessoryId: 'tray', qty: 3 }] });
+    for (const value of ['0', '21', '1.5', '', 'NaN', 'Infinity']) {
+      change('Accessory qty r.0', value);
+      expect(item().interior.accessories[0].qty).toBe(3);
+    }
+    change('Accessory qty r.0', '1');
+    expectInterior({ accessories: [{ accessoryId: 'tray' }] });
+    change('Accessory qty r.0', '20');
+    expect(item().interior.accessories[0].qty).toBe(20);
+    change('Accessory pick r.0', 'susan');
+    expect(item().interior.accessories).toEqual([{ accessoryId: 'susan', qty: 20 }]);
+    change('Accessory pick r.0', 'tray');
+    field('Remove Tray dividers').props.onClick();
+    expectInterior({});
+    expect(item().interior).not.toHaveProperty('accessories');
+    expect(cards()).toHaveLength(0);
+  });
+
+  it('anchor 4: disables Add with the Library hint when no section accessories are available', () => {
+    base();
+    select('r');
+    for (const library of [[], undefined, state.settings.accessories.filter(({ attachesTo }) => attachesTo === 'drawer_box')]) {
+      edit(() => { state.settings.accessories = library; });
+      expect(field('Add accessory r').props.disabled).toBe(true);
+      expect(options(field('Add accessory r'))).toEqual([['', 'Add accessory…']]);
+      expect(text(render())).toContain('Add accessories in Library → Accessories.');
+    }
+  });
+
+  it('keeps missing and wrong-place picks repairable and renders all size and section warnings', () => {
+    base();
+    select('r');
+    edit(() => {
+      run().x = 40;
+      run().z = 36;
+      state.settings.accessories[0].minOpening = { width: 27, depth: 30, height: 40 };
+      item().interior = { accessories: [{ accessoryId: 'lost' }, { accessoryId: 'drawer' }, { accessoryId: 'susan' }] };
+    });
+    expect(options(field('Accessory pick r.0'))[0]).toEqual(['lost', 'Missing']);
+    expect(text(cards()[0])).toContain("This accessory isn't in the Library any more.");
+    expect(options(field('Accessory pick r.1'))[0]).toEqual(['drawer', 'Drawer insert']);
+    expect(text(cards()[1])).toContain('Drawer insert goes on a drawer box, not in a section.');
+    expect(text(cards()[2])).toContain('Needs 27" wide (22 1/2" here); Needs 30" deep (23" here); Needs 40" tall (29" here).');
+    const wholeMessage = 'Lazy susan 28 takes the whole section; remove the roll-outs, typed shelves or other accessories.';
+    expect(text(render())).not.toContain(wholeMessage);
+    change('Add accessory r', 'tray');
+    expect(text(render())).toContain(wholeMessage);
+    change('Accessory pick r.0', 'tray');
+    expect(item().interior.accessories).toEqual([
+      { accessoryId: 'drawer' }, { accessoryId: 'susan' }, { accessoryId: 'tray', qty: 2 },
+    ]);
+    field('Remove Tray dividers').props.onClick();
+    expect(text(render())).not.toContain(wholeMessage);
+    commit('Shelf count r', 2);
+    expect(text(render())).toContain(wholeMessage);
+    expect(field('Shelf count r').props.placeholder).toBe('Auto (0)');
+    commit('Shelf count r', null);
+    commit('Roll-out count r', 1);
+    expect(text(render())).toContain(wholeMessage);
   });
 });
