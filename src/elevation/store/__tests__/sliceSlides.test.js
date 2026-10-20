@@ -44,7 +44,7 @@ describe('IN4b step b slide reducers', () => {
       { name: 'ACCURIDE 3832' }, { name: ' ' }, { sideClearance: -1 }, { height: 0 },
       { lengths: [] }, { lengths: [{ nominal: 12 }, { nominal: 9 }] },
       { lengths: [{ nominal: 36 }, { nominal: 36 }] },
-      { lengths: [{ nominal: 9, length: 0 }] }, { price: 5 },
+      { lengths: [{ nominal: 9, length: 0 }] }, { pricing: 'unit' },
     ]) {
       expect(elevationReducer(state, updateSlide({ slideId: custom.id, slide: { ...custom, ...patch } }))).toBe(state);
     }

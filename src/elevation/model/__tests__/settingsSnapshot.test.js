@@ -16,6 +16,37 @@ const P_UNUSED = '0192a1b2-c3d4-7e5f-8a9b-00000000f001';
 const D_SHAKER = '0192a1b2-c3d4-7e5f-8a9b-00000000d001';
 const D_UNUSED = '0192a1b2-c3d4-7e5f-8a9b-00000000d002';
 
+it('LP1 anchor 5: opens pre-LP1 snapshots with pricing defaults and independent labor', () => {
+  const snapshot = buildSettingsSnapshot({ settings: library(), document: roomDocument() });
+  for (const key of ['pulls', 'slides']) {
+    for (const item of snapshot[key]) {
+      delete item.price;
+      delete item.actualCost;
+      delete item.labor;
+    }
+  }
+  const before = structuredClone(snapshot);
+  expect(isSettingsSnapshot(snapshot)).toBe(true);
+  const restored = settingsFromSnapshot(snapshot);
+  expect(restored.ok).toBe(true);
+  expect(restored.settings.pulls).toEqual(BUILT_IN_PULLS);
+  expect(restored.settings.slides).toEqual(BUILT_IN_SLIDES);
+  expect(snapshot).toEqual(before);
+  for (const key of ['pulls', 'slides']) {
+    Object.assign(snapshot[key][0], { price: 12, actualCost: 8, labor: { '7': 4 } });
+    const priced = settingsFromSnapshot(snapshot);
+    expect(priced.settings[key][0]).toMatchObject({ price: 12, actualCost: 8, labor: { '7': 4 } });
+    priced.settings[key][0].labor['7'] = 10;
+    expect(snapshot[key][0].labor).toEqual({ '7': 4 });
+    for (const [field, value] of [['price', 'x'], ['actualCost', -1], ['labor', null]]) {
+      const invalid = structuredClone(snapshot);
+      invalid[key][0][field] = value;
+      expect(isSettingsSnapshot(invalid)).toBe(false);
+      expect(settingsFromSnapshot(invalid)).toMatchObject({ ok: false, reason: 'bad_snapshot' });
+    }
+  }
+});
+
 function library() {
   const profiles = [
     { ...newSectionProfile([], P_CROWN, null, 'crown'), name: 'Crown 4' },

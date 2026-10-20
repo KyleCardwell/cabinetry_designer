@@ -4,13 +4,49 @@ import {
   defaultPullSizes, findPull, isPull, isPullList, newPull,
 } from '../index.js';
 import { copySettings } from '../../store/slices/helpers.js';
+import { BUILT_IN_SLIDES, isSlide, newSlide } from '../slides.js';
+
+it('LP1 anchor 1: requires fixed-unit pricing fields on built-in pulls and slides', () => {
+  for (const [items, validate] of [[BUILT_IN_PULLS, isPull], [BUILT_IN_SLIDES, isSlide]]) {
+    for (const item of items) {
+      expect(validate(item)).toBe(true);
+      expect(item).toMatchObject({ price: null, actualCost: null, labor: {} });
+      expect(validate({ ...item, labor: { '7': 4 } })).toBe(true);
+      expect(validate({ ...item, pricing: 'unit' })).toBe(false);
+      for (const key of ['price', 'actualCost', 'labor']) {
+        const missing = { ...item };
+        delete missing[key];
+        expect(validate(missing)).toBe(false);
+      }
+      for (const key of ['price', 'actualCost']) {
+        for (const value of [-1, 'x', Infinity, NaN, undefined]) expect(validate({ ...item, [key]: value })).toBe(false);
+        for (const value of [0, 3.5, null]) expect(validate({ ...item, [key]: value })).toBe(true);
+      }
+      for (const labor of [null, [], { '7': -1 }, { bad: 4 },
+        Object.fromEntries(Array.from({ length: 21 }, (_, i) => [String(i + 1), 0]))]) {
+        expect(validate({ ...item, labor })).toBe(false);
+      }
+    }
+  }
+});
+
+it('LP1 copies pricing and independent labor for new pulls and slides', () => {
+  for (const [items, copy] of [[BUILT_IN_PULLS, newPull], [BUILT_IN_SLIDES, newSlide]]) {
+    const base = { ...items[0], price: 12, actualCost: 8, labor: { '7': 4 } };
+    const created = copy(items, base, 'priced-copy');
+    expect(created).toMatchObject({ price: 12, actualCost: 8, labor: { '7': 4 } });
+    expect(created.labor).not.toBe(base.labor);
+    created.labor['7'] = 10;
+    expect(base.labor).toEqual({ '7': 4 });
+  }
+});
 
 const BAR = {
   id: 'p1', name: 'Bar', kind: 'pull', length: 5, centers: 4, width: 0.375,
-  projection: 1.25, hardwarePullId: null,
+  projection: 1.25, hardwarePullId: null, price: null, actualCost: null, labor: {},
 };
-const KNOB = { id: 'k', name: 'Knob', kind: 'knob', diameter: 1.25, projection: 1, hardwarePullId: null };
-const TAB = { id: 't', name: 'Tab', kind: 'tab', length: 3, height: 0.5, projection: 1, hardwarePullId: null };
+const KNOB = { id: 'k', name: 'Knob', kind: 'knob', diameter: 1.25, projection: 1, hardwarePullId: null, price: null, actualCost: null, labor: {} };
+const TAB = { id: 't', name: 'Tab', kind: 'tab', length: 3, height: 0.5, projection: 1, hardwarePullId: null, price: null, actualCost: null, labor: {} };
 
 describe('HP3b step a pull model', () => {
   it('validates bar sizes, optional centers and the estimator link (anchor 1)', () => {
@@ -71,7 +107,7 @@ describe('HP3b step a pull model', () => {
     const copy = newPull(BUILT_IN_PULLS, BUILT_IN_PULLS[0], 'x');
     expect(copy).toEqual({
       id: 'x', name: '4" pull copy', kind: 'pull', length: 4.75, centers: 4,
-      width: 0.375, projection: 1.25, hardwarePullId: null,
+      width: 0.375, projection: 1.25, hardwarePullId: null, price: null, actualCost: null, labor: {},
     });
     expect(newPull([...BUILT_IN_PULLS, copy], BUILT_IN_PULLS[0], 'y').name).toBe('4" pull copy 2');
     const list = [...BUILT_IN_PULLS, { ...copy, name: copy.name.toUpperCase() },
@@ -96,7 +132,7 @@ describe('HP3b step a pull model', () => {
     sizes.length = 99;
     expect(defaultPullSizes('pull').length).toBe(4.75);
     expect(BUILT_IN_PULLS[1]).toEqual({
-      id: 'knob-1-25', name: '1 1/4" knob', kind: 'knob', diameter: 1.25, projection: 1, hardwarePullId: null,
+      id: 'knob-1-25', name: '1 1/4" knob', kind: 'knob', diameter: 1.25, projection: 1, hardwarePullId: null, price: null, actualCost: null, labor: {},
     });
     expect(findPull('p1', [BAR])).toBe(BAR);
     expect(findPull('missing', [BAR])).toBeNull();

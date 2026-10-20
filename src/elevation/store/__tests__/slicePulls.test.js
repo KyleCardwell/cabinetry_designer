@@ -79,7 +79,7 @@ describe('HP3b step b pull reducers', () => {
     const copyAction = addPull();
     const state = elevationReducer(resized, copyAction);
     const custom = state.settings.pulls[2];
-    const tab = { id: custom.id, name: custom.name, kind: 'tab', length: 3, height: 0.5, projection: 1.25, hardwarePullId: 42 };
+    const tab = { id: custom.id, name: custom.name, kind: 'tab', length: 3, height: 0.5, projection: 1.25, hardwarePullId: 42, price: null, actualCost: null, labor: {} };
     const changed = elevationReducer(state, updatePull({ pullId: custom.id, pull: tab }));
     expect(changed.settings.pulls[2]).toEqual(tab);
     expect(changed.rooms).toBe(initial.rooms);

@@ -195,7 +195,7 @@ describe('HP4 step c pull placement pickers', () => {
       expect(options(find(face(), 'Pull direction'))[0]).toEqual(['', 'Auto (Horizontal)']);
     }
     edit(() => {
-      state.settings.pulls.push({ id: 'tab', name: 'Tab', kind: 'tab', length: 3, height: 0.5, projection: 1, hardwarePullId: null });
+      state.settings.pulls.push({ id: 'tab', name: 'Tab', kind: 'tab', length: 3, height: 0.5, projection: 1, hardwarePullId: null, price: null, actualCost: null, labor: {} });
       item().face = { type: 'door', size: null, hinge: 'left', pullId: 'tab' };
     });
     expect(options(find(face(), 'Pull position'))[0]).toEqual(['', 'Auto (Top edge)']);

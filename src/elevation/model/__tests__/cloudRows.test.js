@@ -5,8 +5,8 @@ import { DEFAULT_SETTINGS } from '../constants.js';
 import { DOOR_DESIGNS, DEFAULT_DOOR_STYLE } from '../doorStyles.js';
 import { newSectionProfile } from '../sectionProfiles.js';
 import { SETTINGS_REGISTRY } from '../settingsRegistry.js';
-import { BUILT_IN_SLIDES } from '../slides.js';
-import { BUILT_IN_PULLS } from '../pulls.js';
+import { BUILT_IN_SLIDES, isSlide } from '../slides.js';
+import { BUILT_IN_PULLS, isPull } from '../pulls.js';
 import {
   accessoryToRow,
   accessoryFromRow,
@@ -29,6 +29,41 @@ import {
 const PID = '0192a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b';
 const DID = '0192a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c';
 
+it('LP1 anchor 4: defaults legacy shop row pricing and skips invalid present values', () => {
+  for (const [base, toRow, fromRow, idKey, validate] of [
+    [BUILT_IN_PULLS[0], pullToRow, pullFromRow, 'pull_id', isPull],
+    [BUILT_IN_SLIDES[0], slideToRow, slideFromRow, 'slide_id', isSlide],
+  ]) {
+    const row = { ...toRow(base), [idKey]: DID };
+    for (const key of ['price', 'actualCost', 'labor']) delete row.data[key];
+    if (idKey === 'slide_id') row.data.cvName = 'Retired name';
+    const before = structuredClone(row);
+    const loaded = fromRow(row);
+    expect(loaded).toEqual(base);
+    expect(validate(loaded)).toBe(true);
+    expect(row).toEqual(before);
+    for (const [key, value] of [['price', 'x'], ['actualCost', -1], ['labor', null]]) {
+      expect(fromRow({ ...row, data: { ...row.data, [key]: value } })).toBeNull();
+    }
+  }
+});
+
+it('LP1 anchor 6: writes priced pulls and slides with unchanged hardware link columns', () => {
+  for (const [base, toRow, fromRow, idKey, linkKey, column] of [
+    [BUILT_IN_PULLS[0], pullToRow, pullFromRow, 'pull_id', 'hardwarePullId', 'hardware_pull_id'],
+    [BUILT_IN_SLIDES[0], slideToRow, slideFromRow, 'slide_id', 'hardwareSlideId', 'hardware_slide_id'],
+  ]) {
+    const item = { ...base, price: 12, actualCost: 8, labor: { '7': 4 }, [linkKey]: 42 };
+    const row = toRow(item);
+    expect(row.data).toMatchObject({ price: 12, actualCost: 8, labor: { '7': 4 } });
+    expect(row[column]).toBe(42);
+    expect(row.data).not.toHaveProperty(linkKey);
+    expect(fromRow({ ...row, [idKey]: DID })).toEqual(item);
+    row.data.labor['7'] = 10;
+    expect(item.labor).toEqual({ '7': 4 });
+  }
+});
+
 function leafKeys(value, prefix = '') {
   return Object.entries(value).flatMap(([key, child]) => (
     child && typeof child === 'object' && !Array.isArray(child)
@@ -39,7 +74,7 @@ function leafKeys(value, prefix = '') {
 describe('cloudRows', () => {
   it('HP3b c maps built-in and custom pulls without losing the estimator link (anchor 1)', () => {
     expect(pullToRow(BUILT_IN_PULLS[0])).toEqual({
-      name: '4" pull', data: { kind: 'pull', length: 4.75, centers: 4, width: 0.375, projection: 1.25, seedId: 'pull-4' },
+      name: '4" pull', data: { kind: 'pull', length: 4.75, centers: 4, width: 0.375, projection: 1.25, price: null, actualCost: null, labor: {}, seedId: 'pull-4' },
       hardware_pull_id: null,
     });
     const custom = { ...BUILT_IN_PULLS[0], id: DID, hardwarePullId: 3 };
@@ -48,7 +83,7 @@ describe('cloudRows', () => {
     expect(row.hardware_pull_id).toBe(3);
     expect(pullIdFor({ pull_id: DID, ...row })).toBe(DID);
     expect(pullFromRow({ pull_id: DID, ...row })).toEqual(custom);
-    for (const pull of [BUILT_IN_PULLS[1], { id: DID, name: 'Tab', kind: 'tab', length: 3, height: 0.5, projection: 1, hardwarePullId: 3 }]) {
+    for (const pull of [BUILT_IN_PULLS[1], { id: DID, name: 'Tab', kind: 'tab', length: 3, height: 0.5, projection: 1, hardwarePullId: 3, price: null, actualCost: null, labor: {} }]) {
       expect(pullFromRow({ pull_id: DID, ...pullToRow(pull) })).toEqual(pull);
     }
   });
@@ -56,7 +91,7 @@ describe('cloudRows', () => {
   it('HP3b c validates pull rows and restores seed ids (anchor 2)', () => {
     const row = { pull_id: DID, name: 'Bar', data: { kind: 'pull', length: 5, width: 0.375, projection: 1.25 },
       hardware_pull_id: null, version: 2, archived_at: null };
-    expect(pullFromRow(row)).toEqual({ id: DID, name: 'Bar', kind: 'pull', length: 5, width: 0.375, projection: 1.25, hardwarePullId: null });
+    expect(pullFromRow(row)).toEqual({ id: DID, name: 'Bar', kind: 'pull', length: 5, width: 0.375, projection: 1.25, hardwarePullId: null, price: null, actualCost: null, labor: {} });
     expect(pullFromRow({ ...row, data: { kind: 'knob', projection: 1 } })).toBeNull();
     const knob = { ...row, data: { kind: 'knob', diameter: 1.25, projection: 1, seedId: 'knob-1-25' } };
     expect(pullFromRow(knob).id).toBe('knob-1-25');
@@ -73,7 +108,7 @@ describe('cloudRows', () => {
       lengths: [9, 12, 15, 18, 21, 24, 27, 30, 33, 36].map((nominal) => nominal === 15
         ? { nominal, length: 15.515625, extension: 14.953125 } : { nominal }),
       sideClearance: 0.25, minBelow: 0.5625, minAbove: 0.25, height: 1,
-      clips: true, softClose: true, heavyDuty: false,
+      clips: true, softClose: true, heavyDuty: false, price: null, actualCost: null, labor: {},
     };
     const row = slideToRow(BUILT_IN_SLIDES[0]);
     expect(row).toEqual({ name: 'Blum Tandem 562H', data: { ...expectedData, seedId: 'blum-562h' }, hardware_slide_id: null });
@@ -96,7 +131,7 @@ describe('cloudRows', () => {
     expect(slideFromRow(seedRow).id).toBe('accuride-4034');
     expect(slideIdFor(seedRow)).toBe('accuride-4034');
     for (const invalid of [null, { ...row, slide_id: 'bad' }, { ...row, data: {} },
-      { ...row, hardware_slide_id: 0 }, { ...row, data: { ...data, price: 3 } },
+      { ...row, hardware_slide_id: 0 }, { ...row, data: { ...data, price: 'x' } },
       { ...seedRow, data: { ...seedRow.data, mount: 'undermount' } }]) expect(slideFromRow(invalid)).toBeNull();
   });
 

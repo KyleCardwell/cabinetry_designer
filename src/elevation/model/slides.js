@@ -1,4 +1,5 @@
 import { gridLeaves } from './grid.js';
+import { isLabor, isMoney } from './libraryPricing.js';
 
 export const SLIDE_MOUNTS = ['undermount', 'side'];
 export const BUILT_IN_SLIDE_IDS = ['blum-562h', 'accuride-3832', 'accuride-4034'];
@@ -23,6 +24,9 @@ export const BUILT_IN_SLIDES = [
     softClose: true,
     heavyDuty: false,
     hardwareSlideId: null,
+    price: null,
+    actualCost: null,
+    labor: {},
   },
   ...['3832', '4034'].map((model) => ({
     id: `accuride-${model}`,
@@ -44,6 +48,9 @@ export const BUILT_IN_SLIDES = [
     softClose: false,
     heavyDuty: true,
     hardwareSlideId: null,
+    price: null,
+    actualCost: null,
+    labor: {},
   })),
 ];
 
@@ -58,6 +65,7 @@ function hasKeys(value, allowed, required = allowed) {
 const SLIDE_KEYS = [
   'id', 'name', 'brand', 'model', 'description', 'mount', 'lengths',
   'sideClearance', 'minBelow', 'minAbove', 'height', 'clips', 'softClose', 'heavyDuty', 'hardwareSlideId',
+  'price', 'actualCost', 'labor',
 ];
 const isPositiveSize = (value) => Number.isFinite(value) && value > 0;
 const isText = (value) => typeof value === 'string' && value === value.trim() && value.length <= 120;
@@ -80,6 +88,7 @@ export function isSlide(slide) {
     || !isPositiveSize(slide.height)
     || !['clips', 'softClose', 'heavyDuty'].every((key) => typeof slide[key] === 'boolean')
     || !(slide.hardwareSlideId === null || (Number.isInteger(slide.hardwareSlideId) && slide.hardwareSlideId > 0))
+    || !isMoney(slide.price) || !isMoney(slide.actualCost) || !isLabor(slide.labor)
     || !Array.isArray(slide.lengths) || slide.lengths.length < 1 || slide.lengths.length > 40) return false;
 
   let previous = 0;

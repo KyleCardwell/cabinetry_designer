@@ -11,6 +11,7 @@ import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlide, withoutRetiredSlideKeys }
 import { isSectionProfile, migrateSectionProfile } from './sectionProfiles.js';
 import { SETTINGS_REGISTRY } from './settingsRegistry.js';
 import { isValidSettingValue } from './settingsResolve.js';
+import { withPricingDefaults } from './libraryPricing.js';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -95,7 +96,7 @@ export function pullFromRow(row) {
   if (!row || !isUuid(row.pull_id) || !row.data || typeof row.data !== 'object') return null;
   const { seedId, ...rest } = structuredClone(row.data);
   void seedId;
-  const pull = { ...rest, id: pullIdFor(row), name: row.name, hardwarePullId: row.hardware_pull_id };
+  const pull = withPricingDefaults({ ...rest, id: pullIdFor(row), name: row.name, hardwarePullId: row.hardware_pull_id });
   const seed = BUILT_IN_PULLS.find((entry) => entry.id === pull.id);
   return isPull(pull) && (!seed || seed.kind === pull.kind) ? pull : null;
 }
@@ -116,7 +117,7 @@ export function slideFromRow(row) {
   if (!row || !isUuid(row.slide_id) || !row.data || typeof row.data !== 'object') return null;
   const { seedId, ...rest } = withoutRetiredSlideKeys(structuredClone(row.data));
   void seedId;
-  const slide = { ...rest, id: slideIdFor(row), name: row.name, hardwareSlideId: row.hardware_slide_id };
+  const slide = withPricingDefaults({ ...rest, id: slideIdFor(row), name: row.name, hardwareSlideId: row.hardware_slide_id });
   const seed = BUILT_IN_SLIDES.find((entry) => entry.id === slide.id);
   return isSlide(slide) && (!seed || seed.mount === slide.mount) ? slide : null;
 }

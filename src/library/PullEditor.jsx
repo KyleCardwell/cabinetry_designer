@@ -31,6 +31,9 @@ export default function PullEditor({ pull, pulls, onClose }) {
     ...defaultPullSizes(kind),
     projection: previous.projection,
     hardwarePullId: previous.hardwarePullId,
+    price: previous.price,
+    actualCost: previous.actualCost,
+    labor: previous.labor,
   }));
   const changeSize = (key, value) => {
     if (value === null ? key !== 'centers' : !Number.isFinite(value) || value <= 0) return false;

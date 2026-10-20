@@ -30,6 +30,7 @@ import { isSectionProfileList } from './sectionProfiles.js';
 import { BUILT_IN_PULLS, BUILT_IN_PULL_IDS, isPullList } from './pulls.js';
 import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlideList } from './slides.js';
 import { cleanOverrides, resolveSettings } from './settingsResolve.js';
+import { withPricingDefaults } from './libraryPricing.js';
 
 export const SNAPSHOT_FORMAT = 1;
 
@@ -154,8 +155,8 @@ export function isSettingsSnapshot(snapshot) {
     && isPlainObject(snapshot.settings)
     && isDoorDesignList(snapshot.doorDesigns)
     && isSectionProfileList(snapshot.sectionProfiles)
-    && (snapshot.pulls === undefined || isPullList(snapshot.pulls))
-    && (snapshot.slides === undefined || isSlideList(snapshot.slides))
+    && (snapshot.pulls === undefined || (Array.isArray(snapshot.pulls) && isPullList(snapshot.pulls.map(withPricingDefaults))))
+    && (snapshot.slides === undefined || (Array.isArray(snapshot.slides) && isSlideList(snapshot.slides.map(withPricingDefaults))))
     && (snapshot.accessories === undefined || isAccessoryList(snapshot.accessories))
     && (snapshot.overrides === undefined || isPlainObject(snapshot.overrides));
 }
@@ -175,8 +176,8 @@ export function settingsFromSnapshot(snapshot) {
   for (const key of Object.keys(DEFAULT_PREFS)) delete settings[key];
   settings.doorDesigns = structuredClone(snapshot.doorDesigns);
   settings.sectionProfiles = structuredClone(snapshot.sectionProfiles);
-  settings.pulls = structuredClone(snapshot.pulls ?? BUILT_IN_PULLS);
-  settings.slides = structuredClone(snapshot.slides ?? BUILT_IN_SLIDES);
+  settings.pulls = structuredClone((snapshot.pulls ?? BUILT_IN_PULLS).map(withPricingDefaults));
+  settings.slides = structuredClone((snapshot.slides ?? BUILT_IN_SLIDES).map(withPricingDefaults));
   settings.accessories = structuredClone(snapshot.accessories ?? []);
   const { estProjectId = null, phaseId = null } = snapshot.issuedFrom ?? {};
   const layer = (level, id) => {

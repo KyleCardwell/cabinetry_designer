@@ -1,5 +1,6 @@
 import { isStyleRef } from './doorStyles.js';
 import { gridLeaves } from './grid.js';
+import { isLabor, isMoney } from './libraryPricing.js';
 
 export const PULL_KEYS = { door: 'doorPullId', drawer: 'drawerPullId' };
 export const PULL_POSITIONS = {
@@ -37,8 +38,10 @@ export function defaultPullSizes(kind) {
 }
 
 export const BUILT_IN_PULLS = [
-  { id: 'pull-4', name: '4" pull', kind: 'pull', ...defaultPullSizes('pull'), projection: 1.25, hardwarePullId: null },
-  { id: 'knob-1-25', name: '1 1/4" knob', kind: 'knob', ...defaultPullSizes('knob'), projection: 1, hardwarePullId: null },
+  { id: 'pull-4', name: '4" pull', kind: 'pull', ...defaultPullSizes('pull'), projection: 1.25, hardwarePullId: null,
+    price: null, actualCost: null, labor: {} },
+  { id: 'knob-1-25', name: '1 1/4" knob', kind: 'knob', ...defaultPullSizes('knob'), projection: 1, hardwarePullId: null,
+    price: null, actualCost: null, labor: {} },
 ];
 export const BUILT_IN_PULL_IDS = ['pull-4', 'knob-1-25'];
 
@@ -55,7 +58,7 @@ function hasKeys(value, allowed, required = allowed) {
     && required.every((key) => Object.hasOwn(value, key));
 }
 
-const COMMON_KEYS = ['id', 'name', 'kind', 'projection', 'hardwarePullId'];
+const COMMON_KEYS = ['id', 'name', 'kind', 'projection', 'hardwarePullId', 'price', 'actualCost', 'labor'];
 const isPositiveSize = (value) => Number.isFinite(value) && value > 0;
 
 export function isPull(pull) {
@@ -69,6 +72,7 @@ export function isPull(pull) {
     && isPositiveSize(pull.projection)
     && sizeKeys.every((key) => !Object.hasOwn(pull, key) || isPositiveSize(pull[key]))
     && (!Object.hasOwn(pull, 'centers') || pull.centers <= pull.length)
+    && isMoney(pull.price) && isMoney(pull.actualCost) && isLabor(pull.labor)
     && (pull.hardwarePullId === null || (Number.isInteger(pull.hardwarePullId) && pull.hardwarePullId > 0));
 }
 

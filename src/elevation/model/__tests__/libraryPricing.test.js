@@ -1,5 +1,21 @@
 import { expect, it } from 'vitest';
 import { PRICING_UNITS, PRICING_UNIT_LABELS, formatPrice, isLabor, isMoney } from '../index.js';
+import { withPricingDefaults } from '../libraryPricing.js';
+
+it('LP1 anchor 2: defaults only missing pricing fields without mutating the input', () => {
+  const input = { id: 'x', price: 3 };
+  expect(withPricingDefaults(input)).toEqual({ id: 'x', price: 3, actualCost: null, labor: {} });
+  expect(input).toEqual({ id: 'x', price: 3 });
+  for (const key of ['price', 'actualCost', 'labor']) {
+    for (const value of [undefined, null, 'x', -1]) {
+      expect(withPricingDefaults({ [key]: value })[key]).toBe(value);
+    }
+  }
+  const first = withPricingDefaults({});
+  first.labor['7'] = 4;
+  expect(withPricingDefaults({}).labor).toEqual({});
+  for (const invalid of [null, undefined, [], 'x']) expect(withPricingDefaults(invalid)).toBe(invalid);
+});
 
 it('IN12b anchor 5b: shares pricing units and formats each, pair, size and unpriced amounts', () => {
   expect(PRICING_UNITS).toEqual(['unit', 'area', 'length', 'perimeter', 'volume']);

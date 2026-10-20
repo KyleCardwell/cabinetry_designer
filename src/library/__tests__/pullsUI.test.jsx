@@ -84,7 +84,7 @@ describe('HP3b step b Pulls page and editor', () => {
     ]);
     const noCenters = newPull(BUILT_IN_PULLS, BUILT_IN_PULLS[0], 'custom');
     delete noCenters.centers;
-    const tab = { id: 'tab', name: 'Tab', kind: 'tab', length: 3, height: 0.5, projection: 1, hardwarePullId: null };
+    const tab = { id: 'tab', name: 'Tab', kind: 'tab', length: 3, height: 0.5, projection: 1, hardwarePullId: null, price: null, actualCost: null, labor: {} };
     const custom = library('local', [...BUILT_IN_PULLS, noCenters, tab]);
     expect(rows(custom.render()).slice(2).map((row) => nodes(row).filter(({ type }) => type === 'td').map(text)[2]))
       .toEqual(['4 3/4" long', '3" long · 1/2" tall']);
@@ -105,7 +105,8 @@ describe('HP3b step b Pulls page and editor', () => {
   });
 
   it('validates names and centers, switches kind with clean defaults, and edits positive fractional sizes', () => {
-    const custom = { ...newPull(BUILT_IN_PULLS, BUILT_IN_PULLS[0], 'custom'), hardwarePullId: 42 };
+    const custom = { ...newPull(BUILT_IN_PULLS, BUILT_IN_PULLS[0], 'custom'), hardwarePullId: 42,
+      price: 12, actualCost: 8, labor: { '7': 4 } };
     const { render, enter, onClose } = editor(custom);
     control(render(), 'Name').props.onChange({ target: { value: '  ' } });
     expect(button(render(), 'Save').props.disabled).toBe(true);
@@ -134,7 +135,8 @@ describe('HP3b step b Pulls page and editor', () => {
     enter('Projection', '1 3/8');
     button(render(), 'Save').props.onClick();
     const saved = dispatch.mock.lastCall[0].payload.pull;
-    expect(saved).toEqual({ id: 'custom', name: 'Shop tab', kind: 'tab', length: 3, height: 0.5, projection: 1.375, hardwarePullId: 42 });
+    expect(saved).toEqual({ id: 'custom', name: 'Shop tab', kind: 'tab', length: 3, height: 0.5, projection: 1.375, hardwarePullId: 42,
+      price: 12, actualCost: 8, labor: { '7': 4 } });
     expect(isPullList([...BUILT_IN_PULLS, saved])).toBe(true);
     expect(onClose).toHaveBeenCalled();
     control(render(), 'Kind').props.onChange({ target: { value: 'knob' } });

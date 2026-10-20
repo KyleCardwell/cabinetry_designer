@@ -30,6 +30,40 @@ function storageWith(entries) {
   };
 }
 
+it('LP1 anchor 3: loads pre-LP1 sandbox pull and slide pricing without repairing invalid values', () => {
+  const document = currentDocument();
+  document.settings.pulls = structuredClone(BUILT_IN_PULLS);
+  document.settings.slides = structuredClone(BUILT_IN_SLIDES);
+  for (const key of ['pulls', 'slides']) {
+    for (const item of document.settings[key]) {
+      delete item.price;
+      delete item.actualCost;
+      delete item.labor;
+    }
+  }
+  document.settings.slides[0].cvName = 'Retired name';
+  const before = structuredClone(document);
+  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+  const loaded = loadElevationDocument();
+  expect(isElevationDocument(loaded)).toBe(true);
+  expect(loaded.settings.pulls).toEqual(BUILT_IN_PULLS);
+  expect(loaded.settings.slides).toEqual(BUILT_IN_SLIDES);
+  expect(normalizeElevationDocument(document)).toEqual(loaded);
+  expect(document).toEqual(before);
+  for (const key of ['pulls', 'slides']) {
+    Object.assign(document.settings[key][0], { price: 12, actualCost: 8, labor: { '7': 4 } });
+    expect(normalizeElevationDocument(document).settings[key][0])
+      .toMatchObject({ price: 12, actualCost: 8, labor: { '7': 4 } });
+    for (const [field, value] of [['price', 'x'], ['actualCost', -1], ['labor', null]]) {
+      const invalid = structuredClone(document);
+      invalid.settings[key][0][field] = value;
+      expect(isElevationDocument(normalizeElevationDocument(invalid))).toBe(false);
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(invalid)]]) };
+      expect(loadElevationDocument()).toBeNull();
+    }
+  }
+});
+
 function currentRun(id, x, z, height) {
   return {
     id,
@@ -407,7 +441,7 @@ describe('IN4b step a sandbox slide persistence', () => {
 describe('HP3b step a sandbox pull persistence', () => {
   const bar = {
     id: 'p1', name: 'Bar', kind: 'pull', length: 5, centers: 4, width: 0.375,
-    projection: 1.25, hardwarePullId: null,
+    projection: 1.25, hardwarePullId: null, price: null, actualCost: null, labor: {},
   };
 
   it('loads missing pulls as independent built-ins without writing storage (anchor 5)', () => {

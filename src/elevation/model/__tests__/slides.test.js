@@ -79,7 +79,7 @@ describe('IN4b step a slide model', () => {
       expect(isSlide(missing)).toBe(false);
     }
     for (const slide of [
-      { ...blum, mount: 'top' }, { ...blum, price: 5 }, { ...blum, name: ' Blum' },
+      { ...blum, mount: 'top' }, { ...blum, pricing: 'unit' }, { ...blum, name: ' Blum' },
       { ...blum, name: 'Blum ' }, { ...blum, name: '' }, { ...blum, id: '' },
       { ...blum, [Symbol('extra')]: true }, Object.create(blum), [], null, undefined,
     ]) expect(isSlide(slide)).toBe(false);
@@ -95,7 +95,7 @@ describe('IN4b step a slide model', () => {
       lengths: [9, 12, 15, 18, 21, 24, 27, 30, 33, 36].map((nominal) =>
         nominal === 15 ? { nominal: 15, length: 15.515625, extension: 14.953125 } : { nominal }),
       sideClearance: 0.25, minBelow: 0.5625, minAbove: 0.25, height: 1,
-      clips: true, softClose: true, heavyDuty: false, hardwareSlideId: null,
+      clips: true, softClose: true, heavyDuty: false, hardwareSlideId: null, price: null, actualCost: null, labor: {},
     });
     expect(accuride3832).toEqual({
       id: 'accuride-3832', name: 'Accuride 3832', brand: 'Accuride', model: '3832',
@@ -103,7 +103,7 @@ describe('IN4b step a slide model', () => {
       lengths: [{ nominal: 8, length: 8, extension: 8 }, ...[10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 30, 32, 34, 36]
         .map((nominal) => ({ nominal }))],
       sideClearance: 0.5, minBelow: 0.5625, minAbove: 0.25, height: 1.796875,
-      clips: false, softClose: false, heavyDuty: true, hardwareSlideId: null,
+      clips: false, softClose: false, heavyDuty: true, hardwareSlideId: null, price: null, actualCost: null, labor: {},
     });
     expect(accuride3832.lengths).toHaveLength(15);
     expect(accuride4034).toEqual({

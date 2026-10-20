@@ -16,6 +16,7 @@ import { isDoorDesignList, migrateDoorDesign } from '../model/doorDesigns.js';
 import { BUILT_IN_PULLS, PULL_KEYS, isPullList } from '../model/pulls.js';
 import { BUILT_IN_SLIDES, isSlideList, withoutRetiredSlideKeys } from '../model/slides.js';
 import { isAccessoryList } from '../model/accessories.js';
+import { withPricingDefaults } from '../model/libraryPricing.js';
 import { isSectionProfileList, migrateSectionProfile } from '../model/sectionProfiles.js';
 import {
   DEFAULT_DOOR_STYLE,
@@ -819,7 +820,7 @@ function normalizeDocument(document, schemaVersion) {
     }
     if (settings.pulls === undefined) settings.pulls = structuredClone(BUILT_IN_PULLS);
     else if (Array.isArray(settings.pulls)) {
-      settings.pulls = [...settings.pulls];
+      settings.pulls = settings.pulls.map(withPricingDefaults);
       for (const seed of BUILT_IN_PULLS) {
         if (!settings.pulls.some((pull) => pull?.id === seed.id)) {
           settings.pulls.push(structuredClone(seed));
@@ -828,7 +829,7 @@ function normalizeDocument(document, schemaVersion) {
     }
     if (settings.slides === undefined) settings.slides = structuredClone(BUILT_IN_SLIDES);
     else if (Array.isArray(settings.slides)) {
-      settings.slides = settings.slides.map(withoutRetiredSlideKeys);
+      settings.slides = settings.slides.map((slide) => withPricingDefaults(withoutRetiredSlideKeys(slide)));
       for (const seed of BUILT_IN_SLIDES) {
         if (!settings.slides.some((slide) => slide?.id === seed.id)) {
           settings.slides.push(structuredClone(seed));

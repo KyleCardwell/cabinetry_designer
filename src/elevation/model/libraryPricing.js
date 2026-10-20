@@ -3,6 +3,14 @@ export const PRICING_UNIT_LABELS = {
   unit: 'each', area: 'sq ft', length: 'ft', perimeter: 'ft of perimeter', volume: 'cu ft',
 };
 
+/** Fill missing pricing fields without repairing present, invalid values. */
+export function withPricingDefaults(item) {
+  if (item === null || typeof item !== 'object') return item;
+  const prototype = Object.getPrototypeOf(item);
+  if (prototype !== Object.prototype && prototype !== null) return item;
+  return { price: null, actualCost: null, labor: {}, ...item };
+}
+
 export function isMoney(value) {
   return value === null || (Number.isFinite(value) && value >= 0);
 }

@@ -96,7 +96,7 @@ describe('HP3b c shop pulls', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(save).toHaveBeenCalledTimes(1);
     expect(save).toHaveBeenCalledWith({ teamId: TEAM_ID, pullId: bar.pull_id, name: 'Bar',
-      data: { kind: 'pull', length: 5, centers: 4, width: 0.375, projection: 1.25 }, hardwarePullId: 3, expectedVersion: 2 });
+      data: { kind: 'pull', length: 5, centers: 4, width: 0.375, projection: 1.25, price: null, actualCost: null, labor: {} }, hardwarePullId: 3, expectedVersion: 2 });
     expect(store.getState().elevation.cloud.rows.pulls[pull.id].version).toBe(3);
     expect(api.db.pulls.at(-1).hardware_pull_id).toBe(3);
     store.dispatch(deletePull({ pullId: pull.id }));
