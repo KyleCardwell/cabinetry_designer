@@ -134,6 +134,8 @@ export {
 } from './drawerBoxes.js';
 export { sectionRollouts, wallRollouts } from './rollouts.js';
 export { covers, sectionShelves, shelfZone, sideHinged, wallInteriorData, wallShelves } from './shelves.js';
+export { glassMarks } from './glassMarks.js';
+export { wallShowThrough } from './showThrough.js';
 export {
   boxPartLines,
   cabinetInterior,

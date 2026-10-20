@@ -156,3 +156,11 @@ export function wallRollouts(room, wall, side, settings, shared = {}) {
     })];
   }));
 }
+
+/** Spacer sides drawn once per column and width, shared by both interior views. */
+export function rolloutSpacerSides(rollout, box) {
+  return ['left', 'right'].filter((side) => box.spacers[side] > 0
+    && !rollout.rollouts.slice(0, box.index).some((other) =>
+      other.column.x === box.column.x && other.column.width === box.column.width
+      && other.spacers[side] === box.spacers[side]));
+}

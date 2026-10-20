@@ -3,6 +3,7 @@ import { Group, Line, Rect, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { formatDimension, formatInches } from '../model/units.js';
 import { dragDividerPosition, interiorDimensions } from '../model/interiors.js';
+import { rolloutSpacerSides } from '../model/rollouts.js';
 
 const SIZE_FONT = 10;
 const SIZE_INSET = 3;
@@ -191,10 +192,7 @@ export default function InteriorShapes({
               && rect.width >= text.length * 6 + SIZE_INSET * 2;
             return (
               <Group key={`rollout:${section.path}:${box.index}`} listening={false}>
-                {['left', 'right'].filter((side) => box.spacers[side] > 0
-                  && !rollout.rollouts.slice(0, box.index).some((other) =>
-                    other.column.x === box.column.x && other.column.width === box.column.width
-                    && other.spacers[side] === box.spacers[side])).map((side) => (
+                {rolloutSpacerSides(rollout, box).map((side) => (
                   <Rect key={side} {...wallRectToScreen({
                     x: side === 'left' ? box.column.x : box.column.x + box.column.width - box.spacers.right,
                     z: rollout.zone.z, width: box.spacers[side], height: rollout.top - rollout.zone.z,
