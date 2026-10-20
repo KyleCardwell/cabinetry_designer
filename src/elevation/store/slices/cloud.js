@@ -45,13 +45,14 @@ export const cloudReducers = {
    * No rooms yet: the room route (D6) loads one.
    */
   cloudWorkspaceLoaded(state, action) {
-    const { teamId, permissions, settings, teamVersion, rows, message = null } = action.payload;
+    const { teamId, permissions, settings, teamVersion, rows, teamServices = [], message = null } = action.payload;
     const next = buildInitialState({
       settings, rooms: [], activeRoomId: null, activeWallId: null, view: 'plan',
     });
     return {
       ...next,
       source: 'cloud',
+      teamServices,
       cloud: {
         teamId,
         permissions,
@@ -91,7 +92,7 @@ export const cloudReducers = {
     for (let index = 0; index < state.rooms.length; index += 1) syncRoomAt(state, index);
   },
 
-  /** A save landed: `{ target: 'team'|'profile'|'doorDesign'|'pull'|'slide'|'project'|'phase', id?, rowId?, version }`. */
+  /** A save landed: `{ target: 'team'|'profile'|'doorDesign'|'pull'|'slide'|'accessory'|'project'|'phase', id?, rowId?, version }`. */
   cloudSaved(state, action) {
     if (!state.cloud) return;
     const { target, id, rowId, version } = action.payload;
@@ -100,6 +101,7 @@ export const cloudReducers = {
     else if (target === 'doorDesign') state.cloud.rows.doorDesigns[id] = { rowId, version };
     else if (target === 'pull') state.cloud.rows.pulls[id] = { rowId, version };
     else if (target === 'slide') state.cloud.rows.slides[id] = { rowId, version };
+    else if (target === 'accessory') state.cloud.rows.accessories[id] = { rowId, version };
     else if (LAYER_LEVELS.includes(target)) state.cloud.layerVersions[target] = version;
     else if (target === 'room' && state.cloud.room) {
       state.cloud.room.version = version;
@@ -121,6 +123,7 @@ export const cloudReducers = {
     const { room, layers = {}, meta, project: projectInfo = null } = action.payload;
     const { project = null, phase = null } = layers;
     const cloud = state.cloud;
+    const teamServices = state.teamServices;
     const message = state.message; // e.g. the workspace's load notes
     const fresh = buildInitialState({
       settings: current(state.settings), rooms: [room], activeRoomId: room.id, activeWallId: null, view: 'plan',
@@ -128,6 +131,7 @@ export const cloudReducers = {
     for (const key of Object.keys(state)) delete state[key];
     Object.assign(state, fresh);
     state.source = 'cloud';
+    state.teamServices = teamServices;
     state.layers = { project: layerFrom(project), phase: layerFrom(phase) };
     state.cloud = {
       ...cloud,
@@ -170,7 +174,7 @@ export const cloudReducers = {
       permissions,
       loadId: loadId + 1,
       teamVersion: null,
-      rows: { profiles: {}, doorDesigns: {}, pulls: {}, slides: {} },
+      rows: { profiles: {}, doorDesigns: {}, pulls: {}, slides: {}, accessories: {} },
       layerVersions: { project: null, phase: null },
       project,
       room: {

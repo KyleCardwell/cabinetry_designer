@@ -5,6 +5,7 @@
  */
 import { getDesignApi as defaultGetDesignApi } from '../../api/designApi.js';
 import {
+  accessoryFromRow,
   doorDesignFromRow,
   doorDesignToRow,
   profileFromRow,
@@ -18,6 +19,7 @@ import { SEEDED_DESIGN_IDS, isDoorDesignList } from '../model/doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS, findDoorDesign } from '../model/doorStyles.js';
 import { BUILT_IN_PULLS, BUILT_IN_PULL_IDS, isPullList } from '../model/pulls.js';
 import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlideList } from '../model/slides.js';
+import { isAccessoryList } from '../model/accessories.js';
 import { cleanOverrides } from '../model/settingsResolve.js';
 import { buildSettingsSnapshot, settingsFromSnapshot } from '../model/settingsSnapshot.js';
 import { ROOM_STATUSES, lastVersionFromRow, versionFromRow } from '../model/roomVersions.js';
@@ -75,10 +77,11 @@ export function openCloudWorkspace() {
     }
     dispatch(cloudWorkspaceLoading());
     const api = await apiFrom(extra);
-    const [settingsReply, profilesReply, designsReply, pullsReply, slidesReply] = await Promise.all([
+    const [settingsReply, profilesReply, designsReply, pullsReply, slidesReply, accessoriesReply, servicesReply] = await Promise.all([
       api.loadTeamSettings(teamId), api.listProfiles(teamId), api.listDoorDesigns(teamId), api.listPulls(teamId), api.listSlides(teamId),
+      api.listAccessories(teamId), api.listTeamServices(teamId),
     ]);
-    const failed = [settingsReply, profilesReply, designsReply, pullsReply, slidesReply].find((reply) => !reply.ok);
+    const failed = [settingsReply, profilesReply, designsReply, pullsReply, slidesReply, accessoriesReply].find((reply) => !reply.ok);
     if (failed) {
       const message = `Couldn't load the shop data: ${failed.message}`;
       dispatch(cloudWorkspaceFailed(message));
@@ -86,7 +89,7 @@ export function openCloudWorkspace() {
     }
 
     const notes = [];
-    const rows = { profiles: {}, doorDesigns: {}, pulls: {}, slides: {} };
+    const rows = { profiles: {}, doorDesigns: {}, pulls: {}, slides: {}, accessories: {} };
 
     const profiles = [];
     for (const row of profilesReply.rows) {
@@ -216,6 +219,23 @@ export function openCloudWorkspace() {
       return { ok: false, reason: 'bad_input', message };
     }
 
+    const accessories = [];
+    for (const row of accessoriesReply.rows) {
+      const accessory = accessoryFromRow(row);
+      if (!accessory || accessories.some((entry) => entry.id === accessory.id)) continue;
+      accessories.push(accessory);
+      rows.accessories[accessory.id] = { rowId: row.accessory_id, version: row.version };
+    }
+    const skippedAccessories = accessoriesReply.rows.length - accessories.length;
+    if (skippedAccessories) notes.push(`${skippedAccessories} ${skippedAccessories === 1 ? 'accessory' : 'accessories'} couldn't be read and ${skippedAccessories === 1 ? 'was' : 'were'} left out.`);
+    if (!isAccessoryList(accessories)) {
+      const message = 'The shop\'s accessories conflict (two accessories share a name). Fix them in Supabase, then reload.';
+      dispatch(cloudWorkspaceFailed(message));
+      return { ok: false, reason: 'bad_input', message };
+    }
+    const teamServices = servicesReply.ok ? servicesReply.rows : [];
+    if (!servicesReply.ok) notes.push("The shop's services couldn't be loaded, so labour minutes can't be added right now.");
+
     const settings = teamSettingsFromRow(settingsReply.row?.settings);
     if (!findDoorDesign(settings.teamDoorStyle.designId, designs)) {
       settings.teamDoorStyle = structuredClone(DEFAULT_DOOR_STYLE);
@@ -225,11 +245,13 @@ export function openCloudWorkspace() {
     settings.sectionProfiles = profiles;
     settings.pulls = orderedPulls;
     settings.slides = orderedSlides;
+    settings.accessories = accessories;
 
     dispatch(cloudWorkspaceLoaded({
       teamId,
       permissions: { view: false, edit: false, manage: false, ...permissions },
       settings,
+      teamServices,
       teamVersion: settingsReply.row?.version ?? 0,
       rows,
       message: notes.length ? notes.join(' ') : null,
@@ -711,6 +733,7 @@ export function openRoomVersion({ estProjectId, roomId, versionId }) {
 
     const frozen = settingsFromSnapshot(row.settings_snapshot);
     if (!frozen.ok) return frozen;
+    frozen.settings.accessories = [];
     const loaded = roomFromDocument(row.document, row.schema_version, frozen.settings);
     if (!loaded.ok) return loaded;
 

@@ -2,6 +2,7 @@
  * Mapping between the designer's in-memory shapes and the Supabase `design_` rows
  * (DATABASE-PLAN §3, SPEC-DB4 §1). Pure: no network, no store.
  */
+import { isAccessory } from './accessories.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { SEEDED_DESIGN_IDS, isDoorDesign, migrateDoorDesign } from './doorDesigns.js';
 import { DEFAULT_DOOR_STYLE, isDoorStyle } from './doorStyles.js';
@@ -120,6 +121,20 @@ export function slideFromRow(row) {
   return isSlide(slide) && (!seed || seed.mount === slide.mount) ? slide : null;
 }
 
+/** An accessory keeps its uuid on the row, with pricing and labour in data. */
+export function accessoryToRow(accessory) {
+  const { id, name, ...data } = structuredClone(accessory);
+  void id;
+  return { name, data };
+}
+
+/** A design_accessories row → a valid accessory, or null. */
+export function accessoryFromRow(row) {
+  if (!row || !isUuid(row.accessory_id) || !row.data || typeof row.data !== 'object') return null;
+  const accessory = { ...structuredClone(row.data), id: row.accessory_id, name: row.name };
+  return isAccessory(accessory) ? accessory : null;
+}
+
 /** The shop standard as stored: every registry leaf plus `teamDoorStyle`; no library lists, no prefs. */
 export function teamSettingsToRow(settings) {
   const row = {};
@@ -141,6 +156,7 @@ export function teamSettingsFromRow(stored) {
   delete settings.sectionProfiles;
   delete settings.pulls;
   delete settings.slides;
+  delete settings.accessories;
   for (const { key } of SETTINGS_REGISTRY) {
     const value = leaf(stored, key);
     if (value !== undefined && isValidSettingValue(key, value)) setLeaf(settings, key, structuredClone(value));

@@ -12,7 +12,7 @@ export function fakeUuid() {
  * An in-memory stand-in for createDesignApi(): keeps rows, bumps versions, answers conflicts
  * like the RPCs, and records every call. `hold()` makes saves wait until `release()`.
  */
-export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns = [], pulls = [], slides = [], project = null,
+export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns = [], pulls = [], slides = [], accessories = [], teamServices = [], project = null,
   projects = [], attachableProjects = [] } = {}) {
   const db = {
     teamSettings: teamSettings && { ...teamSettings },
@@ -20,6 +20,8 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
     doorDesigns: doorDesigns.map((row) => ({ ...row })),
     pulls: structuredClone(pulls),
     slides: structuredClone(slides),
+    accessories: structuredClone(accessories),
+    teamServices: structuredClone(teamServices),
     project,
     projects: structuredClone(projects),
     attachableProjects: structuredClone(attachableProjects),
@@ -77,6 +79,14 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
     async listSlides() {
       calls.push(['listSlides']);
       return api.replies.listSlides ?? { ok: true, rows: structuredClone(db.slides.filter((row) => !row.archived_at)) };
+    },
+    async listAccessories() {
+      calls.push(['listAccessories']);
+      return api.replies.listAccessories ?? { ok: true, rows: structuredClone(db.accessories.filter((row) => !row.archived_at)) };
+    },
+    async listTeamServices() {
+      calls.push(['listTeamServices']);
+      return api.replies.listTeamServices ?? { ok: true, rows: structuredClone(db.teamServices) };
     },
     async getProject(id) { calls.push(['getProject', id]); return { ok: true, project: db.project && structuredClone(db.project) }; },
     async getRoom(roomId) {
@@ -215,11 +225,28 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
       if (sort !== null) row.sort = sort;
       return { ok: true, slide_id: slideId, version: row.version, updated_at: 't' };
     },
+    async saveAccessory({ accessoryId, name, data, sort = null, expectedVersion }) {
+      calls.push(['saveAccessory', accessoryId, expectedVersion, name]);
+      await wait();
+      if (api.replies.saveAccessory) return structuredClone(api.replies.saveAccessory);
+      if (expectedVersion === 0) {
+        const row = { accessory_id: accessoryId ?? fakeUuid(), name, data: structuredClone(data),
+          sort, version: 1, archived_at: null };
+        db.accessories.push(row);
+        return { ok: true, accessory_id: row.accessory_id, version: 1, updated_at: 't' };
+      }
+      const row = db.accessories.find((entry) => entry.accessory_id === accessoryId);
+      if (!row) return missing('Accessory');
+      if (row.version !== expectedVersion) return conflict(row.version);
+      Object.assign(row, { name, data: structuredClone(data), version: row.version + 1 });
+      if (sort !== null) row.sort = sort;
+      return { ok: true, accessory_id: accessoryId, version: row.version, updated_at: 't' };
+    },
     async archiveLibraryItem(kind, id, archived) {
       calls.push(['archiveLibraryItem', kind, id, archived]);
       await wait();
-      const list = kind === 'profile' ? db.profiles : kind === 'pull' ? db.pulls : kind === 'slide' ? db.slides : db.doorDesigns;
-      const key = kind === 'profile' ? 'profile_id' : kind === 'pull' ? 'pull_id' : kind === 'slide' ? 'slide_id' : 'design_id';
+      const list = kind === 'profile' ? db.profiles : kind === 'pull' ? db.pulls : kind === 'slide' ? db.slides : kind === 'accessory' ? db.accessories : db.doorDesigns;
+      const key = kind === 'profile' ? 'profile_id' : kind === 'pull' ? 'pull_id' : kind === 'slide' ? 'slide_id' : kind === 'accessory' ? 'accessory_id' : 'design_id';
       const row = list.find((entry) => entry[key] === id);
       row.archived_at = archived ? 't' : null;
       return { ok: true };

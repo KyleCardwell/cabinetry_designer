@@ -8,6 +8,8 @@ import { SETTINGS_REGISTRY } from '../settingsRegistry.js';
 import { BUILT_IN_SLIDES } from '../slides.js';
 import { BUILT_IN_PULLS } from '../pulls.js';
 import {
+  accessoryToRow,
+  accessoryFromRow,
   doorDesignIdFor,
   doorDesignFromRow,
   doorDesignToRow,
@@ -193,4 +195,43 @@ it('IN4b d round-trips the default slide and replaces an empty stored ID (anchor
   }
   expect(teamSettingsFromRow({ drawerSlideId: '' }).drawerSlideId).toBe('blum-562h');
   expect(teamSettingsToRow({ drawerSlideId: '' })).not.toHaveProperty('drawerSlideId');
+});
+
+const susan = {
+  id: DID, name: 'Lazy susan 28', brand: 'Rev-A-Shelf', model: '6472-28',
+  description: '28" kidney lazy susan', reportText: '6472-28 lazy susan',
+  attachesTo: 'section', wholeSection: true, minOpening: { width: 27, depth: 22, height: null },
+  ownSlides: false, effects: [], pricing: 'unit', price: 185, actualCost: 112.4, labor: { '7': 15, '9': 5 },
+};
+
+it('IN12b c maps every accessory field except id and name into data (anchor 1)', () => {
+  const expectedData = {
+    brand: 'Rev-A-Shelf', model: '6472-28', description: '28" kidney lazy susan', reportText: '6472-28 lazy susan',
+    attachesTo: 'section', wholeSection: true, minOpening: { width: 27, depth: 22, height: null },
+    ownSlides: false, effects: [], pricing: 'unit', price: 185, actualCost: 112.4, labor: { '7': 15, '9': 5 },
+  };
+  const row = accessoryToRow(susan);
+  expect(row).toEqual({ name: 'Lazy susan 28', data: expectedData });
+  row.data.labor['7'] = 99;
+  row.data.minOpening.width = 99;
+  expect(susan.labor['7']).toBe(15);
+  expect(susan.minOpening.width).toBe(27);
+});
+
+it('IN12b c validates accessory rows and restores their uuid (anchor 2)', () => {
+  const row = { accessory_id: DID, ...accessoryToRow(susan), version: 2, archived_at: null };
+  const loaded = accessoryFromRow(row);
+  expect(loaded).toEqual(susan);
+  loaded.labor['7'] = 99;
+  expect(row.data.labor['7']).toBe(15);
+  for (const invalid of [null, { ...row, accessory_id: 'bad' }, { ...row, data: { attachesTo: 'section' } },
+    { ...row, data: { ...row.data, seedId: DID } }, { ...row, data: { ...row.data, price: -1 } }]) {
+    expect(accessoryFromRow(invalid)).toBeNull();
+  }
+});
+
+it('IN12b c keeps accessories out of the shop standard and defaults clone (anchor 6)', () => {
+  expect(teamSettingsToRow({ ...DEFAULT_SETTINGS, accessories: [susan] })).not.toHaveProperty('accessories');
+  expect(teamSettingsFromRow({})).not.toHaveProperty('accessories');
+  expect(teamSettingsFromRow({ accessories: [susan] })).not.toHaveProperty('accessories');
 });
