@@ -22,6 +22,7 @@ import { doorStyleReducers } from './slices/doorStyles.js';
 import { doorDesignReducers } from './slices/doorDesigns.js';
 import { pullReducers } from './slices/pulls.js';
 import { slideReducers } from './slices/slides.js';
+import { accessoryReducers } from './slices/accessories.js';
 import { sectionProfileReducers } from './slices/sectionProfiles.js';
 import { uiReducers } from './slices/ui.js';
 import { cloudReducers, registerInitialStateBuilder } from './slices/cloud.js';
@@ -52,6 +53,7 @@ export function createInitialElevationState(document = loadElevationDocument()) 
     // 'version' = one issued room version with its own frozen settings (SPEC-DB8a, read-only).
     source: 'local',
     cloud: null,
+    teamServices: [],
     workspace: { loading: false, error: null },
     rooms,
     activeRoomId,
@@ -92,6 +94,7 @@ const elevationSlice = createSlice({
     ...doorDesignReducers,
     ...pullReducers,
     ...slideReducers,
+    ...accessoryReducers,
     ...sectionProfileReducers,
     ...uiReducers,
     ...cloudReducers,
@@ -232,6 +235,9 @@ export const {
   addSlide,
   updateSlide,
   deleteSlide,
+  addAccessory,
+  updateAccessory,
+  deleteAccessory,
   setTeamDoorStyle,
   moveMissingDoorDesign,
   addSectionProfile,
@@ -292,7 +298,7 @@ export const ROOM_EDIT_ACTION_TYPES = new Set([
  */
 export const VERSION_LOCKED_ACTION_TYPES = new Set([
   ...ROOM_EDIT_ACTION_TYPES,
-  ...[doorDesignReducers, sectionProfileReducers, pullReducers, slideReducers].flatMap((group) => Object.keys(group))
+  ...[doorDesignReducers, sectionProfileReducers, pullReducers, slideReducers, accessoryReducers].flatMap((group) => Object.keys(group))
     .map((name) => `${elevationSlice.name}/${name}`),
   ...['setSetting', 'updateSettings', 'setLayerSetting'].map((name) => `${elevationSlice.name}/${name}`),
 ]);
