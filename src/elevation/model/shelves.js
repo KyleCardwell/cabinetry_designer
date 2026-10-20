@@ -1,3 +1,4 @@
+import { wallAccessories } from './accessories.js';
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { sheetThickness } from './doorStyles.js';
@@ -36,7 +37,7 @@ export function shelfZone(section, boxes) {
 }
 
 /** Resolve adjustable shelves and shop flags for each placed, wall-coordinate section. */
-export function sectionShelves({ interior, faces, boxes = [], leaf, settings, rollouts = new Map() }) {
+export function sectionShelves({ interior, faces, boxes = [], leaf, settings, rollouts = new Map(), accessories = new Map() }) {
   const setting = (key) => settings?.[key] ?? DEFAULT_SETTINGS[key];
   const result = new Map();
   for (const section of interior.sections) {
@@ -56,7 +57,7 @@ export function sectionShelves({ interior, faces, boxes = [], leaf, settings, ro
     const entry = rollouts.get(section.path);
     const zone = entry ? { z: entry.top, height: Math.max(0, clear.z + clear.height - entry.top) } : clear;
     const covering = faces.filter((face) => covers(face, section));
-    const eligible = !['sink', 'cooktop', 'oven'].includes(leaf.purpose) && covering.some(shelfFace);
+    const eligible = !accessories.get(section.path)?.whole && !['sink', 'cooktop', 'oven'].includes(leaf.purpose) && covering.some(shelfFace);
     const visible = nosing?.height ?? thickness;
     // Auto: the most shelves that still leave at least `shelfSpacing` (11" default) clear between them (Kyle 2026-10-19).
     const spacing = setting('shelfSpacing');
@@ -88,16 +89,18 @@ export function wallInteriorData(room, wall, side, settings) {
   const interiors = wallInteriors(room, wall, side, settings, faceLayoutsByRun);
   const boxes = wallDrawerBoxes(room, wall, side, settings, { interiors, faceLayoutsByRun });
   const rollouts = wallRollouts(room, wall, side, settings, { interiors, faceLayoutsByRun, boxes });
+  const accessories = wallAccessories(room, wall, side, settings, { interiors, faceLayoutsByRun, boxes, rollouts });
   const runs = new Map(resolveWall(room, wall, side).runs.map((run) => [run.id, run]));
   const shelves = new Map(interiors.map((interior) => [interior.itemId, sectionShelves({
     interior,
     faces: faceLayoutsByRun.get(interior.runId)?.get(interior.itemId)?.faces ?? [],
     boxes: boxes.get(interior.itemId)?.boxes ?? [],
     rollouts: rollouts.get(interior.itemId),
+    accessories: accessories.get(interior.itemId),
     leaf: findLeaf(runs.get(interior.runId).grid, interior.itemId),
     settings,
   })]));
-  return { interiors: new Map(interiors.map((interior) => [interior.itemId, interior])), boxes, rollouts, shelves };
+  return { interiors: new Map(interiors.map((interior) => [interior.itemId, interior])), boxes, rollouts, accessories, shelves };
 }
 
 /** Adjustable shelves retain the same wall-coordinate results as the shared interior data. */

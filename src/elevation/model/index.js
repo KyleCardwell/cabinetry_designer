@@ -8,6 +8,8 @@ export {
   SHELF_NOSINGS,
   ROLLOUT_LAYOUTS,
   MAX_ROLLOUTS,
+  MAX_SECTION_ACCESSORIES,
+  MAX_ACCESSORY_QTY,
   INTERIOR_DIVIDERS,
   INTERIOR_DIVIDER_LABELS,
   STRETCHER_DEPTH,
@@ -55,7 +57,7 @@ export {
   fittingLength,
   slideBoxWidth,
 } from './slides.js';
-export { isAccessory, isAccessoryList, newAccessory, copyAccessory, findAccessory, accessoryText } from './accessories.js';
+export { isAccessory, isAccessoryList, newAccessory, copyAccessory, findAccessory, accessoryText, sectionAccessories, wallAccessories } from './accessories.js';
 export { PRICING_UNITS, PRICING_UNIT_LABELS, isMoney, isLabor, formatPrice } from './libraryPricing.js';
 export { resolveSetting, resolveSettings, withOverride, cleanOverrides } from './settingsResolve.js';
 export { projectAddress, nextName, copyName, newRoomDocument, ROOM_STATUS_LABELS } from './designProjects.js';
@@ -126,7 +128,7 @@ export {
   wallDrawerBoxes,
 } from './drawerBoxes.js';
 export { sectionRollouts, wallRollouts } from './rollouts.js';
-export { covers, sectionShelves, shelfZone, sideHinged, wallShelves } from './shelves.js';
+export { covers, sectionShelves, shelfZone, sideHinged, wallInteriorData, wallShelves } from './shelves.js';
 export {
   boxPartLines,
   cabinetInterior,
@@ -144,6 +146,10 @@ export {
   interiorOutline,
   isInteriorNode,
   isRollouts,
+  isSectionAccessories,
+  addSectionAccessory,
+  setSectionAccessory,
+  removeSectionAccessory,
   isStoredInterior,
   removeDivider,
   setDividerBanding,

@@ -1,3 +1,10 @@
+import { findLeaf } from './cellTree.js';
+import { wallDrawerBoxes } from './drawerBoxes.js';
+import { getInteriorNode } from './interiorTree.js';
+import { wallInteriors } from './interiors.js';
+import { resolveWall } from './room.js';
+import { wallRollouts } from './rollouts.js';
+import { shelfZone } from './shelves.js';
 import { ACCESSORY_PLACES } from './constants.js';
 import { PRICING_UNITS, isLabor, isMoney } from './libraryPricing.js';
 
@@ -88,4 +95,47 @@ export function findAccessory(id, list) {
 
 export function accessoryText(accessory) {
   return accessory.reportText || accessory.name;
+}
+
+/** Resolve stored references against the drawer-clear opening, retaining missing items for repair. */
+export function sectionAccessories({ interior, boxes = [], settings, rollouts = new Map() }) {
+  const result = new Map();
+  for (const section of interior.sections) {
+    const node = getInteriorNode(interior.tree, section.path) ?? {};
+    if (!node.accessories) continue;
+    const opening = { width: section.width, depth: section.depth, height: shelfZone(section, boxes).height };
+    const items = node.accessories.map(({ accessoryId, qty = 1 }, index) => {
+      const accessory = findAccessory(accessoryId, settings?.accessories ?? []);
+      const warnings = [];
+      if (!accessory) warnings.push({ code: 'accessory-missing' });
+      else if (accessory.attachesTo !== 'section') warnings.push({ code: 'accessory-wrong-place' });
+      else {
+        const sizes = OPENING_KEYS.filter((dim) => accessory.minOpening[dim] !== null
+          && accessory.minOpening[dim] > opening[dim] + 1e-9)
+          .map((dim) => ({ dim, needs: accessory.minOpening[dim], has: opening[dim] }));
+        if (sizes.length) warnings.push({ code: 'accessory-too-small', sizes });
+      }
+      return { index, accessoryId, accessory, qty, warnings };
+    });
+    const counted = items.filter(({ accessory }) => accessory?.attachesTo === 'section');
+    const whole = counted.find(({ accessory }) => accessory.wholeSection) ?? null;
+    const warnings = whole && (node.rollouts?.count > 0 || rollouts.get(section.path)?.rollouts.length > 0
+      || node.shelves?.count > 0 || counted.length > 1)
+      ? [{ code: 'accessory-whole-section', name: whole.accessory.name }] : [];
+    result.set(section.path, { items, whole, warnings });
+  }
+  return result;
+}
+
+/** Share wall-coordinate interiors, boxes and roll-outs with the shelf pass. */
+export function wallAccessories(room, wall, side, settings, shared = {}) {
+  const faceLayoutsByRun = shared.faceLayoutsByRun ?? new Map();
+  const interiors = shared.interiors ?? wallInteriors(room, wall, side, settings, faceLayoutsByRun);
+  const boxes = shared.boxes ?? wallDrawerBoxes(room, wall, side, settings, { interiors, faceLayoutsByRun });
+  const rollouts = shared.rollouts ?? wallRollouts(room, wall, side, settings, { interiors, faceLayoutsByRun, boxes });
+  const runs = new Map(resolveWall(room, wall, side).runs.map((run) => [run.id, run]));
+  return new Map(interiors.map((interior) => [interior.itemId, sectionAccessories({
+    interior, boxes: boxes.get(interior.itemId)?.boxes ?? [], rollouts: rollouts.get(interior.itemId),
+    leaf: findLeaf(runs.get(interior.runId).grid, interior.itemId), settings,
+  })]));
 }
