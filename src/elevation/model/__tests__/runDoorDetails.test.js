@@ -32,6 +32,68 @@ const runOf = (room, id) => room.walls.flatMap((wall) => wall.runs).find((run) =
 const leafOf = (run, id) => gridLeaves(run.grid).find((node) => node.id === id);
 const part = (result, key) => result.parts.find((entry) => entry.key === key);
 
+describe('IN14 panel material door details', () => {
+  const { profiles } = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
+  const outside = profiles.find(({ kind }) => kind === 'door_outside');
+  const inside = profiles.find(({ kind }) => kind === 'door_inside');
+  const panel = {
+    id: 'in14-panel', name: 'Raised panel', kind: 'door_panel', version: 1, archived: false,
+    drawnPoints: { elevation: ['b'] },
+    geometry: { units: 'in', points: { a: [0, -0.5], b: [1.25, 0] },
+      loops: [{ id: 'L1', closed: false, segs: [{ type: 'line', from: 'a', to: 'b' }] }] },
+  };
+
+  function materialDetails({ glass = false, panelProfile = true, slab = false, cutoff = false } = {}) {
+    const room = structuredClone(stored('G1 Euro kitchen'));
+    const teamDoorStyle = {
+      ...DEFAULT_DOOR_STYLE,
+      ...(slab ? { designId: 'slab' } : {}),
+      profiles: { ...DEFAULT_DOOR_STYLE.profiles, outside: outside.id, inside: inside.id, panel: panelProfile ? panel.id : null },
+      ...(cutoff ? { shortFace: { ...DEFAULT_DOOR_STYLE.shortFace, slabBelow: 40 } } : {}),
+    };
+    const config = { ...settings, teamDoorStyle, sectionProfiles: [...profiles, panel] };
+    const run = runOf(room, G1_BASE);
+    for (const [id, type] of [[CAB_24, 'door'], [CAB_36, 'pair_door']]) {
+      leafOf(run, id).face = { type, size: null, ...(glass ? { panelMaterial: 'glass' } : {}) };
+    }
+    const synced = syncRoom(room, config);
+    const wall = synced.walls.find((candidate) => candidate.runs.some((entry) => entry.id === G1_BASE));
+    const view = resolveWall(synced, wall, 'front');
+    return runDoorDetails(synced, view, view.runs.find((entry) => entry.id === G1_BASE), config);
+  }
+
+  it('anchor 6: glass replaces only panel-slot lines and miters on the 24-inch Euro base and pair halves', () => {
+    const plain = materialDetails();
+    const glass = materialDetails({ glass: true });
+    const frameOnly = materialDetails({ panelProfile: false });
+    for (const key of [`${CAB_24}:r`, `${CAB_36}:r:left`, `${CAB_36}:r:right`]) {
+      const actual = part(glass, key);
+      expect(actual).toMatchObject({ panelMaterial: 'glass', construction: 'five_piece', openingsShown: true });
+      expect(actual.openings).toEqual(part(plain, key).openings);
+      expect(actual.lines).toEqual(part(frameOnly, key).lines);
+      expect(actual.miters).toEqual(part(frameOnly, key).miters);
+      expect(actual.lines).not.toEqual(part(plain, key).lines);
+      expect(actual.miters).not.toEqual(part(plain, key).miters);
+    }
+    expect(part(glass, `${CAB_24}:r`).openings).toEqual([box(33.0625, 7.125, 17.875, 24.125)]);
+    expect(glass.warnings.filter(({ code }) => code === 'panel-material-needs-frame')).toEqual([]);
+  });
+
+  it('anchor 7: warns and retains the slab drawing for slab styles and doors below the slab cutoff', () => {
+    for (const options of [{ slab: true }, { cutoff: true }]) {
+      const plain = materialDetails(options);
+      const glass = materialDetails({ ...options, glass: true });
+      for (const key of [`${CAB_24}:r`, `${CAB_36}:r:left`, `${CAB_36}:r:right`]) {
+        const { panelMaterial, ...actual } = part(glass, key);
+        expect(panelMaterial).toBe('glass');
+        expect(actual).toEqual(part(plain, key));
+        expect(actual.construction).toBe('slab');
+        expect(glass.warnings).toContainEqual({ code: 'panel-material-needs-frame', pieceId: actual.pieceId, key });
+      }
+    }
+  });
+});
+
 /** A golden room with P, C (Slab - MDF Core) and S (slab) listed, after `edit`, synced; one run's door details. */
 function details(name, runId, edit = () => {}) {
   const room = structuredClone(stored(name));

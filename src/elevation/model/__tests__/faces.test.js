@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { applyHinges, cabinetFaces, isFaceNode } from '../faces.js';
+import { PANEL_MATERIALS, panelMaterial } from '../index.js';
 
 const { BASE, UPPER } = CABINET_TYPE_IDS;
 const B18 = { x: 0, z: 4, width: 18, height: 30.5 };
@@ -13,6 +14,44 @@ const NESTED = stack([
   { direction: 'horizontal', size: 6, children: [drawer(), drawer()] },
   { type: 'pair_door', size: null },
 ]);
+
+describe('IN14 panel material data', () => {
+  it('exports the glass material and looks up only known ids', () => {
+    expect(PANEL_MATERIALS).toEqual([
+      { id: 'glass', label: 'Glass', seeThrough: true, glassMarks: true, orderText: 'sash panel (glass)' },
+    ]);
+    expect(panelMaterial('glass')).toBe(PANEL_MATERIALS[0]);
+    for (const id of ['mesh', null, undefined]) expect(panelMaterial(id)).toBeNull();
+  });
+
+  it('anchor 1: accepts known materials only on doors and pair doors without pullout action', () => {
+    const face = (type, extra) => ({ type, size: null, ...extra });
+    expect([
+      face('door', { panelMaterial: 'glass' }),
+      face('pair_door', { panelMaterial: 'glass' }),
+      face('drawer_front', { panelMaterial: 'glass' }),
+      face('door', { panelMaterial: 'mesh' }),
+      face('door', { panelMaterial: 'glass', action: 'pullout' }),
+    ].map(isFaceNode)).toEqual([true, true, false, false, false]);
+    for (const type of ['panel', 'open', 'false_front']) {
+      expect(isFaceNode(face(type, { panelMaterial: 'glass' }))).toBe(false);
+    }
+    for (const value of [null, undefined, 1]) {
+      expect(isFaceNode(face('door', { panelMaterial: value }))).toBe(false);
+    }
+    expect(isFaceNode({ ...stack([drawer(), drawer()]), panelMaterial: 'glass' })).toBe(false);
+    expect(isFaceNode(stack([face('door', { panelMaterial: 'glass' }), drawer()]))).toBe(true);
+  });
+
+  it('anchor 5: carries glass on both resolved pair-door halves and on a single door', () => {
+    for (const type of ['door', 'pair_door']) {
+      const { faces } = cabinetFaces({ face: { type, size: null, panelMaterial: 'glass' } }, B30, BASE, DEFAULT_SETTINGS);
+      expect(faces).toHaveLength(type === 'door' ? 1 : 2);
+      expect(faces.every((face) => face.panelMaterial === 'glass')).toBe(true);
+      if (type === 'pair_door') expect(faces.map(({ half }) => half)).toEqual(['left', 'right']);
+    }
+  });
+});
 
 describe('cabinetFaces', () => {
   it('1. defaults to a single door inside the base reveals', () => {

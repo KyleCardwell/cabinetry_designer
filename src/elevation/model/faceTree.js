@@ -1,5 +1,6 @@
 import { DOOR_ACTIONS, DOOR_HINGES, FACE_DIRECTIONS, FACE_TYPES, ROOT_FACE_PATH, isFaceNode } from './faces.js';
 import { isStyleRef } from './doorStyles.js';
+import { panelMaterial } from './constants.js';
 import { MAX_PULL_COUNT, PULL_ORIENTATIONS, PULL_POSITIONS, pullPartType } from './pulls.js';
 
 /** Most sections a single split or count can create. */
@@ -67,6 +68,7 @@ export function setFaceType(face, path, type) {
       delete next.drawerBox;
       delete next.hinge;
       delete next.action;
+      delete next.panelMaterial;
       delete next.pullAt;
       delete next.pullOrientation;
       delete next.pullCount;
@@ -325,6 +327,19 @@ export function setFaceHinge(face, path, hinge) {
   });
 }
 
+/** Sets a door or pair door's replacement panel material, or clears it with null. */
+export function setFacePanelMaterial(face, path, id) {
+  const target = getFaceNode(face, path);
+  if (!['door', 'pair_door'].includes(target?.type) || target.children || target.action === 'pullout') return face;
+  if (id !== null && !panelMaterial(id)) return face;
+  if ((target.panelMaterial ?? null) === id) return face;
+  return replaceAt(face, path, (node) => {
+    if (id === null) delete node.panelMaterial;
+    else node.panelMaterial = id;
+    return node;
+  });
+}
+
 /** Sets a door or pair door's action; swing and null remove the stored action. */
 export function setFaceAction(face, path, action) {
   const target = getFaceNode(face, path);
@@ -338,6 +353,7 @@ export function setFaceAction(face, path, action) {
     if (value) next.action = value;
     else delete next.action;
     if (value !== 'pullout') delete next.drawerBox;
+    if (value === 'pullout') delete next.panelMaterial;
     if (['sliding', 'pullout'].includes(value)
       || (['flipper', 'pocket'].includes(value) && ['top', 'bottom'].includes(node.hinge))) {
       delete next.hinge;

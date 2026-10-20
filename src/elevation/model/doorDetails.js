@@ -97,25 +97,29 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
   const profiles = settings?.sectionProfiles ?? [];
   const offsetsByStyle = new Map();
 
-  function addPart(key, kind, pieceId, path, rect, resolved, sizes, partType = 'panel', faceType = null) {
+  function addPart(key, kind, pieceId, path, rect, resolved, sizes, partType = 'panel', faceType = null, panelMaterial = null) {
     const { style, design } = resolved;
     if (!offsetsByStyle.has(style)) {
       offsetsByStyle.set(style, doorProfileOffsets(style, design, profiles));
     }
     const offsets = offsetsByStyle.get(style);
     const detail = partDetail(style, design, rect, sizes, offsets.slots.outside?.reachOut ?? 0, offsets.applied);
-    const fit = partProfileLines(offsets, detail, rect);
+    const fit = partProfileLines(offsets, detail, rect, { panel: !panelMaterial });
     const { x, z, width, height } = rect;
     parts.push({
       key, kind, pieceId, path, styleId: style.id, label: style.label,
       ...(kind === 'face' ? { flat: stileFlat(offsets, detail), core: detail.core } : {}),
       style, design, partType, faceType, sizes: detail.sizes ?? detail,
+      ...(panelMaterial ? { panelMaterial } : {}),
       construction: detail.construction, x, z, width, height, openings: detail.openings,
       lines: fit.lines, miters: fit.miters, openingsShown: fit.openingsShown,
     });
     warnings.push(...resolved.warnings.map((warning) => ({ ...warning, pieceId, key })));
     warnings.push(...offsets.warnings.map((warning) => ({ ...warning, pieceId, key })));
     warnings.push(...fit.warnings.map((warning) => ({ ...warning, pieceId, key })));
+    if (panelMaterial && detail.construction !== 'five_piece') {
+      warnings.push({ code: 'panel-material-needs-frame', pieceId, key });
+    }
     if (kind === 'face' && (detail.construction === 'five_piece' || (detail.construction === 'slab' && detail.molding))) {
       faceParts.get(pieceId).push({ path, ...detail.core, sizes: detail.sizes });
     }
@@ -134,7 +138,7 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
         room, settings, partType, cabinetFaceLevels(room, levelsWall, run, item, node),
       );
       const key = `${pieceId}:${face.path}${face.half ? `:${face.half}` : ''}`;
-      addPart(key, 'face', pieceId, face.path, face, resolved, node?.sizes, partType, face.type);
+      addPart(key, 'face', pieceId, face.path, face, resolved, node?.sizes, partType, face.type, face.panelMaterial);
     }
   }
 

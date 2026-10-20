@@ -1,6 +1,6 @@
 import { isAccessoryItems } from './accessoryItems.js';
 import { EPSILON } from './cells.js';
-import { DEFAULT_SETTINGS } from './constants.js';
+import { DEFAULT_SETTINGS, panelMaterial } from './constants.js';
 import { isPartSizes, isStyleRef } from './doorStyles.js';
 import { MAX_PULL_COUNT, PULL_ORIENTATIONS, PULL_POSITIONS, pullPartType } from './pulls.js';
 
@@ -68,6 +68,9 @@ export function isFaceNode(node) {
 function isFaceNodeWithin(node, parentDirection) {
   if (!node || typeof node !== 'object' || Array.isArray(node)) return false;
   if (!isSize(node.size)) return false;
+  if (Object.hasOwn(node, 'panelMaterial')
+    && (!['door', 'pair_door'].includes(node.type)
+      || node.action === 'pullout' || !panelMaterial(node.panelMaterial))) return false;
   if (Object.hasOwn(node, 'match')) {
     if (parentDirection !== 'vertical' || node.size !== null) return false;
     if (node.match === 'base') {
@@ -167,6 +170,7 @@ export function resolveFaces(face, area, reveals) {
     const extra = {
       ...(opening ? { opening } : {}),
       ...(node.action ? { action: node.action } : {}),
+      ...(node.panelMaterial ? { panelMaterial: node.panelMaterial } : {}),
     };
     if (node.type === 'pair_door') {
       const half = (leaf.width - pairGap) / 2;

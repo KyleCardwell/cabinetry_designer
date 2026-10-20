@@ -158,7 +158,7 @@ export function stileFlat(offsets, detail) {
 }
 
 /** SPEC-50 one part's profile lines and miters in wall coordinates, and its fit warnings. */
-export function partProfileLines(offsets, detail, rect) {
+export function partProfileLines(offsets, detail, rect, { panel = true } = {}) {
   const { slots, applied = [] } = offsets;
   const lines = [];
   const miters = [];
@@ -166,7 +166,7 @@ export function partProfileLines(offsets, detail, rect) {
   const fivePiece = detail.construction === 'five_piece';
   const molding = detail.construction === 'slab' && detail.molding;
   const { fitted, warnings } = fittedApplied(offsets, detail);
-  const openingsShown = !(fivePiece
+  const openingsShown = (fivePiece && !panel) || !(fivePiece
     ? slots.inside?.covers || slots.panel?.covers
       || fitted.some(({ offset, covers }) => offset === 0 && covers)
     : molding || detail.molding === false);
@@ -211,9 +211,9 @@ export function partProfileLines(offsets, detail, rect) {
   for (const opening of detail.openings) {
     if (fivePiece) {
       addLines(opening, slots.inside?.lines ?? []);
-      addLines(opening, slots.panel?.lines ?? []);
+      if (panel) addLines(opening, slots.panel?.lines ?? []);
       if (slots.inside) addMiters(opening, slots.inside.minX, slots.inside.maxX);
-      if (slots.panel) addMiters(opening, Math.max(0, slots.panel.minX), slots.panel.maxX);
+      if (panel && slots.panel) addMiters(opening, Math.max(0, slots.panel.minX), slots.panel.maxX);
     }
     for (const pick of fitted) {
       if (molding) {
@@ -252,7 +252,7 @@ export function partProfileLines(offsets, detail, rect) {
     warnings.push({ code: 'door-profile-too-wide', side: 'mid' });
   }
   const inward = Math.max(
-    slots.inside?.reachIn ?? 0, slots.panel?.reachIn ?? 0, ...fitted.map(({ reachIn }) => reachIn),
+    slots.inside?.reachIn ?? 0, panel ? (slots.panel?.reachIn ?? 0) : 0, ...fitted.map(({ reachIn }) => reachIn),
   );
   if (inward > 0 && detail.openings.some(({ width, height }) => 2 * inward > Math.min(width, height) + EPS)) {
     warnings.push({ code: 'door-profile-panel-too-small' });

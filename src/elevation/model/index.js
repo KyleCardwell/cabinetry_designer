@@ -1,5 +1,7 @@
 export {
   ACCESSORY_PLACES,
+  PANEL_MATERIALS,
+  panelMaterial,
   CABINET_PURPOSES,
   CABINET_TYPE_IDS,
   CABINET_TYPE_COLORS,
@@ -88,6 +90,7 @@ export {
   parentFacePath,
   removeFace,
   setFaceAction,
+  setFacePanelMaterial,
   setFaceDrawerBox,
   setFaceHinge,
   setFaceMatch,

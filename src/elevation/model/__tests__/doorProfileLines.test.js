@@ -43,6 +43,25 @@ const appliedPick = (pick, offset = 0, index = 0) => ({
 });
 const ROUND_SLOT = { profileId: 'sp-round', name: 'Round 1/4', lines: [0.25], minX: 0, maxX: 0.25, reachIn: 0.25, reachOut: 0, covers: false };
 
+it('IN14 omits panel lines, miters and panel fit checks while retaining the frame and applied profiles', () => {
+  const rect = box(0, 0, 24, 30);
+  const offsets = doorProfileOffsets(ALL, FIVE, LIBRARY);
+  const detail = partDetail(ALL, FIVE, rect, undefined, 0, offsets.applied);
+  const withoutPanel = { ...offsets, slots: { ...offsets.slots } };
+  delete withoutPanel.slots.panel;
+  const expected = partProfileLines(withoutPanel, detail, rect);
+  const actual = partProfileLines(offsets, detail, rect, { panel: false });
+  expect(actual).toEqual({ ...expected, openingsShown: true });
+  expect(actual.lines.length).toBeGreaterThan(0);
+  expect(actual.miters.length).toBeGreaterThan(0);
+  expect(actual.lines).not.toEqual(partProfileLines(offsets, detail, rect).lines);
+  expect(actual.miters).not.toEqual(partProfileLines(offsets, detail, rect).miters);
+  const covering = { ...offsets, slots: { ...offsets.slots, inside: { ...offsets.slots.inside, covers: true } } };
+  expect(partProfileLines(covering, detail, rect, { panel: false }).openingsShown).toBe(true);
+  const oversized = { ...offsets, slots: { ...offsets.slots, panel: { ...offsets.slots.panel, reachIn: 100 } } };
+  expect(partProfileLines(oversized, detail, rect, { panel: false }).warnings).toEqual(expected.warnings);
+});
+
 describe('SPEC-50 door profile offsets', () => {
   it('reads each pick\'s drawn points as offsets with its reach, and warns on bad picks and cuts past the back', () => {
     expect(doorProfileOffsets(ALL, FIVE, LIBRARY)).toEqual({

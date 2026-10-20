@@ -4,6 +4,14 @@ import { BUILT_IN_SLIDES } from './slides.js';
 
 export const ACCESSORY_PLACES = ['section', 'drawer_box'];
 
+export const PANEL_MATERIALS = [
+  { id: 'glass', label: 'Glass', seeThrough: true, glassMarks: true, orderText: 'sash panel (glass)' },
+];
+
+export function panelMaterial(id) {
+  return PANEL_MATERIALS.find((row) => row.id === id) ?? null;
+}
+
 /** Cabinet type identifiers shared with ff-job-schedule. */
 export const CABINET_TYPE_IDS = {
   BASE: 1,

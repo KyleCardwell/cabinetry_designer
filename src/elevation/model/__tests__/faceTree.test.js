@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isFaceNode, setFaceAction, setFaceMatch } from '../index.js';
+import { isFaceNode, setFaceAction, setFaceMatch, setFacePanelMaterial } from '../index.js';
 import {
   equalizeGroup,
   faceOutline,
@@ -23,6 +23,41 @@ function deepFreeze(value) {
 }
 
 const DOOR = deepFreeze({ type: 'door', size: null });
+
+describe('IN14 panel material edits', () => {
+  it('anchor 2: sets glass and removes the key with null, including nested pair doors', () => {
+    const glass = setFacePanelMaterial(DOOR, 'r', 'glass');
+    expect(glass).toEqual({ type: 'door', size: null, panelMaterial: 'glass' });
+    expect(setFacePanelMaterial(glass, 'r', null)).toEqual(DOOR);
+    const tree = deepFreeze({ direction: 'horizontal', size: null, children: [DOOR, { type: 'pair_door', size: null }] });
+    const next = setFacePanelMaterial(tree, 'r.1', 'glass');
+    expect(next.children[1]).toEqual({ type: 'pair_door', size: null, panelMaterial: 'glass' });
+    expect(tree.children[1]).not.toHaveProperty('panelMaterial');
+    expect(isFaceNode(next)).toBe(true);
+  });
+
+  it('anchor 3: returns the original object for invalid targets, ids and unchanged values', () => {
+    const drawer = { type: 'drawer_front', size: null };
+    const pullout = { ...DOOR, action: 'pullout' };
+    const glass = { ...DOOR, panelMaterial: 'glass' };
+    const group = { direction: 'vertical', size: null, children: [DOOR, DOOR] };
+    for (const [tree, path, id] of [
+      [drawer, 'r', 'glass'], [pullout, 'r', 'glass'], [DOOR, 'r', 'mesh'],
+      [glass, 'r', 'glass'], [DOOR, 'r', null], [group, 'r', 'glass'],
+      [DOOR, 'r.1', 'glass'], [DOOR, 'r', undefined], [pullout, 'r', null],
+    ]) expect(setFacePanelMaterial(deepFreeze(tree), path, id)).toBe(tree);
+  });
+
+  it('anchor 4: drops panel material on a type change or pullout and preserves it for other actions', () => {
+    const glass = deepFreeze({ ...DOOR, panelMaterial: 'glass' });
+    expect(setFaceType(glass, 'r', 'pair_door')).toEqual({ type: 'pair_door', size: null });
+    expect(setFaceAction(glass, 'r', 'pullout')).toEqual({ ...DOOR, action: 'pullout' });
+    expect(setFaceType(glass, 'r', 'door').panelMaterial).toBe('glass');
+    for (const action of ['sliding', 'flipper', 'pocket', 'swing']) {
+      expect(setFaceAction(glass, 'r', action).panelMaterial).toBe('glass');
+    }
+  });
+});
 const TWO = deepFreeze({
   direction: 'vertical',
   size: null,
