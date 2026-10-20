@@ -5,6 +5,7 @@ import { newAccessory } from '../../elevation/model/accessories.js';
 import elevationReducer, { createInitialElevationState } from '../../elevation/store/elevationSlice.js';
 import InchInput from '../../elevation/components/InchInput.jsx';
 import AccessoryEditor from '../AccessoryEditor.jsx';
+import AccessoryEffectsFields from '../AccessoryEffectsFields.jsx';
 import AccessoriesPage from '../AccessoriesPage.jsx';
 import PricingFields from '../PricingFields.jsx';
 
@@ -20,21 +21,22 @@ vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 
 function nodes(tree) {
   if (Array.isArray(tree)) return tree.flatMap(nodes);
-  return tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
+  return tree && typeof tree === 'object' ? [tree, ...nodes(tree.type === AccessoryEffectsFields
+    ? AccessoryEffectsFields(tree.props) : tree.props?.children)] : [];
 }
 function text(tree) {
   if (Array.isArray(tree)) return tree.map(text).join('');
   if (typeof tree === 'string' || typeof tree === 'number') return String(tree);
-  return tree?.props ? text(tree.props.children) : '';
+  return tree?.props ? text(tree.type === AccessoryEffectsFields ? AccessoryEffectsFields(tree.props) : tree.props.children) : '';
 }
 const control = (tree, label) => nodes(tree).find(({ props }) => props['aria-label'] === label);
 const button = (tree, label) => nodes(tree).find(({ type, props }) => type === 'button' && props.children === label);
 const rows = (tree) => nodes(tree).filter(({ type }) => type === 'tr').slice(1);
 const dispatch = vi.fn();
 
-function library(source = 'local', accessories = [], teamServices = []) {
+function library(source = 'local', accessories = [], teamServices = [], slides) {
   let state = createInitialElevationState();
-  state = { ...state, source, teamServices, settings: { ...state.settings, accessories } };
+  state = { ...state, source, teamServices, settings: { ...state.settings, accessories, ...(slides ? { slides } : {}) } };
   const values = [];
   dispatch.mockImplementation((action) => { state = elevationReducer(state, action); });
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
@@ -50,12 +52,12 @@ function library(source = 'local', accessories = [], teamServices = []) {
   return { render, state: () => state };
 }
 
-function editor(accessory, accessories = [accessory], services = []) {
+function editor(accessory, accessories = [accessory], services = [], slides = []) {
   let draft = structuredClone(accessory);
   const onClose = vi.fn();
   const render = () => {
     useState.mockImplementation(() => [draft, (update) => { draft = update(draft); }]);
-    return AccessoryEditor({ accessory, accessories, services, onClose });
+    return AccessoryEditor({ accessory, accessories, services, slides, onClose });
   };
   const enter = (label, typed) => {
     const field = control(render(), label);
@@ -261,5 +263,114 @@ describe('IN12b step b Accessories page and editor', () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe('IN12c step b drawer box effects editor', () => {
+  const options = (tree, label) => nodes(control(tree, label)).filter(({ type }) => type === 'option');
+  const add = (edit, kind) => control(edit.render(), 'Add effect').props.onChange({ target: { value: kind } });
+  const boxAccessory = (effects = []) => ({ ...newAccessory([], 'box'), attachesTo: 'drawer_box', effects });
+  const slides = [{ id: 'blum', name: 'Blum' }, { id: 'accuride-4034', name: 'Accuride 4034' }];
+
+  it('adds and saves Clear behind on a new drawer-box accessory and shows its summary in Goes in', () => {
+    const page = library();
+    button(page.render(), 'New accessory').props.onClick();
+    const props = nodes(page.render()).find(({ type }) => type === AccessoryEditor).props;
+    const edit = editor(props.accessory, props.accessories);
+    expect(control(edit.render(), 'Drawer box effects')).toBeUndefined();
+    control(edit.render(), 'Goes in').props.onChange({ target: { value: 'drawer_box' } });
+    const tree = edit.render();
+    expect(text(tree)).toContain('The drawer box sizes from these. A typed size on a box still wins, with a warning.');
+    expect(options(tree, 'Add effect').map(text)).toEqual(['Add effect…', 'Clear behind', 'Max depth', 'Max height', 'Fixed height', 'Slide', 'ProBox note']);
+    expect(options(tree, 'Add effect').find(({ props }) => props.value === 'slide').props.disabled).toBe(true);
+    add(edit, 'slide');
+    expect(control(edit.render(), 'Slide')).toBeUndefined();
+    add(edit, 'clear_behind');
+    expect(control(edit.render(), 'Clear behind').props.value).toBe(2);
+    expect(text(edit.render())).toContain('2" clear behind');
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.accessories[0].effects).toEqual([{ kind: 'clear_behind', inches: 2 }]);
+    const cell = nodes(rows(page.render())[0]).filter(({ type }) => type === 'td')[1];
+    expect(text(cell)).toBe('Drawer box2" clear behind');
+    expect(nodes(cell).find(({ type }) => type === 'div').props.className).toContain('text-gray-400');
+  });
+
+  it('excludes both height kinds while one is present, restores them on removal, and saves positive fractional sizes in order', () => {
+    const edit = editor(boxAccessory());
+    add(edit, 'fixed_height');
+    expect(control(edit.render(), 'Fixed height').props.value).toBe(4.25);
+    expect(options(edit.render(), 'Add effect').map(text)).not.toContain('Max height');
+    expect(options(edit.render(), 'Add effect').map(text)).not.toContain('Fixed height');
+    control(edit.render(), 'Remove Fixed height').props.onClick();
+    expect(options(edit.render(), 'Add effect').map(text)).toEqual(expect.arrayContaining(['Max height', 'Fixed height']));
+    add(edit, 'max_depth');
+    add(edit, 'max_height');
+    add(edit, 'clear_behind');
+    expect(control(edit.render(), 'Max depth').props.value).toBe(18);
+    expect(control(edit.render(), 'Max height').props.value).toBe(4.25);
+    expect(options(edit.render(), 'Add effect').map(text)).not.toContain('Fixed height');
+    edit.enter('Max height', '3 1/4');
+    for (const invalid of ['0', '-2', 'nonsense', '']) edit.enter('Max height', invalid);
+    expect(control(edit.render(), 'Max height').props.value).toBe(3.25);
+    expect(nodes(edit.render()).filter(({ type }) => type === InchInput).slice(3).map(({ props }) => props['aria-label']))
+      .toEqual(['Max depth', 'Max height', 'Clear behind']);
+    button(edit.render(), 'Save').props.onClick();
+    const saved = dispatch.mock.lastCall[0].payload.accessory;
+    expect(saved.effects).toEqual([{ kind: 'max_depth', inches: 18 }, { kind: 'max_height', inches: 3.25 }, { kind: 'clear_behind', inches: 2 }]);
+    expect(text(library('local', [saved]).render())).toContain('max 18" deep · max 3 1/4" tall · 2" clear behind');
+  });
+
+  it('requires a ProBox note to be filled or removed, trims it on save, and limits the text input to 120 characters', () => {
+    const edit = editor(boxAccessory());
+    add(edit, 'probox_note');
+    expect(button(edit.render(), 'Save').props.disabled).toBe(true);
+    expect(text(edit.render())).toContain('Fill in or remove the ProBox note');
+    button(edit.render(), 'Save').props.onClick();
+    expect(dispatch).not.toHaveBeenCalled();
+    expect(control(edit.render(), 'ProBox note').props.maxLength).toBe(120);
+    control(edit.render(), 'ProBox note').props.onChange({ target: { value: '   ' } });
+    expect(text(edit.render())).toContain('Fill in or remove the ProBox note');
+    control(edit.render(), 'ProBox note').props.onChange({ target: { value: '1/2" bottom' } });
+    expect(button(edit.render(), 'Save').props.disabled).toBe(false);
+    control(edit.render(), 'ProBox note').props.onChange({ target: { value: ' 1/2" bottom ' } });
+    button(edit.render(), 'Save').props.onClick();
+    expect(dispatch.mock.lastCall[0].payload.accessory.effects).toEqual([{ kind: 'probox_note', text: '1/2" bottom' }]);
+    control(edit.render(), 'Remove ProBox note').props.onClick();
+    expect(button(edit.render(), 'Save').props.disabled).toBe(false);
+    expect(options(edit.render(), 'Add effect').map(text)).toContain('ProBox note');
+  });
+
+  it('uses Library slide names, defaults to the first slide, and clears effects when switching to Section', () => {
+    const accessory = boxAccessory();
+    const page = library('local', [accessory], [], slides);
+    button(page.render(), 'Edit').props.onClick();
+    expect(nodes(page.render()).find(({ type }) => type === AccessoryEditor).props.slides).toEqual(slides);
+    const edit = editor(accessory, [accessory], [], slides);
+    add(edit, 'slide');
+    expect(control(edit.render(), 'Slide').props.value).toBe('blum');
+    expect(options(edit.render(), 'Slide').map(text)).toEqual(['Blum', 'Accuride 4034']);
+    control(edit.render(), 'Slide').props.onChange({ target: { value: 'accuride-4034' } });
+    expect(control(edit.render(), 'Slide').props.value).toBe('accuride-4034');
+    expect(text(edit.render())).toContain('Accuride 4034');
+    control(edit.render(), 'Goes in').props.onChange({ target: { value: 'section' } });
+    expect(nodes(edit.render()).some(({ type }) => type === AccessoryEffectsFields)).toBe(false);
+    button(edit.render(), 'Save').props.onClick();
+    expect(page.state().settings.accessories[0]).toMatchObject({ attachesTo: 'section', effects: [] });
+    control(edit.render(), 'Goes in').props.onChange({ target: { value: 'drawer_box' } });
+    expect(control(edit.render(), 'Slide')).toBeUndefined();
+  });
+
+  it('shows a stored missing slide first in the select and in the page summary, retaining it until replaced', () => {
+    const accessory = boxAccessory([{ kind: 'slide', slideId: 'gone' }]);
+    const edit = editor(accessory, [accessory], [], slides);
+    expect(control(edit.render(), 'Slide').props.value).toBe('gone');
+    expect(options(edit.render(), 'Slide').map(text)).toEqual(['Missing slide', 'Blum', 'Accuride 4034']);
+    expect(button(edit.render(), 'Save').props.disabled).toBe(false);
+    button(edit.render(), 'Save').props.onClick();
+    expect(dispatch.mock.lastCall[0].payload.accessory.effects).toEqual(accessory.effects);
+    const page = library('local', [accessory], [], slides);
+    expect(text(nodes(rows(page.render())[0]).filter(({ type }) => type === 'td')[1])).toBe('Drawer boxMissing slide');
+    control(edit.render(), 'Slide').props.onChange({ target: { value: 'accuride-4034' } });
+    expect(options(edit.render(), 'Slide').map(text)).toEqual(['Blum', 'Accuride 4034']);
   });
 });

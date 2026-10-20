@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { accessoryText } from '../elevation/model/accessories.js';
+import { effectText } from '../elevation/model/accessoryEffects.js';
 import { formatPrice, PRICING_UNIT_LABELS } from '../elevation/model/libraryPricing.js';
 import { formatInches } from '../elevation/model/units.js';
 import { addAccessory, deleteAccessory } from '../elevation/store/elevationSlice.js';
@@ -57,7 +58,12 @@ export default function AccessoriesPage() {
                   <td className={CELL_CLASS}>
                     <span className="font-medium text-gray-100">{accessory.name}</span>
                   </td>
-                  <td className={CELL_CLASS}>{accessory.attachesTo === 'section' ? 'Section' : 'Drawer box'}{accessory.wholeSection ? ' · whole section' : ''}</td>
+                  <td className={CELL_CLASS}>
+                    {accessory.attachesTo === 'section' ? 'Section' : 'Drawer box'}{accessory.wholeSection ? ' · whole section' : ''}
+                    {accessory.effects.length > 0 && (
+                      <div className="mt-1 text-xs text-gray-400">{accessory.effects.map((effect) => effectText(effect, settings.slides)).join(' · ')}</div>
+                    )}
+                  </td>
                   <td className={CELL_CLASS}>{openingText(accessory)}</td>
                   <td className={`${CELL_CLASS} ${accessory.reportText ? '' : 'text-gray-500'}`}>{accessoryText(accessory)}</td>
                   <td className={CELL_CLASS}>{formatPrice(accessory.price, PRICING_UNIT_LABELS[accessory.pricing])}</td>
@@ -94,7 +100,7 @@ export default function AccessoriesPage() {
         </table>
       </div>
       {!accessories.length && <p className="text-sm text-gray-400">No accessories yet. Add the ones the shop uses with New accessory.</p>}
-      {editingAccessory && <AccessoryEditor key={editingAccessory.id} accessory={editingAccessory} accessories={accessories} services={teamServices} onClose={closeEditor} />}
+      {editingAccessory && <AccessoryEditor key={editingAccessory.id} accessory={editingAccessory} accessories={accessories} slides={settings.slides} services={teamServices} onClose={closeEditor} />}
     </div>
   );
 }

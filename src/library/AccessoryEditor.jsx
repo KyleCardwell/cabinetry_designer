@@ -5,12 +5,13 @@ import { PRICING_UNIT_LABELS } from '../elevation/model/libraryPricing.js';
 import { updateAccessory } from '../elevation/store/elevationSlice.js';
 import InchInput from '../elevation/components/InchInput.jsx';
 import PricingFields from './PricingFields.jsx';
+import AccessoryEffectsFields from './AccessoryEffectsFields.jsx';
 
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const TEXT_LABELS = { name: 'Name', brand: 'Brand', model: 'Model', description: 'Description', reportText: 'Report text' };
 
-export default function AccessoryEditor({ accessory, accessories, services = [], onClose }) {
+export default function AccessoryEditor({ accessory, accessories, slides = [], services = [], onClose }) {
   const dispatch = useDispatch();
   const [draft, setDraft] = useState(() => structuredClone(accessory));
   const titleId = useId();
@@ -18,13 +19,16 @@ export default function AccessoryEditor({ accessory, accessories, services = [],
   const savedAccessory = {
     ...draft,
     ...Object.fromEntries(Object.keys(TEXT_LABELS).map((key) => [key, draft[key].trim()])),
+    effects: draft.effects.map((effect) => effect.kind === 'probox_note' ? { ...effect, text: effect.text.trim() } : effect),
   };
   const duplicateName = accessories.some((entry) => entry.id !== accessory.id
     && entry.name.toLowerCase() === savedAccessory.name.toLowerCase());
   const reason = !savedAccessory.name ? 'Name is required'
     : duplicateName ? 'Name already used'
-      : !isAccessoryList(accessories.map((entry) => entry.id === accessory.id ? savedAccessory : entry))
-        ? 'Not a valid accessory' : '';
+      : savedAccessory.effects.some((effect) => effect.kind === 'probox_note' && !effect.text)
+        ? 'Fill in or remove the ProBox note'
+        : !isAccessoryList(accessories.map((entry) => entry.id === accessory.id ? savedAccessory : entry))
+          ? 'Not a valid accessory' : '';
   const change = (key, value) => setDraft((previous) => ({ ...previous, [key]: value }));
   const changeSize = (key, value) => {
     if (value !== null && (!Number.isFinite(value) || value <= 0)) return false;
@@ -83,7 +87,8 @@ export default function AccessoryEditor({ accessory, accessories, services = [],
             <select value={draft.attachesTo} aria-label="Goes in" className={`mt-1 ${INPUT_CLASS}`}
               onChange={(event) => {
                 const attachesTo = event.target.value;
-                setDraft((previous) => ({ ...previous, attachesTo, wholeSection: attachesTo === 'section' && previous.wholeSection }));
+                setDraft((previous) => ({ ...previous, attachesTo, wholeSection: attachesTo === 'section' && previous.wholeSection,
+                  effects: attachesTo === 'section' ? [] : previous.effects }));
               }}>
               <option value="section">Section</option>
               <option value="drawer_box">Drawer box</option>
@@ -108,6 +113,10 @@ export default function AccessoryEditor({ accessory, accessories, services = [],
               onChange={(event) => change('ownSlides', event.target.checked)} />
             Brings its own slides
           </label>
+          {draft.attachesTo === 'drawer_box' && (
+            <AccessoryEffectsFields effects={draft.effects} slides={slides}
+              onChange={(effects) => change('effects', effects)} inputClass={INPUT_CLASS} buttonClass={BUTTON_CLASS} />
+          )}
           <PricingFields value={{ pricing: draft.pricing, price: draft.price, actualCost: draft.actualCost, labor: draft.labor }}
             onChange={(value) => setDraft((previous) => ({ ...previous, ...value }))}
             showPricing unitLabel={PRICING_UNIT_LABELS[draft.pricing]} services={services} />
