@@ -1,14 +1,15 @@
 import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import elevationReducer, { createInitialElevationState, setActiveRoom, setLayerSetting, setRoomSetting, setSetting } from '../../store/elevationSlice.js';
 import { cloneRoom } from '../../model/roomClone.js';
-import RoomSettingsPanel from '../RoomSettingsPanel.jsx';
+import SettingsDrawer from '../SettingsDrawer.jsx';
 import SettingField from '../SettingField.jsx';
 import SettingGroups from '../SettingGroups.jsx';
 
-vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn() }));
+vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useRef: () => ({ current: null }) }));
+vi.mock('../panel/usePanelState.js', () => ({ default: function usePanelStateMock(key, initial) { return useState(key === 'settingsDrawer' ? true : initial); } }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
@@ -18,7 +19,7 @@ const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : tree && typeof tree === 'object' ? text(tree.props?.children) : tree ?? '';
 const header = (tree, label) => nodes(tree).find(({ type, props }) => type === 'button'
   && nodes(props.children).some(({ props }) => props.children === label));
-const controls = (tree) => nodes(tree).filter(({ type }) => type === 'input' || type === 'select');
+const controls = (tree) => nodes(nodes(tree).find(({ type }) => type === 'fieldset')).filter(({ type }) => type === 'input' || type === 'select');
 const options = (tree) => nodes(tree).filter(({ type }) => type === 'option').map(({ props }) => [props.value, props.children]);
 let state;
 let dispatch;
@@ -31,7 +32,7 @@ let dirty;
 // Keep hook state per component while walking the JSX, including InchInput's
 // draft text and effects. This exercises blur/reset and room switches together
 // with the real Redux reducer without requiring a browser DOM.
-function render(Component = RoomSettingsPanel, props = {}) {
+function render(Component = SettingsDrawer, props = { shopStandards: false }) {
   let result;
   do {
     dirty = false;
@@ -63,7 +64,7 @@ function openGroup(label) {
   return render();
 }
 
-function commit(label, value, Component = RoomSettingsPanel, props = {}) {
+function commit(label, value, Component = SettingsDrawer, props = { shopStandards: false }) {
   field(render(Component, props), label).props.onChange({ target: { value } });
   field(render(Component, props), label).props.onBlur();
   return render(Component, props);
@@ -71,6 +72,7 @@ function commit(label, value, Component = RoomSettingsPanel, props = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() });
   state = createInitialElevationState(null);
   state.settings.defaultInteriorFillerWidth = 3;
   state.settings.defaultEnds.left = 'filler';
@@ -100,6 +102,8 @@ beforeEach(() => {
     }
   });
 });
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe('DB2 d room settings panel', () => {
   it('IN4b d offers slide names, inherits Blum, saves the room pick and shows missing IDs (anchor 3)', () => {
@@ -186,11 +190,10 @@ describe('DB2 d room settings panel', () => {
     expect(field(render(), 'Room Min clear between shelves').props).toMatchObject({ value: '', placeholder: '11' });
   });
 
-  it('starts the section and every group closed and keeps expansion out of saved state', () => {
+  it('starts the drawer section open and every group closed and keeps expansion out of saved state', () => {
     const initial = state;
-    expect(header(render(), 'Room settings').props['aria-expanded']).toBe(false);
+    expect(header(render(), 'Room settings').props['aria-expanded']).toBe(true);
     expect(controls(render())).toHaveLength(0);
-    header(render(), 'Room settings').props.onClick();
     const groups = nodes(render()).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false);
     expect(groups).toHaveLength(11);
     groups[0].props.onClick();
@@ -209,23 +212,23 @@ describe('DB2 d room settings panel', () => {
     expect(field(tree, 'Room Interior filler width').props.className).toContain('border-gray-600');
     expect(field(tree, 'Reset Interior filler width')).toBeUndefined();
     expect(nodes(tree).find(({ props }) => props.title === 'Shop standard: 3"')).toBeDefined();
-    expect(nodes(tree).find(({ props }) => props.className === 'mt-3 grid grid-cols-2 gap-2')).toBeDefined();
+    expect(nodes(tree).find(({ props }) => props.className?.includes('@container'))).toBeDefined();
   });
 
-  it('anchor 2: commits 2 in room A and shows teal input, Reset and both override counts', () => {
+  it('anchor 2: commits 2 in room A and shows teal input, Reset and the group override count', () => {
     openGroup('Fillers & corners');
     const tree = commit('Room Interior filler width', '2');
     expect(state.rooms[0].settingsOverrides).toEqual({ defaultInteriorFillerWidth: 2 });
     expect(field(tree, 'Room Interior filler width').props.value).toBe('2');
     expect(field(tree, 'Room Interior filler width').props.className).toContain('border-teal-500');
     expect(field(tree, 'Reset Interior filler width')).toBeDefined();
-    for (const label of ['Room settings', 'Fillers & corners']) {
+    for (const label of ['Fillers & corners']) {
       expect(text(header(tree, label))).toContain('1 overridden');
       expect(nodes(header(tree, label)).find(({ props }) => props.className === 'text-teal-400')).toBeDefined();
     }
   });
 
-  it('anchor 3: Reset removes the last override and clears the field and both counts', () => {
+  it('anchor 3: Reset removes the last override and clears the field and group count', () => {
     openGroup('Fillers & corners');
     field(commit('Room Interior filler width', '2'), 'Reset Interior filler width').props.onClick();
     const tree = render();
@@ -278,9 +281,9 @@ describe('DB2 d room settings panel', () => {
     expect(state.rooms[0].settingsOverrides.baseCutoutFoot).toBe(0);
   });
 
-  it('anchor 8: renders nothing with no active room', () => {
+  it('anchor 8: omits room settings with no active room', () => {
     state.activeRoomId = null;
-    expect(render()).toBeNull();
+    expect(header(render(), 'Room settings')).toBeUndefined();
   });
 
   it('pins equal values, counts nested leaves, false and zero, and clears a blank blur', () => {
@@ -290,12 +293,12 @@ describe('DB2 d room settings panel', () => {
       defaultProfile: { wallHeight: 100 }, doorPanelDefault: 1, baseDepth: null, upperDepth: '',
     };
     const tree = openGroup('Fillers & corners');
-    expect(text(header(tree, 'Room settings'))).toContain('4 overridden');
+    expect(text(header(tree, 'Fillers & corners'))).toContain('1 overridden');
     expect(text(header(tree, 'Runs & ends'))).toContain('2 overridden');
     expect(field(tree, 'Room Interior filler width').props.className).toContain('border-teal-500');
     commit('Room Interior filler width', '');
     expect(state.rooms[0].settingsOverrides).not.toHaveProperty('defaultInteriorFillerWidth');
-    expect(text(header(render(), 'Room settings'))).toContain('3 overridden');
+    expect(text(header(render(), 'Fillers & corners'))).not.toContain('overridden');
     commit('Room Interior filler width', '3');
     expect(state.rooms[0].settingsOverrides.defaultInteriorFillerWidth).toBe(3);
     expect(text(header(render(), 'Fillers & corners'))).toContain('1 overridden');

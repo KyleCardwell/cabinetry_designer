@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
 import DesignerEditor from '../DesignerEditor.jsx';
 import ElevationLab from '../ElevationLab.jsx';
 import ElevationCanvas from '../components/ElevationCanvas.jsx';
@@ -13,15 +12,14 @@ import MissingSlidesNotice from '../components/MissingSlidesNotice.jsx';
 import MissingDoorDesignsNotice from '../components/MissingDoorDesignsNotice.jsx';
 import PropertiesPanel from '../components/PropertiesPanel.jsx';
 import RoomHeightsPanel from '../components/RoomHeightsPanel.jsx';
-import RoomSettingsPanel from '../components/RoomSettingsPanel.jsx';
 import RoomPartNumbersPanel from '../components/RoomPartNumbersPanel.jsx';
 import RoomStylePanel from '../components/RoomStylePanel.jsx';
 import RoomDoorStylesPanel from '../components/RoomDoorStylesPanel.jsx';
 import RoomPicker from '../components/RoomPicker.jsx';
 import SampleRunsButton from '../components/SampleRunsButton.jsx';
-import SettingsPanel from '../components/SettingsPanel.jsx';
+import SettingsDrawer from '../components/SettingsDrawer.jsx';
 import ViewPrefsFields from '../components/ViewPrefsFields.jsx';
-import SettingGroups from '../components/SettingGroups.jsx';
+import usePanelState from '../components/panel/usePanelState.js';
 import WallList from '../components/WallList.jsx';
 import JsonToggle from '../components/JsonToggle.jsx';
 import ExportDxfButton from '../components/ExportDxfButton.jsx';
@@ -31,6 +29,7 @@ import elevationReducer, { createInitialElevationState, setTool, setView } from 
 vi.mock('react', async (original) => ({
   ...await original(), useState: vi.fn(), useEffect: vi.fn(), useRef: vi.fn(), useMemo: vi.fn(),
 }));
+vi.mock('../components/panel/usePanelState.js', () => ({ default: vi.fn() }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 vi.mock('../components/ElevationCanvas.jsx', () => ({ default: 'elevation-canvas' }));
 vi.mock('../plan/PlanCanvas.jsx', () => ({ default: 'plan-canvas' }));
@@ -66,6 +65,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   state = createInitialElevationState(null);
   dispatch = vi.fn((action) => { state = elevationReducer(state, action); return action; });
+  usePanelState.mockImplementation(function usePanelStateMock(key, initial) { return useState(initial); });
   useDispatch.mockReturnValue(dispatch);
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
   useMemo.mockImplementation((calculate) => calculate());
@@ -78,7 +78,7 @@ beforeEach(() => {
   useState.mockImplementation((initial) => {
     const owner = current;
     const index = owner.cursor++;
-    if (!(index in owner.slots)) owner.slots[index] = initial;
+    if (!(index in owner.slots)) owner.slots[index] = typeof initial === 'function' ? initial() : initial;
     return [owner.slots[index], (value) => {
       owner.slots[index] = typeof value === 'function' ? value(owner.slots[index]) : value;
     }];
@@ -102,15 +102,9 @@ describe('DB6b b shared designer editor', () => {
       expect(component(tree, RoomPicker)).toBeDefined();
       expect(component(tree, SampleRunsButton)).toBeDefined();
       expect(text(tree)).toContain('Elevation Lab');
-      expect(component(tree, SettingsPanel).props.shopStandards).toBe(true);
+      expect(component(tree, SettingsDrawer).props.shopStandards).toBe(true);
       expect(nodes(tree).some((node) => node.type === 'fieldset')).toBe(false);
     }
-    const settings = renderComponent(() => SettingsPanel());
-    button(settings.tree, 'Settings+').props.onClick();
-    settings.render();
-    expect(component(settings.tree, SettingGroups).props.scope).toBe('team');
-    expect(text(settings.tree)).toContain('Door thickness is on the team door style');
-    expect(text(settings.tree)).toContain('Default height profile');
     expect(dispatch).not.toHaveBeenCalled();
   });
 
@@ -124,7 +118,7 @@ describe('DB6b b shared designer editor', () => {
     expect(component(tree, SampleRunsButton)).toBeUndefined();
     expect(nodes(tree)).toContain(header);
     expect(text(tree)).not.toContain('Elevation Lab');
-    expect(component(tree, SettingsPanel).props.shopStandards).toBe(false);
+    expect(component(tree, SettingsDrawer).props.shopStandards).toBe(false);
     const section = component(tree, 'section');
     expect(section.props.children.slice(0, 3)).toEqual([
       component(tree, ElevationToolbar), banners, component(tree, MissingDoorDesignsNotice),
@@ -142,11 +136,11 @@ describe('DB6b b shared designer editor', () => {
     const fieldsets = nodes(tree).filter((node) => node.type === 'fieldset');
     expect(fieldsets).toHaveLength(2);
     expect(fieldsets.every((node) => node.props.disabled && node.props.className === 'contents')).toBe(true);
-    for (const panel of [WallList, RoomHeightsPanel, RoomSettingsPanel, RoomPartNumbersPanel, RoomStylePanel, RoomDoorStylesPanel]) {
+    for (const panel of [WallList, RoomHeightsPanel, RoomPartNumbersPanel, RoomStylePanel, RoomDoorStylesPanel]) {
       expect(component(fieldsets[0], panel)).toBeDefined();
     }
     expect(component(fieldsets[1], PropertiesPanel)).toBeDefined();
-    for (const unlocked of [SettingsPanel, JsonToggle, ElevationCanvas]) {
+    for (const unlocked of [SettingsDrawer, JsonToggle, ElevationCanvas]) {
       expect(component(tree, unlocked)).toBeDefined();
       expect(fieldsets.some((node) => component(node, unlocked))).toBe(false);
     }
@@ -162,21 +156,15 @@ describe('DB6b b shared designer editor', () => {
     expect(nodes(editor.render()).filter((node) => node.type === 'fieldset').every((node) => !node.props.disabled)).toBe(true);
   });
 
-  it('shows view controls and the Settings link without shop standards (anchor 4)', () => {
-    const settings = renderComponent(SettingsPanel, { shopStandards: false });
-    button(settings.tree, 'Settings+').props.onClick();
-    const tree = settings.render();
-    const view = renderComponent(ViewPrefsFields, component(tree, ViewPrefsFields).props).tree;
-    expect(component(tree, SettingGroups)).toBeUndefined();
+  it('opens project room view settings with room fields locked and no shop standards', () => {
+    const editor = renderComponent(DesignerEditor, { mode: 'room', readOnly: true });
+    button(editor.tree, 'Settings').props.onClick();
+    editor.render();
+    expect(button(editor.tree, 'Settings').props['aria-expanded']).toBe(true);
+    const drawer = component(editor.tree, SettingsDrawer);
+    expect(drawer.props).toEqual({ shopStandards: false, readOnly: true });
+    const view = renderComponent(ViewPrefsFields).tree;
     expect(field(view, 'Drawing scale').type).toBe('select');
-    expect(component(tree, Link).props.to).toBe('/settings');
-    expect(text(tree)).toContain('View (not saved)');
-    expect(text(tree)).toContain('Shop standards are on the Settings page.');
-    expect(text(tree)).not.toContain('Door thickness');
-    expect(text(tree)).not.toContain('Default height profile');
-    expect(text(tree)).not.toContain('Overlap');
-    expect(text(tree)).not.toContain('Gap');
-    expect(nodes(tree).some((node) => node.props['aria-label']?.startsWith('Default '))).toBe(false);
     field(view, 'Drawing scale').props.onChange({ target: { value: '24' } });
     expect(state.prefs.plotScale).toBe(24);
   });

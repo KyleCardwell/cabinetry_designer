@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import { crownOverlap, resolveProfile } from '../model/profile.js';
@@ -14,10 +13,9 @@ import SettingField from './SettingField.jsx';
 import HeightBands from './HeightBands.jsx';
 import { BAND_SETTING_KEYS, bandFieldsFor } from '../model/heightBands.js';
 
-export default function SettingsPanel({ shopStandards = true } = {}) {
+export default function SettingsPanel() {
   const dispatch = useDispatch();
   const settings = useSelector((state) => state.elevation.settings);
-  const [open, setOpen] = useState(false);
   const resolvedProfile = resolveProfile(settings);
   const moldings = moldingProfiles(resolvedProfile, settings);
   const base = runBase(null, null, { cabinetTypeId: CABINET_TYPE_IDS.BASE }, settings);
@@ -84,54 +82,27 @@ export default function SettingsPanel({ shopStandards = true } = {}) {
   };
 
   return (
-    <section className="border-t border-gray-700 pt-4">
-      <button
-        type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="w-full flex items-center justify-between text-sm font-semibold uppercase tracking-wide text-gray-300"
-        aria-expanded={open}
-      >
-        Settings
-        <span className="text-gray-500" aria-hidden="true">{open ? '−' : '+'}</span>
-      </button>
-
-      {open && (
-        <div className="mt-3 space-y-4">
-          {shopStandards && (
-            <>
-              <SettingGroups scope="team" exclude={BAND_SETTING_KEYS} />
-              <p className="text-xs text-gray-500">
-                Door thickness is on the team door style —{' '}
-                <Link to="/library/door-style" className="text-blue-400 hover:underline">Library</Link>
-              </p>
-            </>
-          )}
-
-          <div className="space-y-3">
-            <h3 className="text-xs font-medium text-gray-300">View (not saved)</h3>
-            <ViewPrefsFields />
-          </div>
-
-          {shopStandards ? (
-            <div>
-              <p className="mb-2 text-xs font-medium text-gray-300">Default height profile</p>
-              <HeightBands
-                level="shop"
-                fields={bandFieldsFor('shop', { furnitureBase: resolvedProfile.baseKind === 'furniture_base' })}
-                renderField={renderField}
-                warnings={[...moldings.warnings, ...base.warnings]}
-                overlap={overlap}
-              />
-            </div>
-          ) : (
-            <p className="text-xs text-gray-500">
-              Shop standards are on the{' '}
-              <Link to="/settings" className="text-blue-400 hover:underline">Settings</Link> page.
-            </p>
-          )}
-
-        </div>
-      )}
+    <section className="space-y-4">
+      <h2 className="text-sm font-semibold text-gray-300">Shop standards</h2>
+      <SettingGroups scope="team" exclude={BAND_SETTING_KEYS} />
+      <p className="text-xs text-gray-500">
+        Door thickness is on the team door style —{' '}
+        <Link to="/library/door-style" className="text-blue-400 hover:underline">Library</Link>
+      </p>
+      <div className="space-y-3">
+        <h3 className="text-xs font-medium text-gray-300">View (not saved)</h3>
+        <ViewPrefsFields />
+      </div>
+      <div>
+        <p className="mb-2 text-xs font-medium text-gray-300">Default height profile</p>
+        <HeightBands
+          level="shop"
+          fields={bandFieldsFor('shop', { furnitureBase: resolvedProfile.baseKind === 'furniture_base' })}
+          renderField={renderField}
+          warnings={[...moldings.warnings, ...base.warnings]}
+          overlap={overlap}
+        />
+      </div>
     </section>
   );
 }

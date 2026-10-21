@@ -9,7 +9,7 @@ import elevationReducer, { setCabinetPullHeight } from '../../store/elevationSli
 import { auto, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import ProjectSettingsPanel from '../../../projects/ProjectSettingsPanel.jsx';
 import InchInput from '../InchInput.jsx';
-import RoomSettingsPanel from '../RoomSettingsPanel.jsx';
+import SettingsDrawer from '../SettingsDrawer.jsx';
 import SettingsPanel from '../SettingsPanel.jsx';
 import FaceProperties from '../properties/FaceProperties.jsx';
 import CabinetStyleProperties from '../properties/CabinetStyleProperties.jsx';
@@ -23,7 +23,9 @@ vi.mock('react', async (original) => ({
     : typeof value === 'function' ? value()
     : value && typeof value === 'object' ? { ...value, pulls: true } : value, vi.fn()],
   useEffect: vi.fn(),
+  useRef: () => ({ current: null }),
 }));
+vi.mock('../panel/usePanelState.js', () => ({ default: () => [true, vi.fn()] }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 vi.mock('react-router-dom', () => ({ Link: 'a' }));
 
@@ -170,7 +172,7 @@ describe('HP4 step c pull placement pickers', () => {
   it('anchor 6: renders Tall door pull height in all four Pulls settings panels and resets room 48', () => {
     for (const [scope, Component, componentProps] of [
       ['team', SettingsPanel, {}], ['project', ProjectSettingsPanel, { level: 'project' }],
-      ['phase', ProjectSettingsPanel, { level: 'phase' }], ['room', RoomSettingsPanel, {}],
+      ['phase', ProjectSettingsPanel, { level: 'phase' }], ['room', SettingsDrawer, { shopStandards: false }],
     ]) {
       const render = () => expand(<Component {...componentProps} />);
       const label = scope === 'team' ? 'Tall door pull height' : `${scope[0].toUpperCase()}${scope.slice(1)} Tall door pull height`;

@@ -2,15 +2,16 @@ import SettingGroups from '../SettingGroups.jsx';
 import ProjectSettingsPanel from '../../../projects/ProjectSettingsPanel.jsx';
 import { BAND_SETTING_KEYS } from '../../model/heightBands.js';
 import { groupsFor } from '../../model/settingGroups.js';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import elevationReducer, { createInitialElevationState, setActiveRoom, setRoomSetting, setSetting } from '../../store/elevationSlice.js';
 import { cloneRoom } from '../../model/roomClone.js';
 import SettingsPanel from '../SettingsPanel.jsx';
-import RoomSettingsPanel from '../RoomSettingsPanel.jsx';
+import SettingsDrawer from '../SettingsDrawer.jsx';
 
-vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn() }));
+vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useRef: () => ({ current: null }) }));
+vi.mock('../panel/usePanelState.js', () => ({ default: function usePanelStateMock(key, initial) { return useState(key === 'settingsDrawer' ? true : initial); } }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 vi.mock('react-router-dom', () => ({ Link: 'a' }));
 
@@ -23,7 +24,7 @@ const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
 const header = (tree, label) => nodes(tree).find(({ type, props }) => type === 'button'
   && ([props.children].flat().includes(label) || nodes(props.children).some(({ props }) => props.children === label)));
 const section = (tree, label) => nodes(tree).find(({ type, props }) => type === 'section'
-  && [props.children].flat().some((child) => child?.type === 'button' && header(child, label)));
+  && header([props.children].flat()[0], label));
 const controls = (tree) => nodes(tree).filter(({ type }) => type === 'input' || type === 'select');
 const options = (tree) => nodes(tree).filter(({ type }) => type === 'option').map(({ props }) => [props.value, props.children]);
 let state;
@@ -64,8 +65,8 @@ function render(Component = SettingsPanel, props = {}) {
 }
 
 function openGroup(label, Component = SettingsPanel, sectionLabel = 'Settings') {
-  if (!header(render(Component), sectionLabel).props['aria-expanded']) header(render(Component), sectionLabel).props.onClick();
-  const button = header(section(render(Component), sectionLabel), label);
+  const root = sectionLabel === 'Room settings' ? section(render(Component), sectionLabel) : render(Component);
+  const button = header(root, label);
   if (!button.props['aria-expanded']) button.props.onClick();
   return render(Component);
 }
@@ -77,11 +78,12 @@ function commit(label, value, Component = SettingsPanel) {
 }
 
 function Panels() {
-  return [<SettingsPanel key="shop" />, <RoomSettingsPanel key="room" />];
+  return [<SettingsPanel key="shop" />, <SettingsDrawer key="room" shopStandards={false} />];
 }
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubGlobal('window', { addEventListener: vi.fn(), removeEventListener: vi.fn() });
   state = createInitialElevationState(null);
   state.settings.defaultInteriorFillerWidth = 3;
   state.settings.defaultEnds.left = 'filler';
@@ -112,11 +114,12 @@ beforeEach(() => {
   });
 });
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe('DB2 f shop settings panel', () => {
   it('anchor 1: starts eleven groups collapsed and retains the note, view controls and height profile', () => {
     const initial = state;
-    expect(header(render(), 'Settings').props['aria-expanded']).toBe(false);
-    header(render(), 'Settings').props.onClick();
+    expect(header(render(), 'Settings')).toBeUndefined();
     const tree = render();
     const groups = [
       ['Cabinets & depths', 11], ['Runs & ends', 9], ['Fillers & corners', 11],
@@ -251,7 +254,7 @@ describe('UI1 step a settings exclusions', () => {
     expect(controls(section(openGroup('Bases, tops & bands'), 'Bases, tops & bands'))
       .map(({ props }) => props['aria-label'])).toEqual(expected);
     hooks.clear();
-    expect(controls(section(openGroup('Bases, tops & bands', RoomSettingsPanel, 'Room settings'), 'Bases, tops & bands'))
+    expect(controls(section(openGroup('Bases, tops & bands', SettingsDrawer, 'Room settings'), 'Bases, tops & bands'))
       .map(({ props }) => props['aria-label'])).toEqual(expected.map((label) => `Room ${label}`));
     state.layers = { project: { id: 'project', values: {} } };
     hooks.clear();
@@ -263,7 +266,7 @@ describe('UI1 step a settings exclusions', () => {
     expect(header(render(SettingGroups, { scope: 'room', exclude }), 'Bases, tops & bands')).toBeUndefined();
     state.rooms[0].settingsOverrides = { baseCutoutFoot: 2 };
     hooks.clear();
-    expect(text(header(render(RoomSettingsPanel), 'Room settings'))).not.toContain('overridden');
+    expect(text(header(render(SettingsDrawer), 'Room settings'))).not.toContain('overridden');
     expect(BAND_SETTING_KEYS).toHaveLength(8);
   });
 });

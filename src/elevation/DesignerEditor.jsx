@@ -14,13 +14,13 @@ import MissingAccessoriesNotice from './components/MissingAccessoriesNotice.jsx'
 import JsonToggle from './components/JsonToggle.jsx';
 import PropertiesPanel from './components/PropertiesPanel.jsx';
 import RoomHeightsPanel from './components/RoomHeightsPanel.jsx';
-import RoomSettingsPanel from './components/RoomSettingsPanel.jsx';
 import RoomPartNumbersPanel from './components/RoomPartNumbersPanel.jsx';
 import RoomStylePanel from './components/RoomStylePanel.jsx';
 import RoomDoorStylesPanel from './components/RoomDoorStylesPanel.jsx';
 import RoomPicker from './components/RoomPicker.jsx';
 import SampleRunsButton from './components/SampleRunsButton.jsx';
-import SettingsPanel from './components/SettingsPanel.jsx';
+import SettingsDrawer from './components/SettingsDrawer.jsx';
+import usePanelState from './components/panel/usePanelState.js';
 import WallList from './components/WallList.jsx';
 import PanelSection from './components/panel/PanelSection.jsx';
 import { resolveWall } from './model/room.js';
@@ -29,6 +29,7 @@ import PlanCanvas from './plan/PlanCanvas.jsx';
 export default function DesignerEditor({ mode = 'lab', header = null, banners = null, readOnly = false }) {
   const dispatch = useDispatch();
   const roomMode = mode === 'room';
+  const [settingsOpen, setSettingsOpen] = usePanelState('settingsDrawer', false);
   const elevationCanvasRef = useRef(null);
   const [fitRequest, setFitRequest] = useState(0);
   const [elevationZoom, setElevationZoom] = useState(1);
@@ -79,13 +80,12 @@ export default function DesignerEditor({ mode = 'lab', header = null, banners = 
           <RoomPartNumbersPanel />
         </PanelSection>
       </>}
-      <RoomSettingsPanel />
     </>
   );
 
   return (
     <div className="flex h-full min-h-0 bg-gray-900 text-gray-100">
-      <aside className="w-80 shrink-0 overflow-y-auto border-r border-gray-700 bg-gray-800/60 p-4">
+      <aside className="w-80 shrink-0 flex flex-col overflow-y-auto border-r border-gray-700 bg-gray-800/60 p-4">
         <div className="mb-5">
           {roomMode ? header : (
             <>
@@ -106,9 +106,16 @@ export default function DesignerEditor({ mode = 'lab', header = null, banners = 
             </fieldset>
           ) : roomPanels}
           {!roomMode && <SampleRunsButton />}
-          <SettingsPanel shopStandards={!roomMode} />
           <JsonToggle />
         </div>
+        <button
+          type="button"
+          aria-expanded={settingsOpen}
+          onClick={() => setSettingsOpen((open) => !open)}
+          className="mt-auto w-full border-t border-gray-700 pt-4 text-left text-sm font-semibold text-gray-300"
+        >
+          Settings
+        </button>
       </aside>
 
       <section className="flex min-w-0 flex-1 flex-col">
@@ -125,6 +132,7 @@ export default function DesignerEditor({ mode = 'lab', header = null, banners = 
         <MissingSlidesNotice />
         <MissingAccessoriesNotice />
         <div className="relative min-h-0 flex-1">
+          <SettingsDrawer shopStandards={!roomMode} readOnly={readOnly} />
           <MessageToast />
           {view === 'plan' ? (
             <PlanCanvas fitRequest={fitRequest} />

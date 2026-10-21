@@ -21,7 +21,7 @@ const expanded = (tree, id) => nodes(band(tree, id)).find(({ type }) => type ===
 let PanelSection, PanelTabs, HeightBands, RoomHeightsPanel, WallHeightProperties, RunHeightsSection, SettingsPanel, usePanelState;
 let RunProperties, CabinetProperties, CellProperties, PieceProperties;
 let PropertiesPanel, PropertiesHeader, ElevationToolbar, OpeningProperties;
-let DesignerEditor, RoomStylePanel, RoomDoorStylesPanel, RoomPartNumbersPanel, WallList, RoomSettingsPanel;
+let DesignerEditor, RoomStylePanel, RoomDoorStylesPanel, RoomPartNumbersPanel, WallList;
 let hooks, slots, hookIndex, effects, dirty, state, storage, renderedComponents, rowScroll;
 
 function unmount() {
@@ -78,7 +78,6 @@ async function loadPanels() {
   ({ default: RoomDoorStylesPanel } = await import('../RoomDoorStylesPanel.jsx'));
   ({ default: RoomPartNumbersPanel } = await import('../RoomPartNumbersPanel.jsx'));
   ({ default: WallList } = await import('../WallList.jsx'));
-  ({ default: RoomSettingsPanel } = await import('../RoomSettingsPanel.jsx'));
   ({ default: PanelSection } = await import('../panel/PanelSection.jsx'));
   ({ default: PanelTabs } = await import('../panel/PanelTabs.jsx'));
   ({ default: HeightBands } = await import('../HeightBands.jsx'));
@@ -178,7 +177,6 @@ describe('UI3 step a panel controls', () => {
     tree = render(RunHeightsSection, { room, wall, run, settings: state.settings, actionBase: {}, validateAndDispatch: vi.fn() });
     expect(text(band(tree, 'base'))).toContain('2 overridden');
     unmount();
-    button(render(SettingsPanel), 'Settings').props.onClick();
     tree = render(SettingsPanel);
     expect(nodes(tree).filter(({ props }) => props['data-height-band']).length).toBeGreaterThan(0);
     expect(text(tree)).not.toContain('overridden');
@@ -484,22 +482,20 @@ describe('UI7 step a left panel sections', () => {
   const editor = (props = {}) => render(DesignerEditor, { mode: 'room', ...props });
   const aside = (tree) => nodes(tree).find(({ type }) => type === 'aside');
 
-  it('anchor 1: orders the left sections before Room settings and Settings and locks editable content', () => {
+  it('anchor 1: orders the left sections before the Settings button and locks editable content', () => {
     for (const mode of ['room', 'lab']) {
       const tree = editor({ mode, readOnly: true });
       const left = aside(tree);
-      const blocks = nodes(left).filter(({ type, props }) =>
-        (type === 'section' && props.className?.includes('border-t'))
-        || [RoomSettingsPanel, SettingsPanel].includes(type));
-      expect(blocks.map((block) => block.type === RoomSettingsPanel ? 'Room settings'
-        : block.type === SettingsPanel ? 'Settings' : text(nodes(block).find(({ props }) => props['aria-expanded'] !== undefined).props.children[1])))
-        .toEqual(['Walls', 'Room heights', 'Style & door styles', 'Part numbers & report', 'Room settings', 'Settings']);
+      const blocks = nodes(left).filter(({ type, props }) => type === 'section' && props.className?.includes('border-t'));
+      expect(blocks.map((block) => text(nodes(block).find(({ props }) => props['aria-expanded'] !== undefined).props.children[1])))
+        .toEqual(['Walls', 'Room heights', 'Style & door styles', 'Part numbers & report']);
+      expect(button(left, 'Settings')).toBeDefined();
       expect(nodes(left).some(({ type }) => type === 'h2' || type === 'h3')).toBe(false);
       if (mode === 'room') {
         const locked = nodes(left).find(({ type }) => type === 'fieldset');
         expect(locked.props).toMatchObject({ disabled: true, className: 'contents' });
         expect(button(locked, 'Add wall')).toBeDefined();
-        expect(nodes(locked).find(({ type }) => type === RoomSettingsPanel)).toBeDefined();
+        expect(button(locked, 'Settings')).toBeUndefined();
         button(left, 'Style & door styles').props.onClick();
         button(left, 'Part numbers & report').props.onClick();
         const expanded = nodes(aside(editor({ mode, readOnly: true }))).find(({ type }) => type === 'fieldset');

@@ -6,7 +6,11 @@ import { groupsFor } from '../../model/settingGroups.js';
 import { registryEntry } from '../../model/settingsRegistry.js';
 import elevationReducer, { createInitialElevationState } from '../../store/elevationSlice.js';
 
-vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useRef: vi.fn() }));
+vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useRef: vi.fn(), useMemo: (fn) => fn() }));
+vi.mock('react-router-dom', () => ({ Link: 'a' }));
+vi.mock('../../../library/WorkspaceSourceBar.jsx', () => ({ default: () => null, useShopReadOnly: () => false, useSandboxHidden: () => false }));
+vi.mock('../ElevationCanvas.jsx', () => ({ default: 'elevation-canvas' }));
+vi.mock('../../plan/PlanCanvas.jsx', () => ({ default: 'plan-canvas' }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
@@ -19,7 +23,7 @@ const button = (tree, label) => nodes(tree).find(({ type, props }) => type === '
 const group = (tree, label) => nodes(tree).find(({ type, props }) => type === 'section'
   && [props.children].flat().some((child) => child?.type === 'button' && text(child).includes(label)));
 const controls = (tree) => nodes(tree).filter(({ type }) => ['input', 'select'].includes(type));
-let SettingsDrawer, usePanelState, state, storage, hooks, slots, hookIndex, effects, dirty, focus;
+let SettingsDrawer, DesignerEditor, SettingsPage, usePanelState, state, storage, hooks, slots, hookIndex, effects, dirty, focus;
 
 // Use the same component/hook walk as the panel tests, including effect cleanup
 // and search focus, without needing a browser DOM.
@@ -33,6 +37,9 @@ function render(props = {}, Component = SettingsDrawer) {
       if (Array.isArray(element)) return element.map((child, index) => walk(child, `${path}/${child?.key ?? index}`));
       if (!element || typeof element !== 'object') return element;
       if (typeof element.type === 'function') {
+        // Expand only the editor and drawer here; unrelated viewer panels stay as JSX.
+        if (Component === DesignerEditor && ![DesignerEditor, SettingsDrawer].includes(element.type)
+          && !path.includes('/SettingsDrawer')) return element;
         const id = `${path}/${element.type.name}`;
         mounted.add(id);
         if (!hooks.has(id)) hooks.set(id, []);
@@ -106,6 +113,8 @@ beforeEach(async () => {
     }
   });
   ({ default: SettingsDrawer } = await import('../SettingsDrawer.jsx'));
+  ({ default: DesignerEditor } = await import('../../DesignerEditor.jsx'));
+  ({ default: SettingsPage } = await import('../../../library/SettingsPage.jsx'));
   ({ default: usePanelState } = await import('../panel/usePanelState.js'));
 });
 
@@ -216,5 +225,72 @@ describe('UI8 step a settings drawer', () => {
     button(render({}, Viewer), 'Settings toggle').props.onClick();
     expect(field(render({}, Viewer), 'Search settings')).toBeUndefined();
     expect(storage.get('ff.panel.settingsDrawer')).toBe('false');
+  });
+});
+
+
+describe('UI8 step b settings integration', () => {
+  it('anchor 1/3: replaces sidebar settings with a bottom button and overlays only the canvas in lab and room modes', () => {
+    storage.delete('ff.panel.settingsDrawer');
+    for (const mode of ['lab', 'room']) {
+      let tree = render({ mode }, DesignerEditor);
+      const left = nodes(tree).find(({ type }) => type === 'aside');
+      expect(nodes(left).filter(({ props }) => ['Room settings', 'Settings'].includes(props.title))).toEqual([]);
+      expect(left.props.children.at(-1).type).toBe('button');
+      expect(text(left.props.children.at(-1))).toBe('Settings');
+      expect(button(left, 'Settings').props['aria-expanded']).toBe(false);
+      expect(nodes(tree).some(({ props }) => props.role === 'dialog')).toBe(false);
+      button(left, 'Settings').props.onClick();
+      tree = render({ mode }, DesignerEditor);
+      const dialog = nodes(tree).find(({ props }) => props.role === 'dialog');
+      const canvasArea = nodes(tree).find(({ props }) => props.className === 'relative min-h-0 flex-1');
+      expect(nodes(canvasArea)).toContain(dialog);
+      expect(nodes(left)).not.toContain(dialog);
+      expect(dialog.props.className).toContain('absolute inset-y-0 left-0');
+      const sections = nodes(dialog).filter(({ type, props }) => type === 'section' && props.children[0]?.type === 'div');
+      expect(sections.map((section) => text(button(section, '')).replace('▾', '')))
+        .toEqual(mode === 'lab' ? ['Room settings', 'Shop standards', 'View'] : ['Room settings', 'View']);
+      button(nodes(tree).find(({ type }) => type === 'aside'), 'Settings').props.onClick();
+      expect(nodes(render({ mode }, DesignerEditor)).some(({ props }) => props.role === 'dialog')).toBe(false);
+    }
+  });
+
+  it('anchor 2: the real editor button opens focused search, Escape closes it, and the button reopens it', () => {
+    storage.delete('ff.panel.settingsDrawer');
+    let tree = render({ mode: 'room', readOnly: true }, DesignerEditor);
+    button(tree, 'Settings').props.onClick();
+    tree = render({ mode: 'room', readOnly: true }, DesignerEditor);
+    expect(field(tree, 'Search settings')).toBeDefined();
+    expect(focus).toHaveBeenCalledTimes(1);
+    const dialog = nodes(tree).find(({ props }) => props.role === 'dialog');
+    const roomFields = nodes(dialog).find(({ type }) => type === 'fieldset');
+    expect(roomFields.props.disabled).toBe(true);
+    expect(field(roomFields, 'Drawing scale')).toBeUndefined();
+    expect(field(dialog, 'Drawing scale')).toBeDefined();
+    const escape = new Event('keydown', { cancelable: true });
+    Object.defineProperty(escape, 'key', { value: 'Escape' });
+    window.dispatchEvent(escape);
+    tree = render({ mode: 'room', readOnly: true }, DesignerEditor);
+    expect(field(tree, 'Search settings')).toBeUndefined();
+    expect(button(tree, 'Settings').props['aria-expanded']).toBe(false);
+    button(tree, 'Settings').props.onClick();
+    tree = render({ mode: 'room', readOnly: true }, DesignerEditor);
+    expect(field(tree, 'Search settings')).toBeDefined();
+    expect(focus).toHaveBeenCalledTimes(2);
+    field(tree, 'Close settings').props.onClick();
+    expect(field(render({ mode: 'room', readOnly: true }, DesignerEditor), 'Search settings')).toBeUndefined();
+  });
+
+  it('anchor 4: the library Settings page shows shop standards and default height bands without a settings toggle', () => {
+    let tree = render({}, SettingsPage);
+    expect(text(tree)).toContain('Shop standards');
+    expect(text(tree)).toContain('Default height profile');
+    expect(button(tree, 'Settings')).toBeUndefined();
+    expect(nodes(tree).filter(({ props }) => props['data-height-band']).length).toBeGreaterThan(0);
+    expect(field(tree, 'Default Wall height')).toBeDefined();
+    button(tree, 'Cabinets & depths').props.onClick();
+    tree = render({}, SettingsPage);
+    expect(field(tree, 'Base depth')).toBeDefined();
+    expect(field(tree, 'Room Base depth')).toBeUndefined();
   });
 });
