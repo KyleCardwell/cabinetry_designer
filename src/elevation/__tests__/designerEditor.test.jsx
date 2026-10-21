@@ -141,11 +141,11 @@ describe('DB6b b shared designer editor', () => {
     const fieldsets = nodes(tree).filter((node) => node.type === 'fieldset');
     expect(fieldsets).toHaveLength(2);
     expect(fieldsets.every((node) => node.props.disabled && node.props.className === 'contents')).toBe(true);
-    for (const panel of [RoomHeightsPanel, RoomSettingsPanel, RoomPartNumbersPanel, RoomStylePanel, RoomDoorStylesPanel]) {
+    for (const panel of [WallList, RoomHeightsPanel, RoomSettingsPanel, RoomPartNumbersPanel, RoomStylePanel, RoomDoorStylesPanel]) {
       expect(component(fieldsets[0], panel)).toBeDefined();
     }
     expect(component(fieldsets[1], PropertiesPanel)).toBeDefined();
-    for (const unlocked of [WallList, SettingsPanel, JsonToggle, ElevationCanvas]) {
+    for (const unlocked of [SettingsPanel, JsonToggle, ElevationCanvas]) {
       expect(component(tree, unlocked)).toBeDefined();
       expect(fieldsets.some((node) => component(node, unlocked))).toBe(false);
     }

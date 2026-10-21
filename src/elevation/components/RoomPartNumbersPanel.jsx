@@ -15,10 +15,7 @@ export default function RoomPartNumbersPanel() {
   if (!room) return null;
 
   return (
-    <section className="border-t border-gray-700 pt-4">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-300">
-        Part numbers
-      </h3>
+    <div>
       <label className="block text-xs text-gray-400">
         Start number
         <input
@@ -67,6 +64,6 @@ export default function RoomPartNumbersPanel() {
           Number {warning.number} is used by {warning.keys.length} parts.
         </p>
       ))}
-    </section>
+    </div>
   );
 }

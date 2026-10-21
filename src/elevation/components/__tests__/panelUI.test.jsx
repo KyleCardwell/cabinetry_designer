@@ -5,7 +5,9 @@ import { CABINET_TYPE_IDS, findCell, resolveWall, runItems, runScene } from '../
 import elevationReducer, { splitCell } from '../../store/elevationSlice.js';
 import { auto, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 
-vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn() }));
+vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn(), useRef: () => ({ current: null }) }));
+vi.mock('../ElevationCanvas.jsx', () => ({ default: 'elevation-canvas' }));
+vi.mock('../../plan/PlanCanvas.jsx', () => ({ default: 'plan-canvas' }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
@@ -18,6 +20,7 @@ const band = (tree, id) => nodes(tree).find(({ props }) => props['data-height-ba
 const expanded = (tree, id) => nodes(band(tree, id)).find(({ type }) => type === 'button').props['aria-expanded'];
 let PanelSection, PanelTabs, HeightBands, RoomHeightsPanel, WallHeightProperties, RunHeightsSection, SettingsPanel, usePanelState;
 let RunProperties, CabinetProperties, CellProperties, PieceProperties;
+let DesignerEditor, RoomStylePanel, RoomDoorStylesPanel, RoomPartNumbersPanel, WallList, RoomSettingsPanel;
 let hooks, slots, hookIndex, effects, dirty, state, storage, renderedComponents;
 
 function unmount() {
@@ -37,7 +40,7 @@ function render(Component, props = {}) {
       if (Array.isArray(element)) return element.map((child, index) => walk(child, `${path}/${child?.key ?? index}`));
       if (!element || typeof element !== 'object') return element;
       if (element.type === Component || renderedComponents.includes(element.type)
-        || ['EndProperties', 'InteriorFillerProperties'].includes(element.type?.name)) {
+        || ['EndProperties', 'InteriorFillerProperties', 'RoomDoorStylesContent'].includes(element.type?.name)) {
         const id = `${path}/${element.type.name}`;
         mounted.add(id);
         if (!hooks.has(id)) hooks.set(id, []);
@@ -60,6 +63,12 @@ function render(Component, props = {}) {
 }
 
 async function loadPanels() {
+  ({ default: DesignerEditor } = await import('../../DesignerEditor.jsx'));
+  ({ default: RoomStylePanel } = await import('../RoomStylePanel.jsx'));
+  ({ default: RoomDoorStylesPanel } = await import('../RoomDoorStylesPanel.jsx'));
+  ({ default: RoomPartNumbersPanel } = await import('../RoomPartNumbersPanel.jsx'));
+  ({ default: WallList } = await import('../WallList.jsx'));
+  ({ default: RoomSettingsPanel } = await import('../RoomSettingsPanel.jsx'));
   ({ default: PanelSection } = await import('../panel/PanelSection.jsx'));
   ({ default: PanelTabs } = await import('../panel/PanelTabs.jsx'));
   ({ default: HeightBands } = await import('../HeightBands.jsx'));
@@ -87,7 +96,8 @@ async function loadPanels() {
     import('../properties/TeeProperties.jsx'),
   ]);
   const { RunFurnitureBaseSection } = await import('../properties/RunProperties.jsx');
-  renderedComponents = [PanelSection, PanelTabs, HeightBands, RunHeightsSection,
+  renderedComponents = [RoomHeightsPanel, RoomStylePanel, RoomDoorStylesPanel, RoomPartNumbersPanel, WallList,
+    PanelSection, PanelTabs, HeightBands, RunHeightsSection,
     RunFurnitureBaseSection, ...pieceSections.map((module) => module.default), ...runSections.map((module) => module.default)];
 }
 
@@ -453,5 +463,90 @@ describe('UI6 step b cabinet and section tabs', () => {
     expect(tabs(teeTree)).toEqual([]);
     expect(sectionTitles(teeTree)).toEqual(['Vertical T-filler']);
     expect(nodes(teeTree).some(({ type }) => type === 'h3')).toBe(false);
+  });
+});
+
+
+describe('UI7 step a left panel sections', () => {
+  const editor = (props = {}) => render(DesignerEditor, { mode: 'room', ...props });
+  const aside = (tree) => nodes(tree).find(({ type }) => type === 'aside');
+
+  it('anchor 1: orders the left sections before Room settings and Settings and locks editable content', () => {
+    for (const mode of ['room', 'lab']) {
+      const tree = editor({ mode, readOnly: true });
+      const left = aside(tree);
+      const blocks = nodes(left).filter(({ type, props }) =>
+        (type === 'section' && !props['data-height-band'] && nodes(props.children).some(({ props }) => props['aria-expanded'] !== undefined))
+        || [RoomSettingsPanel, SettingsPanel].includes(type));
+      expect(blocks.map((block) => block.type === RoomSettingsPanel ? 'Room settings'
+        : block.type === SettingsPanel ? 'Settings' : text(nodes(block).find(({ props }) => props['aria-expanded'] !== undefined).props.children[1])))
+        .toEqual(['Walls', 'Room heights', 'Style & door styles', 'Part numbers & report', 'Room settings', 'Settings']);
+      expect(nodes(left).some(({ type }) => type === 'h2' || type === 'h3')).toBe(false);
+      if (mode === 'room') {
+        const locked = nodes(left).find(({ type }) => type === 'fieldset');
+        expect(locked.props).toMatchObject({ disabled: true, className: 'contents' });
+        expect(button(locked, 'Add wall')).toBeDefined();
+        expect(nodes(locked).find(({ type }) => type === RoomSettingsPanel)).toBeDefined();
+        button(left, 'Style & door styles').props.onClick();
+        button(left, 'Part numbers & report').props.onClick();
+        const expanded = nodes(aside(editor({ mode, readOnly: true }))).find(({ type }) => type === 'fieldset');
+        expect(nodes(expanded).find(({ props }) => props['aria-label'] === 'Draw door details')).toBeDefined();
+        expect(nodes(expanded).find(({ props }) => props['aria-label'] === 'Part number start')).toBeDefined();
+        // Restore the defaults before checking the lab layout.
+        button(aside(editor()), 'Style & door styles').props.onClick();
+        button(aside(editor()), 'Part numbers & report').props.onClick();
+      }
+    }
+  });
+
+  it('anchor 2: defaults Walls and heights open, style and parts closed, and persists each section with badges', () => {
+    const room = state.rooms[0];
+    room.profile = { toeKickHeight: 0, crownProfileId: null, baseKind: 'toe_kick', unused: undefined };
+    room.style = { cabinetStyleId: 1, profiledEdge: false, beadWidth: 0, stileWidth: null, railWidth: undefined };
+    room.settingsOverrides = { bandDepths: { crownProjection: 2 } };
+    let left = aside(editor());
+    const titles = ['Walls', 'Room heights', 'Style & door styles', 'Part numbers & report'];
+    expect(titles.map((title) => sectionButton(left, title).props['aria-expanded'])).toEqual([true, true, false, false]);
+    expect(text(sectionButton(left, 'Room heights'))).toContain('3 overridden');
+    expect(text(sectionButton(left, 'Style & door styles'))).toContain('3 overridden');
+    expect(text(sectionButton(left, 'Walls'))).not.toContain('overridden');
+    expect(text(sectionButton(left, 'Part numbers & report'))).not.toContain('overridden');
+    titles.forEach((title) => sectionButton(left, title).props.onClick());
+    expect(['walls', 'heights', 'style', 'parts'].map((id) => storage.get(`ff.panel.left.${id}`)))
+      .toEqual(['false', 'false', 'true', 'true']);
+    unmount();
+    left = aside(editor());
+    expect(titles.map((title) => sectionButton(left, title).props['aria-expanded'])).toEqual([false, false, true, true]);
+    room.profile = {};
+    room.style = {};
+    expect(text(sectionButton(aside(editor()), 'Room heights'))).not.toContain('overridden');
+    expect(text(sectionButton(aside(editor()), 'Style & door styles'))).not.toContain('overridden');
+  });
+
+  it('anchor 3: shows cabinet style before a light Door styles section containing both styles and display controls', () => {
+    state.rooms[0].doorStyles = [
+      { id: 'style-a', label: 'A', name: 'First style', designId: 'design-a', thickness: 0.75 },
+      { id: 'style-b', label: 'B', name: 'Second style', designId: 'design-b', thickness: 0.875 },
+    ];
+    button(aside(editor()), 'Style & door styles').props.onClick();
+    let left = aside(editor());
+    const fieldsIndex = nodes(left).findIndex(({ type }) => type?.name === 'StyleFields');
+    const doorIndex = nodes(left).findIndex(({ type, props }) => type === 'button' && props['aria-expanded'] !== undefined && text(props.children[1]) === 'Door styles');
+    expect(fieldsIndex).toBeGreaterThan(-1);
+    expect(fieldsIndex).toBeLessThan(doorIndex);
+    const doorToggle = sectionButton(left, 'Door styles');
+    expect(doorToggle.props.className).toContain('text-[11px]');
+    expect(doorToggle.props['aria-expanded']).toBe(true);
+    expect(text(left)).toContain('First style');
+    expect(text(left)).toContain('Second style');
+    for (const label of ['Draw door details', 'Show style tags', 'Show swing marks', 'Show pulls']) {
+      expect(nodes(left).filter(({ type, props }) => type === 'input' && props.type === 'checkbox' && props['aria-label'] === label)).toHaveLength(1);
+    }
+    expect(nodes(left).some(({ type }) => type === 'h3')).toBe(false);
+    doorToggle.props.onClick();
+    left = aside(editor());
+    expect(text(left)).not.toContain('First style');
+    expect(nodes(left).some(({ props }) => props['aria-label'] === 'Draw door details')).toBe(false);
+    expect(storage.get('ff.panel.left.doorStyles')).toBe('false');
   });
 });

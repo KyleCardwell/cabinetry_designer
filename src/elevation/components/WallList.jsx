@@ -34,8 +34,7 @@ export default function WallList() {
 
   return (
     <section>
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">Walls</h2>
+      <div className="mb-3 flex justify-end">
         <button
           type="button"
           onClick={() => {

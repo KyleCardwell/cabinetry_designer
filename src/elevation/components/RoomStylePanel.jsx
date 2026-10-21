@@ -15,16 +15,13 @@ export default function RoomStylePanel() {
   if (!room) return null;
 
   return (
-    <section className="border-t border-gray-700 pt-4">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-300">Cabinet style</h3>
-      <StyleFields
-        label="Room"
-        level="Room"
-        inheritedFrom={sourceLabel(resolveSetting('defaultStyle.cabinetStyleId', inheritedChain).source)}
-        value={room.style}
-        inherited={resolveStyle(settings)}
-        onChange={(style) => dispatch(setRoomStyle({ roomId: room.id, style }))}
-      />
-    </section>
+    <StyleFields
+      label="Room"
+      level="Room"
+      inheritedFrom={sourceLabel(resolveSetting('defaultStyle.cabinetStyleId', inheritedChain).source)}
+      value={room.style}
+      inherited={resolveStyle(settings)}
+      onChange={(style) => dispatch(setRoomStyle({ roomId: room.id, style }))}
+    />
   );
 }

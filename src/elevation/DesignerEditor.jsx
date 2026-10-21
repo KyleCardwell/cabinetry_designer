@@ -22,6 +22,7 @@ import RoomPicker from './components/RoomPicker.jsx';
 import SampleRunsButton from './components/SampleRunsButton.jsx';
 import SettingsPanel from './components/SettingsPanel.jsx';
 import WallList from './components/WallList.jsx';
+import PanelSection from './components/panel/PanelSection.jsx';
 import { resolveWall } from './model/room.js';
 import PlanCanvas from './plan/PlanCanvas.jsx';
 
@@ -52,11 +53,33 @@ export default function DesignerEditor({ mode = 'lab', header = null, banners = 
 
   const roomPanels = (
     <>
-      <RoomHeightsPanel />
+      <PanelSection id="left.walls" title="Walls">
+        <WallList />
+      </PanelSection>
+      {activeRoom && <>
+        <PanelSection
+          id="left.heights"
+          title="Room heights"
+          badge={Object.values(activeRoom.profile ?? {}).filter((value) => value !== undefined).length}
+        >
+          <RoomHeightsPanel />
+        </PanelSection>
+        <PanelSection
+          id="left.style"
+          title="Style & door styles"
+          defaultOpen={false}
+          badge={Object.values(activeRoom.style ?? {}).filter((value) => value != null).length}
+        >
+          <div className="space-y-3">
+            <RoomStylePanel />
+            <RoomDoorStylesPanel />
+          </div>
+        </PanelSection>
+        <PanelSection id="left.parts" title="Part numbers & report" defaultOpen={false}>
+          <RoomPartNumbersPanel />
+        </PanelSection>
+      </>}
       <RoomSettingsPanel />
-      <RoomPartNumbersPanel />
-      <RoomStylePanel />
-      <RoomDoorStylesPanel />
     </>
   );
 
@@ -82,7 +105,6 @@ export default function DesignerEditor({ mode = 'lab', header = null, banners = 
               <div className="space-y-5">{roomPanels}</div>
             </fieldset>
           ) : roomPanels}
-          <WallList />
           {!roomMode && <SampleRunsButton />}
           <SettingsPanel shopStandards={!roomMode} />
           <JsonToggle />

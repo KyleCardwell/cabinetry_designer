@@ -7,6 +7,7 @@ import { doorStyleUses, pickOptions } from '../model/doorStyleEdits.js';
 import { formatInches } from '../model/units.js';
 import { addDoorStyle, deleteDoorStyle, setDoorStylePick, setRoomDoorDrawing } from '../store/elevationSlice.js';
 import DoorStyleEditor from './DoorStyleEditor.jsx';
+import PanelSection from './panel/PanelSection.jsx';
 import DoorStylePicks from './properties/DoorStylePicks.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -21,8 +22,7 @@ function RoomDoorStylesContent({ room, settings }) {
   const { inherit, options } = pickOptions(room, settings, 'door', []);
 
   return (
-    <section className="border-t border-gray-700 pt-4">
-      <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-300">Door styles</h3>
+    <PanelSection id="left.doorStyles" title="Door styles" level={2}>
       <div className="space-y-3">
         <label className="flex items-center gap-2 text-xs text-gray-300">
           <input
@@ -182,7 +182,7 @@ function RoomDoorStylesContent({ room, settings }) {
       {styles.some((style) => style.id === editingId) && (
         <DoorStyleEditor key={editingId} room={room} styleId={editingId} onClose={() => setEditingId(null)} />
       )}
-    </section>
+    </PanelSection>
   );
 }
 

@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectRoomInheritedChain, selectSettings } from '../store/selectors.js';
 import { counterTop, crownOverlap, moldingStack, resolveProfile } from '../model/profile.js';
@@ -25,7 +24,6 @@ export default function RoomHeightsPanel() {
   const inheritedChain = useSelector(selectRoomInheritedChain);
   const settings = useSelector(selectSettings);
   const room = rooms.find((candidate) => candidate.id === activeRoomId) ?? null;
-  const [open, setOpen] = useState(true);
 
   if (!room) return null;
   const inheritedProfile = resolveProfile(resolveSettings(inheritedChain));
@@ -114,50 +112,36 @@ export default function RoomHeightsPanel() {
   };
 
   return (
-    <section className="border-t border-gray-700 pt-4">
+    <div className="space-y-3">
+      <HeightBands
+        level="room"
+        fields={bandFieldsFor('room', { furnitureBase: resolvedProfile.baseKind === 'furniture_base' })}
+        renderField={renderField}
+        isSet={(key) => BAND_SETTING_KEYS.includes(key)
+          ? ownSettingValue(room.settingsOverrides, key) !== null
+          : room.profile[key] !== undefined}
+        warnings={[...moldings.warnings, ...base.warnings]}
+        overlap={overlap}
+      />
+
+      <div className="grid grid-cols-2 gap-2 rounded border border-gray-700 bg-gray-900/45 p-2.5 text-xs">
+        <div>
+          <p className="text-gray-500">Molding stack</p>
+          <p className="mt-1 text-gray-200">{formatInches(moldingStack(resolvedProfile))}</p>
+        </div>
+        <div>
+          <p className="text-gray-500">Counter height</p>
+          <p className="mt-1 text-gray-200">{formatInches(counterTop(resolvedProfile))}</p>
+        </div>
+      </div>
+
       <button
         type="button"
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center justify-between text-sm font-semibold uppercase tracking-wide text-gray-300"
-        aria-expanded={open}
+        onClick={() => dispatch(autoHeightsForRoom({ roomId: room.id }))}
+        className="w-full rounded bg-gray-700 px-3 py-2 text-xs font-medium text-gray-100 transition-colors hover:bg-gray-600"
       >
-        Room heights
-        <span className="text-gray-500" aria-hidden="true">{open ? '−' : '+'}</span>
+        Use auto heights for all runs
       </button>
-
-      {open && (
-        <div className="mt-3 space-y-3">
-          <HeightBands
-            level="room"
-            fields={bandFieldsFor('room', { furnitureBase: resolvedProfile.baseKind === 'furniture_base' })}
-            renderField={renderField}
-            isSet={(key) => BAND_SETTING_KEYS.includes(key)
-              ? ownSettingValue(room.settingsOverrides, key) !== null
-              : room.profile[key] !== undefined}
-            warnings={[...moldings.warnings, ...base.warnings]}
-            overlap={overlap}
-          />
-
-          <div className="grid grid-cols-2 gap-2 rounded border border-gray-700 bg-gray-900/45 p-2.5 text-xs">
-            <div>
-              <p className="text-gray-500">Molding stack</p>
-              <p className="mt-1 text-gray-200">{formatInches(moldingStack(resolvedProfile))}</p>
-            </div>
-            <div>
-              <p className="text-gray-500">Counter height</p>
-              <p className="mt-1 text-gray-200">{formatInches(counterTop(resolvedProfile))}</p>
-            </div>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => dispatch(autoHeightsForRoom({ roomId: room.id }))}
-            className="w-full rounded bg-gray-700 px-3 py-2 text-xs font-medium text-gray-100 transition-colors hover:bg-gray-600"
-          >
-            Use auto heights for all runs
-          </button>
-        </div>
-      )}
-    </section>
+    </div>
   );
 }
