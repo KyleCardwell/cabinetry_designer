@@ -12,7 +12,7 @@ import { normalizeElevationDocument } from '../../store/persistence.js';
 
 const load = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`, import.meta.url), 'utf8'));
 const document = normalizeElevationDocument(load('golden'));
-const settings = { ...document.settings, sectionProfiles: load('sectionProfiles').profiles };
+const settings = { ...document.settings, sectionProfiles: [...document.settings.sectionProfiles, ...load('sectionProfiles').profiles] };
 const baseRun = document.rooms[0].walls[0].runs.find(({ cabinetTypeId }) => cabinetTypeId === CABINET_TYPE_IDS.BASE);
 const OUTLINE = [[29.1875, 0, 0], [66.8125, 0, 0], [66.8125, 3.6875, 0],
   [66.5, 4, 0], [29.5, 4, 0], [29.1875, 3.6875, 0]];

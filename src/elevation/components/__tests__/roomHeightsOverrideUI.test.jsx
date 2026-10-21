@@ -183,7 +183,9 @@ describe('DB2 e room heights and soffit overrides', () => {
       choose(`Room ${label}`, 'plain');
       const tree = render();
       expect(room().profile[key]).toBeNull();
-      expect(resolveProfile(state.settings, room())[key]).toBeNull();
+      expect(resolveProfile(state.settings, room())[key]).toBe(
+        ['crownProfileId', 'topMoldProfileId'].includes(key) ? inheritedId : null,
+      );
       expect(field(tree, `Room ${label}`).props.value).toBe('plain');
       expect(field(tree, `Room ${label}`).props.className).toContain('border-teal-500');
       expect(nodes(tree).find(({ props }) => props.title === `Room override · Shop standard: ${inheritedName}`)).toBeDefined();

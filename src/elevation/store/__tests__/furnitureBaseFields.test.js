@@ -47,7 +47,9 @@ describe('SPEC-50.5 saved furniture base fields', () => {
     Object.assign(wall.runs[0].overrides, fields);
     expect(isElevationDocument(saved)).toBe(true);
     const reloaded = normalizeElevationDocument(toElevationDocument(saved));
-    expect(reloaded.rooms[0].profile).toEqual({ furnitureBaseProud: 1 });
+    expect(reloaded.rooms[0].profile).toEqual({
+      furnitureBaseProud: 1, topMoldProfileId: 'golden-top-mold', crownProfileId: 'golden-crown',
+    });
     expect(reloaded.rooms[0].walls).toEqual(saved.rooms[0].walls);
     expect(resolveProfile(reloaded.settings, reloaded.rooms[0])).toMatchObject({ ...fields, furnitureBaseProud: 1 });
     for (const value of [null, undefined]) {

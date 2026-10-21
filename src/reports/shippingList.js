@@ -55,7 +55,7 @@ function shippingMoldings(room, settings) {
       const wall = resolveWall(room, stored, side);
       const profile = resolveProfile(settings, room, wall);
       for (const run of wall.runs) {
-        const kinds = Object.keys(MOLDINGS).filter((kind) => carriesMolding(wall, run, profile, kind));
+        const kinds = Object.keys(MOLDINGS).filter((kind) => carriesMolding(wall, run, profile, kind, settings));
         if (!kinds.length) continue;
         const bands = runBands(room, wall, run, settings, runScene(room, wall, run, settings));
         const moldings = moldingProfiles(profile, settings, run);
@@ -193,7 +193,7 @@ function shippingContext(room, settings) {
 function moldingDescription(room, settings, part) {
   const wall = room.walls?.find((wall) => {
     const profile = resolveProfile(settings, room, wall);
-    return wall.runs.some((run) => carriesMolding(wall, run, profile, part.molding));
+    return wall.runs.some((run) => carriesMolding(wall, run, profile, part.molding, settings));
   });
   const profile = resolveProfile(settings, room, wall);
   const id = profile[`${part.molding}ProfileId`];

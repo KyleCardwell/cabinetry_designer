@@ -1,3 +1,4 @@
+import { formatInches } from './units.js';
 import { CABINET_TYPE_IDS } from './constants.js';
 
 const SHOP_ROOM = ['shop', 'room'];
@@ -78,6 +79,9 @@ export function matchingBandFields(bands, query) {
 }
 
 export const MOLDING_NOTES = {
+  'crown-unpicked': 'No crown profile picked.',
+  'top-mold-unpicked': 'No top mold profile picked.',
+  'top-mold-gap': ({ gap }) => `Top mold stops ${formatInches(gap)} below the top of crown.`,
   'furniture-base-too-short': "The furniture base is shorter than its profile's stretch line; drawn at its own size.",
   'furniture-base-height-mismatch': 'The furniture base profile height differs from the base height; drawn at its own size.',
   'furniture-base-cut-bad': 'The furniture base cut goes outside the board; plain board used.',

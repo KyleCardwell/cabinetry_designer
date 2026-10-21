@@ -118,7 +118,130 @@
             "corbels": 6
         },
         "teeCover": 0.75,
-        "teeThickness": 0.8125
+        "teeThickness": 0.8125,
+        "sectionProfiles": [
+            {
+                "id": "golden-top-mold",
+                "name": "Top Mold",
+                "kind": "top_mold",
+                "geometry": {
+                    "units": "in",
+                    "points": {
+                        "a": [
+                            -0.75,
+                            0
+                        ],
+                        "b": [
+                            0,
+                            0
+                        ],
+                        "c": [
+                            0,
+                            3
+                        ],
+                        "d": [
+                            -0.75,
+                            3
+                        ]
+                    },
+                    "loops": [
+                        {
+                            "id": "L1",
+                            "closed": true,
+                            "segs": [
+                                {
+                                    "type": "line",
+                                    "from": "a",
+                                    "to": "b"
+                                },
+                                {
+                                    "type": "line",
+                                    "from": "b",
+                                    "to": "c"
+                                },
+                                {
+                                    "type": "line",
+                                    "from": "c",
+                                    "to": "d"
+                                },
+                                {
+                                    "type": "line",
+                                    "from": "d",
+                                    "to": "a"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "drawnPoints": {
+                    "elevation": []
+                },
+                "stretch": {
+                    "y": 1.5
+                },
+                "version": 1,
+                "archived": false
+            },
+            {
+                "id": "golden-crown",
+                "name": "Crown",
+                "kind": "crown",
+                "geometry": {
+                    "units": "in",
+                    "points": {
+                        "a": [
+                            0,
+                            -4.5
+                        ],
+                        "b": [
+                            2.75,
+                            -4.5
+                        ],
+                        "c": [
+                            2.75,
+                            0
+                        ],
+                        "d": [
+                            0,
+                            0
+                        ]
+                    },
+                    "loops": [
+                        {
+                            "id": "L1",
+                            "closed": true,
+                            "segs": [
+                                {
+                                    "type": "line",
+                                    "from": "a",
+                                    "to": "b"
+                                },
+                                {
+                                    "type": "line",
+                                    "from": "b",
+                                    "to": "c"
+                                },
+                                {
+                                    "type": "line",
+                                    "from": "c",
+                                    "to": "d"
+                                },
+                                {
+                                    "type": "line",
+                                    "from": "d",
+                                    "to": "a"
+                                }
+                            ]
+                        }
+                    ]
+                },
+                "drawnPoints": {
+                    "elevation": []
+                },
+                "version": 1,
+                "archived": false
+            }
+        ]
     },
     "rooms": [
         {
@@ -133,7 +256,9 @@
                 "crownTop": 96,
                 "topMoldHeight": 3,
                 "crownHeight": 4.5,
-                "crownStackHeight": 6
+                "crownStackHeight": 6,
+                "topMoldProfileId": "golden-top-mold",
+                "crownProfileId": "golden-crown"
             },
             "partNumberStart": 1,
             "partNumberOverrides": {},
@@ -925,7 +1050,9 @@
                 "crownTop": 96,
                 "topMoldHeight": 3,
                 "crownHeight": 4.5,
-                "crownStackHeight": 6
+                "crownStackHeight": 6,
+                "topMoldProfileId": "golden-top-mold",
+                "crownProfileId": "golden-crown"
             },
             "partNumberStart": 1,
             "partNumberOverrides": {},
@@ -1449,7 +1576,9 @@
                 "crownTop": 96,
                 "topMoldHeight": 3,
                 "crownHeight": 4.5,
-                "crownStackHeight": 6
+                "crownStackHeight": 6,
+                "topMoldProfileId": "golden-top-mold",
+                "crownProfileId": "golden-crown"
             },
             "partNumberStart": 1,
             "partNumberOverrides": {},
@@ -1842,7 +1971,9 @@
                 "crownTop": 96,
                 "topMoldHeight": 3,
                 "crownHeight": 4.5,
-                "crownStackHeight": 6
+                "crownStackHeight": 6,
+                "topMoldProfileId": "golden-top-mold",
+                "crownProfileId": "golden-crown"
             },
             "partNumberStart": 1,
             "partNumberOverrides": {},
@@ -2060,7 +2191,9 @@
                 "crownTop": 96,
                 "topMoldHeight": 3,
                 "crownHeight": 4.5,
-                "crownStackHeight": 6
+                "crownStackHeight": 6,
+                "topMoldProfileId": "golden-top-mold",
+                "crownProfileId": "golden-crown"
             },
             "partNumberStart": 1,
             "partNumberOverrides": {},
@@ -2465,7 +2598,9 @@
                 "crownTop": 96,
                 "topMoldHeight": 3,
                 "crownHeight": 4.5,
-                "crownStackHeight": 6
+                "crownStackHeight": 6,
+                "topMoldProfileId": "golden-top-mold",
+                "crownProfileId": "golden-crown"
             },
             "partNumberStart": 1,
             "partNumberOverrides": {},

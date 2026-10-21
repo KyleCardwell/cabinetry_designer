@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { newAccessory } from '../../elevation/model/accessories.js';
+import { pickedMoldings } from '../../elevation/model/__tests__/helpers/pickedMoldings.js';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
 import { frontDepth, runBackOffset } from '../../elevation/model/corners.js';
 import { DEFAULT_DOOR_STYLE } from '../../elevation/model/doorStyles.js';
@@ -20,7 +21,7 @@ import { reportHeader } from '../header.js';
 import { proBoxOrder } from '../proBoxOrder.js';
 import { cabinetDescription, drawerFrontNote, hingeNote, linealFeet, shippingDescription, shippingList } from '../shippingList.js';
 
-const settings = DEFAULT_SETTINGS;
+const settings = pickedMoldings(DEFAULT_SETTINGS);
 const { runScene } = sceneModel;
 const face = (type, rest = {}) => ({ type, size: null, ...rest });
 const drawers = { direction: 'vertical', size: null,
@@ -1184,7 +1185,7 @@ describe('RP2 step c shipping list rows', () => {
     expect(rows.filter(({ key }) => ['molding:toeKick', 'molding:crown'].includes(key)))
       .toEqual(['Toe Kick', 'Crown'].map((description, index) => ({
         number: index === 0 ? 2 : 4, key: index === 0 ? 'molding:toeKick' : 'molding:crown',
-        kind: 'molding', description, notes: [index === 0 ? '4" tall' : '4 1/2" tall'],
+        kind: 'molding', description, notes: [index === 0 ? '4" tall' : '4 1/2" tall x 2 3/4" deep'],
         size: index === 0 ? 'Lineal Feet: 8' : 'Lineal Feet: 16',
       })));
     // Existing part numbering also carries Top Mold with Crown; step c must keep that entry.

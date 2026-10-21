@@ -106,8 +106,9 @@ describe('Step 473 molding height panels', () => {
       expect(text(tree)).toContain('Overlap 1 1/2"');
       pick(render, scope, 'Top mold profile', 'plain');
       pick(render, scope, 'Crown profile', 'plain');
-      expect(field(render(), scope, 'Top mold').props.readOnly).toBe(false);
-      expect(field(render(), scope, 'Crown').props.readOnly).toBe(false);
+      // Until the Step b picker change, Wall's Plain stores null and therefore inherits.
+      expect(field(render(), scope, 'Top mold').props.readOnly).toBe(scope === 'Wall');
+      expect(field(render(), scope, 'Crown').props.readOnly).toBe(scope === 'Wall');
       expect(state.settings.defaultProfile).toMatchObject({ topMoldHeight: 8, crownHeight: 9 });
     });
 
@@ -147,7 +148,7 @@ describe('Step 473 molding height panels', () => {
       expect(overhang.props).toMatchObject({ value: null, allowBlank: true, placeholder: '1/2' });
       pick(render, scope, 'Crown profile', 'plain');
       expect(field(render(), scope, 'Crown profile').props.value).toBe('plain');
-      expect(field(render(), scope, 'Crown').props.readOnly).toBe(false);
+      expect(field(render(), scope, 'Crown').props.readOnly).toBe(scope === 'Wall');
       pick(render, scope, 'Crown profile', '');
       expect(scope === 'Room' ? room().profile : wall().profile).not.toHaveProperty('crownProfileId');
       expect(field(render(), scope, 'Crown').props.readOnly).toBe(true);

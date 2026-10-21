@@ -110,13 +110,10 @@ describe('SPEC-50.3 step 476 profiled band ends', () => {
       [13.625, 93, 0], [13.625, 92.5, 0], [13.125, 92.5, 0]]);
   });
 
-  it('keeps every unpicked band and line equal to the existing rectangles (anchor 5)', () => {
-    const { bands: [bands] } = setup({ profile: { topMoldProfileId: null, crownProfileId: null } });
-    expect(bands).toEqual({ top: { kind: 'crown', height: 6 }, toeKicks: [], furnitureBases: [], countertop: null,
-      topMold: { x: 29.75, z: 90, width: 36.5, height: 3, lines: [],
-        ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })] },
-      crown: { x: 27, z: 91.5, width: 42, height: 4.5, lines: [],
-        ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })] }, bottomParts: [], chipLines: [] });
+  it('omits both bands when both picks are None', () => {
+    const { bands: [bands] } = setup({ profile: { topMoldProfileId: 'none', crownProfileId: 'none' } });
+    expect(bands.topMold).toBeNull();
+    expect(bands.crown).toBeNull();
   });
 
   it('keeps an anchored wall end square at its current x (anchor 6), including two square ends', () => {
@@ -138,9 +135,9 @@ describe('SPEC-50.3 step 476 profiled band ends', () => {
     const picked = setup({ corner: true, neighborProfile: { crownProfileId: otherCove.id } }, using).bands[0].crown;
     expect(picked.outline[0]).toEqual([14.625, 92.5, 0]);
     expect(picked.outline.slice(-3)).toEqual([[17.125, 96, 0], [17.125, 95.5, 0.414214], [14.625, 93, 0]]);
-    const { bands: [{ crown }] } = setup({ corner: true, neighborProfile: { crownProfileId: null, crownHeight: 3.5 } });
+    const { bands: [{ crown }] } = setup({ corner: true, neighborProfile: { crownProfileId: 'missing', crownHeight: 3.5 } });
     expect(crown.outline).toEqual([[15.875, 92.5, 0], ...CROWN.slice(1, 5), [15.875, 96, 0]]);
-    const other = setup({ corner: true, neighborProfile: { topMoldProfileId: null } }).bands[0].topMold;
+    const other = setup({ corner: true, neighborProfile: { topMoldProfileId: 'missing' } }).bands[0].topMold;
     expect(other.outline.slice(0, 2)).toEqual([[13.125, 90, 0], TOP[1]]);
     expect(other.outline.at(-1)).toEqual([13.125, 93, 0]);
   });

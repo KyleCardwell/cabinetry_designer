@@ -23,7 +23,7 @@ import { soffitsOn } from './soffits.js';
 import { splitRun } from './splitRun.js';
 import { stackLeaders, stackOf } from './stacks.js';
 import { teeFillers } from './tees.js';
-import { isCountertop, runTop } from './tops.js';
+import { isCountertop, runMoldings, runTop } from './tops.js';
 import { runBands, waterfallEnds } from './runBands.js';
 import { runScene } from './runScene.js';
 import { topOverhangs } from './topOverhang.js';
@@ -822,6 +822,12 @@ function soffitBreak(wall, runs, cursor, edge) {
     : null;
 }
 
+/** Height up to the highest molding actually drawn, from the box top. */
+function drawnMoldingHeight(wall, run, profile, settings) {
+  const drawn = runMoldings(wall, run, profile, settings);
+  return Math.max(drawn.topMold ? profile.topMoldHeight : 0, drawn.crown ? profile.crownStackHeight : 0);
+}
+
 /** One chain up a joined stack, bottom to top: each run's parts below, box and top, with the gaps. */
 export function stackChain(room, wall, runs, settings, edge = 'left') {
   const profile = resolveProfile(settings, room, wall);
@@ -841,7 +847,8 @@ export function stackChain(room, wall, runs, settings, edge = 'left') {
     for (const part of [...parts].reverse()) append(part.z + part.height, 'bottom');
     for (const segment of box) append(segment.end, segment.kind);
     const top = runTop(wall, run, profile);
-    append(run.z + run.height + top.height, isCountertop(top.kind) ? 'countertop' : 'molding');
+    append(run.z + run.height + (isCountertop(top.kind) ? top.height
+      : drawnMoldingHeight(wall, run, profile, settings)), isCountertop(top.kind) ? 'countertop' : 'molding');
   });
   const soffit = soffitBreak(wall, runs, cursor, edge);
   if (soffit !== null) append(soffit, 'open');
@@ -920,10 +927,8 @@ export function verticalChains(room, wall, { lowerRun, upperRun, stack = null },
   }
 
   if (highestBox) {
-    const top = runTop(wall, highestBox.run, wallProfile);
-    if (top.kind === 'crown' || top.kind === 'topMold') {
-      append(highestBox.top, highestBox.top + top.height, 'molding');
-    }
+    const height = drawnMoldingHeight(wall, highestBox.run, wallProfile, settings);
+    append(highestBox.top, highestBox.top + height, 'molding');
   }
 
   const soffit = soffitBreak(wall, [lowerRun, upperRun].filter(Boolean), cursor, edge);

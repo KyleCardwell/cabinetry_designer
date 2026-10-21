@@ -38,8 +38,8 @@ describe('SPEC-42.2 corner returns', () => {
     expect(shapes[1].parts.map(row)).toEqual([
       ['box', 'section', 0, 54, 12, 36, 12.0625, 59.5, true],
       ['faces', 'section', 12, 54, 0.875, 36, 12.0625, 59.5, true],
-      ['top_mold', 'top_mold', 0, 90, 13.125, 1.5, 12.0625, 59.5, false],
-      ['crown', 'crown', 0, 91.5, 15.875, 4.5, 12.0625, 59.5, false],
+      ['top_mold', 'top_mold', 12.375, 90, 0.75, 3, 12.0625, 59.5, false],
+      ['crown', 'crown', 13.125, 91.5, 2.75, 4.5, 12.0625, 59.5, false],
     ]);
     expect(shapes[0].parts[1]).toEqual({
       id: `left:${G1_A}:b822e8ac-1a44-47ca-acec-ecb93caf7b8a:box`, kind: 'section',
@@ -61,8 +61,8 @@ describe('SPEC-42.2 corner returns', () => {
       ['faces', 'section', 8.125, 4, 0.875, 30.5, 0, 72, true],
       ['countertop', 'countertop', 7.375, 34.5, 22.625, 1.5, 0, 72, false],
       ['box', 'section', 6, 36, 24, 42, 0, 72, true],
-      ['top_mold', 'top_mold', 5.75, 78, 24.25, 1.5, 0, 72, false],
-      ['crown', 'crown', 3, 79.5, 27, 4.5, 0, 72, false],
+      ['top_mold', 'top_mold', 5.75, 78, 0.75, 3, 0, 72, false],
+      ['crown', 'crown', 3, 79.5, 2.75, 4.5, 0, 72, false],
       ['5ac8edd3-2c75-476d-bc64-f80ade3f5fba', 'section', 16, 84, 14, 12, 0, 72, true],
     ]);
     expect(shapes[2].parts[0].id).toBe(`soffit:right:${G3_HOST}:5ac8edd3-2c75-476d-bc64-f80ade3f5fba`);

@@ -15,7 +15,7 @@ import {
 } from './room.js';
 import { splitRun } from './splitRun.js';
 import { teeFillers } from './tees.js';
-import { runTop } from './tops.js';
+import { runMoldings } from './tops.js';
 import { wallNumbers } from './topology.js';
 import { miteredSpan, panelRunMiters, wallEndPanels } from './wallEndPanels.js';
 import { WALL_SIDES, wallSideView } from './wallSides.js';
@@ -43,13 +43,12 @@ function runsInWalkOrder(view) {
   return [...lower.sort(compareRuns), ...upper.sort(compareRuns)];
 }
 
-export function carriesMolding(wall, run, profile, molding) {
+export function carriesMolding(wall, run, profile, molding, settings) {
   if (molding === 'toeKick') {
     // Callers already resolved the wall's inherited profile.
     return runBase(null, { profile }, run, {}).kind === 'toe_kick';
   }
-  const top = runTop(wall, run, profile).kind;
-  return molding === 'topMold' ? top === 'crown' || top === 'topMold' : top === 'crown';
+  return runMoldings(wall, run, profile, settings)[molding] ?? false;
 }
 
 /**
@@ -245,7 +244,7 @@ export function roomParts(room, settings) {
   for (const molding of PART_MOLDINGS) {
     const present = walls.some((wall) => {
       const profile = resolveProfile(settings, room, wall);
-      return wall.runs.some((run) => carriesMolding(wall, run, profile, molding));
+      return wall.runs.some((run) => carriesMolding(wall, run, profile, molding, settings));
     });
     if (present) {
       parts.push({

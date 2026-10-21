@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS as UNPICKED_SETTINGS } from '../constants.js';
 import { verticalChains } from '../dimensions.js';
 import { runFaceLayouts } from '../faceLayouts.js';
 import { partNumbers } from '../partNumbers.js';
@@ -7,6 +7,9 @@ import { resolveProfile } from '../profile.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { cabinetReveals } from '../styles.js';
 import { runTop } from '../tops.js';
+import { pickedMoldings } from './helpers/pickedMoldings.js';
+
+const DEFAULT_SETTINGS = pickedMoldings(UNPICKED_SETTINGS);
 
 const S = DEFAULT_SETTINGS;
 const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;

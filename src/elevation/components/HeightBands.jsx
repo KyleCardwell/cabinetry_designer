@@ -33,11 +33,11 @@ export default function HeightBands({ level, fields, renderField, isSet, warning
                 {overlap < 0 ? 'Gap' : 'Overlap'} {formatInches(Math.abs(overlap))}
               </p>
             )}
-            {warnings.filter((warning) => warningBandId(warning) === band.id).map(({ code, slot }, index) => (
+            {warnings.filter((warning) => warningBandId(warning) === band.id).map(({ code, slot, ...warning }, index) => (
               <p key={`${code}-${slot ?? index}`} className="mt-1 text-xs text-amber-400">
                 {code === 'crown-gap'
                   ? `The top mold doesn't reach the crown (gap of ${formatInches(Math.abs(overlap))}).`
-                  : MOLDING_NOTES[code]}
+                  : typeof MOLDING_NOTES[code] === 'function' ? MOLDING_NOTES[code](warning) : MOLDING_NOTES[code]}
               </p>
             ))}
             {extras[band.id]}

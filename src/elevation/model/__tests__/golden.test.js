@@ -23,6 +23,7 @@ const NAMES = [
 ];
 const fixture = JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8'));
 const document = normalizeElevationDocument(fixture);
+// DM4: explicit rectangle picks replace Plain bands without moving boxes or front projections.
 // RF3: legacy documents inherit the enabled default, including in the golden layouts.
 const { settings } = document;
 

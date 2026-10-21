@@ -55,6 +55,7 @@ const wallLabels = (labels) => labels.map((label) => `Wall ${label} override`);
 beforeEach(() => {
   vi.clearAllMocks();
   state = stateWithRun(makeRun({ heightMode: 'auto' }));
+  state.settings.defaultProfile = { ...state.settings.defaultProfile, crownProfileId: 'none', topMoldProfileId: 'none' };
   room().profile = {};
   state.settings.sectionProfiles = [];
   useDispatch.mockReturnValue(dispatch);

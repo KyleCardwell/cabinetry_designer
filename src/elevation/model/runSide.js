@@ -5,7 +5,7 @@ import { nosingProjection, woodTopSection } from './nosing.js';
 import { outlineBounds, sectionProfileOutline, transformOutline } from './sectionProfileOutline.js';
 import { bandDepths } from './bandDepths.js';
 import { runBaseProfile as runBase } from './furnitureBase.js';
-import { isCountertop, runTop } from './tops.js';
+import { isCountertop, runMoldings, runTop } from './tops.js';
 import { topOverhangs } from './topOverhang.js';
 
 const EPSILON = 1e-6;
@@ -68,15 +68,17 @@ export function runSide(room, wall, run, settings) {
       });
     } else add('countertop', boxTop, top.height, topBack, core);
   }
-  if (top.kind === 'crown' || top.kind === 'topMold') {
-    const height = top.kind === 'crown' && !moldings.topMold
+  const drawn = runMoldings(wall, run, profile, settings);
+  if (drawn.topMold) {
+    const height = drawn.crown && !moldings.topMold
       ? Math.min(profile.topMoldHeight, crownZ - boxTop)
       : profile.topMoldHeight;
     addMolding('top_mold', moldings.topMold, boxTop, boxTop, height,
       faces + moldingPast(moldings, 'topMold', settings));
   }
-  if (top.kind === 'crown') addMolding('crown', moldings.crown,
+  if (drawn.crown) addMolding('crown', moldings.crown,
     boxTop + profile.crownStackHeight, crownZ, profile.crownHeight,
-    faces + moldingPast(moldings, 'crown', settings));
+    faces + moldingPast(moldings, 'crown', settings),
+    { overhang: moldings.picked.topMold === 'none' ? 0 : moldings.overhang });
   return pieces;
 }

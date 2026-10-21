@@ -70,7 +70,7 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
   const badges = PART_MOLDINGS.flatMap((molding) => {
     const key = moldingPartKey(molding);
     const number = byKey.get(key);
-    const run = runs.find((candidate) => carriesMolding(wall, candidate, profile, molding));
+    const run = runs.find((candidate) => carriesMolding(wall, candidate, profile, molding, settings));
     if (!run || number === undefined) return [];
     const boxTop = run.z + run.height;
     const toeKickHeight = run.overrides?.toeKickHeight ?? profile.toeKickHeight;

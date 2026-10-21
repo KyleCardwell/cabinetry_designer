@@ -10,7 +10,7 @@ import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { nosingProjection, woodTopSection } from './nosing.js';
 import { resolveProfile } from './profile.js';
 import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js';
-import { isCountertop, runTop } from './tops.js';
+import { isCountertop, runMoldings, runTop } from './tops.js';
 import { topOverhangs } from './topOverhang.js';
 import { wallEndPanelAt } from './wallSides.js';
 import { waterfallBand } from './waterfall.js';
@@ -62,8 +62,7 @@ function carries(room, wall, run, band, settings) {
   if (band === 'furnitureBase') return runBaseProfile(room, wall, run, settings).kind === 'furniture_base';
   const { kind } = runTop(wall, run, resolveProfile(settings, room, wall));
   if (band === 'countertop') return isCountertop(kind);
-  if (band === 'topMold') return kind === 'topMold' || kind === 'crown';
-  return kind === 'crown';
+  return runMoldings(wall, run, resolveProfile(settings, room, wall), settings)[band];
 }
 
 /** Runs meeting this side: other floor bases, or runs overlapping the box in height. */
@@ -250,10 +249,11 @@ export function runBands(room, wall, run, settings, scene) {
   const base = runBase(room, wall, run, settings, scene);
   const top = runTop(wall, run, profile);
   const boxTop = run.z + run.height;
-  const topMold = (top.kind === 'crown' || top.kind === 'topMold')
+  const drawn = runMoldings(wall, run, profile, settings);
+  const topMold = drawn.topMold
     ? band('topMold', boxTop, profile.topMoldHeight)
     : null;
-  const crown = top.kind === 'crown'
+  const crown = drawn.crown
     ? band('crown', boxTop + profile.crownStackHeight - profile.crownHeight, profile.crownHeight)
     : null;
   for (const [rect, kind, picked, reference] of [
@@ -266,7 +266,8 @@ export function runBands(room, wall, run, settings, scene) {
       const loop = sectionProfileOutline(picked.geometry);
       edges = endsFor(kind, rect.z).map((end, index) => {
         const outline = end.outline ?? (loop && end.type !== 'square' && end.side !== undefined
-          ? placeAtEnd(loop, end.side, moldings.overhang, reference, end.facing) : null);
+          ? placeAtEnd(loop, end.side, kind === 'crown' && moldings.picked.topMold === 'none'
+            ? 0 : moldings.overhang, reference, end.facing) : null);
         return (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
           ?? [[end.x, rect.z, 0], [end.x, rect.z + rect.height, 0]];
       });

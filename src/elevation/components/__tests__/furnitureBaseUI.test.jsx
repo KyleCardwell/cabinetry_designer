@@ -52,6 +52,7 @@ const mismatchNote = 'The furniture base profile height differs from the base he
 beforeEach(() => {
   vi.clearAllMocks();
   state = stateWithRun(fixtureRun());
+  state.settings.defaultProfile = { ...state.settings.defaultProfile, crownProfileId: 'none', topMoldProfileId: 'none' };
   state.settings.sectionProfiles = [fb4, { ...fb4, id: 'archived', archived: true }, { ...fb4, id: 'wrong-kind', kind: 'crown' }];
   room().profile = {};
   // These tests edit fixtures in place; give memoized selectors a fresh settings reference per render.

@@ -19,13 +19,13 @@ function sideOf(name, wallIndex, prefix, side = 'front') {
 
 describe('SPEC-42.2 a run seen from its side', () => {
   it('gives the toe kick, box, faces and top with their depths from the wall face (G1 elevation A)', () => {
-    // The tall: crown over a top mold that stops under it.
+    // The tall: explicit rectangular molding profiles retain the front depths.
     expect(sideOf('G1 Euro kitchen', 0, 'b38f2f11')).toEqual([
       ['toe_kick', 0, 4, 0, 22],
       ['box', 4, 86, 0, 25],
       ['faces', 4, 86, 25, 25.875],
-      ['top_mold', 90, 1.5, 0, 26.125],
-      ['crown', 91.5, 4.5, 0, 28.875],
+      ['top_mold', 90, 3, 25.375, 26.125],
+      ['crown', 91.5, 4.5, 26.125, 28.875],
     ]);
     expect(sideOf('G1 Euro kitchen', 0, 'b822e8ac')).toEqual([
       ['toe_kick', 0, 4, 0, 21],

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS as UNPICKED_SETTINGS } from '../constants.js';
 import { horizontalChains, pickColumnRuns, verticalChains } from '../dimensions.js';
 import { resolveProfile } from '../profile.js';
 import { createRun } from '../runDefaults.js';
@@ -17,6 +17,9 @@ import {
   stackFollowersOf,
   stackOf,
 } from '../stacks.js';
+import { pickedMoldings } from './helpers/pickedMoldings.js';
+
+const DEFAULT_SETTINGS = pickedMoldings(UNPICKED_SETTINGS);
 
 const S = { ...DEFAULT_SETTINGS, ...DEFAULT_PREFS };
 const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;

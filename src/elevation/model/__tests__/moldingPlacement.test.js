@@ -44,27 +44,14 @@ function setup(profile = picks, using = settings) {
 const lines = (x1, x2, ...zs) => zs.map((z) => ({ x1, z1: z, x2, z2: z }));
 
 describe('SPEC-50.2 step 471 molding placement', () => {
-  it('keeps unpicked bands, parts, side rectangles and corners unchanged (anchor 1)', () => {
-    const { room, wall, bands, parts, pieces } = setup({});
-    expect(bands).toEqual({
-      top: { kind: 'crown', height: 6 }, toeKicks: [], furnitureBases: [], countertop: null,
-      topMold: { x: 19.75, z: 90, width: 60.5, height: 3, lines: [],
-        ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })] },
-      crown: { x: 17, z: 91.5, width: 66, height: 4.5, lines: [],
-        ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })] },
-      bottomParts: [], chipLines: [],
-    });
-    expect(parts).toEqual([
-      { id: `${upper.id}:top_mold`, kind: 'top_mold', runId: upper.id,
-        x: 19.75, z: 90, width: 60.5, height: 3, back: 0, front: 13.125, coversBoxEdges: false },
-      { id: `${upper.id}:crown`, kind: 'crown', runId: upper.id,
-        x: 17, z: 91.5, width: 66, height: 4.5, back: 0, front: 15.875, coversBoxEdges: false },
-    ]);
+  it('omits unpicked bands, parts and side moldings', () => {
+    const { room, wall, bands, parts, pieces } = setup({ crownProfileId: 'none', topMoldProfileId: 'none' });
+    expect(bands.topMold).toBeNull();
+    expect(bands.crown).toBeNull();
+    expect(parts).toEqual([]);
     expect(pieces).toEqual([
       { piece: 'box', z: 54, height: 36, back: 0, front: 12 },
       { piece: 'faces', z: 54, height: 36, back: 12, front: 12.875 },
-      { piece: 'top_mold', z: 90, height: 1.5, back: 0, front: 13.125 },
-      { piece: 'crown', z: 91.5, height: 4.5, back: 0, front: 15.875 },
     ]);
     expect(cornerShapes(room, wall, 'front', settings)).toEqual([]);
   });
@@ -100,15 +87,15 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     expect(pieces[3].outline).toEqual(CROWN_OUTLINE);
   });
 
-  it('returns by the resolved overhang and profile projection, keeping plain crown at three inches (anchor 4)', () => {
+  it('returns by the resolved overhang and profile projection, omitting crown when None (anchor 4)', () => {
     for (const overhang of [0.25, 0]) {
       const { bands, parts } = setup({ ...picks, topMoldOverhang: overhang });
       expect(20 - bands.topMold.x).toBe(overhang);
       expect(20 - bands.crown.x).toBe(3 + overhang);
       expect(parts.map(({ front }) => front)).toEqual([12.875 + overhang, 15.875 + overhang]);
-      const plain = setup({ ...picks, crownProfileId: null, topMoldOverhang: overhang });
-      expect(20 - plain.bands.crown.x).toBe(3);
-      expect(plain.parts[1].front).toBe(15.875);
+      const plain = setup({ ...picks, crownProfileId: 'none', topMoldOverhang: overhang });
+      expect(plain.bands.crown).toBeNull();
+      expect(plain.parts).toHaveLength(1);
     }
   });
 
@@ -153,7 +140,11 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     expect(openCase.bands.topMold.outline).toEqual([[19.75, 90, 0], [80.25, 90, 0], [80.25, 93, 0], [19.75, 93, 0]]);
     expect(moldingProfiles(resolveProfile(openSettings, openCase.room, openCase.wall), openSettings).warnings)
       .toContainEqual({ code: 'molding-profile-open', slot: 'top_mold' });
-    expect(setup({ topMoldProfileId: 'missing', crownProfileId: 'tm3' }).pieces).toEqual(setup({}).pieces);
+    expect(setup({ topMoldProfileId: 'missing', crownProfileId: 'tm3' }).pieces.slice(2))
+      .toEqual([
+        { piece: 'top_mold', z: 90, height: 1.5, back: 0, front: 13.125 },
+        { piece: 'crown', z: 91.5, height: 4.5, back: 0, front: 15.875 },
+      ]);
   });
 
   it('maps return and side-view outlines into elevation and carries lines and outlines in the payload', () => {

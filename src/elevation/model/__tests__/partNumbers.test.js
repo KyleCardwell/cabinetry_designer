@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS as UNPICKED_SETTINGS } from '../constants.js';
 import { partNumbers, wallBadgeGroups, wallMoldingBadges } from '../partNumbers.js';
 import { roomDiagnostics, syncRoom } from '../room.js';
 import { wallSideView } from '../wallSides.js';
+import { pickedMoldings } from './helpers/pickedMoldings.js';
+
+const DEFAULT_SETTINGS = pickedMoldings(UNPICKED_SETTINGS);
 
 function makeWall(id, x1, y1, x2, y2, overrides = {}) {
   return {

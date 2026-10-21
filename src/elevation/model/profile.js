@@ -4,8 +4,7 @@ import { moldingProfiles } from './moldingProfiles.js';
 
 function definedEntries(value) {
   return Object.entries(value ?? {}).filter(([key, entry]) => entry !== undefined
-    && (entry !== null || key === 'topMoldProfileId' || key === 'crownProfileId'
-      || key === 'furnitureBaseProfileId' || key === 'baseCutoutProfileId' || key === 'nosingProfileId'));
+    && (entry !== null || key === 'furnitureBaseProfileId' || key === 'baseCutoutProfileId' || key === 'nosingProfileId'));
 }
 
 function mergeDefined(...values) {
@@ -14,7 +13,7 @@ function mergeDefined(...values) {
 
 /** Resolve the inherited height profile for a wall. */
 export function resolveProfile(settings, room, wall) {
-  const profile = mergeDefined(DEFAULT_PROFILE, settings.defaultProfile, room?.profile, wall?.profile);
+  const profile = { ...DEFAULT_PROFILE, ...mergeDefined(settings.defaultProfile, room?.profile, wall?.profile) };
   const { topMold, crown } = moldingProfiles(profile, settings);
   return {
     ...profile,

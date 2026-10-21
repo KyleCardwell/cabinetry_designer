@@ -102,6 +102,7 @@ describe('SPEC-50.2 molding profile model', () => {
       topMold: { profile: tm3, geometry: tm3.geometry, height: 3 },
       crown: { profile: cr45, geometry: cr45.geometry, height: 4.5 },
       nosing: null,
+      picked: { topMold: 'profile', crown: 'profile' },
       warnings: [],
     });
     const resolved = resolveProfile(settings, { profile: { ...picked, crownHeight: 9 } }, {});
@@ -139,7 +140,9 @@ describe('SPEC-50.2 molding profile model', () => {
     expect(codes(moldingProfiles({ ...picked, topMoldProfileId: 'cr45', crownProfileId: 'tm3' }, settings)))
       .toEqual(['molding-profile-missing', 'molding-profile-missing']);
     expect(moldingProfiles(DEFAULT_PROFILE, settings)).toEqual({
-      overhang: 0.25, topMold: null, crown: null, nosing: null, warnings: [],
+      overhang: 0.25, topMold: null, crown: null, nosing: null,
+      picked: { topMold: 'unpicked', crown: 'unpicked' },
+      warnings: [{ code: 'crown-unpicked' }, { code: 'top-mold-unpicked' }],
     });
   });
 
@@ -161,8 +164,8 @@ describe('SPEC-50.2 molding profile model', () => {
       profile: { crownProfileId: null, topMoldProfileId: null, topMoldHeight: 8, topMoldOverhang: 0.125 },
     });
     expect(cleared).toMatchObject({
-      crownProfileId: null, topMoldProfileId: null, crownHeight: 4.5, topMoldHeight: 8, topMoldOverhang: 0.125,
+      crownProfileId: 'cr45', topMoldProfileId: 'tm3', crownHeight: 4.5, topMoldHeight: 3, topMoldOverhang: 0.125,
     });
-    expect(moldingProfiles(cleared, using).topMold).toBeNull();
+    expect(moldingProfiles(cleared, using).topMold.profile).toBe(plain);
   });
 });

@@ -46,6 +46,7 @@ describe('UI1 shared height bands', () => {
       { code: 'molding-profile-missing', slot: 'crown' },
       { code: 'molding-profile-open', slot: 'top_mold' },
       { code: 'top-mold-too-short' }, { code: 'crown-gap' },
+      { code: 'crown-unpicked' }, { code: 'top-mold-unpicked' }, { code: 'top-mold-gap', gap: 3 },
       { code: 'molding-profile-missing', slot: 'nosing' },
       { code: 'molding-profile-missing', slot: 'furniture_base' },
       { code: 'molding-profile-open', slot: 'base_cutout' },
@@ -57,7 +58,8 @@ describe('UI1 shared height bands', () => {
       const notes = (id) => nodes(nodes(tree).find(({ props }) => props['data-height-band'] === id))
         .filter(({ type, props }) => type === 'p' && props.className.includes('text-amber-400')).map(text);
       expect(notes('crown')).toEqual([MOLDING_NOTES['molding-profile-missing'], MOLDING_NOTES['molding-profile-open'],
-        MOLDING_NOTES['top-mold-too-short'], 'The top mold doesn\'t reach the crown (gap of 1/2").']);
+        MOLDING_NOTES['top-mold-too-short'], 'The top mold doesn\'t reach the crown (gap of 1/2").',
+        'No crown profile picked.', 'No top mold profile picked.', 'Top mold stops 3" below the top of crown.']);
       expect(notes('countertop')).toEqual([MOLDING_NOTES['molding-profile-missing']]);
       expect(notes('base')).toEqual([MOLDING_NOTES['molding-profile-missing'], MOLDING_NOTES['molding-profile-open'],
         MOLDING_NOTES['furniture-base-too-short']]);

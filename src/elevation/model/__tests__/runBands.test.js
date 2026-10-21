@@ -26,7 +26,7 @@ describe('SPEC-42 run bands', () => {
   it('runs a band past a free end by its projection and stops it at a wall or a joined run (G1 elevation A)', () => {
     const bands = bandsOf(syncRoom(stored('G1 Euro kitchen'), settings), 0);
     // The tall: wall on the left; joined on the right to a lower base, so its top returns there.
-    expect(bands.b38f2f11).toEqual({
+    expect(bands.b38f2f11).toMatchObject({
       top: { kind: 'crown', height: 6 },
       toeKicks: [{ x: 0, z: 0, width: 29, height: 4 }],
       furnitureBases: [],

@@ -1,4 +1,5 @@
 import { CABINET_TYPE_IDS } from './constants.js';
+import { moldingProfiles } from './moldingProfiles.js';
 import { moldingStack } from './profile.js';
 import { runMolding } from './soffits.js';
 
@@ -41,4 +42,14 @@ export function runTop(wall, run, profile) {
       : kind === 'topMold' ? profile.topMoldHeight
         : 0;
   return { kind, height };
+}
+
+/** The moldings actually drawn, independent of the reserved top height. */
+export function runMoldings(wall, run, profile, settings) {
+  const { kind } = runTop(wall, run, profile);
+  const { picked } = moldingProfiles(profile, settings, run);
+  return {
+    topMold: (kind === 'crown' || kind === 'topMold') && picked.topMold === 'profile',
+    crown: kind === 'crown' && picked.crown === 'profile',
+  };
 }

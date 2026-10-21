@@ -12,6 +12,9 @@ describe('SPEC-50.2 saved molding picks', () => {
     expect(isElevationDocument(saved)).toBe(true);
     const room = saved.rooms[0];
     const wall = room.walls[0];
+    // This case checks an older unpicked room, before the golden rooms' explicit DM4 picks.
+    delete room.profile.topMoldProfileId;
+    delete room.profile.crownProfileId;
     expect(resolveProfile(saved.settings, room, wall)).toMatchObject({
       topMoldProfileId: null, crownProfileId: null, topMoldOverhang: 0.25,
     });
@@ -19,6 +22,9 @@ describe('SPEC-50.2 saved molding picks', () => {
     Object.assign(room.profile, { topMoldProfileId: null, crownProfileId: 'cr45', topMoldOverhang: 0 });
     Object.assign(wall.profile, { topMoldProfileId: 'tm3', crownProfileId: null, topMoldOverhang: 0.125 });
     expect(isElevationDocument(saved)).toBe(true);
+    expect(normalizeElevationDocument(toElevationDocument(saved))).toEqual(saved);
+    Object.assign(room.profile, { topMoldProfileId: 'none', crownProfileId: 'none' });
+    Object.assign(wall.profile, { topMoldProfileId: 'none', crownProfileId: 'none' });
     expect(normalizeElevationDocument(toElevationDocument(saved))).toEqual(saved);
     Object.assign(saved.settings, { defaultProfile: { ...DEFAULT_SETTINGS.defaultProfile } });
     expect(isElevationDocument(saved)).toBe(true);
