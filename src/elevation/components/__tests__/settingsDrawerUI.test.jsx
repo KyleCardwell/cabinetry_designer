@@ -162,7 +162,7 @@ describe('UI8 step a settings drawer', () => {
   it('anchor 3: reports no matches for zzz and filters View labels and its group name', () => {
     expect(text(search('zzz'))).toContain('No settings match "zzz".');
     expect(controls(search('zzz'))).toHaveLength(1); // Search remains usable.
-    expect(text(search('Countertop overhang'))).toContain('No settings match "Countertop overhang".');
+    expect(field(search('Countertop overhang'), 'Room Band depth countertop overhang')).toBeDefined();
     let tree = search('PDF PAPER');
     expect(controls(tree).map(({ props }) => props['aria-label'])).toEqual(['Search settings', 'PDF paper']);
     field(tree, 'PDF paper').props.onChange({ target: { value: 'letter' } });
@@ -225,6 +225,53 @@ describe('UI8 step a settings drawer', () => {
     button(render({}, Viewer), 'Settings toggle').props.onClick();
     expect(field(render({}, Viewer), 'Search settings')).toBeUndefined();
     expect(storage.get('ff.panel.settingsDrawer')).toBe('false');
+  });
+});
+
+describe('UI9 step a room height search', () => {
+  it('anchor 5: opens Crown despite remembered collapsed state and writes the shared room profile', () => {
+    storage.set('ff.panel.band.crown', 'false');
+    storage.set('ff.panel.drawer.heights', 'false');
+    let tree = search('crown', { shopStandards: false, readOnly: true });
+    expect(button(tree, 'Room heights').props['aria-expanded']).toBe(true);
+    expect(button(tree, 'Crown').props['aria-expanded']).toBe(true);
+    const locked = nodes(tree).find(({ type }) => type === 'fieldset');
+    expect(locked.props.disabled).toBe(true);
+    expect(field(locked, 'Room Crown')).toBeDefined();
+    expect(field(locked, 'Drawing scale')).toBeUndefined();
+    tree = render({ shopStandards: false });
+    expect(text(tree)).toContain('Also on the left panel.');
+    expect(text(tree)).not.toContain('No settings match');
+    expect(text(tree)).not.toContain('Molding stack');
+    expect(text(tree)).not.toContain('Counter height');
+    expect(button(tree, 'Use auto heights for all runs')).toBeUndefined();
+    field(tree, 'Room Crown').props.onChange({ target: { value: '5' } });
+    field(render({ shopStandards: false }), 'Room Crown').props.onBlur();
+    expect(state.rooms[0].profile.crownHeight).toBe(5);
+    button(render({ shopStandards: false }), 'Crown').props.onClick();
+    expect(storage.get('ff.panel.band.crown')).toBe('false');
+    expect(storage.get('ff.panel.drawer.heights')).toBe('false');
+  });
+
+  it('anchor 6: omits Room heights without search and uses the resolved base kind for matches', () => {
+    expect(button(render(), 'Room heights')).toBeUndefined();
+    expect(button(search('  '), 'Room heights')).toBeUndefined();
+    expect(text(search('proud', { shopStandards: false }))).toContain('No settings match "proud".');
+    state = structuredClone(state);
+    state.settings.defaultProfile.baseKind = 'furniture_base';
+    let tree = search('  PrOuD  ', { shopStandards: false });
+    expect(field(tree, 'Room Base proud')).toBeDefined();
+    expect(text(tree)).not.toContain('No settings match');
+    state = structuredClone(state);
+    state.rooms[0].profile.baseKind = 'toe_kick';
+    expect(text(render({ shopStandards: false }))).toContain('No settings match');
+    state = structuredClone(state);
+    state.rooms[0].profile.baseKind = 'furniture_base';
+    expect(field(render({ shopStandards: false }), 'Room Base proud')).toBeDefined();
+    expect(button(search(''), 'Room heights')).toBeUndefined();
+    state = { ...state, activeRoomId: null };
+    expect(button(search('crown', { shopStandards: false }), 'Room heights')).toBeUndefined();
+    expect(text(render({ shopStandards: false }))).toContain('No settings match');
   });
 });
 

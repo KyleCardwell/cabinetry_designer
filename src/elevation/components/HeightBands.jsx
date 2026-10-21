@@ -1,11 +1,13 @@
-import { MOLDING_NOTES, warningBandId } from '../model/heightBands.js';
+import { matchingBandFields, MOLDING_NOTES, warningBandId } from '../model/heightBands.js';
 import { formatInches } from '../model/units.js';
 import PanelSection from './panel/PanelSection.jsx';
 
-export default function HeightBands({ level, fields, renderField, isSet, warnings = [], overlap, extras = {} }) {
+export default function HeightBands({ level, fields, renderField, isSet, warnings = [], overlap, extras = {}, query = '' }) {
+  const searching = query.trim().length > 0;
+  const bands = searching ? matchingBandFields(fields, query) : fields;
   return (
     <div className="space-y-3" data-height-level={level}>
-      {fields.map((band) => {
+      {bands.map((band) => {
         const rows = band.rows.map((row) => row.map((field) => ({ field, control: renderField(field) }))
           .filter(({ control }) => control != null)).filter((row) => row.length > 0);
         if (!rows.length) return null;
@@ -15,6 +17,7 @@ export default function HeightBands({ level, fields, renderField, isSet, warning
             id={`band.${band.id}`}
             title={band.label}
             level={2}
+            forceOpen={searching}
             data-height-band={band.id}
             badge={isSet ? band.rows.flat().filter(({ key }) => isSet(key)).length : undefined}
           >

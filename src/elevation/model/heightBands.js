@@ -67,6 +67,16 @@ export function bandFieldsFor(level, { cabinetTypeId, furnitureBase = false } = 
   })).filter(({ rows }) => rows.length > 0);
 }
 
+export function matchingBandFields(bands, query) {
+  const search = query.trim().toLowerCase();
+  if (!search) return bands;
+  return bands.map((band) => band.label.toLowerCase().includes(search) ? band : {
+    ...band,
+    rows: band.rows.map((row) => row.filter(({ label }) => label.toLowerCase().includes(search)))
+      .filter((row) => row.length > 0),
+  }).filter(({ rows }) => rows.length > 0);
+}
+
 export const MOLDING_NOTES = {
   'furniture-base-too-short': "The furniture base is shorter than its profile's stretch line; drawn at its own size.",
   'furniture-base-height-mismatch': 'The furniture base profile height differs from the base height; drawn at its own size.',

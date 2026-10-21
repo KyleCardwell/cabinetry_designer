@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import HeightBands from '../HeightBands.jsx';
-import { bandFieldsFor, MOLDING_NOTES } from '../../model/heightBands.js';
+import { bandFieldsFor, matchingBandFields, MOLDING_NOTES } from '../../model/heightBands.js';
 import { CABINET_TYPE_IDS } from '../../model/constants.js';
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
@@ -65,5 +65,55 @@ describe('UI1 shared height bands', () => {
       expect(notes('uppers')).toEqual([]);
       expect(text(tree)).toContain('Gap 1/2"');
     }
+  });
+});
+
+describe('UI9 step a height search', () => {
+  const matchingRows = (query, furnitureBase = false) => matchingBandFields(bandFieldsFor('room', { furnitureBase }), query)
+    .map(({ id, rows }) => ({ id, rows: rows.map((row) => row.map(({ key }) => key)) }));
+
+  it('anchor 1: a crown band-label match keeps the whole room band without run fields', () => {
+    expect(matchingRows('  CrOwN  ')).toEqual([{ id: 'crown', rows: [
+      ['crownTop', 'crownStackHeight'], ['crownHeight', 'crownProfileId'],
+      ['topMoldHeight', 'topMoldProfileId'], ['topMoldOverhang'], ['bandDepths.crownProjection'],
+    ] }]);
+    const bands = bandFieldsFor('room');
+    expect(matchingBandFields(bands, '')).toBe(bands);
+    expect(matchingBandFields(bands, '  ')).toBe(bands);
+  });
+
+  it('anchor 2: top mold keeps only matching fields and removes empty rows and bands', () => {
+    expect(matchingRows('top mold')).toEqual([{ id: 'crown', rows: [
+      ['topMoldHeight', 'topMoldProfileId'], ['topMoldOverhang'],
+    ] }]);
+    expect(matchingRows('zzz')).toEqual([]);
+    expect(matchingRows('toe_kick')).toEqual([]); // Option values are not field labels.
+  });
+
+  it('anchor 3: overhang matches the crown and countertop fields', () => {
+    expect(matchingRows('overhang')).toEqual([
+      { id: 'crown', rows: [['topMoldOverhang']] },
+      { id: 'countertop', rows: [['bandDepths.countertopOverhang']] },
+    ]);
+  });
+
+  it('anchor 4: proud is available only with a furniture base', () => {
+    expect(matchingRows('proud', false)).toEqual([]);
+    expect(matchingRows('proud', true)).toEqual([{ id: 'base', rows: [['furnitureBaseProud']] }]);
+  });
+
+  it('forces filtered bands open and keeps their warnings and crown overlap', () => {
+    const props = { level: 'room', fields: bandFieldsFor('room'),
+      renderField: ({ label }) => <span>{label}</span>,
+      warnings: [{ code: 'top-mold-too-short' }, { code: 'molding-profile-missing', slot: 'nosing' }], overlap: 0.5 };
+    const tree = HeightBands({ ...props, query: 'top mold' });
+    const bands = nodes(tree).filter(({ props }) => props['data-height-band']);
+    expect(bands).toHaveLength(1);
+    expect(bands[0].props.forceOpen).toBe(true);
+    expect(text(tree)).toContain(MOLDING_NOTES['top-mold-too-short']);
+    expect(text(tree)).toContain('Overlap 1/2"');
+    expect(text(tree)).not.toContain(MOLDING_NOTES['molding-profile-missing']);
+    expect(nodes(HeightBands(props)).filter(({ props }) => props['data-height-band'])
+      .every(({ props }) => props.forceOpen === false)).toBe(true);
   });
 });

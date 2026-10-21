@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { BAND_SETTING_KEYS } from '../model/heightBands.js';
+import { BAND_SETTING_KEYS, bandFieldsFor, matchingBandFields } from '../model/heightBands.js';
+import { resolveProfile } from '../model/profile.js';
+import { selectSettings } from '../store/selectors.js';
 import SettingGroups, { matchingSettingGroups } from './SettingGroups.jsx';
 import ViewPrefsFields, { hasMatchingViewPrefs } from './ViewPrefsFields.jsx';
 import PanelSection from './panel/PanelSection.jsx';
 import usePanelState from './panel/usePanelState.js';
+import RoomHeightsPanel from './RoomHeightsPanel.jsx';
 
 const GROUP_GRID = 'grid grid-cols-1 gap-4 [@container(min-width:600px)]:grid-cols-2';
 
@@ -13,10 +16,14 @@ export default function SettingsDrawer({ shopStandards = true, readOnly = false 
   const [query, setQuery] = useState('');
   const searchRef = useRef(null);
   const room = useSelector(({ elevation }) => elevation.rooms.find(({ id }) => id === elevation.activeRoomId));
+  const settings = useSelector(selectSettings);
+  const searching = query.trim().length > 0;
   const roomMatch = Boolean(room) && matchingSettingGroups('room', BAND_SETTING_KEYS, query).length > 0;
+  const roomHeightMatch = Boolean(room) && searching && matchingBandFields(bandFieldsFor('room', {
+    furnitureBase: resolveProfile(settings, room).baseKind === 'furniture_base',
+  }), query).length > 0;
   const shopMatch = shopStandards && matchingSettingGroups('team', BAND_SETTING_KEYS, query).length > 0;
   const viewMatch = hasMatchingViewPrefs(query);
-  const searching = query.trim().length > 0;
 
   useEffect(() => {
     if (open) searchRef.current?.focus();
@@ -58,13 +65,19 @@ export default function SettingsDrawer({ shopStandards = true, readOnly = false 
           className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none"
         />
         {room && (
-          <div hidden={!roomMatch}>
-            <PanelSection id="drawer.room" title="Room settings" forceOpen={searching}>
-              <fieldset disabled={readOnly} className="contents">
+          <fieldset disabled={readOnly} className="contents">
+            <div hidden={!roomMatch}>
+              <PanelSection id="drawer.room" title="Room settings" forceOpen={searching}>
                 <SettingGroups scope="room" exclude={BAND_SETTING_KEYS} query={query} className={GROUP_GRID} />
-              </fieldset>
-            </PanelSection>
-          </div>
+              </PanelSection>
+            </div>
+            {roomHeightMatch && (
+              <PanelSection id="drawer.heights" title="Room heights" forceOpen={searching}>
+                <p className="mb-3 text-xs text-gray-500">Also on the left panel.</p>
+                <RoomHeightsPanel query={query} />
+              </PanelSection>
+            )}
+          </fieldset>
         )}
         {shopStandards && (
           <div hidden={!shopMatch}>
@@ -78,7 +91,7 @@ export default function SettingsDrawer({ shopStandards = true, readOnly = false 
             <ViewPrefsFields query={query} />
           </PanelSection>
         </div>
-        {!roomMatch && !shopMatch && !viewMatch && <p className="text-sm text-gray-400">No settings match "{query}".</p>}
+        {!roomMatch && !roomHeightMatch && !shopMatch && !viewMatch && <p className="text-sm text-gray-400">No settings match "{query}".</p>}
       </div>
     </aside>
   );
