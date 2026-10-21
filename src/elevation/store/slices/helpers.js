@@ -56,7 +56,10 @@ export function createWall(name = '', y = 0, length = 144, values = {}) {
     x2: values.x2 ?? length,
     y2: values.y2 ?? y,
     height: values.height ?? 96,
-    thickness: values.thickness ?? 4.5,
+    thickness: values.thickness ?? DEFAULT_SETTINGS.wallThickness,
+    thicknessOverride: values.thicknessOverride !== undefined ? values.thicknessOverride
+      : (Number.isFinite(values.thickness) && values.thickness !== DEFAULT_SETTINGS.wallThickness
+        ? values.thickness : null),
     flipped: values.flipped ?? false,
     connections: values.connections ?? { start: null, end: null },
     endPanels: values.endPanels ?? { start: null, end: null },

@@ -51,6 +51,9 @@ export const SETTING_GROUPS = [
     ],
   },
   {
+    id: 'walls', label: 'Walls', keys: ['wallThickness'],
+  },
+  {
     id: 'openings-soffits', label: 'Openings & soffits',
     keys: [
       'casingWidth', 'casingThickness', 'casingClearance', 'openingsHaveCasing',

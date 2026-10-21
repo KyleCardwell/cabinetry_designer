@@ -11,13 +11,13 @@ function leaves(values, prefix = '') {
 }
 
 describe('DB1 a settings registry', () => {
-  it('covers exactly 160 settings leaves, with 106 room settings and 15 team-only settings after IN13b', () => {
+  it('covers exactly 161 settings leaves, with 107 room settings and 15 team-only settings after UI9d', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(160);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(106);
+    expect(new Set(keys).size).toBe(161);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(107);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(15);
   });
 

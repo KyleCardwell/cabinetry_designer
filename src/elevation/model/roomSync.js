@@ -1,5 +1,5 @@
 import { cellPieces } from './cells.js';
-import { CABINET_TYPE_IDS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { frontDepth } from './corners.js';
 import { runDoorThickness } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
@@ -218,10 +218,18 @@ export function syncRoom(room, settings) {
   let nextRoom = cloneRoom(resolveLandings(unflexRoom(room)));
   nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(wall))));
   // FX1: a wall's height is derived (team → … → room → wall.profile.wallHeight); only a typed wall height overrides.
-  nextRoom.walls = nextRoom.walls.map((wall) => ({
-    ...wall,
-    height: resolveProfile(settings, nextRoom, wall).wallHeight,
-  }));
+  nextRoom.walls = nextRoom.walls.map((wall) => {
+    // Saved walls and older fixtures bypass createWall; use the same legacy-value rule.
+    const thicknessOverride = wall.thicknessOverride !== undefined ? wall.thicknessOverride
+      : (Number.isFinite(wall.thickness) && wall.thickness !== DEFAULT_SETTINGS.wallThickness
+        ? wall.thickness : null);
+    return {
+      ...wall,
+      height: resolveProfile(settings, nextRoom, wall).wallHeight,
+      thicknessOverride,
+      thickness: thicknessOverride ?? settings.wallThickness,
+    };
+  });
   nextRoom.walls = nextRoom.walls.map((wall) => ({
     ...withWallPanelThickness(nextRoom, wall, settings),
     runs: wall.runs.map((run) => withRunPlane(

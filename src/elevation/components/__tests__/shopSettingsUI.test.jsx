@@ -117,14 +117,14 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('DB2 f shop settings panel', () => {
-  it('anchor 1: starts eleven groups collapsed and retains the note, view controls and height profile', () => {
+  it('anchor 1: starts twelve groups collapsed and retains the note, view controls and height profile', () => {
     const initial = state;
     expect(header(render(), 'Settings')).toBeUndefined();
     const tree = render();
     const groups = [
       ['Cabinets & depths', 11], ['Runs & ends', 9], ['Fillers & corners', 11],
       ['Reveals', 9], ['Inset face frame', 6], ['Bases, tops & bands', 7],
-      ['Openings & soffits', 14], ['Pulls', 7], ['Drawer boxes', 17], ['Shelves', 9], ['Reports', 13],
+      ['Walls', 1], ['Openings & soffits', 14], ['Pulls', 7], ['Drawer boxes', 17], ['Shelves', 9], ['Reports', 13],
     ];
     const collapsed = nodes(tree).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false);
     expect(collapsed.map(text)).toEqual(groups.map(([label]) => `${label}+`));

@@ -92,6 +92,7 @@ const V2_NUMERIC_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
   (key) => typeof DEFAULT_SETTINGS[key] === 'number',
 );
 const V2_DEFAULTED_SETTING_KEYS = [
+  'wallThickness',
   'sheetThickness',
   'fillerReturnDepth',
   'fillerReturnThickness',
@@ -657,6 +658,8 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
     && (wall.numberOverride === null
       || (Number.isInteger(wall.numberOverride) && wall.numberOverride > 0))
     && typeof wall.elevationForced === 'boolean'
+    && (wall.thicknessOverride === undefined || wall.thicknessOverride === null
+      || (isFiniteNumber(wall.thicknessOverride) && wall.thicknessOverride >= 0))
     && ['x1', 'y1', 'x2', 'y2', 'height', 'thickness'].every(
       (key) => isFiniteNumber(wall[key]),
     )
@@ -860,6 +863,9 @@ function normalizeDocument(document, schemaVersion) {
               name: normalizeWallName(wall.name),
               numberOverride: wall.numberOverride ?? null,
               elevationForced: wall.elevationForced ?? false,
+              thicknessOverride: wall.thicknessOverride !== undefined ? wall.thicknessOverride
+                : (Number.isFinite(wall.thickness) && wall.thickness !== DEFAULT_SETTINGS.wallThickness
+                  ? wall.thickness : null),
               openings: wall.openings === undefined ? [] : wall.openings,
             }
             : wall
@@ -1043,6 +1049,7 @@ export function toRoomDocument(room) {
       void _endFlex;
       return {
         ...persistedWall,
+        thicknessOverride: wall.thicknessOverride ?? null,
         runs: wall.runs.map((run) => {
           const { _pinWidths, _seamGap, _frame, _plane, _doorThickness, _endThickness, _cornerLapWidth, ...persistedRun } = run;
           void _pinWidths;

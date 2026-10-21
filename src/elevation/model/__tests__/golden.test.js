@@ -41,7 +41,15 @@ function derived(room) {
   return {
     // DB1 e changes profile storage only; derive from the migrated room while
     // keeping the fixture's historical storage shape in the golden comparison.
-    room: { ...drawingRoom, profile: fixture.rooms.find(({ id }) => id === room.id).profile },
+    room: {
+      ...drawingRoom,
+      profile: fixture.rooms.find(({ id }) => id === room.id).profile,
+      // UI9d adds override storage; keep comparing the historical wall shape and derived thickness.
+      walls: drawingRoom.walls.map(({ thicknessOverride, ...wall }) => {
+        void thicknessOverride;
+        return wall;
+      }),
+    },
     diagnostics: roomDiagnostics(room, settings),
     parts: partsOf(partNumbers(synced, settings)),
     clearances: planClearances(synced, settings),

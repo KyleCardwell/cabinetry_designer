@@ -55,6 +55,7 @@ export const DEFAULT_PREFS = {
 
 /** Default persisted settings for Elevation Lab schema v3. */
 export const DEFAULT_SETTINGS = {
+  wallThickness: 4.5,
   defaultProfile: { ...DEFAULT_PROFILE },
   report: {
     companyName: '',

@@ -84,11 +84,11 @@ describe('Step 497 furniture base group properties', () => {
 
   it('lists all companions across island faces, using the same number from the back', () => {
     setup([makeRun('back', { x: 40, width: 40, wallSide: 'back', depth: 12 }),
-      makeRun('right', { x: 40, width: 40 }), makeRun('left', { x: 0, width: 40 })], { thickness: 0 });
+      makeRun('right', { x: 40, width: 40 }), makeRun('left', { x: 0, width: 40 })], { thickness: 0, thicknessOverride: 0 });
     expect(text(render('left'))).toContain('with: Run 2, Run 3 (island back)');
     expect(text(render('back', 'back'))).toContain('Run 3 (island back) · with: Run 1, Run 2');
     expect(numberField(render('back', 'back')).props.partKey).toBe('furniture_base:left');
-    stored.walls[0].thickness = 4.5;
+    stored.walls[0].thicknessOverride = 4.5;
     expect(text(render('left'))).toContain('Run 3 (wall back)');
   });
 
@@ -144,7 +144,7 @@ describe('Step 497 furniture base group properties', () => {
 describe('Step 497 furniture base canvas badges', () => {
   it('renders FB on the first base band of each face through the molding badge layer', () => {
     setup([makeRun('right', { x: 40, width: 40 }), makeRun('left', { x: 0, width: 40 }),
-      makeRun('back', { x: 40, width: 40, wallSide: 'back' })], { thickness: 0 });
+      makeRun('back', { x: 40, width: 40, wallSide: 'back' })], { thickness: 0, thicknessOverride: 0 });
     stored.partNumberOverrides['furniture_base:left'] = 99;
     for (const [id, side] of [['left', 'front'], ['back', 'back']]) {
       const p = props(id, side);

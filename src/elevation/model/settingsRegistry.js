@@ -5,6 +5,7 @@ export const LIBRARY_KEYS = ['teamDoorStyle', 'doorDesigns', 'sectionProfiles', 
 export const PREF_KEYS = ['orthoWalls', 'showPartNumbers', 'plotScale', 'paperSize', 'planGrid', 'openingSnap', 'cornerSnapDistance'];
 
 const roomNumbers = [
+  ['wallThickness', 'Wall thickness'],
   ['roundTo', 'Cabinet rounding'],
   ['runFlex', 'Run flex'],
   ['minCabinetWidth', 'Min cabinet width'],

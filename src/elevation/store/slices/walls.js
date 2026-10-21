@@ -78,6 +78,7 @@ export const wallReducers = {
             y2: action.payload.y2,
             profile: Number.isFinite(action.payload.height) ? { wallHeight: action.payload.height } : {},
             thickness: action.payload.thickness,
+            thicknessOverride: action.payload.thicknessOverride,
           },
         );
         room.walls = addWallWithConnections(
@@ -261,7 +262,8 @@ export const wallReducers = {
         location.wall.profile.wallHeight = allowedChanges.height;
       }
       const thickness = allowedChanges.thickness;
-      if (Number.isFinite(thickness) && thickness >= 0) location.wall.thickness = thickness;
+      if (thickness === null) location.wall.thicknessOverride = null;
+      else if (Number.isFinite(thickness) && thickness >= 0) location.wall.thicknessOverride = thickness;
       if (allowedChanges.numberOverride !== undefined) {
         const value = allowedChanges.numberOverride;
         if (value === null || (Number.isInteger(value) && value > 0)) {

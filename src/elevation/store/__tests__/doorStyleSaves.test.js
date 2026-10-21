@@ -20,7 +20,7 @@ function document({ room = {}, wall = {}, run = {}, cabinet = {}, panel = {}, le
       wallOrder: ['wall-a'],
       walls: [{
         id: 'wall-a', name: '', numberOverride: null, elevationForced: false,
-        x1: 0, y1: 0, x2: 240, y2: 0, height: 108, thickness: 4.5, flipped: false,
+        x1: 0, y1: 0, x2: 240, y2: 0, height: 108, thickness: 4.5, thicknessOverride: null, flipped: false,
         connections: { start: null, end: null }, profile: {}, openings: [],
         endPanels: { start: { width: null, ...endPanel }, end: null },
         runs: [{
