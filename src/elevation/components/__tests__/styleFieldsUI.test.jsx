@@ -7,7 +7,7 @@ import InchInput from '../InchInput.jsx';
 import OverrideField from '../OverrideField.jsx';
 import RoomStylePanel from '../RoomStylePanel.jsx';
 import CabinetStyleProperties from '../properties/CabinetStyleProperties.jsx';
-import RunFaceOptions from '../properties/RunFaceOptions.jsx';
+import RunStyleFields from '../properties/RunStyleFields.jsx';
 import StyleFields from '../properties/StyleFields.jsx';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn() }));
@@ -134,7 +134,7 @@ describe('DB2 g cabinet style overrides', () => {
     const faceLayout = { style: resolveStyle(state.settings, room, run, item), reveals: { values: {}, sources: {} } };
     const callers = [
       [RoomStylePanel(), 'Room', 'Shop standard', { roomId: room.id }],
-      [RunFaceOptions({ room, wall, run, settings: state.settings }), 'Run', 'Room', { wallId: wall.id, runId: run.id }],
+      [RunStyleFields({ room, wall, run, settings: state.settings }), 'Run', 'Room', { wallId: wall.id, runId: run.id }],
       [CabinetStyleProperties({ room, wall, run, item, settings: state.settings, faceLayout }), 'Cabinet', 'Run',
         { wallId: wall.id, runId: run.id, itemIds: [item.id] }],
     ];

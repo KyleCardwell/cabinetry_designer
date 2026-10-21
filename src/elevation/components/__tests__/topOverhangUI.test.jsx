@@ -4,7 +4,7 @@ import { useDispatch } from 'react-redux';
 import elevationReducer, { updateSettings } from '../../store/elevationSlice.js';
 import { run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import InchInput from '../InchInput.jsx';
-import RunFaceOptions from '../properties/RunFaceOptions.jsx';
+import RunTopFields from '../properties/RunTopFields.jsx';
 
 vi.mock('react', async (original) => ({
   ...await original(), useState: vi.fn(), useEffect: vi.fn(),
@@ -29,7 +29,7 @@ const wall = () => room().walls[0];
 const run = () => wall().runs[0];
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
-const render = () => RunFaceOptions({ room: room(), wall: wall(), run: run(), settings: state.settings });
+const render = () => RunTopFields({ room: room(), wall: wall(), run: run(), settings: state.settings });
 const field = (side) => nodes(render()).find(({ type, props }) => (
   type === InchInput && props['aria-label'] === `Run ${side} overhang`
 ));

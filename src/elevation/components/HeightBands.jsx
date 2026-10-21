@@ -2,7 +2,7 @@ import { MOLDING_NOTES, warningBandId } from '../model/heightBands.js';
 import { formatInches } from '../model/units.js';
 import PanelSection from './panel/PanelSection.jsx';
 
-export default function HeightBands({ level, fields, renderField, isSet, warnings = [], overlap }) {
+export default function HeightBands({ level, fields, renderField, isSet, warnings = [], overlap, extras = {} }) {
   return (
     <div className="space-y-3" data-height-level={level}>
       {fields.map((band) => {
@@ -37,6 +37,7 @@ export default function HeightBands({ level, fields, renderField, isSet, warning
                   : MOLDING_NOTES[code]}
               </p>
             ))}
+            {extras[band.id]}
           </PanelSection>
         );
       })}

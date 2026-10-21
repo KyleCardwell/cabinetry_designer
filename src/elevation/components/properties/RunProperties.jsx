@@ -22,7 +22,7 @@ import RunBottomSection from './RunBottomSection.jsx';
 import RunBaseCutoutsSection from './RunBaseCutoutsSection.jsx';
 import RunCabinetsSection from './RunCabinetsSection.jsx';
 import RunEndsSection from './RunEndsSection.jsx';
-import RunFaceOptions from './RunFaceOptions.jsx';
+import RunStyleFields from './RunStyleFields.jsx';
 import RunGeometrySection from './RunGeometrySection.jsx';
 import RunHeightsSection from './RunHeightsSection.jsx';
 import RunPiecesSection from './RunPiecesSection.jsx';
@@ -165,7 +165,7 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
 
       <RunPiecesSection run={run} layout={layout} insets={insets} />
 
-      <RunFaceOptions room={room} wall={wall} run={run} settings={settings} />
+      <RunStyleFields room={room} wall={wall} run={run} settings={settings} />
 
       {room.doorStyles?.length > 0 && (
         <section>

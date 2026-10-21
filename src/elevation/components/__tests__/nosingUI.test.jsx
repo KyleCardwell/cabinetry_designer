@@ -10,7 +10,7 @@ import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
 import OverrideField from '../OverrideField.jsx';
 import OverrideInput from '../OverrideInput.jsx';
 import WallHeightProperties from '../properties/WallHeightProperties.jsx';
-import RunFaceOptions from '../properties/RunFaceOptions.jsx';
+import RunTopFields from '../properties/RunTopFields.jsx';
 
 vi.mock('react', async (original) => ({
   ...await original(), useState: vi.fn(), useEffect: vi.fn(),
@@ -42,7 +42,7 @@ const panels = [
   ['Default', () => SettingsPanel(), () => state.settings.defaultProfile],
   ['Room', () => RoomHeightsPanel(), () => room().profile],
   ['Wall', () => WallHeightProperties({ room: room(), wall: wall(), plan: false }), () => wall().profile],
-  ['Run', () => RunFaceOptions({ room: room(), wall: wall(), run: run(), settings: state.settings }), () => run().overrides],
+  ['Run', () => RunTopFields({ room: room(), wall: wall(), run: run(), settings: state.settings }), () => run().overrides],
 ];
 const picker = (render, scope) => nodes(render()).find(({ props }) => (
   props['aria-label'] === `${scope} Nosing profile${scope === 'Wall' ? ' override' : ''}`

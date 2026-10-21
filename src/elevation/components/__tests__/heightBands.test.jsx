@@ -27,6 +27,20 @@ describe('UI1 shared height bands', () => {
     expect(nodes(tree).filter(({ type }) => type === 'h3')).toEqual([]);
   });
 
+  it('appends extras after fields and warnings without drawing bands only for extras', () => {
+    const extra = <span>Top controls</span>;
+    const render = (renderField) => HeightBands({
+      level: 'run', fields: [{ id: 'countertop', label: 'Countertop', rows: [[{ key: 'countertopThickness' }]] }],
+      renderField, extras: { countertop: extra },
+      warnings: [{ code: 'molding-profile-missing', slot: 'nosing' }],
+    });
+    expect(nodes(render(() => null)).some(({ props }) => props['data-height-band'] === 'countertop')).toBe(false);
+    const band = nodes(render(() => <input aria-label="Countertop" />))
+      .find(({ props }) => props['data-height-band'] === 'countertop');
+    expect(band.props.children.at(-1)).toBe(extra);
+    expect(text(band)).toContain(MOLDING_NOTES['molding-profile-missing']);
+  });
+
   it('places warnings under the band of each molding slot and keeps gap text with the crown overlap', () => {
     const warnings = [
       { code: 'molding-profile-missing', slot: 'crown' },

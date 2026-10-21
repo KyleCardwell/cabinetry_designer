@@ -24,6 +24,7 @@ import InchInput from '../InchInput.jsx';
 import HeightBands from '../HeightBands.jsx';
 import { bandFieldsFor } from '../../model/heightBands.js';
 import Field, { ReadOnlyValue } from './Field.jsx';
+import RunTopFields from './RunTopFields.jsx';
 
 export default function RunHeightsSection({
   room,
@@ -44,6 +45,8 @@ export default function RunHeightsSection({
   const filled = Boolean(links.below && links.above);
   const floorBase = !links.below && [CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL].includes(run.cabinetTypeId);
   const base = runBase(room, wall, run, settings);
+  const heightFields = bandFieldsFor('run', { cabinetTypeId: run.cabinetTypeId, furnitureBase: base.kind === 'furniture_base' });
+  const topBandId = heightFields.some(({ id }) => id === 'countertop') ? 'countertop' : 'crown';
   const profileId = run.overrides.furnitureBaseProfileId;
   const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === 'furniture_base' && !entry.archived);
   const unavailable = profileId && !choices.some((entry) => entry.id === profileId);
@@ -172,8 +175,9 @@ export default function RunHeightsSection({
         <div className="mt-3">
           <HeightBands
             level="run"
-            fields={bandFieldsFor('run', { cabinetTypeId: run.cabinetTypeId, furnitureBase: base.kind === 'furniture_base' })}
+            fields={heightFields}
             renderField={renderHeightField}
+            extras={{ [topBandId]: <RunTopFields room={room} wall={wall} run={run} settings={settings} /> }}
             isSet={(key) => run.overrides[key] !== undefined}
             warnings={floorBase ? base.warnings.filter((warning) => !warning.cutoutId) : []}
           />

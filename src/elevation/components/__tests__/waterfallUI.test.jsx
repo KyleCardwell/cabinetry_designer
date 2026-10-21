@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDispatch } from 'react-redux';
 import elevationReducer, { setRunEnd } from '../../store/elevationSlice.js';
 import { run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
-import RunFaceOptions from '../properties/RunFaceOptions.jsx';
+import RunTopFields from '../properties/RunTopFields.jsx';
 
 vi.mock('react-redux', () => ({ useDispatch: vi.fn() }));
 
@@ -14,7 +14,7 @@ const wall = () => room().walls[0];
 const run = () => wall().runs[0];
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
-const render = () => RunFaceOptions({ room: room(), wall: wall(), run: run(), settings: state.settings });
+const render = () => RunTopFields({ room: room(), wall: wall(), run: run(), settings: state.settings });
 const field = (label) => nodes(render()).find(({ props }) => props['aria-label'] === label);
 const waterfall = (side) => field(`Run ${side} waterfall`);
 const baseToLeg = (side) => field(`Run ${side} base runs to the waterfall`);
