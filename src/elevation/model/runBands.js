@@ -2,9 +2,11 @@ import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
 import { bandOutline, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
-import { frontDepth, runBackOffset } from './corners.js';
+import { cornerAt, frontDepth, runBackOffset } from './corners.js';
 import { floorOpenings } from './floorOpenings.js';
 import { furnitureBaseBand, furnitureBasePast, runBase, runBaseProfile } from './furnitureBase.js';
+import { wallFrame } from './geometry.js';
+import { landingProjection } from './landings.js';
 import { runScene } from './runScene.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { nosingProjection, woodTopSection } from './nosing.js';
@@ -74,13 +76,26 @@ function touching(wall, run, side, floorBase = false) {
       : Math.min(run.z + run.height, other.z + other.height) - Math.max(run.z, other.z) > EPSILON));
 }
 
+/** The blocking wall's reach toward the room, measured from this wall face. */
+function wallReach(room, wall, run, side, settings) {
+  const anchor = run.anchors?.[side];
+  if (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId) return 0;
+  if (anchor?.to === 'wall') return landingProjection(room, wall, anchor.wallId);
+  if (anchor !== true || wallEndPanelAt(room, wall, side, settings)) return null;
+  const corner = cornerAt(room, wall, side);
+  if (corner.type !== 'inside') return null;
+  const neighbor = room.walls.find(({ id }) => id === corner.neighborWallId);
+  return wallFrame(room, neighbor).length * Math.abs(Math.sin(corner.angle * Math.PI / 180));
+}
+
 /**
  * Where a band ends on one side of a run (SPEC-42, 42.1). `band` is 'toeKick', 'countertop', 'topMold',
  * 'crown' or 'furnitureBase'. Against a run that carries the band on (a top or furniture base at the
  * same height, or a toe kick): the deeper run's band returns as at a free end, and the shallower one's
  * meets it there; at equal depths it
  * runs straight through. A top dies into a taller run. Otherwise: over a wall end panel a top runs past
- * the panel; it stops at a wall or at the side of the recess the run sits in; anything else is free.
+ * the panel; it stops at a wall or at the side of the recess the run sits in, unless a molding's
+ * front clears that wall's reach; anything else is free.
  */
 function bandEdge(room, wall, run, side, band, settings) {
   const edge = side === 'left' ? run.x : run.x + run.width;
@@ -128,6 +143,13 @@ function bandEdge(room, wall, run, side, band, settings) {
   if (band === 'toeKick'
     && neighbors.some((other) => carries(room, wall, other, 'furnitureBase', settings))) return square;
   const anchor = run.anchors?.[side];
+  if (band === 'topMold' || band === 'crown') {
+    const reach = wallReach(room, wall, run, side, settings);
+    const front = frontDepth(run, settings) + bandPast(room, wall, run, side, band, settings);
+    if (reach !== null && front > reach + 1 / 64) {
+      return { ...returned(run, side), returnLength: front - reach };
+    }
+  }
   if (anchor === true) {
     if (band === 'toeKick' || !wallEndPanelAt(room, wall, side, settings)) return square;
     const past = bandPast(room, wall, run, side, band, settings);

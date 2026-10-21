@@ -149,14 +149,14 @@ describe('SPEC-50.3 step 476 profiled band ends', () => {
     expect(crown.lines).toEqual([line(26.75, 103.875, 95.5), line(29.25, 106.375, 93)]);
   });
 
-  it('keeps equal-depth and taller joints, recess sides and blind panels square; returns over a wall end panel', () => {
+  it('keeps equal-depth and taller joints, moldings behind recess sides and blind panels square; returns over a wall end panel', () => {
     expect(setup({ runs: [{}, { x: 66 }] }).bands[0].crown.outline.slice(1, 3))
       .toEqual([[66, 92.5, 0], [66, 96, 0]]);
     expect(setup({ runs: [{}, { x: 66, depth: 10, heightMode: 'manual', z: 54, height: 40 }] }).bands[0].crown.outline.slice(1, 3))
       .toEqual([[66, 92.5, 0], [66, 96, 0]]);
     const { wall, bandsOf } = setup();
     const run = wall.runs[0];
-    expect(bandsOf({ ...run, _plane: { recessId: 'recess' }, anchors: { right: { to: 'recess', recessId: 'recess' } } }).crown.outline.slice(1, 3))
+    expect(bandsOf({ ...run, _plane: { recessId: 'recess', offset: -24 }, anchors: { right: { to: 'recess', recessId: 'recess' } } }).crown.outline.slice(1, 3))
       .toEqual([[66, 92.5, 0], [66, 96, 0]]);
     const scene = runScene({}, wall, run, settings);
     scene.panelBySide.right = { x: 66, width: 54 };
