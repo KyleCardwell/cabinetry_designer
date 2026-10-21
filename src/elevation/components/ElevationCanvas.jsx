@@ -355,7 +355,7 @@ function ElevationCanvas({
     cancelDrag();
     setStretchPreview(null);
     dispatch(setSelection({}));
-  }, [cancelDrag, cancelEntry, dispatch, wallId]);
+  }, [activeKey, cancelDrag, cancelEntry, dispatch]);
 
   useEffect(() => {
     resetView();
@@ -585,26 +585,6 @@ function ElevationCanvas({
       clear,
     };
   }, [dimensionChains, room, settings, transform, wall]);
-
-  useElevationKeys({
-    cancelDrag,
-    cancelEntry,
-    cursor,
-    dispatch,
-    dragRef,
-    entry,
-    facePath,
-    resetView,
-    room,
-    selectionRef,
-    setAlignmentGuides,
-    setStretchPreview,
-    stretchPreview,
-    tool,
-    wallRef,
-    zoomIn,
-    zoomOut,
-  });
 
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
@@ -992,6 +972,15 @@ function ElevationCanvas({
 
   const handleStageClick = useCallback((event) => {
     if (suppressClickRef.current) return;
+    if (liveGestureRef.current?.kind === 'run-move') {
+      if (event.evt.button !== 0) return;
+      const pointer = stageRef.current?.getPointerPosition();
+      if (pointer && transform) {
+        updateEntry(screenToWall(pointer, transform).x - liveGestureRef.current.pointerStartX);
+      }
+      commitEntry();
+      return;
+    }
     if (event.target !== event.target.getStage()) return;
     if (entry) {
       commitEntry();
@@ -1052,7 +1041,7 @@ function ElevationCanvas({
     dispatch(setMessage(null));
     dispatch(addOpening({ wallId: wall.id, opening: placed }));
     dispatch(setSelection({ openingId: placed.id }));
-  }, [commitEntry, dispatch, entry, room, settings, showMessage, tool, transform, wall]);
+  }, [commitEntry, dispatch, entry, room, settings, showMessage, tool, transform, updateEntry, wall]);
 
   const {
     previewStretch,
@@ -1085,21 +1074,18 @@ function ElevationCanvas({
 
   const {
     applyRunMove,
-    startRunMove,
-    handleRunSegmentClick,
-    updateRunMove,
-    finishRunMove,
+    startMoveMode,
+    moving,
+    cancelMove,
   } = useRunMove({
     beginEntry,
     cancelEntry,
-    commitEntry,
     cursor,
     dispatch,
     entryRef,
     liveGestureRef,
     moveOriginRef,
     room,
-    selectionRef,
     setAlignmentGuides,
     setEntryPointer,
     setStretchPreview,
@@ -1108,8 +1094,35 @@ function ElevationCanvas({
     stageRef,
     tool,
     transform,
-    updateEntry,
     wall,
+  });
+
+  const handleRunSegmentClick = useCallback((segment) => {
+    if (tool === 'select' && segment.kind === 'run') {
+      dispatch(setSelection({ runId: segment.runId, pieceId: null }));
+    }
+  }, [dispatch, tool]);
+
+  useElevationKeys({
+    cancelDrag,
+    cancelEntry,
+    commitEntry,
+    cursor,
+    dispatch,
+    dragRef,
+    entry,
+    facePath,
+    resetView,
+    room,
+    selectionRef,
+    setAlignmentGuides,
+    setStretchPreview,
+    startMoveMode,
+    stretchPreview,
+    tool,
+    wallRef,
+    zoomIn,
+    zoomOut,
   });
 
   const {
@@ -1168,6 +1181,11 @@ function ElevationCanvas({
           onPointerCancel={stopPanning}
           onWheel={handleWheel}
           onClick={handleStageClick}
+          onContextMenu={(event) => {
+            if (!moving) return;
+            event.evt.preventDefault();
+            cancelMove();
+          }}
         >
           <Layer listening={false}>
             <Rect width={viewport.width} height={viewport.height} fill="#111827" />
@@ -1319,9 +1337,6 @@ function ElevationCanvas({
             editPieceSegment={editPieceSegment}
             cursor={cursor}
             handleRunSegmentClick={handleRunSegmentClick}
-            startRunMove={startRunMove}
-            updateRunMove={updateRunMove}
-            finishRunMove={finishRunMove}
             selection={selection}
             selectFeature={selectFeature}
             room={room}
@@ -1343,6 +1358,11 @@ function ElevationCanvas({
                 partNumbers={partNumbering}
                 transform={transform}
               />
+            </Layer>
+          )}
+          {moving && (
+            <Layer>
+              <Rect width={viewport.width} height={viewport.height} fill="transparent" />
             </Layer>
           )}
         </Stage>

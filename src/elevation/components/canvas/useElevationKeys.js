@@ -20,6 +20,7 @@ import {
 export default function useElevationKeys({
   cancelDrag,
   cancelEntry,
+  commitEntry,
   cursor,
   dispatch,
   dragRef,
@@ -30,6 +31,7 @@ export default function useElevationKeys({
   selectionRef,
   setAlignmentGuides,
   setStretchPreview,
+  startMoveMode,
   stretchPreview,
   tool,
   wallRef,
@@ -63,6 +65,22 @@ export default function useElevationKeys({
         else if (facePath) dispatch(setFacePath(null));
         else if (interiorPath != null) dispatch(setInteriorPath(null));
         else dispatch(setSelection({}));
+        return;
+      }
+
+      if (event.key.toLowerCase() === 'm' && !event.ctrlKey && !event.metaKey
+        && !event.altKey && !event.repeat && tool === 'select' && !entry) {
+        const runId = selectionRef.current?.runId;
+        if (runId) {
+          event.preventDefault();
+          startMoveMode(runId);
+        }
+        return;
+      }
+
+      if (event.key === 'Enter' && entry?.kind === 'run-move') {
+        event.preventDefault();
+        commitEntry();
         return;
       }
 
@@ -164,6 +182,7 @@ export default function useElevationKeys({
   }, [
     cancelDrag,
     cancelEntry,
+    commitEntry,
     cursor,
     dispatch,
     entry,
@@ -171,6 +190,7 @@ export default function useElevationKeys({
     interiorPath,
     resetView,
     room,
+    startMoveMode,
     stretchPreview,
     tool,
     zoomIn,
