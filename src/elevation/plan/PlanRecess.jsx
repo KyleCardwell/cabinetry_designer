@@ -1,4 +1,6 @@
 import { Group, Line, Text } from 'react-konva';
+import { planSideReach } from '../model/planDimensions.js';
+import { wallSideOf } from '../model/wallSides.js';
 import { elevationToPlan } from '../model/geometry.js';
 import {
   projectionDepthX,
@@ -22,7 +24,7 @@ function toPoints(frame, points) {
  * A recess or projection in plan (SPEC-38): wall added (a deep recess's bump-out, a projection), the notch
  * knocked out of the wall, and its outline, dashed when it's raised off the floor. Not clickable.
  */
-export default function PlanRecess({ room, wall, frame, recess, scale, selected }) {
+export default function PlanRecess({ room, wall, frame, recess, scale, selected, settings }) {
   const tight = projectionTightSides(room, wall, recess, frame.length);
   const shape = recessPlanShape(recess, frame.length, wall.height, wall.thickness, tight);
   const geometry = recessGeometry(recess, frame.length, wall.height);
@@ -31,7 +33,11 @@ export default function PlanRecess({ room, wall, frame, recess, scale, selected 
   const stroke = selected ? '#60a5fa' : '#d1d5db';
   const strokeWidth = (selected ? 2 : 1) / scale;
   const dash = shape.dashed ? [5 / scale, 3 / scale] : undefined;
-  const label = elevationToPlan(frame, shape.label[0], shape.label[1]);
+  const opposite = wallSideOf(recess) === 'front' ? 'back' : 'front';
+  const bumpOut = recess.kind !== 'projection' && geometry.depth >= wall.thickness - 1e-6
+    ? geometry.depth : 0;
+  const label = elevationToPlan(frame, geometry.x + geometry.width / 2,
+    -wall.thickness - bumpOut - planSideReach(room, wall, opposite, settings) - 10 / scale);
   const depthDim = recess.kind === 'projection' && geometry.depth > 0
     ? projectionDepth(frame, geometry.depth, projectionDepthX(recess, frame.length, wall.height, tight), scale)
     : null;

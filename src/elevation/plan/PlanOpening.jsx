@@ -10,6 +10,7 @@ import {
   openingGeometry,
   openingReferenceBounds,
 } from '../model/openings.js';
+import { planSideReach } from '../model/planDimensions.js';
 import { openingPlanDepths } from '../model/recesses.js';
 import { formatInches } from '../model/units.js';
 import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
@@ -32,7 +33,6 @@ export default function PlanOpening({
   onMove,
   cursor,
 }) {
-  void room;
   const dragStartRef = useRef(null);
   const cursorKeys = useCursorKeys(cursor);
   const geometry = openingGeometry(opening, frame.length, settings);
@@ -61,7 +61,7 @@ export default function PlanOpening({
     elevationToPlan(frame, casing.x + casing.width, depths.face + casing.thickness),
     elevationToPlan(frame, casing.x, depths.face + casing.thickness),
   ] : null;
-  const labelOffset = depths.face + (casing?.thickness ?? 0) + 12 / scale;
+  const labelOffset = depths.back - planSideReach(room, wall, 'back', settings) - 10 / scale;
   const labelPoint = elevationToPlan(
     frame,
     jamb.x + jamb.width / 2,

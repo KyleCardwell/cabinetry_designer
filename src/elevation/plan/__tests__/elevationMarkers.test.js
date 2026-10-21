@@ -76,7 +76,7 @@ describe('elevationMarkers', () => {
         wallId: 'H',
         side: 'back',
         letter: 'B',
-        point: { x: 131, y: -35.375 },
+        point: { x: 131, y: -52.375 },
         direction: { x: 0, y: -1 },
       },
     ]);

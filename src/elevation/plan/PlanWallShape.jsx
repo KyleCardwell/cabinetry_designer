@@ -1,13 +1,12 @@
 import { Circle, Group, Line, Text } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
-import { layoutDimensionRow } from '../canvas/dimensionLayout.js';
 import { wallFrame } from '../model/geometry.js';
-import { recessesOn } from '../model/recesses.js';
+import { planThroughDimensions } from '../model/planDimensions.js';
 import { wallNumbers } from '../model/topology.js';
 import { wallOutline } from '../model/wallOutline.js';
-import { wallFaceSegments } from '../model/wallFaceRow.js';
 import { wallSideFrame } from '../model/wallSides.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
+import { canvasDimensionRows } from './elevationMarkers.js';
 import { readableRotation } from './textRotation.js';
 
 export default function PlanWallShape({
@@ -26,8 +25,6 @@ export default function PlanWallShape({
 
   const outline = wallOutline(room, wall);
   const faceEndpoints = outline.slice(0, 2);
-  const builtLength = Math.hypot(faceEndpoints[1].x - faceEndpoints[0].x,
-    faceEndpoints[1].y - faceEndpoints[0].y);
   const exterior = { x: -frame.n.x, y: -frame.n.y };
   const midpoint = {
     x: (faceEndpoints[0].x + faceEndpoints[1].x) / 2,
@@ -37,26 +34,16 @@ export default function PlanWallShape({
   const fontSize = PLAN_DIM_FONT_SIZE / scale;
   const number = wallNumbers(room).get(wall.id);
   const numberRadius = 9 / scale;
-  // SPEC-36.3.1: wing walls and, on the front, doors and windows share one row inside the wall's length.
-  const faceRows = {
-    front: wallFaceSegments(room, wall, 'front', settings),
-    back: wallFaceSegments(room, wall, 'back', settings),
-  };
-  const hasFrontLandings = faceRows.front.length > 0;
-  // SPEC-38.1: a recess at least as deep as the wall bumps the wall out on the other face, where that face's
-  // row (and on the front, the overall length) is drawn, so those move out past the deepest one.
-  const bumpOut = (side) => Math.max(0, ...recessesOn(wall, side)
-    .filter((recess) => recess.kind !== 'projection' && recess.depth >= wall.thickness - 1e-6)
-    .map((recess) => recess.depth));
-  const innerRowOffset = wall.thickness + bumpOut('front') + 22 / scale;
-  const dimensionOffset = innerRowOffset + (hasFrontLandings ? 20 / scale : 0);
+  const rows = canvasDimensionRows(room, wall, settings, scale);
+  const { innerRowOffset, dimensionOffset } = rows;
+  const faceRows = rows.segments;
   const extensionEndOffset = dimensionOffset + 4 / scale;
   const numberOffset = dimensionOffset + 24 / scale;
   const numberPoint = {
     x: midpoint.x + exterior.x * numberOffset + frame.d.x * 24 / scale,
     y: midpoint.y + exterior.y * numberOffset + frame.d.y * 24 / scale,
   };
-  const extensionStartOffset = wall.thickness + bumpOut('front') + 2 / scale;
+  const extensionStartOffset = rows.outside + 2 / scale;
   const dimensionEndpoints = faceEndpoints.map((point) => ({
     x: point.x + exterior.x * dimensionOffset,
     y: point.y + exterior.y * dimensionOffset,
@@ -66,10 +53,7 @@ export default function PlanWallShape({
     y: (frame.d.y + exterior.y) / Math.SQRT2,
   };
   const tickHalfLength = 4 / scale;
-  const layout = layoutDimensionRow(
-    [{ start: 0, end: builtLength }],
-    { scale, fontSize: PLAN_DIM_FONT_SIZE },
-  );
+  const layout = rows.layouts.wall;
   const dimensionLabel = layout.labels[0];
   const labelDistance = (dimensionLabel.mode === 'popout'
     ? 10 + 14 * dimensionLabel.level
@@ -90,11 +74,8 @@ export default function PlanWallShape({
     if (segments.length === 0) return [];
     const sideFrame = wallSideFrame(room, wall, side);
     const outward = side === 'front' ? exterior : frame.n;
-    const offset = side === 'front' ? innerRowOffset : wall.thickness + bumpOut('back') + 42 / scale;
-    const rowLayout = layoutDimensionRow(segments, {
-      scale,
-      fontSize: PLAN_DIM_FONT_SIZE,
-    });
+    const offset = side === 'front' ? innerRowOffset : rows.backRowOffset;
+    const rowLayout = rows.layouts[side];
     const rowStart = {
       x: sideFrame.leftPoint.x + outward.x * offset,
       y: sideFrame.leftPoint.y + outward.y * offset,
@@ -324,6 +305,47 @@ export default function PlanWallShape({
                 </Group>
               );
             })}
+          </Group>
+        );
+      })}
+      {planThroughDimensions(room, wall, settings).map((dimension, index) => {
+        const endpoints = [dimension.start, dimension.end].map(([x, y]) => ({ x, y: -y }));
+        const [start, end] = endpoints;
+        const dx = end.x - start.x;
+        const dy = end.y - start.y;
+        const length = Math.hypot(dx, dy);
+        const tick = {
+          x: (dx - dy) / length / Math.SQRT2 * tickHalfLength,
+          y: (dy + dx) / length / Math.SQRT2 * tickHalfLength,
+        };
+        const width = (dimension.text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
+        return (
+          <Group key={`through:${index}`} listening={false}>
+            <Line
+              points={endpoints.flatMap((point) => [point.x, point.y])}
+              stroke="#94a3b8"
+              strokeWidth={1 / scale}
+            />
+            {endpoints.map((point, endpoint) => (
+              <Line
+                key={endpoint}
+                points={[point.x - tick.x, point.y - tick.y, point.x + tick.x, point.y + tick.y]}
+                stroke="#cbd5e1"
+                strokeWidth={1 / scale}
+              />
+            ))}
+            <Text
+              x={(start.x + end.x) / 2 + dy / length * 10 / scale}
+              y={(start.y + end.y) / 2 - dx / length * 10 / scale}
+              width={width}
+              offsetX={width / 2}
+              offsetY={fontSize / 2}
+              rotation={readableRotation(Math.atan2(dy, dx) * 180 / Math.PI)}
+              align="center"
+              text={dimension.text}
+              fontSize={fontSize}
+              fill="#e2e8f0"
+            />
           </Group>
         );
       })}

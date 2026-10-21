@@ -51,6 +51,7 @@ export default function PlanScene({
           wall={wall}
           frame={wallSideFrame(room, wall, recess.wallSide)}
           recess={recess}
+          settings={settings}
           scale={scale}
           selected={selection.recessId === recess.id}
         />

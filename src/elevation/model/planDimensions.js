@@ -150,7 +150,7 @@ export function planWallRows(room, wall, settings) {
 }
 
 /** Across each wall end panel, on a line one row spacing beyond its outer edge. */
-function throughRecords(room, wall, settings) {
+export function planThroughDimensions(room, wall, settings) {
   const scale = plotScale(settings);
   const frame = wallFrame(room, wall);
   const panels = wallEndPanels(room, wall, settings);
@@ -184,7 +184,7 @@ export function planDimensions(room, settings) {
   const records = [];
   for (const wall of room.walls) {
     for (const { records: rows } of planWallRows(room, wall, settings)) records.push(...rows);
-    records.push(...throughRecords(room, wall, settings));
+    records.push(...planThroughDimensions(room, wall, settings));
   }
   for (const wall of room.walls) {
     for (const run of wall.runs ?? []) records.push(...depthRecords(room, wall, run, settings));
