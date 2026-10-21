@@ -2,10 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { CABINET_TYPE_IDS, findCell, resolveWall, runItems, runScene } from '../../model/index.js';
-import elevationReducer, { splitCell } from '../../store/elevationSlice.js';
-import { auto, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
+import elevationReducer, { setActiveWall, setSelection, splitCell } from '../../store/elevationSlice.js';
+import { auto, opening as makeOpening, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 
-vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn(), useRef: () => ({ current: null }) }));
+vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn(), useCallback: (fn) => fn, useRef: () => ({ current: null }) }));
 vi.mock('../ElevationCanvas.jsx', () => ({ default: 'elevation-canvas' }));
 vi.mock('../../plan/PlanCanvas.jsx', () => ({ default: 'plan-canvas' }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
@@ -20,8 +20,9 @@ const band = (tree, id) => nodes(tree).find(({ props }) => props['data-height-ba
 const expanded = (tree, id) => nodes(band(tree, id)).find(({ type }) => type === 'button').props['aria-expanded'];
 let PanelSection, PanelTabs, HeightBands, RoomHeightsPanel, WallHeightProperties, RunHeightsSection, SettingsPanel, usePanelState;
 let RunProperties, CabinetProperties, CellProperties, PieceProperties;
+let PropertiesPanel, PropertiesHeader, ElevationToolbar, OpeningProperties;
 let DesignerEditor, RoomStylePanel, RoomDoorStylesPanel, RoomPartNumbersPanel, WallList, RoomSettingsPanel;
-let hooks, slots, hookIndex, effects, dirty, state, storage, renderedComponents;
+let hooks, slots, hookIndex, effects, dirty, state, storage, renderedComponents, rowScroll;
 
 function unmount() {
   for (const componentSlots of hooks.values()) componentSlots.forEach((slot) => slot.cleanup?.());
@@ -48,6 +49,11 @@ function render(Component, props = {}) {
         hookIndex = 0;
         return walk(element.type(element.props), id);
       }
+      if (element.ref && element.props['data-wall-id']) {
+        const wallId = element.props['data-wall-id'];
+        if (!rowScroll.has(wallId)) rowScroll.set(wallId, vi.fn());
+        element.ref.current = { scrollIntoView: rowScroll.get(wallId) };
+      }
       return { ...element, props: { ...element.props, children: walk(element.props.children, `${path}/children`) } };
     };
     tree = walk({ type: Component, props }, 'root');
@@ -63,6 +69,10 @@ function render(Component, props = {}) {
 }
 
 async function loadPanels() {
+  ({ default: PropertiesPanel } = await import('../PropertiesPanel.jsx'));
+  ({ default: PropertiesHeader } = await import('../PropertiesHeader.jsx'));
+  ({ default: ElevationToolbar } = await import('../ElevationToolbar.jsx'));
+  ({ default: OpeningProperties } = await import('../properties/OpeningProperties.jsx'));
   ({ default: DesignerEditor } = await import('../../DesignerEditor.jsx'));
   ({ default: RoomStylePanel } = await import('../RoomStylePanel.jsx'));
   ({ default: RoomDoorStylesPanel } = await import('../RoomDoorStylesPanel.jsx'));
@@ -96,7 +106,7 @@ async function loadPanels() {
     import('../properties/TeeProperties.jsx'),
   ]);
   const { RunFurnitureBaseSection } = await import('../properties/RunProperties.jsx');
-  renderedComponents = [RoomHeightsPanel, RoomStylePanel, RoomDoorStylesPanel, RoomPartNumbersPanel, WallList,
+  renderedComponents = [WallHeightProperties, PropertiesPanel, PropertiesHeader, RoomHeightsPanel, RoomStylePanel, RoomDoorStylesPanel, RoomPartNumbersPanel, WallList,
     PanelSection, PanelTabs, HeightBands, RunHeightsSection,
     RunFurnitureBaseSection, ...pieceSections.map((module) => module.default), ...runSections.map((module) => module.default)];
 }
@@ -105,6 +115,7 @@ beforeEach(async () => {
   vi.resetModules();
   vi.clearAllMocks();
   hooks = new Map();
+  rowScroll = new Map();
   state = stateWithRun(makeRun());
   state.rooms[0].profile = {};
   storage = new Map();
@@ -156,7 +167,9 @@ describe('UI3 step a panel controls', () => {
     expect(text(band(render(RoomHeightsPanel), 'crown'))).toContain('2 overridden');
     unmount();
     wall.profile = { toeKickHeight: 0, nosingProfileId: null };
-    tree = render(WallHeightProperties, { room, wall, plan: false });
+    tree = render(WallList);
+    button(tree, 'Heights').props.onClick();
+    tree = render(WallList);
     expect(text(band(tree, 'base'))).toContain('1 overridden');
     expect(text(band(tree, 'countertop'))).toContain('1 overridden');
     expect(text(band(tree, 'crown'))).not.toContain('overridden');
@@ -176,12 +189,12 @@ describe('UI3 step a panel controls', () => {
     expect(expanded(render(RoomHeightsPanel), 'crown')).toBe(false);
     expect(storage.get('ff.panel.band.crown')).toBe('false');
     unmount();
-    const props = { room: state.rooms[0], wall: state.rooms[0].walls[0], plan: false };
-    expect(expanded(render(WallHeightProperties, props), 'crown')).toBe(false);
+    button(render(WallList), 'Heights').props.onClick();
+    expect(expanded(render(WallList), 'crown')).toBe(false);
     unmount();
     vi.resetModules(); // Reload also discards the shared in-memory map.
     await loadPanels();
-    expect(expanded(render(WallHeightProperties, props), 'crown')).toBe(false);
+    expect(expanded(render(WallList), 'crown')).toBe(false);
     expect(localStorage.getItem).toHaveBeenCalledWith('ff.panel.band.crown');
   });
 
@@ -476,7 +489,7 @@ describe('UI7 step a left panel sections', () => {
       const tree = editor({ mode, readOnly: true });
       const left = aside(tree);
       const blocks = nodes(left).filter(({ type, props }) =>
-        (type === 'section' && !props['data-height-band'] && nodes(props.children).some(({ props }) => props['aria-expanded'] !== undefined))
+        (type === 'section' && props.className?.includes('border-t'))
         || [RoomSettingsPanel, SettingsPanel].includes(type));
       expect(blocks.map((block) => block.type === RoomSettingsPanel ? 'Room settings'
         : block.type === SettingsPanel ? 'Settings' : text(nodes(block).find(({ props }) => props['aria-expanded'] !== undefined).props.children[1])))
@@ -548,5 +561,116 @@ describe('UI7 step a left panel sections', () => {
     expect(text(left)).not.toContain('First style');
     expect(nodes(left).some(({ props }) => props['aria-label'] === 'Draw door details')).toBe(false);
     expect(storage.get('ff.panel.left.doorStyles')).toBe('false');
+  });
+});
+
+
+describe('UI7 step b inline wall settings', () => {
+  const row = (tree, id) => nodes(tree).find(({ props }) => props['data-wall-id'] === id);
+  const toggle = (tree, id) => nodes(row(tree, id)).find(({ props }) => props['aria-label']?.startsWith('Toggle '));
+  const control = (tree, label) => nodes(tree).find(({ props }) => (props['aria-label'] ?? props.ariaLabel) === label);
+  const dispatch = (action) => { state = elevationReducer(state, action); };
+  const Workbench = () => <><ElevationToolbar /><WallList /><PropertiesPanel /></>;
+  const setup = () => {
+    const room = state.rooms[0];
+    const first = room.walls[0];
+    room.walls = ['A', 'B', 'C'].map((name, index) => ({
+      ...structuredClone(first), id: `wall-${index + 1}`, name, runs: [],
+      x1: index * 144, x2: (index + 1) * 144,
+    }));
+    room.wallOrder = room.walls.map(({ id }) => id);
+    useDispatch.mockReturnValue(vi.fn(dispatch));
+    renderedComponents.push(ElevationToolbar);
+  };
+
+  it('anchor 1: canvas selection expands B with the specified section defaults and right-panel hint', () => {
+    setup();
+    state.rooms[0].walls[1].landings = {
+      start: { wallId: 'wall-1', side: 'front', ref: 'left', to: 'near', offset: 24 },
+    };
+    render(Workbench);
+    dispatch(setActiveWall('wall-2')); // Same selection action used by the canvas.
+    const tree = render(Workbench);
+    expect(toggle(tree, 'wall-1').props['aria-expanded']).toBe(false);
+    expect(toggle(tree, 'wall-2').props['aria-expanded']).toBe(true);
+    const b = row(tree, 'wall-2');
+    expect(nodes(b).filter(({ type }) => type === 'section').map((section) => {
+      const header = nodes(section).find(({ props }) => props['aria-expanded'] !== undefined);
+      return [text(header.props.children[1]), header.props['aria-expanded']];
+    })).toEqual([['Wall', true], ['Lands on', false], ['End panels', false], ['Heights', false], ['Door styles & pulls', false]]);
+    expect(control(b, 'Wall name').props.value).toBe('B');
+    expect(control(b, 'Wall number')).toBeDefined();
+    expect(control(b, 'Include in elevations')).toBeDefined();
+    expect(control(b, 'Wall height')).toBeDefined();
+    expect(control(b, 'Wall length')).toBeUndefined();
+    expect(nodes(b).some(({ props }) => props.className === 'pl-3 border-l border-gray-700')).toBe(true);
+    const right = nodes(tree).find(({ type }) => type === 'aside');
+    expect(text(right)).toContain('Wall 2 · B');
+    expect(text(right)).toContain('Wall settings are on the left. Select a run, cabinet or opening to edit it here.');
+    expect(control(right, 'Wall name')).toBeUndefined();
+  });
+
+  it('anchor 2: next-wall arrow collapses B, expands and scrolls C, sharing section state across walls', () => {
+    setup();
+    dispatch(setActiveWall('wall-2'));
+    let tree = render(Workbench);
+    button(row(tree, 'wall-2'), 'Heights').props.onClick();
+    render(Workbench);
+    control(render(Workbench), 'Next wall').props.onClick();
+    tree = render(Workbench);
+    expect(toggle(tree, 'wall-2').props['aria-expanded']).toBe(false);
+    expect(control(row(tree, 'wall-2'), 'Wall name')).toBeUndefined();
+    expect(toggle(tree, 'wall-3').props['aria-expanded']).toBe(true);
+    expect(control(row(tree, 'wall-3'), 'Wall name').props.value).toBe('C');
+    expect(rowScroll.get('wall-3')).toHaveBeenCalledWith({ block: 'nearest' });
+    expect(button(row(tree, 'wall-3'), 'Heights').props['aria-expanded']).toBe(true);
+    expect(button(row(tree, 'wall-3'), 'Lands on')).toBeUndefined();
+    expect(storage.get('ff.panel.wall.heights')).toBe('true');
+    expect([...storage.keys()].some((key) => key.includes('wall-2') || key.includes('wall-3'))).toBe(false);
+  });
+
+  it('anchor 3: C chevron collapses and reopens its controls without changing selection, including plan fields', () => {
+    setup();
+    state.view = 'plan';
+    dispatch(setActiveWall('wall-3'));
+    let tree = render(Workbench);
+    const selection = structuredClone(state.selection);
+    const c = row(tree, 'wall-3');
+    expect(control(c, 'Wall length')).toBeDefined();
+    expect(control(c, 'Wall thickness')).toBeDefined();
+    expect(button(c, 'Flip interior side')).toBeDefined();
+    useDispatch().mockClear();
+    toggle(tree, 'wall-3').props.onClick();
+    tree = render(Workbench);
+    expect(toggle(tree, 'wall-3').props['aria-expanded']).toBe(false);
+    expect(control(row(tree, 'wall-3'), 'Wall name')).toBeUndefined();
+    expect(state.activeWallId).toBe('wall-3');
+    expect(state.selection).toEqual(selection);
+    expect(useDispatch()).not.toHaveBeenCalled();
+    toggle(tree, 'wall-3').props.onClick();
+    expect(control(row(render(Workbench), 'wall-3'), 'Wall length')).toBeDefined();
+    // Returning through the list opens C again even after its chevron was collapsed.
+    toggle(render(Workbench), 'wall-3').props.onClick();
+    control(render(Workbench), 'Select Wall 2 · B').props.onClick();
+    render(Workbench);
+    control(render(Workbench), 'Select Wall 3 · C').props.onClick();
+    expect(toggle(render(Workbench), 'wall-3').props['aria-expanded']).toBe(true);
+  });
+
+  it('anchor 4: selecting a window on C keeps C expanded and shows its existing editor on the right', () => {
+    setup();
+    state.rooms[0].walls[2].openings = [makeOpening({ id: 'window-c', kind: 'window' })];
+    dispatch(setActiveWall('wall-3'));
+    render(Workbench);
+    dispatch(setSelection({ openingId: 'window-c' }));
+    const tree = render(Workbench);
+    const right = nodes(tree).find(({ type }) => type === 'aside');
+    expect(toggle(tree, 'wall-3').props['aria-expanded']).toBe(true);
+    expect(control(row(tree, 'wall-3'), 'Wall name').props.value).toBe('C');
+    const editor = nodes(right).find(({ type }) => type === OpeningProperties);
+    expect(editor.props.opening).toMatchObject({ id: 'window-c', kind: 'window' });
+    expect(text(right)).toContain('Window');
+    expect(text(right)).not.toContain('Wall settings are on the left.');
+    expect(rowScroll.get('wall-3')).toHaveBeenCalledTimes(1);
   });
 });

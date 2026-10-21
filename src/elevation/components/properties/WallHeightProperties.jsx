@@ -39,6 +39,7 @@ import PullPicks from './PullPicks.jsx';
 import Field from './Field.jsx';
 import WallEndPanelFields from './WallEndPanelFields.jsx';
 import StretchInput from './StretchInput.jsx';
+import PanelSection from '../panel/PanelSection.jsx';
 
 export default function WallHeightProperties({ room, wall, plan }) {
   const dispatch = useDispatch();
@@ -167,12 +168,98 @@ export default function WallHeightProperties({ room, wall, plan }) {
     );
   };
 
+  const landingFields = [
+    ['left', frame.leftEndpoint],
+    ['right', frame.rightEndpoint],
+  ].map(([side, endpoint]) => {
+    const landing = wall.landings?.[endpoint];
+    if (!landing) return null;
+    const host = room.walls.find((candidate) => candidate.id === landing.wallId);
+    if (!host) return null;
+    const hostView = resolveWall(room, host, landing.side);
+    const referenceWalls = landingsOn(room, hostView)
+      .filter((interval) => interval.wallId !== wall.id)
+      .map((interval) => room.walls.find(
+        (candidate) => candidate.id === interval.wallId,
+      ))
+      .filter((candidate) => candidate && !landingRefCreatesCycle(
+        room,
+        wall.id,
+        host.id,
+        landing.side,
+        candidate.id,
+      ));
+    return (
+      <section key={endpoint}>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          {`Lands on ${wallLabel(room, host)} · ${landing.side === 'front' ? 'Front' : 'Back'}`}
+        </h3>
+        <div className="space-y-2.5">
+          <Field label="Measured from">
+            <select
+              value={landing.ref}
+              onChange={(event) => dispatch(setWallLanding({
+                wallId: wall.id,
+                endpoint,
+                ref: event.target.value,
+              }))}
+              aria-label={`${side} landing measured from`}
+              className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="left">Left end</option>
+              <option value="right">Right end</option>
+              {referenceWalls.map((referenceWall) => (
+                <option key={referenceWall.id} value={referenceWall.id}>
+                  {wallLabel(room, referenceWall)}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="To">
+            <select
+              value={landing.to}
+              onChange={(event) => dispatch(setWallLanding({
+                wallId: wall.id,
+                endpoint,
+                to: event.target.value,
+              }))}
+              aria-label={`${side} landing measured to`}
+              className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="near">Near face</option>
+              <option value="far">Far face</option>
+              <option value="center">Centre</option>
+            </select>
+          </Field>
+          <Field label="Distance">
+            <InchInput
+              value={landing.offset}
+              onCommit={(offset) => dispatch(setWallLanding({
+                wallId: wall.id,
+                endpoint,
+                offset,
+              }))}
+              aria-label={`${side} landing distance`}
+            />
+          </Field>
+          <button
+            type="button"
+            onClick={() => dispatch(detachWallLanding({
+              wallId: wall.id,
+              endpoint,
+            }))}
+            className="w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600"
+          >
+            Detach
+          </button>
+        </div>
+      </section>
+    );
+  });
+
   return (
     <div className="space-y-5">
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Wall
-        </h3>
+      <PanelSection id="wall.main" title="Wall" level={2}>
         <p className="mb-3 text-sm font-medium text-gray-200">{wallLabel(room, wall)}</p>
         <div className="mb-3 grid grid-cols-2 gap-2.5">
           <Field label="Name (optional)">
@@ -274,101 +361,15 @@ export default function WallHeightProperties({ room, wall, plan }) {
             {heightField}
           </>
         )}
-      </section>
+      </PanelSection>
 
-      {[
-        ['left', frame.leftEndpoint],
-        ['right', frame.rightEndpoint],
-      ].map(([side, endpoint]) => {
-        const landing = wall.landings?.[endpoint];
-        if (!landing) return null;
-        const host = room.walls.find((candidate) => candidate.id === landing.wallId);
-        if (!host) return null;
-        const hostView = resolveWall(room, host, landing.side);
-        const referenceWalls = landingsOn(room, hostView)
-          .filter((interval) => interval.wallId !== wall.id)
-          .map((interval) => room.walls.find(
-            (candidate) => candidate.id === interval.wallId,
-          ))
-          .filter((candidate) => candidate && !landingRefCreatesCycle(
-            room,
-            wall.id,
-            host.id,
-            landing.side,
-            candidate.id,
-          ));
-        return (
-          <section key={endpoint}>
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-              {`Lands on ${wallLabel(room, host)} · ${landing.side === 'front' ? 'Front' : 'Back'}`}
-            </h3>
-            <div className="space-y-2.5">
-              <Field label="Measured from">
-                <select
-                  value={landing.ref}
-                  onChange={(event) => dispatch(setWallLanding({
-                    wallId: wall.id,
-                    endpoint,
-                    ref: event.target.value,
-                  }))}
-                  aria-label={`${side} landing measured from`}
-                  className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="left">Left end</option>
-                  <option value="right">Right end</option>
-                  {referenceWalls.map((referenceWall) => (
-                    <option key={referenceWall.id} value={referenceWall.id}>
-                      {wallLabel(room, referenceWall)}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field label="To">
-                <select
-                  value={landing.to}
-                  onChange={(event) => dispatch(setWallLanding({
-                    wallId: wall.id,
-                    endpoint,
-                    to: event.target.value,
-                  }))}
-                  aria-label={`${side} landing measured to`}
-                  className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="near">Near face</option>
-                  <option value="far">Far face</option>
-                  <option value="center">Centre</option>
-                </select>
-              </Field>
-              <Field label="Distance">
-                <InchInput
-                  value={landing.offset}
-                  onCommit={(offset) => dispatch(setWallLanding({
-                    wallId: wall.id,
-                    endpoint,
-                    offset,
-                  }))}
-                  aria-label={`${side} landing distance`}
-                />
-              </Field>
-              <button
-                type="button"
-                onClick={() => dispatch(detachWallLanding({
-                  wallId: wall.id,
-                  endpoint,
-                }))}
-                className="w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600"
-              >
-                Detach
-              </button>
-            </div>
-          </section>
-        );
-      })}
+      {landingFields.some(Boolean) && (
+        <PanelSection id="wall.landings" title="Lands on" level={2} defaultOpen={false}>
+          {landingFields}
+        </PanelSection>
+      )}
 
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Wall end panels
-        </h3>
+      <PanelSection id="wall.endPanels" title="End panels" level={2} defaultOpen={false}>
         <div className="space-y-2.5">
           {[
             ['Left end', frame.leftEndpoint, leftFree],
@@ -413,12 +414,9 @@ export default function WallHeightProperties({ room, wall, plan }) {
             );
           })}
         </div>
-      </section>
+      </PanelSection>
 
-      <section>
-        <h3 className="mb-1 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Heights
-        </h3>
+      <PanelSection id="wall.heights" title="Heights" level={2} defaultOpen={false}>
         <p className="mb-3 text-xs text-gray-500">Blank values inherit from the room.</p>
         <HeightBands
           level="wall"
@@ -428,34 +426,36 @@ export default function WallHeightProperties({ room, wall, plan }) {
           warnings={[...moldings.warnings, ...base.warnings]}
           overlap={overlap}
         />
-      </section>
+      </PanelSection>
 
-      {room.doorStyles?.length > 0 && (
-        <section>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Door styles
-          </h3>
-          <DoorStylePicks
-            room={room}
-            settings={settings}
-            node={room.walls.find((w) => w.id === wall.id)}
-            levelsAbove={[{ level: 'room', node: room }]}
-            label="Wall"
-            onChange={(key, styleId) => dispatch(setDoorStylePick({
-              level: 'wall', wallId: wall.id, key, styleId,
-            }))}
-          />
-        </section>
-      )}
-      <PullPicks
-        settings={settings}
-        node={room.walls.find((candidate) => candidate.id === wall.id)}
-        levelsAbove={[]}
-        label="Wall"
-        onChange={(key, pullId) => dispatch(setPullPick({
-          roomId: room.id, level: 'wall', wallId: wall.id, key, pullId,
-        }))}
-      />
+      <PanelSection id="wall.styles" title="Door styles & pulls" level={2} defaultOpen={false}>
+        {room.doorStyles?.length > 0 && (
+          <section>
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+              Door styles
+            </h3>
+            <DoorStylePicks
+              room={room}
+              settings={settings}
+              node={room.walls.find((w) => w.id === wall.id)}
+              levelsAbove={[{ level: 'room', node: room }]}
+              label="Wall"
+              onChange={(key, styleId) => dispatch(setDoorStylePick({
+                level: 'wall', wallId: wall.id, key, styleId,
+              }))}
+            />
+          </section>
+        )}
+        <PullPicks
+          settings={settings}
+          node={room.walls.find((candidate) => candidate.id === wall.id)}
+          levelsAbove={[]}
+          label="Wall"
+          onChange={(key, pullId) => dispatch(setPullPick({
+            roomId: room.id, level: 'wall', wallId: wall.id, key, pullId,
+          }))}
+        />
+      </PanelSection>
     </div>
   );
 }

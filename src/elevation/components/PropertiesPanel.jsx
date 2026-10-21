@@ -32,7 +32,6 @@ import RecessProperties from './properties/RecessProperties.jsx';
 import PieceProperties from './properties/PieceProperties.jsx';
 import RunProperties from './properties/RunProperties.jsx';
 import SoffitProperties from './properties/SoffitProperties.jsx';
-import WallHeightProperties from './properties/WallHeightProperties.jsx';
 import WallEndPanelProperties from './properties/WallEndPanelProperties.jsx';
 import PropertiesHeader from './PropertiesHeader.jsx';
 
@@ -45,7 +44,6 @@ export default function PropertiesPanel() {
     activeWallId,
     activeWallSide,
     selection,
-    view,
     message,
   } = useSelector(
     (state) => state.elevation,
@@ -176,7 +174,9 @@ export default function PropertiesPanel() {
             settings={settings}
           />
         ) : !run || !displayLayout ? (
-          <WallHeightProperties room={room} wall={wall} plan={view === 'plan'} />
+          <p className="text-sm leading-relaxed text-gray-500">
+            Wall settings are on the left. Select a run, cabinet or opening to edit it here.
+          </p>
         ) : selectionContext ? (
           <PieceProperties
             room={room}

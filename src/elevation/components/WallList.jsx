@@ -1,16 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   addWall,
   deleteWall,
   setActiveWall,
   setTool,
-  updateWall,
 } from '../store/elevationSlice.js';
-import InchInput from './InchInput.jsx';
-import { formatInches } from '../model/units.js';
-import { wallLength } from '../model/geometry.js';
 import { wallLabel, wallNumbers } from '../model/topology.js';
+import { resolveWall } from '../model/room.js';
+import WallHeightProperties from './properties/WallHeightProperties.jsx';
 
 export default function WallList() {
   const dispatch = useDispatch();
@@ -18,6 +16,7 @@ export default function WallList() {
     rooms,
     activeRoomId,
     activeWallId,
+    activeWallSide,
     view,
   } = useSelector((state) => state.elevation);
   const room = rooms.find((candidate) => candidate.id === activeRoomId);
@@ -30,7 +29,13 @@ export default function WallList() {
   ));
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
-  const update = (wallId, changes) => dispatch(updateWall({ wallId, changes }));
+  const [expandedWallId, setExpandedWallId] = useState(activeWallId);
+  const selectedRow = useRef(null);
+
+  useEffect(() => {
+    setExpandedWallId(activeWallId);
+    selectedRow.current?.scrollIntoView?.({ block: 'nearest' });
+  }, [activeRoomId, activeWallId]);
 
   return (
     <section>
@@ -50,16 +55,29 @@ export default function WallList() {
       <div className="space-y-2">
         {sortedWalls.map((wall) => {
           const active = wall.id === activeWallId;
+          const expanded = active && expandedWallId === wall.id;
           const confirming = wall.id === confirmDeleteId;
           const label = wallLabel(room, wall);
           return (
             <div
               key={wall.id}
+              ref={active ? selectedRow : null}
+              data-wall-id={wall.id}
               className={`rounded-lg border p-3 ${
                 active ? 'border-blue-500 bg-blue-950/30' : 'border-gray-700 bg-gray-800/70'
               }`}
             >
               <div className="flex items-center gap-2 mb-3">
+                <button
+                  type="button"
+                  aria-label={`Toggle ${label} settings`}
+                  aria-expanded={expanded}
+                  disabled={!active}
+                  onClick={() => setExpandedWallId(expanded ? null : wall.id)}
+                  className="shrink-0 text-gray-400 hover:text-gray-200 disabled:text-gray-600"
+                >
+                  <span aria-hidden="true">{expanded ? '▾' : '▸'}</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => dispatch(setActiveWall(wall.id))}
@@ -89,23 +107,16 @@ export default function WallList() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-xs text-gray-400">
-                  Length
-                  <span className="mt-1 block rounded border border-gray-700 bg-gray-900/60 px-2.5 py-1.5 text-sm text-gray-300">
-                    {formatInches(wallLength(wall))}
-                  </span>
-                </label>
-                <label className="text-xs text-gray-400">
-                  Height
-                  <InchInput
-                    value={wall.height}
-                    onCommit={(height) => update(wall.id, { height })}
-                    aria-label={`${label} height`}
-                    className="mt-1"
+              {expanded && (
+                <div className="pl-3 border-l border-gray-700">
+                  <WallHeightProperties
+                    key={wall.id}
+                    room={room}
+                    wall={resolveWall(room, wall, activeWallSide)}
+                    plan={view === 'plan'}
                   />
-                </label>
-              </div>
+                </div>
+              )}
 
               {confirming && (
                 <div className="mt-3 rounded bg-red-950/40 border border-red-900/70 p-2 text-xs">
