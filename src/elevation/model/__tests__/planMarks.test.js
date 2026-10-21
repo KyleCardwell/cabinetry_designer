@@ -14,12 +14,12 @@ const marks = (room, use = settings) => planMarks(syncRoom(room, use), use);
 const marker = (at, text, direction) => ({ kind: 'elevation', at, text, direction });
 
 describe('SPEC-45.1 elevation markers and labels in plan', () => {
-  it('puts each lettered face\'s marker 6" past its deepest run plus the symbol, flag at the wall (G1)', () => {
+  it('puts each lettered face\'s marker past its runs and dimension rows (G1)', () => {
     expect(marks(stored('G1 Euro kitchen'))).toEqual([
       marker([-17.625, -6.03125], 'A', [-1, 0]),
       marker([6.4375, 42.625], 'B', [0, 1]),
       marker([55.25, 37.5], 'C', [0, -1]),
-      marker([55.25, -33.25], 'D', [0, 1]),
+      marker([55.25, -45.25], 'D', [0, 1]),
       { kind: 'label', at: [-67.125, -12], text: 'W1 · 48"', rotation: 90 },
     ]);
   });
@@ -49,7 +49,7 @@ describe('SPEC-45.1 elevation markers and labels in plan', () => {
       // 27" wall, no runs: 13 1/2" along, 6" + the symbol out, 12" further along the wall as drawn.
       ['C', [43.5, 58.5]],
       ['D', [55.25, 37.5]],
-      ['E', [55.25, -33.25]],
+      ['E', [55.25, -45.25]],
     ]);
   });
 });

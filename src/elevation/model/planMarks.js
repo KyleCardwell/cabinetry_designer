@@ -1,4 +1,3 @@
-import { frontDepth } from './corners.js';
 import { plotScale } from './drawingScale.js';
 import { DIMENSION_TEXT_GAP, DIMENSION_TEXT_HEIGHT } from './elevationDimensions.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
@@ -6,7 +5,9 @@ import { openingGeometry } from './openings.js';
 import { openingPlanDepths, recessGeometry, recessesOn } from './recesses.js';
 import { elevationKey, elevationLetters } from './topology.js';
 import { formatInches } from './units.js';
-import { PLAN_MARKER_CLEARANCE, PLAN_MARKER_FLAG, PLAN_MARKER_RADIUS } from './planDimensions.js';
+import {
+  PLAN_MARKER_CLEARANCE, PLAN_MARKER_FLAG, PLAN_MARKER_RADIUS, planSideReach, planWallRows,
+} from './planDimensions.js';
 import { WALL_SIDES, wallSideFrame, wallSideOf } from './wallSides.js';
 
 /** Paper inches a marker moves along its wall when its face has no runs (the canvas's MARKER_SHIFT). */
@@ -25,24 +26,27 @@ function readable(r) {
 
 /**
  * Elevation markers and door, window and recess labels for the plan DXF (SPEC-45.1), plan inches with y up.
- * Markers sit where the canvas puts them, in paper units; labels just outside the wall. Geometry draws the
- * symbols.
+ * Markers sit past their side's rows, in paper units; labels just past the opposite side's runs.
+ * Geometry draws the symbols.
  */
 export function planMarks(room, settings) {
   const scale = plotScale(settings);
   const letters = elevationLetters(room);
   const marks = [];
   for (const wall of room.walls) {
+    const rows = planWallRows(room, wall, settings);
     for (const side of WALL_SIDES) {
       const letter = letters.get(elevationKey(wall.id, side));
       if (!letter) continue;
       const frame = wallSideFrame(room, wall, side);
       const runs = (wall.runs ?? []).filter((run) => wallSideOf(run) === side);
-      const deepest = Math.max(0, ...runs.map((run) => frontDepth(run, settings)));
+      const deepest = planSideReach(room, wall, side, settings);
       const center = runs.length > 0
         ? (Math.min(...runs.map((run) => run.x)) + Math.max(...runs.map((run) => run.x + run.width))) / 2
         : frame.length / 2;
-      const offset = deepest + PLAN_MARKER_CLEARANCE + (PLAN_MARKER_RADIUS + PLAN_MARKER_FLAG) * scale;
+      const nextAt = rows.find((row) => row.side === side)?.nextAt;
+      const offset = Math.max(deepest + PLAN_MARKER_CLEARANCE, nextAt ?? 0)
+        + (PLAN_MARKER_RADIUS + PLAN_MARKER_FLAG) * scale;
       const shift = runs.length > 0 ? 0 : (side === 'front' ? 1 : -1) * PLAN_MARKER_SHIFT * scale;
       const { d } = wallFrame(room, wall);
       const point = elevationToPlan(frame, center, offset);
@@ -60,22 +64,24 @@ export function planMarks(room, settings) {
     for (const opening of wall.openings ?? []) {
       const { jamb } = openingGeometry(opening, frame.length, settings);
       const { back } = openingPlanDepths(wall, opening);
+      const depth = back - planSideReach(room, wall, 'back', settings) - past;
       marks.push({
         kind: 'label',
-        at: up(elevationToPlan(frame, jamb.x + jamb.width / 2, back - past)),
+        at: up(elevationToPlan(frame, jamb.x + jamb.width / 2, depth)),
         text: `${opening.label} · ${formatInches(jamb.width)}`,
         rotation: readable(frame.r),
       });
     }
     for (const side of WALL_SIDES) {
       const sideFrame = wallSideFrame(room, wall, side);
+      const oppositeReach = planSideReach(room, wall, side === 'front' ? 'back' : 'front', settings);
       for (const recess of recessesOn(wall, side)) {
         const geometry = recessGeometry(recess, sideFrame.length, wall.height);
         const deep = recess.kind !== 'projection' && geometry.depth >= wall.thickness - EPSILON;
         const back = -wall.thickness - (deep ? geometry.depth : 0);
         marks.push({
           kind: 'label',
-          at: up(elevationToPlan(sideFrame, geometry.x + geometry.width / 2, back - past)),
+          at: up(elevationToPlan(sideFrame, geometry.x + geometry.width / 2, back - oppositeReach - past)),
           text: `${recess.label} · ${formatInches(geometry.width)} × ${formatInches(geometry.depth)}`,
           rotation: readable(sideFrame.r),
         });

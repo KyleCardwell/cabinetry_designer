@@ -5,9 +5,9 @@ import { plotScale } from './drawingScale.js';
 import { DIMENSION_ROW_SPACING, placeLabels } from './elevationDimensions.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
 import { projectionDepthX, projectionTightSides, recessesOn } from './recesses.js';
-import { elevationKey, elevationLetters } from './topology.js';
+import { formatInches } from './units.js';
 import { wallFaceSegments } from './wallFaceRow.js';
-import { wallBuiltEnds } from './wallEndPanels.js';
+import { wallBuiltEnds, wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
 import { wallSideFrame, wallSideOf } from './wallSides.js';
 
 /** The elevation marker's circle and flag on paper (SPEC-45.1); geometry draws them the same size. */
@@ -32,11 +32,9 @@ function deepestRun(wall, side, settings) {
     .map((run) => frontDepth(run, settings)));
 }
 
-/** How far a lettered face's runs and its marker reach out from it; 0 for a face with no letter. */
-function markerReach(room, wall, side, settings, letters) {
-  if (!letters.has(elevationKey(wall.id, side))) return 0;
-  return deepestRun(wall, side, settings) + PLAN_MARKER_CLEARANCE
-    + (2 * PLAN_MARKER_RADIUS + PLAN_MARKER_FLAG) * plotScale(settings);
+/** The deepest run on a face, measured from that face's wall line. */
+export function planSideReach(room, wall, side, settings) {
+  return deepestRun(wall, side, settings);
 }
 
 /**
@@ -107,52 +105,86 @@ function projectionDepthRecords(room, wall, recess, settings) {
     .records;
 }
 
+/** Rows on each physical side and the next row's distance from that side's wall face. */
+export function planWallRows(room, wall, settings) {
+  const scale = plotScale(settings);
+  const spacing = DIMENSION_ROW_SPACING * scale;
+  const layout = [];
+  const frame = wallFrame(room, wall);
+  if (frame.length <= EPSILON) return [];
+  const ends = wallBuiltEnds(wall);
+  const exterior = { x: -frame.n.x, y: -frame.n.y };
+  const outside = wall.thickness
+    + Math.max(bumpOut(wall, 'front'), planSideReach(room, wall, 'back', settings));
+  const front = (u) => ({
+    x: frame.leftPoint.x + frame.r.x * u + exterior.x * outside,
+    y: frame.leftPoint.y + frame.r.y * u + exterior.y * outside,
+  });
+  const back = wallSideFrame(room, wall, 'back');
+  const inside = wall.thickness
+    + Math.max(bumpOut(wall, 'back'), planSideReach(room, wall, 'front', settings));
+  const backBase = (u) => ({
+    x: back.leftPoint.x + back.r.x * u + frame.n.x * inside,
+    y: back.leftPoint.y + back.r.y * u + frame.n.y * inside,
+  });
+  const sides = [
+    ['back', outside - wall.thickness, exterior, [
+      ['front', wallFaceSegments(room, wall, 'front', settings), front],
+      ['wall', [{ start: 0 - ends[frame.leftEndpoint], end: frame.length + ends[frame.rightEndpoint], kind: 'wall' }], front],
+    ]],
+    ['front', inside - wall.thickness, frame.n, [['back', wallFaceSegments(room, wall, 'back', settings), backBase]]],
+  ];
+  for (const [side, reach, outward, rows] of sides) {
+    const records = [];
+    let at = spacing;
+    for (const [row, all, base] of rows) {
+      const segments = all.filter((segment) => segment.end - segment.start > EPSILON);
+      if (segments.length === 0) continue;
+      const result = rowRecords(row, segments, base, outward, at, scale);
+      records.push(...result.records);
+      at += spacing + result.levels * result.step;
+    }
+    layout.push({ side, records, nextAt: records.length > 0 ? reach + at : null });
+  }
+  return layout;
+}
+
+/** Across each wall end panel, on a line one row spacing beyond its outer edge. */
+function throughRecords(room, wall, settings) {
+  const scale = plotScale(settings);
+  const frame = wallFrame(room, wall);
+  const panels = wallEndPanels(room, wall, settings);
+  const total = (panel) => wall.thickness + panel.back.depth + panel.front.depth;
+  const start = panels.find((panel) => panel.endpoint === 'start');
+  return panels.flatMap((panel) => {
+    if (panel.endpoint === 'end' && start && Math.abs(total(start) - total(panel)) <= 1 / 32) return [];
+    const left = panel.front.side === 'left';
+    const xs = wallEndPanelPolygon(room, wall, panel).map((point) => (
+      (point.x - frame.leftPoint.x) * frame.r.x + (point.y - frame.leftPoint.y) * frame.r.y
+    ));
+    const x = (left ? Math.min(...xs) : Math.max(...xs))
+      + (left ? -1 : 1) * DIMENSION_ROW_SPACING * scale;
+    const base = (depth) => elevationToPlan(frame, x, depth);
+    return rowRecords('through', [{
+      start: -(wall.thickness + panel.back.depth), end: panel.front.depth,
+      // Dimension text omits the inch mark, as do the other rows and the DM1 anchor.
+      kind: 'through', text: formatInches(total(panel)).replace(/"$/, ''),
+    }], base, frame.r, 0, scale).records;
+  });
+}
+
 /**
  * The plan's dimensions for the DXF (SPEC-45): aligned, in plan inches with y up, reading from the bottom
  * or the right. Per wall, outside it, the front face row then the overall length, 3/8" (paper) apart past
- * the wall, its bump-out and the lettered face behind it; a back face row on the room side. Then each run's depth across it, by type
- * lane, each projection's depth across it, and the island and aisle clearances (SPEC-45.2).
+ * the wall, its bump-out and the runs behind it; a back face row on the room side. Then each panel's through
+ * depth, each run's depth by type lane, each projection's depth, and the island and aisle clearances.
  */
 export function planDimensions(room, settings) {
   const scale = plotScale(settings);
-  const spacing = DIMENSION_ROW_SPACING * scale;
-  const letters = elevationLetters(room);
   const records = [];
   for (const wall of room.walls) {
-    const frame = wallFrame(room, wall);
-    if (frame.length <= EPSILON) continue;
-    const ends = wallBuiltEnds(wall);
-    const exterior = { x: -frame.n.x, y: -frame.n.y };
-    const outside = wall.thickness
-      + Math.max(bumpOut(wall, 'front'), markerReach(room, wall, 'back', settings, letters));
-    const front = (u) => ({
-      x: frame.leftPoint.x + frame.r.x * u + exterior.x * outside,
-      y: frame.leftPoint.y + frame.r.y * u + exterior.y * outside,
-    });
-    const back = wallSideFrame(room, wall, 'back');
-    const inside = wall.thickness
-      + Math.max(bumpOut(wall, 'back'), markerReach(room, wall, 'front', settings, letters));
-    const backBase = (u) => ({
-      x: back.leftPoint.x + back.r.x * u + frame.n.x * inside,
-      y: back.leftPoint.y + back.r.y * u + frame.n.y * inside,
-    });
-    const sides = [
-      [exterior, [
-        ['front', wallFaceSegments(room, wall, 'front', settings), front],
-        ['wall', [{ start: 0 - ends[frame.leftEndpoint], end: frame.length + ends[frame.rightEndpoint], kind: 'wall' }], front],
-      ]],
-      [frame.n, [['back', wallFaceSegments(room, wall, 'back', settings), backBase]]],
-    ];
-    for (const [outward, rows] of sides) {
-      let at = spacing;
-      for (const [row, all, base] of rows) {
-        const segments = all.filter((segment) => segment.end - segment.start > EPSILON);
-        if (segments.length === 0) continue;
-        const result = rowRecords(row, segments, base, outward, at, scale);
-        records.push(...result.records);
-        at += spacing + result.levels * result.step;
-      }
-    }
+    for (const { records: rows } of planWallRows(room, wall, settings)) records.push(...rows);
+    records.push(...throughRecords(room, wall, settings));
   }
   for (const wall of room.walls) {
     for (const run of wall.runs ?? []) records.push(...depthRecords(room, wall, run, settings));
