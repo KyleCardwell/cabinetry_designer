@@ -4,7 +4,6 @@ import { selectRoomInheritedChain, selectSettings } from '../../store/selectors.
 import { resolveSetting } from '../../model/settingsResolve.js';
 import {
   crownOverlap,
-  formatInches,
   formatInchesInput,
   landingRefCreatesCycle,
   landingsOn,
@@ -32,33 +31,14 @@ import { CABINET_TYPE_IDS } from '../../model/constants.js';
 import { runBase } from '../../model/furnitureBase.js';
 import { moldingProfiles } from '../../model/moldingProfiles.js';
 import InchInput from '../InchInput.jsx';
+import HeightBands from '../HeightBands.jsx';
+import { bandFieldsFor } from '../../model/heightBands.js';
 import OverrideInput from '../OverrideInput.jsx';
 import DoorStylePicks from './DoorStylePicks.jsx';
 import PullPicks from './PullPicks.jsx';
 import Field from './Field.jsx';
 import WallEndPanelFields from './WallEndPanelFields.jsx';
 import StretchInput from './StretchInput.jsx';
-
-const MOLDING_NOTES = {
-  'furniture-base-too-short': "The furniture base is shorter than its profile's stretch line; drawn at its own size.",
-  'furniture-base-height-mismatch': 'The furniture base profile height differs from the base height; drawn at its own size.',
-  'furniture-base-cut-bad': 'The furniture base cut goes outside the board; plain board used.',
-  'furniture-base-extra-cuts': 'The furniture base profile has extra open lines; only the first cut is used.',
-  'top-mold-above-crown': 'The top mold is taller than the crown total.',
-  'top-mold-too-short': "The top mold is shorter than its profile's stretch line; drawn at its own size.",
-  'molding-profile-missing': 'The picked profile is missing; plain molding used.',
-  'molding-profile-open': 'The picked profile has no closed shape; plain molding used.',
-};
-
-const WALL_OVERRIDE_FIELDS = [
-  ['crownTop', 'Top of crown'],
-  ['toeKickHeight', 'Toe kick / base height'],
-  ['countertopThickness', 'Countertop thickness'],
-  ['topMoldHeight', 'Top mold'],
-  ['crownHeight', 'Crown'],
-  ['crownStackHeight', 'Crown total'],
-  ['topMoldOverhang', 'Top mold overhang'],
-];
 
 export default function WallHeightProperties({ room, wall, plan }) {
   const dispatch = useDispatch();
@@ -110,6 +90,82 @@ export default function WallHeightProperties({ room, wall, plan }) {
     dispatch(setWallLength({ wallId: wall.id, length, growEnd }));
     setGrowEnd(preferredGrowEnd);
     return true;
+  };
+
+  const renderHeightField = ({ key, label, type, pickKind: kind }) => {
+    // Walls retain their existing override capabilities (no box-height override).
+    if (key === 'baseBoxHeight') return null;
+    if (type === 'baseKind') return (
+      <label className="block text-xs text-gray-400">
+        Base
+        <select
+          aria-label="Wall Base override"
+          value={wall.profile.baseKind ?? ''}
+          onChange={(event) => {
+            const value = event.target.value || undefined;
+            dispatch(updateWall({ wallId: wall.id, changes: { profile: { baseKind: value } } }));
+          }}
+          className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+        >
+          <option value="">Inherit</option>
+          <option value="toe_kick">Toe kick</option>
+          <option value="furniture_base">Furniture base</option>
+        </select>
+      </label>
+    );
+    if (key === 'furnitureBaseProud') return (
+      <label className="block text-xs text-gray-400">
+        Base proud
+        <InchInput
+          aria-label="Wall Base proud override"
+          value={wall.profile.furnitureBaseProud ?? null}
+          allowBlank
+          placeholder={formatInchesInput(inheritedProfile.furnitureBaseProud)}
+          onCommit={(value) => value !== null && value < 0 ? false : dispatch(updateWall({ wallId: wall.id, changes: { profile: { furnitureBaseProud: value } } }))}
+          className="mt-1"
+        />
+      </label>
+    );
+    if (type === 'pick') {
+      const pickedId = wall.profile[key];
+      const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === kind && !entry.archived);
+      const unavailable = pickedId && !choices.some((entry) => entry.id === pickedId);
+      return (
+        <label key={key} className="block text-xs text-gray-400">
+          {label}
+          <select
+            aria-label={`Wall ${label} override`}
+            value={pickedId === null ? 'plain' : pickedId ?? ''}
+            onChange={(event) => {
+              const value = event.target.value === 'plain' ? null : event.target.value || undefined;
+              dispatch(updateWall({ wallId: wall.id, changes: { profile: { [key]: value } } }));
+            }}
+            className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">Inherit</option>
+            <option value="plain">{kind === 'nosing' ? 'None' : kind === 'base_cutout' ? 'Square' : 'Plain'}</option>
+            {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
+            {unavailable && <option value={pickedId} disabled>{settings.sectionProfiles?.find((entry) => entry.id === pickedId)?.name ?? 'Missing profile'} (unavailable)</option>}
+          </select>
+        </label>
+      );
+    }
+    const fromProfile = (key === 'crownHeight' && Boolean(moldings.crown))
+      || (key === 'topMoldHeight' && Boolean(moldings.topMold && !moldings.topMold.profile.stretch));
+    return (
+      <Field key={key} label={label}>
+        <InchInput
+          value={fromProfile ? resolvedProfile[key] : wall.profile[key] ?? null}
+          allowBlank
+          placeholder={formatInchesInput(inheritedProfile[key])}
+          readOnly={fromProfile}
+          onCommit={(value) => fromProfile ? undefined : dispatch(updateWall({ wallId: wall.id, changes: { profile: { [key]: value } } }))}
+          aria-label={`Wall ${label} override`}
+          className="mt-1"
+        />
+        {fromProfile && <span className="mt-1 block text-xs text-gray-500">from profile</span>}
+      </Field>
+    );
   };
 
   return (
@@ -365,100 +421,13 @@ export default function WallHeightProperties({ room, wall, plan }) {
           Heights
         </h3>
         <p className="mb-3 text-xs text-gray-500">Blank values inherit from the room.</p>
-        <div className="space-y-2.5">
-          {WALL_OVERRIDE_FIELDS.map(([key, label]) => {
-            const fromProfile = (key === 'crownHeight' && Boolean(moldings.crown))
-              || (key === 'topMoldHeight' && Boolean(moldings.topMold && !moldings.topMold.profile.stretch));
-            return (
-              <Field key={key} label={label}>
-                <InchInput
-                  value={fromProfile ? resolvedProfile[key] : wall.profile[key] ?? null}
-                  allowBlank
-                  placeholder={formatInchesInput(inheritedProfile[key])}
-                  readOnly={fromProfile}
-                  onCommit={(value) => fromProfile ? undefined : dispatch(updateWall({ wallId: wall.id, changes: { profile: { [key]: value } } }))}
-                  aria-label={`Wall ${label} override`}
-                  className="mt-1"
-                />
-                {fromProfile && <span className="mt-1 block text-xs text-gray-500">from profile</span>}
-              </Field>
-            );
-          })}
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <label className="block text-xs text-gray-400">
-            Base
-            <select
-              aria-label="Wall Base override"
-              value={wall.profile.baseKind ?? ''}
-              onChange={(event) => {
-                const value = event.target.value || undefined;
-                dispatch(updateWall({ wallId: wall.id, changes: { profile: { baseKind: value } } }));
-              }}
-              className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-            >
-              <option value="">Inherit</option>
-              <option value="toe_kick">Toe kick</option>
-              <option value="furniture_base">Furniture base</option>
-            </select>
-          </label>
-          {resolvedProfile.baseKind === 'furniture_base' && (
-            <label className="block text-xs text-gray-400">
-              Base proud
-              <InchInput
-                aria-label="Wall Base proud override"
-                value={wall.profile.furnitureBaseProud ?? null}
-                allowBlank
-                placeholder={formatInchesInput(inheritedProfile.furnitureBaseProud)}
-                onCommit={(value) => value !== null && value < 0 ? false : dispatch(updateWall({ wallId: wall.id, changes: { profile: { furnitureBaseProud: value } } }))}
-                className="mt-1"
-              />
-            </label>
-          )}
-        </div>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          {[
-            ['topMoldProfileId', 'Top mold profile', 'top_mold'],
-            ['crownProfileId', 'Crown profile', 'crown'],
-            ['nosingProfileId', 'Nosing profile', 'nosing'],
-            ...(resolvedProfile.baseKind === 'furniture_base'
-              ? [['furnitureBaseProfileId', 'Furniture base profile', 'furniture_base'],
-                 ['baseCutoutProfileId', 'Cutout profile', 'base_cutout']] : []),
-          ].map(([key, label, kind]) => {
-            const pickedId = wall.profile[key];
-            const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === kind && !entry.archived);
-            const unavailable = pickedId && !choices.some((entry) => entry.id === pickedId);
-            return (
-              <label key={key} className="block text-xs text-gray-400">
-                {label}
-                <select
-                  aria-label={`Wall ${label} override`}
-                  value={pickedId === null ? 'plain' : pickedId ?? ''}
-                  onChange={(event) => {
-                    const value = event.target.value === 'plain' ? null : event.target.value || undefined;
-                    dispatch(updateWall({ wallId: wall.id, changes: { profile: { [key]: value } } }));
-                  }}
-                  className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-                >
-                  <option value="">Inherit</option>
-                  <option value="plain">{kind === 'nosing' ? 'None' : kind === 'base_cutout' ? 'Square' : 'Plain'}</option>
-                  {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
-                  {unavailable && <option value={pickedId} disabled>{settings.sectionProfiles?.find((entry) => entry.id === pickedId)?.name ?? 'Missing profile'} (unavailable)</option>}
-                </select>
-              </label>
-            );
-          })}
-        </div>
-        <p className={`mt-2 text-xs ${overlap < 0 ? 'text-amber-500/80' : 'text-gray-500'}`}>
-          {overlap < 0 ? 'Gap' : 'Overlap'} {formatInches(Math.abs(overlap))}
-        </p>
-        {[...moldings.warnings, ...base.warnings].map(({ code, slot }, index) => (
-          <p key={`${code}-${slot ?? index}`} className="mt-1 text-xs text-amber-400">
-            {code === 'crown-gap'
-              ? `The top mold doesn't reach the crown (gap of ${formatInches(Math.abs(overlap))}).`
-              : MOLDING_NOTES[code]}
-          </p>
-        ))}
+        <HeightBands
+          level="wall"
+          fields={bandFieldsFor('wall', { furnitureBase: resolvedProfile.baseKind === 'furniture_base' })}
+          renderField={renderHeightField}
+          warnings={[...moldings.warnings, ...base.warnings]}
+          overlap={overlap}
+        />
       </section>
 
       {room.doorStyles?.length > 0 && (
