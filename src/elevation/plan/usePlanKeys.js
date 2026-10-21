@@ -13,6 +13,9 @@ import {
 export default function usePlanKeys({
   entry,
   cancelEntry,
+  commitEntry,
+  startMoveMode,
+  tool,
   drawStartRef,
   cancelDrawing,
   dispatch,
@@ -40,6 +43,20 @@ export default function usePlanKeys({
         return;
       }
 
+      if (event.key.toLowerCase() === 'm' && !event.ctrlKey && !event.metaKey
+        && !event.altKey && !event.repeat && tool === 'select' && !entry) {
+        if (selection.runId) {
+          event.preventDefault();
+          startMoveMode(selection.runId);
+        }
+        return;
+      }
+      if (event.key === 'Enter' && entry?.kind === 'run-move') {
+        event.preventDefault();
+        commitEntry();
+        return;
+      }
+      if (entry?.kind === 'run-move') return;
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       if (selection.openingId) {
         const openingWall = walls.find((wall) => (
@@ -71,7 +88,7 @@ export default function usePlanKeys({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrawing, cancelEntry, dispatch, entry, selectedWall, selection.openingId,
-    selection.runId, walls]);
+  }, [cancelDrawing, cancelEntry, commitEntry, dispatch, entry, selectedWall, selection.openingId,
+    selection.runId, startMoveMode, tool, walls]);
 
 }

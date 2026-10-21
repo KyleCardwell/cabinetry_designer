@@ -87,6 +87,7 @@ export default function PlanRunFootprint({
   selectable,
   scale,
   onSelect,
+  onContextMenu,
   cursor,
 }) {
   const [hovered, setHovered] = useState(false);
@@ -131,6 +132,10 @@ export default function PlanRunFootprint({
   return (
     <Group
       listening={selectable}
+      onContextMenu={(event) => {
+        event.cancelBubble = true;
+        onContextMenu?.(event);
+      }}
       onMouseEnter={() => {
         setHovered(true);
         cursorKeys.request(run.id, CURSORS.select);

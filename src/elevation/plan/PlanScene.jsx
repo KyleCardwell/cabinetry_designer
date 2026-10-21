@@ -27,6 +27,7 @@ export default function PlanScene({
   orderedFootprints,
   collisionMessages,
   handleRunSelect,
+  handleRunContextMenu,
   clearances,
 }) {
   return (
@@ -86,6 +87,7 @@ export default function PlanScene({
           selectable={tool === 'select' && !entry}
           scale={scale}
           onSelect={handleRunSelect}
+          onContextMenu={handleRunContextMenu}
           cursor={cursor}
         />
       ))}
