@@ -7,15 +7,19 @@ export function countOverrides(keys, overrides) {
   return keys.filter((key) => ownSettingValue(overrides, key) !== null).length;
 }
 
-export default function SettingGroups({ scope }) {
+export default function SettingGroups({ scope, exclude = [] }) {
   const [openGroups, setOpenGroups] = useState({});
   const { rooms, activeRoomId, layers } = useSelector((state) => state.elevation);
   const room = rooms.find(({ id }) => id === activeRoomId);
   const overrides = scope === 'room' ? room?.settingsOverrides : layers?.[scope]?.values;
 
+  const groups = groupsFor(scope)
+    .map((group) => ({ ...group, keys: group.keys.filter((key) => !exclude.includes(key)) }))
+    .filter(({ keys }) => keys.length > 0);
+
   return (
     <div className="space-y-3">
-      {groupsFor(scope).map((group) => {
+      {groups.map((group) => {
         const open = Boolean(openGroups[group.id]);
         const count = countOverrides(group.keys, overrides);
         return (

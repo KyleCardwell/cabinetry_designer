@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
+import { BAND_SETTING_KEYS } from '../model/heightBands.js';
 import { groupsFor } from '../model/settingGroups.js';
 import SettingGroups, { countOverrides } from './SettingGroups.jsx';
 
@@ -9,7 +10,7 @@ export default function RoomSettingsPanel() {
   const room = rooms.find(({ id }) => id === activeRoomId);
 
   if (!room) return null;
-  const count = countOverrides(groupsFor('room').flatMap(({ keys }) => keys), room.settingsOverrides);
+  const count = countOverrides(groupsFor('room').flatMap(({ keys }) => keys).filter((key) => !BAND_SETTING_KEYS.includes(key)), room.settingsOverrides);
 
   return (
     <section className="border-t border-gray-700 pt-4">
@@ -23,7 +24,7 @@ export default function RoomSettingsPanel() {
         {count > 0 && <span className="text-teal-400">{count} overridden</span>}
         <span className="text-gray-500" aria-hidden="true">{open ? '−' : '+'}</span>
       </button>
-      {open && <div className="mt-3"><SettingGroups scope="room" /></div>}
+      {open && <div className="mt-3"><SettingGroups scope="room" exclude={BAND_SETTING_KEYS} /></div>}
     </section>
   );
 }

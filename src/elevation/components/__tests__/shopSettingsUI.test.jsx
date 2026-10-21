@@ -1,3 +1,7 @@
+import SettingGroups from '../SettingGroups.jsx';
+import ProjectSettingsPanel from '../../../projects/ProjectSettingsPanel.jsx';
+import { BAND_SETTING_KEYS } from '../../model/heightBands.js';
+import { groupsFor } from '../../model/settingGroups.js';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -116,7 +120,7 @@ describe('DB2 f shop settings panel', () => {
     const tree = render();
     const groups = [
       ['Cabinets & depths', 11], ['Runs & ends', 9], ['Fillers & corners', 11],
-      ['Reveals', 9], ['Inset face frame', 6], ['Bases, tops & bands', 15],
+      ['Reveals', 9], ['Inset face frame', 6], ['Bases, tops & bands', 7],
       ['Openings & soffits', 14], ['Pulls', 7], ['Drawer boxes', 17], ['Shelves', 9], ['Reports', 13],
     ];
     const collapsed = nodes(tree).filter(({ type, props }) => type === 'button' && props['aria-expanded'] === false);
@@ -236,5 +240,30 @@ describe('RP1 a shop report settings', () => {
     expect(field(render(), 'Company name').props.value).toBe('');
     field(render(), 'Wire brushed').props.onChange({ target: { checked: true } });
     expect(state.settings.report.wireBrushed).toBe(true);
+  });
+});
+
+
+describe('UI1 step a settings exclusions', () => {
+  it('keeps only the seven remaining band settings in shop/room and all fifteen at project (anchor 4)', () => {
+    const expected = ['Bottom part height light rail', 'Bottom part height light trough', 'Bottom part height panel',
+      'Bottom part height bottom cap', 'Bottom part height corbels', 'Below run overhang', 'Below run flush reveal'];
+    expect(controls(section(openGroup('Bases, tops & bands'), 'Bases, tops & bands'))
+      .map(({ props }) => props['aria-label'])).toEqual(expected);
+    hooks.clear();
+    expect(controls(section(openGroup('Bases, tops & bands', RoomSettingsPanel, 'Room settings'), 'Bases, tops & bands'))
+      .map(({ props }) => props['aria-label'])).toEqual(expected.map((label) => `Room ${label}`));
+    state.layers = { project: { id: 'project', values: {} } };
+    hooks.clear();
+    header(render(ProjectSettingsPanel, { level: 'project' }), 'Project settings').props.onClick();
+    header(render(ProjectSettingsPanel, { level: 'project' }), 'Bases, tops & bands').props.onClick();
+    expect(controls(section(render(ProjectSettingsPanel, { level: 'project' }), 'Bases, tops & bands'))).toHaveLength(15);
+    hooks.clear();
+    const exclude = groupsFor('room').flatMap(({ keys }) => keys);
+    expect(header(render(SettingGroups, { scope: 'room', exclude }), 'Bases, tops & bands')).toBeUndefined();
+    state.rooms[0].settingsOverrides = { baseCutoutFoot: 2 };
+    hooks.clear();
+    expect(text(header(render(RoomSettingsPanel), 'Room settings'))).not.toContain('overridden');
+    expect(BAND_SETTING_KEYS).toHaveLength(8);
   });
 });

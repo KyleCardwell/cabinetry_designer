@@ -1,3 +1,4 @@
+import HeightBands from '../HeightBands.jsx';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -41,7 +42,7 @@ const run = () => wall().runs[0];
 const props = () => ({ room: room(), wall: wall(), run: run(), settings: state.settings });
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object'
-    ? tree.type === OverrideInput || tree.type === OverrideField || tree.type === SettingGroups || tree.type === SettingField
+    ? tree.type === HeightBands || tree.type === OverrideInput || tree.type === OverrideField || tree.type === SettingGroups || tree.type === SettingField
       ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : text(tree?.props?.children ?? []);

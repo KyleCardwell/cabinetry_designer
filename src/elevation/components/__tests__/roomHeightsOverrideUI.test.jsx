@@ -255,3 +255,46 @@ describe('DB2 e room heights and soffit overrides', () => {
     expect(field(render(), 'Room Top mold').props.className).toContain('border-teal-500');
   });
 });
+
+
+const band = (tree, id) => nodes(tree).find(({ props }) => props['data-height-band'] === id);
+const controls = (tree) => nodes(tree).filter(({ type }) => type === 'input' || type === 'select')
+  .map(({ props }) => props['aria-label']);
+const setbacks = ['Room Band depth toe kick setback', 'Room Band depth toe kick end panel setback', 'Room Band depth toe kick side setback'];
+
+describe('UI1 step a room height bands', () => {
+  it('orders all five bands and toe-kick fields without furniture rows (anchor 1)', () => {
+    state.settings.sectionProfiles = [];
+    const tree = render();
+    expect(nodes(tree).filter(({ type }) => type === 'h3').map(text)).toEqual(['Wall', 'Crown', 'Uppers', 'Countertop', 'Base']);
+    expect(controls(band(tree, 'base'))).toEqual(['Room Base', 'Room Toe kick / base height', 'Room Base box height', ...setbacks]);
+  });
+
+  it('shows furniture rows from the resolved base kind and retains the three setbacks last (anchor 2)', () => {
+    state.settings.sectionProfiles = [];
+    const expected = ['Room Base', 'Room Toe kick / base height', 'Room Base box height', 'Room Furniture base profile',
+      'Room Base proud', 'Room Cutout profile', 'Room Cutout foot', 'Room Square cutout height', 'Room Furniture base scribe', ...setbacks];
+    choose('Room Base', 'furniture_base');
+    expect(controls(band(render(), 'base'))).toEqual(expected);
+    field(render(), 'Reset Base').props.onClick();
+    dispatch(updateSettings({ defaultProfile: { baseKind: 'furniture_base' } }));
+    expect(controls(band(render(), 'base'))).toEqual(expected);
+    choose('Room Base', 'toe_kick');
+    expect(controls(band(render(), 'base'))).not.toContain('Room Furniture base profile');
+  });
+
+  it('pairs Crown controls in order with its overlap below and preserves scoped setting writes (anchor 3)', () => {
+    state.settings.sectionProfiles = [];
+    const crown = band(render(), 'crown');
+    expect(controls(crown)).toEqual(['Room Top of crown', 'Room Crown total', 'Room Crown', 'Room Crown profile',
+      'Room Top mold', 'Room Top mold profile', 'Room Top mold overhang', 'Room Band depth crown projection']);
+    const rows = crown.props.children[1].props.children;
+    expect(rows.slice(0, 3).map(controls)).toEqual([
+      ['Room Top of crown', 'Room Crown total'], ['Room Crown', 'Room Crown profile'], ['Room Top mold', 'Room Top mold profile'],
+    ]);
+    expect(text(crown.props.children[2])).toMatch(/Overlap|Gap/);
+    commit('Room Band depth crown projection', '4');
+    expect(room().settingsOverrides.bandDepths.crownProjection).toBe(4);
+    expect(state.settings.bandDepths.crownProjection).toBe(3);
+  });
+});

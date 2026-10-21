@@ -1,3 +1,4 @@
+import HeightBands from '../HeightBands.jsx';
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
@@ -27,7 +28,7 @@ const wall = () => room().walls[0];
 const run = () => wall().runs[0];
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object'
-    ? tree.type === OverrideInput || tree.type === OverrideField
+    ? tree.type === HeightBands || tree.type === OverrideInput || tree.type === OverrideField
       ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : text(tree?.props?.children ?? []);

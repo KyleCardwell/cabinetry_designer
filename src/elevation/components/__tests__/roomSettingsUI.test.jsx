@@ -1,3 +1,4 @@
+import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -268,12 +269,12 @@ describe('DB2 d room settings panel', () => {
   });
 
   it('anchor 7: rejects negative Cutout foot, reverts the box and leaves no override', () => {
-    openGroup('Bases, tops & bands');
-    const tree = commit('Room Cutout foot', '-1');
+    state.rooms[0].profile.baseKind = 'furniture_base';
+    const tree = commit('Room Cutout foot', '-1', RoomHeightsPanel);
     expect(state.rooms[0]).not.toHaveProperty('settingsOverrides');
     expect(field(tree, 'Room Cutout foot').props.value).toBe('');
     expect(field(tree, 'Reset Cutout foot')).toBeUndefined();
-    commit('Room Cutout foot', '0');
+    commit('Room Cutout foot', '0', RoomHeightsPanel);
     expect(state.rooms[0].settingsOverrides.baseCutoutFoot).toBe(0);
   });
 
@@ -289,12 +290,12 @@ describe('DB2 d room settings panel', () => {
       defaultProfile: { wallHeight: 100 }, doorPanelDefault: 1, baseDepth: null, upperDepth: '',
     };
     const tree = openGroup('Fillers & corners');
-    expect(text(header(tree, 'Room settings'))).toContain('5 overridden');
+    expect(text(header(tree, 'Room settings'))).toContain('4 overridden');
     expect(text(header(tree, 'Runs & ends'))).toContain('2 overridden');
     expect(field(tree, 'Room Interior filler width').props.className).toContain('border-teal-500');
     commit('Room Interior filler width', '');
     expect(state.rooms[0].settingsOverrides).not.toHaveProperty('defaultInteriorFillerWidth');
-    expect(text(header(render(), 'Room settings'))).toContain('4 overridden');
+    expect(text(header(render(), 'Room settings'))).toContain('3 overridden');
     commit('Room Interior filler width', '3');
     expect(state.rooms[0].settingsOverrides.defaultInteriorFillerWidth).toBe(3);
     expect(text(header(render(), 'Fillers & corners'))).toContain('1 overridden');
@@ -314,10 +315,10 @@ describe('DB2 d room settings panel', () => {
   });
 
   it('rejects nonpositive cutout heights at both scopes, reverting to the last valid value', () => {
-    openGroup('Bases, tops & bands');
-    commit('Room Square cutout height', '2');
+    state.rooms[0].profile.baseKind = 'furniture_base';
+    commit('Room Square cutout height', '2', RoomHeightsPanel);
     for (const value of ['0', '-1']) {
-      expect(field(commit('Room Square cutout height', value), 'Room Square cutout height').props.value).toBe('2');
+      expect(field(commit('Room Square cutout height', value, RoomHeightsPanel), 'Room Square cutout height').props.value).toBe('2');
       expect(state.rooms[0].settingsOverrides.baseCutoutHeight).toBe(2);
     }
     hooks.clear();
