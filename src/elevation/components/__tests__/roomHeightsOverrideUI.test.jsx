@@ -104,6 +104,36 @@ const choose = (label, value) => field(render(), label).props.onChange({ target:
 const soffitGroup = () => field(render(ElevationToolbar), 'Default soffit molding');
 const soffitButton = (label) => nodes(soffitGroup()).find(({ type, props }) => type === 'button' && props.children === label);
 
+describe('UI2 step a room field styling', () => {
+  const labelRow = (tree) => nodes(tree).find(({ props }) => props.title?.includes('Shop standard: 4"')).props.children[0];
+  const tag = (tree) => nodes(labelRow(tree)).find(({ type, props }) => type === 'span' && props.children === 'shop');
+
+  beforeEach(() => { state.settings.defaultProfile.toeKickHeight = 4; });
+
+  it('anchor 1: shows inherited shop base height 4 as a gray placeholder with a shop tag and no Reset', () => {
+    const tree = render();
+    const control = field(tree, 'Room Toe kick / base height');
+    expect(control.props).toMatchObject({ value: '', placeholder: '4' });
+    expect(control.props.className).toContain('border-gray-600');
+    expect(control.props.className).toContain('placeholder:text-gray-500');
+    expect(tag(tree).props.className).toBe('text-[10px] text-gray-500');
+    expect(field(tree, 'Reset Toe kick / base height')).toBeUndefined();
+  });
+
+  it('anchor 2: types base height 4 1/2 with bright text, a teal border and Reset replacing the tag', () => {
+    const tree = commit('Room Toe kick / base height', '4 1/2');
+    const control = field(tree, 'Room Toe kick / base height');
+    expect(room().profile.toeKickHeight).toBe(4.5);
+    expect(control.props.value).toBe('4 1/2');
+    expect(control.props.className).toContain('text-gray-100');
+    expect(control.props.className).toContain('border-teal-500');
+    expect(field(tree, 'Reset Toe kick / base height')).toBeDefined();
+    expect(tag(tree)).toBeUndefined();
+    field(tree, 'Reset Toe kick / base height').props.onClick();
+    expect(tag(render())).toBeDefined();
+  });
+});
+
 describe('DB2 e room heights and soffit overrides', () => {
   it('shows inherited wall height 96 in an empty grey box without Reset (anchor 1)', () => {
     const tree = render();

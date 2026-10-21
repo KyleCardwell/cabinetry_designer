@@ -15,6 +15,7 @@ export default function InchInput({
   displayStep,
   borderClass = 'border-gray-600',
   className = '',
+  readOnly = false,
   ...inputProps
 }) {
   const [text, setText] = useState(() => displayValue(value, displayStep));
@@ -26,6 +27,7 @@ export default function InchInput({
   const revert = () => setText(displayValue(value, displayStep));
 
   const commit = () => {
+    if (readOnly) return;
     const trimmed = text.trim();
     if (allowStandard && ['std', 'standard'].includes(trimmed.toLowerCase())) {
       const accepted = onStandard();
@@ -56,6 +58,7 @@ export default function InchInput({
       {...inputProps}
       type="text"
       inputMode="decimal"
+      readOnly={readOnly}
       value={text}
       onChange={(event) => setText(event.target.value)}
       onBlur={commit}
@@ -66,7 +69,9 @@ export default function InchInput({
           event.currentTarget.blur();
         }
       }}
-      className={`w-full px-2.5 py-1.5 bg-gray-900 border ${borderClass} rounded text-sm text-gray-100 focus:outline-none focus:border-blue-500 ${className}`}
+      className={`w-full px-2.5 py-1.5 bg-gray-900 border rounded text-sm ${readOnly
+        ? 'text-gray-500 border-gray-700 border-dashed'
+        : `${borderClass} text-gray-100 placeholder:text-gray-500 focus:outline-none focus:border-blue-500`} ${className}`}
     />
   );
 }

@@ -11,6 +11,11 @@ export function sourceLabel(source) {
   return LEVEL_LABELS[source?.level ?? 'team'];
 }
 
+export function shortSourceLabel(source) {
+  const level = typeof source === 'string' ? source : source?.level ?? 'team';
+  return level.toLowerCase() === 'team' ? 'shop' : level.toLowerCase();
+}
+
 export function controlBorder(overridden) {
   return overridden ? 'border-teal-500' : 'border-gray-600';
 }

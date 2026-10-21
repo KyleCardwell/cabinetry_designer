@@ -3,7 +3,8 @@ import { useState } from 'react';
 import InchInput from '../InchInput.jsx';
 import OverrideField from '../OverrideField.jsx';
 import OverrideInput from '../OverrideInput.jsx';
-import { controlBorder, LEVEL_LABELS, overrideTitle, sourceLabel } from '../overrideHelpers.js';
+import Field, { ReadOnlyValue } from '../properties/Field.jsx';
+import { controlBorder, LEVEL_LABELS, overrideTitle, shortSourceLabel, sourceLabel } from '../overrideHelpers.js';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn() }));
 
@@ -21,6 +22,55 @@ beforeEach(() => {
   useState.mockImplementation((initial) => {
     if (text === undefined) text = typeof initial === 'function' ? initial() : initial;
     return [text, (next) => { text = next; }];
+  });
+});
+
+describe('UI2 step a shared field styling', () => {
+  it('uses short lowercase source tags and retains full source tooltips', () => {
+    for (const [source, label] of [
+      [{ level: 'default' }, 'default'], [{ level: 'team' }, 'shop'],
+      [{ level: 'project' }, 'project'], [{ level: 'phase' }, 'phase'], [{ level: 'room' }, 'room'],
+      ['Wall', 'wall'], ['Run', 'run'], ['AUTO', 'auto'], ['Profile', 'profile'],
+    ]) {
+      expect(shortSourceLabel(source)).toBe(label);
+      const tree = render({ value: null, source });
+      const tag = nodes(tree).find(({ type, props }) => type === 'span' && props.children === label);
+      expect(tag.props.className).toBe('text-[10px] text-gray-500');
+      expect(nodes(tree)[1].props.className).toContain('justify-between');
+      expect(tree.props.title).toBe(`${sourceLabel(source)}: 1/4"`);
+    }
+    expect(shortSourceLabel()).toBe('shop');
+  });
+
+  it('anchor 3: renders read-only 30.5 in gray with a dashed gray border, ignoring override borders', () => {
+    const onCommit = vi.fn();
+    const control = InchInput({ value: 30.5, readOnly: true, borderClass: 'border-teal-500', onCommit });
+    expect(control.props.value).toBe('30 1/2');
+    expect(control.props.readOnly).toBe(true);
+    expect(control.props.className).toContain('text-gray-500');
+    expect(control.props.className).toContain('border-gray-700');
+    expect(control.props.className).toContain('border-dashed');
+    expect(control.props.className).not.toMatch(/text-gray-100|border-teal-500|border-gray-600|focus:border/);
+    control.props.onBlur();
+    expect(onCommit).not.toHaveBeenCalled();
+  });
+
+  it('anchor 4: pairs a Height label and auto tag with gray fractional read-only 34.5', () => {
+    const tree = Field({ label: 'Height', tag: 'auto', children: ReadOnlyValue({ value: 34.5, ariaLabel: 'Height' }) });
+    const row = tree.props.children[0];
+    expect(row.props.className).toContain('justify-between');
+    expect(nodes(row).filter(({ type }) => type === 'span').map(({ props }) => props.children)).toContain('auto');
+    expect(nodes(row).find(({ props }) => props.children === 'auto').props.className).toBe('text-[10px] text-gray-500');
+    const value = nodes(tree).find(({ props }) => props['aria-label'] === 'Height');
+    expect(value.props.children[0]).toBe('34 1/2"');
+    expect(value.props.className).toContain('text-gray-500');
+    expect(value.props.className).toContain('border-gray-700');
+    expect(value.props.className).toContain('border-dashed');
+    expect(value.props.className).not.toContain('text-gray-300');
+    const tagged = ReadOnlyValue({ value: 34.5, tag: 'Profile' });
+    expect(find(tagged, 'span').props.children).toBe('profile');
+    expect(find(tagged, 'span').props.className).toBe('text-[10px] text-gray-500');
+    expect(nodes(Field({ label: 'Height', children: tagged })).filter(({ props }) => props.children === 'auto')).toEqual([]);
   });
 });
 

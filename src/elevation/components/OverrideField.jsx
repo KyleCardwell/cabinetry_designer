@@ -1,4 +1,4 @@
-import { controlBorder, overrideTitle } from './overrideHelpers.js';
+import { controlBorder, overrideTitle, shortSourceLabel } from './overrideHelpers.js';
 
 export default function OverrideField({
   label,
@@ -19,6 +19,7 @@ export default function OverrideField({
             Reset
           </button>
         )}
+        {!overridden && <span className="text-[10px] text-gray-500">{shortSourceLabel(inheritedSource)}</span>}
       </div>
       {children(controlBorder(overridden))}
       {note && <div className="mt-1 text-xs text-gray-400">{note}</div>}
