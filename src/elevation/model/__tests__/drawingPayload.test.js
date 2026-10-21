@@ -34,9 +34,10 @@ const settings = { ...document.settings, runFlex: 0 };
 const room = (name) => syncRoom(document.rooms.find((candidate) => candidate.name === name), settings);
 
 // Captured before HP5 step d: the existing golden snapshot covers derived rooms, not payloads.
+// DM1 (plan labels, rows past back runs, through depth) updated G1 and G2.
 const preHP5PayloadHashes = {
-  'G1 Euro kitchen': 'c0f7b00ec500b12d3f2fc65b9e172e05f5feae57be9aefc988bdacb1f069c18d',
-  'G2 Face frame kitchen': '7a562f56f18275cf0645b023f407b19030ae8e7ca25fc4cea0caa665aa29947d',
+  'G1 Euro kitchen': '98c934b609548001503943883a83407e69affa4826455241050fd0997461d3ea',
+  'G2 Face frame kitchen': '61c979c5350e1190a431c0db5d3ca8f144d3640adcbbe988f360b0d5025566da',
   'G3 Bath alcove': 'fd35d5a3467446c85bc9a9c57b83f893deac61402f1e62e0b35597e66a4ec702',
   'G4 T-filler run': 'de06c1a25cb6963ae9fdb05014adf6fb469622bf04513d26a36166188fece772',
   'G5 Recess room': '86f8714cb04ff4d889490283215216c8bb43d2fe73c4dd049c8fc837120a3304',
@@ -327,7 +328,7 @@ describe('SPEC-40 drawing payload', () => {
   it('SPEC-45 carries the plan dimensions', () => {
     const synced = room('G1 Euro kitchen');
     const { plan } = toDrawingPayload(synced, settings);
-    expect(plan.dimensions).toHaveLength(17);
+    expect(plan.dimensions).toHaveLength(18);
     expect(plan.dimensions).toEqual(planDimensions(synced, settings));
   });
 
