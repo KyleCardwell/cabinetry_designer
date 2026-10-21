@@ -4,7 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { toDrawingPayload } from '../../model/drawingPayload.js';
 import elevationReducer, { createInitialElevationState } from '../../store/elevationSlice.js';
 import { isElevationDocument, normalizeElevationDocument, toElevationDocument } from '../../store/persistence.js';
-import SettingsPanel from '../SettingsPanel.jsx';
+import SettingsPanelComponent from '../SettingsPanel.jsx';
+import ViewPrefsFields from '../ViewPrefsFields.jsx';
 import ElevationToolbar from '../ElevationToolbar.jsx';
 import { selectSettings } from '../../store/selectors.js';
 
@@ -14,6 +15,16 @@ vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
 const field = (tree, label) => nodes(tree).find(({ props }) => props['aria-label'] === label);
+// Expand the extracted View controls while leaving InchInput as JSX for onCommit.
+function SettingsPanel() {
+  const expand = (tree) => Array.isArray(tree) ? tree.map(expand)
+    : tree && typeof tree === 'object'
+      ? tree.type === ViewPrefsFields ? expand(ViewPrefsFields(tree.props))
+        : { ...tree, props: { ...tree.props, children: expand(tree.props.children) } }
+      : tree;
+  return expand(SettingsPanelComponent());
+}
+
 let state;
 
 beforeEach(() => {

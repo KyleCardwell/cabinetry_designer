@@ -1,7 +1,8 @@
 import usePanelState from './usePanelState.js';
 
-export default function PanelSection({ id, title, badge, defaultOpen = true, actions, level = 1, children, ...props }) {
+export default function PanelSection({ id, title, badge, defaultOpen = true, forceOpen = false, actions, level = 1, children, ...props }) {
   const [open, setOpen] = usePanelState(id, defaultOpen);
+  const expanded = forceOpen || open;
   const badgeText = typeof badge === 'number' ? badge > 0 ? `${badge} overridden` : null : badge;
 
   return (
@@ -9,17 +10,17 @@ export default function PanelSection({ id, title, badge, defaultOpen = true, act
       <div className="flex items-center gap-2">
         <button
           type="button"
-          aria-expanded={open}
-          onClick={() => setOpen((current) => !current)}
+          aria-expanded={expanded}
+          onClick={() => { if (!forceOpen) setOpen((current) => !current); }}
           className={`flex min-w-0 flex-1 items-center gap-2 font-semibold text-gray-400 ${level === 2 ? 'text-[11px]' : 'text-xs'}`}
         >
-          <span aria-hidden="true">{open ? '▾' : '▸'}</span>
+          <span aria-hidden="true">{expanded ? '▾' : '▸'}</span>
           <span className="uppercase tracking-wide">{title}</span>
           {badgeText != null && <span className="text-teal-400">{badgeText}</span>}
         </button>
         {actions}
       </div>
-      {open && <div className="mt-2">{children}</div>}
+      {expanded && <div className="mt-2">{children}</div>}
     </section>
   );
 }

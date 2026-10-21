@@ -20,6 +20,7 @@ import RoomDoorStylesPanel from '../components/RoomDoorStylesPanel.jsx';
 import RoomPicker from '../components/RoomPicker.jsx';
 import SampleRunsButton from '../components/SampleRunsButton.jsx';
 import SettingsPanel from '../components/SettingsPanel.jsx';
+import ViewPrefsFields from '../components/ViewPrefsFields.jsx';
 import SettingGroups from '../components/SettingGroups.jsx';
 import WallList from '../components/WallList.jsx';
 import JsonToggle from '../components/JsonToggle.jsx';
@@ -165,8 +166,9 @@ describe('DB6b b shared designer editor', () => {
     const settings = renderComponent(SettingsPanel, { shopStandards: false });
     button(settings.tree, 'Settings+').props.onClick();
     const tree = settings.render();
+    const view = renderComponent(ViewPrefsFields, component(tree, ViewPrefsFields).props).tree;
     expect(component(tree, SettingGroups)).toBeUndefined();
-    expect(field(tree, 'Drawing scale').type).toBe('select');
+    expect(field(view, 'Drawing scale').type).toBe('select');
     expect(component(tree, Link).props.to).toBe('/settings');
     expect(text(tree)).toContain('View (not saved)');
     expect(text(tree)).toContain('Shop standards are on the Settings page.');
@@ -175,7 +177,7 @@ describe('DB6b b shared designer editor', () => {
     expect(text(tree)).not.toContain('Overlap');
     expect(text(tree)).not.toContain('Gap');
     expect(nodes(tree).some((node) => node.props['aria-label']?.startsWith('Default '))).toBe(false);
-    field(tree, 'Drawing scale').props.onChange({ target: { value: '24' } });
+    field(view, 'Drawing scale').props.onChange({ target: { value: '24' } });
     expect(state.prefs.plotScale).toBe(24);
   });
 

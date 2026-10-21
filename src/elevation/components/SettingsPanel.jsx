@@ -1,29 +1,22 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
-import { PAPER_SIZES, PLOT_SCALES, paperSize } from '../model/drawingScale.js';
 import { crownOverlap, resolveProfile } from '../model/profile.js';
-import { setPref, updateSettings } from '../store/elevationSlice.js';
+import { updateSettings } from '../store/elevationSlice.js';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { runBase } from '../model/furnitureBase.js';
 import { moldingProfiles } from '../model/moldingProfiles.js';
 import InchInput from './InchInput.jsx';
 import Field from './properties/Field.jsx';
 import SettingGroups from './SettingGroups.jsx';
+import ViewPrefsFields from './ViewPrefsFields.jsx';
 import SettingField from './SettingField.jsx';
 import HeightBands from './HeightBands.jsx';
 import { BAND_SETTING_KEYS, bandFieldsFor } from '../model/heightBands.js';
 
-const NUMBER_PREFS = [
-  ['planGrid', 'Plan grid'],
-  ['openingSnap', 'Opening snap'],
-  ['cornerSnapDistance', 'Corner snap distance'],
-];
-
 export default function SettingsPanel({ shopStandards = true } = {}) {
   const dispatch = useDispatch();
   const settings = useSelector((state) => state.elevation.settings);
-  const prefs = useSelector((state) => state.elevation.prefs);
   const [open, setOpen] = useState(false);
   const resolvedProfile = resolveProfile(settings);
   const moldings = moldingProfiles(resolvedProfile, settings);
@@ -31,7 +24,6 @@ export default function SettingsPanel({ shopStandards = true } = {}) {
   const overlap = crownOverlap(resolvedProfile);
 
   const update = (changes) => dispatch(updateSettings(changes));
-  const updatePref = (key, value) => dispatch(setPref({ key, value }));
 
   const renderField = ({ key, label, type, pickKind: kind }) => {
     if (type === 'setting') return <SettingField settingKey={key} scope="team" />;
@@ -117,58 +109,7 @@ export default function SettingsPanel({ shopStandards = true } = {}) {
 
           <div className="space-y-3">
             <h3 className="text-xs font-medium text-gray-300">View (not saved)</h3>
-            <label className="block text-xs text-gray-400">
-              Drawing scale
-              <select
-                value={prefs.plotScale}
-                onChange={(event) => updatePref('plotScale', Number(event.target.value))}
-                aria-label="Drawing scale"
-                className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-              >
-                {PLOT_SCALES.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="block text-xs text-gray-400">
-              PDF paper
-              <select
-                value={paperSize(prefs)}
-                onChange={(event) => updatePref('paperSize', event.target.value)}
-                aria-label="PDF paper"
-                className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-              >
-                {PAPER_SIZES.map(([value, label]) => (
-                  <option key={value} value={value}>{label}</option>
-                ))}
-              </select>
-            </label>
-
-            <label className="flex items-center gap-2 text-xs text-gray-300">
-              <input
-                type="checkbox"
-                aria-label="Orthogonal plan walls"
-                checked={prefs.orthoWalls}
-                onChange={(event) => updatePref('orthoWalls', event.target.checked)}
-                className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
-              />
-              Orthogonal plan walls
-            </label>
-
-            <div className="grid grid-cols-2 gap-2">
-              {NUMBER_PREFS.map(([key, label]) => (
-                <label key={key} className="text-xs text-gray-400">
-                  {label}
-                  <InchInput
-                    value={prefs[key]}
-                    onCommit={(value) => value <= 0 ? false : updatePref(key, value)}
-                    aria-label={label}
-                    className="mt-1"
-                  />
-                </label>
-              ))}
-            </div>
+            <ViewPrefsFields />
           </div>
 
           {shopStandards ? (
