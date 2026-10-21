@@ -1,11 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_PROFILE, DEFAULT_SETTINGS } from '../constants.js';
+import { clipReturnEdge, endEdgeX, frontContour } from '../bandEnds.js';
 import { frontDepth } from '../corners.js';
 import { gridFromItems } from '../grid.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { runBandEnds, runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
+import { flattenOutline, outlineBounds } from '../sectionProfileOutline.js';
 
 const { profiles } = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
 const cr45 = structuredClone(profiles.find(({ id }) => id === 'cr45'));
@@ -112,5 +114,104 @@ describe('DM5 step a short-wall molding returns', () => {
     expect(setup({ reach: 18.625 - 1 / 32 }).end('crown').returnLength).toBe(1 / 32);
     expect(setup({ profile: { topMoldProfileId: 'none' } }).end('crown'))
       .toEqual({ type: 'return', x: 100.5, side: 96, facing: 1, returnLength: 2.375 });
+  });
+});
+
+describe('DM5 step b clipped short-wall return profiles', () => {
+  const edgeOf = (band, facing = 1) => frontContour(band.outline, facing);
+  const expectEdge = (edge, points) => {
+    expect(edge).toHaveLength(points.length);
+    edge.forEach(([x, z, bulge], index) => {
+      expect(x).toBeCloseTo(points[index][0], 10);
+      expect(z).toBeCloseTo(points[index][1], 10);
+      expect(bulge).toBe(0);
+    });
+  };
+
+  it('anchor 1: clips at 98 1/8, collapses hidden stretches, and stops elevation lines at the side', () => {
+    const { bands, end } = setup();
+    const ref = bands.crown.z + bands.crown.height;
+    const edge = edgeOf(bands.crown);
+    expectEdge(edge, [[96, ref - 4.5], [96, ref - 3.1], [98.125, ref - 3.1],
+      [100.75, ref - 1], [100.75, ref]]);
+    expect(endEdgeX(edge, ref - 4, 1)).toBe(96);
+    expect(endEdgeX(edge, ref - 2, 1)).toBeCloseTo(99.5, 10);
+    expect(outlineBounds(bands.crown.outline).maxX).toBe(100.75);
+    expect(bands.crown.x + bands.crown.width).toBe(100.75);
+    expect(bands.crown.lines.find(({ z1 }) => z1 === ref - 4).x2).toBe(96);
+    expect(end('crown')).toEqual({ type: 'return', x: 100.75, side: 96, facing: 1, returnLength: 2.625 });
+    expectEdge(edgeOf(bands.topMold), [[96, bands.topMold.z], [96, bands.topMold.z + bands.topMold.height]]);
+  });
+
+  it('anchors 3 and 4: preserves full crown and top mold profiles when the return covers their past', () => {
+    for (const options of [{ depth: 24 }, { depth: 12, recess: true }]) {
+      const { bands } = setup(options);
+      const ref = bands.crown.z + bands.crown.height;
+      expectEdge(edgeOf(bands.crown), [[97, ref - 4.5], [97, ref - 4],
+        [100.75, ref - 1], [100.75, ref]]);
+      const z = bands.topMold.z;
+      expectEdge(edgeOf(bands.topMold), [[96.25, z], [96.25, z + 0.75],
+        [96.125, z + 0.75], [96.125, z + 3]]);
+    }
+  });
+
+  it('left mirror: keeps the same cut heights and reflected profile', () => {
+    const { bands } = setup({ left: true });
+    const ref = bands.crown.z + bands.crown.height;
+    const edge = edgeOf(bands.crown, -1);
+    expectEdge(edge, [[0, ref - 4.5], [0, ref - 3.1], [-2.125, ref - 3.1],
+      [-4.75, ref - 1], [-4.75, ref]]);
+    expect(endEdgeX(edge, ref - 4, -1)).toBe(0);
+    expect(endEdgeX(edge, ref - 2, -1)).toBeCloseTo(-3.5, 10);
+  });
+
+  it('arc anchor: splits a quarter-circle with the original radius and outward geometry on either side', () => {
+    for (const facing of [1, -1]) {
+      const original = [[0, 0, facing * Math.tan(Math.PI / 8)], [facing, 1, 0]];
+      const saved = structuredClone(original);
+      const edge = clipReturnEdge(original, { x: facing, side: 0, facing, returnLength: 0.5 });
+      const crossingZ = 1 - Math.sqrt(0.75);
+      expect(edge).toHaveLength(4);
+      expect(edge[1][0]).toBe(0);
+      expect(edge[1][1]).toBeCloseTo(crossingZ, 10);
+      expect(edge[1][2]).toBe(0);
+      expect(edge[2][0]).toBe(facing * 0.5);
+      expect(edge[2][1]).toBeCloseTo(crossingZ, 10);
+      expect(edge[2][2]).toBeCloseTo(facing * Math.tan(Math.PI / 12), 10);
+      for (const [x, z] of flattenOutline(edge.slice(2))) {
+        expect(facing * x).toBeGreaterThanOrEqual(0.5 - 1e-10);
+        expect(Math.abs(Math.hypot(x, z - 1) - 1)).toBeLessThan(1e-6);
+      }
+      expect(original).toEqual(saved);
+    }
+  });
+
+  it('leaves free ends, full returns, and arcs wholly outward of the cut unchanged', () => {
+    const edge = [[1, 0, Math.tan(Math.PI / 8)], [2, 1, 0]];
+    for (const returnLength of [undefined, 2, 3]) {
+      expect(clipReturnEdge(edge, { x: 2, side: 0, facing: 1, returnLength })).toBe(edge);
+    }
+    expect(clipReturnEdge(edge, { x: 2, side: 0, facing: 1, returnLength: 1.5 })).toEqual(edge);
+  });
+
+  it('also clips the top mold when only its frontmost part returns', () => {
+    const { bands, end } = setup({ reach: 14.0625 });
+    const z = bands.topMold.z;
+    expect(end('topMold').returnLength).toBe(0.0625);
+    expectEdge(edgeOf(bands.topMold), [[96.25, z], [96.25, z + 0.75],
+      [96.1875, z + 0.75], [96, z + 0.75], [96, z + 3]]);
+  });
+
+  it('merges an inward stretch between kept sections and splits both crossings of a single arc', () => {
+    const end = { x: 4, side: 0, facing: 1, returnLength: 2 };
+    expectEdge(clipReturnEdge([[4, 0], [1, 1], [0, 2], [1, 3], [4, 4]], end),
+      [[4, 0], [2, 2 / 3], [0, 2 / 3], [0, 10 / 3], [2, 10 / 3], [4, 4]]);
+    const edge = clipReturnEdge([[0, -1, 1], [0, 1, 0]], { x: 1, side: 0, facing: 1, returnLength: 0.5 });
+    expect(edge).toHaveLength(6);
+    expect(edge[2][2]).toBeCloseTo(Math.tan(Math.PI / 6), 10);
+    for (const [x, z] of flattenOutline([edge[2], [...edge[3].slice(0, 2), 0]])) {
+      expect(x).toBeGreaterThanOrEqual(0.5 - 1e-10);
+      expect(Math.abs(Math.hypot(x, z) - 1)).toBeLessThan(1e-6);
+    }
   });
 });

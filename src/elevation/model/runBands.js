@@ -1,6 +1,6 @@
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
-import { bandOutline, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
+import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
 import { cornerAt, frontDepth, runBackOffset } from './corners.js';
 import { floorOpenings } from './floorOpenings.js';
@@ -290,8 +290,9 @@ export function runBands(room, wall, run, settings, scene) {
         const outline = end.outline ?? (loop && end.type !== 'square' && end.side !== undefined
           ? placeAtEnd(loop, end.side, kind === 'crown' && moldings.picked.topMold === 'none'
             ? 0 : moldings.overhang, reference, end.facing) : null);
-        return (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
+        const edge = (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
           ?? [[end.x, rect.z, 0], [end.x, rect.z + rect.height, 0]];
+        return end.returnLength != null ? clipReturnEdge(edge, end) : edge;
       });
       rect.outline = bandOutline(...edges, rect.z, rect.height);
       const { minX, maxX } = outlineBounds(rect.outline);

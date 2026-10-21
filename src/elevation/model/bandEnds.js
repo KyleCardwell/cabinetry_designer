@@ -96,6 +96,60 @@ export function bandOutline(left, right, z, height) {
   return [[...l[0].slice(0, 2), 0], ...r, ...reverseChain(l).slice(0, -1)];
 }
 
+/** Keep only the returned profile in front of a short wall, collapsing the rest to the run side. */
+export function clipReturnEdge(edge, end) {
+  const { x, side, facing, returnLength } = end;
+  if (returnLength == null || returnLength >= facing * (x - side) || edge.length < 2) return edge;
+  const cutX = x - facing * returnLength;
+  const stretches = [];
+  for (let i = 0; i < edge.length - 1; i += 1) {
+    const from = edge[i];
+    const to = edge[i + 1];
+    const arc = arcOf(from, to);
+    let splits = [];
+    if (arc) {
+      const cosine = (cutX - arc.cx) / arc.radius;
+      if (Math.abs(cosine) <= 1) {
+        const angle = Math.acos(cosine);
+        splits = [angle, -angle].map((a) => fraction(arc, a));
+      }
+    } else if (from[0] !== to[0]) {
+      splits = [(cutX - from[0]) / (to[0] - from[0])];
+    }
+    const stops = [0, ...splits.filter((t) => t > EPSILON && t < 1 - EPSILON)
+      .sort((a, b) => a - b).filter((t, index, all) => !index || t - all[index - 1] > EPSILON), 1];
+    const at = (t) => arc
+      ? [arc.cx + arc.radius * Math.cos(arc.start + t * arc.sweep),
+        arc.cz + arc.radius * Math.sin(arc.start + t * arc.sweep)]
+      : [from[0] + t * (to[0] - from[0]), from[1] + t * (to[1] - from[1])];
+    for (let j = 0; j < stops.length - 1; j += 1) {
+      const a = stops[j];
+      const b = stops[j + 1];
+      const keep = facing * (at((a + b) / 2)[0] - cutX) >= 0;
+      const start = a === 0 ? from.slice(0, 2) : [cutX, at(a)[1]];
+      const finish = b === 1 ? to.slice(0, 2) : [cutX, at(b)[1]];
+      if (!keep) {
+        start[0] = side;
+        finish[0] = side;
+      }
+      const bulge = keep && arc ? (stops.length === 2 ? from[2] : Math.tan((b - a) * arc.sweep / 4)) : 0;
+      if (!keep && stretches.at(-1)?.keep === false) stretches.at(-1).finish = finish;
+      else stretches.push({ start, finish, bulge, keep });
+    }
+  }
+  const clipped = [];
+  const append = ([px, pz]) => {
+    const last = clipped.at(-1);
+    if (!last || Math.hypot(px - last[0], pz - last[1]) > EPSILON) clipped.push([px, pz, 0]);
+  };
+  for (const { start, finish, bulge } of stretches) {
+    append(start);
+    clipped.at(-1)[2] = bulge;
+    append(finish);
+  }
+  return clipped;
+}
+
 /** Most outward intersection at a drawn line's height, including horizontal steps and true arcs. */
 export function endEdgeX(edge, z, facing) {
   const xs = [];
