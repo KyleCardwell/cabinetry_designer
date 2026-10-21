@@ -44,6 +44,7 @@ import { combinedViewOf } from '../model/combinedElevations.js';
 import { elevationKey } from '../model/topology.js';
 import { createRun } from '../model/runDefaults.js';
 import { runItems } from '../model/grid.js';
+import { defaultPick, pickStack } from '../model/pick.js';
 import { wallInteriors } from '../model/interiors.js';
 import { wallDrawerBoxes } from '../model/drawerBoxes.js';
 import { wallShelves } from '../model/shelves.js';
@@ -98,10 +99,12 @@ import {
   setTrackSize,
   setMessage,
   setSelection,
+  setTool,
   setActiveWall,
   setActiveWallSide,
 } from '../store/elevationSlice.js';
 import CombinedFaces, { resolveCombinedFaces } from './CombinedFaces.jsx';
+import CanvasContextMenu from './CanvasContextMenu.jsx';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import ElevationDimensions from './ElevationDimensions.jsx';
 import ElevationPreviews from './ElevationPreviews.jsx';
@@ -172,6 +175,8 @@ function ElevationCanvas({
   const [entryPointer, setEntryPointer] = useState(null);
   const [trackEdit, setTrackEdit] = useState(null);
   const [dividerEdit, setDividerEdit] = useState(null);
+  const [contextMenu, setContextMenu] = useState(null);
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const { style: cursorStyle, controller: cursor } = useCanvasCursor(
     elevationBaseCursor(tool, pointerMode),
   );
@@ -208,6 +213,7 @@ function ElevationCanvas({
     [combined, room, settings],
   );
   const viewKey = combined?.id ?? activeKey;
+  const menuContext = `${room?.id}:${viewKey}:${activeKey}:${tool}:${doorsOff}`;
   const diagnostics = useMemo(
     () => (room ? roomDiagnostics(room, settings) : {}),
     [room, settings],
@@ -1097,6 +1103,34 @@ function ElevationCanvas({
     wall,
   });
 
+  useEffect(() => {
+    if (moving || (contextMenu && contextMenu.context !== menuContext)) closeContextMenu();
+  }, [closeContextMenu, contextMenu, menuContext, moving]);
+
+  const handleContextMenu = useCallback((event) => {
+    event.evt.preventDefault();
+    closeContextMenu();
+    closePicker();
+    if (moving) {
+      cancelMove();
+      return;
+    }
+    const pointer = stageRef.current?.getPointerPosition();
+    if (!pointer || !room || !wall || !transform) return;
+    const candidates = pickStack(room, wall, settings, screenToWall(pointer, transform), { doorsOff });
+    const runId = defaultPick(candidates)?.selection?.runId;
+    if (!runId) return;
+    cancelEntry();
+    dispatch(setTool('select'));
+    dispatch(setSelection({ runId }));
+    setContextMenu({
+      ...pointer,
+      runId,
+      context: `${room.id}:${viewKey}:${activeKey}:select:${doorsOff}`,
+    });
+  }, [activeKey, cancelEntry, cancelMove, closeContextMenu, closePicker, dispatch, doorsOff, moving, room,
+    settings, transform, viewKey, wall]);
+
   const handleRunSegmentClick = useCallback((segment) => {
     if (tool === 'select' && segment.kind === 'run') {
       dispatch(setSelection({ runId: segment.runId, pieceId: null }));
@@ -1181,11 +1215,7 @@ function ElevationCanvas({
           onPointerCancel={stopPanning}
           onWheel={handleWheel}
           onClick={handleStageClick}
-          onContextMenu={(event) => {
-            if (!moving) return;
-            event.evt.preventDefault();
-            cancelMove();
-          }}
+          onContextMenu={handleContextMenu}
         >
           <Layer listening={false}>
             <Rect width={viewport.width} height={viewport.height} fill="#111827" />
@@ -1395,6 +1425,11 @@ function ElevationCanvas({
         />
       )}
       <SelectionPicker picker={picker} onChoose={choosePick} onHover={hoverPick} onClose={closePicker} />
+      <CanvasContextMenu
+        position={contextMenu?.context === menuContext ? contextMenu : null}
+        onClose={closeContextMenu}
+        items={[{ label: 'Move run', onSelect: () => startMoveMode(contextMenu.runId) }]}
+      />
     </div>
   );
 }

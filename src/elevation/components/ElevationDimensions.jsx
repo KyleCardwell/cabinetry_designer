@@ -13,9 +13,6 @@ export default function ElevationDimensions({
   editPieceSegment,
   cursor,
   handleRunSegmentClick,
-  startRunMove,
-  updateRunMove,
-  finishRunMove,
   selection,
   selectFeature,
   room,
@@ -43,12 +40,7 @@ export default function ElevationDimensions({
             transform={transform}
             edgeGapPx={dimensionOffsets.clear.below}
             onSegmentClick={handleRunSegmentClick}
-            draggableRuns={tool === 'select'}
-            onSegmentDragStart={startRunMove}
-            onSegmentDragMove={updateRunMove}
-            onSegmentDragEnd={finishRunMove}
             highlightRunId={selection.pieceId ? null : selection.runId}
-            activeRunId={selection.runId}
             wallEndMarks={[0, wall.length]}
             cursor={cursor}
           />
@@ -95,12 +87,7 @@ export default function ElevationDimensions({
             transform={transform}
             edgeGapPx={dimensionOffsets.clear.above}
             onSegmentClick={handleRunSegmentClick}
-            draggableRuns={tool === 'select'}
-            onSegmentDragStart={startRunMove}
-            onSegmentDragMove={updateRunMove}
-            onSegmentDragEnd={finishRunMove}
             highlightRunId={selection.pieceId ? null : selection.runId}
-            activeRunId={selection.runId}
             wallEndMarks={[0, wall.length]}
             cursor={cursor}
           />

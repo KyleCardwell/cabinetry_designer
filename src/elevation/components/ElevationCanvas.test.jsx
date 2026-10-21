@@ -9,6 +9,10 @@ import ElevationCanvas from './ElevationCanvas.jsx';
 import ElevationPreviews from './ElevationPreviews.jsx';
 import LiveEntryInput from './LiveEntryInput.jsx';
 import RunGroup from './RunGroup.jsx';
+import CanvasContextMenu from './CanvasContextMenu.jsx';
+import DimensionRow from './DimensionRow.jsx';
+import ElevationDimensions from './ElevationDimensions.jsx';
+import { defaultPick, pickStack } from '../model/pick.js';
 
 // Keep hook state and effect lifecycles across renders without mounting Konva in a DOM.
 let hooks;
@@ -65,6 +69,14 @@ const type = (text) => {
   node(LiveEntryInput).props.onTyped(text);
   render();
 };
+const contextClick = (x = 25, z = 20) => {
+  pointer = wallToScreen({ x, z }, node(RunGroup).props.transform);
+  const preventDefault = vi.fn();
+  node(Stage).props.onContextMenu({ evt: { preventDefault } });
+  render();
+  expect(preventDefault).toHaveBeenCalledOnce();
+};
+const menu = () => tree.find(({ props }) => props.role === 'menu');
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -144,6 +156,12 @@ beforeEach(() => {
       }
       tree = nodes(ElevationCanvas.render({ room, wall, settings: state.settings }, null));
       node(Stage).ref.current = stage;
+      tree.push(...nodes(CanvasContextMenu(node(CanvasContextMenu).props)));
+      const dimensions = nodes(ElevationDimensions(node(ElevationDimensions).props));
+      tree.push(...dimensions);
+      dimensions.filter(({ type }) => type === DimensionRow).forEach(({ props }) => {
+        tree.push(...nodes(DimensionRow(props)));
+      });
       effects.forEach((effect) => effect());
     }
   };
@@ -281,4 +299,126 @@ it('ignores M without a run, inside inputs, with modifiers, during entry, or on 
   expect(previewX()).toBe(32.5);
   key('Enter');
   expect(storedX()).toBe(32.5);
+});
+
+it('step b anchor 1: right-click selects the run under the pointer and opens only Move run', () => {
+  // An overlapping run follows the same pick order as a left click, even with a different selection.
+  state = structuredClone(state);
+  const wall = state.rooms[0].walls[0];
+  wall.runs.push({ ...structuredClone(wall.runs[0]), id: 'overlap',
+    items: [auto('overlap-cabinet')] });
+  render();
+  dispatch(setSelection({ runId: 'overlap' }));
+  render();
+  const resolvedRoom = syncRoom(state.rooms[0], state.settings);
+  const resolvedWall = resolveWall(resolvedRoom, resolvedRoom.walls[0], side);
+  const leftClick = defaultPick(pickStack(resolvedRoom, resolvedWall, state.settings, { x: 25, z: 20 }));
+  contextClick();
+  expect(state.selection.runId).toBe(leftClick.selection.runId);
+  expect(state.selection.pieceId).toBeNull();
+  expect(active()).toBe(false);
+  expect(menu().props.style).toEqual({ left: pointer.x, top: pointer.y });
+  const items = tree.filter(({ props }) => props.role === 'menuitem');
+  expect(items).toHaveLength(1);
+  expect(items[0].props.children).toBe('Move run');
+
+  // Empty canvas still suppresses the browser menu and closes the run menu.
+  contextClick(100, 80);
+  expect(menu()).toBeUndefined();
+  contextClick();
+  expect(menu()).toBeDefined();
+  [...listeners.get('pointerdown')].forEach((listener) => listener({ target: {} }));
+  render();
+  expect(menu()).toBeUndefined();
+  contextClick();
+  [...listeners.get('wheel')].forEach((listener) => listener({}));
+  render();
+  expect(menu()).toBeUndefined();
+  contextClick();
+  menu().props.onContextMenu({ preventDefault: vi.fn() });
+  render();
+  expect(menu()).toBeUndefined();
+  contextClick();
+  key('Escape', { stopImmediatePropagation: vi.fn() });
+  expect(menu()).toBeUndefined();
+  contextClick();
+  dispatch(setTool('draw'));
+  render();
+  expect(menu()).toBeUndefined();
+  dispatch(setTool('select'));
+  render();
+  expect(menu()).toBeUndefined();
+  dispatch(setTool('draw'));
+  render();
+  // Right-click can also select a run while another tool is active.
+  contextClick();
+  expect(state.tool).toBe('select');
+  expect(menu()).toBeDefined();
+  side = 'back';
+  render();
+  expect(menu()).toBeUndefined();
+  side = 'front';
+  render();
+  expect(menu()).toBeUndefined();
+});
+
+it('step b anchor 2: Move run enters the same pointer move mode as M', () => {
+  contextClick();
+  tree.find(({ props }) => props.role === 'menuitem').props.onClick();
+  render();
+  expect(menu()).toBeUndefined();
+  expect(active()).toBe(true);
+  expect(tree[0].props.style.cursor).toBe('move');
+  expect(node(LiveEntryInput).props.entry.label).toBe('Move');
+  pointer = wallToScreen({ x: 45.3, z: 20 }, node(RunGroup).props.transform);
+  node(Stage).props.onMouseMove({ target: stage });
+  render();
+  expect(previewX()).toBe(32.5);
+  expect(storedX()).toBe(12);
+  contextClick();
+  expect(active()).toBe(false);
+  expect(previewX()).toBeUndefined();
+  expect(menu()).toBeUndefined();
+  expect(storedX()).toBe(12);
+
+  // The menu follows the same anchored-run refusal as the keyboard shortcut.
+  state = structuredClone(state);
+  state.rooms[0].walls[0].runs[0].anchors.left = true;
+  render();
+  contextClick();
+  tree.find(({ props }) => props.role === 'menuitem').props.onClick();
+  render();
+  expect(active()).toBe(false);
+  expect(menu()).toBeUndefined();
+  expect(state.message).toBe('Anchored — set Anchor to Free to move');
+});
+
+it('step b anchor 3: clicking a run dimension twice only selects, with no drag handlers or move mode', () => {
+  dispatch(setSelection({}));
+  render();
+  const rows = tree.filter(({ type, props }) => type === DimensionRow && props.onSegmentClick);
+  expect(rows).toHaveLength(2);
+  rows.forEach(({ props }) => {
+    expect(props).not.toHaveProperty('draggableRuns');
+    expect(props).not.toHaveProperty('onSegmentDragStart');
+    expect(props).not.toHaveProperty('onSegmentDragMove');
+    expect(props).not.toHaveProperty('onSegmentDragEnd');
+  });
+  for (let i = 0; i < 2; i += 1) {
+    const hit = tree.find(({ type, props }) => type === Rect && props.onClick);
+    hit.props.onClick({ evt: { button: 0 } });
+    render();
+    expect(state.selection.runId).toBe('run-1');
+    expect(state.selection.pieceId).toBeNull();
+    expect(active()).toBe(false);
+    expect(previewX()).toBeUndefined();
+    expect(storedX()).toBe(12);
+  }
+  tree.filter(({ type, props }) => type === Rect && props.onClick).forEach(({ props }) => {
+    expect(props.draggable).toBeUndefined();
+    expect(props.onDragStart).toBeUndefined();
+    expect(props.onDragMove).toBeUndefined();
+    expect(props.onDragEnd).toBeUndefined();
+  });
+  expect(tree[0].props.style.cursor).not.toBe('move');
 });
