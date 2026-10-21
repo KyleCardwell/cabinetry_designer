@@ -121,7 +121,8 @@ describe('Step 494 base cutout controls', () => {
     expect(section.props.numbers).toBe(cabinet.props.numbers);
     const button = RunBaseCutoutsSection(section.props);
     expect(text(AddBaseCutoutButton(button.props))).toBe('Add base cutout');
-    const runPanel = RunProperties({ ...props(), layout: scene.result, showMessage: vi.fn() });
+    const panel = RunProperties({ ...props(), layout: scene.result, showMessage: vi.fn() });
+    const runPanel = panel.props.children('heights');
     expect(nodes(runPanel).find(({ type }) => type === RunBaseCutoutsSection).props).toMatchObject(props());
     expect(AddBaseCutoutButton({ ...props(), piece: { ...piece, z: piece.z + 1 } })).toBeNull();
     expect(AddBaseCutoutButton({ ...props(), piece: { ...piece, kind: 'filler' } })).toBeNull();

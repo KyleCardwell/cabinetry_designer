@@ -1,3 +1,4 @@
+import PanelSection from '../panel/PanelSection.jsx';
 import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import {
@@ -58,10 +59,7 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
   );
 
   return (
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Ends &amp; corners
-        </h3>
+      <PanelSection id="run.ends" title="Ends">
         <div className="space-y-2">
           {['left', 'right'].map((side) => {
             const insideCorner = corners[side].type === 'inside';
@@ -379,6 +377,6 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
             );
           })}
         </div>
-      </section>
+      </PanelSection>
   );
 }

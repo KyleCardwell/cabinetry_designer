@@ -1,3 +1,4 @@
+import PanelSection from '../panel/PanelSection.jsx';
 import { useDispatch } from 'react-redux';
 import {
   KIND_LABELS,
@@ -10,10 +11,7 @@ export default function RunPiecesSection({ run, layout, insets }) {
   const dispatch = useDispatch();
 
   return (
-      <section>
-        <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Pieces
-        </h3>
+      <PanelSection id="run.pieces" title="Pieces" defaultOpen={false}>
         <div className="overflow-hidden rounded border border-gray-700">
           {layout.pieces.map((piece) => {
             const inset = insets.get(piece.id) ?? { left: 0, right: 0 };
@@ -46,6 +44,6 @@ export default function RunPiecesSection({ run, layout, insets }) {
             <p className="px-3 py-2 text-xs text-gray-500">No pieces.</p>
           )}
         </div>
-      </section>
+      </PanelSection>
   );
 }

@@ -1,6 +1,7 @@
 import { pullPickOptions } from '../../model/pulls.js';
 import { formatInches } from '../../model/units.js';
 import InchInput from '../InchInput.jsx';
+import PanelSection from '../panel/PanelSection.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const PICKS = [
@@ -8,10 +9,9 @@ const PICKS = [
   { text: 'Drawer pull', partType: 'drawer', key: 'drawerPullId' },
 ];
 
-export default function PullPicks({ settings, levelsAbove, node, label, onChange, pullHeight, onPullHeightChange }) {
-  return (
-    <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Pulls</h3>
+export default function PullPicks({ settings, levelsAbove, node, label, onChange, pullHeight, onPullHeightChange, sectionId }) {
+  const content = (
+    <div className="space-y-2">
       {PICKS.map(({ text, partType, key }) => {
         const { inherit, options } = pullPickOptions(settings, partType, levelsAbove, node, key);
         return (
@@ -46,6 +46,14 @@ export default function PullPicks({ settings, levelsAbove, node, label, onChange
           />
         </label>
       )}
+    </div>
+  );
+  return sectionId ? (
+    <PanelSection id={sectionId} title="Pulls">{content}</PanelSection>
+  ) : (
+    <section className="space-y-2">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Pulls</h3>
+      {content}
     </section>
   );
 }

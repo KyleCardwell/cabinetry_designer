@@ -69,7 +69,7 @@ describe('Step 497 furniture base group properties', () => {
     const number = partNumbers(props().room, settings).byKey.get('furniture_base:T');
     for (const id of ['T', 'B']) {
       const tree = render(id);
-      expect(text(tree)).toContain(`Furniture base FB #${number}`);
+      expect(tree.props.title).toBe(`Furniture base FB #${number}`);
       expect(text(tree)).toContain('67 5/16 × 4 1/2 × 25 11/16 in');
       expect(text(tree)).toContain('(+1/2 scribe bottom)');
       expect(text(tree)).toContain('(+1/2 scribe left/right) at square stops');
@@ -77,7 +77,8 @@ describe('Step 497 furniture base group properties', () => {
       expect(numberField(tree).props.partKey).toBe('furniture_base:T');
     }
     const p = props();
-    const parent = RunProperties({ ...p, layout: splitRun(p.run, settings), showMessage: vi.fn() });
+    const panel = RunProperties({ ...p, layout: splitRun(p.run, settings), showMessage: vi.fn() });
+    const parent = panel.props.children('heights');
     expect(nodes(parent).find(({ type }) => type === RunFurnitureBaseSection).props).toMatchObject(p);
   });
 
@@ -128,7 +129,7 @@ describe('Step 497 furniture base group properties', () => {
     const auto = input(render()).props.placeholder;
     input(render('B')).props.onChange({ target: { value: '99' } });
     expect(dispatch).toHaveBeenLastCalledWith(setPartNumberOverride({ roomId: stored.id, key: 'furniture_base:T', number: 99 }));
-    expect(text(render())).toContain('Furniture base FB #99');
+    expect(render().props.title).toBe('Furniture base FB #99');
     expect(input(render()).props.value).toBe(99);
     expect(input(render('B')).props.value).toBe(99);
     const other = partNumbers(props().room, settings).parts.find(({ key }) => key !== 'furniture_base:T');

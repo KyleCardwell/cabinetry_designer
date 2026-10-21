@@ -16,6 +16,8 @@ import {
 import DoorStylePicks from './DoorStylePicks.jsx';
 import PullPicks from './PullPicks.jsx';
 import Field from './Field.jsx';
+import PanelSection from '../panel/PanelSection.jsx';
+import PanelTabs from '../panel/PanelTabs.jsx';
 import PartNumberField from './PartNumberField.jsx';
 import PartReportFields from './PartReportFields.jsx';
 import RunBottomSection from './RunBottomSection.jsx';
@@ -54,33 +56,32 @@ export function RunFurnitureBaseSection({ room, wall, run, settings }) {
   const widthScribe = group.orderedWidth - group.width;
 
   return (
-    <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-        Furniture base FB #{numbers.byKey.get(group.key)}
-      </h3>
-      <p className="text-xs text-gray-300">
-        {label(run.id)}{companions.length > 0 && ` · with: ${companions.join(', ')}`}
-      </p>
-      <p className="text-xs text-gray-300">
-        Ordered size (W × H × D): {[
-          group.orderedWidth, group.orderedHeight, group.depth,
-        ].map((value) => formatInchesInput(value)).join(' × ')} in
-      </p>
-      {bottomScribe > 1e-6 && (
-        <p className="text-xs text-gray-500">(+{formatInchesInput(bottomScribe)} scribe bottom)</p>
-      )}
-      {widthScribe > 1e-6 && (
-        <p className="text-xs text-gray-500">(+{formatInchesInput(bottomScribe)} scribe left/right) at square stops</p>
-      )}
-      <PartNumberField
-        roomId={room.id}
-        partKey={group.key}
-        autoNumber={numbers.byKey.get(group.key)}
-        override={room.partNumberOverrides?.[group.key]}
-        duplicate={numbers.warnings.some((warning) => warning.keys.includes(group.key))}
-      />
-      <PartReportFields room={room} partKey={group.key} kind="furniture_base" settings={settings} autoName="" />
-    </section>
+    <PanelSection id="run.furnitureBase" title={`Furniture base FB #${numbers.byKey.get(group.key)}`}>
+      <div className="space-y-2">
+        <p className="text-xs text-gray-300">
+          {label(run.id)}{companions.length > 0 && ` · with: ${companions.join(', ')}`}
+        </p>
+        <p className="text-xs text-gray-300">
+          Ordered size (W × H × D): {[
+            group.orderedWidth, group.orderedHeight, group.depth,
+          ].map((value) => formatInchesInput(value)).join(' × ')} in
+        </p>
+        {bottomScribe > 1e-6 && (
+          <p className="text-xs text-gray-500">(+{formatInchesInput(bottomScribe)} scribe bottom)</p>
+        )}
+        {widthScribe > 1e-6 && (
+          <p className="text-xs text-gray-500">(+{formatInchesInput(bottomScribe)} scribe left/right) at square stops</p>
+        )}
+        <PartNumberField
+          roomId={room.id}
+          partKey={group.key}
+          autoNumber={numbers.byKey.get(group.key)}
+          override={room.partNumberOverrides?.[group.key]}
+          duplicate={numbers.warnings.some((warning) => warning.keys.includes(group.key))}
+        />
+        <PartReportFields room={room} partKey={group.key} kind="furniture_base" settings={settings} autoName="" />
+      </div>
+    </PanelSection>
   );
 }
 
@@ -113,12 +114,9 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
     dispatch(setRunType({ ...actionBase, typeId, resetToDefaults }));
   };
 
-  return (
-    <div className="space-y-5">
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Run
-        </h3>
+  const tabs = [
+    { id: 'layout', label: 'Layout', sections: [
+      <PanelSection key="run" id="run.type" title="Run">
         <Field label="Type">
           <select
             value={run.cabinetTypeId}
@@ -130,48 +128,44 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
             ))}
           </select>
         </Field>
-      </section>
-
+      </PanelSection>,
       <RunGeometrySection
+        key="geometry"
         wall={wall}
         run={run}
         settings={settings}
         actionBase={actionBase}
         validateAndDispatch={validateAndDispatch}
-      />
-
+      />,
       <RunEndsSection
+        key="ends"
         room={room}
         wall={wall}
         run={run}
         settings={settings}
         actionBase={actionBase}
-      />
-
+      />,
+      <RunCabinetsSection key="cabinets" run={run} actionBase={actionBase} />,
+      <RunPiecesSection key="pieces" run={run} layout={layout} insets={insets} />,
+    ] },
+    { id: 'heights', label: 'Heights & base', sections: [
       <RunHeightsSection
+        key="heights"
         room={room}
         wall={wall}
         run={run}
         settings={settings}
         actionBase={actionBase}
         validateAndDispatch={validateAndDispatch}
-      />
-
-      <RunCabinetsSection run={run} actionBase={actionBase} />
-
-      <RunFurnitureBaseSection room={room} wall={wall} run={run} settings={settings} />
-
-      <RunBaseCutoutsSection room={room} wall={wall} run={run} settings={settings} />
-
-      <RunPiecesSection run={run} layout={layout} insets={insets} />
-
-      <RunStyleFields room={room} wall={wall} run={run} settings={settings} />
-
-      {room.doorStyles?.length > 0 && (
-        <section>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Door styles
-          </h3>
+      />,
+      <RunFurnitureBaseSection key="furnitureBase" room={room} wall={wall} run={run} settings={settings} />,
+      <RunBaseCutoutsSection key="baseCutouts" room={room} wall={wall} run={run} settings={settings} />,
+      <RunBottomSection key="bottom" room={room} run={run} settings={settings} actionBase={actionBase} />,
+    ] },
+    { id: 'style', label: 'Style', sections: [
+      <RunStyleFields key="style" room={room} wall={wall} run={run} settings={settings} />,
+      room.doorStyles?.length > 0 && (
+        <PanelSection key="doorStyles" id="run.doorStyles" title="Door styles">
           <DoorStylePicks
             room={room}
             settings={settings}
@@ -182,10 +176,13 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
               level: 'run', ...actionBase, key, styleId,
             }))}
           />
-        </section>
-      )}
-
+        </PanelSection>
+      ),
+    ] },
+    { id: 'hardware', label: 'Hardware', sections: [
       <PullPicks
+        key="pulls"
+        sectionId="run.pulls"
         settings={settings}
         node={run}
         levelsAbove={[{ level: 'wall', node: wall }]}
@@ -193,10 +190,14 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
         onChange={(key, pullId) => dispatch(setPullPick({
           roomId: room.id, level: 'run', ...actionBase, key, pullId,
         }))}
-      />
+      />,
+    ] },
+  ].map((tab) => ({ ...tab, sections: tab.sections.filter(Boolean) }))
+    .filter((tab) => tab.sections.length > 0);
 
-      <RunBottomSection room={room} run={run} settings={settings} actionBase={actionBase} />
-
-    </div>
+  return (
+    <PanelTabs id="run" tabs={tabs}>
+      {(active) => <div className="mt-4 space-y-5">{tabs.find((tab) => tab.id === active).sections}</div>}
+    </PanelTabs>
   );
 }

@@ -1,3 +1,4 @@
+import PanelSection from '../panel/PanelSection.jsx';
 import { useDispatch } from 'react-redux';
 import { runItems } from '../../model/index.js';
 import {
@@ -23,10 +24,7 @@ export default function RunCabinetsSection({ run, actionBase }) {
   const cabinetCount = runItems(run).filter((item) => item.kind === 'cabinet').length;
 
   return (
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Cabinets
-        </h3>
+      <PanelSection id="run.cabinets" title="Cabinets">
         <label className="flex items-center justify-between rounded border border-gray-700 bg-gray-900/45 px-3 py-2 text-sm text-gray-300">
           Auto count
           <input
@@ -113,6 +111,6 @@ export default function RunCabinetsSection({ run, actionBase }) {
             ariaLabel="Gap between cabinets"
           />
         </div>
-      </section>
+      </PanelSection>
   );
 }

@@ -1,3 +1,4 @@
+import PanelSection from '../panel/PanelSection.jsx';
 import {
   Fragment,
   useEffect,
@@ -47,10 +48,7 @@ export default function RunGeometrySection({
     && Math.abs(run.width - plannedWidth) > 1e-6;
 
   return (
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Geometry
-        </h3>
+      <PanelSection id="run.geometry" title="Geometry">
         <div className="grid grid-cols-2 gap-2.5">
           <div className="col-span-2">
             {bothAnchored ? (
@@ -197,6 +195,6 @@ export default function RunGeometrySection({
         {overhang && (
           <p className="mt-2 text-xs font-medium text-amber-300">{overhang}</p>
         )}
-      </section>
+      </PanelSection>
   );
 }

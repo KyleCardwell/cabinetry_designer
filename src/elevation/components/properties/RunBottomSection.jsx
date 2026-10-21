@@ -1,3 +1,4 @@
+import PanelSection from '../panel/PanelSection.jsx';
 import { useDispatch } from 'react-redux';
 import {
   BOTTOM_PART_DOORS,
@@ -41,78 +42,79 @@ export default function RunBottomSection({ room, run, settings, actionBase }) {
   };
 
   return (
-    <section className="space-y-3 border-t border-gray-700 pt-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Below the run</h3>
-      {parts.map((part, index) => {
-        const label = BOTTOM_PART_LABELS[part.kind];
-        return (
-          <div key={part.id} className="space-y-2 rounded border border-gray-700 bg-gray-900/45 p-3">
-            <div className="flex items-center justify-between text-xs text-gray-300">
-              <span>{label}</span>
-              <span className="flex gap-1">
-                <button type="button" className={BUTTON_CLASS} disabled={index === 0}
-                  onClick={() => move(index, -1)} aria-label={`Move ${label} up`}>↑</button>
-                <button type="button" className={BUTTON_CLASS} disabled={index === parts.length - 1}
-                  onClick={() => move(index, 1)} aria-label={`Move ${label} down`}>↓</button>
-                <button type="button" className={BUTTON_CLASS}
-                  onClick={() => commit(parts.filter((_, at) => at !== index))}
-                  aria-label={`Remove ${label}`}>✕</button>
-              </span>
+    <PanelSection id="run.bottom" title="Below the run">
+      <div className="space-y-3">
+        {parts.map((part, index) => {
+          const label = BOTTOM_PART_LABELS[part.kind];
+          return (
+            <div key={part.id} className="space-y-2 rounded border border-gray-700 bg-gray-900/45 p-3">
+              <div className="flex items-center justify-between text-xs text-gray-300">
+                <span>{label}</span>
+                <span className="flex gap-1">
+                  <button type="button" className={BUTTON_CLASS} disabled={index === 0}
+                    onClick={() => move(index, -1)} aria-label={`Move ${label} up`}>↑</button>
+                  <button type="button" className={BUTTON_CLASS} disabled={index === parts.length - 1}
+                    onClick={() => move(index, 1)} aria-label={`Move ${label} down`}>↓</button>
+                  <button type="button" className={BUTTON_CLASS}
+                    onClick={() => commit(parts.filter((_, at) => at !== index))}
+                    aria-label={`Remove ${label}`}>✕</button>
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2.5">
+                <Field label="Height">
+                  <InchInput
+                    value={part.height}
+                    onCommit={(value) => {
+                      if (!(value > 0)) return false;
+                      change(index, { height: value });
+                      return true;
+                    }}
+                    aria-label={`${label} height`}
+                  />
+                </Field>
+                <Field label="Doors">
+                  <select
+                    value={part.doors}
+                    onChange={(event) => change(index, { doors: event.target.value })}
+                    aria-label={`${label} doors`}
+                    className={SELECT_CLASS}
+                  >
+                    {BOTTOM_PART_DOORS
+                      .filter((doors) => {
+                        if (!UNCOVERABLE_BOTTOM_PARTS.includes(part.kind)) return true;
+                        if (!frame) return doors !== 'cover';
+                        return doors === 'visible' || (doors === 'flush' && part.doors === 'flush');
+                      })
+                      .map((doors) => (
+                        <option key={doors} value={doors}>
+                          {(frame ? FRAME_DOORS_LABELS : DOORS_LABELS)[doors]}
+                        </option>
+                      ))}
+                  </select>
+                </Field>
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2.5">
-              <Field label="Height">
-                <InchInput
-                  value={part.height}
-                  onCommit={(value) => {
-                    if (!(value > 0)) return false;
-                    change(index, { height: value });
-                    return true;
-                  }}
-                  aria-label={`${label} height`}
-                />
-              </Field>
-              <Field label="Doors">
-                <select
-                  value={part.doors}
-                  onChange={(event) => change(index, { doors: event.target.value })}
-                  aria-label={`${label} doors`}
-                  className={SELECT_CLASS}
-                >
-                  {BOTTOM_PART_DOORS
-                    .filter((doors) => {
-                      if (!UNCOVERABLE_BOTTOM_PARTS.includes(part.kind)) return true;
-                      if (!frame) return doors !== 'cover';
-                      return doors === 'visible' || (doors === 'flush' && part.doors === 'flush');
-                    })
-                    .map((doors) => (
-                      <option key={doors} value={doors}>
-                        {(frame ? FRAME_DOORS_LABELS : DOORS_LABELS)[doors]}
-                      </option>
-                    ))}
-                </select>
-              </Field>
-            </div>
-          </div>
-        );
-      })}
-      <select
-        value=""
-        onChange={(event) => {
-          if (event.target.value) commit([...parts, createBottomPart(event.target.value, settings)]);
-        }}
-        aria-label="Add a part below the run"
-        className={SELECT_CLASS}
-      >
-        <option value="">Add a part below…</option>
-        {BOTTOM_PART_KINDS.map((kind) => (
-          <option key={kind} value={kind}>{BOTTOM_PART_LABELS[kind]}</option>
-        ))}
-      </select>
-      <p className="text-xs text-gray-500">
-        {frame
-          ? 'Face frame: a covered part makes the bottom rail deeper; "hangs below" drops the whole rail under the doors (light trough). Clearance runs to the lowest part.'
-          : 'Listed top to bottom. The bottom reveal follows the parts the doors cover (REV-011). Clearance runs to the lowest part.'}
-      </p>
-    </section>
+          );
+        })}
+        <select
+          value=""
+          onChange={(event) => {
+            if (event.target.value) commit([...parts, createBottomPart(event.target.value, settings)]);
+          }}
+          aria-label="Add a part below the run"
+          className={SELECT_CLASS}
+        >
+          <option value="">Add a part below…</option>
+          {BOTTOM_PART_KINDS.map((kind) => (
+            <option key={kind} value={kind}>{BOTTOM_PART_LABELS[kind]}</option>
+          ))}
+        </select>
+        <p className="text-xs text-gray-500">
+          {frame
+            ? 'Face frame: a covered part makes the bottom rail deeper; "hangs below" drops the whole rail under the doors (light trough). Clearance runs to the lowest part.'
+            : 'Listed top to bottom. The bottom reveal follows the parts the doors cover (REV-011). Clearance runs to the lowest part.'}
+        </p>
+      </div>
+    </PanelSection>
   );
 }

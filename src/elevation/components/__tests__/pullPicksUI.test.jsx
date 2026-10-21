@@ -187,10 +187,13 @@ describe('HP3c step b pull pickers', () => {
     const faceLayout = { style: {}, reveals: { values: {}, sources: {} } };
     const props = { room: room(), wall: resolvedWall, run: run(), item: item(), settings: settings(), layout: scene.result, faceLayout };
     for (const [Component, level] of [[WallHeightProperties, 'wall'], [RunProperties, 'run'], [CabinetStyleProperties, 'cabinet']]) {
-      const tree = Component(props);
+      const panel = Component(props);
+      const tree = level === 'run' ? panel.props.children('hardware') : panel;
       const picks = nodes(tree).find(({ type }) => type === PullPicks);
       expect(picks).toBeDefined();
-      expect(nodes(PullPicks(picks.props)).some(({ props }) => props.children === 'Pulls')).toBe(true);
+      const section = PullPicks(picks.props);
+      if (level === 'run') expect(section.props.title).toBe('Pulls');
+      else expect(nodes(section).some(({ props }) => props.children === 'Pulls')).toBe(true);
       picks.props.onChange('doorPullId', 'none');
       expect(dispatch).toHaveBeenLastCalledWith(setPullPick({ roomId: room().id, level,
         wallId: wall().id, ...(level !== 'wall' ? { runId: run().id } : {}),

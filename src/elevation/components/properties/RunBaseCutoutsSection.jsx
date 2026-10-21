@@ -1,3 +1,4 @@
+import PanelSection from '../panel/PanelSection.jsx';
 import { useMemo } from 'react';
 import { runBase, runBaseProfile } from '../../model/furnitureBase.js';
 import { partNumbers } from '../../model/partNumbers.js';
@@ -19,9 +20,8 @@ export default function RunBaseCutoutsSection({ room, wall, run, settings, piece
   }
   const base = runBase(room, wall, run, settings, scene);
 
-  return (
-    <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">{piece ? 'Base cutout' : 'Base cutouts'}</h3>
+  const content = (
+    <>
       {!cutouts.length && <p className="text-xs text-gray-500">Select a bottom-row cabinet to add a base cutout.</p>}
       <div className="space-y-3">
         {displayed.map((cutout) => (
@@ -38,6 +38,14 @@ export default function RunBaseCutoutsSection({ room, wall, run, settings, piece
           />
         ))}
       </div>
+    </>
+  );
+  return piece ? (
+    <section>
+      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Base cutout</h3>
+      {content}
     </section>
+  ) : (
+    <PanelSection id="run.baseCutouts" title="Base cutouts">{content}</PanelSection>
   );
 }

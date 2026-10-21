@@ -1,3 +1,4 @@
+import PanelSection from '../panel/PanelSection.jsx';
 import { useDispatch } from 'react-redux';
 import {
   CABINET_TYPE_IDS,
@@ -112,11 +113,11 @@ export default function RunHeightsSection({
     );
   };
 
+  const overrideCount = Object.values(run.overrides ?? {}).filter((value) => value != null).length
+    + Number(run.heightMode === 'manual');
+
   return (
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Heights
-        </h3>
+      <PanelSection id="run.heights" title="Heights" badge={overrideCount}>
         <div className="mb-3 grid grid-cols-2 overflow-hidden rounded border border-gray-700">
           {['auto', 'manual'].map((mode) => (
             <button
@@ -242,6 +243,6 @@ export default function RunHeightsSection({
         >
           Reset heights to defaults
         </button>
-      </section>
+      </PanelSection>
   );
 }

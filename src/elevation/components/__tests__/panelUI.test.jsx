@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { CABINET_TYPE_IDS, resolveWall, runScene } from '../../model/index.js';
 import { run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 
-vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn() }));
+vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn() }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
@@ -15,6 +16,7 @@ const button = (tree, label) => nodes(tree).find(({ type, props }) => type === '
 const band = (tree, id) => nodes(tree).find(({ props }) => props['data-height-band'] === id);
 const expanded = (tree, id) => nodes(band(tree, id)).find(({ type }) => type === 'button').props['aria-expanded'];
 let PanelSection, PanelTabs, HeightBands, RoomHeightsPanel, WallHeightProperties, RunHeightsSection, SettingsPanel, usePanelState;
+let RunProperties;
 let hooks, slots, hookIndex, effects, dirty, state, storage, renderedComponents;
 
 function unmount() {
@@ -64,7 +66,16 @@ async function loadPanels() {
   ({ default: RunHeightsSection } = await import('../properties/RunHeightsSection.jsx'));
   ({ default: SettingsPanel } = await import('../SettingsPanel.jsx'));
   ({ default: usePanelState } = await import('../panel/usePanelState.js'));
-  renderedComponents = [PanelSection, PanelTabs, HeightBands];
+  ({ default: RunProperties } = await import('../properties/RunProperties.jsx'));
+  const runSections = await Promise.all([
+    import('../properties/RunGeometrySection.jsx'), import('../properties/RunEndsSection.jsx'),
+    import('../properties/RunCabinetsSection.jsx'), import('../properties/RunPiecesSection.jsx'),
+    import('../properties/RunBaseCutoutsSection.jsx'), import('../properties/RunBottomSection.jsx'),
+    import('../properties/RunStyleFields.jsx'), import('../properties/PullPicks.jsx'),
+  ]);
+  const { RunFurnitureBaseSection } = await import('../properties/RunProperties.jsx');
+  renderedComponents = [PanelSection, PanelTabs, HeightBands, RunHeightsSection,
+    RunFurnitureBaseSection, ...runSections.map((module) => module.default)];
 }
 
 beforeEach(async () => {
@@ -227,5 +238,110 @@ describe('UI3 step a panel controls', () => {
     expect(text(render(Viewer, { id: 'count' }))).toBe(2);
     expect(text(render(Viewer, { id: 'other' }))).toBe(0);
     expect(text(render(Viewer, { id: 'count' }))).toBe(2);
+  });
+});
+
+
+const sectionTitles = (tree) => nodes(tree)
+  .filter(({ type, props }) => type === 'section' && !props['data-height-band'])
+  .map((section) => text(nodes(section).find(({ props }) => props['aria-expanded'] !== undefined).props.children[1]));
+const sectionButton = (tree, title) => nodes(tree).find(({ type, props }) => type === 'button'
+  && props['aria-expanded'] !== undefined && text(props.children[1]) === title);
+const tabs = (tree) => nodes(tree).filter(({ props }) => props.role === 'tab');
+const runPanel = (id = 'run-1') => {
+  const room = state.rooms[0];
+  const wall = resolveWall(room, room.walls[0]);
+  const run = wall.runs.find((candidate) => candidate.id === id);
+  const scene = runScene(room, wall, run, state.settings);
+  return render(RunProperties, { room, wall, run, layout: scene.result, settings: state.settings, showMessage: vi.fn() });
+};
+
+describe('UI5 step b run tabs', () => {
+  beforeEach(() => {
+    state.rooms[0].walls[0].runs = [makeRun({ heightMode: 'auto', width: 36 })];
+  });
+
+  it('anchor 1: opens Layout with ordered sections and Pieces closed', () => {
+    let tree = runPanel();
+    expect(tabs(tree).map(text)).toEqual(['Layout', 'Heights & base', 'Style', 'Hardware']);
+    expect(tabs(tree).map(({ props }) => props['aria-selected'])).toEqual([true, false, false, false]);
+    expect(sectionTitles(tree)).toEqual(['Run', 'Geometry', 'Ends', 'Cabinets', 'Pieces']);
+    expect(button(tree, 'Pieces').props['aria-expanded']).toBe(false);
+    button(tree, 'Pieces').props.onClick();
+    tree = runPanel();
+    expect(button(tree, 'Pieces').props['aria-expanded']).toBe(true);
+    expect(storage.get('ff.panel.run.pieces')).toBe('true');
+    expect(nodes(tree).some(({ type }) => type === 'h3')).toBe(false);
+  });
+
+  it('anchor 2: remembers Heights & base across run selections and remounts', () => {
+    state.rooms[0].walls[0].runs.push(makeRun({ id: 'run-2', x: 60, width: 36, heightMode: 'auto' }));
+    button(runPanel(), 'Heights & base').props.onClick();
+    expect(button(runPanel('run-2'), 'Heights & base').props['aria-selected']).toBe(true);
+    expect(sectionTitles(runPanel('run-2'))).toEqual(['Heights', 'Below the run']);
+    expect(storage.get('ff.panel.tab.run')).toBe('"heights"');
+    sectionButton(runPanel('run-2'), 'Heights').props.onClick();
+    unmount();
+    const tree = runPanel();
+    expect(button(tree, 'Heights & base').props['aria-selected']).toBe(true);
+    expect(sectionButton(tree, 'Heights').props['aria-expanded']).toBe(false);
+    expect(storage.get('ff.panel.run.heights')).toBe('false');
+  });
+
+  it('anchor 3: badges only set run overrides and adds one for manual mode', () => {
+    const run = state.rooms[0].walls[0].runs[0];
+    run.overrides = { toeKickHeight: 0, countertopThickness: 1.5, boxTop: null, crownProfileId: undefined };
+    button(runPanel(), 'Heights & base').props.onClick();
+    expect(text(sectionButton(runPanel(), 'Heights'))).toContain('2 overridden');
+    run.heightMode = 'manual';
+    expect(text(sectionButton(runPanel(), 'Heights'))).toContain('3 overridden');
+    run.overrides = {};
+    run.heightMode = 'auto';
+    expect(text(sectionButton(runPanel(), 'Heights'))).not.toContain('overridden');
+  });
+
+  it('anchor 4: shows only Cabinet style without door styles and adds Door styles when available', () => {
+    const room = state.rooms[0];
+    room.doorStyles = [];
+    button(runPanel(), 'Style').props.onClick();
+    expect(sectionTitles(runPanel())).toEqual(['Cabinet style']);
+    room.doorStyles = [{ id: 'door-style', name: 'Custom' }];
+    const tree = runPanel();
+    expect(sectionTitles(tree)).toEqual(['Cabinet style', 'Door styles']);
+    expect(nodes(tree).some(({ type }) => type === 'h3')).toBe(false);
+  });
+
+  it('counts own style choices and nondefault flags and wraps Pulls without a duplicate heading', () => {
+    const room = state.rooms[0];
+    const run = room.walls[0].runs[0];
+    room.style = { cabinetStyleId: 1, beadWidth: 0.25 };
+    button(runPanel(), 'Style').props.onClick();
+    expect(text(button(runPanel(), 'Cabinet style'))).not.toContain('overridden');
+    run.style = { cabinetStyleId: 1, beadWidth: 0, stileWidth: null };
+    run.hanging = true;
+    run.upperBottom = 'counter';
+    expect(text(button(runPanel(), 'Cabinet style'))).toContain('4 overridden');
+    run.hanging = false;
+    run.upperBottom = 'overhang';
+    expect(text(button(runPanel(), 'Cabinet style'))).toContain('2 overridden');
+    button(runPanel(), 'Hardware').props.onClick();
+    const tree = runPanel();
+    expect(sectionTitles(tree)).toEqual(['Pulls']);
+    expect(nodes(tree).filter(({ props }) => props['aria-label'] === 'Run door pull')).toHaveLength(1);
+    expect(nodes(tree).some(({ type }) => type === 'h3')).toBe(false);
+    button(tree, 'Pulls').props.onClick();
+    expect(storage.get('ff.panel.run.pulls')).toBe('false');
+    expect(nodes(runPanel()).some(({ props }) => props['aria-label'] === 'Run door pull')).toBe(false);
+  });
+
+  it('omits unavailable base sections and keeps available base sections in order', () => {
+    const room = state.rooms[0];
+    button(runPanel(), 'Heights & base').props.onClick();
+    expect(sectionTitles(runPanel())).toEqual(['Heights', 'Below the run']);
+    room.profile = { baseKind: 'furniture_base', toeKickHeight: 4 };
+    const titles = sectionTitles(runPanel());
+    expect(titles).toEqual(['Heights', expect.stringMatching(/^Furniture base FB #/), 'Base cutouts', 'Below the run']);
+    room.walls[0].runs[0].cabinetTypeId = CABINET_TYPE_IDS.UPPER;
+    expect(sectionTitles(runPanel())).toEqual(['Heights', 'Below the run']);
   });
 });
