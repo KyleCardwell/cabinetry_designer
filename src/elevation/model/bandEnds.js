@@ -96,7 +96,10 @@ export function bandOutline(left, right, z, height) {
   return [[...l[0].slice(0, 2), 0], ...r, ...reverseChain(l).slice(0, -1)];
 }
 
-/** Keep only the returned profile in front of a short wall, collapsing the rest to the run side. */
+/**
+ * Keep only the returned profile in front of a short wall, collapsing the rest to the run side. The kept
+ * part shifts back so its cut lands on the side: the return shows `returnLength` past the run (DM5 step c).
+ */
 export function clipReturnEdge(edge, end) {
   const { x, side, facing, returnLength } = end;
   if (returnLength == null || returnLength >= facing * (x - side) || edge.length < 2) return edge;
@@ -128,7 +131,10 @@ export function clipReturnEdge(edge, end) {
       const keep = facing * (at((a + b) / 2)[0] - cutX) >= 0;
       const start = a === 0 ? from.slice(0, 2) : [cutX, at(a)[1]];
       const finish = b === 1 ? to.slice(0, 2) : [cutX, at(b)[1]];
-      if (!keep) {
+      if (keep) {
+        start[0] -= cutX - side;
+        finish[0] -= cutX - side;
+      } else {
         start[0] = side;
         finish[0] = side;
       }
