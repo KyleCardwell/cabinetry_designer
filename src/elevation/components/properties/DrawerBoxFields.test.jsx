@@ -92,7 +92,7 @@ describe('IN6 Drawer boxes rules and pull-outs', () => {
   const panel = () => {
     const view = resolveWall(room(), wall());
     const scene = runScene(room(), view, run(), state.settings);
-    return FaceProperties({ wall: view, run: run(), item: item(),
+    return FaceProperties({ part: 'inside', wall: view, run: run(), item: item(),
       piece: scene.cells.pieces[0], layout: scene.result, cells: scene.cells, settings: state.settings });
   };
 
@@ -188,7 +188,7 @@ describe('IN5 Drawer boxes section', () => {
     }
     const view = resolveWall(room(), wall());
     const scene = runScene(room(), view, run(), state.settings);
-    const children = FaceProperties({ wall: view, run: run(), item: item(), itemIds: ['c1', 'c2'],
+    const children = FaceProperties({ part: 'inside', wall: view, run: run(), item: item(), itemIds: ['c1', 'c2'],
       piece: scene.cells.pieces[0], layout: scene.result, cells: scene.cells, settings: state.settings }).props.children;
     const index = children.findIndex(({ type } = {}) => type === InteriorFields);
     expect(children[index + 1].type).toBe(DrawerBoxFields);
@@ -225,7 +225,7 @@ describe('IN5 Drawer boxes section', () => {
       expect(render()).toBeNull();
       const view = resolveWall(room(), wall());
       const scene = runScene(room(), view, run(), state.settings);
-      const panel = FaceProperties({ wall: view, run: run(), item: item(),
+      const panel = FaceProperties({ part: 'inside', wall: view, run: run(), item: item(),
         piece: scene.cells.pieces[0], layout: scene.result, cells: scene.cells, settings: state.settings });
       expect(nodes(panel).some(({ type }) => type === DrawerBoxFields)).toBe(false);
     }

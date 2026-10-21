@@ -141,17 +141,19 @@ describe('IN1b Box section', () => {
     }
   });
 
-  it('renders Box immediately after Cabinet style in the cabinet panel with the same context', () => {
+  it('renders Cabinet style and Faces before Box with the same context', () => {
     const resolvedWall = resolveWall(room(), wall());
     const settings = effectiveSettings(state, room());
     const scene = runScene(room(), resolvedWall, run(), settings);
-    const tree = FaceProperties({ wall: resolvedWall, run: run(), item: item(), settings,
-      piece: scene.cells.pieces.find(({ id }) => id === 'c1'), layout: scene.result, cells: scene.cells });
-    const children = tree.props.children;
-    expect(children[0].type).toBe(CabinetStyleProperties);
-    expect(children[1].type).toBe(BoxConstructionFields);
+    const props = { wall: resolvedWall, run: run(), item: item(), settings,
+      piece: scene.cells.pieces.find(({ id }) => id === 'c1'), layout: scene.result, cells: scene.cells };
+    const style = FaceProperties({ ...props, part: 'style' }).props.children;
+    const inside = FaceProperties({ ...props, part: 'inside' }).props.children;
+    expect(style[0].type).toBe(CabinetStyleProperties);
+    expect(style[1].props.title).toBe('Faces');
+    expect(inside[0].type).toBe(BoxConstructionFields);
     for (const key of ['room', 'wall', 'run', 'item']) {
-      expect(children[1].props[key]).toBe(children[0].props[key]);
+      expect(inside[0].props[key]).toBe(style[0].props[key]);
     }
   });
 });

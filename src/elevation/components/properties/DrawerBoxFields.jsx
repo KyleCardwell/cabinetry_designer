@@ -5,6 +5,7 @@ import { addAccessoryItem, removeAccessoryItem, setAccessoryItem } from '../../m
 import { BUILT_IN_SLIDES, resolveSlide } from '../../model/slides.js';
 import { setCabinetSlide, setFaceDrawerBox } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import PanelSection from '../panel/PanelSection.jsx';
 import Field from './Field.jsx';
 import SlideSelect from './SlideSelect.jsx';
 
@@ -69,104 +70,105 @@ export default function DrawerBoxFields({ room, wall, run, item, itemIds = [item
   };
 
   return (
-    <section className="space-y-3">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Drawer boxes</h3>
-      <Field label="Slide">
-        <SlideSelect label="Cabinet drawer slide" value={item.drawerSlideId} slides={slides}
-          automatic={`Inherit (${resolveSlide(settings).name})`}
-          onChange={(slideId) => dispatch(setCabinetSlide({ ...at, itemIds, slideId }))} />
-      </Field>
-      {resolved.boxes.map((box) => {
-        const pick = getFaceNode(item.face, box.path)?.drawerBox ?? {};
-        const label = frontLabel(box.frontHeight, box.kind);
-        const matched = box.heightSource === 'matched';
-        const height = matched || ['rule', 'accessory'].includes(box.heightSource) ? box.height : box.heightAuto;
-        return (
-          <div key={box.path} aria-label={`Drawer box ${box.path}`}
-            className={`space-y-2 rounded border p-2 ${facePath === box.path ? 'border-blue-500 bg-gray-800/60' : 'border-gray-700'}`}>
-            <h4 className="text-xs font-medium text-gray-300">{label}</h4>
-            <Field label="Slide">
-              <SlideSelect label={`Drawer slide ${box.path}`} value={pick.slideId} slides={slides}
-                automatic={`Auto (${box.slide.name}${box.slideAccessory ? `, ${accessoryName(box.slideAccessory)}` : box.slideRule ? `, ${box.slideRule}` : ''})`}
-                onChange={(slideId) => patchBox(box.path, { slideId })} />
-            </Field>
-            <div className="grid grid-cols-2 gap-2">
-              <Field label="Height">
-                <InchInput aria-label={`Drawer height ${box.path}`} value={pick.height} allowBlank
-                  placeholder={`Auto (${height === null ? 'none fits' : formatInches(height)}${box.heightSource === 'accessory' ? `, ${accessoryName(box.heightAccessory)}` : matched ? ', matched' : box.heightRule ? `, ${box.heightRule}` : ''})`}
-                  onCommit={(height) => patchBox(box.path, { height })} />
+    <PanelSection id="piece.drawerBoxes" title="Drawer boxes">
+      <div className="space-y-3">
+        <Field label="Slide">
+          <SlideSelect label="Cabinet drawer slide" value={item.drawerSlideId} slides={slides}
+            automatic={`Inherit (${resolveSlide(settings).name})`}
+            onChange={(slideId) => dispatch(setCabinetSlide({ ...at, itemIds, slideId }))} />
+        </Field>
+        {resolved.boxes.map((box) => {
+          const pick = getFaceNode(item.face, box.path)?.drawerBox ?? {};
+          const label = frontLabel(box.frontHeight, box.kind);
+          const matched = box.heightSource === 'matched';
+          const height = matched || ['rule', 'accessory'].includes(box.heightSource) ? box.height : box.heightAuto;
+          return (
+            <div key={box.path} aria-label={`Drawer box ${box.path}`}
+              className={`space-y-2 rounded border p-2 ${facePath === box.path ? 'border-blue-500 bg-gray-800/60' : 'border-gray-700'}`}>
+              <h4 className="text-xs font-medium text-gray-300">{label}</h4>
+              <Field label="Slide">
+                <SlideSelect label={`Drawer slide ${box.path}`} value={pick.slideId} slides={slides}
+                  automatic={`Auto (${box.slide.name}${box.slideAccessory ? `, ${accessoryName(box.slideAccessory)}` : box.slideRule ? `, ${box.slideRule}` : ''})`}
+                  onChange={(slideId) => patchBox(box.path, { slideId })} />
               </Field>
-              <Field label="Width">
-                <div aria-label={`Drawer width ${box.path}`} className="py-1.5 text-sm text-gray-300">
-                  {`${formatInches(box.width, 1 / 64)}${box.maple ? ' +1/16 maple' : ''}`}
-                </div>
-              </Field>
-            </div>
-            <Field label="Depth">
-              <InchInput aria-label={`Drawer depth ${box.path}`} value={pick.depth} allowBlank
-                placeholder={`Auto (${box.depthAuto === null ? 'no length fits' : formatInches(box.depthAuto)}${box.depthSource === 'accessory' ? `, ${accessoryName(box.depthAccessory)}` : box.depthRule ? `, ${box.depthRule}` : ''})`}
-                onCommit={(depth) => patchBox(box.path, { depth })} />
-            </Field>
-            {box.kind === 'drawer' && (
-              <div className="space-y-2">
-                <h5 className="text-xs font-medium text-gray-300">Accessories</h5>
-                {box.accessories.map(({ index, accessoryId, accessory, qty }) => {
-                  const name = accessory?.name ?? 'Missing';
-                  const key = `${box.path}.${index}`;
-                  return (
-                    <div key={key} aria-label={`Drawer accessory ${key}`} className="space-y-2 rounded border border-gray-700 p-2">
-                      <select aria-label={`Drawer accessory pick ${key}`} className={SELECT_CLASS} value={accessoryId}
-                        onChange={(event) => patchBox(box.path, {
-                          accessories: setAccessoryItem(pick.accessories, index, { accessoryId: event.target.value }),
-                        })}>
-                        {accessory?.attachesTo !== 'drawer_box' && <option value={accessoryId}>{name}</option>}
-                        {accessoryOptions.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
-                      </select>
-                      <Field label="Qty">
-                        <input type="number" aria-label={`Drawer accessory qty ${key}`} className={NUMBER_CLASS}
-                          min={1} max={20} step={1} value={qty}
-                          onChange={(event) => patchBox(box.path, {
-                            accessories: setAccessoryItem(pick.accessories, index, { qty: Number(event.target.value) }),
-                          })} />
-                      </Field>
-                      <button type="button" aria-label={`Remove ${name}`} className={BUTTON_CLASS}
-                        onClick={() => patchBox(box.path, { accessories: removeAccessoryItem(pick.accessories, index) ?? null })}>Remove</button>
-                    </div>
-                  );
-                })}
-                <select aria-label={`Add drawer accessory ${box.path}`} className={SELECT_CLASS} value=""
-                  disabled={accessoryOptions.length === 0}
-                  onChange={(event) => patchBox(box.path, { accessories: addAccessoryItem(pick.accessories, event.target.value) })}>
-                  <option value="">Add accessory…</option>
-                  {accessoryOptions.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
-                </select>
-                {accessoryOptions.length === 0 && (
-                  <p className="text-xs text-gray-400">Add drawer box accessories in Library → Accessories.</p>
-                )}
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Height">
+                  <InchInput aria-label={`Drawer height ${box.path}`} value={pick.height} allowBlank
+                    placeholder={`Auto (${height === null ? 'none fits' : formatInches(height)}${box.heightSource === 'accessory' ? `, ${accessoryName(box.heightAccessory)}` : matched ? ', matched' : box.heightRule ? `, ${box.heightRule}` : ''})`}
+                    onCommit={(height) => patchBox(box.path, { height })} />
+                </Field>
+                <Field label="Width">
+                  <div aria-label={`Drawer width ${box.path}`} className="py-1.5 text-sm text-gray-300">
+                    {`${formatInches(box.width, 1 / 64)}${box.maple ? ' +1/16 maple' : ''}`}
+                  </div>
+                </Field>
               </div>
-            )}
-            {box.adjustment > 0 && (
-              <p className="text-xs text-gray-400">{`Fits using ${formatInches(box.adjustment)} of the slide's vertical adjustment.`}</p>
-            )}
-            {box.notes.map((note) => <p key={note} className="text-xs text-gray-400">{note}</p>)}
-          </div>
-        );
-      })}
-      {resolved.warnings.map((warning, index) => {
-        const box = resolved.boxes.find(({ path }) => path === warning.path);
-        const front = box ?? faceLayout?.faces.find(({ path }) => path === warning.path);
-        const kind = box?.kind ?? (front?.type === 'door' && front.action === 'pullout'
-          ? item.purpose === 'trash' ? 'rot' : item.purpose === 'hamper' ? 'hamper' : null : null);
-        const label = front ? frontLabel(front.frontHeight ?? front.height, kind) : null;
-        return (
-          <p key={index} className="text-xs text-amber-400">
-            {`${label ? `${label}: ` : ''}${warningText(warning, box, settings, interior)}`}
-          </p>
-        );
-      })}
-      {resolved.notes.map(({ rule, text }) => (
-        <p key={rule} className="text-xs text-gray-400">{`${text} (${rule})`}</p>
-      ))}
-    </section>
+              <Field label="Depth">
+                <InchInput aria-label={`Drawer depth ${box.path}`} value={pick.depth} allowBlank
+                  placeholder={`Auto (${box.depthAuto === null ? 'no length fits' : formatInches(box.depthAuto)}${box.depthSource === 'accessory' ? `, ${accessoryName(box.depthAccessory)}` : box.depthRule ? `, ${box.depthRule}` : ''})`}
+                  onCommit={(depth) => patchBox(box.path, { depth })} />
+              </Field>
+              {box.kind === 'drawer' && (
+                <div className="space-y-2">
+                  <h5 className="text-xs font-medium text-gray-300">Accessories</h5>
+                  {box.accessories.map(({ index, accessoryId, accessory, qty }) => {
+                    const name = accessory?.name ?? 'Missing';
+                    const key = `${box.path}.${index}`;
+                    return (
+                      <div key={key} aria-label={`Drawer accessory ${key}`} className="space-y-2 rounded border border-gray-700 p-2">
+                        <select aria-label={`Drawer accessory pick ${key}`} className={SELECT_CLASS} value={accessoryId}
+                          onChange={(event) => patchBox(box.path, {
+                            accessories: setAccessoryItem(pick.accessories, index, { accessoryId: event.target.value }),
+                          })}>
+                          {accessory?.attachesTo !== 'drawer_box' && <option value={accessoryId}>{name}</option>}
+                          {accessoryOptions.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+                        </select>
+                        <Field label="Qty">
+                          <input type="number" aria-label={`Drawer accessory qty ${key}`} className={NUMBER_CLASS}
+                            min={1} max={20} step={1} value={qty}
+                            onChange={(event) => patchBox(box.path, {
+                              accessories: setAccessoryItem(pick.accessories, index, { qty: Number(event.target.value) }),
+                            })} />
+                        </Field>
+                        <button type="button" aria-label={`Remove ${name}`} className={BUTTON_CLASS}
+                          onClick={() => patchBox(box.path, { accessories: removeAccessoryItem(pick.accessories, index) ?? null })}>Remove</button>
+                      </div>
+                    );
+                  })}
+                  <select aria-label={`Add drawer accessory ${box.path}`} className={SELECT_CLASS} value=""
+                    disabled={accessoryOptions.length === 0}
+                    onChange={(event) => patchBox(box.path, { accessories: addAccessoryItem(pick.accessories, event.target.value) })}>
+                    <option value="">Add accessory…</option>
+                    {accessoryOptions.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
+                  </select>
+                  {accessoryOptions.length === 0 && (
+                    <p className="text-xs text-gray-400">Add drawer box accessories in Library → Accessories.</p>
+                  )}
+                </div>
+              )}
+              {box.adjustment > 0 && (
+                <p className="text-xs text-gray-400">{`Fits using ${formatInches(box.adjustment)} of the slide's vertical adjustment.`}</p>
+              )}
+              {box.notes.map((note) => <p key={note} className="text-xs text-gray-400">{note}</p>)}
+            </div>
+          );
+        })}
+        {resolved.warnings.map((warning, index) => {
+          const box = resolved.boxes.find(({ path }) => path === warning.path);
+          const front = box ?? faceLayout?.faces.find(({ path }) => path === warning.path);
+          const kind = box?.kind ?? (front?.type === 'door' && front.action === 'pullout'
+            ? item.purpose === 'trash' ? 'rot' : item.purpose === 'hamper' ? 'hamper' : null : null);
+          const label = front ? frontLabel(front.frontHeight ?? front.height, kind) : null;
+          return (
+            <p key={index} className="text-xs text-amber-400">
+              {`${label ? `${label}: ` : ''}${warningText(warning, box, settings, interior)}`}
+            </p>
+          );
+        })}
+        {resolved.notes.map(({ rule, text }) => (
+          <p key={rule} className="text-xs text-gray-400">{`${text} (${rule})`}</p>
+        ))}
+      </div>
+    </PanelSection>
   );
 }

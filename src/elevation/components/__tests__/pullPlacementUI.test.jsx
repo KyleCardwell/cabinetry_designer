@@ -53,7 +53,7 @@ function props() {
     piece: scene.cells.pieces.find(({ id }) => id === 'c1'), layout: scene.result, cells: scene.cells,
     faceLayout: scene.faceLayouts.get('c1') };
 }
-const face = () => FaceProperties(props());
+const face = () => FaceProperties({ ...props(), part: 'style' });
 const cabinet = (itemIds) => {
   const tree = CabinetStyleProperties({ ...props(), ...(itemIds ? { itemIds } : {}) });
   return PullPicks(nodes(tree).find(({ type }) => type === PullPicks).props);

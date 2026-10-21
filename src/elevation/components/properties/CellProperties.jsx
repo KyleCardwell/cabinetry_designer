@@ -216,15 +216,28 @@ export default function CellProperties({
       {isCabinet && <CellWrapSection wall={wall} run={run} cellId={item.id} />}
 
       {isCabinet && (
-        <FaceProperties
-          wall={wall}
-          run={run}
-          piece={piece}
-          item={item}
-          layout={layout}
-          cells={cells}
-          settings={settings}
-        />
+        <>
+          <FaceProperties
+            part="style"
+            wall={wall}
+            run={run}
+            piece={piece}
+            item={item}
+            layout={layout}
+            cells={cells}
+            settings={settings}
+          />
+          <FaceProperties
+            part="inside"
+            wall={wall}
+            run={run}
+            piece={piece}
+            item={item}
+            layout={layout}
+            cells={cells}
+            settings={settings}
+          />
+        </>
       )}
     </div>
   );

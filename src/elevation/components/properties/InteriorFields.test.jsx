@@ -130,7 +130,7 @@ describe('IN2 Interior section', () => {
 
     const view = resolveWall(room(), wall());
     const scene = runScene(room(), view, run(), state.settings);
-    const tree = FaceProperties({ wall: view, run: run(), item: item(), settings: state.settings,
+    const tree = FaceProperties({ part: 'inside', wall: view, run: run(), item: item(), settings: state.settings,
       piece: scene.cells.pieces.find(({ id }) => id === 'c1'), layout: scene.result, cells: scene.cells });
     const children = tree.props.children;
     const index = children.findIndex(({ type } = {}) => type === BoxConstructionFields);

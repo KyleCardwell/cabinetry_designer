@@ -43,7 +43,7 @@ function setting(scope, settingKey = 'drawerPullId') {
 function face() {
   const resolvedWall = resolveWall(room(), wall());
   const scene = runScene(room(), resolvedWall, run(), settings());
-  return FaceProperties({ wall: resolvedWall, run: run(), item: item(),
+  return FaceProperties({ part: 'style', wall: resolvedWall, run: run(), item: item(),
     piece: scene.cells.pieces.find(({ id }) => id === 'c1'), layout: scene.result, cells: scene.cells, settings: settings() });
 }
 

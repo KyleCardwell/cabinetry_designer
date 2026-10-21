@@ -10,9 +10,16 @@ import { formatInches } from '../../model/units.js';
 import elevationReducer from '../../store/elevationSlice.js';
 import { run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import FaceProperties from '../properties/FaceProperties.jsx';
+import CabinetProperties from '../properties/CabinetProperties.jsx';
+import CellProperties from '../properties/CellProperties.jsx';
+import CabinetStyleProperties from '../properties/CabinetStyleProperties.jsx';
+import BoxConstructionFields from '../properties/BoxConstructionFields.jsx';
+import InteriorFields from '../properties/InteriorFields.jsx';
+import DrawerBoxFields from '../properties/DrawerBoxFields.jsx';
+import PanelSection from '../panel/PanelSection.jsx';
 import InchInput from '../InchInput.jsx';
 
-vi.mock('react', async (importOriginal) => ({ ...await importOriginal(), useState: vi.fn(), useEffect: vi.fn() }));
+vi.mock('react', async (importOriginal) => ({ ...await importOriginal(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn() }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 
 let state;
@@ -25,10 +32,10 @@ const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : typeof tree === 'string' ? tree : text(tree?.props?.children ?? []);
 
-function render() {
+function render(part = 'style') {
   const wall = resolveWall(room(), room().walls[0]);
   const scene = runScene(room(), wall, run(), state.settings);
-  return FaceProperties({
+  return FaceProperties({ part,
     wall, run: run(), item: item(),
     piece: scene.cells.pieces.find(({ id }) => id === 'cabinet'),
     layout: scene.result, cells: scene.cells, settings: state.settings,
@@ -425,5 +432,91 @@ describe('InchInput standard opt-in', () => {
     InchInput({ value: 5, allowStandard: true, onStandard }).props.onBlur();
     expect(onStandard).toHaveBeenCalledOnce();
     expect(setText).toHaveBeenCalledWith('5');
+  });
+});
+
+
+describe('UI6 step a face property parts', () => {
+  const drawerBank = () => {
+    item().face = { direction: 'vertical', size: null, children: Array.from({ length: 3 }, () => (
+      { type: 'drawer_front', size: null }
+    )) };
+  };
+  const panels = (tree) => nodes(tree).filter(({ type }) => [CabinetStyleProperties,
+    BoxConstructionFields, InteriorFields, DrawerBoxFields, PanelSection].includes(type))
+    .map((element) => element.type === PanelSection ? element : element.type(element.props));
+
+  it('anchor 1: style on a door cabinet contains Cabinet style and Faces, without inside controls', () => {
+    let tree = render('style');
+    expect(panels(tree).map(({ props }) => [props.id, props.title, props.badge])).toEqual([
+      ['piece.style', 'Cabinet style', 0], ['piece.faces', 'Faces', 0],
+    ]);
+    expect(nodes(tree).some(({ type }) => [BoxConstructionFields, InteriorFields, DrawerBoxFields].includes(type))).toBe(false);
+    const faces = nodes(tree).find(({ type }) => type === PanelSection);
+    expect(text(faces.props.actions)).toBe('Default');
+    expect(picker('Opens').props.value).toBe('swing');
+    expect(picker('Panel')).toBeDefined();
+    expect(picker('Hinge')).toBeDefined();
+
+    // An own preset adds a badge; Reset still clears it and the face selection.
+    item().face = { type: 'door', size: null };
+    item().style = { cabinetStyleId: 1, beadWidth: 0, stileWidth: null };
+    item().doorStyleId = 'custom';
+    item().drawerPullId = 'none';
+    tree = render('style');
+    const [style, editedFaces] = panels(tree);
+    expect(style.props.badge).toBe(4);
+    expect(editedFaces.props.badge).toBe(1);
+    expect(text(editedFaces.props.actions)).toBe('Reset');
+    editedFaces.props.actions.props.onClick();
+    expect(item().face).toBeNull();
+    expect(state.facePath).toBeNull();
+  });
+
+  it('anchor 2: inside on a drawer bank contains Box, Interior and Drawer boxes, without Faces', () => {
+    drawerBank();
+    const tree = render('inside');
+    expect(panels(tree).map(({ props }) => [props.id, props.title])).toEqual([
+      ['piece.box', 'Box'], ['piece.interior', 'Interior'], ['piece.drawerBoxes', 'Drawer boxes'],
+    ]);
+    expect(nodes(tree).some(({ type }) => type === CabinetStyleProperties || type === PanelSection)).toBe(false);
+    expect(nodes(tree).some(({ props }) => props['aria-label']?.startsWith('Face type'))).toBe(false);
+    const drawerFields = nodes(tree).find(({ type }) => type === DrawerBoxFields);
+    expect(drawerFields.props.itemIds).toEqual(['cabinet']);
+    expect(drawerFields.props.faceLayout.faces.every(({ type }) => type === 'drawer_front')).toBe(true);
+
+    // The existing conditional still omits Drawer boxes for a door-only cabinet.
+    item().face = { type: 'door', size: null };
+    expect(panels(render('inside')).map(({ props }) => props.title)).toEqual(['Box', 'Interior']);
+  });
+
+  it('anchor 3: both callers retain the controls in Cabinet style, Faces, Box, Interior, Drawer boxes order', () => {
+    drawerBank();
+    const wall = resolveWall(room(), room().walls[0]);
+    const scene = runScene(room(), wall, run(), state.settings);
+    const props = { room: room(), wall, run: run(), item: item(),
+      piece: scene.cells.pieces.find(({ id }) => id === 'cabinet'),
+      layout: scene.result, cells: scene.cells, settings: state.settings };
+    for (const Component of [CabinetProperties, CellProperties]) {
+      const parts = nodes(Component(props)).filter(({ type }) => type === FaceProperties);
+      expect(parts.map(({ props }) => props.part)).toEqual(['style', 'inside']);
+      for (const part of parts) {
+        for (const key of ['wall', 'run', 'piece', 'item', 'layout', 'cells', 'settings']) {
+          expect(part.props[key]).toBe(props[key]);
+        }
+      }
+      const sections = parts.flatMap((part) => panels(FaceProperties(part.props)));
+      expect(sections.map(({ props }) => props.title)).toEqual([
+        'Cabinet style', 'Faces', 'Box', 'Interior', 'Drawer boxes',
+      ]);
+      expect(sections.every(({ type }) => type === PanelSection)).toBe(true);
+      expect(nodes(sections).some(({ type }) => type === 'h3')).toBe(false);
+      const labels = nodes(sections).map(({ props }) => props['aria-label']).filter(Boolean);
+      expect(labels).toEqual(expect.arrayContaining([
+        'Cabinet purpose', 'Face type r.0', 'Face type r.1', 'Face type r.2',
+        'Back', 'Top', 'Bottom', 'Left side', 'Right side', 'Finished top', 'Finished bottom',
+        'Interior sections', 'Drawer height r.0', 'Drawer depth r.0',
+      ]));
+    }
   });
 });

@@ -23,7 +23,7 @@ describe('Step 480 face molding warnings', () => {
       { code: 'door-profile-too-wide', side: 'molding', index: 2, pieceId: 'cabinet' },
       { code: 'door-profile-too-wide', side: 'molding', index: 4, pieceId: 'other' },
     ] });
-    const html = renderToStaticMarkup(<FaceProperties
+    const html = renderToStaticMarkup(<FaceProperties part="style"
       wall={{ id: 'wall' }} run={{ id: 'run', cabinetTypeId: 'base' }}
       piece={{ id: 'cabinet', width: 18 }} item={{ id: 'cabinet', face: { type: 'door', size: null } }}
       layout={{ pieces: [] }} settings={{}}
@@ -39,7 +39,7 @@ describe('Step 480 face molding warnings', () => {
       { code: 'door-profile-too-wide', side: 'molding', index: 1, pieceId: 'cabinet' },
       { code: 'door-profile-too-wide', side: 'left', pieceId: 'cabinet' },
     ] });
-    const html = renderToStaticMarkup(<FaceProperties
+    const html = renderToStaticMarkup(<FaceProperties part="style"
       wall={{ id: 'wall' }} run={{ id: 'run', cabinetTypeId: 'base' }}
       piece={{ id: 'cabinet', width: 18 }} item={{ id: 'cabinet', face: { type: 'door', size: null } }}
       layout={{ pieces: [] }} settings={{}}
@@ -55,7 +55,7 @@ describe('Step 480 face molding warnings', () => {
       { code: 'applied-molding-no-room', index: 3, pieceId: 'cabinet' },
       { code: 'applied-molding-no-room', index: 5, pieceId: 'other' },
     ] });
-    const html = renderToStaticMarkup(<FaceProperties
+    const html = renderToStaticMarkup(<FaceProperties part="style"
       wall={{ id: 'wall' }} run={{ id: 'run', cabinetTypeId: 'base' }}
       piece={{ id: 'cabinet', width: 18 }} item={{ id: 'cabinet', face: { type: 'door', size: null } }}
       layout={{ pieces: [] }} settings={{}}
