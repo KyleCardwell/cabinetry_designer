@@ -34,14 +34,14 @@ const settings = { ...document.settings, runFlex: 0 };
 const room = (name) => syncRoom(document.rooms.find((candidate) => candidate.name === name), settings);
 
 // Captured before HP5 step d: the existing golden snapshot covers derived rooms, not payloads.
-// DM1 (plan labels, rows past back runs, through depth) updated G1 and G2.
+// DM1 (plan labels, rows past back runs, through depth) updated G1 and G2; DM3 (elevation rows) all six.
 const preHP5PayloadHashes = {
-  'G1 Euro kitchen': '98c934b609548001503943883a83407e69affa4826455241050fd0997461d3ea',
-  'G2 Face frame kitchen': '61c979c5350e1190a431c0db5d3ca8f144d3640adcbbe988f360b0d5025566da',
-  'G3 Bath alcove': 'fd35d5a3467446c85bc9a9c57b83f893deac61402f1e62e0b35597e66a4ec702',
-  'G4 T-filler run': 'de06c1a25cb6963ae9fdb05014adf6fb469622bf04513d26a36166188fece772',
-  'G5 Recess room': '86f8714cb04ff4d889490283215216c8bb43d2fe73c4dd049c8fc837120a3304',
-  'G6 Stacked runs': 'dc7196687196c99fadf089ece3b342612b011964e72b70b201b6d841df907a36',
+  'G1 Euro kitchen': '8a606daf7d8573a234312850bb86d0faf38ff3d3060e45d4205f6c825e90aa80',
+  'G2 Face frame kitchen': '757deeceeead239f42214cfc58bd14cf6d8581b38e0ee6249011a5fd03195034',
+  'G3 Bath alcove': '0f9fb5ad554ba9e1ea30f5ee4787b646f1eab69de28f2b4a757755e0a36c4ee2',
+  'G4 T-filler run': 'e1bd924d5ac2c578e1efba6c208b6090974c5befeece40a0186a90996b055b81',
+  'G5 Recess room': '0afbf0c12ed8c6c8b5fb8990e98aa101c62ce99b07fc1b26a69f62df79d171f7',
+  'G6 Stacked runs': '122095e1e7b81dbee9c2a7c0941556e26c770caa898df0cf2b8bc1d14e7dfaff',
 };
 
 /** The round-40 fields only, so the first test keeps checking just those. */
@@ -300,7 +300,8 @@ describe('SPEC-40 drawing payload', () => {
   it('SPEC-43 carries each wall face\'s dimensions', () => {
     const synced = room('G1 Euro kitchen');
     const payload = toDrawingPayload(synced, settings);
-    expect(payload.elevations.map((elevation) => elevation.dimensions.length)).toEqual([38, 30, 17, 17]);
+    // DM3: elevation A merges its runs and drops the openings row; the island loses its open gaps.
+    expect(payload.elevations.map((elevation) => elevation.dimensions.length)).toEqual([33, 30, 15, 15]);
     for (const elevation of payload.elevations) {
       const wall = synced.walls.find((candidate) => candidate.id === elevation.wallId);
       expect(elevation.dimensions).toEqual(elevationDimensions(synced, wall, elevation.side, settings));

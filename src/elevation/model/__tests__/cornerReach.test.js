@@ -85,11 +85,10 @@ describe('SPEC-43.4 the extent takes in everything cornerShapes draws', () => {
     expect(elevationDimensions(g2, g2.walls[1], 'front', settings)
       .filter(({ row: name }) => name.startsWith('upper.'))
       .map(({ row: name, kind, start, end, base, at }) => [name, kind, start, end, base, at]))
-      // The upper returning into the corner reads its depth on the piece row (Kyle 2026-10-16).
+      // The upper returning into the corner reads its depth on the piece row (Kyle 2026-10-16); the open
+      // space beside it and the wall length leave the upper rows on a face with runs (DM3).
       .toEqual([
         ['upper.inner', 'neighbor', 0, 12.8125, 96, 105],
-        ['upper.inner', 'open', 12.8125, 78.5, 96, 105],
-        ['upper.outer', 'wall', 0, 78.5, 96, 117.75],
       ]);
   });
 });

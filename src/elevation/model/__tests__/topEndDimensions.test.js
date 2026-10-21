@@ -58,7 +58,7 @@ describe('top end dimensions (waterfall legs and non-standard side overhangs)', 
   it('keeps the piece row clear of the leg', () => {
     const { room, wall } = roomWith({ waterfall: { left: {} }, topOverhang: { left: 12 } });
     const { inner } = horizontalChains(room, wall, 'lower', DEFAULT_SETTINGS);
-    expect(inner[0]).toMatchObject({ start: 0, end: 16.5, kind: 'open' });
+    expect(inner[0]).toMatchObject({ start: 30, kind: 'piece' });
     expect(inner.some(({ start, end }) => start < 30 - 1e-6 && end > 16.5 + 1e-6)).toBe(false);
   });
 });

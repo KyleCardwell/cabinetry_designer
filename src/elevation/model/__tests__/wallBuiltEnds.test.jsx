@@ -83,8 +83,9 @@ describe('SPEC-RF3 step b built wall ends', () => {
   it('dimensions 90 1/8 overall on front and back elevations, including the face without runs', () => {
     const room = syncRoom(island(), S);
     for (const side of ['front', 'back']) {
+      // DM3: the overall is the wall row below on a face with runs, the upper run row on one without.
       const overall = elevationDimensions(room, room.walls[0], side, S)
-        .find(({ row, kind }) => row === 'upper.outer' && kind === 'wall');
+        .find(({ row, kind }) => (row === 'wall' || row === 'upper.outer') && kind === 'wall');
       expect([overall.start, overall.end, overall.text]).toEqual([-0.0625, 90.0625, '90 1/8']);
       const lower = elevationDimensions(room, room.walls[0], side, S)
         .filter(({ row }) => row === 'lower.outer');
@@ -168,7 +169,8 @@ describe('SPEC-RF3 step b built wall ends', () => {
         const view = resolveWall(room, wall, side);
         expect(wallBuiltEnds(view)).toEqual({ start: 0, end: 0.125 });
         const frame = wallFrame(room, view);
-        const overall = elevationDimensions(room, wall, side, S).find(({ row, kind }) => row === 'upper.outer' && kind === 'wall');
+        const overall = elevationDimensions(room, wall, side, S)
+          .find(({ row, kind }) => (row === 'wall' || row === 'upper.outer') && kind === 'wall');
         expect([overall.start, overall.end, overall.text]).toEqual(frame.leftEndpoint === 'end'
           ? [-0.125, 90, '90 1/8'] : [0, 90.125, '90 1/8']);
       }

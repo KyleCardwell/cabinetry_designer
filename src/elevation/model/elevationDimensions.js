@@ -1,5 +1,5 @@
 import {
-  centerlineMarkers, clearanceCallouts, horizontalChains, openingChain, pickColumnRuns, verticalChains,
+  centerlineMarkers, clearanceCallouts, horizontalChains, openingChain, pickColumnRuns, verticalChains, wallRow,
 } from './dimensions.js';
 import { plotScale } from './drawingScale.js';
 import { resolveWall } from './room.js';
@@ -25,11 +25,15 @@ const CHARACTER_WIDTH = 0.7;
 
 const EPSILON = 1e-6;
 
-/** The rows the DXF dimensions, nearest the drawing first on each side (the canvas's order, SPEC-43). */
+/**
+ * The rows the DXF dimensions, nearest the drawing first on each side (the canvas's order, SPEC-43). Below:
+ * cabinets, runs, then the openings row (faces without runs) or the overall wall row (faces with runs, DM3).
+ */
 const ROWS = [
   ['lower.inner', 'below'],
   ['lower.outer', 'below'],
   ['openings', 'below'],
+  ['wall', 'below'],
   ['upper.inner', 'above'],
   ['upper.outer', 'above'],
 ];
@@ -112,6 +116,7 @@ export function elevationDimensions(room, wall, side, settings, { extent: shared
     'lower.inner': lower.inner,
     'lower.outer': lower.outer,
     openings: openingChain(room, view, settings),
+    wall: wallRow(room, view, settings, lower.outer),
     'upper.inner': upper.inner,
     'upper.outer': upper.outer,
   };

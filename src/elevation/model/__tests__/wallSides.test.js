@@ -302,7 +302,9 @@ describe('wall sides', () => {
 
     expect(backView.runs.map((run) => run.id)).toEqual(['BK']);
     expect(backView.length).toBe(120);
-    expect(openingChain(room, backView, settings).map(({ kind, start, end }) => (
+    // DM3: a face with runs has no openings row; without its run the back view mirrors the door.
+    expect(openingChain(room, backView, settings)).toEqual([]);
+    expect(openingChain(room, { ...backView, runs: [] }, settings).map(({ kind, start, end }) => (
       [kind, start, end]
     ))).toEqual([
       ['gap', 0, 60],

@@ -390,7 +390,7 @@ describe('wall landings', () => {
     expect(run.ends.left).toEqual({ type: 'filler', width: null });
   });
 
-  it('151. splits horizontal open gaps at landed wall intervals', () => {
+  it('151. keeps landed wall intervals on the piece row, without the open gaps (DM3)', () => {
     const room = syncRoom(alcove({ hostRuns: [AL()] }), DEFAULT_SETTINGS);
     const H = wallById(room, 'H');
     const inner = horizontalChains(
@@ -403,13 +403,11 @@ describe('wall landings', () => {
     expect(inner.map(({ kind, start, end, wallId, runId }) => (
       [kind, start, end, wallId ?? runId ?? '']
     ))).toEqual([
-      ['open', 0, 60, ''],
       ['wall', 60, 69, 'W1'],
       ['piece', 69, 70.5, 'AL'],
       ['piece', 70.5, 187.5, 'AL'],
       ['piece', 187.5, 189, 'AL'],
       ['wall', 189, 201, 'W2'],
-      ['open', 201, 246, ''],
     ]);
   });
 

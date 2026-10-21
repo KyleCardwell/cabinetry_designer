@@ -103,13 +103,20 @@ function neighborSegments(room, wall, band, settings) {
     }));
 }
 
+/** A face with any run on it, in either band (DM3). */
+function faceHasRuns(wall) {
+  return (wall.runs ?? []).length > 0;
+}
+
 /**
  * The elevation's wall row (SPEC-37.4, SPEC-38): every door and window by its own reference edges (jamb or
  * casing, per its measure mode), every wing wall landing on this face at its thickness, and every recess on
  * this face at its width, split around the openings inside it, with the gaps between them and to the wall's
- * ends. Shown with or without cabinets; [] when there's nothing.
+ * ends. [] when there's nothing, and on a face with runs: the casing clearances and the plan locate the
+ * openings there, and the run row locates the runs (DM3 §1.3, §1.6).
  */
 export function openingChain(room, wall, settings) {
+  if (faceHasRuns(wall)) return [];
   const length = wallLength(wall);
   const openings = (wall.openings ?? []).map((opening) => {
     const geometry = openingGeometry(opening, length, settings);
@@ -435,14 +442,44 @@ function withCornerReturns(inner, returns, wallStart, wallEnd) {
   });
 }
 
-/** Build the inner piece chain and outer run chain for an elevation band. */
-export function horizontalChains(room, wall, band, settings) {
-  const runs = runsForBand(wall, band);
-  const neighbors = neighborSegments(room, wall, band, settings);
+/** The face's wall row ends, built end panels included (SPEC-36.2). */
+function wallSpan(room, wall) {
   const frame = wallFrame(room, wall);
   const ends = wallBuiltEnds(wall);
-  const wallStart = 0 - ends[frame.leftEndpoint];
-  const wallEnd = frame.length + ends[frame.rightEndpoint];
+  return { wallStart: 0 - ends[frame.leftEndpoint], wallEnd: frame.length + ends[frame.rightEndpoint] };
+}
+
+/**
+ * The overall wall row below the elevation (DM3 §1.3): the wall length, built ends included, on a face with
+ * any run; omitted when the lower run row is already one segment the full wall long, and on faces without
+ * runs (their run row carries the wall length). `lowerOuter` saves recomputing the lower band's run row.
+ */
+export function wallRow(room, wall, settings, lowerOuter = null) {
+  if (!faceHasRuns(wall)) return [];
+  const { wallStart, wallEnd } = wallSpan(room, wall);
+  if (wallEnd - wallStart <= SEGMENT_EPSILON) return [];
+  const outer = lowerOuter ?? horizontalChains(room, wall, 'lower', settings).outer;
+  if (outer.length === 1
+    && Math.abs(outer[0].start - wallStart) <= SEGMENT_EPSILON
+    && Math.abs(outer[0].end - wallEnd) <= SEGMENT_EPSILON) return [];
+  return [{ start: wallStart, end: wallEnd, kind: 'wall' }];
+}
+
+/**
+ * Build the inner piece chain and outer run chain for an elevation band (DM3). On a face with runs the inner
+ * row is cabinet and part widths only (open gaps dropped, so it may have gaps), and the outer row merges runs
+ * that touch into one segment; a band with no runs there leaves the wall length to the wall row.
+ */
+export function horizontalChains(room, wall, band, settings) {
+  const chains = bandChains(room, wall, band, settings);
+  if (!faceHasRuns(wall)) return chains;
+  return { inner: chains.inner.filter((segment) => segment.kind !== 'open'), outer: chains.outer };
+}
+
+function bandChains(room, wall, band, settings) {
+  const runs = runsForBand(wall, band);
+  const neighbors = neighborSegments(room, wall, band, settings);
+  const { wallStart, wallEnd } = wallSpan(room, wall);
   const outermost = (segments, side, limit) => {
     const reaching = side === 'left'
       ? segments.filter((segment) => segment.start < limit - SEGMENT_EPSILON)
@@ -458,11 +495,11 @@ export function horizontalChains(room, wall, band, settings) {
   if (runs.length === 0) {
     const left = outermost(neighbors, 'left', wallStart);
     const right = outermost(neighbors, 'right', wallEnd);
-    const wallRow = wallEnd - wallStart > SEGMENT_EPSILON
+    const overall = !faceHasRuns(wall) && wallEnd - wallStart > SEGMENT_EPSILON
       ? [{ start: wallStart, end: wallEnd, kind: 'wall' }] : [];
     return {
       inner: withCornerReturns([left, right].filter(Boolean), cornerReturnSegments(room, wall, band, settings), wallStart, wallEnd),
-      outer: [left, ...wallRow, right].filter(Boolean),
+      outer: [left, ...overall, right].filter(Boolean),
     };
   }
 
@@ -545,21 +582,38 @@ export function horizontalChains(room, wall, band, settings) {
   );
   if (right) inner.push(right);
 
-  const outer = [];
-  if (left) outer.push(left);
-  cursor = rangeStart;
+  // Runs that touch (top legs/overhangs included) are one cluster, one segment (DM3 §1.2).
+  const clusters = [];
   runs.forEach((run, index) => {
     const start = index === 0 && leftCornerGap ? 0 : run.x;
     const end = index === runs.length - 1 && rightCornerGap
       ? length
       : run.x + run.width;
     const { left: before, right: after } = topEnds.get(run.id);
-    appendOpenGap(outer, cursor, Math.min(start, before[0]?.start ?? start), tallRanges);
-    for (const segment of before) appendSegment(outer, segment.start, segment.end, segment.kind, { runId: run.id, side: segment.side });
-    appendSegment(outer, start, end, 'run', { runId: run.id });
-    for (const segment of after) appendSegment(outer, segment.start, segment.end, segment.kind, { runId: run.id, side: segment.side });
-    cursor = Math.max(end, after.at(-1)?.end ?? end);
+    const reachStart = Math.min(start, before[0]?.start ?? start);
+    const reachEnd = Math.max(end, after.at(-1)?.end ?? end);
+    const last = clusters.at(-1);
+    if (last && Math.abs(reachStart - last.reachEnd) <= SEGMENT_EPSILON) {
+      last.runs.push(run);
+      last.end = end;
+      last.after = after;
+      last.reachEnd = reachEnd;
+    } else {
+      clusters.push({ runs: [run], start, end, before, after, reachStart, reachEnd });
+    }
   });
+  const outer = [];
+  if (left) outer.push(left);
+  cursor = rangeStart;
+  for (const cluster of clusters) {
+    const [first] = cluster.runs;
+    const last = cluster.runs.at(-1);
+    appendOpenGap(outer, cursor, cluster.reachStart, tallRanges);
+    for (const segment of cluster.before) appendSegment(outer, segment.start, segment.end, segment.kind, { runId: first.id, side: segment.side });
+    appendSegment(outer, cluster.start, cluster.end, 'run', { runId: first.id, runIds: cluster.runs.map((run) => run.id) });
+    for (const segment of cluster.after) appendSegment(outer, segment.start, segment.end, segment.kind, { runId: last.id, side: segment.side });
+    cursor = cluster.reachEnd;
+  }
   appendOpenGap(outer, cursor, rangeEnd, tallRanges);
   if (right) outer.push(right);
 

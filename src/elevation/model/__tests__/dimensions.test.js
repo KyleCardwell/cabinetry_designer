@@ -9,6 +9,7 @@ import {
   pickColumnRuns,
   verticalChains,
   verticalOpeningChain,
+  wallRow,
 } from '../dimensions.js';
 import { gridFromItems } from '../grid.js';
 import { syncRoom } from '../room.js';
@@ -324,7 +325,7 @@ describe('FL2.1 step b lapped corner dimensions', () => {
         expect(segment.kind).toBe('piece');
         expectContiguous(inner, index === 0 ? 84.875 : 120.875);
         expect(result[index].outer).toEqual([
-          { start: 0, end: index === 0 ? 84.875 : 120.875, kind: 'run', runId: run.id },
+          { start: 0, end: index === 0 ? 84.875 : 120.875, kind: 'run', runId: run.id, runIds: [run.id] },
         ]);
       });
     }
@@ -342,20 +343,19 @@ describe('horizontalChains', () => {
     });
   });
 
-  it('2. lays out A inner pieces between its open and corner gaps', () => {
+  it('2. lays out A inner pieces and its corner gap, without the open gap (DM3)', () => {
     const room = cornerRunRoom();
     const wall = room.walls.find(({ id }) => id === 'A');
     const { inner } = horizontalChains(room, wall, 'lower', DEFAULT_SETTINGS);
 
     expect(inner.map(({ kind }) => kind)).toEqual([
-      'open',
       'piece',
       'piece',
       'piece',
       'piece',
       'corner-gap',
     ]);
-    expectNumbersClose(lengths(inner), [35.125, 1.5, 28.5, 28.5, 1.5, 24.875]);
+    expectNumbersClose(lengths(inner), [1.5, 28.5, 28.5, 1.5, 24.875]);
   });
 
   it('3. expands A outer run across the right corner gap', () => {
@@ -365,9 +365,9 @@ describe('horizontalChains', () => {
 
     expect(chains.outer).toEqual([
       { start: 0, end: 35.125, kind: 'open' },
-      { start: 35.125, end: 120, kind: 'run', runId: 'A-base' },
+      { start: 35.125, end: 120, kind: 'run', runId: 'A-base', runIds: ['A-base'] },
     ]);
-    expectContiguous(chains.inner, 120);
+    expectContiguous(chains.inner, 35.125, 120);
     expectContiguous(chains.outer, 120);
   });
 
@@ -382,18 +382,20 @@ describe('horizontalChains', () => {
       end: 72.875,
       kind: 'run',
       runId: 'B-base',
+      runIds: ['B-base'],
     });
   });
 
-  it('SPEC-10 5. keeps the full upper wall row when only base runs exist', () => {
+  it('DM3: leaves the wall length to the wall row below when only base runs exist', () => {
     const room = roomR({
       wallA: { runs: [cabinetRun('base', CABINET_TYPE_IDS.BASE)] },
     });
     const wall = room.walls.find(({ id }) => id === 'A');
     expect(horizontalChains(room, wall, 'upper', DEFAULT_SETTINGS)).toEqual({
       inner: [],
-      outer: [{ start: 0, end: 120, kind: 'wall' }],
+      outer: [],
     });
+    expect(wallRow(room, wall, DEFAULT_SETTINGS)).toEqual([{ start: 0, end: 120, kind: 'wall' }]);
   });
 
   it('SPEC-10 6. omits the wall row for a zero-length wall', () => {
@@ -406,7 +408,7 @@ describe('horizontalChains', () => {
     });
   });
 
-  it('6. splits upper open space where a tall run spans the wall', () => {
+  it('6. keeps the tall span on the upper piece row', () => {
     const room = syncRoom(roomR({
       wallA: {
         runs: [
@@ -425,8 +427,10 @@ describe('horizontalChains', () => {
       kind: 'tall-span',
       runId: 'tall',
     });
-    expect(inner[tallIndex - 1]).toMatchObject({ start: 30, end: 60, kind: 'open' });
-    expect(inner[tallIndex + 1]).toMatchObject({ start: 84, end: 120, kind: 'open' });
+    // DM3: the open spaces either side leave the piece row.
+    expect(inner[tallIndex - 1]).toMatchObject({ end: 30, kind: 'piece' });
+    expect(inner.some(({ kind }) => kind === 'open')).toBe(false);
+    expect(inner).toHaveLength(tallIndex + 1);
   });
 
   it('13. extends both chains across a left-overhanging run', () => {
@@ -443,7 +447,7 @@ describe('horizontalChains', () => {
 
     expect(chains.inner[0].start).toBe(-6);
     expect(chains.outer[0]).toMatchObject({ start: -6, end: 54, kind: 'run' });
-    expectContiguous(chains.inner, -6, 120);
+    expectContiguous(chains.inner, -6, 54);
     expectContiguous(chains.outer, -6, 120);
   });
 
@@ -474,9 +478,9 @@ describe('horizontalChains', () => {
     expect([...wallA.inner, ...wallA.outer].some(({ runId }) => runId === 'B1')).toBe(false);
     expect(wallB.inner[0]).toEqual(leftNeighbor);
     expect(wallB.outer[0]).toEqual(leftNeighbor);
-    expectContiguous(wallA.inner, 0, 150);
+    expectContiguous(wallA.inner, 90, 150);
     expectContiguous(wallA.outer, 0, 150);
-    expectContiguous(wallB.inner, -30, 120);
+    expectContiguous(wallB.inner, -30, 30);
     expectContiguous(wallB.outer, -30, 120);
   });
 
@@ -504,7 +508,6 @@ describe('horizontalChains', () => {
         neighborRunId: 'U1',
       }],
       outer: [
-        { start: 0, end: 120, kind: 'wall' },
         {
           start: 120,
           end: 150,
@@ -837,7 +840,12 @@ it('keeps fixed-seed valid horizontal chains contiguous and full length', () => 
 
     for (const band of ['lower', 'upper']) {
       const chains = horizontalChains(room, syncedWall, band, DEFAULT_SETTINGS);
-      expectContiguous(chains.inner, length);
+      // DM3: the piece row skips open space, so it is ordered and gapped, not contiguous.
+      expect(chains.inner.some(({ kind }) => kind === 'open')).toBe(false);
+      chains.inner.forEach((segment, index) => {
+        expect(segment.end - segment.start).toBeGreaterThan(1e-6);
+        if (index > 0) expect(segment.start).toBeGreaterThanOrEqual(chains.inner[index - 1].end - 1e-8);
+      });
       expectContiguous(chains.outer, length);
     }
   }
@@ -950,13 +958,11 @@ describe('SPEC-36 opening dimensions', () => {
   it('dimensions a face frame stile to opening, and a gap between boxes', () => {
     const inset = { ...roomR({ wallA: { runs: [F] } }), style: { cabinetStyleId: 14 } };
     expect(horizontalChains(inset, wallOf(inset), 'lower', DEFAULT_SETTINGS).inner).toEqual([
-      { start: 0, end: 24, kind: 'open' },
       { start: 24, end: 24.75, kind: 'frame', runId: 'F' },
       { start: 24.75, end: 41.25, kind: 'frame-opening', runId: 'F', pieceId: 'a' },
       { start: 41.25, end: 42.75, kind: 'frame', runId: 'F' },
       { start: 42.75, end: 59.25, kind: 'frame-opening', runId: 'F', pieceId: 'b' },
       { start: 59.25, end: 60, kind: 'frame', runId: 'F' },
-      { start: 60, end: 120, kind: 'open' },
     ]);
 
     const spaced = {
@@ -964,7 +970,7 @@ describe('SPEC-36 opening dimensions', () => {
       items: [{ id: 'a', kind: 'cabinet', width: null }, { id: 'b', kind: 'cabinet', width: null }],
     };
     const euro = roomR({ wallA: { runs: [spaced] } });
-    expect(horizontalChains(euro, wallOf(euro), 'lower', DEFAULT_SETTINGS).inner.slice(1, 4)).toEqual([
+    expect(horizontalChains(euro, wallOf(euro), 'lower', DEFAULT_SETTINGS).inner.slice(0, 3)).toEqual([
       { start: 24, end: 42, kind: 'piece', runId: 'F', pieceId: 'a' },
       { start: 42, end: 42.5, kind: 'gap', runId: 'F' },
       { start: 42.5, end: 60.5, kind: 'piece', runId: 'F', pieceId: 'b' },

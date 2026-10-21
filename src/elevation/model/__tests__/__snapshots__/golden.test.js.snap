@@ -1482,16 +1482,14 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
             ],
             "outer": [
               {
-                "end": 30,
-                "kind": "run",
-                "runId": "b38f2f11-5318-42f2-9d95-8b9b3d1b9087",
-                "start": -0.0625,
-              },
-              {
                 "end": 168,
                 "kind": "run",
-                "runId": "b822e8ac-1a44-47ca-acec-ecb93caf7b8a",
-                "start": 30,
+                "runId": "b38f2f11-5318-42f2-9d95-8b9b3d1b9087",
+                "runIds": [
+                  "b38f2f11-5318-42f2-9d95-8b9b3d1b9087",
+                  "b822e8ac-1a44-47ca-acec-ecb93caf7b8a",
+                ],
+                "start": -0.0625,
               },
             ],
           },
@@ -1906,11 +1904,6 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                 "start": -0.0625,
               },
               {
-                "end": 108.5,
-                "kind": "open",
-                "start": 30,
-              },
-              {
                 "end": 109.3125,
                 "kind": "piece",
                 "pieceId": "434f1164-3b6b-4a97-89e7-1c6438c4d95a:left",
@@ -1960,29 +1953,14 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                 "end": 168,
                 "kind": "run",
                 "runId": "434f1164-3b6b-4a97-89e7-1c6438c4d95a",
+                "runIds": [
+                  "434f1164-3b6b-4a97-89e7-1c6438c4d95a",
+                ],
                 "start": 108.5,
               },
             ],
           },
-          "wallRow": [
-            {
-              "end": 48,
-              "kind": "gap",
-              "start": 0,
-            },
-            {
-              "end": 96,
-              "kind": "opening",
-              "label": "W1",
-              "openingId": "93ab97a1-ce31-4283-8240-ead92a6ae665",
-              "start": 48,
-            },
-            {
-              "end": 168,
-              "kind": "gap",
-              "start": 96,
-            },
-          ],
+          "wallRow": [],
         },
       },
     },
@@ -2068,6 +2046,9 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                 "end": 120,
                 "kind": "run",
                 "runId": "4b64d096-54b1-49d9-88e9-39c84bc14bb4",
+                "runIds": [
+                  "4b64d096-54b1-49d9-88e9-39c84bc14bb4",
+                ],
                 "start": 0,
               },
             ],
@@ -2477,6 +2458,9 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                 "end": 120,
                 "kind": "run",
                 "runId": "4a087225-0a3c-4de0-9bdf-6c86d935aa25",
+                "runIds": [
+                  "4a087225-0a3c-4de0-9bdf-6c86d935aa25",
+                ],
                 "start": 0,
               },
             ],
@@ -2556,11 +2540,6 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
           "lower": {
             "inner": [
               {
-                "end": 0.75,
-                "kind": "open",
-                "start": -0.0625,
-              },
-              {
                 "end": 30.75,
                 "kind": "piece",
                 "pieceId": "24332001-56d2-48f1-b88b-21dd2ff21a97",
@@ -2581,11 +2560,6 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                 "runId": "ea6e45b1-6c75-4f5a-940d-4e257fedcb86",
                 "start": 60.75,
               },
-              {
-                "end": 91.5625,
-                "kind": "open",
-                "start": 90.75,
-              },
             ],
             "outer": [
               {
@@ -2597,6 +2571,9 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                 "end": 90.75,
                 "kind": "run",
                 "runId": "ea6e45b1-6c75-4f5a-940d-4e257fedcb86",
+                "runIds": [
+                  "ea6e45b1-6c75-4f5a-940d-4e257fedcb86",
+                ],
                 "start": 0.75,
               },
               {
@@ -2736,13 +2713,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
           ],
           "upper": {
             "inner": [],
-            "outer": [
-              {
-                "end": 91.5625,
-                "kind": "wall",
-                "start": -0.0625,
-              },
-            ],
+            "outer": [],
           },
           "wallRow": [],
         },
@@ -2750,11 +2721,6 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
           "clearanceRow": [],
           "lower": {
             "inner": [
-              {
-                "end": 0.75,
-                "kind": "open",
-                "start": -0.0625,
-              },
               {
                 "end": 30.75,
                 "kind": "piece",
@@ -2776,11 +2742,6 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                 "runId": "19d681d0-c6a0-45e3-9c56-640aa9eae1af",
                 "start": 60.75,
               },
-              {
-                "end": 91.5625,
-                "kind": "open",
-                "start": 90.75,
-              },
             ],
             "outer": [
               {
@@ -2792,6 +2753,9 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                 "end": 90.75,
                 "kind": "run",
                 "runId": "19d681d0-c6a0-45e3-9c56-640aa9eae1af",
+                "runIds": [
+                  "19d681d0-c6a0-45e3-9c56-640aa9eae1af",
+                ],
                 "start": 0.75,
               },
               {
@@ -2931,13 +2895,7 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
           ],
           "upper": {
             "inner": [],
-            "outer": [
-              {
-                "end": 91.5625,
-                "kind": "wall",
-                "start": -0.0625,
-              },
-            ],
+            "outer": [],
           },
           "wallRow": [],
         },
@@ -3936,11 +3894,6 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
           "lower": {
             "inner": [
               {
-                "end": 49.9375,
-                "kind": "open",
-                "start": 0,
-              },
-              {
                 "end": 51.75,
                 "kind": "frame",
                 "runId": "a42e9a57-a98f-47f0-b6b4-9076b513db6e",
@@ -4011,16 +3964,14 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                 "start": 0,
               },
               {
-                "end": 76.5,
-                "kind": "run",
-                "runId": "a42e9a57-a98f-47f0-b6b4-9076b513db6e",
-                "start": 49.9375,
-              },
-              {
                 "end": 172,
                 "kind": "run",
-                "runId": "860a1197-d14f-4fc2-9499-2d44cd1d8fa3",
-                "start": 76.5,
+                "runId": "a42e9a57-a98f-47f0-b6b4-9076b513db6e",
+                "runIds": [
+                  "a42e9a57-a98f-47f0-b6b4-9076b513db6e",
+                  "860a1197-d14f-4fc2-9499-2d44cd1d8fa3",
+                ],
+                "start": 49.9375,
               },
               {
                 "end": 196,
@@ -4436,11 +4387,6 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
           "upper": {
             "inner": [
               {
-                "end": 49.9375,
-                "kind": "open",
-                "start": 0,
-              },
-              {
                 "end": 76.5,
                 "kind": "tall-span",
                 "runId": "a42e9a57-a98f-47f0-b6b4-9076b513db6e",
@@ -4508,29 +4454,14 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                 "end": 172,
                 "kind": "run",
                 "runId": "ab0981ca-8621-45ba-a924-dbe318646f67",
+                "runIds": [
+                  "ab0981ca-8621-45ba-a924-dbe318646f67",
+                ],
                 "start": 76.5,
               },
             ],
           },
-          "wallRow": [
-            {
-              "end": 5,
-              "kind": "gap",
-              "start": 0,
-            },
-            {
-              "end": 41,
-              "kind": "opening",
-              "label": "D1",
-              "openingId": "6c5010bf-ce59-494b-8c69-b37f33af3e70",
-              "start": 5,
-            },
-            {
-              "end": 172,
-              "kind": "gap",
-              "start": 41,
-            },
-          ],
+          "wallRow": [],
         },
       },
     },
@@ -4545,11 +4476,6 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
           "clearanceRow": [],
           "lower": {
             "inner": [
-              {
-                "end": 0.8125,
-                "kind": "open",
-                "start": 0,
-              },
               {
                 "end": 78.5,
                 "kind": "piece",
@@ -4568,6 +4494,9 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                 "end": 78.5,
                 "kind": "run",
                 "runId": "2c8ab1e3-3bad-4a28-bb80-24ee4df20b81",
+                "runIds": [
+                  "2c8ab1e3-3bad-4a28-bb80-24ee4df20b81",
+                ],
                 "start": 0.8125,
               },
             ],
@@ -4617,13 +4546,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
           ],
           "upper": {
             "inner": [],
-            "outer": [
-              {
-                "end": 78.5,
-                "kind": "wall",
-                "start": 0,
-              },
-            ],
+            "outer": [],
           },
           "wallRow": [],
         },
@@ -4674,6 +4597,9 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                 "end": 77.6875,
                 "kind": "run",
                 "runId": "4b49c071-463c-461e-b750-005d3fe8bec7",
+                "runIds": [
+                  "4b49c071-463c-461e-b750-005d3fe8bec7",
+                ],
                 "start": 0,
               },
               {
@@ -4791,19 +4717,8 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                 "start": 0,
                 "wallId": "e10e98d3-30bd-4ec1-8a67-81d3923598e1",
               },
-              {
-                "end": 78.5,
-                "kind": "open",
-                "start": 12.8125,
-              },
             ],
-            "outer": [
-              {
-                "end": 78.5,
-                "kind": "wall",
-                "start": 0,
-              },
-            ],
+            "outer": [],
           },
           "wallRow": [],
         },
@@ -5557,17 +5472,15 @@ exports[`C1 golden rooms > G3 Bath alcove derives exactly what it did 1`] = `
                 "start": 72,
                 "wallId": "5ab00c5d-9ea6-4d32-9586-d266db26a4d2",
               },
-              {
-                "end": 168,
-                "kind": "open",
-                "start": 76.5,
-              },
             ],
             "outer": [
               {
                 "end": 72,
                 "kind": "run",
                 "runId": "02c88254-9a83-4002-9fda-912cd06a2a21",
+                "runIds": [
+                  "02c88254-9a83-4002-9fda-912cd06a2a21",
+                ],
                 "start": 0,
               },
               {
@@ -5880,17 +5793,15 @@ exports[`C1 golden rooms > G3 Bath alcove derives exactly what it did 1`] = `
                 "start": 72,
                 "wallId": "5ab00c5d-9ea6-4d32-9586-d266db26a4d2",
               },
-              {
-                "end": 168,
-                "kind": "open",
-                "start": 76.5,
-              },
             ],
             "outer": [
               {
                 "end": 72,
                 "kind": "run",
                 "runId": "bcdd4e78-0d52-40d0-9f5d-2901e590e98a",
+                "runIds": [
+                  "bcdd4e78-0d52-40d0-9f5d-2901e590e98a",
+                ],
                 "start": 0,
               },
               {
@@ -5906,24 +5817,7 @@ exports[`C1 golden rooms > G3 Bath alcove derives exactly what it did 1`] = `
               },
             ],
           },
-          "wallRow": [
-            {
-              "end": 72,
-              "kind": "gap",
-              "start": 0,
-            },
-            {
-              "end": 76.5,
-              "kind": "wall",
-              "start": 72,
-              "wallId": "5ab00c5d-9ea6-4d32-9586-d266db26a4d2",
-            },
-            {
-              "end": 168,
-              "kind": "gap",
-              "start": 76.5,
-            },
-          ],
+          "wallRow": [],
         },
       },
     },
@@ -6424,11 +6318,6 @@ exports[`C1 golden rooms > G4 T-filler run derives exactly what it did 1`] = `
           "lower": {
             "inner": [
               {
-                "end": 13,
-                "kind": "open",
-                "start": 0,
-              },
-              {
                 "end": 14.5625,
                 "kind": "piece",
                 "pieceId": "738c73a7-adda-40e0-bca9-a881403c1ffa:left",
@@ -6488,6 +6377,9 @@ exports[`C1 golden rooms > G4 T-filler run derives exactly what it did 1`] = `
                 "end": 120,
                 "kind": "run",
                 "runId": "738c73a7-adda-40e0-bca9-a881403c1ffa",
+                "runIds": [
+                  "738c73a7-adda-40e0-bca9-a881403c1ffa",
+                ],
                 "start": 13,
               },
             ],
@@ -6751,13 +6643,7 @@ exports[`C1 golden rooms > G4 T-filler run derives exactly what it did 1`] = `
           ],
           "upper": {
             "inner": [],
-            "outer": [
-              {
-                "end": 120,
-                "kind": "wall",
-                "start": 0,
-              },
-            ],
+            "outer": [],
           },
           "wallRow": [],
         },
@@ -7628,11 +7514,6 @@ exports[`C1 golden rooms > G5 Recess room derives exactly what it did 1`] = `
                 "start": 79.1875,
               },
               {
-                "end": 140,
-                "kind": "open",
-                "start": 80,
-              },
-              {
                 "end": 141.5,
                 "kind": "piece",
                 "pieceId": "e9abb5dc-e72c-44c9-ac96-d3279b7752d9:left",
@@ -7660,24 +7541,17 @@ exports[`C1 golden rooms > G5 Recess room derives exactly what it did 1`] = `
                 "runId": "e9abb5dc-e72c-44c9-ac96-d3279b7752d9",
                 "start": 186.5,
               },
-              {
-                "end": 200,
-                "kind": "open",
-                "start": 188,
-              },
             ],
             "outer": [
               {
-                "end": 42.25,
-                "kind": "run",
-                "runId": "98b55b5e-3f4c-4e37-8597-f8f7a46b3412",
-                "start": 0,
-              },
-              {
                 "end": 80,
                 "kind": "run",
-                "runId": "1549b66c-9a22-4150-8aa2-ca7bdc54dd2c",
-                "start": 42.25,
+                "runId": "98b55b5e-3f4c-4e37-8597-f8f7a46b3412",
+                "runIds": [
+                  "98b55b5e-3f4c-4e37-8597-f8f7a46b3412",
+                  "1549b66c-9a22-4150-8aa2-ca7bdc54dd2c",
+                ],
+                "start": 0,
               },
               {
                 "end": 140,
@@ -7688,6 +7562,9 @@ exports[`C1 golden rooms > G5 Recess room derives exactly what it did 1`] = `
                 "end": 188,
                 "kind": "run",
                 "runId": "e9abb5dc-e72c-44c9-ac96-d3279b7752d9",
+                "runIds": [
+                  "e9abb5dc-e72c-44c9-ac96-d3279b7752d9",
+                ],
                 "start": 140,
               },
               {
@@ -8049,45 +7926,9 @@ exports[`C1 golden rooms > G5 Recess room derives exactly what it did 1`] = `
           ],
           "upper": {
             "inner": [],
-            "outer": [
-              {
-                "end": 200,
-                "kind": "wall",
-                "start": 0,
-              },
-            ],
+            "outer": [],
           },
-          "wallRow": [
-            {
-              "end": 32,
-              "kind": "gap",
-              "start": 0,
-            },
-            {
-              "end": 80,
-              "kind": "recess",
-              "label": "R1",
-              "recessId": "61c07d7e-ec8b-4306-9825-9f3decfb5fa1",
-              "start": 32,
-            },
-            {
-              "end": 140,
-              "kind": "gap",
-              "start": 80,
-            },
-            {
-              "end": 188,
-              "kind": "recess",
-              "label": "R2",
-              "recessId": "56ed5f83-a17f-4d5b-9bcf-b72501cecc4d",
-              "start": 140,
-            },
-            {
-              "end": 200,
-              "kind": "gap",
-              "start": 188,
-            },
-          ],
+          "wallRow": [],
         },
       },
     },
@@ -9019,11 +8860,6 @@ exports[`C1 golden rooms > G6 Stacked runs derives exactly what it did 1`] = `
                 "start": 100.1875,
               },
               {
-                "end": 128.5,
-                "kind": "open",
-                "start": 101,
-              },
-              {
                 "end": 129.3125,
                 "kind": "piece",
                 "pieceId": "01a2a0e1-4bd1-434d-9c9b-66bc20ee7e54:left",
@@ -9057,6 +8893,9 @@ exports[`C1 golden rooms > G6 Stacked runs derives exactly what it did 1`] = `
                 "end": 101,
                 "kind": "run",
                 "runId": "677ec7a5-d97a-4cfd-8843-f960e3334ea2",
+                "runIds": [
+                  "677ec7a5-d97a-4cfd-8843-f960e3334ea2",
+                ],
                 "start": 0,
               },
               {
@@ -9068,6 +8907,9 @@ exports[`C1 golden rooms > G6 Stacked runs derives exactly what it did 1`] = `
                 "end": 200,
                 "kind": "run",
                 "runId": "01a2a0e1-4bd1-434d-9c9b-66bc20ee7e54",
+                "runIds": [
+                  "01a2a0e1-4bd1-434d-9c9b-66bc20ee7e54",
+                ],
                 "start": 128.5,
               },
             ],
@@ -9639,17 +9481,15 @@ exports[`C1 golden rooms > G6 Stacked runs derives exactly what it did 1`] = `
                 "runId": "ea4373b3-87f2-4f39-a7cc-2c829c839832",
                 "start": 100.1875,
               },
-              {
-                "end": 200,
-                "kind": "open",
-                "start": 101,
-              },
             ],
             "outer": [
               {
                 "end": 101,
                 "kind": "run",
                 "runId": "ea4373b3-87f2-4f39-a7cc-2c829c839832",
+                "runIds": [
+                  "ea4373b3-87f2-4f39-a7cc-2c829c839832",
+                ],
                 "start": 0,
               },
               {

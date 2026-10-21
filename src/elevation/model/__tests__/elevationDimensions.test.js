@@ -15,7 +15,7 @@ const row = ({
 }) => [name, kind, start, end, base, at, text, ...(textX === undefined ? [] : [textX, textZ])];
 
 /** The rows below and above the wall only (SPEC-43.2 adds vertical columns, SPEC-43.3 cell chains and callouts). */
-const ROWS = ['lower.inner', 'lower.outer', 'openings', 'upper.inner', 'upper.outer'];
+const ROWS = ['lower.inner', 'lower.outer', 'openings', 'wall', 'upper.inner', 'upper.outer'];
 const horizontal = (dimensions) => dimensions.filter(({ row: name }) => ROWS.includes(name));
 
 describe('SPEC-43 elevation dimensions', () => {
@@ -49,13 +49,9 @@ describe('SPEC-43 elevation dimensions', () => {
       ['lower.inner', 'piece', 115.5, 141, 0, -9, '25 1/2'],
       ['lower.inner', 'piece', 141, 143.125, 0, -9, '2 1/8', 142.0625, -11.625],
       ['lower.inner', 'corner-gap', 143.125, 168, 0, -9, '24 7/8'],
-      ['lower.outer', 'run', 0, 30, 0, -21.75, '30'],
-      ['lower.outer', 'run', 30, 168, 0, -21.75, '138'],
-      ['openings', 'gap', 0, 48, 0, -30.75, '48'],
-      ['openings', 'opening', 48, 96, 0, -30.75, '48'],
-      ['openings', 'gap', 96, 168, 0, -30.75, '72'],
+      // DM3: the tall and base runs touch, one segment corner to corner, so no wall row; no openings row.
+      ['lower.outer', 'run', 0, 168, 0, -21.75, '168'],
       ['upper.inner', 'tall-span', 0, 30, 96, 105, '30'],
-      ['upper.inner', 'open', 30, 108.5, 96, 105, '78 1/2'],
       ['upper.inner', 'piece', 108.5, 109.3125, 96, 105, '13/16', 108.90625, 111.375],
       ['upper.inner', 'piece', 109.3125, 131.3125, 96, 105, '22'],
       ['upper.inner', 'piece', 131.3125, 153.3125, 96, 105, '22'],
@@ -89,22 +85,29 @@ describe('SPEC-43 elevation dimensions', () => {
     expect(dimensions).toHaveLength(14);
   });
 
-  it('dimensions the wall above when there are no uppers, and recesses in the wall row (G1 island, G5)', () => {
+  it('DM3: dimensions the wall below when there are no uppers; recesses only on faces without runs (G1 island, G5)', () => {
     const g1 = room('G1 Euro kitchen');
-    expect(horizontal(elevationDimensions(g1, g1.walls[3], 'back', settings)).map(row).slice(5)).toEqual([
-      ['lower.outer', 'open', 0, 0.8125, 0, -21.75, '13/16', 0.40625, -24.375],
-      ['lower.outer', 'run', 0.8125, 90.6875, 0, -21.75, '89 7/8'],
-      ['lower.outer', 'open', 90.6875, 91.5, 0, -21.75, '13/16', 91.09375, -24.375],
-      ['upper.outer', 'wall', 0, 91.5, 36, 45, '91 1/2'],
+    expect(horizontal(elevationDimensions(g1, g1.walls[3], 'back', settings)).map(row).slice(3)).toEqual([
+      ['lower.outer', 'open', 0, 0.8125, 0, -18, '13/16', 0.40625, -20.625],
+      ['lower.outer', 'run', 0.8125, 90.6875, 0, -18, '89 7/8'],
+      ['lower.outer', 'open', 90.6875, 91.5, 0, -18, '13/16', 91.09375, -20.625],
+      ['wall', 'wall', 0, 91.5, 0, -30.75, '91 1/2'],
     ]);
     const g5 = room('G5 Recess room');
     expect(elevationDimensions(g5, g5.walls[1], 'front', settings)
+      .filter(({ row: name }) => name === 'openings' || name === 'wall').map(row)).toEqual([
+      ['wall', 'wall', 0, 200, 0, -30.75, '200'],
+    ]);
+    const bare = structuredClone(document.rooms.find(({ name }) => name === 'G5 Recess room'));
+    bare.walls[1].runs = [];
+    const g5Bare = syncRoom(bare, settings);
+    expect(elevationDimensions(g5Bare, g5Bare.walls[1], 'front', settings)
       .filter(({ row: name }) => name === 'openings').map(row)).toEqual([
-      ['openings', 'gap', 0, 32, 0, -30.75, '32'],
-      ['openings', 'recess', 32, 80, 0, -30.75, '48'],
-      ['openings', 'gap', 80, 140, 0, -30.75, '60'],
-      ['openings', 'recess', 140, 188, 0, -30.75, '48'],
-      ['openings', 'gap', 188, 200, 0, -30.75, '12'],
+      ['openings', 'gap', 0, 32, 0, -18, '32'],
+      ['openings', 'recess', 32, 80, 0, -18, '48'],
+      ['openings', 'gap', 80, 140, 0, -18, '60'],
+      ['openings', 'recess', 140, 188, 0, -18, '48'],
+      ['openings', 'gap', 188, 200, 0, -18, '12'],
     ]);
   });
 });
