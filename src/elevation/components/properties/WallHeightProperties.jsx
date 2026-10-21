@@ -424,6 +424,7 @@ export default function WallHeightProperties({ room, wall, plan }) {
           level="wall"
           fields={bandFieldsFor('wall', { furnitureBase: resolvedProfile.baseKind === 'furniture_base' })}
           renderField={renderHeightField}
+          isSet={(key) => wall.profile?.[key] !== undefined}
           warnings={[...moldings.warnings, ...base.warnings]}
           overlap={overlap}
         />

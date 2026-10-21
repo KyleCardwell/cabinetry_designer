@@ -1,7 +1,8 @@
 import { MOLDING_NOTES, warningBandId } from '../model/heightBands.js';
 import { formatInches } from '../model/units.js';
+import PanelSection from './panel/PanelSection.jsx';
 
-export default function HeightBands({ level, fields, renderField, warnings = [], overlap }) {
+export default function HeightBands({ level, fields, renderField, isSet, warnings = [], overlap }) {
   return (
     <div className="space-y-3" data-height-level={level}>
       {fields.map((band) => {
@@ -9,8 +10,14 @@ export default function HeightBands({ level, fields, renderField, warnings = [],
           .filter(({ control }) => control != null)).filter((row) => row.length > 0);
         if (!rows.length) return null;
         return (
-          <section key={band.id} data-height-band={band.id}>
-            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">{band.label}</h3>
+          <PanelSection
+            key={band.id}
+            id={`band.${band.id}`}
+            title={band.label}
+            level={2}
+            data-height-band={band.id}
+            badge={isSet ? band.rows.flat().filter(({ key }) => isSet(key)).length : undefined}
+          >
             <div className="space-y-2">
               {rows.map((row) => (
                 <div key={row.map(({ field }) => field.key).join('-')} className={row.length === 2 ? 'grid grid-cols-2 gap-2' : undefined}>
@@ -30,7 +37,7 @@ export default function HeightBands({ level, fields, renderField, warnings = [],
                   : MOLDING_NOTES[code]}
               </p>
             ))}
-          </section>
+          </PanelSection>
         );
       })}
     </div>

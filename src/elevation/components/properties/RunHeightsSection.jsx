@@ -174,6 +174,7 @@ export default function RunHeightsSection({
             level="run"
             fields={bandFieldsFor('run', { cabinetTypeId: run.cabinetTypeId, furnitureBase: base.kind === 'furniture_base' })}
             renderField={renderHeightField}
+            isSet={(key) => run.overrides[key] !== undefined}
             warnings={floorBase ? base.warnings.filter((warning) => !warning.cutoutId) : []}
           />
         </div>

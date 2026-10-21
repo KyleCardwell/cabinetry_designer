@@ -299,7 +299,9 @@ describe('UI1 step a room height bands', () => {
   it('orders all five bands and toe-kick fields without furniture rows (anchor 1)', () => {
     state.settings.sectionProfiles = [];
     const tree = render();
-    expect(nodes(tree).filter(({ type }) => type === 'h3').map(text)).toEqual(['Wall', 'Crown', 'Uppers', 'Countertop', 'Base']);
+    expect(nodes(tree).filter(({ props }) => props['data-height-band'])
+      .map((section) => text(nodes(section).find(({ props }) => props.className === 'uppercase tracking-wide'))))
+      .toEqual(['Wall', 'Crown', 'Uppers', 'Countertop', 'Base']);
     expect(controls(band(tree, 'base'))).toEqual(['Room Base', 'Room Toe kick / base height', 'Room Base box height', ...setbacks]);
   });
 
@@ -321,11 +323,11 @@ describe('UI1 step a room height bands', () => {
     const crown = band(render(), 'crown');
     expect(controls(crown)).toEqual(['Room Top of crown', 'Room Crown total', 'Room Crown', 'Room Crown profile',
       'Room Top mold', 'Room Top mold profile', 'Room Top mold overhang', 'Room Band depth crown projection']);
-    const rows = crown.props.children[1].props.children;
+    const rows = nodes(crown).find(({ props }) => props.className === 'space-y-2').props.children;
     expect(rows.slice(0, 3).map(controls)).toEqual([
       ['Room Top of crown', 'Room Crown total'], ['Room Crown', 'Room Crown profile'], ['Room Top mold', 'Room Top mold profile'],
     ]);
-    expect(text(crown.props.children[2])).toMatch(/Overlap|Gap/);
+    expect(nodes(crown).some(({ type, props }) => type === 'p' && /Overlap|Gap/.test(text(props.children)))).toBe(true);
     commit('Room Band depth crown projection', '4');
     expect(room().settingsOverrides.bandDepths.crownProjection).toBe(4);
     expect(state.settings.bandDepths.crownProjection).toBe(3);

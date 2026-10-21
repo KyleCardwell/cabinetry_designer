@@ -15,9 +15,9 @@ import InchInput from './InchInput.jsx';
 import Field from './properties/Field.jsx';
 import OverrideField from './OverrideField.jsx';
 import OverrideInput from './OverrideInput.jsx';
-import SettingField from './SettingField.jsx';
+import SettingField, { ownSettingValue } from './SettingField.jsx';
 import HeightBands from './HeightBands.jsx';
-import { bandFieldsFor } from '../model/heightBands.js';
+import { BAND_SETTING_KEYS, bandFieldsFor } from '../model/heightBands.js';
 
 export default function RoomHeightsPanel() {
   const dispatch = useDispatch();
@@ -131,6 +131,9 @@ export default function RoomHeightsPanel() {
             level="room"
             fields={bandFieldsFor('room', { furnitureBase: resolvedProfile.baseKind === 'furniture_base' })}
             renderField={renderField}
+            isSet={(key) => BAND_SETTING_KEYS.includes(key)
+              ? ownSettingValue(room.settingsOverrides, key) !== null
+              : room.profile[key] !== undefined}
             warnings={[...moldings.warnings, ...base.warnings]}
             overlap={overlap}
           />

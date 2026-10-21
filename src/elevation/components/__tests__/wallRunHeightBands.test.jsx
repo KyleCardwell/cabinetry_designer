@@ -69,10 +69,10 @@ describe('UI1 step b wall and run height bands', () => {
     const crown = band(tree, 'crown');
     expect(controls(crown)).toEqual(wallLabels(['Top of crown', 'Crown total', 'Crown', 'Crown profile',
       'Top mold', 'Top mold profile', 'Top mold overhang']));
-    expect(crown.props.children[1].props.children.slice(0, 3).map(controls)).toEqual([
+    expect(crown.props.children[0].props.children.slice(0, 3).map(controls)).toEqual([
       wallLabels(['Top of crown', 'Crown total']), wallLabels(['Crown', 'Crown profile']), wallLabels(['Top mold', 'Top mold profile']),
     ]);
-    expect(text(crown.props.children[2])).toMatch(/Overlap|Gap/);
+    expect(text(crown.props.children[1])).toMatch(/Overlap|Gap/);
     expect(controls(band(tree, 'countertop'))).toEqual(wallLabels(['Countertop thickness', 'Nosing profile']));
     expect(controls(band(tree, 'base'))).toEqual(wallLabels(['Base', 'Toe kick / base height']));
     expect(getByLabelText(tree, 'Wall Top of crown override').props).toMatchObject({ value: null, placeholder: '90' });
@@ -111,7 +111,7 @@ describe('UI1 step b wall and run height bands', () => {
     expect(controls(band(tree, 'countertop'))).toEqual(runLabels(['Countertop']));
     expect(controls(band(tree, 'base'))).toEqual(runLabels(['Base', 'Toe kick / base height', 'Box height',
       'Furniture base profile', 'Base proud']));
-    expect(band(tree, 'base').props.children[1].props.children.map(controls)).toEqual([
+    expect(band(tree, 'base').props.children[0].props.children.map(controls)).toEqual([
       runLabels(['Base', 'Toe kick / base height']), runLabels(['Box height']), runLabels(['Furniture base profile', 'Base proud']),
     ]);
     getByLabelText(tree, 'Run Base proud override').props.onCommit(0);
