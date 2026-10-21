@@ -23,6 +23,8 @@ import SettingsPanel from '../components/SettingsPanel.jsx';
 import SettingGroups from '../components/SettingGroups.jsx';
 import WallList from '../components/WallList.jsx';
 import JsonToggle from '../components/JsonToggle.jsx';
+import ExportDxfButton from '../components/ExportDxfButton.jsx';
+import ReportsButton from '../../reports/ReportsButton.jsx';
 import elevationReducer, { createInitialElevationState, setTool, setView } from '../store/elevationSlice.js';
 
 vi.mock('react', async (original) => ({
@@ -203,5 +205,38 @@ describe('DB6b b shared designer editor', () => {
       button(toolbar.tree, view === 'plan' ? 'elevation' : 'plan').props.onClick();
       expect(state.view).toBe(view === 'plan' ? 'elevation' : 'plan');
     }
+  });
+});
+
+describe('UI4 room outputs and toolbar groups', () => {
+  it('puts Export DXF then Reports in the left panel header, outside any locked fieldset (anchor 1)', () => {
+    for (const props of [{ mode: 'lab' }, { mode: 'room', header: <p>H</p> }, { mode: 'room', header: <p>H</p>, readOnly: true }]) {
+      const { tree } = renderComponent(DesignerEditor, props);
+      const aside = component(tree, 'aside');
+      const headerBlock = aside.props.children[0];
+      const outputs = field(headerBlock, 'Room outputs');
+      expect(outputs.props.children.map(({ type }) => type)).toEqual([ExportDxfButton, ReportsButton]);
+      const fieldsets = nodes(tree).filter((node) => node.type === 'fieldset');
+      fieldsets.forEach((fieldset) => expect(nodes(fieldset)).not.toContain(outputs));
+      expect(component(component(tree, 'section'), ExportDxfButton)).toBeUndefined();
+    }
+  });
+
+  it('splits the toolbar into tools, which wall and zoom groups that wrap, with zoom pushed right (anchor 2)', () => {
+    dispatch(setView('elevation'));
+    const elevation = renderComponent(ElevationToolbar, {}).tree;
+    expect(elevation.props.className).toContain('flex-wrap');
+    expect(elevation.props.className).toContain('min-w-0');
+    expect(elevation.props.children.filter(Boolean).map((child) => child.props['aria-label']))
+      .toEqual(['Canvas tools', 'Which wall', 'Zoom']);
+    expect(field(elevation, 'Zoom').props.className).toContain('ml-auto');
+    expect(button(field(elevation, 'Canvas tools'), 'Draw run')).toBeDefined();
+    expect(field(field(elevation, 'Which wall'), 'Wall side')).toBeDefined();
+    expect(field(field(elevation, 'Zoom'), 'Zoom in')).toBeDefined();
+    expect(button(field(elevation, 'Zoom'), 'Zoom to fit')).toBeDefined();
+    dispatch(setView('plan'));
+    const plan = renderComponent(ElevationToolbar, {}).tree;
+    expect(plan.props.children.filter(Boolean).map((child) => child.props['aria-label'])).toEqual(['Canvas tools', 'Zoom']);
+    expect(button(field(plan, 'Canvas tools'), 'Center room')).toBeDefined();
   });
 });

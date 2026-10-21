@@ -160,7 +160,8 @@ describe('DB8b e version page', () => {
     const toolbar = renderComponent(ElevationToolbar, toolbarChild.props);
     expect(button(toolbar.tree, 'Draw run')).toBeUndefined();
     expect(button(toolbar.tree, 'Draw wall')).toBeUndefined();
-    expect(component(toolbar.tree, ExportDxfButton)).toBeDefined();
+    expect(component(toolbar.tree, ExportDxfButton)).toBeUndefined();
+    expect(component(shared.tree, ExportDxfButton)).toBeDefined();
     const exportButton = renderComponent(ExportDxfButton);
     expect(button(exportButton.tree, 'Export DXF').props.disabled).toBe(false);
     page.unmount();

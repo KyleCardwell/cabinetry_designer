@@ -4,8 +4,6 @@ import { resolveSetting } from '../model/settingsResolve.js';
 import { overrideTitle } from './overrideHelpers.js';
 import AddToolMenu from './AddToolMenu.jsx';
 import CombinedElevationControl from './CombinedElevationControl.jsx';
-import ExportDxfButton from './ExportDxfButton.jsx';
-import ReportsButton from '../../reports/ReportsButton.jsx';
 import { nextWallId, wallLabel } from '../model/topology.js';
 import {
   centerRoomOnOrigin,
@@ -56,119 +54,120 @@ export default function ElevationToolbar({
   const soffitOverridden = room?.settingsOverrides?.defaultSoffitMolding != null;
 
   return (
-    <div className="flex min-h-12 shrink-0 items-center gap-2 border-b border-gray-700 bg-gray-800 px-4">
-      <div className="flex rounded bg-gray-950 p-0.5" aria-label="Canvas view">
-        {['plan', 'elevation'].map((viewName) => (
+    <div className="flex min-h-12 min-w-0 shrink-0 flex-wrap items-center gap-x-2 gap-y-1.5 border-b border-gray-700 bg-gray-800 px-4 py-1.5">
+      <div className="flex items-center gap-1" aria-label="Canvas tools">
+        <div className="flex rounded bg-gray-950 p-0.5" aria-label="Canvas view">
+          {['plan', 'elevation'].map((viewName) => (
+            <button
+              key={viewName}
+              type="button"
+              onClick={() => dispatch(setView(viewName))}
+              className={`rounded px-2.5 py-1 text-xs capitalize transition-colors ${
+                view === viewName ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              {viewName}
+            </button>
+          ))}
+        </div>
+        <div className="mx-1 h-5 w-px bg-gray-700" />
+        {toolNames.map((toolName) => (
           <button
-            key={viewName}
+            key={toolName}
             type="button"
-            onClick={() => dispatch(setView(viewName))}
-            className={`rounded px-2.5 py-1 text-xs capitalize transition-colors ${
-              view === viewName ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'
+            onClick={() => dispatch(setTool(toolName))}
+            className={`rounded px-3 py-1.5 text-sm capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+              tool === toolName
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
             }`}
           >
-            {viewName}
+            {toolName === 'draw'
+              ? 'Draw run'
+              : toolName === 'wall'
+                ? 'Draw wall'
+                : toolName}
           </button>
         ))}
-      </div>
-      <div className="mx-1 h-5 w-px bg-gray-700" />
-      {toolNames.map((toolName) => (
-        <button
-          key={toolName}
-          type="button"
-          onClick={() => dispatch(setTool(toolName))}
-          className={`rounded px-3 py-1.5 text-sm capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-            tool === toolName
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          {toolName === 'draw'
-            ? 'Draw run'
-            : toolName === 'wall'
-              ? 'Draw wall'
-              : toolName}
-        </button>
-      ))}
-      {!readOnly && (
-        <AddToolMenu
-          tools={addTools}
-          tool={tool}
-          disabledTools={view === 'elevation' && activeWallSide === 'back' ? ['door', 'window'] : []}
-          disabledTitle="Add doors and windows from the front"
-          onPick={(name) => dispatch(setTool(name))}
-        />
-      )}
-      {!readOnly && view === 'elevation' && tool === 'soffit' && (
-        <>
-          <div
-            className="flex rounded bg-gray-950 p-0.5"
-            aria-label="Default soffit molding"
-            title={overrideTitle({
-              overridden: soffitOverridden,
-              source: inheritedSoffit.source,
-              inheritedText: soffitChoices.find(([value]) => value === inheritedSoffit.value)?.[1],
-            })}
-          >
-            {soffitChoices.map(([value, label]) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={settings.defaultSoffitMolding === value}
-                onClick={() => dispatch(setRoomSetting({ roomId: activeRoomId, key: 'defaultSoffitMolding', value }))}
-                className={`rounded px-2.5 py-1 text-xs transition-colors ${
-                  settings.defaultSoffitMolding === value
-                    ? `bg-blue-600 text-white${soffitOverridden ? ' ring-1 ring-teal-500' : ''}`
-                    : 'text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-          {soffitOverridden && (
-            <button
-              type="button"
-              aria-label="Reset soffit molding"
-              onClick={() => dispatch(setRoomSetting({ roomId: activeRoomId, key: 'defaultSoffitMolding', value: null }))}
-              className="text-xs text-teal-400 hover:underline"
+        {!readOnly && (
+          <AddToolMenu
+            tools={addTools}
+            tool={tool}
+            disabledTools={view === 'elevation' && activeWallSide === 'back' ? ['door', 'window'] : []}
+            disabledTitle="Add doors and windows from the front"
+            onPick={(name) => dispatch(setTool(name))}
+          />
+        )}
+        {!readOnly && view === 'elevation' && tool === 'soffit' && (
+          <>
+            <div
+              className="flex rounded bg-gray-950 p-0.5"
+              aria-label="Default soffit molding"
+              title={overrideTitle({
+                overridden: soffitOverridden,
+                source: inheritedSoffit.source,
+                inheritedText: soffitChoices.find(([value]) => value === inheritedSoffit.value)?.[1],
+              })}
             >
-              Reset
-            </button>
-          )}
-        </>
-      )}
-      {view === 'plan' && (
-        <button
-          type="button"
-          aria-pressed={settings.orthoWalls}
-          onClick={() => dispatch(setPref({ key: 'orthoWalls', value: !settings.orthoWalls }))}
-          className={`rounded px-3 py-1.5 text-sm transition-colors ${
-            settings.orthoWalls
-              ? 'bg-cyan-700 text-white'
-              : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-          }`}
-        >
-          Ortho
-        </button>
-      )}
-      {view === 'plan' && (
-        <button
-          type="button"
-          disabled={(room?.walls.length ?? 0) === 0}
-          onClick={() => {
-            dispatch(centerRoomOnOrigin({ roomId: activeRoomId }));
-            onZoomToFit?.();
-          }}
-          className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Center room
-        </button>
-      )}
-      <div className="mx-1 h-5 w-px bg-gray-700" />
+              {soffitChoices.map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={settings.defaultSoffitMolding === value}
+                  onClick={() => dispatch(setRoomSetting({ roomId: activeRoomId, key: 'defaultSoffitMolding', value }))}
+                  className={`rounded px-2.5 py-1 text-xs transition-colors ${
+                    settings.defaultSoffitMolding === value
+                      ? `bg-blue-600 text-white${soffitOverridden ? ' ring-1 ring-teal-500' : ''}`
+                      : 'text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {soffitOverridden && (
+              <button
+                type="button"
+                aria-label="Reset soffit molding"
+                onClick={() => dispatch(setRoomSetting({ roomId: activeRoomId, key: 'defaultSoffitMolding', value: null }))}
+                className="text-xs text-teal-400 hover:underline"
+              >
+                Reset
+              </button>
+            )}
+          </>
+        )}
+        {view === 'plan' && (
+          <button
+            type="button"
+            aria-pressed={settings.orthoWalls}
+            onClick={() => dispatch(setPref({ key: 'orthoWalls', value: !settings.orthoWalls }))}
+            className={`rounded px-3 py-1.5 text-sm transition-colors ${
+              settings.orthoWalls
+                ? 'bg-cyan-700 text-white'
+                : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+            }`}
+          >
+            Ortho
+          </button>
+        )}
+        {view === 'plan' && (
+          <button
+            type="button"
+            disabled={(room?.walls.length ?? 0) === 0}
+            onClick={() => {
+              dispatch(centerRoomOnOrigin({ roomId: activeRoomId }));
+              onZoomToFit?.();
+            }}
+            className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            Center room
+          </button>
+        )}
+      </div>
       {view === 'elevation' && (
-        <>
-          <div className="ml-1 flex items-center gap-1" aria-label="Wall navigation">
+        <div className="flex items-center gap-1" aria-label="Which wall">
+          <div className="flex items-center gap-1" aria-label="Wall navigation">
             <button
               type="button"
               aria-label="Previous wall"
@@ -232,7 +231,11 @@ export default function ElevationToolbar({
           >
             Doors off
           </button>
-          <div className="flex items-center gap-1">
+        </div>
+      )}
+      <div className="ml-auto flex items-center gap-1" aria-label="Zoom">
+        {view === 'elevation' && (
+          <>
             <button
               type="button"
               aria-label="Zoom out"
@@ -252,18 +255,16 @@ export default function ElevationToolbar({
             >
               +
             </button>
-          </div>
-        </>
-      )}
-      <button
-        type="button"
-        onClick={onZoomToFit}
-        className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-600"
-      >
-        Zoom to fit
-      </button>
-      <ExportDxfButton />
-      <ReportsButton />
+          </>
+        )}
+        <button
+          type="button"
+          onClick={onZoomToFit}
+          className="rounded bg-gray-700 px-3 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-600"
+        >
+          Zoom to fit
+        </button>
+      </div>
     </div>
   );
 }

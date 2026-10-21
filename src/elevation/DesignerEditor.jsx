@@ -5,6 +5,8 @@ import { selectSettings } from './store/selectors.js';
 import ElevationCanvas from './components/ElevationCanvas.jsx';
 import MessageToast from './components/MessageToast.jsx';
 import ElevationToolbar from './components/ElevationToolbar.jsx';
+import ExportDxfButton from './components/ExportDxfButton.jsx';
+import ReportsButton from '../reports/ReportsButton.jsx';
 import MissingDoorDesignsNotice from './components/MissingDoorDesignsNotice.jsx';
 import MissingPullsNotice from './components/MissingPullsNotice.jsx';
 import MissingSlidesNotice from './components/MissingSlidesNotice.jsx';
@@ -68,6 +70,10 @@ export default function DesignerEditor({ mode = 'lab', header = null, banners = 
               <p className="mt-1 text-xs text-gray-500">Scratch walls and cabinet runs</p>
             </>
           )}
+          <div className="mt-3 flex items-center gap-2" aria-label="Room outputs">
+            <ExportDxfButton />
+            <ReportsButton />
+          </div>
         </div>
         <div className="space-y-5">
           {!roomMode && <RoomPicker />}

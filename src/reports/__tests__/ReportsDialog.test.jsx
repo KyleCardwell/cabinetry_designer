@@ -100,12 +100,13 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('RP2 step h Reports', () => {
-  it('places Reports beside Export DXF, disables it without a room, and opens with the first-use defaults (anchor 1)', () => {
+  it('keeps Reports out of the canvas toolbar, disables it without a room, and opens with the first-use defaults (anchor 1)', () => {
     storage.delete('ff.reports');
+    // UI4: Reports sits beside Export DXF in the room header (see designerEditor.test.jsx).
     for (const readOnly of [false, true]) {
       const toolbar = renderComponent(ElevationToolbar, { readOnly });
-      const children = nodes(toolbar.tree);
-      expect(children[children.indexOf(component(toolbar.tree, ExportDxfButton)) + 1].type).toBe(ReportsButton);
+      expect(component(toolbar.tree, ReportsButton)).toBeUndefined();
+      expect(component(toolbar.tree, ExportDxfButton)).toBeUndefined();
     }
     const trigger = renderComponent(ReportsButton);
     expect(button(trigger.tree, 'Reports…').props.disabled).toBe(false);
