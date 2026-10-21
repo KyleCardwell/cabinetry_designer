@@ -337,16 +337,21 @@ export default function WallHeightProperties({ room, wall, plan }) {
                 )}
               </div>
               {heightField}
-              <Field label="Thickness">
-                <InchInput
-                  value={wall.thickness}
-                  onCommit={(thickness) => dispatch(updateWall({
-                    wallId: wall.id,
-                    changes: { thickness },
-                  }))}
-                  aria-label="Wall thickness"
-                />
-              </Field>
+              <OverrideInput
+                kind="number"
+                label="Thickness"
+                aria-label="Wall thickness"
+                level="Wall"
+                value={wall.thicknessOverride ?? null}
+                inherited={settings.wallThickness}
+                source={Object.hasOwn(room.settingsOverrides ?? {}, 'wallThickness')
+                  ? 'Room'
+                  : resolveSetting('wallThickness', inheritedChain).source}
+                onChange={(thickness) => dispatch(updateWall({
+                  wallId: wall.id,
+                  changes: { thickness },
+                }))}
+              />
             </div>
             <button
               type="button"

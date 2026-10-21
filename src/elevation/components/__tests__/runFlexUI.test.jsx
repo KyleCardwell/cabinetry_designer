@@ -51,7 +51,7 @@ function setup({ island = false, panelWidth = null, runFlex = 0.25 } = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   useDispatch.mockReturnValue(dispatch);
-  useSelector.mockImplementation(() => state.settings);
+  useSelector.mockImplementation((selector) => selector({ elevation: state }));
   setup();
 });
 

@@ -21,7 +21,10 @@ vi.mock('react', async (original) => ({ ...await original(),
   useMemo: (callback) => callback(), useState: (initial) => [initial, vi.fn()],
   useRef: (current) => ({ current }), useId: () => 'built-ends', useEffect: vi.fn(),
 }));
-vi.mock('react-redux', () => ({ useDispatch: () => vi.fn(), useSelector: () => S }));
+vi.mock('react-redux', () => ({
+  useDispatch: () => vi.fn(),
+  useSelector: (selector) => selector({ elevation: { settings: S, prefs: {}, rooms: [] } }),
+}));
 vi.mock('react-konva', () => ({ Group: 'group', Line: 'line', Text: 'text', Circle: 'circle' }));
 
 const S = { ...DEFAULT_SETTINGS, runFlex: 0.25 };
