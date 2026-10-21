@@ -55,6 +55,16 @@ export default function ElevationDimensions({
             wallEndMarks={[0, wall.length]}
             cursor={cursor}
           />
+          <DimensionRow
+            segments={dimensionChains.wall}
+            orientation="horizontal"
+            side="below"
+            offsetPx={dimensionOffsets.wall}
+            transform={transform}
+            edgeGapPx={dimensionOffsets.clear.below}
+            wallEndMarks={[0, wall.length]}
+            cursor={cursor}
+          />
           {elevationLabel(room, wall) && (
             <Text
               x={wallToScreen({ x: wall.length / 2, z: 0 }, transform).x}

@@ -38,7 +38,8 @@ const WALL_END_TICK_HALF_LENGTH = 6;
 
 function colorFor(segment, highlightRunId) {
   if (segment.violated) return '#f59e0b';
-  if (segment.kind === 'run' && segment.runId === highlightRunId) return '#38bdf8';
+  if (segment.kind === 'run' && highlightRunId
+    && (segment.runId === highlightRunId || segment.runIds?.includes(highlightRunId))) return '#38bdf8';
   return KIND_COLORS[segment.kind] ?? '#cbd5e1';
 }
 
@@ -91,7 +92,9 @@ export default function DimensionRow({
       y: edge.y + outward.y * distance,
     };
   };
-  const boundaries = [segments[0].start, ...segments.map((segment) => segment.end)];
+  // A gapped row (DM3: the piece row skips open space) puts extension lines at every segment end only.
+  const boundaries = [...new Set(segments.flatMap((segment) => [segment.start, segment.end]))]
+    .sort((a, b) => a - b);
   const tickDirection = {
     x: (axis.x + outward.x) / Math.SQRT2,
     y: (axis.y + outward.y) / Math.SQRT2,

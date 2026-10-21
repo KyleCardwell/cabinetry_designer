@@ -355,6 +355,7 @@ export {
   centerlineMarkers,
   horizontalChains,
   openingChain,
+  wallRow,
   clearanceCallouts,
   openingClearances,
   pickColumnRuns,

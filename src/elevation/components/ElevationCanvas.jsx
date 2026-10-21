@@ -76,6 +76,7 @@ import {
   pickColumnRuns,
   verticalChains,
   verticalOpeningChain,
+  wallRow,
 } from '../model/dimensions.js';
 import { resolveProfile } from '../model/profile.js';
 import { partNumbers } from '../model/partNumbers.js';
@@ -284,6 +285,8 @@ function ElevationCanvas({
       lower,
       upper,
       openings: openingChain(room, wall, settings),
+      // DM3: the overall wall row, on faces with runs only; it takes the openings row's place.
+      wall: wallRow(room, wall, settings, lower.outer),
       clearances: clearanceCallouts(room, wall, settings),
       vertical: {
         left: verticalFor('left'),
@@ -478,7 +481,7 @@ function ElevationCanvas({
       : {
         top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
         right: 48 + (dimensionChains?.vertical.right.middle.length > 0 ? 26 : 0),
-        bottom: dimensionChains?.openings.length > 0 ? 152 : 96,
+        bottom: dimensionChains?.openings.length > 0 || dimensionChains?.wall.length > 0 ? 152 : 96,
         left: 110 + (dimensionChains?.vertical.left.middle.length > 0 ? 26 : 0),
       });
     if (combined) fitted.offsetX += combined.faces.find((face) => face.key === activeKey).dx * fitted.scale;
@@ -487,6 +490,7 @@ function ElevationCanvas({
     activeKey,
     combined,
     dimensionChains?.openings.length,
+    dimensionChains?.wall.length,
     dimensionChains?.upper.inner.length,
     dimensionChains?.vertical.left.middle.length,
     dimensionChains?.vertical.right.middle.length,
@@ -528,7 +532,8 @@ function ElevationCanvas({
     const lowerOuterLevels = layoutDimensionRow(dimensionChains.lower.outer, {
       scale: transform.scale,
     }).levels;
-    const openingLevels = layoutDimensionRow(dimensionChains.openings, {
+    // Only one of the openings and wall rows is ever drawn (DM3 §1.3); it sits in the third slot.
+    const openingLevels = layoutDimensionRow([...dimensionChains.openings, ...dimensionChains.wall], {
       scale: transform.scale,
     }).levels;
     const verticalLevels = {
@@ -587,6 +592,7 @@ function ElevationCanvas({
         },
       },
       openings: below.openings + clear.below,
+      wall: below.openings + clear.below,
       label: below.label + clear.below,
       clear,
     };
