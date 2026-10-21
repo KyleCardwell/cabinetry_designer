@@ -561,6 +561,8 @@ export function isOpening(opening) {
     && typeof opening.id === 'string'
     && (opening.kind === 'door' || opening.kind === 'window')
     && typeof opening.label === 'string'
+    && (opening.labelOverride === undefined || opening.labelOverride === null
+      || typeof opening.labelOverride === 'string')
     && (opening.measureMode === 'jamb' || opening.measureMode === 'casing')
     && ['width', 'height', 'sillZ', 'offset'].every(
       (key) => isFiniteNumber(opening[key]),

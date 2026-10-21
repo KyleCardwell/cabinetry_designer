@@ -4,6 +4,7 @@ import { wallFrame } from '../geometry.js';
 import {
   casingSides,
   createOpening,
+  labelOpenings,
   openingGeometry,
   openingReferenceBounds,
   openingsAtPoint,
@@ -360,5 +361,39 @@ describe('opening creation and hit testing', () => {
     expect(moved).toMatchObject({ offsetFrom: 'right', offset: 3 });
     expect(openingGeometry(moved, 120, settings).casing)
       .toMatchObject({ x: 78, width: 42 });
+  });
+});
+
+describe('UI10 opening labels', () => {
+  const wallAt = (id, x1, openings) => ({ id, x1, y1: 0, x2: x1 + 144, y2: 0, openings });
+  const labels = (room) => Object.fromEntries(
+    room.walls.flatMap((wall) => wall.openings.map((opening) => [opening.id, opening.label])),
+  );
+
+  it('numbers by wall order, then left to right, doors and windows separately', () => {
+    const room = {
+      wallOrder: ['w1', 'w2'],
+      walls: [
+        wallAt('w2', 200, [door({ id: 'b', label: 'D1', offset: 10 })]),
+        wallAt('w1', 0, [
+          door({ id: 'a2', label: 'D9', offset: 90 }),
+          windowOpening({ id: 'win', label: 'W4' }),
+          door({ id: 'a1', label: 'D3', offset: 4 }),
+        ]),
+      ],
+    };
+    expect(labels(labelOpenings(room, settings))).toEqual({ a1: 'D1', a2: 'D2', b: 'D3', win: 'W1' });
+  });
+
+  it('keeps a typed label and skips its number', () => {
+    const room = {
+      wallOrder: ['w1'],
+      walls: [wallAt('w1', 0, [
+        door({ id: 'a', offset: 4 }),
+        door({ id: 'b', offset: 50, labelOverride: 'D1' }),
+        door({ id: 'c', offset: 96, labelOverride: 'Pantry' }),
+      ])],
+    };
+    expect(labels(labelOpenings(room, settings))).toEqual({ a: 'D2', b: 'D1', c: 'Pantry' });
   });
 });

@@ -60,6 +60,31 @@ export default function CellProperties({
   const columnIndex = runItems(run).findIndex((candidate) => candidate.id === piece.columnId);
   const hasColumnAfter = columnIndex >= 0 && columnIndex < runItems(run).length - 1;
 
+  // A cell stacked in a column is as wide as its column: its width field sets the column (UI10).
+  const widthIsColumn = Boolean(column) && axis === 'row' && Math.abs(boxWidth - columnBoxWidth) < 1e-6;
+  const columnWidthInput = (label) => column && (
+    <div>
+      <OverrideInput
+        kind="number"
+        label={label}
+        value={columnLocked ? columnBoxWidth : null}
+        inherited={columnBoxWidth}
+        source="auto"
+        onChange={(width) => dispatch(setItemWidth({
+          ...actionBase,
+          itemId: piece.columnId,
+          width: width === null ? null : width + columnTrim,
+        }))}
+        aria-label="Column box width"
+      />
+      {columnBoxWidth !== column.width && (
+        <p className="mt-1 text-xs text-gray-500">
+          Frame section: {formatInches(column.width)}
+        </p>
+      )}
+    </div>
+  );
+
   const tabs = [
     { id: 'size', label: 'Size' },
     ...(isCabinet ? [{ id: 'style', label: 'Faces & style' }] : []),
@@ -96,6 +121,7 @@ export default function CellProperties({
                         </p>
                       )}
                     </div>
+                    {widthIsColumn ? columnWidthInput('Box width') : (
                     <Field label={axis === 'row' ? 'Box width' : 'Height'} tag="auto">
                       <ReadOnlyValue
                         value={axis === 'row' ? boxWidth : piece.height}
@@ -107,7 +133,13 @@ export default function CellProperties({
                         </p>
                       )}
                     </Field>
+                    )}
                   </div>
+                  {!widthIsColumn && column && (
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {columnWidthInput('Column box width')}
+                    </div>
+                  )}
                   {hasTrackAfter && (
                     <div className="mt-2">
                       <GapField
@@ -120,28 +152,10 @@ export default function CellProperties({
                     </div>
                   )}
 
-                  {column && (
-                    <div className="mt-3 space-y-2">
-                      <OverrideInput
-                        kind="number"
-                        label="Column box width"
-                        value={columnLocked ? columnBoxWidth : null}
-                        inherited={columnBoxWidth}
-                        source="auto"
-                        onChange={(width) => dispatch(setItemWidth({
-                          ...actionBase,
-                          itemId: piece.columnId,
-                          width: width === null ? null : width + columnTrim,
-                        }))}
-                        aria-label="Column box width"
-                      />
-                      {columnBoxWidth !== column.width && (
-                        <p className="mt-1 text-xs text-gray-500">
-                          Frame section: {formatInches(column.width)}
-                        </p>
-                      )}
-                      {hasColumnAfter && (
-                        <div className="mt-2">
+                  {column && hasColumnAfter && (
+                    <div className="mt-2">
+                      {(
+                        <div>
                           <GapField
                             label="Column gap right (blank = run)"
                             value={columnItem?.gap}

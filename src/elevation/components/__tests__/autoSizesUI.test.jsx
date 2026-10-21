@@ -145,11 +145,15 @@ describe('UI2 step b auto sizes', () => {
       const size = () => axis === 'row' ? props().piece.height
         : props().piece.width - (props().inset?.left ?? 0) - (props().inset?.right ?? 0);
       autoField(cell(), label, formatInchesInput(size()));
-      const otherLabel = `Cell ${axis === 'row' ? 'width' : 'height'}`;
-      const other = nodes(cell()).find(({ type, props }) => type === 'label'
-        && nodes(props.children).some(({ props }) => props['aria-label'] === otherLabel));
-      expect(nodes(other).some(({ type, props }) => type === 'span' && props.children === 'auto')).toBe(true);
-      expect(field(cell(), otherLabel).props.className).toContain('border-dashed border-gray-700');
+      if (axis === 'col') {
+        const other = nodes(cell()).find(({ type, props }) => type === 'label'
+          && nodes(props.children).some(({ props }) => props['aria-label'] === 'Cell height'));
+        expect(nodes(other).some(({ type, props }) => type === 'span' && props.children === 'auto')).toBe(true);
+        expect(field(cell(), 'Cell height').props.className).toContain('border-dashed border-gray-700');
+      } else {
+        // UI10: a stacked cell is as wide as its column, so its width field edits the column.
+        expect(field(cell(), 'Cell width')).toBeUndefined();
+      }
       const trim = (props().inset?.left ?? 0) + (props().inset?.right ?? 0);
       type(cell(), label, '10');
       expect(context().track.size).toBe(axis === 'row' ? 10 : 10 + trim);
@@ -172,7 +176,7 @@ describe('UI2 step b auto sizes', () => {
       expect(input(cell(), 'Column box width').props.value).toBe('27');
       // Reset the column width independently of the section width.
       const column = nodes(cell()).find(({ props }) => props.title?.endsWith('override · auto: 27\"'));
-      field(column, 'Reset Column box width').props.onClick();
+      field(column, `Reset ${axis === 'row' ? 'Box width' : 'Column box width'}`).props.onClick();
       expect(runItems(run()).find(({ id }) => id === columnId).width).toBeNull();
       noLocks(cell());
     });

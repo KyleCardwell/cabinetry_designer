@@ -187,6 +187,61 @@ export function resizeOpening(opening, width, grow, wallLength, settings) {
   };
 }
 
+const LABEL_PREFIX = { door: 'D', window: 'W' };
+
+/**
+ * Number doors (D1, D2…) and windows (W1, W2…) by wall order, then left to right on each wall.
+ * A typed label (`labelOverride`) stays; automatic numbers skip any number a typed label uses.
+ */
+export function labelOpenings(room, settings) {
+  const walls = room.walls ?? [];
+  const order = room.wallOrder ?? [];
+  const byId = new Map(walls.map((wall) => [wall.id, wall]));
+  const ordered = [
+    ...order.map((id) => byId.get(id)).filter(Boolean),
+    ...walls.filter((wall) => !order.includes(wall.id)),
+  ];
+  const taken = { door: new Set(), window: new Set() };
+  for (const wall of walls) {
+    for (const opening of wall.openings ?? []) {
+      const prefix = LABEL_PREFIX[opening.kind];
+      const match = prefix && typeof opening.labelOverride === 'string'
+        ? opening.labelOverride.trim().match(new RegExp(`^${prefix}(\\d+)$`, 'i'))
+        : null;
+      if (match) taken[opening.kind].add(Number(match[1]));
+    }
+  }
+  const labels = new Map();
+  const next = { door: 0, window: 0 };
+  for (const wall of ordered) {
+    if (!wall.openings?.length) continue;
+    const length = wallFrame(room, wall).length;
+    const sorted = wall.openings
+      .map((opening) => ({ opening, x: openingGeometry(opening, length, settings).jamb.x }))
+      .sort((a, b) => a.x - b.x);
+    for (const { opening } of sorted) {
+      if (opening.labelOverride) {
+        labels.set(opening.id, opening.labelOverride);
+        continue;
+      }
+      if (!LABEL_PREFIX[opening.kind]) continue;
+      do next[opening.kind] += 1; while (taken[opening.kind].has(next[opening.kind]));
+      labels.set(opening.id, `${LABEL_PREFIX[opening.kind]}${next[opening.kind]}`);
+    }
+  }
+  return {
+    ...room,
+    walls: walls.map((wall) => (wall.openings?.length ? {
+      ...wall,
+      openings: wall.openings.map((opening) => (
+        labels.has(opening.id) && labels.get(opening.id) !== opening.label
+          ? { ...opening, label: labels.get(opening.id) }
+          : opening
+      )),
+    } : wall)),
+  };
+}
+
 /** Create a catalog-sized opening at a requested wall-local reference edge. */
 export function createOpening({ kind, x, measureMode }, { settings, room, wall }) {
   const mode = measureMode ?? settings.defaultOpeningMeasureMode;

@@ -14,6 +14,7 @@ import {
   updateOpening,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import OverrideInput from '../OverrideInput.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import StretchInput from './StretchInput.jsx';
 import { RUN_TYPES } from './constants.js';
@@ -62,15 +63,15 @@ export default function OpeningProperties({ wall, opening, settings, placementMe
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2.5">
-          <Field label="Label">
-            <input
-              type="text"
-              value={opening.label}
-              onChange={(event) => update({ label: event.target.value })}
-              aria-label="Opening label"
-              className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
-            />
-          </Field>
+          <OverrideInput
+            kind="text"
+            label="Label"
+            value={opening.labelOverride ?? null}
+            inherited={opening.labelOverride ? 'next number' : opening.label}
+            source="auto"
+            onChange={(text) => update({ labelOverride: text?.trim() || null })}
+            aria-label="Opening label"
+          />
           <Field label="Kind">
             <select
               value={opening.kind}

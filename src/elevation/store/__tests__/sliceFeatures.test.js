@@ -88,9 +88,9 @@ describe('elevation opening reducers', () => {
     const renamed = elevationReducer(added, updateOpening({
       wallId: 'wall-1',
       openingId: currentOpening(added).id,
-      changes: { label: 'Entry', measureMode: 'rough' },
+      changes: { labelOverride: 'Entry', measureMode: 'rough' },
     }));
-    expect(currentOpening(renamed)).toMatchObject({ label: 'Entry', measureMode: 'jamb' });
+    expect(currentOpening(renamed)).toMatchObject({ label: 'Entry', labelOverride: 'Entry', measureMode: 'jamb' });
 
     const rejected = elevationReducer(renamed, updateOpening({
       wallId: 'wall-1',

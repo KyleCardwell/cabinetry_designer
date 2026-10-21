@@ -235,6 +235,7 @@ export const featureReducers = {
     const changes = action.payload.changes ?? {};
     for (const key of [
       'label',
+      'labelOverride',
       'kind',
       'width',
       'height',
@@ -248,6 +249,10 @@ export const featureReducers = {
       if (!Object.prototype.hasOwnProperty.call(changes, key)) continue;
       if (key === 'recessId' && !changes[key]) {
         delete candidate.recessId;
+        continue;
+      }
+      if (key === 'labelOverride' && !changes[key]?.trim()) {
+        delete candidate.labelOverride;
         continue;
       }
       candidate[key] = key === 'casing' && changes[key]

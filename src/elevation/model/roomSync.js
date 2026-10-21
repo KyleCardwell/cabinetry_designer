@@ -17,7 +17,7 @@ import {
   pruneJoints,
 } from './joints.js';
 import { resolveLandings } from './landings.js';
-import { runBlocksOpening } from './openings.js';
+import { labelOpenings, runBlocksOpening } from './openings.js';
 import { recessWarnings, withRunPlane } from './recesses.js';
 import { wallLength } from './geometry.js';
 import { validateRunPlacement } from './overlap.js';
@@ -243,6 +243,8 @@ export function syncRoom(room, settings) {
   }));
 
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
+  // Door and window labels follow wall order, then left to right (typed labels stay).
+  nextRoom = labelOpenings(nextRoom, settings);
 
   nextRoom = {
     ...nextRoom,
