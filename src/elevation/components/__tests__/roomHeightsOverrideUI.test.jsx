@@ -168,11 +168,11 @@ describe('DB2 e room heights and soffit overrides', () => {
     expect(room().profile).not.toHaveProperty('baseKind');
   });
 
-  it('stores explicit Plain, None and Square overrides and deletes each on Reset (anchor 5)', () => {
+  it('stores explicit None, Plain and Square overrides and deletes each on Reset (anchor 5)', () => {
     dispatch(updateSettings({ defaultProfile: { baseKind: 'furniture_base' } }));
     for (const [key, label, plain, inheritedId] of [
-      ['topMoldProfileId', 'Top mold profile', 'Plain', 'tm3'],
-      ['crownProfileId', 'Crown profile', 'Plain', 'cr45'],
+      ['topMoldProfileId', 'Top mold profile', 'None', 'tm3'],
+      ['crownProfileId', 'Crown profile', 'None', 'cr45'],
       ['nosingProfileId', 'Nosing profile', 'None', null],
       ['furnitureBaseProfileId', 'Furniture base profile', 'Plain', 'fb4'],
       ['baseCutoutProfileId', 'Cutout profile', 'Square', null],
@@ -180,13 +180,13 @@ describe('DB2 e room heights and soffit overrides', () => {
       dispatch(updateSettings({ defaultProfile: { [key]: inheritedId } }));
       const inheritedName = inheritedId ? profiles.find(({ id }) => id === inheritedId).name : plain;
       expect(options(field(render(), `Room ${label}`))[0]).toEqual(['', `Inherit (${inheritedName})`]);
-      choose(`Room ${label}`, 'plain');
+      const value = ['crownProfileId', 'topMoldProfileId'].includes(key) ? 'none' : 'plain';
+      choose(`Room ${label}`, value);
       const tree = render();
-      expect(room().profile[key]).toBeNull();
-      expect(resolveProfile(state.settings, room())[key]).toBe(
-        ['crownProfileId', 'topMoldProfileId'].includes(key) ? inheritedId : null,
-      );
-      expect(field(tree, `Room ${label}`).props.value).toBe('plain');
+      const stored = value === 'none' ? 'none' : null;
+      expect(room().profile[key]).toBe(stored);
+      expect(resolveProfile(state.settings, room())[key]).toBe(stored);
+      expect(field(tree, `Room ${label}`).props.value).toBe(value);
       expect(field(tree, `Room ${label}`).props.className).toContain('border-teal-500');
       expect(nodes(tree).find(({ props }) => props.title === `Room override · Shop standard: ${inheritedName}`)).toBeDefined();
       field(tree, `Reset ${label}`).props.onClick();

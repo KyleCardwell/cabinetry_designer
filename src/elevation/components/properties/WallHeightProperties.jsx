@@ -128,23 +128,27 @@ export default function WallHeightProperties({ room, wall, plan }) {
       </label>
     );
     if (type === 'pick') {
+      const molding = kind === 'crown' || kind === 'top_mold';
       const pickedId = wall.profile[key];
       const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === kind && !entry.archived);
-      const unavailable = pickedId && !choices.some((entry) => entry.id === pickedId);
+      const unavailable = pickedId && !(molding && pickedId === 'none') && !choices.some((entry) => entry.id === pickedId);
+      const inheritedText = inheritedProfile[key] === 'none' ? 'None'
+        : inheritedProfile[key] == null ? 'Not picked'
+          : settings.sectionProfiles?.find((entry) => entry.id === inheritedProfile[key])?.name ?? 'Missing profile';
       return (
         <label key={key} className="block text-xs text-gray-400">
           {label}
           <select
             aria-label={`Wall ${label} override`}
-            value={pickedId === null ? 'plain' : pickedId ?? ''}
+            value={molding ? pickedId ?? '' : pickedId === null ? 'plain' : pickedId ?? ''}
             onChange={(event) => {
               const value = event.target.value === 'plain' ? null : event.target.value || undefined;
               dispatch(updateWall({ wallId: wall.id, changes: { profile: { [key]: value } } }));
             }}
             className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
           >
-            <option value="">Inherit</option>
-            <option value="plain">{kind === 'nosing' ? 'None' : kind === 'base_cutout' ? 'Square' : 'Plain'}</option>
+            <option value="">{molding ? `Inherit (${inheritedText})` : 'Inherit'}</option>
+            {molding ? <option value="none">None</option> : <option value="plain">{kind === 'nosing' ? 'None' : kind === 'base_cutout' ? 'Square' : 'Plain'}</option>}
             {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
             {unavailable && <option value={pickedId} disabled>{settings.sectionProfiles?.find((entry) => entry.id === pickedId)?.name ?? 'Missing profile'} (unavailable)</option>}
           </select>
@@ -153,14 +157,16 @@ export default function WallHeightProperties({ room, wall, plan }) {
     }
     const fromProfile = (key === 'crownHeight' && Boolean(moldings.crown))
       || (key === 'topMoldHeight' && Boolean(moldings.topMold && !moldings.topMold.profile.stretch));
+    const none = (key === 'crownHeight' && resolvedProfile.crownProfileId === 'none')
+      || (key === 'topMoldHeight' && resolvedProfile.topMoldProfileId === 'none');
     return (
       <Field key={key} label={label} tag={fromProfile ? 'profile' : undefined}>
         <InchInput
           value={fromProfile ? resolvedProfile[key] : wall.profile[key] ?? null}
           allowBlank
           placeholder={formatInchesInput(inheritedProfile[key])}
-          readOnly={fromProfile}
-          onCommit={(value) => fromProfile ? undefined : dispatch(updateWall({ wallId: wall.id, changes: { profile: { [key]: value } } }))}
+          readOnly={fromProfile || none}
+          onCommit={(value) => fromProfile || none ? undefined : dispatch(updateWall({ wallId: wall.id, changes: { profile: { [key]: value } } }))}
           aria-label={`Wall ${label} override`}
           className="mt-1"
         />

@@ -70,12 +70,12 @@ describe('Step 473 molding height panels', () => {
   });
 
   for (const [scope, render] of panels) {
-    it(`${scope}: offers active profiles by kind, Plain, and scoped Inherit; commits picks and overhang`, () => {
+    it(`${scope}: offers active profiles by kind, None, and scoped unpicked or Inherit; commits picks and overhang`, () => {
       const tree = render();
       expect(options(field(tree, scope, 'Top mold profile')).map(({ props }) => props.value))
-        .toEqual(scope === 'Default' ? ['plain', 'tm3'] : ['', 'plain', 'tm3']);
+        .toEqual(['', 'none', 'tm3']);
       expect(options(field(tree, scope, 'Crown profile')).map(({ props }) => props.value))
-        .toEqual(scope === 'Default' ? ['plain', 'cr45'] : ['', 'plain', 'cr45']);
+        .toEqual(['', 'none', 'cr45']);
       pick(render, scope, 'Top mold profile', 'tm3');
       pick(render, scope, 'Crown profile', 'cr45');
       const overhang = field(render(), scope, 'Top mold overhang');
@@ -104,11 +104,21 @@ describe('Step 473 molding height panels', () => {
         expect(InchInput(field(tree, scope, label).props).props.className).toContain('text-gray-500 border-gray-700 border-dashed');
       }
       expect(text(tree)).toContain('Overlap 1 1/2"');
-      pick(render, scope, 'Top mold profile', 'plain');
-      pick(render, scope, 'Crown profile', 'plain');
-      // Until the Step b picker change, Wall's Plain stores null and therefore inherits.
-      expect(field(render(), scope, 'Top mold').props.readOnly).toBe(scope === 'Wall');
-      expect(field(render(), scope, 'Crown').props.readOnly).toBe(scope === 'Wall');
+      pick(render, scope, 'Top mold profile', 'none');
+      pick(render, scope, 'Crown profile', 'none');
+      expect(field(render(), scope, 'Top mold').props.readOnly).toBe(true);
+      expect(field(render(), scope, 'Crown').props.readOnly).toBe(true);
+      dispatch.mockClear();
+      for (const label of ['Crown', 'Top mold']) {
+        const control = field(render(), scope, label);
+        expect(InchInput(control.props).props.className).toContain('text-gray-500');
+        control.props.onCommit(12);
+        const picker = field(render(), scope, `${label} profile`);
+        expect(options(picker).filter(({ props }) => props.value === 'none')).toHaveLength(1);
+        expect(options(picker).find(({ props }) => props.value === 'none').props.disabled).toBeUndefined();
+      }
+      expect(dispatch).not.toHaveBeenCalled();
+      expect(field(render(), scope, 'Crown total').props.readOnly).toBe(false);
       expect(state.settings.defaultProfile).toMatchObject({ topMoldHeight: 8, crownHeight: 9 });
     });
 
@@ -146,9 +156,9 @@ describe('Step 473 molding height panels', () => {
       expect(field(render(), scope, 'Crown').props).toMatchObject({ value: 4.5, readOnly: true });
       const overhang = field(render(), scope, 'Top mold overhang');
       expect(overhang.props).toMatchObject({ value: null, allowBlank: true, placeholder: '1/2' });
-      pick(render, scope, 'Crown profile', 'plain');
-      expect(field(render(), scope, 'Crown profile').props.value).toBe('plain');
-      expect(field(render(), scope, 'Crown').props.readOnly).toBe(scope === 'Wall');
+      pick(render, scope, 'Crown profile', 'none');
+      expect(field(render(), scope, 'Crown profile').props.value).toBe('none');
+      expect(field(render(), scope, 'Crown').props.readOnly).toBe(true);
       pick(render, scope, 'Crown profile', '');
       expect(scope === 'Room' ? room().profile : wall().profile).not.toHaveProperty('crownProfileId');
       expect(field(render(), scope, 'Crown').props.readOnly).toBe(true);
@@ -157,4 +167,58 @@ describe('Step 473 molding height panels', () => {
       expect(field(render(), scope, 'Crown profile').props.value).toBe('');
     });
   }
+});
+
+
+describe('DM4 step b picker anchors', () => {
+  it('anchor 1: room Crown offers Inherit with the profile name, None, and cr45', () => {
+    state.settings.defaultProfile.crownProfileId = 'cr45';
+    const picker = field(RoomHeightsPanel(), 'Room', 'Crown profile');
+    expect(options(picker).map(({ props }) => [props.value, text(props.children)]))
+      .toEqual([['', `Inherit (${cr45.name})`], ['none', 'None'], ['cr45', cr45.name]]);
+    for (const [scope, render] of panels.slice(1)) {
+      for (const label of ['Crown', 'Top mold']) {
+        const key = label === 'Crown' ? 'crownProfileId' : 'topMoldProfileId';
+        for (const [value, name] of [['none', 'None'], [null, 'Not picked'], [undefined, 'Not picked']]) {
+          state.settings.defaultProfile[key] = value;
+          const tree = render();
+          expect(text(options(field(tree, scope, `${label} profile`))[0])).toBe(`Inherit (${name})`);
+          expect(field(tree, scope, label).props.readOnly).toBe(value === 'none');
+        }
+      }
+    }
+  });
+
+  it('anchor 2: unpicked shop Top mold offers Pick a profile, None, and tm3 with empty value', () => {
+    for (const label of ['Top mold', 'Crown']) {
+      const key = label === 'Crown' ? 'crownProfileId' : 'topMoldProfileId';
+      const profile = label === 'Crown' ? cr45 : tm3;
+      for (const value of [null, undefined]) {
+        dispatch(updateSettings({ defaultProfile: { [key]: value } }));
+        const picker = field(ShopHeightsPanel({}), 'Default', `${label} profile`);
+        expect(picker.props.value).toBe('');
+        expect(options(picker).map(({ props }) => [props.value, text(props.children)]))
+          .toEqual([['', 'Pick a profile'], ['none', 'None'], [profile.id, profile.name]]);
+      }
+      pick(() => ShopHeightsPanel({}), 'Default', `${label} profile`, 'none');
+      expect(state.settings.defaultProfile[key]).toBe('none');
+      pick(() => ShopHeightsPanel({}), 'Default', `${label} profile`, '');
+      expect(state.settings.defaultProfile[key]).toBeNull();
+    }
+  });
+
+  it('anchor 3: room Crown None stores none and wall follows the room choice', () => {
+    state.settings.defaultProfile.crownProfileId = 'cr45';
+    pick(RoomHeightsPanel, 'Room', 'Crown profile', 'none');
+    expect(room().profile.crownProfileId).toBe('none');
+    expect(field(RoomHeightsPanel(), 'Room', 'Crown').props.readOnly).toBe(true);
+    const renderWall = panels[2][1];
+    expect(text(options(field(renderWall(), 'Wall', 'Crown profile'))[0])).toBe('Inherit (None)');
+    expect(field(renderWall(), 'Wall', 'Crown').props.readOnly).toBe(true);
+    pick(renderWall, 'Wall', 'Crown profile', 'cr45');
+    expect(field(renderWall(), 'Wall', 'Crown').props.value).toBe(4.5);
+    pick(renderWall, 'Wall', 'Crown profile', '');
+    expect(wall().profile).not.toHaveProperty('crownProfileId');
+    expect(field(renderWall(), 'Wall', 'Crown').props.readOnly).toBe(true);
+  });
 });

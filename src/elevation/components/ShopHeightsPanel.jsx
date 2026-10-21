@@ -40,23 +40,27 @@ export default function ShopHeightsPanel({ query = '' }) {
       </label>
     );
     if (type === 'pick') {
+      const molding = kind === 'crown' || kind === 'top_mold';
       const pickedId = settings.defaultProfile[key];
       const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === kind && !entry.archived);
-      const unavailable = pickedId && !choices.some((entry) => entry.id === pickedId);
+      const unavailable = pickedId && !(molding && pickedId === 'none') && !choices.some((entry) => entry.id === pickedId);
       return (
         <label key={key} className="block text-xs text-gray-400">
           {label}
           <select
             aria-label={`Default ${label}`}
-            value={pickedId === null ? 'plain' : pickedId ?? 'plain'}
+            value={molding ? pickedId ?? '' : pickedId ?? 'plain'}
             onChange={(event) => {
-              const value = event.target.value === 'plain' ? null : event.target.value || undefined;
+              const value = event.target.value === 'plain' || (molding && event.target.value === '')
+                ? null : event.target.value || undefined;
               update({ defaultProfile: { [key]: value } });
             }}
             className="mt-1 w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
           >
-
-            <option value="plain">{kind === 'nosing' ? 'None' : kind === 'base_cutout' ? 'Square' : 'Plain'}</option>
+            {molding ? <>
+              <option value="">Pick a profile</option>
+              <option value="none">None</option>
+            </> : <option value="plain">{kind === 'nosing' ? 'None' : kind === 'base_cutout' ? 'Square' : 'Plain'}</option>}
             {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
             {unavailable && <option value={pickedId} disabled>{settings.sectionProfiles?.find((entry) => entry.id === pickedId)?.name ?? 'Missing profile'} (unavailable)</option>}
           </select>
@@ -65,12 +69,14 @@ export default function ShopHeightsPanel({ query = '' }) {
     }
     const fromProfile = (key === 'crownHeight' && Boolean(moldings.crown))
       || (key === 'topMoldHeight' && Boolean(moldings.topMold && !moldings.topMold.profile.stretch));
+    const none = (key === 'crownHeight' && resolvedProfile.crownProfileId === 'none')
+      || (key === 'topMoldHeight' && resolvedProfile.topMoldProfileId === 'none');
     return (
       <Field key={key} label={label} tag={fromProfile ? 'profile' : undefined}>
         <InchInput
           value={fromProfile ? resolvedProfile[key] : settings.defaultProfile[key] ?? resolvedProfile[key]}
-          readOnly={fromProfile}
-          onCommit={(value) => fromProfile ? undefined : key === 'furnitureBaseProud' && value !== null && value < 0 ? false : update({ defaultProfile: { [key]: value } })}
+          readOnly={fromProfile || none}
+          onCommit={(value) => fromProfile || none ? undefined : key === 'furnitureBaseProud' && value !== null && value < 0 ? false : update({ defaultProfile: { [key]: value } })}
           aria-label={`Default ${label}`}
           className="mt-1"
         />

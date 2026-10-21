@@ -52,25 +52,27 @@ export default function RoomHeightsPanel({ query = '' } = {}) {
       />
     );
     if (type === 'pick') {
+      const molding = kind === 'crown' || kind === 'top_mold';
       const pickedId = room.profile[key];
       const choices = (settings.sectionProfiles ?? []).filter((entry) => entry.kind === kind && !entry.archived);
-      const unavailable = pickedId && !choices.some((entry) => entry.id === pickedId);
+      const unavailable = pickedId && !(molding && pickedId === 'none') && !choices.some((entry) => entry.id === pickedId);
       const plainLabel = kind === 'nosing' ? 'None' : kind === 'base_cutout' ? 'Square' : 'Plain';
-      const inheritedText = inheritedProfile[key]
+      const inheritedText = molding && inheritedProfile[key] === 'none' ? 'None'
+        : molding && inheritedProfile[key] == null ? 'Not picked' : inheritedProfile[key]
         ? settings.sectionProfiles?.find((entry) => entry.id === inheritedProfile[key])?.name ?? 'Missing profile'
         : plainLabel;
       return (
         <OverrideField
           key={key}
           label={label}
-          overridden={pickedId !== undefined}
+          overridden={molding ? pickedId != null : pickedId !== undefined}
           inheritedText={inheritedText}
           inheritedSource={inheritedSource(key)}
           onReset={() => dispatch(updateRoomProfile({ roomId: room.id, key, value: undefined }))}
         >
           {(borderClass) => <select
             aria-label={`Room ${label}`}
-            value={pickedId === null ? 'plain' : pickedId ?? ''}
+            value={molding ? pickedId ?? '' : pickedId === null ? 'plain' : pickedId ?? ''}
             onChange={(event) => {
               const value = event.target.value === 'plain' ? null : event.target.value || undefined;
               dispatch(updateRoomProfile({ roomId: room.id, key, value }));
@@ -78,7 +80,7 @@ export default function RoomHeightsPanel({ query = '' } = {}) {
             className={`mt-1 w-full rounded border ${borderClass} bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none`}
           >
             <option value="">{`Inherit (${inheritedText})`}</option>
-            <option value="plain">{plainLabel}</option>
+            {molding ? <option value="none">None</option> : <option value="plain">{plainLabel}</option>}
             {choices.map((entry) => <option key={entry.id} value={entry.id}>{entry.name}</option>)}
             {unavailable && <option value={pickedId} disabled>{settings.sectionProfiles?.find((entry) => entry.id === pickedId)?.name ?? 'Missing profile'} (unavailable)</option>}
           </select>}
@@ -87,8 +89,10 @@ export default function RoomHeightsPanel({ query = '' } = {}) {
     }
     const fromProfile = (key === 'crownHeight' && Boolean(moldings.crown))
       || (key === 'topMoldHeight' && Boolean(moldings.topMold && !moldings.topMold.profile.stretch));
-    return fromProfile ? (
-      <Field key={key} label={label} tag="profile">
+    const none = (key === 'crownHeight' && resolvedProfile.crownProfileId === 'none')
+      || (key === 'topMoldHeight' && resolvedProfile.topMoldProfileId === 'none');
+    return fromProfile || none ? (
+      <Field key={key} label={label} tag={fromProfile ? 'profile' : undefined}>
         <InchInput
           value={resolvedProfile[key]}
           readOnly
