@@ -17,6 +17,7 @@ import BoxConstructionFields from '../properties/BoxConstructionFields.jsx';
 import InteriorFields from '../properties/InteriorFields.jsx';
 import DrawerBoxFields from '../properties/DrawerBoxFields.jsx';
 import PanelSection from '../panel/PanelSection.jsx';
+import PanelTabs from '../panel/PanelTabs.jsx';
 import InchInput from '../InchInput.jsx';
 
 vi.mock('react', async (importOriginal) => ({ ...await importOriginal(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn() }));
@@ -490,7 +491,7 @@ describe('UI6 step a face property parts', () => {
     expect(panels(render('inside')).map(({ props }) => props.title)).toEqual(['Box', 'Interior']);
   });
 
-  it('anchor 3: both callers retain the controls in Cabinet style, Faces, Box, Interior, Drawer boxes order', () => {
+  it('both callers retain the style and inside controls in their respective tabs', () => {
     drawerBank();
     const wall = resolveWall(room(), room().walls[0]);
     const scene = runScene(room(), wall, run(), state.settings);
@@ -498,7 +499,9 @@ describe('UI6 step a face property parts', () => {
       piece: scene.cells.pieces.find(({ id }) => id === 'cabinet'),
       layout: scene.result, cells: scene.cells, settings: state.settings };
     for (const Component of [CabinetProperties, CellProperties]) {
-      const parts = nodes(Component(props)).filter(({ type }) => type === FaceProperties);
+      const tabs = nodes(Component(props)).find(({ type }) => type === PanelTabs);
+      const parts = ['style', 'inside'].flatMap((active) => nodes(tabs.props.children(active)))
+        .filter(({ type }) => type === FaceProperties);
       expect(parts.map(({ props }) => props.part)).toEqual(['style', 'inside']);
       for (const part of parts) {
         for (const key of ['wall', 'run', 'piece', 'item', 'layout', 'cells', 'settings']) {

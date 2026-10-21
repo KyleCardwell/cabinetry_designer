@@ -7,6 +7,7 @@ import { runScene } from '../../model/runScene.js';
 import elevationReducer, { splitCell } from '../../store/elevationSlice.js';
 import { auto, opening, pin, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import InchInput from '../InchInput.jsx';
+import PanelTabs from '../panel/PanelTabs.jsx';
 import OverrideField from '../OverrideField.jsx';
 import OverrideInput from '../OverrideInput.jsx';
 import CabinetProperties from '../properties/CabinetProperties.jsx';
@@ -45,8 +46,9 @@ const props = (id = 'a') => {
   return { room: room(), wall: wall(), run: run(), settings: state.settings, piece, item,
     layout: scene.result, cells: scene.cells, insets, inset: insets.get(id) };
 };
-const cabinet = () => CabinetProperties(props());
-const cell = () => CellProperties(props());
+const sizeTab = (tree) => nodes(tree).find(({ type }) => type === PanelTabs).props.children('size');
+const cabinet = () => sizeTab(CabinetProperties(props()));
+const cell = () => sizeTab(CellProperties(props()));
 const noLocks = (tree) => expect(nodes(tree).filter(({ type }) => type === 'button').map(text).join(' ')).not.toMatch(/Lock|Unlock/);
 const autoField = (tree, label, placeholder) => {
   expect(input(tree, label).props).toMatchObject({ value: '', placeholder });
@@ -168,9 +170,9 @@ describe('UI2 step b auto sizes', () => {
       type(cell(), 'Column box width', '27');
       expect(runItems(run()).find(({ id }) => id === columnId).width).toBe(27 + columnTrim);
       expect(input(cell(), 'Column box width').props.value).toBe('27');
-      // There can be two Box width rows; use the column input's own Reset.
+      // Reset the column width independently of the section width.
       const column = nodes(cell()).find(({ props }) => props.title?.endsWith('override · auto: 27\"'));
-      field(column, 'Reset Box width').props.onClick();
+      field(column, 'Reset Column box width').props.onClick();
       expect(runItems(run()).find(({ id }) => id === columnId).width).toBeNull();
       noLocks(cell());
     });

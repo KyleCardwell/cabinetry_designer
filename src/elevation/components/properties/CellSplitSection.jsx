@@ -1,3 +1,4 @@
+import PanelSection from '../panel/PanelSection.jsx';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
 import { MAX_CELL_SPLIT } from '../../model/index.js';
@@ -24,71 +25,74 @@ export default function CellSplitSection({
     count: Number(count),
   }));
 
+  if (!canSplit && !nested && !removable) return null;
+
   return (
-    <section className="space-y-2">
-      {canSplit && (
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Split</h3>
-        <label className="flex items-center gap-2 text-xs text-gray-300">
-          Cells
-          <input
-            type="number"
-            min={2}
-            max={MAX_CELL_SPLIT}
-            value={count}
-            onChange={(event) => setCount(event.target.value)}
-            onBlur={() => {
-              const value = Math.round(Number(count));
-              setCount(Number.isFinite(value)
-                ? Math.min(MAX_CELL_SPLIT, Math.max(2, value))
-                : 2);
-            }}
-            className={NUMBER_CLASS}
-          />
-        </label>
+    <PanelSection id="piece.split" title="Split">
+      <div className="space-y-2">
+        {canSplit && (
+          <div className="flex items-center justify-between">
+            <label className="flex items-center gap-2 text-xs text-gray-300">
+              Cells
+              <input
+                type="number"
+                min={2}
+                max={MAX_CELL_SPLIT}
+                value={count}
+                onChange={(event) => setCount(event.target.value)}
+                onBlur={() => {
+                  const value = Math.round(Number(count));
+                  setCount(Number.isFinite(value)
+                    ? Math.min(MAX_CELL_SPLIT, Math.max(2, value))
+                    : 2);
+                }}
+                className={NUMBER_CLASS}
+              />
+            </label>
+          </div>
+        )}
+        {canSplit && (
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" onClick={() => split('across')} className={BUTTON_CLASS}>
+              Split across
+            </button>
+            <button type="button" onClick={() => split('down')} className={BUTTON_CLASS}>
+              Split down
+            </button>
+          </div>
+        )}
+        {(nested || removable) && (
+          <div className="grid grid-cols-3 gap-2">
+            {nested && (
+              <button
+                type="button"
+                onClick={() => dispatch(equalizeCells(actionBase))}
+                className={BUTTON_CLASS}
+              >
+                Make equal
+              </button>
+            )}
+            {nested && (
+              <button
+                type="button"
+                onClick={() => dispatch(unsplitCell(actionBase))}
+                className={BUTTON_CLASS}
+              >
+                Unsplit
+              </button>
+            )}
+            {removable && (
+              <button
+                type="button"
+                onClick={() => dispatch(removeCell(actionBase))}
+                className={REMOVE_CLASS}
+              >
+                Remove cell
+              </button>
+            )}
+          </div>
+        )}
       </div>
-      )}
-      {canSplit && (
-      <div className="grid grid-cols-2 gap-2">
-        <button type="button" onClick={() => split('across')} className={BUTTON_CLASS}>
-          Split across
-        </button>
-        <button type="button" onClick={() => split('down')} className={BUTTON_CLASS}>
-          Split down
-        </button>
-      </div>
-      )}
-      {(nested || removable) && (
-        <div className="grid grid-cols-3 gap-2">
-          {nested && (
-            <button
-              type="button"
-              onClick={() => dispatch(equalizeCells(actionBase))}
-              className={BUTTON_CLASS}
-            >
-              Make equal
-            </button>
-          )}
-          {nested && (
-            <button
-              type="button"
-              onClick={() => dispatch(unsplitCell(actionBase))}
-              className={BUTTON_CLASS}
-            >
-              Unsplit
-            </button>
-          )}
-          {removable && (
-            <button
-              type="button"
-              onClick={() => dispatch(removeCell(actionBase))}
-              className={REMOVE_CLASS}
-            >
-              Remove cell
-            </button>
-          )}
-        </div>
-      )}
-    </section>
+    </PanelSection>
   );
 }

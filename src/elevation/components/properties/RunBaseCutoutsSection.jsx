@@ -16,7 +16,12 @@ export default function RunBaseCutoutsSection({ room, wall, run, settings, piece
     && Math.abs(candidate.z - run.z) <= 1e-6).sort((a, b) => a.x - b.x);
   const displayed = piece ? coveringBaseCutouts(run, piece, settings, cabinets) : cutouts;
   if (piece && !displayed.length) {
-    return <AddBaseCutoutButton room={room} wall={wall} run={run} piece={piece} settings={settings} cabinets={cabinets} />;
+    if (runBaseProfile(room, wall, run, settings).kind !== 'furniture_base') return null;
+    return (
+      <PanelSection id="piece.baseCutouts" title="Base cutouts">
+        <AddBaseCutoutButton room={room} wall={wall} run={run} piece={piece} settings={settings} cabinets={cabinets} />
+      </PanelSection>
+    );
   }
   const base = runBase(room, wall, run, settings, scene);
 
@@ -41,10 +46,9 @@ export default function RunBaseCutoutsSection({ room, wall, run, settings, piece
     </>
   );
   return piece ? (
-    <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">Base cutout</h3>
+    <PanelSection id="piece.baseCutouts" title="Base cutouts">
       {content}
-    </section>
+    </PanelSection>
   ) : (
     <PanelSection id="run.baseCutouts" title="Base cutouts">{content}</PanelSection>
   );

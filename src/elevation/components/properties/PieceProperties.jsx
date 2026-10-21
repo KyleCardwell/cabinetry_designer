@@ -1,3 +1,4 @@
+import PanelSection from '../panel/PanelSection.jsx';
 import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import {
@@ -23,10 +24,7 @@ function InteriorFillerProperties({ wallId, run, piece, item, extendRuns }) {
 
   return (
     <div className="space-y-4">
-      <section>
-        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-          Interior filler
-        </h3>
+      <PanelSection id="piece.filler" title="Interior filler">
         <Field label="Width">
           <InchInput
             value={piece.width}
@@ -43,7 +41,7 @@ function InteriorFillerProperties({ wallId, run, piece, item, extendRuns }) {
             wallId, runId: run.id, cellId: item.id, direction, target,
           }))}
         />
-      </section>
+      </PanelSection>
       <button
         type="button"
         onClick={() => dispatch(removeItem(actionBase))}
@@ -57,10 +55,7 @@ function InteriorFillerProperties({ wallId, run, piece, item, extendRuns }) {
 
 function EndProperties({ room, wall, wallId, run, side, settings, extendRuns }) {
   return (
-    <section>
-      <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-        {side} end piece
-      </h3>
+    <PanelSection id="piece.end" title={`${side} end piece`}>
       <div className="rounded border border-gray-700 bg-gray-900/45 p-3">
         <EndFields
           actionBase={{ wallId, runId: run.id }}
@@ -72,7 +67,7 @@ function EndProperties({ room, wall, wallId, run, side, settings, extendRuns }) 
           extendRuns={extendRuns}
         />
       </div>
-    </section>
+    </PanelSection>
   );
 }
 

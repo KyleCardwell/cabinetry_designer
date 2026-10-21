@@ -1,4 +1,5 @@
 import HeightBands from '../HeightBands.jsx';
+import PanelTabs from '../panel/PanelTabs.jsx';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
@@ -56,13 +57,14 @@ const expandCutoutRows = (tree) => {
   return { ...tree, props: { ...tree.props, children: expandCutoutRows(tree.props.children) } };
 };
 const render = (extra = {}) => expandCutoutRows(RunBaseCutoutsSection({ ...props(), ...extra }));
+const sizeTab = (tree) => nodes(tree).find(({ type }) => type === PanelTabs).props.children('size');
 const piecePanel = (id = 'c1') => {
   const scene = runScene(room(), wall(), run(), state.settings);
   const piece = scene.cells.pieces.find((candidate) => candidate.id === id);
   const item = { id, kind: 'cabinet', width: piece.width };
   const outer = PieceProperties({ ...props(), layout: scene.result, cells: scene.cells, selectionContext: { piece, item } });
   const component = nodes(outer).find(({ type }) => type === CabinetProperties || type === CellProperties);
-  const panel = component.type(component.props);
+  const panel = sizeTab(component.type(component.props));
   const section = nodes(panel).find(({ type }) => type === RunBaseCutoutsSection);
   return expandCutoutRows(RunBaseCutoutsSection(section.props));
 };
@@ -117,9 +119,10 @@ describe('Step 494 base cutout controls', () => {
     const outer = PieceProperties({ ...panelProps, selectionContext: { piece, item: panelProps.item } });
     const cabinet = nodes(outer).find(({ type }) => type === CabinetProperties);
     expect(cabinet.props.room).toBe(room());
-    const section = nodes(CabinetProperties(cabinet.props)).find(({ type }) => type === RunBaseCutoutsSection);
+    const section = nodes(sizeTab(CabinetProperties(cabinet.props))).find(({ type }) => type === RunBaseCutoutsSection);
     expect(section.props.numbers).toBe(cabinet.props.numbers);
-    const button = RunBaseCutoutsSection(section.props);
+    const cutouts = RunBaseCutoutsSection(section.props);
+    const button = nodes(cutouts).find(({ type }) => type === AddBaseCutoutButton);
     expect(text(AddBaseCutoutButton(button.props))).toBe('Add base cutout');
     const panel = RunProperties({ ...props(), layout: scene.result, showMessage: vi.fn() });
     const runPanel = panel.props.children('heights');
@@ -148,9 +151,10 @@ describe('Step 494 base cutout controls', () => {
     const outer = PieceProperties({ ...panelProps, selectionContext: { piece, item } });
     const cell = nodes(outer).find(({ type }) => type === CellProperties);
     expect(cell.props.room).toBe(room());
-    const section = nodes(CellProperties(cell.props)).find(({ type }) => type === RunBaseCutoutsSection);
+    const section = nodes(sizeTab(CellProperties(cell.props))).find(({ type }) => type === RunBaseCutoutsSection);
     expect(section.props.numbers).toBe(cell.props.numbers);
-    const button = RunBaseCutoutsSection(section.props);
+    const cutouts = RunBaseCutoutsSection(section.props);
+    const button = nodes(cutouts).find(({ type }) => type === AddBaseCutoutButton);
     AddBaseCutoutButton(button.props).props.onClick();
     expect(run().baseCutouts[0]).toMatchObject({ from: 'lower', to: 'lower' });
     expect(options(field(render(), 'Cutout 1 From')).map(({ props }) => props.value)).toEqual(['lower']);
@@ -179,7 +183,7 @@ describe('Step 494 base cutout controls', () => {
     run().grid = gridFromItems(run().id, [fixed('c1', 36)]);
     add();
     const panel = piecePanel();
-    expect(text(panel)).toContain('Base cutout');
+    expect(panel.props.title).toBe('Base cutouts');
     expect(nodes(panel).some(({ type }) => type === AddBaseCutoutButton)).toBe(false);
     expect(field(panel, 'Cutout 1 From').props.value).toBe('c1');
     expect(['Left', 'Width', 'Right'].map((label) => field(panel, `Cutout 1 ${label}`).props.placeholder))
@@ -188,7 +192,7 @@ describe('Step 494 base cutout controls', () => {
     expect(run().baseCutouts[0].left).toBe(2);
     expect(field(render(), 'Cutout 1 Width').props.placeholder).toBe('31');
     field(piecePanel(), 'Remove base cutout 1').props.onClick();
-    expect(text(AddBaseCutoutButton(piecePanel().props))).toBe('Add base cutout');
+    expect(text(AddBaseCutoutButton(nodes(piecePanel()).find(({ type }) => type === AddBaseCutoutButton).props))).toBe('Add base cutout');
   });
 
   it('case 2: shows a spanning cutout on the second cabinet with derived width 30', () => {
@@ -291,7 +295,7 @@ describe('Step 494 base cutout controls', () => {
     expect(field(panel, 'Cutout 2 From').props.value).toBe('c2');
     expect(nodes(panel).some(({ type }) => type === AddBaseCutoutButton)).toBe(false);
     run().baseCutouts = [{ id: 'only', from: 'c1', to: 'c1' }];
-    expect(text(AddBaseCutoutButton(piecePanel('c2').props))).toBe('Add base cutout');
+    expect(text(AddBaseCutoutButton(nodes(piecePanel('c2')).find(({ type }) => type === AddBaseCutoutButton).props))).toBe('Add base cutout');
   });
 
   it('distinguishes Inherit, Square and active profiles and retains unavailable picks', () => {

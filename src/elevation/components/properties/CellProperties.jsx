@@ -1,4 +1,6 @@
 import { useDispatch } from 'react-redux';
+import PanelSection from '../panel/PanelSection.jsx';
+import PanelTabs from '../panel/PanelTabs.jsx';
 import {
   cellBlindSides,
   findCell,
@@ -25,7 +27,6 @@ import Field, { ReadOnlyValue } from './Field.jsx';
 import GapField from './GapField.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
-const HEADING_CLASS = 'mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400';
 const NO_INSET = { left: 0, right: 0 };
 
 export default function CellProperties({
@@ -59,186 +60,197 @@ export default function CellProperties({
   const columnIndex = runItems(run).findIndex((candidate) => candidate.id === piece.columnId);
   const hasColumnAfter = columnIndex >= 0 && columnIndex < runItems(run).length - 1;
 
+  const tabs = [
+    { id: 'size', label: 'Size' },
+    ...(isCabinet ? [{ id: 'style', label: 'Faces & style' }] : []),
+    ...(isCabinet || item.kind === 'shelves' ? [{ id: 'inside', label: 'Inside' }] : []),
+  ];
+
   return (
     <div className="space-y-5">
-      <RunBaseCutoutsSection room={room} wall={wall} run={run} piece={piece} settings={settings} numbers={numbers} />
       <CellKindSection wall={wall} run={run} piece={piece} item={item} />
+      <PanelTabs id="piece" tabs={tabs}>
+        {(active) => (
+          <div className="mt-4 space-y-5">
+            {active === 'size' && (
+              <>
+                <PanelSection id="piece.size" title="Size">
+                  <div className="mt-2 grid grid-cols-2 gap-2">
+                    <div>
+                      <OverrideInput
+                        kind="number"
+                        label={axis === 'row' ? 'Height' : 'Box width'}
+                        value={locked ? size : null}
+                        inherited={size}
+                        source="auto"
+                        onChange={(value) => dispatch(setTrackSize({
+                          ...actionBase,
+                          trackId: context.track.id,
+                          size: value === null ? null : axis === 'row' ? value : value + trim,
+                        }))}
+                        aria-label={`Cell ${axis === 'row' ? 'height' : 'width'}`}
+                      />
+                      {axis === 'col' && boxWidth !== piece.width && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Frame section: {formatInches(piece.width)}
+                        </p>
+                      )}
+                    </div>
+                    <Field label={axis === 'row' ? 'Box width' : 'Height'} tag="auto">
+                      <ReadOnlyValue
+                        value={axis === 'row' ? boxWidth : piece.height}
+                        ariaLabel={`Cell ${axis === 'row' ? 'width' : 'height'}`}
+                      />
+                      {axis === 'row' && boxWidth !== piece.width && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Frame section: {formatInches(piece.width)}
+                        </p>
+                      )}
+                    </Field>
+                  </div>
+                  {hasTrackAfter && (
+                    <div className="mt-2">
+                      <GapField
+                        label={axis === 'row' ? 'Gap below (blank = none)' : 'Gap right (blank = run)'}
+                        value={context.track.gap}
+                        fallback={axis === 'row' ? 0 : run._seamGap ?? 0}
+                        onCommit={(gap) => dispatch(setTrackGap({ ...actionBase, trackId: context.track.id, gap }))}
+                        ariaLabel={axis === 'row' ? 'Cell gap below' : 'Cell gap right'}
+                      />
+                    </div>
+                  )}
 
-      <section>
-        <h3 className={HEADING_CLASS}>Size</h3>
-        <div className="mt-2 grid grid-cols-2 gap-2">
-          <div>
-            <OverrideInput
-              kind="number"
-              label={axis === 'row' ? 'Height' : 'Box width'}
-              value={locked ? size : null}
-              inherited={size}
-              source="auto"
-              onChange={(value) => dispatch(setTrackSize({
-                ...actionBase,
-                trackId: context.track.id,
-                size: value === null ? null : axis === 'row' ? value : value + trim,
-              }))}
-              aria-label={`Cell ${axis === 'row' ? 'height' : 'width'}`}
-            />
-            {axis === 'col' && boxWidth !== piece.width && (
-              <p className="mt-1 text-xs text-gray-500">
-                Frame section: {formatInches(piece.width)}
-              </p>
+                  {column && (
+                    <div className="mt-3 space-y-2">
+                      <OverrideInput
+                        kind="number"
+                        label="Column box width"
+                        value={columnLocked ? columnBoxWidth : null}
+                        inherited={columnBoxWidth}
+                        source="auto"
+                        onChange={(width) => dispatch(setItemWidth({
+                          ...actionBase,
+                          itemId: piece.columnId,
+                          width: width === null ? null : width + columnTrim,
+                        }))}
+                        aria-label="Column box width"
+                      />
+                      {columnBoxWidth !== column.width && (
+                        <p className="mt-1 text-xs text-gray-500">
+                          Frame section: {formatInches(column.width)}
+                        </p>
+                      )}
+                      {hasColumnAfter && (
+                        <div className="mt-2">
+                          <GapField
+                            label="Column gap right (blank = run)"
+                            value={columnItem?.gap}
+                            fallback={run._seamGap ?? 0}
+                            onCommit={(gap) => dispatch(setTrackGap({
+                              ...actionBase, trackId: `${piece.columnId}:col`, gap,
+                            }))}
+                            ariaLabel="Column gap right"
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </PanelSection>
+
+                <CellDepthSection wall={wall} run={run} piece={piece} item={item} settings={settings} />
+
+                {blindSides.length > 0 && (
+                  <PanelSection id="piece.blind" title="Blind">
+                    <div className="grid grid-cols-2 gap-2">
+                      {blindSides.map((side) => (
+                        <Field key={side} label={`Blind box (${side})`}>
+                          <InchInput
+                            value={item.blind?.[side] ?? null}
+                            allowBlank
+                            placeholder="not blind"
+                            onCommit={(width) => dispatch(setCellBlind({ ...cellBase, side, width }))}
+                            aria-label={`Cell ${side} blind box width`}
+                          />
+                        </Field>
+                      ))}
+                    </div>
+                  </PanelSection>
+                )}
+
+                <CellSplitSection
+                  wall={wall}
+                  run={run}
+                  cellId={item.id}
+                  nested={context.depth > 0}
+                  removable
+                  canSplit={isCabinet}
+                />
+                {isCabinet && <CellWrapSection wall={wall} run={run} cellId={item.id} />}
+                <RunBaseCutoutsSection room={room} wall={wall} run={run} piece={piece} settings={settings} numbers={numbers} />
+              </>
             )}
-          </div>
-          <Field label={axis === 'row' ? 'Box width' : 'Height'} tag="auto">
-            <ReadOnlyValue
-              value={axis === 'row' ? boxWidth : piece.height}
-              ariaLabel={`Cell ${axis === 'row' ? 'width' : 'height'}`}
-            />
-            {axis === 'row' && boxWidth !== piece.width && (
-              <p className="mt-1 text-xs text-gray-500">
-                Frame section: {formatInches(piece.width)}
-              </p>
+            {active === 'style' && (
+              <FaceProperties
+                part="style"
+                wall={wall}
+                run={run}
+                piece={piece}
+                item={item}
+                layout={layout}
+                cells={cells}
+                settings={settings}
+              />
             )}
-          </Field>
-        </div>
-        {hasTrackAfter && (
-          <div className="mt-2">
-            <GapField
-              label={axis === 'row' ? 'Gap below (blank = none)' : 'Gap right (blank = run)'}
-              value={context.track.gap}
-              fallback={axis === 'row' ? 0 : run._seamGap ?? 0}
-              onCommit={(gap) => dispatch(setTrackGap({ ...actionBase, trackId: context.track.id, gap }))}
-              ariaLabel={axis === 'row' ? 'Cell gap below' : 'Cell gap right'}
-            />
+            {active === 'inside' && (
+              <>
+                {item.kind === 'shelves' && (
+                  <PanelSection id="piece.shelves" title="Shelves">
+                    <div className="grid grid-cols-2 gap-2">
+                      <Field label="Count">
+                        <input
+                          type="number"
+                          min={1}
+                          max={MAX_SHELVES}
+                          value={item.shelves?.count ?? 1}
+                          onChange={(event) => dispatch(setCellShelves({
+                            ...cellBase,
+                            count: Number(event.target.value),
+                          }))}
+                          aria-label="Shelf count"
+                          className={SELECT_CLASS}
+                        />
+                      </Field>
+                      <label className="flex items-end gap-2 pb-2 text-xs text-gray-300">
+                        <input
+                          type="checkbox"
+                          checked={Boolean(item.shelves?.back)}
+                          onChange={(event) => dispatch(setCellShelves({
+                            ...cellBase,
+                            back: event.target.checked,
+                          }))}
+                        />
+                        Back panel
+                      </label>
+                    </div>
+                  </PanelSection>
+                )}
+                {isCabinet && (
+                  <FaceProperties
+                    part="inside"
+                    wall={wall}
+                    run={run}
+                    piece={piece}
+                    item={item}
+                    layout={layout}
+                    cells={cells}
+                    settings={settings}
+                  />
+                )}
+              </>
+            )}
           </div>
         )}
-      </section>
-
-      {column && (
-        <section>
-          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-            Column
-          </h3>
-          <OverrideInput
-            kind="number"
-            label="Box width"
-            value={columnLocked ? columnBoxWidth : null}
-            inherited={columnBoxWidth}
-            source="auto"
-            onChange={(width) => dispatch(setItemWidth({
-              ...actionBase,
-              itemId: piece.columnId,
-              width: width === null ? null : width + columnTrim,
-            }))}
-            aria-label="Column box width"
-          />
-          {columnBoxWidth !== column.width && (
-            <p className="mt-1 text-xs text-gray-500">
-              Frame section: {formatInches(column.width)}
-            </p>
-          )}
-          {hasColumnAfter && (
-            <div className="mt-2">
-              <GapField
-                label="Column gap right (blank = run)"
-                value={columnItem?.gap}
-                fallback={run._seamGap ?? 0}
-                onCommit={(gap) => dispatch(setTrackGap({
-                  ...actionBase, trackId: `${piece.columnId}:col`, gap,
-                }))}
-                ariaLabel="Column gap right"
-              />
-            </div>
-          )}
-        </section>
-      )}
-
-      <CellDepthSection wall={wall} run={run} piece={piece} item={item} settings={settings} />
-
-      {item.kind === 'shelves' && (
-        <section>
-          <h3 className={HEADING_CLASS}>Shelves</h3>
-          <div className="grid grid-cols-2 gap-2">
-            <Field label="Count">
-              <input
-                type="number"
-                min={1}
-                max={MAX_SHELVES}
-                value={item.shelves?.count ?? 1}
-                onChange={(event) => dispatch(setCellShelves({
-                  ...cellBase,
-                  count: Number(event.target.value),
-                }))}
-                aria-label="Shelf count"
-                className={SELECT_CLASS}
-              />
-            </Field>
-            <label className="flex items-end gap-2 pb-2 text-xs text-gray-300">
-              <input
-                type="checkbox"
-                checked={Boolean(item.shelves?.back)}
-                onChange={(event) => dispatch(setCellShelves({
-                  ...cellBase,
-                  back: event.target.checked,
-                }))}
-              />
-              Back panel
-            </label>
-          </div>
-        </section>
-      )}
-
-      {blindSides.length > 0 && (
-        <section>
-          <h3 className={HEADING_CLASS}>Blind</h3>
-          <div className="grid grid-cols-2 gap-2">
-            {blindSides.map((side) => (
-              <Field key={side} label={`Blind box (${side})`}>
-                <InchInput
-                  value={item.blind?.[side] ?? null}
-                  allowBlank
-                  placeholder="not blind"
-                  onCommit={(width) => dispatch(setCellBlind({ ...cellBase, side, width }))}
-                  aria-label={`Cell ${side} blind box width`}
-                />
-              </Field>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <CellSplitSection
-        wall={wall}
-        run={run}
-        cellId={item.id}
-        nested={context.depth > 0}
-        removable
-        canSplit={isCabinet}
-      />
-      {isCabinet && <CellWrapSection wall={wall} run={run} cellId={item.id} />}
-
-      {isCabinet && (
-        <>
-          <FaceProperties
-            part="style"
-            wall={wall}
-            run={run}
-            piece={piece}
-            item={item}
-            layout={layout}
-            cells={cells}
-            settings={settings}
-          />
-          <FaceProperties
-            part="inside"
-            wall={wall}
-            run={run}
-            piece={piece}
-            item={item}
-            layout={layout}
-            cells={cells}
-            settings={settings}
-          />
-        </>
-      )}
+      </PanelTabs>
     </div>
   );
 }

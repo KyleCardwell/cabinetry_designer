@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { CABINET_TYPE_IDS, resolveWall, runScene } from '../../model/index.js';
-import { run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
+import { CABINET_TYPE_IDS, findCell, resolveWall, runItems, runScene } from '../../model/index.js';
+import elevationReducer, { splitCell } from '../../store/elevationSlice.js';
+import { auto, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn() }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
@@ -16,7 +17,7 @@ const button = (tree, label) => nodes(tree).find(({ type, props }) => type === '
 const band = (tree, id) => nodes(tree).find(({ props }) => props['data-height-band'] === id);
 const expanded = (tree, id) => nodes(band(tree, id)).find(({ type }) => type === 'button').props['aria-expanded'];
 let PanelSection, PanelTabs, HeightBands, RoomHeightsPanel, WallHeightProperties, RunHeightsSection, SettingsPanel, usePanelState;
-let RunProperties;
+let RunProperties, CabinetProperties, CellProperties, PieceProperties;
 let hooks, slots, hookIndex, effects, dirty, state, storage, renderedComponents;
 
 function unmount() {
@@ -35,7 +36,8 @@ function render(Component, props = {}) {
     const walk = (element, path) => {
       if (Array.isArray(element)) return element.map((child, index) => walk(child, `${path}/${child?.key ?? index}`));
       if (!element || typeof element !== 'object') return element;
-      if (element.type === Component || renderedComponents.includes(element.type)) {
+      if (element.type === Component || renderedComponents.includes(element.type)
+        || ['EndProperties', 'InteriorFillerProperties'].includes(element.type?.name)) {
         const id = `${path}/${element.type.name}`;
         mounted.add(id);
         if (!hooks.has(id)) hooks.set(id, []);
@@ -73,9 +75,20 @@ async function loadPanels() {
     import('../properties/RunBaseCutoutsSection.jsx'), import('../properties/RunBottomSection.jsx'),
     import('../properties/RunStyleFields.jsx'), import('../properties/PullPicks.jsx'),
   ]);
+  ({ default: CabinetProperties } = await import('../properties/CabinetProperties.jsx'));
+  ({ default: CellProperties } = await import('../properties/CellProperties.jsx'));
+  ({ default: PieceProperties } = await import('../properties/PieceProperties.jsx'));
+  const pieceSections = await Promise.all([
+    import('../properties/CellKindSection.jsx'), import('../properties/CellDepthSection.jsx'),
+    import('../properties/CellSplitSection.jsx'), import('../properties/CellWrapSection.jsx'),
+    import('../properties/FaceProperties.jsx'), import('../properties/CabinetStyleProperties.jsx'),
+    import('../properties/BoxConstructionFields.jsx'), import('../properties/InteriorFields.jsx'),
+    import('../properties/DrawerBoxFields.jsx'), import('../properties/EndFields.jsx'),
+    import('../properties/TeeProperties.jsx'),
+  ]);
   const { RunFurnitureBaseSection } = await import('../properties/RunProperties.jsx');
   renderedComponents = [PanelSection, PanelTabs, HeightBands, RunHeightsSection,
-    RunFurnitureBaseSection, ...runSections.map((module) => module.default)];
+    RunFurnitureBaseSection, ...pieceSections.map((module) => module.default), ...runSections.map((module) => module.default)];
 }
 
 beforeEach(async () => {
@@ -244,7 +257,8 @@ describe('UI3 step a panel controls', () => {
 
 const sectionTitles = (tree) => nodes(tree)
   .filter(({ type, props }) => type === 'section' && !props['data-height-band'])
-  .map((section) => text(nodes(section).find(({ props }) => props['aria-expanded'] !== undefined).props.children[1]));
+  .map((section) => nodes(section).find(({ props }) => props['aria-expanded'] !== undefined))
+  .filter(Boolean).map((toggle) => text(toggle.props.children[1]));
 const sectionButton = (tree, title) => nodes(tree).find(({ type, props }) => type === 'button'
   && props['aria-expanded'] !== undefined && text(props.children[1]) === title);
 const tabs = (tree) => nodes(tree).filter(({ props }) => props.role === 'tab');
@@ -343,5 +357,101 @@ describe('UI5 step b run tabs', () => {
     expect(titles).toEqual(['Heights', expect.stringMatching(/^Furniture base FB #/), 'Base cutouts', 'Below the run']);
     room.walls[0].runs[0].cabinetTypeId = CABINET_TYPE_IDS.UPPER;
     expect(sectionTitles(runPanel())).toEqual(['Heights', 'Below the run']);
+  });
+});
+
+
+describe('UI6 step b cabinet and section tabs', () => {
+  function setup() {
+    state.facePath = null;
+    state.rooms[0].walls[0].runs = [makeRun({ width: 60, autoCount: false, seamGap: 0,
+      ends: { left: { type: 'filler', width: 1.5 }, right: { type: 'none' } },
+      items: [auto('a'), auto('b')],
+    })];
+  }
+  function pieceProps(id = 'a') {
+    const room = state.rooms[0];
+    const wall = resolveWall(room, room.walls[0]);
+    const run = wall.runs[0];
+    const scene = runScene(room, wall, run, state.settings);
+    const piece = scene.cells.pieces.find((candidate) => candidate.id === id);
+    return { room, wall, run, piece, item: runItems(run).find((candidate) => candidate.id === id) ?? findCell(run.grid, id)?.cell.node,
+      settings: state.settings, layout: scene.result, cells: scene.cells };
+  }
+  const piecePanel = (id = 'a', Component = CabinetProperties) => render(Component, pieceProps(id));
+
+  it('anchor 1: starts a door cabinet with Kind above Size, Faces & style and Inside tabs', () => {
+    setup();
+    const tree = piecePanel();
+    expect(tabs(tree).map(text)).toEqual(['Size', 'Faces & style', 'Inside']);
+    expect(button(tree, 'Size').props['aria-selected']).toBe(true);
+    expect(sectionTitles(tree)).toEqual(['Kind', 'Cabinet', 'Pin', 'Remainder', 'Depth', 'Split', 'Wrap']);
+    expect(nodes(tree).findIndex(({ props }) => props['aria-expanded'] !== undefined))
+      .toBeLessThan(nodes(tree).findIndex(({ props }) => props.role === 'tablist'));
+    expect(nodes(tree).some(({ type }) => type === 'h3')).toBe(false);
+    button(tree, 'Faces & style').props.onClick();
+    expect(sectionTitles(piecePanel())).toEqual(['Kind', 'Cabinet style', 'Faces']);
+    button(piecePanel(), 'Inside').props.onClick();
+    expect(sectionTitles(piecePanel())).toEqual(['Kind', 'Box', 'Interior']);
+  });
+
+  it('anchor 2: remembers Inside across cabinets and split sections and falls back for empty tabs', () => {
+    setup();
+    button(piecePanel(), 'Inside').props.onClick();
+    expect(button(piecePanel('b'), 'Inside').props['aria-selected']).toBe(true);
+    state = structuredClone(elevationReducer(state, splitCell({ wallId: 'wall-1', runId: 'run-1',
+      cellId: 'a', direction: 'down', count: 2 })));
+    expect(button(piecePanel('a', CellProperties), 'Inside').props['aria-selected']).toBe(true);
+    expect(sectionTitles(piecePanel('a', CellProperties))).toEqual(['Kind', 'Box', 'Interior']);
+    button(piecePanel('a', CellProperties), 'Interior').props.onClick();
+    unmount();
+    expect(button(piecePanel('b'), 'Inside').props['aria-selected']).toBe(true);
+    expect(button(piecePanel('b'), 'Interior').props['aria-expanded']).toBe(false);
+    const leaf = findCell(state.rooms[0].walls[0].runs[0].grid, 'a').cell.node;
+    leaf.kind = 'void';
+    expect(tabs(piecePanel('a', CellProperties)).map(text)).toEqual(['Size']);
+    expect(button(piecePanel('a', CellProperties), 'Size').props['aria-selected']).toBe(true);
+    expect(sectionTitles(piecePanel('a', CellProperties))).toEqual(['Kind', 'Size', 'Split']);
+    leaf.kind = 'shelves';
+    leaf.shelves = { count: 2, back: false };
+    button(piecePanel('a', CellProperties), 'Inside').props.onClick();
+    expect(tabs(piecePanel('a', CellProperties)).map(text)).toEqual(['Size', 'Inside']);
+    expect(sectionTitles(piecePanel('a', CellProperties))).toEqual(['Kind', 'Shelves']);
+    expect(nodes(piecePanel('a', CellProperties)).some(({ props }) => props['aria-label'] === 'Shelf count')).toBe(true);
+  });
+
+  it('anchor 3: badges typed width and gap right as 2 overridden, counting a zero gap', () => {
+    setup();
+    const run = state.rooms[0].walls[0].runs[0];
+    run.grid.cols[0].size = 27;
+    run.grid.cols[0].gap = 0;
+    expect(text(sectionButton(piecePanel(), 'Cabinet'))).toContain('2 overridden');
+    run.grid.cols[0].gap = null;
+    expect(text(sectionButton(piecePanel(), 'Cabinet'))).toContain('1 overridden');
+    run.grid.cols[0].size = null;
+    expect(text(sectionButton(piecePanel(), 'Cabinet'))).not.toContain('overridden');
+  });
+
+  it('anchor 4: keeps a left end piece untabbed with collapsible controls; fillers and tees also collapse', () => {
+    setup();
+    const props = pieceProps();
+    const endPiece = props.layout.pieces.find(({ role }) => role === 'end-left');
+    const endProps = { ...props, selectionContext: { piece: endPiece, side: 'left' } };
+    const tree = render(PieceProperties, endProps);
+    expect(tabs(tree).map(text)).toEqual([]);
+    expect(sectionTitles(tree)).toEqual(['left end piece']);
+    expect(nodes(tree).some(({ props }) => props['aria-label'] === 'left end type')).toBe(true);
+    button(tree, 'left end piece').props.onClick();
+    expect(button(render(PieceProperties, endProps), 'left end piece').props['aria-expanded']).toBe(false);
+    expect(nodes(render(PieceProperties, endProps)).some(({ props }) => props['aria-label'] === 'left end type')).toBe(false);
+    const filler = { ...props.piece, kind: 'filler', width: 2 };
+    const fillerTree = render(PieceProperties, { ...props, selectionContext: { piece: filler, item: filler } });
+    expect(tabs(fillerTree)).toEqual([]);
+    expect(sectionTitles(fillerTree)).toEqual(['Interior filler']);
+    const tee = { id: 'tee', orientation: 'vertical', partWidth: 3, height: 30 };
+    const teeTree = render(PieceProperties, { ...props, selectionContext: { piece: filler, tee } });
+    expect(tabs(teeTree)).toEqual([]);
+    expect(sectionTitles(teeTree)).toEqual(['Vertical T-filler']);
+    expect(nodes(teeTree).some(({ type }) => type === 'h3')).toBe(false);
   });
 });

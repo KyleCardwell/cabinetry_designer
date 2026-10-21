@@ -1,3 +1,4 @@
+import PanelSection from '../panel/PanelSection.jsx';
 import { useDispatch, useSelector } from 'react-redux';
 import { selectSettings } from '../../store/selectors.js';
 import {
@@ -55,108 +56,109 @@ export default function CellKindSection({ wall, run, piece, item }) {
     : offeredTypes;
 
   return (
-    <section className="space-y-2">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Kind</h3>
-      <Field label="Kind">
-        <select
-          value={item.kind}
-          onChange={(event) => dispatch(setCellKind({
-            ...actionBase,
-            kind: event.target.value,
-          }))}
-          aria-label="Cell kind"
-          className={SELECT_CLASS}
-        >
-          {KIND_OPTIONS.map(([value, label]) => (
-            <option key={value} value={value}>{label}</option>
-          ))}
-        </select>
-      </Field>
-      {isFloorOpening && (
-        <label className="flex items-center gap-2 text-xs text-gray-300">
-          <input
-            type="checkbox"
-            checked={item.baseUnder === true}
-            onChange={(event) => dispatch(setCellBaseUnder({
-              ...actionBase,
-              baseUnder: event.target.checked,
-            }))}
-          />
-          Base runs under the opening
-        </label>
-      )}
-      {item.kind === 'panel' && (
-        <Field label="Panel type">
+    <PanelSection id="piece.kind" title="Kind">
+      <div className="space-y-2">
+        <Field label="Kind">
           <select
-            value={orientation}
-            onChange={(event) => dispatch(setPanelType({
+            value={item.kind}
+            onChange={(event) => dispatch(setCellKind({
               ...actionBase,
-              type: event.target.value,
+              kind: event.target.value,
             }))}
-            aria-label="Panel type"
+            aria-label="Cell kind"
             className={SELECT_CLASS}
           >
-            {typeOptions.map((type) => (
-              <option key={type} value={type}>{PANEL_TYPE_LABELS[type]}</option>
+            {KIND_OPTIONS.map(([value, label]) => (
+              <option key={value} value={value}>{label}</option>
             ))}
           </select>
         </Field>
-      )}
-      {item.kind === 'panel' && (orientation === 'side' || orientation === 'top') && (
-        <Field label="Doors">
-          <select
-            value={item.doors ?? 'flush'}
-            onChange={(event) => dispatch(setPanelDoors({
-              ...actionBase,
-              doors: event.target.value,
-            }))}
-            aria-label="Panel doors"
-            className={SELECT_CLASS}
-          >
-            <option value="flush">Flush — panel to door face</option>
-            <option value="cover">Cover — doors lap over</option>
-          </select>
-        </Field>
-      )}
-      {item.kind === 'panel' && extendDirections(piece).length > 0 && (
-        <ExtendFields
-          directions={extendDirections(piece)}
-          extend={item.extend}
-          runs={wall.runs.filter((other) => other.id !== run.id && wallSideOf(other) === wallSideOf(run))}
-          label="Panel"
-          onChange={(direction, target) => dispatch(setCellExtend({
-            ...actionBase, direction, target,
-          }))}
-        />
-      )}
-      {item.kind === 'panel' && (
-        <PartStyleFields
-          room={room}
-          settings={settings}
-          partType="panel"
-          part={item}
-          levels={panelLevels(room, wall, run, item, { sheet: isSheetCell(item) })}
-          width={orientation === 'side' ? piece.depth : piece.width}
-          height={orientation === 'top' ? piece.depth : piece.height}
-          label="Panel"
-          onChange={(patch) => dispatch(setPartStyle({ ...where, ...patch }))}
-        />
-      )}
-      <div>
-        <p className="mb-1 text-xs text-gray-400">Add panel</p>
-        <div className="grid grid-cols-4 gap-2">
-          {PANEL_SIDES.map(([side, label]) => (
-            <button
-              key={side}
-              type="button"
-              onClick={() => dispatch(addPanel({ ...actionBase, side }))}
-              className={BUTTON_CLASS}
+        {isFloorOpening && (
+          <label className="flex items-center gap-2 text-xs text-gray-300">
+            <input
+              type="checkbox"
+              checked={item.baseUnder === true}
+              onChange={(event) => dispatch(setCellBaseUnder({
+                ...actionBase,
+                baseUnder: event.target.checked,
+              }))}
+            />
+            Base runs under the opening
+          </label>
+        )}
+        {item.kind === 'panel' && (
+          <Field label="Panel type">
+            <select
+              value={orientation}
+              onChange={(event) => dispatch(setPanelType({
+                ...actionBase,
+                type: event.target.value,
+              }))}
+              aria-label="Panel type"
+              className={SELECT_CLASS}
             >
-              {label}
-            </button>
-          ))}
+              {typeOptions.map((type) => (
+                <option key={type} value={type}>{PANEL_TYPE_LABELS[type]}</option>
+              ))}
+            </select>
+          </Field>
+        )}
+        {item.kind === 'panel' && (orientation === 'side' || orientation === 'top') && (
+          <Field label="Doors">
+            <select
+              value={item.doors ?? 'flush'}
+              onChange={(event) => dispatch(setPanelDoors({
+                ...actionBase,
+                doors: event.target.value,
+              }))}
+              aria-label="Panel doors"
+              className={SELECT_CLASS}
+            >
+              <option value="flush">Flush — panel to door face</option>
+              <option value="cover">Cover — doors lap over</option>
+            </select>
+          </Field>
+        )}
+        {item.kind === 'panel' && extendDirections(piece).length > 0 && (
+          <ExtendFields
+            directions={extendDirections(piece)}
+            extend={item.extend}
+            runs={wall.runs.filter((other) => other.id !== run.id && wallSideOf(other) === wallSideOf(run))}
+            label="Panel"
+            onChange={(direction, target) => dispatch(setCellExtend({
+              ...actionBase, direction, target,
+            }))}
+          />
+        )}
+        {item.kind === 'panel' && (
+          <PartStyleFields
+            room={room}
+            settings={settings}
+            partType="panel"
+            part={item}
+            levels={panelLevels(room, wall, run, item, { sheet: isSheetCell(item) })}
+            width={orientation === 'side' ? piece.depth : piece.width}
+            height={orientation === 'top' ? piece.depth : piece.height}
+            label="Panel"
+            onChange={(patch) => dispatch(setPartStyle({ ...where, ...patch }))}
+          />
+        )}
+        <div>
+          <p className="mb-1 text-xs text-gray-400">Add panel</p>
+          <div className="grid grid-cols-4 gap-2">
+            {PANEL_SIDES.map(([side, label]) => (
+              <button
+                key={side}
+                type="button"
+                onClick={() => dispatch(addPanel({ ...actionBase, side }))}
+                className={BUTTON_CLASS}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-    </section>
+    </PanelSection>
   );
 }
