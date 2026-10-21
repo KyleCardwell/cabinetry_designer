@@ -12,6 +12,7 @@ import { fixed, run as fixtureRun, stateWithRun } from '../../store/__tests__/he
 import KindPanel from '../../../library/profileEditor/KindPanel.jsx';
 import InchInput from '../InchInput.jsx';
 import SettingsPanel from '../SettingsPanel.jsx';
+import ShopHeightsPanel from '../ShopHeightsPanel.jsx';
 import SettingGroups from '../SettingGroups.jsx';
 import SettingField from '../SettingField.jsx';
 import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
@@ -43,7 +44,7 @@ const run = () => wall().runs[0];
 const props = () => ({ room: room(), wall: wall(), run: run(), settings: state.settings });
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object'
-    ? tree.type === HeightBands || tree.type === OverrideInput || tree.type === OverrideField || tree.type === SettingGroups || tree.type === SettingField
+    ? tree.type === ShopHeightsPanel || tree.type === HeightBands || tree.type === OverrideInput || tree.type === OverrideField || tree.type === SettingGroups || tree.type === SettingField
       ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : typeof tree === 'string' || typeof tree === 'number' ? String(tree) : text(tree?.props?.children ?? []);

@@ -18,7 +18,7 @@ const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
 const button = (tree, label) => nodes(tree).find(({ type, props }) => type === 'button' && text(props.children).includes(label));
 const band = (tree, id) => nodes(tree).find(({ props }) => props['data-height-band'] === id);
 const expanded = (tree, id) => nodes(band(tree, id)).find(({ type }) => type === 'button').props['aria-expanded'];
-let PanelSection, PanelTabs, HeightBands, RoomHeightsPanel, WallHeightProperties, RunHeightsSection, SettingsPanel, usePanelState;
+let PanelSection, PanelTabs, HeightBands, RoomHeightsPanel, WallHeightProperties, RunHeightsSection, SettingsPanel, ShopHeightsPanel, usePanelState;
 let RunProperties, CabinetProperties, CellProperties, PieceProperties;
 let PropertiesPanel, PropertiesHeader, ElevationToolbar, OpeningProperties;
 let DesignerEditor, RoomStylePanel, RoomDoorStylesPanel, RoomPartNumbersPanel, WallList;
@@ -85,6 +85,7 @@ async function loadPanels() {
   ({ default: WallHeightProperties } = await import('../properties/WallHeightProperties.jsx'));
   ({ default: RunHeightsSection } = await import('../properties/RunHeightsSection.jsx'));
   ({ default: SettingsPanel } = await import('../SettingsPanel.jsx'));
+  ({ default: ShopHeightsPanel } = await import('../ShopHeightsPanel.jsx'));
   ({ default: usePanelState } = await import('../panel/usePanelState.js'));
   ({ default: RunProperties } = await import('../properties/RunProperties.jsx'));
   const runSections = await Promise.all([
@@ -106,7 +107,7 @@ async function loadPanels() {
   ]);
   const { RunFurnitureBaseSection } = await import('../properties/RunProperties.jsx');
   renderedComponents = [WallHeightProperties, PropertiesPanel, PropertiesHeader, RoomHeightsPanel, RoomStylePanel, RoomDoorStylesPanel, RoomPartNumbersPanel, WallList,
-    PanelSection, PanelTabs, HeightBands, RunHeightsSection,
+    PanelSection, PanelTabs, HeightBands, ShopHeightsPanel, RunHeightsSection,
     RunFurnitureBaseSection, ...pieceSections.map((module) => module.default), ...runSections.map((module) => module.default)];
 }
 

@@ -8,6 +8,7 @@ import elevationReducer, { updateSettings } from '../../store/elevationSlice.js'
 import { stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import InchInput from '../InchInput.jsx';
 import SettingsPanel from '../SettingsPanel.jsx';
+import ShopHeightsPanel from '../ShopHeightsPanel.jsx';
 import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
 import OverrideField from '../OverrideField.jsx';
 import OverrideInput from '../OverrideInput.jsx';
@@ -28,11 +29,11 @@ const room = () => state.rooms[0];
 const wall = () => room().walls[0];
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object'
-    ? tree.type === Field || tree.type === HeightBands || tree.type === OverrideInput || tree.type === OverrideField
+    ? tree.type === Field || tree.type === ShopHeightsPanel || tree.type === HeightBands || tree.type === OverrideInput || tree.type === OverrideField
       ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : typeof tree === 'string' || typeof tree === 'number' ? String(tree)
-    : [HeightBands, Field].includes(tree?.type) ? text(tree.type(tree.props)) : text(tree?.props?.children ?? []);
+    : [ShopHeightsPanel, HeightBands, Field].includes(tree?.type) ? text(tree.type(tree.props)) : text(tree?.props?.children ?? []);
 const panels = [
   ['Default', () => SettingsPanel()],
   ['Room', () => RoomHeightsPanel()],

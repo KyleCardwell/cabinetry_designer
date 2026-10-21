@@ -294,7 +294,8 @@ describe('UI8 step b settings integration', () => {
       expect(nodes(canvasArea)).toContain(dialog);
       expect(nodes(left)).not.toContain(dialog);
       expect(dialog.props.className).toContain('absolute inset-y-0 left-0');
-      const sections = nodes(dialog).filter(({ type, props }) => type === 'section' && props.children[0]?.type === 'div');
+      const sections = nodes(dialog).filter(({ type, props }) => type === 'section'
+        && !props['data-height-band'] && props.children[0]?.type === 'div');
       expect(sections.map((section) => text(button(section, '')).replace('▾', '')))
         .toEqual(mode === 'lab' ? ['Room settings', 'Shop standards', 'View'] : ['Room settings', 'View']);
       button(nodes(tree).find(({ type }) => type === 'aside'), 'Settings').props.onClick();
@@ -339,5 +340,64 @@ describe('UI8 step b settings integration', () => {
     tree = render({}, SettingsPage);
     expect(field(tree, 'Base depth')).toBeDefined();
     expect(field(tree, 'Room Base depth')).toBeUndefined();
+  });
+});
+
+describe('UI9 step b shop height profile', () => {
+  const shopSection = (tree) => nodes(tree).find(({ type, props }) => type === 'section'
+    && button(props.children[0], 'Shop standards'));
+  const bandIds = (tree) => nodes(tree).filter(({ props }) => props['data-height-band'])
+    .map(({ props }) => props['data-height-band']);
+
+  it('anchor 1: ends lab Shop standards with the default height profile and all five shop bands', () => {
+    const tree = render({ mode: 'lab' }, DesignerEditor);
+    const shop = shopSection(tree);
+    expect(text(shop.props.children[1].props.children.at(-1))).toContain('Default height profile');
+    expect(bandIds(shop)).toEqual(['wall', 'crown', 'uppers', 'countertop', 'base']);
+    expect(nodes(shop).find(({ props }) => props['data-height-level'] === 'shop')).toBeDefined();
+    expect(field(shop, 'Default Wall height')).toBeDefined();
+    expect(field(shop, 'Default Crown')).toBeDefined();
+    expect(button(tree, 'Room heights')).toBeUndefined();
+  });
+
+  it('anchor 2: searches crown in lab, opens the full shop band and saves Crown to the shop default profile', () => {
+    storage.set('ff.panel.drawer.shop', 'false');
+    storage.set('ff.panel.band.crown', 'false');
+    let tree = search('  CrOwN  ');
+    const shop = shopSection(tree);
+    expect(button(shop, 'Shop standards').props['aria-expanded']).toBe(true);
+    expect(button(shop, 'Crown').props['aria-expanded']).toBe(true);
+    expect(bandIds(shop)).toEqual(['crown']);
+    expect(field(shop, 'Default Top mold')).toBeDefined();
+    expect(text(shop)).toMatch(/Overlap|Gap/);
+    const roomProfile = state.rooms[0].profile;
+    field(shop, 'Default Crown').props.onChange({ target: { value: '5' } });
+    field(render(), 'Default Crown').props.onBlur();
+    expect(state.settings.defaultProfile.crownHeight).toBe(5);
+    expect(state.rooms[0].profile).toEqual(roomProfile);
+    expect(storage.get('ff.panel.band.crown')).toBe('false');
+    expect(storage.get('ff.panel.drawer.shop')).toBe('false');
+
+    state = structuredClone(state);
+    state.settings.defaultProfile.baseKind = 'furniture_base';
+    state.rooms[0].profile.baseKind = 'toe_kick';
+    tree = search('proud');
+    expect(field(tree, 'Default Base proud')).toBeDefined();
+    expect(field(tree, 'Room Base proud')).toBeUndefined();
+    expect(text(tree)).not.toContain('No settings match');
+    tree = search('toe_kick');
+    expect(text(tree)).toContain('No settings match');
+  });
+
+  it('anchor 3: crown search in the project room editor shows Room heights and omits Shop standards', () => {
+    let tree = render({ mode: 'room' }, DesignerEditor);
+    field(tree, 'Search settings').props.onChange({ target: { value: 'crown' } });
+    tree = render({ mode: 'room' }, DesignerEditor);
+    expect(shopSection(tree)).toBeUndefined();
+    expect(text(tree)).not.toContain('Default height profile');
+    expect(button(tree, 'Room heights')).toBeDefined();
+    expect(field(tree, 'Room Crown')).toBeDefined();
+    expect(field(tree, 'Default Crown')).toBeUndefined();
+    expect(text(tree)).not.toContain('No settings match');
   });
 });

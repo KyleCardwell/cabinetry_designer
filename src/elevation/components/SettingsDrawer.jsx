@@ -8,6 +8,7 @@ import ViewPrefsFields, { hasMatchingViewPrefs } from './ViewPrefsFields.jsx';
 import PanelSection from './panel/PanelSection.jsx';
 import usePanelState from './panel/usePanelState.js';
 import RoomHeightsPanel from './RoomHeightsPanel.jsx';
+import ShopHeightsPanel from './ShopHeightsPanel.jsx';
 
 const GROUP_GRID = 'grid grid-cols-1 gap-4 [@container(min-width:600px)]:grid-cols-2';
 
@@ -17,12 +18,16 @@ export default function SettingsDrawer({ shopStandards = true, readOnly = false 
   const searchRef = useRef(null);
   const room = useSelector(({ elevation }) => elevation.rooms.find(({ id }) => id === elevation.activeRoomId));
   const settings = useSelector(selectSettings);
+  const shopSettings = useSelector(({ elevation }) => elevation.settings);
   const searching = query.trim().length > 0;
   const roomMatch = Boolean(room) && matchingSettingGroups('room', BAND_SETTING_KEYS, query).length > 0;
   const roomHeightMatch = Boolean(room) && searching && matchingBandFields(bandFieldsFor('room', {
     furnitureBase: resolveProfile(settings, room).baseKind === 'furniture_base',
   }), query).length > 0;
-  const shopMatch = shopStandards && matchingSettingGroups('team', BAND_SETTING_KEYS, query).length > 0;
+  const shopMatch = shopStandards && (matchingSettingGroups('team', BAND_SETTING_KEYS, query).length > 0
+    || matchingBandFields(bandFieldsFor('shop', {
+      furnitureBase: resolveProfile(shopSettings).baseKind === 'furniture_base',
+    }), query).length > 0);
   const viewMatch = hasMatchingViewPrefs(query);
 
   useEffect(() => {
@@ -83,6 +88,10 @@ export default function SettingsDrawer({ shopStandards = true, readOnly = false 
           <div hidden={!shopMatch}>
             <PanelSection id="drawer.shop" title="Shop standards" forceOpen={searching}>
               <SettingGroups scope="team" exclude={BAND_SETTING_KEYS} query={query} className={GROUP_GRID} />
+              <div className="mt-4">
+                <h3 className="mb-2 text-xs font-medium text-gray-300">Default height profile</h3>
+                <ShopHeightsPanel query={query} />
+              </div>
             </PanelSection>
           </div>
         )}
