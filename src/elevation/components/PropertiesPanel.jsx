@@ -34,6 +34,7 @@ import RunProperties from './properties/RunProperties.jsx';
 import SoffitProperties from './properties/SoffitProperties.jsx';
 import WallHeightProperties from './properties/WallHeightProperties.jsx';
 import WallEndPanelProperties from './properties/WallEndPanelProperties.jsx';
+import PropertiesHeader from './PropertiesHeader.jsx';
 
 export default function PropertiesPanel() {
   const dispatch = useDispatch();
@@ -132,9 +133,19 @@ export default function PropertiesPanel() {
 
   return (
     <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-700 bg-gray-800/50 p-4">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">
-        Properties
-      </h2>
+      <PropertiesHeader
+        key={`${wall?.id}/${opening?.id}/${soffit?.id}/${recess?.id}/${endPanel?.endpoint}/${run?.id}/${selectionContext?.piece.id}`}
+        room={room}
+        wall={wall}
+        run={run}
+        opening={opening}
+        soffit={soffit}
+        recess={recess}
+        endPanel={endPanel}
+        cells={cells}
+        selectionContext={selectionContext}
+        layout={displayLayout}
+      />
 
       <div className="mt-4">
         {!wall ? (

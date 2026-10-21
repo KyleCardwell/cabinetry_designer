@@ -26,7 +26,6 @@ import RunFaceOptions from './RunFaceOptions.jsx';
 import RunGeometrySection from './RunGeometrySection.jsx';
 import RunHeightsSection from './RunHeightsSection.jsx';
 import RunPiecesSection from './RunPiecesSection.jsx';
-import WarningsList from './WarningsList.jsx';
 import { RUN_TYPES } from './constants.js';
 
 const PLACEMENT_MESSAGES = {
@@ -198,7 +197,6 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
 
       <RunBottomSection room={room} run={run} settings={settings} actionBase={actionBase} />
 
-      <WarningsList layout={layout} />
     </div>
   );
 }
