@@ -23,7 +23,7 @@ const button = (tree, label) => nodes(tree).find(({ type, props }) => type === '
 const group = (tree, label) => nodes(tree).find(({ type, props }) => type === 'section'
   && [props.children].flat().some((child) => child?.type === 'button' && text(child).includes(label)));
 const controls = (tree) => nodes(tree).filter(({ type }) => ['input', 'select'].includes(type));
-let SettingsDrawer, DesignerEditor, SettingsPage, usePanelState, state, storage, hooks, slots, hookIndex, effects, dirty, focus;
+let SettingsDrawer, DesignerEditor, SettingsPage, PanelSection, usePanelState, state, storage, hooks, slots, hookIndex, effects, dirty, focus;
 
 // Use the same component/hook walk as the panel tests, including effect cleanup
 // and search focus, without needing a browser DOM.
@@ -72,6 +72,17 @@ function Viewer(props) {
   return <><button onClick={() => setOpen(!open)}>Settings toggle</button><SettingsDrawer {...props} /></>;
 }
 
+function LeftPanelViewer(props) {
+  const [open, setOpen] = usePanelState('settingsDrawer', false);
+  return <>
+    <button onClick={() => setOpen(!open)}>Settings toggle</button>
+    <PanelSection id="left.walls" title="Walls">Wall fields</PanelSection>
+    <PanelSection id="left.style" title="Style & door styles">Style fields</PanelSection>
+    <PanelSection id="left.parts" title="Part numbers & report" defaultOpen={false}>Part fields</PanelSection>
+    <SettingsDrawer {...props} />
+  </>;
+}
+
 beforeEach(async () => {
   vi.resetModules();
   vi.clearAllMocks();
@@ -116,6 +127,60 @@ beforeEach(async () => {
   ({ default: DesignerEditor } = await import('../../DesignerEditor.jsx'));
   ({ default: SettingsPage } = await import('../../../library/SettingsPage.jsx'));
   ({ default: usePanelState } = await import('../panel/usePanelState.js'));
+  ({ default: PanelSection } = await import('../panel/PanelSection.jsx'));
+});
+
+describe('UI9 step c left-panel matches', () => {
+  it('anchor 4: opens each remembered panel, closes the drawer, then scrolls to its section in read-only rooms', () => {
+    const frames = [];
+    const scrollIntoView = vi.fn();
+    vi.stubGlobal('requestAnimationFrame', vi.fn((callback) => frames.push(callback)));
+    vi.stubGlobal('document', { querySelector: vi.fn(() => ({ scrollIntoView })) });
+    for (const id of ['left.walls', 'left.style', 'left.parts']) storage.set(`ff.panel.${id}`, 'false');
+    for (const [id, query, label] of [
+      ['left.style', 'swing', 'Style & door styles — Show swing marks'],
+      ['left.walls', 'wall name', 'Walls — Wall name'],
+      ['left.parts', 'room note', 'Part numbers & report — Room note'],
+    ]) {
+      const props = { readOnly: true, shopStandards: false };
+      let tree = render(props, LeftPanelViewer);
+      field(tree, 'Search settings').props.onChange({ target: { value: query } });
+      tree = render(props, LeftPanelViewer);
+      const dialog = nodes(tree).find(({ props }) => props.role === 'dialog');
+      const row = button(dialog, label);
+      expect(row).toBeDefined();
+      expect(text(dialog)).not.toContain('No settings match');
+      expect(text(nodes(dialog).find(({ type }) => type === 'fieldset'))).not.toContain(label);
+      row.props.onClick();
+      expect(storage.get(`ff.panel.${id}`)).toBe('true');
+      expect(storage.get('ff.panel.settingsDrawer')).toBe('false');
+      tree = render(props, LeftPanelViewer);
+      expect(field(tree, 'Search settings')).toBeUndefined();
+      const section = nodes(tree).find(({ props }) => props['data-panel-id'] === id);
+      expect(button(section, '').props['aria-expanded']).toBe(true);
+      expect(document.querySelector).not.toHaveBeenCalled();
+      frames.shift()();
+      expect(document.querySelector).toHaveBeenCalledWith(`[data-panel-id="${id}"]`);
+      expect(scrollIntoView).toHaveBeenCalledWith({ block: 'start' });
+      document.querySelector.mockClear();
+      button(tree, 'Settings toggle').props.onClick();
+    }
+  });
+
+  it('shows title-only block matches last, hides them without a room or search, and preserves no matches for zzz', () => {
+    expect(text(render())).not.toContain('On the left panel');
+    let tree = search('  PART NUMBERS  ');
+    const heading = nodes(tree).find(({ type, props }) => type === 'h3' && text(props.children) === 'On the left panel');
+    expect(heading).toBeDefined();
+    expect(text(button(tree, 'Part numbers & report'))).toBe('Part numbers & report');
+    const content = nodes(tree).find(({ type, props }) => type === 'div' && props.className === 'space-y-4 px-4 pb-4');
+    expect(text(content.props.children.at(-2))).toContain('On the left panel');
+    expect(text(search('zzz'))).toContain('No settings match "zzz".');
+    state.activeRoomId = null;
+    tree = search('swing', { readOnly: true });
+    expect(text(tree)).not.toContain('On the left panel');
+    expect(text(tree)).toContain('No settings match "swing".');
+  });
 });
 
 afterEach(() => {

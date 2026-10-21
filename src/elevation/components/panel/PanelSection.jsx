@@ -6,7 +6,7 @@ export default function PanelSection({ id, title, badge, defaultOpen = true, for
   const badgeText = typeof badge === 'number' ? badge > 0 ? `${badge} overridden` : null : badge;
 
   return (
-    <section {...props} className={level === 2 ? undefined : 'border-t border-gray-700 pt-4'}>
+    <section {...props} data-panel-id={id} className={level === 2 ? undefined : 'border-t border-gray-700 pt-4'}>
       <div className="flex items-center gap-2">
         <button
           type="button"

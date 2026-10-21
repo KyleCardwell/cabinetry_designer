@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { BAND_SETTING_KEYS, bandFieldsFor, matchingBandFields } from '../model/heightBands.js';
+import { matchingLeftPanel } from '../model/leftPanelIndex.js';
 import { resolveProfile } from '../model/profile.js';
 import { selectSettings } from '../store/selectors.js';
 import SettingGroups, { matchingSettingGroups } from './SettingGroups.jsx';
@@ -11,6 +12,23 @@ import RoomHeightsPanel from './RoomHeightsPanel.jsx';
 import ShopHeightsPanel from './ShopHeightsPanel.jsx';
 
 const GROUP_GRID = 'grid grid-cols-1 gap-4 [@container(min-width:600px)]:grid-cols-2';
+
+function LeftPanelMatch({ match, query, onClose }) {
+  const [, setOpen] = usePanelState(match.id, match.id !== 'left.parts');
+  const titleMatch = match.title.toLowerCase().includes(query.trim().toLowerCase());
+  const navigate = () => {
+    setOpen(true);
+    onClose();
+    requestAnimationFrame(() => {
+      document.querySelector(`[data-panel-id="${match.id}"]`)?.scrollIntoView({ block: 'start' });
+    });
+  };
+  return (
+    <button type="button" onClick={navigate} className="block w-full rounded px-2 py-1.5 text-left text-sm text-gray-300 hover:bg-gray-700">
+      {match.title}{!titleMatch && ` — ${match.labels.join(', ')}`}
+    </button>
+  );
+}
 
 export default function SettingsDrawer({ shopStandards = true, readOnly = false }) {
   const [open, setOpen] = usePanelState('settingsDrawer', false);
@@ -29,6 +47,7 @@ export default function SettingsDrawer({ shopStandards = true, readOnly = false 
       furnitureBase: resolveProfile(shopSettings).baseKind === 'furniture_base',
     }), query).length > 0);
   const viewMatch = hasMatchingViewPrefs(query);
+  const leftPanelMatches = room && searching ? matchingLeftPanel(query) : [];
 
   useEffect(() => {
     if (open) searchRef.current?.focus();
@@ -100,7 +119,15 @@ export default function SettingsDrawer({ shopStandards = true, readOnly = false 
             <ViewPrefsFields query={query} />
           </PanelSection>
         </div>
-        {!roomMatch && !roomHeightMatch && !shopMatch && !viewMatch && <p className="text-sm text-gray-400">No settings match "{query}".</p>}
+        {leftPanelMatches.length > 0 && (
+          <div>
+            <h3 className="mb-2 text-xs font-semibold text-gray-400">On the left panel</h3>
+            {leftPanelMatches.map((match) => (
+              <LeftPanelMatch key={match.id} match={match} query={query} onClose={() => setOpen(false)} />
+            ))}
+          </div>
+        )}
+        {!roomMatch && !roomHeightMatch && !shopMatch && !viewMatch && leftPanelMatches.length === 0 && <p className="text-sm text-gray-400">No settings match "{query}".</p>}
       </div>
     </aside>
   );
