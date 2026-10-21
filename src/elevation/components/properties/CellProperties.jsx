@@ -7,7 +7,6 @@ import {
   runItems,
 } from '../../model/index.js';
 import {
-  lockItem,
   setCellBlind,
   setCellShelves,
   setItemWidth,
@@ -15,6 +14,7 @@ import {
   setTrackSize,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import OverrideInput from '../OverrideInput.jsx';
 import RunBaseCutoutsSection from './RunBaseCutoutsSection.jsx';
 import CellDepthSection from './CellDepthSection.jsx';
 import CellKindSection from './CellKindSection.jsx';
@@ -67,13 +67,17 @@ export default function CellProperties({
       <section>
         <h3 className={HEADING_CLASS}>Size</h3>
         <div className="mt-2 grid grid-cols-2 gap-2">
-          <Field label={axis === 'row' ? 'Height' : 'Box width'}>
-            <InchInput
-              value={size}
-              onCommit={(value) => dispatch(setTrackSize({
+          <div>
+            <OverrideInput
+              kind="number"
+              label={axis === 'row' ? 'Height' : 'Box width'}
+              value={locked ? size : null}
+              inherited={size}
+              source="auto"
+              onChange={(value) => dispatch(setTrackSize({
                 ...actionBase,
                 trackId: context.track.id,
-                size: axis === 'row' ? value : value + trim,
+                size: value === null ? null : axis === 'row' ? value : value + trim,
               }))}
               aria-label={`Cell ${axis === 'row' ? 'height' : 'width'}`}
             />
@@ -82,8 +86,8 @@ export default function CellProperties({
                 Frame section: {formatInches(piece.width)}
               </p>
             )}
-          </Field>
-          <Field label={axis === 'row' ? 'Box width' : 'Height'}>
+          </div>
+          <Field label={axis === 'row' ? 'Box width' : 'Height'} tag="auto">
             <ReadOnlyValue
               value={axis === 'row' ? boxWidth : piece.height}
               ariaLabel={`Cell ${axis === 'row' ? 'width' : 'height'}`}
@@ -95,17 +99,6 @@ export default function CellProperties({
             )}
           </Field>
         </div>
-        <button
-          type="button"
-          onClick={() => dispatch(setTrackSize({
-            ...actionBase,
-            trackId: context.track.id,
-            size: locked ? null : (axis === 'row' ? size : size + trim),
-          }))}
-          className="mt-2 w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600"
-        >
-          {locked ? `Unlock ${axis === 'row' ? 'height' : 'width'}` : `Lock ${axis === 'row' ? 'height' : 'width'}`}
-        </button>
         {hasTrackAfter && (
           <div className="mt-2">
             <GapField
@@ -124,39 +117,24 @@ export default function CellProperties({
           <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
             Column
           </h3>
-          <Field label="Box width">
-            <InchInput
-              value={columnBoxWidth}
-              onCommit={(width) => dispatch(setItemWidth({
-                ...actionBase,
-                itemId: piece.columnId,
-                width: width + columnTrim,
-              }))}
-              aria-label="Column box width"
-            />
-            {columnBoxWidth !== column.width && (
-              <p className="mt-1 text-xs text-gray-500">
-                Frame section: {formatInches(column.width)}
-              </p>
-            )}
-          </Field>
-          <button
-            type="button"
-            onClick={() => {
-              if (columnLocked) {
-                dispatch(setItemWidth({ ...actionBase, itemId: piece.columnId, width: null }));
-              } else {
-                dispatch(lockItem({
-                  ...actionBase,
-                  itemId: piece.columnId,
-                  computedWidth: column.width,
-                }));
-              }
-            }}
-            className="mt-2 w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600"
-          >
-            {columnLocked ? 'Unlock width' : 'Lock width'}
-          </button>
+          <OverrideInput
+            kind="number"
+            label="Box width"
+            value={columnLocked ? columnBoxWidth : null}
+            inherited={columnBoxWidth}
+            source="auto"
+            onChange={(width) => dispatch(setItemWidth({
+              ...actionBase,
+              itemId: piece.columnId,
+              width: width === null ? null : width + columnTrim,
+            }))}
+            aria-label="Column box width"
+          />
+          {columnBoxWidth !== column.width && (
+            <p className="mt-1 text-xs text-gray-500">
+              Frame section: {formatInches(column.width)}
+            </p>
+          )}
           {hasColumnAfter && (
             <div className="mt-2">
               <GapField

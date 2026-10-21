@@ -12,6 +12,7 @@ import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { runBase } from '../model/furnitureBase.js';
 import { moldingProfiles } from '../model/moldingProfiles.js';
 import InchInput from './InchInput.jsx';
+import Field from './properties/Field.jsx';
 import OverrideField from './OverrideField.jsx';
 import OverrideInput from './OverrideInput.jsx';
 import SettingField from './SettingField.jsx';
@@ -88,8 +89,7 @@ export default function RoomHeightsPanel() {
     const fromProfile = (key === 'crownHeight' && Boolean(moldings.crown))
       || (key === 'topMoldHeight' && Boolean(moldings.topMold && !moldings.topMold.profile.stretch));
     return fromProfile ? (
-      <label key={key} className="text-xs text-gray-400">
-        {label}
+      <Field key={key} label={label} tag="profile">
         <InchInput
           value={resolvedProfile[key]}
           readOnly
@@ -97,8 +97,7 @@ export default function RoomHeightsPanel() {
           aria-label={`Room ${label}`}
           className="mt-1"
         />
-        <span className="mt-1 block text-xs text-gray-500">from profile</span>
-      </label>
+      </Field>
     ) : (
       <OverrideInput
         key={key}

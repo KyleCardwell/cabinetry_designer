@@ -21,7 +21,7 @@ export default function SoffitProperties({ room, wall, soffit, settings }) {
           Soffit
         </h3>
         <div className="space-y-2.5">
-          <Field label="Left">
+          <Field label="Left" tag={soffit.anchors?.left || soffit.anchors?.right ? 'auto' : undefined}>
             {!soffit.anchors?.left && !soffit.anchors?.right ? (
               <InchInput
                 value={soffit.x}
@@ -35,7 +35,7 @@ export default function SoffitProperties({ room, wall, soffit, settings }) {
               <ReadOnlyValue value={soffit.x} ariaLabel="Soffit left" />
             )}
           </Field>
-          <Field label="Width">
+          <Field label="Width" tag={soffit.anchors?.left && soffit.anchors?.right ? 'auto' : undefined}>
             {soffit.anchors?.left && soffit.anchors?.right ? (
               <ReadOnlyValue value={soffit.width} ariaLabel="Soffit width" />
             ) : (

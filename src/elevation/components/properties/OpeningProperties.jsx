@@ -271,7 +271,7 @@ export default function OpeningProperties({ wall, opening, settings, placementMe
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Head height
         </h3>
-        <ReadOnlyValue value={geometry.head} ariaLabel="Opening head height" />
+        <ReadOnlyValue value={geometry.head} ariaLabel="Opening head height" tag="auto" />
       </section>
 
       <section>

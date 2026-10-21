@@ -8,6 +8,7 @@ import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { runBase } from '../model/furnitureBase.js';
 import { moldingProfiles } from '../model/moldingProfiles.js';
 import InchInput from './InchInput.jsx';
+import Field from './properties/Field.jsx';
 import SettingGroups from './SettingGroups.jsx';
 import SettingField from './SettingField.jsx';
 import HeightBands from './HeightBands.jsx';
@@ -78,8 +79,7 @@ export default function SettingsPanel({ shopStandards = true } = {}) {
     const fromProfile = (key === 'crownHeight' && Boolean(moldings.crown))
       || (key === 'topMoldHeight' && Boolean(moldings.topMold && !moldings.topMold.profile.stretch));
     return (
-      <label key={key} className="text-xs text-gray-400">
-        {label}
+      <Field key={key} label={label} tag={fromProfile ? 'profile' : undefined}>
         <InchInput
           value={fromProfile ? resolvedProfile[key] : settings.defaultProfile[key] ?? resolvedProfile[key]}
           readOnly={fromProfile}
@@ -87,8 +87,7 @@ export default function SettingsPanel({ shopStandards = true } = {}) {
           aria-label={`Default ${label}`}
           className="mt-1"
         />
-        {fromProfile && <span className="mt-1 block text-xs text-gray-500">from profile</span>}
-      </label>
+      </Field>
     );
   };
 

@@ -54,7 +54,7 @@ export default function RunGeometrySection({
         <div className="grid grid-cols-2 gap-2.5">
           <div className="col-span-2">
             {bothAnchored ? (
-              <Field label="Width">
+              <Field label="Width" tag="auto">
                 <ReadOnlyValue value={run.width} ariaLabel="Resolved run width" />
               </Field>
             ) : (
@@ -163,6 +163,7 @@ export default function RunGeometrySection({
                       <ReadOnlyValue
                         value={runPositions[side][anchor]}
                         ariaLabel={ariaLabel}
+                        tag="auto"
                       />
                     ) : (
                       <InchInput
@@ -186,7 +187,7 @@ export default function RunGeometrySection({
           ))}
         </div>
         <div className="mt-2.5">
-          <Field label="Front depth">
+          <Field label="Front depth" tag="auto">
             <ReadOnlyValue
               value={frontDepth(run, settings)}
               ariaLabel="Installed front depth"

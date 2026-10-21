@@ -12,6 +12,7 @@ import RoomHeightsPanel from '../RoomHeightsPanel.jsx';
 import OverrideField from '../OverrideField.jsx';
 import OverrideInput from '../OverrideInput.jsx';
 import WallHeightProperties from '../properties/WallHeightProperties.jsx';
+import Field from '../properties/Field.jsx';
 
 vi.mock('react', async (importOriginal) => ({
   ...await importOriginal(), useState: vi.fn(), useEffect: vi.fn(),
@@ -27,11 +28,11 @@ const room = () => state.rooms[0];
 const wall = () => room().walls[0];
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object'
-    ? tree.type === HeightBands || tree.type === OverrideInput || tree.type === OverrideField
+    ? tree.type === Field || tree.type === HeightBands || tree.type === OverrideInput || tree.type === OverrideField
       ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
 const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
   : typeof tree === 'string' || typeof tree === 'number' ? String(tree)
-    : tree?.type === HeightBands ? text(HeightBands(tree.props)) : text(tree?.props?.children ?? []);
+    : [HeightBands, Field].includes(tree?.type) ? text(tree.type(tree.props)) : text(tree?.props?.children ?? []);
 const panels = [
   ['Default', () => SettingsPanel()],
   ['Room', () => RoomHeightsPanel()],
@@ -93,7 +94,14 @@ describe('Step 473 molding height panels', () => {
       state.settings.sectionProfiles = [(({ stretch, ...fixed }) => { void stretch; return fixed; })(tm3), cr45];
       tree = render();
       expect(field(tree, scope, 'Top mold').props).toMatchObject({ value: 3, readOnly: true });
-      expect(text(tree)).toContain('from profile');
+      expect(text(tree)).not.toContain('from profile');
+      for (const label of ['Crown', 'Top mold']) {
+        const wrapper = nodes(tree).find(({ type, props }) => type === 'label'
+          && nodes(props.children).some(({ props }) => props['aria-label'] === `${scope} ${label}${scope === 'Wall' ? ' override' : ''}`));
+        expect(nodes(wrapper).some(({ type, props }) => type === 'span' && props.children === 'profile'
+          && props.className === 'text-[10px] text-gray-500')).toBe(true);
+        expect(InchInput(field(tree, scope, label).props).props.className).toContain('text-gray-500 border-gray-700 border-dashed');
+      }
       expect(text(tree)).toContain('Overlap 1 1/2"');
       pick(render, scope, 'Top mold profile', 'plain');
       pick(render, scope, 'Crown profile', 'plain');

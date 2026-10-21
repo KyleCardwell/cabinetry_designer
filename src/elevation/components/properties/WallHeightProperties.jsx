@@ -153,7 +153,7 @@ export default function WallHeightProperties({ room, wall, plan }) {
     const fromProfile = (key === 'crownHeight' && Boolean(moldings.crown))
       || (key === 'topMoldHeight' && Boolean(moldings.topMold && !moldings.topMold.profile.stretch));
     return (
-      <Field key={key} label={label}>
+      <Field key={key} label={label} tag={fromProfile ? 'profile' : undefined}>
         <InchInput
           value={fromProfile ? resolvedProfile[key] : wall.profile[key] ?? null}
           allowBlank
@@ -163,7 +163,6 @@ export default function WallHeightProperties({ room, wall, plan }) {
           aria-label={`Wall ${label} override`}
           className="mt-1"
         />
-        {fromProfile && <span className="mt-1 block text-xs text-gray-500">from profile</span>}
       </Field>
     );
   };

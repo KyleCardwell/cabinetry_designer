@@ -2,7 +2,6 @@ import { useDispatch } from 'react-redux';
 import { formatInches, resolvePinTarget, runItems } from '../../model/index.js';
 import {
   addItemAfter,
-  lockItem,
   removeItem,
   setItemAbsorb,
   setItemPin,
@@ -10,6 +9,7 @@ import {
   setTrackGap,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import OverrideInput from '../OverrideInput.jsx';
 import RunBaseCutoutsSection from './RunBaseCutoutsSection.jsx';
 import CellDepthSection from './CellDepthSection.jsx';
 import CellKindSection from './CellKindSection.jsx';
@@ -72,28 +72,20 @@ export default function CabinetProperties({
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Cabinet
         </h3>
-        <Field label="Box width">
-          <InchInput
-            value={boxWidth}
-            onCommit={(width) => dispatch(setItemWidth({ ...actionBase, width: width + trim }))}
-            aria-label="Cabinet box width"
-          />
-          {boxWidth !== piece.width && (
-            <p className="mt-1 text-xs text-gray-500">
-              Frame section: {formatInches(piece.width)}
-            </p>
-          )}
-        </Field>
-        <button
-          type="button"
-          onClick={() => {
-            if (locked) dispatch(setItemWidth({ ...actionBase, width: null }));
-            else dispatch(lockItem({ ...actionBase, computedWidth: piece.width }));
-          }}
-          className="mt-2 w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600"
-        >
-          {locked ? 'Unlock width' : 'Lock width'}
-        </button>
+        <OverrideInput
+          kind="number"
+          label="Box width"
+          value={locked ? boxWidth : null}
+          inherited={boxWidth}
+          source="auto"
+          onChange={(width) => dispatch(setItemWidth({ ...actionBase, width: width === null ? null : width + trim }))}
+          aria-label="Cabinet box width"
+        />
+        {boxWidth !== piece.width && (
+          <p className="mt-1 text-xs text-gray-500">
+            Frame section: {formatInches(piece.width)}
+          </p>
+        )}
         {next && (
           <div className="mt-2">
             <GapField
@@ -207,7 +199,7 @@ export default function CabinetProperties({
               />
             </Field>
             <div className="grid grid-cols-2 gap-2">
-              <Field label="Resolved target">
+              <Field label="Resolved target" tag="auto">
                 {resolvedTarget === null ? (
                   <div className="rounded border border-gray-700 bg-gray-900/60 px-2.5 py-1.5 text-sm text-amber-300">
                     Unresolved
@@ -216,7 +208,7 @@ export default function CabinetProperties({
                   <ReadOnlyValue value={resolvedTarget} ariaLabel="Resolved pin target" />
                 )}
               </Field>
-              <Field label="Actual center">
+              <Field label="Actual center" tag="auto">
                 <ReadOnlyValue value={actualCenter} ariaLabel="Actual cabinet center" />
               </Field>
             </div>

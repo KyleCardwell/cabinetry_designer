@@ -199,7 +199,10 @@ describe('DB2 e room heights and soffit overrides', () => {
     expect(field(tree, 'Room Crown').props).toMatchObject({ value: '4 1/2', readOnly: true });
     expect(field(tree, 'Room Crown').props.className).not.toContain('border-teal-500');
     expect(field(tree, 'Reset Crown')).toBeUndefined();
-    expect(text(tree)).toContain('from profile');
+    expect(text(tree)).not.toContain('from profile');
+    const crownRow = nodes(tree).find(({ type, props }) => type === 'label' && nodes(props.children).includes(field(tree, 'Room Crown')));
+    expect(nodes(crownRow).some(({ type, props }) => type === 'span' && props.children === 'profile')).toBe(true);
+    expect(field(tree, 'Room Crown').props.className).toContain('text-gray-500 border-gray-700 border-dashed');
     expect(room().profile).not.toHaveProperty('crownHeight');
   });
 

@@ -134,17 +134,17 @@ export default function RunHeightsSection({
         {run.heightMode === 'auto' ? (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-2.5">
-              <Field label="Resolved Z">
+              <Field label="Resolved Z" tag="auto">
                 <ReadOnlyValue value={run.z} ariaLabel="Resolved run z" />
               </Field>
-              <Field label="Resolved height">
+              <Field label="Resolved height" tag="auto">
                 <ReadOnlyValue value={run.height} ariaLabel="Resolved run height" />
               </Field>
             </div>
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2.5">
-            <Field label="Z">
+            <Field label="Z" tag={stacked ? 'auto' : undefined}>
               {stacked ? (
                 <ReadOnlyValue value={run.z} ariaLabel="Run z" />
               ) : (
@@ -155,7 +155,7 @@ export default function RunHeightsSection({
                 />
               )}
             </Field>
-            <Field label="Height">
+            <Field label="Height" tag={filled ? 'auto' : undefined}>
               {filled ? (
                 <ReadOnlyValue value={run.height} ariaLabel="Run height" />
               ) : (

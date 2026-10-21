@@ -32,6 +32,12 @@ const getByLabelText = (tree, label) => {
   expect(control, label).toBeDefined();
   return control;
 };
+const hasAutoTag = (tree, label) => {
+  const readout = getByLabelText(tree, label);
+  const wrapper = nodes(tree).find(({ type, props }) => type === 'label' && nodes(props.children).some(({ props }) => props['aria-label'] === label));
+  expect(nodes(wrapper).some(({ type, props }) => type === 'span' && props.children === 'auto')).toBe(true);
+  expect(readout.props.className).toContain('border-dashed border-gray-700');
+};
 const notes = (tree) => nodes(tree).filter(({ type, props }) => type === 'p' && props.className?.includes('text-amber-400')).map(text);
 let state;
 const room = () => state.rooms[0];
@@ -88,6 +94,8 @@ describe('UI1 step b wall and run height bands', () => {
     expect(bands(tree).map(({ props }) => props['data-height-band'])).toEqual(['crown', 'uppers']);
     expect(controls(band(tree, 'crown'))).toEqual(runLabels(['Box top']));
     expect(controls(band(tree, 'uppers'))).toEqual(runLabels(['Clearance above counter']));
+    hasAutoTag(tree, 'Resolved run z');
+    hasAutoTag(tree, 'Resolved run height');
     const ordered = nodes(tree);
     const crownIndex = ordered.findIndex(({ props }) => props['data-height-band'] === 'crown');
     expect(ordered.findIndex(({ props }) => props['aria-label'] === 'Resolved run z')).toBeLessThan(crownIndex);
@@ -146,6 +154,10 @@ describe('UI1 step b wall and run height bands', () => {
     run().cabinetTypeId = CABINET_TYPE_IDS.BASE;
     run().stack = { below: { runId: 'lower', offset: 0 } };
     expect(bands(runTree())).toEqual([]);
+    hasAutoTag(runTree(), 'Run z');
+    expect(getByLabelText(runTree(), 'Run height').type).toBe(InchInput);
+    run().stack.above = { runId: 'upper', offset: 0 };
+    hasAutoTag(runTree(), 'Run height');
     run().heightMode = 'auto';
     expect(controls(band(runTree(), 'base'))).toEqual(runLabels(['Toe kick / base height', 'Box height']));
   });
