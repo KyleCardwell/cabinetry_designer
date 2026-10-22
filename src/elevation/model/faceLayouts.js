@@ -34,16 +34,17 @@ function resolveFaceMatches(face, match, height) {
 /**
  * Faces, effective style and reveals for every cabinet piece in a run, keyed by piece id.
  * `run` may be a preview copy; the wall's other runs supply cross-run neighbors.
+ * A frame context reuses the exact cells and side rules while deriving notch opening spans.
  */
-function layoutFaces(room, wall, run, settings, layout) {
+export function layoutFaces(room, wall, run, settings, layout, frameContext) {
   wall = wallViewForRun(wall, run);
   const otherPieces = wall.runs
     .filter((other) => other.id !== run.id)
     .flatMap((other) => layoutRun(room, wall, other, settings).pieces);
   const tolerance = settings.adjacentRunGap ?? DEFAULT_SETTINGS.adjacentRunGap;
   const result = new Map();
-  const cells = cellPieces(run, layout);
-  const frames = frameRegions(room, run, cells, settings);
+  const cells = frameContext?.cells ?? cellPieces(run, layout);
+  const frames = frameContext?.frames ?? frameRegions(room, run, cells, settings);
   const { covers: teeCovers } = teeFillers(room, run, cells, settings);
   const overhang = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
   for (const piece of cells.pieces) {

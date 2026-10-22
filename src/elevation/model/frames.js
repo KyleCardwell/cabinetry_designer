@@ -2,6 +2,7 @@ import { gapReach, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { resolveFaces } from './faces.js';
+import { layoutFaces } from './faceLayouts.js';
 import { runItems } from './grid.js';
 import { frameDrop, isInsetStyle, resolveStyle } from './styles.js';
 
@@ -58,10 +59,11 @@ function boundsOf(pieces) {
  * panel's edge), or a wall end panel the frame is mitered over (SPEC-36.2, `region.wallPanels`),
  * and down by the upper drop on an upper whose doors overhang. A filler in a frame
  * is part of a wider stile. A cabinet side with nothing framed or covered beside it is free.
+ * `faceLayouts` may supply resolved openings; otherwise the shared face resolver derives them.
  *
  * @returns {{regions: object[], fillerIds: Set<string>, freeSides: Map<string, {left: boolean, right: boolean}>, seamSides: Map<string, {left: boolean, right: boolean}>, warnings: object[]}}
  */
-export function frameRegions(room, run, cells, settings) {
+export function frameRegions(room, run, cells, settings, faceLayouts) {
   const { pieces } = cells;
   const gaps = cells.gaps ?? [];
   const reach = gapReach(gaps);
@@ -110,20 +112,20 @@ export function frameRegions(room, run, cells, settings) {
     }];
   });
   const panels = [...pieces.filter(isSidePanel), ...wallPanels];
+  // Use the root grid's full box, including void cells, rather than a nested cabinet's bounds.
+  const columns = new Map(pieces.map((piece) => {
+    const id = piece.columnId ?? piece.id;
+    const grid = cells.grids?.find((entry) => entry.columnId === id && entry.depth === 1);
+    return [id, grid ? { ...grid, id, depth: piece.depth } : piece];
+  }));
+  const pending = [];
   for (const group of groups.values()) {
     const boxes = group.filter((piece) => piece.kind === 'cabinet');
     if (boxes.length === 0) continue;
     const bounds = boundsOf(group);
+    const boxBounds = boundsOf(boxes);
     const filled = group.reduce((total, piece) => total + areaOf(piece), 0)
       + gaps.reduce((total, gap) => total + overlapArea(gap, bounds), 0);
-    if (filled < areaOf(bounds) - EPSILON) {
-      warnings.push({
-        code: 'frame-not-rectangle',
-        pieceId: boxes[0].id,
-        message: 'These face frame cabinets don\'t make a rectangle, so one frame can\'t cover them.',
-      });
-    }
-
     const region = {
       id: `frame:${boxes[0].id}`,
       ...bounds,
@@ -170,6 +172,27 @@ export function frameRegions(room, run, cells, settings) {
       region.z -= drop;
       region.height += drop;
     }
+    const steps = [...new Set(boxes.map((box) => box.columnId ?? box.id))].flatMap((columnId) => {
+      const column = columns.get(columnId);
+      const top = column.z + column.height;
+      const high = boxBounds.z + boxBounds.height;
+      return [
+        ...(high - top > EPSILON ? [{ columnId, edge: 'top', x: column.x, z: top,
+          width: column.width, height: bounds.z + bounds.height - top }] : []),
+        ...(column.z - boxBounds.z > EPSILON ? [{ columnId, edge: 'bottom', x: column.x, z: bounds.z,
+          width: column.width, height: column.z - bounds.z }] : []),
+      ];
+    });
+    // The full column footprint includes the full-height stiles alongside the actual notch.
+    const filledSteps = steps.reduce((total, step) => total + overlapArea(step, bounds), 0);
+    if (filled + filledSteps < areaOf(bounds) - EPSILON) {
+      warnings.push({
+        code: 'frame-not-rectangle',
+        pieceId: boxes[0].id,
+        message: 'These face frame cabinets don\'t make a rectangle, so one frame can\'t cover them.',
+      });
+    }
+    if (steps.length) pending.push({ region, boxes, steps, drop });
     regions.push(region);
     for (const id of region.fillerIds) fillerIds.add(id);
 
@@ -190,7 +213,32 @@ export function frameRegions(room, run, cells, settings) {
       seamSides.set(box.id, { left: besideCabinet('left'), right: besideCabinet('right') });
     }
   }
-  return { regions, fillerIds, freeSides, seamSides, warnings };
+  const frames = { regions, fillerIds, freeSides, seamSides, warnings };
+  if (pending.length) {
+    const wall = room.walls?.find((candidate) => candidate.runs.some((other) => other.id === run.id));
+    const faces = faceLayouts ?? layoutFaces(room, wall, run, settings,
+      { pieces: [...columns.values()] }, { cells, frames });
+    const stile = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
+    for (const { region, boxes, steps, drop } of pending) {
+      region.notches = steps.flatMap((step) => {
+        const columnBoxes = boxes.filter((box) => (box.columnId ?? box.id) === step.columnId);
+        const openings = columnBoxes.flatMap((box) => faces.get(box.id)?.openings ?? []);
+        const column = columns.get(step.columnId);
+        const beside = (side) => boxes.some((box) => !columnBoxes.includes(box)
+          && sideOf(column, box, reach) === side);
+        const left = openings.length ? Math.min(...openings.map((opening) => opening.x))
+          : column.x + (beside('left') ? stile : 0);
+        const right = openings.length ? Math.max(...openings.map((opening) => opening.x + opening.width))
+          : column.x + column.width - (beside('right') ? stile : 0);
+        const z = step.edge === 'bottom' ? region.z : step.z;
+        const top = step.edge === 'bottom' ? column.z - drop : region.z + region.height;
+        return right - left > EPSILON && top - z > EPSILON
+          ? [{ columnId: step.columnId, edge: step.edge, x: left, z, width: right - left, height: top - z }]
+          : [];
+      }).sort((a, b) => (a.edge === b.edge ? a.x - b.x : a.edge === 'top' ? -1 : 1));
+    }
+  }
+  return frames;
 }
 
 /** Each face's opening in the frame: its slot before any fit, a pair door's halves as one, and the faces on either side of a no-rail seam as one. */
@@ -262,9 +310,9 @@ function fills(opening, rect) {
 }
 
 /**
- * A frame's stiles, rails and mullions (SPEC-36.2), cut from the region around its openings: the
- * full-height stiles first, then the rails between each pair of stiles, then any mullion between
- * those rails, and so on. Each is { kind, x, z, width, height }. Null when the openings can't be
+ * A frame's stiles, rails and mullions (SPEC-36.2), cut around its openings and notches (never
+ * emitted): full-height stiles first, then rails between each pair of stiles, then any mullion
+ * between those rails, and so on. Each is { kind, x, z, width, height }. Null when the openings can't be
  * cut apart that way (a pinwheel).
  */
 export function frameMembers(region, openings) {
@@ -299,7 +347,7 @@ export function frameMembers(region, openings) {
       return cut(bay, within, !vertical, depth + 1, solids.length === 0 ? stuck + 1 : 0);
     });
   };
-  return cut(region, openings, true, 0, 0) ? members : null;
+  return cut(region, [...openings, ...(region.notches ?? [])], true, 0, 0) ? members : null;
 }
 
 const MEMBER_ORDER = ['stile', 'rail', 'mullion'];
