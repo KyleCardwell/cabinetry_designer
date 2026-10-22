@@ -28,6 +28,26 @@ import {
 } from './helpers.js';
 
 export const cellReducers = {
+  setInsideEnd(state, action) {
+    const { cellId, side, value } = action.payload;
+    if (side !== 'left' && side !== 'right') return;
+    if (value !== null && value !== 'none'
+      && (!value || value.type !== 'return'
+        || (value.width !== undefined && !(Number.isFinite(value.width) && value.width > 0)))) return;
+    const location = runLocation(state, action.payload);
+    const leaf = location?.run.grid && findLeaf(location.run.grid, cellId);
+    if (leaf?.kind !== 'cabinet') return;
+    if (value === null) {
+      if (!leaf.insideEnds || !Object.hasOwn(leaf.insideEnds, side)) return;
+      delete leaf.insideEnds[side];
+      if (!Object.keys(leaf.insideEnds).length) delete leaf.insideEnds;
+    } else {
+      leaf.insideEnds ??= {};
+      leaf.insideEnds[side] = value === 'none' ? value
+        : { type: 'return', ...(value.width === undefined ? {} : { width: value.width }) };
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
   setCellBaseUnder(state, action) {
     const location = runLocation(state, action.payload);
     if (!location) return;

@@ -203,6 +203,7 @@ export const {
   setCellBlind,
   setCellKind,
   setCellDepth,
+  setInsideEnd,
   setCellBaseUnder,
   setCellShelves,
   wrapCell,

@@ -2,9 +2,11 @@ import PanelSection from '../panel/PanelSection.jsx';
 import { useMemo } from 'react';
 import { useDispatch } from 'react-redux';
 import {
-  boxInsets, endPieceBottom, endPieceNotes, frameRegions, partNumbers, resolveStyle, teeFillers, wallSideOf,
+  boxInsets, endPieceBottom, endPieceNotes, findLeaf, frameRegions, partNumbers, resolveStyle, teeFillers, wallSideOf,
 } from '../../model/index.js';
-import { removeItem, setCellExtend, setItemWidth } from '../../store/elevationSlice.js';
+import { pickOptions } from '../../model/doorStyleEdits.js';
+import { panelLevels } from '../../model/doorStyleResolve.js';
+import { removeItem, setCellExtend, setItemWidth, setPartStyle } from '../../store/elevationSlice.js';
 import { shippingDescription } from '../../../reports/shippingList.js';
 import InchInput from '../InchInput.jsx';
 import CabinetProperties from './CabinetProperties.jsx';
@@ -17,6 +19,39 @@ import PartNumberField from './PartNumberField.jsx';
 import PartReportFields from './PartReportFields.jsx';
 import TeeProperties from './TeeProperties.jsx';
 import TFillerSection from './TFillerSection.jsx';
+import InsideEndsSection from './InsideEndsSection.jsx';
+
+function InsidePanelProperties({ room, wall, run, piece, cells, settings }) {
+  const dispatch = useDispatch();
+  const styleId = run.ends[piece.side].styleId ?? 'default';
+  const picker = pickOptions(room, settings, 'panel', panelLevels(room, wall, run, null));
+  return (
+    <>
+      <PanelSection id="piece.insidePanel" title="Inside end panel">
+        <Field label="Style">
+          <select
+            aria-label="Inside end panel style"
+            value={styleId}
+            onChange={(event) => dispatch(setPartStyle({
+              roomId: room.id, wallId: wall.id, runId: run.id,
+              part: 'runEnd', side: piece.side, styleId: event.target.value,
+            }))}
+            className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+          >
+            {picker.options.map((option) => <option key={option.id} value={option.id}>{option.text}</option>)}
+            {!picker.options.some((option) => option.id === styleId)
+              && <option value={styleId}>Missing ({styleId})</option>}
+          </select>
+        </Field>
+        <p className="mt-1 text-xs text-gray-500">Uses the run’s {piece.side} end panel style.</p>
+      </PanelSection>
+      <InsideEndsSection
+        room={room} wall={wall} run={run} cells={cells} settings={settings}
+        item={findLeaf(run.grid, piece.ownerId)} side={piece.side}
+      />
+    </>
+  );
+}
 
 function InteriorFillerProperties({ wallId, run, piece, item, extendRuns }) {
   const dispatch = useDispatch();
@@ -126,6 +161,16 @@ export default function PieceProperties({
   ) : null;
   const extendRuns = wall.runs.filter((other) => other.id !== run.id && wallSideOf(other) === wallSideOf(run));
 
+  if (piece.inside) {
+    return (
+      <>
+        {partNumberField}
+        {reportFields}
+        {notesLine}
+        <InsidePanelProperties room={room} wall={wall} run={run} piece={piece} cells={cells} settings={settings} />
+      </>
+    );
+  }
   if (tee && !side) {
     return (
       <TeeProperties
