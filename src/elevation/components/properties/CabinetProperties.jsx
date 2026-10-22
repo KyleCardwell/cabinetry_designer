@@ -13,6 +13,7 @@ import {
 import InchInput from '../InchInput.jsx';
 import OverrideInput from '../OverrideInput.jsx';
 import RunBaseCutoutsSection from './RunBaseCutoutsSection.jsx';
+import RunTopSegmentsSection from './RunTopSegmentsSection.jsx';
 import CellDepthSection from './CellDepthSection.jsx';
 import InsideEndsSection from './InsideEndsSection.jsx';
 import StepEndsSection from './StepEndsSection.jsx';
@@ -261,6 +262,7 @@ export default function CabinetProperties({
                 <CellWrapSection wall={wall} run={run} cellId={item.id} />
 
                 <RunBaseCutoutsSection room={room} wall={wall} run={run} piece={piece} settings={settings} numbers={numbers} />
+                <RunTopSegmentsSection room={room} wall={wall} run={run} piece={piece} settings={settings} numbers={numbers} />
 
                 <section className="grid grid-cols-2 gap-2 rounded border border-gray-700 bg-gray-900/45 p-3 text-xs">
                   <div>
