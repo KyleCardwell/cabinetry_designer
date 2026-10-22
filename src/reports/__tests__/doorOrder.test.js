@@ -5,9 +5,37 @@ import { partSizes } from '../../elevation/model/doorSizes.js';
 import { partNumbers } from '../../elevation/model/partNumbers.js';
 import * as numbering from '../../elevation/model/partNumbers.js';
 import { syncRoom } from '../../elevation/model/room.js';
+import { room8Upper, settings as insideSettings } from '../../elevation/model/__tests__/helpers/room8Upper.js';
 import { doorOrder, doorOrderItems, mergeLines, stileRailNotes } from '../doorOrder.js';
 
 const style = DEFAULT_DOOR_STYLE;
+
+describe('IE1 step d inside panel door orders', () => {
+  it('orders five-piece inside panels under their numbers and honors sheet and shop-built exclusions', () => {
+    const { room } = room8Upper();
+    const before = structuredClone(room);
+    const result = doorOrder(room, insideSettings);
+    const panels = doorOrderItems(room, insideSettings).items.filter(({ kind }) => kind === 'endPanel');
+    expect(panels.map(({ pieceId }) => pieceId)).toEqual([
+      'r:left', 'a:inside-right', 'c:inside-left', 'r:right',
+    ]);
+    for (const [key, number] of [['a:inside-right', 3], ['c:inside-left', 6]]) {
+      expect(panels.find(({ pieceId }) => pieceId === key)).toMatchObject({
+        style: { id: 'default' }, design: { construction: 'five_piece' }, width: 24.8125,
+        height: 60.125, notes: ['do not sand edges'],
+      });
+      expect(result.pages.flatMap(({ sections }) => sections.flatMap(({ lines }) => lines)))
+        .toContainEqual({ number, qty: 1, width: 24.8125, height: 60.125,
+          size: '24 13/16 x 60 1/8', notes: 'do not sand edges' });
+    }
+    expect(result.warnings).toEqual([]);
+    expect(room).toEqual(before);
+    room.reportParts = { 'a:inside-right': { shopBuilt: true } };
+    room.walls[0].runs[0].ends.left.styleId = 'sheet';
+    const excluded = doorOrderItems(syncRoom(room, insideSettings), insideSettings).items;
+    expect(excluded.some(({ pieceId }) => pieceId === 'a:inside-right' || pieceId === 'c:inside-left')).toBe(false);
+  });
+});
 const settings = { ...DEFAULT_SETTINGS, doorDesigns: DOOR_DESIGNS };
 const frame = (sizes = {}) => partSizes(style, DOOR_DESIGNS[0], { width: 18, height: 60, sizes });
 const face = (type, size = null, rest = {}) => ({ type, size, ...rest });

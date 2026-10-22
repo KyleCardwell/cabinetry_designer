@@ -4,8 +4,38 @@ import { partNumbers, wallBadgeGroups, wallMoldingBadges } from '../partNumbers.
 import { roomDiagnostics, syncRoom } from '../room.js';
 import { wallSideView } from '../wallSides.js';
 import { pickedMoldings } from './helpers/pickedMoldings.js';
+import { room8Upper, settings as insideSettings } from './helpers/room8Upper.js';
+import { splitGridCell } from '../cellTree.js';
 
 const DEFAULT_SETTINGS = pickedMoldings(UNPICKED_SETTINGS);
+
+describe('IE1 step d inside panel numbering', () => {
+  it('numbers each inside panel after its owner while retaining run-end order', () => {
+    const { room } = room8Upper();
+    const result = partNumbers(room, insideSettings);
+    expect(result.parts.map(({ key, number }) => [key, number])).toEqual([
+      ['r:left', 1], ['a', 2], ['a:inside-right', 3], ['b', 4],
+      ['c', 5], ['c:inside-left', 6], ['r:right', 7],
+    ]);
+    expect(result.warnings).toEqual([]);
+  });
+
+  it('keeps stacked face frame panels immediately after their individual owners', () => {
+    const { room, scene } = room8Upper((run, room) => {
+      room.style = { cabinetStyleId: 14 };
+      let n = 0;
+      run.grid = splitGridCell(run.grid, 'a', 'down', 2, () => `a${++n}`);
+    });
+    const parts = partNumbers(room, insideSettings).parts;
+    const panels = scene.cells.pieces.filter(({ inside }) => inside);
+    expect(panels).toHaveLength(3);
+    for (const panel of panels) {
+      const owner = parts.findIndex(({ key }) => key === panel.ownerId);
+      expect(parts[owner + 1]).toMatchObject({ key: panel.id, number: parts[owner].number + 1 });
+    }
+    expect(new Set(parts.map(({ key }) => key)).size).toBe(parts.length);
+  });
+});
 
 function makeWall(id, x1, y1, x2, y2, overrides = {}) {
   return {

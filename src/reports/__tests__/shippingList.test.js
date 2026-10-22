@@ -54,6 +54,31 @@ const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entr
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
 
+describe('IE1 step d shipping inside panels', () => {
+  it('lists both sides like run-end panels with their style, thickness and notes', () => {
+    for (const styleId of ['default', 'sheet']) {
+      const r = room([run('run', [cabinet('a'), { id: 'gap', kind: 'void', width: 20 }, cabinet('c')], {
+        width: 60, ends: {
+          left: { type: 'end_panel', width: null, styleId },
+          right: { type: 'end_panel', width: null, styleId },
+        },
+      })]);
+      const before = structuredClone(r);
+      for (const [key, end] of [['a:inside-right', 'run:right'], ['c:inside-left', 'run:left']]) {
+        const panel = row(r, key);
+        const runEnd = row(r, end);
+        expect(panel).toMatchObject({ description: runEnd.description, size: runEnd.size, notes: runEnd.notes });
+        expect(panel.size).toBe(`24 7/8 x 30 1/2 x ${styleId === 'sheet' ? '3/4' : '13/16'}`);
+        expect(panel.description).toBe(`${styleId === 'sheet' ? 'Shop-built ' : ''}Base End Panel`);
+      }
+      r.reportParts = { 'c:inside-left': { shopBuilt: true } };
+      expect(row(r, 'c:inside-left').description).toBe('Shop-built Base End Panel');
+      delete r.reportParts;
+      expect(r).toEqual(before);
+    }
+  });
+});
+
 describe('IN13b step c shipping shoe shelf notes', () => {
   const rod = { ...newAccessory([], 'FR'), name: 'Fixed rod', reportText: 'fixed rod',
     size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,

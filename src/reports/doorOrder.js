@@ -8,6 +8,7 @@ import { elevationParts } from '../elevation/model/elevationParts.js';
 import { isJoinedEnd, isSheetCell } from '../elevation/model/panelThickness.js';
 import { partNumbers, wallEndPanelPartKey } from '../elevation/model/partNumbers.js';
 import { resolveWall } from '../elevation/model/room.js';
+import { runScene } from '../elevation/model/runScene.js';
 import { wallEndPanels } from '../elevation/model/wallEndPanels.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { formatInch, formatSize } from './format.js';
@@ -122,7 +123,8 @@ export function doorOrderItems(room, settings) {
       const view = resolveWall(room, wall, side);
       const parts = elevationParts(room, wall, side, settings);
       for (const run of view.runs) {
-        const details = runDoorDetails(room, view, run, settings).parts;
+        const scene = runScene(room, view, run, settings);
+        const details = runDoorDetails(room, view, run, settings, scene).parts;
         for (const part of details) {
           if (part.kind === 'panelCell') {
             const leaf = findLeaf(run.grid, part.pieceId);
@@ -135,10 +137,13 @@ export function doorOrderItems(room, settings) {
         const reported = new Set(details.map(({ pieceId }) => pieceId));
         for (const part of parts.filter((entry) => entry.runId === run.id)) {
           if (reported.has(part.id)) continue;
-          const end = ['left', 'right'].find((edge) => part.id === `${run.id}:${edge}`);
+          const piece = scene.cells.pieces.find(({ id }) => id === part.id);
+          const end = piece?.inside ? piece.side
+            : ['left', 'right'].find((edge) => part.id === `${run.id}:${edge}`);
           if (part.kind === 'end_panel' && end) {
-            addPanel(view, run, run.ends?.[end], { width: part.front - part.back, height: part.height },
-              part.id, 'endPanel', isJoinedEnd(run, end));
+            addPanel(view, run, piece?.inside ? piece : run.ends?.[end],
+              { width: part.front - part.back, height: part.height },
+              part.id, 'endPanel', !piece?.inside && isJoinedEnd(run, end));
           } else if (part.kind === 'panel') {
             const leaf = findLeaf(run.grid, part.id);
             const orientation = panelOrientation({ ...part, depth: part.front - part.back });

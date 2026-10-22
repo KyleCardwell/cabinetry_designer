@@ -151,9 +151,12 @@ function runParts(room, wall, side, settings) {
         source: 'tee',
       },
     }));
+    const insideOwners = new Map(cells.pieces.filter((piece) => piece.inside)
+      .map((piece) => [piece.id, piece.ownerId]));
     return [
-      ...pieceParts.flatMap((part) => [
+      ...pieceParts.filter((part) => !insideOwners.has(part.key)).flatMap((part) => [
         part,
+        ...pieceParts.filter((panel) => insideOwners.get(panel.key) === part.key),
         ...rotParts(part, run),
         ...seamParts.filter((entry) => entry.anchor === part.key).map((entry) => entry.part),
       ]),

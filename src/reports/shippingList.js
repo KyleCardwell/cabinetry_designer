@@ -160,14 +160,15 @@ function shippingContext(room, settings) {
     const piece = scene.cells.pieces.find(({ id }) => id === part.key)
       ?? scene.shelves.find(({ id }) => id === part.key);
     const leaf = findLeaf(run.grid, part.key);
-    const end = ['left', 'right'].find((side) => part.key === `${run.id}:${side}`);
+    const end = piece?.inside ? piece.side
+      : ['left', 'right'].find((side) => part.key === `${run.id}:${side}`);
     const blindPanel = scene.panelPieceIds.has(part.key);
     const shelfBack = part.kind === 'panel' && part.key.endsWith(':back');
     let style;
     if (part.kind === 'end_panel' || part.kind === 'panel' || blindPanel) {
-      const sheet = shelfBack || (end ? isJoinedEnd(run, end) : isSheetCell(leaf));
+      const sheet = shelfBack || (!piece?.inside && (end ? isJoinedEnd(run, end) : isSheetCell(leaf)));
       style = resolveDoorStyle(room, settings, 'panel',
-        panelLevels(room, view, run, end ? run.ends?.[end] : leaf, { sheet })).style;
+        panelLevels(room, view, run, piece?.inside ? piece : end ? run.ends?.[end] : leaf, { sheet })).style;
     }
     const wallData = () => {
       if (!interiorData.has(viewKey)) interiorData.set(viewKey,
