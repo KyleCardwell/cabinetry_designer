@@ -280,7 +280,10 @@ describe('ST2 step d notch rail roles and notes', () => {
     expect(rows.filter(({ key }) => ['A', 'B', 'C'].includes(key)).map(({ key, number }) => [key, number]))
       .toEqual([['A', 1], ['B', 2], ['C', 3]]);
     expect(rows.filter(({ kind }) => kind === 'frame')).toMatchObject([
-      { notes, size: '90 x 30 1/2 x 13/16' },
+      { notes: [...notes,
+        `6" right return, ${height}" tall ${edge === 'top' ? 'above' : 'below'} cabinet #2`,
+        `6" left return, ${height}" tall ${edge === 'top' ? 'above' : 'below'} cabinet #2`,
+      ], size: '90 x 30 1/2 x 13/16' },
     ]);
     expect(room).toEqual(before);
   });
@@ -333,7 +336,7 @@ describe('ST2 step d notch rail roles and notes', () => {
     findLeaf(run.grid, 'B').insideEnds = { left: { type: 'return' } };
     const rows = shippingList(syncRoom(room, notchedFrameSettings), notchedFrameSettings).rows;
     expect(rows.filter(({ kind }) => kind === 'frame')).toMatchObject([
-      { notes: ['6" left return', '2" notch @ #1'] },
+      { notes: ['6" left return', '2" notch @ #1', '6" left return, 2" tall above cabinet #1'] },
     ]);
     expect(rows.filter(({ kind }) => kind !== 'frame').flatMap(({ notes }) => notes))
       .not.toContain('2" notch @ #1');

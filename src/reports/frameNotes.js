@@ -1,7 +1,9 @@
 import { findLeaf } from '../elevation/model/cellTree.js';
+import { gapReach } from '../elevation/model/cells.js';
 import { DEFAULT_SETTINGS, FRAME_RETURN_WIDTH } from '../elevation/model/constants.js';
 import { BOTTOM_PART_LABELS, frameBottomParts } from '../elevation/model/bottoms.js';
 import { cornerLap } from '../elevation/model/cornerLaps.js';
+import { sideOf } from '../elevation/model/frames.js';
 import { runItems } from '../elevation/model/grid.js';
 import { runEndThickness, wallPanelThickness } from '../elevation/model/panelThickness.js';
 import { runSeamGap } from '../elevation/model/styles.js';
@@ -22,6 +24,33 @@ export function frameReturnNotes(run, region) {
       const width = leaf?.insideEnds?.[side]?.width ?? FRAME_RETURN_WIDTH;
       return `${formatInch(width)} ${side} return`;
     }));
+}
+
+/** Step returns belong to the taller cabinet's frame and name its shorter neighbours. */
+export function frameStepReturnNotes(run, region, cells, numberOf) {
+  if (!region) return [];
+  const boxes = cells.pieces.filter((piece) => piece.kind === 'cabinet'
+    && region.cabinetIds.includes(piece.id));
+  const reach = gapReach(cells.gaps ?? []);
+  return (run._stepEnds ?? [])
+    .filter((entry) => entry.choice === 'return' && region.cabinetIds.includes(entry.leafId))
+    .flatMap((entry) => {
+      const owner = boxes.find((box) => box.id === entry.leafId);
+      if (!owner) return [];
+      const numbers = [...new Set(boxes.filter((box) => box !== owner
+        && sideOf(owner, box, reach) === entry.side)
+        .map((box) => numberOf(box.id)).filter((number) => number != null))].sort((a, b) => a - b);
+      if (!numbers.length) return [];
+      const location = numbers.map((number) => `#${number}`).join('/');
+      const position = entry.edge === 'top' ? 'above' : 'below';
+      return [{
+        x: owner.x + (entry.side === 'right' ? owner.width : 0),
+        edge: entry.edge,
+        text: `${formatInch(entry.width ?? FRAME_RETURN_WIDTH)} ${entry.side} return, ${formatInch(entry.height)} tall ${position} cabinet ${location}`,
+      }];
+    })
+    .sort((a, b) => a.x - b.x || (a.edge === b.edge ? 0 : a.edge === 'top' ? -1 : 1))
+    .map((entry) => entry.text);
 }
 
 /** Reference the cabinet directly below/above each notch, including nested columns. */
