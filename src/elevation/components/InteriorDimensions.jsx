@@ -2,6 +2,7 @@ import { Group, Line, Rect, Text } from 'react-konva';
 import { wallToScreen } from '../canvas/transform.js';
 import { interiorDimensions } from '../model/interiors.js';
 import { formatDimension } from '../model/units.js';
+import { gappedLine } from '../canvas/gappedLine.js';
 
 const FONT_SIZE = 10;
 const TICK_HALF = 3;
@@ -20,10 +21,16 @@ export default function InteriorDimensions({ entry, transform, editable, onEditD
     const offset = 8 + 14 * dimension.lane;
     const x = from.x + (vertical ? offset : 0);
     const y = from.y + (vertical ? 0 : offset);
-    const span = vertical ? Math.abs(to.y - from.y) : Math.abs(to.x - from.x);
+    const span = Math.abs(value) * transform.scale;
     const color = dimension.manual ? '#7dd3fc' : '#e2e8f0';
-    const labelX = vertical ? x + 3 : (from.x + to.x) / 2;
-    const labelY = vertical ? (from.y + to.y) / 2 : y + 3;
+    const text = formatDimension(value);
+    const halfGap = text.length * FONT_SIZE * 0.6 / 2 + 4;
+    const inline = 2 * halfGap + 8 <= span;
+    const labelX = vertical ? x + (inline ? -FONT_SIZE / 2 : 3) : (from.x + to.x) / 2;
+    const labelY = vertical ? (from.y + to.y) / 2 : y + (inline ? -FONT_SIZE / 2 : 3);
+    const start = vertical ? { x, y: from.y } : { x: from.x, y };
+    const end = vertical ? { x, y: to.y } : { x: to.x, y };
+    const center = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
     const labelWidth = Math.max(span, 24);
     const handleClick = editable ? (event) => {
       event.cancelBubble = true;
@@ -42,12 +49,9 @@ export default function InteriorDimensions({ entry, transform, editable, onEditD
     } : undefined;
     return (
       <Group key={dimension.key}>
-        <Line
-          points={vertical ? [x, from.y, x, to.y] : [from.x, y, to.x, y]}
-          stroke={color}
-          strokeWidth={1}
-          listening={false}
-        />
+        {gappedLine(start, end, center, inline ? halfGap : 0).map((points, index) => (
+          <Line key={`line:${index}`} points={points} stroke={color} strokeWidth={1} listening={false} />
+        ))}
         {[from, to].map((point, index) => (
           <Line
             key={index}
@@ -65,7 +69,7 @@ export default function InteriorDimensions({ entry, transform, editable, onEditD
             width={labelWidth}
             height={FONT_SIZE}
             align="center"
-            text={formatDimension(value)}
+            text={text}
             fontSize={FONT_SIZE}
             fill={color}
             listening={false}

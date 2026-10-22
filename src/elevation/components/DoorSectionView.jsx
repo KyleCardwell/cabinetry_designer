@@ -4,6 +4,7 @@ import { doorSection, doorSectionDimensions } from '../model/doorSection.js';
 import { formatInches } from '../model/units.js';
 import { doorProfileOffsets } from '../model/doorProfileLines.js';
 import { sectionProfileBounds, sectionProfileSvgPath } from '../model/sectionProfiles.js';
+import { gappedLine } from '../canvas/gappedLine.js';
 
 const SLOT_LABELS = {
   outside: 'Outside edge',
@@ -75,7 +76,7 @@ export default function DoorSectionView({ style, design }) {
           const start = px(from);
           const end = px(to);
           const labelWidth = textWidth(value);
-          const outside = end - start < labelWidth + 8;
+          const outside = (to - from) * scale < labelWidth + 16;
           const anchor = outside ? (index === 0 ? 'end' : 'start') : 'middle';
           const labelX = outside ? (index === 0 ? start - 6 : end + 6) : (start + end) / 2;
           const labelLeft = labelX - (anchor === 'end' ? labelWidth : anchor === 'middle' ? labelWidth / 2 : 0);
@@ -84,13 +85,17 @@ export default function DoorSectionView({ style, design }) {
           let lane = 0;
           while (lanes[lane]?.some(([a, b]) => labelLeft < b + 8 && labelRight > a - 8)) lane += 1;
           (lanes[lane] ??= []).push([labelLeft, labelRight]);
-          const labelY = lineY + direction * (12 + lane * 16);
+          const labelY = outside ? lineY + direction * (12 + lane * 16) : lineY;
+          const pieces = gappedLine(
+            { x: start, y: lineY }, { x: end, y: lineY },
+            { x: (start + end) / 2, y: lineY }, outside ? 0 : labelWidth / 2 + 4,
+          );
           return (
             <g key={`${label}-${index}`} aria-label={`${label}: ${formatInches(value)}`}>
               {[start, end].map((point, i) => (
                 <line key={`extension-${i}`} x1={point} y1={measuredY} x2={point} y2={lineY + direction * 4} />
               ))}
-              <line x1={start} y1={lineY} x2={end} y2={lineY} />
+              {pieces.map(([x1, y1, x2, y2], i) => <line key={`line-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} />)}
               {[start, end].map((point, i) => (
                 <line key={`tick-${i}`} x1={point - 3} y1={lineY + 3} x2={point + 3} y2={lineY - 3} />
               ))}
@@ -171,20 +176,35 @@ export default function DoorSectionView({ style, design }) {
         </g>
         <g className="text-gray-400" fill="currentColor" stroke="currentColor" strokeWidth={1} fontSize={fontSize}>
           <g aria-label="left dimensions">
-            {dimensions.left.map(({ label, from, to, value }) => (
-              <g key={label} aria-label={`${label}: ${formatInches(value)}`}>
-                {[from, to].map((point, i) => (
-                  <line key={`extension-${i}`} x1={px(0)} y1={py(point)} x2={leftX - 4} y2={py(point)} />
-                ))}
-                <line x1={leftX} y1={py(from)} x2={leftX} y2={py(to)} />
-                {[from, to].map((point, i) => (
-                  <line key={`tick-${i}`} x1={leftX - 3} y1={py(point) + 3} x2={leftX + 3} y2={py(point) - 3} />
-                ))}
-                <text x={leftX - 8} y={(py(from) + py(to)) / 2} textAnchor="end" dominantBaseline="middle" stroke="none">
-                  {formatInches(value)}
-                </text>
-              </g>
-            ))}
+            {dimensions.left.map(({ label, from, to, value }) => {
+              const centerY = (py(from) + py(to)) / 2;
+              const inline = Math.abs(to - from) * scale >= textWidth(value) + 16;
+              const pieces = gappedLine(
+                { x: leftX, y: py(from) }, { x: leftX, y: py(to) },
+                { x: leftX, y: centerY }, inline ? textWidth(value) / 2 + 4 : 0,
+              );
+              return (
+                <g key={label} aria-label={`${label}: ${formatInches(value)}`}>
+                  {[from, to].map((point, i) => (
+                    <line key={`extension-${i}`} x1={px(0)} y1={py(point)} x2={leftX - 4} y2={py(point)} />
+                  ))}
+                  {pieces.map(([x1, y1, x2, y2], i) => <line key={`line-${i}`} x1={x1} y1={y1} x2={x2} y2={y2} />)}
+                  {[from, to].map((point, i) => (
+                    <line key={`tick-${i}`} x1={leftX - 3} y1={py(point) + 3} x2={leftX + 3} y2={py(point) - 3} />
+                  ))}
+                  <text
+                    x={inline ? leftX : leftX - 8}
+                    y={centerY}
+                    transform={inline ? `rotate(-90 ${leftX} ${centerY})` : undefined}
+                    textAnchor={inline ? 'middle' : 'end'}
+                    dominantBaseline="middle"
+                    stroke="none"
+                  >
+                    {formatInches(value)}
+                  </text>
+                </g>
+              );
+            })}
           </g>
           {horizontalChain(dimensions.below, 'below')}
           {horizontalChain(dimensions.above, 'above')}

@@ -78,17 +78,18 @@ describe('Step 465 door section dimensions', () => {
     for (const side of ['above', 'below']) {
       const segment = find(tree, side === 'above' ? 'flat: 2 3/4"' : 'stile: 3"');
       const marks = lines(segment);
-      expect(marks).toHaveLength(5);
+      expect(marks).toHaveLength(6);
       expect(marks[2].y1).toBe(marks[2].y2);
       expect(marks[2].x1).toBeLessThan(marks[2].x2);
       expect(marks[0].x1).toBe(marks[2].x1);
-      expect(marks[1].x1).toBe(marks[2].x2);
+      expect(marks[1].x1).toBe(marks[3].x2);
       expect(Math.sign(marks[2].y1 - marks[0].y1)).toBe(side === 'above' ? -1 : 1);
     }
     const flat = find(tree, 'flat: 2 3/4"');
     const label = nodes(flat).find(({ type }) => type === 'text').props;
     const dimension = lines(flat)[2];
-    expect(label.x).toBe((dimension.x1 + dimension.x2) / 2);
+    expect(label.x).toBe((dimension.x1 + lines(flat)[3].x2) / 2);
+    expect(label.y).toBe(dimension.y1);
     expect(label.textAnchor).toBe('middle');
   });
 
@@ -140,6 +141,50 @@ describe('Step 465 door section dimensions', () => {
         const firstExtension = lines(find(tree, 'below dimensions'))[0];
         // The below extension reaches four pixels beyond the dimension line.
         expect(firstExtension.y2 - dimension.y1).toBe(4);
+      }
+    }
+  });
+
+  it('gaps fitting SVG labels by four pixels and preserves short thickness labels beside the line', () => {
+    // A plain slab is 3 inches wide, with two 78px gutters. At this viewport
+    // its 1-inch thickness is exactly the 15.6px text plus 16px fit allowance.
+    for (const width of [250.8, 250.77]) {
+      useState.mockReturnValueOnce([{ width, height: 256 }, vi.fn()]);
+      const tree = render({ ...DEFAULT_DOOR_STYLE, thickness: 1 }, DOOR_DESIGNS[1]);
+      const thickness = find(tree, 'thickness: 1"');
+      const marks = lines(thickness);
+      const text = nodes(thickness).find(({ type }) => type === 'text').props;
+      if (width === 250.8) {
+        expect(marks).toHaveLength(6);
+        expect(text.x).toBe(marks[2].x1);
+        expect(text.y).toBeCloseTo((marks[2].y1 + marks[3].y2) / 2);
+        expect(text.transform).toBe(`rotate(-90 ${text.x} ${text.y})`);
+        expect(text.textAnchor).toBe('middle');
+        expect(marks[2].y1 - marks[2].y2).toBeCloseTo(4);
+        expect(marks[3].y1 - marks[3].y2).toBeCloseTo(4);
+        expect(marks[2].y2 - marks[3].y1).toBeCloseTo(23.6);
+      } else {
+        expect(marks).toHaveLength(5);
+        expect(text.x).toBe(marks[2].x1 - 8);
+        expect(text.textAnchor).toBe('end');
+        expect(text.transform).toBeUndefined();
+      }
+    }
+    for (const side of ['above', 'below']) {
+      const chain = find(render(), `${side} dimensions`);
+      for (const segment of chain.props.children) {
+        const marks = lines(segment);
+        const text = nodes(segment).find(({ type }) => type === 'text').props;
+        if (text.textAnchor === 'middle') {
+          expect(marks).toHaveLength(6);
+          expect(text.y).toBe(marks[2].y1);
+          const halfGap = text.children.length * 12 * 0.65 / 2 + 4;
+          expect(text.x - marks[2].x2).toBeCloseTo(halfGap);
+          expect(marks[3].x1 - text.x).toBeCloseTo(halfGap);
+        } else {
+          expect(marks).toHaveLength(5);
+          expect(Math.abs(text.y - marks[2].y1)).toBeGreaterThanOrEqual(12);
+        }
       }
     }
   });

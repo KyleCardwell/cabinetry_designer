@@ -211,9 +211,9 @@ describe('IN3 divider dimensions, typed edits and dragging', () => {
     const dimensions = interiorDimensions(view.dimensionNode.props.entry);
     const anchor = wallToScreen(dimensions[0].from, transform);
     const lines = view.dimensions.filter(({ type }) => type === Line);
-    expect(lines).toHaveLength(6);
+    expect(lines).toHaveLength(8);
     expect(lines[0].props.points[0]).toBe(anchor.x + 22);
-    expect(lines[3].props.points[0]).toBe(anchor.x + 8);
+    expect(lines[4].props.points[0]).toBe(anchor.x + 8);
     expect(view.dimensions.filter(({ type }) => type === Group).map(({ props }) => props.rotation))
       .toContain(-90);
     state.tool = 'draw';

@@ -2,6 +2,7 @@ import { Group, Line, Rect, Text } from 'react-konva';
 import { formatDimension } from '../model/units.js';
 import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
 import { readableRotation } from './textRotation.js';
+import { gappedLine } from '../canvas/gappedLine.js';
 
 const COLOR = '#5eead4';
 const TICK_HALF = 4;
@@ -23,9 +24,13 @@ export default function PlanClearances({ dimensions, scale }) {
         const width = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
         const height = (PLAN_DIM_FONT_SIZE + 4) / scale;
         const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+        const center = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
+        const inline = text.length * 0.6 * PLAN_DIM_FONT_SIZE + 16 <= span * scale;
         return (
           <Group key={`${kind}:${from.x}:${from.y}:${to.x}:${to.y}`}>
-            <Line points={[from.x, from.y, to.x, to.y]} stroke={COLOR} strokeWidth={1 / scale} />
+            {gappedLine(from, to, center, inline ? width / 2 : 0, 0.5 / scale).map((points, index) => (
+              <Line key={`line:${index}`} points={points} stroke={COLOR} strokeWidth={1 / scale} />
+            ))}
             {[['from', from], ['to', to]].map(([end, point]) => (
               <Line
                 key={end}
