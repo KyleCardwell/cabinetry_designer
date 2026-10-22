@@ -35,7 +35,7 @@ describe('SPEC-45 plan dimensions: each wall\'s length and the rows along its fa
 
   it('moves text that doesn\'t fit off the line and the next row out past it (G2, G3)', () => {
     expect(wallRows(stored('G2 Face frame kitchen'))).toEqual([
-      { row: 'front', kind: 'space', start: [-86, 19.5], end: [-84, 19.5], offset: 9, text: '2', textAt: [-85, 34.875] },
+      { row: 'front', kind: 'space', start: [-86, 19.5], end: [-84, 19.5], offset: 9, text: '2', textAt: [-85, 32.25] },
       { row: 'front', kind: 'opening', start: [-84, 19.5], end: [-42, 19.5], offset: 9, text: '42' },
       { row: 'front', kind: 'space', start: [-42, 19.5], end: [86, 19.5], offset: 9, text: '128' },
       wall([-86, 19.5], [86, 19.5], 21.75, '172'),
@@ -43,7 +43,7 @@ describe('SPEC-45 plan dimensions: each wall\'s length and the rows along its fa
     ]);
     expect(dimensions(stored('G3 Bath alcove')).filter(({ row }) => row === 'front')).toEqual([
       { row: 'front', kind: 'space', start: [-102, 13.5], end: [-30, 13.5], offset: 9, text: '72' },
-      { row: 'front', kind: 'landing', start: [-30, 13.5], end: [-25.5, 13.5], offset: 9, text: '4 1/2', textAt: [-27.75, 28.875] },
+      { row: 'front', kind: 'landing', start: [-30, 13.5], end: [-25.5, 13.5], offset: 9, text: '4 1/2', textAt: [-27.75, 26.25] },
       { row: 'front', kind: 'space', start: [-25.5, 13.5], end: [66, 13.5], offset: 9, text: '91 1/2' },
     ]);
   });
@@ -68,7 +68,7 @@ describe('SPEC-45 plan dimensions: each wall\'s length and the rows along its fa
     room.walls[2].landings.start = { ...room.walls[2].landings.start, side: 'back' };
     expect(dimensions(room).filter(({ row }) => row === 'back')).toEqual([
       { row: 'back', kind: 'space', start: [-6, -15], end: [66, -15], offset: -9, text: '72' },
-      { row: 'back', kind: 'landing', start: [-10.5, -15], end: [-6, -15], offset: -9, text: '4 1/2', textAt: [-8.25, -26.625] },
+      { row: 'back', kind: 'landing', start: [-10.5, -15], end: [-6, -15], offset: -9, text: '4 1/2', textAt: [-8.25, -27.75] },
       { row: 'back', kind: 'space', start: [-102, -15], end: [-10.5, -15], offset: -9, text: '91 1/2' },
     ]);
   });
@@ -100,17 +100,17 @@ describe('SPEC-45.2 run depths in plan', () => {
     expect(depths(stored('G1 Euro kitchen'))).toEqual([
       depth([-60, -60], [-34.125, -60], '25 7/8'),
       depth([-60, 2.5625], [-35.125, 2.5625], '24 7/8'),
-      depth([-60, 39.21875], [-47.125, 39.21875], '12 7/8'),
-      depth([-2.5625, 71.125], [-2.5625, 84], '12 7/8'),
+      depth([-60, 39.21875], [-47.125, 39.21875], '12 7/8', [-53.5625, 35.46875]),
+      depth([-2.5625, 71.125], [-2.5625, 84], '12 7/8', [-6.3125, 77.5625]),
       depth([12.4375, 59.125], [12.4375, 84], '24 7/8'),
       depth([55.25, -3.875], [55.25, 21], '24 7/8'),
-      depth([55.25, -16.75], [55.25, -3.875], '12 7/8'),
+      depth([55.25, -16.75], [55.25, -3.875], '12 7/8', [59, -10.3125]),
     ]);
   });
 
   it('moves wider Arial text off the depth line (G2 upper)', () => {
     expect(depths(stored('G2 Face frame kitchen'))[2])
-      .toEqual(depth([29.25, 2.1875], [29.25, 15], '12 13/16', [22.875, 8.59375]));
+      .toEqual(depth([29.25, 2.1875], [29.25, 15], '12 13/16', [25.5, 8.59375]));
   });
 
   it('measures a recessed run from the recess back (G5)', () => {

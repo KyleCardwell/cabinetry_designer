@@ -17,6 +17,9 @@ export const DIMENSION_ROW_SPACING = 0.375;
 export const DIMENSION_TEXT_HEIGHT = 0.09375;
 export const DIMENSION_TEXT_GAP = 0.0625;
 
+/** Paper inches of dimension line required between each tick and the text gap (DM7). */
+export const DIMENSION_MIN_LINE = 0.0625;
+
 /** Paper inches inside a cell grid's left or bottom edge for its chain (SPEC-43.3). */
 const CELL_CHAIN_INSET = 0.25;
 
@@ -40,22 +43,22 @@ const ROWS = [
 
 /**
  * Where each label in a row or column goes (SPEC-43.1, 43.2), along and across the line in drawing
- * inches. A label that fits between its ticks (its estimated width plus a gap each side) stays on the
- * line. One that doesn't moves outward, centred
- * on its segment, into the first level where it clears every label already there; levels are a text
- * height plus a gap apart. When the on-line text is outward, level 1 sits past it; otherwise level 1
- * sits just past the line. By default the on-line text is outward above the wall, inward below it.
+ * inches. A label fits on the line when its estimated width plus two gaps and two minimum line
+ * lengths is no greater than its segment length (DM7). One that doesn't moves outward, centred on
+ * its segment, into the first level where it clears every label already there. Level 1's centre is
+ * a text height plus a gap from the line; further levels stay a text height plus a gap apart.
  */
-export function placeLabels(segments, at, outward, scale, textOutward = outward > 0) {
+export function placeLabels(segments, at, outward, scale) {
   const height = DIMENSION_TEXT_HEIGHT * scale;
   const gap = DIMENSION_TEXT_GAP * scale;
+  const minLine = DIMENSION_MIN_LINE * scale;
   const step = height + gap;
-  const first = (textOutward ? step : 0) + gap + height / 2;
+  const first = height + gap;
   const levels = [];
   const placed = segments.map((segment) => {
     const text = segment.text ?? formatDimension(segment.end - segment.start);
     const width = text.length * CHARACTER_WIDTH * height;
-    return { segment, text, width, fits: width + 2 * gap <= segment.end - segment.start + EPSILON };
+    return { segment, text, width, fits: width + 2 * gap + 2 * minLine <= segment.end - segment.start + EPSILON };
   });
   for (const label of placed) {
     if (label.fits) continue;
@@ -162,7 +165,7 @@ export function elevationDimensions(room, wall, side, settings, { extent: shared
         && Math.abs(chain[0].end - columns.outer[0].end) <= EPSILON) continue;
       const segments = chain.filter((segment) => segment.end - segment.start > EPSILON);
       if (segments.length === 0) continue;
-      const { placed, levels, step } = placeLabels(segments, at, outward, scale, edge === 'left');
+      const { placed, levels, step } = placeLabels(segments, at, outward, scale);
       dimensions.push(...labelRecords(placed, `${edge}.${column}`, base, at, true));
       at += outward * (spacing + levels * step);
     }
@@ -177,7 +180,7 @@ export function elevationDimensions(room, wall, side, settings, { extent: shared
         .sort((a, b) => a.start - b.start)
         .map(({ start, end }) => ({ kind: 'cell', start, end }));
       const at = (vertical ? grid.x : grid.z) + CELL_CHAIN_INSET * scale;
-      const { placed } = placeLabels(segments, at, +1, scale, !vertical);
+      const { placed } = placeLabels(segments, at, +1, scale);
       dimensions.push(...labelRecords(placed, 'cells', at, at, vertical));
     }
   }

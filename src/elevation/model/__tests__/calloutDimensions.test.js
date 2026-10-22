@@ -35,21 +35,21 @@ describe('SPEC-43.3 callouts in the DXF', () => {
     const g1 = room('G1 Euro kitchen');
     expect(of('clearances')(elevationDimensions(g1, g1.walls[0], 'front', settings)).map(row)).toEqual([
       ['clearance', 30, 45, 64.5, 64.5, '15'],
-      ['clearance', 99, 108.5, 72, 72, '9 1/2', 103.75, 78.375],
+      ['clearance', 99, 108.5, 72, 72, '9 1/2', 103.75, 75.75],
     ]);
     // G2's window is 2" from the wall end with no run there: the wall row already says so.
     const g2 = room('G2 Face frame kitchen');
     expect(of('clearances')(elevationDimensions(g2, g2.walls[0], 'front', settings)).map(row)).toEqual([
-      ['clearance', 44, 50, 41.5, 41.5, '6'],
+      ['clearance', 44, 50, 41.5, 41.5, '6', 47, 45.25],
     ]);
   });
 
   it('dimensions a pin from its datum to the point it holds, each end from its own point', () => {
     // From the window's middle (66") and the sink's top (34 1/2") to a line 6" over the sill.
-    expect(pins(pinned({ value: 3 }))).toEqual([['pin', 72, 75, 48, 66, 34.5, 48, 'CL 3', 73.5, 54.375]]);
+    expect(pins(pinned({ value: 3 }))).toEqual([['pin', 72, 75, 48, 66, 34.5, 48, 'CL 3', 73.5, 51.75]]);
     expect(toDrawingPayload(pinned({ value: 3 }), settings).elevations[0].dimensions
       .filter(({ row }) => row === 'pins').map(({ text }) => text)).toEqual(['CL 3']);
-    expect(pins(pinned({ value: -3 }))).toEqual([['pin', 69, 72, 48, 34.5, 66, 48, 'CL 3', 70.5, 54.375]]);
+    expect(pins(pinned({ value: -3 }))).toEqual([['pin', 69, 72, 48, 34.5, 66, 48, 'CL 3', 70.5, 51.75]]);
     // From a wall end the datum has no point of its own, so that end has no extension line.
     expect(pins(pinned({ from: 'left', anchor: 'left', value: 60 })))
       .toEqual([['pin', 0, 60, 40, 40, 34.5, 40, '60']]);

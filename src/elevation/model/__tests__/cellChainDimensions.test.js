@@ -38,7 +38,7 @@ describe('SPEC-43.3 cell chains in the DXF', () => {
     const g3 = room('G3 Bath alcove');
     expect(cells(elevationDimensions(g3, g3.walls[1], 'front', settings)).map(row)).toEqual([
       ['vertical', 'cell', 36, 77.25, 6.8125, 6.8125, '41 1/4'],
-      ['vertical', 'cell', 77.25, 78, 6.8125, 6.8125, '3/4', 9.4375, 77.625],
+      ['vertical', 'cell', 77.25, 78, 6.8125, 6.8125, '3/4', 10.5625, 77.625],
     ]);
     const g4 = room('G4 T-filler run');
     expect(cells(elevationDimensions(g4, g4.walls[0], 'front', settings)).map(row)).toEqual([
@@ -60,8 +60,8 @@ describe('SPEC-43.3 cell chains in the DXF', () => {
     expect(cells(elevationDimensions(g4, g4.walls[0], 'front', { ...settings, plotScale: 48 })).map(row)).toEqual([
       ['vertical', 'cell', 4, 64, 60.8125, 60.8125, '60'],
       ['vertical', 'cell', 64, 90, 60.8125, 60.8125, '26'],
-      ['horizontal', 'cell', 48.8125, 66.3125, 16, 16, '17 1/2', 57.5625, 28.75],
-      ['horizontal', 'cell', 66.3125, 83.8125, 16, 16, '17 1/2', 75.0625, 36.25],
+      ['horizontal', 'cell', 48.8125, 66.3125, 16, 16, '17 1/2', 57.5625, 23.5],
+      ['horizontal', 'cell', 66.3125, 83.8125, 16, 16, '17 1/2', 75.0625, 31],
     ]);
   });
 });

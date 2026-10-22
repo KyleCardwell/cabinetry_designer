@@ -49,7 +49,7 @@ function rowRecords(row, segments, base, outward, at, scale) {
   const dx = forward ? b[0] - a[0] : a[0] - b[0];
   const dy = forward ? b[1] - a[1] : a[1] - b[1];
   const sign = -dy * outward.x + dx * -outward.y > 0 ? 1 : -1;
-  const { placed, levels, step } = placeLabels(segments, at, +1, scale, sign > 0);
+  const { placed, levels, step } = placeLabels(segments, at, +1, scale);
   const records = placed.map(({ segment, text, along, across }) => {
     const one = up(base(segment.start));
     const two = up(base(segment.end));

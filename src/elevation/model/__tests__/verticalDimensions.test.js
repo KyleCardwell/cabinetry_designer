@@ -20,16 +20,16 @@ describe('SPEC-43.2 vertical elevation dimensions', () => {
     const g1 = room('G1 Euro kitchen');
     const dimensions = vertical(elevationDimensions(g1, g1.walls[0], 'front', settings));
     expect(dimensions.map(row)).toEqual([
-      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4', -15.375, 2],
+      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4', -12.75, 2],
       ['left.inner', 'box', 4, 90, 0, -9, '86'],
-      ['left.inner', 'molding', 90, 96, 0, -9, '6'],
+      ['left.inner', 'molding', 90, 96, 0, -9, '6', -12.75, 93],
       ['left.outer', 'wall', 0, 96, 0, -21.75, '96'],
-      ['right.inner', 'toe-kick', 0, 4, 168, 177, '4', 179.625, 2],
+      ['right.inner', 'toe-kick', 0, 4, 168, 177, '4', 180.75, 2],
       ['right.inner', 'box', 4, 34.5, 168, 177, '30 1/2'],
-      ['right.inner', 'countertop', 34.5, 36, 168, 177, '1 1/2', 179.625, 35.25],
+      ['right.inner', 'countertop', 34.5, 36, 168, 177, '1 1/2', 180.75, 35.25],
       ['right.inner', 'clearance', 36, 54, 168, 177, '18'],
       ['right.inner', 'box', 54, 90, 168, 177, '36'],
-      ['right.inner', 'molding', 90, 96, 168, 177, '6'],
+      ['right.inner', 'molding', 90, 96, 168, 177, '6', 180.75, 93],
       ['right.middle', 'counter-height', 0, 36, 168, 189.75, '36'],
       ['right.outer', 'wall', 0, 96, 168, 198.75, '96'],
     ]);
@@ -39,13 +39,13 @@ describe('SPEC-43.2 vertical elevation dimensions', () => {
     const g2 = room('G2 Face frame kitchen');
     expect(vertical(elevationDimensions(g2, g2.walls[0], 'front', settings))
       .filter(({ row: name }) => name.startsWith('left.')).map(row)).toEqual([
-      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4', -15.375, 2],
-      ['left.inner', 'frame', 4, 5.75, 0, -9, '1 3/4', -19.125, 4.875],
+      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4', -12.75, 2],
+      ['left.inner', 'frame', 4, 5.75, 0, -9, '1 3/4', -16.5, 4.875],
       ['left.inner', 'frame-opening', 5.75, 67, 0, -9, '61 1/4'],
-      ['left.inner', 'frame', 67, 69, 0, -9, '2', -15.375, 68],
+      ['left.inner', 'frame', 67, 69, 0, -9, '2', -12.75, 68],
       ['left.inner', 'frame-opening', 69, 88.25, 0, -9, '19 1/4'],
-      ['left.inner', 'frame', 88.25, 90, 0, -9, '1 3/4', -15.375, 89.125],
-      ['left.inner', 'molding', 90, 96, 0, -9, '6'],
+      ['left.inner', 'frame', 88.25, 90, 0, -9, '1 3/4', -12.75, 89.125],
+      ['left.inner', 'molding', 90, 96, 0, -9, '6', -16.5, 93],
       ['left.outer', 'wall', 0, 96, 0, -25.5, '96'],
     ]);
   });
@@ -53,13 +53,13 @@ describe('SPEC-43.2 vertical elevation dimensions', () => {
   it('leaves out a column that only repeats the wall height (G1 island, a bare wall in G3)', () => {
     const g1 = room('G1 Euro kitchen');
     expect(vertical(elevationDimensions(g1, g1.walls[3], 'back', settings)).map(row)).toEqual([
-      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4', -15.375, 2],
+      ['left.inner', 'toe-kick', 0, 4, 0, -9, '4', -12.75, 2],
       ['left.inner', 'box', 4, 34.5, 0, -9, '30 1/2'],
-      ['left.inner', 'countertop', 34.5, 36, 0, -9, '1 1/2', -15.375, 35.25],
+      ['left.inner', 'countertop', 34.5, 36, 0, -9, '1 1/2', -12.75, 35.25],
       ['left.outer', 'wall', 0, 36, 0, -21.75, '36'],
-      ['right.inner', 'toe-kick', 0, 4, 91.5, 100.5, '4', 103.125, 2],
+      ['right.inner', 'toe-kick', 0, 4, 91.5, 100.5, '4', 104.25, 2],
       ['right.inner', 'box', 4, 34.5, 91.5, 100.5, '30 1/2'],
-      ['right.inner', 'countertop', 34.5, 36, 91.5, 100.5, '1 1/2', 103.125, 35.25],
+      ['right.inner', 'countertop', 34.5, 36, 91.5, 100.5, '1 1/2', 104.25, 35.25],
       ['right.outer', 'wall', 0, 36, 91.5, 113.25, '36'],
     ]);
     const g3 = room('G3 Bath alcove');
@@ -72,15 +72,15 @@ describe('SPEC-43.2 vertical elevation dimensions', () => {
   it('spaces columns by the plot scale (G1 elevation B at 1/4" = 1\'-0")', () => {
     const g1 = room('G1 Euro kitchen');
     const dimensions = vertical(elevationDimensions(g1, g1.walls[1], 'front', { ...settings, plotScale: 48 }));
-    // 18" apart at 1:48, plus 7 1/2" for the one level of moved text in each inner column.
+    // 18" apart at 1:48, plus 7 1/2" for each of two levels of moved text in each inner column.
     expect([...new Set(dimensions.map(({ row: name, at }) => `${name} ${at}`))]).toEqual([
-      'left.inner -18', 'left.middle -43.5', 'left.outer -61.5',
-      'right.inner 138', 'right.middle 163.5', 'right.outer 181.5',
+      'left.inner -18', 'left.middle -51', 'left.outer -69',
+      'right.inner 138', 'right.middle 171', 'right.outer 189',
     ]);
     expect(dimensions.filter(({ textX }) => textX !== undefined).map(({ text, textX, textZ }) => [text, textX, textZ]))
       .toEqual([
-        ['4', -30.75, 2], ['1 1/2', -30.75, 35.25], ['6', -30.75, 93],
-        ['4', 143.25, 2], ['1 1/2', 143.25, 35.25], ['6', 143.25, 93],
+        ['4', -25.5, 2], ['30 1/2', -25.5, 19.25], ['1 1/2', -33, 35.25], ['18', -25.5, 45], ['6', -25.5, 93],
+        ['4', 145.5, 2], ['30 1/2', 145.5, 19.25], ['1 1/2', 153, 35.25], ['18', 145.5, 45], ['6', 145.5, 93],
       ]);
   });
 });

@@ -36,13 +36,14 @@ const room = (name) => syncRoom(document.rooms.find((candidate) => candidate.nam
 // Captured before HP5 step d: the existing golden snapshot covers derived rooms, not payloads.
 // DM1 updated G1/G2; DM3 updated elevation rows. DM4 gives all rooms explicit rectangle
 // molding picks: same box heights/front projections, actual profile outlines and side extents.
+// DM7 updates centred-text fitting and pop-out levels; G2 also had a stale hash before DM7.
 const preHP5PayloadHashes = {
-  'G1 Euro kitchen': 'acd7cd385194a994c7ecfe702c9b06ff4ac96d30ec415963c14a69b8b424ed1c',
-  'G2 Face frame kitchen': 'f7b5ae50841655c3b3fd8c32bd414b797099232fb43d6e1cfced7e3996f3dcf4',
-  'G3 Bath alcove': '0840a7310454a42b806d3d4eb962b928b987475ab74ce9dbcc14201c9922415f',
-  'G4 T-filler run': 'b42167d5e666404975a5d98463b41a8fa0700b5fffd4cb8b70d860d8fb4b8ef3',
-  'G5 Recess room': '0afbf0c12ed8c6c8b5fb8990e98aa101c62ce99b07fc1b26a69f62df79d171f7',
-  'G6 Stacked runs': 'aa2bedd28fa3cd3032f99c0f1c47ce06773a0196d2eb7f737b4ed4731e352dfd',
+  'G1 Euro kitchen': 'eb8fab873358080acfb429040ffc547a005e387c3d83daf9322e8751945c7ebd',
+  'G2 Face frame kitchen': '6db3785fa9bca11c26a0f61d77a287d756a18b9cc7e687fb1c6b0c54c68b58d4',
+  'G3 Bath alcove': '972df0b7e5cf218bf98a7725b79e676a933734d8b21507c980438310f46e2ef1',
+  'G4 T-filler run': 'f32f42cd95835870de06a6de27c6889e6b428f3980f12b0290ae0b7eaacf5350',
+  'G5 Recess room': 'b8b61e985225e22b8d4bcd9c10080e2aba96952990a2c5bbfbca92303c9f69f6',
+  'G6 Stacked runs': 'b6e24f564707fab1b30922602e819f26ab3cd600478dfd61e3d1dd4c70e47393',
 };
 
 /** The round-40 fields only, so the first test keeps checking just those. */

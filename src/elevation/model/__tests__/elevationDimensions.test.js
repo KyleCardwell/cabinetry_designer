@@ -18,6 +18,51 @@ const row = ({
 const ROWS = ['lower.inner', 'lower.outer', 'openings', 'wall', 'upper.inner', 'upper.outer'];
 const horizontal = (dimensions) => dimensions.filter(({ row: name }) => ROWS.includes(name));
 
+describe('DM7 centred dimension text', () => {
+  it.each([
+    [30, 3.15, true],
+    [8, 1.575, true],
+    [7, 1.575, false],
+  ])('anchor: segment %s has width %s and fits = %s at 1:24', (length, width, fits) => {
+    const { placed: [label], levels } = placeLabels([{ start: 0, end: length }], -9, -1, 24);
+    expect(label.width).toBeCloseTo(width, 10);
+    expect(label.fits).toBe(fits);
+    expect(levels).toBe(fits ? 0 : 1);
+    if (fits) {
+      expect(label.along).toBeUndefined();
+      expect(label.across).toBeUndefined();
+    } else {
+      expect([label.along, label.across]).toEqual([3.5, -12.75]);
+    }
+  });
+
+  it('anchor 4: levels start and advance by height + gap on either side, scaled to the drawing', () => {
+    for (const scale of [24, 48]) {
+      for (const outward of [-1, 1]) {
+        const { placed, levels, step } = placeLabels([
+          { start: 0, end: 1, text: '7' },
+          { start: 1, end: 2, text: '7' },
+        ], -9, outward, scale);
+        expect(levels).toBe(2);
+        expect(step).toBe(3.75 * scale / 24);
+        expect(placed.map(({ across }) => across)).toEqual([
+          -9 + outward * 3.75 * scale / 24,
+          -9 + outward * 7.5 * scale / 24,
+        ]);
+      }
+    }
+    // The rule includes equality and scales both remaining line lengths with the plot scale.
+    for (const scale of [24, 48]) {
+      const required = 7.575 * scale / 24;
+      const { placed } = placeLabels([
+        { start: 0, end: required, text: '8' },
+        { start: 0, end: required - 0.001, text: '8' },
+      ], 0, 1, scale);
+      expect(placed.map(({ fits }) => fits)).toEqual([true, false]);
+    }
+  });
+});
+
 describe('SPEC-43 elevation dimensions', () => {
   it('SPEC-50.15 step 522 anchors: estimates Arial widths, fits a 10-inch segment and keeps a 3-inch filler moved out', () => {
     const { placed, levels, step } = placeLabels([
@@ -32,7 +77,7 @@ describe('SPEC-43 elevation dimensions', () => {
     expect(placed[1].along).toBeUndefined();
     expect(placed[1].across).toBeUndefined();
     expect(placed[2].fits).toBe(false);
-    expect([placed[2].along, placed[2].across]).toEqual([36.375, -11.625]);
+    expect([placed[2].along, placed[2].across]).toEqual([36.375, -12.75]);
     expect(levels).toBe(1);
     expect(step).toBe(3.75);
   });
@@ -40,26 +85,26 @@ describe('SPEC-43 elevation dimensions', () => {
   it('dimensions every segment of the canvas\'s chains; text that doesn\'t fit moves off the line (G1 elevation A)', () => {
     const g1 = room('G1 Euro kitchen');
     expect(horizontal(elevationDimensions(g1, g1.walls[0], 'front', settings)).map(row)).toEqual([
-      ['lower.inner', 'piece', 0, 0.8125, 0, -9, '13/16', 0.40625, -11.625],
+      ['lower.inner', 'piece', 0, 0.8125, 0, -9, '13/16', 0.40625, -12.75],
       ['lower.inner', 'piece', 0.8125, 29.25, 0, -9, '28 7/16'],
-      ['lower.inner', 'piece', 29.25, 30, 0, -9, '3/4', 29.625, -11.625],
+      ['lower.inner', 'piece', 29.25, 30, 0, -9, '3/4', 29.625, -12.75],
       ['lower.inner', 'piece', 30, 54, 0, -9, '24'],
       ['lower.inner', 'piece', 54, 90, 0, -9, '36'],
       ['lower.inner', 'piece', 90, 115.5, 0, -9, '25 1/2'],
       ['lower.inner', 'piece', 115.5, 141, 0, -9, '25 1/2'],
-      ['lower.inner', 'piece', 141, 143.125, 0, -9, '2 1/8', 142.0625, -11.625],
+      ['lower.inner', 'piece', 141, 143.125, 0, -9, '2 1/8', 142.0625, -12.75],
       ['lower.inner', 'corner-gap', 143.125, 168, 0, -9, '24 7/8'],
       // DM3: the tall and base runs touch, one segment corner to corner, so no wall row; no openings row.
       ['lower.outer', 'run', 0, 168, 0, -21.75, '168'],
       ['upper.inner', 'tall-span', 0, 30, 96, 105, '30'],
-      ['upper.inner', 'piece', 108.5, 109.3125, 96, 105, '13/16', 108.90625, 111.375],
+      ['upper.inner', 'piece', 108.5, 109.3125, 96, 105, '13/16', 108.90625, 108.75],
       ['upper.inner', 'piece', 109.3125, 131.3125, 96, 105, '22'],
       ['upper.inner', 'piece', 131.3125, 153.3125, 96, 105, '22'],
-      ['upper.inner', 'piece', 153.3125, 155.125, 96, 105, '1 13/16', 154.21875, 111.375],
-      ['upper.inner', 'corner-gap', 155.125, 168, 96, 105, '12 7/8'],
-      ['upper.outer', 'tall-span', 0, 30, 96, 117.75, '30'],
-      ['upper.outer', 'open', 30, 108.5, 96, 117.75, '78 1/2'],
-      ['upper.outer', 'run', 108.5, 168, 96, 117.75, '59 1/2'],
+      ['upper.inner', 'piece', 153.3125, 155.125, 96, 105, '1 13/16', 154.21875, 108.75],
+      ['upper.inner', 'corner-gap', 155.125, 168, 96, 105, '12 7/8', 161.5625, 112.5],
+      ['upper.outer', 'tall-span', 0, 30, 96, 121.5, '30'],
+      ['upper.outer', 'open', 30, 108.5, 96, 121.5, '78 1/2'],
+      ['upper.outer', 'run', 108.5, 168, 96, 121.5, '59 1/2'],
     ]);
   });
 
@@ -70,17 +115,21 @@ describe('SPEC-43 elevation dimensions', () => {
     expect([...new Set(dimensions.map(({ row: name, at }) => `${name} ${at}`))]).toEqual([
       'lower.inner -18', 'lower.outer -51', 'upper.inner 114', 'upper.outer 147',
     ]);
-    // Arial's 24 7/8" label needs 24.9" including gaps, so it moves out and the adjacent filler stacks.
+    // Arial's 24 7/8" label needs 30.9" including gaps and minimum line lengths.
+    // It moves out and the adjacent filler stacks.
     expect(dimensions.filter(({ row: name, textX }) => name === 'lower.inner' && textX !== undefined).map(row)).toEqual([
-      ['lower.inner', 'corner-gap', 0, 24.875, 0, -18, '24 7/8', 12.4375, -23.25],
-      ['lower.inner', 'piece', 24.875, 26.6875, 0, -18, '1 13/16', 25.78125, -30.75],
-      ['lower.inner', 'piece', 118.1875, 120, 0, -18, '1 13/16', 119.09375, -23.25],
+      ['lower.inner', 'corner-gap', 0, 24.875, 0, -18, '24 7/8', 12.4375, -25.5],
+      ['lower.inner', 'piece', 24.875, 26.6875, 0, -18, '1 13/16', 25.78125, -33],
+      ['lower.inner', 'piece', 26.6875, 57.1875, 0, -18, '30 1/2', 41.9375, -25.5],
+      ['lower.inner', 'piece', 57.1875, 87.6875, 0, -18, '30 1/2', 72.4375, -25.5],
+      ['lower.inner', 'piece', 87.6875, 118.1875, 0, -18, '30 1/2', 102.9375, -25.5],
+      ['lower.inner', 'piece', 118.1875, 120, 0, -18, '1 13/16', 119.09375, -33],
     ]);
     // Above the wall the 12 7/8" and the 1 13/16" beside it would overlap: the second goes a level further out.
     expect(dimensions.filter(({ row: name, textX }) => name === 'upper.inner' && textX !== undefined).map(row)).toEqual([
-      ['upper.inner', 'corner-gap', 0, 12.875, 96, 114, '12 7/8', 6.4375, 126.75],
-      ['upper.inner', 'piece', 12.875, 14.6875, 96, 114, '1 13/16', 13.78125, 134.25],
-      ['upper.inner', 'piece', 118.1875, 120, 96, 114, '1 13/16', 119.09375, 126.75],
+      ['upper.inner', 'corner-gap', 0, 12.875, 96, 114, '12 7/8', 6.4375, 121.5],
+      ['upper.inner', 'piece', 12.875, 14.6875, 96, 114, '1 13/16', 13.78125, 129],
+      ['upper.inner', 'piece', 118.1875, 120, 96, 114, '1 13/16', 119.09375, 121.5],
     ]);
     expect(dimensions).toHaveLength(14);
   });
@@ -88,9 +137,9 @@ describe('SPEC-43 elevation dimensions', () => {
   it('DM3: dimensions the wall below when there are no uppers; recesses only on faces without runs (G1 island, G5)', () => {
     const g1 = room('G1 Euro kitchen');
     expect(horizontal(elevationDimensions(g1, g1.walls[3], 'back', settings)).map(row).slice(3)).toEqual([
-      ['lower.outer', 'open', 0, 0.8125, 0, -18, '13/16', 0.40625, -20.625],
+      ['lower.outer', 'open', 0, 0.8125, 0, -18, '13/16', 0.40625, -21.75],
       ['lower.outer', 'run', 0.8125, 90.6875, 0, -18, '89 7/8'],
-      ['lower.outer', 'open', 90.6875, 91.5, 0, -18, '13/16', 91.09375, -20.625],
+      ['lower.outer', 'open', 90.6875, 91.5, 0, -18, '13/16', 91.09375, -21.75],
       ['wall', 'wall', 0, 91.5, 0, -30.75, '91 1/2'],
     ]);
     const g5 = room('G5 Recess room');
