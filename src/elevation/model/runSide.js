@@ -92,7 +92,9 @@ export function runEndView(room, wall, run, end, settings) {
   const scene = runScene(room, wall, run, settings);
   const back = runBackOffset(run);
   let returns;
-  const getReturns = () => (returns ??= cornerShapes(room, wall, wall.side ?? 'front', settings, { profiles: false }));
+  // Band lookup uses raw sections so two end-view returns cannot recursively resolve each other.
+  const getReturns = () => (returns ??= cornerShapes(room, wall, wall.side ?? 'front', settings,
+    { profiles: false, returns: 'section' }));
   const bands = { countertop: 'countertop', top_mold: 'topMold', crown: 'crown' };
   const pieces = runSide(room, wall, run, settings).map((piece) => {
     const band = bands[piece.piece];

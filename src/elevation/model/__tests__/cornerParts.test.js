@@ -1,7 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { cornerParts, cornerShapes } from '../cornerParts.js';
+import { gridFromItems } from '../grid.js';
 import { syncRoom } from '../room.js';
+import { runEndView } from '../runSide.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
 const document = normalizeElevationDocument(
@@ -21,6 +23,91 @@ const row = (part) => [
 const G1_A = 'cb33d774-f31e-41c1-bbe4-198cbf981619';
 const G3_HOST = '6d7021c6-5293-4d11-ae7f-47086e301920';
 const G3_WING = '5ab00c5d-9ea6-4d32-9586-d266db26a4d2';
+
+// Wall 1's free base end is 74 1/16 from Wall 2; its upper runs from z 54 to 114.
+function endViewKitchen() {
+  const copy = structuredClone(stored('G1 Euro kitchen'));
+  const [base, upper] = copy.walls[0].runs.slice(1);
+  copy.walls[0].runs = [base, upper];
+  Object.assign(base, { x: 93.9375, width: 49.1875, anchors: { right: true }, autoCount: false,
+    grid: gridFromItems(base.id, [{ id: 'anchor-base', kind: 'cabinet', width: null }]),
+    ends: { left: { type: 'end_panel', width: null }, right: { type: 'filler', width: null } } });
+  copy.profile.crownTop = 120;
+  copy.elevationOptions = { [copy.walls[1].id]: { returns: 'end' } };
+  return syncRoom(copy, { ...settings, runFlex: 0 });
+}
+
+describe('DM6 step d end-on returns', () => {
+  it('anchor 1: draws Wall 1 base profiles at x 0…24 and 24…24 7/8, front depth 74 1/16', () => {
+    const synced = endViewKitchen();
+    const shape = shapesOf(synced, 1)[0];
+    const part = (piece) => shape.parts.find(({ id }) => id.endsWith(`:${piece}`));
+    expect(shape.kind).toBe('return');
+    expect(part('box')).toMatchObject({ kind: 'profile', x: 0, width: 24, front: 74.0625 });
+    expect(part('faces')).toMatchObject({ kind: 'profile', x: 24, width: 0.875, front: 74.0625 });
+    expect(shape.parts.some(({ kind }) => kind === 'section')).toBe(false);
+    expect(part('end_panel')).toMatchObject({ kind: 'end_panel', x: 0, width: 24.875, front: 74.0625 });
+    expect(part('end_panel').opaque).not.toBe(false);
+    expect(partsOf(synced, 1)).toEqual(shapesOf(synced, 1).flatMap(({ parts }) => parts));
+  });
+
+  it('anchor 2: draws Wall 1 upper box at x 0…12, z 54…114, with its free-end bands and panel', () => {
+    const synced = endViewKitchen();
+    const shape = shapesOf(synced, 1)[1];
+    const part = (piece) => shape.parts.find(({ id }) => id.endsWith(`:${piece}`));
+    expect(part('box')).toMatchObject({ kind: 'profile', x: 0, width: 12, z: 54, height: 60 });
+    expect(part('top_mold').x).toBe(0);
+    expect(part('crown').x).toBe(0);
+    const pieces = runEndView(synced, synced.walls[0], synced.walls[0].runs[1], 'left', settings);
+    for (const piece of pieces) {
+      expect(part(piece.piece)).toMatchObject({ z: piece.z, height: piece.height,
+        x: piece.back, width: piece.front - piece.back });
+    }
+    expect(part('end_panel').opaque).not.toBe(false);
+  });
+
+  it('anchor 3: switching back to Section restores every original part exactly', () => {
+    const synced = room('G1 Euro kitchen');
+    const before = partsOf(synced, 1);
+    const key = synced.walls[1].id;
+    synced.elevationOptions = { [key]: { returns: 'end' } };
+    expect(partsOf(synced, 1)).not.toEqual(before);
+    synced.elevationOptions[key].returns = 'section';
+    expect(partsOf(synced, 1)).toEqual(before);
+  });
+
+  it('uses the combined lead setting and leaves soffit returns as sections', () => {
+    const synced = room('G3 Bath alcove');
+    const [lead, wall] = synced.walls;
+    const before = shapesOf(synced, 0);
+    const otherBefore = shapesOf(synced, 1);
+    synced.combinedElevations = [{ id: 'combined', on: true, faces: [lead.id, wall.id] }];
+    synced.elevationOptions = { [wall.id]: { returns: 'end' }, [lead.id]: { returns: 'section' } };
+    expect(shapesOf(synced, 0)).toEqual(before);
+    expect(shapesOf(synced, 1)).toEqual(otherBefore);
+    synced.elevationOptions[lead.id].returns = 'end';
+    const after = shapesOf(synced, 0);
+    expect(after.filter(({ soffitId }) => !soffitId).flatMap(({ parts }) => parts)
+      .every(({ kind }) => kind !== 'section')).toBe(true);
+    expect(after.find(({ soffitId }) => soffitId)).toEqual(before.find(({ soffitId }) => soffitId));
+    expect(shapesOf(synced, 1).filter(({ runId }) => runId).flatMap(({ parts }) => parts)
+      .every(({ kind }) => kind !== 'section')).toBe(true);
+  });
+
+  it('draws a back-side wing return at its end away from the host corner', () => {
+    const copy = structuredClone(stored('G3 Bath alcove'));
+    const base = structuredClone(copy.walls[1].runs[0]);
+    copy.walls[2].runs = [{ ...base, id: 'wing-base', x: 0, width: 24, wallSide: 'back',
+      anchors: { right: true }, ends: { left: { type: 'end_panel', width: null } } }];
+    copy.elevationOptions = { [G3_HOST]: { returns: 'end' } };
+    const shapes = shapesOf(syncRoom(copy, settings), 1);
+    expect(shapes.map(({ key }) => key)).toEqual([`landing:${G3_WING}:left:wing-base`]);
+    expect(shapes[0].parts.find(({ id }) => id.endsWith(':box')))
+      .toMatchObject({ kind: 'profile', x: 76.5, width: 21, back: 0, front: 24 });
+    expect(shapes[0].parts.find(({ kind }) => kind === 'end_panel'))
+      .toMatchObject({ x: 76.5, width: 21.875 });
+  });
+});
 
 describe('SPEC-42.2 corner returns', () => {
   it('cuts the next wall\'s runs where they meet this face: box and faces hatched, bands outlined (G1 elevation B)', () => {

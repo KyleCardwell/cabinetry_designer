@@ -9,6 +9,7 @@ import { runBandEnds } from './runBands.js';
 import { runScene } from './runScene.js';
 import { transformOutline } from './sectionProfileOutline.js';
 import { soffitReturns } from './soffits.js';
+import { elevationKey, returnsView } from './topology.js';
 import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
 
 const EPSILON = 1e-6;
@@ -56,25 +57,28 @@ function joinedProfileBands(room, wall, settings, shapes) {
 /**
  * What a wall face sees of its neighbours (SPEC-42.2), as shapes of drawing parts:
  * - returns: the runs on the next wall (or on a wing wall) anchored into this face's inside corner, and the
- *   soffits that die into it, cut where they meet this face. Their box and faces are `section` parts.
+ *   soffits that die into it. Runs use sections or end views per returnsView; soffits stay sections.
  * - profiles: runs on a connected wall that reach past this face's ends, seen end-on. Their box and
  *   faces are `profile` parts; a visible end panel stays `end_panel` and opaque.
  * A run's toe kick, countertop, top mold and crown keep their band kinds. Each shape is
  * { key, kind: 'return' | 'profile', wallId, runId?, soffitId?, parts }; parts carry their depths from this face.
  */
 export function cornerShapes(room, wall, side, settings,
-  { profiles: includeProfiles = true, throughBands = false } = {}) {
+  { profiles: includeProfiles = true, throughBands = false, returns: returnMode } = {}) {
   const view = resolveWall(room, wall, side);
+  const endView = (returnMode ?? returnsView(room, elevationKey(view.id, view.side))) === 'end';
   const source = view.sideSource ?? view;
   const frame = wallSideFrame(room, source, view.side);
   const length = view.length;
   const depthOf = (point) => dot(subtract(point, frame.leftPoint), frame.n);
   const shapes = [];
 
-  /** A neighbour run's pieces, cut at this face: `xOf(offset)` maps a depth on its wall to x here. */
-  const cut = (key, neighbor, neighborView, neighborFrame, run, xOf) => {
+  /** A neighbour return: `xOf(offset)` maps its wall depth to x here; end is away from the corner. */
+  const cut = (key, neighbor, neighborView, neighborFrame, run, end, xOf) => {
     const ends = [run.x, run.x + run.width];
-    const parts = runSide(room, neighborView, run, settings).flatMap((piece) => {
+    const pieces = endView ? runEndView(room, neighborView, run, end, settings)
+      : runSide(room, neighborView, run, settings);
+    const parts = pieces.flatMap((piece) => {
       const xs = [xOf(piece.back), xOf(piece.front)].map((x) => Math.min(length, Math.max(0, x)));
       const depths = ends.flatMap((x) => [piece.back, piece.front]
         .map((offset) => depthOf(elevationToPlan(neighborFrame, x, offset))));
@@ -83,7 +87,7 @@ export function cornerShapes(room, wall, side, settings,
       if (width <= EPSILON) return [];
       return [{
         id: `${key}:${piece.piece}`,
-        kind: BODY.has(piece.piece) ? 'section' : piece.piece,
+        kind: BODY.has(piece.piece) ? (endView ? 'profile' : 'section') : piece.piece,
         runId: run.id,
         x, z: piece.z, width, height: piece.height,
         back: Math.min(...depths), front: Math.max(...depths),
@@ -91,7 +95,7 @@ export function cornerShapes(room, wall, side, settings,
         ...(piece.outline ? { outline: transformOutline(piece.outline, ([depth, z]) => [
           Math.min(length, Math.max(0, xOf(depth))), z,
         ], xOf(1) < xOf(0)) } : {}),
-        ...(BODY.has(piece.piece) ? {} : { opaque: false }),
+        ...(BODY.has(piece.piece) || piece.piece === 'end_panel' ? {} : { opaque: false }),
       }];
     });
     if (parts.length > 0) shapes.push({ key, kind: 'return', wallId: neighbor.id, runId: run.id, parts });
@@ -108,6 +112,7 @@ export function cornerShapes(room, wall, side, settings,
     for (const run of neighborView.runs) {
       if (!anchoredToCorner(run.anchors?.[corner.neighborSide], corner) || run.height <= 0) continue;
       cut(`${end}:${neighbor.id}:${run.id}`, neighbor, neighborView, neighborFrame, run,
+        corner.neighborSide === 'left' ? 'right' : 'left',
         (offset) => (end === 'left' ? offset / sine : length - offset / sine));
     }
   }
@@ -124,6 +129,7 @@ export function cornerShapes(room, wall, side, settings,
       for (const run of landedView.runs) {
         if (run.anchors?.[corner.neighborSide] !== true || run.height <= 0) continue;
         cut(`landing:${wallId}:${end}:${run.id}`, landed, landedView, landedFrame, run,
+          corner.neighborSide === 'left' ? 'right' : 'left',
           (offset) => (end === 'left' ? b + offset / sine : a - offset / sine));
       }
     }

@@ -15,7 +15,7 @@ import { outlineGeometry, outlinePath } from './outlinePath.js';
 
 /**
  * What this face sees of its neighbours at its corners and wing walls (SPEC-42.2): each return from
- * cornerShapes (sections hatched, their bands outlined) with its wall's label, and each wing wall's outline.
+ * cornerShapes (sections hatched, end views and bands outlined) with its wall's label and wing wall outline.
  */
 export default function NeighborReturns({
   room, wall, settings, transform,
@@ -32,7 +32,7 @@ export default function NeighborReturns({
         ...part,
         rect: wallRectToScreen(part, transform),
       }));
-      const labelPart = parts.find((part) => part.kind === 'section') ?? parts[0];
+      const labelPart = parts.find((part) => ['section', 'profile'].includes(part.kind)) ?? parts[0];
       return { key: shape.key, label, parts, labelRect: labelPart.rect };
     });
 
@@ -66,6 +66,7 @@ export default function NeighborReturns({
             const PartShape = part.outline ? Shape : Rect;
             const geometry = part.outline ? outlineGeometry(part.outline, transform) : part.rect;
             const section = part.kind === 'section';
+            const profile = part.kind === 'profile' || part.kind === 'end_panel';
             const clipFunc = part.outline ? outlinePath(part.outline, transform) : undefined;
             return (
               <Group key={part.id} listening={false}>
@@ -73,7 +74,7 @@ export default function NeighborReturns({
                   {...geometry}
                   fill={section ? '#475569' : undefined}
                   opacity={section ? 0.26 : 1}
-                  stroke="#94a3b8"
+                  stroke={profile ? '#64748b' : '#94a3b8'}
                   strokeWidth={section ? 1.5 : 1}
                   listening={false}
                 />

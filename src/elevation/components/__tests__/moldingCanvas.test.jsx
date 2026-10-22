@@ -151,6 +151,22 @@ describe('Step 490 furniture base canvas', () => {
 });
 
 describe('Step 472 molding canvas', () => {
+  it('draws end-view return profiles and end panels with profile strokes and no hatching', () => {
+    const { room, wall } = setup();
+    const parts = ['profile', 'end_panel'].map((kind) => ({
+      id: kind, kind, x: 0, z: 4, width: 24, height: 30.5,
+    }));
+    const shapes = [{ key: 'return', kind: 'return', wallId: wall.id, parts }];
+    const tree = nodes(NeighborReturns({ room, wall, settings, transform, shapes }));
+    const rectangles = tree.filter(({ type }) => type === Rect);
+    expect(rectangles).toHaveLength(2);
+    for (const { props } of rectangles) {
+      expect(props).toMatchObject({ fill: undefined, stroke: '#64748b', opacity: 1, strokeWidth: 1 });
+    }
+    expect(tree.some(({ type }) => type === Hatch)).toBe(false);
+    expect(tree.some(({ type, props }) => type === Group && props.clipFunc)).toBe(false);
+  });
+
   it('renders the crown picks as thin lines stopped on the returned front contours', () => {
     const render = (profile) => nodes(RunGroup.type(setup(profile)));
     const picked = render(picks);
