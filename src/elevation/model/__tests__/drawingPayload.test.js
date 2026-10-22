@@ -29,6 +29,20 @@ import { runDoorDetails } from '../doorDetails.js';
 import * as showThroughModule from '../showThrough.js';
 import { roomWith } from './helpers/showThroughRoom.js';
 import { notchedFrameRoom, notchedFrameSettings } from './fixtures/notchedFrame.js';
+import { topSegmentRoom, topSegmentSettings } from './fixtures/topSegments.js';
+
+describe('ST4 step c top segment payload', () => {
+  it('exports the split main top and dropped segment without changing the golden fixture', () => {
+    const payload = toDrawingPayload(topSegmentRoom(), topSegmentSettings);
+    expect(payload.elevations[0].parts.filter(({ kind }) => kind === 'countertop'))
+      .toEqual(expect.arrayContaining([
+        expect.objectContaining({ id: 'r:countertop', x: -0.75, width: 30.75, z: 34.5, height: 1.5 }),
+        expect.objectContaining({ id: 'r:countertop:2', x: 60, width: 30.75, z: 34.5, height: 1.5 }),
+        expect.objectContaining({ id: 'r:top-s', x: 30, width: 30, z: 32.5, height: 3.5 }),
+      ]));
+    expect(payload.elevations[0].parts.filter(({ kind }) => kind === 'countertop')).toHaveLength(3);
+  });
+});
 
 describe('ST2 step c notched frame payload', () => {
   it('anchor 1: exports the base anchor outline and keeps all three opening holes', () => {

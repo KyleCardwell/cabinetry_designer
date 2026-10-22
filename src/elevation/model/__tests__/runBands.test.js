@@ -99,6 +99,8 @@ describe('SPEC-42 run bands', () => {
       toeKicks: [],
       furnitureBases: [],
       countertop: null,
+      countertops: [],
+      topSegments: [],
       topMold: null,
       crown: null,
       bottomParts: [],

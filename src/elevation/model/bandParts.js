@@ -50,8 +50,12 @@ export function bandParts(room, wall, side, settings) {
     const nosing = bands.top.kind === 'wood'
       ? moldingProfiles(resolveProfile(settings, room, view), settings, run).nosing : null;
     const overhangs = topOverhangs(room, view, run, settings);
-    addPart(bands.countertop, `${run.id}:countertop`, 'countertop',
-      faces + overhangs.front + nosingProjection(nosing), back - overhangs.back);
+    const topFront = faces + overhangs.front + nosingProjection(nosing);
+    const topBack = back - overhangs.back;
+    bands.countertops.forEach((band, index) => {
+      addPart(band, `${run.id}:countertop${index ? `:${index + 1}` : ''}`, 'countertop', topFront, topBack);
+    });
+    bands.topSegments.forEach((band) => addPart(band, band.id, 'countertop', topFront, topBack));
     addPart(bands.topMold, `${run.id}:top_mold`, 'top_mold', faces + moldingPast(moldings, 'topMold', settings));
     addPart(bands.crown, `${run.id}:crown`, 'crown', faces + moldingPast(moldings, 'crown', settings));
   }

@@ -3,6 +3,83 @@ import { describe, expect, it } from 'vitest';
 import { bandParts } from '../bandParts.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
+import { topSegment, topSegmentRoom, topSegmentSettings } from './fixtures/topSegments.js';
+
+const segmentParts = (overrides) => {
+  const room = topSegmentRoom(overrides);
+  return bandParts(room, room.walls[0], 'front', topSegmentSettings).filter(({ kind }) => kind === 'countertop');
+};
+
+describe('ST4 step c top segment parts', () => {
+  it('anchors 1–2: draws the dropped insert and splits the main top with its outer ends unchanged', () => {
+    const original = segmentParts({ topSegments: [] })[0];
+    const parts = segmentParts();
+    expect(parts.map(row)).toEqual([
+      ['r:countertop', 'countertop', -0.75, 34.5, 30.75, 1.5, original.back, original.front, false],
+      ['r:countertop:2', 'countertop', 60, 34.5, 30.75, 1.5, original.back, original.front, false],
+      ['r:top-s', 'countertop', 30, 32.5, 30, 3.5, original.back, original.front, false],
+    ]);
+  });
+
+  it('anchor 3: covers A–C and leaves only the end overhangs, or no main top without overhangs', () => {
+    const topSegments = [{ ...topSegment, from: 'C', to: 'A' }];
+    expect(segmentParts({ topSegments }).map(({ id, x, width }) => [id, x, width])).toEqual([
+      ['r:countertop', -0.75, 0.75], ['r:countertop:2', 90, 0.75], ['r:top-s', 0, 90],
+    ]);
+    expect(segmentParts({ topSegments, topOverhang: { left: 0, right: 0 } }).map(({ id }) => id))
+      .toEqual(['r:top-s']);
+  });
+
+  it('draws overlap mode identically, ignores inactive segments, and numbers remaining spans left to right', () => {
+    expect(segmentParts({ topSegments: [{ ...topSegment, mode: 'overlap' }] })).toEqual(segmentParts());
+    const original = segmentParts({ topSegments: [] });
+    expect(segmentParts({ topSegments: [{ ...topSegment, from: 'gone' }] })).toEqual(original);
+    expect(segmentParts({ top: 'none' })).toEqual([]);
+    expect(segmentParts({ topSegments: [topSegment, { ...topSegment, id: 'later', from: 'A', to: 'B' }] }))
+      .toEqual(segmentParts());
+    expect(segmentParts({ topSegments: [
+      { ...topSegment, id: 'right', from: 'C', to: 'C' },
+      { ...topSegment, id: 'left', from: 'A', to: 'A' },
+    ] }).map(({ id, x, width }) => [id, x, width])).toEqual([
+      ['r:countertop', -0.75, 0.75], ['r:countertop:2', 30, 30], ['r:countertop:3', 90, 0.75],
+      ['r:top-right', 60, 30], ['r:top-left', 0, 30],
+    ]);
+  });
+
+  it('preserves curved nosing, clips its lines, and retains waterfall legs outside a full-run insert', () => {
+    const room = topSegmentRoom({ top: 'wood', overrides: { nosingProfileId: 'nosing' } });
+    const run = room.walls[0].runs[0];
+    const using = { ...topSegmentSettings, sectionProfiles: [{
+      id: 'nosing', kind: 'nosing', geometry: {
+        units: 'in', points: { a: [0, 0], b: [0.25, 0], c: [0.5, -0.25], d: [0.5, -1.5], e: [0, -1.5] },
+        loops: [{ id: 'loop', closed: true, segs: [
+          { type: 'line', from: 'a', to: 'b' },
+          { type: 'arc', from: 'b', to: 'c', center: [0.25, -0.25], ccw: false },
+          { type: 'line', from: 'c', to: 'd' }, { type: 'line', from: 'd', to: 'e' },
+          { type: 'line', from: 'e', to: 'a' },
+        ] }],
+      }, drawnPoints: { elevation: ['c'] },
+    }] };
+    const parts = bandParts(room, room.walls[0], 'front', using).filter(({ kind }) => kind === 'countertop');
+    expect(parts[0].outline).toEqual([
+      [-0.5, 34.5, 0], [30, 34.5, 0], [30, 36, 0], [-0.25, 36, 0.414214], [-0.5, 35.75, 0],
+    ]);
+    expect(parts[1].outline).toEqual([
+      [60, 34.5, 0], [90.5, 34.5, 0], [90.5, 35.75, 0.414214], [90.25, 36, 0], [60, 36, 0],
+    ]);
+    expect(parts.slice(0, 2).map(({ lines }) => lines)).toEqual([
+      [{ x1: -0.5, z1: 35.75, x2: 30, z2: 35.75 }],
+      [{ x1: 60, z1: 35.75, x2: 90.5, z2: 35.75 }],
+    ]);
+    const waterfall = segmentParts({ topSegments: [{ ...topSegment, from: 'A', to: 'C' }],
+      topOverhang: { left: 0, right: 0 }, waterfall: { left: {}, right: {} } });
+    expect(waterfall.map(({ id, x, z, width, height }) => [id, x, z, width, height])).toEqual([
+      ['r:countertop', -1.5, 0, 1.5, 36], ['r:countertop:2', 90, 0, 1.5, 36],
+      ['r:top-s', 0, 32.5, 90, 3.5],
+    ]);
+    expect(run.topSegments).toEqual([topSegment]);
+  });
+});
 
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),

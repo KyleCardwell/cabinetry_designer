@@ -14,12 +14,104 @@ import { resolveProfile } from './profile.js';
 import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js';
 import { isCountertop, runMoldings, runTop } from './tops.js';
 import { topOverhangs } from './topOverhang.js';
+import { resolveTopSegments } from './topSegments.js';
 import { wallEndPanelAt } from './wallSides.js';
 import { waterfallBand } from './waterfall.js';
 
 export { bandDepths, hasToeKick } from './bandDepths.js';
 
 const EPSILON = 1e-6;
+
+/** Clip a countertop outline at a vertical cut, preserving the uncut ends and their arcs. */
+function clipTopOutline(outline, cut, direction) {
+  const points = [];
+  const append = (point) => {
+    const last = points.at(-1);
+    if (last && Math.hypot(last[0] - point[0], last[1] - point[1]) <= EPSILON) {
+      last[2] = point[2];
+    } else points.push(point);
+  };
+  outline.forEach(([x, z, bulge = 0], index) => {
+    const [tx, tz] = outline[(index + 1) % outline.length];
+    let splits = [];
+    let at = (t) => [x + t * (tx - x), z + t * (tz - z)];
+    const sweep = 4 * Math.atan(bulge);
+    if (bulge) {
+      const offset = (1 - bulge * bulge) / (4 * bulge);
+      const cx = (x + tx) / 2 - (tz - z) * offset;
+      const cz = (z + tz) / 2 + (tx - x) * offset;
+      const radius = Math.hypot(x - cx, z - cz);
+      const start = Math.atan2(z - cz, x - cx);
+      at = (t) => [cx + radius * Math.cos(start + t * sweep), cz + radius * Math.sin(start + t * sweep)];
+      const cosine = (cut - cx) / radius;
+      if (Math.abs(cosine) <= 1) {
+        const angle = Math.acos(cosine);
+        const turn = 2 * Math.PI;
+        splits = [angle, -angle].map((a) => (
+          ((Math.sign(sweep) * (a - start)) % turn + turn) % turn / Math.abs(sweep)
+        ));
+      }
+    } else if (tx !== x) splits = [(cut - x) / (tx - x)];
+    const stops = [0, ...splits.filter((t) => t > EPSILON && t < 1 - EPSILON)
+      .sort((a, b) => a - b).filter((t, i, all) => !i || t - all[i - 1] > EPSILON), 1];
+    stops.slice(0, -1).forEach((a, i) => {
+      const b = stops[i + 1];
+      if (direction * (at((a + b) / 2)[0] - cut) < -EPSILON) return;
+      const from = a === 0 ? [x, z] : [cut, at(a)[1]];
+      const to = b === 1 ? [tx, tz] : [cut, at(b)[1]];
+      append([...from, bulge ? (stops.length === 2 ? bulge : Math.tan((b - a) * sweep / 4)) : 0]);
+      append([...to, 0]);
+    });
+  });
+  if (points.length > 1 && Math.hypot(points[0][0] - points.at(-1)[0], points[0][1] - points.at(-1)[1]) <= EPSILON) {
+    points.pop();
+  }
+  return points;
+}
+
+function countertopSpan(band, start, end) {
+  const span = { ...band, x: start, width: end - start };
+  if (band.outline) {
+    span.outline = clipTopOutline(clipTopOutline(band.outline, start, 1), end, -1);
+    const { minX, maxX, minY, maxY } = outlineBounds(span.outline);
+    Object.assign(span, { x: minX, width: maxX - minX, z: minY, height: maxY - minY });
+  }
+  if (band.lines) span.lines = band.lines.flatMap((line) => {
+    const { x1, x2, z1, z2 } = line;
+    if (Math.max(x1, x2) < start || Math.min(x1, x2) > end) return [];
+    const stops = x1 === x2 ? [0, 1] : [
+      Math.max(0, Math.min((start - x1) / (x2 - x1), (end - x1) / (x2 - x1))),
+      Math.min(1, Math.max((start - x1) / (x2 - x1), (end - x1) / (x2 - x1))),
+    ];
+    return [{ x1: Math.max(start, Math.min(end, x1)), z1: z1 + stops[0] * (z2 - z1),
+      x2: Math.max(start, Math.min(end, x2)), z2: z1 + stops[1] * (z2 - z1) }];
+  });
+  return span;
+}
+
+/** Active top inserts and the remaining main-top spans, all in elevation coordinates. */
+function segmentedCountertop(run, scene, top, countertop) {
+  const pieces = new Map(scene.result.pieces.map((piece) => [piece.id, piece]));
+  const topSegments = resolveTopSegments(run, top.kind).segments.flatMap((segment) => {
+    const columns = segment.columnIds.map((id) => pieces.get(id)).filter(Boolean);
+    if (!columns.length) return [];
+    const x = Math.min(...columns.map((column) => column.x));
+    const end = Math.max(...columns.map((column) => column.x + column.width));
+    return [{ id: `${run.id}:top-${segment.id}`, kind: segment.kind, x, width: end - x,
+      z: run.z + run.height - segment.drop, height: segment.drop + top.height }];
+  });
+  if (!countertop || !topSegments.length) return { countertops: countertop ? [countertop] : [], topSegments };
+  const countertops = [];
+  let start = countertop.x;
+  const end = countertop.x + countertop.width;
+  for (const segment of [...topSegments].sort((a, b) => a.x - b.x)) {
+    const cut = Math.min(segment.x, end);
+    if (cut > start + EPSILON) countertops.push(countertopSpan(countertop, start, cut));
+    start = Math.max(start, segment.x + segment.width);
+  }
+  if (end > start + EPSILON) countertops.push(countertopSpan(countertop, start, end));
+  return { countertops, topSegments };
+}
 
 function countertopProfile(room, wall, run, settings) {
   const profile = resolveProfile(settings, room, wall);
@@ -256,6 +348,8 @@ export function runFurnitureBaseBand(room, wall, run, settings, base, scene = ru
  * parts below it, and the chip lines on its end panels and fillers, in elevation coordinates. The
  * canvas and the DXF both draw from it. `wall` is the resolved wall face; `scene` is runScene's.
  * Each end follows bandEdge (SPEC-42.1); a blind panel takes every band to the wall.
+ * `countertop` retains the overall envelope for end dimensions; drawing uses `countertops` and
+ * `topSegments`, which remove the inserts' column spans from the main top.
  */
 export function runBands(room, wall, run, settings, scene) {
   const { drawnPieces, hiddenIds, panelBySide, endBottom } = scene;
@@ -380,5 +474,6 @@ export function runBands(room, wall, run, settings, scene) {
       .map((x) => [[x, countertop.z, 0], [x, surface, 0]]);
     countertop = waterfallBand(countertop, edges, waterfall, run, top.height, surface, overhangs);
   }
-  return { top, toeKicks, furnitureBases, countertop, topMold, crown, bottomParts, chipLines };
+  return { top, toeKicks, furnitureBases, countertop, topMold, crown, bottomParts, chipLines,
+    ...segmentedCountertop(run, scene, top, countertop) };
 }

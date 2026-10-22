@@ -93,10 +93,8 @@ function RunGroup({
   );
   const toScreen = (rect) => rect && wallRectToScreen(rect, transform);
   const toBand = (band) => band?.outline ? outlineGeometry(band.outline, transform) : toScreen(band);
-  const countertop = toBand(bands.countertop);
   const topMold = toBand(bands.topMold);
   const crown = toBand(bands.crown);
-  const CountertopShape = bands.countertop?.outline ? Shape : Rect;
   const TopMoldShape = bands.topMold?.outline ? Shape : Rect;
   const CrownShape = bands.crown?.outline ? Shape : Rect;
   const bottomParts = bands.bottomParts.map((part) => ({ ...part, rect: toScreen(part) }));
@@ -265,16 +263,20 @@ function RunGroup({
         );
       })}
 
-      {countertop && (
-        <CountertopShape
-          {...countertop}
-          fill={bands.top.kind === 'wood' ? '#c8a27a' : '#cbd5e1'}
-          opacity={0.9}
-          stroke="#64748b"
-          strokeWidth={1}
-          listening={false}
-        />
-      )}
+      {[...bands.countertops, ...bands.topSegments].map((band, index) => {
+        const CountertopShape = band.outline ? Shape : Rect;
+        return (
+          <CountertopShape
+            key={band.id ?? `countertop:${index}`}
+            {...toBand(band)}
+            fill={(band.kind ?? bands.top.kind) === 'wood' ? '#c8a27a' : '#cbd5e1'}
+            opacity={0.9}
+            stroke="#64748b"
+            strokeWidth={1}
+            listening={false}
+          />
+        );
+      })}
 
       {topMold && (
         <TopMoldShape
@@ -300,7 +302,7 @@ function RunGroup({
       {[
         ['toeKicks', '#334155', 1],
         ['furnitureBases', '#cbd5e1', 0.9],
-        ['countertop', '#64748b', 0.9],
+        ['countertops', '#64748b', 0.9],
         ['topMold', '#cbd5e1', 0.9],
         ['crown', '#f8fafc', 0.82],
       ].flatMap(([kind, stroke, opacity]) => {
