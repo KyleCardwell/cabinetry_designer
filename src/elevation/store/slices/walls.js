@@ -11,7 +11,7 @@ import {
 } from '../../model/landings.js';
 import { autoCombinedFaces, combinableFaces } from '../../model/combinedElevations.js';
 import { flipRunsForWall } from '../../model/room.js';
-import { elevationKey } from '../../model/topology.js';
+import { elevationKey, elevationLeadKey, faceKeyParts } from '../../model/topology.js';
 import {
   addWallWithConnections,
   connectWallEndpoints,
@@ -315,6 +315,15 @@ export const wallReducers = {
       state.activeWallSide = 'front';
       clearTransientSelection(state);
       state.selection.wallId = wallId;
+    },
+    setElevationOption(state, action) {
+      const { key, returns: view } = action.payload;
+      const room = roomFor(state, action.payload.roomId);
+      if (!room || typeof key !== 'string' || !['section', 'end'].includes(view)) return;
+      if (!room.walls.some((wall) => wall.id === faceKeyParts(key).wallId)) return;
+      const leadKey = elevationLeadKey(room, key);
+      room.elevationOptions ??= {};
+      room.elevationOptions[leadKey] = { ...room.elevationOptions[leadKey], returns: view };
     },
     /** Turn a face's combined elevation on or off (Kyle 2026-10-16); the first time on, it takes the auto group. */
     setCombinedElevation(state, action) {

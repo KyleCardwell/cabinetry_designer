@@ -263,6 +263,11 @@ export function elevationLeadKey(room, key) {
   return combinedGroups(room).find((group) => group.faces.includes(key))?.faces[0] ?? key;
 }
 
+/** The returns view for an elevation, shared by every face of an enabled combined view. */
+export function returnsView(room, key) {
+  return room?.elevationOptions?.[elevationLeadKey(room, key)]?.returns === 'end' ? 'end' : 'section';
+}
+
 /**
  * Return the elevation letter for every face that has cabinets (a front can be forced in), fronts in wall
  * order, then backs. A combined elevation takes one letter, at its lead, when any of its faces would.

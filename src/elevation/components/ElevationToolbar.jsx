@@ -4,6 +4,7 @@ import { resolveSetting } from '../model/settingsResolve.js';
 import { overrideTitle } from './overrideHelpers.js';
 import AddToolMenu from './AddToolMenu.jsx';
 import CombinedElevationControl from './CombinedElevationControl.jsx';
+import ReturnsViewControl from './ReturnsViewControl.jsx';
 import { nextWallId, wallLabel } from '../model/topology.js';
 import {
   centerRoomOnOrigin,
@@ -207,6 +208,7 @@ export default function ElevationToolbar({
             ))}
           </div>
           <CombinedElevationControl room={room} wallId={activeWallId} side={activeWallSide} readOnly={readOnly} />
+          <ReturnsViewControl room={room} wallId={activeWallId} side={activeWallSide} readOnly={readOnly} />
           <button
             type="button"
             aria-pressed={settings.showPartNumbers}

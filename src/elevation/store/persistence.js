@@ -713,7 +713,10 @@ export function isRoom(room, profileKeys = PROFILE_KEYS) {
       || isPartNumberOverrides(room.partNumberOverrides))
     && (room.reportParts === undefined || isReportParts(room.reportParts))
     && (room.reportNote === undefined || isReportText(room.reportNote, 400))
-    && (room.combinedElevations === undefined || isCombinedElevations(room.combinedElevations));
+    && (room.combinedElevations === undefined || isCombinedElevations(room.combinedElevations))
+    && (room.elevationOptions === undefined || (isPlainObject(room.elevationOptions)
+      && Object.values(room.elevationOptions).every((option) => isPlainObject(option)
+        && ['section', 'end'].includes(option.returns))));
 }
 
 /** Combined elevations (Kyle 2026-10-16): `{ id, on, faces }` with faces as elevation keys. */
