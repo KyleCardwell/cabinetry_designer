@@ -1,6 +1,7 @@
 import { formatDimension } from '../model/units.js';
 
 const POPOUT_GAP = 4;
+const MIN_LINE = 4;
 
 /** Return the row offsets for an elevation dimension chain. */
 export function dimensionRowOffsets(orientation, innerLevels = 0, hasMiddle = false) {
@@ -56,7 +57,7 @@ export function layoutDimensionRow(segments, {
     return {
       index,
       text,
-      mode: width <= lengthPx - 4 ? 'inline' : 'popout',
+      mode: width + 2 * MIN_LINE <= lengthPx ? 'inline' : 'popout',
       level: 0,
       center,
       width,

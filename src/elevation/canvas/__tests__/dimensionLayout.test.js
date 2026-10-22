@@ -48,6 +48,19 @@ describe('belowRowOffsets', () => {
 });
 
 describe('layoutDimensionRow', () => {
+  it('DM7 reserves two 4px line pieces as well as the padded text width', () => {
+    const segments = [30, 29, 26].map((end) => ({ start: 0, end }));
+    const { labels } = layoutDimensionRow(segments, { scale: 1, fontSize: 11 });
+    expect(labels[0]).toMatchObject({ text: '30', mode: 'inline', level: 0 });
+    expect(labels[0].width).toBeCloseTo(21.2);
+    expect(labels.slice(1).map(({ mode }) => mode)).toEqual(['popout', 'popout']);
+
+    // Equality fits: 22px padded text + two 4px pieces = 30px.
+    expect(layoutDimensionRow([{ start: 0, end: 30 }], {
+      scale: 1, fontSize: 11, charWidth: 7,
+    }).labels[0].mode).toBe('inline');
+  });
+
   it('SPEC-50.14 measures the 0–24.875 segment without an inch mark at test 13 inputs', () => {
     const { labels } = layoutDimensionRow([{ start: 0, end: 24.875 }], { scale: 4, fontSize: 11 });
     expect(labels[0]).toMatchObject({ text: '24 7/8', mode: 'inline', level: 0 });

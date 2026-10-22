@@ -109,12 +109,15 @@ describe('DM3 step b canvas rows', () => {
     expect(drawnBelow[2].props.segments).toEqual([{ start: 0, end: 156, kind: 'wall' }]);
     expect(chains.openings).toEqual([]);
 
-    // The inner row's dimension lines (the segment lines on the row) group into 0–84 and 120–156.
+    // Lines plus their inline text gaps still cover 0–84 and 120–156, leaving the opening clear.
     const inner = nodes(DimensionRow({ ...drawnBelow[0].props, transform }));
     const rowY = (96 - 0) * 4 + 400 + below.pieces;
     const spans = inner
       .filter(({ type, props }) => type === 'line' && props.points[1] === rowY && props.points[3] === rowY)
       .map(({ props }) => [props.points[0] / 4, props.points[2] / 4])
+      .concat(inner
+        .filter(({ type, props }) => type === 'text' && props.y === rowY)
+        .map(({ props }) => [(props.x - props.width / 2) / 4, (props.x + props.width / 2) / 4]))
       .sort((a, b) => a[0] - b[0]);
     const groups = [];
     for (const [start, end] of spans) {
@@ -137,5 +140,63 @@ describe('DM3 step b canvas rows', () => {
     const extensions = tree.filter(({ type, props }) => type === 'line' && props.stroke === '#475569')
       .map(({ props }) => props.points[0] / 4);
     expect(extensions).toEqual([0, 24, 84, 120, 156]);
+  });
+});
+
+describe('DM7 centred dimension text', () => {
+  it('centres inline text in gapped rows and columns while retaining click bands and line styles', () => {
+    const segment = { start: 0, end: 30, kind: 'run', pinned: true };
+    const onSegmentClick = vi.fn();
+    const cases = [
+      { orientation: 'horizontal', side: 'below', x: 60, y: 804,
+        points: [[0, 804, 49.4, 804], [70.6, 804, 120, 804]] },
+      { orientation: 'horizontal', side: 'above', x: 60, y: 380,
+        points: [[0, 380, 49.4, 380], [70.6, 380, 120, 380]] },
+      { orientation: 'vertical', side: 'left', x: -20, y: 724,
+        points: [[-20, 784, -20, 734.6], [-20, 713.4, -20, 664]] },
+      { orientation: 'vertical', side: 'right', x: 644, y: 724,
+        points: [[644, 784, 644, 734.6], [644, 713.4, 644, 664]] },
+    ];
+    for (const { orientation, side, x, y, points } of cases) {
+      const tree = nodes(DimensionRow({
+        segments: [segment], orientation, side, offsetPx: 20, transform,
+        wallLength: 156, onSegmentClick,
+      }));
+      const lines = tree.filter(({ type, props }) => type === 'line' && props.stroke === '#e2e8f0');
+      expect(lines.map(({ props }) => props.points)).toEqual(points);
+      expect(lines.every(({ props }) => props.strokeWidth === 2.5 && props.listening === false)).toBe(true);
+      expect(tree.find(({ type }) => type === 'text').props).toMatchObject({
+        x, y, text: '30', width: 21.2, offsetX: 10.6, offsetY: 5.5,
+        rotation: orientation === 'horizontal' ? 0 : -90,
+      });
+      const hits = tree.filter(({ type }) => type === 'rect');
+      expect(hits).toHaveLength(2);
+      expect(hits[0].props).toMatchObject(orientation === 'horizontal'
+        ? { x: 0, y: y - 14, width: 120, height: 28 }
+        : { x: x - 14, y: 664, width: 28, height: 120 });
+      expect(hits[1].props).toMatchObject({ x, y, width: 29.2, height: 19 });
+      const event = { target: { getStage: () => ({ getPointerPosition: () => ({ x, y }) }) } };
+      hits[0].props.onClick(event);
+      expect(event.cancelBubble).toBe(true);
+      expect(onSegmentClick).toHaveBeenLastCalledWith(segment);
+    }
+  });
+
+  it('keeps pop-out leaders, distances, full lines and hidden hit bands unchanged', () => {
+    const tree = nodes(DimensionRow({
+      segments: [0, 1, 2].map((start) => ({ start, end: start + 1, kind: 'run' })),
+      orientation: 'horizontal', side: 'below', offsetPx: 20, transform,
+      onSegmentClick: vi.fn(),
+    }));
+    const lines = tree.filter(({ type, props }) => type === 'line' && props.stroke === '#e2e8f0');
+    expect(lines.filter(({ props }) => props.strokeWidth === 1.5).map(({ props }) => props.points))
+      .toEqual([[0, 804, 4, 804], [4, 804, 8, 804], [8, 804, 12, 804]]);
+    expect(lines.filter(({ props }) => props.strokeWidth === 0.75).map(({ props }) => props.points))
+      .toEqual([[2, 804, 2, 816], [6, 804, 6, 828]]);
+    expect(tree.filter(({ type }) => type === 'text').map(({ props }) => [props.x, props.y]))
+      .toEqual([[2, 816], [6, 828]]);
+    expect(tree.filter(({ type, props }) => type === 'rect' && props.height === 28)
+      .map(({ props }) => [props.x, props.y, props.width]))
+      .toEqual([[0, 790, 4], [4, 790, 4], [8, 790, 4]]);
   });
 });

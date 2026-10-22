@@ -7,6 +7,7 @@ import {
 } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { layoutDimensionRow } from '../canvas/dimensionLayout.js';
+import { gappedLine } from '../canvas/gappedLine.js';
 import { wallToScreen } from '../canvas/transform.js';
 
 const KIND_COLORS = {
@@ -162,7 +163,10 @@ export default function DimensionRow({
           || (feature && Boolean(onFeatureClick));
         const showsHiddenTooltip = label.mode === 'hidden';
         const showsPointerCursor = clickable;
-        const labelDistance = label.mode === 'inline' ? 8 : 12 * label.level;
+        const linePieces = label.mode === 'inline'
+          ? gappedLine(start, end, midpoint, label.width / 2)
+          : [[start.x, start.y, end.x, end.y]];
+        const labelDistance = label.mode === 'inline' ? 0 : 12 * label.level;
         const labelPoint = rowPoint(midpointValue, labelDistance);
         // -90 puts the text's bottom to the right.
         const rotation = horizontal ? 0 : -90;
@@ -223,14 +227,17 @@ export default function DimensionRow({
 
         return (
           <Group key={`${index}:${segment.kind}:${segment.start}:${segment.end}`}>
-            <Line
-              points={[start.x, start.y, end.x, end.y]}
-              stroke={color}
-              strokeWidth={segment.pinned
-                ? 2.5
-                : segment.kind === 'run' || segment.kind === 'opening' ? 1.5 : 1}
-              listening={false}
-            />
+            {linePieces.map((points, pieceIndex) => (
+              <Line
+                key={pieceIndex}
+                points={points}
+                stroke={color}
+                strokeWidth={segment.pinned
+                  ? 2.5
+                  : segment.kind === 'run' || segment.kind === 'opening' ? 1.5 : 1}
+                listening={false}
+              />
+            ))}
 
             {label.mode === 'popout' && (
               <Line
