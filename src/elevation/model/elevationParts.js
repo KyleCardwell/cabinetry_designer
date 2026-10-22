@@ -9,6 +9,25 @@ import { isInsetStyle } from './styles.js';
 
 const EPSILON = 1e-6;
 
+/** Notched perimeter in absolute x/z, counter-clockwise from bottom-left (ST2). */
+export function frameRegionOutline(region) {
+  if (!region.notches?.length) return undefined;
+  const { x, z, width, height, notches } = region;
+  const top = z + height;
+  const outline = [[x, z]];
+  for (const notch of notches.filter(({ edge }) => edge === 'bottom').sort((a, b) => a.x - b.x)) {
+    outline.push([notch.x, z], [notch.x, notch.z + notch.height],
+      [notch.x + notch.width, notch.z + notch.height], [notch.x + notch.width, z]);
+  }
+  outline.push([x + width, z], [x + width, top]);
+  for (const notch of notches.filter(({ edge }) => edge === 'top').sort((a, b) => b.x - a.x)) {
+    outline.push([notch.x + notch.width, top], [notch.x + notch.width, notch.z],
+      [notch.x, notch.z], [notch.x, top]);
+  }
+  outline.push([x, top]);
+  return outline;
+}
+
 /**
  * Every part on one wall face as geometry draws it (SPEC-41): its rectangle in elevation coordinates
  * and its depth from the wall face, read from the plan view so the two always agree. Run by run in
@@ -99,6 +118,7 @@ export function elevationParts(room, wall, side, settings, { withDecks = false }
 
     for (const region of scene.frames.regions) {
       const entry = faces.get(region.id);
+      const outline = frameRegionOutline(region);
       emit({
         id: region.id,
         kind: 'frame',
@@ -110,6 +130,7 @@ export function elevationParts(room, wall, side, settings, { withDecks = false }
         back: entry.back,
         front: entry.front,
         coversBoxEdges: true,
+        ...(outline ? { outline } : {}),
         holes: region.cabinetIds.flatMap((id) => scene.faceLayouts.get(id).openings
           .map(({ x, z, width, height }) => ({ x, z, width, height }))),
       });

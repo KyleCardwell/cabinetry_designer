@@ -28,6 +28,33 @@ import { openingGeometry } from '../openings.js';
 import { runDoorDetails } from '../doorDetails.js';
 import * as showThroughModule from '../showThrough.js';
 import { roomWith } from './helpers/showThroughRoom.js';
+import { notchedFrameRoom, notchedFrameSettings } from './fixtures/notchedFrame.js';
+
+describe('ST2 step c notched frame payload', () => {
+  it('anchor 1: exports the base anchor outline and keeps all three opening holes', () => {
+    const payload = toDrawingPayload(notchedFrameRoom(), notchedFrameSettings);
+    const frames = payload.elevations[0].parts.filter(({ kind }) => kind === 'frame');
+    expect(frames).toHaveLength(1);
+    expect(frames[0]).toMatchObject({ x: 0, z: 4, width: 90, height: 30.5 });
+    expect(frames[0].outline).toEqual([
+      [0, 4], [90, 4], [90, 34.5], [59, 34.5],
+      [59, 32.5], [31, 32.5], [31, 34.5], [0, 34.5],
+    ]);
+    expect(frames[0].holes).toEqual([
+      { x: 1.5, z: 5.5, width: 28, height: 27.5 },
+      { x: 31, z: 5.5, width: 28, height: 25.5 },
+      { x: 60.5, z: 5.5, width: 28, height: 27.5 },
+    ]);
+  });
+
+  it('anchor 2: omits the outline key for an unstepped frame', () => {
+    const payload = toDrawingPayload(notchedFrameRoom({}), notchedFrameSettings);
+    const frame = payload.elevations[0].parts.find(({ kind }) => kind === 'frame');
+    expect(frame).toBeDefined();
+    expect(frame).not.toHaveProperty('outline');
+    expect(frame.holes).toHaveLength(3);
+  });
+});
 
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
