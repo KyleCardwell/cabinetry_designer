@@ -1,7 +1,7 @@
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
 import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
-import { cornerBandEdge, lazyCornerShapes } from './cornerBands.js';
+import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
 import { cornerAt, frontDepth, runBackOffset } from './corners.js';
 import { floorOpenings } from './floorOpenings.js';
 import { furnitureBaseBand, furnitureBasePast, runBase, runBaseProfile } from './furnitureBase.js';
@@ -97,7 +97,7 @@ function wallReach(room, wall, run, side, settings) {
  * the panel; it stops at a wall or at the side of the recess the run sits in, unless a molding's
  * front clears that wall's reach; anything else is free.
  */
-function bandEdge(room, wall, run, side, band, settings) {
+function bandEdge(room, wall, run, side, band, settings, z, height, shapes) {
   const edge = side === 'left' ? run.x : run.x + run.width;
   const square = { type: 'square', x: edge };
   if (band === 'toeKick' || band === 'furnitureBase') {
@@ -142,6 +142,8 @@ function bandEdge(room, wall, run, side, band, settings) {
   if (furniture && neighbors.length > 0) return square;
   if (band === 'toeKick'
     && neighbors.some((other) => carries(room, wall, other, 'furnitureBase', settings))) return square;
+  const joint = profileBandJoint(shapes, run, side, band, z, height, frontDepth(run, settings));
+  if (joint) return joint.relation === 'free' ? returned(run, side) : joint.end;
   const anchor = run.anchors?.[side];
   if (band === 'topMold' || band === 'crown') {
     const reach = wallReach(room, wall, run, side, settings);
@@ -199,10 +201,10 @@ export function runBandEnds(room, wall, run, settings, scene, kind, z, height, s
    */
   const left = (panelStart === null ? null : { type: 'square', x: panelStart })
     ?? cornerBandEdge(shapes, run, 'left', kind, z, height)
-    ?? bandEdge(room, wall, run, 'left', kind, settings);
+    ?? bandEdge(room, wall, run, 'left', kind, settings, z, height, shapes);
   const right = (panelEnd === null ? null : { type: 'square', x: panelEnd })
     ?? cornerBandEdge(shapes, run, 'right', kind, z, height)
-    ?? bandEdge(room, wall, run, 'right', kind, settings);
+    ?? bandEdge(room, wall, run, 'right', kind, settings, z, height, shapes);
   return [left, right];
 }
 
@@ -263,7 +265,7 @@ export function runBands(room, wall, run, settings, scene) {
   const shapes = lazyCornerShapes(room, wall, settings);
   const endsFor = (kind, z, height) => runBandEnds(room, wall, run, settings, scene, kind, z, height, shapes);
   const band = (kind, z, height) => {
-    const [left, right] = endsFor(kind, z);
+    const [left, right] = endsFor(kind, z, height);
     return { x: left.x, z, width: right.x - left.x, height,
       ...(kind === 'topMold' || kind === 'crown' ? { ends: [left, right] } : {}) };
   };

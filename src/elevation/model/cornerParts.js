@@ -1,14 +1,57 @@
-import { anchoredToCorner, cornerAt, spanCorner } from './corners.js';
+import { bandOutline, frontContour } from './bandEnds.js';
+import { profileBandJoint } from './cornerBands.js';
+import { anchoredToCorner, cornerAt, frontDepth, spanCorner } from './corners.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
 import { landingsOn } from './landings.js';
 import { resolveWall } from './room.js';
 import { runEndView, runSide } from './runSide.js';
+import { runBandEnds } from './runBands.js';
+import { runScene } from './runScene.js';
 import { transformOutline } from './sectionProfileOutline.js';
 import { soffitReturns } from './soffits.js';
 import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
 
 const EPSILON = 1e-6;
 const BODY = new Set(['box', 'faces']);
+const BANDS = { toe_kick: 'toeKick', furniture_base: 'furnitureBase', countertop: 'countertop',
+  top_mold: 'topMold', crown: 'crown' };
+
+/** Apply the same junctions used by runBandEnds, retaining raw pieces for band lookup. */
+function joinedProfileBands(room, wall, settings, shapes) {
+  const replacements = new Map();
+  const dropped = new Set();
+  const getShapes = () => shapes;
+  for (const run of wall.runs) {
+    const scene = runScene(room, wall, run, settings);
+    for (const piece of runSide(room, wall, run, settings)) {
+      const band = BANDS[piece.piece];
+      if (!band) continue;
+      const ends = runBandEnds(room, wall, run, settings, scene, band, piece.z, piece.height, getShapes);
+      for (const [index, side] of ['left', 'right'].entries()) {
+        const joint = profileBandJoint(getShapes, run, side, band, piece.z, piece.height, frontDepth(run, settings));
+        const expected = joint?.end;
+        const end = ends[index];
+        if (!expected || end.type !== expected.type || Math.abs(end.x - expected.x) > EPSILON
+          || end.side !== expected.side || end.facing !== expected.facing) continue;
+        const { part } = joint;
+        if (joint.relation === 'through') dropped.add(part.id);
+        else {
+          const x = Math.min(part.x, end.x);
+          const right = Math.max(part.x + part.width, end.x);
+          const outline = part.outline && bandOutline(
+            frontContour(side === 'left' ? part.outline : end.outline, -1),
+            frontContour(side === 'left' ? end.outline : part.outline, 1), part.z, part.height,
+          );
+          replacements.set(part.id, { ...part, x, width: right - x, ...(outline ? { outline } : {}) });
+        }
+      }
+    }
+  }
+  return shapes.map((shape) => shape.kind !== 'profile' ? shape : {
+    ...shape, parts: shape.parts.filter((part) => !dropped.has(part.id))
+      .map((part) => replacements.get(part.id) ?? part),
+  });
+}
 
 /**
  * What a wall face sees of its neighbours (SPEC-42.2), as shapes of drawing parts:
@@ -19,7 +62,8 @@ const BODY = new Set(['box', 'faces']);
  * A run's toe kick, countertop, top mold and crown keep their band kinds. Each shape is
  * { key, kind: 'return' | 'profile', wallId, runId?, soffitId?, parts }; parts carry their depths from this face.
  */
-export function cornerShapes(room, wall, side, settings, { profiles: includeProfiles = true } = {}) {
+export function cornerShapes(room, wall, side, settings,
+  { profiles: includeProfiles = true, throughBands = false } = {}) {
   const view = resolveWall(room, wall, side);
   const source = view.sideSource ?? view;
   const frame = wallSideFrame(room, source, view.side);
@@ -157,7 +201,8 @@ export function cornerShapes(room, wall, side, settings, { profiles: includeProf
     }
   }
   profiles.sort((a, b) => a.at - b.at || a.z - b.z);
-  return [...shapes, ...profiles.map(({ shape }) => shape)];
+  const all = [...shapes, ...profiles.map(({ shape }) => shape)];
+  return throughBands || profiles.length === 0 ? all : joinedProfileBands(room, view, settings, all);
 }
 
 /** The parts of cornerShapes, in order: what the payload carries for this face's neighbours (SPEC-42.2). */
