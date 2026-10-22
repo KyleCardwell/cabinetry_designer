@@ -2,6 +2,7 @@ import { v4 as uuid } from 'uuid';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { replaceRootItems, runItems } from './grid.js';
+import { insideEndGap, insideEndPanels } from './insideEnds.js';
 import { floorTo, roundTo } from './units.js';
 
 const WIDTH_EPSILON = 1e-6;
@@ -19,15 +20,17 @@ function isAutoItem(item) {
  * gap between two cabinet columns; 0 after the last. Items that already carry one keep it (the
  * pinned segments pass slices of this list back in).
  */
-function itemsWithGaps(run) {
+function itemsWithGaps(run, settings) {
   const items = runItems(run);
   const seamGap = run._seamGap ?? run.seamGap ?? 0;
+  const panels = insideEndPanels(run, settings);
   return items.map((item, index) => {
     if (item.gapAfter !== undefined) return item;
     const next = items[index + 1];
     let gapAfter = 0;
     if (next) {
       gapAfter = item.gap ?? (item.kind === 'cabinet' && next.kind === 'cabinet' ? seamGap : 0);
+      gapAfter += insideEndGap(panels, run.grid?.id, run.grid?.cols[index]?.id);
     }
     return { ...item, gapAfter };
   });
@@ -86,7 +89,7 @@ function flexMinimum(side, settings, opts) {
 }
 
 function layoutInputs(run, settings, opts) {
-  const items = itemsWithGaps(run);
+  const items = itemsWithGaps(run, settings);
   const gaps = endGaps(run, items, settings);
   const fixedEnds = endWidth(run.ends.left, settings, run._endThickness?.left)
     + endWidth(run.ends.right, settings, run._endThickness?.right)
@@ -158,7 +161,7 @@ function warning(code, pieceId, message) {
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 function splitRunLegacy(run, settings, opts) {
-  const items = itemsWithGaps(run);
+  const items = itemsWithGaps(run, settings);
   const {
     available,
     endGaps,
@@ -453,8 +456,12 @@ function pinUnreachableWarning(pin, actualLeft) {
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 export function splitRun(run, settings, opts) {
+  const insidePanels = insideEndPanels(run, settings);
   const plan = pinPlan(run, settings, opts);
-  if (!plan) return splitRunLegacy(run, settings, opts);
+  if (!plan) {
+    const layout = splitRunLegacy(run, settings, opts);
+    return insidePanels.length ? { ...layout, insidePanels } : layout;
+  }
 
   const { items, actualPins } = plan;
   const warnings = [...plan.warnings];
@@ -498,7 +505,7 @@ export function splitRun(run, settings, opts) {
 
   appendLayout(splitRunLegacy(rightSegmentRun(run, plan), settings, opts));
 
-  return { pieces, warnings, errors };
+  return { pieces, warnings, errors, ...(insidePanels.length ? { insidePanels } : {}) };
 }
 
 /**
@@ -507,7 +514,7 @@ export function splitRun(run, settings, opts) {
  * run has no pin with a finite target.
  */
 function pinPlan(run, settings, opts) {
-  const items = itemsWithGaps(run);
+  const items = itemsWithGaps(run, settings);
   const targets = opts?.pinTargets ?? {};
   const pinnedItems = items.filter((item) => (
     item.kind === 'cabinet'

@@ -29,6 +29,9 @@ const template = document.rooms[0].walls[0].runs.find(({ cabinetTypeId }) => cab
 
 const cell = (row, node) => ({ col: 0, row, colSpan: 1, rowSpan: 1, node });
 const auto = (id) => ({ id, size: null, sizeMode: 'auto' });
+// These band anchors describe bare cabinet sides, without automatic inside end panels (IE1).
+const bareCabinet = (id, width) => ({ id, kind: 'cabinet', width,
+  insideEnds: { left: 'none', right: 'none' } });
 
 function desk({ panels = true, topVoid = false } = {}) {
   const opening = { id: 'opening', kind: 'void' };
@@ -140,9 +143,9 @@ describe('SPEC-50.11 step 511 floor base segments', () => {
       const run = desk();
       run.anchors = { left: true, right: true };
       run.grid = gridFromItems('R', leading ? [
-        { id: 'open', kind: 'void', width: 24 }, { id: 'box', kind: 'cabinet', width: null },
+        { id: 'open', kind: 'void', width: 24 }, bareCabinet('box', null),
       ] : [
-        { id: 'box', kind: 'cabinet', width: 36 }, { id: 'open', kind: 'void', width: null },
+        bareCabinet('box', 36), { id: 'open', kind: 'void', width: null },
       ]);
       expect(spans(setup({ run, length: 60 }).bands.toeKicks)).toEqual(leading ? [[24.25, 60]] : [[0, 35.75]]);
       const furniture = setup({ run, furniture: true, length: 60 });
@@ -155,9 +158,9 @@ describe('SPEC-50.11 step 511 floor base segments', () => {
   it('numbers three segments in x order and merges consecutive openings without a phantom band', () => {
     const run = desk();
     run.grid = gridFromItems('R', [
-      { id: 'a', kind: 'cabinet', width: 10 }, { id: 'b', kind: 'void', width: 10 },
-      { id: 'c', kind: 'cabinet', width: 20 }, { id: 'd', kind: 'void', width: 10 },
-      { id: 'e', kind: 'cabinet', width: null },
+      bareCabinet('a', 10), { id: 'b', kind: 'void', width: 10 },
+      bareCabinet('c', 20), { id: 'd', kind: 'void', width: 10 },
+      bareCabinet('e', null),
     ]);
     const result = setup({ run, furniture: true });
     expect(spans(result.bands.furnitureBases)).toEqual([
@@ -168,8 +171,8 @@ describe('SPEC-50.11 step 511 floor base segments', () => {
     expect(result.parts.filter(({ kind }) => kind === 'furniture_base').map(({ id }) => id))
       .toEqual(['R:furniture_base', 'R:furniture_base:2', 'R:furniture_base:3']);
     run.grid = gridFromItems('R', [
-      { id: 'a', kind: 'cabinet', width: 18 }, { id: 'b', kind: 'void', width: 12 },
-      { id: 'c', kind: 'void', width: 12 }, { id: 'd', kind: 'cabinet', width: null },
+      bareCabinet('a', 18), { id: 'b', kind: 'void', width: 12 },
+      { id: 'c', kind: 'void', width: 12 }, bareCabinet('d', null),
     ]);
     expect(spans(setup({ run }).bands.toeKicks)).toEqual([[0.25, 17.75], [42.25, 59.75]]);
   });

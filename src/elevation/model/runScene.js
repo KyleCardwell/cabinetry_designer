@@ -70,6 +70,7 @@ export function runScene(room, wall, run, settings) {
     // A back panel mitered into a wall end panel runs over it (SPEC-43).
     const shaped = tee ? { ...piece, x: tee.x, width: tee.width } : { ...piece, ...miteredSpan(piece, run, miters) };
     const dropped = drop > 0
+      && !shaped.inside
       && (shaped.kind === 'filler' || shaped.kind === 'end_panel')
       ? { ...shaped, z: shaped.z - drop, height: shaped.height + drop }
       : shaped;

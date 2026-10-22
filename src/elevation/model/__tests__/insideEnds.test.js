@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { cellPieces, EPSILON } from '../cells.js';
 import { findLeaf, splitGridCell } from '../cellTree.js';
-import { DEFAULT_SETTINGS, FRAME_RETURN_WIDTH } from '../constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS, FRAME_RETURN_WIDTH } from '../constants.js';
 import { gridFromItems } from '../grid.js';
 import { insideEndSides } from '../index.js';
 import { syncRoom } from '../roomSync.js';
 import { splitRun } from '../splitRun.js';
+import { runScene } from '../runScene.js';
 import { ELEVATION_SCHEMA_VERSION, isRoom, roomFromDocument, toRoomDocument } from '../../store/persistence.js';
 
 const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
@@ -120,7 +121,7 @@ describe('IE1 step a inside sides and stored choices', () => {
     expect(sides(short)).toEqual([]);
   });
 
-  it('records the containing boundary for root and nested leaves without changing geometry', () => {
+  it('records the containing boundary for root and nested leaves', () => {
     const run = makeRun([auto('a'), auto('b'), auto('c', 'void')]);
     run.grid = splitGridCell(run.grid, 'b', 'down', 2, ids());
     findLeaf(run.grid, 'n5').kind = 'void';
@@ -131,7 +132,9 @@ describe('IE1 step a inside sides and stored choices', () => {
     expect(synced._insideEnds).toEqual([
       { ...panel('b', 'right'), boundary: { gridId: 'h1', trackId: 'h3' } },
     ]);
-    expect(cellsOf(synced).pieces).toEqual(before);
+    const { _insideEnds, ...withoutPanels } = synced;
+    expect(_insideEnds).toHaveLength(1);
+    expect(cellsOf(withoutPanels).pieces).toEqual(before);
     const outer = makeRun([auto('a'), auto('b', 'void')]);
     outer.grid = splitGridCell(outer.grid, 'a', 'down', 2, ids());
     expect(syncedRun(makeRoom(outer))._insideEnds).toEqual(['n5', 'a'].map((leafId) => ({
@@ -174,5 +177,126 @@ describe('IE1 step a inside sides and stored choices', () => {
         expect(isRoom(room), JSON.stringify({ leafId, value })).toBe(false);
       }
     }
+  });
+});
+
+const EURO = { ...S, teamDoorStyle: { ...S.teamDoorStyle, thickness: 0.75 } };
+const noEnds = { left: { type: 'none', width: null }, right: { type: 'none', width: null } };
+const solve = (run, settings = EURO) => {
+  const room = syncRoom(makeRoom(run), settings);
+  const wall = room.walls[0];
+  const resolved = wall.runs[0];
+  const layout = splitRun(resolved, settings);
+  return { room, wall, run: resolved, layout, cells: cellPieces(resolved, layout) };
+};
+
+describe('IE1 step b inside panels reserve their width', () => {
+  it('anchor 1: reserves two 3/4-inch panels around a manual 20-inch void in a 60-inch base', () => {
+    const original = makeRun([auto('a'), auto('b', 'void', { width: 20 }), auto('c')], {
+      width: 60, ends: noEnds, cabinetTypeId: CABINET_TYPE_IDS.BASE,
+    });
+    const { run, cells } = solve(original);
+    expect(cells.pieces.map(({ id, x, width }) => [id, x, width])).toEqual([
+      ['a', 0, 19.25], ['a:inside-right', 19.25, 0.75], ['b', 20, 20],
+      ['c:inside-left', 40, 0.75], ['c', 40.75, 19.25],
+    ]);
+    expect(cells.pieces[1]).toMatchObject({
+      kind: 'end_panel', inside: true, ownerId: 'a', side: 'right',
+      z: run.z, height: run.height, depth: 24.8125, styleId: 'default',
+    });
+    expect(original).not.toHaveProperty('_insideEnds');
+    expect(syncRoom(makeRoom(run), EURO).walls[0].runs[0]).toEqual(run);
+  });
+
+  it('anchor 2: shares 1 1/2 inches across all three auto columns of the 164 1/8-inch upper', () => {
+    const source = { ...stacked('panel'), width: 164.125 };
+    const { run, layout, cells } = solve(source);
+    const { _insideEnds, ...withoutPanels } = run;
+    expect(_insideEnds).toHaveLength(2);
+    const before = splitRun(withoutPanels, EURO).pieces.filter((piece) => piece.role === 'item');
+    const columns = layout.pieces.filter((piece) => piece.role === 'item');
+    expect(columns.map((piece, index) => before[index].width - piece.width)).toEqual([0.5, 0.5, 0.5]);
+    expect(columns.map((piece) => piece.width)).toEqual([53.6875, 53.6875, 53.75]);
+    expect(cells.pieces.find((piece) => piece.id === 'b')).toMatchObject({ height: 24, depth: 0.75 });
+    expect(cells.pieces.reduce((sum, piece) => sum + (piece.columnId ? 0 : piece.width), 0)
+      + columns[1].width).toBe(164.125);
+  });
+
+  it('anchor 3: reserves one panel beside a shallower back-aligned cabinet', () => {
+    const { cells } = solve(makeRun([
+      auto('a'), auto('b', 'cabinet', { depth: 12, align: 'back' }),
+    ], { width: 48, ends: noEnds }));
+    expect(cells.pieces.map(({ id, x, width }) => [id, x, width])).toEqual([
+      ['a', 0, 23.625], ['a:inside-right', 23.625, 0.75], ['b', 24.375, 23.625],
+    ]);
+    expect(cells.pieces[1].depth).toBe(24.8125);
+  });
+
+  it('anchor 4: keeps manual widths and reports the existing over-constrained diagnostic', () => {
+    const { layout, cells } = solve(makeRun([
+      auto('a', 'cabinet', { width: 20 }), auto('b', 'void', { width: 20 }),
+      auto('c', 'cabinet', { width: 20 }),
+    ], { width: 60, ends: noEnds }));
+    expect(layout.errors).toContainEqual({ code: 'over-constrained' });
+    expect(layout.pieces.map((piece) => piece.width)).toEqual([20, 20, 20]);
+    expect(cells.pieces.filter((piece) => piece.inside)).toHaveLength(2);
+  });
+
+  it('anchor 5: follows the Euro upper end drop once, and the existing extension rules', () => {
+    for (const upperBottom of ['overhang', 'flush']) {
+      const { room, wall, run, cells } = solve(makeRun(items(), { upperBottom }));
+      const drop = upperBottom === 'overhang' ? 0.125 : 0;
+      const inside = cells.pieces.filter((piece) => piece.inside);
+      expect(inside).toHaveLength(2);
+      for (const piece of inside) {
+        expect(piece.z).toBe(run.z - drop);
+        expect(piece.height).toBe(run.height + drop);
+      }
+      const scene = runScene(room, wall, run, EURO);
+      expect(scene.drawnPieces.find((piece) => piece.id === inside[0].id)).toEqual(inside[0]);
+      expect(scene.drawnPieces.find((piece) => piece.id === 'r:left'))
+        .toMatchObject({ z: inside[0].z, height: inside[0].height });
+    }
+    const source = makeRun();
+    source.ends.left.extend = { down: { to: 'floor' } };
+    const { room, wall, run } = solve(source);
+    expect(runScene(room, wall, run, EURO).drawnPieces.find((piece) => piece.id === 'c:inside-left'))
+      .toMatchObject({ z: 0, height: run.z + run.height, extended: ['down'] });
+  });
+
+  it('adds to nested and root gaps, shares stacked boundaries, and leaves returns gap-free', () => {
+    const nested = makeRun([auto('a')], { width: 60, ends: noEnds });
+    nested.grid.cells[0].node = gridFromItems('nested', [auto('a'), auto('b', 'void')]);
+    nested.grid.cells[0].node.cols[0].gap = 0.25;
+    const { cells } = solve(nested);
+    expect(cells.pieces.map(({ id, x, width }) => [id, x, width])).toEqual([
+      ['a', 0, 29.5], ['a:inside-right', 29.5, 0.75], ['b', 30.5, 29.5],
+    ]);
+    expect(cells.gaps).toContainEqual({ x: 29.5, z: 30, width: 1, height: 60 });
+
+    const stackedRun = makeRun([auto('a'), auto('b', 'void')], { width: 60, ends: noEnds });
+    stackedRun.grid = splitGridCell(stackedRun.grid, 'a', 'down', 2, ids());
+    stackedRun.grid.cols[0].gap = 0.25;
+    const shared = solve(stackedRun);
+    expect(shared.layout.pieces.map((piece) => piece.width)).toEqual([29.5, 29.5]);
+    expect(shared.cells.pieces.filter((piece) => piece.inside)).toHaveLength(2);
+
+    const framed = makeRun([auto('a'), auto('b', 'void')], {
+      width: 60, ends: noEnds, style: { cabinetStyleId: 14 },
+    });
+    const framedPanel = solve(framed, S);
+    expect(framedPanel.cells.pieces.find((piece) => piece.inside))
+      .toMatchObject({ width: 0.8125, depth: 24.8125 });
+    findLeaf(framed.grid, 'a').insideEnds = { right: { type: 'return' } };
+    const returned = solve(framed, S);
+    expect(returned.cells.pieces.some((piece) => piece.inside)).toBe(false);
+    expect(returned.layout).not.toHaveProperty('insidePanels');
+    expect(returned.layout.pieces[1].x - returned.layout.pieces[0].x - returned.layout.pieces[0].width).toBe(0);
+
+    const seam = makeRun([auto('a'), auto('b', 'cabinet', { depth: 12, align: 'back' })], {
+      width: 48, ends: noEnds, seamGap: 0.25,
+    });
+    const seamed = solve(seam);
+    expect(seamed.cells.gaps).toContainEqual({ x: 23.5, z: 30, width: 1, height: 60 });
   });
 });

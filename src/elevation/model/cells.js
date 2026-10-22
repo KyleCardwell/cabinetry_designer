@@ -1,5 +1,6 @@
 import { isNestedGrid } from './grid.js';
 import { sheetThickness, teamDoorStyle } from './doorStyles.js';
+import { insideEndGap, insideEndPieces } from './insideEnds.js';
 
 export const MIN_CELL_SIZE = 1;
 
@@ -50,17 +51,17 @@ function isBoxNode(node) {
  * The gap after each track (SPEC-36): its own `gap`, else the run's seam gap between two columns
  * of cabinets. Rows take only their own. Never after the last track.
  */
-export function trackGaps(grid, key, seamGap = 0) {
+export function trackGaps(grid, key, seamGap = 0, insidePanels = []) {
   const tracks = grid[key];
   const axis = key === 'cols' ? 'col' : 'row';
   const span = key === 'cols' ? 'colSpan' : 'rowSpan';
   return tracks.map((track, index) => {
     if (index === tracks.length - 1) return 0;
-    if (track.gap !== undefined) return track.gap;
-    if (key !== 'cols' || !(seamGap > 0)) return 0;
+    if (key !== 'cols') return track.gap ?? 0;
     const touching = grid.cells.filter((cell) => cell[axis] + cell[span] - 1 === index
       || cell[axis] === index + 1);
-    return touching.every((cell) => isBoxNode(cell.node)) ? seamGap : 0;
+    const gap = track.gap ?? (seamGap > 0 && touching.every((cell) => isBoxNode(cell.node)) ? seamGap : 0);
+    return gap + insideEndGap(insidePanels, grid.id, track.id);
   });
 }
 
@@ -69,8 +70,8 @@ export function gapReach(gaps) {
   return gaps.reduce((reach, gap) => Math.max(reach, Math.min(gap.width, gap.height)), 0);
 }
 
-function axisLayout(grid, key, length, seamGap) {
-  const gaps = trackGaps(grid, key, seamGap);
+function axisLayout(grid, key, length, seamGap, insidePanels) {
+  const gaps = trackGaps(grid, key, seamGap, insidePanels);
   const sizes = resolveTracks(grid[key], length, gaps);
   return { gaps, sizes, starts: trackStarts(sizes, gaps) };
 }
@@ -99,8 +100,8 @@ function gridRecord(grid, columnId, depth, rectangle, cols, rows) {
   return { id: grid.id, columnId, axis, depth, x, z, width, height, tracks };
 }
 
-function resolveGrid(grid, piece, rectangle, depth, grids, gaps, seamGap) {
-  const cols = axisLayout(grid, 'cols', rectangle.width, seamGap);
+function resolveGrid(grid, piece, rectangle, depth, grids, gaps, seamGap, insidePanels) {
+  const cols = axisLayout(grid, 'cols', rectangle.width, seamGap, insidePanels);
   const rows = axisLayout(grid, 'rows', rectangle.height, seamGap);
   const top = rectangle.z + rectangle.height;
   const leaves = [];
@@ -129,7 +130,7 @@ function resolveGrid(grid, piece, rectangle, depth, grids, gaps, seamGap) {
     const childRectangle = { x, z: cellTop - height, width, height };
 
     if (isNestedGrid(cell.node)) {
-      leaves.push(...resolveGrid(cell.node, piece, childRectangle, depth + 1, grids, gaps, seamGap));
+      leaves.push(...resolveGrid(cell.node, piece, childRectangle, depth + 1, grids, gaps, seamGap, insidePanels));
       continue;
     }
 
@@ -171,7 +172,12 @@ function rootGaps(run, layout) {
 
 export function cellPieces(run, layout) {
   const gaps = rootGaps(run, layout);
-  if (!run.grid) return { pieces: layout.pieces, grids: [], warnings: [], gaps };
+  const insidePanels = layout.insidePanels ?? [];
+  const withPanels = (pieces) => insidePanels.length
+    ? [...pieces, ...insideEndPieces(insidePanels, pieces)].sort((left, right) => (
+      Math.abs(left.x - right.x) > EPSILON ? left.x - right.x : left.z - right.z
+    )) : pieces;
+  if (!run.grid) return { pieces: withPanels(layout.pieces), grids: [], warnings: [], gaps };
 
   let replaced = false;
   const pieces = [];
@@ -189,7 +195,7 @@ export function cellPieces(run, layout) {
     }
 
     replaced = true;
-    const leaves = resolveGrid(node, piece, piece, 1, grids, gaps, seamGap);
+    const leaves = resolveGrid(node, piece, piece, 1, grids, gaps, seamGap, insidePanels);
     leaves.sort((left, right) => (
       Math.abs(left.x - right.x) > EPSILON ? left.x - right.x : left.z - right.z
     ));
@@ -212,7 +218,7 @@ export function cellPieces(run, layout) {
     }
   }
 
-  return { pieces: replaced ? pieces : layout.pieces, grids, warnings, gaps };
+  return { pieces: withPanels(replaced ? pieces : layout.pieces), grids, warnings, gaps };
 }
 
 function rangesOverlap(left, right) {

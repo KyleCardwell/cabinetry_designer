@@ -1,8 +1,44 @@
 import { EPSILON, gapReach, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
+import { CABINET_TYPE_IDS } from './constants.js';
+import { frontDepth, runBackOffset } from './corners.js';
+import { teamDoorStyle } from './doorStyles.js';
 import { sideOf } from './frames.js';
 import { isNestedGrid, runItems } from './grid.js';
-import { isInsetStyle, resolveStyle } from './styles.js';
+import { endPieceBottom, isInsetStyle, resolveStyle } from './styles.js';
+
+/** Panel templates resolved with the solver's settings; cellPieces positions them on the leaves. */
+export function insideEndPanels(run, settings) {
+  return (run._insideEnds ?? []).filter((entry) => entry.choice === 'panel').map((entry) => ({
+    ...entry,
+    width: run._endThickness?.[entry.side] ?? teamDoorStyle(settings).thickness,
+    depth: frontDepth(run, settings) - runBackOffset(run),
+    drop: run._frame?.drop ?? endPieceBottom(run, resolveStyle(settings, run), settings).drop,
+    styleId: run.ends?.[entry.side]?.styleId ?? 'default',
+    ...(run.ends?.[entry.side]?.extend ? { extend: run.ends[entry.side].extend } : {}),
+  }));
+}
+
+/** Stacked panels at one boundary share its width, rather than charging each row again. */
+export function insideEndGap(panels, gridId, trackId) {
+  return panels.reduce((width, panel) => panel.boundary && panel.boundary.gridId === gridId
+    && panel.boundary?.trackId === trackId ? Math.max(width, panel.width) : width, 0);
+}
+
+export function insideEndPieces(panels, pieces) {
+  return panels.flatMap((panel) => {
+    const owner = pieces.find((piece) => piece.id === panel.leafId);
+    if (!owner) return [];
+    return [{
+      id: `${owner.id}:inside-${panel.side}`, kind: 'end_panel', role: 'inside', inside: true,
+      ownerId: owner.id, side: panel.side, cabinetTypeId: CABINET_TYPE_IDS.END_PANEL,
+      x: panel.side === 'left' ? owner.x - panel.width : owner.x + owner.width,
+      z: owner.z - panel.drop, width: panel.width, height: owner.height + panel.drop,
+      depth: panel.depth, styleId: panel.styleId,
+      ...(panel.extend ? { extend: panel.extend } : {}),
+    }];
+  });
+}
 
 function frontSetback(run, piece) {
   return piece.align === 'back' ? run.depth - piece.depth : 0;
