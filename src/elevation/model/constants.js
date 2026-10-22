@@ -4,6 +4,8 @@ import { BUILT_IN_SLIDES } from './slides.js';
 
 export const ACCESSORY_PLACES = ['section', 'drawer_box'];
 
+export const FRAME_RETURN_WIDTH = 6;
+
 export const PANEL_MATERIALS = [
   { id: 'glass', label: 'Glass', seeThrough: true, glassMarks: true, orderText: 'sash panel (glass)' },
 ];

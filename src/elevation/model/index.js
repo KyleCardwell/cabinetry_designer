@@ -1,5 +1,6 @@
 export {
   ACCESSORY_PLACES,
+  FRAME_RETURN_WIDTH,
   PANEL_MATERIALS,
   panelMaterial,
   CABINET_PURPOSES,
@@ -20,6 +21,7 @@ export {
   KIND_COLORS,
   KIND_LABELS,
 } from './constants.js';
+export { insideEndSides } from './insideEnds.js';
 export {
   SETTING_LEVELS,
   SETTINGS_REGISTRY,

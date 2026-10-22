@@ -7,6 +7,7 @@ import { extendPieces } from './extensions.js';
 import { findCollisions } from './footprints.js';
 import { frameRegions } from './frames.js';
 import { runItems } from './grid.js';
+import { insideEndBoundary, insideEndSides } from './insideEnds.js';
 import {
   followLeaders,
   isFollowAnchor,
@@ -135,6 +136,24 @@ function withEndThickness(room, wall, run, settings) {
   const { _endThickness, ...rest } = run;
   void _endThickness;
   return rest;
+}
+
+function withInsideEnds(room, wall, run, settings) {
+  const { _insideEnds, ...base } = run;
+  const view = wallViewForRun(wall, base);
+  const layout = splitRun(base, settings, {
+    endMinWidths: endMinWidthsForRun(room, view, base, settings),
+    endCornerAngles: endCornerAnglesForRun(room, view, base),
+    pinTargets: pinTargetsForRun(base, view, wallLength(wall), settings),
+  });
+  const entries = insideEndSides(base, cellPieces(base, layout), settings)
+    .filter((entry) => entry.choice !== 'none')
+    .map((entry) => entry.choice === 'panel'
+      ? { ...entry, boundary: insideEndBoundary(base.grid, entry.leafId, entry.side) } : entry);
+  if (entries.length) {
+    return JSON.stringify(_insideEnds) === JSON.stringify(entries) ? run : { ...base, _insideEnds: entries };
+  }
+  return Object.hasOwn(run, '_insideEnds') ? base : run;
 }
 
 /** A wall's derived panel thicknesses, only where they differ from the team default. */
@@ -361,7 +380,14 @@ export function syncRoom(room, settings) {
   };
 
   // SPEC-RF1: after the auto count, so the count follows the drawn width.
-  return flexRoom(nextRoom, settings);
+  nextRoom = flexRoom(nextRoom, settings);
+  return {
+    ...nextRoom,
+    walls: nextRoom.walls.map((wall) => ({
+      ...wall,
+      runs: wall.runs.map((run) => withInsideEnds(nextRoom, wall, run, settings)),
+    })),
+  };
 }
 
 /**

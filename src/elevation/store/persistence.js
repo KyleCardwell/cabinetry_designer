@@ -245,6 +245,15 @@ function isCabinetBox(value) {
     ));
 }
 
+function isInsideEnds(value) {
+  return isPlainObject(value) && Object.entries(value).every(([side, choice]) => (
+    (side === 'left' || side === 'right') && (choice === 'none'
+      || (isPlainObject(choice) && choice.type === 'return'
+        && Object.keys(choice).every((key) => key === 'type' || key === 'width')
+        && (choice.width === undefined || (isFiniteNumber(choice.width) && choice.width > 0))))
+  ));
+}
+
 function isItem(item) {
   return Boolean(item)
     && hasStyleRefs(item)
@@ -265,6 +274,7 @@ function isItem(item) {
     && (item.reveals === undefined || item.reveals === null
       || (item.kind === 'cabinet' && isOptionalNumericObject(item.reveals, REVEAL_KEYS)))
     && (item.tFiller === undefined || (item.kind === 'cabinet' && isTFillerSides(item.tFiller)))
+    && (item.insideEnds === undefined || (item.kind === 'cabinet' && isInsideEnds(item.insideEnds)))
     && (item.purpose === undefined || (item.kind === 'cabinet' && CABINET_PURPOSE_IDS.has(item.purpose)))
     && (item.drawerSlideId === undefined || (item.kind === 'cabinet'
       && typeof item.drawerSlideId === 'string' && item.drawerSlideId.length > 0))
@@ -1056,13 +1066,14 @@ export function toRoomDocument(room) {
         ...persistedWall,
         thicknessOverride: wall.thicknessOverride ?? null,
         runs: wall.runs.map((run) => {
-          const { _pinWidths, _seamGap, _frame, _plane, _doorThickness, _endThickness, _cornerLapWidth, ...persistedRun } = run;
+          const { _pinWidths, _seamGap, _frame, _plane, _doorThickness, _endThickness, _insideEnds, _cornerLapWidth, ...persistedRun } = run;
           void _pinWidths;
           void _seamGap;
           void _frame;
           void _plane;
           void _doorThickness;
           void _endThickness;
+          void _insideEnds;
           // Save the original span, so loading a free-ended run applies its lap exactly once.
           if (_cornerLapWidth) persistedRun.width -= _cornerLapWidth;
           return normalizeRunWaterfall(normalizeRunTopOverhang(persistedRun));
