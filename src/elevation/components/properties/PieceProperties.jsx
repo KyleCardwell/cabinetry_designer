@@ -20,9 +20,11 @@ import PartReportFields from './PartReportFields.jsx';
 import TeeProperties from './TeeProperties.jsx';
 import TFillerSection from './TFillerSection.jsx';
 import InsideEndsSection from './InsideEndsSection.jsx';
+import StepEndsSection from './StepEndsSection.jsx';
 
 function InsidePanelProperties({ room, wall, run, piece, cells, settings }) {
   const dispatch = useDispatch();
+  const OwnerEndsSection = piece.step ? StepEndsSection : InsideEndsSection;
   const styleId = run.ends[piece.side].styleId ?? 'default';
   const picker = pickOptions(room, settings, 'panel', panelLevels(room, wall, run, null));
   return (
@@ -45,7 +47,7 @@ function InsidePanelProperties({ room, wall, run, piece, cells, settings }) {
         </Field>
         <p className="mt-1 text-xs text-gray-500">Uses the run’s {piece.side} end panel style.</p>
       </PanelSection>
-      <InsideEndsSection
+      <OwnerEndsSection
         room={room} wall={wall} run={run} cells={cells} settings={settings}
         item={findLeaf(run.grid, piece.ownerId)} side={piece.side}
       />

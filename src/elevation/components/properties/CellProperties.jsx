@@ -20,6 +20,7 @@ import OverrideInput from '../OverrideInput.jsx';
 import RunBaseCutoutsSection from './RunBaseCutoutsSection.jsx';
 import CellDepthSection from './CellDepthSection.jsx';
 import InsideEndsSection from './InsideEndsSection.jsx';
+import StepEndsSection from './StepEndsSection.jsx';
 import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
@@ -176,6 +177,7 @@ export default function CellProperties({
 
                 <CellDepthSection wall={wall} run={run} piece={piece} item={item} settings={settings} />
                 {isCabinet && <InsideEndsSection room={room} wall={wall} run={run} item={item} cells={cells} settings={settings} />}
+                {isCabinet && <StepEndsSection room={room} wall={wall} run={run} item={item} cells={cells} settings={settings} />}
 
                 {blindSides.length > 0 && (
                   <PanelSection id="piece.blind" title="Blind">

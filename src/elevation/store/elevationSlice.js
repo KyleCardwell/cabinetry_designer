@@ -205,6 +205,7 @@ export const {
   setCellKind,
   setCellDepth,
   setInsideEnd,
+  setStepEnd,
   setCellBaseUnder,
   setCellShelves,
   wrapCell,

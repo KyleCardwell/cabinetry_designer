@@ -15,6 +15,7 @@ import OverrideInput from '../OverrideInput.jsx';
 import RunBaseCutoutsSection from './RunBaseCutoutsSection.jsx';
 import CellDepthSection from './CellDepthSection.jsx';
 import InsideEndsSection from './InsideEndsSection.jsx';
+import StepEndsSection from './StepEndsSection.jsx';
 import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
@@ -255,6 +256,7 @@ export default function CabinetProperties({
 
                 <CellDepthSection wall={wall} run={run} piece={piece} item={item} settings={settings} />
                 <InsideEndsSection room={room} wall={wall} run={run} item={item} cells={cells} settings={settings} />
+                <StepEndsSection room={room} wall={wall} run={run} item={item} cells={cells} settings={settings} />
                 <CellSplitSection wall={wall} run={run} cellId={item.id} nested={false} />
                 <CellWrapSection wall={wall} run={run} cellId={item.id} />
 
