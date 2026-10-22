@@ -22,6 +22,23 @@ import {
 } from './helpers.js';
 
 export const itemReducers = {
+  setColumnStep(state, action) {
+    const { itemId, edge, value } = action.payload;
+    if (!['top', 'bottom'].includes(edge)) return;
+    if (value !== null && (!Number.isFinite(value) || value < 0)) return;
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const item = runItems(location.run).find((candidate) => candidate.id === itemId);
+    if (item?.kind !== 'cabinet') return;
+    const offset = value > 0 ? { value, source: 'manual' } : undefined;
+    if (location.run.items) {
+      if (offset) item[edge] = offset;
+      else delete item[edge];
+    } else {
+      location.run.grid = updateRootItem(location.run.grid, itemId, { [edge]: offset });
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
   setItemWidth(state, action) {
     const location = runLocation(state, action.payload);
     if (!location) return;

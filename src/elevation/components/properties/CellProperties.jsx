@@ -23,6 +23,7 @@ import InsideEndsSection from './InsideEndsSection.jsx';
 import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
+import ColumnStepFields from './ColumnStepFields.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import GapField from './GapField.jsx';
@@ -141,6 +142,7 @@ export default function CellProperties({
                       {columnWidthInput('Column box width')}
                     </div>
                   )}
+                  <ColumnStepFields wall={wall} run={run} item={columnItem} nested />
                   {hasTrackAfter && (
                     <div className="mt-2">
                       <GapField

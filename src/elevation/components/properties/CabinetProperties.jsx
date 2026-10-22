@@ -18,6 +18,7 @@ import InsideEndsSection from './InsideEndsSection.jsx';
 import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
+import ColumnStepFields from './ColumnStepFields.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import GapField from './GapField.jsx';
@@ -223,6 +224,8 @@ export default function CabinetProperties({
                     </div>
                   )}
                 </PanelSection>
+
+                <ColumnStepFields wall={wall} run={run} item={item} />
 
                 <PanelSection id="piece.remainder" title="Remainder">
                   <label className={`flex items-center justify-between rounded border border-gray-700 bg-gray-900/45 px-3 py-2 text-sm ${canAbsorb ? 'text-gray-300' : 'text-gray-500'}`}>

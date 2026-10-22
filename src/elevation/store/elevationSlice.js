@@ -182,6 +182,7 @@ export const {
   setRunTFiller,
   setItemTFiller,
   setItemWidth,
+  setColumnStep,
   setItemPin,
   setItemAbsorb,
   setCabinetPurpose,
