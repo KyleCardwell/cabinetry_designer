@@ -9,6 +9,7 @@ import { paperSize, plotScale } from './drawingScale.js';
 import { elevationDimensions } from './elevationDimensions.js';
 import { elevationMarks } from './elevationMarks.js';
 import { elevationDoorDetails } from './elevationDoorDetails.js';
+import { doorDrawing } from './doorDetails.js';
 import { elevationSwingMarks } from './swingMarks.js';
 import { elevationPulls } from './pullLayouts.js';
 import { elevationPartNumbers } from './elevationPartNumbers.js';
@@ -48,15 +49,26 @@ function interiorRecord({ itemId, items }) {
 }
 
 function facePayload(room, wall, side, key, letter, settings, options) {
-  const parts = [
+  const sourceParts = [
     ...elevationParts(room, wall, side, settings),
     ...bandParts(room, wall, side, settings),
     ...wallParts(room, wall, side, settings),
-    // Geometry rejects unknown part keys: end-view panel details (DM8) leave the parts here.
-    ...(options?.cornerShapes?.flatMap((shape) => shape.parts) ?? cornerParts(room, wall, side, settings))
-      .map(({ doorDetail, ...part }) => part), // eslint-disable-line no-unused-vars
+    ...(options?.cornerShapes?.flatMap((shape) => shape.parts) ?? cornerParts(room, wall, side, settings)),
   ];
+  // Geometry accepts details in doorDetails only, never on the parts themselves.
+  const parts = sourceParts.map(({ doorDetail, ...part }) => part); // eslint-disable-line no-unused-vars
   const partIds = new Set(parts.map(({ id }) => id));
+  const doorDetails = elevationDoorDetails(room, wall, side, settings, partIds);
+  if (doorDrawing(room).details) {
+    for (const { id, doorDetail } of sourceParts) {
+      if (!doorDetail) continue;
+      const entry = { partId: id };
+      for (const field of ['openings', 'profileLines', 'miters']) {
+        if (doorDetail[field]?.length) entry[field] = doorDetail[field];
+      }
+      if (entry.openings || entry.profileLines || entry.miters) doorDetails.push(entry);
+    }
+  }
   const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);
   const pulls = elevationPulls(room, wall, side, settings, partIds);
   const showThrough = [...wallShowThrough(room, wall, side, settings).values()];
@@ -87,7 +99,7 @@ function facePayload(room, wall, side, key, letter, settings, options) {
     parts,
     dimensions: elevationDimensions(room, wall, side, settings, options),
     marks: elevationMarks(room, wall, side, settings),
-    doorDetails: elevationDoorDetails(room, wall, side, settings, partIds),
+    doorDetails,
     partNumbers: elevationPartNumbers(room, wall, side, settings),
     ...(swingMarks.length ? { swingMarks } : {}),
     ...(pulls.length ? { pulls } : {}),

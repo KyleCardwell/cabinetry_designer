@@ -7,10 +7,12 @@ import {
 } from 'react-konva';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
 import { cornerShapes } from '../model/cornerParts.js';
+import { doorDrawing } from '../model/doorDetails.js';
 import { landingsOn } from '../model/landings.js';
 import { soffitSeams } from '../model/soffits.js';
 import { wallLabel } from '../model/topology.js';
 import Hatch from './Hatch.jsx';
+import DoorDetails from './DoorDetails.jsx';
 import { outlineGeometry, outlinePath } from './outlinePath.js';
 
 /**
@@ -18,7 +20,7 @@ import { outlineGeometry, outlinePath } from './outlinePath.js';
  * cornerShapes (sections hatched, end views and bands outlined) with its wall's label and wing wall outline.
  */
 export default function NeighborReturns({
-  room, wall, settings, transform,
+  room, wall, settings, transform, doorsOff = false,
   shapes = cornerShapes(room, wall, wall.side ?? 'front', settings),
 }) {
   const seams = soffitSeams(room, wall);
@@ -82,6 +84,15 @@ export default function NeighborReturns({
                   <Group clipFunc={clipFunc} listening={false}>
                     <Hatch rect={part.rect} />
                   </Group>
+                )}
+                {!doorsOff && doorDrawing(room).details && part.doorDetail && (
+                  <DoorDetails
+                    parts={[{ ...part, key: part.id, ...part.doorDetail, lines: part.doorDetail.profileLines }]}
+                    warnings={[]}
+                    transform={transform}
+                    showDetails
+                    showTags={false}
+                  />
                 )}
               </Group>
             );

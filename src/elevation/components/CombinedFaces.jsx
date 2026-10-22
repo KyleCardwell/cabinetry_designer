@@ -95,8 +95,8 @@ export default function CombinedFaces({
                 />
               ))}
               <WallEndPanelShapes room={room} wall={wall} settings={settings} transform={faceTransform} onSelect={noop} />
-              <NeighborReturns room={room} wall={wall} settings={settings} transform={faceTransform} shapes={shapes} />
-              <NeighborProfiles room={room} wall={wall} settings={settings} transform={faceTransform} shapes={shapes} />
+              <NeighborReturns room={room} wall={wall} settings={settings} transform={faceTransform} shapes={shapes} doorsOff={doorsOff} />
+              <NeighborProfiles room={room} wall={wall} settings={settings} transform={faceTransform} shapes={shapes} doorsOff={doorsOff} />
               {note && (
                 <Text x={rect.x} y={rect.y + 10} width={rect.width} align="center" text={note} fontSize={12} fill="#e2e8f0" />
               )}

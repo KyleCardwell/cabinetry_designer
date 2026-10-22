@@ -3,12 +3,14 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Rect, Stage } from 'react-konva';
 import { resolveWall, syncRoom } from '../model/room.js';
 import { wallToScreen } from '../canvas/transform.js';
-import elevationReducer, { setSelection, setTool } from '../store/elevationSlice.js';
+import elevationReducer, { setDoorsOff, setSelection, setTool } from '../store/elevationSlice.js';
 import { auto, run, stateWithRun } from '../store/__tests__/helpers/sliceFixtures.js';
 import ElevationCanvas from './ElevationCanvas.jsx';
 import ElevationPreviews from './ElevationPreviews.jsx';
 import LiveEntryInput from './LiveEntryInput.jsx';
 import RunGroup from './RunGroup.jsx';
+import NeighborReturns from './NeighborReturns.jsx';
+import NeighborProfiles from './NeighborProfiles.jsx';
 import CanvasContextMenu from './CanvasContextMenu.jsx';
 import DimensionRow from './DimensionRow.jsx';
 import ElevationDimensions from './ElevationDimensions.jsx';
@@ -176,6 +178,16 @@ afterEach(() => {
   hooks.unmount();
   vi.useRealTimers();
   vi.unstubAllGlobals();
+});
+
+it('DM8 passes the doors-off view to returns and profiles on the active canvas', () => {
+  for (const doorsOff of [true, false]) {
+    dispatch(setDoorsOff(doorsOff));
+    render();
+    expect(node(RunGroup).props.doorsOff).toBe(doorsOff);
+    expect(node(NeighborReturns).props.doorsOff).toBe(doorsOff);
+    expect(node(NeighborProfiles).props.doorsOff).toBe(doorsOff);
+  }
 });
 
 it('anchor 1: M moves a selected cabinet’s run by +20.3 inches, rounds the preview and commits on click', () => {

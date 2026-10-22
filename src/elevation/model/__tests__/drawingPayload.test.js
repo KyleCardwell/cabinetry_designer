@@ -6,7 +6,10 @@ import { DEFAULT_SETTINGS } from '../constants.js';
 import { bandParts } from '../bandParts.js';
 import { elevationParts } from '../elevationParts.js';
 import { wallParts } from '../wallParts.js';
-import { cornerParts } from '../cornerParts.js';
+import { combinedCornerShapes, cornerParts } from '../cornerParts.js';
+import { combinedViewOf } from '../combinedElevations.js';
+import { shiftPayloadRecord } from '../combinedPayload.js';
+import { run } from '../../store/__tests__/helpers/sliceFixtures.js';
 import { elevationDimensions } from '../elevationDimensions.js';
 import { elevationMarks } from '../elevationMarks.js';
 import { elevationDoorDetails } from '../elevationDoorDetails.js';
@@ -32,6 +35,89 @@ const document = normalizeElevationDocument(
 // Historical payload and pull comparisons keep their original layout with flex disabled.
 const settings = { ...document.settings, runFlex: 0 };
 const room = (name) => syncRoom(document.rooms.find((candidate) => candidate.name === name), settings);
+
+function endPanelRoom() {
+  const copy = structuredClone(document.rooms[0]);
+  // A 120" host puts the same right return at x 95.125, with its opening at 98.125.
+  copy.walls[0].y1 -= 48;
+  copy.walls[1].runs[1].ends.right = { type: 'end_panel', width: null };
+  copy.elevationOptions = { [copy.walls[0].id]: { returns: 'end' } };
+  return syncRoom(copy, settings);
+}
+
+describe('DM8 step b end-view panel payload', () => {
+  it('anchor 1: appends the opening at 98.125 and strips doorDetail from every payload part', () => {
+    const synced = endPanelRoom();
+    const payload = toDrawingPayload(synced, settings);
+    const elevation = payload.elevations[0];
+    const panel = elevation.parts.find(({ id }) => id.endsWith(':end_panel'));
+    expect(panel).toMatchObject({ kind: 'end_panel', x: 95.125, z: 4, height: 30.5 });
+    const faceDetails = elevationDoorDetails(synced, synced.walls[0], 'front', settings,
+      new Set(elevation.parts.map(({ id }) => id)));
+    expect(elevation.doorDetails).toEqual([...faceDetails, {
+      partId: panel.id,
+      openings: [{ x: 98.125, z: panel.z + 3, width: 18.875, height: panel.height - 6 }],
+    }]);
+    expect(payload.elevations.flatMap(({ parts }) => parts).every((part) => !('doorDetail' in part))).toBe(true);
+  });
+
+  it('anchor 2: omits end-view details when details are off, including with style tags on', () => {
+    const synced = { ...endPanelRoom(), doorDetails: false, doorStyleTags: true };
+    const payload = toDrawingPayload(synced, settings);
+    for (const elevation of payload.elevations) {
+      for (const part of elevation.parts) {
+        expect(part).not.toHaveProperty('doorDetail');
+        if (part.id.endsWith(':end_panel')) {
+          expect(elevation.doorDetails.some(({ partId }) => partId === part.id)).toBe(false);
+        }
+      }
+    }
+  });
+
+  it('carries combined jog end-view details through the cornerShapes option, shifted and deduplicated', () => {
+    const { profiles } = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
+    const outside = { ...profiles.find(({ id }) => id === 'am1'), kind: 'door_outside' };
+    const config = { ...settings, sectionProfiles: [outside], teamDoorStyle: {
+      ...DEFAULT_DOOR_STYLE, profiles: { ...DEFAULT_DOOR_STYLE.profiles, outside: outside.id },
+    } };
+    const link = (wallId, endpoint) => ({ wallId, endpoint });
+    const wall = (id, x1, y1, x2, y2, start, end, runs = []) => ({
+      id, name: id, x1, y1, x2, y2, height: 96, thickness: 4.5, flipped: false,
+      runs, openings: [], recesses: [], soffits: [], connections: { start, end },
+    });
+    const synced = syncRoom({ ...document.rooms[0], wallOrder: ['C', 'K', 'B', 'J', 'A'],
+      combinedElevations: [{ id: 'group', on: true, faces: ['A', 'B', 'C'] }],
+      walls: [
+        wall('A', 0, 0, 100, 0, null, link('J', 'start'), [run({ id: 'a', x: 10, width: 30 })]),
+        wall('J', 100, 0, 100, 48, link('A', 'end'), link('B', 'start'), [run({
+          id: 'j', x: 0, width: 30, anchors: { left: true },
+          ends: { left: { type: 'none' }, right: { type: 'end_panel', width: null } },
+        })]),
+        wall('B', 100, 48, 180, 48, link('J', 'end'), link('K', 'start'), [run({ id: 'b', x: 10, width: 30 })]),
+        wall('K', 180, 48, 180, 0, link('B', 'end'), link('C', 'start')),
+        wall('C', 180, 0, 260, 0, link('K', 'end'), null, [run({ id: 'c', x: 10, width: 30 })]),
+      ],
+    }, config);
+    const combined = combinedViewOf(synced, 'C');
+    const shapes = combinedCornerShapes(synced, combined, config);
+    const seen = new Set();
+    const expected = combined.faces.flatMap(({ key, dx }) => shapes.get(key).flatMap(({ parts }) =>
+      parts.flatMap(({ id, doorDetail }) => {
+        if (!doorDetail || seen.has(id)) return [];
+        seen.add(id);
+        return [shiftPayloadRecord({ partId: id,
+          ...Object.fromEntries(Object.entries(doorDetail).filter(([, list]) => list.length)),
+        }, dx)];
+      })));
+    expect(expected.length).toBeGreaterThan(0);
+    expect(expected.every(({ profileLines, miters }) => profileLines.length > 0 && miters.length > 0)).toBe(true);
+    expect(combined.faces.find(({ key }) => key === 'B').dx).toBe(80);
+    expect(expected.some(({ openings }) => openings.some(({ x }) => x > 80))).toBe(true);
+    const elevation = toDrawingPayload(synced, config).elevations.find(({ faces }) => faces);
+    expect(elevation.doorDetails.filter(({ partId }) => partId.endsWith(':end_panel'))).toEqual(expected);
+    expect(elevation.parts.every((part) => !('doorDetail' in part))).toBe(true);
+  });
+});
 
 // Captured before HP5 step d: the existing golden snapshot covers derived rooms, not payloads.
 // DM1 updated G1/G2; DM3 updated elevation rows. DM4 gives all rooms explicit rectangle

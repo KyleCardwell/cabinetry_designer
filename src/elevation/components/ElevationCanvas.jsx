@@ -1340,6 +1340,7 @@ function ElevationCanvas({
           </Layer>
           <Layer listening={false}>
             <NeighborReturns
+              doorsOff={doorsOff}
               room={room}
               wall={wall}
               settings={settings}
@@ -1347,6 +1348,7 @@ function ElevationCanvas({
               shapes={combinedFaces?.get(activeKey).shapes}
             />
             <NeighborProfiles
+              doorsOff={doorsOff}
               room={room}
               wall={wall}
               settings={settings}
