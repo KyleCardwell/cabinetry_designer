@@ -29,6 +29,7 @@ export const REVEAL_SOURCE_LABELS = {
   'rule:below-run': 'rule: part below',
   'rule:wood-top': 'rule: wood top',
   'rule:stone-top': 'rule: stone top',
+  'rule:top-overlap': 'rule: top overlap',
   'rule:upper-flush': 'rule: flush bottom',
   'rule:upper-counter': 'rule: on counter',
   'rule:stacked-seam': 'rule: stacked seam',
@@ -181,6 +182,7 @@ export function cabinetReveals({
   cabinetTypeId,
   run = {},
   topKind = isStoneTop(run) ? 'stone' : run.top,
+  topOverlap = 0,
   face,
   captured = { left: false, right: false },
   seams = { left: false, right: false },
@@ -255,6 +257,9 @@ export function cabinetReveals({
     for (const key of ['top', 'bottom']) {
       if (tCovers[key] > 0) apply(key, tCovers[key] + values.horizontal / 2, 'rule:t-filler');
     }
+  }
+  if (runEdges.top && topOverlap > 0) {
+    apply('top', values.top + topOverlap, 'rule:top-overlap');
   }
   for (const key of REVEAL_KEYS) {
     if (Number.isFinite(manual?.[key])) apply(key, manual[key], 'manual');

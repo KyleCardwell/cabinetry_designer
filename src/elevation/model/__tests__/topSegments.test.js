@@ -5,6 +5,7 @@ import { gridFromItems, updateRootItem } from '../grid.js';
 import { columnSteps, resolveTopSegments, topSegmentRange } from '../index.js';
 import { roomDiagnostics } from '../roomSync.js';
 import { splitRun } from '../splitRun.js';
+import { columnOverlaps } from '../topSegments.js';
 
 const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
 const segment = { id: 's', from: 'B', to: 'B', kind: 'wood', drop: 2, mode: 'box' };
@@ -175,5 +176,85 @@ describe('ST4 step b top segments', () => {
     expect(revealed.sources.top).toBe('manual');
     const items = ['A', 'B', 'C'].map((id) => ({ id, kind: 'cabinet', width: 30 }));
     expect(heights({ ...run, grid: undefined, items })).toEqual([30.5, 28.5, 30.5]);
+  });
+});
+
+describe('ST5 step a top overlap reveals', () => {
+  const overlap = { ...segment, kind: 'stone', drop: 1, mode: 'overlap' };
+  const overlapRun = () => makeRun([overlap]);
+  const insetRun = (cabinetStyleId) => ({
+    ...overlapRun(), style: { cabinetStyleId, beadWidth: 0.25 },
+    seamGap: 0, _frame: { thickness: 0.8125, drop: 0, bead: cabinetStyleId === 15 ? 0.25 : 0 },
+    grid: gridFromItems('r', ['A', 'B', 'C'].map((id) => ({
+      id, kind: 'cabinet', width: null, face: { type: 'door' },
+    }))),
+  });
+
+  it('anchor 1: preserves the Euro box and adds the stone overlap only to B', () => {
+    const run = overlapRun();
+    const before = structuredClone(run);
+    expect(columnOverlaps(run)).toEqual(new Map([['B', { value: 1, segmentId: 's' }]]));
+    expect(columnSteps(run).size).toBe(0);
+    expect(splitRun(run, settings).pieces[1]).toMatchObject({ id: 'B', z: 4, height: 30.5 });
+    const faces = facesFor(run);
+    expect(faces.get('B').reveals).toMatchObject({
+      values: { top: 1.25 }, sources: { top: 'rule:top-overlap' },
+    });
+    expect(faces.get('A').reveals.values.top).toBe(0.25);
+    expect(run).toEqual(before);
+    expect(columnOverlaps(makeRun()).size).toBe(0);
+    expect(columnOverlaps({ ...run, top: 'none' }).size).toBe(0);
+    expect(columnOverlaps({ ...run, topSegments: [{ ...overlap, from: 'gone' }] }).size).toBe(0);
+    expect(columnOverlaps({ ...run, topSegments: [overlap, { ...overlap, id: 'later', from: 'A' }] }))
+      .toEqual(new Map([['B', { value: 1, segmentId: 's' }]]));
+  });
+
+  it('anchor 2: adds the overlap to the segment wood reveal', () => {
+    const run = makeRun([{ ...overlap, kind: 'wood' }]);
+    expect(facesFor(run).get('B').reveals).toMatchObject({
+      values: { top: 1.125 }, sources: { top: 'rule:top-overlap' },
+    });
+  });
+
+  it('anchor 3: keeps a manual top reveal above the overlap rule', () => {
+    const run = overlapRun();
+    run.grid = updateRootItem(run.grid, 'B', { reveals: { top: 0.5 } });
+    expect(facesFor(run).get('B').reveals).toMatchObject({
+      values: { top: 0.5 }, sources: { top: 'manual' },
+    });
+  });
+
+  it('anchor 4: adds the overlap to the plain inset rail and lowers the opening top to 32', () => {
+    const layout = facesFor(insetRun(14)).get('B');
+    expect(layout.reveals).toMatchObject({ values: { top: 2.5 }, sources: { top: 'rule:top-overlap' } });
+    expect(layout.openings[0]).toMatchObject({ x: 31, width: 28 });
+    expect(layout.openings[0].z + layout.openings[0].height).toBe(32);
+  });
+
+  it('anchor 5: includes the quarter-inch bead in the overlap reveal', () => {
+    expect(facesFor(insetRun(15)).get('B').reveals).toMatchObject({
+      values: { top: 2.75 }, sources: { top: 'rule:top-overlap' },
+    });
+  });
+
+  it('anchor 6: applies overlap only to the top drawer of a nested drawer-over-door column', () => {
+    const run = overlapRun();
+    run.grid.cells[1].node = {
+      id: 'B', cols: [{ id: 'B:c', size: null, sizeMode: 'auto' }],
+      rows: [{ id: 'upper', size: 6, sizeMode: 'manual' }, { id: 'lower', size: null, sizeMode: 'auto' }],
+      cells: ['B-drawer', 'B-door'].map((id, row) => ({
+        col: 0, row, colSpan: 1, rowSpan: 1,
+        node: { id, kind: 'cabinet', face: { type: row === 0 ? 'drawer_front' : 'door' } },
+      })),
+    };
+    const faces = facesFor(run);
+    expect(faces.get('B-drawer').box).toMatchObject({ z: 28.5, height: 6 });
+    expect(faces.get('B-drawer').reveals).toMatchObject({
+      values: { top: 1.25 }, sources: { top: 'rule:top-overlap' },
+    });
+    expect(faces.get('B-door').box).toMatchObject({ z: 4, height: 24.5 });
+    expect(faces.get('B-door').reveals).toMatchObject({
+      values: { top: 0.125 }, sources: { top: 'rule:stacked-seam' },
+    });
   });
 });

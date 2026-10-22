@@ -35,3 +35,12 @@ export function resolveTopSegments(run, topKind = isStoneTop(run) ? 'stone' : ru
   }
   return { segments, warnings };
 }
+
+/** Effective top overlaps for root columns covered by active overlap segments. */
+export function columnOverlaps(run) {
+  return new Map(resolveTopSegments(run).segments
+    .filter(({ mode }) => mode === 'overlap')
+    .flatMap(({ id: segmentId, drop, columnIds }) => columnIds.map((id) => (
+      [id, { value: drop, segmentId }]
+    ))));
+}

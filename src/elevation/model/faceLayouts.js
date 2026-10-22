@@ -10,7 +10,7 @@ import { faceOpenings, frameRegions } from './frames.js';
 import { runItems } from './grid.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
 import { splitRun } from './splitRun.js';
-import { resolveTopSegments } from './topSegments.js';
+import { columnOverlaps, resolveTopSegments } from './topSegments.js';
 import { teeFillers } from './tees.js';
 import { baseBankHeight, cabinetReveals, growStandardFronts, isInsetStyle, resolveStyle, standardDrawerHeight, typeStandardReveals } from './styles.js';
 import { wallViewForRun } from './wallSides.js';
@@ -47,6 +47,7 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
   const topKinds = new Map(resolveTopSegments(run).segments.flatMap(({ kind, columnIds }) => (
     columnIds.map((id) => [id, kind])
   )));
+  const overlaps = columnOverlaps(run);
   const cells = frameContext?.cells ?? cellPieces(run, layout);
   const frames = frameContext?.frames ?? frameRegions(room, run, cells, settings);
   const { covers: teeCovers } = teeFillers(room, run, cells, settings);
@@ -94,6 +95,7 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       cabinetTypeId: run.cabinetTypeId,
       run,
       topKind: topKinds.get(column.id),
+      topOverlap: overlaps.get(column.id)?.value,
       face: storedFace,
       captured,
       seams: frames.seamSides.get(piece.id),

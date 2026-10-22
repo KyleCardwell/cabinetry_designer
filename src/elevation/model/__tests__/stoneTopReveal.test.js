@@ -67,4 +67,18 @@ describe('Step 468 stone-top reveal', () => {
     expect(reveals({ cabinetTypeId: BASE, top: 'stone' }, { style: { ...EURO, cabinetStyleId: 14 } }))
       .toMatchObject({ values: { top: 1.5 }, sources: { top: 'style' } });
   });
+
+  it('adds top overlap to the configured reveal at column tops and lets manual values win', () => {
+    const run = { cabinetTypeId: BASE, top: 'stone' };
+    const options = { topOverlap: 1, settings: { ...DEFAULT_SETTINGS, stoneTopReveal: 0.375 } };
+    expect(reveals(run, options))
+      .toMatchObject({ values: { top: 1.375 }, sources: { top: 'rule:top-overlap' } });
+    expect(reveals(run, { ...options, runEdges: { top: false, bottom: true }, stacked: { top: true } }))
+      .toMatchObject({ values: { top: 0.125 }, sources: { top: 'rule:stacked-seam' } });
+    expect(reveals(run, { ...options, manual: { top: 0 } }))
+      .toMatchObject({ values: { top: 0 }, sources: { top: 'manual' } });
+    expect(reveals(run, { topOverlap: 0 }))
+      .toMatchObject({ values: { top: 0.25 }, sources: { top: 'rule:stone-top' } });
+    expect(REVEAL_SOURCE_LABELS['rule:top-overlap']).toBe('rule: top overlap');
+  });
 });
