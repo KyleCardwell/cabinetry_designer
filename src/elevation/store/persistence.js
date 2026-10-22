@@ -442,6 +442,22 @@ export function isBaseCutoutList(value) {
   });
 }
 
+/** ST4 segments keep column references even when their columns are gone. */
+export function isTopSegmentList(value) {
+  if (!Array.isArray(value)) return false;
+  const ids = new Set();
+  return Array.from(value).every((segment) => {
+    if (!segment || typeof segment !== 'object' || Array.isArray(segment)
+      || !['id', 'from', 'to'].every((key) => typeof segment[key] === 'string' && segment[key].length > 0)
+      || ids.has(segment.id)
+      || !['wood', 'stone'].includes(segment.kind)
+      || !(isFiniteNumber(segment.drop) && segment.drop > 0)
+      || !['box', 'overlap'].includes(segment.mode)) return false;
+    ids.add(segment.id);
+    return true;
+  });
+}
+
 const RUN_FLEX_BOX_KEYS = ['run', 'left', 'right'];
 
 /** SPEC-RF1: what the last sync's run flex did (how far each edge moved, the span it wrote, filler box sizes). */
@@ -488,6 +504,7 @@ function isRun(run) {
     && (run.tFiller === undefined || T_FILLER_RUN_VALUES.includes(run.tFiller))
     && isEndFiller(run.endFiller)
     && (run.baseCutouts === undefined || isBaseCutoutList(run.baseCutouts))
+    && (run.topSegments === undefined || isTopSegmentList(run.topSegments))
     && run.items === undefined
     && run.blind === undefined
     && isRunGrid(run.grid);

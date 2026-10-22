@@ -17,7 +17,7 @@ import {
 } from '../../model/room.js';
 import { soffitEndType } from '../../model/soffits.js';
 import { wallViewForRun } from '../../model/wallSides.js';
-import { isBaseCutoutList } from '../persistence.js';
+import { isBaseCutoutList, isTopSegmentList } from '../persistence.js';
 import {
   withoutAuto,
   wallLocation,
@@ -170,6 +170,26 @@ export const runReducers = {
     const location = runLocation(state, action.payload);
     if (!location?.run.baseCutouts) return;
     location.run.baseCutouts = location.run.baseCutouts.filter((cutout) => cutout.id !== action.payload.cutoutId);
+  },
+  addTopSegment(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const segments = [...(location.run.topSegments ?? []), action.payload.segment];
+    if (isTopSegmentList(segments)) location.run.topSegments = segments;
+  },
+  updateTopSegment(state, action) {
+    const location = runLocation(state, action.payload);
+    const { segmentId, changes } = action.payload;
+    if (!location?.run.topSegments) return;
+    const segments = location.run.topSegments.map((segment) => (
+      segment.id === segmentId ? { ...segment, ...changes } : segment
+    ));
+    if (isTopSegmentList(segments)) location.run.topSegments = segments;
+  },
+  removeTopSegment(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location?.run.topSegments) return;
+    location.run.topSegments = location.run.topSegments.filter((segment) => segment.id !== action.payload.segmentId);
   },
   setRunAnchor(state, action) {
     const location = runLocation(state, action.payload);
