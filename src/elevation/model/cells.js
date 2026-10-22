@@ -270,13 +270,13 @@ function overlapsVertically(a, b) {
   return Math.min(a.z + a.height, b.z + b.height) - Math.max(a.z, b.z) > EPSILON;
 }
 
-/** Whether a panel cell sits against each side of a piece (REV-005/006 inside a split). */
+/** Whether a side/end panel sits against each side of a resolved leaf. */
 export function cellCaptureSides(pieces, pieceId) {
   const piece = pieces.find((candidate) => candidate.id === pieceId);
   if (!piece) return { left: false, right: false };
   const panels = pieces.filter((candidate) => (
-    candidate !== piece && candidate.kind === 'panel'
-    && panelOrientation(candidate) === 'side' && candidate.doors !== 'cover'
+    candidate !== piece && (candidate.kind === 'end_panel'
+      || (candidate.kind === 'panel' && panelOrientation(candidate) === 'side' && candidate.doors !== 'cover'))
     && overlapsVertically(candidate, piece)));
   return {
     left: panels.some((panel) => Math.abs(panel.x + panel.width - piece.x) <= EPSILON),

@@ -63,7 +63,7 @@ function layoutFaces(room, wall, run, settings, layout) {
         right: byPanels.right || (columnCaptured.right
           && Math.abs(piece.x + piece.width - column.x - column.width) <= 1e-6),
       }
-      : columnCaptured;
+      : { left: columnCaptured.left || byPanels.left, right: columnCaptured.right || byPanels.right };
     // Boxes either side of a T-filler are captured between fillers too (REV-005/006).
     const tCovers = teeCovers.get(piece.id) ?? null;
     const captured = {

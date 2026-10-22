@@ -1,0 +1,362 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`IE1 step c inside panels drawn and picked > exports Room 8 upper elevation and plan DXF geometry with two inside panels 1`] = `
+{
+  "elevations": [
+    {
+      "parts": [
+        {
+          "back": 0,
+          "coversBoxEdges": false,
+          "front": 24,
+          "height": 60,
+          "id": "a",
+          "kind": "cabinet",
+          "runId": "r",
+          "width": 53.6875,
+          "x": 0.75,
+          "z": 30,
+        },
+        {
+          "back": 0,
+          "coversBoxEdges": false,
+          "front": 24,
+          "height": 60,
+          "id": "c",
+          "kind": "cabinet",
+          "runId": "r",
+          "width": 53.75,
+          "x": 109.625,
+          "z": 30,
+        },
+        {
+          "back": 0,
+          "coversBoxEdges": false,
+          "front": 24.8125,
+          "height": 60.125,
+          "id": "r:left",
+          "kind": "end_panel",
+          "runId": "r",
+          "width": 0.75,
+          "x": 0,
+          "z": 29.875,
+        },
+        {
+          "back": 0,
+          "coversBoxEdges": false,
+          "front": 24.8125,
+          "height": 60.125,
+          "id": "a:inside-right",
+          "kind": "end_panel",
+          "runId": "r",
+          "width": 0.75,
+          "x": 54.4375,
+          "z": 29.875,
+        },
+        {
+          "back": 0,
+          "coversBoxEdges": false,
+          "front": 0.75,
+          "height": 24,
+          "id": "b",
+          "kind": "panel",
+          "runId": "r",
+          "width": 53.6875,
+          "x": 55.1875,
+          "z": 66,
+        },
+        {
+          "back": 0,
+          "coversBoxEdges": false,
+          "front": 24.8125,
+          "height": 60.125,
+          "id": "c:inside-left",
+          "kind": "end_panel",
+          "runId": "r",
+          "width": 0.75,
+          "x": 108.875,
+          "z": 29.875,
+        },
+        {
+          "back": 0,
+          "coversBoxEdges": false,
+          "front": 24.8125,
+          "height": 60.125,
+          "id": "r:right",
+          "kind": "end_panel",
+          "runId": "r",
+          "width": 0.75,
+          "x": 163.375,
+          "z": 29.875,
+        },
+        {
+          "back": 24.0625,
+          "coversBoxEdges": true,
+          "front": 24.8125,
+          "height": 60,
+          "id": "a:r",
+          "kind": "face",
+          "runId": "r",
+          "width": 53.5,
+          "x": 0.84375,
+          "z": 29.875,
+        },
+        {
+          "back": 24.0625,
+          "coversBoxEdges": true,
+          "front": 24.8125,
+          "height": 60,
+          "id": "c:r",
+          "kind": "face",
+          "runId": "r",
+          "width": 53.5625,
+          "x": 109.71875,
+          "z": 29.875,
+        },
+      ],
+      "side": "front",
+      "wallId": "w",
+    },
+  ],
+  "plan": [
+    {
+      "id": "w:wall",
+      "kind": "wall",
+      "points": [
+        [
+          0,
+          0,
+        ],
+        [
+          180,
+          0,
+        ],
+        [
+          180,
+          4.5,
+        ],
+        [
+          0,
+          4.5,
+        ],
+      ],
+    },
+    {
+      "id": "a",
+      "kind": "cabinet",
+      "points": [
+        [
+          0.75,
+          0,
+        ],
+        [
+          54.4375,
+          0,
+        ],
+        [
+          54.4375,
+          -24,
+        ],
+        [
+          0.75,
+          -24,
+        ],
+      ],
+      "runId": "r",
+      "top": 90,
+    },
+    {
+      "id": "c",
+      "kind": "cabinet",
+      "points": [
+        [
+          109.625,
+          0,
+        ],
+        [
+          163.375,
+          0,
+        ],
+        [
+          163.375,
+          -24,
+        ],
+        [
+          109.625,
+          -24,
+        ],
+      ],
+      "runId": "r",
+      "top": 90,
+    },
+    {
+      "id": "r:left",
+      "kind": "end_panel",
+      "points": [
+        [
+          0,
+          0,
+        ],
+        [
+          0.75,
+          0,
+        ],
+        [
+          0.75,
+          -24.8125,
+        ],
+        [
+          0,
+          -24.8125,
+        ],
+      ],
+      "runId": "r",
+      "top": 90,
+    },
+    {
+      "id": "a:r",
+      "kind": "face",
+      "points": [
+        [
+          0.84375,
+          -24.0625,
+        ],
+        [
+          54.34375,
+          -24.0625,
+        ],
+        [
+          54.34375,
+          -24.8125,
+        ],
+        [
+          0.84375,
+          -24.8125,
+        ],
+      ],
+      "runId": "r",
+      "top": 90,
+    },
+    {
+      "id": "a:inside-right",
+      "kind": "end_panel",
+      "points": [
+        [
+          54.4375,
+          0,
+        ],
+        [
+          55.1875,
+          0,
+        ],
+        [
+          55.1875,
+          -24.8125,
+        ],
+        [
+          54.4375,
+          -24.8125,
+        ],
+      ],
+      "runId": "r",
+      "top": 90,
+    },
+    {
+      "id": "b",
+      "kind": "panel",
+      "points": [
+        [
+          55.1875,
+          0,
+        ],
+        [
+          108.875,
+          0,
+        ],
+        [
+          108.875,
+          -0.75,
+        ],
+        [
+          55.1875,
+          -0.75,
+        ],
+      ],
+      "runId": "r",
+      "top": 90,
+    },
+    {
+      "id": "c:inside-left",
+      "kind": "end_panel",
+      "points": [
+        [
+          108.875,
+          0,
+        ],
+        [
+          109.625,
+          0,
+        ],
+        [
+          109.625,
+          -24.8125,
+        ],
+        [
+          108.875,
+          -24.8125,
+        ],
+      ],
+      "runId": "r",
+      "top": 90,
+    },
+    {
+      "id": "c:r",
+      "kind": "face",
+      "points": [
+        [
+          109.71875,
+          -24.0625,
+        ],
+        [
+          163.28125,
+          -24.0625,
+        ],
+        [
+          163.28125,
+          -24.8125,
+        ],
+        [
+          109.71875,
+          -24.8125,
+        ],
+      ],
+      "runId": "r",
+      "top": 90,
+    },
+    {
+      "id": "r:right",
+      "kind": "end_panel",
+      "points": [
+        [
+          163.375,
+          0,
+        ],
+        [
+          164.125,
+          0,
+        ],
+        [
+          164.125,
+          -24.8125,
+        ],
+        [
+          163.375,
+          -24.8125,
+        ],
+      ],
+      "runId": "r",
+      "top": 90,
+    },
+  ],
+}
+`;

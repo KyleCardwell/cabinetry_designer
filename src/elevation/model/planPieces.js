@@ -214,8 +214,10 @@ function frameStrips(frames, pieces, faces, back, front) {
       ...pieces.filter((piece) => region.panelIds.includes(piece.id)),
       ...(region.wallPanels ?? []),
     ];
-    const left = panels.find((panel) => Math.abs(panel.x - region.x) <= WIDTH_EPSILON);
-    const right = panels.find((panel) => Math.abs(panel.x + panel.width - end) <= WIDTH_EPSILON);
+    const leftPanels = panels.filter((panel) => Math.abs(panel.x - region.x) <= WIDTH_EPSILON);
+    const rightPanels = panels.filter((panel) => Math.abs(panel.x + panel.width - end) <= WIDTH_EPSILON);
+    const [left] = leftPanels;
+    const [right] = rightPanels;
     strips.push({
       key: region.id,
       kind: 'frame',
@@ -230,8 +232,8 @@ function frameStrips(frames, pieces, faces, back, front) {
         [left ? left.x + left.width : region.x, back],
       ],
     });
-    if (left?.id) mitered.set(left.id, 'left');
-    if (right?.id) mitered.set(right.id, 'right');
+    for (const panel of leftPanels) if (panel.id) mitered.set(panel.id, 'left');
+    for (const panel of rightPanels) if (panel.id) mitered.set(panel.id, 'right');
   }
   const next = faces.map((range) => {
     const side = mitered.get(range.key);

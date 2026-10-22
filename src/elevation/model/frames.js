@@ -141,8 +141,10 @@ export function frameRegions(room, run, cells, settings) {
       const before = gapBefore >= -EPSILON && gapBefore <= panelReach + EPSILON;
       const after = gapAfter >= -EPSILON && gapAfter <= panelReach + EPSILON;
       if (!before && !after) continue;
-      if (before) region.x = panel.x;
-      region.width += panel.width + Math.max(0, before ? gapBefore : gapAfter);
+      // Stacked inside panels share an edge; grow the bounds once over that edge.
+      const right = Math.max(region.x + region.width, panel.x + panel.width);
+      region.x = Math.min(region.x, panel.x);
+      region.width = right - region.x;
       covered.push(panel);
       if (panel.edge) (region.wallPanels ??= []).push({ side: panel.edge, x: panel.x, width: panel.width });
       else region.panelIds.push(panel.id);
