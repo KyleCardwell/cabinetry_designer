@@ -6,13 +6,15 @@ export const SIZE_MODES = ['auto', 'manual', 'solved'];
 function itemParts(item) {
   const leaf = {};
   for (const [key, value] of Object.entries(item)) {
-    if (!['width', 'pin', 'absorb', 'blind', 'grid', 'gap'].includes(key)) leaf[key] = value;
+    if (!['width', 'pin', 'absorb', 'blind', 'grid', 'gap', 'top', 'bottom'].includes(key)) leaf[key] = value;
   }
   const col = { id: `${item.id}:col`, size: item.width,
     sizeMode: item.width === null ? 'auto' : 'manual' };
   if (item.pin !== undefined) col.pin = item.pin;
   if (item.absorb !== undefined) col.absorb = item.absorb;
   if (item.gap !== undefined) col.gap = item.gap;
+  if (item.top !== undefined) col.top = item.top;
+  if (item.bottom !== undefined) col.bottom = item.bottom;
   const node = item.grid ?? leaf;
   return { col, node };
 }
@@ -69,9 +71,11 @@ export function edgeLeaves(node, side) {
 }
 
 function cloneTrack(track) {
-  return track.pin != null && typeof track.pin === 'object'
-    ? { ...track, pin: { ...track.pin } }
-    : { ...track };
+  const copy = { ...track };
+  for (const key of ['pin', 'top', 'bottom']) {
+    if (track[key] != null && typeof track[key] === 'object') copy[key] = { ...track[key] };
+  }
+  return copy;
 }
 
 function cloneNode(node) {
@@ -111,7 +115,14 @@ function validTrack(track) {
     || (typeof track.size === 'number' && Number.isFinite(track.size) && track.size >= 0);
   const validGap = track.gap === undefined
     || (typeof track.gap === 'number' && Number.isFinite(track.gap) && track.gap >= 0);
-  return validSize && validGap && SIZE_MODES.includes(track.sizeMode)
+  const validSteps = ['top', 'bottom'].every((key) => {
+    const step = track[key];
+    return step === undefined || (step !== null && typeof step === 'object' && !Array.isArray(step)
+      && Object.keys(step).every((field) => field === 'value' || field === 'source')
+      && step.source === 'manual' && typeof step.value === 'number'
+      && Number.isFinite(step.value) && step.value > 0);
+  });
+  return validSize && validGap && validSteps && SIZE_MODES.includes(track.sizeMode)
     && ((track.sizeMode === 'auto') === (track.size === null));
 }
 
@@ -140,6 +151,8 @@ export function rootItems(grid) {
     if (col.pin !== undefined) item.pin = col.pin;
     if (col.absorb !== undefined) item.absorb = col.absorb;
     if (col.gap !== undefined) item.gap = col.gap;
+    if (col.top !== undefined) item.top = col.top;
+    if (col.bottom !== undefined) item.bottom = col.bottom;
     return item;
   });
 }
@@ -320,7 +333,7 @@ export function updateRootItem(grid, leafId, patch) {
         col = setKey(col, 'size', value);
         col = setKey(col, 'sizeMode', value === null ? 'auto' : 'manual');
       }
-    } else if (key === 'pin' || key === 'absorb' || key === 'gap') {
+    } else if (['pin', 'absorb', 'gap', 'top', 'bottom'].includes(key)) {
       col = setKey(col, key, value);
     } else {
       leaf = setKey(leaf, key, value);

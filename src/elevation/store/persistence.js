@@ -541,8 +541,10 @@ function isRootItem(item) {
     return isItem(item) && item.depth === undefined && item.align === undefined && isExtend(item.extend);
   }
   if (item.kind === 'cabinet') return isItem(item) && isCellDepth(item);
-  const { width, gap, ...leaf } = item;
+  const { width, gap, top, bottom, ...leaf } = item;
   void gap;
+  void top;
+  void bottom;
   return (width === null || (isFiniteNumber(width) && width > 0)) && isCellLeaf(leaf);
 }
 
