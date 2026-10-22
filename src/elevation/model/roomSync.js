@@ -31,6 +31,7 @@ import { runFrame, runSeamGap } from './styles.js';
 import { profileUnderSoffit, resolveSoffitSpan, soffitConflicts } from './soffits.js';
 import { computeWallOrder } from './topology.js';
 import { runTop } from './tops.js';
+import { resolveTopSegments } from './topSegments.js';
 import {
   WALL_SIDES,
   wallEndPanelAt,
@@ -455,6 +456,7 @@ export function roomDiagnostics(room, settings) {
       diagnostics[run.id] = {
         warnings: [
           ...layout.warnings,
+          ...resolveTopSegments(run, runTop(wall, run, profile).kind).warnings,
           ...cellPieces(run, layout).warnings,
           ...extendPieces(wall, run, cellPieces(run, layout).pieces).warnings,
           ...frameRegions(synced, run, cellPieces(run, layout), settings).warnings,

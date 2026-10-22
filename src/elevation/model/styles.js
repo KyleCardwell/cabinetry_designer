@@ -180,6 +180,7 @@ export function cabinetReveals({
   style,
   cabinetTypeId,
   run = {},
+  topKind = isStoneTop(run) ? 'stone' : run.top,
   face,
   captured = { left: false, right: false },
   seams = { left: false, right: false },
@@ -198,10 +199,10 @@ export function cabinetReveals({
   };
   const euro = !isInsetStyle(style);
 
-  if (euro && isStoneTop(run) && runEdges.top) {
+  if (euro && topKind === 'stone' && runEdges.top) {
     apply('top', settings.stoneTopReveal ?? DEFAULT_SETTINGS.stoneTopReveal, 'rule:stone-top');
   }
-  if (euro && run.top === 'wood' && runEdges.top) {
+  if (euro && topKind === 'wood' && runEdges.top) {
     apply('top', settings.woodTopReveal ?? DEFAULT_SETTINGS.woodTopReveal, 'rule:wood-top');
   }
   const upperBottom = run.upperBottom ?? 'overhang';
