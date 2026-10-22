@@ -1,4 +1,5 @@
 import { Group, Line, Text } from 'react-konva';
+import { gappedLine } from '../canvas/gappedLine.js';
 import { planSideReach } from '../model/planDimensions.js';
 import { wallSideOf } from '../model/wallSides.js';
 import { elevationToPlan } from '../model/geometry.js';
@@ -11,7 +12,7 @@ import {
 import { formatDimension, formatInches } from '../model/units.js';
 import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
 import { depthDimension } from './depthDimension.js';
-import { readableFlip, readableRotation } from './textRotation.js';
+import { readableRotation } from './textRotation.js';
 
 function toPoints(frame, points) {
   return points.flatMap(([u, v]) => {
@@ -92,9 +93,14 @@ function projectionDepth(frame, depth, x, scale) {
   const line = (points, stroke = '#e2e8f0', width = 1) => (
     <Line points={points.flatMap((point) => [point.x, point.y])} stroke={stroke} strokeWidth={width / scale} />
   );
+  const linePieces = dim.fits
+    ? gappedLine(back, front, at, textWidth / 2, 0.5 / scale)
+    : [[back.x, back.y, front.x, front.y]];
   return (
     <Group>
-      {line([back, front])}
+      {linePieces.map((points, index) => (
+        <Line key={`depth-line:${index}`} points={points} stroke="#e2e8f0" strokeWidth={1 / scale} />
+      ))}
       {[back, front].map((point, index) => (
         <Group key={index}>
           {line([
@@ -112,7 +118,7 @@ function projectionDepth(frame, depth, x, scale) {
         y={at.y}
         width={textWidth}
         offsetX={textWidth / 2}
-        offsetY={dim.fits ? (readableFlip(angle) > 0 ? fontSize + 2 / scale : -2 / scale) : fontSize / 2}
+        offsetY={fontSize / 2}
         rotation={readableRotation(angle)}
         align="center"
         text={text}

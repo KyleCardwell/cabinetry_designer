@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Group, Label, Line, Tag, Text } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
+import { gappedLine } from '../canvas/gappedLine.js';
 import {
   CABINET_TYPE_COLORS,
   CABINET_TYPE_IDS,
@@ -19,7 +20,7 @@ import { splitRun } from '../model/splitRun.js';
 import { formatDimension } from '../model/units.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
 import { depthDimension } from './depthDimension.js';
-import { readableFlip, readableRotation } from './textRotation.js';
+import { readableRotation } from './textRotation.js';
 
 const DEPTH_TICK_HALF_LENGTH = 4;
 
@@ -127,7 +128,9 @@ export default function PlanRunFootprint({
   };
   const depthAngle = Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI;
   const depthRotation = readableRotation(depthAngle);
-  const depthFlip = readableFlip(depthAngle);
+  const depthLinePieces = dim.fits
+    ? gappedLine(dimensionBack, dimensionFront, depthLabelLocation, depthTextWidth / 2, 0.5 / scale)
+    : [linePoints([dimensionBack, dimensionFront])];
 
   return (
     <Group
@@ -220,12 +223,15 @@ export default function PlanRunFootprint({
           hitStrokeWidth={8 / scale}
         />
       ))}
-      <Line
-        points={[dimensionBack.x, dimensionBack.y, dimensionFront.x, dimensionFront.y]}
-        stroke="#e2e8f0"
-        strokeWidth={1 / scale}
-        listening={false}
-      />
+      {depthLinePieces.map((points, index) => (
+        <Line
+          key={`depth-line:${index}`}
+          points={points}
+          stroke="#e2e8f0"
+          strokeWidth={1 / scale}
+          listening={false}
+        />
+      ))}
       {[dimensionBack, dimensionFront].map((point, index) => (
         <Line
           key={`depth-tick:${index}`}
@@ -256,9 +262,7 @@ export default function PlanRunFootprint({
         y={depthLabelLocation.y}
         width={depthTextWidth}
         offsetX={depthTextWidth / 2}
-        offsetY={dim.fits
-          ? (depthFlip > 0 ? depthFontSize + 2 / scale : -2 / scale)
-          : depthFontSize / 2}
+        offsetY={depthFontSize / 2}
         rotation={depthRotation}
         align="center"
         text={depthText}

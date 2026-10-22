@@ -5,9 +5,21 @@ import { depthDimension } from '../depthDimension.js';
 const run = (cabinetTypeId, x, width) => ({ cabinetTypeId, x, width });
 
 describe('depthDimension', () => {
+  it('fits at padded text width plus two 4px line lengths, and pops out just below it', () => {
+    // "24": 2 × 0.6 × 13 + 8 padding + 8 minimum line = 31.6px.
+    const scale = 31.6 / 24;
+    const base = run(CABINET_TYPE_IDS.BASE, 20, 60);
+    expect(depthDimension(base, 24, scale)).toEqual({
+      x: 50, fits: true, label: { x: 50, offset: 12 }, leader: null,
+    });
+    expect(depthDimension(base, 24, (31.6 - 0.001) / 24).fits).toBe(false);
+    // Also reject the previous textPx + 4 boundary.
+    expect(depthDimension(base, 24, 27.6 / 24).fits).toBe(false);
+  });
+
   it('184. assigns type lanes and pops out labels that do not fit', () => {
-    // At this scale the shorter dimension fits; the old text with its inch mark did not.
-    expect(depthDimension(run(CABINET_TYPE_IDS.BASE, 20, 60), 24.875, 2.5).fits).toBe(true);
+    // 62.1875px leaves less than two 4px line lengths around the padded 54.8px text.
+    expect(depthDimension(run(CABINET_TYPE_IDS.BASE, 20, 60), 24.875, 2.5).fits).toBe(false);
     expect(depthDimension(run(CABINET_TYPE_IDS.BASE, 20, 60), 24.875, 4)).toEqual({
       x: 50, fits: true, label: { x: 50, offset: 12.4375 }, leader: null,
     });

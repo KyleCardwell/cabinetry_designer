@@ -32,5 +32,8 @@ describe('gappedLine', () => {
     expect(gappedLine(start, end, { x: 50, y: 0 }, 49.6)).toEqual([]);
     expect(gappedLine(start, start, start, 10)).toEqual([]);
     expect(gappedLine(start, { x: 0.4, y: 0 }, start, 0)).toEqual([]);
+    // Plan coordinates at 10px/in: retain screen-visible pieces shorter than 0.5in.
+    expect(gappedLine(start, { x: 3.5, y: 0 }, { x: 1.75, y: 0 }, 1.5, 0.05))
+      .toEqual([[0, 0, 0.25, 0], [3.25, 0, 3.5, 0]]);
   });
 });

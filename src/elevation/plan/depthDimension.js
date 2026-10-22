@@ -24,7 +24,7 @@ export function depthDimension(run, depth, scale, fontSize = PLAN_DIM_FONT_SIZE)
     run.x + run.width - margin,
   );
   const textPx = formatDimension(depth).length * 0.6 * fontSize + 8;
-  const fits = depth * scale >= textPx + 4;
+  const fits = depth * scale >= textPx + 8;
   const offset = depth / 2;
 
   if (fits) {

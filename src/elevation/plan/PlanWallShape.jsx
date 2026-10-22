@@ -1,5 +1,6 @@
 import { Circle, Group, Line, Text } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
+import { gappedLine } from '../canvas/gappedLine.js';
 import { wallFrame } from '../model/geometry.js';
 import { planThroughDimensions } from '../model/planDimensions.js';
 import { wallNumbers } from '../model/topology.js';
@@ -57,7 +58,7 @@ export default function PlanWallShape({
   const dimensionLabel = layout.labels[0];
   const labelDistance = (dimensionLabel.mode === 'popout'
     ? 10 + 14 * dimensionLabel.level
-    : 10) / scale;
+    : 0) / scale;
   const dimensionCenter = {
     x: midpoint.x + exterior.x * dimensionOffset,
     y: midpoint.y + exterior.y * dimensionOffset,
@@ -80,10 +81,6 @@ export default function PlanWallShape({
       x: sideFrame.leftPoint.x + outward.x * offset,
       y: sideFrame.leftPoint.y + outward.y * offset,
     };
-    const rowEnd = {
-      x: sideFrame.rightPoint.x + outward.x * offset,
-      y: sideFrame.rightPoint.y + outward.y * offset,
-    };
     const rowTickDirection = {
       x: (sideFrame.r.x + outward.x) / Math.SQRT2,
       y: (sideFrame.r.y + outward.y) / Math.SQRT2,
@@ -99,7 +96,6 @@ export default function PlanWallShape({
       segments,
       layout: rowLayout,
       rowStart,
-      rowEnd,
       tickDirection: rowTickDirection,
       rotation: rowRotation,
     }];
@@ -138,11 +134,12 @@ export default function PlanWallShape({
         listening={false}
       />
       <Group listening={false}>
-        <Line
-          points={dimensionEndpoints.flatMap((point) => [point.x, point.y])}
-          stroke="#94a3b8"
-          strokeWidth={1 / scale}
-        />
+        {(dimensionLabel.mode === 'inline'
+          ? gappedLine(...dimensionEndpoints, dimensionCenter, dimensionLabel.width / 2 / scale, 0.5 / scale)
+          : [dimensionEndpoints.flatMap((point) => [point.x, point.y])]
+        ).map((points, index) => (
+          <Line key={`overall:${index}`} points={points} stroke="#94a3b8" strokeWidth={1 / scale} />
+        ))}
         {faceEndpoints.map((point, index) => {
           const extensionStart = {
             x: point.x + exterior.x * extensionStartOffset,
@@ -210,11 +207,21 @@ export default function PlanWallShape({
         ];
         return (
           <Group key={row.side} listening={false}>
-            <Line
-              points={[row.rowStart.x, row.rowStart.y, row.rowEnd.x, row.rowEnd.y]}
-              stroke="#94a3b8"
-              strokeWidth={1 / scale}
-            />
+            {row.segments.flatMap((segment, index) => {
+              const rowPoint = (x) => ({
+                x: row.rowStart.x + row.sideFrame.r.x * x,
+                y: row.rowStart.y + row.sideFrame.r.y * x,
+              });
+              const start = rowPoint(segment.start);
+              const end = rowPoint(segment.end);
+              const rowLabel = row.layout.labels[index];
+              const linePieces = rowLabel.mode === 'inline'
+                ? gappedLine(start, end, rowPoint((segment.start + segment.end) / 2), rowLabel.width / 2 / scale, 0.5 / scale)
+                : [[start.x, start.y, end.x, end.y]];
+              return linePieces.map((points, piece) => (
+                <Line key={`${index}:${piece}`} points={points} stroke="#94a3b8" strokeWidth={1 / scale} />
+              ));
+            })}
             {boundaries.map((boundary, index) => {
               const facePoint = {
                 x: row.sideFrame.leftPoint.x + row.sideFrame.r.x * boundary,
@@ -271,7 +278,7 @@ export default function PlanWallShape({
               };
               const rowLabelDistance = (rowLabel.mode === 'popout'
                 ? 10 + 14 * rowLabel.level
-                : 10) / scale;
+                : 0) / scale;
               const rowLabelPoint = {
                 x: dimensionPoint.x + row.outward.x * rowLabelDistance,
                 y: dimensionPoint.y + row.outward.y * rowLabelDistance,
