@@ -139,9 +139,9 @@ const changeRole = (members, role, width) => changeWidths(members, (member) => m
 
 describe('ST5 step b overlap rail reasons', () => {
   it.each([
-    ['plain inset', 14, 0, '2 1/2" top rail @ #2 (stone overlap)'],
-    ['beaded inset', 15, 0.25, '2 3/4" top rail @ #2 (stone overlap)'],
-  ])('prints the %s anchor', (_case, cabinetStyleId, bead, expected) => {
+    ['plain inset', 14, 0, '2 1/2" top rail @ #2 (stone overlap)', 'RV\'s (2 1/2" T)'],
+    ['beaded inset', 15, 0.25, '2 3/4" top rail @ #2 (stone overlap)', 'RV\'s (2 3/4" T)'],
+  ])('prints the %s anchor', (_case, cabinetStyleId, bead, expected, reveal) => {
     const room = notchedFrameRoom({});
     const run = room.walls[0].runs[0];
     run.style = { cabinetStyleId, beadWidth: bead };
@@ -155,6 +155,8 @@ describe('ST5 step b overlap rail reasons', () => {
     expect(rows.filter(({ key }) => ['A', 'B', 'C'].includes(key)).map(({ key, number }) => [key, number]))
       .toEqual([['A', 1], ['B', 2], ['C', 3]]);
     expect(rows.find(({ kind }) => kind === 'frame').notes).toContain(expected);
+    const reveals = (key) => rows.find((row) => row.key === key).notes.filter((note) => note.startsWith("RV's"));
+    expect([reveals('A'), reveals('B'), reveals('C')]).toEqual([[], [reveal], []]);
     expect(synced).toEqual(before);
   });
 

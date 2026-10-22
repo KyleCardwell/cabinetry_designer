@@ -310,7 +310,10 @@ function cabinetNotes(room, settings, part, context) {
   const style = resolveStyle(settings, room, run, leaf);
   const standard = layout && !isInsetStyle(style)
     ? typeStandardReveals(style, run.cabinetTypeId, settings) : null;
-  const values = standard ? layout.reveals.values : leaf?.reveals;
+  // Face frame reveals print only when typed, except a top overlap, which changes the box's reveal too (Kyle 2026-10-22).
+  const overlap = layout && !standard ? REVEAL_KEYS.filter((key) => layout.reveals.sources?.[key] === 'rule:top-overlap')
+    .map((key) => [key, layout.reveals.values[key]]) : [];
+  const values = standard ? layout.reveals.values : { ...leaf?.reveals, ...Object.fromEntries(overlap) };
   const reveals = REVEAL_KEYS.filter((key) => Number.isFinite(values?.[key])
     && (!standard || Math.abs(values[key] - standard[key]) > EPSILON))
     // A negative reveal is an overhang: "1 5/8" OH B", not "-1 5/8" B" (Kyle 2026-10-19).
