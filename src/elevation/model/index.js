@@ -207,6 +207,7 @@ export {
   roundTo,
 } from './units.js';
 export { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
+export { columnSteps } from './columnSteps.js';
 export {
   blindEntries,
   blindPartWidths,

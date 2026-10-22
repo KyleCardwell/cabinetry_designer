@@ -1,4 +1,6 @@
 import { v4 as uuid } from 'uuid';
+import { MIN_CELL_SIZE } from './cells.js';
+import { columnSteps } from './columnSteps.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { replaceRootItems, runItems } from './grid.js';
@@ -442,9 +444,28 @@ function pinUnreachableWarning(pin, actualLeft) {
   );
 }
 
+/** Apply offsets once, after all width and pin solving has finished. */
+function steppedLayout(run, layout) {
+  const steps = columnSteps(run);
+  if (!steps.size) return layout;
+  const warnings = [...layout.warnings];
+  const pieces = layout.pieces.map((piece) => {
+    const offsets = piece.role === 'item' ? steps.get(piece.id) : null;
+    if (!offsets) return piece;
+    const top = offsets.top?.value ?? 0;
+    const bottom = offsets.bottom?.value ?? 0;
+    if (top + bottom > run.height - MIN_CELL_SIZE) {
+      warnings.push(warning('column-step-too-big', piece.id, 'Top drop and bottom up leave less than 1 inch of box.'));
+      return piece;
+    }
+    return { ...piece, z: piece.z + bottom, height: piece.height - top - bottom };
+  });
+  return { ...layout, pieces, warnings };
+}
+
 /**
- * Split a run, optionally resolving cabinet pins against wall-local targets.
- * With no finite pin targets this delegates byte-for-byte to the legacy solver.
+ * Split a run, optionally resolving cabinet pins against wall-local targets,
+ * then apply column steps to its root item pieces.
  *
  * @param {object} run
  * @param {object} settings
@@ -460,7 +481,7 @@ export function splitRun(run, settings, opts) {
   const plan = pinPlan(run, settings, opts);
   if (!plan) {
     const layout = splitRunLegacy(run, settings, opts);
-    return insidePanels.length ? { ...layout, insidePanels } : layout;
+    return steppedLayout(run, insidePanels.length ? { ...layout, insidePanels } : layout);
   }
 
   const { items, actualPins } = plan;
@@ -505,7 +526,7 @@ export function splitRun(run, settings, opts) {
 
   appendLayout(splitRunLegacy(rightSegmentRun(run, plan), settings, opts));
 
-  return { pieces, warnings, errors, ...(insidePanels.length ? { insidePanels } : {}) };
+  return steppedLayout(run, { pieces, warnings, errors, ...(insidePanels.length ? { insidePanels } : {}) });
 }
 
 /**

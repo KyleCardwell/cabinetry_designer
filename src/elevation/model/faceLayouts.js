@@ -81,8 +81,8 @@ function layoutFaces(room, wall, run, settings, layout) {
     const pairCovers = storedFace.type === 'pair_door' && (covered.left > 0 || covered.right > 0);
     const style = resolveStyle(settings, room, run, item);
     const runEdges = {
-      top: Math.abs(piece.z + piece.height - run.z - run.height) <= 1e-6,
-      bottom: Math.abs(piece.z - run.z) <= 1e-6,
+      top: Math.abs(piece.z + piece.height - column.z - column.height) <= 1e-6,
+      bottom: Math.abs(piece.z - column.z) <= 1e-6,
     };
     const reveals = cabinetReveals({
       style,
