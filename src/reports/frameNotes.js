@@ -24,6 +24,21 @@ export function frameReturnNotes(run, region) {
     }));
 }
 
+/** Reference the cabinet directly below/above each notch, including nested columns. */
+export function frameNotchNotes(region, boxes, numberOf) {
+  if (!region) return [];
+  return [...(region.notches ?? [])]
+    .sort((a, b) => (a.edge === b.edge ? a.x - b.x : a.edge === 'top' ? -1 : 1))
+    .flatMap((notch) => {
+      const columnBoxes = boxes.filter((box) => region.cabinetIds.includes(box.id)
+        && (box.columnId ?? box.id) === notch.columnId);
+      columnBoxes.sort((a, b) => (notch.edge === 'top'
+        ? (b.z + b.height) - (a.z + a.height) : a.z - b.z) || a.x - b.x);
+      const number = columnBoxes.length ? numberOf(columnBoxes[0].id) : null;
+      return number == null ? [] : [`${formatInch(notch.height)} notch @ #${number}`];
+    });
+}
+
 /** Add report roles and the region's overlapping box IDs without changing member order. */
 export function frameMemberRoles(region, members, boxes) {
   const cabinetIds = new Set(region.cabinetIds);
@@ -41,8 +56,13 @@ export function frameMemberRoles(region, members, boxes) {
       if (Math.abs(member.x - region.x) <= EPSILON) role = 'left-stile';
       else if (Math.abs(member.x + member.width - region.x - region.width) <= EPSILON) role = 'right-stile';
     } else if (member.kind === 'rail') {
-      if (Math.abs(member.z - region.z) <= EPSILON) role = 'bottom-rail';
-      else if (Math.abs(member.z + member.height - region.z - region.height) <= EPSILON) role = 'top-rail';
+      const touchesNotch = (edge) => (region.notches ?? []).some((notch) => notch.edge === edge
+        && Math.min(member.x + member.width, notch.x + notch.width) - Math.max(member.x, notch.x) > EPSILON
+        && Math.abs(edge === 'top' ? member.z + member.height - notch.z
+          : member.z - notch.z - notch.height) <= EPSILON);
+      if (Math.abs(member.z - region.z) <= EPSILON || touchesNotch('bottom')) role = 'bottom-rail';
+      else if (Math.abs(member.z + member.height - region.z - region.height) <= EPSILON
+        || touchesNotch('top')) role = 'top-rail';
       else role = sitsOn.length >= 2 ? 'rail' : 'mid-rail';
     }
 

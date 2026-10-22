@@ -32,7 +32,7 @@ import { wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { doorOrderItems } from './doorOrder.js';
 import { formatInch, formatSize } from './format.js';
-import { frameMemberRoles, frameNotes, frameReasons, frameReturnNotes, frameStandards } from './frameNotes.js';
+import { frameMemberRoles, frameNotes, frameNotchNotes, frameReasons, frameReturnNotes, frameStandards } from './frameNotes.js';
 import { drawerFrontNote, faceOrder, interiorNotes } from './interiorNotes.js';
 
 export { drawerFrontNote };
@@ -398,7 +398,8 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
         frameMemberRoles(region, members, scene.cells.pieces), settings, standards);
       groups[10] = frameNotes(entries, standards, { bead, numberOf });
     }
-    groups[10] = [...(groups[10] ?? []), ...frameReturnNotes(run, region)];
+    groups[10] = [...(groups[10] ?? []), ...frameReturnNotes(run, region),
+      ...frameNotchNotes(region, scene.cells.pieces, numberOf)];
   }
   if (style && style.id !== 'sheet') {
     let drawn;

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { frameMembers } from '../../elevation/model/frames.js';
-import { frameMemberRoles, frameNotes, frameStandards } from '../frameNotes.js';
+import { notchedFrameRoom, notchedFrameSettings } from '../../elevation/model/__tests__/fixtures/notchedFrame.js';
+import { findLeaf } from '../../elevation/model/cellTree.js';
+import { frameMembers, regionOpenings } from '../../elevation/model/frames.js';
+import { resolveWall, syncRoom } from '../../elevation/model/room.js';
+import { runScene } from '../../elevation/model/runScene.js';
+import { frameMemberRoles, frameNotes, frameNotchNotes, frameStandards } from '../frameNotes.js';
+import { shippingList } from '../shippingList.js';
 
 const REGION_D = { id: 'frame:d', x: 0, z: 0, width: 30, height: 30, cabinetIds: ['a'] };
 const OPENINGS_D = [
@@ -242,5 +247,95 @@ describe('RP2.4 step b frame note edge cases', () => {
     expect(frameNotes(entries, FLAT, { numberOf })).toEqual(['2" stile @ #3/#4']);
     expect({ entries, standards: FLAT }).toEqual(before);
     expect(frameNotes([], FLAT, { numberOf })).toEqual([]);
+  });
+});
+
+describe('ST2 step d notch rail roles and notes', () => {
+  it.each([
+    ['anchor 1: B top 2', 'top', 2, 0, 'top-rail', 31, ['2" notch @ #2']],
+    ['anchor 2: beaded B top 2', 'top', 2, 0.25, 'top-rail', 30.75,
+      [BEADED_LINE, '2" notch @ #2']],
+    ['anchor 3: B bottom 3', 'bottom', 3, 0, 'bottom-rail', 7, ['3" notch @ #2']],
+  ])('%s', (_case, edge, height, bead, role, z, notes) => {
+    let room = notchedFrameRoom({ [edge]: { value: height, source: 'manual' } });
+    const source = room.walls[0].runs[0];
+    source.style = { cabinetStyleId: bead ? 15 : 14, beadWidth: bead };
+    source._frame.bead = bead;
+    // Beaded inset's standard seam is twice the bead; a zero seam narrows its interior stiles.
+    if (bead) delete source.seamGap;
+    room = syncRoom(room, notchedFrameSettings);
+    const before = structuredClone(room);
+    const wall = resolveWall(room, room.walls[0], 'front');
+    const scene = runScene(room, wall, wall.runs[0], notchedFrameSettings);
+    const [region] = scene.frames.regions;
+    expect(region.notches).toEqual([{
+      columnId: 'B', edge, x: bead ? 31.25 : 31, z: edge === 'top' ? 32.5 : 4,
+      width: bead ? 27.5 : 28, height,
+    }]);
+    const entries = frameMemberRoles(region,
+      frameMembers(region, regionOpenings(region, scene.faceLayouts)), scene.cells.pieces);
+    expect(entries.find((entry) => entry.kind === 'rail' && entry.sitsOn.includes('B') && entry.z === z))
+      .toMatchObject({ role, height: 1.5 + bead });
+    const rows = shippingList(room, notchedFrameSettings).rows;
+    expect(rows.filter(({ key }) => ['A', 'B', 'C'].includes(key)).map(({ key, number }) => [key, number]))
+      .toEqual([['A', 1], ['B', 2], ['C', 3]]);
+    expect(rows.filter(({ kind }) => kind === 'frame')).toMatchObject([
+      { notes, size: '90 x 30 1/2 x 13/16' },
+    ]);
+    expect(room).toEqual(before);
+  });
+
+  it('requires a matching notch edge and positive x overlap, allowing the edge tolerance', () => {
+    const region = { ...REGION_D, notches: [
+      { edge: 'top', x: 10, z: 20, width: 10, height: 10 },
+      { edge: 'bottom', x: 10, z: 0, width: 10, height: 5 },
+    ] };
+    const rail = (x, z, width = 5) => ({ kind: 'rail', x, z, width, height: 1.5 });
+    const members = [
+      rail(10, 18.5), rail(10, 18.5 + 0.5e-6), rail(10, 18.5 + 2e-6),
+      rail(5, 18.5), rail(20, 18.5), rail(5 + 0.5e-6, 18.5),
+      rail(10, 5), rail(10, 5 - 0.5e-6), rail(10, 5 - 2e-6),
+      rail(5, 5), rail(20, 5), rail(10, 20), rail(10, 3.5),
+    ];
+    expect(frameMemberRoles(region, members, []).map(({ role }) => role)).toEqual([
+      'top-rail', 'top-rail', 'mid-rail', 'mid-rail', 'mid-rail', 'mid-rail',
+      'bottom-rail', 'bottom-rail', 'mid-rail', 'mid-rail', 'mid-rail', 'mid-rail', 'mid-rail',
+    ]);
+  });
+
+  it('orders notches by edge then x and references the cabinet nearest each notch in a nested column', () => {
+    const region = { ...REGION_D, z: 4, width: 60, height: 30.5,
+      cabinetIds: ['a', 'b-top', 'b-bottom'], notches: [
+      { columnId: 'B', edge: 'bottom', x: 31, z: 4, width: 27.5, height: 3 },
+      { columnId: 'B', edge: 'top', x: 31, z: 32.5, width: 27.5, height: 2 },
+      { columnId: 'a', edge: 'top', x: 1.5, z: 33.25, width: 28, height: 1.25 },
+    ] };
+    const boxes = [
+      { id: 'outside', columnId: 'B', x: 30.25, z: 0, width: 29, height: 100 },
+      { id: 'b-bottom', columnId: 'B', x: 30.25, z: 7, width: 29, height: 10 },
+      { id: 'b-top', columnId: 'B', x: 30.25, z: 17, width: 29, height: 15.5 },
+      { id: 'a', x: 0.75, z: 4, width: 29.5, height: 29.25 },
+    ];
+    const before = structuredClone({ region, boxes });
+    const numbered = (id) => ({ a: 1, 'b-top': 2, 'b-bottom': 3 }[id]);
+    expect(frameNotchNotes(region, boxes, numbered))
+      .toEqual(['1 1/4" notch @ #1', '2" notch @ #2', '3" notch @ #3']);
+    expect(frameNotchNotes(REGION_D, boxes, numbered)).toEqual([]);
+    expect(frameNotchNotes(undefined, boxes, numbered)).toEqual([]);
+    expect(frameNotchNotes(region, boxes, () => null)).toEqual([]);
+    expect({ region, boxes }).toEqual(before);
+  });
+
+  it('appends notch notes after return notes on the shipping frame', () => {
+    const room = notchedFrameRoom();
+    const run = room.walls[0].runs[0];
+    findLeaf(run.grid, 'A').kind = 'void';
+    findLeaf(run.grid, 'B').insideEnds = { left: { type: 'return' } };
+    const rows = shippingList(syncRoom(room, notchedFrameSettings), notchedFrameSettings).rows;
+    expect(rows.filter(({ kind }) => kind === 'frame')).toMatchObject([
+      { notes: ['6" left return', '2" notch @ #1'] },
+    ]);
+    expect(rows.filter(({ kind }) => kind !== 'frame').flatMap(({ notes }) => notes))
+      .not.toContain('2" notch @ #1');
   });
 });
