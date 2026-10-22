@@ -17,8 +17,8 @@ describe('IE1 step f frame return notes', () => {
       const before = structuredClone(room);
       const frames = frameRows(room);
       expect(frames.map(({ key }) => key)).toEqual(['frame:a', 'frame:c']);
-      expect(frames[0].notes.at(-1)).toBe(`${expected} return R`);
-      expect(frames[1].notes.at(-1)).toBe('6" return L');
+      expect(frames[0].notes.at(-1)).toBe(`${expected} right return`);
+      expect(frames[1].notes.at(-1)).toBe('6" left return');
       const rows = shippingList(room, settings).rows;
       expect(rows.filter(({ kind }) => kind !== 'frame')
         .flatMap(({ notes }) => notes).some((note) => note.includes('return'))).toBe(false);
@@ -43,7 +43,7 @@ describe('IE1 step f frame return notes', () => {
       expect(frameRows(room)).toHaveLength(1);
       const notes = frameRows(room)[0].notes;
       expect(notes[0]).toMatch(/^beaded face frame/);
-      expect(notes.slice(-2)).toEqual(['6" return L', '4" return R']);
+      expect(notes.slice(-2)).toEqual(['6" left return', '4" right return']);
     }
   });
 

@@ -20,7 +20,7 @@ export function frameReturnNotes(run, region) {
       const leaf = run.grid ? findLeaf(run.grid, leafId)
         : runItems(run).find((item) => item.id === leafId);
       const width = leaf?.insideEnds?.[side]?.width ?? FRAME_RETURN_WIDTH;
-      return `${formatInch(width)} return ${side === 'left' ? 'L' : 'R'}`;
+      return `${formatInch(width)} ${side} return`;
     }));
 }
 
