@@ -151,6 +151,7 @@ function bandEdge(room, wall, run, side, band, settings) {
     }
   }
   if (anchor === true) {
+    if (cornerAt(room, wall, side).type === 'outside') return returned(run, side);
     if (band === 'toeKick' || !wallEndPanelAt(room, wall, side, settings)) return square;
     const past = bandPast(room, wall, run, side, band, settings);
     return { type: 'return', x: side === 'left' ? -past : wall.length + past,

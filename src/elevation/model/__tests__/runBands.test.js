@@ -57,7 +57,8 @@ describe('SPEC-42 run bands', () => {
     // SPEC-42.3: its left end meets wall A's base return; its right runs past the wall end panel.
     expect(span(bandsOf(g2, 1)['4b49c071'].countertop))
       .toEqual([25.5625, 53.6875]);
-    expect(span(bandsOf(g2, 1, 'back')['2c8ab1e3'].countertop)).toEqual([-0.75, 79.25]);
+    // DM6: the back face's outside corner returns by the countertop overhang.
+    expect(span(bandsOf(g2, 1, 'back')['2c8ab1e3'].countertop)).toEqual([-0.75, 80]);
   });
 
   it('a side of the recess a run sits in closes its ends; a free end with a filler or end panel does not (G5, G6)', () => {

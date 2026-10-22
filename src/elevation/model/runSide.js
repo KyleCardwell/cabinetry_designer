@@ -1,4 +1,6 @@
 import { frontDepth, runBackOffset } from './corners.js';
+import { bandOutline, frontContour } from './bandEnds.js';
+import { cornerShapes } from './cornerParts.js';
 import { resolveProfile } from './profile.js';
 import { moldingPast, moldingProfiles } from './moldingProfiles.js';
 import { nosingProjection, woodTopSection } from './nosing.js';
@@ -7,6 +9,8 @@ import { bandDepths } from './bandDepths.js';
 import { runBaseProfile as runBase } from './furnitureBase.js';
 import { isCountertop, runMoldings, runTop } from './tops.js';
 import { topOverhangs } from './topOverhang.js';
+import { runBandEnds } from './runBands.js';
+import { runScene } from './runScene.js';
 
 const EPSILON = 1e-6;
 
@@ -80,5 +84,32 @@ export function runSide(room, wall, run, settings) {
     boxTop + profile.crownStackHeight, crownZ, profile.crownHeight,
     faces + moldingPast(moldings, 'crown', settings),
     { overhang: moldings.picked.topMold === 'none' ? 0 : moldings.overhang });
+  return pieces;
+}
+
+/** A run seen end-on: returning top bands fill back to the wall, with the visible end panel. */
+export function runEndView(room, wall, run, end, settings) {
+  const scene = runScene(room, wall, run, settings);
+  const back = runBackOffset(run);
+  let returns;
+  const getReturns = () => (returns ??= cornerShapes(room, wall, wall.side ?? 'front', settings, { profiles: false }));
+  const bands = { countertop: 'countertop', top_mold: 'topMold', crown: 'crown' };
+  const pieces = runSide(room, wall, run, settings).map((piece) => {
+    const band = bands[piece.piece];
+    if (!band) return piece;
+    const ends = runBandEnds(room, wall, run, settings, scene, band, piece.z, piece.height, getReturns);
+    if (ends[end === 'left' ? 0 : 1].type !== 'return') return piece;
+    return { ...piece, back,
+      ...(piece.outline ? { outline: bandOutline(
+        [[back, piece.z, 0], [back, piece.z + piece.height, 0]],
+        frontContour(piece.outline), piece.z, piece.height,
+      ) } : {}),
+    };
+  });
+  if (run.ends?.[end]?.type === 'end_panel') {
+    const panel = scene.drawnPieces.find(({ id, kind }) => id === `${run.id}:${end}` && kind === 'end_panel');
+    if (panel) pieces.push({ piece: 'end_panel', z: panel.z, height: panel.height,
+      back, front: frontDepth(run, settings) });
+  }
   return pieces;
 }

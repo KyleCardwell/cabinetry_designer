@@ -8,7 +8,7 @@ import { resolveProfile } from '../profile.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
-import { runSide } from '../runSide.js';
+import { runEndView, runSide } from '../runSide.js';
 import { sectionProfileOutline } from '../sectionProfileOutline.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -181,7 +181,7 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     run.top = 'crown';
     const synced = syncRoom(g2, settings);
     const side = resolveWall(synced, synced.walls[1], 'back');
-    const source = runSide(synced, side, side.runs.find(({ id }) => id === run.id), settings);
+    const source = runEndView(synced, side, side.runs.find(({ id }) => id === run.id), 'right', settings);
     const profile = cornerShapes(synced, synced.walls[0], 'front', settings).find(({ kind }) => kind === 'profile');
     for (const piece of source.filter(({ outline }) => outline)) {
       const part = profile.parts.find(({ kind }) => kind === piece.piece);
@@ -218,7 +218,10 @@ describe('SPEC-50.2 step 471 molding placement', () => {
     const room = syncRoom(stored, using);
     const crown = cornerShapes(room, room.walls[0], 'front', using)
       .find(({ kind }) => kind === 'profile').parts.find(({ kind }) => kind === 'crown');
-    expect(crown.outline).toEqual([[196.25, 40.5, -1], [196.75, 40.5, 0]]);
+    const side = resolveWall(room, room.walls[1], 'back');
+    const source = runEndView(room, side, side.runs.find(({ id }) => id === run.id), 'right', using)
+      .find(({ piece }) => piece === 'crown');
+    expect(crown.outline).toEqual(source.outline.map(([depth, z, bulge]) => [172 + depth, z, bulge]));
   });
 
 });

@@ -2,7 +2,7 @@ import { anchoredToCorner, cornerAt, spanCorner } from './corners.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
 import { landingsOn } from './landings.js';
 import { resolveWall } from './room.js';
-import { runSide } from './runSide.js';
+import { runEndView, runSide } from './runSide.js';
 import { transformOutline } from './sectionProfileOutline.js';
 import { soffitReturns } from './soffits.js';
 import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
@@ -14,12 +14,12 @@ const BODY = new Set(['box', 'faces']);
  * What a wall face sees of its neighbours (SPEC-42.2), as shapes of drawing parts:
  * - returns: the runs on the next wall (or on a wing wall) anchored into this face's inside corner, and the
  *   soffits that die into it, cut where they meet this face. Their box and faces are `section` parts.
- * - profiles: runs on a connected wall that reach past this face's ends, seen from the side. Their box and
- *   faces are `profile` parts.
+ * - profiles: runs on a connected wall that reach past this face's ends, seen end-on. Their box and
+ *   faces are `profile` parts; a visible end panel stays `end_panel` and opaque.
  * A run's toe kick, countertop, top mold and crown keep their band kinds. Each shape is
  * { key, kind: 'return' | 'profile', wallId, runId?, soffitId?, parts }; parts carry their depths from this face.
  */
-export function cornerShapes(room, wall, side, settings) {
+export function cornerShapes(room, wall, side, settings, { profiles: includeProfiles = true } = {}) {
   const view = resolveWall(room, wall, side);
   const source = view.sideSource ?? view;
   const frame = wallSideFrame(room, source, view.side);
@@ -102,6 +102,8 @@ export function cornerShapes(room, wall, side, settings) {
     });
   }
 
+  // End views resolve their band ends against returns without recursively building other profiles.
+  if (!includeProfiles) return shapes;
   const profiles = [];
   const handled = new Set();
   for (const endpoint of ['start', 'end']) {
@@ -113,11 +115,14 @@ export function cornerShapes(room, wall, side, settings) {
       const neighborFrame = wallSideFrame(room, neighbor, neighborSide);
       // A run in the neighbour's recess sits behind its face: this face never sees it.
       for (const run of neighborView.runs.filter((candidate) => !candidate.recessId)) {
-        const pieces = runSide(room, neighborView, run, settings);
         const project = (piece) => [run.x, run.x + run.width].flatMap((x) => [piece.back, piece.front]
           .map((offset) => elevationToPlan(neighborFrame, x, offset)));
-        const body = pieces.filter((piece) => BODY.has(piece.piece)).flatMap(project);
+        const body = runSide(room, neighborView, run, settings).filter((piece) => BODY.has(piece.piece)).flatMap(project);
         if (body.length === 0 || Math.max(...body.map(depthOf)) <= EPSILON) continue;
+        const end = depthOf(elevationToPlan(neighborFrame, run.x, 0))
+          > depthOf(elevationToPlan(neighborFrame, run.x + run.width, 0)) ? 'left' : 'right';
+        const endX = end === 'left' ? run.x : run.x + run.width;
+        const pieces = runEndView(room, neighborView, run, end, settings);
         const bodyStart = Math.min(...body.map((point) => planPointToWallX(frame, point)));
         for (const past of ['left', 'right']) {
           const key = `${neighbor.id}:${neighborSide}:${run.id}:${past}`;
@@ -128,7 +133,7 @@ export function cornerShapes(room, wall, side, settings) {
             const finish = past === 'left' ? Math.min(Math.max(...xs), 0) : Math.max(...xs);
             if (finish - start <= EPSILON) return [];
             const depths = points.map(depthOf);
-            const xOf = (depth) => planPointToWallX(frame, elevationToPlan(neighborFrame, run.x, depth));
+            const xOf = (depth) => planPointToWallX(frame, elevationToPlan(neighborFrame, endX, depth));
             return [{
               id: `${key}:${piece.piece}`,
               kind: BODY.has(piece.piece) ? 'profile' : piece.piece,
