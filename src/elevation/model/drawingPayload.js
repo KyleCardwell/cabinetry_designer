@@ -52,7 +52,9 @@ function facePayload(room, wall, side, key, letter, settings, options) {
     ...elevationParts(room, wall, side, settings),
     ...bandParts(room, wall, side, settings),
     ...wallParts(room, wall, side, settings),
-    ...(options?.cornerShapes?.flatMap((shape) => shape.parts) ?? cornerParts(room, wall, side, settings)),
+    // Geometry rejects unknown part keys: end-view panel details (DM8) leave the parts here.
+    ...(options?.cornerShapes?.flatMap((shape) => shape.parts) ?? cornerParts(room, wall, side, settings))
+      .map(({ doorDetail, ...part }) => part), // eslint-disable-line no-unused-vars
   ];
   const partIds = new Set(parts.map(({ id }) => id));
   const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);

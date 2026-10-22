@@ -2,6 +2,7 @@ import { bandOutline, frontContour } from './bandEnds.js';
 import { jogWalls } from './combinedElevations.js';
 import { profileBandJoint } from './cornerBands.js';
 import { anchoredToCorner, cornerAt, frontDepth, spanCorner } from './corners.js';
+import { placePanelDetail, runEndPanelDetail } from './doorDetails.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
 import { landingsOn } from './landings.js';
 import { resolveWall } from './room.js';
@@ -75,6 +76,15 @@ export function cornerShapes(room, wall, side, settings,
   const depthOf = (point) => dot(subtract(point, frame.leftPoint), frame.n);
   const shapes = [];
 
+  /** An end-view end panel's door detail, mapped through the part's own depth → x and cut to its drawn range (DM8). */
+  const endPanelDetail = (wallView, run, end, piece, xOf, x, width) => {
+    const detail = runEndPanelDetail(room, wallView, run, end, settings);
+    if (!detail) return {};
+    const placed = placePanelDetail(detail,
+      (u) => xOf(end === 'left' ? piece.back + u : piece.front - u), [x, x + width]);
+    return placed ? { doorDetail: placed } : {};
+  };
+
   /** A neighbour return: `xOf(offset)` maps its wall depth to x here; end is away from the corner. */
   const cut = (key, neighbor, neighborView, neighborFrame, run, end, xOf) => {
     const ends = [run.x, run.x + run.width];
@@ -99,6 +109,8 @@ export function cornerShapes(room, wall, side, settings,
           Math.min(length, Math.max(0, xOf(depth))), z,
         ], xOf(1) < xOf(0)) } : {}),
         ...(BODY.has(piece.piece) || piece.piece === 'end_panel' ? {} : { opaque: false }),
+        ...(asEnd && piece.piece === 'end_panel'
+          ? endPanelDetail(neighborView, run, end, piece, xOf, x, width) : {}),
       }];
     });
     if (parts.length > 0) shapes.push({ key, kind: 'return', wallId: neighbor.id, runId: run.id, parts });
@@ -197,6 +209,8 @@ export function cornerShapes(room, wall, side, settings,
               ...(piece.outline ? { outline: transformOutline(piece.outline, ([depth, z]) => [
                 Math.min(finish, Math.max(start, xOf(depth))), z,
               ], xOf(1) < xOf(0)) } : {}),
+              ...(piece.piece === 'end_panel'
+                ? endPanelDetail(neighborView, run, end, piece, xOf, start, finish - start) : {}),
             }];
           });
           if (parts.length === 0) continue;

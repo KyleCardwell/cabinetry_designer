@@ -3,9 +3,11 @@ import { findLeaf } from './cellTree.js';
 import { doorProfileOffsets, inset, partProfileLines, stileFlat } from './doorProfileLines.js';
 import { frontStackWarnings, partSizes } from './doorSizes.js';
 import { cabinetFaceLevels, facePartType, panelLevels, resolveDoorStyle } from './doorStyleResolve.js';
+import { frontDepth, runBackOffset } from './corners.js';
 import { defaultFace } from './faces.js';
 import { getFaceNode } from './faceTree.js';
 import { runItems } from './grid.js';
+import { isJoinedEnd } from './panelThickness.js';
 import { runScene } from './runScene.js';
 import { wallViewForRun } from './wallSides.js';
 
@@ -88,6 +90,65 @@ export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = [
   return { construction: r.construction, core, openings, sizes: r };
 }
 
+/** A part's openings (partDetail) and its profile lines and miters, as face-on parts and end views draw them. */
+function detailWithLines(offsets, style, design, rect, sizes, panel) {
+  const detail = partDetail(style, design, rect, sizes, offsets.slots.outside?.reachOut ?? 0, offsets.applied);
+  return { detail, fit: partProfileLines(offsets, detail, rect, { panel }) };
+}
+
+/**
+ * A run end panel's door detail at true size in its own frame (SPEC-DM8): x runs 0 … width across the panel as seen
+ * standing outside facing it (a left end panel's back edge is at 0, a right end panel's front edge), z as in the
+ * elevation. Null when that end isn't an end panel or its style is sheet.
+ */
+export function runEndPanelDetail(room, wall, run, end, settings, scene = runScene(room, wall, run, settings)) {
+  const stored = run.ends?.[end];
+  if (stored?.type !== 'end_panel') return null;
+  const panel = scene.drawnPieces.find(({ id, kind }) => id === `${run.id}:${end}` && kind === 'end_panel');
+  if (!panel) return null;
+  const { style, design } = resolveDoorStyle(room, settings, 'panel',
+    panelLevels(room, wallViewForRun(wall, run), run, stored, { sheet: isJoinedEnd(run, end) }));
+  if (style.id === 'sheet') return null;
+  const width = frontDepth(run, settings) - runBackOffset(run);
+  if (!(width > 0) || !(panel.height > 0)) return null;
+  const rect = { x: 0, z: panel.z, width, height: panel.height };
+  const offsets = doorProfileOffsets(style, design, settings?.sectionProfiles ?? []);
+  const { detail, fit } = detailWithLines(offsets, style, design, rect, stored.sizes, true);
+  return {
+    width, z: panel.z, height: panel.height, openings: detail.openings,
+    lines: fit.lines, miters: fit.miters, openingsShown: fit.openingsShown,
+  };
+}
+
+/**
+ * Place a panel-frame detail on the wall (SPEC-DM8): `xAt(u)` maps the panel's x to wall x (either direction),
+ * then rectangles and miters are cut to the drawn range [xMin, xMax]. Null when nothing is left.
+ */
+export function placePanelDetail(detail, xAt, [xMin, xMax]) {
+  const EPS = 1e-6;
+  const rect = ({ x, z, width, height }) => {
+    const ends = [xAt(x), xAt(x + width)];
+    const left = Math.max(Math.min(...ends), xMin);
+    const right = Math.min(Math.max(...ends), xMax);
+    return right - left > EPS ? { x: left, z, width: right - left, height } : null;
+  };
+  const openings = detail.openingsShown === false ? [] : detail.openings.map(rect).filter(Boolean);
+  const profileLines = detail.lines.map(rect).filter(Boolean);
+  const miters = (detail.miters ?? []).flatMap(({ x1, z1, x2, z2 }) => {
+    let a = { x: xAt(x1), z: z1 };
+    let b = { x: xAt(x2), z: z2 };
+    if (a.x > b.x) [a, b] = [b, a];
+    if (b.x - a.x <= EPS) return a.x >= xMin - EPS && a.x <= xMax + EPS ? [{ x1: a.x, z1: a.z, x2: b.x, z2: b.z }] : [];
+    const low = Math.max(a.x, xMin);
+    const high = Math.min(b.x, xMax);
+    if (high - low <= EPS) return [];
+    const at = (x) => a.z + (b.z - a.z) * (x - a.x) / (b.x - a.x);
+    return [{ x1: low, z1: at(low), x2: high, z2: at(high) }];
+  });
+  if (!openings.length && !profileLines.length && !miters.length) return null;
+  return { openings, profileLines, miters };
+}
+
 /** Every face-on part's door detail, profile lines and warnings, in drawing order (SPEC-46.2, SPEC-50). */
 export function runDoorDetails(room, wall, run, settings, scene = runScene(room, wall, run, settings)) {
   const levelsWall = wallViewForRun(wall, run);
@@ -103,8 +164,7 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
       offsetsByStyle.set(style, doorProfileOffsets(style, design, profiles));
     }
     const offsets = offsetsByStyle.get(style);
-    const detail = partDetail(style, design, rect, sizes, offsets.slots.outside?.reachOut ?? 0, offsets.applied);
-    const fit = partProfileLines(offsets, detail, rect, { panel: !panelMaterial });
+    const { detail, fit } = detailWithLines(offsets, style, design, rect, sizes, !panelMaterial);
     const { x, z, width, height } = rect;
     parts.push({
       key, kind, pieceId, path, styleId: style.id, label: style.label,

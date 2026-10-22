@@ -72,7 +72,11 @@ describe('DM6 step e combined jog walls', () => {
         .toMatchObject({ x: 95.125, width: 24.875 });
       const payload = toDrawingPayload(room, settings).elevations.find(({ faces }) => faces);
       const tall = payload.parts.filter(({ runId }) => runId === 'tall');
-      expect(tall).toEqual(shape.parts);
+      expect(tall).toEqual(shape.parts.map((part) => {
+        const payloadPart = { ...part };
+        delete payloadPart.doorDetail;
+        return payloadPart;
+      }));
       const canvas = resolveCombinedFaces(room, combined, settings);
       for (const face of combined.faces) expect(canvas.get(face.key).shapes).toEqual(corners.get(face.key));
       // Keeping the return must not depend on which face is first in the input.

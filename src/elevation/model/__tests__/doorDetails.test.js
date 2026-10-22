@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
 import { partSizes } from '../doorSizes.js';
-import { partDetail } from '../doorDetails.js';
+import { partDetail, placePanelDetail } from '../doorDetails.js';
 
 const [SQUARE, SLAB, SLAB_AM] = DOOR_DESIGNS;
 const S = DEFAULT_DOOR_STYLE;
@@ -54,5 +54,30 @@ describe('SPEC-46.2 a part\'s door detail: frame openings in wall coordinates', 
     expect([molding.construction, molding.openings]).toEqual(['slab', [box(0, 0, 15, 30)]]);
     expect(partDetail(S, SLAB_AM, box(0, 0, 15, 30), { midStiles: [{ at: 7.5 }] }).openings)
       .toEqual([box(0, 0, 7.5, 30), box(7.5, 0, 7.5, 30)]);
+  });
+});
+
+describe('DM8 step a placing a panel detail on the wall', () => {
+  const detail = {
+    width: 24.875, z: 4, height: 30.5, openings: [box(3, 7, 18.875, 24.5)],
+    lines: [box(1, 5, 22.875, 28.5)], miters: [{ x1: 0, z1: 4, x2: 3, z2: 7 }], openingsShown: true,
+  };
+
+  it('anchor 6: maps u through xAt and cuts to the drawn range', () => {
+    expect(placePanelDetail(detail, (u) => -10 + u, [-10, 0]).openings).toEqual([box(-7, 7, 7, 24.5)]);
+  });
+
+  it('maps a right-to-left frame, keeping rectangles positive and miters clipped by x', () => {
+    const placed = placePanelDetail(detail, (u) => 168 - u, [143.125, 168]);
+    expect(placed.openings).toEqual([box(146.125, 7, 18.875, 24.5)]);
+    expect(placed.profileLines).toEqual([box(144.125, 5, 22.875, 28.5)]);
+    expect(placed.miters).toEqual([{ x1: 165, z1: 7, x2: 168, z2: 4 }]);
+    expect(placePanelDetail(detail, (u) => 168 - u, [166, 168]).miters)
+      .toEqual([{ x1: 166, z1: 6, x2: 168, z2: 4 }]);
+  });
+
+  it('drops hidden openings and returns null when nothing is left', () => {
+    expect(placePanelDetail({ ...detail, openingsShown: false }, (u) => u, [0, 30]).openings).toEqual([]);
+    expect(placePanelDetail(detail, (u) => u + 100, [0, 50])).toBeNull();
   });
 });

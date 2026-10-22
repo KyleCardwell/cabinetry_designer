@@ -2,7 +2,9 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { cornerParts, cornerShapes } from '../cornerParts.js';
 import { gridFromItems } from '../grid.js';
-import { syncRoom } from '../room.js';
+import { resolveWall, syncRoom } from '../room.js';
+import { runEndPanelDetail } from '../doorDetails.js';
+import { runScene } from '../runScene.js';
 import { runEndView } from '../runSide.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -167,5 +169,76 @@ describe('SPEC-42.2 corner returns', () => {
       ['faces', 'section', 97.5, 4, 0.875, 30.5, 0, 24, true],
       ['countertop', 'countertop', 76.5, 34.5, 22.625, 1.5, 0, 24, false],
     ]);
+  });
+});
+
+// Wall 2's Euro base returns into Wall 1's right corner; its right end (the free one) shown at x 143 1/8 … 168.
+function rightReturnKitchen(sizes) {
+  const copy = structuredClone(stored('G1 Euro kitchen'));
+  copy.walls[1].runs[1].ends.right = { type: 'end_panel', width: null, ...(sizes ? { sizes } : {}) };
+  copy.elevationOptions = { [copy.walls[0].id]: { returns: 'end' } };
+  return syncRoom(copy, { ...settings, runFlex: 0 });
+}
+const endPanelOf = (shapes) => shapes.flatMap(({ parts }) => parts).find(({ kind }) => kind === 'end_panel');
+
+describe('DM8 step a end panel detail on end views', () => {
+  it('anchor 1: the panel frame at true size, 3" stiles and rails, x from the front on a right end', () => {
+    const synced = rightReturnKitchen();
+    const wall = resolveWall(synced, synced.walls[1]);
+    const run = wall.runs[1];
+    expect(runEndPanelDetail(synced, wall, run, 'right', settings)).toMatchObject({
+      width: 24.875, z: 4, height: 30.5, openings: [{ x: 3, z: 7, width: 18.875, height: 24.5 }],
+    });
+    expect(runEndPanelDetail(synced, wall, run, 'left', settings)).toBeNull();
+  });
+
+  it('anchor 2: a right-corner return places the opening at x 146 1/8 … 165, front on the left', () => {
+    const panel = endPanelOf(shapesOf(rightReturnKitchen(), 0));
+    expect(panel).toMatchObject({ x: 143.125, width: 24.875, z: 4, height: 30.5 });
+    expect(panel.doorDetail).toEqual({
+      openings: [{ x: 146.125, z: 7, width: 18.875, height: 24.5 }], profileLines: [], miters: [],
+    });
+  });
+
+  it('anchor 3: a 4" left stile on a right end panel is the front stile', () => {
+    const panel = endPanelOf(shapesOf(rightReturnKitchen({ stiles: { left: 4 } }), 0));
+    expect(panel.doorDetail.openings).toEqual([{ x: 147.125, z: 7, width: 17.875, height: 24.5 }]);
+  });
+
+  it('anchor 4: a 4" left stile on a left end panel is the back stile, against x 0', () => {
+    const copy = structuredClone(endViewKitchen());
+    copy.walls[0].runs[0].ends.left.sizes = { stiles: { left: 4 } };
+    const synced = syncRoom(copy, { ...settings, runFlex: 0 });
+    const panel = shapesOf(synced, 1)[0].parts.find(({ kind }) => kind === 'end_panel');
+    expect(panel.doorDetail.openings).toEqual([{ x: 4, z: 7, width: 17.875, height: 24.5 }]);
+  });
+
+  it('anchor 5: a mid rail 18" up on center splits the opening', () => {
+    const panel = endPanelOf(shapesOf(rightReturnKitchen({ midRails: [{ at: 18, width: 3 }] }), 0));
+    expect(panel.doorDetail.openings).toEqual([
+      { x: 146.125, z: 7, width: 18.875, height: 13.5 },
+      { x: 146.125, z: 23.5, width: 18.875, height: 8 },
+    ]);
+  });
+
+  it('anchor 7: no detail on a section return or a joined (sheet) end', () => {
+    const synced = rightReturnKitchen();
+    synced.elevationOptions[synced.walls[0].id].returns = 'section';
+    expect(shapesOf(synced, 0).flatMap(({ parts }) => parts).some(({ doorDetail }) => doorDetail)).toBe(false);
+    const wall = resolveWall(synced, synced.walls[1]);
+    const run = wall.runs[1];
+    const joined = { ...run, anchors: { ...run.anchors, right: { to: 'follow', runId: 'other', side: 'left' } } };
+    expect(runEndPanelDetail(synced, wall, joined, 'right', settings, runScene(synced, wall, run, settings)))
+      .toBeNull();
+  });
+});
+
+describe('DM8 step a payload stays valid', () => {
+  it('keeps doorDetail off the payload parts', async () => {
+    const { toDrawingPayload } = await import('../drawingPayload.js');
+    const payload = toDrawingPayload(rightReturnKitchen(), settings);
+    const parts = payload.elevations.flatMap(({ parts: list }) => list);
+    expect(parts.some((part) => part.kind === 'end_panel' && part.id.includes(':end_panel'))).toBe(true);
+    expect(parts.some((part) => 'doorDetail' in part)).toBe(false);
   });
 });
