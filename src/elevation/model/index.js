@@ -22,6 +22,7 @@ export {
   KIND_LABELS,
 } from './constants.js';
 export { insideEndSides } from './insideEnds.js';
+export { stepEndSides } from './stepEnds.js';
 export {
   SETTING_LEVELS,
   SETTINGS_REGISTRY,

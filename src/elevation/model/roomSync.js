@@ -8,6 +8,7 @@ import { findCollisions } from './footprints.js';
 import { frameRegions } from './frames.js';
 import { runItems } from './grid.js';
 import { insideEndBoundary, insideEndSides } from './insideEnds.js';
+import { stepEndSides } from './stepEnds.js';
 import {
   followLeaders,
   isFollowAnchor,
@@ -154,6 +155,23 @@ function withInsideEnds(room, wall, run, settings) {
     return JSON.stringify(_insideEnds) === JSON.stringify(entries) ? run : { ...base, _insideEnds: entries };
   }
   return Object.hasOwn(run, '_insideEnds') ? base : run;
+}
+
+/** Steps use the final inside-panel layout and never change its widths. */
+function withStepEnds(room, wall, run, settings) {
+  const { _stepEnds, ...base } = run;
+  const view = wallViewForRun(wall, base);
+  const layout = splitRun(base, settings, {
+    endMinWidths: endMinWidthsForRun(room, view, base, settings),
+    endCornerAngles: endCornerAnglesForRun(room, view, base),
+    pinTargets: pinTargetsForRun(base, view, wallLength(wall), settings),
+  });
+  const entries = stepEndSides(base, cellPieces(base, layout), settings, room)
+    .filter((entry) => entry.choice !== 'none');
+  if (entries.length) {
+    return JSON.stringify(_stepEnds) === JSON.stringify(entries) ? run : { ...base, _stepEnds: entries };
+  }
+  return Object.hasOwn(run, '_stepEnds') ? base : run;
 }
 
 /** A wall's derived panel thicknesses, only where they differ from the team default. */
@@ -385,7 +403,9 @@ export function syncRoom(room, settings) {
     ...nextRoom,
     walls: nextRoom.walls.map((wall) => ({
       ...wall,
-      runs: wall.runs.map((run) => withInsideEnds(nextRoom, wall, run, settings)),
+      runs: wall.runs.map((run) => withStepEnds(
+        nextRoom, wall, withInsideEnds(nextRoom, wall, run, settings), settings,
+      )),
     })),
   };
 }
