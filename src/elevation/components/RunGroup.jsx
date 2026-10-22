@@ -14,6 +14,7 @@ import { doorDrawing, runDoorDetails } from '../model/doorDetails.js';
 import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { centerlineMarkers } from '../model/dimensions.js';
+import { runStepSides } from '../model/columnSteps.js';
 import { runBands } from '../model/runBands.js';
 import { runScene } from '../model/runScene.js';
 import { runPulls } from '../model/pullLayouts.js';
@@ -486,6 +487,7 @@ function RunGroup({
       {showDimensions && (
         <CellChains
           grids={cells.grids}
+          steps={runStepSides(run, result)}
           transform={transform}
           editable={stretchable && !preview && Boolean(onEditTrack)}
           onEditTrack={(edit) => onEditTrack(run.id, edit)}

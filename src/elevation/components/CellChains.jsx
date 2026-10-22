@@ -15,7 +15,8 @@ const TICK_HALF_LENGTH = 3;
 function CellChain({ grid, transform, editable, onEditTrack }) {
   const row = grid.axis === 'row';
   const origin = wallToScreen({ x: grid.x, z: grid.z }, transform);
-  const chainX = origin.x + 10;
+  const direction = grid.direction ?? 1;
+  const chainX = origin.x + direction * 10;
   const chainY = origin.y - 10;
   const boundaries = [...new Set(grid.tracks.flatMap((track) => [track.start, track.end]))];
   const pointAt = (value) => (row
@@ -54,7 +55,8 @@ function CellChain({ grid, transform, editable, onEditTrack }) {
           <Line key={`line:${index}`} points={points} stroke="#94a3b8" strokeWidth={1} listening={false} />
         ));
         if (!visible) return <Group key={track.id}>{lines}</Group>;
-        const x = row ? chainX + (inline ? -FONT_SIZE / 2 : 3) : Math.min(start.x, end.x);
+        const x = row ? chainX + (inline ? -FONT_SIZE / 2 : direction > 0 ? 3 : -FONT_SIZE - 3)
+          : Math.min(start.x, end.x);
         const y = row ? center.y : chainY - (inline ? FONT_SIZE / 2 : FONT_SIZE + 3);
         const color = track.manual ? '#7dd3fc' : '#e2e8f0';
         const handleClick = editable ? (event) => {
@@ -129,13 +131,16 @@ function CellChain({ grid, transform, editable, onEditTrack }) {
   );
 }
 
-export default function CellChains({ grids, transform, editable, onEditTrack }) {
-  return grids.map((grid) => (
+export default function CellChains({ grids, steps = [], transform, editable, onEditTrack }) {
+  return [...grids, ...steps.map(({ x, edge, start, end, direction }) => ({
+    id: `step:${x}:${edge}`, axis: 'row', x, z: start, direction,
+    tracks: [{ id: 'step', start, end }], step: true,
+  }))].map((grid) => (
     <CellChain
       key={grid.id}
       grid={grid}
       transform={transform}
-      editable={editable}
+      editable={editable && !grid.step}
       onEditTrack={onEditTrack}
     />
   ));

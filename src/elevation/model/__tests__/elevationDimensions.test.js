@@ -1,8 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { elevationDimensions, placeLabels } from '../elevationDimensions.js';
-import { syncRoom } from '../room.js';
+import { flipRunsForWall, syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
+import { updateRootItem } from '../grid.js';
+import { runStepSides } from '../columnSteps.js';
+import { runScene } from '../runScene.js';
+import { topSegmentRoom, topSegmentSettings } from './fixtures/topSegments.js';
 
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
@@ -17,6 +21,86 @@ const row = ({
 /** The rows below and above the wall only (SPEC-43.2 adds vertical columns, SPEC-43.3 cell chains and callouts). */
 const ROWS = ['lower.inner', 'lower.outer', 'openings', 'wall', 'upper.inner', 'upper.outer'];
 const horizontal = (dimensions) => dimensions.filter(({ row: name }) => ROWS.includes(name));
+
+describe('ST6 step b internal step dimensions', () => {
+  const manual = (value) => ({ value, source: 'manual' });
+  function fixture(offsets = {}, overrides = {}) {
+    const room = topSegmentRoom({ topSegments: [], ...overrides });
+    const run = room.walls[0].runs[0];
+    for (const [id, fields] of Object.entries(offsets)) {
+      run.grid = updateRootItem(run.grid, id, fields);
+    }
+    return room;
+  }
+  function dimensions(room, settings = topSegmentSettings, side = 'front') {
+    return elevationDimensions(room, room.walls[0], side, settings).filter(({ row }) => row === 'steps');
+  }
+
+  it.each([
+    ['1: B top 2', { B: { top: manual(2) } }, [[30, 32.5, 34.5, 1], [60, 32.5, 34.5, -1]]],
+    ['2: B bottom 3', { B: { bottom: manual(3) } }, [[30, 4, 7, 1], [60, 4, 7, -1]]],
+    ['3: A top 2', { A: { top: manual(2) } }, [[30, 32.5, 34.5, -1]]],
+    ['4: A top 2, B top 3', { A: { top: manual(2) }, B: { top: manual(3) } },
+      [[30, 31.5, 32.5, 1], [60, 31.5, 34.5, -1]]],
+  ])('anchor %s: measures once per internal boundary, inset into the shorter side', (_, offsets, expected) => {
+    const room = fixture(offsets);
+    const wall = room.walls[0];
+    const run = wall.runs[0];
+    const before = structuredClone(room);
+    expect(runStepSides(run, runScene(room, wall, run, topSegmentSettings).result)
+      .map(({ x, start, end, direction }) => [x, start, end, direction])).toEqual(expected);
+    for (const scale of [24, 48]) {
+      expect(dimensions(room, { ...topSegmentSettings, plotScale: scale })).toEqual(
+        expected.map(([x, start, end, direction]) => {
+          const at = x + direction * 0.25 * scale;
+          return { row: 'steps', kind: 'step', orientation: 'vertical', start, end, base: at, at,
+            text: String(end - start), textX: at + direction * 0.15625 * scale, textZ: (start + end) / 2 };
+        }),
+      );
+    }
+    expect(room).toEqual(before);
+  });
+
+  it('anchor 5: has no step row without steps and preserves all golden dimensions', () => {
+    expect(dimensions(fixture())).toEqual([]);
+    for (const original of document.rooms) {
+      const synced = syncRoom(original, settings);
+      for (const wall of synced.walls) {
+        for (const side of ['front', 'back']) expect(dimensions({ ...synced, walls: [wall] }, settings, side)).toEqual([]);
+      }
+    }
+  });
+
+  it('uses accepted root box bounds for both edges, nested grids, equal drops and rejected offsets', () => {
+    const room = fixture({ B: { top: manual(2), bottom: manual(3) } });
+    room.walls[0].runs[0].grid.cells[1].node = {
+      id: 'B', cols: [{ id: 'B:c', size: null, sizeMode: 'auto' }],
+      rows: [{ id: 'B:t', size: 6, sizeMode: 'manual' }, { id: 'B:b', size: null, sizeMode: 'auto' }],
+      cells: ['B-top', 'B-bottom'].map((id, row) => ({ col: 0, row, colSpan: 1, rowSpan: 1,
+        node: { id, kind: 'cabinet', face: { type: 'door' } } })),
+    };
+    expect(dimensions(room).map(({ start, end }) => [start, end])).toEqual([[32.5, 34.5], [4, 7], [32.5, 34.5], [4, 7]]);
+    expect(dimensions(fixture({ B: { top: manual(29.75) } }))).toEqual([]);
+    expect(dimensions(fixture(Object.fromEntries(['A', 'B', 'C'].map((id) => [id, { top: manual(2) }]))))).toEqual([]);
+    const separated = fixture({ B: { top: manual(2) } });
+    separated.walls[0].runs[0].grid.cells[0].node.kind = 'void';
+    expect(dimensions(separated)).toHaveLength(1);
+  });
+
+  it('measures segment drops on Euro and face frame runs and mirrors the lower side when flipped', () => {
+    for (const cabinetStyleId of [13, 14]) {
+      const room = topSegmentRoom({ style: { cabinetStyleId }, seamGap: 0 });
+      const steps = dimensions(room);
+      expect(steps.map(({ start, end }) => [start, end])).toEqual([[32.5, 34.5], [32.5, 34.5]]);
+    }
+    const room = fixture({ A: { top: manual(2) } });
+    room.walls[0] = flipRunsForWall(room.walls[0]);
+    expect(dimensions(room)).toEqual([
+      { row: 'steps', kind: 'step', orientation: 'vertical', start: 32.5, end: 34.5,
+        base: 96, at: 96, text: '2', textX: 99.75, textZ: 33.5 },
+    ]);
+  });
+});
 
 describe('DM7 centred dimension text', () => {
   it.each([

@@ -2,6 +2,7 @@ import {
   centerlineMarkers, clearanceCallouts, horizontalChains, openingChain, pickColumnRuns, verticalChains, wallRow,
 } from './dimensions.js';
 import { plotScale } from './drawingScale.js';
+import { runStepSides } from './columnSteps.js';
 import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
 import { formatDimension } from './units.js';
@@ -171,7 +172,7 @@ export function elevationDimensions(room, wall, side, settings, { extent: shared
     }
   }
   const scenes = view.runs.map((run) => ({ run, scene: runScene(room, view, run, settings) }));
-  for (const { scene } of scenes) {
+  for (const { run, scene } of scenes) {
     const { cells } = scene;
     for (const grid of cells.grids) {
       const vertical = grid.axis === 'row';
@@ -182,6 +183,11 @@ export function elevationDimensions(room, wall, side, settings, { extent: shared
       const at = (vertical ? grid.x : grid.z) + CELL_CHAIN_INSET * scale;
       const { placed } = placeLabels(segments, at, +1, scale);
       dimensions.push(...labelRecords(placed, 'cells', at, at, vertical));
+    }
+    for (const { x, start, end, direction } of runStepSides(run, scene.result)) {
+      const at = x + direction * CELL_CHAIN_INSET * scale;
+      const { placed } = placeLabels([{ kind: 'step', start, end }], at, direction, scale);
+      dimensions.push(...labelRecords(placed, 'steps', at, at, true));
     }
   }
   for (const { start, end, targetRunId, z } of clearanceCallouts(room, view, settings)) {

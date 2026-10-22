@@ -31,6 +31,18 @@ import { roomWith } from './helpers/showThroughRoom.js';
 import { notchedFrameRoom, notchedFrameSettings } from './fixtures/notchedFrame.js';
 import { topSegmentRoom, topSegmentSettings } from './fixtures/topSegments.js';
 
+describe('ST6 step b step dimension payload', () => {
+  it('exports both internal dimensions from a box segment through the existing dimensions field', () => {
+    const payload = toDrawingPayload(topSegmentRoom(), topSegmentSettings);
+    expect(payload.elevations[0].dimensions.filter(({ row }) => row === 'steps')).toEqual([
+      { row: 'steps', kind: 'step', orientation: 'vertical', start: 32.5, end: 34.5,
+        base: 36, at: 36, text: '2', textX: 39.75, textZ: 33.5 },
+      { row: 'steps', kind: 'step', orientation: 'vertical', start: 32.5, end: 34.5,
+        base: 54, at: 54, text: '2', textX: 50.25, textZ: 33.5 },
+    ]);
+  });
+});
+
 describe('ST4 step c top segment payload', () => {
   it('exports the split main top and dropped segment without changing the golden fixture', () => {
     const payload = toDrawingPayload(topSegmentRoom(), topSegmentSettings);

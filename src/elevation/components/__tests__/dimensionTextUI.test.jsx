@@ -27,6 +27,22 @@ function nodes(tree) {
 const texts = (tree) => nodes(tree).filter(({ type }) => type === Text).map(({ props }) => props.text);
 const transform = { scale: 10, offsetX: 0, offsetY: 0, wallHeight: 96 };
 
+describe('ST6 step b canvas step chains', () => {
+  it('draws steps on the shorter side with cell-chain ticks and read-only labels', () => {
+    const tree = CellChains({ grids: [], steps: [
+      { x: 30, edge: 'top', start: 32.5, end: 34.5, direction: 1 },
+      { x: 60, edge: 'bottom', start: 4, end: 7, direction: -1 },
+    ], transform: { ...transform, scale: 20 }, editable: true, onEditTrack: vi.fn() });
+    const all = nodes(tree);
+    expect(texts(tree)).toEqual(['2', '3']);
+    expect(all.filter(({ type }) => type === Rect)).toEqual([]);
+    const lines = all.filter(({ type }) => type === Line).map(({ props }) => props.points);
+    expect(lines).toHaveLength(8);
+    expect(lines[0]).toEqual([607, 1270, 613, 1270]);
+    expect(lines[4]).toEqual([1187, 1840, 1193, 1840]);
+  });
+});
+
 describe('SPEC-50.14 canvas dimension text', () => {
   it('omits inch marks on measured sizes and clearances while retaining descriptive sublabels', () => {
     const piece = { id: 'piece', kind: 'cabinet', x: 0, z: 4, width: 24.875, height: 30, absorbed: 1 / 16 };
