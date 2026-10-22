@@ -164,20 +164,18 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
     ] },
     { id: 'style', label: 'Style', sections: [
       <RunStyleFields key="style" room={room} wall={wall} run={run} settings={settings} />,
-      room.doorStyles?.length > 0 && (
-        <PanelSection key="doorStyles" id="run.doorStyles" title="Door styles">
-          <DoorStylePicks
-            room={room}
-            settings={settings}
-            node={run}
-            levelsAbove={[{ level: 'wall', node: wall }, { level: 'room', node: room }]}
-            label="Run"
-            onChange={(key, styleId) => dispatch(setDoorStylePick({
-              level: 'run', ...actionBase, key, styleId,
-            }))}
-          />
-        </PanelSection>
-      ),
+      <PanelSection key="doorStyles" id="run.doorStyles" title="Door styles">
+        <DoorStylePicks
+          room={room}
+          settings={settings}
+          node={run}
+          levelsAbove={[{ level: 'wall', node: wall }, { level: 'room', node: room }]}
+          label="Run"
+          onChange={(key, styleId) => dispatch(setDoorStylePick({
+            level: 'run', ...actionBase, key, styleId,
+          }))}
+        />
+      </PanelSection>,
     ] },
     { id: 'hardware', label: 'Hardware', sections: [
       <PullPicks

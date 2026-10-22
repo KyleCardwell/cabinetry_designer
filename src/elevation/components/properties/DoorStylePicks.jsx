@@ -7,9 +7,7 @@ const PICKS = [
   { text: 'Panels', partType: 'panel', key: 'panelStyleId' },
 ];
 
-export default function DoorStylePicks({ room, settings, levelsAbove, node, label, onChange, always = false }) {
-  if (!always && !room.doorStyles?.length) return null;
-
+export default function DoorStylePicks({ room, settings, levelsAbove, node, label, onChange }) {
   return (
     <div className="space-y-2">
       {PICKS.map(({ text, partType, key }) => {

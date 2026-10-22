@@ -170,7 +170,6 @@ function RoomDoorStylesContent({ room, settings }) {
           </button>
         </div>
         <DoorStylePicks
-          always
           room={room}
           settings={settings}
           levelsAbove={[]}

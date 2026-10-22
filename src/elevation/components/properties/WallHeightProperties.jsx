@@ -440,23 +440,21 @@ export default function WallHeightProperties({ room, wall, plan }) {
       </PanelSection>
 
       <PanelSection id="wall.styles" title="Door styles & pulls" level={2} defaultOpen={false}>
-        {room.doorStyles?.length > 0 && (
-          <section>
-            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
-              Door styles
-            </h3>
-            <DoorStylePicks
-              room={room}
-              settings={settings}
-              node={room.walls.find((w) => w.id === wall.id)}
-              levelsAbove={[{ level: 'room', node: room }]}
-              label="Wall"
-              onChange={(key, styleId) => dispatch(setDoorStylePick({
-                level: 'wall', wallId: wall.id, key, styleId,
-              }))}
-            />
-          </section>
-        )}
+        <section>
+          <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+            Door styles
+          </h3>
+          <DoorStylePicks
+            room={room}
+            settings={settings}
+            node={room.walls.find((w) => w.id === wall.id)}
+            levelsAbove={[{ level: 'room', node: room }]}
+            label="Wall"
+            onChange={(key, styleId) => dispatch(setDoorStylePick({
+              level: 'wall', wallId: wall.id, key, styleId,
+            }))}
+          />
+        </section>
         <PullPicks
           settings={settings}
           node={room.walls.find((candidate) => candidate.id === wall.id)}

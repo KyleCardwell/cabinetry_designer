@@ -19,16 +19,14 @@ export default function PartStyleFields({
 }) {
   if (partType === null) return null;
 
-  const picker = room.doorStyles?.length
-    ? pickOptions(room, settings, partType, levels.slice(1))
-    : null;
+  const picker = pickOptions(room, settings, partType, levels.slice(1));
   const { style, design, warnings } = resolveDoorStyle(room, settings, partType, levels);
   const offsets = doorProfileOffsets(style, design, settings.sectionProfiles);
   const edgeOut = offsets.slots.outside?.reachOut ?? 0;
   const applied = design.construction === 'slab';
   const rows = partSizeRows(style, design, { width, height, sizes: part?.sizes }, edgeOut, offsets.applied);
   const styleId = part?.styleId ?? '';
-  const missingPick = picker && styleId !== ''
+  const missingPick = styleId !== ''
     && !picker.options.some((option) => option.id === styleId);
 
   const commitMids = (kind, list) => {
@@ -102,23 +100,21 @@ export default function PartStyleFields({
 
   return (
     <div className="space-y-2">
-      {picker && (
-        <label className="block text-xs text-gray-400">
-          Style
-          <select
-            value={styleId}
-            onChange={(event) => onChange({ styleId: event.target.value || null })}
-            aria-label={`${label} style`}
-            className={`mt-1 ${SELECT_CLASS}`}
-          >
-            <option value="">{picker.inherit.text}</option>
-            {picker.options.map((option) => (
-              <option key={option.id} value={option.id}>{option.text}</option>
-            ))}
-            {missingPick && <option value={styleId}>Missing ({styleId})</option>}
-          </select>
-        </label>
-      )}
+      <label className="block text-xs text-gray-400">
+        Style
+        <select
+          value={styleId}
+          onChange={(event) => onChange({ styleId: event.target.value || null })}
+          aria-label={`${label} style`}
+          className={`mt-1 ${SELECT_CLASS}`}
+        >
+          <option value="">{picker.inherit.text}</option>
+          {picker.options.map((option) => (
+            <option key={option.id} value={option.id}>{option.text}</option>
+          ))}
+          {missingPick && <option value={styleId}>Missing ({styleId})</option>}
+        </select>
+      </label>
       <h4 className="text-xs font-semibold text-gray-400">{`${rows.title} · ${style.label}`}</h4>
       {rows.note ? (
         <p className="text-xs text-gray-400">{rows.note}</p>

@@ -336,11 +336,11 @@ describe('UI5 step b run tabs', () => {
     expect(text(sectionButton(runPanel(), 'Heights'))).not.toContain('overridden');
   });
 
-  it('anchor 4: shows only Cabinet style without door styles and adds Door styles when available', () => {
+  it('anchor 4: shows Door styles with or without room door styles', () => {
     const room = state.rooms[0];
     room.doorStyles = [];
     button(runPanel(), 'Style').props.onClick();
-    expect(sectionTitles(runPanel())).toEqual(['Cabinet style']);
+    expect(sectionTitles(runPanel())).toEqual(['Cabinet style', 'Door styles']);
     room.doorStyles = [{ id: 'door-style', name: 'Custom' }];
     const tree = runPanel();
     expect(sectionTitles(tree)).toEqual(['Cabinet style', 'Door styles']);
