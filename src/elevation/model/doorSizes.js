@@ -38,10 +38,10 @@ export function partSizes(style, design, { width, height, coreHeight = height, s
     stiles: { left, right },
     rails: { top, bottom },
     midRails: (sizes.midRails ?? []).map(({ at, width }) => ({
-      at, width: width ?? style.rails.top + style.mid.extra,
+      at, width: width ?? style.rails.top + (style.mid.extra ?? 0),
     })),
     midStiles: (sizes.midStiles ?? []).map(({ at, width }) => ({
-      at, width: width ?? style.stiles.left + style.mid.extra,
+      at, width: width ?? style.stiles.left + (style.mid.extra ?? 0),
     })),
     opening: { width: width - left - right, height: height - top - bottom },
     sources: {

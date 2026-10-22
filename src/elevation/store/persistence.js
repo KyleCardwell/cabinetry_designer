@@ -799,6 +799,31 @@ function migrateAppliedMoldingScopes(scope) {
   return migrated;
 }
 
+function migrateMidWidths(style) {
+  if (!isPlainObject(style?.mid) || !Object.hasOwn(style.mid, 'extra')) return style;
+  const { extra, ...mid } = style.mid;
+  if (!Number.isFinite(extra) || extra < 0) return style;
+  return {
+    ...style,
+    mid: extra === 0 ? mid : {
+      rail: style.rails?.top + extra,
+      stile: style.stiles?.left + extra,
+      ...mid,
+    },
+  };
+}
+
+/** Migrate mid widths in every room and phase scope without changing the saved document. */
+function migrateMidWidthScopes(scope) {
+  if (!scope || typeof scope !== 'object') return scope;
+  const migrated = { ...scope };
+  if (Array.isArray(scope.doorStyles)) migrated.doorStyles = scope.doorStyles.map(migrateMidWidths);
+  for (const key of ['rooms', 'phases']) {
+    if (Array.isArray(scope[key])) migrated[key] = scope[key].map(migrateMidWidthScopes);
+  }
+  return migrated;
+}
+
 /** Migrate style lists in room and phase scopes without mutating the saved document. */
 function migrateDoorPanelScopes(scope) {
   if (!scope || typeof scope !== 'object') return scope;
@@ -828,6 +853,7 @@ function migrateDoorDesignScopes(scope) {
 function normalizeDocument(document, schemaVersion) {
   if (!document || document.schemaVersion !== schemaVersion) return document;
   document = migrateAppliedMoldingScopes(document);
+  document = migrateMidWidthScopes(document);
   document = migrateDoorDesignScopes(document);
   let settings = document.settings;
   if (settings && typeof settings === 'object') {
@@ -859,6 +885,7 @@ function normalizeDocument(document, schemaVersion) {
       settings.doorPanelDefault = 0.5;
     }
     settings.teamDoorStyle = migrateAppliedMoldings(settings.teamDoorStyle);
+    settings.teamDoorStyle = migrateMidWidths(settings.teamDoorStyle);
     settings.teamDoorStyle = migrateDoorDesignRef(settings.teamDoorStyle);
     if (settings.doorDesigns === undefined) settings.doorDesigns = structuredClone(DOOR_DESIGNS);
     else if (Array.isArray(settings.doorDesigns)) {

@@ -34,7 +34,7 @@ describe('SPEC-46 door designs and the team default style', () => {
       thickness: 0.8125,
       stiles: { left: 3, right: 3 },
       rails: { top: 3, bottom: 3 },
-      mid: { extra: 0 },
+      mid: {},
       panel: { type: 'flat', thickness: 0.5 },
       profiles: { outside: null, inside: null, panel: null },
       appliedMoldings: [],
@@ -54,6 +54,25 @@ describe('SPEC-46 door designs and the team default style', () => {
 });
 
 describe('SPEC-46 door style shapes', () => {
+  it('MR1a anchor 3: accepts optional positive mid widths unchanged', () => {
+    for (const mid of [{}, { stile: 4 }, { rail: 3.5 }, { rail: 3.5, stile: 4 }]) {
+      const candidate = style({ mid });
+      expect(isDoorStyle(candidate)).toBe(true);
+      expect(candidate.mid).toEqual(mid);
+    }
+  });
+
+  it('MR1a anchor 4: rejects nonpositive, nonfinite and unknown mid widths', () => {
+    for (const key of ['rail', 'stile']) {
+      for (const value of [0, -1, NaN, Infinity, '4', null, undefined]) {
+        expect(isDoorStyle(style({ mid: { [key]: value } }))).toBe(false);
+      }
+    }
+    for (const mid of [null, [], undefined, { extra: 0 }, { rail: 3, extra: 0 }]) {
+      expect(isDoorStyle(style({ mid }))).toBe(false);
+    }
+  });
+
   it('RP1 b accepts optional material up to 120 trimmed characters (anchors 1 and 2)', () => {
     expect(isDoorStyle({ ...DEFAULT_DOOR_STYLE, id: 'a', label: 'A', material: 'MAPLE/MDF' })).toBe(true);
     expect(isDoorStyle(style())).toBe(true);

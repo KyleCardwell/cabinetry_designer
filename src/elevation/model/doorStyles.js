@@ -58,7 +58,7 @@ export const DEFAULT_DOOR_STYLE = {
   thickness: 0.8125,
   stiles: { left: 3, right: 3 },
   rails: { top: 3, bottom: 3 },
-  mid: { extra: 0 },
+  mid: {},
   panel: { type: 'flat', thickness: 0.5 },
   profiles: { outside: null, inside: null, panel: null },
   appliedMoldings: [],
@@ -134,8 +134,8 @@ export function isDoorStyle(doorStyle) {
     && isPositive(doorStyle.thickness)
     && isPositivePair(doorStyle.stiles, ['left', 'right'])
     && isPositivePair(doorStyle.rails, ['top', 'bottom'])
-    && hasKeys(doorStyle.mid, ['extra'])
-    && isNonNegative(doorStyle.mid.extra)
+    && hasKeys(doorStyle.mid, ['rail', 'stile'], [])
+    && Reflect.ownKeys(doorStyle.mid).every((key) => isPositive(doorStyle.mid[key]))
     && hasKeys(doorStyle.panel, ['type', 'thickness'])
     && PANEL_TYPES.includes(doorStyle.panel.type)
     && isPositive(doorStyle.panel.thickness)

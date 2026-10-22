@@ -662,6 +662,58 @@ afterEach(() => {
 });
 
 describe('elevation persistence migration', () => {
+  const midDocument = (mid, left = 3) => {
+    const document = currentDocument();
+    const style = (id) => ({
+      ...structuredClone(DEFAULT_SETTINGS.teamDoorStyle), id, label: id,
+      mid: { ...mid }, stiles: { left, right: 3 }, rails: { top: 3, bottom: 3 },
+    });
+    document.settings.teamDoorStyle = style('default');
+    document.rooms[0].doorStyles = [style('room')];
+    document.rooms[0].phases = [{ doorStyles: [style('room-phase')] }];
+    document.phases = [{ doorStyles: [style('phase')], rooms: [{ doorStyles: [style('phase-room')] }] }];
+    return document;
+  };
+  const mids = (document) => [
+    document.settings.teamDoorStyle.mid,
+    document.rooms[0].doorStyles[0].mid,
+    document.rooms[0].phases[0].doorStyles[0].mid,
+    document.phases[0].doorStyles[0].mid,
+    document.phases[0].rooms[0].doorStyles[0].mid,
+  ];
+
+  it('MR1a anchor 1: migrates zero or missing extra to empty mids in every saved style scope', () => {
+    for (const mid of [{ extra: 0 }, {}]) {
+      const saved = midDocument(mid);
+      const original = structuredClone(saved);
+      const encoded = JSON.stringify(saved);
+      const storage = storageWith([[ELEVATION_STORAGE_KEY, encoded]]);
+      globalThis.window = { localStorage: storage };
+      const loaded = loadElevationDocument();
+      expect(mids(loaded)).toEqual([{}, {}, {}, {}, {}]);
+      expect(isElevationDocument(loaded)).toBe(true);
+      expect(loaded.schemaVersion).toBe(saved.schemaVersion);
+      expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+      expect(saved).toEqual(original);
+      expect(storage.getItem(ELEVATION_STORAGE_KEY)).toBe(encoded);
+    }
+  });
+
+  it('MR1a anchors 2/3: migrates positive extra using style widths and preserves explicit mids', () => {
+    const saved = midDocument({ extra: 0.5 }, 2.5);
+    saved.rooms[0].doorStyles.push({
+      ...structuredClone(DEFAULT_SETTINGS.teamDoorStyle), id: 'explicit', label: 'Explicit', mid: { stile: 4 },
+    });
+    const original = structuredClone(saved);
+    const loaded = normalizeElevationDocument(saved);
+    expect(mids(loaded)).toEqual(Array(5).fill({ rail: 3.5, stile: 3 }));
+    expect(loaded.rooms[0].doorStyles[1].mid).toEqual({ stile: 4 });
+    expect(isElevationDocument(loaded)).toBe(true);
+    expect(loaded.schemaVersion).toBe(saved.schemaVersion);
+    expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+    expect(saved).toEqual(original);
+  });
+
   it('468. migrates the old base top reveal once without changing saved settings in place', () => {
     const legacy = currentDocument();
     delete legacy.settings.stoneTopReveal;
