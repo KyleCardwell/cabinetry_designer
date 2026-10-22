@@ -1021,6 +1021,22 @@ describe('RP2.2 step b reveal notes', () => {
     { ...cabinet('cab2'), width: 24, face: face('door', { hinge: 'left' }) },
   ], { width: 48, ...overrides })], roomOverrides);
 
+  it('ST5 step b anchor 3: prints the Euro stone overlap top reveal for B', () => {
+    const r = room([run('run', ['A', 'B', 'C'].map((id) => ({
+      id, kind: 'cabinet', width: 30, face: face('door', { hinge: 'left' }),
+    })), {
+      x: 0, width: 90, top: 'stone', style: { cabinetStyleId: 13 },
+      topSegments: [{ id: 's', from: 'B', to: 'B', kind: 'stone', drop: 1, mode: 'overlap' }],
+    })]);
+    const before = structuredClone(r);
+    expect(row(r, 'B')).toMatchObject({ number: 2 });
+    expect(row(r, 'B').notes.filter((note) => note.startsWith("RV's"))).toEqual(['RV\'s (1 1/4" T)']);
+    for (const id of ['A', 'C']) {
+      expect(row(r, id).notes.filter((note) => note.startsWith("RV's"))).toEqual([]);
+    }
+    expect(r).toEqual(before);
+  });
+
   it('compares final base reveals against the stone standard (anchors 3, 4, 6, 7)', () => {
     for (const [top, reveals, expected] of [
       [undefined, undefined, []],

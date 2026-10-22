@@ -4,7 +4,7 @@ import { findLeaf } from '../../elevation/model/cellTree.js';
 import { frameMembers, regionOpenings } from '../../elevation/model/frames.js';
 import { resolveWall, syncRoom } from '../../elevation/model/room.js';
 import { runScene } from '../../elevation/model/runScene.js';
-import { frameMemberRoles, frameNotes, frameNotchNotes, frameStandards } from '../frameNotes.js';
+import { frameMemberRoles, frameNotes, frameNotchNotes, frameReasons, frameStandards } from '../frameNotes.js';
 import { shippingList } from '../shippingList.js';
 
 const REGION_D = { id: 'frame:d', x: 0, z: 0, width: 30, height: 30, cabinetIds: ['a'] };
@@ -136,6 +136,64 @@ const changeWidths = (members, select, width) => members.map((member) => (
   select(member) ? { ...member, [isStile(member.role) ? 'width' : 'height']: width } : member
 ));
 const changeRole = (members, role, width) => changeWidths(members, (member) => member.role === role, width);
+
+describe('ST5 step b overlap rail reasons', () => {
+  it.each([
+    ['plain inset', 14, 0, '2 1/2" top rail @ #2 (stone overlap)'],
+    ['beaded inset', 15, 0.25, '2 3/4" top rail @ #2 (stone overlap)'],
+  ])('prints the %s anchor', (_case, cabinetStyleId, bead, expected) => {
+    const room = notchedFrameRoom({});
+    const run = room.walls[0].runs[0];
+    run.style = { cabinetStyleId, beadWidth: bead };
+    run._frame.bead = bead;
+    if (bead) delete run.seamGap;
+    run.top = 'stone';
+    run.topSegments = [{ id: 's', from: 'B', to: 'B', kind: 'stone', drop: 1, mode: 'overlap' }];
+    const synced = syncRoom(room, notchedFrameSettings);
+    const before = structuredClone(synced);
+    const rows = shippingList(synced, notchedFrameSettings).rows;
+    expect(rows.filter(({ key }) => ['A', 'B', 'C'].includes(key)).map(({ key, number }) => [key, number]))
+      .toEqual([['A', 1], ['B', 2], ['C', 3]]);
+    expect(rows.find(({ kind }) => kind === 'frame').notes).toContain(expected);
+    expect(synced).toEqual(before);
+  });
+
+  it('uses the active segment kind and root column for nested cabinets', () => {
+    const run = notchedFrameRoom({}).walls[0].runs[0];
+    run.top = 'stone';
+    run.topSegments = [
+      { id: 'wood', from: 'B', to: 'B', kind: 'wood', drop: 1, mode: 'overlap' },
+      { id: 'ignored', from: 'A', to: 'B', kind: 'stone', drop: 1, mode: 'overlap' },
+    ];
+    const entries = [noteMember('top-rail', 2.5, ['B-upper']), noteMember('top-rail', 2.5, ['A'])];
+    const scene = { cells: { pieces: [{ id: 'B-upper', columnId: 'B' }, { id: 'A' }] } };
+    const before = structuredClone({ run, scene, entries });
+    expect(frameReasons({}, {}, run, scene, REGION_D, entries, notchedFrameSettings, FLAT))
+      .toEqual([{ ...entries[0], reason: 'wood overlap' }, entries[1]]);
+    expect({ run, scene, entries }).toEqual(before);
+  });
+
+  it('requires a wider top rail over an active overlap segment', () => {
+    const run = notchedFrameRoom({}).walls[0].runs[0];
+    run.top = 'stone';
+    const segment = { id: 's', from: 'B', to: 'B', kind: 'stone', drop: 1, mode: 'overlap' };
+    const scene = { cells: { pieces: [{ id: 'B' }] } };
+    const reasoned = (entries) => frameReasons({}, {}, run, scene, REGION_D,
+      entries, notchedFrameSettings, FLAT);
+    run.topSegments = [segment];
+    const entries = [noteMember('top-rail', 1.5, ['B']), noteMember('top-rail', 1, ['B']),
+      noteMember('mid-rail', 2.5, ['B'])];
+    expect(reasoned(entries)).toEqual(entries);
+    const wide = [noteMember('top-rail', 2.5, ['B'])];
+    for (const change of [{ mode: 'box' }, { from: 'missing' }]) {
+      run.topSegments = [{ ...segment, ...change }];
+      expect(reasoned(wide)).toEqual(wide);
+    }
+    run.topSegments = [segment];
+    run.top = 'none';
+    expect(reasoned(wide)).toEqual(wide);
+  });
+});
 
 describe('RP2.4 step b frame note text anchors', () => {
   const allTwo = changeWidths(noteFrame(), () => true, 2);

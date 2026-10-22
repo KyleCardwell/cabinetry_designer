@@ -7,6 +7,7 @@ import { sideOf } from '../elevation/model/frames.js';
 import { runItems } from '../elevation/model/grid.js';
 import { runEndThickness, wallPanelThickness } from '../elevation/model/panelThickness.js';
 import { runSeamGap } from '../elevation/model/styles.js';
+import { resolveTopSegments } from '../elevation/model/topSegments.js';
 import { wallEndPanelAt } from '../elevation/model/wallSides.js';
 import { formatInch } from './format.js';
 
@@ -127,6 +128,9 @@ export function frameReasons(room, wall, run, scene, region, entries, settings, 
   const edge = (rect, side) => rect.x + (side === 'right' ? rect.width : 0);
   const atEdge = (piece, side) => Math.abs(edge(piece, side) - edge(region, side)) <= EPSILON;
   const pieces = scene.cells.pieces;
+  const overlapKinds = new Map(resolveTopSegments(run).segments
+    .filter(({ mode }) => mode === 'overlap')
+    .flatMap(({ kind, columnIds }) => columnIds.map((id) => [id, kind])));
   const reasonFor = (member) => {
     if (member.role === 'left-stile' || member.role === 'right-stile') {
       const side = member.role === 'left-stile' ? 'left' : 'right';
@@ -155,6 +159,11 @@ export function frameReasons(room, wall, run, scene, region, entries, settings, 
           }
         }
       }
+    }
+    if (member.role === 'top-rail' && member.height - standards['top-rail'] > WIDTH_EPSILON) {
+      const box = pieces.find((piece) => member.sitsOn.includes(piece.id)
+        && overlapKinds.has(piece.columnId ?? piece.id));
+      if (box) return `${overlapKinds.get(box.columnId ?? box.id)} overlap`;
     }
     if (member.role === 'bottom-rail') {
       const { height, count } = frameBottomParts(run);
