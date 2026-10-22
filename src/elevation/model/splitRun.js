@@ -5,6 +5,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { replaceRootItems, runItems } from './grid.js';
 import { insideEndGap, insideEndPanels } from './insideEnds.js';
+import { stepEndPanels } from './stepEnds.js';
 import { floorTo, roundTo } from './units.js';
 
 const WIDTH_EPSILON = 1e-6;
@@ -478,10 +479,15 @@ function steppedLayout(run, layout) {
  */
 export function splitRun(run, settings, opts) {
   const insidePanels = insideEndPanels(run, settings);
+  const stepPanels = stepEndPanels(run, settings);
+  const panels = {
+    ...(insidePanels.length ? { insidePanels } : {}),
+    ...(stepPanels.length ? { stepPanels } : {}),
+  };
   const plan = pinPlan(run, settings, opts);
   if (!plan) {
     const layout = splitRunLegacy(run, settings, opts);
-    return steppedLayout(run, insidePanels.length ? { ...layout, insidePanels } : layout);
+    return steppedLayout(run, { ...layout, ...panels });
   }
 
   const { items, actualPins } = plan;
@@ -526,7 +532,7 @@ export function splitRun(run, settings, opts) {
 
   appendLayout(splitRunLegacy(rightSegmentRun(run, plan), settings, opts));
 
-  return steppedLayout(run, { pieces, warnings, errors, ...(insidePanels.length ? { insidePanels } : {}) });
+  return steppedLayout(run, { pieces, warnings, errors, ...panels });
 }
 
 /**

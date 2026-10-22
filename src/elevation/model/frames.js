@@ -64,7 +64,7 @@ function boundsOf(pieces) {
  * @returns {{regions: object[], fillerIds: Set<string>, freeSides: Map<string, {left: boolean, right: boolean}>, seamSides: Map<string, {left: boolean, right: boolean}>, warnings: object[]}}
  */
 export function frameRegions(room, run, cells, settings, faceLayouts) {
-  const { pieces } = cells;
+  const pieces = cells.pieces.filter((piece) => !piece.step);
   const gaps = cells.gaps ?? [];
   const reach = gapReach(gaps);
   const regions = [];

@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { cellPieces, EPSILON } from '../cells.js';
+import { cellCaptureSides, cellPieces, EPSILON, hingeStops } from '../cells.js';
 import { findLeaf } from '../cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { gridFromItems, rootItems, updateRootItem } from '../grid.js';
 import { stepEndSides } from '../index.js';
+import { partNumbers } from '../partNumbers.js';
+import { defaultPick, pickStack } from '../pick.js';
 import { syncRoom } from '../roomSync.js';
+import { runScene } from '../runScene.js';
 import { splitRun } from '../splitRun.js';
 import { ELEVATION_SCHEMA_VERSION, isRoom, roomFromDocument, toRoomDocument } from '../../store/persistence.js';
+import { shippingList } from '../../../reports/shippingList.js';
 
 const S = { ...DEFAULT_SETTINGS, runFlex: 0 };
 const manual = (value) => ({ value, source: 'manual' });
@@ -36,6 +40,90 @@ const entry = (leafId, side, edge = 'top', z = 32.5, height = 2) => ({
   leafId, side, edge, z, height, choice: 'return', width: 6,
 });
 const expected = [entry('A', 'right'), entry('C', 'left')];
+
+describe('ST3 step b step panel pieces', () => {
+  const withPanel = () => {
+    const run = makeRun();
+    findLeaf(run.grid, 'A').stepEnds = { right: { type: 'panel' } };
+    return run;
+  };
+
+  it('anchor 1: places the 13/16 panel over B without moving or resizing any box', () => {
+    const baseline = cellsOf(sync(makeRun()));
+    const source = withPanel();
+    const before = structuredClone(source);
+    const run = sync(source);
+    const cells = cellsOf(run);
+    expect(cells.pieces.filter((piece) => piece.step)).toEqual([{
+      id: 'A:step-right-top', kind: 'end_panel', role: 'inside', inside: true, step: true,
+      ownerId: 'A', side: 'right', cabinetTypeId: CABINET_TYPE_IDS.END_PANEL,
+      x: 30.25, width: 0.8125, z: 32.5, height: 2, depth: 24.8125, styleId: 'default',
+    }]);
+    expect(cells.pieces.find((piece) => piece.step).x + 0.8125).toBe(31.0625);
+    expect(cells.pieces.filter((piece) => !piece.step)).toEqual(baseline.pieces);
+    expect(cells.gaps).toEqual(baseline.gaps);
+    expect(source).toEqual(before);
+    expect(sync(run)).toEqual(run);
+    expect(stepEndSides(run, cells, S).filter((side) => side.choice !== 'none')).toEqual(run._stepEnds);
+  });
+
+  it('anchor 2: numbers the drawn and pickable panel immediately after A and ships it as an end panel', () => {
+    const room = syncRoom(makeRoom(withPanel()), S);
+    const wall = room.walls[0];
+    const run = wall.runs[0];
+    expect([...partNumbers(room, S).byKey].slice(0, 3)).toEqual([
+      ['A', 1], ['A:step-right-top', 2], ['B', 3],
+    ]);
+    const scene = runScene(room, wall, run, S);
+    expect(scene.drawnPieces.find((piece) => piece.id === 'A:step-right-top'))
+      .toMatchObject({ x: 30.25, z: 32.5, width: 0.8125, height: 2 });
+    expect(defaultPick(pickStack(room, wall, S, { x: 30.65625, z: 33.5 })))
+      .toMatchObject({ kind: 'piece', selection: { runId: 'r', pieceId: 'A:step-right-top' } });
+    expect(shippingList(room, S).rows.find((row) => row.key === 'A:step-right-top')).toMatchObject({
+      number: 2, kind: 'end_panel', description: 'Base End Panel', size: '24 13/16 x 2 x 13/16',
+    });
+  });
+
+  it('anchor 3: preserves frame bounds, notches, capture sides and the default door hinge', () => {
+    const sceneOf = (source) => {
+      const room = syncRoom(makeRoom(source), S);
+      return runScene(room, room.walls[0], room.walls[0].runs[0], S);
+    };
+    const before = sceneOf(makeRun());
+    const after = sceneOf(withPanel());
+    expect(before.frames.regions[0].notches).toHaveLength(1);
+    expect(after.frames).toEqual(before.frames);
+    for (const id of ['A', 'B', 'C']) {
+      expect(cellCaptureSides(after.cells.pieces, id)).toEqual(cellCaptureSides(before.cells.pieces, id));
+      expect(hingeStops(after.cells.pieces, id)).toEqual(hingeStops(before.cells.pieces, id));
+      expect(after.faceLayouts.get(id)).toEqual(before.faceLayouts.get(id));
+    }
+  });
+
+  it('positions left top and bottom panels on nested owners and resolves legacy panel settings', () => {
+    const source = nestedRun({});
+    source.grid = updateRootItem(source.grid, 'A', { top: manual(2), bottom: manual(3) });
+    for (const id of ['B-top', 'B-bottom']) findLeaf(source.grid, id).stepEnds = { left: { type: 'panel' } };
+    source.ends.left.styleId = 'sheet';
+    const run = sync(source);
+    const cells = cellsOf(run);
+    const panels = cells.pieces.filter((piece) => piece.step);
+    expect(panels).toHaveLength(2);
+    for (const [id, edge, z, height] of [['B-top', 'top', 32.5, 2], ['B-bottom', 'bottom', 4, 3]]) {
+      const owner = cells.pieces.find((piece) => piece.id === id);
+      expect(panels.find((piece) => piece.ownerId === id)).toMatchObject({
+        id: `${id}:step-left-${edge}`, inside: true, step: true, side: 'left',
+        x: owner.x - 0.75, z, height, width: 0.75, depth: 24.8125, styleId: 'sheet',
+      });
+    }
+    expect(sync(run)).toEqual(run);
+    const legacySource = withPanel();
+    const { grid, ...base } = legacySource;
+    const legacy = sync({ ...base, items: rootItems(grid) });
+    expect(cellsOf(legacy).pieces.filter((piece) => piece.step))
+      .toEqual(cellsOf(sync(legacySource)).pieces.filter((piece) => piece.step));
+  });
+});
 
 function nestedRun(offsets = { top: manual(2) }) {
   const run = makeRun(offsets);

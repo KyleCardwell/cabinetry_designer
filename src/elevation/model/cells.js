@@ -1,6 +1,7 @@
 import { isNestedGrid } from './grid.js';
 import { sheetThickness, teamDoorStyle } from './doorStyles.js';
 import { insideEndGap, insideEndPieces } from './insideEnds.js';
+import { stepEndPieces } from './stepEnds.js';
 
 export const MIN_CELL_SIZE = 1;
 
@@ -173,8 +174,9 @@ function rootGaps(run, layout) {
 export function cellPieces(run, layout) {
   const gaps = rootGaps(run, layout);
   const insidePanels = layout.insidePanels ?? [];
-  const withPanels = (pieces) => insidePanels.length
-    ? [...pieces, ...insideEndPieces(insidePanels, pieces)].sort((left, right) => (
+  const stepPanels = layout.stepPanels ?? [];
+  const withPanels = (pieces) => insidePanels.length || stepPanels.length
+    ? [...pieces, ...insideEndPieces(insidePanels, pieces), ...stepEndPieces(stepPanels, pieces)].sort((left, right) => (
       Math.abs(left.x - right.x) > EPSILON ? left.x - right.x : left.z - right.z
     )) : pieces;
   if (!run.grid) return { pieces: withPanels(layout.pieces), grids: [], warnings: [], gaps };
@@ -275,7 +277,7 @@ export function cellCaptureSides(pieces, pieceId) {
   const piece = pieces.find((candidate) => candidate.id === pieceId);
   if (!piece) return { left: false, right: false };
   const panels = pieces.filter((candidate) => (
-    candidate !== piece && (candidate.kind === 'end_panel'
+    candidate !== piece && !candidate.step && (candidate.kind === 'end_panel'
       || (candidate.kind === 'panel' && panelOrientation(candidate) === 'side' && candidate.doors !== 'cover'))
     && overlapsVertically(candidate, piece)));
   return {
@@ -355,7 +357,7 @@ export function coveredSides(pieces, pieceId) {
 export function hingeStops(pieces, pieceId) {
   const piece = pieces.find((candidate) => candidate.id === pieceId);
   if (!piece) return { left: false, right: false };
-  const stops = pieces.filter((candidate) => candidate !== piece
+  const stops = pieces.filter((candidate) => candidate !== piece && !candidate.step
     && overlapsVertically(candidate, piece)
     && (candidate.kind === 'filler' || candidate.kind === 'end_panel'
       || (candidate.kind === 'panel' && panelOrientation(candidate) === 'side'
