@@ -1,12 +1,28 @@
-import { DEFAULT_SETTINGS } from '../elevation/model/constants.js';
+import { findLeaf } from '../elevation/model/cellTree.js';
+import { DEFAULT_SETTINGS, FRAME_RETURN_WIDTH } from '../elevation/model/constants.js';
 import { BOTTOM_PART_LABELS, frameBottomParts } from '../elevation/model/bottoms.js';
 import { cornerLap } from '../elevation/model/cornerLaps.js';
+import { runItems } from '../elevation/model/grid.js';
 import { runEndThickness, wallPanelThickness } from '../elevation/model/panelThickness.js';
 import { runSeamGap } from '../elevation/model/styles.js';
 import { wallEndPanelAt } from '../elevation/model/wallSides.js';
 import { formatInch } from './format.js';
 
 const EPSILON = 1e-6;
+
+/** Active inside returns belong to their cabinet's frame, ordered left before right. */
+export function frameReturnNotes(run, region) {
+  if (!region) return [];
+  return ['left', 'right'].flatMap((side) => (run._insideEnds ?? [])
+    .filter((entry) => entry.choice === 'return' && entry.side === side
+      && region.cabinetIds.includes(entry.leafId))
+    .map(({ leafId }) => {
+      const leaf = run.grid ? findLeaf(run.grid, leafId)
+        : runItems(run).find((item) => item.id === leafId);
+      const width = leaf?.insideEnds?.[side]?.width ?? FRAME_RETURN_WIDTH;
+      return `${formatInch(width)} return ${side === 'left' ? 'L' : 'R'}`;
+    }));
+}
 
 /** Add report roles and the region's overlapping box IDs without changing member order. */
 export function frameMemberRoles(region, members, boxes) {
