@@ -108,7 +108,8 @@ describe('ST4 step d top segment properties', () => {
     }
     for (const value of ['', '0', '-1', 'garbage']) typeDrop(value);
     expect(run().topSegments).toEqual(before);
-    expect(nodes(render()).filter(({ type }) => type === 'select')).toHaveLength(3);
+    expect(nodes(render()).filter(({ type }) => type === 'select').map(({ props }) => props['aria-label']))
+      .toEqual(['Segment 1 From', 'Segment 1 To', 'Segment 1 Kind', 'Segment 1 Mode']);
     expect(toElevationDocument(state).rooms[0].walls[0].runs[0].topSegments).toEqual(before);
     field(render(), 'Remove top segment 1').props.onClick();
     expect(run().topSegments).toEqual([]);

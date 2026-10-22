@@ -47,6 +47,17 @@ export default function TopSegmentRow({ wall, run, segment, index, columns, numb
             <option value="stone">Stone</option>
           </select>
         </Field>
+        <Field label="Mode">
+          <select
+            aria-label={`Segment ${index + 1} Mode`}
+            value={segment.mode}
+            onChange={(event) => update({ mode: event.target.value })}
+            className={SELECT_CLASS}
+          >
+            <option value="box">Box drops</option>
+            <option value="overlap">Top overlaps</option>
+          </select>
+        </Field>
         <Field label="Drop">
           <InchInput
             aria-label={`Segment ${index + 1} Drop`}
