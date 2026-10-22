@@ -217,7 +217,7 @@ export function frameRegions(room, run, cells, settings, faceLayouts) {
   if (pending.length) {
     const wall = room.walls?.find((candidate) => candidate.runs.some((other) => other.id === run.id));
     const faces = faceLayouts ?? layoutFaces(room, wall, run, settings,
-      { pieces: [...columns.values()] }, { cells, frames });
+      { pieces: [...columns.values()] }, { cells: { ...cells, gaps }, frames });
     const stile = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame }.stile;
     for (const { region, boxes, steps, drop } of pending) {
       region.notches = steps.flatMap((step) => {

@@ -92,7 +92,7 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       face: storedFace,
       captured,
       seams: frames.seamSides.get(piece.id),
-      stacked: stackedSides(cells.pieces, piece.id, gapReach(cells.gaps)),
+      stacked: stackedSides(cells.pieces, piece.id, gapReach(cells.gaps ?? [])),
       covered: pairCovers ? { ...covered, left: 0, right: 0 } : covered,
       tCovers,
       runEdges,

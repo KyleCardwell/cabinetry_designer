@@ -34,6 +34,17 @@ function framed(run, suppliedFaces) {
 const topNotch = { columnId: 'B', edge: 'top', x: 31, z: 32.5, width: 28, height: 2 };
 
 describe('ST2 step a notched frame regions', () => {
+  it('works from a plain run layout with no gaps (the properties panel passes one)', () => {
+    const run = makeRun({ top: manual(2) });
+    const wall = { id: 'w', x1: 0, y1: 0, x2: 120, y2: 0, height: 96, thickness: 4.5,
+      flipped: false, connections: { start: null, end: null }, profile: {}, runs: [run], openings: [] };
+    const room = { id: 'room', profile: {}, walls: [wall], wallOrder: ['w'] };
+    const layout = layoutRun(room, wall, run, S);
+    expect(layout.gaps).toBeUndefined();
+    const frames = frameRegions(room, run, layout, S);
+    expect(frames.regions[0].notches).toEqual([topNotch]);
+  });
+
   it('anchor 1: cuts the lowered B opening span from one unchanged bounding rectangle without warning', () => {
     const run = makeRun({ top: manual(2) });
     const before = structuredClone(run);
