@@ -52,7 +52,7 @@ function facePayload(room, wall, side, key, letter, settings, options) {
     ...elevationParts(room, wall, side, settings),
     ...bandParts(room, wall, side, settings),
     ...wallParts(room, wall, side, settings),
-    ...cornerParts(room, wall, side, settings),
+    ...(options?.cornerShapes?.flatMap((shape) => shape.parts) ?? cornerParts(room, wall, side, settings)),
   ];
   const partIds = new Set(parts.map(({ id }) => id));
   const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);

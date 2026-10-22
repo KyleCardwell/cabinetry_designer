@@ -1,3 +1,4 @@
+import { combinedCornerShapes } from './cornerParts.js';
 import { resolveWall } from './room.js';
 import { wallLabel } from './topology.js';
 import { formatInches } from './units.js';
@@ -34,11 +35,12 @@ export function combinedElevationPayload(room, combined, settings, buildFace) {
   };
   const left = faces.reduce((one, two) => two.dx < one.dx ? two : one);
   const right = faces.reduce((one, two) => two.dx + two.length > one.dx + one.length ? two : one);
+  const shapes = combinedCornerShapes(room, combined, settings);
   const seen = new Set();
   const records = Object.fromEntries(COLLECTIONS.map((key) => [key, []]));
   let lead;
   for (const face of faces) {
-    const payload = buildFace(face.wall, face.side, { extent });
+    const payload = buildFace(face.wall, face.side, { extent, cornerShapes: shapes.get(face.key) });
     lead ??= payload;
     const duplicates = new Set(payload.parts.filter(({ id }) => seen.has(id)).map(({ id }) => id));
     for (const key of COLLECTIONS) {

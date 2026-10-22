@@ -133,3 +133,14 @@ export function combinedViewOf(room, wallId, side = 'front') {
     ? { id: group.id, ...layout }
     : null;
 }
+
+/** Walls connecting two shown faces, seen end-on between those faces. */
+export function jogWalls(room, view) {
+  if (!view) return new Set();
+  const shown = new Set(view.faces.map(({ wallId }) => wallId));
+  return new Set(room.walls.filter((wall) => {
+    const start = wall.connections?.start?.wallId;
+    const end = wall.connections?.end?.wallId;
+    return !shown.has(wall.id) && start !== end && shown.has(start) && shown.has(end);
+  }).map(({ id }) => id));
+}

@@ -5,7 +5,7 @@ import {
   combinedFaceTransforms,
   wallRectToScreen,
 } from '../canvas/transform.js';
-import { cornerShapes } from '../model/cornerParts.js';
+import { combinedCornerShapes } from '../model/cornerParts.js';
 import { openingGeometry } from '../model/openings.js';
 import { resolveProfile } from '../model/profile.js';
 import { resolveWall } from '../model/room.js';
@@ -24,10 +24,11 @@ const stopEvent = (event) => { event.cancelBubble = true; };
 
 /** Resolve in saved lettering order, keeping the first occurrence of each neighbour part. */
 export function resolveCombinedFaces(room, combined, settings) {
+  const corners = combinedCornerShapes(room, combined, settings);
   const seen = new Set();
   return new Map(combined.faces.map((face) => {
     const wall = resolveWall(room, room.walls.find((candidate) => candidate.id === face.wallId), face.side);
-    const shapes = cornerShapes(room, wall, face.side, settings).flatMap((shape) => {
+    const shapes = corners.get(face.key).flatMap((shape) => {
       const parts = shape.parts.filter((part) => {
         if (seen.has(part.id)) return false;
         seen.add(part.id);

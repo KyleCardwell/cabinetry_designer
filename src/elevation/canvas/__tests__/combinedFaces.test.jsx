@@ -11,7 +11,11 @@ vi.mock('react-konva', () => ({
   Group: 'group', Layer: 'layer', Rect: 'rect', Text: 'text', Line: 'line',
   Shape: 'shape', Label: 'label', Tag: 'tag',
 }));
-vi.mock('../../model/cornerParts.js', () => ({ cornerShapes: vi.fn(() => []) }));
+vi.mock('../../model/cornerParts.js', () => {
+  const cornerShapes = vi.fn(() => []);
+  return { cornerShapes, combinedCornerShapes: (room, combined, settings) => new Map(combined.faces
+    .map((face) => [face.key, cornerShapes(room, room.walls.find(({ id }) => id === face.wallId), face.side, settings)])) };
+});
 vi.mock('../../model/showThrough.js', () => ({ wallShowThrough: vi.fn(() => new Map()) }));
 
 const wall = (id, x1, y1, x2, y2, start, end, runs = []) => ({

@@ -1,4 +1,5 @@
 import { bandOutline, frontContour } from './bandEnds.js';
+import { jogWalls } from './combinedElevations.js';
 import { profileBandJoint } from './cornerBands.js';
 import { anchoredToCorner, cornerAt, frontDepth, spanCorner } from './corners.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
@@ -64,9 +65,10 @@ function joinedProfileBands(room, wall, settings, shapes) {
  * { key, kind: 'return' | 'profile', wallId, runId?, soffitId?, parts }; parts carry their depths from this face.
  */
 export function cornerShapes(room, wall, side, settings,
-  { profiles: includeProfiles = true, throughBands = false, returns: returnMode } = {}) {
+  { profiles: includeProfiles = true, throughBands = false, returns: returnMode, combined } = {}) {
   const view = resolveWall(room, wall, side);
   const endView = (returnMode ?? returnsView(room, elevationKey(view.id, view.side))) === 'end';
+  const jogs = jogWalls(room, combined);
   const source = view.sideSource ?? view;
   const frame = wallSideFrame(room, source, view.side);
   const length = view.length;
@@ -76,7 +78,8 @@ export function cornerShapes(room, wall, side, settings,
   /** A neighbour return: `xOf(offset)` maps its wall depth to x here; end is away from the corner. */
   const cut = (key, neighbor, neighborView, neighborFrame, run, end, xOf) => {
     const ends = [run.x, run.x + run.width];
-    const pieces = endView ? runEndView(room, neighborView, run, end, settings)
+    const asEnd = endView || jogs.has(neighbor.id);
+    const pieces = asEnd ? runEndView(room, neighborView, run, end, settings)
       : runSide(room, neighborView, run, settings);
     const parts = pieces.flatMap((piece) => {
       const xs = [xOf(piece.back), xOf(piece.front)].map((x) => Math.min(length, Math.max(0, x)));
@@ -87,7 +90,7 @@ export function cornerShapes(room, wall, side, settings,
       if (width <= EPSILON) return [];
       return [{
         id: `${key}:${piece.piece}`,
-        kind: BODY.has(piece.piece) ? (endView ? 'profile' : 'section') : piece.piece,
+        kind: BODY.has(piece.piece) ? (asEnd ? 'profile' : 'section') : piece.piece,
         runId: run.id,
         x, z: piece.z, width, height: piece.height,
         back: Math.min(...depths), front: Math.max(...depths),
@@ -209,6 +212,37 @@ export function cornerShapes(room, wall, side, settings,
   profiles.sort((a, b) => a.at - b.at || a.z - b.z);
   const all = [...shapes, ...profiles.map(({ shape }) => shape)];
   return throughBands || profiles.length === 0 ? all : joinedProfileBands(room, view, settings, all);
+}
+
+/**
+ * Keep jog runs in their inside-corner face's depth frame, regardless of face order. A band already
+ * drawn through by an adjoining face also disappears from the retained return.
+ */
+export function combinedCornerShapes(room, combined, settings) {
+  const jogs = jogWalls(room, combined);
+  const dropped = new Set();
+  const pieceKey = (shape, part) => `${shape.wallId}:${shape.runId}:${part.id.split(':').pop()}`;
+  const faces = combined.faces.map((face) => {
+    const wall = resolveWall(room, room.walls.find(({ id }) => id === face.wallId), face.side);
+    const raw = cornerShapes(room, wall, face.side, settings, { combined, throughBands: true });
+    const shapes = raw.some(({ kind }) => kind === 'profile')
+      ? joinedProfileBands(room, wall, settings, raw) : raw;
+    const kept = new Set(shapes.flatMap(({ parts }) => parts.map(({ id }) => id)));
+    for (const shape of raw.filter((shape) => shape.kind === 'profile' && jogs.has(shape.wallId))) {
+      for (const part of shape.parts) {
+        if (!kept.has(part.id)) dropped.add(pieceKey(shape, part));
+      }
+    }
+    return [face.key, shapes];
+  });
+  return new Map(faces.map(([key, shapes]) => [key, shapes.flatMap((shape) => {
+    if (jogs.has(shape.wallId) && shape.runId) {
+      if (shape.kind === 'profile') return [];
+      const parts = shape.parts.filter((part) => !dropped.has(pieceKey(shape, part)));
+      return parts.length ? [{ ...shape, parts }] : [];
+    }
+    return [shape];
+  })]));
 }
 
 /** The parts of cornerShapes, in order: what the payload carries for this face's neighbours (SPEC-42.2). */
