@@ -22,6 +22,7 @@ import {
 import { soffitsOn } from './soffits.js';
 import { splitRun } from './splitRun.js';
 import { stackLeaders, stackOf } from './stacks.js';
+import { frameDrop } from './styles.js';
 import { teeFillers } from './tees.js';
 import { isCountertop, runMoldings, runTop } from './tops.js';
 import { runBands, waterfallEnds } from './runBands.js';
@@ -762,6 +763,24 @@ function teeBoxSegments(run, cells, tees, edge) {
   return segments;
 }
 
+/** Keep the resolved edge column's box/frame span, with its offsets as separate steps. */
+function edgeStepSegments(run, column, segments, drop = 0) {
+  if (!column) return segments;
+  const bottomUp = column.z - run.z;
+  const top = column.z + column.height;
+  const runTop = run.z + run.height;
+  if (bottomUp <= SEGMENT_EPSILON && runTop - top <= SEGMENT_EPSILON) return segments;
+  const bottom = bottomUp > SEGMENT_EPSILON
+    ? column.z - drop : Math.min(run.z, segments[0].start);
+  const result = [];
+  appendSegment(result, run.z - drop, bottom, 'step');
+  for (const { start, end, kind } of segments) {
+    appendSegment(result, Math.max(start, bottom), Math.min(end, top), kind);
+  }
+  appendSegment(result, top, runTop, 'step');
+  return result;
+}
+
 /**
  * A run's box on the vertical chain (SPEC-36.2.1). On a face frame run, the frame region nearest
  * the chain's edge is dimensioned rail | opening | rail up its outermost stack of openings, from the
@@ -771,20 +790,24 @@ function teeBoxSegments(run, cells, tees, edge) {
 function runBoxSegments(room, wall, run, settings, edge) {
   const box = [{ start: run.z, end: run.z + run.height, kind: 'box' }];
   const layout = layoutRun(room, wall, run, settings);
+  // Root bounds include nested voids and only offsets accepted by the layout solver.
+  const columns = layout.pieces.filter((piece) => piece.kind === 'cabinet' && piece.role === 'item');
+  const column = (edge === 'right' ? rightmost : leftmost)(columns);
   const cells = cellPieces(run, layout);
   const { regions } = frameRegions(room, run, cells, settings);
-  if (regions.length === 0) return teeBoxSegments(run, cells, teeFillers(room, run, cells, settings).tees, edge);
+  if (regions.length === 0) return edgeStepSegments(run, column,
+    teeBoxSegments(run, cells, teeFillers(room, run, cells, settings).tees, edge));
   const region = regions.reduce((best, candidate) => (edge === 'right'
     ? (candidate.x + candidate.width > best.x + best.width + SEGMENT_EPSILON ? candidate : best)
     : (candidate.x < best.x - SEGMENT_EPSILON ? candidate : best)));
   const openings = regionOpenings(region, runFaceLayouts(room, wall, run, settings, layout));
   const tracks = frameEdgeTracks(region, openings, edge);
-  if (tracks.length === 0) return box;
-  return [
+  if (tracks.length === 0) return edgeStepSegments(run, column, box);
+  return edgeStepSegments(run, column, [
     { start: run.z, end: region.z, kind: 'box' },
     ...tracks.map(({ start, end, kind }) => ({ start, end, kind })),
     { start: region.z + region.height, end: run.z + run.height, kind: 'box' },
-  ].filter((segment) => segment.end - segment.start > SEGMENT_EPSILON);
+  ].filter((segment) => segment.end - segment.start > SEGMENT_EPSILON), frameDrop(run, settings));
 }
 
 export function counterHeight(wall, run, profile) {

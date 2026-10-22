@@ -20,6 +20,7 @@ const KIND_COLORS = {
   opening: '#e2e8f0',
   'toe-kick': '#cbd5e1',
   box: '#cbd5e1',
+  step: '#fbbf24',
   't-filler': '#fbbf24',
   countertop: '#cbd5e1',
   waterfall: '#cbd5e1',
