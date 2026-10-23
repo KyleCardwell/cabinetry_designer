@@ -48,13 +48,17 @@ function interiorRecord({ itemId, items }) {
   return { partId: itemId, lines, labels };
 }
 
-function facePayload(room, wall, side, key, letter, settings, options) {
-  const sourceParts = [
+export function faceParts(room, wall, side, settings, options) {
+  return [
     ...elevationParts(room, wall, side, settings),
     ...bandParts(room, wall, side, settings),
     ...wallParts(room, wall, side, settings, { soffitJoins: options?.soffitJoins }),
     ...(options?.cornerShapes?.flatMap((shape) => shape.parts) ?? cornerParts(room, wall, side, settings)),
   ];
+}
+
+function facePayload(room, wall, side, key, letter, settings, options) {
+  const sourceParts = faceParts(room, wall, side, settings, options);
   // Geometry accepts details in doorDetails only, never on the parts themselves.
   const parts = sourceParts.map(({ doorDetail, ...part }) => part); // eslint-disable-line no-unused-vars
   const partIds = new Set(parts.map(({ id }) => id));
