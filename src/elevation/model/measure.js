@@ -1,6 +1,6 @@
 import { combinedViewOf } from './combinedElevations.js';
 import { combinedElevationPayload, shiftPayloadRecord } from './combinedPayload.js';
-import { faceParts } from './drawingPayload.js';
+import { faceDoorDetails, faceParts } from './drawingPayload.js';
 import { planParts } from './planParts.js';
 import { resolveWall } from './room.js';
 import { arcMeasure } from './sectionProfiles.js';
@@ -117,22 +117,37 @@ function elevationShapes(parts) {
   ]);
 }
 
-/** All visible faces in the opened elevation's local x/z frame (y is z). */
+/** Door openings, profile lines (rectangles) and miters as the drawing gets them. */
+function doorDetailShapes(doorDetails) {
+  return doorDetails.flatMap(({ openings = [], profileLines = [], miters = [] }) => [
+    ...[...openings, ...profileLines].map(({ x, z, width, height }) => ({ kind: 'rect', x, y: z, width, height })),
+    ...miters.map(({ x1, z1, x2, z2 }) => ({ kind: 'poly', points: [[x1, z1], [x2, z2]], closed: false })),
+  ]);
+}
+
+function faceRecords(room, wall, side, settings, options) {
+  const parts = faceParts(room, wall, side, settings, options);
+  return { parts, doorDetails: faceDoorDetails(room, wall, side, settings, parts) };
+}
+
+/** All visible faces and door details in the opened elevation's local x/z frame (y is z). */
 export function elevationMeasureGeometry(room, wall, side, settings) {
   const combined = combinedViewOf(room, wall.id, side);
   if (!combined) {
     const view = resolveWall(room, wall, side);
+    const { parts, doorDetails } = faceRecords(room, wall, side, settings);
     return measureGeometry([
-      ...elevationShapes(faceParts(room, wall, side, settings)),
+      ...elevationShapes(parts),
+      ...doorDetailShapes(doorDetails),
       { kind: 'rect', x: 0, y: 0, width: view.length, height: wall.height },
     ]);
   }
   const active = combined.faces.find(({ key }) => key === elevationKey(wall.id, side));
-  const payload = combinedElevationPayload(room, combined, settings, (w, s, options) => ({
-    parts: faceParts(room, w, s, settings, options),
-  }));
+  const payload = combinedElevationPayload(room, combined, settings,
+    (w, s, options) => faceRecords(room, w, s, settings, options));
   return measureGeometry([
     ...elevationShapes(payload.parts.map((part) => shiftPayloadRecord(part, -active.dx))),
+    ...doorDetailShapes(payload.doorDetails.map((detail) => shiftPayloadRecord(detail, -active.dx))),
     ...combined.faces.map((face) => {
       const faceWall = room.walls.find(({ id }) => id === face.wallId);
       const view = resolveWall(room, faceWall, face.side);

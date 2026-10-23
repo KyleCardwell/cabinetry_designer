@@ -57,11 +57,9 @@ export function faceParts(room, wall, side, settings, options) {
   ];
 }
 
-function facePayload(room, wall, side, key, letter, settings, options) {
-  const sourceParts = faceParts(room, wall, side, settings, options);
-  // Geometry accepts details in doorDetails only, never on the parts themselves.
-  const parts = sourceParts.map(({ doorDetail, ...part }) => part); // eslint-disable-line no-unused-vars
-  const partIds = new Set(parts.map(({ id }) => id));
+/** One face's door details (openings, profile lines, miters, tags) for `faceParts` output, as the drawing gets them. */
+export function faceDoorDetails(room, wall, side, settings, sourceParts) {
+  const partIds = new Set(sourceParts.map(({ id }) => id));
   const doorDetails = elevationDoorDetails(room, wall, side, settings, partIds);
   if (doorDrawing(room).details) {
     for (const { id, doorDetail } of sourceParts) {
@@ -73,6 +71,15 @@ function facePayload(room, wall, side, key, letter, settings, options) {
       if (entry.openings || entry.profileLines || entry.miters) doorDetails.push(entry);
     }
   }
+  return doorDetails;
+}
+
+function facePayload(room, wall, side, key, letter, settings, options) {
+  const sourceParts = faceParts(room, wall, side, settings, options);
+  // Geometry accepts details in doorDetails only, never on the parts themselves.
+  const parts = sourceParts.map(({ doorDetail, ...part }) => part); // eslint-disable-line no-unused-vars
+  const partIds = new Set(parts.map(({ id }) => id));
+  const doorDetails = faceDoorDetails(room, wall, side, settings, sourceParts);
   const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);
   const pulls = elevationPulls(room, wall, side, settings, partIds);
   const showThrough = [...wallShowThrough(room, wall, side, settings).values()];
