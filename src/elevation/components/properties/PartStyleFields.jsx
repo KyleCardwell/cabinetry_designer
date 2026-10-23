@@ -24,7 +24,7 @@ export default function PartStyleFields({
   const offsets = doorProfileOffsets(style, design, settings.sectionProfiles);
   const edgeOut = offsets.slots.outside?.reachOut ?? 0;
   const applied = design.construction === 'slab';
-  const rows = partSizeRows(style, design, { width, height, sizes: part?.sizes }, edgeOut, offsets.applied);
+  const rows = partSizeRows(style, design, { width, height, sizes: part?.sizes }, edgeOut, offsets.applied, offsets);
   const styleId = part?.styleId ?? '';
   const missingPick = styleId !== ''
     && !picker.options.some((option) => option.id === styleId);

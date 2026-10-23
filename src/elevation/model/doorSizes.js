@@ -1,5 +1,20 @@
+/** Style mid widths that preserve the frame's flat after profiles and applied moldings. */
+export function midDefaults(style, design, offsets) {
+  const applied = design.construction === 'five_piece'
+    ? (offsets?.applied ?? []).filter(({ profileId }) => profileId !== null) : [];
+  const lap = design.construction === 'five_piece'
+    ? Math.max(0, offsets?.slots.inside?.reachOut ?? 0, ...applied.map(({ reachOut }) => reachOut)) : 0;
+  const over = Math.max(0, ...applied.map(({ reachIn }) => reachIn));
+  return {
+    rail: style.mid.rail ?? style.rails.top + lap,
+    stile: style.mid.stile ?? style.stiles.left + lap,
+    lap,
+    over,
+  };
+}
+
 /** Final frame sizes for an installed part, including the short-face rule (SPEC-46). */
-export function partSizes(style, design, { width, height, coreHeight = height, sizes = {} }) {
+export function partSizes(style, design, { width, height, coreHeight = height, sizes = {} }, mid = midDefaults(style, design)) {
   if (coreHeight < style.shortFace.slabBelow - 1e-9) {
     return {
       construction: 'slab', slab: design.construction === 'slab' ? 'design' : 'rule',
@@ -31,18 +46,20 @@ export function partSizes(style, design, { width, height, coreHeight = height, s
     : Math.abs(value - style.rails[side]) <= 1e-9 ? 'style' : 'rule';
   const left = sizes.stiles?.left ?? style.stiles.left;
   const right = sizes.stiles?.right ?? style.stiles.right;
+  const mids = (entries, kind) => (entries ?? []).map(({ at, width }) => ({
+    at,
+    width: width ?? mid[kind],
+    source: width != null ? 'part' : style.mid[kind] != null ? 'style' : 'flat',
+    ...(mid.over > 0 ? { overall: (width ?? mid[kind]) + 2 * mid.over } : {}),
+  }));
 
   return {
     construction: design.construction,
     slab: null,
     stiles: { left, right },
     rails: { top, bottom },
-    midRails: (sizes.midRails ?? []).map(({ at, width }) => ({
-      at, width: width ?? style.rails.top + (style.mid.extra ?? 0),
-    })),
-    midStiles: (sizes.midStiles ?? []).map(({ at, width }) => ({
-      at, width: width ?? style.stiles.left + (style.mid.extra ?? 0),
-    })),
+    midRails: mids(sizes.midRails, 'rail'),
+    midStiles: mids(sizes.midStiles, 'stile'),
     opening: { width: width - left - right, height: height - top - bottom },
     sources: {
       top: railSource('top', typedTop, top),

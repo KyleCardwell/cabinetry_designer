@@ -77,6 +77,31 @@ const pageKeys = (order) => order.pages.map(({ styleId, type, sections }) => {
 const lines = (order) => order.pages.flatMap((page) => page.sections.flatMap((section) => section.lines));
 
 describe('door order form data', () => {
+  it('MR1b carries profile mid defaults through face details and end-panel orders', () => {
+    const molding = {
+      id: 'mid-molding', name: 'Mid molding', kind: 'applied_molding',
+      geometry: {
+        units: 'in', points: { a: [-0.25, 0], b: [0.5, -0.125] },
+        loops: [{ id: 'L1', closed: false, segs: [{ type: 'line', from: 'a', to: 'b' }] }],
+      },
+    };
+    const s = { ...settings, sectionProfiles: [molding], teamDoorStyle: {
+      ...style, appliedMoldings: [{ profileId: molding.id, offset: 0 }],
+    } };
+    const sizes = { midRails: [{ at: 15 }], midStiles: [{ at: 8, width: 4 }] };
+    const r = room([run('run', { id: 'cab', kind: 'cabinet', face: face('door', null, { sizes }) }, {
+      ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null, sizes } },
+    })], {}, {}, s);
+    const before = structuredClone(r);
+    const items = doorOrderItems(r, s).items;
+    expect(items.map(({ kind }) => kind)).toEqual(['face', 'endPanel']);
+    for (const item of items) {
+      expect(item.sizes.midRails).toEqual([{ at: 15, width: 3.25, source: 'flat', overall: 4.25 }]);
+      expect(item.sizes.midStiles).toEqual([{ at: 8, width: 4, source: 'part', overall: 5 }]);
+    }
+    expect(r).toEqual(before);
+  });
+
   it('IN14 anchor 3: keeps same-size glass and standard doors on separate lines with the sash note first', () => {
     const r = room([run('run', { id: 'cab', kind: 'cabinet', face: {
       direction: 'horizontal', size: null, children: [

@@ -2,7 +2,7 @@ import { DEFAULT_DESIGN_ID, DESIGN_DEFAULT_KEYS, DOOR_DESIGNS, DOOR_STYLE_KEYS, 
 import { gridLeaves } from './grid.js';
 import { formatInches } from './units.js';
 import { resolveDoorStyle } from './doorStyleResolve.js';
-import { partSizes } from './doorSizes.js';
+import { midDefaults, partSizes } from './doorSizes.js';
 import { inset } from './doorProfileLines.js';
 import { partDetail } from './doorDetails.js';
 
@@ -200,10 +200,11 @@ export function pickOptions(room, settings, partType, levelsAbove, node = null) 
 }
 
 /** Display typed and resolved sizes, or explain why this part is a slab. */
-export function partSizeRows(style, design, part, edgeOut = 0, moldings = []) {
+export function partSizeRows(style, design, part, edgeOut = 0, moldings = [], offsets) {
   const core = inset({ x: 0, z: 0, ...part }, edgeOut);
   const sizeRect = design.construction === 'slab' ? part : core;
-  const result = partSizes(style, design, { ...sizeRect, coreHeight: core.height, sizes: part.sizes });
+  const result = partSizes(style, design, { ...sizeRect, coreHeight: core.height, sizes: part.sizes },
+    midDefaults(style, design, offsets));
   const sizes = part.sizes ?? {};
   if (result.construction === 'slab' && !result.molding) {
     const note = `Slab under ${formatInches(style.shortFace.slabBelow)} — molding left off`;
@@ -211,7 +212,7 @@ export function partSizeRows(style, design, part, edgeOut = 0, moldings = []) {
   }
   const molding = result.construction === 'slab' && result.molding;
   if (molding) {
-    const detail = partDetail(style, design, { x: 0, z: 0, ...part }, part.sizes, edgeOut, moldings);
+    const detail = partDetail(style, design, { x: 0, z: 0, ...part }, part.sizes, edgeOut, moldings, offsets);
     return {
       title: 'Applied moldings', note: null,
       rows: detail.moldings.map(({ index, offset, typed, shifted }) => ({

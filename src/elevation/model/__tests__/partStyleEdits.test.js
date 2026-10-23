@@ -117,7 +117,7 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
         { side: 'right', label: 'Right stile', typed: null, value: 3, source: 'style', note: null },
       ],
       midRails: [],
-      midStiles: [{ at: 7.5, width: 3, typed: false }],
+      midStiles: [{ at: 7.5, width: 3, source: 'flat', typed: false }],
       opening: { width: 8.5, height: 2.125 },
     });
   });

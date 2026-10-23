@@ -2,7 +2,8 @@ import { panelOrientation } from '../elevation/model/cells.js';
 import { findLeaf } from '../elevation/model/cellTree.js';
 import { panelMaterial } from '../elevation/model/constants.js';
 import { runDoorDetails } from '../elevation/model/doorDetails.js';
-import { partSizes } from '../elevation/model/doorSizes.js';
+import { midDefaults, partSizes } from '../elevation/model/doorSizes.js';
+import { doorProfileOffsets } from '../elevation/model/doorProfileLines.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
 import { elevationParts } from '../elevation/model/elevationParts.js';
 import { isJoinedEnd, isSheetCell } from '../elevation/model/panelThickness.js';
@@ -113,9 +114,11 @@ export function doorOrderItems(room, settings) {
   function addPanel(wall, run, stored, rect, pieceId, kind, sheet = false) {
     const resolved = resolveDoorStyle(room, settings, 'panel', panelLevels(room, wall, run, stored, { sheet }));
     if (resolved.style.id === 'sheet') return;
+    const mid = midDefaults(resolved.style, resolved.design,
+      doorProfileOffsets(resolved.style, resolved.design, settings.sectionProfiles));
     add({ ...resolved, ...rect, pieceId, kind, sizes: partSizes(resolved.style, resolved.design, {
       width: rect.width, height: rect.height, sizes: stored?.sizes,
-    }) }, true);
+    }, mid) }, true);
   }
 
   for (const wall of room?.walls ?? []) {

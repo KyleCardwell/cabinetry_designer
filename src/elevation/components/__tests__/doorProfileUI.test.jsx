@@ -176,6 +176,19 @@ describe('Step 494.5 Slab - MDF Core editor and part panel', () => {
     expect(nodes(tree).filter(({ type }) => type === InchInput || type === 'input')).toHaveLength(0);
   });
 
+  it('MR1b shows profile-aware mid width placeholders through the part size rows', () => {
+    const style = { ...DEFAULT_DOOR_STYLE, profiles: { ...DEFAULT_DOOR_STYLE.profiles, inside: bead.id } };
+    const tree = PartStyleFields({
+      room: {}, settings: { sectionProfiles: [{ ...bead, kind: 'door_inside' }], teamDoorStyle: style, doorDesigns: DOOR_DESIGNS },
+      partType: 'door', levels: [], part: { sizes: { midRails: [{ at: 15 }], midStiles: [{ at: 12 }] } },
+      width: 24, height: 30, label: 'Front', onChange: vi.fn(),
+    });
+    for (const word of ['rail', 'stile']) {
+      const input = find(tree, ({ props }) => props['aria-label'] === `Front mid ${word} 1 width`);
+      expect(input.props).toMatchObject({ value: null, placeholder: '3 5/16' });
+    }
+  });
+
   it('keeps editable mid positions while hiding Slab - MDF Core widths and retaining stored widths', () => {
     const sizes = { midRails: [{ at: 15, width: 4 }], midStiles: [{ at: 12, width: 5 }] };
     const onChange = vi.fn();

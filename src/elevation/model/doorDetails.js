@@ -1,7 +1,7 @@
 import { panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { doorProfileOffsets, inset, partProfileLines, stileFlat } from './doorProfileLines.js';
-import { frontStackWarnings, partSizes } from './doorSizes.js';
+import { frontStackWarnings, midDefaults, partSizes } from './doorSizes.js';
 import { cabinetFaceLevels, facePartType, panelLevels, resolveDoorStyle } from './doorStyleResolve.js';
 import { frontDepth, runBackOffset } from './corners.js';
 import { defaultFace } from './faces.js';
@@ -47,10 +47,11 @@ function splitIntervals(start, length, mids) {
  * Frame openings (5-piece) or door-edge regions (slabs with moldings) of one part,
  * in wall coordinates (SPEC-46.2, DOORS-PROFILES-PLAN §3.6).
  */
-export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = []) {
+export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = [], offsets) {
   const core = inset(rect, edgeOut);
   const sizeRect = design.construction === 'slab' ? rect : core;
-  const r = partSizes(style, design, { width: sizeRect.width, height: sizeRect.height, coreHeight: core.height, sizes });
+  const r = partSizes(style, design, { width: sizeRect.width, height: sizeRect.height, coreHeight: core.height, sizes },
+    midDefaults(style, design, offsets));
   if (r.construction === 'slab' && !r.molding) return { ...r, core, openings: [] };
 
   if (r.construction === 'slab' && r.molding) {
@@ -92,7 +93,7 @@ export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = [
 
 /** A part's openings (partDetail) and its profile lines and miters, as face-on parts and end views draw them. */
 function detailWithLines(offsets, style, design, rect, sizes, panel) {
-  const detail = partDetail(style, design, rect, sizes, offsets.slots.outside?.reachOut ?? 0, offsets.applied);
+  const detail = partDetail(style, design, rect, sizes, offsets.slots.outside?.reachOut ?? 0, offsets.applied, offsets);
   return { detail, fit: partProfileLines(offsets, detail, rect, { panel }) };
 }
 
