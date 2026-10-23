@@ -47,6 +47,7 @@ const DESIGN_COLUMNS = 'design_id, code, data, version, sort, archived_at';
 const PULL_COLUMNS = 'pull_id, name, data, hardware_pull_id, version, sort, archived_at';
 const SLIDE_COLUMNS = 'slide_id, name, data, hardware_slide_id, version, sort, archived_at';
 const ACCESSORY_COLUMNS = 'accessory_id, name, data, version, sort, archived_at';
+const SHAPE_COLUMNS = 'shape_id, name, data, version, sort, archived_at';
 const VERSION_COLUMNS = 'version_id, room_id, seq, label, note, document, schema_version, settings_snapshot, issued_by, issued_at';
 
 export function createDesignApi(client) {
@@ -85,6 +86,12 @@ export function createDesignApi(client) {
     async listAccessories(teamId) {
       const reply = await run(() => client.from('design_accessories').select(ACCESSORY_COLUMNS)
         .eq('team_id', teamId).is('archived_at', null).order('sort').order('created_at'));
+      return reply.ok ? { ok: true, rows: reply.data ?? [] } : reply;
+    },
+    /** Every shape, archived too (an accessory that points at an archived shape still draws it, SH1). → { ok, rows } */
+    async listShapes(teamId) {
+      const reply = await run(() => client.from('design_shapes').select(SHAPE_COLUMNS)
+        .eq('team_id', teamId).order('sort').order('created_at'));
       return reply.ok ? { ok: true, rows: reply.data ?? [] } : reply;
     },
     /**
@@ -182,6 +189,12 @@ export function createDesignApi(client) {
     saveAccessory({ teamId, accessoryId, name, data, sort = null, expectedVersion }) {
       return rpc(client, 'save_accessory', {
         p_team_id: teamId, p_accessory_id: accessoryId, p_name: name, p_data: data,
+        p_sort: sort, p_expected_version: expectedVersion,
+      });
+    },
+    saveShape({ teamId, shapeId, name, data, sort = null, expectedVersion }) {
+      return rpc(client, 'save_shape', {
+        p_team_id: teamId, p_shape_id: shapeId, p_name: name, p_data: data,
         p_sort: sort, p_expected_version: expectedVersion,
       });
     },

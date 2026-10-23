@@ -111,6 +111,34 @@ describe('designApi', () => {
     expect(await api.listAccessories('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
   });
 
+  it('SH1 lists every shape (archived too) in order and passes save arguments, defaults and conflicts through', async () => {
+    let listed = { data: [{ shape_id: 's', archived_at: 't' }], error: null };
+    let saved = { data: { ok: true, shape_id: 's', version: 2, updated_at: 't' }, error: null };
+    const client = fakeClient({ tables: { design_shapes: () => listed }, rpc: { save_shape: () => saved } });
+    const api = createDesignApi(client);
+    expect(await api.listShapes('team')).toEqual({ ok: true, rows: [{ shape_id: 's', archived_at: 't' }] });
+    expect(client.calls[0]).toEqual({ table: 'design_shapes', chain: [
+      ['select', 'shape_id, name, data, version, sort, archived_at'],
+      ['eq', 'team_id', 'team'], ['order', 'sort'], ['order', 'created_at'],
+    ] });
+    const args = { teamId: 'team', shapeId: 's', name: 'Closet rod', data: { kind: 'accessory' }, sort: 3, expectedVersion: 1 };
+    expect(await api.saveShape(args)).toEqual(saved.data);
+    expect(client.calls.at(-1)).toEqual({ rpc: 'save_shape', args: {
+      p_team_id: 'team', p_shape_id: 's', p_name: 'Closet rod', p_data: { kind: 'accessory' },
+      p_sort: 3, p_expected_version: 1,
+    } });
+    saved = { data: { ok: false, reason: 'conflict', version: 4 }, error: null };
+    expect(await api.saveShape({ teamId: 'team', shapeId: null, name: 'Closet rod', data: {}, expectedVersion: 0 })).toEqual(saved.data);
+    expect(client.calls.at(-1).args).toEqual({ p_team_id: 'team', p_shape_id: null, p_name: 'Closet rod', p_data: {}, p_sort: null, p_expected_version: 0 });
+    saved = { error: { code: '23505', message: 'duplicate key' } };
+    expect(await api.saveShape({ teamId: 'team', shapeId: null, name: 'closet rod', data: {}, expectedVersion: 0 }))
+      .toEqual({ ok: false, reason: 'duplicate', message: 'duplicate key' });
+    listed = { data: null, error: null };
+    expect(await api.listShapes('team')).toEqual({ ok: true, rows: [] });
+    listed = { error: { code: '42501', message: 'No permission' } };
+    expect(await api.listShapes('team')).toEqual({ ok: false, reason: 'permission', message: 'No permission' });
+  });
+
   it('IN12a lists the team services for labour minutes', async () => {
     let listed = { data: [{ team_service_id: 7, name: 'Finish', is_active: true }, { team_service_id: 3, name: 'Shop', is_active: false }], error: null };
     const client = fakeClient({ tables: { team_services_view: () => listed } });
