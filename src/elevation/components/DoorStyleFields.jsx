@@ -7,6 +7,7 @@ import { midDefaults } from '../model/doorSizes.js';
 import { formatInchesInput } from '../model/units.js';
 import DoorProfilePickers from './DoorProfilePickers.jsx';
 import DoorSectionView from './DoorSectionView.jsx';
+import DoorMidSectionView from './DoorMidSectionView.jsx';
 import InchInput from './InchInput.jsx';
 import TextInput from './TextInput.jsx';
 
@@ -227,6 +228,7 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
       <div className="space-y-2 self-start md:sticky md:top-0">
         <h3 className={HEADING_CLASS}>Section</h3>
         <DoorSectionView style={draft} design={design} />
+        {fivePiece && <DoorMidSectionView style={draft} design={design} />}
         <section className="space-y-2">
           <h3 className={HEADING_CLASS}>Profiles</h3>
           <DoorProfilePickers draft={draft} setDraft={setDraft} design={design} />

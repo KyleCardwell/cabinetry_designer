@@ -1,8 +1,12 @@
+import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
 import DoorSectionView from '../DoorSectionView.jsx';
+import DoorMidSectionView from '../DoorMidSectionView.jsx';
+import DoorStyleFields from '../DoorStyleFields.jsx';
+import SectionSvg from '../SectionSvg.jsx';
 
 vi.mock('react', async (original) => ({
   ...await original(),
@@ -36,14 +40,26 @@ const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
 const find = (tree, label) => nodes(tree).find(({ props }) => props['aria-label'] === label);
 const labels = (tree) => nodes(tree).filter(({ type }) => type === 'text').map(({ props }) => props.children);
 const lines = (tree) => nodes(tree).filter(({ type }) => type === 'line').map(({ props }) => props);
-const render = (style = picked, design = DOOR_DESIGNS[0]) => DoorSectionView({ style, design });
+// Expand the extracted SVG component; keep the half-section assertions unchanged.
+const renderSvg = (tree) => {
+  if (Array.isArray(tree)) return tree.map(renderSvg);
+  if (!tree || typeof tree !== 'object') return tree;
+  if (tree.type === SectionSvg) return SectionSvg(tree.props);
+  return { ...tree, props: { ...tree.props, children: renderSvg(tree.props?.children) } };
+};
+const render = (style = picked, design = DOOR_DESIGNS[0]) => renderSvg(DoorSectionView({ style, design }));
+const renderMid = (style = DEFAULT_DOOR_STYLE, design = DOOR_DESIGNS[0]) => renderSvg(DoorMidSectionView({ style, design }));
+const { profiles: fixtures } = JSON.parse(readFileSync(new URL('../../model/__tests__/fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
+const inside58 = fixtures.find(({ id }) => id === 'in58');
+const midMolding = profile('mid-molding', 'applied_molding', -0.25, 0.5, 0.375);
+const midStyle = { ...DEFAULT_DOOR_STYLE, thickness: 0.75 };
 
 beforeEach(() => {
   vi.clearAllMocks();
   useRef.mockReturnValue({ current: null });
   useState.mockImplementation((initial) => [initial, vi.fn()]);
   useSelector.mockImplementation((selector) => selector({ elevation: { settings: {
-    sectionProfiles: [outside, inside, applied, panel],
+    sectionProfiles: [outside, inside, applied, panel, inside58, midMolding],
   } } }));
 });
 
@@ -212,5 +228,80 @@ describe('Step 465 door section dimensions', () => {
     cleanup();
     expect(disconnect).toHaveBeenCalledOnce();
     vi.unstubAllGlobals();
+  });
+});
+
+
+describe('MR6b mid section view', () => {
+  it('anchor 1: shows both inside spans and the mid flat, with the full width below', () => {
+    const tree = renderMid({ ...midStyle, profiles: { ...midStyle.profiles, inside: inside58.id, outside: outside.id } });
+    expect(nodes(tree).find(({ type }) => type === 'h3').props.children).toBe('Mid section');
+    expect(find(tree, 'Mid section').type).toBe('svg');
+    expect(nodes(tree).filter(({ type }) => type === 'button')).toHaveLength(0);
+    expect(labels(find(tree, 'above dimensions'))).toEqual(['5/8"', '2 3/8"', '5/8"']);
+    expect(labels(find(tree, 'below dimensions'))).toEqual(['3 5/8"']);
+    expect(find(tree, 'overall dimensions')).toBeUndefined();
+    const paths = nodes(tree).filter(({ type, props }) => type === 'path' && props.className === 'text-blue-400');
+    expect(paths).toHaveLength(2);
+    expect(new Set(paths.map(({ key }) => key)).size).toBe(2);
+    expect(nodes(tree).filter(({ type }) => type === 'title').map(({ props }) => props.children))
+      .toEqual([inside58.name, inside58.name]);
+    expect(nodes(tree).filter(({ type, props }) => type === 'path' && props.fill === 'black')).toHaveLength(2);
+  });
+
+  it('anchor 2: puts the overall molding width on a second row below the mid width', () => {
+    const tree = renderMid({ ...midStyle, appliedMoldings: [{ profileId: midMolding.id, offset: 0 }] });
+    expect(labels(find(tree, 'below dimensions'))).toEqual(['3 1/4"']);
+    expect(labels(find(tree, 'overall dimensions'))).toEqual(['4 1/4"']);
+    expect(find(tree, 'w/ molding: 4 1/4"')).toBeDefined();
+    const below = lines(find(tree, 'below dimensions'))[2];
+    const overall = lines(find(tree, 'overall dimensions'))[2];
+    expect(overall.y1 - below.y1).toBe(32);
+    expect(overall.y1).toBe(overall.y2);
+    const texts = nodes(find(tree, 'overall dimensions')).filter(({ type }) => type === 'text');
+    expect(texts[0].props.y + 6).toBeLessThan(256);
+    const paths = nodes(tree).filter(({ type, props }) => type === 'path' && props.className === 'text-blue-400');
+    expect(new Set(paths.map(({ key }) => key)).size).toBe(paths.length);
+  });
+
+  it('anchor 3: starts at the stile and switches to the rail, showing chips only for different widths', () => {
+    let selected = 'stile';
+    useState.mockImplementation((initial) => typeof initial === 'string'
+      ? [selected, (next) => { selected = next; }]
+      : [initial, vi.fn()]);
+    const style = { ...midStyle, mid: { rail: 4 } };
+    const buttons = (tree) => nodes(tree).filter(({ type }) => type === 'button');
+    let tree = renderMid(style);
+    expect(buttons(tree).map(({ props }) => props.children.join(''))).toEqual(['Mid stile', 'Mid rail']);
+    expect(buttons(tree).map(({ props }) => props['aria-pressed'])).toEqual([true, false]);
+    expect(labels(find(tree, 'below dimensions'))).toEqual(['3"']);
+    buttons(tree)[1].props.onClick();
+    tree = renderMid(style);
+    expect(buttons(tree).map(({ props }) => props['aria-pressed'])).toEqual([false, true]);
+    expect(labels(find(tree, 'below dimensions'))).toEqual(['4"']);
+    expect(labels(find(tree, 'above dimensions'))).toEqual(['4"']);
+    for (const difference of [0, 0.0000005, 0.000002]) {
+      tree = renderMid({ ...midStyle, mid: { rail: 3 + difference } });
+      expect(buttons(tree)).toHaveLength(difference > 1e-6 ? 2 : 0);
+    }
+    tree = renderMid({ ...midStyle, mid: { stile: 2 } });
+    buttons(tree)[0].props.onClick();
+    expect(labels(find(renderMid({ ...midStyle, mid: { stile: 2 } }), 'below dimensions'))).toEqual(['2"']);
+  });
+
+  it('anchor 4: mounts below the half section for five-piece designs and hides for slabs', () => {
+    const fields = (style) => DoorStyleFields({ draft: style, designs: DOOR_DESIGNS, setDraft: vi.fn() });
+    const sections = nodes(fields(midStyle)).filter(({ type }) => [DoorSectionView, DoorMidSectionView].includes(type));
+    expect(sections.map(({ type }) => type)).toEqual([DoorSectionView, DoorMidSectionView]);
+    expect(sections[1].props).toEqual({ style: midStyle, design: DOOR_DESIGNS[0] });
+    for (const design of DOOR_DESIGNS.filter(({ construction }) => construction === 'slab')) {
+      expect(nodes(fields({ ...midStyle, designId: design.id })).some(({ type }) => type === DoorMidSectionView)).toBe(false);
+      expect(renderMid(midStyle, design)).toBeNull();
+    }
+    for (const style of [{ ...midStyle, thickness: 0.5 }, { ...midStyle, mid: { stile: 1 } }]) {
+      const tree = renderMid(style);
+      expect(nodes(tree).some(({ type }) => type === 'svg')).toBe(false);
+      expect(nodes(tree).find(({ type }) => type === 'p').props.children).toContain('Too thin to draw a mid section');
+    }
   });
 });
