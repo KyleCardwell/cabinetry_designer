@@ -1,7 +1,7 @@
 import { accessoryText } from '../elevation/model/accessories.js';
 import { findLeaf } from '../elevation/model/cellTree.js';
 import { boxConstruction } from '../elevation/model/boxConstruction.js';
-import { CABINET_TYPE_IDS } from '../elevation/model/constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../elevation/model/constants.js';
 import { panelOrientation } from '../elevation/model/cells.js';
 import { frontDepth, runBackOffset } from '../elevation/model/corners.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
@@ -41,6 +41,7 @@ const TYPES = { 1: 'Base', 2: 'Upper', 3: 'Tall' };
 const MOLDINGS = { toeKick: 'Toe Kick', topMold: 'Top Mold', crown: 'Crown' };
 const MOLDING_EXTRA = 24;
 const EPSILON = 1e-6;
+const PRINTED_FRAME_RULES = new Set(['rule:top-overlap', 'rule:stacked-seam']);
 
 /** Order eight-foot lengths, allowing two extra feet for fitting. */
 export function linealFeet(inches) {
@@ -62,7 +63,9 @@ function shippingMoldings(room, settings) {
         for (const kind of kinds) {
           const data = result[kind];
           const picked = moldings[kind];
-          const height = formatInch(picked?.height ?? profile[`${kind}Height`]);
+          // A toe kick is ordered short of the box by its top gap: a 4" kick is 3 7/8" (Kyle 2026-10-23).
+          const gap = kind === 'toeKick' ? settings.toeKickTopGap ?? DEFAULT_SETTINGS.toeKickTopGap : 0;
+          const height = formatInch((picked?.height ?? profile[`${kind}Height`]) - gap);
           const bounds = picked && sectionProfileBounds({ geometry: picked.geometry });
           const depth = bounds ? formatInch(bounds.maxX - bounds.minX) : null;
           data.dimensions.set(`${height}:${depth}`, { height, depth });
@@ -201,6 +204,13 @@ function moldingDescription(room, settings, part) {
   return settings.sectionProfiles?.find((entry) => entry.id === id)?.name || MOLDINGS[part.molding];
 }
 
+/** A tall run's cabinet on the floor under another is a base on the shop's lists (Kyle 2026-10-23). */
+function listedTypeId(run, piece) {
+  if (run?.cabinetTypeId !== CABINET_TYPE_IDS.TALL || !piece) return run?.cabinetTypeId;
+  const stacked = piece.z <= run.z + EPSILON && piece.z + piece.height < run.z + run.height - EPSILON;
+  return stacked ? CABINET_TYPE_IDS.BASE : run.cabinetTypeId;
+}
+
 function describePart(room, settings, part, context) {
   const entry = room.reportParts?.[part.key];
   const name = entry?.name?.trim();
@@ -210,7 +220,7 @@ function describePart(room, settings, part, context) {
   const type = TYPES[run?.cabinetTypeId];
   let description;
   switch (part.kind) {
-    case 'cabinet': description = cabinetDescription(run.cabinetTypeId, scene.faceLayouts.get(part.key)?.faces); break;
+    case 'cabinet': description = cabinetDescription(listedTypeId(run, piece), scene.faceLayouts.get(part.key)?.faces); break;
     case 'filler': description = `${type} ${blindPanel ? 'Blind Panel' : 'Filler'}`; break;
     case 'end_panel': description = `${type} ${scene.panelPieceIds.has(part.key) ? 'Blind' : 'End'} Panel`; break;
     case 'panel': {
@@ -310,8 +320,9 @@ function cabinetNotes(room, settings, part, context) {
   const style = resolveStyle(settings, room, run, leaf);
   const standard = layout && !isInsetStyle(style)
     ? typeStandardReveals(style, run.cabinetTypeId, settings) : null;
-  // Face frame reveals print only when typed, except a top overlap, which changes the box's reveal too (Kyle 2026-10-22).
-  const overlap = layout && !standard ? REVEAL_KEYS.filter((key) => layout.reveals.sources?.[key] === 'rule:top-overlap')
+  // Face frame reveals print only when typed, except a top overlap, which changes the box's reveal too (Kyle 2026-10-22),
+  // and the 3/4" seam reveals of boxes stacked under one shared rail (Kyle 2026-10-23).
+  const overlap = layout && !standard ? REVEAL_KEYS.filter((key) => PRINTED_FRAME_RULES.has(layout.reveals.sources?.[key]))
     .map((key) => [key, layout.reveals.values[key]]) : [];
   const values = standard ? layout.reveals.values : { ...leaf?.reveals, ...Object.fromEntries(overlap) };
   const reveals = REVEAL_KEYS.filter((key) => Number.isFinite(values?.[key])
@@ -360,7 +371,7 @@ function cabinetNotes(room, settings, part, context) {
 
 /** Part notes share vendor annotations and the properties panel's return/chip rules. */
 function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
-  const { run, scene, piece, shapeNotes, style, wall, end, endpoint, base } = context;
+  const { run, scene, piece, shapeNotes, style, wall, end, endpoint } = context;
   const groups = {};
   if (part.kind === 'rot') {
     const box = context.drawerBox?.();
@@ -368,14 +379,7 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
       box.slideId !== resolveSlide(settings).id ? box.slide.name : null];
   }
   if (part.kind === 'molding') groups[13] = context.molding.note;
-  if (part.kind === 'furniture_base') {
-    groups[12] = [
-      ...(base.orderedHeight - base.height > EPSILON
-        ? [`+${formatInch(base.orderedHeight - base.height)} scribe bottom`] : []),
-      ...(base.orderedWidth - base.width > EPSILON
-        ? [`+${formatInch(base.orderedWidth - base.width)} scribe left/right`] : []),
-    ];
-  }
+  // Scribe is already in the ordered size, so it gets no note of its own (Kyle 2026-10-23).
   if (['filler', 'end_panel'].includes(part.kind)) {
     const tee = scene.tees.find((tee) => tee.id === part.key || tee.pieceId === part.key);
     const notes = shapeNotes.get(tee?.id ?? part.key) ?? [];

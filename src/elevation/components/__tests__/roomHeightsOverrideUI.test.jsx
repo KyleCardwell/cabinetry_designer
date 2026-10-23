@@ -304,12 +304,12 @@ describe('UI1 step a room height bands', () => {
     expect(nodes(tree).filter(({ props }) => props['data-height-band'])
       .map((section) => text(nodes(section).find(({ props }) => props.className === 'uppercase tracking-wide'))))
       .toEqual(['Wall', 'Crown', 'Uppers', 'Countertop', 'Base']);
-    expect(controls(band(tree, 'base'))).toEqual(['Room Base', 'Room Toe kick / base height', 'Room Base box height', ...setbacks]);
+    expect(controls(band(tree, 'base'))).toEqual(['Room Base', 'Room Toe kick / base height', 'Room Toe kick top gap', 'Room Base box height', ...setbacks]);
   });
 
   it('shows furniture rows from the resolved base kind and retains the three setbacks last (anchor 2)', () => {
     state.settings.sectionProfiles = [];
-    const expected = ['Room Base', 'Room Toe kick / base height', 'Room Base box height', 'Room Furniture base profile',
+    const expected = ['Room Base', 'Room Toe kick / base height', 'Room Toe kick top gap', 'Room Base box height', 'Room Furniture base profile',
       'Room Base proud', 'Room Cutout profile', 'Room Cutout foot', 'Room Square cutout height', 'Room Furniture base scribe', ...setbacks];
     choose('Room Base', 'furniture_base');
     expect(controls(band(render(), 'base'))).toEqual(expected);

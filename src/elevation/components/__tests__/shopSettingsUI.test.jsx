@@ -248,7 +248,7 @@ describe('RP1 a shop report settings', () => {
 
 
 describe('UI1 step a settings exclusions', () => {
-  it('keeps only the seven remaining band settings in shop/room and all fifteen at project (anchor 4)', () => {
+  it('keeps only the seven remaining band settings in shop/room and all sixteen at project (anchor 4)', () => {
     const expected = ['Bottom part height light rail', 'Bottom part height light trough', 'Bottom part height panel',
       'Bottom part height bottom cap', 'Bottom part height corbels', 'Below run overhang', 'Below run flush reveal'];
     expect(controls(section(openGroup('Bases, tops & bands'), 'Bases, tops & bands'))
@@ -260,13 +260,13 @@ describe('UI1 step a settings exclusions', () => {
     hooks.clear();
     header(render(ProjectSettingsPanel, { level: 'project' }), 'Project settings').props.onClick();
     header(render(ProjectSettingsPanel, { level: 'project' }), 'Bases, tops & bands').props.onClick();
-    expect(controls(section(render(ProjectSettingsPanel, { level: 'project' }), 'Bases, tops & bands'))).toHaveLength(15);
+    expect(controls(section(render(ProjectSettingsPanel, { level: 'project' }), 'Bases, tops & bands'))).toHaveLength(16);
     hooks.clear();
     const exclude = groupsFor('room').flatMap(({ keys }) => keys);
     expect(header(render(SettingGroups, { scope: 'room', exclude }), 'Bases, tops & bands')).toBeUndefined();
     state.rooms[0].settingsOverrides = { baseCutoutFoot: 2 };
     hooks.clear();
     expect(text(header(render(SettingsDrawer), 'Room settings'))).not.toContain('overridden');
-    expect(BAND_SETTING_KEYS).toHaveLength(8);
+    expect(BAND_SETTING_KEYS).toHaveLength(9);
   });
 });

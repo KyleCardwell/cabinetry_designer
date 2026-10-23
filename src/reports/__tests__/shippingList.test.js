@@ -1226,7 +1226,7 @@ describe('RP2 step c shipping list rows', () => {
     expect(rows.filter(({ key }) => ['molding:toeKick', 'molding:crown'].includes(key)))
       .toEqual(['Toe Kick', 'Crown'].map((description, index) => ({
         number: index === 0 ? 2 : 4, key: index === 0 ? 'molding:toeKick' : 'molding:crown',
-        kind: 'molding', description, notes: [index === 0 ? '4" tall' : '4 1/2" tall x 2 3/4" deep'],
+        kind: 'molding', description, notes: [index === 0 ? '3 7/8" tall' : '4 1/2" tall x 2 3/4" deep'],
         size: index === 0 ? 'Lineal Feet: 8' : 'Lineal Feet: 16',
       })));
     // Existing part numbering also carries Top Mold with Crown; step c must keep that entry.
@@ -1414,13 +1414,13 @@ describe('RP2 step e panel, filler and base notes', () => {
       notes: ['do not sand edges', 'add 3/4" square nosing, mitered (1 9/16" thick)'] });
   });
 
-  it('prints only positive base scribes, height then width (anchor 9)', () => {
+  it('keeps base scribes in the size with no scribe notes (anchor 9, Kyle 2026-10-23)', () => {
     const r = room([run('run', undefined, { anchors: { left: true, right: false } })], {
       profile: { ...settings.defaultProfile, baseKind: 'furniture_base', furnitureBaseProud: 0 },
     });
-    expect(row(r, 'furniture_base:run').notes).toEqual(['+1/2" scribe bottom', '+1/2" scribe left/right']);
+    expect(row(r, 'furniture_base:run')).toMatchObject({ size: '18 1/2 x 4 1/2 x 24 7/8', notes: [] });
     const s = { ...settings, furnitureBaseScribe: 0 };
-    expect(row(r, 'furniture_base:run', s).notes).toEqual([]);
+    expect(row(r, 'furniture_base:run', s)).toMatchObject({ size: '18 x 4 x 24 7/8', notes: [] });
   });
 
   it('keeps a shop-built end panel on shipping with its prefix (anchor 10)', () => {
@@ -1502,8 +1502,10 @@ describe('RP2 step f molding rows', () => {
     expect(row(both, 'molding:crown').size).toBe('Lineal Feet: 16');
   });
 
-  it('uses the unpicked toe-kick profile height (anchor 5)', () => {
-    expect(row(room(), 'molding:toeKick').notes).toEqual(['4" tall']);
+  it('uses the unpicked toe-kick profile height less the top gap (anchor 5)', () => {
+    expect(row(room(), 'molding:toeKick').notes).toEqual(['3 7/8" tall']);
+    expect(row(room(), 'molding:toeKick', { ...settings, toeKickTopGap: 0 }).notes).toEqual(['4" tall']);
+    expect(row(room(), 'molding:toeKick', { ...settings, toeKickTopGap: 0.25 }).notes).toEqual(['3 3/4" tall']);
   });
 
   it('prints the picked CV10 height and bounds depth (anchor 6)', () => {
@@ -1522,12 +1524,12 @@ describe('RP2 step f molding rows', () => {
   it('joins distinct wall heights and omits repeated heights (anchor 7)', () => {
     const r = twoWalls(117, 58, { toeKickHeight: 3.5 });
     r.walls[0].runs.push(run('repeat', [cabinet('c')], { wallSide: 'back' }));
-    expect(row(syncRoom(r, settings), 'molding:toeKick').notes).toEqual(['4" & 3 1/2" tall']);
+    expect(row(syncRoom(r, settings), 'molding:toeKick').notes).toEqual(['3 7/8" & 3 3/8" tall']);
   });
 
   it('puts the free-text molding note last (anchor 8)', () => {
     const r = room(undefined, { reportParts: { 'molding:toeKick': { note: ' add scribe if necessary ' } } });
-    expect(row(r, 'molding:toeKick').notes).toEqual(['4" tall', 'add scribe if necessary']);
+    expect(row(r, 'molding:toeKick').notes).toEqual(['3 7/8" tall', 'add scribe if necessary']);
   });
 
   it('includes both wall faces and excludes furniture bases from toe-kick length', () => {
@@ -1545,5 +1547,35 @@ describe('RP2 step f molding rows', () => {
     const before = structuredClone(r);
     expect(row(r, 'molding:crown').size).toBe('Lineal Feet: 16');
     expect(r).toEqual(before);
+  });
+});
+
+describe('FX2 stacked tall cabinets on the shipping list', () => {
+  // Kyle's Room 9: a face frame tall run, an open cabinet over a 30 1/2" box under one shared rail.
+  const stacked = () => ({
+    id: 'tall:grid', cols: [{ id: 'col', size: null, sizeMode: 'auto' }], rows: [{ id: 'row', size: null, sizeMode: 'auto' }],
+    cells: [{ col: 0, row: 0, colSpan: 1, rowSpan: 1, node: {
+      id: 'stack', cols: [{ id: 'stack:col', size: null, sizeMode: 'auto' }],
+      rows: [{ id: 'top', size: null, sizeMode: 'auto' }, { id: 'bottom', size: 30.5, sizeMode: 'manual' }],
+      cells: [
+        { col: 0, row: 0, colSpan: 1, rowSpan: 1, node: { id: 'upper', kind: 'cabinet', face: face('open') } },
+        { col: 0, row: 1, colSpan: 1, rowSpan: 1, node: { id: 'lower', kind: 'cabinet' } },
+      ],
+    } }],
+  });
+  const tall = (styleId) => room([{ ...run('tall', undefined, { cabinetTypeId: 3, height: 88, depth: 16, width: 30.5 }),
+    grid: stacked() }], { style: { cabinetStyleId: styleId } });
+
+  it('calls the floor box of a stack a base and notes both 3/4" seam reveals (face frame)', () => {
+    const r = tall(14);
+    expect(row(r, 'lower')).toMatchObject({ description: 'Base' });
+    expect(row(r, 'lower').notes[0]).toBe('RV\'s (3/4" T)');
+    expect(row(r, 'upper')).toMatchObject({ description: 'Tall Open' });
+    expect(row(r, 'upper').notes[0]).toBe('RV\'s (3/4" B)');
+  });
+
+  it('keeps a full-height tall a tall', () => {
+    const r = room([run('tall', [cabinet('full')], { cabinetTypeId: 3, height: 88, depth: 16 })]);
+    expect(row(r, 'full').description).toBe('Tall 3 Drawers');
   });
 });

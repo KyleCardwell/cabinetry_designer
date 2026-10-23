@@ -12,6 +12,7 @@ export default function FaceOutlines({
   selectedPath = null,
   selectable = false,
   showSizes = false,
+  framed = false,
   onSelectFace,
 }) {
   return faces.map((face) => {
@@ -28,7 +29,8 @@ export default function FaceOutlines({
           {...rect}
           stroke={selected ? '#7dd3fc' : '#e2e8f0'}
           strokeWidth={selected ? 2 : 1}
-          dash={face.type === 'open' ? [4, 3] : undefined}
+          // A face frame opening is the frame's own edge, so an open face there stays solid (Kyle 2026-10-23).
+          dash={face.type === 'open' && !framed ? [4, 3] : undefined}
           fill={selectable ? 'rgba(0, 0, 0, 0.001)' : undefined}
           listening={selectable}
           onClick={selectable ? (event) => {

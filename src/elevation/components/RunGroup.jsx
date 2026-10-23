@@ -477,6 +477,7 @@ function RunGroup({
           key={`faces:${pieceId}`}
           faces={layout.faces}
           transform={transform}
+          framed={framedIds.has(pieceId)}
           selectable={!preview && selectedPieceId === pieceId}
           showSizes={!preview && selectedPieceId === pieceId}
           selectedPath={selectedPieceId === pieceId ? highlight.facePath : null}

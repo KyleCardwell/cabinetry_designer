@@ -36,6 +36,7 @@ export const HEIGHT_BANDS = [
   ] },
   { id: 'base', label: 'Base', rows: [
     [field('baseKind', 'Base', 'baseKind'), field('toeKickHeight', 'Toe kick / base height')],
+    [setting('toeKickTopGap', 'Toe kick top gap')],
     [field('baseBoxHeight', 'Base box height')],
     [pick('furnitureBaseProfileId', 'Furniture base profile', 'furniture_base', true),
       field('furnitureBaseProud', 'Base proud', 'number', { furnitureBaseOnly: true })],
