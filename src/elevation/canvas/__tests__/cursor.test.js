@@ -6,6 +6,14 @@ import {
 } from '../cursor.js';
 
 describe('canvas cursor helpers', () => {
+  it('MS2a anchor 10: uses a crosshair for Measure while preserving pan priority', () => {
+    for (const baseCursor of [elevationBaseCursor, planBaseCursor]) {
+      expect(baseCursor('measure')).toBe('crosshair');
+      expect(baseCursor('measure', 'pan-ready')).toBe('grab');
+      expect(baseCursor('measure', 'panning')).toBe('grabbing');
+    }
+  });
+
   it('193. resolves cursor priority and canvas base cursors', () => {
     expect(resolveCursor({ base: 'crosshair' })).toBe('crosshair');
     expect(resolveCursor({ base: 'crosshair', hover: 'pointer' })).toBe('pointer');

@@ -199,6 +199,25 @@ describe('DB6b b shared designer editor', () => {
 });
 
 describe('UI4 room outputs and toolbar groups', () => {
+  it('MS2a anchor 11: puts Measure after drawing and keeps only Select and Measure tools read-only', () => {
+    for (const view of ['elevation', 'plan']) {
+      dispatch(setView(view));
+      for (const readOnly of [false, true]) {
+        const tree = renderComponent(ElevationToolbar, { readOnly }).tree;
+        const tools = nodes(field(tree, 'Canvas tools')).filter((child) => (
+          child && ['select', 'draw', 'wall', 'measure'].includes(child.key)
+        ));
+        expect(tools.map(text)).toEqual(readOnly ? ['select', 'Measure']
+          : ['select', view === 'plan' ? 'Draw wall' : 'Draw run', 'Measure']);
+        const measure = button(tree, 'Measure');
+        expect(measure.props.title).toBe('Measure (D)');
+        expect(measure.props.disabled).toBeUndefined();
+        measure.props.onClick();
+        expect(state.tool).toBe('measure');
+      }
+    }
+  });
+
   it('puts Export DXF then Reports in the left panel header, outside any locked fieldset (anchor 1)', () => {
     for (const props of [{ mode: 'lab' }, { mode: 'room', header: <p>H</p> }, { mode: 'room', header: <p>H</p>, readOnly: true }]) {
       const { tree } = renderComponent(DesignerEditor, props);

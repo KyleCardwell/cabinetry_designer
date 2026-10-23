@@ -46,7 +46,8 @@ export default function ElevationToolbar({
     const wallId = nextWallId(room, activeWallId, direction);
     if (wallId) dispatch(setActiveWall(wallId));
   };
-  const toolNames = readOnly ? ['select'] : view === 'plan' ? ['select', 'wall'] : ['select', 'draw'];
+  const toolNames = readOnly ? ['select', 'measure']
+    : view === 'plan' ? ['select', 'wall', 'measure'] : ['select', 'draw', 'measure'];
   const addTools = view === 'plan'
     ? [['door', 'Door'], ['window', 'Window']]
     : [['soffit', 'Soffit'], ['recess', 'Recess'], ['door', 'Door'], ['window', 'Window']];
@@ -76,6 +77,7 @@ export default function ElevationToolbar({
           <button
             key={toolName}
             type="button"
+            title={toolName === 'measure' ? 'Measure (D)' : undefined}
             onClick={() => dispatch(setTool(toolName))}
             className={`rounded px-3 py-1.5 text-sm capitalize transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
               tool === toolName
@@ -87,7 +89,7 @@ export default function ElevationToolbar({
               ? 'Draw run'
               : toolName === 'wall'
                 ? 'Draw wall'
-                : toolName}
+                : toolName === 'measure' ? 'Measure' : toolName}
           </button>
         ))}
         {!readOnly && (

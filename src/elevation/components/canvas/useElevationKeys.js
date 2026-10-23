@@ -26,6 +26,7 @@ export default function useElevationKeys({
   dragRef,
   entry,
   facePath,
+  onMeasureEscape = () => false,
   resetView,
   room,
   selectionRef,
@@ -52,6 +53,10 @@ export default function useElevationKeys({
           cancelEntry();
           return;
         }
+        if (tool === 'measure' && onMeasureEscape()) {
+          event.preventDefault();
+          return;
+        }
         if (tool !== 'select') {
           if (dragRef.current) cancelDrag();
           setAlignmentGuides([]);
@@ -65,6 +70,13 @@ export default function useElevationKeys({
         else if (facePath) dispatch(setFacePath(null));
         else if (interiorPath != null) dispatch(setInteriorPath(null));
         else dispatch(setSelection({}));
+        return;
+      }
+
+      if (event.key.toLowerCase() === 'd' && !event.ctrlKey && !event.metaKey
+        && !event.altKey && !event.repeat && !entry) {
+        event.preventDefault();
+        dispatch(setTool(tool === 'measure' ? 'select' : 'measure'));
         return;
       }
 
@@ -188,6 +200,7 @@ export default function useElevationKeys({
     entry,
     facePath,
     interiorPath,
+    onMeasureEscape,
     resetView,
     room,
     startMoveMode,

@@ -16,6 +16,7 @@ export default function usePlanKeys({
   commitEntry,
   startMoveMode,
   tool,
+  onMeasureEscape = () => false,
   drawStartRef,
   cancelDrawing,
   dispatch,
@@ -36,10 +37,21 @@ export default function usePlanKeys({
           cancelEntry();
           return;
         }
+        if (tool === 'measure' && onMeasureEscape()) {
+          event.preventDefault();
+          return;
+        }
         if (drawStartRef.current) cancelDrawing();
         dispatch(setTool('select'));
         dispatch(clearSelection());
         setPendingDeleteWallId(null);
+        return;
+      }
+
+      if (event.key.toLowerCase() === 'd' && !event.ctrlKey && !event.metaKey
+        && !event.altKey && !event.repeat && !entry) {
+        event.preventDefault();
+        dispatch(setTool(tool === 'measure' ? 'select' : 'measure'));
         return;
       }
 
@@ -88,7 +100,7 @@ export default function usePlanKeys({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [cancelDrawing, cancelEntry, commitEntry, dispatch, entry, selectedWall, selection.openingId,
+  }, [cancelDrawing, cancelEntry, commitEntry, dispatch, entry, onMeasureEscape, selectedWall, selection.openingId,
     selection.runId, startMoveMode, tool, walls]);
 
 }

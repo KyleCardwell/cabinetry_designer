@@ -26,13 +26,13 @@ export function resolveCursor({ base = CURSORS.idle, hover = null, hold = null }
 export function elevationBaseCursor(tool, pointerMode) {
   if (pointerMode === 'panning') return CURSORS.panning;
   if (pointerMode === 'pan-ready') return CURSORS.panReady;
-  return ['draw', 'door', 'window'].includes(tool) ? CURSORS.draw : CURSORS.idle;
+  return ['draw', 'door', 'window', 'measure'].includes(tool) ? CURSORS.draw : CURSORS.idle;
 }
 
 export function planBaseCursor(tool, pointerMode) {
   if (pointerMode === 'panning') return CURSORS.panning;
   if (pointerMode === 'pan-ready') return CURSORS.panReady;
-  return tool === 'wall' ? CURSORS.draw : CURSORS.idle;
+  return ['wall', 'measure'].includes(tool) ? CURSORS.draw : CURSORS.idle;
 }
 
 /** Own one canvas's cursor: `style` goes on the container, `controller` goes to children. */
