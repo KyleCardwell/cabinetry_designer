@@ -51,7 +51,7 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
 
   const switchTool = (nextTool) => {
     setTool(nextTool);
-    if (nextTool === 'line') setSelection(null);
+    if (nextTool === 'line' || nextTool === 'measure') setSelection(null);
   };
 
   useEffect(() => {
@@ -94,9 +94,14 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
           event.preventDefault();
           setTool(key === 'v' ? 'select' : 'line');
           if (key === 'l') setSelection(null);
+        } else if (key === 'd') {
+          event.preventDefault();
+          setTool(tool === 'measure' ? 'select' : 'measure');
+          setSelection(null);
         } else if (key === 'escape') {
           event.preventDefault();
           if (tool === 'line' && canvasRef.current?.cancelLine()) return;
+          if (tool === 'measure' && canvasRef.current?.measureEscape()) return;
           setTool('select');
           setSelection(null);
         } else if (key === 'enter' && tool === 'line') {
@@ -178,6 +183,7 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
           <div className="absolute left-2 top-2 z-10 flex gap-2">
             <button type="button" className={`${BUTTON_CLASS} ${tool === 'select' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'select'} onClick={() => switchTool('select')}>Select (V)</button>
             <button type="button" className={`${BUTTON_CLASS} ${tool === 'line' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'line'} onClick={() => switchTool('line')}>Line (L)</button>
+            <button type="button" className={`${BUTTON_CLASS} ${tool === 'measure' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'measure'} onClick={() => switchTool('measure')}>Measure (D)</button>
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} onClick={() => setFitSignal((current) => current + 1)}>Fit</button>
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Rotate 90° counter-clockwise about 0, 0" aria-label="Rotate counter-clockwise" onClick={() => apply(rotateProfile(draft, 1), TURN_FAILURE)}>⟲</button>
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Rotate 90° clockwise about 0, 0" aria-label="Rotate clockwise" onClick={() => apply(rotateProfile(draft, -1), TURN_FAILURE)}>⟳</button>

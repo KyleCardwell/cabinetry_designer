@@ -4,6 +4,10 @@ import {
 } from '../../elevation/model/profileEditing.js';
 import { PROFILE_KINDS, stretchLineProblem } from '../../elevation/model/sectionProfiles.js';
 import { cutoutProfile } from '../../elevation/model/baseCutouts.js';
+import { useMeasure } from '../../elevation/canvas/measureState.js';
+import MeasureReadout from '../../elevation/components/MeasureReadout.jsx';
+import MeasureSvg from '../../elevation/components/MeasureSvg.jsx';
+import { profileMeasureGeometry } from '../../elevation/model/measure.js';
 import { fitView, loopScreenPath, segmentScreenPath, toModel, toScreen, zoomAt } from './profileView.js';
 
 function gridScreenPath(view, size, step) {
@@ -30,6 +34,8 @@ function hitSelection(target) {
 
 const LINE_FAILURE = 'A closed shape needs at least 3 points, an open line at least 2.';
 const sameXY = (a, b) => a[0] === b[0] && a[1] === b[1];
+const MEASURE_HINT = 'Click a corner, midpoint, centre or edge · Shift: point on an edge · Esc: clear';
+const modelPoint = (view, size, screen) => { const [x, y] = toModel(view, size, screen); return { x, y }; };
 
 function baseTopHeight(profile) {
   if (!Number.isFinite(profile.topGap) || profile.topGap <= 0) return null;
@@ -46,6 +52,13 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
   const [cursor, setCursor] = useState(null);
   const [dragPreview, setDragPreview] = useState(null);
   const [picks, setPicks] = useState([]);
+  const measuring = tool === 'measure';
+  const measure = useMeasure({
+    active: measuring,
+    geometry: measuring ? profileMeasureGeometry([profile.geometry, ghost], { origin: true }) : null,
+    tolerance: view ? 10 / view.scale : 0,
+    resetKey: profile.id,
+  });
 
   const finishLine = (closed = false) => {
     if (picks.length < (closed ? 3 : 2)) return;
@@ -73,6 +86,7 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
       return true;
     },
     finishLine,
+    measureEscape: () => measure.escape(),
   }));
 
   useEffect(() => {
@@ -123,6 +137,7 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
   const movePointer = (event) => {
     const screen = screenPosition(event);
     const gesture = gestureRef.current;
+    if (measuring && view && !gesture?.panning) measure.move(modelPoint(view, size, screen), event.shiftKey);
     if (!gesture || gesture.pointerId !== event.pointerId) return;
     const dx = event.clientX - gesture.x;
     const dy = event.clientY - gesture.y;
@@ -210,7 +225,9 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
           setDragPreview(null);
           if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
           if (gesture.button !== 0 || gesture.panning) return;
-          if (gesture.tool === 'line') {
+          if (gesture.tool === 'measure') {
+            measure.click(modelPoint(gesture.view, size, screenPosition(event)), event.shiftKey);
+          } else if (gesture.tool === 'line') {
             pickPoint(screenPosition(event));
           } else {
             onSelect(gesture.selection);
@@ -227,7 +244,12 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
         }}
         onPointerCancel={() => { cancelGesture(); setCursor(null); }}
         onLostPointerCapture={cancelGesture}
-        onPointerLeave={() => setCursor(null)}
+        onPointerLeave={() => { setCursor(null); if (measuring) measure.leave(); }}
+        onContextMenu={(event) => {
+          if (!measuring) return;
+          event.preventDefault();
+          measure.cancelFirst();
+        }}
       >
         {view && (
           <>
@@ -292,9 +314,17 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
                 </>
               )}
             </g>
+            {measuring && (
+              <MeasureSvg first={measure.first} hover={measure.hover} measures={measure.measures} preview={measure.preview}
+                toScreen={({ x, y }) => { const [sx, sy] = toScreen(view, size, [x, y]); return { x: sx, y: sy }; }} />
+            )}
           </>
         )}
       </svg>
+      {measuring && (
+        <MeasureReadout result={measure.preview ?? measure.measures.at(-1)?.result} axisLabels={{ x: 'X', y: 'Y' }}
+          hover={measure.hover} hint={MEASURE_HINT} className="bottom-10 left-2" />
+      )}
       <div className="pointer-events-none absolute right-2 top-2 rounded bg-gray-800/80 px-2 py-1 text-xs text-gray-300">
         <div>{axes === 'door' ? "Door profile · face on top · x → toward the door's middle · y ↓ into the door"
           : axes === 'run' ? 'Run molding · x → out from the box · y ↑ up' : 'Other · x → · y ↑'}</div>
