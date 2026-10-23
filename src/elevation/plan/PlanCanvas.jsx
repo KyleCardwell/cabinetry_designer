@@ -21,11 +21,14 @@ import {
   useCursorKeys,
 } from '../canvas/cursor.js';
 import { panExceedsThreshold } from '../canvas/panGesture.js';
+import { useMeasure } from '../canvas/measureState.js';
 import useLiveEntry, {
   resolveLiveEntryValue,
 } from '../canvas/useLiveEntry.js';
 import LiveEntryInput from '../components/LiveEntryInput.jsx';
 import CanvasContextMenu from '../components/CanvasContextMenu.jsx';
+import MeasureOverlay from '../components/MeasureOverlay.jsx';
+import MeasureReadout from '../components/MeasureReadout.jsx';
 import { planClearances } from '../model/clearances.js';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { findCollisions, footprintsAtPoint } from '../model/footprints.js';
@@ -36,6 +39,7 @@ import {
   wallFrame,
 } from '../model/geometry.js';
 import { snapToWallFace } from '../model/landings.js';
+import { planMeasureGeometry } from '../model/measure.js';
 import {
   createOpening,
   openingsAtPoint,
@@ -362,6 +366,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     x: (point.x - pan.x) / scale,
     y: (point.y - pan.y) / scale,
   }), [pan, scale]);
+  const measureGeometry = useMemo(
+    () => (tool === 'measure' && room ? planMeasureGeometry(room, settings) : null),
+    [tool, room, settings],
+  );
+  const measure = useMeasure({
+    active: tool === 'measure',
+    geometry: measureGeometry,
+    tolerance: 10 / scale,
+    resetKey: room?.id,
+  });
+  const measureToScreen = ({ x, y }) => ({ x: x * scale + pan.x, y: y * scale + pan.y });
 
   const { previewRoom, moving, startMoveMode, cancelMove, updateMovePointer } = usePlanRunMove({
     room, settings, tool, view, activeWallId, activeWallSide,
@@ -413,6 +428,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
 
   usePlanKeys({
     entry, cancelEntry, commitEntry, startMoveMode, tool,
+    onMeasureEscape: measure.escape,
     drawStartRef, cancelDrawing, dispatch, setPendingDeleteWallId,
     selection, walls, selectedWall,
   });
@@ -420,6 +436,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const handleContextMenu = useCallback((event) => {
     event.evt.preventDefault();
     closeContextMenu();
+    if (tool === 'measure') {
+      measure.cancelFirst();
+      return;
+    }
     if (moving) {
       cancelMove();
       return;
@@ -439,7 +459,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       context: `${activeRoomId}:${wall.id}:${side}:${view}:select`,
     });
   }, [activeRoomId, cancelEntry, cancelMove, closeContextMenu, dispatch,
-    moving, room, settings, toWorld, view, walls]);
+    measure.cancelFirst, moving, room, settings, toWorld, tool, view, walls]);
 
   const gridAndOrtho = useCallback((point, fixed = null) => {
     const gridPoint = snapToGrid(point, settings.planGrid);
@@ -508,6 +528,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
 
   const handleStageClick = useCallback((event) => {
     if (suppressClickRef.current) return;
+    if (tool === 'measure') {
+      const pointer = stageRef.current?.getPointerPosition();
+      if (event.evt?.button === 0 && pointer && !panRef.current && !spacePressedRef.current) {
+        measure.click(toWorld(pointer), event.evt.shiftKey);
+      }
+      return;
+    }
     if (event.evt?.button && event.evt.button !== 0) return;
     closeContextMenu();
     if (entry?.kind === 'run-move') {
@@ -566,15 +593,22 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     dispatch,
     entry,
     gridAndOrtho,
+    measure.click,
     snapDrawPoint,
     toWorld,
     tool,
     wallDrawStart,
   ]);
 
-  const handleMouseMove = useCallback(() => {
+  const handleMouseMove = useCallback((event) => {
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
+    if (tool === 'measure') {
+      if (!panRef.current && !spacePressedRef.current) {
+        measure.move(toWorld(pointer), event.evt?.shiftKey);
+      }
+      return;
+    }
     if (entry) {
       setEntryPointer(pointer);
       if (entry.kind === 'run-move') {
@@ -626,6 +660,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   }, [
     entry,
     gridAndOrtho,
+    measure.move,
     moveHandle,
     settings.planGrid,
     snapDrawPoint,
@@ -745,7 +780,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
 
   const handlePanPointerDown = useCallback((event) => {
     const pointerEvent = event.evt;
-    const emptyCanvas = event.target === stageRef.current;
+    const emptyCanvas = event.target === stageRef.current || tool === 'measure';
     const middleDrag = pointerEvent.button === 1;
     const spaceDrag = pointerEvent.button === 0 && spacePressedRef.current;
     const selectDrag = pointerEvent.button === 0 && tool === 'select';
@@ -894,6 +929,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
           onClick={handleStageClick}
           onDblClick={entry ? cancelEntry : cancelDrawing}
           onMouseMove={handleMouseMove}
+          onMouseLeave={measure.leave}
           onPointerDown={handlePanPointerDown}
           onPointerCancel={stopPanning}
           onWheel={handleWheel}
@@ -954,7 +990,23 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               <Rect width={viewport.width} height={viewport.height} fill="transparent" />
             </Layer>
           )}
+          {tool === 'measure' && (
+            <Layer>
+              <Rect width={viewport.width} height={viewport.height} fill="transparent" />
+            </Layer>
+          )}
+          {tool === 'measure' && (
+            <Layer listening={false}>
+              <MeasureOverlay first={measure.first} hover={measure.hover} measures={measure.measures}
+                preview={measure.preview} toScreen={measureToScreen} />
+            </Layer>
+          )}
         </Stage>
+      )}
+
+      {tool === 'measure' && (
+        <MeasureReadout result={measure.preview ?? measure.measures.at(-1)?.result}
+          axisLabels={{ x: 'X', y: 'Y' }} />
       )}
 
       {entry && (

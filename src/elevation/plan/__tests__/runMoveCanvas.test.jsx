@@ -16,7 +16,7 @@ let hooks;
 vi.mock('react', async (original) => ({
   ...await original(),
   useState: (value) => hooks.state(value),
-  useReducer: (reducer, value) => hooks.reducer(reducer, value),
+  useReducer: (reducer, value, init) => hooks.reducer(reducer, value, init),
   useRef: (value) => hooks.memo(() => ({ current: value }), []),
   useMemo: (callback, deps) => hooks.memo(callback, deps),
   useCallback: (callback, deps) => hooks.memo(() => callback, deps),
@@ -104,8 +104,8 @@ beforeEach(() => {
       }
       return [slots[i].value, slots[i].set];
     },
-    reducer(reducer, initial) {
-      const [value, set] = hooks.state(initial);
+    reducer(reducer, initial, init) {
+      const [value, set] = hooks.state(init ? () => init(initial) : initial);
       return [value, hooks.memo(() => (action) => set((current) => reducer(current, action)), [])];
     },
     memo(callback, deps) {
