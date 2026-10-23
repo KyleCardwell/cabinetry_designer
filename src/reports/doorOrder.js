@@ -35,11 +35,14 @@ export function stileRailNotes(style, result, notes = result.notes ?? {}) {
     }
   }
   const moldingNote = (overall) => overall == null ? '' : ` (${formatInch(overall)} w/ molding)`;
-  for (const { at, width, overall } of result.midRails ?? []) {
-    output.push(`${formatInch(width)} MR up ${formatInch(at)} oc${moldingNote(overall)}`);
+  const endsNote = ({ full, from, to }) => full === false ? `, ${from} to ${to}` : '';
+  for (const mid of result.midRails ?? []) {
+    const { at, width, overall } = mid;
+    output.push(`${formatInch(width)} MR up ${formatInch(at)} oc${endsNote(mid)}${moldingNote(overall)}`);
   }
-  for (const { at, width, overall } of result.midStiles ?? []) {
-    output.push(`${formatInch(width)} MS ${formatInch(at)} oc from left${moldingNote(overall)}`);
+  for (const mid of result.midStiles ?? []) {
+    const { at, width, overall } = mid;
+    output.push(`${formatInch(width)} MS ${formatInch(at)} oc from left${endsNote(mid)}${moldingNote(overall)}`);
   }
   return output;
 }

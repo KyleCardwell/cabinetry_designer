@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
 import { partSizes } from '../doorSizes.js';
-import { partDetail, placePanelDetail } from '../doorDetails.js';
+import { partDetail, placePanelDetail, runDoorDetails } from '../doorDetails.js';
 
 const [SQUARE, SLAB, SLAB_AM] = DOOR_DESIGNS;
 const S = DEFAULT_DOOR_STYLE;
@@ -13,6 +13,7 @@ describe('SPEC-46.2 a part\'s door detail: frame openings in wall coordinates', 
   it('insets a 5-piece door by its stiles and rails (G1 base door)', () => {
     expect(partDetail(S, SQUARE, box(30.0625, 4.125, 23.875, 30.125))).toEqual({
       construction: 'five_piece',
+      layoutWarnings: [],
       core: box(30.0625, 4.125, 23.875, 30.125),
       openings: [box(33.0625, 7.125, 17.875, 24.125)],
       sizes: partSizes(S, SQUARE, { width: 23.875, height: 30.125 }),
@@ -29,9 +30,9 @@ describe('SPEC-46.2 a part\'s door detail: frame openings in wall coordinates', 
       partDetail(S, SLAB, box(0, 0, 15, 30)),
       partDetail(S, SLAB_AM, box(0, 0, 15, 4.75)),
     ]).toEqual([
-      { construction: 'slab', slab: 'rule', molding: false, designId: 'slab', core: box(0, 0, 15, 4.75), openings: [] },
-      { construction: 'slab', slab: 'design', molding: true, designId: 'slab', core: box(0, 0, 15, 30), openings: [box(0, 0, 15, 30)], moldings: [], sizes: { ...partSizes(S, SLAB, { width: 15, height: 30 }), shift: 0, minPanel: 2.125 } },
-      { construction: 'slab', slab: 'design', molding: false, designId: 'slab-mdf', core: box(0, 0, 15, 4.75), openings: [] },
+      { construction: 'slab', slab: 'rule', molding: false, designId: 'slab', core: box(0, 0, 15, 4.75), openings: [], layoutWarnings: [] },
+      { construction: 'slab', slab: 'design', molding: true, designId: 'slab', core: box(0, 0, 15, 30), openings: [box(0, 0, 15, 30)], layoutWarnings: [], moldings: [], sizes: { ...partSizes(S, SLAB, { width: 15, height: 30 }), shift: 0, minPanel: 2.125 } },
+      { construction: 'slab', slab: 'design', molding: false, designId: 'slab-mdf', core: box(0, 0, 15, 4.75), openings: [], layoutWarnings: [] },
     ]);
   });
 
@@ -119,5 +120,26 @@ describe('MR2b layout openings', () => {
     expect(detail.openings).toEqual([box(103, 13, 24, 30)]);
     expect(detail.sizes.midRails).toHaveLength(1);
     expect(detail.sizes.layoutWarnings).toEqual([{ code: 'mid-layout-overfull', path: 'root' }]);
+  });
+});
+
+
+describe('MR2c run layout warnings', () => {
+  it('anchor 5: includes the overfull face key and piece id with the resolver path', () => {
+    const sizes = { layout: rows([{ size: 20 }, { size: 20 }]) };
+    const face = { type: 'door', size: null, sizes };
+    const run = { items: [{ id: 'cab', face }] };
+    const scene = {
+      faceLayouts: new Map([['cab', {
+        box: { width: 30 }, faces: [{ ...box(100, 10, 30, 39), type: 'door', path: 'r' }],
+      }]]), drawnPieces: [], blind: { entries: [] },
+    };
+    const detail = partDetail(S, SQUARE, box(100, 10, 30, 39), sizes);
+    expect(detail.layoutWarnings).toEqual([{ code: 'mid-layout-overfull', path: 'root' }]);
+    const result = runDoorDetails({}, { runs: [run] }, run, { doorDesigns: DOOR_DESIGNS }, scene);
+    expect(result.warnings).toContainEqual({
+      code: 'mid-layout-overfull', path: 'root', pieceId: 'cab', key: 'cab:r',
+    });
+    expect(face.sizes).toBe(sizes);
   });
 });

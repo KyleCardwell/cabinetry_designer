@@ -30,7 +30,8 @@ export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = [
   const sizeRect = design.construction === 'slab' ? rect : core;
   const r = partSizes(style, design, { width: sizeRect.width, height: sizeRect.height, coreHeight: core.height, sizes },
     midDefaults(style, design, offsets), { mirror });
-  if (r.construction === 'slab' && !r.molding) return { ...r, core, openings: [] };
+  const layoutWarnings = r.layoutWarnings ?? [];
+  if (r.construction === 'slab' && !r.molding) return { ...r, core, openings: [], layoutWarnings };
   const origin = r.construction === 'slab' ? rect : core;
   const openings = r.panels.map(({ x, z, width, height }) => ({
     x: origin.x + x, z: origin.z + z, width, height,
@@ -44,7 +45,7 @@ export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = [
     const shift = moldings.length && extent > allowed + 1e-6
       ? Math.max(0, Math.min(extent - allowed, ...moldings.map(({ offset }) => offset))) : 0;
     return {
-      construction: r.construction, slab: r.slab, molding: r.molding, designId: r.designId, core, openings,
+      construction: r.construction, slab: r.slab, molding: r.molding, designId: r.designId, core, openings, layoutWarnings,
       moldings: moldings.map(({ index, offset }) => ({
         index, offset: offset - shift, typed: offset, shifted: shift > 0,
       })),
@@ -54,12 +55,12 @@ export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = [
     };
   }
 
-  return { construction: r.construction, core, openings, sizes: r };
+  return { construction: r.construction, core, openings, sizes: r, layoutWarnings };
 }
 
 /** A part's openings (partDetail) and its profile lines and miters, as face-on parts and end views draw them. */
-function detailWithLines(offsets, style, design, rect, sizes, panel) {
-  const detail = partDetail(style, design, rect, sizes, offsets.slots.outside?.reachOut ?? 0, offsets.applied, offsets);
+function detailWithLines(offsets, style, design, rect, sizes, panel, options) {
+  const detail = partDetail(style, design, rect, sizes, offsets.slots.outside?.reachOut ?? 0, offsets.applied, offsets, options);
   return { detail, fit: partProfileLines(offsets, detail, rect, { panel }) };
 }
 
@@ -131,7 +132,8 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
       offsetsByStyle.set(style, doorProfileOffsets(style, design, profiles));
     }
     const offsets = offsetsByStyle.get(style);
-    const { detail, fit } = detailWithLines(offsets, style, design, rect, sizes, !panelMaterial);
+    const { detail, fit } = detailWithLines(offsets, style, design, rect, sizes, !panelMaterial,
+      { mirror: kind === 'face' && rect.half === 'right' });
     const { x, z, width, height } = rect;
     parts.push({
       key, kind, pieceId, path, styleId: style.id, label: style.label,
@@ -144,6 +146,7 @@ export function runDoorDetails(room, wall, run, settings, scene = runScene(room,
     warnings.push(...resolved.warnings.map((warning) => ({ ...warning, pieceId, key })));
     warnings.push(...offsets.warnings.map((warning) => ({ ...warning, pieceId, key })));
     warnings.push(...fit.warnings.map((warning) => ({ ...warning, pieceId, key })));
+    warnings.push(...detail.layoutWarnings.map((warning) => ({ ...warning, pieceId, key })));
     if (panelMaterial && detail.construction !== 'five_piece') {
       warnings.push({ code: 'panel-material-needs-frame', pieceId, key });
     }

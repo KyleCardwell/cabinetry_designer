@@ -161,12 +161,6 @@ export function setPartNote(sizes, side, note) {
   return withSizeGroup(sizes, 'notes', notes);
 }
 
-/** Replace mid rails or stiles, dropping an empty list. */
-export function setPartMids(sizes, kind, mids) {
-  if (kind !== 'midRails' && kind !== 'midStiles') return sizes;
-  return withSizeGroup(sizes, kind, mids);
-}
-
 function styleRow(style, design) {
   return `${style.label} · ${design.code} · ${formatInches(style.thickness)}`;
 }
@@ -206,6 +200,10 @@ export function partSizeRows(style, design, part, edgeOut = 0, moldings = [], of
   const result = partSizes(style, design, { ...sizeRect, coreHeight: core.height, sizes: part.sizes },
     midDefaults(style, design, offsets));
   const sizes = part.sizes ?? {};
+  const mids = (kind) => result[kind].map((entry) => {
+    const node = entry.path.split('.').slice(1).reduce((node, index) => node?.children?.[index], sizes.layout);
+    return { ...entry, typed: node?.mids?.[entry.index]?.width != null };
+  });
   if (result.construction === 'slab' && !result.molding) {
     const note = `Slab under ${formatInches(style.shortFace.slabBelow)} — molding left off`;
     return { title: 'Slab', note, rows: [], midRails: [], midStiles: [], opening: null };
@@ -219,13 +217,10 @@ export function partSizeRows(style, design, part, edgeOut = 0, moldings = [], of
         index, label: `Molding ${index + 1}`, value: offset, typed, readOnly: true,
         note: shifted ? 'moved out for a short front' : null,
       })),
-      midRails: result.midRails, midStiles: result.midStiles, opening: detail.sizes.opening,
+      midRails: mids('midRails'), midStiles: mids('midStiles'), opening: detail.sizes.opening,
     };
   }
   const labels = ['Top rail', 'Bottom rail', 'Left stile', 'Right stile'];
-  const mids = (kind) => result[kind].map((entry) => ({
-    ...entry, typed: entry.source === 'part',
-  }));
   return {
     title: 'Stiles & rails',
     note: null,

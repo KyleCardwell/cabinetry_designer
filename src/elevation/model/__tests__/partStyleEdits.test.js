@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS as CURRENT_SETTINGS } from '../constants.js';
 const DEFAULT_SETTINGS = { ...CURRENT_SETTINGS, doorDesigns: DOOR_DESIGNS };
 import { DEFAULT_DOOR_STYLE, isPartSizes } from '../doorStyles.js';
-import { partSizeRows, pickOptions, setPartMids, setPartNote, setPartSide } from '../doorStyleEdits.js';
+import { partSizeRows, pickOptions, setPartNote, setPartSide } from '../doorStyleEdits.js';
 import { setFacePart } from '../faceTree.js';
 
 const [SQUARE, SLAB, SLAB_AM] = DOOR_DESIGNS;
@@ -46,25 +46,19 @@ describe('SPEC-46.1 per-part size edits (P13)', () => {
     expect([setPartSide(sizes, 'left', 0), setPartSide(sizes, 'middle', 3)].every((next) => next === sizes)).toBe(true);
   });
 
-  it('sets notes and preserves the legacy mid-list helper until the layout editor replaces it', () => {
+  it('sets and clears notes without leaving empty groups', () => {
     const results = [
       setPartNote(undefined, 'left', 'scribe'),
       setPartNote({ notes: { left: 'scribe' }, stiles: { left: 3.5 } }, 'left', ''),
       setPartNote({ notes: { left: 'scribe' } }, 'left', null),
-      setPartMids(undefined, 'midRails', [{ at: 31.5 }]),
-      setPartMids({ midRails: [{ at: 31.5 }], midStiles: [{ at: 7.5, width: 3 }] }, 'midRails', []),
-      setPartMids({ midStiles: [{ at: 7.5 }] }, 'midStiles', []),
     ];
     expect(results).toEqual([
       { notes: { left: 'scribe' } },
       { stiles: { left: 3.5 } },
       undefined,
-      { midRails: [{ at: 31.5 }] },
-      { midStiles: [{ at: 7.5, width: 3 }] },
-      undefined,
     ]);
     expect(results.map((entry) => entry === undefined || isPartSizes(entry)))
-      .toEqual([true, true, true, false, false, true]);
+      .toEqual([true, true, true]);
   });
 });
 
@@ -142,7 +136,7 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
     });
     expect([molding.title, molding.rows.map(({ label }) => label), molding.midRails, molding.opening]).toEqual([
       'Applied moldings', [], [{ kind: 'rail', path: 'root', index: 0, at: 15, width: 0,
-        source: 'flat', name: 'MR1', from: 'LS', to: 'RS', full: true }], { width: 15, height: 30 },
+        source: 'flat', name: 'MR1', from: 'LS', to: 'RS', full: true, typed: true }], { width: 15, height: 30 },
     ]);
     const slab = { title: 'Slab', rows: [], midRails: [], midStiles: [], opening: null };
     expect([
@@ -154,5 +148,25 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
       { ...slab, note: 'Slab under 4 13/16" — molding left off' },
       { ...slab, note: 'Slab under 4 13/16" — molding left off' },
     ]);
+  });
+
+  it('MR2c reads typed widths by layout path and index, including zero-width slab mids', () => {
+    const part = { width: 30, height: 39, sizes: { layout: {
+      split: 'rows', children: [
+        { split: 'cols', children: [{}, {}, {}], mids: [{}, { width: 4 }] },
+        { split: 'cols', children: [{}, {}], mids: [{ width: 5 }] },
+      ],
+    } } };
+    for (const design of [SQUARE, SLAB_AM]) {
+      const result = partSizeRows(DEFAULT_DOOR_STYLE, design, part);
+      expect(result.midRails).toMatchObject([{ name: 'MR1', typed: false }]);
+      expect(result.midStiles).toHaveLength(3);
+      for (const [path, index, typed] of [['root.0', 0, false], ['root.0', 1, true], ['root.1', 0, true]]) {
+        expect(result.midStiles.find((mid) => mid.path === path && mid.index === index)).toMatchObject({
+          typed, name: expect.stringMatching(/^MS\d$/),
+          ...(design === SLAB_AM ? { width: 0, source: 'flat' } : {}),
+        });
+      }
+    }
   });
 });

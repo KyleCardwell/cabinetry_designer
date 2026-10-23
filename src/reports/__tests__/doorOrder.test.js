@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS, CABINET_TYPE_IDS } from '../../elevation/model/constants.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../elevation/model/doorStyles.js';
-import { partSizes } from '../../elevation/model/doorSizes.js';
+import { midDefaults, partSizes } from '../../elevation/model/doorSizes.js';
+import { runDoorDetails } from '../../elevation/model/doorDetails.js';
+import { doorProfileOffsets } from '../../elevation/model/doorProfileLines.js';
 import { partNumbers } from '../../elevation/model/partNumbers.js';
 import * as numbering from '../../elevation/model/partNumbers.js';
 import { syncRoom } from '../../elevation/model/room.js';
@@ -119,7 +121,7 @@ describe('door order form data', () => {
       expect(item.notes).toEqual([
         ...(item.kind === 'endPanel' ? ['do not sand edges'] : []),
         '3 1/4" MR up 15" oc (4 1/4" w/ molding)',
-        '4" MS 8" oc from left (5" w/ molding)', '4" MS 8" oc from left (5" w/ molding)',
+        '4" MS 8" oc from left, BR to MR1 (5" w/ molding)', '4" MS 8" oc from left, MR1 to TR (5" w/ molding)',
       ]);
     }
     expect(r).toEqual(before);
@@ -450,6 +452,84 @@ describe('RP2 step e vendor items', () => {
     expect(doorOrderItems(r, settings).items.map(({ key }) => key)).toEqual(['other']);
     expect(lines(doorOrder(r, settings))).toEqual([
       expect.objectContaining({ number: partNumbers(r, settings).byKey.get('other'), qty: 1 }),
+    ]);
+  });
+});
+
+describe('MR2c layout order notes and paired doors', () => {
+  const rows = (children) => ({ split: 'rows', children });
+  const cols = (children) => ({ split: 'cols', children });
+  const sized = (layout, mid) => partSizes(style, DOOR_DESIGNS[0], { width: 30, height: 39, sizes: { layout } }, mid);
+  const pairRoom = (layout) => {
+    const pair = run('pair', {
+      id: 'cab', kind: 'cabinet', face: face('pair_door', null, { sizes: { layout } }),
+    }, { width: 60.25, height: 39.375 });
+    // Fix the box width so run rounding cannot change the 30-inch door halves.
+    pair.grid.cols[0] = { ...pair.grid.cols[0], size: 60.25, sizeMode: 'manual' };
+    return room([pair]);
+  };
+
+  it('anchor 1: orders full rails and three partial stiles by true coordinates', () => {
+    const layout = rows([cols([{}, { size: 8 }, {}]), cols([{}, {}]), {}]);
+    expect(stileRailNotes(style, sized(layout))).toEqual([
+      '3" MR up 13 1/2" oc', '3" MR up 25 1/2" oc',
+      '3" MS 9 1/2" oc from left, BR to MR1', '3" MS 15" oc from left, MR1 to MR2',
+      '3" MS 20 1/2" oc from left, BR to MR1',
+    ]);
+  });
+
+  it('anchor 2: appends the bounding members of a partial rail', () => {
+    expect(stileRailNotes(style, sized(cols([rows([{}, {}]), {}])))).toEqual([
+      '3" MR up 19 1/2" oc, LS to MS1', '3" MS 15" oc from left',
+    ]);
+  });
+
+  it('anchor 3: mirrors the right half openings and gives asymmetric halves distinct order lines', () => {
+    const r = pairRoom(cols([{ size: 8 }, {}]));
+    const before = structuredClone(r);
+    const items = doorOrderItems(r, settings).items;
+    expect(items.map(({ width, height, notes }) => ({ width, height, notes }))).toEqual([
+      { width: 30, height: 39, notes: ['3" MS 12 1/2" oc from left'] },
+      { width: 30, height: 39, notes: ['3" MS 17 1/2" oc from left'] },
+    ]);
+    const wall = r.walls[0];
+    const parts = runDoorDetails(r, wall, wall.runs[0], settings).parts.filter(({ kind }) => kind === 'face');
+    expect(parts.map(({ x, z, openings }) => openings.map((panel) => ({
+      ...panel, x: panel.x - x, z: panel.z - z,
+    })))).toEqual([
+      [{ x: 3, z: 3, width: 8, height: 33 }, { x: 14, z: 3, width: 13, height: 33 }],
+      [{ x: 19, z: 3, width: 8, height: 33 }, { x: 3, z: 3, width: 13, height: 33 }],
+    ]);
+    expect(lines(doorOrder(r, settings)).map(({ qty, notes }) => ({ qty, notes }))).toEqual([
+      { qty: 1, notes: '3" MS 12 1/2" oc from left' }, { qty: 1, notes: '3" MS 17 1/2" oc from left' },
+    ]);
+    expect(r).toEqual(before);
+  });
+
+  it('anchor 4: keeps symmetric pair notes identical and merges the order lines', () => {
+    const r = pairRoom(cols([{}, {}]));
+    expect(doorOrderItems(r, settings).items.map(({ notes }) => notes)).toEqual([
+      ['3" MS 15" oc from left'], ['3" MS 15" oc from left'],
+    ]);
+    expect(lines(doorOrder(r, settings))).toEqual([{
+      number: 1, qty: 2, width: 30, height: 39, size: '30 x 39', notes: '3" MS 15" oc from left',
+    }]);
+  });
+
+  it('anchor 6: puts partial member ends before the applied molding overall width', () => {
+    const molding = {
+      id: 'mid-molding', kind: 'applied_molding', geometry: {
+        units: 'in', points: { a: [-0.25, 0], b: [0.5, -0.125] },
+        loops: [{ id: 'L1', closed: false, segs: [{ type: 'line', from: 'a', to: 'b' }] }],
+      },
+    };
+    const applied = { ...style, appliedMoldings: [{ profileId: molding.id, offset: 0 }] };
+    const offsets = doorProfileOffsets(applied, DOOR_DESIGNS[0], [molding]);
+    const mid = midDefaults(applied, DOOR_DESIGNS[0], offsets);
+    expect(mid).toMatchObject({ stile: 3.25, over: 0.5 });
+    expect(stileRailNotes(applied, sized(cols([rows([{}, {}]), {}]), mid))).toEqual([
+      '3 1/4" MR up 19 1/2" oc, LS to MS1 (4 1/4" w/ molding)',
+      '3 1/4" MS 15" oc from left (4 1/4" w/ molding)',
     ]);
   });
 });

@@ -63,6 +63,7 @@ const WARNING_MESSAGES = {
   'door-profile-too-deep': 'A profile in this face\'s door style cuts deeper than the door is thick.',
   'door-profile-too-wide': 'The door style\'s edge and inside/applied profiles are wider than a stile or rail on this face.',
   'door-profile-panel-too-small': 'The panel (or molding) opening is too small for the door style\'s profiles.',
+  'mid-layout-overfull': "Panel sizes don't fit. Clear or reduce a typed panel.",
   'panel-material-needs-frame': (material) => `A ${material} panel needs a 5-piece door — this face's style is a slab here.`,
   'pull-needs-hinge': 'Set a hinge side (or pick a centred or rail pull position) so this door\'s pull can be placed.',
   'pull-too-long': 'This pull is longer than the space it sits in on this face.',
