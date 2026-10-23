@@ -77,6 +77,21 @@ const pageKeys = (order) => order.pages.map(({ styleId, type, sections }) => {
 const lines = (order) => order.pages.flatMap((page) => page.sections.flatMap((section) => section.lines));
 
 describe('door order form data', () => {
+  it('MR1c anchor 1: appends the molding overall width to a mid stile note', () => {
+    expect(stileRailNotes(style, {
+      ...frame(), midStiles: [{ at: 12, width: 3.25, overall: 4.25 }],
+    })).toEqual(['3 1/4" MS 12" oc from left (4 1/4" w/ molding)']);
+  });
+
+  it('MR1c anchor 2: keeps plain mid rail notes and appends molding widths when present', () => {
+    expect(stileRailNotes(style, {
+      ...frame(), midRails: [{ at: 31.5, width: 3.625 }],
+    })).toEqual(['3 5/8" MR up 31 1/2" oc']);
+    expect(stileRailNotes(style, {
+      ...frame(), midRails: [{ at: 31.5, width: 3.625, overall: 4.625 }],
+    })).toEqual(['3 5/8" MR up 31 1/2" oc (4 5/8" w/ molding)']);
+  });
+
   it('MR1b carries profile mid defaults through face details and end-panel orders', () => {
     const molding = {
       id: 'mid-molding', name: 'Mid molding', kind: 'applied_molding',
@@ -98,6 +113,10 @@ describe('door order form data', () => {
     for (const item of items) {
       expect(item.sizes.midRails).toEqual([{ at: 15, width: 3.25, source: 'flat', overall: 4.25 }]);
       expect(item.sizes.midStiles).toEqual([{ at: 8, width: 4, source: 'part', overall: 5 }]);
+      expect(item.notes).toEqual([
+        ...(item.kind === 'endPanel' ? ['do not sand edges'] : []),
+        '3 1/4" MR up 15" oc (4 1/4" w/ molding)', '4" MS 8" oc from left (5" w/ molding)',
+      ]);
     }
     expect(r).toEqual(before);
   });

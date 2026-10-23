@@ -1,6 +1,10 @@
 import { useState } from 'react';
+import { useSelector } from 'react-redux';
 import { PANEL_TYPES, findDoorDesign } from '../model/doorStyles.js';
 import { applyDesignDefaults } from '../model/doorStyleEdits.js';
+import { doorProfileOffsets } from '../model/doorProfileLines.js';
+import { midDefaults } from '../model/doorSizes.js';
+import { formatInchesInput } from '../model/units.js';
 import DoorProfilePickers from './DoorProfilePickers.jsx';
 import DoorSectionView from './DoorSectionView.jsx';
 import InchInput from './InchInput.jsx';
@@ -9,16 +13,19 @@ import TextInput from './TextInput.jsx';
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const HEADING_CLASS = 'text-sm font-semibold text-gray-300';
 
-function SizeField({ label, value, onChange, allowZero = false, disabled = false }) {
+function SizeField({ label, value, onChange, allowZero = false, allowBlank = false, placeholder, disabled = false }) {
   return (
     <label className={`block text-xs text-gray-400 ${disabled ? 'opacity-50' : ''}`}>
       {label}
       <InchInput
         value={value}
         displayStep={1 / 16}
+        allowBlank={allowBlank}
+        placeholder={placeholder}
         disabled={disabled}
         onCommit={(next) => {
-          if (!Number.isFinite(next) || (allowZero ? next < 0 : !(next > 0))) return false;
+          if (!(allowBlank && next === null)
+            && (!Number.isFinite(next) || (allowZero ? next < 0 : !(next > 0)))) return false;
           onChange(next);
           return true;
         }}
@@ -30,7 +37,9 @@ function SizeField({ label, value, onChange, allowZero = false, disabled = false
 }
 
 export default function DoorStyleFields({ draft, setDraft, designs }) {
+  const profiles = useSelector((state) => state.elevation.settings.sectionProfiles);
   const design = findDoorDesign(draft.designId, designs);
+  const mid = midDefaults(draft, design, doorProfileOffsets(draft, design, profiles));
   const slab = design?.construction === 'slab';
   const fivePiece = design?.construction === 'five_piece';
   const frameUnused = slab;
@@ -165,13 +174,27 @@ export default function DoorStyleFields({ draft, setDraft, designs }) {
             />
           </div>
         </section>
-        <SizeField
-          label="Mid rail/stile extra"
-          value={draft.mid.extra}
-          allowZero
-          disabled={!fivePiece}
-          onChange={(value) => changeSize('mid', 'extra', value)}
-        />
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            {['rail', 'stile'].map((key) => (
+              <SizeField
+                key={key}
+                label={`Mid ${key}`}
+                value={draft.mid[key]}
+                allowBlank
+                placeholder={formatInchesInput(mid[key])}
+                disabled={!fivePiece}
+                onChange={(value) => setDraft((previous) => {
+                  const next = { ...previous.mid };
+                  if (value === null) delete next[key];
+                  else next[key] = value;
+                  return { ...previous, mid: next };
+                })}
+              />
+            ))}
+          </div>
+          <p className="text-xs text-gray-400">Blank keeps the same flat as the frame.</p>
+        </div>
         <div className="space-y-1">
           <SizeField
             label="Arch rise"

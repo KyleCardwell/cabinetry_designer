@@ -118,6 +118,65 @@ describe('RP1 b door style material', () => {
   });
 });
 
+describe('MR1c mid width fields', () => {
+  const field = (tree, label) => {
+    const component = find(tree, ({ props }) => props.label === label);
+    return find(component.type(component.props), ({ type }) => type === InchInput);
+  };
+
+  it('anchor 3: shows profile-aware defaults for blank mids and follows draft changes', () => {
+    const ogee = moldingFixtures.find(({ name }) => name === 'Ogee 5/8');
+    settings.sectionProfiles = moldingFixtures;
+    let draft = { ...structuredClone(DEFAULT_DOOR_STYLE), profiles: {
+      ...DEFAULT_DOOR_STYLE.profiles, inside: ogee.id,
+    } };
+    const render = () => DoorStyleFields({ draft, setDraft: vi.fn(), designs: DOOR_DESIGNS });
+    expect(field(render(), 'Mid stile').props).toMatchObject({
+      value: undefined, placeholder: '3 5/8', allowBlank: true, disabled: false,
+    });
+    expect(field(render(), 'Mid rail').props.placeholder).toBe('3 5/8');
+    expect(text(render())).toContain('Blank keeps the same flat as the frame.');
+    draft = { ...draft, rails: { ...draft.rails, top: 4 } };
+    expect(field(render(), 'Mid rail').props.placeholder).toBe('4 5/8');
+    expect(field(render(), 'Mid stile').props.placeholder).toBe('3 5/8');
+    draft = { ...draft, profiles: { ...draft.profiles, inside: null } };
+    expect(field(render(), 'Mid stile').props.placeholder).toBe('3');
+  });
+
+  it('anchor 4: commits positive mid widths and removes cleared keys in team and room styles', () => {
+    for (const base of [DEFAULT_DOOR_STYLE, { ...DEFAULT_DOOR_STYLE, id: 'a', label: 'A' }]) {
+      let draft = structuredClone(base);
+      let typed = '';
+      const setDraft = (update) => { draft = update(draft); };
+      const input = (label) => {
+        const tree = DoorStyleFields({ draft, setDraft, designs: DOOR_DESIGNS });
+        const mid = field(tree, label);
+        useState.mockReturnValueOnce([typed, (value) => { typed = value; }]);
+        return InchInput(mid.props);
+      };
+      const commit = (label, value) => {
+        input(label).props.onChange({ target: { value } });
+        input(label).props.onBlur();
+      };
+      commit('Mid stile', '4');
+      expect(draft.mid).toEqual({ stile: 4 });
+      commit('Mid stile', '');
+      expect(draft.mid).toEqual({});
+      commit('Mid rail', '3 1/2');
+      commit('Mid stile', '4');
+      expect(draft.mid).toEqual({ rail: 3.5, stile: 4 });
+      for (const invalid of ['0', '-1', 'invalid']) {
+        commit('Mid stile', invalid);
+        expect(draft.mid).toEqual({ rail: 3.5, stile: 4 });
+      }
+      commit('Mid stile', '');
+      expect(draft.mid).toEqual({ rail: 3.5 });
+      commit('Mid rail', '');
+      expect(draft.mid).toEqual({});
+    }
+  });
+});
+
 describe('Step 494.5 Slab - MDF Core editor and part panel', () => {
   const slabAM = { ...DEFAULT_DOOR_STYLE, designId: 'slab-mdf', appliedMoldings: [{ profileId: 'am1', offset: 2 }] };
   const field = (tree, label) => {
@@ -129,11 +188,11 @@ describe('Step 494.5 Slab - MDF Core editor and part panel', () => {
     partType: 'door', levels: [], part: { sizes }, width: 24, height, label: 'Front', onChange,
   });
 
-  it('disables the Slab - MDF Core inset and mid extra, retains their values, and explains door-edge offsets', () => {
+  it('disables the Slab - MDF Core inset and mid widths, retains their values, and explains door-edge offsets', () => {
     const render = (draft) => DoorStyleFields({ draft, designs: DOOR_DESIGNS, setDraft: vi.fn() });
     const tree = render(slabAM);
     expect(field(tree, 'Inset').props).toMatchObject({ disabled: true, value: 3 });
-    expect(field(tree, 'Mid rail/stile extra').props.disabled).toBe(true);
+    for (const label of ['Mid rail', 'Mid stile']) expect(field(tree, label).props.disabled).toBe(true);
     expect(find(tree, ({ type, props }) => type === 'button' && props.children === 'Different sizes…').props.disabled).toBe(true);
     expect(text(tree)).toContain('Not used by slab doors — kept if you switch back');
     expect(text(tree)).not.toContain('shrink their rails');
@@ -141,7 +200,7 @@ describe('Step 494.5 Slab - MDF Core editor and part panel', () => {
     expect(text(DoorProfilePickers(picker.props))).toContain("Offset from the door edge to the molding's outer edge.");
     const fivePiece = render({ ...slabAM, designId: DEFAULT_DOOR_STYLE.designId });
     expect(field(fivePiece, 'Stile & rail width').props).toMatchObject({ disabled: false, value: 3 });
-    expect(field(fivePiece, 'Mid rail/stile extra').props.disabled).toBe(false);
+    for (const label of ['Mid rail', 'Mid stile']) expect(field(fivePiece, label).props.disabled).toBe(false);
     expect(text(fivePiece)).toContain('shrink their rails');
     expect(text(DoorProfilePickers(find(fivePiece, ({ type }) => type === DoorProfilePickers).props)))
       .toContain('Offset from the stile/rail line; + toward the centre.');

@@ -34,8 +34,13 @@ export function stileRailNotes(style, result, notes = result.notes ?? {}) {
       }
     }
   }
-  for (const { at, width } of result.midRails ?? []) output.push(`${formatInch(width)} MR up ${formatInch(at)} oc`);
-  for (const { at, width } of result.midStiles ?? []) output.push(`${formatInch(width)} MS ${formatInch(at)} oc from left`);
+  const moldingNote = (overall) => overall == null ? '' : ` (${formatInch(overall)} w/ molding)`;
+  for (const { at, width, overall } of result.midRails ?? []) {
+    output.push(`${formatInch(width)} MR up ${formatInch(at)} oc${moldingNote(overall)}`);
+  }
+  for (const { at, width, overall } of result.midStiles ?? []) {
+    output.push(`${formatInch(width)} MS ${formatInch(at)} oc from left${moldingNote(overall)}`);
+  }
   return output;
 }
 
