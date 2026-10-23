@@ -42,6 +42,8 @@ const MOLDINGS = { toeKick: 'Toe Kick', topMold: 'Top Mold', crown: 'Crown' };
 const MOLDING_EXTRA = 24;
 const EPSILON = 1e-6;
 const PRINTED_FRAME_RULES = new Set(['rule:top-overlap', 'rule:stacked-seam']);
+// A floor box under another in a tall run is a base up to this height, a tall above it (Kyle 2026-10-23).
+const STACKED_BASE_MAX_HEIGHT = 36.5;
 
 /** Order eight-foot lengths, allowing two extra feet for fitting. */
 export function linealFeet(inches) {
@@ -204,11 +206,14 @@ function moldingDescription(room, settings, part) {
   return settings.sectionProfiles?.find((entry) => entry.id === id)?.name || MOLDINGS[part.molding];
 }
 
-/** A tall run's cabinet on the floor under another is a base on the shop's lists (Kyle 2026-10-23). */
+/**
+ * A tall run's cabinet on the floor under another is a base on the shop's lists when it's no taller than
+ * 36 1/2"; a taller one stays a tall (Kyle 2026-10-23). It takes a base's notes too (full top).
+ */
 function listedTypeId(run, piece) {
   if (run?.cabinetTypeId !== CABINET_TYPE_IDS.TALL || !piece) return run?.cabinetTypeId;
   const stacked = piece.z <= run.z + EPSILON && piece.z + piece.height < run.z + run.height - EPSILON;
-  return stacked ? CABINET_TYPE_IDS.BASE : run.cabinetTypeId;
+  return stacked && piece.height <= STACKED_BASE_MAX_HEIGHT + EPSILON ? CABINET_TYPE_IDS.BASE : run.cabinetTypeId;
 }
 
 function describePart(room, settings, part, context) {
@@ -291,10 +296,10 @@ function shippingSize(room, settings, part, context) {
 
 function cabinetNotes(room, settings, part, context) {
   if (part.kind !== 'cabinet') return {};
-  const { scene, leaf, rabbets, run, wall } = context;
+  const { scene, leaf, rabbets, run, wall, piece } = context;
   const box = boxConstruction(leaf, run, wall);
   const fullTop = box.top === 'between' || box.top === 'overlay';
-  const base = run.cabinetTypeId === CABINET_TYPE_IDS.BASE;
+  const base = listedTypeId(run, piece) === CABINET_TYPE_IDS.BASE;
   const layout = scene.faceLayouts.get(part.key);
   const faces = layout?.faces ?? [];
   const roomSlideId = resolveSlide(settings).id;

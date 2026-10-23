@@ -1563,15 +1563,26 @@ describe('FX2 stacked tall cabinets on the shipping list', () => {
       ],
     } }],
   });
-  const tall = (styleId) => room([{ ...run('tall', undefined, { cabinetTypeId: 3, height: 88, depth: 16, width: 30.5 }),
-    grid: stacked() }], { style: { cabinetStyleId: styleId } });
+  const tall = (styleId, lower = 30.5) => {
+    const grid = stacked();
+    grid.cells[0].node.rows[1].size = lower;
+    return room([{ ...run('tall', undefined, { cabinetTypeId: 3, height: 88, depth: 16, width: 30.5 }), grid }],
+      { style: { cabinetStyleId: styleId } });
+  };
 
-  it('calls the floor box of a stack a base and notes both 3/4" seam reveals (face frame)', () => {
+  it('calls the floor box of a stack a base with its full top, and notes both 3/4" seam reveals (face frame)', () => {
     const r = tall(14);
     expect(row(r, 'lower')).toMatchObject({ description: 'Base' });
-    expect(row(r, 'lower').notes[0]).toBe('RV\'s (3/4" T)');
+    expect(row(r, 'lower').notes.slice(0, 2)).toEqual(['full top', 'RV\'s (3/4" T)']);
     expect(row(r, 'upper')).toMatchObject({ description: 'Tall Open' });
     expect(row(r, 'upper').notes[0]).toBe('RV\'s (3/4" B)');
+  });
+
+  it('keeps a floor box over 36 1/2" a tall, with no full top note', () => {
+    expect(row(tall(14, 36.5), 'lower').description).toBe('Base');
+    const r = tall(14, 64);
+    expect(row(r, 'lower').description).toBe('Tall');
+    expect(row(r, 'lower').notes).not.toContain('full top');
   });
 
   it('keeps a full-height tall a tall', () => {
