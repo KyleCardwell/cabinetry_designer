@@ -256,18 +256,19 @@ describe('Step 494.5 Slab - MDF Core editor and part panel', () => {
     expect(nodes(tree).filter(({ type }) => type === 'button')).toEqual([]);
   });
 
-  it('passes zero-width slab splits and typed five-piece widths to the panels editor', () => {
+  it('passes edge-flat slab gaps (MR4) and typed five-piece widths to the panels editor', () => {
     const columns = { split: 'cols', children: [{}, {}], mids: [{ width: 5 }] };
     const sizes = { layout: { split: 'rows', children: [columns, columns], mids: [{ width: 4 }] } };
     const onChange = vi.fn();
     const tree = partPanel(slabAM, 30, sizes, onChange);
     const slabEditor = find(tree, ({ type }) => type === MidLayoutFields).props;
     expect(slabEditor.slab).toBe(true);
-    expect(slabEditor.resolved.midRails).toMatchObject([{ name: 'MR1', at: 15, width: 0 }]);
+    expect(slabEditor.resolved.midRails).toMatchObject([{ name: 'MR1', at: 15, width: 2 }]);
     expect(slabEditor.resolved.midStiles).toMatchObject([
-      { name: 'MS1', at: 12, width: 0, from: 'BR', to: 'MR1' },
-      { name: 'MS2', at: 12, width: 0, from: 'MR1', to: 'TR' },
+      { name: 'MS1', at: 12, width: 2, from: 'BR', to: 'MR1' },
+      { name: 'MS2', at: 12, width: 2, from: 'MR1', to: 'TR' },
     ]);
+    expect(slabEditor.resolved.nodes.find(({ path }) => path === 'root')).toMatchObject({ x: 2, z: 2, width: 20, height: 26 });
     expect(nodes(tree).filter(({ type }) => type === InchInput || type === 'input' || type === 'button')).toEqual([]);
     const fivePiece = partPanel({ ...slabAM, designId: DEFAULT_DOOR_STYLE.designId }, 30, sizes);
     const fiveEditor = find(fivePiece, ({ type }) => type === MidLayoutFields).props;

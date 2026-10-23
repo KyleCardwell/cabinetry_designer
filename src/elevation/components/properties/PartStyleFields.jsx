@@ -41,7 +41,7 @@ export default function PartStyleFields({
   } : node;
   const resolved = rows.opening && {
     ...resolveMidLayout(withWidths(part?.sizes?.layout), slab
-      ? { x: 0, z: 0, width, height }
+      ? rows.area ?? { x: 0, z: 0, width, height }
       : {
         x: rows.rows.find((row) => row.side === 'left').value,
         z: rows.rows.find((row) => row.side === 'bottom').value,

@@ -122,7 +122,7 @@ describe('MR3b panels editor', () => {
     expect(nodes(ui.render()).filter(({ props }) => props['aria-label']?.endsWith(' Width'))).toEqual([]);
     expect(ui.field('MR1 At').props.value).toBe(19.5);
     expect(ui.commit('MR1 At', 20)).toBe(true);
-    expect(ui.part().sizes.layout.children[0].size).toBe(20);
+    expect(ui.part().sizes.layout.children[0].size).toBe(17); // MR4: the outer molding rectangle, flat 2 to gap 19
     expect(ui.field('MR1 At').props.value).toBe(20);
     ui.select('root.1');
     ui.click('Split ↕');

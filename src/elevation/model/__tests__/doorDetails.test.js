@@ -31,7 +31,7 @@ describe('SPEC-46.2 a part\'s door detail: frame openings in wall coordinates', 
       partDetail(S, SLAB_AM, box(0, 0, 15, 4.75)),
     ]).toEqual([
       { construction: 'slab', slab: 'rule', molding: false, designId: 'slab', core: box(0, 0, 15, 4.75), openings: [], layoutWarnings: [] },
-      { construction: 'slab', slab: 'design', molding: true, designId: 'slab', core: box(0, 0, 15, 30), openings: [box(0, 0, 15, 30)], layoutWarnings: [], moldings: [], sizes: { ...partSizes(S, SLAB, { width: 15, height: 30 }), shift: 0, minPanel: 2.125 } },
+      { construction: 'slab', slab: 'design', molding: true, designId: 'slab', core: box(0, 0, 15, 30), openings: [box(0, 0, 15, 30)], layoutWarnings: [], moldings: [], sizes: { ...partSizes(S, SLAB, { width: 15, height: 30 }), shift: 0, minPanel: 2.125, area: box(0, 0, 15, 30) } },
       { construction: 'slab', slab: 'design', molding: false, designId: 'slab-mdf', core: box(0, 0, 15, 4.75), openings: [], layoutWarnings: [] },
     ]);
   });
@@ -97,11 +97,11 @@ describe('MR2b layout openings', () => {
     expect(detail.sizes.layoutWarnings).toEqual([]);
   });
 
-  it('anchor 2: splits a slab with applied molding at the full-rect center', () => {
+  it('anchor 2: splits a slab with applied molding with a gap equal to the edge flat (MR4)', () => {
     const detail = partDetail(S, SLAB, box(100, 10, 30, 39), { layout: rows([{}, {}]) }, 0,
       [{ index: 0, profileId: 'molding', offset: 1, width: 1 }]);
-    expect(detail.openings).toEqual([box(100, 10, 30, 19.5), box(100, 29.5, 30, 19.5)]);
-    expect(detail.sizes.midRails).toMatchObject([{ at: 19.5, width: 0 }]);
+    expect(detail.openings).toEqual([box(100, 10, 30, 20), box(100, 29, 30, 20)]);
+    expect(detail.sizes.midRails).toMatchObject([{ at: 19.5, width: 1, source: 'flat' }]);
   });
 
   it('passes mirror through and offsets panels from the inset core', () => {

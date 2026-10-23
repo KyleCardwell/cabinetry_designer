@@ -304,7 +304,7 @@ describe('Step 480 applied moldings at their offsets', () => {
       [{ code: 'door-profile-panel-too-small' }], [0, 1.25]],
     [9, box(0, 0, 24, 4.5), [am(2)], null, undefined, [], [], null],
     [10, box(0, 0, 15, 30), [am(1)], null, { layout: { split: 'rows', children: [{ size: 15 }, {}], mids: [{ width: 9 }] } },
-      [box(1, 1, 13, 13), box(2, 2, 11, 11), box(1, 16, 13, 13), box(2, 17, 11, 11)], [], [1]],
+      [box(1, 1, 13, 15), box(2, 2, 11, 13), box(1, 17, 13, 12), box(2, 18, 11, 10)], [], [1]],
     [11, box(0, 0, 15, 15), [am(0.25)], 'out38', undefined,
       [box(0.375, 0.375, 14.25, 14.25), box(0.25, 0.25, 14.5, 14.5), box(1.25, 1.25, 12.5, 12.5)],
       [{ code: 'door-profile-too-wide', side: 'molding', index: 0 }], [0.25]],
@@ -335,7 +335,7 @@ describe('Step 480 applied moldings at their offsets', () => {
       expect(mdf.fit.miters).toHaveLength(4);
     }
     if (number === 10) {
-      expect(result.detail.openings).toEqual([box(0, 0, 15, 15), box(0, 15, 15, 15)]);
+      expect(result.detail.openings).toEqual([box(0, 0, 15, 17), box(0, 16, 15, 14)]); // MR4: regions overlap by the flat
       expect(result.fit.miters).toHaveLength(8);
     }
   });
@@ -367,20 +367,22 @@ describe('Step 480 applied moldings at their offsets', () => {
     const offsets = doorProfileOffsets(S, SLAB_AM, [...moldingLibrary, BEAD5]);
     const detail = partDetail(S, SLAB_AM, rect, {
       layout: { split: 'rows', children: [
-        { split: 'cols', size: 3, children: [{ size: 6 }, {}], mids: [{ width: 9 }] },
+        { split: 'cols', children: [{ size: 6 }, {}], mids: [{ width: 9 }] },
         { split: 'cols', children: [{ size: 6 }, {}], mids: [{ width: 9 }] },
       ], mids: [{ width: 8 }] },
     }, 0.3125, offsets.applied);
     expect(detail.core).toEqual(box(10.3125, 20.3125, 11.375, 5.375));
+    // MR4: the gaps follow the shifted flat, and the shift steps out until the smallest panel fits.
     expect(detail.openings).toEqual([
-      box(10, 20, 6, 3), box(16, 20, 6, 3), box(10, 23, 6, 3), box(16, 23, 6, 3),
+      box(10, 20, 6.625, 3.15625), box(16.3125, 20, 5.6875, 3.15625),
+      box(10, 22.84375, 6.625, 3.15625), box(16.3125, 22.84375, 5.6875, 3.15625),
     ]);
-    expect(detail.moldings).toEqual([{ index: 0, offset: 0.25, typed: 1, shifted: true }]);
-    expect(detail.sizes).toMatchObject({ shift: 0.75, opening: { width: 10, height: 4 } });
+    expect(detail.moldings).toEqual([{ index: 0, offset: 0.3125, typed: 1, shifted: true }]);
+    expect(detail.sizes).toMatchObject({ shift: 0.6875, opening: { width: 9.875, height: 3.875 } });
     const fit = partProfileLines(offsets, detail, rect);
     expect(fit.warnings).toEqual([]);
-    expect(fit.lines).toContainEqual(box(10.25, 20.25, 5.5, 2.5));
-    expect(fit.lines).toContainEqual(box(11, 21, 4, 1));
+    expect(fit.lines).toContainEqual(box(10.3125, 20.3125, 6, 2.53125));
+    expect(fit.lines).toContainEqual(box(11.0625, 21.0625, 4.5, 1.03125));
     expect(fit.miters).toHaveLength(20); // Four outside miters plus four per region.
   });
 

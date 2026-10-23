@@ -136,7 +136,7 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
     });
     expect([molding.title, molding.rows.map(({ label }) => label), molding.midRails, molding.opening]).toEqual([
       'Applied moldings', [], [{ kind: 'rail', path: 'root', index: 0, at: 15, width: 0,
-        source: 'flat', name: 'MR1', from: 'LS', to: 'RS', full: true, typed: true }], { width: 15, height: 30 },
+        source: 'flat', name: 'MR1', from: 'LS', to: 'RS', full: true, typed: false }], { width: 15, height: 30 },
     ]);
     const slab = { title: 'Slab', rows: [], midRails: [], midStiles: [], opening: null };
     expect([
@@ -144,7 +144,7 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
       partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 4.75 }),
       partSizeRows(DEFAULT_DOOR_STYLE, SLAB_AM, { width: 15, height: 4.75 }),
     ]).toEqual([
-      { title: 'Applied moldings', rows: [], midRails: [], midStiles: [], opening: { width: 15, height: 30 }, note: null },
+      { title: 'Applied moldings', rows: [], midRails: [], midStiles: [], opening: { width: 15, height: 30 }, area: { x: 0, z: 0, width: 15, height: 30 }, note: null },
       { ...slab, note: 'Slab under 4 13/16" — molding left off' },
       { ...slab, note: 'Slab under 4 13/16" — molding left off' },
     ]);
@@ -162,8 +162,9 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
       expect(result.midRails).toMatchObject([{ name: 'MR1', typed: false }]);
       expect(result.midStiles).toHaveLength(3);
       for (const [path, index, typed] of [['root.0', 0, false], ['root.0', 1, true], ['root.1', 0, true]]) {
+        // MR4: typed widths are ignored on slabs.
         expect(result.midStiles.find((mid) => mid.path === path && mid.index === index)).toMatchObject({
-          typed, name: expect.stringMatching(/^MS\d$/),
+          typed: design === SLAB_AM ? false : typed, name: expect.stringMatching(/^MS\d$/),
           ...(design === SLAB_AM ? { width: 0, source: 'flat' } : {}),
         });
       }

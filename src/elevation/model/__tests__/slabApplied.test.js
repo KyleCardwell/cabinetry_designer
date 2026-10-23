@@ -87,3 +87,60 @@ describe('SPEC-46.1 slab with applied molding (P17)', () => {
     expect(frontStackWarnings([front('r.1', 0, 8, SLAB), front('r.0', 8.125, 7.9375, SLAB_AM)])).toEqual([]);
   });
 });
+
+describe('SPEC-MR4 slab applied-molding gap (MD5)', () => {
+  const rect = { x: 0, z: 0, width: 24, height: 30 };
+  const molding = (index, offset, width = 0) => ({ index, profileId: null, offset, width });
+  const outer = (detail, offset) => detail.openings.map((opening) => {
+    const { x, z, width, height } = insetRect(opening, offset);
+    return { x, z, width, height };
+  });
+  const insetRect = (r, d) => ({ x: r.x + d, z: r.z + d, width: r.width - 2 * d, height: r.height - 2 * d });
+  const rows = { layout: { split: 'rows', children: [{}, {}] } };
+
+  it('case 1: gap between molding rectangles equals the edge flat', () => {
+    const detail = partDetail(DEFAULT_DOOR_STYLE, SLAB_AM, rect, rows, 0, [molding(0, 2)]);
+    expect(outer(detail, 2)).toEqual([
+      { x: 2, z: 2, width: 20, height: 12 },
+      { x: 2, z: 16, width: 20, height: 12 },
+    ]);
+    expect(detail.sizes.midRails).toMatchObject([{ at: 15, width: 2, source: 'flat', name: 'MR1' }]);
+    expect(detail.sizes.panels).toMatchObject([
+      { x: 2, z: 2, width: 20, height: 12 }, { x: 2, z: 16, width: 20, height: 12 },
+    ]);
+  });
+
+  it('case 2: an inner molding stays parallel', () => {
+    const detail = partDetail(DEFAULT_DOOR_STYLE, SLAB_AM, rect, rows, 0, [molding(0, 2), molding(1, 3)]);
+    expect(outer(detail, 3).map(({ z, height }) => [z, z + height])).toEqual([[3, 13], [17, 27]]);
+  });
+
+  it('case 3: no layout is unchanged', () => {
+    const detail = partDetail(DEFAULT_DOOR_STYLE, SLAB_AM, rect, undefined, 0, [molding(0, 2)]);
+    expect(detail.openings).toEqual([rect]);
+    expect(outer(detail, 2)).toEqual([{ x: 2, z: 2, width: 20, height: 26 }]);
+  });
+
+  it('case 4: a typed panel is the outer molding rectangle; typed mid widths are ignored', () => {
+    const detail = partDetail(DEFAULT_DOOR_STYLE, SLAB_AM, rect,
+      { layout: { split: 'cols', children: [{ size: 8 }, {}], mids: [{ width: 5 }] } }, 0, [molding(0, 2)]);
+    expect(outer(detail, 2).map(({ x, width }) => [x, x + width])).toEqual([[2, 10], [12, 22]]);
+    expect(detail.sizes.midStiles).toMatchObject([{ at: 11, width: 2 }]);
+  });
+
+  it('the short-front shift moves the gap with the shifted flat', () => {
+    const front = { x: 0, z: 0, width: 24, height: 8 };
+    const cols = { layout: { split: 'cols', children: [{}, {}] } };
+    const detail = partDetail(DEFAULT_DOOR_STYLE, SLAB_AM, front, cols, 0, [molding(0, 2, 1)]);
+    const shift = detail.sizes.shift;
+    expect(shift).toBeGreaterThan(0);
+    const flat = 2 - shift;
+    expect(detail.moldings).toMatchObject([{ offset: flat, shifted: true }]);
+    const [left, right] = outer(detail, flat);
+    expect(left.x).toBeCloseTo(flat);
+    expect(left.z).toBeCloseTo(flat);
+    expect(right.x - (left.x + left.width)).toBeCloseTo(flat);
+    expect(right.x + right.width).toBeCloseTo(24 - flat);
+    expect(detail.sizes.midStiles[0].width).toBeCloseTo(flat);
+  });
+});

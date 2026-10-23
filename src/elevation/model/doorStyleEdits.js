@@ -217,7 +217,9 @@ export function partSizeRows(style, design, part, edgeOut = 0, moldings = [], of
         index, label: `Molding ${index + 1}`, value: offset, typed, readOnly: true,
         note: shifted ? 'moved out for a short front' : null,
       })),
-      midRails: mids('midRails'), midStiles: mids('midStiles'), opening: detail.sizes.opening,
+      midRails: detail.sizes.midRails.map((mid) => ({ ...mid, typed: false })),
+      midStiles: detail.sizes.midStiles.map((mid) => ({ ...mid, typed: false })),
+      opening: detail.sizes.opening, area: detail.sizes.area,
     };
   }
   const labels = ['Top rail', 'Bottom rail', 'Left stile', 'Right stile'];

@@ -6,6 +6,7 @@ import { cabinetFaceLevels, facePartType, panelLevels, resolveDoorStyle } from '
 import { frontDepth, runBackOffset } from './corners.js';
 import { defaultFace } from './faces.js';
 import { getFaceNode } from './faceTree.js';
+import { resolveMidLayout } from './midLayout.js';
 import { runItems } from './grid.js';
 import { isJoinedEnd } from './panelThickness.js';
 import { runScene } from './runScene.js';
@@ -38,24 +39,57 @@ export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = [
   }));
 
   if (r.construction === 'slab' && r.molding) {
+    // MD5 (SPEC-MR4): no real mid on a slab; the gap between molding rectangles equals the edge flat F.
     const extent = Math.max(0, ...moldings.map(({ offset, width }) => offset + width));
-    const smallest = Math.min(...openings.map(({ width, height }) => Math.min(width, height)));
+    const typedFlat = moldings.length ? Math.max(0, Math.min(...moldings.map(({ offset }) => offset))) : 0;
+    const local = { x: 0, z: 0, width: rect.width, height: rect.height };
+    const resolveSlab = (flat) => {
+      const area = inset(local, flat);
+      const layout = resolveMidLayout(slabLayout(sizes?.layout), area,
+        { rail: flat, stile: flat, over: 0, source: { rail: 'flat', stile: 'flat' } }, { mirror });
+      const regions = layout.panels.map((panel) => inset(panel, -flat))
+        .map(({ x, z, width, height }) => ({ x: rect.x + x, z: rect.z + z, width, height }));
+      return { area, layout, regions };
+    };
+    const smallestOf = ({ regions }) => Math.min(...regions.map(({ width, height }) => Math.min(width, height)));
+    let slab = resolveSlab(typedFlat);
     const { minPanel, step } = style.shortFace;
-    const allowed = Math.floor((smallest - minPanel) / 2 / step + 1e-9) * step;
-    const shift = moldings.length && extent > allowed + 1e-6
-      ? Math.max(0, Math.min(extent - allowed, ...moldings.map(({ offset }) => offset))) : 0;
+    const allowed = Math.floor((smallestOf(slab) - minPanel) / 2 / step + 1e-9) * step;
+    let shift = moldings.length && extent > allowed + 1e-6
+      ? Math.max(0, Math.min(extent - allowed, typedFlat)) : 0;
+    if (shift > 0) {
+      slab = resolveSlab(typedFlat - shift);
+      // A smaller flat also narrows every gap, so with mids the panels can still come up short: step out further.
+      while (slab.layout.mids.length && shift < typedFlat - 1e-9
+        && smallestOf(slab) - 2 * (extent - shift) < minPanel - 1e-6) {
+        shift = Math.min(typedFlat, shift + step);
+        slab = resolveSlab(typedFlat - shift);
+      }
+    }
+    const { area, layout } = slab;
     return {
-      construction: r.construction, slab: r.slab, molding: r.molding, designId: r.designId, core, openings, layoutWarnings,
+      construction: r.construction, slab: r.slab, molding: r.molding, designId: r.designId, core,
+      openings: slab.regions, layoutWarnings: layout.warnings,
       moldings: moldings.map(({ index, offset }) => ({
         index, offset: offset - shift, typed: offset, shifted: shift > 0,
       })),
-      sizes: { ...r, shift, minPanel, opening: {
-        width: rect.width - 2 * (extent - shift), height: rect.height - 2 * (extent - shift),
-      } },
+      sizes: { ...r, shift, minPanel, area,
+        midRails: layout.mids.filter(({ kind }) => kind === 'rail'),
+        midStiles: layout.mids.filter(({ kind }) => kind === 'stile'),
+        panels: layout.panels,
+        layoutWarnings: layout.warnings,
+        opening: {
+          width: rect.width - 2 * (extent - shift), height: rect.height - 2 * (extent - shift),
+        } },
     };
   }
 
   return { construction: r.construction, core, openings, sizes: r, layoutWarnings };
+}
+
+/** A slab layout without typed mid widths (MD5: every gap is the edge flat). */
+function slabLayout(node) {
+  return node?.split ? { ...node, mids: undefined, children: node.children.map(slabLayout) } : node;
 }
 
 /** A part's openings (partDetail) and its profile lines and miters, as face-on parts and end views draw them. */
