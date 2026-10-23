@@ -4,9 +4,12 @@ import { combinedViewOf } from '../combinedElevations.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { faceParts } from '../drawingPayload.js';
 import { elevationParts } from '../elevationParts.js';
+import { doorSection } from '../doorSection.js';
+import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
+import { MICRO_SHAKER } from './fixtures/microShakerDesign.js';
 import {
-  elevationMeasureGeometry, formatMeasure, MEASURE_STEP, measureBetween,
-  measureGeometry, planMeasureGeometry, snapMeasure,
+  arcPoints, elevationMeasureGeometry, formatMeasure, MEASURE_STEP, measureBetween,
+  measureGeometry, planMeasureGeometry, profileMeasureGeometry, sectionMeasureGeometry, snapMeasure,
 } from '../measure.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { wallOutline } from '../wallOutline.js';
@@ -170,7 +173,7 @@ describe('measure boundary rules', () => {
     ]);
     expect(geometry.segments).toHaveLength(1);
     expect(geometry.corners).toHaveLength(1); // The kept ends share a rounded key.
-    expect(measureGeometry([])).toEqual({ segments: [], corners: [], mids: [] });
+    expect(measureGeometry([])).toEqual({ segments: [], arcs: [], corners: [], mids: [], centers: [] });
   });
 
   it('dedupes reversed rounded edges, endpoints and crossing midpoints', () => {
@@ -254,5 +257,201 @@ describe('measure boundary rules', () => {
       }
     }
     expect(model).toEqual(copy);
+  });
+});
+
+const R = {
+  points: { b: [1, 0], c: [0, 1] },
+  loops: [{ closed: false, segs: [{ type: 'arc', from: 'b', to: 'c', center: [0, 0], ccw: true }] }],
+};
+const Q = {
+  points: { a: [0, 0], ...R.points },
+  loops: [{ closed: true, segs: [
+    { type: 'line', from: 'a', to: 'b' }, ...R.loops[0].segs, { type: 'line', from: 'c', to: 'a' },
+  ] }],
+};
+
+describe('MS4 measure anchors', () => {
+  it('1: builds the quarter disc lines, arc, corners, midpoints and center', () => {
+    const geometry = profileMeasureGeometry([Q]);
+    expect(geometry.segments).toHaveLength(2);
+    expect(geometry.arcs).toEqual([{ cx: 0, cy: 0, r: 1, start: 0, sweep: Math.PI / 2, x1: 1, y1: 0, x2: 0, y2: 1 }]);
+    expect(geometry.corners).toHaveLength(3);
+    for (const point of [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0, y: 1 }]) {
+      expect(geometry.corners).toContainEqual(point);
+    }
+    expect(geometry.mids).toHaveLength(3);
+    expect(geometry.mids).toContainEqual({ x: 0.5, y: 0 });
+    expect(geometry.mids).toContainEqual({ x: 0, y: 0.5 });
+    expect(geometry.mids[1].x).toBeCloseTo(0.7071, 4);
+    expect(geometry.mids[1].y).toBeCloseTo(0.7071, 4);
+    expect(geometry.centers).toEqual([{ x: 0, y: 0 }]);
+  });
+
+  it('2: keeps the quarter arc midpoint when reversed clockwise', () => {
+    const geometry = profileMeasureGeometry([{
+      ...R, loops: [{ closed: false, segs: [{ ...R.loops[0].segs[0], from: 'c', to: 'b', ccw: false }] }],
+    }]);
+    expect(geometry.arcs[0].sweep).toBe(-Math.PI / 2);
+    expect(geometry.mids[0].x).toBeCloseTo(0.7071, 4);
+    expect(geometry.mids[0].y).toBeCloseTo(0.7071, 4);
+  });
+
+  it('3: snaps near the quarter arc midpoint', () => {
+    const pick = snapMeasure({ x: 0.75, y: 0.75 }, profileMeasureGeometry([R]), 0.1);
+    expect(pick.kind).toBe('mid');
+    expect(pick.point.x).toBeCloseTo(0.7071, 4);
+    expect(pick.point.y).toBeCloseTo(0.7071, 4);
+  });
+
+  it('4: projects onto the arc as a point pick with or without pointOnly', () => {
+    const geometry = profileMeasureGeometry([R]);
+    const pick = snapMeasure({ x: 0.9, y: 0.5 }, geometry, 0.1);
+    expect(pick).toMatchObject({ kind: 'arc', arc: geometry.arcs[0] });
+    expect(pick.point.x).toBeCloseTo(0.8742, 4);
+    expect(pick.point.y).toBeCloseTo(0.4856, 4);
+    expect(snapMeasure({ x: 0.9, y: 0.5 }, geometry, 0.1, { pointOnly: true })).toEqual(pick);
+  });
+
+  it('5: snaps near the arc center', () => {
+    expect(snapMeasure({ x: 0.02, y: 0.01 }, profileMeasureGeometry([R]), 0.1))
+      .toEqual({ kind: 'center', point: { x: 0, y: 0 } });
+  });
+
+  it('6: prefers the disc corner to its coincident arc center', () => {
+    expect(snapMeasure({ x: 0.02, y: 0.01 }, profileMeasureGeometry([Q]), 0.1)).toEqual(corner(0, 0));
+  });
+
+  it('7: leaves a pointer outside the arc sweep free', () => {
+    expect(snapMeasure({ x: -0.5, y: -0.5 }, profileMeasureGeometry([R]), 0.1))
+      .toEqual({ kind: 'free', point: { x: -0.5, y: -0.5 } });
+  });
+
+  it('8: measures center and arc picks as points one inch apart', () => {
+    const geometry = profileMeasureGeometry([R]);
+    const center = snapMeasure({ x: 0.02, y: 0.01 }, geometry, 0.1);
+    const arc = snapMeasure({ x: 0.9, y: 0.5 }, geometry, 0.1);
+    const result = measureBetween(center, arc);
+    expect(result).toMatchObject({ kind: 'points', from: center.point, to: arc.point });
+    expect(result.distance).toBeCloseTo(1, 4);
+    expect(measureBetween(arc, center)).toMatchObject({ kind: 'points', distance: 1 });
+  });
+
+  it('9: samples five arc points with the exact ends and quarter arc midpoint', () => {
+    const arc = profileMeasureGeometry([R]).arcs[0];
+    const points = arcPoints(arc, 4);
+    expect(points).toHaveLength(5);
+    expect(points[0]).toEqual({ x: 1, y: 0 });
+    expect(points[2].x).toBeCloseTo(0.7071, 4);
+    expect(points[2].y).toBeCloseTo(0.7071, 4);
+    expect(points[4]).toEqual({ x: 0, y: 1 });
+    expect(arcPoints(arc)).toHaveLength(25);
+  });
+
+  it('10: skips null profiles and dedupes the origin with a disc corner', () => {
+    expect(profileMeasureGeometry([Q, null], { origin: true })).toEqual(profileMeasureGeometry([Q]));
+    expect(profileMeasureGeometry([Q, null], { origin: true }).corners).toHaveLength(3);
+  });
+
+  it('11: includes every body corner of the square-profile door section fixture', () => {
+    const style = {
+      ...DEFAULT_DOOR_STYLE, designId: MICRO_SHAKER.id, stiles: { left: 1.5, right: 1.5 },
+      panel: { type: 'flat', thickness: 0.625 },
+    };
+    const section = doorSection(style, MICRO_SHAKER, []);
+    const geometry = sectionMeasureGeometry(section);
+    expect(geometry.corners.length).toBeGreaterThan(0);
+    for (const [x, y] of Object.values(section.body.points)) {
+      expect(geometry.corners).toContainEqual({ x, y });
+    }
+  });
+});
+
+describe('MS4 arc boundary rules', () => {
+  it('dedupes reversed rounded arc ends plus center, and dedupes centers across distinct arcs', () => {
+    const reversed = {
+      points: { b: [1.0001, 0], c: [0.0001, 1] },
+      loops: [{ segs: [{ type: 'arc', from: 'c', to: 'b', center: [0.0001, 0], ccw: false }] }],
+    };
+    const bigger = { ...R, points: { b: [2, 0], c: [0, 2] } };
+    const otherCenter = { ...R, loops: [{ segs: [{ ...R.loops[0].segs[0], center: [-1, -1] }] }] };
+    const line = { ...R, loops: [{ segs: [{ type: 'line', from: 'b', to: 'c' }] }] };
+    const input = [R, reversed, bigger, otherCenter, line];
+    const copy = structuredClone(input);
+    const geometry = profileMeasureGeometry(input);
+    expect(geometry.arcs).toHaveLength(3);
+    expect(geometry.arcs[0]).toEqual(profileMeasureGeometry([R]).arcs[0]);
+    expect(geometry.centers).toEqual([{ x: 0, y: 0 }, { x: -1, y: -1 }]);
+    expect(geometry.corners).toHaveLength(4);
+    expect(geometry.segments).toHaveLength(1);
+    expect(input).toEqual(copy);
+  });
+
+  it('drops arcs below one microinch radius and retains the boundary', () => {
+    const tiny = { ...R, points: { b: [0.0000005, 0], c: [0, 0.0000005] } };
+    expect(profileMeasureGeometry([tiny])).toEqual(profileMeasureGeometry([]));
+    expect(profileMeasureGeometry([{ ...R, points: { b: [0.000001, 0], c: [0, 0.000001] } }]).arcs)
+      .toHaveLength(1);
+  });
+
+  it('chooses the nearest point and breaks ties corner, midpoint, then center', () => {
+    const geometry = { segments: [], arcs: [], corners: [{ x: -2, y: 0 }], mids: [{ x: 0, y: 0 }], centers: [{ x: 2, y: 0 }] };
+    expect(snapMeasure({ x: -1, y: 0 }, geometry, 1)).toEqual(corner(-2, 0));
+    expect(snapMeasure({ x: 1, y: 0 }, geometry, 1)).toEqual({ kind: 'mid', point: { x: 0, y: 0 } });
+    expect(snapMeasure({ x: 1.1, y: 0 }, geometry, 1)).toEqual({ kind: 'center', point: { x: 2, y: 0 } });
+    expect(profileMeasureGeometry([null], { origin: true })).toEqual({
+      segments: [], arcs: [], corners: [{ x: 0, y: 0 }], mids: [], centers: [],
+    });
+  });
+
+  it('compares segment and arc distances and clamps outside-sweep projections to an endpoint', () => {
+    const arc = profileMeasureGeometry([R]).arcs[0];
+    const segment = { x1: 1, y1: -1, x2: 1, y2: 2 };
+    const geometry = { segments: [segment], arcs: [arc], corners: [], mids: [], centers: [] };
+    expect(snapMeasure({ x: 0.9, y: 0.5 }, geometry, 0.1).kind).toBe('arc');
+    expect(snapMeasure({ x: 1.01, y: 0.5 }, geometry, 0.1).kind).toBe('edge');
+    const arcsOnly = { ...geometry, segments: [] };
+    expect(snapMeasure({ x: 1, y: -0.1 }, arcsOnly, 0.1)).toEqual({ kind: 'arc', point: { x: 1, y: 0 }, arc });
+    expect(snapMeasure({ x: -0.1, y: 1 }, arcsOnly, 0.1)).toEqual({ kind: 'arc', point: { x: 0, y: 1 }, arc });
+    const zeroSweep = { ...arc, sweep: 0, x2: 1, y2: 0 };
+    expect(snapMeasure({ x: 0, y: 1 }, { ...arcsOnly, arcs: [zeroSweep] }, 0.1).kind).toBe('free');
+  });
+
+  it('projects and samples clockwise, major and angle-wrapping sweeps in a translated frame', () => {
+    for (const [from, to, ccw, target] of [
+      ['b', 'c', true, { x: -2, y: -2 }],
+      ['c', 'b', false, { x: -2, y: -2 }],
+      ['b', 'c', false, { x: 2, y: 2 }],
+      ['c', 'b', true, { x: 2, y: 2 }],
+    ]) {
+      const profile = { ...R, loops: [{ segs: [{ type: 'arc', from, to, ccw, center: [0, 0] }] }] };
+      const arc = profileMeasureGeometry([profile]).arcs[0];
+      const geometry = { segments: [], arcs: [arc], corners: [], mids: [], centers: [] };
+      expect(snapMeasure(target, geometry, 0.1).kind).toBe('free');
+      for (const sample of arcPoints(arc, 8)) {
+        const pick = snapMeasure({ x: sample.x * 1.01, y: sample.y * 1.01 }, geometry, 0.02);
+        expect(pick.kind).toBe('arc');
+        expect(pick.point.x).toBeCloseTo(sample.x, 10);
+        expect(pick.point.y).toBeCloseTo(sample.y, 10);
+      }
+    }
+    const wrapped = {
+      points: { b: [2, 5], c: [2, 3] },
+      loops: [{ segs: [{ type: 'arc', from: 'b', to: 'c', center: [3, 4], ccw: true }] }],
+    };
+    const pick = snapMeasure({ x: 1.5, y: 4.2 }, profileMeasureGeometry([wrapped]), 0.1);
+    expect(pick.kind).toBe('arc');
+    expect(pick.point.x).toBeCloseTo(3 - Math.SQRT2 * 1.5 / Math.hypot(1.5, 0.2), 10);
+    expect(pick.point.y).toBeCloseTo(4 + Math.SQRT2 * 0.2 / Math.hypot(1.5, 0.2), 10);
+  });
+
+  it('includes placed geometry in section coordinates and handles an absent section', () => {
+    const placed = {
+      points: { b: [4, -2], c: [3, -1] },
+      loops: [{ segs: [{ ...R.loops[0].segs[0], center: [3, -2] }] }],
+    };
+    const section = { body: Q, placed: [{ geometry: placed }, { geometry: null }], cuts: [{ geometry: R }] };
+    expect(sectionMeasureGeometry(section)).toEqual(profileMeasureGeometry([Q, placed]));
+    expect(sectionMeasureGeometry(null)).toEqual(profileMeasureGeometry([]));
   });
 });

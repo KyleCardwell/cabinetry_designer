@@ -3,6 +3,7 @@ import { combinedElevationPayload, shiftPayloadRecord } from './combinedPayload.
 import { faceParts } from './drawingPayload.js';
 import { planParts } from './planParts.js';
 import { resolveWall } from './room.js';
+import { arcMeasure } from './sectionProfiles.js';
 import { elevationKey } from './topology.js';
 import { formatInches } from './units.js';
 
@@ -14,11 +15,63 @@ const pointKey = ({ x, y }) => `${Math.round(x * 1024)},${Math.round(y * 1024)}`
 /** Snap geometry in inches, retaining the first coordinates for each rounded key. */
 export function measureGeometry(shapes) {
   const segments = [];
+  const arcs = [];
   const corners = new Map();
   const mids = new Map();
+  const centers = new Map();
   const seen = new Set();
+  const seenArcs = new Set();
+  function addSegment(x1, y1, x2, y2) {
+    if (Math.hypot(x2 - x1, y2 - y1) < 1e-6) return;
+    const ends = [{ x: x1, y: y1 }, { x: x2, y: y2 }];
+    const key = ends.map(pointKey).sort().join('|');
+    if (seen.has(key)) return;
+    seen.add(key);
+    segments.push({ x1, y1, x2, y2 });
+    for (const point of ends) {
+      if (!corners.has(pointKey(point))) corners.set(pointKey(point), point);
+    }
+    const mid = { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
+    if (!mids.has(pointKey(mid))) mids.set(pointKey(mid), mid);
+  }
+  function addArc(segment, points) {
+    const { radius: r, start, direction, sweep } = arcMeasure(segment, points);
+    if (r < 1e-6) return;
+    const [cx, cy] = segment.center;
+    const [x1, y1] = points[segment.from];
+    const [x2, y2] = points[segment.to];
+    const ends = [{ x: x1, y: y1 }, { x: x2, y: y2 }];
+    const center = { x: cx, y: cy };
+    const key = `${ends.map(pointKey).sort().join('|')}|${pointKey(center)}`;
+    if (seenArcs.has(key)) return;
+    seenArcs.add(key);
+    const arc = { cx, cy, r, start, sweep: direction * sweep, x1, y1, x2, y2 };
+    arcs.push(arc);
+    for (const point of ends) {
+      if (!corners.has(pointKey(point))) corners.set(pointKey(point), point);
+    }
+    const angle = start + arc.sweep / 2;
+    const mid = { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+    if (!mids.has(pointKey(mid))) mids.set(pointKey(mid), mid);
+    if (!centers.has(pointKey(center))) centers.set(pointKey(center), center);
+  }
   for (const shape of shapes) {
     const { x, y, width, height } = shape;
+    if (shape.kind === 'point') {
+      const point = { x, y };
+      if (!corners.has(pointKey(point))) corners.set(pointKey(point), point);
+      continue;
+    }
+    if (shape.kind === 'profile') {
+      const { points, loops } = shape.geometry;
+      for (const loop of loops) {
+        for (const segment of loop.segs) {
+          if (segment.type === 'arc') addArc(segment, points);
+          else addSegment(...points[segment.from], ...points[segment.to]);
+        }
+      }
+      continue;
+    }
     const points = shape.kind === 'rect'
       ? [[x, y], [x + width, y], [x + width, y + height], [x, y + height]]
       : shape.points;
@@ -26,20 +79,32 @@ export function measureGeometry(shapes) {
     for (let i = 0; i < points.length - (closed ? 0 : 1); i += 1) {
       const [x1, y1] = points[i];
       const [x2, y2] = points[(i + 1) % points.length];
-      if (Math.hypot(x2 - x1, y2 - y1) < 1e-6) continue;
-      const ends = [{ x: x1, y: y1 }, { x: x2, y: y2 }];
-      const key = ends.map(pointKey).sort().join('|');
-      if (seen.has(key)) continue;
-      seen.add(key);
-      segments.push({ x1, y1, x2, y2 });
-      for (const point of ends) {
-        if (!corners.has(pointKey(point))) corners.set(pointKey(point), point);
-      }
-      const mid = { x: (x1 + x2) / 2, y: (y1 + y2) / 2 };
-      if (!mids.has(pointKey(mid))) mids.set(pointKey(mid), mid);
+      addSegment(x1, y1, x2, y2);
     }
   }
-  return { segments, corners: [...corners.values()], mids: [...mids.values()] };
+  return { segments, arcs, corners: [...corners.values()], mids: [...mids.values()], centers: [...centers.values()] };
+}
+
+/** Profile and section geometry stays in its own y-up inch frame. */
+export function profileMeasureGeometry(geometries, { origin = false } = {}) {
+  return measureGeometry([
+    ...geometries.filter((geometry) => geometry != null).map((geometry) => ({ kind: 'profile', geometry })),
+    ...(origin ? [{ kind: 'point', x: 0, y: 0 }] : []),
+  ]);
+}
+
+export function sectionMeasureGeometry(section) {
+  return profileMeasureGeometry([section?.body, ...(section?.placed ?? []).map(({ geometry }) => geometry)]);
+}
+
+/** Renderer-independent samples with exact endpoints. */
+export function arcPoints(arc, steps = 24) {
+  return Array.from({ length: steps + 1 }, (_, i) => {
+    if (i === 0) return { x: arc.x1, y: arc.y1 };
+    if (i === steps) return { x: arc.x2, y: arc.y2 };
+    const angle = arc.start + arc.sweep * i / steps;
+    return { x: arc.cx + arc.r * Math.cos(angle), y: arc.cy + arc.r * Math.sin(angle) };
+  });
 }
 
 function elevationShapes(parts) {
@@ -93,11 +158,24 @@ function project(point, segment, clamp = false) {
   return { point: { x: x1 + at * dx, y: y1 + at * dy }, t };
 }
 
+function projectArc(point, arc) {
+  const { cx, cy, r, start, sweep, x1, y1, x2, y2 } = arc;
+  const angle = Math.atan2(point.y - cy, point.x - cx);
+  const turn = 2 * Math.PI;
+  const directed = (sweep < 0 ? -1 : 1) * (angle - start);
+  const offset = ((directed % turn) + turn) % turn;
+  if (offset <= Math.abs(sweep)) {
+    return { x: cx + r * Math.cos(angle), y: cy + r * Math.sin(angle) };
+  }
+  return Math.hypot(point.x - x1, point.y - y1) <= Math.hypot(point.x - x2, point.y - y2)
+    ? { x: x1, y: y1 } : { x: x2, y: y2 };
+}
+
 export function snapMeasure(point, geometry, tolerance, { pointOnly = false } = {}) {
   if (!geometry) return { kind: 'free', point };
   let nearest;
   let distance = Infinity;
-  for (const [kind, points] of [['corner', geometry.corners], ['mid', geometry.mids]]) {
+  for (const [kind, points] of [['corner', geometry.corners], ['mid', geometry.mids], ['center', geometry.centers ?? []]]) {
     for (const candidate of points) {
       const next = Math.hypot(candidate.x - point.x, candidate.y - point.y);
       if (next <= tolerance && next < distance
@@ -113,6 +191,14 @@ export function snapMeasure(point, geometry, tolerance, { pointOnly = false } = 
     const next = Math.hypot(foot.x - point.x, foot.y - point.y);
     if (next <= tolerance && next < distance) {
       nearest = { kind: pointOnly ? 'on-edge' : 'edge', point: foot, segment };
+      distance = next;
+    }
+  }
+  for (const arc of geometry.arcs ?? []) {
+    const foot = projectArc(point, arc);
+    const next = Math.hypot(foot.x - point.x, foot.y - point.y);
+    if (next <= tolerance && next < distance) {
+      nearest = { kind: 'arc', point: foot, arc };
       distance = next;
     }
   }

@@ -162,7 +162,7 @@ function positiveAngle(angle) {
   return remainder < 0 ? remainder + FULL_TURN : remainder;
 }
 
-function arcMeasure(segment, points) {
+export function arcMeasure(segment, points) {
   const [cx, cy] = segment.center;
   const [fx, fy] = points[segment.from];
   const [tx, ty] = points[segment.to];
