@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
-  addProfileLoop, addProfilePoint, formatProfileCoord, moveProfilePoint, nextPointId, profileDrawnIn, snapProfilePoint,
+  addCircleLoop, addRectangleLoop, addProfileLoop, addProfilePoint, formatProfileCoord, moveProfilePoint, nextPointId, profileDrawnIn, snapProfilePoint,
 } from '../../elevation/model/profileEditing.js';
 import { PROFILE_KINDS, stretchLineProblem } from '../../elevation/model/sectionProfiles.js';
 import { cutoutProfile } from '../../elevation/model/baseCutouts.js';
@@ -9,6 +9,7 @@ import MeasureReadout from '../../elevation/components/MeasureReadout.jsx';
 import MeasureSvg from '../../elevation/components/MeasureSvg.jsx';
 import { profileMeasureGeometry } from '../../elevation/model/measure.js';
 import { fitView, loopScreenPath, segmentScreenPath, toModel, toScreen, zoomAt } from './profileView.js';
+import CoordInput from './CoordInput.jsx';
 
 function gridScreenPath(view, size, step) {
   const [minX, maxY] = toModel(view, size, [0, 0]);
@@ -53,6 +54,7 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
   const [dragPreview, setDragPreview] = useState(null);
   const [picks, setPicks] = useState([]);
   const measuring = tool === 'measure';
+  const drawingShape = tool === 'rect' || tool === 'circle';
   const measure = useMeasure({
     active: measuring,
     geometry: measuring ? profileMeasureGeometry([profile.geometry, ghost], { origin: true }) : null,
@@ -171,12 +173,32 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
   const baseTop = baseTopHeight(drawnProfile);
   const baseTopY = view && baseTop !== null ? toScreen(view, size, [0, baseTop])[1] : null;
   const originText = PROFILE_KINDS[drawnProfile.kind]?.origin ?? null;
-  const hover = tool === 'line' && view && cursor
+  const hover = (tool === 'line' || drawingShape) && view && cursor
     ? snapProfilePoint(profile, toModel(view, size, cursor), { grid, reach: 8 / view.scale }) : null;
   const hoverScreen = hover && toScreen(view, size, hover.xy);
   const pickScreens = view ? picks.map((pick) => toScreen(view, size, pick.xy)) : [];
   const snapPoint = dragPreview?.snapId && drawnProfile.geometry.points[dragPreview.snapId];
   const snapScreen = snapPoint && view && toScreen(view, size, snapPoint);
+
+  const finishCircle = (radius) => {
+    const next = addCircleLoop(profile, picks[0].xy, radius);
+    if (!onApply(next, 'A circle needs a radius greater than 1/256 inch.')) return false;
+    setPicks([]);
+    return true;
+  };
+
+  const pickShapePoint = (screen) => {
+    const snap = snapProfilePoint(profile, toModel(view, size, screen), { grid, reach: 8 / view.scale });
+    if (!picks.length) {
+      setPicks([snap]);
+      onMessage(null);
+    } else if (tool === 'rect') {
+      onApply(addRectangleLoop(profile, picks[0].xy, snap.xy), 'A rectangle needs a width and a height.');
+      setPicks([]);
+    } else {
+      finishCircle(Math.hypot(snap.xy[0] - picks[0].xy[0], snap.xy[1] - picks[0].xy[1]));
+    }
+  };
 
   const pickPoint = (screen) => {
     if (picks.length >= 3) {
@@ -229,6 +251,8 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
             measure.click(modelPoint(gesture.view, size, screenPosition(event)), event.shiftKey);
           } else if (gesture.tool === 'line') {
             pickPoint(screenPosition(event));
+          } else if (gesture.tool === 'rect' || gesture.tool === 'circle') {
+            pickShapePoint(screenPosition(event));
           } else {
             onSelect(gesture.selection);
             if (gesture.dragging && JSON.stringify(gesture.lastPreview) !== JSON.stringify(gesture.start)) {
@@ -305,6 +329,11 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
             })}
             <g pointerEvents="none" stroke="#4ade80" fill="none">
               {snapScreen && <circle cx={snapScreen[0]} cy={snapScreen[1]} r={9} />}
+              {drawingShape && pickScreens.length > 0 && hoverScreen && (tool === 'rect'
+                ? <rect x={Math.min(pickScreens[0][0], hoverScreen[0])} y={Math.min(pickScreens[0][1], hoverScreen[1])}
+                  width={Math.abs(hoverScreen[0] - pickScreens[0][0])} height={Math.abs(hoverScreen[0][1] - pickScreens[0][1])} strokeDasharray="4 3" />
+                : <circle cx={pickScreens[0][0]} cy={pickScreens[0][1]}
+                  r={Math.hypot(hoverScreen[0] - pickScreens[0][0], hoverScreen[1] - pickScreens[0][1])} strokeDasharray="4 3" />)}
               {pickScreens.length > 1 && <polyline points={pickScreens.map((point) => point.join(',')).join(' ')} />}
               {pickScreens.map(([x, y], index) => <circle key={index} cx={x} cy={y} r={3} fill="#4ade80" />)}
               {hoverScreen && (
@@ -324,6 +353,12 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
       {measuring && (
         <MeasureReadout result={measure.preview ?? measure.measures.at(-1)?.result} axisLabels={{ x: 'X', y: 'Y' }}
           hover={measure.hover} hint={MEASURE_HINT} className="bottom-10 left-2" />
+      )}
+      {tool === 'circle' && picks.length > 0 && (
+        <label className="absolute bottom-10 left-2 flex items-center gap-2 rounded bg-gray-800 px-2 py-1 text-xs text-gray-300">
+          Radius
+          <CoordInput aria-label="Circle radius" value={0} onCommit={finishCircle} className="max-w-28" />
+        </label>
       )}
       <div className="pointer-events-none absolute right-2 top-2 rounded bg-gray-800/80 px-2 py-1 text-xs text-gray-300">
         <div>{axes === 'door' ? "Door profile · face on top · x → toward the door's middle · y ↓ into the door"

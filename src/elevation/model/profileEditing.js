@@ -209,6 +209,92 @@ export function addProfileLoop(profile, pointIds, closed) {
   });
 }
 
+/** SH2 adds a counter-clockwise rectangle, reusing any existing corner points. */
+export function addRectangleLoop(profile, first, second) {
+  if (!isSectionProfileDraft(profile) || !isCoordinate(first) || !isCoordinate(second)) return null;
+  const [left, right] = [Math.min(first[0], second[0]), Math.max(first[0], second[0])].map(round6);
+  const [bottom, top] = [Math.min(first[1], second[1]), Math.max(first[1], second[1])].map(round6);
+  if (left === right || bottom === top) return null;
+  let next = profile;
+  const ids = [];
+  for (const xy of [[left, bottom], [right, bottom], [right, top], [left, top]]) {
+    let id = Object.keys(next.geometry.points).find((key) => next.geometry.points[key].every((n, i) => n === xy[i]));
+    if (id === undefined) {
+      id = nextPointId(next);
+      next = addProfilePoint(next, xy, id);
+      if (!next) return null;
+    }
+    ids.push(id);
+  }
+  return addProfileLoop(next, ids, true);
+}
+
+/** SH2 represents a circle with two horizontal endpoints and two true ccw arcs. */
+export function addCircleLoop(profile, center, radius) {
+  if (!isSectionProfileDraft(profile) || !isCoordinate(center)
+    || !Number.isFinite(radius) || radius <= 1 / 256) return null;
+  let next = profile;
+  const ids = [];
+  for (const x of [center[0] + radius, center[0] - radius]) {
+    const id = nextPointId(next);
+    next = addProfilePoint(next, [x, center[1]], id);
+    if (!next) return null;
+    ids.push(id);
+  }
+  return editProfile(next, (draft) => {
+    draft.geometry.loops.push({ id: nextLoopId(draft), closed: true, segs: [
+      { type: 'arc', from: ids[0], to: ids[1], center: center.map(round6), ccw: true },
+      { type: 'arc', from: ids[1], to: ids[0], center: center.map(round6), ccw: true },
+    ] });
+  });
+}
+
+/** SH2 copies one loop across x = value or y = value with fresh point and loop ids. */
+export function mirrorCopyLoop(profile, loopId, axis, value = 0) {
+  if ((axis !== 'x' && axis !== 'y') || !Number.isFinite(value)) return null;
+  return editProfile(profile, (next) => {
+    const loop = next.geometry.loops.find((entry) => entry.id === loopId);
+    if (!loop) return false;
+    const mirror = (xy) => xy.map((n, i) => round6(i === (axis === 'x' ? 0 : 1) ? 2 * value - n : n));
+    const ids = new Map();
+    for (const segment of loop.segs) {
+      for (const id of [segment.from, segment.to]) {
+        if (ids.has(id)) continue;
+        const newId = nextPointId(next);
+        next.geometry.points[newId] = mirror(next.geometry.points[id]);
+        ids.set(id, newId);
+      }
+    }
+    next.geometry.loops.push({ id: nextLoopId(next), closed: loop.closed, segs: loop.segs.map((segment) => ({
+      ...segment, from: ids.get(segment.from), to: ids.get(segment.to),
+      ...(segment.type === 'arc' ? { center: mirror(segment.center), ccw: !segment.ccw } : {}),
+    })) });
+  });
+}
+
+/** SH2 removes a segment, opening or splitting its loop and retaining every point. */
+export function deleteProfileSegment(profile, loopId, index) {
+  return editProfile(profile, (next) => {
+    if (!segmentAt(next, loopId, index)) return false;
+    const { loops } = next.geometry;
+    const position = loops.findIndex((loop) => loop.id === loopId);
+    const loop = loops[position];
+    const before = loop.segs.slice(0, index);
+    const after = loop.segs.slice(index + 1);
+    if (loop.closed) {
+      loop.segs = [...after, ...before];
+      loop.closed = false;
+    } else if (before.length && after.length) {
+      loop.segs = before;
+      loops.splice(position + 1, 0, { id: nextLoopId(next), closed: false, segs: after });
+    } else {
+      loop.segs = [...before, ...after];
+    }
+    if (!loop.segs.length) loops.splice(position, 1);
+    if (!loops.length) return false;
+  });
+}
+
 /** SPEC-50.1.1 close with a straight return segment, or remove the closing segment to open. */
 export function setLoopClosed(profile, loopId, closed) {
   if (typeof loopId !== 'string' || typeof closed !== 'boolean') return null;

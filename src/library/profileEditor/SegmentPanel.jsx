@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  deleteProfileLoop, formatProfileCoord, nextPointId, profileArcInfo, setArcRadius,
+  deleteProfileLoop, deleteProfileSegment, mirrorCopyLoop, formatProfileCoord, nextPointId, profileArcInfo, setArcRadius,
   setSegmentArc, setSegmentLine, splitProfileSegment,
 } from '../../elevation/model/profileEditing.js';
 import CoordInput from './CoordInput.jsx';
@@ -15,6 +15,8 @@ export default function SegmentPanel({ profile, loopId, index, onApply, onSelect
   const shownSweep = info ? info.sweep.toFixed(2) : '';
   const [sweepText, setSweepText] = useState(shownSweep);
   const [deleting, setDeleting] = useState(false);
+  const [mirrorAxis, setMirrorAxis] = useState('x');
+  const [mirrorValue, setMirrorValue] = useState(0);
 
   useEffect(() => {
     setSweepText(shownSweep);
@@ -71,7 +73,10 @@ export default function SegmentPanel({ profile, loopId, index, onApply, onSelect
           <p className="text-xs text-gray-400">Center {formatProfileCoord(info.center[0])}, {formatProfileCoord(info.center[1])}</p>
         </>
       )}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
+        <button type="button" className={BUTTON_CLASS} onClick={() => {
+          if (onApply(deleteProfileSegment(profile, loopId, index), 'A shape needs at least one line.')) onSelect(null);
+        }}>Delete segment</button>
         <button
           type="button"
           className={BUTTON_CLASS}
@@ -96,6 +101,17 @@ export default function SegmentPanel({ profile, loopId, index, onApply, onSelect
         >
           {deleting ? 'Confirm delete loop' : 'Delete loop'}
         </button>
+      </div>
+      <div className="space-y-2">
+        <label className="block space-y-1 text-xs text-gray-400">
+          <span>Mirror copy across</span>
+          <select aria-label="Mirror line" value={mirrorAxis} onChange={(event) => setMirrorAxis(event.target.value)} className="w-full rounded border border-gray-600 bg-gray-900 px-2 py-1">
+            <option value="x">a vertical line x =</option>
+            <option value="y">a horizontal line y =</option>
+          </select>
+        </label>
+        <CoordInput aria-label="Mirror line coordinate" value={mirrorValue} onCommit={setMirrorValue} />
+        <button type="button" className={BUTTON_CLASS} onClick={() => onApply(mirrorCopyLoop(profile, loopId, mirrorAxis, mirrorValue))}>Mirror copy</button>
       </div>
     </section>
   );

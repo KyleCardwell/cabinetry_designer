@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { findDoorDesign, teamDoorStyle } from '../../elevation/model/doorStyles.js';
-import { deleteProfilePoint, mirrorProfile, PROFILE_GRID_STEPS, rotateProfile, setLoopClosed } from '../../elevation/model/profileEditing.js';
+import { deleteProfilePoint, deleteProfileSegment, mirrorProfile, PROFILE_GRID_STEPS, rotateProfile, setLoopClosed } from '../../elevation/model/profileEditing.js';
 import { resolveProfile } from '../../elevation/model/profile.js';
 import { profileBaseGhost, profileDoorGhost } from '../../elevation/model/profileGhost.js';
 import { PROFILE_KINDS, isSectionProfile, profileKindLabel, stretchLineProblem } from '../../elevation/model/sectionProfiles.js';
@@ -51,7 +51,7 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
 
   const switchTool = (nextTool) => {
     setTool(nextTool);
-    if (nextTool === 'line' || nextTool === 'measure') setSelection(null);
+    if (['line', 'rect', 'circle', 'measure'].includes(nextTool)) setSelection(null);
   };
 
   useEffect(() => {
@@ -90,17 +90,17 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
         if (key === 'f') {
           event.preventDefault();
           setFitSignal((current) => current + 1);
-        } else if (key === 'v' || key === 'l') {
+        } else if (['v', 'l', 'r', 'c'].includes(key)) {
           event.preventDefault();
-          setTool(key === 'v' ? 'select' : 'line');
-          if (key === 'l') setSelection(null);
+          setTool({ v: 'select', l: 'line', r: 'rect', c: 'circle' }[key]);
+          if (key !== 'v') setSelection(null);
         } else if (key === 'd') {
           event.preventDefault();
           setTool(tool === 'measure' ? 'select' : 'measure');
           setSelection(null);
         } else if (key === 'escape') {
           event.preventDefault();
-          if (tool === 'line' && canvasRef.current?.cancelLine()) return;
+          if (['line', 'rect', 'circle'].includes(tool) && canvasRef.current?.cancelLine()) return;
           if (tool === 'measure' && canvasRef.current?.measureEscape()) return;
           setTool('select');
           setSelection(null);
@@ -110,6 +110,9 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
         } else if ((key === 'delete' || key === 'backspace') && selection?.kind === 'point') {
           event.preventDefault();
           if (apply(deleteProfilePoint(draft, selection.id), 'That point is used by a line or arc — join it out first.')) setSelection(null);
+        } else if ((key === 'delete' || key === 'backspace') && selection?.kind === 'segment') {
+          event.preventDefault();
+          if (apply(deleteProfileSegment(draft, selection.loopId, selection.index), 'A shape needs at least one line.')) setSelection(null);
         }
       }
     };
@@ -180,9 +183,11 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
       {message && <p role="status" className="px-4 py-1 text-sm text-red-300">{message}</p>}
       <div className="flex min-h-0 flex-1">
         <div className="relative min-h-0 flex-1 bg-gray-900">
-          <div className="absolute left-2 top-2 z-10 flex gap-2">
+          <div className="absolute left-2 right-2 top-2 z-10 flex flex-wrap gap-2">
             <button type="button" className={`${BUTTON_CLASS} ${tool === 'select' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'select'} onClick={() => switchTool('select')}>Select (V)</button>
             <button type="button" className={`${BUTTON_CLASS} ${tool === 'line' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'line'} onClick={() => switchTool('line')}>Line (L)</button>
+            <button type="button" className={`${BUTTON_CLASS} ${tool === 'rect' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'rect'} onClick={() => switchTool('rect')}>Rectangle (R)</button>
+            <button type="button" className={`${BUTTON_CLASS} ${tool === 'circle' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'circle'} onClick={() => switchTool('circle')}>Circle (C)</button>
             <button type="button" className={`${BUTTON_CLASS} ${tool === 'measure' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'measure'} onClick={() => switchTool('measure')}>Measure (D)</button>
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} onClick={() => setFitSignal((current) => current + 1)}>Fit</button>
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} title="Rotate 90° counter-clockwise about 0, 0" aria-label="Rotate counter-clockwise" onClick={() => apply(rotateProfile(draft, 1), TURN_FAILURE)}>⟲</button>
