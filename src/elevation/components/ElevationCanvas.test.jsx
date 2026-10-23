@@ -14,6 +14,8 @@ import NeighborProfiles from './NeighborProfiles.jsx';
 import CanvasContextMenu from './CanvasContextMenu.jsx';
 import DimensionRow from './DimensionRow.jsx';
 import ElevationDimensions from './ElevationDimensions.jsx';
+import MeasureOverlay from './MeasureOverlay.jsx';
+import MeasureReadout from './MeasureReadout.jsx';
 import { defaultPick, pickStack } from '../model/pick.js';
 
 // Keep hook state and effect lifecycles across renders without mounting Konva in a DOM.
@@ -21,7 +23,7 @@ let hooks;
 vi.mock('react', async (original) => ({
   ...await original(),
   useState: (value) => hooks.state(value),
-  useReducer: (reducer, value) => hooks.reducer(reducer, value),
+  useReducer: (reducer, value, init) => hooks.reducer(reducer, value, init),
   useRef: (value) => hooks.memo(() => ({ current: value }), []),
   useMemo: (callback, deps) => hooks.memo(callback, deps),
   useCallback: (callback, deps) => hooks.memo(() => callback, deps),
@@ -100,8 +102,8 @@ beforeEach(() => {
       }
       return [slots[i].value, slots[i].set];
     },
-    reducer(reducer, initial) {
-      const [value, set] = hooks.state(initial);
+    reducer(reducer, initial, init) {
+      const [value, set] = hooks.state(init ? () => init(initial) : initial);
       return [value, hooks.memo(() => (action) => set((current) => reducer(current, action)), [])];
     },
     memo(callback, deps) {
@@ -188,6 +190,105 @@ it('DM8 passes the doors-off view to returns and profiles on the active canvas',
     expect(node(NeighborReturns).props.doorsOff).toBe(doorsOff);
     expect(node(NeighborProfiles).props.doorsOff).toBe(doorsOff);
   }
+});
+
+it('MS2b anchor 7: cabinet clicks measure without selection changes, and clear through right-click and Esc', () => {
+  dispatch(setTool('measure'));
+  render();
+  const selection = state.selection;
+  const rooms = state.rooms;
+  dispatch.mockClear();
+  expect(node(MeasureReadout).props).toMatchObject({ axisLabels: { x: 'Across', y: 'Up' } });
+  const layers = node(Stage).props.children.flat().filter(Boolean);
+  expect(layers.at(-1).props.listening).toBe(false);
+  // This hit surface sits above every cabinet and combined face that stops click bubbling.
+  const hit = layers.at(-2).props.children;
+  expect(hit.type).toBe(Rect);
+  expect(hit.props).toMatchObject({ width: 1100, height: 800, fill: 'transparent' });
+  expect(layers.at(-2).props.listening).not.toBe(false);
+  const at = (x, z) => { pointer = wallToScreen({ x, z }, node(RunGroup).props.transform); };
+  at(12, 4);
+  click();
+  expect(node(MeasureOverlay).props.first).toMatchObject({ kind: 'corner', point: { x: 12, y: 4 } });
+  at(42, 34.5);
+  node(Stage).props.onMouseMove({ evt: { shiftKey: false } });
+  render();
+  expect(node(MeasureOverlay).props.preview).toMatchObject({ kind: 'points', dx: 30, dy: 30.5 });
+  expect(node(MeasureReadout).props.result).toBe(node(MeasureOverlay).props.preview);
+  node(Stage).props.onMouseLeave();
+  render();
+  expect(node(MeasureOverlay).props.hover).toBeNull();
+  click();
+  expect(node(MeasureOverlay).props.measures).toHaveLength(1);
+  expect(node(MeasureReadout).props.result).toBe(node(MeasureOverlay).props.measures[0].result);
+  at(100, 0);
+  node(Stage).props.onClick({ target: stage, evt: { button: 0, shiftKey: true } });
+  render();
+  expect(node(MeasureOverlay).props.first.kind).toBe('on-edge');
+  contextClick();
+  expect(node(MeasureOverlay).props.first).toBeNull();
+  expect(node(MeasureOverlay).props.measures).toHaveLength(1);
+  expect(menu()).toBeUndefined();
+  click();
+  key('Escape');
+  expect(node(MeasureOverlay).props.first).toBeNull();
+  expect(node(MeasureOverlay).props.measures).toHaveLength(1);
+  key('Escape');
+  expect(node(MeasureOverlay).props.measures).toEqual([]);
+  expect(state.tool).toBe('measure');
+  expect(state.selection).toBe(selection);
+  expect(state.rooms).toBe(rooms);
+  expect(dispatch).not.toHaveBeenCalled();
+  key('Escape');
+  expect(state.tool).toBe('select');
+  expect(node(MeasureReadout)).toBeUndefined();
+});
+
+it('preserves Measure pan/zoom, suppresses pan clicks, and resets on face or tool changes', () => {
+  key('d');
+  click();
+  const original = node(RunGroup).props.transform;
+  node(Stage).props.onWheel({ evt: { preventDefault: vi.fn(), deltaY: -1 } });
+  render();
+  expect(node(RunGroup).props.transform.scale).toBeGreaterThan(original.scale);
+  expect(node(MeasureOverlay).props.first).not.toBeNull();
+  const pan = (button, space) => {
+    if (space) key(' ', { code: 'Space' });
+    const first = node(MeasureOverlay).props.first;
+    node(Stage).props.onPointerDown({ target: { getStage: () => stage }, evt: {
+      button, pointerId: 1, clientX: 100, clientY: 100, preventDefault: vi.fn(),
+    } });
+    node(Stage).props.onMouseMove({ evt: {} });
+    render();
+    expect(node(MeasureOverlay).props.hover).toBeNull();
+    [...listeners.get('pointermove')].forEach((fn) => fn({ pointerId: 1, clientX: 120, clientY: 110 }));
+    render();
+    [...listeners.get('pointerup')].forEach((fn) => fn({ type: 'pointerup', pointerId: 1 }));
+    click();
+    expect(node(MeasureOverlay).props.first).toBe(first);
+    expect(node(MeasureOverlay).props.measures).toEqual([]);
+    vi.runOnlyPendingTimers();
+    if (space) [...listeners.get('keyup')].forEach((fn) => fn({ code: 'Space' }));
+    render();
+  };
+  const beforePan = node(RunGroup).props.transform;
+  pan(1, false);
+  pan(0, true);
+  expect(node(RunGroup).props.transform.offsetX).toBeCloseTo(beforePan.offsetX + 40);
+  expect(node(RunGroup).props.transform.offsetY).toBeCloseTo(beforePan.offsetY + 20);
+  node(Stage).props.onClick({ target: stage, evt: { button: 1 } });
+  render();
+  expect(node(MeasureOverlay).props.measures).toEqual([]);
+  side = 'back';
+  render();
+  expect(node(MeasureOverlay).props.first).toBeNull();
+  click();
+  expect(node(MeasureOverlay).props.first).not.toBeNull();
+  key('d');
+  expect(node(MeasureOverlay)).toBeUndefined();
+  key('d');
+  expect(node(MeasureOverlay).props.first).toBeNull();
+  expect(node(MeasureOverlay).props.measures).toEqual([]);
 });
 
 it('anchor 1: M moves a selected cabinet’s run by +20.3 inches, rounds the preview and commits on click', () => {

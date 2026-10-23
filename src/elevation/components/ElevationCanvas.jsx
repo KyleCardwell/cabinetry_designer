@@ -29,6 +29,7 @@ import {
   fitWallToViewport,
   panView,
   screenToWall,
+  wallToScreen,
   withView,
   zoomViewAt,
 } from '../canvas/transform.js';
@@ -38,6 +39,8 @@ import {
 } from '../canvas/drag.js';
 import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
 import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
+import { useMeasure } from '../canvas/measureState.js';
+import { elevationMeasureGeometry } from '../model/measure.js';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { combinedSoffitJoins, combinedViewOf } from '../model/combinedElevations.js';
 import { combinedFaceParts, seamHiddenEdges } from '../model/combinedSeams.js';
@@ -110,6 +113,8 @@ import ElevationDimensions from './ElevationDimensions.jsx';
 import ElevationPreviews from './ElevationPreviews.jsx';
 import JointMarkers from './JointMarkers.jsx';
 import LiveEntryInput from './LiveEntryInput.jsx';
+import MeasureOverlay from './MeasureOverlay.jsx';
+import MeasureReadout from './MeasureReadout.jsx';
 import TrackSizeInput from './TrackSizeInput.jsx';
 import NeighborProfiles from './NeighborProfiles.jsx';
 import NeighborReturns from './NeighborReturns.jsx';
@@ -508,6 +513,18 @@ function ElevationCanvas({
     () => (baseTransform ? withView(baseTransform, view) : null),
     [baseTransform, view],
   );
+  const measureGeometry = useMemo(
+    () => (tool === 'measure' && room && wall
+      ? elevationMeasureGeometry(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : null),
+    [tool, room, wall, settings],
+  );
+  const measure = useMeasure({
+    active: tool === 'measure',
+    geometry: measureGeometry,
+    tolerance: transform ? 10 / transform.scale : 0,
+    resetKey: `${room?.id}:${activeKey}`,
+  });
+  const measureToScreen = ({ x, y }) => wallToScreen({ x, z: y }, transform);
 
   const zoomAt = useCallback((pointer, factor) => {
     if (!baseTransform) return;
@@ -616,7 +633,7 @@ function ElevationCanvas({
 
   const handlePanPointerDown = useCallback((event) => {
     const pointerEvent = event.evt;
-    const emptyCanvas = event.target === stageRef.current;
+    const emptyCanvas = event.target === stageRef.current || tool === 'measure';
     const middleDrag = pointerEvent.button === 1;
     const spaceDrag = pointerEvent.button === 0 && spacePressedRef.current;
     const selectDrag = pointerEvent.button === 0 && tool === 'select';
@@ -837,6 +854,11 @@ function ElevationCanvas({
   const handleMouseMove = (event) => {
     const gesture = liveGestureRef.current;
     const pointer = stageRef.current?.getPointerPosition();
+    if (tool === 'measure' && pointer && transform && !panRef.current && !spacePressedRef.current) {
+      const { x, z } = screenToWall(pointer, transform);
+      measure.move({ x, y: z }, event.evt?.shiftKey);
+      return;
+    }
     if (!entry || !gesture || !pointer) return;
     setEntryPointer(pointer);
     if (
@@ -991,6 +1013,14 @@ function ElevationCanvas({
 
   const handleStageClick = useCallback((event) => {
     if (suppressClickRef.current) return;
+    if (tool === 'measure') {
+      const pointer = stageRef.current?.getPointerPosition();
+      if (event.evt.button === 0 && pointer && transform && !panRef.current && !spacePressedRef.current) {
+        const { x, z } = screenToWall(pointer, transform);
+        measure.click({ x, y: z }, event.evt.shiftKey);
+      }
+      return;
+    }
     if (liveGestureRef.current?.kind === 'run-move') {
       if (event.evt.button !== 0) return;
       const pointer = stageRef.current?.getPointerPosition();
@@ -1060,7 +1090,7 @@ function ElevationCanvas({
     dispatch(setMessage(null));
     dispatch(addOpening({ wallId: wall.id, opening: placed }));
     dispatch(setSelection({ openingId: placed.id }));
-  }, [commitEntry, dispatch, entry, room, settings, showMessage, tool, transform, updateEntry, wall]);
+  }, [commitEntry, dispatch, entry, measure.click, room, settings, showMessage, tool, transform, updateEntry, wall]);
 
   const {
     previewStretch,
@@ -1124,6 +1154,10 @@ function ElevationCanvas({
     event.evt.preventDefault();
     closeContextMenu();
     closePicker();
+    if (tool === 'measure') {
+      measure.cancelFirst();
+      return;
+    }
     if (moving) {
       cancelMove();
       return;
@@ -1141,8 +1175,8 @@ function ElevationCanvas({
       runId,
       context: `${room.id}:${viewKey}:${activeKey}:select:${doorsOff}`,
     });
-  }, [activeKey, cancelEntry, cancelMove, closeContextMenu, closePicker, dispatch, doorsOff, moving, room,
-    settings, transform, viewKey, wall]);
+  }, [activeKey, cancelEntry, cancelMove, closeContextMenu, closePicker, dispatch, doorsOff, measure.cancelFirst,
+    moving, room, settings, tool, transform, viewKey, wall]);
 
   const handleRunSegmentClick = useCallback((segment) => {
     if (tool === 'select' && segment.kind === 'run') {
@@ -1151,6 +1185,7 @@ function ElevationCanvas({
   }, [dispatch, tool]);
 
   useElevationKeys({
+    onMeasureEscape: measure.escape,
     cancelDrag,
     cancelEntry,
     commitEntry,
@@ -1223,6 +1258,7 @@ function ElevationCanvas({
           height={viewport.height}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
+          onMouseLeave={measure.leave}
           onMouseUp={handleMouseUp}
           onPointerDown={handlePanPointerDown}
           onPointerCancel={stopPanning}
@@ -1414,7 +1450,23 @@ function ElevationCanvas({
               <Rect width={viewport.width} height={viewport.height} fill="transparent" />
             </Layer>
           )}
+          {tool === 'measure' && (
+            <Layer>
+              {/* Keep cabinet/combined-face handlers from swallowing measure and pan events. */}
+              <Rect width={viewport.width} height={viewport.height} fill="transparent" />
+            </Layer>
+          )}
+          {tool === 'measure' && (
+            <Layer listening={false}>
+              <MeasureOverlay first={measure.first} hover={measure.hover} measures={measure.measures}
+                preview={measure.preview} toScreen={measureToScreen} />
+            </Layer>
+          )}
         </Stage>
+      )}
+      {tool === 'measure' && (
+        <MeasureReadout result={measure.preview ?? measure.measures.at(-1)?.result}
+          axisLabels={{ x: 'Across', y: 'Up' }} />
       )}
       {entry && (
         <LiveEntryInput
