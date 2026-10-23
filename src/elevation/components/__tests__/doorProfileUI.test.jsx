@@ -239,7 +239,9 @@ describe('Step 494.5 Slab - MDF Core editor and part panel', () => {
     const style = { ...DEFAULT_DOOR_STYLE, profiles: { ...DEFAULT_DOOR_STYLE.profiles, inside: bead.id } };
     const tree = PartStyleFields({
       room: {}, settings: { sectionProfiles: [{ ...bead, kind: 'door_inside' }], teamDoorStyle: style, doorDesigns: DOOR_DESIGNS },
-      partType: 'door', levels: [], part: { sizes: { midRails: [{ at: 15 }], midStiles: [{ at: 12 }] } },
+      partType: 'door', levels: [], part: { sizes: { layout: { split: 'rows', children: [
+        { split: 'cols', children: [{}, {}] }, { split: 'cols', children: [{}, {}] },
+      ] } } },
       width: 24, height: 30, label: 'Front', onChange: vi.fn(),
     });
     for (const word of ['rail', 'stile']) {
@@ -248,8 +250,9 @@ describe('Step 494.5 Slab - MDF Core editor and part panel', () => {
     }
   });
 
-  it('keeps editable mid positions while hiding Slab - MDF Core widths and retaining stored widths', () => {
-    const sizes = { midRails: [{ at: 15, width: 4 }], midStiles: [{ at: 12, width: 5 }] };
+  it('displays layout positions, hides slab widths and preserves the tree until the layout editor', () => {
+    const columns = { split: 'cols', children: [{}, {}], mids: [{ width: 5 }] };
+    const sizes = { layout: { split: 'rows', children: [columns, columns], mids: [{ width: 4 }] } };
     const onChange = vi.fn();
     const tree = partPanel(slabAM, 30, sizes, onChange);
     const control = (tree, name) => find(tree, ({ props }) => props['aria-label'] === name);
@@ -258,10 +261,11 @@ describe('Step 494.5 Slab - MDF Core editor and part panel', () => {
       expect(control(tree, `Front mid ${word} 1 width`)).toBeUndefined();
     }
     control(tree, 'Front mid rail 1 at').props.onCommit(16);
-    expect(onChange.mock.lastCall[0]).toEqual({ sizes: { ...sizes, midRails: [{ at: 16, width: 4 }] } });
+    // The legacy fields preserve the tree; MR3 supplies the layout editor.
+    expect(onChange.mock.lastCall[0]).toEqual({ sizes });
     const fivePiece = partPanel({ ...slabAM, designId: DEFAULT_DOOR_STYLE.designId }, 30, sizes);
-    expect(control(fivePiece, 'Front mid rail 1 width').props.value).toBe(4);
-    expect(control(fivePiece, 'Front mid stile 1 width').props.value).toBe(5);
+    expect(control(fivePiece, 'Front mid rail 1 width').props.placeholder).toBe('4');
+    expect(control(fivePiece, 'Front mid stile 1 width').props.placeholder).toBe('5');
   });
 
   it('keeps the slab-cutoff note and leaves molding rows off', () => {

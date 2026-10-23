@@ -1,3 +1,5 @@
+import { isMidLayout } from './midLayout.js';
+
 export const DOOR_CONSTRUCTIONS = ['five_piece', 'slab'];
 export const SLAB_CORES = ['hardwood', 'mdf'];
 export const PANEL_JOINTS = ['curved', 'square'];
@@ -98,7 +100,7 @@ const DOOR_STYLE_FIELDS = [
   'panel', 'profiles', 'appliedMoldings', 'arch', 'shortFace',
 ];
 const REQUIRED_DOOR_STYLE_FIELDS = DOOR_STYLE_FIELDS.filter((key) => !['name', 'material', 'appliedMoldings'].includes(key));
-const PART_SIZE_KEYS = ['rails', 'stiles', 'midRails', 'midStiles', 'archRise', 'notes'];
+const PART_SIZE_KEYS = ['rails', 'stiles', 'layout', 'archRise', 'notes'];
 
 function isPlainObject(value) {
   if (value === null || typeof value !== 'object') return false;
@@ -174,20 +176,13 @@ function isPartialValues(value, keys, check) {
     && Reflect.ownKeys(value).every((key) => check(value[key]));
 }
 
-function isMidSizes(value) {
-  return Array.isArray(value) && value.length > 0
-    && Array.from(value).every((entry) => hasKeys(entry, ['at', 'width'], ['at'])
-      && isPositive(entry.at)
-      && (entry.width === undefined || isPositive(entry.width)));
-}
-
 export function isPartSizes(sizes) {
   if (!hasKeys(sizes, PART_SIZE_KEYS, []) || Reflect.ownKeys(sizes).length === 0) return false;
   return Reflect.ownKeys(sizes).every((key) => {
     const value = sizes[key];
     if (key === 'rails') return isPartialValues(value, ['top', 'bottom'], isPositive);
     if (key === 'stiles') return isPartialValues(value, ['left', 'right'], isPositive);
-    if (key === 'midRails' || key === 'midStiles') return isMidSizes(value);
+    if (key === 'layout') return isMidLayout(value);
     if (key === 'archRise') return isPositive(value);
     return isPartialValues(value, ['top', 'bottom', 'left', 'right'], isNonEmptyString);
   });

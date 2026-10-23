@@ -4,6 +4,8 @@ import { frontStackWarnings, midDefaults, partSizes } from '../doorSizes.js';
 import { doorProfileOffsets } from '../doorProfileLines.js';
 
 const [SQUARE, SLAB] = DOOR_DESIGNS;
+const rows = (children, mids) => ({ split: 'rows', children, ...(mids ? { mids } : {}) });
+const cols = (children, mids) => ({ split: 'cols', children, ...(mids ? { mids } : {}) });
 const withRails = (width) => ({ ...DEFAULT_DOOR_STYLE, rails: { top: width, bottom: width } });
 
 /** Rails and opening height of a 15" wide face, or 'slab'. */
@@ -44,6 +46,8 @@ describe('SPEC-46 stile and rail sizes', () => {
       midRails: [],
       midStiles: [],
       opening: { width: 9, height: 2.125 },
+      panels: [{ path: 'root', x: 3, z: 2.4375, width: 9, height: 2.125 }],
+      layoutWarnings: [],
       sources: { top: 'rule', bottom: 'rule', left: 'style', right: 'style' },
       notes: {},
     });
@@ -72,24 +76,29 @@ describe('SPEC-46 stile and rail sizes', () => {
   });
 
   it('makes slab-design parts slab at any size, and short parts slab by the rule', () => {
-    expect(partSizes(DEFAULT_DOOR_STYLE, SLAB, { width: 15, height: 30 })).toEqual({ construction: 'slab', slab: 'design', molding: true, designId: 'slab', midRails: [], midStiles: [], opening: { width: 15, height: 30 } });
+    expect(partSizes(DEFAULT_DOOR_STYLE, SLAB, { width: 15, height: 30 })).toEqual({ construction: 'slab', slab: 'design', molding: true, designId: 'slab', midRails: [], midStiles: [], panels: [{ path: 'root', x: 0, z: 0, width: 15, height: 30 }], layoutWarnings: [], opening: { width: 15, height: 30 } });
     expect(partSizes(DEFAULT_DOOR_STYLE, SQUARE, { width: 15, height: 4.75 })).toEqual({ construction: 'slab', slab: 'rule', molding: false, designId: 'slab' });
   });
 
   it('uses style mid defaults or square widths without offsets, unless typed', () => {
     const tall = { width: 15, height: 60 };
-    expect(partSizes(DEFAULT_DOOR_STYLE, SQUARE, { ...tall, sizes: { midRails: [{ at: 31.5 }] } }).midRails)
-      .toEqual([{ at: 31.5, width: 3, source: 'flat' }]);
+    const base = rows([{ size: 27 }, {}]);
+    expect(partSizes(DEFAULT_DOOR_STYLE, SQUARE, { ...tall, sizes: { layout: base } }).midRails)
+      .toMatchObject([{ at: 31.5, width: 3, source: 'flat', name: 'MR1', full: true }]);
     const profiled = { ...DEFAULT_DOOR_STYLE, mid: { rail: 3.625, stile: 4 } };
-    expect(partSizes(profiled, SQUARE, { ...tall, sizes: { midRails: [{ at: 31.5 }] } }).midRails)
-      .toEqual([{ at: 31.5, width: 3.625, source: 'style' }]);
+    const layout = rows([{ size: 26.6875 }, {}]);
+    expect(partSizes(profiled, SQUARE, { ...tall, sizes: { layout } }).midRails)
+      .toMatchObject([{ at: 31.5, width: 3.625, source: 'style' }]);
     expect(midDefaults(profiled, SQUARE)).toEqual({ rail: 3.625, stile: 4, lap: 0, over: 0 });
+    const columns = cols([{ size: 3 }, {}]);
     const typed = partSizes(DEFAULT_DOOR_STYLE, SQUARE, {
-      ...tall, sizes: { midRails: [{ at: 31.5, width: 4 }], midStiles: [{ at: 7.5 }] },
+      ...tall, sizes: { layout: rows([{ ...columns, size: 26.5 }, columns], [{ width: 4 }]) },
     });
-    expect([typed.midRails, typed.midStiles, typed.opening]).toEqual([
-      [{ at: 31.5, width: 4, source: 'part' }], [{ at: 7.5, width: 3, source: 'flat' }], { width: 9, height: 54 },
+    expect(typed.midRails).toMatchObject([{ at: 31.5, width: 4, source: 'part' }]);
+    expect(typed.midStiles).toMatchObject([
+      { at: 7.5, width: 3, source: 'flat' }, { at: 7.5, width: 3, source: 'flat' },
     ]);
+    expect(typed.opening).toEqual({ width: 9, height: 54 });
   });
 });
 
@@ -101,7 +110,7 @@ describe('MR1b mids keep the flat', () => {
       loops: [{ id: 'L1', closed: false, segs: [{ type: 'line', from: 'a', to: 'b' }] }],
     },
   });
-  const resolve = ({ inside, applied, style: patch, sizes, height = 30 }) => {
+  const resolve = ({ inside, applied, style: patch, sizes, stileWidth, height = 30 }) => {
     const style = {
       ...DEFAULT_DOOR_STYLE,
       profiles: { inside: inside == null ? null : 'inside', outside: 'outside', panel: 'panel' },
@@ -114,8 +123,12 @@ describe('MR1b mids keep the flat', () => {
       ...(inside == null ? [] : [profile('inside', 'door_inside', inside, 0)]),
       ...(applied ? [profile('applied', 'applied_molding', -0.25, 0.5)] : [])];
     const mid = midDefaults(style, SQUARE, doorProfileOffsets(style, SQUARE, profiles));
+    const columns = cols(height < 30 ? [{}, {}] : [
+      { size: 12 - (sizes?.stiles?.left ?? style.stiles.left) - (stileWidth ?? mid.stile) / 2 }, {},
+    ], stileWidth == null ? undefined : [{ width: stileWidth }]);
+    const layout = rows([{ ...columns, ...(height < 30 ? {} : { size: 12 - mid.rail / 2 }) }, columns]);
     const result = partSizes(style, SQUARE, {
-      width: 24, height, sizes: { midRails: [{ at: 15 }], midStiles: [{ at: 12 }], ...sizes },
+      width: 24, height, sizes: { layout, ...sizes },
     }, mid);
     return { mid, result };
   };
@@ -128,7 +141,7 @@ describe('MR1b mids keep the flat', () => {
     [4, { applied: {} }, { rail: 3.25, stile: 3.25, lap: 0.25, over: 0.5 }, { width: 3.25, source: 'flat', overall: 4.25 }],
     [5, { applied: {}, style: { mid: { stile: 4 } } },
       { rail: 3.25, stile: 4, lap: 0.25, over: 0.5 }, { width: 4, source: 'style', overall: 5 }],
-    [6, { inside: -0.625, sizes: { midStiles: [{ at: 12, width: 3.5 }] } },
+    [6, { inside: -0.625, stileWidth: 3.5 },
       { rail: 3.625, stile: 3.625, lap: 0.625, over: 0 }, { width: 3.5, source: 'part' }],
     [7, { inside: -0.625, sizes: { stiles: { left: 3.5 } } },
       { rail: 3.625, stile: 3.625, lap: 0.625, over: 0 }, { width: 3.625, source: 'flat' }],
@@ -137,16 +150,20 @@ describe('MR1b mids keep the flat', () => {
   ])('anchor %s', (number, input, defaults, stile) => {
     const { mid, result } = resolve(input);
     expect(mid).toEqual(defaults);
-    expect(result.midStiles).toEqual([{ at: 12, ...stile }]);
-    expect(result.midRails).toEqual([{ at: 15, width: defaults.rail, source: 'flat',
+    expect(result.midStiles).toMatchObject([{ at: 12, ...stile }, { at: 12, ...stile }]);
+    expect(result.midRails).toMatchObject([{ at: 15, width: defaults.rail, source: 'flat',
       ...(defaults.over > 0 ? { overall: defaults.rail + 2 * defaults.over } : {}) }]);
     // Short-face and typed outer rails must not change the mid defaults.
     const short = resolve({ ...input, height: 7, sizes: { ...input.sizes, rails: { top: 2 } } });
-    expect(short.result.midRails).toEqual(result.midRails);
-    expect(short.result.midStiles).toEqual(result.midStiles);
+    const widths = (mids) => mids.map(({ width, source, overall }) => ({ width, source, overall }));
+    expect(widths(short.result.midRails)).toEqual(widths(result.midRails));
+    expect(widths(short.result.midStiles)).toEqual(widths(result.midStiles));
     if (number === 8) {
-      const typed = resolve({ ...input, sizes: { midStiles: [{ at: 12, width: 3.5 }] } });
-      expect(typed.result.midStiles).toEqual([{ at: 12, width: 3.5, source: 'part', overall: 4.25 }]);
+      const typed = resolve({ ...input, stileWidth: 3.5 });
+      expect(typed.result.midStiles).toMatchObject([
+        { at: 12, width: 3.5, source: 'part', overall: 4.25 },
+        { at: 12, width: 3.5, source: 'part', overall: 4.25 },
+      ]);
     }
   });
 });

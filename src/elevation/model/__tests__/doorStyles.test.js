@@ -153,11 +153,11 @@ describe('SPEC-46 door style shapes', () => {
     expect(['', 5, {}].map(isStyleRef)).toEqual([false, false, false]);
   });
 
-  it('checks per-part sizes: any stile or rail, mid rails and stiles, arch rise, notes', () => {
+  it('checks per-part sizes: any stile or rail, mid layouts, arch rise, notes', () => {
     expect([
       { rails: { top: 2.625, bottom: 2.625 } },
       { stiles: { left: 3.5 }, notes: { left: 'scribe' } },
-      { midRails: [{ at: 31.5 }], midStiles: [{ at: 12, width: 3.625 }] },
+      { layout: { split: 'rows', children: [{ size: 27 }, {}], mids: [{ width: 3.625 }] } },
       { archRise: 2.5 },
     ].map(isPartSizes)).toEqual([true, true, true, true]);
     expect([
@@ -176,4 +176,11 @@ describe('SPEC-46 door style shapes', () => {
       { color: 'red' },
     ].map(isPartSizes)).toEqual(Array(13).fill(false));
   });
+});
+
+it('MR2b anchor 5: accepts a mid layout and rejects retired lists and invalid trees', () => {
+  expect(isPartSizes({ layout: { split: 'rows', children: [{}, {}] } })).toBe(true);
+  expect(isPartSizes({ midRails: [{ at: 5 }] })).toBe(false);
+  for (const layout of [undefined, null, {}, { split: 'rows', children: [{}] },
+    { split: 'cols', children: [{ size: 0 }, {}] }]) expect(isPartSizes({ layout })).toBe(false);
 });

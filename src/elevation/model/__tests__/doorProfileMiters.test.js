@@ -43,7 +43,7 @@ describe('Step 481 profile miters', () => {
 
   it('anchor 4: each mid-rail opening has four miters', () => {
     const { detail, fit } = build(FIVE, rect(18, 40), { inside: 'in58' }, [], {
-      midRails: [{ at: 20, width: 3 }],
+      layout: { split: 'rows', children: [{ size: 15.5 }, {}], mids: [{ width: 3 }] },
     });
     expect(detail.openings).toEqual([
       { x: 3, z: 3, width: 12, height: 15.5 }, { x: 3, z: 21.5, width: 12, height: 15.5 },
@@ -67,7 +67,7 @@ describe('Step 481 profile miters', () => {
     const panel = { ...inside, id: 'panel', kind: 'door_panel' };
     const library = [...profiles, inside, panel];
     const { fit } = build(FIVE, rect(18, 30), { outside: 'out38', inside: 'inside', panel: 'panel' },
-      [am(0), am(1), am(1)], { midStiles: [{ at: 9, width: 3 }] }, library);
+      [am(0), am(1), am(1)], { layout: { split: 'cols', children: [{ size: 4.5 }, {}], mids: [{ width: 3 }] } }, library);
     expect(fit.openingsShown).toBe(false);
     // Outside first, then inside, visible panel span, and the distinct molding for each opening.
     expect(fit.miters).toEqual(segments([

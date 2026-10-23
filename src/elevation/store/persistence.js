@@ -824,6 +824,19 @@ function migrateMidWidthScopes(scope) {
   return migrated;
 }
 
+/** Drop retired per-part mid lists at every depth without mutating the saved document. */
+function dropMidLists(document) {
+  if (Array.isArray(document)) return document.map(dropMidLists);
+  if (!isPlainObject(document)) return document;
+  const cleaned = Object.fromEntries(Object.entries(document).map(([key, value]) => [key, dropMidLists(value)]));
+  if (isPlainObject(cleaned.sizes)) {
+    delete cleaned.sizes.midRails;
+    delete cleaned.sizes.midStiles;
+    if (Object.keys(cleaned.sizes).length === 0) delete cleaned.sizes;
+  }
+  return cleaned;
+}
+
 /** Migrate style lists in room and phase scopes without mutating the saved document. */
 function migrateDoorPanelScopes(scope) {
   if (!scope || typeof scope !== 'object') return scope;
@@ -854,6 +867,7 @@ function normalizeDocument(document, schemaVersion) {
   if (!document || document.schemaVersion !== schemaVersion) return document;
   document = migrateAppliedMoldingScopes(document);
   document = migrateMidWidthScopes(document);
+  document = dropMidLists(document);
   document = migrateDoorDesignScopes(document);
   let settings = document.settings;
   if (settings && typeof settings === 'object') {

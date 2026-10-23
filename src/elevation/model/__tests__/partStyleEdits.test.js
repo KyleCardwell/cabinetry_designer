@@ -46,7 +46,7 @@ describe('SPEC-46.1 per-part size edits (P13)', () => {
     expect([setPartSide(sizes, 'left', 0), setPartSide(sizes, 'middle', 3)].every((next) => next === sizes)).toBe(true);
   });
 
-  it('sets notes and mid rails/stiles the same way; every result is valid sizes or undefined', () => {
+  it('sets notes and preserves the legacy mid-list helper until the layout editor replaces it', () => {
     const results = [
       setPartNote(undefined, 'left', 'scribe'),
       setPartNote({ notes: { left: 'scribe' }, stiles: { left: 3.5 } }, 'left', ''),
@@ -63,7 +63,8 @@ describe('SPEC-46.1 per-part size edits (P13)', () => {
       { midStiles: [{ at: 7.5, width: 3 }] },
       undefined,
     ]);
-    expect(results.every((entry) => entry === undefined || isPartSizes(entry))).toBe(true);
+    expect(results.map((entry) => entry === undefined || isPartSizes(entry)))
+      .toEqual([true, true, true, false, false, true]);
   });
 });
 
@@ -106,7 +107,7 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
 
   it('gives each side\'s typed value, final value, where it came from and its note', () => {
     expect(partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, {
-      width: 15, height: 7, sizes: { stiles: { left: 3.5 }, notes: { left: 'scribe' }, midStiles: [{ at: 7.5 }] },
+      width: 15, height: 7, sizes: { stiles: { left: 3.5 }, notes: { left: 'scribe' }, layout: { split: 'cols', children: [{ size: 2.5 }, {}] } },
     })).toEqual({
       title: 'Stiles & rails',
       note: null,
@@ -117,9 +118,16 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
         { side: 'right', label: 'Right stile', typed: null, value: 3, source: 'style', note: null },
       ],
       midRails: [],
-      midStiles: [{ at: 7.5, width: 3, source: 'flat', typed: false }],
+      midStiles: [{ kind: 'stile', path: 'root', index: 0, at: 7.5, width: 3, source: 'flat',
+        name: 'MS1', from: 'BR', to: 'TR', full: true, typed: false }],
       opening: { width: 8.5, height: 2.125 },
     });
+    const typed = partSizeRows(DEFAULT_DOOR_STYLE, SQUARE, {
+      width: 15, height: 30, sizes: {
+        layout: { split: 'cols', children: [{}, {}], mids: [{ width: 4 }] },
+      },
+    });
+    expect(typed.midStiles[0]).toMatchObject({ width: 4, source: 'part', typed: true });
   });
 
   it('keeps Slab - MDF Core size rows usable without frame sizes and explains plain slabs', () => {
@@ -130,10 +138,11 @@ describe('SPEC-46.1 what the pickers and the Stiles & rails block show', () => {
     expect(partSizeRows(DEFAULT_DOOR_STYLE, SLAB_AM, { width: 15, height: 30 }, 0.3125).opening)
       .toEqual({ width: 15, height: 30 });
     const molding = partSizeRows(DEFAULT_DOOR_STYLE, SLAB_AM, {
-      width: 15, height: 30, sizes: { midRails: [{ at: 15, width: 4 }] },
+      width: 15, height: 30, sizes: { layout: { split: 'rows', children: [{ size: 15 }, {}], mids: [{ width: 4 }] } },
     });
     expect([molding.title, molding.rows.map(({ label }) => label), molding.midRails, molding.opening]).toEqual([
-      'Applied moldings', [], [{ at: 15, width: 0 }], { width: 15, height: 30 },
+      'Applied moldings', [], [{ kind: 'rail', path: 'root', index: 0, at: 15, width: 0,
+        source: 'flat', name: 'MR1', from: 'LS', to: 'RS', full: true }], { width: 15, height: 30 },
     ]);
     const slab = { title: 'Slab', rows: [], midRails: [], midStiles: [], opening: null };
     expect([

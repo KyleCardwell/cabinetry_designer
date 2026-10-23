@@ -158,7 +158,7 @@ describe('SPEC-50 door profile offsets', () => {
       ],
       warnings: [{ code: 'door-profile-panel-too-small' }], openingsShown: true,
     });
-    expect(lines(box(0, 0, 15, 30), { stiles: { left: 0.375 }, midRails: [{ at: 15, width: 0.375 }] }).warnings).toEqual([
+    expect(lines(box(0, 0, 15, 30), { stiles: { left: 0.375 }, layout: { split: 'rows', children: [{ size: 11.8125 }, {}], mids: [{ width: 0.375 }] } }).warnings).toEqual([
       { code: 'door-profile-too-wide', side: 'left' },
       { code: 'door-profile-too-wide', side: 'mid' },
     ]);
@@ -226,7 +226,10 @@ describe('SPEC-50.1 core and covered opening lines', () => {
     expect(taller.fit.openingsShown).toBe(true);
     expect(short.fit.warnings.concat(taller.fit.warnings)).toEqual([]);
     const mids = build({ outside: BEAD5.id }, box(10, 20, 30, 40), {
-      midRails: [{ at: 20, width: 2 }], midStiles: [{ at: 15, width: 2 }],
+      layout: { split: 'rows', children: [
+        { split: 'cols', size: 16, children: [{ size: 11 }, {}], mids: [{ width: 2 }] },
+        { split: 'cols', children: [{ size: 11 }, {}], mids: [{ width: 2 }] },
+      ], mids: [{ width: 2 }] },
     });
     expect(mids.detail.openings).toEqual([
       box(13.3125, 23.3125, 11, 16), box(26.3125, 23.3125, 10.375, 16),
@@ -300,7 +303,7 @@ describe('Step 480 applied moldings at their offsets', () => {
       [box(1, 1, 22, 3), box(1.25, 1.25, 21.5, 2.5), box(2.25, 2.25, 19.5, 0.5)],
       [{ code: 'door-profile-panel-too-small' }], [0, 1.25]],
     [9, box(0, 0, 24, 4.5), [am(2)], null, undefined, [], [], null],
-    [10, box(0, 0, 15, 30), [am(1)], null, { midRails: [{ at: 15, width: 9 }] },
+    [10, box(0, 0, 15, 30), [am(1)], null, { layout: { split: 'rows', children: [{ size: 15 }, {}], mids: [{ width: 9 }] } },
       [box(1, 1, 13, 13), box(2, 2, 11, 11), box(1, 16, 13, 13), box(2, 17, 11, 11)], [], [1]],
     [11, box(0, 0, 15, 15), [am(0.25)], 'out38', undefined,
       [box(0.375, 0.375, 14.25, 14.25), box(0.25, 0.25, 14.5, 14.5), box(1.25, 1.25, 12.5, 12.5)],
@@ -363,8 +366,10 @@ describe('Step 480 applied moldings at their offsets', () => {
     const rect = box(10, 20, 12, 6);
     const offsets = doorProfileOffsets(S, SLAB_AM, [...moldingLibrary, BEAD5]);
     const detail = partDetail(S, SLAB_AM, rect, {
-      midRails: [{ at: 3, width: 8 }],
-      midStiles: [{ at: 12 }, { at: 6, width: 9 }, { at: 0 }, { at: 6 }],
+      layout: { split: 'rows', children: [
+        { split: 'cols', size: 3, children: [{ size: 6 }, {}], mids: [{ width: 9 }] },
+        { split: 'cols', children: [{ size: 6 }, {}], mids: [{ width: 9 }] },
+      ], mids: [{ width: 8 }] },
     }, 0.3125, offsets.applied);
     expect(detail.core).toEqual(box(10.3125, 20.3125, 11.375, 5.375));
     expect(detail.openings).toEqual([
@@ -435,12 +440,12 @@ describe('Step 480 applied moldings at their offsets', () => {
   it('uses later moldings in side and mid fit checks and omits a molding from the whole part if one opening has no room', () => {
     const rect = box(0, 0, 18, 30);
     const result = build(FIVE, rect, [am(0), am(-1)], {
-      stiles: { left: 1 }, midRails: [{ at: 15, width: 2 }],
+      stiles: { left: 1 }, layout: { split: 'rows', children: [{ size: 11 }, {}], mids: [{ width: 2 }] },
     });
     expect(result.fit.warnings).toEqual([
       { code: 'door-profile-too-wide', side: 'left' }, { code: 'door-profile-too-wide', side: 'mid' },
     ]);
-    const split = build(FIVE, rect, [am(0), am(1)], { midStiles: [{ at: 6, width: 2 }] });
+    const split = build(FIVE, rect, [am(0), am(1)], { layout: { split: 'cols', children: [{ size: 2 }, {}], mids: [{ width: 2 }] } });
     expect(split.fit.warnings).toEqual([{ code: 'applied-molding-no-room', index: 1 }]);
     expect(split.fit.lines).toEqual([
       box(2.75, 2.75, 2.5, 24.5), box(3.75, 3.75, 0.5, 22.5),

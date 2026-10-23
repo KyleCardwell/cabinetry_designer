@@ -37,9 +37,10 @@ describe('SPEC-46.1 slab with applied molding (P17)', () => {
       slab: 'design', molding: true, designId: 'slab-mdf',
       midRails: [],
       midStiles: [],
+      panels: [{ path: 'root', x: 0, z: 0, width: 15, height: 30 }], layoutWarnings: [],
       opening: { width: 15, height: 30 },
     });
-    expect(partSizes(DEFAULT_DOOR_STYLE, SLAB, { width: 15, height: 30 })).toEqual({ construction: 'slab', slab: 'design', molding: true, designId: 'slab', midRails: [], midStiles: [], opening: { width: 15, height: 30 } });
+    expect(partSizes(DEFAULT_DOOR_STYLE, SLAB, { width: 15, height: 30 })).toEqual({ construction: 'slab', slab: 'design', molding: true, designId: 'slab', midRails: [], midStiles: [], panels: [{ path: 'root', x: 0, z: 0, width: 15, height: 30 }], layoutWarnings: [], opening: { width: 15, height: 30 } });
   });
 
   it('keeps short-front dimensions and leaves the molding off under the cutoff', () => {
@@ -55,12 +56,17 @@ describe('SPEC-46.1 slab with applied molding (P17)', () => {
       width: 15, height: 10, sizes: { rails: { top: 2 }, stiles: { left: 3.5 }, notes: { left: 'scribe' } },
     });
     expect(typed).toEqual({ construction: 'slab', slab: 'design', molding: true, designId: 'slab-mdf',
-      midRails: [], midStiles: [], opening: { width: 15, height: 10 } });
-    const profiled = { ...DEFAULT_DOOR_STYLE, mid: { extra: 0.625 } };
+      midRails: [], midStiles: [], panels: [{ path: 'root', x: 0, z: 0, width: 15, height: 10 }], layoutWarnings: [], opening: { width: 15, height: 10 } });
+    const profiled = { ...DEFAULT_DOOR_STYLE, mid: { rail: 4, stile: 5 } };
     const pantry = partSizes(profiled, SLAB_AM, {
-      width: 15, height: 60, sizes: { midRails: [{ at: 30 }], midStiles: [{ at: 7.5, width: 2 }] },
+      width: 15, height: 60, sizes: { layout: { split: 'rows', children: [
+        { split: 'cols', size: 30, children: [{ size: 7.5 }, {}], mids: [{ width: 2 }] },
+        { split: 'cols', children: [{ size: 7.5 }, {}], mids: [{ width: 2 }] },
+      ] } },
     });
-    expect([pantry.midRails, pantry.midStiles]).toEqual([[{ at: 30, width: 0 }], [{ at: 7.5, width: 0 }]]);
+    expect([pantry.midRails, pantry.midStiles]).toMatchObject([
+      [{ at: 30, width: 0 }], [{ at: 7.5, width: 0 }, { at: 7.5, width: 0 }],
+    ]);
   });
 
   it('checks slab-mdf fronts in the stacking check too', () => {

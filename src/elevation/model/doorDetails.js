@@ -21,45 +21,22 @@ export function doorDrawing(room) {
   };
 }
 
-function remainingIntervals(start, end, origin, mids) {
-  const cuts = mids.map(({ at, width }) => [
-    Math.max(start, origin + at - width / 2),
-    Math.min(end, origin + at + width / 2),
-  ]).filter(([low, high]) => high > low).sort(([a], [b]) => a - b);
-  const intervals = [];
-  let cursor = start;
-  for (const [low, high] of cuts) {
-    if (low - cursor > 1e-6) intervals.push([cursor, low]);
-    cursor = Math.max(cursor, high);
-  }
-  if (end - cursor > 1e-6) intervals.push([cursor, end]);
-  return intervals;
-}
-
-function splitIntervals(start, length, mids) {
-  const cuts = [...new Set(mids.map(({ at }) => at)
-    .filter((at) => at > 1e-6 && at < length - 1e-6))].sort((a, b) => a - b);
-  const edges = [0, ...cuts, length];
-  return edges.slice(1).map((end, index) => [start + edges[index], start + end]);
-}
-
 /**
  * Frame openings (5-piece) or door-edge regions (slabs with moldings) of one part,
  * in wall coordinates (SPEC-46.2, DOORS-PROFILES-PLAN §3.6).
  */
-export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = [], offsets) {
+export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = [], offsets, { mirror } = {}) {
   const core = inset(rect, edgeOut);
   const sizeRect = design.construction === 'slab' ? rect : core;
   const r = partSizes(style, design, { width: sizeRect.width, height: sizeRect.height, coreHeight: core.height, sizes },
-    midDefaults(style, design, offsets));
+    midDefaults(style, design, offsets), { mirror });
   if (r.construction === 'slab' && !r.molding) return { ...r, core, openings: [] };
+  const origin = r.construction === 'slab' ? rect : core;
+  const openings = r.panels.map(({ x, z, width, height }) => ({
+    x: origin.x + x, z: origin.z + z, width, height,
+  }));
 
   if (r.construction === 'slab' && r.molding) {
-    const rows = splitIntervals(rect.z, rect.height, r.midRails);
-    const columns = splitIntervals(rect.x, rect.width, r.midStiles);
-    const openings = rows.flatMap(([bottom, top]) => columns.map(([left, right]) => ({
-      x: left, z: bottom, width: right - left, height: top - bottom,
-    })));
     const extent = Math.max(0, ...moldings.map(({ offset, width }) => offset + width));
     const smallest = Math.min(...openings.map(({ width, height }) => Math.min(width, height)));
     const { minPanel, step } = style.shortFace;
@@ -77,17 +54,6 @@ export function partDetail(style, design, rect, sizes, edgeOut = 0, moldings = [
     };
   }
 
-  const opening = {
-    x: core.x + r.stiles.left,
-    z: core.z + r.rails.bottom,
-    width: r.opening.width,
-    height: r.opening.height,
-  };
-  const rows = remainingIntervals(opening.z, opening.z + opening.height, core.z, r.midRails);
-  const columns = remainingIntervals(opening.x, opening.x + opening.width, core.x, r.midStiles);
-  const openings = rows.flatMap(([bottom, top]) => columns.map(([left, right]) => ({
-    x: left, z: bottom, width: right - left, height: top - bottom,
-  })));
   return { construction: r.construction, core, openings, sizes: r };
 }
 

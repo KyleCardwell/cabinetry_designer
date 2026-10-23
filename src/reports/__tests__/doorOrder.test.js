@@ -103,7 +103,8 @@ describe('door order form data', () => {
     const s = { ...settings, sectionProfiles: [molding], teamDoorStyle: {
       ...style, appliedMoldings: [{ profileId: molding.id, offset: 0 }],
     } };
-    const sizes = { midRails: [{ at: 15 }], midStiles: [{ at: 8, width: 4 }] };
+    const columns = { split: 'cols', children: [{ size: 3 }, {}], mids: [{ width: 4 }] };
+    const sizes = { layout: { split: 'rows', children: [{ ...columns, size: 10.375 }, columns] } };
     const r = room([run('run', { id: 'cab', kind: 'cabinet', face: face('door', null, { sizes }) }, {
       ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null, sizes } },
     })], {}, {}, s);
@@ -111,11 +112,14 @@ describe('door order form data', () => {
     const items = doorOrderItems(r, s).items;
     expect(items.map(({ kind }) => kind)).toEqual(['face', 'endPanel']);
     for (const item of items) {
-      expect(item.sizes.midRails).toEqual([{ at: 15, width: 3.25, source: 'flat', overall: 4.25 }]);
-      expect(item.sizes.midStiles).toEqual([{ at: 8, width: 4, source: 'part', overall: 5 }]);
+      expect(item.sizes.midRails).toMatchObject([{ at: 15, width: 3.25, source: 'flat', overall: 4.25 }]);
+      expect(item.sizes.midStiles).toMatchObject([
+        { at: 8, width: 4, source: 'part', overall: 5 }, { at: 8, width: 4, source: 'part', overall: 5 },
+      ]);
       expect(item.notes).toEqual([
         ...(item.kind === 'endPanel' ? ['do not sand edges'] : []),
-        '3 1/4" MR up 15" oc (4 1/4" w/ molding)', '4" MS 8" oc from left (5" w/ molding)',
+        '3 1/4" MR up 15" oc (4 1/4" w/ molding)',
+        '4" MS 8" oc from left (5" w/ molding)', '4" MS 8" oc from left (5" w/ molding)',
       ]);
     }
     expect(r).toEqual(before);
@@ -153,9 +157,10 @@ describe('door order form data', () => {
   });
 
   it('orders side exceptions, mid rails and mid stiles (anchor 3)', () => {
-    expect(stileRailNotes(style, frame({
-      rails: { top: 2.625 }, midRails: [{ at: 31.5, width: 3.625 }], midStiles: [{ at: 12, width: 3 }],
-    }))).toEqual(['2 5/8" TR', '3 5/8" MR up 31 1/2" oc', '3" MS 12" oc from left']);
+    expect(stileRailNotes(style, {
+      ...frame({ rails: { top: 2.625 } }),
+      midRails: [{ at: 31.5, width: 3.625 }], midStiles: [{ at: 12, width: 3 }],
+    })).toEqual(['2 5/8" TR', '3 5/8" MR up 31 1/2" oc', '3" MS 12" oc from left']);
   });
 
   it('merges identical lines within a part number, then sorts (anchor 4)', () => {

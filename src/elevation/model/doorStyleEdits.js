@@ -223,8 +223,8 @@ export function partSizeRows(style, design, part, edgeOut = 0, moldings = [], of
     };
   }
   const labels = ['Top rail', 'Bottom rail', 'Left stile', 'Right stile'];
-  const mids = (kind) => result[kind].map((entry, index) => ({
-    ...entry, typed: sizes[kind][index].width !== undefined,
+  const mids = (kind) => result[kind].map((entry) => ({
+    ...entry, typed: entry.source === 'part',
   }));
   return {
     title: 'Stiles & rails',

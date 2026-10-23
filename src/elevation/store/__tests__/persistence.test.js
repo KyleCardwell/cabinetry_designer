@@ -2136,3 +2136,54 @@ it('IN12c c anchor 3: strips charging before sandbox and shop validation through
   expect(normalizeElevationDocument(loaded)).toEqual(loaded);
   expect(document).toEqual(before);
 });
+
+describe('MR2b retired mid lists', () => {
+  it('anchor 3: loads a face retaining other sizes and the input document', () => {
+    const document = currentDocument();
+    const leaf = gridLeaves(document.rooms[0].walls[0].runs[0].grid)[0];
+    leaf.face = { type: 'door', size: null, sizes: { midRails: [{ at: 15 }], rails: { top: 4 } } };
+    const before = structuredClone(document);
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+    const loaded = loadElevationDocument();
+    expect(loaded).not.toBeNull();
+    expect(gridLeaves(loaded.rooms[0].walls[0].runs[0].grid)[0].face.sizes).toEqual({ rails: { top: 4 } });
+    expect(roomFromDocument(document.rooms[0], document.schemaVersion, document.settings))
+      .toEqual({ ok: true, room: loaded.rooms[0] });
+    expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+    expect(document).toEqual(before);
+  });
+
+  it('anchor 4: removes empty sizes throughout nested grids, faces, ends and phases', () => {
+    const document = currentDocument();
+    const layout = { split: 'rows', children: [{}, {}] };
+    const sizes = { midStiles: [{ at: 12 }] };
+    const run = document.rooms[0].walls[0].runs[0];
+    run.grid = gridFromItems('outer', [{
+      id: 'nested', kind: 'cabinet', width: null, grid: gridFromItems('inner', [{
+        id: 'cab', kind: 'cabinet', width: null, face: {
+          direction: 'horizontal', size: null, children: [
+            { type: 'door', size: null, sizes },
+            { type: 'door', size: null, sizes: { ...sizes, midRails: [{ at: 15 }], layout } },
+          ],
+        },
+      }, { id: 'other', kind: 'cabinet', width: null }]),
+    }]);
+    run.ends.left = { type: 'end_panel', width: null, sizes };
+    const phaseRoom = structuredClone(document.rooms[0]);
+    document.phases = [{ rooms: [phaseRoom] }];
+    document.rooms[0].phases = [{ rooms: [structuredClone(phaseRoom)] }];
+    const before = structuredClone(document);
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+    const loaded = loadElevationDocument();
+    expect(loaded).not.toBeNull();
+    for (const room of [loaded.rooms[0], loaded.phases[0].rooms[0], loaded.rooms[0].phases[0].rooms[0]]) {
+      const nestedRun = room.walls[0].runs[0];
+      const children = gridLeaves(nestedRun.grid)[0].face.children;
+      expect(children[0]).not.toHaveProperty('sizes');
+      expect(children[1].sizes).toEqual({ layout });
+      expect(nestedRun.ends.left).not.toHaveProperty('sizes');
+    }
+    expect(document).toEqual(before);
+    expect(normalizeElevationDocument(loaded)).toEqual(loaded);
+  });
+});

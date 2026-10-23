@@ -57,7 +57,7 @@ describe('SPEC-46 door styles in the saved document', () => {
           size: null,
           children: [
             { type: 'drawer_front', size: 6, styleId: 'ds-a', sizes: { rails: { top: 2.625, bottom: 2.625 } } },
-            { type: 'door', size: null, sizes: { midRails: [{ at: 12 }], notes: { top: 'match' } } },
+            { type: 'door', size: null, sizes: { layout: { split: 'rows', children: [{ size: 7.5 }, {}] }, notes: { top: 'match' } } },
           ],
         },
       },

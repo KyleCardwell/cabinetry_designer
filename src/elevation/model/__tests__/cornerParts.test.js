@@ -214,7 +214,7 @@ describe('DM8 step a end panel detail on end views', () => {
   });
 
   it('anchor 5: a mid rail 18" up on center splits the opening', () => {
-    const panel = endPanelOf(shapesOf(rightReturnKitchen({ midRails: [{ at: 18, width: 3 }] }), 0));
+    const panel = endPanelOf(shapesOf(rightReturnKitchen({ layout: { split: 'rows', children: [{ size: 13.5 }, {}], mids: [{ width: 3 }] } }), 0));
     expect(panel.doorDetail.openings).toEqual([
       { x: 146.125, z: 7, width: 18.875, height: 13.5 },
       { x: 146.125, z: 23.5, width: 18.875, height: 8 },

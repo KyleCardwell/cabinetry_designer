@@ -1,3 +1,5 @@
+import { resolveMidLayout } from './midLayout.js';
+
 /** Style mid widths that preserve the frame's flat after profiles and applied moldings. */
 export function midDefaults(style, design, offsets) {
   const applied = design.construction === 'five_piece'
@@ -14,7 +16,8 @@ export function midDefaults(style, design, offsets) {
 }
 
 /** Final frame sizes for an installed part, including the short-face rule (SPEC-46). */
-export function partSizes(style, design, { width, height, coreHeight = height, sizes = {} }, mid = midDefaults(style, design)) {
+export function partSizes(style, design, { width, height, coreHeight = height, sizes = {} },
+  mid = midDefaults(style, design), { mirror } = {}) {
   if (coreHeight < style.shortFace.slabBelow - 1e-9) {
     return {
       construction: 'slab', slab: design.construction === 'slab' ? 'design' : 'rule',
@@ -23,10 +26,18 @@ export function partSizes(style, design, { width, height, coreHeight = height, s
   }
 
   if (design.construction === 'slab') {
+    // Slab moldings split at centers, including when the stored layout has typed mid widths.
+    const zeroWidth = (node) => node?.split ? {
+      ...node, mids: undefined, children: node.children.map(zeroWidth),
+    } : node;
+    const layout = resolveMidLayout(zeroWidth(sizes.layout), { x: 0, z: 0, width, height },
+      { rail: 0, stile: 0, over: 0, source: { rail: 'flat', stile: 'flat' } }, { mirror });
     return {
       construction: 'slab', slab: 'design', molding: true, designId: design.id,
-      midRails: (sizes.midRails ?? []).map(({ at }) => ({ at, width: 0 })),
-      midStiles: (sizes.midStiles ?? []).map(({ at }) => ({ at, width: 0 })),
+      midRails: layout.mids.filter(({ kind }) => kind === 'rail'),
+      midStiles: layout.mids.filter(({ kind }) => kind === 'stile'),
+      panels: layout.panels,
+      layoutWarnings: layout.warnings,
       opening: { width, height },
     };
   }
@@ -46,21 +57,25 @@ export function partSizes(style, design, { width, height, coreHeight = height, s
     : Math.abs(value - style.rails[side]) <= 1e-9 ? 'style' : 'rule';
   const left = sizes.stiles?.left ?? style.stiles.left;
   const right = sizes.stiles?.right ?? style.stiles.right;
-  const mids = (entries, kind) => (entries ?? []).map(({ at, width }) => ({
-    at,
-    width: width ?? mid[kind],
-    source: width != null ? 'part' : style.mid[kind] != null ? 'style' : 'flat',
-    ...(mid.over > 0 ? { overall: (width ?? mid[kind]) + 2 * mid.over } : {}),
-  }));
+  const opening = { width: width - left - right, height: height - top - bottom };
+  const layout = resolveMidLayout(sizes.layout, { x: left, z: bottom, ...opening }, {
+    rail: mid.rail, stile: mid.stile, over: mid.over,
+    source: {
+      rail: style.mid.rail != null ? 'style' : 'flat',
+      stile: style.mid.stile != null ? 'style' : 'flat',
+    },
+  }, { mirror });
 
   return {
     construction: design.construction,
     slab: null,
     stiles: { left, right },
     rails: { top, bottom },
-    midRails: mids(sizes.midRails, 'rail'),
-    midStiles: mids(sizes.midStiles, 'stile'),
-    opening: { width: width - left - right, height: height - top - bottom },
+    midRails: layout.mids.filter(({ kind }) => kind === 'rail'),
+    midStiles: layout.mids.filter(({ kind }) => kind === 'stile'),
+    panels: layout.panels,
+    layoutWarnings: layout.warnings,
+    opening,
     sources: {
       top: railSource('top', typedTop, top),
       bottom: railSource('bottom', typedBottom, bottom),

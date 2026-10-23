@@ -35,7 +35,7 @@ describe('528 one slab construction with two cores', () => {
   it('anchor 3: retains slab regions without moldings and draws a plain outline', () => {
     expect(partSizes(DEFAULT_DOOR_STYLE, HARDWOOD, rect)).toEqual({
       construction: 'slab', slab: 'design', molding: true, designId: 'slab',
-      midRails: [], midStiles: [], opening: { width: 15, height: 15 },
+      midRails: [], midStiles: [], panels: [{ path: 'root', x: 0, z: 0, width: 15, height: 15 }], layoutWarnings: [], opening: { width: 15, height: 15 },
     });
     expect(build(HARDWOOD).fit).toEqual({ lines: [], miters: [], warnings: [], openingsShown: false });
   });
