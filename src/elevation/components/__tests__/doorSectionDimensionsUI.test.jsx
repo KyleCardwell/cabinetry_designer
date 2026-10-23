@@ -237,7 +237,7 @@ describe('MR6b mid section view', () => {
     const tree = renderMid({ ...midStyle, profiles: { ...midStyle.profiles, inside: inside58.id, outside: outside.id } });
     expect(nodes(tree).find(({ type }) => type === 'h3').props.children).toBe('Mid section');
     expect(find(tree, 'Mid section').type).toBe('svg');
-    expect(nodes(tree).filter(({ type }) => type === 'button')).toHaveLength(0);
+    expect(nodes(tree).filter(({ type, props }) => type === 'button' && props.children !== 'Measure')).toHaveLength(0);
     expect(labels(find(tree, 'above dimensions'))).toEqual(['5/8"', '2 3/8"', '5/8"']);
     expect(labels(find(tree, 'below dimensions'))).toEqual(['3 5/8"']);
     expect(find(tree, 'overall dimensions')).toBeUndefined();
@@ -270,7 +270,7 @@ describe('MR6b mid section view', () => {
       ? [selected, (next) => { selected = next; }]
       : [initial, vi.fn()]);
     const style = { ...midStyle, mid: { rail: 4 } };
-    const buttons = (tree) => nodes(tree).filter(({ type }) => type === 'button');
+    const buttons = (tree) => nodes(tree).filter(({ type, props }) => type === 'button' && props.children !== 'Measure');
     let tree = renderMid(style);
     expect(buttons(tree).map(({ props }) => props.children.join(''))).toEqual(['Mid stile', 'Mid rail']);
     expect(buttons(tree).map(({ props }) => props['aria-pressed'])).toEqual([true, false]);

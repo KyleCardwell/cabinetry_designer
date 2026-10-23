@@ -2,11 +2,76 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { formatInches } from '../model/units.js';
 import { sectionProfileBounds, sectionProfileSvgPath } from '../model/sectionProfiles.js';
 import { gappedLine } from '../canvas/gappedLine.js';
+import { useMeasure } from '../canvas/measureState.js';
+import { sectionMeasureGeometry } from '../model/measure.js';
+import MeasureReadout from './MeasureReadout.jsx';
+import MeasureSvg from './MeasureSvg.jsx';
+
+const MEASURE_HINT = 'Click a corner, midpoint, centre or edge · Shift: point on an edge · Esc: clear';
+
+/**
+ * Measuring layer over one section. It only exists while measuring, so the measure hooks never run
+ * for a plain section. `frame` maps section inches (y-up) to svg pixels and back.
+ */
+export function SectionMeasure({ section, frame, viewport, onDone }) {
+  const { scale, minX, maxX, minY, maxY } = frame;
+  const px = (value) => viewport.width / 2 + (value - (minX + maxX) / 2) * scale;
+  const py = (value) => viewport.height / 2 - (value - (minY + maxY) / 2) * scale;
+  const measure = useMeasure({
+    active: true,
+    geometry: sectionMeasureGeometry(section),
+    tolerance: 10 / scale,
+    resetKey: JSON.stringify(section),
+  });
+  const { escape } = measure;
+
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if (event.key !== 'Escape') return;
+      if (!escape()) onDone();
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [escape, onDone]);
+
+  const world = (event) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const sx = event.clientX - rect.left;
+    const sy = event.clientY - rect.top;
+    return {
+      x: (minX + maxX) / 2 + (sx - viewport.width / 2) / scale,
+      y: (minY + maxY) / 2 - (sy - viewport.height / 2) / scale,
+    };
+  };
+
+  return (
+    <>
+      <svg
+        viewBox={`0 0 ${viewport.width} ${viewport.height}`}
+        preserveAspectRatio="xMidYMid meet"
+        aria-label="Measure section"
+        className="absolute inset-0 h-64 w-full cursor-crosshair"
+        onPointerMove={(event) => measure.move(world(event), event.shiftKey)}
+        onPointerLeave={measure.leave}
+        onClick={(event) => { if (event.button === 0) measure.click(world(event), event.shiftKey); }}
+        onContextMenu={(event) => { event.preventDefault(); measure.cancelFirst(); }}
+      >
+        <MeasureSvg first={measure.first} hover={measure.hover} measures={measure.measures} preview={measure.preview}
+          toScreen={({ x, y }) => ({ x: px(x), y: py(y) })} />
+      </svg>
+      <MeasureReadout result={measure.preview ?? measure.measures.at(-1)?.result} axisLabels={{ x: 'Across', y: 'Deep' }}
+        hover={measure.hover} hint={MEASURE_HINT} className="bottom-2 left-2" />
+    </>
+  );
+}
 
 export default function SectionSvg({ section, dimensions, style, label }) {
   const maskId = useId().replace(/:/g, '');
   const svgRef = useRef(null);
   const [viewport, setViewport] = useState({ width: 400, height: 256 });
+  const [measuring, setMeasuring] = useState(false);
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
@@ -81,6 +146,7 @@ export default function SectionSvg({ section, dimensions, style, label }) {
   };
 
   return (
+    <div className="relative">
     <svg
       ref={svgRef}
       viewBox={`0 0 ${viewport.width} ${viewport.height}`}
@@ -181,5 +247,18 @@ export default function SectionSvg({ section, dimensions, style, label }) {
         {dimensions.overall?.length > 0 && horizontalChain(dimensions.overall, 'below', 1)}
       </g>
     </svg>
+    <button
+      type="button"
+      aria-pressed={measuring}
+      className={`absolute right-2 top-2 z-10 rounded border border-gray-600 px-2 py-0.5 text-xs ${measuring ? 'bg-pink-600 text-white' : 'bg-gray-800 text-gray-200 hover:bg-gray-700'}`}
+      onClick={() => setMeasuring((current) => !current)}
+    >
+      Measure
+    </button>
+    {measuring && (
+      <SectionMeasure section={section} viewport={viewport} onDone={() => setMeasuring(false)}
+        frame={{ scale, minX, maxX, minY, maxY }} />
+    )}
+    </div>
   );
 }
