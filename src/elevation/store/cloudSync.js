@@ -5,7 +5,7 @@
  * ones, one at a time, through the RPCs. Leaving (`flush`, the tab hidden or closed) sends
  * at once; the local draft copy covers the gap in between.
  *
- * Targets: the shop standard ('team'), each profile, door design, pull, slide and accessory, the project / phase
+ * Targets: the shop standard ('team'), each profile, shape, door design, pull, slide and accessory, the project / phase
  * overrides, and the open room's drawing ('room', SPEC-DB6a). Every save sends the version it
  * last saw; a conflict or an error pauses that target (nothing is retried behind the user's
  * back, except a dropped connection when the browser comes back online) and shows in
@@ -16,7 +16,7 @@
  * With a draft store (`drafts`, roomDrafts.js) the room's unsaved edits are also copied to
  * IndexedDB a moment after each edit and removed once the server confirms them.
  */
-import { accessoryToRow, doorDesignToRow, isUuid, profileToRow, pullToRow, slideToRow, teamSettingsToRow } from '../model/cloudRows.js';
+import { accessoryToRow, doorDesignToRow, isUuid, profileToRow, shapeToRow, pullToRow, slideToRow, teamSettingsToRow } from '../model/cloudRows.js';
 import { cloudRoomPatch, cloudSaveStatus, cloudSaved } from './elevationSlice.js';
 import { ELEVATION_SCHEMA_VERSION, toRoomDocument } from './persistence.js';
 
@@ -42,6 +42,13 @@ function snapshotsOf(elevation) {
     map.set(`profile:${profile.id}`, {
       kind: 'profile', id: profile.id, label: `Profile "${profile.name}"`,
       row, archived: Boolean(profile.archived), json: JSON.stringify([row, Boolean(profile.archived)]),
+    });
+  }
+  for (const shape of settings.shapes ?? []) {
+    const row = shapeToRow(shape);
+    map.set(`shape:${shape.id}`, {
+      kind: 'shape', id: shape.id, label: `Shape "${shape.name}"`,
+      row, archived: Boolean(shape.archived), json: JSON.stringify([row, Boolean(shape.archived)]),
     });
   }
   for (const design of settings.doorDesigns ?? []) {
@@ -113,8 +120,8 @@ export function setupCloudSync(store, { getDesignApi, delay = 15000, drafts = nu
       if (!paused.has(key) && baseline.get(key)?.json !== snap.json) keys.push(key);
     }
     for (const [key, snap] of baseline) {
-      if (!current.has(key) && !paused.has(key) && ['profile', 'doorDesign', 'pull', 'slide', 'accessory'].includes(snap.kind)
-        && !(snap.kind === 'profile' && snap.archived)) keys.push(key);
+      if (!current.has(key) && !paused.has(key) && ['profile', 'shape', 'doorDesign', 'pull', 'slide', 'accessory'].includes(snap.kind)
+        && !(['profile', 'shape'].includes(snap.kind) && snap.archived)) keys.push(key);
     }
     return { keys, current };
   }
@@ -249,6 +256,35 @@ export function setupCloudSync(store, { getDesignApi, delay = 15000, drafts = nu
       if (snap.archived !== wasArchived) {
         const rowId = saved?.rowId ?? known.rowId;
         const reply = await api.archiveLibraryItem('profile', rowId, snap.archived);
+        if (!reply.ok) return reply;
+      }
+      return { ok: true };
+    }
+
+    if (kind === 'shape') {
+      const known = cloud.rows.shapes[before?.id ?? snap.id];
+      if (!snap) {
+        // Removed from the list (deleted): archive the row instead (never deleted, DB8).
+        return known ? api.archiveLibraryItem('shape', known.rowId, true) : { ok: true };
+      }
+      if (!isUuid(snap.id)) {
+        return { ok: false, reason: 'bad_input', message: 'This shape has an old-style id; copy it to save it to the shop library.' };
+      }
+      let saved = null;
+      const rowChanged = !known || JSON.stringify(before?.row) !== JSON.stringify(snap.row);
+      if (rowChanged) {
+        const reply = await api.saveShape({
+          teamId, shapeId: known?.rowId ?? snap.id, name: snap.row.name,
+          data: snap.row.data, expectedVersion: known?.version ?? 0,
+        });
+        if (!reply.ok) return reply;
+        saved = { target: 'shape', id: snap.id, rowId: reply.shape_id, version: reply.version };
+        store.dispatch(cloudSaved(saved));
+      }
+      const wasArchived = known ? Boolean(before?.archived) : false;
+      if (snap.archived !== wasArchived) {
+        const rowId = saved?.rowId ?? known.rowId;
+        const reply = await api.archiveLibraryItem('shape', rowId, snap.archived);
         if (!reply.ok) return reply;
       }
       return { ok: true };

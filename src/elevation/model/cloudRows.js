@@ -9,6 +9,7 @@ import { DEFAULT_DOOR_STYLE, isDoorStyle } from './doorStyles.js';
 import { BUILT_IN_PULLS, BUILT_IN_PULL_IDS, isPull } from './pulls.js';
 import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlide, withoutRetiredSlideKeys, withSlideDefaults } from './slides.js';
 import { isSectionProfile, migrateSectionProfile } from './sectionProfiles.js';
+import { isShape } from './libraryShapes.js';
 import { SETTINGS_REGISTRY } from './settingsRegistry.js';
 import { isValidSettingValue } from './settingsResolve.js';
 import { withPricingDefaults } from './libraryPricing.js';
@@ -52,6 +53,25 @@ export function profileFromRow(row) {
     archived: row.archived_at != null,
   });
   return isSectionProfile(profile) ? profile : null;
+}
+
+/** A shape → `{ shape_id, name, data }`; geometry version stays in data. */
+export function shapeToRow(shape) {
+  const { id, name, archived, ...data } = structuredClone(shape);
+  void archived;
+  return { shape_id: id, name, data };
+}
+
+/** A design_shapes row → a valid shape, including archived rows, or null. */
+export function shapeFromRow(row) {
+  if (!row || !isUuid(row.shape_id) || !row.data || typeof row.data !== 'object') return null;
+  const shape = {
+    ...structuredClone(row.data),
+    id: row.shape_id,
+    name: typeof row.name === 'string' ? row.name.trim() : row.name,
+    archived: row.archived_at != null,
+  };
+  return isShape(shape) ? shape : null;
 }
 
 /**
@@ -155,6 +175,7 @@ export function teamSettingsFromRow(stored) {
   const settings = structuredClone(DEFAULT_SETTINGS);
   delete settings.doorDesigns;
   delete settings.sectionProfiles;
+  delete settings.shapes;
   delete settings.pulls;
   delete settings.slides;
   delete settings.accessories;

@@ -9,6 +9,7 @@ import {
   doorDesignFromRow,
   doorDesignToRow,
   profileFromRow,
+  shapeFromRow,
   pullFromRow,
   pullToRow,
   slideFromRow,
@@ -20,6 +21,7 @@ import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS, findDoorDesign } from '../model/doorS
 import { BUILT_IN_PULLS, BUILT_IN_PULL_IDS, isPullList } from '../model/pulls.js';
 import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlideList } from '../model/slides.js';
 import { isAccessoryList } from '../model/accessories.js';
+import { isShapeList } from '../model/libraryShapes.js';
 import { cleanOverrides } from '../model/settingsResolve.js';
 import { buildSettingsSnapshot, settingsFromSnapshot } from '../model/settingsSnapshot.js';
 import { ROOM_STATUSES, lastVersionFromRow, versionFromRow } from '../model/roomVersions.js';
@@ -77,11 +79,11 @@ export function openCloudWorkspace() {
     }
     dispatch(cloudWorkspaceLoading());
     const api = await apiFrom(extra);
-    const [settingsReply, profilesReply, designsReply, pullsReply, slidesReply, accessoriesReply, servicesReply] = await Promise.all([
+    const [settingsReply, profilesReply, designsReply, pullsReply, slidesReply, accessoriesReply, shapesReply, servicesReply] = await Promise.all([
       api.loadTeamSettings(teamId), api.listProfiles(teamId), api.listDoorDesigns(teamId), api.listPulls(teamId), api.listSlides(teamId),
-      api.listAccessories(teamId), api.listTeamServices(teamId),
+      api.listAccessories(teamId), api.listShapes(teamId), api.listTeamServices(teamId),
     ]);
-    const failed = [settingsReply, profilesReply, designsReply, pullsReply, slidesReply, accessoriesReply].find((reply) => !reply.ok);
+    const failed = [settingsReply, profilesReply, designsReply, pullsReply, slidesReply, accessoriesReply, shapesReply].find((reply) => !reply.ok);
     if (failed) {
       const message = `Couldn't load the shop data: ${failed.message}`;
       dispatch(cloudWorkspaceFailed(message));
@@ -89,7 +91,7 @@ export function openCloudWorkspace() {
     }
 
     const notes = [];
-    const rows = { profiles: {}, doorDesigns: {}, pulls: {}, slides: {}, accessories: {} };
+    const rows = { shapes: {}, profiles: {}, doorDesigns: {}, pulls: {}, slides: {}, accessories: {} };
 
     const profiles = [];
     for (const row of profilesReply.rows) {
@@ -100,6 +102,21 @@ export function openCloudWorkspace() {
     }
     const skippedProfiles = profilesReply.rows.length - profiles.length;
     if (skippedProfiles) notes.push(`${plural(skippedProfiles, 'profile')} couldn't be read and ${skippedProfiles === 1 ? 'was' : 'were'} left out.`);
+
+    const shapes = [];
+    for (const row of shapesReply.rows) {
+      const shape = shapeFromRow(row);
+      if (!shape) continue;
+      shapes.push(shape);
+      rows.shapes[shape.id] = { rowId: row.shape_id, version: row.version };
+    }
+    const skippedShapes = shapesReply.rows.length - shapes.length;
+    if (skippedShapes) notes.push(`${plural(skippedShapes, 'shape')} couldn't be read and ${skippedShapes === 1 ? 'was' : 'were'} left out.`);
+    if (!isShapeList(shapes)) {
+      const message = "The shop's shapes conflict (two shapes share a name). Fix them in Supabase, then reload.";
+      dispatch(cloudWorkspaceFailed(message));
+      return { ok: false, reason: 'bad_input', message };
+    }
 
     let designs = [];
     for (const row of designsReply.rows) {
@@ -243,6 +260,7 @@ export function openCloudWorkspace() {
     }
     settings.doorDesigns = designs;
     settings.sectionProfiles = profiles;
+    settings.shapes = shapes;
     settings.pulls = orderedPulls;
     settings.slides = orderedSlides;
     settings.accessories = accessories;

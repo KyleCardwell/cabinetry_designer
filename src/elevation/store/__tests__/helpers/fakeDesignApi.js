@@ -12,10 +12,11 @@ export function fakeUuid() {
  * An in-memory stand-in for createDesignApi(): keeps rows, bumps versions, answers conflicts
  * like the RPCs, and records every call. `hold()` makes saves wait until `release()`.
  */
-export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns = [], pulls = [], slides = [], accessories = [], teamServices = [], project = null,
+export function fakeDesignApi({ teamSettings = null, shapes = [], profiles = [], doorDesigns = [], pulls = [], slides = [], accessories = [], teamServices = [], project = null,
   projects = [], attachableProjects = [] } = {}) {
   const db = {
     teamSettings: teamSettings && { ...teamSettings },
+    shapes: structuredClone(shapes),
     profiles: profiles.map((row) => ({ ...row })),
     doorDesigns: doorDesigns.map((row) => ({ ...row })),
     pulls: structuredClone(pulls),
@@ -70,6 +71,10 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
     hold() { let release; gate = { promise: new Promise((resolve) => { release = resolve; }) }; gate.release = release; },
     release() { const current = gate; gate = null; current?.release(); },
     async loadTeamSettings() { calls.push(['loadTeamSettings']); return { ok: true, row: db.teamSettings && structuredClone(db.teamSettings) }; },
+    async listShapes() {
+      calls.push(['listShapes']);
+      return api.replies.listShapes ?? { ok: true, rows: structuredClone(db.shapes) };
+    },
     async listProfiles() { calls.push(['listProfiles']); return { ok: true, rows: structuredClone(db.profiles) }; },
     async listDoorDesigns() { calls.push(['listDoorDesigns']); return { ok: true, rows: structuredClone(db.doorDesigns.filter((row) => !row.archived_at)) }; },
     async listPulls() {
@@ -178,6 +183,20 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
       Object.assign(row, { kind, name, data: structuredClone(data), version: row.version + 1 });
       return { ok: true, profile_id: profileId, version: row.version, updated_at: 't' };
     },
+    async saveShape({ shapeId, name, data, expectedVersion }) {
+      calls.push(['saveShape', shapeId, expectedVersion]);
+      await wait();
+      if (api.replies.saveShape) return structuredClone(api.replies.saveShape);
+      if (expectedVersion === 0) {
+        const row = { shape_id: shapeId ?? fakeUuid(), name, data: structuredClone(data), version: 1, archived_at: null };
+        db.shapes.push(row);
+        return { ok: true, shape_id: row.shape_id, version: 1, updated_at: 't' };
+      }
+      const row = db.shapes.find((entry) => entry.shape_id === shapeId);
+      if (row.version !== expectedVersion) return conflict(row.version);
+      Object.assign(row, { name, data: structuredClone(data), version: row.version + 1 });
+      return { ok: true, shape_id: shapeId, version: row.version, updated_at: 't' };
+    },
     async saveDoorDesign({ designId, code, data, expectedVersion }) {
       calls.push(['saveDoorDesign', designId, expectedVersion, code]);
       await wait();
@@ -245,8 +264,8 @@ export function fakeDesignApi({ teamSettings = null, profiles = [], doorDesigns 
     async archiveLibraryItem(kind, id, archived) {
       calls.push(['archiveLibraryItem', kind, id, archived]);
       await wait();
-      const list = kind === 'profile' ? db.profiles : kind === 'pull' ? db.pulls : kind === 'slide' ? db.slides : kind === 'accessory' ? db.accessories : db.doorDesigns;
-      const key = kind === 'profile' ? 'profile_id' : kind === 'pull' ? 'pull_id' : kind === 'slide' ? 'slide_id' : kind === 'accessory' ? 'accessory_id' : 'design_id';
+      const list = kind === 'shape' ? db.shapes : kind === 'profile' ? db.profiles : kind === 'pull' ? db.pulls : kind === 'slide' ? db.slides : kind === 'accessory' ? db.accessories : db.doorDesigns;
+      const key = kind === 'shape' ? 'shape_id' : kind === 'profile' ? 'profile_id' : kind === 'pull' ? 'pull_id' : kind === 'slide' ? 'slide_id' : kind === 'accessory' ? 'accessory_id' : 'design_id';
       const row = list.find((entry) => entry[key] === id);
       row.archived_at = archived ? 't' : null;
       return { ok: true };

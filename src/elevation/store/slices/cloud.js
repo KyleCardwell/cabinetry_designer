@@ -93,11 +93,12 @@ export const cloudReducers = {
     for (let index = 0; index < state.rooms.length; index += 1) syncRoomAt(state, index);
   },
 
-  /** A save landed: `{ target: 'team'|'profile'|'doorDesign'|'pull'|'slide'|'accessory'|'project'|'phase', id?, rowId?, version }`. */
+  /** A save landed: `{ target: 'team'|'profile'|'shape'|'doorDesign'|'pull'|'slide'|'accessory'|'project'|'phase', id?, rowId?, version }`. */
   cloudSaved(state, action) {
     if (!state.cloud) return;
     const { target, id, rowId, version } = action.payload;
     if (target === 'team') state.cloud.teamVersion = version;
+    else if (target === 'shape') state.cloud.rows.shapes[id] = { rowId: rowId ?? id, version };
     else if (target === 'profile') state.cloud.rows.profiles[id] = { rowId: rowId ?? id, version };
     else if (target === 'doorDesign') state.cloud.rows.doorDesigns[id] = { rowId, version };
     else if (target === 'pull') state.cloud.rows.pulls[id] = { rowId, version };
@@ -179,7 +180,7 @@ export const cloudReducers = {
       permissions,
       loadId: loadId + 1,
       teamVersion: null,
-      rows: { profiles: {}, doorDesigns: {}, pulls: {}, slides: {}, accessories: {} },
+      rows: { shapes: {}, profiles: {}, doorDesigns: {}, pulls: {}, slides: {}, accessories: {} },
       layerVersions: { project: null, phase: null },
       project,
       room: {
