@@ -12,6 +12,7 @@ import DoorStyleFields from '../DoorStyleFields.jsx';
 import InchInput from '../InchInput.jsx';
 import TextInput from '../TextInput.jsx';
 import PartStyleFields from '../properties/PartStyleFields.jsx';
+import MidLayoutFields from '../properties/MidLayoutFields.jsx';
 import KindPanel from '../../../library/profileEditor/KindPanel.jsx';
 import ProfileCanvas from '../../../library/profileEditor/ProfileCanvas.jsx';
 import ProfileEditor from '../../../library/profileEditor/ProfileEditor.jsx';
@@ -235,7 +236,7 @@ describe('Step 494.5 Slab - MDF Core editor and part panel', () => {
     expect(nodes(tree).filter(({ type }) => type === InchInput || type === 'input')).toHaveLength(0);
   });
 
-  it('shows profile-aware resolved mid widths as read-only lines', () => {
+  it('passes profile-aware resolved mid widths and bounds to the panels editor', () => {
     const style = { ...DEFAULT_DOOR_STYLE, profiles: { ...DEFAULT_DOOR_STYLE.profiles, inside: bead.id } };
     const tree = PartStyleFields({
       room: {}, settings: { sectionProfiles: [{ ...bead, kind: 'door_inside' }], teamDoorStyle: style, doorDesigns: DOOR_DESIGNS },
@@ -244,25 +245,35 @@ describe('Step 494.5 Slab - MDF Core editor and part panel', () => {
       ] } } },
       width: 24, height: 30, label: 'Front', onChange: vi.fn(),
     });
-    expect(text(tree)).toContain('MR1 · 15" up · 3 5/16"');
-    expect(text(tree)).toContain('MS1 · 12" from left · 3 5/16" · BR to MR1');
-    expect(text(tree)).toContain('MS2 · 12" from left · 3 5/16" · MR1 to TR');
+    const { resolved, slab } = find(tree, ({ type }) => type === MidLayoutFields).props;
+    expect(slab).toBe(false);
+    expect(resolved.midRails).toMatchObject([{ name: 'MR1', at: 15, width: 3.3125 }]);
+    expect(resolved.midStiles).toMatchObject([
+      { name: 'MS1', at: 12, width: 3.3125, from: 'BR', to: 'MR1' },
+      { name: 'MS2', at: 12, width: 3.3125, from: 'MR1', to: 'TR' },
+    ]);
     expect(nodes(tree).filter(({ type }) => type === InchInput)).toHaveLength(4);
     expect(nodes(tree).filter(({ type }) => type === 'button')).toEqual([]);
   });
 
-  it('lists slab and five-piece mids read-only without Add or Remove controls', () => {
+  it('passes zero-width slab splits and typed five-piece widths to the panels editor', () => {
     const columns = { split: 'cols', children: [{}, {}], mids: [{ width: 5 }] };
     const sizes = { layout: { split: 'rows', children: [columns, columns], mids: [{ width: 4 }] } };
     const onChange = vi.fn();
     const tree = partPanel(slabAM, 30, sizes, onChange);
-    expect(text(tree)).toContain('MR1 · 15" up · 0"');
-    expect(text(tree)).toContain('MS1 · 12" from left · 0" · BR to MR1');
-    expect(text(tree)).toContain('MS2 · 12" from left · 0" · MR1 to TR');
+    const slabEditor = find(tree, ({ type }) => type === MidLayoutFields).props;
+    expect(slabEditor.slab).toBe(true);
+    expect(slabEditor.resolved.midRails).toMatchObject([{ name: 'MR1', at: 15, width: 0 }]);
+    expect(slabEditor.resolved.midStiles).toMatchObject([
+      { name: 'MS1', at: 12, width: 0, from: 'BR', to: 'MR1' },
+      { name: 'MS2', at: 12, width: 0, from: 'MR1', to: 'TR' },
+    ]);
     expect(nodes(tree).filter(({ type }) => type === InchInput || type === 'input' || type === 'button')).toEqual([]);
     const fivePiece = partPanel({ ...slabAM, designId: DEFAULT_DOOR_STYLE.designId }, 30, sizes);
-    expect(text(fivePiece)).toContain('MR1 · 15" up · 4"');
-    expect(text(fivePiece)).toContain('MS1 · 12" from left · 5" · BR to MR1');
+    const fiveEditor = find(fivePiece, ({ type }) => type === MidLayoutFields).props;
+    expect(fiveEditor.slab).toBe(false);
+    expect(fiveEditor.resolved.midRails).toMatchObject([{ name: 'MR1', at: 15, width: 4 }]);
+    expect(fiveEditor.resolved.midStiles[0]).toMatchObject({ name: 'MS1', at: 12, width: 5, from: 'BR', to: 'MR1' });
     expect(nodes(fivePiece).filter(({ type }) => type === InchInput)).toHaveLength(4);
     expect(nodes(fivePiece).filter(({ type }) => type === 'button')).toEqual([]);
     expect(onChange).not.toHaveBeenCalled();
@@ -330,7 +341,8 @@ describe('Step 463 profile UI', () => {
     const render = (height) => PartStyleFields({
       room: {}, settings, partType: 'door', levels: [], part: {}, width: 15, height, label: 'Door', onChange: vi.fn(),
     });
-    expect(text(render(30))).toContain('Panel 8 3/8" × 23 3/8"');
+    const panels = find(render(30), ({ type }) => type === MidLayoutFields);
+    expect(text(MidLayoutFields(panels.props))).toContain('Panels8 3/8 × 23 3/8');
     expect(text(render(5))).toContain('Slab');
   });
 

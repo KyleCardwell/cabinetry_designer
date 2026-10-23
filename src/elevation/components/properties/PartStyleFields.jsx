@@ -6,8 +6,10 @@ import {
 } from '../../model/doorStyleEdits.js';
 import { doorProfileOffsets } from '../../model/doorProfileLines.js';
 import { resolveDoorStyle } from '../../model/doorStyleResolve.js';
+import { resolveMidLayout } from '../../model/midLayout.js';
 import { formatInches, formatInchesInput } from '../../model/units.js';
 import InchInput from '../InchInput.jsx';
+import MidLayoutFields from './MidLayoutFields.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const NOTE_CLASS = 'min-w-0 flex-1 rounded border border-gray-600 bg-gray-900 px-2 py-1 text-xs text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -26,12 +28,28 @@ export default function PartStyleFields({
   const missingPick = styleId !== ''
     && !picker.options.some((option) => option.id === styleId);
 
-  const midFields = (kind, position) => rows[kind].map((entry) => (
-    <p key={entry.name} className="text-xs text-gray-400">
-      {`${entry.name} · ${formatInches(entry.at)} ${position} · ${formatInches(entry.width)}`}
-      {!entry.full && ` · ${entry.from} to ${entry.to}`}
-    </p>
-  ));
+  const slab = design.construction === 'slab';
+  // The size rows expose resolved mids but omit nodes. Reuse their actual widths
+  // (including zero-width slab splits) to recover unmirrored editor coordinates.
+  const mids = [...rows.midRails, ...rows.midStiles];
+  const withWidths = (node, path = 'root') => node?.split ? {
+    ...node,
+    mids: node.children.slice(1).map((_, index) => ({
+      width: mids.find((mid) => mid.path === path && mid.index === index).width,
+    })),
+    children: node.children.map((child, index) => withWidths(child, `${path}.${index}`)),
+  } : node;
+  const resolved = rows.opening && {
+    ...resolveMidLayout(withWidths(part?.sizes?.layout), slab
+      ? { x: 0, z: 0, width, height }
+      : {
+        x: rows.rows.find((row) => row.side === 'left').value,
+        z: rows.rows.find((row) => row.side === 'bottom').value,
+        ...rows.opening,
+      }, { rail: 0, stile: 0, over: 0, source: { rail: 'flat', stile: 'flat' } }),
+    midRails: rows.midRails,
+    midStiles: rows.midStiles,
+  };
 
   return (
     <div className="space-y-2">
@@ -100,11 +118,23 @@ export default function PartStyleFields({
               />
             </div>
           ))}
-          {midFields('midRails', 'up')}
-          {midFields('midStiles', 'from left')}
-          {rows.opening && (
+          {resolved && (
+            <MidLayoutFields
+              layout={part?.sizes?.layout}
+              resolved={resolved}
+              slab={slab}
+              label={label}
+              onLayout={(next) => {
+                const sizes = { ...part?.sizes };
+                if (next === undefined) delete sizes.layout;
+                else sizes.layout = next;
+                onChange({ sizes: Object.keys(sizes).length ? sizes : null });
+              }}
+            />
+          )}
+          {slab && rows.opening && (
             <p className="text-xs text-gray-400">
-              {design.construction === 'slab' ? 'Molding' : 'Panel'}{' '}
+              Molding{' '}
               {formatInches(rows.opening.width)} × {formatInches(rows.opening.height)}
             </p>
           )}
