@@ -176,12 +176,13 @@ describe('DM8 step b end-view panel payload', () => {
 // DM1 updated G1/G2; DM3 updated elevation rows. DM4 gives all rooms explicit rectangle
 // molding picks: same box heights/front projections, actual profile outlines and side extents.
 // DM7 updates centred-text fitting and pop-out levels; G2 also had a stale hash before DM7.
+// FX2 step a returns G5's countertop past its recess side: width 37 -> 37.75; other payload fields stay unchanged.
 const preHP5PayloadHashes = {
   'G1 Euro kitchen': 'eb8fab873358080acfb429040ffc547a005e387c3d83daf9322e8751945c7ebd',
   'G2 Face frame kitchen': '6db3785fa9bca11c26a0f61d77a287d756a18b9cc7e687fb1c6b0c54c68b58d4',
   'G3 Bath alcove': '972df0b7e5cf218bf98a7725b79e676a933734d8b21507c980438310f46e2ef1',
   'G4 T-filler run': 'f32f42cd95835870de06a6de27c6889e6b428f3980f12b0290ae0b7eaacf5350',
-  'G5 Recess room': 'b8b61e985225e22b8d4bcd9c10080e2aba96952990a2c5bbfbca92303c9f69f6',
+  'G5 Recess room': '154268c5476095dd92645b353eeb17471df94f6c7f91b13abc00e50b918e92c4',
   'G6 Stacked runs': 'b6e24f564707fab1b30922602e819f26ab3cd600478dfd61e3d1dd4c70e47393',
 };
 

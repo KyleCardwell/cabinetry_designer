@@ -24,12 +24,13 @@ function baseEntries(room, wall, run, settings) {
       if (end.type === 'cope' && end.outline) {
         x = endEdgeX(frontContour(end.outline, index === 0 ? 1 : -1), 0, index === 0 ? 1 : -1);
       }
+      if (end.returnLength != null) x = end.side;
       // Ordered bases cover the wall end panel as well as the return beyond it.
       const reachesEnd = index === 0 ? same(start, run.x) : same(segmentEnd, run.x + run.width);
       const panel = reachesEnd && run.anchors?.[side] === true && wallEndPanelAt(room, wall, side, settings);
       if (panel) x += (index === 0 ? -1 : 1) * panel.width;
       const anchor = run.anchors?.[side];
-      const squareStop = reachesEnd && end.type === 'square' && (Boolean(scene.panelBySide[side])
+      const squareStop = reachesEnd && (end.type === 'square' || end.returnLength != null) && (Boolean(scene.panelBySide[side])
         || anchor === true || anchor?.to === 'wall'
         || (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId));
       return { x, scribe: squareStop };

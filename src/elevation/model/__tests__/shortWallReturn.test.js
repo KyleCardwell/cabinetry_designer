@@ -1,9 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { auto, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { DEFAULT_PROFILE, DEFAULT_SETTINGS } from '../constants.js';
 import { clipReturnEdge, endEdgeX, frontContour } from '../bandEnds.js';
 import { frontDepth } from '../corners.js';
-import { gridFromItems } from '../grid.js';
+import { furnitureBaseGroups } from '../furnitureBaseGroups.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { runBandEnds, runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
@@ -16,27 +17,20 @@ const settings = { ...DEFAULT_SETTINGS, runFlex: 0,
   defaultProfile: { ...DEFAULT_PROFILE, topMoldProfileId: 'tm3', crownProfileId: 'cr45' },
   sectionProfiles: [profiles.find(({ id }) => id === 'tm3'), cr45] };
 
-const makeRun = (id, extra = {}) => ({
-  id, cabinetTypeId: 2, heightMode: 'auto', x: 66, width: 30, depth: 13,
-  overrides: {}, anchors: { right: true }, ends: {}, autoCount: false,
-  grid: gridFromItems(id, [{ id: `${id}-box`, kind: 'cabinet', width: null }]), ...extra,
-});
-const makeWall = (id, extra = {}) => ({
-  id, x1: 0, y1: 0, x2: 96, y2: 0, height: 96, thickness: 4.5,
-  connections: { start: null, end: null }, profile: {}, openings: [], joints: [], runs: [], ...extra,
-});
-
 function setup({ depth = 13, reach = 16, neighbor = false, recess = false, wing = false,
-  left = false, angle = 90, profile = {} } = {}) {
+  left = false, angle = 90, profile = {}, base = false, runProps = {} } = {}, using = settings) {
   const side = left ? 'left' : 'right';
   const x = left ? 0 : 96;
-  const a = makeWall('A', { profile, runs: [makeRun('upper', { depth,
-    x: left ? 0 : 66, anchors: { [side]: true } })] });
+  const a = buildWall({ id: 'A', x2: 96, profile, runs: [buildRun({ id: base ? 'base' : 'upper',
+    cabinetTypeId: base ? 1 : 2, heightMode: 'auto', depth, width: 30, ends: {}, autoCount: false,
+    items: [auto('box')], x: left ? 0 : 66, anchors: { [side]: true }, ...runProps })] });
   const radians = angle * Math.PI / 180;
-  const b = makeWall('B', { x1: left ? x + reach * Math.cos(radians) : x,
+  const b = buildWall({ id: 'B', x1: left ? x + reach * Math.cos(radians) : x,
     y1: left ? reach * Math.sin(radians) : 0,
     x2: left ? x : x - reach * Math.cos(radians), y2: left ? 0 : reach * Math.sin(radians),
-    runs: neighbor ? [makeRun('neighbor', { x: 0, width: 12, anchors: { left: true } })] : [],
+    runs: neighbor ? [buildRun({ id: 'neighbor', cabinetTypeId: base ? 1 : 2, heightMode: 'auto',
+      x: 0, width: 12, depth: 13, ends: {}, autoCount: false, items: [auto('neighbor-box')],
+      anchors: { left: true } })] : [],
   });
   if (recess) {
     a.recesses = [{ id: 'R', kind: 'recess', wallSide: 'front', offsetFrom: 'left', offsetAnchor: 'edge',
@@ -50,13 +44,15 @@ function setup({ depth = 13, reach = 16, neighbor = false, recess = false, wing 
     a.connections[left ? 'start' : 'end'] = { wallId: 'B', endpoint: left ? 'end' : 'start' };
     b.connections[left ? 'end' : 'start'] = { wallId: 'A', endpoint: left ? 'start' : 'end' };
   }
-  const room = syncRoom({ id: 'room', name: 'Room', profile: {}, wallOrder: recess ? ['A'] : ['A', 'B'],
-    walls: recess ? [a] : [a, b] }, settings);
+  const room = syncRoom(buildRoom({ id: 'room', name: 'Room',
+    profile: base ? { baseKind: 'furniture_base' } : {}, wallOrder: recess ? ['A'] : ['A', 'B'],
+    walls: recess ? [a] : [a, b] }), using);
   const wall = resolveWall(room, room.walls[0]);
   const run = wall.runs[0];
-  const scene = runScene(room, wall, run, settings);
-  const bands = runBands(room, wall, run, settings, scene);
-  const end = (kind) => bands[kind].ends[left ? 0 : 1];
+  const scene = runScene(room, wall, run, using);
+  const bands = runBands(room, wall, run, using, scene);
+  const end = (kind) => (bands[kind]?.ends ?? runBandEnds(room, wall, run, using, scene, kind,
+    kind === 'countertop' ? run.z + run.height : 0, kind === 'countertop' ? bands.top.height : 4))[left ? 0 : 1];
   return { room, wall, run, scene, bands, end };
 }
 
@@ -79,14 +75,14 @@ describe('DM5 step a short-wall molding returns', () => {
     expect(end('crown')).toEqual({ type: 'return', x: 100.75, side: 96, facing: 1, returnLength: 13.625 });
   });
 
-  it('anchor 4: measures recess returns from the wall face and leaves other bands square', () => {
+  it('anchor 4: measures recess returns from the wall face and leaves toe kicks square', () => {
     const { room, wall, run, scene, end } = setup({ depth: 12, recess: true });
     expect(frontDepth(run, settings)).toBe(0.875);
     expect(end('crown')).toEqual({ type: 'return', x: 100.75, side: 96, facing: 1, returnLength: 5.625 });
     expect(end('topMold').returnLength).toBe(1.125);
-    for (const kind of ['toeKick', 'countertop', 'furnitureBase']) {
-      expect(runBandEnds(room, wall, run, settings, scene, kind, 0, 4)[1]).toEqual({ type: 'square', x: 96 });
-    }
+    expect(runBandEnds(room, wall, run, settings, scene, 'toeKick', 0, 4)[1]).toEqual({ type: 'square', x: 96 });
+    expect(end('countertop')).toMatchObject({ type: 'return', x: 96.75, side: 96, facing: 1, returnLength: 1.625 });
+    expect(end('furnitureBase')).toMatchObject({ type: 'return', x: 96.8125, side: 96, facing: 1, returnLength: 1.6875 });
   });
 
   it('anchor 5: gives a matching corner crown return precedence over a short wall', () => {
@@ -212,5 +208,107 @@ describe('DM5 step b clipped short-wall return profiles', () => {
       expect(x).toBeGreaterThanOrEqual(-1e-10);
       expect(Math.abs(Math.hypot(x + 0.5, z) - 1)).toBeLessThan(1e-6);
     }
+  });
+});
+
+describe('FX2 step a short-wall furniture base and countertop returns', () => {
+  it('anchors 1 and 8: draws only the returned base and orders to the wall with scribe', () => {
+    const { room, bands, end } = setup({ base: true, depth: 15 });
+    expect(end('furnitureBase')).toMatchObject({
+      type: 'return', x: 96.8125, side: 96, facing: 1, returnLength: 0.6875,
+    });
+    expect(bands.furnitureBases[0].x).toBe(65.1875);
+    expect(bands.furnitureBases[0].x + bands.furnitureBases[0].width).toBe(96.6875);
+    expect(furnitureBaseGroups(room, settings)).toMatchObject([{
+      width: 30.8125, orderedWidth: 31.3125, orderedHeight: 4.5,
+      steps: [{ x1: 65.1875, x2: 96 }],
+    }]);
+  });
+
+  it('anchor 2: leaves the furniture base square against a 60-inch wall', () => {
+    const { bands, end } = setup({ base: true, depth: 15, reach: 60 });
+    expect(end('furnitureBase')).toEqual({ type: 'square', x: 96 });
+    expect(bands.furnitureBases[0].x + bands.furnitureBases[0].width).toBe(96);
+  });
+
+  it('anchor 3: draws the stone top only 5/8 inch past the wall', () => {
+    const { bands, end } = setup({ base: true, depth: 15 });
+    expect(end('countertop')).toMatchObject({
+      type: 'return', x: 96.75, side: 96, facing: 1, returnLength: 0.625,
+    });
+    expect(bands.countertop.x + bands.countertop.width).toBe(96.625);
+    expect(bands.countertops).toEqual([bands.countertop]);
+  });
+
+  it('anchor 4: uses front overhang rather than side overhang to clear the wall', () => {
+    const { bands, end } = setup({ base: true, depth: 15, runProps: { topOverhang: { front: 0 } } });
+    expect(end('countertop')).toEqual({ type: 'square', x: 96 });
+    expect(bands.countertop.x + bands.countertop.width).toBe(96);
+  });
+
+  it('anchor 5: preserves the full side overhang when the return is long enough', () => {
+    const { bands, end } = setup({ base: true, depth: 24 });
+    expect(end('countertop')).toMatchObject({ type: 'return', x: 96.75, returnLength: 9.625 });
+    expect(bands.countertop.x + bands.countertop.width).toBe(96.75);
+  });
+
+  it('anchor 6: returns furniture base past a short landed wing wall', () => {
+    const { bands, end } = setup({ base: true, depth: 15, wing: true });
+    expect(end('furnitureBase')).toMatchObject({
+      type: 'return', x: 96.8125, side: 96, facing: 1, returnLength: 0.6875,
+    });
+    expect(bands.furnitureBases[0].x + bands.furnitureBases[0].width).toBe(96.6875);
+  });
+
+  it('anchor 7: leaves toe kicks square against a short wall', () => {
+    const { bands, end } = setup({ base: true, depth: 15, profile: { baseKind: 'toe_kick' } });
+    expect(end('toeKick')).toEqual({ type: 'square', x: 96 });
+    expect(bands.toeKicks[0].x + bands.toeKicks[0].width).toBe(96);
+  });
+
+  it('mirrors plain returns on the left and measures recess returns from the wall face', () => {
+    const { room, bands, end } = setup({ base: true, depth: 15, left: true });
+    expect(end('furnitureBase')).toMatchObject({
+      type: 'return', x: -0.8125, side: 0, facing: -1, returnLength: 0.6875,
+    });
+    expect(bands.furnitureBases[0].x).toBe(-0.6875);
+    expect(end('countertop')).toMatchObject({
+      type: 'return', x: -0.75, side: 0, facing: -1, returnLength: 0.625,
+    });
+    expect(bands.countertop.x).toBe(-0.625);
+    expect(furnitureBaseGroups(room, settings)[0]).toMatchObject({ width: 30.8125, orderedWidth: 31.3125 });
+    const recessed = setup({ base: true, depth: 12, recess: true });
+    expect(recessed.end('furnitureBase')).toMatchObject({ type: 'return', returnLength: 1.6875 });
+    expect(recessed.end('countertop')).toMatchObject({ type: 'return', returnLength: 1.625 });
+  });
+
+  it('requires more than 1/64 inch of clearance for both bands', () => {
+    for (const [kind, front] of [['furnitureBase', 16.6875], ['countertop', 16.625]]) {
+      for (const clearance of [0, 1 / 128, 1 / 64]) {
+        expect(setup({ base: true, depth: 15, reach: front - clearance }).end(kind))
+          .toEqual({ type: 'square', x: 96 });
+      }
+      expect(setup({ base: true, depth: 15, reach: front - 1 / 32 }).end(kind).returnLength).toBe(1 / 32);
+    }
+  });
+
+  it('includes the picked furniture profile and wood nosing projections in the band fronts', () => {
+    const geometry = structuredClone(profiles.find(({ id }) => id === 'fb4').geometry);
+    for (const point of Object.values(geometry.points)) point[0] += 0.25;
+    const using = { ...settings, sectionProfiles: [
+      ...settings.sectionProfiles,
+      { id: 'projecting-base', kind: 'furniture_base', geometry, drawnPoints: { elevation: [] } },
+      { id: 'projecting-nosing', kind: 'nosing', geometry, drawnPoints: { elevation: [] } },
+    ] };
+    const { end } = setup({ base: true, depth: 15,
+      profile: { furnitureBaseProfileId: 'projecting-base', nosingProfileId: 'projecting-nosing' },
+      runProps: { top: 'wood', topOverhang: { front: 0.125, right: 2 } },
+    }, using);
+    expect(end('furnitureBase')).toMatchObject({
+      type: 'return', x: 97.0625, side: 96, facing: 1, returnLength: 0.9375,
+    });
+    expect(end('countertop')).toMatchObject({
+      type: 'return', x: 98.25, side: 96, facing: 1, returnLength: 0.25,
+    });
   });
 });

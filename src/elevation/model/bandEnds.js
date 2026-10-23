@@ -96,6 +96,13 @@ export function bandOutline(left, right, z, height) {
   return [[...l[0].slice(0, 2), 0], ...r, ...reverseChain(l).slice(0, -1)];
 }
 
+/** Draw a plain band's end only as far as the part returned past a short wall. */
+export function returnedX(end) {
+  const { x, side, facing, returnLength } = end;
+  return returnLength != null && returnLength < facing * (x - side)
+    ? side + facing * returnLength : x;
+}
+
 /**
  * Keep only the returned profile in front of a short wall, collapsing the rest to the run side. The kept
  * part shifts back so its cut lands on the side: the return shows `returnLength` past the run (DM5 step c).

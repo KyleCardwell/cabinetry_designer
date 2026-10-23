@@ -61,9 +61,9 @@ describe('SPEC-42 run bands', () => {
     expect(span(bandsOf(g2, 1, 'back')['2c8ab1e3'].countertop)).toEqual([-0.75, 80]);
   });
 
-  it('a side of the recess a run sits in closes its ends; a free end with a filler or end panel does not (G5, G6)', () => {
+  it('a recess side returns a countertop past the wall; a free filler or end panel end still returns (G5, G6)', () => {
     const g5 = bandsOf(syncRoom(stored('G5 Recess room'), settings), 1);
-    expect(span(g5['1549b66c'].countertop)).toEqual([43, 37]);
+    expect(span(g5['1549b66c'].countertop)).toEqual([43, 37.75]);
     expect(span(g5.e9abb5dc.countertop)).toEqual([140, 48]);
     expect(span(g5.e9abb5dc.toeKicks[0])).toEqual([140, 48]);
     const g6 = bandsOf(syncRoom(stored('G6 Stacked runs'), settings), 1);
@@ -132,7 +132,7 @@ describe('SPEC-42 run bands', () => {
     // G5: the face run is deeper than the recess run it touches; the countertop returns into the recess.
     const g5 = bandsOf(syncRoom(stored('G5 Recess room'), settings), 1);
     expect(span(g5['98b55b5e'].countertop)).toEqual([0, 43]);
-    expect(span(g5['1549b66c'].countertop)).toEqual([43, 37]);
+    expect(span(g5['1549b66c'].countertop)).toEqual([43, 37.75]);
   });
 
   it('SPEC-42.1 a toe kick stops 1" from an end panel and 1/4" from a cabinet side; a shallower toe kick runs on to the deeper one', () => {

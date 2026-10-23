@@ -1,6 +1,6 @@
 import { bottomPartSpan, runBottomParts } from './bottoms.js';
 import { bandDepths, hasToeKick } from './bandDepths.js';
-import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd } from './bandEnds.js';
+import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
 import { cornerAt, frontDepth, runBackOffset } from './corners.js';
 import { floorOpenings } from './floorOpenings.js';
@@ -186,7 +186,7 @@ function wallReach(room, wall, run, side, settings) {
  * same height, or a toe kick): the deeper run's band returns as at a free end, and the shallower one's
  * meets it there; at equal depths it
  * runs straight through. A top dies into a taller run. Otherwise: over a wall end panel a top runs past
- * the panel; it stops at a wall or at the side of the recess the run sits in, unless a molding's
+ * the panel; it stops at a wall or at the side of the recess the run sits in, unless the band's
  * front clears that wall's reach; anything else is free.
  */
 function bandEdge(room, wall, run, side, band, settings, z, height, shapes) {
@@ -237,9 +237,11 @@ function bandEdge(room, wall, run, side, band, settings, z, height, shapes) {
   const joint = profileBandJoint(shapes, run, side, band, z, height, frontDepth(run, settings));
   if (joint) return joint.relation === 'free' ? returned(run, side) : joint.end;
   const anchor = run.anchors?.[side];
-  if (band === 'topMold' || band === 'crown') {
+  if (band === 'topMold' || band === 'crown' || furniture || band === 'countertop') {
     const reach = wallReach(room, wall, run, side, settings);
-    const front = frontDepth(run, settings) + bandPast(room, wall, run, side, band, settings);
+    const { picked, overhangs } = band === 'countertop' ? countertopProfile(room, wall, run, settings) : {};
+    const front = frontDepth(run, settings) + (band === 'countertop'
+      ? overhangs.front + nosingProjection(picked) : bandPast(room, wall, run, side, band, settings));
     if (reach !== null && front > reach + 1 / 64) {
       return { ...returned(run, side), returnLength: front - reach };
     }
@@ -360,7 +362,9 @@ export function runBands(room, wall, run, settings, scene) {
   const endsFor = (kind, z, height) => runBandEnds(room, wall, run, settings, scene, kind, z, height, shapes);
   const band = (kind, z, height) => {
     const [left, right] = endsFor(kind, z, height);
-    return { x: left.x, z, width: right.x - left.x, height,
+    const x = kind === 'countertop' ? returnedX(left) : left.x;
+    const end = kind === 'countertop' ? returnedX(right) : right.x;
+    return { x, z, width: end - x, height,
       ...(kind === 'topMold' || kind === 'crown' ? { ends: [left, right] } : {}) };
   };
   const profile = resolveProfile(settings, room, wall);

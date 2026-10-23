@@ -1,10 +1,12 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { bandParts } from '../bandParts.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { cornerBandEdge } from '../cornerBands.js';
 import { toDrawingPayload } from '../drawingPayload.js';
 import { furnitureBaseBand, runBase } from '../furnitureBase.js';
+import { runItems } from '../grid.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
@@ -19,14 +21,15 @@ const OUTLINE = [[29.1875, 0, 0], [66.8125, 0, 0], [66.8125, 3.6875, 0],
 const line = (x1, x2, z) => ({ x1, z1: z, x2, z2: z });
 
 function setup({ profile = {}, runs = [{}], endPanels } = {}, using = settings) {
-  const stored = structuredClone(document.rooms[0]);
+  const stored = buildRoom(structuredClone(document.rooms[0]));
   stored.profile = { ...stored.profile, baseKind: 'furniture_base', ...profile };
-  stored.walls = [{ ...stored.walls[0], x1: 0, y1: 0, x2: 120, y2: 0,
+  stored.walls = [buildWall({ ...stored.walls[0], x1: 0, y1: 0, x2: 120, y2: 0,
     connections: { start: null, end: null }, openings: [], joints: [],
     endPanels: endPanels ?? { start: null, end: null },
-    runs: runs.map((props, i) => ({ ...structuredClone(baseRun), id: `base-${i}`, x: 30, width: 36,
+    runs: runs.map((props, i) => buildRun({ ...structuredClone(baseRun), items: runItems(structuredClone(baseRun)),
+      id: `base-${i}`, x: 30, width: 36,
       anchors: {}, ends: { left: { type: 'end_panel' }, right: { type: 'end_panel' } }, ...props })),
-  }];
+  })];
   const room = syncRoom(stored, using);
   const wall = resolveWall(room, room.walls[0]);
   const bandsOf = (run, scene = runScene(room, wall, run, using)) => runBands(room, wall, run, using, scene);
@@ -117,13 +120,16 @@ describe('SPEC-50.5 step 488 furniture base bands', () => {
       .toEqual([[66, 0, 0], [66, 4, 0]]);
   });
 
-  it('squares wall, recess and blind ends and returns over an anchored wall end panel', () => {
+  it('squares wall and blind ends and returns at recess sides and over an anchored wall end panel', () => {
     const { wall, bandsOf } = setup({ profile: { furnitureBaseProfileId: 'fb4' } });
     const run = wall.runs[0];
-    for (const anchor of [true, { to: 'wall', wallId: 'wall' }, { to: 'recess', recessId: 'recess' }]) {
+    for (const anchor of [true, { to: 'wall', wallId: 'wall' }]) {
       const band = bandsOf({ ...run, _plane: { recessId: 'recess' }, anchors: { right: anchor } }).furnitureBases[0];
       expect(band.outline.slice(1, 3)).toEqual([[66, 0, 0], [66, 4, 0]]);
     }
+    const recessed = bandsOf({ ...run, _plane: { recessId: 'recess' },
+      anchors: { right: { to: 'recess', recessId: 'recess' } } }).furnitureBases[0];
+    expect(recessed.outline.slice(1, 4)).toEqual([[66.8125, 0, 0], [66.8125, 3.6875, 0], [66.5, 4, 0]]);
     const scene = runScene({}, wall, run, settings);
     scene.panelBySide.right = { x: 66, width: 54 };
     expect(bandsOf(run, scene).furnitureBases[0].outline.slice(1, 3)).toEqual([[120, 0, 0], [120, 4, 0]]);
