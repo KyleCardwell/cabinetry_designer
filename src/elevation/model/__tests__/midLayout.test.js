@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { MAX_MID_SPLIT, isMidLayout, resolveMidLayout } from '../midLayout.js';
+import {
+  MAX_MID_SPLIT, equalizeLayout, isMidLayout, removeLayoutChild, resolveMidLayout,
+  setLayoutCount, setLayoutMidWidth, setLayoutSize, setMidPosition, splitLayout,
+} from '../midLayout.js';
 
 const AREA = { x: 3, z: 3, width: 24, height: 33 };
 const WIDTHS = { rail: 3, stile: 3, over: 0, source: { rail: 'flat', stile: 'flat' } };
@@ -10,6 +13,162 @@ const mid = (kind, path, index, at, name, from, to, full, extra = {}) => ({
   kind, path, index, at, width: 3, source: 'flat', name, from, to, full, ...extra,
 });
 const resolve = (layout, widths = WIDTHS, options) => resolveMidLayout(layout, AREA, widths, options);
+
+describe('mid layout edits', () => {
+  // Every edit is pure and produces either a valid stored layout or the single-panel default.
+  const edit = (operation, layout, ...args) => {
+    const before = structuredClone(layout);
+    const result = operation(layout, ...args);
+    expect(layout).toEqual(before);
+    if (result !== undefined) expect(isMidLayout(result)).toBe(true);
+    return result;
+  };
+
+  it('anchor 1: splits an absent root into three auto rows', () => {
+    expect(edit(splitLayout, undefined, 'root', 'rows', 3)).toEqual(rows([{}, {}, {}]));
+  });
+
+  it('anchor 2: preserves a typed size when nesting the other split', () => {
+    expect(edit(splitLayout, rows([{}, { size: 9 }, {}]), 'root.1', 'cols', 2))
+      .toEqual(rows([{}, cols([{}, {}], { size: 9 }), {}]));
+  });
+
+  it('anchor 3: flattens a matching split and shifts existing mids', () => {
+    const layout = rows([{}, {}, {}], { mids: [{ width: 4 }, {}] });
+    expect(edit(splitLayout, layout, 'root.1', 'rows', 2))
+      .toEqual(rows([{}, {}, {}, {}], { mids: [{ width: 4 }, {}, {}] }));
+    const typed = rows([{}, { size: 9 }, {}], { mids: [{ width: 4 }, { width: 5 }] });
+    expect(edit(splitLayout, typed, 'root.1', 'rows', 2))
+      .toEqual(rows([{}, {}, {}, {}], { mids: [{ width: 4 }, {}, { width: 5 }] }));
+  });
+
+  it('anchor 4: removes the middle row', () => {
+    expect(edit(removeLayoutChild, rows([{}, {}, {}]), 'root.1')).toEqual(rows([{}, {}]));
+  });
+
+  it('anchor 5: promotes the remaining columns at root and drops their size', () => {
+    expect(edit(removeLayoutChild, rows([{}, cols([{}, {}], { size: 12 })]), 'root.0'))
+      .toEqual(cols([{}, {}]));
+  });
+
+  it('anchor 6: collapses nested columns with the former group size', () => {
+    const layout = rows([{}, cols([{ size: 5 }, {}], { size: 12 })]);
+    expect(edit(removeLayoutChild, layout, 'root.1.0')).toEqual(rows([{}, { size: 12 }]));
+  });
+
+  it('anchor 7: moves the first mid to 16 and re-shares the remaining rows', () => {
+    const layout = rows([{}, {}, {}]);
+    const resolved = resolve(layout);
+    expect(resolved.mids.map(({ at }) => at)).toEqual([13.5, 25.5]);
+    const result = edit(setMidPosition, layout, 'root', 0, 16, resolved.nodes, 3);
+    expect(result).toEqual(rows([{ size: 11.5 }, {}, {}]));
+    expect(resolve(result).mids.map(({ at }) => at)).toEqual([16, 26.75]);
+  });
+
+  it('anchor 8: preserves identity when positioning would leave no positive panel', () => {
+    const layout = rows([{}, {}, {}]);
+    for (const at of [4, 4.5, 4.5 + 0.5e-6]) {
+      expect(edit(setMidPosition, layout, 'root', 0, at, resolve(layout).nodes, 3)).toBe(layout);
+    }
+  });
+
+  it('anchor 9: equalizes direct children while preserving deeper sizes', () => {
+    const layout = rows([{ size: 5 }, cols([{ size: 2 }, {}])]);
+    const result = edit(equalizeLayout, layout, 'root');
+    expect(result).toEqual(rows([{}, cols([{ size: 2 }, {}])]));
+    expect(edit(equalizeLayout, result, 'root')).toBe(result);
+  });
+
+  it('anchor 10: collapses the root to the absent single panel', () => {
+    expect(edit(setLayoutCount, rows([{}, {}, {}]), 'root', 1)).toBeUndefined();
+  });
+
+  it('clamps counts, appends auto children and mids, and trims them from the end', () => {
+    expect(edit(splitLayout, undefined, 'root', 'cols', 0)).toEqual(cols([{}, {}]));
+    const maximum = edit(splitLayout, undefined, 'root', 'rows', 99);
+    expect(maximum.children).toHaveLength(MAX_MID_SPLIT);
+    expect(edit(splitLayout, maximum, 'root.0', 'rows', 2)).toBe(maximum);
+    const layout = cols([{ size: 5 }, {}], { mids: [{ width: 4 }] });
+    const grown = edit(setLayoutCount, layout, 'root', 4.2);
+    expect(grown).toEqual(cols([{ size: 5 }, {}, {}, {}], { mids: [{ width: 4 }, {}, {}] }));
+    expect(edit(setLayoutCount, grown, 'root', 2)).toEqual(layout);
+    expect(edit(setLayoutCount, layout, 'root', 99).children).toHaveLength(MAX_MID_SPLIT);
+    const nested = rows([cols([{ size: 5 }, {}], { size: 12 }), {}]);
+    expect(edit(setLayoutCount, nested, 'root.0', 1)).toEqual(rows([{ size: 12 }, {}]));
+    expect(edit(setLayoutCount, rows([cols([{}, {}], { size: 12 }), {}]), 'root', 1))
+      .toEqual(cols([{}, {}]));
+  });
+
+  it('removes the following mid, or the preceding one for the last child', () => {
+    const layout = rows([{}, {}, {}, {}], { mids: [{ width: 4 }, { width: 5 }, { width: 6 }] });
+    expect(edit(removeLayoutChild, layout, 'root.1'))
+      .toEqual(rows([{}, {}, {}], { mids: [{ width: 4 }, { width: 6 }] }));
+    expect(edit(removeLayoutChild, layout, 'root.3'))
+      .toEqual(rows([{}, {}, {}], { mids: [{ width: 4 }, { width: 5 }] }));
+    expect(edit(removeLayoutChild, rows([{}, {}], { mids: [{ width: 4 }] }), 'root.0')).toBeUndefined();
+    expect(edit(removeLayoutChild, rows([{}, {}, {}], { mids: [{}, { width: 4 }] }), 'root.2'))
+      .toEqual(rows([{}, {}]));
+    expect(edit(setLayoutCount, rows([{}, {}, {}], { mids: [{}, { width: 4 }] }), 'root', 2))
+      .toEqual(rows([{}, {}]));
+    expect(edit(removeLayoutChild, rows([cols([{ size: 5 }, {}]), {}]), 'root.0.1'))
+      .toEqual(rows([{}, {}]));
+  });
+
+  it('sets and clears sizes and mid widths on both leaves and nested groups', () => {
+    const layout = rows([cols([{}, {}]), {}, {}]);
+    const sized = edit(setLayoutSize, layout, 'root.0', 12);
+    expect(sized.children[0].size).toBe(12);
+    expect(edit(setLayoutSize, sized, 'root.0', 12)).toBe(sized);
+    expect(edit(setLayoutSize, sized, 'root.0', null)).toEqual(layout);
+    const wide = edit(setLayoutMidWidth, layout, 'root', 1, 4);
+    expect(wide.mids).toEqual([{}, { width: 4 }]);
+    expect(edit(setLayoutMidWidth, wide, 'root', 1, 4)).toBe(wide);
+    const both = edit(setLayoutMidWidth, wide, 'root', 0, 5);
+    expect(edit(setLayoutMidWidth, both, 'root', 1, null).mids).toEqual([{ width: 5 }, {}]);
+    expect(edit(setLayoutMidWidth, wide, 'root', 1, null)).toEqual(layout);
+    expect(edit(setLayoutMidWidth, layout, 'root.0', 0, 2).children[0].mids).toEqual([{ width: 2 }]);
+  });
+
+  it('positions nested columns using their left coordinate and allows zero-width slab mids', () => {
+    const layout = rows([cols([{}, {}, {}]), {}]);
+    const resolved = resolve(layout);
+    expect(resolved.nodes.find(({ path }) => path === 'root.0.1').x).toBe(12);
+    const result = edit(setMidPosition, layout, 'root.0', 1, 20, resolved.nodes, 3);
+    expect(result.children[0].children[1].size).toBe(6.5);
+    const slab = cols([{}, {}]);
+    const nodes = resolve(slab, { ...WIDTHS, stile: 0 }).nodes;
+    expect(edit(setMidPosition, slab, 'root', 0, 12, nodes, 0)).toEqual(cols([{ size: 9 }, {}]));
+  });
+
+  it('preserves identity for invalid targets, invalid inputs, and edits violating the stored shape', () => {
+    const layout = rows([cols([rows([{}, {}]), {}]), {}]);
+    const nodes = resolve(layout).nodes;
+    const calls = [
+      [splitLayout, 'root', 'cols', 2], [splitLayout, 'root.1', 'other', 2],
+      [splitLayout, 'root.1', 'cols', NaN], [setLayoutCount, 'root', 2],
+      [setLayoutCount, 'root.1', 3], [setLayoutCount, 'root', Infinity],
+      [removeLayoutChild, 'root'], [removeLayoutChild, 'root.0.1'],
+      [setLayoutCount, 'root.0', 1], [equalizeLayout, 'root.1'],
+      [setLayoutSize, 'root', 5], [setLayoutSize, 'root.1', null],
+      [setLayoutMidWidth, 'root', 0, null], [setLayoutMidWidth, 'root.1', 0, 3],
+      [setMidPosition, 'root', -1, 16, nodes, 3], [setMidPosition, 'root', 1, 16, nodes, 3],
+      [setMidPosition, 'root', 0.5, 16, nodes, 3], [setMidPosition, 'root', 0, NaN, nodes, 3],
+      [setMidPosition, 'root', 0, 16, [], 3], [setMidPosition, 'root', 0, 16, nodes, -1],
+      [setMidPosition, 'root', 0, 16, nodes, Infinity], [setMidPosition, 'root', 0, 16, null, 3],
+    ];
+    for (const value of [0, -1, NaN, Infinity, '3', undefined]) {
+      calls.push([setLayoutSize, 'root.1', value], [setLayoutMidWidth, 'root', 0, value]);
+    }
+    for (const index of [-1, 1, 0.5, NaN]) calls.push([setLayoutMidWidth, 'root', index, 3]);
+    for (const path of ['root.9', 'root.0.9', 'bad.0', 'root.-1', null]) {
+      calls.push([splitLayout, path, 'cols', 2], [setLayoutCount, path, 3],
+        [removeLayoutChild, path], [setLayoutSize, path, 3], [equalizeLayout, path],
+        [setLayoutMidWidth, path, 0, 3], [setMidPosition, path, 0, 16, nodes, 3]);
+    }
+    for (const [operation, ...args] of calls) expect(edit(operation, layout, ...args)).toBe(layout);
+    expect(splitLayout(undefined, 'root.0', 'rows', 2)).toBeUndefined();
+  });
+});
 
 describe('mid layout resolver', () => {
   it('anchor 1: absent layout is one panel covering the area', () => {
