@@ -89,3 +89,37 @@ export function profileDoorGhost(kind, style, joint = 'curved') {
   ];
   return { units: 'in', points, loops };
 }
+
+/** Two door-outside ghosts joined at the mid's center, with one stile and two panels. */
+export function profileMidGhost(style, width, joint = 'curved') {
+  if (!Number.isFinite(width) || width <= 0) return null;
+  const half = profileDoorGhost('door_outside', {
+    ...style, stiles: { ...style?.stiles, left: width / 2 },
+  }, joint);
+  if (half === null) return null;
+  const mirrorPoint = ([x, y]) => [round6(-x), y];
+  const mirrorSegment = (segment) => ({
+    ...segment, from: `l_${segment.from}`, to: `l_${segment.to}`,
+    ...(segment.type === 'arc' ? { center: mirrorPoint(segment.center), ccw: !segment.ccw } : {}),
+  });
+  const [stile, panel] = half.loops;
+  const edge = stile.segs.slice(1, -2);
+  const bottom = stile.segs.at(-2).from;
+  const line = (from, to) => ({ type: 'line', from, to });
+  const points = {
+    ...half.points,
+    ...Object.fromEntries(Object.entries(half.points).map(([id, point]) => [`l_${id}`, mirrorPoint(point)])),
+  };
+  for (const id of ['s1', 's8', 'l_s1', 'l_s8']) delete points[id];
+  return {
+    units: 'in', points,
+    loops: [
+      { ...stile, segs: [
+        line('l_s2', 's2'), ...edge, line(bottom, `l_${bottom}`),
+        ...edge.slice().reverse().map((segment) => mirrorSegment({ ...segment, from: segment.to, to: segment.from })),
+      ] },
+      panel,
+      { ...panel, id: 'panel-left', segs: panel.segs.map(mirrorSegment) },
+    ],
+  };
+}

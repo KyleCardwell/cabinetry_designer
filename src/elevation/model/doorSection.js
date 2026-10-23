@@ -1,7 +1,8 @@
-import { profileDoorGhost } from './profileGhost.js';
+import { profileDoorGhost, profileMidGhost } from './profileGhost.js';
 import { DOOR_PROFILE_SLOTS } from './doorStyles.js';
 import { doorProfileSlotKind, sectionProfileBounds, stretchProfileGeometry } from './sectionProfiles.js';
 import { doorProfileOffsets } from './doorProfileLines.js';
+import { midDefaults } from './doorSizes.js';
 
 const EPS = 1e-6;
 
@@ -10,17 +11,25 @@ function round6(v) {
   return Object.is(rounded, -0) ? 0 : rounded;
 }
 
+function add(chain, label, from, to) {
+  from = round6(from);
+  to = round6(to);
+  const value = round6(to - from);
+  if (value <= EPS) return;
+  chain.push({ label, from, to, value });
+}
+
 const line = (from, to) => ({ type: 'line', from, to });
 
-function moveGeometry(geometry, dx) {
-  const move = ([x, y]) => [round6(x + dx), round6(y)];
+function moveGeometry(geometry, dx, mirror = false) {
+  const move = ([x, y]) => [round6((x + dx) * (mirror ? -1 : 1)), round6(y)];
   return {
     units: geometry.units,
     points: Object.fromEntries(Object.entries(geometry.points).map(([id, point]) => [id, move(point)])),
     loops: geometry.loops.map((loop) => ({
       ...loop,
       segs: loop.segs.map((segment) => (segment.type === 'arc'
-        ? { ...segment, center: move(segment.center) } : { ...segment })),
+        ? { ...segment, center: move(segment.center), ...(mirror ? { ccw: !segment.ccw } : {}) } : { ...segment })),
     })),
   };
 }
@@ -110,6 +119,17 @@ export function doorSection(style, design, profiles) {
   return { units: 'in', body, placed, cuts, skipped };
 }
 
+function mergeSpans(spans) {
+  spans = spans.filter(([from, to]) => to - from > EPS).sort(([a], [b]) => a - b);
+  const merged = [];
+  for (const [from, to] of spans) {
+    const previous = merged.at(-1);
+    if (previous && from <= previous[1] + EPS) previous[1] = Math.max(previous[1], to);
+    else merged.push([from, to]);
+  }
+  return merged;
+}
+
 /** SPEC-50.1 dimension chains for the door style's half section, measured from the core edge. */
 export function doorSectionDimensions(style, design, profiles) {
   if (doorSection(style, design, profiles) === null) return null;
@@ -121,13 +141,6 @@ export function doorSectionDimensions(style, design, profiles) {
   const left = [];
   const below = [];
   const above = [];
-  const add = (chain, label, from, to) => {
-    from = round6(from);
-    to = round6(to);
-    const value = round6(to - from);
-    if (value <= EPS) return;
-    chain.push({ label, from, to, value });
-  };
 
   add(left, 'thickness', -style.thickness, 0);
   add(below, 'molding', edge, 0);
@@ -145,13 +158,8 @@ export function doorSectionDimensions(style, design, profiles) {
         .map(({ offset, minX, maxX, width }) => slab
           ? [edge + offset, edge + offset + width]
           : [S + offset + minX, S + offset + maxX]),
-    ].filter(([from, to]) => to - from > EPS).sort(([a], [b]) => a - b);
-    const merged = [];
-    for (const [from, to] of spans) {
-      const previous = merged.at(-1);
-      if (previous && from <= previous[1] + EPS) previous[1] = Math.max(previous[1], to);
-      else merged.push([from, to]);
-    }
+    ];
+    const merged = mergeSpans(spans);
     let cursor = Math.max(0, outside?.reachIn ?? 0);
     for (const [from, to] of merged) {
       add(above, 'flat', cursor, from);
@@ -161,4 +169,48 @@ export function doorSectionDimensions(style, design, profiles) {
     if (!slab) add(above, 'flat', cursor, S);
   }
   return { left, below, above };
+}
+
+/** The mid's two opening edges, centered on x = 0, without the door's outside profile. */
+export function doorMidSection(style, design, profiles, kind = 'stile') {
+  if (design?.construction !== 'five_piece'
+    || !Number.isFinite(style?.thickness) || style.thickness <= 0) return null;
+  const width = midDefaults(style, design, doorProfileOffsets(style, design, profiles))[kind];
+  const body = profileMidGhost(style, width, design.panelJoint);
+  if (body === null) return null;
+  const half = doorSection({ ...style, stiles: { ...style.stiles, left: width / 2 } },
+    { ...design, slots: design.slots.filter((slot) => slot !== 'outside') }, profiles);
+  const bothEdges = (items) => items.flatMap((item) => [
+    { ...item, side: 'right' },
+    { ...item, side: 'left', geometry: moveGeometry(item.geometry, 0, true) },
+  ]);
+  return { ...half, body, placed: bothEdges(half.placed), cuts: bothEdges(half.cuts) };
+}
+
+/** Dimension chains across both opening edges of a mid. */
+export function doorMidSectionDimensions(style, design, profiles, kind = 'stile') {
+  if (doorMidSection(style, design, profiles, kind) === null) return null;
+  const offsets = doorProfileOffsets(style, design, profiles);
+  const { over, [kind]: width } = midDefaults(style, design, offsets);
+  const edge = width / 2;
+  const { inside } = offsets.slots;
+  const spans = [
+    ...(inside ? [[edge + inside.minX, edge + inside.maxX]] : []),
+    ...offsets.applied.filter(({ profileId }) => profileId !== null)
+      .map(({ offset, minX, maxX }) => [edge + offset + minX, edge + offset + maxX]),
+  ];
+  const merged = mergeSpans([...spans, ...spans.map(([from, to]) => [-to, -from])]);
+  const above = [];
+  const below = [];
+  const overall = [];
+  let cursor = merged[0]?.[0] ?? -edge;
+  for (const [from, to] of merged) {
+    add(above, 'flat', cursor, from);
+    add(above, 'profile', from, to);
+    cursor = to;
+  }
+  if (!merged.length) add(above, 'flat', -edge, edge);
+  add(below, 'mid', -edge, edge);
+  if (over > 0) add(overall, 'w/ molding', -(edge + over), edge + over);
+  return { above, below, overall };
 }

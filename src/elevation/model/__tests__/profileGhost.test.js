@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
-import { profileBaseGhost, profileDoorGhost } from '../profileGhost.js';
+import { profileBaseGhost, profileDoorGhost, profileMidGhost } from '../profileGhost.js';
 import { PROFILE_KINDS, isProfileGeometry } from '../sectionProfiles.js';
 
 const line = (from, to) => ({ type: 'line', from, to });
@@ -238,5 +238,42 @@ describe('SPEC-50.1 panel thickness drives the door ghost', () => {
     expect(profileDoorGhost('door_outside', { ...DEFAULT_DOOR_STYLE, panel: undefined })).toBeNull();
     expect(ghostFor(0.812498)).not.toBeNull();
     expect(ghostFor(0.000002)).not.toBeNull();
+  });
+});
+
+
+describe('MR6a mid ghost', () => {
+  it('merges curved, square and rabbet stiles and mirrors the panel geometry', () => {
+    for (const joint of ['curved', 'square']) {
+      for (const thickness of [0.25, 0.5]) {
+        const style = { ...DEFAULT_DOOR_STYLE, thickness: 0.75, panel: { thickness } };
+        const half = profileDoorGhost('door_outside', { ...style, stiles: { left: 1.5 } }, joint);
+        const ghost = profileMidGhost(style, 3, joint);
+        expect(ghost.loops.map(({ id }) => id)).toEqual(['stile', 'panel', 'panel-left']);
+        expect(isProfileGeometry(ghost)).toBe(true);
+        expect(ghost.loops[1]).toEqual(half.loops[1]);
+        for (const [id, [x, y]] of Object.entries(half.points).filter(([id]) => id.startsWith('p'))) {
+          expect(ghost.points[id]).toEqual([x, y]);
+          expect(ghost.points[`l_${id}`]).toEqual([-x, y]);
+        }
+        for (const loop of ghost.loops) {
+          loop.segs.forEach((segment, index) => expect(segment.to).toBe(loop.segs[(index + 1) % loop.segs.length].from));
+        }
+        const arc = ghost.loops[2].segs.find(({ type }) => type === 'arc');
+        if (joint === 'curved' && thickness > 0.25) {
+          expect(arc).toMatchObject({ center: [-1.75, -0.90625], ccw: false });
+        } else expect(arc).toBeUndefined();
+      }
+    }
+  });
+
+  it('returns null for invalid widths or a null half ghost, and honors narrow square tongues', () => {
+    for (const width of [undefined, NaN, Infinity, '3', -3, 0, 1]) {
+      expect(profileMidGhost(DEFAULT_DOOR_STYLE, width)).toBeNull();
+    }
+    expect(profileMidGhost(null, 3)).toBeNull();
+    expect(profileMidGhost({ ...DEFAULT_DOOR_STYLE, panel: { thickness: 0 } }, 3)).toBeNull();
+    expect(profileMidGhost(DEFAULT_DOOR_STYLE, 0.5, 'square')).toBeNull();
+    expect(profileMidGhost(DEFAULT_DOOR_STYLE, 1.25, 'square').points.s4).toEqual([0.375, -0.3125]);
   });
 });

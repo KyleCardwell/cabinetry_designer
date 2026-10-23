@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../doorStyles.js';
-import { doorSection, doorSectionDimensions } from '../doorSection.js';
+import { doorMidSection, doorMidSectionDimensions, doorSection, doorSectionDimensions } from '../doorSection.js';
 import { profileDoorGhost } from '../profileGhost.js';
 import { MICRO_SHAKER } from './fixtures/microShakerDesign.js';
 import { isProfileGeometry } from '../sectionProfiles.js';
@@ -350,5 +350,101 @@ describe('SPEC-50.1 door section dimension chains', () => {
       expect(doorSection(style, design, profiles)).toBeNull();
       expect(doorSectionDimensions(style, design, profiles)).toBeNull();
     }
+  });
+});
+
+
+describe('MR6a mid section model', () => {
+  const style = { ...DEFAULT_DOOR_STYLE, thickness: 0.75 };
+  const inside = sample.profiles.find(({ id }) => id === 'in58');
+  const molding = { ...AM, geometry: { ...AM.geometry, points: {
+    u: [-0.25, 0], v: [0.5, 0], w: [0.5, 0.375], k: [-0.25, 0.375],
+  } } };
+  const narrowInside = { ...inside, id: 'in38', geometry: {
+    units: 'in', points: { a: [-0.375, 0], b: [0, -0.25] },
+    loops: [{ id: 'L1', closed: false, segs: [line('a', 'b')] }],
+  } };
+  const library = [inside, narrowInside, molding, ROUND];
+  const dim = (label, from, to) => ({ label, from, to, value: to - from });
+
+  it.each([
+    [1, style, 3, [dim('flat', -1.5, 1.5)], []],
+    [2, { ...style, profiles: { ...style.profiles, inside: inside.id } }, 3.625,
+      [dim('profile', -1.8125, -1.1875), dim('flat', -1.1875, 1.1875), dim('profile', 1.1875, 1.8125)], []],
+    [3, { ...style, appliedMoldings: [{ profileId: molding.id, offset: 0 }] }, 3.25,
+      [dim('profile', -2.125, -1.375), dim('flat', -1.375, 1.375), dim('profile', 1.375, 2.125)],
+      [dim('w/ molding', -2.125, 2.125)]],
+    [4, { ...style, profiles: { ...style.profiles, inside: narrowInside.id },
+      appliedMoldings: [{ profileId: molding.id, offset: -0.125 }] }, 3.375,
+      [dim('profile', -2.0625, -1.3125), dim('flat', -1.3125, 1.3125), dim('profile', 1.3125, 2.0625)],
+      [dim('w/ molding', -2.0625, 2.0625)]],
+  ])('matches anchor %s dimension chains', (_case, picked, width, above, overall) => {
+    expect(doorMidSectionDimensions(picked, FIVE, library)).toEqual({
+      above, below: [dim('mid', -width / 2, width / 2)], overall,
+    });
+  });
+
+  it('matches anchor 5: joins the stile through the center and mirrors both inside profiles and cuts', () => {
+    const picked = { ...style, profiles: { ...style.profiles, inside: inside.id, outside: ROUND.id } };
+    const section = doorMidSection(picked, FIVE, library);
+    const [stile, ...panels] = section.body.loops;
+    expect(section.body.points.s2).toEqual([1.8125, 0]);
+    expect(section.body.points.l_s2).toEqual([-1.8125, 0]);
+    expect(stile.id).toBe('stile');
+    expect(panels).toHaveLength(2);
+    expect(stile.segs.filter(({ from, to }) =>
+      section.body.points[from][0] * section.body.points[to][0] < 0)
+      .map(({ from, to }) => [section.body.points[from], section.body.points[to]]))
+      .toEqual([[[-1.8125, 0], [1.8125, 0]], [[1.8125, -0.75], [-1.8125, -0.75]]]);
+    expect(section.placed.map(({ slot, side }) => [slot, side])).toEqual([['inside', 'right'], ['inside', 'left']]);
+    expect(section.cuts.map(({ slot, side }) => [slot, side])).toEqual([['inside', 'right'], ['inside', 'left']]);
+    for (const items of [section.placed, section.cuts]) {
+      const [right, left] = items;
+      expect(left.geometry.points).toEqual(Object.fromEntries(Object.entries(right.geometry.points)
+        .map(([id, [x, y]]) => [id, [x === 0 ? 0 : -x, y]])));
+      expect(items.every(({ geometry }) => isProfileGeometry(geometry))).toBe(true);
+    }
+    expect(isProfileGeometry(section.body)).toBe(true);
+    expect(doorSection(picked, FIVE, library).placed.map(({ slot }) => slot)).toEqual(['outside', 'inside']);
+  });
+
+  it('matches anchor 6 and returns null when the mid ghost cannot be drawn', () => {
+    for (const [picked, design] of [
+      [null, FIVE], [style, SLAB], [style, SLAB_AM], [style, null],
+      [{ ...style, mid: { stile: 1 } }, FIVE],
+      [{ ...style, panel: { thickness: 0 } }, FIVE],
+      [{ ...style, thickness: 0 }, FIVE],
+    ]) {
+      expect(doorMidSection(picked, design, library)).toBeNull();
+      expect(doorMidSectionDimensions(picked, design, library)).toBeNull();
+    }
+  });
+
+  it('uses rail and typed mid widths, stretches panel profiles, and mirrors arcs and molding indices', () => {
+    const panel = { ...STICK2, id: 'panel', kind: 'door_panel' };
+    const curved = { ...ROUND, id: 'curved-inside', kind: 'door_inside', stretch: { y: -0.25 } };
+    const picked = { ...style, rails: { top: 4, bottom: 3 },
+      profiles: { outside: 'gone', inside: curved.id, panel: panel.id },
+      appliedMoldings: [{ profileId: null, offset: 20 }, { profileId: BEAD.id, offset: -0.125 },
+        { profileId: 'gone', offset: 0 }, { profileId: ROUND.id, offset: 0 }] };
+    const profiles = [curved, panel, BEAD];
+    const section = doorMidSection(picked, FIVE, profiles, 'rail');
+    expect(section.body.points.s2).toEqual([2.0625, 0]);
+    expect(section.placed.map(({ slot, side, index }) => [slot, side, index])).toEqual([
+      ['inside', 'right', undefined], ['inside', 'left', undefined],
+      ['panel', 'right', undefined], ['panel', 'left', undefined],
+      ['applied', 'right', 1], ['applied', 'left', 1],
+    ]);
+    expect(section.skipped).toEqual(['applied', 'applied']);
+    const [right, left] = section.placed;
+    expect(right.geometry.points.c).toEqual([2.0625, -0.8125]);
+    expect(left.geometry.loops[0].segs[0]).toMatchObject({ center: [-2.3125, -0.25], ccw: false });
+    expect(section.cuts[1].geometry.loops[0].segs[0]).toMatchObject({ center: [-2.3125, -0.25], ccw: false });
+    expect(section.placed[2].geometry.points.s3).toEqual([2.0625, -0.75]);
+    expect(doorMidSectionDimensions(picked, FIVE, profiles, 'rail').below).toEqual([dim('mid', -2.0625, 2.0625)]);
+    const typed = { ...picked, mid: { stile: 5, rail: 6 } };
+    expect(doorMidSectionDimensions(typed, FIVE, profiles).below).toEqual([dim('mid', -2.5, 2.5)]);
+    expect(doorMidSectionDimensions(typed, FIVE, profiles, 'rail').below).toEqual([dim('mid', -3, 3)]);
+    expect(ROUND.geometry.points.c).toEqual([0, -0.8125]);
   });
 });
