@@ -74,6 +74,8 @@ export function createInitialElevationState(document = loadElevationDocument()) 
     interiorDivider: null,
     tool: emptyActiveRoom ? 'wall' : 'select',
     message: null,
+    // Copy / paste buffer (MR5): `{ kind, data }` or null. Never saved; kept across room loads.
+    clipboard: null,
   };
 }
 
@@ -261,6 +263,7 @@ export const {
   setInteriorPath,
   setSelection,
   clearSelection,
+  setClipboard,
   setTool,
   setMessage,
   setView,

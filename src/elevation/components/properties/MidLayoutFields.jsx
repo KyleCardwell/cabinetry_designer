@@ -1,17 +1,24 @@
 import { useState } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
-  MAX_MID_SPLIT, equalizeLayout, removeLayoutChild, setLayoutCount,
+  MAX_MID_SPLIT, equalizeLayout, isMidLayout, removeLayoutChild, setLayoutCount,
   setLayoutMidWidth, setLayoutSize, setMidPosition, splitLayout,
 } from '../../model/midLayout.js';
 import { formatInchesInput } from '../../model/units.js';
 import InchInput from '../InchInput.jsx';
+import { setClipboard } from '../../store/elevationSlice.js';
+import { selectClipboard } from '../../store/selectors.js';
 
 const BUTTON_CLASS = 'rounded bg-gray-700 px-2.5 py-2 text-xs text-gray-100 hover:bg-gray-600';
+const DISABLED_CLASS = 'disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-gray-700';
 const NUMBER_CLASS = 'w-16 rounded border border-gray-600 bg-gray-900 px-2 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 
 export default function MidLayoutFields({ layout, resolved, slab, label, onLayout }) {
   const [selection, setSelection] = useState('root');
   const [sections, setSections] = useState(2);
+  const dispatch = useDispatch();
+  const clipboard = useSelector(selectClipboard);
+  const copied = clipboard?.kind === 'midLayout' && isMidLayout(clipboard.data) ? clipboard.data : null;
   const selected = selection.split('.').slice(1).reduce((node, index) => node?.children?.[index], layout);
   const path = selected ? selection : 'root';
   const node = selected ?? layout;
@@ -117,6 +124,28 @@ export default function MidLayoutFields({ layout, resolved, slab, label, onLayou
       <div className="flex items-center gap-2 text-xs text-gray-400">
         <h4 className="font-semibold">Panels</h4>
         {!layout && root && <span>{formatInchesInput(root.width)} × {formatInchesInput(root.height)}</span>}
+        <div className="ml-auto flex gap-1">
+          <button
+            type="button"
+            disabled={!layout}
+            aria-label={`${label} Copy layout`}
+            className={`${BUTTON_CLASS} ${DISABLED_CLASS} py-1`}
+            onClick={() => layout && dispatch(setClipboard({ kind: 'midLayout', data: structuredClone(layout) }))}
+          >
+            Copy layout
+          </button>
+          <button
+            type="button"
+            disabled={!copied}
+            aria-label={`${label} Paste layout`}
+            className={`${BUTTON_CLASS} ${DISABLED_CLASS} py-1`}
+            onClick={() => {
+              if (copied && commit(structuredClone(copied))) select('root');
+            }}
+          >
+            Paste layout
+          </button>
+        </div>
       </div>
       {layout && <div className="space-y-1">{outline(layout)}</div>}
       <div className="flex flex-wrap items-center gap-2 rounded border border-gray-700 p-2">

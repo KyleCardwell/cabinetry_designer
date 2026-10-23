@@ -11,6 +11,8 @@ export const selectSettings = createSelector(
   (settings, prefs, layers, room) => effectiveSettings({ settings, prefs, layers }, room),
 );
 
+export const selectClipboard = (state) => state.elevation.clipboard ?? null;
+
 const LAYER_RANK = { team: 0, project: 1, phase: 2, room: 3 };
 
 /**

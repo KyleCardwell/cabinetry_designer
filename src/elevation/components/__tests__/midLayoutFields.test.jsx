@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
 import { isMidLayout } from '../../model/midLayout.js';
+import { useDispatch, useSelector } from 'react-redux';
+import elevationReducer from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import MidLayoutFields from '../properties/MidLayoutFields.jsx';
 import PartStyleFields from '../properties/PartStyleFields.jsx';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn() }));
+vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
@@ -165,5 +168,61 @@ describe('MR3b panels editor', () => {
     ui.click('Mid rails');
     ui.sections(1);
     expect(ui.part()).not.toHaveProperty('sizes');
+  });
+});
+
+describe('MR5 copy / paste layout', () => {
+  const CASE_3 = { split: 'rows', children: [
+    { split: 'cols', children: [{}, { size: 8 }, {}] }, { split: 'cols', children: [{}, {}] }, {},
+  ] };
+  let elevation;
+  beforeEach(() => {
+    elevation = elevationReducer(undefined, { type: '@@init' });
+    useSelector.mockImplementation((selector) => selector({ elevation }));
+    useDispatch.mockReturnValue((action) => { elevation = elevationReducer(elevation, action); });
+  });
+  const button = (ui, name) => nodes(ui.render()).find(({ type, props }) => type === 'button'
+    && props['aria-label'] === `Door ${name}`);
+
+  it('anchor 4: Copy is disabled with no layout; Paste only after a copy', () => {
+    const ui = editor();
+    expect(button(ui, 'Copy layout').props.disabled).toBe(true);
+    expect(button(ui, 'Paste layout').props.disabled).toBe(true);
+    ui.click('Copy layout');
+    expect(elevation.clipboard).toBeNull();
+    const source = editor({ sizes: { layout: CASE_3 } });
+    expect(button(source, 'Copy layout').props.disabled).toBe(false);
+    source.click('Copy layout');
+    expect(elevation.clipboard).toEqual({ kind: 'midLayout', data: CASE_3 });
+    expect(button(ui, 'Paste layout').props.disabled).toBe(false);
+  });
+
+  it('anchor 1: pastes the same layout onto a bare 30 × 39 door, keeping its stile widths', () => {
+    editor({ sizes: { layout: CASE_3 } }).click('Copy layout');
+    const ui = editor({ sizes: { stiles: { left: 2.5 } } });
+    ui.click('Paste layout');
+    expect(ui.part().sizes).toEqual({ stiles: { left: 2.5 }, layout: CASE_3 });
+    expect(ui.part().sizes.layout).not.toBe(elevation.clipboard.data);
+    ui.part().sizes.layout.children[0].children[1].size = 99;
+    expect(elevation.clipboard.data.children[0].children[1].size).toBe(8);
+  });
+
+  it('anchor 2: on a 26 × 39 door the typed 8" holds and the auto panels re-share', () => {
+    editor({ sizes: { layout: CASE_3 } }).click('Copy layout');
+    const ui = editor({ width: 26 });
+    ui.click('Paste layout');
+    const resolved = nodes(PartStyleFields({
+      room: {}, settings: { teamDoorStyle: DEFAULT_DOOR_STYLE, doorDesigns: DOOR_DESIGNS, sectionProfiles: [] },
+      partType: 'door', levels: [], part: ui.part(), width: 26, height: 39, label: 'Door', onChange: () => {},
+    })).find(({ type }) => type === MidLayoutFields).props.resolved;
+    const width = (path) => resolved.nodes.find((node) => node.path === path).width;
+    expect([width('root.0.0'), width('root.0.1'), width('root.0.2')]).toEqual([3, 8, 3]);
+    expect([width('root.1.0'), width('root.1.1')]).toEqual([8.5, 8.5]);
+    expect(resolved.panels).toHaveLength(6);
+  });
+
+  it('ignores a clipboard of another kind', () => {
+    elevation = elevationReducer(elevation, { type: 'elevation/setClipboard', payload: { kind: 'cabinet', data: CASE_3 } });
+    expect(button(editor(), 'Paste layout').props.disabled).toBe(true);
   });
 });

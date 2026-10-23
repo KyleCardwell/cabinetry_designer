@@ -79,6 +79,18 @@ export const uiReducers = {
       if (!['select', 'draw', 'soffit', 'recess', 'wall', 'door', 'window'].includes(action.payload)) return;
       state.tool = action.payload;
     },
+    /** Generic copy buffer (MR5): `null` or `{ kind, data }`. Not saved; survives room loads. */
+    setClipboard(state, action) {
+      const payload = action.payload;
+      if (payload === null) {
+        state.clipboard = null;
+        return;
+      }
+      if (!payload || typeof payload !== 'object' || Array.isArray(payload)
+        || typeof payload.kind !== 'string' || payload.kind.length === 0
+        || !Object.hasOwn(payload, 'data')) return;
+      state.clipboard = { kind: payload.kind, data: structuredClone(payload.data) };
+    },
     setMessage(state, action) {
       state.message = action.payload;
     },

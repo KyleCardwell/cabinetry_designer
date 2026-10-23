@@ -28,8 +28,8 @@ export const cloudReducers = {
   },
 
   /** Back to this browser's sandbox document (payload: the stored document or null). */
-  localWorkspaceLoaded(_state, action) {
-    return buildInitialState(action.payload ?? null);
+  localWorkspaceLoaded(state, action) {
+    return { ...buildInitialState(action.payload ?? null), clipboard: state.clipboard ?? null };
   },
 
   cloudWorkspaceLoading(state) {
@@ -51,6 +51,7 @@ export const cloudReducers = {
     });
     return {
       ...next,
+      clipboard: state.clipboard ?? null,
       source: 'cloud',
       teamServices,
       cloud: {
@@ -125,12 +126,14 @@ export const cloudReducers = {
     const cloud = state.cloud;
     const teamServices = state.teamServices;
     const message = state.message; // e.g. the workspace's load notes
+    const clipboard = current(state).clipboard ?? null;
     const fresh = buildInitialState({
       settings: current(state.settings), rooms: [room], activeRoomId: room.id, activeWallId: null, view: 'plan',
     });
     for (const key of Object.keys(state)) delete state[key];
     Object.assign(state, fresh);
     state.source = 'cloud';
+    state.clipboard = clipboard;
     state.teamServices = teamServices;
     state.layers = { project: layerFrom(project), phase: layerFrom(phase) };
     state.cloud = {
@@ -162,12 +165,14 @@ export const cloudReducers = {
   roomVersionLoaded(state, action) {
     const { room, project = null, settings, layers = {}, teamId, permissions, meta } = action.payload;
     const loadId = state.cloud?.loadId ?? 0;
+    const clipboard = current(state).clipboard ?? null;
     const fresh = buildInitialState({
       settings, rooms: [room], activeRoomId: room.id, activeWallId: null, view: 'plan',
     });
     for (const key of Object.keys(state)) delete state[key];
     Object.assign(state, fresh);
     state.source = 'version';
+    state.clipboard = clipboard;
     state.layers = { project: layerFrom(layers.project), phase: layerFrom(layers.phase) };
     state.cloud = {
       teamId,
