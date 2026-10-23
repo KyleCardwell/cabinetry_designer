@@ -1,60 +1,10 @@
 import {
-  CABINET_TYPE_IDS,
   DEFAULT_SETTINGS,
   DEFAULT_PREFS,
 } from '../../../model/constants.js';
-import {
-  gridFromItems,
-} from '../../../model/grid.js';
 
-export function auto(id) {
-  return { id, kind: 'cabinet', width: null };
-}
-
-export function fixed(id, width) {
-  return { id, kind: 'cabinet', width };
-}
-
-export function run(overrides = {}) {
-  const { items, blind, ...rest } = {
-    id: 'run-1',
-    cabinetTypeId: CABINET_TYPE_IDS.BASE,
-    x: 0,
-    width: 120,
-    z: 4,
-    height: 30.5,
-    depth: 24,
-    ends: {
-      left: { type: 'filler', width: null },
-      right: { type: 'filler', width: null },
-    },
-    autoCount: true,
-    maxCabinetWidth: null,
-    items: [],
-    heightMode: 'manual',
-    overrides: {},
-    anchors: { left: false, right: false },
-    ...overrides,
-  };
-  return { ...rest, grid: gridFromItems(rest.id, items, blind) };
-}
-
-export function opening(overrides = {}) {
-  return {
-    id: 'door-1',
-    kind: 'door',
-    label: 'D1',
-    measureMode: 'jamb',
-    width: 36,
-    height: 80,
-    sillZ: 0,
-    offset: 24,
-    offsetFrom: 'left',
-    offsetAnchor: 'edge',
-    casing: { width: 3, thickness: 0.75 },
-    ...overrides,
-  };
-}
+// The shared builders live in src/test/builders.js; re-exported so existing imports keep working.
+export { auto, fixed, opening, pin, run } from '../../../../test/builders.js';
 
 export function stateWithRun(existingRun = null) {
   return {
@@ -105,16 +55,5 @@ export function currentOpening(state) {
 
 export function currentRun(state) {
   return state.rooms[0].walls[0].runs[0];
-}
-
-export function pin(value, overrides = {}) {
-  return {
-    anchor: 'center',
-    from: 'left',
-    openingId: null,
-    openingAnchor: 'center',
-    value,
-    ...overrides,
-  };
 }
 

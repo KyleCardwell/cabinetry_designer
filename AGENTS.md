@@ -15,4 +15,6 @@ Specs live in the `specs` repo, cloned beside this one as `../specs/` (see its R
 ## This repo (cabinetry_designer)
 - One test file: `npx vitest run <path>`. Full gate: `npm test && npm run lint`; add `npm run build` when the step touches `components/` or other UI.
 - The golden payload snapshot must not change unless the step says so.
+- New tests build walls, runs, openings and rooms with `src/test/builders.js` (`wall`, `run`, `opening`, `room`, `auto`, `fixed`, `pin`); don't declare local builders. Add a missing default there, not in the test. Existing local builders stay until a step touches that file anyway.
+- Logic tests (`.test.js`) share loaded modules unless they use `vi.mock`, `vi.spyOn`, `vi.stubGlobal`, fake timers or set `globalThis` (`vite.config.js` sends those to isolated workers). Don't mutate imported constants such as `DEFAULT_SETTINGS`; copy them.
 - The geometry repo rejects unknown payload keys: a step that adds a payload field needs the geometry step in first.
