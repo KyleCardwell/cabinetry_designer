@@ -1,3 +1,5 @@
+import { combinedSoffitJoins } from './combinedElevations.js';
+import { seamHiddenEdges } from './combinedSeams.js';
 import { combinedCornerShapes } from './cornerParts.js';
 import { resolveWall } from './room.js';
 import { wallLabel } from './topology.js';
@@ -36,11 +38,14 @@ export function combinedElevationPayload(room, combined, settings, buildFace) {
   const left = faces.reduce((one, two) => two.dx < one.dx ? two : one);
   const right = faces.reduce((one, two) => two.dx + two.length > one.dx + one.length ? two : one);
   const shapes = combinedCornerShapes(room, combined, settings);
+  const soffitJoins = combinedSoffitJoins(room, combined);
   const seen = new Set();
   const records = Object.fromEntries(COLLECTIONS.map((key) => [key, []]));
   let lead;
   for (const face of faces) {
-    const payload = buildFace(face.wall, face.side, { extent, cornerShapes: shapes.get(face.key) });
+    const payload = buildFace(face.wall, face.side, {
+      extent, cornerShapes: shapes.get(face.key), soffitJoins: soffitJoins.filter(({ key }) => key === face.key),
+    });
     lead ??= payload;
     const duplicates = new Set(payload.parts.filter(({ id }) => seen.has(id)).map(({ id }) => id));
     for (const key of COLLECTIONS) {
@@ -62,6 +67,7 @@ export function combinedElevationPayload(room, combined, settings, buildFace) {
   if (!records.pulls.length) delete records.pulls;
   if (!records.interiors.length) delete records.interiors;
   if (!records.glassMarks.length) delete records.glassMarks;
+  const hiddenEdges = seamHiddenEdges(combined, records.parts, soffitJoins);
   return {
     ...lead,
     length: combined.length,
@@ -74,6 +80,7 @@ export function combinedElevationPayload(room, combined, settings, buildFace) {
         depth: face.depth === 0 ? 0 : face.depth,
         wallLabel: wallLabel(room, wall),
         ...(Math.abs(delta) > 1e-6 ? { note: `${formatInches(Math.abs(delta))} ${delta < 0 ? 'back' : 'out'}` } : {}),
+        ...(hiddenEdges.has(face.key) ? { hiddenEdges: hiddenEdges.get(face.key) } : {}),
       };
     }),
     ...records,

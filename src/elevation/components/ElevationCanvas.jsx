@@ -20,7 +20,6 @@ import {
   layoutDimensionRow,
 } from '../canvas/dimensionLayout.js';
 import {
-  CURSORS,
   elevationBaseCursor,
   useCanvasCursor,
 } from '../canvas/cursor.js';
@@ -39,8 +38,9 @@ import {
 } from '../canvas/drag.js';
 import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
 import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../model/constants.js';
-import { combinedViewOf } from '../model/combinedElevations.js';
+import { CABINET_TYPE_IDS } from '../model/constants.js';
+import { combinedSoffitJoins, combinedViewOf } from '../model/combinedElevations.js';
+import { combinedFaceParts, seamHiddenEdges } from '../model/combinedSeams.js';
 import { elevationKey } from '../model/topology.js';
 import { createRun } from '../model/runDefaults.js';
 import { runItems } from '../model/grid.js';
@@ -87,7 +87,6 @@ import {
   tryPlaceRun,
 } from '../model/room.js';
 import { wallExtent } from '../model/wallExtent.js';
-import { formatInches } from '../model/units.js';
 import {
   addOpening,
   addRecess,
@@ -213,6 +212,14 @@ function ElevationCanvas({
     () => (combined ? resolveCombinedFaces(room, combined, settings) : null),
     [combined, room, settings],
   );
+  const soffitJoins = useMemo(
+    () => (combined ? combinedSoffitJoins(room, combined) : []),
+    [combined, room],
+  );
+  // Seams hide under joined soffits and anything running across them, as in the DXF (Kyle 2026-10-23).
+  const hiddenEdges = useMemo(() => (combined ? seamHiddenEdges(combined, combinedFaceParts(room, combined, settings,
+    new Map([...combinedFaces].map(([key, { shapes }]) => [key, shapes]))), soffitJoins) : new Map()),
+  [combined, combinedFaces, room, settings, soffitJoins]);
   const viewKey = combined?.id ?? activeKey;
   const menuContext = `${room?.id}:${viewKey}:${activeKey}:${tool}:${doorsOff}`;
   const diagnostics = useMemo(
@@ -1229,6 +1236,7 @@ function ElevationCanvas({
               wall={wall}
               transform={transform}
               crownTop={profile?.crownTop}
+              hiddenEdges={hiddenEdges.get(activeKey)}
             />
           </Layer>
           {combined && (
@@ -1241,6 +1249,8 @@ function ElevationCanvas({
               settings={settings}
               diagnostics={diagnostics}
               transform={transform}
+              soffitJoins={soffitJoins}
+              hiddenEdges={hiddenEdges}
               onActivate={(face) => {
                 if (suppressClickRef.current) return;
                 dispatch(setActiveWall(face.wallId));
@@ -1276,6 +1286,7 @@ function ElevationCanvas({
               transform={transform}
               selectedSoffitId={selection.soffitId}
               onSelect={tool === 'select' ? pick : undefined}
+              combinedJoins={soffitJoins.filter((join) => join.key === activeKey)}
             />
             {wall.runs.map((run) => (
               <RunGroup

@@ -2,13 +2,14 @@ import { plotScale } from './drawingScale.js';
 import { DIMENSION_TEXT_GAP, DIMENSION_TEXT_HEIGHT } from './elevationDimensions.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
 import { openingGeometry } from './openings.js';
+import { planMarkerPlacement } from './planMarkerPlacement.js';
 import { openingPlanDepths, recessGeometry, recessesOn } from './recesses.js';
 import { elevationKey, elevationLetters } from './topology.js';
 import { formatInches } from './units.js';
 import {
   PLAN_MARKER_CLEARANCE, PLAN_MARKER_FLAG, PLAN_MARKER_RADIUS, planSideReach, planWallRows,
 } from './planDimensions.js';
-import { WALL_SIDES, wallSideFrame, wallSideOf } from './wallSides.js';
+import { WALL_SIDES, wallSideFrame } from './wallSides.js';
 
 /** Paper inches a marker moves along its wall when its face has no runs (the canvas's MARKER_SHIFT). */
 export const PLAN_MARKER_SHIFT = 0.5;
@@ -34,20 +35,17 @@ export function planMarks(room, settings) {
   const letters = elevationLetters(room);
   const marks = [];
   for (const wall of room.walls) {
-    const rows = planWallRows(room, wall, settings);
     for (const side of WALL_SIDES) {
-      const letter = letters.get(elevationKey(wall.id, side));
+      const key = elevationKey(wall.id, side);
+      const letter = letters.get(key);
       if (!letter) continue;
-      const frame = wallSideFrame(room, wall, side);
-      const runs = (wall.runs ?? []).filter((run) => wallSideOf(run) === side);
-      const deepest = planSideReach(room, wall, side, settings);
-      const center = runs.length > 0
-        ? (Math.min(...runs.map((run) => run.x)) + Math.max(...runs.map((run) => run.x + run.width))) / 2
-        : frame.length / 2;
-      const nextAt = rows.find((row) => row.side === side)?.nextAt;
-      const offset = Math.max(deepest + PLAN_MARKER_CLEARANCE, nextAt ?? 0)
-        + (PLAN_MARKER_RADIUS + PLAN_MARKER_FLAG) * scale;
-      const shift = runs.length > 0 ? 0 : (side === 'front' ? 1 : -1) * PLAN_MARKER_SHIFT * scale;
+      const { frame, center, offset: reach, hasRuns } = planMarkerPlacement(room, key, settings, {
+        clearance: PLAN_MARKER_CLEARANCE,
+        rowsAt: (faceWall, faceSide) => planWallRows(room, faceWall, settings)
+          .find((row) => row.side === faceSide)?.nextAt,
+      });
+      const offset = reach + (PLAN_MARKER_RADIUS + PLAN_MARKER_FLAG) * scale;
+      const shift = hasRuns ? 0 : (side === 'front' ? 1 : -1) * PLAN_MARKER_SHIFT * scale;
       const { d } = wallFrame(room, wall);
       const point = elevationToPlan(frame, center, offset);
       marks.push({

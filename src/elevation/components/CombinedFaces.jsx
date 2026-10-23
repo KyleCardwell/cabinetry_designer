@@ -43,6 +43,7 @@ export function resolveCombinedFaces(room, combined, settings) {
 /** Display-only faces: a separate hit surface switches faces without exposing editing handlers. */
 export default function CombinedFaces({
   room, combined, faces, activeKey, settings, diagnostics, transform, onActivate, doorsOff = false,
+  soffitJoins = [], hiddenEdges = new Map(),
 }) {
   const showThrough = useMemo(() => new Map(combined.faces.filter((face) => face.key !== activeKey)
     .map((face) => {
@@ -62,7 +63,12 @@ export default function CombinedFaces({
         return (
           <Group key={face.key}>
             <Group listening={false}>
-              <WallFrame wall={wall} transform={faceTransform} crownTop={resolveProfile(settings, room, wall).crownTop} />
+              <WallFrame
+                wall={wall}
+                transform={faceTransform}
+                crownTop={resolveProfile(settings, room, wall).crownTop}
+                hiddenEdges={hiddenEdges.get(face.key)}
+              />
               <RecessShapes wall={wall} transform={faceTransform} onSelect={noop} />
               {(wall.openings ?? []).map((opening) => (
                 <OpeningShape
@@ -75,7 +81,13 @@ export default function CombinedFaces({
                   onMove={noop}
                 />
               ))}
-              <SoffitShapes room={room} wall={wall} transform={faceTransform} onSelect={noop} />
+              <SoffitShapes
+                room={room}
+                wall={wall}
+                transform={faceTransform}
+                onSelect={noop}
+                combinedJoins={soffitJoins.filter((join) => join.key === face.key)}
+              />
               {wall.runs.map((run) => (
                 <RunGroup
                   key={run.id}

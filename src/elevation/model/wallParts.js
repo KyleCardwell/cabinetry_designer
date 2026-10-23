@@ -21,8 +21,9 @@ const EPSILON = 1e-6;
  * The wall's own things on one face as geometry draws them (SPEC-42.1): wall end panels, then each door
  * or window (its casing, then its opening), then soffits, recesses and projections, then wing walls.
  * Only wall end panels hide what's behind them; the rest are outlines (`opaque: false`). None has a run.
+ * `soffitJoins` adds a combined elevation's soffit joins on this face (Kyle 2026-10-23).
  */
-export function wallParts(room, wall, side, settings) {
+export function wallParts(room, wall, side, settings, { soffitJoins = [] } = {}) {
   const view = resolveWall(room, wall, side);
   const source = view.sideSource ?? view;
   const parts = [];
@@ -68,7 +69,7 @@ export function wallParts(room, wall, side, settings) {
   }
 
   // A soffit and a projection just as deep, side by side, read as one face (Kyle 2026-10-16).
-  const joins = soffitProjectionJoins(view);
+  const joins = [...soffitProjectionJoins(view), ...soffitJoins];
   const openSides = ({ openEdges, lines }, extraOpen = []) => {
     const edges = [...extraOpen, ...openEdges];
     return edges.length > 0 ? { openEdges: edges, ...(lines.length > 0 ? { lines } : {}) } : {};

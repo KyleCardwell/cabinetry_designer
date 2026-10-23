@@ -52,7 +52,7 @@ function facePayload(room, wall, side, key, letter, settings, options) {
   const sourceParts = [
     ...elevationParts(room, wall, side, settings),
     ...bandParts(room, wall, side, settings),
-    ...wallParts(room, wall, side, settings),
+    ...wallParts(room, wall, side, settings, { soffitJoins: options?.soffitJoins }),
     ...(options?.cornerShapes?.flatMap((shape) => shape.parts) ?? cornerParts(room, wall, side, settings)),
   ];
   // Geometry accepts details in doorDetails only, never on the parts themselves.

@@ -20,8 +20,10 @@ export default function SoffitShapes({
   transform,
   selectedSoffitId,
   onSelect,
+  combinedJoins = [],
 }) {
-  const joins = soffitProjectionJoins(wall);
+  // A combined elevation's nearer face just as deep joins like a projection (Kyle 2026-10-23).
+  const joins = [...soffitProjectionJoins(wall), ...combinedJoins];
   return soffitsOn(wall).map((soffit) => {
     const wallRect = {
       x: soffit.x,

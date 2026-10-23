@@ -5,6 +5,8 @@ import {
   faceKeyParts,
   wallHasCabinets,
 } from './topology.js';
+import { resolveWall } from './room.js';
+import { soffitsOn } from './soffits.js';
 import { wallSideFrame } from './wallSides.js';
 
 /**
@@ -12,6 +14,7 @@ import { wallSideFrame } from './wallSides.js';
  * one elevation, each at its own place along the view and its own depth.
  */
 
+const EPSILON = 1e-6;
 const PARALLEL = 0.9998;
 const PERPENDICULAR = 0.02;
 const otherEnd = (endpoint) => (endpoint === 'start' ? 'end' : 'start');
@@ -143,4 +146,46 @@ export function jogWalls(room, view) {
     const end = wall.connections?.end?.wallId;
     return !shown.has(wall.id) && start !== end && shown.has(start) && shown.has(end);
   }).map(({ id }) => id));
+}
+
+/** The face whose `side` edge meets `face` at its other side, or null at the elevation's ends. */
+export function faceAcross(combined, face, side) {
+  const seam = side === 'left' ? face.dx : face.dx + face.length;
+  return combined.faces.find((other) => other !== face
+    && Math.abs((side === 'left' ? other.dx + other.length : other.dx) - seam) <= EPSILON) ?? null;
+}
+
+/**
+ * Where a soffit ends at a face edge whose neighbour face is exactly the soffit's depth nearer (Kyle
+ * 2026-10-23): the soffit runs on into that face like a projection just as deep, so the soffit's side and
+ * both faces' edges aren't drawn over it. Each join names the soffit's face `key`, `soffitId`, its `side`,
+ * the nearer face's `nearKey`, and the hidden span [bottom, top] — the same shape soffitJoinsBySide reads.
+ */
+export function combinedSoffitJoins(room, combined) {
+  return combined.faces.flatMap((face) => {
+    const view = resolveWall(room, room.walls.find(({ id }) => id === face.wallId), face.side);
+    return soffitsOn(view).flatMap((soffit) => ['left', 'right'].flatMap((side) => {
+      const x = side === 'left' ? soffit.x : soffit.x + soffit.width;
+      if (Math.abs(x - (side === 'left' ? 0 : face.length)) > EPSILON) return [];
+      const near = faceAcross(combined, face, side);
+      const top = near ? Math.min(view.height, near.height) : 0;
+      if (!near || Math.abs(near.depth - face.depth - soffit.depth) > EPSILON
+        || top <= soffit.bottom + EPSILON) return [];
+      return [{ key: face.key, soffitId: soffit.id, side, nearKey: near.key, bottom: soffit.bottom, top }];
+    }));
+  });
+}
+
+/** Each face's edge spans a join hides, by key: { left: [{ bottom, top }], right: [...] } on both faces. */
+export function combinedHiddenEdges(joins) {
+  const edges = new Map();
+  const add = (key, side, span) => {
+    if (!edges.has(key)) edges.set(key, { left: [], right: [] });
+    edges.get(key)[side].push(span);
+  };
+  for (const { key, side, nearKey, bottom, top } of joins) {
+    add(key, side, { bottom, top });
+    add(nearKey, side === 'left' ? 'right' : 'left', { bottom, top });
+  }
+  return edges;
 }

@@ -3,9 +3,9 @@ import { planSideReach } from '../model/planDimensions.js';
 import { recessesOn } from '../model/recesses.js';
 import { wallFaceSegments } from '../model/wallFaceRow.js';
 import { wallOutline } from '../model/wallOutline.js';
-import { wallFrame } from '../model/geometry.js';
+import { elevationToPlan, wallFrame } from '../model/geometry.js';
+import { planMarkerPlacement } from '../model/planMarkerPlacement.js';
 import { elevationKey, elevationLetters } from '../model/topology.js';
-import { wallSideFrame, wallSideOf } from '../model/wallSides.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
 
 export const MARKER_RADIUS = 14;
@@ -53,26 +53,18 @@ export function elevationMarkers(room, settings, scale) {
   const markers = [];
 
   for (const wall of room?.walls ?? []) {
-    const rows = canvasDimensionRows(room, wall, settings, scale);
     for (const side of ['front', 'back']) {
       const key = elevationKey(wall.id, side);
       const letter = letters.get(key);
       if (!letter) continue;
 
-      const frame = wallSideFrame(room, wall, side);
-      const sideRuns = (wall.runs ?? []).filter((run) => wallSideOf(run) === side);
-      const deepest = planSideReach(room, wall, side, settings);
-      const centerX = sideRuns.length > 0
-        ? (Math.min(...sideRuns.map((run) => run.x))
-          + Math.max(...sideRuns.map((run) => run.x + run.width))) / 2
-        : frame.length / 2;
-      const shift = sideRuns.length > 0 ? 0 : (side === 'front' ? 1 : -1) * MARKER_SHIFT / scale;
-      const anchor = {
-        x: frame.leftPoint.x + frame.r.x * centerX,
-        y: frame.leftPoint.y + frame.r.y * centerX,
-      };
-      const offset = Math.max(deepest + MARKER_CLEARANCE, rows.nextAt[side] ?? 0)
-        + (MARKER_RADIUS + MARKER_FLAG_LENGTH) / scale;
+      const { frame, center, offset: reach, hasRuns } = planMarkerPlacement(room, key, settings, {
+        clearance: MARKER_CLEARANCE,
+        rowsAt: (faceWall, faceSide) => canvasDimensionRows(room, faceWall, settings, scale).nextAt[faceSide],
+      });
+      const shift = hasRuns ? 0 : (side === 'front' ? 1 : -1) * MARKER_SHIFT / scale;
+      const anchor = elevationToPlan(frame, center, 0);
+      const offset = reach + (MARKER_RADIUS + MARKER_FLAG_LENGTH) / scale;
       const direction = frame.n;
       const d = wallFrame(room, wall).d;
       const point = {

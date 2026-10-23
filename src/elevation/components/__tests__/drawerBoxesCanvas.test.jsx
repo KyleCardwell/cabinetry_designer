@@ -225,8 +225,9 @@ describe('IN8 doors-off shelves', () => {
     shelfRects(view).forEach((rect, index) => {
       expect(rect.type).toBe(Rect);
       expect(rect.props).toMatchObject({
-        ...wallRectToScreen({ x: entry.sections[0].x + 1 / 32, z: shelf.positions[index],
-          width: 22.4375, height: 0.75 }, view.runNode.props.transform),
+        // 1/16" side clearance each side (IN8.2, Kyle 2026-10-20): a 22 1/2" section takes a 22 3/8" shelf.
+        ...wallRectToScreen({ x: entry.sections[0].x + 1 / 16, z: shelf.positions[index],
+          width: 22.375, height: 0.75 }, view.runNode.props.transform),
         stroke: '#94a3b8', strokeWidth: 0.75, fillEnabled: false, listening: false,
       });
       expect(rect.props.onClick).toBeUndefined();

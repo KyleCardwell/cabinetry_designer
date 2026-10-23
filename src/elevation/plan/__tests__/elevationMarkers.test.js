@@ -114,4 +114,29 @@ describe('elevationMarkers', () => {
       },
     ]);
   });
+
+  it('Kyle 2026-10-23: a combined elevation centres its marker on all its walls, past every face\'s cabinets', () => {
+    const to = (wallId, endpoint) => ({ wallId, endpoint });
+    const room = makeRoom([
+      makeWall('A', 0, 0, 100, 0, { connections: { start: null, end: to('J', 'start') },
+        runs: [run('A1', CABINET_TYPE_IDS.BASE, 24, { x: 10 })] }),
+      makeWall('J', 100, 0, 100, 16, { connections: { start: to('A', 'end'), end: to('B', 'start') } }),
+      makeWall('B', 100, 16, 160, 16, { connections: { start: to('J', 'end'), end: to('K', 'start') },
+        runs: [run('B1', CABINET_TYPE_IDS.BASE, 24, { x: 0 })] }),
+      makeWall('K', 160, 16, 160, 0, { connections: { start: to('B', 'end'), end: to('C', 'start') } }),
+      makeWall('C', 160, 0, 240, 0, { connections: { start: to('K', 'end'), end: null },
+        runs: [run('C1', CABINET_TYPE_IDS.BASE, 24, { x: 0 })] }),
+    ]);
+    const alone = elevationMarkers(room, DEFAULT_SETTINGS, 2);
+    room.combinedElevations = [{ id: 'g', on: true, faces: ['A', 'B', 'C'] }];
+    const markers = elevationMarkers(room, DEFAULT_SETTINGS, 2);
+    expect(markers).toHaveLength(1);
+    const [marker] = markers;
+    const along = (m) => m.point.x * Math.abs(m.direction.y) + m.point.y * Math.abs(m.direction.x);
+    const across = (m) => m.point.x * m.direction.x + m.point.y * m.direction.y;
+    const walls = room.walls.filter(({ id }) => ['A', 'B', 'C'].includes(id));
+    const ends = walls.flatMap((wall) => [wall.x1, wall.x2]);
+    expect(along(marker)).toBeCloseTo((Math.min(...ends) + Math.max(...ends)) / 2, 6);
+    for (const single of alone) expect(across(marker)).toBeGreaterThanOrEqual(across(single) - 1e-6);
+  });
 });
