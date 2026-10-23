@@ -18,6 +18,7 @@ import { BUILT_IN_SLIDES, isSlideList, withoutRetiredSlideKeys, withSlideDefault
 import { isAccessoryList, withAccessoryDefaults } from '../model/accessories.js';
 import { withPricingDefaults } from '../model/libraryPricing.js';
 import { isSectionProfileList, migrateSectionProfile } from '../model/sectionProfiles.js';
+import { isShapeList } from '../model/libraryShapes.js';
 import {
   DEFAULT_DOOR_STYLE,
   DOOR_DESIGNS,
@@ -933,6 +934,7 @@ function normalizeDocument(document, schemaVersion) {
     else if (Array.isArray(settings.accessories)) settings.accessories = settings.accessories.map(withAccessoryDefaults);
     if (settings.sectionProfiles === undefined) settings.sectionProfiles = [];
     else if (Array.isArray(settings.sectionProfiles)) settings.sectionProfiles = settings.sectionProfiles.map(migrateSectionProfile);
+    if (settings.shapes === undefined) settings.shapes = [];
     delete settings.doorThickness;
     delete settings.endPanelThickness;
     delete settings.standardDrawerBelow;
@@ -1080,6 +1082,7 @@ function isSettings(settings, profileKeys = PROFILE_KEYS) {
     && isSlideList(settings.slides)
     && isAccessoryList(settings.accessories)
     && isSectionProfileList(settings.sectionProfiles)
+    && isShapeList(settings.shapes)
     && findDoorDesign(settings.teamDoorStyle.designId, settings.doorDesigns) !== null
     && V2_NUMERIC_SETTING_KEYS.every((key) => isFiniteNumber(settings[key]))
     && isCompleteProfile(settings.defaultProfile, profileKeys)

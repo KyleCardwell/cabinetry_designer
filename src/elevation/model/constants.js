@@ -4,6 +4,13 @@ import { BUILT_IN_SLIDES } from './slides.js';
 
 export const ACCESSORY_PLACES = ['section', 'drawer_box'];
 
+export const SHAPE_KINDS = {
+  accessory: 'Accessory',
+  appliance: 'Appliance',
+  leg: 'Leg / column',
+  other: 'Other',
+};
+
 export const FRAME_RETURN_WIDTH = 6;
 
 export const PANEL_MATERIALS = [
@@ -106,6 +113,7 @@ export const DEFAULT_SETTINGS = {
   drawerPullAt: 'center',
   drawerPullOrientation: 'auto',
   sectionProfiles: [],
+  shapes: [],
   baseCutoutFoot: 3,
   baseCutoutHeight: 1.5,
   furnitureBaseScribe: 0.5,

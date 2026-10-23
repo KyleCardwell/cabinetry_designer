@@ -1,5 +1,6 @@
 export {
   ACCESSORY_PLACES,
+  SHAPE_KINDS,
   FRAME_RETURN_WIDTH,
   PANEL_MATERIALS,
   panelMaterial,
@@ -22,6 +23,10 @@ export {
   KIND_LABELS,
 } from './constants.js';
 export { insideEndSides } from './insideEnds.js';
+export {
+  isShape, isShapeDraft, isShapeList, newShape, copyShape, shapeView, fitShapeBox,
+  moveShapeOrigin, flipShape, shapeStretchProblems, stretchProblemText, shapeViewProfile, withShapeView,
+} from './libraryShapes.js';
 export { stepEndSides } from './stepEnds.js';
 export {
   SETTING_LEVELS,

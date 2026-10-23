@@ -36,6 +36,7 @@ export function copySettings(settings = DEFAULT_SETTINGS) {
     slides: structuredClone(settings.slides ?? BUILT_IN_SLIDES),
     accessories: structuredClone(settings.accessories ?? []),
     sectionProfiles: structuredClone(settings.sectionProfiles ?? []),
+    shapes: structuredClone(settings.shapes ?? []),
   };
 }
 
