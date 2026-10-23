@@ -2,13 +2,13 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { auto, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { DEFAULT_PROFILE, DEFAULT_SETTINGS } from '../constants.js';
-import { clipReturnEdge, endEdgeX, frontContour } from '../bandEnds.js';
+import { clipReturnEdge, endEdgeX, frontContour, placeAtEnd } from '../bandEnds.js';
 import { frontDepth } from '../corners.js';
 import { furnitureBaseGroups } from '../furnitureBaseGroups.js';
 import { resolveWall, syncRoom } from '../room.js';
 import { runBandEnds, runBands } from '../runBands.js';
 import { runScene } from '../runScene.js';
-import { flattenOutline, outlineBounds } from '../sectionProfileOutline.js';
+import { flattenOutline, outlineBounds, sectionProfileOutline } from '../sectionProfileOutline.js';
 
 const { profiles } = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
 const cr45 = structuredClone(profiles.find(({ id }) => id === 'cr45'));
@@ -310,5 +310,86 @@ describe('FX2 step a short-wall furniture base and countertop returns', () => {
     expect(end('countertop')).toMatchObject({
       type: 'return', x: 98.25, side: 96, facing: 1, returnLength: 0.25,
     });
+  });
+});
+
+describe('FX2 step b clipped furniture base and wood nosing profiles', () => {
+  const fb4 = profiles.find(({ id }) => id === 'fb4');
+  const using = { ...settings, sectionProfiles: [...settings.sectionProfiles, fb4] };
+
+  it('anchor 1: shifts the complete base contour back 1/8 inch and mirrors the left end', () => {
+    for (const left of [false, true]) {
+      const { bands, end } = setup({ base: true, depth: 15, left,
+        profile: { furnitureBaseProfileId: 'fb4' } }, using);
+      const facing = left ? -1 : 1;
+      const side = left ? 0 : 96;
+      const band = bands.furnitureBases[0];
+      expect(end('furnitureBase')).toMatchObject({
+        x: side + facing * 0.8125, side, facing, returnLength: 0.6875,
+      });
+      expect(frontContour(band.outline, facing)).toEqual([
+        [side + facing * 0.6875, 0, 0], [side + facing * 0.6875, 3.6875, 0],
+        [side + facing * 0.375, 4, 0],
+      ]);
+      expect(band.lines).toContainEqual({ x1: left ? -0.6875 : 65.1875, z1: 3.6875,
+        x2: left ? 30.8125 : 96.6875, z2: 3.6875 });
+      expect(left ? band.x : band.x + band.width).toBe(side + facing * 0.6875);
+    }
+  });
+
+  it('anchor 2: splits the chamfer at 3 7/8 inches and collapses its remainder to the wall', () => {
+    for (const left of [false, true]) {
+      const { bands, end } = setup({ base: true, depth: 15, reach: 16.5, left,
+        profile: { furnitureBaseProfileId: 'fb4' } }, using);
+      const facing = left ? -1 : 1;
+      const side = left ? 0 : 96;
+      const band = bands.furnitureBases[0];
+      expect(end('furnitureBase').returnLength).toBe(0.1875);
+      expect(frontContour(band.outline, facing)).toEqual([
+        [side + facing * 0.1875, 0, 0], [side + facing * 0.1875, 3.6875, 0],
+        [side, 3.875, 0], [side, 4, 0],
+      ]);
+      expect(band.lines[0][left ? 'x1' : 'x2']).toBe(side + facing * 0.1875);
+    }
+  });
+
+  it('anchor 3: keeps the original base edge when the return covers the full profile', () => {
+    const { bands, end } = setup({ base: true, depth: 24,
+      profile: { furnitureBaseProfileId: 'fb4' } }, using);
+    expect(end('furnitureBase').returnLength).toBe(9.6875);
+    expect(frontContour(bands.furnitureBases[0].outline, 1)).toEqual([
+      [96.8125, 0, 0], [96.8125, 3.6875, 0], [96.5, 4, 0],
+    ]);
+    expect(bands.furnitureBases[0].lines[0].x2).toBe(96.8125);
+  });
+
+  it('anchor 4: clips wood nosing and its profile lines, preserving square ends at a long wall', () => {
+    const nosing = { id: 'nosing', kind: 'nosing', geometry: {
+      units: 'in',
+      points: { a: [0, 0], b: [0.25, 0], c: [0.5, -0.25], d: [0.5, -1.5], e: [0, -1.5] },
+      loops: [{ id: 'L1', closed: true, segs: ['a', 'b', 'c', 'd', 'e'].map((from, i, ids) => ({
+        type: 'line', from, to: ids[(i + 1) % ids.length],
+      })) }],
+    }, drawnPoints: { elevation: ['c'] } };
+    const nosingSettings = { ...using, sectionProfiles: [...using.sectionProfiles, nosing] };
+    for (const reach of [16, 60]) {
+      const { bands, run, end } = setup({ base: true, depth: 15, reach,
+        profile: { nosingProfileId: 'nosing' },
+        runProps: { top: 'wood', topOverhang: { front: 0.75, left: 0.75, right: 0.75 } } }, nosingSettings);
+      const top = bands.countertop;
+      const reference = run.z + run.height + bands.top.height;
+      const right = end('countertop');
+      const unclipped = right.type === 'square'
+        ? [[96, top.z, 0], [96, reference, 0]]
+        : frontContour(placeAtEnd(sectionProfileOutline(nosing.geometry), 96, 0.75, reference, 1), 1);
+      const expected = clipReturnEdge(unclipped, right);
+      expect(right).toMatchObject(reach === 16
+        ? { type: 'return', x: 97.25, returnLength: 1.125 } : { type: 'square', x: 96 });
+      expect(frontContour(top.outline, 1)).toEqual(expected);
+      expect(top.x + top.width).toBe(endEdgeX(expected, top.z, 1));
+      expect(top.lines).toEqual([{ x1: 64.75, z1: reference - 0.25,
+        x2: endEdgeX(expected, reference - 0.25, 1), z2: reference - 0.25 }]);
+      expect(bands.countertops).toEqual([top]);
+    }
   });
 });

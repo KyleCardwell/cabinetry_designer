@@ -2,7 +2,7 @@ import { insertBaseCutouts, resolveBaseCutouts } from './baseCutouts.js';
 import { runScene } from './runScene.js';
 import { runBaseSegments } from './runBands.js';
 import { hasToeKick } from './bandDepths.js';
-import { bandOutline, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
+import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
 import { resolveProfile } from './profile.js';
 import { outlineBounds, sectionProfileOutline } from './sectionProfileOutline.js';
 import { sectionProfileBounds, stretchProfileGeometry } from './sectionProfiles.js';
@@ -165,8 +165,9 @@ export function furnitureBaseBand(base, ends) {
     const loop = source.picked && sectionProfileOutline(source.picked.geometry);
     const outline = end.outline ?? (loop && end.type !== 'square' && end.side !== undefined
       ? placeAtEnd(loop, end.side, source.proud, source.height, end.facing) : null);
-    return (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
+    const edge = (outline && frontContour(outline, end.facing ?? (index === 0 ? 1 : -1)))
       ?? [[end.x, 0, 0], [end.x, base.height, 0]];
+    return end.returnLength != null ? clipReturnEdge(edge, end) : edge;
   });
   rect.outline = bandOutline(...edges, 0, base.height);
   const { minX, maxX } = outlineBounds(rect.outline);
