@@ -26,7 +26,7 @@ export function isShapeDraft(shape) {
     && Object.values(shape.box).every(Number.isFinite)
     && ['w', 'h', 'd'].every((key) => shape.box[key] > 0)
     && hasKeys(shape.views, Object.keys(VIEW_AXES), ['front'])
-    && Object.values(shape.views).every(isProfileGeometry)
+    && Object.values(shape.views).every((geometry) => isProfileGeometry(geometry, { draft: true }))
     && hasKeys(shape.stretch, Object.keys(AXIS_SIZE), [])
     && Object.values(shape.stretch).every((zones) => Array.isArray(zones)
       && zones.length > 0 && zones.length <= 4
@@ -37,7 +37,8 @@ export function isShapeDraft(shape) {
 }
 
 export function isShape(shape) {
-  return isShapeDraft(shape) && shapeStretchProblems(shape).length === 0;
+  return isShapeDraft(shape) && Object.values(shape.views).every((geometry) => isProfileGeometry(geometry))
+    && shapeStretchProblems(shape).length === 0;
 }
 
 export function isShapeList(list) {
@@ -110,6 +111,7 @@ export function fitShapeBox(shape) {
       const index = VIEW_AXES[view].indexOf(axis);
       if (index < 0) return [];
       const bounds = sectionProfileBounds({ geometry });
+      if (!Number.isFinite(bounds.minX)) return [];
       return [index === 0 ? [bounds.minX, bounds.maxX] : [bounds.minY, bounds.maxY]];
     });
     if (!extents.length) continue;

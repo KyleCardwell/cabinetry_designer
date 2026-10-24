@@ -21,7 +21,7 @@ describe('SPEC-48 editing profile points', () => {
       .toEqual(['0', '0', '1 1/2', '-13/16', '1/64', '2 1/4', '0.6768', '-0.0732', '0.3333']);
   });
 
-  it('adds a point, and deletes one only when no line or arc uses it', () => {
+  it('adds a point, and deletes a loose one', () => {
     const added = addProfilePoint(COVE, [1, 1], 'p1');
     expect(Object.entries(added.geometry.points).at(-1)).toEqual(['p1', [1, 1]]);
     expect(added.geometry.loops).toEqual(COVE.geometry.loops);
@@ -35,7 +35,29 @@ describe('SPEC-48 editing profile points', () => {
     const referenced = { ...added, drawnPoints: { elevation: ['b', 'p1'], plan: ['p1'] } };
     expect(deleteProfilePoint(referenced, 'p1'))
       .toEqual({ ...COVE, drawnPoints: { elevation: ['b'], plan: [] } });
-    expect([deleteProfilePoint(COVE, 'a'), deleteProfilePoint(COVE, 'zz')]).toEqual([null, null]);
+    expect(deleteProfilePoint(COVE, 'zz')).toBeNull();
+  });
+
+  it('deletes a point a loop uses: its neighbours join, open ends trim and loops too small to draw go', () => {
+    const line = (from, to) => ({ type: 'line', from, to });
+    const [, arc] = COVE.geometry.loops[0].segs;
+    expect(deleteProfilePoint(COVE, 'a').geometry).toEqual({ ...COVE.geometry,
+      points: { b: [0.5, 0], c: [0.75, -0.25], d: [0.75, -0.8125], e: [0, -0.8125] },
+      loops: [{ id: 'L1', closed: true, segs: [arc, line('c', 'd'), line('d', 'e'), line('e', 'b')] }] });
+    const open = { ...COVE, geometry: { ...COVE.geometry, loops: [{ id: 'L1', closed: false,
+      segs: [line('a', 'b'), line('b', 'd'), line('d', 'e')] }] } };
+    expect(deleteProfilePoint(open, 'a').geometry.loops[0].segs).toEqual([line('b', 'd'), line('d', 'e')]);
+    expect(deleteProfilePoint(open, 'b').geometry.loops[0].segs).toEqual([line('a', 'd'), line('d', 'e')]);
+    const triangle = { ...COVE, drawnPoints: { elevation: [] }, geometry: { ...COVE.geometry, loops: [
+      { id: 'L1', closed: true, segs: [line('a', 'b'), line('b', 'd'), line('d', 'a')] },
+      { id: 'L2', closed: false, segs: [line('d', 'e')] },
+    ] } };
+    const shared = deleteProfilePoint(triangle, 'd');
+    expect(shared.geometry.loops).toEqual([{ id: 'L1', closed: false, segs: [line('a', 'b')] }]);
+    expect(Object.keys(shared.geometry.points)).toEqual(['a', 'b', 'c']);
+    const circle = { ...SQUARE, geometry: { units: 'in', points: { p1: [1, 0], p2: [-1, 0] }, loops: [{ id: 'L1', closed: true,
+      segs: [{ type: 'arc', from: 'p1', to: 'p2', center: [0, 0], ccw: true }, { type: 'arc', from: 'p2', to: 'p1', center: [0, 0], ccw: true }] }] } };
+    expect(deleteProfilePoint(circle, 'p1').geometry).toEqual({ units: 'in', points: {}, loops: [] });
   });
 
   it('renames a point everywhere it is named', () => {

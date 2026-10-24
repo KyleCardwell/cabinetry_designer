@@ -37,14 +37,14 @@ function isSegment(segment, points) {
     && Math.abs(radius - endRadius) <= RADIUS_TOLERANCE;
 }
 
-/** SPEC-47 geometry uses named inch points and chained line or arc loops. */
-export function isProfileGeometry(geometry) {
+/** SPEC-47 geometry uses named inch points and chained line or arc loops; drafts may be empty. */
+export function isProfileGeometry(geometry, { draft = false } = {}) {
   if (!hasKeys(geometry, ['units', 'points', 'loops']) || geometry.units !== 'in'
     || !isPlainObject(geometry.points)) return false;
   const pointIds = Reflect.ownKeys(geometry.points);
-  if (pointIds.length < 2
+  if ((!draft && pointIds.length < 2)
     || !pointIds.every((id) => isNonEmptyString(id) && isCoordinate(geometry.points[id]))
-    || !Array.isArray(geometry.loops) || geometry.loops.length === 0) return false;
+    || !Array.isArray(geometry.loops) || (!draft && geometry.loops.length === 0)) return false;
   const loopIds = new Set();
   for (const loop of geometry.loops) {
     if (!hasKeys(loop, ['id', 'closed', 'segs']) || !isNonEmptyString(loop.id)
@@ -78,7 +78,7 @@ export function isSectionProfile(profile, { draft = false } = {}) {
   ], ['id', 'name', 'kind', 'geometry', 'drawnPoints', 'version', 'archived']) || !isNonEmptyString(profile.id)
     || !isNonEmptyString(profile.name) || profile.name !== profile.name.trim()
     || !isProfileKind(profile.kind)
-    || !isProfileGeometry(profile.geometry)
+    || !isProfileGeometry(profile.geometry, { draft })
     || !hasKeys(profile.drawnPoints, ['elevation', 'plan'], ['elevation'])
     || !Number.isInteger(profile.version) || profile.version < 1
     || typeof profile.archived !== 'boolean'

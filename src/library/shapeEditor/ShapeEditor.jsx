@@ -143,10 +143,10 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
           canvasRef.current?.finishLine();
         } else if ((key === 'delete' || key === 'backspace') && selection?.kind === 'point') {
           event.preventDefault();
-          if (apply(deleteProfilePoint(profile, selection.id), 'That point is used by a line or arc — join it out first.')) setSelection(null);
+          if (apply(deleteProfilePoint(profile, selection.id), "That point can't be deleted.")) setSelection(null);
         } else if ((key === 'delete' || key === 'backspace') && selection?.kind === 'segment') {
           event.preventDefault();
-          if (apply(deleteProfileSegment(profile, selection.loopId, selection.index), 'A shape needs at least one line.')) setSelection(null);
+          if (apply(deleteProfileSegment(profile, selection.loopId, selection.index), "That line can't be deleted.")) setSelection(null);
         }
       }
     };
@@ -179,6 +179,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     })));
   const nameConflict = !saved.archived && shapes.some((shape) => shape.id !== saved.id && !shape.archived
     && shape.name.toLowerCase() === normalized.name.toLowerCase());
+  const emptyViews = Object.keys(SHAPE_VIEWS).filter((key) => draft.views[key] && !draft.views[key].loops.length);
   const saveDisabled = readOnly || !dirty || !isShapeList(shapes.map((shape) => shape.id === saved.id ? normalized : shape));
 
   return (
@@ -235,6 +236,8 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
         </button>
         {nameConflict && <span role="alert" className="text-xs text-amber-300">A live shape already has that name.</span>}
         {!normalized.name && <span role="alert" className="text-xs text-amber-300">Enter a shape name.</span>}
+        {emptyViews.length > 0 && <span role="alert" className="text-xs text-amber-300">
+          Draw the {emptyViews.map((key) => SHAPE_VIEWS[key].label.toLowerCase()).join(' and ')} view to save.</span>}
       </header>
       {message && <p role="status" className="px-4 py-1 text-sm text-red-300">{message}</p>}
       <ViewTabs view={view} onChange={(next) => {

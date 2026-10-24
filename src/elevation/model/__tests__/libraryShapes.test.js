@@ -248,3 +248,12 @@ describe('SH2 step a shapes', () => {
     expect(isShape(draft)).toBe(false);
   });
 });
+
+describe('empty views', () => {
+  it('drafts may have an empty view, but a shape needs something drawn in every view to save', () => {
+    const empty = { ...ROD, views: { ...ROD.views, plan: { units: 'in', points: {}, loops: [] } } };
+    expect(isShapeDraft(empty)).toBe(true);
+    expect(isShape(empty)).toBe(false);
+    expect(fitShapeBox(empty).box).toEqual(fitShapeBox(ROD).box);
+  });
+});

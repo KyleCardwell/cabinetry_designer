@@ -109,10 +109,10 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
           canvasRef.current?.finishLine();
         } else if ((key === 'delete' || key === 'backspace') && selection?.kind === 'point') {
           event.preventDefault();
-          if (apply(deleteProfilePoint(draft, selection.id), 'That point is used by a line or arc — join it out first.')) setSelection(null);
+          if (apply(deleteProfilePoint(draft, selection.id), "That point can't be deleted.")) setSelection(null);
         } else if ((key === 'delete' || key === 'backspace') && selection?.kind === 'segment') {
           event.preventDefault();
-          if (apply(deleteProfileSegment(draft, selection.loopId, selection.index), 'A shape needs at least one line.')) setSelection(null);
+          if (apply(deleteProfileSegment(draft, selection.loopId, selection.index), "That line can't be deleted.")) setSelection(null);
         }
       }
     };
@@ -179,6 +179,7 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
           Save
         </button>
         {saveDisabled && stretchLineProblem(profileToSave) && <span className="text-xs text-amber-300">Move the stretch line to save</span>}
+        {dirty && !draft.geometry.loops.length && <span role="alert" className="text-xs text-amber-300">Draw the profile to save.</span>}
       </header>
       {message && <p role="status" className="px-4 py-1 text-sm text-red-300">{message}</p>}
       <div className="flex min-h-0 flex-1">

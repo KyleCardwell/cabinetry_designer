@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { newSectionProfile } from '../sectionProfiles.js';
+import { isSectionProfile, isSectionProfileDraft, newSectionProfile } from '../sectionProfiles.js';
 import {
   addProfileLoop, addProfilePoint, deleteProfileLoop, nextLoopId, profileArcInfo, profilePointJoints,
   removeProfileVertex, setArcRadius, setSegmentArc, setSegmentLine, splitProfileSegment,
@@ -43,7 +43,11 @@ describe('SPEC-48 editing profile loops and segments', () => {
     expect(deleteProfileLoop(closed, 'L2')).toEqual(SQUARE);
     const drawn = { ...closed, drawnPoints: { elevation: ['p5'] } };
     expect(Object.keys(deleteProfileLoop(drawn, 'L2').geometry.points)).toEqual(['p1', 'p2', 'p3', 'p4', 'p5']);
-    expect([deleteProfileLoop(SQUARE, 'L1'), deleteProfileLoop(closed, 'L9')]).toEqual([null, null]);
+    expect(deleteProfileLoop(closed, 'L9')).toBeNull();
+    const empty = deleteProfileLoop(SQUARE, 'L1');
+    expect(empty.geometry.loops).toEqual([]);
+    expect(isSectionProfileDraft(empty)).toBe(true);
+    expect(isSectionProfile(empty)).toBe(false);
   });
 
   it('splits a line at its middle and an arc at its half sweep', () => {

@@ -103,9 +103,11 @@ export default function PointsPanel({ profile, selectedPointId, onSelectPoint, o
                     <button
                       type="button"
                       className="text-xs text-gray-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                      disabled={usedPoints.has(id)}
-                      title={usedPoints.has(id) ? 'Used by a line or arc — join it out first' : undefined}
-                      onClick={() => onApply(deleteProfilePoint(profile, id))}
+                      title={usedPoints.has(id) ? 'Delete this point: the points either side join with a straight line' : undefined}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        if (onApply(deleteProfilePoint(profile, id), "That point can't be deleted.")) onSelectPoint(null);
+                      }}
                     >
                       Delete
                     </button>

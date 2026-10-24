@@ -112,18 +112,40 @@ export function renameProfilePoint(profile, id, newId) {
 }
 
 /** SPEC-48 deletes unused points and removes their drawn references. */
+/** Rebuilds a loop without one point: its neighbours join with a line, an open end is trimmed, and a loop
+ * left with too few points goes (a closed loop down to two points becomes one open segment). */
+function loopWithoutPoint(loop, id) {
+  const { segs, closed } = loop;
+  const vertices = segs.map((segment) => segment.from);
+  if (!closed) vertices.push(segs.at(-1).to);
+  const kept = vertices.map((vertex, index) => [vertex, index]).filter(([vertex]) => vertex !== id);
+  const link = ([from, i], [to, j]) => (j === (i + 1) % vertices.length && segs[i]) || lineSegment(from, to);
+  if (kept.length < 2) return [];
+  if (closed && kept.length === 2) {
+    return [{ id: loop.id, closed: false, segs: [link(kept[0], kept[1])] }];
+  }
+  const rebuilt = kept.slice(1).map((entry, index) => link(kept[index], entry));
+  if (closed) rebuilt.push(link(kept.at(-1), kept[0]));
+  return [{ id: loop.id, closed, segs: rebuilt }];
+}
+
+/** Deletes a point from every loop that uses it (see loopWithoutPoint) and from the drawn points. */
 export function deleteProfilePoint(profile, id) {
   if (typeof id !== 'string') return null;
   return editProfile(profile, (next) => {
-    const { points, loops } = next.geometry;
-    if (!Object.hasOwn(points, id)
-      || loops.some((loop) => loop.segs.some((segment) => segment.from === id || segment.to === id))) {
-      return false;
-    }
+    const { points } = next.geometry;
+    if (!Object.hasOwn(points, id)) return false;
+    const touched = [];
+    next.geometry.loops = next.geometry.loops.flatMap((loop) => {
+      if (!loop.segs.some((segment) => segment.from === id || segment.to === id)) return [loop];
+      touched.push(...loop.segs);
+      return loopWithoutPoint(loop, id);
+    });
     delete points[id];
     for (const view of Object.keys(next.drawnPoints)) {
       next.drawnPoints[view] = next.drawnPoints[view].filter((pointId) => pointId !== id);
     }
+    deleteUnusedLoopPoints(next, touched);
   });
 }
 
@@ -291,7 +313,6 @@ export function deleteProfileSegment(profile, loopId, index) {
       loop.segs = [...before, ...after];
     }
     if (!loop.segs.length) loops.splice(position, 1);
-    if (!loops.length) return false;
   });
 }
 
@@ -313,12 +334,12 @@ export function setLoopClosed(profile, loopId, closed) {
   });
 }
 
-/** SPEC-48 deletes a loop and its unreferenced points while retaining at least one loop. */
+/** SPEC-48 deletes a loop and its unreferenced points; a draft may end up empty (saving still needs a loop). */
 export function deleteProfileLoop(profile, loopId) {
   return editProfile(profile, (next) => {
     const { loops } = next.geometry;
     const index = loops.findIndex((loop) => loop.id === loopId);
-    if (index < 0 || loops.length === 1) return false;
+    if (index < 0) return false;
     const [removed] = loops.splice(index, 1);
     deleteUnusedLoopPoints(next, removed.segs);
   });

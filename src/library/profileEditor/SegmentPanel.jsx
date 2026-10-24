@@ -75,7 +75,7 @@ export default function SegmentPanel({ profile, loopId, index, onApply, onSelect
       )}
       <div className="flex flex-wrap gap-2">
         <button type="button" className={BUTTON_CLASS} onClick={() => {
-          if (onApply(deleteProfileSegment(profile, loopId, index), 'A shape needs at least one line.')) onSelect(null);
+          if (onApply(deleteProfileSegment(profile, loopId, index), "That line can't be deleted.")) onSelect(null);
         }}>Delete segment</button>
         <button
           type="button"
@@ -95,7 +95,7 @@ export default function SegmentPanel({ profile, loopId, index, onApply, onSelect
               setDeleting(true);
               return;
             }
-            if (onApply(deleteProfileLoop(profile, loopId), 'A profile needs at least one loop.')) onSelect(null);
+            if (onApply(deleteProfileLoop(profile, loopId), "That loop can't be deleted.")) onSelect(null);
             setDeleting(false);
           }}
         >

@@ -148,9 +148,8 @@ describe('SH2 drawing helper controls', () => {
     editor();
     onApply.mockClear();
     press('Delete');
-    expect(states[0]).toBe('A shape needs at least one line.');
-    expect(onApply).not.toHaveBeenCalled();
-    expect(states[4]).not.toBeNull();
+    expect(onApply.mock.lastCall[0].geometry.loops).toEqual([]);
+    expect(states[4]).toBeNull();
     press('r', { closest: () => ({}) });
     expect(states[7]).toBe('circle');
   });

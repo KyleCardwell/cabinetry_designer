@@ -86,11 +86,11 @@ describe('SH2 drawing helpers', () => {
     expect(result.geometry.points).toEqual(withCircle.geometry.points);
   });
 
-  it('anchor 4: trims either open end, removes empty loops, and refuses removing the last segment', () => {
+  it('anchor 4: trims either open end, removes empty loops, and allows removing the last segment', () => {
     const open = deleteProfileSegment(square, 'L1', 3);
     expect(deleteProfileSegment(open, 'L1', 0).geometry.loops[0].segs).toEqual(open.geometry.loops[0].segs.slice(1));
     const one = deleteProfileSegment(deleteProfileSegment(open, 'L1', 2), 'L1', 1);
-    expect(deleteProfileSegment(one, 'L1', 0)).toBeNull();
+    expect(deleteProfileSegment(one, 'L1', 0).geometry.loops).toEqual([]);
     const withCircle = addCircleLoop(one, [2, 2], 1);
     const removed = deleteProfileSegment(withCircle, 'L1', 0);
     expect(removed.geometry.loops.map((loop) => loop.id)).toEqual(['L2']);
