@@ -20,6 +20,8 @@ import SlidesPage from './library/SlidesPage.jsx';
 import AccessoriesPage from './library/AccessoriesPage.jsx';
 import SettingsPage from './library/SettingsPage.jsx';
 import ProfileEditorPage from './library/profileEditor/ProfileEditorPage.jsx';
+import ShapesPage from './library/ShapesPage.jsx';
+import ShapeEditorPage from './library/shapeEditor/ShapeEditorPage.jsx';
 import { SANDBOX_ENABLED } from './sandbox.js';
 
 function App() {
@@ -74,6 +76,7 @@ function SignedInApp() {
         <Route path="/projects/:projectId/rooms/:roomId/versions/:versionId" element={<VersionPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="/library/profiles/:profileId" element={<ProfileEditorPage />} />
+        <Route path="/library/shapes/:shapeId" element={<ShapeEditorPage />} />
         <Route path="/library" element={<LibraryLayout />}>
           <Route index element={<Navigate to="door-designs" replace />} />
           <Route path="door-designs" element={<DoorDesignsPage />} />
@@ -82,6 +85,7 @@ function SignedInApp() {
           <Route path="pulls" element={<PullsPage />} />
           <Route path="slides" element={<SlidesPage />} />
           <Route path="accessories" element={<AccessoriesPage />} />
+          <Route path="shapes" element={<ShapesPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/projects" replace />} />
       </Routes>

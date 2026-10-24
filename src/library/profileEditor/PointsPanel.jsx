@@ -13,7 +13,7 @@ const NAME_FAILURE = 'Point names start with a letter, use letters, numbers or _
 const MOVE_FAILURE = 'That move would make an arc impossible.';
 const ADD_FAILURE = 'Enter x and y in inches, e.g. 1 1/2 or -13/16.';
 
-export default function PointsPanel({ profile, selectedPointId, onSelectPoint, onApply }) {
+export default function PointsPanel({ profile, selectedPointId, onSelectPoint, onApply, showOrigin = true }) {
   const [newX, setNewX] = useState('');
   const [newY, setNewY] = useState('');
   const usedPoints = new Set(profile.geometry.loops.flatMap((loop) => (
@@ -83,7 +83,7 @@ export default function PointsPanel({ profile, selectedPointId, onSelectPoint, o
                 </td>
                 <td className="py-1">
                   <div className="flex gap-2">
-                    <button type="button" className="text-xs text-gray-400 hover:text-white" onClick={() => onApply(moveProfileOrigin(profile, id))}>Origin</button>
+                    {showOrigin && <button type="button" className="text-xs text-gray-400 hover:text-white" onClick={() => onApply(moveProfileOrigin(profile, id))}>Origin</button>}
                     <button
                       type="button"
                       className="text-xs text-gray-400 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"

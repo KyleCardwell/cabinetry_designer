@@ -23,7 +23,7 @@ function reducer(state, action) {
   }
 }
 
-export default function useProfileDraft(saved) {
+export default function useProfileDraft(saved, key = shape) {
   const [state, dispatch] = useReducer(reducer, saved, initialState);
   const savedId = useRef(saved?.id);
 
@@ -45,6 +45,6 @@ export default function useProfileDraft(saved) {
     redo,
     canUndo: state.past.length > 0,
     canRedo: state.future.length > 0,
-    dirty: Boolean(saved && state.draft && shape(state.draft) !== shape(saved)),
+    dirty: Boolean(saved && state.draft && key(state.draft) !== key(saved)),
   };
 }
