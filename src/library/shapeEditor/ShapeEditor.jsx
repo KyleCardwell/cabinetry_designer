@@ -14,6 +14,7 @@ import ProfileCanvas from '../profileEditor/ProfileCanvas.jsx';
 import SegmentPanel from '../profileEditor/SegmentPanel.jsx';
 import useProfileDraft from '../profileEditor/useProfileDraft.js';
 import BoxPanel from './BoxPanel.jsx';
+import StretchPanel from './StretchPanel.jsx';
 import ViewTabs, { SHAPE_VIEWS } from './ViewTabs.jsx';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
@@ -171,6 +172,11 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     })) }],
   };
   const problems = shapeStretchProblems(normalized) ?? [];
+  const bands = SHAPE_VIEWS[view].boxKeys.slice(0, 2).flatMap((axis, coord) =>
+    (draft.stretch[axis] ?? []).map(([from, to], index) => ({
+      dir: coord === 0 ? 'vertical' : 'horizontal', from, to,
+      problem: problems.some((problem) => problem.axis === axis && problem.index === index),
+    })));
   const nameConflict = !saved.archived && shapes.some((shape) => shape.id !== saved.id && !shape.archived
     && shape.name.toLowerCase() === normalized.name.toLowerCase());
   const saveDisabled = readOnly || !dirty || !isShapeList(shapes.map((shape) => shape.id === saved.id ? normalized : shape));
@@ -217,6 +223,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
           type="button"
           className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500 disabled:opacity-50"
           disabled={saveDisabled}
+          title={problems.length ? stretchProblemText(problems[0], normalized.stretch[problems[0].axis][problems[0].index]) : undefined}
           onClick={() => {
             if (saveDisabled) return;
             dispatch(updateShape({ shape: normalized }));
@@ -230,9 +237,6 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
         {!normalized.name && <span role="alert" className="text-xs text-amber-300">Enter a shape name.</span>}
       </header>
       {message && <p role="status" className="px-4 py-1 text-sm text-red-300">{message}</p>}
-      {problems.map((problem, index) => <p key={index} role="alert" className="px-4 py-1 text-sm text-amber-300">
-        {stretchProblemText(problem, normalized.stretch[problem.axis][problem.index])}
-      </p>)}
       <ViewTabs view={view} onChange={(next) => {
         setView(next);
         setRemovingView(false);
@@ -256,12 +260,14 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
               </select>
             </label>
           </div>
-          <ProfileCanvas ref={canvasRef} key={`${shapeId}:${view}:${drawnView}`} profile={profile} ghost={ghost} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
+          <ProfileCanvas ref={canvasRef} key={`${shapeId}:${view}:${drawnView}`} profile={profile} ghost={ghost} bands={bands} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
         </div>
         <aside className="w-96 shrink-0 overflow-y-auto border-l border-gray-700 p-4 space-y-5">
           <BoxPanel box={draft.box} readOnly={readOnly}
             onChange={(box) => applyShape({ ...editable, box }, 'W, H and D must be greater than zero.')}
             onFit={() => applyShape(fitShapeBox(editable), 'The drawing must have a positive size on each drawn axis.')} />
+          <StretchPanel box={draft.box} stretch={draft.stretch} view={view} problems={problems} readOnly={readOnly}
+            onChange={(stretch) => applyShape({ ...editable, stretch }, 'A stretch zone needs From less than To.')} />
           <div className="flex flex-wrap gap-2">
             {[['x', '⇆ Flip left–right'], ['z', '⇅ Flip up–down'], ['y', 'Flip front–back']].map(([axis, label]) => (
               <button key={axis} type="button" className={HISTORY_BUTTON_CLASS} disabled={readOnly}

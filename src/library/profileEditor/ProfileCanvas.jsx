@@ -44,7 +44,7 @@ function baseTopHeight(profile) {
   return half ? half.at(-1)[1] + profile.topGap : null;
 }
 
-export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, selection, onSelect, fitSignal, tool, onApply, onMessage }, ref) {
+export default forwardRef(function ProfileCanvas({ profile, ghost = null, bands = [], grid, selection, onSelect, fitSignal, tool, onApply, onMessage }, ref) {
   const containerRef = useRef(null);
   const fittedRef = useRef(null);
   const gestureRef = useRef(null);
@@ -277,6 +277,17 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, grid, 
       >
         {view && (
           <>
+            <g pointerEvents="none">
+              {bands.map(({ dir, from, to, problem }, index) => {
+                const vertical = dir === 'vertical';
+                const start = toScreen(view, size, vertical ? [from, 0] : [0, to]);
+                const length = (to - from) * view.scale;
+                return <rect key={index} aria-label={`${vertical ? 'Vertical' : 'Horizontal'} stretch band`}
+                  x={vertical ? start[0] : 0} y={vertical ? 0 : start[1]}
+                  width={vertical ? length : size.width} height={vertical ? size.height : length}
+                  fill={problem ? '#f87171' : '#fbbf24'} fillOpacity={0.18} />;
+              })}
+            </g>
             <g pointerEvents="none" fill="none">
               {grid * view.scale >= 8 && <path d={gridScreenPath(view, size, grid)} stroke="#1f2937" />}
               {view.scale >= 8 && <path d={gridScreenPath(view, size, 1)} stroke="#374151" />}

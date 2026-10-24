@@ -15,6 +15,7 @@ import ProfileCanvas from '../profileEditor/ProfileCanvas.jsx';
 import PointsPanel from '../profileEditor/PointsPanel.jsx';
 import CoordInput from '../profileEditor/CoordInput.jsx';
 import BoxPanel from '../shapeEditor/BoxPanel.jsx';
+import StretchPanel from '../shapeEditor/StretchPanel.jsx';
 import ViewTabs from '../shapeEditor/ViewTabs.jsx';
 import SegmentPanel from '../profileEditor/SegmentPanel.jsx';
 
@@ -207,7 +208,7 @@ it('SH2 d validates names and stretch conflicts, confirms sandbox deletion, and 
   const history = histories.get(ShapeEditor);
   history.draft = { ...history.draft, stretch: { x: [[-1, 2]] } };
   expect(button(editor(), 'Save').props.disabled).toBe(true);
-  expect(text(editor())).toContain('is outside the size box.');
+  expect(text(stretchPanel())).toContain('is outside the size box.');
   history.draft = { ...history.draft, stretch: {} };
   elevation = { ...elevation, source: 'cloud', cloud: { permissions: { manage: false } } };
   let tree = editor();
@@ -395,4 +396,115 @@ it('SH2 e supports side editing, y/z flips, and guards all new mutations in read
   expect(button(editor(), 'Draw this view').props.disabled).toBe(true);
   button(editor(), 'Draw this view').props.onClick();
   expect(draft().views).not.toHaveProperty('side');
+});
+
+
+const stretchPanel = () => render(StretchPanel, component(editor(), StretchPanel).props);
+const addZone = (axis) => field(stretchPanel(), `Add ${axis} zone`).props.onClick();
+const setZone = (axis, index, end, value) => field(stretchPanel(), `${axis} zone ${index} ${end}`).props.onCommit(value);
+
+it('SH2 f anchor 1: adding the middle third on x shares a vertical band on Front and Plan only', () => {
+  openRod();
+  addZone('x');
+  expect(draft().stretch).toEqual({ x: [[10, 20]] });
+  expect(text(stretchPanel()).replace(/\s+/g, ' ')).toContain('x 10" – 20"');
+  for (const view of ['front', 'plan', 'side']) {
+    selectView(view);
+    expect(component(editor(), ProfileCanvas).props.bands).toEqual(view === 'side' ? []
+      : [{ dir: 'vertical', from: 10, to: 20, problem: false }]);
+    expect(Boolean(field(stretchPanel(), 'Add x zone'))).toBe(view !== 'side');
+  }
+});
+
+it('SH2 f anchor 2: typed 2–27 marks the band red and blocks Save with the first problem as its title', () => {
+  openRod();
+  addZone('x');
+  for (const [end, value] of [['From', '2'], ['To', '27']]) {
+    const input = field(stretchPanel(), `x zone 1 ${end}`);
+    expect(input.type).toBe(CoordInput);
+    useState.mockReturnValueOnce([value, vi.fn()]);
+    CoordInput(input.props).props.onBlur();
+  }
+  const problem = 'Stretch zone x 2"–27" crosses an arc in the front view.';
+  expect(text(stretchPanel())).toContain(problem);
+  expect(button(editor(), 'Save').props).toMatchObject({ disabled: true, title: problem });
+  expect(component(editor(), ProfileCanvas).props.bands).toEqual([
+    { dir: 'vertical', from: 2, to: 27, problem: true },
+  ]);
+  selectView('plan');
+  expect(component(editor(), ProfileCanvas).props.bands[0].problem).toBe(true);
+  button(editor(), 'Save').props.onClick();
+  expect(elevation.settings.shapes[0].stretch).toEqual({});
+});
+
+it('SH2 f anchor 3: From 3 clears the arc conflict and saves x 3–27 with one version bump', () => {
+  openRod();
+  addZone('x');
+  setZone('x', 1, 'From', 2);
+  setZone('x', 1, 'To', 27);
+  setZone('x', 1, 'From', 3);
+  expect(component(editor(), StretchPanel).props.problems).toEqual([]);
+  expect(button(editor(), 'Save').props).toMatchObject({ disabled: false, title: undefined });
+  expect(component(editor(), ProfileCanvas).props.bands[0].problem).toBe(false);
+  button(editor(), 'Save').props.onClick();
+  expect(elevation.settings.shapes[0]).toMatchObject({ stretch: { x: [[3, 27]] }, version: 2 });
+  expect(button(editor(), 'Save').props.disabled).toBe(true);
+});
+
+it('SH2 f anchor 4: removing the last zone deletes its axis key and saves an empty stretch object', () => {
+  openRod();
+  addZone('x');
+  button(editor(), 'Save').props.onClick();
+  field(stretchPanel(), 'Remove x zone 1').props.onClick();
+  expect(draft().stretch).toEqual({});
+  expect(component(editor(), ProfileCanvas).props.bands).toEqual([]);
+  button(editor(), 'Undo').props.onClick();
+  expect(draft().stretch).toEqual({ x: [[10, 20]] });
+  button(editor(), 'Redo').props.onClick();
+  button(editor(), 'Save').props.onClick();
+  expect(elevation.settings.shapes[0]).toMatchObject({ stretch: {}, version: 3 });
+});
+
+it('SH2 f sorts edited and added zones, snaps all axes, limits four zones, and guards read-only changes', () => {
+  add();
+  field(boxPanel(), 'Left x').props.onCommit(-1);
+  field(boxPanel(), 'W').props.onCommit(10);
+  addZone('x');
+  expect(draft().stretch.x).toEqual([[2.3125, 5.6875]]);
+  setZone('x', 1, 'From', 6);
+  expect(draft().stretch.x).toEqual([[2.3125, 5.6875]]);
+  expect(text(editor())).toContain('A stretch zone needs From less than To.');
+  setZone('x', 1, 'To', 8);
+  setZone('x', 1, 'From', 7);
+  addZone('x');
+  expect(draft().stretch.x).toEqual([[2.3125, 5.6875], [7, 8]]);
+  setZone('x', 2, 'From', 1);
+  expect(draft().stretch.x).toEqual([[1, 8], [2.3125, 5.6875]]);
+  expect(text(stretchPanel())).toContain('overlaps the zone before it.');
+  setZone('x', 1, 'From', -2);
+  expect(text(stretchPanel())).toContain('is outside the size box.');
+  for (let i = 0; i < 3; i += 1) addZone('x');
+  expect(draft().stretch.x).toHaveLength(4);
+  expect(field(stretchPanel(), 'Add x zone').props.disabled).toBe(true);
+  addZone('z');
+  expect(draft().stretch.z).toEqual([[4, 8]]);
+  expect(component(editor(), ProfileCanvas).props.bands.at(-1)).toMatchObject({ dir: 'horizontal', from: 4, to: 8 });
+  selectView('plan');
+  addZone('y');
+  expect(draft().stretch.y).toEqual([[4, 8]]);
+  expect(component(editor(), ProfileCanvas).props.bands.at(-1)).toMatchObject({ dir: 'horizontal', from: 4, to: 8 });
+  selectView('side');
+  expect(component(editor(), ProfileCanvas).props.bands).toEqual([
+    { dir: 'vertical', from: 4, to: 8, problem: false },
+    { dir: 'horizontal', from: 4, to: 8, problem: false },
+  ]);
+  elevation = { ...elevation, source: 'cloud', cloud: { permissions: { manage: false } } };
+  const before = structuredClone(draft());
+  for (const label of ['Add y zone', 'Remove y zone 1', 'y zone 1 From', 'y zone 1 To']) {
+    expect(field(stretchPanel(), label).props.disabled).toBe(true);
+  }
+  addZone('y');
+  field(stretchPanel(), 'Remove y zone 1').props.onClick();
+  expect(setZone('y', 1, 'From', 3)).toBe(false);
+  expect(draft()).toEqual(before);
 });
