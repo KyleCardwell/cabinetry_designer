@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { deleteProfilePoint, deleteProfileSegment, PROFILE_GRID_STEPS, setLoopClosed } from '../../elevation/model/profileEditing.js';
 import { SHAPE_KINDS } from '../../elevation/model/constants.js';
-import { isShapeList, shapeStretchProblems, shapeViewProfile, stretchProblemText, withShapeView } from '../../elevation/model/libraryShapes.js';
+import {
+  fitShapeBox, flipShape, isShapeDraft, isShapeList, moveShapeOrigin, shapeStretchProblems,
+  shapeView, shapeViewProfile, stretchProblemText, withShapeView,
+} from '../../elevation/model/libraryShapes.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateShape } from '../../elevation/store/elevationSlice.js';
 import { useShopReadOnly } from '../WorkspaceSourceBar.jsx';
@@ -10,6 +13,8 @@ import PointsPanel from '../profileEditor/PointsPanel.jsx';
 import ProfileCanvas from '../profileEditor/ProfileCanvas.jsx';
 import SegmentPanel from '../profileEditor/SegmentPanel.jsx';
 import useProfileDraft from '../profileEditor/useProfileDraft.js';
+import BoxPanel from './BoxPanel.jsx';
+import ViewTabs, { SHAPE_VIEWS } from './ViewTabs.jsx';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const HISTORY_BUTTON_CLASS = `${BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`;
@@ -26,7 +31,11 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
   const { draft, apply: applyDraft, undo, redo, canUndo, canRedo, dirty } = useProfileDraft(saved, shapeKey);
   const normalized = draft && normalizeShape(draft);
   // Keep the drawing editable while the name field is empty or has surrounding spaces.
-  const profile = normalized && shapeViewProfile({ ...normalized, name: normalized.name || saved?.name }, 'front');
+  const editable = normalized && { ...normalized, name: normalized.name || saved?.name };
+  const [view, setView] = useState('front');
+  const [removingView, setRemovingView] = useState(false);
+  const drawnView = Boolean(draft?.views[view]);
+  const profile = editable && shapeViewProfile(editable, view);
   const [message, setMessage] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [savedOnce, setSavedOnce] = useState(false);
@@ -36,15 +45,28 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
   const [tool, setTool] = useState('select');
   const canvasRef = useRef(null);
 
-  const apply = useCallback((next, failText = 'That change would make the shape invalid.') => {
+  const applyShape = (next, failText = 'That change would make the shape invalid.') => {
     if (readOnly) return false;
+    if (!isShapeDraft(next)) {
+      setMessage(failText);
+      return false;
+    }
+    applyDraft({ ...next, name: draft.name,
+      ...(Object.hasOwn(draft, 'notes') ? { notes: draft.notes } : {}) });
+    setMessage(null);
+    setDiscarding(false);
+    return true;
+  };
+
+  const apply = useCallback((next, failText = 'That change would make the shape invalid.') => {
+    if (readOnly || !drawnView) return false;
     if (next === null) {
       setMessage(failText);
       return false;
     }
-    // The adapter writes only the front geometry; retain uncommitted header text.
+    // The adapter writes only the current view geometry; retain uncommitted header text.
     const current = normalizeShape(draft);
-    const nextShape = withShapeView({ ...current, name: current.name || saved?.name }, 'front', next);
+    const nextShape = withShapeView({ ...current, name: current.name || saved?.name }, view, next);
     if (!nextShape) {
       setMessage(failText);
       return false;
@@ -53,7 +75,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     setMessage(null);
     setDiscarding(false);
     return true;
-  }, [applyDraft, draft, saved?.name, readOnly]);
+  }, [applyDraft, draft, saved?.name, readOnly, drawnView, view]);
 
   const close = () => onClose({ saved: savedOnce });
 
@@ -68,19 +90,22 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     setSavedOnce(false);
     setSelection(null);
     setTool('select');
+    setView('front');
+    setRemovingView(false);
   }, [shapeId]);
 
   useEffect(() => {
     setDiscarding(false);
+    setRemovingView(false);
     setSelection((current) => {
-      if (current?.kind === 'point' && !Object.hasOwn(draft?.views.front.points ?? {}, current.id)) return null;
+      if (current?.kind === 'point' && !Object.hasOwn(draft?.views[view]?.points ?? {}, current.id)) return null;
       if (current?.kind === 'segment') {
-        const loop = draft?.views.front.loops.find((entry) => entry.id === current.loopId);
+        const loop = draft?.views[view]?.loops.find((entry) => entry.id === current.loopId);
         if (!loop?.segs[current.index]) return null;
       }
       return current;
     });
-  }, [draft]);
+  }, [draft, view]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -98,7 +123,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
         if (key === 'f') {
           event.preventDefault();
           setFitSignal((current) => current + 1);
-        } else if (['v', 'l', 'r', 'c'].includes(key)) {
+        } else if (['v', 'l', 'r', 'c'].includes(key) && drawnView) {
           event.preventDefault();
           setTool({ v: 'select', l: 'line', r: 'rect', c: 'circle' }[key]);
           if (key !== 'v') setSelection(null);
@@ -126,7 +151,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [undo, redo, tool, selection, profile, apply, readOnly]);
+  }, [undo, redo, tool, selection, profile, apply, readOnly, drawnView]);
 
   if (!saved || !draft) {
     return (
@@ -137,6 +162,14 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     );
   }
 
+  const [a, b, width, height] = SHAPE_VIEWS[view].boxKeys.map((key) => draft.box[key]);
+  const ghost = {
+    units: 'in',
+    points: { b1: [a, b], b2: [a + width, b], b3: [a + width, b + height], b4: [a, b + height] },
+    loops: [{ id: 'box', closed: true, segs: ['b1', 'b2', 'b3', 'b4'].map((id, index, ids) => ({
+      type: 'line', from: id, to: ids[(index + 1) % ids.length],
+    })) }],
+  };
   const problems = shapeStretchProblems(normalized) ?? [];
   const nameConflict = !saved.archived && shapes.some((shape) => shape.id !== saved.id && !shape.archived
     && shape.name.toLowerCase() === normalized.name.toLowerCase());
@@ -200,13 +233,20 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
       {problems.map((problem, index) => <p key={index} role="alert" className="px-4 py-1 text-sm text-amber-300">
         {stretchProblemText(problem, normalized.stretch[problem.axis][problem.index])}
       </p>)}
-      <div className="flex min-h-0 flex-1">
+      <ViewTabs view={view} onChange={(next) => {
+        setView(next);
+        setRemovingView(false);
+        setSelection(null);
+        setTool('select');
+        setMessage(null);
+      }} />
+      <div id="shape-view-panel" role="tabpanel" aria-labelledby={`shape-tab-${view}`} className="flex min-h-0 flex-1">
         <div className="relative min-h-0 flex-1 bg-gray-900">
-          <div aria-label="Front drawing tools" className="absolute left-2 right-2 top-2 z-10 flex flex-wrap gap-2">
+          <div aria-label={`${SHAPE_VIEWS[view].label} drawing tools`} className="absolute left-2 right-2 top-2 z-10 flex flex-wrap gap-2">
             <button type="button" className={`${BUTTON_CLASS} ${tool === 'select' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'select'} onClick={() => switchTool('select')}>Select (V)</button>
-            <button type="button" className={`${BUTTON_CLASS} ${tool === 'line' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'line'} onClick={() => switchTool('line')}>Line (L)</button>
-            <button type="button" className={`${BUTTON_CLASS} ${tool === 'rect' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'rect'} onClick={() => switchTool('rect')}>Rectangle (R)</button>
-            <button type="button" className={`${BUTTON_CLASS} ${tool === 'circle' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'circle'} onClick={() => switchTool('circle')}>Circle (C)</button>
+            <button type="button" className={`${BUTTON_CLASS} ${tool === 'line' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'line'} disabled={readOnly || !drawnView} onClick={() => switchTool('line')}>Line (L)</button>
+            <button type="button" className={`${BUTTON_CLASS} ${tool === 'rect' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'rect'} disabled={readOnly || !drawnView} onClick={() => switchTool('rect')}>Rectangle (R)</button>
+            <button type="button" className={`${BUTTON_CLASS} ${tool === 'circle' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'circle'} disabled={readOnly || !drawnView} onClick={() => switchTool('circle')}>Circle (C)</button>
             <button type="button" className={`${BUTTON_CLASS} ${tool === 'measure' ? 'bg-blue-600 text-white' : 'bg-gray-800'}`} aria-pressed={tool === 'measure'} onClick={() => switchTool('measure')}>Measure (D)</button>
             <button type="button" className={`${BUTTON_CLASS} bg-gray-800`} onClick={() => setFitSignal((current) => current + 1)}>Fit</button>
             <label className="flex items-center gap-2 rounded bg-gray-800 px-2 text-sm text-gray-200">
@@ -216,34 +256,66 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
               </select>
             </label>
           </div>
-          <ProfileCanvas ref={canvasRef} key={shapeId} profile={profile} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
+          <ProfileCanvas ref={canvasRef} key={`${shapeId}:${view}:${drawnView}`} profile={profile} ghost={ghost} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
         </div>
         <aside className="w-96 shrink-0 overflow-y-auto border-l border-gray-700 p-4 space-y-5">
-          {selection?.kind === 'segment' && <SegmentPanel profile={profile} loopId={selection.loopId} index={selection.index} onApply={apply} onSelect={setSelection} />}
-          <PointsPanel
-            profile={profile}
-            selectedPointId={selection?.kind === 'point' ? selection.id : null}
-            onSelectPoint={(id) => setSelection(id === null ? null : { kind: 'point', id })}
-            onApply={apply}
-            showOrigin={false}
-          />
-          <section className="space-y-2">
-            <h2 className="text-sm font-medium text-gray-200">Loops</h2>
-            {profile.geometry.loops.map((loop) => (
-              <div key={loop.id} className="flex items-center justify-between gap-2 text-xs text-gray-400">
-                <span>{loop.id} · {loop.closed ? 'closed' : 'open'} · {loop.segs.length} segments</span>
-                <button
-                  type="button"
-                  className="rounded border border-gray-600 px-2 py-0.5 text-gray-200 hover:bg-gray-700"
-                  aria-label={`${loop.closed ? 'Open' : 'Close'} loop ${loop.id}`}
-                  onClick={() => apply(setLoopClosed(profile, loop.id, !loop.closed), 'A closed shape needs at least 3 points.')}
-                >
-                  {loop.closed ? 'Open' : 'Close'}
-                </button>
-              </div>
+          <BoxPanel box={draft.box} readOnly={readOnly}
+            onChange={(box) => applyShape({ ...editable, box }, 'W, H and D must be greater than zero.')}
+            onFit={() => applyShape(fitShapeBox(editable), 'The drawing must have a positive size on each drawn axis.')} />
+          <div className="flex flex-wrap gap-2">
+            {[['x', '⇆ Flip left–right'], ['z', '⇅ Flip up–down'], ['y', 'Flip front–back']].map(([axis, label]) => (
+              <button key={axis} type="button" className={HISTORY_BUTTON_CLASS} disabled={readOnly}
+                onClick={() => applyShape(flipShape(editable, axis))}>{label}</button>
             ))}
-          </section>
-          <p className="text-xs text-gray-500">Front view · x → right · z ↑ up. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
+          </div>
+          {view !== 'front' && (!drawnView ? (
+            <section className="space-y-2 text-sm text-gray-300">
+              <p>No {view} view yet: drawn as the {view === 'plan' ? 'W × D' : 'D × H'} size-box rectangle.</p>
+              <button type="button" className={HISTORY_BUTTON_CLASS} disabled={readOnly}
+                onClick={() => applyShape({ ...editable, views: { ...draft.views, [view]: shapeView(editable, view) } })}>
+                Draw this view
+              </button>
+            </section>
+          ) : (
+            <button type="button" className={HISTORY_BUTTON_CLASS} disabled={readOnly} onClick={() => {
+              if (readOnly) return;
+              if (!removingView) { setRemovingView(true); return; }
+              const views = { ...draft.views };
+              delete views[view];
+              if (applyShape({ ...editable, views })) {
+                setRemovingView(false);
+                setSelection(null);
+                setTool('select');
+              }
+            }}>{removingView ? 'Confirm remove view' : 'Remove view'}</button>
+          ))}
+          {drawnView && <>
+            {selection?.kind === 'segment' && <SegmentPanel profile={profile} loopId={selection.loopId} index={selection.index} onApply={apply} onSelect={setSelection} />}
+            <PointsPanel
+              profile={profile}
+              selectedPointId={selection?.kind === 'point' ? selection.id : null}
+              onSelectPoint={(id) => setSelection(id === null ? null : { kind: 'point', id })}
+              onApply={apply}
+              onOrigin={(id) => applyShape(moveShapeOrigin(editable, view, id))}
+            />
+            <section className="space-y-2">
+              <h2 className="text-sm font-medium text-gray-200">Loops</h2>
+              {profile.geometry.loops.map((loop) => (
+                <div key={loop.id} className="flex items-center justify-between gap-2 text-xs text-gray-400">
+                  <span>{loop.id} · {loop.closed ? 'closed' : 'open'} · {loop.segs.length} segments</span>
+                  <button
+                    type="button"
+                    className="rounded border border-gray-600 px-2 py-0.5 text-gray-200 hover:bg-gray-700"
+                    aria-label={`${loop.closed ? 'Open' : 'Close'} loop ${loop.id}`}
+                    onClick={() => apply(setLoopClosed(profile, loop.id, !loop.closed), 'A closed shape needs at least 3 points.')}
+                  >
+                    {loop.closed ? 'Open' : 'Close'}
+                  </button>
+                </div>
+              ))}
+            </section>
+          </>}
+          <p className="text-xs text-gray-500">{SHAPE_VIEWS[view].label} view · {SHAPE_VIEWS[view].axes}. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
         </aside>
       </div>
     </div>

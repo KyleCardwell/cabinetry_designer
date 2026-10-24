@@ -13,6 +13,9 @@ import ShapeEditor from '../shapeEditor/ShapeEditor.jsx';
 import ShapeEditorPage from '../shapeEditor/ShapeEditorPage.jsx';
 import ProfileCanvas from '../profileEditor/ProfileCanvas.jsx';
 import PointsPanel from '../profileEditor/PointsPanel.jsx';
+import CoordInput from '../profileEditor/CoordInput.jsx';
+import BoxPanel from '../shapeEditor/BoxPanel.jsx';
+import ViewTabs from '../shapeEditor/ViewTabs.jsx';
 import SegmentPanel from '../profileEditor/SegmentPanel.jsx';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useReducer: vi.fn(),
@@ -20,6 +23,40 @@ vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), 
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 vi.mock('react-router-dom', async (original) => ({ ...await original(), useNavigate: vi.fn(), useParams: vi.fn() }));
 vi.mock('../../sandbox.js', () => ({ SANDBOX_ENABLED: true }));
+
+const ROD = {
+  id: 'rod', name: 'Closet rod', kind: 'accessory', version: 1, archived: false,
+  box: { x: 0, y: 0, z: 0, w: 30, h: 3, d: 2 }, stretch: {},
+  views: { front: {
+    units: 'in',
+    points: {
+      a: [0, 0], b: [3, 0], c: [3, 3], d: [0, 3],
+      e: [27, 0], f: [30, 0], g: [30, 3], h: [27, 3],
+      hl: [0.875, 1.5], hr: [2.125, 1.5], jl: [27.875, 1.5], jr: [29.125, 1.5],
+      r1: [3, 2.03125], r2: [27, 2.03125], r3: [3, 0.96875], r4: [27, 0.96875],
+    },
+    loops: [
+      { id: 'left', closed: true, segs: [
+        { type: 'line', from: 'a', to: 'b' }, { type: 'line', from: 'b', to: 'c' },
+        { type: 'line', from: 'c', to: 'd' }, { type: 'line', from: 'd', to: 'a' },
+      ] },
+      { id: 'right', closed: true, segs: [
+        { type: 'line', from: 'e', to: 'f' }, { type: 'line', from: 'f', to: 'g' },
+        { type: 'line', from: 'g', to: 'h' }, { type: 'line', from: 'h', to: 'e' },
+      ] },
+      { id: 'hole-left', closed: true, segs: [
+        { type: 'arc', from: 'hl', to: 'hr', center: [1.5, 1.5], ccw: true },
+        { type: 'arc', from: 'hr', to: 'hl', center: [1.5, 1.5], ccw: true },
+      ] },
+      { id: 'hole-right', closed: true, segs: [
+        { type: 'arc', from: 'jl', to: 'jr', center: [28.5, 1.5], ccw: true },
+        { type: 'arc', from: 'jr', to: 'jl', center: [28.5, 1.5], ccw: true },
+      ] },
+      { id: 'rod-top', closed: false, segs: [{ type: 'line', from: 'r1', to: 'r2' }] },
+      { id: 'rod-bottom', closed: false, segs: [{ type: 'line', from: 'r3', to: 'r4' }] },
+    ],
+  } },
+};
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
@@ -99,12 +136,12 @@ it('SH2 d anchor 2: front point edit saves p3 [30, 3] at version 2 without creat
   expect(elevation.settings.shapes[0].box).toEqual(initial.box);
   expect(button(editor(), 'Save').props.disabled).toBe(true);
   const pointsProps = component(editor(), PointsPanel).props;
-  expect(pointsProps.showOrigin).toBe(false);
-  expect(button(render(PointsPanel, pointsProps), 'Origin')).toBeUndefined();
-  expect(button(render(PointsPanel, { ...pointsProps, showOrigin: undefined }), 'Origin')).toBeDefined();
+  expect(pointsProps.onOrigin).toBeTypeOf('function');
+  expect(button(render(PointsPanel, pointsProps), 'Set as 0,0')).toBeDefined();
+  expect(button(render(PointsPanel, { ...pointsProps, onOrigin: undefined }), 'Origin')).toBeDefined();
   canvas = component(editor(), ProfileCanvas);
-  expect(canvas.props.ghost).toBeUndefined();
-  expect(text(editor())).not.toMatch(/Rotate|Flip|Drawn points/);
+  expect(canvas.props.ghost.points).toEqual({ b1: [0, 0], b2: [12, 0], b3: [12, 12], b4: [0, 12] });
+  expect(text(editor())).not.toMatch(/Rotate|Drawn points/);
   canvas.props.onSelect({ kind: 'segment', loopId: 'L1', index: 0 });
   expect(component(editor(), SegmentPanel).props.profile.geometry.points.p3).toEqual([30, 3]);
   const open = field(editor(), 'Open loop L1');
@@ -192,4 +229,170 @@ it('SH2 d validates names and stretch conflicts, confirms sandbox deletion, and 
   expect(elevation.settings.shapes).toHaveLength(2);
   button(render(ShapesPage), 'Confirm delete').props.onClick();
   expect(elevation.settings.shapes.map((shape) => shape.id)).toEqual(['other']);
+});
+
+
+const openRod = () => dispatch(addShape({ shape: structuredClone(ROD) }));
+const draft = () => histories.get(ShapeEditor).draft;
+const boxPanel = () => render(BoxPanel, component(editor(), BoxPanel).props);
+const tabs = () => render(ViewTabs, component(editor(), ViewTabs).props);
+const selectView = (view) => nodes(tabs()).find((node) => node.props?.id === `shape-tab-${view}`).props.onClick();
+
+it('SH2 e anchor 1: plan starts as the box rectangle, draws explicitly, edits independently, and confirms removal', () => {
+  openRod();
+  expect(button(editor(), 'Draw this view')).toBeUndefined();
+  expect(button(editor(), 'Remove view')).toBeUndefined();
+  expect(text(tabs())).toContain('x → , z ↑');
+  expect(text(tabs())).toContain('x → , y ↑ (back)');
+  component(editor(), ProfileCanvas).props.onSelect({ kind: 'point', id: 'r3' });
+  selectView('plan');
+  let canvas = component(editor(), ProfileCanvas);
+  const rectangle = { b1: [0, 0], b2: [30, 0], b3: [30, 2], b4: [0, 2] };
+  expect(canvas.props.profile.geometry.points).toEqual(rectangle);
+  expect(canvas.props.ghost.points).toEqual(rectangle);
+  expect(canvas.props.selection).toBeNull();
+  expect(component(editor(), PointsPanel)).toBeUndefined();
+  expect(text(editor()).replace(/\s+/g, ' ')).toContain('No plan view yet: drawn as the W × D size-box rectangle.');
+  expect(button(editor(), 'Line (L)').props.disabled).toBe(true);
+  expect(canvas.props.onApply(moveProfilePoint(canvas.props.profile, 'b3', [28, 2]))).toBe(false);
+  expect(draft().views.plan).toBeUndefined();
+  button(editor(), 'Draw this view').props.onClick();
+  expect(draft().views.plan.points).toEqual(rectangle);
+  expect(draft().views.plan.loops[0].closed).toBe(true);
+  canvas = component(editor(), ProfileCanvas);
+  expect(canvas.props.onApply(moveProfilePoint(canvas.props.profile, 'b3', [28, 2]))).toBe(true);
+  expect(draft().views.front).toEqual(ROD.views.front);
+  button(editor(), 'Save').props.onClick();
+  expect(elevation.settings.shapes[0].views.plan.points.b3).toEqual([28, 2]);
+  button(editor(), 'Remove view').props.onClick();
+  expect(draft().views.plan).toBeDefined();
+  button(editor(), 'Confirm remove view').props.onClick();
+  expect(draft().views).not.toHaveProperty('plan');
+  expect(component(editor(), ProfileCanvas).props.profile.geometry.points).toEqual(rectangle);
+  button(editor(), 'Undo').props.onClick();
+  expect(draft().views.plan.points.b3).toEqual([28, 2]);
+  button(editor(), 'Redo').props.onClick();
+  button(editor(), 'Save').props.onClick();
+  expect(elevation.settings.shapes[0].views).not.toHaveProperty('plan');
+});
+
+it('SH2 e anchor 2: W typed 24 updates the box and ghost; Fit restores 30 and keeps the undrawn depth', () => {
+  openRod();
+  const width = field(boxPanel(), 'W');
+  expect(width.type).toBe(CoordInput);
+  useState.mockReturnValueOnce(['24', vi.fn()]);
+  CoordInput(width.props).props.onBlur();
+  expect(draft().box.w).toBe(24);
+  expect(field(boxPanel(), 'W').props.value).toBe(24);
+  expect(component(editor(), ProfileCanvas).props.ghost.points.b3).toEqual([24, 3]);
+  expect(draft().views.front).toEqual(ROD.views.front);
+  button(boxPanel(), 'Fit to drawing').props.onClick();
+  expect(draft().box).toEqual({ x: 0, y: 0, z: 0, w: 30, h: 3, d: 2 });
+  expect(field(boxPanel(), 'W').props.value).toBe(30);
+  for (const label of ['W', 'H', 'D']) {
+    for (const value of [0, -1, Infinity, NaN]) {
+      expect(field(boxPanel(), label).props.onCommit(value)).toBe(false);
+    }
+  }
+  expect(field(boxPanel(), 'Front y').props.onCommit(-2.5)).toBe(true);
+  expect(draft().box.y).toBe(-2.5);
+  button(boxPanel(), 'Fit to drawing').props.onClick();
+  expect(draft().box.y).toBe(-2.5);
+  selectView('plan');
+  expect(component(editor(), ProfileCanvas).props.ghost.points.b1).toEqual([0, -2.5]);
+});
+
+it('SH2 e anchor 3: Set as 0,0 on front r3 shifts every shared axis, box and zones across tabs and panels', () => {
+  openRod();
+  selectView('plan');
+  button(editor(), 'Draw this view').props.onClick();
+  selectView('side');
+  button(editor(), 'Draw this view').props.onClick();
+  selectView('front');
+  histories.get(ShapeEditor).draft.stretch = { x: [[3, 27]] };
+  const points = render(PointsPanel, component(editor(), PointsPanel).props);
+  const row = nodes(points).find((node) => node.type === 'tr' && field(node, 'Name of r3'));
+  button(row, 'Set as 0,0').props.onClick();
+  expect(draft().box).toEqual({ x: -3, y: 0, z: -0.96875, w: 30, h: 3, d: 2 });
+  expect(draft().stretch.x).toEqual([[0, 24]]);
+  expect(draft().views.front.points.r3).toEqual([0, 0]);
+  expect(draft().views.front.loops[2].segs[0].center).toEqual([-1.5, 0.53125]);
+  expect(field(boxPanel(), 'Left x').props.value).toBe(-3);
+  expect(field(boxPanel(), 'Bottom z').props.value).toBe(-0.96875);
+  expect(field(render(PointsPanel, component(editor(), PointsPanel).props), 'x of r3').props.value).toBe(0);
+  expect(field(render(PointsPanel, component(editor(), PointsPanel).props), 'y of r3').props.value).toBe(0);
+  for (const [view, expected] of [['front', [-3, -0.96875]], ['plan', [-3, 0]], ['side', [0, -0.96875]]]) {
+    selectView(view);
+    const canvas = component(editor(), ProfileCanvas);
+    expect(canvas.props.profile.geometry.points[view === 'front' ? 'a' : 'b1']).toEqual(expected);
+    expect(canvas.props.ghost.points.b1).toEqual(expected);
+    expect(nodes(tabs()).find((node) => node.props?.id === `shape-tab-${view}`).props['aria-selected']).toBe(true);
+  }
+  button(editor(), 'Save').props.onClick();
+  expect(elevation.settings.shapes[0].box).toEqual(draft().box);
+});
+
+it('SH2 e anchor 4: two left–right flips restore the whole shape and retain two undo entries', () => {
+  openRod();
+  editor();
+  const before = structuredClone(draft());
+  button(editor(), '⇆ Flip left–right').props.onClick();
+  expect(draft().box.x).toBe(-30);
+  expect(draft().views.front.loops[2].segs[0]).toMatchObject({ center: [-1.5, 1.5], ccw: false });
+  const flipped = structuredClone(draft());
+  button(editor(), '⇆ Flip left–right').props.onClick();
+  expect(draft()).toEqual(before);
+  expect(histories.get(ShapeEditor).past).toHaveLength(2);
+  button(editor(), 'Undo').props.onClick();
+  expect(draft()).toEqual(flipped);
+  expect(button(editor(), 'Undo').props.disabled).toBe(false);
+  button(editor(), 'Undo').props.onClick();
+  expect(draft()).toEqual(before);
+  expect(button(editor(), 'Undo').props.disabled).toBe(true);
+  button(editor(), 'Redo').props.onClick();
+  button(editor(), 'Redo').props.onClick();
+  expect(draft()).toEqual(before);
+});
+
+it('SH2 e supports side editing, y/z flips, and guards all new mutations in read-only mode', () => {
+  openRod();
+  selectView('plan');
+  button(editor(), 'Draw this view').props.onClick();
+  selectView('side');
+  expect(text(tabs())).toContain('y → (back), z ↑');
+  expect(text(editor()).replace(/\s+/g, ' ')).toContain('No side view yet: drawn as the D × H size-box rectangle.');
+  expect(component(editor(), ProfileCanvas).props.profile.geometry.points.b3).toEqual([2, 3]);
+  button(editor(), 'Draw this view').props.onClick();
+  const canvas = component(editor(), ProfileCanvas);
+  canvas.props.onApply(moveProfilePoint(canvas.props.profile, 'b3', [4, 6]));
+  button(boxPanel(), 'Fit to drawing').props.onClick();
+  expect(draft().box).toEqual({ x: 0, y: 0, z: 0, w: 30, h: 6, d: 4 });
+  button(editor(), 'Flip front–back').props.onClick();
+  expect(draft().box.y).toBe(-4);
+  expect(draft().views.side.points.b3).toEqual([-4, 6]);
+  expect(draft().views.plan.points.b3).toEqual([30, -2]);
+  expect(draft().views.front).toEqual(ROD.views.front);
+  button(editor(), '⇅ Flip up–down').props.onClick();
+  expect(draft().box.z).toBe(-6);
+  expect(draft().views.side.points.b3).toEqual([-4, -6]);
+  expect(draft().views.front.loops[2].segs[0]).toMatchObject({ center: [1.5, -1.5], ccw: false });
+  const before = structuredClone(draft());
+  elevation = { ...elevation, source: 'cloud', cloud: { permissions: { manage: false } } };
+  for (const label of ['⇆ Flip left–right', '⇅ Flip up–down', 'Flip front–back', 'Remove view']) {
+    expect(button(editor(), label).props.disabled).toBe(true);
+    button(editor(), label).props.onClick();
+  }
+  expect(component(editor(), BoxPanel).props.readOnly).toBe(true);
+  expect(field(boxPanel(), 'W').props.disabled).toBe(true);
+  expect(field(boxPanel(), 'W').props.onCommit(24)).toBe(false);
+  button(boxPanel(), 'Fit to drawing').props.onClick();
+  component(editor(), PointsPanel).props.onOrigin('b3');
+  expect(draft()).toEqual(before);
+  elevation = { ...elevation, source: 'local' };
+  button(editor(), 'Remove view').props.onClick();
+  button(editor(), 'Confirm remove view').props.onClick();
+  elevation = { ...elevation, source: 'cloud', cloud: { permissions: { manage: false } } };
+  expect(button(editor(), 'Draw this view').props.disabled).toBe(true);
+  button(editor(), 'Draw this view').props.onClick();
+  expect(draft().views).not.toHaveProperty('side');
 });
