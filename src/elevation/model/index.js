@@ -25,7 +25,8 @@ export {
 export { insideEndSides } from './insideEnds.js';
 export {
   isShape, isShapeDraft, isShapeList, newShape, copyShape, shapeView, fitShapeBox,
-  moveShapeOrigin, flipShape, shapeStretchProblems, stretchProblemText, shapeViewProfile, withShapeView,
+  moveShapeOrigin, moveShapeOriginTo, shapeOriginSpots,
+  flipShape, shapeStretchProblems, stretchProblemText, shapeViewProfile, withShapeView,
 } from './libraryShapes.js';
 export { stepEndSides } from './stepEnds.js';
 export {

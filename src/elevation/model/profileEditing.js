@@ -90,6 +90,31 @@ export function moveProfilePoint(profile, id, xy) {
   });
 }
 
+/** Translates a point group, preserving whole arcs and the sweep of partially moved arcs. */
+export function moveProfilePoints(profile, ids, delta) {
+  if (!Array.isArray(ids) || ids.length === 0 || !isCoordinate(delta)
+    || Array.from(ids).some((id) => typeof id !== 'string') || new Set(ids).size !== ids.length) return null;
+  return editProfile(profile, (next) => {
+    const { points, loops } = next.geometry;
+    if (ids.some((id) => !Object.hasOwn(points, id))) return false;
+    if (delta.every((value) => value === 0)) return;
+    const selected = new Set(ids);
+    const arcs = loops.flatMap((loop) => loop.segs)
+      .filter((segment) => segment.type === 'arc'
+        && (selected.has(segment.from) || selected.has(segment.to)))
+      .map((segment) => ({ segment, sweep: arcSweep(segment, points) }));
+    const translate = (xy) => xy.map((value, i) => round6(value + delta[i]));
+    for (const id of ids) points[id] = translate(points[id]);
+    for (const { segment, sweep } of arcs) {
+      const center = selected.has(segment.from) && selected.has(segment.to)
+        ? translate(segment.center)
+        : centerFromSweep(points[segment.from], points[segment.to], sweep, segment.ccw);
+      if (center === null) return false;
+      segment.center = center;
+    }
+  });
+}
+
 /** SPEC-48 renames a point in place and updates segment and drawn references. */
 export function renameProfilePoint(profile, id, newId) {
   if (typeof id !== 'string' || !isPointId(newId)) return null;

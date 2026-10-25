@@ -158,7 +158,26 @@ export function moveShapeOrigin(shape, view, pointId) {
   if (!isShapeDraft(shape) || !validView(view) || !isText(pointId)
     || !Object.hasOwn(shape.views[view]?.points ?? {}, pointId)) return null;
   const point = shape.views[view].points[pointId];
-  return transformShape(shape, Object.fromEntries(VIEW_AXES[view].map((axis, i) => [axis, point[i]])));
+  return moveShapeOriginTo(shape, Object.fromEntries(VIEW_AXES[view].map((axis, i) => [axis, point[i]])));
+}
+
+/** Places the given world coordinates at zero throughout the shape. */
+export function moveShapeOriginTo(shape, at) {
+  if (!isShapeDraft(shape) || !hasKeys(at, Object.keys(AXIS_SIZE), [])
+    || Object.keys(at).length === 0 || !Object.values(at).every(Number.isFinite)) return null;
+  return transformShape(shape, at);
+}
+
+/** The nine size-box origin choices, in canvas order from top left to bottom right. */
+export function shapeOriginSpots(shape, view) {
+  if (!isShapeDraft(shape) || !validView(view)) return null;
+  const [a, b] = VIEW_AXES[view];
+  return ['top', 'middle', 'bottom'].flatMap((row, r) => ['left', 'middle', 'right'].map((col, c) => ({
+    row, col, at: {
+      [a]: shape.box[a] + shape.box[AXIS_SIZE[a]] * c / 2,
+      [b]: shape.box[b] + shape.box[AXIS_SIZE[b]] * (2 - r) / 2,
+    },
+  })));
 }
 
 export function flipShape(shape, axis) {

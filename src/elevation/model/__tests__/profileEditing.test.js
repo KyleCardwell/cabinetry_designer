@@ -3,12 +3,23 @@ import { describe, expect, it } from 'vitest';
 import { newSectionProfile } from '../sectionProfiles.js';
 import {
   PROFILE_GRID_STEPS, addProfilePoint, deleteProfilePoint, formatProfileCoord, isPointId, moveProfileOrigin,
-  moveProfilePoint, nextPointId, renameProfilePoint, snapProfilePoint,
+  moveProfilePoint, moveProfilePoints, nextPointId, renameProfilePoint, snapProfilePoint,
 } from '../profileEditing.js';
 
 const sample = JSON.parse(readFileSync(new URL('./fixtures/sectionProfiles.json', import.meta.url), 'utf8'));
 const [COVE, BEAD, CROWN] = sample.profiles;
 const SQUARE = newSectionProfile([], 'sp-sq');
+const ARC = {
+  ...SQUARE,
+  geometry: {
+    units: 'in', points: { a: [0, 0], b: [2, 0], c: [2, 2] },
+    loops: [{ id: 'L1', closed: true, segs: [
+      { type: 'line', from: 'a', to: 'b' },
+      { type: 'arc', from: 'b', to: 'c', center: [2, 1], ccw: true },
+      { type: 'line', from: 'c', to: 'a' },
+    ] }],
+  },
+};
 
 describe('SPEC-48 editing profile points', () => {
   it('names new points and formats coordinates for typing', () => {
@@ -114,5 +125,58 @@ describe('SPEC-48 editing profile points', () => {
       { xy: [0.5, 0], id: null },
       { xy: [0.25, -0.5], id: null },
     ]);
+  });
+});
+
+describe('SH2.1 step a group point moves', () => {
+  it('anchor 1: translates an entire arc with both ends, independently of pick order and direction', () => {
+    const before = structuredClone(ARC);
+    const moved = moveProfilePoints(ARC, ['b', 'c'], [1, 0.5]);
+    expect(moved.geometry.points).toEqual({ a: [0, 0], b: [3, 0.5], c: [3, 2.5] });
+    expect(moved.geometry.loops[0].segs[1]).toEqual({
+      type: 'arc', from: 'b', to: 'c', center: [3, 1.5], ccw: true,
+    });
+    expect(moveProfilePoints(ARC, ['c', 'b'], [1, 0.5])).toEqual(moved);
+    const clockwise = structuredClone(ARC);
+    clockwise.geometry.loops[0].segs[1].ccw = false;
+    expect(moveProfilePoints(clockwise, ['b', 'c'], [1, 0.5]).geometry.loops[0].segs[1])
+      .toMatchObject({ center: [3, 1.5], ccw: false });
+    expect(ARC).toEqual(before);
+  });
+
+  it('anchor 2: preserves the sweep and direction when only one arc end moves', () => {
+    const moved = moveProfilePoints(ARC, ['c'], [0, 2]);
+    expect(moved.geometry.points).toEqual({ a: [0, 0], b: [2, 0], c: [2, 4] });
+    expect(moved.geometry.loops[0].segs[1]).toEqual({
+      type: 'arc', from: 'b', to: 'c', center: [2, 2], ccw: true,
+    });
+    expect(moveProfilePoints(COVE, ['c'], [0.25, -0.25]))
+      .toEqual(moveProfilePoint(COVE, 'c', [1, -0.5]));
+    expect(moveProfilePoints(COVE, ['b'], [-0.25, 0.25]))
+      .toEqual(moveProfilePoint(COVE, 'b', [0.25, 0.25]));
+  });
+
+  it('anchor 3: rejects unknown, empty, duplicate or malformed ids and non-finite amounts', () => {
+    for (const [ids, delta] of [
+      [['b', 'zz'], [1, 0]], [[], [1, 0]], [['b', 'b'], [1, 0]], [['b'], [NaN, 0]],
+      [['b'], [0, Infinity]], [['b'], [1]], [['b'], null], [['b'], [1, 2, 3]],
+      [null, [1, 0]], ['b', [1, 0]], [[2], [1, 0]], [Array(1), [1, 0]], [['toString'], [0, 0]],
+    ]) expect(moveProfilePoints(ARC, ids, delta)).toBeNull();
+    expect(moveProfilePoints(null, ['b'], [1, 0])).toBeNull();
+  });
+
+  it('fails the whole group move without mutating the input when an arc collapses', () => {
+    const before = structuredClone(ARC);
+    expect(moveProfilePoints(ARC, ['a', 'c'], [0, -2])).toBeNull();
+    expect(ARC).toEqual(before);
+  });
+
+  it('rounds moved coordinates and arc centres to six decimals and leaves zero moves equal', () => {
+    const moved = moveProfilePoints(ARC, ['b', 'c'], [1 / 3, -1 / 3]);
+    expect(moved.geometry.points).toEqual({ a: [0, 0], b: [2.333333, -0.333333], c: [2.333333, 1.666667] });
+    expect(moved.geometry.loops[0].segs[1].center).toEqual([2.333333, 0.666667]);
+    const precise = { ...SQUARE, geometry: { units: 'in', points: { p: [1 / 3, -1 / 3] }, loops: [] } };
+    expect(moveProfilePoints(precise, ['p'], [0, 0])).toEqual(precise);
+    expect(moveProfilePoints(ARC, ['b', 'c'], [0, 0])).toEqual(ARC);
   });
 });

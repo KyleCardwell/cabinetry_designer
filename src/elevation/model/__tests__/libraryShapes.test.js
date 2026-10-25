@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_SETTINGS, SHAPE_KINDS, LIBRARY_KEYS,
   isShape, isShapeDraft, isShapeList, newShape, copyShape, shapeView, fitShapeBox,
-  moveShapeOrigin, flipShape, shapeStretchProblems, stretchProblemText, shapeViewProfile, withShapeView,
+  moveShapeOrigin, moveShapeOriginTo, shapeOriginSpots,
+  flipShape, shapeStretchProblems, stretchProblemText, shapeViewProfile, withShapeView,
 } from '../index.js';
 import { isSectionProfileDraft } from '../sectionProfiles.js';
+import { moveProfilePoints } from '../profileEditing.js';
 
 const ROD = {
   id: 'rod', name: 'Closet rod', kind: 'accessory', version: 1, archived: false,
@@ -246,6 +248,76 @@ describe('SH2 step a shapes', () => {
     const draft = withShapeView({ ...ROD, stretch: { x: [[2, 27]] } }, 'front', shapeViewProfile(ROD, 'front'));
     expect(isShapeDraft(draft)).toBe(true);
     expect(isShape(draft)).toBe(false);
+  });
+});
+
+describe('SH2.1 step a shape origins and point groups', () => {
+  it('anchor 4: places the rod centre at zero, including the box, zones, hole and rod lines', () => {
+    const rod = { ...ROD, stretch: { x: [[3, 27]] } };
+    const before = structuredClone(rod);
+    const moved = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
+    expect(moved.box).toEqual({ x: -15, y: 0, z: -1.5, w: 30, h: 3, d: 2 });
+    expect(moved.stretch.x).toEqual([[-12, 12]]);
+    expect(moved.views.front.loops[2].segs).toEqual([
+      { type: 'arc', from: 'hl', to: 'hr', center: [-13.5, 0], ccw: true },
+      { type: 'arc', from: 'hr', to: 'hl', center: [-13.5, 0], ccw: true },
+    ]);
+    expect(moved.views.front.points).toMatchObject({
+      hl: [-14.125, 0], hr: [-12.875, 0],
+      r1: [-12, 0.53125], r2: [12, 0.53125], r3: [-12, -0.53125], r4: [12, -0.53125],
+    });
+    expect(isShape(moved)).toBe(true);
+    expect(rod).toEqual(before);
+  });
+
+  it('anchor 5: returns all nine spots in view order, using the box and each view’s axes', () => {
+    const spots = shapeOriginSpots(ROD, 'front');
+    expect(spots).toEqual(['top', 'middle', 'bottom'].flatMap((row, r) =>
+      ['left', 'middle', 'right'].map((col, c) => ({ row, col, at: { x: c * 15, z: 3 - r * 1.5 } }))));
+    expect(spots[0].at).toEqual({ x: 0, z: 3 });
+    expect(spots[4].at).toEqual({ x: 15, z: 1.5 });
+    expect(spots[8].at).toEqual({ x: 30, z: 0 });
+    const shifted = moveShapeOriginTo(ROD, { x: 15, y: 1, z: 1.5 });
+    expect(shapeOriginSpots(shifted, 'front')[4].at).toEqual({ x: 0, z: 0 });
+    expect(shapeOriginSpots(shifted, 'plan').map(({ at }) => at))
+      .toEqual([[-15, 1], [0, 1], [15, 1], [-15, 0], [0, 0], [15, 0], [-15, -1], [0, -1], [15, -1]]
+        .map(([x, y]) => ({ x, y })));
+    expect(shapeOriginSpots(shifted, 'side').map(({ at }) => at))
+      .toEqual([[-1, 1.5], [0, 1.5], [1, 1.5], [-1, 0], [0, 0], [1, 0], [-1, -1.5], [0, -1.5], [1, -1.5]]
+        .map(([y, z]) => ({ y, z })));
+  });
+
+  it('moves shared world axes in every view and supports point groups through the view adapter', () => {
+    const shape = { ...ROD, views: { front: ROD.views.front, plan: ROD.views.front, side: ROD.views.front },
+      stretch: { x: [[3, 27]], y: [[0.25, 1.75]], z: [[0.5, 2.5]] } };
+    const before = structuredClone(shape);
+    const front = moveShapeOriginTo(shape, { x: 15, z: 1.5 });
+    expect(front.views.plan.points.hl).toEqual([-14.125, 1.5]);
+    expect(front.views.side.points.hl).toEqual([0.875, 0]);
+    expect(front.stretch).toEqual({ x: [[-12, 12]], y: [[0.25, 1.75]], z: [[-1, 1]] });
+    const plan = moveShapeOriginTo(shape, { x: 15, y: 1 });
+    expect(plan.views.front.points.hl).toEqual([-14.125, 1.5]);
+    expect(plan.views.side.points.hl).toEqual([-0.125, 1.5]);
+    expect(plan.box).toMatchObject({ x: -15, y: -1, z: 0 });
+    const side = moveShapeOriginTo(shape, { y: 1, z: 1.5 });
+    expect(side.views.front.points.hl).toEqual([0.875, 0]);
+    expect(side.views.plan.points.hl).toEqual([0.875, 0.5]);
+    expect(side.box).toMatchObject({ x: 0, y: -1, z: -1.5 });
+    const edited = withShapeView(shape, 'front', moveProfilePoints(shapeViewProfile(shape, 'front'), ['hl', 'hr'], [1, 0.5]));
+    expect(edited.views.front.loops[2].segs[0]).toMatchObject({ center: [2.5, 2], ccw: true });
+    expect(edited.views.plan).toEqual(shape.views.plan);
+    expect(edited.views.side).toEqual(shape.views.side);
+    expect(shape).toEqual(before);
+  });
+
+  it('rejects invalid origin coordinates, shapes and views, and preserves zero-offset shapes', () => {
+    for (const at of [null, [], {}, { w: 1 }, { x: NaN }, { z: Infinity }, { x: '1' }, { x: 1, extra: 0 }]) {
+      expect(moveShapeOriginTo(ROD, at)).toBeNull();
+    }
+    expect(moveShapeOriginTo(null, { x: 1 })).toBeNull();
+    expect(moveShapeOriginTo(ROD, { x: 0, z: 0 })).toEqual(ROD);
+    expect(shapeOriginSpots(null, 'front')).toBeNull();
+    expect(shapeOriginSpots(ROD, 'top')).toBeNull();
   });
 });
 
