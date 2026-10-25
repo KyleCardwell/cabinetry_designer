@@ -10,10 +10,12 @@ import { formatInches } from '../../elevation/model/units.js';
 import { updateShape } from '../../elevation/store/elevationSlice.js';
 import { useShopReadOnly } from '../WorkspaceSourceBar.jsx';
 import PointsPanel from '../profileEditor/PointsPanel.jsx';
+import MovePanel from '../profileEditor/MovePanel.jsx';
 import ProfileCanvas from '../profileEditor/ProfileCanvas.jsx';
 import SegmentPanel from '../profileEditor/SegmentPanel.jsx';
 import useProfileDraft from '../profileEditor/useProfileDraft.js';
 import BoxPanel from './BoxPanel.jsx';
+import OriginPanel from './OriginPanel.jsx';
 import StretchPanel from './StretchPanel.jsx';
 import ViewTabs, { SHAPE_VIEWS } from './ViewTabs.jsx';
 import { pointSelection, pointSelectionKey } from '../profileEditor/profileSelection.js';
@@ -208,7 +210,6 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
           <input aria-label="Shape name" className={INPUT_CLASS} value={draft.name} disabled={readOnly}
             onChange={(event) => { if (!readOnly) applyDraft({ ...draft, name: event.target.value }); }} />
         </label>
-        <span className="text-xs text-gray-400">v{saved.version}</span>
         <label className="flex items-center gap-2 text-sm text-gray-300">
           Kind
           <select aria-label="Shape kind" className={INPUT_CLASS} value={draft.kind} disabled={readOnly}
@@ -275,6 +276,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
           <BoxPanel box={draft.box} readOnly={readOnly}
             onChange={(box) => applyShape({ ...editable, box }, 'W, H and D must be greater than zero.')}
             onFit={() => applyShape(fitShapeBox(editable), 'The drawing must have a positive size on each drawn axis.')} />
+          <OriginPanel key={`${shapeId}:${view}`} shape={editable} view={view} onApply={applyShape} readOnly={readOnly} />
           <StretchPanel box={draft.box} stretch={draft.stretch} view={view} problems={problems} readOnly={readOnly}
             onChange={(stretch) => applyShape({ ...editable, stretch }, 'A stretch zone needs From less than To.')} />
           <div className="flex flex-wrap gap-2">
@@ -305,6 +307,8 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
             }}>{removingView ? 'Confirm remove view' : 'Remove view'}</button>
           ))}
           {drawnView && <>
+            <MovePanel key={`${shapeId}:${view}`} profile={profile} selection={selection}
+              axes={SHAPE_VIEWS[view].boxKeys.slice(0, 2)} onApply={apply} readOnly={readOnly} />
             {selection?.kind === 'segment' && <SegmentPanel profile={profile} loopId={selection.loopId} index={selection.index} onApply={apply} onSelect={setSelection} />}
             <PointsPanel
               profile={profile}

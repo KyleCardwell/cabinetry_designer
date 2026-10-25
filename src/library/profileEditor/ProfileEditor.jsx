@@ -11,6 +11,7 @@ import ProfileDetailsDialog from '../ProfileDetailsDialog.jsx';
 import KindPanel from './KindPanel.jsx';
 import DrawnPanel from './DrawnPanel.jsx';
 import PointsPanel from './PointsPanel.jsx';
+import MovePanel from './MovePanel.jsx';
 import ProfileCanvas from './ProfileCanvas.jsx';
 import SegmentPanel from './SegmentPanel.jsx';
 import useProfileDraft from './useProfileDraft.js';
@@ -164,7 +165,6 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
           </button>
         ) : <button type="button" className={BUTTON_CLASS} onClick={close}>{backLabel}</button>}
         <span className="font-medium text-gray-100">{saved.name}</span>
-        <span className="text-xs text-gray-400">v{saved.version}</span>
         <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-300">{profileKindLabel(draft.kind)}</span>
         {saved.archived && <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">archived</span>}
         {dirty && <span className="text-xs text-amber-300">Unsaved</span>}
@@ -214,6 +214,7 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
           <ProfileCanvas ref={canvasRef} key={profileId} profile={draft} ghost={ghost} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
         </div>
         <aside className="w-96 shrink-0 overflow-y-auto border-l border-gray-700 p-4 space-y-5">
+          <MovePanel key={profileId} profile={draft} selection={selection} onApply={apply} />
           {selection?.kind === 'segment' && <SegmentPanel profile={draft} loopId={selection.loopId} index={selection.index} onApply={apply} onSelect={setSelection} />}
           <PointsPanel
             profile={draft}
