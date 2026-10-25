@@ -58,7 +58,7 @@ function renderEditor(tool) {
   useReducer.mockReturnValueOnce([{ draft: ruler, past: [], future: [] }, vi.fn()]);
   useEffect.mockClear();
   const tree = ProfileEditor({ profileId: 'ruler', backLabel: 'Back', onClose: vi.fn() });
-  const effect = useEffect.mock.calls.find(([, deps]) => deps?.length === 7)[0];
+  const effect = useEffect.mock.lastCall[0];
   effect();
   return tree;
 }

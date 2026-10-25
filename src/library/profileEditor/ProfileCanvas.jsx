@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from 'react';
 import {
-  addCircleLoop, addRectangleLoop, addProfileLoop, addProfilePoint, formatProfileCoord, moveProfilePoint, nextPointId, profileDrawnIn, snapProfilePoint,
+  addCircleLoop, addRectangleLoop, addProfileLoop, addProfilePoint, formatProfileCoord, moveProfilePoint, moveProfilePoints, nextPointId, profileDrawnIn, snapProfilePoint,
 } from '../../elevation/model/profileEditing.js';
 import { PROFILE_KINDS, stretchLineProblem } from '../../elevation/model/sectionProfiles.js';
 import { cutoutProfile } from '../../elevation/model/baseCutouts.js';
@@ -10,6 +10,7 @@ import MeasureSvg from '../../elevation/components/MeasureSvg.jsx';
 import { profileMeasureGeometry } from '../../elevation/model/measure.js';
 import { fitView, loopScreenPath, segmentScreenPath, toModel, toScreen, zoomAt } from './profileView.js';
 import CoordInput from './CoordInput.jsx';
+import { pointSelection, selectedPointIds, togglePointSelection } from './profileSelection.js';
 
 function gridScreenPath(view, size, step) {
   const [minX, maxY] = toModel(view, size, [0, 0]);
@@ -53,6 +54,7 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, bands 
   const [cursor, setCursor] = useState(null);
   const [dragPreview, setDragPreview] = useState(null);
   const [picks, setPicks] = useState([]);
+  const [selectionBox, setSelectionBox] = useState(null);
   const measuring = tool === 'measure';
   const drawingShape = tool === 'rect' || tool === 'circle';
   const measure = useMeasure({
@@ -94,6 +96,7 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, bands 
   useEffect(() => {
     setPicks([]);
     setDragPreview(null);
+    setSelectionBox(null);
     gestureRef.current = null;
   }, [tool]);
 
@@ -143,14 +146,26 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, bands 
     if (!gesture || gesture.pointerId !== event.pointerId) return;
     const dx = event.clientX - gesture.x;
     const dy = event.clientY - gesture.y;
+    if (gesture.box) {
+      if (Math.hypot(dx, dy) > 3) gesture.dragging = true;
+      if (gesture.dragging) {
+        const start = gesture.screen;
+        setSelectionBox({ x: Math.min(start[0], screen[0]), y: Math.min(start[1], screen[1]),
+          width: Math.abs(dx), height: Math.abs(dy) });
+      }
+      return;
+    }
     if (gesture.button === 0 && gesture.tool === 'select' && gesture.selection?.kind === 'point') {
       if (Math.hypot(dx, dy) > 3) gesture.dragging = true;
       if (gesture.dragging) {
         const id = gesture.selection.id;
         const snap = snapProfilePoint(gesture.start, toModel(gesture.view, size, screen), {
-          grid, reach: 8 / gesture.view.scale, exclude: id,
+          grid, reach: 8 / gesture.view.scale, exclude: gesture.group ?? id,
         });
-        gesture.lastPreview = moveProfilePoint(gesture.start, id, snap.xy) ?? gesture.lastPreview;
+        const start = gesture.start.geometry.points[id];
+        gesture.lastPreview = (gesture.group
+          ? moveProfilePoints(gesture.start, gesture.group, snap.xy.map((value, i) => value - start[i]))
+          : moveProfilePoint(gesture.start, id, snap.xy)) ?? gesture.lastPreview;
         setDragPreview({ profile: gesture.lastPreview, snapId: snap.id });
       }
       return;
@@ -218,6 +233,7 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, bands 
   const cancelGesture = () => {
     gestureRef.current = null;
     setDragPreview(null);
+    setSelectionBox(null);
   };
 
   const elevationSet = new Set(profileDrawnIn(drawnProfile, 'elevation'));
@@ -231,11 +247,15 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, bands 
         onPointerDown={(event) => {
           if (!view || gestureRef.current || (event.button !== 0 && event.button !== 1)) return;
           event.preventDefault();
-          screenPosition(event);
+          const screen = screenPosition(event);
           const hit = hitSelection(event.target);
+          const group = hit?.kind === 'point' && selection?.kind === 'points' && selection.ids.includes(hit.id)
+            ? selection.ids : null;
           gestureRef.current = { pointerId: event.pointerId, button: event.button,
             x: event.clientX, y: event.clientY, view, selection: hit, panning: event.button === 1,
-            tool, start: profile, lastPreview: profile, dragging: false };
+            tool, start: profile, lastPreview: profile, dragging: false, group, initialSelection: selection,
+            shift: event.shiftKey, box: event.button === 0 && tool === 'select' && event.shiftKey && hit === null,
+            screen };
           event.currentTarget.setPointerCapture(event.pointerId);
         }}
         onPointerMove={movePointer}
@@ -245,6 +265,7 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, bands 
           movePointer(event);
           gestureRef.current = null;
           setDragPreview(null);
+          setSelectionBox(null);
           if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
           if (gesture.button !== 0 || gesture.panning) return;
           if (gesture.tool === 'measure') {
@@ -254,7 +275,17 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, bands 
           } else if (gesture.tool === 'rect' || gesture.tool === 'circle') {
             pickShapePoint(screenPosition(event));
           } else {
-            onSelect(gesture.selection);
+            if (gesture.box && gesture.dragging) {
+              const end = toModel(gesture.view, size, screenPosition(event));
+              const start = toModel(gesture.view, size, gesture.screen);
+              const ids = Object.entries(gesture.start.geometry.points).filter(([, xy]) => xy.every((value, i) =>
+                value >= Math.min(start[i], end[i]) && value <= Math.max(start[i], end[i]))).map(([id]) => id);
+              onSelect(pointSelection([...selectedPointIds(gesture.initialSelection), ...ids]));
+            } else if (!gesture.dragging && gesture.shift && gesture.selection?.kind === 'point') {
+              onSelect(togglePointSelection(gesture.initialSelection, gesture.selection.id));
+            } else {
+              onSelect(gesture.group ? pointSelection(gesture.group) : gesture.selection);
+            }
             if (gesture.dragging && JSON.stringify(gesture.lastPreview) !== JSON.stringify(gesture.start)) {
               onApply(gesture.lastPreview);
             }
@@ -332,12 +363,14 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, bands 
                   {(elevationSet.has(id) || planSet.has(id)) && (
                     <circle cx={x} cy={y} r={7.5} fill="none" stroke="#38bdf8" strokeWidth={1.5} strokeDasharray={elevationSet.has(id) ? undefined : '3 2'} pointerEvents="none" />
                   )}
-                  <circle cx={x} cy={y} r={4} fill={selection?.kind === 'point' && selection.id === id ? '#3b82f6' : '#111827'} stroke="#e5e7eb" pointerEvents="none" />
+                  <circle cx={x} cy={y} r={4} fill={selectedPointIds(selection).includes(id) ? '#3b82f6' : '#111827'} stroke="#e5e7eb" pointerEvents="none" />
                   <circle cx={x} cy={y} r={8} fill="transparent" data-point-id={id} />
                   <text x={x + 7} y={y - 7} fontSize={11} fill="#9ca3af" pointerEvents="none">{id}</text>
                 </g>
               );
             })}
+            {selectionBox && <rect aria-label="Point selection box" {...selectionBox} fill="#3b82f6" fillOpacity={0.1}
+              stroke="#60a5fa" strokeDasharray="4 3" pointerEvents="none" />}
             <g pointerEvents="none" stroke="#4ade80" fill="none">
               {snapScreen && <circle cx={snapScreen[0]} cy={snapScreen[1]} r={9} />}
               {drawingShape && pickScreens.length > 0 && hoverScreen && (tool === 'rect'

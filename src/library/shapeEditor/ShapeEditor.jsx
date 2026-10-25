@@ -16,6 +16,7 @@ import useProfileDraft from '../profileEditor/useProfileDraft.js';
 import BoxPanel from './BoxPanel.jsx';
 import StretchPanel from './StretchPanel.jsx';
 import ViewTabs, { SHAPE_VIEWS } from './ViewTabs.jsx';
+import { pointSelection, pointSelectionKey } from '../profileEditor/profileSelection.js';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const HISTORY_BUTTON_CLASS = `${BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`;
@@ -100,6 +101,10 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     setRemovingView(false);
     setSelection((current) => {
       if (current?.kind === 'point' && !Object.hasOwn(draft?.views[view]?.points ?? {}, current.id)) return null;
+      if (current?.kind === 'points') {
+        const ids = current.ids.filter((id) => Object.hasOwn(draft?.views[view]?.points ?? {}, id));
+        if (ids.length !== current.ids.length) return pointSelection(ids);
+      }
       if (current?.kind === 'segment') {
         const loop = draft?.views[view]?.loops.find((entry) => entry.id === current.loopId);
         if (!loop?.segs[current.index]) return null;
@@ -113,6 +118,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
       if (readOnly) return;
       if (event.target.closest?.('input, select, textarea, [contenteditable="true"]')) return;
       const key = event.key.toLowerCase();
+      if (drawnView && pointSelectionKey(event, { profile, selection, grid, onSelect: setSelection, onApply: apply })) return;
       if ((event.ctrlKey || event.metaKey) && key === 'z') {
         event.preventDefault();
         if (event.shiftKey) redo();
@@ -152,7 +158,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [undo, redo, tool, selection, profile, apply, readOnly, drawnView]);
+  }, [undo, redo, tool, selection, profile, apply, readOnly, drawnView, grid]);
 
   if (!saved || !draft) {
     return (

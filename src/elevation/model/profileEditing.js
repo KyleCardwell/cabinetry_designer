@@ -196,12 +196,13 @@ export function snapProfilePoint(profile, xy, options) {
   if (!isSectionProfileDraft(profile) || !isCoordinate(xy)
     || options === null || typeof options !== 'object') return null;
   const { grid, reach, exclude = null } = options;
+  const excluded = Array.isArray(exclude) ? exclude : exclude === null ? [] : [exclude];
   if (!Number.isFinite(grid) || grid <= 0 || !Number.isFinite(reach) || reach < 0
-    || (exclude !== null && typeof exclude !== 'string')) return null;
+    || excluded.some((id) => typeof id !== 'string')) return null;
   let nearest = null;
   let nearestDistance = Infinity;
   for (const [id, point] of Object.entries(profile.geometry.points)) {
-    if (id === exclude) continue;
+    if (excluded.includes(id)) continue;
     const distance = Math.hypot(point[0] - xy[0], point[1] - xy[1]);
     if (distance <= reach && distance < nearestDistance) {
       nearest = { xy: [...point], id };

@@ -1,8 +1,11 @@
 import { afterEach, beforeEach, expect, it, vi } from 'vitest';
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { moveProfilePoint } from '../../elevation/model/profileEditing.js';
+import { newSectionProfile } from '../../elevation/model/sectionProfiles.js';
+import ProfileEditor from '../profileEditor/ProfileEditor.jsx';
+import { toScreen } from '../profileEditor/profileView.js';
 import { newShape } from '../../elevation/model/libraryShapes.js';
 import elevationReducer, { addShape, createInitialElevationState } from '../../elevation/store/elevationSlice.js';
 import ShapesPage from '../ShapesPage.jsx';
@@ -20,7 +23,7 @@ import ViewTabs from '../shapeEditor/ViewTabs.jsx';
 import SegmentPanel from '../profileEditor/SegmentPanel.jsx';
 
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useReducer: vi.fn(),
-  useEffect: vi.fn(), useRef: (current) => ({ current }), useCallback: (callback) => callback }));
+  useEffect: vi.fn(), useImperativeHandle: vi.fn(), useRef: vi.fn(), useCallback: (callback) => callback }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 vi.mock('react-router-dom', async (original) => ({ ...await original(), useNavigate: vi.fn(), useParams: vi.fn() }));
 vi.mock('../../sandbox.js', () => ({ SANDBOX_ENABLED: true }));
@@ -70,6 +73,7 @@ const field = (tree, label) => nodes(tree).find((node) => node.props?.['aria-lab
 let elevation;
 let slots;
 let histories;
+let refSlots;
 let navigate;
 let dispatch;
 let onClose;
@@ -77,6 +81,10 @@ let onClose;
 function render(Component, props = {}) {
   const state = slots.get(Component) ?? [];
   slots.set(Component, state);
+  const refs = refSlots.get(Component) ?? [];
+  refSlots.set(Component, refs);
+  let refIndex = 0;
+  useRef.mockImplementation((initial) => refs[refIndex++] ??= { current: initial });
   let index = 0;
   useState.mockImplementation((initial) => {
     const slot = index++;
@@ -97,6 +105,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   slots = new Map();
   histories = new Map();
+  refSlots = new Map();
   elevation = createInitialElevationState(null);
   navigate = vi.fn();
   onClose = vi.fn();
@@ -238,6 +247,183 @@ const draft = () => histories.get(ShapeEditor).draft;
 const boxPanel = () => render(BoxPanel, component(editor(), BoxPanel).props);
 const tabs = () => render(ViewTabs, component(editor(), ViewTabs).props);
 const selectView = (view) => nodes(tabs()).find((node) => node.props?.id === `shape-tab-${view}`).props.onClick();
+
+const canvasSize = { width: 1000, height: 600 };
+const canvasView = { cx: 15, cy: 1.5, scale: 25 };
+function rodCanvas() {
+  const props = component(editor(), ProfileCanvas).props;
+  if (!slots.has(ProfileCanvas.render)) {
+    slots.set(ProfileCanvas.render, [canvasSize, canvasView]);
+    refSlots.set(ProfileCanvas.render, [{ current: { getBoundingClientRect: () => ({ left: 0, top: 0 }) } }]);
+  }
+  return render(ProfileCanvas.render, props);
+}
+const svgProps = () => component(rodCanvas(), 'svg').props;
+function pointer(xy, id = null, options = {}) {
+  const [clientX, clientY] = toScreen(slots.get(ProfileCanvas.render)[1], canvasSize, xy);
+  return { clientX, clientY, pointerId: 1, button: 0, preventDefault: vi.fn(),
+    target: { closest: () => id ? { dataset: { pointId: id } } : null },
+    currentTarget: { setPointerCapture: vi.fn(), hasPointerCapture: () => false }, ...options };
+}
+function clickPoint(id, shiftKey = false) {
+  const xy = component(editor(), ProfileCanvas).props.profile.geometry.points[id];
+  const svg = svgProps();
+  svg.onPointerDown(pointer(xy, id, { shiftKey }));
+  svg.onPointerUp(pointer(xy, id, { shiftKey }));
+}
+function shapeKey(key, options = {}) {
+  editor();
+  useEffect.mock.lastCall[0]();
+  const event = { key, target: {}, preventDefault: vi.fn(), ...options };
+  window.addEventListener.mock.lastCall[1](event);
+  return event;
+}
+
+it('SH2.1 b anchor 1: Shift-click toggles rod points in pick order and highlights the group blue', () => {
+  openRod();
+  clickPoint('r3');
+  clickPoint('r1', true);
+  expect(component(editor(), ProfileCanvas).props.selection).toEqual({ kind: 'points', ids: ['r3', 'r1'] });
+  expect(nodes(rodCanvas()).filter((node) => node.type === 'circle' && node.props.fill === '#3b82f6')).toHaveLength(2);
+  expect(component(editor(), PointsPanel).props.selectedPointId).toBeNull();
+  clickPoint('r3', true);
+  expect(component(editor(), ProfileCanvas).props.selection).toEqual({ kind: 'point', id: 'r1' });
+  clickPoint('r1', true);
+  expect(component(editor(), ProfileCanvas).props.selection).toBeNull();
+});
+
+it('SH2.1 b anchor 2: dashed Shift-box selects the left bracket, rod ends and hole, adding to prior picks', () => {
+  openRod();
+  const svg = svgProps();
+  svg.onPointerDown(pointer([-0.5, -0.5], null, { shiftKey: true }));
+  svg.onPointerMove(pointer([3.5, 3.5], null, { shiftKey: true }));
+  expect(field(rodCanvas(), 'Point selection box').props.strokeDasharray).toBe('4 3');
+  expect(slots.get(ProfileCanvas.render)[1]).toEqual(canvasView);
+  svg.onPointerUp(pointer([3.5, 3.5], null, { shiftKey: true }));
+  const leftIds = ['a', 'b', 'c', 'd', 'hl', 'hr', 'r1', 'r3'];
+  expect(component(editor(), ProfileCanvas).props.selection).toEqual({ kind: 'points', ids: leftIds });
+  expect(histories.get(ShapeEditor).past).toHaveLength(0);
+  expect(field(rodCanvas(), 'Point selection box')).toBeUndefined();
+  clickPoint('r4');
+  const reverse = svgProps();
+  reverse.onPointerDown(pointer([3.5, 3.5], null, { shiftKey: true }));
+  reverse.onPointerUp(pointer([-0.5, -0.5], null, { shiftKey: true }));
+  expect(component(editor(), ProfileCanvas).props.selection).toEqual({ kind: 'points', ids: ['r4', ...leftIds] });
+});
+
+it('SH2.1 b anchor 3: Ctrl+A and dragging [0,0] to [1,0] translates the whole ROD with one undo', () => {
+  openRod();
+  expect(shapeKey('a', { ctrlKey: true }).preventDefault).toHaveBeenCalled();
+  expect(component(editor(), ProfileCanvas).props.selection.ids).toEqual(Object.keys(ROD.views.front.points));
+  const svg = svgProps();
+  svg.onPointerDown(pointer([0, 0], 'a'));
+  svg.onPointerMove(pointer([0.5, 0]));
+  svg.onPointerMove(pointer([1, 0]));
+  expect(histories.get(ShapeEditor).past).toHaveLength(0);
+  svg.onPointerUp(pointer([1, 0]));
+  expect(draft().views.front.points).toEqual(Object.fromEntries(Object.entries(ROD.views.front.points)
+    .map(([id, [x, z]]) => [id, [x + 1, z]])));
+  expect(draft().views.front.loops[2].segs[0]).toMatchObject({ center: [2.5, 1.5], ccw: true });
+  expect(histories.get(ShapeEditor).past).toHaveLength(1);
+  button(editor(), 'Undo').props.onClick();
+  expect(draft()).toEqual(ROD);
+});
+
+it('SH2.1 b anchor 4: Select loop and two ArrowUps then Shift+ArrowRight move only the bracket', () => {
+  openRod();
+  component(editor(), ProfileCanvas).props.onSelect({ kind: 'segment', loopId: 'left', index: 0 });
+  const panel = render(SegmentPanel, component(editor(), SegmentPanel).props);
+  button(panel, 'Select loop').props.onClick();
+  expect(component(editor(), ProfileCanvas).props.selection).toEqual({ kind: 'points', ids: ['a', 'b', 'c', 'd'] });
+  shapeKey('ArrowUp');
+  shapeKey('ArrowUp');
+  shapeKey('ArrowRight', { shiftKey: true });
+  const expected = structuredClone(ROD.views.front.points);
+  for (const id of ['a', 'b', 'c', 'd']) expected[id] = [expected[id][0] + 1, expected[id][1] + 1 / 8];
+  expect(draft().views.front.points).toEqual(expected);
+});
+
+it('SH2.1 b drag excludes all group points from snap, snaps outside it, cancels and preserves pan/single drag', () => {
+  openRod();
+  clickPoint('r3');
+  clickPoint('r1', true);
+  let svg = svgProps();
+  svg.onPointerDown(pointer(ROD.views.front.points.r3, 'r3'));
+  svg.onPointerMove(pointer([3.1, 2.03125]));
+  svg.onPointerUp(pointer([3.1, 2.03125]));
+  expect(draft().views.front.points.r3).toEqual([3.125, 2.0625]);
+  expect(draft().views.front.points.r1).toEqual([3.125, 3.125]);
+  button(editor(), 'Undo').props.onClick();
+  svg = svgProps();
+  svg.onPointerDown(pointer(ROD.views.front.points.r3, 'r3'));
+  svg.onPointerUp(pointer([0.1, 0.1]));
+  expect(draft().views.front.points.r3).toEqual([0, 0]);
+  expect(draft().views.front.points.r1).toEqual([0, 1.0625]);
+  button(editor(), 'Undo').props.onClick();
+  svg = svgProps();
+  svg.onPointerDown(pointer(ROD.views.front.points.r3, 'r3'));
+  svg.onPointerMove(pointer([4, 1]));
+  svg.onPointerCancel();
+  expect(draft()).toEqual(ROD);
+  svg = svgProps();
+  svg.onPointerDown(pointer([0, 0], 'a'));
+  svg.onPointerUp(pointer([1, 0]));
+  expect(component(editor(), ProfileCanvas).props.selection).toEqual({ kind: 'point', id: 'a' });
+  expect(draft().views.front.points.a).toEqual([1, 0]);
+  expect(draft().views.front.points.r3).toEqual(ROD.views.front.points.r3);
+  for (const button of [0, 1]) {
+    svg = svgProps();
+    const before = slots.get(ProfileCanvas.render)[1];
+    svg.onPointerDown(pointer([-1, -1], button === 1 ? 'a' : null, { button }));
+    svg.onPointerUp(pointer([0, -1], null, { button }));
+    expect(slots.get(ProfileCanvas.render)[1].cx).toBe(before.cx - 1);
+  }
+});
+
+it('SH2.1 b keyboard works in both editors, ignores typing and group delete, and clears on Escape', () => {
+  openRod();
+  const section = newSectionProfile([], 'section');
+  elevation = { ...elevation, settings: { ...elevation.settings, sectionProfiles: [section] } };
+  for (const [Component, props, geometry] of [
+    [ShapeEditor, { shapeId: ROD.id }, ROD.views.front],
+    [ProfileEditor, { profileId: section.id }, section.geometry],
+  ]) {
+    const tree = () => render(Component, { ...props, onClose });
+    const press = (key, options = {}) => {
+      tree();
+      useEffect.mock.lastCall[0]();
+      const event = { key, target: {}, preventDefault: vi.fn(), ...options };
+      window.addEventListener.mock.lastCall[1](event);
+      return event;
+    };
+    press('a', { metaKey: true });
+    expect(component(tree(), ProfileCanvas).props.selection.ids).toEqual(Object.keys(geometry.points));
+    const before = structuredClone(histories.get(Component).draft);
+    for (const key of ['Delete', 'Backspace']) expect(press(key).preventDefault).toHaveBeenCalled();
+    for (const key of ['ArrowUp', 'a', 'Escape']) {
+      expect(press(key, { ctrlKey: key === 'a', target: { closest: () => ({}) } }).preventDefault).not.toHaveBeenCalled();
+    }
+    expect(histories.get(Component).draft).toEqual(before);
+    press('Escape');
+    expect(component(tree(), ProfileCanvas).props.selection).toBeNull();
+    const id = Object.keys(geometry.points)[0];
+    component(tree(), ProfileCanvas).props.onSelect({ kind: 'point', id });
+    press('ArrowDown');
+    press('ArrowLeft', { shiftKey: true });
+    const moved = component(tree(), ProfileCanvas).props.profile.geometry.points[id];
+    expect(moved).toEqual([geometry.points[id][0] - 1, geometry.points[id][1] - 1 / 16]);
+    nodes(tree()).find((node) => node.type === 'select' && node.props.value === 1 / 16)
+      .props.onChange({ target: { value: '0.25' } });
+    press('ArrowUp');
+    expect(component(tree(), ProfileCanvas).props.profile.geometry.points[id][1]).toBe(geometry.points[id][1] + 3 / 16);
+  }
+  selectView('plan');
+  expect(shapeKey('a', { ctrlKey: true }).preventDefault).not.toHaveBeenCalled();
+  expect(component(editor(), ProfileCanvas).props.selection).toBeNull();
+  selectView('front');
+  elevation = { ...elevation, source: 'cloud', cloud: { permissions: { manage: false } } };
+  expect(shapeKey('a', { ctrlKey: true }).preventDefault).not.toHaveBeenCalled();
+});
 
 it('SH2 e anchor 1: plan starts as the box rectangle, draws explicitly, edits independently, and confirms removal', () => {
   openRod();

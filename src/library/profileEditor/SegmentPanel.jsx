@@ -4,6 +4,7 @@ import {
   setSegmentArc, setSegmentLine, splitProfileSegment,
 } from '../../elevation/model/profileEditing.js';
 import CoordInput from './CoordInput.jsx';
+import { pointSelection } from './profileSelection.js';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const SWEEP_FAILURE = 'Sweep must be more than 0 and less than 360.';
@@ -74,6 +75,9 @@ export default function SegmentPanel({ profile, loopId, index, onApply, onSelect
         </>
       )}
       <div className="flex flex-wrap gap-2">
+        <button type="button" className={BUTTON_CLASS} onClick={() => onSelect(pointSelection(
+          loop.segs.flatMap((seg) => [seg.from, seg.to]),
+        ))}>Select loop</button>
         <button type="button" className={BUTTON_CLASS} onClick={() => {
           if (onApply(deleteProfileSegment(profile, loopId, index), "That line can't be deleted.")) onSelect(null);
         }}>Delete segment</button>

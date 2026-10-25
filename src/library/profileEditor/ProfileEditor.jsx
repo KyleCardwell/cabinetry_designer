@@ -14,6 +14,7 @@ import PointsPanel from './PointsPanel.jsx';
 import ProfileCanvas from './ProfileCanvas.jsx';
 import SegmentPanel from './SegmentPanel.jsx';
 import useProfileDraft from './useProfileDraft.js';
+import { pointSelection, pointSelectionKey } from './profileSelection.js';
 
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const HISTORY_BUTTON_CLASS = `${BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`;
@@ -66,6 +67,10 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
     setDiscarding(false);
     setSelection((current) => {
       if (current?.kind === 'point' && !Object.hasOwn(draft?.geometry.points ?? {}, current.id)) return null;
+      if (current?.kind === 'points') {
+        const ids = current.ids.filter((id) => Object.hasOwn(draft?.geometry.points ?? {}, id));
+        if (ids.length !== current.ids.length) return pointSelection(ids);
+      }
       if (current?.kind === 'segment') {
         const loop = draft?.geometry.loops.find((entry) => entry.id === current.loopId);
         if (!loop?.segs[current.index]) return null;
@@ -79,6 +84,7 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
       if (detailsOpen) return;
       if (event.target.closest?.('input, select, textarea, [contenteditable="true"]')) return;
       const key = event.key.toLowerCase();
+      if (pointSelectionKey(event, { profile: draft, selection, grid, onSelect: setSelection, onApply: apply })) return;
       if ((event.ctrlKey || event.metaKey) && key === 'z') {
         event.preventDefault();
         if (event.shiftKey) redo();
@@ -118,7 +124,7 @@ export default function ProfileEditor({ profileId, backLabel, onClose }) {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [undo, redo, tool, selection, draft, apply, detailsOpen]);
+  }, [undo, redo, tool, selection, draft, apply, detailsOpen, grid]);
 
   if (!saved || !draft) {
     return (

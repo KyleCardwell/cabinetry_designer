@@ -56,7 +56,7 @@ const press = (key, target = {}) => {
 function editor() {
   useEffect.mockClear();
   const tree = render(ProfileEditor, { profileId: profile.id, onClose: vi.fn() });
-  useEffect.mock.calls.find(([, deps]) => deps?.length === 7)[0]();
+  useEffect.mock.lastCall[0]();
   return tree;
 }
 

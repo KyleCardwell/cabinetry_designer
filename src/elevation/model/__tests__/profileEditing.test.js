@@ -125,6 +125,13 @@ describe('SPEC-48 editing profile points', () => {
       { xy: [0.5, 0], id: null },
       { xy: [0.25, -0.5], id: null },
     ]);
+    expect(snapProfilePoint(COVE, [0.24, 0.01], { grid: 1 / 16, reach: 0.3, exclude: ['a', 'b'] }))
+      .toEqual({ xy: [0.25, 0], id: null });
+    expect(snapProfilePoint(COVE, [0.24, 0.01], { grid: 1 / 16, reach: 0.3, exclude: ['a'] }))
+      .toEqual({ xy: [0.5, 0], id: 'b' });
+    for (const exclude of [3, {}, ['a', null]]) {
+      expect(snapProfilePoint(COVE, [0, 0], { grid: 1 / 16, reach: 0.3, exclude })).toBeNull();
+    }
   });
 });
 
