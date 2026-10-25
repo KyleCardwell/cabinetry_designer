@@ -15,7 +15,7 @@ const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
 
 describe('IN14 wall-window glass marks', () => {
-  it('anchor 5: draws three rising marks inside a 36 by 48 jamb using its stroke, and none on doors', () => {
+  it('anchor 5 (GM1): draws two sets of three rising marks inside a 36 by 48 jamb using its stroke, and none on doors', () => {
     const transform = { scale: 8, offsetX: 20, offsetY: 30, wallHeight: 96 };
     for (const selected of [false, true]) {
       for (const kind of ['window', 'door']) {
@@ -23,7 +23,7 @@ describe('IN14 wall-window glass marks', () => {
         const geometry = openingGeometry(item, 144, DEFAULT_SETTINGS);
         const shapes = nodes(OpeningShape({ opening: item, geometry, transform, selected, selectable: true }));
         const marks = shapes.filter(({ type }) => type === Line);
-        expect(marks).toHaveLength(kind === 'window' ? 3 : 0);
+        expect(marks).toHaveLength(kind === 'window' ? 6 : 0);
         const jamb = wallRectToScreen(geometry.jamb, transform);
         const outline = shapes.find(({ type, props }) => type === Rect && props.x === jamb.x);
         marks.forEach(({ props }) => {

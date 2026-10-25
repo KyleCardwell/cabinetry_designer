@@ -547,7 +547,7 @@ describe('IN14 step e payload', () => {
         .toBe(preHP5PayloadHashes[name]);
     }
     expect(records).toHaveLength(1);
-    expect(records[0].lines).toHaveLength(3);
+    expect(records[0].lines).toHaveLength(6); // GM1: the golden window is over 24 x 24
   });
 
   it('anchor 2: exports four box edges and four whole shelf sides for the open cabinet', () => {
