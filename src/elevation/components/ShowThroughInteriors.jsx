@@ -2,6 +2,7 @@ import { Fragment, useMemo } from 'react';
 import { Group, Line, Rect, Text } from 'react-konva';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
 import { wallInteriors } from '../model/interiors.js';
+import { glassMarkStrokePx } from '../model/glassMarks.js';
 import { formatInches } from '../model/units.js';
 import { placedAccessoryShape } from './InteriorShapes.jsx';
 
@@ -65,7 +66,7 @@ export default function ShowThroughInteriors({ entries, transform, room, wall, s
             const from = wallToScreen({ x: mark.x1, z: mark.z1 }, transform);
             const to = wallToScreen({ x: mark.x2, z: mark.z2 }, transform);
             return <Line key={`mark:${index}`} points={[from.x, from.y, to.x, to.y]}
-              stroke="#e2e8f0" strokeWidth={0.75} listening={false} />;
+              stroke="#e2e8f0" strokeWidth={glassMarkStrokePx(mark.weight, settings, transform)} listening={false} />;
           })}
         </Group>
       ))}

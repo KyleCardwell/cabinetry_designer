@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { Group, Line, Rect, Text } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
-import { glassMarks } from '../model/glassMarks.js';
+import { glassMarks, glassMarkStrokePx } from '../model/glassMarks.js';
 import { openingReferenceBounds } from '../model/openings.js';
 import { formatInches } from '../model/units.js';
 
@@ -10,6 +10,7 @@ export default function OpeningShape({
   opening,
   geometry,
   transform,
+  settings,
   selected,
   selectable,
   onSelect,
@@ -99,7 +100,7 @@ export default function OpeningShape({
         const from = wallToScreen({ x: mark.x1, z: mark.z1 }, transform);
         const to = wallToScreen({ x: mark.x2, z: mark.z2 }, transform);
         return <Line key={`glass:${index}`} points={[from.x, from.y, to.x, to.y]}
-          stroke={stroke} strokeWidth={0.75} listening={false} />;
+          stroke={stroke} strokeWidth={glassMarkStrokePx(mark.weight, settings, transform)} listening={false} />;
       })}
       {jambRect.width >= 60 && (
         <Text

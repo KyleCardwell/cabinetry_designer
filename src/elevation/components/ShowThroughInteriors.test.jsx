@@ -7,6 +7,7 @@ import { gridLeaves } from '../model/grid.js';
 import { resolveWall } from '../model/room.js';
 import { wallShowThrough } from '../model/showThrough.js';
 import { run, stateWithRun } from '../store/__tests__/helpers/sliceFixtures.js';
+import { opening } from '../../test/builders.js';
 import CombinedFaces, { resolveCombinedFaces } from './CombinedFaces.jsx';
 import DoorDetails from './DoorDetails.jsx';
 import ElevationCanvas from './ElevationCanvas.jsx';
@@ -14,6 +15,7 @@ import ElevationPreviews from './ElevationPreviews.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
 import FrameOutline from './FrameOutline.jsx';
 import InteriorShapes from './InteriorShapes.jsx';
+import OpeningShape from './OpeningShape.jsx';
 import RunGroup from './RunGroup.jsx';
 import ShowThroughInteriors from './ShowThroughInteriors.jsx';
 
@@ -65,6 +67,24 @@ beforeEach(() => {
 });
 
 describe('IN14 step d show-through canvas', () => {
+  it('GM2: passes plot settings to windows on single and combined faces', () => {
+    state.settings.plotScale = 32;
+    const room = state.rooms[0];
+    room.walls[0].openings = [opening({ kind: 'window', offset: 72 })];
+    const { canvas } = view();
+    expect(canvas.find(({ type }) => type === OpeningShape).props.settings).toBe(state.settings);
+    const second = { ...room.walls[0], id: 'wall-2', runs: [],
+      openings: [opening({ id: 'window-2', kind: 'window' })] };
+    room.walls.push(second);
+    const combined = { faces: room.walls.map((wall, index) => ({
+      key: wall.id, wallId: wall.id, side: 'front', length: 144, height: 96, dx: index * 144, depth: 0,
+    })) };
+    const shapes = nodes(CombinedFaces({ room, combined,
+      faces: resolveCombinedFaces(room, combined, state.settings), activeKey: 'wall-1',
+      settings: state.settings, diagnostics: {}, transform }));
+    expect(shapes.find(({ type }) => type === OpeningShape).props.settings).toBe(state.settings);
+  });
+
   it('anchor 1: clips four edges and one shelf to the open window, passing all clicks through', () => {
     const { entry, shapes, tree, layer } = view();
     expect(wallShowThrough).toHaveBeenCalledTimes(1);
@@ -95,6 +115,7 @@ describe('IN14 step d show-through canvas', () => {
   });
 
   it('anchor 3: draws the glass opening and three marks outside the clipped group, even outlines-only', () => {
+    state.settings.plotScale = 32;
     leaf().face = { type: 'door', panelMaterial: 'glass', size: null };
     state.rooms[0].doorDetails = false;
     const { entry, shapes, tree } = view();
@@ -110,11 +131,15 @@ describe('IN14 step d show-through canvas', () => {
       .toMatchObject({ ...opening, stroke: '#e2e8f0', strokeWidth: 1, fillEnabled: false });
     const marks = nodes(glass).filter(({ type }) => type === Line);
     expect(marks).toHaveLength(3);
+    expect(marks[1].props.strokeWidth).toBeGreaterThan(marks[0].props.strokeWidth);
+    expect(marks[0].props.strokeWidth).toBeGreaterThan(marks[2].props.strokeWidth);
     marks.forEach(({ props }, index) => {
       const mark = entry.glass[0].marks[index];
       const a = wallToScreen({ x: mark.x1, z: mark.z1 }, transform);
       const b = wallToScreen({ x: mark.x2, z: mark.z2 }, transform);
-      expect(props).toMatchObject({ points: [a.x, a.y, b.x, b.y], stroke: '#e2e8f0', strokeWidth: 0.75 });
+      expect(mark.weight).toBe([70, 100, 35][index]);
+      expect(props).toMatchObject({ points: [a.x, a.y, b.x, b.y], stroke: '#e2e8f0',
+        strokeWidth: [70, 100, 35][index] / 100 / 25.4 * state.settings.plotScale * transform.scale });
     });
     const details = tree.find(({ type }) => type === DoorDetails);
     expect(details.props.showDetails).toBe(false);

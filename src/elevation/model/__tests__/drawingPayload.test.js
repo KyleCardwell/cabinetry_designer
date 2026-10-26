@@ -10,6 +10,7 @@ import { combinedCornerShapes, cornerParts } from '../cornerParts.js';
 import { combinedViewOf } from '../combinedElevations.js';
 import { shiftPayloadRecord } from '../combinedPayload.js';
 import { run } from '../../store/__tests__/helpers/sliceFixtures.js';
+import { wall as buildWall, room as buildRoom, opening } from '../../../test/builders.js';
 import { elevationDimensions } from '../elevationDimensions.js';
 import { elevationMarks } from '../elevationMarks.js';
 import { elevationDoorDetails } from '../elevationDoorDetails.js';
@@ -526,6 +527,38 @@ const shelfLines = [
 afterEach(() => vi.restoreAllMocks());
 
 describe('IN14 step e payload', () => {
+  it('GM2: preserves window and door lineweights while shifting combined elevations', () => {
+    const secondRun = run({ id: 'glass-run', x: 24, width: 24, autoCount: false,
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+      items: [{ id: 'glass-door', kind: 'cabinet', width: 24,
+        face: { type: 'door', panelMaterial: 'glass', size: null } }],
+    });
+    const source = buildRoom({ walls: [
+      buildWall({ id: 'A', x1: 0, y1: 0, x2: 144, y2: 0,
+        connections: { start: null, end: { wallId: 'B', endpoint: 'start' } },
+        runs: [run({ id: 'opaque-run', x: 0, width: 24 })],
+        openings: [opening({ id: 'window-A', kind: 'window', width: 48, height: 14, sillZ: 50 })] }),
+      buildWall({ id: 'B', x1: 144, y1: 0, x2: 288, y2: 0,
+        connections: { start: { wallId: 'A', endpoint: 'end' }, end: null }, runs: [secondRun],
+        openings: [opening({ id: 'window-B', kind: 'window', offset: 72, width: 36, height: 48, sillZ: 30 })] }),
+    ], wallOrder: ['A', 'B'] });
+    const separate = toDrawingPayload(source, DEFAULT_SETTINGS).elevations;
+    const combined = toDrawingPayload({ ...source,
+      combinedElevations: [{ id: 'group', on: true, faces: ['A', 'B'] }],
+    }, DEFAULT_SETTINGS).elevations.find(({ faces }) => faces);
+    expect(combined.faces.map(({ dx }) => dx)).toEqual([0, 144]);
+    const expected = separate.flatMap(({ wallId, glassMarks: records = [] }) => records.map((record) => ({
+      ...record, lines: record.lines.map((line) => ({ ...line,
+        x1: line.x1 + (wallId === 'B' ? 144 : 0), x2: line.x2 + (wallId === 'B' ? 144 : 0),
+      })),
+    })));
+    expect(expected).toHaveLength(3);
+    expect(combined.glassMarks).toEqual(expected);
+    for (const { lines } of combined.glassMarks) {
+      expect(lines.map(({ weight }) => weight)).toEqual([70, 100, 35]);
+    }
+  });
+
   it('anchor 1: adds only window glass marks to the golden rooms and preserves legacy hashes', () => {
     const records = [];
     for (const { name } of document.rooms) {
@@ -547,7 +580,8 @@ describe('IN14 step e payload', () => {
         .toBe(preHP5PayloadHashes[name]);
     }
     expect(records).toHaveLength(1);
-    expect(records[0].lines).toHaveLength(6); // GM1: the golden window is over 24 x 24
+    expect(records[0].lines).toHaveLength(3);
+    expect(records[0].lines.map(({ weight }) => weight)).toEqual([70, 100, 35]);
   });
 
   it('anchor 2: exports four box edges and four whole shelf sides for the open cabinet', () => {
@@ -577,6 +611,7 @@ describe('IN14 step e payload', () => {
       expect(elevation.interiors).toEqual([{ partId: 'a', lines: shelfLines, labels: [] }]);
       expect(elevation.glassMarks).toEqual([{ partId: 'a:r', lines: details.openings.flatMap(glassMarks) }]);
       expect(elevation.glassMarks[0].lines).toHaveLength(3);
+      expect(elevation.glassMarks[0].lines.map(({ weight }) => weight)).toEqual([70, 100, 35]);
       if (doorDetails) {
         const record = elevation.doorDetails.find(({ partId }) => partId === 'a:r');
         expect(record.profileLines ?? []).toEqual(details.lines);

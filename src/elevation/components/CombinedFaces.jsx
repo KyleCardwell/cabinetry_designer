@@ -75,6 +75,7 @@ export default function CombinedFaces({
                   key={opening.id}
                   opening={opening}
                   geometry={openingGeometry(opening, wall.length, settings)}
+                  settings={settings}
                   transform={faceTransform}
                   selectable={false}
                   onSelect={noop}

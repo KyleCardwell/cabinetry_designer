@@ -1306,6 +1306,7 @@ function ElevationCanvas({
                 key={opening.id}
                 opening={opening}
                 geometry={openingGeometry(opening, wall.length, settings)}
+                settings={settings}
                 transform={transform}
                 selected={selection.openingId === opening.id}
                 selectable={tool === 'select' && wall.side !== 'back'}
