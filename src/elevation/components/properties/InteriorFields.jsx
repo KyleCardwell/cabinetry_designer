@@ -82,6 +82,7 @@ function accessoryWarning(warning, accessory) {
     ).join('; ')}.`;
     case 'accessory-whole-section': return `${warning.name} takes the whole section; remove the roll-outs, typed shelves or other accessories.`;
     case 'accessory-outside': return `Placed outside the section (${formatInches(warning.sectionHeight)} tall here).`;
+    case 'accessory-outside-depth': return `Sticks out the ${warning.side} of the section by ${formatInches(warning.by)}.`;
     case 'accessory-length': return `${accessory.name} is ordered at section width − ${formatInches(warning.deduction)} (${formatInches(warning.has)} wide here).`;
     default: return null;
   }

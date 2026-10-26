@@ -890,4 +890,21 @@ describe('IN13a step d placed accessory controls', () => {
     }
     expect(text(render())).not.toContain("Its drawing isn't in the shape library.");
   });
+
+  it('SH4 a: formats front and back depth warnings in amber', () => {
+    edit(() => {
+      state.settings.shapes = [{ ...newShape([], 'RODC'), kind: 'accessory',
+        box: { x: 0, y: 0, z: 0, w: 12, h: 12, d: 2 } }];
+      state.settings.accessories = [{ ...newAccessory([], 'ROD-ACC'), shapeId: 'RODC',
+        depthAnchor: { at: 'back', offset: 1 } }];
+    });
+    change('Add accessory r', 'ROD-ACC');
+    commit('Accessory up r.0', 40);
+    const warning = (message) => nodes(render()).find((node) => node.type === 'p' && text(node) === message);
+    expect(warning('Sticks out the back of the section by 1".').props.className).toContain('text-amber-400');
+    edit(() => { state.settings.accessories[0].depthAnchor = { at: 'front', offset: -0.5 }; });
+    expect(warning('Sticks out the front of the section by 1/2".').props.className).toContain('text-amber-400');
+    commit('Accessory up r.0', null);
+    expect(text(render())).not.toContain('Sticks out');
+  });
 });

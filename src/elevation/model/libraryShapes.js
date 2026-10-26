@@ -191,6 +191,7 @@ export function resolveShape(shape, target = {}) {
   const result = structuredClone(shape);
   const warnings = [];
   const shifts = {};
+  let stretched = false;
   for (const [axis, size] of Object.entries(AXIS_SIZE)) {
     const zones = shape.stretch[axis] ?? [];
     const requested = target[size] ?? shape.box[size];
@@ -203,6 +204,7 @@ export function resolveShape(shape, target = {}) {
       continue;
     }
     const extra = requested - shape.box[size];
+    if (Math.abs(extra) > EPS) stretched = true;
     const shift = (value) => zones.reduce((sum, [from, to]) => (
       sum + extra * Math.max(0, Math.min(value - from, to - from)) / length
     ), 0);
@@ -230,6 +232,7 @@ export function resolveShape(shape, target = {}) {
   return {
     shape: result,
     origin: Object.fromEntries(Object.entries(shifts).map(([axis, shift]) => [axis, shift(0)])),
+    stretched,
     warnings,
   };
 }
@@ -240,14 +243,17 @@ export function placeShapeFront(resolved, { section, fromBottom, mirror = false 
   const { box } = shape;
   const x = section.x + (section.width - box.w) / 2;
   const dz = section.z + fromBottom - origin.z;
+  const toWall = ([px, pz]) => [
+    x + (mirror ? box.x + box.w - px : px - box.x), pz + dz,
+  ];
+  const [insertX, insertZ] = toWall([origin.x, origin.z]);
   return {
     outlines: shapeOutlines(shape.views.front).map(({ closed, outline }) => ({
       closed,
-      outline: transformOutline(outline, ([px, pz]) => [
-        x + (mirror ? box.x + box.w - px : px - box.x), pz + dz,
-      ], mirror),
+      outline: transformOutline(outline, toWall, mirror),
     })),
     bounds: { x, z: box.z + dz, width: box.w, height: box.h },
+    insert: { x: insertX, z: insertZ },
   };
 }
 

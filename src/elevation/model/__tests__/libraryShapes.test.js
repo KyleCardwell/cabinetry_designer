@@ -383,7 +383,7 @@ describe('SH3 step b resolve and place shapes', () => {
     expect(minimum.shape.views.front.points).toMatchObject({ e: [3, 0], f: [6, 0], g: [6, 3], h: [3, 3] });
     expect(placeShapeFront(minimum, { section, fromBottom: 0 }).bounds.width).toBe(6);
     expect(resolveShape(rod, { w: 6 - 0.5e-6 }).warnings).toEqual([]);
-    expect(resolveShape(rod, { h: 10 })).toEqual({ shape: rod, origin: { x: 0, y: 0, z: 0 }, warnings: [] });
+    expect(resolveShape(rod, { h: 10 })).toEqual({ shape: rod, origin: { x: 0, y: 0, z: 0 }, stretched: false, warnings: [] });
     expect(resolveShape(rod, { w: null, h: null, d: null })).toEqual(resolveShape(rod));
   });
 
@@ -402,6 +402,39 @@ describe('SH3 step b resolve and place shapes', () => {
     expect((placed.outlines[2].outline[0][0] + placed.outlines[2].outline[1][0]) / 2).toBe(101.5);
     expect(placeShapeFront(resolved, { section: { ...section, width: 40 }, fromBottom: 66 }).bounds.x).toBe(102);
     expect(resolved).toEqual(before);
+  });
+
+  it('SH4 a anchor 1: marks only successfully resized zoned axes as stretched', () => {
+    const rodc = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
+    for (const [target, stretched] of [
+      [{ w: 36 }, true], [{}, false], [{ w: 30 }, false], [{ w: 5 }, false], [{ h: 10 }, false],
+      [{ w: null }, false], [{ w: 30 + 0.5e-6 }, false], [{ w: 30 + 2e-6 }, true], [{ w: 6 }, true],
+    ]) expect(resolveShape(rodc, target).stretched, JSON.stringify(target)).toBe(stretched);
+    const zoned = { ...newShape([], 'zoned'), stretch: { x: [[3, 9]], y: [[3, 9]], z: [[3, 9]] } };
+    expect(resolveShape(zoned, { w: 5, d: 5, h: 5 }).stretched).toBe(false);
+    expect(resolveShape(zoned, { w: 5, d: 16 }).stretched).toBe(true);
+    expect(resolveShape(zoned, { h: 16 }).stretched).toBe(true);
+  });
+
+  it('SH4 a anchors 2–3: places the resolved zero and mirrors it across the box centre', () => {
+    const rodc = moveShapeOriginTo(rod, { x: 15, z: 1.5 });
+    const resolved = resolveShape(rodc, { w: 36 });
+    expect(placeShapeFront(resolved, { section, fromBottom: 66 }).insert).toEqual({ x: 118, z: 76 });
+    expect(placeShapeFront(resolved, { section, fromBottom: 66, mirror: true }).insert).toEqual({ x: 118, z: 76 });
+    const hook = { ...newShape([], 'HOOK'), box: { x: 0, y: 0, z: 0, w: 2, h: 4, d: 1.5 },
+      views: { front: { units: 'in', points: { a: [0, 0], b: [2, 0], c: [2, 4], d: [0, 4] },
+        loops: [{ id: 'hook', closed: true, segs: [
+          { type: 'line', from: 'a', to: 'b' }, { type: 'line', from: 'b', to: 'c' },
+          { type: 'line', from: 'c', to: 'd' }, { type: 'line', from: 'd', to: 'a' },
+        ] }],
+      } } };
+    const fixed = resolveShape(hook);
+    const normal = placeShapeFront(fixed, { section, fromBottom: 50 });
+    const mirrored = placeShapeFront(fixed, { section, fromBottom: 50, mirror: true });
+    expect(normal.insert).toEqual({ x: 117, z: 60 });
+    expect(mirrored.insert).toEqual({ x: 119, z: 60 });
+    expect(normal.outlines[0].outline[0].slice(0, 2)).toEqual([normal.insert.x, normal.insert.z]);
+    expect(mirrored.outlines[0].outline[0].slice(0, 2)).toEqual([mirrored.insert.x, mirrored.insert.z]);
   });
 
   it('anchor 5: mirrors the handed bracket across the stretched box and negates its bulges', () => {
@@ -459,6 +492,7 @@ describe('SH3 step b resolve and place shapes', () => {
       .toEqual({ x: 110, z: 76, width: 16, height: 16 });
     const centred = resolveShape(moveShapeOriginTo(moved, { z: 6 }), { w: 16, d: 16, h: 16 });
     expect(centred.origin.z).toBe(2);
+    expect(placeShapeFront(centred, { section, fromBottom: 66 }).insert).toEqual({ x: 118, z: 76 });
     expect(placeShapeFront(centred, { section, fromBottom: 66 }).bounds)
       .toEqual({ x: 110, z: 68, width: 16, height: 16 });
     const partial = resolveShape(moved, { w: 3, d: 16, h: 2 });

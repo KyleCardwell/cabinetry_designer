@@ -169,9 +169,17 @@ export function sectionAccessories({ interior, boxes = [], settings, rollouts = 
           centerZ = section.z + fromBottom;
           if (shape) {
             const resolved = resolveShape(shape, { w: size.width, h: size.height, d: size.depth });
-            drawing = placeShapeFront(resolved, { section, fromBottom, mirror });
+            const d = resolved.shape.box.d;
+            const { at, offset } = accessory.depthAnchor ?? { at: 'front', offset: 0 };
+            const depth = { front: 0, centre: (section.depth - d) / 2, back: section.depth - d }[at] + offset;
+            drawing = { ...placeShapeFront(resolved, { section, fromBottom, mirror }),
+              shapeId: shape.id, shapeName: shape.name, stretched: resolved.stretched, mirror, depth };
             rect = drawing.bounds;
             warnings.push(...resolved.warnings.map((warning) => ({ ...warning, code: 'accessory-shape-too-small' })));
+            if (depth < -1e-6) warnings.push({ code: 'accessory-outside-depth', side: 'front', by: -depth });
+            if (depth + d > section.depth + 1e-6) {
+              warnings.push({ code: 'accessory-outside-depth', side: 'back', by: depth + d - section.depth });
+            }
           } else if (size.width !== null && size.height !== null) {
             rect = { x: section.x + (section.width - size.width) / 2,
               z: centerZ - size.height / 2, width: size.width, height: size.height };

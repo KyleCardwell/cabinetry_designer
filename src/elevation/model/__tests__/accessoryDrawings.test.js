@@ -52,6 +52,66 @@ const interior = { tree: { accessories: [{ accessoryId: accessory.id, fromBottom
 const resolve = (effective = settings, inside = interior) => sectionAccessories({ interior: inside,
   settings: effective }).get('r').items[0];
 
+describe('SH4 step a drawing metadata and depth', () => {
+  const inside = { ...interior, sections: [{ ...section, depth: 22 }] };
+
+  it('anchor 4: anchors the size box at front, centre and back and carries drawing metadata', () => {
+    for (const [at, offset, depth] of [['front', 0, 0], ['centre', 0, 10], ['back', 0, 20], ['centre', 1, 11]]) {
+      const effective = { ...settings, accessories: [{ ...accessory, depthAnchor: { at, offset } }] };
+      const before = structuredClone({ effective, inside });
+      const item = resolve(effective, inside);
+      expect(item.drawing).toMatchObject({ shapeId: RODC.id, shapeName: RODC.name, stretched: true,
+        insert: { x: 118, z: 76 }, mirror: false, depth });
+      expect(item.warnings).toEqual([]);
+      expect({ effective, inside }).toEqual(before);
+    }
+  });
+
+  it('anchor 5: warns about front and back protrusions beyond the depth tolerance', () => {
+    for (const [at, offset, depth, warnings] of [
+      ['back', 1, 21, [{ code: 'accessory-outside-depth', side: 'back', by: 1 }]],
+      ['front', -0.5, -0.5, [{ code: 'accessory-outside-depth', side: 'front', by: 0.5 }]],
+      ['front', -0.5e-6, -0.5e-6, []], ['back', 0.5e-6, 20 + 0.5e-6, []],
+    ]) {
+      const item = resolve({ ...settings, accessories: [{ ...accessory, depthAnchor: { at, offset } }] }, inside);
+      expect(item.drawing.depth).toBe(depth);
+      expect(item.warnings).toEqual(warnings);
+    }
+  });
+
+  it('uses resolved depth for stretched, fixed and too-small shapes, including mirrored drawings', () => {
+    for (const [stretch, target, depth, warnings] of [
+      [{ ...RODC.stretch, y: [[-0.5, 0.5]] }, 4, 9, []],
+      [RODC.stretch, 4, 10, []],
+      [{ ...RODC.stretch, y: [[-0.5, 0.5]] }, 0.5, 10,
+        [{ code: 'accessory-shape-too-small', axis: 'y', fixed: 1, target: 0.5 }]],
+    ]) {
+      const effective = { ...settings,
+        shapes: [{ ...RODC, box: { ...RODC.box, y: -1 }, stretch }],
+        accessories: [{ ...accessory, size: { width: null, height: null, depth: target },
+          depthAnchor: { at: 'centre', offset: 0 } }],
+      };
+      const item = resolve(effective, { ...inside,
+        tree: { accessories: [{ ...interior.tree.accessories[0], mirror: true }] } });
+      expect(item.drawing).toMatchObject({ mirror: true, depth, stretched: depth === 9 });
+      expect(item.warnings).toEqual(warnings);
+    }
+  });
+
+  it('only checks depth for placed items with an available drawing', () => {
+    const effective = { ...settings, accessories: [{ ...accessory, depthAnchor: { at: 'front', offset: -0.5 } }] };
+    for (const [library, tree, warnings] of [
+      [effective, { accessories: [{ accessoryId: accessory.id }] }, []],
+      [{ ...effective, shapes: [] }, inside.tree, [{ code: 'accessory-shape-missing' }]],
+      [{ ...effective, accessories: [{ ...effective.accessories[0], shapeId: null }] }, inside.tree, []],
+    ]) {
+      const item = resolve(library, { ...inside, tree });
+      expect(item).not.toHaveProperty('drawing');
+      expect(item.warnings).toEqual(warnings);
+    }
+  });
+});
+
 describe('SH3 step c accessory drawings', () => {
   it('anchor 1: resolves all six RODC outlines and uses their placed bounds without mutating inputs', () => {
     const before = structuredClone({ interior, settings });
