@@ -24,6 +24,17 @@ function loopOutline(loop, points) {
   });
 }
 
+/** Trace every loop in drawing order, retaining the final endpoint of open loops. */
+export function shapeOutlines(geometry) {
+  return geometry.loops.map((loop) => {
+    const outline = loopOutline(loop, geometry.points);
+    if (!loop.closed && loop.segs.length) {
+      outline.push([...geometry.points[loop.segs.at(-1).to], 0]);
+    }
+    return { closed: loop.closed, outline };
+  });
+}
+
 function arcGeometry([x, y, bulge = 0], [tx, ty]) {
   if (!bulge || (x === tx && y === ty)) return null;
   const offset = (1 - bulge * bulge) / (4 * bulge);

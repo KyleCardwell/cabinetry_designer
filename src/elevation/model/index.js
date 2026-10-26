@@ -27,7 +27,9 @@ export {
   isShape, isShapeDraft, isShapeList, newShape, copyShape, shapeView, fitShapeBox,
   moveShapeOrigin, moveShapeOriginTo, shapeOriginSpots,
   flipShape, shapeStretchProblems, stretchProblemText, shapeViewProfile, withShapeView,
+  resolveShape, placeShapeFront,
 } from './libraryShapes.js';
+export { shapeOutlines } from './sectionProfileOutline.js';
 export { stepEndSides } from './stepEnds.js';
 export {
   SETTING_LEVELS,

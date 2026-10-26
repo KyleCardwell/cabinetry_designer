@@ -1,6 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { SHAPE_KINDS } from './constants.js';
 import { isProfileGeometry, isSectionProfileDraft, sectionProfileBounds } from './sectionProfiles.js';
+import { shapeOutlines, transformOutline } from './sectionProfileOutline.js';
 import { formatInches } from './units.js';
 
 const VIEW_AXES = { front: ['x', 'z'], plan: ['x', 'y'], side: ['y', 'z'] };
@@ -183,6 +184,71 @@ export function shapeOriginSpots(shape, view) {
 export function flipShape(shape, axis) {
   if (!isShapeDraft(shape) || typeof axis !== 'string' || !Object.hasOwn(AXIS_SIZE, axis)) return null;
   return transformShape(shape, { [axis]: 0 }, true);
+}
+
+/** Resolve zoned axes independently, preserving fixed details and the library shape. */
+export function resolveShape(shape, target = {}) {
+  const result = structuredClone(shape);
+  const warnings = [];
+  const shifts = {};
+  for (const [axis, size] of Object.entries(AXIS_SIZE)) {
+    const zones = shape.stretch[axis] ?? [];
+    const requested = target[size] ?? shape.box[size];
+    const length = zones.reduce((sum, [from, to]) => sum + to - from, 0);
+    const fixed = shape.box[size] - length;
+    shifts[axis] = () => 0;
+    if (!zones.length) continue;
+    if (requested < fixed - EPS) {
+      warnings.push({ code: 'shape-too-small', axis, fixed, target: requested });
+      continue;
+    }
+    const extra = requested - shape.box[size];
+    const shift = (value) => zones.reduce((sum, [from, to]) => (
+      sum + extra * Math.max(0, Math.min(value - from, to - from)) / length
+    ), 0);
+    shifts[axis] = shift;
+    result.box[axis] += shift(shape.box[axis]);
+    result.box[size] = requested;
+    result.stretch[axis] = zones.map(([from, to]) => [from + shift(from), to + shift(to)]);
+  }
+  for (const [view, source] of Object.entries(shape.views)) {
+    const geometry = structuredClone(source);
+    result.views[view] = geometry;
+    const axes = VIEW_AXES[view];
+    geometry.points = Object.fromEntries(Object.entries(source.points).map(([id, point]) => [id,
+      point.map((value, i) => value + shifts[axes[i]](value))]));
+    for (const loop of geometry.loops) {
+      for (const segment of loop.segs) {
+        if (segment.type !== 'arc') continue;
+        // A valid zone cannot cross an arc: translate its centre with its endpoints.
+        segment.center = segment.center.map((value, i) => (
+          value + shifts[axes[i]](source.points[segment.from][i])
+        ));
+      }
+    }
+  }
+  return {
+    shape: result,
+    origin: Object.fromEntries(Object.entries(shifts).map(([axis, shift]) => [axis, shift(0)])),
+    warnings,
+  };
+}
+
+/** Centre the size box across the section and place the stretched origin at fromBottom. */
+export function placeShapeFront(resolved, { section, fromBottom, mirror = false }) {
+  const { shape, origin } = resolved;
+  const { box } = shape;
+  const x = section.x + (section.width - box.w) / 2;
+  const dz = section.z + fromBottom - origin.z;
+  return {
+    outlines: shapeOutlines(shape.views.front).map(({ closed, outline }) => ({
+      closed,
+      outline: transformOutline(outline, ([px, pz]) => [
+        x + (mirror ? box.x + box.w - px : px - box.x), pz + dz,
+      ], mirror),
+    })),
+    bounds: { x, z: box.z + dz, width: box.w, height: box.h },
+  };
 }
 
 export function shapeStretchProblems(shape) {
