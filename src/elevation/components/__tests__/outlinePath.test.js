@@ -6,6 +6,27 @@ const context = () => Object.fromEntries(
   ['beginPath', 'moveTo', 'lineTo', 'arc', 'closePath', 'fillStrokeShape'].map((name) => [name, vi.fn()]),
 );
 
+describe('SH3 step d open outlines', () => {
+  it('anchor 4: traces a two-point line without closing it', () => {
+    const ctx = context();
+    outlinePath([[1, 2, 0], [4, 6, 0]], transform, { closed: false })(ctx);
+    expect(ctx.moveTo.mock.calls).toEqual([[1, -2]]);
+    expect(ctx.lineTo.mock.calls).toEqual([[4, -6]]);
+    expect(ctx.arc).not.toHaveBeenCalled();
+    expect(ctx.closePath).not.toHaveBeenCalled();
+  });
+
+  it('preserves an open arc through Konva geometry and ignores a final-point bulge', () => {
+    const ctx = context();
+    const shape = {};
+    outlineGeometry([[0, 0, 1], [4, 0, -1]], transform, { closed: false }).sceneFunc(ctx, shape);
+    expect(ctx.arc).toHaveBeenCalledOnce();
+    expect(ctx.arc.mock.calls[0]).toEqual([2, 0, 2, Math.PI, 0, true]);
+    expect(ctx.closePath).not.toHaveBeenCalled();
+    expect(ctx.fillStrokeShape).toHaveBeenCalledWith(shape);
+  });
+});
+
 describe('Step 477 true outline arcs', () => {
   it('turns the specified outline into a closed path with one radius-4 arc', () => {
     const ctx = context();

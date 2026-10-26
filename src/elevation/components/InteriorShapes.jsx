@@ -1,24 +1,30 @@
 import { Fragment, useRef } from 'react';
-import { Group, Line, Rect, Text } from 'react-konva';
+import { Group, Line, Rect, Shape, Text } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { formatDimension, formatInches } from '../model/units.js';
 import { dragDividerPosition, interiorDimensions } from '../model/interiors.js';
 import { rolloutSpacerSides } from '../model/rollouts.js';
+import { outlineGeometry } from './outlinePath.js';
 
 const SIZE_FONT = 10;
 const SIZE_INSET = 3;
 
-export function placedAccessoryShape({ shapeKey, box, line, rect, text, color }) {
+export function placedAccessoryShape({ shapeKey, box, line, rect, text, color, drawing, transform }) {
+  if (drawing) box = wallRectToScreen(drawing.bounds, transform);
   const labelWidth = text.length * 6 + SIZE_INSET * 2;
   const inside = box && box.height >= SIZE_FONT && box.width >= labelWidth;
   const rightX = box && box.x + box.width + SIZE_INSET;
   const beside = box && !inside && rect.height >= SIZE_FONT + SIZE_INSET * 2
     && rect.x + rect.width - rightX >= labelWidth;
-  const above = line && rect.width >= labelWidth
-    && line.y - SIZE_FONT - SIZE_INSET >= rect.y + SIZE_INSET;
+  const top = box ?? line;
+  const above = top && rect.width >= labelWidth
+    && top.y - SIZE_FONT - SIZE_INSET >= rect.y + SIZE_INSET;
   return (
     <Group key={shapeKey} listening={false}>
-      {box ? (
+      {drawing ? drawing.outlines.map(({ closed, outline }, index) => (
+        <Shape key={index} {...outlineGeometry(outline, transform, { closed })}
+          stroke={color} strokeWidth={1} fillEnabled={false} listening={false} />
+      )) : box ? (
         <Rect {...box} stroke={color} strokeWidth={1} fillEnabled={false} listening={false} />
       ) : (
         <Line points={[line.x, line.y, line.x + line.width, line.y]}
@@ -32,7 +38,7 @@ export function placedAccessoryShape({ shapeKey, box, line, rect, text, color })
           Math.min(box.y + (box.height - SIZE_FONT) / 2, rect.y + rect.height - SIZE_FONT - SIZE_INSET))}
           text={text} fontSize={SIZE_FONT} fill={color} listening={false} />
       ) : above ? (
-        <Text x={rect.x + SIZE_INSET} y={line.y - SIZE_FONT - SIZE_INSET}
+        <Text x={rect.x + SIZE_INSET} y={top.y - SIZE_FONT - SIZE_INSET}
           text={text} fontSize={SIZE_FONT} fill={color} listening={false} />
       ) : null}
     </Group>
@@ -119,7 +125,7 @@ export default function InteriorShapes({
                 }, transform);
                 return placedAccessoryShape({
                   shapeKey: `placed-accessory:${section.path}:${item.index}`,
-                  box, line, rect, text: item.text, color,
+                  box, line, rect, text: item.text, color, drawing: item.drawing, transform,
                 });
               })}
               {showSize && (

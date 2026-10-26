@@ -1,7 +1,7 @@
 import { wallToScreen } from '../canvas/transform.js';
 
-/** Trace a closed outline with true circular arcs, in screen coordinates. */
-export function outlinePath(outline, transform) {
+/** Trace an outline with true circular arcs, in screen coordinates. */
+export function outlinePath(outline, transform, { closed = true } = {}) {
   const points = outline.map(([x, z, bulge = 0]) => ({
     ...wallToScreen({ x, z }, transform),
     // Reflecting z-up into screen y-down reverses the arc direction.
@@ -12,6 +12,7 @@ export function outlinePath(outline, transform) {
     if (!points.length) return;
     context.moveTo(points[0].x, points[0].y);
     points.forEach((start, index) => {
+      if (!closed && index === points.length - 1) return;
       const end = points[(index + 1) % points.length];
       const dx = end.x - start.x;
       const dy = end.y - start.y;
@@ -28,13 +29,13 @@ export function outlinePath(outline, transform) {
         context.lineTo(end.x, end.y);
       }
     });
-    context.closePath();
+    if (closed) context.closePath();
   };
 }
 
 /** Konva Shape geometry using the same tracer as hatch clipping. */
-export function outlineGeometry(outline, transform) {
-  const trace = outlinePath(outline, transform);
+export function outlineGeometry(outline, transform, options) {
+  const trace = outlinePath(outline, transform, options);
   return {
     sceneFunc(context, shape) {
       trace(context);

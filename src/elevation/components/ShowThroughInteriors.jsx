@@ -17,6 +17,7 @@ function interiorItem(item, transform, sections) {
       line: item.height ? null : rect,
       rect: section ? wallRectToScreen(section, transform) : rect,
       text: item.label, color: '#94a3b8',
+      drawing: item.drawing, transform,
     });
   }
   if (item.kind === 'spacer') {
