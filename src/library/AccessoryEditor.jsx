@@ -1,11 +1,14 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { isAccessoryList } from '../elevation/model/accessories.js';
 import { PRICING_UNIT_LABELS } from '../elevation/model/libraryPricing.js';
-import { updateAccessory } from '../elevation/store/elevationSlice.js';
+import { newShape } from '../elevation/model/libraryShapes.js';
+import { addShape, updateAccessory } from '../elevation/store/elevationSlice.js';
 import InchInput from '../elevation/components/InchInput.jsx';
 import PricingFields from './PricingFields.jsx';
 import AccessoryEffectsFields from './AccessoryEffectsFields.jsx';
+import ShapeEditor from './shapeEditor/ShapeEditor.jsx';
+import { useShopReadOnly } from './WorkspaceSourceBar.jsx';
 
 const INPUT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
@@ -13,9 +16,17 @@ const TEXT_LABELS = { name: 'Name', brand: 'Brand', model: 'Model', description:
 
 export default function AccessoryEditor({ accessory, accessories, slides = [], services = [], onClose }) {
   const dispatch = useDispatch();
+  const shapes = useSelector((state) => state.elevation.settings.shapes);
+  const readOnly = useShopReadOnly();
   const [draft, setDraft] = useState(() => structuredClone(accessory));
+  const [editingShapeId, setEditingShapeId] = useState(null);
   const titleId = useId();
   const panelRef = useRef(null);
+  const shapePanelRef = useRef(null);
+  const pickedShape = shapes.find(({ id }) => id === draft.shapeId);
+  const drawingOptions = shapes.filter((shape) => shape.id === draft.shapeId
+    || (!shape.archived && ['accessory', 'other'].includes(shape.kind)))
+    .sort((a, b) => a.name.localeCompare(b.name));
   const savedAccessory = {
     ...draft,
     ...Object.fromEntries(Object.keys(TEXT_LABELS).map((key) => [key, draft[key].trim()])),
@@ -40,14 +51,41 @@ export default function AccessoryEditor({ accessory, accessories, slides = [], s
     change('lengthDeduction', value);
     return true;
   };
+  const pickShape = (shapeId, shape = shapes.find(({ id }) => id === shapeId)) => {
+    if (readOnly) return;
+    setDraft((previous) => ({ ...previous, shapeId,
+      size: shape ? {
+        width: previous.size.width ?? shape.box.w,
+        height: previous.size.height ?? shape.box.h,
+        depth: previous.size.depth ?? shape.box.d,
+      } : previous.size }));
+  };
+  const drawShape = () => {
+    if (readOnly) return;
+    const shape = newShape(shapes);
+    const baseName = draft.name.trim() || shape.name;
+    const names = new Set(shapes.map(({ name }) => name.toLowerCase()));
+    shape.name = baseName;
+    for (let n = 2; names.has(shape.name.toLowerCase()); n += 1) shape.name = `${baseName} ${n}`;
+    const w = draft.size.width === 'section' ? 30 : draft.size.width ?? 12;
+    const h = draft.size.height ?? 12;
+    const d = draft.size.depth ?? 12;
+    shape.views.front.points = Object.fromEntries(Object.entries(shape.views.front.points)
+      .map(([id, [x, z]]) => [id, [x * w / shape.box.w, z * h / shape.box.h]]));
+    shape.box = { x: 0, y: 0, z: 0, w, h, d };
+    shape.kind = 'accessory';
+    dispatch(addShape({ shape }));
+    pickShape(shape.id, shape);
+    setEditingShapeId(shape.id);
+  };
 
   // Dialog focus handling follows DoorDesignEditor.
   useEffect(() => {
     const previousFocus = document.activeElement;
-    const panel = panelRef.current;
-    panel.querySelector('input')?.focus();
+    const panel = editingShapeId ? shapePanelRef.current : panelRef.current;
+    panel.querySelector(editingShapeId ? 'button' : 'input')?.focus();
     const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
+      if (event.key === 'Escape' && !editingShapeId) {
         event.preventDefault();
         onClose();
       }
@@ -69,13 +107,13 @@ export default function AccessoryEditor({ accessory, accessories, slides = [], s
       document.removeEventListener('keydown', onKeyDown);
       previousFocus?.focus();
     };
-  }, [onClose]);
+  }, [onClose, editingShapeId]);
 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
       <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby={titleId}
-        className="w-[36rem] max-h-[90vh] overflow-y-auto rounded border border-gray-700 bg-gray-800 p-5">
+        className={`${editingShapeId ? 'hidden ' : ''}w-[36rem] max-h-[90vh] overflow-y-auto rounded border border-gray-700 bg-gray-800 p-5`}>
         <h2 id={titleId} className="mb-4 text-lg font-semibold text-gray-100">Accessory {accessory.name}</h2>
         <div className="space-y-4">
           {Object.entries(TEXT_LABELS).map(([key, label]) => (
@@ -159,6 +197,48 @@ export default function AccessoryEditor({ accessory, accessories, slides = [], s
             )}
             <p className="text-xs text-gray-400">Used to draw the accessory. Min opening is still the smallest space it fits in.</p>
           </fieldset>
+          <fieldset disabled={readOnly} className="space-y-3">
+            <legend className="mb-2 text-sm font-medium text-gray-100">Drawing</legend>
+            <div className="flex items-end gap-2">
+              <label className="block flex-1 text-xs text-gray-400">
+                Drawing
+                <select value={draft.shapeId ?? ''} aria-label="Drawing" className={`mt-1 ${INPUT_CLASS}`}
+                  onChange={(event) => pickShape(event.target.value || null)}>
+                  <option value="">No drawing</option>
+                  {drawingOptions.map((shape) => <option key={shape.id} value={shape.id}>
+                    {shape.name}{shape.archived ? ' (archived)' : ''}
+                  </option>)}
+                  {draft.shapeId && !pickedShape && <option value={draft.shapeId}>Missing drawing</option>}
+                </select>
+              </label>
+              <button type="button" className={`${BUTTON_CLASS} disabled:opacity-50`}
+                disabled={readOnly || Boolean(draft.shapeId && !pickedShape)}
+                onClick={() => {
+                  if (readOnly) return;
+                  if (!draft.shapeId) drawShape();
+                  else if (pickedShape) setEditingShapeId(pickedShape.id);
+                }}>{draft.shapeId ? 'Edit shape' : 'Draw shape'}</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <label className="block text-xs text-gray-400">
+                Depth anchor
+                <select value={draft.depthAnchor.at} aria-label="Depth anchor" className={`mt-1 ${INPUT_CLASS}`}
+                  onChange={(event) => change('depthAnchor', { ...draft.depthAnchor, at: event.target.value })}>
+                  {[['front', 'Front'], ['centre', 'Centre'], ['back', 'Back']].map(([value, label]) =>
+                    <option key={value} value={value}>{label}</option>)}
+                </select>
+              </label>
+              <label className="block text-xs text-gray-400">
+                Offset
+                <InchInput value={draft.depthAnchor.offset} displayStep={1 / 64} aria-label="Depth anchor offset" className="mt-1"
+                  onCommit={(offset) => {
+                    if (!Number.isFinite(offset)) return false;
+                    change('depthAnchor', { ...draft.depthAnchor, offset });
+                    return true;
+                  }} />
+              </label>
+            </div>
+          </fieldset>
           <label className="flex items-center gap-2 text-sm text-gray-300">
             <input type="checkbox" checked={draft.ownSlides} aria-label="Brings its own slides"
               onChange={(event) => change('ownSlides', event.target.checked)} />
@@ -184,6 +264,13 @@ export default function AccessoryEditor({ accessory, accessories, slides = [], s
           </div>
         </div>
       </div>
+      {editingShapeId && (
+        <div ref={shapePanelRef} role="dialog" aria-modal="true" aria-label={`Drawing for ${draft.name}`}
+          className="fixed inset-0 z-[60] bg-gray-900 text-gray-100">
+          <ShapeEditor key={editingShapeId} shapeId={editingShapeId} backLabel={`← ${draft.name.trim()}`}
+            onClose={() => setEditingShapeId(null)} />
+        </div>
+      )}
     </div>
   );
 }

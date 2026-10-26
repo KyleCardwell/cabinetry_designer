@@ -849,6 +849,28 @@ describe('IN13a step d placed accessory controls', () => {
     expect(text(render())).not.toContain('Ordered length');
   });
 
+  it('SH3 e anchor 4: mirrors a placed ROD-ACC drawing and removes the key on untick', () => {
+    edit(() => {
+      state.settings.shapes = [{ ...newShape([], 'RODC'), kind: 'accessory' }];
+      state.settings.accessories = [{ ...newAccessory([], 'ROD-ACC'), shapeId: 'RODC' },
+        { ...newAccessory([], 'box'), name: 'Box' }];
+    });
+    change('Add accessory r', 'ROD-ACC');
+    expect(field('Accessory mirror r.0')).toBeUndefined();
+    commit('Accessory up r.0', 40);
+    expect(field('Accessory mirror r.0').props.checked).toBe(false);
+    field('Accessory mirror r.0').props.onChange({ target: { checked: true } });
+    expectInterior({ accessories: [{ accessoryId: 'ROD-ACC', fromBottom: 40, mirror: true }] });
+    expect(field('Accessory mirror r.0').props.checked).toBe(true);
+    field('Accessory mirror r.0').props.onChange({ target: { checked: false } });
+    expectInterior({ accessories: [{ accessoryId: 'ROD-ACC', fromBottom: 40 }] });
+    change('Add accessory r', 'box');
+    commit('Accessory up r.1', 40);
+    expect(field('Accessory mirror r.1')).toBeUndefined();
+    edit(() => { state.settings.shapes = []; });
+    expect(field('Accessory mirror r.0')).toBeUndefined();
+  });
+
   it('renders missing drawings and fixed-size drawing warnings with the correct axis words', () => {
     edit(() => {
       state.settings.accessories[0].shapeId = 'gone';

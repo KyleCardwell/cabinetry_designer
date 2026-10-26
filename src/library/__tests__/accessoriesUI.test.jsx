@@ -2,12 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { newAccessory, withAccessoryDefaults } from '../../elevation/model/accessories.js';
+import { newShape, isShape } from '../../elevation/model/libraryShapes.js';
 import elevationReducer, { createInitialElevationState } from '../../elevation/store/elevationSlice.js';
 import InchInput from '../../elevation/components/InchInput.jsx';
 import AccessoryEditor from '../AccessoryEditor.jsx';
 import AccessoryEffectsFields from '../AccessoryEffectsFields.jsx';
 import AccessoriesPage from '../AccessoriesPage.jsx';
 import PricingFields from '../PricingFields.jsx';
+import ShapeEditor from '../shapeEditor/ShapeEditor.jsx';
 
 vi.mock('react', async (original) => ({
   ...await original(),
@@ -34,9 +36,9 @@ const button = (tree, label) => nodes(tree).find(({ type, props }) => type === '
 const rows = (tree) => nodes(tree).filter(({ type }) => type === 'tr').slice(1);
 const dispatch = vi.fn();
 
-function library(source = 'local', accessories = [], teamServices = [], slides) {
+function library(source = 'local', accessories = [], teamServices = [], slides, shapes = []) {
   let state = createInitialElevationState();
-  state = { ...state, source, teamServices, settings: { ...state.settings, accessories, ...(slides ? { slides } : {}) } };
+  state = { ...state, source, teamServices, settings: { ...state.settings, accessories, shapes, ...(slides ? { slides } : {}) } };
   const values = [];
   dispatch.mockImplementation((action) => { state = elevationReducer(state, action); });
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
@@ -53,10 +55,15 @@ function library(source = 'local', accessories = [], teamServices = [], slides) 
 }
 
 function editor(accessory, accessories = [accessory], services = [], slides = []) {
-  let draft = structuredClone(accessory);
+  const values = [];
   const onClose = vi.fn();
   const render = () => {
-    useState.mockImplementation(() => [draft, (update) => { draft = update(draft); }]);
+    let index = 0;
+    useState.mockImplementation((initial) => {
+      const slot = index++;
+      if (!(slot in values)) values[slot] = typeof initial === 'function' ? initial() : initial;
+      return [values[slot], (update) => { values[slot] = typeof update === 'function' ? update(values[slot]) : update; }];
+    });
     return AccessoryEditor({ accessory, accessories, services, slides, onClose });
   };
   const enter = (label, typed) => {
@@ -74,6 +81,7 @@ beforeEach(() => {
   useRef.mockReturnValue({ current: null });
   useState.mockImplementation((initial) => [typeof initial === 'function' ? initial() : initial, vi.fn()]);
   useDispatch.mockReturnValue(dispatch);
+  useSelector.mockImplementation((selector) => selector({ elevation: createInitialElevationState() }));
 });
 
 function pricing(tree) {
@@ -434,7 +442,8 @@ describe('IN12c step b drawer box effects editor', () => {
     edit.enter('Max height', '3 1/4');
     for (const invalid of ['0', '-2', 'nonsense', '']) edit.enter('Max height', invalid);
     expect(control(edit.render(), 'Max height').props.value).toBe(3.25);
-    expect(nodes(edit.render()).filter(({ type }) => type === InchInput).slice(6).map(({ props }) => props['aria-label']))
+    const effects = nodes(edit.render()).find(({ type }) => type === AccessoryEffectsFields);
+    expect(nodes(effects).filter(({ type }) => type === InchInput).map(({ props }) => props['aria-label']))
       .toEqual(['Max depth', 'Max height', 'Clear behind']);
     button(edit.render(), 'Save').props.onClick();
     const saved = dispatch.mock.lastCall[0].payload.accessory;
@@ -494,5 +503,133 @@ describe('IN12c step b drawer box effects editor', () => {
     expect(text(nodes(rows(page.render())[0]).filter(({ type }) => type === 'td')[1])).toBe('Drawer boxMissing slide');
     control(edit.render(), 'Slide').props.onChange({ target: { value: 'accuride-4034' } });
     expect(options(edit.render(), 'Slide').map(text)).toEqual(['Blum', 'Accuride 4034']);
+  });
+});
+
+describe('SH3 step e accessory drawings', () => {
+  const options = (tree) => nodes(control(tree, 'Drawing')).filter(({ type }) => type === 'option')
+    .map((node) => [node.props.value, text(node)]);
+  const shapeEditor = (tree) => nodes(tree).find(({ type }) => type === ShapeEditor);
+  const rod = { ...newShape([], 'RODC'), name: 'RODC', kind: 'accessory',
+    box: { x: 0, y: 0, z: 0, w: 30, h: 3, d: 2 } };
+
+  it('anchors 1–2: draws Closet rod, returns to the intact accessory draft, saves its pick and reopens Edit shape', () => {
+    const accessory = { ...newAccessory([], 'ROD-ACC'), name: 'Closet rod',
+      size: { width: 'section', height: 3, depth: null } };
+    const page = library('local', [accessory]);
+    const edit = editor(accessory);
+    control(edit.render(), 'Description').props.onChange({ target: { value: 'Keep this draft' } });
+    button(edit.render(), 'Draw shape').props.onClick();
+    const shape = page.state().settings.shapes[0];
+    expect(shape).toMatchObject({ name: 'Closet rod', kind: 'accessory',
+      box: { x: 0, y: 0, z: 0, w: 30, h: 3, d: 12 }, stretch: {} });
+    expect(shape.views.front).toEqual({ units: 'in',
+      points: { p1: [0, 0], p2: [30, 0], p3: [30, 3], p4: [0, 3] },
+      loops: [{ id: 'L1', closed: true, segs: [
+        { type: 'line', from: 'p1', to: 'p2' }, { type: 'line', from: 'p2', to: 'p3' },
+        { type: 'line', from: 'p3', to: 'p4' }, { type: 'line', from: 'p4', to: 'p1' },
+      ] }],
+    });
+    expect(isShape(shape)).toBe(true);
+    expect(page.state().settings.accessories[0]).toEqual(accessory);
+    const drawing = shapeEditor(edit.render());
+    expect(drawing.props).toMatchObject({ shapeId: shape.id, backLabel: '← Closet rod' });
+    const layer = nodes(edit.render()).find(({ props }) => props['aria-label'] === 'Drawing for Closet rod');
+    expect(layer.props.className).toContain('fixed inset-0');
+    // Escape in the shape editor must not dismiss the accessory underneath it.
+    vi.stubGlobal('document', { activeElement: null, addEventListener: vi.fn(), removeEventListener: vi.fn() });
+    useRef.mockReturnValue({ current: { querySelector: () => null } });
+    edit.render();
+    const cleanup = useEffect.mock.lastCall[0]();
+    document.addEventListener.mock.lastCall[1]({ key: 'Escape' });
+    expect(edit.onClose).not.toHaveBeenCalled();
+    cleanup();
+    vi.unstubAllGlobals();
+    drawing.props.onClose();
+    expect(shapeEditor(edit.render())).toBeUndefined();
+    expect(control(edit.render(), 'Description').props.value).toBe('Keep this draft');
+    expect(['Width', 'Height', 'Depth'].map((label) => control(edit.render(), label).props.value)).toEqual([null, 3, 12]);
+    expect(control(edit.render(), 'Section width').props.checked).toBe(true);
+    expect(control(edit.render(), 'Drawing').props.value).toBe(shape.id);
+    expect(options(edit.render())).toContainEqual([shape.id, 'Closet rod']);
+    button(edit.render(), 'Edit shape').props.onClick();
+    expect(shapeEditor(edit.render()).props.shapeId).toBe(shape.id);
+    shapeEditor(edit.render()).props.onClose();
+    button(edit.render(), 'Save').props.onClick();
+    expect(edit.onClose).toHaveBeenCalledOnce();
+    expect(page.state().settings.accessories[0]).toMatchObject({ shapeId: shape.id,
+      size: { width: 'section', height: 3, depth: 12 }, description: 'Keep this draft' });
+  });
+
+  it('names new drawings uniquely including archived names, using 12 for blank dimensions', () => {
+    const accessory = { ...newAccessory([], 'rod'), name: 'Closet rod' };
+    const shapes = [{ ...rod, name: 'Closet rod', archived: true },
+      { ...rod, id: 'second', name: 'CLOSET ROD 2' }];
+    const page = library('local', [accessory], [], [], shapes);
+    const edit = editor(accessory);
+    button(edit.render(), 'Draw shape').props.onClick();
+    expect(page.state().settings.shapes[2]).toMatchObject({ name: 'Closet rod 3',
+      box: { x: 0, y: 0, z: 0, w: 12, h: 12, d: 12 }, stretch: {}, kind: 'accessory' });
+    expect(['Width', 'Height', 'Depth'].map((label) => control(edit.render(), label).props.value)).toEqual([12, 12, 12]);
+  });
+
+  it('anchor 3: copies RODC box dimensions only into blank sizes and saves signed depth anchors', () => {
+    for (const width of [null, 'section']) {
+      const accessory = { ...newAccessory([], 'rod'), size: { width, height: null, depth: null } };
+      library('local', [accessory], [], [], [rod]);
+      const edit = editor(accessory);
+      control(edit.render(), 'Drawing').props.onChange({ target: { value: rod.id } });
+      expect(['Width', 'Height', 'Depth'].map((label) => control(edit.render(), label).props.value))
+        .toEqual([width === 'section' ? null : 30, 3, 2]);
+      expect(control(edit.render(), 'Section width').props.checked).toBe(width === 'section');
+      control(edit.render(), 'Depth anchor').props.onChange({ target: { value: 'back' } });
+      edit.enter('Depth anchor offset', '-1/2');
+      expect(control(edit.render(), 'Depth anchor offset').props.onCommit(Infinity)).toBe(false);
+      expect(control(edit.render(), 'Depth anchor offset').props.onCommit(null)).toBe(false);
+      button(edit.render(), 'Save').props.onClick();
+      expect(dispatch.mock.lastCall[0].payload.accessory).toMatchObject({ shapeId: rod.id,
+        size: { width: width ?? 30, height: 3, depth: 2 }, depthAnchor: { at: 'back', offset: -0.5 } });
+      edit.enter('Height', '4');
+      control(edit.render(), 'Drawing').props.onChange({ target: { value: '' } });
+      control(edit.render(), 'Drawing').props.onChange({ target: { value: rod.id } });
+      expect(control(edit.render(), 'Height').props.value).toBe(4);
+    }
+  });
+
+  it('sorts live Accessory and Other drawings, retaining only the current archived or missing pick', () => {
+    const shapes = [rod, { ...rod, id: 'other', name: 'A hook', kind: 'other' },
+      { ...rod, id: 'archived', name: 'Old rod', archived: true },
+      { ...rod, id: 'appliance', name: 'Oven', kind: 'appliance' }];
+    for (const shapeId of [null, 'archived', 'missing', 'appliance']) {
+      const accessory = { ...newAccessory([], 'rod'), shapeId };
+      library('local', [accessory], [], [], shapes);
+      const edit = editor(accessory);
+      const expected = [['', 'No drawing'], ['other', 'A hook'], ['RODC', 'RODC']];
+      if (shapeId === 'archived') expected.splice(2, 0, ['archived', 'Old rod (archived)']);
+      if (shapeId === 'appliance') expected.splice(2, 0, ['appliance', 'Oven']);
+      if (shapeId === 'missing') expected.push(['missing', 'Missing drawing']);
+      expect(options(edit.render())).toEqual(expected);
+      expect(button(edit.render(), shapeId ? 'Edit shape' : 'Draw shape').props.disabled).toBe(shapeId === 'missing');
+      if (shapeId === 'missing') {
+        button(edit.render(), 'Edit shape').props.onClick();
+        expect(shapeEditor(edit.render())).toBeUndefined();
+      }
+    }
+  });
+
+  it('disables Draw and Edit shape for read-only shop data and prevents their actions', () => {
+    for (const shapeId of [null, rod.id]) {
+      const accessory = { ...newAccessory([], 'rod'), shapeId };
+      const page = library('cloud', [accessory], [], [], [rod]);
+      const edit = editor(accessory);
+      const action = button(edit.render(), shapeId ? 'Edit shape' : 'Draw shape');
+      expect(action.props.disabled).toBe(true);
+      action.props.onClick();
+      control(edit.render(), 'Drawing').props.onChange({ target: { value: rod.id } });
+      expect(shapeEditor(edit.render())).toBeUndefined();
+      expect(control(edit.render(), 'Drawing').props.value).toBe(shapeId ?? '');
+      expect(page.state().settings.shapes).toEqual([rod]);
+      expect(dispatch).not.toHaveBeenCalled();
+    }
   });
 });

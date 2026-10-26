@@ -360,7 +360,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
         {interiorPath != null && shelf && (
           <div className="space-y-2">
             <h4 className="text-xs font-medium text-gray-300">Accessories</h4>
-            {shelfData.accessories?.items.map(({ index, accessoryId, accessory, qty, fromBottom, orderedLength, warnings }) => {
+            {shelfData.accessories?.items.map(({ index, accessoryId, accessory, qty, fromBottom, drawing, orderedLength, warnings }) => {
               const name = accessory?.name ?? 'Missing';
               const key = `${path}.${index}`;
               return (
@@ -381,6 +381,14 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                         placeholder="Not placed"
                         onCommit={(value) => commit(setSectionAccessory(interior, path, index, { fromBottom: value }))} />
                     </Field>
+                  )}
+                  {drawing && (
+                    <label className="flex items-center gap-2 text-xs text-gray-300">
+                      <input type="checkbox" aria-label={`Accessory mirror ${key}`}
+                        checked={getInteriorNode(interior, path)?.accessories?.[index]?.mirror === true}
+                        onChange={(event) => commit(setSectionAccessory(interior, path, index, { mirror: event.target.checked }))} />
+                      Mirror
+                    </label>
                   )}
                   {orderedLength != null && (
                     <p className="text-xs text-gray-400">Ordered length {formatInches(orderedLength)}</p>
