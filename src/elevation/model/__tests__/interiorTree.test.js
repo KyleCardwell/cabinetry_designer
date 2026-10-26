@@ -11,7 +11,7 @@ import {
 } from '../index.js';
 
 it('IN13a a anchors 5–6: validates section-only placement and preserves it through edits and splits', () => {
-  const item = { accessoryId: 'a', fromBottom: 40 };
+  const item = { accessoryId: 'a', fromBottom: 40, mirror: true };
   expect(isSectionAccessories([item])).toBe(true);
   expect(isAccessoryItems([item], { placed: true })).toBe(true);
   expect(isAccessoryItems([item])).toBe(false);
@@ -20,11 +20,11 @@ it('IN13a a anchors 5–6: validates section-only placement and preserves it thr
   expect(isFaceNode(front)).toBe(true);
   expect(setFaceDrawerBox(front, 'r', { accessories: [item] })).toBe(front);
   const start = { accessories: [{ accessoryId: 'a' }] };
-  const placed = setSectionAccessory(start, 'r', 0, { fromBottom: 40 });
+  const placed = setSectionAccessory(start, 'r', 0, { fromBottom: 40, mirror: true });
   expect(placed.accessories).toEqual([item]);
   expect(start.accessories).toEqual([{ accessoryId: 'a' }]);
   expect(isInteriorNode(placed)).toBe(true);
-  expect(setSectionAccessory(placed, 'r', 0, { fromBottom: null })).toEqual(start);
+  expect(setSectionAccessory(placed, 'r', 0, { fromBottom: null, mirror: false })).toEqual(start);
   expect(addSectionAccessory(placed, 'r', 'a').accessories).toEqual([{ ...item, qty: 2 }]);
   for (const fromBottom of [0, -1, Infinity, NaN, '40', undefined, null]) {
     expect(isSectionAccessories([{ ...item, fromBottom }])).toBe(false);

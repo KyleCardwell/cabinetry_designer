@@ -56,14 +56,15 @@ const warning = { code: 'accessory-whole-section', name: 'Lazy susan 28' };
 const unresolvedGeometry = { size: null, orderedLength: null, fromBottom: null, centerZ: null, rect: null };
 
 describe('IN12b step d section accessories', () => {
-  it('anchor 1: accepts only 1–12 unique references with implicit one or quantity 2–20', () => {
+  it('anchor 1: accepts only 1–12 unique references with implicit one or quantity 1–20 (SH3 a)', () => {
     expect(MAX_SECTION_ACCESSORIES).toBe(12);
     expect(MAX_ACCESSORY_QTY).toBe(20);
     expect(isInteriorNode({ accessories: [a] })).toBe(true);
     expect(isSectionAccessories([{ ...a, qty: 20 }])).toBe(true);
+    expect(isSectionAccessories([{ ...a, qty: 1 }])).toBe(true);
     const entries = Array.from({ length: 12 }, (_, i) => ({ accessoryId: String(i) }));
     expect(isSectionAccessories(entries)).toBe(true);
-    for (const invalid of [[], [{ ...a, qty: 1 }], [{ ...a, qty: 21 }], [...entries, { accessoryId: '13' }],
+    for (const invalid of [[], [{ ...a, qty: 0 }], [{ ...a, qty: 21 }], [...entries, { accessoryId: '13' }],
       [a, a], [{ accessoryId: '' }], [{ qty: 2 }], [{ ...a, qty: null }], [{ ...a, qty: 2.5 }],
       [{ ...a, extra: true }], [{ ...a, [Symbol('extra')]: true }], Array(1), [null], null, {}]) {
       expect(isSectionAccessories(invalid)).toBe(false);

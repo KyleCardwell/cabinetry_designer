@@ -13,6 +13,7 @@ import { PRICING_UNITS, isLabor, isMoney } from './libraryPricing.js';
 const ACCESSORY_KEYS = [
   'id', 'name', 'brand', 'model', 'description', 'reportText', 'attachesTo', 'wholeSection',
   'minOpening', 'ownSlides', 'effects', 'pricing', 'price', 'actualCost', 'labor', 'size', 'lengthDeduction',
+  'shapeId', 'depthAnchor',
 ];
 const OPENING_KEYS = ['width', 'depth', 'height'];
 
@@ -43,6 +44,10 @@ export function isAccessory(accessory) {
       || (key === 'width' && accessory.size[key] === 'section' && accessory.attachesTo === 'section'))
     && (accessory.lengthDeduction === null || (accessory.attachesTo === 'section'
       && Number.isFinite(accessory.lengthDeduction) && accessory.lengthDeduction >= 0))
+    && (accessory.shapeId === null || (typeof accessory.shapeId === 'string' && accessory.shapeId.length > 0))
+    && hasKeys(accessory.depthAnchor, ['at', 'offset'])
+    && ['front', 'centre', 'back'].includes(accessory.depthAnchor.at)
+    && Number.isFinite(accessory.depthAnchor.offset)
     && typeof accessory.ownSlides === 'boolean'
     && isEffectList(accessory.effects, accessory.attachesTo)
     && PRICING_UNITS.includes(accessory.pricing)
@@ -86,6 +91,8 @@ export function newAccessory(list, id) {
     minOpening: { width: null, depth: null, height: null },
     size: { width: null, height: null, depth: null },
     lengthDeduction: null,
+    shapeId: null,
+    depthAnchor: { at: 'front', offset: 0 },
     ownSlides: false,
     effects: [],
     pricing: 'unit',
@@ -95,13 +102,15 @@ export function newAccessory(list, id) {
   };
 }
 
-/** Older stored accessories have no drawing size or ordered-length deduction. */
+/** Fill only missing fields on older stored accessories. */
 export function withAccessoryDefaults(accessory) {
   if (!accessory || typeof accessory !== 'object' || Array.isArray(accessory)) return accessory;
   return {
     ...accessory,
     ...(!Object.hasOwn(accessory, 'size') ? { size: { width: null, height: null, depth: null } } : {}),
     ...(!Object.hasOwn(accessory, 'lengthDeduction') ? { lengthDeduction: null } : {}),
+    ...(!Object.hasOwn(accessory, 'shapeId') ? { shapeId: null } : {}),
+    ...(!Object.hasOwn(accessory, 'depthAnchor') ? { depthAnchor: { at: 'front', offset: 0 } } : {}),
   };
 }
 

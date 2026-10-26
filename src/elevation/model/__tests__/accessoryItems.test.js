@@ -7,9 +7,9 @@ const a = { accessoryId: 'a' };
 const full = Array.from({ length: 12 }, (_, i) => ({ accessoryId: String(i), qty: 20 }));
 
 it('IN12c a: shared items retain the IN12b storage shape and limits', () => {
-  for (const items of [[a], [{ ...a, qty: 2 }], full]) expect(isAccessoryItems(items)).toBe(true);
+  for (const items of [[a], [{ ...a, qty: 1 }], [{ ...a, qty: 2 }], full]) expect(isAccessoryItems(items)).toBe(true);
   for (const items of [[], [a, a], [...full, a], [{ accessoryId: '' }], [{ qty: 2 }],
-    ...[1, 21, 2.5, null, undefined, '2'].map((qty) => [{ ...a, qty }]),
+    ...[0, 21, 2.5, null, undefined, '2'].map((qty) => [{ ...a, qty }]),
     [{ ...a, extra: true }], [{ ...a, [Symbol('extra')]: true }], Array(1), [null], null, {}]) {
     expect(isAccessoryItems(items)).toBe(false);
   }
@@ -83,4 +83,34 @@ it('IN12c a: merging keeps first occurrence order, caps quantities and rejects b
     expect(mergeAccessoryItems(first, invalid)).toBe(first);
     expect(mergeAccessoryItems(invalid, first)).toBe(invalid);
   }
+});
+
+
+it('SH3 a anchor 3: accepts mirror true on any item and rejects false or nonboolean stored values', () => {
+  const item = { accessoryId: 'a', qty: 1, fromBottom: 66, mirror: true };
+  expect(isAccessoryItems([item], { placed: true })).toBe(true);
+  expect(isAccessoryItems([{ accessoryId: 'a', mirror: true }])).toBe(true);
+  for (const mirror of [false, 'yes', 1, null, undefined]) {
+    expect(isAccessoryItems([{ ...item, mirror }], { placed: true })).toBe(false);
+    expect(isAccessoryItems([{ accessoryId: 'a', mirror }])).toBe(false);
+  }
+});
+
+it('SH3 a: edits mirror sparsely and keeps the first item mirror when merging or renaming', () => {
+  const mirrored = { accessoryId: 'a', mirror: true, fromBottom: 66 };
+  const before = structuredClone(mirrored);
+  expect(setAccessoryItem([a], 0, { mirror: true })).toEqual([{ ...a, mirror: true }]);
+  expect(setAccessoryItem([mirrored], 0, { mirror: false })).toEqual([{ accessoryId: 'a', fromBottom: 66 }]);
+  for (const mirror of ['yes', 1, null, undefined]) {
+    const items = [mirrored];
+    expect(setAccessoryItem(items, 0, { mirror })).toBe(items);
+  }
+  expect(addAccessoryItem([mirrored], 'a')).toEqual([{ ...mirrored, qty: 2 }]);
+  expect(mergeAccessoryItems([mirrored], [a])).toEqual([{ ...mirrored, qty: 2 }]);
+  expect(mergeAccessoryItems([a], [mirrored])).toEqual([{ ...a, qty: 2, fromBottom: 66 }]);
+  for (const destination of [a, mirrored]) {
+    expect(setAccessoryItem([{ accessoryId: 'b', mirror: true }, destination], 0, { accessoryId: 'a' }))
+      .toEqual([{ ...destination, qty: 2 }]);
+  }
+  expect(mirrored).toEqual(before);
 });

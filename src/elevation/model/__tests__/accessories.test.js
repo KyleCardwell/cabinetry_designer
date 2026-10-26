@@ -19,6 +19,7 @@ it('IN12b anchor 1: validates the exact accessory shape and field limits', () =>
     id: 'x', name: 'New accessory', brand: '', model: '', description: '', reportText: '',
     attachesTo: 'section', wholeSection: false, minOpening: { width: null, depth: null, height: null },
     size: { width: null, height: null, depth: null }, lengthDeduction: null,
+    shapeId: null, depthAnchor: { at: 'front', offset: 0 },
     ownSlides: false, effects: [], pricing: 'unit', price: null, actualCost: null, labor: {},
   });
   expect(isAccessory(blank)).toBe(true);
@@ -170,5 +171,45 @@ it('IN12b keeps accessories in an independent settings library with empty defaul
       expect(copy.accessories[0].labor).not.toBe(susan.labor);
       expect(copy.accessories[0].effects).not.toBe(susan.effects);
     }
+  }
+});
+
+
+it('SH3 a anchor 1: defaults IN13a accessory drawing fields without mutation or shared anchors', () => {
+  const legacy = { ...susan };
+  delete legacy.shapeId;
+  delete legacy.depthAnchor;
+  const before = structuredClone(legacy);
+  const loaded = withAccessoryDefaults(legacy);
+  expect(loaded).toEqual({ ...before, shapeId: null, depthAnchor: { at: 'front', offset: 0 } });
+  expect(isAccessory(loaded)).toBe(true);
+  expect(legacy).toEqual(before);
+  expect(withAccessoryDefaults(legacy).depthAnchor).not.toBe(loaded.depthAnchor);
+  expect(newAccessory([], 'a').depthAnchor).not.toBe(newAccessory([], 'b').depthAnchor);
+  const picked = { ...loaded, shapeId: 'unknown', depthAnchor: { at: 'back', offset: -2 } };
+  expect(withAccessoryDefaults(picked)).toEqual(picked);
+  const copy = copyAccessory([picked], picked, 'copy');
+  expect(copy.depthAnchor).toEqual(picked.depthAnchor);
+  expect(copy.depthAnchor).not.toBe(picked.depthAnchor);
+});
+
+it('SH3 a anchor 2: validates drawing ids and complete finite depth anchors without repairing invalid fields', () => {
+  const blank = newAccessory([], 'a');
+  for (const at of ['front', 'centre', 'back']) {
+    for (const offset of [-2, 0, 2]) {
+      expect(isAccessory({ ...blank, shapeId: 'gone', depthAnchor: { at, offset } })).toBe(true);
+    }
+  }
+  for (const change of [
+    ...['', 1, false, undefined, {}].map((shapeId) => ({ shapeId })),
+    ...[null, undefined, [], {}, { at: 'front' }, { offset: 0 },
+      { at: 'middle', offset: 0 }, { at: 'back', offset: NaN },
+      { at: 'front', offset: Infinity }, { at: 'front', offset: '0' },
+      { at: 'front', offset: 0, extra: true }, { at: 'front', offset: 0, [Symbol('extra')]: true },
+    ].map((depthAnchor) => ({ depthAnchor })),
+  ]) {
+    const invalid = { ...blank, ...change };
+    expect(isAccessory(invalid)).toBe(false);
+    expect(isAccessory(withAccessoryDefaults(invalid))).toBe(false);
   }
 });

@@ -260,6 +260,7 @@ const susan = {
   description: '28" kidney lazy susan', reportText: '6472-28 lazy susan',
   attachesTo: 'section', wholeSection: true, minOpening: { width: 27, depth: 22, height: null },
   size: { width: null, height: null, depth: null }, lengthDeduction: null,
+  shapeId: null, depthAnchor: { at: 'front', offset: 0 },
   ownSlides: false, effects: [], pricing: 'unit', price: 185, actualCost: 112.4, labor: { '7': 15, '9': 5 },
 };
 
@@ -268,6 +269,7 @@ it('IN12b c maps every accessory field except id and name into data (anchor 1)',
     brand: 'Rev-A-Shelf', model: '6472-28', description: '28" kidney lazy susan', reportText: '6472-28 lazy susan',
     attachesTo: 'section', wholeSection: true, minOpening: { width: 27, depth: 22, height: null },
     size: { width: null, height: null, depth: null }, lengthDeduction: null,
+    shapeId: null, depthAnchor: { at: 'front', offset: 0 },
     ownSlides: false, effects: [], pricing: 'unit', price: 185, actualCost: 112.4, labor: { '7': 15, '9': 5 },
   };
   const row = accessoryToRow(susan);
@@ -300,14 +302,18 @@ it('IN13a a anchor 4: loads legacy cloud accessories before validation and round
   const row = { accessory_id: DID, ...accessoryToRow(susan) };
   delete row.data.size;
   delete row.data.lengthDeduction;
+  delete row.data.shapeId;
+  delete row.data.depthAnchor;
   const before = structuredClone(row);
   const loaded = accessoryFromRow(row);
   expect(isAccessory(loaded)).toBe(true);
   expect(loaded).toEqual(susan);
   expect(row).toEqual(before);
-  const rod = { ...susan, size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25 };
+  const rod = { ...susan, size: { width: 'section', height: 1.25, depth: 1.25 }, lengthDeduction: 0.25,
+    shapeId: 's1', depthAnchor: { at: 'centre', offset: -0.5 } };
   expect(accessoryFromRow({ accessory_id: DID, ...accessoryToRow(rod) })).toEqual(rod);
-  for (const data of [{ ...row.data, size: null }, { ...row.data, lengthDeduction: -1 / 8 }]) {
+  for (const data of [{ ...row.data, size: null }, { ...row.data, lengthDeduction: -1 / 8 },
+    { ...row.data, shapeId: '' }, { ...row.data, depthAnchor: { at: 'middle', offset: 0 } }]) {
     expect(accessoryFromRow({ ...row, data })).toBeNull();
   }
 });

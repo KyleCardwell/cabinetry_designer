@@ -8,6 +8,8 @@ import { buildSettingsSnapshot, isSettingsSnapshot, resolvedIssueSettings, setti
 import { BUILT_IN_SLIDES } from '../slides.js';
 import { BUILT_IN_PULLS } from '../pulls.js';
 import { defaultVersionLabel, nameInitials } from '../roomVersions.js';
+import { newShape } from '../libraryShapes.js';
+import { auto, room, run, wall } from '../../../test/builders.js';
 import { MICRO_SHAKER } from './fixtures/microShakerDesign.js';
 
 it('IN12c a anchor 5: snapshots slides named by drawer-box accessory effects, including missing slides', () => {
@@ -186,15 +188,15 @@ describe('DB8a settings snapshot', () => {
     expect(snapshot.sectionProfiles[1].archived).toBe(true);
     expect(snapshot.doorDesigns.map((design) => design.id)).toEqual(['five-piece-square', 'slab', 'slab-mdf', D_SHAKER]);
     expect(snapshot.overrides).toEqual({ project: { roundTo: 0.25 }, phase: { baseDepth: 25 } });
-    expect(snapshot.library).toEqual({ doorDesigns: { [D_SHAKER]: 2 }, profiles: { [P_CROWN]: 4 }, pulls: {}, slides: {}, accessories: {} });
-    expect(snapshot.missing).toEqual({ doorDesigns: [], profiles: [], pulls: [], slides: [], accessories: [] });
+    expect(snapshot.library).toEqual({ doorDesigns: { [D_SHAKER]: 2 }, profiles: { [P_CROWN]: 4 }, pulls: {}, slides: {}, accessories: {}, shapes: {} });
+    expect(snapshot.missing).toEqual({ doorDesigns: [], profiles: [], pulls: [], slides: [], accessories: [], shapes: [] });
     expect(snapshot.issuedFrom).toMatchObject({ estProjectId: 42, roomVersion: 6, teamVersion: null });
     expect(isSettingsSnapshot(JSON.parse(JSON.stringify(snapshot)))).toBe(true);
   });
 
   it('lists door designs and profiles the room names but the library no longer has', () => {
     const snapshot = buildSettingsSnapshot({ settings: library(), document: roomDocument({ designId: 'gone-design', outside: 'gone-profile' }) });
-    expect(snapshot.missing).toEqual({ doorDesigns: ['gone-design'], profiles: ['gone-profile'], pulls: [], slides: [], accessories: [] });
+    expect(snapshot.missing).toEqual({ doorDesigns: ['gone-design'], profiles: ['gone-profile'], pulls: [], slides: [], accessories: [], shapes: [] });
     expect(snapshot.sectionProfiles.map((profile) => profile.id)).toEqual([P_CROWN]);
   });
 
@@ -365,5 +367,52 @@ it('IN12b f anchors 4–5: freezes only keyed accessories in library order, rest
   expect(settingsFromSnapshot(legacy).settings.accessories).toEqual([]);
   for (const accessories of [null, {}, [{ ...susan, price: -1 }], [susan, { ...tray, name: 'SUSAN' }]]) {
     expect(settingsFromSnapshot({ ...snapshot, accessories })).toMatchObject({ ok: false, reason: 'bad_snapshot' });
+  }
+});
+
+
+it('SH3 a anchor 4: freezes referenced accessory shapes, row versions and missing ids only', () => {
+  const rod = { ...newAccessory([], 'ROD-ACC'), name: 'Rod', shapeId: 's1' };
+  const missing = { ...newAccessory([], 'missing'), name: 'Missing rod', shapeId: 'gone' };
+  const unused = { ...newAccessory([], 'unused'), name: 'Unused', shapeId: 'unused-shape' };
+  const shape = { ...newShape([], 's1'), archived: true };
+  const live = { ...library(), accessories: [rod, missing, unused], shapes: [shape, newShape([], 's2')] };
+  const document = room({ walls: [wall({ runs: [run({ items: [{ ...auto('cab'), interior: {
+    accessories: [{ accessoryId: rod.id }, { accessoryId: missing.id }],
+  } }] })] })] });
+  const snapshot = buildSettingsSnapshot({ settings: live, document,
+    rows: { shapes: { s1: { version: 7 }, s2: { version: 9 } } } });
+  expect(snapshot.shapes).toEqual([shape]);
+  expect(snapshot.shapes[0]).not.toBe(shape);
+  expect(snapshot.library.shapes).toEqual({ s1: 7 });
+  expect(snapshot.missing.shapes).toEqual(['gone']);
+  expect(snapshot.settings).not.toHaveProperty('shapes');
+  expect(isSettingsSnapshot(snapshot)).toBe(true);
+  const restored = settingsFromSnapshot(snapshot);
+  expect(restored.settings.shapes).toEqual([shape]);
+  restored.settings.shapes[0].views.front.points.p1[0] = 99;
+  shape.box.w = 99;
+  expect(snapshot.shapes[0].box.w).toBe(12);
+  expect(snapshot.shapes[0].views.front.points.p1).toEqual([0, 0]);
+  const keyed = buildSettingsSnapshot({ settings: live, document: room({ shapeId: 's2', note: 's1', otherShapeId: 'ignored' }) });
+  expect(keyed.shapes.map(({ id }) => id)).toEqual(['s2']);
+  expect(keyed.missing.shapes).toEqual([]);
+});
+
+it('SH3 a: restores older snapshots without shapes and defaults older accessory drawing fields', () => {
+  const accessory = newAccessory([], 'a');
+  const snapshot = buildSettingsSnapshot({ settings: { ...library(), accessories: [accessory] }, document: room({ accessoryId: 'a' }) });
+  delete snapshot.shapes;
+  delete snapshot.accessories[0].shapeId;
+  delete snapshot.accessories[0].depthAnchor;
+  const before = structuredClone(snapshot);
+  expect(isSettingsSnapshot(snapshot)).toBe(true);
+  expect(settingsFromSnapshot(snapshot).settings.shapes).toEqual([]);
+  expect(settingsFromSnapshot(snapshot).settings.accessories).toEqual([accessory]);
+  expect(snapshot).toEqual(before);
+  const shape = newShape([], 's1');
+  for (const shapes of [null, {}, [null], [shape, shape], [{ ...shape, box: null }]]) {
+    expect(isSettingsSnapshot({ ...snapshot, shapes })).toBe(false);
+    expect(settingsFromSnapshot({ ...snapshot, shapes })).toMatchObject({ ok: false, reason: 'bad_snapshot' });
   }
 });

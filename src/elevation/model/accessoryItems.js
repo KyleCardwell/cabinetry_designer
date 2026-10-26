@@ -5,10 +5,11 @@ import { MAX_ACCESSORY_QTY, MAX_SECTION_ACCESSORIES } from './constants.js';
 export function isAccessoryItems(value, { placed = false } = {}) {
   return Array.isArray(value) && value.length >= 1 && value.length <= MAX_SECTION_ACCESSORIES
     && Array.from(value).every((item) => isPlainObject(item)
-      && Reflect.ownKeys(item).every((key) => ['accessoryId', 'qty'].includes(key) || (placed && key === 'fromBottom'))
+      && Reflect.ownKeys(item).every((key) => ['accessoryId', 'qty', 'mirror'].includes(key) || (placed && key === 'fromBottom'))
       && typeof item.accessoryId === 'string' && item.accessoryId.length > 0
       && (!Object.hasOwn(item, 'fromBottom') || (Number.isFinite(item.fromBottom) && item.fromBottom > 0))
-      && (!Object.hasOwn(item, 'qty') || (Number.isInteger(item.qty) && item.qty >= 2 && item.qty <= MAX_ACCESSORY_QTY)))
+      && (!Object.hasOwn(item, 'mirror') || item.mirror === true)
+      && (!Object.hasOwn(item, 'qty') || (Number.isInteger(item.qty) && item.qty >= 1 && item.qty <= MAX_ACCESSORY_QTY)))
     && new Set(value.map((item) => item.accessoryId)).size === value.length;
 }
 
@@ -57,10 +58,12 @@ export function setAccessoryItem(items, index, patch) {
     || !Reflect.ownKeys(patch).every((key) => key === 'accessoryId'
       ? typeof patch[key] === 'string' && patch[key].length > 0
       : key === 'fromBottom' ? patch[key] === null || (Number.isFinite(patch[key]) && patch[key] > 0)
-        : key === 'qty' && (patch[key] === null || (Number.isInteger(patch[key]) && patch[key] >= 1 && patch[key] <= MAX_ACCESSORY_QTY)))) return items;
+        : key === 'mirror' ? typeof patch[key] === 'boolean'
+          : key === 'qty' && (patch[key] === null || (Number.isInteger(patch[key]) && patch[key] >= 1 && patch[key] <= MAX_ACCESSORY_QTY)))) return items;
   const next = items.map((item) => ({ ...item }));
   const item = { ...next[index], ...patch };
   if (item.fromBottom === null) delete item.fromBottom;
+  if (item.mirror === false) delete item.mirror;
   next[index] = withAccessoryQty(item, item.qty ?? 1);
   const duplicate = next.findIndex((entry, i) => i !== index && entry.accessoryId === item.accessoryId);
   if (duplicate >= 0) {

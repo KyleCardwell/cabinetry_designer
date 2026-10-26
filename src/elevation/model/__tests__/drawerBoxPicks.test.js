@@ -180,7 +180,9 @@ describe('IN12c c drawer box accessories', () => {
     expect(isFaceNode(leaf('drawer_front', { drawerBox: { accessories: [] } }))).toBe(false);
     expect(isFaceNode(leaf('drawer_front', { drawerBox: { charging: true } }))).toBe(false);
     expect(isFaceNode(leaf('door', { action: 'pullout', drawerBox: { accessories: [{ accessoryId: 'a' }] } }))).toBe(false);
-    for (const accessories of [null, [{ accessoryId: 'a', qty: 1 }], [{ accessoryId: 'a', qty: 21 }],
+    // SH3 a anchor 3 also permits an explicit quantity of one.
+    expect(isFaceNode(leaf('drawer_front', { drawerBox: { accessories: [{ accessoryId: 'a', qty: 1 }] } }))).toBe(true);
+    for (const accessories of [null, [{ accessoryId: 'a', qty: 0 }], [{ accessoryId: 'a', qty: 21 }],
       [{ accessoryId: 'a' }, { accessoryId: 'a' }], [{ accessoryId: '' }],
       Array.from({ length: 13 }, (_, i) => ({ accessoryId: String(i) }))]) {
       expect(isFaceNode(leaf('drawer_front', { drawerBox: { accessories } }))).toBe(false);
