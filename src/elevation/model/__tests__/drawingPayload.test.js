@@ -567,6 +567,7 @@ describe('IN14 step e payload', () => {
       expect(payload.payloadVersion).toBe(1);
       for (const elevation of payload.elevations) {
         expect(elevation).not.toHaveProperty('interiors');
+        expect(elevation).not.toHaveProperty('shapes');
         const wall = synced.walls.find(({ id }) => id === elevation.wallId);
         const view = resolveWall(synced, wall, elevation.side);
         const expected = view.openings.filter(({ kind }) => kind === 'window').map((opening) => ({

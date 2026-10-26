@@ -24,6 +24,12 @@ import { openingGeometry } from './openings.js';
 
 export const DRAWING_PAYLOAD_VERSION = 1;
 
+export function shapeBlockName(name, id) {
+  const label = name.toUpperCase().replace(/[^A-Z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40);
+  const suffix = id.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
+  return `SHAPE_${label}_${suffix}`;
+}
+
 function itemLines({ x, z, width, height }) {
   if (width === 0 || height === 0) return [{ x1: x, z1: z, x2: x + width, z2: z + height }];
   return [
@@ -36,7 +42,7 @@ function itemLines({ x, z, width, height }) {
 
 function interiorRecord({ itemId, items }) {
   const seen = new Set();
-  const lines = items.flatMap(itemLines).filter(({ x1, z1, x2, z2 }) => {
+  const lines = items.filter(({ drawing }) => !drawing).flatMap(itemLines).filter(({ x1, z1, x2, z2 }) => {
     const ends = [[x1, z1], [x2, z2]].sort(([ax, az], [bx, bz]) => ax - bx || az - bz);
     const key = JSON.stringify(ends);
     if (seen.has(key)) return false;
@@ -84,7 +90,19 @@ function facePayload(room, wall, side, key, letter, settings, options) {
   const pulls = elevationPulls(room, wall, side, settings, partIds);
   const showThrough = [...wallShowThrough(room, wall, side, settings).values()];
   const interiors = showThrough.map(interiorRecord)
-    .filter(({ partId, lines }) => partIds.has(partId) && lines.length);
+    .filter(({ partId, lines, labels }) => partIds.has(partId) && (lines.length || labels.length));
+  const shapes = showThrough.filter(({ itemId }) => partIds.has(itemId))
+    .flatMap(({ itemId, items }) => items.filter(({ drawing }) => drawing).map(({ drawing }) => ({
+      partId: itemId,
+      kind: 'accessory',
+      depth: drawing.depth,
+      loops: drawing.outlines.map(({ closed, outline }) => ({ closed, points: outline })),
+      ...(!drawing.stretched ? { block: {
+        name: shapeBlockName(drawing.shapeName, drawing.shapeId),
+        ...drawing.insert,
+        mirror: drawing.mirror,
+      } } : {}),
+    })));
   const glass = showThrough.flatMap(({ glass }) => glass);
   const openingsByPart = new Map(glass.map(({ partId, openings }) => [partId, openings]));
   for (const part of parts) {
@@ -115,6 +133,7 @@ function facePayload(room, wall, side, key, letter, settings, options) {
     ...(swingMarks.length ? { swingMarks } : {}),
     ...(pulls.length ? { pulls } : {}),
     ...(interiors.length ? { interiors } : {}),
+    ...(shapes.length ? { shapes } : {}),
     ...(marks.length ? { glassMarks: marks } : {}),
   };
 }

@@ -163,7 +163,7 @@ describe('SH3 step c accessory drawings', () => {
     expect(unplaced.warnings).toEqual([]);
   });
 
-  it('carries drawing bounds and outlines through show-through while exporting labelled boxes', () => {
+  it('carries drawing bounds and outlines through show-through while exporting labelled shapes', () => {
     const source = room({ walls: [wall({ runs: [run({ width: 40, height: 84,
       cabinetTypeId: CABINET_TYPE_IDS.TALL, autoCount: false,
       ends: { left: { type: 'none' }, right: { type: 'none' } },
@@ -185,6 +185,8 @@ describe('SH3 step c accessory drawings', () => {
       .find(({ partId }) => partId === 'cabinet');
     expect(exported.labels).toContainEqual({ text: '2 × Closet rod', ...resolved.drawing.bounds });
     expect(exported).not.toHaveProperty('drawing');
-    expect(exported.lines).toContainEqual({ x1: shown.x, z1: shown.z, x2: shown.x + shown.width, z2: shown.z });
+    expect(exported.lines).not.toContainEqual({ x1: shown.x, z1: shown.z, x2: shown.x + shown.width, z2: shown.z });
+    expect(payload.elevations.flatMap(({ shapes = [] }) => shapes)
+      .filter(({ partId }) => partId === 'cabinet')).toHaveLength(1);
   });
 });

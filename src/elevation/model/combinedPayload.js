@@ -6,7 +6,7 @@ import { wallLabel } from './topology.js';
 import { formatInches } from './units.js';
 import { wallExtent } from './wallExtent.js';
 
-const COLLECTIONS = ['parts', 'dimensions', 'marks', 'doorDetails', 'partNumbers', 'swingMarks', 'pulls', 'interiors', 'glassMarks'];
+const COLLECTIONS = ['parts', 'dimensions', 'marks', 'doorDetails', 'partNumbers', 'swingMarks', 'pulls', 'interiors', 'glassMarks', 'shapes'];
 const X_FIELDS = new Set(['x', 'x1', 'x2', 'textX']);
 const shiftPoint = ([x, ...rest], dx) => [x + dx, ...rest];
 
@@ -20,6 +20,7 @@ export function shiftPayloadRecord(record, dx) {
     if (typeof value === 'number' && (X_FIELDS.has(key)
       || ('row' in record && dimensionFields.includes(key)))) return [key, value + dx];
     if (key === 'outline' && value) return [key, value.map((point) => shiftPoint(point, dx))];
+    if (key === 'points') return [key, value.map((point) => shiftPoint(point, dx))];
     if (key === 'outlines') return [key, value.map((outline) => outline.map((point) => shiftPoint(point, dx)))];
     return [key, shiftPayloadRecord(value, dx)];
   }));
@@ -67,6 +68,7 @@ export function combinedElevationPayload(room, combined, settings, buildFace) {
   if (!records.pulls.length) delete records.pulls;
   if (!records.interiors.length) delete records.interiors;
   if (!records.glassMarks.length) delete records.glassMarks;
+  if (!records.shapes.length) delete records.shapes;
   const hiddenEdges = seamHiddenEdges(combined, records.parts, soffitJoins);
   return {
     ...lead,
