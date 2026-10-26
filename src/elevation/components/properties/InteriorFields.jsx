@@ -75,6 +75,8 @@ function accessoryWarning(warning, accessory) {
   switch (warning.code) {
     case 'accessory-missing': return "This accessory isn't in the Library any more.";
     case 'accessory-wrong-place': return `${accessory.name} goes on a drawer box, not in a section.`;
+    case 'accessory-shape-missing': return "Its drawing isn't in the shape library.";
+    case 'accessory-shape-too-small': return `Too small for its drawing: the fixed parts are ${formatInches(warning.fixed)} ${{ x: 'wide', z: 'tall', y: 'deep' }[warning.axis]}, this is ${formatInches(warning.target)}.`;
     case 'accessory-too-small': return `${warning.sizes.map(({ dim, needs, has }) =>
       `Needs ${formatInches(needs)} ${{ width: 'wide', depth: 'deep', height: 'tall' }[dim]} (${formatInches(has)} here)`
     ).join('; ')}.`;

@@ -16,6 +16,7 @@ import SlideSelect from './SlideSelect.jsx';
 import { newAccessory } from '../../model/accessories.js';
 import { wallRollouts } from '../../model/rollouts.js';
 import { formatInches } from '../../model/units.js';
+import { newShape } from '../../model/libraryShapes.js';
 
 vi.mock('react', async (original) => ({
   ...await original(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn(),
@@ -846,5 +847,25 @@ describe('IN13a step d placed accessory controls', () => {
     expect(messages).toContain(`Placed outside the section (${formatInches(height)} tall here).`);
     expect(messages).toContain('Big rod is ordered at section width − 30" (22 1/2" wide here).');
     expect(text(render())).not.toContain('Ordered length');
+  });
+
+  it('renders missing drawings and fixed-size drawing warnings with the correct axis words', () => {
+    edit(() => {
+      state.settings.accessories[0].shapeId = 'gone';
+      item().interior = { accessories: [{ accessoryId: 'FR', fromBottom: 40 }] };
+    });
+    expect(text(render())).toContain("Its drawing isn't in the shape library.");
+    edit(() => {
+      state.settings.shapes = [{ ...newShape([], 'drawing'),
+        stretch: { x: [[3, 9]], y: [[3, 9]], z: [[3, 9]] } }];
+      state.settings.accessories[0].shapeId = 'drawing';
+      state.settings.accessories[0].size = { width: 5, height: 5, depth: 5 };
+    });
+    const messages = nodes(render()).filter(({ type, props }) => type === 'p'
+      && props.className?.includes('text-amber-400')).map(text);
+    for (const axis of ['wide', 'tall', 'deep']) {
+      expect(messages).toContain(`Too small for its drawing: the fixed parts are 6" ${axis}, this is 5".`);
+    }
+    expect(text(render())).not.toContain("Its drawing isn't in the shape library.");
   });
 });

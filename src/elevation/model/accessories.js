@@ -9,6 +9,7 @@ import { wallRollouts } from './rollouts.js';
 import { shelfZone } from './shelves.js';
 import { ACCESSORY_PLACES } from './constants.js';
 import { PRICING_UNITS, isLabor, isMoney } from './libraryPricing.js';
+import { placeShapeFront, resolveShape } from './libraryShapes.js';
 
 const ACCESSORY_KEYS = [
   'id', 'name', 'brand', 'model', 'description', 'reportText', 'attachesTo', 'wholeSection',
@@ -133,7 +134,7 @@ export function sectionAccessories({ interior, boxes = [], settings, rollouts = 
     const node = getInteriorNode(interior.tree, section.path) ?? {};
     if (!node.accessories) continue;
     const opening = { width: section.width, depth: section.depth, height: shelfZone(section, boxes).height };
-    const items = node.accessories.map(({ accessoryId, qty = 1, fromBottom: placed = null }, index) => {
+    const items = node.accessories.map(({ accessoryId, qty = 1, fromBottom: placed = null, mirror = false }, index) => {
       const accessory = findAccessory(accessoryId, settings?.accessories ?? []);
       const warnings = [];
       let size = null;
@@ -141,6 +142,7 @@ export function sectionAccessories({ interior, boxes = [], settings, rollouts = 
       let fromBottom = null;
       let centerZ = null;
       let rect = null;
+      let drawing;
       if (!accessory) warnings.push({ code: 'accessory-missing' });
       else if (accessory.attachesTo !== 'section') warnings.push({ code: 'accessory-wrong-place' });
       else {
@@ -153,6 +155,8 @@ export function sectionAccessories({ interior, boxes = [], settings, rollouts = 
           height: accessory.size?.height ?? null,
           depth: accessory.size?.depth ?? null,
         };
+        const shape = (settings?.shapes ?? []).find(({ id }) => id === accessory.shapeId);
+        if (accessory.shapeId != null && !shape) warnings.push({ code: 'accessory-shape-missing' });
         if (accessory.lengthDeduction != null) {
           orderedLength = section.width - accessory.lengthDeduction;
           if (orderedLength <= 1e-9) {
@@ -163,7 +167,12 @@ export function sectionAccessories({ interior, boxes = [], settings, rollouts = 
         fromBottom = placed;
         if (fromBottom !== null) {
           centerZ = section.z + fromBottom;
-          if (size.width !== null && size.height !== null) {
+          if (shape) {
+            const resolved = resolveShape(shape, { w: size.width, h: size.height, d: size.depth });
+            drawing = placeShapeFront(resolved, { section, fromBottom, mirror });
+            rect = drawing.bounds;
+            warnings.push(...resolved.warnings.map((warning) => ({ ...warning, code: 'accessory-shape-too-small' })));
+          } else if (size.width !== null && size.height !== null) {
             rect = { x: section.x + (section.width - size.width) / 2,
               z: centerZ - size.height / 2, width: size.width, height: size.height };
           }
@@ -174,7 +183,8 @@ export function sectionAccessories({ interior, boxes = [], settings, rollouts = 
           }
         }
       }
-      return { index, accessoryId, accessory, qty, warnings, size, orderedLength, fromBottom, centerZ, rect };
+      return { index, accessoryId, accessory, qty, warnings, size, orderedLength, fromBottom, centerZ, rect,
+        ...(drawing ? { drawing } : {}) };
     });
     const counted = items.filter(({ accessory }) => accessory?.attachesTo === 'section');
     const whole = counted.find(({ accessory }) => accessory.wholeSection) ?? null;

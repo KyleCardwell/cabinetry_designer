@@ -65,7 +65,8 @@ function drawableItems(interior, data) {
       if (item.centerZ == null || item.accessory?.attachesTo !== 'section') continue;
       add(`accessory:${section.path}:${item.index}`, 'accessory', item.rect ?? {
         x: section.x, z: item.centerZ, width: section.width, height: 0,
-      }, { label: `${item.qty > 1 ? `${item.qty} × ` : ''}${item.accessory.name}` });
+      }, { label: `${item.qty > 1 ? `${item.qty} × ` : ''}${item.accessory.name}`,
+        ...(item.drawing ? { drawing: item.drawing } : {}) });
     }
   }
   return items;
