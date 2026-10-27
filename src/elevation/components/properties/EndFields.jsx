@@ -1,5 +1,5 @@
 import { useDispatch } from 'react-redux';
-import { formatInchesInput, frontDepth, runBlind } from '../../model/index.js';
+import { endHeightMode, formatInchesInput, frontDepth, runBlind } from '../../model/index.js';
 import { teamDoorStyle } from '../../model/doorStyles.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
 import { cornerLap } from '../../model/cornerLaps.js';
@@ -23,7 +23,9 @@ export default function EndFields({
   actionBase, room, wall, run, side, settings, note = null, extendRuns = [],
 }) {
   const dispatch = useDispatch();
-  const endType = run.ends[side].type;
+  const end = run.ends[side];
+  const endType = end.type;
+  const defaultHeight = endHeightMode({ type: endType });
   const where = { ...actionBase, part: 'runEnd', side };
   const lap = endType === 'filler' && room && wall
     ? cornerLap(room, wall, run, side, settings, { ignoreOwn: true }) : null;
@@ -66,6 +68,28 @@ export default function EndFields({
             }))}
             aria-label={`${side} end width`}
           />
+        </Field>
+      )}
+      {(endType === 'filler' || endType === 'end_panel') && (
+        <Field label="Height">
+          <select
+            value={endHeightMode(end)}
+            onChange={(event) => dispatch(setRunEnd({
+              ...actionBase,
+              side,
+              end: {
+                type: endType,
+                width: end.width,
+                height: event.target.value === defaultHeight ? null : event.target.value,
+              },
+            }))}
+            aria-label={`${side} end height`}
+            className={`w-full rounded border bg-gray-900 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none ${end.height == null
+              ? 'border-gray-600 text-gray-500' : 'border-teal-500 text-gray-100'}`}
+          >
+            <option value="full">Full height</option>
+            <option value="cabinets">Match cabinets</option>
+          </select>
         </Field>
       )}
       {endType === 'end_panel' && (

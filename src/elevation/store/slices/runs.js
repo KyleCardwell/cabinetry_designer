@@ -78,6 +78,12 @@ export const runReducers = {
       ? { type: end.type, width: end.width }
       : { ...current, type: end.type, width: end.width };
     if (end.type !== previous) delete location.run.ends[side].height;
+    else if ((end.type === 'filler' || end.type === 'end_panel') && Object.hasOwn(end, 'height')) {
+      if (end.height == null) delete location.run.ends[side].height;
+      else if (end.height === 'full' || end.height === 'cabinets') {
+        location.run.ends[side].height = end.height;
+      }
+    }
     if (end.type !== 'blind') location.run.grid = setGridBlind(location.run.grid, side, null);
     if (end.type === 'none' || (end.type === 'end_panel' && previous !== 'end_panel')) {
       if (location.run.endFiller) location.run.endFiller[side] = null;
