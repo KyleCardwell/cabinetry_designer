@@ -4,7 +4,7 @@ import { frontDepth } from './corners.js';
 import { runBase } from './furnitureBase.js';
 import { wallLength } from './geometry.js';
 import { compareRuns } from './parts.js';
-import { runBaseSegments } from './runBands.js';
+import { isOpenWallEnd, runBaseSegments } from './runBands.js';
 import { runScene } from './runScene.js';
 import { wallNumbers } from './topology.js';
 import { WALL_SIDES, wallEndPanelAt, wallSideView } from './wallSides.js';
@@ -31,7 +31,7 @@ function baseEntries(room, wall, run, settings) {
       if (panel) x += (index === 0 ? -1 : 1) * panel.width;
       const anchor = run.anchors?.[side];
       const squareStop = reachesEnd && (end.type === 'square' || end.returnLength != null) && (Boolean(scene.panelBySide[side])
-        || anchor === true || anchor?.to === 'wall'
+        || (anchor === true && !isOpenWallEnd(room, wall, run, side, settings)) || anchor?.to === 'wall'
         || (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId));
       return { x, scribe: squareStop };
     });

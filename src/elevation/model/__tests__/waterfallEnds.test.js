@@ -42,7 +42,8 @@ describe('SPEC-50.10 step 504 effective waterfall ends', () => {
       const picked = { ...run, waterfall: { [side]: {} } };
       const blocked = { left: null, right: null,
         warnings: [{ code: 'waterfall-end-blocked', runId: run.id, side }] };
-      for (const anchor of [{ to: 'wall' }, { to: 'recess', recessId: 'r1' }, true]) {
+      // FX4 b: `true` at an open wall end is free now (openWallEnd.test.js covers it).
+      for (const anchor of [{ to: 'wall' }, { to: 'recess', recessId: 'r1' }]) {
         const anchored = { ...picked, anchors: { ...run.anchors, [side]: anchor } };
         expect(waterfallEnds(room, wall, anchored, settings)).toEqual(blocked);
         expect(topOverhangs(room, wall, anchored, settings)[side]).toBe(0.75);

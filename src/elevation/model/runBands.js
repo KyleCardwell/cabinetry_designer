@@ -246,7 +246,7 @@ function bandEdge(room, wall, run, side, band, settings, z, height, shapes) {
       return { ...returned(run, side), returnLength: front - reach };
     }
   }
-  if (anchor === true) {
+  if (anchor === true && !isOpenWallEnd(room, wall, run, side, settings)) {
     if (cornerAt(room, wall, side).type === 'outside') return returned(run, side);
     if (band === 'toeKick' || !wallEndPanelAt(room, wall, side, settings)) return square;
     const past = bandPast(room, wall, run, side, band, settings);
@@ -256,6 +256,15 @@ function bandEdge(room, wall, run, side, band, settings, z, height, shapes) {
   if (anchor?.to === 'wall') return square;
   if (anchor?.to === 'recess' && run._plane?.recessId === anchor.recessId) return square;
   return returned(run, side);
+}
+
+/**
+ * FX4 b: a run anchored to the open end of a 0" wall (an island or peninsula end with no wall end panel)
+ * has nothing beyond it, so its bands end as at a free end. A thicker wall's open end still stops them.
+ */
+export function isOpenWallEnd(room, wall, run, side, settings) {
+  return run.anchors?.[side] === true && (wall.thickness ?? 0) <= EPSILON
+    && cornerAt(room, wall, side).type === 'open' && !wallEndPanelAt(room, wall, side, settings);
 }
 
 /** Effective waterfall picks at free countertop ends; blocked picks stay stored. */
@@ -271,7 +280,8 @@ export function waterfallEnds(room, wall, run, settings) {
     const anchor = run.anchors?.[side];
     // Do not resolve bandEdge's return here: its overhang consults waterfallEnds.
     const blocked = touching(wall, run, side).length > 0
-      || anchor === true || anchor?.to === 'wall' || anchor?.to === 'recess'
+      || (anchor === true && !isOpenWallEnd(room, wall, run, side, settings))
+      || anchor?.to === 'wall' || anchor?.to === 'recess'
       || (run.ends?.[side]?.type === 'blind'
         && (scene ??= runScene(room, wall, run, settings)).panelBySide[side]);
     if (blocked) result.warnings.push({ code: 'waterfall-end-blocked', runId: run.id, side });
