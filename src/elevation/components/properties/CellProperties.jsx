@@ -25,6 +25,7 @@ import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
 import ColumnStepFields from './ColumnStepFields.jsx';
+import PinSection from './PinSection.jsx';
 import ColumnActionsSection from './ColumnActionsSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
@@ -145,6 +146,7 @@ export default function CellProperties({
                     </div>
                   )}
                   <ColumnStepFields wall={wall} run={run} item={columnItem} nested />
+                  <PinSection wall={wall} run={run} item={columnItem} piece={column} settings={settings} nested />
                   {hasTrackAfter && (
                     <div className="mt-2">
                       <GapField

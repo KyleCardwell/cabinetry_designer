@@ -103,7 +103,7 @@ async function loadPanels() {
     import('../properties/FaceProperties.jsx'), import('../properties/CabinetStyleProperties.jsx'),
     import('../properties/BoxConstructionFields.jsx'), import('../properties/InteriorFields.jsx'),
     import('../properties/DrawerBoxFields.jsx'), import('../properties/EndFields.jsx'),
-    import('../properties/TeeProperties.jsx'),
+    import('../properties/TeeProperties.jsx'), import('../properties/PinSection.jsx'),
   ]);
   const { RunFurnitureBaseSection } = await import('../properties/RunProperties.jsx');
   renderedComponents = [WallHeightProperties, PropertiesPanel, PropertiesHeader, RoomHeightsPanel, RoomStylePanel, RoomDoorStylesPanel, RoomPartNumbersPanel, WallList,
@@ -433,7 +433,7 @@ describe('UI6 step b cabinet and section tabs', () => {
     leaf.kind = 'void';
     expect(tabs(piecePanel('a', CellProperties)).map(text)).toEqual(['Size']);
     expect(button(piecePanel('a', CellProperties), 'Size').props['aria-selected']).toBe(true);
-    expect(sectionTitles(piecePanel('a', CellProperties))).toEqual(['Kind', 'Size', 'Split']);
+    expect(sectionTitles(piecePanel('a', CellProperties))).toEqual(['Kind', 'Size', 'Column pin', 'Split']);
     leaf.kind = 'shelves';
     leaf.shelves = { count: 2, back: false };
     button(piecePanel('a', CellProperties), 'Inside').props.onClick();

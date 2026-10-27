@@ -11,6 +11,7 @@ import PanelTabs from '../panel/PanelTabs.jsx';
 import CabinetProperties from '../properties/CabinetProperties.jsx';
 import CellProperties from '../properties/CellProperties.jsx';
 import ColumnStepFields from '../properties/ColumnStepFields.jsx';
+import PinSection from '../properties/PinSection.jsx';
 import Field from '../properties/Field.jsx';
 import WarningsList from '../properties/WarningsList.jsx';
 
@@ -25,7 +26,7 @@ const at = { wallId: 'wall-1', runId: 'run-1' };
 const dispatch = vi.fn((action) => { state = structuredClone(elevationReducer(state, action)); });
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object'
-    ? [ColumnStepFields, Field].includes(tree.type) ? nodes(tree.type(tree.props))
+    ? [ColumnStepFields, PinSection, Field].includes(tree.type) ? nodes(tree.type(tree.props))
       : [tree, ...nodes(tree.props?.children)] : [];
 const props = (id = 'a') => {
   const scene = runScene(room(), wall(), run(), state.settings);

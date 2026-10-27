@@ -11,6 +11,7 @@ import PanelTabs from '../panel/PanelTabs.jsx';
 import OverrideField from '../OverrideField.jsx';
 import OverrideInput from '../OverrideInput.jsx';
 import CabinetProperties from '../properties/CabinetProperties.jsx';
+import PinSection from '../properties/PinSection.jsx';
 import CellProperties from '../properties/CellProperties.jsx';
 import OpeningProperties from '../properties/OpeningProperties.jsx';
 import RunGeometrySection from '../properties/RunGeometrySection.jsx';
@@ -20,7 +21,7 @@ import Field, { ReadOnlyValue } from '../properties/Field.jsx';
 vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), useEffect: vi.fn() }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn() }));
 
-const shared = [OverrideInput, OverrideField, Field, ReadOnlyValue];
+const shared = [OverrideInput, OverrideField, Field, ReadOnlyValue, PinSection];
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object'
     ? shared.includes(tree.type) ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
