@@ -93,7 +93,7 @@ export default function CabinetProperties({
                   )}
                 </PanelSection>
 
-                <PinSection wall={wall} run={run} item={item} piece={piece} settings={settings} />
+                <PinSection room={room} wall={wall} run={run} item={item} piece={piece} settings={settings} />
 
                 <ColumnStepFields wall={wall} run={run} item={item} />
 

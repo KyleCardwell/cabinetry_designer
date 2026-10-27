@@ -146,7 +146,7 @@ export default function CellProperties({
                     </div>
                   )}
                   <ColumnStepFields wall={wall} run={run} item={columnItem} nested />
-                  <PinSection wall={wall} run={run} item={columnItem} piece={column} settings={settings} nested />
+                  <PinSection room={room} wall={wall} run={run} item={columnItem} piece={column} settings={settings} nested />
                   {hasTrackAfter && (
                     <div className="mt-2">
                       <GapField
