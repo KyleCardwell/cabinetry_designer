@@ -1,7 +1,9 @@
 import { useEffect, useRef } from 'react';
+import { useMenuInCanvas } from './canvas/menuPosition.js';
 
 export default function CanvasContextMenu({ position, items, onClose }) {
   const menuRef = useRef(null);
+  useMenuInCanvas(menuRef, position);
 
   useEffect(() => {
     if (!position) return undefined;

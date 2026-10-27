@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Rect } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
+import { useMenuInCanvas } from './canvas/menuPosition.js';
 
 const KIND_NAMES = {
   face: 'Face', piece: 'Part', run: 'Run', end_panel: 'Wall end', opening: 'Opening',
@@ -10,6 +11,7 @@ const KIND_NAMES = {
 /** The list of everything under a click (SPEC-39.1): ↑/↓ to move, Enter to choose, Esc to close. */
 export default function SelectionPicker({ picker, onChoose, onHover, onClose }) {
   const menuRef = useRef(null);
+  useMenuInCanvas(menuRef, picker, 12);
 
   useEffect(() => {
     if (!picker) return undefined;
