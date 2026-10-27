@@ -78,6 +78,30 @@ function axisLayout(grid, key, length, seamGap, insidePanels) {
   return { gaps, sizes, starts: trackStarts(sizes, gaps) };
 }
 
+/**
+ * The widths that come out of a root column's width (FX3): every leaf cell whose width depends on
+ * it, at every nesting depth, with voids left out. Cells spanning only typed column tracks don't
+ * depend on it. A plain (non-grid) node is its own one leaf.
+ */
+export function derivedLeafWidths(node, width, seamGap = 0, insidePanels = []) {
+  if (!isNestedGrid(node)) return node.kind === 'void' ? [] : [width];
+  const cols = axisLayout(node, 'cols', width, seamGap, insidePanels);
+  const anyAuto = node.cols.some((track) => track.size === null);
+  const last = node.cols.length - 1;
+  const derived = (index) => node.cols[index].size === null || (!anyAuto && index === last);
+  const widths = [];
+  for (const cell of node.cells) {
+    let spansDerived = false;
+    for (let index = cell.col; index < cell.col + cell.colSpan; index += 1) {
+      if (derived(index)) spansDerived = true;
+    }
+    if (!spansDerived) continue;
+    const cellWidth = spanLength(cols.starts, cols.sizes, cell.col, cell.colSpan);
+    widths.push(...derivedLeafWidths(cell.node, cellWidth, seamGap, insidePanels));
+  }
+  return widths;
+}
+
 function axisFor(grid) {
   return grid.rows.length > 1 ? 'row' : 'col';
 }

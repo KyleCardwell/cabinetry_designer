@@ -29,6 +29,12 @@ const CHARACTER_WIDTH = 0.7;
 
 const EPSILON = 1e-6;
 
+/** A horizontal cell chain the cabinet row already shows, track for track (FX3: a column holding a void). */
+function onCabinetRow(grid, segments) {
+  return grid.tracks.every((track) => segments.some((segment) => Math.abs(segment.start - track.start) <= EPSILON
+    && Math.abs(segment.end - track.end) <= EPSILON));
+}
+
 /**
  * The rows the DXF dimensions, nearest the drawing first on each side (the canvas's order, SPEC-43). Below:
  * cabinets, runs, then the openings row (faces without runs) or the overall wall row (faces with runs, DM3).
@@ -171,11 +177,13 @@ export function elevationDimensions(room, wall, side, settings, { extent: shared
       at += outward * (spacing + levels * step);
     }
   }
+  const cabinetRow = [...lower.inner, ...upper.inner];
   const scenes = view.runs.map((run) => ({ run, scene: runScene(room, view, run, settings) }));
   for (const { run, scene } of scenes) {
     const { cells } = scene;
     for (const grid of cells.grids) {
       const vertical = grid.axis === 'row';
+      if (!vertical && onCabinetRow(grid, cabinetRow)) continue;
       const segments = grid.tracks
         .filter((track) => track.end - track.start > EPSILON)
         .sort((a, b) => a.start - b.start)

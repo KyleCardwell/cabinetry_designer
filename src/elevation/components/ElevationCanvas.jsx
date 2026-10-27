@@ -944,6 +944,13 @@ function ElevationCanvas({
 
   const editTrack = useCallback((runId, edit) => setTrackEdit({ ...edit, runId }), []);
   const editPieceSegment = useCallback((segment, point) => {
+    // A cell of a column holding a void (FX3) edits its nested column track.
+    if (segment.runId && segment.trackId) {
+      setTrackEdit({
+        runId: segment.runId, trackId: segment.trackId, label: 'Width', value: segment.end - segment.start, x: point.x, y: point.y,
+      });
+      return;
+    }
     if (!segment.runId || !segment.pieceId
       || segment.pieceId.startsWith(`${segment.runId}:`)) return;
     setTrackEdit({

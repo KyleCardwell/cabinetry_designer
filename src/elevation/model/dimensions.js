@@ -261,6 +261,47 @@ function regionSegments(region, pieces, faceLayouts, runId) {
 }
 
 /**
+ * A root column holding a void isn't one cabinet (FX3): the cabinet row shows its solid cells' widths
+ * (and inside end panels') instead, a span only voids cover as a `gap`, and a seam between cells as the
+ * usual gap. Each span
+ * names the lowest solid cell over it, and the nested column track it matches (`trackId`), so the
+ * canvas edits that track. Null for a column with no void or no solid cell.
+ */
+function voidColumnEntries(piece, cells, runId) {
+  if (piece.role !== 'item') return null;
+  const tracks = cells.grids.filter((grid) => grid.columnId === piece.id && grid.axis === 'col')
+    .flatMap((grid) => grid.tracks);
+  const leaves = cells.pieces.filter((leaf) => leaf.columnId === piece.id && leaf.role === 'item');
+  if (!leaves.some((leaf) => leaf.kind === 'void')) return null;
+  // An inside end panel beside the void counts like a cell.
+  const panels = cells.pieces.filter((panel) => panel.role === 'inside'
+    && panel.x >= piece.x - SEGMENT_EPSILON && panel.x + panel.width <= piece.x + piece.width + SEGMENT_EPSILON);
+  const solid = [...leaves.filter((leaf) => leaf.kind !== 'void'), ...panels];
+  if (solid.length === 0) return null;
+  const covers = (leaf, start, end) => leaf.x <= start + SEGMENT_EPSILON
+    && leaf.x + leaf.width >= end - SEGMENT_EPSILON;
+  const bounds = [...new Set([piece.x, piece.x + piece.width,
+    ...solid.flatMap((leaf) => [leaf.x, leaf.x + leaf.width])])].sort((a, b) => a - b);
+  const entries = [];
+  for (let index = 0; index < bounds.length - 1; index += 1) {
+    const start = bounds[index];
+    const end = bounds[index + 1];
+    if (end - start <= SEGMENT_EPSILON) continue;
+    const over = solid.filter((leaf) => covers(leaf, start, end)).sort((a, b) => a.z - b.z)[0];
+    if (over) {
+      const track = tracks.find((candidate) => Math.abs(candidate.start - start) <= SEGMENT_EPSILON
+        && Math.abs(candidate.end - end) <= SEGMENT_EPSILON);
+      entries.push({
+        start, end, kind: 'piece', metadata: { runId, pieceId: over.id, ...(track ? { trackId: track.id } : {}) },
+      });
+    } else if (leaves.some((leaf) => leaf.kind === 'void' && covers(leaf, start, end))) {
+      entries.push({ start, end, kind: 'gap', metadata: { runId } });
+    }
+  }
+  return entries;
+}
+
+/**
  * A run's segments on the inner chain: its pieces, a gap between boxes as its own segment, and each
  * face frame region as stile and opening segments in place of the pieces it covers (SPEC-36). A
  * T-filler is its own `t-filler` segment, and the boxes it covers show what's left of them (SPEC-37).
@@ -304,6 +345,11 @@ function runInnerSegments(room, wall, run, settings, layout) {
       entries.push({
         start: tee.x, end: tee.x + tee.width, kind: 't-filler', metadata: { runId: run.id, pieceId: tee.id },
       });
+      continue;
+    }
+    const cellEntries = voidColumnEntries(piece, cells, run.id);
+    if (cellEntries) {
+      entries.push(...cellEntries);
       continue;
     }
     entries.push({

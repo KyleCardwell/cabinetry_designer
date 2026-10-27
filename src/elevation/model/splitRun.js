@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid';
-import { MIN_CELL_SIZE } from './cells.js';
+import { MIN_CELL_SIZE, derivedLeafWidths } from './cells.js';
 import { columnSteps } from './columnSteps.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { teamDoorStyle } from './doorStyles.js';
@@ -37,6 +37,52 @@ function itemsWithGaps(run, settings) {
     }
     return { ...item, gapAfter };
   });
+}
+
+/**
+ * Rounding for the run's auto items (FX3). All auto items share one width W, and W is round when
+ * every width that comes out of it (an item's own width, or the cells inside its nested grid) is a
+ * multiple of `roundTo`. Without nested grids that is just W on `roundTo`, exactly as before.
+ * `floor(x)` is the largest round W ≤ x (1/16" steps, 48" window, else plain rounding), `above(w)`
+ * the smallest round W > w.
+ */
+const ROUND_SEARCH = 48;
+
+function autoRounding(run, settings, items) {
+  const step = settings.roundTo;
+  const onStep = (value) => Math.abs(value / step - Math.round(value / step)) <= WIDTH_EPSILON;
+  const nested = items.filter((item) => isAutoItem(item) && item.grid);
+  if (nested.length === 0) {
+    return {
+      isRound: onStep,
+      floor: (x) => floorTo(x, step),
+      above: (w) => floorTo(w + WIDTH_EPSILON, step) + step,
+    };
+  }
+  const seamGap = run._seamGap ?? run.seamGap ?? 0;
+  const panels = insideEndPanels(run, settings);
+  const isRound = (w) => items.filter(isAutoItem).every((item) => {
+    const widths = item.grid ? derivedLeafWidths(item.grid, w, seamGap, panels) : [w];
+    return widths.length === 0 ? onStep(w) : widths.every(onStep);
+  });
+  const steps = ROUND_SEARCH / FILLER_STEP;
+  return {
+    isRound,
+    floor: (x) => {
+      const start = Math.floor(x / FILLER_STEP + WIDTH_EPSILON);
+      for (let k = start; k > start - steps && k > 0; k -= 1) {
+        if (isRound(k * FILLER_STEP)) return k * FILLER_STEP;
+      }
+      return floorTo(x, step);
+    },
+    above: (w) => {
+      const start = Math.floor(w / FILLER_STEP + WIDTH_EPSILON) + 1;
+      for (let k = start; k < start + steps; k += 1) {
+        if (isRound(k * FILLER_STEP)) return k * FILLER_STEP;
+      }
+      return floorTo(w + WIDTH_EPSILON, step) + step;
+    },
+  };
 }
 
 const JOINED = new Set(['joint', 'follow']);
@@ -188,7 +234,7 @@ function splitRunLegacy(run, settings, opts) {
       flexOverconstrained = true;
       errors.push({ code: 'over-constrained' });
     } else {
-      autoWidth = nAuto > 0 ? floorTo(cabSpace / nAuto, settings.roundTo) : 0;
+      autoWidth = nAuto > 0 ? autoRounding(run, settings, items).floor(cabSpace / nAuto) : 0;
       const leftover = available - nAuto * autoWidth;
       const extra = leftover - minimumTotal;
       flexExtra = floorTo(extra / flex, FILLER_STEP);
@@ -196,7 +242,7 @@ function splitRunLegacy(run, settings, opts) {
     }
   } else if (nAuto > 0) {
     autoWidth = roundTo(available / nAuto, FILLER_STEP);
-    if (Math.abs(autoWidth / settings.roundTo - Math.round(autoWidth / settings.roundTo)) > WIDTH_EPSILON) {
+    if (!autoRounding(run, settings, items).isRound(autoWidth)) {
       const firstAuto = items.find(
         (item) => item.kind === 'cabinet' && item.width === null,
       );
@@ -409,7 +455,7 @@ function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
   let absorberWidth = 0;
 
   if (autos.length > 0) {
-    baseWidth = floorTo(available / autos.length, settings.roundTo);
+    baseWidth = autoRounding(run, settings, items).floor(available / autos.length);
     absorberId = autos.find((item) => item.absorb)?.id ?? autos[autos.length - 1].id;
     absorberWidth = available - baseWidth * (autos.length - 1);
   } else if (Math.abs(available) > WIDTH_EPSILON) {
@@ -659,7 +705,7 @@ function roundingNeed(run, settings, opts) {
     minimumTotal,
     nAuto,
   } = layoutInputs(run, settings, opts);
-  const step = settings.roundTo;
+  const rounding = autoRounding(run, settings, itemsWithGaps(run, settings));
   const sixteenth = (value) => roundTo(value, FILLER_STEP);
   if (flex > 0) {
     const cabSpace = available - minimumTotal;
@@ -669,13 +715,16 @@ function roundingNeed(run, settings, opts) {
     if (nAuto === 0) {
       return { candidates: [], box: null, elastic: { lo: sixteenth(-cabSpace), hi: Infinity } };
     }
-    const box = floorTo(cabSpace / nAuto, step);
+    const box = rounding.floor(cabSpace / nAuto);
     const extra = sixteenth(cabSpace - nAuto * box);
     return {
       candidates: [],
       box,
-      elastic: { lo: -extra, hi: sixteenth(nAuto * step - extra - FILLER_STEP) },
-      raise: (target) => sixteenth(nAuto * target + minimumTotal - available),
+      elastic: { lo: -extra, hi: sixteenth(nAuto * (rounding.above(box) - box) - extra - FILLER_STEP) },
+      // A remembered box size that isn't round (FX3: saved before nested cells rounded) isn't kept.
+      raise: (target) => (rounding.isRound(target)
+        ? sixteenth(nAuto * target + minimumTotal - available)
+        : null),
     };
   }
   if (nAuto === 0) {
@@ -686,11 +735,11 @@ function roundingNeed(run, settings, opts) {
   }
   if (available <= WIDTH_EPSILON) return { candidates: [], box: null };
   const per = available / nAuto;
-  if (Math.abs(per / step - Math.round(per / step)) <= WIDTH_EPSILON) {
+  if (rounding.isRound(per)) {
     return { candidates: [], box: null };
   }
-  const down = floorTo(per, step);
-  const up = down + step;
+  const down = rounding.floor(per);
+  const up = rounding.above(down);
   const grow = sixteenth(nAuto * up - available);
   const shrink = sixteenth(nAuto * down - available);
   const candidates = down > WIDTH_EPSILON && Math.abs(shrink) < Math.abs(grow) - WIDTH_EPSILON
