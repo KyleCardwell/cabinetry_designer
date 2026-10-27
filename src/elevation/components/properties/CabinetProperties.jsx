@@ -4,7 +4,6 @@ import PanelTabs from '../panel/PanelTabs.jsx';
 import { formatInches, resolvePinTarget, runItems } from '../../model/index.js';
 import {
   addItemAfter,
-  removeItem,
   setItemAbsorb,
   setItemPin,
   setItemWidth,
@@ -21,6 +20,7 @@ import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
 import ColumnStepFields from './ColumnStepFields.jsx';
+import ColumnActionsSection from './ColumnActionsSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import GapField from './GapField.jsx';
@@ -290,14 +290,8 @@ export default function CabinetProperties({
                   >
                     Add filler right
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => dispatch(removeItem(actionBase))}
-                    className="rounded bg-red-900/70 px-2.5 py-2 text-xs text-red-100 hover:bg-red-800"
-                  >
-                    Remove
-                  </button>
                 </section>
+                <ColumnActionsSection wall={wall} run={run} cellId={item.id} />
               </>
             )}
             {active === 'style' && (

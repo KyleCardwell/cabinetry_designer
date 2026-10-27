@@ -25,6 +25,7 @@ import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
 import ColumnStepFields from './ColumnStepFields.jsx';
+import ColumnActionsSection from './ColumnActionsSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import GapField from './GapField.jsx';
@@ -202,10 +203,11 @@ export default function CellProperties({
                   run={run}
                   cellId={item.id}
                   nested={context.depth > 0}
-                  removable
+                  removable={context.depth > 0}
                   canSplit={isCabinet}
                 />
                 {isCabinet && <CellWrapSection wall={wall} run={run} cellId={item.id} />}
+                <ColumnActionsSection wall={wall} run={run} cellId={piece.columnId ?? item.id} />
                 <RunBaseCutoutsSection room={room} wall={wall} run={run} piece={piece} settings={settings} numbers={numbers} />
               </>
             )}
