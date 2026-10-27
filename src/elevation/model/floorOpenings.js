@@ -9,8 +9,30 @@ function neighbourKind(piece) {
   return piece.kind === 'cabinet' ? 'cabinet' : null;
 }
 
-/** Floor-level voids and back panels, with the pieces touching each side at the bottom. */
+/** A run-end filler or end panel that stops above the floor (DR2 "match the cabinets"), or null. */
+function raisedEnd(run, cells, side) {
+  const edge = side === 'left' ? run.x : run.x + run.width;
+  return cells.pieces.find((piece) => (piece.kind === 'filler' || piece.kind === 'end_panel')
+    && piece.z > run.z + EPSILON
+    && Math.abs((side === 'left' ? piece.x : piece.x + piece.width) - edge) <= EPSILON) ?? null;
+}
+
+/**
+ * Floor-level voids and back panels, with the pieces touching each side at the bottom. A raised end piece
+ * beside one joins it: nothing stands on the floor there, so no base runs under it (DR5).
+ */
 export function floorOpenings(run, cells) {
+  const openings = bottomOpenings(run, cells);
+  const left = raisedEnd(run, cells, 'left');
+  const first = left && openings.find(({ x }) => Math.abs(x - left.x - left.width) <= EPSILON);
+  if (first) Object.assign(first, { x: left.x, width: first.width + left.width, left: null });
+  const right = raisedEnd(run, cells, 'right');
+  const last = right && openings.find(({ x, width }) => Math.abs(x + width - right.x) <= EPSILON);
+  if (last) Object.assign(last, { width: last.width + right.width, right: null });
+  return openings;
+}
+
+function bottomOpenings(run, cells) {
   const bottom = cells.pieces.filter((piece) => Math.abs(piece.z - run.z) <= EPSILON);
   return bottom.filter((piece) => piece.kind === 'void'
     || (piece.kind === 'panel' && panelOrientation(piece) === 'back'))

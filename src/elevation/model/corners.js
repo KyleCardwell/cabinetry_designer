@@ -10,7 +10,7 @@ import {
   wallFrame,
 } from './geometry.js';
 import { gridLeaves } from './grid.js';
-import { landingEndpoint } from './landings.js';
+import { landingEndpoint, landingsOn } from './landings.js';
 import { roundTo } from './units.js';
 import {
   wallEndPanelAt,
@@ -153,6 +153,28 @@ export function anchoredToCorner(anchor, corner) {
     : anchor === true;
 }
 
+/**
+ * Host runs that pass across the landed wall at a landing corner (`corner` from cornerAt on the landed wall):
+ * on the landed face, overlapping the landing in x and not anchored to it (DR5).
+ */
+export function crossingRuns(room, corner) {
+  if (!corner.anchorWallId) return [];
+  const host = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
+  if (!host) return [];
+  const view = wallSideView(host, corner.neighborWallSide);
+  const landing = landingsOn(room, view).find((entry) => entry.wallId === corner.anchorWallId);
+  if (!landing) return [];
+  return view.runs.filter((hostRun) => hostRun.x < landing.b - 1e-6 && hostRun.x + hostRun.width > landing.a + 1e-6
+    && !['left', 'right'].some((side) => anchoredToCorner(hostRun.anchors?.[side], corner)));
+}
+
+/** The deepest front depth (along this run's wall) of band-compatible host runs crossing a landing corner. */
+function crossingReserve(room, corner, run, settings, sine) {
+  if (Math.abs(sine) < 1e-9) return 0;
+  return crossingRuns(room, corner).reduce((reserve, hostRun) => (bandsCompatible(run, hostRun)
+    ? Math.max(reserve, frontDepth(hostRun, settings) / sine) : reserve), 0);
+}
+
 /** Return the face, back, and lap components of a corner reserve and its controlling neighbor. */
 export function cornerReserveParts(room, wall, side, run, settings, { laps = true } = {}) {
   wall = wallViewForRun(wall, run);
@@ -178,7 +200,7 @@ export function cornerReserveParts(room, wall, side, run, settings, { laps = tru
   const neighbor = room.walls.find((candidate) => candidate.id === corner.neighborWallId);
   const sine = Math.sin(corner.angle * Math.PI / 180);
   let neighborRunId = null;
-  const face = !neighbor || Math.abs(sine) < 1e-9 ? 0 : neighbor.runs.reduce((reserve, neighborRun) => {
+  let face = !neighbor || Math.abs(sine) < 1e-9 ? 0 : neighbor.runs.reduce((reserve, neighborRun) => {
     if (wallSideOf(neighborRun) !== corner.neighborWallSide) return reserve;
     if (!anchoredToCorner(neighborRun.anchors?.[corner.neighborSide], corner)) return reserve;
     if (!bandsCompatible(run, neighborRun)) return reserve;
@@ -189,6 +211,13 @@ export function cornerReserveParts(room, wall, side, run, settings, { laps = tru
     }
     return reserve;
   }, 0);
+  // A host run crossing a landed wall (one run across the face, the return landing on its front) reserves
+  // its front depth too (DR5). It isn't the lap partner: it has no filler at the landing.
+  const crossing = crossingReserve(room, corner, run, settings, sine);
+  if (crossing > face) {
+    face = crossing;
+    neighborRunId = null;
+  }
 
   const radians = corner.angle * Math.PI / 180;
   const back = face > 0 && corner.angle < 90

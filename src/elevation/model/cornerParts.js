@@ -1,7 +1,7 @@
 import { bandOutline, frontContour } from './bandEnds.js';
 import { jogWalls } from './combinedElevations.js';
 import { profileBandJoint } from './cornerBands.js';
-import { anchoredToCorner, cornerAt, frontDepth, spanCorner } from './corners.js';
+import { anchoredToCorner, cornerAt, crossingRuns, frontDepth, spanCorner } from './corners.js';
 import { placePanelDetail, runEndPanelDetail } from './doorDetails.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
 import { landingsOn } from './landings.js';
@@ -113,9 +113,9 @@ export function cornerShapes(room, wall, side, settings,
   };
 
   /** A neighbour return: `xOf(offset)` maps its wall depth to x here; end is away from the corner. */
-  const cut = (key, neighbor, neighborView, neighborFrame, run, end, xOf) => {
+  const cut = (key, neighbor, neighborView, neighborFrame, run, end, xOf, { section = false } = {}) => {
     const ends = [run.x, run.x + run.width];
-    const asEnd = endView || jogs.has(neighbor.id);
+    const asEnd = !section && (endView || jogs.has(neighbor.id));
     const pieces = asEnd ? runEndView(room, neighborView, run, end, settings)
       : runSide(room, neighborView, run, settings);
     const parts = pieces.flatMap((piece) => {
@@ -156,6 +156,13 @@ export function cornerShapes(room, wall, side, settings,
       cut(`${end}:${neighbor.id}:${run.id}`, neighbor, neighborView, neighborFrame, run,
         corner.neighborSide === 'left' ? 'right' : 'left',
         (offset) => (end === 'left' ? offset / sine : length - offset / sine));
+    }
+    // A host run passing across the landed wall is cut through, so it is always a section (DR5).
+    for (const run of crossingRuns(room, corner)) {
+      if (run.height <= 0) continue;
+      cut(`${end}:${neighbor.id}:${run.id}`, neighbor, neighborView, neighborFrame, run,
+        corner.neighborSide === 'left' ? 'right' : 'left',
+        (offset) => (end === 'left' ? offset / sine : length - offset / sine), { section: true });
     }
   }
 
