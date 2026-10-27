@@ -27,6 +27,7 @@ import useLiveEntry, {
 } from '../canvas/useLiveEntry.js';
 import LiveEntryInput from '../components/LiveEntryInput.jsx';
 import CanvasContextMenu from '../components/CanvasContextMenu.jsx';
+import SelectionPicker, { PlanPickOutline } from '../components/SelectionPicker.jsx';
 import MeasureOverlay from '../components/MeasureOverlay.jsx';
 import MeasureReadout from '../components/MeasureReadout.jsx';
 import { planClearances } from '../model/clearances.js';
@@ -51,7 +52,6 @@ import { wallSideFrame, wallSideOf, wallSideView } from '../model/wallSides.js';
 import {
   addOpening,
   addWallSegment,
-  clearSelection,
   deleteWall,
   moveOpening,
   setActiveWall,
@@ -65,6 +65,7 @@ import PlanAlignmentGuides from './PlanAlignmentGuides.jsx';
 import PlanOverlays from './PlanOverlays.jsx';
 import PlanScene from './PlanScene.jsx';
 import usePlanKeys from './usePlanKeys.js';
+import usePlanPicker from './usePlanPicker.js';
 import usePlanRunMove from './usePlanRunMove.js';
 import usePlanWallEdits from './usePlanWallEdits.js';
 import { snapPointOrtho } from './wallOps.js';
@@ -378,6 +379,16 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   });
   const measureToScreen = ({ x, y }) => ({ x: x * scale + pan.x, y: y * scale + pan.y });
 
+  const { picker, hovered, pick, choosePick, hoverPick, closePicker } = usePlanPicker({
+    room, settings, scale, tool, entry, dispatch,
+  });
+  const pickAt = useCallback((event) => {
+    event.cancelBubble = true;
+    if (suppressClickRef.current) return;
+    const pointer = stageRef.current?.getPointerPosition();
+    if (pointer) pick(pointer, toWorld(pointer));
+  }, [pick, toWorld]);
+
   const { previewRoom, moving, startMoveMode, cancelMove, updateMovePointer } = usePlanRunMove({
     room, settings, tool, view, activeWallId, activeWallSide,
     entry, beginEntry, cancelEntry, updateEntry, cursor, dispatch,
@@ -436,6 +447,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const handleContextMenu = useCallback((event) => {
     event.evt.preventDefault();
     closeContextMenu();
+    closePicker();
     if (tool === 'measure') {
       measure.cancelFirst();
       return;
@@ -458,7 +470,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       ...pointer, runId,
       context: `${activeRoomId}:${wall.id}:${side}:${view}:select`,
     });
-  }, [activeRoomId, cancelEntry, cancelMove, closeContextMenu, dispatch,
+  }, [activeRoomId, cancelEntry, cancelMove, closeContextMenu, closePicker, dispatch,
     measure.cancelFirst, moving, room, settings, toWorld, tool, view, walls]);
 
   const gridAndOrtho = useCallback((point, fixed = null) => {
@@ -547,7 +559,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       return;
     }
     if (tool === 'select') {
-      dispatch(clearSelection());
+      pickAt(event);
       return;
     }
     if (tool !== 'wall') return;
@@ -594,6 +606,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     entry,
     gridAndOrtho,
     measure.click,
+    pickAt,
     snapDrawPoint,
     toWorld,
     tool,
@@ -836,9 +849,8 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     }
     if (placeOpeningOnWall(wallId, event)) return;
     if (tool !== 'select') return;
-    event.cancelBubble = true;
-    dispatch(setActiveWall(wallId));
-  }, [dispatch, entry, placeOpeningOnWall, tool]);
+    pickAt(event);
+  }, [entry, pickAt, placeOpeningOnWall, tool]);
 
   const handleWallOpen = useCallback((wallId, event) => {
     if (entry) {
@@ -856,21 +868,9 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       event.cancelBubble = true;
       return;
     }
-    if (tool !== 'select' || !room) return;
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer) return;
-    const runIds = footprintsAtPoint(room, toWorld(pointer), settings);
-    if (runIds.length === 0) return;
-    const runId = selection.runId === runIds[0]
-      ? runIds[1] ?? runIds[0]
-      : runIds[0];
-    const wall = walls.find((candidate) => (
-      candidate.runs.some((run) => run.id === runId)
-    ));
-    if (!wall) return;
-    dispatch(setActiveWall(wall.id));
-    dispatch(setSelection({ runId, pieceId: null }));
-  }, [dispatch, entry, room, selection.runId, settings, toWorld, tool, walls]);
+    if (tool !== 'select') return;
+    pickAt(event);
+  }, [entry, pickAt, tool]);
 
   const handleOpeningSelect = useCallback((event, targetOpeningId) => {
     if (entry) {
@@ -878,6 +878,11 @@ export default function PlanCanvas({ fitRequest = 0 }) {
       return;
     }
     if (tool !== 'select' || !room) return;
+    if (event.type !== 'dragstart') {
+      pickAt(event);
+      return;
+    }
+    closePicker();
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
     const openingIds = openingsAtPoint(room, toWorld(pointer), settings);
@@ -892,7 +897,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     event.cancelBubble = true;
     dispatch(setActiveWall(openingWall.id));
     dispatch(setSelection({ openingId }));
-  }, [dispatch, entry, room, settings, toWorld, tool, walls]);
+  }, [closePicker, dispatch, entry, pickAt, room, settings, toWorld, tool, walls]);
 
   const handleOpeningMove = useCallback((wallId, openingId, x) => {
     dispatch(moveOpening({ wallId, openingId, x }));
@@ -984,6 +989,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               liveWallDrawEnd={liveWallDrawEnd}
               mouseWorldPos={mouseWorldPos}
             />
+            <PlanPickOutline candidate={hovered} scale={scale} />
           </Layer>
           {moving && (
             <Layer>
@@ -1020,6 +1026,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
           onCancel={cancelEntry}
         />
       )}
+
+      <SelectionPicker
+        picker={picker}
+        onChoose={choosePick}
+        onHover={hoverPick}
+        onClose={closePicker}
+      />
 
       <CanvasContextMenu
         position={contextMenu}

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { Rect } from 'react-konva';
+import { Line, Rect } from 'react-konva';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { useMenuInCanvas } from './canvas/menuPosition.js';
 
@@ -83,6 +83,21 @@ export function PickOutline({ candidate, transform }) {
       stroke="#f472b6"
       strokeWidth={2}
       dash={[6, 4]}
+      listening={false}
+    />
+  );
+}
+
+/** Plan outlines use world coordinates; keep their strokes and dashes constant on screen. */
+export function PlanPickOutline({ candidate, scale }) {
+  if (!candidate) return null;
+  return (
+    <Line
+      points={candidate.outline.flatMap(({ x, y }) => [x, y])}
+      closed
+      stroke="#f472b6"
+      strokeWidth={2 / scale}
+      dash={[6 / scale, 4 / scale]}
       listening={false}
     />
   );
