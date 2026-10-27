@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { connectWallStops } from './helpers/wallStops.js';
+import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
+import { runItems } from '../grid.js';
 import { bandOutline, endEdgeX, frontContour, placeAtEnd } from '../bandEnds.js';
 import { bandParts } from '../bandParts.js';
 import { cornerBandEdge, lazyCornerShapes } from '../cornerBands.js';
@@ -36,30 +39,31 @@ const TOP = [[29.75, 90, 0], [66.25, 90, 0], [66.25, 90.75, 0], [66.125, 90.75, 
   [66.125, 93, 0], [29.875, 93, 0], [29.875, 90.75, 0], [29.75, 90.75, 0]];
 const line = (x1, x2, z) => ({ x1, z1: z, x2, z2: z });
 
-function setup({ profile = picks, runs = [{}], corner = false, neighborProfile = {}, endPanels } = {}, using = settings) {
-  const stored = structuredClone(document.rooms[0]);
+function setup({ profile = picks, runs = [{}], corner = false, neighborProfile = {}, endPanels, wallStops = false } = {}, using = settings) {
+  const stored = buildRoom(structuredClone(document.rooms[0]));
   stored.profile = { ...stored.profile, ...profile };
-  const wall = { ...stored.walls[1], x1: 0, y1: 0, x2: 120, y2: 0,
+  const wall = buildWall({ ...stored.walls[1], x1: 0, y1: 0, x2: 120, y2: 0,
     connections: { start: null, end: null }, openings: [], joints: [],
     endPanels: endPanels ?? { start: null, end: null },
-    runs: runs.map((props, i) => ({ ...structuredClone(upper), id: `upper-${i}`, x: 30, width: 36,
+    runs: runs.map((props, i) => buildRun({ ...structuredClone(upper), items: runItems(structuredClone(upper)), id: `upper-${i}`, x: 30, width: 36,
       depth: 12, anchors: {}, ends: {}, ...props })),
-  };
+  });
   stored.walls = [wall];
   if (corner) {
     const right = corner === 'right';
-    const neighbor = { ...document.rooms[0].walls[0],
+    const neighbor = buildWall({ ...document.rooms[0].walls[0],
       ...(right ? { x1: 120, y1: 0, x2: 120, y2: 120 } : { x1: 0, y1: 120, x2: 0, y2: 0 }),
       connections: right ? { start: { wallId: wall.id, endpoint: 'end' }, end: null }
         : { start: null, end: { wallId: wall.id, endpoint: 'start' } }, openings: [], joints: [],
       profile: neighborProfile,
-      runs: [{ ...structuredClone(upper), id: 'neighbor', x: right ? 0 : 84, width: 36, depth: 12,
-        anchors: right ? { left: true } : { right: true }, ends: {} }],
-    };
+      runs: [buildRun({ ...structuredClone(upper), items: runItems(structuredClone(upper)), id: 'neighbor', x: right ? 0 : 84, width: 36, depth: 12,
+        anchors: right ? { left: true } : { right: true }, ends: {} })],
+    });
     wall.connections[right ? 'end' : 'start'] = { wallId: neighbor.id, endpoint: right ? 'start' : 'end' };
     wall.runs[0].anchors[right ? 'right' : 'left'] = true;
     stored.walls.push(neighbor);
   }
+  if (wallStops) connectWallStops(stored, wall);
   const room = syncRoom(stored, using);
   // Test the specified x=30 band end; syncing an anchor normally moves the run to the corner.
   if (corner) room.walls[0].runs[0].x = runs[0].x ?? 30;
@@ -117,7 +121,7 @@ describe('SPEC-50.3 step 476 profiled band ends', () => {
   });
 
   it('keeps an anchored wall end square at its current x (anchor 6), including two square ends', () => {
-    const { wall, bandsOf } = setup();
+    const { wall, bandsOf } = setup({ wallStops: true });
     const run = wall.runs[0];
     const crown = bandsOf({ ...run, anchors: { right: true } }).crown;
     expect(crown.outline).toEqual([CROWN[0], [66, 92.5, 0], [66, 96, 0], ...CROWN.slice(5)]);

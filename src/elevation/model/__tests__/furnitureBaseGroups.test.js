@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { furnitureBaseGroups } from '../furnitureBaseGroups.js';
-import { gridFromItems } from '../grid.js';
+import { room as buildRoom, run as buildRun, wall as buildWall, auto } from '../../../test/builders.js';
+import { connectWallStops } from './helpers/wallStops.js';
 import { syncRoom } from '../room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 
@@ -10,21 +11,25 @@ const load = (name) => JSON.parse(readFileSync(new URL(`./fixtures/${name}.json`
 const document = normalizeElevationDocument(load('golden'));
 const settings = { ...document.settings, sectionProfiles: load('sectionProfiles').profiles };
 const template = document.rooms[0].walls[0].runs.find(({ cabinetTypeId }) => cabinetTypeId === CABINET_TYPE_IDS.BASE);
-const run = (id, props = {}) => ({ ...structuredClone(template), id, x: 30, width: 36,
-  grid: gridFromItems(id, [{ id: `${id}:box`, kind: 'cabinet', width: null }]),
+const run = (id, props = {}) => buildRun({ ...structuredClone(template), id, x: 30, width: 36,
+  items: [auto(`${id}:box`)],
   depth: 24, anchors: {}, overrides: {},
   ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } }, ...props });
-const wall = (id, runs, props = {}) => ({ ...structuredClone(document.rooms[0].walls[0]), id,
+const wall = (id, runs, props = {}) => buildWall({ ...structuredClone(document.rooms[0].walls[0]), id,
   x1: 0, y1: 0, x2: 120, y2: 0, flipped: false, connections: { start: null, end: null },
   endPanels: { start: null, end: null }, openings: [], joints: [], runs, ...props });
-const room = (walls, props = {}) => ({ ...structuredClone(document.rooms[0]),
+const room = (walls, props = {}) => buildRoom({ ...structuredClone(document.rooms[0]),
   profile: { ...document.rooms[0].profile, baseKind: 'furniture_base', furnitureBaseProfileId: 'fb4' },
   wallOrder: walls.map(({ id }) => id), walls, ...props });
 const groups = (stored, using = settings) => furnitureBaseGroups(syncRoom(stored, using), using);
-const stepped = () => room([wall('A', [
-  run('B', { x: 30, depth: 21 }),
-  run('T', { x: 0, width: 30, cabinetTypeId: CABINET_TYPE_IDS.TALL, anchors: { left: true } }),
-])]);
+const stepped = () => {
+  const stored = room([wall('A', [
+    run('B', { x: 30, depth: 21 }),
+    run('T', { x: 0, width: 30, cabinetTypeId: CABINET_TYPE_IDS.TALL, anchors: { left: true } }),
+  ])]);
+  connectWallStops(stored, stored.walls[0], ['start']);
+  return stored;
+};
 
 describe('SPEC-50.7 step 495 furniture base groups', () => {
   it('orders one free 24-inch run with returned ends (anchor 1)', () => {
@@ -111,8 +116,10 @@ describe('SPEC-50.7 step 495 furniture base groups', () => {
 
   it('uses the touch tolerance, merges equal-depth spans, and honors zero and custom scribe', () => {
     expect(DEFAULT_SETTINGS.furnitureBaseScribe).toBe(0.5);
-    const resolved = syncRoom(room([wall('A', [run('L', { x: 0, width: 30, anchors: { left: true } }),
-      run('R', { x: 30, width: 36 })])]), settings);
+    const stored = room([wall('A', [run('L', { x: 0, width: 30, anchors: { left: true } }),
+      run('R', { x: 30, width: 36 })])]);
+    connectWallStops(stored, stored.walls[0], ['start']);
+    const resolved = syncRoom(stored, settings);
     resolved.walls[0].runs[1].x = 30 + 0.0000005;
     const result = furnitureBaseGroups(resolved, { ...settings, furnitureBaseScribe: 0 });
     expect(result).toHaveLength(1);

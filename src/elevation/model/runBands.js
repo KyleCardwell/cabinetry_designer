@@ -259,11 +259,11 @@ function bandEdge(room, wall, run, side, band, settings, z, height, shapes) {
 }
 
 /**
- * FX4 b: a run anchored to the open end of a 0" wall (an island or peninsula end with no wall end panel)
- * has nothing beyond it, so its bands end as at a free end. A thicker wall's open end still stops them.
+ * A run anchored to an open wall end with no wall end panel has nothing beyond it,
+ * so its bands end as at a free end, regardless of wall thickness.
  */
 export function isOpenWallEnd(room, wall, run, side, settings) {
-  return run.anchors?.[side] === true && (wall.thickness ?? 0) <= EPSILON
+  return run.anchors?.[side] === true
     && cornerAt(room, wall, side).type === 'open' && !wallEndPanelAt(room, wall, side, settings);
 }
 

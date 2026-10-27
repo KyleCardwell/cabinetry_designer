@@ -100,9 +100,9 @@ describe('SPEC-42 band parts', () => {
   it('a toe kick sits back from the boxes; a top runs past the faces (G1 elevation A)', () => {
     const parts = partsOf(room('G1 Euro kitchen'), 0);
     expect(parts.map(row)).toEqual([
-      [`${TALL}:toe_kick`, 'toe_kick', 0, 0, 29, 4, 0, 22, false],
-      [`${TALL}:top_mold`, 'top_mold', 0, 90, 30.25, 3, 0, 26.125, false],
-      [`${TALL}:crown`, 'crown', 0, 91.5, 33, 4.5, 0, 28.875, false],
+      [`${TALL}:toe_kick`, 'toe_kick', 1, 0, 28, 4, 0, 22, false],
+      [`${TALL}:top_mold`, 'top_mold', -0.25, 90, 30.5, 3, 0, 26.125, false],
+      [`${TALL}:crown`, 'crown', -3, 91.5, 36, 4.5, 0, 28.875, false],
       [`${BASE}:toe_kick`, 'toe_kick', 29, 0, 118, 4, 0, 21, false],
       [`${BASE}:countertop`, 'countertop', 30, 34.5, 112.375, 1.5, 0, 25.625, false],
       [`${UPPER}:top_mold`, 'top_mold', 108.25, 90, 46.625, 3, 0, 13.125, false],
@@ -110,7 +110,7 @@ describe('SPEC-42 band parts', () => {
     ]);
     expect(parts[0]).toEqual({
       id: `${TALL}:toe_kick`, kind: 'toe_kick', runId: TALL,
-      x: 0, z: 0, width: 29, height: 4, back: 0, front: 22, coversBoxEdges: false,
+      x: 1, z: 0, width: 28, height: 4, back: 0, front: 22, coversBoxEdges: false,
     });
   });
 

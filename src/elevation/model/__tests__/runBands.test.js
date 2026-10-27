@@ -25,16 +25,16 @@ const span = (rect) => rect && [rect.x, rect.width];
 describe('SPEC-42 run bands', () => {
   it('runs a band past a free end by its projection and stops it at a wall or a joined run (G1 elevation A)', () => {
     const bands = bandsOf(syncRoom(stored('G1 Euro kitchen'), settings), 0);
-    // The tall: wall on the left; joined on the right to a lower base, so its top returns there.
+    // The tall: open wall end on the left; joined on the right to a lower base, so its top returns there.
     expect(bands.b38f2f11).toMatchObject({
       top: { kind: 'crown', height: 6 },
-      toeKicks: [{ x: 0, z: 0, width: 29, height: 4 }],
+      toeKicks: [{ x: 1, z: 0, width: 28, height: 4 }],
       furnitureBases: [],
       countertop: null,
-      topMold: { x: 0, z: 90, width: 30.25, height: 3, lines: [],
-        ends: [expect.objectContaining({ type: 'square' }), expect.objectContaining({ type: 'return' })] },
-      crown: { x: 0, z: 91.5, width: 33, height: 4.5, lines: [],
-        ends: [expect.objectContaining({ type: 'square' }), expect.objectContaining({ type: 'return' })] },
+      topMold: { x: -0.25, z: 90, width: 30.5, height: 3, lines: [],
+        ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })] },
+      crown: { x: -3, z: 91.5, width: 36, height: 4.5, lines: [],
+        ends: [expect.objectContaining({ type: 'return' }), expect.objectContaining({ type: 'return' })] },
       bottomParts: [],
       chipLines: [],
     });
@@ -140,7 +140,7 @@ describe('SPEC-42 run bands', () => {
     const a = bandsOf(g1, 0);
     // The tall (deeper) stops 1" short of its right end panel; the base's toe kick runs on to meet it,
     // and on into the right corner to meet wall B's return (SPEC-42.3).
-    expect(span(a.b38f2f11.toeKicks[0])).toEqual([0, 29]);
+    expect(span(a.b38f2f11.toeKicks[0])).toEqual([1, 28]);
     expect(span(a.b822e8ac.toeKicks[0])).toEqual([29, 118]);
     // G1 B: the left end meets wall A's return at 21" (SPEC-42.3); the right is a free filler end, 1/4" short.
     expect(span(bandsOf(g1, 1)['4b64d096'].toeKicks[0])).toEqual([21, 98.75]);

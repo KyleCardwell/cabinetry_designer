@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDispatch } from 'react-redux';
 import { Rect, Text } from 'react-konva';
 import { CABINET_TYPE_IDS } from '../../model/constants.js';
-import { gridFromItems } from '../../model/grid.js';
+import { room as buildRoom, run as buildRun, wall as buildWall, auto } from '../../../test/builders.js';
+import { connectWallStops } from '../../model/__tests__/helpers/wallStops.js';
 import { partNumbers, wallMoldingBadges } from '../../model/partNumbers.js';
 import { resolveWall, syncRoom } from '../../model/room.js';
 import { splitRun } from '../../model/splitRun.js';
@@ -25,8 +26,8 @@ const load = (name) => JSON.parse(readFileSync(new URL(`../../model/__tests__/fi
 const document = normalizeElevationDocument(load('golden'));
 const defaults = { ...document.settings, sectionProfiles: load('sectionProfiles').profiles };
 const template = document.rooms[0].walls[0].runs.find(({ cabinetTypeId }) => cabinetTypeId === CABINET_TYPE_IDS.BASE);
-const makeRun = (id, props = {}) => ({ ...structuredClone(template), id, x: 30, width: 36,
-  grid: gridFromItems(id, [{ id: `${id}:box`, kind: 'cabinet', width: null }]),
+const makeRun = (id, props = {}) => buildRun({ ...structuredClone(template), id, x: 30, width: 36,
+  items: [auto(`${id}:box`)],
   depth: 24, anchors: {}, overrides: {},
   ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } }, ...props });
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
@@ -36,19 +37,20 @@ const text = (tree) => Array.isArray(tree) ? tree.map(text).join('')
 const transform = { scale: 4, offsetX: 10, offsetY: 20, wallHeight: 108 };
 let stored;
 let settings;
-const setup = (runs, wallProps = {}) => {
-  stored = structuredClone(document.rooms[0]);
+const setup = (runs, wallProps = {}, wallStops = false) => {
+  stored = buildRoom(structuredClone(document.rooms[0]));
   stored.profile = { ...stored.profile, baseKind: 'furniture_base', furnitureBaseProfileId: 'fb4' };
   stored.partNumberOverrides = {};
-  stored.walls = [{ ...stored.walls[0], id: 'A', x1: 0, y1: 0, x2: 120, y2: 0,
+  stored.walls = [buildWall({ ...stored.walls[0], id: 'A', x1: 0, y1: 0, x2: 120, y2: 0,
     flipped: false, connections: { start: null, end: null }, endPanels: { start: null, end: null },
-    openings: [], joints: [], runs, ...wallProps }];
+    openings: [], joints: [], runs, ...wallProps })];
   stored.wallOrder = ['A'];
+  if (wallStops) connectWallStops(stored, stored.walls[0]);
 };
 const stepped = () => setup([
   makeRun('B', { x: 30, depth: 21 }),
   makeRun('T', { x: 0, width: 30, cabinetTypeId: CABINET_TYPE_IDS.TALL, anchors: { left: true } }),
-]);
+], {}, true);
 const props = (id = 'T', side = 'front') => {
   const room = syncRoom(stored, settings);
   const wall = resolveWall(room, room.walls[0], side);
@@ -108,7 +110,7 @@ describe('Step 497 furniture base group properties', () => {
     setup([makeRun('free')]);
     expect(text(render('free'))).toContain('(+1/2 scribe bottom)');
     expect(text(render('free'))).not.toContain('scribe left/right');
-    setup([makeRun('square', { x: 0, width: 120, anchors: { left: true, right: true } })]);
+    setup([makeRun('square', { x: 0, width: 120, anchors: { left: true, right: true } })], {}, true);
     expect(text(render('square'))).toContain('121 × 4 1/2 × 25 11/16 in');
     expect(text(render('square'))).toContain('(+1/2 scribe left/right)');
     stepped();

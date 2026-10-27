@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { run as buildRun, wall as buildWall, auto } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
-import { gridFromItems } from '../grid.js';
 import { partNumbers, wallMoldingBadges } from '../partNumbers.js';
 import { roomParts } from '../parts.js';
 import { syncRoom } from '../room.js';
@@ -58,9 +58,9 @@ describe('SPEC-50.7 step 496 furniture base part numbers and badges', () => {
     expect(result.parts.slice(-3).map(({ key, number }) => [key, number])).toEqual([
       ['molding:toeKick', 32], ['molding:topMold', 33], ['molding:crown', 34],
     ]);
-    // The tall's deeper base returns 13/16 inch at the touching shallower run.
+    // The tall's deeper base returns 13/16 inch at its open left end and the touching shallower run.
     expect(badges(room, room.walls.find(({ id }) => id === WALL), 'front', result)).toEqual([
-      { molding: 'furniture_base', slot: 0, key: KEY, number: result.byKey.get(KEY), label: 'FB', x: 0, z: 0, width: 30.8125, height: 4 },
+      { molding: 'furniture_base', slot: 0, key: KEY, number: result.byKey.get(KEY), label: 'FB', x: -0.8125, z: 0, width: 31.625, height: 4 },
     ]);
   });
 
@@ -80,10 +80,10 @@ describe('SPEC-50.7 step 496 furniture base part numbers and badges', () => {
   it('orders separate groups by wall walk and badges the first member on each face in face coordinates', () => {
     const stored = structuredClone(document.rooms[0]);
     const template = stored.walls[0].runs.find(({ cabinetTypeId }) => cabinetTypeId === CABINET_TYPE_IDS.BASE);
-    const run = (id, x, width, wallSide = 'front') => ({ ...structuredClone(template), id, x, width, wallSide,
-      grid: gridFromItems(id, [{ id: `${id}:box`, kind: 'cabinet', width: null }]),
+    const run = (id, x, width, wallSide = 'front') => buildRun({ ...structuredClone(template), id, x, width, wallSide,
+      items: [auto(`${id}:box`)],
       anchors: {}, overrides: {}, ends: { left: { type: 'none' }, right: { type: 'none' } } });
-    const wall = (id, runs) => ({ ...structuredClone(stored.walls[0]), id, runs,
+    const wall = (id, runs) => buildWall({ ...structuredClone(stored.walls[0]), id, runs,
       x1: 0, y1: 0, x2: 120, y2: 0, connections: { start: null, end: null },
       endPanels: { start: null, end: null }, openings: [], joints: [] });
     stored.profile = { ...stored.profile, baseKind: 'furniture_base', furnitureBaseProfileId: 'fb4' };

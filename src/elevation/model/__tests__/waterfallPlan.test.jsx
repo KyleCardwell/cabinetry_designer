@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
+import { connectWallStops } from './helpers/wallStops.js';
+import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
+import { runItems } from '../grid.js';
 import { Line } from 'react-konva';
 import PlanRunFootprint from '../../plan/PlanRunFootprint.jsx';
 import { normalizeElevationDocument } from '../../store/persistence.js';
@@ -37,18 +40,19 @@ const nz1 = {
 };
 const settings = { ...document.settings, sectionProfiles: [nz1] };
 
-function setup(props = {}, wallProps = {}) {
-  const stored = structuredClone(document.rooms[0]);
+function setup(props = {}, wallProps = {}, wallStops = false) {
+  const stored = buildRoom(structuredClone(document.rooms[0]));
   const wall = stored.walls[0];
   const base = wall.runs.find(({ cabinetTypeId }) => cabinetTypeId === CABINET_TYPE_IDS.BASE);
   stored.profile = { ...stored.profile, nosingProfileId: 'nz1' };
-  stored.walls = [{ ...wall, x1: 0, y1: 0, x2: 120, y2: 0,
+  stored.walls = [buildWall({ ...wall, x1: 0, y1: 0, x2: 120, y2: 0,
     flipped: false, profile: {}, connections: { start: null, end: null }, openings: [], joints: [],
     endPanels: { start: null, end: null }, ...wallProps,
-    runs: [{ ...base, id: 'base', x: 30, width: 36, top: 'stone', anchors: {},
+    runs: [buildRun({ ...base, items: runItems(base), id: 'base', x: 30, width: 36, top: 'stone', anchors: {},
       ends: { left: { type: 'none' }, right: { type: 'none' } },
-      waterfall: { left: {} }, ...props }],
-  }];
+      waterfall: { left: {} }, ...props })],
+  })];
+  if (wallStops) connectWallStops(stored, stored.walls[0]);
   const room = syncRoom(stored, settings);
   const view = resolveWall(room, room.walls[0]);
   const run = view.runs[0];
@@ -114,7 +118,7 @@ describe('SPEC-50.10 step 508 waterfall legs in plan', () => {
       { anchors: { left: { to: 'wall', wallId: 'other' } } },
       { top: 'crown' }, { top: 'topMold' }, { top: 'none' },
     ]) {
-      const input = setup(props);
+      const input = setup(props, {}, true);
       expect(input.pieces).not.toHaveProperty('waterfallLegs');
       expect(input.legs).toEqual([]);
       expect(nodes(PlanRunFootprint({ ...input, scale: 4 }))

@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
+import { connectWallStops } from '../../model/__tests__/helpers/wallStops.js';
+import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { Rect, Shape, Line } from 'react-konva';
 import { CABINET_TYPE_IDS } from '../../model/constants.js';
 import { gridFromItems } from '../../model/grid.js';
@@ -41,29 +43,30 @@ function desk({ panels = true, topVoid = false } = {}) {
     rows: [{ id: 'top', size: 4, sizeMode: 'manual' }, auto('bottom')],
     cells: [cell(0, topVoid ? opening : drawer), cell(1, topVoid ? drawer : opening)],
   };
-  return {
+  return buildRun({
     ...structuredClone(template), id: 'R', heightMode: 'manual', autoCount: false, anchors: {}, cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 0, width: 60,
     z: 4, height: 24, depth: 24,
     ends: { left: { type: 'none' }, right: { type: 'none' } },
-    grid: gridFromItems('desk', [
+    items: [
       { id: 'left', kind: 'cabinet', width: 18 },
       ...(panels ? [{ id: 'left-panel', kind: 'panel', width: 0.75 }] : []),
       { id: 'middle', kind: 'cabinet', width: panels ? 22.5 : 24, grid: middle },
       ...(panels ? [{ id: 'right-panel', kind: 'panel', width: 0.75 }] : []),
       { id: 'right', kind: 'cabinet', width: null },
-    ]),
-  };
+    ],
+  });
 }
 
 
-function setup({ run = desk(), furniture = false, profile = null, neighbours = [], length = 120 } = {}) {
-  const stored = structuredClone(document.rooms[0]);
+function setup({ run = desk(), furniture = false, profile = null, neighbours = [], length = 120, wallStops = false } = {}) {
+  const stored = buildRoom(structuredClone(document.rooms[0]));
   stored.profile = { ...stored.profile, baseKind: furniture ? 'furniture_base' : 'toe_kick',
     furnitureBaseProfileId: profile, furnitureBaseProud: 0.8125 };
   stored.wallOrder = ['A'];
-  stored.walls = [{ ...stored.walls[0], id: 'A', x1: 0, y1: 0, x2: length, y2: 0,
+  stored.walls = [buildWall({ ...stored.walls[0], id: 'A', x1: 0, y1: 0, x2: length, y2: 0,
     connections: { start: null, end: null }, openings: [], joints: [], flipped: false,
-    endPanels: { start: null, end: null }, runs: [run, ...neighbours] }];
+    endPanels: { start: null, end: null }, runs: [run, ...neighbours] })];
+  if (wallStops) connectWallStops(stored, stored.walls[0]);
   const room = syncRoom(stored, settings);
   const wall = resolveWall(room, room.walls[0], run.wallSide ?? 'front');
   const resolved = wall.runs.find(({ id }) => id === 'R');
@@ -147,8 +150,8 @@ describe('SPEC-50.11 step 511 floor base segments', () => {
       ] : [
         bareCabinet('box', 36), { id: 'open', kind: 'void', width: null },
       ]);
-      expect(spans(setup({ run, length: 60 }).bands.toeKicks)).toEqual(leading ? [[24.25, 60]] : [[0, 35.75]]);
-      const furniture = setup({ run, furniture: true, length: 60 });
+      expect(spans(setup({ run, length: 60, wallStops: true }).bands.toeKicks)).toEqual(leading ? [[24.25, 60]] : [[0, 35.75]]);
+      const furniture = setup({ run, furniture: true, length: 60, wallStops: true });
       expect(spans(furniture.bands.furnitureBases)).toEqual(leading ? [[23.1875, 60]] : [[0, 36.8125]]);
       expect(furniture.groups).toHaveLength(1);
       expect(furniture.groups[0]).toMatchObject({ key: 'furniture_base:R', width: 36.8125, orderedWidth: 37.3125 });

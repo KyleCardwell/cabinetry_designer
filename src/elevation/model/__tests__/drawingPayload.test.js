@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { drawingZipName, toDrawingPayload } from '../drawingPayload.js';
-import { DEFAULT_SETTINGS } from '../constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
 import { bandParts } from '../bandParts.js';
 import { elevationParts } from '../elevationParts.js';
 import { wallParts } from '../wallParts.js';
@@ -178,8 +178,9 @@ describe('DM8 step b end-view panel payload', () => {
 // molding picks: same box heights/front projections, actual profile outlines and side extents.
 // DM7 updates centred-text fitting and pop-out levels; G2 also had a stale hash before DM7.
 // FX2 step a returns G5's countertop past its recess side: width 37 -> 37.75; other payload fields stay unchanged.
+// FX4 b.1 returns G1 wall 1's open left end: the tall's toe kick, top mold and crown only.
 const preHP5PayloadHashes = {
-  'G1 Euro kitchen': 'eb8fab873358080acfb429040ffc547a005e387c3d83daf9322e8751945c7ebd',
+  'G1 Euro kitchen': '635ae2cd19e1349b6b59e0f89e334b50b1325ae5da97b12f8cfae4c857c5c095',
   'G2 Face frame kitchen': '6db3785fa9bca11c26a0f61d77a287d756a18b9cc7e687fb1c6b0c54c68b58d4',
   'G3 Bath alcove': '972df0b7e5cf218bf98a7725b79e676a933734d8b21507c980438310f46e2ef1',
   'G4 T-filler run': 'f32f42cd95835870de06a6de27c6889e6b428f3980f12b0290ae0b7eaacf5350',
@@ -206,6 +207,21 @@ const withoutParts = (payload) => ({
 });
 
 describe('SPEC-40 drawing payload', () => {
+  it('FX4 b.1: returns G1 wall 1 at its open left end and preserves the touching base stop', () => {
+    const synced = room('G1 Euro kitchen');
+    const parts = toDrawingPayload(synced, settings).elevations[0].parts;
+    const tall = synced.walls[0].runs.find(({ cabinetTypeId }) => cabinetTypeId === CABINET_TYPE_IDS.TALL);
+    const base = synced.walls[0].runs.find(({ cabinetTypeId }) => cabinetTypeId === CABINET_TYPE_IDS.BASE);
+    // Anchor 4 calls this a free base end, but the golden fixture has a tall at x=0
+    // touching the base at x=30. Only the tall's exposed left end is free (§1.0).
+    expect(parts.filter(({ runId, kind }) => runId === tall.id
+      && ['toe_kick', 'top_mold', 'crown'].includes(kind))
+      .map(({ kind, x, width }) => [kind, x, width])).toEqual([
+      ['toe_kick', 1, 28], ['top_mold', -0.25, 30.5], ['crown', -3, 36],
+    ]);
+    expect(parts.find(({ runId, kind }) => runId === base.id && kind === 'countertop').x).toBe(30);
+  });
+
   it('HP5 step d anchor 1: disabling pulls preserves every pre-HP5 golden payload', () => {
     for (const { name } of document.rooms) {
       const synced = room(name);

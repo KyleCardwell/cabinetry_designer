@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
+import { room as buildRoom, run as buildRun, wall as buildWall } from '../../test/builders.js';
+import { connectWallStops } from '../../elevation/model/__tests__/helpers/wallStops.js';
 import { newAccessory } from '../../elevation/model/accessories.js';
 import { pickedMoldings } from '../../elevation/model/__tests__/helpers/pickedMoldings.js';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
@@ -31,24 +33,24 @@ const ends = (left = 'none', right = 'none') => ({
   left: { type: left, width: null }, right: { type: right, width: null },
 });
 function run(id = 'run', pieces = [cabinet()], overrides = {}) {
-  return {
+  return buildRun({
     id, cabinetTypeId: 1, x: 24, width: 18, z: 4, height: 30.5, depth: 24,
     heightMode: 'manual', autoCount: false, maxCabinetWidth: null, overrides: {},
     anchors: { left: false, right: false }, ends: ends(),
-    grid: gridFromItems(id, pieces.map((piece) => ({ ...piece, width: piece.width ?? null })), overrides.blind),
+    items: pieces.map((piece) => ({ ...piece, width: piece.width ?? null })),
     ...overrides,
-  };
+  });
 }
 function room(runs = [run()], overrides = {}, wallOverrides = {}, s = settings) {
-  return syncRoom({
+  return syncRoom(buildRoom({
     id: 'room', name: 'Kitchen', profile: { ...settings.defaultProfile }, wallOrder: ['wall'],
-    walls: [{
+    walls: [buildWall({
       id: 'wall', name: 'Wall', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5,
       flipped: false, connections: { start: null, end: null }, landings: { start: null, end: null },
       profile: {}, openings: [], joints: [], soffits: [], endPanels: { start: null, end: null },
       runs, ...wallOverrides,
-    }], ...overrides,
-  }, s);
+    })], ...overrides,
+  }), s);
 }
 const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entry) => entry.key === key);
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
@@ -73,7 +75,7 @@ describe('IE1 step d shipping inside panels', () => {
       }
       r.reportParts = { 'c:inside-left': { shopBuilt: true } };
       expect(row(r, 'c:inside-left').description).toBe('Shop-built Base End Panel');
-      delete r.reportParts;
+      r.reportParts = before.reportParts;
       expect(r).toEqual(before);
     }
   });
@@ -1418,7 +1420,8 @@ describe('RP2 step e panel, filler and base notes', () => {
     const r = room([run('run', undefined, { anchors: { left: true, right: false } })], {
       profile: { ...settings.defaultProfile, baseKind: 'furniture_base', furnitureBaseProud: 0 },
     });
-    expect(row(r, 'furniture_base:run')).toMatchObject({ size: '18 1/2 x 4 1/2 x 24 7/8', notes: [] });
+    connectWallStops(r, r.walls[0], ['start']);
+    expect(row(syncRoom(r, settings), 'furniture_base:run')).toMatchObject({ size: '18 1/2 x 4 1/2 x 24 7/8', notes: [] });
     const s = { ...settings, furnitureBaseScribe: 0 };
     expect(row(r, 'furniture_base:run', s)).toMatchObject({ size: '18 x 4 x 24 7/8', notes: [] });
   });
@@ -1443,8 +1446,10 @@ describe('RP2 step e panel, filler and base notes', () => {
 
 describe('RP2 step f molding rows', () => {
   function upper(width = 96, anchors = { left: true, right: true }, wallLength = width, extra = {}) {
-    return room([run('upper', [cabinet()], { cabinetTypeId: 2, x: 0, width, depth: 12,
+    const stored = room([run('upper', [cabinet()], { cabinetTypeId: 2, x: 0, width, depth: 12,
       z: 54, height: 36, top: 'crown', anchors, ...extra })], {}, { x2: wallLength });
+    connectWallStops(stored, stored.walls[0]);
+    return syncRoom(stored, settings);
   }
   function bandsOf(r, s = settings) {
     const wall = resolveWall(r, r.walls[0]);
@@ -1455,10 +1460,13 @@ describe('RP2 step f molding rows', () => {
   function twoWalls(firstWidth, secondWidth, secondProfile = {}) {
     const anchors = { left: true, right: true };
     const first = room([run('first', [cabinet('a')], { x: 0, width: firstWidth, anchors })], {}, { x2: firstWidth });
-    const second = { ...structuredClone(first.walls[0]), id: 'wall2', y1: 200, y2: 200,
+    const second = buildWall({ ...structuredClone(first.walls[0]), id: 'wall2', y1: 200, y2: 200,
       x2: secondWidth, profile: secondProfile,
-      runs: [run('second', [cabinet('b')], { x: 0, width: secondWidth, anchors })] };
-    return syncRoom({ ...first, wallOrder: ['wall', 'wall2'], walls: [...first.walls, second] }, settings);
+      runs: [run('second', [cabinet('b')], { x: 0, width: secondWidth, anchors })] });
+    first.walls.push(second);
+    first.wallOrder.push(second.id);
+    for (const host of [...first.walls]) connectWallStops(first, host);
+    return syncRoom(first, settings);
   }
 
   it('rounds the extra two feet into eight-foot stock lengths (anchor 1)', () => {
