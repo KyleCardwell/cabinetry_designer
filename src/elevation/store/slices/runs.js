@@ -77,6 +77,7 @@ export const runReducers = {
     location.run.ends[side] = end.type === 'none'
       ? { type: end.type, width: end.width }
       : { ...current, type: end.type, width: end.width };
+    if (end.type !== previous) delete location.run.ends[side].height;
     if (end.type !== 'blind') location.run.grid = setGridBlind(location.run.grid, side, null);
     if (end.type === 'none' || (end.type === 'end_panel' && previous !== 'end_panel')) {
       if (location.run.endFiller) location.run.endFiller[side] = null;

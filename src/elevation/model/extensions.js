@@ -1,5 +1,6 @@
 import { teamDoorStyle } from './doorStyles.js';
 import { panelOrientation } from './cells.js';
+import { endHeightMode } from './runEnds.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { wallLength } from './geometry.js';
 import { verticalStart } from './overlap.js';
@@ -90,6 +91,10 @@ export function extensionEdge(wall, run, piece, direction, target) {
 }
 
 function onRunEdge(run, piece, direction) {
+  const side = piece.role === 'end-left' ? 'left' : piece.role === 'end-right' ? 'right' : null;
+  // Matched run ends extend from their own shortened edge.
+  if (side && endHeightMode(run.ends?.[side]) === 'cabinets'
+    && (direction === 'up' || direction === 'down')) return true;
   if (direction === 'down') return piece.z <= run.z + EPSILON;
   if (direction === 'up') return piece.z + piece.height >= run.z + run.height - EPSILON;
   if (direction === 'left') return piece.x <= run.x + EPSILON;
@@ -125,9 +130,9 @@ function extendWarning(code, piece, direction) {
 }
 
 /**
- * Grow every piece that has an `extend` past its run's edge (SPEC-35.3). A piece grows only along
- * its length, only from the run's edge, and never shrinks. A grown piece lists its directions in
- * `extended`; every other piece is returned as is.
+ * Grow every piece that has an `extend` past its edge (SPEC-35.3). A piece grows only along
+ * its length, from the run's edge or a matched end's edge, and never shrinks. A grown piece lists
+ * its directions in `extended`; every other piece is returned as is.
  */
 export function extendPieces(wall, run, pieces) {
   const warnings = [];

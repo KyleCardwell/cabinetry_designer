@@ -213,6 +213,7 @@ function isEnd(end) {
   return Boolean(end)
     && isPartPick(end)
     && END_TYPES.has(end.type)
+    && (end.height === undefined || end.height === 'full' || end.height === 'cabinets')
     && (end.width === null || isFiniteNumber(end.width))
     && (end.auto === undefined || typeof end.auto === 'boolean')
     && isExtend(end.extend);

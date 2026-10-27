@@ -2,6 +2,7 @@ import { isNestedGrid } from './grid.js';
 import { sheetThickness, teamDoorStyle } from './doorStyles.js';
 import { insideEndGap, insideEndPieces } from './insideEnds.js';
 import { stepEndPieces } from './stepEnds.js';
+import { endHeightMode } from './runEnds.js';
 
 export const MIN_CELL_SIZE = 1;
 
@@ -179,25 +180,31 @@ export function cellPieces(run, layout) {
     ? [...pieces, ...insideEndPieces(insidePanels, pieces), ...stepEndPieces(stepPanels, pieces)].sort((left, right) => (
       Math.abs(left.x - right.x) > EPSILON ? left.x - right.x : left.z - right.z
     )) : pieces;
-  if (!run.grid) return { pieces: withPanels(layout.pieces), grids: [], warnings: [], gaps };
-
   let replaced = false;
   const pieces = [];
+  const columnSpans = new Map();
   const grids = [];
   const warnings = [];
   const seamGap = run._seamGap ?? run.seamGap ?? 0;
 
   for (const piece of layout.pieces) {
     const node = piece.role === 'item'
-      ? run.grid.cells.find((candidate) => candidate.row === 0 && candidate.node.id === piece.id)?.node
+      ? run.grid?.cells.find((candidate) => candidate.row === 0 && candidate.node.id === piece.id)?.node
       : null;
     if (!isNestedGrid(node)) {
       pieces.push(piece);
+      if (piece.role === 'item' && piece.kind === 'cabinet') columnSpans.set(piece.id, piece);
       continue;
     }
 
     replaced = true;
     const leaves = resolveGrid(node, piece, piece, 1, grids, gaps, seamGap, insidePanels);
+    const solid = leaves.filter((leaf) => leaf.kind !== 'void');
+    if (solid.length) {
+      const z = Math.min(...solid.map((leaf) => leaf.z));
+      const top = Math.max(...solid.map((leaf) => leaf.z + leaf.height));
+      columnSpans.set(piece.id, { z, height: top - z });
+    }
     leaves.sort((left, right) => (
       Math.abs(left.x - right.x) > EPSILON ? left.x - right.x : left.z - right.z
     ));
@@ -220,7 +227,19 @@ export function cellPieces(run, layout) {
     }
   }
 
-  return { pieces: withPanels(replaced ? pieces : layout.pieces), grids, warnings, gaps };
+  const columns = layout.pieces.filter((piece) => piece.role === 'item');
+  const resolved = replaced ? pieces : layout.pieces;
+  let heightChanged = false;
+  const matched = resolved.map((piece) => {
+    const side = piece.role === 'end-left' ? 'left' : piece.role === 'end-right' ? 'right' : null;
+    if (!side || endHeightMode(run.ends?.[side]) !== 'cabinets') return piece;
+    const column = side === 'left' ? columns[0] : columns[columns.length - 1];
+    const span = columnSpans.get(column?.id);
+    if (!span || (span.z === piece.z && span.height === piece.height)) return piece;
+    heightChanged = true;
+    return { ...piece, z: span.z, height: span.height };
+  });
+  return { pieces: withPanels(heightChanged ? matched : resolved), grids, warnings, gaps };
 }
 
 function rangesOverlap(left, right) {

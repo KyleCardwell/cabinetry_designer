@@ -23,6 +23,7 @@ export {
   KIND_LABELS,
 } from './constants.js';
 export { insideEndSides } from './insideEnds.js';
+export { endHeightMode } from './runEnds.js';
 export {
   isShape, isShapeDraft, isShapeList, newShape, copyShape, shapeView, fitShapeBox,
   moveShapeOrigin, moveShapeOriginTo, shapeOriginSpots,

@@ -41,7 +41,7 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
   wall = wallViewForRun(wall, run);
   const otherPieces = wall.runs
     .filter((other) => other.id !== run.id)
-    .flatMap((other) => layoutRun(room, wall, other, settings).pieces);
+    .flatMap((other) => cellPieces(other, layoutRun(room, wall, other, settings)).pieces);
   const tolerance = settings.adjacentRunGap ?? DEFAULT_SETTINGS.adjacentRunGap;
   const result = new Map();
   const topKinds = new Map(resolveTopSegments(run).segments.flatMap(({ kind, columnIds }) => (
