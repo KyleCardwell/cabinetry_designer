@@ -183,7 +183,21 @@ export const wallReducers = {
         return;
       }
       state.message = null;
-      setCompensatedWalls(state, roomIndex, result.walls);
+      // A landed wall's position is stored as its landing offset; resolveLandings
+      // would snap it back, so re-measure the offset at the moved position.
+      const movedRoom = { ...room, walls: result.walls };
+      const walls = result.walls.map((wall) => {
+        if (wall.id !== action.payload.wallId || !wall.landings) return wall;
+        const landings = { ...wall.landings };
+        for (const endpoint of ['start', 'end']) {
+          const landing = landings[endpoint];
+          if (!landing) continue;
+          const offset = landingOffsetFor(movedRoom, wall, endpoint, landing.ref, landing.to);
+          if (Number.isFinite(offset)) landings[endpoint] = { ...landing, offset };
+        }
+        return { ...wall, landings };
+      });
+      setCompensatedWalls(state, roomIndex, walls);
     },
     setWallEndPanel(state, action) {
       const location = wallLocation(state, action.payload);

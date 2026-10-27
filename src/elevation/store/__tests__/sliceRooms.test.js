@@ -864,6 +864,16 @@ describe('SPEC-18 wing wall store', () => {
     expect(state.rooms[0].walls.find((wall) => wall.id === 'W1').landings.start)
       .toBeNull();
   });
+
+  it('159.1 moving a landed wall perpendicular keeps it where it was moved', () => {
+    let state = stateWithLandings();
+    state = elevationReducer(state, moveWallPerpendicular({ wallId: 'W1', delta: 6 }));
+    const wall1 = state.rooms[0].walls.find((wall) => wall.id === 'W1');
+
+    expect(Math.abs(wall1.x1 - 60)).toBeCloseTo(6);
+    expect(wall1.landings.start.offset).toBeCloseTo(wall1.x1);
+    expect(wall1.landings.start.ref).toBe('left');
+  });
 });
 
 describe('SPEC-23 part number store', () => {
