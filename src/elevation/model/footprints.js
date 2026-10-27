@@ -24,7 +24,7 @@ function pointOnSegment(point, start, end) {
     && point.y <= Math.max(start.y, end.y) + 1e-9;
 }
 
-function polygonContainsPoint(polygon, point) {
+export function polygonContainsPoint(polygon, point) {
   let inside = false;
   for (let index = 0, previous = polygon.length - 1; index < polygon.length; previous = index, index += 1) {
     const start = polygon[previous];

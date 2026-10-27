@@ -8,7 +8,7 @@ import { formatDimension, formatInches } from './units.js';
 import { wallEndPanels } from './wallEndPanels.js';
 
 const PICK_EPSILON = 1e-6;
-const RUN_LABELS = {
+export const RUN_LABELS = {
   [CABINET_TYPE_IDS.BASE]: 'Base run',
   [CABINET_TYPE_IDS.UPPER]: 'Upper run',
   [CABINET_TYPE_IDS.TALL]: 'Tall run',
