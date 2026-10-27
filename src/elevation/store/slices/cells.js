@@ -1,12 +1,14 @@
 import { v4 as uuid } from 'uuid';
 import { isExtendTarget } from '../../model/extensions.js';
-import { setGridCellBlind } from '../../model/grid.js';
+import { removeRootColumn, rootItems, setGridCellBlind } from '../../model/grid.js';
 import { isSheetCell, panelThickness } from '../../model/panelThickness.js';
 import {
   addGridPanel,
+  columnLayoutOf,
   equalizeGridCells,
   findCell,
   findLeaf,
+  pasteColumnLayout,
   removeGridCell,
   setGridCellDepth,
   setGridCellBaseUnder,
@@ -28,6 +30,53 @@ import {
 } from './helpers.js';
 
 export const cellReducers = {
+  /** { roomId?, wallId, runId, cellId }; uses the existing columnLayout clipboard. */
+  pasteColumn(state, action) {
+    if (state.clipboard?.kind !== 'columnLayout') return;
+    const location = runLocation(state, action.payload);
+    if (!location?.run.grid) return;
+    const before = location.run.grid;
+    const grid = pasteColumnLayout(before, action.payload.cellId, state.clipboard.data, uuid);
+    if (grid === before) return;
+    location.run.grid = grid;
+    syncRoomAt(state, location.roomIndex);
+  },
+  applyColumnToRun(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location?.run.grid) return;
+    const before = location.run.grid;
+    const layout = columnLayoutOf(before, action.payload.cellId);
+    if (!layout) return;
+    let grid = before;
+    for (const item of rootItems(before)) {
+      if (item.id !== layout.node.id) grid = pasteColumnLayout(grid, item.id, layout, uuid);
+    }
+    if (grid === before) return;
+    location.run.grid = grid;
+    syncRoomAt(state, location.roomIndex);
+  },
+  removeColumn(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location?.run.grid) return;
+    const before = location.run.grid;
+    const layout = columnLayoutOf(before, action.payload.cellId);
+    if (!layout) return;
+    const grid = removeRootColumn(before, layout.node.id);
+    if (grid === before) return;
+    location.run.grid = grid;
+    location.run.autoCount = false;
+    const selected = state.selection.pieceId;
+    if (findCell(before, selected) && !findCell(grid, selected)) {
+      state.selection = {
+        runId: location.run.id, pieceId: null, openingId: null, soffitId: null, recessId: null,
+        wallId: state.selection.wallId,
+      };
+      state.facePath = null;
+      state.interiorPath = null;
+      state.interiorDivider = null;
+    }
+    syncRoomAt(state, location.roomIndex);
+  },
   setStepEnd(state, action) {
     const { cellId, side, value } = action.payload;
     if (side !== 'left' && side !== 'right') return;

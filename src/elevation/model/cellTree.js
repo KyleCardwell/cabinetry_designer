@@ -1,5 +1,5 @@
 import { insertRootColumn, isNestedGrid, rehomeBlind, removeRootColumn, replaceRootItems,
-  rootItems } from './grid.js';
+  rootItems, updateRootItem } from './grid.js';
 import { EXTEND_DIRECTIONS, isExtendTarget } from './extensions.js';
 
 /** Maximum number of cells created by one split. */
@@ -124,6 +124,58 @@ export function findCell(grid, nodeId) {
 export function findLeaf(grid, leafId) {
   const found = locate(grid, leafId);
   return found && !isNestedGrid(found.cell.node) ? found.cell.node : null;
+}
+
+function columnCell(grid, cellId) {
+  return grid?.cells.find(({ node }) => node.id === cellId
+    || (isNestedGrid(node) && locate(node, cellId)));
+}
+
+// Leaf metadata can contain identities too (interiors, accessories and shapes).
+function copyColumnValue(value, makeId) {
+  if (Array.isArray(value)) return value.map((entry) => copyColumnValue(entry, makeId));
+  if (value === null || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value)
+    .filter(([key]) => key !== 'blind')
+    .map(([key, entry]) => [key, key === 'id' && makeId ? makeId() : copyColumnValue(entry, makeId)]));
+}
+
+function sameColumnValue(a, b) {
+  if (Object.is(a, b)) return true;
+  if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length
+    && keys.every((key) => Object.hasOwn(b, key) && sameColumnValue(a[key], b[key]));
+}
+
+/** A detached root-column stack, including steps but excluding widths and blinds. */
+export function columnLayoutOf(grid, cellId) {
+  const cell = columnCell(grid, cellId);
+  if (!cell) return null;
+  const track = grid.cols[cell.col];
+  return copyColumnValue({ node: cell.node,
+    ...(track.top === undefined ? {} : { top: track.top }),
+    ...(track.bottom === undefined ? {} : { bottom: track.bottom }),
+  });
+}
+
+/** Paste onto a root column while preserving its identity and placement. */
+export function pasteColumnLayout(grid, targetCellId, layout, makeId) {
+  const cell = columnCell(grid, targetCellId);
+  if (!cell || typeof layout?.node?.id !== 'string') return grid;
+  if (!isNestedGrid(cell.node) && cell.node.kind !== 'cabinet') return grid;
+  if (cell.node.id === layout.node.id
+    && sameColumnValue(columnLayoutOf(grid, targetCellId), layout)) return grid;
+
+  const contents = { ...layout.node };
+  delete contents.id;
+  const node = { id: cell.node.id, ...copyColumnValue(contents, makeId) };
+  let next = updateRootItem(grid, cell.node.id, {
+    top: copyColumnValue(layout.top), bottom: copyColumnValue(layout.bottom),
+  });
+  next = { ...next, cells: next.cells.map((entry) => entry.node.id === cell.node.id
+    ? { ...entry, node } : entry) };
+  return rehomeBlind(grid, next);
 }
 
 /** Splits a cabinet leaf across or down without mutating the tree. */
