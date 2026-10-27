@@ -147,6 +147,7 @@ export function faceArea(piece, reveals) {
  * Resolve a face tree into true face rectangles, in wall coordinates.
  * A pair_door leaf produces two rectangles with the same path (half 'left' / 'right').
  * A face beside a turned-off seam carries `opening`: the path of the first face of its shared opening (SPEC-36.3).
+ * Optional reveals.squarePaths is a Set of leaf paths with zero fit and pair gap.
  *
  * @returns {{faces: {path, type, half?, x, z, width, height}[], warnings: {code, path}[]}}
  */
@@ -157,6 +158,9 @@ export function resolveFaces(face, area, reveals) {
   const pairGap = reveals.pair ?? reveals.vertical;
   const fit = reveals.fit ?? 0;
   const pairFit = reveals.pairFit ?? fit;
+  const isSquare = (path) => reveals.squarePaths?.has(path) ?? false;
+  const fitAt = (path) => (isSquare(path) ? 0 : fit);
+  const pairFitAt = (path) => (isSquare(path) ? 0 : pairFit);
 
   const shared = Number.isFinite(reveals.shared) ? reveals.shared : null;
 
@@ -173,7 +177,8 @@ export function resolveFaces(face, area, reveals) {
       ...(node.panelMaterial ? { panelMaterial: node.panelMaterial } : {}),
     };
     if (node.type === 'pair_door') {
-      const half = (leaf.width - pairGap) / 2;
+      const gap = isSquare(path) ? 0 : pairGap;
+      const half = (leaf.width - gap) / 2;
       faces.push({
         path, type: node.type, half: 'left', x: leaf.x, z: leaf.z, width: half, height: leaf.height, ...extra,
       });
@@ -181,7 +186,7 @@ export function resolveFaces(face, area, reveals) {
         path,
         type: node.type,
         half: 'right',
-        x: leaf.x + half + pairGap,
+        x: leaf.x + half + gap,
         z: leaf.z,
         width: half,
         height: leaf.height,
@@ -194,9 +199,10 @@ export function resolveFaces(face, area, reveals) {
 
   const place = (node, rect, path) => {
     if (node.type) {
-      const side = node.type === 'pair_door' ? pairFit : fit;
+      const leafFit = fitAt(path);
+      const side = node.type === 'pair_door' ? pairFitAt(path) : leafFit;
       placeLeaf(node, rect, path, {
-        left: side, right: side, top: fit, bottom: fit,
+        left: side, right: side, top: leafFit, bottom: leafFit,
       });
       return;
     }
@@ -205,7 +211,10 @@ export function resolveFaces(face, area, reveals) {
     // Seams with no rail or mullion (SPEC-36.3): seam i is between children i and i + 1.
     const cuts = shared !== null && node.noRail ? new Set(node.noRail) : new Set();
     const gap = stacked ? reveals.horizontal : reveals.vertical;
-    const gapAfter = (index) => (cuts.has(index) ? shared : gap);
+    const childPathAt = (index) => `${path}.${index}`;
+    const gapAfter = (index) => (cuts.has(index)
+      ? (isSquare(childPathAt(index)) && isSquare(childPathAt(index + 1)) ? 0 : shared)
+      : gap);
     const length = stacked ? rect.height : rect.width;
     const lastIndex = node.children.length - 1;
     const hasAuto = node.children.some((child) => child.size === null);
@@ -221,7 +230,9 @@ export function resolveFaces(face, area, reveals) {
       ? node.children.reduce((sum, _child, index) => (index < lastIndex ? sum + gapAfter(index) : sum), 0)
       : gap * lastIndex;
     const cutFit = cuts.size
-      ? fit * node.children.reduce((sum, child, index) => (isAuto(child, index) ? sum + uncutEdges(index) : sum), 0)
+      ? fit * node.children.reduce((sum, child, index) => (
+        isAuto(child, index) && !isSquare(childPathAt(index)) ? sum + uncutEdges(index) : sum
+      ), 0)
       : 0;
     const autoSize = (length - gaps - fixedTotal - cutFit) / autoCount;
     if (autoSize < MIN_FACE_SIZE) warnings.push({ code: 'face-too-small', path });
@@ -229,20 +240,20 @@ export function resolveFaces(face, area, reveals) {
     let cursor = stacked ? rect.z + rect.height : rect.x;
     node.children.forEach((child, index) => {
       const size = isAuto(child, index)
-        ? autoSize + (cuts.size ? fit * uncutEdges(index) : 0)
+        ? autoSize + (cuts.size ? fitAt(childPathAt(index)) * uncutEdges(index) : 0)
         : child.size;
       const childRect = stacked
         ? { x: rect.x, z: cursor - size, width: rect.width, height: size }
         : { x: cursor, z: rect.z, width: size, height: rect.height };
-      const childPath = `${path}.${index}`;
+      const childPath = childPathAt(index);
       if (child.type && (cuts.has(index - 1) || cuts.has(index))) {
         // The faces on either side of a cut seam are one opening in the frame, named for its first face.
         let first = index;
         while (cuts.has(first - 1)) first -= 1;
-        const along = child.type === 'pair_door' && !stacked ? pairFit : fit;
+        const along = child.type === 'pair_door' && !stacked ? pairFitAt(childPath) : fitAt(childPath);
         const lead = cuts.has(index - 1) ? 0 : along;
         const trail = cuts.has(index) ? 0 : along;
-        const across = child.type === 'pair_door' && stacked ? pairFit : fit;
+        const across = child.type === 'pair_door' && stacked ? pairFitAt(childPath) : fitAt(childPath);
         placeLeaf(child, childRect, childPath, stacked
           ? {
             left: across, right: across, top: lead, bottom: trail,
