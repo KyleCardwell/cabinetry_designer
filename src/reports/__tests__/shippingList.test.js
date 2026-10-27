@@ -132,7 +132,7 @@ describe('FX4 step f wood tops on the shipping list', () => {
     expect(row(r, 'wood_top:left', s).notes).toEqual(['Waterfall L', 'Bullnose', 'Keep flat']);
   });
 
-  it('lists a wood insert separately at its band size and excludes stone tops', () => {
+  it('lists a wood insert separately at its ordered size and excludes stone tops', () => {
     const s = { ...DEFAULT_SETTINGS, runFlex: 0 };
     const r = buildRoom({ walls: [buildWall({ runs: [buildRun({ ...wood, id: 'r', top: 'stone',
       width: 90, items: [fixed('A', 30), fixed('B', 30), fixed('C', 30)],
@@ -140,8 +140,26 @@ describe('FX4 step f wood tops on the shipping list', () => {
     })] })] });
     expect(shippingList(r, s).rows.filter(({ kind }) => kind === 'wood_top')).toEqual([
       { number: expect.any(Number), key: 'wood_top:r:top-insert', kind: 'wood_top',
-        description: 'Wood Top', size: '30 x 25 5/8 x 3 1/2', notes: [] },
+        description: 'Wood Top', size: '30 x 26 1/8 x 3 1/2', notes: [] },
     ]);
+  });
+});
+
+describe('FX4 step g ordered wood top size', () => {
+  it('prints ordered dimensions without a scribe note and honors zero scribe', () => {
+    const s = { ...DEFAULT_SETTINGS, runFlex: 0 };
+    const r = buildRoom({ walls: [buildWall({ id: 'w', x2: 96, thickness: 4.5, runs: [
+      buildRun({ id: 'base', top: 'wood', width: 96, autoCount: false,
+        anchors: { left: true, right: true }, items: [auto('C')],
+        ends: { left: { type: 'none' }, right: { type: 'none' } } }),
+    ] })] });
+    connectWallStops(r, r.walls[0]);
+    expect(row(r, 'wood_top:base', s)).toMatchObject({
+      description: 'Wood Top', size: '97 x 26 1/8 x 1 1/2', notes: [],
+    });
+    expect(row(r, 'wood_top:base', { ...s, woodTopScribe: 0 })).toMatchObject({
+      size: '96 x 25 5/8 x 1 1/2', notes: [],
+    });
   });
 });
 

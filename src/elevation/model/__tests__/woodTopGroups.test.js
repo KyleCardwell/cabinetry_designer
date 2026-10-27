@@ -4,6 +4,7 @@ import { auto, fixed, room, run, wall } from '../../../test/builders.js';
 import { bandParts } from '../bandParts.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { syncRoom } from '../room.js';
+import { connectWallStops } from './helpers/wallStops.js';
 import { woodTopGroups } from '../woodTopGroups.js';
 
 const settings = { ...DEFAULT_SETTINGS, runFlex: 0 };
@@ -28,6 +29,8 @@ describe('FX4 step d wood top groups', () => {
     expect(groups[0]).toMatchObject({ key: 'wood_top:0f8a2992-b035-45af-9dcb-88e9196b28a8',
       width: 60.9375, depth: 25.625, thickness: 1.5, segment: false });
     expect(groups[0].faces).toHaveLength(1);
+    expect(groups[0]).toMatchObject({ orderedWidth: groups[0].width, orderedDepth: groups[0].depth,
+      scribe: { left: false, right: false, back: false } });
   });
 
   it('anchor 2: joins a zero-thickness island front and back panel at the same top surface', () => {
@@ -40,7 +43,9 @@ describe('FX4 step d wood top groups', () => {
         { wallId: 'island', side: 'front', runIds: ['front'], x1: -0.75, x2: 96.75 },
         { wallId: 'island', side: 'back', runIds: ['back'], x1: -0.75, x2: 96.75 },
       ], width: 97.5, depth: fronts[0] + fronts[1], thickness: 1.5,
-      start: -0.75, end: 96.75, wallId: 'island', segment: false });
+      start: -0.75, end: 96.75, wallId: 'island', segment: false,
+      orderedWidth: 97.5, orderedDepth: fronts[0] + fronts[1],
+      scribe: { left: false, right: false, back: false } });
   });
 
   it('anchor 3: adds wall thickness to a two-face group depth', () => {
@@ -63,6 +68,7 @@ describe('FX4 step d wood top groups', () => {
       key: 'wood_top:left', runIds: ['left', 'right'],
       faces: [{ wallId: 'w', side: 'front', runIds: ['left', 'right'], x1: 9.25, x2: 70.75 }],
       width: 61.5, depth: 25.625, thickness: 1.5, start: 9.25, end: 70.75, wallId: 'w', segment: false,
+      orderedWidth: 61.5, orderedDepth: 26.125, scribe: { left: false, right: false, back: true },
     }]);
   });
 
@@ -88,6 +94,7 @@ describe('FX4 step d wood top groups', () => {
       key: 'wood_top:r:top-insert', runIds: ['r'],
       faces: [{ wallId: 'w', side: 'front', runIds: ['r'], x1: 30, x2: 60 }],
       width: 30, depth: 25.625, thickness: 3.5, start: 30, end: 60, wallId: 'w', segment: true,
+      orderedWidth: 30, orderedDepth: 26.125, scribe: { left: false, right: false, back: true },
     }]);
   });
 
@@ -153,5 +160,87 @@ describe('FX4 step d wood top groups', () => {
       topOverhang: { back: 3 }, waterfall: { left: {}, right: {} },
     })] })] });
     expect(woodTopGroups(stored, settings)[0]).toMatchObject({ width: 63, depth: 28.625, thickness: 1.5 });
+  });
+});
+
+
+describe('FX4 step g wood top scribe', () => {
+  const stopped = room({ walls: [wall({ id: 'w', x2: 96, thickness: 4.5, runs: [
+    run({ ...wood, id: 'base', width: 96, anchors: { left: true, right: true }, items: [auto('C')] }),
+  ] })] });
+  connectWallStops(stopped, stopped.walls[0]);
+
+  it('anchor 2: adds half an inch at each wall edge without changing drawn dimensions', () => {
+    expect(DEFAULT_SETTINGS.woodTopScribe).toBe(0.5);
+    const before = structuredClone(stopped);
+    const [group] = woodTopGroups(stopped, settings);
+    expect(group).toMatchObject({ width: 96, depth: 25.625, thickness: 1.5,
+      orderedWidth: 97, orderedDepth: 26.125, scribe: { left: true, right: true, back: true } });
+    const older = { ...settings };
+    delete older.woodTopScribe;
+    expect(woodTopGroups(stopped, older)).toEqual([group]);
+    expect(woodTopGroups(stopped, { ...settings, woodTopScribe: 1 })[0])
+      .toMatchObject({ orderedWidth: 98, orderedDepth: 26.625 });
+    expect(stopped).toEqual(before);
+  });
+
+  it('anchor 3: honors zero scribe while retaining the wall contact flags', () => {
+    expect(woodTopGroups(stopped, { ...settings, woodTopScribe: 0 })[0]).toMatchObject({
+      orderedWidth: 96, orderedDepth: 25.625, scribe: { left: true, right: true, back: true },
+    });
+  });
+
+  it('anchor 5: leaves an end meeting a return wall top unscribed', () => {
+    const stored = structuredClone(stopped);
+    stored.walls[1].runs = [run({ ...wood, id: 'return', x: 84, width: 36,
+      anchors: { right: true }, items: [auto('R')] })];
+    const group = woodTopGroups(stored, settings).find(({ key }) => key === 'wood_top:base');
+    expect(group.scribe).toEqual({ left: false, right: true, back: true });
+    expect(group.start).toBe(25.625);
+    expect(group.orderedWidth).toBe(group.width + 0.5);
+    expect(group.orderedDepth).toBe(26.125);
+  });
+
+  it('maps back-face end flags into front coordinates and scribes only group outside ends', () => {
+    const stored = room({ walls: [wall({ id: 'w', x2: 96, runs: [
+      run({ ...wood, id: 'L', width: 48, wallSide: 'back', anchors: { left: true, right: true },
+        items: [auto('L')] }),
+      run({ ...wood, id: 'R', x: 48, width: 48, wallSide: 'back', items: [auto('R')] }),
+    ] })] });
+    connectWallStops(stored, stored.walls[0]);
+    // Explicit wall anchors also stop a back-face run square at its own left end.
+    stored.walls[0].runs[0].anchors.left = { to: 'wall', wallId: 'w:stop:end' };
+    const [group] = woodTopGroups(stored, settings);
+    expect(group.scribe).toEqual({ left: false, right: true, back: true });
+    expect(group.orderedWidth).toBe(group.width + 0.5);
+  });
+
+  it('does not scribe open wall ends, back overhangs or both-face tops on a thick wall', () => {
+    const stored = room({ walls: [wall({ x2: 96, runs: [run({ ...wood, width: 96,
+      anchors: { left: true, right: true }, topOverhang: { back: 3 }, items: [auto('C')] })] })] });
+    const [group] = woodTopGroups(stored, settings);
+    expect(group).toMatchObject({ width: 97.5, orderedWidth: 97.5, depth: 28.625, orderedDepth: 28.625,
+      scribe: { left: false, right: false, back: false } });
+    const thickIsland = structuredClone(island);
+    thickIsland.walls[0].thickness = 4.5;
+    const [top] = woodTopGroups(thickIsland, settings);
+    expect(top.orderedDepth).toBe(top.depth);
+    expect(top.scribe).toEqual({ left: false, right: false, back: false });
+  });
+
+  it('scribes square ends only at the run’s own recess sides', () => {
+    const stored = room({ walls: [wall({ runs: [run({ ...wood, x: 30, width: 36,
+      _plane: { recessId: 'recess', offset: -30 },
+      anchors: { left: { to: 'recess', recessId: 'recess' }, right: { to: 'recess', recessId: 'recess' } },
+      items: [auto('C')] })] })] });
+    expect(woodTopGroups(stored, settings)[0]).toMatchObject({ width: 36, orderedWidth: 37,
+      scribe: { left: true, right: true, back: false } });
+    stored.walls[0].runs[0].anchors.left.recessId = 'other';
+    expect(woodTopGroups(stored, settings)[0].scribe.left).toBe(false);
+    stored.walls[0].runs[0].anchors.left.recessId = 'recess';
+    stored.walls[0].runs[0]._plane.offset = -6;
+    const [returned] = woodTopGroups(stored, settings);
+    expect(returned.scribe).toEqual({ left: false, right: false, back: false });
+    expect(returned.orderedWidth).toBe(returned.width);
   });
 });

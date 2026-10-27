@@ -42,7 +42,6 @@ export const HEIGHT_BANDS = [
       field('furnitureBaseProud', 'Base proud', 'number', { furnitureBaseOnly: true })],
     [pick('baseCutoutProfileId', 'Cutout profile', 'base_cutout', true), setting('baseCutoutFoot', 'Cutout foot', true)],
     [setting('baseCutoutHeight', 'Square cutout height', true)],
-    [setting('furnitureBaseScribe', 'Furniture base scribe', true)],
     [setting('bandDepths.toeKickSetback', 'Band depth toe kick setback')],
     [setting('bandDepths.toeKickEndPanelSetback', 'Band depth toe kick end panel setback')],
     [setting('bandDepths.toeKickSideSetback', 'Band depth toe kick side setback')],

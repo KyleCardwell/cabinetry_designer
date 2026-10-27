@@ -23,6 +23,7 @@ const roomNumbers = [
   ['baseCutoutFoot', 'Cutout foot'],
   ['baseCutoutHeight', 'Square cutout height'],
   ['furnitureBaseScribe', 'Furniture base scribe'],
+  ['woodTopScribe', 'Wood top scribe'],
   ['toeKickTopGap', 'Toe kick top gap'],
   ['fillerReturnDepth', 'Filler return depth'],
   ['fillerReturnThickness', 'Filler return thickness'],

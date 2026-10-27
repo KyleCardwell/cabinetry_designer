@@ -310,7 +310,7 @@ describe('UI1 step a room height bands', () => {
   it('shows furniture rows from the resolved base kind and retains the three setbacks last (anchor 2)', () => {
     state.settings.sectionProfiles = [];
     const expected = ['Room Base', 'Room Toe kick / base height', 'Room Toe kick top gap', 'Room Base box height', 'Room Furniture base profile',
-      'Room Base proud', 'Room Cutout profile', 'Room Cutout foot', 'Room Square cutout height', 'Room Furniture base scribe', ...setbacks];
+      'Room Base proud', 'Room Cutout profile', 'Room Cutout foot', 'Room Square cutout height', ...setbacks];
     choose('Room Base', 'furniture_base');
     expect(controls(band(render(), 'base'))).toEqual(expected);
     field(render(), 'Reset Base').props.onClick();

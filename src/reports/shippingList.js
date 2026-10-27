@@ -263,7 +263,7 @@ function orderedThickness(drawn, style) {
 }
 
 function shippingSize(room, settings, part, context) {
-  if (part.kind === 'wood_top') return formatSize(context.top.width, context.top.depth, context.top.thickness);
+  if (part.kind === 'wood_top') return formatSize(context.top.orderedWidth, context.top.orderedDepth, context.top.thickness);
   if (part.kind === 'molding') return `Lineal Feet: ${linealFeet(context.molding.measured)}`;
   if (part.kind === 'rot' || part.kind === 'trash_lid') {
     const box = context.drawerBox?.();

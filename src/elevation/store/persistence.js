@@ -149,6 +149,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'baseCutoutFoot',
   'baseCutoutHeight',
   'furnitureBaseScribe',
+  'woodTopScribe',
   'toeKickTopGap',
   'pullHeight',
   'runFlex',

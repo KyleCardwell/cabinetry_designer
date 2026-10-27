@@ -122,7 +122,7 @@ describe('DB2 f shop settings panel', () => {
     expect(header(render(), 'Settings')).toBeUndefined();
     const tree = render();
     const groups = [
-      ['Cabinets & depths', 11], ['Runs & ends', 9], ['Fillers & corners', 11],
+      ['Cabinets & depths', 11], ['Runs & ends', 11], ['Fillers & corners', 11],
       ['Reveals', 9], ['Inset face frame', 6], ['Bases, tops & bands', 7],
       ['Walls', 1], ['Openings & soffits', 14], ['Pulls', 7], ['Drawer boxes', 17], ['Shelves', 9], ['Reports', 13],
     ];
@@ -196,6 +196,14 @@ describe('DB2 f shop settings panel', () => {
     field(tree, 'Snap run heights to defaults').props.onChange({ target: { checked: false } });
     expect(state.settings.snapHeightsToDefaults).toBe(false);
     const ends = openGroup('Runs & ends');
+    expect(controls(section(ends, 'Runs & ends')).slice(-2).map(({ props }) => props['aria-label']))
+      .toEqual(['Furniture base scribe', 'Wood top scribe']);
+    expect(field(ends, 'Wood top scribe').props.value).toBe('1/2');
+    commit('Wood top scribe', '1');
+    expect(state.settings.woodTopScribe).toBe(1);
+    commit('Wood top scribe', '0');
+    expect(state.settings.woodTopScribe).toBe(0);
+    expect(state.settings.furnitureBaseScribe).toBe(0.5);
     const previous = { ...state.settings.defaultEnds };
     expect(options(field(ends, 'Default ends left'))).toEqual([['filler', 'Filler'], ['end_panel', 'End panel'], ['none', 'None']]);
     field(ends, 'Default ends left').props.onChange({ target: { value: 'none' } });
@@ -248,7 +256,7 @@ describe('RP1 a shop report settings', () => {
 
 
 describe('UI1 step a settings exclusions', () => {
-  it('keeps only the seven remaining band settings in shop/room and all sixteen at project (anchor 4)', () => {
+  it('keeps only the seven remaining band settings in shop/room and all fifteen at project (anchor 4)', () => {
     const expected = ['Bottom part height light rail', 'Bottom part height light trough', 'Bottom part height panel',
       'Bottom part height bottom cap', 'Bottom part height corbels', 'Below run overhang', 'Below run flush reveal'];
     expect(controls(section(openGroup('Bases, tops & bands'), 'Bases, tops & bands'))
@@ -260,13 +268,13 @@ describe('UI1 step a settings exclusions', () => {
     hooks.clear();
     header(render(ProjectSettingsPanel, { level: 'project' }), 'Project settings').props.onClick();
     header(render(ProjectSettingsPanel, { level: 'project' }), 'Bases, tops & bands').props.onClick();
-    expect(controls(section(render(ProjectSettingsPanel, { level: 'project' }), 'Bases, tops & bands'))).toHaveLength(16);
+    expect(controls(section(render(ProjectSettingsPanel, { level: 'project' }), 'Bases, tops & bands'))).toHaveLength(15);
     hooks.clear();
     const exclude = groupsFor('room').flatMap(({ keys }) => keys);
     expect(header(render(SettingGroups, { scope: 'room', exclude }), 'Bases, tops & bands')).toBeUndefined();
     state.rooms[0].settingsOverrides = { baseCutoutFoot: 2 };
     hooks.clear();
     expect(text(header(render(SettingsDrawer), 'Room settings'))).not.toContain('overridden');
-    expect(BAND_SETTING_KEYS).toHaveLength(9);
+    expect(BAND_SETTING_KEYS).toHaveLength(8);
   });
 });

@@ -15,6 +15,7 @@ export const SETTING_GROUPS = [
     keys: [
       'minRunWidth', 'maxRunOverhang', 'runFlex', 'adjacentRunGap', 'defaultEnds.left',
       'defaultEnds.right', 'autoEndPanelOnFreeEnd', 'sheetThickness', 'bumperThickness',
+      'furnitureBaseScribe', 'woodTopScribe',
     ],
   },
   {
@@ -43,7 +44,7 @@ export const SETTING_GROUPS = [
   {
     id: 'bases-tops-bands', label: 'Bases, tops & bands',
     keys: [
-      'baseCutoutFoot', 'baseCutoutHeight', 'furnitureBaseScribe', 'toeKickTopGap', 'bottomPartHeights.light_rail',
+      'baseCutoutFoot', 'baseCutoutHeight', 'toeKickTopGap', 'bottomPartHeights.light_rail',
       'bottomPartHeights.light_trough', 'bottomPartHeights.panel', 'bottomPartHeights.bottom_cap',
       'bottomPartHeights.corbels', 'belowRunOverhang', 'belowRunFlushReveal',
       'bandDepths.toeKickSetback', 'bandDepths.toeKickEndPanelSetback', 'bandDepths.toeKickSideSetback',
