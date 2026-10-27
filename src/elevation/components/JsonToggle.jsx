@@ -10,6 +10,7 @@ function formatBytes(bytes) {
 
 export default function JsonToggle() {
   const [showJson, setShowJson] = useState(false);
+  const [copied, setCopied] = useState(null);
   const activeRoom = useSelector((state) => (
     state.elevation.rooms.find(
       (candidate) => candidate.id === state.elevation.activeRoomId,
@@ -27,22 +28,44 @@ export default function JsonToggle() {
     })),
   } : null;
 
+  const copyJson = async () => {
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(displayRoom, null, 2));
+      setCopied('Copied');
+    } catch {
+      setCopied('Copy failed');
+    }
+    setTimeout(() => setCopied(null), 1500);
+  };
+
   return (
     <section className="border-t border-gray-700 pt-4">
-      <label className="flex items-center gap-2 text-xs text-gray-300">
-        <input
-          type="checkbox"
-          checked={showJson}
-          onChange={(event) => setShowJson(event.target.checked)}
-          className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
-        />
-        Show JSON
+      <div className="flex items-center gap-2 text-xs text-gray-300">
+        <label className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={showJson}
+            onChange={(event) => setShowJson(event.target.checked)}
+            className="rounded border-gray-600 bg-gray-900 text-blue-600 focus:ring-blue-500"
+          />
+          Show JSON
+        </label>
+        {activeRoom && (
+          <button
+            type="button"
+            onClick={copyJson}
+            className="rounded border border-gray-600 px-2 py-0.5 text-gray-300 hover:bg-gray-700"
+            title="Copy this room's JSON to the clipboard"
+          >
+            {copied ?? 'Copy JSON'}
+          </button>
+        )}
         {activeRoom && (
           <span className="ml-auto text-gray-500" title="Saved size of this room: compact JSON, UTF-8 bytes">
             {formatBytes(roomBytes)}
           </span>
         )}
-      </label>
+      </div>
       {showJson && (
         <pre className="mt-3 max-h-72 overflow-auto rounded bg-gray-950 p-3 text-[10px] leading-relaxed text-gray-400">
           {JSON.stringify(displayRoom, null, 2)}
