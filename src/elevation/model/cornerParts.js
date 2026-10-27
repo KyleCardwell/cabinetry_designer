@@ -56,6 +56,33 @@ function joinedProfileBands(room, wall, settings, shapes) {
   });
 }
 
+/** Runs anchored into landings on this face, with depth mapped to its x and the free end. */
+export function landedReturns(room, view) {
+  const returns = [];
+  for (const { wallId, a, b } of landingsOn(room, view)) {
+    const landed = room.walls.find((candidate) => candidate.id === wallId);
+    if (!landed) continue;
+    for (const end of ['left', 'right']) {
+      const corner = spanCorner(room, view, { wallSide: view.side, anchors: { [end]: { to: 'wall', wallId } } }, end);
+      const sine = Math.sin(corner.angle * Math.PI / 180);
+      if (corner.type !== 'inside' || Math.abs(sine) < 1e-9) continue;
+      const landedView = wallSideView(landed, corner.neighborWallSide);
+      const landedFrame = wallSideFrame(room, landed, corner.neighborWallSide);
+      for (const run of landedView.runs) {
+        if (run.anchors?.[corner.neighborSide] !== true || run.height <= 0) continue;
+        returns.push({
+          key: `landing:${wallId}:${end}:${run.id}`,
+          wallId, run, landedView, landedFrame,
+          end: corner.neighborSide === 'left' ? 'right' : 'left',
+          xOf: (offset) => (end === 'left' ? b + offset / sine : a - offset / sine),
+        });
+      }
+    }
+  }
+
+  return returns;
+}
+
 /**
  * What a wall face sees of its neighbours (SPEC-42.2), as shapes of drawing parts:
  * - returns: the runs on the next wall (or on a wing wall) anchored into this face's inside corner, and the
@@ -132,22 +159,8 @@ export function cornerShapes(room, wall, side, settings,
     }
   }
 
-  for (const { wallId, a, b } of landingsOn(room, view)) {
-    const landed = room.walls.find((candidate) => candidate.id === wallId);
-    if (!landed) continue;
-    for (const end of ['left', 'right']) {
-      const corner = spanCorner(room, view, { wallSide: view.side, anchors: { [end]: { to: 'wall', wallId } } }, end);
-      const sine = Math.sin(corner.angle * Math.PI / 180);
-      if (corner.type !== 'inside' || Math.abs(sine) < 1e-9) continue;
-      const landedView = wallSideView(landed, corner.neighborWallSide);
-      const landedFrame = wallSideFrame(room, landed, corner.neighborWallSide);
-      for (const run of landedView.runs) {
-        if (run.anchors?.[corner.neighborSide] !== true || run.height <= 0) continue;
-        cut(`landing:${wallId}:${end}:${run.id}`, landed, landedView, landedFrame, run,
-          corner.neighborSide === 'left' ? 'right' : 'left',
-          (offset) => (end === 'left' ? b + offset / sine : a - offset / sine));
-      }
-    }
+  for (const { key, run, landedView, landedFrame, end, xOf } of landedReturns(room, view)) {
+    cut(key, landedView, landedView, landedFrame, run, end, xOf);
   }
 
   for (const entry of soffitReturns(room, view)) {
