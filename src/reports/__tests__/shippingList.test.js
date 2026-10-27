@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
-import { room as buildRoom, run as buildRun, wall as buildWall } from '../../test/builders.js';
+import { auto, fixed, room as buildRoom, run as buildRun, wall as buildWall } from '../../test/builders.js';
 import { connectWallStops } from '../../elevation/model/__tests__/helpers/wallStops.js';
 import { newAccessory } from '../../elevation/model/accessories.js';
 import { pickedMoldings } from '../../elevation/model/__tests__/helpers/pickedMoldings.js';
@@ -55,6 +55,95 @@ function room(runs = [run()], overrides = {}, wallOverrides = {}, s = settings) 
 const row = (r, key = 'cab', s = settings) => shippingList(r, s).rows.find((entry) => entry.key === key);
 const adjustable = { number: null, key: 'adjustable-shelves', kind: 'adjustable_shelves',
   description: 'Adjustable Shelves', notes: [], size: '' };
+
+describe('FX4 step f wood tops on the shipping list', () => {
+  const stored = JSON.parse(readFileSync(new URL('../../elevation/model/__tests__/fixtures/room9.json', import.meta.url), 'utf8'));
+  const using = { ...DEFAULT_SETTINGS, ...stored.settingsOverrides };
+  const deskId = '0f8a2992-b035-45af-9dcb-88e9196b28a8';
+  const key = `wood_top:${deskId}`;
+  const wood = { top: 'wood', autoCount: false,
+    ends: { left: { type: 'none' }, right: { type: 'none' } } };
+
+  it('anchor 1: prints the Room 9 description, W x D x T and no notes', () => {
+    // Keep the specified width: the stored fixture currently draws 60 15/16, not 61 1/16.
+    expect(row(syncRoom(stored, using), key, using)).toMatchObject({
+      description: 'Wood Top', size: '61 1/16 x 25 5/8 x 1 1/2', notes: [],
+    });
+  });
+
+  it('anchor 2: prints one island top across the front run and back panel, with Both faces', () => {
+    const s = { ...DEFAULT_SETTINGS, runFlex: 0 };
+    const r = buildRoom({ walls: [buildWall({ id: 'island', x2: 96, thickness: 0, runs: [
+      buildRun({ ...wood, id: 'front', width: 96, items: [auto('cabinet')] }),
+      buildRun({ ...wood, id: 'back', width: 96, depth: 0.75, wallSide: 'back',
+        items: [{ ...auto('back-panel'), kind: 'panel', depth: 0.75, align: 'back' }] }),
+    ] })] });
+    const before = structuredClone(r);
+    const tops = shippingList(r, s).rows.filter(({ kind }) => kind === 'wood_top');
+    expect(tops).toHaveLength(1);
+    expect(tops[0]).toMatchObject({ key: 'wood_top:front', description: 'Wood Top', notes: ['Both faces'] });
+    expect(r).toEqual(before);
+  });
+
+  it('anchor 3: notes the Room 9 right waterfall and keeps the top thickness', () => {
+    const r = structuredClone(stored);
+    const desk = r.walls.flatMap(({ runs }) => runs).find(({ id }) => id === deskId);
+    desk.waterfall = { right: {} };
+    expect(row(syncRoom(r, using), key, using)).toMatchObject({
+      description: 'Wood Top', notes: ['Waterfall R'], size: expect.stringMatching(/ x 1 1\/2$/),
+    });
+  });
+
+  it('anchor 4: includes the picked nosing name, resolving run overrides before wall and room picks', () => {
+    const s = { ...using, sectionProfiles: [{ id: 'nosing', kind: 'nosing', name: 'Desk bullnose',
+      drawnPoints: { elevation: [], plan: [] },
+      geometry: { points: { a: [0, 0], b: [1, 0], c: [0, -1.5] },
+        loops: [{ closed: true, segs: [{ type: 'line', from: 'a', to: 'b' },
+          { type: 'line', from: 'b', to: 'c' }, { type: 'line', from: 'c', to: 'a' }] }] } }] };
+    const r = structuredClone(stored);
+    const wall = r.walls.find(({ runs }) => runs.some(({ id }) => id === deskId));
+    const desk = wall.runs.find(({ id }) => id === deskId);
+    r.profile.nosingProfileId = 'missing';
+    wall.profile.nosingProfileId = 'nosing';
+    expect(row(syncRoom(r, s), key, s).notes).toEqual(['Desk bullnose']);
+    desk.overrides.nosingProfileId = 'none';
+    expect(row(syncRoom(r, s), key, s).notes).toEqual([]);
+    desk.overrides.nosingProfileId = 'nosing';
+    wall.profile.nosingProfileId = 'none';
+    expect(row(syncRoom(r, s), key, s).notes).toEqual(['Desk bullnose']);
+  });
+
+  it('combines waterfalls from member runs, deduplicates nosings, and puts free text last', () => {
+    const s = { ...DEFAULT_SETTINGS, runFlex: 0, sectionProfiles: [{ id: 'nosing', kind: 'nosing', name: 'Bullnose',
+      drawnPoints: { elevation: [], plan: [] },
+      geometry: { points: { a: [0, 0], b: [1, 0], c: [0, -1.5] },
+        loops: [{ closed: true, segs: [{ type: 'line', from: 'a', to: 'b' },
+          { type: 'line', from: 'b', to: 'c' }, { type: 'line', from: 'c', to: 'a' }] }] } }] };
+    const r = buildRoom({ profile: { nosingProfileId: 'nosing' },
+      reportParts: { 'wood_top:left': { name: ' Desk top ', note: ' Keep flat ' } },
+      walls: [buildWall({ runs: [
+        buildRun({ ...wood, id: 'left', x: 10, width: 30, items: [auto('L')], waterfall: { left: {} } }),
+        buildRun({ ...wood, id: 'right', x: 40, width: 30, items: [auto('R')], waterfall: { right: {} } }),
+      ] })] });
+    const tops = shippingList(r, s).rows.filter(({ kind }) => kind === 'wood_top');
+    expect(tops).toHaveLength(1);
+    expect(tops[0]).toMatchObject({ description: 'Desk top', notes: ['Waterfall both', 'Bullnose', 'Keep flat'] });
+    delete r.walls[0].runs[1].waterfall;
+    expect(row(r, 'wood_top:left', s).notes).toEqual(['Waterfall L', 'Bullnose', 'Keep flat']);
+  });
+
+  it('lists a wood insert separately at its band size and excludes stone tops', () => {
+    const s = { ...DEFAULT_SETTINGS, runFlex: 0 };
+    const r = buildRoom({ walls: [buildWall({ runs: [buildRun({ ...wood, id: 'r', top: 'stone',
+      width: 90, items: [fixed('A', 30), fixed('B', 30), fixed('C', 30)],
+      topSegments: [{ id: 'insert', from: 'B', to: 'B', kind: 'wood', drop: 2, mode: 'box' }],
+    })] })] });
+    expect(shippingList(r, s).rows.filter(({ kind }) => kind === 'wood_top')).toEqual([
+      { number: expect.any(Number), key: 'wood_top:r:top-insert', kind: 'wood_top',
+        description: 'Wood Top', size: '30 x 25 5/8 x 3 1/2', notes: [] },
+    ]);
+  });
+});
 
 describe('IE1 step d shipping inside panels', () => {
   it('lists both sides like run-end panels with their style, thickness and notes', () => {

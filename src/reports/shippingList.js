@@ -19,7 +19,7 @@ import { carriesMolding } from '../elevation/model/parts.js';
 import { fillerOrderedDepth, fillerReturnDepth } from '../elevation/model/planPieces.js';
 import { resolveProfile } from '../elevation/model/profile.js';
 import { resolveWall } from '../elevation/model/room.js';
-import { runBands } from '../elevation/model/runBands.js';
+import { runBands, waterfallEnds } from '../elevation/model/runBands.js';
 import { runScene } from '../elevation/model/runScene.js';
 import { sectionProfileBounds } from '../elevation/model/sectionProfiles.js';
 import { wallInteriorData } from '../elevation/model/shelves.js';
@@ -30,6 +30,7 @@ import {
 import { teeFillers } from '../elevation/model/tees.js';
 import { wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
+import { woodTopGroups } from '../elevation/model/woodTopGroups.js';
 import { doorOrderItems } from './doorOrder.js';
 import { formatInch, formatSize } from './format.js';
 import { frameMemberRoles, frameNotes, frameNotchNotes, frameReasons, frameReturnNotes, frameStandards, frameStepReturnNotes } from './frameNotes.js';
@@ -136,6 +137,7 @@ function shippingContext(room, settings) {
   const elevations = new Map();
   const interiorData = new Map();
   let bases;
+  let tops;
   let moldings;
   return (part) => {
     if (part.kind === 'molding') {
@@ -145,6 +147,10 @@ function shippingContext(room, settings) {
     if (part.kind === 'furniture_base') {
       bases ??= new Map(furnitureBaseGroups(room, settings).map((group) => [group.key, group]));
       return { base: bases.get(part.key) };
+    }
+    if (part.kind === 'wood_top') {
+      tops ??= new Map(woodTopGroups(room, settings).map((group) => [group.key, group]));
+      return { top: tops.get(part.key) };
     }
     const wall = room.walls?.find(({ id }) => id === part.wallId);
     if (!wall) return {};
@@ -240,7 +246,7 @@ function describePart(room, settings, part, context) {
     case 'wall_end_panel': description = 'Wall End Panel'; break;
     case 'frame': description = 'Face Frame'; break;
     case 'furniture_base': description = 'Furniture Base'; break;
-    case 'wood_top': return ''; // Report content follows in FX4 step f.
+    case 'wood_top': description = 'Wood Top'; break;
     case 'rot': description = 'ROT Drawer Box'; break;
     case 'trash_lid': description = 'Trash Lid'; break;
   }
@@ -257,8 +263,7 @@ function orderedThickness(drawn, style) {
 }
 
 function shippingSize(room, settings, part, context) {
-  // Wood top report sizing is added in FX4 step f; these room-level parts have no rectangle.
-  if (part.kind === 'wood_top') return '';
+  if (part.kind === 'wood_top') return formatSize(context.top.width, context.top.depth, context.top.thickness);
   if (part.kind === 'molding') return `Lineal Feet: ${linealFeet(context.molding.measured)}`;
   if (part.kind === 'rot' || part.kind === 'trash_lid') {
     const box = context.drawerBox?.();
@@ -387,6 +392,27 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
       box.slideId !== resolveSlide(settings).id ? box.slide.name : null];
   }
   if (part.kind === 'molding') groups[13] = context.molding.note;
+  if (part.kind === 'wood_top') {
+    const top = context.top;
+    let left = false;
+    let right = false;
+    const nosings = new Set();
+    const stored = room.walls.find(({ id }) => id === top.wallId);
+    for (const { side, runIds } of top.faces) {
+      const view = resolveWall(room, stored, side);
+      const profile = resolveProfile(settings, room, view);
+      for (const run of view.runs.filter(({ id }) => runIds.includes(id))) {
+        const waterfall = waterfallEnds(room, view, run, settings);
+        left ||= Boolean(waterfall.left);
+        right ||= Boolean(waterfall.right);
+        const nosing = moldingProfiles(profile, settings, run).nosing;
+        if (nosing?.profile.name) nosings.add(nosing.profile.name);
+      }
+    }
+    groups[13] = [top.faces.length === 2 ? 'Both faces' : null,
+      left && right ? 'Waterfall both' : left ? 'Waterfall L' : right ? 'Waterfall R' : null,
+      ...nosings];
+  }
   // Scribe is already in the ordered size, so it gets no note of its own (Kyle 2026-10-23).
   if (['filler', 'end_panel'].includes(part.kind)) {
     const tee = scene.tees.find((tee) => tee.id === part.key || tee.pieceId === part.key);

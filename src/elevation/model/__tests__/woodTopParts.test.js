@@ -72,7 +72,8 @@ describe('FX4 step e wood top part numbers and badges', () => {
     }
     expect(() => shippingList(island, settings)).not.toThrow();
     expect(shippingList(island, settings).rows.find(({ key }) => key === top.key))
-      .toMatchObject({ description: '', size: '' });
+      .toMatchObject({ description: 'Wood Top', size: expect.stringMatching(/^97 1\/2 x .+ x 1 1\/2$/),
+        notes: ['Both faces'] });
   });
 
   it('anchor 4: uses WT 50 and reserves overrides before allocating the other numbers', () => {
