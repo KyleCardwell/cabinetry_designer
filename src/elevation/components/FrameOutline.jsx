@@ -3,7 +3,7 @@ import { wallRectToScreen } from '../canvas/transform.js';
 import { frameRegionOutline } from '../model/elevationParts.js';
 import { outlineGeometry } from './outlinePath.js';
 
-const FRAME_STROKE = '#e7e5e4';
+export const FRAME_STROKE = '#e7e5e4';
 
 export default function FrameOutline({ region, transform }) {
   const outline = frameRegionOutline(region);

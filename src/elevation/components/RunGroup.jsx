@@ -11,6 +11,7 @@ import {
 import { KIND_COLORS } from '../model/constants.js';
 import { cornerAt } from '../model/corners.js';
 import { doorDrawing, runDoorDetails } from '../model/doorDetails.js';
+import { regionOpenings } from '../model/frames.js';
 import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { centerlineMarkers } from '../model/dimensions.js';
@@ -26,7 +27,7 @@ import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
 import CellChains from './CellChains.jsx';
 import DoorDetails from './DoorDetails.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
-import FrameOutline from './FrameOutline.jsx';
+import FrameOutline, { FRAME_STROKE } from './FrameOutline.jsx';
 import InteriorShapes from './InteriorShapes.jsx';
 import InteriorDimensions from './InteriorDimensions.jsx';
 import PieceRect from './PieceRect.jsx';
@@ -91,6 +92,11 @@ function RunGroup({
   const bands = useMemo(
     () => runBands(room, wall, run, settings, scene),
     [room, run, scene, settings, wall],
+  );
+  // FX4 a: the frame's openings, drawn on their own so they still show when profiled faces shrink inside them.
+  const frameOpenings = useMemo(
+    () => frames.regions.flatMap((region) => regionOpenings(region, faceLayouts)),
+    [frames, faceLayouts],
   );
   const toScreen = (rect) => rect && wallRectToScreen(rect, transform);
   const toBand = (band) => band?.outline ? outlineGeometry(band.outline, transform) : toScreen(band);
@@ -386,6 +392,16 @@ function RunGroup({
           key={region.id}
           region={region}
           transform={transform}
+        />
+      ))}
+      {frameOpenings.map((opening, index) => (
+        <Rect
+          key={`frame-opening-${index}`}
+          {...toScreen(opening)}
+          fillEnabled={false}
+          stroke={FRAME_STROKE}
+          strokeWidth={1}
+          listening={false}
         />
       ))}
 
