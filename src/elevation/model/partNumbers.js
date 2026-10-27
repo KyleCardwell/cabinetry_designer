@@ -1,4 +1,5 @@
 import { runFaceLayouts } from './faceLayouts.js';
+import { bandParts } from './bandParts.js';
 import { cellPieces, partPieces } from './cells.js';
 import { frameBadgeAnchor, frameMembers, frameRegions, regionOpenings } from './frames.js';
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
@@ -13,7 +14,9 @@ import { splitRun } from './splitRun.js';
 import { runBands } from './runBands.js';
 import { runScene } from './runScene.js';
 import { teeFillers } from './tees.js';
+import { runTop } from './tops.js';
 import { wallEndPanels } from './wallEndPanels.js';
+import { woodTopGroups } from './woodTopGroups.js';
 import {
   PART_MOLDINGS,
   carriesMolding,
@@ -24,7 +27,7 @@ import {
 } from './parts.js';
 
 export { PART_MOLDINGS, moldingPartKey, wallEndPanelPartKey } from './parts.js';
-export const MOLDING_LABELS = { toeKick: 'TK', topMold: 'TM', crown: 'CR', furniture_base: 'FB' };
+export const MOLDING_LABELS = { toeKick: 'TK', topMold: 'TM', crown: 'CR', furniture_base: 'FB', wood_top: 'WT' };
 /** Horizontal slot for each molding badge: -1 left of centre, 0 centre, 1 right. */
 export const MOLDING_BADGE_SLOTS = { toeKick: 0, topMold: -1, crown: 1 };
 
@@ -121,6 +124,36 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
       z: band.z,
       width: band.width,
       height: band.height,
+    });
+  }
+  let topBands;
+  for (const group of woodTopGroups(room, settings)) {
+    const face = group.faces.find(({ wallId, side }) => wallId === wall.id && side === (wall.side ?? 'front'));
+    const number = byKey.get(group.key);
+    if (!face || number === undefined) continue;
+    topBands ??= bandParts(room, wall.sideSource ?? wall, wall.side ?? 'front', settings)
+      .filter(({ kind }) => kind === 'countertop');
+    const band = topBands.filter((candidate) => {
+      if (!face.runIds.includes(candidate.runId)) return false;
+      if (group.segment) return group.key === `wood_top:${candidate.id}`;
+      if (candidate.id !== `${candidate.runId}:countertop`
+        && !candidate.id.startsWith(`${candidate.runId}:countertop:`)) return false;
+      const start = wall.side === 'back' ? wallLength(wall) - candidate.x - candidate.width : candidate.x;
+      return start >= face.x1 - 1e-6 && start + candidate.width <= face.x2 + 1e-6;
+    }).sort((a, b) => b.width - a.width)[0];
+    if (!band) continue;
+    const height = group.segment ? band.height
+      : runTop(wall, runs.find(({ id }) => id === band.runId), profile).height;
+    badges.push({
+      molding: 'wood_top',
+      slot: 0,
+      key: group.key,
+      number,
+      label: MOLDING_LABELS.wood_top,
+      x: band.x,
+      z: band.z + band.height - height,
+      width: band.width,
+      height,
     });
   }
   return badges;

@@ -19,6 +19,7 @@ import { runMoldings } from './tops.js';
 import { wallNumbers } from './topology.js';
 import { miteredSpan, panelRunMiters, wallEndPanels } from './wallEndPanels.js';
 import { WALL_SIDES, wallSideView } from './wallSides.js';
+import { woodTopGroups } from './woodTopGroups.js';
 
 export const PART_MOLDINGS = ['toeKick', 'topMold', 'crown'];
 
@@ -200,7 +201,8 @@ function wallPanelPart(wall, panel) {
 /**
  * Every part the shop makes for a room, in numbering order (SPEC-39 C8): wall by wall (left wall end
  * panels, then each face's runs in walk order, then right end panels), with each furniture base group
- * immediately before its earliest run's first part, then one per molding kind in the room. The single
+ * immediately before its earliest run's first part and each wood top after its runs' last part,
+ * then one per molding kind in the room. The single
  * list part numbers, reports, the estimator and the AI layer read.
  */
 export function roomParts(room, settings) {
@@ -243,6 +245,25 @@ export function roomParts(room, settings) {
   const parts = wallParts.flatMap((part, index) => [...basesAt(index), part]);
   // Retain a base even when its member runs have no numbered parts, ahead of the moldings.
   parts.push(...basesAt(wallParts.length));
+
+  const lastPartByRun = new Map();
+  parts.forEach((part, index) => {
+    if (part.runId) lastPartByRun.set(part.runId, index);
+  });
+  const topsByIndex = new Map();
+  for (const group of woodTopGroups(room, settings)) {
+    const indexes = group.runIds.map((id) => lastPartByRun.get(id)).filter((index) => index !== undefined);
+    const index = indexes.length ? Math.max(...indexes) + 1 : parts.length;
+    const tops = topsByIndex.get(index) ?? [];
+    tops.push({ key: group.key, kind: 'wood_top', runIds: group.runIds,
+      wallId: null, side: null, runId: null, pieceId: null });
+    topsByIndex.set(index, tops);
+  }
+  // Insert against the original indexes so connected groups and inserts retain their walk order.
+  for (let index = parts.length; index >= 0; index -= 1) {
+    const tops = topsByIndex.get(index);
+    if (tops) parts.splice(index, 0, ...tops);
+  }
 
   for (const molding of PART_MOLDINGS) {
     const present = walls.some((wall) => {

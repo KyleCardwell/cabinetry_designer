@@ -240,6 +240,7 @@ function describePart(room, settings, part, context) {
     case 'wall_end_panel': description = 'Wall End Panel'; break;
     case 'frame': description = 'Face Frame'; break;
     case 'furniture_base': description = 'Furniture Base'; break;
+    case 'wood_top': return ''; // Report content follows in FX4 step f.
     case 'rot': description = 'ROT Drawer Box'; break;
     case 'trash_lid': description = 'Trash Lid'; break;
   }
@@ -256,6 +257,8 @@ function orderedThickness(drawn, style) {
 }
 
 function shippingSize(room, settings, part, context) {
+  // Wood top report sizing is added in FX4 step f; these room-level parts have no rectangle.
+  if (part.kind === 'wood_top') return '';
   if (part.kind === 'molding') return `Lineal Feet: ${linealFeet(context.molding.measured)}`;
   if (part.kind === 'rot' || part.kind === 'trash_lid') {
     const box = context.drawerBox?.();
