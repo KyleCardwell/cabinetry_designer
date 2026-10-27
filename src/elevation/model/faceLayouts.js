@@ -2,7 +2,7 @@ import { captureSides } from './capture.js';
 import { cellCaptureSides, cellPieces, coveredSides, EPSILON, gapReach, hingeStops, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
-import { cabinetFaceLevels, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
+import { cabinetFaceLevels, faceEdgeProfiled, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { applyHinges, cabinetFaces, defaultFace, faceArea } from './faces.js';
 import { faceOutline, getFaceNode } from './faceTree.js';
@@ -91,7 +91,7 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       bottom: Math.abs(piece.z - column.z) <= 1e-6,
     };
     const reveals = cabinetReveals({
-      style,
+      style: isInsetStyle(style) ? { ...style, profiledEdge: true } : style,
       cabinetTypeId: run.cabinetTypeId,
       run,
       topKind: topKinds.get(column.id),
@@ -112,7 +112,13 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       ? typeStandardReveals(style, CABINET_TYPE_IDS.BASE, settings).top - reveals.values.top : 0;
     const matchedFace = resolveFaceMatches(storedFace, 'base', baseBankHeight(room, wall, style, settings));
     const face = growStandardFronts(resolveFaceMatches(matchedFace, 'standard', standardDrawerHeight(style, settings)), topGrowth);
-    const resolved = cabinetFaces({ ...item, face }, box, run.cabinetTypeId, settings, reveals.values);
+    let resolved = cabinetFaces({ ...item, face }, box, run.cabinetTypeId, settings, reveals.values);
+    if (isInsetStyle(style)) {
+      reveals.values.squarePaths = new Set(resolved.faces.filter((rect) => !faceEdgeProfiled(
+        room, wall, run, item, getFaceNode(face, rect.path), rect, settings,
+      )).map(({ path }) => path));
+      resolved = cabinetFaces({ ...item, face }, box, run.cabinetTypeId, settings, reveals.values);
+    }
     const wallSides = Object.fromEntries(['left', 'right'].map((side) => {
       const anchor = run.anchors?.[side];
       const atEdge = side === 'left'

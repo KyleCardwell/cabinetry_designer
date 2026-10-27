@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { cellPieces } from '../cells.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { DEFAULT_DOOR_STYLE } from '../doorStyles.js';
+import { auto, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { layoutRun, runFaceLayouts } from '../faceLayouts.js';
 import {
   frameMembers, frameRegions, frameVerticalChains, groupMembers, regionOpenings,
 } from '../frames.js';
-import { gridFromItems } from '../grid.js';
 import { resolveWall } from '../room.js';
 
 const S = DEFAULT_SETTINGS;
@@ -29,25 +30,25 @@ const counts = (region, openings) => {
 };
 
 /** SPEC-36.3 BW: a base at x 24, 48 wide, z 4, 30.5 tall, two auto cabinets; `a` carries the face. */
-function layouts(style, face) {
-  const run = {
+function layouts(style, face, settings = S) {
+  const run = buildRun({
     id: 'r', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width: 48, z: 4, height: 30.5, depth: 24,
     ends: { left: NONE, right: NONE }, autoCount: false, maxCabinetWidth: null,
     heightMode: 'manual', overrides: {}, anchors: { left: false, right: false },
-    grid: gridFromItems('r', [{ id: 'a', kind: 'cabinet', width: null, face }, { id: 'b', kind: 'cabinet', width: null }]),
-  };
-  const wall = {
+    items: [{ ...auto('a'), face }, auto('b')],
+  });
+  const wall = buildWall({
     id: 'wall-1', name: 'Wall 1', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5,
     flipped: false, connections: { start: null, end: null }, profile: {}, runs: [run], openings: [],
-  };
-  const room = {
+  });
+  const room = buildRoom({
     id: 'room-1', name: 'Room 1', profile: { ...S.defaultProfile }, walls: [wall], wallOrder: ['wall-1'],
     ...(style ? { style } : {}),
-  };
+  });
   const resolved = resolveWall(room, room.walls[0]);
-  const layout = layoutRun(room, resolved, run, S);
-  const frames = frameRegions(room, run, cellPieces(run, layout), S);
-  const faceLayouts = runFaceLayouts(room, resolved, run, S, layout);
+  const layout = layoutRun(room, resolved, run, settings);
+  const frames = frameRegions(room, run, cellPieces(run, layout), settings);
+  const faceLayouts = runFaceLayouts(room, resolved, run, settings, layout);
   const region = frames.regions[0] ?? null;
   return {
     region,
@@ -80,7 +81,10 @@ describe('SPEC-36.3 no rail between', () => {
   });
 
   it('fits a profiled opening once and leaves 1/16" between its faces', () => {
-    const { faces } = layouts({ cabinetStyleId: 14, profiledEdge: true }, stack([0, 1]));
+    const { faces } = layouts(INSET, stack([0, 1]), {
+      ...S,
+      teamDoorStyle: { ...DEFAULT_DOOR_STYLE, profiles: { ...DEFAULT_DOOR_STYLE.profiles, outside: 'p-edge' } },
+    });
     expect(shown(faces)).toEqual([
       ['r.0', 'r.0', 24.84375, 23.84375, 22.3125, 9.0625],
       ['r.1', 'r.0', 24.84375, 14.71875, 22.3125, 9.0625],

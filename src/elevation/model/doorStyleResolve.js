@@ -6,6 +6,8 @@ import {
   teamDoorStyle,
 } from './doorStyles.js';
 import { gridLeaves } from './grid.js';
+import { doorProfileOffsets, inset } from './doorProfileLines.js';
+import { midDefaults, partSizes } from './doorSizes.js';
 
 export function facePartType(type) {
   if (type === 'open') return null;
@@ -94,6 +96,22 @@ export function resolveDoorStyle(room, settings, partType, levels, designs = set
   }
 
   return { style, design, source, warnings };
+}
+
+/** Whether a face at its profiled size keeps its outside profile after the short-face rule. */
+export function faceEdgeProfiled(room, wall, run, item, faceNode, rect, settings) {
+  const partType = facePartType(faceNode.type);
+  if (partType === null) return false;
+  const { style, design } = resolveDoorStyle(
+    room, settings, partType, cabinetFaceLevels(room, wall, run, item, faceNode),
+  );
+  if (!style.profiles.outside) return false;
+  const offsets = doorProfileOffsets(style, design, settings?.sectionProfiles ?? []);
+  const core = inset(rect, offsets.slots.outside?.reachOut ?? 0);
+  const sizeRect = design.construction === 'slab' ? rect : core;
+  return partSizes(style, design, {
+    width: sizeRect.width, height: sizeRect.height, coreHeight: core.height, sizes: faceNode.sizes,
+  }, midDefaults(style, design, offsets)).slab !== 'rule';
 }
 
 /** The resolved style and design of every non-open cabinet face in a run. */
