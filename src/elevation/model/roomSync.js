@@ -44,6 +44,7 @@ import { cloneRun, cloneRoom } from './roomClone.js';
 import { endMinWidthsForRun, endCornerAnglesForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
 import { pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
 import { returnExtents } from './returnExtents.js';
+import { returnFaceWarnings } from './returnWarnings.js';
 import { flexRoom, unflexRoom } from './runFlex.js';
 
 const PIN_EPSILON = 1e-6;
@@ -511,6 +512,7 @@ export function roomDiagnostics(room, settings) {
           ...blockedOpenings,
           ...casingClearanceWarnings(run, wall, length, settings),
           ...cornerLapWarnings(synced, wall, run, settings),
+          ...returnFaceWarnings(synced, resolvedWall, run, settings),
           ...soffitConflicts(wall, run),
           ...recessWarnings(wall, run),
         ],

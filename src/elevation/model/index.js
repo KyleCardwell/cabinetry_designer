@@ -530,6 +530,7 @@ export { wallParts } from './wallParts.js';
 export { runSide } from './runSide.js';
 export { cornerParts, cornerShapes } from './cornerParts.js';
 export { returnExtents } from './returnExtents.js';
+export { returnFaceWarnings } from './returnWarnings.js';
 export {
   isUuid,
   profileToRow,
