@@ -92,17 +92,6 @@ describe('FX4 c2 per-face profiled fit', () => {
     ]);
   });
 
-  it('anchor 7: stored profiledEdge flags do not decide fit', () => {
-    for (const flag of [false, true]) {
-      expect(rects(golden({ ...document.settings, teamDoorStyle: PROFILED }, (_r, target) => {
-        target.style = { ...target.style, profiledEdge: flag };
-      }).get(CAB).faces)).toEqual(profiled);
-      expect(rects(golden(document.settings, (_r, target) => {
-        target.style = { ...target.style, profiledEdge: flag };
-      }).get(CAB).faces)).toEqual(square);
-    }
-  });
-
   it('anchor 8: outside profiles leave every G1 Euro face unchanged', () => {
     const r = document.rooms.find(({ name }) => name === 'G1 Euro kitchen');
     for (const w of r.walls) {

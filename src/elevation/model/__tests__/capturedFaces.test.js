@@ -6,7 +6,7 @@ import { cabinetReveals, capturedFaces } from '../styles.js';
 
 const { BASE, TALL } = CABINET_TYPE_IDS;
 const S = DEFAULT_SETTINGS;
-const EURO = { cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false };
+const EURO = { cabinetStyleId: 13, beadWidth: 0.25 };
 const BOTH = { left: true, right: true };
 const DOOR = { type: 'door', size: null };
 const PAIR = { type: 'pair_door', size: null };

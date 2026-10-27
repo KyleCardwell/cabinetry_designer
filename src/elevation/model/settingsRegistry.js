@@ -178,7 +178,6 @@ export const SETTINGS_REGISTRY = [
     }))),
   { key: 'defaultStyle.cabinetStyleId', label: 'Cabinet style', kind: 'choice', lowest: 'cabinet', managedBy: 'style fields', choices: [13, 14, 15] },
   { key: 'defaultStyle.beadWidth', label: 'Bead width', kind: 'number', lowest: 'cabinet', managedBy: 'style fields' },
-  { key: 'defaultStyle.profiledEdge', label: 'Profiled edge', kind: 'bool', lowest: 'cabinet', managedBy: 'style fields' },
 ];
 
 const entriesByKey = new Map(SETTINGS_REGISTRY.map((entry) => [entry.key, entry]));

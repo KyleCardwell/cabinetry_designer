@@ -158,8 +158,8 @@ describe('styles and reveals', () => {
     state = elevationReducer(state, setRoomStyle({ roomId: 'room-1', style: null }));
     expect('style' in state.rooms[0]).toBe(false);
 
-    state = elevationReducer(state, setRunStyle({ ...at, style: { profiledEdge: true, beadWidth: 0.5 } }));
-    expect(currentRun(state).style).toEqual({ beadWidth: 0.5, profiledEdge: true });
+    state = elevationReducer(state, setRunStyle({ ...at, style: { beadWidth: 0.5 } }));
+    expect(currentRun(state).style).toEqual({ beadWidth: 0.5 });
     state = elevationReducer(state, setRunStyle({ ...at, style: {} }));
     expect('style' in currentRun(state)).toBe(false);
   });

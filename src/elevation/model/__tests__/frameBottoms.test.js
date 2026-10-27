@@ -10,8 +10,8 @@ import { normalizeElevationDocument } from '../../store/persistence.js';
 
 const S = DEFAULT_SETTINGS;
 const { BASE, UPPER } = CABINET_TYPE_IDS;
-const INSET = { cabinetStyleId: 14, beadWidth: 0.25, profiledEdge: false };
-const BEADED = { cabinetStyleId: 15, beadWidth: 0.25, profiledEdge: false };
+const INSET = { cabinetStyleId: 14, beadWidth: 0.25 };
+const BEADED = { cabinetStyleId: 15, beadWidth: 0.25 };
 const DOOR = { type: 'door', size: null };
 const RAIL = { id: 'rail', kind: 'light_rail', height: 1.5, doors: 'cover' };
 const TROUGH = { id: 'trough', kind: 'light_trough', height: 3, doors: 'flush' };

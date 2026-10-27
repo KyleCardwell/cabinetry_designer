@@ -875,6 +875,14 @@ function migrateDoorDesignScopes(scope) {
   return migrated;
 }
 
+/** Strip the retired outside-edge choice without changing any other style keys. */
+function withoutProfiledEdge(owner, key = 'style') {
+  if (!isPlainObject(owner[key]) || !Object.hasOwn(owner[key], 'profiledEdge')) return owner;
+  const next = { ...owner, [key]: { ...owner[key] } };
+  delete next[key].profiledEdge;
+  return next;
+}
+
 function normalizeDocument(document, schemaVersion) {
   if (!document || document.schemaVersion !== schemaVersion) return document;
   document = migrateAppliedMoldingScopes(document);
@@ -883,7 +891,7 @@ function normalizeDocument(document, schemaVersion) {
   document = migrateDoorDesignScopes(document);
   let settings = document.settings;
   if (settings && typeof settings === 'object') {
-    settings = { ...settings };
+    settings = withoutProfiledEdge({ ...settings }, 'defaultStyle');
     settings.report = { ...DEFAULT_SETTINGS.report, ...settings.report };
     for (const key of V2_DEFAULTED_SETTING_KEYS) {
       if (settings[key] === undefined) settings[key] = DEFAULT_SETTINGS[key];
@@ -1000,16 +1008,16 @@ function withoutDrawerCharging(face) {
   return next;
 }
 
-/** Remove the retired cabinet purpose and box charging picks, including nested grids. */
-function withoutRetiredCharging(node) {
+/** Remove retired cabinet style, purpose and charging picks, including nested grids. */
+function withoutRetiredCabinetFields(node) {
   if (!isPlainObject(node)) return node;
   if (Array.isArray(node.cells)) {
     return { ...node, cells: node.cells.map((cell) => (
-      isPlainObject(cell) ? { ...cell, node: withoutRetiredCharging(cell.node) } : cell
+      isPlainObject(cell) ? { ...cell, node: withoutRetiredCabinetFields(cell.node) } : cell
     )) };
   }
   if (node.kind !== 'cabinet') return node;
-  const next = { ...node };
+  const next = { ...withoutProfiledEdge(node) };
   if (next.purpose === 'charging') delete next.purpose;
   if (node.face !== undefined) next.face = withoutDrawerCharging(node.face);
   return next;
@@ -1026,7 +1034,7 @@ export function normalizeElevationDocument(document) {
     rooms: Array.isArray(normalized.rooms) ? normalized.rooms.map((room) => {
       if (!room || typeof room !== 'object') return room;
       return {
-        ...room,
+        ...withoutProfiledEdge(room),
         partNumberStart: room.partNumberStart ?? 1,
         partNumberOverrides: room.partNumberOverrides ?? {},
         reportParts: room.reportParts ?? {},
@@ -1044,7 +1052,7 @@ export function normalizeElevationDocument(document) {
             Array.isArray(joints) ? joints.map((joint) => joint?.id) : [],
           );
           return {
-            ...wall,
+            ...withoutProfiledEdge(wall),
             joints,
             openings: Array.isArray(wall.openings) ? wall.openings.map((opening) => (
               opening && typeof opening === 'object'
@@ -1059,8 +1067,8 @@ export function normalizeElevationDocument(document) {
             runs: Array.isArray(wall.runs) ? wall.runs.map((run) => {
               if (!run || typeof run !== 'object') return run;
               return {
-                ...normalizeRunWaterfall(normalizeRunTopOverhang(run)),
-                ...(run.grid !== undefined ? { grid: withoutRetiredCharging(run.grid) } : {}),
+                ...withoutProfiledEdge(normalizeRunWaterfall(normalizeRunTopOverhang(run))),
+                ...(run.grid !== undefined ? { grid: withoutRetiredCabinetFields(run.grid) } : {}),
                 anchors: run.anchors && typeof run.anchors === 'object'
                   ? Object.fromEntries(Object.entries(run.anchors).map(([side, anchor]) => [
                       side,

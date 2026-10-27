@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { CABINET_TYPE_IDS, findCell, resolveWall, runItems, runScene } from '../../model/index.js';
+import { matchingLeftPanel } from '../../model/leftPanelIndex.js';
 import elevationReducer, { setActiveWall, setSelection, splitCell } from '../../store/elevationSlice.js';
 import { auto, opening as makeOpening, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 
@@ -483,6 +484,12 @@ describe('UI7 step a left panel sections', () => {
   const editor = (props = {}) => render(DesignerEditor, { mode: 'room', ...props });
   const aside = (tree) => nodes(tree).find(({ type }) => type === 'aside');
 
+  it('FX4 c3 anchor 2: removes the retired edge input from left panel search', () => {
+    expect(matchingLeftPanel('Profiled edge')).toEqual([]);
+    expect(matchingLeftPanel('Outside edge')).toEqual([]);
+    expect(matchingLeftPanel('Cabinet style').map(({ id }) => id)).toEqual(['left.style']);
+  });
+
   it('anchor 1: orders the left sections before the Settings button and locks editable content', () => {
     for (const mode of ['room', 'lab']) {
       const tree = editor({ mode, readOnly: true });
@@ -512,13 +519,13 @@ describe('UI7 step a left panel sections', () => {
   it('anchor 2: defaults Walls and heights open, style and parts closed, and persists each section with badges', () => {
     const room = state.rooms[0];
     room.profile = { toeKickHeight: 0, crownProfileId: null, baseKind: 'toe_kick', unused: undefined };
-    room.style = { cabinetStyleId: 1, profiledEdge: false, beadWidth: 0, stileWidth: null, railWidth: undefined };
+    room.style = { cabinetStyleId: 1, beadWidth: 0, stileWidth: null, railWidth: undefined };
     room.settingsOverrides = { bandDepths: { crownProjection: 2 } };
     let left = aside(editor());
     const titles = ['Walls', 'Room heights', 'Style & door styles', 'Part numbers & report'];
     expect(titles.map((title) => sectionButton(left, title).props['aria-expanded'])).toEqual([true, true, false, false]);
     expect(text(sectionButton(left, 'Room heights'))).toContain('3 overridden');
-    expect(text(sectionButton(left, 'Style & door styles'))).toContain('3 overridden');
+    expect(text(sectionButton(left, 'Style & door styles'))).toContain('2 overridden');
     expect(text(sectionButton(left, 'Walls'))).not.toContain('overridden');
     expect(text(sectionButton(left, 'Part numbers & report'))).not.toContain('overridden');
     titles.forEach((title) => sectionButton(left, title).props.onClick());

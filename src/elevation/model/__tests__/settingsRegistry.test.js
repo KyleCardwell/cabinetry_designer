@@ -11,12 +11,12 @@ function leaves(values, prefix = '') {
 }
 
 describe('DB1 a settings registry', () => {
-  it('covers exactly 162 settings leaves, with 108 room settings and 15 team-only settings after UI9d', () => {
+  it('covers exactly 161 settings leaves, with 108 room settings and 15 team-only settings after FX4 c3', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(162);
+    expect(new Set(keys).size).toBe(161);
     expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(108);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(15);
   });
@@ -33,8 +33,8 @@ describe('DB1 a settings registry', () => {
     }
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'wall')).toHaveLength(17);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'face')).toHaveLength(18);
-    expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'cabinet')).toHaveLength(3);
-    expect(SETTINGS_REGISTRY.filter(({ managedBy }) => managedBy)).toHaveLength(39);
+    expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'cabinet')).toHaveLength(2);
+    expect(SETTINGS_REGISTRY.filter(({ managedBy }) => managedBy)).toHaveLength(38);
     expect(registryEntry('defaultProfile.nosingProfileId').kind).toBe('id');
     expect(registryEntry('drawerSlideId')).toEqual({
       key: 'drawerSlideId', label: 'Drawer slide', kind: 'slide', lowest: 'room',

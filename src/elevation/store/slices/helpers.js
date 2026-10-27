@@ -198,7 +198,7 @@ export function setCompensatedWalls(state, roomIndex, walls) {
   syncRoomAt(state, roomIndex);
 }
 
-export const STYLE_FIELD_KEYS = ['cabinetStyleId', 'beadWidth', 'profiledEdge'];
+export const STYLE_FIELD_KEYS = ['cabinetStyleId', 'beadWidth'];
 
 /**
  * Copy only `keys` whose values are set (not null/undefined) and pass `accept`.

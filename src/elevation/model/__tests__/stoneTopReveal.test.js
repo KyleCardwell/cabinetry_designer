@@ -4,7 +4,7 @@ import { cabinetReveals, REVEAL_SOURCE_LABELS } from '../styles.js';
 import { isStoneTop } from '../tops.js';
 
 const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;
-const EURO = { cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false };
+const EURO = { cabinetStyleId: 13, beadWidth: 0.25 };
 
 function reveals(run, options = {}) {
   return cabinetReveals({

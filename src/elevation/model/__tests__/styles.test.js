@@ -14,9 +14,9 @@ import {
 
 const { BASE, UPPER, TALL } = CABINET_TYPE_IDS;
 const S = DEFAULT_SETTINGS;
-const EURO = { cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false };
-const INSET = { cabinetStyleId: 14, beadWidth: 0.25, profiledEdge: false };
-const BEADED = { cabinetStyleId: 15, beadWidth: 0.25, profiledEdge: false };
+const EURO = { cabinetStyleId: 13, beadWidth: 0.25 };
+const INSET = { cabinetStyleId: 14, beadWidth: 0.25 };
+const BEADED = { cabinetStyleId: 15, beadWidth: 0.25 };
 const DOOR = { type: 'door', size: null };
 const PAIR = { type: 'pair_door', size: null };
 const THREE_DF = { direction: 'vertical', size: null, children: [{ type: 'drawer_front', size: 6 }, { type: 'drawer_front', size: null }, { type: 'drawer_front', size: null }] };
@@ -27,15 +27,15 @@ describe('styles', () => {
   it('26 resolveStyle layers room, run and item', () => {
     expect(resolveStyle(S)).toEqual(EURO);
     const room = { style: { cabinetStyleId: 14 } };
-    expect(resolveStyle(S, room, { style: { profiledEdge: true } }, { style: { cabinetStyleId: 15, beadWidth: 0.375 } }))
-      .toEqual({ cabinetStyleId: 15, beadWidth: 0.375, profiledEdge: true });
+    expect(resolveStyle(S, room, { style: { beadWidth: 0.5 } }, { style: { cabinetStyleId: 15, beadWidth: 0.375 } }))
+      .toEqual({ cabinetStyleId: 15, beadWidth: 0.375 });
     expect(resolveStyle(S, room, { style: { cabinetStyleId: null } }, {})).toEqual(INSET);
   });
 
   it('27 isStyle', () => {
-    [undefined, null, {}, { cabinetStyleId: 14 }, { beadWidth: 0 }, { profiledEdge: null }]
+    [undefined, null, {}, { cabinetStyleId: 14 }, { beadWidth: 0 }, { beadWidth: null }]
       .forEach((value) => expect(isStyle(value)).toBe(true));
-    [{ cabinetStyleId: 12 }, { beadWidth: -1 }, { profiledEdge: 'yes' }, { color: 'red' }, [], 'x']
+    [{ cabinetStyleId: 12 }, { beadWidth: -1 }, { beadWidth: 'yes' }, { color: 'red' }, [], 'x']
       .forEach((value) => expect(isStyle(value)).toBe(false));
   });
 
@@ -78,9 +78,19 @@ describe('styles', () => {
   });
 
   it('30 beaded, profiled upper', () => {
-    expect(styleReveals({ cabinetStyleId: 15, beadWidth: 0.25, profiledEdge: true }, UPPER, S)).toEqual({
+    expect(styleReveals(BEADED, UPPER, S, { profiled: true })).toEqual({
       top: 1.75, bottom: 1, left: 0.75, right: 0.75, horizontal: 2, vertical: 2, pair: 0.125, fit: 0.09375, pairFit: 0.0625, shared: 0.0625,
     });
+  });
+
+  it('FX4 c3: passes the explicit profiled fit option through cabinet reveals and leaves Euro unchanged', () => {
+    for (const style of [INSET, BEADED]) {
+      const options = { style, cabinetTypeId: BASE, face: DOOR, settings: S };
+      expect(cabinetReveals({ ...options, profiled: true }).values)
+        .toEqual(styleReveals(style, BASE, S, { profiled: true }));
+      expect(cabinetReveals(options).values).toMatchObject({ fit: 0, pairFit: 0, pair: 0, shared: 0 });
+    }
+    expect(styleReveals(EURO, BASE, S, { profiled: true })).toEqual(styleReveals(EURO, BASE, S));
   });
 
   it('31 isSingleColumn', () => {

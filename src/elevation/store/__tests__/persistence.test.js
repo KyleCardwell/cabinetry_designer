@@ -1,3 +1,8 @@
+import { readFileSync, readdirSync } from 'node:fs';
+import { auto, fixed, room as makeRoom, run as makeRun, wall as makeWall } from '../../../test/builders.js';
+import { runFaceLayouts } from '../../model/faceLayouts.js';
+import { resolveWall, syncRoom } from '../../model/room.js';
+import { DEFAULT_DOOR_STYLE } from '../../model/doorStyles.js';
 import { LEGACY_DOOR_DESIGNS } from '../../model/__tests__/fixtures/legacyDoorDesigns.js';
 import { DOOR_DESIGNS, sheetPanelStyle } from '../../model/doorStyles.js';
 import { isDoorDesignList } from '../../model/doorDesigns.js';
@@ -86,54 +91,12 @@ it('LP1 anchor 3: loads pre-LP1 sandbox pull and slide pricing without repairing
   }
 });
 
-function currentRun(id, x, z, height) {
-  return {
-    id,
-    cabinetTypeId: CABINET_TYPE_IDS.BASE,
-    x,
-    width: 48,
-    z,
-    height,
-    depth: 24,
-    ends: {
-      left: { type: 'filler', width: null },
-      right: { type: 'filler', width: null },
-    },
-    autoCount: false,
-    maxCabinetWidth: null,
-    heightMode: 'manual',
-    overrides: {},
-    anchors: { left: false, right: false },
-    grid: gridFromItems(id, [{ id: `${id}-cab`, kind: 'cabinet', width: 45 }]),
-  };
-}
-
-function currentWall(id, y, length, height, runs) {
-  return {
-    id,
-    name: '',
-    numberOverride: null,
-    elevationForced: false,
-    x1: 0,
-    y1: y,
-    x2: length,
-    y2: y,
-    height,
-    thickness: 4.5,
-    flipped: false,
-    connections: { start: null, end: null },
-    profile: {},
-    openings: [],
-    runs,
-  };
-}
-
 function currentDocument() {
   const settings = structuredClone(DEFAULT_SETTINGS);
   return {
     schemaVersion: 4,
     settings,
-    rooms: [{
+    rooms: [makeRoom({
       id: 'room-1',
       name: 'Room 1',
       profile: { ...settings.defaultProfile },
@@ -141,15 +104,68 @@ function currentDocument() {
       partNumberOverrides: {},
       wallOrder: ['wall-a', 'wall-b'],
       walls: [
-        currentWall('wall-a', 0, 144, 96, [currentRun('a', 12, 4, 30.5)]),
-        currentWall('wall-b', 60, 96, 90, [currentRun('b', 7, 10, 20)]),
+        makeWall({ id: 'wall-a', runs: [makeRun({ id: 'a', x: 12, width: 48, z: 4, height: 30.5,
+          autoCount: false, items: [fixed('a-cab', 45)] })] }),
+        makeWall({ id: 'wall-b', y1: 60, x2: 96, y2: 60, height: 90,
+          runs: [makeRun({ id: 'b', x: 7, width: 48, z: 10, height: 20,
+            autoCount: false, items: [fixed('b-cab', 45)] })] }),
       ],
-    }],
+    })],
     activeRoomId: 'room-1',
     activeWallId: 'wall-b',
     view: 'elevation',
   };
 }
+
+it('FX4 c3 anchor 1 and c2 anchor 7: strips legacy edge flags on both load paths; door styles decide fit', () => {
+  for (const flag of [false, true, null]) {
+    for (const outside of [null, 'missing-outside-profile']) {
+      const document = currentDocument();
+      document.settings.defaultStyle = { cabinetStyleId: 14, beadWidth: 0.25, profiledEdge: true };
+      document.settings.teamDoorStyle = { ...structuredClone(DEFAULT_DOOR_STYLE),
+        profiles: { ...DEFAULT_DOOR_STYLE.profiles, outside } };
+      const room = document.rooms[0];
+      const wall = room.walls[0];
+      const run = wall.runs[0];
+      room.style = { cabinetStyleId: 14, profiledEdge: false };
+      wall.style = { profiledEdge: flag };
+      run.style = { beadWidth: 0.375, profiledEdge: flag };
+      run.top = 'none';
+      run.grid = makeRun({ id: run.id, items: [auto('outer')] }).grid;
+      run.grid.cells[0].node = makeRun({ id: 'nested', items: [{ ...auto('nested-cabinet'),
+        style: { profiledEdge: flag }, face: { type: 'door', size: null } }, auto('second')] }).grid;
+      const before = structuredClone(document);
+      const normalized = normalizeElevationDocument(document);
+      expect(JSON.stringify(normalized)).not.toContain('profiledEdge');
+      expect(isElevationDocument(normalized)).toBe(true);
+      expect(normalized.settings.defaultStyle).toEqual({ cabinetStyleId: 14, beadWidth: 0.25 });
+      expect(normalized.rooms[0].style).toEqual({ cabinetStyleId: 14 });
+      expect(normalized.rooms[0].walls[0].style).toEqual({});
+      expect(normalized.rooms[0].walls[0].runs[0].style).toEqual({ beadWidth: 0.375 });
+      expect(normalizeElevationDocument(normalized)).toEqual(normalized);
+      expect(document).toEqual(before);
+      globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(document)]]) };
+      expect(loadElevationDocument()).toEqual(normalized);
+      const savedRoom = roomFromDocument(room, document.schemaVersion, document.settings);
+      expect(savedRoom).toEqual({ ok: true, room: normalized.rooms[0] });
+      const synced = syncRoom(savedRoom.room, normalized.settings);
+      const view = resolveWall(synced, synced.walls[0]);
+      const layout = runFaceLayouts(synced, view, view.runs[0], normalized.settings).get('nested-cabinet');
+      const [face] = layout.faces;
+      const [opening] = layout.openings;
+      const fit = outside ? 3 / 32 : 0;
+      expect(face).toMatchObject({ x: opening.x + fit, z: opening.z + fit,
+        width: opening.width - 2 * fit, height: opening.height - 2 * fit });
+    }
+  }
+});
+
+it('FX4 c3 anchor 3: confines the retired field name to its persistence migration and tests', () => {
+  const root = new URL('../../../', import.meta.url);
+  const matches = readdirSync(root, { recursive: true }).filter((file) => /\.(js|jsx|json)$/.test(file)
+    && readFileSync(new URL(file, root), 'utf8').includes('profiledEdge'));
+  expect(matches.sort()).toEqual(['elevation/store/__tests__/persistence.test.js', 'elevation/store/persistence.js']);
+});
 
 it('IN12b anchor 6: defaults missing accessories, round trips saved entries and rejects invalid libraries', () => {
   const document = currentDocument();
@@ -1030,11 +1046,11 @@ describe('elevation persistence migration', () => {
     const run = room.walls[0].runs[0];
     const item = run.grid.cells[0].node;
     room.style = { cabinetStyleId: 14 };
-    run.style = { beadWidth: 0.5, profiledEdge: null };
+    run.style = { beadWidth: 0.5 };
     run.upperBottom = 'flush';
     run.hanging = true;
     run.top = 'wood';
-    item.style = { cabinetStyleId: 15, profiledEdge: true };
+    item.style = { cabinetStyleId: 15 };
     item.reveals = { top: 0.1875, left: null };
     expect(isElevationDocument(current)).toBe(true);
     globalThis.window = {
@@ -1045,10 +1061,10 @@ describe('elevation persistence migration', () => {
     const loadedRun = loaded.rooms[0].walls[0].runs[0];
     expect(loaded.rooms[0].style).toEqual({ cabinetStyleId: 14 });
     expect(loadedRun).toMatchObject({
-      style: { beadWidth: 0.5, profiledEdge: null }, upperBottom: 'flush', hanging: true, top: 'wood',
+      style: { beadWidth: 0.5 }, upperBottom: 'flush', hanging: true, top: 'wood',
     });
     expect(loadedRun.grid.cells[0].node).toMatchObject({
-      style: { cabinetStyleId: 15, profiledEdge: true },
+      style: { cabinetStyleId: 15 },
       reveals: { top: 0.1875, left: null },
     });
   });
@@ -1084,7 +1100,7 @@ describe('elevation persistence migration', () => {
     };
 
     const loaded = loadElevationDocument();
-    expect(loaded.settings.defaultStyle).toEqual({ cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false });
+    expect(loaded.settings.defaultStyle).toEqual({ cabinetStyleId: 13, beadWidth: 0.25 });
     expect(loaded.settings.insetFrame).toEqual(DEFAULT_SETTINGS.insetFrame);
     expect(loaded.settings.profiledFit).toEqual(DEFAULT_SETTINGS.profiledFit);
     expect(loaded.settings.woodTopReveal).toBe(0.125);

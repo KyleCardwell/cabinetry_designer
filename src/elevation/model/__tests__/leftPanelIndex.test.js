@@ -12,7 +12,7 @@ describe('left-panel settings search', () => {
       labels: ['Part number start', 'Room note', 'Molding notes', 'Part numbers'],
     }]);
     expect(matchingLeftPanel('walls')).toEqual([LEFT_PANEL_INDEX[0]]);
-    expect(matchingLeftPanel('edge')[0].labels).toEqual(['Outside edge', 'Profiled edge']);
+    expect(matchingLeftPanel('edge')).toEqual([]);
   });
 
   it('anchor 3: omits empty searches and matches labels only, without room-height duplicates', () => {

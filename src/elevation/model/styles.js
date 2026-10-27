@@ -39,7 +39,7 @@ export const REVEAL_SOURCE_LABELS = {
   'rule:t-filler': 'rule: T-filler',
 };
 
-const STYLE_KEYS = ['cabinetStyleId', 'beadWidth', 'profiledEdge'];
+const STYLE_KEYS = ['cabinetStyleId', 'beadWidth'];
 const STYLE_ID_VALUES = Object.values(CABINET_STYLE_IDS);
 
 /** Whether a value is a valid stored partial style (room, run or item). */
@@ -50,8 +50,7 @@ export function isStyle(style) {
     if (!STYLE_KEYS.includes(key)) return false;
     if (value === null) return true;
     if (key === 'cabinetStyleId') return STYLE_ID_VALUES.includes(value);
-    if (key === 'beadWidth') return Number.isFinite(value) && value >= 0;
-    return typeof value === 'boolean';
+    return Number.isFinite(value) && value >= 0;
   });
 }
 
@@ -108,15 +107,16 @@ export function stackedSeamReveals(style, settings) {
  * Inset values are measured from the box to the frame opening (bead included);
  * `fit` / `pairFit` shrink each face inside its slot; `pair` is the gap between pair doors.
  * `shared` is the gap between the faces of a group with no rail between (SPEC-36.3).
+ * The explicit `profiled` option selects the inset fit values; square is the default.
  */
-export function styleReveals(style, cabinetTypeId, settings) {
+export function styleReveals(style, cabinetTypeId, settings, { profiled = false } = {}) {
   if (!isInsetStyle(style)) {
     const euro = faceRevealsFor(cabinetTypeId, settings);
     return { ...euro, pair: euro.vertical, fit: 0, pairFit: 0 };
   }
   const frame = { ...DEFAULT_SETTINGS.insetFrame, ...settings.insetFrame };
   const bead = style.cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? style.beadWidth : 0;
-  const profiled = style.profiledEdge
+  const fit = profiled
     ? { ...DEFAULT_SETTINGS.profiledFit, ...settings.profiledFit }
     : null;
   const bottomRail = cabinetTypeId === UPPER ? frame.rail - frame.upperDrop : frame.rail;
@@ -128,10 +128,10 @@ export function styleReveals(style, cabinetTypeId, settings) {
     right: frame.stile,
     horizontal: frame.midRail + bead * 2,
     vertical: frame.mullion + bead * 2,
-    pair: profiled ? profiled.pairGap : 0,
-    fit: profiled ? profiled.edge : 0,
-    pairFit: profiled ? profiled.pairEdge : 0,
-    shared: profiled ? profiled.sharedGap : 0,
+    pair: fit ? fit.pairGap : 0,
+    fit: fit ? fit.edge : 0,
+    pairFit: fit ? fit.pairEdge : 0,
+    shared: fit ? fit.sharedGap : 0,
   };
 }
 
@@ -179,6 +179,7 @@ export function capturedFaces(face) {
  */
 export function cabinetReveals({
   style,
+  profiled = false,
   cabinetTypeId,
   run = {},
   topKind = isStoneTop(run) ? 'stone' : run.top,
@@ -193,7 +194,7 @@ export function cabinetReveals({
   manual = null,
   settings,
 }) {
-  const values = styleReveals(style, cabinetTypeId, settings);
+  const values = styleReveals(style, cabinetTypeId, settings, { profiled });
   const sources = Object.fromEntries(REVEAL_KEYS.map((key) => [key, 'style']));
   const apply = (key, value, source) => {
     values[key] = value;

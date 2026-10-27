@@ -14,8 +14,8 @@ import { cabinetReveals, endPieceBottom, endPieceNotes, panelDrop } from '../sty
 
 const S = DEFAULT_SETTINGS;
 const { UPPER } = CABINET_TYPE_IDS;
-const EURO = { cabinetStyleId: 13, beadWidth: 0.25, profiledEdge: false };
-const INSET = { cabinetStyleId: 14, beadWidth: 0.25, profiledEdge: false };
+const EURO = { cabinetStyleId: 13, beadWidth: 0.25 };
+const INSET = { cabinetStyleId: 14, beadWidth: 0.25 };
 const DOOR = { type: 'door', size: null };
 const RAIL = { id: 'rail', kind: 'light_rail', height: 1.5, doors: 'cover' };
 const PANEL = { id: 'panel', kind: 'panel', height: 0.75, doors: 'cover' };

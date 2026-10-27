@@ -91,7 +91,8 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       bottom: Math.abs(piece.z - column.z) <= 1e-6,
     };
     const reveals = cabinetReveals({
-      style: isInsetStyle(style) ? { ...style, profiledEdge: true } : style,
+      style,
+      profiled: true,
       cabinetTypeId: run.cabinetTypeId,
       run,
       topKind: topKinds.get(column.id),

@@ -16,7 +16,7 @@ vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
 const find = (tree, type) => nodes(tree).find((node) => node.type === type);
-const inherited = { cabinetStyleId: CABINET_STYLE_IDS.EUROPEAN, beadWidth: 0.25, profiledEdge: true };
+const inherited = { cabinetStyleId: CABINET_STYLE_IDS.EUROPEAN, beadWidth: 0.25 };
 const render = (props = {}) => StyleFields({ label: 'Room', inherited, onChange: vi.fn(), ...props });
 const field = (tree, label) => OverrideField(nodes(tree).find((node) => (
   node.type === OverrideField && node.props.label === label
@@ -34,7 +34,7 @@ beforeEach(() => {
 
 describe('DB2 g cabinet style overrides', () => {
   it('anchor 1: keeps missing and null styles inherited, grey, and without Reset', () => {
-    for (const value of [undefined, { cabinetStyleId: null, profiledEdge: null }]) {
+    for (const value of [undefined, { cabinetStyleId: null }]) {
       const tree = render({ value });
       const style = field(tree, 'Room');
       const select = find(style, 'select');
@@ -46,16 +46,12 @@ describe('DB2 g cabinet style overrides', () => {
       expect(reset(style)).toBeUndefined();
       expect(style.props.title).toBe('Shop standard: European');
       expect(find(tree, InchInput)).toBeUndefined();
-      const edge = field(tree, 'Outside edge');
-      expect(find(edge, 'select').props.value).toBe('');
-      expect(find(edge, 'select').props.className).toContain('border-gray-600');
-      expect(reset(edge)).toBeUndefined();
     }
   });
 
   it('anchor 2: marks the chosen beaded style teal and resets only its stored key', () => {
     const onChange = vi.fn();
-    const value = { cabinetStyleId: CABINET_STYLE_IDS.BEADED_INSET, beadWidth: 0.5, profiledEdge: false };
+    const value = { cabinetStyleId: CABINET_STYLE_IDS.BEADED_INSET, beadWidth: 0.5 };
     const style = field(render({ value, onChange }), 'Room');
     const select = find(style, 'select');
     expect(select.props.value).toBe(CABINET_STYLE_IDS.BEADED_INSET);
@@ -72,21 +68,13 @@ describe('DB2 g cabinet style overrides', () => {
     expect(onChange).toHaveBeenLastCalledWith({ ...value, cabinetStyleId: CABINET_STYLE_IDS.INSET });
   });
 
-  it('anchor 3: treats false as a Square outside-edge override with Reset', () => {
-    const onChange = vi.fn();
-    const edge = field(render({ value: { profiledEdge: false }, onChange }), 'Outside edge');
-    const select = find(edge, 'select');
-    expect(select.props.value).toBe('false');
-    expect(nodes(edge).find(({ type, props }) => type === 'option' && props.value === 'false').props.children).toBe('Square');
-    expect(select.props['aria-label']).toBe('Room outside edge');
-    expect(select.props.className).toContain('border-teal-500');
-    expect(select.props.className).not.toContain('border-gray-600');
-    expect(edge.props.title).toBe('Room override · Shop standard: Profiled');
-    reset(edge).props.onClick();
-    expect(onChange).toHaveBeenLastCalledWith({ profiledEdge: null });
-    for (const [value, next] of [['', null], ['true', true], ['false', false]]) {
-      select.props.onChange({ target: { value } });
-      expect(onChange).toHaveBeenLastCalledWith({ profiledEdge: next });
+  it('FX4 c3 anchor 2: offers only cabinet style and the applicable bead width', () => {
+    for (const cabinetStyleId of Object.values(CABINET_STYLE_IDS)) {
+      const tree = render({ inherited: { ...inherited, cabinetStyleId } });
+      expect(nodes(tree).filter(({ type }) => type === OverrideField).map(({ props }) => props.label))
+        .toEqual(cabinetStyleId === CABINET_STYLE_IDS.BEADED_INSET ? ['Room', 'Bead width'] : ['Room']);
+      expect(nodes(tree).some(({ props }) => /outside edge|profiled edge/i.test(props['aria-label'] ?? props.label ?? '')))
+        .toBe(false);
     }
   });
 
@@ -125,9 +113,9 @@ describe('DB2 g cabinet style overrides', () => {
     const room = state.rooms[0];
     const wall = room.walls[0];
     const run = wall.runs[0];
-    const item = { id: 'cabinet-1', style: { profiledEdge: false } };
-    room.style = { profiledEdge: false };
-    run.style = { profiledEdge: false };
+    const item = { id: 'cabinet-1', style: {} };
+    room.style = {};
+    run.style = {};
     const dispatch = vi.fn();
     useDispatch.mockReturnValue(dispatch);
     useSelector.mockImplementation((selector) => selector({ elevation: state }));
@@ -142,14 +130,15 @@ describe('DB2 g cabinet style overrides', () => {
       const props = find(tree, StyleFields).props;
       expect(props).toMatchObject({ label, level: label, inheritedFrom: source });
       const fields = StyleFields(props);
-      const edge = field(fields, 'Outside edge');
-      expect(edge.props.title).toBe(`${label} override · ${source}: ${props.inherited.profiledEdge ? 'Profiled' : 'Square'}`);
-      expect(find(edge, 'select').props['aria-label']).toBe(`${label} outside edge`);
+      expect(nodes(fields).filter(({ type }) => type === OverrideField).map(({ props }) => props.label))
+        .toEqual([label]);
+      expect(nodes(fields).some(({ props }) => /outside edge|profiled edge/i.test(props['aria-label'] ?? props.label ?? '')))
+        .toBe(false);
       const style = field(fields, label);
       expect(find(style, 'select').props['aria-label']).toBe(`${label} style`);
       expect(style.props.title).toBe(`${source}: ${CABINET_STYLE_LABELS[props.inherited.cabinetStyleId]}`);
-      reset(edge).props.onClick();
-      expect(dispatch).toHaveBeenLastCalledWith(expect.objectContaining({ payload: { ...at, style: { profiledEdge: null } } }));
+      find(style, 'select').props.onChange({ target: { value: String(CABINET_STYLE_IDS.INSET) } });
+      expect(dispatch).toHaveBeenLastCalledWith(expect.objectContaining({ payload: { ...at, style: { cabinetStyleId: CABINET_STYLE_IDS.INSET } } }));
     }
   });
 });

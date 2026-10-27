@@ -83,8 +83,7 @@
         },
         "defaultStyle": {
             "cabinetStyleId": 13,
-            "beadWidth": 0.25,
-            "profiledEdge": false
+            "beadWidth": 0.25
         },
         "insetFrame": {
             "stile": 0.75,
