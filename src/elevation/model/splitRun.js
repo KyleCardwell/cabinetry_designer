@@ -556,7 +556,9 @@ function pinPlan(run, settings, opts) {
   const pins = pinnedItems.map((item) => {
     const itemIndex = items.findIndex((candidate) => candidate.id === item.id);
     const piece = pass1Pieces.get(item.id);
-    const width = item.width ?? retainedPinWidths[item.id] ?? piece?.width ?? 0;
+    const width = (item.pin.from === 'return' && item.pin.edge === 'both'
+      ? run._returnPins?.[item.id]?.width : undefined)
+      ?? item.width ?? retainedPinWidths[item.id] ?? piece?.width ?? 0;
     const target = targets[item.id];
     return {
       item,

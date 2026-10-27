@@ -42,10 +42,43 @@ import {
 import { wallEndPanels } from './wallEndPanels.js';
 import { cloneRun, cloneRoom } from './roomClone.js';
 import { endMinWidthsForRun, endCornerAnglesForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
-import { resolvePinTarget, pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
+import { pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
+import { returnExtents } from './returnExtents.js';
 import { flexRoom, unflexRoom } from './runFlex.js';
 
 const PIN_EPSILON = 1e-6;
+
+/** Recompute return pins from the resolved landing and front planes before solving any runs. */
+function withReturnPins(room, wall, settings) {
+  const extentsBySide = new Map();
+  return {
+    ...wall,
+    runs: wall.runs.map((run) => {
+      const { _returnPins, ...base } = run;
+      void _returnPins;
+      const pins = runItems(run).filter((item) => item.pin?.from === 'return');
+      if (!pins.length) return base;
+      const side = wallSideOf(run);
+      if (!extentsBySide.has(side)) {
+        extentsBySide.set(side, returnExtents(room, wallSideView(wall, side), settings));
+      }
+      const entries = pins.flatMap(({ id, pin }) => {
+        const ext = extentsBySide.get(side).find((candidate) => (
+          candidate.wallId === pin.wallId && candidate.runId === pin.runId
+        ));
+        if (!ext) return [];
+        const target = pin.edge === 'right' ? ext.right + pin.value
+          : pin.edge === 'center' ? (ext.left + ext.right) / 2 + pin.value
+            : ext.left - pin.value;
+        return [[id, {
+          target,
+          ...(pin.edge === 'both' ? { width: ext.right + pin.valueRight - target } : {}),
+        }]];
+      });
+      return { ...base, _returnPins: Object.fromEntries(entries) };
+    }),
+  };
+}
 
 function withPartPick(next, end) {
   return {
@@ -279,6 +312,7 @@ export function syncRoom(room, settings) {
       ),
     )),
   }));
+  nextRoom.walls = nextRoom.walls.map((wall) => withReturnPins(nextRoom, wall, settings));
 
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
   // Door and window labels follow wall order, then left to right (typed labels stay).
@@ -428,10 +462,11 @@ export function roomDiagnostics(room, settings) {
     const resolvedWall = { ...wall, length };
     for (const run of wall.runs) {
       const minimums = endMinWidthsForRun(synced, wall, run, settings);
+      const pinTargets = pinTargetsForRun(run, wall, length, settings);
       const layout = splitRun(run, settings, {
         endMinWidths: minimums,
         endCornerAngles: endCornerAnglesForRun(synced, wall, run),
-        pinTargets: pinTargetsForRun(run, wall, length, settings),
+        pinTargets,
       });
       const vertical = resolveVertical(
         run,
@@ -461,11 +496,13 @@ export function roomDiagnostics(room, settings) {
           ...extendPieces(wall, run, cellPieces(run, layout).pieces).warnings,
           ...frameRegions(synced, run, cellPieces(run, layout), settings).warnings,
           ...runItems(run).flatMap((item) => (
-            item.pin && resolvePinTarget(item.pin, wall, length, settings) === null
+            item.pin && !Number.isFinite(pinTargets[item.id])
               ? [{
                   code: 'pin-unresolved',
                   pieceId: item.id,
-                  message: 'Pinned opening no longer exists.',
+                  message: item.pin.from === 'return'
+                    ? 'The return this column follows is gone.'
+                    : 'Pinned opening no longer exists.',
                 }]
               : []
           )),

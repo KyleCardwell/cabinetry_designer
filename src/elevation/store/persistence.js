@@ -62,7 +62,7 @@ const CELL_KIND_KEYS = {
   shelves: ['id', 'kind', 'depth', 'align', 'shelves'],
 };
 const PIN_ANCHORS = new Set(['center', 'left', 'right']);
-const PIN_DATUMS = new Set(['left', 'right', 'opening']);
+const PIN_DATUMS = new Set(['left', 'right', 'opening', 'return']);
 const OPENING_PIN_ANCHORS = new Set([
   'center',
   'casing-left',
@@ -226,7 +226,16 @@ function isItemPin(pin) {
     && (pin.openingId === null || typeof pin.openingId === 'string')
     && (pin.from !== 'opening' || typeof pin.openingId === 'string')
     && OPENING_PIN_ANCHORS.has(pin.openingAnchor)
-    && isFiniteNumber(pin.value);
+    && isFiniteNumber(pin.value)
+    && (pin.from !== 'return' || (
+      typeof pin.wallId === 'string'
+      && typeof pin.runId === 'string'
+      && ['left', 'right', 'center', 'both'].includes(pin.edge)
+      && pin.anchor === (pin.edge === 'both' ? 'left' : pin.edge)
+      && pin.openingId === null
+      && pin.openingAnchor === 'center'
+      && (pin.edge === 'both' ? isFiniteNumber(pin.valueRight) : pin.valueRight === undefined)
+    ));
 }
 
 const T_FILLER_SIDES = ['left', 'right', 'top', 'bottom'];
@@ -1143,7 +1152,8 @@ export function toRoomDocument(room) {
         ...persistedWall,
         thicknessOverride: wall.thicknessOverride ?? null,
         runs: wall.runs.map((run) => {
-          const { _pinWidths, _seamGap, _frame, _plane, _doorThickness, _endThickness, _insideEnds, _stepEnds, _cornerLapWidth, ...persistedRun } = run;
+          const { _returnPins, _pinWidths, _seamGap, _frame, _plane, _doorThickness, _endThickness, _insideEnds, _stepEnds, _cornerLapWidth, ...persistedRun } = run;
+          void _returnPins;
           void _pinWidths;
           void _seamGap;
           void _frame;

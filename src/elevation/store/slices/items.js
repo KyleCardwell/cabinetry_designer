@@ -78,7 +78,14 @@ export const itemReducers = {
       currentWidths = new Map(layout.pieces.map((piece) => [piece.id, piece.width]));
     }
     location.run.grid = updateRootItem(location.run.grid, item.id, {
-      pin: pin ? { ...pin } : null,
+      pin: pin ? {
+        ...pin,
+        ...(pin.from === 'return' ? {
+          anchor: pin.edge === 'both' ? 'left' : pin.edge,
+          openingId: null,
+          openingAnchor: 'center',
+        } : {}),
+      } : null,
     });
     if (pin) location.run.autoCount = false;
     if (addsPinToPinnedRun) {

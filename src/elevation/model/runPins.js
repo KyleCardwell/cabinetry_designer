@@ -33,7 +33,9 @@ export function resolvePinTarget(pin, wall, wallLengthValue, settings) {
 export function pinTargetsForRun(run, wall, wallLengthValue, settings) {
   wall = wallViewForRun(wall, run);
   return Object.fromEntries(runItems(run).flatMap((item) => {
-    const target = resolvePinTarget(item.pin, wall, wallLengthValue, settings);
+    const target = item.pin?.from === 'return'
+      ? run._returnPins?.[item.id]?.target
+      : resolvePinTarget(item.pin, wall, wallLengthValue, settings);
     return Number.isFinite(target) ? [[item.id, target]] : [];
   }));
 }
@@ -117,7 +119,9 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
   const pieces = new Map(pass1.pieces.map((piece) => [piece.id, piece]));
   const pinWidths = Object.fromEntries(pinned.map(({ item }) => [
     item.id,
-    item.width ?? run._pinWidths?.[item.id] ?? pieces.get(item.id)?.width ?? 0,
+    (item.pin.from === 'return' && item.pin.edge === 'both'
+      ? run._returnPins?.[item.id]?.width : undefined)
+      ?? item.width ?? run._pinWidths?.[item.id] ?? pieces.get(item.id)?.width ?? 0,
   ]));
   const first = pinned[0];
   const last = pinned[pinned.length - 1];
