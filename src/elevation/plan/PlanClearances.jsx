@@ -8,8 +8,9 @@ const COLOR = '#5eead4';
 const TICK_HALF = 4;
 
 /** Plan clearances (SPEC-36.3): a dimension line across each gap, with ticks and a label. */
-export default function PlanClearances({ dimensions, scale }) {
-  const fontSize = PLAN_DIM_FONT_SIZE / scale;
+export default function PlanClearances({ dimensions, scale, text: textScale }) {
+  const factor = textScale?.dimension ?? 1;
+  const fontSize = PLAN_DIM_FONT_SIZE * factor / scale;
   return (
     <Group listening={false}>
       {dimensions.map(({
@@ -21,11 +22,11 @@ export default function PlanClearances({ dimensions, scale }) {
         const unit = span > 0 ? { x: dx / span, y: dy / span } : { x: 1, y: 0 };
         const tick = { x: (-unit.y * TICK_HALF) / scale, y: (unit.x * TICK_HALF) / scale };
         const text = formatDimension(length);
-        const width = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
-        const height = (PLAN_DIM_FONT_SIZE + 4) / scale;
+        const width = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
+        const height = (PLAN_DIM_FONT_SIZE + 4) * factor / scale;
         const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
         const center = { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 };
-        const inline = text.length * 0.6 * PLAN_DIM_FONT_SIZE + 16 <= span * scale;
+        const inline = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 16) * factor <= span * scale;
         return (
           <Group key={`${kind}:${from.x}:${from.y}:${to.x}:${to.y}`}>
             {gappedLine(from, to, center, inline ? width / 2 : 0, 0.5 / scale).map((points, index) => (

@@ -29,10 +29,12 @@ export default function PlanOpening({
   selected,
   selectable,
   scale,
+  text,
   onSelect,
   onMove,
   cursor,
 }) {
+  const factor = text?.dimension ?? 1;
   const dragStartRef = useRef(null);
   const cursorKeys = useCursorKeys(cursor);
   const geometry = openingGeometry(opening, frame.length, settings);
@@ -61,7 +63,7 @@ export default function PlanOpening({
     elevationToPlan(frame, casing.x + casing.width, depths.face + casing.thickness),
     elevationToPlan(frame, casing.x, depths.face + casing.thickness),
   ] : null;
-  const labelOffset = depths.back - planSideReach(room, wall, 'back', settings) - 10 / scale;
+  const labelOffset = depths.back - planSideReach(room, wall, 'back', settings) - 10 * factor / scale;
   const labelPoint = elevationToPlan(
     frame,
     jamb.x + jamb.width / 2,
@@ -152,13 +154,13 @@ export default function PlanOpening({
       <Text
         x={labelPoint.x}
         y={labelPoint.y}
-        width={120 / scale}
-        offsetX={60 / scale}
-        offsetY={PLAN_DIM_FONT_SIZE / 2 / scale}
+        width={120 * factor / scale}
+        offsetX={60 * factor / scale}
+        offsetY={PLAN_DIM_FONT_SIZE * factor / 2 / scale}
         align="center"
         rotation={readableRotation(Math.atan2(frame.r.y, frame.r.x) * 180 / Math.PI)}
         text={`${opening.label} · ${formatInches(jamb.width)}`}
-        fontSize={PLAN_DIM_FONT_SIZE / scale}
+        fontSize={PLAN_DIM_FONT_SIZE * factor / scale}
         fill="#e2e8f0"
         listening={false}
       />

@@ -15,6 +15,7 @@ export default function PlanWallShape({
   wall,
   isSelected,
   scale,
+  text,
   onSelect,
   onOpen,
   cursor,
@@ -32,14 +33,16 @@ export default function PlanWallShape({
     y: (faceEndpoints[0].y + faceEndpoints[1].y) / 2,
   };
   const tickLength = 8 / scale;
-  const fontSize = PLAN_DIM_FONT_SIZE / scale;
+  const factor = text?.dimension ?? 1;
+  const fontSize = PLAN_DIM_FONT_SIZE * factor / scale;
   const number = wallNumbers(room).get(wall.id);
   const numberRadius = 9 / scale;
-  const rows = canvasDimensionRows(room, wall, settings, scale);
+  const numberTextRadius = numberRadius * (text?.label ?? 1);
+  const rows = canvasDimensionRows(room, wall, settings, scale, factor);
   const { innerRowOffset, dimensionOffset } = rows;
   const faceRows = rows.segments;
   const extensionEndOffset = dimensionOffset + 4 / scale;
-  const numberOffset = dimensionOffset + 24 / scale;
+  const numberOffset = dimensionOffset + 24 * factor / scale;
   const numberPoint = {
     x: midpoint.x + exterior.x * numberOffset + frame.d.x * 24 / scale,
     y: midpoint.y + exterior.y * numberOffset + frame.d.y * 24 / scale,
@@ -58,7 +61,7 @@ export default function PlanWallShape({
   const dimensionLabel = layout.labels[0];
   const labelDistance = (dimensionLabel.mode === 'popout'
     ? 10 + 14 * dimensionLabel.level
-    : 0) / scale;
+    : 0) * factor / scale;
   const dimensionCenter = {
     x: midpoint.x + exterior.x * dimensionOffset,
     y: midpoint.y + exterior.y * dimensionOffset,
@@ -278,7 +281,7 @@ export default function PlanWallShape({
               };
               const rowLabelDistance = (rowLabel.mode === 'popout'
                 ? 10 + 14 * rowLabel.level
-                : 0) / scale;
+                : 0) * factor / scale;
               const rowLabelPoint = {
                 x: dimensionPoint.x + row.outward.x * rowLabelDistance,
                 y: dimensionPoint.y + row.outward.y * rowLabelDistance,
@@ -325,7 +328,7 @@ export default function PlanWallShape({
           x: (dx - dy) / length / Math.SQRT2 * tickHalfLength,
           y: (dy + dx) / length / Math.SQRT2 * tickHalfLength,
         };
-        const width = (dimension.text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
+        const width = (dimension.text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
         return (
           <Group key={`through:${index}`} listening={false}>
             <Line
@@ -342,8 +345,8 @@ export default function PlanWallShape({
               />
             ))}
             <Text
-              x={(start.x + end.x) / 2 + dy / length * 10 / scale}
-              y={(start.y + end.y) / 2 - dx / length * 10 / scale}
+              x={(start.x + end.x) / 2 + dy / length * 10 * factor / scale}
+              y={(start.y + end.y) / 2 - dx / length * 10 * factor / scale}
               width={width}
               offsetX={width / 2}
               offsetY={fontSize / 2}
@@ -366,14 +369,14 @@ export default function PlanWallShape({
         listening={false}
       />
       <Text
-        x={numberPoint.x - numberRadius}
-        y={numberPoint.y - numberRadius}
-        width={numberRadius * 2}
-        height={numberRadius * 2}
+        x={numberPoint.x - numberTextRadius}
+        y={numberPoint.y - numberTextRadius}
+        width={numberTextRadius * 2}
+        height={numberTextRadius * 2}
         text={String(number ?? '')}
         align="center"
         verticalAlign="middle"
-        fontSize={10 / scale}
+        fontSize={10 * (text?.label ?? 1) / scale}
         fill="#f8fafc"
         listening={false}
       />

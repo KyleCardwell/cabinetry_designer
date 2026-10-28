@@ -20,6 +20,7 @@ import {
   useCanvasCursor,
   useCursorKeys,
 } from '../canvas/cursor.js';
+import { textScales } from '../canvas/textScale.js';
 import { panExceedsThreshold } from '../canvas/panGesture.js';
 import { useMeasure } from '../canvas/measureState.js';
 import useLiveEntry, {
@@ -130,6 +131,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const handledFitRequestRef = useRef(fitRequest);
   const [viewport, setViewport] = useState({ width: 0, height: 0 });
   const [zoom, setZoom] = useState(1);
+  const [fitZoom, setFitZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [pointerMode, setPointerMode] = useState('idle');
   const [wallDrawStart, setWallDrawStart] = useState(null);
@@ -151,6 +153,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     cancel: cancelEntry,
   } = useLiveEntry();
   const scale = zoom * PIXELS_PER_INCH;
+  const text = textScales(zoom / fitZoom);
   const entryValue = resolveLiveEntryValue(entry);
   const moveHandle = useMemo(() => {
     if (!room || !selectedWall) return null;
@@ -212,6 +215,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     if (viewport.width <= 0 || viewport.height <= 0) return;
     if (walls.length === 0) {
       setZoom(1);
+      setFitZoom(1);
       setPan({ x: viewport.width / 2, y: viewport.height / 2 });
       return;
     }
@@ -232,6 +236,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     const nextZoom = clampZoom(fitScale / PIXELS_PER_INCH);
     const nextScale = nextZoom * PIXELS_PER_INCH;
     setZoom(nextZoom);
+    setFitZoom(nextZoom);
     setPan({
       x: viewport.width / 2 - ((minX + maxX) / 2) * nextScale,
       y: viewport.height / 2 - ((minY + maxY) / 2) * nextScale,
@@ -953,6 +958,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               room={sceneRoom}
               selectedWall={selectedWall}
               scale={scale}
+              text={text}
               handleWallSelect={handleWallSelect}
               handleWallOpen={handleWallOpen}
               cursor={cursor}
@@ -973,6 +979,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               room={room}
               settings={settings}
               scale={scale}
+              text={text}
               wallMovePreview={wallMovePreview}
               selectedWall={selectedWall}
               signedInches={signedInches}

@@ -11,6 +11,7 @@ export default function PlanOverlays({
   room,
   settings,
   scale,
+  text,
   wallMovePreview,
   selectedWall,
   signedInches,
@@ -27,9 +28,10 @@ export default function PlanOverlays({
   liveWallDrawEnd,
   mouseWorldPos,
 }) {
+  const factor = text?.label ?? 1;
   return (
     <>
-      {elevationMarkers(room, settings, scale).map((marker) => (
+      {elevationMarkers(room, settings, scale, text?.dimension ?? 1).map((marker) => (
         <PlanElevationMarker
           key={marker.key}
           point={marker.point}
@@ -69,17 +71,17 @@ export default function PlanOverlays({
               x: (previewWall.x1 + previewWall.x2) / 2,
               y: (previewWall.y1 + previewWall.y2) / 2,
             };
-            const labelOffset = previewWall.thickness + 54 / scale;
+            const labelOffset = previewWall.thickness + 54 * factor / scale;
             return (
               <Text
                 x={midpoint.x - frame.n.x * labelOffset}
                 y={midpoint.y - frame.n.y * labelOffset}
-                width={100 / scale}
-                offsetX={50 / scale}
-                offsetY={6 / scale}
+                width={100 * factor / scale}
+                offsetX={50 * factor / scale}
+                offsetY={6 * factor / scale}
                 align="center"
                 text={signedInches(wallMovePreview.delta)}
-                fontSize={11 / scale}
+                fontSize={11 * factor / scale}
                 fill="#a5f3fc"
               />
             );
@@ -140,12 +142,12 @@ export default function PlanOverlays({
           />
           <Text
             x={mouseWorldPos.x}
-            y={mouseWorldPos.y - 10 / scale}
+            y={mouseWorldPos.y - 10 * factor / scale}
             text={mouseWorldPos._faceLabel}
-            fontSize={10 / scale}
+            fontSize={10 * factor / scale}
             fill="#22d3ee"
-            offsetX={mouseWorldPos._faceLabel.length * 3 / scale}
-            offsetY={10 / scale}
+            offsetX={mouseWorldPos._faceLabel.length * 3 * factor / scale}
+            offsetY={10 * factor / scale}
           />
         </Group>
       )}

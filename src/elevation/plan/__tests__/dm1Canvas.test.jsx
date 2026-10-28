@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Circle, Group, Line, Text } from 'react-konva';
+import { auto, opening, room as makeRoom, run, wall as makeWall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { elevationToPlan, wallFrame } from '../../model/geometry.js';
 import { planThroughDimensions } from '../../model/planDimensions.js';
@@ -28,27 +29,25 @@ const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
 
 function setup({ window = false, panels = [], ...overrides } = {}) {
-  const base = (side) => ({
-    id: side, cabinetTypeId: CABINET_TYPE_IDS.BASE, wallSide: side,
-    x: 0, width: 96, z: 4, height: 30.5, depth: 24,
-    ends: { left: { type: 'none' }, right: { type: 'none' } },
-    anchors: { left: true, right: true }, overrides: {},
-    autoCount: false, heightMode: 'manual',
-    items: [{ id: `${side}-cabinet`, kind: 'cabinet', width: null }],
-  });
-  const room = syncRoom({
+  const room = syncRoom(makeRoom({
     id: 'dm1', profile: {}, wallOrder: ['wall'],
-    walls: [{
+    walls: [makeWall({
       id: 'wall', x1: 0, y1: 0, x2: 96, y2: 0, height: 96, thickness: 4.5,
       connections: { start: null, end: null }, landings: { start: null, end: null },
       endPanels: Object.fromEntries(panels.map((end) => [end, { width: 0.75 }])),
-      runs: [base('front'), base('back')], joints: [],
-      openings: window ? [{
+      runs: ['front', 'back'].map((side) => run({
+        id: side, cabinetTypeId: CABINET_TYPE_IDS.BASE, wallSide: side,
+        x: 0, width: 96, depth: 24,
+        ends: { left: { type: 'none' }, right: { type: 'none' } },
+        anchors: { left: true, right: true }, autoCount: false,
+        items: [auto(`${side}-cabinet`)],
+      })), joints: [],
+      openings: window ? [opening({
         id: 'window', label: 'W1', kind: 'window', width: 36, height: 36, sillZ: 40,
         measureMode: 'jamb', offset: 30, offsetFrom: 'left', casing: null,
-      }] : [], ...overrides,
-    }],
-  }, settings);
+      })] : [], ...overrides,
+    })],
+  }), settings);
   const wall = room.walls[0];
   return { room, wall, settings, scale: 2, frame: wallFrame(room, wall) };
 }
@@ -215,10 +214,10 @@ describe('DM7 step d centred plan dimensions', () => {
     }
     // At 11.9px/in, a 2in label fits exactly with 4px (0.336in) of line at each end.
     for (const withFaceRow of [false, true]) {
-      const input = { ...setup({ x2: withFaceRow ? 6 : 2, openings: withFaceRow ? [{
+      const input = { ...setup({ x2: withFaceRow ? 6 : 2, openings: withFaceRow ? [opening({
         id: 'small-window', label: 'W1', kind: 'window', width: 2, height: 36, sillZ: 40,
         measureMode: 'jamb', offset: 2, offsetFrom: 'left', casing: null,
-      }] : [] }), scale: 11.9 };
+      })] : [] }), scale: 11.9 };
       const tree = nodes(PlanWallShape(input));
       const row = withFaceRow ? nodes(tree.find(({ type, key }) => type === Group && key === 'front')) : tree;
       const label = row.find(({ type }) => type === Text);
@@ -266,31 +265,31 @@ describe('DM7 step d centred plan dimensions', () => {
   it('centres and gaps run and projection depths, retaining pop-outs on both faces and offset run planes', () => {
     for (const overrides of orientations) {
       for (const side of ['front', 'back']) {
-        for (const [runDepth, projectionDepth, scale] of [[24, 24, 1], [24, 24, 4], [1.125, 2, 11.9]]) {
-          const input = setup(overrides);
+        for (const [runDepth, projectionDepth, scale, factor] of [[24, 24, 1, 1], [24, 24, 4, 1], [1.125, 2, 11.9, 1], [24, 24, 4, 2], [1.125, 2, 11.9, 2]]) {
+          const input = { ...setup(overrides), text: { label: factor, dimension: factor } };
           const frame = wallSideFrame(input.room, input.wall, side);
           const run = { ...input.wall.runs.find((run) => run.wallSide === side), depth: runDepth };
           for (const planeBack of [0, -2]) {
             const depth = runDepth + 0.875;
             const tree = nodes(PlanRunFootprint({ ...input, frame, run: { ...run, _plane: { offset: planeBack } }, scale }));
             const label = tree.find(({ type, props }) => type === Text && props.fill === '#e2e8f0');
-            const dim = depthDimension(run, depth, scale);
-            checkDepth(tree, label, elevationToPlan(frame, dim.x, planeBack), elevationToPlan(frame, dim.x, planeBack + depth), dim, frame, scale, planeBack);
+            const dim = depthDimension(run, depth, scale, PLAN_DIM_FONT_SIZE * factor);
+            checkDepth(tree, label, elevationToPlan(frame, dim.x, planeBack), elevationToPlan(frame, dim.x, planeBack + depth), dim, frame, scale, planeBack, factor);
           }
           const recess = { id: 'projection', label: 'P1', kind: 'projection', wallSide: side,
             offset: 30, offsetFrom: 'left', width: 36, height: 36, bottom: 40, depth: projectionDepth };
           const tree = nodes(PlanRecess({ ...input, frame, recess, scale }));
           const label = tree.filter(({ type }) => type === Text)[1];
-          const dim = depthDimension({ x: 57, width: 0 }, projectionDepth, scale);
-          checkDepth(tree, label, elevationToPlan(frame, 57, 0), elevationToPlan(frame, 57, projectionDepth), dim, frame, scale, 0);
+          const dim = depthDimension({ x: 57, width: 0 }, projectionDepth, scale, PLAN_DIM_FONT_SIZE * factor);
+          checkDepth(tree, label, elevationToPlan(frame, 57, 0), elevationToPlan(frame, 57, projectionDepth), dim, frame, scale, 0, factor);
         }
       }
     }
   });
 });
 
-function checkDepth(tree, label, back, front, dim, frame, scale, planeBack) {
-  expect(label.props.fontSize).toBe(PLAN_DIM_FONT_SIZE / scale);
+function checkDepth(tree, label, back, front, dim, frame, scale, planeBack, factor = 1) {
+  expect(label.props.fontSize).toBe(PLAN_DIM_FONT_SIZE * factor / scale);
   expect(label.props.offsetY).toBe(label.props.fontSize / 2);
   expectPoint(label.props, elevationToPlan(frame, dim.label.x, planeBack + dim.label.offset));
   const lines = tree.filter(({ key }) => key?.startsWith('depth-line:'));

@@ -87,10 +87,12 @@ export default function PlanRunFootprint({
   selected,
   selectable,
   scale,
+  text,
   onSelect,
   onContextMenu,
   cursor,
 }) {
+  const factor = text?.label ?? 1;
   const [hovered, setHovered] = useState(false);
   const cursorKeys = useCursorKeys(cursor);
   const layout = splitRun(run, settings, {
@@ -114,10 +116,10 @@ export default function PlanRunFootprint({
   const color = CABINET_TYPE_COLORS[run.cabinetTypeId] ?? KIND_COLORS.cabinet;
   const outline = collision ? '#ef4444' : selected ? '#f8fafc' : color;
   const collisionAnchor = elevationToPlan(frame, (span.start + span.end) / 2, 0);
-  const depthFontSize = PLAN_DIM_FONT_SIZE / scale;
+  const depthFontSize = PLAN_DIM_FONT_SIZE * factor / scale;
   const depthText = formatDimension(depth);
-  const depthTextWidth = (depthText.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
-  const dim = depthDimension(run, depth, scale);
+  const depthTextWidth = (depthText.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
+  const dim = depthDimension(run, depth, scale, PLAN_DIM_FONT_SIZE * factor);
   const dimensionBack = elevationToPlan(frame, dim.x, planeBack);
   const dimensionFront = elevationToPlan(frame, dim.x, planeBack + depth);
   const depthLabelLocation = elevationToPlan(frame, dim.label.x, planeBack + dim.label.offset);
@@ -287,12 +289,12 @@ export default function PlanRunFootprint({
             pointerHeight={5 / scale}
           />
           <Text
-            width={230 / scale}
+            width={230 * factor / scale}
             text={collisionMessage}
             align="center"
             fill="#fecaca"
-            fontSize={11 / scale}
-            padding={6 / scale}
+            fontSize={11 * factor / scale}
+            padding={6 * factor / scale}
           />
         </Label>
       )}

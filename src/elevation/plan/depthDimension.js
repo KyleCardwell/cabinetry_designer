@@ -15,16 +15,17 @@ function clamp(value, minimum, maximum) {
 }
 
 export function depthDimension(run, depth, scale, fontSize = PLAN_DIM_FONT_SIZE) {
+  const factor = fontSize / PLAN_DIM_FONT_SIZE;
   const lane = DEPTH_LANES[run.cabinetTypeId] ?? 0;
   const side = lane < 0 ? -1 : 1;
   const margin = Math.min(run.width / 2, 6 / scale);
   const x = clamp(
-    run.x + run.width / 2 + lane * DEPTH_LANE_SHIFT / scale,
+    run.x + run.width / 2 + lane * DEPTH_LANE_SHIFT * factor / scale,
     run.x + margin,
     run.x + run.width - margin,
   );
-  const textPx = formatDimension(depth).length * 0.6 * fontSize + 8;
-  const fits = depth * scale >= textPx + 8;
+  const textPx = formatDimension(depth).length * 0.6 * fontSize + 8 * factor;
+  const fits = depth * scale >= textPx + 8 * factor;
   const offset = depth / 2;
 
   if (fits) {
@@ -35,12 +36,12 @@ export function depthDimension(run, depth, scale, fontSize = PLAN_DIM_FONT_SIZE)
     x,
     fits,
     label: {
-      x: x + side * (DEPTH_POPOUT_LEADER + 2 + fontSize / 2) / scale,
+      x: x + side * ((DEPTH_POPOUT_LEADER + 2) * factor + fontSize / 2) / scale,
       offset,
     },
     leader: {
       x1: x,
-      x2: x + side * DEPTH_POPOUT_LEADER / scale,
+      x2: x + side * DEPTH_POPOUT_LEADER * factor / scale,
       offset,
     },
   };

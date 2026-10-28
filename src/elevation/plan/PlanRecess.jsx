@@ -25,7 +25,8 @@ function toPoints(frame, points) {
  * A recess or projection in plan (SPEC-38): wall added (a deep recess's bump-out, a projection), the notch
  * knocked out of the wall, and its outline, dashed when it's raised off the floor. Not clickable.
  */
-export default function PlanRecess({ room, wall, frame, recess, scale, selected, settings }) {
+export default function PlanRecess({ room, wall, frame, recess, scale, text, selected, settings }) {
+  const factor = text?.dimension ?? 1;
   const tight = projectionTightSides(room, wall, recess, frame.length);
   const shape = recessPlanShape(recess, frame.length, wall.height, wall.thickness, tight);
   const geometry = recessGeometry(recess, frame.length, wall.height);
@@ -38,9 +39,9 @@ export default function PlanRecess({ room, wall, frame, recess, scale, selected,
   const bumpOut = recess.kind !== 'projection' && geometry.depth >= wall.thickness - 1e-6
     ? geometry.depth : 0;
   const label = elevationToPlan(frame, geometry.x + geometry.width / 2,
-    -wall.thickness - bumpOut - planSideReach(room, wall, opposite, settings) - 10 / scale);
+    -wall.thickness - bumpOut - planSideReach(room, wall, opposite, settings) - 10 * factor / scale);
   const depthDim = recess.kind === 'projection' && geometry.depth > 0
-    ? projectionDepth(frame, geometry.depth, projectionDepthX(recess, frame.length, wall.height, tight), scale)
+    ? projectionDepth(frame, geometry.depth, projectionDepthX(recess, frame.length, wall.height, tight), scale, factor)
     : null;
   return (
     <Group listening={false}>
@@ -62,13 +63,13 @@ export default function PlanRecess({ room, wall, frame, recess, scale, selected,
       <Text
         x={label.x}
         y={label.y}
-        width={120 / scale}
-        offsetX={60 / scale}
-        offsetY={PLAN_DIM_FONT_SIZE / 2 / scale}
+        width={120 * factor / scale}
+        offsetX={60 * factor / scale}
+        offsetY={PLAN_DIM_FONT_SIZE * factor / 2 / scale}
         align="center"
         rotation={readableRotation(Math.atan2(frame.r.y, frame.r.x) * 180 / Math.PI)}
         text={`${recess.label} · ${formatInches(geometry.width)} × ${formatInches(geometry.depth)}`}
-        fontSize={PLAN_DIM_FONT_SIZE / scale}
+        fontSize={PLAN_DIM_FONT_SIZE * factor / scale}
         fill="#e2e8f0"
       />
       {depthDim}
@@ -79,16 +80,16 @@ export default function PlanRecess({ room, wall, frame, recess, scale, selected,
 const TICK_HALF_LENGTH = 4;
 
 /** A projection's depth from the face, across it at `x` (Kyle 2026-10-16), drawn like a run's depth. */
-function projectionDepth(frame, depth, x, scale) {
-  const dim = depthDimension({ x, width: 0 }, depth, scale);
+function projectionDepth(frame, depth, x, scale, factor) {
+  const dim = depthDimension({ x, width: 0 }, depth, scale, PLAN_DIM_FONT_SIZE * factor);
   const back = elevationToPlan(frame, x, 0);
   const front = elevationToPlan(frame, x, depth);
   const tick = TICK_HALF_LENGTH / scale;
   const tickDirection = { x: (frame.n.x + frame.r.x) / Math.SQRT2, y: (frame.n.y + frame.r.y) / Math.SQRT2 };
   const angle = Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI;
-  const fontSize = PLAN_DIM_FONT_SIZE / scale;
+  const fontSize = PLAN_DIM_FONT_SIZE * factor / scale;
   const text = formatDimension(depth);
-  const textWidth = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
+  const textWidth = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
   const at = elevationToPlan(frame, dim.label.x, dim.label.offset);
   const line = (points, stroke = '#e2e8f0', width = 1) => (
     <Line points={points.flatMap((point) => [point.x, point.y])} stroke={stroke} strokeWidth={width / scale} />

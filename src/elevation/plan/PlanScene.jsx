@@ -14,6 +14,7 @@ export default function PlanScene({
   room,
   selectedWall,
   scale,
+  text,
   handleWallSelect,
   handleWallOpen,
   cursor,
@@ -39,6 +40,7 @@ export default function PlanScene({
           wall={wall}
           isSelected={wall.id === selectedWall?.id}
           scale={scale}
+          text={text}
           onSelect={(event) => handleWallSelect(wall.id, event)}
           onOpen={(event) => handleWallOpen(wall.id, event)}
           cursor={cursor}
@@ -54,6 +56,7 @@ export default function PlanScene({
           recess={recess}
           settings={settings}
           scale={scale}
+          text={text}
           selected={selection.recessId === recess.id}
         />
       )))}
@@ -68,6 +71,7 @@ export default function PlanScene({
           selected={selection.openingId === opening.id}
           selectable={tool === 'select' && !entry}
           scale={scale}
+          text={text}
           onSelect={handleOpeningSelect}
           onMove={(x) => handleOpeningMove(wall.id, opening.id, x)}
           cursor={cursor}
@@ -86,6 +90,7 @@ export default function PlanScene({
           selected={selection.runId === run.id}
           selectable={tool === 'select' && !entry}
           scale={scale}
+          text={text}
           onSelect={handleRunSelect}
           onContextMenu={handleRunContextMenu}
           cursor={cursor}
@@ -102,7 +107,7 @@ export default function PlanScene({
           listening={false}
         />
       )))}
-      <PlanClearances dimensions={clearances} scale={scale} />
+      <PlanClearances dimensions={clearances} scale={scale} text={text} />
       {walls.flatMap((wall) => (wall.soffits ?? []).map((soffit) => {
         const frame = wallSideFrame(room, wall, soffit.wallSide);
         return (
