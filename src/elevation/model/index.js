@@ -187,6 +187,7 @@ export {
   splitSection,
 } from './interiorTree.js';
 export { layoutRun, runFaceLayouts } from './faceLayouts.js';
+export { centerOverTargets, centerRunOver, targetsAt } from './centerOver.js';
 export {
   BOTTOM_PART_DOORS,
   BOTTOM_PART_KINDS,
