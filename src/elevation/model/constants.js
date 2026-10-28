@@ -13,6 +13,9 @@ export const SHAPE_KINDS = {
 
 export const FRAME_RETURN_WIDTH = 6;
 
+/** Root items a pin can place (SPEC-8): cabinets and open (void) cells. */
+export const PINNABLE_KINDS = new Set(['cabinet', 'void']);
+
 export const PANEL_MATERIALS = [
   { id: 'glass', label: 'Glass', seeThrough: true, glassMarks: true, orderText: 'sash panel (glass)' },
 ];

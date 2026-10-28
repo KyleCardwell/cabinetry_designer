@@ -1,5 +1,5 @@
 import { v4 as uuid } from 'uuid';
-import { BOX_BACKS, BOX_KEYS, BOX_TOPS, CABINET_PURPOSE_IDS } from '../../model/constants.js';
+import { BOX_BACKS, BOX_KEYS, BOX_TOPS, CABINET_PURPOSE_IDS, PINNABLE_KINDS } from '../../model/constants.js';
 import {
   gridLeaves,
   insertRootColumn,
@@ -54,7 +54,7 @@ export const itemReducers = {
     if (!location) return;
     const itemIndex = itemIndexFor(location.run, action.payload.itemId);
     const item = runItems(location.run)[itemIndex];
-    if (!item || item.kind !== 'cabinet') return;
+    if (!item || !PINNABLE_KINDS.has(item.kind)) return;
     const pin = action.payload.pin ?? null;
     const pinCountBefore = runItems(location.run).filter((candidate) => candidate.pin).length;
     const addsSecondPin = Boolean(pin) && !item.pin && pinCountBefore === 1;

@@ -9,6 +9,7 @@ import {
   DEFAULT_PREFS,
   DEFAULT_SETTINGS,
   FRAME_JOINS,
+  PINNABLE_KINDS,
 } from '../model/constants.js';
 import { isBottomPart } from '../model/bottoms.js';
 import { cleanOverrides } from '../model/settingsResolve.js';
@@ -288,7 +289,7 @@ function isItem(item) {
     && ITEM_KINDS.has(item.kind)
     && (item.width === null || isFiniteNumber(item.width))
     && (item.pin === undefined || item.pin === null
-      || (item.kind === 'cabinet' && isItemPin(item.pin)))
+      || (PINNABLE_KINDS.has(item.kind) && isItemPin(item.pin)))
     && (item.absorb === undefined
       || (item.kind === 'cabinet' && typeof item.absorb === 'boolean'))
     && (item.face === undefined || item.face === null
@@ -583,11 +584,14 @@ function isRootItem(item) {
     return isItem(item) && item.depth === undefined && item.align === undefined && isExtend(item.extend);
   }
   if (item.kind === 'cabinet') return isItem(item) && isCellDepth(item);
-  const { width, gap, top, bottom, ...leaf } = item;
+  const { width, gap, top, bottom, pin, ...leaf } = item;
   void gap;
   void top;
   void bottom;
-  return (width === null || (isFiniteNumber(width) && width > 0)) && isCellLeaf(leaf);
+  return (width === null || (isFiniteNumber(width) && width > 0))
+    // A root open cell may carry a pin like a cabinet (pins on opens, 2026-10-28).
+    && (pin === undefined || pin === null || (PINNABLE_KINDS.has(item.kind) && isItemPin(pin)))
+    && isCellLeaf(leaf);
 }
 
 /** Round 34.1: the root is one row with no spans; a root cell may be any kind. */

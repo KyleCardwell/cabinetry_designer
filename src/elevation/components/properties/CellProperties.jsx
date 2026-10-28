@@ -182,6 +182,10 @@ export default function CellProperties({
                   )}
                 </PanelSection>
 
+                {!column && item.kind === 'void' && (
+                  <PinSection room={room} wall={wall} run={run} item={item} piece={piece} settings={settings} />
+                )}
+
                 <CellDepthSection wall={wall} run={run} piece={piece} item={item} settings={settings} />
                 {isCabinet && <InsideEndsSection room={room} wall={wall} run={run} item={item} cells={cells} settings={settings} />}
                 {isCabinet && <StepEndsSection room={room} wall={wall} run={run} item={item} cells={cells} settings={settings} />}

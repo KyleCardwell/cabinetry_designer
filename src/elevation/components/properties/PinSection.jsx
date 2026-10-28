@@ -1,4 +1,5 @@
 import { useDispatch } from 'react-redux';
+import { PINNABLE_KINDS } from '../../model/constants.js';
 import { pinTargetsForRun, returnExtents, runItems, wallViewForRun } from '../../model/index.js';
 import { setItemPin } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
@@ -11,7 +12,8 @@ const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 p
 
 export default function PinSection({ room, wall, run, item, piece, settings, nested = false }) {
   const dispatch = useDispatch();
-  if (item?.kind !== 'cabinet' || !piece) return null;
+  if (!PINNABLE_KINDS.has(item?.kind) || !piece) return null;
+  const noun = item.kind === 'void' ? 'open' : 'cabinet';
   const actionBase = { wallId: wall.id, runId: run.id, itemId: item.id };
   const actualCenter = piece.x + piece.width / 2;
   const pinCount = runItems(run).filter((candidate) => candidate.pin).length;
@@ -47,7 +49,7 @@ export default function PinSection({ room, wall, run, item, piece, settings, nes
         </p>
       )}
       <label className="flex items-center justify-between rounded border border-gray-700 bg-gray-900/45 px-3 py-2 text-sm text-gray-300">
-        {nested ? 'Pin column' : 'Pin cabinet'}
+        {nested ? 'Pin column' : `Pin ${noun}`}
         <input
           type="checkbox"
           checked={Boolean(item.pin)}
@@ -158,7 +160,7 @@ export default function PinSection({ room, wall, run, item, piece, settings, nes
               </Field>
             </>
           ) : (
-            <Field label="Cabinet anchor">
+            <Field label={`${noun === 'open' ? 'Open' : 'Cabinet'} anchor`}>
               <select
                 value={item.pin.anchor}
                 onChange={(event) => updatePin({ anchor: event.target.value })}

@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { MIN_CELL_SIZE, derivedLeafWidths } from './cells.js';
 import { columnSteps } from './columnSteps.js';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS, PINNABLE_KINDS } from './constants.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { replaceRootItems, runItems } from './grid.js';
 import { insideEndGap, insideEndPanels } from './insideEnds.js';
@@ -602,7 +602,7 @@ function pinPlan(run, settings, opts) {
   const items = itemsWithGaps(run, settings);
   const targets = opts?.pinTargets ?? {};
   const pinnedItems = items.filter((item) => (
-    item.kind === 'cabinet'
+    PINNABLE_KINDS.has(item.kind)
     && item.pin
     && Number.isFinite(targets[item.id])
   ));

@@ -1,5 +1,5 @@
 import { teamDoorStyle } from './doorStyles.js';
-import { DEFAULT_SETTINGS } from './constants.js';
+import { DEFAULT_SETTINGS, PINNABLE_KINDS } from './constants.js';
 import { runItems } from './grid.js';
 import { openingGeometry } from './openings.js';
 import { validateRunPlacement } from './overlap.js';
@@ -105,7 +105,7 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
   const items = runItems(run);
   const pinned = items
     .map((item, itemIndex) => ({ item, itemIndex, target: pinTargets[item.id] }))
-    .filter(({ item, target }) => item.kind === 'cabinet'
+    .filter(({ item, target }) => PINNABLE_KINDS.has(item.kind)
       && item.pin
       && Number.isFinite(target));
   if (pinned.length === 0) {
