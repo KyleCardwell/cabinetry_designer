@@ -28,6 +28,14 @@ function mitered(side) {
   return side.panelRun?.join === 'miter' ? side.panelRun.thickness : 0;
 }
 
+/** A run whose depth follows its back panels; voids don't contribute a depth. */
+export function isPanelOnlyRun(run) {
+  const leaves = run.grid ? gridLeaves(run.grid) : [];
+  return leaves.some((leaf) => leaf.kind === 'panel')
+    && leaves.every((leaf) => leaf.kind === 'void'
+      || (leaf.kind === 'panel' && Number.isFinite(leaf.depth)));
+}
+
 /**
  * A run that's only panels (SPEC-38), as a wall end panel meets it (SPEC-43): how far its outermost panel
  * face sits from the wall face, and that panel's thickness. Null for any other run.

@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { syncRoom } from '../../model/roomSync.js';
 import {
   describe,
   expect,
@@ -574,5 +576,64 @@ describe('SPEC-35.3 extension reducers', () => {
     }));
     expect(gridLeaves(currentRun(state).grid).find(({ id }) => id === 'panel').extend)
       .toBeUndefined();
+  });
+});
+
+describe('FX5 panel-only run depth reducers', () => {
+  it('anchor 6: restores the base depth when Room 9b panel e5806f5c becomes a cabinet', () => {
+    const stored = JSON.parse(readFileSync(new URL('../../model/__tests__/fixtures/room9b.json', import.meta.url), 'utf8'));
+    const state = stateWithRun();
+    state.rooms = [syncRoom(stored, { ...state.settings, ...stored.settingsOverrides })];
+    state.activeRoomId = stored.id;
+    const wall = stored.walls.find(({ runs }) => runs.some(({ id }) => id.startsWith('c3e90115')));
+    const next = elevationReducer(state, setCellKind({ roomId: stored.id, wallId: wall.id,
+      runId: 'c3e90115-6035-4641-b50b-a0b5ba4079dc',
+      cellId: 'e5806f5c-00bc-43f1-aab0-110d1f1f3ddd', kind: 'cabinet' }));
+    const changed = next.rooms[0].walls.flatMap(({ runs }) => runs)
+      .find(({ id }) => id.startsWith('c3e90115'));
+    expect(changed.depth).toBe(state.settings.baseDepth);
+    expect(changed.depth).toBe(24);
+  });
+
+  it('anchor 7: accepts Room 9b panel depth 1.5 and syncs the run on growth and shrinkage', () => {
+    const stored = JSON.parse(readFileSync(new URL('../../model/__tests__/fixtures/room9b.json', import.meta.url), 'utf8'));
+    let state = stateWithRun();
+    state.rooms = [syncRoom(stored, { ...state.settings, ...stored.settingsOverrides })];
+    state.activeRoomId = stored.id;
+    const wall = stored.walls.find(({ runs }) => runs.some(({ id }) => id.startsWith('c3e90115')));
+    const at = { roomId: stored.id, wallId: wall.id,
+      runId: 'c3e90115-6035-4641-b50b-a0b5ba4079dc',
+      cellId: 'e5806f5c-00bc-43f1-aab0-110d1f1f3ddd' };
+    for (const [depth, expected] of [[1.5, 1.5], [0.75, 0.8125]]) {
+      state = elevationReducer(state, setCellDepth({ ...at, depth }));
+      const changed = state.rooms[0].walls.flatMap(({ runs }) => runs).find(({ id }) => id === at.runId);
+      expect(gridLeaves(changed.grid).find(({ id }) => id === at.cellId).depth).toBe(depth);
+      expect(changed.depth).toBe(expected);
+    }
+  });
+
+  it('restores each type default for panel or void to cabinet/shelves, using effective room settings', () => {
+    const at = { wallId: 'wall-1', runId: 'run-1' };
+    for (const [cabinetTypeId, setting] of [[1, 'baseDepth'], [2, 'upperDepth'], [3, 'tallDepth']]) {
+      for (const cellId of ['panel', 'gap']) {
+        for (const kind of ['cabinet', 'shelves']) {
+          const state = stateWithRun(run({ cabinetTypeId, depth: 0.75, autoCount: false, items: [
+            { ...auto('panel'), kind: 'panel', depth: 0.75 }, { ...auto('gap'), kind: 'void' },
+          ] }));
+          state.rooms[0].settingsOverrides = { [setting]: 19 };
+          state.rooms[0].profile = { baseBoxHeight: 28 };
+          state.rooms[0].walls[0].profile = { toeKickHeight: 5 };
+          const next = elevationReducer(state, setCellKind({ ...at, cellId, kind }));
+          expect(currentRun(next).depth).toBe(19);
+        }
+      }
+    }
+    const cabinet = stateWithRun(run({ depth: 21, autoCount: false, items: [auto('cabinet')] }));
+    expect(currentRun(elevationReducer(cabinet, setCellKind({ ...at, cellId: 'cabinet', kind: 'shelves' }))).depth)
+      .toBe(21);
+    const side = stateWithRun(run({ depth: 21, autoCount: false,
+      items: [{ ...auto('side'), kind: 'panel' }] }));
+    expect(currentRun(elevationReducer(side, setCellKind({ ...at, cellId: 'side', kind: 'cabinet' }))).depth)
+      .toBe(21);
   });
 });

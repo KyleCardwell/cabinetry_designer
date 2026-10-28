@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { opening, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { planMarks } from '../planMarks.js';
 import { wallFrame } from '../geometry.js';
@@ -39,7 +40,7 @@ describe('SPEC-45 plan dimensions: each wall\'s length and the rows along its fa
       { row: 'front', kind: 'opening', start: [-84, 19.5], end: [-42, 19.5], offset: 9, text: '42' },
       { row: 'front', kind: 'space', start: [-42, 19.5], end: [86, 19.5], offset: 9, text: '128' },
       wall([-86, 19.5], [86, 19.5], 21.75, '172'),
-      wall([110, -63.5], [110, 15], -9, '78 1/2'),
+      wall([86.75, -63.5], [86.75, 15], -9, '78 1/2'),
     ]);
     expect(dimensions(stored('G3 Bath alcove')).filter(({ row }) => row === 'front')).toEqual([
       { row: 'front', kind: 'space', start: [-102, 13.5], end: [-30, 13.5], offset: 9, text: '72' },
@@ -142,7 +143,7 @@ describe('SPEC-45.2 clearances in plan', () => {
 
 // DM1 anchors use a single 96" wall and 24" Euro base runs, independent of the golden room layouts.
 function dm1Room({ back = true, window = false, panels = [] } = {}) {
-  const base = (side) => ({
+  const base = (side) => buildRun({
     id: side, cabinetTypeId: CABINET_TYPE_IDS.BASE, wallSide: side,
     x: 0, width: 96, z: 4, height: 30.5, depth: 24,
     ends: { left: { type: 'none' }, right: { type: 'none' } },
@@ -150,19 +151,19 @@ function dm1Room({ back = true, window = false, panels = [] } = {}) {
     autoCount: false, heightMode: 'manual',
     items: [{ id: `${side}-cabinet`, kind: 'cabinet', width: null }],
   });
-  return syncRoom({
+  return syncRoom(buildRoom({
     id: 'dm1', profile: {}, wallOrder: ['wall'],
-    walls: [{
+    walls: [buildWall({
       id: 'wall', x1: 0, y1: 0, x2: 96, y2: 0, height: 96, thickness: 4.5,
       connections: { start: null, end: null }, landings: { start: null, end: null },
       endPanels: Object.fromEntries(panels.map((end) => [end, { width: 0.75 }])),
       runs: [base('front'), ...(back ? [base('back')] : [])], joints: [],
-      openings: window ? [{
+      openings: window ? [opening({
         id: 'window', label: 'W1', kind: 'window', width: 36, height: 36, sillZ: 40,
         measureMode: 'jamb', offset: 30, offsetFrom: 'left', casing: null,
-      }] : [],
-    }],
-  }, settings);
+      })] : [],
+    })],
+  }), settings);
 }
 
 // Actual y-up position of a dimension line, including its signed offset.

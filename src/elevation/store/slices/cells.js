@@ -2,6 +2,9 @@ import { v4 as uuid } from 'uuid';
 import { isExtendTarget } from '../../model/extensions.js';
 import { removeRootColumn, rootItems, setGridCellBlind } from '../../model/grid.js';
 import { isSheetCell, panelThickness } from '../../model/panelThickness.js';
+import { resolveProfile } from '../../model/profile.js';
+import { defaultsForType } from '../../model/runDefaults.js';
+import { isPanelOnlyRun } from '../../model/wallEndPanels.js';
 import {
   addGridPanel,
   columnLayoutOf,
@@ -215,6 +218,7 @@ export const cellReducers = {
     const location = runLocation(state, action.payload);
     if (!location) return;
     const { cellId, kind } = action.payload;
+    const wasPanelOnly = isPanelOnlyRun(location.run);
     const before = location.run.grid;
     const found = findCell(before, cellId);
     let grid = setGridCellKind(before, cellId, kind);
@@ -224,6 +228,12 @@ export const cellReducers = {
         panelThickness(location.room, location.wall, location.run, findLeaf(grid, cellId), settingsFor(state, location.room), { sheet: isSheetCell(findLeaf(grid, cellId)) }));
     }
     location.run.grid = grid;
+    if (wasPanelOnly && !isPanelOnlyRun(location.run)
+      && (kind === 'cabinet' || kind === 'shelves')) {
+      const settings = settingsFor(state, location.room);
+      const profile = resolveProfile(settings, location.room, location.wall);
+      location.run.depth = defaultsForType(location.run.cabinetTypeId, settings, profile).depth;
+    }
     if (found.depth === 0) location.run.autoCount = false;
     if (state.selection.pieceId === cellId && kind !== 'cabinet') {
       state.facePath = null;
@@ -236,10 +246,11 @@ export const cellReducers = {
     const location = runLocation(state, action.payload);
     if (!location) return;
     const { cellId } = action.payload;
+    const panelOnly = isPanelOnlyRun(location.run);
     const patch = {};
     if (Object.hasOwn(action.payload, 'depth')) {
       const depth = action.payload.depth ?? null;
-      if (depth !== null && depth > location.run.depth + 1e-6) return;
+      if (!panelOnly && depth !== null && depth > location.run.depth + 1e-6) return;
       patch.depth = depth;
     }
     if (Object.hasOwn(action.payload, 'align')) patch.align = action.payload.align ?? null;
@@ -247,6 +258,7 @@ export const cellReducers = {
     const grid = setGridCellDepth(before, cellId, patch);
     if (grid === before) return;
     location.run.grid = grid;
+    if (panelOnly) syncRoomAt(state, location.roomIndex);
   },
   setCellShelves(state, action) {
     const location = runLocation(state, action.payload);

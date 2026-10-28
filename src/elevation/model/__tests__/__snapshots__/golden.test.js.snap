@@ -3118,7 +3118,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
       "runId": "2c8ab1e3-3bad-4a28-bb80-24ee4df20b81",
       "side": "back",
       "wallId": "64da569f-6c94-408d-809a-37c6e1f9755f",
-      "width": 77.6875,
+      "width": 78.5,
     },
     {
       "key": "64da569f-6c94-408d-809a-37c6e1f9755f:endPanel:end",
@@ -3721,7 +3721,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
             },
             "autoCount": false,
             "cabinetTypeId": 1,
-            "depth": 24,
+            "depth": 0.75,
             "ends": {
               "left": {
                 "auto": true,
@@ -3954,7 +3954,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                 "start": 147.1875,
               },
               {
-                "end": 196,
+                "end": 172.75,
                 "kind": "neighbor",
                 "neighborRunId": "2c8ab1e3-3bad-4a28-bb80-24ee4df20b81",
                 "start": 172,
@@ -3978,7 +3978,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                 "start": 49.9375,
               },
               {
-                "end": 196,
+                "end": 172.75,
                 "kind": "neighbor",
                 "neighborRunId": "2c8ab1e3-3bad-4a28-bb80-24ee4df20b81",
                 "start": 172,
@@ -4507,7 +4507,7 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
           },
           "runs": [
             {
-              "frontDepth": 24,
+              "frontDepth": 0.75,
               "id": "2c8ab1e3-3bad-4a28-bb80-24ee4df20b81",
               "layout": {
                 "errors": [],
@@ -4537,13 +4537,31 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                     "front": 0.75,
                     "key": "ec0ad482-c6b9-4d8a-9d94-4e785ade9129",
                     "kind": "panel",
-                    "start": 0.8125,
+                    "polygon": [
+                      [
+                        0,
+                        0.75,
+                      ],
+                      [
+                        78.5,
+                        0.75,
+                      ],
+                      [
+                        78.5,
+                        0,
+                      ],
+                      [
+                        0.8125,
+                        0,
+                      ],
+                    ],
+                    "start": 0,
                   },
                 ],
                 "returns": [],
                 "span": {
                   "end": 78.5,
-                  "start": 0.8125,
+                  "start": 0,
                 },
               },
             },
@@ -8519,7 +8537,7 @@ exports[`C1 golden rooms > G6 Stacked runs derives exactly what it did 1`] = `
             },
             "autoCount": false,
             "cabinetTypeId": 2,
-            "depth": 12,
+            "depth": 0.75,
             "ends": {
               "left": {
                 "type": "none",
@@ -8784,7 +8802,7 @@ exports[`C1 golden rooms > G6 Stacked runs derives exactly what it did 1`] = `
                 "end": 48,
                 "kind": "neighbor",
                 "neighborRunId": "b1ec1b4a-de2b-4a28-a694-77675f913ebd",
-                "start": 36,
+                "start": 47.25,
                 "wallId": "e6ce8769-be99-492d-aca7-ef6355773749",
               },
             ],
@@ -9276,7 +9294,7 @@ exports[`C1 golden rooms > G6 Stacked runs derives exactly what it did 1`] = `
               },
             },
             {
-              "frontDepth": 12,
+              "frontDepth": 0.75,
               "id": "b1ec1b4a-de2b-4a28-a694-77675f913ebd",
               "layout": {
                 "errors": [],

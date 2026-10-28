@@ -37,10 +37,10 @@ describe('SPEC-42.1 wall parts', () => {
   it('puts a wall end panel a face frame is mitered over behind the frame (G2 peninsula)', () => {
     const g2 = room('G2 Face frame kitchen');
     expect(row(partsOf(g2, 1)[0]))
-      .toEqual([`${PENINSULA}:endPanel:end`, 'wall_end_panel', 77.6875, 0, 0.8125, 34.5, -24, 24]);
-    // The back face's run is only a back panel: no frame, so nothing is mitered over it.
+      .toEqual([`${PENINSULA}:endPanel:end`, 'wall_end_panel', 77.6875, 0, 0.8125, 34.5, -0.75, 24]);
+    // FX5: the back panel is now flush and mitered over the end panel.
     expect(row(partsOf(g2, 1, 'back')[0]))
-      .toEqual([`${PENINSULA}:endPanel:end`, 'wall_end_panel', 0, 0, 0.8125, 34.5, -24.8125, 24]);
+      .toEqual([`${PENINSULA}:endPanel:end`, 'wall_end_panel', 0, 0, 0.8125, 34.5, -24.8125, 0]);
   });
 
   it('draws a door or window as its casing and its opening, outlines that hide nothing', () => {

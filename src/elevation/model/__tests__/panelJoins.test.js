@@ -11,7 +11,7 @@ const { settings } = document;
 const stored = (name) => document.rooms.find((candidate) => candidate.name === name);
 const BACK = '2c8ab1e3-3bad-4a28-bb80-24ee4df20b81';
 
-/** G2 as drawn: the peninsula's back run is 24" deep with a 3/4" panel against the cabinet backs. */
+/** FX5: G2's stored 24" back run follows its 3/4" panel when synced. */
 const asDrawn = () => syncRoom(stored('G2 Face frame kitchen'), settings);
 
 /** G2 with the back panel run as deep as its panel, so the panel's face is the end panel's back face. */
@@ -28,10 +28,10 @@ describe('SPEC-43 a wall end panel meets a back panel run', () => {
     expect(panelRunFace(flush().walls[1].runs[1])).toEqual({ front: 0.75, thickness: 0.75 });
   });
 
-  it('miters when the panel\'s face is the end panel\'s depth, else butts; the panel\'s joint choice overrides', () => {
+  it('miters when the panel\'s face is the end panel\'s depth; the panel\'s joint choice overrides', () => {
     const room = asDrawn();
     const [drawn] = wallEndPanels(room, room.walls[1], settings);
-    expect(drawn.back.panelRun).toEqual({ runId: BACK, thickness: 0.75, join: 'butt' });
+    expect(drawn.back.panelRun).toEqual({ runId: BACK, thickness: 0.75, join: 'miter' });
     expect('panelRun' in drawn.front).toBe(false);
 
     const mitered = flush();

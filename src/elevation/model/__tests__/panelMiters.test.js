@@ -40,10 +40,10 @@ describe('SPEC-43 a back panel mitered into a wall end panel', () => {
     expect(wallEndPanelPolygon(room, room.walls[1], wallEndPanels(room, room.walls[1], settings)[0])).toEqual([
       { x: 86, y: 62.6875 }, { x: 86.75, y: 63.5 }, { x: 61.1875, y: 63.5 }, { x: 62, y: 62.6875 },
     ]);
-    // As drawn it's butted: the back corner is square. (A panel-only run in an inset room is not a frame.)
-    const drawn = asDrawn();
+    // A typed butt keeps the back corner square at the panel's derived 3/4" depth.
+    const drawn = flush('butt');
     expect(wallEndPanelPolygon(drawn, drawn.walls[1], wallEndPanels(drawn, drawn.walls[1], settings)[0])).toEqual([
-      { x: 110, y: 62.6875 }, { x: 110, y: 63.5 }, { x: 61.1875, y: 63.5 }, { x: 62, y: 62.6875 },
+      { x: 86.75, y: 62.6875 }, { x: 86.75, y: 63.5 }, { x: 61.1875, y: 63.5 }, { x: 61.1875, y: 62.6875 },
     ]);
   });
 
@@ -69,7 +69,8 @@ describe('SPEC-43 a back panel mitered into a wall end panel', () => {
     expect(spansOf(room, 'front')).toEqual([{ z: 0, height: 4 }]);
     const butted = flush('butt');
     expect(wallParts(butted, butted.walls[1], 'back', settings).map(row)[0][7]).toBe(0.75);
-    // As drawn the back run is butted, so the whole panel shows on the back face.
-    expect(spansOf(asDrawn(), 'back')).toEqual([{ z: 0, height: 34.5 }]);
+    // FX5: the synced back run is flush and mitered; a typed butt shows the whole end panel.
+    expect(spansOf(asDrawn(), 'back')).toEqual([{ z: 0, height: 4 }]);
+    expect(spansOf(butted, 'back')).toEqual([{ z: 0, height: 34.5 }]);
   });
 });

@@ -41,9 +41,8 @@ describe('SPEC-42.2 a run seen from its side', () => {
   it('a face frame stands 13/16 off the box; a panel-only run has no faces (G2)', () => {
     expect(sideOf('G2 Face frame kitchen', 0, 'a42e9a57')[2]).toEqual(['faces', 4, 86, 25, 25.8125]);
     expect(sideOf('G2 Face frame kitchen', 1, '2c8ab1e3', 'back')).toEqual([
-      ['toe_kick', 0, 4, 0, 21],
-      ['box', 4, 30.5, 0, 24],
-      ['countertop', 34.5, 1.5, 0, 24.75],
+      ['box', 4, 30.5, 0, 0.75],
+      ['countertop', 34.5, 1.5, 0, 1.5],
     ]);
   });
 
@@ -55,6 +54,6 @@ describe('SPEC-42.2 a run seen from its side', () => {
       ['countertop', 34.5, 1.5, 8, 33.625],
     ]);
     expect(sideOf('G5 Recess room', 1, 'e9abb5dc')[1]).toEqual(['box', 4, 30.5, -24, -3]);
-    expect(sideOf('G6 Stacked runs', 1, 'b1ec1b4a')).toEqual([['box', 36, 18, 0, 12]]);
+    expect(sideOf('G6 Stacked runs', 1, 'b1ec1b4a')).toEqual([['box', 36, 18, 0, 0.75]]);
   });
 });

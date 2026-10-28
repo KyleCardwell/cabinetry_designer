@@ -135,7 +135,7 @@ describe('DM8 step b end-view panel payload', () => {
       ...DEFAULT_DOOR_STYLE, profiles: { ...DEFAULT_DOOR_STYLE.profiles, outside: outside.id },
     } };
     const link = (wallId, endpoint) => ({ wallId, endpoint });
-    const wall = (id, x1, y1, x2, y2, start, end, runs = []) => ({
+    const wall = (id, x1, y1, x2, y2, start, end, runs = []) => buildWall({
       id, name: id, x1, y1, x2, y2, height: 96, thickness: 4.5, flipped: false,
       runs, openings: [], recesses: [], soffits: [], connections: { start, end },
     });
@@ -179,9 +179,10 @@ describe('DM8 step b end-view panel payload', () => {
 // DM7 updates centred-text fitting and pop-out levels; G2 also had a stale hash before DM7.
 // FX2 step a returns G5's countertop past its recess side: width 37 -> 37.75; other payload fields stay unchanged.
 // FX4 b.1 returns G1 wall 1's open left end: the tall's toe kick, top mold and crown only.
+// FX5 f updates G2's panel-only back run from 24" to 3/4", including its miter and depth dimensions.
 const preHP5PayloadHashes = {
   'G1 Euro kitchen': '635ae2cd19e1349b6b59e0f89e334b50b1325ae5da97b12f8cfae4c857c5c095',
-  'G2 Face frame kitchen': '6db3785fa9bca11c26a0f61d77a287d756a18b9cc7e687fb1c6b0c54c68b58d4',
+  'G2 Face frame kitchen': '0761ffd7b1d94c28f9d31f04aa7f8d5b7ddce817936615104d7b041822aca155',
   'G3 Bath alcove': '972df0b7e5cf218bf98a7725b79e676a933734d8b21507c980438310f46e2ef1',
   'G4 T-filler run': 'f32f42cd95835870de06a6de27c6889e6b428f3980f12b0290ae0b7eaacf5350',
   'G5 Recess room': '154268c5476095dd92645b353eeb17471df94f6c7f91b13abc00e50b918e92c4',

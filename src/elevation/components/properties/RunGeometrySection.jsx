@@ -15,6 +15,7 @@ import {
   stretchedStart,
 } from '../../model/index.js';
 import { formatRunOverhang } from '../../properties/helpers.js';
+import { isPanelOnlyRun } from '../../model/wallEndPanels.js';
 import { resizeRun, setRunHoldWidth, setRunRecess } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
@@ -28,6 +29,7 @@ export default function RunGeometrySection({
   validateAndDispatch,
 }) {
   const dispatch = useDispatch();
+  const panelOnly = isPanelOnlyRun(run);
   const overhang = formatRunOverhang(run, wall.length);
   const leftGrowLocked = run.anchors.left && !isJointAnchor(run.anchors.left);
   const rightGrowLocked = run.anchors.right && !isJointAnchor(run.anchors.right);
@@ -104,12 +106,19 @@ export default function RunGeometrySection({
               </span>
             </Field>
           </div>
-          <Field label="Depth">
-            <InchInput
-              value={run.depth}
-              onCommit={(value) => validateAndDispatch({ depth: value })}
-              aria-label="Run depth"
-            />
+          <Field label="Depth" tag={panelOnly ? 'auto' : undefined}>
+            {panelOnly ? (
+              <>
+                <ReadOnlyValue value={run.depth} ariaLabel="Run depth" />
+                <p className="mt-1 text-xs text-gray-500">Follows its panels</p>
+              </>
+            ) : (
+              <InchInput
+                value={run.depth}
+                onCommit={(value) => validateAndDispatch({ depth: value })}
+                aria-label="Run depth"
+              />
+            )}
           </Field>
           <Field label="Outset">
             <InchInput

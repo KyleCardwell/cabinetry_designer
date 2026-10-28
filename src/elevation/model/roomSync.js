@@ -6,7 +6,7 @@ import { teamDoorStyle } from './doorStyles.js';
 import { extendPieces } from './extensions.js';
 import { findCollisions } from './footprints.js';
 import { frameRegions } from './frames.js';
-import { runItems } from './grid.js';
+import { gridLeaves, runItems } from './grid.js';
 import { insideEndBoundary, insideEndSides } from './insideEnds.js';
 import { stepEndSides } from './stepEnds.js';
 import {
@@ -39,7 +39,7 @@ import {
   wallSideView,
   wallViewForRun,
 } from './wallSides.js';
-import { wallEndPanels } from './wallEndPanels.js';
+import { isPanelOnlyRun, wallEndPanels } from './wallEndPanels.js';
 import { cloneRun, cloneRoom } from './roomClone.js';
 import { endMinWidthsForRun, endCornerAnglesForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
 import { pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
@@ -130,6 +130,14 @@ function withSeamGap(room, run, settings) {
   const { _seamGap, ...rest } = run;
   void _seamGap;
   return rest;
+}
+
+/** Back-panel-only runs follow their deepest panel before resolving their geometry. */
+function withPanelOnlyDepth(run) {
+  if (!isPanelOnlyRun(run)) return run;
+  const depth = Math.max(...gridLeaves(run.grid)
+    .filter((leaf) => leaf.kind === 'panel').map((leaf) => leaf.depth));
+  return run.depth === depth ? run : { ...run, depth };
 }
 
 /** A run with its derived face frame, stored only for inset styles. */
@@ -300,6 +308,7 @@ export function syncRoom(room, settings) {
       height: resolveProfile(settings, nextRoom, wall).wallHeight,
       thicknessOverride,
       thickness: thicknessOverride ?? settings.wallThickness,
+      runs: wall.runs.map(withPanelOnlyDepth),
     };
   });
   nextRoom.walls = nextRoom.walls.map((wall) => ({
