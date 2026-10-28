@@ -8,6 +8,7 @@ import { placedAccessoryShape } from './InteriorShapes.jsx';
 
 function interiorItem(item, transform, sections) {
   const rect = wallRectToScreen(item, transform);
+  const labelScale = transform.text?.label ?? 1;
   if (item.kind === 'accessory') {
     const path = item.key.split(':')[1];
     const section = sections?.find((section) => section.path === path);
@@ -33,8 +34,8 @@ function interiorItem(item, transform, sections) {
     <Fragment key={item.key}>
       <Rect {...rect} stroke={stroke} strokeWidth={item.kind === 'rollout' ? 1 : 0.75}
         fillEnabled={false} listening={false} />
-      {item.kind === 'rollout' && rect.height >= 16 && rect.width >= text.length * 6 + 6 && (
-        <Text {...rect} text={text} fontSize={10} fill={stroke}
+      {item.kind === 'rollout' && rect.height >= 10 * labelScale + 6 && rect.width >= text.length * 6 * labelScale + 6 && (
+        <Text {...rect} text={text} fontSize={10 * labelScale} fill={stroke}
           align="center" verticalAlign="middle" listening={false} />
       )}
     </Fragment>

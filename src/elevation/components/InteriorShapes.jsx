@@ -10,15 +10,17 @@ const SIZE_FONT = 10;
 const SIZE_INSET = 3;
 
 export function placedAccessoryShape({ shapeKey, box, line, rect, text, color, drawing, transform }) {
+  const labelScale = transform.text?.label ?? 1;
+  const fontSize = SIZE_FONT * labelScale;
   if (drawing) box = wallRectToScreen(drawing.bounds, transform);
-  const labelWidth = text.length * 6 + SIZE_INSET * 2;
-  const inside = box && box.height >= SIZE_FONT && box.width >= labelWidth;
+  const labelWidth = text.length * 6 * labelScale + SIZE_INSET * 2;
+  const inside = box && box.height >= fontSize && box.width >= labelWidth;
   const rightX = box && box.x + box.width + SIZE_INSET;
-  const beside = box && !inside && rect.height >= SIZE_FONT + SIZE_INSET * 2
+  const beside = box && !inside && rect.height >= fontSize + SIZE_INSET * 2
     && rect.x + rect.width - rightX >= labelWidth;
   const top = box ?? line;
   const above = top && rect.width >= labelWidth
-    && top.y - SIZE_FONT - SIZE_INSET >= rect.y + SIZE_INSET;
+    && top.y - fontSize - SIZE_INSET >= rect.y + SIZE_INSET;
   return (
     <Group key={shapeKey} listening={false}>
       {drawing ? drawing.outlines.map(({ closed, outline }, index) => (
@@ -31,15 +33,15 @@ export function placedAccessoryShape({ shapeKey, box, line, rect, text, color, d
           stroke={color} strokeWidth={1} listening={false} />
       )}
       {inside ? (
-        <Text {...box} text={text} fontSize={SIZE_FONT} fill={color}
+        <Text {...box} text={text} fontSize={fontSize} fill={color}
           align="center" verticalAlign="middle" listening={false} />
       ) : beside ? (
         <Text x={rightX} y={Math.max(rect.y + SIZE_INSET,
-          Math.min(box.y + (box.height - SIZE_FONT) / 2, rect.y + rect.height - SIZE_FONT - SIZE_INSET))}
-          text={text} fontSize={SIZE_FONT} fill={color} listening={false} />
+          Math.min(box.y + (box.height - fontSize) / 2, rect.y + rect.height - fontSize - SIZE_INSET))}
+          text={text} fontSize={fontSize} fill={color} listening={false} />
       ) : above ? (
-        <Text x={rect.x + SIZE_INSET} y={top.y - SIZE_FONT - SIZE_INSET}
-          text={text} fontSize={SIZE_FONT} fill={color} listening={false} />
+        <Text x={rect.x + SIZE_INSET} y={top.y - fontSize - SIZE_INSET}
+          text={text} fontSize={fontSize} fill={color} listening={false} />
       ) : null}
     </Group>
   );
@@ -64,6 +66,8 @@ export default function InteriorShapes({
   onMoveDivider,
 }) {
   const draggedRef = useRef(false);
+  const labelScale = transform.text?.label ?? 1;
+  const fontSize = SIZE_FONT * labelScale;
   const selectedPath = interiorPath ?? 'r';
   const click = (interior) => (event) => {
     event.cancelBubble = true;
@@ -91,14 +95,14 @@ export default function InteriorShapes({
             || section.path.startsWith(`${selectedPath}.`));
           const text = `${formatDimension(section.width)} × ${formatDimension(section.height)}`;
           const showSize = selectable
-            && rect.height >= SIZE_FONT + SIZE_INSET * 2
-            && rect.width >= text.length * 6 + SIZE_INSET * 2;
+            && rect.height >= fontSize + SIZE_INSET * 2
+            && rect.width >= text.length * 6 * labelScale + SIZE_INSET * 2;
           const accessory = accessories.get(entry.itemId)?.get(section.path);
           const items = (accessory?.items ?? []).filter(({ accessory }) => accessory?.attachesTo === 'section')
             .map((item) => ({ ...item, text: `${item.qty > 1 ? `${item.qty} × ` : ''}${item.accessory.name}` }));
           const labels = items.filter(({ centerZ }) => centerZ == null);
-          const showAccessories = rect.height >= labels.length * SIZE_FONT + SIZE_INSET * 2
-            && labels.every(({ text }) => rect.width >= text.length * 6 + SIZE_INSET * 2);
+          const showAccessories = rect.height >= labels.length * fontSize + SIZE_INSET * 2
+            && labels.every(({ text }) => rect.width >= text.length * 6 * labelScale + SIZE_INSET * 2);
           return (
             <Fragment key={section.path}>
               <Rect
@@ -111,8 +115,8 @@ export default function InteriorShapes({
               />
               {showAccessories && labels.map(({ index, text, warnings }, line) => (
                 <Text key={`accessory:${section.path}:${index}`}
-                  x={rect.x + SIZE_INSET} y={rect.y + SIZE_INSET + line * SIZE_FONT}
-                  text={text} fontSize={SIZE_FONT}
+                  x={rect.x + SIZE_INSET} y={rect.y + SIZE_INSET + line * fontSize}
+                  text={text} fontSize={fontSize}
                   fill={warnings.length || accessory.warnings.length ? '#f59e0b' : selected ? '#7dd3fc' : '#64748b'}
                   listening={false} />
               ))}
@@ -131,9 +135,9 @@ export default function InteriorShapes({
               {showSize && (
                 <Text
                   x={rect.x + SIZE_INSET}
-                  y={rect.y + rect.height - SIZE_FONT - SIZE_INSET}
+                  y={rect.y + rect.height - fontSize - SIZE_INSET}
                   text={text}
-                  fontSize={SIZE_FONT}
+                  fontSize={fontSize}
                   fill={selected ? '#7dd3fc' : '#64748b'}
                   listening={false}
                 />
@@ -167,8 +171,8 @@ export default function InteriorShapes({
             rects.push(
               <Fragment key={`shoe-shelf:${section.path}:${index}`}>
                 <Rect {...rect} stroke="#94a3b8" strokeWidth={0.75} fillEnabled={false} listening={false} />
-                {rect.height >= SIZE_FONT && rect.width >= label.length * 6 + SIZE_INSET * 2 && (
-                  <Text {...rect} text={label} fontSize={SIZE_FONT} fill="#94a3b8"
+                {rect.height >= fontSize && rect.width >= label.length * 6 * labelScale + SIZE_INSET * 2 && (
+                  <Text {...rect} text={label} fontSize={fontSize} fill="#94a3b8"
                     align="center" verticalAlign="middle" listening={false} />
                 )}
               </Fragment>,
@@ -179,12 +183,12 @@ export default function InteriorShapes({
           const label = formatDimension(shelf.gap);
           const labels = [shelf.zone.z, ...shelf.positions.map((z) => z + visible)].map((z, index) => {
             const rect = wallRectToScreen({ x: section.x, z, width: section.width, height: shelf.gap }, transform);
-            return rect.height < SIZE_FONT || rect.width < label.length * 6 ? null : (
+            return rect.height < fontSize || rect.width < label.length * 6 * labelScale ? null : (
               <Text
                 key={`shelf-gap:${section.path}:${index}`}
                 {...rect}
                 text={label}
-                fontSize={SIZE_FONT}
+                fontSize={fontSize}
                 fill="#94a3b8"
                 align="center"
                 verticalAlign="middle"
@@ -201,8 +205,8 @@ export default function InteriorShapes({
             const text = `RO ${formatInches(box.height).replace(/"$/, '')}`;
             const color = box.warnings.length || rollout.warnings.some(({ index }) => index === undefined)
               ? '#f59e0b' : '#e2e8f0';
-            const showHeight = rect.height >= SIZE_FONT + SIZE_INSET * 2
-              && rect.width >= text.length * 6 + SIZE_INSET * 2;
+            const showHeight = rect.height >= fontSize + SIZE_INSET * 2
+              && rect.width >= text.length * 6 * labelScale + SIZE_INSET * 2;
             return (
               <Group key={`rollout:${section.path}:${box.index}`} listening={false}>
                 {rolloutSpacerSides(rollout, box).map((side) => (
@@ -213,7 +217,7 @@ export default function InteriorShapes({
                 ))}
                 <Rect {...rect} stroke={color} strokeWidth={1} listening={false} />
                 {showHeight && (
-                  <Text {...rect} text={text} fontSize={SIZE_FONT} fill={color}
+                  <Text {...rect} text={text} fontSize={fontSize} fill={color}
                     align="center" verticalAlign="middle" listening={false} />
                 )}
               </Group>
@@ -305,10 +309,10 @@ export default function InteriorShapes({
             const names = (box.accessories ?? []).filter(({ accessory }) => accessory?.attachesTo === 'drawer_box')
               .map(({ accessory, qty }) => `${qty > 1 ? `${qty} × ` : ''}${accessory.name}`);
             const fullText = names.length ? `${heightText} · ${names.join(', ')}` : heightText;
-            const text = rect.width >= fullText.length * 6 + SIZE_INSET * 2 ? fullText : heightText;
+            const text = rect.width >= fullText.length * 6 * labelScale + SIZE_INSET * 2 ? fullText : heightText;
             const color = box.warnings.length ? '#f59e0b' : '#e2e8f0';
-            const showHeight = rect.height >= SIZE_FONT + SIZE_INSET * 2
-              && rect.width >= text.length * 6 + SIZE_INSET * 2;
+            const showHeight = rect.height >= fontSize + SIZE_INSET * 2
+              && rect.width >= text.length * 6 * labelScale + SIZE_INSET * 2;
             return (
               <Group key={`drawer:${box.path}`} listening={false}>
                 <Rect {...rect} stroke={color} strokeWidth={1} listening={false} />
@@ -316,7 +320,7 @@ export default function InteriorShapes({
                   <Text
                     {...rect}
                     text={text}
-                    fontSize={SIZE_FONT}
+                    fontSize={fontSize}
                     fill={color}
                     align="center"
                     verticalAlign="middle"

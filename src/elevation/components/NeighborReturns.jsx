@@ -118,7 +118,7 @@ export default function NeighborReturns({
             text={entry.label}
             align="center"
             verticalAlign="middle"
-            fontSize={10}
+            fontSize={10 * (transform.text?.label ?? 1)}
             fill="#e2e8f0"
             listening={false}
           />
@@ -144,7 +144,7 @@ export default function NeighborReturns({
             text={entry.label}
             align="center"
             verticalAlign="middle"
-            fontSize={10}
+            fontSize={10 * (transform.text?.label ?? 1)}
             fill="#e2e8f0"
             listening={false}
           />

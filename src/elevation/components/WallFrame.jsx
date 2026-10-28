@@ -95,9 +95,9 @@ export default function WallFrame({
           />
           <Text
             x={crownStart.x + 5}
-            y={crownStart.y - 17}
+            y={crownStart.y - 17 * (transform.text?.label ?? 1)}
             text={`Top of crown ${formatInches(crownTop)}`}
-            fontSize={11}
+            fontSize={11 * (transform.text?.label ?? 1)}
             fill="#fbbf24"
           />
         </>

@@ -71,7 +71,7 @@ export default function RecessShapes({ wall, transform, selectedRecessId, onSele
           y={rect.y + 4}
           width={Math.max(0, rect.width - 8)}
           text={`${recess.label} · ${formatInches(recess.depth)} ${projection ? 'out' : 'deep'}`}
-          fontSize={10}
+          fontSize={10 * (transform.text?.label ?? 1)}
           fill="#cbd5e1"
           listening={false}
         />
@@ -100,7 +100,7 @@ export function RecessOutline({ wall, transform, recessId }) {
         strokeWidth={2}
         dash={recess.kind === 'projection' ? undefined : [6, 4]}
       />
-      <Text x={rect.x + 4} y={rect.y + 4} text={recess.label} fontSize={10} fill="#93c5fd" />
+      <Text x={rect.x + 4} y={rect.y + 4} text={recess.label} fontSize={10 * (transform.text?.label ?? 1)} fill="#93c5fd" />
     </Group>
   );
 }

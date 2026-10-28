@@ -22,6 +22,8 @@ export default function PieceRect({
   const [hovered, setHovered] = useState(false);
   const cursorKeys = useCursorKeys(cursor);
   const rect = wallRectToScreen(piece, transform);
+  const labelScale = transform.text?.label ?? 1;
+  const fontSize = 13 * labelScale;
   const widthText = Number.isFinite(piece.absorbed)
     ? `${formatDimension(piece.width)} (${piece.absorbed >= 0 ? '+' : ''}${formatDimension(piece.absorbed)})`
     : formatDimension(piece.width);
@@ -29,7 +31,8 @@ export default function PieceRect({
   // The centred block is kept for text notes: the sub-label, then any `notes`, stacked and centred.
   const centerLines = [subLabel, ...notes].filter(Boolean);
   const longest = Math.max(0, ...centerLines.map((line) => line.length));
-  const narrow = rect.width < Math.max(44, longest * 6.5) || rect.height < centerLines.length * 13;
+  const narrow = rect.width < Math.max(44 * labelScale, longest * fontSize * 0.65)
+    || rect.height < centerLines.length * fontSize * 1.25;
   const outline = error
     ? '#ef4444'
     : warning
@@ -81,19 +84,19 @@ export default function PieceRect({
           lineHeight={1.25}
           text={centerLines.join('\n')}
           fill="#cbd5e1"
-          fontSize={10}
+          fontSize={fontSize}
           listening={false}
         />
       )}
 
-      {showLabels && fixedCabinet && rect.width >= 12 && (
+      {showLabels && fixedCabinet && rect.width >= 12 * labelScale && (
         <Text
-          x={rect.x + rect.width - 11}
+          x={rect.x + rect.width - 11 * labelScale}
           y={rect.y + 3}
-          width={8}
+          width={8 * labelScale}
           text="*"
           fill="#f8fafc"
-          fontSize={13}
+          fontSize={13 * labelScale}
           fontStyle="bold"
           listening={false}
         />
@@ -118,7 +121,7 @@ export default function PieceRect({
           <Text
             text={[widthText, ...centerLines].join(' · ')}
             fill="#f8fafc"
-            fontSize={11}
+            fontSize={11 * labelScale}
             padding={5}
           />
         </Label>

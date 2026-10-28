@@ -15,14 +15,16 @@ export default function FaceOutlines({
   framed = false,
   onSelectFace,
 }) {
+  const labelScale = transform.text?.label ?? 1;
+  const fontSize = SIZE_FONT * labelScale;
   return faces.map((face) => {
     const rect = wallRectToScreen(face, transform);
     const selected = selectedPath !== null
       && (face.path === selectedPath || face.path.startsWith(`${selectedPath}.`));
     const sizeText = formatDimension(face.height);
     const showSize = showSizes
-      && rect.height >= SIZE_FONT + SIZE_INSET * 2
-      && rect.width >= sizeText.length * 6 + SIZE_INSET * 2;
+      && rect.height >= fontSize + SIZE_INSET * 2
+      && rect.width >= sizeText.length * 6 * labelScale + SIZE_INSET * 2;
     return (
       <Fragment key={`${face.path}:${face.half ?? ''}`}>
         <Rect
@@ -41,9 +43,9 @@ export default function FaceOutlines({
         {showSize && (
           <Text
             x={rect.x + SIZE_INSET}
-            y={rect.y + rect.height - SIZE_FONT - SIZE_INSET}
+            y={rect.y + rect.height - fontSize - SIZE_INSET}
             text={sizeText}
-            fontSize={SIZE_FONT}
+            fontSize={fontSize}
             fill={selected ? '#7dd3fc' : '#e2e8f0'}
             listening={false}
           />

@@ -3,6 +3,7 @@ import { Line, Rect, Text } from 'react-konva';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
 
 export default function DoorDetails({ parts, warnings, transform, showDetails, showTags }) {
+  const labelScale = transform.text?.label ?? 1;
   return parts.map((part) => {
     const rect = wallRectToScreen(part, transform);
     const warned = warnings.some((warning) => warning.key === part.key
@@ -62,12 +63,12 @@ export default function DoorDetails({ parts, warnings, transform, showDetails, s
             listening={false}
           />
         )}
-        {showTags && rect.width >= 14 && rect.height >= 12 && (
+        {showTags && rect.width >= 14 * labelScale && rect.height >= 12 * labelScale && (
           <Text
             x={rect.x + 3}
             y={rect.y + 3}
             text={part.label}
-            fontSize={9}
+            fontSize={9 * labelScale}
             fill="#c4b5fd"
             listening={false}
           />

@@ -296,6 +296,12 @@ describe('IN12b doors-off accessory labels', () => {
     expect(labels().map(({ props }) => props)).toEqual([0, 1].map((line) => expect.objectContaining({
       x: rect.x + 3, y: rect.y + 3 + line * 10, fontSize: 10, fill: '#7dd3fc', listening: false,
     })));
+    const zoomedTransform = { ...transform, scale: 24, text: { label: 3 } };
+    const zoomedRect = wallRectToScreen(layer.props.entries[0].sections[0], zoomedTransform);
+    expect(labels({ transform: zoomedTransform }).map(({ props }) => props)).toEqual([0, 1].map((line) => expect.objectContaining({
+      x: zoomedRect.x + 3, y: zoomedRect.y + 3 + line * 30, fontSize: 30,
+    })));
+    expect(labels({ transform: { ...transform, text: { label: 2 } } })).toHaveLength(0);
     expect(labels({ selectedPieceId: null }).map(({ props }) => props.fill)).toEqual(['#64748b', '#64748b']);
     state.settings.accessories[0].minOpening.width = 27;
     expect(labels().map(({ props }) => props.fill)).toEqual(['#f59e0b', '#7dd3fc']);
