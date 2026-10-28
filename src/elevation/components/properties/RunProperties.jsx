@@ -86,7 +86,9 @@ export function RunFurnitureBaseSection({ room, wall, run, settings }) {
   );
 }
 
-export default function RunProperties({ room, wall, run, layout, settings, showMessage }) {
+export default function RunProperties({
+  room, wall, run, layout, settings, showMessage, canCenter = false,
+}) {
   const dispatch = useDispatch();
   const actionBase = { wallId: wall.id, runId: run.id };
   const frames = useMemo(() => frameRegions(room, run, layout, settings), [room, run, layout, settings]);
@@ -132,6 +134,9 @@ export default function RunProperties({ room, wall, run, layout, settings, showM
       </PanelSection>,
       <RunGeometrySection
         key="geometry"
+        room={room}
+        canCenter={canCenter}
+        showMessage={showMessage}
         wall={wall}
         run={run}
         settings={settings}

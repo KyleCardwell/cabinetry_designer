@@ -16,12 +16,18 @@ import {
 } from '../../model/index.js';
 import { formatRunOverhang } from '../../properties/helpers.js';
 import { isPanelOnlyRun } from '../../model/wallEndPanels.js';
-import { resizeRun, setRunHoldWidth, setRunRecess } from '../../store/elevationSlice.js';
+import {
+  resizeRun, setRunHoldWidth, setRunRecess, startCenterPick,
+} from '../../store/elevationSlice.js';
+import { centerPickRefusal } from '../canvas/useCenterPick.js';
 import InchInput from '../InchInput.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import StretchInput from './StretchInput.jsx';
 
 export default function RunGeometrySection({
+  room = null,
+  canCenter = false,
+  showMessage = () => {},
   wall,
   run,
   settings,
@@ -193,6 +199,22 @@ export default function RunGeometrySection({
             </Fragment>
           ))}
         </div>
+        {canCenter && room && (
+          <div className="mt-2.5">
+            <button
+              type="button"
+              onClick={() => {
+                const refusal = centerPickRefusal(room, wall.id, run, settings);
+                if (refusal) showMessage(refusal);
+                else dispatch(startCenterPick({ wallId: wall.id, runId: run.id }));
+              }}
+              aria-label="Center run over a cell"
+              className="rounded border border-gray-600 bg-gray-800 px-2.5 py-1 text-xs text-gray-200 hover:border-blue-500 hover:text-white"
+            >
+              Center over…
+            </button>
+          </div>
+        )}
         <div className="mt-2.5">
           <Field label="Front depth" tag="auto">
             <ReadOnlyValue

@@ -94,6 +94,14 @@ export const uiReducers = {
     setMessage(state, action) {
       state.message = action.payload;
     },
+    startCenterPick(state, action) {
+      const { wallId, runId } = action.payload ?? {};
+      if (typeof wallId !== 'string' || typeof runId !== 'string') return;
+      state.centerPick = { wallId, runId };
+    },
+    endCenterPick(state) {
+      state.centerPick = null;
+    },
     setView(state, action) {
       const view = action.payload.view ?? action.payload;
       if (view !== 'plan' && view !== 'elevation') return;

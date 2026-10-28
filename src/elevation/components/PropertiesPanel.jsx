@@ -8,6 +8,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { selectSettings } from '../store/selectors.js';
 import {
   cellPieces,
+  centerOverTargets,
   pinTargetsForRun,
   recessesOn,
   soffitsOn,
@@ -73,6 +74,10 @@ export default function PropertiesPanel() {
       endCornerAngles: endCornerAnglesForRun(room, wall, run),
       pinTargets: pinTargetsForRun(run, wall, wall.length, settings),
     }) : null),
+    [room, run, settings, wall],
+  );
+  const canCenter = useMemo(
+    () => Boolean(room && wall && run) && centerOverTargets(room, wall.id, run.id, settings).length > 0,
     [room, run, settings, wall],
   );
   const cells = useMemo(
@@ -195,6 +200,7 @@ export default function PropertiesPanel() {
             layout={displayLayout}
             settings={settings}
             showMessage={showMessage}
+            canCenter={canCenter}
           />
         )}
       </div>

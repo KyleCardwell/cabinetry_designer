@@ -20,6 +20,7 @@ import {
   layoutDimensionRow,
 } from '../canvas/dimensionLayout.js';
 import {
+  CURSORS,
   elevationBaseCursor,
   useCanvasCursor,
 } from '../canvas/cursor.js';
@@ -129,6 +130,8 @@ import WallFrame from './WallFrame.jsx';
 import useElevationKeys from './canvas/useElevationKeys.js';
 import useRunStretch from './canvas/useRunStretch.js';
 import useRunMove from './canvas/useRunMove.js';
+import useCenterPick from './canvas/useCenterPick.js';
+import CenterPickOverlay from './CenterPickOverlay.jsx';
 import useJointDrag from './canvas/useJointDrag.js';
 import usePicker from './canvas/usePicker.js';
 
@@ -1163,6 +1166,18 @@ function ElevationCanvas({
     wall,
   });
 
+  const centerPick = useCenterPick({
+    room, wall, settings, transform, stageRef, tool, dispatch, showMessage,
+  });
+  const centerPickActive = centerPick.active;
+  useEffect(() => {
+    if (!centerPickActive) return undefined;
+    cancelEntry();
+    closePicker();
+    cursor.hold(CURSORS.draw);
+    return () => cursor.releaseHold();
+  }, [cancelEntry, centerPickActive, closePicker, cursor]);
+
   useEffect(() => {
     if (moving || (contextMenu && contextMenu.context !== menuContext)) closeContextMenu();
   }, [closeContextMenu, contextMenu, menuContext, moving]);
@@ -1179,6 +1194,10 @@ function ElevationCanvas({
       cancelMove();
       return;
     }
+    if (centerPick.active) {
+      centerPick.cancel();
+      return;
+    }
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer || !room || !wall || !transform) return;
     const candidates = pickStack(room, wall, settings, screenToWall(pointer, transform), { doorsOff });
@@ -1192,8 +1211,8 @@ function ElevationCanvas({
       runId,
       context: `${room.id}:${viewKey}:${activeKey}:select:${doorsOff}`,
     });
-  }, [activeKey, cancelEntry, cancelMove, closeContextMenu, closePicker, dispatch, doorsOff, measure.cancelFirst,
-    moving, room, settings, tool, transform, viewKey, wall]);
+  }, [activeKey, cancelEntry, cancelMove, centerPick, closeContextMenu, closePicker, dispatch, doorsOff,
+    measure.cancelFirst, moving, room, settings, tool, transform, viewKey, wall]);
 
   const handleRunSegmentClick = useCallback((segment) => {
     if (tool === 'select' && segment.kind === 'run') {
@@ -1463,6 +1482,16 @@ function ElevationCanvas({
               />
             </Layer>
           )}
+          <CenterPickOverlay
+            width={viewport.width}
+            height={viewport.height}
+            transform={transform}
+            run={centerPick.run}
+            hovered={centerPick.hovered}
+            onMove={centerPick.move}
+            onLeave={centerPick.leave}
+            onClick={centerPick.click}
+          />
           {moving && (
             <Layer>
               <Rect width={viewport.width} height={viewport.height} fill="transparent" />
