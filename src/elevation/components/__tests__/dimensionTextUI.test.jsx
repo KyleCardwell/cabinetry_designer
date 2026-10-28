@@ -46,8 +46,13 @@ describe('ST6 step b canvas step chains', () => {
 describe('SPEC-50.14 canvas dimension text', () => {
   it('omits inch marks on measured sizes and clearances while retaining descriptive sublabels', () => {
     const piece = { id: 'piece', kind: 'cabinet', x: 0, z: 4, width: 24.875, height: 30, absorbed: 1 / 16 };
+    // FX5 c: no piece prints its width (hover does); the sub-label and any notes stack in the centre.
     expect(texts(PieceRect({ piece, transform, subLabel: 'Panel 24 7/8"' })))
-      .toEqual(['24 7/8 (+1/16)', 'Panel 24 7/8"', '*']);
+      .toEqual(['Panel 24 7/8"', '*']);
+    expect(texts(PieceRect({ piece: { ...piece, kind: 'end_panel' }, transform })))
+      .toEqual([]);
+    expect(texts(PieceRect({ piece: { ...piece, kind: 'filler' }, transform, subLabel: 'Back panel', notes: ['Note'] })))
+      .toEqual(['Back panel\nNote']);
     expect(texts(DragPreview({ run: piece, valid: true, transform }))).toEqual(['24 7/8']);
     expect(texts(FaceOutlines({
       faces: [{ ...piece, path: 'face', height: 24.875 }], transform, showSizes: true,

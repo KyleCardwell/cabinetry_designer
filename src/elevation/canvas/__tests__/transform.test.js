@@ -76,11 +76,17 @@ describe('elevation canvas transform', () => {
   it('returns the view unchanged when zoom is already clamped', () => {
     const base = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
     const pointer = { x: 130, y: 100 };
-    const maximum = { zoom: 16, panX: 3, panY: 4 };
+    const maximum = { zoom: 20, panX: 3, panY: 4 };
     const minimum = { zoom: 0.25, panX: 3, panY: 4 };
 
     expect(zoomViewAt(base, maximum, pointer, 2)).toBe(maximum);
     expect(zoomViewAt(base, minimum, pointer, 0.5)).toBe(minimum);
+  });
+
+  it('zooms in to 2000% and no further (FX5)', () => {
+    const base = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
+    const view = zoomViewAt(base, { zoom: 16, panX: 0, panY: 0 }, { x: 0, y: 0 }, 2);
+    expect(view.zoom).toBe(20);
   });
 
   it('adds pan deltas and shifts screen positions by the pan', () => {

@@ -1,6 +1,6 @@
 import { combinedViewOf } from './combinedElevations.js';
 import { combinedElevationPayload, shiftPayloadRecord } from './combinedPayload.js';
-import { faceDoorDetails, faceParts } from './drawingPayload.js';
+import { faceDrawing } from './drawingPayload.js';
 import { planParts } from './planParts.js';
 import { resolveWall } from './room.js';
 import { arcMeasure } from './sectionProfiles.js';
@@ -107,47 +107,70 @@ export function arcPoints(arc, steps = 24) {
   });
 }
 
+const segment = ({ x1, z1, x2, z2 }) => ({ kind: 'poly', points: [[x1, z1], [x2, z2]], closed: false });
+const rect = ({ x, z, width, height }) => ({ kind: 'rect', x, y: z, width, height });
+
 function elevationShapes(parts) {
   return parts.flatMap((part) => [
-    part.outline ? { kind: 'poly', points: part.outline, closed: true }
-      : { kind: 'rect', x: part.x, y: part.z, width: part.width, height: part.height },
-    ...(part.lines ?? []).map(({ x1, z1, x2, z2 }) => ({
-      kind: 'poly', points: [[x1, z1], [x2, z2]], closed: false,
-    })),
+    part.outline ? { kind: 'poly', points: part.outline, closed: true } : rect(part),
+    ...(part.lines ?? []).map(segment),
+    // Frame openings (they still show when profiled faces shrink inside them) and glass cut-outs (FX5).
+    ...(part.holes ?? []).map(rect),
   ]);
 }
 
 /** Door openings, profile lines (rectangles) and miters as the drawing gets them. */
 function doorDetailShapes(doorDetails) {
   return doorDetails.flatMap(({ openings = [], profileLines = [], miters = [] }) => [
-    ...[...openings, ...profileLines].map(({ x, z, width, height }) => ({ kind: 'rect', x, y: z, width, height })),
-    ...miters.map(({ x1, z1, x2, z2 }) => ({ kind: 'poly', points: [[x1, z1], [x2, z2]], closed: false })),
+    ...[...openings, ...profileLines].map(rect),
+    ...miters.map(segment),
   ]);
 }
 
-function faceRecords(room, wall, side, settings, options) {
-  const parts = faceParts(room, wall, side, settings, options);
-  return { parts, doorDetails: faceDoorDetails(room, wall, side, settings, parts) };
+/** A pull outline; a knob (every point a bulge) is its centre. */
+function pullShape(outline) {
+  if (outline.every((point) => point[2])) {
+    const x = outline.reduce((sum, [px]) => sum + px, 0) / outline.length;
+    const y = outline.reduce((sum, [, pz]) => sum + pz, 0) / outline.length;
+    return { kind: 'point', x, y };
+  }
+  return { kind: 'poly', points: outline.map(([px, pz]) => [px, pz]), closed: true };
 }
 
-/** All visible faces and door details in the opened elevation's local x/z frame (y is z). */
+/** Everything else a face draws (FX5): visible interiors, accessory shapes, glass and swing marks, pulls. */
+function drawnLineShapes(drawing) {
+  return [
+    ...(drawing.interiors ?? []).flatMap(({ lines }) => lines.map(segment)),
+    ...(drawing.shapes ?? []).flatMap(({ loops }) => loops.map(({ closed, points }) => ({
+      kind: 'poly', points: points.map(([px, pz]) => [px, pz]), closed: closed !== false,
+    }))),
+    ...(drawing.glassMarks ?? []).flatMap(({ lines }) => lines.map(segment)),
+    ...(drawing.swingMarks ?? []).flatMap(({ lines }) => lines.map(segment)),
+    ...(drawing.pulls ?? []).flatMap(({ outlines }) => outlines.map(pullShape)),
+  ];
+}
+
+const DRAWN = ['parts', 'doorDetails', 'interiors', 'shapes', 'glassMarks', 'swingMarks', 'pulls'];
+
+function drawingShapes(drawing) {
+  return [...elevationShapes(drawing.parts), ...doorDetailShapes(drawing.doorDetails), ...drawnLineShapes(drawing)];
+}
+
+/** Every line the opened elevation draws, in its local x/z frame (y is z), as the DXF gets it (FX5). */
 export function elevationMeasureGeometry(room, wall, side, settings) {
   const combined = combinedViewOf(room, wall.id, side);
   if (!combined) {
     const view = resolveWall(room, wall, side);
-    const { parts, doorDetails } = faceRecords(room, wall, side, settings);
     return measureGeometry([
-      ...elevationShapes(parts),
-      ...doorDetailShapes(doorDetails),
+      ...drawingShapes(faceDrawing(room, wall, side, settings)),
       { kind: 'rect', x: 0, y: 0, width: view.length, height: wall.height },
     ]);
   }
   const active = combined.faces.find(({ key }) => key === elevationKey(wall.id, side));
   const payload = combinedElevationPayload(room, combined, settings,
-    (w, s, options) => faceRecords(room, w, s, settings, options));
+    (w, s, options) => faceDrawing(room, w, s, settings, options));
   return measureGeometry([
-    ...elevationShapes(payload.parts.map((part) => shiftPayloadRecord(part, -active.dx))),
-    ...doorDetailShapes(payload.doorDetails.map((detail) => shiftPayloadRecord(detail, -active.dx))),
+    ...drawingShapes(Object.fromEntries(DRAWN.map((key) => [key, shiftPayloadRecord(payload[key] ?? [], -active.dx)]))),
     ...combined.faces.map((face) => {
       const faceWall = room.walls.find(({ id }) => id === face.wallId);
       const view = resolveWall(room, faceWall, face.side);

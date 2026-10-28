@@ -74,7 +74,7 @@ const PIXELS_PER_INCH = 4;
 const ENDPOINT_SNAP_RADIUS = 6;
 const ALIGNMENT_SNAP_PX = 6;
 const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 10;
+const MAX_ZOOM = 30;
 
 function clampZoom(zoom) {
   return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));

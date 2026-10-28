@@ -80,7 +80,12 @@ export function faceDoorDetails(room, wall, side, settings, sourceParts) {
   return doorDetails;
 }
 
-function facePayload(room, wall, side, key, letter, settings, options) {
+/**
+ * Everything one face draws, as geometry gets it, without its dimensions, marks or part numbers:
+ * parts (frame openings and glass as `holes`), door details, swing marks, pulls, visible interiors,
+ * accessory shapes and glass marks. Measure snaps to all of it (FX5).
+ */
+export function faceDrawing(room, wall, side, settings, options) {
   const sourceParts = faceParts(room, wall, side, settings, options);
   // Geometry accepts details in doorDetails only, never on the parts themselves.
   const parts = sourceParts.map(({ doorDetail, ...part }) => part); // eslint-disable-line no-unused-vars
@@ -109,12 +114,19 @@ function facePayload(room, wall, side, key, letter, settings, options) {
     if (part.kind === 'face' && openingsByPart.has(part.id)) part.holes = openingsByPart.get(part.id);
   }
   const view = resolveWall(room, wall, side);
-  const marks = [
+  const glassMarksOut = [
     ...glass.map(({ partId, marks }) => ({ partId, lines: marks })),
     ...(view.openings ?? []).filter(({ kind }) => kind === 'window').map((opening) => ({
       partId: opening.id, lines: glassMarks(openingGeometry(opening, view.length, settings).jamb),
     })),
   ].filter(({ partId, lines }) => partIds.has(partId) && lines.length);
+  return { view, parts, doorDetails, swingMarks, pulls, interiors, shapes, glassMarks: glassMarksOut };
+}
+
+function facePayload(room, wall, side, key, letter, settings, options) {
+  const {
+    view, parts, doorDetails, swingMarks, pulls, interiors, shapes, glassMarks: marks,
+  } = faceDrawing(room, wall, side, settings, options);
 
   return {
     key,

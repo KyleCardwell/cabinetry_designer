@@ -7,6 +7,9 @@ const DEFAULT_PADDING = {
   left: 48,
 };
 
+/** Elevation zoom limit, 2000% of fit (FX5). */
+export const MAX_ELEVATION_ZOOM = 20;
+
 /** @type {{zoom: number, panX: number, panY: number}} */
 export const DEFAULT_VIEW = { zoom: 1, panX: 0, panY: 0 };
 
@@ -85,7 +88,7 @@ export function withView(base, view) {
  * @param {{min?: number, max?: number}} [limits]
  * @returns {{zoom: number, panX: number, panY: number}}
  */
-export function zoomViewAt(base, view, pointer, factor, { min = 0.25, max = 16 } = {}) {
+export function zoomViewAt(base, view, pointer, factor, { min = 0.25, max = MAX_ELEVATION_ZOOM } = {}) {
   const zoom = Math.max(min, Math.min(max, view.zoom * factor));
   if (zoom === view.zoom) return view;
   const wallPoint = screenToWall(pointer, withView(base, view));

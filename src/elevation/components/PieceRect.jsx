@@ -13,6 +13,7 @@ export default function PieceRect({
   selected,
   cornerFiller = false,
   subLabel = null,
+  notes = [],
   framed = false,
   ghost = false,
   onSelect,
@@ -24,7 +25,11 @@ export default function PieceRect({
   const widthText = Number.isFinite(piece.absorbed)
     ? `${formatDimension(piece.width)} (${piece.absorbed >= 0 ? '+' : ''}${formatDimension(piece.absorbed)})`
     : formatDimension(piece.width);
-  const narrow = rect.width < Math.max(44, widthText.length * 6.5);
+  // FX5: no piece prints its width any more (the dimensions and properties carry it); hover still shows it.
+  // The centred block is kept for text notes: the sub-label, then any `notes`, stacked and centred.
+  const centerLines = [subLabel, ...notes].filter(Boolean);
+  const longest = Math.max(0, ...centerLines.map((line) => line.length));
+  const narrow = rect.width < Math.max(44, longest * 6.5) || rect.height < centerLines.length * 13;
   const outline = error
     ? '#ef4444'
     : warning
@@ -65,28 +70,16 @@ export default function PieceRect({
         strokeWidth={selected ? 3 : error || warning ? 2 : 1}
       />
 
-      {showLabels && !narrow && (
+      {showLabels && !narrow && centerLines.length > 0 && (
         <Text
           x={rect.x}
           y={rect.y}
           width={rect.width}
-          height={subLabel ? rect.height - 13 : rect.height}
+          height={rect.height}
           align="center"
           verticalAlign="middle"
-          text={widthText}
-          fill="#f8fafc"
-          fontSize={11}
-          listening={false}
-        />
-      )}
-
-      {showLabels && subLabel && !narrow && (
-        <Text
-          x={rect.x}
-          y={rect.y + rect.height / 2 + 2}
-          width={rect.width}
-          align="center"
-          text={subLabel}
+          lineHeight={1.25}
+          text={centerLines.join('\n')}
           fill="#cbd5e1"
           fontSize={10}
           listening={false}
@@ -106,7 +99,7 @@ export default function PieceRect({
         />
       )}
 
-      {showLabels && narrow && hovered && (
+      {showLabels && hovered && (
         <Label
           x={rect.x + rect.width / 2}
           y={rect.y - 5}
@@ -123,7 +116,7 @@ export default function PieceRect({
             pointerHeight={4}
           />
           <Text
-            text={subLabel ? `${widthText} · ${subLabel}` : widthText}
+            text={[widthText, ...centerLines].join(' · ')}
             fill="#f8fafc"
             fontSize={11}
             padding={5}

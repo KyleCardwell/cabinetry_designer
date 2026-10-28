@@ -231,16 +231,20 @@ describe('UI4 room outputs and toolbar groups', () => {
     }
   });
 
-  it('splits the toolbar into tools, which wall and zoom groups that wrap, with zoom pushed right (anchor 2)', () => {
+  it('splits the toolbar into tools, elevation view and zoom groups that wrap, with zoom pushed right (anchor 2)', () => {
     dispatch(setView('elevation'));
     const elevation = renderComponent(ElevationToolbar, {}).tree;
     expect(elevation.props.className).toContain('flex-wrap');
     expect(elevation.props.className).toContain('min-w-0');
     expect(elevation.props.children.filter(Boolean).map((child) => child.props['aria-label']))
-      .toEqual(['Canvas tools', 'Which wall', 'Zoom']);
+      .toEqual(['Canvas tools', 'Elevation view', 'Zoom']);
     expect(field(elevation, 'Zoom').props.className).toContain('ml-auto');
     expect(button(field(elevation, 'Canvas tools'), 'Draw run')).toBeDefined();
-    expect(field(field(elevation, 'Which wall'), 'Wall side')).toBeDefined();
+    // FX5 b: wall navigation and Front/Back sit in the zoom group, before the zoom buttons.
+    const zoomGroup = field(elevation, 'Zoom');
+    expect(field(field(zoomGroup, 'Which wall'), 'Wall side')).toBeDefined();
+    expect(field(field(zoomGroup, 'Which wall'), 'Wall navigation')).toBeDefined();
+    expect(field(field(elevation, 'Elevation view'), 'Which wall')).toBeUndefined();
     expect(field(field(elevation, 'Zoom'), 'Zoom in')).toBeDefined();
     expect(button(field(elevation, 'Zoom'), 'Zoom to fit')).toBeDefined();
     dispatch(setView('plan'));

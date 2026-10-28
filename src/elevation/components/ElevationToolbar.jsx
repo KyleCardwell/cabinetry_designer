@@ -169,46 +169,7 @@ export default function ElevationToolbar({
         )}
       </div>
       {view === 'elevation' && (
-        <div className="flex items-center gap-1" aria-label="Which wall">
-          <div className="flex items-center gap-1" aria-label="Wall navigation">
-            <button
-              type="button"
-              aria-label="Previous wall"
-              disabled={wallNavigationDisabled}
-              onClick={() => navigateWall(-1)}
-              className="rounded bg-gray-700 px-2 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ‹
-            </button>
-            <span className="min-w-24 max-w-44 truncate text-center text-xs text-gray-300">
-              {activeWall
-                ? `${wallLabel(room, activeWall)} / ${orderedWallIds.length}${activeWallSide === 'back' ? ' · Back' : ''}`
-                : 'No wall'}
-            </span>
-            <button
-              type="button"
-              aria-label="Next wall"
-              disabled={wallNavigationDisabled}
-              onClick={() => navigateWall(1)}
-              className="rounded bg-gray-700 px-2 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ›
-            </button>
-          </div>
-          <div className="flex rounded bg-gray-950 p-0.5" aria-label="Wall side">
-            {['front', 'back'].map((side) => (
-              <button
-                key={side}
-                type="button"
-                onClick={() => dispatch(setActiveWallSide(side))}
-                className={`rounded px-2.5 py-1 text-xs capitalize transition-colors ${
-                  activeWallSide === side ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'
-                }`}
-              >
-                {side === 'front' ? 'Front' : 'Back'}
-              </button>
-            ))}
-          </div>
+        <div className="flex items-center gap-1" aria-label="Elevation view">
           <CombinedElevationControl room={room} wallId={activeWallId} side={activeWallSide} readOnly={readOnly} />
           <ReturnsViewControl room={room} wallId={activeWallId} side={activeWallSide} readOnly={readOnly} />
           <button
@@ -240,6 +201,48 @@ export default function ElevationToolbar({
       <div className="ml-auto flex items-center gap-1" aria-label="Zoom">
         {view === 'elevation' && (
           <>
+            {/* FX5: which wall and which face sit with the zoom, to its left (Kyle 2026-10-28). */}
+            <div className="mr-2 flex items-center gap-1" aria-label="Which wall">
+              <div className="flex items-center gap-1" aria-label="Wall navigation">
+                <button
+                  type="button"
+                  aria-label="Previous wall"
+                  disabled={wallNavigationDisabled}
+                  onClick={() => navigateWall(-1)}
+                  className="rounded bg-gray-700 px-2 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ‹
+                </button>
+                <span className="min-w-24 max-w-44 truncate text-center text-xs text-gray-300">
+                  {activeWall
+                    ? `${wallLabel(room, activeWall)} / ${orderedWallIds.length}${activeWallSide === 'back' ? ' · Back' : ''}`
+                    : 'No wall'}
+                </span>
+                <button
+                  type="button"
+                  aria-label="Next wall"
+                  disabled={wallNavigationDisabled}
+                  onClick={() => navigateWall(1)}
+                  className="rounded bg-gray-700 px-2 py-1.5 text-sm text-gray-300 transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  ›
+                </button>
+              </div>
+              <div className="flex rounded bg-gray-950 p-0.5" aria-label="Wall side">
+                {['front', 'back'].map((side) => (
+                  <button
+                    key={side}
+                    type="button"
+                    onClick={() => dispatch(setActiveWallSide(side))}
+                    className={`rounded px-2.5 py-1 text-xs capitalize transition-colors ${
+                      activeWallSide === side ? 'bg-blue-600 text-white' : 'text-gray-400 hover:text-gray-200'
+                    }`}
+                  >
+                    {side === 'front' ? 'Front' : 'Back'}
+                  </button>
+                ))}
+              </div>
+            </div>
             <button
               type="button"
               aria-label="Zoom out"
