@@ -1,4 +1,5 @@
 import { formatInches } from '../model/units.js';
+import { textScales } from './textScale.js';
 
 const DEFAULT_PADDING = {
   top: 64,
@@ -67,7 +68,7 @@ export function combinedDepthNote(face, reference) {
  *
  * @param {{scale: number, offsetX: number, offsetY: number, wallHeight: number}} base
  * @param {{zoom: number, panX: number, panY: number}} view
- * @returns {{scale: number, offsetX: number, offsetY: number, wallHeight: number}}
+ * @returns {{scale: number, offsetX: number, offsetY: number, wallHeight: number, text: {label: number, dimension: number}}}
  */
 export function withView(base, view) {
   return {
@@ -75,6 +76,7 @@ export function withView(base, view) {
     offsetX: base.offsetX * view.zoom + view.panX,
     offsetY: base.offsetY * view.zoom + view.panY,
     wallHeight: base.wallHeight,
+    text: textScales(view.zoom),
   };
 }
 

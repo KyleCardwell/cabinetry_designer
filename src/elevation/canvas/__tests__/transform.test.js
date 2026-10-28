@@ -55,10 +55,22 @@ describe('elevation canvas transform', () => {
     });
   });
 
-  it('leaves the fitted transform unchanged at the default view', () => {
+  it('preserves fitted geometry and adds fit-size text at the default view', () => {
     const base = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
 
-    expect(withView(base, DEFAULT_VIEW)).toEqual(base);
+    expect(withView(base, DEFAULT_VIEW)).toEqual({ ...base, text: { label: 1, dimension: 1 } });
+  });
+
+  it('adds text scales relative to fit while applying zoom to geometry', () => {
+    const base = { scale: 2, offsetX: 10, offsetY: 20, wallHeight: 96 };
+
+    expect(withView(base, { zoom: 4, panX: 0, panY: 0 })).toEqual({
+      scale: 8,
+      offsetX: 40,
+      offsetY: 80,
+      wallHeight: 96,
+      text: { label: 4, dimension: 2 },
+    });
   });
 
   it('keeps the wall point under the pointer fixed while zooming', () => {
