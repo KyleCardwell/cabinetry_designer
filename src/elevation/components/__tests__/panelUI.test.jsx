@@ -403,6 +403,37 @@ describe('UI6 step b cabinet and section tabs', () => {
   }
   const piecePanel = (id = 'a', Component = CabinetProperties) => render(Component, pieceProps(id));
 
+  it('FX5 anchor 6: offers panel split directions by orientation and dispatches each allowed split', () => {
+    setup();
+    const run = state.rooms[0].walls[0].runs[0];
+    const leaf = findCell(run.grid, 'a').cell.node;
+    leaf.kind = 'panel';
+    for (const [orientation, width, height, depth, directions] of [
+      ['side', 0.75, 24, 24, ['down']],
+      ['back', 24, 24, 0.8125, ['across', 'down']],
+      ['top', 24, 0.75, 24, ['across']],
+    ]) {
+      run.grid.cols[0].size = width;
+      run.grid.cols[0].sizeMode = 'manual';
+      run.height = height;
+      run.depth = depth;
+      leaf.depth = depth;
+      const tree = piecePanel('a', CellProperties);
+      expect(sectionTitles(tree), orientation).toContain('Split');
+      for (const direction of ['across', 'down']) {
+        const control = button(tree, `Split ${direction}`);
+        if (!directions.includes(direction)) {
+          expect(control, orientation).toBeUndefined();
+          continue;
+        }
+        expect(control, orientation).toBeDefined();
+        control.props.onClick();
+        expect(useDispatch()).toHaveBeenLastCalledWith(splitCell({ wallId: 'wall-1', runId: 'run-1',
+          cellId: 'a', direction, count: 2 }));
+      }
+    }
+  });
+
   it('anchor 1: starts a door cabinet with Kind above Size, Faces & style and Inside tabs', () => {
     setup();
     const tree = piecePanel();

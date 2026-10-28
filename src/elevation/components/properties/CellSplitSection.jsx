@@ -1,7 +1,7 @@
 import PanelSection from '../panel/PanelSection.jsx';
 import { useState } from 'react';
 import { useDispatch } from 'react-redux';
-import { MAX_CELL_SPLIT } from '../../model/index.js';
+import { CELL_DIRECTIONS, MAX_CELL_SPLIT } from '../../model/index.js';
 import {
   equalizeCells,
   removeCell,
@@ -14,7 +14,7 @@ const REMOVE_CLASS = 'rounded bg-red-900/70 px-2.5 py-2 text-xs text-red-100 hov
 const NUMBER_CLASS = 'w-16 rounded border border-gray-600 bg-gray-900 px-2 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 
 export default function CellSplitSection({
-  wall, run, cellId, nested, removable = nested, canSplit = true,
+  wall, run, cellId, nested, removable = nested, canSplit = true, directions = CELL_DIRECTIONS,
 }) {
   const dispatch = useDispatch();
   const [count, setCount] = useState(2);
@@ -53,12 +53,16 @@ export default function CellSplitSection({
         )}
         {canSplit && (
           <div className="grid grid-cols-2 gap-2">
-            <button type="button" onClick={() => split('across')} className={BUTTON_CLASS}>
-              Split across
-            </button>
-            <button type="button" onClick={() => split('down')} className={BUTTON_CLASS}>
-              Split down
-            </button>
+            {directions.includes('across') && (
+              <button type="button" onClick={() => split('across')} className={BUTTON_CLASS}>
+                Split across
+              </button>
+            )}
+            {directions.includes('down') && (
+              <button type="button" onClick={() => split('down')} className={BUTTON_CLASS}>
+                Split down
+              </button>
+            )}
           </div>
         )}
         {(nested || removable) && (

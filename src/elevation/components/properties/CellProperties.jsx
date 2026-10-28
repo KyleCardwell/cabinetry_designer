@@ -6,6 +6,7 @@ import {
   findCell,
   formatInches,
   MAX_SHELVES,
+  panelOrientation,
   runItems,
 } from '../../model/index.js';
 import {
@@ -56,6 +57,9 @@ export default function CellProperties({
   const columnLocked = columnItem?.width != null;
   const cellBase = { ...actionBase, cellId: item.id };
   const isCabinet = item.kind === 'cabinet';
+  const orientation = panelOrientation(piece);
+  const splitDirections = orientation === 'side' ? ['down']
+    : orientation === 'top' ? ['across'] : undefined;
   const blindSides = isCabinet
     ? cellBlindSides(run.grid, item.id).filter((side) => run.ends[side].type === 'blind')
     : [];
@@ -206,7 +210,8 @@ export default function CellProperties({
                   cellId={item.id}
                   nested={context.depth > 0}
                   removable={context.depth > 0}
-                  canSplit={isCabinet}
+                  canSplit={isCabinet || item.kind === 'panel'}
+                  directions={splitDirections}
                 />
                 {isCabinet && <CellWrapSection wall={wall} run={run} cellId={item.id} />}
                 <ColumnActionsSection wall={wall} run={run} cellId={piece.columnId ?? item.id} />

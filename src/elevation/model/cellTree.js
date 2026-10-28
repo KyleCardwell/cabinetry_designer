@@ -66,6 +66,11 @@ function replaceNestedGrid(root, target, replacement) {
 }
 
 function copiedStyle(leaf) {
+  if (leaf.kind === 'panel') {
+    return Object.fromEntries(['depth', 'align', 'styleId', 'baseUnder']
+      .filter((key) => Object.hasOwn(leaf, key))
+      .map((key) => [key, leaf[key]]));
+  }
   return {
     ...(Object.hasOwn(leaf, 'style') ? { style: leaf.style } : {}),
     ...(Object.hasOwn(leaf, 'blind') ? { blind: leaf.blind } : {}),
@@ -90,7 +95,7 @@ function splitFlat(parent, found, count, makeId) {
   tracks[cell[axis]] = { ...track, size: null, sizeMode: 'auto' };
   tracks.splice(cell[axis] + 1, 0, ...newTracks);
   const leaves = Array.from({ length: count - 1 }, () => (
-    { id: makeId(), kind: 'cabinet', ...copiedStyle(cell.node) }));
+    { id: makeId(), kind: cell.node.kind, ...copiedStyle(cell.node) }));
   const shifted = parent.cells.map((entry) => entry[axis] > cell[axis]
     ? { ...entry, [axis]: entry[axis] + count - 1 }
     : entry);
@@ -104,7 +109,7 @@ function nestedSplit(leaf, direction, count, makeId) {
   const cross = autoTrack(makeId());
   const tracks = Array.from({ length: count }, () => autoTrack(makeId()));
   const leaves = [leaf, ...Array.from({ length: count - 1 }, () => (
-    { id: makeId(), kind: 'cabinet', ...copiedStyle(leaf) }))];
+    { id: makeId(), kind: leaf.kind, ...copiedStyle(leaf) }))];
   const down = direction === 'down';
   return {
     id,
@@ -178,17 +183,18 @@ export function pasteColumnLayout(grid, targetCellId, layout, makeId) {
   return rehomeBlind(grid, next);
 }
 
-/** Splits a cabinet leaf across or down without mutating the tree. */
+/** Splits a cabinet or panel leaf across or down without mutating the tree. */
 export function splitGridCell(grid, leafId, direction, count, makeId) {
   if (!CELL_DIRECTIONS.includes(direction) || !Number.isFinite(count)) return grid;
   const found = locate(grid, leafId);
-  if (!found || isNestedGrid(found.cell.node) || found.cell.node.kind !== 'cabinet') return grid;
+  if (!found || isNestedGrid(found.cell.node)
+    || !['cabinet', 'panel'].includes(found.cell.node.kind)) return grid;
   const total = Math.min(MAX_CELL_SPLIT, Math.max(2, Math.round(count)));
   if (found.depth === 0 && direction === 'across') {
     const items = rootItems(grid);
     const item = { ...items[found.cell.col], width: null };
     const additions = Array.from({ length: total - 1 }, () => (
-      { id: makeId(), kind: 'cabinet', width: null, ...copiedStyle(found.cell.node) }));
+      { id: makeId(), kind: found.cell.node.kind, width: null, ...copiedStyle(found.cell.node) }));
     items.splice(found.cell.col, 1, item, ...additions);
     return replaceRootItems(grid, items);
   }
