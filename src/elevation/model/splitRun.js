@@ -137,9 +137,17 @@ function flexMinimum(side, settings, opts) {
   return opts?.endMinWidths?.[side] ?? settings.fillerMinWidth;
 }
 
+/** Only auto root items at real run ends include their drawn miter in the shared width. */
+function autoPanelMiters(run, items) {
+  const at = (side, item) => (!run._pinSplit?.[side] && item && isAutoItem(item)
+    ? run._panelMiters?.[side] ?? 0 : 0);
+  return { left: at('left', items[0]), right: at('right', items[items.length - 1]) };
+}
+
 function layoutInputs(run, settings, opts) {
   const items = itemsWithGaps(run, settings);
   const gaps = endGaps(run, items, settings);
+  const panelMiters = autoPanelMiters(run, items);
   const fixedEnds = endWidth(run.ends.left, settings, run._endThickness?.left)
     + endWidth(run.ends.right, settings, run._endThickness?.right)
     + gaps.left + gaps.right;
@@ -156,11 +164,12 @@ function layoutInputs(run, settings, opts) {
     (sum, side) => sum + flexMinimum(side, settings, opts),
     0,
   );
-  const available = run.width - fixedEnds - fixedItems;
+  const available = run.width - fixedEnds - fixedItems + panelMiters.left + panelMiters.right;
 
   return {
     available,
     endGaps: gaps,
+    panelMiters,
     fixedEnds,
     fixedItems,
     flex,
@@ -214,6 +223,7 @@ function splitRunLegacy(run, settings, opts) {
   const {
     available,
     endGaps,
+    panelMiters,
     flex,
     minimumTotal,
     nAuto,
@@ -260,7 +270,7 @@ function splitRunLegacy(run, settings, opts) {
 
   let autoIndex = 0;
   const lastAutoIndex = nAuto - 1;
-  const computedItems = items.map((item) => {
+  const computedItems = items.map((item, index) => {
     if (!isAutoItem(item)) {
       return { ...item, computedWidth: item.width, auto: false };
     }
@@ -270,6 +280,8 @@ function splitRunLegacy(run, settings, opts) {
       computedWidth = available - autoWidth * lastAutoIndex;
     }
     autoIndex += 1;
+    if (index === 0) computedWidth -= panelMiters.left;
+    if (index === items.length - 1) computedWidth -= panelMiters.right;
     return { ...item, computedWidth, auto: true };
   });
 

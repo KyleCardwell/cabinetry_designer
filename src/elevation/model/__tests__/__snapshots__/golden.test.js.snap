@@ -3714,6 +3714,10 @@ exports[`C1 golden rooms > G2 Face frame kitchen derives exactly what it did 1`]
                 "right": null,
               },
             },
+            "_panelMiters": {
+              "left": 0.8125,
+              "right": 0,
+            },
             "_seamGap": 0.5,
             "anchors": {
               "left": true,

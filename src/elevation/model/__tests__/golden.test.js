@@ -92,6 +92,7 @@ describe('C1 golden rooms', () => {
       // FL2 expands G1's 434f1164 right filler and G2's 4b49c071 left filler by 13/16".
       // FL2.1 b moves only their inner corner-gap/filler (G1 upper) or stile (G2 lower)
       // boundary toward the run by 13/16"; overall chains and physical pieces stay the same.
+      // FX5 g adds only derived _panelMiters on G2's single-panel back run; geometry is unchanged.
       const room = document.rooms.find((candidate) => candidate.name === name);
       expect(derived(room)).toMatchSnapshot();
     });

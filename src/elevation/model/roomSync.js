@@ -39,7 +39,7 @@ import {
   wallSideView,
   wallViewForRun,
 } from './wallSides.js';
-import { isPanelOnlyRun, wallEndPanels } from './wallEndPanels.js';
+import { isPanelOnlyRun, panelRunMiters, wallEndPanels } from './wallEndPanels.js';
 import { cloneRun, cloneRoom } from './roomClone.js';
 import { endMinWidthsForRun, endCornerAnglesForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
 import { pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
@@ -255,6 +255,23 @@ function withDieIns(wall) {
   };
 }
 
+/** Panel-only runs share their drawn miter widths when laying out auto root items. */
+function withPanelMiters(room, wall, settings) {
+  return {
+    ...wall,
+    runs: wall.runs.map((run) => {
+      const miters = isPanelOnlyRun(run) ? panelRunMiters(room, wall, run, settings) : {};
+      const widths = { left: miters.left?.width ?? 0, right: miters.right?.width ?? 0 };
+      if (widths.left || widths.right) {
+        return run._panelMiters?.left === widths.left && run._panelMiters?.right === widths.right
+          ? run : { ...run, _panelMiters: widths };
+      }
+      const { _panelMiters, ...rest } = run;
+      return _panelMiters === undefined ? run : rest;
+    }),
+  };
+}
+
 /**
  * A face frame run beside a wall end panel (SPEC-36.2): `_frame.wallPanels` gives, per side, the
  * panel's width and top and how the frame meets it. Auto: mitered over the panel's edge unless the
@@ -429,7 +446,9 @@ export function syncRoom(room, settings) {
   // SPEC-38.4: before the auto items, so splitRun knows a wall end panel's join.
   nextRoom = {
     ...nextRoom,
-    walls: nextRoom.walls.map((wall) => withWallPanels(nextRoom, wall, settings)),
+    walls: nextRoom.walls.map((wall) => withPanelMiters(
+      nextRoom, withWallPanels(nextRoom, wall, settings), settings,
+    )),
   };
 
   nextRoom = {
