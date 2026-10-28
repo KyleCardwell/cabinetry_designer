@@ -14,8 +14,8 @@ export const shapeReducers = {
     const index = list.findIndex((entry) => entry.id === shape?.id);
     if (index === -1) return;
     const existing = list[index];
-    const changed = JSON.stringify([shape.box, shape.views, shape.stretch])
-      !== JSON.stringify([existing.box, existing.views, existing.stretch]);
+    const changed = JSON.stringify([shape.box, shape.views, shape.stretch, shape.builder ?? null])
+      !== JSON.stringify([existing.box, existing.views, existing.stretch, existing.builder ?? null]);
     const updated = { ...structuredClone(shape), version: existing.version + (changed ? 1 : 0) };
     const next = list.map((entry, i) => (i === index ? updated : entry));
     if (isShapeList(next)) state.settings.shapes = next;

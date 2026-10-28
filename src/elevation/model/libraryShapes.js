@@ -3,6 +3,9 @@ import { SHAPE_KINDS } from './constants.js';
 import { isProfileGeometry, isSectionProfileDraft, sectionProfileBounds } from './sectionProfiles.js';
 import { shapeOutlines, transformOutline } from './sectionProfileOutline.js';
 import { formatInches } from './units.js';
+import {
+  buildShape, EXTRUDE_TEMPLATE, isShapeBuilder, shapeBuilderProblems, STACK_TEMPLATE,
+} from './shapeBuilders.js';
 
 const VIEW_AXES = { front: ['x', 'z'], plan: ['x', 'y'], side: ['y', 'z'] };
 const AXIS_SIZE = { x: 'w', y: 'd', z: 'h' };
@@ -18,7 +21,7 @@ function hasKeys(value, allowed, required = allowed) {
 
 /** Drafts allow zone conflicts, but still require complete, valid geometry and zone pairs. */
 export function isShapeDraft(shape) {
-  return hasKeys(shape, ['id', 'name', 'archived', 'version', 'kind', 'box', 'views', 'stretch', 'notes'],
+  return hasKeys(shape, ['id', 'name', 'archived', 'version', 'kind', 'box', 'views', 'stretch', 'notes', 'builder'],
     ['id', 'name', 'archived', 'version', 'kind', 'box', 'views', 'stretch'])
     && isText(shape.id) && isText(shape.name) && shape.name === shape.name.trim()
     && typeof shape.archived === 'boolean' && Number.isInteger(shape.version) && shape.version >= 1
@@ -34,12 +37,13 @@ export function isShapeDraft(shape) {
       && Array.from(zones).every((zone) => Array.isArray(zone) && zone.length === 2
         && Number.isFinite(zone[0]) && Number.isFinite(zone[1]) && zone[0] < zone[1]))
     && (!Object.hasOwn(shape, 'notes') || (typeof shape.notes === 'string'
-      && shape.notes === shape.notes.trim() && shape.notes.length <= 500));
+      && shape.notes === shape.notes.trim() && shape.notes.length <= 500))
+    && (!Object.hasOwn(shape, 'builder') || isShapeBuilder(shape.builder, shape.views));
 }
 
 export function isShape(shape) {
   return isShapeDraft(shape) && Object.values(shape.views).every((geometry) => isProfileGeometry(geometry))
-    && shapeStretchProblems(shape).length === 0;
+    && shapeStretchProblems(shape).length === 0 && shapeBuilderProblems(shape).length === 0;
 }
 
 export function isShapeList(list) {
@@ -68,24 +72,61 @@ function rectangle(a, b, width, height, prefix, loopId) {
   };
 }
 
-function namedShape(shapes, id, base) {
+const PLACEHOLDER_FRONT = rectangle(0, 0, 1, 1, 'p', 'L1');
+
+/** SH5: the starting shape for each New button ('drawn' | 'extrude' | 'stack'). */
+function shapeTemplate(type) {
+  if (type === 'extrude') {
+    return buildShape({
+      kind: EXTRUDE_TEMPLATE.kind, box: { x: 0, y: 0, z: 0, w: 1, h: 1, d: 1 },
+      views: { front: PLACEHOLDER_FRONT, side: structuredClone(EXTRUDE_TEMPLATE.side) }, stretch: {},
+      builder: structuredClone(EXTRUDE_TEMPLATE.builder),
+    });
+  }
+  if (type === 'stack') {
+    return buildShape({
+      kind: STACK_TEMPLATE.kind, box: { x: 0, y: 0, z: 0, w: 1, h: 1, d: 1 },
+      views: { front: PLACEHOLDER_FRONT }, stretch: {}, builder: structuredClone(STACK_TEMPLATE.builder),
+    });
+  }
+  return {
+    kind: 'other', box: { x: 0, y: 0, z: 0, w: 12, h: 12, d: 12 },
+    views: { front: rectangle(0, 0, 12, 12, 'p', 'L1') }, stretch: {},
+  };
+}
+
+function namedShape(shapes, id, base, type = 'drawn') {
   if (!isShapeList(shapes) || (base && !isShape(base))) return null;
   const names = new Set(shapes.map((shape) => shape.name.toLowerCase()));
   const initial = base ? `${base.name} copy` : 'New shape';
   let name = initial;
   for (let n = 2; names.has(name.toLowerCase()); n += 1) name = `${initial} ${n}`;
   const shape = {
-    ...(base ? structuredClone(base) : {
-      kind: 'other', box: { x: 0, y: 0, z: 0, w: 12, h: 12, d: 12 },
-      views: { front: rectangle(0, 0, 12, 12, 'p', 'L1') }, stretch: {},
-    }),
+    ...(base ? structuredClone(base) : shapeTemplate(type)),
     id, name, version: 1, archived: false,
   };
   return isShape(shape) && !shapes.some((entry) => entry.id === id) ? shape : null;
 }
 
-export function newShape(shapes, id = uuid()) {
-  return namedShape(shapes, id, null);
+export function newShape(shapes, id = uuid(), type = 'drawn') {
+  if (!['drawn', 'extrude', 'stack'].includes(type)) return null;
+  return namedShape(shapes, id, null, type);
+}
+
+/** SH5: drop the recipe; the made views, box and zones stay and become editable. One way. */
+export function convertShapeToDrawn(shape) {
+  if (!isShapeDraft(shape)) return null;
+  const { builder, ...rest } = structuredClone(shape);
+  void builder;
+  return rest;
+}
+
+/** SH5: a stack's origin is fixed; an extrusion's x origin is fixed at its left end. */
+function builderAllows(shape, axes) {
+  const type = shape.builder?.type;
+  if (type === 'stack') return false;
+  if (type === 'extrude') return !axes.includes('x');
+  return true;
 }
 
 export function copyShape(shapes, shape, id = uuid()) {
@@ -165,8 +206,10 @@ export function moveShapeOrigin(shape, view, pointId) {
 /** Places the given world coordinates at zero throughout the shape. */
 export function moveShapeOriginTo(shape, at) {
   if (!isShapeDraft(shape) || !hasKeys(at, Object.keys(AXIS_SIZE), [])
-    || Object.keys(at).length === 0 || !Object.values(at).every(Number.isFinite)) return null;
-  return transformShape(shape, at);
+    || Object.keys(at).length === 0 || !Object.values(at).every(Number.isFinite)
+    || !builderAllows(shape, Object.keys(at))) return null;
+  const moved = transformShape(shape, at);
+  return moved && buildShape(moved);
 }
 
 /** The nine size-box origin choices, in canvas order from top left to bottom right. */
@@ -182,8 +225,10 @@ export function shapeOriginSpots(shape, view) {
 }
 
 export function flipShape(shape, axis) {
-  if (!isShapeDraft(shape) || typeof axis !== 'string' || !Object.hasOwn(AXIS_SIZE, axis)) return null;
-  return transformShape(shape, { [axis]: 0 }, true);
+  if (!isShapeDraft(shape) || typeof axis !== 'string' || !Object.hasOwn(AXIS_SIZE, axis)
+    || !builderAllows(shape, [axis])) return null;
+  const flipped = transformShape(shape, { [axis]: 0 }, true);
+  return flipped && buildShape(flipped);
 }
 
 /** Resolve zoned axes independently, preserving fixed details and the library shape. */
@@ -300,17 +345,65 @@ export function stretchProblemText(problem, zone) {
   return null;
 }
 
+/** SH5: the view drawn by hand on a builder shape (an extrusion's Side view), else null. */
+export function builderSourceView(shape) {
+  return shape?.builder?.type === 'extrude' ? 'side' : null;
+}
+
+/** SH5: a view the builder makes (read-only in the editor). */
+export function isMadeView(shape, view) {
+  return Boolean(shape?.builder) && view !== builderSourceView(shape);
+}
+
 export function shapeViewProfile(shape, view) {
   const geometry = shapeView(shape, view);
+  const source = view === builderSourceView(shape);
   return geometry ? {
     id: `${shape.id}:${view}`, name: shape.name, kind: 'other', geometry,
-    drawnPoints: { elevation: [] }, version: 1, archived: false,
+    drawnPoints: source ? structuredClone(shape.builder.drawnPoints) : { elevation: [] },
+    version: 1, archived: false,
   } : null;
 }
 
 export function withShapeView(shape, view, profile) {
-  if (!isShapeDraft(shape) || !validView(view) || !isSectionProfileDraft(profile)) return null;
+  if (!isShapeDraft(shape) || !validView(view) || !isSectionProfileDraft(profile)
+    || isMadeView(shape, view)) return null;
   const result = structuredClone(shape);
   result.views[view] = structuredClone(profile.geometry);
+  if (shape.builder) {
+    result.builder.drawnPoints = structuredClone(profile.drawnPoints);
+    return isShapeDraft(result) ? buildShape(result) : null;
+  }
   return isShapeDraft(result) ? result : null;
+}
+
+/** SH5: a stack's turned section as a section-profile draft, so the profile editor tools work on it. */
+export function stackSectionProfile(shape, index) {
+  const section = shape?.builder?.type === 'stack' ? shape.builder.sections[index] : null;
+  if (section?.type !== 'turned') return null;
+  return {
+    id: `${shape.id}:s${index}`, name: shape.name, kind: 'other',
+    geometry: structuredClone(section.profile),
+    drawnPoints: { elevation: [...section.drawnPoints.elevation] }, version: 1, archived: false,
+  };
+}
+
+/** SH5: write a turned section's profile (and its lines across) back, then rebuild. */
+export function withStackSectionProfile(shape, index, profile) {
+  if (!stackSectionProfile(shape, index) || !isSectionProfileDraft(profile)) return null;
+  const result = structuredClone(shape);
+  result.builder.sections[index] = {
+    type: 'turned', profile: structuredClone(profile.geometry),
+    drawnPoints: { elevation: [...profile.drawnPoints.elevation] },
+  };
+  return isShapeDraft(result) ? buildShape(result) : null;
+}
+
+/** SH5: replace the recipe (and for an extrusion, its Side view) and rebuild. */
+export function withShapeBuilder(shape, builder, side) {
+  if (!isShapeDraft(shape)) return null;
+  const result = structuredClone(shape);
+  result.builder = structuredClone(builder);
+  if (side) result.views.side = structuredClone(side);
+  return isShapeDraft(result) ? buildShape(result) : null;
 }

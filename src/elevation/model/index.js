@@ -28,8 +28,13 @@ export {
   isShape, isShapeDraft, isShapeList, newShape, copyShape, shapeView, fitShapeBox,
   moveShapeOrigin, moveShapeOriginTo, shapeOriginSpots,
   flipShape, shapeStretchProblems, stretchProblemText, shapeViewProfile, withShapeView,
-  resolveShape, placeShapeFront,
+  resolveShape, placeShapeFront, convertShapeToDrawn, stackSectionProfile, withStackSectionProfile,
+  withShapeBuilder, builderSourceView, isMadeView,
 } from './libraryShapes.js';
+export {
+  buildShape, shapeBuilderProblems, builderProblemText, isShapeBuilder, newStackSection,
+  turnedInteriorPoints, MAX_STACK_SECTIONS,
+} from './shapeBuilders.js';
 export { shapeOutlines } from './sectionProfileOutline.js';
 export { stepEndSides } from './stepEnds.js';
 export {

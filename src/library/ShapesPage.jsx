@@ -11,6 +11,8 @@ import { useShopReadOnly } from './WorkspaceSourceBar.jsx';
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50';
 const INPUT_CLASS = 'rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 
+const BUILDER_TAGS = { extrude: ' · Extrusion', stack: ' · Leg stack' };
+
 export default function ShapesPage() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -33,12 +35,16 @@ export default function ShapesPage() {
           <h1 className="text-xl font-semibold text-gray-100">Shapes</h1>
           <p className="mt-1 text-sm text-gray-400">Drawings for accessories, appliances, legs and other shapes.</p>
         </div>
-        <button type="button" className={BUTTON_CLASS} disabled={readOnly} onClick={() => {
-          if (readOnly) return;
-          const shape = newShape(shapes);
-          dispatch(addShape({ shape }));
-          navigate(`/library/shapes/${shape.id}`);
-        }}>New shape</button>
+        <div className="flex flex-wrap gap-2">
+          {[['drawn', 'New shape'], ['extrude', 'New extrusion'], ['stack', 'New leg / column']].map(([type, label]) => (
+            <button key={type} type="button" className={BUTTON_CLASS} disabled={readOnly} onClick={() => {
+              if (readOnly) return;
+              const shape = newShape(shapes, undefined, type);
+              dispatch(addShape({ shape }));
+              navigate(`/library/shapes/${shape.id}`);
+            }}>{label}</button>
+          ))}
+        </div>
       </div>
       <div className="flex flex-wrap items-center gap-3">
         <input type="search" aria-label="Search shapes" placeholder="Search names" className={`${INPUT_CLASS} w-full max-w-xs`}
@@ -66,7 +72,7 @@ export default function ShapesPage() {
                 <span className="font-medium text-gray-100">{shape.name}</span>
                 {shape.archived && <span className="rounded bg-gray-700 px-1.5 py-0.5 text-xs text-gray-400">archived</span>}
               </div>
-              <p className="text-sm text-gray-300">{`${SHAPE_KINDS[shape.kind]} · ${['w', 'h', 'd'].map((axis) => formatInches(shape.box[axis]).replace(/"$/, '')).join(' × ')}`}</p>
+              <p className="text-sm text-gray-300">{`${SHAPE_KINDS[shape.kind]}${BUILDER_TAGS[shape.builder?.type] ?? ''} · ${['w', 'h', 'd'].map((axis) => formatInches(shape.box[axis]).replace(/"$/, '')).join(' × ')}`}</p>
               <div className="flex flex-wrap gap-2">
                 <Link to={`/library/shapes/${shape.id}`} className={BUTTON_CLASS}>Edit</Link>
                 <button type="button" className={BUTTON_CLASS} disabled={readOnly} onClick={() => {
@@ -98,7 +104,7 @@ export default function ShapesPage() {
             </div>
           ))}
         </div>
-      ) : <p className="text-sm text-gray-400">{shapes.length === 0 ? 'No shapes yet. New shape starts a 12 × 12 × 12 size box.' : 'No shapes match.'}</p>}
+      ) : <p className="text-sm text-gray-400">{shapes.length === 0 ? 'No shapes yet. New shape starts a 12 × 12 × 12 size box; New extrusion and New leg / column build the views for you.' : 'No shapes match.'}</p>}
     </div>
   );
 }

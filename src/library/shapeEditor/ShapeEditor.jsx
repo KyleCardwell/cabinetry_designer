@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { deleteProfilePoint, deleteProfileSegment, PROFILE_GRID_STEPS, setLoopClosed } from '../../elevation/model/profileEditing.js';
+import {
+  deleteProfilePoint, deleteProfileSegment, mirrorProfile, PROFILE_GRID_STEPS, setLoopClosed,
+} from '../../elevation/model/profileEditing.js';
 import { SHAPE_KINDS } from '../../elevation/model/constants.js';
 import {
   fitShapeBox, flipShape, isShapeDraft, isShapeList, moveShapeOrigin, shapeStretchProblems,
   shapeView, shapeViewProfile, stretchProblemText, withShapeView,
+  builderSourceView, isMadeView, stackSectionProfile, withStackSectionProfile,
 } from '../../elevation/model/libraryShapes.js';
+import { builderProblemText, shapeBuilderProblems } from '../../elevation/model/shapeBuilders.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateShape } from '../../elevation/store/elevationSlice.js';
 import { useShopReadOnly } from '../WorkspaceSourceBar.jsx';
@@ -14,7 +18,9 @@ import MovePanel from '../profileEditor/MovePanel.jsx';
 import ProfileCanvas from '../profileEditor/ProfileCanvas.jsx';
 import SegmentPanel from '../profileEditor/SegmentPanel.jsx';
 import useProfileDraft from '../profileEditor/useProfileDraft.js';
+import DrawnPanel from '../profileEditor/DrawnPanel.jsx';
 import BoxPanel from './BoxPanel.jsx';
+import BuilderPanel from './BuilderPanel.jsx';
 import OriginPanel from './OriginPanel.jsx';
 import StretchPanel from './StretchPanel.jsx';
 import ViewTabs, { SHAPE_VIEWS } from './ViewTabs.jsx';
@@ -23,23 +29,35 @@ import { pointSelection, pointSelectionKey } from '../profileEditor/profileSelec
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700';
 const HISTORY_BUTTON_CLASS = `${BUTTON_CLASS} disabled:cursor-not-allowed disabled:opacity-50`;
 const INPUT_CLASS = 'rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
-const shapeKey = (shape) => JSON.stringify([shape.name, shape.kind, shape.notes, shape.box, shape.views, shape.stretch]);
+const shapeKey = (shape) => JSON.stringify([shape.name, shape.kind, shape.notes, shape.box, shape.views, shape.stretch,
+  shape.builder ?? null]);
+const MADE_NOTE = {
+  extrude: 'Made from the Side view by the extrusion builder.',
+  stack: 'Made by the leg / column builder.',
+};
 const normalizeShape = (shape) => ({ ...shape, name: shape.name.trim(),
   ...(Object.hasOwn(shape, 'notes') ? { notes: shape.notes.trim() } : {}) });
 
 export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose }) {
   const dispatch = useDispatch();
   const shapes = useSelector((state) => state.elevation.settings.shapes);
+  const allProfiles = useSelector((state) => state.elevation.settings.sectionProfiles);
   const saved = shapes.find((shape) => shape.id === shapeId);
   const readOnly = useShopReadOnly();
   const { draft, apply: applyDraft, undo, redo, canUndo, canRedo, dirty } = useProfileDraft(saved, shapeKey);
   const normalized = draft && normalizeShape(draft);
   // Keep the drawing editable while the name field is empty or has surrounding spaces.
   const editable = normalized && { ...normalized, name: normalized.name || saved?.name };
-  const [view, setView] = useState('front');
+  const [view, setView] = useState(() => builderSourceView(saved) ?? 'front');
+  // SH5: index of the stack's turned section being edited in the canvas, or null for the view tabs.
+  const [section, setSection] = useState(null);
   const [removingView, setRemovingView] = useState(false);
-  const drawnView = Boolean(draft?.views[view]);
-  const profile = editable && shapeViewProfile(editable, view);
+  const builder = draft?.builder ?? null;
+  const sectionMode = section !== null && editable && Boolean(stackSectionProfile(editable, section));
+  const drawnView = sectionMode || (Boolean(draft?.views[view]) && !isMadeView(draft, view));
+  const profile = editable && (sectionMode ? stackSectionProfile(editable, section) : shapeViewProfile(editable, view));
+  const profiles = (allProfiles ?? []).filter((entry) => !entry.archived)
+    .sort((x, y) => x.name.localeCompare(y.name));
   const [message, setMessage] = useState(null);
   const [discarding, setDiscarding] = useState(false);
   const [savedOnce, setSavedOnce] = useState(false);
@@ -68,18 +86,20 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
       setMessage(failText);
       return false;
     }
-    // The adapter writes only the current view geometry; retain uncommitted header text.
+    // The adapter writes only the current view geometry (and, for a builder, what it makes); retain header text.
     const current = normalizeShape(draft);
-    const nextShape = withShapeView({ ...current, name: current.name || saved?.name }, view, next);
+    const base = { ...current, name: current.name || saved?.name };
+    const nextShape = sectionMode ? withStackSectionProfile(base, section, next) : withShapeView(base, view, next);
     if (!nextShape) {
       setMessage(failText);
       return false;
     }
-    applyDraft({ ...draft, views: nextShape.views });
+    applyDraft({ ...draft, views: nextShape.views, box: nextShape.box, stretch: nextShape.stretch,
+      ...(nextShape.builder ? { builder: nextShape.builder } : {}) });
     setMessage(null);
     setDiscarding(false);
     return true;
-  }, [applyDraft, draft, saved?.name, readOnly, drawnView, view]);
+  }, [applyDraft, draft, saved?.name, readOnly, drawnView, view, sectionMode, section]);
 
   const close = () => onClose({ saved: savedOnce });
 
@@ -94,26 +114,29 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     setSavedOnce(false);
     setSelection(null);
     setTool('select');
-    setView('front');
+    setView(builderSourceView(saved) ?? 'front');
+    setSection(null);
     setRemovingView(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shapeId]);
 
   useEffect(() => {
     setDiscarding(false);
     setRemovingView(false);
+    const geometry = sectionMode ? draft?.builder?.sections[section]?.profile : draft?.views[view];
     setSelection((current) => {
-      if (current?.kind === 'point' && !Object.hasOwn(draft?.views[view]?.points ?? {}, current.id)) return null;
+      if (current?.kind === 'point' && !Object.hasOwn(geometry?.points ?? {}, current.id)) return null;
       if (current?.kind === 'points') {
-        const ids = current.ids.filter((id) => Object.hasOwn(draft?.views[view]?.points ?? {}, id));
+        const ids = current.ids.filter((id) => Object.hasOwn(geometry?.points ?? {}, id));
         if (ids.length !== current.ids.length) return pointSelection(ids);
       }
       if (current?.kind === 'segment') {
-        const loop = draft?.views[view]?.loops.find((entry) => entry.id === current.loopId);
+        const loop = geometry?.loops.find((entry) => entry.id === current.loopId);
         if (!loop?.segs[current.index]) return null;
       }
       return current;
     });
-  }, [draft, view]);
+  }, [draft, view, sectionMode, section]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -172,15 +195,18 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
   }
 
   const [a, b, width, height] = SHAPE_VIEWS[view].boxKeys.map((key) => draft.box[key]);
-  const ghost = {
+  const boxGhost = {
     units: 'in',
     points: { b1: [a, b], b2: [a + width, b], b3: [a + width, b + height], b4: [a, b + height] },
     loops: [{ id: 'box', closed: true, segs: ['b1', 'b2', 'b3', 'b4'].map((id, index, ids) => ({
       type: 'line', from: id, to: ids[(index + 1) % ids.length],
     })) }],
   };
+  // SH5: while a turned section is edited, the ghost is its mirrored left half so the whole turning shows.
+  const ghost = sectionMode ? mirrorProfile(profile, 'x')?.geometry ?? null : boxGhost;
   const problems = shapeStretchProblems(normalized) ?? [];
-  const bands = SHAPE_VIEWS[view].boxKeys.slice(0, 2).flatMap((axis, coord) =>
+  const builderProblems = shapeBuilderProblems(normalized) ?? [];
+  const bands = sectionMode ? [] : SHAPE_VIEWS[view].boxKeys.slice(0, 2).flatMap((axis, coord) =>
     (draft.stretch[axis] ?? []).map(([from, to], index) => ({
       dir: coord === 0 ? 'vertical' : 'horizontal', from, to,
       problem: problems.some((problem) => problem.axis === axis && problem.index === index),
@@ -188,7 +214,12 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
   const nameConflict = !saved.archived && shapes.some((shape) => shape.id !== saved.id && !shape.archived
     && shape.name.toLowerCase() === normalized.name.toLowerCase());
   const emptyViews = Object.keys(SHAPE_VIEWS).filter((key) => draft.views[key] && !draft.views[key].loops.length);
-  const saveDisabled = readOnly || !dirty || !isShapeList(shapes.map((shape) => shape.id === saved.id ? normalized : shape));
+  const saveDisabled = readOnly || !dirty || builderProblems.length > 0
+    || !isShapeList(shapes.map((shape) => shape.id === saved.id ? normalized : shape));
+  const saveTitle = builderProblems.length ? builderProblemText(builderProblems[0])
+    : problems.length ? stretchProblemText(problems[0], normalized.stretch[problems[0].axis][problems[0].index]) : undefined;
+  const flipAxes = !builder ? ['x', 'z', 'y'] : builder.type === 'extrude' ? ['z', 'y'] : [];
+  const showOrigin = !builder || (builder.type === 'extrude' && view === 'side' && !sectionMode);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -231,7 +262,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
           type="button"
           className="rounded bg-blue-600 px-3 py-1.5 text-sm text-white hover:bg-blue-500 disabled:opacity-50"
           disabled={saveDisabled}
-          title={problems.length ? stretchProblemText(problems[0], normalized.stretch[problems[0].axis][problems[0].index]) : undefined}
+          title={saveTitle}
           onClick={() => {
             if (saveDisabled) return;
             dispatch(updateShape({ shape: normalized }));
@@ -247,8 +278,9 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
           Draw the {emptyViews.map((key) => SHAPE_VIEWS[key].label.toLowerCase()).join(' and ')} view to save.</span>}
       </header>
       {message && <p role="status" className="px-4 py-1 text-sm text-red-300">{message}</p>}
-      <ViewTabs view={view} onChange={(next) => {
+      <ViewTabs view={sectionMode ? null : view} onChange={(next) => {
         setView(next);
+        setSection(null);
         setRemovingView(false);
         setSelection(null);
         setTool('select');
@@ -270,22 +302,30 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
               </select>
             </label>
           </div>
-          <ProfileCanvas ref={canvasRef} key={`${shapeId}:${view}:${drawnView}`} profile={profile} ghost={ghost} bands={bands} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
+          {sectionMode && <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2 rounded bg-gray-800 px-2 py-1 text-sm text-gray-200">
+            Section {section + 1} profile · x = radius from the centre line, y = height
+            <button type="button" className={BUTTON_CLASS} onClick={() => { setSection(null); setSelection(null); setTool('select'); }}>Back to views</button>
+          </div>}
+          {!sectionMode && builder && isMadeView(draft, view) && <p className="absolute bottom-2 left-2 z-10 rounded bg-gray-800 px-2 py-1 text-xs text-gray-300">{MADE_NOTE[builder.type]}</p>}
+          <ProfileCanvas ref={canvasRef} key={`${shapeId}:${view}:${drawnView}:${sectionMode ? section : ''}`} profile={profile} ghost={ghost} bands={bands} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
         </div>
         <aside className="w-96 shrink-0 overflow-y-auto border-l border-gray-700 p-4 space-y-5">
-          <BoxPanel box={draft.box} readOnly={readOnly}
+          {builder && <BuilderPanel shape={editable} profiles={profiles} problems={builderProblems} readOnly={readOnly}
+            onApply={applyShape} section={sectionMode ? section : null}
+            onEditSection={(index) => { setSection(index); setSelection(null); setTool('select'); setMessage(null); }} />}
+          <BoxPanel box={draft.box} readOnly={readOnly || Boolean(builder)}
             onChange={(box) => applyShape({ ...editable, box }, 'W, H and D must be greater than zero.')}
-            onFit={() => applyShape(fitShapeBox(editable), 'The drawing must have a positive size on each drawn axis.')} />
-          <OriginPanel key={`${shapeId}:${view}`} shape={editable} view={view} onApply={applyShape} readOnly={readOnly} />
-          <StretchPanel box={draft.box} stretch={draft.stretch} view={view} problems={problems} readOnly={readOnly}
-            onChange={(stretch) => applyShape({ ...editable, stretch }, 'A stretch zone needs From less than To.')} />
-          <div className="flex flex-wrap gap-2">
-            {[['x', '⇆ Flip left–right'], ['z', '⇅ Flip up–down'], ['y', 'Flip front–back']].map(([axis, label]) => (
+            onFit={builder ? null : () => applyShape(fitShapeBox(editable), 'The drawing must have a positive size on each drawn axis.')} />
+          {showOrigin && <OriginPanel key={`${shapeId}:${view}`} shape={editable} view={view} onApply={applyShape} readOnly={readOnly} />}
+          {!builder && <StretchPanel box={draft.box} stretch={draft.stretch} view={view} problems={problems} readOnly={readOnly}
+            onChange={(stretch) => applyShape({ ...editable, stretch }, 'A stretch zone needs From less than To.')} />}
+          {!sectionMode && flipAxes.length > 0 && <div className="flex flex-wrap gap-2">
+            {[['x', '⇆ Flip left–right'], ['z', '⇅ Flip up–down'], ['y', 'Flip front–back']].filter(([axis]) => flipAxes.includes(axis)).map(([axis, label]) => (
               <button key={axis} type="button" className={HISTORY_BUTTON_CLASS} disabled={readOnly}
                 onClick={() => applyShape(flipShape(editable, axis))}>{label}</button>
             ))}
-          </div>
-          {view !== 'front' && (!drawnView ? (
+          </div>}
+          {!builder && view !== 'front' && (!drawnView ? (
             <section className="space-y-2 text-sm text-gray-300">
               <p>No {view} view yet: drawn as the {view === 'plan' ? 'W × D' : 'D × H'} size-box rectangle.</p>
               <button type="button" className={HISTORY_BUTTON_CLASS} disabled={readOnly}
@@ -308,15 +348,26 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
           ))}
           {drawnView && <>
             <MovePanel key={`${shapeId}:${view}`} profile={profile} selection={selection}
-              axes={SHAPE_VIEWS[view].boxKeys.slice(0, 2)} onApply={apply} readOnly={readOnly} />
+              axes={sectionMode ? ['x', 'y'] : SHAPE_VIEWS[view].boxKeys.slice(0, 2)} onApply={apply} readOnly={readOnly} />
             {selection?.kind === 'segment' && <SegmentPanel profile={profile} loopId={selection.loopId} index={selection.index} onApply={apply} onSelect={setSelection} />}
             <PointsPanel
               profile={profile}
               selectedPointId={selection?.kind === 'point' ? selection.id : null}
               onSelectPoint={(id) => setSelection(id === null ? null : { kind: 'point', id })}
               onApply={apply}
+              showOrigin={showOrigin}
               onOrigin={(id) => applyShape(moveShapeOrigin(editable, view, id))}
             />
+            {(sectionMode || (builder?.type === 'extrude' && view === 'side')) && <DrawnPanel
+              profile={profile}
+              selectedPointId={selection?.kind === 'point' ? selection.id : null}
+              onSelectPoint={(id) => setSelection(id === null ? null : { kind: 'point', id })}
+              onApply={apply}
+              elevationOnly={sectionMode}
+              hint={sectionMode
+                ? 'Each ticked point is a line across the turning in Front and Side.'
+                : 'Elevation: a line along the length in Front at the point’s height. Plan: a line in Plan at its depth.'}
+            />}
             <section className="space-y-2">
               <h2 className="text-sm font-medium text-gray-200">Loops</h2>
               {profile.geometry.loops.map((loop) => (
@@ -334,7 +385,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
               ))}
             </section>
           </>}
-          <p className="text-xs text-gray-500">{SHAPE_VIEWS[view].label} view · {SHAPE_VIEWS[view].axes}. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
+          <p className="text-xs text-gray-500">{sectionMode ? `Section ${section + 1} profile` : `${SHAPE_VIEWS[view].label} view · ${SHAPE_VIEWS[view].axes}`}. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
         </aside>
       </div>
     </div>

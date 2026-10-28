@@ -15,10 +15,10 @@ export default function BoxPanel({ box, onChange, onFit, readOnly }) {
           </label>
         ))}
       </div>
-      <button type="button" disabled={readOnly} onClick={onFit}
+      {onFit && <button type="button" disabled={readOnly} onClick={onFit}
         className="rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50">
         Fit to drawing
-      </button>
+      </button>}
     </section>
   );
 }
