@@ -62,10 +62,12 @@ export default function DimensionRow({
 }) {
   const [hoveredHiddenIndex, setHoveredHiddenIndex] = useState(null);
   const cursorKeys = useCursorKeys(cursor);
+  const factor = transform.text?.dimension ?? 1;
+  const fontSize = FONT_SIZE * factor;
   const layout = useMemo(() => layoutDimensionRow(segments, {
     scale: transform.scale,
-    fontSize: FONT_SIZE,
-  }), [segments, transform.scale]);
+    fontSize,
+  }), [segments, transform.scale, fontSize]);
   if (segments.length === 0) return null;
 
   const horizontal = orientation === 'horizontal';
@@ -167,11 +169,11 @@ export default function DimensionRow({
         const linePieces = label.mode === 'inline'
           ? gappedLine(start, end, midpoint, label.width / 2)
           : [[start.x, start.y, end.x, end.y]];
-        const labelDistance = label.mode === 'inline' ? 0 : 12 * label.level;
+        const labelDistance = label.mode === 'inline' ? 0 : 12 * factor * label.level;
         const labelPoint = rowPoint(midpointValue, labelDistance);
         // -90 puts the text's bottom to the right.
         const rotation = horizontal ? 0 : -90;
-        const tooltipPoint = rowPoint(midpointValue, 12 * (layout.levels + 1));
+        const tooltipPoint = rowPoint(midpointValue, 12 * factor * (layout.levels + 1));
         const hitEvents = {
           onClick: clickable ? (event) => {
             event.cancelBubble = true;
@@ -202,14 +204,14 @@ export default function DimensionRow({
         const band = horizontal
           ? {
             x: Math.min(start.x, end.x),
-            y: start.y - 14,
+            y: start.y - 14 * factor,
             width: Math.abs(end.x - start.x),
-            height: 28,
+            height: 28 * factor,
           }
           : {
-            x: start.x - 14,
+            x: start.x - 14 * factor,
             y: Math.min(start.y, end.y),
-            width: 28,
+            width: 28 * factor,
             height: Math.abs(end.y - start.y),
           };
         const leader = horizontal
@@ -255,11 +257,11 @@ export default function DimensionRow({
                 y={labelPoint.y}
                 width={label.width}
                 offsetX={label.width / 2}
-                offsetY={FONT_SIZE / 2}
+                offsetY={fontSize / 2}
                 rotation={rotation}
                 align="center"
                 text={label.text}
-                fontSize={FONT_SIZE}
+                fontSize={fontSize}
                 fill={color}
                 listening={false}
               />
@@ -277,9 +279,9 @@ export default function DimensionRow({
                 x={labelPoint.x}
                 y={labelPoint.y}
                 width={label.width + 8}
-                height={FONT_SIZE + 8}
+                height={fontSize + 8}
                 offsetX={(label.width + 8) / 2}
-                offsetY={(FONT_SIZE + 8) / 2}
+                offsetY={(fontSize + 8) / 2}
                 rotation={rotation}
                 fill="rgba(0,0,0,0.001)"
                 {...hitEvents}
@@ -302,9 +304,9 @@ export default function DimensionRow({
               >
                 <Rect
                   x={-label.width / 2}
-                  y={-(FONT_SIZE + 8) / 2}
+                  y={-(fontSize + 8) / 2}
                   width={label.width}
-                  height={FONT_SIZE + 8}
+                  height={fontSize + 8}
                   fill="#020617"
                   stroke={color}
                   strokeWidth={1}
@@ -312,11 +314,11 @@ export default function DimensionRow({
                 />
                 <Text
                   x={-label.width / 2}
-                  y={-FONT_SIZE / 2}
+                  y={-fontSize / 2}
                   width={label.width}
                   align="center"
                   text={label.text}
-                  fontSize={FONT_SIZE}
+                  fontSize={fontSize}
                   fill="#f8fafc"
                 />
               </Group>

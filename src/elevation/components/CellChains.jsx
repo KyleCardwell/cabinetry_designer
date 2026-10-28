@@ -13,11 +13,13 @@ const MIN_LABEL_SPAN = 24;
 const TICK_HALF_LENGTH = 3;
 
 function CellChain({ grid, transform, editable, onEditTrack }) {
+  const factor = transform.text?.dimension ?? 1;
+  const fontSize = FONT_SIZE * factor;
   const row = grid.axis === 'row';
   const origin = wallToScreen({ x: grid.x, z: grid.z }, transform);
   const direction = grid.direction ?? 1;
-  const chainX = origin.x + direction * 10;
-  const chainY = origin.y - 10;
+  const chainX = origin.x + direction * 10 * factor;
+  const chainY = origin.y - 10 * factor;
   const boundaries = [...new Set(grid.tracks.flatMap((track) => [track.start, track.end]))];
   const pointAt = (value) => (row
     ? wallToScreen({ x: grid.x, z: value }, transform)
@@ -44,8 +46,8 @@ function CellChain({ grid, transform, editable, onEditTrack }) {
         const end = pointAt(track.end);
         const span = Math.abs(track.end - track.start) * transform.scale;
         const text = formatDimension(track.end - track.start);
-        const halfGap = text.length * FONT_SIZE * 0.6 / 2 + 4;
-        const visible = span >= MIN_LABEL_SPAN;
+        const halfGap = text.length * fontSize * 0.6 / 2 + 4;
+        const visible = span >= MIN_LABEL_SPAN * factor;
         const inline = visible && 2 * halfGap + 8 <= span;
         const lineStart = row ? { x: chainX, y: start.y } : { x: start.x, y: chainY };
         const lineEnd = row ? { x: chainX, y: end.y } : { x: end.x, y: chainY };
@@ -55,9 +57,9 @@ function CellChain({ grid, transform, editable, onEditTrack }) {
           <Line key={`line:${index}`} points={points} stroke="#94a3b8" strokeWidth={1} listening={false} />
         ));
         if (!visible) return <Group key={track.id}>{lines}</Group>;
-        const x = row ? chainX + (inline ? -FONT_SIZE / 2 : direction > 0 ? 3 : -FONT_SIZE - 3)
+        const x = row ? chainX + (inline ? -fontSize / 2 : direction > 0 ? 3 * factor : -fontSize - 3 * factor)
           : Math.min(start.x, end.x);
-        const y = row ? center.y : chainY - (inline ? FONT_SIZE / 2 : FONT_SIZE + 3);
+        const y = row ? center.y : chainY - (inline ? fontSize / 2 : fontSize + 3 * factor);
         const color = track.manual ? '#7dd3fc' : '#e2e8f0';
         const handleClick = editable ? (event) => {
           event.cancelBubble = true;
@@ -79,10 +81,10 @@ function CellChain({ grid, transform, editable, onEditTrack }) {
                 <Text
                   x={-span / 2}
                   width={span}
-                  height={FONT_SIZE}
+                  height={fontSize}
                   align="center"
                   text={text}
-                  fontSize={FONT_SIZE}
+                  fontSize={fontSize}
                   fill={color}
                   listening={false}
                 />
@@ -90,7 +92,7 @@ function CellChain({ grid, transform, editable, onEditTrack }) {
                   <Rect
                     x={-span / 2}
                     width={span}
-                    height={FONT_SIZE}
+                    height={fontSize}
                     fill="rgba(0,0,0,0.001)"
                     onClick={handleClick}
                   />
@@ -107,10 +109,10 @@ function CellChain({ grid, transform, editable, onEditTrack }) {
               x={x}
               y={y}
               width={span}
-              height={FONT_SIZE}
+              height={fontSize}
               align="center"
               text={text}
-              fontSize={FONT_SIZE}
+              fontSize={fontSize}
               fill={color}
               listening={false}
             />
@@ -119,7 +121,7 @@ function CellChain({ grid, transform, editable, onEditTrack }) {
                 x={x}
                 y={y}
                 width={span}
-                height={FONT_SIZE}
+                height={fontSize}
                 fill="rgba(0,0,0,0.001)"
                 onClick={handleClick}
               />

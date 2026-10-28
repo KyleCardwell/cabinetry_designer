@@ -547,25 +547,33 @@ function ElevationCanvas({
 
   const dimensionOffsets = useMemo(() => {
     if (!dimensionChains || !transform) return null;
+    const factor = transform.text?.dimension ?? 1;
+    const fontSize = 11 * factor;
     const lowerLevels = layoutDimensionRow(dimensionChains.lower.inner, {
       scale: transform.scale,
+      fontSize,
     }).levels;
     const upperLevels = layoutDimensionRow(dimensionChains.upper.inner, {
       scale: transform.scale,
+      fontSize,
     }).levels;
     const lowerOuterLevels = layoutDimensionRow(dimensionChains.lower.outer, {
       scale: transform.scale,
+      fontSize,
     }).levels;
     // Only one of the openings and wall rows is ever drawn (DM3 §1.3); it sits in the third slot.
     const openingLevels = layoutDimensionRow([...dimensionChains.openings, ...dimensionChains.wall], {
       scale: transform.scale,
+      fontSize,
     }).levels;
     const verticalLevels = {
       left: layoutDimensionRow(dimensionChains.vertical.left.inner, {
         scale: transform.scale,
+        fontSize,
       }).levels,
       right: layoutDimensionRow(dimensionChains.vertical.right.inner, {
         scale: transform.scale,
+        fontSize,
       }).levels,
     };
     const extent = wallExtent(room, wall, settings);
@@ -580,18 +588,20 @@ function ElevationCanvas({
       pieces: lowerLevels,
       overall: lowerOuterLevels,
       openings: openingLevels,
-    });
-    const upper = dimensionRowOffsets('horizontal', upperLevels);
+    }, factor);
+    const upper = dimensionRowOffsets('horizontal', upperLevels, false, factor);
     const vertical = {
       left: dimensionRowOffsets(
         'vertical',
         verticalLevels.left,
         dimensionChains.vertical.left.middle.length > 0,
+        factor,
       ),
       right: dimensionRowOffsets(
         'vertical',
         verticalLevels.right,
         dimensionChains.vertical.right.middle.length > 0,
+        factor,
       ),
     };
     return {
@@ -1467,7 +1477,7 @@ function ElevationCanvas({
           {tool === 'measure' && (
             <Layer listening={false}>
               <MeasureOverlay first={measure.first} hover={measure.hover} measures={measure.measures}
-                preview={measure.preview} toScreen={measureToScreen} />
+                preview={measure.preview} toScreen={measureToScreen} transform={transform} />
             </Layer>
           )}
         </Stage>

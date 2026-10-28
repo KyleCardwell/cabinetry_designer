@@ -5,6 +5,8 @@ import { gappedLine } from '../canvas/gappedLine.js';
 
 /** Casing clearances drawn inside the wall at their own height (SPEC-39.1); amber when too tight. */
 export default function ClearanceCallouts({ callouts, transform }) {
+  const factor = transform.text?.dimension ?? 1;
+  const fontSize = 11 * factor;
   return (
     <Group listening={false}>
       {callouts.filter((callout) => callout.end - callout.start > 1e-6).map((callout) => {
@@ -15,7 +17,7 @@ export default function ClearanceCallouts({ callouts, transform }) {
         const text = callout.violated && Number.isFinite(callout.required)
           ? `${formatDimension(length)} (${formatDimension(callout.required)})`
           : formatDimension(length);
-        const width = text.length * 11 * 0.6;
+        const width = text.length * fontSize * 0.6;
         const inline = width + 16 <= length * transform.scale;
         const center = { x: (from.x + to.x) / 2, y: from.y };
         return (
@@ -32,13 +34,13 @@ export default function ClearanceCallouts({ callouts, transform }) {
               />
             ))}
             <Text
-              x={center.x - (inline ? width / 2 : 40)}
-              y={from.y - (inline ? 11 / 2 : 14)}
-              width={inline ? width : 80}
-              height={inline ? 11 : undefined}
+              x={center.x - (inline ? width / 2 : 40 * factor)}
+              y={from.y - (inline ? fontSize / 2 : 14 * factor)}
+              width={inline ? width : 80 * factor}
+              height={inline ? fontSize : undefined}
               align="center"
               text={text}
-              fontSize={11}
+              fontSize={fontSize}
               fill={color}
             />
           </Group>

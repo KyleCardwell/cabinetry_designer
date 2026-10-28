@@ -4,14 +4,15 @@ const POPOUT_GAP = 4;
 const MIN_LINE = 4;
 
 /** Return the row offsets for an elevation dimension chain. */
-export function dimensionRowOffsets(orientation, innerLevels = 0, hasMiddle = false) {
+export function dimensionRowOffsets(orientation, innerLevels = 0, hasMiddle = false, factor = 1) {
   if (orientation === 'vertical') {
-    const outer = 24 + 26 + innerLevels * 16;
+    const inner = 24 * factor;
+    const outer = (24 + 26 + innerLevels * 16) * factor;
     return hasMiddle
-      ? { inner: 24, middle: outer, outer: outer + 26 }
-      : { inner: 24, outer };
+      ? { inner, middle: outer, outer: outer + 26 * factor }
+      : { inner, outer };
   }
-  return { inner: 20, outer: 20 + 22 + innerLevels * 14 };
+  return { inner: 20 * factor, outer: (20 + 22 + innerLevels * 14) * factor };
 }
 
 /**
@@ -24,12 +25,12 @@ export function belowRowOffsets({
   overall: overallLevels = 0,
   openings: openingLevels = 0,
   clearanceRow = true,
-} = {}) {
-  const clearances = 20;
-  const pieces = clearanceRow ? clearances + 22 + clearanceLevels * 14 : clearances;
-  const overall = pieces + 22 + pieceLevels * 14;
-  const openings = overall + 22 + overallLevels * 14;
-  const label = openings + 22 + openingLevels * 14;
+} = {}, factor = 1) {
+  const clearances = 20 * factor;
+  const pieces = clearanceRow ? clearances + (22 + clearanceLevels * 14) * factor : clearances;
+  const overall = pieces + (22 + pieceLevels * 14) * factor;
+  const openings = overall + (22 + overallLevels * 14) * factor;
+  const label = openings + (22 + openingLevels * 14) * factor;
   return { clearances, pieces, overall, openings, label };
 }
 

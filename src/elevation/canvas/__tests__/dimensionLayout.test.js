@@ -136,3 +136,25 @@ describe('dimensionRowOffsets', () => {
     });
   });
 });
+
+it('TX1 c anchor 1: doubles every below-wall offset, including popout spacing', () => {
+  for (const levels of [{ pieces: 1 }, { clearances: 2, pieces: 1, overall: 2, openings: 1 },
+    { clearanceRow: false, pieces: 1 }]) {
+    const original = belowRowOffsets(levels);
+    expect(belowRowOffsets(levels, 2)).toEqual(Object.fromEntries(
+      Object.entries(original).map(([key, value]) => [key, value * 2]),
+    ));
+  }
+});
+
+it('TX1 c anchor 2: scales vertical rows and the middle-row slot', () => {
+  expect(dimensionRowOffsets('vertical', 1, true, 1.5)).toEqual({ inner: 36, middle: 99, outer: 138 });
+  expect(dimensionRowOffsets('horizontal', 2, false, 2)).toEqual({ inner: 40, outer: 140 });
+  expect(dimensionRowOffsets('vertical', 1, false, 1.5)).toEqual({ inner: 36, outer: 99 });
+});
+
+it('TX1 c anchor 5: the scaled font moves a 1 1/2-inch segment from inline to popout', () => {
+  const segments = [{ start: 0, end: 1.5 }];
+  expect(layoutDimensionRow(segments, { scale: 40, fontSize: 11 }).labels[0].mode).toBe('inline');
+  expect(layoutDimensionRow(segments, { scale: 40, fontSize: 27.5 }).labels[0].mode).toBe('popout');
+});

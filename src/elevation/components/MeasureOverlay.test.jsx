@@ -91,3 +91,19 @@ it('keeps markers in screen pixels, previews translucent, and short or reversed 
     }
   }
 });
+
+it('TX1 c anchor 4: doubles measure text and its pill while preserving ticks and markers', () => {
+  const result = measureBetween(corner(0, 0), corner(48, 34.5));
+  const extra = { hover: corner(2, 3) };
+  const original = overlay(result, extra);
+  const scaled = overlay(result, { ...extra, transform: { text: { dimension: 2 } } });
+  expect(scaled.filter(({ type }) => type === Text).map(({ props }) => props.fontSize)).toEqual([22, 22, 22]);
+  const pills = (tree) => tree.filter(({ type, props }) => type === Rect && props.cornerRadius === 2);
+  pills(scaled).forEach(({ props }, index) => {
+    expect(props.height).toBe(24);
+    expect(props.width).toBeCloseTo((pills(original)[index].props.width - 6) * 2 + 6);
+  });
+  expect(lines(scaled).map(({ props }) => props)).toEqual(lines(original).map(({ props }) => props));
+  expect(scaled.find(({ type, props }) => type === Rect && props.width === 9).props)
+    .toEqual(original.find(({ type, props }) => type === Rect && props.width === 9).props);
+});

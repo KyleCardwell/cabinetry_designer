@@ -8,6 +8,8 @@ const FONT_SIZE = 10;
 const TICK_HALF = 3;
 
 export default function InteriorDimensions({ entry, transform, editable, onEditDivider, dragPreview }) {
+  const factor = transform.text?.dimension ?? 1;
+  const fontSize = FONT_SIZE * factor;
   return interiorDimensions(entry).map((dimension) => {
     const vertical = dimension.axis === 'vertical';
     const delta = dragPreview?.itemId === entry.itemId && dragPreview.key === dimension.key
@@ -18,20 +20,20 @@ export default function InteriorDimensions({ entry, transform, editable, onEditD
       z: dimension.to.z + (vertical ? delta.z : 0),
     }, transform);
     const value = dimension.value + (vertical ? delta.z : dimension.side === 'right' ? -delta.x : delta.x);
-    const offset = 8 + 14 * dimension.lane;
+    const offset = (8 + 14 * dimension.lane) * factor;
     const x = from.x + (vertical ? offset : 0);
     const y = from.y + (vertical ? 0 : offset);
     const span = Math.abs(value) * transform.scale;
     const color = dimension.manual ? '#7dd3fc' : '#e2e8f0';
     const text = formatDimension(value);
-    const halfGap = text.length * FONT_SIZE * 0.6 / 2 + 4;
+    const halfGap = text.length * fontSize * 0.6 / 2 + 4;
     const inline = 2 * halfGap + 8 <= span;
-    const labelX = vertical ? x + (inline ? -FONT_SIZE / 2 : 3) : (from.x + to.x) / 2;
-    const labelY = vertical ? (from.y + to.y) / 2 : y + (inline ? -FONT_SIZE / 2 : 3);
+    const labelX = vertical ? x + (inline ? -fontSize / 2 : 3 * factor) : (from.x + to.x) / 2;
+    const labelY = vertical ? (from.y + to.y) / 2 : y + (inline ? -fontSize / 2 : 3 * factor);
     const start = vertical ? { x, y: from.y } : { x: from.x, y };
     const end = vertical ? { x, y: to.y } : { x: to.x, y };
     const center = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
-    const labelWidth = Math.max(span, 24);
+    const labelWidth = Math.max(span, 24 * factor);
     const handleClick = editable ? (event) => {
       event.cancelBubble = true;
       const point = event.target.getStage().getPointerPosition();
@@ -67,10 +69,10 @@ export default function InteriorDimensions({ entry, transform, editable, onEditD
           <Text
             x={-labelWidth / 2}
             width={labelWidth}
-            height={FONT_SIZE}
+            height={fontSize}
             align="center"
             text={text}
-            fontSize={FONT_SIZE}
+            fontSize={fontSize}
             fill={color}
             listening={false}
           />
@@ -78,7 +80,7 @@ export default function InteriorDimensions({ entry, transform, editable, onEditD
             <Rect
               x={-labelWidth / 2}
               width={labelWidth}
-              height={FONT_SIZE}
+              height={fontSize}
               fill="rgba(0,0,0,0.001)"
               onClick={handleClick}
             />
