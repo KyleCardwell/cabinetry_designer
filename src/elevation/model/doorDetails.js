@@ -123,6 +123,24 @@ export function runEndPanelDetail(room, wall, run, end, settings, scene = runSce
 }
 
 /**
+ * A wall end panel's door detail seen end-on (FX5.1), like `runEndPanelDetail`: the panel is `width` across
+ * (both faces and the wall) from `z` up `height`. Null for a sheet panel.
+ */
+export function wallEndPanelDetail(room, wall, endpoint, { width, z, height }, settings) {
+  const source = wall.sideSource ?? wall;
+  const stored = source.endPanels?.[endpoint];
+  if (!stored || !(width > 0) || !(height > 0)) return null;
+  const { style, design } = resolveDoorStyle(room, settings, 'panel', panelLevels(room, source, null, stored));
+  if (style.id === 'sheet') return null;
+  const offsets = doorProfileOffsets(style, design, settings?.sectionProfiles ?? []);
+  const { detail, fit } = detailWithLines(offsets, style, design, { x: 0, z, width, height }, stored.sizes, true);
+  return {
+    width, z, height, openings: detail.openings,
+    lines: fit.lines, miters: fit.miters, openingsShown: fit.openingsShown,
+  };
+}
+
+/**
  * Place a panel-frame detail on the wall (SPEC-DM8): `xAt(u)` maps the panel's x to wall x (either direction),
  * then rectangles and miters are cut to the drawn range [xMin, xMax]. Null when nothing is left.
  */

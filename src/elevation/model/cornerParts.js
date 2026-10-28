@@ -2,7 +2,7 @@ import { bandOutline, frontContour } from './bandEnds.js';
 import { jogWalls } from './combinedElevations.js';
 import { profileBandJoint } from './cornerBands.js';
 import { anchoredToCorner, cornerAt, crossingRuns, frontDepth, spanCorner } from './corners.js';
-import { placePanelDetail, runEndPanelDetail } from './doorDetails.js';
+import { placePanelDetail, runEndPanelDetail, wallEndPanelDetail } from './doorDetails.js';
 import { dot, elevationToPlan, planPointToWallX, subtract } from './geometry.js';
 import { landingsOn } from './landings.js';
 import { resolveWall } from './room.js';
@@ -105,7 +105,10 @@ export function cornerShapes(room, wall, side, settings,
 
   /** An end-view end panel's door detail, mapped through the part's own depth → x and cut to its drawn range (DM8). */
   const endPanelDetail = (wallView, run, end, piece, xOf, x, width) => {
-    const detail = runEndPanelDetail(room, wallView, run, end, settings);
+    const detail = piece.wallEndpoint
+      ? wallEndPanelDetail(room, wallView, piece.wallEndpoint,
+        { width: piece.front - piece.back, z: piece.z, height: piece.height }, settings)
+      : runEndPanelDetail(room, wallView, run, end, settings);
     if (!detail) return {};
     const placed = placePanelDetail(detail,
       (u) => xOf(end === 'left' ? piece.back + u : piece.front - u), [x, x + width]);
@@ -116,7 +119,7 @@ export function cornerShapes(room, wall, side, settings,
   const cut = (key, neighbor, neighborView, neighborFrame, run, end, xOf, { section = false } = {}) => {
     const ends = [run.x, run.x + run.width];
     const asEnd = !section && (endView || jogs.has(neighbor.id));
-    const pieces = asEnd ? runEndView(room, neighborView, run, end, settings)
+    const pieces = asEnd ? runEndView(room, neighborView, run, end, settings, { returnEnd: true })
       : runSide(room, neighborView, run, settings);
     const parts = pieces.flatMap((piece) => {
       const xs = [xOf(piece.back), xOf(piece.front)].map((x) => Math.min(length, Math.max(0, x)));
@@ -138,6 +141,11 @@ export function cornerShapes(room, wall, side, settings,
         ...(BODY.has(piece.piece) || piece.piece === 'end_panel' ? {} : { opaque: false }),
         ...(asEnd && piece.piece === 'end_panel'
           ? endPanelDetail(neighborView, run, end, piece, xOf, x, width) : {}),
+        // FX5.1: a returned furniture base's profile lines run across the end.
+        ...(piece.lines?.length ? { lines: piece.lines.map(({ back, front, z }) => {
+          const [x1, x2] = [xOf(back), xOf(front)].map((value) => Math.min(length, Math.max(0, value)));
+          return { x1: Math.min(x1, x2), z1: z, x2: Math.max(x1, x2), z2: z };
+        }) } : {}),
       }];
     });
     if (parts.length > 0) shapes.push({ key, kind: 'return', wallId: neighbor.id, runId: run.id, parts });

@@ -6,6 +6,7 @@ import {
   Text,
 } from 'react-konva';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
+import { KIND_COLORS } from '../model/constants.js';
 import { cornerShapes } from '../model/cornerParts.js';
 import { doorDrawing } from '../model/doorDetails.js';
 import { landingsOn } from '../model/landings.js';
@@ -74,12 +75,27 @@ export default function NeighborReturns({
               <Group key={part.id} listening={false}>
                 <PartShape
                   {...geometry}
-                  fill={section ? '#475569' : undefined}
-                  opacity={section ? 0.26 : 1}
-                  stroke={profile ? '#64748b' : '#94a3b8'}
+                  // An end panel seen end-on stands in front of this wall, so it covers what's behind it (FX5.1).
+                  fill={section ? '#475569' : part.kind === 'end_panel' ? KIND_COLORS.end_panel
+                    : part.kind === 'furniture_base' ? '#475569' : undefined}
+                  opacity={section ? 0.26 : part.kind === 'end_panel' ? 0.82 : part.kind === 'furniture_base' ? 0.9 : 1}
+                  stroke={profile ? '#64748b' : part.kind === 'furniture_base' ? '#f1f5f9' : '#94a3b8'}
                   strokeWidth={section ? 1.5 : 1}
                   listening={false}
                 />
+                {(part.lines ?? []).map((line, index) => {
+                  const from = wallToScreen({ x: line.x1, z: line.z1 }, transform);
+                  const to = wallToScreen({ x: line.x2, z: line.z2 }, transform);
+                  return (
+                    <Line
+                      key={`line:${index}`}
+                      points={[from.x, from.y, to.x, to.y]}
+                      stroke={part.kind === 'furniture_base' ? '#f1f5f9' : '#94a3b8'}
+                      strokeWidth={part.kind === 'furniture_base' ? 1 : 0.5}
+                      listening={false}
+                    />
+                  );
+                })}
                 {section && (
                   <Group clipFunc={clipFunc} listening={false}>
                     <Hatch rect={part.rect} />

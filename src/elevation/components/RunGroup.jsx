@@ -36,6 +36,9 @@ import SwingMarks from './SwingMarks.jsx';
 import ShowThroughInteriors from './ShowThroughInteriors.jsx';
 import { outlineGeometry } from './outlinePath.js';
 
+/** Furniture base on the canvas (FX5.1): a darker fill and a bright edge, so the profile and steps read. */
+const FURNITURE_BASE = { fill: '#475569', stroke: '#f1f5f9' };
+
 function RunGroup({
   run,
   room,
@@ -261,9 +264,9 @@ function RunGroup({
           <FurnitureBaseShape
             key={`furnitureBase:${index}`}
             {...toBand(band)}
-            fill="#94a3b8"
+            fill={FURNITURE_BASE.fill}
             opacity={0.9}
-            stroke="#cbd5e1"
+            stroke={FURNITURE_BASE.stroke}
             strokeWidth={1}
             listening={false}
           />
@@ -308,7 +311,7 @@ function RunGroup({
 
       {[
         ['toeKicks', '#334155', 1],
-        ['furnitureBases', '#cbd5e1', 0.9],
+        ['furnitureBases', FURNITURE_BASE.stroke, 1],
         ['countertops', '#64748b', 0.9],
         ['topMold', '#cbd5e1', 0.9],
         ['crown', '#f8fafc', 0.82],
@@ -322,7 +325,7 @@ function RunGroup({
               key={`${kind}:${segmentIndex}:line:${index}`}
               points={[from.x, from.y, to.x, to.y]}
               stroke={stroke}
-              strokeWidth={0.5}
+              strokeWidth={kind === 'furnitureBases' ? 1 : 0.5}
               opacity={opacity}
               listening={false}
             />

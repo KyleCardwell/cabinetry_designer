@@ -123,29 +123,30 @@ describe('Step 490 furniture base canvas', () => {
     const tree = nodes(RunGroup.type(setup({
       baseKind: 'furniture_base', furnitureBaseProfileId: 'fb4',
     }, 1)));
-    const base = tree.find(({ type, props }) => type === Shape && props.stroke === '#cbd5e1');
+    // FX5.1: a darker fill with a bright edge and contour lines, so the profile and steps read.
+    const base = tree.find(({ type, props }) => type === Shape && props.stroke === '#f1f5f9');
     expect(base).toBeDefined();
     expect(trace(base.props.sceneFunc).at(-1)).toBe('close');
     expect(base.props).toMatchObject({
-      fill: '#94a3b8', opacity: 0.9, strokeWidth: 1, listening: false,
+      fill: '#475569', opacity: 0.9, strokeWidth: 1, listening: false,
     });
-    const lines = tree.filter(({ type, props }) => type === Line && props.stroke === '#cbd5e1');
+    const lines = tree.filter(({ type, props }) => type === Line && props.stroke === '#f1f5f9');
     expect(lines).toHaveLength(1);
     expect(lines[0].props).toMatchObject({
       points: [86.75, 437.25, 333.25, 437.25],
-      strokeWidth: 0.5, opacity: 0.9, listening: false,
+      strokeWidth: 1, opacity: 1, listening: false,
     });
     expect(tree.some(({ type, props }) => type === Rect && props.stroke === '#334155')).toBe(false);
   });
 
   it('renders a plain furniture base as a molding rectangle without profile lines or a toe kick', () => {
     const tree = nodes(RunGroup.type(setup({ baseKind: 'furniture_base' }, 1)));
-    const base = tree.find(({ type, props }) => type === Rect && props.stroke === '#cbd5e1');
+    const base = tree.find(({ type, props }) => type === Rect && props.stroke === '#f1f5f9');
     expect(base.props).toMatchObject({
       x: 86.75, y: 436, width: 246.5, height: 16,
-      fill: '#94a3b8', opacity: 0.9, strokeWidth: 1, listening: false,
+      fill: '#475569', opacity: 0.9, strokeWidth: 1, listening: false,
     });
-    expect(tree.some(({ type, props }) => type === Line && props.stroke === '#cbd5e1')).toBe(false);
+    expect(tree.some(({ type, props }) => type === Line && props.stroke === '#f1f5f9')).toBe(false);
     expect(tree.some(({ type, props }) => type === Rect && props.stroke === '#334155')).toBe(false);
   });
 });
@@ -160,9 +161,9 @@ describe('Step 472 molding canvas', () => {
     const tree = nodes(NeighborReturns({ room, wall, settings, transform, shapes }));
     const rectangles = tree.filter(({ type }) => type === Rect);
     expect(rectangles).toHaveLength(2);
-    for (const { props } of rectangles) {
-      expect(props).toMatchObject({ fill: undefined, stroke: '#64748b', opacity: 1, strokeWidth: 1 });
-    }
+    expect(rectangles[0].props).toMatchObject({ fill: undefined, stroke: '#64748b', opacity: 1, strokeWidth: 1 });
+    // FX5.1: an end panel seen end-on is filled, so it covers what's behind it.
+    expect(rectangles[1].props).toMatchObject({ fill: '#8b5cf6', stroke: '#64748b', opacity: 0.82, strokeWidth: 1 });
     expect(tree.some(({ type }) => type === Hatch)).toBe(false);
     expect(tree.some(({ type, props }) => type === Group && props.clipFunc)).toBe(false);
   });
@@ -205,7 +206,9 @@ describe('Step 472 molding canvas', () => {
       strokeWidth: 1, listening: false,
     });
     if (kind === 'return') {
-      expect(polygon.props).toMatchObject({ fill: undefined, stroke: '#94a3b8', opacity: 1 });
+      expect(polygon.props).toMatchObject(partKind === 'furniture_base'
+        ? { fill: '#475569', stroke: '#f1f5f9', opacity: 0.9 }
+        : { fill: undefined, stroke: '#94a3b8', opacity: 1 });
     }
     expect(trace(polygon.props.sceneFunc)).toEqual([
       'begin', ['move', 62.5, 68], ['line', 74.5, 68], ['line', 74.5, 72],

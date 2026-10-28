@@ -236,8 +236,8 @@ describe('SPEC-50.11 step 511 floor base segments', () => {
         [60.5, 4, 0], [40.75, 4, 0], [40.4375, 3.6875, 0]],
     ]);
     const furnitureNodes = nodes(RunGroup.type({ ...furniture, transform }));
-    expect(furnitureNodes.filter(({ type, props }) => type === Shape && props.stroke === '#cbd5e1')).toHaveLength(2);
-    expect(furnitureNodes.filter(({ type, props }) => type === Line && props.stroke === '#cbd5e1')
+    expect(furnitureNodes.filter(({ type, props }) => type === Shape && props.stroke === '#f1f5f9')).toHaveLength(2);
+    expect(furnitureNodes.filter(({ type, props }) => type === Line && props.stroke === '#f1f5f9')
       .map(({ props }) => props.points)).toEqual([
       [6.75, 437.25, 88.25, 437.25], [171.75, 437.25, 253.25, 437.25],
     ]);
