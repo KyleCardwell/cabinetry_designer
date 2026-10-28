@@ -414,7 +414,7 @@ it('ignores M without a run, inside inputs, with modifiers, during entry, or on 
   expect(storedX()).toBe(32.5);
 });
 
-it('step b anchor 1: right-click selects the run under the pointer and opens only Move run', () => {
+it('step b anchor 1: right-click selects the run under the pointer and opens Move run (+ CV1 Center over…)', () => {
   // An overlapping run follows the same pick order as a left click, even with a different selection.
   state = structuredClone(state);
   const wall = state.rooms[0].walls[0];
@@ -432,8 +432,7 @@ it('step b anchor 1: right-click selects the run under the pointer and opens onl
   expect(active()).toBe(false);
   expect(menu().props.style).toEqual({ left: pointer.x, top: pointer.y });
   const items = tree.filter(({ props }) => props.role === 'menuitem');
-  expect(items).toHaveLength(1);
-  expect(items[0].props.children).toBe('Move run');
+  expect(items.map(({ props }) => props.children)).toEqual(['Move run', 'Center over…']);
 
   // Empty canvas still suppresses the browser menu and closes the run menu.
   contextClick(100, 80);

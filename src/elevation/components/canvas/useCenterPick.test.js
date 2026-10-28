@@ -6,7 +6,7 @@ import { wallToScreen } from '../../canvas/transform.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { resolveWall, syncRoom } from '../../model/room.js';
 import elevationReducer, {
-  endCenterPick, replaceWallLayout, setMessage, startCenterPick,
+  endCenterPick, replaceRun, replaceWallLayout, setMessage, startCenterPick,
 } from '../../store/elevationSlice.js';
 import { auto, room as roomOf, run, wall as wallOf } from '../../../test/builders.js';
 import useCenterPick, {
@@ -32,7 +32,7 @@ const wall = resolveWall(room, room.walls.find(({ id }) => id === WALL), 'front'
 const transform = { scale: 4, offsetX: 20, offsetY: 30, wallHeight: 120 };
 
 let centerPick;
-let hovered;
+let ui;
 let point;
 let actions;
 const dispatch = (action) => {
@@ -48,13 +48,13 @@ const useHook = (extra = {}) => useCenterPick({
 
 beforeEach(() => {
   centerPick = { wallId: WALL, runId: HOOD };
-  hovered = null;
+  ui = { hovered: null, chooser: null };
   point = null;
   actions = [];
   showMessage.mockClear();
   useSelector.mockImplementation((select) => select({ elevation: { centerPick } }));
-  useState.mockImplementation(() => [hovered, (next) => {
-    hovered = typeof next === 'function' ? next(hovered) : next;
+  useState.mockImplementation(() => [ui, (next) => {
+    ui = typeof next === 'function' ? next(ui) : next;
   }]);
   useEffect.mockImplementation(() => {});
 });
@@ -84,17 +84,27 @@ describe('CV1 step b: canvas pick mode', () => {
   it('anchor 2: hovering the open cell outlines it', () => {
     point = { x: 135.5, z: 20 };
     useHook().move();
-    expect(hovered.target).toMatchObject({ kind: 'void', rect: { x: 112.5, width: 48 } });
+    expect(ui.hovered.target).toMatchObject({ kind: 'void', rect: { x: 112.5, width: 48 } });
   });
 
-  it('anchor 3: a click centers the hood and ends the mode', () => {
+  it('anchor 3: a click centers the hood; with the whole run also under it, the chooser opens', () => {
     point = { x: 135.5, z: 20 };
     useHook().click({ evt: { button: 0 } });
     const layout = actions.find(({ type }) => type === replaceWallLayout.type);
     expect(layout.payload.runs.find(({ id }) => id === HOOD)).toMatchObject({ x: 96.5, width: 80 });
     expect(layout.payload.joints.map(({ x }) => x)).toEqual([38, 96.5, 176.5]);
+    expect(ui.chooser.candidates.map(({ label }) => label)).toEqual(['Open 48"', 'Whole base run · 197"']);
+    useHook().closeChooser();
     expect(centerPick).toBeNull();
     expect(showMessage).not.toHaveBeenCalled();
+  });
+
+  it('a click on a filler (only the whole run under it) centers and ends the mode at once', () => {
+    point = { x: 234.5, z: 20 };
+    useHook().click({ evt: { button: 0 } });
+    expect(actions.some(({ type }) => type === replaceWallLayout.type)).toBe(true);
+    expect(ui.chooser).toBeNull();
+    expect(centerPick).toBeNull();
   });
 
   it('anchor 4: Esc ends the mode with nothing changed', () => {
@@ -121,6 +131,7 @@ describe('CV1 step b: canvas pick mode', () => {
   it('stops at a limit and says how far off it is', () => {
     point = { x: 50, z: 20 };
     useHook().click({ evt: { button: 0 } });
+    useHook().closeChooser();
     expect(showMessage).toHaveBeenCalledWith(expect.stringMatching(/^Centered as far as it goes — .+ off$/));
   });
 
@@ -151,3 +162,83 @@ describe('CV1 step b: refusals and messages', () => {
     expect(centerResultMessage({ ok: false, reason: 'over-constrained' })).toBe('over-constrained');
   });
 });
+
+describe('CV1 step c: preview, right-click and chooser', () => {
+  const none = { left: { type: 'none', width: null }, right: { type: 'none', width: null } };
+  const small = syncRoom(roomOf({ walls: [wallOf({ runs: [
+    run({ id: 'base', x: 0, width: 96, ends: none, autoCount: false,
+      items: [{ id: 'b1', kind: 'cabinet', width: 36 }, { id: 'v', kind: 'void', width: 24 },
+        { id: 'b3', kind: 'cabinet', width: 36 }] }),
+    run({ id: 'up', cabinetTypeId: CABINET_TYPE_IDS.UPPER, x: 0, width: 30, z: 54, height: 30, depth: 12,
+      ends: none, autoCount: false, items: [auto('u1')] }),
+  ] })] }), DEFAULT_SETTINGS);
+  const smallWall = resolveWall(small, small.walls[0], 'front');
+  const useSmallHook = (extra = {}) => useHook({ room: small, wall: smallWall, settings: DEFAULT_SETTINGS, ...extra });
+
+  it('anchor 1: hovering the open cell previews the hood with both side uppers', () => {
+    const setStretchPreview = vi.fn();
+    point = { x: 135.5, z: 20 };
+    useHook({ setStretchPreview }).move();
+    const preview = setStretchPreview.mock.calls.at(-1)[0];
+    expect(new Set(preview.runIds)).toEqual(new Set([HOOD,
+      'c3b5d002-c0bc-421b-8d22-6bbd5ee060b6', 'd63bd233-b318-473d-a13b-23c3a2b83b49']));
+    expect(preview.wall.runs.find(({ id }) => id === HOOD).x).toBe(96.5);
+  });
+
+  it('anchor 2: hovering a far cabinet previews the hood stopped at its limit, not refused', () => {
+    const setStretchPreview = vi.fn();
+    point = { x: 50, z: 20 };
+    useHook({ setStretchPreview }).move();
+    expect(setStretchPreview.mock.calls.at(-1)[0].wall.runs.find(({ id }) => id === HOOD).x).toBeGreaterThan(38);
+    expect(ui.hovered.refused).toBeNull();
+  });
+
+  it('anchor 3: moving off every target clears the preview', () => {
+    const setStretchPreview = vi.fn();
+    point = { x: 135.5, z: 20 };
+    useHook({ setStretchPreview }).move();
+    point = { x: 135.5, z: 50 };
+    useHook({ setStretchPreview }).move();
+    expect(setStretchPreview).toHaveBeenLastCalledWith(null);
+    expect(ui.hovered).toBeNull();
+  });
+
+  it('anchor 4: the right-click entry starts the mode, or refuses an anchored run', async () => {
+    const { requestCenterPick } = await import('./useCenterPick.js');
+    const sent = [];
+    const message = vi.fn();
+    const hood = wall.runs.find(({ id }) => id === HOOD);
+    expect(requestCenterPick({ room, wallId: WALL, run: hood, settings, dispatch: (a) => sent.push(a), showMessage: message }))
+      .toBe(true);
+    expect(sent).toEqual([startCenterPick({ wallId: WALL, runId: HOOD })]);
+    const tall = wall.runs.find(({ id }) => id === TALL);
+    expect(requestCenterPick({ room, wallId: WALL, run: tall, settings, dispatch: (a) => sent.push(a), showMessage: message }))
+      .toBe(false);
+    expect(message).toHaveBeenCalledWith(CENTER_ANCHORED);
+  });
+
+  it('anchors 5–6: choosing the whole run in the chooser re-centers from the pre-click room', () => {
+    centerPick = { wallId: 'wall-1', runId: 'up' };
+    point = { x: 48, z: 20 };
+    useSmallHook().click({ evt: { button: 0 } });
+    const first = actions.filter(({ type }) => type === replaceRun.type).at(-1).payload.run;
+    const voidTarget = ui.chooser.candidates[0];
+    expect(voidTarget.kind).toBe('void');
+    expect(first.x).toBeCloseTo(voidTarget.center - 15, 9);
+    useSmallHook().choose('base:run');
+    const second = actions.filter(({ type }) => type === replaceRun.type).at(-1).payload.run;
+    expect(second.x).toBeCloseTo(48 - 15, 9);
+    expect(centerPick).toBeNull();
+  });
+
+  it('hovering a chooser entry previews it', () => {
+    centerPick = { wallId: 'wall-1', runId: 'up' };
+    const setStretchPreview = vi.fn();
+    point = { x: 48, z: 20 };
+    useSmallHook({ setStretchPreview }).click({ evt: { button: 0 } });
+    useSmallHook({ setStretchPreview }).hoverChoice('base:run');
+    expect(setStretchPreview.mock.calls.at(-1)[0].wall.runs.find(({ id }) => id === 'up').x).toBeCloseTo(33, 9);
+    expect(ui.chooser.hoverKey).toBe('base:run');
+  });
+});
+

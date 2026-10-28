@@ -5,7 +5,7 @@ import { useMenuInCanvas } from './canvas/menuPosition.js';
 
 const KIND_NAMES = {
   face: 'Face', piece: 'Part', run: 'Run', end_panel: 'Wall end', opening: 'Opening',
-  soffit: 'Soffit', recess: 'Recess', wall: 'Wall',
+  soffit: 'Soffit', recess: 'Recess', wall: 'Wall', cabinet: 'Cabinet', void: 'Open', column: 'Column',
 };
 
 /** The list of everything under a click (SPEC-39.1): ↑/↓ to move, Enter to choose, Esc to close. */

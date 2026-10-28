@@ -130,7 +130,7 @@ import WallFrame from './WallFrame.jsx';
 import useElevationKeys from './canvas/useElevationKeys.js';
 import useRunStretch from './canvas/useRunStretch.js';
 import useRunMove from './canvas/useRunMove.js';
-import useCenterPick from './canvas/useCenterPick.js';
+import useCenterPick, { requestCenterPick } from './canvas/useCenterPick.js';
 import CenterPickOverlay from './CenterPickOverlay.jsx';
 import useJointDrag from './canvas/useJointDrag.js';
 import usePicker from './canvas/usePicker.js';
@@ -1167,7 +1167,7 @@ function ElevationCanvas({
   });
 
   const centerPick = useCenterPick({
-    room, wall, settings, transform, stageRef, tool, dispatch, showMessage,
+    room, wall, settings, transform, stageRef, tool, dispatch, showMessage, setStretchPreview,
   });
   const centerPickActive = centerPick.active;
   useEffect(() => {
@@ -1543,10 +1543,29 @@ function ElevationCanvas({
         />
       )}
       <SelectionPicker picker={picker} onChoose={choosePick} onHover={hoverPick} onClose={closePicker} />
+      <SelectionPicker
+        picker={centerPick.chooser}
+        onChoose={centerPick.choose}
+        onHover={centerPick.hoverChoice}
+        onClose={centerPick.closeChooser}
+      />
       <CanvasContextMenu
         position={contextMenu?.context === menuContext ? contextMenu : null}
         onClose={closeContextMenu}
-        items={[{ label: 'Move run', onSelect: () => startMoveMode(contextMenu.runId) }]}
+        items={[
+          { label: 'Move run', onSelect: () => startMoveMode(contextMenu.runId) },
+          {
+            label: 'Center over…',
+            onSelect: () => requestCenterPick({
+              room,
+              wallId: wall.id,
+              run: (wall.sideSource ?? wall).runs.find(({ id }) => id === contextMenu.runId),
+              settings,
+              dispatch,
+              showMessage,
+            }),
+          },
+        ]}
       />
     </div>
   );
