@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { expect, it, vi } from 'vitest';
-import { Group, Line } from 'react-konva';
+import { Group, Line, Text } from 'react-konva';
 import { auto, room, run, wall } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS, KIND_COLORS } from '../../model/constants.js';
 import { syncRoom } from '../../model/room.js';
@@ -9,6 +9,8 @@ import PlanClearances from '../PlanClearances.jsx';
 import PlanRunFootprint from '../PlanRunFootprint.jsx';
 import PlanScene from '../PlanScene.jsx';
 import PlanTops from '../PlanTops.jsx';
+import PlanTopOverhangs from '../PlanTopOverhangs.jsx';
+import { PLAN_DIM_FONT_SIZE } from '../constants.js';
 
 vi.mock('react', async (original) => ({
   ...await original(),
@@ -87,4 +89,34 @@ it('anchor 3: outlines sit above footprints and end panels without intercepting 
   target.props.onClick(event);
   expect(selectedRunId).toBe(input.walls[0].runs[0].id);
   expect(event.cancelBubble).toBe(true);
+});
+
+it('PT1 step d: scene draws an overhang line, ticks and a readable label at two zooms', () => {
+  const input = room({ walls: [wall({ runs: [run({
+    x: 24, width: 60, top: 'wood', autoCount: false, topOverhang: { front: 12 },
+    ends: { left: { type: 'none' }, right: { type: 'none' } }, items: [auto('C')],
+  })] })] });
+  for (const scale of [1, 4]) {
+    const scene = nodes(PlanScene(sceneProps(input, settings, scale)));
+    const component = scene.find(({ type }) => type === PlanTopOverhangs);
+    expect(component).toBeDefined();
+    expect(scene.indexOf(component)).toBeGreaterThan(scene.findIndex(({ type }) => type === PlanTops));
+    const drawing = nodes(PlanTopOverhangs(component.props));
+    drawing.forEach(({ props }) => expect(props.listening).toBe(false));
+    const lines = drawing.filter(({ type }) => type === Line);
+    const ticks = lines.filter(({ key }) => key?.startsWith('tick:'));
+    expect(ticks).toHaveLength(2);
+    ticks.forEach(({ props }, i) => {
+      expect((props.points[0] + props.points[2]) / 2).toBe(54);
+      expect((props.points[1] + props.points[3]) / 2).toBe([24.875, 36.875][i]);
+      expect(props.strokeWidth).toBe(1 / scale);
+    });
+    expect(drawing.find(({ type }) => type === Text).props).toMatchObject({
+      text: '12', fontSize: PLAN_DIM_FONT_SIZE / scale, rotation: -90,
+      x: scale === 1 ? 72.5 : 54, y: 30.875,
+    });
+    expect(lines.filter(({ key }) => key?.startsWith('line:'))).toHaveLength(scale === 1 ? 1 : 2);
+  }
+  input.walls[0].runs[0].topOverhang.front = 3;
+  expect(PlanTopOverhangs({ room: input, settings, scale: 4 })).toEqual([]);
 });

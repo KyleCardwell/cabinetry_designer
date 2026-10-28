@@ -4,6 +4,7 @@ import { frontDepth } from './corners.js';
 import { plotScale } from './drawingScale.js';
 import { DIMENSION_ROW_SPACING, placeLabels } from './elevationDimensions.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
+import { planTopOverhangs } from './planTops.js';
 import { projectionDepthX, projectionTightSides, recessesOn } from './recesses.js';
 import { formatInches } from './units.js';
 import { wallFaceSegments } from './wallFaceRow.js';
@@ -189,6 +190,16 @@ export function planDimensions(room, settings) {
   for (const wall of room.walls) {
     for (const run of wall.runs ?? []) records.push(...depthRecords(room, wall, run, settings));
     for (const recess of wall.recesses ?? []) records.push(...projectionDepthRecords(room, wall, recess, settings));
+  }
+  for (const { wallId, edge, value, from, to } of planTopOverhangs(room, settings)) {
+    const wall = room.walls.find(({ id }) => id === wallId);
+    const frame = wallSideFrame(room, wall, 'front');
+    const base = (t) => elevationToPlan(frame,
+      from[0] + (to[0] - from[0]) * t / value,
+      from[1] + (to[1] - from[1]) * t / value);
+    const outward = edge === 'front' || edge === 'back' ? frame.r : frame.n;
+    records.push(...rowRecords('overhang', [{ start: 0, end: value, kind: 'overhang' }],
+      base, outward, 0, scale).records);
   }
   for (const { kind, from, to, length } of planClearances(room, settings)) {
     if (length <= EPSILON) continue;

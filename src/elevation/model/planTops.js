@@ -1,10 +1,14 @@
 import { bandParts } from './bandParts.js';
 import { DEFAULT_SETTINGS } from './constants.js';
+import { frontDepth } from './corners.js';
 import { elevationToPlan, wallLength } from './geometry.js';
+import { resolveWall } from './room.js';
+import { topOverhangs } from './topOverhang.js';
 import { WALL_SIDES, wallSideFrame } from './wallSides.js';
 
 const EPSILON = 1e-6;
 const SNAP = 1024;
+export const PLAN_TOP_DIM_MIN = 3;
 const key = ([u, v]) => `${u},${v}`;
 
 function topRectangles(room, wall, settings) {
@@ -113,4 +117,35 @@ export function planTopPoints(room, wall, loop) {
     const { x, y } = elevationToPlan(frame, u, v);
     return [x + 0, 0 - y];
   });
+}
+
+/** Qualifying core overhangs, measured inward from each top edge in the wall's front frame. */
+export function planTopOverhangs(room, settings = DEFAULT_SETTINGS) {
+  return (room?.walls ?? []).flatMap((wall) => WALL_SIDES.flatMap((side) => {
+    const view = resolveWall(room, wall, side);
+    const toFront = ([u, v]) => side === 'back'
+      ? [view.length - u, -(wall.thickness ?? 0) - v] : [u, v];
+    return bandParts(room, wall, side, settings).flatMap((top) => {
+      if (top.kind !== 'countertop') return [];
+      const run = view.runs.find(({ id }) => id === top.runId);
+      // Insert segments have no independent run overhang to dimension.
+      if (!run || top.id.startsWith(`${run.id}:top-`)) return [];
+      const values = topOverhangs(room, view, run, settings);
+      const { x, width, back, front } = top;
+      const middleU = x + width / 2;
+      const middleV = (back + front) / 2;
+      const edges = [
+        ['front', front - frontDepth(run, settings), [middleU, front], [0, -1]],
+        ['back', -back, [middleU, back], [0, 1]],
+        ['left', run.x - x, [x, middleV], [1, 0]],
+        ['right', x + width - (run.x + run.width), [x + width, middleV], [-1, 0]],
+      ];
+      return edges.flatMap(([edge, reach, to, inward]) => {
+        const value = values[edge];
+        if (value <= PLAN_TOP_DIM_MIN + EPSILON || reach < value - EPSILON) return [];
+        const from = to.map((coordinate, i) => coordinate + inward[i] * value);
+        return [{ wallId: wall.id, runId: run.id, side, edge, value, from: toFront(from), to: toFront(to) }];
+      });
+    });
+  }));
 }

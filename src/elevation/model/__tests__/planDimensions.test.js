@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { opening, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
+import { auto, opening, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS } from '../constants.js';
 import { planMarks } from '../planMarks.js';
 import { wallFrame } from '../geometry.js';
@@ -19,6 +19,17 @@ const dimensions = (room) => planDimensions(syncRoom(room, settings), settings);
 const WALL_ROWS = ['front', 'back', 'wall'];
 const wallRows = (room) => dimensions(room).filter(({ row }) => WALL_ROWS.includes(row));
 const wall = (start, end, offset, text) => ({ row: 'wall', kind: 'wall', start, end, offset, text });
+
+it('PT1 anchor 6: emits one overhang row with text 12 for the 12 inch front overhang', () => {
+  const room = buildRoom({ walls: [buildWall({ runs: [buildRun({
+    x: 24, width: 60, depth: 24, top: 'wood', autoCount: false,
+    ends: { left: { type: 'none' }, right: { type: 'none' } },
+    topOverhang: { front: 12 }, items: [auto('C')],
+  })] })] });
+  expect(planDimensions(room, settings).filter(({ row }) => row === 'overhang')).toEqual([{
+    row: 'overhang', kind: 'overhang', start: [54, -36.875], end: [54, -24.875], offset: 0, text: '12',
+  }]);
+});
 
 describe('SPEC-45 plan dimensions: each wall\'s length and the rows along its faces', () => {
   it('dimensions the window row, then the length, 3/8" (paper) apart outside each wall (G1)', () => {
