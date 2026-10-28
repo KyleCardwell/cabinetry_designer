@@ -60,7 +60,7 @@ function setup(props = {}, wallProps = {}, wallStops = false) {
   const pieces = planRunPieces(room, view, run, settings, layout,
     runFaceLayouts(room, view, run, settings, layout));
   return { room, wall: view, run, pieces, settings, frame: wallFrame(room, view),
-    legs: planParts(room, settings).filter(({ kind }) => kind === 'countertop') };
+    legs: planParts(room, settings).filter(({ kind, runId }) => kind === 'countertop' && runId === run.id) };
 }
 
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)

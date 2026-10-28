@@ -4,6 +4,7 @@ import { elevationToPlan, wallFrame } from './geometry.js';
 import { openingGeometry } from './openings.js';
 import { wallEndPanelPartKey } from './parts.js';
 import { planRunPieces } from './planPieces.js';
+import { planTopPoints, planTops } from './planTops.js';
 import { openingPlanDepths, projectionTightSides, recessPlanShape } from './recesses.js';
 import { resolveWall } from './room.js';
 import { wallEndPanelPolygon, wallEndPanels } from './wallEndPanels.js';
@@ -135,6 +136,12 @@ export function planParts(room, settings) {
       for (const range of returns) addRange(range, 'filler');
       for (const leg of waterfallLegs) addRange(leg, leg.kind);
     }
+  }
+  for (const { wallId, loops } of planTops(room, settings)) {
+    const wall = room.walls.find(({ id }) => id === wallId);
+    loops.forEach((loop, i) => {
+      parts.push({ id: `${wallId}:top:${i}`, kind: 'countertop', points: planTopPoints(room, wall, loop) });
+    });
   }
   return parts;
 }

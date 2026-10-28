@@ -180,13 +180,15 @@ describe('DM8 step b end-view panel payload', () => {
 // FX2 step a returns G5's countertop past its recess side: width 37 -> 37.75; other payload fields stay unchanged.
 // FX4 b.1 returns G1 wall 1's open left end: the tall's toe kick, top mold and crown only.
 // FX5 f updates G2's panel-only back run from 24" to 3/4", including its miter and depth dimensions.
+// PT1 step b adds only countertop outlines to plan.parts; all other payload fields stay unchanged.
+// G6's stored hash was already stale on step a; verified against that payload before refreshing it.
 const preHP5PayloadHashes = {
-  'G1 Euro kitchen': '635ae2cd19e1349b6b59e0f89e334b50b1325ae5da97b12f8cfae4c857c5c095',
-  'G2 Face frame kitchen': '0761ffd7b1d94c28f9d31f04aa7f8d5b7ddce817936615104d7b041822aca155',
-  'G3 Bath alcove': '972df0b7e5cf218bf98a7725b79e676a933734d8b21507c980438310f46e2ef1',
+  'G1 Euro kitchen': '4143a6601a61600aefe93f7b9643712b18adbfe4d51113d2523722e2339134b1',
+  'G2 Face frame kitchen': 'fbdbf0e8d026fec0b516dc273de656459f58e0986f363756d2a5e6d86f982df2',
+  'G3 Bath alcove': 'b0045d9f287b05c8166d279c0f5ae3bacb158c87cd95091615751860fc721e26',
   'G4 T-filler run': 'f32f42cd95835870de06a6de27c6889e6b428f3980f12b0290ae0b7eaacf5350',
-  'G5 Recess room': '154268c5476095dd92645b353eeb17471df94f6c7f91b13abc00e50b918e92c4',
-  'G6 Stacked runs': 'b6e24f564707fab1b30922602e819f26ab3cd600478dfd61e3d1dd4c70e47393',
+  'G5 Recess room': '9cb0f7af1de8c63eeffad94d076db12959ba0c80a4e733be439c666b70f01c96',
+  'G6 Stacked runs': 'eb23f5ae7c6b82d6c7135571d23903f2df1e6cd8eb314732f9dc51de059bb4e7',
 };
 
 /** The round-40 fields only, so the first test keeps checking just those. */
@@ -482,7 +484,7 @@ describe('SPEC-40 drawing payload', () => {
     const synced = room('G1 Euro kitchen');
     const { plan } = toDrawingPayload(synced, settings);
     expect(Object.keys(plan)).toEqual(['parts', 'dimensions', 'marks']);
-    expect(plan.parts).toHaveLength(76);
+    expect(plan.parts).toHaveLength(79);
     expect(plan.parts).toEqual(planParts(synced, settings));
   });
 

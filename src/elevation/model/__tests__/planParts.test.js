@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
+import { DEFAULT_SETTINGS } from '../constants.js';
+import { planMeasureGeometry, snapMeasure } from '../measure.js';
 import { planParts } from '../planParts.js';
 import { layoutRun } from '../faceLayouts.js';
 import { resolveWall, syncRoom } from '../room.js';
@@ -14,6 +17,38 @@ const stored = (name) => document.rooms.find((candidate) => candidate.name === n
 const WALL_KINDS = ['wall', 'void', 'opening', 'casing', 'recess', 'soffit', 'wall_end_panel'];
 const wallThings = (room) => planParts(syncRoom(room, settings), settings)
   .filter(({ kind }) => WALL_KINDS.includes(kind));
+
+const stored9b = JSON.parse(readFileSync(new URL('./fixtures/room9b.json', import.meta.url), 'utf8'));
+const settings9b = { ...DEFAULT_SETTINGS, ...stored9b.settingsOverrides };
+const room9b = syncRoom(structuredClone(stored9b), settings9b);
+
+describe('PT1 step b tops in the plan payload', () => {
+  it('anchor 1: adds one closed Room 9b countertop outline without a hiding height or run', () => {
+    const wall4 = room9b.walls.find(({ name }) => name === 'Wall 4');
+    const tops = planParts(room9b, settings9b).filter(({ kind }) => kind === 'countertop');
+    expect(tops).toEqual([{
+      id: `${wall4.id}:top:0`, kind: 'countertop',
+      points: [[8.5625, 20.6875], [8.5625, -40.25], [-18.625, -40.25], [-18.625, 20.6875]],
+    }]);
+    expect(tops[0].closed).not.toBe(false);
+    expect(tops[0]).not.toHaveProperty('top');
+    expect(tops[0]).not.toHaveProperty('runId');
+  });
+
+  it('anchor 2: preserves every pre-PT1 Room 9b part in order', () => {
+    const unchanged = planParts(room9b, settings9b).filter(({ kind }) => kind !== 'countertop');
+    expect(unchanged).toHaveLength(25);
+    // Captured from planParts after step a, before adding countertop outlines.
+    expect(createHash('sha256').update(JSON.stringify(unchanged)).digest('hex'))
+      .toBe('776699c4dd03844c85db1e12a08ea24c1e2423a250398fcb1a145a1abf3ccc5b');
+  });
+
+  it('anchor 3: snaps a plan measurement to the Room 9b top corner in canvas coordinates', () => {
+    const geometry = planMeasureGeometry(room9b, settings9b);
+    expect(snapMeasure({ x: -18.6, y: 40.3 }, geometry, 0.125))
+      .toEqual({ kind: 'corner', point: { x: -18.625, y: 40.25 } });
+  });
+});
 
 describe('SPEC-44 the room in plan: walls and what is in them', () => {
   it('outlines each wall, cuts and cases the window, skips a wall with no thickness (G1)', () => {
@@ -108,12 +143,12 @@ describe('SPEC-44 the room in plan: runs', () => {
         parts.filter(({ top }) => top !== undefined).length, kinds]];
     }));
     expect(counts).toEqual({
-      'G1 Euro kitchen': [76, 68, 0, 70, { wall: 3, void: 1, opening: 1, casing: 1, wall_end_panel: 2, cabinet: 19, end_panel: 3, face: 35, filler: 11 }],
-      'G2 Face frame kitchen': [22, 17, 0, 18, { wall: 1, void: 1, opening: 1, casing: 1, wall_end_panel: 1, cabinet: 9, end_panel: 3, frame: 4, panel: 1 }],
-      'G3 Bath alcove': [18, 14, 1, 14, { wall: 3, soffit: 1, cabinet: 3, filler: 4, face: 4, end_panel: 2, panel: 1 }],
+      'G1 Euro kitchen': [79, 68, 0, 70, { wall: 3, void: 1, opening: 1, casing: 1, wall_end_panel: 2, cabinet: 19, end_panel: 3, face: 35, filler: 11, countertop: 3 }],
+      'G2 Face frame kitchen': [24, 17, 0, 18, { wall: 1, void: 1, opening: 1, casing: 1, wall_end_panel: 1, cabinet: 9, end_panel: 3, frame: 4, panel: 1, countertop: 2 }],
+      'G3 Bath alcove': [19, 14, 1, 14, { wall: 3, soffit: 1, cabinet: 3, filler: 4, face: 4, end_panel: 2, panel: 1, countertop: 1 }],
       'G4 T-filler run': [20, 18, 0, 18, { wall: 2, cabinet: 4, end_panel: 2, face: 6, filler: 6 }],
-      'G5 Recess room': [27, 20, 0, 20, { wall: 5, void: 2, cabinet: 6, filler: 6, face: 6, end_panel: 2 }],
-      'G6 Stacked runs': [37, 34, 0, 34, { wall: 3, cabinet: 8, filler: 6, face: 16, end_panel: 3, panel: 1 }],
+      'G5 Recess room': [29, 20, 0, 20, { wall: 5, void: 2, cabinet: 6, filler: 6, face: 6, end_panel: 2, countertop: 2 }],
+      'G6 Stacked runs': [39, 34, 0, 34, { wall: 3, cabinet: 8, filler: 6, face: 16, end_panel: 3, panel: 1, countertop: 2 }],
     });
   });
 });
