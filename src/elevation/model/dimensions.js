@@ -1,4 +1,5 @@
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
+import { CABINET_TYPE_IDS } from './constants.js';
+import { SEGMENT_EPSILON, appendSegment, faceHasRuns } from './dimensionsShared.js';
 import { runBottomParts } from './bottoms.js';
 import { cellPieces } from './cells.js';
 import { cornerLap } from './cornerLaps.js';
@@ -9,15 +10,11 @@ import { wallFrame, wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { landingsOn } from './landings.js';
 import { cornerShapes, profileReach } from './cornerParts.js';
-import { openingGeometry } from './openings.js';
-import { verticalStart } from './overlap.js';
 import { resolveProfile } from './profile.js';
-import { recessGeometry, recessesOn, uncoveredSpans } from './recesses.js';
 import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
   pinTargetsForRun,
-  resolvePinTarget,
 } from './room.js';
 import { soffitsOn } from './soffits.js';
 import { splitRun } from './splitRun.js';
@@ -29,13 +26,6 @@ import { runBands, waterfallEnds } from './runBands.js';
 import { runScene } from './runScene.js';
 import { topOverhangs } from './topOverhang.js';
 import { wallBuiltEnds } from './wallEndPanels.js';
-
-const SEGMENT_EPSILON = 1e-6;
-
-function appendSegment(segments, start, end, kind, metadata = {}) {
-  if (end - start <= SEGMENT_EPSILON) return;
-  segments.push({ start, end, kind, ...metadata });
-}
 
 function appendOpenGap(segments, start, end, tallRanges) {
   if (end - start <= SEGMENT_EPSILON) return;
@@ -102,133 +92,6 @@ function neighborSegments(room, wall, band, settings) {
       wallId: profile.wallId,
       neighborRunId: profile.runId,
     }));
-}
-
-/** A face with any run on it, in either band (DM3). */
-function faceHasRuns(wall) {
-  return (wall.runs ?? []).length > 0;
-}
-
-/**
- * The elevation's wall row (SPEC-37.4, SPEC-38): every door and window by its own reference edges (jamb or
- * casing, per its measure mode), every wing wall landing on this face at its thickness, and every recess on
- * this face at its width, split around the openings inside it, with the gaps between them and to the wall's
- * ends. [] when there's nothing, and on a face with runs: the casing clearances and the plan locate the
- * openings there, and the run row locates the runs (DM3 §1.3, §1.6).
- */
-export function openingChain(room, wall, settings) {
-  if (faceHasRuns(wall)) return [];
-  const length = wallLength(wall);
-  const openings = (wall.openings ?? []).map((opening) => {
-    const geometry = openingGeometry(opening, length, settings);
-    const reference = opening.measureMode === 'casing' && geometry.casing
-      ? geometry.casing
-      : geometry.jamb;
-    const start = geometry.offsets.left[opening.measureMode].edge;
-    return {
-      start,
-      end: start + reference.width,
-      metadata: { kind: 'opening', openingId: opening.id, label: opening.label },
-    };
-  });
-  const recesses = recessesOn(wall).flatMap((recess) => {
-    const { x, width } = recessGeometry(recess, length, wall.height);
-    const inside = openings.filter((range) => (
-      range.start >= x - SEGMENT_EPSILON && range.end <= x + width + SEGMENT_EPSILON
-    ));
-    return uncoveredSpans(x, x + width, inside).map((span) => ({
-      ...span,
-      metadata: { kind: 'recess', recessId: recess.id, label: recess.label },
-    }));
-  });
-  const ranges = [
-    ...openings,
-    ...recesses,
-    ...landingsOn(room, wall).map(({ a, b, wallId }) => ({
-      start: a,
-      end: b,
-      metadata: { kind: 'wall', wallId },
-    })),
-  ].sort((a, b) => a.start - b.start || a.end - b.end);
-  if (ranges.length === 0) return [];
-
-  const segments = [];
-  let cursor = 0;
-  for (const range of ranges) {
-    const start = Math.min(length, Math.max(cursor, range.start));
-    const end = Math.min(length, Math.max(start, range.end));
-    appendSegment(segments, cursor, start, 'gap');
-    segments.push({ start, end, ...range.metadata });
-    cursor = end;
-  }
-  appendSegment(segments, cursor, length, 'gap');
-  return segments;
-}
-
-/** Build casing-to-run (or casing-to-wall) clearance segments for every opening. */
-export function openingClearances(room, wall, settings) {
-  void room;
-  const length = wallLength(wall);
-  return (wall.openings ?? []).flatMap((opening) => {
-    const geometry = openingGeometry(opening, length, settings);
-    const casing = geometry.casing ?? geometry.jamb;
-    const casingRight = casing.x + casing.width;
-    const compatible = wall.runs.filter((run) => (
-      Math.min(run.z + run.height, geometry.jamb.z + geometry.jamb.height)
-        - Math.max(verticalStart(run), geometry.jamb.z) > SEGMENT_EPSILON
-    ));
-    const leftRun = compatible
-      .filter((run) => run.x + run.width <= casing.x + SEGMENT_EPSILON)
-      .sort((a, b) => (b.x + b.width) - (a.x + a.width))[0] ?? null;
-    const rightRun = compatible
-      .filter((run) => run.x >= casingRight - SEGMENT_EPSILON)
-      .sort((a, b) => a.x - b.x)[0] ?? null;
-    const required = settings.casingClearance ?? DEFAULT_SETTINGS.casingClearance;
-    const leftStart = leftRun ? leftRun.x + leftRun.width : 0;
-    const rightEnd = rightRun ? rightRun.x : length;
-    return [
-      {
-        openingId: opening.id,
-        label: opening.label,
-        side: 'left',
-        start: leftStart,
-        end: casing.x,
-        targetRunId: leftRun?.id ?? null,
-        required,
-        violated: casing.x - leftStart < required - SEGMENT_EPSILON,
-      },
-      {
-        openingId: opening.id,
-        label: opening.label,
-        side: 'right',
-        start: casingRight,
-        end: rightEnd,
-        targetRunId: rightRun?.id ?? null,
-        required,
-        violated: rightEnd - casingRight < required - SEGMENT_EPSILON,
-      },
-    ];
-  });
-}
-
-/**
- * The casing clearances as drawn inside the wall (SPEC-39.1): each openingClearances segment plus the
- * height `z` it sits at, the middle of where its run and the casing overlap vertically, or the
- * casing's middle when it runs to the wall end.
- */
-export function clearanceCallouts(room, wall, settings) {
-  const length = wallLength(wall);
-  return openingClearances(room, wall, settings).map((segment) => {
-    const opening = wall.openings.find((candidate) => candidate.id === segment.openingId);
-    const geometry = openingGeometry(opening, length, settings);
-    const casing = geometry.casing ?? geometry.jamb;
-    const run = wall.runs.find((candidate) => candidate.id === segment.targetRunId) ?? null;
-    const bottom = run ? Math.max(casing.z, verticalStart(run)) : casing.z;
-    const top = run
-      ? Math.min(casing.z + casing.height, run.z + run.height)
-      : casing.z + casing.height;
-    return { ...segment, z: (bottom + top) / 2 };
-  });
 }
 
 /** A face frame region along its bottom row of openings: frame | opening | frame … (SPEC-36). */
@@ -688,49 +551,6 @@ export function nearerEdge(center, wallLengthValue) {
   return center * 2 <= wallLengthValue ? 'left' : 'right';
 }
 
-/** Height above the floor where centerline callouts are drawn. */
-export const CENTERLINE_CALLOUT_Z = 40;
-
-/** How far above an opening's jamb bottom a pin callout to that opening sits (SPEC-39.1). */
-export const CENTERLINE_ABOVE_SILL = 6;
-
-/**
- * A pinned cabinet's position callout (SPEC-12, SPEC-38.1): from the pin's datum (a wall end or an opening
- * edge) to the point the pin holds, its left edge, center or right edge.
- */
-export function centerlineMarkers(run, pieces, wall, wallLengthValue, settings) {
-  return pieces.flatMap((piece) => {
-    if (piece.role !== 'item') return [];
-    const item = runItems(run).find((candidate) => candidate.id === piece.id);
-    if (!item?.pin) return [];
-    const target = resolvePinTarget(item.pin, wall, wallLengthValue, settings);
-    if (!Number.isFinite(target)) return [];
-    const datumX = item.pin.from === 'right'
-      ? target + item.pin.value
-      : target - item.pin.value;
-    const { anchor } = item.pin;
-    const opening = item.pin.from === 'opening'
-      ? (wall.openings ?? []).find((candidate) => candidate.id === item.pin.openingId) ?? null
-      : null;
-    const jamb = opening ? openingGeometry(opening, wallLengthValue, settings).jamb : null;
-    const x = anchor === 'left'
-      ? piece.x
-      : anchor === 'right' ? piece.x + piece.width : piece.x + piece.width / 2;
-    return [{
-      pieceId: piece.id,
-      x,
-      datumX,
-      z: jamb ? jamb.z + Math.min(CENTERLINE_ABOVE_SILL, jamb.height / 2) : CENTERLINE_CALLOUT_Z,
-      value: Math.abs(x - datumX),
-      pieceBottom: piece.z,
-      pieceTop: piece.z + piece.height,
-      from: item.pin.from,
-      anchor,
-      ...(jamb ? { datumZ: jamb.z + jamb.height / 2 } : {}),
-    }];
-  });
-}
-
 /** Choose the lower and upper runs represented by the vertical dimension column. */
 function pickColumnPair(wall, selectedRunId, edge = 'left') {
   const lowerRuns = wall.runs.filter((run) => (
@@ -1006,26 +826,10 @@ export function verticalChains(room, wall, { lowerRun, upperRun, stack = null },
   return result();
 }
 
-/** Build the vertical opening stack and full-wall dimension chains. */
-export function verticalOpeningChain(wall, opening, wallLengthValue, settings) {
-  const geometry = openingGeometry(opening, wallLengthValue, settings);
-  const casing = geometry.casing ?? geometry.jamb;
-  const casingTop = casing.z + casing.height;
-  const inner = [];
-
-  if (opening.kind === 'window') {
-    appendSegment(inner, 0, casing.z, 'sill-below');
-    appendSegment(inner, casing.z, geometry.jamb.z, 'casing');
-  }
-  appendSegment(inner, geometry.jamb.z, geometry.head, 'opening');
-  appendSegment(inner, geometry.head, casingTop, 'casing');
-  appendSegment(inner, casingTop, wall.height, 'above');
-
-  return {
-    inner,
-    middle: [],
-    outer: wall.height > SEGMENT_EPSILON
-      ? [{ start: 0, end: wall.height, kind: 'wall' }]
-      : [],
-  };
-}
+export { openingChain, verticalOpeningChain } from './dimensionsOpenings.js';
+export { openingClearances, clearanceCallouts } from './dimensionsClearances.js';
+export {
+  CENTERLINE_CALLOUT_Z,
+  CENTERLINE_ABOVE_SILL,
+  centerlineMarkers,
+} from './dimensionsCenterline.js';
