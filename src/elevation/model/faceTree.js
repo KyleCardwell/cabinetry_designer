@@ -1,3 +1,4 @@
+import { treeRows } from './treeWalk.js';
 import { DOOR_ACTIONS, DOOR_HINGES, FACE_DIRECTIONS, FACE_TYPES, ROOT_FACE_PATH, isFaceNode } from './faces.js';
 import { isStyleRef } from './doorStyles.js';
 import { panelMaterial } from './constants.js';
@@ -49,13 +50,7 @@ function withoutSeams(face, path, dropped) {
 
 /** Pre-order rows for the panel outline: [{path, depth, node}]. */
 export function faceOutline(face) {
-  const rows = [];
-  const walk = (node, path, depth) => {
-    rows.push({ path, depth, node });
-    node.children?.forEach((child, index) => walk(child, `${path}.${index}`, depth + 1));
-  };
-  walk(face, ROOT_FACE_PATH, 0);
-  return rows;
+  return treeRows(face);
 }
 
 export function setFaceType(face, path, type) {

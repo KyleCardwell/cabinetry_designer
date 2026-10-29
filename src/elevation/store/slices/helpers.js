@@ -5,10 +5,7 @@ import { effectiveSettings } from '../../model/effectiveSettings.js';
 import { DEFAULT_DOOR_STYLE, DOOR_DESIGNS } from '../../model/doorStyles.js';
 import { BUILT_IN_PULLS } from '../../model/pulls.js';
 import { BUILT_IN_SLIDES } from '../../model/slides.js';
-import {
-  gridLeaves,
-  runItems,
-} from '../../model/grid.js';
+import { runItems } from '../../model/grid.js';
 import { recessEndType } from '../../model/recesses.js';
 import {
   compensateRuns,
@@ -210,12 +207,6 @@ export function cleanPartial(value, keys, accept = () => true) {
     .map((key) => [key, value[key]])
     .filter(([, entry]) => entry !== null && entry !== undefined && accept(entry));
   return entries.length === 0 ? null : Object.fromEntries(entries);
-}
-
-export function roomCabinets(room) {
-  return room.walls.flatMap((wall) => wall.runs.flatMap((run) => gridLeaves(run.grid)
-    .filter((item) => item.kind === 'cabinet')
-    .map((item) => ({ run, item }))));
 }
 
 export function itemIndexFor(run, itemId) {

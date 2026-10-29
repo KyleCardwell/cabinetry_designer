@@ -60,6 +60,15 @@ export function gridLeaves(node) {
   return orderedCells(node).flatMap((cell) => gridLeaves(cell.node));
 }
 
+/** Cabinet leaves in wall, run and grid order, with the original object references. */
+export function roomCabinetLeaves(room) {
+  return (room?.walls ?? []).flatMap((wall) => (wall.runs ?? []).flatMap((run) => (
+    (run.grid == null ? [] : gridLeaves(run.grid))
+      .filter((item) => item.kind === 'cabinet')
+      .map((item) => ({ wall, run, item }))
+  )));
+}
+
 /** The leaves touching a node's left or right edge, in (row, col) order. A leaf → [leaf]. */
 export function edgeLeaves(node, side) {
   if (!isNestedGrid(node)) return [node];

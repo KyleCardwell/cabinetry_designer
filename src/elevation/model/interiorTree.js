@@ -1,3 +1,4 @@
+import { treeRows } from './treeWalk.js';
 import { isPlainObject } from '@reduxjs/toolkit';
 import { INTERIOR_DIVIDERS, MAX_ROLLOUTS, ROLLOUT_LAYOUTS, SHELF_NOSINGS } from './constants.js';
 import { addAccessoryItem, isAccessoryItems, mergeAccessoryItems, removeAccessoryItem, setAccessoryItem } from './accessoryItems.js';
@@ -115,13 +116,7 @@ export function getInteriorNode(interior, path) {
 
 /** Pre-order rows for the interior outline. */
 export function interiorOutline(interior) {
-  const rows = [];
-  const walk = (node, path, depth) => {
-    rows.push({ path, depth, node });
-    node.children?.forEach((child, index) => walk(child, `${path}.${index}`, depth + 1));
-  };
-  walk(interior ?? {}, ROOT_FACE_PATH, 0);
-  return rows;
+  return treeRows(interior ?? {});
 }
 
 function replaceAt(interior, path, replacer) {

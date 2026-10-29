@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { auto, room, run, wall } from '../../../test/builders.js';
 import {
   LEAF_KINDS,
   cloneGrid,
@@ -9,6 +10,7 @@ import {
   removeRootColumn,
   replaceRootItems,
   rootItems,
+  roomCabinetLeaves,
   runBlind,
   runItems,
   setGridBlind,
@@ -55,6 +57,60 @@ function leaf(grid, id) {
 }
 
 const isLeaf = (node) => LEAF_KINDS.includes(node.kind);
+
+describe('roomCabinetLeaves', () => {
+  it('visits cabinets in wall, run and nested grid order with stored references', () => {
+    const nested = gridFromItems('nested', [auto('top'), auto('bottom')]);
+    nested.cols = nested.cols.slice(0, 1);
+    nested.rows = [
+      { id: 'top:row', size: null, sizeMode: 'auto' },
+      { id: 'bottom:row', size: null, sizeMode: 'auto' },
+    ];
+    nested.cells = nested.cells.map((cell, row) => ({ ...cell, col: 0, row })).reverse();
+    const run1 = run({ id: 'run-1', items: [auto('first'), { ...auto('column'), grid: nested }] });
+    const run2 = run({ id: 'run-2' });
+    delete run2.grid;
+    const run3 = run({ id: 'run-3', items: [{ id: 'filler', kind: 'filler', width: 3 }, auto('last')] });
+    const wallA = wall({ id: 'wall-a', runs: [run1, run2] });
+    const wallB = wall({ id: 'wall-b', runs: [run3] });
+    const rows = roomCabinetLeaves(room({ walls: [wallA, wallB] }));
+    expect(rows.map(({ item }) => item.id)).toEqual(['first', 'top', 'bottom', 'last']);
+    const expectedItems = [run1.grid.cells[0].node, nested.cells[1].node, nested.cells[0].node, run3.grid.cells[1].node];
+    rows.forEach((row, index) => {
+      expect(Object.keys(row).sort()).toEqual(['item', 'run', 'wall']);
+      expect(row.wall).toBe(index < 3 ? wallA : wallB);
+      expect(row.run).toBe(index < 3 ? run1 : run3);
+      expect(row.item).toBe(expectedItems[index]);
+    });
+  });
+
+  it('tolerates missing rooms, walls, runs and grids', () => {
+    expect(roomCabinetLeaves({})).toEqual([]);
+    expect(roomCabinetLeaves(null)).toEqual([]);
+    expect(roomCabinetLeaves(undefined)).toEqual([]);
+    const noRuns = wall();
+    delete noRuns.runs;
+    const noGrid = run();
+    delete noGrid.grid;
+    const nullGrid = run();
+    nullGrid.grid = null;
+    expect(roomCabinetLeaves(room({ walls: [
+      noRuns,
+      wall({ runs: [noGrid, nullGrid] }),
+    ] }))).toEqual([]);
+  });
+
+  it('reads only the stored grid even when transient run items exist', () => {
+    const stored = run({ items: [auto('stored')] });
+    stored.items = [auto('transient')];
+    const noGrid = run();
+    delete noGrid.grid;
+    noGrid.items = [auto('ungridded')];
+    const rows = roomCabinetLeaves(room({ walls: [wall({ runs: [stored, noGrid] })] }));
+    expect(rows.map(({ item }) => item.id)).toEqual(['stored']);
+    expect(rows[0].item).toBe(stored.grid.cells[0].node);
+  });
+});
 
 describe('grid shape', () => {
   it('builds a grid from items', () => {
