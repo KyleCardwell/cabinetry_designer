@@ -1,7 +1,6 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -21,7 +20,6 @@ import {
   useCursorKeys,
 } from '../canvas/cursor.js';
 import { textScales } from '../canvas/textScale.js';
-import { panExceedsThreshold } from '../canvas/panGesture.js';
 import { useMeasure } from '../canvas/measureState.js';
 import useLiveEntry, {
   resolveLiveEntryValue,
@@ -66,20 +64,15 @@ import PlanAlignmentGuides from './PlanAlignmentGuides.jsx';
 import PlanOverlays from './PlanOverlays.jsx';
 import PlanScene from './PlanScene.jsx';
 import usePlanKeys from './usePlanKeys.js';
+import usePlanPan from './usePlanPan.js';
 import usePlanPicker from './usePlanPicker.js';
 import usePlanRunMove from './usePlanRunMove.js';
 import usePlanWallEdits from './usePlanWallEdits.js';
+import usePlanView from './usePlanView.js';
 import { snapPointOrtho } from './wallOps.js';
 
-const PIXELS_PER_INCH = 4;
 const ENDPOINT_SNAP_RADIUS = 6;
 const ALIGNMENT_SNAP_PX = 6;
-const MIN_ZOOM = 0.1;
-const MAX_ZOOM = 30;
-
-function clampZoom(zoom) {
-  return Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom));
-}
 
 function signedInches(value) {
   if (Math.abs(value) < 1e-9) return formatInches(0);
@@ -127,12 +120,6 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const suppressClickRef = useRef(false);
   const clickSuppressionTimeoutRef = useRef(null);
   const messageTimeoutRef = useRef(null);
-  const fittedRoomRef = useRef(null);
-  const handledFitRequestRef = useRef(fitRequest);
-  const [viewport, setViewport] = useState({ width: 0, height: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [fitZoom, setFitZoom] = useState(1);
-  const [pan, setPan] = useState({ x: 0, y: 0 });
   const [pointerMode, setPointerMode] = useState('idle');
   const [wallDrawStart, setWallDrawStart] = useState(null);
   const [alignmentGuides, setAlignmentGuides] = useState([]);
@@ -152,7 +139,9 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     commit: commitEntry,
     cancel: cancelEntry,
   } = useLiveEntry();
-  const scale = zoom * PIXELS_PER_INCH;
+  const { viewport, zoom, fitZoom, pan, setPan, scale, toWorld, handleWheel } = usePlanView({
+    containerRef, stageRef, walls, activeRoomId, fitRequest,
+  });
   const text = textScales(zoom / fitZoom);
   const entryValue = resolveLiveEntryValue(entry);
   const moveHandle = useMemo(() => {
@@ -173,89 +162,6 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   }, [room, scale, selectedWall]);
 
   drawStartRef.current = wallDrawStart;
-
-  const stopPanning = useCallback(() => {
-    const current = panRef.current;
-    panRef.current = null;
-    setPointerMode(spacePressedRef.current ? 'pan-ready' : 'idle');
-    if (!current?.moved) return;
-    suppressClickRef.current = true;
-    if (clickSuppressionTimeoutRef.current !== null) {
-      globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
-    }
-    clickSuppressionTimeoutRef.current = globalThis.setTimeout(() => {
-      suppressClickRef.current = false;
-      clickSuppressionTimeoutRef.current = null;
-    }, 0);
-  }, []);
-
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    if (!container) return undefined;
-
-    const updateSize = ({ width, height }) => {
-      const next = {
-        width: Math.max(0, Math.floor(width)),
-        height: Math.max(0, Math.floor(height)),
-      };
-      setViewport((current) => (
-        current.width === next.width && current.height === next.height ? current : next
-      ));
-    };
-
-    updateSize(container.getBoundingClientRect());
-    const observer = new ResizeObserver((entries) => {
-      if (entries[0]) updateSize(entries[0].contentRect);
-    });
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
-
-  const zoomToFit = useCallback(() => {
-    if (viewport.width <= 0 || viewport.height <= 0) return;
-    if (walls.length === 0) {
-      setZoom(1);
-      setFitZoom(1);
-      setPan({ x: viewport.width / 2, y: viewport.height / 2 });
-      return;
-    }
-
-    const xs = walls.flatMap((wall) => [wall.x1, wall.x2]);
-    const ys = walls.flatMap((wall) => [wall.y1, wall.y2]);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    const padding = 96;
-    const availableWidth = Math.max(1, viewport.width - padding);
-    const availableHeight = Math.max(1, viewport.height - padding);
-    const fitScale = Math.min(
-      availableWidth / Math.max(1, maxX - minX),
-      availableHeight / Math.max(1, maxY - minY),
-    );
-    const nextZoom = clampZoom(fitScale / PIXELS_PER_INCH);
-    const nextScale = nextZoom * PIXELS_PER_INCH;
-    setZoom(nextZoom);
-    setFitZoom(nextZoom);
-    setPan({
-      x: viewport.width / 2 - ((minX + maxX) / 2) * nextScale,
-      y: viewport.height / 2 - ((minY + maxY) / 2) * nextScale,
-    });
-  }, [viewport, walls]);
-
-  useEffect(() => {
-    if (viewport.width <= 0 || viewport.height <= 0) return;
-    if (fittedRoomRef.current !== activeRoomId) {
-      fittedRoomRef.current = activeRoomId;
-      zoomToFit();
-    }
-  }, [activeRoomId, viewport, zoomToFit]);
-
-  useEffect(() => {
-    if (fitRequest === handledFitRequestRef.current) return;
-    handledFitRequestRef.current = fitRequest;
-    zoomToFit();
-  }, [fitRequest, zoomToFit]);
 
   const cancelDrawing = useCallback(() => {
     setWallDrawStart(null);
@@ -303,75 +209,11 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     dispatch(setMessage(null));
   }, [dispatch]);
 
-  useEffect(() => {
-    const handleSpaceDown = (event) => {
-      const tagName = event.target?.tagName?.toLowerCase();
-      if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
-      if (event.code !== 'Space') return;
-      event.preventDefault();
-      spacePressedRef.current = true;
-      setPointerMode('pan-ready');
-    };
-    const handleSpaceUp = (event) => {
-      if (event.code === 'Space') {
-        spacePressedRef.current = false;
-        setPointerMode('idle');
-      }
-    };
-    const handleBlur = () => {
-      spacePressedRef.current = false;
-      setPointerMode('idle');
-      stopPanning();
-    };
-    const handlePointerMove = (event) => {
-      const current = panRef.current;
-      if (!current || event.pointerId !== current.pointerId) return;
-      const dx = event.clientX - current.x;
-      const dy = event.clientY - current.y;
-      if (dx === 0 && dy === 0) return;
-      const moved = current.moved || panExceedsThreshold(
-        { x: current.originX, y: current.originY },
-        { x: event.clientX, y: event.clientY },
-      );
-      if (moved && !current.moved) setPointerMode('panning');
-      panRef.current = {
-        ...current,
-        x: event.clientX,
-        y: event.clientY,
-        moved,
-      };
-      if (!moved) return;
-      setPan((activePan) => ({ x: activePan.x + dx, y: activePan.y + dy }));
-    };
-    const handlePointerEnd = (event) => {
-      if (panRef.current && event.pointerId === panRef.current.pointerId) stopPanning();
-    };
-    const handlePointerOut = (event) => {
-      if (!event.relatedTarget) stopPanning();
-    };
+  const { stopPanning, handlePanPointerDown } = usePlanPan({
+    setPan, setPointerMode, panRef, spacePressedRef, suppressClickRef,
+    clickSuppressionTimeoutRef, stageRef, tool, entry,
+  });
 
-    window.addEventListener('keydown', handleSpaceDown);
-    window.addEventListener('keyup', handleSpaceUp);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerEnd);
-    window.addEventListener('pointercancel', handlePointerEnd);
-    window.addEventListener('pointerout', handlePointerOut);
-    return () => {
-      window.removeEventListener('keydown', handleSpaceDown);
-      window.removeEventListener('keyup', handleSpaceUp);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerEnd);
-      window.removeEventListener('pointercancel', handlePointerEnd);
-      window.removeEventListener('pointerout', handlePointerOut);
-    };
-  }, [stopPanning]);
-
-  const toWorld = useCallback((point) => ({
-    x: (point.x - pan.x) / scale,
-    y: (point.y - pan.y) / scale,
-  }), [pan, scale]);
   const measureGeometry = useMemo(
     () => (tool === 'measure' && room ? planMeasureGeometry(room, settings) : null),
     [tool, room, settings],
@@ -778,41 +620,6 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     toWorld,
     settings,
   });
-
-  const handleWheel = useCallback((event) => {
-    event.evt.preventDefault();
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer) return;
-    let direction = event.evt.deltaY < 0 ? 1 : -1;
-    if (event.evt.ctrlKey) direction = -direction;
-    const nextZoom = clampZoom(direction > 0 ? zoom * 1.04 : zoom / 1.04);
-    if (nextZoom === zoom) return;
-    const worldUnderPointer = toWorld(pointer);
-    const nextScale = nextZoom * PIXELS_PER_INCH;
-    setZoom(nextZoom);
-    setPan({
-      x: pointer.x - worldUnderPointer.x * nextScale,
-      y: pointer.y - worldUnderPointer.y * nextScale,
-    });
-  }, [toWorld, zoom]);
-
-  const handlePanPointerDown = useCallback((event) => {
-    const pointerEvent = event.evt;
-    const emptyCanvas = event.target === stageRef.current || tool === 'measure';
-    const middleDrag = pointerEvent.button === 1;
-    const spaceDrag = pointerEvent.button === 0 && spacePressedRef.current;
-    const selectDrag = pointerEvent.button === 0 && tool === 'select';
-    if (entry || !emptyCanvas || (!middleDrag && !spaceDrag && !selectDrag)) return;
-    pointerEvent.preventDefault();
-    panRef.current = {
-      pointerId: pointerEvent.pointerId,
-      x: pointerEvent.clientX,
-      y: pointerEvent.clientY,
-      originX: pointerEvent.clientX,
-      originY: pointerEvent.clientY,
-      moved: false,
-    };
-  }, [entry, tool]);
 
   const placeOpeningOnWall = useCallback((wallId, event) => {
     if ((tool !== 'door' && tool !== 'window') || !room) return false;
