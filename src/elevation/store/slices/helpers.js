@@ -209,6 +209,29 @@ export function cleanPartial(value, keys, accept = () => true) {
   return entries.length === 0 ? null : Object.fromEntries(entries);
 }
 
+export function cleanEndValue(value, types) {
+  if (value === null || value === 'none') return value;
+  if (!value || !types.includes(value.type)
+    || (value.type === 'return' && value.width !== undefined
+      && !(Number.isFinite(value.width) && value.width > 0))) return undefined;
+  return {
+    type: value.type,
+    ...(value.type === 'return' && value.width !== undefined ? { width: value.width } : {}),
+  };
+}
+
+export function writeLeafEnd(leaf, key, side, value) {
+  if (value === null) {
+    if (!leaf[key] || !Object.hasOwn(leaf[key], side)) return false;
+    delete leaf[key][side];
+    if (!Object.keys(leaf[key]).length) delete leaf[key];
+  } else {
+    leaf[key] ??= {};
+    leaf[key][side] = value;
+  }
+  return true;
+}
+
 export function itemIndexFor(run, itemId) {
   return runItems(run).findIndex((item) => item.id === itemId);
 }

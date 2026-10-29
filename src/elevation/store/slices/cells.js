@@ -27,9 +27,11 @@ import {
   wrapGridCell,
 } from '../../model/cellTree.js';
 import {
+  cleanEndValue,
   runLocation,
   syncRoomAt,
   settingsFor,
+  writeLeafEnd,
 } from './helpers.js';
 
 export const cellReducers = {
@@ -83,47 +85,24 @@ export const cellReducers = {
   setStepEnd(state, action) {
     const { cellId, side, value } = action.payload;
     if (side !== 'left' && side !== 'right') return;
-    if (value !== null && value !== 'none'
-      && (!value || !['panel', 'return'].includes(value.type)
-        || (value.type === 'return' && value.width !== undefined
-          && !(Number.isFinite(value.width) && value.width > 0)))) return;
+    const cleaned = cleanEndValue(value, ['panel', 'return']);
+    if (cleaned === undefined) return;
     const location = runLocation(state, action.payload);
     if (!location) return;
     const leaf = location.run.grid ? findLeaf(location.run.grid, cellId)
       : location.run.items?.find((item) => item.id === cellId);
     if (leaf?.kind !== 'cabinet') return;
-    if (value === null) {
-      if (!leaf.stepEnds || !Object.hasOwn(leaf.stepEnds, side)) return;
-      delete leaf.stepEnds[side];
-      if (!Object.keys(leaf.stepEnds).length) delete leaf.stepEnds;
-    } else {
-      leaf.stepEnds ??= {};
-      leaf.stepEnds[side] = value === 'none' ? value : {
-        type: value.type,
-        ...(value.type === 'return' && value.width !== undefined ? { width: value.width } : {}),
-      };
-    }
-    syncRoomAt(state, location.roomIndex);
+    if (writeLeafEnd(leaf, 'stepEnds', side, cleaned)) syncRoomAt(state, location.roomIndex);
   },
   setInsideEnd(state, action) {
     const { cellId, side, value } = action.payload;
     if (side !== 'left' && side !== 'right') return;
-    if (value !== null && value !== 'none'
-      && (!value || value.type !== 'return'
-        || (value.width !== undefined && !(Number.isFinite(value.width) && value.width > 0)))) return;
+    const cleaned = cleanEndValue(value, ['return']);
+    if (cleaned === undefined) return;
     const location = runLocation(state, action.payload);
     const leaf = location?.run.grid && findLeaf(location.run.grid, cellId);
     if (leaf?.kind !== 'cabinet') return;
-    if (value === null) {
-      if (!leaf.insideEnds || !Object.hasOwn(leaf.insideEnds, side)) return;
-      delete leaf.insideEnds[side];
-      if (!Object.keys(leaf.insideEnds).length) delete leaf.insideEnds;
-    } else {
-      leaf.insideEnds ??= {};
-      leaf.insideEnds[side] = value === 'none' ? value
-        : { type: 'return', ...(value.width === undefined ? {} : { width: value.width }) };
-    }
-    syncRoomAt(state, location.roomIndex);
+    if (writeLeafEnd(leaf, 'insideEnds', side, cleaned)) syncRoomAt(state, location.roomIndex);
   },
   setCellBaseUnder(state, action) {
     const location = runLocation(state, action.payload);
