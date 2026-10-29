@@ -3,7 +3,6 @@ import {
   useCallback,
   useEffect,
   useImperativeHandle,
-  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -21,13 +20,8 @@ import {
 } from '../canvas/cursor.js';
 import { panExceedsThreshold } from '../canvas/panGesture.js';
 import {
-  DEFAULT_VIEW,
-  fitWallToViewport,
-  panView,
   screenToWall,
   wallToScreen,
-  withView,
-  zoomViewAt,
 } from '../canvas/transform.js';
 import {
   dragPointsToRunInput,
@@ -109,6 +103,8 @@ import useJointDrag from './canvas/useJointDrag.js';
 import usePicker from './canvas/usePicker.js';
 import useWallOverlays from './canvas/useWallOverlays.js';
 import { useDimensionChains, useDimensionOffsets } from './canvas/useDimensionLayout.js';
+import useCanvasView from './canvas/useCanvasView.js';
+import useCanvasPan from './canvas/useCanvasPan.js';
 
 const ALIGNMENT_SNAP_PX = 6;
 const RUN_TYPE_LABELS = {
@@ -148,8 +144,6 @@ function ElevationCanvas({
   } = useSelector((state) => state.elevation);
   const stageRef = useRef(null);
   const containerRef = useRef(null);
-  const [viewport, setViewport] = useState({ width: 0, height: 0 });
-  const [view, setView] = useState(DEFAULT_VIEW);
   const [drag, setDrag] = useState(null);
   const [stretchPreview, setStretchPreview] = useState(null);
   const [pointerMode, setPointerMode] = useState('idle');
@@ -206,6 +200,23 @@ function ElevationCanvas({
   const viewKey = combined?.id ?? activeKey;
   const menuContext = `${room?.id}:${viewKey}:${activeKey}:${tool}:${doorsOff}`;
   const { dimensionChains } = useDimensionChains({ room, wall, settings, selection });
+  const {
+    viewport, view, setView, resetView, transform, zoomIn, zoomOut, handleWheel,
+  } = useCanvasView({ containerRef, stageRef, wall, combined, activeKey, dimensionChains });
+  const { stopPanning, handlePanPointerDown } = useCanvasPan({
+    dispatch,
+    setView,
+    setPointerMode,
+    panRef,
+    spacePressedRef,
+    suppressClickRef,
+    clickSuppressionTimeoutRef,
+    stageRef,
+    tool,
+    entry,
+    dragRef,
+    stretchPreview,
+  });
 
   selectionRef.current = selection;
   wallRef.current = wall;
@@ -217,25 +228,6 @@ function ElevationCanvas({
 
   const cancelDrag = useCallback(() => updateDrag(null), [updateDrag]);
 
-  const resetView = useCallback(() => {
-    setView(DEFAULT_VIEW);
-  }, []);
-
-  const stopPanning = useCallback(() => {
-    const current = panRef.current;
-    panRef.current = null;
-    setPointerMode(spacePressedRef.current ? 'pan-ready' : 'idle');
-    if (!current?.moved) return;
-    suppressClickRef.current = true;
-    if (clickSuppressionTimeoutRef.current !== null) {
-      globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
-    }
-    clickSuppressionTimeoutRef.current = globalThis.setTimeout(() => {
-      suppressClickRef.current = false;
-      clickSuppressionTimeoutRef.current = null;
-    }, 0);
-  }, []);
-
   const showMessage = useCallback((message) => {
     dispatch(setMessage(message));
     if (messageTimeoutRef.current !== null) {
@@ -246,30 +238,6 @@ function ElevationCanvas({
       messageTimeoutRef.current = null;
     }, 3000);
   }, [dispatch]);
-
-  useLayoutEffect(() => {
-    const container = containerRef.current;
-    if (!container) return undefined;
-
-    const updateSize = ({ width, height }) => {
-      const next = {
-        width: Math.max(0, Math.floor(width)),
-        height: Math.max(0, Math.floor(height)),
-      };
-      setViewport((current) => (
-        current.width === next.width && current.height === next.height ? current : next
-      ));
-    };
-
-    const initial = container.getBoundingClientRect();
-    updateSize(initial);
-
-    const observer = new ResizeObserver((entries) => {
-      if (entries[0]) updateSize(entries[0].contentRect);
-    });
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
 
   useEffect(() => {
     cancelEntry();
@@ -313,106 +281,6 @@ function ElevationCanvas({
     dispatch(setMessage(null));
   }, [dispatch]);
 
-  useEffect(() => {
-    const handleSpaceDown = (event) => {
-      const tagName = event.target?.tagName?.toLowerCase();
-      if (tagName === 'input' || tagName === 'select' || tagName === 'textarea') return;
-      if (event.code !== 'Space') return;
-      event.preventDefault();
-      spacePressedRef.current = true;
-      setPointerMode('pan-ready');
-    };
-    const handleSpaceUp = (event) => {
-      if (event.code === 'Space') {
-        spacePressedRef.current = false;
-        setPointerMode('idle');
-      }
-    };
-    const handleBlur = () => {
-      spacePressedRef.current = false;
-      setPointerMode('idle');
-      stopPanning();
-    };
-    const handlePointerMove = (event) => {
-      const current = panRef.current;
-      if (!current || event.pointerId !== current.pointerId) return;
-      const dx = event.clientX - current.x;
-      const dy = event.clientY - current.y;
-      if (dx === 0 && dy === 0) return;
-      const moved = current.moved || panExceedsThreshold(
-        { x: current.originX, y: current.originY },
-        { x: event.clientX, y: event.clientY },
-      );
-      if (moved && !current.moved) setPointerMode('panning');
-      panRef.current = {
-        ...current,
-        x: event.clientX,
-        y: event.clientY,
-        moved,
-      };
-      if (!moved) return;
-      setView((activeView) => panView(activeView, dx, dy));
-    };
-    const handlePointerEnd = (event) => {
-      const current = panRef.current;
-      if (!current || event.pointerId !== current.pointerId) return;
-      stopPanning();
-      // preventDefault on pointerdown suppresses Konva's mouse click, so a plain
-      // left click on empty canvas deselects here instead of in handleStageClick.
-      if (event.type === 'pointerup' && current.clearsSelection && !current.moved) {
-        dispatch(setSelection({}));
-      }
-    };
-    const handlePointerOut = (event) => {
-      if (!event.relatedTarget) stopPanning();
-    };
-
-    window.addEventListener('keydown', handleSpaceDown);
-    window.addEventListener('keyup', handleSpaceUp);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('pointermove', handlePointerMove);
-    window.addEventListener('pointerup', handlePointerEnd);
-    window.addEventListener('pointercancel', handlePointerEnd);
-    window.addEventListener('pointerout', handlePointerOut);
-    return () => {
-      window.removeEventListener('keydown', handleSpaceDown);
-      window.removeEventListener('keyup', handleSpaceUp);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', handlePointerEnd);
-      window.removeEventListener('pointercancel', handlePointerEnd);
-      window.removeEventListener('pointerout', handlePointerOut);
-    };
-  }, [dispatch, stopPanning]);
-
-  const baseTransform = useMemo(() => {
-    if (!wall || viewport.width <= 0 || viewport.height <= 0) return null;
-    // A group's padding stays fixed when the opened face (and its dimension rows) changes.
-    const fitted = fitWallToViewport(combined ?? wall, viewport, combined
-      ? { top: 96, right: 74, bottom: 152, left: 136 }
-      : {
-        top: dimensionChains?.upper.inner.length > 0 ? 96 : 64,
-        right: 48 + (dimensionChains?.vertical.right.middle.length > 0 ? 26 : 0),
-        bottom: dimensionChains?.openings.length > 0 || dimensionChains?.wall.length > 0 ? 152 : 96,
-        left: 110 + (dimensionChains?.vertical.left.middle.length > 0 ? 26 : 0),
-      });
-    if (combined) fitted.offsetX += combined.faces.find((face) => face.key === activeKey).dx * fitted.scale;
-    return fitted;
-  }, [
-    activeKey,
-    combined,
-    dimensionChains?.openings.length,
-    dimensionChains?.wall.length,
-    dimensionChains?.upper.inner.length,
-    dimensionChains?.vertical.left.middle.length,
-    dimensionChains?.vertical.right.middle.length,
-    viewport,
-    wall,
-  ]);
-  const transform = useMemo(
-    () => (baseTransform ? withView(baseTransform, view) : null),
-    [baseTransform, view],
-  );
   const measureGeometry = useMemo(
     () => (tool === 'measure' && room && wall
       ? elevationMeasureGeometry(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : null),
@@ -426,19 +294,6 @@ function ElevationCanvas({
   });
   const measureToScreen = ({ x, y }) => wallToScreen({ x, z: y }, transform);
 
-  const zoomAt = useCallback((pointer, factor) => {
-    if (!baseTransform) return;
-    setView((current) => zoomViewAt(baseTransform, current, pointer, factor));
-  }, [baseTransform]);
-
-  const zoomIn = useCallback(() => {
-    zoomAt({ x: viewport.width / 2, y: viewport.height / 2 }, 1.08);
-  }, [viewport.height, viewport.width, zoomAt]);
-
-  const zoomOut = useCallback(() => {
-    zoomAt({ x: viewport.width / 2, y: viewport.height / 2 }, 1 / 1.08);
-  }, [viewport.height, viewport.width, zoomAt]);
-
   useImperativeHandle(ref, () => ({ zoomIn, zoomOut }), [zoomIn, zoomOut]);
 
   useEffect(() => {
@@ -446,35 +301,6 @@ function ElevationCanvas({
   }, [onZoomChange, view.zoom]);
 
   const { dimensionOffsets } = useDimensionOffsets({ dimensionChains, room, settings, transform, wall });
-
-  const handleWheel = useCallback((event) => {
-    event.evt.preventDefault();
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer) return;
-    let factor = event.evt.deltaY < 0 ? 1.08 : 1 / 1.08;
-    if (event.evt.ctrlKey || event.evt.metaKey) factor = 1 / factor;
-    zoomAt(pointer, factor);
-  }, [zoomAt]);
-
-  const handlePanPointerDown = useCallback((event) => {
-    const pointerEvent = event.evt;
-    const emptyCanvas = event.target === stageRef.current || tool === 'measure';
-    const middleDrag = pointerEvent.button === 1;
-    const spaceDrag = pointerEvent.button === 0 && spacePressedRef.current;
-    const selectDrag = pointerEvent.button === 0 && tool === 'select';
-    if (!emptyCanvas || entry || dragRef.current || stretchPreview
-      || (!middleDrag && !spaceDrag && !selectDrag)) return;
-    pointerEvent.preventDefault();
-    panRef.current = {
-      pointerId: pointerEvent.pointerId,
-      x: pointerEvent.clientX,
-      y: pointerEvent.clientY,
-      originX: pointerEvent.clientX,
-      originY: pointerEvent.clientY,
-      moved: false,
-      clearsSelection: selectDrag && !spaceDrag,
-    };
-  }, [entry, stretchPreview, tool]);
 
   const dragBounds = useMemo(() => {
     if (!drag) return null;
