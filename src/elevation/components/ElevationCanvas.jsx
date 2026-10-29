@@ -15,11 +15,6 @@ import {
   Stage,
 } from 'react-konva';
 import {
-  belowRowOffsets,
-  dimensionRowOffsets,
-  layoutDimensionRow,
-} from '../canvas/dimensionLayout.js';
-import {
   CURSORS,
   elevationBaseCursor,
   useCanvasCursor,
@@ -43,18 +38,10 @@ import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
 import { useMeasure } from '../canvas/measureState.js';
 import { elevationMeasureGeometry } from '../model/measure.js';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
-import { combinedSoffitJoins, combinedViewOf } from '../model/combinedElevations.js';
-import { combinedFaceParts, seamHiddenEdges } from '../model/combinedSeams.js';
 import { elevationKey } from '../model/topology.js';
 import { createRun } from '../model/runDefaults.js';
 import { runItems } from '../model/grid.js';
 import { defaultPick, pickStack } from '../model/pick.js';
-import { wallInteriors } from '../model/interiors.js';
-import { wallDrawerBoxes } from '../model/drawerBoxes.js';
-import { wallShelves } from '../model/shelves.js';
-import { wallRollouts } from '../model/rollouts.js';
-import { wallAccessories } from '../model/accessories.js';
-import { wallShowThrough } from '../model/showThrough.js';
 import { setDividerPosition } from '../model/interiorTree.js';
 import {
   createSoffit,
@@ -73,24 +60,10 @@ import {
   validateRecessPlacement,
 } from '../model/recesses.js';
 import {
-  horizontalChains,
-  nearerEdge,
-  openingChain,
-  clearanceCallouts,
-  pickColumnRuns,
-  verticalChains,
-  verticalOpeningChain,
-  wallRow,
-} from '../model/dimensions.js';
-import { resolveProfile } from '../model/profile.js';
-import { partNumbers } from '../model/partNumbers.js';
-import {
   joinTouchingEdges,
   joinTouchingStack,
-  roomDiagnostics,
   tryPlaceRun,
 } from '../model/room.js';
-import { wallExtent } from '../model/wallExtent.js';
 import {
   addOpening,
   addRecess,
@@ -107,7 +80,7 @@ import {
   setActiveWall,
   setActiveWallSide,
 } from '../store/elevationSlice.js';
-import CombinedFaces, { resolveCombinedFaces } from './CombinedFaces.jsx';
+import CombinedFaces from './CombinedFaces.jsx';
 import CanvasContextMenu from './CanvasContextMenu.jsx';
 import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import ElevationDimensions from './ElevationDimensions.jsx';
@@ -134,6 +107,8 @@ import useCenterPick, { requestCenterPick } from './canvas/useCenterPick.js';
 import CenterPickOverlay from './CenterPickOverlay.jsx';
 import useJointDrag from './canvas/useJointDrag.js';
 import usePicker from './canvas/usePicker.js';
+import useWallOverlays from './canvas/useWallOverlays.js';
+import { useDimensionChains, useDimensionOffsets } from './canvas/useDimensionLayout.js';
 
 const ALIGNMENT_SNAP_PX = 6;
 const RUN_TYPE_LABELS = {
@@ -212,103 +187,25 @@ function ElevationCanvas({
   const entryValue = resolveLiveEntryValue(entry);
   const wallId = wall?.id ?? null;
   const activeKey = elevationKey(wallId, wall?.side);
-  const combined = useMemo(
-    () => (room && wall ? combinedViewOf(room, wall.id, wall.side) : null),
-    [room, wall],
-  );
-  const combinedFaces = useMemo(
-    () => (combined ? resolveCombinedFaces(room, combined, settings) : null),
-    [combined, room, settings],
-  );
-  const soffitJoins = useMemo(
-    () => (combined ? combinedSoffitJoins(room, combined) : []),
-    [combined, room],
-  );
-  // Seams hide under joined soffits and anything running across them, as in the DXF (Kyle 2026-10-23).
-  const hiddenEdges = useMemo(() => (combined ? seamHiddenEdges(combined, combinedFaceParts(room, combined, settings,
-    new Map([...combinedFaces].map(([key, { shapes }]) => [key, shapes]))), soffitJoins) : new Map()),
-  [combined, combinedFaces, room, settings, soffitJoins]);
+  const {
+    combined,
+    combinedFaces,
+    soffitJoins,
+    hiddenEdges,
+    diagnostics,
+    partNumbering,
+    interiors,
+    showThrough,
+    previewShowThrough,
+    drawerBoxes,
+    adjustableShelves,
+    rollouts,
+    accessories,
+    profile,
+  } = useWallOverlays({ room, wall, settings, doorsOff, stretchPreview });
   const viewKey = combined?.id ?? activeKey;
   const menuContext = `${room?.id}:${viewKey}:${activeKey}:${tool}:${doorsOff}`;
-  const diagnostics = useMemo(
-    () => (room ? roomDiagnostics(room, settings) : {}),
-    [room, settings],
-  );
-  const partNumbering = useMemo(
-    () => (room && settings.showPartNumbers ? partNumbers(room, settings) : null),
-    [room, settings],
-  );
-  const interiors = useMemo(
-    () => (doorsOff && room && wall
-      ? wallInteriors(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : []),
-    [doorsOff, room, wall, settings],
-  );
-  const showThrough = useMemo(
-    () => (!doorsOff && room && wall
-      ? [...wallShowThrough(room, wall.sideSource ?? wall, wall.side ?? 'front', settings).values()] : []),
-    [doorsOff, room, wall, settings],
-  );
-  const previewShowThrough = useMemo(
-    () => (!doorsOff && stretchPreview
-      ? [...wallShowThrough(stretchPreview.room, stretchPreview.wall.sideSource ?? stretchPreview.wall,
-        stretchPreview.wall.side ?? 'front', settings).values()] : []),
-    [doorsOff, stretchPreview, settings],
-  );
-  const drawerBoxes = useMemo(
-    () => (doorsOff && room && wall
-      ? [...wallDrawerBoxes(room, wall.sideSource ?? wall, wall.side ?? 'front', settings)]
-        .map(([itemId, entry]) => ({ itemId, ...entry })) : []),
-    [doorsOff, room, wall, settings],
-  );
-  const adjustableShelves = useMemo(
-    () => (doorsOff && room && wall
-      ? wallShelves(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : new Map()),
-    [doorsOff, room, wall, settings],
-  );
-  const rollouts = useMemo(
-    () => (doorsOff && room && wall
-      ? wallRollouts(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : new Map()),
-    [doorsOff, room, wall, settings],
-  );
-  const accessories = useMemo(
-    () => (doorsOff && room && wall
-      ? wallAccessories(room, wall.sideSource ?? wall, wall.side ?? 'front', settings) : new Map()),
-    [doorsOff, room, wall, settings],
-  );
-  const profile = useMemo(
-    () => (room && wall ? resolveProfile(settings, room, wall) : null),
-    [room, settings, wall],
-  );
-  const dimensionChains = useMemo(() => {
-    if (!room || !wall) return null;
-    const lower = horizontalChains(room, wall, 'lower', settings);
-    const upper = horizontalChains(room, wall, 'upper', settings);
-    const selectedOpening = (wall.openings ?? []).find(
-      (opening) => opening.id === selection.openingId,
-    );
-    const openingCenter = selectedOpening
-      ? (() => {
-        const jamb = openingGeometry(selectedOpening, wall.length, settings).jamb;
-        return jamb.x + jamb.width / 2;
-      })()
-      : null;
-    const verticalFor = (edge) => (selectedOpening
-      && nearerEdge(openingCenter, wall.length) === edge
-      ? verticalOpeningChain(wall, selectedOpening, wall.length, settings)
-      : verticalChains(room, wall, pickColumnRuns(wall, selection.runId, edge), settings, edge));
-    return {
-      lower,
-      upper,
-      openings: openingChain(room, wall, settings),
-      // DM3: the overall wall row, on faces with runs only; it takes the openings row's place.
-      wall: wallRow(room, wall, settings, lower.outer),
-      clearances: clearanceCallouts(room, wall, settings),
-      vertical: {
-        left: verticalFor('left'),
-        right: verticalFor('right'),
-      },
-    };
-  }, [room, selection.openingId, selection.runId, settings, wall]);
+  const { dimensionChains } = useDimensionChains({ room, wall, settings, selection });
 
   selectionRef.current = selection;
   wallRef.current = wall;
@@ -548,92 +445,7 @@ function ElevationCanvas({
     onZoomChange?.(view.zoom);
   }, [onZoomChange, view.zoom]);
 
-  const dimensionOffsets = useMemo(() => {
-    if (!dimensionChains || !transform) return null;
-    const factor = transform.text?.dimension ?? 1;
-    const fontSize = 11 * factor;
-    const lowerLevels = layoutDimensionRow(dimensionChains.lower.inner, {
-      scale: transform.scale,
-      fontSize,
-    }).levels;
-    const upperLevels = layoutDimensionRow(dimensionChains.upper.inner, {
-      scale: transform.scale,
-      fontSize,
-    }).levels;
-    const lowerOuterLevels = layoutDimensionRow(dimensionChains.lower.outer, {
-      scale: transform.scale,
-      fontSize,
-    }).levels;
-    // Only one of the openings and wall rows is ever drawn (DM3 §1.3); it sits in the third slot.
-    const openingLevels = layoutDimensionRow([...dimensionChains.openings, ...dimensionChains.wall], {
-      scale: transform.scale,
-      fontSize,
-    }).levels;
-    const verticalLevels = {
-      left: layoutDimensionRow(dimensionChains.vertical.left.inner, {
-        scale: transform.scale,
-        fontSize,
-      }).levels,
-      right: layoutDimensionRow(dimensionChains.vertical.right.inner, {
-        scale: transform.scale,
-        fontSize,
-      }).levels,
-    };
-    const extent = wallExtent(room, wall, settings);
-    const clear = {
-      below: Math.max(0, -extent.bottom) * transform.scale,
-      above: Math.max(0, extent.top - wall.height) * transform.scale,
-      left: Math.max(0, -extent.left) * transform.scale,
-      right: Math.max(0, extent.right - wall.length) * transform.scale,
-    };
-    const below = belowRowOffsets({
-      clearanceRow: false,
-      pieces: lowerLevels,
-      overall: lowerOuterLevels,
-      openings: openingLevels,
-    }, factor);
-    const upper = dimensionRowOffsets('horizontal', upperLevels, false, factor);
-    const vertical = {
-      left: dimensionRowOffsets(
-        'vertical',
-        verticalLevels.left,
-        dimensionChains.vertical.left.middle.length > 0,
-        factor,
-      ),
-      right: dimensionRowOffsets(
-        'vertical',
-        verticalLevels.right,
-        dimensionChains.vertical.right.middle.length > 0,
-        factor,
-      ),
-    };
-    return {
-      lower: {
-        inner: below.pieces + clear.below,
-        outer: below.overall + clear.below,
-      },
-      upper: {
-        inner: upper.inner + clear.above,
-        outer: upper.outer + clear.above,
-      },
-      vertical: {
-        left: {
-          inner: vertical.left.inner + clear.left,
-          middle: vertical.left.middle + clear.left,
-          outer: vertical.left.outer + clear.left,
-        },
-        right: {
-          inner: vertical.right.inner + clear.right,
-          middle: vertical.right.middle + clear.right,
-          outer: vertical.right.outer + clear.right,
-        },
-      },
-      openings: below.openings + clear.below,
-      wall: below.openings + clear.below,
-      label: below.label + clear.below,
-      clear,
-    };
-  }, [dimensionChains, room, settings, transform, wall]);
+  const { dimensionOffsets } = useDimensionOffsets({ dimensionChains, room, settings, transform, wall });
 
   const handleWheel = useCallback((event) => {
     event.evt.preventDefault();
