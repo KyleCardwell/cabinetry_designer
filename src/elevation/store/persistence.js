@@ -44,8 +44,9 @@ import {
 import { SOFFIT_MOLDINGS } from '../model/soffits.js';
 import { RECESS_KINDS, RECESS_MOLDINGS } from '../model/recesses.js';
 import { computeWallOrder } from '../model/topology.js';
+import { migrateDocument } from './migrations.js';
 
-/** Current Elevation Lab localStorage key. */
+/** Stable Elevation Lab localStorage key; schemaVersion lives in the document. */
 export const ELEVATION_STORAGE_KEY = 'cd.elevationLab.v4';
 /** Current persisted schema version. */
 export const ELEVATION_SCHEMA_VERSION = 4;
@@ -958,7 +959,7 @@ function readStored(key) {
 export function loadElevationDocument() {
   try {
     if (typeof window === 'undefined' || !window.localStorage) return null;
-    const current = normalizeElevationDocument(readStored(ELEVATION_STORAGE_KEY));
+    const current = normalizeElevationDocument(migrateDocument(readStored(ELEVATION_STORAGE_KEY)));
     return isElevationDocument(current) ? current : null;
   } catch {
     return null;
@@ -1006,15 +1007,18 @@ export function roomFromDocument(document, schemaVersion, settings) {
   if (typeof schemaVersion === 'number' && schemaVersion > ELEVATION_SCHEMA_VERSION) {
     return { ok: false, reason: 'schema', message: 'This room was saved by a newer version of the designer. Reload the page to update, then open it again.' };
   }
-  if (schemaVersion !== ELEVATION_SCHEMA_VERSION) {
-    return { ok: false, reason: 'schema', message: `This room uses an unsupported older format (version ${schemaVersion}).` };
-  }
-  if (!isPlainObject(document)) {
-    return { ok: false, reason: 'bad_document', message: 'This room\'s saved drawing could not be read.' };
-  }
   try {
+    const migrated = migrateDocument({
+      schemaVersion, settings, rooms: [document], activeRoomId: null, activeWallId: null, view: 'plan',
+    });
+    if (migrated.schemaVersion !== ELEVATION_SCHEMA_VERSION) {
+      return { ok: false, reason: 'schema', message: `This room uses an unsupported older format (version ${schemaVersion}).` };
+    }
+    if (!isPlainObject(migrated.rooms?.[0])) {
+      return { ok: false, reason: 'bad_document', message: 'This room\'s saved drawing could not be read.' };
+    }
     const normalized = normalizeElevationDocument({
-      schemaVersion, settings, rooms: [structuredClone(document)], activeRoomId: null, activeWallId: null, view: 'plan',
+      ...migrated, rooms: [structuredClone(migrated.rooms[0])],
     });
     const room = normalized?.rooms?.[0];
     if (!isRoom(room)) return { ok: false, reason: 'bad_document', message: 'This room\'s saved drawing could not be read.' };
