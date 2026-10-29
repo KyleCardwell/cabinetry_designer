@@ -2,6 +2,7 @@ import { accessoryText } from '../elevation/model/accessories.js';
 import { DEFAULT_SETTINGS } from '../elevation/model/constants.js';
 import { sheetThickness } from '../elevation/model/doorStyles.js';
 import { getInteriorNode } from '../elevation/model/interiorTree.js';
+import { roundTo } from '../elevation/model/units.js';
 import { formatInch } from './format.js';
 
 export function faceOrder(a, b) {
@@ -23,7 +24,7 @@ export function drawerFrontNote(faces = [], slideNames = new Map(), depths = new
     best === null || depthCounts.get(depth) > depthCounts.get(best) ? depth : best, null);
   const groups = new Map();
   for (const face of fronts) {
-    const height = Math.round(face.height * 32) / 32;
+    const height = roundTo(face.height, 1 / 32);
     const name = slideNames.get(face.path) || null;
     const depth = depths.get(face.path);
     const tag = [name, depth != null && depth !== commonDepth ? `${formatInch(depth)} deep` : null,

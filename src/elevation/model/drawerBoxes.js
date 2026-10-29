@@ -79,6 +79,7 @@ export function cabinetDrawerBoxes({
   const entries = [];
   const presets = drawerBoxHeights(settings);
   const adjustment = Math.max(0, settings.drawerBoxAdjustment ?? DEFAULT_SETTINGS.drawerBoxAdjustment);
+  const mapleExtra = settings?.prefinishedMapleExtra ?? DEFAULT_SETTINGS.prefinishedMapleExtra;
   const openingByPath = new Map(openings.map((opening) => [opening.path, opening]));
   const openingUses = new Map();
   for (const face of faces) {
@@ -129,7 +130,7 @@ export function cabinetDrawerBoxes({
     const depth = pick.depth ?? depthAuto;
     const slideLength = depth === null ? null : fittingLength(slide, depth);
     const notch = slideNotch(slide, slideLength, section.depth);
-    const maple = prefinishedMaple && !inset;
+    const maple = prefinishedMaple && !inset && mapleExtra > 0;
     const box = {
       path: face.path, frontHeight: face.height, kind,
       ...resolved, space, available,
@@ -138,7 +139,8 @@ export function cabinetDrawerBoxes({
       accessories: effects.items, heightAccessory: null,
       height, heightAuto, heightSource: pick.height !== undefined ? 'manual' : heightRule ? 'rule' : 'auto',
       heightRule: pick.height === undefined ? heightRule?.rule ?? null : null,
-      width: roundTo(slideBoxWidth(slide, space.width) + (maple ? 1 / 16 : 0), 1 / 64), maple,
+      width: roundTo(slideBoxWidth(slide, space.width) + (maple ? mapleExtra : 0), 1 / 64), maple,
+      mapleExtra: maple ? mapleExtra : 0,
       depth, depthAuto, interiorDepth: section.depth,
       depthSource: pick.depth !== undefined ? 'manual' : depthRule.accessoryId ? 'accessory' : depthRule.rule ? 'rule' : 'auto',
       depthAccessory: pick.depth === undefined ? depthRule.accessoryId : null,
@@ -147,7 +149,7 @@ export function cabinetDrawerBoxes({
       clips: slide.clips === false ? null : inset ? 'adjustable' : 'standard',
       notes: kind === 'drawer' && leaf.purpose === 'sink' ? ['notch drw around plumbing']
         : pick.depth === undefined && rot?.note ? [rot.note] : [],
-      x: space.x + slide.sideClearance - (maple ? 1 / 32 : 0),
+      x: space.x + slide.sideClearance - (maple ? mapleExtra / 2 : 0),
       z: kind === 'hamper' && height !== null ? top - slide.minAbove - height : space.z + slide.minBelow,
     };
     if (kind === 'rot' && pick.height === undefined && available < 15.125) box.warnings.push({ code: 'rot-short' });

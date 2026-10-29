@@ -1,3 +1,4 @@
+import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { pullPickOptions } from '../../model/pulls.js';
 import { formatInches } from '../../model/units.js';
 import InchInput from '../InchInput.jsx';
@@ -35,7 +36,7 @@ export default function PullPicks({ settings, levelsAbove, node, label, onChange
           <InchInput
             value={pullHeight}
             allowBlank
-            placeholder={`Inherit (${formatInches(settings?.pullHeight ?? 45)})`}
+            placeholder={`Inherit (${formatInches(settings?.pullHeight ?? DEFAULT_SETTINGS.pullHeight)})`}
             aria-label="Tall pull height"
             className="mt-1"
             onCommit={(value) => {

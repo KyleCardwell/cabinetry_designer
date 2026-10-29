@@ -180,6 +180,8 @@ export const DEFAULT_SETTINGS = {
   drawerBoxAdjustment: 0.125,
   rolloutHeight: 4.25,
   rolloutSpacer: 1.25,
+  /** Extra width on pre-finished maple drawer boxes and roll-outs, centred on the box (AU8; 0 = the shop doesn't add any). */
+  prefinishedMapleExtra: 0.0625,
   drawerBoxOrder: {
     sideMaterial: 'Baltic Birch Ply',
     sideThickness: '5/8"',

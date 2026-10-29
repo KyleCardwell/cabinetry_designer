@@ -199,3 +199,17 @@ export function roundTo(n, step) {
   const adjusted = quotient + MATH_EPSILON;
   return normalizeResult(Math.round(adjusted) * step);
 }
+
+/** Six-place rounding for profile and door-section coordinates (toFixed, so -0 becomes 0). */
+export function round6(value) {
+  const rounded = Number(value.toFixed(6));
+  return rounded === 0 ? 0 : rounded;
+}
+
+/**
+ * Six-place rounding for DXF arc bulges (Math.round, so halves round up; -0 becomes 0).
+ * Kept apart from round6: the two differ on halves and the DXF bulges are in the golden payload.
+ */
+export function roundBulge(value) {
+  return Math.round(value * 1e6) / 1e6 || 0;
+}

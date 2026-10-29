@@ -312,6 +312,17 @@ describe('IN5 step b drawer box sizing', () => {
     expect(before.reportParts.a.boxes).toBe('Maple');
     expect({ ...room, reportParts: before.reportParts }).toEqual(before);
   });
+
+  it('AU8: the pre-finished maple extra width is a shop setting', () => {
+    const plain = sized({}).boxes[0];
+    const box = (extra) => cabinetDrawerBoxes({ ...input({ prefinishedMaple: true }),
+      settings: { ...settings, prefinishedMapleExtra: extra } }).boxes[0];
+    expect(sized({ prefinishedMaple: true }).boxes[0]).toMatchObject({
+      maple: true, mapleExtra: 0.0625, width: plain.width + 0.0625, x: plain.x - 0.03125 });
+    expect(box(0.125)).toMatchObject({ maple: true, mapleExtra: 0.125, width: plain.width + 0.125, x: plain.x - 0.0625 });
+    expect(box(0)).toMatchObject({ maple: false, mapleExtra: 0, width: plain.width, x: plain.x });
+    expect(plain).toMatchObject({ maple: false, mapleExtra: 0 });
+  });
 });
 
 describe('IN6 step b drawer rules', () => {

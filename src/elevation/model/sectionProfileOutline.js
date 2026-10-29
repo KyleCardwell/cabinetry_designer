@@ -1,5 +1,6 @@
+import { roundBulge } from './units.js';
+
 const FULL_TURN = Math.PI * 2;
-const roundBulge = (value) => Math.round(value * 1e6) / 1e6 || 0;
 
 /** Keep each segment's bulge at its start; split arcs over 180 degrees at their midpoint. */
 function loopOutline(loop, points) {

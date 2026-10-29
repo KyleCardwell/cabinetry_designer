@@ -20,6 +20,7 @@ import { createRun } from '../runDefaults.js';
 import { splitRun } from '../splitRun.js';
 import { wallEndPanelPolygon, wallEndPanels } from '../wallEndPanels.js';
 import {
+  featuresOn,
   mirrorOpening,
   wallSideFrame,
   wallSideOf,
@@ -511,5 +512,17 @@ describe('wall sides', () => {
 
     expect(wallEndPanels(synced, P, settings)).toEqual([]);
     expect(byId(P, 'PB').width).toBe(96);
+  });
+});
+
+describe('AU8 featuresOn', () => {
+  it('filters one wall list by face, for a wall and side or a side view', () => {
+    const front = { id: 'f' };
+    const back = { id: 'b', wallSide: 'back' };
+    const wall = { id: 'w', soffits: [front, back] };
+    expect(featuresOn('soffits', wall)).toEqual([front]);
+    expect(featuresOn('soffits', wall, 'back')).toEqual([back]);
+    expect(featuresOn('soffits', { side: 'back', sideSource: wall })).toEqual([back]);
+    expect(featuresOn('recesses', wall)).toEqual([]);
   });
 });

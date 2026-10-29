@@ -72,7 +72,7 @@ export const SETTING_GROUPS = [
     keys: [
       'drawerSlideId', 'drawerBoxHeights.from', 'drawerBoxHeights.to', 'drawerBoxHeights.thenFrom',
       'drawerBoxHeights.max', 'drawerBoxHeights.step', 'drawerBoxHeights.warnAbove',
-      'drawerBoxAdjustment', 'rolloutHeight', 'rolloutSpacer',
+      'drawerBoxAdjustment', 'rolloutHeight', 'rolloutSpacer', 'prefinishedMapleExtra',
       'drawerBoxOrder.sideMaterial', 'drawerBoxOrder.sideThickness', 'drawerBoxOrder.bottomMaterial',
       'drawerBoxOrder.topEdge', 'drawerBoxOrder.bottomPlacement', 'drawerBoxOrder.assembly',
       'drawerBoxOrder.comments',

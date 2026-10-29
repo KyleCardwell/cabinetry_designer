@@ -108,7 +108,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('DB2 d room settings panel', () => {
   it('IN4b d offers slide names, inherits Blum, saves the room pick and shows missing IDs (anchor 3)', () => {
     const tree = openGroup('Drawer boxes');
-    expect(controls(tree)).toHaveLength(17);
+    expect(controls(tree)).toHaveLength(18);
     const select = field(tree, 'Room Drawer slide');
     expect(select.props.value).toBe('');
     expect(options(select)).toEqual([

@@ -88,7 +88,8 @@ export function sectionRollouts({ interior, faces, boxes = [], leaf, settings, i
       const resolved = resolveBoxSlide(settings, { box: item.slideId ?? null, cabinet: leaf.drawerSlideId ?? null });
       const { slide } = resolved;
       const { spacers, unknown } = columnSpacers(column, covering, setting('rolloutSpacer'));
-      const maple = prefinishedMaple && !inset;
+      const mapleExtra = setting('prefinishedMapleExtra');
+      const maple = prefinishedMaple && !inset && mapleExtra > 0;
       const standard = fittingLength(slide, section.depth - slide.backClearance);
       const sink = leaf.purpose === 'sink';
       const depthAuto = sink ? sinkDepth(slide, standard) : standard;
@@ -96,14 +97,14 @@ export function sectionRollouts({ interior, faces, boxes = [], leaf, settings, i
       const slideLength = depth === null ? null : fittingLength(slide, depth);
       const notch = slideNotch(slide, slideLength, section.depth);
       const height = item.height ?? setting('rolloutHeight');
-      const width = slideBoxWidth(slide, column.width - spacers.left - spacers.right) + (maple ? 1 / 16 : 0);
+      const width = slideBoxWidth(slide, column.width - spacers.left - spacers.right) + (maple ? mapleExtra : 0);
       const rollout = {
         index, side, ...resolved, height, heightSource: item.height === undefined ? 'auto' : 'manual',
         width, depth, depthAuto, depthSource: item.depth !== undefined ? 'manual' : sink ? 'rule' : 'auto',
         depthRule: item.depth === undefined && sink ? 'DRW-006' : null,
         slideLength, notch, interiorDepth: section.depth,
-        spacers, maple, clips: slide.clips === false ? null : 'standard',
-        x: column.x + spacers.left + slide.sideClearance - (maple ? 1 / 32 : 0),
+        spacers, maple, mapleExtra: maple ? mapleExtra : 0, clips: slide.clips === false ? null : 'standard',
+        x: column.x + spacers.left + slide.sideClearance - (maple ? mapleExtra / 2 : 0),
         z: item.at === undefined ? zone.z + slide.minBelow : section.z + item.at,
         zSource: item.at === undefined ? 'auto' : 'manual', column,
       };

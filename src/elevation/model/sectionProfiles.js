@@ -1,3 +1,5 @@
+import { round6 } from './units.js';
+
 function isPlainObject(value) {
   if (value === null || typeof value !== 'object') return false;
   const prototype = Object.getPrototypeOf(value);
@@ -451,11 +453,6 @@ const OLD_PINS = {
   toe_kick: { x: 'box_front', y: 'floor' },
   nosing: { x: 'edge_face', y: 'edge_top' },
 };
-
-function round6(value) {
-  const rounded = Number(value.toFixed(6));
-  return rounded === 0 ? 0 : rounded;
-}
 
 /** SPEC-48.2 turns older tags into a kind and moves the old pin to 0, 0, without mutating the input. */
 export function migrateSectionProfile(entry) {

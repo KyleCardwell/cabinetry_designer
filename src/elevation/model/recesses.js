@@ -4,7 +4,7 @@ import { clamp, wallLength } from './geometry.js';
 import { verticalStart } from './overlap.js';
 import { positionReadouts, startFromReadout, stretchedStart } from './positions.js';
 import { roundTo } from './units.js';
-import { wallSideFrame, wallSideOf, wallSideView } from './wallSides.js';
+import { featuresOn, wallSideFrame, wallSideOf, wallSideView } from './wallSides.js';
 
 /** SPEC-38: a recess is cut back into a wall face; a projection is built out from it. */
 export const RECESS_KINDS = ['recess', 'projection'];
@@ -26,9 +26,8 @@ function kindOf(recess) {
 }
 
 /** The recesses and projections on one face: a side view's own face, or a wall and a side. */
-export function recessesOn(wallOrView, side = wallOrView.side ?? 'front') {
-  const wall = wallOrView.sideSource ?? wallOrView;
-  return (wall.recesses ?? []).filter((recess) => wallSideOf(recess) === side);
+export function recessesOn(wallOrView, side) {
+  return featuresOn('recesses', wallOrView, side);
 }
 
 /**

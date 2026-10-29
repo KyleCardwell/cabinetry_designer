@@ -5,6 +5,8 @@ import {
   formatInches,
   formatInchesInput,
   parseInches,
+  round6,
+  roundBulge,
   roundTo,
 } from '../units.js';
 import { formatDimension as exportedFormatDimension } from '../index.js';
@@ -107,5 +109,19 @@ describe('SPEC-21 inch math', () => {
     for (const input of ['', 'abc', '1/0', '2 2/2', '3 feet', '30 +', '(30', '30)', '2(3)', '1..5', "8''", '5 5']) {
       expect(parseInches(input), input).toBeNull();
     }
+  });
+});
+
+describe('AU8 shared six-place rounding', () => {
+  it('round6 uses toFixed and drops negative zero', () => {
+    expect(round6(1.23456749)).toBe(1.234567);
+    expect(round6(-0.0000001)).toBe(0);
+    expect(Object.is(round6(-0.0000001), 0)).toBe(true);
+  });
+
+  it('roundBulge rounds halves up and drops negative zero', () => {
+    expect(roundBulge(0.4142135)).toBe(0.414214);
+    expect(roundBulge(-0.0000005)).toBe(0);
+    expect(Object.is(roundBulge(-0.0000001), 0)).toBe(true);
   });
 });

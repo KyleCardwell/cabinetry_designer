@@ -3,6 +3,12 @@ import { add, scale, wallFrame } from './geometry.js';
 
 export const WALL_SIDES = ['front', 'back'];
 
+/** The items of one wall list (`recesses`, `soffits`) on one face: a side view's own face, or a wall and a side. */
+export function featuresOn(key, wallOrView, side = wallOrView.side ?? 'front') {
+  const wall = wallOrView.sideSource ?? wallOrView;
+  return (wall[key] ?? []).filter((item) => wallSideOf(item) === side);
+}
+
 export function wallSideOf(entity) {
   return entity?.wallSide === 'back' ? 'back' : 'front';
 }

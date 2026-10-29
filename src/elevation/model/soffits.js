@@ -6,16 +6,15 @@ import { landingProjection, landingsOn } from './landings.js';
 import { boxTopOf, moldingStack } from './profile.js';
 import { recessGeometry, recessesOn, uncoveredSpans } from './recesses.js';
 import { roundTo } from './units.js';
-import { wallSideOf, wallViewForRun } from './wallSides.js';
+import { featuresOn, wallSideOf, wallViewForRun } from './wallSides.js';
 
 const SPAN_EPSILON = 1e-6;
 
 export const SOFFIT_MOLDINGS = ['crown', 'topMold', 'none'];
 
 /** Return the soffits visible on one side of a wall. */
-export function soffitsOn(wallOrView, side = wallOrView.side ?? 'front') {
-  const wall = wallOrView.sideSource ?? wallOrView;
-  return (wall.soffits ?? []).filter((soffit) => wallSideOf(soffit) === side);
+export function soffitsOn(wallOrView, side) {
+  return featuresOn('soffits', wallOrView, side);
 }
 
 function anchoredDatum(room, view, anchor, side) {

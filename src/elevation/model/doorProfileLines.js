@@ -1,12 +1,8 @@
 import { DOOR_PROFILE_SLOTS } from './doorStyles.js';
 import { doorProfileSlotKind, sectionProfileBounds, stretchProfileGeometry } from './sectionProfiles.js';
+import { round6 } from './units.js';
 
 const EPS = 1e-6;
-
-function round6(v) {
-  const rounded = Number(v.toFixed(6));
-  return Object.is(rounded, -0) ? 0 : rounded;
-}
 
 /** SPEC-50 a door style's picked profiles as elevation offsets, with their reach and the style-level warnings. */
 export function doorProfileOffsets(style, design, profiles = []) {

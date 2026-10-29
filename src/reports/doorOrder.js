@@ -10,6 +10,7 @@ import { isJoinedEnd, isSheetCell } from '../elevation/model/panelThickness.js';
 import { partNumbers, wallEndPanelPartKey } from '../elevation/model/partNumbers.js';
 import { resolveWall } from '../elevation/model/room.js';
 import { runScene } from '../elevation/model/runScene.js';
+import { roundTo } from '../elevation/model/units.js';
 import { wallEndPanels } from '../elevation/model/wallEndPanels.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { formatInch, formatSize } from './format.js';
@@ -53,8 +54,8 @@ const numberOrder = (number) => typeof number === 'number' ? number : Infinity;
 export function mergeLines(items) {
   const lines = new Map();
   for (const { number, width, height, notes = '', qty = 1 } of items) {
-    const w = Math.round(width * 32) / 32;
-    const h = Math.round(height * 32) / 32;
+    const w = roundTo(width, 1 / 32);
+    const h = roundTo(height, 1 / 32);
     const key = JSON.stringify([number, w, h, notes]);
     if (lines.has(key)) lines.get(key).qty += qty;
     else lines.set(key, { number, qty, width: w, height: h, size: formatSize(w, h), notes });

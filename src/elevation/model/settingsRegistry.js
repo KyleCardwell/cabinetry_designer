@@ -47,6 +47,7 @@ const roomNumbers = [
   ['drawerBoxAdjustment', 'Drawer box vertical adjustment'],
   ['rolloutHeight', 'Roll-out height'],
   ['rolloutSpacer', 'Roll-out hinge spacer'],
+  ['prefinishedMapleExtra', 'Pre-finished maple extra width'],
   ['shelfSpacing', 'Min clear between shelves'],
   ['shelfWidthClearance', 'Shelf side clearance'],
   ['shelfSetback', 'Shelf front setback'],

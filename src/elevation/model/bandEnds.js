@@ -1,8 +1,8 @@
 import { flattenOutline, transformOutline } from './sectionProfileOutline.js';
+import { roundBulge } from './units.js';
 
 const EPSILON = 1e-6;
 const TURN = 2 * Math.PI;
-const roundBulge = (value) => Math.round(value * 1e6) / 1e6 || 0;
 
 function arcOf([x, z, bulge = 0], [tx, tz]) {
   if (!bulge || (x === tx && z === tz)) return null;

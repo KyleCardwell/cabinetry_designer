@@ -208,7 +208,7 @@ function warning(code, pieceId, message) {
 }
 
 /**
- * Split a run into positioned end, cabinet, and interior-filler pieces.
+ * Split one run, or one segment of a held run, into positioned end, cabinet, and interior-filler pieces.
  *
  * @param {object} run
  * @param {object} settings
@@ -218,7 +218,7 @@ function warning(code, pieceId, message) {
  * }} [opts]
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
-function splitRunLegacy(run, settings, opts) {
+function splitSegment(run, settings, opts) {
   const items = itemsWithGaps(run, settings);
   const {
     available,
@@ -544,7 +544,7 @@ export function splitRun(run, settings, opts) {
   };
   const plan = pinPlan(run, settings, opts);
   if (!plan) {
-    const layout = splitRunLegacy(run, settings, opts);
+    const layout = splitSegment(run, settings, opts);
     return steppedLayout(run, { ...layout, ...panels });
   }
 
@@ -557,7 +557,7 @@ export function splitRun(run, settings, opts) {
     warnings.push(...layout.warnings);
     errors.push(...layout.errors);
   };
-  appendLayout(splitRunLegacy(leftSegmentRun(run, plan), settings, opts));
+  appendLayout(splitSegment(leftSegmentRun(run, plan), settings, opts));
 
   actualPins.forEach((pin, index) => {
     const pinnedPiece = {
@@ -588,7 +588,7 @@ export function splitRun(run, settings, opts) {
     }
   });
 
-  appendLayout(splitRunLegacy(rightSegmentRun(run, plan), settings, opts));
+  appendLayout(splitSegment(rightSegmentRun(run, plan), settings, opts));
 
   return steppedLayout(run, { pieces, warnings, errors, ...panels });
 }
@@ -608,7 +608,7 @@ function pinPlan(run, settings, opts) {
   ));
   if (pinnedItems.length === 0) return null;
 
-  const pass1 = splitRunLegacy(run, settings, opts);
+  const pass1 = splitSegment(run, settings, opts);
   const pass1Pieces = new Map(pass1.pieces.map((piece) => [piece.id, piece]));
   const retainedPinWidths = opts?.pinWidths ?? run._pinWidths ?? {};
   const pins = pinnedItems.map((item) => {

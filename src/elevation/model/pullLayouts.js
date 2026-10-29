@@ -1,4 +1,5 @@
 import { findLeaf } from './cellTree.js';
+import { DEFAULT_SETTINGS } from './constants.js';
 import { doorDrawing, runDoorDetails } from './doorDetails.js';
 import { cabinetFaceLevels } from './doorStyleResolve.js';
 import { getFaceNode } from './faceTree.js';
@@ -37,7 +38,7 @@ export function pullDefaults(settings, faceType) {
 }
 
 /** Place one resolved face's hardware in wall inches, with z measured from the floor. */
-export function facePullPlacement({ face, part, pull, pullHeight = 45, overrides = {}, defaults = {} }) {
+export function facePullPlacement({ face, part, pull, pullHeight = DEFAULT_SETTINGS.pullHeight, overrides = {}, defaults = {} }) {
   const drawer = ['drawer_front', 'false_front'].includes(face.type);
   const hinge = face.type === 'pair_door' ? face.half : face.hinge;
   const railAuto = hinge === 'top' ? 'bottom-rail'
@@ -135,7 +136,7 @@ export function runPulls(room, wall, run, settings, scene = runScene(room, wall,
       warnings.push(...resolved.warnings.map(({ code }) => ({ code, ...identity })));
       const part = parts.get(`${pieceId}:${path}${half ? `:${half}` : ''}`);
       const placement = facePullPlacement({ face, part, pull: resolved.pull,
-        pullHeight: item?.pullHeight ?? settings?.pullHeight ?? 45, overrides: node ?? {},
+        pullHeight: item?.pullHeight ?? settings?.pullHeight ?? DEFAULT_SETTINGS.pullHeight, overrides: node ?? {},
         defaults: pullDefaults(settings, face.type) });
       warnings.push(...placement.warnings.map((code) => ({ code, ...identity })));
       if (!placement.centers.length) continue;

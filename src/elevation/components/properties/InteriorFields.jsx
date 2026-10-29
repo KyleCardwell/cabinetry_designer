@@ -348,7 +348,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                     </Field>
                   ))}
                   <p aria-label={`Roll-out size ${key}`} className="text-xs text-gray-400">
-                    {`${size(box.width)} wide · ${spacers}${box.maple ? ' · +1/16 maple' : ''}`}
+                    {`${size(box.width)} wide · ${spacers}${box.maple ? ` · +${size(box.mapleExtra)} maple` : ''}`}
                   </p>
                   {box.warnings.map(({ code }) => (
                     <p key={code} className="text-xs text-amber-400">{rolloutWarning(code, box, settings)}</p>

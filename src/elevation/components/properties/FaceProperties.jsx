@@ -29,6 +29,7 @@ import {
   setSeamNoRail,
   splitFace,
 } from '../../model/index.js';
+import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { facePartType, cabinetFaceLevels } from '../../model/doorStyleResolve.js';
 import { runDoorDetails } from '../../model/doorDetails.js';
 import { PULL_POSITIONS, pullPartType, pullPickOptions, resolvePull } from '../../model/pulls.js';
@@ -120,7 +121,7 @@ export default function FaceProperties({ part, wall, run, piece, item, itemIds =
     face: resolvedFace,
     part: doorDetails.parts.find((part) => part.key === `${piece.id}:${facePath}${resolvedFace.half ? `:${resolvedFace.half}` : ''}`),
     pull: resolvedPull,
-    pullHeight: item.pullHeight ?? settings?.pullHeight ?? 45,
+    pullHeight: item.pullHeight ?? settings?.pullHeight ?? DEFAULT_SETTINGS.pullHeight,
     defaults: pullDefaults(settings, resolvedFace.type),
   }) : null;
   const drawerPulls = ['drawer_front', 'false_front'].includes(selected?.type);

@@ -182,6 +182,16 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
       .toMatchObject({ maple: false, width: 20.75, clips: 'standard' });
   });
 
+  it('AU8: the roll-out maple extra width follows the shop setting', () => {
+    const room = roomWith([{ id: 'c' }]);
+    room.reportParts = { c: { boxes: 'Pre-finished Maple' } };
+    const rollout = (extra) => wallRollouts(room, room.walls[0], 'front', { ...settings, prefinishedMapleExtra: extra })
+      .get('c').get('r').rollouts[0];
+    const plain = wallRollouts(roomWith([{ id: 'c' }]), room.walls[0], 'front', settings).get('c').get('r').rollouts[0];
+    expect(rollout(0.125)).toMatchObject({ maple: true, mapleExtra: 0.125, width: 20.875, x: plain.x - 0.0625 });
+    expect(rollout(0)).toMatchObject({ maple: false, mapleExtra: 0, width: 20.75, x: plain.x });
+  });
+
   it('anchor 11: uses both spacers and warns when a covering door has no resolved hinge', () => {
     const entry = root({ leaf: { face: face('door', { hinge: undefined }) } });
     expect(entry.rollouts[0]).toMatchObject({ width: 19.5, spacers: { left: 1.25, right: 1.25 } });

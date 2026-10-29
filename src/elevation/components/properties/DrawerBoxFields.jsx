@@ -99,7 +99,7 @@ export default function DrawerBoxFields({ room, wall, run, item, itemIds = [item
                 </Field>
                 <Field label="Width">
                   <div aria-label={`Drawer width ${box.path}`} className="py-1.5 text-sm text-gray-300">
-                    {`${formatInches(box.width, 1 / 64)}${box.maple ? ' +1/16 maple' : ''}`}
+                    {`${formatInches(box.width, 1 / 64)}${box.maple ? ` +${formatInches(box.mapleExtra, 1 / 64).replace(/"$/, '')} maple` : ''}`}
                   </div>
                 </Field>
               </div>

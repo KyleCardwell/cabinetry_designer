@@ -76,6 +76,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'drawerBoxAdjustment',
   'rolloutHeight',
   'rolloutSpacer',
+  'prefinishedMapleExtra',
   'shelfSpacing',
   'shelfWidthClearance',
   'shelfSetback',

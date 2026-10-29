@@ -3,13 +3,9 @@ import { DOOR_PROFILE_SLOTS } from './doorStyles.js';
 import { doorProfileSlotKind, sectionProfileBounds, stretchProfileGeometry } from './sectionProfiles.js';
 import { doorProfileOffsets } from './doorProfileLines.js';
 import { midDefaults } from './doorSizes.js';
+import { round6 } from './units.js';
 
 const EPS = 1e-6;
-
-function round6(v) {
-  const rounded = Number(v.toFixed(6));
-  return Object.is(rounded, -0) ? 0 : rounded;
-}
 
 function add(chain, label, from, to) {
   from = round6(from);
