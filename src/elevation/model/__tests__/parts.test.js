@@ -24,9 +24,10 @@ describe('SPEC-39 the parts list', () => {
     }
   });
 
-  it('gives every part its source, and every part but moldings a rectangle', () => {
+  it('gives every part but group-level wood tops its source, and every part but wood tops and moldings a rectangle', () => {
     for (const room of synced) {
       for (const part of roomParts(room, settings)) {
+        if (part.key.startsWith('wood_top:')) continue;
         expect(['piece', 'tee', 'frame', 'wall_end_panel', 'molding']).toContain(part.source);
         if (part.source === 'molding') {
           expect([part.x, part.z, part.height]).toEqual([null, null, null]);

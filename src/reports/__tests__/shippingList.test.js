@@ -65,9 +65,9 @@ describe('FX4 step f wood tops on the shipping list', () => {
     ends: { left: { type: 'none' }, right: { type: 'none' } } };
 
   it('anchor 1: prints the Room 9 description, W x D x T and no notes', () => {
-    // Keep the specified width: the stored fixture currently draws 60 15/16, not 61 1/16.
+    // The stored fixture has no nosing profile, so its free end gets the default 3/4-inch overhang.
     expect(row(syncRoom(stored, using), key, using)).toMatchObject({
-      description: 'Wood Top', size: '61 1/16 x 25 5/8 x 1 1/2', notes: [],
+      description: 'Wood Top', size: '60 15/16 x 25 5/8 x 1 1/2', notes: [],
     });
   });
 

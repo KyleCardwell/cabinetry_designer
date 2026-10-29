@@ -32,7 +32,7 @@ const badges = (room, wall, side, result = partNumbers(room, settings)) => wallM
 
 describe('SPEC-50.7 step 496 furniture base part numbers and badges', () => {
   it('keeps golden parts and numbers unchanged (anchor 1)', () => {
-    const counts = [33, 21, 12, 12, 12, 18];
+    const counts = [33, 21, 12, 12, 12, 19];
     for (const [index, stored] of document.rooms.entries()) {
       const room = syncRoom(stored, settings);
       const result = partNumbers(room, settings);

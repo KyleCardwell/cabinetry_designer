@@ -93,6 +93,7 @@ describe('C1 golden rooms', () => {
       // FL2.1 b moves only their inner corner-gap/filler (G1 upper) or stile (G2 lower)
       // boundary toward the run by 13/16"; overall chains and physical pieces stay the same.
       // FX5 g adds only derived _panelMiters on G2's single-panel back run; geometry is unchanged.
+      // FX4 adds G6's wood top as part 10 and shifts each later G6 part number by one.
       const room = document.rooms.find((candidate) => candidate.name === name);
       expect(derived(room)).toMatchSnapshot();
     });

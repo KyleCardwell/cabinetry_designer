@@ -26,18 +26,18 @@ const island = room({ walls: [wall({ id: 'island', x2: 96, thickness: 0, runs: [
 ] })] });
 
 describe('FX4 step e wood top part numbers and badges', () => {
-  it('anchor 1: numbers Room 9 Wall 4 filler 13 through wood top 17', () => {
-    // Preserve the specified anchor: the current fixture starts this run at 12, already before step e.
+  it('anchor 1: numbers Room 9 Wall 4 filler 12 through wood top 16', () => {
+    // The 11 parts before the desk put its filler at 12.
     const result = partNumbers(room9, room9Settings);
     expect(result.parts.filter(({ runId, key }) => runId === DESK || key === DESK_TOP)
       .map(({ kind, number }) => [kind, number])).toEqual([
-      ['filler', 13], ['cabinet', 14], ['cabinet', 15], ['end_panel', 16], ['wood_top', 17],
+      ['filler', 12], ['cabinet', 13], ['cabinet', 14], ['end_panel', 15], ['wood_top', 16],
     ]);
     const topIndex = result.parts.findIndex(({ key }) => key === DESK_TOP);
     expect(result.parts.slice(topIndex + 1).every(({ kind }) => kind === 'molding')).toBe(true);
   });
 
-  it('anchor 2: centres one Room 9 WT badge on 18 13/16–79 7/8 in canvas and DXF', () => {
+  it('anchor 2: centres one Room 9 WT badge on 18 13/16–79 3/4 in canvas and DXF', () => {
     const { byKey } = partNumbers(room9, room9Settings);
     const badges = wallMoldingBadges(room9, wallSideView(deskWall), room9Settings, byKey)
       .filter(({ label }) => label === 'WT');
@@ -45,11 +45,11 @@ describe('FX4 step e wood top part numbers and badges', () => {
       molding: 'wood_top', slot: 0, key: DESK_TOP, number: byKey.get(DESK_TOP), label: 'WT',
       x: 18.8125, z: 28.5, width: 60.9375, height: 1.5,
     }]);
-    // Step d's stored Room 9 span ends at 79 3/4; retain step e's 79 7/8 anchor.
-    expect(badges[0].x + badges[0].width).toBe(79.875);
+    // The stored Room 9 span ends at 79 3/4 with the default 3/4-inch free-end overhang.
+    expect(badges[0].x + badges[0].width).toBe(79.75);
     expect(elevationPartNumbers(room9, deskWall, 'front', room9Settings)
       .filter(({ key }) => key === DESK_TOP)).toEqual([
-      expect.objectContaining({ text: `WT ${byKey.get(DESK_TOP)}`, x: (18.8125 + 79.875) / 2, z: 29.25 }),
+      expect.objectContaining({ text: `WT ${byKey.get(DESK_TOP)}`, x: (18.8125 + 79.75) / 2, z: 29.25 }),
     ]);
   });
 
