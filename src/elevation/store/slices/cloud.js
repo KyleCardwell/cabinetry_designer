@@ -3,7 +3,7 @@ import { allowedAt, registryEntry } from '../../model/settingsRegistry.js';
 import { isValidSettingValue, withOverride } from '../../model/settingsResolve.js';
 import { syncRoomAt } from './helpers.js';
 
-export const LAYER_LEVELS = ['project', 'phase'];
+const LAYER_LEVELS = ['project', 'phase'];
 
 // Set by elevationSlice.js (it owns createInitialElevationState; importing it here would be circular).
 let buildInitialState = null;

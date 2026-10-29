@@ -3,10 +3,10 @@ import { openingGeometry } from './openings.js';
 import { resolvePinTarget } from './room.js';
 
 /** Height above the floor where centerline callouts are drawn. */
-export const CENTERLINE_CALLOUT_Z = 40;
+const CENTERLINE_CALLOUT_Z = 40;
 
 /** How far above an opening's jamb bottom a pin callout to that opening sits (SPEC-39.1). */
-export const CENTERLINE_ABOVE_SILL = 6;
+const CENTERLINE_ABOVE_SILL = 6;
 
 /**
  * A pinned cabinet's position callout (SPEC-12, SPEC-38.1): from the pin's datum (a wall end or an opening

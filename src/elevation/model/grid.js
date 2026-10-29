@@ -1,7 +1,7 @@
 export const LEAF_KINDS = ['cabinet', 'filler', 'panel', 'void', 'shelves'];
 /** Leaf kinds that never carry a blind. */
 const BLINDLESS_KINDS = new Set(['panel', 'void', 'shelves']);
-export const SIZE_MODES = ['auto', 'manual', 'solved'];
+const SIZE_MODES = ['auto', 'manual', 'solved'];
 
 function itemParts(item) {
   const leaf = {};

@@ -11,7 +11,7 @@ const PROBE = 1e-3;
 const SAME = 1e-3;
 
 /** An edge or an overlap shorter than this (inches) is left out of the clearances. */
-export const CLEARANCE_MIN_EDGE = 1;
+const CLEARANCE_MIN_EDGE = 1;
 
 const clean = (value) => Math.round(value * 10000) / 10000 + 0;
 const dot = (a, b) => a.x * b.x + a.y * b.y;

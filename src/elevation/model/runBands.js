@@ -349,7 +349,7 @@ export function runBaseSegments(room, wall, run, settings, scene, kind, base) {
 }
 
 /** Furniture bands in x order, with cutouts placed within each segment's floor ends. */
-export function runFurnitureBaseBand(room, wall, run, settings, base, scene = runScene(room, wall, run, settings)) {
+function runFurnitureBaseBand(room, wall, run, settings, base, scene = runScene(room, wall, run, settings)) {
   return base.kind === 'furniture_base'
     ? runBaseSegments(room, wall, run, settings, scene, 'furnitureBase', base)
       .map(({ band }) => band) : [];

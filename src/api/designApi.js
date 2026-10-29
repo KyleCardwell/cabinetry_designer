@@ -15,7 +15,7 @@ const ERROR_REASONS = {
   40001: 'stale',
 };
 
-export function errorReply(error) {
+function errorReply(error) {
   return {
     ok: false,
     reason: ERROR_REASONS[error?.code] ?? 'error',

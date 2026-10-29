@@ -100,7 +100,7 @@ function clipPolygon(subject, clip) {
 }
 
 /** Return the area of overlap between two convex polygons. */
-export function polygonOverlap(a, b) {
+function polygonOverlap(a, b) {
   const polygon = clipPolygon(a, b);
   if (polygon.length < 3) return 0;
   let twiceArea = 0;

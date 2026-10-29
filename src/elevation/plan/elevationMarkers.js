@@ -10,8 +10,8 @@ import { PLAN_DIM_FONT_SIZE } from './constants.js';
 
 export const MARKER_RADIUS = 14;
 export const MARKER_FLAG_LENGTH = 10;
-export const MARKER_CLEARANCE = 6;
-export const MARKER_SHIFT = 24;
+const MARKER_CLEARANCE = 6;
+const MARKER_SHIFT = 24;
 
 /** Shared canvas row positions keep the marker flag beyond the last row and its moved text. */
 export function canvasDimensionRows(room, wall, settings, scale, factor = 1) {

@@ -9,16 +9,16 @@ export const MAX_CELL_SPLIT = 8;
 export const CELL_DIRECTIONS = ['across', 'down'];
 
 /** Kinds a nested cell can be. */
-export const CELL_KINDS = ['cabinet', 'panel', 'void', 'shelves'];
+const CELL_KINDS = ['cabinet', 'panel', 'void', 'shelves'];
 
 /** Most floating shelves in one shelves cell. */
 export const MAX_SHELVES = 12;
 
 /** Which panels run through when a cell is wrapped. */
-export const WRAP_THROUGH = ['sides', 'top'];
+const WRAP_THROUGH = ['sides', 'top'];
 
 /** Sides addGridPanel accepts. */
-export const PANEL_SIDES = ['left', 'right', 'above', 'below'];
+const PANEL_SIDES = ['left', 'right', 'above', 'below'];
 
 const DEFAULT_SHELVES = { count: 2, back: false };
 

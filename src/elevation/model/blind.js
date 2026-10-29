@@ -63,7 +63,7 @@ export function isBlindCovered(ranges, z, top) {
 }
 
 /** Return z-ranges of neighbouring runs that die into this run's corner. */
-export function coveredRanges(room, wall, run, side, settings) {
+function coveredRanges(room, wall, run, side, settings) {
   void settings;
   return cornerNeighborRuns(room, wall, run, side).runs
     .map((neighborRun) => [neighborRun.z, neighborRun.z + neighborRun.height]);

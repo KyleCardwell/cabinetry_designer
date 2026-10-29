@@ -37,7 +37,7 @@ function endSideOf(piece) {
 }
 
 /** The ordered width of a filler piece, or null when it is what the layout says. */
-export function fillerOrderedWidth(run, piece, settings) {
+function fillerOrderedWidth(run, piece, settings) {
   const side = endSideOf(piece);
   if (!side) return null;
   const stored = run.endFiller?.[side]?.width;

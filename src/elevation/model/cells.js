@@ -53,7 +53,7 @@ function isBoxNode(node) {
  * The gap after each track (SPEC-36): its own `gap`, else the run's seam gap between two columns
  * of cabinets. Rows take only their own. Never after the last track.
  */
-export function trackGaps(grid, key, seamGap = 0, insidePanels = []) {
+function trackGaps(grid, key, seamGap = 0, insidePanels = []) {
   const tracks = grid[key];
   const axis = key === 'cols' ? 'col' : 'row';
   const span = key === 'cols' ? 'colSpan' : 'rowSpan';

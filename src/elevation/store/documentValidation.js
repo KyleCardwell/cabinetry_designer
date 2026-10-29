@@ -518,7 +518,7 @@ function isConnection(connection) {
 }
 
 /** Validate a persisted opening, including pre-anchor v2/v3 documents. */
-export function isOpening(opening) {
+function isOpening(opening) {
   return Boolean(opening)
     && typeof opening.id === 'string'
     && (opening.kind === 'door' || opening.kind === 'window')

@@ -74,7 +74,7 @@ export function unflexRoom(room) {
 }
 
 /** How far one run edge may move out (+) or in (−) on its own, and what kind of edge it is. */
-export function flexEdge(run, side, settings, tolerance) {
+function flexEdge(run, side, settings, tolerance) {
   const anchor = run.anchors?.[side];
   if (!anchor) return { kind: 'free', lo: -tolerance, hi: tolerance };
   const offsetEdge = (gap) => ({

@@ -250,7 +250,7 @@ function runInnerSegments(room, wall, run, settings, layout) {
  * overhang holding it off the run, or a typed side overhang that differs from the default and reaches
  * past a free end. Segments run left to right on each side.
  */
-export function topEndSegments(room, wall, run, settings) {
+function topEndSegments(room, wall, run, settings) {
   const none = { left: [], right: [] };
   const profile = resolveProfile(settings, room, wall);
   const top = runTop(wall, run, profile);

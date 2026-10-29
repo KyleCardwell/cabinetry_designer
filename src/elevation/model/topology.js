@@ -130,7 +130,7 @@ export function chainOrientation(room, component) {
  * @param {string[]} previousOrder
  * @returns {string[]}
  */
-export function chainOrder(room, component, previousOrder = []) {
+function chainOrder(room, component, previousOrder = []) {
   const orientation = chainOrientation(room, component);
   let ordered = component.walls.map((entry) => entry.wallId);
   if (orientation < 0) ordered = ordered.reverse();

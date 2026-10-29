@@ -20,9 +20,6 @@ export function startFromReadout(from, anchor, value, width, wallLength) {
   return value - (anchor === 'center' ? width / 2 : 0);
 }
 
-/** The stretch directions a width input can use. */
-export const GROW_ENDS = ['left', 'both', 'right'];
-
 /**
  * New start for a span whose width changes: 'right' keeps the left edge, 'left' keeps the
  * right edge, 'both' keeps the center.

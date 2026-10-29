@@ -9,7 +9,7 @@ const DEFAULT_PADDING = {
 };
 
 /** Elevation zoom limit, 2000% of fit (FX5). */
-export const MAX_ELEVATION_ZOOM = 20;
+const MAX_ELEVATION_ZOOM = 20;
 
 /** @type {{zoom: number, panX: number, panY: number}} */
 export const DEFAULT_VIEW = { zoom: 1, panX: 0, panY: 0 };

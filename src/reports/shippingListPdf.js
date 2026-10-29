@@ -5,7 +5,7 @@ import { BORDER_LAYOUT, PAGE_MARGINS, reportFileName, reportFooter } from './pdf
  * A size wraps only before an "x", carrying the x to the next line with its number; a whole number and its
  * fraction never split ("34 15/16 x 30 1/2" / "x 23 15/16").
  */
-export function sizeText(size) {
+function sizeText(size) {
   return size.replace(/(\d) (?=\d)/g, '$1\u00a0').replace(/ x /g, ' x\u00a0');
 }
 

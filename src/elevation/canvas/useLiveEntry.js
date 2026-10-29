@@ -125,7 +125,7 @@ export function createLiveEntryController(notify = () => {}) {
 }
 
 /** Manage one live numeric canvas entry at a time. */
-export function useLiveEntry() {
+function useLiveEntry() {
   const [, render] = useReducer((value) => value + 1, 0);
   const controllerRef = useRef(null);
   if (controllerRef.current === null) {

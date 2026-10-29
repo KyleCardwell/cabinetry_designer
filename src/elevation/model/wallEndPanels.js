@@ -68,7 +68,7 @@ function panelRunJoin(runs, depth, override) {
 }
 
 /** How far a free wall end's runs and wall end panel stand out past the wall's end (run flex, SPEC-RF2). */
-export function wallEndFlex(wall, endpoint) {
+function wallEndFlex(wall, endpoint) {
   return (wall.sideSource ?? wall)._endFlex?.[endpoint] ?? 0;
 }
 

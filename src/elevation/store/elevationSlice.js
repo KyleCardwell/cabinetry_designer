@@ -321,7 +321,7 @@ export const ROOM_EDIT_ACTION_TYPES = new Set([
  * An issued version (SPEC-DB8a, `source: 'version'`) is frozen: besides the room edits, its
  * settings snapshot and library can't be changed either (nothing would save them anyway).
  */
-export const VERSION_LOCKED_ACTION_TYPES = new Set([
+const VERSION_LOCKED_ACTION_TYPES = new Set([
   ...ROOM_EDIT_ACTION_TYPES,
   ...[doorDesignReducers, sectionProfileReducers, shapeReducers, pullReducers, slideReducers, accessoryReducers].flatMap((group) => Object.keys(group))
     .map((name) => `${elevationSlice.name}/${name}`),

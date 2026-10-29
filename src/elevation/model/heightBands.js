@@ -13,7 +13,7 @@ const pick = (key, label, pickKind, furnitureBaseOnly = false) => field(key, lab
   pickKind, furnitureBaseOnly,
 });
 
-export const HEIGHT_BANDS = [
+const HEIGHT_BANDS = [
   { id: 'wall', label: 'Wall', rows: [
     [field('wallHeight', 'Wall height', 'number', { levels: SHOP_ROOM })],
   ] },

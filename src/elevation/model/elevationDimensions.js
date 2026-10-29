@@ -19,7 +19,7 @@ export const DIMENSION_TEXT_HEIGHT = 0.09375;
 export const DIMENSION_TEXT_GAP = 0.0625;
 
 /** Paper inches of dimension line required between each tick and the text gap (DM7). */
-export const DIMENSION_MIN_LINE = 0.0625;
+const DIMENSION_MIN_LINE = 0.0625;
 
 /** Paper inches inside a cell grid's left or bottom edge for its chain (SPEC-43.3). */
 const CELL_CHAIN_INSET = 0.25;

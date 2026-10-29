@@ -70,7 +70,7 @@ function ceilingOver(wall, run, piece) {
 /**
  * Where an extension reaches: a z for up/down, an x for left/right. Null when its target run is gone.
  */
-export function extensionEdge(wall, run, piece, direction, target) {
+function extensionEdge(wall, run, piece, direction, target) {
   if (target.to === 'by') {
     if (direction === 'down') return piece.z - target.amount;
     if (direction === 'up') return piece.z + piece.height + target.amount;

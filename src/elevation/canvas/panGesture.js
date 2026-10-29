@@ -1,5 +1,5 @@
 /** Pointer travel, in CSS pixels, before a press counts as a pan instead of a click. */
-export const PAN_THRESHOLD_PX = 3;
+const PAN_THRESHOLD_PX = 3;
 
 /**
  * Whether a press has travelled far enough from where it started to be a pan.

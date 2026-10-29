@@ -35,7 +35,7 @@ import { BUILT_IN_SLIDES, BUILT_IN_SLIDE_IDS, isSlideList, withSlideDefaults } f
 import { cleanOverrides, resolveSettings } from './settingsResolve.js';
 import { withPricingDefaults } from './libraryPricing.js';
 
-export const SNAPSHOT_FORMAT = 1;
+const SNAPSHOT_FORMAT = 1;
 
 const LIBRARY_LISTS = ['doorDesigns', 'sectionProfiles', 'pulls', 'slides', 'accessories', 'shapes'];
 const isPlainObject = (value) => Boolean(value) && typeof value === 'object' && !Array.isArray(value);

@@ -12,7 +12,7 @@ import {
 import { WALL_SIDES, wallSideFrame } from './wallSides.js';
 
 /** Paper inches a marker moves along its wall when its face has no runs (the canvas's MARKER_SHIFT). */
-export const PLAN_MARKER_SHIFT = 0.5;
+const PLAN_MARKER_SHIFT = 0.5;
 
 const EPSILON = 1e-6;
 const up = (point) => [point.x + 0, 0 - point.y];

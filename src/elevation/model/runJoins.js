@@ -88,7 +88,7 @@ export function joinTouchingStack(room, wallId, runId, settings) {
   return { ok: true, reason: null, room: current, joined };
 }
 
-export function runEdgeX(run, side) {
+function runEdgeX(run, side) {
   return side === 'left' ? run.x : run.x + run.width;
 }
 
@@ -97,7 +97,7 @@ export function runsOverlapVertically(a, b) {
     - Math.max(verticalStart(a), verticalStart(b)) > 0;
 }
 
-export function withoutAuto(end) {
+function withoutAuto(end) {
   const { auto, ...manualEnd } = end;
   void auto;
   return manualEnd;

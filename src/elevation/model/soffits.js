@@ -50,7 +50,7 @@ export function soffitMoldingDrop(molding, profile) {
 }
 
 /** Return the lowest soffit that overlaps an upper or tall run. */
-export function soffitOverRun(wall, run) {
+function soffitOverRun(wall, run) {
   if (run.cabinetTypeId !== CABINET_TYPE_IDS.UPPER
     && run.cabinetTypeId !== CABINET_TYPE_IDS.TALL) return null;
   const runRight = run.x + run.width;

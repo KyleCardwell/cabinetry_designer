@@ -2,9 +2,9 @@ import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { formatDimension } from '../model/units.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
 
-export const DEPTH_LANE_SHIFT = 28;
-export const DEPTH_POPOUT_LEADER = 10;
-export const DEPTH_LANES = {
+const DEPTH_LANE_SHIFT = 28;
+const DEPTH_POPOUT_LEADER = 10;
+const DEPTH_LANES = {
   [CABINET_TYPE_IDS.BASE]: 0,
   [CABINET_TYPE_IDS.UPPER]: -1,
   [CABINET_TYPE_IDS.TALL]: 1,

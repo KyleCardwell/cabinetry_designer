@@ -75,8 +75,8 @@ const DEPTH_LANES = {
   [CABINET_TYPE_IDS.TALL]: 1,
 };
 /** Paper inches: a lane's shift off the run's middle, and the least room kept at a run's ends (SPEC-45.2). */
-export const DEPTH_LANE_SHIFT = 0.375;
-export const DEPTH_MARGIN = 0.25;
+const DEPTH_LANE_SHIFT = 0.375;
+const DEPTH_MARGIN = 0.25;
 
 /** A run's depth from its plane to its front, across the run in its type's lane (SPEC-45.2). */
 function depthRecords(room, wall, run, settings) {

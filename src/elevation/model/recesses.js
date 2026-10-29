@@ -11,8 +11,8 @@ export const RECESS_KINDS = ['recess', 'projection'];
 /** What runs on a recess put under its top when it stops below the ceiling, as under a soffit. */
 export const RECESS_MOLDINGS = ['crown', 'topMold', 'none'];
 /** A new recess: 36" wide, 12" deep, floor to ceiling. */
-export const DEFAULT_RECESS = { width: 36, depth: 12 };
-export const MIN_RECESS_WIDTH = 1;
+const DEFAULT_RECESS = { width: 36, depth: 12 };
+const MIN_RECESS_WIDTH = 1;
 export const RECESS_PLACEMENT_MESSAGES = {
   'recess-too-small': 'A recess needs a width, a depth and some height.',
   'recess-out-of-bounds': 'A recess has to stay inside the wall.',
@@ -119,7 +119,7 @@ export function resizeRecess(recess, width, grow, length) {
 }
 
 /** The plane a run sits on (SPEC-38): its recess, resolved, or null on the wall face. */
-export function runPlane(wall, run) {
+function runPlane(wall, run) {
   if (!run.recessId) return null;
   const recess = recessesOn(wall, wallSideOf(run)).find((candidate) => candidate.id === run.recessId);
   if (!recess) return null;
