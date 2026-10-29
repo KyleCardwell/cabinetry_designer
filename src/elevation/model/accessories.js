@@ -1,5 +1,6 @@
 import { findEffect, isEffectList } from './accessoryEffects.js';
-import { gridLeaves } from './grid.js';
+import { roomCabinetLeaves } from './grid.js';
+import { treeLeaves } from './treeWalk.js';
 import { findLeaf } from './cellTree.js';
 import { wallDrawerBoxes } from './drawerBoxes.js';
 import { getInteriorNode } from './interiorTree.js';
@@ -220,30 +221,17 @@ export function wallAccessories(room, wall, side, settings, shared = {}) {
 
 /** Stored accessory picks by place, including nested grids, faces and interior groups. */
 export function* roomAccessoryUses(room) {
-  function* sections(node) {
-    if (!node) return;
-    if (node.children) {
-      for (const child of node.children) yield* sections(child);
-    } else {
-      for (const item of node.accessories ?? []) yield { node: item, key: 'accessoryId', place: 'section' };
-    }
-  }
-  function* faces(face) {
-    if (!face) return;
-    if (face.children) {
-      for (const child of face.children) yield* faces(child);
-    } else if (face.type === 'drawer_front') {
-      for (const item of face.drawerBox?.accessories ?? []) {
-        yield { node: item, key: 'accessoryId', place: 'drawer_box' };
+  for (const { item } of roomCabinetLeaves(room)) {
+    for (const { node } of treeLeaves(item.interior)) {
+      for (const accessory of node.accessories ?? []) {
+        yield { node: accessory, key: 'accessoryId', place: 'section' };
       }
     }
-  }
-  for (const wall of room?.walls ?? []) {
-    for (const run of wall.runs ?? []) {
-      for (const item of run.grid ? gridLeaves(run.grid) : []) {
-        if (item.kind !== 'cabinet') continue;
-        yield* sections(item.interior);
-        yield* faces(item.face);
+    for (const { node: face } of treeLeaves(item.face)) {
+      if (face.type === 'drawer_front') {
+        for (const accessory of face.drawerBox?.accessories ?? []) {
+          yield { node: accessory, key: 'accessoryId', place: 'drawer_box' };
+        }
       }
     }
   }

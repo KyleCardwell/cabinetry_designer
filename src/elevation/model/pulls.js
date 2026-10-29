@@ -1,5 +1,6 @@
 import { isStyleRef } from './doorStyles.js';
 import { gridLeaves } from './grid.js';
+import { treeLeaves } from './treeWalk.js';
 import { isLabor, isMoney } from './libraryPricing.js';
 
 export const PULL_KEYS = { door: 'doorPullId', drawer: 'drawerPullId' };
@@ -111,14 +112,6 @@ export function* roomPullUses(room) {
       if (node?.[key] != null) yield { node, key };
     }
   }
-  function* faces(face) {
-    if (!face) return;
-    if (face.children) {
-      for (const child of face.children) yield* faces(child);
-    } else if (pullPartType(face.type) && face.pullId != null) {
-      yield { node: face, key: 'pullId' };
-    }
-  }
   yield* picks(room?.settingsOverrides);
   for (const wall of room?.walls ?? []) {
     yield* picks(wall);
@@ -127,7 +120,9 @@ export function* roomPullUses(room) {
       for (const item of run.grid ? gridLeaves(run.grid) : []) {
         if (item.kind !== 'cabinet') continue;
         yield* picks(item);
-        yield* faces(item.face);
+        for (const { node: face } of treeLeaves(item.face)) {
+          if (pullPartType(face.type) && face.pullId != null) yield { node: face, key: 'pullId' };
+        }
       }
     }
   }

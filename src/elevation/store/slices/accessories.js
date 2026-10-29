@@ -1,6 +1,7 @@
 import { current } from '@reduxjs/toolkit';
 import { v4 as uuid } from 'uuid';
-import { gridLeaves } from '../../model/grid.js';
+import { roomCabinetLeaves } from '../../model/grid.js';
+import { treeLeaves } from '../../model/treeWalk.js';
 import { mergeAccessoryItems } from '../../model/accessoryItems.js';
 import { effectiveSettings } from '../../model/effectiveSettings.js';
 import { roomIndexFor, syncRoomAt } from './helpers.js';
@@ -15,12 +16,7 @@ export const accessoryReducers = {
     if (findAccessory(accessoryId, accessories)
       || (reassignTo !== null && findAccessory(reassignTo, accessories)?.attachesTo !== place)) return;
     let changed = false;
-    function move(node) {
-      if (!node) return;
-      if (node.children) {
-        node.children.forEach(move);
-        return;
-      }
+    function reassign(node) {
       if (!node.accessories?.some((item) => item.accessoryId === accessoryId)) return;
       changed = true;
       let merged;
@@ -32,20 +28,15 @@ export const accessoryReducers = {
       if (merged?.length) node.accessories = merged;
       else delete node.accessories;
     }
-    function faces(face) {
-      if (!face) return;
-      if (face.children) face.children.forEach(faces);
-      else if (face.type === 'drawer_front' && face.drawerBox) {
-        move(face.drawerBox);
-        if (!Object.keys(face.drawerBox).length) delete face.drawerBox;
-      }
-    }
-    for (const wall of state.rooms[index].walls ?? []) {
-      for (const run of wall.runs ?? []) {
-        for (const item of run.grid ? gridLeaves(run.grid) : []) {
-          if (item.kind !== 'cabinet') continue;
-          if (place === 'section') move(item.interior);
-          else faces(item.face);
+    for (const { item } of roomCabinetLeaves(state.rooms[index])) {
+      if (place === 'section') {
+        for (const { node } of treeLeaves(item.interior)) reassign(node);
+      } else {
+        for (const { node: face } of treeLeaves(item.face)) {
+          if (face.type === 'drawer_front' && face.drawerBox) {
+            reassign(face.drawerBox);
+            if (!Object.keys(face.drawerBox).length) delete face.drawerBox;
+          }
         }
       }
     }

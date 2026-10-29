@@ -6,6 +6,7 @@ import {
   teamDoorStyle,
 } from './doorStyles.js';
 import { gridLeaves } from './grid.js';
+import { treeLeaves } from './treeWalk.js';
 import { doorProfileOffsets, inset } from './doorProfileLines.js';
 import { midDefaults, partSizes } from './doorSizes.js';
 
@@ -117,20 +118,16 @@ export function faceEdgeProfiled(room, wall, run, item, faceNode, rect, settings
 /** The resolved style and design of every non-open cabinet face in a run. */
 export function runFaceStyles(room, wall, run, settings) {
   const faces = [];
-  function visit(node, cabinet) {
-    if (node.type) {
-      if (node.type === 'open') return;
+  for (const cabinet of run.grid ? gridLeaves(run.grid) : []) {
+    if (cabinet.kind !== 'cabinet') continue;
+    for (const { node } of treeLeaves(cabinet.face ?? { type: 'door' })) {
+      if (node.type === 'open') continue;
       const { style, design } = resolveDoorStyle(
         room, settings, facePartType(node.type),
         cabinetFaceLevels(room, wall, run, cabinet, node),
       );
       faces.push({ style, design });
-      return;
     }
-    for (const child of node.children) visit(child, cabinet);
-  }
-  for (const cabinet of run.grid ? gridLeaves(run.grid) : []) {
-    if (cabinet.kind === 'cabinet') visit(cabinet.face ?? { type: 'door' }, cabinet);
   }
   return faces;
 }

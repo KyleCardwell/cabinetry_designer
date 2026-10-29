@@ -1,4 +1,5 @@
-import { gridLeaves } from './grid.js';
+import { roomCabinetLeaves } from './grid.js';
+import { treeLeaves } from './treeWalk.js';
 import { isLabor, isMoney } from './libraryPricing.js';
 
 export const SLIDE_MOUNTS = ['undermount', 'side'];
@@ -170,32 +171,17 @@ export function* roomSlideUses(room) {
   if (room?.settingsOverrides?.drawerSlideId != null) {
     yield { node: room.settingsOverrides, key: 'drawerSlideId' };
   }
-  function* faces(face) {
-    if (!face) return;
-    if (face.children) {
-      for (const child of face.children) yield* faces(child);
-    } else if ((face.type === 'drawer_front' || (face.type === 'door' && face.action === 'pullout'))
-      && face.drawerBox?.slideId != null) {
-      yield { node: face.drawerBox, key: 'slideId', face };
-    }
-  }
-  function* interiors(node) {
-    if (!node) return;
-    if (node.children) {
-      for (const child of node.children) yield* interiors(child);
-    } else {
-      for (const item of node.rollouts?.items ?? []) {
-        if (item.slideId != null) yield { node: item, key: 'slideId' };
+  for (const { item } of roomCabinetLeaves(room)) {
+    if (item.drawerSlideId != null) yield { node: item, key: 'drawerSlideId' };
+    for (const { node: face } of treeLeaves(item.face)) {
+      if ((face.type === 'drawer_front' || (face.type === 'door' && face.action === 'pullout'))
+        && face.drawerBox?.slideId != null) {
+        yield { node: face.drawerBox, key: 'slideId', face };
       }
     }
-  }
-  for (const wall of room?.walls ?? []) {
-    for (const run of wall.runs ?? []) {
-      for (const item of run.grid ? gridLeaves(run.grid) : []) {
-        if (item.kind !== 'cabinet') continue;
-        if (item.drawerSlideId != null) yield { node: item, key: 'drawerSlideId' };
-        yield* faces(item.face);
-        yield* interiors(item.interior);
+    for (const { node } of treeLeaves(item.interior)) {
+      for (const rollout of node.rollouts?.items ?? []) {
+        if (rollout.slideId != null) yield { node: rollout, key: 'slideId' };
       }
     }
   }

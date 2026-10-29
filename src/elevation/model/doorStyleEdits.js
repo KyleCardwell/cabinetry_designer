@@ -1,5 +1,6 @@
 import { DEFAULT_DESIGN_ID, DESIGN_DEFAULT_KEYS, DOOR_DESIGNS, DOOR_STYLE_KEYS, findDoorDesign, sheetThickness, teamDoorStyle } from './doorStyles.js';
 import { gridLeaves } from './grid.js';
+import { treeLeaves } from './treeWalk.js';
 import { formatInches } from './units.js';
 import { resolveDoorStyle } from './doorStyleResolve.js';
 import { midDefaults, partSizes } from './doorSizes.js';
@@ -78,14 +79,6 @@ function visitDoorStyleUses(room, styleId, visit) {
   const keys = (object, at) => {
     for (const key of DOOR_STYLE_KEYS) pick(object, key, { ...at, key });
   };
-  const faceLeaves = (node, at, path = 'r') => {
-    if (!node) return;
-    if (node.children) {
-      node.children.forEach((child, index) => faceLeaves(child, at, `${path}.${index}`));
-    } else {
-      pick(node, 'styleId', { level: 'face', ...at, path });
-    }
-  };
 
   keys(room, { level: 'room' });
   for (const wall of room.walls ?? []) {
@@ -105,7 +98,9 @@ function visitDoorStyleUses(room, styleId, visit) {
         if (leaf.kind === 'cabinet') {
           const itemAt = { ...runAt, itemId: leaf.id };
           keys(leaf, { level: 'cabinet', ...itemAt });
-          faceLeaves(leaf.face, itemAt);
+          for (const { node, path } of treeLeaves(leaf.face)) {
+            pick(node, 'styleId', { level: 'face', ...itemAt, path });
+          }
         } else if (leaf.kind === 'panel') {
           pick(leaf, 'styleId', { level: 'panelCell', ...runAt, cellId: leaf.id });
         }
