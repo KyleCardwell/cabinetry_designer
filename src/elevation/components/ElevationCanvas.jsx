@@ -18,53 +18,22 @@ import {
   elevationBaseCursor,
   useCanvasCursor,
 } from '../canvas/cursor.js';
-import { panExceedsThreshold } from '../canvas/panGesture.js';
 import {
   screenToWall,
   wallToScreen,
 } from '../canvas/transform.js';
-import {
-  dragPointsToRunInput,
-  screenPointToWallSnapped,
-} from '../canvas/drag.js';
 import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
 import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
 import { useMeasure } from '../canvas/measureState.js';
 import { elevationMeasureGeometry } from '../model/measure.js';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { elevationKey } from '../model/topology.js';
-import { createRun } from '../model/runDefaults.js';
 import { runItems } from '../model/grid.js';
 import { defaultPick, pickStack } from '../model/pick.js';
 import { setDividerPosition } from '../model/interiorTree.js';
+import { openingGeometry } from '../model/openings.js';
 import {
-  createSoffit,
-  resolveSoffitSpan,
-  validateSoffitPlacement,
-} from '../model/soffits.js';
-import {
-  createOpening,
-  openingGeometry,
-  validateOpeningPlacement,
-} from '../model/openings.js';
-import {
-  RECESS_PLACEMENT_MESSAGES,
-  createRecess,
-  recessForSpan,
-  validateRecessPlacement,
-} from '../model/recesses.js';
-import {
-  joinTouchingEdges,
-  joinTouchingStack,
-  tryPlaceRun,
-} from '../model/room.js';
-import {
-  addOpening,
-  addRecess,
-  addRun,
-  addSoffit,
   moveOpening,
-  replaceWallLayout,
   setItemWidth,
   setItemInterior,
   setTrackSize,
@@ -105,6 +74,9 @@ import useWallOverlays from './canvas/useWallOverlays.js';
 import { useDimensionChains, useDimensionOffsets } from './canvas/useDimensionLayout.js';
 import useCanvasView from './canvas/useCanvasView.js';
 import useCanvasPan from './canvas/useCanvasPan.js';
+import { runEdgeXForWidth, runWidthForEdgeX } from './canvas/runEdges.js';
+import useDrawGestures from './canvas/useDrawGestures.js';
+import useStageClick from './canvas/useStageClick.js';
 
 const ALIGNMENT_SNAP_PX = 6;
 const RUN_TYPE_LABELS = {
@@ -112,24 +84,6 @@ const RUN_TYPE_LABELS = {
   [CABINET_TYPE_IDS.UPPER]: 'Upper',
   [CABINET_TYPE_IDS.TALL]: 'Tall',
 };
-
-function runDrawBounds(start, current, width, fallbackDirection = 1) {
-  const direction = current.x === start.x
-    ? fallbackDirection
-    : Math.sign(current.x - start.x);
-  return dragPointsToRunInput(start, {
-    ...current,
-    x: start.x + direction * width,
-  });
-}
-
-function runEdgeXForWidth(run, side, width) {
-  return side === 'left' ? run.x + run.width - width : run.x + width;
-}
-
-function runWidthForEdgeX(run, side, edgeX) {
-  return side === 'left' ? run.x + run.width - edgeX : edgeX - run.x;
-}
 
 function ElevationCanvas({
   room,
@@ -302,45 +256,6 @@ function ElevationCanvas({
 
   const { dimensionOffsets } = useDimensionOffsets({ dimensionChains, room, settings, transform, wall });
 
-  const dragBounds = useMemo(() => {
-    if (!drag) return null;
-    if (entry?.kind !== 'run-draw' && entry?.kind !== 'soffit-draw') {
-      return dragPointsToRunInput(drag.start, drag.current);
-    }
-    return runDrawBounds(
-      drag.start,
-      drag.current,
-      entryValue,
-      liveGestureRef.current?.direction,
-    );
-  }, [drag, entry?.kind, entryValue]);
-  const dragPreview = useMemo(() => {
-    if (!dragBounds || !room || !wall || dragBounds.width <= 0) return null;
-    const gesture = liveGestureRef.current;
-    if (gesture?.kind === 'soffit-draw') return { soffit: dragBounds };
-    const startSide = gesture?.direction < 0 ? 'right' : 'left';
-    const currentSide = startSide === 'left' ? 'right' : 'left';
-    const exactEdges = gesture?.kind === 'run-draw'
-      ? {
-          ...(Number.isFinite(gesture.snappedStartX)
-            ? { [startSide]: gesture.snappedStartX }
-            : {}),
-          ...(Number.isFinite(gesture.snappedCurrentX)
-            ? { [currentSide]: gesture.snappedCurrentX }
-            : {}),
-        }
-      : {};
-    const run = createRun(dragBounds, { settings, room, wall, exactEdges });
-    const placement = tryPlaceRun(room, wall.id, run, settings);
-    const resolvedWall = placement.room.walls.find(
-      (candidate) => candidate.id === wall.id,
-    );
-    return {
-      run: resolvedWall?.runs.find((candidate) => candidate.id === run.id) ?? run,
-      valid: placement.ok,
-    };
-  }, [dragBounds, room, settings, wall]);
-
   const applyRunAlignment = useCallback((point, excludeRunId = null, axes = ['x']) => {
     if (!wall || !transform) return { point, guides: [] };
     const result = snapToAlignment(
@@ -353,26 +268,6 @@ function ElevationCanvas({
     return result;
   }, [transform, wall]);
 
-  const wallPointFromEvent = (event) => {
-    if (!wall || !transform) return null;
-    const pointer = event.target.getStage()?.getPointerPosition();
-    const raw = pointer
-      ? screenPointToWallSnapped(
-        pointer,
-        wall,
-        transform,
-        undefined,
-        settings.maxRunOverhang,
-      )
-      : null;
-    if (!raw) return null;
-    const { point, guides } = applyRunAlignment(raw, null, ['x', 'z']);
-    return {
-      point,
-      snappedX: guides.find((guide) => guide.axis === 'x')?.value ?? null,
-    };
-  };
-
   const suppressNextClick = useCallback(() => {
     if (clickSuppressionTimeoutRef.current !== null) {
       globalThis.clearTimeout(clickSuppressionTimeoutRef.current);
@@ -384,200 +279,34 @@ function ElevationCanvas({
     }, 0);
   }, []);
 
-  const commitRunDraw = useCallback((width) => {
-    const gesture = liveGestureRef.current;
-    if (gesture?.kind !== 'run-draw' || !room || !wall) return;
-    const bounds = runDrawBounds(
-      gesture.start,
-      gesture.current,
-      width,
-      gesture.direction,
-    );
-    const startSide = gesture.direction < 0 ? 'right' : 'left';
-    const currentSide = startSide === 'left' ? 'right' : 'left';
-    const exactEdges = {
-      ...(Number.isFinite(gesture.snappedStartX)
-        ? { [startSide]: gesture.snappedStartX }
-        : {}),
-      ...(Number.isFinite(gesture.snappedCurrentX)
-        ? { [currentSide]: gesture.snappedCurrentX }
-        : {}),
-    };
-    liveGestureRef.current = null;
-    cancelDrag();
-    setAlignmentGuides([]);
-
-    const run = createRun(bounds, { settings, room, wall, exactEdges });
-    const placement = tryPlaceRun(room, wall.id, run, settings);
-    if (!placement.ok) {
-      showMessage(placement.reason);
-      return;
-    }
-
-    if (messageTimeoutRef.current !== null) {
-      globalThis.clearTimeout(messageTimeoutRef.current);
-      messageTimeoutRef.current = null;
-    }
-    dispatch(setMessage(null));
-    const joinedPlacement = joinTouchingEdges(placement.room, wall.id, run.id, settings);
-    const stackedPlacement = joinTouchingStack(joinedPlacement.room, wall.id, run.id, settings);
-    if (joinedPlacement.joined.length > 0 || stackedPlacement.joined.length > 0) {
-      const resolvedWall = stackedPlacement.room.walls.find(
-        (candidate) => candidate.id === wall.id,
-      );
-      dispatch(replaceWallLayout({
-        wallId: wall.id,
-        runs: resolvedWall.runs,
-        joints: resolvedWall.joints,
-      }));
-    } else {
-      dispatch(addRun({ wallId: wall.id, run }));
-    }
-    dispatch(setSelection({ runId: run.id, pieceId: null }));
-  }, [cancelDrag, dispatch, room, settings, showMessage, wall]);
-
-  const commitSoffitDraw = useCallback((width) => {
-    const gesture = liveGestureRef.current;
-    if (gesture?.kind !== 'soffit-draw' || !room || !wall) return;
-    const bounds = runDrawBounds(
-      gesture.start,
-      gesture.current,
-      width,
-      gesture.direction,
-    );
-    liveGestureRef.current = null;
-    cancelDrag();
-    setAlignmentGuides([]);
-
-    const soffit = createSoffit(bounds, { settings, room, wall });
-    const resolvedSoffit = {
-      ...soffit,
-      ...resolveSoffitSpan(room, wall, soffit),
-    };
-    const validation = validateSoffitPlacement(wall, resolvedSoffit);
-    if (!validation.ok) {
-      showMessage(validation.reason === 'soffit-overlap'
-        ? "Soffits can't overlap"
-        : 'A soffit needs room below the ceiling');
-      return;
-    }
-
-    dispatch(addSoffit({ wallId: wall.id, soffit }));
-  }, [cancelDrag, dispatch, room, settings, showMessage, wall]);
-
-  const handleMouseDown = (event) => {
-    if ((tool !== 'draw' && tool !== 'soffit') || event.evt.button !== 0
-      || spacePressedRef.current || panRef.current) return;
-    if (entry) return;
-    const wallPoint = wallPointFromEvent(event);
-    if (!wallPoint) return;
-    const { point, snappedX } = wallPoint;
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer) return;
-    dispatch(setSelection({}));
-    updateDrag({ start: point, current: point });
-    setEntryPointer(pointer);
-    const kind = tool === 'soffit' ? 'soffit-draw' : 'run-draw';
-    liveGestureRef.current = {
-      kind,
-      start: point,
-      current: point,
-      direction: 1,
-      snappedStartX: snappedX,
-      pressStart: pointer,
-      awaitingClick: false,
-    };
-    beginEntry({
-      kind,
-      label: 'Width',
-      value: 0,
-      min: settings.minRunWidth,
-      max: Infinity,
-      onCommit: kind === 'soffit-draw' ? commitSoffitDraw : commitRunDraw,
-      onCancel: () => {
-        liveGestureRef.current = null;
-        cancelDrag();
-        setAlignmentGuides([]);
-      },
-    });
-  };
-
-  const handleMouseMove = (event) => {
-    const gesture = liveGestureRef.current;
-    const pointer = stageRef.current?.getPointerPosition();
-    if (tool === 'measure' && pointer && transform && !panRef.current && !spacePressedRef.current) {
-      const { x, z } = screenToWall(pointer, transform);
-      measure.move({ x, y: z }, event.evt?.shiftKey);
-      return;
-    }
-    if (!entry || !gesture || !pointer) return;
-    setEntryPointer(pointer);
-    if (
-      (entry.kind === 'run-draw' || entry.kind === 'soffit-draw')
-      && gesture.kind === entry.kind
-    ) {
-      const wallPoint = wallPointFromEvent(event);
-      if (!wallPoint) return;
-      const { point, snappedX } = wallPoint;
-      const direction = point.x === gesture.start.x
-        ? gesture.direction
-        : Math.sign(point.x - gesture.start.x);
-      liveGestureRef.current = {
-        ...gesture,
-        current: point,
-        direction,
-        snappedCurrentX: snappedX,
-      };
-      updateDrag({ start: gesture.start, current: point });
-      updateEntry(Math.abs(point.x - gesture.start.x));
-      return;
-    }
-    if (!transform) return;
-    const pointerX = screenToWall(pointer, transform).x;
-    if (entry.kind === 'run-edge' && gesture.kind === 'run-edge') {
-      if (gesture.jointId) {
-        liveGestureRef.current = { ...gesture, requestedJointX: pointerX };
-      }
-      const edgeX = gesture.jointId
-        ? gesture.side === 'right'
-          ? pointerX - gesture.offset
-          : pointerX + gesture.offset
-        : pointerX;
-      updateEntry(runWidthForEdgeX(gesture.run, gesture.side, edgeX));
-    } else if (entry.kind === 'run-move' && gesture.kind === 'run-move') {
-      updateEntry(pointerX - gesture.pointerStartX);
-    }
-  };
-
-  const handleMouseUp = (event) => {
-    const gesture = liveGestureRef.current;
-    if ((entry?.kind !== 'run-draw' && entry?.kind !== 'soffit-draw')
-      || gesture?.kind !== entry.kind
-      || gesture.awaitingClick) return;
-    const { point, snappedX } = wallPointFromEvent(event) ?? {
-      point: gesture.current,
-      snappedX: gesture.snappedCurrentX ?? null,
-    };
-    const pointer = stageRef.current?.getPointerPosition();
-    const direction = point.x === gesture.start.x
-      ? gesture.direction
-      : Math.sign(point.x - gesture.start.x);
-    liveGestureRef.current = {
-      ...gesture,
-      current: point,
-      direction,
-      snappedCurrentX: snappedX,
-    };
-    updateDrag({ start: gesture.start, current: point });
-    updateEntry(Math.abs(point.x - gesture.start.x));
-    suppressNextClick();
-
-    if (!panExceedsThreshold(gesture.pressStart, pointer)) {
-      liveGestureRef.current = { ...liveGestureRef.current, awaitingClick: true };
-      return;
-    }
-    if (!entryRef.current || entryRef.current.typed === null) commitEntry();
-  };
+  const { dragPreview, handleMouseDown, handleMouseMove, handleMouseUp } = useDrawGestures({
+    room,
+    wall,
+    settings,
+    tool,
+    transform,
+    dispatch,
+    stageRef,
+    panRef,
+    spacePressedRef,
+    liveGestureRef,
+    entry,
+    entryRef,
+    entryValue,
+    beginEntry,
+    updateEntry,
+    commitEntry,
+    updateDrag,
+    cancelDrag,
+    drag,
+    setEntryPointer,
+    setAlignmentGuides,
+    applyRunAlignment,
+    showMessage,
+    messageTimeoutRef,
+    suppressNextClick,
+    measure,
+  });
 
   const {
     picker, hovered, pick, pickFace, pickInterior, choosePick, hoverPick, closePicker,
@@ -669,86 +398,25 @@ function ElevationCanvas({
     dispatch(moveOpening({ wallId: wall.id, openingId, x }));
   }, [dispatch, wall]);
 
-  const handleStageClick = useCallback((event) => {
-    if (suppressClickRef.current) return;
-    if (tool === 'measure') {
-      const pointer = stageRef.current?.getPointerPosition();
-      if (event.evt.button === 0 && pointer && transform && !panRef.current && !spacePressedRef.current) {
-        const { x, z } = screenToWall(pointer, transform);
-        measure.click({ x, y: z }, event.evt.shiftKey);
-      }
-      return;
-    }
-    if (liveGestureRef.current?.kind === 'run-move') {
-      if (event.evt.button !== 0) return;
-      const pointer = stageRef.current?.getPointerPosition();
-      if (pointer && transform) {
-        updateEntry(screenToWall(pointer, transform).x - liveGestureRef.current.pointerStartX);
-      }
-      commitEntry();
-      return;
-    }
-    if (event.target !== event.target.getStage()) return;
-    if (entry) {
-      commitEntry();
-      return;
-    }
-    if (tool === 'select') {
-      dispatch(setSelection({}));
-      return;
-    }
-    if (tool === 'recess') {
-      if (!room || !wall || !transform) return;
-      const pointer = stageRef.current?.getPointerPosition();
-      if (!pointer) return;
-      const rawPoint = screenToWall(pointer, transform);
-      if (rawPoint.x < 0 || rawPoint.x > wall.length
-        || rawPoint.z < 0 || rawPoint.z > wall.height) return;
-      const recess = createRecess({ kind: 'recess', x: rawPoint.x }, { room, wall });
-      const validation = validateRecessPlacement(wall, recess);
-      if (!validation.ok) {
-        showMessage(RECESS_PLACEMENT_MESSAGES[validation.reason] ?? validation.reason);
-        return;
-      }
-      dispatch(addRecess({ wallId: wall.id, recess }));
-      return;
-    }
-    if ((tool !== 'door' && tool !== 'window') || !room || !wall || !transform) return;
-    if (wall.side === 'back') {
-      showMessage('Add doors and windows from the front');
-      return;
-    }
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer) return;
-    const rawPoint = screenToWall(pointer, transform);
-    if (rawPoint.x < 0 || rawPoint.x > wall.length
-      || rawPoint.z < 0 || rawPoint.z > wall.height) return;
-    const point = screenPointToWallSnapped(
-      pointer,
-      wall,
-      transform,
-      settings.openingSnap,
-      0,
-    );
-    const opening = createOpening({ kind: tool, x: point.x }, { settings, room, wall });
-    const jamb = openingGeometry(opening, wall.length, settings).jamb;
-    const host = recessForSpan(wall, {
-      left: jamb.x, right: jamb.x + jamb.width, bottom: jamb.z, top: jamb.z + jamb.height,
-    }, 0, ['recess']);
-    const placed = host ? { ...opening, recessId: host.id } : opening;
-    const validation = validateOpeningPlacement(wall, placed, settings);
-    if (!validation.ok) {
-      showMessage(validation.reason);
-      return;
-    }
-    if (messageTimeoutRef.current !== null) {
-      globalThis.clearTimeout(messageTimeoutRef.current);
-      messageTimeoutRef.current = null;
-    }
-    dispatch(setMessage(null));
-    dispatch(addOpening({ wallId: wall.id, opening: placed }));
-    dispatch(setSelection({ openingId: placed.id }));
-  }, [commitEntry, dispatch, entry, measure.click, room, settings, showMessage, tool, transform, updateEntry, wall]);
+  const { handleStageClick } = useStageClick({
+    room,
+    wall,
+    settings,
+    tool,
+    transform,
+    dispatch,
+    stageRef,
+    panRef,
+    spacePressedRef,
+    suppressClickRef,
+    liveGestureRef,
+    entry,
+    updateEntry,
+    commitEntry,
+    measure,
+    showMessage,
+    messageTimeoutRef,
+  });
 
   const {
     previewStretch,
