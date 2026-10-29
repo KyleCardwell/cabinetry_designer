@@ -8,12 +8,7 @@ import {
 import { useDispatch, useSelector } from 'react-redux';
 import { selectSettings } from '../store/selectors.js';
 import { Layer, Rect, Stage } from 'react-konva';
-import { snapToEndpoint, snapToGrid } from '../../canvas/SnapEngine.js';
 import AxisGuides from '../../canvas/components/AxisGuides.jsx';
-import {
-  endpointAlignmentTargets,
-  snapToAlignment,
-} from '../canvas/alignment.js';
 import {
   planBaseCursor,
   useCanvasCursor,
@@ -30,23 +25,18 @@ import SelectionPicker, { PlanPickOutline } from '../components/SelectionPicker.
 import MeasureOverlay from '../components/MeasureOverlay.jsx';
 import MeasureReadout from '../components/MeasureReadout.jsx';
 import {
-  dot,
   planPointToWallX,
-  subtract,
   wallFrame,
 } from '../model/geometry.js';
-import { snapToWallFace } from '../model/landings.js';
 import { planMeasureGeometry } from '../model/measure.js';
 import {
   createOpening,
   openingsAtPoint,
   validateOpeningPlacement,
 } from '../model/openings.js';
-import { formatInches, roundTo } from '../model/units.js';
-import { wallSideView } from '../model/wallSides.js';
+import { formatInches } from '../model/units.js';
 import {
   addOpening,
-  addWallSegment,
   deleteWall,
   moveOpening,
   setActiveWall,
@@ -55,7 +45,7 @@ import {
   setTool,
   setView,
 } from '../store/elevationSlice.js';
-import { PLAN_BACKGROUND_COLOR } from './constants.js';
+import { ENDPOINT_SNAP_RADIUS, PLAN_BACKGROUND_COLOR } from './constants.js';
 import PlanAlignmentGuides from './PlanAlignmentGuides.jsx';
 import PlanOverlays from './PlanOverlays.jsx';
 import PlanScene from './PlanScene.jsx';
@@ -65,12 +55,11 @@ import usePlanPan from './usePlanPan.js';
 import usePlanPicker from './usePlanPicker.js';
 import usePlanRunMove from './usePlanRunMove.js';
 import usePlanSceneData from './usePlanSceneData.js';
+import usePlanStageGestures from './usePlanStageGestures.js';
+import usePlanWallDraw from './usePlanWallDraw.js';
 import usePlanWallEdits from './usePlanWallEdits.js';
 import usePlanView from './usePlanView.js';
-import { snapPointOrtho } from './wallOps.js';
 
-const ENDPOINT_SNAP_RADIUS = 6;
-const ALIGNMENT_SNAP_PX = 6;
 
 function signedInches(value) {
   if (Math.abs(value) < 1e-9) return formatInches(0);
@@ -244,281 +233,18 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     selection, walls, selectedWall,
   });
 
-  const gridAndOrtho = useCallback((point, fixed = null) => {
-    const gridPoint = snapToGrid(point, settings.planGrid);
-    return fixed
-      ? snapPointOrtho(fixed, gridPoint, settings.orthoWalls)
-      : gridPoint;
-  }, [settings.orthoWalls, settings.planGrid]);
-
-  const applyAlignment = useCallback((point, { fixed = null, excludeWallId = null } = {}) => {
-    const axes = !fixed || !settings.orthoWalls
-      ? ['x', 'y']
-      : (Math.abs(point.y - fixed.y) <= 1e-6 ? ['x'] : ['y']);
-    const result = snapToAlignment(
-      point,
-      endpointAlignmentTargets(walls, excludeWallId),
-      ALIGNMENT_SNAP_PX / scale,
-      axes,
-    );
-    setAlignmentGuides(result.guides);
-    return result.point;
-  }, [scale, settings.orthoWalls, walls]);
-
-  const snapDrawPoint = useCallback((snapped, fixed) => {
-    const endpointSnap = snapToEndpoint(
-      snapped,
-      adaptedWalls,
-      ENDPOINT_SNAP_RADIUS,
-    );
-    if (endpointSnap) {
-      setAlignmentGuides([]);
-      return {
-        point: { x: endpointSnap.x, y: endpointSnap.y },
-        connect: { wallId: endpointSnap.wallId, endpoint: endpointSnap.endpoint },
-        land: null,
-        faceLabel: null,
-      };
-    }
-
-    const faceSnap = snapToWallFace(room, snapped, ENDPOINT_SNAP_RADIUS);
-    if (faceSnap) {
-      setAlignmentGuides([]);
-      const host = room.walls.find((wall) => wall.id === faceSnap.wallId);
-      const length = host
-        ? wallFrame(room, wallSideView(host, faceSnap.side)).length
-        : 0;
-      const fromLeft = faceSnap.x <= length - faceSnap.x;
-      return {
-        point: faceSnap.point,
-        connect: null,
-        land: {
-          wallId: faceSnap.wallId,
-          side: faceSnap.side,
-          x: faceSnap.x,
-        },
-        faceLabel: `${formatInches(fromLeft ? faceSnap.x : length - faceSnap.x)} from ${fromLeft ? 'left' : 'right'}`,
-      };
-    }
-
-    return {
-      point: applyAlignment(snapped, { fixed }),
-      connect: null,
-      land: null,
-      faceLabel: null,
-    };
-  }, [adaptedWalls, applyAlignment, room]);
-
-  const handleStageClick = useCallback((event) => {
-    if (suppressClickRef.current) return;
-    if (tool === 'measure') {
-      const pointer = stageRef.current?.getPointerPosition();
-      if (event.evt?.button === 0 && pointer && !panRef.current && !spacePressedRef.current) {
-        measure.click(toWorld(pointer), event.evt.shiftKey);
-      }
-      return;
-    }
-    if (event.evt?.button && event.evt.button !== 0) return;
-    closeContextMenu();
-    if (entry?.kind === 'run-move') {
-      commitEntry();
-      return;
-    }
-    if (event.target !== event.target.getStage()) return;
-    if (entry) {
-      commitEntry();
-      return;
-    }
-    if (tool === 'select') {
-      pickAt(event);
-      return;
-    }
-    if (tool !== 'wall') return;
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer) return;
-    const fixed = wallDrawStart ? { x: wallDrawStart.x, y: wallDrawStart.y } : null;
-    const snapped = gridAndOrtho(toWorld(pointer), fixed);
-    const { point, connect, land, faceLabel } = snapDrawPoint(snapped, fixed);
-
-    if (!wallDrawStart) {
-      setEntryPointer(pointer);
-      setWallDrawStart({
-        ...point,
-        _connectTo: connect,
-        _landOn: land,
-      });
-      setMouseWorldPos({ ...point, _faceLabel: faceLabel });
-      return;
-    }
-
-    if (point.x === wallDrawStart.x && point.y === wallDrawStart.y) return;
-    const action = addWallSegment({
-      x1: wallDrawStart.x,
-      y1: wallDrawStart.y,
-      x2: point.x,
-      y2: point.y,
-      connectStart: wallDrawStart._connectTo,
-      connectEnd: connect,
-      landStart: wallDrawStart._connectTo ? null : wallDrawStart._landOn,
-      landEnd: land,
-    });
-    dispatch(action);
-    setAlignmentGuides([]);
-    setWallDrawStart({
-      ...point,
-      _connectTo: { wallId: action.payload.id, endpoint: 'end' },
-      _landOn: null,
-    });
-    setMouseWorldPos(null);
-  }, [
-    closeContextMenu,
-    commitEntry,
-    dispatch,
-    entry,
-    gridAndOrtho,
-    measure.click,
-    pickAt,
-    snapDrawPoint,
-    toWorld,
-    tool,
-    wallDrawStart,
-  ]);
-
-  const handleMouseMove = useCallback((event) => {
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer) return;
-    if (tool === 'measure') {
-      if (!panRef.current && !spacePressedRef.current) {
-        measure.move(toWorld(pointer), event.evt?.shiftKey);
-      }
-      return;
-    }
-    if (entry) {
-      setEntryPointer(pointer);
-      if (entry.kind === 'run-move') {
-        updateMovePointer(pointer);
-      } else if (entry.kind === 'wall-perpendicular' && moveHandle) {
-        const delta = dot(
-          subtract(toWorld(pointer), moveHandle.point),
-          moveHandle.frame.n,
-        );
-        updateEntry(roundTo(delta, settings.planGrid));
-      } else if (entry.kind === 'wall-draw' && wallDrawStart) {
-        const snapped = gridAndOrtho(toWorld(pointer), wallDrawStart);
-        const { point, connect, land, faceLabel } = snapDrawPoint(
-          snapped,
-          wallDrawStart,
-        );
-        const dx = point.x - wallDrawStart.x;
-        const dy = point.y - wallDrawStart.y;
-        const length = Math.hypot(dx, dy);
-        liveGestureRef.current = {
-          kind: 'wall-draw',
-          direction: length > 0 ? { x: dx / length, y: dy / length } : null,
-          connectEnd: connect,
-          landEnd: land,
-          pointerLength: length,
-        };
-        setMouseWorldPos({ ...point, _faceLabel: faceLabel });
-        updateEntry(length);
-      } else if (entry.kind === 'wall-length') {
-        const gesture = liveGestureRef.current;
-        if (gesture?.kind === 'wall-length') {
-          const delta = dot(
-            subtract(toWorld(pointer), gesture.pointerStart),
-            gesture.aOut,
-          );
-          updateEntry(roundTo(
-            gesture.initialLength + delta,
-            settings.planGrid,
-          ));
-        }
-      }
-      return;
-    }
-    if (tool !== 'wall' || panRef.current) return;
-    const fixed = wallDrawStart ?? null;
-    const snapped = gridAndOrtho(toWorld(pointer), fixed);
-    const { point, faceLabel } = snapDrawPoint(snapped, fixed);
-    setMouseWorldPos({ ...point, _faceLabel: faceLabel });
-  }, [
-    entry,
-    gridAndOrtho,
-    measure.move,
-    moveHandle,
-    settings.planGrid,
-    snapDrawPoint,
-    toWorld,
-    tool,
-    updateEntry,
-    updateMovePointer,
-    wallDrawStart,
-  ]);
-
-  useEffect(() => {
-    if (!settings.orthoWalls || tool !== 'wall' || !wallDrawStart || entry) return;
-    const start = wallDrawStart;
-    liveGestureRef.current = {
-      kind: 'wall-draw',
-      direction: null,
-      connectEnd: null,
-      landEnd: null,
-      pointerLength: 0,
-    };
-    beginEntry({
-      kind: 'wall-draw',
-      label: 'Wall length',
-      value: 0,
-      min: 0,
-      max: Infinity,
-      onCommit: (length) => {
-        const gesture = liveGestureRef.current;
-        if (gesture?.kind !== 'wall-draw' || !gesture.direction || length <= 0) return;
-        const point = {
-          x: start.x + gesture.direction.x * length,
-          y: start.y + gesture.direction.y * length,
-        };
-        const connectEnd = gesture.connectEnd
-          && Math.abs(length - gesture.pointerLength) < 1e-6
-          ? gesture.connectEnd
-          : null;
-        const landEnd = gesture.landEnd
-          && Math.abs(length - gesture.pointerLength) < 1e-6
-          ? gesture.landEnd
-          : null;
-        const action = addWallSegment({
-          x1: start.x,
-          y1: start.y,
-          x2: point.x,
-          y2: point.y,
-          connectStart: start._connectTo,
-          connectEnd,
-          landStart: start._connectTo ? null : start._landOn,
-          landEnd,
-        });
-        dispatch(action);
-        liveGestureRef.current = null;
-        setWallDrawStart({
-          ...point,
-          _connectTo: { wallId: action.payload.id, endpoint: 'end' },
-          _landOn: null,
-        });
-        setMouseWorldPos(null);
-      },
-      onCancel: () => {
-        liveGestureRef.current = null;
-        cancelDrawing();
-      },
-    });
-  }, [
-    beginEntry,
-    cancelDrawing,
-    dispatch,
-    entry,
-    settings.orthoWalls,
-    tool,
-    wallDrawStart,
-  ]);
+  const { gridAndOrtho, applyAlignment, snapDrawPoint } = usePlanWallDraw({
+    room, walls, adaptedWalls, settings, tool, entry, scale, dispatch, beginEntry,
+    cancelDrawing, liveGestureRef, wallDrawStart, setWallDrawStart, setMouseWorldPos,
+    setAlignmentGuides,
+  });
+  const { handleStageClick, handleMouseMove } = usePlanStageGestures({
+    settings, tool, entry, dispatch, stageRef, panRef, spacePressedRef,
+    suppressClickRef, liveGestureRef, toWorld, measure, closeContextMenu,
+    commitEntry, updateEntry, updateMovePointer, pickAt, moveHandle, gridAndOrtho,
+    snapDrawPoint, wallDrawStart, setWallDrawStart, setMouseWorldPos,
+    setAlignmentGuides, setEntryPointer,
+  });
 
   const {
     handleWallEndpointDrag,
