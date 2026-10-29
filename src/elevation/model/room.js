@@ -7,7 +7,7 @@ export { compensateRuns } from './roomClone.js';
 export {
   describeAnchor, endCornerAnglesForRun, endMinWidthsForRun, resolveRunAnchorDatum,
 } from './runAnchors.js';
-export { pinTargetsForRun, resolvePinTarget, resolvePinnedSpan } from './runPins.js';
+export { pinTargetsForRun, resolvePinTarget } from './runPins.js';
 export { roomDiagnostics, syncRoom, tryPlaceRun } from './roomSync.js';
 export {
   dissolveJoint, joinEdges, joinStack, joinTouchingEdges, joinTouchingStack, moveJoint, resizeRun,

@@ -18,7 +18,7 @@ import { resolveTopSegments } from './topSegments.js';
 import { wallEndPanelAt } from './wallSides.js';
 import { waterfallBand } from './waterfall.js';
 
-export { bandDepths, hasToeKick } from './bandDepths.js';
+export { bandDepths } from './bandDepths.js';
 
 const EPSILON = 1e-6;
 

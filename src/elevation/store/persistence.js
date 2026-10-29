@@ -22,7 +22,6 @@ export {
   ELEVATION_SCHEMA_VERSION,
   isBaseCutoutList,
   isElevationDocument,
-  isOpening,
   isRoom,
   isTopSegmentList,
 } from './documentValidation.js';
