@@ -18,28 +18,18 @@ import {
   elevationBaseCursor,
   useCanvasCursor,
 } from '../canvas/cursor.js';
-import {
-  screenToWall,
-  wallToScreen,
-} from '../canvas/transform.js';
+import { wallToScreen } from '../canvas/transform.js';
 import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
 import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
 import { useMeasure } from '../canvas/measureState.js';
 import { elevationMeasureGeometry } from '../model/measure.js';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { elevationKey } from '../model/topology.js';
-import { runItems } from '../model/grid.js';
-import { defaultPick, pickStack } from '../model/pick.js';
-import { setDividerPosition } from '../model/interiorTree.js';
 import { openingGeometry } from '../model/openings.js';
 import {
   moveOpening,
-  setItemWidth,
-  setItemInterior,
-  setTrackSize,
   setMessage,
   setSelection,
-  setTool,
   setActiveWall,
   setActiveWallSide,
 } from '../store/elevationSlice.js';
@@ -77,6 +67,8 @@ import useCanvasPan from './canvas/useCanvasPan.js';
 import { runEdgeXForWidth, runWidthForEdgeX } from './canvas/runEdges.js';
 import useDrawGestures from './canvas/useDrawGestures.js';
 import useStageClick from './canvas/useStageClick.js';
+import useInlineEdits from './canvas/useInlineEdits.js';
+import useRunContextMenu from './canvas/useRunContextMenu.js';
 
 const ALIGNMENT_SNAP_PX = 6;
 const RUN_TYPE_LABELS = {
@@ -104,10 +96,6 @@ function ElevationCanvas({
   const [hoveredGlyphId, setHoveredGlyphId] = useState(null);
   const [alignmentGuides, setAlignmentGuides] = useState([]);
   const [entryPointer, setEntryPointer] = useState(null);
-  const [trackEdit, setTrackEdit] = useState(null);
-  const [dividerEdit, setDividerEdit] = useState(null);
-  const [contextMenu, setContextMenu] = useState(null);
-  const closeContextMenu = useCallback(() => setContextMenu(null), []);
   const { style: cursorStyle, controller: cursor } = useCanvasCursor(
     elevationBaseCursor(tool, pointerMode),
   );
@@ -312,6 +300,13 @@ function ElevationCanvas({
     picker, hovered, pick, pickFace, pickInterior, choosePick, hoverPick, closePicker,
   } = usePicker({ room, wall, settings, transform, stageRef, tool, suppressClickRef, dispatch, doorsOff });
 
+  const {
+    trackEdit, setTrackEdit, dividerEdit, setDividerEdit, editTrack, editPieceSegment,
+    commitTrackEdit, commitDividerEdit, moveDivider,
+  } = useInlineEdits({
+    room, wall, wallId, tool, doorsOff, selection, interiors, dispatch, closePicker, suppressNextClick,
+  });
+
   // The wall row selects what's in it (SPEC-38.1): a recess full of cabinets can't be clicked otherwise.
   const selectFeature = useCallback((segment) => {
     if (tool !== 'select') return;
@@ -321,72 +316,6 @@ function ElevationCanvas({
       dispatch(setSelection({ openingId: segment.openingId }));
     }
   }, [dispatch, tool]);
-
-  const editTrack = useCallback((runId, edit) => setTrackEdit({ ...edit, runId }), []);
-  const editPieceSegment = useCallback((segment, point) => {
-    // A cell of a column holding a void (FX3) edits its nested column track.
-    if (segment.runId && segment.trackId) {
-      setTrackEdit({
-        runId: segment.runId, trackId: segment.trackId, label: 'Width', value: segment.end - segment.start, x: point.x, y: point.y,
-      });
-      return;
-    }
-    if (!segment.runId || !segment.pieceId
-      || segment.pieceId.startsWith(`${segment.runId}:`)) return;
-    setTrackEdit({
-      runId: segment.runId,
-      itemId: segment.pieceId,
-      label: 'Width',
-      value: segment.end - segment.start,
-      x: point.x,
-      y: point.y,
-    });
-  }, []);
-  const commitTrackEdit = useCallback((size) => {
-    if (trackEdit && wall) {
-      dispatch(trackEdit.trackId
-        ? setTrackSize({
-          wallId: wall.id,
-          runId: trackEdit.runId,
-          trackId: trackEdit.trackId,
-          size,
-        })
-        : setItemWidth({
-          wallId: wall.id,
-          runId: trackEdit.runId,
-          itemId: trackEdit.itemId,
-          width: size,
-        }));
-    }
-    setTrackEdit(null);
-  }, [dispatch, trackEdit, wall]);
-
-  const commitDividerEdit = useCallback((edit, value) => {
-    if (!wall || !room || tool !== 'select' || !doorsOff) return;
-    const run = wall.runs.find((candidate) => candidate.id === edit.runId);
-    const item = run && runItems(run).find((candidate) => candidate.id === edit.itemId);
-    const entry = interiors.find((candidate) => candidate.runId === edit.runId && candidate.itemId === edit.itemId);
-    if (!item || !entry) return;
-    dispatch(setItemInterior({
-      roomId: room.id,
-      wallId: wall.id,
-      runId: run.id,
-      itemIds: [item.id],
-      interior: setDividerPosition(entry.tree, edit.path, edit.index, value,
-        edit.side === 'bottom' ? undefined : edit.side),
-    }));
-    setDividerEdit(null);
-  }, [dispatch, doorsOff, interiors, room, tool, wall]);
-
-  const moveDivider = useCallback((edit, value) => {
-    suppressNextClick();
-    closePicker();
-    commitDividerEdit(edit, value);
-  }, [closePicker, commitDividerEdit, suppressNextClick]);
-
-  useEffect(() => {
-    setDividerEdit(null);
-  }, [doorsOff, room?.id, wallId, wall?.side, selection.runId, selection.pieceId, tool]);
 
   const selectOpening = useCallback((openingId) => {
     if (tool !== 'select' || suppressClickRef.current) return;
@@ -484,41 +413,10 @@ function ElevationCanvas({
     return () => cursor.releaseHold();
   }, [cancelEntry, centerPickActive, closePicker, cursor]);
 
-  useEffect(() => {
-    if (moving || (contextMenu && contextMenu.context !== menuContext)) closeContextMenu();
-  }, [closeContextMenu, contextMenu, menuContext, moving]);
-
-  const handleContextMenu = useCallback((event) => {
-    event.evt.preventDefault();
-    closeContextMenu();
-    closePicker();
-    if (tool === 'measure') {
-      measure.cancelFirst();
-      return;
-    }
-    if (moving) {
-      cancelMove();
-      return;
-    }
-    if (centerPick.active) {
-      centerPick.cancel();
-      return;
-    }
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer || !room || !wall || !transform) return;
-    const candidates = pickStack(room, wall, settings, screenToWall(pointer, transform), { doorsOff });
-    const runId = defaultPick(candidates)?.selection?.runId;
-    if (!runId) return;
-    cancelEntry();
-    dispatch(setTool('select'));
-    dispatch(setSelection({ runId }));
-    setContextMenu({
-      ...pointer,
-      runId,
-      context: `${room.id}:${viewKey}:${activeKey}:select:${doorsOff}`,
-    });
-  }, [activeKey, cancelEntry, cancelMove, centerPick, closeContextMenu, closePicker, dispatch, doorsOff,
-    measure.cancelFirst, moving, room, settings, tool, transform, viewKey, wall]);
+  const { contextMenu, closeContextMenu, handleContextMenu } = useRunContextMenu({
+    room, wall, settings, tool, transform, dispatch, stageRef, doorsOff, measure, moving,
+    cancelMove, centerPick, closePicker, cancelEntry, viewKey, activeKey, menuContext,
+  });
 
   const handleRunSegmentClick = useCallback((segment) => {
     if (tool === 'select' && segment.kind === 'run') {
