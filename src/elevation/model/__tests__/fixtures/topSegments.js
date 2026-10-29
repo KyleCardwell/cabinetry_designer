@@ -8,7 +8,7 @@ export const topSegment = { id: 's', from: 'B', to: 'B', kind: 'wood', drop: 2, 
 export function topSegmentRoom(overrides = {}) {
   return {
     id: 'room', name: 'Top segments', profile: {}, wallOrder: ['w'],
-    walls: [{ id: 'w', x1: 0, y1: 0, x2: 120, y2: 0, height: 96, thickness: 4.5,
+    walls: [{ id: 'w', x1: 0, y1: 0, x2: 120, y2: 0, height: 96, thickness: 4.5, thicknessOverride: null,
       flipped: false, connections: { start: null, end: null }, profile: {}, openings: [],
       runs: [{
         id: 'r', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 0, width: 90, z: 4, height: 30.5, depth: 24,
