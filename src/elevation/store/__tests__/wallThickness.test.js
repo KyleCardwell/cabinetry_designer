@@ -5,7 +5,7 @@ import elevationReducer, {
   addWall, addWallSegment, createInitialElevationState, setRoomSetting, setSetting, updateWall,
 } from '../elevationSlice.js';
 import {
-  ELEVATION_STORAGE_KEY, isElevationDocument, loadElevationDocument, roomFromDocument,
+  isElevationDocument, roomFromDocument,
   toElevationDocument, toRoomDocument,
 } from '../persistence.js';
 import { createWall } from '../slices/helpers.js';
@@ -30,31 +30,6 @@ describe('UI9d wall thickness inheritance', () => {
     expect(state.rooms[0].settingsOverrides.wallThickness).toBe(5.5);
     state = elevationReducer(state, updateWall({ wallId, changes: { thickness: null } }));
     expect(wallOf(state)).toMatchObject({ thicknessOverride: null, thickness: 5.5 });
-  });
-
-  it('loads old zero walls as overridden and old 4.5 walls as inheriting (anchors 6–7)', () => {
-    for (const [thickness, thicknessOverride, expected] of [[0, 0, 0], [4.5, null, 5.5]]) {
-      const state = elevationReducer(createInitialElevationState(null), addWallSegment(segment));
-      const document = toElevationDocument(state);
-      delete document.settings.wallThickness;
-      document.rooms[0].settingsOverrides = { wallThickness: 5.5 };
-      document.rooms[0].walls[0].thickness = thickness;
-      delete document.rooms[0].walls[0].thicknessOverride;
-      const original = structuredClone(document);
-      vi.stubGlobal('window', { localStorage: {
-        getItem: (key) => key === ELEVATION_STORAGE_KEY ? JSON.stringify(document) : null,
-      } });
-      const loaded = loadElevationDocument();
-      expect(loaded.settings.wallThickness).toBe(4.5);
-      expect(wallOf(loaded).thicknessOverride).toBe(thicknessOverride);
-      const restored = createInitialElevationState(loaded);
-      expect(wallOf(restored)).toMatchObject({ thicknessOverride, thickness: expected });
-      const roomResult = roomFromDocument(document.rooms[0], document.schemaVersion, loaded.settings);
-      expect(roomResult.ok).toBe(true);
-      expect(wallOf(createInitialElevationState({ ...loaded, rooms: [roomResult.room] })))
-        .toMatchObject({ thicknessOverride, thickness: expected });
-      expect(document).toEqual(original);
-    }
   });
 
   it('registers the room setting in Walls before Openings & soffits (anchor 8)', () => {

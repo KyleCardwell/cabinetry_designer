@@ -153,13 +153,11 @@ describe('SPEC-46.1.1 end panels at their style\'s thickness', () => {
     expect(pick.options[0].text).toBe('Team default (Std · 5PC · 13/16")');
   });
 
-  it('drops old team and room panel thickness settings on load without carrying values over', () => {
+  it('prunes old room panel thickness settings on load without carrying values over', () => {
     const old = structuredClone(document);
-    old.settings.endPanelThickness = 0.75;
     old.rooms[0].settingsOverrides = { endPanelThickness: 1, sheetThickness: 0.875 };
     old.rooms[1].settingsOverrides = { endPanelThickness: 1 };
     const loaded = normalizeElevationDocument(old);
-    expect(loaded.settings).not.toHaveProperty('endPanelThickness');
     expect(loaded.rooms[0].settingsOverrides).toEqual({ sheetThickness: 0.875 });
     expect(loaded.rooms[1]).not.toHaveProperty('settingsOverrides');
     expect(loaded.settings.teamDoorStyle.thickness).toBe(0.8125);

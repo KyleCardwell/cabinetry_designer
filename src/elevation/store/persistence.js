@@ -43,10 +43,7 @@ import {
 } from '../model/styles.js';
 import { SOFFIT_MOLDINGS } from '../model/soffits.js';
 import { RECESS_KINDS, RECESS_MOLDINGS } from '../model/recesses.js';
-import {
-  computeWallOrder,
-  normalizeWallName,
-} from '../model/topology.js';
+import { computeWallOrder } from '../model/topology.js';
 
 /** Current Elevation Lab localStorage key. */
 export const ELEVATION_STORAGE_KEY = 'cd.elevationLab.v4';
@@ -94,6 +91,8 @@ const V2_NUMERIC_SETTING_KEYS = Object.keys(DEFAULT_SETTINGS).filter(
   (key) => typeof DEFAULT_SETTINGS[key] === 'number',
 );
 const V2_DEFAULTED_SETTING_KEYS = [
+  'stoneTopReveal',
+  'doorPanelDefault',
   'wallThickness',
   'sheetThickness',
   'fillerReturnDepth',
@@ -786,146 +785,19 @@ function isCombinedElevations(value) {
     && group.faces.every((key) => typeof key === 'string'));
 }
 
-function migrateDoorPanel(style) {
-  return style?.panel?.thickness === 0.25
-    ? { ...style, panel: { ...style.panel, thickness: 0.5 } }
-    : style;
-}
-
-function migrateAppliedMoldings(style) {
-  if (!style || typeof style !== 'object' || Array.isArray(style)
-    || !style.profiles || typeof style.profiles !== 'object' || Array.isArray(style.profiles)) return style;
-  const { applied, ...profiles } = style.profiles;
-  return {
-    ...style,
-    profiles,
-    appliedMoldings: style.appliedMoldings === undefined
-      ? (applied == null ? [] : [{ profileId: applied, offset: 0 }])
-      : style.appliedMoldings,
-  };
-}
-
-/** Migrate molding picks in every room and phase scope without changing the saved document. */
-function migrateAppliedMoldingScopes(scope) {
-  if (!scope || typeof scope !== 'object') return scope;
-  const migrated = { ...scope };
-  if (Array.isArray(scope.doorStyles)) migrated.doorStyles = scope.doorStyles.map(migrateAppliedMoldings);
-  for (const key of ['rooms', 'phases']) {
-    if (Array.isArray(scope[key])) migrated[key] = scope[key].map(migrateAppliedMoldingScopes);
-  }
-  return migrated;
-}
-
-function migrateMidWidths(style) {
-  if (!isPlainObject(style?.mid) || !Object.hasOwn(style.mid, 'extra')) return style;
-  const { extra, ...mid } = style.mid;
-  if (!Number.isFinite(extra) || extra < 0) return style;
-  return {
-    ...style,
-    mid: extra === 0 ? mid : {
-      rail: style.rails?.top + extra,
-      stile: style.stiles?.left + extra,
-      ...mid,
-    },
-  };
-}
-
-/** Migrate mid widths in every room and phase scope without changing the saved document. */
-function migrateMidWidthScopes(scope) {
-  if (!scope || typeof scope !== 'object') return scope;
-  const migrated = { ...scope };
-  if (Array.isArray(scope.doorStyles)) migrated.doorStyles = scope.doorStyles.map(migrateMidWidths);
-  for (const key of ['rooms', 'phases']) {
-    if (Array.isArray(scope[key])) migrated[key] = scope[key].map(migrateMidWidthScopes);
-  }
-  return migrated;
-}
-
-/** Drop retired per-part mid lists at every depth without mutating the saved document. */
-function dropMidLists(document) {
-  if (Array.isArray(document)) return document.map(dropMidLists);
-  if (!isPlainObject(document)) return document;
-  const cleaned = Object.fromEntries(Object.entries(document).map(([key, value]) => [key, dropMidLists(value)]));
-  if (isPlainObject(cleaned.sizes)) {
-    delete cleaned.sizes.midRails;
-    delete cleaned.sizes.midStiles;
-    if (Object.keys(cleaned.sizes).length === 0) delete cleaned.sizes;
-  }
-  return cleaned;
-}
-
-/** Migrate style lists in room and phase scopes without mutating the saved document. */
-function migrateDoorPanelScopes(scope) {
-  if (!scope || typeof scope !== 'object') return scope;
-  const migrated = { ...scope };
-  if (Array.isArray(scope.doorStyles)) migrated.doorStyles = scope.doorStyles.map(migrateDoorPanel);
-  for (const key of ['rooms', 'phases']) {
-    if (Array.isArray(scope[key])) migrated[key] = scope[key].map(migrateDoorPanelScopes);
-  }
-  return migrated;
-}
-
-function migrateDoorDesignRef(style) {
-  return style?.designId === 'slab-applied' ? { ...style, designId: 'slab-mdf' } : style;
-}
-
-/** Rename design references in every room and phase style list. */
-function migrateDoorDesignScopes(scope) {
-  if (!scope || typeof scope !== 'object') return scope;
-  const migrated = { ...scope };
-  if (Array.isArray(scope.doorStyles)) migrated.doorStyles = scope.doorStyles.map(migrateDoorDesignRef);
-  for (const key of ['rooms', 'phases']) {
-    if (Array.isArray(scope[key])) migrated[key] = scope[key].map(migrateDoorDesignScopes);
-  }
-  return migrated;
-}
-
-/** Strip the retired outside-edge choice without changing any other style keys. */
-function withoutProfiledEdge(owner, key = 'style') {
-  if (!isPlainObject(owner[key]) || !Object.hasOwn(owner[key], 'profiledEdge')) return owner;
-  const next = { ...owner, [key]: { ...owner[key] } };
-  delete next[key].profiledEdge;
-  return next;
-}
-
-function normalizeDocument(document, schemaVersion) {
-  if (!document || document.schemaVersion !== schemaVersion) return document;
-  document = migrateAppliedMoldingScopes(document);
-  document = migrateMidWidthScopes(document);
-  document = dropMidLists(document);
-  document = migrateDoorDesignScopes(document);
+/** Fill current settings and preserve room integrity before validation. */
+export function normalizeElevationDocument(document) {
+  if (!document || document.schemaVersion !== ELEVATION_SCHEMA_VERSION) return document;
   let settings = document.settings;
   if (settings && typeof settings === 'object') {
-    settings = withoutProfiledEdge({ ...settings }, 'defaultStyle');
+    settings = { ...settings };
     settings.report = { ...DEFAULT_SETTINGS.report, ...settings.report };
     for (const key of V2_DEFAULTED_SETTING_KEYS) {
       if (settings[key] === undefined) settings[key] = DEFAULT_SETTINGS[key];
     }
-    for (const key of Object.keys(DEFAULT_PREFS)) delete settings[key];
-    if (!Object.hasOwn(settings, 'stoneTopReveal')) {
-      const base = settings.faceReveals?.[CABINET_TYPE_IDS.BASE];
-      if (base?.top === 0.25) {
-        settings.faceReveals = {
-          ...settings.faceReveals,
-          [CABINET_TYPE_IDS.BASE]: { ...base, top: 0.125 },
-        };
-      }
-      settings.stoneTopReveal = DEFAULT_SETTINGS.stoneTopReveal;
-    }
     if (settings.teamDoorStyle === undefined) {
-      const thickness = Number.isFinite(settings.doorThickness) && settings.doorThickness > 0
-        ? settings.doorThickness
-        : DEFAULT_DOOR_STYLE.thickness;
-      settings.teamDoorStyle = { ...structuredClone(DEFAULT_DOOR_STYLE), thickness };
+      settings.teamDoorStyle = structuredClone(DEFAULT_DOOR_STYLE);
     }
-    if (!Object.hasOwn(settings, 'doorPanelDefault')) {
-      settings.teamDoorStyle = migrateDoorPanel(settings.teamDoorStyle);
-      document = migrateDoorPanelScopes(document);
-      settings.doorPanelDefault = 0.5;
-    }
-    settings.teamDoorStyle = migrateAppliedMoldings(settings.teamDoorStyle);
-    settings.teamDoorStyle = migrateMidWidths(settings.teamDoorStyle);
-    settings.teamDoorStyle = migrateDoorDesignRef(settings.teamDoorStyle);
     if (settings.doorDesigns === undefined) settings.doorDesigns = structuredClone(DOOR_DESIGNS);
     else if (Array.isArray(settings.doorDesigns)) {
       settings.doorDesigns = settings.doorDesigns.map(migrateDoorDesign);
@@ -958,9 +830,6 @@ function normalizeDocument(document, schemaVersion) {
     if (settings.sectionProfiles === undefined) settings.sectionProfiles = [];
     else if (Array.isArray(settings.sectionProfiles)) settings.sectionProfiles = settings.sectionProfiles.map(migrateSectionProfile);
     if (settings.shapes === undefined) settings.shapes = [];
-    delete settings.doorThickness;
-    delete settings.endPanelThickness;
-    delete settings.standardDrawerBelow;
   }
   return {
     ...document,
@@ -969,20 +838,54 @@ function normalizeDocument(document, schemaVersion) {
       if (!room || typeof room !== 'object') return room;
       const normalized = {
         ...room,
-        walls: Array.isArray(room.walls) ? room.walls.map((wall) => (
-          wall && typeof wall === 'object'
-            ? {
-              ...wall,
-              name: normalizeWallName(wall.name),
-              numberOverride: wall.numberOverride ?? null,
-              elevationForced: wall.elevationForced ?? false,
-              thicknessOverride: wall.thicknessOverride !== undefined ? wall.thicknessOverride
-                : (Number.isFinite(wall.thickness) && wall.thickness !== DEFAULT_SETTINGS.wallThickness
-                  ? wall.thickness : null),
-              openings: wall.openings === undefined ? [] : wall.openings,
-            }
-            : wall
-        )) : room.walls,
+        partNumberStart: room.partNumberStart ?? 1,
+        partNumberOverrides: room.partNumberOverrides ?? {},
+        reportParts: room.reportParts ?? {},
+        reportNote: room.reportNote ?? '',
+        profile: isPlainObject(room.profile) ? Object.fromEntries(
+          Object.entries(room.profile).filter(([key, value]) => (
+            !Object.hasOwn(settings?.defaultProfile ?? {}, key)
+            || value !== settings.defaultProfile[key]
+          )),
+        ) : room.profile,
+        walls: Array.isArray(room.walls) ? room.walls.map((wall) => {
+          if (!wall || typeof wall !== 'object') return wall;
+          const joints = wall.joints === undefined ? [] : wall.joints;
+          const jointIds = new Set(
+            Array.isArray(joints) ? joints.map((joint) => joint?.id) : [],
+          );
+          return {
+            ...wall,
+            numberOverride: wall.numberOverride ?? null,
+            elevationForced: wall.elevationForced ?? false,
+            thicknessOverride: wall.thicknessOverride ?? null,
+            joints,
+            openings: Array.isArray(wall.openings) ? wall.openings.map((opening) => (
+              opening && typeof opening === 'object'
+                ? {
+                    ...opening,
+                    offsetAnchor: opening.offsetAnchor === undefined
+                      ? 'edge'
+                      : opening.offsetAnchor,
+                }
+                : opening
+            )) : (wall.openings === undefined ? [] : wall.openings),
+            runs: Array.isArray(wall.runs) ? wall.runs.map((run) => {
+              if (!run || typeof run !== 'object') return run;
+              return {
+                ...normalizeRunWaterfall(normalizeRunTopOverhang(run)),
+                anchors: run.anchors && typeof run.anchors === 'object'
+                  ? Object.fromEntries(Object.entries(run.anchors).map(([side, anchor]) => [
+                      side,
+                      anchor?.to === 'joint' && !jointIds.has(anchor.jointId)
+                        ? false
+                        : anchor,
+                    ]))
+                  : run.anchors,
+              };
+            }) : wall.runs,
+          };
+        }) : room.walls,
       };
       if (isPlainObject(room.settingsOverrides)) {
         const overrides = cleanOverrides(room.settingsOverrides, 'room');
@@ -997,97 +900,6 @@ function normalizeDocument(document, schemaVersion) {
       }
       return normalized;
     }) : document.rooms,
-  };
-}
-
-/** Remove retired charging picks throughout nested face trees before validation. */
-function withoutDrawerCharging(face) {
-  if (!isPlainObject(face)) return face;
-  const next = { ...face };
-  if (Array.isArray(face.children)) next.children = face.children.map(withoutDrawerCharging);
-  if (isPlainObject(face.drawerBox) && Object.hasOwn(face.drawerBox, 'charging')) {
-    next.drawerBox = { ...face.drawerBox };
-    delete next.drawerBox.charging;
-    if (!Object.keys(next.drawerBox).length) delete next.drawerBox;
-  }
-  return next;
-}
-
-/** Remove retired cabinet style, purpose and charging picks, including nested grids. */
-function withoutRetiredCabinetFields(node) {
-  if (!isPlainObject(node)) return node;
-  if (Array.isArray(node.cells)) {
-    return { ...node, cells: node.cells.map((cell) => (
-      isPlainObject(cell) ? { ...cell, node: withoutRetiredCabinetFields(cell.node) } : cell
-    )) };
-  }
-  if (node.kind !== 'cabinet') return node;
-  const next = { ...withoutProfiledEdge(node) };
-  if (next.purpose === 'charging') delete next.purpose;
-  if (node.face !== undefined) next.face = withoutDrawerCharging(node.face);
-  return next;
-}
-
-/** Fill fields added within the current schema while retaining compatibility. */
-export function normalizeElevationDocument(document) {
-  const normalized = normalizeDocument(document, ELEVATION_SCHEMA_VERSION);
-  if (!normalized || normalized.schemaVersion !== ELEVATION_SCHEMA_VERSION) {
-    return normalized;
-  }
-  return {
-    ...normalized,
-    rooms: Array.isArray(normalized.rooms) ? normalized.rooms.map((room) => {
-      if (!room || typeof room !== 'object') return room;
-      return {
-        ...withoutProfiledEdge(room),
-        partNumberStart: room.partNumberStart ?? 1,
-        partNumberOverrides: room.partNumberOverrides ?? {},
-        reportParts: room.reportParts ?? {},
-        reportNote: room.reportNote ?? '',
-        profile: isPlainObject(room.profile) ? Object.fromEntries(
-          Object.entries(room.profile).filter(([key, value]) => (
-            !Object.hasOwn(normalized.settings?.defaultProfile ?? {}, key)
-            || value !== normalized.settings.defaultProfile[key]
-          )),
-        ) : room.profile,
-        walls: Array.isArray(room.walls) ? room.walls.map((wall) => {
-          if (!wall || typeof wall !== 'object') return wall;
-          const joints = wall.joints === undefined ? [] : wall.joints;
-          const jointIds = new Set(
-            Array.isArray(joints) ? joints.map((joint) => joint?.id) : [],
-          );
-          return {
-            ...withoutProfiledEdge(wall),
-            joints,
-            openings: Array.isArray(wall.openings) ? wall.openings.map((opening) => (
-              opening && typeof opening === 'object'
-                ? {
-                    ...opening,
-                    offsetAnchor: opening.offsetAnchor === undefined
-                      ? 'edge'
-                      : opening.offsetAnchor,
-                }
-                : opening
-            )) : wall.openings,
-            runs: Array.isArray(wall.runs) ? wall.runs.map((run) => {
-              if (!run || typeof run !== 'object') return run;
-              return {
-                ...withoutProfiledEdge(normalizeRunWaterfall(normalizeRunTopOverhang(run))),
-                ...(run.grid !== undefined ? { grid: withoutRetiredCabinetFields(run.grid) } : {}),
-                anchors: run.anchors && typeof run.anchors === 'object'
-                  ? Object.fromEntries(Object.entries(run.anchors).map(([side, anchor]) => [
-                      side,
-                      anchor?.to === 'joint' && !jointIds.has(anchor.jointId)
-                        ? false
-                        : anchor,
-                    ]))
-                  : run.anchors,
-              };
-            }) : wall.runs,
-          };
-        }) : room.walls,
-      };
-    }) : normalized.rooms,
   };
 }
 
@@ -1186,8 +998,8 @@ export function toRoomDocument(room) {
 }
 
 /**
- * A stored room document → a room ready for the editor (older fields filled in), or a
- * readable failure. `settings` only feeds the same load-time migrations a full document gets.
+ * A stored room document → a room ready for the editor, or a
+ * readable failure. `settings` only feeds the same load-time normalization a full document gets.
  * → { ok: true, room } | { ok: false, reason: 'bad_document' | 'schema', message }
  */
 export function roomFromDocument(document, schemaVersion, settings) {

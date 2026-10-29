@@ -11,7 +11,6 @@ import {
   elevationLetters,
   indexToLetters,
   nextWallId,
-  normalizeWallName,
   wallComponents,
   wallLabel,
   wallNumbers,
@@ -144,13 +143,12 @@ describe('wall topology and numbering', () => {
     }]);
   });
 
-  it('6. labels custom names and normalizes generated legacy names', () => {
+  it('6. labels custom wall names', () => {
     const room = roomWithC();
     const wallA = room.walls.find(({ id }) => id === 'A');
     expect(wallLabel(room, wallA)).toBe('Wall 2');
     wallA.name = 'Sink wall';
     expect(wallLabel(room, wallA)).toBe('Wall 2 · Sink wall');
-    expect(normalizeWallName('Wall 7')).toBe('');
   });
 
   it('7. keeps the first chain stable when extending a second chain', () => {

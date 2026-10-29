@@ -342,9 +342,3 @@ export function nextWallId(room, activeWallId, direction) {
   const step = direction === 'previous' || direction === 'left' || direction < 0 ? -1 : 1;
   return wallIds[(currentIndex + step + wallIds.length) % wallIds.length];
 }
-
-/** Normalize obsolete generated wall names into an empty custom name. */
-export function normalizeWallName(name) {
-  if (typeof name !== 'string' || /^Wall \d+$/.test(name)) return '';
-  return name;
-}

@@ -391,7 +391,6 @@ export {
   elevationLabel,
   elevationLetters,
   indexToLetters,
-  normalizeWallName,
   nextWallId,
   wallComponents,
   wallHasCabinets,
