@@ -29,9 +29,6 @@ import CanvasContextMenu from '../components/CanvasContextMenu.jsx';
 import SelectionPicker, { PlanPickOutline } from '../components/SelectionPicker.jsx';
 import MeasureOverlay from '../components/MeasureOverlay.jsx';
 import MeasureReadout from '../components/MeasureReadout.jsx';
-import { planClearances } from '../model/clearances.js';
-import { CABINET_TYPE_IDS } from '../model/constants.js';
-import { findCollisions, footprintsAtPoint } from '../model/footprints.js';
 import {
   dot,
   planPointToWallX,
@@ -45,9 +42,8 @@ import {
   openingsAtPoint,
   validateOpeningPlacement,
 } from '../model/openings.js';
-import { wallLabel } from '../model/topology.js';
 import { formatInches, roundTo } from '../model/units.js';
-import { wallSideFrame, wallSideOf, wallSideView } from '../model/wallSides.js';
+import { wallSideView } from '../model/wallSides.js';
 import {
   addOpening,
   addWallSegment,
@@ -63,10 +59,12 @@ import { PLAN_BACKGROUND_COLOR } from './constants.js';
 import PlanAlignmentGuides from './PlanAlignmentGuides.jsx';
 import PlanOverlays from './PlanOverlays.jsx';
 import PlanScene from './PlanScene.jsx';
+import usePlanContextMenu from './usePlanContextMenu.js';
 import usePlanKeys from './usePlanKeys.js';
 import usePlanPan from './usePlanPan.js';
 import usePlanPicker from './usePlanPicker.js';
 import usePlanRunMove from './usePlanRunMove.js';
+import usePlanSceneData from './usePlanSceneData.js';
 import usePlanWallEdits from './usePlanWallEdits.js';
 import usePlanView from './usePlanView.js';
 import { snapPointOrtho } from './wallOps.js';
@@ -100,17 +98,6 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const selectedWall = wallItselfSelected
     ? walls.find((wall) => wall.id === selection.wallId) ?? null
     : null;
-  const adaptedWalls = useMemo(
-    () => walls.map((wall) => ({ ...wall, wall_id: wall.id })),
-    [walls],
-  );
-  const orderedOpenings = useMemo(() => {
-    if (!room) return [];
-    return walls.flatMap((wall) => {
-      const frame = wallFrame(room, wall);
-      return (wall.openings ?? []).map((opening) => ({ frame, wall, opening }));
-    });
-  }, [room, walls]);
   const stageRef = useRef(null);
   const containerRef = useRef(null);
   const drawStartRef = useRef(null);
@@ -242,47 +229,13 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     stageRef, toWorld, setEntryPointer, showMessage,
   });
   const sceneRoom = previewRoom ?? room;
-  const collisionMessages = useMemo(() => {
-    const messages = new Map();
-    if (!sceneRoom) return messages;
-    const runWalls = new Map(sceneRoom.walls.flatMap((wall) => (
-      wall.runs.map((run) => [run.id, wall])
-    )));
-    for (const collision of findCollisions(sceneRoom, settings)) {
-      const otherWall = runWalls.get(collision.otherRunId);
-      if (otherWall && !messages.has(collision.runId)) {
-        messages.set(
-          collision.runId,
-          `Overlaps ${wallLabel(sceneRoom, otherWall)} run — anchor both runs to the corner`,
-        );
-      }
-    }
-    return messages;
-  }, [sceneRoom, settings]);
-  const clearances = useMemo(
-    () => (sceneRoom ? planClearances(sceneRoom, settings) : []),
-    [sceneRoom, settings],
-  );
-  const orderedFootprints = useMemo(() => {
-    if (!sceneRoom) return [];
-    const entries = sceneRoom.walls.flatMap((wall) => (
-      wall.runs.map((run) => ({
-        frame: wallSideFrame(sceneRoom, wall, wallSideOf(run)),
-        wall,
-        run,
-      }))
-    ));
-    return [
-      ...entries.filter(({ run }) => run.cabinetTypeId !== CABINET_TYPE_IDS.UPPER),
-      ...entries.filter(({ run }) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER),
-    ];
-  }, [sceneRoom]);
-  const [contextMenu, setContextMenu] = useState(null);
-  const closeContextMenu = useCallback(() => setContextMenu(null), []);
-  const menuContext = `${activeRoomId}:${activeWallId}:${activeWallSide}:${view}:${tool}`;
-  useEffect(() => {
-    if (moving || (contextMenu && contextMenu.context !== menuContext)) closeContextMenu();
-  }, [closeContextMenu, contextMenu, menuContext, moving]);
+  const { adaptedWalls, orderedOpenings, collisionMessages, clearances, orderedFootprints } = usePlanSceneData({
+    room, walls, sceneRoom, settings,
+  });
+  const { contextMenu, closeContextMenu, handleContextMenu } = usePlanContextMenu({
+    room, walls, settings, tool, view, activeRoomId, activeWallId, activeWallSide,
+    dispatch, stageRef, toWorld, measure, moving, cancelMove, closePicker, cancelEntry,
+  });
 
   usePlanKeys({
     entry, cancelEntry, commitEntry, startMoveMode, tool,
@@ -290,35 +243,6 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     drawStartRef, cancelDrawing, dispatch, setPendingDeleteWallId,
     selection, walls, selectedWall,
   });
-
-  const handleContextMenu = useCallback((event) => {
-    event.evt.preventDefault();
-    closeContextMenu();
-    closePicker();
-    if (tool === 'measure') {
-      measure.cancelFirst();
-      return;
-    }
-    if (moving) {
-      cancelMove();
-      return;
-    }
-    const pointer = stageRef.current?.getPointerPosition();
-    if (!pointer || !room) return;
-    const runId = footprintsAtPoint(room, toWorld(pointer), settings)[0];
-    if (!runId) return;
-    const wall = walls.find((wall) => wall.runs.some(({ id }) => id === runId));
-    const side = wallSideOf(wall.runs.find(({ id }) => id === runId));
-    cancelEntry();
-    dispatch(setTool('select'));
-    dispatch(setActiveWall(wall.id));
-    dispatch(setSelection({ runId, pieceId: null }));
-    setContextMenu({
-      ...pointer, runId,
-      context: `${activeRoomId}:${wall.id}:${side}:${view}:select`,
-    });
-  }, [activeRoomId, cancelEntry, cancelMove, closeContextMenu, closePicker, dispatch,
-    measure.cancelFirst, moving, room, settings, toWorld, tool, view, walls]);
 
   const gridAndOrtho = useCallback((point, fixed = null) => {
     const gridPoint = snapToGrid(point, settings.planGrid);
