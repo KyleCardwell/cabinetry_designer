@@ -11,6 +11,8 @@ import { opening } from '../../test/builders.js';
 import CombinedFaces, { resolveCombinedFaces } from './CombinedFaces.jsx';
 import DoorDetails from './DoorDetails.jsx';
 import ElevationCanvas from './ElevationCanvas.jsx';
+import WallContentLayer from './WallContentLayer.jsx';
+import WallOverlayLayer from './WallOverlayLayer.jsx';
 import ElevationPreviews from './ElevationPreviews.jsx';
 import FaceOutlines from './FaceOutlines.jsx';
 import FrameOutline from './FrameOutline.jsx';
@@ -47,6 +49,9 @@ function view(extra = {}) {
   const room = state.rooms[0];
   const wall = resolveWall(room, room.walls[0], 'front');
   const canvas = nodes(ElevationCanvas.render({ room, wall, settings: state.settings }, null));
+  for (const Layer of [WallContentLayer, WallOverlayLayer]) {
+    canvas.push(...nodes(Layer(canvas.find(({ type }) => type === Layer).props)));
+  }
   const runNode = canvas.find(({ type }) => type === RunGroup);
   const tree = nodes(RunGroup.type({ ...runNode.props, transform, ...extra }));
   const layer = tree.find(({ type }) => type === ShowThroughInteriors);

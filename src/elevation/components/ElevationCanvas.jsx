@@ -25,7 +25,6 @@ import { useMeasure } from '../canvas/measureState.js';
 import { elevationMeasureGeometry } from '../model/measure.js';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { elevationKey } from '../model/topology.js';
-import { openingGeometry } from '../model/openings.js';
 import {
   moveOpening,
   setMessage,
@@ -35,24 +34,17 @@ import {
 } from '../store/elevationSlice.js';
 import CombinedFaces from './CombinedFaces.jsx';
 import CanvasContextMenu from './CanvasContextMenu.jsx';
-import ElevationAlignmentGuides from './ElevationAlignmentGuides.jsx';
 import ElevationDimensions from './ElevationDimensions.jsx';
 import ElevationPreviews from './ElevationPreviews.jsx';
-import JointMarkers from './JointMarkers.jsx';
 import LiveEntryInput from './LiveEntryInput.jsx';
 import MeasureOverlay from './MeasureOverlay.jsx';
 import MeasureReadout from './MeasureReadout.jsx';
 import TrackSizeInput from './TrackSizeInput.jsx';
-import NeighborProfiles from './NeighborProfiles.jsx';
-import NeighborReturns from './NeighborReturns.jsx';
-import OpeningShape from './OpeningShape.jsx';
-import SelectionPicker, { PickOutline } from './SelectionPicker.jsx';
+import SelectionPicker from './SelectionPicker.jsx';
 import PartNumberLayer from './PartNumberLayer.jsx';
-import RunGroup from './RunGroup.jsx';
-import SoffitShapes from './SoffitShapes.jsx';
-import RecessShapes, { RecessOutline } from './RecessShapes.jsx';
-import WallEndPanelShapes from './WallEndPanelShapes.jsx';
 import WallFrame from './WallFrame.jsx';
+import WallContentLayer from './WallContentLayer.jsx';
+import WallOverlayLayer from './WallOverlayLayer.jsx';
 import useElevationKeys from './canvas/useElevationKeys.js';
 import useRunStretch from './canvas/useRunStretch.js';
 import useRunMove from './canvas/useRunMove.js';
@@ -534,126 +526,29 @@ function ElevationCanvas({
               }}
             />
           )}
-          <Layer>
-            <RecessShapes
-              wall={wall}
-              transform={transform}
-              selectedRecessId={selection.recessId}
-              onSelect={tool === 'select' ? pick : undefined}
-            />
-            {(wall.openings ?? []).map((opening) => (
-              <OpeningShape
-                key={opening.id}
-                opening={opening}
-                geometry={openingGeometry(opening, wall.length, settings)}
-                settings={settings}
-                transform={transform}
-                selected={selection.openingId === opening.id}
-                selectable={tool === 'select' && wall.side !== 'back'}
-                onSelect={selectOpening}
-                onPick={pick}
-                onMove={(x) => moveSelectedOpening(opening.id, x)}
-                cursor={cursor}
-              />
-            ))}
-            <SoffitShapes
-              room={room}
-              wall={wall}
-              settings={settings}
-              transform={transform}
-              selectedSoffitId={selection.soffitId}
-              onSelect={tool === 'select' ? pick : undefined}
-              combinedJoins={soffitJoins.filter((join) => join.key === activeKey)}
-            />
-            {wall.runs.map((run) => (
-              <RunGroup
-                key={run.id}
-                run={run}
-                room={room}
-                wall={wall}
-                settings={settings}
-                diagnostic={diagnostics[run.id]}
-                transform={transform}
-                selectedRun={selection.runId === run.id}
-                selectedPieceId={
-                  selection.runId === run.id ? selection.pieceId : null
-                }
-                onSelectRun={pick}
-                onSelectPiece={pick}
-                selectedFacePath={selection.runId === run.id ? facePath : null}
-                onSelectFace={pickFace}
-                doorsOff={doorsOff}
-                showThrough={showThrough.filter((entry) => entry.runId === run.id)}
-                interiors={interiors.filter((entry) => entry.runId === run.id)}
-                drawerBoxes={drawerBoxes.filter((entry) => entry.runId === run.id)}
-                adjustableShelves={adjustableShelves}
-                rollouts={rollouts}
-                accessories={accessories}
-                interiorPath={interiorPath}
-                interiorDivider={interiorDivider}
-                onSelectInterior={pickInterior}
-                onEditDivider={setDividerEdit}
-                onMoveDivider={moveDivider}
-                onEditTrack={editTrack}
-                stretchable={tool === 'select'}
-                onStretchStart={startStretch}
-                onStretchMove={updateStretch}
-                onStretchEnd={finishStretch}
-                cursor={cursor}
-              />
-            ))}
-            <WallEndPanelShapes
-              room={room}
-              wall={wall}
-              settings={settings}
-              transform={transform}
-              selectedEndpoint={selection.endPanel ?? null}
-              onSelect={tool === 'select' ? pick : undefined}
-              cursor={cursor}
-            />
-            {tool === 'select' && (
-              <JointMarkers
-                wall={wall}
-                transform={transform}
-                selectedRunId={selection.runId}
-                onJointDragStart={startJointDrag}
-                onJointDragMove={previewJointDrag}
-                onJointDragEnd={finishJointDrag}
-                onUnjoin={unjoinRunSide}
-                hoveredGlyphId={hoveredGlyphId}
-                setHoveredGlyphId={setHoveredGlyphId}
-                cursor={cursor}
-              />
-            )}
-          </Layer>
-          <Layer listening={false}>
-            <NeighborReturns
-              doorsOff={doorsOff}
-              room={room}
-              wall={wall}
-              settings={settings}
-              transform={transform}
-              shapes={combinedFaces?.get(activeKey).shapes}
-            />
-            <NeighborProfiles
-              doorsOff={doorsOff}
-              room={room}
-              wall={wall}
-              settings={settings}
-              transform={transform}
-              shapes={combinedFaces?.get(activeKey).shapes}
-            />
-            {selection.recessId && (
-              <RecessOutline wall={wall} transform={transform} recessId={selection.recessId} />
-            )}
-            <PickOutline candidate={hovered} transform={transform} />
-            <ElevationAlignmentGuides
-              guides={alignmentGuides}
-              transform={transform}
-              width={viewport.width}
-              height={viewport.height}
-            />
-          </Layer>
+          <WallContentLayer
+            wall={wall} transform={transform} selection={selection} tool={tool}
+            pick={pick} settings={settings} selectOpening={selectOpening}
+            moveSelectedOpening={moveSelectedOpening} cursor={cursor} room={room}
+            soffitJoins={soffitJoins} activeKey={activeKey} diagnostics={diagnostics}
+            facePath={facePath} pickFace={pickFace} doorsOff={doorsOff}
+            showThrough={showThrough} interiors={interiors} drawerBoxes={drawerBoxes}
+            adjustableShelves={adjustableShelves} rollouts={rollouts}
+            accessories={accessories} interiorPath={interiorPath}
+            interiorDivider={interiorDivider} pickInterior={pickInterior}
+            setDividerEdit={setDividerEdit} moveDivider={moveDivider}
+            editTrack={editTrack} startStretch={startStretch}
+            updateStretch={updateStretch} finishStretch={finishStretch}
+            startJointDrag={startJointDrag} previewJointDrag={previewJointDrag}
+            finishJointDrag={finishJointDrag} unjoinRunSide={unjoinRunSide}
+            hoveredGlyphId={hoveredGlyphId} setHoveredGlyphId={setHoveredGlyphId}
+          />
+          <WallOverlayLayer
+            doorsOff={doorsOff} room={room} wall={wall} settings={settings}
+            transform={transform} combinedFaces={combinedFaces} activeKey={activeKey}
+            selection={selection} hovered={hovered} alignmentGuides={alignmentGuides}
+            viewport={viewport}
+          />
           <ElevationDimensions
             dimensionChains={dimensionChains}
             dimensionOffsets={dimensionOffsets}

@@ -10,6 +10,8 @@ import { wallRectToScreen, wallToScreen } from '../../canvas/transform.js';
 import elevationReducer, { setDoorsOff, setItemInterior, setItemShelves } from '../../store/elevationSlice.js';
 import { run, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import ElevationCanvas from '../ElevationCanvas.jsx';
+import WallContentLayer from '../WallContentLayer.jsx';
+import WallOverlayLayer from '../WallOverlayLayer.jsx';
 import InteriorShapes from '../InteriorShapes.jsx';
 import RunGroup from '../RunGroup.jsx';
 
@@ -51,6 +53,9 @@ function canvas() {
   const room = syncRoom(state.rooms[0], state.settings);
   const wall = resolveWall(room, room.walls[0], 'front');
   const tree = nodes(ElevationCanvas.render({ room, wall, settings: state.settings }, null));
+  for (const Layer of [WallContentLayer, WallOverlayLayer]) {
+    tree.push(...nodes(Layer(tree.find(({ type }) => type === Layer).props)));
+  }
   const runNode = tree.find(({ type }) => type === RunGroup);
   const runTree = nodes(RunGroup.type(runNode.props));
   const interiorNode = runTree.find(({ type }) => type === InteriorShapes);

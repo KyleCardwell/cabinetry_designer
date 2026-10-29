@@ -6,6 +6,8 @@ import { wallToScreen } from '../canvas/transform.js';
 import elevationReducer, { setDoorsOff, setSelection, setTool } from '../store/elevationSlice.js';
 import { auto, run, stateWithRun } from '../store/__tests__/helpers/sliceFixtures.js';
 import ElevationCanvas from './ElevationCanvas.jsx';
+import WallContentLayer from './WallContentLayer.jsx';
+import WallOverlayLayer from './WallOverlayLayer.jsx';
 import ElevationPreviews from './ElevationPreviews.jsx';
 import LiveEntryInput from './LiveEntryInput.jsx';
 import RunGroup from './RunGroup.jsx';
@@ -159,6 +161,9 @@ beforeEach(() => {
         wall = resolveWall(room, room.walls[0], side);
       }
       tree = nodes(ElevationCanvas.render({ room, wall, settings: state.settings }, null));
+      for (const Layer of [WallContentLayer, WallOverlayLayer]) {
+        tree.push(...nodes(Layer(tree.find(({ type }) => type === Layer).props)));
+      }
       node(Stage).ref.current = stage;
       tree.push(...nodes(CanvasContextMenu(node(CanvasContextMenu).props)));
       const dimensions = nodes(ElevationDimensions(node(ElevationDimensions).props));
