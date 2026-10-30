@@ -10,11 +10,7 @@ import { runItems } from './grid.js';
 import { landingsOn } from './landings.js';
 import { cornerShapes, profileReach } from './cornerParts.js';
 import { resolveProfile } from './profile.js';
-import {
-  endCornerAnglesForRun,
-  endMinWidthsForRun,
-  pinTargetsForRun,
-} from './room.js';
+import { splitOptionsForRun } from './placement.js';
 import { splitRun } from './splitRun.js';
 import { stackLeaders } from './stacks.js';
 import { teeFillers } from './tees.js';
@@ -451,11 +447,7 @@ function bandChains(room, wall, band, settings) {
   if (left) inner.push(left);
   let cursor = rangeStart;
   runs.forEach((run, index) => {
-    const layout = splitRun(run, settings, {
-      endMinWidths: endMinWidthsForRun(room, wall, run, settings),
-      endCornerAngles: endCornerAnglesForRun(room, wall, run),
-      pinTargets: pinTargetsForRun(run, wall, length, settings),
-    });
+    const layout = splitRun(run, settings, splitOptionsForRun(room, wall, run, settings));
     // A frame over a wall end panel starts before the run (SPEC-36.2).
     const segments = runInnerSegments(room, wall, run, settings, layout);
     const lapAt = (side, cornerGap) => cornerGap

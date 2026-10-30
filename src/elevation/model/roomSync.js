@@ -40,9 +40,8 @@ import {
 } from './wallSides.js';
 import { isPanelOnlyRun, panelRunMiters, wallEndPanels } from './wallEndPanels.js';
 import { cloneRun, cloneRoom } from './roomClone.js';
-import { endMinWidthsForRun, endCornerAnglesForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
-import { pinTargetsForRun } from './runPins.js';
-import { placeRoom } from './placement.js';
+import { endMinWidthsForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
+import { placeRoom, splitOptionsForRun } from './placement.js';
 import { returnFaceWarnings } from './returnWarnings.js';
 import { flexRoom, unflexRoom } from './runFlex.js';
 
@@ -127,11 +126,7 @@ function withEndThickness(room, wall, run, settings) {
 function withInsideEnds(room, wall, run, settings) {
   const { _insideEnds, ...base } = run;
   const view = wallViewForRun(wall, base);
-  const layout = splitRun(base, settings, {
-    endMinWidths: endMinWidthsForRun(room, view, base, settings),
-    endCornerAngles: endCornerAnglesForRun(room, view, base),
-    pinTargets: pinTargetsForRun(base, view, wallLength(wall), settings),
-  });
+  const layout = splitRun(base, settings, splitOptionsForRun(room, view, base, settings));
   const entries = insideEndSides(base, cellPieces(base, layout), settings)
     .filter((entry) => entry.choice !== 'none')
     .map((entry) => entry.choice === 'panel'
@@ -146,11 +141,7 @@ function withInsideEnds(room, wall, run, settings) {
 function withStepEnds(room, wall, run, settings) {
   const { _stepEnds, ...base } = run;
   const view = wallViewForRun(wall, base);
-  const layout = splitRun(base, settings, {
-    endMinWidths: endMinWidthsForRun(room, view, base, settings),
-    endCornerAngles: endCornerAnglesForRun(room, view, base),
-    pinTargets: pinTargetsForRun(base, view, wallLength(wall), settings),
-  });
+  const layout = splitRun(base, settings, splitOptionsForRun(room, view, base, settings));
   const entries = stepEndSides(base, cellPieces(base, layout), settings, room)
     .filter((entry) => entry.choice !== 'none');
   if (entries.length) {
@@ -391,13 +382,8 @@ export function roomDiagnostics(room, settings) {
     const bases = floorRunsWithTops(wall, wall.runs, profile);
     const resolvedWall = { ...wall, length };
     for (const run of wall.runs) {
-      const minimums = endMinWidthsForRun(synced, wall, run, settings);
-      const pinTargets = pinTargetsForRun(run, wall, length, settings);
-      const layout = splitRun(run, settings, {
-        endMinWidths: minimums,
-        endCornerAngles: endCornerAnglesForRun(synced, wall, run),
-        pinTargets,
-      });
+      const options = splitOptionsForRun(synced, wall, run, settings);
+      const layout = splitRun(run, settings, options);
       const vertical = resolveVertical(
         run,
         profileUnderSoffit(profile, wall, run),
@@ -426,7 +412,7 @@ export function roomDiagnostics(room, settings) {
           ...extendPieces(wall, run, cellPieces(run, layout).pieces).warnings,
           ...frameRegions(synced, run, cellPieces(run, layout), settings).warnings,
           ...runItems(run).flatMap((item) => (
-            item.pin && !Number.isFinite(pinTargets[item.id])
+            item.pin && !Number.isFinite(options.pinTargets[item.id])
               ? [{
                   code: 'pin-unresolved',
                   pieceId: item.id,

@@ -8,11 +8,7 @@ import { runBaseProfile as runBase } from './furnitureBase.js';
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
-import {
-  endCornerAnglesForRun,
-  endMinWidthsForRun,
-  pinTargetsForRun,
-} from './room.js';
+import { splitOptionsForRun } from './placement.js';
 import { splitRun } from './splitRun.js';
 import { teeFillers } from './tees.js';
 import { runMoldings } from './tops.js';
@@ -98,11 +94,7 @@ function rotParts(part, run) {
 function runParts(room, wall, side, settings) {
   const view = wallSideView(wall, side);
   return runsInWalkOrder(view).flatMap((run) => {
-    const layout = splitRun(run, settings, {
-      endMinWidths: endMinWidthsForRun(room, view, run, settings),
-      endCornerAngles: endCornerAnglesForRun(room, view, run),
-      pinTargets: pinTargetsForRun(run, view, wallLength(view), settings),
-    });
+    const layout = splitRun(run, settings, splitOptionsForRun(room, view, run, settings));
     const widths = blindPartWidths(room, view, run, settings, layout);
     const cells = cellPieces(run, layout);
     const entries = blindEntries(room, view, run, settings, layout).entries;

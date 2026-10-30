@@ -1,10 +1,17 @@
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
+import { wallLength } from '../geometry.js';
+import { splitOptionsForRun as fromIndex } from '../index.js';
 import {
   PLACEMENT_STAGES, pinGrowth, placeRoom, returnPinTargets, runEdges, soffitSpans,
+  splitOptionsForRun,
 } from '../placement.js';
+import { splitOptionsForRun as fromRoom } from '../room.js';
 import { syncRoom } from '../roomSync.js';
+import { endCornerAnglesForRun, endMinWidthsForRun } from '../runAnchors.js';
+import { pinTargetsForRun } from '../runPins.js';
+import { wallViewForRun } from '../wallSides.js';
 
 const ids = vi.hoisted(() => ({ count: 0 }));
 vi.mock('uuid', () => ({ v4: () => `layout-golden-${(ids.count += 1)}` }));
@@ -99,5 +106,39 @@ describe('LL1 placement stages', () => {
     }];
     expect(wallOf(applyStage(soffitSpans, state)).soffits[0])
       .toMatchObject({ x: 12, width: 20 });
+  });
+});
+
+describe('LL1 splitOptionsForRun', () => {
+  it('matches the three hand-built options for the synced Room 10 Wall 2 base', () => {
+    expect(fromRoom).toBe(splitOptionsForRun);
+    expect(fromIndex).toBe(splitOptionsForRun);
+    const state = syncRoom(structuredClone(room10), settings);
+    const wall = wallOf(state);
+    const run = runOf(state, BASE10);
+    const before = structuredClone(state);
+    expect(splitOptionsForRun(state, wall, run, settings)).toEqual({
+      endMinWidths: endMinWidthsForRun(state, wall, run, settings),
+      endCornerAngles: endCornerAnglesForRun(state, wall, run),
+      pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
+    });
+    expect(state).toEqual(before);
+  });
+
+  it('targets the W1 centre at 92 with its stored zero pin offset', () => {
+    const state = syncRoom(structuredClone(room10), settings);
+    const run = runOf(state, BASE10);
+    const column = run.grid.cols.find(({ id }) => id === `${PINNED10}:col`);
+    expect(column.pin.value).toBe(0);
+    expect(splitOptionsForRun(state, wallOf(state), run, settings).pinTargets[PINNED10])
+      .toBe(92); // W1 centre: 74 + 36 / 2.
+  });
+
+  it('returns the same options when passed the run wall view', () => {
+    const state = syncRoom(structuredClone(room10), settings);
+    const wall = wallOf(state);
+    const run = runOf(state, BASE10);
+    expect(splitOptionsForRun(state, wallViewForRun(wall, run), run, settings))
+      .toEqual(splitOptionsForRun(state, wall, run, settings));
   });
 });

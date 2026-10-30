@@ -1,11 +1,7 @@
 import { anchoredToCorner, cornerForRunSide, frontDepth } from './corners.js';
 import { wallLength } from './geometry.js';
 import { runBlind } from './grid.js';
-import {
-  endCornerAnglesForRun,
-  endMinWidthsForRun,
-  pinTargetsForRun,
-} from './room.js';
+import { splitOptionsForRun } from './placement.js';
 import { splitRun } from './splitRun.js';
 
 const SIDES = ['left', 'right'];
@@ -16,11 +12,7 @@ function wallSideOfRun(run) {
 }
 
 function standardLayout(room, wall, run, settings) {
-  return splitRun(run, settings, {
-    endMinWidths: endMinWidthsForRun(room, wall, run, settings),
-    endCornerAngles: endCornerAnglesForRun(room, wall, run),
-    pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
-  });
+  return splitRun(run, settings, splitOptionsForRun(room, wall, run, settings));
 }
 
 function outerCabinet(pieces, side) {

@@ -11,11 +11,7 @@ import { frontDepth } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
 import { elevationToPlan } from '../model/geometry.js';
 import { planRunPieces } from '../model/planPieces.js';
-import {
-  endCornerAnglesForRun,
-  endMinWidthsForRun,
-  pinTargetsForRun,
-} from '../model/room.js';
+import { splitOptionsForRun } from '../model/index.js';
 import { splitRun } from '../model/splitRun.js';
 import { formatDimension } from '../model/units.js';
 import { PLAN_DIM_FONT_SIZE } from './constants.js';
@@ -95,11 +91,7 @@ export default function PlanRunFootprint({
   const factor = text?.label ?? 1;
   const [hovered, setHovered] = useState(false);
   const cursorKeys = useCursorKeys(cursor);
-  const layout = splitRun(run, settings, {
-    endMinWidths: endMinWidthsForRun(room, wall, run, settings),
-    endCornerAngles: endCornerAnglesForRun(room, wall, run),
-    pinTargets: pinTargetsForRun(run, wall, frame.length, settings),
-  });
+  const layout = splitRun(run, settings, splitOptionsForRun(room, wall, run, settings));
   const faceLayouts = runFaceLayouts(room, wall, run, settings, layout);
   const { span, boxes, faces, returns, waterfallLegs = [] } = planRunPieces(
     room,

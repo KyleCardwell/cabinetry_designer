@@ -8,7 +8,7 @@ import { applyHinges, cabinetFaces, defaultFace, faceArea } from './faces.js';
 import { faceOutline, getFaceNode } from './faceTree.js';
 import { faceOpenings, frameRegions } from './frames.js';
 import { runItems } from './grid.js';
-import { endCornerAnglesForRun, endMinWidthsForRun, pinTargetsForRun } from './room.js';
+import { splitOptionsForRun } from './placement.js';
 import { splitRun } from './splitRun.js';
 import { columnOverlaps, resolveTopSegments } from './topSegments.js';
 import { teeFillers } from './tees.js';
@@ -17,11 +17,7 @@ import { wallViewForRun } from './wallSides.js';
 
 /** splitRun with the same options RunGroup uses. */
 export function layoutRun(room, wall, run, settings) {
-  return splitRun(run, settings, {
-    endMinWidths: endMinWidthsForRun(room, wall, run, settings),
-    endCornerAngles: endCornerAnglesForRun(room, wall, run),
-    pinTargets: pinTargetsForRun(run, wall, wall.length, settings),
-  });
+  return splitRun(run, settings, splitOptionsForRun(room, wall, run, settings));
 }
 
 /** Resolve matches in a layout copy, leaving the stored tree and its auto sizes intact. */

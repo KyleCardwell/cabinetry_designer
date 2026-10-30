@@ -9,16 +9,14 @@ import { selectSettings } from '../store/selectors.js';
 import {
   cellPieces,
   centerOverTargets,
-  pinTargetsForRun,
   recessesOn,
   soffitsOn,
+  splitOptionsForRun,
   splitRun,
   teeFillers,
   wallEndPanels,
 } from '../model/index.js';
 import {
-  endCornerAnglesForRun,
-  endMinWidthsForRun,
   resolveWall,
   roomDiagnostics,
 } from '../model/room.js';
@@ -69,11 +67,7 @@ export default function PropertiesPanel() {
     : null;
   const run = wall?.runs.find((candidate) => candidate.id === selection.runId) ?? null;
   const layout = useMemo(
-    () => (run ? splitRun(run, settings, {
-      endMinWidths: endMinWidthsForRun(room, wall, run, settings),
-      endCornerAngles: endCornerAnglesForRun(room, wall, run),
-      pinTargets: pinTargetsForRun(run, wall, wall.length, settings),
-    }) : null),
+    () => (run ? splitRun(run, settings, splitOptionsForRun(room, wall, run, settings)) : null),
     [room, run, settings, wall],
   );
   const canCenter = useMemo(

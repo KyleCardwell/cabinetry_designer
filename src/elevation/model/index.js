@@ -240,6 +240,7 @@ export {
   describeAnchor,
   pinTargetsForRun,
   resolveWall,
+  splitOptionsForRun,
 } from './room.js';
 export {
   cellBlindSides,

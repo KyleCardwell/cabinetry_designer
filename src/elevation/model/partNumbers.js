@@ -5,11 +5,7 @@ import { frameBadgeAnchor, frameMembers, frameRegions, regionOpenings } from './
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
 import { wallLength } from './geometry.js';
 import { resolveProfile } from './profile.js';
-import {
-  endCornerAnglesForRun,
-  endMinWidthsForRun,
-  pinTargetsForRun,
-} from './room.js';
+import { splitOptionsForRun } from './placement.js';
 import { splitRun } from './splitRun.js';
 import { runBands } from './runBands.js';
 import { runScene } from './runScene.js';
@@ -166,11 +162,7 @@ export function wallMoldingBadges(room, wall, settings, byKey) {
  */
 export function wallBadgeGroups(room, wall, settings) {
   const groups = wall.runs.flatMap((run) => {
-    const layout = splitRun(run, settings, {
-      endMinWidths: endMinWidthsForRun(room, wall, run, settings),
-      endCornerAngles: endCornerAnglesForRun(room, wall, run),
-      pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
-    });
+    const layout = splitRun(run, settings, splitOptionsForRun(room, wall, run, settings));
     const cells = cellPieces(run, layout);
     const frames = frameRegions(room, run, cells, settings);
     const covered = new Set(frames.regions.flatMap((region) => region.fillerIds));

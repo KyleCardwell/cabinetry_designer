@@ -8,6 +8,7 @@ export {
   describeAnchor, endCornerAnglesForRun, endMinWidthsForRun, resolveRunAnchorDatum,
 } from './runAnchors.js';
 export { pinTargetsForRun, resolvePinTarget } from './runPins.js';
+export { splitOptionsForRun } from './placement.js';
 export { roomDiagnostics, syncRoom, tryPlaceRun } from './roomSync.js';
 export {
   dissolveJoint, joinEdges, joinStack, joinTouchingEdges, joinTouchingStack, moveJoint, resizeRun,

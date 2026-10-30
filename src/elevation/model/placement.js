@@ -2,12 +2,21 @@ import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { followLeaders } from './joints.js';
 import { returnExtents } from './returnExtents.js';
-import { horizontalResolution } from './runAnchors.js';
+import { endCornerAnglesForRun, endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
 import { pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
 import { resolveSoffitSpan } from './soffits.js';
 import { wallSideOf, wallSideView } from './wallSides.js';
 
 // Return pins → soffits → run edges → pin growth; edit actions still do their own ripple until LL5. See plans/LAYOUT-PLAN.md.
+
+/** The shared room-aware options for splitting a run on either wall face. */
+export function splitOptionsForRun(room, wall, run, settings) {
+  return {
+    endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+    endCornerAngles: endCornerAnglesForRun(room, wall, run),
+    pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
+  };
+}
 
 /** Recompute return pins from the resolved landing and front planes before solving any runs. */
 function withReturnPins(room, wall, settings) {
