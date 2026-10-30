@@ -9,6 +9,7 @@ import {
   DEFAULT_SETTINGS,
   FRAME_JOINS,
   PINNABLE_KINDS,
+  ATTACHABLE_KINDS,
 } from '../model/constants.js';
 import { isBottomPart } from '../model/bottoms.js';
 import { isDoorDesignList } from '../model/doorDesigns.js';
@@ -37,6 +38,7 @@ import {
   isStyle,
 } from '../model/styles.js';
 import { SOFFIT_MOLDINGS } from '../model/soffits.js';
+import { isAttachment, isLayoutLine } from '../model/layoutLines.js';
 import { RECESS_KINDS, RECESS_MOLDINGS } from '../model/recesses.js';
 
 /** Current persisted schema version. */
@@ -183,6 +185,13 @@ function isStepEnds(value) {
   ));
 }
 
+/** LL2: a root column may attach to a layout line (attachable kinds only, never together with a pin). */
+function isColumnAttach(item) {
+  return item.attach === undefined || (
+    ATTACHABLE_KINDS.has(item.kind) && isAttachment(item.attach)
+    && (item.pin === undefined || item.pin === null));
+}
+
 function isItem(item) {
   return Boolean(item)
     && hasStyleRefs(item)
@@ -194,6 +203,7 @@ function isItem(item) {
     && (item.width === null || isFiniteNumber(item.width))
     && (item.pin === undefined || item.pin === null
       || (PINNABLE_KINDS.has(item.kind) && isItemPin(item.pin)))
+    && isColumnAttach(item)
     && (item.absorb === undefined
       || (item.kind === 'cabinet' && typeof item.absorb === 'boolean'))
     && (item.face === undefined || item.face === null
@@ -410,6 +420,7 @@ function isRun(run) {
     && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
     && (run.hanging === undefined || run.hanging === true)
     && (run.holdWidth === undefined || run.holdWidth === true)
+    && (run.attach === undefined || isAttachment(run.attach))
     && isRunFlex(run.flex)
     && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top))
     && isTopOverhang(run.topOverhang)
@@ -488,13 +499,15 @@ function isRootItem(item) {
     return isItem(item) && item.depth === undefined && item.align === undefined && isExtend(item.extend);
   }
   if (item.kind === 'cabinet') return isItem(item) && isCellDepth(item);
-  const { width, gap, top, bottom, pin, ...leaf } = item;
+  const { width, gap, top, bottom, pin, attach, ...leaf } = item;
+  void attach;
   void gap;
   void top;
   void bottom;
   return (width === null || (isFiniteNumber(width) && width > 0))
     // A root open cell may carry a pin like a cabinet (pins on opens, 2026-10-28).
     && (pin === undefined || pin === null || (PINNABLE_KINDS.has(item.kind) && isItemPin(pin)))
+    && isColumnAttach(item)
     && isCellLeaf(leaf);
 }
 
@@ -538,7 +551,8 @@ function isOpening(opening) {
       && isFiniteNumber(opening.casing.width)
       && isFiniteNumber(opening.casing.thickness)
     ))
-    && (opening.recessId === undefined || typeof opening.recessId === 'string');
+    && (opening.recessId === undefined || typeof opening.recessId === 'string')
+    && (opening.attach === undefined || isAttachment(opening.attach));
 }
 
 function isEndPanels(endPanels) {
@@ -646,6 +660,8 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
         && isFiniteNumber(joint.x)
         && (joint.wallSide === undefined || joint.wallSide === 'front' || joint.wallSide === 'back')
       ))))
+    && (wall.lines === undefined || (Array.isArray(wall.lines) && wall.lines.every(isLayoutLine)
+      && new Set(wall.lines.map((line) => line.id)).size === wall.lines.length))
     && (wall.endPanels === undefined || isEndPanels(wall.endPanels))
     && (wall.landings === undefined || isLandings(wall.landings));
 }

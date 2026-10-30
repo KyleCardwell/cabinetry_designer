@@ -6,11 +6,12 @@ const SIZE_MODES = ['auto', 'manual', 'solved'];
 function itemParts(item) {
   const leaf = {};
   for (const [key, value] of Object.entries(item)) {
-    if (!['width', 'pin', 'absorb', 'blind', 'grid', 'gap', 'top', 'bottom'].includes(key)) leaf[key] = value;
+    if (!['width', 'pin', 'attach', 'absorb', 'blind', 'grid', 'gap', 'top', 'bottom'].includes(key)) leaf[key] = value;
   }
   const col = { id: `${item.id}:col`, size: item.width,
     sizeMode: item.width === null ? 'auto' : 'manual' };
   if (item.pin !== undefined) col.pin = item.pin;
+  if (item.attach !== undefined) col.attach = item.attach;
   if (item.absorb !== undefined) col.absorb = item.absorb;
   if (item.gap !== undefined) col.gap = item.gap;
   if (item.top !== undefined) col.top = item.top;
@@ -81,7 +82,7 @@ export function edgeLeaves(node, side) {
 
 function cloneTrack(track) {
   const copy = { ...track };
-  for (const key of ['pin', 'top', 'bottom']) {
+  for (const key of ['pin', 'attach', 'top', 'bottom']) {
     if (track[key] != null && typeof track[key] === 'object') copy[key] = { ...track[key] };
   }
   return copy;
@@ -158,6 +159,7 @@ export function rootItems(grid) {
       item = { ...leaf, width: col.size };
     }
     if (col.pin !== undefined) item.pin = col.pin;
+    if (col.attach !== undefined) item.attach = col.attach;
     if (col.absorb !== undefined) item.absorb = col.absorb;
     if (col.gap !== undefined) item.gap = col.gap;
     if (col.top !== undefined) item.top = col.top;
@@ -342,7 +344,7 @@ export function updateRootItem(grid, leafId, patch) {
         col = setKey(col, 'size', value);
         col = setKey(col, 'sizeMode', value === null ? 'auto' : 'manual');
       }
-    } else if (['pin', 'absorb', 'gap', 'top', 'bottom'].includes(key)) {
+    } else if (['pin', 'attach', 'absorb', 'gap', 'top', 'bottom'].includes(key)) {
       col = setKey(col, key, value);
     } else {
       leaf = setKey(leaf, key, value);

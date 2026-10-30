@@ -80,3 +80,13 @@ export function wall(overrides = {}) {
 export function room(overrides = {}) {
   return { ...createRoom('Room 1', undefined, 'room-1'), ...overrides };
 }
+
+/** A layout line (LL2), `value` inches from the face's left by default; label = id. */
+export function line(id, value, overrides = {}) {
+  return { id, label: id, from: 'left', value, ...overrides };
+}
+
+/** An attachment to a layout line (LL2). */
+export function attach(lineId, at = 'center', offset = 0) {
+  return { lineId, at, offset };
+}

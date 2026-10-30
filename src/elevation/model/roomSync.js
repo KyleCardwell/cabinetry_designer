@@ -18,6 +18,7 @@ import {
   pruneJoints,
 } from './joints.js';
 import { resolveLandings } from './landings.js';
+import { pruneLines } from './layoutLines.js';
 import { labelOpenings, runBlocksOpening } from './openings.js';
 import { recessWarnings, withRunPlane } from './recesses.js';
 import { wallLength } from './geometry.js';
@@ -246,7 +247,7 @@ function withWallPanels(room, wall, settings) {
 export function syncRoom(room, settings) {
   // SPEC-RF1: solve every run from its drawn span; the flex goes back on at the end.
   let nextRoom = cloneRoom(resolveLandings(unflexRoom(room)));
-  nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(wall))));
+  nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(pruneLines(wall)))));
   // FX1: a wall's height is derived (team → … → room → wall.profile.wallHeight); only a typed wall height overrides.
   nextRoom.walls = nextRoom.walls.map((wall) => {
     // Saved walls and older fixtures bypass createWall; use the same legacy-value rule.

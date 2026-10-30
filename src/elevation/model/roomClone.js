@@ -45,6 +45,7 @@ function cloneRun(run) {
       : {}),
     ...(run.items ? { items: run.items.map((item) => ({ ...item })) } : {}),
     ...(run.grid ? { grid: cloneGrid(run.grid) } : {}),
+    ...(run.attach ? { attach: { ...run.attach } } : {}),
   };
 }
 
@@ -78,6 +79,7 @@ function cloneRoom(room) {
       openings: (wall.openings ?? []).map((opening) => ({
         ...opening,
         casing: opening.casing ? { ...opening.casing } : null,
+        ...(opening.attach ? { attach: { ...opening.attach } } : {}),
       })),
       soffits: (wall.soffits ?? []).map((soffit) => ({
         ...soffit,
@@ -87,6 +89,7 @@ function cloneRoom(room) {
         },
       })),
       joints: (wall.joints ?? []).map((joint) => ({ ...joint })),
+      ...(wall.lines ? { lines: wall.lines.map((line) => ({ ...line })) } : {}),
       runs: wall.runs.map(cloneRun),
     })),
   };

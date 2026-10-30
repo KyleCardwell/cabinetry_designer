@@ -284,3 +284,17 @@ export {
 
 export { stileFlat } from './doorProfileLines.js';
 export { facePullPlacement, pullDefaults, runPulls, pullOutlines, elevationPulls } from './pullLayouts.js';
+export {
+  ATTACH_AT,
+  LINE_FROM,
+  attachmentsTo,
+  canAttach,
+  findLine,
+  isAttachment,
+  isLayoutLine,
+  lineX,
+  linesOn,
+  nextLineLabel,
+  pruneLines,
+  setLineFrom,
+} from './layoutLines.js';

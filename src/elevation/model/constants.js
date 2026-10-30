@@ -16,6 +16,9 @@ export const FRAME_RETURN_WIDTH = 6;
 /** Root items a pin can place (SPEC-8): cabinets and open (void) cells. */
 export const PINNABLE_KINDS = new Set(['cabinet', 'void']);
 
+/** Root items that can attach to a layout line (LL2): same set as pins, kept apart because LL4 removes pins. */
+export const ATTACHABLE_KINDS = new Set(['cabinet', 'void']);
+
 export const PANEL_MATERIALS = [
   { id: 'glass', label: 'Glass', seeThrough: true, glassMarks: true, orderText: 'sash panel (glass)' },
 ];
