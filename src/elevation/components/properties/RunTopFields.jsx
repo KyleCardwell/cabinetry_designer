@@ -3,7 +3,6 @@ import {
   RUN_TOP_OPTIONS,
   TOP_LABELS,
   defaultRunTop,
-  formatInchesInput,
   isCountertop,
   resolveProfile,
   runTop,
@@ -15,6 +14,7 @@ import {
   setRunWaterfallBaseToLeg, toggleRunWaterfall,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import Field from './Field.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -79,13 +79,11 @@ export default function RunTopFields({ room, wall, run, settings }) {
               <Field key={side} label={side[0].toUpperCase() + side.slice(1)}>
                 <InchInput
                   value={run.topOverhang?.[side] ?? null}
-                  allowBlank
-                  placeholder={formatInchesInput(overhangDefaults[side])}
-                  onCommit={(value) => {
-                    if (value !== null && (!Number.isFinite(value) || value < 0)) return false;
+                  {...autoInchProps({ auto: overhangDefaults[side], min: 'nonNegative', onCommit: (value) => {
+                    if (value !== null && !Number.isFinite(value)) return false;
                     dispatch(setRunTopOverhang({ ...at, side, value }));
                     return true;
-                  }}
+                  } })}
                   aria-label={`Run ${side} overhang`}
                 />
               </Field>

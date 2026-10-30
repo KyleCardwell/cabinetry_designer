@@ -1,9 +1,10 @@
 import PanelSection from '../panel/PanelSection.jsx';
 import { useDispatch } from 'react-redux';
-import { cellDepth, formatInchesInput } from '../../model/index.js';
+import { cellDepth } from '../../model/index.js';
 import { runFaceThickness } from '../../model/corners.js';
 import { setCellDepth } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import Field from './Field.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -21,9 +22,9 @@ export default function CellDepthSection({ wall, run, piece, item, settings }) {
           <Field label="Depth">
             <InchInput
               value={item.depth ?? null}
-              allowBlank
-              placeholder={formatInchesInput(cellDepth(piece, item, run.depth, settings, runFaceThickness(run, settings)))}
-              onCommit={(depth) => dispatch(setCellDepth({ ...cellBase, depth }))}
+              {...autoInchProps({
+                auto: cellDepth(piece, item, run.depth, settings, runFaceThickness(run, settings)),
+                onCommit: (depth) => dispatch(setCellDepth({ ...cellBase, depth })) })}
               aria-label="Cell depth"
             />
           </Field>

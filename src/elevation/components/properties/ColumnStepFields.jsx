@@ -3,6 +3,7 @@ import { resolveTopSegments } from '../../model/topSegments.js';
 import { formatInches } from '../../model/units.js';
 import { setColumnStep } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import PanelSection from '../panel/PanelSection.jsx';
 import Field from './Field.jsx';
 
@@ -25,13 +26,11 @@ export default function ColumnStepFields({ wall, run, item, nested = false }) {
               <InchInput
                 value={fromSegment ? segment.drop : item[edge]?.value ?? null}
                 readOnly={fromSegment}
-                allowBlank
-                placeholder="0"
-                onCommit={(value) => {
-                  if (value !== null && (!Number.isFinite(value) || value < 0)) return false;
+                {...autoInchProps({ auto: 0, min: 'nonNegative', onCommit: (value) => {
+                  if (value !== null && !Number.isFinite(value)) return false;
                   dispatch(setColumnStep({ wallId: wall.id, runId: run.id, itemId: item.id, edge, value }));
                   return true;
-                }}
+                } })}
                 aria-label={title}
               />
               {fromSegment && (

@@ -1,5 +1,5 @@
 import { useDispatch } from 'react-redux';
-import { endHeightMode, formatInchesInput, frontDepth, runBlind } from '../../model/index.js';
+import { endHeightMode, frontDepth, runBlind } from '../../model/index.js';
 import { teamDoorStyle } from '../../model/doorStyles.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
 import { cornerLap } from '../../model/cornerLaps.js';
@@ -8,6 +8,7 @@ import {
   setPartStyle, setRunBlind, setRunEnd, setRunEndExtend, setRunEndFiller,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import ExtendFields from './ExtendFields.jsx';
 import Field from './Field.jsx';
 import PartStyleFields from './PartStyleFields.jsx';
@@ -57,15 +58,14 @@ export default function EndFields({
         <Field label={endType === 'end_panel' ? 'Width' : 'Visible width'}>
           <InchInput
             value={run.ends[side].width}
-            allowBlank
-            placeholder={endType === 'end_panel'
-              ? formatInchesInput(run._endThickness?.[side] ?? teamDoorStyle(settings).thickness)
-              : 'auto'}
-            onCommit={(width) => dispatch(setRunEnd({
-              ...actionBase,
-              side,
-              end: { type: endType, width },
-            }))}
+            {...autoInchProps({
+              auto: run._endThickness?.[side] ?? teamDoorStyle(settings).thickness,
+              text: endType === 'end_panel' ? undefined : 'auto',
+              onCommit: (width) => dispatch(setRunEnd({
+                ...actionBase,
+                side,
+                end: { type: endType, width },
+              })) })}
             aria-label={`${side} end width`}
           />
         </Field>
@@ -143,32 +143,26 @@ export default function EndFields({
           <Field label="Ordered width">
             <InchInput
               value={run.endFiller?.[side]?.width ?? null}
-              allowBlank
-              placeholder={endType === 'blind'
-                ? formatInchesInput(settings.blindFillerWidth)
-                : 'from layout'}
-              onCommit={(value) => dispatch(setRunEndFiller({
-                ...actionBase,
-                side,
-                key: 'width',
-                value,
-              }))}
+              {...autoInchProps({ auto: settings.blindFillerWidth, text: endType === 'blind' ? undefined : 'from layout',
+                onCommit: (value) => dispatch(setRunEndFiller({
+                  ...actionBase,
+                  side,
+                  key: 'width',
+                  value,
+                })) })}
               aria-label={`${side} end filler ordered width`}
             />
           </Field>
           <Field label="Return">
             <InchInput
               value={run.endFiller?.[side]?.returnDepth ?? null}
-              allowBlank
-              placeholder={endType === 'blind'
-                ? '0"'
-                : formatInchesInput(settings.fillerReturnDepth)}
-              onCommit={(value) => dispatch(setRunEndFiller({
-                ...actionBase,
-                side,
-                key: 'returnDepth',
-                value,
-              }))}
+              {...autoInchProps({ auto: settings.fillerReturnDepth, text: endType === 'blind' ? '0"' : undefined,
+                onCommit: (value) => dispatch(setRunEndFiller({
+                  ...actionBase,
+                  side,
+                  key: 'returnDepth',
+                  value,
+                })) })}
               aria-label={`${side} end filler return depth`}
             />
           </Field>

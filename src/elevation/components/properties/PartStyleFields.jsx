@@ -9,6 +9,7 @@ import { resolveDoorStyle } from '../../model/doorStyleResolve.js';
 import { resolveMidLayout } from '../../model/midLayout.js';
 import { formatInches, formatInchesInput } from '../../model/units.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import MidLayoutFields from './MidLayoutFields.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -88,15 +89,11 @@ export default function PartStyleFields({
               <div className="w-16 shrink-0">
                 <InchInput
                   value={row.typed}
-                  allowBlank
-                  displayStep={1 / 16}
-                  placeholder={formatInchesInput(row.value)}
                   aria-label={`${label} ${row.label}`}
-                  onCommit={(value) => {
-                    if (value !== null && !(value > 0)) return false;
+                  {...autoInchProps({ auto: row.value, step: 1 / 16, min: 'positive', onCommit: (value) => {
                     onChange({ sizes: setPartSide(part?.sizes, row.side, value) ?? null });
                     return true;
-                  }}
+                  } })}
                 />
               </div>
               {row.source === 'rule' && (

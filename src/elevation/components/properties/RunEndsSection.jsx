@@ -7,7 +7,6 @@ import {
   cornerReserveParts,
   describeAnchor,
   formatInches,
-  formatInchesInput,
   isFollowAnchor,
   isJointAnchor,
   jointMembers,
@@ -24,6 +23,7 @@ import {
   setRunJointOffset,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import EndFields from './EndFields.jsx';
 import Field from './Field.jsx';
 
@@ -235,13 +235,11 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                     <Field label="Offset">
                       <InchInput
                         value={linkAnchor.offset}
-                        allowBlank
-                        placeholder="0"
-                        onCommit={(value) => dispatch(setRunJointOffset({
+                        {...autoInchProps({ auto: 0, onCommit: (value) => dispatch(setRunJointOffset({
                           ...actionBase,
                           side,
                           offset: value ?? 0,
-                        }))}
+                        })) })}
                         aria-label={`${side} joint anchor offset`}
                       />
                     </Field>
@@ -257,13 +255,11 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                     <Field label="Clearance">
                       <InchInput
                         value={openingAnchor.clearance}
-                        allowBlank
-                        placeholder={formatInchesInput(settings.casingClearance)}
-                        onCommit={(value) => dispatch(setRunAnchor({
+                        {...autoInchProps({ auto: settings.casingClearance, onCommit: (value) => dispatch(setRunAnchor({
                           ...actionBase,
                           side,
                           anchor: { ...openingAnchor, clearance: value },
-                        }))}
+                        })) })}
                         aria-label={`${side} opening anchor clearance`}
                       />
                     </Field>
@@ -301,13 +297,11 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                     <Field label="Offset">
                       <InchInput
                         value={(soffitAnchor ?? recessAnchor).offset}
-                        allowBlank
-                        placeholder="0"
-                        onCommit={(value) => dispatch(setRunAnchor({
+                        {...autoInchProps({ auto: 0, onCommit: (value) => dispatch(setRunAnchor({
                           ...actionBase,
                           side,
                           anchor: { ...(soffitAnchor ?? recessAnchor), offset: value ?? 0 },
-                        }))}
+                        })) })}
                         aria-label={`${side} ${recessAnchor ? 'recess' : 'soffit'} anchor offset`}
                       />
                     </Field>

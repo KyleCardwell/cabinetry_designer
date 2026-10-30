@@ -1,8 +1,9 @@
 import { useDispatch } from 'react-redux';
 import { baseCutoutSpan } from '../../model/baseCutouts.js';
-import { formatInches, formatInchesInput } from '../../model/units.js';
+import { formatInches } from '../../model/units.js';
 import { removeBaseCutout, updateBaseCutout } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import Field from './Field.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -73,9 +74,7 @@ export default function BaseCutoutRow({ wall, run, cutout, index, cabinets, sett
               <InchInput
                 aria-label={`Cutout ${index + 1} ${label}`}
                 value={cutout[key] ?? null}
-                allowBlank
-                placeholder={derived === null ? 'Auto' : formatInchesInput(derived[key])}
-                onCommit={(value) => commitDimension(key, value)}
+                {...autoInchProps({ ...(derived === null ? { text: 'Auto' } : { auto: derived[key] }), onCommit: (value) => commitDimension(key, value) })}
               />
             </Field>
           );

@@ -3,6 +3,7 @@ import { SOFFIT_MOLDINGS, landingsOn } from '../../model/index.js';
 import { wallLabel } from '../../model/topology.js';
 import { deleteSoffit, setSoffitAnchor, updateSoffit } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import Field, { ReadOnlyValue } from './Field.jsx';
 
 export default function SoffitProperties({ room, wall, soffit, settings }) {
@@ -149,13 +150,11 @@ export default function SoffitProperties({ room, wall, soffit, settings }) {
                     <Field label="Offset">
                       <InchInput
                         value={anchor.offset}
-                        allowBlank
-                        placeholder="0"
-                        onCommit={(offset) => dispatch(setSoffitAnchor({
+                        {...autoInchProps({ auto: 0, onCommit: (offset) => dispatch(setSoffitAnchor({
                           ...actionBase,
                           side,
                           anchor: { ...anchor, offset },
-                        }))}
+                        })) })}
                         aria-label={`${side} soffit anchor offset`}
                       />
                     </Field>

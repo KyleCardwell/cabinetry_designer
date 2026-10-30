@@ -1,8 +1,8 @@
 import { useDispatch } from 'react-redux';
-import { formatInches } from '../../model/index.js';
 import { teamDoorStyle } from '../../model/doorStyles.js';
 import { setWallEndPanel } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import Field from './Field.jsx';
 
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
@@ -25,9 +25,9 @@ export default function WallEndPanelFields({
       <Field label="Width">
         <InchInput
           value={panel.width}
-          allowBlank
-          placeholder={formatInches(wall._endPanelThickness?.[endpoint] ?? teamDoorStyle(settings).thickness)}
-          onCommit={(width) => update({ width })}
+          {...autoInchProps({
+            auto: wall._endPanelThickness?.[endpoint] ?? teamDoorStyle(settings).thickness, quoted: true,
+            onCommit: (width) => update({ width }) })}
           aria-label={`${label} panel width`}
         />
       </Field>

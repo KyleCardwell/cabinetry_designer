@@ -6,6 +6,7 @@ import {
 } from '../../model/midLayout.js';
 import { formatInchesInput } from '../../model/units.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import { setClipboard } from '../../store/elevationSlice.js';
 import { selectClipboard } from '../../store/selectors.js';
 
@@ -65,11 +66,8 @@ export default function MidLayoutFields({ layout, resolved, slab, label, onLayou
             <div className="w-20 shrink-0">
               <InchInput
                 value={entry.size ?? null}
-                allowBlank
-                allowAuto
-                placeholder={rect && formatInchesInput(parentSplit === 'rows' ? rect.height : rect.width)}
                 aria-label={`${label} Panel size ${entryPath}`}
-                onCommit={(value) => commit(setLayoutSize(layout, entryPath, value))}
+                {...autoInchProps({ auto: rect ? (parentSplit === 'rows' ? rect.height : rect.width) : undefined, onCommit: (value) => commit(setLayoutSize(layout, entryPath, value)) })}
               />
             </div>
           )}
@@ -101,10 +99,8 @@ export default function MidLayoutFields({ layout, resolved, slab, label, onLayou
                       <div className="w-20">
                         <InchInput
                           value={entry.mids?.[mid.index]?.width ?? null}
-                          allowBlank
-                          placeholder={formatInchesInput(mid.width)}
                           aria-label={`${label} ${mid.name} Width`}
-                          onCommit={(value) => commit(setLayoutMidWidth(layout, entryPath, mid.index, value))}
+                          {...autoInchProps({ auto: mid.width, onCommit: (value) => commit(setLayoutMidWidth(layout, entryPath, mid.index, value)) })}
                         />
                       </div>
                     </label>

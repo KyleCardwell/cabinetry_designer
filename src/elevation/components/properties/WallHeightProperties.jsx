@@ -31,6 +31,7 @@ import { CABINET_TYPE_IDS } from '../../model/constants.js';
 import { runBase } from '../../model/furnitureBase.js';
 import { moldingProfiles } from '../../model/moldingProfiles.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import HeightBands from '../HeightBands.jsx';
 import { bandFieldsFor } from '../../model/heightBands.js';
 import OverrideInput from '../OverrideInput.jsx';
@@ -120,9 +121,8 @@ export default function WallHeightProperties({ room, wall, plan }) {
         <InchInput
           aria-label="Wall Base proud override"
           value={wall.profile.furnitureBaseProud ?? null}
-          allowBlank
-          placeholder={formatInchesInput(inheritedProfile.furnitureBaseProud)}
-          onCommit={(value) => value !== null && value < 0 ? false : dispatch(updateWall({ wallId: wall.id, changes: { profile: { furnitureBaseProud: value } } }))}
+          {...autoInchProps({ auto: inheritedProfile.furnitureBaseProud, min: 'nonNegative',
+            onCommit: (value) => dispatch(updateWall({ wallId: wall.id, changes: { profile: { furnitureBaseProud: value } } })) })}
           className="mt-1"
         />
       </label>
@@ -163,10 +163,9 @@ export default function WallHeightProperties({ room, wall, plan }) {
       <Field key={key} label={label} tag={fromProfile ? 'profile' : undefined}>
         <InchInput
           value={fromProfile ? resolvedProfile[key] : wall.profile[key] ?? null}
-          allowBlank
-          placeholder={formatInchesInput(inheritedProfile[key])}
           readOnly={fromProfile || none}
-          onCommit={(value) => fromProfile || none ? undefined : dispatch(updateWall({ wallId: wall.id, changes: { profile: { [key]: value } } }))}
+          {...autoInchProps({ auto: inheritedProfile[key],
+            onCommit: (value) => fromProfile || none ? undefined : dispatch(updateWall({ wallId: wall.id, changes: { profile: { [key]: value } } })) })}
           aria-label={`Wall ${label} override`}
           className="mt-1"
         />

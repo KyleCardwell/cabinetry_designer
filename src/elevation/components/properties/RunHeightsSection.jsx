@@ -5,7 +5,6 @@ import {
   STACK_EDGES,
   boxTopOf,
   describeStack,
-  formatInchesInput,
   profileUnderSoffit,
   resolveProfile,
   runShortLabel,
@@ -22,6 +21,7 @@ import {
 } from '../../store/elevationSlice.js';
 import { runBase } from '../../model/furnitureBase.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import HeightBands from '../HeightBands.jsx';
 import { bandFieldsFor } from '../../model/heightBands.js';
 import Field, { ReadOnlyValue } from './Field.jsx';
@@ -89,9 +89,7 @@ export default function RunHeightsSection({
         <InchInput
           aria-label="Run Base proud override"
           value={run.overrides.furnitureBaseProud ?? null}
-          allowBlank
-          placeholder={formatInchesInput(profile.furnitureBaseProud)}
-          onCommit={(value) => value !== null && value < 0 ? false : setBaseOverride('furnitureBaseProud', value)}
+          {...autoInchProps({ auto: profile.furnitureBaseProud, min: 'nonNegative', onCommit: (value) => setBaseOverride('furnitureBaseProud', value) })}
         />
       </Field>
     ) : null;
@@ -100,13 +98,11 @@ export default function RunHeightsSection({
       <Field key={key} label={`${label} (blank = inherit)`}>
         <InchInput
           value={run.overrides[key] ?? null}
-          allowBlank
-          placeholder={formatInchesInput(inheritedValues[key])}
-          onCommit={(value) => dispatch(setRunOverride({
+          {...autoInchProps({ auto: inheritedValues[key], onCommit: (value) => dispatch(setRunOverride({
             ...actionBase,
             key,
             value,
-          }))}
+          })) })}
           aria-label={`Run ${label} override`}
         />
       </Field>
