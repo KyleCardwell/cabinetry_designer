@@ -21,11 +21,15 @@ const row = ({
   ...(textX === undefined ? [] : [textX, textZ]),
 ];
 
-/** G1 with the sink's pin changed (as drawn it's on the window's centre, 0" off). */
-function pinned(pin) {
+/**
+ * G1 with the sink's layout line attachment changed (as drawn it's centred on line L1 with the window,
+ * 0" off). LL4: `line` puts the sink on a new line L2 of its own instead.
+ */
+function pinned({ offset = 0, at = 'center', line = null }) {
   const copy = structuredClone(stored('G1 Euro kitchen'));
   const track = copy.walls[0].runs.flatMap((run) => run.grid?.cols ?? []).find(({ id }) => id === `${SINK}:col`);
-  track.pin = { ...track.pin, ...pin };
+  if (line) copy.walls[0].lines.push({ id: 'L2', label: 'L2', ...line });
+  track.attach = { lineId: line ? 'L2' : track.attach.lineId, at, offset };
   return syncRoom(copy, settings);
 }
 const pins = (synced) => of('pins')(elevationDimensions(synced, synced.walls[0], 'front', settings)).map(row);
@@ -46,14 +50,14 @@ describe('SPEC-43.3 callouts in the DXF', () => {
 
   it('dimensions a pin from its datum to the point it holds, each end from its own point', () => {
     // From the window's middle (66") and the sink's top (34 1/2") to a line 6" over the sill.
-    expect(pins(pinned({ value: 3 }))).toEqual([['pin', 72, 75, 48, 66, 34.5, 48, 'CL 3', 73.5, 51.75]]);
-    expect(toDrawingPayload(pinned({ value: 3 }), settings).elevations[0].dimensions
+    expect(pins(pinned({ offset: 3 }))).toEqual([['pin', 72, 75, 48, 66, 34.5, 48, 'CL 3', 73.5, 51.75]]);
+    expect(toDrawingPayload(pinned({ offset: 3 }), settings).elevations[0].dimensions
       .filter(({ row }) => row === 'pins').map(({ text }) => text)).toEqual(['CL 3']);
-    expect(pins(pinned({ value: -3 }))).toEqual([['pin', 69, 72, 48, 34.5, 66, 48, 'CL 3', 70.5, 51.75]]);
+    expect(pins(pinned({ offset: -3 }))).toEqual([['pin', 69, 72, 48, 34.5, 66, 48, 'CL 3', 70.5, 51.75]]);
     // From a wall end the datum has no point of its own, so that end has no extension line.
-    expect(pins(pinned({ from: 'left', anchor: 'left', value: 60 })))
+    expect(pins(pinned({ line: { from: 'left', value: 60 }, at: 'left' })))
       .toEqual([['pin', 0, 60, 40, 40, 34.5, 40, '60']]);
-    expect(pins(pinned({ from: 'right', anchor: 'right', value: 60 })))
+    expect(pins(pinned({ line: { from: 'right', value: 60 }, at: 'right' })))
       .toEqual([['pin', 108, 168, 40, 34.5, 40, 40, '60']]);
     // As drawn the sink is 0" off the window's centre: a centreline mark, not a dimension.
     expect(pins(room('G1 Euro kitchen'))).toEqual([]);

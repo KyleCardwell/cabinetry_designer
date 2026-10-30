@@ -11,18 +11,13 @@ function fixed(id, width) {
   return { id, kind: 'cabinet', width };
 }
 
-function pinned(id, width, anchor = 'center', value = 0) {
+/** LL4: a column placed on layout line `P` (the tests pass its target to splitRun directly). */
+function pinned(id, width, anchor = 'center') {
   return {
     id,
     kind: 'cabinet',
     width,
-    pin: {
-      anchor,
-      from: 'left',
-      openingId: null,
-      openingAnchor: 'center',
-      value,
-    },
+    attach: { lineId: 'P', at: anchor, offset: 0 },
   };
 }
 
@@ -125,7 +120,7 @@ describe('splitRun', () => {
 
   it('21. grows a free run end to make an outer pin reachable', () => {
     const run = makeRun({
-      items: [auto('a'), auto('b'), auto('c'), auto('d'), pinned('e', null, 'center', 112)],
+      items: [auto('a'), auto('b'), auto('c'), auto('d'), pinned('e', null, 'center')],
       anchors: { left: false, right: false },
       heightMode: 'manual',
       overrides: {},
@@ -145,6 +140,7 @@ describe('splitRun', () => {
       profile: {},
       runs: [run],
       openings: [],
+      lines: [{ id: 'P', label: 'L1', from: 'left', value: 112 }],
     };
     const room = {
       id: 'room',

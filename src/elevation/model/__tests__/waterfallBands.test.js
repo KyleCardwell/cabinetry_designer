@@ -28,7 +28,7 @@ function setup(props = {}, using = settings) {
   const base = wall.runs.find(({ cabinetTypeId }) => cabinetTypeId === CABINET_TYPE_IDS.BASE);
   stored.profile = { ...stored.profile, nosingProfileId: 'nz1' };
   stored.walls = [{ ...wall, x1: 0, y1: 0, x2: 120, y2: 0,
-    profile: {}, connections: { start: null, end: null }, openings: [], joints: [],
+    profile: {}, connections: { start: null, end: null }, openings: [], joints: [], lines: [],
     endPanels: { start: null, end: null },
     runs: [{ ...base, id: 'base', x: 30, width: 36, top: 'stone', anchors: {},
       ends: { left: { type: 'none' }, right: { type: 'none' } },

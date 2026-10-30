@@ -20,7 +20,8 @@ const at = { roomId: 'room-1', wallId: 'H' };
 function initial() {
   const front = run({ id: 'run-1', x: 70, width: 90, autoCount: false,
     items: [auto('A'), auto('B'), { id: 'C', kind: 'void', width: null }] });
-  front.grid.cols[1].pin = pin(40);
+  // LL4: only return pins remain; B follows a return (gone here, so it isn't placed) and so can't attach.
+  front.grid.cols[1].pin = pin(0, { from: 'return', wallId: 'gone', runId: 'gone', edge: 'left', anchor: 'left' });
   const back = run({ id: 'run-2', wallSide: 'back', x: 10, width: 40, autoCount: false, items: [auto('D')] });
   const window = opening({ id: 'W', kind: 'window', label: 'W1', sillZ: 40, height: 40, offset: 180, casing: null });
   return {
@@ -84,11 +85,11 @@ describe('LL2 layout line actions', () => {
     expect(w.runs[0].grid.cols[0].attach).toEqual(attach('L1', 'center', -3));
     expect(w.runs[0].grid.cols[2].attach).toEqual(attach('L1', 'left'));
     expect(w.openings[0].attach).toEqual(attach('B1'));
-    // LL4: attaching a column places it like a pin did. With the pinned B already placed, A and B lock to
-    // their current widths (C's current width is 0, so nothing is locked for it), and the free run grows
-    // right to reach C's target (L1, 141).
-    expect(spans(before)).toEqual([[15, 145, [null, null, null]], [10, 40, [null]]]);
-    expect(spans(state)).toEqual([[15, 230.5, [9, 29, null]], [10, 40, [null]]]);
+    // LL4: attaching a column places it like a pin did. B already counts as placed (its return pin), so
+    // attaching A locks A and B, attaching C locks C (to the unplaced split), and the free run grows right
+    // to reach C's target on L1.
+    expect(spans(before)).toEqual([[70, 90, [null, null, null]], [10, 40, [null]]]);
+    expect(spans(state)).toEqual([[70, 123.5, [28.5, 28.5, 51]], [10, 40, [null]]]);
     // LL3: the window now sits centred on back line B1 (30 from the back's left = 210 from the front's left).
     expect(w.openings[0].offset).toBe(192);
   });

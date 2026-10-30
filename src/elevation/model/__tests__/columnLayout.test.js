@@ -20,7 +20,7 @@ describe('DR1 column layouts', () => {
     expect(layout).toEqual({ node: source, top: { value: 2, source: 'manual' } });
     expect(layout.node.id).toBe('B');
     expect(layout.node.cells).toHaveLength(2);
-    for (const key of ['size', 'sizeMode', 'pin', 'absorb', 'gap', 'blind']) {
+    for (const key of ['size', 'sizeMode', 'pin', 'attach', 'absorb', 'gap', 'blind']) {
       expect(layout).not.toHaveProperty(key);
     }
     layout.node.cells[0].node.reveals.top = 1;

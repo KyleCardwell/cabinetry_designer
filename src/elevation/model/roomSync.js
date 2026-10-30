@@ -19,6 +19,7 @@ import {
 } from './joints.js';
 import { resolveLandings } from './landings.js';
 import { pruneLines } from './layoutLines.js';
+import { dropWallPins } from './runPins.js';
 import { placeAttachedOpenings } from './linePlacement.js';
 import { labelOpenings, runBlocksOpening } from './openings.js';
 import { recessWarnings, withRunPlane } from './recesses.js';
@@ -248,7 +249,7 @@ function withWallPanels(room, wall, settings) {
 export function syncRoom(room, settings) {
   // SPEC-RF1: solve every run from its drawn span; the flex goes back on at the end.
   let nextRoom = cloneRoom(resolveLandings(unflexRoom(room)));
-  nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(pruneLines(wall)))));
+  nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(pruneLines(dropWallPins(wall))))));
   // FX1: a wall's height is derived (team → … → room → wall.profile.wallHeight); only a typed wall height overrides.
   nextRoom.walls = nextRoom.walls.map((wall) => {
     // Saved walls and older fixtures bypass createWall; use the same legacy-value rule.
@@ -416,13 +417,11 @@ export function roomDiagnostics(room, settings) {
           ...extendPieces(wall, run, cellPieces(run, layout).pieces).warnings,
           ...frameRegions(synced, run, cellPieces(run, layout), settings).warnings,
           ...runItems(run).flatMap((item) => (
-            item.pin && !Number.isFinite(options.pinTargets[item.id])
+            item.pin?.from === 'return' && !Number.isFinite(options.pinTargets[item.id])
               ? [{
                   code: 'pin-unresolved',
                   pieceId: item.id,
-                  message: item.pin.from === 'return'
-                    ? 'The return this column follows is gone.'
-                    : 'Pinned opening no longer exists.',
+                  message: 'The return this column follows is gone.',
                 }]
               : []
           )),

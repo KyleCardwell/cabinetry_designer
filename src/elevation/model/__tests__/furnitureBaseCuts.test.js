@@ -28,7 +28,7 @@ function setup(profile = fb4cut, overrides = {}) {
   stored.profile = { ...stored.profile, baseKind: 'furniture_base', furnitureBaseProfileId: profile.id };
   const baseRun = stored.walls[0].runs.find(({ cabinetTypeId }) => cabinetTypeId === CABINET_TYPE_IDS.BASE);
   stored.walls = [{ ...stored.walls[0], x1: 0, y1: 0, x2: 120, y2: 0,
-    connections: { start: null, end: null }, openings: [], joints: [],
+    connections: { start: null, end: null }, openings: [], joints: [], lines: [],
     endPanels: { start: null, end: null },
     runs: [{ ...baseRun, x: 30, width: 36, overrides, anchors: {},
       ends: { left: { type: 'end_panel' }, right: { type: 'end_panel' } } }],

@@ -42,21 +42,25 @@ function withoutAttach(entity) {
 
 const AT_FRACTION = { left: 0, center: 0.5, right: 1 };
 
-/** The run's current split (with its segment targets), by piece id. */
-function currentPieces(state, location, run) {
+/**
+ * The run's split by piece id: as drawn (with its segment targets), or with `unplaced` the split that
+ * ignores them, which is what pinning locked widths to (kept so the locked numbers don't change).
+ */
+function currentPieces(state, location, run, { unplaced = false } = {}) {
   const settings = settingsFor(state, location.room);
-  const layout = splitRun(run, settings, splitOptionsForRun(location.room, location.wall, run, settings));
+  const options = splitOptionsForRun(location.room, location.wall, run, settings);
+  const layout = splitRun(run, settings, unplaced ? { ...options, pinTargets: {} } : options);
   return new Map(layout.pieces.map((piece) => [piece.id, piece]));
 }
 
 /**
  * LL4: attach a root column, doing what pinning did: auto count off, and when the run already has a
- * placed column, lock widths to the current split (a second placed column locks both, a later one itself).
+ * placed column, lock widths to the unplaced split as pinning did (a second placed column locks both, a later one itself).
  */
 function attachColumn(state, location, run, item, attach) {
   const placedBefore = runItems(run).filter((candidate) => placedAt(candidate));
   const adds = !placedAt(item);
-  const pieces = adds && placedBefore.length >= 1 ? currentPieces(state, location, run) : null;
+  const pieces = adds && placedBefore.length >= 1 ? currentPieces(state, location, run, { unplaced: true }) : null;
   run.grid = updateRootItem(run.grid, item.id, { attach });
   run.autoCount = false;
   if (!pieces) return;

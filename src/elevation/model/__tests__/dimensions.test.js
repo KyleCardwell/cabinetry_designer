@@ -664,6 +664,7 @@ describe('pickColumnRuns', () => {
   });
 });
 
+// LL4: callouts come from layout line attachments (wall-end and opening pins became lines).
 describe('centerlineMarkers', () => {
   const pieces = [
     { id: 'left', role: 'item', x: 0, width: 24, z: 4, height: 30.5 },
@@ -673,15 +674,15 @@ describe('centerlineMarkers', () => {
   it('SPEC-12 9. returns a dimension from the left wall end', () => {
     const run = {
       items: [
-        { id: 'left', pin: null },
-        { id: 'mid', pin: { from: 'left', value: 36, anchor: 'center' } },
+        { id: 'left' },
+        { id: 'mid', attach: { lineId: 'P', at: 'center', offset: 0 } },
       ],
     };
 
     expect(centerlineMarkers(
       run,
       pieces,
-      { openings: [] },
+      { openings: [], lines: [{ id: 'P', label: 'L1', from: 'left', value: 36 }] },
       120,
       DEFAULT_SETTINGS,
     )).toEqual([{
@@ -700,15 +701,15 @@ describe('centerlineMarkers', () => {
   it('SPEC-12 10. measures a right-hand datum from the wall length', () => {
     const run = {
       items: [
-        { id: 'left', pin: null },
-        { id: 'mid', pin: { from: 'right', value: 84, anchor: 'center' } },
+        { id: 'left' },
+        { id: 'mid', attach: { lineId: 'P', at: 'center', offset: 0 } },
       ],
     };
 
     expect(centerlineMarkers(
       run,
       pieces,
-      { openings: [] },
+      { openings: [], lines: [{ id: 'P', label: 'L1', from: 'right', value: 84 }] },
       120,
       DEFAULT_SETTINGS,
     )).toEqual([{
@@ -724,18 +725,20 @@ describe('centerlineMarkers', () => {
     }]);
   });
 
-  it('SPEC-38.1 measures an edge pin to that edge; nothing without a pin', () => {
+  it('SPEC-38.1 measures an edge on a line to that edge; nothing without a line', () => {
     const edgePins = {
       items: [
-        { id: 'left', pin: { from: 'right', value: 96, anchor: 'right' } },
-        { id: 'mid', pin: { from: 'left', value: 24, anchor: 'left' } },
+        { id: 'left', attach: { lineId: 'R', at: 'right', offset: 0 } },
+        { id: 'mid', attach: { lineId: 'L', at: 'left', offset: 0 } },
       ],
     };
 
     expect(centerlineMarkers(
       edgePins,
       pieces,
-      { openings: [] },
+      { openings: [], lines: [
+        { id: 'R', label: 'L1', from: 'right', value: 96 }, { id: 'L', label: 'L2', from: 'left', value: 24 },
+      ] },
       120,
       DEFAULT_SETTINGS,
     )).toEqual([
@@ -757,15 +760,16 @@ describe('centerlineMarkers', () => {
     )).toEqual([]);
   });
 
-  it('SPEC-39.1 puts a pin to an opening inside the opening, with a centre line down from its middle', () => {
+  it('SPEC-39.1 puts a cabinet on an opening\'s line inside the opening, with a centre line down from its middle', () => {
     const sinkWindow = {
       id: 'W', kind: 'window', label: 'W1', measureMode: 'jamb', width: 36, height: 48, sillZ: 42,
       offset: 12, offsetFrom: 'right', offsetAnchor: 'edge', casing: { width: 3, thickness: 0.75 },
+      attach: { lineId: 'P', at: 'center', offset: 0 },
     };
     const run = {
       items: [
-        { id: 'left', pin: null },
-        { id: 'sink', pin: { from: 'opening', openingId: 'W', openingAnchor: 'center', value: 0, anchor: 'center' } },
+        { id: 'left' },
+        { id: 'sink', attach: { lineId: 'P', at: 'center', offset: 0 } },
       ],
     };
     const sinkPieces = [
@@ -773,7 +777,8 @@ describe('centerlineMarkers', () => {
       { id: 'sink', role: 'item', x: 78, width: 24, z: 4, height: 30.5 },
     ];
 
-    expect(centerlineMarkers(run, sinkPieces, { openings: [sinkWindow] }, 120, DEFAULT_SETTINGS)).toEqual([{
+    const lines = [{ id: 'P', label: 'L1', from: 'right', value: 30 }];
+    expect(centerlineMarkers(run, sinkPieces, { openings: [sinkWindow], lines }, 120, DEFAULT_SETTINGS)).toEqual([{
       pieceId: 'sink',
       x: 90,
       datumX: 90,

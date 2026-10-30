@@ -364,12 +364,6 @@ export const featureReducers = {
           run.anchors[side] = false;
         }
       }
-      for (const column of run.grid.cols) {
-        if (column.pin?.from === 'opening'
-          && column.pin.openingId === action.payload.openingId) {
-          column.pin = null;
-        }
-      }
     }
     if (state.selection.openingId === action.payload.openingId) {
       clearTransientSelection(state);

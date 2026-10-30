@@ -51,16 +51,17 @@ describe('LL1 placement stages', () => {
     const state = syncRoom(structuredClone(room10b), settings);
     const run = runOf(state, LEFT_TALL10);
     expect(run).toMatchObject({ x: 0, width: 72 + 13 / 16 });
-    const column = run.grid.cols.find(({ id }) => id === `${PINNED10B}:col`);
-    expect(column.pin.value).toBe(72);
-    column.pin.value = 90;
+    // LL4: the column is on line L1 (72 from the left) instead of a pin.
+    const line = state.walls.find(({ id }) => id === WALL2).lines[0];
+    expect(line.value).toBe(72);
+    line.value = 90;
     expect(runOf(applyStage(runEdges, state), LEFT_TALL10))
       .toMatchObject({ x: 0, width: 72 + 13 / 16 });
   });
 
   it('grows the free end to the edited pin after resolving edges', () => {
     const state = syncRoom(structuredClone(room10b), settings);
-    runOf(state, LEFT_TALL10).grid.cols.find(({ id }) => id === `${PINNED10B}:col`).pin.value = 90;
+    state.walls.find(({ id }) => id === WALL2).lines[0].value = 90;
     const result = applyStage(pinGrowth, applyStage(runEdges, state));
     expect(runOf(result, LEFT_TALL10)).toMatchObject({
       x: 0, width: 90 + 13 / 16,
@@ -125,11 +126,11 @@ describe('LL1 splitOptionsForRun', () => {
     expect(state).toEqual(before);
   });
 
-  it('targets the W1 centre at 92 with its stored zero pin offset', () => {
+  it('targets the W1 centre at 92 through line L1 with a zero offset', () => {
     const state = syncRoom(structuredClone(room10), settings);
     const run = runOf(state, BASE10);
     const column = run.grid.cols.find(({ id }) => id === `${PINNED10}:col`);
-    expect(column.pin.value).toBe(0);
+    expect(column.attach.offset).toBe(0);
     expect(splitOptionsForRun(state, wallOf(state), run, settings).pinTargets[PINNED10])
       .toBe(92); // W1 centre: 74 + 36 / 2.
   });

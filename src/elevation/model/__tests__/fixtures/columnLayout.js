@@ -1,4 +1,4 @@
-import { auto, fixed, pin, run } from '../../../../test/builders.js';
+import { attach, auto, fixed, run } from '../../../../test/builders.js';
 
 export function columnRun(overrides = {}) {
   const stack = run({ id: 'B', items: [auto('B1'), auto('B2')] }).grid;
@@ -17,7 +17,8 @@ export function columnRun(overrides = {}) {
     items: [
       { ...auto('A'), face: { type: 'open' } },
       { ...fixed('B', 36), grid: stack, top: { value: 2, source: 'manual' } },
-      { ...fixed('C', 30), pin: pin(60), absorb: true, gap: 0.125 },
+      // LL4: on layout line `P` (the wall needs `lines: [line('P', 60)]`; wall-end pins became lines).
+      { ...fixed('C', 30), attach: attach('P'), absorb: true, gap: 0.125 },
     ],
     ...overrides,
   });

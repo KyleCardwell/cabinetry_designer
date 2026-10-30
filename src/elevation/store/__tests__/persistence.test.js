@@ -9,7 +9,7 @@ import { isAccessory, newAccessory } from '../../model/accessories.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CABINET_TYPE_IDS, DEFAULT_PREFS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { gridFromItems, gridLeaves, rootItems } from '../../model/grid.js';
-import { resolvePinTarget } from '../../model/room.js';
+import { syncRoom } from '../../model/room.js';
 import { cornerLap } from '../../model/cornerLaps.js';
 import { cornerReserve } from '../../model/corners.js';
 import {
@@ -757,12 +757,8 @@ describe('elevation persistence migration', () => {
       pin: { openingId: 'deleted-opening' },
       absorb: true,
     });
-    expect(resolvePinTarget(
-      loaded.rooms[0].walls[0].runs[0].grid.cols[0].pin,
-      loaded.rooms[0].walls[0],
-      144,
-      loaded.settings,
-    )).toBeNull();
+    // LL4: an old opening pin still loads (so an old lab room opens); the next sync drops it.
+    expect(syncRoom(loaded.rooms[0], loaded.settings).walls[0].runs[0].grid.cols[0]).not.toHaveProperty('pin');
 
     column.pin.anchor = 'top';
     expect(isElevationDocument(current)).toBe(false);
@@ -1232,8 +1228,10 @@ describe('SPEC-32 grid persistence', () => {
 
   it('the store keeps grids and saves them unchanged', () => {
     const document = currentDocument();
+    // LL4: a column on a layout line (wall-end pins became lines).
+    document.rooms[0].walls[0].lines = [{ id: 'P', label: 'L1', from: 'left', value: 60 }];
     document.rooms[0].walls[0].runs[0].grid = gridFromItems('a', [
-      { id: 'p', kind: 'cabinet', width: null, pin: PIN },
+      { id: 'p', kind: 'cabinet', width: null, attach: { lineId: 'P', at: 'center', offset: 0 } },
       { id: 'l', kind: 'cabinet', width: 30 },
       { id: 'f', kind: 'filler', width: 3 },
     ], { left: 36, right: null });

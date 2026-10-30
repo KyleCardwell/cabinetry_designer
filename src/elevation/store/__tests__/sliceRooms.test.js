@@ -46,6 +46,8 @@ import elevationReducer, {
   updateRoomProfile,
   updateWall,
 } from '../elevationSlice.js';
+import { setAttachment } from '../elevationSlice.js';
+import { attach, line } from '../../../test/builders.js';
 import {
   auto,
   fixed,
@@ -423,33 +425,27 @@ describe('elevation room reducers', () => {
     )).ends.right).toEqual({ type: 'end_panel', width: 0.75 });
   });
 
-  it('20. fixes both pinned widths when adding the second pin and keeps them fixed', () => {
+  it('20. fixes both placed widths when attaching the second column and keeps them fixed', () => {
+    // LL4: wall-end pins became layout lines; attaching a column does what pinning did.
     const initial = stateWithRun(run({
       items: [auto('a'), auto('b'), auto('c'), auto('d'), auto('e')],
     }));
-    const first = elevationReducer(initial, setItemPin({
-      wallId: 'wall-1',
-      runId: 'run-1',
-      itemId: 'b',
-      pin: pin(36),
+    initial.rooms[0].walls[0].lines = [line('L1', 36), line('L2', 84)];
+    const column = (itemId) => ({ kind: 'column', runId: 'run-1', itemId });
+    const first = elevationReducer(initial, setAttachment({
+      wallId: 'wall-1', target: column('b'), attach: attach('L1'),
     }));
     expect(currentRun(first).autoCount).toBe(false);
     expect(runItems(currentRun(first)).find((item) => item.id === 'b').width).toBeNull();
 
-    const second = elevationReducer(first, setItemPin({
-      wallId: 'wall-1',
-      runId: 'run-1',
-      itemId: 'd',
-      pin: pin(84),
+    const second = elevationReducer(first, setAttachment({
+      wallId: 'wall-1', target: column('d'), attach: attach('L2'),
     }));
-    expect(runItems(currentRun(second)).filter((item) => item.pin).map((item) => item.width))
+    expect(runItems(currentRun(second)).filter((item) => item.attach).map((item) => item.width))
       .toEqual([23, 23]);
 
-    const removed = elevationReducer(second, setItemPin({
-      wallId: 'wall-1',
-      runId: 'run-1',
-      itemId: 'b',
-      pin: null,
+    const removed = elevationReducer(second, setAttachment({
+      wallId: 'wall-1', target: column('b'), attach: null,
     }));
     expect(runItems(currentRun(removed)).find((item) => item.id === 'b').width).toBe(23);
 
@@ -460,6 +456,13 @@ describe('elevation room reducers', () => {
       value: true,
     }));
     expect(runItems(currentRun(absorbing)).find((item) => item.id === 'c').absorb).toBe(true);
+  });
+
+  it('20b. refuses a wall-end pin (LL4: layout lines replaced them)', () => {
+    const initial = stateWithRun(run({ items: [auto('a'), auto('b')] }));
+    expect(elevationReducer(initial, setItemPin({
+      wallId: 'wall-1', runId: 'run-1', itemId: 'b', pin: pin(36),
+    }))).toBe(initial);
   });
 
   it('sets wall length from the right by default and reports pure-operation failures', () => {

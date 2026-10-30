@@ -111,12 +111,10 @@
                 "id": "5ea196ac-4752-42e5-bf15-608401c0c086:col",
                 "size": null,
                 "sizeMode": "auto",
-                "pin": {
-                  "anchor": "right",
-                  "from": "left",
-                  "openingId": null,
-                  "openingAnchor": "center",
-                  "value": 72
+                "attach": {
+                  "lineId": "ll4-r10b-L1",
+                  "at": "right",
+                  "offset": 0
                 }
               }
             ],
@@ -190,7 +188,15 @@
         }
       ],
       "soffits": [],
-      "joints": []
+      "joints": [],
+      "lines": [
+        {
+          "id": "ll4-r10b-L1",
+          "label": "L1",
+          "from": "left",
+          "value": 72
+        }
+      ]
     },
     {
       "id": "95e73083-4a5f-4f2e-bc75-8c2ab34fed35",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { auto, room, run, wall } from '../../../test/builders.js';
+import { auto, line, room, run, wall } from '../../../test/builders.js';
 import { columnLayoutOf } from '../../model/cellTree.js';
 import { gridLeaves, rootItems } from '../../model/grid.js';
 import { columnRun } from '../../model/__tests__/fixtures/columnLayout.js';
@@ -11,7 +11,7 @@ const at = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
 const setup = (existingRun = columnRun()) => ({
   ...createInitialElevationState(null),
   activeRoomId: 'room-1', activeWallId: 'wall-1',
-  rooms: [room({ walls: [wall({ runs: [existingRun] })] })],
+  rooms: [room({ walls: [wall({ lines: [line('P', 60)], runs: [existingRun] })] })],
 });
 const currentRun = (state) => state.rooms[0].walls[0].runs[0];
 

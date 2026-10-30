@@ -38,7 +38,7 @@ function setup({ profile = {}, wallProfile = {}, runs = [{}], endPanels } = {}, 
   const stored = structuredClone(document.rooms[0]);
   stored.profile = { ...stored.profile, nosingProfileId: 'nz1', ...profile };
   stored.walls = [{ ...stored.walls[0], x1: 0, y1: 0, x2: 120, y2: 0,
-    profile: wallProfile, connections: { start: null, end: null }, openings: [], joints: [],
+    profile: wallProfile, connections: { start: null, end: null }, openings: [], joints: [], lines: [],
     endPanels: endPanels ?? { start: null, end: null },
     runs: runs.map((props, i) => ({ ...structuredClone(base), id: `base-${i}`, x: 30, width: 36,
       top: 'wood', anchors: {}, ends: { left: { type: 'none' }, right: { type: 'none' } }, ...props })),

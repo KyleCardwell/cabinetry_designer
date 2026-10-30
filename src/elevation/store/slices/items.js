@@ -57,7 +57,8 @@ export const itemReducers = {
     const item = runItems(location.run)[itemIndex];
     if (!item || !PINNABLE_KINDS.has(item.kind)) return;
     const pin = action.payload.pin ?? null;
-    if (pin && item.attach) return;
+    // LL4: only return pins remain (wall-end and opening pins became layout lines).
+    if (pin && (item.attach || pin.from !== 'return')) return;
     const pinCountBefore = runItems(location.run).filter((candidate) => placedAt(candidate)).length;
     const addsSecondPin = Boolean(pin) && !placedAt(item) && pinCountBefore === 1;
     const addsPinToPinnedRun = Boolean(pin) && !placedAt(item) && pinCountBefore >= 1;

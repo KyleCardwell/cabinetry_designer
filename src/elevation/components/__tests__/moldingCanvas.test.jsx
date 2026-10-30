@@ -53,7 +53,7 @@ function setup(profile = picks, cabinetTypeId = 2) {
   const source = stored.walls[0].runs.find((run) => run.cabinetTypeId === cabinetTypeId);
   stored.walls = [{
     ...stored.walls[0], x1: 0, y1: 0, x2: 120, y2: 0,
-    connections: { start: null, end: null }, openings: [], joints: [],
+    connections: { start: null, end: null }, openings: [], joints: [], lines: [],
     runs: [{ ...source, x: 20, width: 60, anchors: {}, ends: {} }],
   }];
   const room = syncRoom(stored, settings);

@@ -496,10 +496,23 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
           "end": null,
           "start": null,
         },
+        "lines": [
+          {
+            "from": "right",
+            "id": "ll4-g1-L1",
+            "label": "L1",
+            "value": 96,
+          },
+        ],
         "name": "",
         "numberOverride": null,
         "openings": [
           {
+            "attach": {
+              "at": "center",
+              "lineId": "ll4-g1-L1",
+              "offset": 0,
+            },
             "casing": {
               "thickness": 0.75,
               "width": 3,
@@ -677,14 +690,12 @@ exports[`C1 golden rooms > G1 Euro kitchen derives exactly what it did 1`] = `
                   "sizeMode": "auto",
                 },
                 {
-                  "id": "0f652c26-5f80-4387-8a1b-1f35ada26b59:col",
-                  "pin": {
-                    "anchor": "center",
-                    "from": "opening",
-                    "openingAnchor": "center",
-                    "openingId": "93ab97a1-ce31-4283-8240-ead92a6ae665",
-                    "value": 0,
+                  "attach": {
+                    "at": "center",
+                    "lineId": "ll4-g1-L1",
+                    "offset": 0,
                   },
+                  "id": "0f652c26-5f80-4387-8a1b-1f35ada26b59:col",
                   "size": 36,
                   "sizeMode": "manual",
                 },

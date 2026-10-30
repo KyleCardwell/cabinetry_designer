@@ -291,12 +291,10 @@
                 "id": "91b8a850-4450-4bc3-afbe-f9c1888a5d62:col",
                 "size": null,
                 "sizeMode": "auto",
-                "pin": {
-                  "anchor": "center",
-                  "from": "opening",
-                  "openingId": "d9d0f7f8-dbb2-472a-a873-1534aceb86e9",
-                  "openingAnchor": "center",
-                  "value": 0
+                "attach": {
+                  "lineId": "ll4-r10-L1",
+                  "at": "center",
+                  "offset": 0
                 }
               },
               {
@@ -384,6 +382,11 @@
           "casing": {
             "width": 3,
             "thickness": 0.75
+          },
+          "attach": {
+            "lineId": "ll4-r10-L1",
+            "at": "center",
+            "offset": 0
           }
         }
       ],
@@ -398,6 +401,14 @@
           "id": "82f49ba5-07c3-4230-b074-a221d60816f6",
           "x": 129,
           "wallSide": "front"
+        }
+      ],
+      "lines": [
+        {
+          "id": "ll4-r10-L1",
+          "label": "L1",
+          "from": "left",
+          "value": 92
         }
       ]
     },

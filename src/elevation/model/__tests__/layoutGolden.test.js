@@ -131,7 +131,8 @@ describe('LL0 Room 10 (room10.json)', () => {
   it('window moved: follows W1 while leaving the joints and tall runs unchanged', () => {
     const stored = structuredClone(room10);
     const before = layoutState(structuredClone(room10), settings10);
-    stored.walls.find(({ id }) => id === WALL2).openings.find(({ label }) => label === 'W1').offset = 70;
+    // LL4: W1 and the column are on line L1 (fixture); moving the line moves both.
+    stored.walls.find(({ id }) => id === WALL2).lines[0].value = 88;
     const state = layoutState(stored, settings10);
     const column = pieceOf(runOf(state, WALL2, BASE10), PINNED10);
     expect(column).toMatchObject({ x: 73 + 11 / 32, width: 29 + 5 / 16 });
@@ -175,8 +176,7 @@ describe('LL0 Room 10b (room10b.json)', () => {
 
   it('pin out: grows the free end and warns about the first cabinet width', () => {
     const stored = structuredClone(room10b);
-    const run = stored.walls.find(({ id }) => id === WALL2).runs.find(({ id }) => id === LEFT_TALL10);
-    run.grid.cols.find(({ pin }) => pin).pin.value = 90;
+    stored.walls.find(({ id }) => id === WALL2).lines[0].value = 90; // LL4: the pin is now line L1
     const state = layoutState(stored, settings10b);
     const laidOut = runOf(state, WALL2, LEFT_TALL10);
     expect(laidOut).toMatchObject({ x: 0, width: 90 + 13 / 16 });
@@ -190,8 +190,7 @@ describe('LL0 Room 10b (room10b.json)', () => {
 
   it('pin in: currently leaves 12 inches empty after the pieces instead of shrinking the run', () => {
     const stored = structuredClone(room10b);
-    const run = stored.walls.find(({ id }) => id === WALL2).runs.find(({ id }) => id === LEFT_TALL10);
-    run.grid.cols.find(({ pin }) => pin).pin.value = 60;
+    stored.walls.find(({ id }) => id === WALL2).lines[0].value = 60; // LL4: the pin is now line L1
     const state = layoutState(stored, settings10b);
     const laidOut = runOf(state, WALL2, LEFT_TALL10);
     expect(laidOut).toMatchObject({ x: 0, width: 72 + 13 / 16 });

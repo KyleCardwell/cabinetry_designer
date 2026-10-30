@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { auto, fixed, pin, room, run, wall } from '../../../test/builders.js';
+import { attach, auto, fixed, line, room, run, wall } from '../../../test/builders.js';
 import { setGridCellKind, setGridTrackSize } from '../cellTree.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { resolveWall, syncRoom } from '../room.js';
@@ -113,12 +113,12 @@ describe('FX5 mitered auto panel sharing', () => {
       items: [
         { ...auto('p0'), kind: 'panel', depth: 0.75 },
         { ...auto('p1'), kind: 'panel', depth: 0.75 },
-        { ...fixed('pinned', 24), grid: nested, pin: pin(60.8125) },
+        { ...fixed('pinned', 24), grid: nested, attach: attach('P') },
         { ...auto('p2'), kind: 'panel', depth: 0.75 },
         { ...auto('p3'), kind: 'panel', depth: 0.75 },
       ],
     });
-    const synced = syncRoom(room({ walls: [wall({ x2: 121.625, thickness: 0,
+    const synced = syncRoom(room({ walls: [wall({ x2: 121.625, thickness: 0, lines: [line('P', 60.8125)],
       endPanels: { start: { width: 0.8125, frame: 'miter' }, end: { width: 0.8125, frame: 'miter' } },
       runs: [source],
     })] }), settings);

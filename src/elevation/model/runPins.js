@@ -2,7 +2,6 @@ import { teamDoorStyle } from './doorStyles.js';
 import { DEFAULT_SETTINGS, PINNABLE_KINDS } from './constants.js';
 import { runItems } from './grid.js';
 import { findLine, lineX, placedAt } from './layoutLines.js';
-import { openingGeometry } from './openings.js';
 import { validateRunPlacement } from './overlap.js';
 import { splitRun } from './splitRun.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
@@ -11,25 +10,38 @@ export { placedAt };
 
 const PIN_EPSILON = 1e-6;
 
-/** Resolve a stored cabinet pin to a wall-local target coordinate. */
-export function resolvePinTarget(pin, wall, wallLengthValue, settings) {
-  if (!pin || !Number.isFinite(pin.value)) return null;
-  if (pin.from === 'left') return pin.value;
-  if (pin.from === 'right') return wallLengthValue - pin.value;
-  if (pin.from !== 'opening' || typeof pin.openingId !== 'string') return null;
-  const opening = (wall.openings ?? []).find((candidate) => candidate.id === pin.openingId);
-  if (!opening) return null;
-  const geometry = openingGeometry(opening, wallLengthValue, settings);
-  const anchors = {
-    center: geometry.jamb.x + geometry.jamb.width / 2,
-    'casing-left': (geometry.casing ?? geometry.jamb).x,
-    'casing-right': (geometry.casing ?? geometry.jamb).x
-      + (geometry.casing ?? geometry.jamb).width,
-    'jamb-left': geometry.jamb.x,
-    'jamb-right': geometry.jamb.x + geometry.jamb.width,
-  };
-  const datum = anchors[pin.openingAnchor];
-  return Number.isFinite(datum) ? datum + pin.value : null;
+/** LL4: a wall-end or opening pin (gone; layout lines replaced them). Return pins stay. */
+function isWallPin(pin) {
+  return Boolean(pin) && pin.from !== 'return';
+}
+
+function withoutWallPin(track) {
+  if (!isWallPin(track.pin)) return track;
+  const next = { ...track };
+  delete next.pin;
+  return next;
+}
+
+/**
+ * LL4 prune: drop wall-end and opening pins from root columns (old lab rooms still load with them;
+ * Kyle rebuilds them with layout lines). Same wall object when there are none.
+ */
+export function dropWallPins(wall) {
+  let changed = false;
+  const runs = (wall.runs ?? []).map((run) => {
+    const cols = run.grid?.cols;
+    const items = run.items;
+    const colsHave = cols?.some((col) => isWallPin(col.pin));
+    const itemsHave = items?.some((item) => isWallPin(item.pin));
+    if (!colsHave && !itemsHave) return run;
+    changed = true;
+    return {
+      ...run,
+      ...(colsHave ? { grid: { ...run.grid, cols: cols.map(withoutWallPin) } } : {}),
+      ...(itemsHave ? { items: items.map(withoutWallPin) } : {}),
+    };
+  });
+  return changed ? { ...wall, runs } : wall;
 }
 
 /** An attached root column's target: its line plus offset, in the run's face coordinates (LL4). */
@@ -39,15 +51,15 @@ function attachTarget(item, run, wall, wallLengthValue) {
   return lineX(line, wallLengthValue) + item.attach.offset;
 }
 
-/** Resolve all usable segment targets for a run: attached columns and pins. */
-export function pinTargetsForRun(run, wall, wallLengthValue, settings) {
+/** Resolve all usable segment targets for a run: attached columns and return pins. */
+export function pinTargetsForRun(run, wall, wallLengthValue) {
   wall = wallViewForRun(wall, run);
   return Object.fromEntries(runItems(run).flatMap((item) => {
     const target = item.attach && PINNABLE_KINDS.has(item.kind)
       ? attachTarget(item, run, wall, wallLengthValue)
       : item.pin?.from === 'return'
-      ? run._returnPins?.[item.id]?.target
-      : resolvePinTarget(item.pin, wall, wallLengthValue, settings);
+        ? run._returnPins?.[item.id]?.target
+        : null;
     return Number.isFinite(target) ? [[item.id, target]] : [];
   }));
 }

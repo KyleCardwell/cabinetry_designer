@@ -17,7 +17,7 @@ function setup(props = {}, profile = {}) {
   stored.profile = { ...stored.profile, baseKind: 'toe_kick', furnitureBaseProfileId: null,
     furnitureBaseProud: 0.8125, ...profile };
   stored.walls = [{ ...stored.walls[0], x1: 0, y1: 0, x2: 120, y2: 0, profile: {},
-    connections: { start: null, end: null }, openings: [], joints: [],
+    connections: { start: null, end: null }, openings: [], joints: [], lines: [],
     endPanels: { start: null, end: null },
     runs: [{ ...structuredClone(template), id: 'base', x: 30, width: 36, depth: 24,
       top: 'stone', anchors: {}, overrides: {},

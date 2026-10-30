@@ -38,8 +38,8 @@ import {
   stateWithRun,
   currentOpening,
   currentRun,
-  pin,
 } from './helpers/sliceFixtures.js';
+import { attach, line } from '../../../test/builders.js';
 
 describe('elevation opening reducers', () => {
   it('accepts door and window placement tools', () => {
@@ -105,13 +105,11 @@ describe('elevation opening reducers', () => {
     const initial = stateWithRun(run({
       items: [{
         ...auto('a'),
-        pin: pin(0, {
-          from: 'opening',
-          openingId: 'door-1',
-          openingAnchor: 'center',
-        }),
+        attach: attach('L1'),
       }],
     }));
+    // LL4: the cabinet sits on line L1 through the door's centre (42); the door itself stays free to move.
+    initial.rooms[0].walls[0].lines = [line('L1', 42)];
     initial.rooms[0].walls[0].openings = [opening()];
     const before = openingGeometry(currentOpening(initial), 144, initial.settings);
 
@@ -156,7 +154,8 @@ describe('elevation opening reducers', () => {
       openingId: 'door-1',
     }));
     expect(deleted.rooms[0].walls[0].openings).toEqual([]);
-    expect(runItems(currentRun(deleted))[0].pin).toBeNull();
+    // The line stays when the door goes, so the cabinet keeps its place on it.
+    expect(runItems(currentRun(deleted))[0].attach).toEqual(attach('L1'));
     expect(deleted.selection).toEqual({
       runId: null, pieceId: null, openingId: null, soffitId: null, recessId: null, wallId: 'wall-1',
     });

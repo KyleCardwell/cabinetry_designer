@@ -5,8 +5,9 @@ import { DEFAULT_SETTINGS } from '../constants.js';
 import { layoutRun } from '../faceLayouts.js';
 import { placedAt } from '../layoutLines.js';
 import { resolveWall } from '../room.js';
-import { roomDiagnostics, syncRoom } from '../roomSync.js';
-import { pinTargetsForRun } from '../runPins.js';
+import { syncRoom } from '../roomSync.js';
+import { dropWallPins, pinTargetsForRun } from '../runPins.js';
+import { centerlineMarkers } from '../dimensionsCenterline.js';
 
 // LL4 a: an attached root column is a segment target, exactly where a pin was.
 
@@ -41,32 +42,6 @@ function positions(stored) {
   });
 }
 
-/** The fixture with its one pinned column moved to a line (and the opening it was pinned to, if any). */
-function onLine(stored, { lineValue, at, withOpening }) {
-  const copy = structuredClone(stored);
-  for (const w of copy.walls) {
-    for (const r of w.runs ?? []) {
-      for (const col of r.grid?.cols ?? []) {
-        if (!col.pin) continue;
-        const openingId = col.pin.openingId;
-        delete col.pin;
-        col.attach = attach('LL', at);
-        w.lines = [line('LL', lineValue)];
-        if (withOpening) w.openings.find((o) => o.id === openingId).attach = attach('LL');
-      }
-    }
-  }
-  return copy;
-}
-
-function setPin(stored, value) {
-  const copy = structuredClone(stored);
-  for (const w of copy.walls) for (const r of w.runs ?? []) for (const col of r.grid?.cols ?? []) {
-    if (col.pin) col.pin.value = value;
-  }
-  return copy;
-}
-
 function setLine(stored, value) {
   const copy = structuredClone(stored);
   for (const w of copy.walls) for (const l of w.lines ?? []) l.value = value;
@@ -80,22 +55,24 @@ describe('LL4 a columns on layout lines', () => {
     expect(placedAt({ id: 'A' })).toBeNull();
   });
 
-  it('1. Room 10: a column centred on the window by a line lays out exactly as the opening pin did', () => {
+  it('1. Room 10: the column is centred on the window through line L1 (centre 92)', () => {
     const room10 = read('room10');
-    const lined = onLine(room10, { lineValue: 92, at: 'center', withOpening: true });
-    expect(positions(lined)).toEqual(positions(room10));
-    const base = positions(lined)[0].runs.find((r) => r.id === 'c25ad9b4-36e3-481c-a2b4-5b5d4857ec8e');
+    const base = positions(room10)[0].runs.find((r) => r.id === 'c25ad9b4-36e3-481c-a2b4-5b5d4857ec8e');
     const column = base.pieces.find((p) => p.id === '91b8a850-4450-4bc3-afbe-f9c1888a5d62');
-    expect(column.x + column.width / 2).toBeCloseTo(92, 9);
-    expect(roomDiagnostics(lined, settings)).toEqual(roomDiagnostics(room10, settings));
+    expect(column).toMatchObject({ x: 77 + 11 / 32, width: 29 + 5 / 16 });
+    expect(column.x + column.width / 2).toBe(92);
+    expect(positions(room10)[0].openings[0].offset).toBe(74);
   });
 
-  it('2. Room 10b: a right edge on a line grows the free end like the pin (72, 90, 60)', () => {
+  it('2. Room 10b: a right edge on a line grows the free end (72, 90)', () => {
     const room10b = read('room10b');
-    const lined = onLine(room10b, { lineValue: 72, at: 'right' });
-    for (const value of [72, 90, 60]) {
-      expect(positions(setLine(lined, value))).toEqual(positions(setPin(room10b, value)));
-    }
+    const span = (value) => {
+      const tall = positions(setLine(room10b, value))[0].runs[0];
+      const column = tall.pieces.find((p) => p.id === '5ea196ac-4752-42e5-bf15-608401c0c086');
+      return [tall.width, column.x + column.width];
+    };
+    expect(span(72)).toEqual([72 + 13 / 16, 72]);
+    expect(span(90)).toEqual([90 + 13 / 16, 90]);
   });
 
   it('3. a back-face column targets its back line in back-face coordinates', () => {
@@ -115,5 +92,30 @@ describe('LL4 a columns on layout lines', () => {
     r.grid.cols[1].attach = attach('B1');
     const w = wall({ id: 'H', x2: 240, lines: [line('B1', 30, { wallSide: 'back' })], runs: [r] });
     expect(pinTargetsForRun(r, w, 240, settings)).toEqual({});
+  });
+});
+
+describe('LL4 c pins out', () => {
+  it('3. sync drops a wall-end pin and keeps the wall when there are none', () => {
+    const r = run({ id: 'R', items: [auto('A'), auto('B')] });
+    r.grid.cols[1].pin = { anchor: 'center', from: 'left', openingId: null, openingAnchor: 'center', value: 30 };
+    const synced = syncRoom(room({ walls: [wall({ id: 'H', x2: 240, runs: [r] })] }), settings);
+    expect(synced.walls[0].runs[0].grid.cols[1]).not.toHaveProperty('pin');
+    const plain = wall({ id: 'H', x2: 240, runs: [run({ id: 'R', items: [auto('A')] })] });
+    expect(dropWallPins(plain)).toBe(plain);
+  });
+
+  it('5. callouts come from the line: Room 10 on the window, 10b from the left end', () => {
+    const marker = (stored, runId, pieceId) => {
+      const synced = syncRoom(stored, settings);
+      const view = resolveWall(synced, synced.walls.find((w) => w.runs.length), 'front');
+      const r = view.runs.find((candidate) => candidate.id === runId);
+      const { pieces } = layoutRun(synced, view, r, settings);
+      return centerlineMarkers(r, pieces, view, view.length, settings).find((m) => m.pieceId === pieceId);
+    };
+    expect(marker(read('room10'), 'c25ad9b4-36e3-481c-a2b4-5b5d4857ec8e', '91b8a850-4450-4bc3-afbe-f9c1888a5d62'))
+      .toMatchObject({ from: 'opening', datumX: 92, x: 92, value: 0 });
+    expect(marker(read('room10b'), '5d290bf9-897b-4304-9dbe-ccef6ab1c311', '5ea196ac-4752-42e5-bf15-608401c0c086'))
+      .toMatchObject({ from: 'left', datumX: 0, x: 72, value: 72 });
   });
 });

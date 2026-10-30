@@ -25,7 +25,7 @@ function setup({ profile = {}, runs = [{}], endPanels, wallStops = false } = {},
   const stored = buildRoom(structuredClone(document.rooms[0]));
   stored.profile = { ...stored.profile, baseKind: 'furniture_base', ...profile };
   stored.walls = [buildWall({ ...stored.walls[0], x1: 0, y1: 0, x2: 120, y2: 0,
-    connections: { start: null, end: null }, openings: [], joints: [],
+    connections: { start: null, end: null }, openings: [], joints: [], lines: [],
     endPanels: endPanels ?? { start: null, end: null },
     runs: runs.map((props, i) => buildRun({ ...structuredClone(baseRun), items: runItems(structuredClone(baseRun)),
       id: `base-${i}`, x: 30, width: 36,
