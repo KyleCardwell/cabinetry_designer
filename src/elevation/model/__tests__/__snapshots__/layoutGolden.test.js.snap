@@ -1,0 +1,1693 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`LL0 Room 8 (room8.json) > as stored: holds the Wall 4 joints and the layouts on both populated walls 1`] = `
+{
+  "diagnostics": {
+    "6093224d-9be8-431f-b82f-b1346fd48122": {
+      "errors": [],
+      "warnings": [
+        {
+          "code": "wide-cabinet",
+          "message": "Cabinet is wider than 36 inches.",
+          "pieceId": "f1607790-5cb7-4c6f-8e84-139edcf1c8a1",
+        },
+      ],
+    },
+    "8837d4ef-0f27-4ae9-aec6-2d563cadc4b3": {
+      "errors": [],
+      "warnings": [
+        {
+          "code": "wide-cabinet",
+          "message": "Cabinet is wider than 36 inches.",
+          "pieceId": "db21d6ce-f4e6-482c-858a-40e9e2f6be7e",
+        },
+        {
+          "code": "wide-cabinet",
+          "message": "Cabinet is wider than 36 inches.",
+          "pieceId": "11bcf05a-a149-425a-97c2-2a609de36341",
+        },
+        {
+          "code": "wide-cabinet",
+          "message": "Cabinet is wider than 36 inches.",
+          "pieceId": "abc17c3d-0af2-4782-98f9-20df208e3fe5",
+        },
+        {
+          "code": "wide-cabinet",
+          "message": "Cabinet is wider than 36 inches.",
+          "pieceId": "6957a96c-8332-4a9d-8eb0-02228eb79556",
+        },
+      ],
+    },
+    "c1cb2dd4-6ec7-4d67-a1ef-1b5072bcc757": {
+      "errors": [],
+      "warnings": [
+        {
+          "code": "wide-cabinet",
+          "message": "Cabinet is wider than 36 inches.",
+          "pieceId": "084c2d8c-e87c-4abd-93ff-f8dbfd9b9ddf",
+        },
+      ],
+    },
+    "c3b5d002-c0bc-421b-8d22-6bbd5ee060b6": {
+      "errors": [],
+      "warnings": [
+        {
+          "code": "widths-not-rounded",
+          "message": "Auto cabinet widths are not multiples of 0.5 inches.",
+          "pieceId": "20ea0b64-55ac-4a97-9408-5ae64637307f",
+        },
+      ],
+    },
+    "ce05bb7e-a556-43ea-9836-2e587a74c19b": {
+      "errors": [],
+      "warnings": [],
+    },
+    "cffd1a83-cb26-4acd-aa4b-676ddefe8719": {
+      "errors": [],
+      "warnings": [],
+    },
+    "d63bd233-b318-473d-a13b-23c3a2b83b49": {
+      "errors": [],
+      "warnings": [],
+    },
+    "fb81d7db-86db-4c9b-8d2f-d31f4609cf07": {
+      "errors": [],
+      "warnings": [],
+    },
+  },
+  "walls": [
+    {
+      "id": "14154ec7-5eeb-4511-8d78-5d3da7b09418",
+      "joints": [
+        {
+          "id": "7d2ce208-b56f-447a-b162-fc585bbbf5a2",
+          "wallSide": "front",
+          "x": 38,
+        },
+        {
+          "id": "fe1b16b5-fdf8-4840-abbf-c55164603b10",
+          "wallSide": "front",
+          "x": 97,
+        },
+        {
+          "id": "97d7faa1-a7c5-4b71-8d7a-030d18a7b281",
+          "wallSide": "front",
+          "x": 177,
+        },
+      ],
+      "name": "Wall 4",
+      "openings": [],
+      "sides": {
+        "front": [
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": true,
+              "right": {
+                "jointId": "7d2ce208-b56f-447a-b162-fc585bbbf5a2",
+                "offset": 0,
+                "to": "joint",
+              },
+            },
+            "cabinetTypeId": 3,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "run": 36.5,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 38,
+              "x": 0,
+            },
+            "id": "6093224d-9be8-431f-b82f-b1346fd48122",
+            "pieces": [
+              {
+                "id": "6093224d-9be8-431f-b82f-b1346fd48122:left",
+                "kind": "filler",
+                "role": "end-left",
+                "width": 0.75,
+                "x": 0,
+              },
+              {
+                "id": "f1607790-5cb7-4c6f-8e84-139edcf1c8a1",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 36.5,
+                "x": 0.75,
+              },
+              {
+                "id": "6093224d-9be8-431f-b82f-b1346fd48122:right",
+                "kind": "end_panel",
+                "role": "end-right",
+                "width": 0.75,
+                "x": 37.25,
+              },
+            ],
+            "warnings": [
+              {
+                "code": "wide-cabinet",
+                "pieceId": "f1607790-5cb7-4c6f-8e84-139edcf1c8a1",
+              },
+            ],
+            "width": 38,
+            "x": 0,
+          },
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": {
+                "jointId": "7d2ce208-b56f-447a-b162-fc585bbbf5a2",
+                "offset": 0,
+                "to": "joint",
+              },
+              "right": true,
+            },
+            "cabinetTypeId": 1,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "run": 36.5,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 197,
+              "x": 38,
+            },
+            "id": "8837d4ef-0f27-4ae9-aec6-2d563cadc4b3",
+            "pieces": [
+              {
+                "id": "db21d6ce-f4e6-482c-858a-40e9e2f6be7e",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 36.5,
+                "x": 38.75,
+              },
+              {
+                "id": "11bcf05a-a149-425a-97c2-2a609de36341",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 36.5,
+                "x": 75.25,
+              },
+              {
+                "id": "e77c1c0c-b386-4716-bc71-0f23ec1e585c",
+                "kind": "void",
+                "role": "item",
+                "width": 48,
+                "x": 112.5,
+              },
+              {
+                "id": "abc17c3d-0af2-4782-98f9-20df208e3fe5",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 36.5,
+                "x": 161.25,
+              },
+              {
+                "id": "6957a96c-8332-4a9d-8eb0-02228eb79556",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 36.5,
+                "x": 197.75,
+              },
+              {
+                "id": "8837d4ef-0f27-4ae9-aec6-2d563cadc4b3:right",
+                "kind": "filler",
+                "role": "end-right",
+                "width": 0.75,
+                "x": 234.25,
+              },
+            ],
+            "warnings": [
+              {
+                "code": "wide-cabinet",
+                "pieceId": "db21d6ce-f4e6-482c-858a-40e9e2f6be7e",
+              },
+              {
+                "code": "wide-cabinet",
+                "pieceId": "11bcf05a-a149-425a-97c2-2a609de36341",
+              },
+              {
+                "code": "wide-cabinet",
+                "pieceId": "abc17c3d-0af2-4782-98f9-20df208e3fe5",
+              },
+              {
+                "code": "wide-cabinet",
+                "pieceId": "6957a96c-8332-4a9d-8eb0-02228eb79556",
+              },
+            ],
+            "width": 197,
+            "x": 38,
+          },
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": {
+                "jointId": "7d2ce208-b56f-447a-b162-fc585bbbf5a2",
+                "offset": 0,
+                "to": "joint",
+              },
+              "right": {
+                "jointId": "fe1b16b5-fdf8-4840-abbf-c55164603b10",
+                "offset": 0,
+                "to": "joint",
+              },
+            },
+            "cabinetTypeId": 2,
+            "errors": [],
+            "flex": undefined,
+            "id": "c3b5d002-c0bc-421b-8d22-6bbd5ee060b6",
+            "pieces": [
+              {
+                "id": "20ea0b64-55ac-4a97-9408-5ae64637307f",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 28.75,
+                "x": 38.75,
+              },
+              {
+                "id": "513c2814-6112-4beb-a128-2c272a803495",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 28.75,
+                "x": 67.5,
+              },
+              {
+                "id": "c3b5d002-c0bc-421b-8d22-6bbd5ee060b6:right",
+                "kind": "end_panel",
+                "role": "end-right",
+                "width": 0.75,
+                "x": 96.25,
+              },
+            ],
+            "warnings": [
+              {
+                "code": "widths-not-rounded",
+                "pieceId": "20ea0b64-55ac-4a97-9408-5ae64637307f",
+              },
+            ],
+            "width": 59,
+            "x": 38,
+          },
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": {
+                "jointId": "fe1b16b5-fdf8-4840-abbf-c55164603b10",
+                "offset": 0,
+                "to": "joint",
+              },
+              "right": {
+                "jointId": "97d7faa1-a7c5-4b71-8d7a-030d18a7b281",
+                "offset": 0,
+                "to": "joint",
+              },
+            },
+            "cabinetTypeId": 2,
+            "errors": [],
+            "flex": undefined,
+            "id": "c1cb2dd4-6ec7-4d67-a1ef-1b5072bcc757",
+            "pieces": [
+              {
+                "id": "c1cb2dd4-6ec7-4d67-a1ef-1b5072bcc757:left",
+                "kind": "end_panel",
+                "role": "end-left",
+                "width": 0.75,
+                "x": 97,
+              },
+              {
+                "id": "084c2d8c-e87c-4abd-93ff-f8dbfd9b9ddf",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 78.5,
+                "x": 97.75,
+              },
+              {
+                "id": "c1cb2dd4-6ec7-4d67-a1ef-1b5072bcc757:right",
+                "kind": "end_panel",
+                "role": "end-right",
+                "width": 0.75,
+                "x": 176.25,
+              },
+            ],
+            "warnings": [
+              {
+                "code": "wide-cabinet",
+                "pieceId": "084c2d8c-e87c-4abd-93ff-f8dbfd9b9ddf",
+              },
+            ],
+            "width": 80,
+            "x": 97,
+          },
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": {
+                "jointId": "97d7faa1-a7c5-4b71-8d7a-030d18a7b281",
+                "offset": 0,
+                "to": "joint",
+              },
+              "right": true,
+            },
+            "cabinetTypeId": 2,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "run": 28,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 58,
+              "x": 177,
+            },
+            "id": "d63bd233-b318-473d-a13b-23c3a2b83b49",
+            "pieces": [
+              {
+                "id": "d63bd233-b318-473d-a13b-23c3a2b83b49:left",
+                "kind": "end_panel",
+                "role": "end-left",
+                "width": 0.75,
+                "x": 177,
+              },
+              {
+                "id": "75e7f0f1-d7f5-4398-949a-dc269c9373f9",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 28,
+                "x": 177.75,
+              },
+              {
+                "id": "d9ea12c9-54eb-4d0f-9fc0-06d3eac12566",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 28,
+                "x": 205.75,
+              },
+              {
+                "id": "d63bd233-b318-473d-a13b-23c3a2b83b49:right",
+                "kind": "filler",
+                "role": "end-right",
+                "width": 1.25,
+                "x": 233.75,
+              },
+            ],
+            "warnings": [],
+            "width": 58,
+            "x": 177,
+          },
+        ],
+      },
+    },
+    {
+      "id": "cf1f92b1-1e0e-464e-9eae-8e43b0c792ff",
+      "joints": [
+        {
+          "id": "d0a2aa47-55f7-4342-90e5-d107515d648f",
+          "wallSide": "front",
+          "x": 84,
+        },
+      ],
+      "name": "Wall 3",
+      "openings": [
+        {
+          "id": "0b41d6ad-5e3b-4b7f-ae35-04f285949c49",
+          "label": "D1",
+          "offset": 52,
+          "offsetAnchor": "center",
+          "offsetFrom": "right",
+          "width": 36,
+        },
+      ],
+      "sides": {
+        "front": [
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": {
+                "jointId": "d0a2aa47-55f7-4342-90e5-d107515d648f",
+                "offset": 0,
+                "to": "joint",
+              },
+              "right": {
+                "clearance": 7.4375,
+                "edge": "casing",
+                "openingId": "0b41d6ad-5e3b-4b7f-ae35-04f285949c49",
+                "to": "opening",
+              },
+            },
+            "cabinetTypeId": 3,
+            "errors": [],
+            "flex": undefined,
+            "id": "fb81d7db-86db-4c9b-8d2f-d31f4609cf07",
+            "pieces": [
+              {
+                "id": "fb81d7db-86db-4c9b-8d2f-d31f4609cf07:left",
+                "kind": "end_panel",
+                "role": "end-left",
+                "width": 0.75,
+                "x": 84,
+              },
+              {
+                "id": "f1d836cf-beb5-4324-a85f-655c12e819b6",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 31,
+                "x": 84.75,
+              },
+              {
+                "id": "5617e631-a19a-4b96-9fa8-73cb9dd631f5",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 37.5,
+                "x": 115.75,
+              },
+              {
+                "id": "bbba6622-1490-46f5-814f-46346ebe6184",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 37.5,
+                "x": 153.25,
+              },
+              {
+                "id": "566379fc-2b79-4d74-acc5-4ad906c2dafa",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 31,
+                "x": 190.75,
+              },
+              {
+                "id": "fb81d7db-86db-4c9b-8d2f-d31f4609cf07:right",
+                "kind": "end_panel",
+                "role": "end-right",
+                "width": 0.8125,
+                "x": 221.75,
+              },
+            ],
+            "warnings": [],
+            "width": 138.5625,
+            "x": 84,
+          },
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": true,
+              "right": {
+                "jointId": "d0a2aa47-55f7-4342-90e5-d107515d648f",
+                "offset": 0,
+                "to": "joint",
+              },
+            },
+            "cabinetTypeId": 1,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "run": 27.5,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 84,
+              "x": 0,
+            },
+            "id": "cffd1a83-cb26-4acd-aa4b-676ddefe8719",
+            "pieces": [
+              {
+                "id": "cffd1a83-cb26-4acd-aa4b-676ddefe8719:left",
+                "kind": "filler",
+                "role": "end-left",
+                "width": 0.75,
+                "x": 0,
+              },
+              {
+                "id": "aacfd5f1-cb49-46c7-bc86-f7c06a65e593",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 27.5,
+                "x": 0.75,
+              },
+              {
+                "id": "57023cd4-9f11-4fea-9855-2480447758a4",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 27.5,
+                "x": 28.25,
+              },
+              {
+                "id": "f399f57c-e9ce-4fce-96fb-291fe331c849",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 27.5,
+                "x": 55.75,
+              },
+            ],
+            "warnings": [],
+            "width": 84,
+            "x": 0,
+          },
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": true,
+              "right": {
+                "jointId": "d0a2aa47-55f7-4342-90e5-d107515d648f",
+                "offset": 0,
+                "to": "joint",
+              },
+            },
+            "cabinetTypeId": 2,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "run": 27.5,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 84,
+              "x": 0,
+            },
+            "id": "ce05bb7e-a556-43ea-9836-2e587a74c19b",
+            "pieces": [
+              {
+                "id": "ce05bb7e-a556-43ea-9836-2e587a74c19b:left",
+                "kind": "filler",
+                "role": "end-left",
+                "width": 0.75,
+                "x": 0,
+              },
+              {
+                "id": "f2d21429-e754-470f-a51f-1f508f353568",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 27.5,
+                "x": 0.75,
+              },
+              {
+                "id": "a88e1889-29a0-4084-840a-1b6c98c1ae66",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 27.5,
+                "x": 28.25,
+              },
+              {
+                "id": "ada1ce49-e188-4f83-bb91-8439894047ad",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 27.5,
+                "x": 55.75,
+              },
+            ],
+            "warnings": [],
+            "width": 84,
+            "x": 0,
+          },
+        ],
+      },
+    },
+  ],
+}
+`;
+
+exports[`LL0 Room 10 (room10.json) > as stored: holds the joints at 41 and 129 1`] = `
+{
+  "diagnostics": {
+    "5d290bf9-897b-4304-9dbe-ccef6ab1c311": {
+      "errors": [],
+      "warnings": [],
+    },
+    "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e": {
+      "errors": [],
+      "warnings": [],
+    },
+    "c25ad9b4-36e3-481c-a2b4-5b5d4857ec8e": {
+      "errors": [],
+      "warnings": [
+        {
+          "code": "widths-not-rounded",
+          "message": "Auto cabinet widths are not multiples of 0.5 inches.",
+          "pieceId": "0ab86b47-a69d-4d29-810d-2bd0846493df",
+        },
+        {
+          "code": "wide-cabinet",
+          "message": "Cabinet is wider than 36 inches.",
+          "pieceId": "0ab86b47-a69d-4d29-810d-2bd0846493df",
+        },
+        {
+          "code": "widths-not-rounded",
+          "message": "Auto cabinet widths are not multiples of 0.5 inches.",
+          "pieceId": "3d229053-592b-4b63-8088-19ca853b4606",
+        },
+      ],
+    },
+  },
+  "walls": [
+    {
+      "id": "2641fa48-3200-43ec-8a5f-ab8e6a514e00",
+      "joints": [
+        {
+          "id": "ca73860b-9fe0-425d-90db-e27ca534cb1b",
+          "wallSide": "front",
+          "x": 41,
+        },
+        {
+          "id": "82f49ba5-07c3-4230-b074-a221d60816f6",
+          "wallSide": "front",
+          "x": 129,
+        },
+      ],
+      "name": "Wall 2",
+      "openings": [
+        {
+          "id": "d9d0f7f8-dbb2-472a-a873-1534aceb86e9",
+          "label": "W1",
+          "offset": 74,
+          "offsetAnchor": "edge",
+          "offsetFrom": "left",
+          "width": 36,
+        },
+      ],
+      "sides": {
+        "front": [
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": true,
+              "right": {
+                "jointId": "ca73860b-9fe0-425d-90db-e27ca534cb1b",
+                "offset": 0,
+                "to": "joint",
+              },
+            },
+            "cabinetTypeId": 3,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "run": 19,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 41,
+              "x": 0,
+            },
+            "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311",
+            "pieces": [
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:left",
+                "kind": "filler",
+                "role": "end-left",
+                "width": 2.25,
+                "x": 0,
+              },
+              {
+                "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 19,
+                "x": 2.25,
+              },
+              {
+                "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 19,
+                "x": 21.25,
+              },
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:right",
+                "kind": "end_panel",
+                "role": "end-right",
+                "width": 0.75,
+                "x": 40.25,
+              },
+            ],
+            "warnings": [],
+            "width": 41,
+            "x": 0,
+          },
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": {
+                "jointId": "82f49ba5-07c3-4230-b074-a221d60816f6",
+                "offset": 0,
+                "to": "joint",
+              },
+              "right": true,
+            },
+            "cabinetTypeId": 3,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "run": 23,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 49,
+              "x": 129,
+            },
+            "id": "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e",
+            "pieces": [
+              {
+                "id": "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e:left",
+                "kind": "end_panel",
+                "role": "end-left",
+                "width": 0.75,
+                "x": 129,
+              },
+              {
+                "id": "061505cd-8578-41f5-af27-96221e06aec9",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 23,
+                "x": 129.75,
+              },
+              {
+                "id": "61907629-d722-4db4-8f81-0f92abcb8c28",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 23,
+                "x": 152.75,
+              },
+              {
+                "id": "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e:right",
+                "kind": "filler",
+                "role": "end-right",
+                "width": 2.25,
+                "x": 175.75,
+              },
+            ],
+            "warnings": [],
+            "width": 49,
+            "x": 129,
+          },
+          {
+            "_pinWidths": {
+              "91b8a850-4450-4bc3-afbe-f9c1888a5d62": 29.3125,
+            },
+            "anchors": {
+              "left": {
+                "jointId": "ca73860b-9fe0-425d-90db-e27ca534cb1b",
+                "offset": 0,
+                "to": "joint",
+              },
+              "right": {
+                "jointId": "82f49ba5-07c3-4230-b074-a221d60816f6",
+                "offset": 0,
+                "to": "joint",
+              },
+            },
+            "cabinetTypeId": 1,
+            "errors": [],
+            "flex": undefined,
+            "id": "c25ad9b4-36e3-481c-a2b4-5b5d4857ec8e",
+            "pieces": [
+              {
+                "id": "0ab86b47-a69d-4d29-810d-2bd0846493df",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 36.34375,
+                "x": 41,
+              },
+              {
+                "id": "91b8a850-4450-4bc3-afbe-f9c1888a5d62",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 29.3125,
+                "x": 77.34375,
+              },
+              {
+                "id": "3d229053-592b-4b63-8088-19ca853b4606",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 22.34375,
+                "x": 106.65625,
+              },
+            ],
+            "warnings": [
+              {
+                "code": "widths-not-rounded",
+                "pieceId": "0ab86b47-a69d-4d29-810d-2bd0846493df",
+              },
+              {
+                "code": "wide-cabinet",
+                "pieceId": "0ab86b47-a69d-4d29-810d-2bd0846493df",
+              },
+              {
+                "code": "widths-not-rounded",
+                "pieceId": "3d229053-592b-4b63-8088-19ca853b4606",
+              },
+            ],
+            "width": 88,
+            "x": 41,
+          },
+        ],
+      },
+    },
+  ],
+}
+`;
+
+exports[`LL0 Room 10 (room10.json) > joint moved: resizes the left tall and base while holding the pinned column 1`] = `
+{
+  "diagnostics": {
+    "5d290bf9-897b-4304-9dbe-ccef6ab1c311": {
+      "errors": [],
+      "warnings": [],
+    },
+    "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e": {
+      "errors": [],
+      "warnings": [],
+    },
+    "c25ad9b4-36e3-481c-a2b4-5b5d4857ec8e": {
+      "errors": [],
+      "warnings": [
+        {
+          "code": "widths-not-rounded",
+          "message": "Auto cabinet widths are not multiples of 0.5 inches.",
+          "pieceId": "0ab86b47-a69d-4d29-810d-2bd0846493df",
+        },
+        {
+          "code": "widths-not-rounded",
+          "message": "Auto cabinet widths are not multiples of 0.5 inches.",
+          "pieceId": "3d229053-592b-4b63-8088-19ca853b4606",
+        },
+      ],
+    },
+  },
+  "walls": [
+    {
+      "id": "2641fa48-3200-43ec-8a5f-ab8e6a514e00",
+      "joints": [
+        {
+          "id": "ca73860b-9fe0-425d-90db-e27ca534cb1b",
+          "wallSide": "front",
+          "x": 44,
+        },
+        {
+          "id": "82f49ba5-07c3-4230-b074-a221d60816f6",
+          "wallSide": "front",
+          "x": 129,
+        },
+      ],
+      "name": "Wall 2",
+      "openings": [
+        {
+          "id": "d9d0f7f8-dbb2-472a-a873-1534aceb86e9",
+          "label": "W1",
+          "offset": 74,
+          "offsetAnchor": "edge",
+          "offsetFrom": "left",
+          "width": 36,
+        },
+      ],
+      "sides": {
+        "front": [
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": true,
+              "right": {
+                "jointId": "ca73860b-9fe0-425d-90db-e27ca534cb1b",
+                "offset": 0,
+                "to": "joint",
+              },
+            },
+            "cabinetTypeId": 3,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "run": 20.5,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 44,
+              "x": 0,
+            },
+            "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311",
+            "pieces": [
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:left",
+                "kind": "filler",
+                "role": "end-left",
+                "width": 2.25,
+                "x": 0,
+              },
+              {
+                "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 20.5,
+                "x": 2.25,
+              },
+              {
+                "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 20.5,
+                "x": 22.75,
+              },
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:right",
+                "kind": "end_panel",
+                "role": "end-right",
+                "width": 0.75,
+                "x": 43.25,
+              },
+            ],
+            "warnings": [],
+            "width": 44,
+            "x": 0,
+          },
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": {
+                "jointId": "82f49ba5-07c3-4230-b074-a221d60816f6",
+                "offset": 0,
+                "to": "joint",
+              },
+              "right": true,
+            },
+            "cabinetTypeId": 3,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "run": 23,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 49,
+              "x": 129,
+            },
+            "id": "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e",
+            "pieces": [
+              {
+                "id": "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e:left",
+                "kind": "end_panel",
+                "role": "end-left",
+                "width": 0.75,
+                "x": 129,
+              },
+              {
+                "id": "061505cd-8578-41f5-af27-96221e06aec9",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 23,
+                "x": 129.75,
+              },
+              {
+                "id": "61907629-d722-4db4-8f81-0f92abcb8c28",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 23,
+                "x": 152.75,
+              },
+              {
+                "id": "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e:right",
+                "kind": "filler",
+                "role": "end-right",
+                "width": 2.25,
+                "x": 175.75,
+              },
+            ],
+            "warnings": [],
+            "width": 49,
+            "x": 129,
+          },
+          {
+            "_pinWidths": {
+              "91b8a850-4450-4bc3-afbe-f9c1888a5d62": 29.3125,
+            },
+            "anchors": {
+              "left": {
+                "jointId": "ca73860b-9fe0-425d-90db-e27ca534cb1b",
+                "offset": 0,
+                "to": "joint",
+              },
+              "right": {
+                "jointId": "82f49ba5-07c3-4230-b074-a221d60816f6",
+                "offset": 0,
+                "to": "joint",
+              },
+            },
+            "cabinetTypeId": 1,
+            "errors": [],
+            "flex": undefined,
+            "id": "c25ad9b4-36e3-481c-a2b4-5b5d4857ec8e",
+            "pieces": [
+              {
+                "id": "0ab86b47-a69d-4d29-810d-2bd0846493df",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 33.34375,
+                "x": 44,
+              },
+              {
+                "id": "91b8a850-4450-4bc3-afbe-f9c1888a5d62",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 29.3125,
+                "x": 77.34375,
+              },
+              {
+                "id": "3d229053-592b-4b63-8088-19ca853b4606",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 22.34375,
+                "x": 106.65625,
+              },
+            ],
+            "warnings": [
+              {
+                "code": "widths-not-rounded",
+                "pieceId": "0ab86b47-a69d-4d29-810d-2bd0846493df",
+              },
+              {
+                "code": "widths-not-rounded",
+                "pieceId": "3d229053-592b-4b63-8088-19ca853b4606",
+              },
+            ],
+            "width": 85,
+            "x": 44,
+          },
+        ],
+      },
+    },
+  ],
+}
+`;
+
+exports[`LL0 Room 10 (room10.json) > window moved: follows W1 while leaving the joints and tall runs unchanged 1`] = `
+{
+  "diagnostics": {
+    "5d290bf9-897b-4304-9dbe-ccef6ab1c311": {
+      "errors": [],
+      "warnings": [],
+    },
+    "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e": {
+      "errors": [],
+      "warnings": [],
+    },
+    "c25ad9b4-36e3-481c-a2b4-5b5d4857ec8e": {
+      "errors": [],
+      "warnings": [
+        {
+          "code": "widths-not-rounded",
+          "message": "Auto cabinet widths are not multiples of 0.5 inches.",
+          "pieceId": "0ab86b47-a69d-4d29-810d-2bd0846493df",
+        },
+        {
+          "code": "widths-not-rounded",
+          "message": "Auto cabinet widths are not multiples of 0.5 inches.",
+          "pieceId": "3d229053-592b-4b63-8088-19ca853b4606",
+        },
+      ],
+    },
+  },
+  "walls": [
+    {
+      "id": "2641fa48-3200-43ec-8a5f-ab8e6a514e00",
+      "joints": [
+        {
+          "id": "ca73860b-9fe0-425d-90db-e27ca534cb1b",
+          "wallSide": "front",
+          "x": 41,
+        },
+        {
+          "id": "82f49ba5-07c3-4230-b074-a221d60816f6",
+          "wallSide": "front",
+          "x": 129,
+        },
+      ],
+      "name": "Wall 2",
+      "openings": [
+        {
+          "id": "d9d0f7f8-dbb2-472a-a873-1534aceb86e9",
+          "label": "W1",
+          "offset": 70,
+          "offsetAnchor": "edge",
+          "offsetFrom": "left",
+          "width": 36,
+        },
+      ],
+      "sides": {
+        "front": [
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": true,
+              "right": {
+                "jointId": "ca73860b-9fe0-425d-90db-e27ca534cb1b",
+                "offset": 0,
+                "to": "joint",
+              },
+            },
+            "cabinetTypeId": 3,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "run": 19,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 41,
+              "x": 0,
+            },
+            "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311",
+            "pieces": [
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:left",
+                "kind": "filler",
+                "role": "end-left",
+                "width": 2.25,
+                "x": 0,
+              },
+              {
+                "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 19,
+                "x": 2.25,
+              },
+              {
+                "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 19,
+                "x": 21.25,
+              },
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:right",
+                "kind": "end_panel",
+                "role": "end-right",
+                "width": 0.75,
+                "x": 40.25,
+              },
+            ],
+            "warnings": [],
+            "width": 41,
+            "x": 0,
+          },
+          {
+            "_pinWidths": undefined,
+            "anchors": {
+              "left": {
+                "jointId": "82f49ba5-07c3-4230-b074-a221d60816f6",
+                "offset": 0,
+                "to": "joint",
+              },
+              "right": true,
+            },
+            "cabinetTypeId": 3,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "run": 23,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 49,
+              "x": 129,
+            },
+            "id": "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e",
+            "pieces": [
+              {
+                "id": "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e:left",
+                "kind": "end_panel",
+                "role": "end-left",
+                "width": 0.75,
+                "x": 129,
+              },
+              {
+                "id": "061505cd-8578-41f5-af27-96221e06aec9",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 23,
+                "x": 129.75,
+              },
+              {
+                "id": "61907629-d722-4db4-8f81-0f92abcb8c28",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 23,
+                "x": 152.75,
+              },
+              {
+                "id": "92ae9b3d-25e1-47e0-8cb0-23c603ad4c4e:right",
+                "kind": "filler",
+                "role": "end-right",
+                "width": 2.25,
+                "x": 175.75,
+              },
+            ],
+            "warnings": [],
+            "width": 49,
+            "x": 129,
+          },
+          {
+            "_pinWidths": {
+              "91b8a850-4450-4bc3-afbe-f9c1888a5d62": 29.3125,
+            },
+            "anchors": {
+              "left": {
+                "jointId": "ca73860b-9fe0-425d-90db-e27ca534cb1b",
+                "offset": 0,
+                "to": "joint",
+              },
+              "right": {
+                "jointId": "82f49ba5-07c3-4230-b074-a221d60816f6",
+                "offset": 0,
+                "to": "joint",
+              },
+            },
+            "cabinetTypeId": 1,
+            "errors": [],
+            "flex": undefined,
+            "id": "c25ad9b4-36e3-481c-a2b4-5b5d4857ec8e",
+            "pieces": [
+              {
+                "id": "0ab86b47-a69d-4d29-810d-2bd0846493df",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 32.34375,
+                "x": 41,
+              },
+              {
+                "id": "91b8a850-4450-4bc3-afbe-f9c1888a5d62",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 29.3125,
+                "x": 73.34375,
+              },
+              {
+                "id": "3d229053-592b-4b63-8088-19ca853b4606",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 26.34375,
+                "x": 102.65625,
+              },
+            ],
+            "warnings": [
+              {
+                "code": "widths-not-rounded",
+                "pieceId": "0ab86b47-a69d-4d29-810d-2bd0846493df",
+              },
+              {
+                "code": "widths-not-rounded",
+                "pieceId": "3d229053-592b-4b63-8088-19ca853b4606",
+              },
+            ],
+            "width": 88,
+            "x": 41,
+          },
+        ],
+      },
+    },
+  ],
+}
+`;
+
+exports[`LL0 Room 10b (room10b.json) > as stored: ends the pinned column at 72 and puts the end panel after it 1`] = `
+{
+  "diagnostics": {
+    "5d290bf9-897b-4304-9dbe-ccef6ab1c311": {
+      "errors": [],
+      "warnings": [
+        {
+          "code": "wide-cabinet",
+          "message": "Cabinet is wider than 36 inches.",
+          "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+        },
+      ],
+    },
+  },
+  "walls": [
+    {
+      "id": "2641fa48-3200-43ec-8a5f-ab8e6a514e00",
+      "joints": [],
+      "name": "Wall 2",
+      "openings": [
+        {
+          "id": "d9d0f7f8-dbb2-472a-a873-1534aceb86e9",
+          "label": "W1",
+          "offset": 74,
+          "offsetAnchor": "edge",
+          "offsetFrom": "left",
+          "width": 36,
+        },
+      ],
+      "sides": {
+        "front": [
+          {
+            "_pinWidths": {
+              "5ea196ac-4752-42e5-bf15-608401c0c086": 30,
+            },
+            "anchors": {
+              "left": true,
+              "right": false,
+            },
+            "cabinetTypeId": 1,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "left": 40.5,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 72.8125,
+              "x": 0,
+            },
+            "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311",
+            "pieces": [
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:left",
+                "kind": "filler",
+                "role": "end-left",
+                "width": 1.5,
+                "x": 0,
+              },
+              {
+                "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 40.5,
+                "x": 1.5,
+              },
+              {
+                "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 30,
+                "x": 42,
+              },
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:right",
+                "kind": "end_panel",
+                "role": "end-right",
+                "width": 0.8125,
+                "x": 72,
+              },
+            ],
+            "warnings": [
+              {
+                "code": "wide-cabinet",
+                "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+              },
+            ],
+            "width": 72.8125,
+            "x": 0,
+          },
+        ],
+      },
+    },
+  ],
+}
+`;
+
+exports[`LL0 Room 10b (room10b.json) > move anchored run: refuses the move and leaves the room unchanged 1`] = `
+{
+  "diagnostics": {
+    "5d290bf9-897b-4304-9dbe-ccef6ab1c311": {
+      "errors": [],
+      "warnings": [
+        {
+          "code": "wide-cabinet",
+          "message": "Cabinet is wider than 36 inches.",
+          "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+        },
+      ],
+    },
+  },
+  "walls": [
+    {
+      "id": "2641fa48-3200-43ec-8a5f-ab8e6a514e00",
+      "joints": [],
+      "name": "Wall 2",
+      "openings": [
+        {
+          "id": "d9d0f7f8-dbb2-472a-a873-1534aceb86e9",
+          "label": "W1",
+          "offset": 74,
+          "offsetAnchor": "edge",
+          "offsetFrom": "left",
+          "width": 36,
+        },
+      ],
+      "sides": {
+        "front": [
+          {
+            "_pinWidths": {
+              "5ea196ac-4752-42e5-bf15-608401c0c086": 30,
+            },
+            "anchors": {
+              "left": true,
+              "right": false,
+            },
+            "cabinetTypeId": 1,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "left": 40.5,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 72.8125,
+              "x": 0,
+            },
+            "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311",
+            "pieces": [
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:left",
+                "kind": "filler",
+                "role": "end-left",
+                "width": 1.5,
+                "x": 0,
+              },
+              {
+                "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 40.5,
+                "x": 1.5,
+              },
+              {
+                "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 30,
+                "x": 42,
+              },
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:right",
+                "kind": "end_panel",
+                "role": "end-right",
+                "width": 0.8125,
+                "x": 72,
+              },
+            ],
+            "warnings": [
+              {
+                "code": "wide-cabinet",
+                "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+              },
+            ],
+            "width": 72.8125,
+            "x": 0,
+          },
+        ],
+      },
+    },
+  ],
+}
+`;
+
+exports[`LL0 Room 10b (room10b.json) > pin in: currently leaves 12 inches empty after the pieces instead of shrinking the run 1`] = `
+{
+  "diagnostics": {
+    "5d290bf9-897b-4304-9dbe-ccef6ab1c311": {
+      "errors": [
+        {
+          "code": "does-not-fill",
+        },
+      ],
+      "warnings": [],
+    },
+  },
+  "walls": [
+    {
+      "id": "2641fa48-3200-43ec-8a5f-ab8e6a514e00",
+      "joints": [],
+      "name": "Wall 2",
+      "openings": [
+        {
+          "id": "d9d0f7f8-dbb2-472a-a873-1534aceb86e9",
+          "label": "W1",
+          "offset": 74,
+          "offsetAnchor": "edge",
+          "offsetFrom": "left",
+          "width": 36,
+        },
+      ],
+      "sides": {
+        "front": [
+          {
+            "_pinWidths": {
+              "5ea196ac-4752-42e5-bf15-608401c0c086": 30,
+            },
+            "anchors": {
+              "left": true,
+              "right": false,
+            },
+            "cabinetTypeId": 1,
+            "errors": [
+              {
+                "code": "does-not-fill",
+                "pieceId": undefined,
+              },
+            ],
+            "flex": {
+              "boxes": {
+                "left": 28.5,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 72.8125,
+              "x": 0,
+            },
+            "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311",
+            "pieces": [
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:left",
+                "kind": "filler",
+                "role": "end-left",
+                "width": 1.5,
+                "x": 0,
+              },
+              {
+                "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 28.5,
+                "x": 1.5,
+              },
+              {
+                "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 30,
+                "x": 30,
+              },
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:right",
+                "kind": "end_panel",
+                "role": "end-right",
+                "width": 0.8125,
+                "x": 60,
+              },
+            ],
+            "warnings": [],
+            "width": 72.8125,
+            "x": 0,
+          },
+        ],
+      },
+    },
+  ],
+}
+`;
+
+exports[`LL0 Room 10b (room10b.json) > pin out: grows the free end and warns about the first cabinet width 1`] = `
+{
+  "diagnostics": {
+    "5d290bf9-897b-4304-9dbe-ccef6ab1c311": {
+      "errors": [],
+      "warnings": [
+        {
+          "code": "wide-cabinet",
+          "message": "Cabinet is wider than 36 inches.",
+          "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+        },
+      ],
+    },
+  },
+  "walls": [
+    {
+      "id": "2641fa48-3200-43ec-8a5f-ab8e6a514e00",
+      "joints": [],
+      "name": "Wall 2",
+      "openings": [
+        {
+          "id": "d9d0f7f8-dbb2-472a-a873-1534aceb86e9",
+          "label": "W1",
+          "offset": 74,
+          "offsetAnchor": "edge",
+          "offsetFrom": "left",
+          "width": 36,
+        },
+      ],
+      "sides": {
+        "front": [
+          {
+            "_pinWidths": {
+              "5ea196ac-4752-42e5-bf15-608401c0c086": 30,
+            },
+            "anchors": {
+              "left": true,
+              "right": false,
+            },
+            "cabinetTypeId": 1,
+            "errors": [],
+            "flex": {
+              "boxes": {
+                "left": 58.5,
+              },
+              "left": 0,
+              "right": 0,
+              "width": 90.8125,
+              "x": 0,
+            },
+            "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311",
+            "pieces": [
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:left",
+                "kind": "filler",
+                "role": "end-left",
+                "width": 1.5,
+                "x": 0,
+              },
+              {
+                "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 58.5,
+                "x": 1.5,
+              },
+              {
+                "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
+                "kind": "cabinet",
+                "role": "item",
+                "width": 30,
+                "x": 60,
+              },
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:right",
+                "kind": "end_panel",
+                "role": "end-right",
+                "width": 0.8125,
+                "x": 90,
+              },
+            ],
+            "warnings": [
+              {
+                "code": "wide-cabinet",
+                "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+              },
+            ],
+            "width": 90.8125,
+            "x": 0,
+          },
+        ],
+      },
+    },
+  ],
+}
+`;

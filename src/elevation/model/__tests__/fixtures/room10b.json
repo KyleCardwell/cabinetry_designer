@@ -1,0 +1,230 @@
+{
+  "id": "05d7395a-9508-444c-a1a4-01525d2d0ce5",
+  "name": "Room 10",
+  "profile": {},
+  "partNumberStart": 1,
+  "partNumberOverrides": {},
+  "reportParts": {},
+  "reportNote": "",
+  "wallOrder": [
+    "a980c587-1873-4e02-b1d5-992f447f5368",
+    "2641fa48-3200-43ec-8a5f-ab8e6a514e00",
+    "95e73083-4a5f-4f2e-bc75-8c2ab34fed35"
+  ],
+  "walls": [
+    {
+      "id": "a980c587-1873-4e02-b1d5-992f447f5368",
+      "name": "Wall 1",
+      "numberOverride": null,
+      "elevationForced": false,
+      "x1": -104.5,
+      "y1": 24.5,
+      "x2": -104.5,
+      "y2": -16,
+      "height": 120,
+      "thickness": 4.5,
+      "thicknessOverride": null,
+      "flipped": false,
+      "connections": {
+        "start": null,
+        "end": {
+          "wallId": "2641fa48-3200-43ec-8a5f-ab8e6a514e00",
+          "endpoint": "start"
+        }
+      },
+      "endPanels": {
+        "start": null,
+        "end": null
+      },
+      "landings": {
+        "start": null,
+        "end": null
+      },
+      "profile": {},
+      "runs": [],
+      "openings": [],
+      "soffits": [],
+      "joints": []
+    },
+    {
+      "id": "2641fa48-3200-43ec-8a5f-ab8e6a514e00",
+      "name": "Wall 2",
+      "numberOverride": null,
+      "elevationForced": false,
+      "x1": -104.5,
+      "y1": -16,
+      "x2": 73.5,
+      "y2": -16,
+      "height": 120,
+      "thickness": 4.5,
+      "thicknessOverride": null,
+      "flipped": false,
+      "connections": {
+        "start": {
+          "wallId": "a980c587-1873-4e02-b1d5-992f447f5368",
+          "endpoint": "end"
+        },
+        "end": {
+          "wallId": "95e73083-4a5f-4f2e-bc75-8c2ab34fed35",
+          "endpoint": "start"
+        }
+      },
+      "endPanels": {
+        "start": null,
+        "end": null
+      },
+      "landings": {
+        "start": null,
+        "end": null
+      },
+      "profile": {},
+      "runs": [
+        {
+          "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311",
+          "cabinetTypeId": 1,
+          "x": 0,
+          "width": 72.8125,
+          "z": 4,
+          "height": 30.5,
+          "depth": 25,
+          "ends": {
+            "left": {
+              "type": "filler",
+              "width": null
+            },
+            "right": {
+              "type": "end_panel",
+              "width": null
+            }
+          },
+          "autoCount": false,
+          "maxCabinetWidth": null,
+          "grid": {
+            "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:grid",
+            "cols": [
+              {
+                "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a:col",
+                "size": null,
+                "sizeMode": "auto"
+              },
+              {
+                "id": "5ea196ac-4752-42e5-bf15-608401c0c086:col",
+                "size": null,
+                "sizeMode": "auto",
+                "pin": {
+                  "anchor": "right",
+                  "from": "left",
+                  "openingId": null,
+                  "openingAnchor": "center",
+                  "value": 72
+                }
+              }
+            ],
+            "rows": [
+              {
+                "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:row",
+                "size": null,
+                "sizeMode": "auto"
+              }
+            ],
+            "cells": [
+              {
+                "col": 0,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+                  "kind": "cabinet"
+                }
+              },
+              {
+                "col": 1,
+                "row": 0,
+                "colSpan": 1,
+                "rowSpan": 1,
+                "node": {
+                  "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
+                  "kind": "cabinet"
+                }
+              }
+            ]
+          },
+          "heightMode": "auto",
+          "overrides": {},
+          "anchors": {
+            "left": true,
+            "right": false
+          },
+          "wallSide": "front",
+          "_pinWidths": {
+            "5ea196ac-4752-42e5-bf15-608401c0c086": 30
+          },
+          "flex": {
+            "left": 0,
+            "right": 0,
+            "x": 0,
+            "width": 72.8125,
+            "boxes": {
+              "left": 40
+            }
+          }
+        }
+      ],
+      "openings": [
+        {
+          "id": "d9d0f7f8-dbb2-472a-a873-1534aceb86e9",
+          "kind": "window",
+          "label": "W1",
+          "measureMode": "jamb",
+          "width": 36,
+          "height": 48,
+          "sillZ": 42,
+          "offset": 74,
+          "offsetFrom": "left",
+          "offsetAnchor": "edge",
+          "casing": {
+            "width": 3,
+            "thickness": 0.75
+          }
+        }
+      ],
+      "soffits": [],
+      "joints": []
+    },
+    {
+      "id": "95e73083-4a5f-4f2e-bc75-8c2ab34fed35",
+      "name": "Wall 3",
+      "numberOverride": null,
+      "elevationForced": false,
+      "x1": 73.5,
+      "y1": -16,
+      "x2": 73.5,
+      "y2": 22.5,
+      "height": 120,
+      "thickness": 4.5,
+      "thicknessOverride": null,
+      "flipped": false,
+      "connections": {
+        "start": {
+          "wallId": "2641fa48-3200-43ec-8a5f-ab8e6a514e00",
+          "endpoint": "end"
+        },
+        "end": null
+      },
+      "endPanels": {
+        "start": null,
+        "end": null
+      },
+      "landings": {
+        "start": null,
+        "end": null
+      },
+      "profile": {},
+      "runs": [],
+      "openings": [],
+      "soffits": [],
+      "joints": []
+    }
+  ]
+}
