@@ -1,5 +1,6 @@
 import { Layer } from 'react-konva';
 import { openingGeometry } from '../model/openings.js';
+import { lineHeldJoints } from '../model/linePlacement.js';
 import JointMarkers from './JointMarkers.jsx';
 import LayoutLines from './LayoutLines.jsx';
 import OpeningShape from './OpeningShape.jsx';
@@ -45,12 +46,16 @@ export default function WallContentLayer({
   updateLineDrag,
   finishLineDrag,
   startJointDrag,
+  onLockedJoint,
   previewJointDrag,
   finishJointDrag,
   unjoinRunSide,
   hoveredGlyphId,
   setHoveredGlyphId,
 }) {
+  const storedWall = room.walls.find((candidate) => candidate.id === wall.id);
+  const heldJoints = storedWall ? lineHeldJoints(storedWall) : new Map();
+  const lineLabels = Object.fromEntries((storedWall?.lines ?? []).map(({ id, label }) => [id, label]));
   return (
           <Layer>
             <RecessShapes
@@ -145,6 +150,9 @@ export default function WallContentLayer({
                 wall={wall}
                 transform={transform}
                 selectedRunId={selection.runId}
+                heldJoints={heldJoints}
+                lineLabels={lineLabels}
+                onLockedJoint={onLockedJoint}
                 onJointDragStart={startJointDrag}
                 onJointDragMove={previewJointDrag}
                 onJointDragEnd={finishJointDrag}

@@ -24,6 +24,7 @@ import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
 import { useMeasure } from '../canvas/measureState.js';
 import { elevationMeasureGeometry } from '../model/measure.js';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
+import { jointLineLock } from '../model/lineLocks.js';
 import { elevationKey } from '../model/topology.js';
 import {
   moveOpening,
@@ -173,6 +174,12 @@ function ElevationCanvas({
       messageTimeoutRef.current = null;
     }, 3000);
   }, [dispatch]);
+
+  const onLockedJoint = useCallback((jointId) => {
+    const storedWall = room?.walls.find((candidate) => candidate.id === wall?.id);
+    const lock = jointLineLock(storedWall, jointId);
+    if (lock) showMessage(lock.message);
+  }, [room, showMessage, wall?.id]);
 
   useEffect(() => {
     cancelEntry();
@@ -554,6 +561,7 @@ function ElevationCanvas({
             updateLineDrag={combined ? undefined : updateLineDrag}
             finishLineDrag={combined ? undefined : finishLineDrag}
             startJointDrag={startJointDrag} previewJointDrag={previewJointDrag}
+            onLockedJoint={onLockedJoint}
             finishJointDrag={finishJointDrag} unjoinRunSide={unjoinRunSide}
             hoveredGlyphId={hoveredGlyphId} setHoveredGlyphId={setHoveredGlyphId}
           />

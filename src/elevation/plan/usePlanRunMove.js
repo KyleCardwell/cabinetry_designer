@@ -36,8 +36,8 @@ export default function usePlanRunMove({
     if (!result.ok) {
       if (commit) clearMove();
       else cancelMove();
-      showMessage(result.reason === 'anchored'
-        ? 'Anchored — set Anchor to Free to move' : result.reason);
+      showMessage(result.message ?? (result.reason === 'anchored'
+        ? 'Anchored — set Anchor to Free to move' : result.reason));
       return;
     }
     if (!commit) {
@@ -71,8 +71,8 @@ export default function usePlanRunMove({
     if (!run || !pointer) return;
     const result = moveRun(room, wall.id, run.id, run.x, settings);
     if (!result.ok) {
-      showMessage(result.reason === 'anchored'
-        ? 'Anchored — set Anchor to Free to move' : result.reason);
+      showMessage(result.message ?? (result.reason === 'anchored'
+        ? 'Anchored — set Anchor to Free to move' : result.reason));
       return;
     }
     cancelEntry();

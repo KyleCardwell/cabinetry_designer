@@ -8,6 +8,7 @@ import {
 } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
+import { LINE_COLOR } from './LayoutLines.jsx';
 import {
   followGlyphs,
   jointGlyphs,
@@ -19,6 +20,9 @@ function JointMarkers({
   wall,
   transform,
   selectedRunId,
+  heldJoints = new Map(),
+  lineLabels = {},
+  onLockedJoint,
   onJointDragStart,
   onJointDragMove,
   onJointDragEnd,
@@ -35,6 +39,7 @@ function JointMarkers({
   const jointMarkers = (wall.joints ?? []).map((joint) => {
     const members = jointMembers(wall, joint.id);
     const glyphs = jointGlyphs(wall, joint.id);
+    const held = heldJoints.get(joint.id);
     const memberIds = new Set(members.map((member) => member.runId));
     const memberRuns = wall.runs.filter((run) => memberIds.has(run.id));
     if (memberRuns.length === 0) return null;
@@ -68,6 +73,21 @@ function JointMarkers({
           />
         ))}
 
+        {held && (
+          <Text
+            x={bounds.x - 12}
+            y={Math.min(...glyphs.map((glyph) => (
+              wallToScreen({ x: joint.x, z: glyph.z }, transform).y
+            ))) - 26}
+            width={24}
+            align="center"
+            text={lineLabels[held.lineId]}
+            fill={LINE_COLOR}
+            fontSize={11}
+            listening={false}
+          />
+        )}
+
         {selected && (
           <Rect
             x={bounds.x}
@@ -75,19 +95,20 @@ function JointMarkers({
             offsetX={4}
             width={8}
             height={bounds.height}
-            fill="#38bdf8"
+            fill={held ? LINE_COLOR : '#38bdf8'}
             opacity={0.65}
-            stroke="#bae6fd"
+            stroke={held ? LINE_COLOR : '#bae6fd'}
             strokeWidth={1}
-            draggable
+            draggable={!held}
             dragBoundFunc={(position) => ({ x: position.x, y: bounds.y })}
             onMouseDown={(event) => {
               stopEvent(event);
-              onJointDragStart(joint.id);
+              if (held) onLockedJoint(joint.id);
+              else onJointDragStart(joint.id);
             }}
             onMouseUp={stopEvent}
             onClick={stopEvent}
-            onMouseEnter={() => cursorKeys.request(joint.id, CURSORS.resizeX)}
+            onMouseEnter={() => cursorKeys.request(joint.id, held ? CURSORS.select : CURSORS.resizeX)}
             onMouseLeave={() => cursorKeys.release(joint.id)}
             onDragStart={(event) => {
               stopEvent(event);

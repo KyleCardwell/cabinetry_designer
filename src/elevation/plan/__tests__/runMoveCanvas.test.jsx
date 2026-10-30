@@ -10,6 +10,11 @@ import PlanScene from '../PlanScene.jsx';
 import PlanRunFootprint from '../PlanRunFootprint.jsx';
 import LiveEntryInput from '../../components/LiveEntryInput.jsx';
 import CanvasContextMenu from '../../components/CanvasContextMenu.jsx';
+import { attach, line } from '../../../test/builders.js';
+import { updateRootItem } from '../../model/grid.js';
+import { runShortLabel } from '../../model/joints.js';
+import { syncRoom } from '../../model/room.js';
+import room8 from '../../model/__tests__/fixtures/room8.json';
 
 // Keep hook state and effect lifecycles across renders without mounting Konva in a DOM.
 let hooks;
@@ -280,4 +285,29 @@ it('uses the topmost footprint menu and its wall side; cancels and restores on a
   key('m');
   expect(active()).toBe(false);
   expect(state.message).toBe('Anchored — set Anchor to Free to move');
+});
+
+it('LL5 c anchor 4: plan M refuses the R8L1 hood with its line message and no live entry', () => {
+  const subject = structuredClone(room8);
+  const target = subject.walls.find(({ id }) => id === '14154ec7-5eeb-4511-8d78-5d3da7b09418');
+  const hoodId = 'c1cb2dd4-6ec7-4d67-a1ef-1b5072bcc757';
+  target.lines = [line('L1', 99, { from: 'right' })];
+  target.runs.find(({ id }) => id === hoodId).attach = attach('L1');
+  const base = target.runs.find(({ id }) => id === '8837d4ef-0f27-4ae9-aec6-2d563cadc4b3');
+  base.autoCount = false;
+  base.grid = updateRootItem(base.grid, 'e77c1c0c-b386-4716-bc71-0f23ec1e585c', { attach: attach('L1') });
+  state = { ...structuredClone(state), rooms: [syncRoom(subject, state.settings)], activeRoomId: subject.id, activeWallId: target.id };
+  render();
+  dispatch(setSelection({ runId: hoodId }));
+  render();
+  const before = state.rooms;
+  dispatch.mockClear();
+  const resolved = syncRoom(subject, state.settings).walls.find(({ id }) => id === target.id);
+  const hood = resolved.runs.find(({ id }) => id === hoodId);
+  key('m');
+  expect(state.message).toBe(`${runShortLabel(hood)} is attached to line L1: move the line, or detach.`);
+  expect(active()).toBe(false);
+  expect(state.rooms).toBe(before);
+  expect(dispatch.mock.calls.every(([action]) => action.type.endsWith('/setMessage'))).toBe(true);
+  expect(tree[0].props.style.cursor).not.toBe('move');
 });

@@ -51,7 +51,7 @@ export default function useJointDrag({
     if (!room || !wall) return;
     const result = moveJoint(room, wall.id, jointId, x, settings);
     if (!result.ok) {
-      showMessage(result.reason);
+      showMessage(result.message ?? result.reason);
       return;
     }
     const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
@@ -84,9 +84,13 @@ export default function useJointDrag({
     const joint = (wall.joints ?? []).find((candidate) => candidate.id === jointId);
     const pointer = stageRef.current?.getPointerPosition();
     if (!member || !run || !joint || !pointer) return;
-    cancelEntry();
     const rangeResult = moveJoint(room, wall.id, jointId, joint.x, settings);
+    if (!rangeResult.ok) {
+      showMessage(rangeResult.message ?? rangeResult.reason);
+      return;
+    }
     if (!rangeResult.range || rangeResult.range.min > rangeResult.range.max) return;
+    cancelEntry();
     cursor.hold(CURSORS.resizeX);
     const offset = member.offset ?? 0;
     const grabbedEdgeAtJoint = (jointX) => (
@@ -189,7 +193,7 @@ export default function useJointDrag({
         cursor.releaseHold();
       },
     });
-  }, [beginEntry, cancelEntry, commitJointDrag, cursor, room, settings, wall]);
+  }, [beginEntry, cancelEntry, commitJointDrag, cursor, room, settings, showMessage, wall]);
 
   const updateJointDrag = useCallback((jointId, x) => {
     const gesture = liveGestureRef.current;

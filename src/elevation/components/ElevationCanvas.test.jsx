@@ -19,6 +19,27 @@ import ElevationDimensions from './ElevationDimensions.jsx';
 import MeasureOverlay from './MeasureOverlay.jsx';
 import MeasureReadout from './MeasureReadout.jsx';
 import { defaultPick, pickStack } from '../model/pick.js';
+import { attach, line, room as buildRoom, wall as buildWall } from '../../test/builders.js';
+import { updateRootItem } from '../model/grid.js';
+import { runShortLabel } from '../model/joints.js';
+import { CURSORS } from '../canvas/cursor.js';
+import JointMarkers from './JointMarkers.jsx';
+import { LINE_COLOR } from './LayoutLines.jsx';
+import room8 from '../model/__tests__/fixtures/room8.json';
+
+const WALL8 = '14154ec7-5eeb-4511-8d78-5d3da7b09418';
+const HOOD = 'c1cb2dd4-6ec7-4d67-a1ef-1b5072bcc757';
+const JL = 'fe1b16b5-fdf8-4840-abbf-c55164603b10';
+const JR = '97d7faa1-a7c5-4b71-8d7a-030d18a7b281';
+const UNHELD = '7d2ce208-b56f-447a-b162-fc585bbbf5a2';
+const r8l1 = structuredClone(room8);
+const r8Wall = r8l1.walls.find(({ id }) => id === WALL8);
+r8l1.walls = [r8Wall, ...r8l1.walls.filter(({ id }) => id !== WALL8)];
+r8Wall.lines = [line('L1', 99, { from: 'right' })];
+r8Wall.runs.find(({ id }) => id === HOOD).attach = attach('L1');
+const r8Base = r8Wall.runs.find(({ id }) => id === '8837d4ef-0f27-4ae9-aec6-2d563cadc4b3');
+r8Base.autoCount = false;
+r8Base.grid = updateRootItem(r8Base.grid, 'e77c1c0c-b386-4716-bc71-0f23ec1e585c', { attach: attach('L1') });
 
 // Keep hook state and effect lifecycles across renders without mounting Konva in a DOM.
 let hooks;
@@ -580,4 +601,162 @@ it('LL5 b anchor 6: switching tools cancels a line drag without a layout dispatc
   node(WallContentLayer).props.finishLineDrag('L1', 40);
   render();
   expect(dispatch).not.toHaveBeenCalled();
+});
+
+it('LL5 c anchor 1: held R8L1 joints name L1 above their top glyph and have violet, fixed handles', () => {
+  state = { ...structuredClone(state), rooms: [structuredClone(r8l1)], activeRoomId: r8l1.id };
+  render();
+  dispatch(setSelection({ runId: HOOD }));
+  render();
+  const props = node(JointMarkers).props;
+  expect([...props.heldJoints.keys()]).toEqual([JL, JR]);
+  expect(props.lineLabels).toEqual({ L1: 'L1' });
+  const markers = nodes(JointMarkers.type(props));
+  for (const id of [JL, JR]) {
+    const group = markers.find((item) => item.key === id);
+    const children = nodes(group);
+    const label = children.find(({ props }) => props.text === 'L1');
+    expect(label.props).toMatchObject({ fill: LINE_COLOR, fontSize: 11, listening: false });
+    const glyphs = children.filter(({ props }) => props.text === '⛓');
+    expect(label.props.y).toBeLessThan(Math.min(...glyphs.map(({ props }) => props.y)));
+    expect(children.find(({ props }) => props.dragBoundFunc).props)
+      .toMatchObject({ draggable: false, fill: LINE_COLOR, stroke: LINE_COLOR });
+  }
+  expect(nodes(markers.find((item) => item.key === UNHELD)).some(({ props }) => props.text === 'L1')).toBe(false);
+  const unselected = nodes(JointMarkers.type({ ...props, selectedRunId: null }));
+  expect(unselected.filter(({ props }) => props.text === 'L1')).toHaveLength(2);
+  expect(unselected.some(({ props }) => props.dragBoundFunc)).toBe(false);
+});
+
+it('LL5 c anchor 2: pressing a held handle stops the event and explains its line without starting a drag', () => {
+  state = { ...structuredClone(state), rooms: [structuredClone(r8l1)], activeRoomId: r8l1.id };
+  render();
+  dispatch(setSelection({ runId: HOOD }));
+  render();
+  const props = node(JointMarkers).props;
+  const onLockedJoint = vi.fn(props.onLockedJoint);
+  const onJointDragStart = vi.fn(props.onJointDragStart);
+  const cursor = { request: vi.fn(), release: vi.fn() };
+  const markers = nodes(JointMarkers.type({ ...props, onLockedJoint, onJointDragStart, cursor }));
+  const handle = nodes(markers.find((item) => item.key === JL)).find(({ props }) => props.dragBoundFunc);
+  const event = {};
+  handle.props.onMouseDown(event);
+  expect(event.cancelBubble).toBe(true);
+  expect(onLockedJoint).toHaveBeenCalledOnce();
+  expect(onLockedJoint).toHaveBeenCalledWith(JL);
+  expect(onJointDragStart).not.toHaveBeenCalled();
+  expect(active()).toBe(false);
+  const hood = props.wall.runs.find(({ id }) => id === HOOD);
+  expect(state.message).toBe(`This joint follows line L1 (${runShortLabel(hood)}): move L1, or detach that run.`);
+  handle.props.onMouseEnter();
+  expect(cursor.request).toHaveBeenCalledWith(expect.any(String), CURSORS.select);
+  // Unjoin hit targets still use their original click action.
+  const onUnjoin = vi.fn();
+  const unjoinMarkers = nodes(JointMarkers.type({ ...props, onUnjoin }));
+  const unjoin = nodes(unjoinMarkers.find((item) => item.key === JL)).find(({ props }) => props.onClick && !props.dragBoundFunc);
+  unjoin.props.onClick({});
+  expect(onUnjoin).toHaveBeenCalled();
+});
+
+it('LL5 c anchor 3: M and the elevation context menu refuse the attached hood before entry or preview', () => {
+  state = { ...structuredClone(state), rooms: [structuredClone(r8l1)], activeRoomId: r8l1.id };
+  render();
+  dispatch(setSelection({ runId: HOOD }));
+  render();
+  const before = state.rooms;
+  const hood = node(WallContentLayer).props.wall.runs.find(({ id }) => id === HOOD);
+  const message = `${runShortLabel(hood)} is attached to line L1: move the line, or detach.`;
+  dispatch.mockClear();
+  key('m');
+  expect(state.message).toBe(message);
+  expect(active()).toBe(false);
+  expect(node(ElevationPreviews).props.stretchPreview).toBeNull();
+  contextClick(136, hood.z + hood.height / 2);
+  expect(state.selection.runId).toBe(HOOD);
+  tree.find(({ props }) => props.role === 'menuitem').props.onClick();
+  render();
+  expect(state.message).toBe(message);
+  expect(active()).toBe(false);
+  expect(state.rooms).toBe(before);
+  expect(dispatch.mock.calls.some(([action]) => action.type.endsWith('/replaceRun'))).toBe(false);
+});
+
+it('LL5 c anchor 5: the attached left edge refuses before cancelling entry; the opposite edge still stretches', () => {
+  const subject = buildRoom({ walls: [buildWall({ x2: 240, lines: [line('L1', 100)],
+    runs: [run({ x: 10, width: 30, attach: attach('L1', 'left') })],
+  })] });
+  state = { ...structuredClone(state), rooms: [subject] };
+  render();
+  const content = node(WallContentLayer).props;
+  content.startStretch('run-1', 'left');
+  render();
+  const attachedRun = node(WallContentLayer).props.wall.runs[0];
+  expect(state.message).toBe(`${runShortLabel(attachedRun)}'s left edge is on line L1: drag the other edge, or move the line.`);
+  expect(active()).toBe(false);
+  expect(node(ElevationPreviews).props.stretchPreview).toBeNull();
+  content.startLineDrag('L1');
+  render();
+  const entry = node(LiveEntryInput).props.entry;
+  node(WallContentLayer).props.startStretch('run-1', 'left');
+  render();
+  expect(node(LiveEntryInput).props.entry).toBe(entry);
+  key('Escape');
+  node(WallContentLayer).props.startStretch('run-1', 'right');
+  render();
+  expect(node(LiveEntryInput).props.entry.kind).toBe('run-edge');
+  node(LiveEntryInput).props.onCycle();
+  render();
+  type('140');
+  node(LiveEntryInput).props.onCommit();
+  render();
+  expect(state.message).toBeNull();
+  expect(state.rooms[0].walls[0].runs[0]).toMatchObject({ x: 100, width: 40 });
+});
+
+it('LL5 c: held joint probes and neighbour edge stretches explain the line before changing the live gesture', () => {
+  state = { ...structuredClone(state), rooms: [structuredClone(r8l1)], activeRoomId: r8l1.id };
+  render();
+  const left = 'c3b5d002-c0bc-421b-8d22-6bbd5ee060b6';
+  dispatch(setSelection({ runId: left }));
+  render();
+  const hood = node(WallContentLayer).props.wall.runs.find(({ id }) => id === HOOD);
+  const message = `This joint follows line L1 (${runShortLabel(hood)}): move L1, or detach that run.`;
+  node(WallContentLayer).props.startJointDrag(JL);
+  render();
+  expect(state.message).toBe(message);
+  expect(active()).toBe(false);
+  expect(node(ElevationPreviews).props.stretchPreview).toBeNull();
+  node(WallContentLayer).props.startLineDrag('L1');
+  render();
+  const entry = node(LiveEntryInput).props.entry;
+  node(WallContentLayer).props.startJointDrag(JL);
+  render();
+  expect(node(LiveEntryInput).props.entry).toBe(entry);
+  node(WallContentLayer).props.startStretch(left, 'right');
+  render();
+  expect(state.message).toBe(message);
+  expect(node(LiveEntryInput).props.entry).toBe(entry);
+});
+
+it('LL5 c anchor 6: Room 8 without lines keeps draggable blue joints, run move, and stretch', () => {
+  const bare = structuredClone(room8);
+  bare.walls = [bare.walls.find(({ id }) => id === WALL8), ...bare.walls.filter(({ id }) => id !== WALL8)];
+  state = { ...structuredClone(state), rooms: [bare], activeRoomId: bare.id };
+  render();
+  dispatch(setSelection({ runId: HOOD }));
+  render();
+  const props = node(JointMarkers).props;
+  const markers = nodes(JointMarkers.type(props));
+  expect(markers.some(({ props }) => props.text === 'L1')).toBe(false);
+  expect(markers.filter(({ props }) => props.dragBoundFunc).every(({ props }) => props.draggable && props.fill === '#38bdf8')).toBe(true);
+  node(WallContentLayer).props.startJointDrag(JL);
+  render();
+  expect(node(LiveEntryInput).props.entry.kind).toBe('run-edge');
+  key('Escape');
+  key('m');
+  expect(node(LiveEntryInput).props.entry.kind).toBe('run-move');
+  key('Escape');
+  node(WallContentLayer).props.startStretch(HOOD, 'right');
+  render();
+  expect(node(LiveEntryInput).props.entry.kind).toBe('run-edge');
 });

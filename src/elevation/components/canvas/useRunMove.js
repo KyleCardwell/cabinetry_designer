@@ -56,9 +56,9 @@ export default function useRunMove({
       // A commit clears the live entry before invoking its callback.
       if (commit) clearMove();
       else cancelMove();
-      showMessage(result.reason === 'anchored'
+      showMessage(result.message ?? (result.reason === 'anchored'
         ? 'Anchored — set Anchor to Free to move'
-        : result.reason);
+        : result.reason));
       return;
     }
     const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
@@ -105,9 +105,9 @@ export default function useRunMove({
     if (!run || !pointer || !transform) return;
     const result = moveRun(room, wall.id, run.id, run.x, settings);
     if (!result.ok) {
-      showMessage(result.reason === 'anchored'
+      showMessage(result.message ?? (result.reason === 'anchored'
         ? 'Anchored — set Anchor to Free to move'
-        : result.reason);
+        : result.reason));
       return;
     }
     const segment = { runId: run.id };

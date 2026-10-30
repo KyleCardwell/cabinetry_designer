@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { CURSORS } from '../../canvas/cursor.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
+import { runLineLock } from '../../model/lineLocks.js';
 import { endMinWidthsForRun, stretchRun } from '../../model/room.js';
 import { wallSideView } from '../../model/wallSides.js';
 import { runWidthRange } from '../../model/splitRun.js';
@@ -50,7 +51,7 @@ export default function useRunStretch({
     if (!room || !wall) return;
     const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings, { exact });
     if (!result.ok) {
-      showMessage(result.reason);
+      showMessage(result.message ?? result.reason);
       return;
     }
     const resolvedWall = result.room.walls.find((candidate) => candidate.id === wall.id);
@@ -74,6 +75,12 @@ export default function useRunStretch({
 
   const startStretch = useCallback((runId, side) => {
     if (!room || !wall) return;
+    const storedWall = room.walls.find((candidate) => candidate.id === wall.id);
+    const lock = runLineLock(storedWall, runId, side);
+    if (lock) {
+      showMessage(lock.message);
+      return;
+    }
     const run = wall.runs.find((candidate) => candidate.id === runId);
     const pointer = stageRef.current?.getPointerPosition();
     if (!run || !pointer) return;
@@ -145,7 +152,7 @@ export default function useRunStretch({
         cursor.releaseHold();
       },
     });
-  }, [beginEntry, cancelEntry, commitStretch, cursor, room, settings, wall]);
+  }, [beginEntry, cancelEntry, commitStretch, cursor, room, settings, showMessage, wall]);
 
   const updateStretch = useCallback((runId, side, newEdgeX) => {
     const gesture = liveGestureRef.current;
