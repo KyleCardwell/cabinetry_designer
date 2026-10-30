@@ -5,7 +5,7 @@ import { boxInsets, findCell, formatInchesInput, runItems } from '../../model/in
 import { syncRoom } from '../../model/room.js';
 import { runScene } from '../../model/runScene.js';
 import elevationReducer, { splitCell } from '../../store/elevationSlice.js';
-import { auto, opening, pin, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
+import { auto, opening, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
 import InchInput from '../InchInput.jsx';
 import PanelTabs from '../panel/PanelTabs.jsx';
 import OverrideField from '../OverrideField.jsx';
@@ -105,7 +105,7 @@ describe('UI2 step b auto sizes', () => {
     }
   });
 
-  it('tags derived pin, opening, anchored soffit and run geometry readouts auto', () => {
+  it('tags derived opening, anchored soffit and run geometry readouts auto', () => {
     const assertTag = (tree, label) => {
       const readout = field(tree, label);
       expect(readout.props.className).toContain('border-dashed border-gray-700');
@@ -113,9 +113,7 @@ describe('UI2 step b auto sizes', () => {
         && nodes(props.children).some(({ props }) => props['aria-label'] === label));
       expect(nodes(wrapper ?? readout).some(({ type, props }) => type === 'span' && props.children === 'auto')).toBe(true);
     };
-    run().grid.cells[0].node.pin = pin(15);
-    assertTag(cabinet(), 'Resolved pin target');
-    assertTag(cabinet(), 'Actual cabinet center');
+    // LL4: wall-end pins (and their resolved readouts) became layout lines.
     assertTag(OpeningProperties({ wall: wall(), opening: opening(), settings: state.settings }), 'Opening head height');
     const soffit = { id: 'soffit', x: 0, width: 60, bottom: 84, molding: 'none' };
     for (const anchors of [{ left: false, right: false }, { left: { to: 'end', offset: 0 }, right: false },

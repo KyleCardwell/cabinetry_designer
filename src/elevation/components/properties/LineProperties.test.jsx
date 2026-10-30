@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { attachOpeningToNewLine } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import { ReadOnlyValue } from './Field.jsx';
+import LineAttachSection from './LineAttachSection.jsx';
 import LineProperties from './LineProperties.jsx';
 import OpeningProperties from './OpeningProperties.jsx';
 import StretchInput from './StretchInput.jsx';
@@ -14,8 +15,10 @@ vi.mock('react', async (original) => ({ ...await original(), useState: vi.fn(), 
 vi.mock('react-redux', () => ({ useDispatch: vi.fn() }));
 
 const dispatch = vi.fn();
+// LL4 b: the opening's line controls live in the shared LineAttachSection; expand it like markup.
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
-  : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
+  : tree?.type === LineAttachSection ? [tree, ...nodes(LineAttachSection(tree.props))]
+    : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
 const texts = (tree) => nodes(tree).flatMap(({ props }) => {
   const children = props?.children;
   return typeof children === 'string' ? [children]

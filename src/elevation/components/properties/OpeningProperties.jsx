@@ -20,13 +20,11 @@ import {
 import InchInput from '../InchInput.jsx';
 import OverrideInput from '../OverrideInput.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
+import LineAttachSection from './LineAttachSection.jsx';
 import StretchInput from './StretchInput.jsx';
 import { RUN_TYPES } from './constants.js';
 
-const NEW_LINE = '__new';
-const POINTS = [['left', 'Left edge'], ['center', 'Centre'], ['right', 'Right edge']];
 const GROWS = { center: (label) => `Grows from ${label}`, left: () => 'Grows right', right: () => 'Grows left' };
-const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 
 export default function OpeningProperties({ wall, opening, settings, placementMessage }) {
   const dispatch = useDispatch();
@@ -259,63 +257,15 @@ export default function OpeningProperties({ wall, opening, settings, placementMe
         <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
           Layout line
         </h3>
-        <Field label="Line">
-          <select
-            value={line ? line.id : ''}
-            onChange={(event) => {
-              const { value } = event.target;
-              if (value === NEW_LINE) {
-                dispatch(attachOpeningToNewLine({ ...actionBase, at: 'center' }));
-              } else if (!value) {
-                attachTo(null);
-              } else {
-                attachTo({ lineId: value, at: 'center', offset: 0 });
-              }
-            }}
-            aria-label="Opening layout line"
-            className={SELECT_CLASS}
-          >
-            <option value="">None</option>
-            {lines.map((candidate) => (
-              <option key={candidate.id} value={candidate.id}>{candidate.label}</option>
-            ))}
-            <option value={NEW_LINE}>New line here</option>
-          </select>
-        </Field>
-        {line && (
-          <>
-            <div className="mt-2.5 grid grid-cols-3 overflow-hidden rounded border border-gray-700" aria-label="Point on line">
-              {POINTS.map(([at, label]) => (
-                <button
-                  key={at}
-                  type="button"
-                  aria-pressed={attached.at === at}
-                  onClick={() => attachTo({ ...attached, at })}
-                  className={`px-2 py-2 text-xs font-medium transition-colors ${
-                    attached.at === at ? 'bg-blue-600 text-white' : 'bg-gray-900/45 text-gray-400 hover:bg-gray-700'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-            <div className="mt-2.5">
-              <Field label={`Offset from ${line.label}`} tag="+ = right">
-                <InchInput
-                  value={attached.offset}
-                  onCommit={(offset) => {
-                    attachTo({ ...attached, offset });
-                    return true;
-                  }}
-                  aria-label="Opening line offset"
-                />
-              </Field>
-            </div>
-            <p className="mt-2 text-xs leading-relaxed text-gray-500">
-              Moves with {line.label}. To move {opening.label}, change {line.label} or detach.
-            </p>
-          </>
-        )}
+        <LineAttachSection
+          lines={lines}
+          attach={attached}
+          line={line}
+          ariaPrefix="Opening"
+          onAttach={attachTo}
+          onNewLine={() => dispatch(attachOpeningToNewLine({ ...actionBase, at: 'center' }))}
+          note={line ? `Moves with ${line.label}. To move ${opening.label}, change ${line.label} or detach.` : undefined}
+        />
       </section>
 
       <section>

@@ -1,7 +1,7 @@
 import { useDispatch } from 'react-redux';
 import PanelSection from '../panel/PanelSection.jsx';
 import PanelTabs from '../panel/PanelTabs.jsx';
-import { formatInches, runItems } from '../../model/index.js';
+import { formatInches, placedAt, runItems } from '../../model/index.js';
 import {
   addItemAfter,
   setItemAbsorb,
@@ -20,6 +20,7 @@ import CellWrapSection from './CellWrapSection.jsx';
 import ColumnStepFields from './ColumnStepFields.jsx';
 import ColumnActionsSection from './ColumnActionsSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
+import ColumnLineSection from './ColumnLineSection.jsx';
 import PinSection from './PinSection.jsx';
 import GapField from './GapField.jsx';
 import { RUN_TYPES } from './constants.js';
@@ -39,7 +40,7 @@ export default function CabinetProperties({
   const itemIndex = items.findIndex((candidate) => candidate.id === item.id);
   const next = items[itemIndex + 1];
   const gapFallback = next && item.kind === 'cabinet' && next.kind === 'cabinet' ? run._seamGap ?? 0 : 0;
-  const pinnedIndexes = items.flatMap((candidate, index) => (candidate.pin ? [index] : []));
+  const pinnedIndexes = items.flatMap((candidate, index) => (placedAt(candidate) ? [index] : []));
   const previousPin = [...pinnedIndexes].reverse().find((index) => index < itemIndex);
   const nextPin = pinnedIndexes.find((index) => index > itemIndex);
   const interiorAutos = previousPin !== undefined && nextPin !== undefined
@@ -93,6 +94,7 @@ export default function CabinetProperties({
                   )}
                 </PanelSection>
 
+                <ColumnLineSection wall={wall} run={run} item={item} piece={piece} />
                 <PinSection room={room} wall={wall} run={run} item={item} piece={piece} settings={settings} />
 
                 <ColumnStepFields wall={wall} run={run} item={item} />
@@ -113,7 +115,7 @@ export default function CabinetProperties({
                   </label>
                   {!canAbsorb && (
                     <p className="mt-2 text-xs leading-relaxed text-gray-500">
-                      This only affects an auto cabinet inside a segment between two pins that contains more than one auto cabinet.
+                      This only affects an auto cabinet inside a segment between two placed columns (on lines or following returns) that contains more than one auto cabinet.
                     </p>
                   )}
                   {Number.isFinite(piece.absorbed) && (

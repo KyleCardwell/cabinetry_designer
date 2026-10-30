@@ -14,6 +14,7 @@ import { doorDrawing, runDoorDetails } from '../model/doorDetails.js';
 import { regionOpenings } from '../model/frames.js';
 import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
+import { placedAt } from '../model/layoutLines.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { runStepSides } from '../model/columnSteps.js';
 import { runBands } from '../model/runBands.js';
@@ -518,10 +519,11 @@ function RunGroup({
         const item = piece.role === 'item'
           ? runItems(run).find((candidate) => candidate.id === piece.id)
           : null;
-        if (!item?.pin) return [];
-        const anchorX = item.pin.anchor === 'right'
+        const at = placedAt(item);
+        if (!at) return [];
+        const anchorX = at === 'right'
           ? piece.x + piece.width
-          : item.pin.anchor === 'center' ? piece.x + piece.width / 2 : piece.x;
+          : at === 'center' ? piece.x + piece.width / 2 : piece.x;
         const marker = wallRectToScreen({
           x: anchorX,
           z: piece.z + piece.height,

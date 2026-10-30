@@ -11,6 +11,7 @@ import PanelTabs from '../panel/PanelTabs.jsx';
 import CabinetProperties from '../properties/CabinetProperties.jsx';
 import CellProperties from '../properties/CellProperties.jsx';
 import ColumnStepFields from '../properties/ColumnStepFields.jsx';
+import ColumnLineSection from '../properties/ColumnLineSection.jsx';
 import PinSection from '../properties/PinSection.jsx';
 import Field from '../properties/Field.jsx';
 import WarningsList from '../properties/WarningsList.jsx';
@@ -26,7 +27,7 @@ const at = { wallId: 'wall-1', runId: 'run-1' };
 const dispatch = vi.fn((action) => { state = structuredClone(elevationReducer(state, action)); });
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object'
-    ? [ColumnStepFields, PinSection, Field].includes(tree.type) ? nodes(tree.type(tree.props))
+    ? [ColumnStepFields, ColumnLineSection, PinSection, Field].includes(tree.type) ? nodes(tree.type(tree.props))
       : [tree, ...nodes(tree.props?.children)] : [];
 const props = (id = 'a') => {
   const scene = runScene(room(), wall(), run(), state.settings);
@@ -59,7 +60,8 @@ describe('ST1 step c column step fields', () => {
       expect(input(cabinet(), label).props.className).toContain('placeholder:text-gray-500');
     }
     const sections = nodes(cabinet()).filter(({ props }) => props.id?.startsWith('piece.')).map(({ props }) => props.id);
-    expect(sections.indexOf('piece.steps')).toBe(sections.indexOf('piece.pin') + 1);
+    // LL4: the Layout line section (and Return, only with returns) come right before the steps.
+    expect(sections.indexOf('piece.steps')).toBe(sections.indexOf('piece.line') + 1);
     type(cabinet(), 'Top drop', '3 1/2');
     type(cabinet(), 'Bottom up', '2');
     expect(dispatch).toHaveBeenLastCalledWith(setColumnStep({ ...at, itemId: 'a', edge: 'bottom', value: 2 }));

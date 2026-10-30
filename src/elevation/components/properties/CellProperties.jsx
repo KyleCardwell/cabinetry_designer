@@ -26,6 +26,7 @@ import CellKindSection from './CellKindSection.jsx';
 import CellSplitSection from './CellSplitSection.jsx';
 import CellWrapSection from './CellWrapSection.jsx';
 import ColumnStepFields from './ColumnStepFields.jsx';
+import ColumnLineSection from './ColumnLineSection.jsx';
 import PinSection from './PinSection.jsx';
 import ColumnActionsSection from './ColumnActionsSection.jsx';
 import FaceProperties from './FaceProperties.jsx';
@@ -150,6 +151,7 @@ export default function CellProperties({
                     </div>
                   )}
                   <ColumnStepFields wall={wall} run={run} item={columnItem} nested />
+                  <ColumnLineSection wall={wall} run={run} item={columnItem} piece={column} nested />
                   <PinSection room={room} wall={wall} run={run} item={columnItem} piece={column} settings={settings} nested />
                   {hasTrackAfter && (
                     <div className="mt-2">
@@ -183,7 +185,10 @@ export default function CellProperties({
                 </PanelSection>
 
                 {!column && item.kind === 'void' && (
-                  <PinSection room={room} wall={wall} run={run} item={item} piece={piece} settings={settings} />
+                  <>
+                    <ColumnLineSection wall={wall} run={run} item={item} piece={piece} />
+                    <PinSection room={room} wall={wall} run={run} item={item} piece={piece} settings={settings} />
+                  </>
                 )}
 
                 <CellDepthSection wall={wall} run={run} piece={piece} item={item} settings={settings} />

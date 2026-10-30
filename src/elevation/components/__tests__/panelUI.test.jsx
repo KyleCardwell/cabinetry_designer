@@ -105,6 +105,7 @@ async function loadPanels() {
     import('../properties/BoxConstructionFields.jsx'), import('../properties/InteriorFields.jsx'),
     import('../properties/DrawerBoxFields.jsx'), import('../properties/EndFields.jsx'),
     import('../properties/TeeProperties.jsx'), import('../properties/PinSection.jsx'),
+    import('../properties/ColumnLineSection.jsx'),
   ]);
   const { RunFurnitureBaseSection } = await import('../properties/RunProperties.jsx');
   renderedComponents = [WallHeightProperties, PropertiesPanel, PropertiesHeader, RoomHeightsPanel, RoomStylePanel, RoomDoorStylesPanel, RoomPartNumbersPanel, WallList,
@@ -439,7 +440,7 @@ describe('UI6 step b cabinet and section tabs', () => {
     const tree = piecePanel();
     expect(tabs(tree).map(text)).toEqual(['Size', 'Faces & style', 'Inside']);
     expect(button(tree, 'Size').props['aria-selected']).toBe(true);
-    expect(sectionTitles(tree)).toEqual(['Kind', 'Cabinet', 'Pin', 'Remainder', 'Depth', 'Split', 'Wrap']);
+    expect(sectionTitles(tree)).toEqual(['Kind', 'Cabinet', 'Layout line', 'Remainder', 'Depth', 'Split', 'Wrap']);
     expect(nodes(tree).findIndex(({ props }) => props['aria-expanded'] !== undefined))
       .toBeLessThan(nodes(tree).findIndex(({ props }) => props.role === 'tablist'));
     expect(nodes(tree).some(({ type }) => type === 'h3')).toBe(false);
@@ -465,7 +466,7 @@ describe('UI6 step b cabinet and section tabs', () => {
     leaf.kind = 'void';
     expect(tabs(piecePanel('a', CellProperties)).map(text)).toEqual(['Size']);
     expect(button(piecePanel('a', CellProperties), 'Size').props['aria-selected']).toBe(true);
-    expect(sectionTitles(piecePanel('a', CellProperties))).toEqual(['Kind', 'Size', 'Column pin', 'Split']);
+    expect(sectionTitles(piecePanel('a', CellProperties))).toEqual(['Kind', 'Size', 'Column layout line', 'Split']);
     leaf.kind = 'shelves';
     leaf.shelves = { count: 2, back: false };
     button(piecePanel('a', CellProperties), 'Inside').props.onClick();

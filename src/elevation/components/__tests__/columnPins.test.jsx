@@ -1,17 +1,21 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useDispatch } from 'react-redux';
-import { auto, opening, pin, room, run, wall } from '../../../test/builders.js';
+import { attach, auto, opening, pin, room, run, wall } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { findCell, runItems } from '../../model/index.js';
 import { syncRoom } from '../../model/room.js';
 import { runScene } from '../../model/runScene.js';
 import { stackedColumn } from '../../model/__tests__/fixtures/pinnedColumn.js';
-import elevationReducer, { createInitialElevationState, setItemPin, setItemWidth } from '../../store/elevationSlice.js';
+import elevationReducer, {
+  attachColumnToNewLine, attachColumnToOpening, createInitialElevationState, setItemPin, setItemWidth,
+} from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import PanelTabs from '../panel/PanelTabs.jsx';
 import CabinetProperties from '../properties/CabinetProperties.jsx';
 import CellProperties from '../properties/CellProperties.jsx';
 import ColumnStepFields from '../properties/ColumnStepFields.jsx';
+import ColumnLineSection, { SECOND_LINE_NOTE } from '../properties/ColumnLineSection.jsx';
+import LineAttachSection, { NEW_LINE } from '../properties/LineAttachSection.jsx';
 import PinSection from '../properties/PinSection.jsx';
 import { ReadOnlyValue } from '../properties/Field.jsx';
 
@@ -40,8 +44,12 @@ const properties = (id = 'B-top') => {
   return find(tree, PanelTabs).props.children('size');
 };
 const pinSection = (id) => PinSection(find(properties(id), PinSection).props);
+// LL4 b: expand the shared line controls like markup.
+const expand = (tree) => Array.isArray(tree) ? tree.flatMap(expand)
+  : tree?.type === LineAttachSection ? LineAttachSection(tree.props)
+    : tree && typeof tree === 'object' ? { ...tree, props: { ...tree.props, children: expand(tree.props?.children) } } : tree;
+const lineSection = (id) => expand(ColumnLineSection(find(properties(id), ColumnLineSection).props));
 const checkbox = (tree) => nodes(tree).find(({ type, props }) => type === 'input' && props.type === 'checkbox');
-const note = 'A second pin locks both pinned cabinets to their current widths.';
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -56,44 +64,68 @@ beforeEach(() => {
   useDispatch.mockReturnValue(dispatch);
 });
 
-describe('DR3a column pin properties', () => {
-  it('anchor 4: selects the top leaf and edits its root column pin with centre 60', () => {
+describe('LL4 b column layout line properties', () => {
+  it('anchor 4: selects the top leaf and puts its root column on a new line at its centre (60)', () => {
     const tree = properties();
     const columnSteps = find(tree, ColumnStepFields);
-    const section = find(tree, PinSection);
+    const section = find(tree, ColumnLineSection);
     expect(section.props).toMatchObject({ nested: true, item: { id: 'B' }, piece: { id: 'B', x: 40, width: 40 } });
     expect(section.props.item).toBe(columnSteps.props.item);
-    expect(pinSection().props.title).toBe('Column pin');
-    expect(text(pinSection())).toContain('Pin column');
-    checkbox(pinSection()).props.onChange({ target: { checked: true } });
-    expect(dispatch).toHaveBeenLastCalledWith(setItemPin({ wallId: 'wall-1', runId: 'run-1', itemId: 'B', pin: pin(60) }));
-    expect(current().run.grid.cols[1].pin).toEqual(pin(60));
-    expect(findCell(current().run.grid, 'B-top').cell.node.pin).toBeUndefined();
-    control(pinSection(), 'Pin distance').props.onCommit(50);
-    expect(current().run.grid.cols[1].pin).toEqual(pin(50));
-    expect(control(pinSection('B-bottom'), 'Actual cabinet center').type).toBe(ReadOnlyValue);
-    expect(control(pinSection('B-bottom'), 'Actual cabinet center').props.value).toBe(50);
-    expect(control(pinSection(), 'Resolved pin target').props.value).toBe(50);
-    expect(find(pinSection(), InchInput).props.value).toBe(50);
-    checkbox(pinSection('B-bottom')).props.onChange({ target: { checked: false } });
-    expect(current().run.grid.cols[1].pin).toBeNull();
+    expect(lineSection().props.title).toBe('Column layout line');
+    expect(find(properties(), PinSection)).toBeDefined();
+    expect(pinSection()).toBeNull();
+    control(lineSection(), 'Column layout line').props.onChange({ target: { value: NEW_LINE } });
+    const sent = dispatch.mock.calls.at(-1)[0];
+    expect(sent.type).toBe(attachColumnToNewLine.type);
+    expect(sent.payload).toMatchObject({ wallId: 'wall-1', runId: 'run-1', itemId: 'B', at: 'center' });
+    const [made] = current().wall.lines;
+    expect(made).toMatchObject({ label: 'L1', from: 'left', value: 60 });
+    expect(current().run.grid.cols[1].attach).toEqual(attach(made.id));
+    expect(findCell(current().run.grid, 'B-top').cell.node.attach).toBeUndefined();
+    control(lineSection(), 'Column line offset').props.onCommit(-10);
+    expect(current().run.grid.cols[1].attach).toEqual(attach(made.id, 'center', -10));
+    expect(control(lineSection('B-bottom'), 'Column layout line').props.value).toBe(made.id);
+    expect(text(lineSection())).toContain('Moves with L1. To move this column, change L1 or detach.');
+    control(lineSection('B-bottom'), 'Column layout line').props.onChange({ target: { value: '' } });
+    expect(current().run.grid.cols[1].attach).toBeUndefined();
   });
 
-  it('keeps root labels and shows the same second-pin note for root and nested leaves', () => {
-    const root = pinSection('A');
-    expect(root.props.title).toBe('Pin');
-    expect(text(root)).toContain('Pin cabinet');
-    expect(text(root)).not.toContain(note);
-    expect(text(pinSection())).not.toContain(note);
-    checkbox(root).props.onChange({ target: { checked: true } });
-    expect(current().run.grid.cols[0].pin).toEqual(pin(20));
-    expect(text(pinSection())).toContain(note);
-    checkbox(pinSection()).props.onChange({ target: { checked: true } });
-    expect(text(pinSection())).not.toContain(note);
-    expect(text(pinSection('A'))).not.toContain(note);
+  it('offers Centre on each opening and shows the second-column note', () => {
+    const root = lineSection('A');
+    expect(root.props.title).toBe('Layout line');
+    expect(nodes(control(root, 'Column layout line')).filter(({ type }) => type === 'option').map(text))
+      .toEqual(['None', 'New line here']);
+    expect(text(root)).not.toContain(SECOND_LINE_NOTE);
+    control(root, 'Column layout line').props.onChange({ target: { value: NEW_LINE } });
+    expect(text(lineSection())).toContain(SECOND_LINE_NOTE);
+    expect(text(lineSection('A'))).not.toContain(SECOND_LINE_NOTE);
+    control(lineSection(), 'Column layout line').props.onChange({ target: { value: NEW_LINE } });
+    expect(text(lineSection())).not.toContain(SECOND_LINE_NOTE);
     expect(runItems(current().run).slice(0, 2).map(({ width }) => width)).toEqual([40, 40]);
-    checkbox(pinSection('A')).props.onChange({ target: { checked: false } });
-    expect(text(pinSection('A'))).toContain(note);
+  });
+
+  it('anchor 3: Right edge sends the attachment with the new point', () => {
+    control(lineSection('A'), 'Column layout line').props.onChange({ target: { value: NEW_LINE } });
+    const right = nodes(lineSection('A')).find(({ type, props }) => type === 'button' && props.children === 'Right edge');
+    right.props.onClick();
+    const sent = dispatch.mock.calls.at(-1)[0];
+    expect(sent.payload).toMatchObject({
+      wallId: 'wall-1', target: { kind: 'column', runId: 'run-1', itemId: 'A' }, attach: { at: 'right', offset: 0 },
+    });
+    expect(current().run.grid.cols[0].attach.at).toBe('right');
+  });
+
+  it('Centre on W dispatches attachColumnToOpening', () => {
+    const { run: source, settings } = current();
+    const withDoor = syncRoom(room({ walls: [wall({ length: 120, x2: 120, runs: [source], openings: [opening()] })] }), settings);
+    state = createInitialElevationState({ settings, rooms: [withDoor], activeRoomId: withDoor.id, activeWallId: 'wall-1' });
+    const select = control(lineSection('A'), 'Column layout line');
+    expect(nodes(select).filter(({ type }) => type === 'option').map(text)).toContain('Centre on D1');
+    select.props.onChange({ target: { value: 'opening:door-1' } });
+    const sent = dispatch.mock.calls.at(-1)[0];
+    expect(sent.type).toBe(attachColumnToOpening.type);
+    expect(sent.payload).toMatchObject({ wallId: 'wall-1', runId: 'run-1', itemId: 'A', openingId: 'door-1' });
+    expect(current().run.grid.cols[0].attach).toMatchObject({ at: 'center', offset: 0 });
   });
 });
 
@@ -118,9 +150,7 @@ describe('DR3b return pin properties', () => {
 
   it('preselects the sole return on the root column and reads flush and wider solved spans', () => {
     expect(find(properties('A'), PinSection).props.room).toBe(current().room);
-    expect(nodes(control(pinSection(), 'Pin datum')).filter(({ type }) => type === 'option').map(text))
-      .toContain('Return');
-    control(pinSection(), 'Pin datum').props.onChange({ target: { value: 'return' } });
+    expect(pinSection().props.title).toBe('Column return');
     expect(current().run.grid.cols[1].pin).toEqual(pin(0, {
       from: 'return', wallId: 'W', runId: 'R', edge: 'both', anchor: 'left', valueRight: 0,
     }));
@@ -141,25 +171,17 @@ describe('DR3b return pin properties', () => {
     expect(control(pinSection(), 'Resolved column left edge').props.value).toBe(33.625);
     expect(control(pinSection(), 'Resolved column width').props.value).toBe(27.875);
 
-    for (const from of ['left', 'right', 'opening:door-1']) {
-      const center = control(pinSection(), 'Resolved column left edge').props.value
-        + control(pinSection(), 'Resolved column width').props.value / 2;
-      control(pinSection(), 'Pin datum').props.onChange({ target: { value: from } });
-      expect(current().run.grid.cols[1].pin).toEqual(pin(
-        from === 'opening:door-1' ? 0 : from === 'right' ? 120 - center : center,
-        from === 'opening:door-1' ? { from: 'opening', openingId: 'door-1' } : { from },
-      ));
-      expect(control(pinSection(), 'Pinned return')).toBeUndefined();
-      control(pinSection(), 'Pin datum').props.onChange({ target: { value: 'return' } });
-      expect(current().run.grid.cols[1].pin).toEqual(pin(0, {
-        from: 'return', wallId: 'W', runId: 'R', edge: 'both', anchor: 'left', valueRight: 0,
-      }));
-    }
+    checkbox(pinSection()).props.onChange({ target: { checked: false } });
+    expect(current().run.grid.cols[1].pin).toBeNull();
+    expect(control(pinSection(), 'Pinned return')).toBeUndefined();
+    checkbox(pinSection()).props.onChange({ target: { checked: true } });
+    expect(current().run.grid.cols[1].pin).toEqual(pin(0, {
+      from: 'return', wallId: 'W', runId: 'R', edge: 'both', anchor: 'left', valueRight: 0,
+    }));
   });
 
   it('maps every return edge to its anchor and accepts signed offsets while retaining a typed width', () => {
     dispatch(setItemWidth({ wallId: 'wall-1', runId: 'run-1', itemId: 'B', width: 40 }));
-    control(pinSection(), 'Pin datum').props.onChange({ target: { value: 'return' } });
     expect(nodes(control(pinSection(), 'Pinned return edge')).filter(({ type }) => type === 'option').map(text))
       .toEqual(['Left', 'Right', 'Centre', 'Both']);
     for (const [edge, value, left] of [
@@ -186,18 +208,17 @@ describe('DR3b return pin properties', () => {
   });
 
   it('offers only returns on this face, selects another run and preserves missing return pins', () => {
-    const props = find(properties(), PinSection).props;
-    expect(text(control(PinSection({ ...props, run: { ...props.run, wallSide: 'back' } }), 'Pin datum')))
-      .not.toContain('Return');
+    const props = { ...find(properties(), PinSection).props };
+    props.item = { ...props.item, pin: null };
+    expect(PinSection({ ...props, run: { ...props.run, wallSide: 'back' } })).toBeNull();
     const unanchoredRoom = structuredClone(current().room);
     unanchoredRoom.walls[1].runs[0].anchors.left = false;
-    expect(text(control(PinSection({ ...props, room: unanchoredRoom }), 'Pin datum'))).not.toContain('Return');
+    expect(PinSection({ ...props, room: unanchoredRoom })).toBeNull();
 
     const multiple = structuredClone(current().room);
     multiple.walls[1].runs.push(run({ id: 'R2', width: 48, depth: 30, z: 40,
       items: [auto('desk2')], anchors: { left: true, right: false } }));
     state = { ...state, rooms: [syncRoom(multiple, state.settings)] };
-    control(pinSection(), 'Pin datum').props.onChange({ target: { value: 'return' } });
     expect(nodes(control(pinSection(), 'Pinned return')).filter(({ type }) => type === 'option')).toHaveLength(2);
     control(pinSection(), 'Pinned return').props.onChange({ target: { value: JSON.stringify(['W', 'R2']) } });
     expect(current().run.grid.cols[1].pin).toMatchObject({ wallId: 'W', runId: 'R2', edge: 'both' });
@@ -216,8 +237,7 @@ describe('DR3b return pin properties', () => {
     missing.walls.pop();
     state = { ...state, rooms: [syncRoom(missing, state.settings)] };
     expect(current().run.grid.cols[1].pin).toEqual(savedPin);
-    expect(text(control(pinSection(), 'Pin datum'))).toContain('Missing return');
-    expect(nodes(control(pinSection(), 'Pin datum')).some(({ type, props }) => type === 'option' && props.value === 'return'))
-      .toBe(false);
+    expect(text(control(pinSection(), 'Pinned return'))).toContain('Missing return');
+    expect(nodes(control(pinSection(), 'Pinned return')).filter(({ type }) => type === 'option')).toHaveLength(1);
   });
 });
