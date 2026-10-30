@@ -6,6 +6,9 @@ import {
   jointEdgeX,
   jointMembers,
 } from './joints.js';
+import { placeAttachedRuns } from './linePlacement.js';
+import { findLine } from './layoutLines.js';
+import { jointLineLock, runLineLock } from './lineLocks.js';
 import { wallLength } from './geometry.js';
 import { validateRunPlacement, verticalStart } from './overlap.js';
 import { resolveProfile } from './profile.js';
@@ -239,10 +242,30 @@ export function resizeRun(room, wallId, runId, width, grow, settings) {
   if (!Number.isFinite(width) || width <= 0 || !['left', 'both', 'right'].includes(grow)) {
     return { ok: false, reason: 'invalid-width', room };
   }
+  const storedWall = room.walls.find((candidate) => candidate.id === wallId);
+  const lock = runLineLock(storedWall, runId, 'width');
+  if (lock) return { ok: false, reason: lock.reason, message: lock.message, room };
   const resolvedRoom = syncRoom(room, settings);
   const wall = resolvedRoom.walls.find((candidate) => candidate.id === wallId);
   const run = wall?.runs.find((candidate) => candidate.id === runId);
   if (!wall || !run) return { ok: false, reason: 'run-not-found', room };
+
+  const line = run.attach && findLine(wall, run.attach.lineId);
+  if (line && wallSideOf(line) === wallSideOf(run)) {
+    const temporary = cloneRoom(resolvedRoom);
+    temporary.walls.find((candidate) => candidate.id === wallId)
+      .runs.find((candidate) => candidate.id === runId).width = width;
+    // Position its held joints before the normal edge pass reads them back as the span.
+    const synced = syncRoom(placeAttachedRuns(temporary, settings), settings);
+    const syncedWall = synced.walls.find((candidate) => candidate.id === wallId);
+    const syncedRun = syncedWall.runs.find((candidate) => candidate.id === runId);
+    const validation = validateRunPlacement(
+      { ...syncedWall, length: wallLength(syncedWall) }, syncedRun, settings,
+    );
+    return validation.ok
+      ? { ok: true, reason: null, room: synced }
+      : { ok: false, reason: validation.reason, room };
+  }
 
   const desiredLeft = stretchedStart(run.x, run.width, width, grow);
   const desiredRight = desiredLeft + width;
@@ -356,6 +379,11 @@ export function moveJoint(room, wallId, jointId, x, settings) {
       limit: null,
     };
   }
+
+  const storedWall = room.walls.find((candidate) => candidate.id === wallId);
+  const lock = storedWall?.joints?.some((joint) => joint.id === jointId)
+    ? jointLineLock(storedWall, jointId) : null;
+  if (lock) return { ok: false, reason: lock.reason, message: lock.message, room, x, range: null, limit: null };
 
   const resolvedRoom = syncRoom(room, settings);
   const sourceWall = resolvedRoom.walls.find((wall) => wall.id === wallId);

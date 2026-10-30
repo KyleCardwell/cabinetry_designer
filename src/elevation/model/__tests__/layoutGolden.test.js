@@ -218,7 +218,8 @@ describe('LL0 Room 10b (room10b.json)', () => {
     const stored = structuredClone(room10b);
     const before = structuredClone(stored);
     const result = moveRun(stored, WALL2, LEFT_TALL10, 5, settings10b);
-    expect(result).toMatchObject({ ok: false, reason: 'anchored' });
+    expect(result).toMatchObject({ ok: false, reason: 'line-column',
+      message: 'A cabinet in this run is on line L1: move the line, or detach it.' });
     expect(result.room).toEqual(before);
     expect(stored).toEqual(before);
     const state = layoutState(result.room, settings10b);

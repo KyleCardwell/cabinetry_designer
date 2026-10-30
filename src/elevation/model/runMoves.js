@@ -1,6 +1,7 @@
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cornerForRunSide, cornerReserve } from './corners.js';
 import { isJointAnchor, jointEdgeX, jointMembers } from './joints.js';
+import { runLineLock } from './lineLocks.js';
 import { landingsOn } from './landings.js';
 import { recessEdges, recessEndType } from './recesses.js';
 import { wallLength } from './geometry.js';
@@ -29,6 +30,8 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings, { exac
   if (!sourceWall || !sourceRun || !Number.isFinite(newEdgeX)) {
     return { ok: false, reason: 'run-not-found', room };
   }
+  const lock = runLineLock(sourceWall, runId, side);
+  if (lock) return { ok: false, reason: lock.reason, message: lock.message, room };
   const sideWall = wallViewForRun(sourceWall, sourceRun);
   const jointAnchor = sourceRun.anchors?.[side];
   if (isJointAnchor(jointAnchor)) {
@@ -198,6 +201,8 @@ export function moveRun(room, wallId, runId, newX, settings, { exact = false } =
   if (!sourceWall || !sourceRun || !Number.isFinite(newX)) {
     return { ok: false, reason: 'run-not-found', room, snap: null };
   }
+  const lock = runLineLock(sourceWall, runId, 'move');
+  if (lock) return { ok: false, reason: lock.reason, message: lock.message, room, snap: null };
   const anchors = [sourceRun.anchors?.left, sourceRun.anchors?.right];
   if (anchors.some((anchor) => anchor && !isJointAnchor(anchor))) {
     return { ok: false, reason: 'anchored', room, snap: null };

@@ -350,7 +350,7 @@ export const runReducers = {
       action.payload.grow ?? 'right',
       settingsFor(state, location.room),
     );
-    if (!result.ok) state.message = result.reason;
+    if (!result.ok) state.message = result.message ?? result.reason;
     else {
       state.rooms[location.roomIndex] = result.room;
       state.message = null;

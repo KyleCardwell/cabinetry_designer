@@ -90,6 +90,13 @@ export function segmentTargets(run, pinTargets) {
   return Object.fromEntries(Object.entries(pinTargets).filter(([id]) => !ends.includes(id)));
 }
 
+/** Shared structural condition for the exact free edges in column placement and line locks. */
+export function columnSetsRunEnd(run, side, item, outerItems) {
+  return Boolean(item?.attach && placedAt(item) && !run.anchors?.[side]
+    && !outerItems.some((outer) => outer.width === null
+      && (outer.kind === 'cabinet' || outer.kind === 'void')));
+}
+
 function storedEndMinimum(end, settings, thickness) {
   if (end.type === 'end_panel') return end.width ?? thickness ?? teamDoorStyle(settings).thickness;
   if (end.type === 'filler' || end.type === 'blind') {
@@ -210,10 +217,8 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, allTarge
     + storedItemsMinimum(leftItems, settings);
   const rightMinimum = storedEndMinimum(run.ends.right, settings, run._endThickness?.right)
     + storedItemsMinimum(rightItems, settings);
-  const hasAuto = (outerItems) => outerItems.some((item) => item.width === null
-    && (item.kind === 'cabinet' || item.kind === 'void'));
-  const exactLeft = first.item.attach && !run.anchors?.left && !hasAuto(leftItems);
-  const exactRight = last.item.attach && !run.anchors?.right && !hasAuto(rightItems);
+  const exactLeft = columnSetsRunEnd(run, 'left', first.item, leftItems);
+  const exactRight = columnSetsRunEnd(run, 'right', last.item, rightItems);
   const desiredX = pinLeft(first.target, firstWidth, placedAt(first.item))
     - (exactLeft ? lineEndMinimum(run, settings, first.item.id, 'left') : leftMinimum);
   const desiredRight = pinLeft(last.target, lastWidth, placedAt(last.item)) + lastWidth

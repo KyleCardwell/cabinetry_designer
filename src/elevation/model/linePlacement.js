@@ -3,6 +3,9 @@
  * The line is the hard stop: an attached thing's `at` point sits on line + offset. No snap, no clamp;
  * validation reports what doesn't fit.
  */
+import { DEFAULT_PREFS } from './constants.js';
+import { syncRoom } from './roomSync.js';
+import { roundTo } from './units.js';
 import { wallFrame } from './geometry.js';
 import { findLine, lineX } from './layoutLines.js';
 import { openingReferenceRect } from './openings.js';
@@ -73,7 +76,7 @@ export function placeAttachedOpenings(room, settings) {
 const SIDES = ['left', 'right'];
 
 /** Joint ownership is structural: a joint is held even when its run already sits on the line. */
-function movableRunSides(run, held) {
+export function movableRunSides(run, held) {
   return SIDES.filter((side) => {
     const anchor = run.anchors?.[side];
     return !anchor || (isJointAnchor(anchor)
@@ -162,4 +165,19 @@ export function placeAttachedRuns(room, settings) {
     return placed;
   });
   return changed ? { ...room, walls } : room;
+}
+
+/** Move a line in its own face coordinates; line targets are hard stops for attached geometry. */
+export function moveLineTo(room, wallId, lineId, x, settings, { exact = false } = {}) {
+  const wall = room.walls.find((candidate) => candidate.id === wallId);
+  const line = findLine(wall, lineId);
+  if (!line) return { ok: false, reason: 'line-not-found', room };
+  const length = wallFrame(room, wall).length;
+  x = Math.max(0, Math.min(length, exact ? x : roundTo(x, settings.openingSnap ?? DEFAULT_PREFS.openingSnap)));
+  const value = line.from === 'left' ? x : length - x;
+  const nextWall = { ...wall, lines: wall.lines.map((candidate) => (
+    candidate.id === lineId ? { ...candidate, value } : candidate
+  )) };
+  const next = { ...room, walls: room.walls.map((candidate) => candidate === wall ? nextWall : candidate) };
+  return { ok: true, room: syncRoom(next, settings), x, value };
 }

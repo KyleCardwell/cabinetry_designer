@@ -304,7 +304,10 @@ export {
   attachOffsetHere,
   attachPoint,
   lineHeldJoints,
+  movableRunSides,
+  moveLineTo,
   placeAttachedOpenings,
   placeAttachedRuns,
   placeOpeningOnLine,
 } from './linePlacement.js';
+export { jointLineLock, runLineLock, lineEndColumns } from './lineLocks.js';
