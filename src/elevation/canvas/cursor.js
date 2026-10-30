@@ -26,7 +26,7 @@ export function resolveCursor({ base = CURSORS.idle, hover = null, hold = null }
 export function elevationBaseCursor(tool, pointerMode) {
   if (pointerMode === 'panning') return CURSORS.panning;
   if (pointerMode === 'pan-ready') return CURSORS.panReady;
-  return ['draw', 'door', 'window', 'measure'].includes(tool) ? CURSORS.draw : CURSORS.idle;
+  return ['draw', 'door', 'window', 'measure', 'line'].includes(tool) ? CURSORS.draw : CURSORS.idle;
 }
 
 export function planBaseCursor(tool, pointerMode) {

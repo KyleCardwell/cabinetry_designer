@@ -16,9 +16,11 @@ export default function OpeningShape({
   onSelect,
   onPick,
   onMove,
+  locked = false,
   cursor,
 }) {
   const dragStartRef = useRef(null);
+  const pressRef = useRef(null);
   const cursorKeys = useCursorKeys(cursor);
   const casingRect = geometry.casing
     ? wallRectToScreen(geometry.casing, transform)
@@ -31,7 +33,9 @@ export default function OpeningShape({
   const range = openingReferenceBounds(opening, wallLength, null);
   const stroke = selected ? '#f8fafc' : '#94a3b8';
   const strokeWidth = selected ? 2 : 1;
-  const draggable = selected && selectable && Boolean(onMove);
+  // LL3: an opening attached to a layout line can't be dragged; trying shows why (moveOpening refuses).
+  const draggable = selected && selectable && Boolean(onMove) && !locked;
+  const blockedDrag = selected && selectable && Boolean(onMove) && locked;
 
   const stopEvent = (event) => {
     event.cancelBubble = true;
@@ -55,7 +59,18 @@ export default function OpeningShape({
           ? { x: start.x + clampedDeltaPixels(position), y: start.y }
           : position;
       }}
-      onMouseDown={stopEvent}
+      onMouseDown={(event) => {
+        stopEvent(event);
+        pressRef.current = blockedDrag ? { x: event.evt?.clientX, y: event.evt?.clientY } : null;
+      }}
+      onMouseMove={(event) => {
+        const press = pressRef.current;
+        if (!press || !event.evt) return;
+        if (Math.hypot(event.evt.clientX - press.x, event.evt.clientY - press.y) < 3) return;
+        pressRef.current = null;
+        onMove?.(referenceX);
+      }}
+      onMouseUp={() => { pressRef.current = null; }}
       onClick={(event) => {
         stopEvent(event);
         if (onPick) onPick();

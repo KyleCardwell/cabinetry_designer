@@ -5,6 +5,7 @@ import { findLeaf } from '../../model/cellTree.js';
 import { nextWallId } from '../../model/topology.js';
 import {
   deleteOpening,
+  deleteLayoutLine,
   deleteRecess,
   deleteRun,
   deleteSoffit,
@@ -136,6 +137,11 @@ export default function useElevationKeys({
           wallId: currentWall.id,
           openingId: selectedOpening.id,
         }));
+        return;
+      }
+      if (currentSelection.lineId) {
+        event.preventDefault();
+        dispatch(deleteLayoutLine({ wallId: currentWall.id, lineId: currentSelection.lineId }));
         return;
       }
       if (currentSelection.recessId) {

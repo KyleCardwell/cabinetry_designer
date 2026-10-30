@@ -314,6 +314,11 @@ function ElevationCanvas({
     dispatch(setSelection({ openingId }));
   }, [dispatch, tool]);
 
+  const selectLine = useCallback((lineId) => {
+    if (tool !== 'select' || suppressClickRef.current) return;
+    dispatch(setSelection({ lineId }));
+  }, [dispatch, tool]);
+
   const moveSelectedOpening = useCallback((openingId, x) => {
     if (!wall) return;
     dispatch(moveOpening({ wallId: wall.id, openingId, x }));
@@ -528,7 +533,7 @@ function ElevationCanvas({
           )}
           <WallContentLayer
             wall={wall} transform={transform} selection={selection} tool={tool}
-            pick={pick} settings={settings} selectOpening={selectOpening}
+            pick={pick} settings={settings} selectOpening={selectOpening} selectLine={selectLine}
             moveSelectedOpening={moveSelectedOpening} cursor={cursor} room={room}
             soffitJoins={soffitJoins} activeKey={activeKey} diagnostics={diagnostics}
             facePath={facePath} pickFace={pickFace} doorsOff={doorsOff}

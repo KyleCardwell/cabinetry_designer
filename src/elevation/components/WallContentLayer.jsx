@@ -1,6 +1,7 @@
 import { Layer } from 'react-konva';
 import { openingGeometry } from '../model/openings.js';
 import JointMarkers from './JointMarkers.jsx';
+import LayoutLines from './LayoutLines.jsx';
 import OpeningShape from './OpeningShape.jsx';
 import RunGroup from './RunGroup.jsx';
 import SoffitShapes from './SoffitShapes.jsx';
@@ -15,6 +16,7 @@ export default function WallContentLayer({
   pick,
   settings,
   selectOpening,
+  selectLine,
   moveSelectedOpening,
   cursor,
   room,
@@ -66,6 +68,7 @@ export default function WallContentLayer({
                 onSelect={selectOpening}
                 onPick={pick}
                 onMove={(x) => moveSelectedOpening(opening.id, x)}
+                locked={Boolean(opening.attach)}
                 cursor={cursor}
               />
             ))}
@@ -122,6 +125,13 @@ export default function WallContentLayer({
               transform={transform}
               selectedEndpoint={selection.endPanel ?? null}
               onSelect={tool === 'select' ? pick : undefined}
+              cursor={cursor}
+            />
+            <LayoutLines
+              wall={wall}
+              transform={transform}
+              selectedLineId={selection.lineId ?? null}
+              onSelect={tool === 'select' ? selectLine : undefined}
               cursor={cursor}
             />
             {tool === 'select' && (

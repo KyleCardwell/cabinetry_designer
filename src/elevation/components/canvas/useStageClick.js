@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { v4 as uuid } from 'uuid';
 import { screenToWall } from '../../canvas/transform.js';
 import { screenPointToWallSnapped } from '../../canvas/drag.js';
 import {
@@ -13,11 +14,24 @@ import {
   validateRecessPlacement,
 } from '../../model/recesses.js';
 import {
+  addLayoutLine,
   addOpening,
   addRecess,
   setMessage,
   setSelection,
 } from '../../store/elevationSlice.js';
+
+/** LL3: a new line on the face being viewed, measured from the nearer wall end; selected after it's added. */
+export function layoutLineAt(wall, x) {
+  const from = x <= wall.length / 2 ? 'left' : 'right';
+  return {
+    wallId: wall.id,
+    id: uuid(),
+    from,
+    value: from === 'left' ? x : wall.length - x,
+    ...(wall.side === 'back' ? { wallSide: 'back' } : {}),
+  };
+}
 
 export default function useStageClick({
   room,
@@ -64,6 +78,19 @@ export default function useStageClick({
     }
     if (tool === 'select') {
       dispatch(setSelection({}));
+      return;
+    }
+    if (tool === 'line') {
+      if (!room || !wall || !transform) return;
+      const pointer = stageRef.current?.getPointerPosition();
+      if (!pointer) return;
+      const rawPoint = screenToWall(pointer, transform);
+      if (rawPoint.x < 0 || rawPoint.x > wall.length) return;
+      const payload = layoutLineAt(wall, screenPointToWallSnapped(
+        pointer, wall, transform, settings.openingSnap, 0,
+      ).x);
+      dispatch(addLayoutLine(payload));
+      dispatch(setSelection({ lineId: payload.id }));
       return;
     }
     if (tool === 'recess') {

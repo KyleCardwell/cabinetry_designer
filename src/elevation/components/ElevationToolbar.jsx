@@ -50,7 +50,7 @@ export default function ElevationToolbar({
     : view === 'plan' ? ['select', 'wall', 'measure'] : ['select', 'draw', 'measure'];
   const addTools = view === 'plan'
     ? [['door', 'Door'], ['window', 'Window']]
-    : [['soffit', 'Soffit'], ['recess', 'Recess'], ['door', 'Door'], ['window', 'Window']];
+    : [['soffit', 'Soffit'], ['recess', 'Recess'], ['door', 'Door'], ['window', 'Window'], ['line', 'Layout line']];
   const soffitChoices = [['crown', 'Crown'], ['topMold', 'Top mold'], ['none', 'None']];
   const inheritedSoffit = resolveSetting('defaultSoffitMolding', [{ level: 'team', values: shopSettings }]);
   const soffitOverridden = room?.settingsOverrides?.defaultSoffitMolding != null;
