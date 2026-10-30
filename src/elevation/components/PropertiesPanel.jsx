@@ -27,6 +27,8 @@ import {
   setSelection,
 } from '../store/elevationSlice.js';
 import OpeningProperties from './properties/OpeningProperties.jsx';
+import LineProperties from './properties/LineProperties.jsx';
+import { linesOn } from '../model/layoutLines.js';
 import RecessProperties from './properties/RecessProperties.jsx';
 import PieceProperties from './properties/PieceProperties.jsx';
 import RunProperties from './properties/RunProperties.jsx';
@@ -64,6 +66,9 @@ export default function PropertiesPanel() {
     : null;
   const endPanel = wall && selection.endPanel
     ? wallEndPanels(room, wall, settings).find((candidate) => candidate.endpoint === selection.endPanel) ?? null
+    : null;
+  const line = wall && selection.lineId
+    ? linesOn(wall).find((candidate) => candidate.id === selection.lineId) ?? null
     : null;
   const run = wall?.runs.find((candidate) => candidate.id === selection.runId) ?? null;
   const layout = useMemo(
@@ -128,10 +133,14 @@ export default function PropertiesPanel() {
     if (selection.recessId && !recess) dispatch(clearSelection());
   }, [dispatch, recess, selection.recessId]);
 
+  useEffect(() => {
+    if (selection.lineId && !line) dispatch(clearSelection());
+  }, [dispatch, line, selection.lineId]);
+
   return (
     <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-700 bg-gray-800/50 p-4">
       <PropertiesHeader
-        key={`${wall?.id}/${opening?.id}/${soffit?.id}/${recess?.id}/${endPanel?.endpoint}/${run?.id}/${selectionContext?.piece.id}`}
+        key={`${wall?.id}/${line?.id}/${opening?.id}/${soffit?.id}/${recess?.id}/${endPanel?.endpoint}/${run?.id}/${selectionContext?.piece.id}`}
         room={room}
         wall={wall}
         run={run}
@@ -139,6 +148,7 @@ export default function PropertiesPanel() {
         soffit={soffit}
         recess={recess}
         endPanel={endPanel}
+        line={line}
         cells={cells}
         selectionContext={selectionContext}
         layout={displayLayout}
@@ -156,6 +166,8 @@ export default function PropertiesPanel() {
             settings={settings}
             placementMessage={message}
           />
+        ) : line ? (
+          <LineProperties wall={wall} line={line} settings={settings} />
         ) : recess ? (
           <RecessProperties wall={wall} recess={recess} placementMessage={message} />
         ) : soffit ? (

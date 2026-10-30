@@ -7,9 +7,13 @@ import {
   runBlocksOpening,
   validateOpeningPlacement,
 } from '../../model/index.js';
+import { findLine, linesOn } from '../../model/layoutLines.js';
+import { OPENING_PLACEMENT_MESSAGES } from '../../model/openings.js';
 import {
+  attachOpeningToNewLine,
   deleteOpening,
   resizeOpening,
+  setAttachment,
   setOpeningMeasureMode,
   updateOpening,
 } from '../../store/elevationSlice.js';
@@ -19,12 +23,10 @@ import Field, { ReadOnlyValue } from './Field.jsx';
 import StretchInput from './StretchInput.jsx';
 import { RUN_TYPES } from './constants.js';
 
-const OPENING_PLACEMENT_MESSAGES = {
-  'opening-too-small': 'Opening is too small.',
-  'opening-out-of-bounds': 'Opening casing must stay inside the wall.',
-  'opening-too-tall': 'Opening casing must stay below the wall top.',
-  'opening-conflict': 'Opening casing overlaps another opening.',
-};
+const NEW_LINE = '__new';
+const POINTS = [['left', 'Left edge'], ['center', 'Centre'], ['right', 'Right edge']];
+const GROWS = { center: (label) => `Grows from ${label}`, left: () => 'Grows right', right: () => 'Grows left' };
+const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 
 export default function OpeningProperties({ wall, opening, settings, placementMessage }) {
   const dispatch = useDispatch();
@@ -46,6 +48,13 @@ export default function OpeningProperties({ wall, opening, settings, placementMe
     setOpeningGrow(preferredOpeningGrow);
   }, [preferredOpeningGrow, opening.id]);
   const hasWarnings = Boolean(placementReason) || blockingRuns.length > 0;
+  // LL3: front-face layout lines this opening can attach to.
+  const lines = linesOn(wall, 'front');
+  const attached = opening.attach ?? null;
+  const line = attached ? findLine(wall, attached.lineId) : null;
+  const attachTo = (attach) => dispatch(setAttachment({
+    wallId: wall.id, target: { kind: 'opening', openingId: opening.id }, attach,
+  }));
 
   return (
     <div className="space-y-5">
@@ -145,18 +154,31 @@ export default function OpeningProperties({ wall, opening, settings, placementMe
         </h3>
         <div className="grid grid-cols-2 gap-2.5">
           <div className="col-span-2">
-            <StretchInput
-              label="Width"
-              value={opening.width}
-              grow={openingGrow}
-              onGrowChange={setOpeningGrow}
-              onCommit={(width) => {
-                dispatch(resizeOpening({ ...actionBase, width, grow: openingGrow }));
-                setOpeningGrow(preferredOpeningGrow);
-                return true;
-              }}
-              ariaLabel="Opening width"
-            />
+            {line ? (
+              <Field label="Width" tag={GROWS[attached.at](line.label)}>
+                <InchInput
+                  value={opening.width}
+                  onCommit={(width) => {
+                    dispatch(resizeOpening({ ...actionBase, width, grow: 'both' }));
+                    return true;
+                  }}
+                  aria-label="Opening width"
+                />
+              </Field>
+            ) : (
+              <StretchInput
+                label="Width"
+                value={opening.width}
+                grow={openingGrow}
+                onGrowChange={setOpeningGrow}
+                onCommit={(width) => {
+                  dispatch(resizeOpening({ ...actionBase, width, grow: openingGrow }));
+                  setOpeningGrow(preferredOpeningGrow);
+                  return true;
+                }}
+                ariaLabel="Opening width"
+              />
+            )}
           </div>
           <Field label="Height">
             <InchInput
@@ -196,15 +218,22 @@ export default function OpeningProperties({ wall, opening, settings, placementMe
                     key={anchor}
                     className={active ? 'rounded ring-1 ring-cyan-400' : ''}
                   >
-                    <InchInput
-                      value={geometry.offsets[side][opening.measureMode][anchor]}
-                      onCommit={(offset) => update({
-                        offset,
-                        offsetFrom: side,
-                        offsetAnchor: anchor,
-                      })}
-                      aria-label={`Opening ${side} ${anchor} position`}
-                    />
+                    {line ? (
+                      <ReadOnlyValue
+                        value={geometry.offsets[side][opening.measureMode][anchor]}
+                        ariaLabel={`Opening ${side} ${anchor} position`}
+                      />
+                    ) : (
+                      <InchInput
+                        value={geometry.offsets[side][opening.measureMode][anchor]}
+                        onCommit={(offset) => update({
+                          offset,
+                          offsetFrom: side,
+                          offsetAnchor: anchor,
+                        })}
+                        aria-label={`Opening ${side} ${anchor} position`}
+                      />
+                    )}
                   </div>
                 );
               })}
@@ -224,6 +253,69 @@ export default function OpeningProperties({ wall, opening, settings, placementMe
             </p>
           );
         })()}
+      </section>
+
+      <section>
+        <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-400">
+          Layout line
+        </h3>
+        <Field label="Line">
+          <select
+            value={line ? line.id : ''}
+            onChange={(event) => {
+              const { value } = event.target;
+              if (value === NEW_LINE) {
+                dispatch(attachOpeningToNewLine({ ...actionBase, at: 'center' }));
+              } else if (!value) {
+                attachTo(null);
+              } else {
+                attachTo({ lineId: value, at: 'center', offset: 0 });
+              }
+            }}
+            aria-label="Opening layout line"
+            className={SELECT_CLASS}
+          >
+            <option value="">None</option>
+            {lines.map((candidate) => (
+              <option key={candidate.id} value={candidate.id}>{candidate.label}</option>
+            ))}
+            <option value={NEW_LINE}>New line here</option>
+          </select>
+        </Field>
+        {line && (
+          <>
+            <div className="mt-2.5 grid grid-cols-3 overflow-hidden rounded border border-gray-700" aria-label="Point on line">
+              {POINTS.map(([at, label]) => (
+                <button
+                  key={at}
+                  type="button"
+                  aria-pressed={attached.at === at}
+                  onClick={() => attachTo({ ...attached, at })}
+                  className={`px-2 py-2 text-xs font-medium transition-colors ${
+                    attached.at === at ? 'bg-blue-600 text-white' : 'bg-gray-900/45 text-gray-400 hover:bg-gray-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            <div className="mt-2.5">
+              <Field label={`Offset from ${line.label}`} tag="+ = right">
+                <InchInput
+                  value={attached.offset}
+                  onCommit={(offset) => {
+                    attachTo({ ...attached, offset });
+                    return true;
+                  }}
+                  aria-label="Opening line offset"
+                />
+              </Field>
+            </div>
+            <p className="mt-2 text-xs leading-relaxed text-gray-500">
+              Moves with {line.label}. To move {opening.label}, change {line.label} or detach.
+            </p>
+          </>
+        )}
       </section>
 
       <section>

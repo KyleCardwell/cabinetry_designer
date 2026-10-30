@@ -13,6 +13,14 @@ import { roundTo } from './units.js';
 
 const OVERLAP_EPSILON = 1e-6;
 
+/** What each `validateOpeningPlacement` reason says to the user. */
+export const OPENING_PLACEMENT_MESSAGES = {
+  'opening-too-small': 'Opening is too small.',
+  'opening-out-of-bounds': 'Opening casing must stay inside the wall.',
+  'opening-too-tall': 'Opening casing must stay below the wall top.',
+  'opening-conflict': 'Opening casing overlaps another opening.',
+};
+
 /** Return which sides of an opening receive casing. */
 export function casingSides(kind) {
   return {

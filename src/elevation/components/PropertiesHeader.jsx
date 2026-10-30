@@ -16,7 +16,7 @@ function pieceLabel({ piece, side, tee }, cells) {
 }
 
 export default function PropertiesHeader({
-  room, wall, run, opening, soffit, recess, endPanel, cells, selectionContext, layout,
+  room, wall, run, opening, soffit, recess, endPanel, line, cells, selectionContext, layout,
 }) {
   const dispatch = useDispatch();
   const [warningsOpen, setWarningsOpen] = useState(false);
@@ -26,7 +26,9 @@ export default function PropertiesHeader({
       label: `${wallLabel(room, wall)}${wall.side === 'back' ? ' · Back' : ''}`,
       selection: { wallId: wall.id },
     });
-    if (opening || soffit || recess || endPanel) {
+    if (line) {
+      segments.push({ label: `Layout line ${line.label}` });
+    } else if (opening || soffit || recess || endPanel) {
       const label = opening ? (opening.kind === 'window' ? 'Window' : 'Door')
         : recess ? 'Recess' : soffit ? 'Soffit'
           : `${endPanel[wall.side ?? 'front'].side === 'left' ? 'Left' : 'Right'} end panel`;
