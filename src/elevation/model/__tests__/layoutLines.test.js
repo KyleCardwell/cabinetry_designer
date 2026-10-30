@@ -145,7 +145,8 @@ describe('LL2 sync and clone', () => {
     expect(runItems(w.runs[0])[0].attach).toEqual(attach('A', 'center', -3));
     expect([w.runs[0].x, w.runs[0].width]).toEqual([syncedPlain.walls[0].runs[0].x, syncedPlain.walls[0].runs[0].width]);
     expect(runItems(w.runs[0]).map((item) => item.width)).toEqual(runItems(syncedPlain.walls[0].runs[0]).map((item) => item.width));
-    expect(w.openings[0].offset).toBe(syncedPlain.walls[0].openings[0].offset);
+    // LL3: the window now sits on its line (centre on A = 60).
+    expect(w.openings[0].offset).toBe(42);
   });
 
   it('clones lines and attachments', () => {

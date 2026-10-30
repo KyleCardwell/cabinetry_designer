@@ -19,6 +19,7 @@ import {
 } from './joints.js';
 import { resolveLandings } from './landings.js';
 import { pruneLines } from './layoutLines.js';
+import { placeAttachedOpenings } from './linePlacement.js';
 import { labelOpenings, runBlocksOpening } from './openings.js';
 import { recessWarnings, withRunPlane } from './recesses.js';
 import { wallLength } from './geometry.js';
@@ -274,6 +275,8 @@ export function syncRoom(room, settings) {
     )),
   }));
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
+  // LL3: openings attached to a layout line sit on it, before labels (left to right) and run anchors read them.
+  nextRoom = placeAttachedOpenings(nextRoom, settings);
   // Door and window labels follow wall order, then left to right (typed labels stay).
   nextRoom = labelOpenings(nextRoom, settings);
   nextRoom = placeRoom(nextRoom, settings);

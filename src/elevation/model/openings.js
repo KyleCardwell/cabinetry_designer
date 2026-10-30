@@ -143,6 +143,11 @@ function referenceRect(opening, geometry) {
     : geometry.casing;
 }
 
+/** The rect an opening's sizes and offsets are measured to: the jamb, or the outside of the casing. */
+export function openingReferenceRect(opening, wallLength, settings) {
+  return referenceRect(opening, openingGeometry(opening, wallLength, settings));
+}
+
 /** Return the allowed wall-local range for an opening's reference left edge. */
 export function openingReferenceBounds(opening, wallLength, settings) {
   const geometry = openingGeometry(opening, wallLength, settings);

@@ -41,6 +41,9 @@ export const uiReducers = {
         || !['start', 'end'].includes(action.payload.endPanel)
         ? null
         : action.payload.endPanel;
+      const lineId = openingId || recessId || soffitId || runId || endPanel
+        ? null
+        : action.payload.lineId ?? null;
       state.selection = {
         runId,
         pieceId: runId ? action.payload.pieceId ?? null : null,
@@ -49,6 +52,7 @@ export const uiReducers = {
         recessId,
         wallId: state.selection.wallId ?? null,
         ...(endPanel ? { endPanel } : {}),
+        ...(lineId ? { lineId } : {}),
       };
       if (runId) {
         const selectedRun = roomFor(state)?.walls
@@ -76,7 +80,7 @@ export const uiReducers = {
       clearTransientSelection(state);
     },
     setTool(state, action) {
-      if (!['select', 'draw', 'measure', 'soffit', 'recess', 'wall', 'door', 'window'].includes(action.payload)) return;
+      if (!['select', 'draw', 'measure', 'soffit', 'recess', 'wall', 'door', 'window', 'line'].includes(action.payload)) return;
       state.tool = action.payload;
     },
     /** Generic copy buffer (MR5): `null` or `{ kind, data }`. Not saved; survives room loads. */

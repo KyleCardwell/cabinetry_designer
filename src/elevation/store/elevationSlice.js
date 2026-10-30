@@ -199,6 +199,7 @@ export const {
   updateLayoutLine,
   deleteLayoutLine,
   setAttachment,
+  attachOpeningToNewLine,
   setItemAbsorb,
   setCabinetPurpose,
   setCabinetSlide,

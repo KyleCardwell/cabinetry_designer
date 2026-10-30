@@ -8,7 +8,9 @@ import {
   nextLineLabel,
   setLineFrom,
 } from '../../model/layoutLines.js';
-import { itemIndexFor, syncRoomAt, wallLocation } from './helpers.js';
+import { attachOffsetHere } from '../../model/linePlacement.js';
+import { ATTACH_AT } from '../../model/layoutLines.js';
+import { itemIndexFor, settingsFor, syncRoomAt, wallLocation } from './helpers.js';
 
 /** LL2: layout lines on a wall face and attachments to them. Data only: nothing is placed from them yet. */
 
@@ -88,6 +90,34 @@ export const lineReducers = {
     }
     wall.lines.splice(index, 1);
     syncRoomAt(state, location.roomIndex);
+  },
+
+  /** LL3: a new front line through an opening's `at` point (measured from the opening's own end), attached; nothing moves. */
+  attachOpeningToNewLine: {
+    reducer(state, action) {
+      const { openingId, at = 'center', id } = action.payload;
+      if (!ATTACH_AT.includes(at)) return;
+      const location = wallLocation(state, action.payload);
+      const opening = location?.wall.openings?.find((candidate) => candidate.id === openingId);
+      if (!opening) return;
+      const length = wallFrame(location.room, location.wall).length;
+      const point = attachOffsetHere(
+        opening, { from: 'left', value: 0 }, at, length, settingsFor(state, location.room),
+      );
+      const from = opening.offsetFrom === 'right' ? 'right' : 'left';
+      const line = {
+        id,
+        label: nextLineLabel(location.wall, 'front'),
+        from,
+        value: from === 'left' ? point : length - point,
+      };
+      location.wall.lines = [...(location.wall.lines ?? []), line];
+      opening.attach = { lineId: id, at, offset: 0 };
+      syncRoomAt(state, location.roomIndex);
+    },
+    prepare(payload = {}) {
+      return { payload: { ...payload, id: payload.id ?? uuid() } };
+    },
   },
 
   setAttachment(state, action) {

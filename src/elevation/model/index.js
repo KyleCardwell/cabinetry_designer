@@ -200,6 +200,7 @@ export {
 } from './geometry.js';
 export {
   openingGeometry,
+  openingReferenceRect,
   runBlocksOpening,
   validateOpeningPlacement,
 } from './openings.js';
@@ -298,3 +299,9 @@ export {
   pruneLines,
   setLineFrom,
 } from './layoutLines.js';
+export {
+  attachOffsetHere,
+  attachPoint,
+  placeAttachedOpenings,
+  placeOpeningOnLine,
+} from './linePlacement.js';

@@ -85,7 +85,8 @@ describe('LL2 layout line actions', () => {
     expect(w.runs[0].grid.cols[2].attach).toEqual(attach('L1', 'left'));
     expect(w.openings[0].attach).toEqual(attach('B1'));
     expect(spans(state)).toEqual(spans(before));
-    expect(w.openings[0].offset).toBe(wallOf(before).openings[0].offset);
+    // LL3: the window now sits centred on back line B1 (30 from the back's left = 210 from the front's left).
+    expect(w.openings[0].offset).toBe(192);
   });
 
   it('refuses attachments that break the rules', () => {

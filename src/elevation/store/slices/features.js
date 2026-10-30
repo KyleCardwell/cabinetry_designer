@@ -8,6 +8,8 @@ import {
   setOpeningReferenceX,
   validateOpeningPlacement,
 } from '../../model/openings.js';
+import { findLine } from '../../model/layoutLines.js';
+import { attachOffsetHere } from '../../model/linePlacement.js';
 import {
   recessesOn,
   resizeRecess as resizeRecessPure,
@@ -232,7 +234,9 @@ export const featureReducers = {
     const location = openingLocation(state, action.payload);
     if (!location) return;
     const candidate = { ...location.opening };
-    const changes = action.payload.changes ?? {};
+    const changes = { ...(action.payload.changes ?? {}) };
+    // LL3: an attached opening's position comes from its line.
+    if (candidate.attach) delete changes.offset;
     for (const key of [
       'label',
       'labelOverride',
@@ -296,12 +300,16 @@ export const featureReducers = {
     const location = openingLocation(state, action.payload);
     if (!location) return;
     const length = wallFrame(location.room, location.wall).length;
-    location.wall.openings[location.openingIndex] = setMeasureMode(
-      location.opening,
-      action.payload.mode,
-      length,
-      settingsFor(state, location.room),
-    );
+    const settings = settingsFor(state, location.room);
+    const next = setMeasureMode(location.opening, action.payload.mode, length, settings);
+    const line = next.attach ? findLine(location.wall, next.attach.lineId) : null;
+    // LL3: keep an attached opening where it is (its reference rect gains or loses the casing).
+    location.wall.openings[location.openingIndex] = line && next !== location.opening
+      ? {
+        ...next,
+        attach: { ...next.attach, offset: attachOffsetHere(next, line, next.attach.at, length, settings) },
+      }
+      : next;
     syncRoomAt(state, location.roomIndex);
   },
   setOpeningOffsetSide(state, action) {
@@ -331,6 +339,11 @@ export const featureReducers = {
   moveOpening(state, action) {
     const location = openingLocation(state, action.payload);
     if (!location || !Number.isFinite(action.payload.x)) return;
+    if (location.opening.attach) {
+      const line = findLine(location.wall, location.opening.attach.lineId);
+      state.message = `${location.opening.label} is attached to line ${line?.label ?? ''}: move the line, or detach.`;
+      return;
+    }
     const length = wallFrame(location.room, location.wall).length;
     location.wall.openings[location.openingIndex] = setOpeningReferenceX(
       location.opening,
