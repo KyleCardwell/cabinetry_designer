@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS, PINNABLE_KINDS } from './constants.js';
 import { runItems } from './grid.js';
 import { findLine, lineX, placedAt } from './layoutLines.js';
 import { validateRunPlacement } from './overlap.js';
-import { lineEndMinimum, splitRun } from './splitRun.js';
+import { lineEndMinimum, lineSharedWidths, splitRun } from './splitRun.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
 
 export { placedAt };
@@ -141,11 +141,12 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
 
   const pass1 = splitRun(run, settings, { pinTargets: {} });
   const pieces = new Map(pass1.pieces.map((piece) => [piece.id, piece]));
+  const sharedWidths = lineSharedWidths(run, settings, { pinTargets });
   const pinWidths = Object.fromEntries(pinned.map(({ item }) => [
     item.id,
     (item.pin?.from === 'return' && item.pin.edge === 'both'
       ? run._returnPins?.[item.id]?.width : undefined)
-      ?? item.width ?? run._pinWidths?.[item.id] ?? pieces.get(item.id)?.width ?? 0,
+      ?? item.width ?? sharedWidths[item.id] ?? run._pinWidths?.[item.id] ?? pieces.get(item.id)?.width ?? 0,
   ]));
   const first = pinned[0];
   const last = pinned[pinned.length - 1];

@@ -269,6 +269,23 @@ function splitSegment(run, settings, opts) {
     errors.push({ code: 'does-not-fill' });
   }
 
+  // A sharing segment keeps filler minima and gives the rounding remainder to an auto.
+  const sharing = run._lineShareItemId !== undefined && nAuto > 0 && !flexOverconstrained;
+  const autos = items.filter(isAutoItem);
+  const absorber = sharing ? (autos.find((item) => item.absorb)
+    ?? autos.filter((item) => item.id !== run._lineShareItemId).at(-1)
+    ?? autos[0]) : null;
+  if (sharing) {
+    // Reinclude the placed column's rounding constraints when splitting its neighbours later.
+    const roundingItems = run._lineShareItem ? [...items, run._lineShareItem] : items;
+    autoWidth = autoRounding(run, settings, roundingItems).floor(
+      (available - minimumTotal + (run._lineShareWidth ?? 0))
+        / (nAuto + (run._lineShareItem ? 1 : 0)),
+    );
+    flexExtra = 0;
+    flexRemainder = 0;
+  }
+
   let autoIndex = 0;
   const lastAutoIndex = nAuto - 1;
   const computedItems = items.map((item, index) => {
@@ -277,7 +294,9 @@ function splitSegment(run, settings, opts) {
     }
 
     let computedWidth = autoWidth;
-    if (flex === 0 && !hasAvailableError && autoIndex === lastAutoIndex) {
+    if (sharing && item.id === absorber.id) {
+      computedWidth = available - minimumTotal - autoWidth * lastAutoIndex;
+    } else if (!sharing && flex === 0 && !hasAvailableError && autoIndex === lastAutoIndex) {
       computedWidth = available - autoWidth * lastAutoIndex;
     }
     autoIndex += 1;
@@ -463,7 +482,7 @@ function cabinetWidthWarnings(run, settings, item, width, auto) {
   return warnings;
 }
 
-function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
+function interiorLayout(run, settings, items, start, end, leftPin, rightPin, sharingPin) {
   const onLine = Boolean(leftPin.item.attach || rightPin.item.attach);
   const width = onLine ? Math.max(0, end - start) : end - start;
   const fixedWidth = items.reduce(
@@ -480,7 +499,10 @@ function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
 
   if (autos.length > 0) {
     const autoSpace = onLine ? Math.max(0, available) : available;
-    baseWidth = autoRounding(run, settings, items).floor(autoSpace / autos.length);
+    const roundingItems = sharingPin ? [...items, sharingPin.item] : items;
+    baseWidth = autoRounding(run, settings, roundingItems).floor(
+      (autoSpace + (sharingPin?.width ?? 0)) / (autos.length + (sharingPin ? 1 : 0)),
+    );
     absorberId = autos.find((item) => item.absorb)?.id ?? autos[autos.length - 1].id;
     absorberWidth = autoSpace - baseWidth * (autos.length - 1);
   } else if (Math.abs(available) > WIDTH_EPSILON) {
@@ -598,6 +620,9 @@ export function splitRun(run, settings, opts) {
         next.left,
         pin,
         next,
+        plan.sharedWidths[pin.item.id] !== undefined && placedAt(pin.item) === 'left' ? pin
+          : plan.sharedWidths[next.item.id] !== undefined && placedAt(next.item) === 'right' ? next
+            : null,
       ));
     }
   });
@@ -605,6 +630,75 @@ export function splitRun(run, settings, opts) {
   appendLayout(splitSegment(rightSegmentRun(run, plan), settings, opts));
 
   return steppedLayout(run, { pieces, warnings, errors, ...panels });
+}
+
+/** Auto edge-attached columns share with the autos on their bounded side, independent of history. */
+export function lineSharedWidths(run, settings, opts) {
+  const items = itemsWithGaps(run, settings);
+  const targets = opts?.pinTargets ?? {};
+  const placed = items.flatMap((item, itemIndex) => (
+    PINNABLE_KINDS.has(item.kind) && placedAt(item) && Number.isFinite(targets[item.id])
+      ? [{ item, itemIndex, target: targets[item.id] }] : []
+  ));
+  const candidates = placed.map(({ item, itemIndex }, index) => {
+    if (!item.attach || !isAutoItem(item)) return null;
+    const at = placedAt(item);
+    if (at !== 'left' && at !== 'right') return null;
+    const side = at === 'right' ? 'left' : 'right';
+    const neighbour = placed[index + (side === 'left' ? -1 : 1)];
+    if (!neighbour && !run.anchors?.[side]) return null;
+    const others = side === 'left'
+      ? items.slice(neighbour ? neighbour.itemIndex + 1 : 0, itemIndex)
+      : items.slice(itemIndex + 1, neighbour ? neighbour.itemIndex : items.length);
+    if (!others.some((other) => isAutoItem(other) && PINNABLE_KINDS.has(other.kind))) return null;
+    return { side, neighbour, others };
+  });
+  // Two columns pointing into one segment both retain their remembered widths.
+  const shares = candidates.map((candidate, index) => {
+    const other = candidates[index + (candidate?.side === 'left' ? -1 : 1)];
+    return candidate && other && candidate.side !== other.side ? null : candidate;
+  });
+  if (!shares.some(Boolean)) return {};
+
+  const pieces = new Map(splitSegment(run, settings, opts).pieces.map((piece) => [piece.id, piece]));
+  const retained = opts?.pinWidths ?? run._pinWidths ?? {};
+  const widths = {};
+  const widthOf = (entry) => {
+    const { item, target } = entry;
+    if (widths[item.id] !== undefined) return widths[item.id];
+    const share = shares[placed.indexOf(entry)];
+    if (!share) return (item.pin?.from === 'return' && item.pin.edge === 'both'
+      ? run._returnPins?.[item.id]?.width : undefined)
+      ?? item.width ?? retained[item.id] ?? pieces.get(item.id)?.width ?? 0;
+    const { side, neighbour, others } = share;
+    let boundary = side === 'left' ? run.x : run.x + run.width;
+    if (neighbour) {
+      const width = widthOf(neighbour);
+      const left = neighbour.target - (placedAt(neighbour.item) === 'center'
+        ? width / 2 : placedAt(neighbour.item) === 'right' ? width : 0);
+      boundary = side === 'left' ? left + width + neighbour.item.gapAfter : left;
+    }
+    const segmentItems = side === 'left'
+      ? [...others, { ...item, gapAfter: 0 }]
+      : [item, ...others];
+    const segment = {
+      ...run,
+      x: side === 'left' ? boundary : target,
+      width: Math.max(0, side === 'left' ? target - boundary : boundary - target),
+      items: segmentItems,
+      _lineShareItemId: item.id,
+      _pinSplit: { [side === 'left' ? 'right' : 'left']: true,
+        ...(neighbour ? { [side]: true } : {}) },
+      ends: {
+        left: side === 'left' && !neighbour ? run.ends.left : { type: 'none', width: null },
+        right: side === 'right' && !neighbour ? run.ends.right : { type: 'none', width: null },
+      },
+    };
+    widths[item.id] = splitSegment(segment, settings, opts).pieces.find((piece) => piece.id === item.id).width;
+    return widths[item.id];
+  };
+  placed.forEach((entry, index) => { if (shares[index]) widthOf(entry); });
+  return widths;
 }
 
 /**
@@ -624,12 +718,13 @@ function pinPlan(run, settings, opts) {
   const pass1 = splitSegment(run, settings, opts);
   const pass1Pieces = new Map(pass1.pieces.map((piece) => [piece.id, piece]));
   const retainedPinWidths = opts?.pinWidths ?? run._pinWidths ?? {};
+  const sharedWidths = lineSharedWidths(run, settings, opts);
   const pins = pinnedItems.map((item) => {
     const itemIndex = items.findIndex((candidate) => candidate.id === item.id);
     const piece = pass1Pieces.get(item.id);
     const width = (item.pin?.from === 'return' && item.pin.edge === 'both'
       ? run._returnPins?.[item.id]?.width : undefined)
-      ?? item.width ?? retainedPinWidths[item.id] ?? piece?.width ?? 0;
+      ?? item.width ?? sharedWidths[item.id] ?? retainedPinWidths[item.id] ?? piece?.width ?? 0;
     const target = targets[item.id];
     return {
       item,
@@ -700,7 +795,7 @@ function pinPlan(run, settings, opts) {
     }
   });
 
-  return { items, actualPins, leftItems, rightItems, warnings };
+  return { items, actualPins, leftItems, rightItems, warnings, sharedWidths };
 }
 
 /** The part of a pinned run left of its first pin, as a run of its own. */
@@ -712,6 +807,8 @@ function leftSegmentRun(run, plan) {
     x: run.x,
     width: firstPin.item.attach ? Math.max(0, width) : width,
     items: plan.leftItems,
+    ...(placedAt(firstPin.item) === 'right' && plan.sharedWidths[firstPin.item.id] !== undefined
+      ? { _lineShareItemId: firstPin.item.id, _lineShareItem: firstPin.item, _lineShareWidth: firstPin.width } : {}),
     _pinSplit: { right: true },
     ends: { left: run.ends.left, right: { type: 'none', width: null } },
   };
@@ -727,6 +824,8 @@ function rightSegmentRun(run, plan) {
     x: rightStart,
     width: lastPin.item.attach ? Math.max(0, width) : width,
     items: plan.rightItems,
+    ...(placedAt(lastPin.item) === 'left' && plan.sharedWidths[lastPin.item.id] !== undefined
+      ? { _lineShareItemId: lastPin.item.id, _lineShareItem: lastPin.item, _lineShareWidth: lastPin.width } : {}),
     _pinSplit: { left: true },
     ends: { left: { type: 'none', width: null }, right: run.ends.right },
   };
