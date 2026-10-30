@@ -2,13 +2,14 @@ import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { followLeaders } from './joints.js';
 import { findLine } from './layoutLines.js';
+import { placeAttachedRuns } from './linePlacement.js';
 import { returnExtents } from './returnExtents.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
 import { pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
 import { resolveSoffitSpan } from './soffits.js';
 import { wallSideOf, wallSideView } from './wallSides.js';
 
-// Return pins → soffits → run edges → pin growth; edit actions still do their own ripple until LL5. See plans/LAYOUT-PLAN.md.
+// Return pins → soffits → run edges → line runs → pin growth; edits keep their ripple until LL5.
 
 /** The shared room-aware options for splitting a run on either wall face. */
 export function splitOptionsForRun(room, wall, run, settings) {
@@ -56,7 +57,7 @@ function withReturnPins(room, wall, settings) {
 }
 
 /** Resolve every run's span, leaders before the runs that follow them. */
-function resolveWallSpans(room, wall, settings) {
+export function resolveWallSpans(room, wall, settings, placedRuns = new Map()) {
   const resolved = new Map();
   let pending = wall.runs;
   while (pending.length > 0) {
@@ -67,6 +68,10 @@ function resolveWallSpans(room, wall, settings) {
     if (ready.length === 0) break;
     const view = { ...wall, runs: wall.runs.map((run) => resolved.get(run.id) ?? run) };
     for (const run of ready) {
+      if (placedRuns.has(run.id)) {
+        resolved.set(run.id, placedRuns.get(run.id));
+        continue;
+      }
       const horizontal = horizontalResolution(room, view, run, settings);
       const { _cornerLapWidth, ...base } = run;
       void _cornerLapWidth;
@@ -134,6 +139,8 @@ export const PLACEMENT_STAGES = Object.freeze([
   { name: 'return-pins', run: returnPinTargets },
   { name: 'soffits', run: soffitSpans },
   { name: 'run-edges', run: runEdges },
+  // Geometry readers also import placement; read this binding after that module cycle settles.
+  { name: 'line-runs', get run() { return placeAttachedRuns; } },
   { name: 'pin-growth', run: pinGrowth },
 ]);
 

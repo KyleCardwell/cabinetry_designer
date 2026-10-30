@@ -4,7 +4,9 @@ import { DEFAULT_SETTINGS } from '../constants.js';
 import { layoutRun } from '../faceLayouts.js';
 import { resolveWall } from '../room.js';
 import { roomDiagnostics, syncRoom } from '../roomSync.js';
-import { moveJoint } from '../runJoins.js';
+import { moveJoint, resizeRun } from '../runJoins.js';
+import { lineHeldJoints } from '../linePlacement.js';
+import { attach, line } from '../../../test/builders.js';
 import { moveRun } from '../runMoves.js';
 
 const ids = vi.hoisted(() => ({ count: 0 }));
@@ -223,5 +225,83 @@ describe('LL0 Room 10b (room10b.json)', () => {
   it('synced twice equals once', () => {
     const once = syncRoom(structuredClone(room10b), settings10b);
     expect(layoutState(syncRoom(once, settings10b), settings10b)).toEqual(layoutState(once, settings10b));
+  });
+});
+
+
+const OPEN8 = 'e77c1c0c-b386-4716-bc71-0f23ec1e585c';
+const LEFT_UPPER8 = 'c3b5d002-c0bc-421b-8d22-6bbd5ee060b6';
+const RIGHT_UPPER8 = 'd63bd233-b318-473d-a13b-23c3a2b83b49';
+const HOOD_LEFT8 = 'fe1b16b5-fdf8-4840-abbf-c55164603b10';
+const HOOD_RIGHT8 = '97d7faa1-a7c5-4b71-8d7a-030d18a7b281';
+const BASE_LEFT8 = '7d2ce208-b56f-447a-b162-fc585bbbf5a2';
+
+function room8OnLine(value = 99) {
+  const stored = structuredClone(room8);
+  const wall = stored.walls.find(({ id }) => id === WALL4);
+  wall.lines = [line('L1', value, { from: 'right' })];
+  wall.runs.find(({ id }) => id === HOOD8).attach = attach('L1');
+  const base = wall.runs.find(({ id }) => id === BASE8);
+  base.autoCount = false;
+  base.grid.cols.find(({ id }) => id === `${OPEN8}:col`).attach = attach('L1');
+  return stored;
+}
+
+describe('LL4 Room 8 + L1 run and open column', () => {
+  it.each([
+    [99, 112, 96, 80, 58, 59],
+    [100, 111, 95, 80, 57, 60],
+    [41, 170, 154, 80, 116, 1],
+  ])('line %s from right: holds the hood width and places the open column', (value, openX, hoodX, hoodWidth, leftWidth, rightWidth) => {
+    const stored = room8OnLine(value);
+    const state = layoutState(stored, settings8);
+    expect(pieceOf(runOf(state, WALL4, BASE8), OPEN8)).toMatchObject({ x: openX, width: 48 });
+    expect(runOf(state, WALL4, BASE8)).toMatchObject({ x: 38, width: 197 });
+    expect(runOf(state, WALL4, HOOD8)).toMatchObject({ x: hoodX, width: hoodWidth });
+    expect(runOf(state, WALL4, LEFT_UPPER8)).toMatchObject({ x: 38, width: leftWidth });
+    expect(runOf(state, WALL4, RIGHT_UPPER8)).toMatchObject({ x: hoodX + hoodWidth, width: rightWidth });
+    expect(wallOf(state, WALL4).joints.map(({ id, x }) => [id, x]))
+      .toEqual([[BASE_LEFT8, 38], [HOOD_LEFT8, hoodX], [HOOD_RIGHT8, hoodX + hoodWidth]]);
+    if (value === 41) {
+      expect(state.diagnostics[RIGHT_UPPER8].warnings).toContainEqual({
+        code: 'line-squeeze', message: 'Below minimum width because of line L1.',
+      });
+      expect(state.diagnostics[BASE8].warnings).toContainEqual({
+        code: 'line-squeeze', pieceId: OPEN8,
+        message: 'Cabinets beside it are below minimum width because of line L1.',
+      });
+      expect(state.diagnostics[BASE8].warnings.map(({ code, pieceId }) => [code, pieceId])).toEqual([
+        ['line-squeeze', OPEN8],
+        ['widths-not-rounded', 'db21d6ce-f4e6-482c-858a-40e9e2f6be7e'],
+        ['wide-cabinet', 'db21d6ce-f4e6-482c-858a-40e9e2f6be7e'],
+        ['wide-cabinet', '11bcf05a-a149-425a-97c2-2a609de36341'],
+        ['narrow-cabinet', 'abc17c3d-0af2-4782-98f9-20df208e3fe5'],
+        ['narrow-cabinet', '6957a96c-8332-4a9d-8eb0-02228eb79556'],
+      ]);
+      expect(state.diagnostics[RIGHT_UPPER8].errors.map(({ code }) => code))
+        .toEqual(['over-constrained', 'anchor-too-narrow']);
+    }
+    const once = syncRoom(stored, settings8);
+    expect(syncRoom(once, settings8)).toEqual(once);
+    expect(state).toMatchSnapshot();
+  });
+
+  it('resizes the hood left to 81 and restores its centre to 136', () => {
+    const result = resizeRun(room8OnLine(), WALL4, HOOD8, 81, 'left', settings8);
+    expect(result.ok).toBe(true);
+    const state = layoutState(result.room, settings8);
+    expect(runOf(state, WALL4, HOOD8)).toMatchObject({ x: 95.5, width: 81 });
+    expect(runOf(state, WALL4, LEFT_UPPER8)).toMatchObject({ x: 38, width: 57.5 });
+    expect(runOf(state, WALL4, RIGHT_UPPER8)).toMatchObject({ x: 176.5, width: 58.5 });
+    const once = syncRoom(result.room, settings8);
+    expect(syncRoom(once, settings8)).toEqual(once);
+    expect(state).toMatchSnapshot();
+  });
+
+  it('holds only the hood joints structurally, before or after placement', () => {
+    const stored = room8OnLine();
+    const expected = new Map([HOOD_LEFT8, HOOD_RIGHT8].map((id) => [id, { lineId: 'L1', runId: HOOD8 }]));
+    expect(lineHeldJoints(stored.walls.find(({ id }) => id === WALL4))).toEqual(expected);
+    expect(lineHeldJoints(syncRoom(stored, settings8).walls.find(({ id }) => id === WALL4))).toEqual(expected);
   });
 });

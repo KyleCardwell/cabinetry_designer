@@ -18,16 +18,16 @@ import {
   pruneJoints,
 } from './joints.js';
 import { resolveLandings } from './landings.js';
-import { pruneLines } from './layoutLines.js';
+import { findLine, lineX, pruneLines } from './layoutLines.js';
 import { dropWallPins } from './runPins.js';
-import { placeAttachedOpenings } from './linePlacement.js';
+import { lineHeldJoints, placeAttachedOpenings } from './linePlacement.js';
 import { labelOpenings, runBlocksOpening } from './openings.js';
 import { recessWarnings, withRunPlane } from './recesses.js';
 import { wallLength } from './geometry.js';
 import { validateRunPlacement } from './overlap.js';
 import { runEndThickness, wallPanelThickness } from './panelThickness.js';
 import { resolveProfile, resolveVertical } from './profile.js';
-import { splitRun, syncAutoItems } from './splitRun.js';
+import { runWidthRange, splitRun, syncAutoItems } from './splitRun.js';
 import { pruneStacks, resolveStacks } from './stacks.js';
 import { runFrame, runSeamGap } from './styles.js';
 import { profileUnderSoffit, soffitConflicts } from './soffits.js';
@@ -386,6 +386,7 @@ export function roomDiagnostics(room, settings) {
     const length = wallLength(wall);
     const bases = floorRunsWithTops(wall, wall.runs, profile);
     const resolvedWall = { ...wall, length };
+    const held = lineHeldJoints(wall);
     for (const run of wall.runs) {
       const options = splitOptionsForRun(synced, wall, run, settings);
       const layout = splitRun(run, settings, options);
@@ -412,6 +413,7 @@ export function roomDiagnostics(room, settings) {
       diagnostics[run.id] = {
         warnings: [
           ...layout.warnings,
+          ...runLineWarnings(synced, wall, run, settings, held),
           ...resolveTopSegments(run, runTop(wall, run, profile).kind).warnings,
           ...cellPieces(run, layout).warnings,
           ...extendPieces(wall, run, cellPieces(run, layout).pieces).warnings,
@@ -447,6 +449,50 @@ export function roomDiagnostics(room, settings) {
     diagnostics[collision.runId]?.warnings.push(collision);
   }
   return diagnostics;
+}
+
+function runLineWarnings(room, wall, run, settings, held) {
+  const warnings = [];
+  const sides = ['left', 'right'];
+  const line = run.attach && findLine(wall, run.attach.lineId);
+  if (line && wallSideOf(line) === wallSideOf(run)) {
+    const structural = sides.filter((side) => !run.anchors?.[side] || isJointAnchor(run.anchors[side]));
+    for (const side of structural) {
+      const owner = held.get(run.anchors?.[side]?.jointId);
+      if (owner && owner.runId !== run.id
+        && (structural.length === 2 || run.attach.at === 'center' || run.attach.at === side)) {
+        const ownerLine = findLine(wall, owner.lineId);
+        warnings.push({
+          code: 'line-joint-taken', side,
+          message: `Can't move its ${side} joint: ${ownerLine.label} holds it through another run.`,
+        });
+      }
+    }
+    const point = run.x + ({ left: 0, center: 0.5, right: 1 })[run.attach.at] * run.width;
+    if (Math.abs(point - lineX(line, wallLength(wall)) - run.attach.offset) > 1 / 64) {
+      const fixed = sides.filter((side) => {
+        const anchor = run.anchors?.[side];
+        return anchor && (!isJointAnchor(anchor)
+          || (held.has(anchor.jointId) && held.get(anchor.jointId).runId !== run.id));
+      });
+      const end = fixed.length === 1 ? `${fixed[0]} end is` : 'both ends are';
+      warnings.push({
+        code: 'line-unmet',
+        message: `Can't sit on ${line.label}: its ${end} anchored. Free that end or attach a different point.`,
+      });
+    }
+  }
+  const owner = sides.map((side) => held.get(run.anchors?.[side]?.jointId))
+    .find((entry) => entry && entry.runId !== run.id);
+  if (owner && run.width < runWidthRange(run, settings, {
+    endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+  }).min - 1e-9) {
+    warnings.push({
+      code: 'line-squeeze',
+      message: `Below minimum width because of line ${findLine(wall, owner.lineId).label}.`,
+    });
+  }
+  return warnings;
 }
 
 /**

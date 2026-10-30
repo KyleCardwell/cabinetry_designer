@@ -303,6 +303,8 @@ export {
 export {
   attachOffsetHere,
   attachPoint,
+  lineHeldJoints,
   placeAttachedOpenings,
+  placeAttachedRuns,
   placeOpeningOnLine,
 } from './linePlacement.js';

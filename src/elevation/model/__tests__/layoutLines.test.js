@@ -143,8 +143,9 @@ describe('LL2 sync and clone', () => {
     expect(w.openings[0].attach).toEqual(attach('A'));
     expect(w.runs[0].attach).toEqual(attach('A', 'left'));
     expect(runItems(w.runs[0])[0].attach).toEqual(attach('A', 'center', -3));
-    // LL4: the attached column is now placed (centre on A − 3 = 57), so the free run grows left to reach it.
-    expect([w.runs[0].x, w.runs[0].width]).toEqual([41.25, 88.75]);
+    // LL4 e: the run slides to its line first (70 → 60), then the attached columns grow the free end.
+    // A centres on A − 3 = 57, growing left to 41.25 while the right end stays at 120.
+    expect([w.runs[0].x, w.runs[0].width]).toEqual([41.25, 78.75]);
     // …and auto count fills the grown run with one more auto cabinet.
     expect(runItems(w.runs[0]).map((item) => item.width)).toEqual([null, null, null]);
     expect(syncedPlain.walls[0].runs[0].x).toBe(70);

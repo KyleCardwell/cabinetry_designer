@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { placeAttachedRuns } from '../linePlacement.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { wallLength } from '../geometry.js';
 import { splitOptionsForRun as fromIndex } from '../index.js';
@@ -41,10 +42,10 @@ function applyStage(stage, state) {
 describe('LL1 placement stages', () => {
   it('exports the frozen stage order and each stage function', () => {
     expect(PLACEMENT_STAGES.map(({ name }) => name))
-      .toEqual(['return-pins', 'soffits', 'run-edges', 'pin-growth']);
+      .toEqual(['return-pins', 'soffits', 'run-edges', 'line-runs', 'pin-growth']);
     expect(Object.isFrozen(PLACEMENT_STAGES)).toBe(true);
     expect(PLACEMENT_STAGES.map(({ run }) => run))
-      .toEqual([returnPinTargets, soffitSpans, runEdges, pinGrowth]);
+      .toEqual([returnPinTargets, soffitSpans, runEdges, placeAttachedRuns, pinGrowth]);
   });
 
   it('resolves run edges without growing a free end for an edited pin', () => {
