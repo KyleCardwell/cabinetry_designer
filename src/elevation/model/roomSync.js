@@ -10,7 +10,6 @@ import { gridLeaves, runItems } from './grid.js';
 import { insideEndBoundary, insideEndSides } from './insideEnds.js';
 import { stepEndSides } from './stepEnds.js';
 import {
-  followLeaders,
   isFollowAnchor,
   isJointAnchor,
   deeperJoinedSides,
@@ -28,7 +27,7 @@ import { resolveProfile, resolveVertical } from './profile.js';
 import { splitRun, syncAutoItems } from './splitRun.js';
 import { pruneStacks, resolveStacks } from './stacks.js';
 import { runFrame, runSeamGap } from './styles.js';
-import { profileUnderSoffit, resolveSoffitSpan, soffitConflicts } from './soffits.js';
+import { profileUnderSoffit, soffitConflicts } from './soffits.js';
 import { computeWallOrder } from './topology.js';
 import { runTop } from './tops.js';
 import { resolveTopSegments } from './topSegments.js';
@@ -42,44 +41,12 @@ import {
 import { isPanelOnlyRun, panelRunMiters, wallEndPanels } from './wallEndPanels.js';
 import { cloneRun, cloneRoom } from './roomClone.js';
 import { endMinWidthsForRun, endCornerAnglesForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
-import { pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
-import { returnExtents } from './returnExtents.js';
+import { pinTargetsForRun } from './runPins.js';
+import { placeRoom } from './placement.js';
 import { returnFaceWarnings } from './returnWarnings.js';
 import { flexRoom, unflexRoom } from './runFlex.js';
 
 const PIN_EPSILON = 1e-6;
-
-/** Recompute return pins from the resolved landing and front planes before solving any runs. */
-function withReturnPins(room, wall, settings) {
-  const extentsBySide = new Map();
-  return {
-    ...wall,
-    runs: wall.runs.map((run) => {
-      const { _returnPins, ...base } = run;
-      void _returnPins;
-      const pins = runItems(run).filter((item) => item.pin?.from === 'return');
-      if (!pins.length) return base;
-      const side = wallSideOf(run);
-      if (!extentsBySide.has(side)) {
-        extentsBySide.set(side, returnExtents(room, wallSideView(wall, side), settings));
-      }
-      const entries = pins.flatMap(({ id, pin }) => {
-        const ext = extentsBySide.get(side).find((candidate) => (
-          candidate.wallId === pin.wallId && candidate.runId === pin.runId
-        ));
-        if (!ext) return [];
-        const target = pin.edge === 'right' ? ext.right + pin.value
-          : pin.edge === 'center' ? (ext.left + ext.right) / 2 + pin.value
-            : ext.left - pin.value;
-        return [[id, {
-          target,
-          ...(pin.edge === 'both' ? { width: ext.right + pin.valueRight - target } : {}),
-        }]];
-      });
-      return { ...base, _returnPins: Object.fromEntries(entries) };
-    }),
-  };
-}
 
 function withPartPick(next, end) {
   return {
@@ -87,31 +54,6 @@ function withPartPick(next, end) {
     ...(end.styleId != null ? { styleId: end.styleId } : {}),
     ...(end.sizes != null ? { sizes: end.sizes } : {}),
   };
-}
-
-/** Resolve every run's span, leaders before the runs that follow them. */
-function resolveWallSpans(room, wall, settings) {
-  const resolved = new Map();
-  let pending = wall.runs;
-  while (pending.length > 0) {
-    const waiting = new Set(pending.map((run) => run.id));
-    const ready = pending.filter((run) => (
-      followLeaders(run).every((leaderId) => !waiting.has(leaderId))
-    ));
-    if (ready.length === 0) break;
-    const view = { ...wall, runs: wall.runs.map((run) => resolved.get(run.id) ?? run) };
-    for (const run of ready) {
-      const horizontal = horizontalResolution(room, view, run, settings);
-      const { _cornerLapWidth, ...base } = run;
-      void _cornerLapWidth;
-      resolved.set(run.id, {
-        ...base, x: horizontal.x, width: horizontal.width,
-        ...(horizontal.lapWidth ? { _cornerLapWidth: horizontal.lapWidth } : {}),
-      });
-    }
-    pending = pending.filter((run) => !resolved.has(run.id));
-  }
-  return wall.runs.map((run) => resolved.get(run.id) ?? run);
 }
 
 /** Base and tall runs standing on the floor, each with counterTop: the top of what it really carries. */
@@ -339,51 +281,10 @@ export function syncRoom(room, settings) {
       ),
     )),
   }));
-  nextRoom.walls = nextRoom.walls.map((wall) => withReturnPins(nextRoom, wall, settings));
-
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
   // Door and window labels follow wall order, then left to right (typed labels stay).
   nextRoom = labelOpenings(nextRoom, settings);
-
-  nextRoom = {
-    ...nextRoom,
-    walls: nextRoom.walls.map((wall) => ({
-      ...wall,
-      soffits: (wall.soffits ?? []).map((soffit) => ({
-        ...soffit,
-        ...resolveSoffitSpan(
-          nextRoom,
-          wallSideView(wall, wallSideOf(soffit)),
-          soffit,
-        ),
-      })),
-    })),
-  };
-
-  nextRoom = {
-    ...nextRoom,
-    walls: nextRoom.walls.map((wall) => ({
-      ...wall,
-      runs: resolveWallSpans(nextRoom, wall, settings),
-    })),
-  };
-
-  nextRoom = {
-    ...nextRoom,
-    walls: nextRoom.walls.map((wall) => {
-      const length = wallLength(wall);
-      return {
-        ...wall,
-        runs: wall.runs.map((run) => resolvePinnedSpan(
-          run,
-          wall,
-          length,
-          settings,
-          pinTargetsForRun(run, wall, length, settings),
-        )),
-      };
-    }),
-  };
+  nextRoom = placeRoom(nextRoom, settings);
 
   nextRoom = {
     ...nextRoom,
