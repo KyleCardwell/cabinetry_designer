@@ -5,6 +5,7 @@ import { addAccessoryItem, removeAccessoryItem, setAccessoryItem } from '../../m
 import { BUILT_IN_SLIDES, resolveSlide } from '../../model/slides.js';
 import { setCabinetSlide, setFaceDrawerBox } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import PanelSection from '../panel/PanelSection.jsx';
 import Field from './Field.jsx';
 import SlideSelect from './SlideSelect.jsx';
@@ -93,9 +94,10 @@ export default function DrawerBoxFields({ room, wall, run, item, itemIds = [item
               </Field>
               <div className="grid grid-cols-2 gap-2">
                 <Field label="Height">
-                  <InchInput aria-label={`Drawer height ${box.path}`} value={pick.height} allowBlank
-                    placeholder={`Auto (${height === null ? 'none fits' : formatInches(height)}${box.heightSource === 'accessory' ? `, ${accessoryName(box.heightAccessory)}` : matched ? ', matched' : box.heightRule ? `, ${box.heightRule}` : ''})`}
-                    onCommit={(height) => patchBox(box.path, { height })} />
+                  <InchInput aria-label={`Drawer height ${box.path}`} value={pick.height}
+                    {...autoInchProps({ labelled: true, quoted: true, auto: height, text: height === null ? 'none fits' : undefined,
+                      note: box.heightSource === 'accessory' ? `, ${accessoryName(box.heightAccessory)}` : matched ? ', matched' : box.heightRule ? `, ${box.heightRule}` : '',
+                      onCommit: (height) => patchBox(box.path, { height }) })} />
                 </Field>
                 <Field label="Width">
                   <div aria-label={`Drawer width ${box.path}`} className="py-1.5 text-sm text-gray-300">
@@ -104,9 +106,10 @@ export default function DrawerBoxFields({ room, wall, run, item, itemIds = [item
                 </Field>
               </div>
               <Field label="Depth">
-                <InchInput aria-label={`Drawer depth ${box.path}`} value={pick.depth} allowBlank
-                  placeholder={`Auto (${box.depthAuto === null ? 'no length fits' : formatInches(box.depthAuto)}${box.depthSource === 'accessory' ? `, ${accessoryName(box.depthAccessory)}` : box.depthRule ? `, ${box.depthRule}` : ''})`}
-                  onCommit={(depth) => patchBox(box.path, { depth })} />
+                <InchInput aria-label={`Drawer depth ${box.path}`} value={pick.depth}
+                  {...autoInchProps({ labelled: true, quoted: true, auto: box.depthAuto, text: box.depthAuto === null ? 'no length fits' : undefined,
+                    note: box.depthSource === 'accessory' ? `, ${accessoryName(box.depthAccessory)}` : box.depthRule ? `, ${box.depthRule}` : '',
+                    onCommit: (depth) => patchBox(box.path, { depth }) })} />
               </Field>
               {box.kind === 'drawer' && (
                 <div className="space-y-2">

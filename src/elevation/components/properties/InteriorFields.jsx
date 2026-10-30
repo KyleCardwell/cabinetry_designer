@@ -36,6 +36,7 @@ import { BUILT_IN_SLIDES, resolveBoxSlide, resolveSlide } from '../../model/slid
 import { sectionShelves } from '../../model/shelves.js';
 import { setCabinetSlide, setInteriorPath, setItemInterior, setItemShelves } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
 import PanelSection from '../panel/PanelSection.jsx';
 import Field from './Field.jsx';
 import SlideSelect from './SlideSelect.jsx';
@@ -223,20 +224,18 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
         {interiorPath != null && shelf && (
           <div className="space-y-2">
             <Field label="Adj. shelves">
-              <InchInput aria-label={`Shelf count ${path}`} value={selected.shelves?.count} allowBlank allowAuto
-                placeholder={`Auto (${shelfData.autoCount.count})`} className="placeholder:text-gray-500"
-                onCommit={(count) => {
+              <InchInput aria-label={`Shelf count ${path}`} value={selected.shelves?.count} className="placeholder:text-gray-500"
+                {...autoInchProps({ labelled: true, text: String(shelfData.autoCount.count), onCommit: (count) => {
                   if (count !== null && (!Number.isInteger(count) || count < 0 || count > 20)) return false;
                   return patchShelves({ count });
-                }} />
+                } })} />
             </Field>
             <Field label="Shoe shelves">
-              <InchInput aria-label={`Shoe shelves ${path}`} value={selected.shelves?.shoe} allowBlank
-                placeholder="0"
-                onCommit={(shoe) => {
+              <InchInput aria-label={`Shoe shelves ${path}`} value={selected.shelves?.shoe}
+                {...autoInchProps({ auto: 0, onCommit: (shoe) => {
                   if (shoe !== null && (!Number.isInteger(shoe) || shoe < 0 || shoe > 20)) return false;
                   return patchShelves({ shoe: shoe === 0 ? null : shoe });
-                }} />
+                } })} />
             </Field>
             <div className="flex items-center justify-between text-xs text-gray-400">
               <label className="flex items-center gap-2">
@@ -337,14 +336,16 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                       onChange={(slideId) => patchRollout(box.index, { slideId })} />
                   </Field>
                   {[
-                    ['height', 'Height', size(settings.rolloutHeight ?? DEFAULT_SETTINGS.rolloutHeight)],
-                    ['depth', 'Depth', `${automatic.depthAuto === null ? 'no length fits' : size(automatic.depthAuto)}${automatic.depthRule ? `, ${automatic.depthRule}` : ''}`],
-                    ['at', 'Up from section bottom', size(automatic.at)],
-                  ].map(([field, label, placeholder]) => (
+                    ['height', 'Height', { auto: settings.rolloutHeight ?? DEFAULT_SETTINGS.rolloutHeight }],
+                    ['depth', 'Depth', { auto: automatic.depthAuto,
+                      text: automatic.depthAuto === null ? 'no length fits' : undefined,
+                      note: automatic.depthRule ? `, ${automatic.depthRule}` : '' }],
+                    ['at', 'Up from section bottom', { auto: automatic.at }],
+                  ].map(([field, label, options]) => (
                     <Field key={field} label={label}>
-                      <InchInput aria-label={`Roll-out ${field} ${key}`} value={pick[field]} allowBlank allowAuto
-                        displayStep={1 / 64} placeholder={`Auto (${placeholder})`} className="placeholder:text-gray-500"
-                        onCommit={(value) => patchRollout(box.index, { [field]: value })} />
+                      <InchInput aria-label={`Roll-out ${field} ${key}`} value={pick[field]} className="placeholder:text-gray-500"
+                        {...autoInchProps({ ...options, labelled: true, step: 1 / 64,
+                          onCommit: (value) => patchRollout(box.index, { [field]: value }) })} />
                     </Field>
                   ))}
                   <p aria-label={`Roll-out size ${key}`} className="text-xs text-gray-400">
@@ -476,12 +477,10 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                         <InchInput
                           aria-label={`Divider position ${path}.${index}`}
                           value={divider.at}
-                          allowBlank
-                          allowAuto
-                          placeholder={`Auto (${formatInches(position)}${actual.linked ? ' · Seam' : ''})`}
-                          onCommit={(value) => commit(setDividerPosition(
-                            interior, path, index, value, stacked ? undefined : from,
-                          ))}
+                          {...autoInchProps({ labelled: true, quoted: true, auto: position, note: actual.linked ? ' · Seam' : '',
+                            onCommit: (value) => commit(setDividerPosition(
+                              interior, path, index, value, stacked ? undefined : from,
+                            )) })}
                         />
                       </Field>
                       {divider.seam && divider.at !== undefined && (
@@ -493,9 +492,8 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                     <InchInput
                       aria-label={`Divider depth ${path}.${index}`}
                       value={divider.depth}
-                      allowBlank
-                      placeholder={`Auto (${formatInches(actual.depth)})`}
-                      onCommit={(value) => commit(setDividerDepth(interior, path, index, value))}
+                      {...autoInchProps({ labelled: true, quoted: true, auto: actual.depth,
+                        onCommit: (value) => commit(setDividerDepth(interior, path, index, value)) })}
                     />
                   </Field>
                   {actual.banding !== null && (
