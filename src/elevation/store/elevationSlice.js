@@ -200,6 +200,8 @@ export const {
   deleteLayoutLine,
   setAttachment,
   attachOpeningToNewLine,
+  attachRunToNewLine,
+  centerRunOnLine,
   attachColumnToNewLine,
   attachColumnToOpening,
   setItemAbsorb,

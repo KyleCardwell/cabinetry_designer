@@ -2,15 +2,24 @@ import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
-import { auto, run, wall } from '../../../test/builders.js';
+import { useDispatch } from 'react-redux';
+import { attach, auto, line, room, run, wall } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { syncRoom } from '../../model/roomSync.js';
 import { centerOverTargets } from '../../model/centerOver.js';
+import elevationReducer, {
+  attachRunToNewLine, centerRunOnLine, createInitialElevationState, resizeRun, setAttachment,
+} from '../../store/elevationSlice.js';
 import RunGeometrySection from './RunGeometrySection.jsx';
+import LineAttachSection from './LineAttachSection.jsx';
 
 const canCenterOver = (room, wall, run) => centerOverTargets(room, wall.id, run.id, DEFAULT_SETTINGS).length > 0;
 
-vi.mock('react-redux', () => ({ useDispatch: () => vi.fn() }));
+vi.mock('react-redux', () => ({ useDispatch: vi.fn(() => vi.fn()) }));
+vi.mock('./LineAttachSection.jsx', async (load) => {
+  const actual = await load();
+  return { ...actual, default: vi.fn(actual.default) };
+});
 
 const render = (wall, run) => renderToStaticMarkup(<RunGeometrySection
   wall={wall} run={run} settings={DEFAULT_SETTINGS} actionBase={{}} validateAndDispatch={vi.fn()}
@@ -56,5 +65,54 @@ describe('CV1 step b: Center over… button', () => {
     const lone = run({ id: 'lone', items: [auto('a')] });
     const only = wall({ length: 144, runs: [lone] });
     expect(html({ ...synced, walls: [only] }, only, lone)).not.toContain('Center run over a cell');
+  });
+});
+
+describe('LL4 f run layout line properties', () => {
+  it('anchor 5: shows the attached Room 8 hood’s line and centre, locks all four positions and leaves width editable', () => {
+    const stored = JSON.parse(readFileSync(new URL('../../model/__tests__/fixtures/room8.json', import.meta.url), 'utf8'));
+    const wallId = '14154ec7-5eeb-4511-8d78-5d3da7b09418';
+    const runId = 'c1cb2dd4-6ec7-4d67-a1ef-1b5072bcc757';
+    const initial = { ...createInitialElevationState(null), rooms: [stored], activeRoomId: stored.id };
+    const state = elevationReducer(initial, centerRunOnLine({ wallId, runId,
+      targetKey: '8837d4ef-0f27-4ae9-aec6-2d563cadc4b3:e77c1c0c-b386-4716-bc71-0f23ec1e585c', lineId: 'N' }));
+    const wall = { ...state.rooms[0].walls.find(({ id }) => id === wallId), length: 235 };
+    const hood = wall.runs.find(({ id }) => id === runId);
+    const html = render(wall, hood);
+    expect(html).toContain('<option value="N" selected="">L1</option>');
+    expect(html).toMatch(/aria-pressed="true"[^>]*>Centre<\/button>/);
+    expect(html).toContain('Moves with L1. To move this run, change L1 or detach.');
+    for (const side of ['left', 'right']) {
+      for (const point of ['edge', 'center']) {
+        expect(html).toContain(`<div aria-label="Run ${side} ${point} position"`);
+        expect(html).not.toMatch(new RegExp(`<input[^>]*aria-label="Run ${side} ${point} position"`));
+      }
+    }
+    expect(html).toMatch(/<input[^>]*aria-label="Run width"/);
+    const resized = elevationReducer(state, resizeRun({ wallId, runId, width: 90, grow: 'right' }));
+    expect(resized.rooms[0].walls.find(({ id }) => id === wallId).runs.find(({ id }) => id === runId))
+      .toMatchObject({ x: 91.5, width: 90, attach: attach('N') });
+  });
+
+  it('offers only this face’s lines and dispatches line selection, point, offset, detach and new-line actions', () => {
+    const subject = run({ x: 10, width: 30, wallSide: 'back', attach: attach('B') });
+    const face = wall({ length: 144, lines: [line('F', 25), line('B', 25, { wallSide: 'back' })], runs: [subject] });
+    let state = { ...createInitialElevationState(null), rooms: [room({ walls: [face] })], activeRoomId: 'room-1' };
+    const dispatch = vi.fn((action) => { state = elevationReducer(state, action); });
+    useDispatch.mockReturnValue(dispatch);
+    const html = renderToStaticMarkup(<RunGeometrySection wall={face} run={subject}
+      settings={DEFAULT_SETTINGS} actionBase={{ wallId: face.id, runId: subject.id }} validateAndDispatch={vi.fn()} />);
+    expect(html).toContain('<option value="B" selected="">B</option>');
+    expect(html).not.toContain('<option value="F"');
+    expect(html).toContain('New line here');
+    const props = LineAttachSection.mock.calls.at(-1)[0];
+    props.onAttach(attach('B', 'right', -2));
+    expect(dispatch.mock.calls.at(-1)[0]).toEqual(setAttachment({ wallId: face.id, runId: subject.id, target: { kind: 'run', runId: subject.id }, attach: attach('B', 'right', -2) }));
+    props.onAttach(null);
+    expect(state.rooms[0].walls[0].runs[0].attach).toBeUndefined();
+    props.onNewLine();
+    expect(dispatch.mock.calls.at(-1)[0].type).toBe(attachRunToNewLine.type);
+    expect(dispatch.mock.calls.at(-1)[0].payload).toMatchObject({ at: 'center' });
+    expect(state.rooms[0].walls[0].runs[0].attach.at).toBe('center');
   });
 });

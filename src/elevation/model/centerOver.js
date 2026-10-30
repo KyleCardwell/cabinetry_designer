@@ -1,10 +1,15 @@
 import { cellPieces } from './cells.js';
 import { layoutRun } from './faceLayouts.js';
-import { wallLength } from './geometry.js';
+import { ATTACHABLE_KINDS } from './constants.js';
+import { wallFrame, wallLength } from './geometry.js';
+import { runItems, updateRootItem } from './grid.js';
+import { isJointAnchor } from './joints.js';
+import { findLine, lineX, nextLineLabel, placedAt } from './layoutLines.js';
+import { splitOptionsForRun } from './placement.js';
 import { RUN_LABELS } from './pick.js';
 import { syncRoom } from './roomSync.js';
-import { moveRun } from './runMoves.js';
-import { formatInches } from './units.js';
+import { splitRun } from './splitRun.js';
+import { formatInches, roundTo } from './units.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
 
 const EPSILON = 1e-6;
@@ -104,14 +109,66 @@ export function targetsAt(targets, point) {
     .map(({ entry }) => entry);
 }
 
-/** Move run `runId` once so its center sits on the target's center (SPEC-CV1 §1.3–1.4). */
-export function centerRunOver(room, wallId, runId, targetKey, settings) {
+/** Attach a root target with the same auto-count and width locking rules as setAttachment. */
+function attachTargetColumn(room, wall, run, item, attach, settings) {
+  const placed = runItems(run).filter(placedAt);
+  let grid = updateRootItem(run.grid, item.id, { attach });
+  if (!placedAt(item) && placed.length) {
+    const options = splitOptionsForRun(room, wall, run, settings);
+    const pieces = splitRun(run, settings, { ...options, pinTargets: {} }).pieces;
+    for (const locked of placed.length === 1 ? [...placed, item] : [item]) {
+      const width = pieces.find((piece) => piece.id === locked.id)?.width;
+      if (Number.isFinite(width) && width > 0) {
+        grid = updateRootItem(grid, locked.id, { width: roundTo(width, settings.roundTo) });
+      }
+    }
+  }
+  return { ...run, grid, autoCount: false };
+}
+
+/** LL4: center on a shared layout line, attaching the target too when it can follow the line. */
+export function centerRunOver(room, wallId, runId, targetKey, settings, { lineId } = {}) {
   const target = centerOverTargets(room, wallId, runId, settings)
     .find((entry) => entry.key === targetKey);
   if (!target) return { ok: false, reason: 'target-not-found', room };
-  const { run } = findRun(syncRoom(room, settings), wallId, runId);
-  const result = moveRun(room, wallId, runId, target.center - run.width / 2, settings, { exact: true });
-  if (!result.ok) return { ...result, target, off: null };
-  const moved = findRun(result.room, wallId, runId).run;
-  return { ...result, target, off: moved.x + moved.width / 2 - target.center };
+  const resolved = syncRoom(room, settings);
+  const { wall, run } = findRun(resolved, wallId, runId);
+  if (['left', 'right'].some((side) => run.anchors?.[side] && !isJointAnchor(run.anchors[side]))) {
+    return { ok: false, reason: 'anchored', room, target };
+  }
+  const targetRun = wall.runs.find((candidate) => candidate.id === target.runId);
+  const item = target.itemId === null ? null : runItems(targetRun).find(({ id }) => id === target.itemId);
+  const entity = target.itemId === null ? targetRun : item;
+  const existing = entity?.attach && findLine(wall, entity.attach.lineId);
+  const side = wallSideOf(run);
+  const length = wallFrame(resolved, wall).length;
+  const reuse = existing && wallSideOf(existing) === side;
+  const from = target.center <= length / 2 ? 'left' : 'right';
+  const line = reuse ? existing : {
+    id: lineId,
+    label: nextLineLabel(wall, side),
+    ...(side === 'back' ? { wallSide: 'back' } : {}),
+    from,
+    value: from === 'left' ? target.center : length - target.center,
+  };
+  const targetAttached = Boolean(reuse || target.itemId === null || (item && ATTACHABLE_KINDS.has(item.kind) && !item.pin));
+  const attach = { lineId: line.id, at: 'center', offset: 0 };
+  const runs = wall.runs.map((candidate) => {
+    if (candidate.id === runId) {
+      return { ...candidate, attach: { ...attach, offset: reuse ? target.center - lineX(line, length) : 0 } };
+    }
+    if (candidate.id !== target.runId || reuse || !targetAttached) return candidate;
+    return item ? attachTargetColumn(resolved, wall, candidate, item, attach, settings) : { ...candidate, attach };
+  });
+  const nextWall = { ...wall, runs, ...(!reuse ? { lines: [...(wall.lines ?? []), line] } : {}) };
+  const next = { ...resolved, walls: resolved.walls.map((candidate) => candidate.id === wallId ? nextWall : candidate) };
+  return { ok: true, reason: null, room: syncRoom(next, settings), target, lineId: line.id, targetAttached };
+}
+
+/** The shared success message for the store click and the canvas chooser. */
+export function centerOverMessage(result) {
+  const line = result.room.walls.flatMap((wall) => wall.lines ?? []).find(({ id }) => id === result.lineId);
+  return result.targetAttached
+    ? `Centred on ${line.label}. Move ${line.label} to move both.`
+    : `Centred on ${line.label}. That cell can't attach to a line yet, so ${line.label} won't follow it.`;
 }

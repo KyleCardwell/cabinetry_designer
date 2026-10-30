@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { screenToWall } from '../../canvas/transform.js';
-import { centerOverTargets, centerRunOver, targetsAt } from '../../model/centerOver.js';
+import { centerOverMessage, centerOverTargets, centerRunOver, targetsAt } from '../../model/centerOver.js';
 import { isJointAnchor, jointMembers } from '../../model/joints.js';
-import { formatInches } from '../../model/units.js';
 import { wallSideOf, wallSideView } from '../../model/wallSides.js';
 import {
+  centerRunOnLine,
   endCenterPick,
-  replaceRun,
-  replaceWallLayout,
   setMessage,
   startCenterPick,
 } from '../../store/elevationSlice.js';
@@ -16,7 +14,6 @@ import {
 export const CENTER_PICK_PROMPT = 'Center over: click a cell (Esc to cancel)';
 export const CENTER_ANCHORED = 'Anchored — set Anchor to Free to center';
 export const CENTER_NOTHING = 'Nothing on this wall to center over';
-const OFF_TOLERANCE = 1 / 64;
 const IDLE = { hovered: null, chooser: null };
 
 /** Why run `run` can't start "Center over…", or null when it can (SPEC-CV1 §1.5). */
@@ -35,24 +32,10 @@ export function requestCenterPick({ room, wallId, run, settings, dispatch, showM
   return !refusal;
 }
 
-/** Message for a finished center-over result (SPEC-CV1 §1.6), or null when nothing needs saying. */
+/** Message for a finished live center-over result. */
 export function centerResultMessage(result) {
   if (!result.ok) return result.reason === 'anchored' ? CENTER_ANCHORED : result.reason;
-  return Math.abs(result.off ?? 0) > OFF_TOLERANCE
-    ? `Centered as far as it goes — ${formatInches(Math.abs(result.off))} off`
-    : null;
-}
-
-/** Commit a successful center-over result the way run move commits (one dispatch). */
-export function commitCenterResult(dispatch, wallId, runId, result) {
-  const resolvedWall = result.room.walls.find((candidate) => candidate.id === wallId);
-  if (!resolvedWall) return;
-  if (result.joints) {
-    dispatch(replaceWallLayout({ wallId, runs: resolvedWall.runs, joints: resolvedWall.joints }));
-  } else {
-    const run = resolvedWall.runs.find((candidate) => candidate.id === runId);
-    if (run) dispatch(replaceRun({ wallId, run }));
-  }
+  return centerOverMessage(result);
 }
 
 /** The stretch preview a center-over result draws: the moved run plus its joint neighbours. */
@@ -125,19 +108,19 @@ export default function useCenterPick({
     return () => globalThis.removeEventListener('keydown', handleKeyDown, true);
   }, [active, end, ui.chooser]);
 
-  const tryCenter = useCallback((target, fromRoom = room) => (
-    centerRunOver(fromRoom, wall.id, run.id, target.key, settings)
+  const tryCenter = useCallback((target) => (
+    centerRunOver(room, wall.id, run.id, target.key, settings, { lineId: 'center-preview' })
   ), [room, run, settings, wall]);
 
-  const hover = useCallback((target, pointer, fromRoom = room) => {
+  const hover = useCallback((target, pointer) => {
     if (!target) {
       setStretchPreview(null);
       return null;
     }
-    const result = tryCenter(target, fromRoom);
+    const result = tryCenter(target);
     setStretchPreview(centerPreview(result, wall.id, run.id, side));
     return { target, pointer, refused: result.ok ? null : centerResultMessage(result) };
-  }, [room, run, setStretchPreview, side, tryCenter, wall]);
+  }, [run, setStretchPreview, side, tryCenter, wall]);
 
   const hitAtPointer = useCallback(() => {
     const pointer = stageRef.current?.getPointerPosition();
@@ -172,7 +155,7 @@ export default function useCenterPick({
       return;
     }
     const result = tryCenter(hits[0]);
-    if (result.ok) commitCenterResult(dispatch, wall.id, run.id, result);
+    if (result.ok) dispatch(centerRunOnLine({ wallId: wall.id, runId: run.id, targetKey: result.target.key }));
     if (hits.length < 2) {
       end(centerResultMessage(result));
       return;
@@ -183,20 +166,19 @@ export default function useCenterPick({
       chooser: {
         x: pointer.x,
         y: pointer.y,
-        baseRoom: room,
         message: centerResultMessage(result),
         candidates: hits.map((target) => ({ ...target, kind: target.kind })),
         activeKey: hits[0].key,
         hoverKey: null,
       },
     });
-  }, [active, dispatch, end, hitAtPointer, room, run, setStretchPreview, tryCenter, ui.chooser, wall]);
+  }, [active, dispatch, end, hitAtPointer, run, setStretchPreview, tryCenter, ui.chooser, wall]);
 
   const hoverChoice = useCallback((key) => {
     if (!ui.chooser) return;
     const target = ui.chooser.candidates.find((candidate) => candidate.key === key) ?? null;
     setUi({
-      hovered: target ? hover(target, null, ui.chooser.baseRoom) : hover(null),
+      hovered: target ? hover(target, null) : hover(null),
       chooser: { ...ui.chooser, hoverKey: key },
     });
   }, [hover, ui]);
@@ -209,8 +191,8 @@ export default function useCenterPick({
       end(chooser.message);
       return;
     }
-    const result = tryCenter(target, chooser.baseRoom);
-    if (result.ok) commitCenterResult(dispatch, wall.id, run.id, result);
+    const result = tryCenter(target);
+    if (result.ok) dispatch(centerRunOnLine({ wallId: wall.id, runId: run.id, targetKey: result.target.key }));
     end(centerResultMessage(result));
   }, [dispatch, end, run, tryCenter, ui.chooser, wall]);
 

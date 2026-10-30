@@ -14,15 +14,18 @@ import {
   startFromReadout,
   stretchedStart,
 } from '../../model/index.js';
+import { findLine, linesOn } from '../../model/layoutLines.js';
+import { wallSideOf } from '../../model/wallSides.js';
 import { formatRunOverhang } from '../../properties/helpers.js';
 import { isPanelOnlyRun } from '../../model/wallEndPanels.js';
 import {
-  resizeRun, setRunHoldWidth, setRunRecess, startCenterPick,
+  attachRunToNewLine, resizeRun, setAttachment, setRunHoldWidth, setRunRecess, startCenterPick,
 } from '../../store/elevationSlice.js';
 import { centerPickRefusal } from '../canvas/useCenterPick.js';
 import InchInput from '../InchInput.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import StretchInput from './StretchInput.jsx';
+import LineAttachSection from './LineAttachSection.jsx';
 
 export default function RunGeometrySection({
   room = null,
@@ -35,6 +38,8 @@ export default function RunGeometrySection({
   validateAndDispatch,
 }) {
   const dispatch = useDispatch();
+  const attach = run.attach ?? null;
+  const line = attach ? findLine(wall, attach.lineId) : null;
   const panelOnly = isPanelOnlyRun(run);
   const overhang = formatRunOverhang(run, wall.length);
   const leftGrowLocked = run.anchors.left && !isJointAnchor(run.anchors.left);
@@ -167,7 +172,7 @@ export default function RunGeometrySection({
             <Fragment key={side}>
               <span className="text-xs capitalize text-gray-400">{side} end</span>
               {['edge', 'center'].map((anchor) => {
-                const readOnly = run.anchors[side];
+                const readOnly = attach || run.anchors[side];
                 const className = anchor === 'center' ? 'opacity-60' : '';
                 const ariaLabel = `Run ${side} ${anchor} position`;
                 return (
@@ -226,6 +231,20 @@ export default function RunGeometrySection({
         {overhang && (
           <p className="mt-2 text-xs font-medium text-amber-300">{overhang}</p>
         )}
+        <div className="mt-3 border-t border-gray-700 pt-3">
+          <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">Layout line</div>
+          <LineAttachSection
+            lines={linesOn(wall, wallSideOf(run))}
+            attach={attach}
+            line={line}
+            ariaPrefix="Run"
+            onAttach={(next) => dispatch(setAttachment({
+              ...actionBase, target: { kind: 'run', runId: run.id }, attach: next,
+            }))}
+            onNewLine={() => dispatch(attachRunToNewLine({ ...actionBase, at: 'center' }))}
+            note={line ? `Moves with ${line.label}. To move this run, change ${line.label} or detach.` : undefined}
+          />
+        </div>
       </PanelSection>
   );
 }

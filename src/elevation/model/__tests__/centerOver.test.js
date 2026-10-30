@@ -1,8 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { centerOverTargets, centerRunOver, targetsAt } from '../centerOver.js';
+import { centerOverMessage, centerOverTargets, centerRunOver, targetsAt } from '../centerOver.js';
+import { runItems, updateRootItem } from '../grid.js';
+import { syncRoom } from '../roomSync.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { auto, fixed, room, run, wall } from '../../../test/builders.js';
+import { attach, auto, fixed, line, room, run, wall } from '../../../test/builders.js';
 
 const stored = JSON.parse(readFileSync(new URL('./fixtures/room8.json', import.meta.url), 'utf8'));
 const settings8 = { ...DEFAULT_SETTINGS, ...stored.settingsOverrides };
@@ -87,10 +89,17 @@ describe('CV1 step a: center-over targets', () => {
   });
 });
 
-describe('CV1 step a: centerRunOver', () => {
+describe('LL4 f: live centerRunOver', () => {
   it('anchor 6: centers the Room 8 hood on the open cell and moves both joints', () => {
-    const result = centerRunOver(stored, WALL, HOOD, `${BASE}:${VOID}`, settings8);
-    expect(result).toMatchObject({ ok: true, joints: true, off: 0 });
+    const result = centerRunOver(stored, WALL, HOOD, `${BASE}:${VOID}`, settings8, { lineId: 'N' });
+    expect(result).toMatchObject({ ok: true, reason: null, lineId: 'N', targetAttached: true });
+    expect(wallOf(result).lines).toEqual([{ id: 'N', label: 'L1', from: 'right', value: 98.5 }]);
+    expect(runOf(result, HOOD).attach).toEqual(attach('N'));
+    expect(runItems(runOf(result, BASE)).find(({ id }) => id === VOID).attach).toEqual(attach('N'));
+    expect(result.target.rect.x).toBe(112.5);
+    expect(centerOverTargets(result.room, WALL, HOOD, settings8).find(({ itemId }) => itemId === VOID).rect.x).toBe(112.5);
+    expect(centerOverMessage(result)).toBe('Centred on L1. Move L1 to move both.');
+    expect(stored.walls.find(({ id }) => id === WALL).lines).toBeUndefined();
     expect(runOf(result, HOOD)).toMatchObject({ x: 96.5, width: 80 });
     expect(runOf(result, LEFT_UPPER)).toMatchObject({ x: 38, width: 58.5 });
     expect(runOf(result, RIGHT_UPPER)).toMatchObject({ x: 176.5, width: 58.5 });
@@ -99,36 +108,41 @@ describe('CV1 step a: centerRunOver', () => {
   });
 
   it('anchor 7: centers over the whole base run', () => {
-    const result = centerRunOver(stored, WALL, HOOD, `${BASE}:run`, settings8);
-    expect(result.ok).toBe(true);
-    expect(runOf(result, HOOD)).toMatchObject({ x: 96.5, width: 80 });
+    const result = centerRunOver(stored, WALL, HOOD, `${BASE}:run`, settings8, { lineId: 'N' });
+    expect(result).toMatchObject({ ok: true, targetAttached: true });
+    expect(runOf(result, BASE).attach).toEqual(attach('N'));
+    expect(runOf(result, HOOD)).toMatchObject({ x: 96.5, width: 80, attach: attach('N') });
   });
 
-  it('anchor 8: stops at the left upper minimum and reports how far off it is', () => {
-    const result = centerRunOver(stored, WALL, HOOD, `${BASE}:${FIRST_CAB}`, settings8);
+  it('anchor 8: centers exactly over the same far cabinet without the old minimum clamp', () => {
+    const result = centerRunOver(stored, WALL, HOOD, `${BASE}:${FIRST_CAB}`, settings8, { lineId: 'N' });
     expect(result.ok).toBe(true);
-    expect(result.limit).toMatchObject({ runId: LEFT_UPPER });
-    expect(runOf(result, HOOD).x).toBeGreaterThan(38);
-    expect(runOf(result, HOOD).width).toBe(80);
-    expect(result.off).toBeGreaterThan(0);
+    expect(result.target.center).toBe(57);
+    expect(runOf(result, HOOD)).toMatchObject({ x: 17, width: 80, attach: attach('N') });
+    expect(jointX(result, HOOD_LEFT_JOINT)).toBe(17);
+    expect(jointX(result, HOOD_RIGHT_JOINT)).toBe(97);
   });
 
   it('anchor 9: moves a free run without joints', () => {
     const subject = small([baseRun(), upperRun()]);
     const target = centerOverTargets(subject, 'wall-1', 'up', settings).find((entry) => entry.key === 'base:v');
-    const result = centerRunOver(subject, 'wall-1', 'up', 'base:v', settings);
-    expect(result).toMatchObject({ ok: true, joints: false, off: 0 });
+    const result = centerRunOver(subject, 'wall-1', 'up', 'base:v', settings, { lineId: 'N' });
+    expect(result).toMatchObject({ ok: true, lineId: 'N', targetAttached: true });
     expect(result.room.walls[0].runs.find(({ id }) => id === 'up').x).toBeCloseTo(target.center - 15, 9);
   });
 
   it('anchor 10: cells inside split columns are targets of their own', () => {
     const subject = small([baseRun(split), upperRun()]);
+    subject.walls[0].lines = [line('existing', 20, { label: 'L1' })];
     const targets = centerOverTargets(subject, 'wall-1', 'up', settings);
     const cells = ['mid-a', 'mid-b'].map((id) => targets.find((entry) => entry.key === `base:${id}`));
     expect(cells.map((entry) => entry?.rect.width)).toEqual([12, 12]);
     expect(cells[1].rect.x - cells[0].rect.x).toBeGreaterThanOrEqual(12);
-    const result = centerRunOver(subject, 'wall-1', 'up', 'base:mid-b', settings);
+    const result = centerRunOver(subject, 'wall-1', 'up', 'base:mid-b', settings, { lineId: 'N' });
     expect(result.room.walls[0].runs.find(({ id }) => id === 'up').x).toBeCloseTo(cells[1].center - 15, 9);
+    expect(result).toMatchObject({ ok: true, lineId: 'N', targetAttached: false });
+    expect(runItems(result.room.walls[0].runs[0]).every((item) => !item.attach)).toBe(true);
+    expect(centerOverMessage(result)).toBe("Centred on L2. That cell can't attach to a line yet, so L2 won't follow it.");
   });
 
   it('anchor 11: refuses a run anchored to the wall end', () => {
@@ -153,4 +167,60 @@ describe('CV1 step a: centerRunOver', () => {
     const runIds = new Set(centerOverTargets(subject, 'wall-1', 'up', settings).map((entry) => entry.runId));
     expect([...runIds]).toEqual(['base']);
   });
+});
+
+describe('LL4 f: shared target lines', () => {
+  it('anchor 2: moving the new Room 8 line to 99 moves the hood, joints and open together', () => {
+    const centered = centerRunOver(stored, WALL, HOOD, `${BASE}:${VOID}`, settings8, { lineId: 'N' });
+    const edited = structuredClone(centered.room);
+    edited.walls.find(({ id }) => id === WALL).lines[0].value = 99;
+    const result = { room: syncRoom(edited, settings8) };
+    expect(runOf(result, HOOD)).toMatchObject({ x: 96, width: 80 });
+    expect(runOf(result, LEFT_UPPER)).toMatchObject({ x: 38, width: 58 });
+    expect(runOf(result, RIGHT_UPPER)).toMatchObject({ x: 176, width: 59 });
+    expect(jointX(result, HOOD_LEFT_JOINT)).toBe(96);
+    expect(jointX(result, HOOD_RIGHT_JOINT)).toBe(176);
+    expect(centerOverTargets(result.room, WALL, HOOD, settings8).find(({ itemId }) => itemId === VOID))
+      .toMatchObject({ rect: { x: 112, width: 48 }, center: 136 });
+  });
+
+  it('anchor 3: reuses the open column’s left-edge line with a 24-inch centre offset', () => {
+    const source = structuredClone(stored);
+    const wall = source.walls.find(({ id }) => id === WALL);
+    wall.lines = [line('existing', 112.5)];
+    const base = wall.runs.find(({ id }) => id === BASE);
+    base.grid = updateRootItem(base.grid, VOID, { attach: attach('existing', 'left') });
+    const result = centerRunOver(source, WALL, HOOD, `${BASE}:${VOID}`, settings8, { lineId: 'unused' });
+    expect(wallOf(result).lines).toEqual(wall.lines);
+    expect(result).toMatchObject({ lineId: 'existing', targetAttached: true });
+    expect(runOf(result, HOOD)).toMatchObject({ x: 96.5, width: 80, attach: attach('existing', 'center', 24) });
+    expect(runItems(runOf(result, BASE)).find(({ id }) => id === VOID).attach).toEqual(attach('existing', 'left'));
+  });
+
+  it('uses the back face, nearer end and next face label, then reuses a whole-run attachment', () => {
+    const source = room({ walls: [wall({ x2: 240, lines: [line('front', 10, { label: 'L1' })], runs: [
+      run({ id: 'base', wallSide: 'back', x: 150, width: 60 }),
+      run({ id: 'up', wallSide: 'back', x: 0, width: 30, z: 54 }),
+    ] })] });
+    const first = centerRunOver(source, 'wall-1', 'up', 'base:run', settings, { lineId: 'back' });
+    expect(first.room.walls[0].lines[1]).toEqual({ id: 'back', label: 'L1', wallSide: 'back', from: 'right', value: 60 });
+    expect(first.room.walls[0].runs[1]).toMatchObject({ x: 165, width: 30, attach: attach('back') });
+    const second = centerRunOver(first.room, 'wall-1', 'up', 'base:run', settings, { lineId: 'unused' });
+    expect(second.lineId).toBe('back');
+    expect(second.room.walls[0].lines).toEqual(first.room.walls[0].lines);
+  });
+});
+
+it('attaching a second root target locks both widths', () => {
+  const subject = room({ walls: [wall({ x2: 240, lines: [line('first', 45, { label: 'L1' })], runs: [
+    run({ id: 'base', width: 90, ends: none, autoCount: false,
+      items: [auto('A'), { ...auto('B'), attach: attach('first') }, auto('C')] }),
+    run({ id: 'up', width: 20, z: 54, ends: none }),
+  ] })] });
+  const result = centerRunOver(subject, 'wall-1', 'up', 'base:C', { ...settings, runFlex: 0 }, { lineId: 'second' });
+  const target = result.room.walls[0].runs[0];
+  expect(target.autoCount).toBe(false);
+  expect(runItems(target).map(({ width }) => width)).toEqual([null, 30, 30]);
+  expect(runItems(target).map(({ attach }) => attach)).toEqual([undefined, attach('first'), attach('second')]);
+  expect(result.targetAttached).toBe(true);
 });

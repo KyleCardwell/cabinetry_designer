@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid';
+import { centerOverMessage, centerRunOver } from '../../model/centerOver.js';
 import { ATTACHABLE_KINDS } from '../../model/constants.js';
 import { wallFrame } from '../../model/geometry.js';
 import { runItems, updateRootItem } from '../../model/grid.js';
@@ -175,6 +176,42 @@ export const lineReducers = {
     },
     prepare(payload = {}) {
       return { payload: { ...payload, id: payload.id ?? uuid() } };
+    },
+  },
+
+  /** LL4: a line through the run's current point; attaching leaves its geometry unchanged. */
+  attachRunToNewLine: {
+    reducer(state, action) {
+      const { runId, at = 'center', id } = action.payload;
+      if (!ATTACH_AT.includes(at)) return;
+      const location = wallLocation(state, action.payload);
+      const run = location?.wall.runs.find((candidate) => candidate.id === runId);
+      if (!run) return;
+      const length = wallFrame(location.room, location.wall).length;
+      const line = lineThrough(location.wall, wallSideOf(run), run.x + AT_FRACTION[at] * run.width, length, id);
+      location.wall.lines = [...(location.wall.lines ?? []), line];
+      run.attach = { lineId: id, at, offset: 0 };
+      syncRoomAt(state, location.roomIndex);
+    },
+    prepare(payload = {}) {
+      return { payload: { ...payload, id: payload.id ?? uuid() } };
+    },
+  },
+
+  /** One undo step: resolve the live target on the stored room and attach both things to a line. */
+  centerRunOnLine: {
+    reducer(state, action) {
+      const location = wallLocation(state, action.payload);
+      if (!location) return;
+      const { runId, targetKey, lineId } = action.payload;
+      const result = centerRunOver(location.room, location.wall.id, runId, targetKey,
+        settingsFor(state, location.room), { lineId });
+      if (!result.ok) return;
+      state.rooms[location.roomIndex] = result.room;
+      state.message = centerOverMessage(result);
+    },
+    prepare(payload = {}) {
+      return { payload: { ...payload, lineId: payload.lineId ?? uuid() } };
     },
   },
 
