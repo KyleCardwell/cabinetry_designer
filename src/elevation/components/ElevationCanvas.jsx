@@ -51,6 +51,7 @@ import useRunMove from './canvas/useRunMove.js';
 import useCenterPick, { requestCenterPick } from './canvas/useCenterPick.js';
 import CenterPickOverlay from './CenterPickOverlay.jsx';
 import useJointDrag from './canvas/useJointDrag.js';
+import useLineDrag from './canvas/useLineDrag.js';
 import usePicker from './canvas/usePicker.js';
 import useWallOverlays from './canvas/useWallOverlays.js';
 import { useDimensionChains, useDimensionOffsets } from './canvas/useDimensionLayout.js';
@@ -196,7 +197,7 @@ function ElevationCanvas({
       && tool !== 'soffit'
     ) cancelEntry();
     else if (
-      (entry?.kind === 'run-edge' || entry?.kind === 'run-move')
+      (entry?.kind === 'run-edge' || entry?.kind === 'run-move' || entry?.kind === 'line-move')
       && tool !== 'select'
     ) cancelEntry();
   }, [cancelEntry, entry?.kind, tool]);
@@ -477,6 +478,11 @@ function ElevationCanvas({
     wall,
   });
 
+  const { startLineDrag, updateLineDrag, finishLineDrag } = useLineDrag({
+    beginEntry, cancelEntry, commitEntry, cursor, dispatch, entry, entryRef, entryValue,
+    liveGestureRef, room, setEntryPointer, setStretchPreview, settings, stageRef, updateEntry, wall,
+  });
+
   return (
     <div
       ref={containerRef}
@@ -544,6 +550,9 @@ function ElevationCanvas({
             setDividerEdit={setDividerEdit} moveDivider={moveDivider}
             editTrack={editTrack} startStretch={startStretch}
             updateStretch={updateStretch} finishStretch={finishStretch}
+            startLineDrag={combined ? undefined : startLineDrag}
+            updateLineDrag={combined ? undefined : updateLineDrag}
+            finishLineDrag={combined ? undefined : finishLineDrag}
             startJointDrag={startJointDrag} previewJointDrag={previewJointDrag}
             finishJointDrag={finishJointDrag} unjoinRunSide={unjoinRunSide}
             hoveredGlyphId={hoveredGlyphId} setHoveredGlyphId={setHoveredGlyphId}

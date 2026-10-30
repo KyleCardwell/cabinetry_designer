@@ -41,6 +41,9 @@ export default function WallContentLayer({
   startStretch,
   updateStretch,
   finishStretch,
+  startLineDrag,
+  updateLineDrag,
+  finishLineDrag,
   startJointDrag,
   previewJointDrag,
   finishJointDrag,
@@ -131,6 +134,9 @@ export default function WallContentLayer({
               wall={wall}
               transform={transform}
               selectedLineId={selection.lineId ?? null}
+              onDragStart={tool === 'select' ? startLineDrag : undefined}
+              onDragMove={tool === 'select' ? updateLineDrag : undefined}
+              onDragEnd={tool === 'select' ? finishLineDrag : undefined}
               onSelect={tool === 'select' ? selectLine : undefined}
               cursor={cursor}
             />

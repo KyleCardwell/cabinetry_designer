@@ -64,3 +64,42 @@ describe('LL3 layout lines on the elevation', () => {
     expect(OpeningShape(props).props.draggable).toBe(true);
   });
 });
+
+describe('LL5 b draggable layout lines', () => {
+  it('anchor 1: only the selected line with drag handlers is draggable, with the appropriate cursor', () => {
+    const onDragStart = vi.fn();
+    const cursor = { request: vi.fn(), release: vi.fn() };
+    for (const selected of [true, false]) {
+      const tree = nodes(LayoutLines({ wall: face, transform, selectedLineId: selected ? 'L1' : null, onDragStart, cursor }));
+      const drag = tree.find(({ props }) => props.dragBoundFunc);
+      expect(drag.props.draggable).toBe(selected);
+      drag.props.onMouseEnter();
+      expect(cursor.request).toHaveBeenLastCalledWith(expect.any(String), selected ? 'ew-resize' : 'pointer');
+    }
+    const tree = nodes(LayoutLines({ wall: face, transform, selectedLineId: 'L1' }));
+    expect(tree.find(({ props }) => props.dragBoundFunc).props.draggable).toBe(false);
+  });
+
+  it('converts the group’s screen delta to face x, keeps y fixed, resets on release, and leaves the dimension stored', () => {
+    const onDragStart = vi.fn();
+    const onDragMove = vi.fn();
+    const position = vi.fn();
+    const target = { x: () => 68, position };
+    const onDragEnd = vi.fn(() => expect(position).toHaveBeenCalledWith({ x: 0, y: 0 }));
+    const props = { wall: { ...face, lines: [line('L1', 140, { from: 'right' })] }, transform,
+      selectedLineId: 'L1', onDragStart, onDragMove, onDragEnd };
+    const tree = nodes(LayoutLines(props));
+    const drag = tree.find(({ props }) => props.dragBoundFunc);
+    expect(drag.props.dragBoundFunc({ x: 68, y: 50 })).toEqual({ x: 68, y: 0 });
+    for (const handler of ['onDragStart', 'onDragMove', 'onDragEnd']) {
+      const event = { target, cancelBubble: false };
+      drag.props[handler](event);
+      expect(event.cancelBubble).toBe(true);
+    }
+    expect(onDragStart).toHaveBeenCalledWith('L1');
+    expect(onDragMove).toHaveBeenCalledWith('L1', 134);
+    expect(onDragEnd).toHaveBeenCalledWith('L1', 134);
+    expect(nodes(drag).filter(({ type }) => type === Text).map(({ props }) => props.text)).toEqual(['L1']);
+    expect(tree.filter(({ type }) => type === Text).map(({ props }) => props.text)).toEqual(['L1', '140"']);
+  });
+});

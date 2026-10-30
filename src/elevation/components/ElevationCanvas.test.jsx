@@ -539,3 +539,45 @@ it('step b anchor 3: clicking a run dimension twice only selects, with no drag h
   });
   expect(tree[0].props.style.cursor).not.toBe('move');
 });
+
+it('LL5 b anchor 6: switching tools cancels a line drag without a layout dispatch', async () => {
+  const { line } = await import('../../test/builders.js');
+  state = structuredClone(state);
+  state.rooms[0].walls[0].lines = [line('L1', 27)];
+  state.selection = { lineId: 'L1' };
+  render();
+  node(WallContentLayer).props.startLineDrag('L1');
+  render();
+  node(WallContentLayer).props.updateLineDrag('L1', 35);
+  render();
+  expect(node(LiveEntryInput).props.entry).toMatchObject({ kind: 'line-move', value: 35 });
+  expect(node(ElevationPreviews).props.stretchPreview).not.toBeNull();
+  dispatch(setTool('draw'));
+  dispatch.mockClear();
+  render();
+  expect(active()).toBe(false);
+  expect(node(ElevationPreviews).props.stretchPreview).toBeNull();
+  expect(state.rooms[0].walls[0].lines[0].value).toBe(27);
+  expect(dispatch).not.toHaveBeenCalled();
+  // The content layer removes all line drag handlers outside the select tool.
+  const { default: LayoutLines } = await import('./LayoutLines.jsx');
+  const layout = tree.find(({ type }) => type === LayoutLines);
+  expect(layout.props.onDragStart).toBeUndefined();
+  expect(layout.props.onDragMove).toBeUndefined();
+  expect(layout.props.onDragEnd).toBeUndefined();
+  dispatch(setTool('select'));
+  render();
+  node(WallContentLayer).props.startLineDrag('L1');
+  render();
+  node(WallContentLayer).props.updateLineDrag('L1', 40);
+  render();
+  dispatch.mockClear();
+  key('Escape');
+  expect(active()).toBe(false);
+  expect(node(ElevationPreviews).props.stretchPreview).toBeNull();
+  expect(dispatch).not.toHaveBeenCalled();
+  // Konva may deliver dragend after cancellation; it must not resurrect the entry.
+  node(WallContentLayer).props.finishLineDrag('L1', 40);
+  render();
+  expect(dispatch).not.toHaveBeenCalled();
+});

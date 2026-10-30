@@ -39,7 +39,9 @@ function SelectedDimension({ line, x, wallLength, top, transform }) {
 }
 
 /** One face's layout lines: dashed, floor to wall top, label above; the selected one shows its distance. */
-export default function LayoutLines({ wall, transform, selectedLineId, onSelect, cursor }) {
+export default function LayoutLines({
+  wall, transform, selectedLineId, onSelect, cursor, onDragStart, onDragMove, onDragEnd,
+}) {
   const cursorKeys = useCursorKeys(cursor);
   if (!wall || !transform) return null;
   const lines = linesOn(wall);
@@ -55,32 +57,51 @@ export default function LayoutLines({ wall, transform, selectedLineId, onSelect,
         const key = `line:${line.id}`;
         return (
           <Group key={line.id}>
-            <Line
-              points={[bottom.x, bottom.y, top.x, top.y]}
-              stroke={LINE_COLOR}
-              strokeWidth={selected ? 2 : 1}
-              dash={DASH}
-              hitStrokeWidth={HIT_WIDTH}
-              listening={Boolean(onSelect)}
+            <Group
+              draggable={selected && Boolean(onDragStart)}
               onMouseDown={(event) => { event.cancelBubble = true; }}
               onClick={(event) => {
                 event.cancelBubble = true;
                 onSelect?.(line.id);
               }}
-              onMouseEnter={() => cursorKeys.request(key, CURSORS.select)}
+              onMouseEnter={() => cursorKeys.request(key, selected ? CURSORS.resizeX : CURSORS.select)}
               onMouseLeave={() => cursorKeys.release(key)}
-            />
-            <Text
-              x={top.x - 30}
-              y={top.y - LABEL_GAP_PX}
-              width={60}
-              align="center"
-              text={line.label}
-              fontSize={FONT_SIZE}
-              fontStyle={selected ? 'bold' : 'normal'}
-              fill={LINE_COLOR}
-              listening={false}
-            />
+              dragBoundFunc={(position) => ({ x: position.x, y: 0 })}
+              onDragStart={(event) => {
+                event.cancelBubble = true;
+                onDragStart?.(line.id);
+              }}
+              onDragMove={(event) => {
+                event.cancelBubble = true;
+                onDragMove?.(line.id, x + event.target.x() / transform.scale);
+              }}
+              onDragEnd={(event) => {
+                event.cancelBubble = true;
+                const nextX = x + event.target.x() / transform.scale;
+                event.target.position({ x: 0, y: 0 });
+                onDragEnd?.(line.id, nextX);
+              }}
+            >
+              <Line
+                points={[bottom.x, bottom.y, top.x, top.y]}
+                stroke={LINE_COLOR}
+                strokeWidth={selected ? 2 : 1}
+                dash={DASH}
+                hitStrokeWidth={HIT_WIDTH}
+                listening={Boolean(onSelect)}
+              />
+              <Text
+                x={top.x - 30}
+                y={top.y - LABEL_GAP_PX}
+                width={60}
+                align="center"
+                text={line.label}
+                fontSize={FONT_SIZE}
+                fontStyle={selected ? 'bold' : 'normal'}
+                fill={LINE_COLOR}
+                listening={Boolean(onSelect)}
+              />
+            </Group>
             {selected && (
               <SelectedDimension line={line} x={x} wallLength={wallLength} top={top.y} transform={transform} />
             )}
