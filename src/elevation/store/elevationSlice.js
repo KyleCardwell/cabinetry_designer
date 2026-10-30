@@ -14,6 +14,7 @@ import {
 import { roomReducers } from './slices/rooms.js';
 import { wallReducers } from './slices/walls.js';
 import { featureReducers } from './slices/features.js';
+import { lineReducers } from './slices/lines.js';
 import { runReducers } from './slices/runs.js';
 import { itemReducers } from './slices/items.js';
 import { cellReducers } from './slices/cells.js';
@@ -91,6 +92,7 @@ const elevationSlice = createSlice({
     ...roomReducers,
     ...wallReducers,
     ...featureReducers,
+    ...lineReducers,
     ...runReducers,
     ...itemReducers,
     ...cellReducers,
@@ -193,6 +195,10 @@ export const {
   setItemWidth,
   setColumnStep,
   setItemPin,
+  addLayoutLine,
+  updateLayoutLine,
+  deleteLayoutLine,
+  setAttachment,
   setItemAbsorb,
   setCabinetPurpose,
   setCabinetSlide,
