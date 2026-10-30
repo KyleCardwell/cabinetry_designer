@@ -64,6 +64,32 @@ export function pinTargetsForRun(run, wall, wallLengthValue) {
   }));
 }
 
+/**
+ * LL4.1 b: a column on a line at a free run end (attached by that outer edge, nothing after it but the
+ * run's end piece). The line sets that run edge; the run then lays out by the normal rules, as if its
+ * width were typed, so the column isn't a segment target. Structure only: `pinTargets` says which
+ * attachments resolve. Returns `{ left?: itemId, right?: itemId }`.
+ */
+export function lineEndColumns(run, pinTargets) {
+  const items = runItems(run);
+  const ends = {};
+  for (const [side, item] of [['left', items[0]], ['right', items[items.length - 1]]]) {
+    if (item?.attach?.at === side && PINNABLE_KINDS.has(item.kind) && !run.anchors?.[side]
+      && Number.isFinite(pinTargets?.[item.id])) {
+      ends[side] = item.id;
+    }
+  }
+  if (ends.left && ends.left === ends.right) delete ends.right;
+  return ends;
+}
+
+/** The segment targets the split uses: every target except end columns (LL4.1 b). */
+export function segmentTargets(run, pinTargets) {
+  const ends = Object.values(lineEndColumns(run, pinTargets));
+  if (!ends.length) return pinTargets;
+  return Object.fromEntries(Object.entries(pinTargets).filter(([id]) => !ends.includes(id)));
+}
+
 function storedEndMinimum(end, settings, thickness) {
   if (end.type === 'end_panel') return end.width ?? thickness ?? teamDoorStyle(settings).thickness;
   if (end.type === 'filler' || end.type === 'blind') {
@@ -124,24 +150,50 @@ function growRight(run, desiredRight, wall, wallLengthValue, settings) {
   return { ...run, width: valid - run.x };
 }
 
-/** Attached columns with no outer auto cabinet/void set a free edge exactly; other ends grow only. */
-export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTargets) {
+/**
+ * Attached columns with no outer auto cabinet/void set a free edge exactly; other ends grow only.
+ * LL4.1 b: an end column sets its run edge (line + the end piece) and is then left to the normal split.
+ * `opts` are the run's split options (end minimums) so shared widths match the drawn ones.
+ */
+export function resolvePinnedSpan(run, wall, wallLengthValue, settings, allTargets, opts = {}) {
   const items = runItems(run);
+  const ends = lineEndColumns(run, allTargets);
+  let current = run;
+  if (ends.left) {
+    const x = allTargets[ends.left] - lineEndMinimum(run, settings, ends.left, 'left');
+    current = { ...current, x, width: Math.max(0, run.x + run.width - x) };
+  }
+  if (ends.right) {
+    const right = allTargets[ends.right] + lineEndMinimum(run, settings, ends.right, 'right');
+    current = { ...current, width: Math.max(0, right - current.x) };
+  }
+  const held = { left: Boolean(ends.left), right: Boolean(ends.right) };
+  if (held.left || held.right) {
+    current = { ...current, anchors: { ...current.anchors, ...(held.left ? { left: true } : {}), ...(held.right ? { right: true } : {}) } };
+  }
+  const pinTargets = segmentTargets(run, allTargets);
+  const storedAnchors = run.anchors;
+  const restore = (resolved) => ({ ...resolved, anchors: storedAnchors });
   const pinned = items
     .map((item, itemIndex) => ({ item, itemIndex, target: pinTargets[item.id] }))
     .filter(({ item, target }) => PINNABLE_KINDS.has(item.kind)
       && placedAt(item)
       && Number.isFinite(target));
   if (pinned.length === 0) {
-    if (!run._pinWidths) return run;
-    const { _pinWidths, ...withoutPinWidths } = run;
+    const base = held.left || held.right ? restore(current) : run;
+    if (!base._pinWidths) return base;
+    const { _pinWidths, ...withoutPinWidths } = base;
     void _pinWidths;
     return withoutPinWidths;
   }
+  run = current;
 
   const pass1 = splitRun(run, settings, { pinTargets: {} });
   const pieces = new Map(pass1.pieces.map((piece) => [piece.id, piece]));
-  const sharedWidths = lineSharedWidths(run, settings, { pinTargets });
+  const sharedWidths = lineSharedWidths(
+    { ...run, anchors: storedAnchors }, settings,
+    { ...opts, pinTargets, lineEnds: { ...opts.lineEnds, ...ends } },
+  );
   const pinWidths = Object.fromEntries(pinned.map(({ item }) => [
     item.id,
     (item.pin?.from === 'return' && item.pin.edge === 'both'
@@ -173,5 +225,6 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
   resolved = exactRight
     ? { ...resolved, width: Math.max(0, desiredRight - resolved.x) }
     : growRight(resolved, desiredRight, wall, wallLengthValue, settings);
-  return { ...resolved, _pinWidths: pinWidths };
+  const result = { ...resolved, _pinWidths: pinWidths };
+  return held.left || held.right ? restore(result) : result;
 }

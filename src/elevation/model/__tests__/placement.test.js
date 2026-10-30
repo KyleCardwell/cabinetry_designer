@@ -67,7 +67,8 @@ describe('LL1 placement stages', () => {
     expect(runOf(result, LEFT_TALL10)).toMatchObject({
       x: 0, width: 90 + 13 / 16,
     });
-    expect(runOf(result, LEFT_TALL10)._pinWidths).toEqual({ [PINNED10B]: 30 });
+    // LL4.1 b: the column ends the run on its line, so it isn't a segment target and keeps no remembered width.
+    expect(runOf(result, LEFT_TALL10)._pinWidths).toBeUndefined();
     expect(applyStage(placeRoom, state)).toEqual(result);
   });
 

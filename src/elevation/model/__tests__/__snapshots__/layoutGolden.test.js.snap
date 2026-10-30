@@ -1306,18 +1306,12 @@ exports[`LL0 Room 10 (room10.json) > window moved: follows W1 while leaving the 
 }
 `;
 
-exports[`LL0 Room 10b (room10b.json) > as stored: ends the pinned column at 72 and puts the end panel after it 1`] = `
+exports[`LL0 Room 10b (room10b.json) > as stored: ends the line column at 72 and puts the end panel after it 1`] = `
 {
   "diagnostics": {
     "5d290bf9-897b-4304-9dbe-ccef6ab1c311": {
       "errors": [],
-      "warnings": [
-        {
-          "code": "wide-cabinet",
-          "message": "Cabinet is wider than 36 inches.",
-          "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
-        },
-      ],
+      "warnings": [],
     },
   },
   "walls": [
@@ -1338,9 +1332,7 @@ exports[`LL0 Room 10b (room10b.json) > as stored: ends the pinned column at 72 a
       "sides": {
         "front": [
           {
-            "_pinWidths": {
-              "5ea196ac-4752-42e5-bf15-608401c0c086": 30,
-            },
+            "_pinWidths": undefined,
             "anchors": {
               "left": true,
               "right": false,
@@ -1349,7 +1341,7 @@ exports[`LL0 Room 10b (room10b.json) > as stored: ends the pinned column at 72 a
             "errors": [],
             "flex": {
               "boxes": {
-                "left": 40.5,
+                "run": 35,
               },
               "left": 0,
               "right": 0,
@@ -1362,22 +1354,22 @@ exports[`LL0 Room 10b (room10b.json) > as stored: ends the pinned column at 72 a
                 "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:left",
                 "kind": "filler",
                 "role": "end-left",
-                "width": 1.5,
+                "width": 2,
                 "x": 0,
               },
               {
                 "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
                 "kind": "cabinet",
                 "role": "item",
-                "width": 40.5,
-                "x": 1.5,
+                "width": 35,
+                "x": 2,
               },
               {
                 "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
                 "kind": "cabinet",
                 "role": "item",
-                "width": 30,
-                "x": 42,
+                "width": 35,
+                "x": 37,
               },
               {
                 "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:right",
@@ -1387,12 +1379,7 @@ exports[`LL0 Room 10b (room10b.json) > as stored: ends the pinned column at 72 a
                 "x": 72,
               },
             ],
-            "warnings": [
-              {
-                "code": "wide-cabinet",
-                "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
-              },
-            ],
+            "warnings": [],
             "width": 72.8125,
             "x": 0,
           },
@@ -1408,13 +1395,7 @@ exports[`LL0 Room 10b (room10b.json) > move anchored run: refuses the move and l
   "diagnostics": {
     "5d290bf9-897b-4304-9dbe-ccef6ab1c311": {
       "errors": [],
-      "warnings": [
-        {
-          "code": "wide-cabinet",
-          "message": "Cabinet is wider than 36 inches.",
-          "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
-        },
-      ],
+      "warnings": [],
     },
   },
   "walls": [
@@ -1435,9 +1416,7 @@ exports[`LL0 Room 10b (room10b.json) > move anchored run: refuses the move and l
       "sides": {
         "front": [
           {
-            "_pinWidths": {
-              "5ea196ac-4752-42e5-bf15-608401c0c086": 30,
-            },
+            "_pinWidths": undefined,
             "anchors": {
               "left": true,
               "right": false,
@@ -1446,7 +1425,7 @@ exports[`LL0 Room 10b (room10b.json) > move anchored run: refuses the move and l
             "errors": [],
             "flex": {
               "boxes": {
-                "left": 40.5,
+                "run": 35,
               },
               "left": 0,
               "right": 0,
@@ -1459,22 +1438,22 @@ exports[`LL0 Room 10b (room10b.json) > move anchored run: refuses the move and l
                 "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:left",
                 "kind": "filler",
                 "role": "end-left",
-                "width": 1.5,
+                "width": 2,
                 "x": 0,
               },
               {
                 "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
                 "kind": "cabinet",
                 "role": "item",
-                "width": 40.5,
-                "x": 1.5,
+                "width": 35,
+                "x": 2,
               },
               {
                 "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
                 "kind": "cabinet",
                 "role": "item",
-                "width": 30,
-                "x": 42,
+                "width": 35,
+                "x": 37,
               },
               {
                 "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:right",
@@ -1484,12 +1463,7 @@ exports[`LL0 Room 10b (room10b.json) > move anchored run: refuses the move and l
                 "x": 72,
               },
             ],
-            "warnings": [
-              {
-                "code": "wide-cabinet",
-                "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
-              },
-            ],
+            "warnings": [],
             "width": 72.8125,
             "x": 0,
           },
@@ -1526,9 +1500,7 @@ exports[`LL0 Room 10b (room10b.json) > pin in: shrinks the free end exactly and 
       "sides": {
         "front": [
           {
-            "_pinWidths": {
-              "5ea196ac-4752-42e5-bf15-608401c0c086": 30,
-            },
+            "_pinWidths": undefined,
             "anchors": {
               "left": true,
               "right": false,
@@ -1537,7 +1509,7 @@ exports[`LL0 Room 10b (room10b.json) > pin in: shrinks the free end exactly and 
             "errors": [],
             "flex": {
               "boxes": {
-                "left": 28.5,
+                "run": 29,
               },
               "left": 0,
               "right": 0,
@@ -1550,22 +1522,22 @@ exports[`LL0 Room 10b (room10b.json) > pin in: shrinks the free end exactly and 
                 "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:left",
                 "kind": "filler",
                 "role": "end-left",
-                "width": 1.5,
+                "width": 2,
                 "x": 0,
               },
               {
                 "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
                 "kind": "cabinet",
                 "role": "item",
-                "width": 28.5,
-                "x": 1.5,
+                "width": 29,
+                "x": 2,
               },
               {
                 "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
                 "kind": "cabinet",
                 "role": "item",
-                "width": 30,
-                "x": 30,
+                "width": 29,
+                "x": 31,
               },
               {
                 "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:right",
@@ -1597,6 +1569,11 @@ exports[`LL0 Room 10b (room10b.json) > pin out: grows the free end and warns abo
           "message": "Cabinet is wider than 36 inches.",
           "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
         },
+        {
+          "code": "wide-cabinet",
+          "message": "Cabinet is wider than 36 inches.",
+          "pieceId": "5ea196ac-4752-42e5-bf15-608401c0c086",
+        },
       ],
     },
   },
@@ -1618,9 +1595,7 @@ exports[`LL0 Room 10b (room10b.json) > pin out: grows the free end and warns abo
       "sides": {
         "front": [
           {
-            "_pinWidths": {
-              "5ea196ac-4752-42e5-bf15-608401c0c086": 30,
-            },
+            "_pinWidths": undefined,
             "anchors": {
               "left": true,
               "right": false,
@@ -1629,7 +1604,7 @@ exports[`LL0 Room 10b (room10b.json) > pin out: grows the free end and warns abo
             "errors": [],
             "flex": {
               "boxes": {
-                "left": 58.5,
+                "run": 44,
               },
               "left": 0,
               "right": 0,
@@ -1642,22 +1617,22 @@ exports[`LL0 Room 10b (room10b.json) > pin out: grows the free end and warns abo
                 "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:left",
                 "kind": "filler",
                 "role": "end-left",
-                "width": 1.5,
+                "width": 2,
                 "x": 0,
               },
               {
                 "id": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
                 "kind": "cabinet",
                 "role": "item",
-                "width": 58.5,
-                "x": 1.5,
+                "width": 44,
+                "x": 2,
               },
               {
                 "id": "5ea196ac-4752-42e5-bf15-608401c0c086",
                 "kind": "cabinet",
                 "role": "item",
-                "width": 30,
-                "x": 60,
+                "width": 44,
+                "x": 46,
               },
               {
                 "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311:right",
@@ -1671,6 +1646,10 @@ exports[`LL0 Room 10b (room10b.json) > pin out: grows the free end and warns abo
               {
                 "code": "wide-cabinet",
                 "pieceId": "0e14e4ca-d2a8-4817-87eb-34e22fbb100a",
+              },
+              {
+                "code": "wide-cabinet",
+                "pieceId": "5ea196ac-4752-42e5-bf15-608401c0c086",
               },
             ],
             "width": 90.8125,

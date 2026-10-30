@@ -165,12 +165,15 @@ describe('LL0 Room 10 (room10.json)', () => {
 });
 
 describe('LL0 Room 10b (room10b.json)', () => {
-  it('as stored: ends the pinned column at 72 and puts the end panel after it', () => {
+  it('as stored: ends the line column at 72 and puts the end panel after it', () => {
     const state = layoutState(structuredClone(room10b), settings10b);
     const run = runOf(state, WALL2, LEFT_TALL10);
     const column = pieceOf(run, PINNED10B);
     expect(run).toMatchObject({ x: 0, width: 72 + 13 / 16 });
-    expect(column).toMatchObject({ x: 42, width: 30 });
+    // LL4.1 b (Kyle): the column ends the run on L1, so the run lays out normally: both auto cabinets 35,
+    // the filler takes the odd 1/2 (2). Before LL4.1 the line column kept a remembered 30 and A got 40 1/2.
+    expect(column).toMatchObject({ x: 37, width: 35 });
+    expect(run.pieces.slice(0, 2)).toMatchObject([{ kind: 'filler', width: 2 }, { kind: 'cabinet', width: 35 }]);
     expect(column.x + column.width).toBe(72);
     expect(run.pieces.at(-1)).toMatchObject({ kind: 'end_panel', x: 72, width: 13 / 16 });
     expect(state).toMatchSnapshot();
@@ -182,7 +185,9 @@ describe('LL0 Room 10b (room10b.json)', () => {
     const state = layoutState(stored, settings10b);
     const laidOut = runOf(state, WALL2, LEFT_TALL10);
     expect(laidOut).toMatchObject({ x: 0, width: 90 + 13 / 16 });
-    expect(pieceOf(laidOut, PINNED10B)).toMatchObject({ x: 60, width: 30 });
+    // LL4.1 b: both cabinets 44 (filler 2); both are over the 36" maximum, so both warn.
+    expect(pieceOf(laidOut, PINNED10B)).toMatchObject({ x: 46, width: 44 });
+    expect(laidOut.pieces.slice(0, 2)).toMatchObject([{ kind: 'filler', width: 2 }, { kind: 'cabinet', width: 44 }]);
     expect(laidOut.pieces.at(-1)).toMatchObject({ kind: 'end_panel', x: 90, width: 13 / 16 });
     expect(laidOut.warnings).toContainEqual({
       code: 'wide-cabinet', pieceId: '0e14e4ca-d2a8-4817-87eb-34e22fbb100a',
@@ -196,11 +201,10 @@ describe('LL0 Room 10b (room10b.json)', () => {
     const state = layoutState(stored, settings10b);
     const laidOut = runOf(state, WALL2, LEFT_TALL10);
     expect(laidOut).toMatchObject({ x: 0, width: 60 + 13 / 16 });
-    expect(pieceOf(laidOut, PINNED10B)).toMatchObject({ x: 30, width: 30 });
-    expect(laidOut.pieces[0]).toMatchObject({ kind: 'filler', width: 1.5 });
-    expect(laidOut.pieces[1]).toMatchObject({ kind: 'cabinet', width: 28.5 });
-    // LL4 d anchor's dimensions match, but its ⚠ differs: 28.5 exceeds the default 9-inch minimum.
-    expect(28.5).toBeGreaterThan(settings10b.minCabinetWidth);
+    // LL4.1 b: both cabinets 29 (filler 2).
+    expect(pieceOf(laidOut, PINNED10B)).toMatchObject({ x: 31, width: 29 });
+    expect(laidOut.pieces[0]).toMatchObject({ kind: 'filler', width: 2 });
+    expect(laidOut.pieces[1]).toMatchObject({ kind: 'cabinet', width: 29 });
     expect(laidOut.warnings).toEqual([]);
     expect(laidOut.errors).toEqual([]);
     expect(laidOut.pieces.at(-1)).toMatchObject({ kind: 'end_panel', x: 60, width: 13 / 16 });

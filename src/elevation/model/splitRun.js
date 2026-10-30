@@ -269,7 +269,8 @@ function splitSegment(run, settings, opts) {
     errors.push({ code: 'does-not-fill' });
   }
 
-  // A sharing segment keeps filler minima and gives the rounding remainder to an auto.
+  // A sharing segment gives its autos one round width. The rounding remainder goes to an auto filler
+  // (a flex end) as in a whole run (LL4.1 b), else to an auto that isn't the line's column.
   const sharing = run._lineShareItemId !== undefined && nAuto > 0 && !flexOverconstrained;
   const autos = items.filter(isAutoItem);
   const absorber = sharing ? (autos.find((item) => item.absorb)
@@ -282,8 +283,14 @@ function splitSegment(run, settings, opts) {
       (available - minimumTotal + (run._lineShareWidth ?? 0))
         / (nAuto + (run._lineShareItem ? 1 : 0)),
     );
-    flexExtra = 0;
-    flexRemainder = 0;
+    if (flex > 0) {
+      const extra = available - nAuto * autoWidth - minimumTotal;
+      flexExtra = floorTo(extra / flex, FILLER_STEP);
+      flexRemainder = extra - flex * flexExtra;
+    } else {
+      flexExtra = 0;
+      flexRemainder = 0;
+    }
   }
 
   let autoIndex = 0;
@@ -294,7 +301,7 @@ function splitSegment(run, settings, opts) {
     }
 
     let computedWidth = autoWidth;
-    if (sharing && item.id === absorber.id) {
+    if (sharing && flex === 0 && item.id === absorber.id) {
       computedWidth = available - minimumTotal - autoWidth * lastAutoIndex;
     } else if (!sharing && flex === 0 && !hasAvailableError && autoIndex === lastAutoIndex) {
       computedWidth = available - autoWidth * lastAutoIndex;
@@ -572,6 +579,7 @@ function steppedLayout(run, layout) {
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
 export function splitRun(run, settings, opts) {
+  run = withLineEndFillers(run, settings, opts);
   const insidePanels = insideEndPanels(run, settings);
   const stepPanels = stepEndPanels(run, settings);
   const panels = {
@@ -632,6 +640,18 @@ export function splitRun(run, settings, opts) {
   return steppedLayout(run, { pieces, warnings, errors, ...panels });
 }
 
+/**
+ * LL4.1 b: the run edge past an end column was set from the end piece's minimum (line + end piece), so an
+ * auto filler there stays at that minimum; the rest of the run takes the leftover as usual.
+ */
+function withLineEndFillers(run, settings, opts) {
+  const sides = ['left', 'right'].filter((side) => opts?.lineEnds?.[side] && isFlexEnd(run.ends[side]));
+  if (!sides.length) return run;
+  const ends = { ...run.ends };
+  for (const side of sides) ends[side] = { ...ends[side], width: flexMinimum(side, settings, opts) };
+  return { ...run, ends };
+}
+
 /** Auto edge-attached columns share with the autos on their bounded side, independent of history. */
 export function lineSharedWidths(run, settings, opts) {
   const items = itemsWithGaps(run, settings);
@@ -646,7 +666,7 @@ export function lineSharedWidths(run, settings, opts) {
     if (at !== 'left' && at !== 'right') return null;
     const side = at === 'right' ? 'left' : 'right';
     const neighbour = placed[index + (side === 'left' ? -1 : 1)];
-    if (!neighbour && !run.anchors?.[side]) return null;
+    if (!neighbour && !run.anchors?.[side] && !opts?.lineEnds?.[side]) return null;
     const others = side === 'left'
       ? items.slice(neighbour ? neighbour.itemIndex + 1 : 0, itemIndex)
       : items.slice(itemIndex + 1, neighbour ? neighbour.itemIndex : items.length);
@@ -902,6 +922,7 @@ function roundingNeed(run, settings, opts) {
  *   elastic?: {lo: number, hi: number}, raise?: (box: number) => number}[]}
  */
 export function runFlexNeeds(run, settings, opts) {
+  run = withLineEndFillers(run, settings, opts);
   const plan = pinPlan(run, settings, opts);
   if (!plan) return [{ key: 'run', edges: ['left', 'right'], ...roundingNeed(run, settings, opts) }];
   if (plan.warnings.some(({ code }) => code === 'pin-unreachable')) return [];

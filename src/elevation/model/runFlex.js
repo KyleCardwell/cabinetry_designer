@@ -4,7 +4,7 @@ import { wallFrame, wallLength } from './geometry.js';
 import { followLeaders } from './joints.js';
 import { validateRunPlacement } from './overlap.js';
 import { endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
-import { pinTargetsForRun } from './runPins.js';
+import { lineEndColumns, pinTargetsForRun, segmentTargets } from './runPins.js';
 import { runFlexNeeds } from './splitRun.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
 
@@ -158,9 +158,11 @@ function placementOk(wall, run, settings) {
 function runModel(room, wall, run, settings) {
   const { _flexBoxes: priorBoxes, ...withoutPrior } = run;
   const clean = Object.hasOwn(run, '_flexBoxes') ? withoutPrior : run;
+  const targets = pinTargetsForRun(clean, wall, wallLength(wall), settings);
   const opts = {
     endMinWidths: endMinWidthsForRun(room, wall, clean, settings),
-    pinTargets: pinTargetsForRun(clean, wall, wallLength(wall), settings),
+    pinTargets: segmentTargets(clean, targets),
+    ...(Object.keys(lineEndColumns(clean, targets)).length ? { lineEnds: lineEndColumns(clean, targets) } : {}),
   };
   const needs = runFlexNeeds(clean, settings, opts).map((need) => {
     const prior = priorBoxes?.[need.key];
@@ -175,7 +177,8 @@ function runModel(room, wall, run, settings) {
       raise,
     };
   });
-  return { run: clean, needs, opts };
+  // LL4.1 b: a run end set by a cabinet on a line doesn't flex.
+  return { run: clean, needs, opts, lineEnds: lineEndColumns(clean, targets) };
 }
 
 /** A run moved by two outward edge moves, with its flex record and filler box sizes. */
@@ -208,7 +211,8 @@ function solveRun(room, wall, run, settings, t, endMoves) {
   const model = runModel(room, wall, run, settings);
   const fixed = run.holdWidth === true || model.needs.length === 0;
   const ranges = Object.fromEntries(['left', 'right'].map((side) => {
-    const range = flexRange(room, wall, run, side, settings, t, endMoves);
+    const range = model.lineEnds[side] ? { kind: 'fixed', move: 0 }
+      : flexRange(room, wall, run, side, settings, t, endMoves);
     return [side, fixed && range.kind !== 'fixed' ? { kind: 'fixed', move: 0 } : range];
   }));
   const options = [];

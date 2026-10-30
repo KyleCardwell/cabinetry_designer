@@ -5,18 +5,27 @@ import { findLine } from './layoutLines.js';
 import { placeAttachedRuns } from './linePlacement.js';
 import { returnExtents } from './returnExtents.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
-import { pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
+import { lineEndColumns, pinTargetsForRun, resolvePinnedSpan, segmentTargets } from './runPins.js';
 import { resolveSoffitSpan } from './soffits.js';
 import { wallSideOf, wallSideView } from './wallSides.js';
 
 // Return pins → soffits → run edges → line runs → pin growth; edits keep their ripple until LL5.
+
+function lineEndOptions(run, targets) {
+  const lineEnds = lineEndColumns(run, targets);
+  return {
+    pinTargets: segmentTargets(run, targets),
+    ...(Object.keys(lineEnds).length ? { lineEnds } : {}),
+  };
+}
 
 /** The shared room-aware options for splitting a run on either wall face. */
 export function splitOptionsForRun(room, wall, run, settings) {
   return {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
-    pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
+    // LL4.1 b: end columns aren't segment targets; the line already set their run edge.
+    ...lineEndOptions(run, pinTargetsForRun(run, wall, wallLength(wall), settings)),
     lineLabels: Object.fromEntries(runItems(run).flatMap((item) => {
       const line = item.attach && findLine(wall, item.attach.lineId);
       return line ? [[item.id, line.label]] : [];
@@ -129,6 +138,7 @@ export function pinGrowth(room, settings) {
           length,
           settings,
           pinTargetsForRun(run, wall, length, settings),
+          splitOptionsForRun(room, wall, run, settings),
         )),
       };
     }),
