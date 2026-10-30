@@ -8,6 +8,7 @@ import { frameRegions } from './frames.js';
 import { wallFrame, wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { landingsOn } from './landings.js';
+import { placedAt } from './layoutLines.js';
 import { cornerShapes, profileReach } from './cornerParts.js';
 import { resolveProfile } from './profile.js';
 import { splitOptionsForRun } from './placement.js';
@@ -215,7 +216,7 @@ function runInnerSegments(room, wall, run, settings, layout) {
       metadata: {
         runId: run.id,
         pieceId: piece.id,
-        ...(runItems(run).find((item) => item.id === piece.id)?.pin ? { pinned: true } : {}),
+        ...(placedAt(runItems(run).find((item) => item.id === piece.id)) ? { pinned: true } : {}),
       },
     });
   }

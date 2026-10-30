@@ -84,7 +84,11 @@ describe('LL2 layout line actions', () => {
     expect(w.runs[0].grid.cols[0].attach).toEqual(attach('L1', 'center', -3));
     expect(w.runs[0].grid.cols[2].attach).toEqual(attach('L1', 'left'));
     expect(w.openings[0].attach).toEqual(attach('B1'));
-    expect(spans(state)).toEqual(spans(before));
+    // LL4: attaching a column places it like a pin did. With the pinned B already placed, A and B lock to
+    // their current widths (C's current width is 0, so nothing is locked for it), and the free run grows
+    // right to reach C's target (L1, 141).
+    expect(spans(before)).toEqual([[15, 145, [null, null, null]], [10, 40, [null]]]);
+    expect(spans(state)).toEqual([[15, 230.5, [9, 29, null]], [10, 40, [null]]]);
     // LL3: the window now sits centred on back line B1 (30 from the back's left = 210 from the front's left).
     expect(w.openings[0].offset).toBe(192);
   });

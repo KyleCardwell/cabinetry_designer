@@ -1,10 +1,13 @@
 import { teamDoorStyle } from './doorStyles.js';
 import { DEFAULT_SETTINGS, PINNABLE_KINDS } from './constants.js';
 import { runItems } from './grid.js';
+import { findLine, lineX, placedAt } from './layoutLines.js';
 import { openingGeometry } from './openings.js';
 import { validateRunPlacement } from './overlap.js';
 import { splitRun } from './splitRun.js';
-import { wallViewForRun } from './wallSides.js';
+import { wallSideOf, wallViewForRun } from './wallSides.js';
+
+export { placedAt };
 
 const PIN_EPSILON = 1e-6;
 
@@ -29,11 +32,20 @@ export function resolvePinTarget(pin, wall, wallLengthValue, settings) {
   return Number.isFinite(datum) ? datum + pin.value : null;
 }
 
-/** Resolve all usable pin targets for a run. */
+/** An attached root column's target: its line plus offset, in the run's face coordinates (LL4). */
+function attachTarget(item, run, wall, wallLengthValue) {
+  const line = findLine(wall, item.attach.lineId);
+  if (!line || wallSideOf(line) !== wallSideOf(run)) return null;
+  return lineX(line, wallLengthValue) + item.attach.offset;
+}
+
+/** Resolve all usable segment targets for a run: attached columns and pins. */
 export function pinTargetsForRun(run, wall, wallLengthValue, settings) {
   wall = wallViewForRun(wall, run);
   return Object.fromEntries(runItems(run).flatMap((item) => {
-    const target = item.pin?.from === 'return'
+    const target = item.attach && PINNABLE_KINDS.has(item.kind)
+      ? attachTarget(item, run, wall, wallLengthValue)
+      : item.pin?.from === 'return'
       ? run._returnPins?.[item.id]?.target
       : resolvePinTarget(item.pin, wall, wallLengthValue, settings);
     return Number.isFinite(target) ? [[item.id, target]] : [];
@@ -106,7 +118,7 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
   const pinned = items
     .map((item, itemIndex) => ({ item, itemIndex, target: pinTargets[item.id] }))
     .filter(({ item, target }) => PINNABLE_KINDS.has(item.kind)
-      && item.pin
+      && placedAt(item)
       && Number.isFinite(target));
   if (pinned.length === 0) {
     if (!run._pinWidths) return run;
@@ -119,7 +131,7 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
   const pieces = new Map(pass1.pieces.map((piece) => [piece.id, piece]));
   const pinWidths = Object.fromEntries(pinned.map(({ item }) => [
     item.id,
-    (item.pin.from === 'return' && item.pin.edge === 'both'
+    (item.pin?.from === 'return' && item.pin.edge === 'both'
       ? run._returnPins?.[item.id]?.width : undefined)
       ?? item.width ?? run._pinWidths?.[item.id] ?? pieces.get(item.id)?.width ?? 0,
   ]));
@@ -134,14 +146,14 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
 
   let resolved = growLeft(
     run,
-    pinLeft(first.target, firstWidth, first.item.pin.anchor) - leftMinimum,
+    pinLeft(first.target, firstWidth, placedAt(first.item)) - leftMinimum,
     wall,
     wallLengthValue,
     settings,
   );
   resolved = growRight(
     resolved,
-    pinLeft(last.target, lastWidth, last.item.pin.anchor) + lastWidth + rightMinimum,
+    pinLeft(last.target, lastWidth, placedAt(last.item)) + lastWidth + rightMinimum,
     wall,
     wallLengthValue,
     settings,

@@ -296,6 +296,7 @@ export {
   lineX,
   linesOn,
   nextLineLabel,
+  placedAt,
   pruneLines,
   setLineFrom,
 } from './layoutLines.js';

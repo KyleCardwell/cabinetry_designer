@@ -200,6 +200,8 @@ export const {
   deleteLayoutLine,
   setAttachment,
   attachOpeningToNewLine,
+  attachColumnToNewLine,
+  attachColumnToOpening,
   setItemAbsorb,
   setCabinetPurpose,
   setCabinetSlide,

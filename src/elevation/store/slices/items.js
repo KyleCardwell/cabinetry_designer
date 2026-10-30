@@ -11,6 +11,7 @@ import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
 } from '../../model/room.js';
+import { placedAt } from '../../model/layoutLines.js';
 import { splitRun } from '../../model/splitRun.js';
 import { roundTo } from '../../model/units.js';
 import { isStoredInterior, patchShelfSettings } from '../../model/interiorTree.js';
@@ -56,9 +57,10 @@ export const itemReducers = {
     const item = runItems(location.run)[itemIndex];
     if (!item || !PINNABLE_KINDS.has(item.kind)) return;
     const pin = action.payload.pin ?? null;
-    const pinCountBefore = runItems(location.run).filter((candidate) => candidate.pin).length;
-    const addsSecondPin = Boolean(pin) && !item.pin && pinCountBefore === 1;
-    const addsPinToPinnedRun = Boolean(pin) && !item.pin && pinCountBefore >= 1;
+    if (pin && item.attach) return;
+    const pinCountBefore = runItems(location.run).filter((candidate) => placedAt(candidate)).length;
+    const addsSecondPin = Boolean(pin) && !placedAt(item) && pinCountBefore === 1;
+    const addsPinToPinnedRun = Boolean(pin) && !placedAt(item) && pinCountBefore >= 1;
     let currentWidths = null;
     if (addsPinToPinnedRun) {
       const layout = splitRun(location.run, settingsFor(state, location.room), {
@@ -90,7 +92,7 @@ export const itemReducers = {
     if (pin) location.run.autoCount = false;
     if (addsPinToPinnedRun) {
       const itemsToLock = addsSecondPin
-        ? runItems(location.run).filter((candidate) => candidate.pin)
+        ? runItems(location.run).filter((candidate) => placedAt(candidate))
         : [item];
       for (const pinnedItem of itemsToLock) {
         const width = currentWidths.get(pinnedItem.id);

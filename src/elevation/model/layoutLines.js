@@ -41,6 +41,14 @@ export function isAttachment(attach) {
     && Number.isFinite(attach.offset);
 }
 
+/**
+ * LL4: where a root column is placed: its attachment's point, else its pin's anchor, else null.
+ * Every "is this column placed?" check reads this, so attachments and pins act alike.
+ */
+export function placedAt(item) {
+  return item?.attach?.at ?? item?.pin?.anchor ?? null;
+}
+
 /** The layout lines on one face of a wall (or a side view's own face). */
 export function linesOn(wallOrView, side) {
   return side === undefined ? featuresOn('lines', wallOrView) : featuresOn('lines', wallOrView, side);

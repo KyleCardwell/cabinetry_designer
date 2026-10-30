@@ -5,6 +5,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS, PINNABLE_KINDS } from './constants.
 import { teamDoorStyle } from './doorStyles.js';
 import { replaceRootItems, runItems } from './grid.js';
 import { insideEndGap, insideEndPanels } from './insideEnds.js';
+import { placedAt } from './layoutLines.js';
 import { stepEndPanels } from './stepEnds.js';
 import { floorTo, roundTo } from './units.js';
 
@@ -495,7 +496,7 @@ function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
 }
 
 function pinUnreachableWarning(pin, actualLeft) {
-  const actual = cabinetAnchorX(actualLeft, pin.width, pin.item.pin.anchor);
+  const actual = cabinetAnchorX(actualLeft, pin.width, placedAt(pin.item));
   return warning(
     'pin-unreachable',
     pin.item.id,
@@ -603,7 +604,7 @@ function pinPlan(run, settings, opts) {
   const targets = opts?.pinTargets ?? {};
   const pinnedItems = items.filter((item) => (
     PINNABLE_KINDS.has(item.kind)
-    && item.pin
+    && placedAt(item)
     && Number.isFinite(targets[item.id])
   ));
   if (pinnedItems.length === 0) return null;
@@ -614,7 +615,7 @@ function pinPlan(run, settings, opts) {
   const pins = pinnedItems.map((item) => {
     const itemIndex = items.findIndex((candidate) => candidate.id === item.id);
     const piece = pass1Pieces.get(item.id);
-    const width = (item.pin.from === 'return' && item.pin.edge === 'both'
+    const width = (item.pin?.from === 'return' && item.pin.edge === 'both'
       ? run._returnPins?.[item.id]?.width : undefined)
       ?? item.width ?? retainedPinWidths[item.id] ?? piece?.width ?? 0;
     const target = targets[item.id];
@@ -624,9 +625,9 @@ function pinPlan(run, settings, opts) {
       piece,
       width,
       target,
-      requestedLeft: target - (item.pin.anchor === 'center'
+      requestedLeft: target - (placedAt(item) === 'center'
         ? width / 2
-        : item.pin.anchor === 'right' ? width : 0),
+        : placedAt(item) === 'right' ? width : 0),
     };
   });
 
@@ -659,7 +660,7 @@ function pinPlan(run, settings, opts) {
     const left = Math.max(minimumLeft, Math.min(pin.requestedLeft, maximumLeft));
     const actual = { ...pin, left };
     actualPins.push(actual);
-    if (Math.abs(cabinetAnchorX(left, pin.width, pin.item.pin.anchor) - pin.target)
+    if (Math.abs(cabinetAnchorX(left, pin.width, placedAt(pin.item)) - pin.target)
       > WIDTH_EPSILON) {
       const unreachable = pinUnreachableWarning(pin, left);
       if (index > 0 && left > pin.requestedLeft + WIDTH_EPSILON) {

@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid';
+import { ATTACHABLE_KINDS } from '../../model/constants.js';
 import { wallFrame } from '../../model/geometry.js';
 import { runItems, updateRootItem } from '../../model/grid.js';
 import {
@@ -9,7 +10,12 @@ import {
   setLineFrom,
 } from '../../model/layoutLines.js';
 import { attachOffsetHere } from '../../model/linePlacement.js';
-import { ATTACH_AT } from '../../model/layoutLines.js';
+import { ATTACH_AT, findLine, lineX, placedAt } from '../../model/layoutLines.js';
+import { openingReferenceRect } from '../../model/openings.js';
+import { splitOptionsForRun } from '../../model/placement.js';
+import { splitRun } from '../../model/splitRun.js';
+import { roundTo } from '../../model/units.js';
+import { wallSideOf } from '../../model/wallSides.js';
 import { itemIndexFor, settingsFor, syncRoomAt, wallLocation } from './helpers.js';
 
 /** LL2: layout lines on a wall face and attachments to them. Data only: nothing is placed from them yet. */
@@ -32,6 +38,54 @@ function lineIndex(wall, lineId) {
 
 function withoutAttach(entity) {
   if (entity && 'attach' in entity) delete entity.attach;
+}
+
+const AT_FRACTION = { left: 0, center: 0.5, right: 1 };
+
+/** The run's current split (with its segment targets), by piece id. */
+function currentPieces(state, location, run) {
+  const settings = settingsFor(state, location.room);
+  const layout = splitRun(run, settings, splitOptionsForRun(location.room, location.wall, run, settings));
+  return new Map(layout.pieces.map((piece) => [piece.id, piece]));
+}
+
+/**
+ * LL4: attach a root column, doing what pinning did: auto count off, and when the run already has a
+ * placed column, lock widths to the current split (a second placed column locks both, a later one itself).
+ */
+function attachColumn(state, location, run, item, attach) {
+  const placedBefore = runItems(run).filter((candidate) => placedAt(candidate));
+  const adds = !placedAt(item);
+  const pieces = adds && placedBefore.length >= 1 ? currentPieces(state, location, run) : null;
+  run.grid = updateRootItem(run.grid, item.id, { attach });
+  run.autoCount = false;
+  if (!pieces) return;
+  const lock = placedBefore.length === 1 ? [...placedBefore, item] : [item];
+  const step = settingsFor(state, location.room).roundTo;
+  for (const placed of lock) {
+    const width = pieces.get(placed.id)?.width;
+    if (Number.isFinite(width) && width > 0) run.grid = updateRootItem(run.grid, placed.id, { width: roundTo(width, step) });
+  }
+}
+
+/** A new line on `side` through face point `x`, measured from the nearer end. */
+function lineThrough(wall, side, x, length, id) {
+  const from = x <= length / 2 ? 'left' : 'right';
+  return {
+    id,
+    label: nextLineLabel(wall, side),
+    ...(side === 'back' ? { wallSide: 'back' } : {}),
+    from,
+    value: from === 'left' ? x : length - x,
+  };
+}
+
+function columnLocation(state, payload) {
+  const location = wallLocation(state, payload);
+  const run = location?.wall.runs.find((candidate) => candidate.id === payload.runId);
+  const item = run ? runItems(run)[itemIndexFor(run, payload.itemId)] : null;
+  if (!item || !ATTACHABLE_KINDS.has(item.kind) || item.pin) return null;
+  return { location, run, item };
 }
 
 export const lineReducers = {
@@ -120,6 +174,63 @@ export const lineReducers = {
     },
   },
 
+  /** LL4: a new line on the run's face through a column's current `at` point, attached; nothing moves. */
+  attachColumnToNewLine: {
+    reducer(state, action) {
+      const { at = 'center', id } = action.payload;
+      if (!ATTACH_AT.includes(at)) return;
+      const found = columnLocation(state, action.payload);
+      if (!found) return;
+      const { location, run, item } = found;
+      const piece = currentPieces(state, location, run).get(item.id);
+      if (!piece) return;
+      const side = wallSideOf(run);
+      const length = wallFrame(location.room, location.wall).length;
+      const line = lineThrough(location.wall, side, piece.x + AT_FRACTION[at] * piece.width, length, id);
+      location.wall.lines = [...(location.wall.lines ?? []), line];
+      attachColumn(state, location, run, item, { lineId: id, at, offset: 0 });
+      syncRoomAt(state, location.roomIndex);
+    },
+    prepare(payload = {}) {
+      return { payload: { ...payload, id: payload.id ?? uuid() } };
+    },
+  },
+
+  /** LL4 "Centre on W1": the column's centre goes on the opening's centre and follows it. */
+  attachColumnToOpening: {
+    reducer(state, action) {
+      const { openingId, id } = action.payload;
+      const found = columnLocation(state, action.payload);
+      if (!found) return;
+      const { location, run, item } = found;
+      const { wall } = location;
+      const opening = wall.openings?.find((candidate) => candidate.id === openingId);
+      if (!opening) return;
+      const side = wallSideOf(run);
+      const length = wallFrame(location.room, wall).length;
+      const rect = openingReferenceRect(opening, length, settingsFor(state, location.room));
+      const frontCentre = rect.x + rect.width / 2;
+      const centre = side === 'back' ? length - frontCentre : frontCentre;
+      if (opening.attach) {
+        const line = findLine(wall, opening.attach.lineId);
+        if (!line) return;
+        if (wallSideOf(line) !== side) {
+          state.message = `${opening.label ?? 'The opening'} is on a ${wallSideOf(line)}-face line. Attach the cabinet to a line on this face.`;
+          return;
+        }
+        attachColumn(state, location, run, item, { lineId: line.id, at: 'center', offset: centre - lineX(line, length) });
+      } else {
+        wall.lines = [...(wall.lines ?? []), lineThrough(wall, side, centre, length, id)];
+        opening.attach = { lineId: id, at: 'center', offset: 0 };
+        attachColumn(state, location, run, item, { lineId: id, at: 'center', offset: 0 });
+      }
+      syncRoomAt(state, location.roomIndex);
+    },
+    prepare(payload = {}) {
+      return { payload: { ...payload, id: payload.id ?? uuid() } };
+    },
+  },
+
   setAttachment(state, action) {
     const { target, attach } = action.payload;
     const location = wallLocation(state, action.payload);
@@ -144,8 +255,9 @@ export const lineReducers = {
       } else {
         const item = runItems(run)[itemIndexFor(run, target.itemId)];
         if (!item) return;
-        if (value !== null && !canAttach(wall, 'column', run, value, item)) return;
-        run.grid = updateRootItem(run.grid, item.id, { attach: value ?? undefined });
+        if (value === null) run.grid = updateRootItem(run.grid, item.id, { attach: undefined });
+        else if (canAttach(wall, 'column', run, value, item)) attachColumn(state, location, run, item, value);
+        else return;
       }
     } else {
       return;
