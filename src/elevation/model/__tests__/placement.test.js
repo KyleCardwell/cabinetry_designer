@@ -111,7 +111,7 @@ describe('LL1 placement stages', () => {
 });
 
 describe('LL1 splitOptionsForRun', () => {
-  it('matches the three hand-built options for the synced Room 10 Wall 2 base', () => {
+  it('matches the room-aware options and line labels for the synced Room 10 Wall 2 base', () => {
     expect(fromRoom).toBe(splitOptionsForRun);
     expect(fromIndex).toBe(splitOptionsForRun);
     const state = syncRoom(structuredClone(room10), settings);
@@ -122,6 +122,7 @@ describe('LL1 splitOptionsForRun', () => {
       endMinWidths: endMinWidthsForRun(state, wall, run, settings),
       endCornerAngles: endCornerAnglesForRun(state, wall, run),
       pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
+      lineLabels: { [PINNED10]: 'L1' },
     });
     expect(state).toEqual(before);
   });

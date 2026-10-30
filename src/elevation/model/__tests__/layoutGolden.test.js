@@ -188,16 +188,23 @@ describe('LL0 Room 10b (room10b.json)', () => {
     expect(state).toMatchSnapshot();
   });
 
-  it('pin in: currently leaves 12 inches empty after the pieces instead of shrinking the run', () => {
+  it('pin in: shrinks the free end exactly and fills the run', () => {
     const stored = structuredClone(room10b);
     stored.walls.find(({ id }) => id === WALL2).lines[0].value = 60; // LL4: the pin is now line L1
     const state = layoutState(stored, settings10b);
     const laidOut = runOf(state, WALL2, LEFT_TALL10);
-    expect(laidOut).toMatchObject({ x: 0, width: 72 + 13 / 16 });
+    expect(laidOut).toMatchObject({ x: 0, width: 60 + 13 / 16 });
+    expect(pieceOf(laidOut, PINNED10B)).toMatchObject({ x: 30, width: 30 });
+    expect(laidOut.pieces[0]).toMatchObject({ kind: 'filler', width: 1.5 });
+    expect(laidOut.pieces[1]).toMatchObject({ kind: 'cabinet', width: 28.5 });
+    // LL4 d anchor's dimensions match, but its ⚠ differs: 28.5 exceeds the default 9-inch minimum.
+    expect(28.5).toBeGreaterThan(settings10b.minCabinetWidth);
+    expect(laidOut.warnings).toEqual([]);
+    expect(laidOut.errors).toEqual([]);
     expect(laidOut.pieces.at(-1)).toMatchObject({ kind: 'end_panel', x: 60, width: 13 / 16 });
     const piecesEnd = Math.max(...laidOut.pieces.map(({ x, width }) => x + width));
     expect(piecesEnd).toBe(60 + 13 / 16);
-    expect(laidOut.x + laidOut.width - piecesEnd).toBe(12);
+    expect(laidOut.x + laidOut.width - piecesEnd).toBe(0);
     expect(state).toMatchSnapshot();
   });
 

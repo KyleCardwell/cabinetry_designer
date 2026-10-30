@@ -1,6 +1,7 @@
 import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { followLeaders } from './joints.js';
+import { findLine } from './layoutLines.js';
 import { returnExtents } from './returnExtents.js';
 import { endCornerAnglesForRun, endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
 import { pinTargetsForRun, resolvePinnedSpan } from './runPins.js';
@@ -15,6 +16,10 @@ export function splitOptionsForRun(room, wall, run, settings) {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
     pinTargets: pinTargetsForRun(run, wall, wallLength(wall), settings),
+    lineLabels: Object.fromEntries(runItems(run).flatMap((item) => {
+      const line = item.attach && findLine(wall, item.attach.lineId);
+      return line ? [[item.id, line.label]] : [];
+    })),
   };
 }
 

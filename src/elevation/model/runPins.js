@@ -3,7 +3,7 @@ import { DEFAULT_SETTINGS, PINNABLE_KINDS } from './constants.js';
 import { runItems } from './grid.js';
 import { findLine, lineX, placedAt } from './layoutLines.js';
 import { validateRunPlacement } from './overlap.js';
-import { splitRun } from './splitRun.js';
+import { lineEndMinimum, splitRun } from './splitRun.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
 
 export { placedAt };
@@ -124,7 +124,7 @@ function growRight(run, desiredRight, wall, wallLengthValue, settings) {
   return { ...run, width: valid - run.x };
 }
 
-/** Grow free outer run ends when that can make the first or last pin reachable. */
+/** Attached columns with no outer auto cabinet/void set a free edge exactly; other ends grow only. */
 export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTargets) {
   const items = runItems(run);
   const pinned = items
@@ -151,24 +151,26 @@ export function resolvePinnedSpan(run, wall, wallLengthValue, settings, pinTarge
   const last = pinned[pinned.length - 1];
   const firstWidth = pinWidths[first.item.id];
   const lastWidth = pinWidths[last.item.id];
+  const leftItems = items.slice(0, first.itemIndex);
+  const rightItems = items.slice(last.itemIndex + 1);
   const leftMinimum = storedEndMinimum(run.ends.left, settings, run._endThickness?.left)
-    + storedItemsMinimum(items.slice(0, first.itemIndex), settings);
+    + storedItemsMinimum(leftItems, settings);
   const rightMinimum = storedEndMinimum(run.ends.right, settings, run._endThickness?.right)
-    + storedItemsMinimum(items.slice(last.itemIndex + 1), settings);
+    + storedItemsMinimum(rightItems, settings);
+  const hasAuto = (outerItems) => outerItems.some((item) => item.width === null
+    && (item.kind === 'cabinet' || item.kind === 'void'));
+  const exactLeft = first.item.attach && !run.anchors?.left && !hasAuto(leftItems);
+  const exactRight = last.item.attach && !run.anchors?.right && !hasAuto(rightItems);
+  const desiredX = pinLeft(first.target, firstWidth, placedAt(first.item))
+    - (exactLeft ? lineEndMinimum(run, settings, first.item.id, 'left') : leftMinimum);
+  const desiredRight = pinLeft(last.target, lastWidth, placedAt(last.item)) + lastWidth
+    + (exactRight ? lineEndMinimum(run, settings, last.item.id, 'right') : rightMinimum);
 
-  let resolved = growLeft(
-    run,
-    pinLeft(first.target, firstWidth, placedAt(first.item)) - leftMinimum,
-    wall,
-    wallLengthValue,
-    settings,
-  );
-  resolved = growRight(
-    resolved,
-    pinLeft(last.target, lastWidth, placedAt(last.item)) + lastWidth + rightMinimum,
-    wall,
-    wallLengthValue,
-    settings,
-  );
+  let resolved = exactLeft
+    ? { ...run, x: desiredX, width: Math.max(0, run.x + run.width - desiredX) }
+    : growLeft(run, desiredX, wall, wallLengthValue, settings);
+  resolved = exactRight
+    ? { ...resolved, width: Math.max(0, desiredRight - resolved.x) }
+    : growRight(resolved, desiredRight, wall, wallLengthValue, settings);
   return { ...resolved, _pinWidths: pinWidths };
 }

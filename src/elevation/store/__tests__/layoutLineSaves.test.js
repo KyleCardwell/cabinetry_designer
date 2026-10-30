@@ -77,7 +77,7 @@ describe('LL2 layout line actions', () => {
     expect(wallOf(state).lines[0].label).toBe('Sink CL');
   });
 
-  it('stores attachments without moving anything', () => {
+  it('stores attachments and resolves attached columns exactly', () => {
     const before = withLines();
     const state = withAttachments();
     const w = wallOf(state);
@@ -85,11 +85,10 @@ describe('LL2 layout line actions', () => {
     expect(w.runs[0].grid.cols[0].attach).toEqual(attach('L1', 'center', -3));
     expect(w.runs[0].grid.cols[2].attach).toEqual(attach('L1', 'left'));
     expect(w.openings[0].attach).toEqual(attach('B1'));
-    // LL4: attaching a column places it like a pin did. B already counts as placed (its return pin), so
-    // attaching A locks A and B, attaching C locks C (to the unplaced split), and the free run grows right
-    // to reach C's target on L1.
+    // LL4 d: B's unresolved return pin still locks A and B to 28.5. A's line sets the free left
+    // edge exactly; C's target crosses A, leaving C zero width and the free right edge at 142.5.
     expect(spans(before)).toEqual([[70, 90, [null, null, null]], [10, 40, [null]]]);
-    expect(spans(state)).toEqual([[70, 123.5, [28.5, 28.5, 51]], [10, 40, [null]]]);
+    expect(spans(state)).toEqual([[122.25, 20.25, [28.5, 28.5, null]], [10, 40, [null]]]);
     // LL3: the window now sits centred on back line B1 (30 from the back's left = 210 from the front's left).
     expect(w.openings[0].offset).toBe(192);
   });

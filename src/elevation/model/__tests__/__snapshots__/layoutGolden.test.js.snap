@@ -1500,15 +1500,11 @@ exports[`LL0 Room 10b (room10b.json) > move anchored run: refuses the move and l
 }
 `;
 
-exports[`LL0 Room 10b (room10b.json) > pin in: currently leaves 12 inches empty after the pieces instead of shrinking the run 1`] = `
+exports[`LL0 Room 10b (room10b.json) > pin in: shrinks the free end exactly and fills the run 1`] = `
 {
   "diagnostics": {
     "5d290bf9-897b-4304-9dbe-ccef6ab1c311": {
-      "errors": [
-        {
-          "code": "does-not-fill",
-        },
-      ],
+      "errors": [],
       "warnings": [],
     },
   },
@@ -1538,19 +1534,14 @@ exports[`LL0 Room 10b (room10b.json) > pin in: currently leaves 12 inches empty 
               "right": false,
             },
             "cabinetTypeId": 1,
-            "errors": [
-              {
-                "code": "does-not-fill",
-                "pieceId": undefined,
-              },
-            ],
+            "errors": [],
             "flex": {
               "boxes": {
                 "left": 28.5,
               },
               "left": 0,
               "right": 0,
-              "width": 72.8125,
+              "width": 60.8125,
               "x": 0,
             },
             "id": "5d290bf9-897b-4304-9dbe-ccef6ab1c311",
@@ -1585,7 +1576,7 @@ exports[`LL0 Room 10b (room10b.json) > pin in: currently leaves 12 inches empty 
               },
             ],
             "warnings": [],
-            "width": 72.8125,
+            "width": 60.8125,
             "x": 0,
           },
         ],

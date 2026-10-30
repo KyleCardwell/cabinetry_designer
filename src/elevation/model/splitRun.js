@@ -415,6 +415,16 @@ function outerMinimum(run, side, items, settings, opts) {
   return endMinimum + itemsMinimum(items, settings);
 }
 
+/** Space outside an attached column, including its seams and the real end's frame gap. */
+export function lineEndMinimum(run, settings, itemId, side) {
+  const items = itemsWithGaps(run, settings);
+  const index = items.findIndex((item) => item.id === itemId);
+  const outerItems = side === 'left' ? items.slice(0, index) : items.slice(index + 1);
+  return outerMinimum(run, side, outerItems, settings)
+    + endGaps(run, items, settings)[side]
+    + (side === 'right' ? items[index].gapAfter : 0);
+}
+
 function positionedItemPiece(run, settings, item, width, x, auto, absorbed) {
   return {
     id: item.id,
@@ -454,7 +464,8 @@ function cabinetWidthWarnings(run, settings, item, width, auto) {
 }
 
 function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
-  const width = end - start;
+  const onLine = Boolean(leftPin.item.attach || rightPin.item.attach);
+  const width = onLine ? Math.max(0, end - start) : end - start;
   const fixedWidth = items.reduce(
     (sum, item) => sum + (item.width === null ? 0 : item.width) + item.gapAfter,
     0,
@@ -468,9 +479,10 @@ function interiorLayout(run, settings, items, start, end, leftPin, rightPin) {
   let absorberWidth = 0;
 
   if (autos.length > 0) {
-    baseWidth = autoRounding(run, settings, items).floor(available / autos.length);
+    const autoSpace = onLine ? Math.max(0, available) : available;
+    baseWidth = autoRounding(run, settings, items).floor(autoSpace / autos.length);
     absorberId = autos.find((item) => item.absorb)?.id ?? autos[autos.length - 1].id;
-    absorberWidth = available - baseWidth * (autos.length - 1);
+    absorberWidth = autoSpace - baseWidth * (autos.length - 1);
   } else if (Math.abs(available) > WIDTH_EPSILON) {
     errors.push({
       code: 'pin-gap',
@@ -533,6 +545,7 @@ function steppedLayout(run, layout) {
  *   endMinWidths?: {left?: number, right?: number},
  *   endCornerAngles?: {left?: number, right?: number},
  *   pinTargets?: Record<string, number>,
+ *   lineLabels?: Record<string, string>,
  * }} [opts]
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
  */
@@ -595,9 +608,8 @@ export function splitRun(run, settings, opts) {
 }
 
 /**
- * Where a run's pinned cabinets land (SPEC-8): each pin's width and left edge, clamped so the items
- * around it still fit, plus a warning for every pin that couldn't reach its target. Null when the
- * run has no pin with a finite target.
+ * Attached columns land exactly on their lines; return pins clamp so their neighbours still fit.
+ * Warn on squeezed line segments and unreachable return pins. Null without a finite target.
  */
 function pinPlan(run, settings, opts) {
   const items = itemsWithGaps(run, settings);
@@ -657,7 +669,9 @@ function pinPlan(run, settings, opts) {
       requiredAfter += middleMinimums[future - 1] + pins[future].width;
     }
     const maximumLeft = run.x + run.width - pin.width - requiredAfter;
-    const left = Math.max(minimumLeft, Math.min(pin.requestedLeft, maximumLeft));
+    const left = pin.item.attach
+      ? pin.requestedLeft
+      : Math.max(minimumLeft, Math.min(pin.requestedLeft, maximumLeft));
     const actual = { ...pin, left };
     actualPins.push(actual);
     if (Math.abs(cabinetAnchorX(left, pin.width, placedAt(pin.item)) - pin.target)
@@ -670,15 +684,33 @@ function pinPlan(run, settings, opts) {
     }
   }
 
+  actualPins.forEach((pin, index) => {
+    if (!pin.item.attach) return;
+    const previous = actualPins[index - 1];
+    const next = actualPins[index + 1];
+    const before = previous ? pin.left - previous.left - previous.width : pin.left - run.x;
+    const after = next ? next.left - pin.left - pin.width : run.x + run.width - pin.left - pin.width;
+    if (before < (previous ? middleMinimums[index - 1] : leftMinimum) - WIDTH_EPSILON
+      || after < (next ? middleMinimums[index] : rightMinimum) - WIDTH_EPSILON) {
+      warnings.push(warning(
+        'line-squeeze',
+        pin.item.id,
+        `Cabinets beside it are below minimum width because of line ${opts?.lineLabels?.[pin.item.id] ?? pin.item.attach.lineId}.`,
+      ));
+    }
+  });
+
   return { items, actualPins, leftItems, rightItems, warnings };
 }
 
 /** The part of a pinned run left of its first pin, as a run of its own. */
 function leftSegmentRun(run, plan) {
+  const firstPin = plan.actualPins[0];
+  const width = firstPin.left - run.x;
   return {
     ...run,
     x: run.x,
-    width: plan.actualPins[0].left - run.x,
+    width: firstPin.item.attach ? Math.max(0, width) : width,
     items: plan.leftItems,
     _pinSplit: { right: true },
     ends: { left: run.ends.left, right: { type: 'none', width: null } },
@@ -689,10 +721,11 @@ function leftSegmentRun(run, plan) {
 function rightSegmentRun(run, plan) {
   const lastPin = plan.actualPins[plan.actualPins.length - 1];
   const rightStart = lastPin.left + lastPin.width + lastPin.item.gapAfter;
+  const width = run.x + run.width - rightStart;
   return {
     ...run,
     x: rightStart,
-    width: run.x + run.width - rightStart,
+    width: lastPin.item.attach ? Math.max(0, width) : width,
     items: plan.rightItems,
     _pinSplit: { left: true },
     ends: { left: { type: 'none', width: null }, right: run.ends.right },
@@ -772,7 +805,7 @@ function roundingNeed(run, settings, opts) {
 export function runFlexNeeds(run, settings, opts) {
   const plan = pinPlan(run, settings, opts);
   if (!plan) return [{ key: 'run', edges: ['left', 'right'], ...roundingNeed(run, settings, opts) }];
-  if (plan.warnings.length > 0) return [];
+  if (plan.warnings.some(({ code }) => code === 'pin-unreachable')) return [];
   return [
     { key: 'left', edges: ['left'], ...roundingNeed(leftSegmentRun(run, plan), settings, opts) },
     { key: 'right', edges: ['right'], ...roundingNeed(rightSegmentRun(run, plan), settings, opts) },
