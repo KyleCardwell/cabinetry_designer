@@ -1,11 +1,14 @@
 import { useCallback } from 'react';
 import { CURSORS } from '../../canvas/cursor.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
+import { isJointAnchor } from '../../model/joints.js';
 import { runLineLock } from '../../model/lineLocks.js';
+import { runWidthChoices } from '../../model/runWidthChoices.js';
+import { roundTo } from '../../model/units.js';
 import { endMinWidthsForRun, stretchRun } from '../../model/room.js';
 import { wallSideView } from '../../model/wallSides.js';
 import { runWidthRange } from '../../model/splitRun.js';
-import { replaceRun, replaceWallLayout, setMessage } from '../../store/elevationSlice.js';
+import { openRunWidthPrompt, replaceRun, replaceWallLayout, setMessage } from '../../store/elevationSlice.js';
 
 export default function useRunStretch({
   applyRunAlignment,
@@ -49,6 +52,17 @@ export default function useRunStretch({
     setStretchPreview(null);
     setAlignmentGuides([]);
     if (!room || !wall) return;
+    // LL6: a stretch types the run width; when only typed widths would take it, ask which one.
+    const storedRun = room.walls.find((candidate) => candidate.id === wall.id)
+      ?.runs.find((candidate) => candidate.id === runId);
+    if (storedRun && !isJointAnchor(storedRun.anchors?.[side])) {
+      const raw = side === 'right' ? alignedEdgeX - storedRun.x : storedRun.x + storedRun.width - alignedEdgeX;
+      const width = exact ? raw : roundTo(raw, 1 / 16);
+      if (runWidthChoices(room, wall.id, runId, width, side, settings).needsChoice) {
+        dispatch(openRunWidthPrompt({ wallId: wall.id, runId, width, grow: side }));
+        return;
+      }
+    }
     const result = stretchRun(room, wall.id, runId, side, alignedEdgeX, settings, { exact });
     if (!result.ok) {
       showMessage(result.message ?? result.reason);

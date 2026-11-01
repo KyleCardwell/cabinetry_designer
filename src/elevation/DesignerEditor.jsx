@@ -18,6 +18,7 @@ import RoomPartNumbersPanel from './components/RoomPartNumbersPanel.jsx';
 import RoomStylePanel from './components/RoomStylePanel.jsx';
 import RoomDoorStylesPanel from './components/RoomDoorStylesPanel.jsx';
 import RoomPicker from './components/RoomPicker.jsx';
+import RunWidthPrompt from './components/RunWidthPrompt.jsx';
 import SampleRunsButton from './components/SampleRunsButton.jsx';
 import SettingsDrawer from './components/SettingsDrawer.jsx';
 import usePanelState from './components/panel/usePanelState.js';
@@ -134,6 +135,7 @@ export default function DesignerEditor({ mode = 'lab', header = null, banners = 
         <div className="relative min-h-0 flex-1">
           <SettingsDrawer shopStandards={!roomMode} readOnly={readOnly} />
           <MessageToast />
+          <RunWidthPrompt />
           {view === 'plan' ? (
             <PlanCanvas fitRequest={fitRequest} />
           ) : (

@@ -6,6 +6,7 @@ import {
 } from 'react';
 import { useDispatch } from 'react-redux';
 import { cellWidthsBlocker } from '../../model/cellWidths.js';
+import { runWidthChoices } from '../../model/runWidthChoices.js';
 import {
   formatInchesInput,
   frontDepth,
@@ -20,7 +21,7 @@ import { wallSideOf } from '../../model/wallSides.js';
 import { formatRunOverhang } from '../../properties/helpers.js';
 import { isPanelOnlyRun } from '../../model/wallEndPanels.js';
 import {
-  attachRunToNewLine, resizeRun, setAttachment, setRunHoldWidth, setRunRecess, setRunWidthFrom, startCenterPick,
+  attachRunToNewLine, openRunWidthPrompt, resizeRun, setAttachment, setRunHoldWidth, setRunRecess, setRunWidthFrom, startCenterPick,
 } from '../../store/elevationSlice.js';
 import { centerPickRefusal } from '../canvas/useCenterPick.js';
 import InchInput from '../InchInput.jsx';
@@ -109,6 +110,13 @@ export default function RunGeometrySection({
                 onGrowChange={setRunGrow}
                 locked={runGrowLocked}
                 onCommit={(width) => {
+                  // LL6: when only typed widths would take the change, ask which one gives way.
+                  if (room && Number.isFinite(width)
+                    && runWidthChoices(room, wall.id, run.id, width, runGrow, settings).needsChoice) {
+                    dispatch(openRunWidthPrompt({ ...actionBase, width, grow: runGrow }));
+                    setRunGrow(preferredRunGrow);
+                    return true;
+                  }
                   if (isJointAnchor(run.anchors.left) || isJointAnchor(run.anchors.right)) {
                     dispatch(resizeRun({ ...actionBase, width, grow: runGrow }));
                     setRunGrow(preferredRunGrow);
