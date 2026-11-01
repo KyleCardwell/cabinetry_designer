@@ -1,3 +1,4 @@
+import { withoutWidthFrom } from './cellWidths.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cornerForRunSide, cornerReserve } from './corners.js';
 import { isJointAnchor, jointEdgeX, jointMembers } from './joints.js';
@@ -25,6 +26,8 @@ export function stretchRun(room, wallId, runId, side, newEdgeX, settings, { exac
   if (side !== 'left' && side !== 'right') {
     return { ok: false, reason: 'invalid-side', room };
   }
+  // LL6: a stretch is a typed run width, so width from cabinets turns off.
+  room = withoutWidthFrom(room, wallId, runId);
   const sourceWall = room.walls.find((wall) => wall.id === wallId);
   const sourceRun = sourceWall?.runs.find((run) => run.id === runId);
   if (!sourceWall || !sourceRun || !Number.isFinite(newEdgeX)) {

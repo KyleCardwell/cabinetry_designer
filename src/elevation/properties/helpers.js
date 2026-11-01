@@ -46,6 +46,8 @@ export function formatRunWarning(warning) {
  */
 export function prepareRunUpdate(room, wallId, run, settings, changes) {
   const patchedRun = { ...run, ...changes };
+  // LL6: a typed run width goes back to "Run width" (as the updateRun reducer does).
+  if (changes.width !== undefined) delete patchedRun.widthFrom;
   const roomWithoutRun = {
     ...room,
     walls: room.walls.map((wall) => (

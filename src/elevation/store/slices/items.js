@@ -11,6 +11,7 @@ import {
   endCornerAnglesForRun,
   endMinWidthsForRun,
 } from '../../model/room.js';
+import { cellWidthsBlocker } from '../../model/cellWidths.js';
 import { placedAt } from '../../model/layoutLines.js';
 import { splitRun } from '../../model/splitRun.js';
 import { roundTo } from '../../model/units.js';
@@ -45,9 +46,12 @@ export const itemReducers = {
     if (!location) return;
     const itemIndex = itemIndexFor(location.run, action.payload.itemId);
     if (itemIndex === -1) return;
-    location.run.grid = updateRootItem(location.run.grid, action.payload.itemId, {
-      width: action.payload.width ?? action.payload.value ?? null,
-    });
+    const width = action.payload.width ?? action.payload.value ?? null;
+    location.run.grid = updateRootItem(location.run.grid, action.payload.itemId, { width });
+    // LL6: typing the last auto width (with a free end) makes the run take its width from its cabinets.
+    if (Number.isFinite(width) && cellWidthsBlocker(location.run, location.wall) === null) {
+      location.run.widthFrom = 'cells';
+    }
     syncRoomAt(state, location.roomIndex);
   },
   setItemPin(state, action) {

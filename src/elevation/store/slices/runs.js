@@ -1,3 +1,4 @@
+import { cellWidthsBlocker } from '../../model/cellWidths.js';
 import { cornerAt } from '../../model/corners.js';
 import {
   gridLeaves,
@@ -53,7 +54,10 @@ export const runReducers = {
     void wallId;
     void roomId;
     void runId;
-    Object.assign(location.run, changes ?? patch ?? inlineChanges);
+    const applied = changes ?? patch ?? inlineChanges;
+    Object.assign(location.run, applied);
+    // LL6: a typed run width goes back to "Run width".
+    if (applied.width !== undefined) delete location.run.widthFrom;
     syncRoomAt(state, location.roomIndex);
   },
   deleteRun(state, action) {
@@ -446,6 +450,20 @@ export const runReducers = {
     if (hold === (location.run.holdWidth === true)) return;
     if (hold) location.run.holdWidth = true;
     else delete location.run.holdWidth;
+    syncRoomAt(state, location.roomIndex);
+  },
+  /** LL6: 'cells' takes the width from the cabinets (only when nothing blocks it); null goes back to Run width. */
+  setRunWidthFrom(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const value = action.payload.value ?? null;
+    if (value === 'cells') {
+      if (location.run.widthFrom === 'cells' || cellWidthsBlocker(location.run, location.wall) !== null) return;
+      location.run.widthFrom = 'cells';
+    } else if (value === null) {
+      if (location.run.widthFrom === undefined) return;
+      delete location.run.widthFrom;
+    } else return;
     syncRoomAt(state, location.roomIndex);
   },
   setRunTFiller(state, action) {

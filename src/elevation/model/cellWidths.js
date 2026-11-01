@@ -52,3 +52,21 @@ export function cellWidths(room, settings) {
   });
   return changed ? { ...room, walls } : room;
 }
+
+/**
+ * LL6: typing or dragging the run width goes back to "Run width". The same room when the run isn't flagged,
+ * so edit functions can call it first and still return their input on a refusal.
+ */
+export function withoutWidthFrom(room, wallId, runId) {
+  const wall = room.walls.find((candidate) => candidate.id === wallId);
+  const run = wall?.runs.find((candidate) => candidate.id === runId);
+  if (!run || run.widthFrom === undefined) return room;
+  const { widthFrom, ...rest } = run;
+  void widthFrom;
+  return {
+    ...room,
+    walls: room.walls.map((candidate) => (candidate !== wall ? candidate : {
+      ...wall, runs: wall.runs.map((item) => (item === run ? rest : item)),
+    })),
+  };
+}

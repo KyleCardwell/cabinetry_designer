@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid';
+import { withoutWidthFrom } from './cellWidths.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import {
   followCreatesCycle,
@@ -242,6 +243,8 @@ export function resizeRun(room, wallId, runId, width, grow, settings) {
   if (!Number.isFinite(width) || width <= 0 || !['left', 'both', 'right'].includes(grow)) {
     return { ok: false, reason: 'invalid-width', room };
   }
+  // LL6: a typed run width turns width from cabinets off.
+  room = withoutWidthFrom(room, wallId, runId);
   const storedWall = room.walls.find((candidate) => candidate.id === wallId);
   const lock = runLineLock(storedWall, runId, 'width');
   if (lock) return { ok: false, reason: lock.reason, message: lock.message, room };
