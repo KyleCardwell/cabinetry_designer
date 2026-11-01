@@ -1,4 +1,5 @@
 import { cellWidthsBlocker } from '../../model/cellWidths.js';
+import { applyRunWidthChoice as applyRunWidthChoicePure } from '../../model/runWidthChoices.js';
 import { cornerAt } from '../../model/corners.js';
 import {
   gridLeaves,
@@ -359,6 +360,24 @@ export const runReducers = {
       state.rooms[location.roomIndex] = result.room;
       state.message = null;
     }
+    syncRoomAt(state, location.roomIndex);
+  },
+  /** LL6: the typed-width prompt's pick, one dispatch: `{ wallId, runId, width, grow, removed, auto, end }`. */
+  applyRunWidthChoice(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const { width, grow, removed, auto, end } = action.payload;
+    const result = applyRunWidthChoicePure(
+      location.room, location.wall.id, location.run.id,
+      { width, grow, removed, auto, end }, settingsFor(state, location.room),
+    );
+    state.widthPrompt = null;
+    if (!result.ok) {
+      state.message = result.message ?? result.reason;
+      return;
+    }
+    state.rooms[location.roomIndex] = result.room;
+    state.message = null;
     syncRoomAt(state, location.roomIndex);
   },
   replaceWallLayout(state, action) {

@@ -312,3 +312,4 @@ export {
 } from './linePlacement.js';
 export { jointLineLock, runLineLock, lineEndColumns } from './lineLocks.js';
 export { cellWidthsBlocker, isWidthFromCells } from './cellWidths.js';
+export { applyRunWidthChoice, runWidthChoices } from './runWidthChoices.js';

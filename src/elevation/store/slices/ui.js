@@ -98,6 +98,15 @@ export const uiReducers = {
     setMessage(state, action) {
       state.message = action.payload;
     },
+    /** LL6: ask which typed width gives way: `{ roomId?, wallId, runId, width, grow }`. Never saved. */
+    openRunWidthPrompt(state, action) {
+      const { roomId = null, wallId, runId, width, grow = 'right' } = action.payload ?? {};
+      if (!wallId || !runId || !Number.isFinite(width) || !['left', 'both', 'right'].includes(grow)) return;
+      state.widthPrompt = { roomId: roomId ?? state.activeRoomId, wallId, runId, width, grow };
+    },
+    closeRunWidthPrompt(state) {
+      state.widthPrompt = null;
+    },
     startCenterPick(state, action) {
       const { wallId, runId } = action.payload ?? {};
       if (typeof wallId !== 'string' || typeof runId !== 'string') return;

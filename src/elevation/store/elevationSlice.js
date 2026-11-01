@@ -78,6 +78,8 @@ export function createInitialElevationState(document = loadElevationDocument()) 
     message: null,
     // Center-over pick mode (CV1): `{ wallId, runId }` or null. Never saved.
     centerPick: null,
+    // Typed-width prompt (LL6): `{ roomId, wallId, runId, width, grow }` or null. Never saved.
+    widthPrompt: null,
     // Copy / paste buffer (MR5): `{ kind, data }` or null. Never saved; kept across room loads.
     clipboard: null,
   };
@@ -191,6 +193,9 @@ export const {
   setRunSeamGap,
   setRunHoldWidth,
   setRunWidthFrom,
+  applyRunWidthChoice,
+  openRunWidthPrompt,
+  closeRunWidthPrompt,
   setRunTFiller,
   setItemTFiller,
   setItemWidth,
