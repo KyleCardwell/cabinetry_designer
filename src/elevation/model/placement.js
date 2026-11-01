@@ -1,3 +1,4 @@
+import { cellWidths } from './cellWidths.js';
 import { wallLength } from './geometry.js';
 import { runItems } from './grid.js';
 import { followLeaders } from './joints.js';
@@ -9,7 +10,7 @@ import { lineEndColumns, pinTargetsForRun, resolvePinnedSpan, segmentTargets } f
 import { resolveSoffitSpan } from './soffits.js';
 import { wallSideOf, wallSideView } from './wallSides.js';
 
-// Return pins → soffits → run edges → line runs → pin growth; edits keep their ripple until LL5.
+// Return pins → soffits → cell widths → run edges → line runs → pin growth; edits keep their ripple until LL5.
 
 function lineEndOptions(run, targets) {
   const lineEnds = lineEndColumns(run, targets);
@@ -148,6 +149,8 @@ export function pinGrowth(room, settings) {
 export const PLACEMENT_STAGES = Object.freeze([
   { name: 'return-pins', run: returnPinTargets },
   { name: 'soffits', run: soffitSpans },
+  // LL6: width from cabinets sets the stored span before edges, so followers and joints read it.
+  { name: 'cell-widths', get run() { return cellWidths; } },
   { name: 'run-edges', run: runEdges },
   // Geometry readers also import placement; read this binding after that module cycle settles.
   { name: 'line-runs', get run() { return placeAttachedRuns; } },

@@ -129,7 +129,7 @@ describe('LL4 run layout lines', () => {
 
   it('places run lines immediately after edges and before column targets', () => {
     expect(PLACEMENT_STAGES.map(({ name }) => name))
-      .toEqual(['return-pins', 'soffits', 'run-edges', 'line-runs', 'pin-growth']);
-    expect(PLACEMENT_STAGES[3].run).toBe(placeAttachedRuns);
+      .toEqual(['return-pins', 'soffits', 'cell-widths', 'run-edges', 'line-runs', 'pin-growth']);
+    expect(PLACEMENT_STAGES[4].run).toBe(placeAttachedRuns);
   });
 });

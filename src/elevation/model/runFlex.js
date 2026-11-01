@@ -1,4 +1,5 @@
 import { DEFAULT_SETTINGS } from './constants.js';
+import { isWidthFromCells } from './cellWidths.js';
 import { cornerAt } from './corners.js';
 import { wallFrame, wallLength } from './geometry.js';
 import { followLeaders } from './joints.js';
@@ -13,7 +14,7 @@ import { wallSideOf, wallViewForRun } from './wallSides.js';
  * grow or shrink; opening, soffit and recess offsets can grow only into their gap. Wall anchors
  * at corners, joints, follow edges and edges touching another run hold at zero. Free wall ends grow
  * only outward, decided by the first front run that moves (lowest z first); other runs follow.
- * Runs with holdWidth or no needs hold their undecided edges. Flex never changes the drawn auto box count.
+ * Runs with holdWidth, width from cabinets (LL6) or no needs hold their undecided edges. Flex never changes the drawn auto box count.
  *
  * A need uses the sum of its listed edges' outward moves. Choose, in order: fewest unmet exact
  * needs, lowest met candidate indexes, fewest missed filler raises, least offset movement, smallest
@@ -209,7 +210,7 @@ function flexedRun(model, left, right, settings) {
 /** Enumerate this run's independent edge choices and take the cheapest one that places. */
 function solveRun(room, wall, run, settings, t, endMoves) {
   const model = runModel(room, wall, run, settings);
-  const fixed = run.holdWidth === true || model.needs.length === 0;
+  const fixed = run.holdWidth === true || isWidthFromCells(run, wall) || model.needs.length === 0;
   const ranges = Object.fromEntries(['left', 'right'].map((side) => {
     const range = model.lineEnds[side] ? { kind: 'fixed', move: 0 }
       : flexRange(room, wall, run, side, settings, t, endMoves);
@@ -293,7 +294,8 @@ function flexWall(room, wall, settings, tolerance, decidedMoves = null) {
   const deciding = decidedMoves === null;
   const endMoves = decidedMoves ?? {};
   if (deciding && tolerance > 0) {
-    for (const run of wall.runs.filter((run) => wallSideOf(run) === 'front' && run.holdWidth === true)) {
+    const held = (run) => run.holdWidth === true || isWidthFromCells(run, wall);
+    for (const run of wall.runs.filter((run) => wallSideOf(run) === 'front' && held(run))) {
       for (const side of ['left', 'right']) {
         const endpoint = freeWallEndpoint(room, wall, run, side);
         if (endpoint) endMoves[endpoint] = 0;

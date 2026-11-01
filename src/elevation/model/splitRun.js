@@ -15,7 +15,7 @@ const FILLER_END_TYPES = new Set(['filler', 'blind']);
 const AUTO_KINDS = new Set(['cabinet', 'panel', 'void', 'shelves']);
 
 /** An item that shares leftover width: a cabinet or cell kind with no width. Never a filler. */
-function isAutoItem(item) {
+export function isAutoItem(item) {
   return item.width === null && AUTO_KINDS.has(item.kind);
 }
 
@@ -202,6 +202,15 @@ export function runWidthRange(run, settings, opts) {
     ),
     max: Infinity,
   };
+}
+
+/**
+ * LL6: the width a run's contents need: ends, typed widths, gaps and every auto filler at its minimum.
+ * Only meaningful when nothing is auto (width from cabinets); no minRunWidth floor.
+ */
+export function contentsWidth(run, settings, opts) {
+  const { fixedEnds, fixedItems, minimumTotal, panelMiters } = layoutInputs(run, settings, opts);
+  return fixedEnds + fixedItems + minimumTotal - panelMiters.left - panelMiters.right;
 }
 
 function warning(code, pieceId, message) {

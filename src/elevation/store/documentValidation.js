@@ -420,6 +420,7 @@ function isRun(run) {
     && (run.upperBottom === undefined || UPPER_BOTTOM_OPTIONS.includes(run.upperBottom))
     && (run.hanging === undefined || run.hanging === true)
     && (run.holdWidth === undefined || run.holdWidth === true)
+    && (run.widthFrom === undefined || run.widthFrom === 'cells')
     && (run.attach === undefined || isAttachment(run.attach))
     && isRunFlex(run.flex)
     && (run.top === undefined || RUN_TOP_OPTIONS.includes(run.top))
