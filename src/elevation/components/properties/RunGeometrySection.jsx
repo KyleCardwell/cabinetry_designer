@@ -5,6 +5,7 @@ import {
   useState,
 } from 'react';
 import { useDispatch } from 'react-redux';
+import { cellWidthsBlocker } from '../../model/cellWidths.js';
 import {
   formatInchesInput,
   frontDepth,
@@ -19,13 +20,36 @@ import { wallSideOf } from '../../model/wallSides.js';
 import { formatRunOverhang } from '../../properties/helpers.js';
 import { isPanelOnlyRun } from '../../model/wallEndPanels.js';
 import {
-  attachRunToNewLine, resizeRun, setAttachment, setRunHoldWidth, setRunRecess, startCenterPick,
+  attachRunToNewLine, resizeRun, setAttachment, setRunHoldWidth, setRunRecess, setRunWidthFrom, startCenterPick,
 } from '../../store/elevationSlice.js';
 import { centerPickRefusal } from '../canvas/useCenterPick.js';
 import InchInput from '../InchInput.jsx';
 import Field, { ReadOnlyValue } from './Field.jsx';
 import StretchInput from './StretchInput.jsx';
 import LineAttachSection from './LineAttachSection.jsx';
+
+// LL6: why From cabinets is paused for a flagged run.
+const PAUSED_NOTES = {
+  'auto-item': 'From cabinets is paused: every cabinet needs a width.',
+  'no-free-end': 'From cabinets is paused: both ends are held.',
+  'placed-column': 'From cabinets is paused: a cabinet is on a line.',
+  'line-sized': "From cabinets is paused: the line sets this run's width.",
+};
+
+const BLOCKED_TITLES = {
+  'auto-item': 'Every cabinet needs a typed width first.',
+  'no-free-end': 'One end of the run has to be free.',
+  'placed-column': 'Not with a cabinet on a line.',
+  'line-sized': "The line and the held end set this run's width.",
+};
+
+function modeClass(active) {
+  return `flex-1 rounded border px-2 py-1 text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
+    active
+      ? 'border-cyan-500 bg-cyan-950/70 text-cyan-200'
+      : 'border-gray-600 bg-gray-900 text-gray-400 hover:bg-gray-700'
+  }`;
+}
 
 export default function RunGeometrySection({
   room = null,
@@ -59,6 +83,10 @@ export default function RunGeometrySection({
   const plannedWidth = run.width - (run.flex?.left ?? 0) - (run.flex?.right ?? 0);
   const showPlannedWidth = settings.runFlex !== 0 && !run.holdWidth && run.flex
     && Math.abs(run.width - plannedWidth) > 1e-6;
+  const storedWall = room?.walls.find((candidate) => candidate.id === wall.id) ?? wall;
+  const blocker = cellWidthsBlocker(run, storedWall);
+  const fromCells = run.widthFrom === 'cells';
+  const setWidthFrom = (value) => dispatch(setRunWidthFrom({ ...actionBase, value }));
 
   return (
       <PanelSection id="run.geometry" title="Geometry">
@@ -70,7 +98,12 @@ export default function RunGeometrySection({
               </Field>
             ) : (
               <StretchInput
-                label="Width"
+                label={fromCells && !blocker ? (
+                  <span className="flex items-center gap-1.5">
+                    Width
+                    <span className="text-[10px] text-gray-500">from cabinets</span>
+                  </span>
+                ) : 'Width'}
                 value={run.width}
                 grow={runGrow}
                 onGrowChange={setRunGrow}
@@ -90,6 +123,29 @@ export default function RunGeometrySection({
                 }}
                 ariaLabel="Run width"
               />
+            )}
+            <div className="mt-1.5 flex gap-1" role="group" aria-label="Run width mode">
+              <button
+                type="button"
+                onClick={() => setWidthFrom(null)}
+                aria-pressed={!fromCells}
+                className={modeClass(!fromCells)}
+              >
+                Run width
+              </button>
+              <button
+                type="button"
+                onClick={() => setWidthFrom('cells')}
+                disabled={!fromCells && blocker !== null}
+                title={blocker ? BLOCKED_TITLES[blocker] : 'Take the width from the cabinets'}
+                aria-pressed={fromCells}
+                className={modeClass(fromCells)}
+              >
+                From cabinets
+              </button>
+            </div>
+            {fromCells && blocker && (
+              <p className="mt-1 text-xs text-gray-500">{PAUSED_NOTES[blocker]}</p>
             )}
             {showPlannedWidth && (
               <p className="mt-1 text-xs text-gray-500">
