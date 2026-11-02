@@ -1,5 +1,7 @@
 import { useCallback } from 'react';
-import { planPointToWallX, wallFrame } from '../model/geometry.js';
+import { clamp, dot, planPointToWallX, subtract, wallFrame } from '../model/geometry.js';
+import { wallSideFrame } from '../model/wallSides.js';
+import { roundTo } from '../model/units.js';
 import {
   createOpening,
   openingsAtPoint,
@@ -7,6 +9,7 @@ import {
 } from '../model/openings.js';
 import {
   addOpening,
+  addRoomLine,
   moveOpening,
   setActiveWall,
   setMessage,
@@ -57,10 +60,34 @@ export default function usePlanSelectHandlers({
       event.cancelBubble = true;
       return;
     }
+    if (tool === 'roomLine' && room) {
+      event.cancelBubble = true;
+      const pointer = stageRef.current?.getPointerPosition();
+      const wall = walls.find((candidate) => candidate.id === wallId);
+      if (!pointer || !wall) return;
+      const point = toWorld(pointer);
+      const front = wallSideFrame(room, wall);
+      const freeStanding = !['start', 'end'].some((end) => wall.connections?.[end] || wall.landings?.[end]);
+      const side = freeStanding && dot(subtract(point, front.leftPoint), front.n) < -wall.thickness / 2
+        ? 'back' : 'front';
+      const frame = wallSideFrame(room, wall, side);
+      const rawX = planPointToWallX(frame, point);
+      if (rawX < 0 || rawX > frame.length) return;
+      const x = clamp(roundTo(rawX, settings.openingSnap), 0, frame.length);
+      const from = x <= frame.length / 2 ? 'left' : 'right';
+      const action = addRoomLine({ wallId, from, value: from === 'left' ? x : frame.length - x,
+        ...(side === 'back' ? { wallSide: 'back' } : {}),
+      });
+      closePicker();
+      dispatch(action);
+      dispatch(setSelection({ roomLineId: action.payload.id }));
+      dispatch(setTool('select'));
+      return;
+    }
     if (placeOpeningOnWall(wallId, event)) return;
     if (tool !== 'select') return;
     pickAt(event);
-  }, [entry, pickAt, placeOpeningOnWall, tool]);
+  }, [closePicker, dispatch, entry, pickAt, placeOpeningOnWall, room, settings.openingSnap, stageRef, toWorld, tool, walls]);
 
   const handleWallOpen = useCallback((wallId, event) => {
     if (entry) {

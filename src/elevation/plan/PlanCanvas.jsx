@@ -30,10 +30,12 @@ import { formatInches } from '../model/units.js';
 import {
   deleteWall,
   setMessage,
+  setSelection,
 } from '../store/elevationSlice.js';
 import { ENDPOINT_SNAP_RADIUS, PLAN_BACKGROUND_COLOR } from './constants.js';
 import PlanAlignmentGuides from './PlanAlignmentGuides.jsx';
 import PlanOverlays from './PlanOverlays.jsx';
+import PlanRoomLines from './PlanRoomLines.jsx';
 import PlanScene from './PlanScene.jsx';
 import usePlanContextMenu from './usePlanContextMenu.js';
 import usePlanKeys from './usePlanKeys.js';
@@ -70,7 +72,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   // The active wall is only selected in plan when nothing on it is (SPEC-37.4): a selected run,
   // opening, soffit or wall end panel isn't its wall.
   const wallItselfSelected = !selection.runId && !selection.openingId && !selection.soffitId
-    && !selection.endPanel && !selection.recessId;
+    && !selection.endPanel && !selection.recessId && !selection.roomLineId;
   const selectedWall = wallItselfSelected
     ? walls.find((wall) => wall.id === selection.wallId) ?? null
     : null;
@@ -356,6 +358,17 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               wallDrawStart={wallDrawStart}
               liveWallDrawEnd={liveWallDrawEnd}
               mouseWorldPos={mouseWorldPos}
+            />
+            <PlanRoomLines
+              room={room}
+              scale={scale}
+              selectedRoomLineId={selection.roomLineId}
+              tool={tool}
+              entry={entry}
+              onSelect={(roomLineId) => {
+                closePicker();
+                dispatch(setSelection({ roomLineId }));
+              }}
             />
             <PlanPickOutline candidate={hovered} scale={scale} />
           </Layer>

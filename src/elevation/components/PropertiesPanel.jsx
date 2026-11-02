@@ -45,6 +45,7 @@ export default function PropertiesPanel() {
     activeRoomId,
     activeWallId,
     activeWallSide,
+    view,
     selection,
     message,
   } = useSelector(
@@ -163,7 +164,7 @@ export default function PropertiesPanel() {
 
       <div className="mt-4">
         {roomLine ? (
-          <RoomLineProperties room={room} wall={wall} line={roomLine} />
+          <RoomLineProperties room={room} wall={view === 'plan' ? null : wall} line={roomLine} />
         ) : !wall ? (
           <p className="text-sm leading-relaxed text-gray-500">
             Select a wall, run or opening to edit it.

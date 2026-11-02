@@ -34,6 +34,30 @@ export function roomLineFrame(room, roomLine) {
   return { wall, side, frame, x, point: add(frame.leftPoint, scale(frame.r, x)) };
 }
 
+/** Clip the infinite plan line to all wall endpoints, ordered from −n to +n. */
+export function roomLineSegment(room, roomLine, pad = 24) {
+  const reference = roomLineFrame(room, roomLine);
+  if (!reference) return null;
+  const { point, frame: { n } } = reference;
+  let start = -Infinity;
+  let end = Infinity;
+  for (const axis of ['x', 'y']) {
+    const coordinates = room.walls.flatMap((wall) => [wall[`${axis}1`], wall[`${axis}2`]]);
+    const min = Math.min(...coordinates) - pad;
+    const max = Math.max(...coordinates) + pad;
+    if (Math.abs(n[axis]) < 1e-12) {
+      if (point[axis] < min || point[axis] > max) return null;
+      continue;
+    }
+    const t1 = (min - point[axis]) / n[axis];
+    const t2 = (max - point[axis]) / n[axis];
+    start = Math.max(start, Math.min(t1, t2));
+    end = Math.min(end, Math.max(t1, t2));
+  }
+  if (start > end) return null;
+  return { a: add(point, scale(n, start)), b: add(point, scale(n, end)) };
+}
+
 /** Drop lines whose reference face is gone, removing the room key when the last line goes. */
 export function pruneRoomLines(room) {
   if (!room.roomLines) return room;
