@@ -20,6 +20,7 @@ import {
 import { resolveLandings } from './landings.js';
 import { findLine, lineX, pruneLines } from './layoutLines.js';
 import { projectRoomLines, pruneRoomLines } from './roomLines.js';
+import { placeAttachedWalls, pruneWallAttachments } from './wallGroups.js';
 import { dropWallPins } from './runPins.js';
 import { lineHeldJoints, placeAttachedOpenings } from './linePlacement.js';
 import { labelOpenings, runBlocksOpening } from './openings.js';
@@ -250,7 +251,10 @@ function withWallPanels(room, wall, settings) {
 export function syncRoom(room, settings) {
   // SPEC-RF1: solve every run from its drawn span; the flex goes back on at the end.
   let nextRoom = cloneRoom(resolveLandings(unflexRoom(room)));
-  nextRoom = projectRoomLines(pruneRoomLines(nextRoom));
+  nextRoom = pruneRoomLines(nextRoom);
+  nextRoom = pruneWallAttachments(nextRoom);
+  nextRoom = placeAttachedWalls(nextRoom);
+  nextRoom = projectRoomLines(nextRoom);
   nextRoom.walls = nextRoom.walls.map((wall) => pruneStacks(pruneFollows(pruneJoints(pruneLines(dropWallPins(wall))))));
   // FX1: a wall's height is derived (team → … → room → wall.profile.wallHeight); only a typed wall height overrides.
   nextRoom.walls = nextRoom.walls.map((wall) => {

@@ -1,4 +1,4 @@
-import { cross, planPointToWallX, wallFrame } from './geometry.js';
+import { cross, dot, planPointToWallX, subtract, wallFrame } from './geometry.js';
 import { attachmentsTo } from './layoutLines.js';
 import { cloneRoom } from './roomClone.js';
 import { findRoomLine, roomLineFrame } from './roomLines.js';
@@ -54,6 +54,76 @@ export function canAttachWall(room, wallId, lineId) {
   return { ok: true, reason: null };
 }
 
+/** Resolve a held wall's line even when its reference face is no longer square. */
+export function wallAttachmentStatus(room, wallId) {
+  const wall = room.walls.find((candidate) => candidate.id === wallId);
+  const line = wall?.attach && findRoomLine(room, wall.attach.lineId);
+  const reference = line && roomLineFrame(room, line);
+  return reference ? {
+    line,
+    square: Math.abs(cross(wallFrame(room, wall).r, reference.frame.r)) <= 1e-6,
+  } : null;
+}
+
+/** Keep the first attachment per group, then drop attachments participating in chains. */
+export function pruneWallAttachments(room) {
+  if (!room.walls.some((wall) => wall.attach)) return room;
+  const heldGroups = new Set();
+  const walls = room.walls.map((wall) => {
+    if (!wall.attach) return wall;
+    const line = findRoomLine(room, wall.attach.lineId);
+    const group = wallGroup(room, wall.id);
+    if (line && roomLineFrame(room, line) && !group.includes(line.wallId) && !heldGroups.has(wall.id)) {
+      for (const id of group) heldGroups.add(id);
+      return wall;
+    }
+    const { attach, ...rest } = wall;
+    void attach;
+    return rest;
+  });
+  const candidates = { ...room, walls };
+  const pruned = walls.map((wall) => {
+    if (!wall.attach) return wall;
+    const group = new Set(wallGroup(candidates, wall.id));
+    const line = findRoomLine(candidates, wall.attach.lineId);
+    const chained = heldBy(candidates, line.wallId) || walls.some((other) => !group.has(other.id)
+      && other.attach && group.has(findRoomLine(candidates, other.attach.lineId)?.wallId));
+    if (!chained) return wall;
+    const { attach, ...rest } = wall;
+    void attach;
+    return rest;
+  });
+  return pruned.some((wall, index) => wall !== room.walls[index]) ? { ...room, walls: pruned } : room;
+}
+
+/** Rewrite group endpoints before projecting room lines; all wall-relative data rides along. */
+export function placeAttachedWalls(room) {
+  let next = room;
+  for (const source of room.walls) {
+    if (!source.attach || !wallAttachmentStatus(next, source.id)?.square) continue;
+    const wall = next.walls.find((candidate) => candidate.id === source.id);
+    const reference = roomLineFrame(next, findRoomLine(next, wall.attach.lineId));
+    const frame = wallFrame(next, wall);
+    const atX = ({ left: 0, center: 0.5, right: 1 })[wall.attach.at] * frame.length;
+    const shift = dot(subtract(reference.point, frame.leftPoint), frame.r) + wall.attach.offset - atX;
+    if (Math.abs(shift) <= 1e-9) continue;
+    const group = new Set(wallGroup(next, wall.id));
+    next = { ...next, walls: next.walls.map((member) => group.has(member.id) ? {
+      ...member,
+      x1: cleanCoordinate(member.x1 + frame.r.x * shift),
+      y1: cleanCoordinate(member.y1 + frame.r.y * shift),
+      x2: cleanCoordinate(member.x2 + frame.r.x * shift),
+      y2: cleanCoordinate(member.y2 + frame.r.y * shift),
+    } : member) };
+  }
+  return next;
+}
+
+function cleanCoordinate(value) {
+  const rounded = Math.round(value * 1e9) / 1e9;
+  return rounded === 0 ? 0 : rounded;
+}
+
 export function canMoveWallGroup(room, wallId) {
   const group = wallGroup(room, wallId);
   const reason = !group.length ? 'wall-not-found'
@@ -80,6 +150,10 @@ export function moveWallGroup(room, wallId, delta) {
       ? `Every wall is joined to ${wallLabel(room, wall)}, so there's nothing to move it against.` : '');
   }
   if (!Number.isFinite(delta?.x) || !Number.isFinite(delta?.y)) return refuse('invalid-delta');
+  const held = heldBy(room, wallId);
+  if (held && Math.abs(dot(delta, wallFrame(room, held.wall).r)) > 1e-9) {
+    return refuse('attached', `${wallLabel(room, held.wall)} is attached to line ${held.line?.label ?? held.attach.lineId}: move the line, or detach.`);
+  }
   if (delta.x === 0 && delta.y === 0) {
     return { ok: true, reason: null, message: '', room, notes: [] };
   }
@@ -105,7 +179,9 @@ export function moveWallGroup(room, wallId, delta) {
     let { wall, side, frame } = movedReference;
     let x = faceX(frame, reference.point);
     if (!onWall(x, frame)) {
-      const faces = next.walls.flatMap((wall) => WALL_SIDES.map((side) => ({
+      const heldGroups = new Set(next.walls.filter((wall) => wall.attach?.lineId === line.id)
+        .flatMap((wall) => wallGroup(next, wall.id)));
+      const faces = next.walls.filter((wall) => !heldGroups.has(wall.id)).flatMap((wall) => WALL_SIDES.map((side) => ({
         wall, side, frame: wallSideFrame(next, wall, side),
         attached: attachmentsTo(wallSideView(wall, side), line.id).length > 0,
       })));
