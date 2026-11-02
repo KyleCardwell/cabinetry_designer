@@ -5,6 +5,7 @@ import { resolveSetting } from '../../model/settingsResolve.js';
 import {
   crownOverlap,
   formatInchesInput,
+  landingEndLabel,
   landingRefCreatesCycle,
   landingsOn,
   wallFrame,
@@ -173,6 +174,11 @@ export default function WallHeightProperties({ room, wall, plan }) {
     );
   };
 
+  const [landingMoves, setLandingMoves] = useState({});
+  useEffect(() => {
+    setLandingMoves({});
+  }, [wall.id]);
+
   const landingFields = [
     ['left', frame.leftEndpoint],
     ['right', frame.rightEndpoint],
@@ -181,6 +187,8 @@ export default function WallHeightProperties({ room, wall, plan }) {
     if (!landing) return null;
     const host = room.walls.find((candidate) => candidate.id === landing.wallId);
     if (!host) return null;
+    const canMoveHost = landing.ref === 'left' || landing.ref === 'right';
+    const move = canMoveHost ? landingMoves[endpoint] ?? 'landed' : 'landed';
     const hostView = resolveWall(room, host, landing.side);
     const referenceWalls = landingsOn(room, hostView)
       .filter((interval) => interval.wallId !== wall.id)
@@ -203,16 +211,18 @@ export default function WallHeightProperties({ room, wall, plan }) {
           <Field label="Measured from">
             <select
               value={landing.ref}
-              onChange={(event) => dispatch(setWallLanding({
-                wallId: wall.id,
-                endpoint,
-                ref: event.target.value,
-              }))}
+              onChange={(event) => {
+                const ref = event.target.value;
+                if (ref !== 'left' && ref !== 'right') {
+                  setLandingMoves((moves) => ({ ...moves, [endpoint]: 'landed' }));
+                }
+                dispatch(setWallLanding({ wallId: wall.id, endpoint, ref }));
+              }}
               aria-label={`${side} landing measured from`}
               className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
             >
-              <option value="left">Left end</option>
-              <option value="right">Right end</option>
+              <option value="left">{landingEndLabel(room, host, landing.side, 'left')}</option>
+              <option value="right">{landingEndLabel(room, host, landing.side, 'right')}</option>
               {referenceWalls.map((referenceWall) => (
                 <option key={referenceWall.id} value={referenceWall.id}>
                   {wallLabel(room, referenceWall)}
@@ -243,9 +253,24 @@ export default function WallHeightProperties({ room, wall, plan }) {
                 wallId: wall.id,
                 endpoint,
                 offset,
+                move,
               }))}
               aria-label={`${side} landing distance`}
             />
+          </Field>
+          <Field label="Moves">
+            <select
+              value={move}
+              onChange={(event) => {
+                const value = event.target.value;
+                setLandingMoves((moves) => ({ ...moves, [endpoint]: value }));
+              }}
+              aria-label={`${side} landing moves`}
+              className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="landed">{wallLabel(room, wall)}</option>
+              <option value="host" disabled={!canMoveHost}>{wallLabel(room, host)}</option>
+            </select>
           </Field>
           <button
             type="button"

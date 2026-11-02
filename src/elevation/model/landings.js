@@ -12,6 +12,19 @@ import { wallLabel } from './topology.js';
 
 export const LANDING_TO = ['near', 'far', 'center'];
 
+export function landingEndLabel(room, host, side, end) {
+  const frame = wallSideFrame(room, host, side);
+  const endpoint = end === 'left' ? frame.leftEndpoint : frame.rightEndpoint;
+  const neighbour = room.walls.find(
+    (wall) => wall.id === host.connections?.[endpoint]?.wallId,
+  );
+  if (neighbour) return `${wallLabel(room, neighbour)} corner`;
+  const landingHost = room.walls.find(
+    (wall) => wall.id === host.landings?.[endpoint]?.wallId,
+  );
+  return landingHost ? `On ${wallLabel(room, landingHost)}` : 'Free end';
+}
+
 function endpointPoint(wall, endpoint) {
   return endpoint === 'start'
     ? { x: wall.x1, y: wall.y1 }

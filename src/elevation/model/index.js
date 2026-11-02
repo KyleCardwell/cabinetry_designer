@@ -206,6 +206,7 @@ export {
 } from './openings.js';
 export {
   holdLandedWalls,
+  landingEndLabel,
   landingReferenceDirection,
   landingRefCreatesCycle,
   landingsOn,
