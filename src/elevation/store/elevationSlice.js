@@ -131,6 +131,7 @@ export const {
   moveWallPerpendicular,
   connectWalls,
   disconnectWallEndpoint,
+  landWallEndpoint,
   setWallLength,
   setWallEndPanel,
   setWallLanding,

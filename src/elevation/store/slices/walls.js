@@ -4,6 +4,7 @@ import { wallFrame } from '../../model/geometry.js';
 import { moveWallGroup as moveWallGroupPure } from '../../model/wallGroups.js';
 import {
   LANDING_TO,
+  landEndpointOnFace,
   landWallEnd,
   landingEndpoint,
   landingOffsetFor,
@@ -153,6 +154,23 @@ export const wallReducers = {
         action.payload.endpoint,
       );
       syncRoomAt(state, roomIndex);
+    },
+    landWallEndpoint(state, action) {
+      const { wallId, endpoint, hostId, side, x, roomId } = action.payload;
+      const roomIndex = roomIndexFor(state, roomId);
+      if (roomIndex === -1 || !['start', 'end'].includes(endpoint)
+        || !['front', 'back'].includes(side) || !Number.isFinite(x)
+        || wallId === hostId) return;
+      const room = state.rooms[roomIndex];
+      if (!room.walls.some((wall) => wall.id === wallId)
+        || !room.walls.some((wall) => wall.id === hostId)) return;
+      const result = landEndpointOnFace(room, wallId, endpoint, { hostId, side, x });
+      if (!result.ok) {
+        state.message = result.message;
+        return;
+      }
+      state.message = null;
+      setCompensatedWalls(state, roomIndex, result.walls);
     },
     setWallLength(state, action) {
       const location = wallLocation(state, action.payload);
