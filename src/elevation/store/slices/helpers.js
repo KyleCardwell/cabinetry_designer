@@ -7,7 +7,7 @@ import { BUILT_IN_PULLS } from '../../model/pulls.js';
 import { BUILT_IN_SLIDES } from '../../model/slides.js';
 import { runItems } from '../../model/grid.js';
 import { recessEndType } from '../../model/recesses.js';
-import { holdLandedWalls } from '../../model/landings.js';
+import { heldLandingCorner, holdLandedWalls } from '../../model/landings.js';
 import {
   compensateRuns,
   resolveWall,
@@ -195,6 +195,13 @@ export function setCompensatedWalls(state, roomIndex, walls) {
   const result = holdLandedWalls(oldRoom, { ...oldRoom, walls });
   if (!result.ok) {
     state.message = result.message;
+    const corner = heldLandingCorner(oldRoom, { ...oldRoom, walls });
+    state.messageAction = corner ? {
+      message: result.message,
+      label: 'Make corner',
+      kind: 'make-corner',
+      payload: { roomId: oldRoom.id, ...corner, move: 'host' },
+    } : null;
     return false;
   }
   state.rooms[roomIndex] = compensateRuns(oldRoom, { ...oldRoom, walls: result.walls });

@@ -67,7 +67,14 @@ describe('WL1 b: host edits hold landed walls in the store', () => {
   ])('%s refuses an off-host landing without changing the room', (_, action) => {
     const before = { ...initial, message: 'old' };
     const state = elevationReducer(before, action);
-    expect(state).toEqual({ ...before, message: refusal });
+    expect(state).toEqual({
+      ...before,
+      message: refusal,
+      messageAction: {
+        message: refusal, label: 'Make corner', kind: 'make-corner',
+        payload: { roomId: K.id, wallId: 'wall-2', endpoint: 'end', hostEndpoint: 'start', move: 'host' },
+      },
+    });
     expect(state.rooms).toBe(before.rooms);
   });
 

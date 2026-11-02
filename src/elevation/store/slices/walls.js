@@ -16,6 +16,10 @@ import { flipRunsForWall } from '../../model/room.js';
 import { elevationKey, elevationLeadKey, faceKeyParts } from '../../model/topology.js';
 import { moveLandingDistance } from '../../plan/landingMoves.js';
 import {
+  extendPastCorner as extendPastCornerPure,
+  makeWallCorner as makeWallCornerPure,
+} from '../../plan/cornerLandings.js';
+import {
   addWallWithConnections,
   connectWallEndpoints,
   disconnectWallEndpoint as disconnectWallEndpointPure,
@@ -165,6 +169,34 @@ export const wallReducers = {
       if (!room.walls.some((wall) => wall.id === wallId)
         || !room.walls.some((wall) => wall.id === hostId)) return;
       const result = landEndpointOnFace(room, wallId, endpoint, { hostId, side, x });
+      if (!result.ok) {
+        state.message = result.message;
+        return;
+      }
+      state.message = null;
+      setCompensatedWalls(state, roomIndex, result.walls);
+    },
+    makeWallCorner(state, action) {
+      const { wallId, endpoint, move = 'landed', hostEndpoint = null, roomId } = action.payload;
+      const roomIndex = roomIndexFor(state, roomId);
+      if (roomIndex === -1 || !['start', 'end'].includes(endpoint)
+        || !['landed', 'host'].includes(move)
+        || ![null, 'start', 'end'].includes(hostEndpoint)) return;
+      const room = state.rooms[roomIndex];
+      if (!room.walls.find((wall) => wall.id === wallId)?.landings?.[endpoint]) return;
+      const result = makeWallCornerPure(room, wallId, endpoint, { move, hostEndpoint });
+      if (!result.ok) {
+        state.message = result.message;
+        return;
+      }
+      state.message = null;
+      setCompensatedWalls(state, roomIndex, result.walls);
+    },
+    extendPastCorner(state, action) {
+      const { wallId, endpoint, amount, roomId } = action.payload;
+      const roomIndex = roomIndexFor(state, roomId);
+      if (roomIndex === -1 || !Number.isFinite(amount) || amount < 0) return;
+      const result = extendPastCornerPure(state.rooms[roomIndex], wallId, endpoint, amount);
       if (!result.ok) {
         state.message = result.message;
         return;

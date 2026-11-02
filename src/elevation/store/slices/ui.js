@@ -108,6 +108,7 @@ export const uiReducers = {
     },
     setMessage(state, action) {
       state.message = action.payload;
+      state.messageAction = null;
     },
     /** LL6: ask which typed width gives way: `{ roomId?, wallId, runId, width, grow }`. Never saved. */
     openRunWidthPrompt(state, action) {

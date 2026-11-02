@@ -76,6 +76,8 @@ export function createInitialElevationState(document = loadElevationDocument()) 
     interiorDivider: null,
     tool: emptyActiveRoom ? 'wall' : 'select',
     message: null,
+    // Hold-refusal corner action (WL3). Never saved; shown only for its matching message.
+    messageAction: null,
     // Center-over pick mode (CV1): `{ wallId, runId }` or null. Never saved.
     centerPick: null,
     // Typed-width prompt (LL6): `{ roomId, wallId, runId, width, grow }` or null. Never saved.
@@ -132,6 +134,8 @@ export const {
   connectWalls,
   disconnectWallEndpoint,
   landWallEndpoint,
+  makeWallCorner,
+  extendPastCorner,
   setWallLength,
   setWallEndPanel,
   setWallLanding,

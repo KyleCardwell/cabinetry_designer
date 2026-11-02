@@ -111,6 +111,12 @@ describe('WL1 c: typed landing distances in the store', () => {
     expect(state).toEqual({
       ...initial,
       message: "Wall 3 can't end there: Wall 2 lands on it. Move or detach Wall 2 first.",
+      messageAction: {
+        message: "Wall 3 can't end there: Wall 2 lands on it. Move or detach Wall 2 first.",
+        label: 'Make corner',
+        kind: 'make-corner',
+        payload: { roomId: K.id, wallId: 'wall-2', endpoint: 'end', hostEndpoint: 'start', move: 'host' },
+      },
     });
     expect(state.rooms).toBe(initial.rooms);
   });
