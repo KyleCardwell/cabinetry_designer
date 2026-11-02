@@ -16,6 +16,7 @@ import LineAttachSection from './LineAttachSection.jsx';
 import LineProperties from './LineProperties.jsx';
 import RoomLineProperties from './RoomLineProperties.jsx';
 import RunGeometrySection from './RunGeometrySection.jsx';
+import { setWallAttachment } from '../../store/elevationSlice.js';
 
 vi.mock('react', async (original) => ({
   ...await original(), useEffect: vi.fn(), useMemo: (callback) => callback(),
@@ -160,4 +161,37 @@ it('routes room-line selection to the panel and header, supports no selected wal
   PropertiesPanel();
   useEffect.mock.calls.forEach(([effect]) => effect());
   expect(dispatch).toHaveBeenCalledWith(clearSelection());
+});
+
+it('LL8 f anchor 5: lists the held island, selects its wall, and omits both held faces from Measured from', () => {
+  fixture = syncRoom({ ...fixture, roomLines: [roomLine('R1', { from: 'right', value: 110 })] }, DEFAULT_SETTINGS);
+  state = { ...state, rooms: [fixture] };
+  dispatch(setWallAttachment({ wallId: 'wall-2', attach: attach('R1') }));
+  fixture = state.rooms[0];
+  dispatch.mockClear();
+  const tree = RoomLineProperties({ room: fixture, wall: resolveWall(fixture, fixture.walls[1]), line: fixture.roomLines[0] });
+  expect(nodes(field(tree, 'Room line measured from')).filter(({ type }) => type === 'option').map(({ props }) => props.children))
+    .toEqual(['Wall 1', 'Wall 1 (back)']);
+  expect(button(tree, 'Wall 2 · Run 1')).toBeDefined();
+  button(tree, 'Wall 2 (island)').props.onClick();
+  expect(dispatch.mock.calls).toEqual([[setActiveWall('wall-2')]]);
+  expect(state.activeWallId).toBe('wall-2');
+  expect(state.activeWallSide).toBe('front');
+  expect(state.selection.wallId).toBe('wall-2');
+  expect(state.selection.roomLineId).toBeFalsy();
+});
+
+it('LL8 f: omits every face in a held group and lists a held wall even with no attached contents', () => {
+  fixture.walls[1].runs = [];
+  fixture.walls[1].attach = attach('R1');
+  fixture.walls[1].connections.end = { wallId: 'wall-5', endpoint: 'start' };
+  fixture.walls.push(wall({ id: 'wall-5', x1: 60, y1: 96, x2: 0, y2: 96,
+    connections: { start: { wallId: 'wall-2', endpoint: 'end' }, end: null } }));
+  fixture = syncRoom(fixture, DEFAULT_SETTINGS);
+  const tree = RoomLineProperties({ room: fixture, line: fixture.roomLines[0] });
+  const choices = nodes(field(tree, 'Room line measured from')).filter(({ type }) => type === 'option');
+  expect(choices.map(({ props }) => props.value))
+    .toEqual([JSON.stringify(['wall-1', 'front']), JSON.stringify(['wall-1', 'back'])]);
+  expect(nodes(tree).filter(({ type, props }) => type === 'button' && text(props.children).endsWith(' (island)'))).toHaveLength(1);
+  expect(text(tree)).not.toContain('Nothing is attached.');
 });

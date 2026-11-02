@@ -9,6 +9,7 @@ import {
 import { wallLabel, wallNumbers } from '../model/topology.js';
 import { resolveWall } from '../model/room.js';
 import WallHeightProperties from './properties/WallHeightProperties.jsx';
+import WallLineSection from './properties/WallLineSection.jsx';
 
 export default function WallList() {
   const dispatch = useDispatch();
@@ -115,6 +116,7 @@ export default function WallList() {
                     wall={resolveWall(room, wall, activeWallSide)}
                     plan={view === 'plan'}
                   />
+                  <WallLineSection room={room} wall={wall} />
                 </div>
               )}
 

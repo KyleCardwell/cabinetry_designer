@@ -4,6 +4,7 @@ import { roomLineOnFace } from '../../model/roomLines.js';
 import { wallLabel } from '../../model/topology.js';
 import { formatDimension } from '../../model/units.js';
 import { WALL_SIDES, wallSideOf } from '../../model/wallSides.js';
+import { wallGroup } from '../../model/wallGroups.js';
 import {
   deleteRoomLine,
   setActiveWall,
@@ -24,7 +25,9 @@ export default function RoomLineProperties({ room, wall, line }) {
   const dispatch = useDispatch();
   const base = { roomId: room.id, roomLineId: line.id };
   const update = (changes) => dispatch(updateRoomLine({ ...base, ...changes }));
-  const choices = room.walls.flatMap((candidate) => WALL_SIDES.flatMap((side) => (
+  const heldWalls = room.walls.filter((candidate) => candidate.attach?.lineId === line.id);
+  const heldGroup = new Set(heldWalls.flatMap((candidate) => wallGroup(room, candidate.id)));
+  const choices = room.walls.filter((candidate) => !heldGroup.has(candidate.id)).flatMap((candidate) => WALL_SIDES.flatMap((side) => (
     roomLineOnFace(room, candidate, side, line.id)?.square
       ? [{ wallId: candidate.id, side, label: `${wallLabel(room, candidate)}${side === 'back' ? ' (back)' : ''}` }]
       : []
@@ -113,8 +116,16 @@ export default function RoomLineProperties({ room, wall, line }) {
 
       <section>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-400">On this line</h3>
-        {rows.length === 0 ? <p className="text-xs text-gray-500">Nothing is attached.</p> : (
+        {rows.length === 0 && heldWalls.length === 0 ? <p className="text-xs text-gray-500">Nothing is attached.</p> : (
           <ul className="space-y-1">
+            {heldWalls.map((held) => (
+              <li key={`wall:${held.id}`}>
+                <button type="button" onClick={() => dispatch(setActiveWall(held.id))}
+                  className="w-full rounded border border-gray-700 bg-gray-900/45 px-2.5 py-1.5 text-left text-xs text-gray-300 hover:bg-gray-700">
+                  {wallLabel(room, held)} (island)
+                </button>
+              </li>
+            ))}
             {rows.map((row) => (
               <li key={row.key}>
                 <button type="button" onClick={() => {
