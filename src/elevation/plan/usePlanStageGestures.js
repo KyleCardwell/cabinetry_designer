@@ -131,10 +131,10 @@ export default function usePlanStageGestures({
             subtract(toWorld(pointer), gesture.pointerStart),
             gesture.aOut,
           );
-          updateEntry(roundTo(
-            gesture.initialLength + delta,
-            settings.planGrid,
-          ));
+          // WL3: in Extend past mode the drag is the extension itself (the entry clamps it at 0).
+          updateEntry(entry.modeKey === 'extend'
+            ? roundTo(delta, settings.planGrid)
+            : roundTo(gesture.initialLength + delta, settings.planGrid));
         }
       }
       return;

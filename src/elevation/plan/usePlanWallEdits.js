@@ -10,14 +10,17 @@ import {
   landingLabel,
   snapToWallFace,
 } from '../model/landings.js';
+import { wallLabel } from '../model/topology.js';
 import {
   connectWalls,
   disconnectWallEndpoint,
+  extendPastCorner,
   landWallEndpoint,
   moveWallEndpoint,
   moveWallPerpendicular,
   setWallLength,
 } from '../store/elevationSlice.js';
+import { canExtendPast } from './cornerLandings.js';
 import { moveWallPerpendicular as previewWallPerpendicular } from './wallOps.js';
 
 export default function usePlanWallEdits({
@@ -175,15 +178,31 @@ export default function usePlanWallEdits({
       pointerStart: toWorld(pointer),
       aOut,
     };
+    const endpoint = growEnd === 'left' ? frame.leftEndpoint : frame.rightEndpoint;
+    const neighbour = room.walls.find(
+      (wall) => wall.id === targetWall.connections?.[endpoint]?.wallId,
+    );
+    // WL3: at a corner that can be extended past, Tab switches between moving the corner and extending.
+    const modes = neighbour && canExtendPast(room, wallId, endpoint)
+      ? [
+        { key: 'length', label: 'Move corner', value: frame.length, min: settings.planGrid, max: Infinity },
+        { key: 'extend', label: `Extend past ${wallLabel(room, neighbour)}`, value: 0, min: 0, max: Infinity },
+      ]
+      : null;
     beginEntry({
       kind: 'wall-length',
       label: 'Wall length',
       value: frame.length,
       min: settings.planGrid,
       max: Infinity,
-      onCommit: (length) => {
+      ...(modes ? { modes } : {}),
+      onCommit: (value, modeKey) => {
         liveGestureRef.current = null;
-        dispatch(setWallLength({ wallId, length, growEnd }));
+        if (modeKey === 'extend') {
+          dispatch(extendPastCorner({ wallId, endpoint, amount: value }));
+        } else {
+          dispatch(setWallLength({ wallId, length: value, growEnd }));
+        }
       },
       onCancel: () => {
         liveGestureRef.current = null;
