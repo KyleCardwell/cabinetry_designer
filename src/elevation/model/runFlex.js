@@ -4,7 +4,7 @@ import { cornerAt } from './corners.js';
 import { wallFrame, wallLength } from './geometry.js';
 import { followLeaders } from './joints.js';
 import { validateRunPlacement } from './overlap.js';
-import { endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
+import { blindCoversForRun, endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
 import { lineEndColumns, pinTargetsForRun, segmentTargets } from './runPins.js';
 import { runFlexNeeds } from './splitRun.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
@@ -162,6 +162,7 @@ function runModel(room, wall, run, settings) {
   const targets = pinTargetsForRun(clean, wall, wallLength(wall), settings);
   const opts = {
     endMinWidths: endMinWidthsForRun(room, wall, clean, settings),
+    blindCovers: blindCoversForRun(room, wall, clean, settings),
     pinTargets: segmentTargets(clean, targets),
     ...(Object.keys(lineEndColumns(clean, targets)).length ? { lineEnds: lineEndColumns(clean, targets) } : {}),
   };

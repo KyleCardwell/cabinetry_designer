@@ -5,7 +5,7 @@ import { followLeaders } from './joints.js';
 import { findLine } from './layoutLines.js';
 import { placeAttachedRuns } from './linePlacement.js';
 import { returnExtents } from './returnExtents.js';
-import { endCornerAnglesForRun, endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
+import { blindCoversForRun, endCornerAnglesForRun, endMinWidthsForRun, horizontalResolution } from './runAnchors.js';
 import { lineEndColumns, pinTargetsForRun, resolvePinnedSpan, segmentTargets } from './runPins.js';
 import { resolveSoffitSpan } from './soffits.js';
 import { wallSideOf, wallSideView } from './wallSides.js';
@@ -22,8 +22,10 @@ function lineEndOptions(run, targets) {
 
 /** The shared room-aware options for splitting a run on either wall face. */
 export function splitOptionsForRun(room, wall, run, settings) {
+  const blindCovers = blindCoversForRun(room, wall, run, settings);
   return {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+    ...(blindCovers.left || blindCovers.right ? { blindCovers } : {}),
     endCornerAngles: endCornerAnglesForRun(room, wall, run),
     // LL4.1 b: end columns aren't segment targets; the line already set their run edge.
     ...lineEndOptions(run, pinTargetsForRun(run, wall, wallLength(wall), settings)),

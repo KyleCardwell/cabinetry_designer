@@ -145,10 +145,21 @@ function autoPanelMiters(run, items) {
   return { left: at('left', items[0]), right: at('right', items[items.length - 1]) };
 }
 
+/** A blind end shares the other root cabinets' width before losing its inner cover. */
+function autoBlindCovers(run, items, opts) {
+  // A line's column still shares this segment's rounded width after being positioned separately.
+  const at = (side, index) => (!run._pinSplit?.[side] && items[index] && isAutoItem(items[index])
+    && (items.some((item, other) => other !== index && item.kind === 'cabinet')
+      || run._lineShareItem?.kind === 'cabinet')
+    ? opts?.blindCovers?.[side] ?? 0 : 0);
+  return { left: at('left', 0), right: at('right', items.length - 1) };
+}
+
 function layoutInputs(run, settings, opts) {
   const items = itemsWithGaps(run, settings);
   const gaps = endGaps(run, items, settings);
   const panelMiters = autoPanelMiters(run, items);
+  const blindCovers = autoBlindCovers(run, items, opts);
   const fixedEnds = endWidth(run.ends.left, settings, run._endThickness?.left)
     + endWidth(run.ends.right, settings, run._endThickness?.right)
     + gaps.left + gaps.right;
@@ -165,12 +176,14 @@ function layoutInputs(run, settings, opts) {
     (sum, side) => sum + flexMinimum(side, settings, opts),
     0,
   );
-  const available = run.width - fixedEnds - fixedItems + panelMiters.left + panelMiters.right;
+  const available = run.width - fixedEnds - fixedItems + panelMiters.left + panelMiters.right
+    + blindCovers.left + blindCovers.right;
 
   return {
     available,
     endGaps: gaps,
     panelMiters,
+    blindCovers,
     fixedEnds,
     fixedItems,
     flex,
@@ -224,6 +237,7 @@ function warning(code, pieceId, message) {
  * @param {object} settings
  * @param {{
  *   endMinWidths?: {left?: number, right?: number},
+ *   blindCovers?: {left?: number, right?: number},
  *   endCornerAngles?: {left?: number, right?: number},
  * }} [opts]
  * @returns {{pieces: object[], warnings: object[], errors: object[]}}
@@ -234,6 +248,7 @@ function splitSegment(run, settings, opts) {
     available,
     endGaps,
     panelMiters,
+    blindCovers,
     flex,
     minimumTotal,
     nAuto,
@@ -316,8 +331,8 @@ function splitSegment(run, settings, opts) {
       computedWidth = available - autoWidth * lastAutoIndex;
     }
     autoIndex += 1;
-    if (index === 0) computedWidth -= panelMiters.left;
-    if (index === items.length - 1) computedWidth -= panelMiters.right;
+    if (index === 0) computedWidth -= panelMiters.left + blindCovers.left;
+    if (index === items.length - 1) computedWidth -= panelMiters.right + blindCovers.right;
     return { ...item, computedWidth, auto: true };
   });
 
@@ -581,6 +596,7 @@ function steppedLayout(run, layout) {
  * @param {object} settings
  * @param {{
  *   endMinWidths?: {left?: number, right?: number},
+ *   blindCovers?: {left?: number, right?: number},
  *   endCornerAngles?: {left?: number, right?: number},
  *   pinTargets?: Record<string, number>,
  *   lineLabels?: Record<string, string>,

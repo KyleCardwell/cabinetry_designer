@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { CURSORS } from '../../canvas/cursor.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
+import { blindCoversForRun } from '../../model/runAnchors.js';
 import { isJointAnchor } from '../../model/joints.js';
 import { runLineLock } from '../../model/lineLocks.js';
 import { runWidthChoices } from '../../model/runWidthChoices.js';
@@ -102,6 +103,7 @@ export default function useRunStretch({
     cursor.hold(CURSORS.resizeX);
     const widthRange = runWidthRange(run, settings, {
       endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+      blindCovers: blindCoversForRun(room, wall, run, settings),
     });
     const maxRunOverhang = settings.maxRunOverhang ?? DEFAULT_SETTINGS.maxRunOverhang;
     const wallMaximum = side === 'left'

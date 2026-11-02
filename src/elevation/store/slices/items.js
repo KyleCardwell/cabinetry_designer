@@ -1,4 +1,5 @@
 import { v4 as uuid } from 'uuid';
+import { blindCoversForRun } from '../../model/runAnchors.js';
 import { BOX_BACKS, BOX_KEYS, BOX_TOPS, CABINET_PURPOSE_IDS, PINNABLE_KINDS } from '../../model/constants.js';
 import {
   gridLeaves,
@@ -70,6 +71,12 @@ export const itemReducers = {
     if (addsPinToPinnedRun) {
       const layout = splitRun(location.run, settingsFor(state, location.room), {
         endMinWidths: endMinWidthsForRun(
+          location.room,
+          location.wall,
+          location.run,
+          settingsFor(state, location.room),
+        ),
+        blindCovers: blindCoversForRun(
           location.room,
           location.wall,
           location.run,

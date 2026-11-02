@@ -9,6 +9,7 @@ import {
   resolveHorizontal,
 } from './corners.js';
 import { followInset } from './extensions.js';
+import { runBlind } from './grid.js';
 import {
   isFollowAnchor,
   isJointAnchor,
@@ -64,6 +65,18 @@ export function endMinWidthsForRun(room, wall, run, settings) {
         : settings.fillerMinWidth,
     ];
   }));
+}
+
+/** The cover returned to the fillers when a Euro blind box shares a seam T. */
+export function blindCoversForRun(room, wall, run, settings) {
+  wall = wallViewForRun(wall, run);
+  const inset = isInsetStyle(resolveStyle(settings, room, run));
+  const blind = runBlind(run);
+  return Object.fromEntries(['left', 'right'].map((side) => [
+    side,
+    !inset && run.ends?.[side]?.type === 'blind' && blind?.[side] > 0
+      && Boolean(run.tFiller) && endCoverOn(run, side) ? settings.teeCover : 0,
+  ]));
 }
 
 /** Return per-side corner angles for anchored inside-corner fillers. */

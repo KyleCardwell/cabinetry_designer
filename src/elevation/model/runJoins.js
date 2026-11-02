@@ -24,7 +24,7 @@ import {
 } from './stacks.js';
 import { wallSideOf } from './wallSides.js';
 import { cloneRoom } from './roomClone.js';
-import { endMinWidthsForRun } from './runAnchors.js';
+import { blindCoversForRun, endMinWidthsForRun } from './runAnchors.js';
 import { syncRoom } from './roomSync.js';
 
 const PIN_EPSILON = 1e-6;
@@ -347,6 +347,7 @@ export function jointXRange(resolvedRoom, wall, jointId, settings, { excludeRunI
     const offset = member.offset ?? 0;
     const widthRange = runWidthRange(run, settings, {
       endMinWidths: endMinWidthsForRun(resolvedRoom, wall, run, settings),
+      blindCovers: blindCoversForRun(resolvedRoom, wall, run, settings),
     });
     const rigid = Number.isFinite(widthRange.max);
     const widthLimit = { runId: run.id, reason: rigid ? 'fixed-width' : 'min-width' };

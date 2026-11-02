@@ -45,7 +45,7 @@ import {
 } from './wallSides.js';
 import { isPanelOnlyRun, panelRunMiters, wallEndPanels } from './wallEndPanels.js';
 import { cloneRun, cloneRoom } from './roomClone.js';
-import { endMinWidthsForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
+import { blindCoversForRun, endMinWidthsForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
 import { placeRoom, splitOptionsForRun } from './placement.js';
 import { returnFaceWarnings } from './returnWarnings.js';
 import { flexRoom, unflexRoom } from './runFlex.js';
@@ -360,6 +360,7 @@ export function syncRoom(room, settings) {
       ...wall,
       runs: wall.runs.map((run) => syncAutoItems(run, settings, {
         endMinWidths: endMinWidthsForRun(nextRoom, wall, run, settings),
+        blindCovers: blindCoversForRun(nextRoom, wall, run, settings),
       })),
     })),
   };
@@ -492,6 +493,7 @@ function runLineWarnings(room, wall, run, settings, held) {
     .find((entry) => entry && entry.runId !== run.id);
   if (owner && run.width < runWidthRange(run, settings, {
     endMinWidths: endMinWidthsForRun(room, wall, run, settings),
+    blindCovers: blindCoversForRun(room, wall, run, settings),
   }).min - 1e-9) {
     warnings.push({
       code: 'line-squeeze',
