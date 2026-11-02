@@ -1,8 +1,10 @@
-import { dot, lineIntersection, subtract, wallFrame } from '../model/geometry.js';
-import { landingInterval, releaseWall } from '../model/landings.js';
+import { add, dot, lineIntersection, magnitude, normalize, scale, subtract, wallFrame } from '../model/geometry.js';
+import { landEndpointOnFace, landingInterval, landingOffsetFor, releaseWall } from '../model/landings.js';
 import { wallLabel } from '../model/topology.js';
 import { wallSideFrame, wallSideOf } from '../model/wallSides.js';
-import { connectWallEndpoints, moveWallPerpendicular } from './wallOps.js';
+import { connectWallEndpoints, disconnectWallEndpoint, moveWallPerpendicular } from './wallOps.js';
+
+const IN_LINE_COS = Math.cos(10 * Math.PI / 180);
 
 function endpointPoint(wall, endpoint) {
   return endpoint === 'start'
@@ -103,5 +105,95 @@ export function makeWallCorner(room, wallId, endpoint, { move = 'landed', hostEn
     walls: connected.map((candidate, index) => (
       candidate.id === host.id || candidate.id === wallId ? candidate : walls[index]
     )),
+  };
+}
+
+/** Whether an endpoint joins a wall at an angle that can be extended past. */
+export function canExtendPast(room, wallId, endpoint) {
+  if (endpoint !== 'start' && endpoint !== 'end') return false;
+  const wall = room.walls.find((candidate) => candidate.id === wallId);
+  const connection = wall?.connections?.[endpoint];
+  const joined = room.walls.find((candidate) => candidate.id === connection?.wallId);
+  return Boolean(joined
+    && Math.abs(dot(wallFrame(room, wall).d, wallFrame(room, joined).d)) < IN_LINE_COS);
+}
+
+/** Extend a corner into a landing without syncing; the caller applies hold and compensation. */
+export function extendPastCorner(room, wallId, endpoint, amount) {
+  const refuse = (reason, message = null) => ({ ok: false, reason, message, walls: room.walls });
+  const wall = room.walls.find((candidate) => candidate.id === wallId);
+  const connection = (endpoint === 'start' || endpoint === 'end') && wall?.connections?.[endpoint];
+  const joined = room.walls.find((candidate) => candidate.id === connection?.wallId);
+  if (!joined) return refuse('not-corner');
+  if (!canExtendPast(room, wallId, endpoint)) {
+    return refuse('in-line',
+      `${wallLabel(room, wall)} and ${wallLabel(room, joined)} are in line: there's no corner to extend past.`);
+  }
+  if (!Number.isFinite(amount) || amount < 0) return refuse('invalid-amount');
+
+  const ownFrame = wallFrame(room, wall);
+  const joinedFrame = wallFrame(room, joined);
+  const corner = endpointPoint(wall, endpoint);
+  const otherEnd = endpointPoint(wall, endpoint === 'start' ? 'end' : 'start');
+  const u = normalize(subtract(corner, otherEnd));
+  const joinedOtherEnd = endpointPoint(joined, connection.endpoint === 'start' ? 'end' : 'start');
+  const side = dot(subtract(joinedOtherEnd, corner), ownFrame.n) > 0 ? 'front' : 'back';
+  const backFrame = wallSideFrame(room, wall, 'back');
+  const point = side === 'front' ? corner
+    : lineIntersection(corner, joinedFrame.d, backFrame.leftPoint, backFrame.r);
+  if (magnitude(subtract(joinedOtherEnd, point)) < 1) {
+    return refuse('too-short', `${wallLabel(room, joined)} is too short to land on ${wallLabel(room, wall)}.`);
+  }
+
+  const far = Math.max(...[point, add(point, scale(joinedFrame.n, -joined.thickness))]
+    .map((edge) => dot(subtract(lineIntersection(edge, joinedFrame.d, corner, ownFrame.d), corner), u)));
+  const extendedEnd = add(corner, scale(u, far + amount));
+  const disconnected = disconnectWallEndpoint(room.walls, wallId, endpoint);
+  const extendedRoom = {
+    ...room,
+    walls: disconnected.map((candidate, index) => {
+      if (candidate.id === wallId) return {
+        ...candidate,
+        ...(endpoint === 'start'
+          ? { x1: extendedEnd.x, y1: extendedEnd.y } : { x2: extendedEnd.x, y2: extendedEnd.y }),
+        runs: wall.runs.map((run) => {
+          const runFace = wallSideOf(run);
+          const runSide = wallSideFrame(room, wall, runFace).leftEndpoint === endpoint ? 'left' : 'right';
+          return run.anchors?.[runSide] === true ? {
+            ...run,
+            anchors: { ...run.anchors, [runSide]: runFace === side ? { to: 'wall', wallId: joined.id } : false },
+          } : run;
+        }),
+      };
+      if (candidate.id === joined.id) return {
+        ...candidate,
+        ...(connection.endpoint === 'start'
+          ? { x1: point.x, y1: point.y } : { x2: point.x, y2: point.y }),
+      };
+      return room.walls[index];
+    }),
+  };
+  const extended = extendedRoom.walls.find((candidate) => candidate.id === wallId);
+  const frame = wallSideFrame(extendedRoom, extended, side);
+  const landed = landEndpointOnFace(extendedRoom, joined.id, connection.endpoint, {
+    hostId: wallId, side, x: dot(subtract(point, frame.leftPoint), frame.r),
+  });
+  if (!landed.ok) return refuse(landed.reason, landed.message);
+
+  const landedRoom = { ...room, walls: landed.walls };
+  const landedWall = landed.walls.find((candidate) => candidate.id === joined.id);
+  const ref = frame.leftEndpoint === endpoint ? 'left' : 'right';
+  const offset = landingOffsetFor(landedRoom, landedWall, connection.endpoint, ref, 'near');
+  return {
+    ok: true, reason: null, message: null,
+    walls: landed.walls.map((candidate) => candidate.id === joined.id ? {
+      ...candidate,
+      landings: {
+        ...candidate.landings,
+        [connection.endpoint]: {
+          ...candidate.landings[connection.endpoint], ref, to: 'near', offset: offset === 0 ? 0 : offset,
+        },
+      },
+    } : candidate),
   };
 }

@@ -4,7 +4,7 @@ import { K, KC } from '../../../test/fixtures/landingRoomK.js';
 import { heldLandingCorner, holdLandedWalls, wallFrame } from '../../model/index.js';
 import { landingInterval, landingOffsetFor } from '../../model/landings.js';
 import { wallSideFrame } from '../../model/wallSides.js';
-import { makeWallCorner, wallCornerEnd } from '../cornerLandings.js';
+import { canExtendPast, extendPastCorner, makeWallCorner, wallCornerEnd } from '../cornerLandings.js';
 import { setWallLength } from '../wallOps.js';
 
 describe('WL3 a: make a landing into a corner', () => {
@@ -211,5 +211,183 @@ describe('WL3 a: make a landing into a corner', () => {
     expect(result.walls[1].x2).toBeCloseTo(-18.5 + 20 * 4.5 / 70);
     expect(result.walls[2].x1).toBe(result.walls[1].x2);
     expect(result.walls[2].y1).toBe(result.walls[1].y2);
+  });
+});
+
+describe('WL3 b: extend past a corner', () => {
+  it('anchor 1: extends KC back into K without mutating the room', () => {
+    const before = structuredClone(KC);
+    const result = extendPastCorner(KC, 'wall-3', 'start', 39);
+    expect(result).toEqual({ ok: true, reason: null, message: null, walls: K.walls });
+    expect(result.walls[0]).toBe(KC.walls[0]);
+    expect(result.walls[3]).toBe(KC.walls[3]);
+    expect(KC).toEqual(before);
+  });
+
+  it('anchor 2: zero extension still pulls B back onto the back face', () => {
+    const result = extendPastCorner(KC, 'wall-3', 'start', 0);
+    expect(result.ok).toBe(true);
+    expect(result.walls[2]).toEqual({ ...KC.walls[2], connections: K.walls[2].connections });
+    expect(result.walls[1]).toEqual({
+      ...K.walls[1], landings: { start: null, end: { ...K.walls[1].landings.end, offset: 0 } },
+    });
+  });
+
+  it('anchor 3: extends wall-2 and lands wall-3 on its back face', () => {
+    const result = extendPastCorner(KC, 'wall-2', 'end', 10);
+    expect(result.ok).toBe(true);
+    expect(result.walls[1]).toEqual({ ...K.walls[1], y2: -1, landings: { start: null, end: null } });
+    expect(result.walls[2]).toEqual({
+      ...K.walls[2], x1: -43,
+      landings: { start: { wallId: 'wall-2', side: 'back', ref: 'left', to: 'near', offset: 10 }, end: null },
+    });
+    expect(landingInterval({ ...KC, walls: result.walls }, result.walls[2], 'start'))
+      .toMatchObject({ a: 10, b: 14.5 });
+  });
+
+  it('anchor 4: grows the opposite end past the front-face landing thickness', () => {
+    const result = extendPastCorner(K, 'wall-3', 'end', 5);
+    expect(result.ok).toBe(true);
+    expect(result.walls[2]).toEqual({ ...K.walls[2], x2: -133, connections: { start: null, end: null } });
+    expect(result.walls[3]).toEqual({
+      ...K.walls[3], connections: { start: null, end: null },
+      landings: { start: { wallId: 'wall-3', side: 'front', ref: 'right', to: 'near', offset: 5 }, end: null },
+    });
+    expect(landingInterval({ ...K, walls: result.walls }, result.walls[3], 'start'))
+      .toMatchObject({ a: 124, b: 128.5 });
+    expect(result.walls[1]).toBe(K.walls[1]);
+  });
+
+  it('anchor 5: refuses an endpoint that is already landed', () => {
+    expect(extendPastCorner(K, 'wall-2', 'end', 5)).toEqual({
+      ok: false, reason: 'not-corner', message: null, walls: K.walls,
+    });
+  });
+
+  it('anchor 6: refuses an in-line wall using its numbered label', () => {
+    const subject = room({ ...K, walls: [
+      ...K.walls.map((entry) => entry.id === 'wall-3' ? {
+        ...entry, connections: { ...entry.connections, start: { wallId: 'wall-5', endpoint: 'start' } },
+      } : entry),
+      wall({ id: 'wall-5', x1: 0.5, y1: 9, x2: 20.5, y2: 9,
+        connections: { start: { wallId: 'wall-3', endpoint: 'start' }, end: null } }),
+    ] });
+    expect(canExtendPast(subject, 'wall-3', 'start')).toBe(false);
+    expect(extendPastCorner(subject, 'wall-3', 'start', 5)).toEqual({
+      ok: false, reason: 'in-line',
+      message: "Wall 3 and Wall 5 are in line: there's no corner to extend past.", walls: subject.walls,
+    });
+  });
+
+  it('anchor 7: reanchors only the growing end on each face without compensating runs', () => {
+    const back = run({ id: 'back', wallSide: 'back', x: 20, width: 50,
+      anchors: { left: false, right: true } });
+    const front = run({ id: 'front', x: 0, width: 30, anchors: { left: true, right: false } });
+    const own = run({ id: 'own', x: 10, width: 30, anchors: { left: false, right: true } });
+    const otherAnchor = run({ id: 'other', anchors: { left: { to: 'wall', wallId: 'wall-4' }, right: true } });
+    const subject = room({ ...KC, walls: KC.walls.map((entry) => {
+      if (entry.id === 'wall-3') return { ...entry, runs: [back, front, otherAnchor] };
+      if (entry.id === 'wall-2') return { ...entry, runs: [own] };
+      return entry;
+    }) });
+    expect(wallSideFrame(subject, subject.walls[2], 'back').length).toBe(85);
+    const result = extendPastCorner(subject, 'wall-3', 'start', 39);
+    expect(result.ok).toBe(true);
+    expect(result.walls[2].runs).toEqual([
+      { ...back, anchors: { left: false, right: { to: 'wall', wallId: 'wall-2' } } },
+      { ...front, anchors: { left: false, right: false } },
+      otherAnchor,
+    ]);
+    expect(result.walls[1].runs[0]).toBe(own);
+    expect(landingInterval({ ...subject, walls: result.walls }, result.walls[1], 'end').a).toBe(80.5);
+    expect(subject.walls[2].runs).toEqual([back, front, otherAnchor]);
+  });
+
+  it('anchor 8: makes the extended landing a corner again to recover KC', () => {
+    const extended = extendPastCorner(KC, 'wall-3', 'start', 39);
+    const result = makeWallCorner({ ...KC, walls: extended.walls }, 'wall-2', 'end', { move: 'host' });
+    expect(result).toEqual({ ok: true, reason: null, message: null, walls: KC.walls });
+  });
+
+  it('anchor 9: offers extension only on a connected corner', () => {
+    expect(canExtendPast(KC, 'wall-3', 'start')).toBe(true);
+    expect(canExtendPast(K, 'wall-3', 'start')).toBe(false);
+    expect(canExtendPast(KC, 'missing', 'start')).toBe(false);
+    expect(canExtendPast(KC, 'wall-3', 'invalid')).toBe(false);
+    expect(extendPastCorner(KC, 'missing', 'start', 5).reason).toBe('not-corner');
+    expect(extendPastCorner(KC, 'wall-3', 'invalid', 5).reason).toBe('not-corner');
+  });
+
+  it('refuses negative, nonnumeric and nonfinite amounts without changing anything', () => {
+    for (const amount of [-1, NaN, Infinity, -Infinity, '5', null]) {
+      const result = extendPastCorner(KC, 'wall-3', 'start', amount);
+      expect(result).toEqual({ ok: false, reason: 'invalid-amount', message: null, walls: KC.walls });
+      expect(result.walls).toBe(KC.walls);
+    }
+  });
+
+  it('refuses a wall pulled shorter than one inch but accepts exactly one inch', () => {
+    const short = room({ ...KC, walls: KC.walls.map((entry) => entry.id === 'wall-2'
+      ? { ...entry, y1: 14 } : entry) });
+    const before = structuredClone(short);
+    expect(extendPastCorner(short, 'wall-3', 'start', 5)).toEqual({
+      ok: false, reason: 'too-short', message: 'Wall 2 is too short to land on Wall 3.', walls: short.walls,
+    });
+    expect(short).toEqual(before);
+    const enough = room({ ...short, walls: short.walls.map((entry) => entry.id === 'wall-2'
+      ? { ...entry, y1: 14.5 } : entry) });
+    expect(extendPastCorner(enough, 'wall-3', 'start', 5).ok).toBe(true);
+  });
+
+  it('passes a landing refusal through and returns the original walls', () => {
+    const subject = room({ ...KC, walls: KC.walls.map((entry) => entry.id === 'wall-3' ? {
+      ...entry, landings: { start: null, end: {
+        wallId: 'wall-2', side: 'front', ref: 'left', to: 'near', offset: 20,
+      } },
+    } : entry) });
+    const before = structuredClone(subject);
+    const result = extendPastCorner(subject, 'wall-3', 'start', 39);
+    expect(result).toEqual({
+      ok: false, reason: 'host-lands-on-wall',
+      message: "Wall 3 lands on Wall 2, so Wall 2 can't land on it.", walls: subject.walls,
+    });
+    expect(result.walls).toBe(subject.walls);
+    expect(subject).toEqual(before);
+  });
+
+  it('uses the ten-degree cutoff for both parallel directions', () => {
+    for (const degrees of [0, 9.99, 10, 10.01, 169.99, 170, 170.01, 180]) {
+      const angle = degrees * Math.PI / 180;
+      const subject = room({ walls: [
+        wall({ id: 'a', x1: -100, y1: 0, x2: 0, y2: 0,
+          connections: { start: null, end: { wallId: 'b', endpoint: 'start' } } }),
+        wall({ id: 'b', x1: 0, y1: 0, x2: 100 * Math.cos(angle), y2: 100 * Math.sin(angle),
+          connections: { start: { wallId: 'a', endpoint: 'end' }, end: null } }),
+      ] });
+      const allowed = degrees > 10 && degrees < 170;
+      expect(canExtendPast(subject, 'a', 'end'), `${degrees} degrees`).toBe(allowed);
+      if (!allowed) expect(extendPastCorner(subject, 'a', 'end', 5).reason).toBe('in-line');
+    }
+  });
+
+  it('projects both angled wall edges and preserves flipped walls and run anchors', () => {
+    const ownRun = run({ anchors: { left: true, right: true } });
+    const subject = room({ ...KC, walls: KC.walls.map((entry) => entry.id === 'wall-2'
+      ? { ...entry, x1: -13.5, flipped: true, runs: [ownRun] } : entry) });
+    const result = extendPastCorner(subject, 'wall-3', 'start', 7);
+    expect(result.ok).toBe(true);
+    expect(result.walls[1]).toMatchObject({ flipped: true, runs: [ownRun], y2: 13.5 });
+    expect(result.walls[1].runs[0]).toBe(ownRun);
+    expect(result.walls[1].x2).toBeCloseTo(-38.5 + 25 * 4.5 / 74.5);
+    const after = { ...subject, walls: result.walls };
+    const interval = landingInterval(after, result.walls[1], 'end');
+    const frame = wallSideFrame(after, result.walls[2], 'back');
+    // §1 projects the edges to A's line, while the back-face interval is shifted
+    // along the angled B by A's thickness. Keep both prescribed measurements.
+    expect(result.walls[2].x1).toBeCloseTo(-38.5 + 4.5 * Math.hypot(25, 74.5) / 74.5 + 7);
+    const measuredOffset = 7 - 25 * 4.5 / 74.5;
+    expect(frame.length - interval.b).toBeCloseTo(measuredOffset);
+    expect(result.walls[1].landings.end).toMatchObject({ side: 'back', ref: 'right', to: 'near' });
+    expect(result.walls[1].landings.end.offset).toBeCloseTo(measuredOffset);
   });
 });
