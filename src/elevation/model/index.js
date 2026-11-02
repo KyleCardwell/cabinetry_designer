@@ -208,6 +208,7 @@ export {
   holdLandedWalls,
   landingEndLabel,
   landingReferenceDirection,
+  landingSpans,
   landingRefCreatesCycle,
   landingsOn,
 } from './landings.js';

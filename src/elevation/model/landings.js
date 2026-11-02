@@ -7,7 +7,8 @@ import {
   subtract,
   wallFrame,
 } from './geometry.js';
-import { wallSideFrame } from './wallSides.js';
+import { wallSideFrame, wallSideView } from './wallSides.js';
+import { wallFaceSegments } from './wallFaceRow.js';
 import { wallLabel } from './topology.js';
 
 export const LANDING_TO = ['near', 'far', 'center'];
@@ -114,6 +115,30 @@ export function landingsOn(room, wallOrView) {
     const interval = landingInterval(room, wall, endpoint);
     return interval ? [interval] : [];
   })).sort((a, b) => a.a - b.a);
+}
+
+/** End-to-landing spaces that can be typed directly in the plan dimension row. */
+export function landingSpans(room, host, side, settings) {
+  const { length } = wallSideFrame(room, host, side);
+  const landings = landingsOn(room, wallSideView(host, side));
+  const epsilon = 1e-6;
+  return wallFaceSegments(room, host, side, settings).flatMap((segment) => {
+    if (segment.kind !== 'space') return [];
+    const fromLeft = Math.abs(segment.start) <= epsilon;
+    const fromRight = Math.abs(segment.end - length) <= epsilon;
+    const landing = landings.find(({ a, b }) => (
+      (fromLeft && Math.abs(segment.end - a) <= epsilon)
+      || (fromRight && Math.abs(segment.start - b) <= epsilon)
+    ));
+    if (!landing) return [];
+    return [{
+      start: segment.start,
+      end: segment.end,
+      wallId: landing.wallId,
+      endpoint: landing.endpoint,
+      ref: fromLeft ? 'left' : 'right',
+    }];
+  });
 }
 
 /** Return how far a landed wall projects from the host face. */

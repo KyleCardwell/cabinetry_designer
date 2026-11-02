@@ -19,6 +19,7 @@ export default function PlanScene({
   text,
   handleWallSelect,
   handleWallOpen,
+  beginLandingSpan,
   cursor,
   settings,
   selection,
@@ -45,6 +46,7 @@ export default function PlanScene({
           text={text}
           onSelect={(event) => handleWallSelect(wall.id, event)}
           onOpen={(event) => handleWallOpen(wall.id, event)}
+          onLandingSpan={beginLandingSpan}
           cursor={cursor}
           settings={settings}
         />

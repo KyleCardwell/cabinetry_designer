@@ -39,6 +39,7 @@ import PlanRoomLines from './PlanRoomLines.jsx';
 import PlanScene from './PlanScene.jsx';
 import usePlanContextMenu from './usePlanContextMenu.js';
 import usePlanKeys from './usePlanKeys.js';
+import usePlanLandingSpan from './usePlanLandingSpan.js';
 import usePlanPan from './usePlanPan.js';
 import usePlanPicker from './usePlanPicker.js';
 import usePlanRunMove from './usePlanRunMove.js';
@@ -223,6 +224,11 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     cancelMove: groupPreview ? cancelGroupMove : cancelMove, closePicker, cancelEntry,
   });
 
+  const { beginLandingSpan, handleLandingSpanContextMenu } = usePlanLandingSpan({
+    room, tool, entry, beginEntry, cancelEntry, dispatch, stageRef, setEntryPointer,
+    handleContextMenu,
+  });
+
   usePlanKeys({
     entry, cancelEntry, commitEntry, startMoveMode, beginGroupMove, canMoveGroup, tool,
     onMeasureEscape: measure.escape,
@@ -317,7 +323,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
           onPointerDown={handlePanPointerDown}
           onPointerCancel={stopPanning}
           onWheel={handleWheel}
-          onContextMenu={handleContextMenu}
+          onContextMenu={handleLandingSpanContextMenu}
         >
           <Layer
             offsetX={-pan.x / scale}
@@ -335,6 +341,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               text={text}
               handleWallSelect={handleWallSelect}
               handleWallOpen={handleWallOpen}
+              beginLandingSpan={beginLandingSpan}
               cursor={cursor}
               settings={settings}
               selection={selection}

@@ -2,6 +2,7 @@ import { Circle, Group, Line, Text } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { gappedLine } from '../canvas/gappedLine.js';
 import { wallFrame } from '../model/geometry.js';
+import { landingSpans } from '../model/landings.js';
 import { planThroughDimensions } from '../model/planDimensions.js';
 import { wallNumbers } from '../model/topology.js';
 import { wallOutline } from '../model/wallOutline.js';
@@ -18,6 +19,7 @@ export default function PlanWallShape({
   text,
   onSelect,
   onOpen,
+  onLandingSpan,
   cursor,
   settings,
 }) {
@@ -97,6 +99,7 @@ export default function PlanWallShape({
       outward,
       offset,
       segments,
+      spans: landingSpans(room, wall, side, settings),
       layout: rowLayout,
       rowStart,
       tickDirection: rowTickDirection,
@@ -209,110 +212,140 @@ export default function PlanWallShape({
           ...row.segments.map((segment) => segment.end),
         ];
         return (
-          <Group key={row.side} listening={false}>
-            {row.segments.flatMap((segment, index) => {
-              const rowPoint = (x) => ({
-                x: row.rowStart.x + row.sideFrame.r.x * x,
-                y: row.rowStart.y + row.sideFrame.r.y * x,
-              });
-              const start = rowPoint(segment.start);
-              const end = rowPoint(segment.end);
-              const rowLabel = row.layout.labels[index];
-              const linePieces = rowLabel.mode === 'inline'
-                ? gappedLine(start, end, rowPoint((segment.start + segment.end) / 2), rowLabel.width / 2 / scale, 0.5 / scale)
-                : [[start.x, start.y, end.x, end.y]];
-              return linePieces.map((points, piece) => (
-                <Line key={`${index}:${piece}`} points={points} stroke="#94a3b8" strokeWidth={1 / scale} />
-              ));
-            })}
-            {boundaries.map((boundary, index) => {
-              const facePoint = {
-                x: row.sideFrame.leftPoint.x + row.sideFrame.r.x * boundary,
-                y: row.sideFrame.leftPoint.y + row.sideFrame.r.y * boundary,
-              };
-              const extensionStart = {
-                x: facePoint.x + row.outward.x * 2 / scale,
-                y: facePoint.y + row.outward.y * 2 / scale,
-              };
-              const extensionEnd = {
-                x: facePoint.x + row.outward.x * (row.offset + 4 / scale),
-                y: facePoint.y + row.outward.y * (row.offset + 4 / scale),
-              };
-              const dimensionPoint = {
-                x: facePoint.x + row.outward.x * row.offset,
-                y: facePoint.y + row.outward.y * row.offset,
-              };
-              return (
-                <Group key={`${row.side}:${boundary}:${index}`}>
-                  <Line
-                    points={[
-                      extensionStart.x,
-                      extensionStart.y,
-                      extensionEnd.x,
-                      extensionEnd.y,
-                    ]}
-                    stroke="#64748b"
-                    strokeWidth={0.75 / scale}
-                  />
-                  <Line
-                    points={[
-                      dimensionPoint.x - row.tickDirection.x * tickHalfLength,
-                      dimensionPoint.y - row.tickDirection.y * tickHalfLength,
-                      dimensionPoint.x + row.tickDirection.x * tickHalfLength,
-                      dimensionPoint.y + row.tickDirection.y * tickHalfLength,
-                    ]}
-                    stroke="#cbd5e1"
-                    strokeWidth={1 / scale}
-                  />
-                </Group>
-              );
-            })}
-            {row.layout.labels.map((rowLabel, index) => {
-              if (rowLabel.mode === 'hidden') return null;
-              const segment = row.segments[index];
-              const centerX = (segment.start + segment.end) / 2;
-              const dimensionPoint = {
-                x: row.sideFrame.leftPoint.x
-                  + row.sideFrame.r.x * centerX
-                  + row.outward.x * row.offset,
-                y: row.sideFrame.leftPoint.y
-                  + row.sideFrame.r.y * centerX
-                  + row.outward.y * row.offset,
-              };
-              const rowLabelDistance = (rowLabel.mode === 'popout'
-                ? 10 + 14 * rowLabel.level
-                : 0) * factor / scale;
-              const rowLabelPoint = {
-                x: dimensionPoint.x + row.outward.x * rowLabelDistance,
-                y: dimensionPoint.y + row.outward.y * rowLabelDistance,
-              };
-              return (
-                <Group key={`${row.side}:label:${index}`}>
-                  {rowLabel.mode === 'popout' && (
+          <Group key={row.side}>
+            <Group listening={false}>
+              {row.segments.flatMap((segment, index) => {
+                const rowPoint = (x) => ({
+                  x: row.rowStart.x + row.sideFrame.r.x * x,
+                  y: row.rowStart.y + row.sideFrame.r.y * x,
+                });
+                const start = rowPoint(segment.start);
+                const end = rowPoint(segment.end);
+                const rowLabel = row.layout.labels[index];
+                const linePieces = rowLabel.mode === 'inline'
+                  ? gappedLine(start, end, rowPoint((segment.start + segment.end) / 2), rowLabel.width / 2 / scale, 0.5 / scale)
+                  : [[start.x, start.y, end.x, end.y]];
+                return linePieces.map((points, piece) => (
+                  <Line key={`${index}:${piece}`} points={points} stroke="#94a3b8" strokeWidth={1 / scale} />
+                ));
+              })}
+              {boundaries.map((boundary, index) => {
+                const facePoint = {
+                  x: row.sideFrame.leftPoint.x + row.sideFrame.r.x * boundary,
+                  y: row.sideFrame.leftPoint.y + row.sideFrame.r.y * boundary,
+                };
+                const extensionStart = {
+                  x: facePoint.x + row.outward.x * 2 / scale,
+                  y: facePoint.y + row.outward.y * 2 / scale,
+                };
+                const extensionEnd = {
+                  x: facePoint.x + row.outward.x * (row.offset + 4 / scale),
+                  y: facePoint.y + row.outward.y * (row.offset + 4 / scale),
+                };
+                const dimensionPoint = {
+                  x: facePoint.x + row.outward.x * row.offset,
+                  y: facePoint.y + row.outward.y * row.offset,
+                };
+                return (
+                  <Group key={`${row.side}:${boundary}:${index}`}>
                     <Line
                       points={[
-                        dimensionPoint.x,
-                        dimensionPoint.y,
-                        rowLabelPoint.x,
-                        rowLabelPoint.y,
+                        extensionStart.x,
+                        extensionStart.y,
+                        extensionEnd.x,
+                        extensionEnd.y,
                       ]}
                       stroke="#64748b"
                       strokeWidth={0.75 / scale}
                     />
-                  )}
-                  <Text
-                    x={rowLabelPoint.x}
-                    y={rowLabelPoint.y}
-                    width={rowLabel.width / scale}
-                    offsetX={rowLabel.width / scale / 2}
-                    offsetY={fontSize / 2}
-                    rotation={row.rotation}
-                    align="center"
-                    text={rowLabel.text}
-                    fontSize={fontSize}
-                    fill="#e2e8f0"
-                  />
-                </Group>
+                    <Line
+                      points={[
+                        dimensionPoint.x - row.tickDirection.x * tickHalfLength,
+                        dimensionPoint.y - row.tickDirection.y * tickHalfLength,
+                        dimensionPoint.x + row.tickDirection.x * tickHalfLength,
+                        dimensionPoint.y + row.tickDirection.y * tickHalfLength,
+                      ]}
+                      stroke="#cbd5e1"
+                      strokeWidth={1 / scale}
+                    />
+                  </Group>
+                );
+              })}
+              {row.layout.labels.map((rowLabel, index) => {
+                if (rowLabel.mode === 'hidden') return null;
+                const segment = row.segments[index];
+                const centerX = (segment.start + segment.end) / 2;
+                const dimensionPoint = {
+                  x: row.sideFrame.leftPoint.x
+                    + row.sideFrame.r.x * centerX
+                    + row.outward.x * row.offset,
+                  y: row.sideFrame.leftPoint.y
+                    + row.sideFrame.r.y * centerX
+                    + row.outward.y * row.offset,
+                };
+                const rowLabelDistance = (rowLabel.mode === 'popout'
+                  ? 10 + 14 * rowLabel.level
+                  : 0) * factor / scale;
+                const rowLabelPoint = {
+                  x: dimensionPoint.x + row.outward.x * rowLabelDistance,
+                  y: dimensionPoint.y + row.outward.y * rowLabelDistance,
+                };
+                return (
+                  <Group key={`${row.side}:label:${index}`}>
+                    {rowLabel.mode === 'popout' && (
+                      <Line
+                        points={[
+                          dimensionPoint.x,
+                          dimensionPoint.y,
+                          rowLabelPoint.x,
+                          rowLabelPoint.y,
+                        ]}
+                        stroke="#64748b"
+                        strokeWidth={0.75 / scale}
+                      />
+                    )}
+                    <Text
+                      x={rowLabelPoint.x}
+                      y={rowLabelPoint.y}
+                      width={rowLabel.width / scale}
+                      offsetX={rowLabel.width / scale / 2}
+                      offsetY={fontSize / 2}
+                      rotation={row.rotation}
+                      align="center"
+                      text={rowLabel.text}
+                      fontSize={fontSize}
+                      fill="#e2e8f0"
+                    />
+                  </Group>
+                );
+              })}
+            </Group>
+            {row.segments.map((segment, index) => {
+              const span = row.spans.find((candidate) => (
+                Math.abs(candidate.start - segment.start) <= 1e-6
+                && Math.abs(candidate.end - segment.end) <= 1e-6
+              ));
+              if (!span) return null;
+              const cursorKey = `landing:${row.side}:${index}`;
+              return (
+                <Line
+                  key={cursorKey}
+                  points={[span.start, span.end].flatMap((x) => [
+                    row.rowStart.x + row.sideFrame.r.x * x,
+                    row.rowStart.y + row.sideFrame.r.y * x,
+                  ])}
+                  stroke="transparent"
+                  strokeWidth={1 / scale}
+                  hitStrokeWidth={10 / scale}
+                  listening
+                  onMouseEnter={() => cursorKeys.request(cursorKey, CURSORS.select)}
+                  onMouseLeave={() => cursorKeys.release(cursorKey)}
+                  onClick={(event) => {
+                    event.cancelBubble = true;
+                    onLandingSpan?.(span, event);
+                  }}
+                  onDblClick={(event) => { event.cancelBubble = true; }}
+                />
               );
             })}
           </Group>
