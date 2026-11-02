@@ -22,10 +22,10 @@ export default function PlanRoomLines({ room, scale, selectedRoomLineId, tool, e
         const selected = line.id === selectedRoomLineId;
         return (
           <Group key={line.id}
-            onPointerDown={(event) => start(stored, event)}
+            onPointerDown={(event) => start(stored, event, selected)}
             onMouseDown={(event) => { event.cancelBubble = true; }}
             onClick={(event) => click(line.id, event)}
-            onMouseEnter={() => cursorKeys.request(line.id, roomLineCursor(roomLineFrame(room, line).frame))}
+            onMouseEnter={() => cursorKeys.request(line.id, selected ? roomLineCursor(roomLineFrame(room, line).frame) : 'pointer')}
             onMouseLeave={() => cursorKeys.release(line.id)}
           >
             <Line points={[a.x, a.y, b.x, b.y]} stroke={ROOM_LINE_COLOR}

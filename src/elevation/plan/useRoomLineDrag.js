@@ -4,6 +4,9 @@ import { moveLineTo } from '../model/linePlacement.js';
 import { roomLineFrame } from '../model/roomLines.js';
 import { updateRoomLine } from '../store/elevationSlice.js';
 
+// LL7.1: a press on an unselected line only selects it; a selected line drags once the pointer moves this far.
+export const DRAG_THRESHOLD_PX = 3;
+
 // The resize direction is along the reference face, across the plan line.
 export function roomLineCursor(frame) {
   const angle = (Math.atan2(frame.r.y, frame.r.x) * 180 / Math.PI + 180) % 180;
@@ -17,9 +20,10 @@ export default function useRoomLineDrag({ room, tool, entry, settings, dispatch,
 
   const cancel = useCallback(() => {
     if (!gesture.current) return;
+    const { active } = gesture.current;
     gesture.current = null;
     setPreviewLine(null);
-    cursor?.releaseHold();
+    if (active) cursor?.releaseHold();
   }, [cursor]);
 
   useEffect(() => {
@@ -29,6 +33,12 @@ export default function useRoomLineDrag({ room, tool, entry, settings, dispatch,
       current.stage.setPointersPositions(event);
       const pointer = current.stage.getPointerPosition();
       if (!pointer) { cancel(); return null; }
+      if (!current.active) {
+        const moved = Math.hypot(pointer.x - current.startPointer.x, pointer.y - current.startPointer.y);
+        if (moved < DRAG_THRESHOLD_PX) return null;
+        current.active = true;
+        cursor?.hold(roomLineCursor(current.reference.frame));
+      }
       const x = planPointToWallX(current.reference.frame, toWorld(pointer));
       const result = moveLineTo(room, current.reference.wall.id, current.line.id, x, settings,
         { wallSide: current.reference.side });
@@ -39,9 +49,10 @@ export default function useRoomLineDrag({ room, tool, entry, settings, dispatch,
       return line;
     };
     const finish = (event) => {
+      if (!gesture.current || gesture.current.pointerId !== event.pointerId) return;
       const line = move(event);
-      if (!line) return;
       cancel();
+      if (!line) return;
       dispatch(updateRoomLine({ roomLineId: line.id, value: line.value }));
     };
     const losePointer = (event) => {
@@ -72,21 +83,24 @@ export default function useRoomLineDrag({ room, tool, entry, settings, dispatch,
       window.removeEventListener('keydown', escape, true);
       cancel();
     };
-  }, [cancel, dispatch, room, settings, toWorld]);
+  }, [cancel, cursor, dispatch, room, settings, toWorld]);
 
   useEffect(() => { cancel(); }, [room, tool, entry, cancel]);
 
-  const start = (line, event) => {
+  const start = (line, event, selected) => {
     event.cancelBubble = true;
     if (tool !== 'select' || entry || event.evt.button !== 0 || gesture.current) return;
+    handledPress.current = true;
+    if (!selected) {
+      onSelect?.(line.id);
+      return;
+    }
     const reference = roomLineFrame(room, line);
     const stage = event.target.getStage();
-    if (!reference || !stage) return;
+    const startPointer = stage?.getPointerPosition();
+    if (!reference || !stage || !startPointer) return;
     event.evt.preventDefault();
-    handledPress.current = true;
-    gesture.current = { line, reference, stage, pointerId: event.evt.pointerId };
-    cursor?.hold(roomLineCursor(reference.frame));
-    onSelect?.(line.id);
+    gesture.current = { line, reference, stage, pointerId: event.evt.pointerId, startPointer, active: false };
   };
 
   const click = (lineId, event) => {

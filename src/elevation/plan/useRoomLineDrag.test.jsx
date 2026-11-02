@@ -96,12 +96,12 @@ it('anchor 1: takes the press from plan gestures and commits value 90 once on re
   if (!event.cancelBubble) panOrMarquee();
   expect(panOrMarquee).not.toHaveBeenCalled();
   expect(event.evt.preventDefault).toHaveBeenCalledOnce();
-  expect(onSelect.mock.calls).toEqual([['R1']]);
+  expect(onSelect).not.toHaveBeenCalled();
   emit('pointermove', 149, -400);
   emit('pointerup', 150, 900);
   emit('pointerup', 200, 0);
   guide().onClick({});
-  expect(onSelect).toHaveBeenCalledTimes(1);
+  expect(onSelect).not.toHaveBeenCalled();
   expect(dispatch.mock.calls).toEqual([[updateRoomLine({ roomLineId: 'R1', value: 90 })]]);
   expect(fixture).toEqual(before);
   const state = { ...createInitialElevationState(null), rooms: [fixture], activeRoomId: fixture.id };
@@ -173,6 +173,7 @@ it('uses back-face reference coordinates and cursors across horizontal and verti
   ]) {
     props.room = syncRoom({ ...fixture, roomLines: [roomLine('R1', reference)] }, DEFAULT_SETTINGS);
     render(); start();
+    emit('pointermove', x, y);
     expect(cursor.hold).toHaveBeenLastCalledWith(resize);
     emit('pointerup', x, y);
     expect(dispatch).toHaveBeenLastCalledWith(updateRoomLine({ roomLineId: 'R1', value }));
@@ -193,4 +194,29 @@ it('ignores non-primary presses, disabled tools, live entries and other pointers
   expect(linePoints()[0]).toBe(141);
   emit('pointerup', 150);
   expect(dispatch.mock.calls).toEqual([[updateRoomLine({ roomLineId: 'R1', value: 90 })]]);
+});
+
+it('LL7.1: a press on an unselected line only selects it; a selected line drags only past the threshold', () => {
+  props.selectedRoomLineId = null;
+  guide().onMouseEnter();
+  expect(cursor.request).toHaveBeenLastCalledWith('R1', 'pointer');
+  const event = start();
+  expect(onSelect.mock.calls).toEqual([['R1']]);
+  expect(event.evt.preventDefault).not.toHaveBeenCalled();
+  emit('pointermove', 160);
+  emit('pointerup', 160);
+  guide().onClick({});
+  expect(onSelect).toHaveBeenCalledOnce();
+  expect(linePoints()[0]).toBe(141);
+  expect(dispatch).not.toHaveBeenCalled();
+  expect(cursor.hold).not.toHaveBeenCalled();
+
+  props.selectedRoomLineId = 'R1'; render();
+  start();
+  emit('pointermove', 141.5, 70.5);
+  emit('pointerup', 141.5, 70.5);
+  expect(linePoints()[0]).toBe(141);
+  expect(dispatch).not.toHaveBeenCalled();
+  expect(cursor.hold).not.toHaveBeenCalled();
+  expect(cursor.releaseHold).not.toHaveBeenCalled();
 });
