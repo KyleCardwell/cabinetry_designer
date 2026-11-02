@@ -205,6 +205,7 @@ export {
   validateOpeningPlacement,
 } from './openings.js';
 export {
+  heldLandingCorner,
   holdLandedWalls,
   landEndpointOnFace,
   landingEndLabel,

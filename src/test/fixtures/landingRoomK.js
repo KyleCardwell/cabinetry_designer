@@ -39,3 +39,22 @@ export const K2 = {
     }
     : entry),
 };
+
+// Room K after making wall-2's landing a corner by moving the host end.
+export const KC = {
+  ...K,
+  walls: K.walls.map((entry) => {
+    if (entry.id === 'wall-2') return {
+      ...entry,
+      y2: 9,
+      connections: { ...entry.connections, end: { wallId: 'wall-3', endpoint: 'start' } },
+      landings: { start: null, end: null },
+    };
+    if (entry.id === 'wall-3') return {
+      ...entry,
+      x1: -38.5,
+      connections: { ...entry.connections, start: { wallId: 'wall-2', endpoint: 'end' } },
+    };
+    return entry;
+  }),
+};

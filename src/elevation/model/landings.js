@@ -191,8 +191,7 @@ export function landingReferenceDirection(room, wall, endpoint, ref) {
   return referenceFor(room, wall, endpoint, ref).direction;
 }
 
-/** Re-measure held landings after a host edit, without resolving their positions. */
-export function holdLandedWalls(before, after) {
+function searchHeldLandings(before, after) {
   const coordinates = ['x1', 'y1', 'x2', 'y2'];
   const hostFields = [...coordinates, 'thickness', 'flipped'];
   const oldWalls = new Map(before.walls.map((wall) => [wall.id, wall]));
@@ -218,18 +217,29 @@ export function holdLandedWalls(before, after) {
       const interval = landingInterval(after, wall, endpoint);
       const length = wallSideFrame(after, host, landing.side).length;
       if (interval.a < -1e-6 || interval.b > length + 1e-6) {
-        return {
-          ok: false,
-          reason: 'landing-off-host',
-          message: `${wallLabel(after, host)} can't end there: ${wallLabel(after, wall)} lands on it. Move or detach ${wallLabel(after, wall)} first.`,
-          walls: before.walls,
-        };
+        return { updates, failure: { wall, endpoint, host, interval } };
       }
       if (offset !== landing.offset) {
         landings = { ...landings, [endpoint]: { ...landing, offset } };
       }
     }
     if (landings !== wall.landings) updates.set(wall.id, { ...wall, landings });
+  }
+
+  return { updates, failure: null };
+}
+
+/** Re-measure held landings after a host edit, without resolving their positions. */
+export function holdLandedWalls(before, after) {
+  const { updates, failure } = searchHeldLandings(before, after);
+  if (failure) {
+    const { wall, host } = failure;
+    return {
+      ok: false,
+      reason: 'landing-off-host',
+      message: `${wallLabel(after, host)} can't end there: ${wallLabel(after, wall)} lands on it. Move or detach ${wallLabel(after, wall)} first.`,
+      walls: before.walls,
+    };
   }
 
   return {
@@ -240,6 +250,17 @@ export function holdLandedWalls(before, after) {
       ? after.walls.map((wall) => updates.get(wall.id) ?? wall)
       : after.walls,
   };
+}
+
+/** Offer a corner at the same first held landing that rejects the edit. */
+export function heldLandingCorner(before, after) {
+  const { failure } = searchHeldLandings(before, after);
+  if (!failure) return null;
+  const { wall, endpoint, host, interval } = failure;
+  const frame = wallSideFrame(after, host, wall.landings[endpoint].side);
+  const hostEndpoint = interval.a < -1e-6 ? frame.leftEndpoint : frame.rightEndpoint;
+  if (host.connections?.[hostEndpoint] || host.landings?.[hostEndpoint]) return null;
+  return { wallId: wall.id, endpoint, hostEndpoint };
 }
 
 export function resolveLandings(room) {
