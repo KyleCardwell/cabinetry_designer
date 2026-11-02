@@ -93,6 +93,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const [mouseWorldPos, setMouseWorldPos] = useState(null);
   const [pendingDeleteWallId, setPendingDeleteWallId] = useState(null);
   const [wallMovePreview, setWallMovePreview] = useState(null);
+  const [endpointFaceLabel, setEndpointFaceLabel] = useState(null);
   const [entryPointer, setEntryPointer] = useState(null);
   const { style: cursorStyle, controller: cursor } = useCanvasCursor(
     planBaseCursor(tool, pointerMode),
@@ -259,6 +260,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     adaptedWalls,
     ENDPOINT_SNAP_RADIUS,
     setAlignmentGuides,
+    setEndpointFaceLabel,
     applyAlignment,
     dispatch,
     room,
@@ -367,6 +369,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               tool={tool}
               entry={entry}
               handleWallEndpointDrag={handleWallEndpointDrag}
+              endpointFaceLabel={endpointFaceLabel}
               beginWallLength={beginWallLength}
               cursor={cursor}
               showsMoveHandle={showsMoveHandle}

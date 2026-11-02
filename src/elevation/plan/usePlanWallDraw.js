@@ -5,7 +5,7 @@ import {
   snapToAlignment,
 } from '../canvas/alignment.js';
 import { wallFrame } from '../model/geometry.js';
-import { snapToWallFace } from '../model/landings.js';
+import { landingEndLabel, snapToWallFace } from '../model/landings.js';
 import { formatInches } from '../model/units.js';
 import { wallSideView } from '../model/wallSides.js';
 import { addWallSegment } from '../store/elevationSlice.js';
@@ -72,7 +72,7 @@ export default function usePlanWallDraw({
           side: faceSnap.side,
           x: faceSnap.x,
         },
-        faceLabel: `${formatInches(fromLeft ? faceSnap.x : length - faceSnap.x)} from ${fromLeft ? 'left' : 'right'}`,
+        faceLabel: `${formatInches(fromLeft ? faceSnap.x : length - faceSnap.x)} from ${landingEndLabel(room, host, faceSnap.side, fromLeft ? 'left' : 'right')}`,
       };
     }
 

@@ -18,6 +18,7 @@ export default function PlanOverlays({
   tool,
   entry,
   handleWallEndpointDrag,
+  endpointFaceLabel,
   beginWallLength,
   cursor,
   showsMoveHandle,
@@ -174,6 +175,18 @@ export default function PlanOverlays({
             offsetY={10 * factor / scale}
           />
         </Group>
+      )}
+      {endpointFaceLabel && (
+        <Text
+          listening={false}
+          x={endpointFaceLabel.x}
+          y={endpointFaceLabel.y - 10 * factor / scale}
+          text={endpointFaceLabel.text}
+          fontSize={10 * factor / scale}
+          fill="#22d3ee"
+          offsetX={endpointFaceLabel.text.length * 3 * factor / scale}
+          offsetY={10 * factor / scale}
+        />
       )}
     </>
   );

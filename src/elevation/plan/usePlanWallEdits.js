@@ -4,10 +4,16 @@
 import { useCallback, useEffect } from 'react';
 import { snapToEndpoint } from '../../canvas/SnapEngine.js';
 import { wallFrame } from '../model/geometry.js';
-import { holdLandedWalls } from '../model/landings.js';
+import {
+  holdLandedWalls,
+  landEndpointOnFace,
+  landingLabel,
+  snapToWallFace,
+} from '../model/landings.js';
 import {
   connectWalls,
   disconnectWallEndpoint,
+  landWallEndpoint,
   moveWallEndpoint,
   moveWallPerpendicular,
   setWallLength,
@@ -20,6 +26,7 @@ export default function usePlanWallEdits({
   adaptedWalls,
   ENDPOINT_SNAP_RADIUS,
   setAlignmentGuides,
+  setEndpointFaceLabel,
   applyAlignment,
   dispatch,
   room,
@@ -50,13 +57,25 @@ export default function usePlanWallEdits({
       ENDPOINT_SNAP_RADIUS,
       wallId,
     );
+    const faceSnap = endpointSnap ? null : snapToWallFace(
+      room, snapped, ENDPOINT_SNAP_RADIUS, { excludeWallId: wallId, from: fixed },
+    );
     let point;
+    let label = null;
     if (endpointSnap) {
       setAlignmentGuides([]);
       point = { x: endpointSnap.x, y: endpointSnap.y };
+    } else if (faceSnap) {
+      setAlignmentGuides([]);
+      point = faceSnap.point;
+      const result = landEndpointOnFace(room, wallId, endpoint, {
+        hostId: faceSnap.wallId, side: faceSnap.side, x: faceSnap.x,
+      });
+      if (result.ok) label = { ...point, text: landingLabel(room, result.landing) };
     } else {
       point = applyAlignment(snapped, { fixed, excludeWallId: wallId });
     }
+    setEndpointFaceLabel(event.type === 'dragend' ? null : label);
     event.target.position(point);
     dispatch(moveWallEndpoint({ wallId, endpoint, ...point }));
 
@@ -69,10 +88,17 @@ export default function usePlanWallEdits({
         wallId2: endpointSnap.wallId,
         endpoint2: endpointSnap.endpoint,
       }));
-    } else if (wall.connections?.[endpoint]) {
-      dispatch(disconnectWallEndpoint({ wallId, endpoint }));
+    } else {
+      if (wall.connections?.[endpoint]) {
+        dispatch(disconnectWallEndpoint({ wallId, endpoint }));
+      }
+      if (faceSnap) {
+        dispatch(landWallEndpoint({
+          wallId, endpoint, hostId: faceSnap.wallId, side: faceSnap.side, x: faceSnap.x,
+        }));
+      }
     }
-  }, [adaptedWalls, applyAlignment, dispatch, gridAndOrtho, walls]);
+  }, [adaptedWalls, applyAlignment, dispatch, gridAndOrtho, room, walls]);
 
   const previewPerpendicularMove = useCallback((delta) => {
     if (!room || !selectedWall) return;
