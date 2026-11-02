@@ -361,6 +361,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
             />
             <PlanRoomLines
               room={room}
+              settings={settings}
+              dispatch={dispatch}
+              toWorld={toWorld}
+              cursor={cursor}
               scale={scale}
               selectedRoomLineId={selection.roomLineId}
               tool={tool}
