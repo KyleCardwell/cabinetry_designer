@@ -78,6 +78,24 @@ describe('WL2 a: existing wall ends and near misses', () => {
       .filter((miss) => miss.wallId === 'wall-2')).toEqual([]);
   });
 
+  it('ignores a far-away face whose extended line passes near the end', () => {
+    const withFarWall = {
+      ...K2,
+      walls: [...K2.walls, wall({
+        id: 'wall-5', x1: 100, y1: 14.5, x2: 160, y2: 14.5, thickness: 4.5,
+      })],
+    };
+    expect(wallNearMisses(withFarWall)).toEqual(wallNearMisses(K2));
+  });
+
+  it('finds the miss past a collinear wall piece listed first (doorway split)', () => {
+    const piece = wall({ id: 'wall-0', x1: 60.5, y1: 9, x2: 20.5, y2: 9, thickness: 4.5 });
+    for (const walls of [[piece, ...K2.walls], [...K2.walls, piece]]) {
+      expect(wallNearMisses({ ...K2, walls })
+        .filter((miss) => miss.wallId === 'wall-2')).toEqual(wallNearMisses(K2));
+    }
+  });
+
   it('anchor 5: lands the free end without flipping or moving the other walls', () => {
     const result = landEndpointOnFace(K2, 'wall-2', 'end', target);
     expect(result).toMatchObject({ ok: true, reason: null, message: null });

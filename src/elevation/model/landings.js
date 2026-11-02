@@ -492,13 +492,17 @@ export function wallNearMisses(room) {
           const toward = -dot(u, frame.n);
           if (toward <= 0) continue;
           const gap = distance / toward;
-          if (gap < 0 || gap > NEAR_MISS_DISTANCE || (nearest && nearest.gap <= gap)) continue;
+          if (gap < 0 || gap > NEAR_MISS_DISTANCE) continue;
           const point = lineIntersection(from, u, frame.leftPoint, frame.r);
           const back = add(from, scale(ownFrame.n, -wall.thickness));
           const backHit = lineIntersection(back, u, frame.leftPoint, frame.r);
           if (!point || !backHit) continue;
           const x = dot(subtract(point, frame.leftPoint), frame.r);
           const backX = dot(subtract(backHit, frame.leftPoint), frame.r);
+          // Only a face the end overlaps can be the nearest; its line past the wall's ends doesn't count.
+          if (Math.max(x, backX) < -FACE_EPSILON
+            || Math.min(x, backX) > frame.length + FACE_EPSILON) continue;
+          if (nearest && nearest.gap <= gap) continue;
           nearest = {
             miss: { wallId: wall.id, endpoint, hostId: host.id, side, gap, x, point, from },
             withinFace: Math.min(x, backX) >= -FACE_EPSILON
