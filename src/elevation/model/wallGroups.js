@@ -1,7 +1,7 @@
-import { cross, planPointToWallX } from './geometry.js';
+import { cross, planPointToWallX, wallFrame } from './geometry.js';
 import { attachmentsTo } from './layoutLines.js';
 import { cloneRoom } from './roomClone.js';
-import { roomLineFrame } from './roomLines.js';
+import { findRoomLine, roomLineFrame } from './roomLines.js';
 import { wallLabel } from './topology.js';
 import { WALL_SIDES, wallSideFrame, wallSideView } from './wallSides.js';
 
@@ -23,6 +23,35 @@ export function wallGroup(room, wallId) {
     for (const neighbour of neighbours.get(id)) group.add(neighbour);
   }
   return room.walls.filter((wall) => group.has(wall.id)).map((wall) => wall.id);
+}
+
+/** The first attached wall in this group, with its stored attachment and room line. */
+export function heldBy(room, wallId) {
+  const group = new Set(wallGroup(room, wallId));
+  const wall = room.walls.find((candidate) => group.has(candidate.id) && candidate.attach);
+  return wall ? { wall, attach: wall.attach, line: findRoomLine(room, wall.attach.lineId) } : null;
+}
+
+/** A wall can hold its group on one external room line, without attachment chains. */
+export function canAttachWall(room, wallId, lineId) {
+  const wall = room.walls.find((candidate) => candidate.id === wallId);
+  if (!wall) return { ok: false, reason: 'wall-not-found' };
+  const line = findRoomLine(room, lineId);
+  const reference = line && roomLineFrame(room, line);
+  if (!reference) return { ok: false, reason: 'no-line' };
+  const group = new Set(wallGroup(room, wallId));
+  if (group.has(line.wallId)) return { ok: false, reason: 'own-group' };
+  if (room.walls.some((candidate) => group.has(candidate.id) && candidate.id !== wallId && candidate.attach)) {
+    return { ok: false, reason: 'group-held' };
+  }
+  if (Math.abs(cross(wallFrame(room, wall).r, reference.frame.r)) > 1e-6) {
+    return { ok: false, reason: 'not-square' };
+  }
+  if (heldBy(room, line.wallId) || room.walls.some((candidate) => !group.has(candidate.id)
+    && candidate.attach && group.has(findRoomLine(room, candidate.attach.lineId)?.wallId))) {
+    return { ok: false, reason: 'chained' };
+  }
+  return { ok: true, reason: null };
 }
 
 export function canMoveWallGroup(room, wallId) {

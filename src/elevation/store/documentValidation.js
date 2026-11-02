@@ -664,6 +664,7 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
       ))))
     && (wall.lines === undefined || (Array.isArray(wall.lines) && wall.lines.every(isLayoutLine)
       && new Set(wall.lines.map((line) => line.id)).size === wall.lines.length))
+    && (wall.attach === undefined || isAttachment(wall.attach))
     && (wall.endPanels === undefined || isEndPanels(wall.endPanels))
     && (wall.landings === undefined || isLandings(wall.landings));
 }

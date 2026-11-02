@@ -91,6 +91,7 @@ function cloneRoom(room) {
       })),
       joints: (wall.joints ?? []).map((joint) => ({ ...joint })),
       ...(wall.lines ? { lines: wall.lines.map((line) => ({ ...line })) } : {}),
+      ...(wall.attach ? { attach: { ...wall.attach } } : {}),
       runs: wall.runs.map(cloneRun),
     })),
   };
