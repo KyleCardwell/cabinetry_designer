@@ -1,6 +1,7 @@
 import { DEFAULT_PREFS } from '../../model/constants.js';
 import { PAPER_SIZES, PLOT_SCALES } from '../../model/drawingScale.js';
 import { wallSideOf } from '../../model/wallSides.js';
+import { linesOn } from '../../model/layoutLines.js';
 import { defaultElevationFace } from '../../model/topology.js';
 import { registryEntry } from '../../model/settingsRegistry.js';
 import { isValidSettingValue, withOverride } from '../../model/settingsResolve.js';
@@ -44,6 +45,8 @@ export const uiReducers = {
       const lineId = openingId || recessId || soffitId || runId || endPanel
         ? null
         : action.payload.lineId ?? null;
+      const roomLineId = openingId || recessId || soffitId || runId || endPanel || lineId
+        ? null : action.payload.roomLineId ?? null;
       state.selection = {
         runId,
         pieceId: runId ? action.payload.pieceId ?? null : null,
@@ -53,6 +56,7 @@ export const uiReducers = {
         wallId: state.selection.wallId ?? null,
         ...(endPanel ? { endPanel } : {}),
         ...(lineId ? { lineId } : {}),
+        ...(roomLineId ? { roomLineId } : {}),
       };
       if (runId) {
         const selectedRun = roomFor(state)?.walls
@@ -71,6 +75,13 @@ export const uiReducers = {
         if (selectedSoffit) state.activeWallSide = wallSideOf(selectedSoffit);
       } else if (openingId) {
         state.activeWallSide = 'front';
+      } else if (lineId) {
+        const room = roomFor(state);
+        const selectedWall = room?.walls.find((wall) => wall.id === state.activeWallId);
+        const selectedLine = room?.walls.flatMap((wall) => wall.lines ?? [])
+          .find((line) => line.id === lineId)
+          ?? (selectedWall && linesOn(selectedWall, state.activeWallSide).find((line) => line.id === lineId));
+        if (selectedLine) state.activeWallSide = wallSideOf(selectedLine);
       }
       state.facePath = null;
       state.interiorPath = null;

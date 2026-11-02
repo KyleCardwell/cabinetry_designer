@@ -1,4 +1,4 @@
-import { add, cross, planPointToWallX, scale } from './geometry.js';
+import { add, clamp, cross, planPointToWallX, scale } from './geometry.js';
 import { attachmentsTo, isLayoutLine, lineX } from './layoutLines.js';
 import { WALL_SIDES, wallSideFrame, wallSideOf, wallSideView } from './wallSides.js';
 
@@ -61,6 +61,17 @@ export function roomLineOnFace(room, wall, side, roomLineId) {
     ...(side === 'back' ? { wallSide: 'back' } : {}),
     from: 'left', value: value === 0 ? 0 : value, roomLine: true, square,
   };
+}
+
+/** Convert an edited face point to the stored distance on the reference face. */
+export function roomLineValueForFaceX(room, wall, side, roomLineId, x) {
+  const line = findRoomLine(room, roomLineId);
+  const reference = line && roomLineFrame(room, line);
+  if (!reference || !wall || !WALL_SIDES.includes(side) || !Number.isFinite(x)) return null;
+  const frame = wallSideFrame(room, wall, side);
+  const point = add(frame.leftPoint, scale(frame.r, x));
+  const refX = clamp(planPointToWallX(reference.frame, point), 0, reference.frame.length);
+  return line.from === 'left' ? refX : reference.frame.length - refX;
 }
 
 /** Rebuild derived face projections without adding empty keys or changing unaffected walls. */

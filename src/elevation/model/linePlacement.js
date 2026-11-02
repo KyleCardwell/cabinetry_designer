@@ -13,6 +13,7 @@ import { isJointAnchor } from './joints.js';
 import { resolveWallSpans } from './placement.js';
 import { positionReadouts } from './positions.js';
 import { resolveRunAnchorDatum } from './runAnchors.js';
+import { findRoomLine, roomLineOnFace, roomLineValueForFaceX } from './roomLines.js';
 import { wallSideOf, wallViewForRun } from './wallSides.js';
 
 const EPSILON = 1e-9;
@@ -168,8 +169,24 @@ export function placeAttachedRuns(room, settings) {
 }
 
 /** Move a line in its own face coordinates; line targets are hard stops for attached geometry. */
-export function moveLineTo(room, wallId, lineId, x, settings, { exact = false } = {}) {
+export function moveLineTo(room, wallId, lineId, x, settings, { exact = false, wallSide = 'front' } = {}) {
   const wall = room.walls.find((candidate) => candidate.id === wallId);
+  const roomLine = findRoomLine(room, lineId);
+  if (roomLine) {
+    const projected = wall && roomLineOnFace(room, wall, wallSide, lineId);
+    if (!projected || !Number.isFinite(x)) return { ok: false, reason: 'line-not-found', room };
+    const length = wallFrame(room, wall).length;
+    x = Math.max(0, Math.min(length, exact ? x : roundTo(x, settings.openingSnap ?? DEFAULT_PREFS.openingSnap)));
+    const value = roomLineValueForFaceX(room, wall, wallSide, lineId, x);
+    if (value === null) return { ok: false, reason: 'line-not-found', room };
+    const next = syncRoom({
+      ...room,
+      roomLines: room.roomLines.map((line) => line.id === lineId ? { ...line, value } : line),
+    }, settings);
+    const nextWall = next.walls.find((candidate) => candidate.id === wallId);
+    const after = roomLineOnFace(next, nextWall, wallSide, lineId);
+    return { ok: true, room: next, x: after.value, value: after.value };
+  }
   const line = findLine(wall, lineId);
   if (!line) return { ok: false, reason: 'line-not-found', room };
   const length = wallFrame(room, wall).length;

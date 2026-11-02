@@ -14,10 +14,11 @@ import { attachOffsetHere } from '../../model/linePlacement.js';
 import { ATTACH_AT, findLine, lineX, placedAt } from '../../model/layoutLines.js';
 import { openingReferenceRect } from '../../model/openings.js';
 import { splitOptionsForRun } from '../../model/placement.js';
+import { findRoomLine, isRoomLine, nextRoomLineLabel, roomLineOnFace, roomLineValueForFaceX } from '../../model/roomLines.js';
 import { splitRun } from '../../model/splitRun.js';
 import { roundTo } from '../../model/units.js';
-import { wallSideOf } from '../../model/wallSides.js';
-import { itemIndexFor, settingsFor, syncRoomAt, wallLocation } from './helpers.js';
+import { WALL_SIDES, wallSideFrame, wallSideOf } from '../../model/wallSides.js';
+import { itemIndexFor, roomIndexFor, settingsFor, syncRoomAt, wallLocation } from './helpers.js';
 
 /** LL2: layout lines on a wall face and attachments to them. Data only: nothing is placed from them yet. */
 
@@ -94,6 +95,82 @@ function columnLocation(state, payload) {
 }
 
 export const lineReducers = {
+  addRoomLine: {
+    reducer(state, action) {
+      const { wallSide, from, value, label, id } = action.payload;
+      if (!LINE_FROM.includes(from) || !validValue(value)
+        || (wallSide !== undefined && !WALL_SIDES.includes(wallSide)) || typeof id !== 'string' || !id) return;
+      const location = wallLocation(state, action.payload);
+      if (!location || findRoomLine(location.room, id)) return;
+      location.room.roomLines = [...(location.room.roomLines ?? []), {
+        id, label: cleanLabel(label) ?? nextRoomLineLabel(location.room), wallId: location.wall.id,
+        ...(wallSide === 'back' ? { wallSide } : {}), from, value,
+      }];
+      syncRoomAt(state, location.roomIndex);
+    },
+    prepare(payload = {}) {
+      return { payload: { ...payload, id: payload.id ?? uuid() } };
+    },
+  },
+
+  updateRoomLine(state, action) {
+    const { roomLineId, label, wallId, wallSide, from, value } = action.payload;
+    if ([label, wallId, wallSide, from, value].every((change) => change === undefined)) return;
+    const roomIndex = roomIndexFor(state, action.payload.roomId);
+    const room = state.rooms[roomIndex];
+    const stored = findRoomLine(room, roomLineId);
+    if (!stored || (label !== undefined && !cleanLabel(label))
+      || (from !== undefined && !LINE_FROM.includes(from))
+      || (value !== undefined && !validValue(value))
+      || (wallSide !== undefined && !WALL_SIDES.includes(wallSide))) return;
+    let line = { ...stored };
+    let wall = room.walls.find((candidate) => candidate.id === line.wallId);
+    if (wallId !== undefined || wallSide !== undefined) {
+      wall = room.walls.find((candidate) => candidate.id === (wallId === undefined ? line.wallId : wallId));
+      const side = wallSide ?? (wallId === undefined ? wallSideOf(line) : 'front');
+      const projected = wall && roomLineOnFace(room, wall, side, roomLineId);
+      if (!projected?.square) return;
+      line.wallId = wall.id;
+      delete line.wallSide;
+      if (side === 'back') line.wallSide = side;
+      line.value = line.from === 'left' ? projected.value : wallSideFrame(room, wall, side).length - projected.value;
+    }
+    if (!wall) return;
+    if (from !== undefined) line = setLineFrom(line, from, wallSideFrame(room, wall, wallSideOf(line)).length);
+    if (value !== undefined) line.value = value;
+    if (label !== undefined) line.label = cleanLabel(label);
+    if (!isRoomLine(line)) return;
+    room.roomLines[room.roomLines.findIndex((candidate) => candidate.id === roomLineId)] = line;
+    syncRoomAt(state, roomIndex);
+  },
+
+  deleteRoomLine(state, action) {
+    const roomIndex = roomIndexFor(state, action.payload.roomId);
+    const room = state.rooms[roomIndex];
+    if (!findRoomLine(room, action.payload.roomLineId)) return;
+    room.roomLines = room.roomLines.filter((line) => line.id !== action.payload.roomLineId);
+    if (!room.roomLines.length) delete room.roomLines;
+    syncRoomAt(state, roomIndex);
+  },
+
+  promoteLayoutLine(state, action) {
+    const location = wallLocation(state, action.payload);
+    if (!location) return;
+    const { lineId } = action.payload;
+    const index = lineIndex(location.wall, lineId);
+    if (index === -1 || findRoomLine(location.room, lineId)) return;
+    const stored = location.wall.lines[index];
+    const line = {
+      ...stored, wallId: location.wall.id,
+      label: /^L\d+$/.test(stored.label) ? nextRoomLineLabel(location.room) : stored.label,
+    };
+    if (line.wallSide !== 'back') delete line.wallSide;
+    if (!isRoomLine(line)) return;
+    location.wall.lines.splice(index, 1);
+    location.room.roomLines = [...(location.room.roomLines ?? []), line];
+    syncRoomAt(state, location.roomIndex);
+  },
+
   addLayoutLine: {
     reducer(state, action) {
       const { wallSide, from, value, label, id } = action.payload;
@@ -121,6 +198,20 @@ export const lineReducers = {
     const { lineId, label, from, value } = action.payload;
     const location = wallLocation(state, action.payload);
     if (!location) return;
+    const roomLine = findRoomLine(location.room, lineId);
+    if (roomLine) {
+      if (!validValue(value)) return;
+      const wallSide = action.payload.wallSide
+        ?? (state.activeWallId === location.wall.id ? state.activeWallSide : 'front');
+      if (!roomLineOnFace(location.room, location.wall, wallSide, lineId)) return;
+      const length = wallSideFrame(location.room, location.wall, wallSide).length;
+      const referenceValue = roomLineValueForFaceX(location.room, location.wall, wallSide, lineId,
+        Math.max(0, Math.min(length, value)));
+      if (referenceValue === null) return;
+      roomLine.value = referenceValue;
+      syncRoomAt(state, location.roomIndex);
+      return;
+    }
     const index = lineIndex(location.wall, lineId);
     if (index === -1) return;
     if (from !== undefined && !LINE_FROM.includes(from)) return;
@@ -138,6 +229,7 @@ export const lineReducers = {
     const location = wallLocation(state, action.payload);
     if (!location) return;
     const { lineId } = action.payload;
+    if (findRoomLine(location.room, lineId)) return;
     const index = lineIndex(location.wall, lineId);
     if (index === -1) return;
     const { wall } = location;

@@ -202,6 +202,10 @@ export const {
   setColumnStep,
   setItemPin,
   addLayoutLine,
+  addRoomLine,
+  updateRoomLine,
+  deleteRoomLine,
+  promoteLayoutLine,
   updateLayoutLine,
   deleteLayoutLine,
   setAttachment,
@@ -322,7 +326,7 @@ export const {
  */
 const VIEW_ONLY_ROOM_ACTIONS = new Set(['setActiveRoom', 'setActiveWall', 'setActiveWallSide']);
 export const ROOM_EDIT_ACTION_TYPES = new Set([
-  ...[roomReducers, wallReducers, featureReducers, runReducers, itemReducers, cellReducers, styleReducers, doorStyleReducers]
+  ...[roomReducers, wallReducers, featureReducers, lineReducers, runReducers, itemReducers, cellReducers, styleReducers, doorStyleReducers]
     .flatMap((group) => Object.keys(group))
     .filter((name) => !VIEW_ONLY_ROOM_ACTIONS.has(name)),
   'moveMissingDoorDesign',
