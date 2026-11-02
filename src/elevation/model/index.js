@@ -301,6 +301,7 @@ export {
   setLineFrom,
 } from './layoutLines.js';
 export { isRoomLine, findRoomLine, nextRoomLineLabel, roomLineFrame } from './roomLines.js';
+export { wallGroup, canMoveWallGroup, moveWallGroup } from './wallGroups.js';
 export {
   attachOffsetHere,
   attachPoint,
