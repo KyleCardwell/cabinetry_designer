@@ -91,7 +91,7 @@ function ElevationCanvas({
   const [alignmentGuides, setAlignmentGuides] = useState([]);
   const [entryPointer, setEntryPointer] = useState(null);
   const { style: cursorStyle, controller: cursor } = useCanvasCursor(
-    elevationBaseCursor(tool, pointerMode),
+    elevationBaseCursor(tool === 'roomLine' ? 'line' : tool, pointerMode),
   );
   const liveGestureRef = useRef(null);
   const moveOriginRef = useRef(null);
@@ -324,8 +324,9 @@ function ElevationCanvas({
 
   const selectLine = useCallback((lineId) => {
     if (tool !== 'select' || suppressClickRef.current) return;
-    dispatch(setSelection({ lineId }));
-  }, [dispatch, tool]);
+    dispatch(setSelection(room?.roomLines?.some((line) => line.id === lineId)
+      ? { roomLineId: lineId } : { lineId }));
+  }, [dispatch, room, tool]);
 
   const moveSelectedOpening = useCallback((openingId, x) => {
     if (!wall) return;

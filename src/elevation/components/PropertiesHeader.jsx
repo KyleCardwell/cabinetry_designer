@@ -16,7 +16,7 @@ function pieceLabel({ piece, side, tee }, cells) {
 }
 
 export default function PropertiesHeader({
-  room, wall, run, opening, soffit, recess, endPanel, line, cells, selectionContext, layout,
+  room, wall, run, opening, soffit, recess, endPanel, line, roomLine, cells, selectionContext, layout,
 }) {
   const dispatch = useDispatch();
   const [warningsOpen, setWarningsOpen] = useState(false);
@@ -26,7 +26,9 @@ export default function PropertiesHeader({
       label: `${wallLabel(room, wall)}${wall.side === 'back' ? ' · Back' : ''}`,
       selection: { wallId: wall.id },
     });
-    if (line) {
+    if (roomLine) {
+      segments.push({ label: `Room line ${roomLine.label}` });
+    } else if (line) {
       segments.push({ label: `Layout line ${line.label}` });
     } else if (opening || soffit || recess || endPanel) {
       const label = opening ? (opening.kind === 'window' ? 'Window' : 'Door')
@@ -42,6 +44,7 @@ export default function PropertiesHeader({
       if (selectionContext) segments.push({ label: pieceLabel(selectionContext, cells) });
     }
   }
+  if (roomLine && !wall) segments.push({ label: `Room line ${roomLine.label}` });
   // Match WarningsList: overhang is already shown beside the run geometry.
   const issueCount = run && !opening && !soffit && !recess && !endPanel && layout
     ? layout.warnings.filter((warning) => warning.code !== 'overhang').length + layout.errors.length

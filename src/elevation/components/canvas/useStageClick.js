@@ -15,6 +15,7 @@ import {
 } from '../../model/recesses.js';
 import {
   addLayoutLine,
+  addRoomLine,
   addOpening,
   addRecess,
   setMessage,
@@ -80,7 +81,7 @@ export default function useStageClick({
       dispatch(setSelection({}));
       return;
     }
-    if (tool === 'line') {
+    if (tool === 'line' || tool === 'roomLine') {
       if (!room || !wall || !transform) return;
       const pointer = stageRef.current?.getPointerPosition();
       if (!pointer) return;
@@ -89,8 +90,8 @@ export default function useStageClick({
       const payload = layoutLineAt(wall, screenPointToWallSnapped(
         pointer, wall, transform, settings.openingSnap, 0,
       ).x);
-      dispatch(addLayoutLine(payload));
-      dispatch(setSelection({ lineId: payload.id }));
+      dispatch(tool === 'roomLine' ? addRoomLine(payload) : addLayoutLine(payload));
+      dispatch(setSelection(tool === 'roomLine' ? { roomLineId: payload.id } : { lineId: payload.id }));
       return;
     }
     if (tool === 'recess') {

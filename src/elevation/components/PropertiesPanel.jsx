@@ -28,6 +28,7 @@ import {
 } from '../store/elevationSlice.js';
 import OpeningProperties from './properties/OpeningProperties.jsx';
 import LineProperties from './properties/LineProperties.jsx';
+import RoomLineProperties from './properties/RoomLineProperties.jsx';
 import { linesOn } from '../model/layoutLines.js';
 import RecessProperties from './properties/RecessProperties.jsx';
 import PieceProperties from './properties/PieceProperties.jsx';
@@ -70,6 +71,7 @@ export default function PropertiesPanel() {
   const line = wall && selection.lineId
     ? linesOn(wall).find((candidate) => candidate.id === selection.lineId) ?? null
     : null;
+  const roomLine = room?.roomLines?.find((candidate) => candidate.id === selection.roomLineId) ?? null;
   const run = wall?.runs.find((candidate) => candidate.id === selection.runId) ?? null;
   const layout = useMemo(
     () => (run ? splitRun(run, settings, splitOptionsForRun(room, wall, run, settings)) : null),
@@ -137,10 +139,14 @@ export default function PropertiesPanel() {
     if (selection.lineId && !line) dispatch(clearSelection());
   }, [dispatch, line, selection.lineId]);
 
+  useEffect(() => {
+    if (selection.roomLineId && !roomLine) dispatch(clearSelection());
+  }, [dispatch, roomLine, selection.roomLineId]);
+
   return (
     <aside className="w-80 shrink-0 overflow-y-auto border-l border-gray-700 bg-gray-800/50 p-4">
       <PropertiesHeader
-        key={`${wall?.id}/${line?.id}/${opening?.id}/${soffit?.id}/${recess?.id}/${endPanel?.endpoint}/${run?.id}/${selectionContext?.piece.id}`}
+        key={`${roomLine?.id}/${wall?.id}/${line?.id}/${opening?.id}/${soffit?.id}/${recess?.id}/${endPanel?.endpoint}/${run?.id}/${selectionContext?.piece.id}`}
         room={room}
         wall={wall}
         run={run}
@@ -149,13 +155,16 @@ export default function PropertiesPanel() {
         recess={recess}
         endPanel={endPanel}
         line={line}
+        roomLine={roomLine}
         cells={cells}
         selectionContext={selectionContext}
         layout={displayLayout}
       />
 
       <div className="mt-4">
-        {!wall ? (
+        {roomLine ? (
+          <RoomLineProperties room={room} wall={wall} line={roomLine} />
+        ) : !wall ? (
           <p className="text-sm leading-relaxed text-gray-500">
             Select a wall, run or opening to edit it.
           </p>

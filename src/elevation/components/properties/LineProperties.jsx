@@ -7,6 +7,7 @@ import { attachmentsTo } from '../../model/layoutLines.js';
 import { formatInches } from '../../model/units.js';
 import {
   deleteLayoutLine,
+  promoteLayoutLine,
   setSelection,
   updateLayoutLine,
 } from '../../store/elevationSlice.js';
@@ -73,6 +74,16 @@ export default function LineProperties({ wall, line, settings }) {
             Delete
           </button>
         </div>
+        <button
+          type="button"
+          onClick={() => {
+            dispatch(promoteLayoutLine(base));
+            dispatch(setSelection({ roomLineId: line.id }));
+          }}
+          className="mb-3 rounded border border-cyan-800 px-2.5 py-1.5 text-xs text-cyan-200 hover:bg-gray-700"
+        >
+          Make it a room line
+        </button>
         <Field label="Label">
           <TextInput
             value={line.label}

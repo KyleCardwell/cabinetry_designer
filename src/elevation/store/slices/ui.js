@@ -91,7 +91,7 @@ export const uiReducers = {
       clearTransientSelection(state);
     },
     setTool(state, action) {
-      if (!['select', 'draw', 'measure', 'soffit', 'recess', 'wall', 'door', 'window', 'line'].includes(action.payload)) return;
+      if (!['select', 'draw', 'measure', 'soffit', 'recess', 'wall', 'door', 'window', 'line', 'roomLine'].includes(action.payload)) return;
       state.tool = action.payload;
     },
     /** Generic copy buffer (MR5): `null` or `{ kind, data }`. Not saved; survives room loads. */

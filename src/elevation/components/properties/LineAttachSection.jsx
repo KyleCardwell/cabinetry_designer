@@ -1,3 +1,6 @@
+import { useSelector } from 'react-redux';
+import { findRoomLine } from '../../model/roomLines.js';
+import { wallLabel } from '../../model/topology.js';
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
 
@@ -7,6 +10,21 @@ import Field from './Field.jsx';
 export const NEW_LINE = '__new';
 const POINTS = [['left', 'Left edge'], ['center', 'Centre'], ['right', 'Right edge']];
 const SELECT_CLASS = 'w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
+
+export function roomLineSquareMessage(room, line) {
+  if (!line?.roomLine || line.square !== false) return null;
+  const reference = findRoomLine(room, line.id);
+  const wall = room?.walls.find((candidate) => candidate.id === reference?.wallId);
+  return wall ? `${line.label} isn't square to this wall (it's measured from ${wallLabel(room, wall)}); things on it here hold at the nearest point.` : null;
+}
+
+function AttachedRoomLineWarning({ line }) {
+  const room = useSelector((state) => state.elevation.rooms.find(
+    (candidate) => candidate.id === state.elevation.activeRoomId,
+  ));
+  const warning = roomLineSquareMessage(room, line);
+  return warning && <p className="mt-2 text-xs text-amber-300">{warning}</p>;
+}
 
 /**
  * @param {{
@@ -35,8 +53,8 @@ export default function LineAttachSection({
           className={SELECT_CLASS}
         >
           <option value="">None</option>
-          {lines.map((candidate) => (
-            <option key={candidate.id} value={candidate.id}>{candidate.label}</option>
+          {lines.filter((candidate) => candidate.square !== false || candidate.id === attach?.lineId).map((candidate) => (
+            <option key={candidate.id} value={candidate.id}>{candidate.roomLine ? `${candidate.label} (room)` : candidate.label}</option>
           ))}
           <option value={NEW_LINE}>New line here</option>
           {extraOptions.map((option) => (
@@ -73,6 +91,7 @@ export default function LineAttachSection({
               />
             </Field>
           </div>
+          {line.roomLine && line.square === false && <AttachedRoomLineWarning line={line} />}
           {note && <p className="mt-2 text-xs leading-relaxed text-gray-500">{note}</p>}
         </>
       )}

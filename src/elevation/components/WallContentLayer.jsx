@@ -139,6 +139,7 @@ export default function WallContentLayer({
               wall={wall}
               transform={transform}
               selectedLineId={selection.lineId ?? null}
+              selectedRoomLineId={selection.roomLineId ?? null}
               onDragStart={tool === 'select' ? startLineDrag : undefined}
               onDragMove={tool === 'select' ? updateLineDrag : undefined}
               onDragEnd={tool === 'select' ? finishLineDrag : undefined}
