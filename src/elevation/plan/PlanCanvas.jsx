@@ -29,6 +29,7 @@ import { planMeasureGeometry } from '../model/measure.js';
 import { formatInches } from '../model/units.js';
 import {
   deleteWall,
+  landWallEndpoint,
   setMessage,
   setSelection,
 } from '../store/elevationSlice.js';
@@ -368,6 +369,9 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               signedInches={signedInches}
               tool={tool}
               entry={entry}
+              onLand={({ wallId, endpoint, hostId, side, x }) => {
+                dispatch(landWallEndpoint({ wallId, endpoint, hostId, side, x }));
+              }}
               handleWallEndpointDrag={handleWallEndpointDrag}
               endpointFaceLabel={endpointFaceLabel}
               beginWallLength={beginWallLength}

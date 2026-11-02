@@ -6,6 +6,7 @@ import { wallFrame } from '../model/geometry.js';
 import { wallOutline } from '../model/wallOutline.js';
 import { elevationMarkers } from './elevationMarkers.js';
 import PlanElevationMarker from './PlanElevationMarker.jsx';
+import PlanNearMisses from './PlanNearMisses.jsx';
 
 export default function PlanOverlays({
   room,
@@ -17,6 +18,7 @@ export default function PlanOverlays({
   signedInches,
   tool,
   entry,
+  onLand,
   handleWallEndpointDrag,
   endpointFaceLabel,
   beginWallLength,
@@ -43,6 +45,15 @@ export default function PlanOverlays({
           letter={marker.letter}
         />
       ))}
+      <PlanNearMisses
+        room={room}
+        scale={scale}
+        text={text}
+        tool={tool}
+        entry={entry}
+        cursor={cursor}
+        onLand={onLand}
+      />
       {wallMovePreview?.room && (
         <Group listening={false}>
           {wallMovePreview.affectedWallIds.map((wallId) => {
