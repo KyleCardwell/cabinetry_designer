@@ -260,9 +260,10 @@ export function toRoomDocument(room) {
   return {
     ...room,
     walls: room.walls.map((wall) => {
-      const { _endPanelThickness, _endFlex, ...persistedWall } = wall;
+      const { _endPanelThickness, _endFlex, _roomLines, ...persistedWall } = wall;
       void _endPanelThickness;
       void _endFlex;
+      void _roomLines;
       return {
         ...persistedWall,
         thicknessOverride: wall.thicknessOverride ?? null,

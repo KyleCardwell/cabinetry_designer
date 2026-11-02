@@ -8,7 +8,7 @@
  */
 import { ATTACHABLE_KINDS } from './constants.js';
 import { rootItems } from './grid.js';
-import { featuresOn, wallSideOf } from './wallSides.js';
+import { featuresOn, WALL_SIDES, wallSideOf, wallSideView } from './wallSides.js';
 
 export const LINE_FROM = Object.freeze(['left', 'right']);
 export const ATTACH_AT = Object.freeze(['left', 'center', 'right']);
@@ -51,11 +51,14 @@ export function placedAt(item) {
 
 /** The layout lines on one face of a wall (or a side view's own face). */
 export function linesOn(wallOrView, side) {
-  return side === undefined ? featuresOn('lines', wallOrView) : featuresOn('lines', wallOrView, side);
+  return [...featuresOn('lines', wallOrView, side), ...featuresOn('_roomLines', wallOrView, side)];
 }
 
 export function findLine(wall, lineId) {
-  return (wall?.sideSource ?? wall)?.lines?.find((line) => line.id === lineId) ?? null;
+  const source = wall?.sideSource ?? wall;
+  return source?.lines?.find((line) => line.id === lineId)
+    ?? (wall?.side === undefined ? source?._roomLines : featuresOn('_roomLines', wall))
+      ?.find((line) => line.id === lineId) ?? null;
 }
 
 /** The line's position from its face's left end. */
@@ -71,7 +74,7 @@ export function setLineFrom(line, from, wallLength) {
 
 /** The lowest unused `L<n>` on one face; labels that aren't `L<number>` don't count. */
 export function nextLineLabel(wall, side = 'front') {
-  const used = new Set(linesOn(wall, side)
+  const used = new Set(featuresOn('lines', wall, side)
     .map((line) => /^L(\d+)$/.exec(line.label ?? ''))
     .filter(Boolean)
     .map((match) => Number(match[1])));
@@ -86,7 +89,7 @@ export function nextLineLabel(wall, side = 'front') {
  */
 export function canAttach(wall, kind, thing, attach, item) {
   if (!isAttachment(attach)) return false;
-  const line = findLine(wall, attach.lineId);
+  const line = findLine(kind === 'opening' ? wall : wallSideView(wall, wallSideOf(thing)), attach.lineId);
   if (!line) return false;
   if (kind === 'opening') return true;
   if (kind !== 'run' && kind !== 'column') return false;
@@ -124,16 +127,16 @@ function withoutAttach(entity) {
  * Returns the same wall object when nothing is dropped.
  */
 export function pruneLines(wall) {
-  const faces = new Map((wall.lines ?? []).map((line) => [line.id, wallSideOf(line)]));
+  const faces = new Map(WALL_SIDES.map((side) => [side, new Set(linesOn(wall, side).map((line) => line.id))]));
   let changed = false;
   const openings = wall.openings?.map((opening) => {
-    if (!opening?.attach || faces.has(opening.attach.lineId)) return opening;
+    if (!opening?.attach || WALL_SIDES.some((side) => faces.get(side).has(opening.attach.lineId))) return opening;
     changed = true;
     return withoutAttach(opening);
   });
   const runs = wall.runs?.map((run) => {
     const side = wallSideOf(run);
-    const keeps = (attach) => faces.get(attach.lineId) === side;
+    const keeps = (attach) => faces.get(side).has(attach.lineId);
     let next = run;
     if (run.attach && !keeps(run.attach)) next = withoutAttach(run);
     if (run.grid?.cols?.some((col) => col.attach && !keeps(col.attach))) {
