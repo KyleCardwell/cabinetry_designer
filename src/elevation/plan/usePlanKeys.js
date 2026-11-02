@@ -15,6 +15,8 @@ export default function usePlanKeys({
   cancelEntry,
   commitEntry,
   startMoveMode,
+  beginGroupMove,
+  canMoveGroup,
   tool,
   onMeasureEscape = () => false,
   drawStartRef,
@@ -60,15 +62,18 @@ export default function usePlanKeys({
         if (selection.runId) {
           event.preventDefault();
           startMoveMode(selection.runId);
+        } else if (selectedWall && canMoveGroup) {
+          event.preventDefault();
+          beginGroupMove();
         }
         return;
       }
-      if (event.key === 'Enter' && entry?.kind === 'run-move') {
+      if (event.key === 'Enter' && (entry?.kind === 'run-move' || entry?.kind === 'wall-group-move')) {
         event.preventDefault();
         commitEntry();
         return;
       }
-      if (entry?.kind === 'run-move') return;
+      if (entry?.kind === 'run-move' || entry?.kind === 'wall-group-move') return;
       if (event.key !== 'Delete' && event.key !== 'Backspace') return;
       if (selection.openingId) {
         const openingWall = walls.find((wall) => (
@@ -101,6 +106,6 @@ export default function usePlanKeys({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [cancelDrawing, cancelEntry, commitEntry, dispatch, entry, onMeasureEscape, selectedWall, selection.openingId,
-    selection.runId, startMoveMode, tool, walls]);
+    selection.runId, startMoveMode, beginGroupMove, canMoveGroup, tool, walls]);
 
 }

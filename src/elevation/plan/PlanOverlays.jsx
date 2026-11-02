@@ -24,6 +24,8 @@ export default function PlanOverlays({
   moveHandle,
   moveHandleCursor,
   beginWallMove,
+  canMoveGroup,
+  beginGroupMove,
   wallDrawStart,
   liveWallDrawEnd,
   mouseWorldPos,
@@ -123,6 +125,28 @@ export default function PlanOverlays({
           onDblClick={(event) => {
             event.cancelBubble = true;
           }}
+        />
+      )}
+      {showsMoveHandle && canMoveGroup && (
+        <Rect
+          x={moveHandle.point.x + moveHandle.frame.r.x * 18 / scale}
+          y={moveHandle.point.y + moveHandle.frame.r.y * 18 / scale}
+          width={10 / scale}
+          height={10 / scale}
+          offsetX={5 / scale}
+          offsetY={5 / scale}
+          rotation={45}
+          fill="#a78bfa"
+          stroke="#ecfeff"
+          strokeWidth={1 / scale}
+          onMouseEnter={() => moveHandleCursor.request('group-move', CURSORS.move)}
+          onMouseLeave={() => moveHandleCursor.release('group-move')}
+          onMouseDown={(event) => { event.cancelBubble = true; }}
+          onClick={(event) => {
+            moveHandleCursor.release('group-move');
+            beginGroupMove(event);
+          }}
+          onDblClick={(event) => { event.cancelBubble = true; }}
         />
       )}
       <WallDrawPreview

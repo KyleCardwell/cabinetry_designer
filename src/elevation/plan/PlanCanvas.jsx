@@ -42,6 +42,7 @@ import usePlanKeys from './usePlanKeys.js';
 import usePlanPan from './usePlanPan.js';
 import usePlanPicker from './usePlanPicker.js';
 import usePlanRunMove from './usePlanRunMove.js';
+import usePlanGroupMove from './usePlanGroupMove.js';
 import usePlanSceneData from './usePlanSceneData.js';
 import usePlanSelectHandlers from './usePlanSelectHandlers.js';
 import usePlanStageGestures from './usePlanStageGestures.js';
@@ -101,6 +102,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     begin: beginEntry,
     update: updateEntry,
     setTyped: setEntryTyped,
+    cycle: cycleEntry,
     commit: commitEntry,
     cancel: cancelEntry,
   } = useLiveEntry();
@@ -206,17 +208,23 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     entry, beginEntry, cancelEntry, updateEntry, cursor, dispatch,
     stageRef, toWorld, setEntryPointer, showMessage,
   });
-  const sceneRoom = previewRoom ?? room;
+  const { preview: groupPreview, canMoveGroup, beginGroupMove, cancelGroupMove, updateGroupPointer } = usePlanGroupMove({
+    room, selectedWall, activeWallId, activeWallSide, settings, tool, view,
+    entry, beginEntry, cancelEntry, updateEntry, cursor, dispatch,
+    stageRef, toWorld, setEntryPointer, showMessage,
+  });
+  const sceneRoom = groupPreview?.room ?? previewRoom ?? room;
   const { adaptedWalls, orderedOpenings, collisionMessages, clearances, orderedFootprints } = usePlanSceneData({
-    room, walls, sceneRoom, settings,
+    room: sceneRoom, walls: sceneRoom?.walls ?? walls, sceneRoom, settings,
   });
   const { contextMenu, closeContextMenu, handleContextMenu } = usePlanContextMenu({
     room, walls, settings, tool, view, activeRoomId, activeWallId, activeWallSide,
-    dispatch, stageRef, toWorld, measure, moving, cancelMove, closePicker, cancelEntry,
+    dispatch, stageRef, toWorld, measure, moving: moving || Boolean(groupPreview),
+    cancelMove: groupPreview ? cancelGroupMove : cancelMove, closePicker, cancelEntry,
   });
 
   usePlanKeys({
-    entry, cancelEntry, commitEntry, startMoveMode, tool,
+    entry, cancelEntry, commitEntry, startMoveMode, beginGroupMove, canMoveGroup, tool,
     onMeasureEscape: measure.escape,
     drawStartRef, cancelDrawing, dispatch, setPendingDeleteWallId,
     selection, walls, selectedWall,
@@ -230,7 +238,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
   const { handleStageClick, handleMouseMove } = usePlanStageGestures({
     settings, tool, entry, dispatch, stageRef, panRef, spacePressedRef,
     suppressClickRef, liveGestureRef, toWorld, measure, closeContextMenu,
-    commitEntry, updateEntry, updateMovePointer, pickAt, moveHandle, gridAndOrtho,
+    commitEntry, updateEntry, updateMovePointer, updateGroupPointer, pickAt, moveHandle, gridAndOrtho,
     snapDrawPoint, wallDrawStart, setWallDrawStart, setMouseWorldPos,
     setAlignmentGuides, setEntryPointer,
   });
@@ -276,7 +284,10 @@ export default function PlanCanvas({ fitRequest = 0 }) {
     tool === 'select' && selectedWall && moveHandle && !entry,
   );
   useEffect(() => {
-    if (!showsMoveHandle) moveHandleCursor.release('move');
+    if (!showsMoveHandle) {
+      moveHandleCursor.release('move');
+      moveHandleCursor.release('group-move');
+    }
   }, [moveHandleCursor, showsMoveHandle]);
   const liveWallDrawEnd = entry?.kind === 'wall-draw'
     && wallDrawStart
@@ -317,7 +328,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
             <AxisGuides scale={scale} />
             <PlanAlignmentGuides guides={alignmentGuides} scale={scale} />
             <PlanScene
-              walls={walls}
+              walls={sceneRoom?.walls ?? walls}
               room={sceneRoom}
               selectedWall={selectedWall}
               scale={scale}
@@ -339,11 +350,11 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               clearances={clearances}
             />
             <PlanOverlays
-              room={room}
+              room={sceneRoom}
               settings={settings}
               scale={scale}
               text={text}
-              wallMovePreview={wallMovePreview}
+              wallMovePreview={groupPreview ?? wallMovePreview}
               selectedWall={selectedWall}
               signedInches={signedInches}
               tool={tool}
@@ -355,12 +366,14 @@ export default function PlanCanvas({ fitRequest = 0 }) {
               moveHandle={moveHandle}
               moveHandleCursor={moveHandleCursor}
               beginWallMove={beginWallMove}
+              canMoveGroup={canMoveGroup}
+              beginGroupMove={beginGroupMove}
               wallDrawStart={wallDrawStart}
               liveWallDrawEnd={liveWallDrawEnd}
               mouseWorldPos={mouseWorldPos}
             />
             <PlanRoomLines
-              room={room}
+              room={sceneRoom}
               settings={settings}
               dispatch={dispatch}
               toWorld={toWorld}
@@ -376,7 +389,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
             />
             <PlanPickOutline candidate={hovered} scale={scale} />
           </Layer>
-          {moving && (
+          {(moving || groupPreview) && (
             <Layer>
               <Rect width={viewport.width} height={viewport.height} fill="transparent" />
             </Layer>
@@ -407,6 +420,7 @@ export default function PlanCanvas({ fitRequest = 0 }) {
           containerRef={containerRef}
           containerSize={viewport}
           onTyped={setEntryTyped}
+          onCycle={cycleEntry}
           onCommit={commitEntry}
           onCancel={cancelEntry}
         />

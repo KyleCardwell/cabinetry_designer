@@ -6,7 +6,7 @@ import { addWallSegment } from '../store/elevationSlice.js';
 export default function usePlanStageGestures({
   settings, tool, entry, dispatch, stageRef, panRef, spacePressedRef,
   suppressClickRef, liveGestureRef, toWorld, measure, closeContextMenu,
-  commitEntry, updateEntry, updateMovePointer, pickAt, moveHandle, gridAndOrtho,
+  commitEntry, updateEntry, updateMovePointer, updateGroupPointer, pickAt, moveHandle, gridAndOrtho,
   snapDrawPoint, wallDrawStart, setWallDrawStart, setMouseWorldPos,
   setAlignmentGuides, setEntryPointer,
 }) {
@@ -21,7 +21,7 @@ export default function usePlanStageGestures({
     }
     if (event.evt?.button && event.evt.button !== 0) return;
     closeContextMenu();
-    if (entry?.kind === 'run-move') {
+    if (entry?.kind === 'run-move' || entry?.kind === 'wall-group-move') {
       commitEntry();
       return;
     }
@@ -98,6 +98,8 @@ export default function usePlanStageGestures({
       setEntryPointer(pointer);
       if (entry.kind === 'run-move') {
         updateMovePointer(pointer);
+      } else if (entry.kind === 'wall-group-move') {
+        updateGroupPointer(pointer);
       } else if (entry.kind === 'wall-perpendicular' && moveHandle) {
         const delta = dot(
           subtract(toWorld(pointer), moveHandle.point),
@@ -153,6 +155,7 @@ export default function usePlanStageGestures({
     tool,
     updateEntry,
     updateMovePointer,
+    updateGroupPointer,
     wallDrawStart,
   ]);
 
