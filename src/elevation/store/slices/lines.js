@@ -7,6 +7,7 @@ import {
   LINE_FROM,
   attachmentsTo,
   canAttach,
+  isAttachment,
   nextLineLabel,
   setLineFrom,
 } from '../../model/layoutLines.js';
@@ -18,6 +19,7 @@ import { findRoomLine, isRoomLine, nextRoomLineLabel, roomLineOnFace, roomLineVa
 import { splitRun } from '../../model/splitRun.js';
 import { roundTo } from '../../model/units.js';
 import { WALL_SIDES, wallSideFrame, wallSideOf } from '../../model/wallSides.js';
+import { canAttachWall } from '../../model/wallGroups.js';
 import { itemIndexFor, roomIndexFor, settingsFor, syncRoomAt, wallLocation } from './helpers.js';
 
 /** LL2: layout lines on a wall face and attachments to them. Data only: nothing is placed from them yet. */
@@ -362,6 +364,18 @@ export const lineReducers = {
     prepare(payload = {}) {
       return { payload: { ...payload, id: payload.id ?? uuid() } };
     },
+  },
+
+  setWallAttachment(state, action) {
+    const { attach } = action.payload;
+    const location = wallLocation(state, action.payload);
+    if (!location) return;
+    if (attach === null) withoutAttach(location.wall);
+    else {
+      if (!isAttachment(attach) || !canAttachWall(location.room, location.wall.id, attach.lineId).ok) return;
+      location.wall.attach = { lineId: attach.lineId, at: attach.at, offset: attach.offset };
+    }
+    syncRoomAt(state, location.roomIndex);
   },
 
   setAttachment(state, action) {

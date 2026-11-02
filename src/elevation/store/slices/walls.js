@@ -1,6 +1,7 @@
 import { v4 as uuid } from 'uuid';
 import { FRAME_JOINS } from '../../model/constants.js';
 import { wallFrame } from '../../model/geometry.js';
+import { moveWallGroup as moveWallGroupPure } from '../../model/wallGroups.js';
 import {
   LANDING_TO,
   landWallEnd,
@@ -168,6 +169,25 @@ export const wallReducers = {
       }
       state.message = null;
       setCompensatedWalls(state, location.roomIndex, result.walls);
+    },
+    moveWallGroup(state, action) {
+      const { along = 0, across = 0 } = action.payload;
+      if (!Number.isFinite(along) || !Number.isFinite(across)) return;
+      const location = wallLocation(state, action.payload);
+      if (!location) return;
+      const { r, n } = wallFrame(location.room, location.wall);
+      const result = moveWallGroupPure(location.room, location.wall.id, {
+        x: r.x * along + n.x * across,
+        y: r.y * along + n.y * across,
+      });
+      if (!result.ok) {
+        state.message = result.message;
+        return;
+      }
+      // Group-relative contents ride along; do not compensate their run positions.
+      state.rooms[location.roomIndex] = result.room;
+      syncRoomAt(state, location.roomIndex);
+      state.message = result.notes.join(' ') || null;
     },
     moveWallPerpendicular(state, action) {
       const roomIndex = roomIndexFor(state, action.payload.roomId);
