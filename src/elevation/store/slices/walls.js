@@ -13,6 +13,7 @@ import {
 import { autoCombinedFaces, combinableFaces } from '../../model/combinedElevations.js';
 import { flipRunsForWall } from '../../model/room.js';
 import { elevationKey, elevationLeadKey, faceKeyParts } from '../../model/topology.js';
+import { moveLandingDistance } from '../../plan/landingMoves.js';
 import {
   addWallWithConnections,
   connectWallEndpoints,
@@ -263,6 +264,20 @@ export const wallReducers = {
         ? landingOffsetFor(location.room, location.wall, endpoint, ref, to)
         : action.payload.offset;
       if (!Number.isFinite(offset)) return;
+      if (action.payload.offset !== undefined) {
+        const { move = 'landed' } = action.payload;
+        if (!['landed', 'host'].includes(move)) return;
+        const result = moveLandingDistance(location.room, location.wall.id, endpoint, {
+          ref, to, offset, move,
+        });
+        if (!result.ok) {
+          state.message = result.message;
+          return;
+        }
+        state.message = null;
+        setCompensatedWalls(state, location.roomIndex, result.walls);
+        return;
+      }
       location.wall.landings[endpoint] = { ...landing, ref, to, offset };
       syncRoomAt(state, location.roomIndex);
     },
