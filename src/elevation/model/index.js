@@ -206,11 +206,15 @@ export {
 } from './openings.js';
 export {
   holdLandedWalls,
+  landEndpointOnFace,
   landingEndLabel,
+  landingLabel,
   landingReferenceDirection,
   landingSpans,
   landingRefCreatesCycle,
   landingsOn,
+  NEAR_MISS_DISTANCE,
+  wallNearMisses,
 } from './landings.js';
 export {
   wallSideOf,

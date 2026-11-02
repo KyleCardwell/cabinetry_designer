@@ -3,6 +3,7 @@ import {
   dot,
   lineIntersection,
   magnitude,
+  normalize,
   scale,
   subtract,
   wallFrame,
@@ -10,8 +11,12 @@ import {
 import { wallSideFrame, wallSideView } from './wallSides.js';
 import { wallFaceSegments } from './wallFaceRow.js';
 import { wallLabel } from './topology.js';
+import { formatInches } from './units.js';
 
 export const LANDING_TO = ['near', 'far', 'center'];
+export const NEAR_MISS_DISTANCE = 6;
+const PARALLEL_COS = Math.cos(10 * Math.PI / 180);
+const FACE_EPSILON = 1e-6;
 
 export function landingEndLabel(room, host, side, end) {
   const frame = wallSideFrame(room, host, side);
@@ -24,6 +29,15 @@ export function landingEndLabel(room, host, side, end) {
     (wall) => wall.id === host.landings?.[endpoint]?.wallId,
   );
   return landingHost ? `On ${wallLabel(room, landingHost)}` : 'Free end';
+}
+
+export function landingLabel(room, landing) {
+  const host = room.walls.find((wall) => wall.id === landing.wallId);
+  if (!host) return '';
+  const reference = landing.ref === 'left' || landing.ref === 'right'
+    ? landingEndLabel(room, host, landing.side, landing.ref)
+    : wallLabel(room, room.walls.find((wall) => wall.id === landing.ref));
+  return `${formatInches(landing.offset)} from ${reference}`;
 }
 
 function endpointPoint(wall, endpoint) {
@@ -316,7 +330,7 @@ export function resolveLandings(room) {
   return resolvedRoom;
 }
 
-export function landWallEnd(room, wallId, endpoint, target) {
+export function landWallEnd(room, wallId, endpoint, target, { keepFlipped = false } = {}) {
   const wall = room.walls.find((candidate) => candidate.id === wallId);
   const host = room.walls.find((candidate) => candidate.id === target.wallId);
   if (!wall || !host || (endpoint !== 'start' && endpoint !== 'end')) return null;
@@ -345,7 +359,7 @@ export function landWallEnd(room, wallId, endpoint, target) {
     walls: room.walls.map((candidate) => candidate.id === wall.id
       ? {
         ...candidate,
-        flipped: toggleFlipped ? !candidate.flipped : candidate.flipped,
+        flipped: !keepFlipped && toggleFlipped ? !candidate.flipped : candidate.flipped,
         landings: {
           start: candidate.landings?.start ?? null,
           end: candidate.landings?.end ?? null,
@@ -356,11 +370,88 @@ export function landWallEnd(room, wallId, endpoint, target) {
   };
 }
 
-export function snapToWallFace(room, point, radius) {
+export function landEndpointOnFace(room, wallId, endpoint, { hostId, side, x }) {
+  const wall = room.walls.find((candidate) => candidate.id === wallId);
+  const host = room.walls.find((candidate) => candidate.id === hostId);
+  const refuse = (reason, message = null) => ({
+    ok: false, reason, message, walls: room.walls, landing: null,
+  });
+  if (!wall || (endpoint !== 'start' && endpoint !== 'end')
+    || wall.connections?.[endpoint] || wall.landings?.[endpoint]) {
+    return refuse('not-free');
+  }
+  if (!host) return refuse('off-face');
+  if (['start', 'end'].some((end) => host.landings?.[end]?.wallId === wallId)) {
+    return refuse('host-lands-on-wall',
+      `${wallLabel(room, host)} lands on ${wallLabel(room, wall)}, so ${wallLabel(room, wall)} can't land on it.`);
+  }
+  const hostFrame = wallSideFrame(room, host, side);
+  const offFace = () => refuse('off-face',
+    `${wallLabel(room, wall)} would miss the end of ${wallLabel(room, host)}.`);
+  if (!Number.isFinite(x) || x < 0 || x > hostFrame.length) return offFace();
+  const ownFrame = wallFrame(room, wall);
+  const denominator = magnitude(ownFrame.d) * magnitude(hostFrame.r);
+  if (denominator === 0
+    || Math.abs(dot(ownFrame.d, hostFrame.r) / denominator) >= PARALLEL_COS) {
+    return refuse('parallel',
+      `${wallLabel(room, wall)} can't land on ${wallLabel(room, host)}: they're parallel.`);
+  }
+  const point = add(hostFrame.leftPoint, scale(hostFrame.r, x));
+  const moved = {
+    ...wall,
+    ...(endpoint === 'start'
+      ? { x1: point.x, y1: point.y }
+      : { x2: point.x, y2: point.y }),
+  };
+  const movedRoom = {
+    ...room,
+    walls: room.walls.map((candidate) => candidate.id === wallId ? moved : candidate),
+  };
+  const landed = landWallEnd(movedRoom, wallId, endpoint,
+    { wallId: hostId, side, x }, { keepFlipped: true });
+  if (!landed) {
+    return refuse('parallel',
+      `${wallLabel(room, wall)} can't land on ${wallLabel(room, host)}: they're parallel.`);
+  }
+  const landedWall = landed.walls.find((candidate) => candidate.id === wallId);
+  const interval = landingInterval(landed, landedWall, endpoint);
+  if (!interval || interval.a < -FACE_EPSILON || interval.b > hostFrame.length + FACE_EPSILON) {
+    return offFace();
+  }
+  const landing = {
+    ...landedWall.landings[endpoint],
+    offset: landingOffsetFor(landed, landedWall, endpoint,
+      landedWall.landings[endpoint].ref, 'near'),
+  };
+  return {
+    ok: true, reason: null, message: null,
+    walls: landed.walls.map((candidate) => candidate.id === wallId
+      ? { ...candidate, landings: { ...candidate.landings, [endpoint]: landing } }
+      : candidate),
+    landing,
+  };
+}
+
+export function snapToWallFace(room, point, radius, { excludeWallId = null, from = null } = {}) {
   let nearest = null;
+  const u = from ? normalize(subtract(point, from)) : null;
+  if (from && magnitude(u) === 0) return null;
   for (const wall of room.walls) {
+    if (excludeWallId !== null && wall.id === excludeWallId) continue;
     for (const side of ['front', 'back']) {
       const frame = wallSideFrame(room, wall, side);
+      if (from) {
+        if (Math.abs(dot(u, frame.r)) >= PARALLEL_COS
+          || dot(subtract(from, frame.leftPoint), frame.n) <= FACE_EPSILON) continue;
+        const hit = lineIntersection(from, u, frame.leftPoint, frame.r);
+        if (!hit) continue;
+        const x = dot(subtract(hit, frame.leftPoint), frame.r);
+        const distance = magnitude(subtract(hit, point));
+        if (x < 0 || x > frame.length || distance > radius) continue;
+        if (nearest && nearest.distance <= distance) continue;
+        nearest = { distance, result: { wallId: wall.id, side, x, point: hit } };
+        continue;
+      }
       const delta = subtract(point, frame.leftPoint);
       const x = dot(delta, frame.r);
       const distance = dot(delta, frame.n);
@@ -378,6 +469,48 @@ export function snapToWallFace(room, point, radius) {
     }
   }
   return nearest?.result ?? null;
+}
+
+export function wallNearMisses(room) {
+  const misses = [];
+  for (const wall of room.walls) {
+    const ownFrame = wallFrame(room, wall);
+    for (const endpoint of ['start', 'end']) {
+      if (wall.connections?.[endpoint] || wall.landings?.[endpoint]) continue;
+      const from = endpointPoint(wall, endpoint);
+      const other = endpointPoint(wall, endpoint === 'start' ? 'end' : 'start');
+      const u = normalize(subtract(from, other));
+      if (magnitude(u) === 0) continue;
+      let nearest = null;
+      for (const host of room.walls) {
+        if (host.id === wall.id) continue;
+        for (const side of ['front', 'back']) {
+          const frame = wallSideFrame(room, host, side);
+          if (Math.abs(dot(u, frame.r)) >= PARALLEL_COS) continue;
+          const distance = dot(subtract(from, frame.leftPoint), frame.n);
+          if (distance < -FACE_EPSILON) continue;
+          const toward = -dot(u, frame.n);
+          if (toward <= 0) continue;
+          const gap = distance / toward;
+          if (gap < 0 || gap > NEAR_MISS_DISTANCE || (nearest && nearest.gap <= gap)) continue;
+          const point = lineIntersection(from, u, frame.leftPoint, frame.r);
+          const back = add(from, scale(ownFrame.n, -wall.thickness));
+          const backHit = lineIntersection(back, u, frame.leftPoint, frame.r);
+          if (!point || !backHit) continue;
+          const x = dot(subtract(point, frame.leftPoint), frame.r);
+          const backX = dot(subtract(backHit, frame.leftPoint), frame.r);
+          nearest = {
+            miss: { wallId: wall.id, endpoint, hostId: host.id, side, gap, x, point, from },
+            withinFace: Math.min(x, backX) >= -FACE_EPSILON
+              && Math.max(x, backX) <= frame.length + FACE_EPSILON,
+            gap,
+          };
+        }
+      }
+      if (nearest?.withinFace) misses.push(nearest.miss);
+    }
+  }
+  return misses;
 }
 
 export function landingRefCreatesCycle(room, wallId, hostId, side, ref) {

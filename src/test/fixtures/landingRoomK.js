@@ -28,3 +28,14 @@ export const K = room({
     }),
   ],
 });
+
+export const K2 = {
+  ...K,
+  walls: K.walls.map((entry) => entry.id === 'wall-2'
+    ? {
+      ...entry,
+      y2: 15.5,
+      landings: { ...entry.landings, end: null },
+    }
+    : entry),
+};
