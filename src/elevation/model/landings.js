@@ -8,6 +8,7 @@ import {
   wallFrame,
 } from './geometry.js';
 import { wallSideFrame } from './wallSides.js';
+import { wallLabel } from './topology.js';
 
 export const LANDING_TO = ['near', 'far', 'center'];
 
@@ -132,6 +133,61 @@ export function landingOffsetFor(room, wall, endpoint, ref, to) {
   const reference = referenceFor(room, wall, endpoint, ref);
   return reference.direction
     * (measuredX(interval, reference.direction, to) - reference.x);
+}
+
+export function landingReferenceDirection(room, wall, endpoint, ref) {
+  return referenceFor(room, wall, endpoint, ref).direction;
+}
+
+/** Re-measure held landings after a host edit, without resolving their positions. */
+export function holdLandedWalls(before, after) {
+  const coordinates = ['x1', 'y1', 'x2', 'y2'];
+  const hostFields = [...coordinates, 'thickness', 'flipped'];
+  const oldWalls = new Map(before.walls.map((wall) => [wall.id, wall]));
+  const editedWalls = new Map(after.walls.map((wall) => [wall.id, wall]));
+  const updates = new Map();
+
+  for (const wall of after.walls) {
+    const oldWall = oldWalls.get(wall.id);
+    if (!oldWall || coordinates.some((key) => wall[key] !== oldWall[key])) continue;
+    let landings = wall.landings;
+    for (const endpoint of ['start', 'end']) {
+      const landing = wall.landings?.[endpoint];
+      const otherEndpoint = endpoint === 'start' ? 'end' : 'start';
+      if (!landing || (!wall.connections?.[otherEndpoint] && !wall.landings?.[otherEndpoint])) {
+        continue;
+      }
+      const host = editedWalls.get(landing.wallId);
+      const oldHost = oldWalls.get(landing.wallId);
+      if (!host || !oldHost || !hostFields.some((key) => host[key] !== oldHost[key])) continue;
+
+      const measuredOffset = landingOffsetFor(after, wall, endpoint, landing.ref, landing.to);
+      const offset = measuredOffset === 0 ? 0 : measuredOffset;
+      const interval = landingInterval(after, wall, endpoint);
+      const length = wallSideFrame(after, host, landing.side).length;
+      if (interval.a < -1e-6 || interval.b > length + 1e-6) {
+        return {
+          ok: false,
+          reason: 'landing-off-host',
+          message: `${wallLabel(after, host)} can't end there: ${wallLabel(after, wall)} lands on it. Move or detach ${wallLabel(after, wall)} first.`,
+          walls: before.walls,
+        };
+      }
+      if (offset !== landing.offset) {
+        landings = { ...landings, [endpoint]: { ...landing, offset } };
+      }
+    }
+    if (landings !== wall.landings) updates.set(wall.id, { ...wall, landings });
+  }
+
+  return {
+    ok: true,
+    reason: null,
+    message: null,
+    walls: updates.size
+      ? after.walls.map((wall) => updates.get(wall.id) ?? wall)
+      : after.walls,
+  };
 }
 
 export function resolveLandings(room) {

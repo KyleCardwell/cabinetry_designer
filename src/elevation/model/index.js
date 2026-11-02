@@ -205,6 +205,8 @@ export {
   validateOpeningPlacement,
 } from './openings.js';
 export {
+  holdLandedWalls,
+  landingReferenceDirection,
   landingRefCreatesCycle,
   landingsOn,
 } from './landings.js';
