@@ -18,9 +18,12 @@ import { resolveProfile } from '../../model/profile.js';
 import { wallHasCabinets, wallLabel } from '../../model/topology.js';
 import { resolveWall } from '../../model/room.js';
 import { wallBuiltEnds } from '../../model/wallEndPanels.js';
+import { canExtendPast, wallCornerEnd } from '../../plan/cornerLandings.js';
 import {
   detachWallLanding,
+  extendPastCorner,
   flipWall,
+  makeWallCorner,
   setDoorStylePick,
   setPullPick,
   setWallEndPanel,
@@ -178,6 +181,30 @@ export default function WallHeightProperties({ room, wall, plan }) {
   useEffect(() => {
     setLandingMoves({});
   }, [wall.id]);
+  // WL3: bumped after each Extend past commit so the field shows blank again.
+  const [extendKey, setExtendKey] = useState(0);
+  const extendFields = plan ? [frame.leftEndpoint, frame.rightEndpoint].map((endpoint) => {
+    const neighbour = room.walls.find(
+      (candidate) => candidate.id === wall.connections?.[endpoint]?.wallId,
+    );
+    if (!neighbour || !canExtendPast(room, wall.id, endpoint)) return null;
+    const label = `Extend past ${wallLabel(room, neighbour)}`;
+    return (
+      <Field key={`${endpoint}-${extendKey}`} label={label}>
+        <InchInput
+          value={null}
+          placeholder="0"
+          aria-label={label}
+          onCommit={(amount) => {
+            if (amount === null || amount < 0) return false;
+            dispatch(extendPastCorner({ wallId: wall.id, endpoint, amount }));
+            setExtendKey((key) => key + 1);
+            return true;
+          }}
+        />
+      </Field>
+    );
+  }).filter(Boolean) : [];
 
   const landingFields = [
     ['left', frame.leftEndpoint],
@@ -272,6 +299,15 @@ export default function WallHeightProperties({ room, wall, plan }) {
               <option value="host" disabled={!canMoveHost}>{wallLabel(room, host)}</option>
             </select>
           </Field>
+          {wallCornerEnd(room, wall.id, endpoint) && (
+            <button
+              type="button"
+              onClick={() => dispatch(makeWallCorner({ wallId: wall.id, endpoint, move }))}
+              className="w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600"
+            >
+              Make corner
+            </button>
+          )}
           <button
             type="button"
             onClick={() => dispatch(detachWallLanding({
@@ -366,6 +402,9 @@ export default function WallHeightProperties({ room, wall, plan }) {
                   </p>
                 )}
               </div>
+              {extendFields.length > 0 && (
+                <div className="col-span-2 grid grid-cols-2 gap-2.5">{extendFields}</div>
+              )}
               {heightField}
               <OverrideInput
                 kind="number"

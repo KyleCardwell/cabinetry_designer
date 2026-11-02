@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { setMessage } from '../store/elevationSlice.js';
+import { makeWallCorner, setMessage } from '../store/elevationSlice.js';
 
 const MESSAGE_TEXT = {
   conflict: 'That overlaps another run.',
@@ -17,6 +17,11 @@ const MESSAGE_TEXT = {
 export default function MessageToast() {
   const dispatch = useDispatch();
   const message = useSelector((state) => state.elevation.message);
+  const messageAction = useSelector((state) => state.elevation.messageAction);
+  // WL3: an action belongs to the message it was set with; any other message shows no button.
+  const action = messageAction?.message === message && messageAction.kind === 'make-corner'
+    ? messageAction
+    : null;
 
   useEffect(() => {
     if (!message) return undefined;
@@ -32,6 +37,18 @@ export default function MessageToast() {
         className="pointer-events-auto flex max-w-xl items-start gap-3 rounded-md border border-amber-500/60 bg-gray-900/95 px-4 py-2.5 text-sm text-amber-200 shadow-lg"
       >
         <span>{MESSAGE_TEXT[message] ?? message}</span>
+        {action && (
+          <button
+            type="button"
+            onClick={() => {
+              dispatch(makeWallCorner(action.payload));
+              dispatch(setMessage(null));
+            }}
+            className="shrink-0 rounded border border-amber-400/70 px-2 py-0.5 text-xs font-medium text-amber-100 hover:bg-amber-500/20"
+          >
+            {action.label}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => dispatch(setMessage(null))}
