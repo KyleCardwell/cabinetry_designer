@@ -153,7 +153,7 @@ describe('blind overlay model', () => {
         endPieceId: 'L:left',
         panel: null,
       }],
-      warnings: [],
+      warnings: [{ code: 'blind-past-wall', side: 'left' }],
     });
     expect(blindEntries(room, wall, runR, DEFAULT_SETTINGS)).toEqual({
       entries: [{
@@ -168,7 +168,7 @@ describe('blind overlay model', () => {
         endPieceId: 'R:right',
         panel: null,
       }],
-      warnings: [],
+      warnings: [{ code: 'blind-past-wall', side: 'right' }],
     });
   });
 

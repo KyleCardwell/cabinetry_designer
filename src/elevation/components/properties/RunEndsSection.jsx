@@ -364,7 +364,9 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                     <p key={warning.code} className="text-xs text-amber-300">
                       {warning.code === 'blind-not-past'
                         ? 'Blind box is no wider than the cabinet.'
-                        : 'Blind is exposed — add a filler or panel at this end.'}
+                        : warning.code === 'blind-past-wall'
+                          ? 'The blind box runs past the wall. Shorten the blind width or move the run.'
+                          : 'Blind is exposed — add a filler or panel at this end.'}
                     </p>
                   ))}
               </div>

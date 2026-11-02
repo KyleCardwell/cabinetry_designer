@@ -112,6 +112,10 @@ export function blindEntries(room, wall, run, settings, layout = null) {
     if (extension <= WIDTH_EPSILON) {
       warnings.push({ code: 'blind-not-past', side });
     }
+    const pastWall = side === 'left' ? cornerX - boxX : boxX + boxWidth - cornerX;
+    if (pastWall > WIDTH_EPSILON) {
+      warnings.push({ code: 'blind-past-wall', side });
+    }
     if (!covered && depth > WIDTH_EPSILON && !hasEndPiece) {
       warnings.push({ code: 'blind-needs-end', side });
     }
