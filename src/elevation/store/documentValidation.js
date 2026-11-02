@@ -39,6 +39,7 @@ import {
 } from '../model/styles.js';
 import { SOFFIT_MOLDINGS } from '../model/soffits.js';
 import { isAttachment, isLayoutLine } from '../model/layoutLines.js';
+import { isRoomLine } from '../model/roomLines.js';
 import { RECESS_KINDS, RECESS_MOLDINGS } from '../model/recesses.js';
 
 /** Current persisted schema version. */
@@ -669,6 +670,8 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
 
 export function isRoom(room, profileKeys = PROFILE_KEYS) {
   return Boolean(room)
+    && (room.roomLines === undefined || (Array.isArray(room.roomLines) && room.roomLines.every(isRoomLine)
+      && new Set(room.roomLines.map((line) => line.id)).size === room.roomLines.length))
     && (room.settingsOverrides === undefined || isPlainObject(room.settingsOverrides))
     && (room.doorDetails === undefined || typeof room.doorDetails === 'boolean')
     && (room.doorStyleTags === undefined || typeof room.doorStyleTags === 'boolean')

@@ -38,7 +38,14 @@ export function run(overrides = {}) {
     anchors: { left: false, right: false },
     ...overrides,
   };
-  return { ...rest, grid: gridFromItems(rest.id, items, blind) };
+  return {
+    ...rest,
+    ends: {
+      left: { width: null, ...rest.ends.left },
+      right: { width: null, ...rest.ends.right },
+    },
+    grid: gridFromItems(rest.id, items, blind),
+  };
 }
 
 /** A 36" x 80" door opening measured to the jamb, 24" from the wall's left edge. */
@@ -73,7 +80,7 @@ export function pin(value, overrides = {}) {
 
 /** A 144" wall along y = 0 with the app's own defaults; extra keys (e.g. `side`) are kept. */
 export function wall(overrides = {}) {
-  return { ...createWall('', 0, 144, { id: 'wall-1', ...overrides }), ...overrides };
+  return { ...createWall('', 0, 144, { id: 'wall-1', ...overrides }), joints: [], ...overrides };
 }
 
 /** An empty room with the app's own defaults; pass `walls` (sync fills in `wallOrder`). */
@@ -84,6 +91,11 @@ export function room(overrides = {}) {
 /** A layout line (LL2), `value` inches from the face's left by default; label = id. */
 export function line(id, value, overrides = {}) {
   return { id, label: id, from: 'left', value, ...overrides };
+}
+
+/** A room line (LL7) measured from wall-1's front left end by default; label = id. */
+export function roomLine(id, overrides = {}) {
+  return { id, label: id, wallId: 'wall-1', from: 'left', value: 0, ...overrides };
 }
 
 /** An attachment to a layout line (LL2). */

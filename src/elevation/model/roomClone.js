@@ -54,6 +54,7 @@ function cloneRoom(room) {
     ...room,
     wallOrder: [...(room.wallOrder ?? [])],
     profile: { ...room.profile },
+    ...(room.roomLines ? { roomLines: room.roomLines.map((line) => ({ ...line })) } : {}),
     ...(room.settingsOverrides ? { settingsOverrides: cloneOverrides(room.settingsOverrides) } : {}),
     ...(room.combinedElevations
       ? { combinedElevations: room.combinedElevations.map((group) => ({ ...group, faces: [...group.faces] })) }

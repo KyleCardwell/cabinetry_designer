@@ -300,6 +300,7 @@ export {
   pruneLines,
   setLineFrom,
 } from './layoutLines.js';
+export { isRoomLine, findRoomLine, nextRoomLineLabel, roomLineFrame } from './roomLines.js';
 export {
   attachOffsetHere,
   attachPoint,
