@@ -4,6 +4,7 @@
 import { useCallback, useEffect } from 'react';
 import { snapToEndpoint } from '../../canvas/SnapEngine.js';
 import { wallFrame } from '../model/geometry.js';
+import { holdLandedWalls } from '../model/landings.js';
 import {
   connectWalls,
   disconnectWallEndpoint,
@@ -80,6 +81,11 @@ export default function usePlanWallEdits({
       setWallMovePreview({ delta, room: null, affectedWallIds: [] });
       return;
     }
+    const held = holdLandedWalls(room, { ...room, walls: result.walls });
+    if (!held.ok) {
+      setWallMovePreview({ delta, room: null, affectedWallIds: [] });
+      return;
+    }
     const affectedWallIds = [
       selectedWall.id,
       ...['start', 'end'].map((endpoint) => (
@@ -88,7 +94,7 @@ export default function usePlanWallEdits({
     ];
     setWallMovePreview({
       delta,
-      room: { ...room, walls: result.walls },
+      room: { ...room, walls: held.walls },
       affectedWallIds: [...new Set(affectedWallIds)],
     });
   }, [room, selectedWall]);

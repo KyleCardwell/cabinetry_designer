@@ -7,6 +7,7 @@ import { BUILT_IN_PULLS } from '../../model/pulls.js';
 import { BUILT_IN_SLIDES } from '../../model/slides.js';
 import { runItems } from '../../model/grid.js';
 import { recessEndType } from '../../model/recesses.js';
+import { holdLandedWalls } from '../../model/landings.js';
 import {
   compensateRuns,
   resolveWall,
@@ -191,8 +192,14 @@ export function syncRoomAt(state, roomIndex) {
 
 export function setCompensatedWalls(state, roomIndex, walls) {
   const oldRoom = state.rooms[roomIndex];
-  state.rooms[roomIndex] = compensateRuns(oldRoom, { ...oldRoom, walls });
+  const result = holdLandedWalls(oldRoom, { ...oldRoom, walls });
+  if (!result.ok) {
+    state.message = result.message;
+    return false;
+  }
+  state.rooms[roomIndex] = compensateRuns(oldRoom, { ...oldRoom, walls: result.walls });
   syncRoomAt(state, roomIndex);
+  return true;
 }
 
 export const STYLE_FIELD_KEYS = ['cabinetStyleId', 'beadWidth'];
