@@ -302,6 +302,12 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const fillerThickness = runFillerThickness(room, wall, run, settings);
   const fillerBand = (piece) => {
     const front = fillerAtBoxFace(cells.pieces, faceLayouts, piece) ? run.depth : faceFront;
+    const side = endSideOf(piece);
+    if (side && run.ends[side]?.type === 'blind' && !panels.has(side)) {
+      // Open neighbors use the box-front baseline; a blind filler must sit wholly ahead of it.
+      const back = Math.max(front - fillerThickness, run.depth);
+      return { back, front: back + fillerThickness };
+    }
     return { back: front - fillerThickness, front };
   };
   const frames = frameRegions(room, run, cells, settings);
