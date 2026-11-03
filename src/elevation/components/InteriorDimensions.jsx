@@ -58,8 +58,8 @@ export default function InteriorDimensions({ entry, transform, editable, onEditD
           <Line
             key={index}
             points={vertical
-              ? [x - TICK_HALF, point.y, x + TICK_HALF, point.y]
-              : [point.x, y - TICK_HALF, point.x, y + TICK_HALF]}
+              ? [x - TICK_HALF * factor, point.y, x + TICK_HALF * factor, point.y]
+              : [point.x, y - TICK_HALF * factor, point.x, y + TICK_HALF * factor]}
             stroke={color}
             strokeWidth={1}
             listening={false}

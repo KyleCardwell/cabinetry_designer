@@ -33,8 +33,8 @@ function CellChain({ grid, transform, editable, onEditTrack }) {
           <Line
             key={`tick:${value}`}
             points={row
-              ? [chainX - TICK_HALF_LENGTH, point.y, chainX + TICK_HALF_LENGTH, point.y]
-              : [point.x, chainY - TICK_HALF_LENGTH, point.x, chainY + TICK_HALF_LENGTH]}
+              ? [chainX - TICK_HALF_LENGTH * factor, point.y, chainX + TICK_HALF_LENGTH * factor, point.y]
+              : [point.x, chainY - TICK_HALF_LENGTH * factor, point.x, chainY + TICK_HALF_LENGTH * factor]}
             stroke="#94a3b8"
             strokeWidth={1}
             listening={false}

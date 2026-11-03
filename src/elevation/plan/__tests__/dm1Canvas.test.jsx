@@ -119,26 +119,41 @@ describe('DM1 step b canvas render anchors', () => {
 
   it('renders through-depth model numbers with a line, two ticks and a readable label at the outer panel end', () => {
     for (const overrides of [{}, { flipped: true }, { x2: 0, y2: 96 }, { x2: 57.6, y2: 76.8 }]) {
-      for (const panels of [[], ['start'], ['end'], ['start', 'end']]) {
-        const input = setup({ panels, ...overrides });
+      for (const [panels, scale] of [[], ['start'], ['end'], ['start', 'end']].flatMap((panels) => (
+        [2, 0.5].map((scale) => [panels, scale])
+      ))) {
+        const input = { ...setup({ panels, ...overrides }), scale };
         const groups = nodes(PlanWallShape(input)).filter(({ type, key }) => (
           type === Group && key?.startsWith('through:')
         ));
         expect(groups).toHaveLength(panels.length ? 1 : 0);
         groups.forEach((group, index) => {
           const children = nodes(group);
-          const lines = children.filter(({ type }) => type === Line);
+          const lines = children.filter(({ type, props }) => type === Line && props.stroke === '#94a3b8');
+          const ticks = children.filter(({ type, props }) => type === Line && props.stroke === '#cbd5e1');
+          const leaders = children.filter(({ type, props }) => type === Line && props.stroke === '#64748b');
           const label = children.find(({ type }) => type === Text);
           const record = planThroughDimensions(input.room, input.wall, settings)[index];
-          expect(lines).toHaveLength(3);
-          expect(lines[0].props.points).toEqual([record.start[0], -record.start[1], record.end[0], -record.end[1]]);
+          expect(ticks).toHaveLength(2);
+          const outerEnds = [...lines[0].props.points.slice(0, 2), ...lines.at(-1).props.points.slice(2)];
+          expect(outerEnds).toEqual([record.start[0], -record.start[1], record.end[0], -record.end[1]]);
           expect(label.props.text).toBe('54 1/4');
           expect(Math.abs(label.props.rotation)).toBeLessThanOrEqual(90);
-          const [x1, y1, x2, y2] = lines[0].props.points;
+          const [x1, y1, x2, y2] = outerEnds;
           expect(Math.hypot(x2 - x1, y2 - y1)).toBeCloseTo(54.25);
+          if (scale === 2) {
+            expectGap(lines, { x: x1, y: y1 }, { x: x2, y: y2 }, label, scale);
+            expect(leaders).toHaveLength(0);
+          } else {
+            expect(lines).toHaveLength(1);
+            expect(leaders).toHaveLength(1);
+            expect(leaders[0].props.points).toEqual([
+              (x1 + x2) / 2, (y1 + y2) / 2, label.props.x, label.props.y,
+            ]);
+          }
           if (!Object.keys(overrides).length) {
             const x = panels[0] === 'end' ? 105 : -9;
-            expect(lines[0].props.points).toEqual([x, 24.875, x, -29.375]);
+            expect(outerEnds).toEqual([x, 24.875, x, -29.375]);
           }
         });
       }

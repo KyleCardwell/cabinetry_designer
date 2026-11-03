@@ -16,7 +16,7 @@ const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
     ? typeof tree.type === 'function' ? nodes(tree.type(tree.props)) : [tree, ...nodes(tree.props?.children)] : [];
 const transform = { scale: 40, offsetX: 0, offsetY: 0, wallHeight: 96 };
 
-it('TX1 c anchor 3: grows dimension labels, boxes and popout leaders with fixed padding and ticks', () => {
+it('TX1 c anchor 3: grows dimension labels, boxes, popout leaders and ticks with fixed padding', () => {
   for (const orientation of ['horizontal', 'vertical']) {
     const props = {
       segments: [{ start: 0, end: 1.5, kind: 'run' }], orientation,
@@ -38,7 +38,12 @@ it('TX1 c anchor 3: grows dimension labels, boxes and popout leaders with fixed 
     expect(leader).toBeDefined();
     const ticks = (tree) => tree.filter(({ type, props }) => type === Line && props.stroke === '#94a3b8')
       .map(({ props }) => props);
-    expect(ticks(scaled)).toEqual(ticks(original));
+    expect(ticks(scaled)).toEqual(ticks(original).map((tick) => {
+      const [x1, y1, x2, y2] = tick.points;
+      const cx = (x1 + x2) / 2;
+      const cy = (y1 + y2) / 2;
+      return { ...tick, points: [cx + 2 * (x1 - cx), cy + 2 * (y1 - cy), cx + 2 * (x2 - cx), cy + 2 * (y2 - cy)] };
+    }));
   }
 });
 
@@ -50,7 +55,7 @@ it('scales cell, interior and clearance text, editing boxes, fit checks and lane
     expect(tree.find(({ type }) => type === Text).props).toMatchObject({ fontSize: 20, height: 20 });
     expect(tree.find(({ type }) => type === Rect).props.height).toBe(20);
     expect(tree.find(({ type }) => type === Line).props.points).toEqual(axis === 'row'
-      ? [17, 384, 23, 384] : [0, 361, 0, 367]);
+      ? [14, 384, 26, 384] : [0, 358, 0, 370]);
     const short = nodes(CellChains({ grids: [{ id: 'grid', axis, x: 0, z: 0,
       tracks: [{ id: 'track', start: 0, end: 10 }] }], transform: zoomed }));
     expect(short.some(({ type }) => type === Text)).toBe(false); // 40px < scaled 48px minimum.

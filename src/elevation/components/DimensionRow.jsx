@@ -123,10 +123,10 @@ export default function DimensionRow({
             />
             <Line
               points={[
-                row.x - tickDirection.x * TICK_HALF_LENGTH,
-                row.y - tickDirection.y * TICK_HALF_LENGTH,
-                row.x + tickDirection.x * TICK_HALF_LENGTH,
-                row.y + tickDirection.y * TICK_HALF_LENGTH,
+                row.x - tickDirection.x * TICK_HALF_LENGTH * factor,
+                row.y - tickDirection.y * TICK_HALF_LENGTH * factor,
+                row.x + tickDirection.x * TICK_HALF_LENGTH * factor,
+                row.y + tickDirection.y * TICK_HALF_LENGTH * factor,
               ]}
               stroke="#94a3b8"
               strokeWidth={1}
@@ -141,10 +141,10 @@ export default function DimensionRow({
           <Line
             key={`wall-end:${value}`}
             points={[
-              row.x - tickDirection.x * WALL_END_TICK_HALF_LENGTH,
-              row.y - tickDirection.y * WALL_END_TICK_HALF_LENGTH,
-              row.x + tickDirection.x * WALL_END_TICK_HALF_LENGTH,
-              row.y + tickDirection.y * WALL_END_TICK_HALF_LENGTH,
+              row.x - tickDirection.x * WALL_END_TICK_HALF_LENGTH * factor,
+              row.y - tickDirection.y * WALL_END_TICK_HALF_LENGTH * factor,
+              row.x + tickDirection.x * WALL_END_TICK_HALF_LENGTH * factor,
+              row.y + tickDirection.y * WALL_END_TICK_HALF_LENGTH * factor,
             ]}
             stroke="#e2e8f0"
             strokeWidth={2}

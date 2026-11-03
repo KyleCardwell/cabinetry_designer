@@ -34,12 +34,11 @@ export default function PlanWallShape({
     x: (faceEndpoints[0].x + faceEndpoints[1].x) / 2,
     y: (faceEndpoints[0].y + faceEndpoints[1].y) / 2,
   };
-  const tickLength = 8 / scale;
   const factor = text?.dimension ?? 1;
+  const tickLength = 8 * factor / scale;
   const fontSize = PLAN_DIM_FONT_SIZE * factor / scale;
   const number = wallNumbers(room).get(wall.id);
-  const numberRadius = 9 / scale;
-  const numberTextRadius = numberRadius * (text?.label ?? 1);
+  const numberRadius = 9 * (text?.label ?? 1) / scale;
   const rows = canvasDimensionRows(room, wall, settings, scale, factor);
   const { innerRowOffset, dimensionOffset } = rows;
   const faceRows = rows.segments;
@@ -58,7 +57,7 @@ export default function PlanWallShape({
     x: (frame.d.x + exterior.x) / Math.SQRT2,
     y: (frame.d.y + exterior.y) / Math.SQRT2,
   };
-  const tickHalfLength = 4 / scale;
+  const tickHalfLength = 4 * factor / scale;
   const layout = rows.layouts.wall;
   const dimensionLabel = layout.labels[0];
   const labelDistance = (dimensionLabel.mode === 'popout'
@@ -362,13 +361,23 @@ export default function PlanWallShape({
           y: (dy + dx) / length / Math.SQRT2 * tickHalfLength,
         };
         const width = (dimension.text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
+        const center = { x: (start.x + end.x) / 2, y: (start.y + end.y) / 2 };
+        const fits = width + 8 / scale <= length;
+        const normal = { x: dy / length, y: -dx / length };
+        const side = (center.x - midpoint.x) * normal.x + (center.y - midpoint.y) * normal.y >= 0 ? 1 : -1;
+        const distance = fits ? 0 : side * 10 * factor / scale;
+        const labelPoint = {
+          x: center.x + normal.x * distance,
+          y: center.y + normal.y * distance,
+        };
+        const linePieces = fits
+          ? gappedLine(start, end, center, width / 2, 0.5 / scale)
+          : [endpoints.flatMap((point) => [point.x, point.y])];
         return (
           <Group key={`through:${index}`} listening={false}>
-            <Line
-              points={endpoints.flatMap((point) => [point.x, point.y])}
-              stroke="#94a3b8"
-              strokeWidth={1 / scale}
-            />
+            {linePieces.map((points, piece) => (
+              <Line key={`line:${piece}`} points={points} stroke="#94a3b8" strokeWidth={1 / scale} />
+            ))}
             {endpoints.map((point, endpoint) => (
               <Line
                 key={endpoint}
@@ -377,9 +386,16 @@ export default function PlanWallShape({
                 strokeWidth={1 / scale}
               />
             ))}
+            {!fits && (
+              <Line
+                points={[center.x, center.y, labelPoint.x, labelPoint.y]}
+                stroke="#64748b"
+                strokeWidth={0.75 / scale}
+              />
+            )}
             <Text
-              x={(start.x + end.x) / 2 + dy / length * 10 * factor / scale}
-              y={(start.y + end.y) / 2 - dx / length * 10 * factor / scale}
+              x={labelPoint.x}
+              y={labelPoint.y}
               width={width}
               offsetX={width / 2}
               offsetY={fontSize / 2}
@@ -402,10 +418,10 @@ export default function PlanWallShape({
         listening={false}
       />
       <Text
-        x={numberPoint.x - numberTextRadius}
-        y={numberPoint.y - numberTextRadius}
-        width={numberTextRadius * 2}
-        height={numberTextRadius * 2}
+        x={numberPoint.x - numberRadius}
+        y={numberPoint.y - numberRadius}
+        width={numberRadius * 2}
+        height={numberRadius * 2}
         text={String(number ?? '')}
         align="center"
         verticalAlign="middle"

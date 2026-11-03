@@ -176,7 +176,7 @@ it('anchor 2: fit 0.8, zoom 3.2 gives labels 4 and dimensions 2 throughout the s
   expect(Math.abs(popout.props.y)).toBeCloseTo(tinyRows.dimensionOffset + 24 * 2 / props.scale);
   const wallNumber = wallTree.find(({ type, props }) => type === Text && props.fill === '#f8fafc');
   expect(wallNumber.props.fontSize).toBe(10 * 4 / props.scale);
-  expect(wallTree.find(({ type }) => type === Circle).props.radius).toBe(9 / props.scale);
+  expect(wallTree.find(({ type }) => type === Circle).props.radius).toBe(9 * text.label / props.scale);
   const rows = canvasDimensionRows(props.room, wallProps.wall, props.settings, props.scale, 2);
   expect(rows.innerRowOffset - rows.outside).toBeCloseTo(22 * 2 / props.scale);
   expect(rows.dimensionOffset - rows.innerRowOffset).toBeCloseTo((20 + rows.layouts.front.levels * 14) * 2 / props.scale);
