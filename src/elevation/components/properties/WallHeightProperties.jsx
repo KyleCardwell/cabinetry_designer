@@ -21,10 +21,12 @@ import { wallBuiltEnds } from '../../model/wallEndPanels.js';
 import { canExtendPast, wallCornerEnd } from '../../plan/cornerLandings.js';
 import {
   detachWallLanding,
+  disconnectWallEndpoint,
   extendPastCorner,
   flipWall,
   makeWallCorner,
   setDoorStylePick,
+  setMessage,
   setPullPick,
   setWallEndPanel,
   setWallLanding,
@@ -178,31 +180,82 @@ export default function WallHeightProperties({ room, wall, plan }) {
   };
 
   const [landingMoves, setLandingMoves] = useState({});
+  // WL3.1: the amount typed in each corner's Extend past field, applied by its button (blank = 0).
+  const [extendDrafts, setExtendDrafts] = useState({});
   useEffect(() => {
     setLandingMoves({});
+    setExtendDrafts({});
   }, [wall.id]);
-  // WL3: bumped after each Extend past commit so the field shows blank again.
+  // Bumped after each corner action so the Extend past inputs show blank again.
   const [extendKey, setExtendKey] = useState(0);
-  const extendFields = plan ? [frame.leftEndpoint, frame.rightEndpoint].map((endpoint) => {
+  const cornerBlocks = plan ? [frame.leftEndpoint, frame.rightEndpoint].map((endpoint) => {
     const neighbour = room.walls.find(
       (candidate) => candidate.id === wall.connections?.[endpoint]?.wallId,
     );
-    if (!neighbour || !canExtendPast(room, wall.id, endpoint)) return null;
-    const label = `Extend past ${wallLabel(room, neighbour)}`;
+    if (!neighbour) return null;
+    const neighbourLabel = wallLabel(room, neighbour);
+    const label = `Extend past ${neighbourLabel}`;
+    const buttonClass = 'w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600';
+    const afterAction = () => {
+      setExtendDrafts({});
+      setExtendKey((key) => key + 1);
+    };
     return (
-      <Field key={`${endpoint}-${extendKey}`} label={label}>
-        <InchInput
-          value={null}
-          placeholder="0"
-          aria-label={label}
-          onCommit={(amount) => {
-            if (amount === null || amount < 0) return false;
-            dispatch(extendPastCorner({ wallId: wall.id, endpoint, amount }));
-            setExtendKey((key) => key + 1);
-            return true;
+      <section key={endpoint} className="space-y-2.5">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+          {`${neighbourLabel} corner`}
+        </h3>
+        {canExtendPast(room, wall.id, endpoint) ? (
+          <>
+            <Field key={`${endpoint}-${extendKey}`} label={label}>
+              <InchInput
+                value={null}
+                placeholder="0"
+                aria-label={label}
+                allowBlank
+                onCommit={(amount) => {
+                  if (amount !== null && amount < 0) return false;
+                  setExtendDrafts((drafts) => ({ ...drafts, [endpoint]: amount }));
+                  return true;
+                }}
+              />
+            </Field>
+            <button
+              type="button"
+              onClick={() => {
+                dispatch(extendPastCorner({
+                  wallId: wall.id, endpoint, amount: extendDrafts[endpoint] ?? 0,
+                }));
+                afterAction();
+              }}
+              className={buttonClass}
+            >
+              Extend past
+            </button>
+            <p className="text-xs text-gray-500">
+              {`${wallLabel(room, wall)} grows past ${neighbourLabel}; ${neighbourLabel} then lands on its face.`}
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-gray-500">
+            {`In line with ${neighbourLabel}: there's no corner to extend past.`}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => {
+            dispatch(disconnectWallEndpoint({ wallId: wall.id, endpoint }));
+            dispatch(setMessage(
+              `${wallLabel(room, wall)} and ${neighbourLabel} are no longer joined. Their ends stay where they were.`,
+            ));
+            afterAction();
           }}
-        />
-      </Field>
+          className={buttonClass}
+        >
+          Detach corner
+        </button>
+        <p className="text-xs text-gray-500">Unjoins the walls. Both ends stay where they are.</p>
+      </section>
     );
   }).filter(Boolean) : [];
 
@@ -402,9 +455,6 @@ export default function WallHeightProperties({ room, wall, plan }) {
                   </p>
                 )}
               </div>
-              {extendFields.length > 0 && (
-                <div className="col-span-2 grid grid-cols-2 gap-2.5">{extendFields}</div>
-              )}
               {heightField}
               <OverrideInput
                 kind="number"
@@ -436,6 +486,12 @@ export default function WallHeightProperties({ room, wall, plan }) {
           </>
         )}
       </PanelSection>
+
+      {cornerBlocks.length > 0 && (
+        <PanelSection id="wall.corners" title="Corners" level={2}>
+          <div className="space-y-4">{cornerBlocks}</div>
+        </PanelSection>
+      )}
 
       {landingFields.some(Boolean) && (
         <PanelSection id="wall.landings" title="Lands on" level={2} defaultOpen={false}>
