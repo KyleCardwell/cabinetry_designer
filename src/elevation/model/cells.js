@@ -1,4 +1,5 @@
 import { isNestedGrid } from './grid.js';
+import { faceFrontOffset } from './corners.js';
 import { sheetThickness, teamDoorStyle } from './doorStyles.js';
 import { insideEndGap, insideEndPieces } from './insideEnds.js';
 import { stepEndPieces } from './stepEnds.js';
@@ -367,11 +368,12 @@ export function partPieces(pieces, settings) {
 }
 
 /** A cell's true depth: its own, else a flush side/top panel reaches the door face, else the run's box depth. */
-export function cellDepth(piece, leaf, runDepth, settings, doorThickness = teamDoorStyle(settings).thickness) {
+export function cellDepth(piece, leaf, runDepth, settings, doorThickness = teamDoorStyle(settings).thickness,
+  frontOffset = faceFrontOffset({ _doorThickness: doorThickness }, settings)) {
   if (leaf?.depth !== undefined) return leaf.depth;
   const orientation = panelOrientation(piece);
   if (piece.kind === 'panel' && orientation !== 'back' && leaf?.doors !== 'cover') {
-    return runDepth + settings.bumperThickness + doorThickness;
+    return runDepth + frontOffset;
   }
   return runDepth;
 }

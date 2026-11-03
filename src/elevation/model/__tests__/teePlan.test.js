@@ -1,44 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
+import { fixed, room, run as buildRun, wall } from '../../../test/builders.js';
+import { DEFAULT_SETTINGS } from '../constants.js';
 import { layoutRun, runFaceLayouts } from '../faceLayouts.js';
-import { gridFromItems } from '../grid.js';
 import { planRunPieces } from '../planPieces.js';
 import { resolveWall } from '../room.js';
 
 const S = DEFAULT_SETTINGS;
 const NONE = { type: 'none', width: null };
-const cab = (id, width = null) => ({ id, kind: 'cabinet', width });
-
-function roomWith(run) {
-  const wall = {
-    id: 'wall-1', name: 'Wall 1', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5,
-    flipped: false, connections: { start: null, end: null }, profile: {}, runs: [run], openings: [],
-  };
-  return { id: 'room-1', name: 'Room 1', profile: { ...S.defaultProfile }, walls: [wall], wallOrder: ['wall-1'] };
-}
-
-const baseRun = (overrides = {}) => ({
-  id: 'r', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width: 36, z: 4, height: 30.5, depth: 24,
+const baseRun = (overrides = {}) => buildRun({
+  id: 'r', x: 24, width: 36,
   ends: { left: NONE, right: NONE }, autoCount: false, maxCabinetWidth: null,
   heightMode: 'manual', overrides: {}, anchors: { left: false, right: false },
   tFiller: 'seams',
-  grid: gridFromItems('r', [cab('a', 18), cab('b', 18)]),
+  items: [fixed('a', 18), fixed('b', 18)],
   ...overrides,
 });
 
 function planOf(run) {
-  const room = roomWith(run);
-  const wall = resolveWall(room, room.walls[0]);
-  const layout = layoutRun(room, wall, run, S);
-  return planRunPieces(room, wall, run, S, layout, runFaceLayouts(room, wall, run, S, layout));
+  const current = room({ walls: [wall({ height: 96, runs: [run] })] });
+  const view = resolveWall(current, current.walls[0]);
+  const layout = layoutRun(current, view, run, S);
+  return planRunPieces(current, view, run, S, layout, runFaceLayouts(current, view, run, S, layout));
 }
 
 describe('SPEC-37 T-fillers in plan', () => {
   it('draws a seam T as a flat with a centred return', () => {
     const { faces, returns } = planOf(baseRun());
     expect(faces).toEqual([
-      { key: 'a:r', kind: 'face', start: 24.0625, end: 41.1875, back: 24.0625, front: 24.875 },
-      { key: 'b:r', kind: 'face', start: 42.8125, end: 59.9375, back: 24.0625, front: 24.875 },
+      { key: 'a:r', kind: 'face', start: 24.0625, end: 41.1875, back: 24, front: 24.8125 },
+      { key: 'b:r', kind: 'face', start: 42.8125, end: 59.9375, back: 24, front: 24.8125 },
       // Hardwood, 13/16" thick from the box face (24"); the return is 3/4" x 2 1/2" behind it.
       { key: 'tee:a|b', kind: 'filler', start: 41.25, end: 42.75, back: 24, front: 24.8125 },
     ]);

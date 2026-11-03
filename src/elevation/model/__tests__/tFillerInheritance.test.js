@@ -69,7 +69,7 @@ describe('FX8 a T-filler inheritance', () => {
     const current = syncRoom(input, S);
     const host = current.walls[1];
     expect(layoutRun(current, host, host.runs[0], S).pieces.map(({ x, width }) => [x, width]))
-      .toEqual([[0, 1.5625], [1.5625, 30], [31.5625, 29.25], [60.8125, 2.3125]]);
+      .toEqual([[0, 1.625], [1.625, 30], [31.625, 29.25], [60.875, 2.3125]]);
     for (const candidate of current.walls.flatMap(({ runs }) => runs)) expect(candidate._tFiller).toBe('all');
     expect(syncRoom(current, S)).toEqual(current);
   });

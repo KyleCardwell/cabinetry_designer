@@ -1,7 +1,7 @@
 import { blindEntries } from './blind.js';
 import { blindCellWidths, cellDepth, cellPieces, panelOrientation } from './cells.js';
 import { findLeaf } from './cellTree.js';
-import { frontDepth, runBackOffset, runFaceThickness } from './corners.js';
+import { faceFrontOffset, frontDepth, runBackOffset, runFaceThickness } from './corners.js';
 import { runFaceStyles } from './doorStyleResolve.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { frameRegions } from './frames.js';
@@ -120,14 +120,16 @@ function planFaces(run, settings, pieces, faceLayouts, panels, band, faceBack, f
       handled.add(columnId);
       return topFaces(columns.get(columnId) ?? []).map((face) => {
         const depth = band(face.piece);
-        const back = depth.front + settings.bumperThickness;
+        const thickness = face.thickness ?? teamDoorStyle(settings).thickness;
+        // Non-T faces keep their own thickness past the bumper; T faces share the T front.
+        const front = depth.front + faceFrontOffset({ ...run, _doorThickness: thickness }, settings);
         return {
           key: `${face.piece.id}:${face.path}${face.half ?? ''}`,
           kind: 'face',
           start: face.x,
           end: face.x + face.width,
-          back,
-          front: back + (face.thickness ?? teamDoorStyle(settings).thickness),
+          back: front - thickness,
+          front,
         };
       });
     }
@@ -293,7 +295,8 @@ function planWaterfallLegs(room, wall, run, settings) {
 /** Return the boxes, faces, filler returns, waterfall legs, and overall plan span. */
 export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
   const outset = runBackOffset(run);
-  const faceBack = run.depth + settings.bumperThickness;
+  const offset = faceFrontOffset(run, settings);
+  const faceBack = run.depth + offset - runFaceThickness(run, settings);
   const faceFront = frontDepth(run, settings) - outset;
   const cells = cellPieces(run, layout);
   const fillerThickness = runFillerThickness(room, wall, run, settings);
@@ -307,7 +310,7 @@ export function planRunPieces(room, wall, run, settings, layout, faceLayouts) {
     ? findLeaf(run.grid, piece.id)
     : runItems(run).find((item) => item.id === piece.id));
   const band = (piece) => {
-    const depth = cellDepth(piece, leafOf(piece), run.depth, settings, runFaceThickness(run, settings));
+    const depth = cellDepth(piece, leafOf(piece), run.depth, settings, runFaceThickness(run, settings), offset);
     if (piece.align === 'back') return { back: 0, front: depth };
     const flushPanel = piece.kind === 'panel' && panelOrientation(piece) !== 'back'
       && piece.doors !== 'cover';

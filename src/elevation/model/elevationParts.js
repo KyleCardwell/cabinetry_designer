@@ -2,7 +2,7 @@ import { resolveWall } from './room.js';
 import { runScene } from './runScene.js';
 import { runBands } from './runBands.js';
 import { planRunPieces } from './planPieces.js';
-import { frontDepth, runBackOffset } from './corners.js';
+import { faceFrontOffset, frontDepth, runBackOffset } from './corners.js';
 import { shelfParts } from './cells.js';
 import { sheetThickness, teamDoorStyle } from './doorStyles.js';
 import { isInsetStyle } from './styles.js';
@@ -162,10 +162,9 @@ export function elevationParts(room, wall, side, settings, { withDecks = false }
       for (const face of layout.faces) {
         if (face.type === 'open') continue;
         const thickness = face.thickness ?? teamDoorStyle(settings).thickness;
-        const back = frame
-          ? faces.get(frame.id).front - thickness
-          : boxes.get(pieceId).front + settings.bumperThickness;
-        const front = frame ? faces.get(frame.id).front : back + thickness;
+        const front = frame ? faces.get(frame.id).front
+          : boxes.get(pieceId).front + faceFrontOffset({ ...run, _doorThickness: thickness }, settings);
+        const back = front - thickness;
         emit({
           id: `${pieceId}:${face.path}${face.half ?? ''}`,
           kind: 'face',

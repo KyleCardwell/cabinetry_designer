@@ -6427,7 +6427,7 @@ exports[`C1 golden rooms > G4 T-filler run derives exactly what it did 1`] = `
           },
           "runs": [
             {
-              "frontDepth": 24.875,
+              "frontDepth": 24.8125,
               "id": "738c73a7-adda-40e0-bca9-a881403c1ffa",
               "layout": {
                 "errors": [],
@@ -6554,49 +6554,49 @@ exports[`C1 golden rooms > G4 T-filler run derives exactly what it did 1`] = `
                     "start": 13,
                   },
                   {
-                    "back": 24.0625,
+                    "back": 24,
                     "end": 31.25,
-                    "front": 24.875,
+                    "front": 24.8125,
                     "key": "36718dec-9ae3-48e7-bce7-f3d95d207a1c:rleft",
                     "kind": "face",
                     "start": 14.625,
                   },
                   {
-                    "back": 24.0625,
+                    "back": 24,
                     "end": 48,
-                    "front": 24.875,
+                    "front": 24.8125,
                     "key": "36718dec-9ae3-48e7-bce7-f3d95d207a1c:rright",
                     "kind": "face",
                     "start": 31.375,
                   },
                   {
-                    "back": 24.0625,
+                    "back": 24,
                     "end": 66.25,
-                    "front": 24.875,
+                    "front": 24.8125,
                     "key": "87b307e7-2f67-48a7-a80e-a52d4249d55b:rleft",
                     "kind": "face",
                     "start": 49.625,
                   },
                   {
-                    "back": 24.0625,
+                    "back": 24,
                     "end": 83,
-                    "front": 24.875,
+                    "front": 24.8125,
                     "key": "87b307e7-2f67-48a7-a80e-a52d4249d55b:rright",
                     "kind": "face",
                     "start": 66.375,
                   },
                   {
-                    "back": 24.0625,
+                    "back": 24,
                     "end": 101.25,
-                    "front": 24.875,
+                    "front": 24.8125,
                     "key": "6ae1c6d6-ec28-40d7-aee3-f3b0898ed2fb:rleft",
                     "kind": "face",
                     "start": 84.625,
                   },
                   {
-                    "back": 24.0625,
+                    "back": 24,
                     "end": 118,
-                    "front": 24.875,
+                    "front": 24.8125,
                     "key": "6ae1c6d6-ec28-40d7-aee3-f3b0898ed2fb:rright",
                     "kind": "face",
                     "start": 101.375,
@@ -6727,7 +6727,7 @@ exports[`C1 golden rooms > G4 T-filler run derives exactly what it did 1`] = `
           "lower": {
             "inner": [
               {
-                "end": 24.875,
+                "end": 24.8125,
                 "kind": "neighbor",
                 "neighborRunId": "738c73a7-adda-40e0-bca9-a881403c1ffa",
                 "start": 0,
@@ -6736,7 +6736,7 @@ exports[`C1 golden rooms > G4 T-filler run derives exactly what it did 1`] = `
               {
                 "end": 45,
                 "kind": "open",
-                "start": 24.875,
+                "start": 24.8125,
               },
             ],
             "outer": [

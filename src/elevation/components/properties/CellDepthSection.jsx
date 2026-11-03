@@ -1,7 +1,7 @@
 import PanelSection from '../panel/PanelSection.jsx';
 import { useDispatch } from 'react-redux';
 import { cellDepth } from '../../model/index.js';
-import { runFaceThickness } from '../../model/corners.js';
+import { faceFrontOffset, runFaceThickness } from '../../model/corners.js';
 import { setCellDepth } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import { autoInchProps } from '../autoInchProps.js';
@@ -23,7 +23,7 @@ export default function CellDepthSection({ wall, run, piece, item, settings }) {
             <InchInput
               value={item.depth ?? null}
               {...autoInchProps({
-                auto: cellDepth(piece, item, run.depth, settings, runFaceThickness(run, settings)),
+                auto: cellDepth(piece, item, run.depth, settings, runFaceThickness(run, settings), faceFrontOffset(run, settings)),
                 onCommit: (depth) => dispatch(setCellDepth({ ...cellBase, depth })) })}
               aria-label="Cell depth"
             />

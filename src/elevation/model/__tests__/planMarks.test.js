@@ -35,9 +35,9 @@ describe('SPEC-45.1 elevation markers and labels in plan', () => {
   });
 
   it('sizes the symbol and the label gap for paper at the plot scale (G4 at 1/4" = 1\'-0")', () => {
-    expect(marks(stored('G4 T-filler run'))).toEqual([marker([6.5, -18.875], 'A', [0, 1])]);
+    expect(marks(stored('G4 T-filler run'))).toEqual([marker([6.5, -18.8125], 'A', [0, 1])]);
     expect(marks(stored('G4 T-filler run'), { ...settings, plotScale: 48 }))
-      .toEqual([marker([6.5, -29.375], 'A', [0, 1])]);
+      .toEqual([marker([6.5, -29.3125], 'A', [0, 1])]);
   });
 
   it('centres the marker of a forced face with no runs on the wall, shifted 1/2" (paper) along it (G1 wall 3)', () => {

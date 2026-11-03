@@ -101,6 +101,7 @@ describe('C1 golden rooms', () => {
       // boundary toward the run by 13/16"; overall chains and physical pieces stay the same.
       // FX5 g adds only derived _panelMiters on G2's single-panel back run; geometry is unchanged.
       // FX4 adds G6's wood top as part 10 and shifts each later G6 part number by one.
+      // FX9 a brings G4's Euro T face fronts in by 1/16" to line up with the Ts.
       const room = document.rooms.find((candidate) => candidate.name === name);
       expect(derived(room)).toMatchSnapshot();
     });

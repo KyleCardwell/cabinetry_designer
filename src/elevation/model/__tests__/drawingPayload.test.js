@@ -182,11 +182,12 @@ describe('DM8 step b end-view panel payload', () => {
 // FX5 f updates G2's panel-only back run from 24" to 3/4", including its miter and depth dimensions.
 // PT1 step b adds only countertop outlines to plan.parts; all other payload fields stay unchanged.
 // G6's stored hash was already stale on step a; verified against that payload before refreshing it.
+// FX9 a moves only G4's Euro T faces and their dependent front projections in by 1/16".
 const preHP5PayloadHashes = {
   'G1 Euro kitchen': '4143a6601a61600aefe93f7b9643712b18adbfe4d51113d2523722e2339134b1',
   'G2 Face frame kitchen': 'fbdbf0e8d026fec0b516dc273de656459f58e0986f363756d2a5e6d86f982df2',
   'G3 Bath alcove': 'b0045d9f287b05c8166d279c0f5ae3bacb158c87cd95091615751860fc721e26',
-  'G4 T-filler run': 'f32f42cd95835870de06a6de27c6889e6b428f3980f12b0290ae0b7eaacf5350',
+  'G4 T-filler run': '27ae40a9beb83adec5462203df0dbf0d345d122e4f45ea92b211e6cc03d6ce02',
   'G5 Recess room': '9cb0f7af1de8c63eeffad94d076db12959ba0c80a4e733be439c666b70f01c96',
   'G6 Stacked runs': 'eb23f5ae7c6b82d6c7135571d23903f2df1e6cd8eb314732f9dc51de059bb4e7',
 };

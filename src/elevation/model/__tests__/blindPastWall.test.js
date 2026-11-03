@@ -9,8 +9,8 @@ const S = { ...DEFAULT_SETTINGS, cornerFillerMinWidth: 2 };
 
 describe('BT1 b blind box past the wall', () => {
   it.each([
-    [1, 42, 73.5625, []],
-    [2, 60, 91.5625, [{ code: 'blind-past-wall', side: 'right' }]],
+    [1, 42, 73.625, []],
+    [2, 60, 91.625, [{ code: 'blind-past-wall', side: 'right' }]],
   ])('anchor %i: checks Room 10 BT with blind width %s', (_anchor, blindWidth, farEdge, warnings) => {
     const source = JSON.parse(readFileSync(new URL('./fixtures/room10bt.json', import.meta.url), 'utf8'));
     for (const { node } of source.walls[1].runs[0].grid.cells[1].node.cells) {
@@ -19,7 +19,7 @@ describe('BT1 b blind box past the wall', () => {
     const synced = syncRoom(source, S);
     const currentWall = synced.walls[1];
     const result = blindEntries(synced, currentWall, currentWall.runs[0], S);
-    expect(result.entries[0]).toMatchObject({ boxX: 31.5625, boxWidth: blindWidth, cornerX: 88 });
+    expect(result.entries[0]).toMatchObject({ boxX: 31.625, boxWidth: blindWidth, cornerX: 88 });
     expect(result.entries[0].boxX + result.entries[0].boxWidth).toBe(farEdge);
     expect(result.warnings).toEqual(warnings);
   });

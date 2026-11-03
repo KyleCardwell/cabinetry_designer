@@ -12,6 +12,7 @@ import {
 import { gridLeaves } from './grid.js';
 import { landingEndpoint, landingsOn } from './landings.js';
 import { roundTo } from './units.js';
+import { runTFiller } from './styles.js';
 import {
   wallEndPanelAt,
   wallSideOf,
@@ -29,16 +30,23 @@ export function runFaceThickness(run, settings) {
   return run._doorThickness ?? teamDoorStyle(settings).thickness;
 }
 
+/** Face front past the box front: Euro T runs line up with their Ts. */
+export function faceFrontOffset(run, settings) {
+  return !run._frame && runTFiller(run)
+    ? settings.teeThickness
+    : settings.bumperThickness + runFaceThickness(run, settings);
+}
+
 /**
- * How far a run's front sits from the wall face: box + frame on a face frame run (SPEC-36.1), else box + bumper
- * + door. A run that's only panels reserves just the panel (SPEC-38). Negative when the run is deep in a recess.
+ * How far a run's front sits from the wall face: box + frame on a face frame run (SPEC-36.1),
+ * else box + face offset. Panel-only runs reserve just the panel (SPEC-38). May be negative in a recess.
  */
 export function frontDepth(run, settings) {
   const back = runBackOffset(run);
   const leaves = run.grid ? gridLeaves(run.grid) : [];
   if (leaves.length > 0 && leaves.every((leaf) => leaf.kind === 'panel')) return back + run.depth;
   if (run._frame) return back + run.depth + run._frame.thickness;
-  return back + run.depth + settings.bumperThickness + runFaceThickness(run, settings);
+  return back + run.depth + faceFrontOffset(run, settings);
 }
 
 /** Return the minimum width for a filler scribed into an angled corner. */
