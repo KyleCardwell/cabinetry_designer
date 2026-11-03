@@ -104,10 +104,11 @@ const aBase = () => base('A-base', {
   ],
 });
 
+// A manual upper short of the box top (FX13: at the box top it would get the default crown).
 const aUpper = (overrides = {}) => run('A-upper', CABINET_TYPE_IDS.UPPER, 12, {
   width: 48,
   z: 54,
-  height: 36,
+  height: 35,
   ends: {
     left: { type: 'none', width: null },
     right: { type: 'none', width: null },

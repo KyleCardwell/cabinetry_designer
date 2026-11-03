@@ -7,7 +7,7 @@ function definedEntries(value) {
     && (entry !== null || key === 'furnitureBaseProfileId' || key === 'baseCutoutProfileId' || key === 'nosingProfileId'));
 }
 
-function mergeDefined(...values) {
+export function mergeDefined(...values) {
   return Object.fromEntries(values.flatMap(definedEntries));
 }
 

@@ -1,6 +1,6 @@
 import { CABINET_TYPE_IDS } from './constants.js';
 import { moldingProfiles } from './moldingProfiles.js';
-import { moldingStack } from './profile.js';
+import { boxTopOf, mergeDefined, moldingStack } from './profile.js';
 import { runMolding } from './soffits.js';
 
 export const TOP_LABELS = {
@@ -24,12 +24,15 @@ export function isStoneTop(run) {
 
 /**
  * The top a run gets when run.top is unset — today's behaviour: none under a run it's held under,
- * stone on a base, the soffit's molding (or crown) on an auto-height upper or tall, otherwise none.
+ * stone on a base, the soffit's molding (or crown) on an auto-height upper or tall (or a manual one
+ * whose box top lines up with the auto box top), otherwise none.
  */
 export function defaultRunTop(wall, run, profile) {
   if (run.stack?.above) return 'none';
   if (run.cabinetTypeId === CABINET_TYPE_IDS.BASE) return 'stone';
-  if (run.heightMode !== 'auto') return 'none';
+  // FX13: a manual run whose box top lines up with the auto box top keeps the default molding.
+  if (run.heightMode !== 'auto'
+    && Math.abs(run.z + run.height - boxTopOf(mergeDefined(profile, run.overrides))) > 1e-6) return 'none';
   return runMolding(wall, run, profile);
 }
 

@@ -52,11 +52,16 @@ import { flexRoom, unflexRoom } from './runFlex.js';
 
 const PIN_EPSILON = 1e-6;
 
+const PICK_KEEPS_EXTEND = new Set(['end_panel', 'filler']);
+
 function withPartPick(next, end) {
   return {
     ...next,
     ...(end.styleId != null ? { styleId: end.styleId } : {}),
     ...(end.sizes != null ? { sizes: end.sizes } : {}),
+    // FX13: extend and height picks only mean something on a panel or filler.
+    ...(PICK_KEEPS_EXTEND.has(next.type) && end.extend != null ? { extend: end.extend } : {}),
+    ...(PICK_KEEPS_EXTEND.has(next.type) && end.height != null ? { height: end.height } : {}),
   };
 }
 
