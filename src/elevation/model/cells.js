@@ -289,6 +289,17 @@ export function stackedSides(pieces, pieceId, reach = 0) {
   return { top, bottom };
 }
 
+/** Whether an open cell sits directly below a cabinet, across at most the run's gap reach. */
+export function openBelow(pieces, pieceId, reach = 0) {
+  const piece = pieces.find((candidate) => candidate.id === pieceId);
+  if (!piece || piece.kind !== 'cabinet' || stackedSides(pieces, pieceId, reach).bottom) return false;
+  return pieces.some((candidate) => {
+    if (candidate.kind !== 'void' || !rangesOverlap(piece, candidate)) return false;
+    const below = piece.z - candidate.z - candidate.height;
+    return below >= -EPSILON && below <= reach + EPSILON;
+  });
+}
+
 export function blindCellWidths(pieces, columns, entries) {
   const result = new Map();
   const columnsById = new Map(columns.map((column) => [column.id, column]));

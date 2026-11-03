@@ -33,6 +33,7 @@ export const REVEAL_SOURCE_LABELS = {
   'rule:upper-flush': 'rule: flush bottom',
   'rule:upper-counter': 'rule: on counter',
   'rule:stacked-seam': 'rule: stacked seam',
+  'rule:open-below': 'rule: open below',
   'rule:captured-single': 'rule: captured single',
   'rule:bead-seam': 'rule: bead seam',
   'rule:covered-panel': 'rule: covered panel',
@@ -188,6 +189,7 @@ export function cabinetReveals({
   captured = { left: false, right: false },
   seams = { left: false, right: false },
   stacked = { top: false, bottom: false },
+  openBelow = false,
   covered = { top: 0, bottom: 0, left: 0, right: 0 },
   tCovers = null,
   runEdges = { top: true, bottom: true },
@@ -229,6 +231,9 @@ export function cabinetReveals({
     const seam = stackedSeamReveals(style, settings);
     if (stacked.top) apply('top', seam.lowerTop, 'rule:stacked-seam');
     if (stacked.bottom) apply('bottom', seam.upperBottom, 'rule:stacked-seam');
+  }
+  if (euro && openBelow && !stacked.bottom) {
+    apply('bottom', styleReveals(style, UPPER, settings).bottom, 'rule:open-below');
   }
   if (euro && captured.left && captured.right && capturedFaces(face) !== null) {
     const reveal = settings.capturedSingleReveal ?? DEFAULT_SETTINGS.capturedSingleReveal;

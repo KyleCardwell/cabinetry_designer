@@ -1,5 +1,5 @@
 import { captureSides } from './capture.js';
-import { cellCaptureSides, cellPieces, coveredSides, EPSILON, gapReach, hingeStops, stackedSides } from './cells.js';
+import { cellCaptureSides, cellPieces, coveredSides, EPSILON, gapReach, hingeStops, openBelow, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
 import { cabinetFaceLevels, faceEdgeProfiled, facePartType, resolveDoorStyle } from './doorStyleResolve.js';
@@ -97,6 +97,7 @@ export function layoutFaces(room, wall, run, settings, layout, frameContext) {
       captured,
       seams: frames.seamSides.get(piece.id),
       stacked: stackedSides(cells.pieces, piece.id, gapReach(cells.gaps ?? [])),
+      openBelow: openBelow(cells.pieces, piece.id, gapReach(cells.gaps ?? [])),
       covered: pairCovers ? { ...covered, left: 0, right: 0 } : covered,
       tCovers,
       runEdges,
