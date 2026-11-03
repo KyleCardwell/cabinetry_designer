@@ -10,7 +10,6 @@ import { cloneRun } from '../roomClone.js';
 import { flipRunsForWall, syncRoom } from '../room.js';
 import { runScene } from '../runScene.js';
 import { splitRun } from '../splitRun.js';
-import { endPieceBottom, resolveStyle } from '../styles.js';
 import elevationReducer, { setRunEnd } from '../../store/elevationSlice.js';
 import { ELEVATION_SCHEMA_VERSION, isRoom, roomFromDocument, toRoomDocument } from '../../store/persistence.js';
 import { shippingList } from '../../../reports/shippingList.js';
@@ -114,11 +113,12 @@ describe('DR2 step a run end heights', () => {
     expect(roomParts(resolved, settings).find((part) => part.key === 'run-1:left'))
       .toMatchObject({ z: 24.5, height: 4 });
     const scene = runScene(resolved, w, r, settings);
-    const { drop } = endPieceBottom(r, resolveStyle(settings, resolved, r), settings);
+    // FX11: open below drops the matched filler
     expect(scene.drawnPieces.find((piece) => piece.id === 'run-1:left'))
-      .toMatchObject({ z: 24.5 - drop, height: 4 + drop });
-    expect(shippingList(resolved, settings).rows.find((row) => row.key === 'run-1:left').size)
-      .toContain(' x 4');
+      .toMatchObject({ z: 24.375, height: 4.125 });
+    const filler = shippingList(resolved, settings).rows.find((row) => row.key === 'run-1:left');
+    expect(filler.size).toContain(' x 4 1/8 x ');
+    expect(filler.notes).toContain('return up 1/8"');
   });
 
   it('resolves defaults, ignoring height on Blind and None', () => {
@@ -196,15 +196,14 @@ describe('DR2 step a run end heights', () => {
   });
 
   it('extends from the matched edge, including down to the floor', () => {
-    for (const [down, z, height] of [[{ to: 'floor' }, 0, 28.5], [{ to: 'by', amount: 2 }, 22.5, 6]]) {
+    // FX11: open below drops the matched filler
+    for (const [down, z, height] of [[{ to: 'floor' }, 0, 28.5], [{ to: 'by', amount: 2 }, 22.375, 6.125]]) {
       const source = setup();
       source.ends.left.extend = { down };
       const w = wall({ runs: [source] });
       const scene = runScene(room({ walls: [w] }), w, source, settings);
-      const { drop } = scene.endBottom;
       expect(scene.drawnPieces.find((piece) => piece.id === 'run-1:left'))
-        .toMatchObject({ z: down.to === 'floor' ? z : z - drop,
-          height: down.to === 'floor' ? height : height + drop });
+        .toMatchObject({ z, height });
     }
   });
 });

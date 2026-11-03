@@ -1,8 +1,8 @@
-import { gapReach } from './cells.js';
+import { coveredSides, gapReach, openBelow, stackedSides } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { runItems } from './grid.js';
-import { endCoverOn, endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, runTFiller } from './styles.js';
+import { cabinetReveals, endCoverOn, endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, runTFiller } from './styles.js';
 import { formatInches } from './units.js';
 
 const EPSILON = 1e-6;
@@ -19,6 +19,30 @@ function leafOf(run, piece) {
   return piece.columnId
     ? findLeaf(run.grid, piece.id)
     : runItems(run).find((item) => item.id === piece.id);
+}
+
+/** Per-piece overhang beside an open-below Euro cabinet, before any drop is applied. */
+export function openBelowDrops(room, run, cells, settings) {
+  const reach = gapReach(cells.gaps ?? []);
+  const boxes = isInsetStyle(resolveStyle(settings, room, run)) ? [] : cells.pieces.flatMap((box) => {
+    if (!openBelow(cells.pieces, box.id, reach)) return [];
+    const item = leafOf(run, box);
+    const style = resolveStyle(settings, room, run, item);
+    if (isInsetStyle(style)) return [];
+    // Open-below excludes a stacked bottom, so no horizontal T can cover this bottom edge.
+    const reveals = cabinetReveals({
+      style, profiled: true, cabinetTypeId: run.cabinetTypeId, run,
+      openBelow: true, stacked: stackedSides(cells.pieces, box.id, reach),
+      covered: coveredSides(cells.pieces, box.id), manual: item?.reveals, settings,
+    });
+    return [{ ...box, drop: Math.max(0, -reveals.values.bottom) }];
+  });
+  return (piece) => boxes.reduce((drop, box) => {
+    const touches = [box.x, box.x + box.width].some((edge) => (
+      edge >= piece.x - reach - EPSILON && edge <= piece.x + piece.width + reach + EPSILON
+    ));
+    return near(piece.z, box.z) && touches ? Math.max(drop, box.drop) : drop;
+  }, 0);
 }
 
 /** Every side of a box a T-filler covers: { left, right, top, bottom }, in inches. */
@@ -78,6 +102,7 @@ export function teeFillers(room, run, cells, settings) {
   if (isInsetStyle(runStyle)) return { tees, covers, notes, rabbets, ells };
   const { drop } = endPieceBottom(run, runStyle, settings);
   const reach = gapReach(cells.gaps ?? []);
+  const openDrop = openBelowDrops(room, run, cells, settings);
   const boxes = cells.pieces.filter((piece) => piece.kind === 'cabinet' && piece.role === 'item')
     .filter((piece) => !isInsetStyle(resolveStyle(settings, room, run, leafOf(run, piece))));
   const rabbetCovers = new Map();
@@ -88,9 +113,10 @@ export function teeFillers(room, run, cells, settings) {
     const sides = rabbetCovers.get(id) ?? noCovers();
     rabbetCovers.set(id, { ...sides, [side]: Math.max(sides[side], amount) });
   };
-  const dropped = (z, height) => (near(z, run.z) && drop > 0
-    ? { z: z - drop, height: height + drop, drop }
-    : { z, height, drop: 0 });
+  const dropped = (piece) => {
+    const amount = Math.max(near(piece.z, run.z) ? drop : 0, openDrop(piece));
+    return { z: piece.z - amount, height: piece.height + amount, drop: amount };
+  };
 
   const leaf = (piece) => leafOf(run, piece);
   // A seam's own choice comes from the box left of it (or above it), then the one right (or below).
@@ -103,9 +129,14 @@ export function teeFillers(room, run, cells, settings) {
   for (const a of boxes) {
     for (const b of boxes) {
       const gap = b.x - a.x - a.width;
-      const low = Math.max(a.z, b.z);
+      let low = Math.max(a.z, b.z);
       const high = Math.min(a.z + a.height, b.z + b.height);
       if (a === b || gap < -EPSILON || gap > reach + EPSILON || high - low <= EPSILON) continue;
+      // A seam beside an open bottom cell still follows the box extending below it on the other
+      // side. Include that span before joining contacts, so it stays one continuous T.
+      if (openBelow(cells.pieces, a.id, reach) || openBelow(cells.pieces, b.id, reach)) {
+        low = Math.min(a.z, b.z);
+      }
       if (verticalOn(a, b)) contacts.push({ a, b, gap: Math.max(0, gap), low, high });
     }
   }
@@ -119,17 +150,17 @@ export function teeFillers(room, run, cells, settings) {
     const runs = [];
     for (const contact of line) {
       const last = runs[runs.length - 1];
-      const before = last?.[last.length - 1];
-      const continues = before
-        && contact.low - before.high >= -EPSILON && contact.low - before.high <= reach + EPSILON;
+      const continues = last
+        && contact.low <= Math.max(...last.map(({ high }) => high)) + reach + EPSILON;
       if (continues) last.push(contact);
       else runs.push([contact]);
     }
     for (const joined of runs) {
       const first = joined[0];
       const x = first.a.x + first.a.width - cover;
-      const flat = dropped(first.low, Math.max(...joined.map((contact) => contact.high)) - first.low);
       const width = first.gap + 2 * cover;
+      const low = first.low;
+      const flat = dropped({ x, width, z: low, height: Math.max(...joined.map((contact) => contact.high)) - low });
       const start = x + (width - returnThickness) / 2;
       tees.push({
         id: `tee:${first.a.id}|${first.b.id}`,
@@ -161,7 +192,7 @@ export function teeFillers(room, run, cells, settings) {
     const beside = boxes.filter((box) => near(side === 'left' ? box.x : box.x + box.width, edge)
       && overlap(box.z, box.z + box.height, piece.z, piece.z + piece.height) > EPSILON);
     if (beside.length === 0) continue;
-    const flat = dropped(piece.z, piece.height);
+    const flat = dropped(piece);
     const thickness = Math.min(returnThickness, piece.width);
     tees.push({
       id: piece.id,
@@ -189,7 +220,7 @@ export function teeFillers(room, run, cells, settings) {
     const beside = boxes.filter((box) => near(side === 'left' ? box.x : box.x + box.width, edge)
       && overlap(box.z, box.z + box.height, piece.z, piece.z + piece.height) > EPSILON);
     if (beside.length === 0) continue;
-    const flat = dropped(piece.z, piece.height);
+    const flat = dropped(piece);
     const lip = side === 'left' ? { start: edge, end: edge + cover } : { start: edge - cover, end: edge };
     ells.push({
       id: piece.id,
@@ -281,7 +312,8 @@ export function teeFillers(room, run, cells, settings) {
     }
     notes.set(tee.id, [
       shapeNote,
-      ...(tee.orientation === 'vertical' && near(tee.z + tee.drop, run.z) ? endPieceNotes('filler', bottom) : []),
+      ...(tee.orientation === 'vertical'
+        ? endPieceNotes('filler', { drop: tee.drop, chip: near(tee.z + tee.drop, run.z) ? bottom.chip : 0 }) : []),
     ]);
   }
   for (const ell of ells) notes.set(ell.id, ['L-shape']);

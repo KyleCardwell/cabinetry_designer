@@ -27,7 +27,7 @@ import { resolveSlide } from '../elevation/model/slides.js';
 import {
   endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
 } from '../elevation/model/styles.js';
-import { teeFillers, teeSetback } from '../elevation/model/tees.js';
+import { openBelowDrops, teeFillers, teeSetback } from '../elevation/model/tees.js';
 import { wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { woodTopGroups } from '../elevation/model/woodTopGroups.js';
@@ -276,20 +276,25 @@ function shippingSize(room, settings, part, context) {
   if (part.kind === 'wall_end_panel') {
     return formatSize(part.width, part.height, orderedThickness(wallPanelThickness(room, wall, settings)[endpoint], style));
   }
-  if (blindPanel) return formatSize(part.width, part.height,
+  // End parts retain box heights in the numbered list; order the extra open-below overhang too.
+  const openDrop = piece && end && !piece.inside && ['filler', 'end_panel'].includes(part.kind)
+    ? openBelowDrops(room, run, scene.cells, settings)(piece) : 0;
+  const height = openDrop > 0
+    ? scene.drawnPieces.find(({ id }) => id === piece.id).height : part.height;
+  if (blindPanel) return formatSize(part.width, height,
     orderedThickness(runEndThickness(room, wall, run, settings)[end], style));
   if (part.kind === 'filler') {
     const tee = scene.tees.some((tee) => tee.id === part.key || tee.pieceId === part.key);
     const thickness = tee ? settings.teeThickness + settings.fillerReturnDepth - settings.fillerReturnTongue
       : fillerOrderedDepth(room, wall, run, piece, settings);
-    return formatSize(part.width, part.height, thickness);
+    return formatSize(part.width, height, thickness);
   }
   const rect = context.rectangle();
   const depth = rect.front - rect.back;
   switch (part.kind) {
     case 'cabinet': return formatSize(part.width, part.height, depth);
     case 'end_panel': return formatSize(depth,
-      part.height, orderedThickness(runEndThickness(room, wall, run, settings)[end], style));
+      height, orderedThickness(runEndThickness(room, wall, run, settings)[end], style));
     case 'panel': {
       const orientation = panelOrientation(piece);
       const sizes = orientation === 'side' ? [depth, part.height, part.width]
@@ -429,7 +434,10 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
     }
     if (!piece?.extend?.down) {
       groups[9] = tee ? notes.filter((note) => !note.startsWith('T-shape'))
-        : endPieceNotes(part.kind, endPieceBottom(run, resolveStyle(settings, room, run), settings));
+        : endPieceNotes(part.kind, {
+          ...endPieceBottom(run, resolveStyle(settings, room, run), settings),
+          drop: piece ? piece.z - (scene.drawnPieces.find(({ id }) => id === piece.id)?.z ?? piece.z) : 0,
+        });
     }
   }
   groups[10] = doorItems.get(part.key)?.notes;
