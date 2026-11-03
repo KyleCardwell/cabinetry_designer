@@ -1,5 +1,5 @@
 import PanelSection from '../panel/PanelSection.jsx';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { runItems } from '../../model/index.js';
 import {
   lastCabinetItem,
@@ -16,9 +16,18 @@ import {
 import InchInput from '../InchInput.jsx';
 import Field from './Field.jsx';
 import GapField from './GapField.jsx';
+import { controlBorder } from '../overrideHelpers.js';
 
 export default function RunCabinetsSection({ run, actionBase }) {
   const dispatch = useDispatch();
+  const room = useSelector((state) => state.elevation.rooms.find(
+    (candidate) => candidate.id === (actionBase.roomId ?? state.elevation.activeRoomId),
+  ));
+  const wall = room?.walls.find((candidate) => candidate.id === actionBase.wallId);
+  const inheritedTFiller = { none: 'None', seams: 'Between cabinets', all: 'Every edge' }[
+    wall?.tFiller ?? room?.tFiller ?? 'none'
+  ];
+  const inheritedFrom = wall?.tFiller != null ? 'wall' : 'room';
   const finalCabinet = lastCabinetItem(run);
   const finalItem = lastRunItem(run);
   const cabinetCount = runItems(run).filter((item) => item.kind === 'cabinet').length;
@@ -41,14 +50,15 @@ export default function RunCabinetsSection({ run, actionBase }) {
         <div className="mt-2">
           <Field label="T-fillers (Euro)">
             <select
-              value={run.tFiller ?? 'none'}
+              value={run.tFiller ?? ''}
               onChange={(event) => dispatch(setRunTFiller({
                 ...actionBase,
-                value: event.target.value === 'none' ? null : event.target.value,
+                value: event.target.value || null,
               }))}
               aria-label="Run T-fillers"
-              className="w-full rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none"
+              className={`w-full rounded border ${controlBorder(run.tFiller != null)} bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none`}
             >
+              <option value="">{`Follow ${inheritedFrom} (${inheritedTFiller})`}</option>
               <option value="none">None</option>
               <option value="seams">Between cabinets</option>
               <option value="all">Every edge</option>

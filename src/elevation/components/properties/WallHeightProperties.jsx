@@ -31,6 +31,7 @@ import {
   setWallEndPanel,
   setWallLanding,
   setWallLength,
+  setWallTFiller,
   updateWall,
 } from '../../store/elevationSlice.js';
 import { CABINET_TYPE_IDS } from '../../model/constants.js';
@@ -41,6 +42,7 @@ import { autoInchProps } from '../autoInchProps.js';
 import HeightBands from '../HeightBands.jsx';
 import { bandFieldsFor } from '../../model/heightBands.js';
 import OverrideInput from '../OverrideInput.jsx';
+import { controlBorder } from '../overrideHelpers.js';
 import DoorStylePicks from './DoorStylePicks.jsx';
 import PullPicks from './PullPicks.jsx';
 import Field from './Field.jsx';
@@ -50,6 +52,7 @@ import PanelSection from '../panel/PanelSection.jsx';
 
 export default function WallHeightProperties({ room, wall, plan }) {
   const dispatch = useDispatch();
+  const inheritedTFiller = { none: 'None', seams: 'Between cabinets', all: 'Every edge' }[room.tFiller ?? 'none'];
   const settings = useSelector(selectSettings);
   const inheritedChain = useSelector(selectRoomInheritedChain);
   const autoNumber = wallNumbers(room).get(wall.id);
@@ -437,6 +440,25 @@ export default function WallHeightProperties({ room, wall, plan }) {
         {duplicateNumber && (
           <p className="mb-3 text-xs text-amber-400">This wall number is also assigned to another wall.</p>
         )}
+        <div className="mb-3">
+          <Field label="T-fillers (Euro)">
+            <select
+              value={wall.tFiller ?? ''}
+              onChange={(event) => dispatch(setWallTFiller({
+                roomId: room.id,
+                wallId: wall.id,
+                value: event.target.value || null,
+              }))}
+              aria-label="Wall T-fillers"
+              className={`w-full rounded border ${controlBorder(wall.tFiller != null)} bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none`}
+            >
+              <option value="">{`Follow room (${inheritedTFiller})`}</option>
+              <option value="none">None</option>
+              <option value="seams">Between cabinets</option>
+              <option value="all">Every edge</option>
+            </select>
+          </Field>
+        </div>
         {plan ? (
           <div className="space-y-2.5">
             <div className="grid grid-cols-2 gap-2.5">
