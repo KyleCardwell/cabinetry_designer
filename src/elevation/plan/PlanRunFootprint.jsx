@@ -14,7 +14,7 @@ import { planRunPieces } from '../model/planPieces.js';
 import { splitOptionsForRun } from '../model/index.js';
 import { splitRun } from '../model/splitRun.js';
 import { formatDimension } from '../model/units.js';
-import { PLAN_DIM_FONT_SIZE } from './constants.js';
+import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
 import { depthDimension } from './depthDimension.js';
 import { readableRotation } from './textRotation.js';
 
@@ -147,6 +147,15 @@ export default function PlanRunFootprint({
         onSelect(event);
       }}
     >
+      {[...boxes, ...faces, ...returns].map((piece) => (
+        <Line
+          key={`backdrop:${piece.key}`}
+          points={linePoints(planPiecePoints(frame, piece))}
+          closed
+          fill={PLAN_BACKGROUND_COLOR}
+          listening={false}
+        />
+      ))}
       {boxes.map((box) => (
         !box.dashed && (
           <Line
@@ -170,11 +179,9 @@ export default function PlanRunFootprint({
             points={linePoints(segment.points)}
             stroke={outline}
             strokeWidth={(collision || selected ? 2.5 : 1.5) / scale}
-            dash={box.dashed
-              ? [4 / scale, 3 / scale]
-              : segment.overhang
-                ? [2 / scale, 2 / scale]
-                : upper ? [5 / scale, 3 / scale] : undefined}
+            {...(box.dashed
+              ? { dash: [4 / scale, 3 / scale] }
+              : segment.overhang ? { dash: [2 / scale, 2 / scale] } : {})}
             listening={false}
           />
         ))
@@ -187,7 +194,6 @@ export default function PlanRunFootprint({
           fill={upper ? `${KIND_COLORS.filler}59` : `${KIND_COLORS.filler}8c`}
           stroke={KIND_COLORS.filler}
           strokeWidth={0.75 / scale}
-          dash={upper ? [5 / scale, 3 / scale] : undefined}
           listening={false}
         />
       ))}
@@ -203,7 +209,6 @@ export default function PlanRunFootprint({
             fill={upper ? `${faceColor}59` : `${faceColor}8c`}
             stroke={outline}
             strokeWidth={0.75 / scale}
-            dash={upper ? [5 / scale, 3 / scale] : undefined}
           />
         );
       })}

@@ -1,5 +1,5 @@
 import { Line } from 'react-konva';
-import { KIND_COLORS } from '../model/constants.js';
+import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { elevationToPlan } from '../model/geometry.js';
 import { wallEndPanelPolygon, wallEndPanels } from '../model/wallEndPanels.js';
 import { wallSideFrame } from '../model/wallSides.js';
@@ -34,6 +34,38 @@ export default function PlanScene({
   handleRunContextMenu,
   clearances,
 }) {
+  const firstUpper = orderedFootprints.findIndex(({ run }) => (
+    run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
+  ));
+  // Insert tops before the first upper without disturbing the height order of later runs.
+  // With no uppers, keep tops above wall end panels as before.
+  const split = firstUpper < 0 ? orderedFootprints.length : firstUpper;
+  const footprints = orderedFootprints.map(({ frame, wall, run }) => (
+    <PlanRunFootprint
+      key={run.id}
+      frame={frame}
+      room={room}
+      wall={wall}
+      run={run}
+      settings={settings}
+      collision={collisionMessages.has(run.id)}
+      collisionMessage={collisionMessages.get(run.id)}
+      selected={selection.runId === run.id}
+      selectable={tool === 'select' && !entry}
+      scale={scale}
+      text={text}
+      onSelect={handleRunSelect}
+      onContextMenu={handleRunContextMenu}
+      cursor={cursor}
+    />
+  ));
+  const tops = (
+    <>
+      <PlanTops room={room} settings={settings} scale={scale} />
+      <PlanTopOverhangs room={room} settings={settings} scale={scale} text={text} />
+    </>
+  );
+
   return (
     <>
       {walls.map((wall) => (
@@ -81,25 +113,9 @@ export default function PlanScene({
           cursor={cursor}
         />
       ))}
-      {orderedFootprints.map(({ frame, wall, run }) => (
-        <PlanRunFootprint
-          key={run.id}
-          frame={frame}
-          room={room}
-          wall={wall}
-          run={run}
-          settings={settings}
-          collision={collisionMessages.has(run.id)}
-          collisionMessage={collisionMessages.get(run.id)}
-          selected={selection.runId === run.id}
-          selectable={tool === 'select' && !entry}
-          scale={scale}
-          text={text}
-          onSelect={handleRunSelect}
-          onContextMenu={handleRunContextMenu}
-          cursor={cursor}
-        />
-      ))}
+      {footprints.slice(0, split)}
+      {firstUpper >= 0 && tops}
+      {footprints.slice(split)}
       {walls.flatMap((wall) => wallEndPanels(room, wall, settings).map((panel) => (
         <Line
           key={`${wall.id}:${panel.endpoint}`}
@@ -111,8 +127,7 @@ export default function PlanScene({
           listening={false}
         />
       )))}
-      <PlanTops room={room} settings={settings} scale={scale} />
-      <PlanTopOverhangs room={room} settings={settings} scale={scale} text={text} />
+      {firstUpper < 0 && tops}
       <PlanClearances dimensions={clearances} scale={scale} text={text} />
       {walls.flatMap((wall) => (wall.soffits ?? []).map((soffit) => {
         const frame = wallSideFrame(room, wall, soffit.wallSide);

@@ -48,10 +48,11 @@ export default function usePlanSceneData({ room, walls, sceneRoom, settings }) {
         run,
       }))
     ));
-    return [
-      ...entries.filter(({ run }) => run.cabinetTypeId !== CABINET_TYPE_IDS.UPPER),
-      ...entries.filter(({ run }) => run.cabinetTypeId === CABINET_TYPE_IDS.UPPER),
-    ];
+    return entries.sort(({ run: a }, { run: b }) => (
+      (a.z + a.height) - (b.z + b.height)
+      || Number(a.cabinetTypeId === CABINET_TYPE_IDS.UPPER)
+        - Number(b.cabinetTypeId === CABINET_TYPE_IDS.UPPER)
+    ));
   }, [sceneRoom]);
 
   return { adaptedWalls, orderedOpenings, collisionMessages, clearances, orderedFootprints };
