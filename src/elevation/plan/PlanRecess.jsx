@@ -84,7 +84,7 @@ function projectionDepth(frame, depth, x, scale, factor) {
   const dim = depthDimension({ x, width: 0 }, depth, scale, PLAN_DIM_FONT_SIZE * factor);
   const back = elevationToPlan(frame, x, 0);
   const front = elevationToPlan(frame, x, depth);
-  const tick = TICK_HALF_LENGTH / scale;
+  const tick = TICK_HALF_LENGTH * factor / scale;
   const tickDirection = { x: (frame.n.x + frame.r.x) / Math.SQRT2, y: (frame.n.y + frame.r.y) / Math.SQRT2 };
   const angle = Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI;
   const fontSize = PLAN_DIM_FONT_SIZE * factor / scale;

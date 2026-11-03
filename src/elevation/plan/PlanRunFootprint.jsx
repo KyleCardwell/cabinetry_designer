@@ -115,7 +115,8 @@ export default function PlanRunFootprint({
   const dimensionBack = elevationToPlan(frame, dim.x, planeBack);
   const dimensionFront = elevationToPlan(frame, dim.x, planeBack + depth);
   const depthLabelLocation = elevationToPlan(frame, dim.label.x, planeBack + dim.label.offset);
-  const tickHalf = DEPTH_TICK_HALF_LENGTH / scale;
+  // Ticks grow with the depth text, which follows text.label (TX1).
+  const tickHalf = DEPTH_TICK_HALF_LENGTH * factor / scale;
   const tickDirection = {
     x: (frame.n.x + frame.r.x) / Math.SQRT2,
     y: (frame.n.y + frame.r.y) / Math.SQRT2,

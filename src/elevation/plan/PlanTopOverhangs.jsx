@@ -8,8 +8,9 @@ import { PLAN_DIM_FONT_SIZE } from './constants.js';
 import { readableRotation } from './textRotation.js';
 
 /** Top overhang dimensions use the same line, diagonal ticks and pop-out labels as run depths. */
-export default function PlanTopOverhangs({ room, settings, scale }) {
-  const fontSize = PLAN_DIM_FONT_SIZE / scale;
+export default function PlanTopOverhangs({ room, settings, scale, text: textScale }) {
+  const factor = textScale?.dimension ?? 1;
+  const fontSize = PLAN_DIM_FONT_SIZE * factor / scale;
   return planTopOverhangs(room, settings).map(({ wallId, runId, side, edge, value, from, to }, index) => {
     const wall = room.walls.find(({ id }) => id === wallId);
     const frame = wallSideFrame(room, wall, 'front');
@@ -18,13 +19,13 @@ export default function PlanTopOverhangs({ room, settings, scale }) {
     const unit = { x: (b.x - a.x) / value, y: (b.y - a.y) / value };
     const outward = edge === 'front' || edge === 'back' ? frame.r : frame.n;
     const text = formatDimension(value);
-    const width = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) / scale;
-    const fits = value >= width + 8 / scale;
+    const width = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
+    const fits = value >= width + 8 * factor / scale;
     const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-    const labelOffset = fits ? 0 : (12 + PLAN_DIM_FONT_SIZE / 2) / scale;
+    const labelOffset = fits ? 0 : (12 + PLAN_DIM_FONT_SIZE / 2) * factor / scale;
     const label = { x: center.x + outward.x * labelOffset, y: center.y + outward.y * labelOffset };
-    const tick = { x: (unit.x + outward.x) * 4 / Math.SQRT2 / scale,
-      y: (unit.y + outward.y) * 4 / Math.SQRT2 / scale };
+    const tick = { x: (unit.x + outward.x) * 4 * factor / Math.SQRT2 / scale,
+      y: (unit.y + outward.y) * 4 * factor / Math.SQRT2 / scale };
     const lines = fits ? gappedLine(a, b, label, width / 2, 0.5 / scale) : [[a.x, a.y, b.x, b.y]];
     return (
       <Group key={`${wallId}:${runId}:${side}:${edge}:${index}`} listening={false}>
@@ -42,7 +43,7 @@ export default function PlanTopOverhangs({ room, settings, scale }) {
         ))}
         {!fits && (
           <Line
-            points={[center.x, center.y, center.x + outward.x * 10 / scale, center.y + outward.y * 10 / scale]}
+            points={[center.x, center.y, center.x + outward.x * 10 * factor / scale, center.y + outward.y * 10 * factor / scale]}
             stroke="#64748b"
             strokeWidth={0.75 / scale}
             listening={false}

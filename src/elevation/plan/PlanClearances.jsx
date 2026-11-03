@@ -20,7 +20,7 @@ export default function PlanClearances({ dimensions, scale, text: textScale }) {
         const dy = to.y - from.y;
         const span = Math.hypot(dx, dy);
         const unit = span > 0 ? { x: dx / span, y: dy / span } : { x: 1, y: 0 };
-        const tick = { x: (-unit.y * TICK_HALF) / scale, y: (unit.x * TICK_HALF) / scale };
+        const tick = { x: (-unit.y * TICK_HALF * factor) / scale, y: (unit.x * TICK_HALF * factor) / scale };
         const text = formatDimension(length);
         const width = (text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
         const height = (PLAN_DIM_FONT_SIZE + 4) * factor / scale;

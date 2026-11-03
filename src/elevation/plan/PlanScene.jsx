@@ -112,7 +112,7 @@ export default function PlanScene({
         />
       )))}
       <PlanTops room={room} settings={settings} scale={scale} />
-      <PlanTopOverhangs room={room} settings={settings} scale={scale} />
+      <PlanTopOverhangs room={room} settings={settings} scale={scale} text={text} />
       <PlanClearances dimensions={clearances} scale={scale} text={text} />
       {walls.flatMap((wall) => (wall.soffits ?? []).map((soffit) => {
         const frame = wallSideFrame(room, wall, soffit.wallSide);

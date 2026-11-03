@@ -190,7 +190,7 @@ it('anchor 2: fit 0.8, zoom 3.2 gives labels 4 and dimensions 2 throughout the s
   const depthLabel = depthTree.find(({ type }) => type === Text);
   expect(depthLabel.props.fontSize).toBe(PLAN_DIM_FONT_SIZE * 4 / props.scale);
   const tick = depthTree.find(({ key }) => key === 'depth-tick:0').props.points;
-  expect(Math.hypot(tick[2] - tick[0], tick[3] - tick[1]) * props.scale).toBeCloseTo(8);
+  expect(Math.hypot(tick[2] - tick[0], tick[3] - tick[1]) * props.scale).toBeCloseTo(8 * text.label);
   const clearanceProps = scene.find(({ type }) => type === PlanClearances).props;
   const clearance = nodes(PlanClearances({ ...clearanceProps, dimensions: [{
     kind: 'gap', from: { x: 0, y: 0 }, to: { x: 20, y: 0 }, length: 20,
