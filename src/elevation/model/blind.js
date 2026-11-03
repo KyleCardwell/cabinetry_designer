@@ -84,13 +84,15 @@ export function blindEntries(room, wall, run, settings, layout = null) {
   const cornerXs = { left: 0, right: wallLength(wall) };
 
   for (const side of SIDES) {
-    const boxWidth = run.ends[side]?.type === 'blind' ? runBlind(run)?.[side] : null;
-    if (!(boxWidth > 0)) continue;
-
+    if (run.ends[side]?.type !== 'blind') continue;
     const piece = outerCabinet(resolvedLayout.pieces, side);
     if (!piece) continue;
 
-    const extension = Math.max(0, boxWidth - piece.width);
+    // A blank blind width still gets its panel; the box itself stays the visible cabinet (FX7).
+    const typedWidth = runBlind(run)?.[side];
+    const unsized = !(typedWidth > 0);
+    const boxWidth = unsized ? piece.width : typedWidth;
+    const extension = unsized ? 0 : Math.max(0, boxWidth - piece.width);
     const cornerX = cornerXs[side];
     const boxX = side === 'left'
       ? piece.x + piece.width - boxWidth
@@ -109,16 +111,19 @@ export function blindEntries(room, wall, run, settings, layout = null) {
       ? { x: side === 'left' ? cornerX : cornerX - width, width }
       : null;
 
-    if (extension <= WIDTH_EPSILON) {
+    if (!unsized && extension <= WIDTH_EPSILON) {
       warnings.push({ code: 'blind-not-past', side });
     }
     const pastWall = side === 'left' ? cornerX - boxX : boxX + boxWidth - cornerX;
-    if (pastWall > WIDTH_EPSILON) {
+    if (!unsized && pastWall > WIDTH_EPSILON) {
       warnings.push({ code: 'blind-past-wall', side });
     }
     if (!covered && depth > WIDTH_EPSILON && !hasEndPiece) {
       warnings.push({ code: 'blind-needs-end', side });
     }
+
+    // With no width and no panel the end has nothing to show (FX7).
+    if (unsized && !panel) continue;
 
     entries.push({
       side,
@@ -131,6 +136,7 @@ export function blindEntries(room, wall, run, settings, layout = null) {
       covered,
       endPieceId: hasEndPiece ? endPieceId : null,
       panel,
+      ...(unsized ? { unsized: true } : {}),
     });
   }
 

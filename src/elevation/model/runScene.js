@@ -33,7 +33,7 @@ export function runScene(room, wall, run, settings) {
     }
   }
   for (const entry of blind.entries) {
-    subLabels.set(entry.pieceId, `Blind ${formatInches(entry.boxWidth)}`);
+    if (!entry.unsized) subLabels.set(entry.pieceId, `Blind ${formatInches(entry.boxWidth)}`);
     for (const [id, width] of blindCellWidths(cells.pieces, result.pieces, [entry])) {
       subLabels.set(id, `Blind ${formatInches(width)}`);
     }

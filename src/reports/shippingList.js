@@ -342,7 +342,7 @@ function cabinetNotes(room, settings, part, context) {
     && (!standard || Math.abs(values[key] - standard[key]) > EPSILON))
     // A negative reveal is an overhang: "1 5/8" OH B", not "-1 5/8" B" (Kyle 2026-10-19).
     .map((key) => `${formatInch(Math.abs(values[key]))} ${values[key] < 0 ? 'OH ' : ''}${key[0].toUpperCase()}`);
-  const blind = scene.blind.entries.find(({ pieceId }) => pieceId === part.key);
+  const blind = scene.blind.entries.find(({ pieceId, unsized }) => pieceId === part.key && !unsized);
   const doors = faces.filter((face) => face.type === 'door');
   const doorWidth = doors.length ? Math.max(...doors.map(({ width }) => width)) : blind?.visibleWidth;
   const falseFronts = faces.filter((face) => face.type === 'false_front').length;
