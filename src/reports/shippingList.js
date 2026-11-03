@@ -421,14 +421,14 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
   if (['filler', 'end_panel'].includes(part.kind)) {
     const tee = scene.tees.find((tee) => tee.id === part.key || tee.pieceId === part.key);
     const notes = shapeNotes.get(tee?.id ?? part.key) ?? [];
-    groups[8] = notes.filter((note) => note === 'T-shape' || note === 'L-shape');
+    groups[8] = notes.filter((note) => note.startsWith('T-shape') || note === 'L-shape');
     if (!groups[8].length && part.kind === 'filler' && fillerReturnDepth(run, piece, settings) > 0) {
       const index = scene.cells.pieces.indexOf(piece);
       const returns = [-1, 1].filter((offset) => scene.cells.pieces[index + offset]?.kind === 'cabinet').length;
       groups[8] = returns === 2 ? ['U-shape'] : returns === 1 ? ['L-shape'] : [];
     }
     if (!piece?.extend?.down) {
-      groups[9] = tee ? notes.filter((note) => note !== 'T-shape')
+      groups[9] = tee ? notes.filter((note) => !note.startsWith('T-shape'))
         : endPieceNotes(part.kind, endPieceBottom(run, resolveStyle(settings, room, run), settings));
     }
   }

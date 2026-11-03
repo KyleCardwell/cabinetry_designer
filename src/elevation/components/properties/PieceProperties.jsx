@@ -155,7 +155,7 @@ export default function PieceProperties({
     : [];
   const shapeNotes = side
     ? (teeFillers(room, run, cells, settings).notes.get(piece.id) ?? [])
-      .filter((note) => note === 'T-shape' || note === 'L-shape')
+      .filter((note) => note.startsWith('T-shape') || note === 'L-shape')
     : [];
   const notes = [...shapeNotes, ...endNotes];
   const notesLine = notes.length > 0 ? (

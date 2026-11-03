@@ -90,7 +90,7 @@ describe('SPEC-37 T-shape and filler notes', () => {
   it('notes each T as a T-shape, with the filler notes where the flat drops', () => {
     const { notes } = context(endRun()).result;
     expect([...notes]).toEqual([
-      ['r:left', ['T-shape']], ['tee:a|b', ['T-shape']], ['r:right', ['T-shape']],
+      ['r:left', ['T-shape - 3/4" right offset']], ['tee:a|b', ['T-shape']], ['r:right', ['T-shape - 3/4" left offset']],
     ]);
     const upper = baseRun({ cabinetTypeId: CABINET_TYPE_IDS.UPPER, z: 54, height: 30, depth: 12 });
     expect([...context(upper).result.notes]).toEqual([['tee:a|b', ['T-shape', 'return up 1/8"']]]);

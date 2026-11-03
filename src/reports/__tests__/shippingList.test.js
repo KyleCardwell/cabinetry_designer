@@ -1087,7 +1087,7 @@ describe('RP2 step d cabinet notes', () => {
       endFiller: { right: { tFiller: true } },
     })]);
     expect(row(r).notes).toEqual(['full top', 'RV\'s (13/16" R)', 'NPH (No Doors)', '1 as', 'FF to rabbet right side for T-filler']);
-    expect(row(r, 'run:right').notes).toEqual(['T-shape']);
+    expect(row(r, 'run:right').notes).toEqual(['T-shape - 3/4" left offset']);
   });
 
   it('keeps box, drawer, hinge and free-text notes in order (anchor 10)', () => {
@@ -1484,7 +1484,7 @@ describe('RP2 step e panel, filler and base notes', () => {
       width: 40, tFiller: 'seams', ends: { ...ends(), left: { type: 'filler', width: 3 } },
       endFiller: { left: { tFiller: true } },
     })], { reportParts: { 'run:left': { note: 'last' } } });
-    expect(row(r, 'run:left').notes).toEqual(['T-shape', 'return up 1/8"', 'last']);
+    expect(row(r, 'run:left').notes).toEqual(['T-shape - 3/4" right offset', 'return up 1/8"', 'last']);
     expect(row(r, 'tee:a|b').notes).toEqual(['T-shape', 'return up 1/8"']);
   });
 

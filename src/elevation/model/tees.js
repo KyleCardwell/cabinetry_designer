@@ -3,6 +3,7 @@ import { findLeaf } from './cellTree.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { runItems } from './grid.js';
 import { endCoverOn, endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, runTFiller } from './styles.js';
+import { formatInches } from './units.js';
 
 const EPSILON = 1e-6;
 
@@ -269,8 +270,17 @@ export function teeFillers(room, run, cells, settings) {
   tees.sort((p, q) => p.x - q.x || p.z - q.z);
   const bottom = endPieceBottom(run, runStyle, settings);
   for (const tee of tees) {
+    let shapeNote = 'T-shape';
+    if (tee.end) {
+      const boxSide = tee.end === 'left' ? 'right' : 'left';
+      const near = boxSide === 'right' ? tee.x + tee.width - tee.ret.end : tee.ret.start - tee.x;
+      const far = tee.width - near - (tee.ret.end - tee.ret.start);
+      if (Math.abs(near - far) > 1 / 64) {
+        shapeNote = `T-shape - ${formatInches(near)} ${boxSide} offset`;
+      }
+    }
     notes.set(tee.id, [
-      'T-shape',
+      shapeNote,
       ...(tee.orientation === 'vertical' && near(tee.z + tee.drop, run.z) ? endPieceNotes('filler', bottom) : []),
     ]);
   }
