@@ -1,5 +1,6 @@
 import { gapReach } from './cells.js';
 import { findLeaf } from './cellTree.js';
+import { teamDoorStyle } from './doorStyles.js';
 import { runItems } from './grid.js';
 import { endCoverOn, endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, runTFiller } from './styles.js';
 
@@ -33,6 +34,15 @@ export function rabbetNote(covers) {
     ...(edges.length === 2 ? ['top and bottom'] : edges),
   ];
   return `FF to rabbet ${parts.join(' and ')} for T-filler`;
+}
+
+/** Cabinet deck, fixed shelf and top setback needed behind a Euro T run's faces. */
+export function teeSetback(run, faces, settings) {
+  if (run._frame || !runTFiller(run)) return 0;
+  const closed = faces.filter((face) => face.type !== 'open');
+  if (!closed.length) return 0;
+  const thickness = Math.max(...closed.map((face) => face.thickness ?? teamDoorStyle(settings).thickness));
+  return Math.max(0, thickness + settings.bumperThickness - settings.teeThickness);
 }
 
 /**

@@ -27,7 +27,7 @@ import { resolveSlide } from '../elevation/model/slides.js';
 import {
   endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
 } from '../elevation/model/styles.js';
-import { teeFillers } from '../elevation/model/tees.js';
+import { teeFillers, teeSetback } from '../elevation/model/tees.js';
 import { wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { woodTopGroups } from '../elevation/model/woodTopGroups.js';
@@ -346,6 +346,7 @@ function cabinetNotes(room, settings, part, context) {
   const doors = faces.filter((face) => face.type === 'door');
   const doorWidth = doors.length ? Math.max(...doors.map(({ width }) => width)) : blind?.visibleWidth;
   const falseFronts = faces.filter((face) => face.type === 'false_front').length;
+  const setback = teeSetback(run, faces, settings);
   return {
     1: boxes && boxes !== settings.report?.boxMaterial ? `${boxes} BOX` : null,
     1.5: [
@@ -378,7 +379,10 @@ function cabinetNotes(room, settings, part, context) {
       notch > 0 ? `notch back for slides (${formatInch(notch)})` : null,
     ],
     6: hingeNote(faces),
-    7: rabbets.get(part.key),
+    7: [
+      rabbets.get(part.key),
+      setback > 0 ? `deck, fixed shelves & top set back ${formatInch(setback)}` : null,
+    ],
   };
 }
 
