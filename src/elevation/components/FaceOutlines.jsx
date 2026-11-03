@@ -23,6 +23,7 @@ export default function FaceOutlines({
       && (face.path === selectedPath || face.path.startsWith(`${selectedPath}.`));
     const sizeText = formatDimension(face.height);
     const showSize = showSizes
+      && face.type !== 'open'
       && rect.height >= fontSize + SIZE_INSET * 2
       && rect.width >= sizeText.length * 6 * labelScale + SIZE_INSET * 2;
     return (
@@ -32,7 +33,7 @@ export default function FaceOutlines({
           stroke={selected ? '#7dd3fc' : '#e2e8f0'}
           strokeWidth={selected ? 2 : 1}
           // A face frame opening is the frame's own edge, so an open face there stays solid (Kyle 2026-10-23).
-          dash={face.type === 'open' && !framed ? [4, 3] : undefined}
+          strokeEnabled={selected || face.type !== 'open' || framed}
           fill={selectable ? 'rgba(0, 0, 0, 0.001)' : undefined}
           listening={selectable}
           onClick={selectable ? (event) => {
