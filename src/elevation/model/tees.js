@@ -1,7 +1,7 @@
 import { gapReach } from './cells.js';
 import { findLeaf } from './cellTree.js';
 import { runItems } from './grid.js';
-import { endCoverOn, endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle } from './styles.js';
+import { endCoverOn, endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, runTFiller } from './styles.js';
 
 const EPSILON = 1e-6;
 
@@ -83,9 +83,9 @@ export function teeFillers(room, run, cells, settings) {
 
   const leaf = (piece) => leafOf(run, piece);
   // A seam's own choice comes from the box left of it (or above it), then the one right (or below).
-  const verticalOn = (a, b) => leaf(a)?.tFiller?.right ?? leaf(b)?.tFiller?.left ?? Boolean(run.tFiller);
+  const verticalOn = (a, b) => leaf(a)?.tFiller?.right ?? leaf(b)?.tFiller?.left ?? Boolean(runTFiller(run));
   const horizontalOn = (upper, lower) => leaf(upper)?.tFiller?.bottom
-    ?? leaf(lower)?.tFiller?.top ?? run.tFiller === 'all';
+    ?? leaf(lower)?.tFiller?.top ?? runTFiller(run) === 'all';
 
   // Seams between two boxes side by side.
   const contacts = [];

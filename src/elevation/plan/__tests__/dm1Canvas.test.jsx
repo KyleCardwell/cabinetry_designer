@@ -313,7 +313,7 @@ function checkDepth(tree, label, back, front, dim, frame, scale, planeBack, fact
   for (const [index, endpoint] of [back, front].entries()) {
     const [x1, y1, x2, y2] = ticks[index].props.points;
     expectPoint({ x: (x1 + x2) / 2, y: (y1 + y2) / 2 }, endpoint);
-    expect(Math.hypot(x2 - x1, y2 - y1) * scale).toBeCloseTo(8);
+    expect(Math.hypot(x2 - x1, y2 - y1) * scale).toBeCloseTo(8 * factor);
   }
   if (dim.fits) {
     expectGap(lines, back, front, label, scale);

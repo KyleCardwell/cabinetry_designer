@@ -48,7 +48,14 @@ function derived(room) {
       // UI9d adds override storage; keep comparing the historical wall shape and derived thickness.
       walls: drawingRoom.walls.map(({ thicknessOverride, ...wall }) => {
         void thicknessOverride;
-        return wall;
+        // FX8 adds a derived choice without changing the historical drawing comparison.
+        return {
+          ...wall,
+          runs: wall.runs.map(({ _tFiller, ...run }) => {
+            void _tFiller;
+            return run;
+          }),
+        };
       }),
     },
     diagnostics: roomDiagnostics(room, settings),

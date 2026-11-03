@@ -489,9 +489,10 @@ export const runReducers = {
     const location = runLocation(state, action.payload);
     if (!location) return;
     const { value = null } = action.payload;
-    if (value !== null && value !== 'seams' && value !== 'all') return;
+    if (value !== null && !['none', 'seams', 'all'].includes(value)) return;
     if (value === null) delete location.run.tFiller;
     else location.run.tFiller = value;
+    syncRoomAt(state, location.roomIndex);
   },
   setItemTFiller(state, action) {
     const location = runLocation(state, action.payload);

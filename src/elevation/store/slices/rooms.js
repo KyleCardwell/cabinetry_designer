@@ -71,6 +71,14 @@ export const roomReducers = {
       }
       syncRoomAt(state, roomIndex);
     },
+    setRoomTFiller(state, action) {
+      const { roomId, value } = action.payload;
+      const roomIndex = roomIndexFor(state, roomId);
+      if (roomIndex === -1 || (value !== null && !['none', 'seams', 'all'].includes(value))) return;
+      if (value === null) delete state.rooms[roomIndex].tFiller;
+      else state.rooms[roomIndex].tFiller = value;
+      syncRoomAt(state, roomIndex);
+    },
     useAutoHeightsForRoom(state, action) {
       const roomIndex = roomIndexFor(state, action.payload.roomId ?? action.payload);
       if (roomIndex === -1) return;

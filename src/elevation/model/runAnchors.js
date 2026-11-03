@@ -22,7 +22,7 @@ import { openingGeometry } from './openings.js';
 import { recessAnchorDatum, recessCorner, recessesOn } from './recesses.js';
 import { wallLength } from './geometry.js';
 import { verticalStart } from './overlap.js';
-import { endCoverOn, isInsetStyle, resolveStyle, styleReveals } from './styles.js';
+import { endCoverOn, isInsetStyle, resolveStyle, runTFiller, styleReveals } from './styles.js';
 import { soffitAnchorDatum } from './soffits.js';
 import { wallLabel } from './topology.js';
 import { formatInches } from './units.js';
@@ -75,7 +75,7 @@ export function blindCoversForRun(room, wall, run, settings) {
   return Object.fromEntries(['left', 'right'].map((side) => [
     side,
     !inset && run.ends?.[side]?.type === 'blind' && blind?.[side] > 0
-      && Boolean(run.tFiller) && endCoverOn(run, side) ? settings.teeCover : 0,
+      && Boolean(runTFiller(run)) && endCoverOn(run, side) ? settings.teeCover : 0,
   ]));
 }
 

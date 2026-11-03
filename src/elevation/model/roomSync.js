@@ -100,6 +100,18 @@ function withFrame(room, run, settings) {
   return rest;
 }
 
+/** A run's inherited T-fillers, stored only when enabled. */
+function withTFiller(room, wall, run) {
+  const value = run.tFiller ?? wall.tFiller ?? room.tFiller;
+  if (value != null && value !== 'none') {
+    return run._tFiller === value ? run : { ...run, _tFiller: value };
+  }
+  if (!Object.hasOwn(run, '_tFiller')) return run;
+  const { _tFiller, ...rest } = run;
+  void _tFiller;
+  return rest;
+}
+
 /** A Euro run's derived front plane thickness, stored only when it differs from the team default. */
 function withDoorThickness(room, wall, run, settings) {
   if (!run._frame) {
@@ -267,7 +279,7 @@ export function syncRoom(room, settings) {
       height: resolveProfile(settings, nextRoom, wall).wallHeight,
       thicknessOverride,
       thickness: thicknessOverride ?? settings.wallThickness,
-      runs: wall.runs.map(withPanelOnlyDepth),
+      runs: wall.runs.map((run) => withPanelOnlyDepth(withTFiller(nextRoom, wall, run))),
     };
   });
   nextRoom.walls = nextRoom.walls.map((wall) => ({

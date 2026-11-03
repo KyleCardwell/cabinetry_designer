@@ -268,12 +268,13 @@ export function toRoomDocument(room) {
         ...persistedWall,
         thicknessOverride: wall.thicknessOverride ?? null,
         runs: wall.runs.map((run) => {
-          const { _returnPins, _pinWidths, _seamGap, _frame, _plane, _doorThickness, _endThickness, _panelMiters, _insideEnds, _stepEnds, _cornerLapWidth, ...persistedRun } = run;
+          const { _returnPins, _pinWidths, _seamGap, _frame, _plane, _tFiller, _doorThickness, _endThickness, _panelMiters, _insideEnds, _stepEnds, _cornerLapWidth, ...persistedRun } = run;
           void _returnPins;
           void _pinWidths;
           void _seamGap;
           void _frame;
           void _plane;
+          void _tFiller;
           void _doorThickness;
           void _endThickness;
           void _panelMiters;

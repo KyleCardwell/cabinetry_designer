@@ -313,7 +313,7 @@ function isRunAnchor(anchor) {
   ));
 }
 
-const T_FILLER_RUN_VALUES = ['seams', 'all'];
+const T_FILLER_RUN_VALUES = ['none', 'seams', 'all'];
 const END_FILLER_MINIMUMS = { width: 0, returnDepth: -1 };
 
 function isEndFillerSide(side) {
@@ -631,6 +631,7 @@ function isRecess(recess) {
 
 function isWall(wall, profileKeys = PROFILE_KEYS) {
   return Boolean(wall)
+    && (wall.tFiller === undefined || T_FILLER_RUN_VALUES.includes(wall.tFiller))
     && hasStyleRefs(wall)
     && hasPullRefs(wall)
     && typeof wall.id === 'string'
@@ -671,6 +672,7 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
 
 export function isRoom(room, profileKeys = PROFILE_KEYS) {
   return Boolean(room)
+    && (room.tFiller === undefined || T_FILLER_RUN_VALUES.includes(room.tFiller))
     && (room.roomLines === undefined || (Array.isArray(room.roomLines) && room.roomLines.every(isRoomLine)
       && new Set(room.roomLines.map((line) => line.id)).size === room.roomLines.length))
     && (room.settingsOverrides === undefined || isPlainObject(room.settingsOverrides))

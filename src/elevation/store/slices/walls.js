@@ -270,6 +270,14 @@ export const wallReducers = {
       });
       setCompensatedWalls(state, roomIndex, walls);
     },
+    setWallTFiller(state, action) {
+      const location = wallLocation(state, action.payload);
+      const { value } = action.payload;
+      if (!location || (value !== null && !['none', 'seams', 'all'].includes(value))) return;
+      if (value === null) delete location.wall.tFiller;
+      else location.wall.tFiller = value;
+      syncRoomAt(state, location.roomIndex);
+    },
     setWallEndPanel(state, action) {
       const location = wallLocation(state, action.payload);
       const { endpoint, panel } = action.payload;

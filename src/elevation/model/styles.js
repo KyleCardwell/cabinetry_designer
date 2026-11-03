@@ -354,10 +354,15 @@ export function runFrame(room, run, settings) {
   return { thickness: frame.thickness, drop: frameDrop(run, settings), bead };
 }
 
+/** The resolved T-filler choice, including runs used without syncRoom. */
+export function runTFiller(run) {
+  return run._tFiller ?? (run.tFiller === 'none' ? null : run.tFiller ?? null);
+}
+
 /**
  * Whether a run end gets a T-filler (a filler end) or an L-shaped end panel (an end panel end)
  * (SPEC-37, 37.1): the end's own choice, `run.endFiller[side].tFiller`, else the run's setting.
  */
 export function endCoverOn(run, side) {
-  return run.endFiller?.[side]?.tFiller ?? Boolean(run.tFiller);
+  return run.endFiller?.[side]?.tFiller ?? Boolean(runTFiller(run));
 }
