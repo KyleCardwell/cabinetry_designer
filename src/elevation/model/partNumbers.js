@@ -4,6 +4,7 @@ import { cellPieces, partPieces } from './cells.js';
 import { frameBadgeAnchor, frameMembers, frameRegions, regionOpenings } from './frames.js';
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
 import { wallLength } from './geometry.js';
+import { runLegs } from './legs.js';
 import { resolveProfile } from './profile.js';
 import { splitOptionsForRun } from './placement.js';
 import { splitRun } from './splitRun.js';
@@ -207,6 +208,13 @@ export function wallBadgeGroups(room, wall, settings) {
         key: `end-panels:${run.id}`,
         lift: 3,
         pieces: endPanels,
+      },
+      {
+        key: `legs:${run.id}`,
+        lift: 0,
+        pieces: runLegs(room, wall, run, settings)
+          .sort((a, b) => a.bounds.x - b.bounds.x || b.front - a.front)
+          .map(({ leg, bounds }) => ({ id: leg.id, ...bounds })),
       },
     ];
   }).filter((group) => group.pieces.length > 0);
