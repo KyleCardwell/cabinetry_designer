@@ -470,7 +470,7 @@ describe('IN10 step b interior shipping notes', () => {
       expect(interior.dividers).toHaveLength(1);
       const banding = cabinetStyleId === 14 ? ', no banding' : '';
       expect(row(r).notes).toEqual([
-        ...(cabinetStyleId === 14 ? ['deck up 1 1/8" (with supports)'] : []),
+        ...(cabinetStyleId === 14 ? ['INSET FACE FRAME BOX', 'deck up 1 1/8" (with supports)'] : []),
         `fs up ${formatInch(interior.dividers[0].fromBottom)} oc${banding}`,
         `Top Sec (${data.shelves.get('cab').get('r.0').count} as)`,
         `Btm Sec (${data.shelves.get('cab').get('r.1').count} as)`, 'hl',

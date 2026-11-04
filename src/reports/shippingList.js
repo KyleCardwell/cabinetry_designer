@@ -25,7 +25,7 @@ import { sectionProfileBounds } from '../elevation/model/sectionProfiles.js';
 import { wallInteriorData } from '../elevation/model/shelves.js';
 import { resolveSlide } from '../elevation/model/slides.js';
 import {
-  endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
+  CABINET_STYLE_LABELS, endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
 } from '../elevation/model/styles.js';
 import { openBelowDrops, teeFillers, teeSetback } from '../elevation/model/tees.js';
 import { wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
@@ -354,6 +354,8 @@ function cabinetNotes(room, settings, part, context) {
   const falseFronts = faces.filter((face) => face.type === 'false_front').length;
   const setback = teeSetback(run, faces, settings);
   return {
+    0.5: style.cabinetStyleId !== resolveStyle(settings, room).cabinetStyleId
+      ? `${CABINET_STYLE_LABELS[style.cabinetStyleId].toUpperCase()} BOX` : null,
     1: boxes && boxes !== settings.report?.boxMaterial ? `${boxes} BOX` : null,
     1.5: [
       base && fullTop ? 'full top' : null,

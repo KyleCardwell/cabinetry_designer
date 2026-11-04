@@ -63,3 +63,52 @@ describe('FX14 step a deck up notes', () => {
     }
   });
 });
+
+describe('FX14 step b box style notes', () => {
+  it('anchors 1/2: puts the differing Room 10 FF style first and omits the matching Euro style', () => {
+    const stored = JSON.parse(readFileSync(
+      new URL('../../../../specs/fixtures/room10ff.json', import.meta.url), 'utf8',
+    ));
+    const settings = { ...DEFAULT_SETTINGS, ...stored.settingsOverrides };
+    const built = syncRoom(stored, settings);
+    const { rows } = shippingList(built, settings);
+    expect(rows.find(({ number }) => number === 32).notes[0]).toBe('INSET FACE FRAME BOX');
+    expect(rows.find(({ number }) => number === 35).notes)
+      .not.toContain('EUROPEAN BOX');
+  });
+
+  it('anchor 3: omits matching room/run styles, including bead-only differences', () => {
+    for (const cabinetStyleId of [14, 15]) {
+      const built = syncRoom(room({
+        style: { cabinetStyleId, beadWidth: 0.25 },
+        walls: [wall({ runs: [run({
+          width: 30, autoCount: false, style: { cabinetStyleId, beadWidth: 0.125 },
+          items: [auto('cab')],
+        })] })],
+      }), DEFAULT_SETTINGS);
+      const entry = shippingList(built, DEFAULT_SETTINGS).rows.find(({ key }) => key === 'cab');
+      expect(entry.notes.filter((note) => note.endsWith(' BOX'))).toEqual([]);
+    }
+  });
+
+  it('anchor 4: labels beaded and European runs in an inset room and resolves leaf overrides', () => {
+    const built = syncRoom(room({
+      style: { cabinetStyleId: 14 },
+      walls: [wall({ runs: [
+        run({
+          id: 'beaded-run', width: 60, autoCount: false, style: { cabinetStyleId: 15 },
+          items: [auto('beaded'), { ...auto('inset-leaf'), style: { cabinetStyleId: 14 } }],
+        }),
+        run({
+          id: 'euro-run', x: 60, width: 60, autoCount: false, style: { cabinetStyleId: 13 },
+          items: [auto('euro')],
+        }),
+      ] })],
+    }), DEFAULT_SETTINGS);
+    const { rows } = shippingList(built, DEFAULT_SETTINGS);
+    expect(rows.find(({ key }) => key === 'beaded').notes[0]).toBe('BEADED INSET FACE FRAME BOX');
+    expect(rows.find(({ key }) => key === 'euro').notes[0]).toBe('EUROPEAN BOX');
+    expect(rows.find(({ key }) => key === 'inset-leaf').notes)
+      .not.toContain('INSET FACE FRAME BOX');
+  });
+});
