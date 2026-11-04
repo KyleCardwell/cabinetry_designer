@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
+import { boxConstruction } from '../../elevation/model/boxConstruction.js';
+import { resolveInterior } from '../../elevation/model/interiors.js';
+import { sectionRollouts } from '../../elevation/model/rollouts.js';
+import { sectionShelves } from '../../elevation/model/shelves.js';
+import { BUILT_IN_SLIDES } from '../../elevation/model/slides.js';
 import { interiorNotes } from '../interiorNotes.js';
 
 const S = (count, rest = {}) => ({ count, lineBore: true, hinges: true, ...rest });
@@ -39,6 +44,73 @@ function nestedInput() {
   data.boxes = [{ kind: 'drawer', space: { x: 105, z: 52, width: 20, height: 20 } }];
   return data;
 }
+
+describe('IN15b step b physical-section notes', () => {
+  const as = (count, extra = {}) => ({ shelves: { count, ...extra } });
+  const ro = () => ({ shelves: { count: 0 }, rollouts: { count: 2, items: [{ depth: 18 }, { depth: 18 }] } });
+  const zones = (...children) => ({ direction: 'vertical', children,
+    dividers: children.slice(1).map(() => ({ kind: 'zone' })) });
+
+  it.each([
+    ['1', zones(as(2), ro()), [], ['2 as', '2 ro - 18"']],
+    ['2', { ...zones(as(2), ro(), as(3)), dividers: [{ kind: 'zone' }, { kind: 'fixed', at: 20.5 }] },
+      ['fs up 20 1/2" oc'], ['Top Sec (2 as, 2 ro - 18")', 'Btm Sec (3 as)']],
+    ['3', zones(as(2), ro(), as(2)), [], ['4 as', '2 ro - 18"']],
+    ['4', zones(ro(), { ...ro(), lineBore: true }), [], ['NLB', '4 ro - 18"']],
+    ['4b', zones({ ...ro(), lineBore: true }, ro()), [], ['4 ro - 18"']],
+    ['5', zones(as(2, { glass: true }), as(2)), [], ['2 as (1/4" glass)', '2 as']],
+  ])('anchor %s: combines notes across zones', (_, tree, dividers, sections) => {
+    const settings = { ...DEFAULT_SETTINGS, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h' };
+    const box = { x: 0, z: 0, width: 24, height: 84, depth: 24 };
+    const leaf = { interior: tree };
+    const interior = resolveInterior(tree, box, boxConstruction(leaf), settings);
+    const args = { interior, faces: [{ ...box, type: 'door' }], leaf, settings };
+    const rollouts = sectionRollouts(args);
+    const data = { ...args, rollouts, shelves: sectionShelves({ ...args, rollouts }), roomSlideId: 'blum-562h' };
+    const before = structuredClone(data);
+    expect(interiorNotes(data)).toEqual({ dividers, sections, fronts: null });
+    expect(data).toEqual(before);
+  });
+
+  it('combines nested zone-only members in item order while keeping real-divider subtrees separate', () => {
+    const data = input(zones(zones({}, {}), {}, group('horizontal', [{}, {}])), [
+      ['r.0.0', S(2, { nosing: { kind: 'hardwood' }, shoe: { count: 1 } })],
+      ['r.0.1', S(1, { nosing: { kind: 'folded' }, shoe: { count: 2 } })],
+      ['r.1', S(3, { nosing: { kind: 'hardwood' } })],
+      ['r.2.0', S(1)], ['r.2.1', S(2)],
+    ], [divider('zone'), divider('zone', { index: 1 }), divider('zone', { path: 'r.0' }),
+      divider('partition', { path: 'r.2', fromLeft: 15, dimFrom: 'left' })]);
+    const members = ['r.0.0', 'r.0.1', 'r.1'];
+    data.interior.physicalSections = [
+      { key: members[0], members, x: 100, z: 70, width: 30, height: 40 },
+      ...data.interior.sections.filter(({ path }) => path.startsWith('r.2'))
+        .map((section) => ({ ...section, key: section.path, members: [section.path] })),
+    ];
+    data.faces = [{ type: 'drawer_front', path: 'drawer', x: 105, z: 80, width: 20, height: 10 }];
+    data.depths = new Map([['drawer', 18]]);
+    data.shelves.get('r.0.0').lineBore = false;
+    data.shelves.get('r.0.0').lineBoreSource = 'manual';
+    data.boxes = [{ space: { x: 105, z: 80, width: 20, height: 10 } }];
+    data.rollouts = new Map([
+      ['r.0.0', { rollouts: [rollout(18, 105)] }],
+      ['r.0.1', { rollouts: [rollout(21, 95, { slideId: 'other', slide: { name: 'Other' } })] }],
+      ['r.1', { rollouts: [rollout(18, 75)] }],
+    ]);
+    data.accessories = new Map(members.map((path, index) => [path, { lineBoreRow: true, items: [
+      { accessory: { name: `Rod ${index + 1}`, attachesTo: 'section' }, qty: 1 },
+    ] }]));
+    // All member flags have already been resolved from the first member.
+    members.forEach((path) => { data.shelves.get(path).lineBore = false; });
+    const before = structuredClone(data);
+    expect(interiorNotes(data)).toEqual({ dividers: [], fronts: null, sections: [
+      'Top Sec (NLB, DF\'s (1 - 10", 18" drw), 5 as, no banding - add 1 1/2" nosing, 1 as, +2" as depth - FF to cut & fold for 1 1/2" nosing, 3 shoe shelves, 2 ro - 18", 1 ro - 21" (Other), Rod 1, Rod 2, Rod 3)',
+      'Btm Sec (pt 15" oc from L, Left Sec (1 as), Right Sec (2 as))',
+    ] });
+    expect(data).toEqual(before);
+    members.forEach((path) => { data.shelves.get(path).lineBore = true; });
+    expect(interiorNotes(data).sections[0]).toContain('3 shoe shelves, 3rd row lb, 2 ro - 18"');
+  });
+});
 
 describe('IN13b step c shoe shelf notes', () => {
   it('orders flat shelves, shoes, third-row line bore, roll-outs and accessories without changing inputs', () => {

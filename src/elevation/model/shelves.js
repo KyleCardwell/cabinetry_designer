@@ -105,13 +105,26 @@ export function sectionShelves({ interior, faces, boxes = [], leaf, settings, ro
       thickness, glass, glassSource: source('glass'), nosing, nosingSource: source('nosing'),
       banding: glass ? null : !nosing,
       positions: Array.from({ length: count }, (_, index) => zone.z + gap + index * (visible + gap)),
-      hinges: node.hinges ?? covering.some(sideHinged),
-      hingesSource: node.hinges === undefined ? 'auto' : 'manual',
       shoe,
-      lineBore: node.lineBore ?? count + shoeCount > 0,
-      lineBoreSource: node.lineBore === undefined ? 'auto' : 'manual',
       warnings,
     });
+  }
+  // A zone changes shelf placement, but all its physical-section members share shop flags.
+  const physicalSections = interior.physicalSections ?? interior.sections.map((section) => ({ members: [section.path] }));
+  const sections = new Map(interior.sections.map((section) => [section.path, section]));
+  for (const { members } of physicalSections) {
+    const node = getInteriorNode(interior.tree, members[0]) ?? {};
+    const lineBore = node.lineBore ?? members.some((path) => {
+      const shelf = result.get(path);
+      return shelf.count + (shelf.shoe?.count ?? 0) > 0;
+    });
+    const hinges = node.hinges ?? members.some((path) => faces.some((face) => sideHinged(face) && covers(face, sections.get(path))));
+    for (const path of members) {
+      Object.assign(result.get(path), {
+        lineBore, lineBoreSource: node.lineBore === undefined ? 'auto' : 'manual',
+        hinges, hingesSource: node.hinges === undefined ? 'auto' : 'manual',
+      });
+    }
   }
   return result;
 }

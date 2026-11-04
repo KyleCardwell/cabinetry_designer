@@ -83,41 +83,53 @@ export function interiorNotes({
   faces = [], slideNames = new Map(), depths = new Map(), accessoryTags = new Map(),
 }) {
   const setting = (key) => settings?.[key] ?? DEFAULT_SETTINGS[key];
-  const dividersFor = (path) => interior.dividers.filter((divider) => divider.path === path)
+  const dividersFor = (path) => interior.dividers.filter((divider) => divider.path === path && divider.kind !== 'zone')
     .sort((a, b) => a.index - b.index).map((divider) => dividerNote(divider, settings));
-  const sections = new Map(interior.sections.map((section) => [section.path, section]));
+  const physicalSections = interior.physicalSections ?? interior.sections.map((section) => ({
+    ...section, key: section.path, members: [section.path],
+  }));
+  const sections = new Map(physicalSections.map((section) => [section.key, section]));
+  const physicalByPath = new Map(physicalSections.flatMap(({ key, members }) => members.map((path) => [path, key])));
 
   // A drawer front belongs to the section holding its centre, as its drawer box does (IN5).
   const frontsIn = (section) => faces.filter((face) => face.type === 'drawer_front'
     && inside(face.x + face.width / 2, face.z + face.height / 2, section));
 
   /** One item per note: flags first (Kyle 2026-10-19), then drawer fronts, shelves, roll-outs and accessories. */
-  const leafContents = (path) => {
-    const shelf = shelves.get(path);
-    const accessoryEntry = accessories.get(path);
-    const section = sections.get(path);
+  const leafContents = (key) => {
+    const section = sections.get(key);
+    const shelf = shelves.get(section.members[0]);
     // Match shelfZone's ownership test, including ROT and hamper drawer spaces.
     const hasBox = section && boxes.some(({ space }) => inside(space.x + space.width / 2, space.z + space.height / 2, section));
     const flags = [['lineBore', 'NLB'], ['hinges', 'NPH (No Doors)']]
       .filter(([flag]) => shelf?.[flag] === false && (!hasBox || shelf[`${flag}Source`] === 'manual'))
       .map(([, text]) => text);
     const notes = [flags.join(', '), section ? drawerFrontNote(frontsIn(section), slideNames, depths, accessoryTags) : null];
-    if (shelf?.count > 0) {
-      let text = `${shelf.count} as`;
-      if (shelf.glass) text += ` (${formatInch(setting('glassShelfThickness'))} glass)`;
-      else if (shelf.nosing?.kind === 'hardwood') {
-        text += `, no banding - add ${formatInch(setting('shelfNosingHeight'))} nosing`;
-      } else if (shelf.nosing?.kind === 'folded') {
-        text += `, +${formatInch(setting('foldedNosingExtra'))} as depth - FF to cut & fold for ${formatInch(setting('shelfNosingHeight'))} nosing`;
+    const shelfCounts = new Map();
+    let shoeCount = 0;
+    let thirdRow = false;
+    for (const path of section.members) {
+      const member = shelves.get(path);
+      if (member?.count > 0) {
+        let text = 'as';
+        if (member.glass) text += ` (${formatInch(setting('glassShelfThickness'))} glass)`;
+        else if (member.nosing?.kind === 'hardwood') {
+          text += `, no banding - add ${formatInch(setting('shelfNosingHeight'))} nosing`;
+        } else if (member.nosing?.kind === 'folded') {
+          text += `, +${formatInch(setting('foldedNosingExtra'))} as depth - FF to cut & fold for ${formatInch(setting('shelfNosingHeight'))} nosing`;
+        }
+        shelfCounts.set(text, (shelfCounts.get(text) ?? 0) + member.count);
       }
-      notes.push(text);
+      const shoes = member?.shoe?.count ?? 0;
+      shoeCount += shoes;
+      if ((member?.count ?? 0) + shoes > 0 && accessories.get(path)?.lineBoreRow && member.lineBore) thirdRow = true;
     }
-    const shoeCount = shelf?.shoe?.count ?? 0;
+    notes.push(...[...shelfCounts].map(([text, count]) => `${count} ${text}`));
     if (shoeCount > 0) notes.push(`${shoeCount} shoe ${shoeCount === 1 ? 'shelf' : 'shelves'}`);
-    if ((shelf?.count ?? 0) + shoeCount > 0 && accessoryEntry?.lineBoreRow && shelf.lineBore) notes.push('3rd row lb');
+    if (thirdRow) notes.push('3rd row lb');
     // All roll-out groups are one note, like the DF's.
-    notes.push(rolloutNotes(rollouts.get(path), roomSlideId).join(', '));
-    notes.push((accessoryEntry?.items ?? [])
+    notes.push(rolloutNotes({ rollouts: section.members.flatMap((path) => rollouts.get(path)?.rollouts ?? []) }, roomSlideId).join(', '));
+    notes.push(section.members.flatMap((path) => accessories.get(path)?.items ?? [])
       .filter(({ accessory }) => accessory?.attachesTo === 'section')
       .map(({ accessory, qty, orderedLength }) =>
         `${qty > 1 ? `${qty} ` : ''}${accessoryText(accessory)}${orderedLength == null ? '' : ` - ${formatInch(orderedLength)}`}`)
@@ -125,22 +137,27 @@ export function interiorNotes({
     return notes.filter(Boolean);
   };
 
-  const childNotes = (path, node) => node.children.flatMap((_, index) => {
-    const childPath = `${path}.${index}`;
-    const child = getInteriorNode(interior.tree, childPath);
+  // Collapse zone-only subtrees and adjacent members before counting/naming report sections.
+  const reportTree = (path, node) => {
+    if (!node.children) return { key: physicalByPath.get(path) };
+    const children = node.children.map((child, index) => reportTree(`${path}.${index}`, child))
+      .filter((child, index, all) => !child.key || child.key !== all[index - 1]?.key);
+    return children.length === 1 && children[0].key ? children[0] : { path, direction: node.direction, children };
+  };
+  const childNotes = (node) => node.children.flatMap((child, index) => {
     const contents = child.children
-      ? [...dividersFor(childPath), ...childNotes(childPath, child)].join(', ')
-      : leafContents(childPath).join(', ');
+      ? [...dividersFor(child.path), ...childNotes(child)].join(', ')
+      : leafContents(child.key).join(', ');
     if (!contents) return [];
     const name = sectionName(node.direction, node.children.length, index);
     return [`${name}${name.startsWith('Sec ') ? '' : ' Sec'} (${contents})`];
   });
-  const root = getInteriorNode(interior.tree, 'r');
-  const outside = faces.filter((face) => !interior.sections.some((section) => frontsIn(section).includes(face)));
+  const root = reportTree('r', getInteriorNode(interior.tree, 'r'));
+  const outside = faces.filter((face) => !physicalSections.some((section) => frontsIn(section).includes(face)));
   return {
     // One section prints each item on its own line; named sections join them inside their parentheses.
     dividers: root.children ? dividersFor('r') : [],
-    sections: root.children ? childNotes('r', root) : leafContents('r'),
+    sections: root.children ? childNotes(root) : leafContents(root.key),
     fronts: drawerFrontNote(outside, slideNames, depths, accessoryTags),
   };
 }

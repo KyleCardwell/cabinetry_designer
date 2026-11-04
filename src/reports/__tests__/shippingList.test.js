@@ -430,6 +430,18 @@ describe('IN10 step b interior shipping notes', () => {
       { width: 24, ...overrides }),
   ], {}, {}, s);
 
+  it('IN15b anchor 1: prints one combined physical section for shelves above zone-separated roll-outs', () => {
+    const r = fixture({ interior: {
+      direction: 'vertical', dividers: [{ kind: 'zone' }], children: [
+        { shelves: { count: 2 } },
+        { shelves: { count: 0 }, rollouts: { count: 2, items: [{ depth: 18 }, { depth: 18 }] } },
+      ],
+    } }, { cabinetTypeId: 3, height: 84 });
+    const before = structuredClone(r);
+    expect(row(r).notes).toEqual(['2 as', '2 ro - 18"', 'hl']);
+    expect(r).toEqual(before);
+  });
+
   it('anchor 1: puts one adjustable shelf between the full top and left hinge', () => {
     expect(row(fixture()).notes).toEqual(['full top', '1 as', 'hl']);
   });

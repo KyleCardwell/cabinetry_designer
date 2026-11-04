@@ -36,6 +36,46 @@ function input({ width = 24, height = 30.5, depth = 24, x = 0, z = 0, leaf: patc
 const shelves = (options) => sectionShelves(input(options));
 const root = (options) => shelves(options).get('r');
 
+describe('IN15b step b physical-section flags', () => {
+  it('shares auto flags and first-member picks across zones, keeping real sections independent', () => {
+    for (const shelves of [{ count: 2 }, { count: 0, shoe: 2 }, { count: 0 }]) {
+      for (const pick of [undefined, false, true]) {
+        for (const ignored of [false, true]) {
+          const flags = pick === undefined ? {} : { lineBore: pick, hinges: pick };
+          const args = input({ height: 84, leaf: { interior: {
+            direction: 'vertical', dividers: [{ kind: 'zone' }, { kind: 'fixed', at: 20.5 }],
+            children: [
+              { shelves: { count: 0 }, ...flags },
+              { shelves, lineBore: ignored, hinges: ignored },
+              { shelves: { count: 0 } },
+            ],
+          } } });
+          const middle = args.interior.sections[1];
+          // Only the second zone has a side-hinged door; the physical section still needs hinge plates.
+          args.faces = [{ type: 'door', hinge: 'left', x: middle.x, z: middle.z,
+            width: middle.width, height: middle.height }];
+          const before = structuredClone(args);
+          const resolved = sectionShelves(args);
+          const expected = {
+            lineBore: pick ?? (shelves.count + (shelves.shoe ?? 0) > 0),
+            hinges: pick ?? true,
+            lineBoreSource: pick === undefined ? 'auto' : 'manual',
+            hingesSource: pick === undefined ? 'auto' : 'manual',
+          };
+          expect(resolved.get('r.0')).toMatchObject(expected);
+          expect(resolved.get('r.1')).toMatchObject(expected);
+          expect(resolved.get('r.2')).toMatchObject({ lineBore: false, hinges: false,
+            lineBoreSource: 'auto', hingesSource: 'auto' });
+          args.faces[0].hinge = 'top';
+          expect(sectionShelves(args).get('r.0').hinges).toBe(pick ?? false);
+          args.faces[0].hinge = 'left';
+          expect(args).toEqual(before);
+        }
+      }
+    }
+  });
+});
+
 function roomWith(leaves, { width = 24 * leaves.length, height = 30.5, depth = 24,
   cabinetTypeId = CABINET_TYPE_IDS.BASE } = {}) {
   const run = buildRun({ id: 'run', cabinetTypeId, x: 24, width, z: 4, height, depth,
