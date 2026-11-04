@@ -13,7 +13,7 @@ import { doorDrawing } from './doorDetails.js';
 import { elevationSwingMarks } from './swingMarks.js';
 import { elevationPulls } from './pullLayouts.js';
 import { elevationPartNumbers } from './elevationPartNumbers.js';
-import { planParts } from './planParts.js';
+import { planParts, planShapes } from './planParts.js';
 import { planDimensions } from './planDimensions.js';
 import { planMarks } from './planMarks.js';
 import { combinedViewOf } from './combinedElevations.js';
@@ -21,6 +21,7 @@ import { combinedElevationPayload } from './combinedPayload.js';
 import { wallShowThrough } from './showThrough.js';
 import { glassMarks } from './glassMarks.js';
 import { openingGeometry } from './openings.js';
+import { runLegs } from './legs.js';
 
 export const DRAWING_PAYLOAD_VERSION = 1;
 
@@ -86,9 +87,16 @@ export function faceDoorDetails(room, wall, side, settings, sourceParts) {
  * accessory shapes and glass marks. Measure snaps to all of it (FX5).
  */
 export function faceDrawing(room, wall, side, settings, options) {
+  const view = resolveWall(room, wall, side);
+  const legs = view.runs.flatMap((run) => runLegs(room, view, run, settings)
+    .map((placed) => ({ ...placed, runId: run.id })));
   const sourceParts = faceParts(room, wall, side, settings, options);
   // Geometry accepts details in doorDetails only, never on the parts themselves.
   const parts = sourceParts.map(({ doorDetail, ...part }) => part); // eslint-disable-line no-unused-vars
+  parts.push(...legs.map(({ leg, runId, bounds, front, back }) => ({
+    id: leg.id, kind: 'leg', runId, ...bounds, front, back,
+    coversBoxEdges: false, opaque: false, openEdges: ['left', 'right', 'top', 'bottom'],
+  })));
   const partIds = new Set(parts.map(({ id }) => id));
   const doorDetails = faceDoorDetails(room, wall, side, settings, sourceParts);
   const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);
@@ -108,12 +116,20 @@ export function faceDrawing(room, wall, side, settings, options) {
         mirror: drawing.mirror,
       } } : {}),
     })));
+  shapes.push(...legs.map(({ leg, shapeName, stretched, outlines, insert }) => ({
+    partId: leg.id,
+    kind: 'leg',
+    depth: 0,
+    loops: outlines.map(({ closed, outline }) => ({ closed, points: outline })),
+    ...(!stretched ? { block: {
+      name: shapeBlockName(shapeName, leg.shapeId), ...insert, mirror: leg.mirror === true,
+    } } : {}),
+  })));
   const glass = showThrough.flatMap(({ glass }) => glass);
   const openingsByPart = new Map(glass.map(({ partId, openings }) => [partId, openings]));
   for (const part of parts) {
     if (part.kind === 'face' && openingsByPart.has(part.id)) part.holes = openingsByPart.get(part.id);
   }
-  const view = resolveWall(room, wall, side);
   const glassMarksOut = [
     ...glass.map(({ partId, marks }) => ({ partId, lines: marks })),
     ...(view.openings ?? []).filter(({ kind }) => kind === 'window').map((opening) => ({
@@ -160,6 +176,7 @@ function facePayload(room, wall, side, key, letter, settings, options) {
  * HP5 its pulls; CE combines every saved group into one elevation; IN14 its visible interiors and glass.
  */
 export function toDrawingPayload(room, settings, { revision } = {}) {
+  const shapes = planShapes(room, settings);
   const elevations = Array.from(elevationLetters(room), ([key, letter]) => {
     const wall = room.walls.find((candidate) => WALL_SIDES.some(
       (side) => elevationKey(candidate.id, side) === key,
@@ -188,6 +205,7 @@ export function toDrawingPayload(room, settings, { revision } = {}) {
       parts: planParts(room, settings),
       dimensions: planDimensions(room, settings),
       marks: planMarks(room, settings),
+      ...(shapes.length ? { shapes } : {}),
     },
   };
 }

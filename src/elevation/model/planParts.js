@@ -1,5 +1,6 @@
 import { cellPieces } from './cells.js';
 import { layoutRun, runFaceLayouts } from './faceLayouts.js';
+import { runLegs } from './legs.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
 import { openingGeometry } from './openings.js';
 import { wallEndPanelPartKey } from './parts.js';
@@ -16,7 +17,25 @@ function flipPoint({ x, y }) {
 }
 
 function planPoints(frame, points) {
-  return points.map(([u, v]) => flipPoint(elevationToPlan(frame, u, v)));
+  // The final y flip reverses arcs when the wall-to-plan frame preserves orientation.
+  const mirrored = frame.r.x * frame.n.y - frame.r.y * frame.n.x > 0;
+  return points.map(([u, v, bulge]) => {
+    const point = flipPoint(elevationToPlan(frame, u, v));
+    return bulge === undefined ? point : [...point, (mirrored ? -bulge : bulge) || 0];
+  });
+}
+
+/** Placed leg outlines in the same y-up plan coordinates as the room's parts. */
+export function planShapes(room, settings) {
+  return room.walls.flatMap((stored) => (stored.runs ?? []).flatMap((run) => {
+    const side = wallSideOf(run);
+    const frame = wallSideFrame(room, stored, side);
+    const wall = resolveWall(room, stored, side);
+    return runLegs(room, wall, run, settings).map(({ leg, plan }) => ({
+      id: leg.id, kind: 'leg', top: plan.top,
+      loops: plan.loops.map(({ closed, points }) => ({ closed, points: planPoints(frame, points) })),
+    }));
+  }));
 }
 
 function rectangle(u0, u1, v0, v1) {
