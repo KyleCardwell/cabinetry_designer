@@ -6,7 +6,7 @@ import { panelOrientation } from '../elevation/model/cells.js';
 import { frontDepth, runBackOffset } from '../elevation/model/corners.js';
 import { panelLevels, resolveDoorStyle } from '../elevation/model/doorStyleResolve.js';
 import { sheetThickness } from '../elevation/model/doorStyles.js';
-import { elevationParts } from '../elevation/model/elevationParts.js';
+import { deckZ, elevationParts } from '../elevation/model/elevationParts.js';
 import { frameMembers, regionOpenings } from '../elevation/model/frames.js';
 import { furnitureBaseGroups } from '../elevation/model/furnitureBaseGroups.js';
 import { wallLength } from '../elevation/model/geometry.js';
@@ -314,6 +314,7 @@ function cabinetNotes(room, settings, part, context) {
   const fullTop = box.top === 'between' || box.top === 'overlay';
   const base = listedTypeId(run, piece) === CABINET_TYPE_IDS.BASE;
   const layout = scene.faceLayouts.get(part.key);
+  const deckRise = deckZ(layout, settings);
   const faces = layout?.faces ?? [];
   const roomSlideId = resolveSlide(settings).id;
   const drawerData = context.drawerData();
@@ -364,6 +365,8 @@ function cabinetNotes(room, settings, part, context) {
       box.finTop ? 'fin top (dowel front holes)' : null,
       box.finBottom ? 'fin bottom (dowel front holes)' : null,
     ],
+    1.8: box.bottom === 'between' && deckRise > 0
+      ? `deck up ${formatInch(deckRise + sheetThickness(settings) / 2)} (with supports)` : null,
     2: reveals.length ? `RV's (${reveals.join(', ')})` : null,
     2.5: [
       box.bottom === 'none' ? 'no deck' : null,

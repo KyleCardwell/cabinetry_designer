@@ -42,7 +42,7 @@ export function frameRegionOutline(region) {
  * moves it with the rail. A rail that hangs below the box (uppers, hanging bases, a shared rail)
  * leaves 3/4" or less, so the deck stays at the bottom. Euro decks stay at the bottom.
  */
-function deckZ(layout, settings) {
+export function deckZ(layout, settings) {
   if (!layout || !isInsetStyle(layout.style)) return 0;
   return Math.max(0, (layout.reveals.values.bottom ?? 0) - sheetThickness(settings));
 }

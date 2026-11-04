@@ -470,6 +470,7 @@ describe('IN10 step b interior shipping notes', () => {
       expect(interior.dividers).toHaveLength(1);
       const banding = cabinetStyleId === 14 ? ', no banding' : '';
       expect(row(r).notes).toEqual([
+        ...(cabinetStyleId === 14 ? ['deck up 1 1/8" (with supports)'] : []),
         `fs up ${formatInch(interior.dividers[0].fromBottom)} oc${banding}`,
         `Top Sec (${data.shelves.get('cab').get('r.0').count} as)`,
         `Btm Sec (${data.shelves.get('cab').get('r.1').count} as)`, 'hl',
@@ -1688,7 +1689,7 @@ describe('FX2 stacked tall cabinets on the shipping list', () => {
   it('calls the floor box of a stack a base with its full top, and notes both 3/4" seam reveals (face frame)', () => {
     const r = tall(14);
     expect(row(r, 'lower')).toMatchObject({ description: 'Base' });
-    expect(row(r, 'lower').notes.slice(0, 2)).toEqual(['full top', 'RV\'s (3/4" T)']);
+    expect(row(r, 'lower').notes.slice(0, 3)).toEqual(['full top', 'deck up 1 1/8" (with supports)', 'RV\'s (3/4" T)']);
     expect(row(r, 'upper')).toMatchObject({ description: 'Tall Open' });
     expect(row(r, 'upper').notes[0]).toBe('RV\'s (3/4" B)');
   });
