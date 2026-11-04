@@ -36,6 +36,13 @@ export function isPanelOnlyRun(run) {
       || (leaf.kind === 'panel' && Number.isFinite(leaf.depth)));
 }
 
+/** A run with shelves and only shelves, panels or voids. */
+export function isShelvesOnlyRun(run) {
+  const leaves = run.grid ? gridLeaves(run.grid) : [];
+  return leaves.some((leaf) => leaf.kind === 'shelves')
+    && leaves.every((leaf) => ['shelves', 'panel', 'void'].includes(leaf.kind));
+}
+
 /**
  * A run that's only panels (SPEC-38), as a wall end panel meets it (SPEC-43): how far its outermost panel
  * face sits from the wall face, and that panel's thickness. Null for any other run.

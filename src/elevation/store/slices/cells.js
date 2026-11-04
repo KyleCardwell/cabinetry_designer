@@ -1,10 +1,11 @@
 import { v4 as uuid } from 'uuid';
 import { isExtendTarget } from '../../model/extensions.js';
-import { removeRootColumn, rootItems, setGridCellBlind } from '../../model/grid.js';
+import { removeRootColumn, replaceRootItems, rootItems, runItems, setGridCellBlind } from '../../model/grid.js';
+import { isFollowAnchor, isJointAnchor } from '../../model/joints.js';
 import { isSheetCell, panelThickness } from '../../model/panelThickness.js';
 import { resolveProfile } from '../../model/profile.js';
 import { defaultsForType } from '../../model/runDefaults.js';
-import { isPanelOnlyRun } from '../../model/wallEndPanels.js';
+import { isPanelOnlyRun, isShelvesOnlyRun } from '../../model/wallEndPanels.js';
 import {
   addGridPanel,
   columnLayoutOf,
@@ -198,10 +199,20 @@ export const cellReducers = {
     if (!location) return;
     const { cellId, kind } = action.payload;
     const wasPanelOnly = isPanelOnlyRun(location.run);
+    const wasShelvesOnly = isShelvesOnlyRun(location.run);
     const before = location.run.grid;
     const found = findCell(before, cellId);
     let grid = setGridCellKind(before, cellId, kind);
     if (grid === before) return;
+    if (kind === 'shelves' && found.depth === 0 && location.run.autoCount
+      && before.rows.length === 1) {
+      const items = runItems(location.run);
+      const others = items.filter((item) => item.id !== cellId);
+      if (others.every((item) => item.kind === 'cabinet' && item.width === null
+        && Object.keys(item).every((key) => ['id', 'kind', 'width'].includes(key)))) {
+        grid = replaceRootItems(grid, runItems({ grid }).filter((item) => item.id === cellId));
+      }
+    }
     if (kind === 'panel') {
       grid = setGridPanelType(grid, cellId, found.axis === 'row' ? 'top' : 'side',
         panelThickness(location.room, location.wall, location.run, findLeaf(grid, cellId), settingsFor(state, location.room), { sheet: isSheetCell(findLeaf(grid, cellId)) }));
@@ -214,6 +225,15 @@ export const cellReducers = {
       location.run.depth = defaultsForType(location.run.cabinetTypeId, settings, profile).depth;
     }
     if (found.depth === 0) location.run.autoCount = false;
+    if (!wasShelvesOnly && isShelvesOnlyRun(location.run)) {
+      for (const side of ['left', 'right']) {
+        const anchor = location.run.anchors?.[side];
+        if (!isJointAnchor(anchor) && !isFollowAnchor(anchor)) {
+          location.run.ends[side] = { type: 'none', width: null };
+        }
+      }
+      location.run.top = 'none';
+    }
     if (state.selection.pieceId === cellId && kind !== 'cabinet') {
       state.facePath = null;
       state.interiorPath = null;

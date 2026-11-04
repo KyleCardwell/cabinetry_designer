@@ -1,5 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { syncRoom } from '../../model/roomSync.js';
+import { CABINET_TYPE_IDS } from '../../model/constants.js';
+import { faceFrontOffset, frontDepth } from '../../model/corners.js';
+import { runScene } from '../../model/runScene.js';
+import { isShelvesOnlyRun } from '../../model/wallEndPanels.js';
 import {
   describe,
   expect,
@@ -41,6 +45,7 @@ import elevationReducer, {
   splitItem,
   unlockItem,
   unsplitCell,
+  updateRun,
   wrapCell,
 } from '../elevationSlice.js';
 import {
@@ -74,6 +79,129 @@ it('setCellBaseUnder sets and clears only void and panel leaves', () => {
   expect(leaf(panel).baseUnder).toBe(true);
   const cabinet = elevationReducer(panel, setCellKind({ ...at, cellId, kind: 'cabinet' }));
   expect(leaf(cabinet)).not.toHaveProperty('baseUnder');
+});
+
+describe('FS1 a shelves-only runs', () => {
+  const at = { wallId: 'wall-1', runId: 'run-1' };
+
+  it('anchors 1 and 6: collapses auto cabinets into one full-width shelves piece with no ends or Top', () => {
+    let state = stateWithRun(run({ cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+      width: 72, z: 54, height: 36, depth: 12, top: 'crown', items: [auto('a')] }));
+    state = elevationReducer(state, updateRun({ ...at, changes: { autoCount: true } }));
+    expect(runItems(currentRun(state))).toHaveLength(2);
+    expect(frontDepth(currentRun(state), state.settings))
+      .toBe(12 + faceFrontOffset(currentRun(state), state.settings));
+
+    state = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
+    const changed = currentRun(state);
+    expect(runItems(changed)).toEqual([expect.objectContaining({ id: 'a', kind: 'shelves', width: null })]);
+    expect(changed.ends).toEqual({ left: { type: 'none', width: null }, right: { type: 'none', width: null } });
+    expect(changed.top).toBe('none');
+    expect(changed.autoCount).toBe(false);
+    expect(frontDepth(changed, state.settings)).toBe(12);
+    const storedRoom = state.rooms[0];
+    const scene = runScene(storedRoom, storedRoom.walls[0], changed, state.settings);
+    expect(scene.drawnPieces).toEqual([expect.objectContaining({ id: 'a', kind: 'shelves', width: 72 })]);
+  });
+
+  it('anchor 2: preserves a second cabinet with a face and leaves ends and Top unchanged', () => {
+    let state = stateWithRun(run({ cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+      width: 72, z: 54, height: 36, depth: 12, top: 'crown', items: [auto('a')] }));
+    state = elevationReducer(state, updateRun({ ...at, changes: { autoCount: true } }));
+    const secondId = runItems(currentRun(state))[1].id;
+    state = elevationReducer(state, setItemFace({ ...at, itemIds: [secondId], face: { type: 'pair_door', size: null } }));
+    const before = currentRun(state);
+    state = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
+    const changed = currentRun(state);
+    expect(runItems(changed).map(({ id, kind }) => ({ id, kind })))
+      .toEqual([{ id: 'a', kind: 'shelves' }, { id: secondId, kind: 'cabinet' }]);
+    expect(isShelvesOnlyRun(changed)).toBe(false);
+    expect(changed.ends).toEqual(before.ends);
+    expect(changed.top).toBe(before.top);
+    expect(changed.autoCount).toBe(false);
+  });
+
+  it('anchor 3: keeps a manual-count run intact when its fixed-width cabinet becomes shelves', () => {
+    const state = stateWithRun(run({ autoCount: false, top: 'crown', items: [fixed('a', 30), auto('b')] }));
+    const next = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
+    expect(runItems(currentRun(next))).toEqual([
+      expect.objectContaining({ id: 'a', kind: 'shelves', width: 30 }), auto('b'),
+    ]);
+    expect(isShelvesOnlyRun(currentRun(next))).toBe(false);
+    expect(currentRun(next).ends).toEqual(currentRun(state).ends);
+    expect(currentRun(next).top).toBe('crown');
+    expect(currentRun(next).autoCount).toBe(false);
+  });
+
+  it('anchor 4: leaves joint and follow ends to their existing rules', () => {
+    for (const to of ['joint', 'follow']) {
+      let state = stateWithRun(run({ cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+        x: 24, width: 72, z: 54, height: 36, depth: 12, top: 'crown',
+        anchors: { left: to === 'joint' ? { to, jointId: 'J1', offset: 0 }
+          : { to, runId: 'tall', side: 'right', offset: 0 }, right: false },
+        ends: { left: { type: 'none', width: null, auto: true }, right: { type: 'filler', width: null } },
+        items: [auto('a')] }));
+      state.rooms[0].walls[0].joints = to === 'joint' ? [{ id: 'J1', x: 24 }] : [];
+      state.rooms[0].walls[0].runs.push(run({ id: 'tall', cabinetTypeId: CABINET_TYPE_IDS.TALL,
+        x: 0, width: 24, z: 4, height: 90, depth: 24, autoCount: false,
+        anchors: { left: false, right: to === 'joint' ? { to, jointId: 'J1', offset: 0 } : false },
+        ends: { left: { type: 'none', width: null }, right: { type: 'end_panel', width: null, auto: true } },
+        items: [auto('tall-cell')] }));
+      state = elevationReducer(state, updateRun({ ...at, changes: { autoCount: true } }));
+      expect(runItems(currentRun(state))).toHaveLength(2);
+      const before = currentRun(state).ends.left;
+      state = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
+      expect(runItems(currentRun(state))).toHaveLength(1);
+      expect(currentRun(state).ends.left).toEqual(before);
+      expect(currentRun(state).ends.left.auto).toBe(true);
+      expect(currentRun(state).ends.right).toEqual({ type: 'none', width: null });
+      expect(currentRun(state).top).toBe('none');
+      if (to === 'joint') expect(state.rooms[0].walls[0].runs[1].ends.right.type).toBe('end_panel');
+    }
+  });
+
+  it('anchor 7: keeps None ends and Top after changing shelves back to a cabinet', () => {
+    let state = stateWithRun(run({ cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+      width: 72, z: 54, height: 36, depth: 12, top: 'crown', items: [auto('a')] }));
+    state = elevationReducer(state, updateRun({ ...at, changes: { autoCount: true } }));
+    state = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
+    state = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'cabinet' }));
+    expect(currentRun(state).ends).toEqual({ left: { type: 'none', width: null }, right: { type: 'none', width: null } });
+    expect(currentRun(state).top).toBe('none');
+    expect(isShelvesOnlyRun(currentRun(state))).toBe(false);
+  });
+
+  it('preserves user-edited siblings and never collapses nested cells or multi-row roots', () => {
+    for (const extra of [{ style: { cabinetStyleId: 14 } }, { width: 30 },
+      { grid: run({ id: 'nested', items: [auto('inner')] }).grid }, { gap: 0 }]) {
+      const state = stateWithRun(run({ top: 'crown', items: [auto('a'), { ...auto('b'), ...extra }] }));
+      const next = elevationReducer(state, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
+      expect(runItems(currentRun(next))).toHaveLength(2);
+      expect(runItems(currentRun(next))[1]).toEqual(runItems(currentRun(state))[1]);
+      expect(currentRun(next).ends).toEqual(currentRun(state).ends);
+      expect(currentRun(next).top).toBe('crown');
+    }
+    let nested = stateWithRun(run({ cabinetTypeId: CABINET_TYPE_IDS.UPPER,
+      width: 72, z: 54, height: 36, depth: 12, items: [auto('a'), auto('b')] }));
+    nested = elevationReducer(nested, splitCell({ ...at, cellId: 'a', direction: 'down', count: 2 }));
+    // Keep auto count on to prove that the nested cell itself blocks the collapse.
+    nested = { ...nested, rooms: structuredClone(nested.rooms) };
+    currentRun(nested).autoCount = true;
+    const leafId = gridLeaves(currentRun(nested).grid)[0].id;
+    const next = elevationReducer(nested, setCellKind({ ...at, cellId: leafId, kind: 'shelves' }));
+    expect(runItems(currentRun(next))).toHaveLength(2);
+    expect(gridLeaves(currentRun(next).grid)).toHaveLength(3);
+    expect(currentRun(next).autoCount).toBe(true);
+
+    const multi = stateWithRun(run({ items: [auto('a'), auto('b')] }));
+    const grid = currentRun(multi).grid;
+    grid.rows.push({ id: 'second-row', size: null, sizeMode: 'auto' });
+    grid.cells[1] = { ...grid.cells[1], col: 0, row: 1 };
+    grid.cols.length = 1;
+    const changed = elevationReducer(multi, setCellKind({ ...at, cellId: 'a', kind: 'shelves' }));
+    expect(gridLeaves(currentRun(changed).grid).map(({ kind }) => kind)).toEqual(['shelves', 'cabinet']);
+    expect(currentRun(changed).grid.rows).toHaveLength(2);
+  });
 });
 
 describe('cabinet faces', () => {
