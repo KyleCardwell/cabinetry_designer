@@ -9,12 +9,13 @@ import {
   Text,
 } from 'react-konva';
 import { KIND_COLORS } from '../model/constants.js';
-import { cornerAt } from '../model/corners.js';
+import { cornerAt, frontDepth } from '../model/corners.js';
 import { doorDrawing, runDoorDetails } from '../model/doorDetails.js';
 import { regionOpenings } from '../model/frames.js';
 import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { placedAt } from '../model/layoutLines.js';
+import { runLegs } from '../model/legs.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { runStepSides } from '../model/columnSteps.js';
 import { runBands } from '../model/runBands.js';
@@ -31,6 +32,7 @@ import FaceOutlines from './FaceOutlines.jsx';
 import FrameOutline, { FRAME_STROKE } from './FrameOutline.jsx';
 import InteriorShapes from './InteriorShapes.jsx';
 import InteriorDimensions from './InteriorDimensions.jsx';
+import LegShapes from './LegShapes.jsx';
 import PieceRect from './PieceRect.jsx';
 import Pulls from './Pulls.jsx';
 import SwingMarks from './SwingMarks.jsx';
@@ -79,6 +81,8 @@ function RunGroup({
   const cursorKeys = useCursorKeys(cursor);
   const highlight = runHighlight(selectedRun, selectedPieceId, selectedFacePath);
   const scene = useMemo(() => runScene(room, wall, run, settings), [room, run, settings, wall]);
+  const legs = useMemo(() => runLegs(room, wall, run, settings), [room, wall, run, settings]);
+  const legFront = frontDepth(run, settings) - 1e-6;
   const drawing = doorDrawing(room);
   const doorDetails = useMemo(
     () => runDoorDetails(room, wall, run, settings, scene),
@@ -136,6 +140,15 @@ function RunGroup({
   const selectRun = (event) => {
     event.cancelBubble = true;
     onSelectRun(run.id);
+  };
+  const legProps = {
+    transform, listening: !preview,
+    onSelect: (event, leg) => {
+      event.cancelBubble = true;
+      onSelectRun(run.id, { legId: leg.id });
+    },
+    onMouseEnter: () => cursorKeys.request('leg', CURSORS.select),
+    onMouseLeave: () => cursorKeys.release('leg'),
   };
 
   const edgeXFor = (side) => (
@@ -248,6 +261,7 @@ function RunGroup({
 
   return (
     <Group opacity={preview ? 0.72 : 1}>
+      <LegShapes {...legProps} legs={legs.filter(({ front }) => front < legFront)} />
       {bands.toeKicks.map((band, index) => (
         <Rect
           key={`toeKick:${index}`}
@@ -504,6 +518,8 @@ function RunGroup({
           onSelectFace={onSelectFace}
         />
       ))}
+
+      <LegShapes {...legProps} legs={legs.filter(({ front }) => front >= legFront)} />
 
       {showDimensions && (
         <CellChains

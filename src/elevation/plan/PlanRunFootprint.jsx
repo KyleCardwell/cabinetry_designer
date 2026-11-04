@@ -16,6 +16,7 @@ import { splitRun } from '../model/splitRun.js';
 import { formatDimension } from '../model/units.js';
 import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
 import { depthDimension } from './depthDimension.js';
+import PlanLegs from './PlanLegs.jsx';
 import { readableRotation } from './textRotation.js';
 
 const DEPTH_TICK_HALF_LENGTH = 4;
@@ -223,6 +224,12 @@ export default function PlanRunFootprint({
           hitStrokeWidth={8 / scale}
         />
       ))}
+      <PlanLegs room={room} wall={wall} run={run} settings={settings}
+        frame={frame} scale={scale} stroke={outline}
+        onSelect={(event) => {
+          event.cancelBubble = true;
+          onSelect(event, { runId: run.id, wallId: wall.id });
+        }} />
       {depthLinePieces.map((points, index) => (
         <Line
           key={`depth-line:${index}`}

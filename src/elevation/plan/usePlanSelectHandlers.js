@@ -100,14 +100,21 @@ export default function usePlanSelectHandlers({
     dispatch(setView('elevation'));
   }, [dispatch, entry, tool]);
 
-  const handleRunSelect = useCallback((event) => {
+  const handleRunSelect = useCallback((event, legRun) => {
     if (entry) {
       event.cancelBubble = true;
       return;
     }
     if (tool !== 'select') return;
+    if (legRun) {
+      event.cancelBubble = true;
+      closePicker();
+      dispatch(setActiveWall(legRun.wallId));
+      dispatch(setSelection({ runId: legRun.runId, pieceId: null }));
+      return;
+    }
     pickAt(event);
-  }, [entry, pickAt, tool]);
+  }, [closePicker, dispatch, entry, pickAt, tool]);
 
   const handleOpeningSelect = useCallback((event, targetOpeningId) => {
     if (entry) {

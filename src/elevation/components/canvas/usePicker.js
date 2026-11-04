@@ -25,8 +25,13 @@ export default function usePicker({
     if (candidate.interior) dispatch(setInteriorPath(candidate.interior));
   }, [dispatch]);
 
-  const pickWith = useCallback((prefer) => {
+  const pickWith = useCallback((prefer, legRunId = null) => {
     if (tool !== 'select' || suppressClickRef.current || !room || !wall || !transform) return;
+    if (legRunId) {
+      apply({ selection: { runId: legRunId } });
+      setPicker(null);
+      return;
+    }
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
     const candidates = pickStack(room, wall, settings, screenToWall(pointer, transform), { doorsOff, scale: transform.scale });
@@ -42,7 +47,7 @@ export default function usePicker({
     } : null);
   }, [apply, context, doorsOff, room, settings, stageRef, suppressClickRef, tool, transform, wall]);
 
-  const pick = useCallback(() => pickWith(null), [pickWith]);
+  const pick = useCallback((runId, target) => pickWith(null, target?.legId ? runId : null), [pickWith]);
   const pickFace = useCallback(() => pickWith('face'), [pickWith]);
   const pickInterior = useCallback(() => pickWith('interior'), [pickWith]);
   const closePicker = useCallback(() => setPicker(null), []);
