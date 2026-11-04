@@ -7,8 +7,10 @@ import { cabinetInterior } from '../../model/interiors.js';
 import { gridLeaves } from '../../model/grid.js';
 import { resolveWall } from '../../model/room.js';
 import { runScene } from '../../model/runScene.js';
-import elevationReducer, { setInteriorPath, setItemInterior, setItemShelves } from '../../store/elevationSlice.js';
-import { fixed, run as makeRun, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
+import elevationReducer, { createInitialElevationState, setInteriorPath, setItemInterior, setItemShelves } from '../../store/elevationSlice.js';
+import { stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
+import { fixed, run as makeRun, room as makeRoom, wall as makeWall } from '../../../test/builders.js';
+import { wallInteriorData } from '../../model/shelves.js';
 import BoxConstructionFields from './BoxConstructionFields.jsx';
 import FaceProperties from './FaceProperties.jsx';
 import InteriorFields from './InteriorFields.jsx';
@@ -456,7 +458,7 @@ describe('IN13b step d shoe shelf controls', () => {
   it('anchor 1: stores shoe count on the effective section and shows hardwood dimensions after the flat size', () => {
     expect(field('Shoe shelves r').props).toMatchObject({ value: undefined, allowBlank: true, placeholder: '0' });
     const fields = nodes(render()).filter(({ type }) => type === InchInput);
-    expect(fields[fields.findIndex(({ props }) => props['aria-label'] === 'Shelf count r') + 1]
+    expect(fields[fields.findIndex(({ props }) => props['aria-label'] === 'Shelf bottom r') + 1]
       .props['aria-label']).toBe('Shoe shelves r');
     expect(commit('Shoe shelves r', 2)).toBe(true);
     expectInterior({ shelves: { shoe: 2 } });
@@ -974,5 +976,134 @@ describe('IN13a step d placed accessory controls', () => {
     expect(warning('Sticks out the front of the section by 1/2".').props.className).toContain('text-amber-400');
     commit('Accessory up r.0', null);
     expect(text(render())).not.toContain('Sticks out');
+  });
+});
+
+
+describe('IN15c step b stack placement controls', () => {
+  beforeEach(() => {
+    state = createInitialElevationState({ rooms: [makeRoom({ walls: [makeWall({ runs: [makeRun({
+      width: 24, height: 31.5, x: 24, z: 40, autoCount: false,
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+      items: [{ ...fixed('c1', 24), face: { type: 'door', size: null, hinge: 'left' } }],
+    })] })] })], activeRoomId: 'room-1', activeWallId: 'wall-1' });
+    state.settings.drawerSlideId = 'blum-562h';
+    select('r');
+  });
+
+  const data = () => wallInteriorData(room(), wall(), 'front', state.settings);
+  const shelves = () => data().shelves.get('c1').get('r');
+  const boxes = () => data().rollouts.get('c1').get('r').rollouts;
+  const positions = () => {
+    const actual = data();
+    const bottom = actual.interiors.get('c1').sections.find(({ path }) => path === 'r').z;
+    return actual.shelves.get('c1').get('r').positions.map((z) => z - bottom);
+  };
+  const type = (label, value) => {
+    const props = field(label).props;
+    hookIndex = 10;
+    hookState[10] = value;
+    InchInput(props).props.onBlur();
+  };
+  const amber = () => nodes(render()).filter(({ type, props }) => type === 'p'
+    && props.className?.includes('text-amber-400')).map(text);
+
+  it('anchors 1–2: shows Auto bottom and Equal top, then updates spacing and doors-off positions', () => {
+    expect(data().interiors.get('c1').sections[0].height).toBe(30);
+    expect(field('Shelf count r').props.placeholder).toBe('Auto (1)');
+    expect(field('Shelf bottom r').props).toMatchObject({ value: undefined, placeholder: '14 5/8',
+      allowBlank: true, allowAuto: true });
+    hookIndex = 10;
+    hookState[10] = '';
+    expect(InchInput(field('Shelf bottom r').props).props.className).toContain('placeholder:text-gray-500');
+    expect(field('Shelf top mode r').props.value).toBe('equal');
+    expect(options(field('Shelf top mode r'))).toEqual([['equal', 'Equal'], ['from-top', 'From top']]);
+    expect(field('Shelf from top r')).toBeUndefined();
+    const labels = nodes(render()).filter(({ props }) => props.label).map(({ props }) => props.label);
+    expect(labels.slice(labels.indexOf('Adj. shelves'), labels.indexOf('Adj. shelves') + 3))
+      .toEqual(['Adj. shelves', 'Bottom', 'Top']);
+
+    type('Shelf bottom r', '12');
+    change('Shelf top mode r', 'from-top');
+    type('Shelf from top r', '0');
+    commit('Shelf count r', 2);
+    expect(item().interior.shelves).toEqual({ count: 2, bottom: 12, top: 0 });
+    expect(field('Shelf bottom r').props.value).toBe(12);
+    expect(field('Shelf from top r').props.value).toBe(0);
+    expect(text(field('Shelf spacing r'))).toBe('16 1/2 clear between shelves');
+    expect(positions()).toEqual([12, 29.25]);
+    expect(shelves().gap).toBe(16.5);
+
+    type('Shelf bottom r', '');
+    expect(item().interior.shelves).toEqual({ count: 2, top: 0 });
+    expect(field('Shelf bottom r').props.placeholder).toBe('14 1/4');
+    change('Shelf top mode r', 'equal');
+    expect(item().interior.shelves).toEqual({ count: 2 });
+    type('Shelf count r', 'auto');
+    expect(field('Shelf bottom r').props.placeholder).toBe('14 5/8');
+  });
+
+  it('anchor 3: shows slide clearance, positions roll-out boxes and displays spacing for 2+ auto boxes', () => {
+    expect(field('Roll-out bottom r').props.disabled).toBe(true);
+    expect(field('Roll-out top mode r').props.disabled).toBe(true);
+    commit('Roll-out count r', 2);
+    expect(field('Roll-out bottom r').props).toMatchObject({ placeholder: '9/16', value: undefined,
+      allowBlank: true, allowAuto: true, disabled: false });
+    expect(field('Roll-out top mode r').props.value).toBe('equal');
+    change('Roll-out top mode r', 'from-top');
+    type('Roll-out from top r', '18');
+    expect(item().interior.rollouts).toEqual({ count: 2, top: 18 });
+    expect(boxes().map(({ at }) => at)).toEqual([0.5625, 7.75]);
+    expect(text(field('Roll-out spacing r'))).toBe('Spacing 2 15/16"');
+
+    type('Roll-out bottom r', '2');
+    commit('Roll-out at r.0', 3);
+    expect(boxes().map(({ at }) => at)).toEqual([3, 7.75]);
+    expect(field('Roll-out spacing r')).toBeUndefined();
+    commit('Roll-out at r.1', 20);
+    expect(boxes().map(({ at }) => at)).toEqual([3, 20]);
+    type('Roll-out bottom r', 'auto');
+    expect(item().interior.rollouts).not.toHaveProperty('bottom');
+    expect(item().interior.rollouts.top).toBe(18);
+    change('Roll-out top mode r', 'equal');
+    expect(item().interior.rollouts).not.toHaveProperty('top');
+    edit(() => {
+      state.settings.slides = state.settings.slides.map((slide) => slide.id === 'accuride-3832'
+        ? { ...slide, minBelow: 0.125 } : slide);
+    });
+    change('Roll-out slide r.0', 'accuride-3832');
+    expect(field('Roll-out bottom r').props.placeholder).toBe('1/8');
+    commit('Roll-out count r', 1);
+    expect(field('Roll-out spacing r')).toBeUndefined();
+  });
+
+  it('validates ends, clears Bottom independently, and renders the stack warnings in amber', () => {
+    commit('Shelf count r', 1);
+    type('Shelf bottom r', '12');
+    change('Shelf top mode r', 'from-top');
+    expect(amber()).toContain('Top ignored with one shelf');
+    expect(field('Shelf spacing r')).toBeUndefined();
+    commit('Roll-out count r', 2);
+    type('Shelf bottom r', '0');
+    expect(amber()).toContain('Shelves reach into the roll-outs');
+    commit('Shelf count r', 2);
+    type('Shelf bottom r', '29');
+    expect(amber()).toContain("Don't fit");
+    change('Roll-out top mode r', 'from-top');
+    type('Roll-out from top r', '24');
+    expect(amber()).toContain("Don't fit");
+    commit('Roll-out count r', 1);
+    expect(amber()).toContain('Top ignored with one roll-out');
+    for (const prefix of ['Shelf', 'Roll-out']) {
+      const before = state;
+      for (const bad of [-1, NaN, Infinity]) {
+        expect(commit(`${prefix} bottom r`, bad)).toBe(false);
+        expect(commit(`${prefix} from top r`, bad)).toBe(false);
+      }
+      type(`${prefix} from top r`, '');
+      expect(state).toBe(before);
+      type(`${prefix} bottom r`, '');
+      expect(item().interior[prefix === 'Shelf' ? 'shelves' : 'rollouts']).not.toHaveProperty('bottom');
+    }
   });
 });

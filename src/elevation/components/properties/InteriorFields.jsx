@@ -54,6 +54,9 @@ const WARNING_MESSAGES = {
   'rollout-hinge-unknown': 'The door has no hinge side, so the roll-out has spacers on both sides.',
   'rollout-pair-invalid': 'Side by side needs 2 roll-outs behind a pair door; stacked instead.',
   'rollout-too-narrow': 'No roll-out fits this width.',
+  'shelves-into-fills': 'Shelves reach into the roll-outs',
+  'stack-doesnt-fit': "Don't fit",
+  'stack-top-ignored': 'Top ignored with one shelf',
   'shelves-crowded': 'Adjustable shelves have less than 3" of clear space between them.',
   'section-too-small': 'A section is smaller than 1". Move a divider.',
   'divider-too-deep': 'A divider is deeper than the box interior.',
@@ -130,10 +133,15 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
     const autoCount = sectionShelves({ ...args,
       interior: { ...placed, tree: setSectionShelves(interior, path, { count: null }) },
     }).get(path);
+    const section = placed.sections.find((section) => section.path === path);
+    const autoBottom = sectionShelves({ ...args,
+      interior: { ...placed, tree: setSectionShelves(interior, path, { bottom: null }) },
+    }).get(path)?.positions[0] - section?.z;
+    const rolloutBottom = rollout && rollout.zone.z - section.z + rollout.rollouts[0].slide.minBelow;
     const autoFlags = sectionShelves({ ...args,
       interior: { ...placed, tree: setSectionFlag(setSectionFlag(interior, flagPath, 'hinges', null), flagPath, 'lineBore', null) },
     }).get(path);
-    return { shelves, autoCount, autoFlags, rollouts, rollout, autoLayout, autoItems, accessories: args.accessories.get(path), hasBoxes: boxes.length > 0 };
+    return { shelves, autoCount, autoBottom, rolloutBottom, autoFlags, rollouts, rollout, autoLayout, autoItems, accessories: args.accessories.get(path), hasBoxes: boxes.length > 0 };
   }, [resolved, room, wall, run.id, settings, item, interior, path, flagPath]);
 
   useEffect(() => {
@@ -234,6 +242,30 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                   return patchShelves({ count });
                 } })} />
             </Field>
+            <Field label="Bottom">
+              <InchInput aria-label={`Shelf bottom ${path}`} value={selected.shelves?.bottom}
+                {...autoInchProps({ auto: shelfData.autoBottom, min: 'nonNegative',
+                  onCommit: (bottom) => patchShelves({ bottom }) })} />
+            </Field>
+            <Field label="Top">
+              <select aria-label={`Shelf top mode ${path}`} className={SELECT_CLASS}
+                value={selected.shelves?.top === undefined ? 'equal' : 'from-top'}
+                onChange={(event) => patchShelves({ top: event.target.value === 'equal' ? null : 0 })}>
+                <option value="equal">Equal</option>
+                <option value="from-top">From top</option>
+              </select>
+            </Field>
+            {selected.shelves?.top !== undefined && (
+              <Field label="From top">
+                <InchInput aria-label={`Shelf from top ${path}`} value={selected.shelves.top}
+                  onCommit={(top) => top !== null && patchShelves({ top })} />
+              </Field>
+            )}
+            {shelf.gap !== null && (
+              <p aria-label={`Shelf spacing ${path}`} className="text-xs text-gray-400">
+                {`${size(shelf.gap)} clear between shelves`}
+              </p>
+            )}
             <Field label="Shoe shelves">
               <InchInput aria-label={`Shoe shelves ${path}`} value={selected.shelves?.shoe}
                 {...autoInchProps({ auto: 0, onCommit: (shoe) => {
@@ -289,20 +321,12 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                 {` · ${shelf.shoe.angle}°`}
               </p>
             )}
-            {shelf.gap !== null && (
-              <p aria-label={`Shelf spacing ${path}`} className="text-xs text-gray-400">
-                {`${size(shelf.gap)} clear between shelves`}
-              </p>
-            )}
             {shelf.warnings.map(({ code, clear }) => (
               <p key={code} className="text-xs text-amber-400">
                 {code === 'shoe-shelves-tight'
                   ? `Shoe shelves leave less than ${formatInches(settings.shoeShelfClear ?? DEFAULT_SETTINGS.shoeShelfClear, 1 / 16)} clear above the top one (${formatInches(clear, 1 / 16)} here).`
                   : WARNING_MESSAGES[code]}
               </p>
-            ))}
-            {[...new Set(rollout?.warnings.filter(({ index }) => index === undefined).map(({ code }) => code))].map((code) => (
-              <p key={code} className="text-xs text-amber-400">{WARNING_MESSAGES[code]}</p>
             ))}
           </div>
         )}
@@ -314,6 +338,34 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                 allowBlank allowAuto placeholder="None" className="placeholder:text-gray-500"
                 onCommit={(count) => patchRollouts({ count })} />
             </Field>
+            <Field label="Bottom">
+              <InchInput aria-label={`Roll-out bottom ${path}`} value={selected.rollouts?.bottom}
+                disabled={!rollout}
+                {...autoInchProps({ auto: shelfData.rolloutBottom ?? autoSlide.minBelow, min: 'nonNegative',
+                  onCommit: (bottom) => patchRollouts({ bottom }) })} />
+            </Field>
+            <Field label="Top">
+              <select aria-label={`Roll-out top mode ${path}`} className={SELECT_CLASS} disabled={!rollout}
+                value={selected.rollouts?.top === undefined ? 'equal' : 'from-top'}
+                onChange={(event) => patchRollouts({ top: event.target.value === 'equal' ? null : 0 })}>
+                <option value="equal">Equal</option>
+                <option value="from-top">From top</option>
+              </select>
+            </Field>
+            {selected.rollouts?.top !== undefined && (
+              <Field label="From top">
+                <InchInput aria-label={`Roll-out from top ${path}`} value={selected.rollouts.top}
+                  onCommit={(top) => top !== null && patchRollouts({ top })} />
+              </Field>
+            )}
+            {rollout?.gap != null && rollout.rollouts.filter(({ zSource }) => zSource === 'auto').length >= 2 && (
+              <p aria-label={`Roll-out spacing ${path}`} className="text-xs text-gray-400">
+                {`Spacing ${formatInches(rollout.gap, 1 / 64)}`}
+              </p>
+            )}
+            {[...new Set(rollout?.warnings.filter(({ index }) => index === undefined).map(({ code }) => code))].map((code) => (
+              <p key={code} className="text-xs text-amber-400">{code === 'stack-top-ignored' ? 'Top ignored with one roll-out' : WARNING_MESSAGES[code]}</p>
+            ))}
             {(selected.rollouts?.count === 2 || selected.rollouts?.layout) && (
               <Field label="Layout">
                 <select aria-label={`Roll-out layout ${path}`} className={SELECT_CLASS}
