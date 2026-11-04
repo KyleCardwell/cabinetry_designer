@@ -32,6 +32,27 @@ function storageWith(entries) {
   };
 }
 
+it('IN15e defaults legacy zone gap settings and round-trips explicit settings and divider gaps', () => {
+  const legacy = currentDocument();
+  delete legacy.settings.zoneGap;
+  const normalized = normalizeElevationDocument(legacy);
+  expect(normalized.settings.zoneGap).toBe(1);
+  expect(legacy.settings).not.toHaveProperty('zoneGap');
+  expect(isElevationDocument(normalized)).toBe(true);
+  for (const gap of [0, 2]) {
+    const document = structuredClone(normalized);
+    document.settings.zoneGap = gap;
+    const interior = { direction: 'horizontal', children: [{}, {}], dividers: [{ kind: 'zone', gap }] };
+    document.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = interior;
+    const saved = toElevationDocument(createInitialElevationState(document));
+    globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+    const loaded = loadElevationDocument();
+    expect(isElevationDocument(loaded)).toBe(true);
+    expect(loaded.settings.zoneGap).toBe(gap);
+    expect(gridLeaves(loaded.rooms[0].walls[0].runs[0].grid)[0].interior).toEqual(interior);
+  }
+});
+
 it('IN4c a: defaults missing sandbox slide back clearance by id without changing saved data', () => {
   const document = currentDocument();
   document.settings.slides = structuredClone([

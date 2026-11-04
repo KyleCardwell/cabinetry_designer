@@ -197,6 +197,7 @@ export const DEFAULT_SETTINGS = {
   },
   shelfSpacing: 11,
   shelfWidthClearance: 1 / 16, // per side
+  zoneGap: 1,
   shelfSetback: 1 / 8,
   glassShelfThickness: 1 / 4,
   shelfNosingHeight: 1.5,

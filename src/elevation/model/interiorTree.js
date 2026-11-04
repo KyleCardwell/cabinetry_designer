@@ -9,8 +9,10 @@ const BANDED_KINDS = ['fixed', 'double_fixed'];
 
 function isDivider(divider, direction) {
   return isPlainObject(divider)
-    && Object.keys(divider).every((key) => ['kind', 'at', 'from', 'depth', 'seam', 'banding'].includes(key))
+    && Object.keys(divider).every((key) => ['kind', 'at', 'from', 'depth', 'seam', 'banding', 'gap'].includes(key))
     && INTERIOR_DIVIDERS[direction].includes(divider.kind)
+    && (!Object.hasOwn(divider, 'gap') || (divider.kind === 'zone'
+      && Number.isFinite(divider.gap) && divider.gap >= 0))
     && (!Object.hasOwn(divider, 'at') || (Number.isFinite(divider.at) && divider.at > 0))
     && (!Object.hasOwn(divider, 'depth') || (Number.isFinite(divider.depth) && divider.depth > 0))
     && (!Object.hasOwn(divider, 'seam') || (typeof divider.seam === 'string'
@@ -343,6 +345,19 @@ export function setDividerKind(interior, groupPath, index, kind) {
     if (!INTERIOR_DIVIDERS[direction].includes(kind)) return null;
     const next = { ...divider, kind };
     if (!BANDED_KINDS.includes(kind)) delete next.banding;
+    if (kind !== 'zone') delete next.gap;
+    return next;
+  });
+}
+
+/** Only zones store a gap; null restores the direction's automatic spacing. */
+export function setDividerGap(interior, groupPath, index, gap) {
+  if (gap !== null && !(Number.isFinite(gap) && gap >= 0)) return interior ?? {};
+  return editDivider(interior, groupPath, index, (divider) => {
+    if (divider.kind !== 'zone') return null;
+    const next = { ...divider };
+    if (gap === null) delete next.gap;
+    else next.gap = gap;
     return next;
   });
 }

@@ -41,12 +41,13 @@ function interiorFixture(interior = { direction: 'vertical', children: [{}, {}],
 
 describe('IN3 doors-off picking', () => {
   it('IN15b anchor 2: picks Zone oc 17 1/4 within six screen pixels at every zoom and leaves normal picks alone', () => {
+    // Retain zero-gap hit-band coverage; nonzero-gap picking belongs to IN15e step b.
     for (const direction of ['vertical', 'horizontal']) {
       const stored = makeWall({ runs: [run({
         width: 30, height: 34.5, autoCount: false,
         ends: { left: { type: 'none' }, right: { type: 'none' } },
         items: [{ id: 'cabinet', kind: 'cabinet', width: 30, face: { type: 'door' },
-          interior: { direction, children: [{}, {}], dividers: [{ kind: 'zone' }] } }],
+          interior: { direction, children: [{}, {}], dividers: [{ kind: 'zone', gap: 0 }] } }],
       })] });
       const room = syncRoom(makeRoom({ walls: [stored] }), settings);
       const wall = resolveWall(room, room.walls[0], 'front');

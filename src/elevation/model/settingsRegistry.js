@@ -51,6 +51,7 @@ const roomNumbers = [
   ['prefinishedMapleExtra', 'Pre-finished maple extra width'],
   ['shelfSpacing', 'Min clear between shelves'],
   ['shelfWidthClearance', 'Shelf side clearance'],
+  ['zoneGap', 'Side-by-side zone gap'],
   ['shelfSetback', 'Shelf front setback'],
   ['glassShelfThickness', 'Glass shelf thickness'],
   ['shelfNosingHeight', 'Shelf nosing height'],

@@ -6,7 +6,7 @@ import { newAccessory } from '../model/accessories.js';
 import { wallInteriorData } from '../model/shelves.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { interiorDimensions } from '../model/interiors.js';
-import { setDividerKind, splitSection } from '../model/interiorTree.js';
+import { setDividerGap, setDividerKind, splitSection } from '../model/interiorTree.js';
 import { run, stateWithRun } from '../store/__tests__/helpers/sliceFixtures.js';
 
 vi.mock('react', async (original) => ({ ...await original(), useRef: (current) => ({ current }) }));
@@ -58,7 +58,8 @@ const shoeShapes = (shapes) => nodes(shapes.filter(({ key }) => String(key).star
 describe('IN15b step c doors-off zones', () => {
   it('anchors 1 and 3: draws a dashed, selectable, draggable line at 17 1/4 and a filled shelf at the same centre', () => {
     for (const direction of ['vertical', 'horizontal']) {
-      const tree = splitSection(null, 'r', direction, 2, 'zone');
+      // Retain zero-gap line coverage; nonzero-gap rendering belongs to IN15e step b.
+      const tree = setDividerGap(splitSection(null, 'r', direction, 2, 'zone'), 'r', 0, 0);
       for (const kind of ['zone', 'fixed']) {
         if (direction === 'horizontal' && kind === 'fixed') continue;
         const interior = kind === 'zone' ? tree : setDividerKind(tree, 'r', 0, 'fixed');

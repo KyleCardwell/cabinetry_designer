@@ -81,7 +81,7 @@ export const SETTING_GROUPS = [
   {
     id: 'shelves', label: 'Shelves',
     keys: [
-      'shelfSpacing', 'shelfWidthClearance', 'shelfSetback', 'glassShelfThickness',
+      'shelfSpacing', 'shelfWidthClearance', 'zoneGap', 'shelfSetback', 'glassShelfThickness',
       'shelfNosingHeight', 'shelfNosingThickness', 'foldedNosingExtra',
       'shoeShelfAngle', 'shoeShelfClear',
     ],

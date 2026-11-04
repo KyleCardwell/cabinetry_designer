@@ -1107,7 +1107,7 @@ describe('IN15d step b sink zones and mounting messages', () => {
   const data = () => wallInteriorData(room(), wall(), 'front', state.settings);
   const notice = 'Split into side-by-side zones at the pair doors';
 
-  it('anchors 1 and 3: splits at the pair seam, keeps shipping grouped, then converts to a narrower partition', () => {
+  it('anchors 1 and 3: splits at the pair seam, keeps shipping grouped, then converts to a partition', () => {
     commit('Roll-out count r', 1);
     commit('Roll-out height r.0', 5);
     commit('Roll-out count r', 2);
@@ -1123,7 +1123,7 @@ describe('IN15d step b sink zones and mounting messages', () => {
     const actual = data();
     expect(actual.interiors.get('c1').dividers[0]).toMatchObject({ kind: 'zone', linked: true, fromLeft: 18 });
     expect([...actual.rollouts.get('c1').values()].map(({ rollouts, warnings }) => [rollouts.length, rollouts[0].width, warnings]))
-      .toEqual([[1, 15.5, []], [1, 15.5, []]]);
+      .toEqual([[1, 15, []], [1, 15, []]]);
     const shapes = nodes(InteriorShapes({ entries: [...actual.interiors.values()], drawnPieces: [],
       shelves: actual.shelves, rollouts: actual.rollouts, accessories: actual.accessories,
       transform: { scale: 8, offsetX: 20, offsetY: 30, wallHeight: 96 }, selectedPieceId: 'c1' }));

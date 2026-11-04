@@ -149,6 +149,7 @@ export {
   removeDivider,
   setDividerBanding,
   setDividerDepth,
+  setDividerGap,
   setDividerKind,
   setDividerPosition,
   setSectionShelves,

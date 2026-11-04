@@ -5,7 +5,7 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS, INTERIOR_DIVIDERS, INTERIOR_DIVIDER
 import { cabinetDrawerBoxes } from '../drawerBoxes.js';
 import { cabinetFaces } from '../faces.js';
 import {
-  isStoredInterior, setDividerBanding, setDividerDepth, setDividerKind, setDividerPosition, splitSection,
+  isStoredInterior, setDividerBanding, setDividerDepth, setDividerGap, setDividerKind, setDividerPosition, splitSection,
 } from '../interiorTree.js';
 import { placeInterior, resolveInterior } from '../interiors.js';
 import { shelfZone } from '../shelves.js';
@@ -17,6 +17,84 @@ const construction = boxConstruction({ box: { top: 'between', bottom: 'between' 
 const settings = { ...DEFAULT_SETTINGS, slides: BUILT_IN_SLIDES, drawerSlideId: 'blum-562h' };
 const resolve = (tree, dimensions = box, context) => resolveInterior(tree, dimensions, construction, settings, context);
 const zones = (direction = 'vertical', count = 2) => splitSection({}, 'r', direction, count, 'zone');
+
+describe('IN15e zone gap model', () => {
+  it('validates zone-only finite nonnegative gaps, edits nested zones immutably and clears to Auto', () => {
+    for (const direction of ['horizontal', 'vertical']) {
+      const tree = zones(direction);
+      const before = structuredClone(tree);
+      for (const gap of [0, 2]) {
+        const changed = setDividerGap(tree, 'r', 0, gap);
+        expect(changed.dividers[0].gap).toBe(gap);
+        expect(isStoredInterior(changed)).toBe(true);
+        expect(setDividerGap(changed, 'r', 0, gap)).toBe(changed);
+        expect(setDividerGap(changed, 'r', 0, null)).toEqual(tree);
+        const real = setDividerKind(changed, 'r', 0, direction === 'horizontal' ? 'partition' : 'fixed');
+        expect(real.dividers[0]).not.toHaveProperty('gap');
+        expect(setDividerGap(real, 'r', 0, gap)).toBe(real);
+        expect(setDividerGap(real, 'r', 0, null)).toBe(real);
+        expect(setDividerKind(real, 'r', 0, 'zone').dividers[0]).not.toHaveProperty('gap');
+        expect(isStoredInterior({ ...real, dividers: [{ ...real.dividers[0], gap }] })).toBe(false);
+      }
+      for (const gap of [-1, Infinity, NaN, '1', undefined, null]) {
+        expect(isStoredInterior({ ...tree, dividers: [{ kind: 'zone', gap }] })).toBe(false);
+        expect(setDividerGap(tree, 'r', 0, gap)).toBe(tree);
+      }
+      expect(setDividerGap(tree, 'r.9', 0, 1)).toBe(tree);
+      expect(setDividerGap(tree, 'r', -1, 1)).toBe(tree);
+      expect(setDividerGap(tree, 'r', 0.5, 1)).toBe(tree);
+      expect(tree).toEqual(before);
+    }
+    const nested = splitSection(zones(), 'r.0', 'horizontal', 2, 'zone');
+    const changed = setDividerGap(nested, 'r.0', 0, 2);
+    expect(changed.children[0].dividers[0].gap).toBe(2);
+    expect(changed.children[1]).toBe(nested.children[1]);
+    expect(nested.children[0].dividers[0]).not.toHaveProperty('gap');
+  });
+
+  it('anchor 6: a 30 inch up/down interior defaults to zero gap and honors a stored gap', () => {
+    const dimensions = { ...box, height: 31.5 };
+    const tree = zones();
+    const result = resolve(tree, dimensions);
+    expect(result.rect.height).toBe(30);
+    expect(result.dividers[0]).toMatchObject({ fromBottom: 15.75, height: 0, gap: 0, gapAuto: true });
+    expect(result.sections.map(({ z, height }) => [z, height])).toEqual([[15.75, 15], [0.75, 15]]);
+    const manual = resolve(setDividerGap(tree, 'r', 0, 2), dimensions);
+    expect(manual.dividers[0]).toMatchObject({ fromBottom: 15.75, height: 2, gap: 2, gapAuto: false });
+    expect(manual.sections.map(({ height }) => height)).toEqual([14, 14]);
+  });
+
+  it('anchor 8: three equal side zones share the clear width after both gaps', () => {
+    const result = resolve(zones('horizontal', 3), { ...box, width: 36 });
+    for (const section of result.sections) expect(section.width).toBeCloseTo(10 + 5 / 6, 10);
+    expect(result.dividers.map(({ gap, gapAuto }) => [gap, gapAuto])).toEqual([[1, true], [1, true]]);
+    expect(result.physicalSections[0]).toMatchObject({ x: 0.75, width: 34.5 });
+    const fallback = resolveInterior(zones('horizontal'), { ...box, width: 36 }, construction);
+    expect(fallback.dividers[0]).toMatchObject({ gap: 1, gapAuto: true });
+  });
+
+  it('uses the existing section-too-small warning for an excessive gap', () => {
+    const result = resolve(setDividerGap(zones('horizontal'), 'r', 0, 40));
+    expect(result.sections.map(({ width }) => width)).toEqual([0, 0]);
+    expect(result.warnings).toEqual([
+      { code: 'section-too-small', path: 'r.0' }, { code: 'section-too-small', path: 'r.1' },
+    ]);
+  });
+
+  it('keeps a zero shop setting and shares clear space around mixed zone gaps and real partitions', () => {
+    const tree = zones('horizontal');
+    const zero = resolveInterior(tree, box, construction, { zoneGap: 0 });
+    expect(zero.dividers[0]).toMatchObject({ gap: 0, gapAuto: true, width: 0 });
+    expect(zero.sections.map(({ width }) => width)).toEqual([11.25, 11.25]);
+    let mixed = setDividerGap(zones('horizontal', 4), 'r', 0, 2);
+    mixed = setDividerPosition(setDividerKind(mixed, 'r', 1, 'partition'), 'r', 1, 18);
+    mixed = setDividerGap(mixed, 'r', 2, 0);
+    const result = resolve(mixed, { ...box, width: 36 });
+    expect(result.sections.map(({ width }) => width)).toEqual([7.4375, 7.4375, 8.4375, 8.4375]);
+    expect(result.dividers.map(({ gap, gapAuto }) => [gap, gapAuto]))
+      .toEqual([[2, false], [null, false], [0, false]]);
+  });
+});
 
 describe('IN15b zone divider model', () => {
   it('appends Zone to both families, validates its stored picks and keeps the default split kinds', () => {
@@ -144,7 +222,7 @@ describe('IN15b zone divider model', () => {
       expect(resolve(setDividerKind(zoneTree, 'r', 0, kind)).dividers[0]).toMatchObject({ [dimension]: 8, depth: 10 });
       expect(tree).toEqual(before);
     }
-    expect(resolve(zones('horizontal')).dividers[0]).toMatchObject({ fromLeft: 12, width: 0, dimFrom: 'left' });
+    expect(resolve(zones('horizontal')).dividers[0]).toMatchObject({ fromLeft: 12, width: 1, dimFrom: 'left' });
   });
 
   it('links zones to face seams without counting them as partitions or generating them automatically', () => {
@@ -156,7 +234,7 @@ describe('IN15b zone divider model', () => {
     const tree = { ...zones('horizontal'), dividers: [{ kind: 'zone', seam: 'r:pair' }] };
     expect(isStoredInterior(tree)).toBe(true);
     const result = resolve(tree, dimensions, context);
-    expect(result.dividers[0]).toMatchObject({ fromLeft: 24, linked: true, seam: 'r:pair', width: 0 });
+    expect(result.dividers[0]).toMatchObject({ fromLeft: 24, linked: true, seam: 'r:pair', width: 1 });
     expect(result.warnings).toContainEqual({ code: 'wide-no-partition' });
     expect(resolve(undefined, dimensions, context).dividers.map(({ kind }) => kind)).toEqual(['partition']);
   });

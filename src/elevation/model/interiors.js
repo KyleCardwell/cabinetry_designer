@@ -125,7 +125,9 @@ export function resolveInterior(interior, box, construction, settings, context) 
       return { zoneOnly: true, physicalSections: [{ key: path, ...clear, depth, members: [path] }] };
     }
     const stacked = node.direction === 'vertical';
-    const thicknesses = node.dividers.map(({ kind }) => kind === 'zone' ? 0 : kind.startsWith('double_') ? 2 * t : t);
+    const thicknesses = node.dividers.map(({ kind, gap }) => kind === 'zone'
+      ? gap ?? (stacked ? 0 : settings?.zoneGap ?? 1)
+      : kind.startsWith('double_') ? 2 * t : t);
     const seams = node.dividers.map((divider, index) => (
       seamCenter(divider.seam, node.direction, thicknesses[index], box, context)
     ));
@@ -150,6 +152,7 @@ export function resolveInterior(interior, box, construction, settings, context) 
         width: stacked ? clear.width : thickness,
         height: stacked ? thickness : clear.height,
         depth: dividerDepth, ...dimensions, auto, depthAuto,
+        gap: zone ? thickness : null, gapAuto: zone && divider.gap === undefined,
         seam: divider.seam ?? null, linked: auto && seams[index] !== null,
         banding: banded ? divider.banding ?? !context?.inset : null,
         bandingSource: banded ? divider.banding === undefined ? 'auto' : 'manual' : null,

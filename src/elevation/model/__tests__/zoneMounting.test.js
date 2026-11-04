@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { auto, room, run, wall } from '../../../test/builders.js';
 import {
   DEFAULT_SETTINGS, BUILT_IN_SLIDES, isInteriorNode, newAccessory, pairSeam,
-  removeDivider, setDividerKind, setDividerPosition, splitSection, splitSinkRollouts,
+  removeDivider, setDividerGap, setDividerKind, setDividerPosition, splitSection, splitSinkRollouts,
 } from '../index.js';
 import { wallInteriorData } from '../shelves.js';
 
@@ -12,33 +12,50 @@ const settings = { ...DEFAULT_SETTINGS, slides: BUILT_IN_SLIDES, drawerSlideId: 
   accessories: [rod, fixed] };
 const door = { type: 'pair_door', size: null };
 
-function resolve(interior, { purpose, face = door, width = 36, x = 24, z = 40 } = {}) {
+function resolve(interior, { purpose, face = door, width = 36, x = 24, z = 40, zoneGap = settings.zoneGap } = {}) {
   const cabinet = { ...auto('c'), face, interior, ...(purpose ? { purpose } : {}) };
   const r = run({ width, x, z, items: [cabinet], autoCount: false,
     ends: { left: { type: 'none' }, right: { type: 'none' } } });
   const w = wall({ runs: [r] });
-  const data = wallInteriorData(room({ walls: [w] }), w, 'front', settings);
+  const data = wallInteriorData(room({ walls: [w] }), w, 'front', { ...settings, zoneGap });
   return Object.fromEntries(Object.entries(data).map(([key, entries]) => [key, entries.get('c')]));
 }
 
 const codes = (warnings) => warnings.map(({ code }) => code);
 
+describe('IN15e sink zone gaps', () => {
+  it.each([
+    [0, 1, 17.25, 15.5],
+    [2, 1, 16.25, 14.5],
+    [null, 0.5, 17, 15.25],
+  ])('gap %s with setting %s leaves section width %s and roll-out width %s', (gap, zoneGap, clear, width) => {
+    const tree = setDividerGap(splitSinkRollouts({}, 'r', 'r:pair'), 'r', 0, gap);
+    const data = resolve(tree, { purpose: 'sink', zoneGap });
+    expect(data.interiors.dividers[0]).toMatchObject({ fromLeft: 18, linked: true,
+      gap: gap ?? zoneGap, gapAuto: gap === null, width: gap ?? zoneGap });
+    expect(data.interiors.sections.map(({ width }) => width)).toEqual([clear, clear]);
+    expect([...data.rollouts.values()].map(({ rollouts }) => rollouts[0].width)).toEqual([width, width]);
+  });
+});
+
 describe('IN15d a zones and mounting', () => {
-  it('anchor 1: splits a Euro sink at the linked pair seam into two 15 1/2 roll-outs without warnings', () => {
+  it('anchor 1: splits a Euro sink at the linked pair seam into two 15 inch roll-outs with the default zone gap without warnings', () => {
     const tree = splitSinkRollouts({}, 'r', 'r:pair');
     expect(tree).toEqual({ direction: 'horizontal', dividers: [{ kind: 'zone', seam: 'r:pair' }],
       children: [{ rollouts: { count: 1 } }, { rollouts: { count: 1 } }] });
     expect(isInteriorNode(tree)).toBe(true);
     const data = resolve(tree, { purpose: 'sink' });
-    expect(data.interiors.dividers[0]).toMatchObject({ fromLeft: 18, seam: 'r:pair', linked: true });
-    expect(data.interiors.sections.map(({ width }) => width)).toEqual([17.25, 17.25]);
+    expect(data.interiors.dividers[0]).toMatchObject({ fromLeft: 18, seam: 'r:pair', linked: true, gap: 1, gapAuto: true, width: 1 });
+    expect(data.interiors.sections.map(({ x, width }) => [x - 24, width]))
+      .toEqual([[0.75, 16.75], [18.5, 16.75]]);
+    expect(data.interiors.physicalSections[0]).toMatchObject({ x: 24.75, width: 34.5 });
     expect(data.interiors.sections.map(({ edges }) => edges)).toEqual([
       { left: 'box', right: 'zone', top: 'box', bottom: 'box' },
       { left: 'zone', right: 'box', top: 'box', bottom: 'box' },
     ]);
     expect([...data.rollouts.values()].map(({ rollouts, warnings }) => ({ width: rollouts[0].width,
       count: rollouts.length, warnings }))).toEqual([
-      { width: 15.5, count: 1, warnings: [] }, { width: 15.5, count: 1, warnings: [] },
+      { width: 15, count: 1, warnings: [] }, { width: 15, count: 1, warnings: [] },
     ]);
     expect(data.interiors.warnings).toEqual([]);
     for (const entry of data.rollouts.values()) {
@@ -48,7 +65,9 @@ describe('IN15d a zones and mounting', () => {
   });
 
   it('anchor 2: converting the linked zone to a partition gives two 15 1/8 roll-outs without warnings', () => {
-    const tree = setDividerKind(splitSinkRollouts({}, 'r', 'r:pair'), 'r', 0, 'partition');
+    const tree = setDividerKind(setDividerGap(splitSinkRollouts({}, 'r', 'r:pair'), 'r', 0, 2),
+      'r', 0, 'partition');
+    expect(tree.dividers[0]).not.toHaveProperty('gap');
     const data = resolve(tree, { purpose: 'sink' });
     expect([...data.rollouts.values()].map(({ rollouts, warnings }) => [rollouts[0].width, warnings]))
       .toEqual([[15.125, []], [15.125, []]]);

@@ -80,6 +80,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'prefinishedMapleExtra',
   'shelfSpacing',
   'shelfWidthClearance',
+  'zoneGap',
   'shelfSetback',
   'glassShelfThickness',
   'shelfNosingHeight',

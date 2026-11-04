@@ -46,7 +46,7 @@ describe('IN2 interior rectangles', () => {
     expect(result.dividers).toEqual([{
       path: 'r', index: 0, kind: 'fixed', x: 0.75, z: 41.625, width: 22.5, height: 0.75,
       depth: 23, fromBottom: 42, dimFrom: 'bottom', auto: true, depthAuto: true,
-      seam: null, linked: false, banding: true, bandingSource: 'auto',
+      gap: null, gapAuto: false, seam: null, linked: false, banding: true, bandingSource: 'auto',
     }]);
   });
 
@@ -63,7 +63,7 @@ describe('IN2 interior rectangles', () => {
     expect(result.dividers[1]).toEqual({
       path: 'r.0', index: 0, kind: 'partition', x: 17.625, z: 36.375, width: 0.75, height: 46.875,
       depth: 23, fromLeft: 18, fromRight: 18, dimFrom: 'left', auto: true, depthAuto: true,
-      seam: null, linked: false, banding: null, bandingSource: null,
+      gap: null, gapAuto: false, seam: null, linked: false, banding: null, bandingSource: null,
     });
     expect(result.sections.map(({ path }) => path)).toEqual(['r.0.0', 'r.0.1', 'r.1']);
     expect(section(result, 'r.0.0')).toMatchObject({ x: 0.75, width: 16.875 });

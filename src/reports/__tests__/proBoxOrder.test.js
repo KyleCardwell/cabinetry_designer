@@ -151,7 +151,7 @@ describe('ProBox order model', () => {
     ], { partNumberOverrides: { sink: 1, drawers: 2 } });
     expect(tuples(order(r))).toEqual([
       [2, 1, 4.25, 16, 18, 'notch drw around plumbing'],
-      [2, 2, 10.25, 16, 18, 'notch drw around plumbing'], [1, 2, 4.25, 15.5, 18, 'Scoop'],
+      [2, 2, 10.25, 16, 18, 'notch drw around plumbing'], [1, 2, 4.25, 15, 18, 'Scoop'],
     ]);
   });
 
