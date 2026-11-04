@@ -69,6 +69,14 @@ describe('step rounding', () => {
 });
 
 describe('formatInches with a finer step', () => {
+  it('reduces fractions when equal spacing divides sixteenths into thirds or fifths', () => {
+    expect(formatInches(12 + 2 / 3, 1 / 48)).toBe('12 2/3"');
+    expect(formatInches(14.5, 1 / 48)).toBe('14 1/2"');
+    expect(formatInches(-2 / 3, 1 / 48)).toBe('-2/3"');
+    expect(formatInches(1 / 5, 1 / 80)).toBe('1/5"');
+    expect(formatInches(15, 1 / 48)).toBe('15"');
+  });
+
   it('50. formats thirty-seconds when asked', () => {
     expect(formatInches(0.09375, 1 / 32)).toBe('3/32"');
     expect(formatInches(1.09375, 1 / 32)).toBe('1 3/32"');

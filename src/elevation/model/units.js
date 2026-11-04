@@ -143,17 +143,17 @@ export function formatInches(n, step = DISPLAY_STEP) {
   const sign = units < 0 ? '-' : '';
   const absolute = Math.abs(units);
   const whole = Math.floor(absolute / perInch);
-  let numerator = absolute % perInch;
+  const numerator = absolute % perInch;
 
   if (numerator === 0) return `${sign}${whole}"`;
 
-  let denominator = perInch;
-  while (numerator % 2 === 0) {
-    numerator /= 2;
-    denominator /= 2;
+  let divisor = perInch;
+  let remainder = numerator;
+  while (remainder !== 0) {
+    [divisor, remainder] = [remainder, divisor % remainder];
   }
 
-  const fraction = `${numerator}/${denominator}`;
+  const fraction = `${numerator / divisor}/${perInch / divisor}`;
   return whole > 0 ? `${sign}${whole} ${fraction}"` : `${sign}${fraction}"`;
 }
 

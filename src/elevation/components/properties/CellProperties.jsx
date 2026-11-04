@@ -17,6 +17,8 @@ import {
   setTrackSize,
 } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
+import { autoInchProps } from '../autoInchProps.js';
+import { floatingShelfLayout } from '../../model/cells.js';
 import OverrideInput from '../OverrideInput.jsx';
 import RunBaseCutoutsSection from './RunBaseCutoutsSection.jsx';
 import CellDepthSection from './CellDepthSection.jsx';
@@ -69,6 +71,10 @@ export default function CellProperties({
   const hasTrackAfter = context.cell[axis] + span < context.parent[trackKey].length;
   const columnIndex = runItems(run).findIndex((candidate) => candidate.id === piece.columnId);
   const hasColumnAfter = columnIndex >= 0 && columnIndex < runItems(run).length - 1;
+  const shelves = item.kind === 'shelves' ? floatingShelfLayout(piece, settings) : null;
+  const shelfEqualGaps = shelves ? shelves.count - 1
+    + (item.shelves?.bottom === undefined ? 1 : 0)
+    + (item.shelves?.top === undefined ? 1 : 0) : 0;
 
   // A cell stacked in a column is as wide as its column: its width field sets the column (UI10).
   const widthIsColumn = Boolean(column) && axis === 'row' && Math.abs(boxWidth - columnBoxWidth) < 1e-6;
@@ -245,31 +251,71 @@ export default function CellProperties({
                   <PanelSection id="piece.shelves" title="Shelves">
                     <div className="grid grid-cols-2 gap-2">
                       <Field label="Count">
-                        <input
-                          type="number"
-                          min={1}
-                          max={MAX_SHELVES}
-                          value={item.shelves?.count ?? 1}
-                          onChange={(event) => dispatch(setCellShelves({
-                            ...cellBase,
-                            count: Number(event.target.value),
-                          }))}
+                        <InchInput
+                          value={item.shelves?.count}
+                          {...autoInchProps({ labelled: true, text: String(shelves.count), onCommit: (count) => {
+                            if (count !== null && (!Number.isInteger(count) || count < 1 || count > MAX_SHELVES)) return false;
+                            dispatch(setCellShelves({ ...cellBase, count }));
+                          } })}
                           aria-label="Shelf count"
-                          className={SELECT_CLASS}
                         />
                       </Field>
-                      <label className="flex items-end gap-2 pb-2 text-xs text-gray-300">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(item.shelves?.back)}
-                          onChange={(event) => dispatch(setCellShelves({
-                            ...cellBase,
-                            back: event.target.checked,
-                          }))}
+                      <Field label="Bottom">
+                        <InchInput
+                          value={item.shelves?.bottom}
+                          {...autoInchProps({ auto: shelves.positions[0] - piece.z, min: 'nonNegative',
+                            onCommit: (bottom) => dispatch(setCellShelves({ ...cellBase, bottom })) })}
+                          aria-label="Shelf bottom"
                         />
-                        Back panel
-                      </label>
+                      </Field>
+                      <Field label="Top">
+                        <select
+                          value={item.shelves?.top === undefined ? 'equal' : 'from-top'}
+                          onChange={(event) => dispatch(setCellShelves({
+                            ...cellBase, top: event.target.value === 'equal' ? null : 0,
+                          }))}
+                          aria-label="Shelf top mode"
+                          className={SELECT_CLASS}
+                        >
+                          <option value="equal">Equal</option>
+                          <option value="from-top">From top</option>
+                        </select>
+                      </Field>
+                      {item.shelves?.top !== undefined && (
+                        <Field label="From top">
+                          <InchInput
+                            value={item.shelves.top}
+                            onCommit={(top) => {
+                              if (top === null || top < 0) return false;
+                              dispatch(setCellShelves({ ...cellBase, top }));
+                            }}
+                            aria-label="Shelf from top"
+                          />
+                        </Field>
+                      )}
                     </div>
+                    {shelves.gap !== null && (
+                      <p className="mt-2 text-xs text-gray-400">
+                        {/* Retain thirds etc. when sixteenth-inch dimensions are divided into equal gaps. */}
+                        Spacing {formatInches(shelves.gap, 1 / (16 * shelfEqualGaps))}
+                      </p>
+                    )}
+                    {shelves.warnings.map(({ code }) => (
+                      <p key={code} className="mt-2 text-xs text-amber-400">
+                        {code === 'stack-doesnt-fit' ? "Shelves don't fit" : 'Top ignored with one shelf'}
+                      </p>
+                    ))}
+                    <label className="mt-2 flex items-center gap-2 text-xs text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(item.shelves?.back)}
+                        onChange={(event) => dispatch(setCellShelves({
+                          ...cellBase,
+                          back: event.target.checked,
+                        }))}
+                      />
+                      Back panel
+                    </label>
                   </PanelSection>
                 )}
                 {isCabinet && (
