@@ -91,7 +91,7 @@ export function cabinetDrawerBoxes({
   for (const face of fronts) {
     const cx = face.x + face.width / 2;
     const cz = face.z + face.height / 2;
-    const section = interior.sections.find((rect) => cx >= rect.x && cx <= rect.x + rect.width
+    const section = interior.physicalSections.find((rect) => cx >= rect.x && cx <= rect.x + rect.width
       && cz >= rect.z && cz <= rect.z + rect.height);
     if (!section) {
       warnings.push({ code: 'drawer-outside-box', path: face.path });

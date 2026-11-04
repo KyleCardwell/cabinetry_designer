@@ -122,10 +122,10 @@ export function resolveInterior(interior, box, construction, settings, context) 
     };
     if (!node.children) {
       sections.push({ path, ...clear, depth });
-      return;
+      return { zoneOnly: true, physicalSections: [{ key: path, ...clear, depth, members: [path] }] };
     }
     const stacked = node.direction === 'vertical';
-    const thicknesses = node.dividers.map(({ kind }) => kind.startsWith('double_') ? 2 * t : t);
+    const thicknesses = node.dividers.map(({ kind }) => kind === 'zone' ? 0 : kind.startsWith('double_') ? 2 * t : t);
     const seams = node.dividers.map((divider, index) => (
       seamCenter(divider.seam, node.direction, thicknesses[index], box, context)
     ));
@@ -134,8 +134,9 @@ export function resolveInterior(interior, box, construction, settings, context) 
       const thickness = thicknesses[index];
       const center = stacked ? -centers[index] : centers[index];
       const auto = divider.at === undefined;
-      const depthAuto = divider.depth === undefined;
-      const dividerDepth = divider.depth ?? (divider.kind === 'stretcher' ? STRETCHER_DEPTH : depth);
+      const zone = divider.kind === 'zone';
+      const depthAuto = zone || divider.depth === undefined;
+      const dividerDepth = zone ? null : divider.depth ?? (divider.kind === 'stretcher' ? STRETCHER_DEPTH : depth);
       const banded = ['fixed', 'double_fixed'].includes(divider.kind);
       const dimensions = stacked ? { fromBottom: center, dimFrom: 'bottom' } : {
         fromLeft: center,
@@ -156,20 +157,43 @@ export function resolveInterior(interior, box, construction, settings, context) 
       if (context && divider.seam && seams[index] === null) {
         warnings.push({ code: 'divider-seam-missing', path, index });
       }
-      if (dividerDepth > depth) warnings.push({ code: 'divider-too-deep', path, index });
+      if (!zone && dividerDepth > depth) warnings.push({ code: 'divider-too-deep', path, index });
     });
-    node.children.forEach((child, index) => {
+    const children = node.children.map((child, index) => {
       const leading = index === 0 ? start : centers[index - 1] + thicknesses[index - 1] / 2;
       const trailing = index === centers.length ? end : centers[index] - thicknesses[index] / 2;
       const childRect = stacked
         ? { x: clear.x, z: -trailing, width: clear.width, height: trailing - leading }
         : { x: leading, z: clear.z, width: trailing - leading, height: clear.height };
-      walk(child, childRect, `${path}.${index}`);
+      return walk(child, childRect, `${path}.${index}`);
     });
+    const physicalSections = [];
+    children.forEach((child, index) => {
+      // Only whole zone-only siblings may join across their shared zone line.
+      if (index > 0 && node.dividers[index - 1].kind === 'zone'
+        && children[index - 1].zoneOnly && child.zoneOnly) {
+        const previous = physicalSections.at(-1);
+        const next = child.physicalSections[0];
+        const x = Math.min(previous.x, next.x);
+        const z = Math.min(previous.z, next.z);
+        physicalSections[physicalSections.length - 1] = {
+          ...previous, x, z,
+          width: Math.max(previous.x + previous.width, next.x + next.width) - x,
+          height: Math.max(previous.z + previous.height, next.z + next.height) - z,
+          members: [...previous.members, ...next.members],
+        };
+      } else physicalSections.push(...child.physicalSections);
+    });
+    return {
+      zoneOnly: node.dividers.every(({ kind }) => kind === 'zone') && children.every((child) => child.zoneOnly),
+      physicalSections,
+    };
   };
-  walk(getInteriorNode(tree, ROOT_FACE_PATH), rect, ROOT_FACE_PATH);
+  const { physicalSections } = walk(getInteriorNode(tree, ROOT_FACE_PATH), rect, ROOT_FACE_PATH);
+  const physicalByPath = new Map(physicalSections.flatMap(({ key, members }) => members.map((path) => [path, key])));
+  sections.forEach((section) => { section.physical = physicalByPath.get(section.path); });
   if (hasPartition(automatic) && !hasPartition(tree)) warnings.push({ code: 'wide-no-partition' });
-  return { tree, auto, rect, depth, sections, dividers, warnings, partLines: boxPartLines(box, construction, t) };
+  return { tree, auto, rect, depth, sections, physicalSections, dividers, warnings, partLines: boxPartLines(box, construction, t) };
 }
 
 /**
@@ -230,6 +254,7 @@ export function placeInterior(interior) {
   return {
     ...interior,
     sections: interior.sections.map(place),
+    physicalSections: interior.physicalSections.map(place),
     dividers: interior.dividers.map(place),
     partLines: (interior.partLines ?? []).map(place),
   };

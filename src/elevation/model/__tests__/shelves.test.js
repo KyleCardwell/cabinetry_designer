@@ -6,6 +6,7 @@ import { cabinetDrawerBoxes } from '../drawerBoxes.js';
 import { cabinetFaces, faceArea } from '../faces.js';
 import { faceOpenings } from '../frames.js';
 import { gridFromItems } from '../grid.js';
+import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { cabinetInterior, placeInterior, resolveInterior } from '../interiors.js';
 import { sectionShelves, wallInteriorData, wallShelves } from '../shelves.js';
 import { BUILT_IN_SLIDES } from '../slides.js';
@@ -37,13 +38,12 @@ const root = (options) => shelves(options).get('r');
 
 function roomWith(leaves, { width = 24 * leaves.length, height = 30.5, depth = 24,
   cabinetTypeId = CABINET_TYPE_IDS.BASE } = {}) {
-  const run = { id: 'run', cabinetTypeId, x: 24, width, z: 4, height, depth,
+  const run = buildRun({ id: 'run', cabinetTypeId, x: 24, width, z: 4, height, depth,
     ends: { left: { type: 'none' }, right: { type: 'none' } }, autoCount: false, maxCabinetWidth: null,
     heightMode: 'manual', overrides: {}, anchors: { left: false, right: false },
-    grid: gridFromItems('run', leaves.map((leaf) => ({ kind: 'cabinet', width: null, ...leaf }))) };
-  const wall = { id: 'wall', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5, flipped: false,
-    connections: { start: null, end: null }, profile: {}, runs: [run], openings: [] };
-  return { id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] };
+    items: leaves.map((leaf) => ({ kind: 'cabinet', width: null, ...leaf })) });
+  const wall = buildWall({ id: 'wall', runs: [run] });
+  return buildRoom({ id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] });
 }
 
 describe('IN8 shelves and section flags', () => {
@@ -85,7 +85,7 @@ describe('IN8 shelves and section flags', () => {
 
   it('anchor 1: sizes one base shelf from the clear section and enables both flags', () => {
     const args = input();
-    expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23 }]);
+    expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23, physical: 'r' }]);
     const before = structuredClone(args);
     expect(sectionShelves(args).get('r')).toMatchObject({ count: 1, countSource: 'auto',
       zone: { z: 0.75, height: 29 }, width: 22.375, depth: 22.875, orderedDepth: 22.875, thickness: 0.75,

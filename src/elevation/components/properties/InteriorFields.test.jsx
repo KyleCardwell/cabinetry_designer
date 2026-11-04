@@ -174,6 +174,7 @@ describe('IN2 Interior section', () => {
     });
     expect(options(field('Divider kind r.0'))).toEqual([
       ['fixed', 'Fixed shelf'], ['double_fixed', 'Double fixed shelf'], ['stretcher', 'Stretcher'],
+      ['zone', 'Zone'],
     ]);
     expect(nodes(render()).map(({ props }) => props.label)).toContain('oc from bottom');
     commit('Divider position r.0', 30);
@@ -204,6 +205,7 @@ describe('IN2 Interior section', () => {
     expect(field('Divider position r.1.0').props).toMatchObject({ value: undefined, placeholder: 'Auto (12")' });
     expect(options(field('Divider kind r.1.0'))).toEqual([
       ['partition', 'Partition'], ['double_partition', 'Double partition'],
+      ['zone', 'Zone'],
     ]);
     change('Divider from r.1.0', 'right');
     expectInterior(group('horizontal', [{ ...partition, at: 12.375 }], [{},

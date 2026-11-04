@@ -9,7 +9,7 @@ import { boxConstruction } from '../boxConstruction.js';
 import { rotDepth } from '../drawerRules.js';
 import { cabinetFaces, faceArea } from '../faces.js';
 import { faceOpenings } from '../frames.js';
-import { gridFromItems } from '../grid.js';
+import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { placeInterior, resolveInterior } from '../interiors.js';
 import { BUILT_IN_SLIDES } from '../slides.js';
 import * as elevationPartsModule from '../elevationParts.js';
@@ -73,7 +73,7 @@ const codes = (box) => box.warnings.map(({ code }) => code);
 describe('IN4c usable drawer depth and cabinet back notches', () => {
   const atDepth = (interiorDepth, pick = {}, options = {}) => {
     const args = input({ face: stack(drawer(5.875, pick), drawer(), drawer()), ...options });
-    args.interior.sections[0].depth = interiorDepth;
+    args.interior.physicalSections[0].depth = interiorDepth;
     return cabinetDrawerBoxes(args).boxes[0];
   };
 
@@ -98,7 +98,7 @@ describe('IN4c usable drawer depth and cabinet back notches', () => {
     const box = atDepth(22.5, { accessories: [{ accessoryId: 'CU' }] });
     expect(box).toMatchObject({ depth: 18, notch: null, depthSource: 'accessory', depthAccessory: 'CU' });
     const args = input({ face: drawer(5.875, { accessories: [{ accessoryId: 'CU' }, { accessoryId: 'OS' }] }) });
-    args.interior.sections[0].depth = 21.5;
+    args.interior.physicalSections[0].depth = 21.5;
     args.settings = { ...settings, accessories: accessories.map((item) => item.id === 'CU'
       ? { ...item, effects: [{ kind: 'clear_behind', inches: 0.25 }] }
       : item.id === 'OS' ? { ...item, effects: [{ kind: 'max_depth', inches: 21 }] } : item) };
@@ -277,16 +277,15 @@ describe('IN5 step b drawer box sizing', () => {
       { id: 'b', kind: 'cabinet', face: base(), style: { cabinetStyleId: 14 } },
       { id: 'c', kind: 'cabinet', face: { type: 'door', size: null } },
     ];
-    const run = {
+    const run = buildRun({
       id: 'run', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width: 54, z: 4, height: 30.5, depth: 24,
       ends: { left: { type: 'none' }, right: { type: 'none' } },
       autoCount: false, maxCabinetWidth: null, heightMode: 'manual', overrides: {},
-      anchors: { left: false, right: false }, grid: gridFromItems('run', leaves.map((leaf) => ({ ...leaf, width: null }))),
-    };
-    const wall = { id: 'wall', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5,
-      flipped: false, connections: { start: null, end: null }, profile: {}, runs: [run], openings: [] };
-    const room = { id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'],
-      reportParts: { a: { boxes: 'Maple' } } };
+      anchors: { left: false, right: false }, items: leaves.map((leaf) => ({ ...leaf, width: null })),
+    });
+    const wall = buildWall({ id: 'wall', runs: [run] });
+    const room = buildRoom({ id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'],
+      reportParts: { a: { boxes: 'Maple' } } });
     const effective = { ...settings, report: { ...settings.report, boxMaterial: 'Prefinished Maple' } };
     const before = structuredClone(room);
     const partsSpy = vi.spyOn(elevationPartsModule, 'elevationParts');
@@ -540,7 +539,7 @@ describe('IN6 step c ROT and hamper boxes', () => {
     }
     // A rule depth, just like a typed depth, must fit the actual clear interior.
     const args = input({ face: pullout(), leaf: { purpose: 'trash' } });
-    args.interior.sections[0].depth = 21;
+    args.interior.physicalSections[0].depth = 21;
     expect(codes(cabinetDrawerBoxes(args).boxes[0])).toContain('drawer-too-deep');
   });
 
@@ -614,12 +613,11 @@ describe('IN6 step c ROT and hamper boxes', () => {
   it('anchor 5: retains cabinets with only ROT or hamper boxes in wall order and coordinates', () => {
     const leaves = ['trash', 'hamper', undefined].map((purpose, index) => ({ id: `c${index}`, kind: 'cabinet',
       purpose, face: pullout(), width: null }));
-    const run = { id: 'run', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width: 54, z: 4, height: 30.5, depth: 24,
+    const run = buildRun({ id: 'run', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width: 54, z: 4, height: 30.5, depth: 24,
       ends: { left: { type: 'none' }, right: { type: 'none' } }, autoCount: false, maxCabinetWidth: null,
-      heightMode: 'manual', overrides: {}, anchors: { left: false, right: false }, grid: gridFromItems('run', leaves) };
-    const wall = { id: 'wall', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5, flipped: false,
-      connections: { start: null, end: null }, profile: {}, runs: [run], openings: [] };
-    const room = { id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] };
+      heightMode: 'manual', overrides: {}, anchors: { left: false, right: false }, items: leaves });
+    const wall = buildWall({ id: 'wall', runs: [run] });
+    const room = buildRoom({ id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] });
     const result = wallDrawerBoxes(room, wall, 'front', settings);
     expect([...result.keys()]).toEqual(['c0', 'c1']);
     expect(result.get('c0')).toMatchObject({ runId: 'run', boxes: [{ kind: 'rot', x: 25, z: 5.3125 }] });

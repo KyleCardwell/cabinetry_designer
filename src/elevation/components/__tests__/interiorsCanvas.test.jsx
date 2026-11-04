@@ -120,7 +120,7 @@ describe('IN3 doors-off canvas', () => {
       drawnPieces: [drawn], transform, selectedPieceId: 'cabinet', ...extra,
     }));
     for (const [direction, kinds] of Object.entries(INTERIOR_DIVIDERS)) {
-      for (const kind of kinds) {
+      for (const kind of kinds.filter((kind) => kind !== 'zone')) {
         const shapes = render({ direction, children: [{}, {}], dividers: [{ kind }] });
         const group = shapes.find(({ type }) => type === Group);
         const clip = wallRectToScreen(drawn, transform);

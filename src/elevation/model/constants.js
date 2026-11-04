@@ -246,8 +246,8 @@ export const MAX_ACCESSORY_QTY = 20;
 
 /** Interior divider families follow the group's stacking direction. */
 export const INTERIOR_DIVIDERS = {
-  vertical: ['fixed', 'double_fixed', 'stretcher'],
-  horizontal: ['partition', 'double_partition'],
+  vertical: ['fixed', 'double_fixed', 'stretcher', 'zone'],
+  horizontal: ['partition', 'double_partition', 'zone'],
 };
 export const INTERIOR_DIVIDER_LABELS = {
   fixed: 'Fixed shelf',
@@ -255,6 +255,7 @@ export const INTERIOR_DIVIDER_LABELS = {
   stretcher: 'Stretcher',
   partition: 'Partition',
   double_partition: 'Double partition',
+  zone: 'Zone',
 };
 export const STRETCHER_DEPTH = 4;
 export const DADO_BACK_SETBACK = 0.75;

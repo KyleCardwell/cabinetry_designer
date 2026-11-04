@@ -6,7 +6,7 @@ import {
 } from '../index.js';
 import { findLeaf, splitGridCell } from '../cellTree.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../constants.js';
-import { gridFromItems } from '../grid.js';
+import { auto, room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { elevationParts } from '../elevationParts.js';
 import * as elevationPartsModule from '../elevationParts.js';
 import { syncRoom } from '../room.js';
@@ -28,7 +28,8 @@ describe('IN2 interior rectangles', () => {
   it('anchor 1: an absent interior is one clear root section', () => {
     const rect = { x: 0.75, z: 0.75, width: 28.5, height: 29 };
     expect(resolve(undefined, box(30, 30.5))).toEqual({
-      tree: null, auto: false, rect, depth: 23, sections: [{ path: 'r', ...rect, depth: 23 }], dividers: [], warnings: [],
+      tree: null, auto: false, rect, depth: 23, sections: [{ path: 'r', ...rect, depth: 23, physical: 'r' }],
+      physicalSections: [{ key: 'r', ...rect, depth: 23, members: ['r'] }], dividers: [], warnings: [],
       partLines: boxPartLines(box(30, 30.5), standard, 0.75),
     });
   });
@@ -36,8 +37,8 @@ describe('IN2 interior rectangles', () => {
   it('anchor 2: an auto shelf splits the clear height equally, top section first', () => {
     const result = resolve(vertical(fixed), box(24, 84));
     expect(result.sections).toEqual([
-      { path: 'r.0', x: 0.75, z: 42.375, width: 22.5, height: 40.875, depth: 23 },
-      { path: 'r.1', x: 0.75, z: 0.75, width: 22.5, height: 40.875, depth: 23 },
+      { path: 'r.0', x: 0.75, z: 42.375, width: 22.5, height: 40.875, depth: 23, physical: 'r.0' },
+      { path: 'r.1', x: 0.75, z: 0.75, width: 22.5, height: 40.875, depth: 23, physical: 'r.1' },
     ]);
     expect(result.dividers).toEqual([{
       path: 'r', index: 0, kind: 'fixed', x: 0.75, z: 41.625, width: 22.5, height: 0.75,
@@ -213,12 +214,13 @@ describe('IN3 interior view coordinates and dimensions', () => {
     const before = structuredClone(local);
     const placed = placeInterior(local);
     expect(section(placed, 'r.1')).toEqual({
-      path: 'r.1', x: 30.75, z: 4.75, width: 22.5, height: 40.875, depth: 23,
+      path: 'r.1', x: 30.75, z: 4.75, width: 22.5, height: 40.875, depth: 23, physical: 'r.1',
     });
     expect(section(placed, 'r.0').z).toBe(46.375);
     expect(placed.dividers[0]).toEqual({ ...local.dividers[0], x: 30.75, z: 45.625 });
     expect(placed).toEqual({
-      ...local, sections: placed.sections, dividers: placed.dividers, partLines: placed.partLines,
+      ...local, sections: placed.sections, physicalSections: placed.physicalSections,
+      dividers: placed.dividers, partLines: placed.partLines,
     });
     expect(placed.partLines[0]).toEqual({ part: 'left', x: 30.75, z: 4, width: 0, height: 84 });
     expect(interiorDimensions(placed)).toEqual([{
@@ -370,17 +372,16 @@ describe('IN3.1 box part lines (doors-off view)', () => {
 
 describe('IN5.2 raised face frame decks', () => {
   const room = (cabinetTypeId, style, height = 30.5) => {
-    const run = {
+    const run = buildRun({
       id: 'run', cabinetTypeId, x: 24, width: 30, z: cabinetTypeId === CABINET_TYPE_IDS.UPPER ? 54 : 4,
       height, depth: cabinetTypeId === CABINET_TYPE_IDS.UPPER ? 12 : 24,
       ends: { left: { type: 'none' }, right: { type: 'none' } },
       autoCount: false, maxCabinetWidth: null, heightMode: 'manual', overrides: {},
       anchors: { left: false, right: false },
-      grid: gridFromItems('run', [{ id: 'c', kind: 'cabinet', width: null, face: { type: 'door', size: null }, style }]),
-    };
-    const wall = { id: 'wall', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5,
-      flipped: false, connections: { start: null, end: null }, profile: {}, runs: [run], openings: [] };
-    return { id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] };
+      items: [{ ...auto('c'), face: { type: 'door', size: null }, style }],
+    });
+    const wall = buildWall({ id: 'wall', runs: [run] });
+    return buildRoom({ id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] });
   };
   const interiorOf = (cabinetTypeId, style) => {
     const built = room(cabinetTypeId, style);

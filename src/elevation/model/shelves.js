@@ -18,14 +18,13 @@ export const covers = (face, section) => (
   && Math.min(face.z + face.height, section.z + section.height) - Math.max(face.z, section.z) > 1 / 4
 );
 
-/** Tallest clear vertical band after unioning the drawer spaces owned by this section. */
+/** Tallest clear vertical band after clipping overlapping physical-section drawer spaces. */
 export function shelfZone(section, boxes) {
   const top = section.z + section.height;
-  const spaces = boxes.map(({ space }) => space).filter((space) => {
-    const x = space.x + space.width / 2;
-    const z = space.z + space.height / 2;
-    return x >= section.x && x <= section.x + section.width && z >= section.z && z <= top;
-  }).map((space) => ({ z: Math.max(section.z, space.z), top: Math.min(top, space.z + space.height) }))
+  const spaces = boxes.map(({ space }) => space).filter((space) => (
+    Math.min(space.x + space.width, section.x + section.width) > Math.max(space.x, section.x)
+    && Math.min(space.z + space.height, top) > Math.max(space.z, section.z)
+  )).map((space) => ({ z: Math.max(section.z, space.z), top: Math.min(top, space.z + space.height) }))
     .sort((a, b) => a.z - b.z);
   let cursor = section.z;
   let zone = { z: section.z, height: 0 };

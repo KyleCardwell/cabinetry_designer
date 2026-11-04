@@ -5,6 +5,7 @@ import { cabinetDrawerBoxes } from '../drawerBoxes.js';
 import { cabinetFaces, faceArea } from '../faces.js';
 import { faceOpenings } from '../frames.js';
 import { gridFromItems } from '../grid.js';
+import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { sectionRollouts, wallRollouts, sectionShelves, wallShelves } from '../index.js';
 import { placeInterior, resolveInterior } from '../interiors.js';
 import { BUILT_IN_SLIDES } from '../slides.js';
@@ -61,21 +62,20 @@ describe('IN4c usable roll-out depth and cabinet back notches', () => {
 });
 
 function roomWith(leaves, { width = 24 * leaves.length } = {}) {
-  const run = { id: 'run', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width, z: 4, height: 30.5, depth: 24,
+  const run = buildRun({ id: 'run', cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width, z: 4, height: 30.5, depth: 24,
     ends: { left: { type: 'none' }, right: { type: 'none' } }, autoCount: false, maxCabinetWidth: null,
     heightMode: 'manual', overrides: {}, anchors: { left: false, right: false },
-    grid: gridFromItems('run', leaves.map((leaf) => ({ kind: 'cabinet', width: null, face: face(),
-      interior: { rollouts: { count: 1 } }, ...leaf }))) };
-  const wall = { id: 'wall', x1: 0, y1: 0, x2: 144, y2: 0, height: 96, thickness: 4.5, flipped: false,
-    connections: { start: null, end: null }, profile: {}, runs: [run], openings: [] };
-  return { id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] };
+    items: leaves.map((leaf) => ({ kind: 'cabinet', width: null, face: face(),
+      interior: { rollouts: { count: 1 } }, ...leaf })) });
+  const wall = buildWall({ id: 'wall', runs: [run] });
+  return buildRoom({ id: 'room', profile: { ...DEFAULT_SETTINGS.defaultProfile }, walls: [wall], wallOrder: ['wall'] });
 }
 
 describe('IN9 step b section roll-outs and shelves above them', () => {
   it('anchor 1: sizes one left-hinged base roll-out and leaves one auto shelf above its space', () => {
     const args = input();
     const before = structuredClone(args);
-    expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23 }]);
+    expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23, physical: 'r' }]);
     const entry = sectionRollouts(args).get('r');
     expect(entry).toMatchObject({ layout: 'stack', layoutSource: 'auto', zone: { z: 0.75, height: 29 },
       top: 5.8125, warnings: [] });

@@ -29,6 +29,7 @@ function drawableItems(interior, data) {
   const add = (key, kind, source, extra = {}) => items.push({ key, kind, ...rect(source), ...extra });
   for (const line of interior.partLines ?? []) add(`edge:${line.part}`, 'edge', line);
   for (const divider of interior.dividers) {
+    if (divider.kind === 'zone') continue;
     const key = `${divider.path}:${divider.index}`;
     add(`divider:${key}`, 'divider', divider);
     if (divider.kind.startsWith('double_')) {
