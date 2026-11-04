@@ -22,6 +22,7 @@ import PartNumberField from './PartNumberField.jsx';
 import PartReportFields from './PartReportFields.jsx';
 import RunBottomSection from './RunBottomSection.jsx';
 import RunBaseCutoutsSection from './RunBaseCutoutsSection.jsx';
+import RunLegsSection from './RunLegsSection.jsx';
 import RunTopSegmentsSection from './RunTopSegmentsSection.jsx';
 import RunCabinetsSection from './RunCabinetsSection.jsx';
 import RunEndsSection from './RunEndsSection.jsx';
@@ -166,6 +167,7 @@ export default function RunProperties({
       />,
       <RunFurnitureBaseSection key="furnitureBase" room={room} wall={wall} run={run} settings={settings} />,
       <RunBaseCutoutsSection key="baseCutouts" room={room} wall={wall} run={run} settings={settings} />,
+      <RunLegsSection key="legs" room={room} wall={wall} run={run} settings={settings} />,
       <RunTopSegmentsSection key="topSegments" room={room} wall={wall} run={run} settings={settings} />,
       <RunBottomSection key="bottom" room={room} run={run} settings={settings} actionBase={actionBase} />,
     ] },
