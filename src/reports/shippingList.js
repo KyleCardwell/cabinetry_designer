@@ -28,7 +28,7 @@ import {
   CABINET_STYLE_LABELS, endPieceBottom, endPieceNotes, isInsetStyle, resolveStyle, REVEAL_KEYS, runFrame, typeStandardReveals,
 } from '../elevation/model/styles.js';
 import { openBelowDrops, teeFillers, teeSetback } from '../elevation/model/tees.js';
-import { wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
+import { isShelvesOnlyRun, wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { woodTopGroups } from '../elevation/model/woodTopGroups.js';
 import { doorOrderItems } from './doorOrder.js';
@@ -55,6 +55,7 @@ export function linealFeet(inches) {
 function shippingMoldings(room, settings) {
   const result = Object.fromEntries(Object.keys(MOLDINGS).map((kind) => [kind,
     { measured: 0, dimensions: new Map() }]));
+  const shelfDepths = new Map();
   for (const stored of room.walls ?? []) {
     for (const side of WALL_SIDES) {
       const wall = resolveWall(room, stored, side);
@@ -62,7 +63,8 @@ function shippingMoldings(room, settings) {
       for (const run of wall.runs) {
         const kinds = Object.keys(MOLDINGS).filter((kind) => carriesMolding(wall, run, profile, kind, settings));
         if (!kinds.length) continue;
-        const bands = runBands(room, wall, run, settings, runScene(room, wall, run, settings));
+        const scene = runScene(room, wall, run, settings);
+        const bands = runBands(room, wall, run, settings, scene);
         const moldings = moldingProfiles(profile, settings, run);
         for (const kind of kinds) {
           const data = result[kind];
@@ -73,6 +75,12 @@ function shippingMoldings(room, settings) {
           const bounds = picked && sectionProfileBounds({ geometry: picked.geometry });
           const depth = bounds ? formatInch(bounds.maxX - bounds.minX) : null;
           data.dimensions.set(`${height}:${depth}`, { height, depth });
+          // Panel orientation needs resolved leaf dimensions, including nested grid cells.
+          if (kind === 'topMold' && isShelvesOnlyRun(run)
+            && !scene.cells.pieces.some((piece) => panelOrientation(piece) === 'top')) {
+            const depth = run.depth + moldingPast(moldings, kind, settings);
+            shelfDepths.set(formatInch(depth), depth);
+          }
           if (kind === 'toeKick') {
             data.measured += bands.toeKicks.reduce((sum, band) => sum + band.width, 0);
           } else {
@@ -89,6 +97,10 @@ function shippingMoldings(room, settings) {
     data.note = dimensions.every(({ depth }) => depth === null)
       ? `${dimensions.map(({ height }) => height).join(' & ')} tall`
       : dimensions.map(({ height, depth }) => `${height} tall${depth === null ? '' : ` x ${depth} deep`}`).join(' & ');
+  }
+  if (shelfDepths.size) {
+    const depths = [...shelfDepths].sort((a, b) => a[1] - b[1]).map(([text]) => text);
+    result.topMold.note += `, ${depths.join(' & ')} deep over shelves`;
   }
   return result;
 }

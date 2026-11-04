@@ -1552,6 +1552,73 @@ describe('RP2 step e panel, filler and base notes', () => {
   });
 });
 
+describe('FS1 b deep top mold notes', () => {
+  const s = { ...settings, runFlex: 0,
+    defaultProfile: { ...settings.defaultProfile, topMoldProfileId: 'deep-top', topMoldOverhang: 0.25 },
+    sectionProfiles: [...settings.sectionProfiles, { id: 'deep-top', name: 'Top Mold', kind: 'top_mold',
+      drawnPoints: { elevation: [], plan: [] },
+      geometry: { points: { a: [0, 0], b: [0.75, 0], c: [0.75, 3], d: [0, 3] },
+        loops: [{ closed: true, segs: [{ type: 'line', from: 'a', to: 'b' },
+          { type: 'line', from: 'b', to: 'c' }, { type: 'line', from: 'c', to: 'd' },
+          { type: 'line', from: 'd', to: 'a' }] }] } }],
+  };
+  const upper = { id: 'upper', cabinetTypeId: 2, x: 0, width: 96, depth: 12, z: 54, height: 36,
+    top: 'crown', ends: ends(), items: [auto('cabinet')] };
+  const shelves = { id: 'shelves', x: 144, width: 96, depth: 12, top: 'crown', ends: ends(),
+    items: [{ ...auto('shelf-cell'), kind: 'shelves', shelves: { count: 2 } }] };
+
+  it('anchor 1: adds 13-inch depth over shelves, retaining their length and other molding notes', () => {
+    const r = buildRoom({ walls: [buildWall({ x2: 288,
+      runs: [buildRun(upper), buildRun(shelves)] })] });
+    const before = structuredClone(r);
+    expect(row(r, 'molding:topMold', s)).toMatchObject({ size: 'Lineal Feet: 24',
+      notes: ['3" tall x 3/4" deep, 13" deep over shelves'] });
+    expect(row(r, 'molding:crown', s).notes).toEqual(['4 1/2" tall x 2 3/4" deep']);
+    expect(row(r, 'molding:toeKick', s).notes).toEqual(['3 7/8" tall']);
+    expect(r).toEqual(before);
+  });
+
+  it('anchor 2: omits the deep note for a nested Top / bottom panel over or under shelves', () => {
+    for (const panelRow of [0, 1]) {
+      const r = buildRoom({ walls: [buildWall({ x2: 288, runs: [buildRun(upper), buildRun({ ...shelves,
+        items: [{ ...auto('stack'), grid: { id: 'stack', cols: [{ id: 'col', size: null, sizeMode: 'auto' }],
+          rows: [0, 1].map((i) => ({ id: `row-${i}`, size: i === panelRow ? 0.75 : null,
+            sizeMode: i === panelRow ? 'manual' : 'auto' })),
+          cells: [0, 1].map((i) => ({ col: 0, row: i, colSpan: 1, rowSpan: 1,
+            node: i === panelRow ? { id: 'panel', kind: 'panel' }
+              : { id: 'shelf-cell', kind: 'shelves', shelves: { count: 2 } } })),
+        } }],
+      })] })] });
+      expect(row(r, 'panel', s).description).toMatch(/(?:Top|Bottom) Panel$/);
+      expect(row(r, 'molding:topMold', s).notes).toEqual(['3" tall x 3/4" deep']);
+    }
+  });
+
+  it('anchor 3: sorts depths numerically and deduplicates their formatted inch values', () => {
+    for (const [depths, note] of [
+      [[15, 12], '13" & 16"'],
+      [[15, 8, 12, 12.001, 12.25], '9" & 13" & 13 1/4" & 16"'],
+    ]) {
+      const r = buildRoom({ walls: [buildWall({ x2: 720,
+        runs: depths.map((depth, i) => buildRun({ ...shelves, id: `shelves-${i}`, x: i * 144, depth,
+          items: [{ ...auto(`shelf-${i}`), kind: 'shelves', shelves: { count: 2 } },
+            { ...fixed(`back-${i}`, 24), kind: 'panel', depth: 0.75, align: 'back' }],
+        })),
+      })] });
+      expect(row(r, 'molding:topMold', s).notes).toEqual([`3" tall x 3/4" deep, ${note} deep over shelves`]);
+    }
+  });
+
+  it('anchor 4: excludes shelves with Top None from the top mold row and depth note', () => {
+    const r = buildRoom({ walls: [buildWall({ x2: 288,
+      runs: [buildRun(upper), buildRun({ ...shelves, top: 'none' })] })] });
+    expect(row(r, 'molding:topMold', s)).toMatchObject({ size: 'Lineal Feet: 16',
+      notes: ['3" tall x 3/4" deep'] });
+    r.walls[0].runs.shift();
+    expect(row(r, 'molding:topMold', s)).toBeUndefined();
+  });
+});
+
 describe('RP2 step f molding rows', () => {
   function upper(width = 96, anchors = { left: true, right: true }, wallLength = width, extra = {}) {
     const stored = room([run('upper', [cabinet()], { cabinetTypeId: 2, x: 0, width, depth: 12,
