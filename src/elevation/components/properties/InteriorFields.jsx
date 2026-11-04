@@ -258,6 +258,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
           <div className="space-y-2">
             <Field label="Adj. shelves">
               <InchInput aria-label={`Shelf count ${path}`} value={selected.shelves?.count} className="placeholder:text-gray-500"
+                arrowStep={1} arrowBase={shelfData.autoCount.count}
                 {...autoInchProps({ labelled: true, text: String(shelfData.autoCount.count), onCommit: (count) => {
                   if (count !== null && (!Number.isInteger(count) || count < 0 || count > 20)) return false;
                   return patchShelves({ count });
@@ -288,7 +289,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
               </p>
             )}
             <Field label="Shoe shelves">
-              <InchInput aria-label={`Shoe shelves ${path}`} value={selected.shelves?.shoe}
+              <InchInput aria-label={`Shoe shelves ${path}`} value={selected.shelves?.shoe} arrowStep={1}
                 {...autoInchProps({ auto: 0, onCommit: (shoe) => {
                   if (shoe !== null && (!Number.isInteger(shoe) || shoe < 0 || shoe > 20)) return false;
                   return patchShelves({ shoe: shoe === 0 ? null : shoe });
@@ -356,7 +357,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
             <h4 className="text-xs font-medium text-gray-300">Roll-outs</h4>
             <Field label="Count">
               <InchInput aria-label={`Roll-out count ${path}`} value={sinkSplitNotice ? 2 : selected.rollouts?.count}
-                disabled={!shelf}
+                disabled={!shelf} arrowStep={1}
                 allowBlank allowAuto placeholder="None" className="placeholder:text-gray-500"
                 onCommit={commitRolloutCount} />
             </Field>

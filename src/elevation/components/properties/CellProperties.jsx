@@ -253,6 +253,7 @@ export default function CellProperties({
                       <Field label="Count">
                         <InchInput
                           value={item.shelves?.count}
+                          arrowStep={1} arrowBase={shelves.count}
                           {...autoInchProps({ labelled: true, text: String(shelves.count), onCommit: (count) => {
                             if (count !== null && (!Number.isInteger(count) || count < 1 || count > MAX_SHELVES)) return false;
                             dispatch(setCellShelves({ ...cellBase, count }));

@@ -16,6 +16,8 @@ export default function InchInput({
   borderClass = 'border-gray-600',
   className = '',
   readOnly = false,
+  arrowStep,
+  arrowBase = 0,
   ...inputProps
 }) {
   const [text, setText] = useState(() => displayValue(value, displayStep));
@@ -53,6 +55,15 @@ export default function InchInput({
     else setText(formatInchesInput(parsed, displayStep));
   };
 
+  // Opt-in arrow keys step the value and commit at once; a blank field steps from arrowBase (e.g. its Auto value).
+  const stepBy = (direction) => {
+    const trimmed = text.trim();
+    const current = trimmed === '' || trimmed.toLowerCase() === 'auto' ? arrowBase : parseInches(trimmed);
+    if (current === null) return;
+    const next = current + direction * arrowStep;
+    if (onCommit(next) !== false) setText(formatInchesInput(next, displayStep));
+  };
+
   return (
     <input
       {...inputProps}
@@ -64,6 +75,10 @@ export default function InchInput({
       onBlur={commit}
       onKeyDown={(event) => {
         if (event.key === 'Enter') event.currentTarget.blur();
+        if (arrowStep && !readOnly && (event.key === 'ArrowUp' || event.key === 'ArrowDown')) {
+          event.preventDefault();
+          stepBy(event.key === 'ArrowUp' ? 1 : -1);
+        }
         if (event.key === 'Escape') {
           revert();
           event.currentTarget.blur();
