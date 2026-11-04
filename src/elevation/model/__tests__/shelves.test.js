@@ -408,8 +408,8 @@ describe('IN13b shoe shelves', () => {
     expect(entry.warnings[0].code).toBe('shoe-shelves-tight');
     expect(entry.warnings[0].clear).toBeCloseTo(5.818440, 5);
     const crowded = shoeRoot(4, { leaf: { interior: { shelves: { count: 8 } } } });
-    expect(crowded.warnings.map(({ code }) => code)).toEqual(['shelves-crowded', 'shoe-shelves-tight']);
-    expect(crowded.warnings[1].clear).toBe(0);
+    expect(crowded.warnings.map(({ code }) => code)).toEqual(['stack-doesnt-fit', 'shelves-crowded', 'shoe-shelves-tight']);
+    expect(crowded.warnings.at(-1).clear).toBe(0);
   });
 
   it('anchor 4: warns when the shoe-only stack leaves less than six inches above it', () => {

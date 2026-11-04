@@ -280,7 +280,7 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
     const entry = root({ rollouts: { count: 5, items: [{ at: 1 }, {}, {}, { at: 20 }, {}] } });
     expect(entry.rollouts.map(({ at }) => at)).toEqual([1, 7.333333333333334, 13.666666666666668, 20, 24.5]);
     const crowded = root({ rollouts: { count: 8 } });
-    expect(codes(crowded)).toContain('rollouts-dont-fit');
+    expect(codes(crowded)).toContain('stack-doesnt-fit');
     expect(codes(crowded)).toContain('rollouts-overlap');
     const custom = { ...settings, rolloutHeight: 3, rolloutSpacer: 1,
       slides: [{ ...BUILT_IN_SLIDES[0], minBelow: 1 }] };

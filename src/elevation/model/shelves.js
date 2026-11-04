@@ -7,6 +7,7 @@ import { getInteriorNode } from './interiorTree.js';
 import { wallInteriors } from './interiors.js';
 import { resolveWall } from './room.js';
 import { wallRollouts } from './rollouts.js';
+import { autoStackCount, spacedStack } from './spacedStack.js';
 
 const door = (face) => ['door', 'pair_door'].includes(face.type);
 const shelfFace = (face) => face.type === 'open'
@@ -88,23 +89,33 @@ export function sectionShelves({ interior, faces, boxes = [], leaf, settings, ro
     const visible = nosing?.height ?? thickness;
     // Auto: the most shelves that still leave at least `shelfSpacing` (11" default) clear between them (Kyle 2026-10-19).
     const spacing = setting('shelfSpacing');
-    const count = pick.count ?? (eligible
-      ? Math.max(0, Math.floor((zone.height - spacing) / (spacing + visible) + 1e-9)) : 0);
-    const gap = (zone.height - count * visible) / (count + 1);
-    const warnings = count > 0 && gap < 3 ? [{ code: 'shelves-crowded' }] : [];
-    const shoeClear = count > 0 ? gap : zone.height;
+    const floor = zone.z;
+    const ceiling = floor + zone.height;
+    const bottom = pick.bottom === undefined ? null : section.z + pick.bottom;
+    const top = pick.top === undefined ? null : section.z + section.height - pick.top;
+    const count = pick.count ?? (eligible ? autoStackCount({ floor, ceiling, height: visible, bottom, top,
+      minClear: spacing, min: 0,
+      max: Math.max(1, Math.floor(((top ?? ceiling) - (bottom ?? floor)) / visible)),
+    }) : 0);
+    const { positions, gap, warnings } = spacedStack({ floor, ceiling,
+      heights: Array(count).fill(visible), bottom, top });
+    if (gap !== null && gap < 3) warnings.push({ code: 'shelves-crowded' });
+    if (bottom !== null && bottom < floor - 1e-9) warnings.push({ code: 'shelves-into-fills' });
+    const shoeClear = count > 0 ? positions[0] - zone.z : zone.height;
     if (shoe && shoeClear < setting('shoeShelfClear') - 1e-9) {
       warnings.push({ code: 'shoe-shelves-tight', clear: Math.max(0, shoeClear) });
     }
     result.set(section.path, {
       count, countSource: pick.count === undefined ? 'auto' : 'manual', zone, width, depth,
+      bottomSource: pick.bottom === undefined ? 'auto' : 'manual',
+      topMode: pick.top === undefined ? 'equal' : 'fromTop',
       orderedDepth: kind === 'folded' ? depth + setting('foldedNosingExtra')
         : kind === 'hardwood' ? depth - nosing.thickness : depth,
-      // Equal clear space between shelves (and above/below them), for information only.
-      gap: count > 0 ? gap : null,
+      // Clear spacing shared by the unpicked gaps.
+      gap,
       thickness, glass, glassSource: source('glass'), nosing, nosingSource: source('nosing'),
       banding: glass ? null : !nosing,
-      positions: Array.from({ length: count }, (_, index) => zone.z + gap + index * (visible + gap)),
+      positions,
       shoe,
       warnings,
     });

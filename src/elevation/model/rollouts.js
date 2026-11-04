@@ -7,6 +7,7 @@ import { wallInteriors } from './interiors.js';
 import { resolveWall } from './room.js';
 import { covers, shelfZone, sideHinged } from './shelves.js';
 import { fittingLength, resolveBoxSlide, slideBoxWidth } from './slides.js';
+import { spacedStack } from './spacedStack.js';
 
 const EPSILON = 1e-9;
 
@@ -39,7 +40,8 @@ function columnSpacers(column, faces, spacer) {
 }
 
 /** Space each run of auto boxes between the zone boundaries and typed box positions. */
-function placeStack(rollouts, zone, warnings) {
+function placeStack(rollouts, zone, section, pick, warnings) {
+  let gap = null;
   for (let start = 0; start < rollouts.length;) {
     if (rollouts[start].zSource === 'manual') {
       start += 1;
@@ -50,16 +52,17 @@ function placeStack(rollouts, zone, warnings) {
     const below = start > 0 ? rollouts[start - 1] : null;
     const floor = below ? below.z + below.height : zone.z + rollouts[start].slide.minBelow;
     const ceiling = end < rollouts.length ? rollouts[end].z : zone.z + zone.height;
-    const height = rollouts.slice(start, end).reduce((sum, rollout) => sum + rollout.height, 0);
-    const gap = (ceiling - floor - height) / (end - start + (below ? 1 : 0));
-    if (gap < -EPSILON) warnings.push({ code: 'rollouts-dont-fit' });
-    let z = floor + (below ? gap : 0);
-    for (let index = start; index < end; index += 1) {
-      rollouts[index].z = z;
-      z += rollouts[index].height + gap;
-    }
+    const bottom = below ? null : pick.bottom === undefined ? floor : section.z + pick.bottom;
+    const top = end === rollouts.length && pick.top !== undefined
+      ? section.z + section.height - pick.top : null;
+    const stack = spacedStack({ floor, ceiling, bottom, top,
+      heights: rollouts.slice(start, end).map((rollout) => rollout.height) });
+    warnings.push(...stack.warnings);
+    gap = stack.gap;
+    stack.positions.forEach((z, index) => { rollouts[start + index].z = z; });
     start = end;
   }
+  return gap;
 }
 
 /** Resolve only sections with explicit roll-outs, using placed wall coordinates throughout. */
@@ -116,7 +119,7 @@ export function sectionRollouts({ interior, faces, boxes = [], leaf, settings, i
       if (isTallDrawerBox(height, settings)) rollout.warnings.push({ code: 'drawer-box-tall' });
       return rollout;
     });
-    if (layout === 'stack') placeStack(rollouts, zone, warnings);
+    const gap = layout === 'stack' ? placeStack(rollouts, zone, section, pick, warnings) : null;
     for (const rollout of rollouts) {
       rollout.at = rollout.z - section.z;
       rollout.space = { z: rollout.z - rollout.slide.minBelow,
@@ -135,7 +138,7 @@ export function sectionRollouts({ interior, faces, boxes = [], leaf, settings, i
       warnings.push(...rollout.warnings.map((warning) => ({ ...warning, index: rollout.index })));
     }
     result.set(section.path, {
-      layout, layoutSource: pick.layout === undefined ? 'auto' : 'manual', zone,
+      layout, layoutSource: pick.layout === undefined ? 'auto' : 'manual', zone, gap,
       top: Math.max(...rollouts.map(({ space }) => space.z + space.height)), rollouts, warnings,
     });
   }

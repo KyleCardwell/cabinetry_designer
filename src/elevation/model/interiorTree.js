@@ -25,10 +25,11 @@ function isDivider(divider, direction) {
 function isShelfValue(key, value, allowCount) {
   return key === 'glass' ? typeof value === 'boolean'
     : key === 'nosing' ? SHELF_NOSINGS.includes(value)
-      : ['count', 'shoe'].includes(key) && allowCount && Number.isInteger(value) && value >= 0 && value <= 20;
+      : ['bottom', 'top'].includes(key) ? allowCount && Number.isFinite(value) && value >= 0
+        : ['count', 'shoe'].includes(key) && allowCount && Number.isInteger(value) && value >= 0 && value <= 20;
 }
 
-/** Stored shelf picks are nonempty; only sections may specify a count. */
+/** Stored shelf picks are nonempty; counts and stack ends belong only to sections. */
 export function isShelfSettings(shelves, allowCount = false) {
   return isPlainObject(shelves) && Object.keys(shelves).length > 0
     && Object.entries(shelves).every(([key, value]) => isShelfValue(key, value, allowCount));
@@ -37,7 +38,7 @@ export function isShelfSettings(shelves, allowCount = false) {
 /** Null resets one pick. An invalid patch returns null; an empty result is pruned by the caller. */
 export function patchShelfSettings(shelves, patch, allowCount = false) {
   if (!isPlainObject(patch) || !Object.entries(patch).every(([key, value]) =>
-    ['glass', 'nosing', ...(allowCount ? ['count', 'shoe'] : [])].includes(key)
+    ['glass', 'nosing', ...(allowCount ? ['count', 'shoe', 'bottom', 'top'] : [])].includes(key)
       && (value === null || isShelfValue(key, value, allowCount)))) return null;
   const next = { ...shelves };
   for (const [key, value] of Object.entries(patch)) {
@@ -61,8 +62,10 @@ function isRolloutItem(item) {
 /** Only leaf sections store roll-outs; omitted items are automatic. */
 export function isRollouts(value) {
   return isPlainObject(value)
-    && Reflect.ownKeys(value).every((key) => ['count', 'layout', 'items'].includes(key))
+    && Reflect.ownKeys(value).every((key) => ['count', 'layout', 'items', 'bottom', 'top'].includes(key))
     && Number.isInteger(value.count) && value.count >= 1 && value.count <= MAX_ROLLOUTS
+    && ['bottom', 'top'].every((key) => !Object.hasOwn(value, key)
+      || (Number.isFinite(value[key]) && value[key] >= 0))
     && (!Object.hasOwn(value, 'layout') || ROLLOUT_LAYOUTS.includes(value.layout))
     && (!Object.hasOwn(value, 'items') || (Array.isArray(value.items)
       && value.items.length <= value.count && Array.from(value.items).every(isRolloutItem)));
@@ -153,19 +156,23 @@ export function setSectionFlag(interior, path, key, value) {
   return replaceAt(interior, path, () => next);
 }
 
-/** Count zero/null removes roll-outs; layout null restores automatic layout. */
+/** Count zero/null removes roll-outs; null resets layout or a stack end. */
 export function setSectionRollouts(interior, path, patch) {
   const target = getInteriorNode(interior, path);
   if (!target || target.children || !isPlainObject(patch)
     || !Reflect.ownKeys(patch).every((key) => key === 'count'
       ? patch[key] === null || (Number.isInteger(patch[key]) && patch[key] >= 0 && patch[key] <= MAX_ROLLOUTS)
-      : key === 'layout' && (patch[key] === null || ROLLOUT_LAYOUTS.includes(patch[key])))) return interior ?? {};
+      : key === 'layout' ? patch[key] === null || ROLLOUT_LAYOUTS.includes(patch[key])
+        : ['bottom', 'top'].includes(key)
+          && (patch[key] === null || (Number.isFinite(patch[key]) && patch[key] >= 0)))) return interior ?? {};
   const next = { ...target };
   if (Object.hasOwn(patch, 'count') && (patch.count === 0 || patch.count === null)) {
     delete next.rollouts;
   } else {
     const rollouts = { ...target.rollouts, ...patch };
-    if (rollouts.layout === null) delete rollouts.layout;
+    for (const key of ['layout', 'bottom', 'top']) {
+      if (rollouts[key] === null) delete rollouts[key];
+    }
     const trimmed = trimRolloutItems(rollouts);
     if (!isRollouts(trimmed)) return interior ?? {};
     next.rollouts = trimmed;
