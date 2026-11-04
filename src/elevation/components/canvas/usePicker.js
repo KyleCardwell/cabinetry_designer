@@ -29,7 +29,7 @@ export default function usePicker({
     if (tool !== 'select' || suppressClickRef.current || !room || !wall || !transform) return;
     const pointer = stageRef.current?.getPointerPosition();
     if (!pointer) return;
-    const candidates = pickStack(room, wall, settings, screenToWall(pointer, transform), { doorsOff });
+    const candidates = pickStack(room, wall, settings, screenToWall(pointer, transform), { doorsOff, scale: transform.scale });
     const chosen = defaultPick(candidates, prefer);
     apply(chosen);
     setPicker(candidates.length > 2 ? {

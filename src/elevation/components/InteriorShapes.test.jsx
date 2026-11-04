@@ -5,6 +5,8 @@ import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { newAccessory } from '../model/accessories.js';
 import { wallInteriorData } from '../model/shelves.js';
 import { wallRectToScreen } from '../canvas/transform.js';
+import { interiorDimensions } from '../model/interiors.js';
+import { setDividerKind, splitSection } from '../model/interiorTree.js';
 import { run, stateWithRun } from '../store/__tests__/helpers/sliceFixtures.js';
 
 vi.mock('react', async (original) => ({ ...await original(), useRef: (current) => ({ current }) }));
@@ -52,6 +54,74 @@ function shoeCabinet(height = 30.5) {
   })) };
 }
 const shoeShapes = (shapes) => nodes(shapes.filter(({ key }) => String(key).startsWith('shoe-shelf:')));
+
+describe('IN15b step c doors-off zones', () => {
+  it('anchors 1 and 3: draws a dashed, selectable, draggable line at 17 1/4 and a filled shelf at the same centre', () => {
+    for (const direction of ['vertical', 'horizontal']) {
+      const tree = splitSection(null, 'r', direction, 2, 'zone');
+      for (const kind of ['zone', 'fixed']) {
+        if (direction === 'horizontal' && kind === 'fixed') continue;
+        const interior = kind === 'zone' ? tree : setDividerKind(tree, 'r', 0, 'fixed');
+        const state = stateWithRun(run({
+          width: 30, height: 34.5, autoCount: false,
+          ends: { left: { type: 'none' }, right: { type: 'none' } },
+          items: [{ id: 'cabinet', kind: 'cabinet', width: 30, interior }],
+        }));
+        const room = state.rooms[0];
+        const entry = wallInteriorData(room, room.walls[0], 'front', state.settings).interiors.get('cabinet');
+        const onSelectInterior = vi.fn();
+        const onMoveDivider = vi.fn();
+        const onPreviewDivider = vi.fn();
+        const render = (extra = {}) => nodes(InteriorShapes({
+          entries: [entry], drawnPieces: [], transform, selectedPieceId: 'cabinet', draggable: true,
+          onSelectInterior, onMoveDivider, onPreviewDivider, ...extra,
+        }));
+        const shapes = render();
+        const divider = shapes.find(({ key }) => key === 'r:0');
+        const rect = wallRectToScreen(entry.dividers[0], transform);
+        expect(divider.type).toBe(kind === 'zone' ? Line : Rect);
+        expect(divider.props).toMatchObject({ x: rect.x, y: rect.y, listening: true, draggable: true });
+        if (direction === 'vertical') {
+          expect(interiorDimensions(entry)[0].value).toBe(17.25);
+          expect(entry.dividers[0].height).toBe(kind === 'zone' ? 0 : 0.75);
+        }
+        if (kind === 'fixed') {
+          expect(divider.props.fill).toBe('#cbd5e1');
+          expect(divider.props.dash).toBeUndefined();
+          continue;
+        }
+        expect(divider.props).toMatchObject({ points: [0, 0, rect.width, rect.height],
+          dash: [6, 4], hitStrokeWidth: 12, stroke: '#f8fafc' });
+        const sections = shapes.filter(({ type, props }) => type === Rect && props.onClick);
+        expect(sections).toHaveLength(2);
+        expect(sections.every(({ props }) => props.strokeEnabled === false)).toBe(true);
+        // Neither zone edge is redrawn as a solid section outline.
+        const edges = shapes.filter(({ key }) => String(key).startsWith('section-edge:'));
+        expect(edges).toHaveLength(6);
+        expect(edges.every(({ props: { points } }) => direction === 'vertical'
+          ? !(points[1] === rect.y && points[3] === rect.y)
+          : !(points[0] === rect.x && points[2] === rect.x))).toBe(true);
+        sections.forEach(({ props }) => props.onClick({}));
+        expect(onSelectInterior.mock.calls.map(([pick]) => pick)).toEqual([
+          { path: 'r.0', divider: null }, { path: 'r.1', divider: null },
+        ]);
+        divider.props.onClick({});
+        expect(onSelectInterior).toHaveBeenLastCalledWith({ path: 'r', divider: 0 });
+        const target = { x: () => rect.x + (direction === 'horizontal' ? 8 : 0),
+          y: () => rect.y - (direction === 'vertical' ? 8 : 0), position: vi.fn() };
+        divider.props.onDragStart({});
+        divider.props.onDragMove({ target });
+        divider.props.onDragEnd({ target });
+        expect(onPreviewDivider).toHaveBeenLastCalledWith(null);
+        expect(onMoveDivider).toHaveBeenLastCalledWith({ runId: entry.runId, itemId: entry.itemId,
+          path: 'r', index: 0, side: direction === 'vertical' ? 'bottom' : 'left' },
+        direction === 'vertical' ? 18.25 : 16);
+        expect(render({ interiorPath: 'r', interiorDivider: 0 }).find(({ key }) => key === 'r:0').props.stroke).toBe('#7dd3fc');
+        expect(render({ selectedPieceId: null }).find(({ key }) => key === 'r:0').props.listening).toBe(false);
+      }
+    }
+  });
+});
 
 describe('IN13b step d doors-off shoe shelves', () => {
   it('anchor 7: draws two centered shoe fronts at the anchored heights with centered labels', () => {

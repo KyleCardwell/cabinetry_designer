@@ -91,6 +91,72 @@ beforeEach(() => {
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
 });
 
+describe('IN15b step c zone controls', () => {
+  it('anchors 1–3: splits as zones, edits the line, hides depth/banding and keeps the fixed shelf centre', () => {
+    edit(() => { run().height = 34.5; });
+    select('r');
+    expect(field('Split as zones').props.checked).toBe(false);
+    field('Split as zones').props.onChange({ target: { checked: true } });
+    click('Fixed shelves');
+    expectInterior(group('vertical', [{ kind: 'zone' }]));
+    expect(field('Interior r.0')).toBeDefined();
+    expect(field('Interior r.1')).toBeDefined();
+    dispatch(setInteriorPath({ path: 'r', divider: 0 }));
+    expect(field('Divider kind r.0').props.value).toBe('zone');
+    expect(field('Divider position r.0').props.placeholder).toBe('Auto (17 1/4")');
+    expect(field('Divider depth r.0')).toBeUndefined();
+    expect(field('Divider banding r.0')).toBeUndefined();
+    commit('Divider position r.0', 17.25);
+    change('Divider kind r.0', 'fixed');
+    const resolved = cabinetInterior(room(), wall(), 'front', state.settings, 'c1');
+    expect(resolved.dividers[0]).toMatchObject({ kind: 'fixed', height: 0.75, fromBottom: 17.25 });
+    expect(field('Divider depth r.0')).toBeDefined();
+    expect(field('Divider banding r.0')).toBeDefined();
+    commit('Divider depth r.0', 12);
+    change('Divider kind r.0', 'zone');
+    expect(item().interior.dividers[0]).toMatchObject({ kind: 'zone', at: 17.25, depth: 12 });
+    expect(field('Divider depth r.0')).toBeUndefined();
+    expect(field('Divider banding r.0')).toBeUndefined();
+    click('Clear');
+    click('Partitions');
+    expectInterior(group('horizontal', [{ kind: 'zone' }]));
+    click('Clear');
+    field('Split as zones').props.onChange({ target: { checked: false } });
+    click('Partitions');
+    expectInterior(group('horizontal', [partition]));
+  });
+
+  it('shows shared manual and Auto flags on either zone and writes only to the first member', () => {
+    edit(() => {
+      item().face = { type: 'door', hinge: 'left' };
+      item().interior = group('vertical', [{ kind: 'zone' }], [
+        { shelves: { count: 0 }, lineBore: false, hinges: true },
+        { shelves: { count: 2 }, lineBore: true, hinges: false },
+      ]);
+    });
+    for (const path of ['r.0', 'r.1']) {
+      select(path);
+      expect(field(`Line bore ${path}`).props.value).toBe('false');
+      expect(field(`Hinge plates ${path}`).props.value).toBe('true');
+      expect(options(field(`Line bore ${path}`))[0]).toEqual(['', 'Auto (Yes)']);
+      expect(options(field(`Hinge plates ${path}`))[0]).toEqual(['', 'Auto (Yes)']);
+      expect(text(render())).toContain('Applies to the whole section (zones)');
+    }
+    change('Line bore r.1', '');
+    change('Hinge plates r.1', '');
+    expect(item().interior.children[0]).toEqual({ shelves: { count: 0 } });
+    expect(item().interior.children[1]).toMatchObject({ lineBore: true, hinges: false });
+    expect(field('Line bore r.1').props.value).toBe('');
+    expect(field('Hinge plates r.1').props.value).toBe('');
+    change('Line bore r.1', 'false');
+    change('Hinge plates r.1', 'true');
+    expect(item().interior.children[0]).toMatchObject({ lineBore: false, hinges: true });
+    select('r.0');
+    expect(field('Line bore r.0').props.value).toBe('false');
+    expect(field('Hinge plates r.0').props.value).toBe('true');
+  });
+});
+
 describe('IN2 Interior section', () => {
   it('IN3 anchor 4: shares outline selection, highlights only the selected divider, and clears vanished paths', () => {
     edit(() => {

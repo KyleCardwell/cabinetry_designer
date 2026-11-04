@@ -9,6 +9,7 @@ import { runScene } from '../runScene.js';
 import { WALL_SIDES } from '../wallSides.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 import { run, stateWithRun } from '../../store/__tests__/helpers/sliceFixtures.js';
+import { room as makeRoom, wall as makeWall } from '../../../test/builders.js';
 
 const document = normalizeElevationDocument(
   JSON.parse(readFileSync(new URL('./fixtures/golden.json', import.meta.url), 'utf8')),
@@ -39,6 +40,43 @@ function interiorFixture(interior = { direction: 'vertical', children: [{}, {}],
 }
 
 describe('IN3 doors-off picking', () => {
+  it('IN15b anchor 2: picks Zone oc 17 1/4 within six screen pixels at every zoom and leaves normal picks alone', () => {
+    for (const direction of ['vertical', 'horizontal']) {
+      const stored = makeWall({ runs: [run({
+        width: 30, height: 34.5, autoCount: false,
+        ends: { left: { type: 'none' }, right: { type: 'none' } },
+        items: [{ id: 'cabinet', kind: 'cabinet', width: 30, face: { type: 'door' },
+          interior: { direction, children: [{}, {}], dividers: [{ kind: 'zone' }] } }],
+      })] });
+      const room = syncRoom(makeRoom({ walls: [stored] }), settings);
+      const wall = resolveWall(room, room.walls[0], 'front');
+      const [entry] = wallInteriors(room, wall.sideSource, 'front', settings);
+      const divider = entry.dividers[0];
+      const center = { x: divider.x + divider.width / 2, z: divider.z + divider.height / 2 };
+      for (const scale of [2, 8, 20]) {
+        const at = (pixels) => ({ ...center,
+          [direction === 'vertical' ? 'z' : 'x']: center[direction === 'vertical' ? 'z' : 'x'] + pixels / scale });
+        for (const pixels of [-6, 0, 6]) {
+          const stack = pickStack(room, wall, settings, at(pixels), { doorsOff: true, scale });
+          expect(defaultPick(stack, 'interior')).toMatchObject({
+            kind: 'divider', label: direction === 'vertical' ? 'Zone oc 17 1/4' : 'Zone oc 15 from left',
+            rect: { x: divider.x, z: divider.z, width: divider.width, height: divider.height },
+            interior: { path: 'r', divider: 0 },
+          });
+        }
+        for (const pixels of [-7, 7]) {
+          const stack = pickStack(room, wall, settings, at(pixels), { doorsOff: true, scale });
+          expect(defaultPick(stack, 'interior')).toMatchObject({
+            kind: 'section', interior: { path: pixels < 0 && direction === 'vertical' ? 'r.1'
+              : pixels > 0 && direction === 'horizontal' ? 'r.1' : 'r.0', divider: null },
+          });
+        }
+        expect(pickStack(room, wall, settings, at(0), { scale })).toEqual(pickStack(room, wall, settings, at(0)));
+        expect(pickStack(room, wall, settings, at(0), { scale }).every(({ interior }) => interior === null)).toBe(true);
+      }
+    }
+  });
+
   it('anchor 1: puts the shelf before the piece, while the first click still selects the cabinet', () => {
     const { room, wall, settings, entry: { box } } = interiorFixture();
     expect(box).toMatchObject({ width: 24, height: 84, depth: 24 });

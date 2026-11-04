@@ -95,12 +95,16 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
   const interiorDivider = useSelector((state) => state.elevation.interiorDivider);
   const selectedPath = interiorPath ?? 'r';
   const [splitCount, setSplitCount] = useState(2);
+  const [splitAsZones, setSplitAsZones] = useState(false);
   const resolved = useMemo(() => cabinetInterior(
     room, wall.sideSource ?? wall, wall.side ?? 'front', settings, item.id,
   ), [room, wall, settings, item.id]);
   const interior = resolved?.tree ?? null;
   const path = getInteriorNode(interior, selectedPath) ? selectedPath : 'r';
   const selected = getInteriorNode(interior, path);
+  const physical = resolved?.physicalSections.find(({ members }) => members.includes(path));
+  const flagPath = physical?.members[0] ?? path;
+  const flagNode = getInteriorNode(interior, flagPath) ?? {};
 
   const shelfData = useMemo(() => {
     if (!resolved) return null;
@@ -127,10 +131,10 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
       interior: { ...placed, tree: setSectionShelves(interior, path, { count: null }) },
     }).get(path);
     const autoFlags = sectionShelves({ ...args,
-      interior: { ...placed, tree: setSectionFlag(setSectionFlag(interior, path, 'hinges', null), path, 'lineBore', null) },
+      interior: { ...placed, tree: setSectionFlag(setSectionFlag(interior, flagPath, 'hinges', null), flagPath, 'lineBore', null) },
     }).get(path);
     return { shelves, autoCount, autoFlags, rollouts, rollout, autoLayout, autoItems, accessories: args.accessories.get(path), hasBoxes: boxes.length > 0 };
-  }, [resolved, room, wall, run.id, settings, item, interior, path]);
+  }, [resolved, room, wall, run.id, settings, item, interior, path, flagPath]);
 
   useEffect(() => {
     if (path !== selectedPath) dispatch(setInteriorPath(null));
@@ -260,8 +264,8 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
             {[['hinges', 'Hinge plates'], ['lineBore', 'Line bore']].map(([key, label]) => (
               <Field key={key} label={label}>
                 <select aria-label={`${label} ${path}`} className={SELECT_CLASS}
-                  value={selected[key] === undefined ? '' : String(selected[key])}
-                  onChange={(event) => commit(setSectionFlag(interior, path, key,
+                  value={flagNode[key] === undefined ? '' : String(flagNode[key])}
+                  onChange={(event) => commit(setSectionFlag(interior, flagPath, key,
                     event.target.value === '' ? null : event.target.value === 'true'))}>
                   <option value="">{`Auto (${shelfData.autoFlags[key] ? 'Yes' : 'No'})`}</option>
                   <option value="true">Yes</option>
@@ -269,6 +273,9 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                 </select>
               </Field>
             ))}
+            {physical?.members.length > 1 && (
+              <p className="text-xs text-gray-400">Applies to the whole section (zones)</p>
+            )}
             <p aria-label={`Shelf size ${path}`} className="text-xs text-gray-400">
               {`${size(shelf.width)} × ${size(shelf.depth)} × ${size(shelf.thickness)}`}
               {shelf.nosing?.kind === 'hardwood' && ` + ${size(shelf.nosing.height)} × ${size(shelf.nosing.thickness)} nosing`}
@@ -488,15 +495,17 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                       )}
                     </div>
                   </div>
-                  <Field label="Depth">
-                    <InchInput
-                      aria-label={`Divider depth ${path}.${index}`}
-                      value={divider.depth}
-                      {...autoInchProps({ labelled: true, quoted: true, auto: actual.depth,
-                        onCommit: (value) => commit(setDividerDepth(interior, path, index, value)) })}
-                    />
-                  </Field>
-                  {actual.banding !== null && (
+                  {divider.kind !== 'zone' && (
+                    <Field label="Depth">
+                      <InchInput
+                        aria-label={`Divider depth ${path}.${index}`}
+                        value={divider.depth}
+                        {...autoInchProps({ labelled: true, quoted: true, auto: actual.depth,
+                          onCommit: (value) => commit(setDividerDepth(interior, path, index, value)) })}
+                      />
+                    </Field>
+                  )}
+                  {divider.kind !== 'zone' && actual.banding !== null && (
                     <div className="flex items-center justify-between text-xs text-gray-400">
                       <label className="flex items-center gap-2">
                         <input
@@ -552,10 +561,15 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                 }}
               />
             </Field>
-            <button type="button" className={BUTTON_CLASS} onClick={() => commit(splitSection(interior, path, 'vertical', Number(splitCount)))}>
+            <label className="flex items-center gap-2 py-2 text-xs text-gray-300">
+              <input type="checkbox" aria-label="Split as zones" checked={splitAsZones}
+                onChange={(event) => setSplitAsZones(event.target.checked)} />
+              Split as zones
+            </label>
+            <button type="button" className={BUTTON_CLASS} onClick={() => commit(splitSection(interior, path, 'vertical', Number(splitCount), splitAsZones ? 'zone' : undefined))}>
               Fixed shelves
             </button>
-            <button type="button" className={BUTTON_CLASS} onClick={() => commit(splitSection(interior, path, 'horizontal', Number(splitCount)))}>
+            <button type="button" className={BUTTON_CLASS} onClick={() => commit(splitSection(interior, path, 'horizontal', Number(splitCount), splitAsZones ? 'zone' : undefined))}>
               Partitions
             </button>
           </div>

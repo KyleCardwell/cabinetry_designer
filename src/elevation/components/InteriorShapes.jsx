@@ -91,6 +91,20 @@ export default function InteriorShapes({
       >
         {entry.sections.map((section) => {
           const rect = wallRectToScreen(section, transform);
+          // Section outlines must not put a solid stroke underneath the dashed zone boundary.
+          const edges = [
+            { x: section.x, z: section.z, width: section.width, height: 0 },
+            { x: section.x, z: section.z + section.height, width: section.width, height: 0 },
+            { x: section.x, z: section.z, width: 0, height: section.height },
+            { x: section.x + section.width, z: section.z, width: 0, height: section.height },
+          ];
+          const solidEdges = edges.filter((edge) => !entry.dividers.some((divider) => divider.kind === 'zone'
+            && (edge.height === 0 && divider.height === 0
+              ? Math.abs(edge.z - divider.z) < 1e-6
+                && edge.x >= divider.x - 1e-6 && edge.x + edge.width <= divider.x + divider.width + 1e-6
+              : edge.width === 0 && divider.width === 0
+                && Math.abs(edge.x - divider.x) < 1e-6
+                && edge.z >= divider.z - 1e-6 && edge.z + edge.height <= divider.z + divider.height + 1e-6)));
           const selected = selectable && (section.path === selectedPath
             || section.path.startsWith(`${selectedPath}.`));
           const text = `${formatDimension(section.width)} × ${formatDimension(section.height)}`;
@@ -109,10 +123,16 @@ export default function InteriorShapes({
                 {...rect}
                 stroke={selected ? '#7dd3fc' : '#64748b'}
                 strokeWidth={selected ? 2 : 1}
+                strokeEnabled={solidEdges.length === edges.length}
                 fill={selectable ? 'rgba(0, 0, 0, 0.001)' : undefined}
                 listening={selectable}
                 onClick={selectable ? click({ path: section.path, divider: null }) : undefined}
               />
+              {solidEdges.length < edges.length && solidEdges.map((edge, index) => {
+                const { x, y, width, height } = wallRectToScreen(edge, transform);
+                return <Line key={`section-edge:${section.path}:${index}`} points={[x, y, x + width, y + height]}
+                  stroke={selected ? '#7dd3fc' : '#64748b'} strokeWidth={selected ? 2 : 1} listening={false} />;
+              })}
               {showAccessories && labels.map(({ index, text, warnings }, line) => (
                 <Text key={`accessory:${section.path}:${index}`}
                   x={rect.x + SIZE_INSET} y={rect.y + SIZE_INSET + line * fontSize}
@@ -252,6 +272,8 @@ export default function InteriorShapes({
             && divider.index === interiorDivider;
           const dimension = dimensions.find(({ path, index }) => path === divider.path && index === divider.index);
           const rect = wallRectToScreen(divider, transform);
+          const zone = divider.kind === 'zone';
+          const DividerShape = zone ? Line : Rect;
           const vertical = dimension.axis === 'vertical';
           const preview = dragPreview?.itemId === entry.itemId && dragPreview.key === dimension.key
             ? dragPreview.delta : { x: 0, z: 0 };
@@ -260,14 +282,17 @@ export default function InteriorShapes({
             z: vertical ? (rect.y - event.target.y()) / transform.scale : 0,
           });
           return (
-            <Rect
+            <DividerShape
               key={`${divider.path}:${divider.index}`}
               {...rect}
               x={rect.x + preview.x * transform.scale}
               y={rect.y - preview.z * transform.scale}
-              fill="#cbd5e1"
+              points={zone ? [0, 0, rect.width, rect.height] : undefined}
+              dash={zone ? [6, 4] : undefined}
+              hitStrokeWidth={zone ? 12 : undefined}
+              fill={zone ? undefined : '#cbd5e1'}
               opacity={0.9}
-              stroke={selected ? '#7dd3fc' : '#1e293b'}
+              stroke={selected ? '#7dd3fc' : zone ? '#f8fafc' : '#1e293b'}
               strokeWidth={selected ? 2 : 1}
               listening={selectable}
               draggable={selectable && draggable}

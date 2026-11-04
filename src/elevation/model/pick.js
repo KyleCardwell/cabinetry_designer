@@ -33,8 +33,9 @@ function size(rect) {
  * the wall itself. `point` is in the view's coordinates ({ x, z }, inches). Each candidate:
  * { kind, key, label, rect, selection, facePath, interior }, where `selection` is a setSelection payload
  * (null for the wall: clear the selection), `facePath` is set only on faces, and `interior` only on interiors.
+ * `scale` is screen pixels per inch, keeping zero-thickness dividers' hit bands constant through zoom.
  */
-export function pickStack(room, wall, settings, point, { doorsOff = false } = {}) {
+export function pickStack(room, wall, settings, point, { doorsOff = false, scale = 1 } = {}) {
   const faces = [];
   const dividers = [];
   const sections = [];
@@ -66,7 +67,13 @@ export function pickStack(room, wall, settings, point, { doorsOff = false } = {}
         selection: { runId: run.id, pieceId: entry.itemId },
         facePath: null,
       });
-      for (const divider of entry.dividers.filter((rect) => contains(rect, point))) {
+      for (const divider of entry.dividers.filter((rect) => contains({
+        ...rect,
+        x: rect.x - (rect.width === 0 ? 6 / scale : 0),
+        z: rect.z - (rect.height === 0 ? 6 / scale : 0),
+        width: rect.width === 0 ? 12 / scale : rect.width,
+        height: rect.height === 0 ? 12 / scale : rect.height,
+      }, point))) {
         const side = divider.dimFrom;
         const value = side === 'bottom' ? divider.fromBottom
           : side === 'left' ? divider.fromLeft : divider.fromRight;
