@@ -98,6 +98,70 @@ beforeEach(() => {
   useSelector.mockImplementation((selector) => selector({ elevation: state }));
 });
 
+describe('IN15e step b zone gap controls', () => {
+  it('anchors 1–3: shows the sink gap, widens roll-outs at zero, and hides Gap for a partition', () => {
+    state = createInitialElevationState({ rooms: [makeRoom({ walls: [makeWall({ runs: [makeRun({
+      width: 36, autoCount: false,
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+      items: [{ ...fixed('c1', 36), purpose: 'sink', face: { type: 'pair_door', size: null } }],
+    })] })] })], activeRoomId: 'room-1', activeWallId: 'wall-1' });
+    state.settings.drawerSlideId = 'blum-562h';
+    select('r');
+    commit('Roll-out count r', 2);
+    dispatch(setInteriorPath({ path: 'r', divider: 0 }));
+    const data = () => wallInteriorData(room(), wall(), 'front', state.settings);
+    const widths = () => [...data().rollouts.get('c1').values()].map(({ rollouts }) => rollouts[0].width);
+    const shapes = () => nodes(InteriorShapes({ entries: [...data().interiors.values()], drawnPieces: [],
+      transform: { scale: 8, offsetX: 20, offsetY: 30, wallHeight: 96 }, selectedPieceId: 'c1' }));
+    const lines = () => shapes().filter(({ type, props }) => type === 'line' && props.dash);
+    const dividerRow = nodes(render()).find(({ type, props }) => type === 'div'
+      && props.className?.includes('border-blue-500'));
+    expect(dividerRow.props.children.slice(0, 2).map(({ props }) => props.label)).toEqual(['Kind', 'Gap']);
+    expect(field('Divider gap r.0').props).toMatchObject({
+      value: undefined, placeholder: 'Auto (1")', allowBlank: true, allowAuto: true,
+    });
+    expect(data().interiors.get('c1').dividers[0]).toMatchObject({ fromLeft: 18, width: 1, linked: true });
+    expect(lines()).toHaveLength(2);
+    expect(lines().map(({ props }) => props.points[0])).toEqual([0, 8]);
+    expect(widths()).toEqual([15, 15]);
+    expect(commit('Divider gap r.0', -1)).toBe(false);
+    expect(widths()).toEqual([15, 15]);
+    commit('Divider gap r.0', 0);
+    expect(item().interior.dividers[0].gap).toBe(0);
+    expect(lines()).toHaveLength(1);
+    expect(widths()).toEqual([15.5, 15.5]);
+    commit('Divider gap r.0', null);
+    expect(item().interior.dividers[0]).not.toHaveProperty('gap');
+    expect(widths()).toEqual([15, 15]);
+    commit('Divider gap r.0', 2);
+    change('Divider kind r.0', 'partition');
+    expect(field('Divider gap r.0')).toBeUndefined();
+    expect(item().interior.dividers[0]).not.toHaveProperty('gap');
+    expect(data().interiors.get('c1').dividers[0]).toMatchObject({ kind: 'partition', width: 0.75 });
+    expect(shapes().find(({ key }) => key === 'r:0').type).toBe('rect');
+    expect(lines()).toHaveLength(0);
+    change('Divider kind r.0', 'zone');
+    expect(field('Divider gap r.0').props).toMatchObject({ value: undefined, placeholder: 'Auto (1")' });
+  });
+
+  it('anchor 4: defaults an up/down gap to Auto (0") and draws a single dashed line', () => {
+    select('r');
+    field('Split as zones').props.onChange({ target: { checked: true } });
+    click('Fixed shelves');
+    dispatch(setInteriorPath({ path: 'r', divider: 0 }));
+    expect(field('Divider gap r.0').props).toMatchObject({ value: undefined, placeholder: 'Auto (0")' });
+    const data = wallInteriorData(room(), wall(), 'front', state.settings);
+    const shapes = nodes(InteriorShapes({ entries: [...data.interiors.values()], drawnPieces: [],
+      transform: { scale: 8, offsetX: 20, offsetY: 30, wallHeight: 96 }, selectedPieceId: 'c1' }));
+    expect(shapes.filter(({ type, props }) => type === 'line' && props.dash)).toHaveLength(1);
+    commit('Divider gap r.0', 0);
+    expect(field('Divider gap r.0').props.value).toBe(0);
+    commit('Divider gap r.0', null);
+    expect(item().interior.dividers[0]).not.toHaveProperty('gap');
+    expect(field('Divider gap r.0').props.placeholder).toBe('Auto (0")');
+  });
+});
+
 describe('IN15b step c zone controls', () => {
   it('anchors 1–3: splits as zones, edits the line, hides depth/banding and keeps the fixed shelf centre', () => {
     edit(() => { run().height = 34.5; });
@@ -1127,7 +1191,7 @@ describe('IN15d step b sink zones and mounting messages', () => {
     const shapes = nodes(InteriorShapes({ entries: [...actual.interiors.values()], drawnPieces: [],
       shelves: actual.shelves, rollouts: actual.rollouts, accessories: actual.accessories,
       transform: { scale: 8, offsetX: 20, offsetY: 30, wallHeight: 96 }, selectedPieceId: 'c1' }));
-    expect(shapes.filter(({ type, props }) => type === 'line' && props.dash)).toHaveLength(1);
+    expect(shapes.filter(({ type, props }) => type === 'line' && props.dash)).toHaveLength(2);
     expect(shapes.filter(({ type, key }) => type === 'group' && String(key).startsWith('rollout:'))).toHaveLength(2);
     expect(shippingList(room(), state.settings).rows.find(({ key }) => key === 'c1').notes)
       .toEqual(['NLB', '2 ro - 18"']);

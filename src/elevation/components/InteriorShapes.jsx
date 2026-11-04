@@ -79,6 +79,11 @@ export default function InteriorShapes({
     const clip = piece ? wallRectToScreen(piece, transform) : null;
     const selectable = selectedPieceId === entry.itemId;
     const dimensions = interiorDimensions(entry);
+    const zoneEdges = entry.dividers.filter(({ kind }) => kind === 'zone').flatMap((divider) => (
+      divider.dimFrom === 'bottom'
+        ? [{ ...divider, height: 0 }, { ...divider, z: divider.z + divider.height, height: 0 }]
+        : [{ ...divider, width: 0 }, { ...divider, x: divider.x + divider.width, width: 0 }]
+    ));
     return (
       <Group
         key={entry.itemId}
@@ -98,8 +103,8 @@ export default function InteriorShapes({
             { x: section.x, z: section.z, width: 0, height: section.height },
             { x: section.x + section.width, z: section.z, width: 0, height: section.height },
           ];
-          const solidEdges = edges.filter((edge) => !entry.dividers.some((divider) => divider.kind === 'zone'
-            && (edge.height === 0 && divider.height === 0
+          const solidEdges = edges.filter((edge) => !zoneEdges.some((divider) => (
+            edge.height === 0 && divider.height === 0
               ? Math.abs(edge.z - divider.z) < 1e-6
                 && edge.x >= divider.x - 1e-6 && edge.x + edge.width <= divider.x + divider.width + 1e-6
               : edge.width === 0 && divider.width === 0
@@ -273,8 +278,11 @@ export default function InteriorShapes({
           const dimension = dimensions.find(({ path, index }) => path === divider.path && index === divider.index);
           const rect = wallRectToScreen(divider, transform);
           const zone = divider.kind === 'zone';
-          const DividerShape = zone ? Line : Rect;
+          const gapped = zone && divider.gap > 0;
+          const DividerShape = gapped ? Group : zone ? Line : Rect;
           const vertical = dimension.axis === 'vertical';
+          const stroke = selected ? '#7dd3fc' : zone ? '#f8fafc' : '#1e293b';
+          const strokeWidth = selected ? 2 : 1;
           const preview = dragPreview?.itemId === entry.itemId && dragPreview.key === dimension.key
             ? dragPreview.delta : { x: 0, z: 0 };
           const deltaFrom = (event) => ({
@@ -287,13 +295,13 @@ export default function InteriorShapes({
               {...rect}
               x={rect.x + preview.x * transform.scale}
               y={rect.y - preview.z * transform.scale}
-              points={zone ? [0, 0, rect.width, rect.height] : undefined}
-              dash={zone ? [6, 4] : undefined}
-              hitStrokeWidth={zone ? 12 : undefined}
+              points={zone && !gapped ? [0, 0, rect.width, rect.height] : undefined}
+              dash={zone && !gapped ? [6, 4] : undefined}
+              hitStrokeWidth={zone && !gapped ? 12 : undefined}
               fill={zone ? undefined : '#cbd5e1'}
               opacity={0.9}
-              stroke={selected ? '#7dd3fc' : zone ? '#f8fafc' : '#1e293b'}
-              strokeWidth={selected ? 2 : 1}
+              stroke={stroke}
+              strokeWidth={strokeWidth}
               listening={selectable}
               draggable={selectable && draggable}
               dragDistance={3}
@@ -323,7 +331,20 @@ export default function InteriorShapes({
                 }, position.at);
               }}
               onClick={selectable ? click({ path: divider.path, divider: divider.index }) : undefined}
-            />
+            >
+              {gapped && (
+                <>
+                  <Rect width={rect.width} height={rect.height} fill="rgba(0, 0, 0, 0)" strokeEnabled={false} />
+                  {(vertical
+                    ? [[0, 0, rect.width, 0], [0, rect.height, rect.width, rect.height]]
+                    : [[0, 0, 0, rect.height], [rect.width, 0, rect.width, rect.height]]
+                  ).map((points, index) => (
+                    <Line key={index} points={points} dash={[6, 4]} hitStrokeWidth={12}
+                      stroke={stroke} strokeWidth={strokeWidth} />
+                  ))}
+                </>
+              )}
+            </DividerShape>
           );
         })}
         {(drawerBoxes.find(({ itemId }) => itemId === entry.itemId)?.boxes ?? [])

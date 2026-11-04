@@ -21,6 +21,7 @@ import {
   runScene,
   setDividerBanding,
   setDividerDepth,
+  setDividerGap,
   setDividerKind,
   setDividerPosition,
   setSectionAccessory,
@@ -529,6 +530,16 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                       ))}
                     </select>
                   </Field>
+                  {divider.kind === 'zone' && (
+                    <Field label="Gap">
+                      <InchInput
+                        aria-label={`Divider gap ${path}.${index}`}
+                        value={divider.gap}
+                        {...autoInchProps({ labelled: true, quoted: true, auto: actual.gap, min: 'nonNegative',
+                          onCommit: (value) => commit(setDividerGap(interior, path, index, value)) })}
+                      />
+                    </Field>
+                  )}
                   <div className="flex gap-2">
                     {!stacked && (
                       <div className="w-20 shrink-0">

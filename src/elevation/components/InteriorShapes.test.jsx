@@ -1,13 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Group, Line, Rect, Text } from 'react-konva';
 import InteriorShapes from './InteriorShapes.jsx';
-import { CABINET_TYPE_IDS } from '../model/constants.js';
+import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../model/constants.js';
 import { newAccessory } from '../model/accessories.js';
 import { wallInteriorData } from '../model/shelves.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { interiorDimensions } from '../model/interiors.js';
 import { setDividerGap, setDividerKind, splitSection } from '../model/interiorTree.js';
-import { run, stateWithRun } from '../store/__tests__/helpers/sliceFixtures.js';
+import { stateWithRun } from '../store/__tests__/helpers/sliceFixtures.js';
+import { fixed, room, run, wall } from '../../test/builders.js';
 
 vi.mock('react', async (original) => ({ ...await original(), useRef: (current) => ({ current }) }));
 vi.mock('react-konva', () => ({ Group: 'group', Line: 'line', Rect: 'rect', Text: 'text' }));
@@ -54,6 +55,76 @@ function shoeCabinet(height = 30.5) {
   })) };
 }
 const shoeShapes = (shapes) => nodes(shapes.filter(({ key }) => String(key).startsWith('shoe-shelf:')));
+
+describe('IN15e step b doors-off gap edges', () => {
+  it.each(['horizontal', 'vertical'])('keeps %s gap edges dashed, selectable and draggable as one shape', (direction) => {
+    const stacked = direction === 'vertical';
+    const split = splitSection(null, 'r', direction, 2, 'zone');
+    const interior = stacked ? setDividerGap(split, 'r', 0, 2) : split;
+    const w = wall({ runs: [run({ width: 30, height: 34.5, autoCount: false,
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+      items: [{ ...fixed('cabinet', 30), interior }],
+    })] });
+    const entry = wallInteriorData(room({ walls: [w] }), w, 'front', { ...DEFAULT_SETTINGS }).interiors.get('cabinet');
+    const rect = wallRectToScreen(entry.dividers[0], transform);
+    const onSelectInterior = vi.fn();
+    const onMoveDivider = vi.fn();
+    const onPreviewDivider = vi.fn();
+    const render = (extra = {}) => nodes(InteriorShapes({ entries: [entry], drawnPieces: [], transform,
+      selectedPieceId: 'cabinet', draggable: true, onSelectInterior, onMoveDivider, onPreviewDivider, ...extra }));
+    const shapes = render();
+    const divider = shapes.find(({ key }) => key === 'r:0');
+    const lines = nodes(divider).filter(({ type }) => type === Line);
+    expect(divider.type).toBe(Group);
+    expect(divider.props).toMatchObject({ ...rect, listening: true, draggable: true });
+    expect(lines.map(({ props }) => props.points)).toEqual(stacked
+      ? [[0, 0, rect.width, 0], [0, rect.height, rect.width, rect.height]]
+      : [[0, 0, 0, rect.height], [rect.width, 0, rect.width, rect.height]]);
+    expect((stacked ? rect.height : rect.width) / transform.scale).toBe(stacked ? 2 : 1);
+    expect(lines.every(({ props }) => props.stroke === '#f8fafc' && props.strokeWidth === 1
+      && props.hitStrokeWidth === 12 && !props.draggable)).toBe(true);
+    expect(lines.map(({ props }) => props.dash)).toEqual([[6, 4], [6, 4]]);
+    expect(nodes(divider).find(({ type }) => type === Rect).props).toMatchObject({
+      width: rect.width, height: rect.height, fill: 'rgba(0, 0, 0, 0)', strokeEnabled: false,
+    });
+    const sections = shapes.filter(({ type, props }) => type === Rect && props.onClick);
+    expect(sections).toHaveLength(2);
+    expect(sections.every(({ props }) => props.strokeEnabled === false)).toBe(true);
+    const edges = shapes.filter(({ key }) => String(key).startsWith('section-edge:'));
+    expect(edges).toHaveLength(6);
+    expect(edges.every(({ props: { points } }) => stacked
+      ? ![rect.y, rect.y + rect.height].some((y) => points[1] === y && points[3] === y)
+      : ![rect.x, rect.x + rect.width].some((x) => points[0] === x && points[2] === x))).toBe(true);
+    const dimensions = interiorDimensions(entry);
+    expect(dimensions).toHaveLength(1);
+    expect(dimensions[0].value).toBe(stacked ? 17.25 : 15);
+    divider.props.onClick({});
+    expect(onSelectInterior).toHaveBeenLastCalledWith({ path: 'r', divider: 0 });
+    const highlighted = render({ interiorPath: 'r', interiorDivider: 0 }).find(({ key }) => key === 'r:0');
+    expect(nodes(highlighted).filter(({ type }) => type === Line)
+      .every(({ props }) => props.stroke === '#7dd3fc' && props.strokeWidth === 2)).toBe(true);
+    expect(render({ selectedPieceId: null }).find(({ key }) => key === 'r:0').props)
+      .toMatchObject({ listening: false, draggable: false });
+    expect(divider.props.dragBoundFunc({ x: 100, y: 200 })).toEqual(stacked
+      ? { x: rect.x, y: 200 } : { x: 100, y: rect.y });
+    const delta = { x: stacked ? 0 : 1, z: stacked ? 1 : 0 };
+    const preview = render({ dragPreview: { itemId: entry.itemId, key: 'r:0', delta } })
+      .find(({ key }) => key === 'r:0');
+    expect(preview.props).toMatchObject({ x: rect.x + delta.x * 8, y: rect.y - delta.z * 8 });
+    const target = { x: () => rect.x + delta.x * 8, y: () => rect.y - delta.z * 8, position: vi.fn() };
+    divider.props.onDragStart({});
+    divider.props.onDragMove({ target });
+    expect(onPreviewDivider).toHaveBeenLastCalledWith({ itemId: entry.itemId, key: 'r:0', delta });
+    divider.props.onDragEnd({ target });
+    expect(target.position).toHaveBeenCalledWith({ x: rect.x, y: rect.y });
+    expect(onPreviewDivider).toHaveBeenLastCalledWith(null);
+    expect(onMoveDivider).toHaveBeenLastCalledWith({ runId: entry.runId, itemId: entry.itemId,
+      path: 'r', index: 0, side: stacked ? 'bottom' : 'left' }, stacked ? 18.25 : 16);
+    onSelectInterior.mockClear();
+    divider.props.onClick({});
+    expect(onSelectInterior).not.toHaveBeenCalled();
+  });
+});
 
 describe('IN15b step c doors-off zones', () => {
   it('anchors 1 and 3: draws a dashed, selectable, draggable line at 17 1/4 and a filled shelf at the same centre', () => {
