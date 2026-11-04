@@ -18,6 +18,7 @@ import { isSlideList } from '../model/slides.js';
 import { isAccessoryList } from '../model/accessories.js';
 import { isSectionProfileList } from '../model/sectionProfiles.js';
 import { isShapeList } from '../model/libraryShapes.js';
+import { isLegList } from '../model/legs.js';
 import {
   DOOR_STYLE_KEYS,
   findDoorDesign,
@@ -435,6 +436,7 @@ function isRun(run) {
     && (run.tFiller === undefined || T_FILLER_RUN_VALUES.includes(run.tFiller))
     && isEndFiller(run.endFiller)
     && (run.baseCutouts === undefined || isBaseCutoutList(run.baseCutouts))
+    && (run.legs === undefined || isLegList(run.legs))
     && (run.topSegments === undefined || isTopSegmentList(run.topSegments))
     && run.items === undefined
     && run.blind === undefined
@@ -694,6 +696,10 @@ export function isRoom(room, profileKeys = PROFILE_KEYS) {
     && room.wallOrder.length === room.walls.length
     && new Set(room.wallOrder).size === room.wallOrder.length
     && room.walls.every((wall) => isWall(wall, profileKeys))
+    && (() => {
+      const ids = room.walls.flatMap((wall) => wall.runs.flatMap((run) => (run.legs ?? []).map((leg) => leg.id)));
+      return new Set(ids).size === ids.length;
+    })()
     && room.wallOrder.every((wallId) => room.walls.some((wall) => wall.id === wallId))
     && (room.partNumberStart === undefined
       || (Number.isInteger(room.partNumberStart) && room.partNumberStart > 0))

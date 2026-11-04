@@ -182,6 +182,7 @@ export {
 export { splitRun } from './splitRun.js';
 export { columnSteps } from './columnSteps.js';
 export { topSegmentRange, resolveTopSegments } from './topSegments.js';
+export { isLegList, runLegs, legPreset, legWarningText } from './legs.js';
 export {
   blindEntries,
 } from './blind.js';

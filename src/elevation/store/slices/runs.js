@@ -1,4 +1,5 @@
 import { cellWidthsBlocker } from '../../model/cellWidths.js';
+import { isLegList } from '../../model/legs.js';
 import { applyRunWidthChoice as applyRunWidthChoicePure } from '../../model/runWidthChoices.js';
 import { cornerAt } from '../../model/corners.js';
 import {
@@ -28,6 +29,13 @@ import {
   settingsFor,
   clearTransientSelection,
 } from './helpers.js';
+
+function validRunLegs({ room, run }, legs) {
+  if (!isLegList(legs)) return false;
+  const otherIds = new Set(room.walls.flatMap((wall) => wall.runs
+    .filter((other) => other.id !== run.id).flatMap((other) => (other.legs ?? []).map((leg) => leg.id))));
+  return legs.every((leg) => !otherIds.has(leg.id));
+}
 
 export const runReducers = {
   addRun(state, action) {
@@ -165,6 +173,28 @@ export const runReducers = {
     if (!location) return;
     const cutouts = [...(location.run.baseCutouts ?? []), action.payload.cutout];
     if (isBaseCutoutList(cutouts)) location.run.baseCutouts = cutouts;
+  },
+  addRunLegs(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location || !Array.isArray(action.payload.legs) || !action.payload.legs.length) return;
+    const legs = [...(location.run.legs ?? []), ...action.payload.legs];
+    if (validRunLegs(location, legs)) location.run.legs = legs;
+  },
+  updateRunLeg(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location?.run.legs) return;
+    const { legId, changes } = action.payload;
+    const legs = location.run.legs.map((leg) => leg.id === legId
+      ? Object.fromEntries(Object.entries({ ...leg, ...changes })
+        .filter(([key, value]) => key !== 'mirror' || value !== undefined)) : leg);
+    if (validRunLegs(location, legs)) location.run.legs = legs;
+  },
+  removeRunLeg(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location?.run.legs) return;
+    const legs = location.run.legs.filter((leg) => leg.id !== action.payload.legId);
+    if (legs.length) location.run.legs = legs;
+    else delete location.run.legs;
   },
   updateBaseCutout(state, action) {
     const location = runLocation(state, action.payload);
