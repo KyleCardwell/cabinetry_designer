@@ -459,8 +459,11 @@ function isLeaf(leaf) {
 
 function isShelves(shelves) {
   return Boolean(shelves) && typeof shelves === 'object' && !Array.isArray(shelves)
-    && Object.keys(shelves).every((key) => key === 'count' || key === 'back')
-    && Number.isInteger(shelves.count) && shelves.count >= 1 && shelves.count <= MAX_SHELVES
+    && Object.keys(shelves).every((key) => ['count', 'back', 'bottom', 'top'].includes(key))
+    && (shelves.count === undefined
+      || (Number.isInteger(shelves.count) && shelves.count >= 1 && shelves.count <= MAX_SHELVES))
+    && ['bottom', 'top'].every((key) => shelves[key] === undefined
+      || (isFiniteNumber(shelves[key]) && shelves[key] >= 0))
     && typeof shelves.back === 'boolean';
 }
 

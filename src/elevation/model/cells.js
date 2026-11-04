@@ -4,6 +4,8 @@ import { sheetThickness, teamDoorStyle } from './doorStyles.js';
 import { insideEndGap, insideEndPieces } from './insideEnds.js';
 import { stepEndPieces } from './stepEnds.js';
 import { endHeightMode } from './runEnds.js';
+import { MAX_SHELVES } from './cellTree.js';
+import { autoStackCount, spacedStack } from './spacedStack.js';
 
 export const MIN_CELL_SIZE = 1;
 
@@ -350,23 +352,38 @@ export function panelOrientation(piece) {
   return 'back';
 }
 
-/** A shelves cell's parts: its back panel (if any), then each shelf bottom up, evenly spaced. */
+/** Resolve cell-relative shelf picks to absolute shelf bottoms. */
+export function floatingShelfLayout(piece, settings) {
+  const { count: pickedCount, bottom: pickedBottom, top: pickedTop } = piece.shelves;
+  const floor = piece.z;
+  const ceiling = floor + piece.height;
+  const bottom = pickedBottom === undefined ? null : floor + pickedBottom;
+  const top = pickedTop === undefined ? null : ceiling - pickedTop;
+  const height = settings.floatingShelfThickness;
+  const countSource = pickedCount === undefined ? 'auto' : 'manual';
+  const count = pickedCount ?? autoStackCount({ floor, ceiling, height, bottom, top,
+    minClear: settings.floatingShelfSpacing, min: 1, max: MAX_SHELVES });
+  return { count, countSource,
+    ...spacedStack({ floor, ceiling, heights: Array(count).fill(height), bottom, top }) };
+}
+
+/** A shelves cell's parts: its back panel (if any), then each shelf bottom up. */
 export function shelfParts(piece, settings) {
   if (piece?.kind !== 'shelves' || !piece.shelves) return [];
-  const { count, back } = piece.shelves;
+  const { back } = piece.shelves;
+  const { positions } = floatingShelfLayout(piece, settings);
   const thickness = settings.floatingShelfThickness;
   const backThickness = back ? sheetThickness(settings) : 0;
-  const gap = (piece.height - count * thickness) / (count + 1);
   const parts = [];
   if (back) {
     parts.push({ id: `${piece.id}:back`, kind: 'panel', x: piece.x, z: piece.z,
       width: piece.width, height: piece.height, depth: backThickness });
   }
-  for (let index = 1; index <= count; index += 1) {
-    parts.push({ id: `${piece.id}:shelf-${index}`, kind: 'shelf', x: piece.x,
-      z: piece.z + index * gap + (index - 1) * thickness, width: piece.width,
+  positions.forEach((z, index) => {
+    parts.push({ id: `${piece.id}:shelf-${index + 1}`, kind: 'shelf', x: piece.x,
+      z, width: piece.width,
       height: thickness, depth: piece.depth - backThickness });
-  }
+  });
   return parts;
 }
 

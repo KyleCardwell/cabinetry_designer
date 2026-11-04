@@ -176,6 +176,7 @@ export const DEFAULT_SETTINGS = {
   stackedUpperBottom: 0,
   stackedLowerTop: 0.125,
   floatingShelfThickness: 1.5,
+  floatingShelfSpacing: 11,
   standardDrawerHeights: { european: 5.875, faceFrame: 5 },
   /** ProBox preset drawer box heights (INTERIORS-PLAN ID11): from..to, then thenFrom..max, by step. */
   drawerBoxHeights: { from: 2.25, to: 10.25, thenFrom: 11.125, max: 22.125, step: 1, warnAbove: 15.125 },

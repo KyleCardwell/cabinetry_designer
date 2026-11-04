@@ -20,7 +20,7 @@ const WRAP_THROUGH = ['sides', 'top'];
 /** Sides addGridPanel accepts. */
 const PANEL_SIDES = ['left', 'right', 'above', 'below'];
 
-const DEFAULT_SHELVES = { count: 2, back: false };
+const DEFAULT_SHELVES = { back: false };
 
 const axisOf = (grid) => (grid.rows.length > 1 ? 'row' : 'col');
 const trackKey = (axis) => (axis === 'row' ? 'rows' : 'cols');
@@ -359,21 +359,29 @@ export function setGridCellDepth(grid, leafId, patch) {
   return replaceLeaf(grid, found, next);
 }
 
-/** Sets a shelves leaf's count (rounded, 1…MAX_SHELVES) and back panel flag. */
+/** Set shelf picks; null clears count, bottom or top back to Auto/Equal. */
 export function setGridShelves(grid, leafId, patch) {
   const found = cellLeaf(grid, leafId);
   if (!found || found.cell.node.kind !== 'shelves' || !patch) return grid;
   const leaf = found.cell.node;
   const shelves = { ...DEFAULT_SHELVES, ...leaf.shelves };
   if (Object.hasOwn(patch, 'count')) {
-    if (!Number.isFinite(patch.count)) return grid;
-    shelves.count = Math.min(MAX_SHELVES, Math.max(1, Math.round(patch.count)));
+    if (patch.count === null) delete shelves.count;
+    else if (Number.isFinite(patch.count)) {
+      shelves.count = Math.min(MAX_SHELVES, Math.max(1, Math.round(patch.count)));
+    } else return grid;
+  }
+  for (const key of ['bottom', 'top']) {
+    if (!Object.hasOwn(patch, key)) continue;
+    if (patch[key] === null) delete shelves[key];
+    else if (Number.isFinite(patch[key]) && patch[key] >= 0) shelves[key] = patch[key];
+    else return grid;
   }
   if (Object.hasOwn(patch, 'back')) {
     if (typeof patch.back !== 'boolean') return grid;
     shelves.back = patch.back;
   }
-  if (shelves.count === leaf.shelves?.count && shelves.back === leaf.shelves?.back) return grid;
+  if (['count', 'back', 'bottom', 'top'].every((key) => shelves[key] === leaf.shelves?.[key])) return grid;
   return replaceLeaf(grid, found, { ...leaf, shelves });
 }
 

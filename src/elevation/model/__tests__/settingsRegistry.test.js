@@ -11,13 +11,13 @@ function leaves(values, prefix = '') {
 }
 
 describe('DB1 a settings registry', () => {
-  it('covers exactly 163 settings leaves, with 110 room settings and 15 team-only settings after AU8', () => {
+  it('covers exactly 164 settings leaves, with 111 room settings and 15 team-only settings after IN15a', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(163);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(110);
+    expect(new Set(keys).size).toBe(164);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(111);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(15);
   });
 
@@ -89,12 +89,13 @@ it('IN9 registers roll-out defaults with labels, room inheritance and reset', ()
   }
 });
 
-it('IN8 / IN13b registers the nine shelf defaults and inherits/resets them through the room level', () => {
+it('IN8 / IN13b registers the shelf defaults and inherits/resets them through the room level', () => {
   const defaults = {
-    shelfSpacing: 11, shelfWidthClearance: 1 / 16, shelfSetback: 1 / 8,
+    floatingShelfSpacing: 11, shelfSpacing: 11, shelfWidthClearance: 1 / 16, shelfSetback: 1 / 8,
     glassShelfThickness: 1 / 4, shelfNosingHeight: 1.5, shelfNosingThickness: 13 / 16,
     foldedNosingExtra: 2, shoeShelfAngle: 12, shoeShelfClear: 6,
   };
+  expect(registryEntry('floatingShelfSpacing').label).toBe('Min clear between floating shelves');
   for (const [key, value] of Object.entries(defaults)) {
     expect(DEFAULT_SETTINGS[key]).toBe(value);
     expect(registryEntry(key)).toMatchObject({ kind: 'number', lowest: 'room' });

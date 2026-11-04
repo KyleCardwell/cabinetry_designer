@@ -420,7 +420,7 @@ describe('SPEC-34 cell kind reducers', () => {
     state = elevationReducer(state, setSelection({ runId: 'run-1', pieceId: lower }));
     state = elevationReducer(state, setFacePath('r'));
     state = elevationReducer(state, setCellKind({ ...actionBase, cellId: lower, kind: 'shelves' }));
-    expect(leafOf(state, lower)).toEqual({ id: lower, kind: 'shelves', shelves: { count: 2, back: false } });
+    expect(leafOf(state, lower)).toEqual({ id: lower, kind: 'shelves', shelves: { back: false } });
     expect(state.facePath).toBeNull();
     expect(elevationReducer(state, setCellKind({ ...actionBase, cellId: 'b', kind: 'filler' }))).toBe(state);
   });

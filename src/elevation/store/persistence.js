@@ -67,6 +67,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'stackedUpperBottom',
   'stackedLowerTop',
   'floatingShelfThickness',
+  'floatingShelfSpacing',
   'standardDrawerHeights',
   'belowRunOverhang',
   'belowRunFlushReveal',

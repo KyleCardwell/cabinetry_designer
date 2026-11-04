@@ -24,7 +24,7 @@ describe('SPEC-34 cell kinds, depth and wrap', () => {
   it('changes a nested cell\'s kind', () => {
     expect(findLeaf(setGridCellKind(S, 'b', 'panel'), 'b')).toEqual({ id: 'b', kind: 'panel' });
     expect(findLeaf(setGridCellKind(S, 'n5', 'shelves'), 'n5'))
-      .toEqual({ id: 'n5', kind: 'shelves', shelves: { count: 2, back: false } });
+      .toEqual({ id: 'n5', kind: 'shelves', shelves: { back: false } });
     const back = setGridCellDepth(setGridCellKind(S, 'b', 'panel'), 'b', { depth: 0.75, align: 'back' });
     expect(findLeaf(back, 'b')).toEqual({ id: 'b', kind: 'panel', depth: 0.75, align: 'back' });
     expect(findLeaf(setGridCellKind(back, 'b', 'void'), 'b')).toEqual({ id: 'b', kind: 'void' });
@@ -54,10 +54,27 @@ describe('SPEC-34 cell kinds, depth and wrap', () => {
       .toEqual({ count: 4, back: true });
     expect(findLeaf(setGridShelves(shelves, 'n5', { count: 40 }), 'n5').shelves.count).toBe(12);
     expect(findLeaf(setGridShelves(shelves, 'n5', { count: 0 }), 'n5').shelves.count).toBe(1);
-    expect(setGridShelves(shelves, 'n5', { count: 2 })).toBe(shelves);
+    expect(setGridShelves(shelves, 'n5', { back: false, count: null })).toBe(shelves);
     expect(setGridShelves(shelves, 'n5', { count: Number.NaN })).toBe(shelves);
     expect(setGridShelves(shelves, 'n5', { back: 'yes' })).toBe(shelves);
     expect(setGridShelves(S, 'b', { count: 3 })).toBe(S);
+  });
+
+  it('stores and clears shelf spacing picks without mutating the grid or accepting invalid edits', () => {
+    const auto = setGridCellKind(S, 'n5', 'shelves');
+    const picked = setGridShelves(auto, 'n5', { count: 3, bottom: 6, top: 0, back: true });
+    expect(findLeaf(picked, 'n5').shelves).toEqual({ count: 3, bottom: 6, top: 0, back: true });
+    expect(findLeaf(auto, 'n5').shelves).toEqual({ back: false });
+    expect(setGridShelves(picked, 'n5', { bottom: 6, top: 0 })).toBe(picked);
+    expect(findLeaf(setGridShelves(picked, 'n5', { count: null, bottom: null, top: null }), 'n5').shelves)
+      .toEqual({ back: true });
+    for (const key of ['bottom', 'top']) {
+      for (const value of [-1, Infinity, NaN, '6', undefined]) {
+        expect(setGridShelves(picked, 'n5', { count: 4, [key]: value })).toBe(picked);
+      }
+    }
+    expect(findLeaf(setGridShelves(picked, 'n5', { bottom: 0.25, top: null }), 'n5').shelves)
+      .toEqual({ count: 3, bottom: 0.25, back: true });
   });
 
   it('wraps a root cabinet with the sides running through', () => {
@@ -111,7 +128,7 @@ describe('SPEC-34 cell kinds, depth and wrap', () => {
   it('resolves depth, align and shelves into pieces', () => {
     let grid = setGridTrackSize(S, 'n4', 30);
     grid = setGridCellDepth(grid, 'b', { depth: 21, align: 'back' });
-    grid = setGridShelves(setGridCellKind(grid, 'n5', 'shelves'), 'n5', { back: true });
+    grid = setGridShelves(setGridCellKind(grid, 'n5', 'shelves'), 'n5', { count: 2, back: true });
     const layout = { pieces: [
       { id: 'a', kind: 'cabinet', role: 'item', cabinetTypeId: 3, x: 0, width: 36, z: 4, height: 90, depth: 24, auto: true },
       { id: 'n1', kind: 'cabinet', role: 'item', cabinetTypeId: 3, x: 36, width: 30, z: 4, height: 90, depth: 24, auto: false },

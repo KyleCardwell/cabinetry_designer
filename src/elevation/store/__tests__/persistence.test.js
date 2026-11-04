@@ -114,6 +114,21 @@ function currentDocument() {
   };
 }
 
+it('IN15a defaults floating shelf spacing in older saves and preserves typed values', () => {
+  const document = currentDocument();
+  delete document.settings.floatingShelfSpacing;
+  const normalized = normalizeElevationDocument(document);
+  expect(normalized.settings.floatingShelfSpacing).toBe(11);
+  expect(document.settings).not.toHaveProperty('floatingShelfSpacing');
+  expect(isElevationDocument(normalized)).toBe(true);
+  document.settings.floatingShelfSpacing = 8;
+  expect(normalizeElevationDocument(document).settings.floatingShelfSpacing).toBe(8);
+  for (const invalid of [null, '11', Infinity]) {
+    document.settings.floatingShelfSpacing = invalid;
+    expect(isElevationDocument(normalizeElevationDocument(document))).toBe(false);
+  }
+});
+
 it('IN12b anchor 6: defaults missing accessories, round trips saved entries and rejects invalid libraries', () => {
   const document = currentDocument();
   delete document.settings.accessories;
@@ -1337,6 +1352,28 @@ describe('SPEC-34 cell kinds', () => {
     run.grid.cells[0].node = structuredClone(KINDS);
     return document;
   }
+
+  it('IN15a round-trips Auto and typed spacing picks on nested and root shelves', () => {
+    for (const nested of [false, true]) {
+      for (const shelves of [{ back: false }, { back: true, bottom: 0, top: 0 },
+        { back: false, count: 12, bottom: 6.25, top: 2 }]) {
+        const document = nested ? kindDocument() : currentDocument();
+        const grid = document.rooms[0].walls[0].runs[0].grid;
+        const node = nested ? grid.cells[0].node.cells[0].node : grid.cells[0].node;
+        Object.keys(node).forEach((key) => { if (key !== 'id') delete node[key]; });
+        Object.assign(node, { kind: 'shelves', shelves });
+        expect(isElevationDocument(document)).toBe(true);
+        const state = createInitialElevationState(document);
+        expect(toElevationDocument(state).rooms[0].walls[0].runs[0].grid).toEqual(grid);
+        for (const patch of [{ count: null }, { count: 0 }, { count: 13 }, { count: 1.5 },
+          { bottom: -1 }, { top: -1 }, { bottom: null }, { top: '2' }, { bottom: Infinity },
+          { top: NaN }, { unknown: 1 }, { back: null }]) {
+          node.shelves = { ...shelves, ...patch };
+          expect(isElevationDocument(document), JSON.stringify(patch)).toBe(false);
+        }
+      }
+    }
+  });
 
   it('saves and loads panel, void and shelves cells with depth and align', () => {
     expect(isElevationDocument(kindDocument())).toBe(true);
