@@ -1,5 +1,5 @@
 import { blindEntries } from './blind.js';
-import { blindCellWidths, cellPieces, panelOrientation, shelfParts } from './cells.js';
+import { blindCellWidths, cellPieces, floatingShelfLayout, panelOrientation, shelfParts } from './cells.js';
 import { extendPieces } from './extensions.js';
 import { layoutRun, runFaceLayouts } from './faceLayouts.js';
 import { frameRegions } from './frames.js';
@@ -29,7 +29,8 @@ export function runScene(room, wall, run, settings) {
     if (piece.kind === 'void') subLabels.set(piece.id, 'Open');
     if (piece.kind === 'panel') subLabels.set(piece.id, `${PANEL_LABELS[panelOrientation(piece)]} panel`);
     if (piece.kind === 'shelves') {
-      subLabels.set(piece.id, `${piece.shelves.count} shelves${piece.shelves.back ? ' + back' : ''}`);
+      const { count } = floatingShelfLayout(piece, settings);
+      subLabels.set(piece.id, `${count} ${count === 1 ? 'shelf' : 'shelves'}${piece.shelves.back ? ' + back' : ''}`);
     }
   }
   for (const entry of blind.entries) {
