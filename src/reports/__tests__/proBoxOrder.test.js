@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { newAccessory } from '../../elevation/model/accessories.js';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../elevation/model/constants.js';
-import { gridFromItems } from '../../elevation/model/grid.js';
+import { splitSinkRollouts } from '../../elevation/model/interiorTree.js';
+import { room as buildRoom, run as buildRun, wall as buildWall } from '../../test/builders.js';
 import * as numbering from '../../elevation/model/partNumbers.js';
 import { syncRoom } from '../../elevation/model/room.js';
 import * as interiors from '../../elevation/model/shelves.js';
@@ -14,21 +15,21 @@ const face = (type, size = null, rest = {}) => ({ type, size, ...rest });
 const stack = (...children) => ({ direction: 'vertical', size: null, children });
 const drawers = () => stack(face('drawer_front', 5.875), face('drawer_front'), face('drawer_front'));
 function run(id, width = 18, patch = {}, extra = {}) {
-  return {
+  return buildRun({
     id: `run:${id}`, cabinetTypeId: CABINET_TYPE_IDS.BASE, x: 24, width, z: 4, height: 30.5, depth: 24,
     heightMode: 'manual', autoCount: false, overrides: {}, anchors: { left: false, right: false },
     ends: { left: { type: 'none', width: null }, right: { type: 'none', width: null } },
-    grid: gridFromItems(`run:${id}`, [{ id, kind: 'cabinet', width: null, face: drawers(), ...patch }]), ...extra,
-  };
+    items: [{ id, kind: 'cabinet', width: null, face: drawers(), ...patch }], ...extra,
+  });
 }
 function room(runs, overrides = {}, s = settings) {
-  return syncRoom({
+  return syncRoom(buildRoom({
     id: 'room', name: 'Kitchen', profile: { ...DEFAULT_SETTINGS.defaultProfile }, wallOrder: ['wall'],
-    walls: [{ id: 'wall', name: 'Wall', x1: 0, y1: 0, x2: 240, y2: 0, height: 96, thickness: 4.5,
+    walls: [buildWall({ id: 'wall', name: 'Wall', x1: 0, y1: 0, x2: 240, y2: 0, height: 96, thickness: 4.5,
       flipped: false, connections: { start: null, end: null }, landings: { start: null, end: null },
-      profile: {}, openings: [], joints: [], soffits: [], endPanels: { start: null, end: null }, runs }],
+      profile: {}, openings: [], joints: [], soffits: [], endPanels: { start: null, end: null }, runs })],
     ...overrides,
-  }, s);
+  }), s);
 }
 function order(r, s = settings, project = { name: 'Cardwell' }) {
   const header = reportHeader({ project, room: r, settings: { ...s,
@@ -145,7 +146,7 @@ describe('ProBox order model', () => {
 
   it('anchor 7: preserves sink roll-out sizes and the sink drawer plumbing note', () => {
     const r = room([
-      run('sink', 36, { purpose: 'sink', face: face('pair_door'), interior: { rollouts: { count: 2 } } }),
+      run('sink', 36, { purpose: 'sink', face: face('pair_door'), interior: splitSinkRollouts({}, 'r', 'r:pair') }),
       run('drawers', 18, { purpose: 'sink' }, { x: 90 }),
     ], { partNumberOverrides: { sink: 1, drawers: 2 } });
     expect(tuples(order(r))).toEqual([

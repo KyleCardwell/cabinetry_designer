@@ -125,7 +125,8 @@ describe('IN8 shelves and section flags', () => {
 
   it('anchor 1: sizes one base shelf from the clear section and enables both flags', () => {
     const args = input();
-    expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23, physical: 'r' }]);
+    expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23, physical: 'r',
+      edges: { left: 'box', right: 'box', top: 'box', bottom: 'box' } }]);
     const before = structuredClone(args);
     expect(sectionShelves(args).get('r')).toMatchObject({ count: 1, countSource: 'auto',
       zone: { z: 0.75, height: 29 }, width: 22.375, depth: 22.875, orderedDepth: 22.875, thickness: 0.75,

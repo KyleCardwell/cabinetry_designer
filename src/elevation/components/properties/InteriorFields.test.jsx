@@ -675,24 +675,6 @@ describe('IN9 roll-out controls', () => {
     expect(cards()).toHaveLength(0);
   });
 
-  it('anchor 3: shows the sink pair labels, outer spacers and automatic sink depths', () => {
-    base(36, 'pair_door');
-    edit(() => { item().purpose = 'sink'; });
-    select('r');
-    commit('Roll-out count r', 2);
-    expect(options(field('Roll-out layout r'))[0]).toEqual(['', 'Auto (Side by side)']);
-    expect(cards().map((card) => nodes(card).find(({ type }) => type === 'h4')).map(text)).toEqual(['Left', 'Right']);
-    expect(text(field('Roll-out size r.0'))).toBe('15 1/2 wide · spacer left');
-    expect(text(field('Roll-out size r.1'))).toBe('15 1/2 wide · spacer right');
-    for (const index of [0, 1]) expect(field(`Roll-out depth r.${index}`).props.placeholder).toBe('Auto (18, DRW-006)');
-    change('Roll-out layout r', 'stack');
-    expect(item().interior.rollouts.layout).toBe('stack');
-    expect(text(cards()[0])).toContain('Roll-out 1 (bottom)');
-    expect(text(field('Roll-out size r.0'))).toBe('31 1/2 wide · spacers left & right');
-    change('Roll-out layout r', '');
-    expect(item().interior.rollouts).toEqual({ count: 2 });
-  });
-
   it('anchor 4: edits the cabinet slide without a section selection and inherits it in cards', () => {
     base();
     edit(() => { item().interior = { rollouts: { count: 2 } }; });
@@ -724,8 +706,6 @@ describe('IN9 roll-out controls', () => {
     for (const key of ['height', 'depth']) expect(commit(`Roll-out ${key} r.0`, 0)).toBe(false);
     commit('Roll-out at r.1', 3);
     expect(text(cards()[1])).toContain('Roll-outs overlap; move one or use fewer.');
-    change('Roll-out layout r', 'pair');
-    expect(text(render())).toContain('Side by side needs 2 roll-outs behind a pair door; stacked instead.');
     commit('Roll-out height r.0', 40);
     commit('Roll-out depth r.0', 25);
     expect(text(cards()[0])).toContain('Taller than 15 1/8');

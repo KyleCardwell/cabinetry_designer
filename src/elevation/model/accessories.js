@@ -147,6 +147,9 @@ export function sectionAccessories({ interior, boxes = [], settings, rollouts = 
       if (!accessory) warnings.push({ code: 'accessory-missing' });
       else if (accessory.attachesTo !== 'section') warnings.push({ code: 'accessory-wrong-place' });
       else {
+        if (accessory.size?.width === 'section' && (section.edges?.left === 'zone' || section.edges?.right === 'zone')) {
+          warnings.push({ code: 'accessory-no-side' });
+        }
         const sizes = OPENING_KEYS.filter((dim) => accessory.minOpening[dim] !== null
           && accessory.minOpening[dim] > opening[dim] + 1e-9)
           .map((dim) => ({ dim, needs: accessory.minOpening[dim], has: opening[dim] }));

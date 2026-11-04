@@ -8,7 +8,6 @@ export {
   CABINET_TYPE_IDS,
   DEFAULT_SETTINGS,
   SHELF_NOSINGS,
-  ROLLOUT_LAYOUTS,
   MAX_ROLLOUTS,
   MAX_SECTION_ACCESSORIES,
   MAX_ACCESSORY_QTY,
@@ -121,7 +120,7 @@ export {
   cabinetDrawerBoxes, cabinetDrawerBoxesFor, drawerBoxHeights, isPrefinishedMaple, isTallDrawerBox,
   wallDrawerBoxes,
 } from './drawerBoxes.js';
-export { sectionRollouts, wallRollouts } from './rollouts.js';
+export { pairSeam, sectionRollouts, wallRollouts } from './rollouts.js';
 export { sectionShelves, wallShelves } from './shelves.js';
 export { glassMarks } from './glassMarks.js';
 export { wallShowThrough } from './showThrough.js';
@@ -157,6 +156,7 @@ export {
   setRolloutItem,
   setSectionFlag,
   splitSection,
+  splitSinkRollouts,
 } from './interiorTree.js';
 export { runFaceLayouts } from './faceLayouts.js';
 export { centerOverTargets } from './centerOver.js';

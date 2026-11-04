@@ -8,6 +8,7 @@ import { placeInterior, resolveInterior, wallInteriors } from '../../model/inter
 import { resolveWall, syncRoom } from '../../model/room.js';
 import { newAccessory, wallAccessories } from '../../model/accessories.js';
 import { wallRollouts } from '../../model/rollouts.js';
+import { splitSinkRollouts } from '../../model/interiorTree.js';
 import { wallShelves } from '../../model/shelves.js';
 import { wallRectToScreen } from '../../canvas/transform.js';
 import elevationReducer, { setDoorsOff, setSelection, setView } from '../../store/elevationSlice.js';
@@ -258,9 +259,10 @@ describe('IN9 doors-off roll-outs', () => {
     const small = render({ transform: { ...transform, scale: 0.1 } });
     expect(small.shapes.some(({ type, props }) => type === Text && props.text.startsWith('RO '))).toBe(false);
     expect(boxRects(small.shapes)).toHaveLength(2);
-    changeRollouts({ purpose: 'sink', face: { type: 'pair_door', size: null }, interior: { rollouts: { count: 2 } } });
+    changeRollouts({ purpose: 'sink', face: { type: 'pair_door', size: null },
+      interior: splitSinkRollouts({}, 'r', 'r:pair') });
     const paired = render();
-    expect(paired.entry.layout).toBe('pair');
+    expect([...paired.layer.props.rollouts.get('cabinet').keys()]).toEqual(['r.0', 'r.1']);
     expect(paired.shapes.filter(({ type, props }) => type === Rect && props.opacity === 0.5)).toHaveLength(2);
     expect(boxRects(paired.shapes)).toHaveLength(2);
   });

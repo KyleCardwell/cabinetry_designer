@@ -239,7 +239,6 @@ export const BOX_TOPS = ['between', 'overlay', 'spreaders', 'none'];
 export const BOX_KEYS = ['back', 'top', 'bottom', 'left', 'right', 'finTop', 'finBottom'];
 
 export const SHELF_NOSINGS = ['none', 'hardwood', 'folded'];
-export const ROLLOUT_LAYOUTS = ['stack', 'pair'];
 export const MAX_ROLLOUTS = 8;
 export const MAX_SECTION_ACCESSORIES = 12;
 export const MAX_ACCESSORY_QTY = 20;

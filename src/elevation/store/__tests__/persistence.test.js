@@ -1735,7 +1735,7 @@ it('IN9 defaults older roll-out settings, preserves picks and validates stored r
   expect(normalizeElevationDocument(legacy).settings).toMatchObject({ rolloutHeight: 6, rolloutSpacer: 1.5 });
   const interior = {
     direction: 'vertical', children: [{}, {
-      rollouts: { count: 2, layout: 'pair', items: [{ at: 0 }, { height: 6, depth: 18, slideId: 'x' }] },
+      rollouts: { count: 2, items: [{ at: 0 }, { height: 6, depth: 18, slideId: 'x' }] },
     }], dividers: [{ kind: 'fixed' }],
   };
   for (const nested of [false, true]) {
@@ -1752,7 +1752,8 @@ it('IN9 defaults older roll-out settings, preserves picks and validates stored r
     expect(isElevationDocument(loaded)).toBe(true);
     expect(gridLeaves(loaded.rooms[0].walls[0].runs[0].grid)[0].interior).toEqual(interior);
   }
-  for (const rollouts of [{ count: 0 }, { count: 1, items: [{ depth: 0 }] }, { count: 2, layout: 'side' }]) {
+  for (const rollouts of [{ count: 0 }, { count: 1, items: [{ depth: 0 }] }, { count: 2, layout: 'side' },
+    { count: 2, layout: 'pair' }, { count: 2, layout: 'stack' }]) {
     const invalid = structuredClone(normalized);
     invalid.rooms[0].walls[0].runs[0].grid.cells[0].node.interior = { rollouts };
     expect(isElevationDocument(invalid)).toBe(false);

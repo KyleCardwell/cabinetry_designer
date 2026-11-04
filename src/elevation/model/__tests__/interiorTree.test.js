@@ -6,7 +6,7 @@ import {
   interiorOutline, isInteriorNode, isStoredInterior, removeDivider, setDividerDepth,
   setDividerBanding, setDividerKind, setDividerPosition, splitSection,
   SHELF_NOSINGS, setSectionShelves, setSectionFlag,
-  MAX_ROLLOUTS, ROLLOUT_LAYOUTS, isRollouts, setSectionRollouts, setRolloutItem,
+  MAX_ROLLOUTS, isRollouts, setSectionRollouts, setRolloutItem,
   addSectionAccessory, isAccessoryItems, isFaceNode, isSectionAccessories, setFaceDrawerBox, setSectionAccessory,
 } from '../index.js';
 
@@ -526,20 +526,16 @@ describe('IN9 roll-out data', () => {
     rollouts: { count: 2, items: [{ at: 1 }, { height: 6 }] }, shelves: { glass: true },
   });
 
-  it('anchor 1: validates roll-outs only on sections, including count and layout boundaries', () => {
-    expect(ROLLOUT_LAYOUTS).toEqual(['stack', 'pair']);
+  it('anchor 1: validates roll-outs only on sections, including count boundaries and rejecting removed layouts', () => {
     expect(MAX_ROLLOUTS).toBe(8);
     expect(isInteriorNode({ rollouts: { count: 2, items: [{}, { at: 10, slideId: 'accuride-3832' }] } }))
       .toBe(true);
     expect(isInteriorNode({ rollouts: { count: 1, items: [{}, {}] } })).toBe(false);
     expect(isInteriorNode({ rollouts: { count: 2, layout: 'side' } })).toBe(false);
     expect(isInteriorNode({ rollouts: { count: 0 } })).toBe(false);
-    for (const layout of ROLLOUT_LAYOUTS) {
-      // Geometry decides whether a pair is usable, so count 1 remains valid stored data.
-      expect(isRollouts({ count: 1, layout })).toBe(true);
-      expect(isStoredInterior(group([{ rollouts: { count: 8, layout, items: [{ height: 1000, depth: 1000, at: 0 }] } }, {}])))
-        .toBe(true);
-    }
+    for (const layout of ['stack', 'pair']) expect(isRollouts({ count: 2, layout })).toBe(false);
+    expect(isStoredInterior(group([{ rollouts: { count: 8, items: [{ height: 1000, depth: 1000, at: 0 }] } }, {}])))
+      .toBe(true);
     expect(isRollouts({ count: 2, items: [] })).toBe(true);
     expect(isInteriorNode({ ...group([{}, {}]), rollouts: { count: 2 } })).toBe(false);
   });
@@ -575,17 +571,17 @@ describe('IN9 roll-out data', () => {
     expect(setRolloutItem(picks, 'r', 0, { at: null, depth: null, slideId: null })).toEqual(typed);
   });
 
-  it('anchor 3: truncates items when lowering count, removes roll-outs and resets layout', () => {
+  it('anchor 3: truncates items when lowering count, removes roll-outs and rejects layout patches', () => {
     const three = deepFreeze({ rollouts: { count: 3, items: [{}, {}, { depth: 18 }] } });
     const two = deepFreeze(setSectionRollouts(three, 'r', { count: 2 }));
     expect(two).toEqual({ rollouts: { count: 2 } });
     expect(setSectionRollouts(two, 'r', { count: 0 })).toEqual({});
     expect(setSectionRollouts(two, 'r', { count: null })).toEqual({});
-    const pair = deepFreeze(setSectionRollouts(three, 'r', { layout: 'pair' }));
-    expect(pair.rollouts).toEqual({ ...three.rollouts, layout: 'pair' });
-    expect(setSectionRollouts(pair, 'r', { layout: null })).toEqual(three);
-    expect(setSectionRollouts(pair, 'r', { count: 8, layout: 'stack' }).rollouts)
-      .toEqual({ count: 8, layout: 'stack', items: three.rollouts.items });
+    for (const layout of ['pair', 'stack', null]) {
+      expect(setSectionRollouts(three, 'r', { layout })).toBe(three);
+    }
+    expect(setSectionRollouts(three, 'r', { count: 8 }).rollouts)
+      .toEqual({ count: 8, items: three.rollouts.items });
   });
 
   it('ignores invalid patches, invalid indices, group paths and sections without roll-outs', () => {

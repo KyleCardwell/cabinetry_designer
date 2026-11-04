@@ -111,7 +111,7 @@ export function resolveInterior(interior, box, construction, settings, context) 
   const sections = [];
   const dividers = [];
   const warnings = [];
-  const walk = (node, region, path) => {
+  const walk = (node, region, path, edges) => {
     const smallWidth = region.width < MIN_FACE_SIZE;
     const smallHeight = region.height < MIN_FACE_SIZE;
     if (smallWidth || smallHeight) warnings.push({ code: 'section-too-small', path });
@@ -121,7 +121,7 @@ export function resolveInterior(interior, box, construction, settings, context) 
       height: smallHeight ? 0 : region.height,
     };
     if (!node.children) {
-      sections.push({ path, ...clear, depth });
+      sections.push({ path, ...clear, depth, edges });
       return { zoneOnly: true, physicalSections: [{ key: path, ...clear, depth, members: [path] }] };
     }
     const stacked = node.direction === 'vertical';
@@ -165,7 +165,10 @@ export function resolveInterior(interior, box, construction, settings, context) 
       const childRect = stacked
         ? { x: clear.x, z: -trailing, width: clear.width, height: trailing - leading }
         : { x: leading, z: clear.z, width: trailing - leading, height: clear.height };
-      return walk(child, childRect, `${path}.${index}`);
+      const childEdges = { ...edges };
+      if (index > 0) childEdges[stacked ? 'top' : 'left'] = node.dividers[index - 1].kind === 'zone' ? 'zone' : 'divider';
+      if (index < node.dividers.length) childEdges[stacked ? 'bottom' : 'right'] = node.dividers[index].kind === 'zone' ? 'zone' : 'divider';
+      return walk(child, childRect, `${path}.${index}`, childEdges);
     });
     const physicalSections = [];
     children.forEach((child, index) => {
@@ -189,7 +192,10 @@ export function resolveInterior(interior, box, construction, settings, context) 
       physicalSections,
     };
   };
-  const { physicalSections } = walk(getInteriorNode(tree, ROOT_FACE_PATH), rect, ROOT_FACE_PATH);
+  const { physicalSections } = walk(getInteriorNode(tree, ROOT_FACE_PATH), rect, ROOT_FACE_PATH, {
+    left: construction.left ? 'box' : 'zone', right: construction.right ? 'box' : 'zone',
+    top: construction.top === 'none' ? 'zone' : 'box', bottom: construction.bottom === 'none' ? 'zone' : 'box',
+  });
   const physicalByPath = new Map(physicalSections.flatMap(({ key, members }) => members.map((path) => [path, key])));
   sections.forEach((section) => { section.physical = physicalByPath.get(section.path); });
   if (hasPartition(automatic) && !hasPartition(tree)) warnings.push({ code: 'wide-no-partition' });

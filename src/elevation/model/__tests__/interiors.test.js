@@ -28,7 +28,8 @@ describe('IN2 interior rectangles', () => {
   it('anchor 1: an absent interior is one clear root section', () => {
     const rect = { x: 0.75, z: 0.75, width: 28.5, height: 29 };
     expect(resolve(undefined, box(30, 30.5))).toEqual({
-      tree: null, auto: false, rect, depth: 23, sections: [{ path: 'r', ...rect, depth: 23, physical: 'r' }],
+      tree: null, auto: false, rect, depth: 23, sections: [{ path: 'r', ...rect, depth: 23, physical: 'r',
+        edges: { left: 'box', right: 'box', top: 'box', bottom: 'box' } }],
       physicalSections: [{ key: 'r', ...rect, depth: 23, members: ['r'] }], dividers: [], warnings: [],
       partLines: boxPartLines(box(30, 30.5), standard, 0.75),
     });
@@ -37,8 +38,10 @@ describe('IN2 interior rectangles', () => {
   it('anchor 2: an auto shelf splits the clear height equally, top section first', () => {
     const result = resolve(vertical(fixed), box(24, 84));
     expect(result.sections).toEqual([
-      { path: 'r.0', x: 0.75, z: 42.375, width: 22.5, height: 40.875, depth: 23, physical: 'r.0' },
-      { path: 'r.1', x: 0.75, z: 0.75, width: 22.5, height: 40.875, depth: 23, physical: 'r.1' },
+      { path: 'r.0', x: 0.75, z: 42.375, width: 22.5, height: 40.875, depth: 23, physical: 'r.0',
+        edges: { left: 'box', right: 'box', top: 'box', bottom: 'divider' } },
+      { path: 'r.1', x: 0.75, z: 0.75, width: 22.5, height: 40.875, depth: 23, physical: 'r.1',
+        edges: { left: 'box', right: 'box', top: 'divider', bottom: 'box' } },
     ]);
     expect(result.dividers).toEqual([{
       path: 'r', index: 0, kind: 'fixed', x: 0.75, z: 41.625, width: 22.5, height: 0.75,
@@ -215,6 +218,7 @@ describe('IN3 interior view coordinates and dimensions', () => {
     const placed = placeInterior(local);
     expect(section(placed, 'r.1')).toEqual({
       path: 'r.1', x: 30.75, z: 4.75, width: 22.5, height: 40.875, depth: 23, physical: 'r.1',
+      edges: { left: 'box', right: 'box', top: 'divider', bottom: 'box' },
     });
     expect(section(placed, 'r.0').z).toBe(46.375);
     expect(placed.dividers[0]).toEqual({ ...local.dividers[0], x: 30.75, z: 45.625 });

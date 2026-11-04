@@ -75,11 +75,12 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
   it('anchor 1: sizes one left-hinged base roll-out and leaves one auto shelf above its space', () => {
     const args = input();
     const before = structuredClone(args);
-    expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23, physical: 'r' }]);
+    expect(args.interior.sections).toEqual([{ path: 'r', x: 0.75, z: 0.75, width: 22.5, height: 29, depth: 23, physical: 'r',
+      edges: { left: 'box', right: 'box', top: 'box', bottom: 'box' } }]);
     const entry = sectionRollouts(args).get('r');
-    expect(entry).toMatchObject({ layout: 'stack', layoutSource: 'auto', zone: { z: 0.75, height: 29 },
+    expect(entry).toMatchObject({ zone: { z: 0.75, height: 29 },
       top: 5.8125, warnings: [] });
-    expect(entry.rollouts).toMatchObject([{ index: 0, side: null, slideId: 'blum-562h', source: 'room',
+    expect(entry.rollouts).toMatchObject([{ index: 0, slideId: 'blum-562h', source: 'room',
       height: 4.25, heightSource: 'auto', width: 20.75, depth: 21, depthAuto: 21, depthSource: 'auto', depthRule: null,
       slideLength: 21, interiorDepth: 23, spacers: { left: 1.25, right: 0 }, maple: false, clips: 'standard',
       x: 2.25, z: 1.3125, at: 0.5625, zSource: 'auto', column: { x: 0.75, width: 22.5 },
@@ -106,29 +107,11 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
       .toMatchObject({ slideId: 'blum-562h', source: 'room', height: 4.25, depth: 9 });
   });
 
-  it('anchor 4: auto-pairs a sink at its wall-coordinate seam with outer spacers and sink depth', () => {
-    const args = input({ width: 36, x: 24, z: 40, leaf: { purpose: 'sink', face: face('pair_door') },
-      rollouts: { count: 2 } });
-    const entry = sectionRollouts(args).get('r');
-    expect(entry).toMatchObject({ layout: 'pair', layoutSource: 'auto', warnings: [] });
-    expect(entry.rollouts.map(({ side, column, spacers, width, depth, at, depthSource, depthRule }) =>
-      ({ side, column, spacers, width, depth, at, depthSource, depthRule }))).toEqual([
-      { side: 'left', column: { x: 24.75, width: 17.25 }, spacers: { left: 1.25, right: 0 },
-        width: 15.5, depth: 18, at: 0.5625, depthSource: 'rule', depthRule: 'DRW-006' },
-      { side: 'right', column: { x: 42, width: 17.25 }, spacers: { left: 0, right: 1.25 },
-        width: 15.5, depth: 18, at: 0.5625, depthSource: 'rule', depthRule: 'DRW-006' },
-    ]);
-    expect(entry.rollouts[1].x - entry.rollouts[0].x - 15.5).toBe(0.5);
-    expect(shelves(args)).toMatchObject({ count: 0, hinges: true });
-  });
-
-  it('anchor 5: uses a full-width stack for one sink roll-out or a stored stack layout', () => {
+  it('anchor 5: uses a full-width stack for one or two sink roll-outs without an action-time split', () => {
     const options = { width: 36, leaf: { purpose: 'sink', face: face('pair_door') } };
     const one = root(options);
-    expect(one).toMatchObject({ layout: 'stack', layoutSource: 'auto' });
     expect(one.rollouts[0]).toMatchObject({ width: 31.5, depth: 18, at: 0.5625, spacers: { left: 1.25, right: 1.25 } });
-    const two = root({ ...options, rollouts: { count: 2, layout: 'stack' } });
-    expect(two).toMatchObject({ layout: 'stack', layoutSource: 'manual' });
+    const two = root({ ...options, rollouts: { count: 2 } });
     expect(two.rollouts.map(({ width, at }) => [width, at])).toEqual([[31.5, 0.5625], [31.5, 14.78125]]);
   });
 
@@ -198,16 +181,6 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
     expect(codes(entry)).toContain('rollout-hinge-unknown');
   });
 
-  it('anchor 12: falls back from a stored pair without a pair door or exactly two boxes', () => {
-    for (const options of [
-      { rollouts: { count: 2, layout: 'pair' } },
-      { leaf: { face: face('pair_door') }, rollouts: { count: 1, layout: 'pair' } },
-    ]) {
-      expect(root(options)).toMatchObject({ layout: 'stack', layoutSource: 'manual',
-        warnings: expect.arrayContaining([{ code: 'rollout-pair-invalid' }]) });
-    }
-  });
-
   it('anchor 13: keeps typed depth and height and warns on depth beyond the interior and tall boxes', () => {
     const deep = root({ rollouts: { count: 1, items: [{ depth: 24 }] } });
     expect(deep.rollouts[0]).toMatchObject({ depth: 24, depthAuto: 21, depthSource: 'manual',
@@ -232,20 +205,6 @@ describe('IN9 step b section roll-outs and shelves above them', () => {
     expect(args).toEqual(before);
     const unchanged = sectionShelves(input({ leaf: { interior: {} } }));
     expect(sectionShelves({ ...input({ leaf: { interior: {} } }), rollouts: new Map() })).toEqual(unchanged);
-  });
-
-  it('honors manual pair layout, a shifted seam, separate slides and typed pair positions without overlaps', () => {
-    const args = input({ width: 36, x: 24, z: 40, leaf: { face: face('pair_door') },
-      rollouts: { count: 2, layout: 'pair', items: [{ at: 2 }, { slideId: 'accuride-3832' }] } });
-    args.faces[0].width -= 2;
-    args.faces[1].x -= 2;
-    args.faces[1].width += 2;
-    const entry = sectionRollouts(args).get('r');
-    expect(entry).toMatchObject({ layout: 'pair', layoutSource: 'manual', warnings: [] });
-    expect(entry.rollouts[0]).toMatchObject({ at: 2, zSource: 'manual', column: { x: 24.75, width: 15.25 } });
-    expect(entry.rollouts[1]).toMatchObject({ at: 0.5625, zSource: 'auto', width: 17,
-      clips: null, column: { x: 40, width: 19.25 } });
-    expect(entry.top).toBe(entry.rollouts[0].z + 4.25 + 0.25);
   });
 
   it('uses only nearby side hinge edges for spacers and leaves actions and horizontal hinges clear', () => {

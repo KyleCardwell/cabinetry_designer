@@ -11,7 +11,7 @@ import { spacedStack } from './spacedStack.js';
 
 const EPSILON = 1e-9;
 
-function pairSeam(faces) {
+export function pairSeam(faces) {
   for (const left of faces) {
     if (left.type !== 'pair_door' || left.half !== 'left') continue;
     const right = faces.find((face) => face.type === 'pair_door' && face.path === left.path && face.half === 'right');
@@ -74,20 +74,10 @@ export function sectionRollouts({ interior, faces, boxes = [], leaf, settings, i
     if (!pick) continue;
     const zone = shelfZone(section, boxes);
     const covering = faces.filter((face) => covers(face, section));
-    const seam = pairSeam(covering);
-    const paired = pick.count === 2 && seam !== null;
     const warnings = [];
-    let layout = pick.layout ?? (leaf.purpose === 'sink' && paired ? 'pair' : 'stack');
-    if (layout === 'pair' && !paired) {
-      layout = 'stack';
-      warnings.push({ code: 'rollout-pair-invalid' });
-    }
     const rollouts = Array.from({ length: pick.count }, (_, index) => {
       const item = pick.items?.[index] ?? {};
-      const side = layout === 'pair' ? (index === 0 ? 'left' : 'right') : null;
-      const column = side === 'left' ? { x: section.x, width: seam - section.x }
-        : side === 'right' ? { x: seam, width: section.x + section.width - seam }
-          : { x: section.x, width: section.width };
+      const column = { x: section.x, width: section.width };
       const resolved = resolveBoxSlide(settings, { box: item.slideId ?? null, cabinet: leaf.drawerSlideId ?? null });
       const { slide } = resolved;
       const { spacers, unknown } = columnSpacers(column, covering, setting('rolloutSpacer'));
@@ -102,7 +92,7 @@ export function sectionRollouts({ interior, faces, boxes = [], leaf, settings, i
       const height = item.height ?? setting('rolloutHeight');
       const width = slideBoxWidth(slide, column.width - spacers.left - spacers.right) + (maple ? mapleExtra : 0);
       const rollout = {
-        index, side, ...resolved, height, heightSource: item.height === undefined ? 'auto' : 'manual',
+        index, ...resolved, height, heightSource: item.height === undefined ? 'auto' : 'manual',
         width, depth, depthAuto, depthSource: item.depth !== undefined ? 'manual' : sink ? 'rule' : 'auto',
         depthRule: item.depth === undefined && sink ? 'DRW-006' : null,
         slideLength, notch, interiorDepth: section.depth,
@@ -119,7 +109,8 @@ export function sectionRollouts({ interior, faces, boxes = [], leaf, settings, i
       if (isTallDrawerBox(height, settings)) rollout.warnings.push({ code: 'drawer-box-tall' });
       return rollout;
     });
-    const gap = layout === 'stack' ? placeStack(rollouts, zone, section, pick, warnings) : null;
+    const gap = placeStack(rollouts, zone, section, pick, warnings);
+    const lowest = rollouts.reduce((lowest, rollout) => rollout.z < lowest.z ? rollout : lowest);
     for (const rollout of rollouts) {
       rollout.at = rollout.z - section.z;
       rollout.space = { z: rollout.z - rollout.slide.minBelow,
@@ -130,7 +121,12 @@ export function sectionRollouts({ interior, faces, boxes = [], leaf, settings, i
       if (space.z < zone.z - EPSILON || space.z + space.height > zone.z + zone.height + EPSILON) {
         rollout.warnings.push({ code: 'rollout-outside' });
       }
-      if (rollouts.some((other) => other !== rollout && other.side === rollout.side
+      const bottomMounted = rollout === lowest && section.edges?.bottom !== 'zone'
+        && Math.abs(rollout.z - zone.z - rollout.slide.minBelow) <= EPSILON;
+      if ((section.edges?.left === 'zone' || section.edges?.right === 'zone') && !bottomMounted) {
+        rollout.warnings.push({ code: 'rollout-no-side' });
+      }
+      if (rollouts.some((other) => other !== rollout
         && Math.min(space.z + space.height, other.space.z + other.space.height)
           > Math.max(space.z, other.space.z) + EPSILON)) {
         rollout.warnings.push({ code: 'rollouts-overlap' });
@@ -138,7 +134,7 @@ export function sectionRollouts({ interior, faces, boxes = [], leaf, settings, i
       warnings.push(...rollout.warnings.map((warning) => ({ ...warning, index: rollout.index })));
     }
     result.set(section.path, {
-      layout, layoutSource: pick.layout === undefined ? 'auto' : 'manual', zone, gap,
+      zone, gap,
       top: Math.max(...rollouts.map(({ space }) => space.z + space.height)), rollouts, warnings,
     });
   }

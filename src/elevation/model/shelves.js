@@ -101,6 +101,9 @@ export function sectionShelves({ interior, faces, boxes = [], leaf, settings, ro
       heights: Array(count).fill(visible), bottom, top });
     if (gap !== null && gap < 3) warnings.push({ code: 'shelves-crowded' });
     if (bottom !== null && bottom < floor - 1e-9) warnings.push({ code: 'shelves-into-fills' });
+    if ((count > 0 || shoeCount > 0) && (section.edges?.left === 'zone' || section.edges?.right === 'zone')) {
+      warnings.push({ code: 'shelves-no-side' });
+    }
     const shoeClear = count > 0 ? positions[0] - zone.z : zone.height;
     if (shoe && shoeClear < setting('shoeShelfClear') - 1e-9) {
       warnings.push({ code: 'shoe-shelves-tight', clear: Math.max(0, shoeClear) });

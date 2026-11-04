@@ -1,6 +1,6 @@
 import { treeRows } from './treeWalk.js';
 import { isPlainObject } from '@reduxjs/toolkit';
-import { INTERIOR_DIVIDERS, MAX_ROLLOUTS, ROLLOUT_LAYOUTS, SHELF_NOSINGS } from './constants.js';
+import { INTERIOR_DIVIDERS, MAX_ROLLOUTS, SHELF_NOSINGS } from './constants.js';
 import { addAccessoryItem, isAccessoryItems, mergeAccessoryItems, removeAccessoryItem, setAccessoryItem } from './accessoryItems.js';
 import { MAX_FACE_SPLIT, parentFacePath } from './faceTree.js';
 import { ROOT_FACE_PATH } from './faces.js';
@@ -62,11 +62,10 @@ function isRolloutItem(item) {
 /** Only leaf sections store roll-outs; omitted items are automatic. */
 export function isRollouts(value) {
   return isPlainObject(value)
-    && Reflect.ownKeys(value).every((key) => ['count', 'layout', 'items', 'bottom', 'top'].includes(key))
+    && Reflect.ownKeys(value).every((key) => ['count', 'items', 'bottom', 'top'].includes(key))
     && Number.isInteger(value.count) && value.count >= 1 && value.count <= MAX_ROLLOUTS
     && ['bottom', 'top'].every((key) => !Object.hasOwn(value, key)
       || (Number.isFinite(value[key]) && value[key] >= 0))
-    && (!Object.hasOwn(value, 'layout') || ROLLOUT_LAYOUTS.includes(value.layout))
     && (!Object.hasOwn(value, 'items') || (Array.isArray(value.items)
       && value.items.length <= value.count && Array.from(value.items).every(isRolloutItem)));
 }
@@ -156,21 +155,20 @@ export function setSectionFlag(interior, path, key, value) {
   return replaceAt(interior, path, () => next);
 }
 
-/** Count zero/null removes roll-outs; null resets layout or a stack end. */
+/** Count zero/null removes roll-outs; null resets a stack end. */
 export function setSectionRollouts(interior, path, patch) {
   const target = getInteriorNode(interior, path);
   if (!target || target.children || !isPlainObject(patch)
     || !Reflect.ownKeys(patch).every((key) => key === 'count'
       ? patch[key] === null || (Number.isInteger(patch[key]) && patch[key] >= 0 && patch[key] <= MAX_ROLLOUTS)
-      : key === 'layout' ? patch[key] === null || ROLLOUT_LAYOUTS.includes(patch[key])
-        : ['bottom', 'top'].includes(key)
-          && (patch[key] === null || (Number.isFinite(patch[key]) && patch[key] >= 0)))) return interior ?? {};
+      : ['bottom', 'top'].includes(key)
+        && (patch[key] === null || (Number.isFinite(patch[key]) && patch[key] >= 0)))) return interior ?? {};
   const next = { ...target };
   if (Object.hasOwn(patch, 'count') && (patch.count === 0 || patch.count === null)) {
     delete next.rollouts;
   } else {
     const rollouts = { ...target.rollouts, ...patch };
-    for (const key of ['layout', 'bottom', 'top']) {
+    for (const key of ['bottom', 'top']) {
       if (rollouts[key] === null) delete rollouts[key];
     }
     const trimmed = trimRolloutItems(rollouts);
@@ -279,6 +277,30 @@ export function splitSection(interior, path, direction, count, kind) {
     }));
   }
   return replaceAt(interior, path, () => ({ direction, children, dividers }));
+}
+
+/** Action-time sink pair: link two zones to the door seam and copy the first roll-out's picks. */
+export function splitSinkRollouts(interior, path, seam) {
+  const target = getInteriorNode(interior, path);
+  if (!target || target.children || typeof seam !== 'string' || !/^r(\.\d+)*:pair$/.test(seam)) {
+    return interior ?? {};
+  }
+  let next = splitSection(interior, path, 'horizontal', 2, 'zone');
+  if (next === interior) return interior;
+  const parentPath = parentFacePath(path);
+  const flattened = parentPath !== null && getInteriorNode(interior, parentPath)?.direction === 'horizontal';
+  const groupPath = flattened ? parentPath : path;
+  const index = flattened ? Number(path.split('.').at(-1)) : 0;
+  next = replaceAt(next, groupPath, (group) => ({
+    ...group,
+    dividers: group.dividers.map((divider, i) => i === index ? { ...divider, seam } : divider),
+  }));
+  for (const childIndex of [index, index + 1]) {
+    const childPath = `${groupPath}.${childIndex}`;
+    next = setSectionRollouts(next, childPath, { count: 1 });
+    if (target.rollouts?.items?.[0]) next = setRolloutItem(next, childPath, 0, target.rollouts.items[0]);
+  }
+  return next;
 }
 
 function dividerGroup(interior, path, index) {
