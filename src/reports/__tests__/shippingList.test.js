@@ -1045,7 +1045,7 @@ describe('RP2 step d cabinet notes', () => {
     r.walls[0].runs[0].grid.cells[0].node.reveals = {
       vertical: 0.125, right: 0.25, horizontal: 0, bottom: null, left: 0.125, top: 0.25,
     };
-    expect(row(r).notes).toEqual(['full top', 'RV\'s (1/8" L, 1/4" R, 0" H)', 'NPH (No Doors)', '1 as']);
+    expect(row(r).notes).toEqual(['full top', 'RV\'s (1/8" L, 1/4" R, 0" horizontal)', 'NPH (No Doors)', '1 as']);
     r.walls[0].runs[0].grid.cells[0].node.reveals = { bottom: -1.625 };
     expect(row(r).notes).toEqual(['full top', 'RV\'s (1 5/8" OH B)', 'NPH (No Doors)', '1 as']);
     delete r.walls[0].runs[0].grid.cells[0].node.reveals;
@@ -1172,7 +1172,7 @@ describe('RP2.2 step b reveal notes', () => {
         left: { type: 'filler', width: 3 }, right: { type: 'filler', width: 3 },
       },
     })]);
-    expect(revealNotes(r)).toEqual(['RV\'s (3/32" L, 3/32" R)']);
+    expect(revealNotes(r)).toEqual(['RV\'s (3/32" L & R)']);
   });
 
   it('keeps inset notes typed-only and resolves room, run and leaf styles (anchor 10)', () => {
@@ -1198,7 +1198,7 @@ describe('RP2.2 step b reveal notes', () => {
     r.walls[0].runs[0].grid.cells[0].node.reveals = {
       vertical: 0, right: 0, horizontal: 0, bottom: 0, left: 0, top: 0,
     };
-    expect(revealNotes(r)).toEqual(['RV\'s (0" T, 0" B, 0" L, 0" R, 0" H, 0" V)']);
+    expect(revealNotes(r)).toEqual(['RV\'s (0" T & B, 0" L & R, 0" horizontal, 0" vertical)']);
   });
 
   it('falls back to typed-only notes when a cabinet has no face layout', () => {

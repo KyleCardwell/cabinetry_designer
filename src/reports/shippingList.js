@@ -32,7 +32,7 @@ import { wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { woodTopGroups } from '../elevation/model/woodTopGroups.js';
 import { doorOrderItems } from './doorOrder.js';
-import { profiledFaceReveals } from './faceReveals.js';
+import { formatRevealParts, profiledFaceReveals } from './faceReveals.js';
 import { formatInch, formatSize } from './format.js';
 import { frameMemberRoles, frameNotes, frameNotchNotes, frameReasons, frameReturnNotes, frameStandards, frameStepReturnNotes } from './frameNotes.js';
 import { drawerFrontNote, faceOrder, interiorNotes } from './interiorNotes.js';
@@ -347,10 +347,11 @@ function cabinetNotes(room, settings, part, context) {
   const values = standard ? layout.reveals.values : { ...leaf?.reveals, ...Object.fromEntries(overlap) };
   const profiled = isInsetStyle(style) && faces.some((face) => face.type !== 'open'
     && !layout.reveals.values.squarePaths?.has(face.path));
-  const reveals = profiled ? profiledFaceReveals(piece, faces) : REVEAL_KEYS.filter((key) => Number.isFinite(values?.[key])
-    && (!standard || Math.abs(values[key] - standard[key]) > EPSILON))
-    // A negative reveal is an overhang: "1 5/8" OH B", not "-1 5/8" B" (Kyle 2026-10-19).
-    .map((key) => `${formatInch(Math.abs(values[key]))} ${values[key] < 0 ? 'OH ' : ''}${key[0].toUpperCase()}`);
+  const reveals = profiled ? profiledFaceReveals(piece, faces) : formatRevealParts(Object.fromEntries(
+    REVEAL_KEYS.filter((key) => Number.isFinite(values?.[key])
+      && (!standard || Math.abs(values[key] - standard[key]) > EPSILON))
+      .map((key) => [key, [values[key]]]),
+  ));
   const blind = scene.blind.entries.find(({ pieceId, unsized }) => pieceId === part.key && !unsized);
   const doors = faces.filter((face) => face.type === 'door');
   const doorWidth = doors.length ? Math.max(...doors.map(({ width }) => width)) : blind?.visibleWidth;
