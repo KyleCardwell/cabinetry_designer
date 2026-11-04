@@ -14,6 +14,7 @@ import {
   getInteriorNode,
   interiorOutline,
   placeInterior,
+  pairSeam,
   removeDivider,
   removeSectionAccessory,
   resolveWall,
@@ -28,12 +29,13 @@ import {
   setRolloutItem,
   setSectionFlag,
   splitSection,
+  splitSinkRollouts,
 } from '../../model/index.js';
 import { drawerBoxOptions } from '../../model/drawerBoxes.js';
 import { sectionAccessories } from '../../model/accessories.js';
 import { sectionRollouts } from '../../model/rollouts.js';
 import { BUILT_IN_SLIDES, resolveBoxSlide, resolveSlide } from '../../model/slides.js';
-import { sectionShelves } from '../../model/shelves.js';
+import { covers, sectionShelves } from '../../model/shelves.js';
 import { setCabinetSlide, setInteriorPath, setItemInterior, setItemShelves } from '../../store/elevationSlice.js';
 import InchInput from '../InchInput.jsx';
 import { autoInchProps } from '../autoInchProps.js';
@@ -52,7 +54,8 @@ const WARNING_MESSAGES = {
   'rollout-outside': "A roll-out runs past the section's clear space.",
   'rollouts-dont-fit': "These roll-outs don't fit the section's height.",
   'rollout-hinge-unknown': 'The door has no hinge side, so the roll-out has spacers on both sides.',
-  'rollout-pair-invalid': 'Side by side needs 2 roll-outs behind a pair door; stacked instead.',
+  'rollout-no-side': 'Nothing to mount the slides to at the zone line',
+  'shelves-no-side': 'Shelves need a side or partition at the zone line',
   'rollout-too-narrow': 'No roll-out fits this width.',
   'shelves-into-fills': 'Shelves reach into the roll-outs',
   'stack-doesnt-fit': "Don't fit",
@@ -77,6 +80,7 @@ function rolloutWarning(code, rollout, settings) {
 
 function accessoryWarning(warning, accessory) {
   switch (warning.code) {
+    case 'accessory-no-side': return 'Nothing to mount it to at the zone line';
     case 'accessory-missing': return "This accessory isn't in the Library any more.";
     case 'accessory-wrong-place': return `${accessory.name} goes on a drawer box, not in a section.`;
     case 'accessory-shape-missing': return "Its drawing isn't in the shape library.";
@@ -99,6 +103,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
   const selectedPath = interiorPath ?? 'r';
   const [splitCount, setSplitCount] = useState(2);
   const [splitAsZones, setSplitAsZones] = useState(false);
+  const [sinkSplitPath, setSinkSplitPath] = useState(null);
   const resolved = useMemo(() => cabinetInterior(
     room, wall.sideSource ?? wall, wall.side ?? 'front', settings, item.id,
   ), [room, wall, settings, item.id]);
@@ -125,7 +130,6 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
     args.accessories = sectionAccessories(args);
     const rollout = rollouts.get(path);
     const resolveTree = (tree) => sectionRollouts({ ...rolloutArgs, interior: { ...placed, tree } }).get(path);
-    const autoLayout = rollout && resolveTree(setSectionRollouts(interior, path, { layout: null })).layout;
     const autoItems = rollout?.rollouts.map(({ index }) => resolveTree(
       setRolloutItem(interior, path, index, { at: null, depth: null }),
     ).rollouts[index]);
@@ -134,6 +138,9 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
       interior: { ...placed, tree: setSectionShelves(interior, path, { count: null }) },
     }).get(path);
     const section = placed.sections.find((section) => section.path === path);
+    const covering = faces.filter((face) => section && covers(face, section));
+    const pair = pairSeam(covering) === null ? null : covering.find((face) => face.type === 'pair_door' && face.half === 'left'
+      && covering.some((other) => other.path === face.path && other.half === 'right'));
     const autoBottom = sectionShelves({ ...args,
       interior: { ...placed, tree: setSectionShelves(interior, path, { bottom: null }) },
     }).get(path)?.positions[0] - section?.z;
@@ -141,7 +148,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
     const autoFlags = sectionShelves({ ...args,
       interior: { ...placed, tree: setSectionFlag(setSectionFlag(interior, flagPath, 'hinges', null), flagPath, 'lineBore', null) },
     }).get(path);
-    return { shelves, autoCount, autoBottom, rolloutBottom, autoFlags, rollouts, rollout, autoLayout, autoItems, accessories: args.accessories.get(path), hasBoxes: boxes.length > 0 };
+    return { shelves, autoCount, autoBottom, rolloutBottom, autoFlags, rollouts, rollout, pairPath: pair?.path, autoItems, accessories: args.accessories.get(path), hasBoxes: boxes.length > 0 };
   }, [resolved, room, wall, run.id, settings, item, interior, path, flagPath]);
 
   useEffect(() => {
@@ -150,6 +157,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
 
   const commit = (next) => {
     if (next === interior) return false;
+    setSinkSplitPath(null);
     dispatch(setItemInterior({
       roomId: room.id, wallId: wall.id, runId: run.id, itemIds: [item.id], interior: next,
     }));
@@ -159,12 +167,25 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
   if (!resolved) return null;
 
   const shelf = shelfData.shelves.get(path);
-  const { rollout, autoLayout, autoItems } = shelfData;
+  const { rollout, autoItems } = shelfData;
+  const sinkSplitNotice = sinkSplitPath === path && Boolean(selected.children);
   const accessoryOptions = (settings.accessories ?? []).filter(({ attachesTo }) => attachesTo === 'section')
     .sort((a, b) => a.name.localeCompare(b.name));
   const slides = settings.slides ?? BUILT_IN_SLIDES;
   const autoSlide = resolveBoxSlide(settings, { cabinet: item.drawerSlideId ?? null }).slide;
   const patchRollouts = (patch) => commit(setSectionRollouts(interior, path, patch));
+  const commitRolloutCount = (count) => {
+    if (count !== 2 || item.purpose !== 'sink' || shelfData.pairPath === undefined) {
+      return patchRollouts({ count });
+    }
+    const next = splitSinkRollouts(interior, path, `${shelfData.pairPath}:pair`);
+    if (!commit(next)) return false;
+    const parentPath = path.includes('.') ? path.slice(0, path.lastIndexOf('.')) : null;
+    const groupPath = getInteriorNode(interior, parentPath)?.direction === 'horizontal' ? parentPath : path;
+    dispatch(setInteriorPath({ path: groupPath }));
+    setSinkSplitPath(groupPath);
+    return true;
+  };
   const patchRollout = (index, patch) => commit(setRolloutItem(interior, path, index, patch));
   const cabinetGlass = item.shelves?.glass ?? false;
   const cabinetNosing = item.shelves?.nosing ?? 'none';
@@ -219,7 +240,7 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
                 type="button"
                 aria-label={`Interior ${rowPath}`}
                 aria-pressed={rowPath === path}
-                onClick={() => dispatch(setInteriorPath({ path: rowPath }))}
+                onClick={() => { setSinkSplitPath(null); dispatch(setInteriorPath({ path: rowPath })); }}
                 style={{ paddingLeft: depth * 12 }}
                 className={`flex w-full items-center border-l-2 py-1 pr-1 text-left text-xs text-gray-300 ${
                   rowPath === path ? 'border-blue-500 bg-gray-800/60' : 'border-transparent'
@@ -330,92 +351,88 @@ export default function InteriorFields({ room, wall, run, item, settings }) {
             ))}
           </div>
         )}
-        {interiorPath != null && shelf && (
+        {interiorPath != null && (shelf || sinkSplitNotice) && (
           <div className="space-y-2">
             <h4 className="text-xs font-medium text-gray-300">Roll-outs</h4>
             <Field label="Count">
-              <InchInput aria-label={`Roll-out count ${path}`} value={selected.rollouts?.count}
+              <InchInput aria-label={`Roll-out count ${path}`} value={sinkSplitNotice ? 2 : selected.rollouts?.count}
+                disabled={!shelf}
                 allowBlank allowAuto placeholder="None" className="placeholder:text-gray-500"
-                onCommit={(count) => patchRollouts({ count })} />
+                onCommit={commitRolloutCount} />
             </Field>
-            <Field label="Bottom">
-              <InchInput aria-label={`Roll-out bottom ${path}`} value={selected.rollouts?.bottom}
-                disabled={!rollout}
-                {...autoInchProps({ auto: shelfData.rolloutBottom ?? autoSlide.minBelow, min: 'nonNegative',
-                  onCommit: (bottom) => patchRollouts({ bottom }) })} />
-            </Field>
-            <Field label="Top">
-              <select aria-label={`Roll-out top mode ${path}`} className={SELECT_CLASS} disabled={!rollout}
-                value={selected.rollouts?.top === undefined ? 'equal' : 'from-top'}
-                onChange={(event) => patchRollouts({ top: event.target.value === 'equal' ? null : 0 })}>
-                <option value="equal">Equal</option>
-                <option value="from-top">From top</option>
-              </select>
-            </Field>
-            {selected.rollouts?.top !== undefined && (
-              <Field label="From top">
-                <InchInput aria-label={`Roll-out from top ${path}`} value={selected.rollouts.top}
-                  onCommit={(top) => top !== null && patchRollouts({ top })} />
-              </Field>
+            {sinkSplitNotice && (
+              <p className="text-xs text-gray-400">Split into side-by-side zones at the pair doors</p>
             )}
-            {rollout?.gap != null && rollout.rollouts.filter(({ zSource }) => zSource === 'auto').length >= 2 && (
-              <p aria-label={`Roll-out spacing ${path}`} className="text-xs text-gray-400">
-                {`Spacing ${formatInches(rollout.gap, 1 / 64)}`}
-              </p>
-            )}
-            {[...new Set(rollout?.warnings.filter(({ index }) => index === undefined).map(({ code }) => code))].map((code) => (
-              <p key={code} className="text-xs text-amber-400">{code === 'stack-top-ignored' ? 'Top ignored with one roll-out' : WARNING_MESSAGES[code]}</p>
-            ))}
-            {(selected.rollouts?.count === 2 || selected.rollouts?.layout) && (
-              <Field label="Layout">
-                <select aria-label={`Roll-out layout ${path}`} className={SELECT_CLASS}
-                  value={selected.rollouts.layout ?? ''}
-                  onChange={(event) => patchRollouts({ layout: event.target.value || null })}>
-                  <option value="">{`Auto (${autoLayout === 'pair' ? 'Side by side' : 'Stacked'})`}</option>
-                  <option value="stack">Stacked</option>
-                  <option value="pair">Side by side</option>
-                </select>
-              </Field>
-            )}
-            {rollout?.rollouts.map((box) => {
-              const pick = selected.rollouts.items?.[box.index] ?? {};
-              const automatic = autoItems[box.index];
-              const key = `${path}.${box.index}`;
-              const spacers = box.spacers.left && box.spacers.right ? 'spacers left & right'
-                : box.spacers.left ? 'spacer left' : box.spacers.right ? 'spacer right' : 'no spacers';
-              return (
-                <div key={key} aria-label={`Roll-out ${key}`} className="space-y-2 rounded border border-gray-700 p-2">
-                  <h4 className="text-xs font-medium text-gray-300">
-                    {rollout.layout === 'pair' ? (box.side === 'left' ? 'Left' : 'Right')
-                      : `Roll-out ${box.index + 1}${box.index === 0 ? ' (bottom)' : ''}`}
-                  </h4>
-                  <Field label="Slide">
-                    <SlideSelect label={`Roll-out slide ${key}`} value={pick.slideId} slides={slides}
-                      automatic={`Auto (${autoSlide.name})`}
-                      onChange={(slideId) => patchRollout(box.index, { slideId })} />
+            {shelf && (
+              <>
+                <Field label="Bottom">
+                  <InchInput aria-label={`Roll-out bottom ${path}`} value={selected.rollouts?.bottom}
+                    disabled={!rollout}
+                    {...autoInchProps({ auto: shelfData.rolloutBottom ?? autoSlide.minBelow, min: 'nonNegative',
+                      onCommit: (bottom) => patchRollouts({ bottom }) })} />
+                </Field>
+                <Field label="Top">
+                  <select aria-label={`Roll-out top mode ${path}`} className={SELECT_CLASS} disabled={!rollout}
+                    value={selected.rollouts?.top === undefined ? 'equal' : 'from-top'}
+                    onChange={(event) => patchRollouts({ top: event.target.value === 'equal' ? null : 0 })}>
+                    <option value="equal">Equal</option>
+                    <option value="from-top">From top</option>
+                  </select>
+                </Field>
+                {selected.rollouts?.top !== undefined && (
+                  <Field label="From top">
+                    <InchInput aria-label={`Roll-out from top ${path}`} value={selected.rollouts.top}
+                      onCommit={(top) => top !== null && patchRollouts({ top })} />
                   </Field>
-                  {[
-                    ['height', 'Height', { auto: settings.rolloutHeight ?? DEFAULT_SETTINGS.rolloutHeight }],
-                    ['depth', 'Depth', { auto: automatic.depthAuto,
-                      text: automatic.depthAuto === null ? 'no length fits' : undefined,
-                      note: automatic.depthRule ? `, ${automatic.depthRule}` : '' }],
-                    ['at', 'Up from section bottom', { auto: automatic.at }],
-                  ].map(([field, label, options]) => (
-                    <Field key={field} label={label}>
-                      <InchInput aria-label={`Roll-out ${field} ${key}`} value={pick[field]} className="placeholder:text-gray-500"
-                        {...autoInchProps({ ...options, labelled: true, step: 1 / 64,
-                          onCommit: (value) => patchRollout(box.index, { [field]: value }) })} />
-                    </Field>
-                  ))}
-                  <p aria-label={`Roll-out size ${key}`} className="text-xs text-gray-400">
-                    {`${size(box.width)} wide · ${spacers}${box.maple ? ` · +${size(box.mapleExtra)} maple` : ''}`}
+                )}
+                {rollout?.gap != null && rollout.rollouts.filter(({ zSource }) => zSource === 'auto').length >= 2 && (
+                  <p aria-label={`Roll-out spacing ${path}`} className="text-xs text-gray-400">
+                    {`Spacing ${formatInches(rollout.gap, 1 / 64)}`}
                   </p>
-                  {box.warnings.map(({ code }) => (
-                    <p key={code} className="text-xs text-amber-400">{rolloutWarning(code, box, settings)}</p>
-                  ))}
-                </div>
-              );
-            })}
+                )}
+                {[...new Set(rollout?.warnings.filter(({ index }) => index === undefined).map(({ code }) => code))].map((code) => (
+                  <p key={code} className="text-xs text-amber-400">{code === 'stack-top-ignored' ? 'Top ignored with one roll-out' : WARNING_MESSAGES[code]}</p>
+                ))}
+                {rollout?.rollouts.map((box) => {
+                  const pick = selected.rollouts.items?.[box.index] ?? {};
+                  const automatic = autoItems[box.index];
+                  const key = `${path}.${box.index}`;
+                  const spacers = box.spacers.left && box.spacers.right ? 'spacers left & right'
+                    : box.spacers.left ? 'spacer left' : box.spacers.right ? 'spacer right' : 'no spacers';
+                  return (
+                    <div key={key} aria-label={`Roll-out ${key}`} className="space-y-2 rounded border border-gray-700 p-2">
+                      <h4 className="text-xs font-medium text-gray-300">
+                        {`Roll-out ${box.index + 1}${box.index === 0 ? ' (bottom)' : ''}`}
+                      </h4>
+                      <Field label="Slide">
+                        <SlideSelect label={`Roll-out slide ${key}`} value={pick.slideId} slides={slides}
+                          automatic={`Auto (${autoSlide.name})`}
+                          onChange={(slideId) => patchRollout(box.index, { slideId })} />
+                      </Field>
+                      {[
+                        ['height', 'Height', { auto: settings.rolloutHeight ?? DEFAULT_SETTINGS.rolloutHeight }],
+                        ['depth', 'Depth', { auto: automatic.depthAuto,
+                          text: automatic.depthAuto === null ? 'no length fits' : undefined,
+                          note: automatic.depthRule ? `, ${automatic.depthRule}` : '' }],
+                        ['at', 'Up from section bottom', { auto: automatic.at }],
+                      ].map(([field, label, options]) => (
+                        <Field key={field} label={label}>
+                          <InchInput aria-label={`Roll-out ${field} ${key}`} value={pick[field]} className="placeholder:text-gray-500"
+                            {...autoInchProps({ ...options, labelled: true, step: 1 / 64,
+                              onCommit: (value) => patchRollout(box.index, { [field]: value }) })} />
+                        </Field>
+                      ))}
+                      <p aria-label={`Roll-out size ${key}`} className="text-xs text-gray-400">
+                        {`${size(box.width)} wide · ${spacers}${box.maple ? ` · +${size(box.mapleExtra)} maple` : ''}`}
+                      </p>
+                      {box.warnings.map(({ code }) => (
+                        <p key={code} className="text-xs text-amber-400">{rolloutWarning(code, box, settings)}</p>
+                      ))}
+                    </div>
+                  );
+                })}
+              </>
+            )}
           </div>
         )}
         {interiorPath != null && shelf && (

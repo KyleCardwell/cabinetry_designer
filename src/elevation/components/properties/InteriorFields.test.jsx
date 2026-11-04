@@ -19,9 +19,14 @@ import { newAccessory } from '../../model/accessories.js';
 import { wallRollouts } from '../../model/rollouts.js';
 import { formatInches } from '../../model/units.js';
 import { newShape } from '../../model/libraryShapes.js';
+import InteriorShapes from '../InteriorShapes.jsx';
+import { shippingList } from '../../../reports/shippingList.js';
 
 vi.mock('react', async (original) => ({
-  ...await original(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn(),
+  ...await original(), useState: vi.fn(), useEffect: vi.fn(), useMemo: (fn) => fn(), useRef: (current) => ({ current }),
+}));
+vi.mock('react-konva', () => ({
+  Group: 'group', Label: 'label', Line: 'line', Rect: 'rect', Shape: 'shape', Tag: 'tag', Text: 'text',
 }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn(), useSelector: vi.fn() }));
 vi.mock('../../model/interiors.js', async (original) => {
@@ -1085,5 +1090,126 @@ describe('IN15c step b stack placement controls', () => {
       type(`${prefix} bottom r`, '');
       expect(item().interior[prefix === 'Shelf' ? 'shelves' : 'rollouts']).not.toHaveProperty('bottom');
     }
+  });
+});
+
+
+describe('IN15d step b sink zones and mounting messages', () => {
+  beforeEach(() => {
+    state = createInitialElevationState({ rooms: [makeRoom({ walls: [makeWall({ runs: [makeRun({
+      width: 36, autoCount: false,
+      ends: { left: { type: 'none' }, right: { type: 'none' } },
+      items: [{ ...fixed('c1', 36), purpose: 'sink', face: { type: 'pair_door', size: null } }],
+    })] })] })], activeRoomId: 'room-1', activeWallId: 'wall-1' });
+    state.settings.drawerSlideId = 'blum-562h';
+    select('r');
+  });
+  const data = () => wallInteriorData(room(), wall(), 'front', state.settings);
+  const notice = 'Split into side-by-side zones at the pair doors';
+
+  it('anchors 1 and 3: splits at the pair seam, keeps shipping grouped, then converts to a narrower partition', () => {
+    commit('Roll-out count r', 1);
+    commit('Roll-out height r.0', 5);
+    commit('Roll-out count r', 2);
+    expect(item().interior).toEqual(group('horizontal', [{ kind: 'zone', seam: 'r:pair' }],
+      Array.from({ length: 2 }, () => ({ rollouts: { count: 1, items: [{ height: 5 }] } }))));
+    expect(state.interiorPath).toBe('r');
+    expect(text(field('Interior r'))).toBe('Side by side × 2');
+    expect(field('Roll-out count r').props).toMatchObject({ value: 2, disabled: true });
+    const countSection = nodes(render()).find(({ type, props }) => type === 'div'
+      && props.children?.some?.((node) => node?.type === 'h4' && text(node) === 'Roll-outs'));
+    expect(text(countSection.props.children[2])).toBe(notice);
+    expect(field('Roll-out layout r')).toBeUndefined();
+    const actual = data();
+    expect(actual.interiors.get('c1').dividers[0]).toMatchObject({ kind: 'zone', linked: true, fromLeft: 18 });
+    expect([...actual.rollouts.get('c1').values()].map(({ rollouts, warnings }) => [rollouts.length, rollouts[0].width, warnings]))
+      .toEqual([[1, 15.5, []], [1, 15.5, []]]);
+    const shapes = nodes(InteriorShapes({ entries: [...actual.interiors.values()], drawnPieces: [],
+      shelves: actual.shelves, rollouts: actual.rollouts, accessories: actual.accessories,
+      transform: { scale: 8, offsetX: 20, offsetY: 30, wallHeight: 96 }, selectedPieceId: 'c1' }));
+    expect(shapes.filter(({ type, props }) => type === 'line' && props.dash)).toHaveLength(1);
+    expect(shapes.filter(({ type, key }) => type === 'group' && String(key).startsWith('rollout:'))).toHaveLength(2);
+    expect(shippingList(room(), state.settings).rows.find(({ key }) => key === 'c1').notes)
+      .toEqual(['NLB', '2 ro - 18"']);
+    select('r.0');
+    expect(text(render())).toContain('Roll-out 1 (bottom)');
+    expect(text(render())).not.toContain(notice);
+    dispatch(setInteriorPath({ path: 'r', divider: 0 }));
+    change('Divider kind r.0', 'partition');
+    expect(data().interiors.get('c1').dividers[0].kind).toBe('partition');
+    expect([...data().rollouts.get('c1').values()].map(({ rollouts, warnings }) => [rollouts[0].width, warnings]))
+      .toEqual([[15.125, []], [15.125, []]]);
+    expect(text(render())).not.toContain(notice);
+  });
+
+  it('anchor 2: stacks a non-sink pair and a sink single door, splitting only on a qualifying count commit', () => {
+    edit(() => { delete item().purpose; });
+    commit('Roll-out count r', 2);
+    expectInterior({ rollouts: { count: 2 } });
+    expect(wallRollouts(room(), wall(), 'front', state.settings).get('c1').get('r').rollouts[1].z)
+      .toBeGreaterThan(wallRollouts(room(), wall(), 'front', state.settings).get('c1').get('r').rollouts[0].z);
+    expect(nodes(render()).filter(({ type }) => type === 'h4').map(text))
+      .toEqual(expect.arrayContaining(['Roll-out 1 (bottom)', 'Roll-out 2']));
+    expect(field('Roll-out layout r')).toBeUndefined();
+    edit(() => { item().purpose = 'sink'; item().face = { type: 'door', hinge: 'left' }; });
+    commit('Roll-out count r', 2);
+    expect(item().interior).toEqual({ rollouts: { count: 2 } });
+    edit(() => { item().face = { type: 'pair_door', size: null }; });
+    expect(text(render())).not.toContain(notice);
+    expect(item().interior).toEqual({ rollouts: { count: 2 } });
+    commit('Roll-out count r', 3);
+    expect(item().interior).toEqual({ rollouts: { count: 3 } });
+    commit('Roll-out count r', 2);
+    expect(item().interior.dividers).toEqual([{ kind: 'zone', seam: 'r:pair' }]);
+    edit(() => {
+      item().face = { direction: 'horizontal', size: null, children: [
+        { type: 'door', hinge: 'left', size: 10 }, { type: 'pair_door', size: null },
+      ] };
+      item().interior = group('horizontal', [partition]);
+    });
+    select('r.0');
+    commit('Roll-out count r.0', 2);
+    // Only one half of the pair covers this section, so it remains a stack.
+    expect(item().interior.children[0]).toEqual({ rollouts: { count: 2 } });
+    select('r.1');
+    commit('Roll-out count r.1', 2);
+    expect(item().interior.dividers).toEqual([partition, { kind: 'zone', seam: 'r.1:pair' }]);
+    expect(item().interior.children).toEqual([
+      { rollouts: { count: 2 } }, { rollouts: { count: 1 } }, { rollouts: { count: 1 } },
+    ]);
+    expect(state.interiorPath).toBe('r');
+    expect(text(render())).toContain(notice);
+  });
+
+  it('renders each mounting message in amber and clears them with a partition or by deleting the zone', () => {
+    edit(() => { delete item().purpose; });
+    field('Split as zones').props.onChange({ target: { checked: true } });
+    click('Partitions');
+    select('r.0');
+    commit('Roll-out count r.0', 2);
+    commit('Shelf count r.0', 1);
+    edit(() => {
+      state.settings.accessories = [{ ...newAccessory([], 'rod'), size: { width: 'section', height: 1, depth: 1 } }];
+    });
+    change('Add accessory r.0', 'rod');
+    const messages = ['Nothing to mount the slides to at the zone line',
+      'Shelves need a side or partition at the zone line', 'Nothing to mount it to at the zone line'];
+    const amber = () => nodes(render()).filter(({ type, props }) => type === 'p'
+      && props.className?.includes('text-amber-400')).map(text);
+    expect(amber()).toEqual(expect.arrayContaining(messages));
+    expect(text(field('Roll-out r.0.0'))).not.toContain(messages[0]);
+    expect(text(field('Roll-out r.0.1'))).toContain(messages[0]);
+    commit('Shelf count r.0', 0);
+    commit('Shoe shelves r.0', 1);
+    expect(amber()).toContain(messages[1]);
+    const zoned = structuredClone(item().interior);
+    select('r');
+    change('Divider kind r.0', 'partition');
+    select('r.0');
+    for (const message of messages) expect(amber()).not.toContain(message);
+    edit(() => { item().interior = zoned; });
+    select('r');
+    field('Remove divider r.0').props.onClick();
+    for (const message of messages) expect(amber()).not.toContain(message);
   });
 });
