@@ -1,6 +1,6 @@
 /**
  * SH5 shape builders: an extrusion (a Side-view cross-section pulled along x) and a leg / column
- * stack (square and turned sections, top to bottom). The recipe is kept on `shape.builder`; the
+ * stack (square, tapered and turned sections, top to bottom). The recipe is kept on `shape.builder`; the
  * made views, box and stretch zones are stored on the shape as usual, so nothing downstream reads
  * the recipe. This file must not import libraryShapes.js (libraryShapes imports it).
  */
@@ -49,6 +49,13 @@ export function isShapeBuilder(builder, views) {
         return hasKeys(section, ['type', 'width', 'height'])
           && Number.isFinite(section.width) && Number.isFinite(section.height);
       }
+      if (section?.type === 'tapered') {
+        return hasKeys(section, ['type', 'shape', 'top', 'bottom', 'height', 'taper'])
+          && ['square', 'round'].includes(section.shape)
+          && [section.top, section.bottom, section.height].every(Number.isFinite)
+          && ['all', 'inside'].includes(section.taper)
+          && (section.shape !== 'round' || section.taper === 'all');
+      }
       return section?.type === 'turned' && hasKeys(section, ['type', 'profile', 'drawnPoints'])
         && isProfileGeometry(section.profile, { draft: true })
         && isDrawnPoints(section.drawnPoints, section.profile.points, ['elevation']);
@@ -76,7 +83,7 @@ function turnedChain(profile) {
 }
 
 function sectionHeight(section) {
-  if (section.type === 'square') return section.height;
+  if (section.type === 'square' || section.type === 'tapered') return section.height;
   const chain = turnedChain(section.profile);
   return chain ? chain.maxY - chain.minY : 0;
 }
@@ -96,11 +103,17 @@ export function shapeBuilderProblems(shape) {
       if (!(section.width > 0) || !(section.height > 0)) problems.push({ problem: 'size', index });
       return;
     }
+    if (section.type === 'tapered') {
+      if (!(section.top > 0) || !(section.bottom > 0) || !(section.height > 0)) {
+        problems.push({ problem: 'taper', index });
+      }
+      return;
+    }
     const bounds = sectionProfileBounds({ geometry: section.profile });
     if (!turnedChain(section.profile)) problems.push({ problem: 'turned', index });
     else if (bounds.minX < -EPS) problems.push({ problem: 'axis', index });
   });
-  if (Object.hasOwn(builder, 'stretch') && builder.sections[builder.stretch]?.type !== 'square') {
+  if (Object.hasOwn(builder, 'stretch') && !['square', 'tapered'].includes(builder.sections[builder.stretch]?.type)) {
     problems.push({ problem: 'stretch' });
   }
   return problems;
@@ -112,9 +125,10 @@ export function builderProblemText(problem) {
     case 'length': return 'The extrusion needs a length.';
     case 'empty': return 'Add at least one section.';
     case 'size': return `Section ${n} needs a width and a height.`;
+    case 'taper': return `Section ${n} needs a top width, a bottom width and a height.`;
     case 'turned': return `Section ${n}'s profile must be one open line from its bottom to its top.`;
     case 'axis': return `Section ${n}'s profile crosses the centre line.`;
-    case 'stretch': return 'Only a square section can stretch.';
+    case 'stretch': return 'Only a square or tapered section can stretch.';
     default: return null;
   }
 }
@@ -211,6 +225,27 @@ function addTurned(out, n, section, z0) {
   }
 }
 
+function stackSectionView(section, n, bottom, height, view) {
+  const out = geometry();
+  if (section.type === 'square') {
+    addRectangle(out, `s${n}p`, `s${n}`, [-section.width / 2, bottom], [section.width / 2, bottom + height]);
+  } else if (section.type === 'tapered') {
+    const halfTop = section.top / 2;
+    let left = -section.bottom / 2;
+    let right = section.bottom / 2;
+    if (section.taper === 'inside') {
+      left = view === 'side' ? -halfTop : halfTop - section.bottom;
+      right = view === 'side' ? -halfTop + section.bottom : halfTop;
+    }
+    const ids = [[left, bottom], [right, bottom], [halfTop, bottom + height], [-halfTop, bottom + height]]
+      .map((point, i) => out.point(`s${n}p${i + 1}`, point));
+    out.loop(`s${n}`, true, ids.map((id, i) => line(id, ids[(i + 1) % 4])));
+  } else {
+    addTurned(out, n, section, bottom);
+  }
+  return out.g;
+}
+
 function buildStack(shape) {
   const { builder } = shape;
   const heights = builder.sections.map(sectionHeight);
@@ -222,16 +257,25 @@ function buildStack(shape) {
   }
   const total = z;
   const front = geometry();
+  const side = builder.sections.some((section) => section.type === 'tapered' && section.taper === 'inside')
+    ? geometry() : null;
   let width = 0;
   let radius = 0;
   builder.sections.forEach((section, i) => {
     const n = i + 1;
-    if (section.type === 'square') {
-      width = Math.max(width, section.width);
-      addRectangle(front, `s${n}p`, `s${n}`, [-section.width / 2, bottoms[i]], [section.width / 2, bottoms[i] + heights[i]]);
+    const sectionFront = stackSectionView(section, n, bottoms[i], heights[i], 'front');
+    Object.assign(front.g.points, sectionFront.points);
+    front.g.loops.push(...sectionFront.loops);
+    if (side) {
+      const sectionSide = stackSectionView(section, n, bottoms[i], heights[i], 'side');
+      Object.assign(side.g.points, sectionSide.points);
+      side.g.loops.push(...sectionSide.loops);
+    }
+    const bounds = sectionProfileBounds({ geometry: sectionFront });
+    if (section.type === 'square' || (section.type === 'tapered' && section.shape === 'square')) {
+      width = Math.max(width, 2 * Math.max(Math.abs(bounds.minX), Math.abs(bounds.maxX)));
     } else {
-      radius = Math.max(radius, sectionProfileBounds({ geometry: section.profile }).maxX);
-      addTurned(front, n, section, bottoms[i]);
+      radius = Math.max(radius, bounds.maxX);
     }
   });
   const plan = geometry();
@@ -244,12 +288,17 @@ function buildStack(shape) {
       { type: 'arc', from: c2, to: c1, center: [0, 0], ccw: true },
     ]);
   }
-  const size = Math.max(width, 2 * radius);
+  const sideView = side?.g ?? structuredClone(front.g);
+  const frontBounds = sectionProfileBounds({ geometry: front.g });
+  const sideBounds = sectionProfileBounds({ geometry: sideView });
   const stretch = Object.hasOwn(builder, 'stretch')
     ? { z: [[bottoms[builder.stretch], bottoms[builder.stretch] + heights[builder.stretch]]] } : {};
   return {
-    views: { front: front.g, side: structuredClone(front.g), plan: plan.g },
-    box: { x: clean(-size / 2), y: clean(-size / 2), z: 0, w: size, h: total, d: size },
+    views: { front: front.g, side: sideView, plan: plan.g },
+    box: {
+      x: clean(frontBounds.minX), y: clean(sideBounds.minX), z: 0,
+      w: frontBounds.maxX - frontBounds.minX, h: total, d: sideBounds.maxX - sideBounds.minX,
+    },
     stretch,
   };
 }
@@ -268,6 +317,9 @@ export function buildShape(shape) {
 
 export function newStackSection(type) {
   if (type === 'square') return { type: 'square', width: 3.5, height: 6 };
+  if (type === 'tapered') {
+    return { type: 'tapered', shape: 'square', top: 2, bottom: 1.5, height: 12, taper: 'all' };
+  }
   if (type === 'turned') {
     return {
       type: 'turned',

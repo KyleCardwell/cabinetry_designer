@@ -7,6 +7,7 @@ import {
 import { moveProfilePoint } from '../profileEditing.js';
 import { produce } from 'immer';
 import { shapeReducers } from '../../store/slices/shapes.js';
+import { isShapeBuilder, newStackSection } from '../shapeBuilders.js';
 
 const pts = (geometry) => geometry.loops.map((loop) => loop.segs.map((s) => geometry.points[s.from]));
 const box = (shape) => shape.box;
@@ -215,5 +216,145 @@ describe('SH5 step b leg / column stack builder', () => {
     expect(taller.box.h).toBe(35.5);
     expect(taller.stretch).toEqual({ z: [[27.5, 35.5]] });
     expect(stackSectionProfile(leg, 0)).toBeNull();
+  });
+});
+
+const TAPERED_LEG = buildShape({
+  ...newShape([], 'tapered-leg', 'stack'),
+  builder: { type: 'stack', stretch: 0, sections: [
+    { type: 'square', width: 3.5, height: 8 },
+    { type: 'tapered', shape: 'square', top: 2, bottom: 1.5, height: 25, taper: 'all' },
+  ] },
+});
+
+describe('SH5.1 step a tapered sections', () => {
+  it('anchor 1: all-sides taper has square ids, centred views, plan and box', () => {
+    const leg = TAPERED_LEG;
+    expect(pts(leg.views.front)).toEqual([
+      [[-1.75, 25], [1.75, 25], [1.75, 33], [-1.75, 33]],
+      [[-0.75, 0], [0.75, 0], [1, 25], [-1, 25]],
+    ]);
+    expect(leg.views.front.loops[1]).toEqual({ id: 's2', closed: true, segs: [
+      { type: 'line', from: 's2p1', to: 's2p2' },
+      { type: 'line', from: 's2p2', to: 's2p3' },
+      { type: 'line', from: 's2p3', to: 's2p4' },
+      { type: 'line', from: 's2p4', to: 's2p1' },
+    ] });
+    expect(leg.views.side).toEqual(leg.views.front);
+    expect(leg.views.side).not.toBe(leg.views.front);
+    expect(pts(leg.views.plan)).toEqual([[[-1.75, -1.75], [1.75, -1.75], [1.75, 1.75], [-1.75, 1.75]]]);
+    expect(leg.views.plan.loops.map((loop) => loop.id)).toEqual(['square']);
+    expect(leg.box).toEqual({ x: -1.75, y: -1.75, z: 0, w: 3.5, h: 33, d: 3.5 });
+    expect(leg.stretch).toEqual({ z: [[25, 33]] });
+    expect(isShape(leg)).toBe(true);
+  });
+
+  it('anchor 2: inside taper keeps the right and front faces plumb', () => {
+    const leg = structuredClone(TAPERED_LEG);
+    leg.builder.sections[1].taper = 'inside';
+    const made = buildShape(leg);
+    expect(pts(made.views.front)[1]).toEqual([[-0.5, 0], [1, 0], [1, 25], [-1, 25]]);
+    expect(pts(made.views.side)[1]).toEqual([[-1, 0], [0.5, 0], [1, 25], [-1, 25]]);
+    expect(pts(made.views.side)[0]).toEqual(pts(made.views.front)[0]);
+    expect(made.views.plan).toEqual(TAPERED_LEG.views.plan);
+    expect(made.box).toEqual(TAPERED_LEG.box);
+    expect(isShape(made)).toBe(true);
+  });
+
+  it('anchor 3: taper stretches through the existing z zone without changing widths', () => {
+    const leg = buildShape({ ...TAPERED_LEG, builder: { ...TAPERED_LEG.builder, stretch: 1 } });
+    expect(leg.stretch).toEqual({ z: [[0, 25]] });
+    const resolved = resolveShape(leg, { h: 37 });
+    expect(resolved.stretched).toBe(true);
+    expect(resolved.warnings).toEqual([]);
+    expect(pts(resolved.shape.views.front)).toEqual([
+      [[-1.75, 29], [1.75, 29], [1.75, 37], [-1.75, 37]],
+      [[-0.75, 0], [0.75, 0], [1, 29], [-1, 29]],
+    ]);
+    expect(resolved.shape.views.side).toEqual(resolved.shape.views.front);
+    expect(TAPERED_LEG.views.front.points.s2p3).toEqual([1, 25]);
+  });
+
+  it('anchor 4: a flared inside taper has asymmetric view bounds and a centred plan square', () => {
+    const leg = buildShape({ ...TAPERED_LEG, builder: { type: 'stack', sections: [
+      { type: 'tapered', shape: 'square', top: 2, bottom: 3, height: 10, taper: 'inside' },
+    ] } });
+    expect(pts(leg.views.front)).toEqual([[[-2, 0], [1, 0], [1, 10], [-1, 10]]]);
+    expect(pts(leg.views.side)).toEqual([[[-1, 0], [2, 0], [1, 10], [-1, 10]]]);
+    expect(leg.box).toEqual({ x: -2, y: -1, z: 0, w: 3, h: 10, d: 3 });
+    expect(pts(leg.views.plan)).toEqual([[[-2, -2], [2, -2], [2, 2], [-2, 2]]]);
+    expect(isShape(leg)).toBe(true);
+  });
+
+  it('anchor 5: validates taper drafts, section structure and the stretch rule', () => {
+    expect(newStackSection('tapered')).toEqual({
+      type: 'tapered', shape: 'square', top: 2, bottom: 1.5, height: 12, taper: 'all',
+    });
+    for (const field of ['top', 'bottom', 'height']) {
+      for (const value of [0, -1]) {
+        const leg = structuredClone(TAPERED_LEG);
+        leg.builder.sections[1][field] = value;
+        expect(shapeBuilderProblems(leg)).toEqual([{ problem: 'taper', index: 1 }]);
+        expect(buildShape(leg)).toBe(leg);
+        expect(isShapeDraft(leg)).toBe(true);
+        expect(isShape(leg)).toBe(false);
+      }
+      for (const value of [NaN, Infinity, '2']) {
+        const builder = structuredClone(TAPERED_LEG.builder);
+        builder.sections[1][field] = value;
+        expect(isShapeBuilder(builder)).toBe(false);
+      }
+    }
+    expect(builderProblemText({ problem: 'taper', index: 1 }))
+      .toBe('Section 2 needs a top width, a bottom width and a height.');
+    expect(shapeBuilderProblems(stack(BEAD, 1))).toEqual([{ problem: 'stretch' }]);
+    expect(builderProblemText({ problem: 'stretch' })).toBe('Only a square or tapered section can stretch.');
+    for (const changes of [
+      { shape: 'round', taper: 'inside' }, { shape: 'oval' }, { taper: 'outside' }, { extra: true },
+    ]) {
+      const builder = structuredClone(TAPERED_LEG.builder);
+      Object.assign(builder.sections[1], changes);
+      expect(isShapeBuilder(builder)).toBe(false);
+    }
+  });
+
+  it('anchor 5a: a round taper has the same elevation and adds a plan circle', () => {
+    const leg = structuredClone(TAPERED_LEG);
+    leg.builder.sections[1].shape = 'round';
+    const made = buildShape(leg);
+    expect(made.views.front).toEqual(TAPERED_LEG.views.front);
+    expect(made.views.side).toEqual(TAPERED_LEG.views.side);
+    expect(made.box).toEqual(TAPERED_LEG.box);
+    expect(made.views.plan.loops.map((loop) => loop.id)).toEqual(['square', 'circle']);
+    expect(pts(made.views.plan)[0]).toEqual(pts(TAPERED_LEG.views.plan)[0]);
+    expect(made.views.plan.points.c1).toEqual([1, 0]);
+    expect(made.views.plan.points.c2).toEqual([-1, 0]);
+    expect(isShape(made)).toBe(true);
+    leg.builder.sections[1].bottom = 4;
+    expect(buildShape(leg).views.plan.points.c1).toEqual([2, 0]);
+  });
+
+  it('anchor 6: SH5 leg is unchanged and turned arcs survive a separate inside-taper side build', () => {
+    const original = stack();
+    expect(buildShape(original)).toEqual(original);
+    const leg = structuredClone(original);
+    leg.builder.sections[2] = {
+      type: 'tapered', shape: 'square', top: 2, bottom: 1.5, height: 24.5, taper: 'inside',
+    };
+    const made = buildShape(leg);
+    for (const view of ['front', 'side']) {
+      for (const id of ['s1', 's2', 's2line1', 's2line2']) {
+        const loop = made.views[view].loops.find((item) => item.id === id);
+        expect(loop).toEqual(original.views[view].loops.find((item) => item.id === id));
+        for (const segment of loop.segs) {
+          expect(made.views[view].points[segment.from]).toEqual(original.views[view].points[segment.from]);
+        }
+      }
+    }
+    expect(made.views.plan).toEqual(original.views.plan);
+    expect(made.box).toEqual(original.box);
+    // The bead's arc reaches x = ±1.5 even though every profile point is at x = 1.
+    leg.builder.sections[0].width = 2;
+    expect(buildShape(leg).box).toEqual({ x: -1.5, y: -1.5, z: 0, w: 3, h: 34.5, d: 3 });
   });
 });
