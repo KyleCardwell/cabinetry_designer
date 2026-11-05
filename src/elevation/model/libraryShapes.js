@@ -5,6 +5,7 @@ import { shapeOutlines, transformOutline } from './sectionProfileOutline.js';
 import { formatInches } from './units.js';
 import {
   buildShape, EXTRUDE_TEMPLATE, isShapeBuilder, shapeBuilderProblems, STACK_TEMPLATE,
+  stackSectionMinimumHeight,
 } from './shapeBuilders.js';
 
 const VIEW_AXES = { front: ['x', 'z'], plan: ['x', 'y'], side: ['y', 'z'] };
@@ -233,6 +234,21 @@ export function flipShape(shape, axis) {
 
 /** Resolve zoned axes independently, preserving fixed details and the library shape. */
 export function resolveShape(shape, target = {}) {
+  if (shape.builder?.type === 'stack') {
+    const result = { shape: structuredClone(shape), origin: { x: 0, y: 0, z: 0 }, stretched: false, warnings: [] };
+    const section = shape.builder.sections[shape.builder.stretch];
+    const requested = target.h ?? shape.box.h;
+    if (!section || Math.abs(requested - shape.box.h) <= EPS) return result;
+    const height = section.height + requested - shape.box.h;
+    const minimum = stackSectionMinimumHeight(section);
+    if (height < minimum - EPS) {
+      result.warnings.push({ code: 'shape-too-small', axis: 'z', fixed: shape.box.h - section.height + minimum, target: requested });
+      return result;
+    }
+    result.shape = buildShape(shape, { sectionHeights: { [shape.builder.stretch]: Math.max(minimum, height) } });
+    result.stretched = true;
+    return result;
+  }
   const result = structuredClone(shape);
   const warnings = [];
   const shifts = {};
@@ -318,6 +334,8 @@ export function shapeStretchProblems(shape) {
         add('overlap');
         return;
       }
+      // Stack zones are rebuilt from their recipe, so their fixed-size details may contain arcs.
+      if (shape.builder?.type === 'stack') return;
       for (const [view, geometry] of Object.entries(shape.views)) {
         const coord = VIEW_AXES[view].indexOf(axis);
         if (coord < 0) continue;
@@ -393,9 +411,31 @@ export function withStackSectionProfile(shape, index, profile) {
   if (!stackSectionProfile(shape, index) || !isSectionProfileDraft(profile)) return null;
   const result = structuredClone(shape);
   result.builder.sections[index] = {
+    ...result.builder.sections[index],
     type: 'turned', profile: structuredClone(profile.geometry),
     drawnPoints: { elevation: [...profile.drawnPoints.elevation] },
   };
+  return isShapeDraft(result) ? buildShape(result) : null;
+}
+
+/** A section's one-off detail uses the same profile editor adapter as a turned section. */
+export function stackDetailProfile(shape, sectionIndex, detailIndex) {
+  const detail = shape?.builder?.type === 'stack'
+    ? shape.builder.sections[sectionIndex]?.details?.[detailIndex] : null;
+  if (!detail) return null;
+  return {
+    id: `${shape.id}:s${sectionIndex}d${detailIndex}`, name: shape.name, kind: 'other',
+    geometry: structuredClone(detail.profile),
+    drawnPoints: { elevation: [...(detail.drawnPoints?.elevation ?? [])] }, version: 1, archived: false,
+  };
+}
+
+export function withStackDetailProfile(shape, sectionIndex, detailIndex, profile) {
+  if (!stackDetailProfile(shape, sectionIndex, detailIndex) || !isSectionProfileDraft(profile)) return null;
+  const result = structuredClone(shape);
+  const detail = result.builder.sections[sectionIndex].details[detailIndex];
+  detail.profile = structuredClone(profile.geometry);
+  detail.drawnPoints = { elevation: [...profile.drawnPoints.elevation] };
   return isShapeDraft(result) ? buildShape(result) : null;
 }
 

@@ -1,10 +1,10 @@
 /**
  * SH5 shape builders: an extrusion (a Side-view cross-section pulled along x) and a leg / column
  * stack (square, tapered and turned sections, top to bottom). The recipe is kept on `shape.builder`; the
- * made views, box and stretch zones are stored on the shape as usual, so nothing downstream reads
- * the recipe. This file must not import libraryShapes.js (libraryShapes imports it).
+ * made views, box and stretch zones are stored on the shape as usual. Stack height resolution
+ * rebuilds the recipe to preserve details. This file must not import libraryShapes.js.
  */
-import { isProfileGeometry, sectionProfileBounds } from './sectionProfiles.js';
+import { arcMeasure, isProfileGeometry, sectionProfileBounds } from './sectionProfiles.js';
 
 const EPS = 1e-6;
 export const MAX_STACK_SECTIONS = 12;
@@ -45,18 +45,27 @@ export function isShapeBuilder(builder, views) {
     if (Object.hasOwn(builder, 'stretch') && (!Number.isInteger(builder.stretch)
       || builder.stretch < 0 || builder.stretch >= builder.sections.length)) return false;
     return builder.sections.every((section) => {
+      if (Object.hasOwn(section ?? {}, 'details') && (!Array.isArray(section.details)
+        || section.details.length > 8 || !section.details.every((detail) => (
+          hasKeys(detail, ['from', 'at', 'profile', 'drawnPoints'], ['from', 'at', 'profile'])
+          && ['bottom', 'top'].includes(detail.from) && Number.isFinite(detail.at)
+          && isProfileGeometry(detail.profile, { draft: true })
+          && (!Object.hasOwn(detail, 'drawnPoints')
+            || isDrawnPoints(detail.drawnPoints, detail.profile.points, ['elevation']))
+        )))) return false;
       if (section?.type === 'square') {
-        return hasKeys(section, ['type', 'width', 'height'])
+        return hasKeys(section, ['type', 'width', 'height', 'details'], ['type', 'width', 'height'])
           && Number.isFinite(section.width) && Number.isFinite(section.height);
       }
       if (section?.type === 'tapered') {
-        return hasKeys(section, ['type', 'shape', 'top', 'bottom', 'height', 'taper'])
+        return hasKeys(section, ['type', 'shape', 'top', 'bottom', 'height', 'taper', 'details'],
+          ['type', 'shape', 'top', 'bottom', 'height', 'taper'])
           && ['square', 'round'].includes(section.shape)
           && [section.top, section.bottom, section.height].every(Number.isFinite)
           && ['all', 'inside'].includes(section.taper)
           && (section.shape !== 'round' || section.taper === 'all');
       }
-      return section?.type === 'turned' && hasKeys(section, ['type', 'profile', 'drawnPoints'])
+      return section?.type === 'turned' && hasKeys(section, ['type', 'profile', 'drawnPoints', 'details'], ['type', 'profile', 'drawnPoints'])
         && isProfileGeometry(section.profile, { draft: true })
         && isDrawnPoints(section.drawnPoints, section.profile.points, ['elevation']);
     });
@@ -113,6 +122,9 @@ export function shapeBuilderProblems(shape) {
     if (!turnedChain(section.profile)) problems.push({ problem: 'turned', index });
     else if (bounds.minX < -EPS) problems.push({ problem: 'axis', index });
   });
+  builder.sections.forEach((section, index) => {
+    if (!problems.some((p) => p.index === index)) problems.push(...detailProblems(section, index));
+  });
   if (Object.hasOwn(builder, 'stretch') && !['square', 'tapered'].includes(builder.sections[builder.stretch]?.type)) {
     problems.push({ problem: 'stretch' });
   }
@@ -121,6 +133,7 @@ export function shapeBuilderProblems(shape) {
 
 export function builderProblemText(problem) {
   const n = (problem.index ?? 0) + 1;
+  const k = (problem.detailIndex ?? 0) + 1;
   switch (problem.problem) {
     case 'length': return 'The extrusion needs a length.';
     case 'empty': return 'Add at least one section.';
@@ -128,6 +141,11 @@ export function builderProblemText(problem) {
     case 'taper': return `Section ${n} needs a top width, a bottom width and a height.`;
     case 'turned': return `Section ${n}'s profile must be one open line from its bottom to its top.`;
     case 'axis': return `Section ${n}'s profile crosses the centre line.`;
+    case 'detail-profile': return `Section ${n}, detail ${k} must be one open line from its bottom to its top, with both ends at 0.`;
+    case 'detail-outside': return `Section ${n}, detail ${k} doesn't fit in its section.`;
+    case 'detail-overlap': return `Section ${n}, details ${k} and ${problem.otherDetailIndex + 1} overlap.`;
+    case 'detail-deep': return `Section ${n}, detail ${k} cuts past the middle of the leg.`;
+    case 'detail-base': return `Section ${n}, detail ${k} sits where the profile turns back on itself.`;
     case 'stretch': return 'Only a square or tapered section can stretch.';
     default: return null;
   }
@@ -225,8 +243,236 @@ function addTurned(out, n, section, z0) {
   }
 }
 
+// Edge segments carry coordinates until the final geometry is assigned stable made ids.
+function sectionEdges(section, bottom, height, view) {
+  let right;
+  let left;
+  if (section.type === 'turned') {
+    const chain = turnedChain(section.profile);
+    const at = (id) => [section.profile.points[id][0], section.profile.points[id][1] - chain.minY + bottom];
+    right = chain.segs.map((s) => ({ ...s, from: at(s.from), to: at(s.to),
+      ...(s.type === 'arc' ? { center: [s.center[0], s.center[1] - chain.minY + bottom] } : {}) }));
+  } else {
+    const top = (section.type === 'square' ? section.width : section.top) / 2;
+    let rb = section.type === 'square' ? top : section.bottom / 2;
+    let lb = -rb;
+    if (section.taper === 'inside') {
+      lb = view === 'side' ? -top : top - section.bottom;
+      rb = view === 'side' ? -top + section.bottom : top;
+    }
+    right = [{ type: 'line', from: [rb, bottom], to: [top, bottom + height] }];
+    left = [{ type: 'line', from: [lb, bottom], to: [-top, bottom + height] }];
+  }
+  left ??= right.map((s) => ({ ...s, from: [-s.from[0], s.from[1]], to: [-s.to[0], s.to[1]],
+    ...(s.type === 'arc' ? { center: [-s.center[0], s.center[1]], ccw: !s.ccw } : {}) }));
+  return { right, left };
+}
+
+function measureEdgeArc(s) {
+  return arcMeasure({ ...s, from: 'a', to: 'b' }, { a: s.from, b: s.to });
+}
+
+function edgePoint(s, t) {
+  if (t <= 0) return s.from;
+  if (t >= 1) return s.to;
+  if (s.type === 'line') return s.from.map((v, i) => v + t * (s.to[i] - v));
+  const { radius, start, direction, sweep } = measureEdgeArc(s);
+  const angle = start + direction * sweep * t;
+  return [s.center[0] + radius * Math.cos(angle), s.center[1] + radius * Math.sin(angle)];
+}
+
+function angleParameter(s, angle) {
+  const { start, direction, sweep } = measureEdgeArc(s);
+  const turn = 2 * Math.PI;
+  return ((direction * (angle - start) % turn + turn) % turn) / sweep;
+}
+
+function heightCuts(s, z) {
+  if (s.type === 'line') {
+    return Math.abs(s.to[1] - s.from[1]) <= EPS ? [] : [(z - s.from[1]) / (s.to[1] - s.from[1])];
+  }
+  const { radius } = measureEdgeArc(s);
+  const dy = (z - s.center[1]) / radius;
+  if (Math.abs(dy) > 1 + 1e-12) return [];
+  const a = Math.asin(Math.max(-1, Math.min(1, dy)));
+  return [angleParameter(s, a), angleParameter(s, Math.PI - a)];
+}
+
+function edgeLocation(edge, z) {
+  for (let i = 0; i < edge.length; i += 1) {
+    const s = edge[i];
+    if (Math.abs(s.from[1] - z) <= EPS) return { at: i, point: s.from };
+    const cuts = heightCuts(s, z).filter((t) => t >= 0 && t <= 1).sort((a, b) => a - b);
+    if (cuts.length) return { at: i + cuts[0], point: edgePoint(s, cuts[0]) };
+    if (Math.abs(s.to[1] - z) <= EPS) return { at: i + 1, point: s.to };
+  }
+  return null;
+}
+
+function edgeSlice(edge, from, to) {
+  const result = [];
+  for (let i = Math.floor(from); i < Math.min(to, edge.length); i += 1) {
+    const a = Math.max(0, from - i);
+    const b = Math.min(1, to - i);
+    if (b - a > 1e-12) result.push({ ...edge[i], from: edgePoint(edge[i], a), to: edgePoint(edge[i], b) });
+  }
+  return result;
+}
+
+function baseTurnsBack(edge, lo, hi) {
+  return edge.some((s) => {
+    const cuts = [0, 1, ...(s.type === 'arc'
+      ? [Math.PI / 2, 3 * Math.PI / 2].map((a) => angleParameter(s, a)).filter((t) => t > 0 && t < 1) : [])]
+      .sort((a, b) => a - b);
+    return cuts.slice(1).some((t, i) => {
+      const a = edgePoint(s, cuts[i])[1];
+      const b = edgePoint(s, t)[1];
+      return a > b + EPS && Math.min(a, hi) > Math.max(b, lo) + EPS;
+    });
+  });
+}
+
+function detailSpan(detail, bottom, height) {
+  const chain = turnedChain(detail.profile);
+  if (!chain || [chain.ids[0], chain.ids.at(-1)].some((id) => Math.abs(detail.profile.points[id][0]) > EPS)) return null;
+  const dh = chain.maxY - chain.minY;
+  const lo = detail.from === 'bottom' ? bottom + detail.at : bottom + height - detail.at - dh;
+  return { detail, chain, lo, hi: lo + dh };
+}
+
+function detailProblems(section, index) {
+  const problems = [];
+  const height = sectionHeight(section);
+  const spans = [];
+  const edges = sectionEdges(section, 0, height, 'front');
+  (section.details ?? []).forEach((detail, detailIndex) => {
+    const add = (problem, extra = {}) => problems.push({ problem, index, detailIndex, ...extra });
+    const span = detailSpan(detail, 0, height);
+    if (!span) { add('detail-profile'); return; }
+    const { lo, hi, chain } = span;
+    if (detail.at < 0 || lo < -EPS || hi > height + EPS) { add('detail-outside'); return; }
+    for (const other of spans) {
+      if (Math.min(hi, other.hi) - Math.max(lo, other.lo) > EPS) {
+        problems.push({ problem: 'detail-overlap', index, detailIndex: other.detailIndex, otherDetailIndex: detailIndex });
+      }
+    }
+    spans.push({ ...span, detailIndex });
+    if (baseTurnsBack(edges.right, lo, hi)) { add('detail-base'); return; }
+    const depth = -chain.minX;
+    const zs = [lo, hi, ...Object.values(detail.profile.points).map((p) => lo + p[1] - chain.minY)];
+    if (depth > 0 && zs.some((z) => {
+      const r = edgeLocation(edges.right, z);
+      const l = edgeLocation(edges.left, z);
+      return r && l && depth >= (r.point[0] - l.point[0]) / 2;
+    })) add('detail-deep');
+  });
+  return problems;
+}
+
+/** Smallest height that leaves room for the fixed-size details at both ends. */
+export function stackSectionMinimumHeight(section) {
+  const reaches = { bottom: 0, top: 0 };
+  for (const detail of section.details ?? []) {
+    const chain = turnedChain(detail.profile);
+    if (chain) reaches[detail.from] = Math.max(reaches[detail.from], detail.at + chain.maxY - chain.minY);
+  }
+  return reaches.bottom + reaches.top;
+}
+
+function spliceEdge(base, spans, side) {
+  const edge = [];
+  const hidden = [];
+  const ticks = [];
+  let cursor = 0;
+  const connect = (a, b) => {
+    if (Math.hypot(a[0] - b[0], a[1] - b[1]) > EPS) edge.push({ type: 'line', from: a, to: b });
+  };
+  for (const span of spans) {
+    const { detail, chain, lo, hi } = span;
+    const pb = edgeLocation(base, lo);
+    const pt = edgeLocation(base, hi);
+    edge.push(...edgeSlice(base, cursor, pb.at));
+    hidden.push(edgeSlice(base, pb.at, pt.at));
+    const anchor = detail.from === 'bottom' ? pb.point : pt.point;
+    const anchorY = detail.from === 'bottom' ? chain.minY : chain.maxY;
+    const at = (id) => [anchor[0] + side * detail.profile.points[id][0], anchor[1] + detail.profile.points[id][1] - anchorY];
+    connect(pb.point, at(chain.ids[0]));
+    edge.push(...chain.segs.map((s) => ({ ...s, from: at(s.from), to: at(s.to),
+      ...(s.type === 'arc' ? { center: [anchor[0] + side * s.center[0], anchor[1] + s.center[1] - anchorY],
+        ccw: side === 1 ? s.ccw : !s.ccw } : {}) })));
+    connect(at(chain.ids.at(-1)), pt.point);
+    ticks.push([pb.point, pt.point, ...(detail.drawnPoints?.elevation ?? [])
+      .filter((id) => chain.ids.includes(id) && id !== chain.ids[0] && id !== chain.ids.at(-1)).map(at)]);
+    cursor = pt.at;
+  }
+  edge.push(...edgeSlice(base, cursor, base.length));
+  return { edge, hidden, ticks };
+}
+
+function writeEdge(out, edge, prefix) {
+  const ids = [edge[0].from, ...edge.map((s) => s.to)].map((xy, j) => out.point(`${prefix}${j}`, xy));
+  return edge.map((s, j) => ({ ...s, from: ids[j], to: ids[j + 1],
+    ...(s.type === 'arc' ? { center: s.center.map(clean) } : {}) }));
+}
+
+function detailedSection(section, n, bottom, height, view) {
+  const base = sectionEdges(section, bottom, height, view);
+  const spans = section.details.map((d) => detailSpan(d, bottom, height)).sort((a, b) => a.lo - b.lo);
+  const right = spliceEdge(base.right, spans, 1);
+  const left = spliceEdge(base.left, spans, -1);
+  const out = geometry();
+  const r = writeEdge(out, right.edge, `s${n}r`);
+  const m = writeEdge(out, left.edge, `s${n}m`);
+  const reverse = [...m].reverse().map((s) => ({ ...s, from: s.to, to: s.from,
+    ...(s.type === 'arc' ? { ccw: !s.ccw } : {}) }));
+  out.loop(`s${n}`, true, [...r, line(r.at(-1).to, m.at(-1).to), ...reverse, line(m[0].from, r[0].from)]);
+  let k = 0;
+  const across = (a, b) => { k += 1; addLine(out, `s${n}l${k}`, `s${n}line${k}`, a, b); };
+  right.ticks.forEach((ticks, i) => ticks.forEach((p, j) => across(left.ticks[i][j], p)));
+  if (section.type === 'turned') {
+    const chain = turnedChain(section.profile);
+    for (const id of section.drawnPoints.elevation) {
+      const [x, y] = section.profile.points[id];
+      const z = bottom + y - chain.minY;
+      if (id === chain.ids[0] || id === chain.ids.at(-1) || x <= EPS
+        || spans.some((s) => z >= s.lo - EPS && z <= s.hi + EPS)) continue;
+      across([-x, z], [x, z]);
+    }
+  }
+  return { made: out.g, hidden: [...right.hidden, ...left.hidden] };
+}
+
+/** Editor-only base pieces replaced by details; never included in a made view. */
+export function stackHiddenBase(shape, view) {
+  const out = geometry();
+  if (shape?.builder?.type !== 'stack' || !['front', 'side'].includes(view)
+    || !isShapeBuilder(shape.builder, shape.views) || shapeBuilderProblems(shape).length) return out.g;
+  let bottom = 0;
+  for (let i = shape.builder.sections.length - 1; i >= 0; i -= 1) {
+    const section = shape.builder.sections[i];
+    const height = sectionHeight(section);
+    if (section.details?.length) {
+      detailedSection(section, i + 1, bottom, height, view).hidden.forEach((edge, j) => {
+        if (edge.length) out.loop(`s${i + 1}hidden${j}`, false, writeEdge(out, edge, `s${i + 1}h${j}p`));
+      });
+    }
+    bottom += height;
+  }
+  return out.g;
+}
+
+export function newStackDetail() {
+  return {
+    from: 'bottom', at: 0,
+    profile: { units: 'in', points: { b1: [0, 0], b2: [0, 0.5] },
+      loops: [{ id: 'L1', closed: false, segs: [{ type: 'arc', from: 'b1', to: 'b2', center: [0, 0.25], ccw: true }] }] },
+    drawnPoints: { elevation: [] },
+  };
+}
+
 function stackSectionView(section, n, bottom, height, view) {
   const out = geometry();
+  if (section.details?.length) return detailedSection(section, n, bottom, height, view).made;
   if (section.type === 'square') {
     addRectangle(out, `s${n}p`, `s${n}`, [-section.width / 2, bottom], [section.width / 2, bottom + height]);
   } else if (section.type === 'tapered') {
@@ -246,9 +492,9 @@ function stackSectionView(section, n, bottom, height, view) {
   return out.g;
 }
 
-function buildStack(shape) {
+function buildStack(shape, sectionHeights = {}) {
   const { builder } = shape;
-  const heights = builder.sections.map(sectionHeight);
+  const heights = builder.sections.map((section, i) => sectionHeights[i] ?? sectionHeight(section));
   const bottoms = [];
   let z = 0;
   for (let i = builder.sections.length - 1; i >= 0; i -= 1) {
@@ -307,12 +553,18 @@ function buildStack(shape) {
  * Remakes the views, box and zones from the recipe. A drawn shape comes back as is; a recipe with
  * problems keeps its previous made views, box and zones.
  */
-export function buildShape(shape) {
+export function buildShape(shape, { sectionHeights } = {}) {
   if (!shape?.builder || !isShapeBuilder(shape.builder, shape.views)
     || shapeBuilderProblems(shape).length) return shape;
-  const made = shape.builder.type === 'extrude' ? buildExtrusion(shape) : buildStack(shape);
+  const made = shape.builder.type === 'extrude' ? buildExtrusion(shape) : buildStack(shape, sectionHeights);
   if (!Object.values(made.views).every((view) => isProfileGeometry(view))) return shape;
-  return { ...structuredClone(shape), ...made };
+  const result = { ...structuredClone(shape), ...made };
+  if (shape.builder.type === 'stack' && sectionHeights) {
+    result.builder.sections.forEach((section, i) => {
+      if (sectionHeights[i] !== undefined && ['square', 'tapered'].includes(section.type)) section.height = sectionHeights[i];
+    });
+  }
+  return result;
 }
 
 export function newStackSection(type) {

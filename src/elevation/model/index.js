@@ -25,9 +25,11 @@ export {
   moveShapeOrigin, moveShapeOriginTo, shapeOriginSpots,
   flipShape, shapeStretchProblems, stretchProblemText, shapeViewProfile, withShapeView,
   resolveShape, placeShapeFront, convertShapeToDrawn, stackSectionProfile, withStackSectionProfile,
+  stackDetailProfile, withStackDetailProfile,
 } from './libraryShapes.js';
 export {
   buildShape, shapeBuilderProblems, builderProblemText,
+  stackHiddenBase, newStackDetail,
 } from './shapeBuilders.js';
 export { shapeOutlines } from './sectionProfileOutline.js';
 export { stepEndSides } from './stepEnds.js';
