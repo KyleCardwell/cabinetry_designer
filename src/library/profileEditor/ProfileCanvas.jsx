@@ -45,7 +45,7 @@ function baseTopHeight(profile) {
   return half ? half.at(-1)[1] + profile.topGap : null;
 }
 
-export default forwardRef(function ProfileCanvas({ profile, ghost = null, bands = [], grid, selection, onSelect, fitSignal, tool, onApply, onMessage }, ref) {
+export default forwardRef(function ProfileCanvas({ profile, ghost = null, ghostDashed = false, bands = [], grid, selection, onSelect, fitSignal, tool, onApply, onMessage }, ref) {
   const containerRef = useRef(null);
   const fittedRef = useRef(null);
   const gestureRef = useRef(null);
@@ -331,7 +331,7 @@ export default forwardRef(function ProfileCanvas({ profile, ghost = null, bands 
             {ghostProfile && (
               <g pointerEvents="none" className="text-gray-400">
                 {ghostProfile.geometry.loops.map((loop) => (
-                  <path key={loop.id} d={loopScreenPath(ghostProfile, loop, view, size)} fill="currentColor" fillOpacity={0.12} stroke="currentColor" strokeOpacity={0.4} strokeWidth={1} />
+                  <path key={loop.id} d={loopScreenPath(ghostProfile, loop, view, size)} fill="currentColor" fillOpacity={0.12} stroke="currentColor" strokeOpacity={0.4} strokeWidth={1} strokeDasharray={ghostDashed ? '4 3' : undefined} />
                 ))}
               </g>
             )}

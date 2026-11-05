@@ -8,8 +8,10 @@ import {
   fitShapeBox, flipShape, isShapeDraft, isShapeList, moveShapeOrigin, shapeStretchProblems,
   shapeView, shapeViewProfile, stretchProblemText, withShapeView,
   builderSourceView, isMadeView, stackSectionProfile, withStackSectionProfile,
+  stackDetailProfile, withStackDetailProfile,
 } from '../../elevation/model/libraryShapes.js';
-import { builderProblemText, shapeBuilderProblems } from '../../elevation/model/shapeBuilders.js';
+import { builderProblemText, shapeBuilderProblems, stackHiddenBase } from '../../elevation/model/shapeBuilders.js';
+import { sectionProfileBounds } from '../../elevation/model/sectionProfiles.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { updateShape } from '../../elevation/store/elevationSlice.js';
 import { useShopReadOnly } from '../WorkspaceSourceBar.jsx';
@@ -49,13 +51,17 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
   // Keep the drawing editable while the name field is empty or has surrounding spaces.
   const editable = normalized && { ...normalized, name: normalized.name || saved?.name };
   const [view, setView] = useState(() => builderSourceView(saved) ?? 'front');
-  // SH5: index of the stack's turned section being edited in the canvas, or null for the view tabs.
+  // Section and optional detail indices for the profile currently edited in the canvas.
   const [section, setSection] = useState(null);
+  const [detail, setDetail] = useState(null);
   const [removingView, setRemovingView] = useState(false);
   const builder = draft?.builder ?? null;
-  const sectionMode = section !== null && editable && Boolean(stackSectionProfile(editable, section));
+  const editingProfile = editable && section !== null && (detail !== null
+    ? stackDetailProfile(editable, section, detail) : stackSectionProfile(editable, section));
+  const sectionMode = Boolean(editingProfile);
+  const detailMode = sectionMode && detail !== null;
   const drawnView = sectionMode || (Boolean(draft?.views[view]) && !isMadeView(draft, view));
-  const profile = editable && (sectionMode ? stackSectionProfile(editable, section) : shapeViewProfile(editable, view));
+  const profile = editable && (editingProfile || shapeViewProfile(editable, view));
   const profiles = (allProfiles ?? []).filter((entry) => !entry.archived)
     .sort((x, y) => x.name.localeCompare(y.name));
   const [message, setMessage] = useState(null);
@@ -89,7 +95,8 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     // The adapter writes only the current view geometry (and, for a builder, what it makes); retain header text.
     const current = normalizeShape(draft);
     const base = { ...current, name: current.name || saved?.name };
-    const nextShape = sectionMode ? withStackSectionProfile(base, section, next) : withShapeView(base, view, next);
+    const nextShape = detailMode ? withStackDetailProfile(base, section, detail, next)
+      : sectionMode ? withStackSectionProfile(base, section, next) : withShapeView(base, view, next);
     if (!nextShape) {
       setMessage(failText);
       return false;
@@ -99,7 +106,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     setMessage(null);
     setDiscarding(false);
     return true;
-  }, [applyDraft, draft, saved?.name, readOnly, drawnView, view, sectionMode, section]);
+  }, [applyDraft, draft, saved?.name, readOnly, drawnView, view, sectionMode, section, detailMode, detail]);
 
   const close = () => onClose({ saved: savedOnce });
 
@@ -116,6 +123,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     setTool('select');
     setView(builderSourceView(saved) ?? 'front');
     setSection(null);
+    setDetail(null);
     setRemovingView(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shapeId]);
@@ -123,7 +131,9 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
   useEffect(() => {
     setDiscarding(false);
     setRemovingView(false);
-    const geometry = sectionMode ? draft?.builder?.sections[section]?.profile : draft?.views[view];
+    const geometry = sectionMode
+      ? (detailMode ? draft?.builder?.sections[section]?.details?.[detail]?.profile : draft?.builder?.sections[section]?.profile)
+      : draft?.views[view];
     setSelection((current) => {
       if (current?.kind === 'point' && !Object.hasOwn(geometry?.points ?? {}, current.id)) return null;
       if (current?.kind === 'points') {
@@ -136,7 +146,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
       }
       return current;
     });
-  }, [draft, view, sectionMode, section]);
+  }, [draft, view, sectionMode, section, detailMode, detail]);
 
   useEffect(() => {
     const onKeyDown = (event) => {
@@ -202,8 +212,15 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
       type: 'line', from: id, to: ids[(index + 1) % ids.length],
     })) }],
   };
-  // SH5: while a turned section is edited, the ghost is its mirrored left half so the whole turning shows.
-  const ghost = sectionMode ? mirrorProfile(profile, 'x')?.geometry ?? null : boxGhost;
+  const hiddenBase = stackHiddenBase(editable, view);
+  const surfaceBounds = detailMode ? sectionProfileBounds(profile) : null;
+  const surfaceGhost = detailMode ? {
+    units: 'in', points: { surfaceBottom: [0, (Number.isFinite(surfaceBounds.minY) ? surfaceBounds.minY : 0) - 0.25],
+      surfaceTop: [0, (Number.isFinite(surfaceBounds.maxY) ? surfaceBounds.maxY : 0.5) + 0.25] },
+    loops: [{ id: 'surface', closed: false, segs: [{ type: 'line', from: 'surfaceBottom', to: 'surfaceTop' }] }],
+  } : null;
+  const ghost = detailMode ? surfaceGhost : sectionMode ? mirrorProfile(profile, 'x')?.geometry ?? null
+    : { ...boxGhost, points: { ...boxGhost.points, ...hiddenBase.points }, loops: [...boxGhost.loops, ...hiddenBase.loops] };
   const problems = shapeStretchProblems(normalized) ?? [];
   const builderProblems = shapeBuilderProblems(normalized) ?? [];
   const bands = sectionMode ? [] : SHAPE_VIEWS[view].boxKeys.slice(0, 2).flatMap((axis, coord) =>
@@ -281,6 +298,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
       <ViewTabs view={sectionMode ? null : view} onChange={(next) => {
         setView(next);
         setSection(null);
+        setDetail(null);
         setRemovingView(false);
         setSelection(null);
         setTool('select');
@@ -303,16 +321,17 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
             </label>
           </div>
           {sectionMode && <div className="absolute bottom-2 left-2 z-10 flex items-center gap-2 rounded bg-gray-800 px-2 py-1 text-sm text-gray-200">
-            Section {section + 1} profile · x = radius from the centre line, y = height
-            <button type="button" className={BUTTON_CLASS} onClick={() => { setSection(null); setSelection(null); setTool('select'); }}>Back to views</button>
+            {detailMode ? `Section ${section + 1} · detail ${detail + 1}` : `Section ${section + 1} profile`} ·{' '}
+            {detailMode ? "x = out from the leg's surface (− cuts in), y = height" : 'x = radius from the centre line, y = height'}
+            <button type="button" className={BUTTON_CLASS} onClick={() => { setSection(null); setDetail(null); setSelection(null); setTool('select'); }}>Back to views</button>
           </div>}
           {!sectionMode && builder && isMadeView(draft, view) && <p className="absolute bottom-2 left-2 z-10 rounded bg-gray-800 px-2 py-1 text-xs text-gray-300">{MADE_NOTE[builder.type]}</p>}
-          <ProfileCanvas ref={canvasRef} key={`${shapeId}:${view}:${drawnView}:${sectionMode ? section : ''}`} profile={profile} ghost={ghost} bands={bands} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
+          <ProfileCanvas ref={canvasRef} key={`${shapeId}:${view}:${drawnView}:${sectionMode ? `${section}:${detail ?? 'profile'}` : ''}`} profile={profile} ghost={ghost} ghostDashed={detailMode || (!sectionMode && hiddenBase.loops.length > 0)} bands={bands} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
         </div>
         <aside className="w-96 shrink-0 overflow-y-auto border-l border-gray-700 p-4 space-y-5">
           {builder && <BuilderPanel shape={editable} profiles={profiles} problems={builderProblems} readOnly={readOnly}
-            onApply={applyShape} section={sectionMode ? section : null}
-            onEditSection={(index) => { setSection(index); setSelection(null); setTool('select'); setMessage(null); }} />}
+            onApply={applyShape} section={sectionMode ? section : null} detail={detailMode ? detail : null}
+            onEditSection={(index, detailIndex = null) => { setSection(index); setDetail(detailIndex); setSelection(null); setTool('select'); setMessage(null); }} />}
           <BoxPanel box={draft.box} readOnly={readOnly || Boolean(builder)}
             onChange={(box) => applyShape({ ...editable, box }, 'W, H and D must be greater than zero.')}
             onFit={builder ? null : () => applyShape(fitShapeBox(editable), 'The drawing must have a positive size on each drawn axis.')} />
@@ -365,7 +384,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
               onApply={apply}
               elevationOnly={sectionMode}
               hint={sectionMode
-                ? 'Each ticked point is a line across the turning in Front and Side.'
+                ? `Each ticked point is a line across the ${detailMode ? 'detail' : 'turning'} in Front and Side.`
                 : 'Elevation: a line along the length in Front at the point’s height. Plan: a line in Plan at its depth.'}
             />}
             <section className="space-y-2">
@@ -385,7 +404,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
               ))}
             </section>
           </>}
-          <p className="text-xs text-gray-500">{sectionMode ? `Section ${section + 1} profile` : `${SHAPE_VIEWS[view].label} view · ${SHAPE_VIEWS[view].axes}`}. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
+          <p className="text-xs text-gray-500">{sectionMode ? `Section ${section + 1}${detailMode ? ` · detail ${detail + 1}` : ' profile'}` : `${SHAPE_VIEWS[view].label} view · ${SHAPE_VIEWS[view].axes}`}. Line tool: click points, click the first point to close, Enter to finish open. Select a segment to make it an arc.</p>
         </aside>
       </div>
     </div>

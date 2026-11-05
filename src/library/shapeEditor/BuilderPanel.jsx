@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { builderProblemText, MAX_STACK_SECTIONS, newStackSection } from '../../elevation/model/shapeBuilders.js';
+import { builderProblemText, MAX_STACK_SECTIONS, newStackDetail, newStackSection } from '../../elevation/model/shapeBuilders.js';
 import { convertShapeToDrawn, withShapeBuilder } from '../../elevation/model/libraryShapes.js';
 import { formatInches } from '../../elevation/model/units.js';
 import { sectionProfileBounds } from '../../elevation/model/sectionProfiles.js';
@@ -57,7 +57,7 @@ export function ExtrudeFields({ shape, profiles, readOnly, onApply }) {
   );
 }
 
-export function StackFields({ shape, profiles, readOnly, onApply, section, onEditSection }) {
+export function StackFields({ shape, profiles, readOnly, onApply, section, detail, onEditSection }) {
   const { builder } = shape;
   const { sections } = builder;
   const set = (nextSections, stretch, keepEditing = false) => {
@@ -74,7 +74,7 @@ export function StackFields({ shape, profiles, readOnly, onApply, section, onEdi
   const remove = (index) => set(sections.filter((_, i) => i !== index),
     stretch === null || stretch === index ? null : stretch > index ? stretch - 1 : stretch);
   const update = (index, value) => set(sections.map((entry, i) => (i === index ? value : entry)), stretch, true);
-  const total = sections.reduce((sum, entry) => sum + (entry.type === 'square' ? entry.height : turnedHeight(entry)), 0);
+  const total = sections.reduce((sum, entry) => sum + (entry.type === 'turned' ? turnedHeight(entry) : entry.height), 0);
   const radioName = `stack-stretch-${shape.id}`;
 
   return (
@@ -83,7 +83,7 @@ export function StackFields({ shape, profiles, readOnly, onApply, section, onEdi
       {sections.map((entry, index) => (
         <div key={index} className={`space-y-2 rounded border p-2 ${section === index ? 'border-blue-500' : 'border-gray-700'}`}>
           <div className="flex items-center gap-2 text-sm text-gray-200">
-            <span className="font-medium">{`${index + 1}. ${entry.type === 'square' ? 'Square' : 'Turned'}`}</span>
+            <span className="font-medium">{`${index + 1}. ${entry.type[0].toUpperCase()}${entry.type.slice(1)}`}</span>
             <div className="flex-1" />
             <button type="button" className={SMALL_BUTTON} aria-label={`Move section ${index + 1} up`}
               disabled={readOnly || index === 0} onClick={() => move(index, -1)}>↑</button>
@@ -92,33 +92,97 @@ export function StackFields({ shape, profiles, readOnly, onApply, section, onEdi
             <button type="button" className={SMALL_BUTTON} aria-label={`Remove section ${index + 1}`}
               disabled={readOnly} onClick={() => remove(index)}>Remove</button>
           </div>
-          {entry.type === 'square' ? (
+          {entry.type !== 'turned' ? (
             <div className="grid grid-cols-2 gap-2">
-              {[['width', 'Width'], ['height', 'Height']].map(([key, label]) => (
+              {entry.type === 'tapered' && <label className="col-span-2 space-y-1 text-xs text-gray-400">
+                <span>Shape</span>
+                <select aria-label={`Section ${index + 1} shape`} className={SELECT_CLASS} value={entry.shape} disabled={readOnly}
+                  onChange={(event) => update(index, { ...entry, shape: event.target.value,
+                    taper: event.target.value === 'round' ? 'all' : entry.taper })}>
+                  <option value="square">Square</option><option value="round">Round</option>
+                </select>
+              </label>}
+              {(entry.type === 'square' ? [['width', 'Width'], ['height', 'Height']]
+                : [['top', 'Top width'], ['bottom', 'Bottom width'], ['height', 'Height']]).map(([key, label]) => (
                 <label key={key} className="space-y-1 text-xs text-gray-400">
                   <span>{label}</span>
                   <CoordInput aria-label={`Section ${index + 1} ${key}`} value={entry[key]} disabled={readOnly}
                     onCommit={(value) => update(index, { ...entry, [key]: value })} />
                 </label>
               ))}
+              {entry.type === 'tapered' && entry.shape === 'square' && <>
+                <label className="col-span-2 space-y-1 text-xs text-gray-400">
+                  <span>Taper</span>
+                  <select aria-label={`Section ${index + 1} taper`} className={SELECT_CLASS} value={entry.taper} disabled={readOnly}
+                    onChange={(event) => update(index, { ...entry, taper: event.target.value })}>
+                    <option value="all">All sides</option><option value="inside">Inside faces</option>
+                  </select>
+                </label>
+                {entry.taper === 'inside' && <p className="col-span-2 text-xs text-gray-500">
+                  Draw the right-front leg: the right and front faces stay plumb.</p>}
+              </>}
             </div>
           ) : (
             <div className="space-y-2">
               <p className="text-xs text-gray-400">Height {formatInches(turnedHeight(entry))} (from its profile)</p>
-              <button type="button" className={SMALL_BUTTON} disabled={section === index}
-                onClick={() => onEditSection(index)}>{section === index ? 'Editing profile' : 'Edit profile'}</button>
+              <button type="button" className={SMALL_BUTTON} disabled={section === index && detail == null}
+                onClick={() => onEditSection(index)}>{section === index && detail == null ? 'Editing profile' : 'Edit profile'}</button>
               <ProfileSelect profiles={profiles} label="Copy from profile" disabled={readOnly}
-                onPick={(profile) => update(index, { type: 'turned', profile: structuredClone(profile.geometry),
+                onPick={(profile) => update(index, { ...entry, profile: structuredClone(profile.geometry),
                   drawnPoints: { elevation: [...profile.drawnPoints.elevation] } })} />
             </div>
           )}
-          {entry.type === 'square' && (
+          {entry.type !== 'turned' && (
             <label className="flex items-center gap-2 text-xs text-gray-200">
               <input type="radio" name={radioName} checked={stretch === index} disabled={readOnly}
                 onChange={() => set(sections, index, true)} />
               Stretches
             </label>
           )}
+          <div className="space-y-2 border-t border-gray-700 pt-2">
+            <p className="text-xs font-medium text-gray-300">Details</p>
+            {(entry.details ?? []).map((item, k, details) => {
+              const label = `Section ${index + 1} detail ${k + 1}`;
+              const change = (value) => update(index, { ...entry, details: details.map((d, j) => j === k ? value : d) });
+              const moveDetail = (by) => {
+                const next = [...details];
+                [next[k], next[k + by]] = [next[k + by], next[k]];
+                set(sections.map((s, i) => i === index ? { ...entry, details: next } : s), stretch);
+              };
+              return <div key={k} aria-label={label} className="space-y-2 rounded border border-gray-700 p-2">
+                <p className="text-xs text-gray-300">Detail {k + 1} · Height {formatInches(turnedHeight(item))}</p>
+                <div className="flex gap-2">
+                  <label className="text-xs text-gray-400">From
+                    <select aria-label={`${label} from`} className={SELECT_CLASS} value={item.from} disabled={readOnly}
+                      onChange={(event) => change({ ...item, from: event.target.value })}>
+                      <option value="bottom">Bottom</option><option value="top">Top</option>
+                    </select>
+                  </label>
+                  <label className="min-w-0 flex-1 text-xs text-gray-400">At
+                    <CoordInput aria-label={`${label} at`} value={item.at} disabled={readOnly}
+                      onCommit={(at) => change({ ...item, at })} />
+                  </label>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  <button type="button" className={SMALL_BUTTON} disabled={section === index && detail === k}
+                    onClick={() => onEditSection(index, k)}>Edit detail</button>
+                  <button type="button" className={SMALL_BUTTON} aria-label={`Move ${label.toLowerCase()} up`}
+                    disabled={readOnly || k === 0} onClick={() => moveDetail(-1)}>↑</button>
+                  <button type="button" className={SMALL_BUTTON} aria-label={`Move ${label.toLowerCase()} down`}
+                    disabled={readOnly || k === details.length - 1} onClick={() => moveDetail(1)}>↓</button>
+                  <button type="button" className={SMALL_BUTTON} aria-label={`Remove ${label.toLowerCase()}`} disabled={readOnly}
+                    onClick={() => set(sections.map((s, i) => i === index
+                      ? { ...entry, details: details.filter((_, j) => j !== k) } : s), stretch)}>Remove</button>
+                </div>
+              </div>;
+            })}
+            <button type="button" className={SMALL_BUTTON} aria-label={`Add detail to section ${index + 1}`}
+              disabled={readOnly || (entry.details?.length ?? 0) >= 8} onClick={() => {
+                const height = entry.type === 'turned' ? turnedHeight(entry) : entry.height;
+                update(index, { ...entry, details: [...(entry.details ?? []),
+                  { ...newStackDetail(), at: Math.round((height - 0.5) / 2 * 16) / 16 }] });
+              }}>Add detail</button>
+          </div>
         </div>
       ))}
       <label className="flex items-center gap-2 text-xs text-gray-200">
@@ -127,7 +191,7 @@ export function StackFields({ shape, profiles, readOnly, onApply, section, onEdi
         None stretches (fixed height)
       </label>
       <div className="flex flex-wrap gap-2">
-        {['square', 'turned'].map((type) => (
+        {['square', 'tapered', 'turned'].map((type) => (
           <button key={type} type="button" className={BUTTON_CLASS}
             disabled={readOnly || sections.length >= MAX_STACK_SECTIONS}
             onClick={() => set([...sections, newStackSection(type)], stretch, true)}>
@@ -140,7 +204,7 @@ export function StackFields({ shape, profiles, readOnly, onApply, section, onEdi
   );
 }
 
-export default function BuilderPanel({ shape, profiles, problems, readOnly, onApply, section, onEditSection }) {
+export default function BuilderPanel({ shape, profiles, problems, readOnly, onApply, section, detail, onEditSection }) {
   const [converting, setConverting] = useState(false);
   const { builder } = shape;
   return (
@@ -151,7 +215,7 @@ export default function BuilderPanel({ shape, profiles, problems, readOnly, onAp
       {builder.type === 'extrude'
         ? <ExtrudeFields shape={shape} profiles={profiles} readOnly={readOnly} onApply={onApply} />
         : <StackFields shape={shape} profiles={profiles} readOnly={readOnly} onApply={onApply}
-          section={section} onEditSection={onEditSection} />}
+          section={section} detail={detail} onEditSection={onEditSection} />}
       {problems.map((problem, index) => (
         <p key={index} role="alert" className="text-sm text-amber-300">{builderProblemText(problem)}</p>
       ))}

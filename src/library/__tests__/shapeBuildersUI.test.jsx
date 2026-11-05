@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useParams } from 'react-router-dom';
 import { moveProfilePoint } from '../../elevation/model/profileEditing.js';
 import { newShape } from '../../elevation/model/libraryShapes.js';
-import { buildShape } from '../../elevation/model/shapeBuilders.js';
+import { buildShape, stackHiddenBase } from '../../elevation/model/shapeBuilders.js';
 import elevationReducer, { addShape, createInitialElevationState } from '../../elevation/store/elevationSlice.js';
 import ShapesPage from '../ShapesPage.jsx';
 import ShapeEditor from '../shapeEditor/ShapeEditor.jsx';
@@ -225,4 +225,173 @@ it('SH5 d anchor 5: a broken turned profile blocks Save and keeps the views', ()
   const problem = "Section 2's profile must be one open line from its bottom to its top.";
   expect(button(editor(), 'Save').props).toMatchObject({ disabled: true, title: problem });
   expect(draft().views.front).toEqual(front);
+});
+
+
+it('SH5.1 c anchor 1: inside taper keeps the outside faces plumb and adds 12 to 34.5', () => {
+  create('New leg / column');
+  button(stack(), 'Add tapered').props.onClick();
+  field(stack(), 'Section 2 taper').props.onChange({ target: { value: 'inside' } });
+  expect(draft().views.front.points).toMatchObject({ s2p1: [-0.5, 0], s2p2: [1, 0], s2p3: [1, 12], s2p4: [-1, 12] });
+  expect(draft().views.side.points).toMatchObject({ s2p1: [-1, 0], s2p2: [0.5, 0], s2p3: [1, 12], s2p4: [-1, 12] });
+  expect(draft().box.h).toBe(46.5);
+  expect(text(stack())).toContain('Total height 46 1/2');
+  expect(text(stack())).toContain('Draw the right-front leg: the right and front faces stay plumb.');
+  field(stack(), 'Section 2 top').props.onCommit(3);
+  field(stack(), 'Section 2 bottom').props.onCommit(2);
+  field(stack(), 'Section 2 height').props.onCommit(13);
+  expect(draft().builder.sections[1]).toMatchObject({ top: 3, bottom: 2, height: 13 });
+  field(stack(), 'Section 2 shape').props.onChange({ target: { value: 'round' } });
+  expect(draft().builder.sections[1]).toMatchObject({ shape: 'round', taper: 'all' });
+  expect(field(stack(), 'Section 2 taper')).toBeUndefined();
+});
+
+it('SH5.1 c anchor 2: a bottom detail at 4 has beads on both faces, end lines and hidden bases', () => {
+  create('New leg / column');
+  button(stack(), 'Add tapered').props.onClick();
+  field(stack(), 'Add detail to section 2').props.onClick();
+  expect(draft().builder.sections[1].details[0].at).toBe(5.75);
+  field(stack(), 'Section 2 detail 1 from').props.onChange({ target: { value: 'bottom' } });
+  field(stack(), 'Section 2 detail 1 at').props.onCommit(4);
+  const front = draft().views.front;
+  const outline = front.loops.find((l) => l.id === 's2');
+  expect(outline.segs.filter((s) => s.type === 'arc').map((s) => [front.points[s.from][1], front.points[s.to][1]]))
+    .toEqual([[4, 4.5], [4.5, 4]]);
+  const lines = front.loops.filter((l) => !l.closed);
+  expect(lines.map((l) => [front.points[l.segs[0].from][1], front.points[l.segs[0].to][1]]))
+    .toEqual([[4, 4], [4.5, 4.5]]);
+  for (const view of ['front', 'side']) {
+    selectView(view);
+    const canvas = component(editor(), ProfileCanvas).props;
+    const hidden = stackHiddenBase(draft(), view);
+    expect(hidden.loops).toHaveLength(2);
+    expect(canvas.ghost.loops).toEqual(expect.arrayContaining(hidden.loops));
+    expect(canvas.ghost.points).toMatchObject(hidden.points);
+    expect(canvas.ghostDashed).toBe(true);
+  }
+  selectView('plan');
+  expect(component(editor(), ProfileCanvas).props.ghost.loops).toHaveLength(1); // size box only
+});
+
+it('SH5.1 c anchor 3: editing b2 to 0,0.75 grows the detail, with tools, surface guide and undo/redo', () => {
+  create('New leg / column');
+  button(stack(), 'Add tapered').props.onClick();
+  field(stack(), 'Add detail to section 2').props.onClick();
+  field(stack(), 'Section 2 detail 1 at').props.onCommit(4);
+  button(stack(), 'Edit detail').props.onClick();
+  const canvas = component(editor(), ProfileCanvas).props;
+  expect(text(editor())).toContain('Section 2 · detail 1');
+  expect(text(editor())).toContain("x = out from the leg's surface (− cuts in), y = height");
+  expect(Object.values(canvas.ghost.points).every(([x]) => x === 0)).toBe(true);
+  for (const tool of ['Line (L)', 'Rectangle (R)', 'Circle (C)']) expect(button(editor(), tool).props.disabled).toBe(false);
+  expect(component(editor(), ViewTabs).props.view).toBe(null);
+  const drawn = render(DrawnPanel, component(editor(), DrawnPanel).props);
+  expect(field(drawn, 'b2 drawn in plan')).toBeUndefined();
+  canvas.onApply(moveProfilePoint(canvas.profile, 'b2', [0, 0.75]));
+  expect(text(stack()).replace(/\s+/g, ' ')).toContain('Detail 1 · Height 3/4');
+  expect(draft().views.front.points.s2r2[1]).toBe(4.75);
+  button(editor(), 'Undo').props.onClick();
+  expect(text(stack()).replace(/\s+/g, ' ')).toContain('Detail 1 · Height 1/2');
+  button(editor(), 'Redo').props.onClick();
+  expect(text(stack()).replace(/\s+/g, ' ')).toContain('Detail 1 · Height 3/4');
+  button(editor(), 'Back to views').props.onClick();
+  expect(component(editor(), ViewTabs).props.view).toBe('front');
+  expect(button(editor(), 'Line (L)').props.disabled).toBe(true);
+  button(stack(), 'Edit detail').props.onClick();
+  selectView('side');
+  expect(component(editor(), ViewTabs).props.view).toBe('side');
+  expect(button(editor(), 'Back to views')).toBeUndefined();
+});
+
+it('SH5.1 c anchor 4: detail at 20 on a 12 inch section blocks Save and preserves made views', () => {
+  create('New leg / column');
+  button(stack(), 'Add tapered').props.onClick();
+  field(stack(), 'Add detail to section 2').props.onClick();
+  const views = draft().views;
+  field(stack(), 'Section 2 detail 1 at').props.onCommit(20);
+  const problem = "Section 2, detail 1 doesn't fit in its section.";
+  expect(text(builderPanel())).toContain(problem);
+  expect(button(editor(), 'Save').props).toMatchObject({ disabled: true, title: problem });
+  expect(draft().views).toEqual(views);
+  button(editor(), 'Undo').props.onClick();
+  expect(button(editor(), 'Save').props.disabled).toBe(false);
+});
+
+it('SH5.1 c anchor 5: square and tapered rows offer Stretches; turned rows do not; None clears it', () => {
+  create('New leg / column');
+  button(stack(), 'Add tapered').props.onClick();
+  button(stack(), 'Add turned').props.onClick();
+  const radios = () => nodes(stack()).filter((n) => n.type === 'input' && n.props.type === 'radio');
+  expect(radios()).toHaveLength(3);
+  radios()[1].props.onChange();
+  expect(draft().builder.stretch).toBe(1);
+  expect(draft().stretch).toEqual({ z: [[2, 14]] });
+  radios()[2].props.onChange();
+  expect(draft().builder.stretch).toBeUndefined();
+  expect(draft().stretch).toEqual({});
+});
+
+it('SH5.1 c: detail order, anchoring and removal are undoable; every section type supports details', () => {
+  create('New leg / column');
+  button(stack(), 'Add tapered').props.onClick();
+  button(stack(), 'Add turned').props.onClick();
+  for (const n of [1, 2, 3]) field(stack(), `Add detail to section ${n}`).props.onClick();
+  field(stack(), 'Section 2 detail 1 at').props.onCommit(1);
+  field(stack(), 'Add detail to section 2').props.onClick();
+  field(stack(), 'Section 2 detail 2 from').props.onChange({ target: { value: 'top' } });
+  field(stack(), 'Section 2 detail 2 at').props.onCommit(2);
+  const details = structuredClone(draft().builder.sections[1].details);
+  const views = draft().views;
+  field(stack(), 'Move section 2 detail 2 up').props.onClick();
+  expect(draft().builder.sections[1].details).toEqual([details[1], details[0]]);
+  expect(draft().views).toEqual(views);
+  field(stack(), 'Move section 2 detail 1 down').props.onClick();
+  expect(draft().builder.sections[1].details).toEqual(details);
+  button(stack(), 'Edit detail').props.onClick();
+  field(stack(), 'Remove section 1 detail 1').props.onClick();
+  expect(button(editor(), 'Back to views')).toBeUndefined();
+  expect(draft().builder.sections[0].details).toEqual([]);
+  button(editor(), 'Undo').props.onClick();
+  expect(draft().builder.sections[0].details).toHaveLength(1);
+  for (let i = 2; i < 8; i += 1) field(stack(), 'Add detail to section 2').props.onClick();
+  expect(field(stack(), 'Add detail to section 2').props.disabled).toBe(true);
+  const locked = render(StackFields, { ...component(builderPanel(), StackFields).props, readOnly: true });
+  expect(field(locked, 'Section 2 top').props.disabled).toBe(true);
+  expect(field(locked, 'Section 2 detail 1 at').props.disabled).toBe(true);
+  expect(field(locked, 'Remove section 2 detail 1').props.disabled).toBe(true);
+});
+
+it('SH5.1 c: detail profile errors block Save; copying a turned profile retains its details', () => {
+  create('New leg / column');
+  button(stack(), 'Add turned').props.onClick();
+  field(stack(), 'Add detail to section 2').props.onClick();
+  button(stack(), 'Edit detail').props.onClick();
+  const canvas = component(editor(), ProfileCanvas).props;
+  const views = draft().views;
+  canvas.onApply(moveProfilePoint(canvas.profile, 'b2', [0.25, 0.5]));
+  expect(button(editor(), 'Save').props.title).toBe('Section 2, detail 1 must be one open line from its bottom to its top, with both ends at 0.');
+  expect(draft().views).toEqual(views);
+  button(editor(), 'Undo').props.onClick();
+  const before = structuredClone(draft().builder.sections[1].details);
+  const profile = { id: 'bead', name: 'Bead', geometry: BEAD, drawnPoints: { elevation: ['q2'] } };
+  elevation = { ...elevation, settings: { ...elevation.settings, sectionProfiles: [profile] } };
+  pick(stack(), 'bead');
+  expect(draft().builder.sections[1].details).toEqual(before);
+  expect(draft().builder.sections[1].profile).toEqual(BEAD);
+});
+
+it('SH5.1 c: hidden bases render dimmed and dashed below the made outline without catching clicks', () => {
+  create('New leg / column');
+  field(stack(), 'Add detail to section 1').props.onClick();
+  const props = component(editor(), ProfileCanvas).props;
+  // Supply a fitted viewport, as the browser layout effect normally would.
+  slots.set(ProfileCanvas.render, [{ width: 800, height: 600 }, { cx: 0, cy: 17, scale: 15 }]);
+  const tree = render(ProfileCanvas.render, props);
+  const paths = nodes(tree).filter((n) => n.type === 'path');
+  const ghosts = paths.filter((n) => n.props.strokeDasharray === '4 3');
+  expect(ghosts).toHaveLength(3); // box and the two hidden base pieces
+  expect(ghosts.every((n) => n.props.strokeOpacity === 0.4)).toBe(true);
+  const group = nodes(tree).find((n) => n.type === 'g' && n.props.children?.includes?.(ghosts[0]));
+  expect(group.props.pointerEvents).toBe('none');
+  expect(paths.indexOf(ghosts.at(-1))).toBeLessThan(paths.findIndex((n) => n.props.stroke === '#e5e7eb'));
 });
