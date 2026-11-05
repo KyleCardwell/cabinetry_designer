@@ -41,12 +41,12 @@ describe('SH7 step a run leg placement and presets', () => {
     const [placed] = runLegs(ROOM, W, { ...R, legs: [{ ...leg, from: 'right', yFrom: 'back' }] }, settings);
     expect(placed).toMatchObject({ bounds: { x: 42.5 }, front: 3.5, back: 0 });
     const [offset] = runLegs(ROOM, W, { ...R, outset: 2, _plane: { offset: -1 },
-      legs: [{ ...leg, from: 'right', x: -2, yFrom: 'back', y: 1 }] }, settings);
+      legs: [{ ...leg, from: 'right', x: 2, yFrom: 'back', y: -1 }] }, settings);
     expect(offset).toMatchObject({ bounds: { x: 44.5 }, front: 5.5, back: 2 });
   });
 
   it('anchor 3: stretches the top block at 30 and retains own height for feet below the fixed parts', () => {
-    const pick = { ...leg, x: 2, y: -0.75, height: 30 };
+    const pick = { ...leg, x: -2, y: 0.75, height: 30 };
     const [placed] = runLegs(ROOM, W, { ...R, legs: [pick] }, settings);
     expect(placed).toMatchObject({ bounds: { x: 12, height: 30 }, front: 25.625, stretched: true,
       size: { h: 30 }, plan: { top: 30 }, warnings: [] });
@@ -74,9 +74,9 @@ describe('SH7 step a run leg placement and presets', () => {
     const options = { shapeId: LEG.id, height: 'feet', proud: 0.5, backOffset: 1, leaveOut: 'RB' };
     const three = legPreset('three', options, newId);
     expect(three).toEqual([
-      { id: 'lg-1', shapeId: LEG.id, height: 'feet', from: 'left', x: 0, yFrom: 'front', y: -0.5, mirror: true },
+      { id: 'lg-1', shapeId: LEG.id, height: 'feet', from: 'left', x: 0, yFrom: 'front', y: 0.5, mirror: true },
       { id: 'lg-2', shapeId: LEG.id, height: 'feet', from: 'left', x: 0, yFrom: 'back', y: 1, mirror: true, mirrorDepth: true },
-      { id: 'lg-3', shapeId: LEG.id, height: 'feet', from: 'right', x: 0, yFrom: 'front', y: -0.5 },
+      { id: 'lg-3', shapeId: LEG.id, height: 'feet', from: 'right', x: 0, yFrom: 'front', y: 0.5 },
     ]);
     const code = ({ from, yFrom }) => `${from[0].toUpperCase()}${yFrom[0].toUpperCase()}`;
     for (const [preset, codes] of [['four', ['LF', 'LB', 'RF', 'RB']], ['front', ['LF', 'RF']],

@@ -45,12 +45,12 @@ function fixture(legs = [leg], wallOverrides = {}, runOverrides = {}) {
 
 describe('SH7 step c canvas legs', () => {
   it('anchor 1: draws the left front leg proud by 1/2 inch over the pieces, including doors-off', () => {
-    for (const y of [-0.5, 0, 0.5e-6]) {
+    for (const y of [0.5, 0, -0.5e-6]) {
       for (const doorsOff of [false, true]) {
         const input = fixture([{ ...leg, y }]);
         const tree = nodes(RunGroup.type({ ...input, doorsOff }));
         const layer = tree.find(({ type, props }) => type === LegShapes && props.legs.length);
-        expect(layer.props.legs[0].front).toBeCloseTo(frontDepth(input.run, settings) - y);
+        expect(layer.props.legs[0].front).toBeCloseTo(frontDepth(input.run, settings) + y);
         expect(tree.indexOf(layer)).toBeGreaterThan(tree.findIndex(({ type }) => type === PieceRect));
         if (doorsOff) expect(tree.indexOf(layer)).toBeGreaterThan(tree.findIndex(({ type }) => type === InteriorShapes));
         const shapes = nodes(LegShapes(layer.props)).filter(({ type }) => type === Shape);

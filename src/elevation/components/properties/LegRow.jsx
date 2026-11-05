@@ -69,23 +69,24 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
         {['x', 'y'].map((axis) => {
           const reference = axis === 'x' ? 'from' : 'yFrom';
           const sides = axis === 'x' ? ['left', 'right'] : ['front', 'back'];
+          const name = axis === 'x' ? 'Along' : 'In/out';
           return (
             <div key={axis}>
-              <Field label={axis.toUpperCase()}>
-                <CoordInput aria-label={`${label} ${axis.toUpperCase()}`} value={leg[axis]} onCommit={(value) => {
+              <Field label={name}>
+                <CoordInput aria-label={`${label} ${name}`} value={leg[axis]} onCommit={(value) => {
                   if (!Number.isFinite(value)) return false;
                   update({ [axis]: value });
                 }} />
               </Field>
-              <div role="group" aria-label={`${label} ${axis.toUpperCase()} reference`} className="mt-1 flex gap-1">
+              <div role="group" aria-label={`${label} ${name} reference`} className="mt-1 flex gap-1">
                 {sides.map((side) => (
                   <button key={side} type="button" aria-pressed={leg[reference] === side} disabled={!box}
                     className={`flex-1 rounded px-2 py-1 text-xs disabled:opacity-40 ${leg[reference] === side ? 'bg-blue-700 text-white' : 'bg-gray-700 text-gray-200'}`}
                     onClick={() => {
                       if (!box || side === leg[reference]) return;
                       update({ [reference]: side, [axis]: axis === 'x'
-                        ? run.width - leg.x - box.w
-                        : frontDepth(run, settings) - runBackOffset(run) - leg.y - box.d });
+                        ? box.w - run.width - leg.x
+                        : runBackOffset(run) - frontDepth(run, settings) + box.d - leg.y });
                     }}>{side[0].toUpperCase() + side.slice(1)}</button>
                 ))}
               </div>
@@ -93,7 +94,7 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
           );
         })}
       </div>
-      <p className="mt-1 text-xs text-gray-500">Front: to the leg&apos;s front face, − = proud. Back: to its back face.</p>
+      <p className="mt-1 text-xs text-gray-500">Along: to the leg&apos;s outside face from the run end. In/out: to its front or back face. + = proud of the run, − = into it.</p>
       {[['mirror', 'Mirror left–right'], ['mirrorDepth', 'Mirror front–back']].map(([key, text]) => (
         <label key={key} className="mt-2 flex items-center gap-2 text-xs text-gray-300">
           <input type="checkbox" aria-label={`${label} ${text}`} checked={leg[key] === true}

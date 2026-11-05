@@ -77,14 +77,14 @@ describe('SH7 step b Legs panel', () => {
     tree = render(AddLegsRow);
     button(tree, 'Add').props.onClick();
     expect(currentRun().legs.map(({ from, yFrom, y }) => [from, yFrom, y])).toEqual([
-      ['left', 'front', -0.5], ['left', 'back', 0], ['right', 'front', -0.5], ['right', 'back', 0],
+      ['left', 'front', 0.5], ['left', 'back', 0], ['right', 'front', 0.5], ['right', 'back', 0],
     ]);
     expect(currentRun().legs.every(({ height }) => height === 'full')).toBe(true);
     slots = [];
     const section = render(RunLegsSection);
     expect(nodes(section).filter(({ type }) => type === LegRow).map(({ props }) => props.index)).toEqual([0, 1, 2, 3]);
     const lf = renderLeg();
-    expect(formatProfileCoord(field(lf, 'Leg 1 Y').props.value)).toBe('-1/2');
+    expect(formatProfileCoord(field(lf, 'Leg 1 In/out').props.value)).toBe('1/2');
     expect(button(lf, 'Front').props['aria-pressed']).toBe(true);
     expect(nodes(lf).some(({ props }) => props.children?.includes?.(' #12'))).toBe(true);
     // Use independent hook slots for the Add legs row.
@@ -109,21 +109,21 @@ describe('SH7 step b Legs panel', () => {
     expect(currentRun().legs).toHaveLength(13);
   });
 
-  it('anchors 2–3: switches X to Right 32 1/2 and Back to Front 21 3/8 without moving the leg', () => {
+  it('anchors 2–3: switches X to Right -32 1/2 and Back to Front -21 3/8 without moving the leg', () => {
     addCorners();
     const placement = () => runLegs(state.rooms[0], state.rooms[0].walls[0], currentRun(), settings);
     const before = placement();
     button(renderLeg(), 'Right').props.onClick();
-    expect(currentRun().legs[0]).toMatchObject({ from: 'right', x: 32.5 });
-    expect(formatProfileCoord(field(renderLeg(), 'Leg 1 X').props.value)).toBe('32 1/2');
+    expect(currentRun().legs[0]).toMatchObject({ from: 'right', x: -32.5 });
+    expect(formatProfileCoord(field(renderLeg(), 'Leg 1 Along').props.value)).toBe('-32 1/2');
     expect(placement()[0].bounds).toEqual(before[0].bounds);
     button(renderLeg(1), 'Front').props.onClick();
-    expect(currentRun().legs[1]).toMatchObject({ yFrom: 'front', y: 21.375 });
-    expect(formatProfileCoord(field(renderLeg(1), 'Leg 2 Y').props.value)).toBe('21 3/8');
+    expect(currentRun().legs[1]).toMatchObject({ yFrom: 'front', y: -21.375 });
+    expect(formatProfileCoord(field(renderLeg(1), 'Leg 2 In/out').props.value)).toBe('-21 3/8');
     expect(placement()[1].front).toBe(before[1].front);
     button(renderLeg(), 'Left').props.onClick();
     button(renderLeg(1), 'Back').props.onClick();
-    expect(currentRun().legs.slice(0, 2).map(({ x, y }) => [x, y])).toEqual([[0, -0.5], [0, 0]]);
+    expect(currentRun().legs.slice(0, 2).map(({ x, y }) => [x, y])).toEqual([[0, 0.5], [0, 0]]);
     // The same conversion uses resolved dimensions on an offset, back-side run.
     dispatch(updateRun({ wallId: 'wall-1', runId: 'run-1', changes: { wallSide: 'back', outset: 2, _plane: { offset: -1 } } }));
     const backBefore = placement();
@@ -179,9 +179,9 @@ describe('SH7 step b Legs panel', () => {
     height.props.onChange('full');
     expect(currentRun().legs[0].height).toBe('full');
     expect(nodes(LegHeightFields({ ...height.props, value: 'full' })).some(({ type }) => type === CoordInput)).toBe(false);
-    field(renderLeg(), 'Leg 1 X').props.onCommit(-2);
-    field(renderLeg(), 'Leg 1 Y').props.onCommit(-0.75);
-    expect(field(renderLeg(), 'Leg 1 X').props.onCommit(Infinity)).toBe(false);
+    field(renderLeg(), 'Leg 1 Along').props.onCommit(-2);
+    field(renderLeg(), 'Leg 1 In/out').props.onCommit(-0.75);
+    expect(field(renderLeg(), 'Leg 1 Along').props.onCommit(Infinity)).toBe(false);
     field(renderLeg(), 'Leg 1 Mirror left–right').props.onChange({ target: { checked: true } });
     expect(currentRun().legs[0]).toMatchObject({ x: -2, y: -0.75, mirror: true });
     field(renderLeg(), 'Leg 1 Mirror left–right').props.onChange({ target: { checked: false } });
@@ -232,8 +232,8 @@ describe('SH7 step b Legs panel', () => {
     };
     edit(() => button(renderLeg(), 'Right').props.onClick());
     edit(() => button(renderLeg(1), 'Front').props.onClick());
-    edit(() => field(renderLeg(), 'Leg 1 X').props.onCommit(-1));
-    edit(() => field(renderLeg(), 'Leg 1 Y').props.onCommit(-1));
+    edit(() => field(renderLeg(), 'Leg 1 Along').props.onCommit(-1));
+    edit(() => field(renderLeg(), 'Leg 1 In/out').props.onCommit(-1));
     edit(() => nodes(renderLeg()).find(({ type }) => type === LegShapeSelect).props.onChange('missing'));
     edit(() => nodes(renderLeg()).find(({ type }) => type === LegHeightFields).props.onChange('feet'));
     edit(() => field(renderLeg(), 'Leg 1 Mirror left–right').props.onChange({ target: { checked: false } }));
@@ -254,7 +254,7 @@ describe('SH7 step b Legs panel', () => {
     field(tree, 'Redo legs edit').props.onClick();
     tree = render(RunLegsSection);
     expect(currentRun().legs).toEqual(added);
-    field(renderLeg(), 'Leg 1 X').props.onCommit(2);
+    field(renderLeg(), 'Leg 1 Along').props.onCommit(2);
     tree = render(RunLegsSection);
     expect(field(tree, 'Redo legs edit').props.disabled).toBe(true);
     tree = render(RunLegsSection, { ...props(), run: { ...currentRun(), id: 'different' } });

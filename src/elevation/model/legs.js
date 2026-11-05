@@ -52,8 +52,9 @@ export function runLegs(room, wall, run, settings) {
     if (!shape.stretch.z?.length && Math.abs(H - b.h) > EPS) {
       warn({ code: 'leg-fixed-height', height: b.h });
     }
-    const u0 = leg.from === 'left' ? run.x + leg.x : run.x + run.width - leg.x - b.w;
-    const t0 = leg.yFrom === 'front' ? leg.y : F - B - leg.y - b.d;
+    const u0 = leg.from === 'left' ? run.x - leg.x : run.x + run.width + leg.x - b.w;
+    // x and y: + = outside the run (past its end / proud of the doors / past its back), − = into it (Kyle 2026-11-05).
+    const t0 = leg.yFrom === 'front' ? -leg.y : F - B + leg.y - b.d;
     const mirror = leg.mirror === true;
     const mirrorDepth = leg.mirrorDepth === true;
     const toY = (py) => F - t0 - (mirrorDepth ? b.y + b.d - py : py - b.y);
@@ -89,7 +90,7 @@ export function legPreset(preset, { shapeId, height = 'full', proud = 0, backOff
   return (corners[preset] ?? []).map((corner) => ({
     id: newId(), shapeId, height, from: corner[0] === 'L' ? 'left' : 'right', x: 0,
     yFrom: corner[1] === 'F' ? 'front' : 'back',
-    y: corner[1] === 'F' ? (proud === 0 ? 0 : -proud) : backOffset,
+    y: corner[1] === 'F' ? proud : backOffset,
     ...(corner[0] === 'L' ? { mirror: true } : {}),
     ...(corner[1] === 'B' ? { mirrorDepth: true } : {}),
   }));
