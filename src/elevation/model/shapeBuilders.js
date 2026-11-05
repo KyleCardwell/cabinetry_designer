@@ -1,7 +1,8 @@
 /**
  * SH5 shape builders: an extrusion (a Side-view cross-section pulled along x) and a leg / column
- * stack (square, tapered and turned sections, top to bottom). The recipe is kept on `shape.builder`; the
- * made views, box and stretch zones are stored on the shape as usual. Stack height resolution
+ * stack (square, tapered and turned sections, top to bottom), or a mirrored Front for Side.
+ * The recipe is kept on `shape.builder`; the made views, box and stretch zones are stored on the
+ * shape as usual. Stack height resolution
  * rebuilds the recipe to preserve details. This file must not import libraryShapes.js.
  */
 import { arcMeasure, isProfileGeometry, sectionProfileBounds } from './sectionProfiles.js';
@@ -33,6 +34,7 @@ function isDrawnPoints(drawn, points, views) {
 /** Structure only (numbers may still be out of range in a draft; see shapeBuilderProblems). */
 export function isShapeBuilder(builder, views) {
   if (!isPlain(builder)) return false;
+  if (builder.type === 'mirror-side') return hasKeys(builder, ['type']);
   if (builder.type === 'extrude') {
     return hasKeys(builder, ['type', 'length', 'stretches', 'drawnPoints'])
       && Number.isFinite(builder.length) && typeof builder.stretches === 'boolean'
@@ -100,7 +102,7 @@ function sectionHeight(section) {
 /** [{ problem, index? }] — empty for a drawn shape or a buildable recipe. */
 export function shapeBuilderProblems(shape) {
   const builder = shape?.builder;
-  if (!builder) return [];
+  if (!builder || builder.type === 'mirror-side') return [];
   const problems = [];
   if (builder.type === 'extrude') {
     if (!(builder.length > 0)) problems.push({ problem: 'length' });
@@ -549,6 +551,29 @@ function buildStack(shape, sectionHeights = {}) {
   };
 }
 
+/** Front and Plan stay drawn; only Side and its dependent box / zones are made. */
+function buildMirrorSide(shape) {
+  const side = structuredClone(shape.views.front);
+  const mirror = ([x, z]) => [clean(-x), z];
+  side.points = Object.fromEntries(Object.entries(side.points).map(([id, point]) => [id, mirror(point)]));
+  for (const loop of side.loops) {
+    for (const segment of loop.segs) {
+      if (segment.type !== 'arc') continue;
+      segment.center = mirror(segment.center);
+      segment.ccw = !segment.ccw;
+    }
+  }
+  const stretch = structuredClone(shape.stretch);
+  delete stretch.y;
+  if (stretch.x) stretch.y = stretch.x.map(([from, to]) => [clean(-to), clean(-from)])
+    .sort((a, b) => a[0] - b[0]);
+  return {
+    views: { ...structuredClone(shape.views), side },
+    box: { ...shape.box, y: clean(-(shape.box.x + shape.box.w)), d: shape.box.w },
+    stretch,
+  };
+}
+
 /**
  * Remakes the views, box and zones from the recipe. A drawn shape comes back as is; a recipe with
  * problems keeps its previous made views, box and zones.
@@ -556,8 +581,10 @@ function buildStack(shape, sectionHeights = {}) {
 export function buildShape(shape, { sectionHeights } = {}) {
   if (!shape?.builder || !isShapeBuilder(shape.builder, shape.views)
     || shapeBuilderProblems(shape).length) return shape;
-  const made = shape.builder.type === 'extrude' ? buildExtrusion(shape) : buildStack(shape, sectionHeights);
-  if (!Object.values(made.views).every((view) => isProfileGeometry(view))) return shape;
+  const mirrorSide = shape.builder.type === 'mirror-side';
+  const made = mirrorSide ? buildMirrorSide(shape)
+    : shape.builder.type === 'extrude' ? buildExtrusion(shape) : buildStack(shape, sectionHeights);
+  if (!Object.values(made.views).every((view) => isProfileGeometry(view, { draft: mirrorSide }))) return shape;
   const result = { ...structuredClone(shape), ...made };
   if (shape.builder.type === 'stack' && sectionHeights) {
     result.builder.sections.forEach((section, i) => {

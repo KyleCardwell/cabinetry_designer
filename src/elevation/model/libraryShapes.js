@@ -122,11 +122,19 @@ export function convertShapeToDrawn(shape) {
   return rest;
 }
 
-/** SH5: a stack's origin is fixed; an extrusion's x origin is fixed at its left end. */
+/** Enable Side from Front on a drawn shape, or keep the made data and drop that recipe. */
+export function withMirrorSide(shape, on) {
+  if (!isShapeDraft(shape) || typeof on !== 'boolean'
+    || (shape.builder && shape.builder.type !== 'mirror-side')) return null;
+  return on ? buildShape({ ...shape, builder: { type: 'mirror-side' } }) : convertShapeToDrawn(shape);
+}
+
+/** Stack origins are fixed; extrusion x and mirrored-Side y cannot move or flip. */
 function builderAllows(shape, axes) {
   const type = shape.builder?.type;
   if (type === 'stack') return false;
   if (type === 'extrude') return !axes.includes('x');
+  if (type === 'mirror-side') return !axes.includes('y');
   return true;
 }
 
@@ -363,19 +371,30 @@ export function stretchProblemText(problem, zone) {
   return null;
 }
 
-/** SH5: the view drawn by hand on a builder shape (an extrusion's Side view), else null. */
+/** The source used to open a builder in the editor; other drawn views can remain editable. */
 export function builderSourceView(shape) {
-  return shape?.builder?.type === 'extrude' ? 'side' : null;
+  if (shape?.builder?.type === 'extrude') return 'side';
+  return shape?.builder?.type === 'mirror-side' ? 'front' : null;
+}
+
+/** Views made by the recipe, in editor order. */
+export function builderMadeViews(shape) {
+  switch (shape?.builder?.type) {
+    case 'extrude': return ['front', 'plan'];
+    case 'stack': return ['front', 'side', 'plan'];
+    case 'mirror-side': return ['side'];
+    default: return [];
+  }
 }
 
 /** SH5: a view the builder makes (read-only in the editor). */
 export function isMadeView(shape, view) {
-  return Boolean(shape?.builder) && view !== builderSourceView(shape);
+  return builderMadeViews(shape).includes(view);
 }
 
 export function shapeViewProfile(shape, view) {
   const geometry = shapeView(shape, view);
-  const source = view === builderSourceView(shape);
+  const source = shape?.builder?.type === 'extrude' && view === builderSourceView(shape);
   return geometry ? {
     id: `${shape.id}:${view}`, name: shape.name, kind: 'other', geometry,
     drawnPoints: source ? structuredClone(shape.builder.drawnPoints) : { elevation: [] },
@@ -389,7 +408,7 @@ export function withShapeView(shape, view, profile) {
   const result = structuredClone(shape);
   result.views[view] = structuredClone(profile.geometry);
   if (shape.builder) {
-    result.builder.drawnPoints = structuredClone(profile.drawnPoints);
+    if (shape.builder.type === 'extrude') result.builder.drawnPoints = structuredClone(profile.drawnPoints);
     return isShapeDraft(result) ? buildShape(result) : null;
   }
   return isShapeDraft(result) ? result : null;
