@@ -1,7 +1,10 @@
 import { frontDepth, runBackOffset } from './corners.js';
+import { runBaseProfile } from './furnitureBase.js';
 import { resolveShape, shapeView } from './libraryShapes.js';
+import { resolveProfile } from './profile.js';
 import { resolveWall } from './room.js';
 import { shapeOutlines, transformOutline } from './sectionProfileOutline.js';
+import { isCountertop, runTop } from './tops.js';
 import { formatInches } from './units.js';
 import { wallSideOf } from './wallSides.js';
 
@@ -20,10 +23,35 @@ export function isLegList(value) {
       || !(leg.height === 'full' || leg.height === 'feet'
         || (Number.isFinite(leg.height) && leg.height > 0))
       || (leg.mirror !== undefined && leg.mirror !== true)
-      || (leg.mirrorDepth !== undefined && leg.mirrorDepth !== true)) return false;
+      || (leg.mirrorDepth !== undefined && leg.mirrorDepth !== true)
+      || (leg.takesRoom !== undefined && leg.takesRoom !== false)
+      || (leg.sitsOn !== undefined && !['base', 'countertop'].includes(leg.sitsOn))) return false;
     ids.add(leg.id);
     return true;
   });
+}
+
+/** Resolve what a leg stands on, falling back to the floor when its support is missing. */
+export function legBottom(room, wall, run, settings, leg, u0, w) {
+  if (leg.sitsOn === 'base') {
+    const base = runBaseProfile(room, wall, run, settings);
+    return base.kind === 'furniture_base'
+      ? { z: base.height } : { z: 0, warning: { code: 'leg-no-base' } };
+  }
+  if (leg.sitsOn === 'countertop') {
+    const view = resolveWall(room, wall, wall.side ?? wallSideOf(run));
+    const profile = resolveProfile(settings, room, wall);
+    let z;
+    for (const other of view.runs) {
+      if (other.id === run.id
+        || Math.min(u0 + w, other.x + other.width) - Math.max(u0, other.x) <= EPS) continue;
+      const top = runTop(view, other, profile);
+      const surface = other.z + other.height + top.height;
+      if (isCountertop(top.kind) && surface <= run.z + EPS) z = Math.max(z ?? -Infinity, surface);
+    }
+    return z === undefined ? { z: 0, warning: { code: 'leg-no-countertop' } } : { z };
+  }
+  return { z: 0 };
 }
 
 /** Drawn placements only. The array's `warnings` also retains warnings for skipped legs. */
@@ -42,9 +70,14 @@ export function runLegs(room, wall, run, settings) {
       placed.warnings.push(entry);
     };
     const shape = (settings.shapes ?? []).find(({ id }) => id === leg.shapeId);
-    const H = leg.height === 'full' ? run.z + run.height : leg.height === 'feet' ? run.z : leg.height;
+    const width = shape?.box.w ?? 0;
+    const u0 = leg.from === 'left' ? run.x - leg.x : run.x + run.width + leg.x - width;
+    const bottom = legBottom(room, view, run, settings, leg, u0, width);
+    const z0 = bottom.z;
+    const H = leg.height === 'full' ? run.z + run.height - z0 : leg.height === 'feet' ? run.z - z0 : leg.height;
     if (!shape) warn({ code: 'leg-shape-missing' });
-    if (H <= EPS) warn({ code: 'leg-no-height' });
+    if (bottom.warning) warn(bottom.warning);
+    if (H <= EPS) warn({ code: 'leg-no-height', ...(leg.sitsOn ? { sitsOn: leg.sitsOn } : {}) });
     if (!shape || H <= EPS) return;
     const resolved = resolveShape(shape, { h: H });
     const b = resolved.shape.box;
@@ -52,25 +85,24 @@ export function runLegs(room, wall, run, settings) {
     if (!shape.stretch.z?.length && Math.abs(H - b.h) > EPS) {
       warn({ code: 'leg-fixed-height', height: b.h });
     }
-    const u0 = leg.from === 'left' ? run.x - leg.x : run.x + run.width + leg.x - b.w;
     // x and y: + = outside the run (past its end / proud of the doors / past its back), − = into it (Kyle 2026-11-05).
     const t0 = leg.yFrom === 'front' ? -leg.y : F - B + leg.y - b.d;
     const mirror = leg.mirror === true;
     const mirrorDepth = leg.mirrorDepth === true;
     const toY = (py) => F - t0 - (mirrorDepth ? b.y + b.d - py : py - b.y);
     const toX = (px) => u0 + (mirror ? b.x + b.w - px : px - b.x);
-    const toFront = ([px, pz]) => [toX(px), pz - b.z];
+    const toFront = ([px, pz]) => [toX(px), pz - b.z + z0];
     const [x, z] = toFront([resolved.origin.x, resolved.origin.z]);
     placed.push({
       leg, index, shapeName: shape.name, stretched: resolved.stretched,
-      bounds: { x: u0, z: 0, width: b.w, height: b.h },
+      bounds: { x: u0, z: z0, width: b.w, height: b.h },
       front: F - t0, back: F - t0 - b.d,
       outlines: shapeOutlines(resolved.shape.views.front).map(({ closed, outline }) => ({
         closed, outline: transformOutline(outline, toFront, mirror),
       })),
       insert: { x, z },
       plan: {
-        top: b.h,
+        top: z0 + b.h,
         loops: shapeOutlines(shapeView(resolved.shape, 'plan')).map(({ closed, outline }) => ({
           closed,
           points: transformOutline(outline, ([px, py]) => [toX(px), toY(py)], !mirror !== mirrorDepth),
@@ -96,9 +128,13 @@ export function legPreset(preset, { shapeId, height = 'full', proud = 0, backOff
   }));
 }
 
-export function legWarningText({ code, index, target, fixed, height }) {
+export function legWarningText({ code, index, target, fixed, height, sitsOn }) {
   if (code === 'leg-shape-missing') return `Leg ${index}: its shape isn't in the library.`;
-  if (code === 'leg-no-height') return `Leg ${index} has no height (the run sits on the floor).`;
+  if (code === 'leg-no-height') return sitsOn
+    ? `Leg ${index} has no height (the run sits on what the leg stands on).`
+    : `Leg ${index} has no height (the run sits on the floor).`;
+  if (code === 'leg-no-base') return `Leg ${index}: the run has no furniture base. Drawn from the floor.`;
+  if (code === 'leg-no-countertop') return `Leg ${index}: no countertop below it. Drawn from the floor.`;
   if (code === 'shape-too-small') {
     return `Leg ${index} can't be ${formatInches(target)} tall: its fixed parts are ${formatInches(fixed)}. Drawn at ${formatInches(height)}.`;
   }

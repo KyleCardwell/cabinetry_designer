@@ -14,6 +14,26 @@ initial.activeWallId = target.wallId;
 const currentRun = (state) => state.rooms[0].walls[0].runs[0];
 
 describe('SH7 step a stored legs', () => {
+  it('SH7.1: persists support and room picks and drops their keys when cleared', () => {
+    let state = elevationReducer(initial, addRunLegs({ ...target, legs: [leg] }));
+    for (const sitsOn of ['base', 'countertop']) {
+      state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id,
+        changes: { takesRoom: false, sitsOn } }));
+      expect(currentRun(state).legs[0]).toEqual({ ...leg, takesRoom: false, sitsOn });
+      const saved = toElevationDocument(state);
+      expect(isElevationDocument(saved)).toBe(true);
+      expect(toElevationDocument(normalizeElevationDocument(saved))).toEqual(saved);
+      for (const changes of [{ takesRoom: true }, { sitsOn: 'floor' }]) {
+        expect(elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes }))).toEqual(state);
+      }
+      state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id,
+        changes: { takesRoom: undefined, sitsOn: undefined } }));
+      expect(currentRun(state).legs[0]).toEqual(leg);
+      expect(currentRun(state).legs[0]).not.toHaveProperty('takesRoom');
+      expect(currentRun(state).legs[0]).not.toHaveProperty('sitsOn');
+    }
+  });
+
   it('validates non-empty leg lists and round-trips picks, allowing missing/archived/other shapes and signed offsets', () => {
     const saved = structuredClone(toElevationDocument(initial));
     expect(isElevationDocument(saved)).toBe(true);

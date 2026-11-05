@@ -72,6 +72,11 @@ export function flipRunsForWall(wall) {
           }
         : {}),
       ...(run.items ? { items: [...run.items].reverse().map((item) => ({ ...item })) } : {}),
+      ...(run.legs ? { legs: run.legs.map(({ mirror, ...leg }) => ({
+        ...leg,
+        from: leg.from === 'left' ? 'right' : 'left',
+        ...(mirror === true ? {} : { mirror: true }),
+      })) } : {}),
       ...(run.grid ? { grid: mirrorGrid(run.grid) } : {}),
     })),
     openings: (wall.openings ?? []).map((opening) => ({
