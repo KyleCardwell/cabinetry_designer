@@ -3,11 +3,12 @@ import { moveShapeOriginTo, shapeOriginSpots } from '../../elevation/model/libra
 import CoordInput from '../profileEditor/CoordInput.jsx';
 import { SHAPE_VIEWS } from './ViewTabs.jsx';
 
-export default function OriginPanel({ shape, view, onApply, readOnly = false }) {
+export default function OriginPanel({ shape, view, onApply, readOnly = false, readOnlyAxes = [] }) {
   const [at, setAt] = useState([0, 0]);
   const axes = SHAPE_VIEWS[view].boxKeys.slice(0, 2);
   const moveOrigin = (coordinates) => {
-    if (readOnly || Object.values(coordinates).every((value) => value === 0)) return;
+    if (readOnly || Object.keys(coordinates).some((axis) => readOnlyAxes.includes(axis))
+      || Object.values(coordinates).every((value) => value === 0)) return;
     if (onApply(moveShapeOriginTo(shape, coordinates))) setAt([0, 0]);
   };
 
@@ -20,7 +21,7 @@ export default function OriginPanel({ shape, view, onApply, readOnly = false }) 
           const label = `0,0 at the box's ${row} ${col}`;
           return (
             <button key={`${row}-${col}`} type="button" title={label} aria-label={label} aria-pressed={current}
-              disabled={readOnly} onClick={() => moveOrigin(coordinates)}
+              disabled={readOnly || axes.some((axis) => readOnlyAxes.includes(axis))} onClick={() => moveOrigin(coordinates)}
               className={`h-8 rounded border border-gray-600 text-sm disabled:opacity-50 ${current ? 'bg-blue-600 text-white' : 'text-gray-300 hover:bg-gray-700'}`}>
               {current ? '●' : '○'}
             </button>
@@ -33,12 +34,12 @@ export default function OriginPanel({ shape, view, onApply, readOnly = false }) 
           {axes.map((axis, index) => (
             <label key={axis} className="min-w-0 flex-1 space-y-1 text-xs text-gray-400">
               <span>{axis.toUpperCase()}</span>
-              <CoordInput aria-label={`Set 0,0 at ${axis.toUpperCase()}`} value={at[index]} disabled={readOnly}
+              <CoordInput aria-label={`Set 0,0 at ${axis.toUpperCase()}`} value={at[index]} disabled={readOnly || readOnlyAxes.includes(axis)}
                 onCommit={(value) => setAt((current) => current.map((entry, i) => i === index ? value : entry))} />
             </label>
           ))}
           <button type="button" disabled={readOnly} className="rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50"
-            onClick={() => moveOrigin(Object.fromEntries(axes.map((axis, i) => [axis, at[i]])))}>Set</button>
+            onClick={() => moveOrigin(Object.fromEntries(axes.flatMap((axis, i) => readOnlyAxes.includes(axis) ? [] : [[axis, at[i]]])))}>Set</button>
         </div>
       </div>
     </section>

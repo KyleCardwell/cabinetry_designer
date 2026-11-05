@@ -8,7 +8,7 @@ import {
   fitShapeBox, flipShape, isShapeDraft, isShapeList, moveShapeOrigin, shapeStretchProblems,
   shapeView, shapeViewProfile, stretchProblemText, withShapeView,
   builderSourceView, isMadeView, stackSectionProfile, withStackSectionProfile,
-  stackDetailProfile, withStackDetailProfile,
+  stackDetailProfile, withStackDetailProfile, withMirrorSide,
 } from '../../elevation/model/libraryShapes.js';
 import { builderProblemText, shapeBuilderProblems, stackHiddenBase } from '../../elevation/model/shapeBuilders.js';
 import { sectionProfileBounds } from '../../elevation/model/sectionProfiles.js';
@@ -36,6 +36,7 @@ const shapeKey = (shape) => JSON.stringify([shape.name, shape.kind, shape.notes,
 const MADE_NOTE = {
   extrude: 'Made from the Side view by the extrusion builder.',
   stack: 'Made by the leg / column builder.',
+  'mirror-side': 'Made from the Front view, mirrored.',
 };
 const normalizeShape = (shape) => ({ ...shape, name: shape.name.trim(),
   ...(Object.hasOwn(shape, 'notes') ? { notes: shape.notes.trim() } : {}) });
@@ -55,7 +56,10 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
   const [section, setSection] = useState(null);
   const [detail, setDetail] = useState(null);
   const [removingView, setRemovingView] = useState(false);
+  const [replacingSide, setReplacingSide] = useState(false);
   const builder = draft?.builder ?? null;
+  const mirrorSide = builder?.type === 'mirror-side';
+  const drawnShape = !builder || mirrorSide;
   const editingProfile = editable && section !== null && (detail !== null
     ? stackDetailProfile(editable, section, detail) : stackSectionProfile(editable, section));
   const sectionMode = Boolean(editingProfile);
@@ -110,6 +114,19 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
 
   const close = () => onClose({ saved: savedOnce });
 
+  const setMirrorSide = (on) => {
+    if (applyShape(withMirrorSide(editable, on))) {
+      setReplacingSide(false);
+      setSelection(null);
+      setTool('select');
+    }
+  };
+  const rebuild = (shape) => mirrorSide && shape ? withMirrorSide(shape, true) : shape;
+  const fitBox = () => {
+    const fitted = fitShapeBox(mirrorSide ? { ...editable, views: { front: editable.views.front } } : editable);
+    return fitted && rebuild({ ...editable, box: fitted.box });
+  };
+
   const switchTool = (nextTool) => {
     setTool(nextTool);
     if (['line', 'rect', 'circle', 'measure'].includes(nextTool)) setSelection(null);
@@ -125,12 +142,14 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     setSection(null);
     setDetail(null);
     setRemovingView(false);
+    setReplacingSide(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shapeId]);
 
   useEffect(() => {
     setDiscarding(false);
     setRemovingView(false);
+    setReplacingSide(false);
     const geometry = sectionMode
       ? (detailMode ? draft?.builder?.sections[section]?.details?.[detail]?.profile : draft?.builder?.sections[section]?.profile)
       : draft?.views[view];
@@ -235,8 +254,8 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
     || !isShapeList(shapes.map((shape) => shape.id === saved.id ? normalized : shape));
   const saveTitle = builderProblems.length ? builderProblemText(builderProblems[0])
     : problems.length ? stretchProblemText(problems[0], normalized.stretch[problems[0].axis][problems[0].index]) : undefined;
-  const flipAxes = !builder ? ['x', 'z', 'y'] : builder.type === 'extrude' ? ['z', 'y'] : [];
-  const showOrigin = !builder || (builder.type === 'extrude' && view === 'side' && !sectionMode);
+  const flipAxes = !builder ? ['x', 'z', 'y'] : mirrorSide ? ['x', 'z'] : builder.type === 'extrude' ? ['z', 'y'] : [];
+  const showOrigin = drawnShape || (builder.type === 'extrude' && view === 'side' && !sectionMode);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -300,6 +319,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
         setSection(null);
         setDetail(null);
         setRemovingView(false);
+        setReplacingSide(false);
         setSelection(null);
         setTool('select');
         setMessage(null);
@@ -329,22 +349,41 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
           <ProfileCanvas ref={canvasRef} key={`${shapeId}:${view}:${drawnView}:${sectionMode ? `${section}:${detail ?? 'profile'}` : ''}`} profile={profile} ghost={ghost} ghostDashed={detailMode || (!sectionMode && hiddenBase.loops.length > 0)} bands={bands} grid={grid} selection={selection} onSelect={setSelection} fitSignal={fitSignal} tool={tool} onApply={apply} onMessage={setMessage} />
         </div>
         <aside className="w-96 shrink-0 overflow-y-auto border-l border-gray-700 p-4 space-y-5">
-          {builder && <BuilderPanel shape={editable} profiles={profiles} problems={builderProblems} readOnly={readOnly}
+          {drawnShape && view === 'side' && <section className="space-y-2 text-sm text-gray-300">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" aria-label="Side = mirrored Front" checked={mirrorSide} disabled={readOnly}
+                onChange={(event) => {
+                  if (readOnly) return;
+                  if (event.target.checked && draft.views.side?.loops.length) setReplacingSide(true);
+                  else setMirrorSide(event.target.checked);
+                }} />
+              Side = mirrored Front
+            </label>
+            {replacingSide && <div className="space-y-2">
+              <p>Replace the Side view with the mirrored Front?</p>
+              <button type="button" className={HISTORY_BUTTON_CLASS} disabled={readOnly}
+                onClick={() => setMirrorSide(true)}>Replace Side view</button>{' '}
+              <button type="button" className={BUTTON_CLASS} onClick={() => setReplacingSide(false)}>Cancel</button>
+            </div>}
+          </section>}
+          {builder && !mirrorSide && <BuilderPanel shape={editable} profiles={profiles} problems={builderProblems} readOnly={readOnly}
             onApply={applyShape} section={sectionMode ? section : null} detail={detailMode ? detail : null}
             onEditSection={(index, detailIndex = null) => { setSection(index); setDetail(detailIndex); setSelection(null); setTool('select'); setMessage(null); }} />}
-          <BoxPanel box={draft.box} readOnly={readOnly || Boolean(builder)}
-            onChange={(box) => applyShape({ ...editable, box }, 'W, H and D must be greater than zero.')}
-            onFit={builder ? null : () => applyShape(fitShapeBox(editable), 'The drawing must have a positive size on each drawn axis.')} />
-          {showOrigin && <OriginPanel key={`${shapeId}:${view}`} shape={editable} view={view} onApply={applyShape} readOnly={readOnly} />}
-          {!builder && <StretchPanel box={draft.box} stretch={draft.stretch} view={view} problems={problems} readOnly={readOnly}
-            onChange={(stretch) => applyShape({ ...editable, stretch }, 'A stretch zone needs From less than To.')} />}
+          <BoxPanel box={draft.box} readOnly={readOnly || !drawnShape} readOnlyFields={mirrorSide ? ['d', 'y'] : []}
+            onChange={(box) => applyShape(rebuild({ ...editable, box }), 'W, H and D must be greater than zero.')}
+            onFit={drawnShape ? () => applyShape(fitBox(), 'The drawing must have a positive size on each drawn axis.') : null} />
+          {showOrigin && <OriginPanel key={`${shapeId}:${view}`} shape={editable} view={view} onApply={applyShape} readOnly={readOnly}
+            readOnlyAxes={mirrorSide ? ['y'] : []} />}
+          {drawnShape && <StretchPanel box={draft.box} stretch={draft.stretch} view={view} problems={problems} readOnly={readOnly}
+            readOnlyAxes={mirrorSide ? ['y'] : []}
+            onChange={(stretch) => applyShape(rebuild({ ...editable, stretch }), 'A stretch zone needs From less than To.')} />}
           {!sectionMode && flipAxes.length > 0 && <div className="flex flex-wrap gap-2">
             {[['x', '⇆ Flip left–right'], ['z', '⇅ Flip up–down'], ['y', 'Flip front–back']].filter(([axis]) => flipAxes.includes(axis)).map(([axis, label]) => (
               <button key={axis} type="button" className={HISTORY_BUTTON_CLASS} disabled={readOnly}
                 onClick={() => applyShape(flipShape(editable, axis))}>{label}</button>
             ))}
           </div>}
-          {!builder && view !== 'front' && (!drawnView ? (
+          {drawnShape && !isMadeView(draft, view) && view !== 'front' && (!drawnView ? (
             <section className="space-y-2 text-sm text-gray-300">
               <p>No {view} view yet: drawn as the {view === 'plan' ? 'W × D' : 'D × H'} size-box rectangle.</p>
               <button type="button" className={HISTORY_BUTTON_CLASS} disabled={readOnly}
@@ -374,7 +413,7 @@ export default function ShapeEditor({ shapeId, backLabel = '← Shapes', onClose
               selectedPointId={selection?.kind === 'point' ? selection.id : null}
               onSelectPoint={(id) => setSelection(id === null ? null : { kind: 'point', id })}
               onApply={apply}
-              showOrigin={showOrigin}
+              showOrigin={showOrigin && (!mirrorSide || view === 'front')}
               onOrigin={(id) => applyShape(moveShapeOrigin(editable, view, id))}
             />
             {(sectionMode || (builder?.type === 'extrude' && view === 'side')) && <DrawnPanel

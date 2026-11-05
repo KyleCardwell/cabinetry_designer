@@ -11,7 +11,7 @@ import { useShopReadOnly } from './WorkspaceSourceBar.jsx';
 const BUTTON_CLASS = 'rounded border border-gray-600 px-2.5 py-1.5 text-sm text-gray-200 hover:bg-gray-700 disabled:opacity-50';
 const INPUT_CLASS = 'rounded border border-gray-600 bg-gray-900 px-2.5 py-1.5 text-sm text-gray-100 focus:border-blue-500 focus:outline-none';
 
-const BUILDER_TAGS = { extrude: ' · Extrusion', stack: ' · Leg stack' };
+const BUILDER_TAGS = { extrude: ' · Extrusion', stack: ' · Leg stack', 'mirror-side': ' · Side mirrored' };
 
 export default function ShapesPage() {
   const dispatch = useDispatch();

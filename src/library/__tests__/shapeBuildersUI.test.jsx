@@ -12,6 +12,7 @@ import ProfileCanvas from '../profileEditor/ProfileCanvas.jsx';
 import ViewTabs from '../shapeEditor/ViewTabs.jsx';
 import StretchPanel from '../shapeEditor/StretchPanel.jsx';
 import OriginPanel from '../shapeEditor/OriginPanel.jsx';
+import BoxPanel from '../shapeEditor/BoxPanel.jsx';
 import DrawnPanel from '../profileEditor/DrawnPanel.jsx';
 import BuilderPanel, { ExtrudeFields, ProfileSelect, StackFields } from '../shapeEditor/BuilderPanel.jsx';
 
@@ -394,4 +395,143 @@ it('SH5.1 c: hidden bases render dimmed and dashed below the made outline withou
   const group = nodes(tree).find((n) => n.type === 'g' && n.props.children?.includes?.(ghosts[0]));
   expect(group.props.pointerEvents).toBe('none');
   expect(paths.indexOf(ghosts.at(-1))).toBeLessThan(paths.findIndex((n) => n.props.stroke === '#e5e7eb'));
+});
+
+const S = {
+  id: 's-leg', name: 'S leg', kind: 'leg', version: 1, archived: false,
+  box: { x: -1, y: 0, z: 0, w: 4, h: 30, d: 1 },
+  stretch: { x: [[-0.5, 0.5]], z: [[14, 28]] },
+  views: { front: {
+    units: 'in',
+    points: { a: [-1, 0], b: [2, 0], c: [2, 10], d: [2, 12], e: [2, 30], f: [-1, 30] },
+    loops: [{ id: 'outline', closed: true, segs: [
+      { type: 'line', from: 'a', to: 'b' },
+      { type: 'line', from: 'b', to: 'c' },
+      { type: 'arc', from: 'c', to: 'd', center: [2, 11], ccw: true },
+      { type: 'line', from: 'd', to: 'e' },
+      { type: 'line', from: 'e', to: 'f' },
+      { type: 'line', from: 'f', to: 'a' },
+    ] }],
+  } },
+};
+
+const openS = () => {
+  dispatch(addShape({ shape: structuredClone(S) }));
+  selectView('side');
+};
+const tickMirror = (checked) => field(editor(), 'Side = mirrored Front').props.onChange({ target: { checked } });
+const sizeBox = () => render(BoxPanel, component(editor(), BoxPanel).props);
+const zones = () => render(StretchPanel, component(editor(), StretchPanel).props);
+const origin = () => render(OriginPanel, component(editor(), OriginPanel).props);
+
+afterEach(() => vi.unstubAllGlobals());
+
+it('SH5.1 f anchor 1: ticking S makes a read-only mirrored Side and tags its saved list row', () => {
+  openS();
+  tickMirror(true);
+  expect(field(editor(), 'Side = mirrored Front').props.checked).toBe(true);
+  const canvas = component(editor(), ProfileCanvas).props;
+  expect(canvas.profile.geometry.points).toEqual({
+    a: [1, 0], b: [-2, 0], c: [-2, 10], d: [-2, 12], e: [-2, 30], f: [1, 30],
+  });
+  expect(canvas.profile.geometry.loops[0].segs[2]).toMatchObject({ center: [-2, 11], ccw: false });
+  expect(text(editor())).toContain('Made from the Front view, mirrored.');
+  expect(button(editor(), 'Line (L)').props.disabled).toBe(true);
+  expect(button(editor(), 'Draw this view')).toBeUndefined();
+  expect(button(editor(), 'Remove view')).toBeUndefined();
+  expect(component(editor(), BuilderPanel)).toBeUndefined();
+  expect(canvas.onApply(canvas.profile)).toBe(false);
+  expect(field(zones(), 'y zone 1 From').props.disabled).toBe(true);
+  expect(field(zones(), 'Add y zone').props.disabled).toBe(true);
+  expect(field(zones(), 'z zone 1 From').props.disabled).toBe(false);
+  expect(field(origin(), 'Set 0,0 at Y').props.disabled).toBe(true);
+  expect(field(origin(), 'Set 0,0 at Z').props.disabled).toBe(false);
+  expect(button(editor(), 'Flip front–back')).toBeUndefined();
+  save();
+  expect(text(render(ShapesPage))).toContain('Leg / column · Side mirrored');
+});
+
+it('SH5.1 f anchor 2: width 5 derives read-only depth 5, with Front/Plan editing and x/z fitting', () => {
+  openS();
+  tickMirror(true);
+  field(sizeBox(), 'W').props.onCommit(5);
+  expect(draft().box).toMatchObject({ w: 5, d: 5, y: -4 });
+  expect(field(sizeBox(), 'D').props).toMatchObject({ value: 5, disabled: true });
+  expect(field(sizeBox(), 'Front y').props.disabled).toBe(true);
+  for (const label of ['W', 'H', 'Left x', 'Bottom z']) expect(field(sizeBox(), label).props.disabled).toBe(false);
+  selectView('front');
+  const front = component(editor(), ProfileCanvas).props;
+  expect(button(editor(), 'Line (L)').props.disabled).toBe(false);
+  front.onApply(moveProfilePoint(front.profile, 'b', [2.5, 0]));
+  expect(draft().views.side.points.b).toEqual([-2.5, 0]);
+  field(zones(), 'x zone 1 From').props.onCommit(-0.75);
+  expect(draft().stretch.y).toEqual([[-0.5, 0.75]]);
+  const beforeMove = structuredClone(draft());
+  field(origin(), 'Set 0,0 at X').props.onCommit(1);
+  button(origin(), 'Set').props.onClick();
+  expect(draft().views.front.points.b).toEqual([1.5, 0]);
+  expect(draft().views.side.points.b).toEqual([-1.5, 0]);
+  expect(draft().box.x).toBe(beforeMove.box.x - 1);
+  button(editor(), '⇆ Flip left–right').props.onClick();
+  expect(draft().views.side.points.b).toEqual([1.5, 0]);
+  button(editor(), '⇆ Flip left–right').props.onClick();
+  selectView('plan');
+  expect(button(editor(), 'Draw this view')).toBeTruthy();
+  button(editor(), 'Draw this view').props.onClick();
+  const plan = component(editor(), ProfileCanvas).props;
+  expect(button(editor(), 'Line (L)').props.disabled).toBe(false);
+  const side = structuredClone(draft().views.side);
+  plan.onApply(moveProfilePoint(plan.profile, 'b1', [-20, -20]));
+  expect(draft().views.plan.points.b1).toEqual([-20, -20]);
+  expect(draft().views.side).toEqual(side);
+  const planGeometry = structuredClone(draft().views.plan);
+  button(sizeBox(), 'Fit to drawing').props.onClick();
+  // Front includes the knee arc's full extent; the hand-drawn Plan stays unchanged.
+  expect(draft().box).toEqual({ x: -2, y: -2, z: 0, w: 4, h: 30, d: 4 });
+  expect(draft().views.plan).toEqual(planGeometry);
+  expect(draft().views.side).toEqual(side);
+});
+
+it('SH5.1 f anchor 3: unticking and saving preserves Side and restores editing and removes the tag', () => {
+  openS();
+  tickMirror(true);
+  save();
+  const side = structuredClone(draft().views.side);
+  tickMirror(false);
+  expect(draft().builder).toBeUndefined();
+  expect(draft().views.side).toEqual(side);
+  expect(button(editor(), 'Line (L)').props.disabled).toBe(false);
+  expect(button(editor(), 'Remove view')).toBeTruthy();
+  expect(text(editor())).not.toContain('Made from the Front view, mirrored.');
+  expect(field(sizeBox(), 'D').props.disabled).toBe(false);
+  expect(field(zones(), 'y zone 1 From').props.disabled).toBe(false);
+  const canvas = component(editor(), ProfileCanvas).props;
+  canvas.onApply(moveProfilePoint(canvas.profile, 'b', [-2.5, 0]));
+  expect(draft().views.side.points.b).toEqual([-2.5, 0]);
+  save();
+  expect(elevation.settings.shapes[0].builder).toBeUndefined();
+  expect(elevation.settings.shapes[0].views.side.points.b).toEqual([-2.5, 0]);
+  expect(text(render(ShapesPage))).not.toContain('Side mirrored');
+});
+
+it('SH5.1 f: replacing an existing Side confirms, can cancel, and respects shop read-only access', () => {
+  dispatch(addShape({ shape: { ...structuredClone(S), views: { ...structuredClone(S.views), side: structuredClone(S.views.front) } } }));
+  selectView('side');
+  const before = structuredClone(draft());
+  tickMirror(true);
+  expect(draft()).toEqual(before);
+  expect(text(editor())).toContain('Replace the Side view with the mirrored Front?');
+  button(editor(), 'Cancel').props.onClick();
+  expect(text(editor())).not.toContain('Replace the Side view with the mirrored Front?');
+  expect(draft()).toEqual(before);
+  tickMirror(true);
+  button(editor(), 'Replace Side view').props.onClick();
+  expect(draft().views.side.points.b).toEqual([-2, 0]);
+  button(editor(), 'Undo').props.onClick();
+  expect(draft()).toEqual(before);
+  elevation = { ...elevation, source: 'cloud', cloud: { ...elevation.cloud, permissions: { manage: false } } };
+  expect(field(editor(), 'Side = mirrored Front').props.disabled).toBe(true);
+  tickMirror(true);
+  expect(draft()).toEqual(before);
+  expect(text(editor())).not.toContain('Replace the Side view with the mirrored Front?');
 });
