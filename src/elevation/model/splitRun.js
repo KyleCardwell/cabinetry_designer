@@ -6,6 +6,7 @@ import { teamDoorStyle } from './doorStyles.js';
 import { replaceRootItems, runItems } from './grid.js';
 import { insideEndGap, insideEndPanels } from './insideEnds.js';
 import { placedAt } from './layoutLines.js';
+import { legRoom } from './legRoom.js';
 import { stepEndPanels } from './stepEnds.js';
 import { floorTo, roundTo } from './units.js';
 
@@ -158,11 +159,12 @@ function autoBlindCovers(run, items, opts) {
 function layoutInputs(run, settings, opts) {
   const items = itemsWithGaps(run, settings);
   const gaps = endGaps(run, items, settings);
+  const room = legRoom(run, settings);
   const panelMiters = autoPanelMiters(run, items);
   const blindCovers = autoBlindCovers(run, items, opts);
   const fixedEnds = endWidth(run.ends.left, settings, run._endThickness?.left)
     + endWidth(run.ends.right, settings, run._endThickness?.right)
-    + gaps.left + gaps.right;
+    + gaps.left + gaps.right + room.left + room.right;
   const fixedItems = items.reduce((sum, item) => (
     sum + (item.width === null ? 0 : item.width) + item.gapAfter
   ), 0);
@@ -182,6 +184,7 @@ function layoutInputs(run, settings, opts) {
   return {
     available,
     endGaps: gaps,
+    room,
     panelMiters,
     blindCovers,
     fixedEnds,
@@ -247,6 +250,7 @@ function splitSegment(run, settings, opts) {
   const {
     available,
     endGaps,
+    room,
     panelMiters,
     blindCovers,
     flex,
@@ -426,7 +430,7 @@ function splitSegment(run, settings, opts) {
   if (computedItems.length > 0) gapsAfter[gapsAfter.length - 1] += rightGap;
   addEnd('right', run.ends.right);
 
-  let x = run.x + (run.ends.left.type === 'none' ? leftGap : 0);
+  let x = run.x + room.left + (run.ends.left.type === 'none' ? leftGap : 0);
   const pieces = rawPieces.map((piece, index) => {
     const positioned = {
       ...piece,
@@ -472,6 +476,7 @@ export function lineEndMinimum(run, settings, itemId, side) {
   const outerItems = side === 'left' ? items.slice(0, index) : items.slice(index + 1);
   return outerMinimum(run, side, outerItems, settings)
     + endGaps(run, items, settings)[side]
+    + legRoom(run, settings)[side]
     + (side === 'right' ? items[index].gapAfter : 0);
 }
 
@@ -785,9 +790,11 @@ function pinPlan(run, settings, opts) {
 
   const leftItems = items.slice(0, pins[0].itemIndex);
   const rightItems = items.slice(pins[pins.length - 1].itemIndex + 1);
-  const leftMinimum = outerMinimum(run, 'left', leftItems, settings, opts) + endGaps(run, items, settings).left;
+  const room = legRoom(run, settings);
+  const leftMinimum = outerMinimum(run, 'left', leftItems, settings, opts)
+    + endGaps(run, items, settings).left + room.left;
   const rightMinimum = outerMinimum(run, 'right', rightItems, settings, opts)
-    + pins[pins.length - 1].item.gapAfter + endGaps(run, items, settings).right;
+    + pins[pins.length - 1].item.gapAfter + endGaps(run, items, settings).right + room.right;
   const middleMinimums = pins.slice(0, -1).map((pin, index) => (
     itemsMinimum(
       items.slice(pin.itemIndex + 1, pins[index + 1].itemIndex),

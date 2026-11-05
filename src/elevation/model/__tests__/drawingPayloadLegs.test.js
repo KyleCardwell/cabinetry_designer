@@ -35,11 +35,18 @@ describe('SH7 step f legs in the drawing payload', () => {
     const before = structuredClone(ROOM);
     const drawing = faceDrawing(ROOM, W, 'front', settings);
     const without = faceDrawing(ROOM, { ...W, runs: [{ ...R, legs: undefined }] }, 'front', settings);
-    expect(drawing.parts).toEqual([...without.parts, {
-      id: leg.id, kind: 'leg', runId: R.id, x: 10, z: 0, width: 3.5, height: 34.5,
-      front: 24.875, back: 21.375, coversBoxEdges: false, opaque: false,
-      openEdges: ['left', 'right', 'top', 'bottom'],
-    }]);
+    const [leftFiller, rightFiller, ...bands] = without.parts;
+    // SH7.1: fillers fit inside the leg; the toe kick and countertop still span the run.
+    expect(drawing.parts).toEqual([
+      { ...leftFiller, x: 13.5, width: 16.25 },
+      { ...rightFiller, x: 29.75, width: 16.25 },
+      ...bands,
+      {
+        id: leg.id, kind: 'leg', runId: R.id, x: 10, z: 0, width: 3.5, height: 34.5,
+        front: 24.875, back: 21.375, coversBoxEdges: false, opaque: false,
+        openEdges: ['left', 'right', 'top', 'bottom'],
+      },
+    ]);
     const [placed] = runLegs(ROOM, W, R, settings);
     expect(drawing.shapes).toEqual([{
       partId: leg.id, kind: 'leg', depth: 0,

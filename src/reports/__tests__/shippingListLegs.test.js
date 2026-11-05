@@ -77,7 +77,7 @@ describe('SH7 step d leg parts and shipping list', () => {
       .map(({ key, number }) => [key, number])).toEqual([['RF', 2]]);
   });
 
-  it('keeps legs after the run frames and before the next run, preserving other parts in order', () => {
+  it('keeps legs after the run frames and before the next run, with the cabinet inside the legs', () => {
     const nextRun = run({ id: 'next', x: 60, width: 36, autoCount: false, items: [auto('next-cabinet')],
       ends: R.ends });
     const r = room({ style: { cabinetStyleId: 14 }, walls: [wall({ runs: [R, nextRun] })] });
@@ -85,7 +85,8 @@ describe('SH7 step d leg parts and shipping list', () => {
     expect(parts.slice(0, 7).map(({ key }) => key))
       .toEqual(['cabinet', 'frame:cabinet', ...cornerIds, 'next-cabinet']);
     const without = room({ ...r, walls: [wall({ runs: [{ ...R, legs: undefined }, nextRun] })] });
-    expect(parts.filter(({ kind }) => kind !== 'leg')).toEqual(roomParts(without, settings));
+    expect(parts.filter(({ kind }) => kind !== 'leg')).toEqual(roomParts(without, settings)
+      .map((part) => part.key === 'cabinet' ? { ...part, x: 13.5, width: 29 } : part));
     expect(partNumbers(input, settings).warnings).toEqual([]);
   });
 });
