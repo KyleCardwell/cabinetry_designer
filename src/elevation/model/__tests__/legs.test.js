@@ -116,6 +116,20 @@ describe('SH7 step a run leg placement and presets', () => {
     expect(isLegList([leg, leg])).toBe(false);
   });
 
+  it('SH7.1 step c: every preset carries its selected support and omits the key for Floor', () => {
+    let id = 0;
+    for (const preset of ['four', 'front', 'three', 'left', 'right']) {
+      for (const sitsOn of [undefined, 'base', 'countertop']) {
+        const picks = legPreset(preset, { shapeId: LEG.id, sitsOn, leaveOut: 'RB' }, () => `lg-${++id}`);
+        expect(isLegList(picks)).toBe(true);
+        for (const pick of picks) {
+          if (sitsOn) expect(pick.sitsOn).toBe(sitsOn);
+          else expect(pick).not.toHaveProperty('sitsOn');
+        }
+      }
+    }
+  });
+
   it('mirrors front and plan bulges once, and seats nonzero size-box origins on the floor on either wall face', () => {
     const shifted = { ...FOOT, id: 'shifted', kind: 'other', archived: true,
       box: { ...FOOT.box, z: -2 }, views: { front: { ...FOOT.views.front,

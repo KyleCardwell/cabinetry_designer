@@ -21,7 +21,7 @@ export default function RunLegsSection({ room, wall, run, settings }) {
   }
   const numbers = useMemo(() => partNumbers(room, settings), [room, settings]);
   const placed = useMemo(() => runLegs(room, wall, run, settings), [room, wall, run, settings]);
-  if (!run.legs?.length && ![CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL].includes(run.cabinetTypeId)
+  if (!run.legs?.length && ![CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL, CABINET_TYPE_IDS.UPPER].includes(run.cabinetTypeId)
     && !history.past.length && !history.future.length) return null;
   const restore = (redo) => {
     if (history.key !== key) return;
@@ -49,7 +49,8 @@ export default function RunLegsSection({ room, wall, run, settings }) {
     </div>}>
       <div className="space-y-3">
         {(run.legs ?? []).map((leg, index) => <LegRow key={leg.id} room={room} wall={wall} run={run}
-          leg={leg} index={index} settings={settings} numbers={numbers} warnings={placed.warnings} />)}
+          leg={leg} index={index} settings={settings} numbers={numbers} warnings={placed.warnings}
+          placement={placed.find((entry) => entry.leg.id === leg.id)} />)}
         <AddLegsRow room={room} wall={wall} run={run} settings={settings} />
       </div>
     </PanelSection>

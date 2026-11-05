@@ -9,7 +9,7 @@ import { formatProfileCoord } from '../../model/profileEditing.js';
 import elevationReducer, { addRunLegs, createInitialElevationState, updateRun } from '../../store/elevationSlice.js';
 import CoordInput from '../../../library/profileEditor/CoordInput.jsx';
 import AddLegsRow from './AddLegsRow.jsx';
-import LegRow, { LegHeightFields, LegShapeSelect } from './LegRow.jsx';
+import LegRow, { LegHeightFields, LegShapeSelect, LegSitsOnSelect } from './LegRow.jsx';
 import RunLegsSection from './RunLegsSection.jsx';
 
 vi.mock('react', async (load) => ({ ...await load(), useMemo: vi.fn(), useState: vi.fn() }));
@@ -19,7 +19,7 @@ const LEG = legShape();
 const settings = { ...DEFAULT_SETTINGS, shapes: [LEG] };
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children), ...nodes(tree.props?.actions),
-    ...([LegShapeSelect, LegHeightFields].includes(tree.type) ? nodes(tree.type(tree.props)) : [])] : [];
+    ...([LegShapeSelect, LegHeightFields, LegSitsOnSelect].includes(tree.type) ? nodes(tree.type(tree.props)) : [])] : [];
 const field = (tree, label) => nodes(tree).find(({ props }) => props['aria-label'] === label);
 const button = (tree, text) => nodes(tree).find(({ type, props }) => type === 'button' && props.children === text);
 const change = (node, value) => node.props.onChange({ target: { value } });
@@ -42,6 +42,7 @@ const render = (component, args = props()) => {
 };
 const renderLeg = (index = 0, overrides = {}) => LegRow({ ...props(), leg: currentRun().legs[index], index,
   numbers: { byKey: new Map([[currentRun().legs[index].id, 12]]) },
+  placement: runLegs(state.rooms[0], state.rooms[0].walls[0], currentRun(), settings).find(({ leg }) => leg.id === currentRun().legs[index].id),
   warnings: runLegs(state.rooms[0], state.rooms[0].walls[0], currentRun(), settings).warnings, ...overrides });
 const addCorners = () => dispatch(addRunLegs({
   roomId: 'room-1', wallId: 'wall-1', runId: 'run-1',
@@ -131,7 +132,7 @@ describe('SH7 step b Legs panel', () => {
     expect(placement()[1].front).toBe(backBefore[1].front);
   });
 
-  it('anchor 4: disables Add without live leg shapes, hides on upper runs, and retains existing upper legs', () => {
+  it('disables Add without live leg shapes; SH7.1 anchor 4: shows Legs on empty base, tall and upper runs', () => {
     const emptySettings = { ...settings, shapes: [{ ...LEG, archived: true }, { ...LEG, id: 'other', kind: 'other' }] };
     const tree = render(AddLegsRow, { ...props(), settings: emptySettings });
     expect(button(tree, 'Add').props.disabled).toBe(true);
@@ -140,12 +141,12 @@ describe('SH7 step b Legs panel', () => {
     expect(dispatch).not.toHaveBeenCalled();
     slots = [];
     const upper = { ...currentRun(), cabinetTypeId: CABINET_TYPE_IDS.UPPER };
-    expect(render(RunLegsSection, { ...props(), run: upper, settings: emptySettings })).toBeNull();
-    for (const type of [CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL]) {
+    for (const type of [CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL, CABINET_TYPE_IDS.UPPER]) {
       expect(render(RunLegsSection, { ...props(), run: { ...upper, cabinetTypeId: type } })).not.toBeNull();
     }
+    expect(render(RunLegsSection, { ...props(), run: { ...upper, cabinetTypeId: 'other' } })).toBeNull();
     addCorners();
-    expect(render(RunLegsSection, { ...props(), run: { ...currentRun(), cabinetTypeId: CABINET_TYPE_IDS.UPPER } })).not.toBeNull();
+    expect(render(RunLegsSection, { ...props(), run: { ...currentRun(), cabinetTypeId: 'other' } })).not.toBeNull();
   });
 
   it('sorts live shapes by name and preserves archived, other-kind, and missing current selections', () => {
@@ -238,6 +239,11 @@ describe('SH7 step b Legs panel', () => {
     edit(() => nodes(renderLeg()).find(({ type }) => type === LegHeightFields).props.onChange('feet'));
     edit(() => field(renderLeg(), 'Leg 1 Mirror left–right').props.onChange({ target: { checked: false } }));
     edit(() => field(renderLeg(), 'Leg 1 Mirror front–back').props.onChange({ target: { checked: true } }));
+    edit(() => field(renderLeg(), 'Leg 1 Takes room').props.onChange({ target: { checked: false } }));
+    edit(() => field(renderLeg(), 'Leg 1 Takes room').props.onChange({ target: { checked: true } }));
+    edit(() => change(field(renderLeg(), 'Leg 1 Sits on'), 'base'));
+    edit(() => change(field(renderLeg(), 'Leg 1 Sits on'), 'countertop'));
+    edit(() => change(field(renderLeg(), 'Leg 1 Sits on'), ''));
     edit(() => field(renderLeg(), 'Remove leg 1').props.onClick());
     dispatch(updateRun({ wallId: 'wall-1', runId: 'run-1', changes: { width: 40 } }));
     const storedX = currentRun().x;
@@ -259,5 +265,73 @@ describe('SH7 step b Legs panel', () => {
     expect(field(tree, 'Redo legs edit').props.disabled).toBe(true);
     tree = render(RunLegsSection, { ...props(), run: { ...currentRun(), id: 'different' } });
     expect(field(tree, 'Undo legs edit').props.disabled).toBe(true);
+  });
+});
+
+describe('SH7.1 step c leg support controls', () => {
+  it('anchor 1: defaults Takes room to checked, stores false when unticked and drops the key when ticked again', () => {
+    addCorners();
+    expect(field(renderLeg(), 'Leg 1 Takes room').props.checked).toBe(true);
+    field(renderLeg(), 'Leg 1 Takes room').props.onChange({ target: { checked: false } });
+    expect(currentRun().legs[0].takesRoom).toBe(false);
+    expect(field(renderLeg(), 'Leg 1 Takes room').props.checked).toBe(false);
+    field(renderLeg(), 'Leg 1 Takes room').props.onChange({ target: { checked: true } });
+    expect(currentRun().legs[0]).not.toHaveProperty('takesRoom');
+    expect(field(renderLeg(), 'Leg 1 Takes room').props.checked).toBe(true);
+  });
+
+  it('anchor 2: shows Full 30 1/2 on a 4-inch base, clears Floor, and follows countertop support and fallbacks', () => {
+    addCorners();
+    dispatch(updateRun({ wallId: 'wall-1', runId: 'run-1',
+      changes: { overrides: { baseKind: 'furniture_base', toeKickHeight: 4 } } }));
+    expect(field(renderLeg(), 'Leg 1 Sits on').props.value).toBe('');
+    change(field(renderLeg(), 'Leg 1 Sits on'), 'base');
+    expect(currentRun().legs[0].sitsOn).toBe('base');
+    const fullOption = () => nodes(renderLeg()).find(({ type, props }) => type === 'option' && props.value === 'full');
+    expect(fullOption().props.children).toBe('Full (30 1/2")');
+    const section = render(RunLegsSection);
+    expect(nodes(section).find(({ type }) => type === LegRow).props.placement.bounds.z).toBe(4);
+    // Feet has no placement here, but changing to Custom still starts at the supported Full height.
+    change(field(renderLeg(), 'Leg 1 Height'), 'feet');
+    expect(fullOption().props.children).toBe('Full (30 1/2")');
+    change(field(renderLeg(), 'Leg 1 Height'), 'custom');
+    expect(currentRun().legs[0].height).toBe(30.5);
+    change(field(renderLeg(), 'Leg 1 Height'), 'full');
+    change(field(renderLeg(), 'Leg 1 Sits on'), '');
+    expect(currentRun().legs[0]).not.toHaveProperty('sitsOn');
+    expect(fullOption().props.children).toBe('Full (34 1/2")');
+    change(field(renderLeg(), 'Leg 1 Sits on'), 'countertop');
+    expect(currentRun().legs[0].sitsOn).toBe('countertop');
+    expect(fullOption().props.children).toBe('Full (34 1/2")');
+    expect(nodes(renderLeg()).some(({ props }) => props.children === 'Leg 1: no countertop below it. Drawn from the floor.')).toBe(true);
+    // A lower run's countertop is at 36; the supported run's top is 84.
+    state = { ...state, rooms: [room({ walls: [wall({ runs: [
+      { ...currentRun(), cabinetTypeId: CABINET_TYPE_IDS.UPPER, z: 54, height: 30 },
+      run({ id: 'lower', x: 10, width: 36 }),
+    ] })] })] };
+    expect(fullOption().props.children).toBe('Full (48")');
+    change(field(renderLeg(), 'Leg 1 Sits on'), 'base');
+    expect(fullOption().props.children).toBe('Full (84")');
+    expect(nodes(renderLeg()).some(({ props }) => props.children === 'Leg 1: the run has no furniture base. Drawn from the floor.')).toBe(true);
+  });
+
+  it('anchor 3: adds four corners on Furniture base, offers Countertop below, and omits Floor on added legs', () => {
+    let tree = render(AddLegsRow);
+    expect(field(tree, 'Add legs Sits on').props.value).toBe('');
+    expect(nodes(field(tree, 'Add legs Sits on')).filter(({ type }) => type === 'option')
+      .map(({ props }) => props.children)).toEqual(['Floor', 'Furniture base', 'Countertop below']);
+    change(field(tree, 'Add legs Sits on'), 'base');
+    tree = render(AddLegsRow);
+    button(tree, 'Add').props.onClick();
+    expect(currentRun().legs).toHaveLength(4);
+    expect(currentRun().legs.every(({ sitsOn }) => sitsOn === 'base')).toBe(true);
+    change(field(tree, 'Add legs Sits on'), 'countertop');
+    tree = render(AddLegsRow);
+    button(tree, 'Add').props.onClick();
+    expect(currentRun().legs.slice(4).every(({ sitsOn }) => sitsOn === 'countertop')).toBe(true);
+    change(field(tree, 'Add legs Sits on'), '');
+    tree = render(AddLegsRow);
+    button(tree, 'Add').props.onClick();
+    for (const leg of currentRun().legs.slice(8)) expect(leg).not.toHaveProperty('sitsOn');
   });
 });

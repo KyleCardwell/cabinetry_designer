@@ -2,7 +2,8 @@ import { useDispatch } from 'react-redux';
 import CoordInput from '../../../library/profileEditor/CoordInput.jsx';
 import { frontDepth, runBackOffset } from '../../model/corners.js';
 import { resolveShape } from '../../model/libraryShapes.js';
-import { legWarningText } from '../../model/legs.js';
+import { legBottom, legWarningText } from '../../model/legs.js';
+import { formatInches } from '../../model/units.js';
 import { removeRunLeg, updateRunLeg } from '../../store/elevationSlice.js';
 import Field from './Field.jsx';
 
@@ -26,13 +27,26 @@ export function LegShapeSelect({ settings, value, onChange, label }) {
   );
 }
 
-export function LegHeightFields({ value, onChange, fullHeight, label }) {
+export function LegSitsOnSelect({ value, onChange, label }) {
+  return (
+    <Field label="Sits on">
+      <select aria-label={label} value={value ?? ''} onChange={(event) => onChange(event.target.value || undefined)}
+        className={LEG_SELECT_CLASS}>
+        <option value="">Floor</option>
+        <option value="base">Furniture base</option>
+        <option value="countertop">Countertop below</option>
+      </select>
+    </Field>
+  );
+}
+
+export function LegHeightFields({ value, onChange, fullHeight, label, showFullHeight = false }) {
   return (
     <Field label="Height">
       <select aria-label={label} value={typeof value === 'number' ? 'custom' : value}
         onChange={(event) => onChange(event.target.value === 'custom' ? Math.max(fullHeight, 1) : event.target.value)}
         className={LEG_SELECT_CLASS}>
-        <option value="full">Full</option>
+        <option value="full">{showFullHeight ? `Full (${formatInches(fullHeight)})` : 'Full'}</option>
         <option value="feet">Feet</option>
         <option value="custom">Custom</option>
       </select>
@@ -45,13 +59,18 @@ export function LegHeightFields({ value, onChange, fullHeight, label }) {
   );
 }
 
-export default function LegRow({ room, wall, run, leg, index, settings, numbers, warnings }) {
+export default function LegRow({ room, wall, run, leg, index, settings, numbers, warnings, placement }) {
   const dispatch = useDispatch();
   const label = `Leg ${index + 1}`;
   const actionBase = { roomId: room.id, wallId: wall.id, runId: run.id, legId: leg.id };
   const update = (changes) => dispatch(updateRunLeg({ ...actionBase, changes }));
   const shape = settings.shapes?.find(({ id }) => id === leg.shapeId);
-  const height = leg.height === 'full' ? run.z + run.height : leg.height === 'feet' ? run.z : leg.height;
+  const width = shape?.box.w ?? 0;
+  const u0 = leg.from === 'left' ? run.x - leg.x : run.x + run.width + leg.x - width;
+  // Skipped legs (for example, Feet on a base) still need the right Full height.
+  const bottom = placement?.bounds.z ?? legBottom(room, wall, run, settings, leg, u0, width).z;
+  const fullHeight = run.z + run.height - bottom;
+  const height = leg.height === 'full' ? fullHeight : leg.height === 'feet' ? run.z - bottom : leg.height;
   const box = shape ? resolveShape(shape, { h: height }).shape.box : null;
   const number = numbers.byKey.get(leg.id);
 
@@ -65,7 +84,8 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
       </div>
       <div className="grid grid-cols-2 gap-2">
         <LegShapeSelect settings={settings} value={leg.shapeId} label={`${label} Shape`} onChange={(shapeId) => update({ shapeId })} />
-        <LegHeightFields value={leg.height} label={`${label} Height`} fullHeight={run.z + run.height} onChange={(height) => update({ height })} />
+        <LegHeightFields value={leg.height} label={`${label} Height`} fullHeight={fullHeight} showFullHeight onChange={(height) => update({ height })} />
+        <LegSitsOnSelect value={leg.sitsOn} label={`${label} Sits on`} onChange={(sitsOn) => update({ sitsOn })} />
         {['x', 'y'].map((axis) => {
           const reference = axis === 'x' ? 'from' : 'yFrom';
           const sides = axis === 'x' ? ['left', 'right'] : ['front', 'back'];
@@ -95,6 +115,10 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
         })}
       </div>
       <p className="mt-1 text-xs text-gray-500">Along: to the leg&apos;s outside face from the run end. In/out: to its front or back face. + = proud of the run, − = into it.</p>
+      <label className="mt-2 flex items-center gap-2 text-xs text-gray-300">
+        <input type="checkbox" aria-label={`${label} Takes room`} checked={leg.takesRoom !== false}
+          onChange={(event) => update({ takesRoom: event.target.checked ? undefined : false })} />Takes room
+      </label>
       {[['mirror', 'Mirror left–right'], ['mirrorDepth', 'Mirror front–back']].map(([key, text]) => (
         <label key={key} className="mt-2 flex items-center gap-2 text-xs text-gray-300">
           <input type="checkbox" aria-label={`${label} ${text}`} checked={leg[key] === true}
