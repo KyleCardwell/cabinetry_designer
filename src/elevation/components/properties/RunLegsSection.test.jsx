@@ -182,9 +182,9 @@ describe('SH7 step b Legs panel', () => {
     field(renderLeg(), 'Leg 1 X').props.onCommit(-2);
     field(renderLeg(), 'Leg 1 Y').props.onCommit(-0.75);
     expect(field(renderLeg(), 'Leg 1 X').props.onCommit(Infinity)).toBe(false);
-    field(renderLeg(), 'Leg 1 Mirror').props.onChange({ target: { checked: true } });
+    field(renderLeg(), 'Leg 1 Mirror left–right').props.onChange({ target: { checked: true } });
     expect(currentRun().legs[0]).toMatchObject({ x: -2, y: -0.75, mirror: true });
-    field(renderLeg(), 'Leg 1 Mirror').props.onChange({ target: { checked: false } });
+    field(renderLeg(), 'Leg 1 Mirror left–right').props.onChange({ target: { checked: false } });
     expect(currentRun().legs[0]).not.toHaveProperty('mirror');
     const fixed = { ...LEG, stretch: {} };
     expect(nodes(renderLeg(0, { settings: { ...settings, shapes: [fixed] },
@@ -194,6 +194,22 @@ describe('SH7 step b Legs panel', () => {
       .some(({ props }) => props.children === 'Leg 1 has no height (the run sits on the floor).')).toBe(true);
     field(renderLeg(), 'Remove leg 1').props.onClick();
     expect(currentRun().legs).toHaveLength(3);
+  });
+
+  it('toggles both labelled mirrors independently and clears unchecked keys', () => {
+    addCorners();
+    expect(field(renderLeg(), 'Leg 1 Mirror left–right').props.checked).toBe(true);
+    expect(field(renderLeg(), 'Leg 1 Mirror front–back').props.checked).toBe(false);
+    field(renderLeg(), 'Leg 1 Mirror front–back').props.onChange({ target: { checked: true } });
+    expect(currentRun().legs[0]).toMatchObject({ mirror: true, mirrorDepth: true });
+    expect(field(renderLeg(), 'Leg 1 Mirror front–back').props.checked).toBe(true);
+    field(renderLeg(), 'Leg 1 Mirror left–right').props.onChange({ target: { checked: false } });
+    expect(currentRun().legs[0]).not.toHaveProperty('mirror');
+    expect(currentRun().legs[0].mirrorDepth).toBe(true);
+    field(renderLeg(), 'Leg 1 Mirror front–back').props.onChange({ target: { checked: false } });
+    expect(currentRun().legs[0]).not.toHaveProperty('mirrorDepth');
+    expect(field(renderLeg(), 'Leg 1 Mirror front–back').props.checked).toBe(false);
+    expect(currentRun().legs[1]).toMatchObject({ mirror: true, mirrorDepth: true });
   });
 
   it('undoes/redoes every leg edit, preserves later run dimensions, clears redo on new edits, and resets on another run', () => {
@@ -220,7 +236,8 @@ describe('SH7 step b Legs panel', () => {
     edit(() => field(renderLeg(), 'Leg 1 Y').props.onCommit(-1));
     edit(() => nodes(renderLeg()).find(({ type }) => type === LegShapeSelect).props.onChange('missing'));
     edit(() => nodes(renderLeg()).find(({ type }) => type === LegHeightFields).props.onChange('feet'));
-    edit(() => field(renderLeg(), 'Leg 1 Mirror').props.onChange({ target: { checked: true } }));
+    edit(() => field(renderLeg(), 'Leg 1 Mirror left–right').props.onChange({ target: { checked: false } }));
+    edit(() => field(renderLeg(), 'Leg 1 Mirror front–back').props.onChange({ target: { checked: true } }));
     edit(() => field(renderLeg(), 'Remove leg 1').props.onClick());
     dispatch(updateRun({ wallId: 'wall-1', runId: 'run-1', changes: { width: 40 } }));
     const storedX = currentRun().x;

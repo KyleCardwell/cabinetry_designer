@@ -94,10 +94,12 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
         })}
       </div>
       <p className="mt-1 text-xs text-gray-500">Front: to the leg&apos;s front face, − = proud. Back: to its back face.</p>
-      <label className="mt-2 flex items-center gap-2 text-xs text-gray-300">
-        <input type="checkbox" aria-label={`${label} Mirror`} checked={leg.mirror === true}
-          onChange={(event) => update({ mirror: event.target.checked ? true : undefined })} />Mirror
-      </label>
+      {[['mirror', 'Mirror left–right'], ['mirrorDepth', 'Mirror front–back']].map(([key, text]) => (
+        <label key={key} className="mt-2 flex items-center gap-2 text-xs text-gray-300">
+          <input type="checkbox" aria-label={`${label} ${text}`} checked={leg[key] === true}
+            onChange={(event) => update({ [key]: event.target.checked ? true : undefined })} />{text}
+        </label>
+      ))}
       {warnings.filter(({ legId }) => legId === leg.id).map((warning, i) => (
         <p key={`${warning.code}-${i}`} className="mt-2 text-xs text-amber-400">{legWarningText(warning)}</p>
       ))}

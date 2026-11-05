@@ -74,8 +74,8 @@ describe('SH7 step a run leg placement and presets', () => {
     const options = { shapeId: LEG.id, height: 'feet', proud: 0.5, backOffset: 1, leaveOut: 'RB' };
     const three = legPreset('three', options, newId);
     expect(three).toEqual([
-      { id: 'lg-1', shapeId: LEG.id, height: 'feet', from: 'left', x: 0, yFrom: 'front', y: -0.5 },
-      { id: 'lg-2', shapeId: LEG.id, height: 'feet', from: 'left', x: 0, yFrom: 'back', y: 1 },
+      { id: 'lg-1', shapeId: LEG.id, height: 'feet', from: 'left', x: 0, yFrom: 'front', y: -0.5, mirror: true },
+      { id: 'lg-2', shapeId: LEG.id, height: 'feet', from: 'left', x: 0, yFrom: 'back', y: 1, mirror: true, mirrorDepth: true },
       { id: 'lg-3', shapeId: LEG.id, height: 'feet', from: 'right', x: 0, yFrom: 'front', y: -0.5 },
     ]);
     const code = ({ from, yFrom }) => `${from[0].toUpperCase()}${yFrom[0].toUpperCase()}`;
@@ -83,12 +83,22 @@ describe('SH7 step a run leg placement and presets', () => {
       ['left', ['LF', 'LB']], ['right', ['RF', 'RB']]]) {
       const picks = legPreset(preset, { shapeId: LEG.id }, newId);
       expect(picks.map(code)).toEqual(codes);
+      for (const pick of picks) {
+        expect(Object.hasOwn(pick, 'mirror')).toBe(pick.from === 'left');
+        expect(Object.hasOwn(pick, 'mirrorDepth')).toBe(pick.yFrom === 'back');
+        if (pick.from === 'left') expect(pick.mirror).toBe(true);
+        if (pick.yFrom === 'back') expect(pick.mirrorDepth).toBe(true);
+      }
       expect(picks.every(({ x, y, height }) => x === 0 && y === 0 && height === 'full')).toBe(true);
       expect(isLegList([...three, ...picks])).toBe(true);
     }
     for (const leaveOut of ['LF', 'LB', 'RF', 'RB']) {
-      expect(legPreset('three', { ...options, leaveOut }, newId).map(code))
-        .toEqual(['LF', 'LB', 'RF', 'RB'].filter((corner) => corner !== leaveOut));
+      const picks = legPreset('three', { ...options, leaveOut }, newId);
+      expect(picks.map(code)).toEqual(['LF', 'LB', 'RF', 'RB'].filter((corner) => corner !== leaveOut));
+      for (const pick of picks) {
+        expect(pick.mirror).toBe(pick.from === 'left' ? true : undefined);
+        expect(pick.mirrorDepth).toBe(pick.yFrom === 'back' ? true : undefined);
+      }
     }
   });
 
@@ -123,5 +133,66 @@ describe('SH7 step a run leg placement and presets', () => {
     }
     expect(mirrored.plan.loops[1].points).toEqual([[10.25, 23.125, 1], [13.25, 23.125, 1]]);
     expect(LEG).toEqual(original);
+  });
+});
+
+describe('SH5.1 step d handed legs', () => {
+  it('anchors 1–2: mirrors the KNEE foot pad front–back and left–right about its size box', () => {
+    const KNEE = {
+      ...FOOT, id: 'knee', name: 'Knee', box: { x: -1, y: -1, z: 0, w: 2, h: 30, d: 2 },
+      views: {
+        front: { ...FOOT.views.front, points: { a: [-1, 0], b: [1, 0], c: [1, 30], d: [-1, 30] } },
+        plan: { ...FOOT.views.front, points: { a: [0, -1], b: [1, -1], c: [1, 0], d: [0, 0] } },
+      },
+    };
+    const pick = { ...leg, shapeId: KNEE.id, from: 'right', height: 30 };
+    const place = (flags) => runLegs(ROOM, W, { ...R, legs: [{ ...pick, ...flags }] },
+      { ...settings, shapes: [KNEE] })[0];
+    const normal = place({});
+    expect(normal.plan.loops[0].points).toEqual([
+      [45, 24.875, 0], [46, 24.875, 0], [46, 23.875, 0], [45, 23.875, 0],
+    ]);
+    const depth = place({ mirrorDepth: true });
+    expect(depth.plan.loops[0].points).toEqual([
+      [45, 22.875, 0], [46, 22.875, 0], [46, 23.875, 0], [45, 23.875, 0],
+    ]);
+    expect(depth.outlines).toEqual(normal.outlines);
+    expect(depth.insert).toEqual(normal.insert);
+    expect(depth.bounds).toEqual(normal.bounds);
+    expect([depth.front, depth.back]).toEqual([normal.front, normal.back]);
+    const both = place({ mirrorDepth: true, mirror: true });
+    expect(both.plan.loops[0].points).toEqual([
+      [45, 22.875, 0], [44, 22.875, 0], [44, 23.875, 0], [45, 23.875, 0],
+    ]);
+    expect(both.outlines).toEqual(place({ mirror: true }).outlines);
+    const shifted = { ...KNEE, box: { ...KNEE.box, y: 4 }, views: { ...KNEE.views,
+      plan: { ...KNEE.views.plan, points: Object.fromEntries(Object.entries(KNEE.views.plan.points)
+        .map(([id, [x, y]]) => [id, [x, y + 5]])) },
+    } };
+    const [shiftedDepth] = runLegs(ROOM, W, { ...R, legs: [{ ...pick, mirrorDepth: true }] },
+      { ...settings, shapes: [shifted] });
+    expect(shiftedDepth.plan).toEqual(depth.plan);
+  });
+
+  it('flips plan arc bulges once per reflection, including the existing plan flip', () => {
+    const original = structuredClone(LEG);
+    for (const mirror of [false, true]) {
+      for (const mirrorDepth of [false, true]) {
+        const [placed] = runLegs(ROOM, W, { ...R, legs: [{ ...leg,
+          ...(mirror ? { mirror: true } : {}), ...(mirrorDepth ? { mirrorDepth: true } : {}),
+        }] }, settings);
+        const bulge = mirror === mirrorDepth ? -1 : 1;
+        expect(placed.plan.loops[1].points.map(([, , b]) => b)).toEqual([bulge, bulge]);
+      }
+    }
+    expect(LEG).toEqual(original);
+  });
+
+  it('anchor 4: accepts only true or absent mirrorDepth', () => {
+    expect(isLegList([leg])).toBe(true);
+    expect(isLegList([{ ...leg, mirrorDepth: true }])).toBe(true);
+    for (const mirrorDepth of [false, null, 0, 1, 'true']) {
+      expect(isLegList([{ ...leg, mirrorDepth }])).toBe(false);
+    }
   });
 });

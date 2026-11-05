@@ -19,7 +19,8 @@ export function isLegList(value) {
       || !['front', 'back'].includes(leg.yFrom) || !Number.isFinite(leg.y)
       || !(leg.height === 'full' || leg.height === 'feet'
         || (Number.isFinite(leg.height) && leg.height > 0))
-      || (leg.mirror !== undefined && leg.mirror !== true)) return false;
+      || (leg.mirror !== undefined && leg.mirror !== true)
+      || (leg.mirrorDepth !== undefined && leg.mirrorDepth !== true)) return false;
     ids.add(leg.id);
     return true;
   });
@@ -54,6 +55,8 @@ export function runLegs(room, wall, run, settings) {
     const u0 = leg.from === 'left' ? run.x + leg.x : run.x + run.width - leg.x - b.w;
     const t0 = leg.yFrom === 'front' ? leg.y : F - B - leg.y - b.d;
     const mirror = leg.mirror === true;
+    const mirrorDepth = leg.mirrorDepth === true;
+    const toY = (py) => F - t0 - (mirrorDepth ? b.y + b.d - py : py - b.y);
     const toX = (px) => u0 + (mirror ? b.x + b.w - px : px - b.x);
     const toFront = ([px, pz]) => [toX(px), pz - b.z];
     const [x, z] = toFront([resolved.origin.x, resolved.origin.z]);
@@ -69,7 +72,7 @@ export function runLegs(room, wall, run, settings) {
         top: b.h,
         loops: shapeOutlines(shapeView(resolved.shape, 'plan')).map(({ closed, outline }) => ({
           closed,
-          points: transformOutline(outline, ([px, py]) => [toX(px), F - (t0 + py - b.y)], !mirror),
+          points: transformOutline(outline, ([px, py]) => [toX(px), toY(py)], !mirror !== mirrorDepth),
         })),
       },
       size: { w: b.w, h: b.h, d: b.d }, warnings,
@@ -87,6 +90,8 @@ export function legPreset(preset, { shapeId, height = 'full', proud = 0, backOff
     id: newId(), shapeId, height, from: corner[0] === 'L' ? 'left' : 'right', x: 0,
     yFrom: corner[1] === 'F' ? 'front' : 'back',
     y: corner[1] === 'F' ? (proud === 0 ? 0 : -proud) : backOffset,
+    ...(corner[0] === 'L' ? { mirror: true } : {}),
+    ...(corner[1] === 'B' ? { mirrorDepth: true } : {}),
   }));
 }
 

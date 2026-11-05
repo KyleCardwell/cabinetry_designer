@@ -186,7 +186,7 @@ export const runReducers = {
     const { legId, changes } = action.payload;
     const legs = location.run.legs.map((leg) => leg.id === legId
       ? Object.fromEntries(Object.entries({ ...leg, ...changes })
-        .filter(([key, value]) => key !== 'mirror' || value !== undefined)) : leg);
+        .filter(([key, value]) => !['mirror', 'mirrorDepth'].includes(key) || value !== undefined)) : leg);
     if (validRunLegs(location, legs)) location.run.legs = legs;
   },
   removeRunLeg(state, action) {

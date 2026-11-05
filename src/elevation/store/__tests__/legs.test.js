@@ -18,7 +18,7 @@ describe('SH7 step a stored legs', () => {
     const saved = structuredClone(toElevationDocument(initial));
     expect(isElevationDocument(saved)).toBe(true);
     currentRun(saved).legs = [leg, { ...leg, id: 'lg-2', from: 'right', x: -2, yFrom: 'back', y: -1,
-      height: 4, mirror: true }, { ...leg, id: 'lg-3', height: 'feet' }];
+      height: 4, mirror: true, mirrorDepth: true }, { ...leg, id: 'lg-3', height: 'feet' }];
     expect(isLegList(currentRun(saved).legs)).toBe(true);
     expect(isElevationDocument(saved)).toBe(true);
     expect(toElevationDocument(normalizeElevationDocument(saved))).toEqual(saved);
@@ -26,7 +26,7 @@ describe('SH7 step a stored legs', () => {
       ...['id', 'shapeId'].flatMap((key) => ['', null, 1, undefined].map((value) => [{ ...leg, [key]: value }])),
       ...['x', 'y'].flatMap((key) => [Infinity, -Infinity, NaN, '1', null, undefined].map((value) => [{ ...leg, [key]: value }])),
       ...[0, -1, Infinity, NaN, '', null, 'Full', undefined].map((height) => [{ ...leg, height }]),
-      ...[false, null, 1].map((mirror) => [{ ...leg, mirror }]),
+      ...['mirror', 'mirrorDepth'].flatMap((key) => [false, null, 1].map((value) => [{ ...leg, [key]: value }])),
       [{ ...leg, from: 'front' }], [{ ...leg, yFrom: 'left' }],
     ];
     for (const legs of invalid) {
@@ -53,10 +53,11 @@ describe('SH7 step a stored legs', () => {
     state = elevationReducer(state, addRunLegs({ ...target, legs: picks }));
     expect(currentRun(state).legs).toEqual([leg, ...picks]);
     state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id,
-      changes: { x: -2, y: -0.75, from: 'right', yFrom: 'back', height: 30, mirror: true } }));
-    expect(currentRun(state).legs[0]).toEqual({ ...leg, x: -2, y: -0.75, from: 'right', yFrom: 'back', height: 30, mirror: true });
-    state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { mirror: undefined } }));
+      changes: { x: -2, y: -0.75, from: 'right', yFrom: 'back', height: 30, mirror: true, mirrorDepth: true } }));
+    expect(currentRun(state).legs[0]).toEqual({ ...leg, x: -2, y: -0.75, from: 'right', yFrom: 'back', height: 30, mirror: true, mirrorDepth: true });
+    state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { mirror: undefined, mirrorDepth: undefined } }));
     expect(currentRun(state).legs[0]).not.toHaveProperty('mirror');
+    expect(currentRun(state).legs[0]).not.toHaveProperty('mirrorDepth');
     const saved = toElevationDocument(state);
     expect(isElevationDocument(saved)).toBe(true);
     expect(toElevationDocument(normalizeElevationDocument(saved))).toEqual(saved);
@@ -73,7 +74,7 @@ describe('SH7 step a stored legs', () => {
       addRunLegs({ ...target, legs: [] }), addRunLegs({ ...target, legs: [leg] }),
       addRunLegs({ ...target, legs: [{ ...leg, id: 'new' }, { ...leg, id: 'bad', x: NaN }] }),
       addRunLegs({ ...target, legs: [{ ...leg, id: 'other-run-leg' }] }),
-      ...[{ x: Infinity }, { y: NaN }, { height: 0 }, { shapeId: '' }, { mirror: false },
+      ...[{ x: Infinity }, { y: NaN }, { height: 0 }, { shapeId: '' }, { mirror: false }, { mirrorDepth: false },
         { id: 'lg-2' }, { id: 'other-run-leg' }].map((changes) => updateRunLeg({ ...target, legId: leg.id, changes })),
       updateRunLeg({ ...target, legId: 'missing', changes: { x: 2 } }),
       removeRunLeg({ ...target, legId: 'missing' }),
