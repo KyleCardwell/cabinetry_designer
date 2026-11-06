@@ -25,6 +25,7 @@ import {
 import InchInput from '../InchInput.jsx';
 import { autoInchProps } from '../autoInchProps.js';
 import EndFields from './EndFields.jsx';
+import EndLegsFields from './EndLegsFields.jsx';
 import Field from './Field.jsx';
 
 const CORNER_CLEARANCE_MODES = [
@@ -111,6 +112,8 @@ export default function RunEndsSection({ room, wall, run, settings, actionBase }
                   settings={settings}
                   note={cornerLabel(corners[side], room)}
                 />
+                <EndLegsFields room={room} wall={wall} run={run} side={side}
+                  settings={settings} actionBase={actionBase} />
                 <Field label={`Anchor ${side}`}>
                   <select
                     value={anchorValue}

@@ -11,6 +11,7 @@ import CoordInput from '../../../library/profileEditor/CoordInput.jsx';
 import AddLegsRow from './AddLegsRow.jsx';
 import LegRow, { LegFillSelect, LegHeightFields, LegShapeSelect, LegSitsOnSelect } from './LegRow.jsx';
 import RunLegsSection from './RunLegsSection.jsx';
+import LegFields, { LegPanelFields } from './LegFields.jsx';
 
 vi.mock('react', async (load) => ({ ...await load(), useMemo: vi.fn(), useState: vi.fn() }));
 vi.mock('react-redux', () => ({ useDispatch: vi.fn() }));
@@ -19,7 +20,7 @@ const LEG = legShape();
 const settings = { ...DEFAULT_SETTINGS, shapes: [LEG] };
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children), ...nodes(tree.props?.actions),
-    ...([LegFillSelect, LegShapeSelect, LegHeightFields, LegSitsOnSelect].includes(tree.type) ? nodes(tree.type(tree.props)) : [])] : [];
+    ...([LegFields, LegPanelFields, LegFillSelect, LegShapeSelect, LegHeightFields, LegSitsOnSelect].includes(tree.type) ? nodes(tree.type(tree.props)) : [])] : [];
 const field = (tree, label) => nodes(tree).find(({ props }) => props['aria-label'] === label);
 const button = (tree, text) => nodes(tree).find(({ type, props }) => type === 'button' && props.children === text);
 const change = (node, value) => node.props.onChange({ target: { value } });
