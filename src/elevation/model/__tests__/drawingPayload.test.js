@@ -184,12 +184,12 @@ describe('DM8 step b end-view panel payload', () => {
 // G6's stored hash was already stale on step a; verified against that payload before refreshing it.
 // FX9 a moves only G4's Euro T faces and their dependent front projections in by 1/16".
 const preHP5PayloadHashes = {
-  'G1 Euro kitchen': '4143a6601a61600aefe93f7b9643712b18adbfe4d51113d2523722e2339134b1',
-  'G2 Face frame kitchen': 'fbdbf0e8d026fec0b516dc273de656459f58e0986f363756d2a5e6d86f982df2',
+  'G1 Euro kitchen': 'b43f5d4f39003440958c00cf60669681e3eb8cba774dd2831a9007b7fcf2ae65',
+  'G2 Face frame kitchen': 'b015c39f5286b998b0f818b9218b0dcab795a02fc971071746ec84e429b6fac2',
   'G3 Bath alcove': 'b0045d9f287b05c8166d279c0f5ae3bacb158c87cd95091615751860fc721e26',
   'G4 T-filler run': '27ae40a9beb83adec5462203df0dbf0d345d122e4f45ea92b211e6cc03d6ce02',
   'G5 Recess room': '9cb0f7af1de8c63eeffad94d076db12959ba0c80a4e733be439c666b70f01c96',
-  'G6 Stacked runs': 'eb23f5ae7c6b82d6c7135571d23903f2df1e6cd8eb314732f9dc51de059bb4e7',
+  'G6 Stacked runs': '47c9c29c8ed00fd02a245ef25fe14ad2c01c1e78d5bf13af58060a8545967091',
 };
 
 /** The round-40 fields only, so the first test keeps checking just those. */

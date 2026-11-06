@@ -108,21 +108,21 @@ describe('SPEC-45.2 run depths in plan', () => {
     row: 'depth', kind: 'depth', start, end, offset: 0, text, ...(textAt ? { textAt } : {}),
   });
 
-  it('dimensions every run\'s depth on its own line: bases centred, uppers 3/8" (paper) left, talls right (G1)', () => {
+  it('places perimeter depths in their lanes and chains the aligned island depths (G1)', () => {
     expect(depths(stored('G1 Euro kitchen'))).toEqual([
       depth([-60, -60], [-34.125, -60], '25 7/8'),
       depth([-60, 2.5625], [-35.125, 2.5625], '24 7/8'),
       depth([-60, 39.21875], [-47.125, 39.21875], '12 7/8', [-53.5625, 35.46875]),
       depth([-2.5625, 71.125], [-2.5625, 84], '12 7/8', [-6.3125, 77.5625]),
       depth([12.4375, 59.125], [12.4375, 84], '24 7/8'),
+      depth([55.25, -16.75], [55.25, -3.875], '12 7/8', [51.5, -10.3125]),
       depth([55.25, -3.875], [55.25, 21], '24 7/8'),
-      depth([55.25, -16.75], [55.25, -3.875], '12 7/8', [59, -10.3125]),
     ]);
   });
 
   it('moves wider Arial text off the depth line (G2 upper)', () => {
     expect(depths(stored('G2 Face frame kitchen'))[2])
-      .toEqual(depth([29.25, 2.1875], [29.25, 15], '12 13/16', [25.5, 8.59375]));
+      .toEqual(depth([36, 2.1875], [36, 15], '12 13/16', [32.25, 8.59375]));
   });
 
   it('measures a recessed run from the recess back (G5)', () => {

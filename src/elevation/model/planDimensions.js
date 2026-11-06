@@ -1,9 +1,9 @@
-import { CABINET_TYPE_IDS } from './constants.js';
 import { planClearances } from './clearances.js';
 import { frontDepth } from './corners.js';
 import { plotScale } from './drawingScale.js';
 import { DIMENSION_ROW_SPACING, placeLabels } from './elevationDimensions.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
+import { DEPTH_LANES, planDepthPositions } from './planDepthPositions.js';
 import { planTopOverhangs } from './planTops.js';
 import { projectionDepthX, projectionTightSides, recessesOn } from './recesses.js';
 import { formatInches } from './units.js';
@@ -69,26 +69,33 @@ function rowRecords(row, segments, base, outward, at, scale) {
   return { records, levels, step };
 }
 
-const DEPTH_LANES = {
-  [CABINET_TYPE_IDS.BASE]: 0,
-  [CABINET_TYPE_IDS.UPPER]: -1,
-  [CABINET_TYPE_IDS.TALL]: 1,
-};
 /** Paper inches: a lane's shift off the run's middle, and the least room kept at a run's ends (SPEC-45.2). */
 const DEPTH_LANE_SHIFT = 0.375;
 const DEPTH_MARGIN = 0.25;
 
 /** A run's depth from its plane to its front, across the run in its type's lane (SPEC-45.2). */
-function depthRecords(room, wall, run, settings) {
+function depthRecords(room, wall, run, settings, position) {
+  if (!position) return [];
+  if (position.pair) {
+    if (run.id !== position.pair.front) return [];
+    const backRun = wall.runs.find(({ id }) => id === position.pair.back);
+    const frame = wallSideFrame(room, wall, 'front');
+    const backDepth = frontDepth(backRun, settings);
+    const front = frontDepth(run, settings);
+    const thickness = wall.thickness;
+    const segments = [{ start: 0, end: backDepth, kind: 'depth' }];
+    if (thickness > 0) segments.push({ start: backDepth, end: backDepth + thickness, kind: 'wall' });
+    segments.push({ start: backDepth + thickness, end: backDepth + thickness + front, kind: 'depth' });
+    const base = (t) => elevationToPlan(frame, position.x, t - backDepth - thickness);
+    return rowRecords('depth', segments, base, frame.r, 0, plotScale(settings)).records;
+  }
   const scale = plotScale(settings);
   const frame = wallSideFrame(room, wall, wallSideOf(run));
   const back = run._plane?.offset ?? 0;
   const depth = frontDepth(run, settings) - back;
   if (depth <= EPSILON || run.width <= EPSILON) return [];
   const lane = DEPTH_LANES[run.cabinetTypeId] ?? 0;
-  const margin = Math.min(run.width / 2, DEPTH_MARGIN * scale);
-  const x = Math.max(run.x + margin, Math.min(run.x + run.width - margin,
-    run.x + run.width / 2 + lane * DEPTH_LANE_SHIFT * scale));
+  const { x } = position;
   const side = lane < 0 ? -1 : 1;
   const base = (t) => elevationToPlan(frame, x, back + t);
   const outward = { x: frame.r.x * side, y: frame.r.y * side };
@@ -183,12 +190,16 @@ export function planThroughDimensions(room, wall, settings) {
 export function planDimensions(room, settings) {
   const scale = plotScale(settings);
   const records = [];
+  const laneShift = DEPTH_LANE_SHIFT * scale;
+  const positions = planDepthPositions(room, settings, {
+    laneShift, gap: laneShift, margin: DEPTH_MARGIN * scale,
+  });
   for (const wall of room.walls) {
     for (const { records: rows } of planWallRows(room, wall, settings)) records.push(...rows);
     records.push(...planThroughDimensions(room, wall, settings));
   }
   for (const wall of room.walls) {
-    for (const run of wall.runs ?? []) records.push(...depthRecords(room, wall, run, settings));
+    for (const run of wall.runs ?? []) records.push(...depthRecords(room, wall, run, settings, positions.get(run.id)));
     for (const recess of wall.recesses ?? []) records.push(...projectionDepthRecords(room, wall, recess, settings));
   }
   for (const { wallId, edge, value, from, to } of planTopOverhangs(room, settings)) {
