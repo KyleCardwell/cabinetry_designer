@@ -93,6 +93,7 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
     const fill = { ...leg.fill };
     if (value === undefined) delete fill[key];
     else fill[key] = value;
+    if (key === 'returns' && value === undefined) delete fill.returnDepth;
     update({ fill });
   };
 
@@ -153,6 +154,22 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
               }} />
           </Field>
         ))}
+        {leg.fill?.type === 'panel' && <Field label="Returns">
+          <select aria-label={`${label} Returns`} value={leg.fill.returns ?? ''}
+            onChange={(event) => updateFill('returns', event.target.value || undefined)} className={LEG_SELECT_CLASS}>
+            <option value="">None</option>
+            <option value="front">Front</option>
+            <option value="back">Back</option>
+            <option value="both">Both</option>
+          </select>
+        </Field>}
+        {leg.fill?.type === 'panel' && leg.fill.returns && <Field label="Return depth">
+          <CoordInput aria-label={`${label} Return depth`} value={leg.fill.returnDepth} allowBlank
+            placeholder={formatProfileCoord(settings.legPanelReturnDepth)} onCommit={(value) => {
+              if (value !== undefined && (!Number.isFinite(value) || value <= 0)) return false;
+              updateFill('returnDepth', value);
+            }} />
+        </Field>}
       </div>
       {leg.fill?.type === 'panel' && <label className="mt-2 flex items-center gap-2 text-xs text-gray-300">
         <input type="checkbox" aria-label={`${label} Full depth`} checked={leg.fill.past === true}

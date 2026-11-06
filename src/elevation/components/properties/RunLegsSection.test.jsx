@@ -251,6 +251,13 @@ describe('SH7 step b Legs panel', () => {
     }
     edit(() => field(renderLeg(), 'Leg 1 Full depth').props.onChange({ target: { checked: true } }));
     edit(() => field(renderLeg(), 'Leg 1 Full depth').props.onChange({ target: { checked: false } }));
+    for (const returns of ['front', 'back', 'both']) {
+      edit(() => change(field(renderLeg(), 'Leg 1 Returns'), returns));
+    }
+    edit(() => field(renderLeg(), 'Leg 1 Return depth').props.onCommit(4));
+    edit(() => field(renderLeg(), 'Leg 1 Return depth').props.onCommit(undefined));
+    edit(() => field(renderLeg(), 'Leg 1 Return depth').props.onCommit(4));
+    edit(() => change(field(renderLeg(), 'Leg 1 Returns'), ''));
     edit(() => change(field(renderLeg(), 'Leg 1 Fill'), 'filler'));
     edit(() => change(field(renderLeg(), 'Leg 1 Fill'), ''));
     edit(() => field(renderLeg(), 'Remove leg 1').props.onClick());
@@ -368,6 +375,74 @@ describe('SH7.2 step d leg fill controls', () => {
         if (!type || (type === 'panel' && leg.yFrom === 'back')) expect(leg).not.toHaveProperty('fill');
       }
     }
+  });
+});
+
+describe('SH7.3 step c leg panel returns', () => {
+  it('anchor 1: selects Both with a 4-inch return; offers every return and validates depth with the short warning', () => {
+    addCorners();
+    change(field(renderLeg(), 'Leg 1 Fill'), 'panel');
+    expect(field(renderLeg(), 'Leg 1 Returns').props.value).toBe('');
+    expect(nodes(field(renderLeg(), 'Leg 1 Returns')).filter(({ type }) => type === 'option')
+      .map(({ props }) => [props.value, props.children]))
+      .toEqual([['', 'None'], ['front', 'Front'], ['back', 'Back'], ['both', 'Both']]);
+    expect(field(renderLeg(), 'Leg 1 Return depth')).toBeUndefined();
+    for (const returns of ['front', 'back', 'both']) {
+      change(field(renderLeg(), 'Leg 1 Returns'), returns);
+      expect(currentRun().legs[0].fill).toEqual({ type: 'panel', returns });
+      expect(field(renderLeg(), 'Leg 1 Returns').props.value).toBe(returns);
+    }
+    const input = () => field(renderLeg(), 'Leg 1 Return depth');
+    expect(input().type).toBe(CoordInput);
+    expect(input().props.allowBlank).toBe(true);
+    expect(input().props.value).toBeUndefined();
+    expect(input().props.placeholder).toBe(formatProfileCoord(settings.legPanelReturnDepth));
+    expect(field(renderLeg(0, { settings: { ...settings, legPanelReturnDepth: 6 } }), 'Leg 1 Return depth')
+      .props.placeholder).toBe('6');
+    for (const invalid of [0, -1, Infinity, NaN]) expect(input().props.onCommit(invalid)).toBe(false);
+    expect(currentRun().legs[0].fill).toEqual({ type: 'panel', returns: 'both' });
+    input().props.onCommit(4);
+    expect(currentRun().legs[0].fill).toEqual({ type: 'panel', returns: 'both', returnDepth: 4 });
+    expect(input().props.value).toBe(4);
+    input().props.onCommit(0.5);
+    expect(nodes(renderLeg()).some(({ props }) => props.children ===
+      "Leg 1: its panel return is no deeper than the panel's thickness.")).toBe(true);
+    expect(nodes(renderLeg(1)).some(({ props }) => props.children ===
+      "Leg 1: its panel return is no deeper than the panel's thickness.")).toBe(false);
+  });
+
+  it('anchor 2: clearing depth drops its key; None drops both return keys and preserves other panel settings', () => {
+    addCorners();
+    change(field(renderLeg(), 'Leg 1 Fill'), 'panel');
+    field(renderLeg(), 'Leg 1 Reveal').props.onCommit(0.5);
+    change(field(renderLeg(), 'Leg 1 Returns'), 'both');
+    field(renderLeg(), 'Leg 1 Return depth').props.onCommit(4);
+    field(renderLeg(), 'Leg 1 Return depth').props.onCommit(undefined);
+    expect(currentRun().legs[0].fill).toEqual({ type: 'panel', inset: 0.5, returns: 'both' });
+    expect(field(renderLeg(), 'Leg 1 Return depth').props.value).toBeUndefined();
+    field(renderLeg(), 'Leg 1 Return depth').props.onCommit(4);
+    change(field(renderLeg(), 'Leg 1 Returns'), '');
+    expect(currentRun().legs[0].fill).toEqual({ type: 'panel', inset: 0.5 });
+    expect(field(renderLeg(), 'Leg 1 Returns').props.value).toBe('');
+    expect(field(renderLeg(), 'Leg 1 Return depth')).toBeUndefined();
+    change(field(renderLeg(), 'Leg 1 Returns'), 'front');
+    expect(field(renderLeg(), 'Leg 1 Return depth').props.value).toBeUndefined();
+  });
+
+  it('anchor 3: switching to Filler hides return controls and starts a fresh fill', () => {
+    addCorners();
+    expect(field(renderLeg(), 'Leg 1 Returns')).toBeUndefined();
+    change(field(renderLeg(), 'Leg 1 Fill'), 'panel');
+    change(field(renderLeg(), 'Leg 1 Returns'), 'both');
+    field(renderLeg(), 'Leg 1 Return depth').props.onCommit(4);
+    change(field(renderLeg(), 'Leg 1 Fill'), 'filler');
+    expect(currentRun().legs[0].fill).toEqual({ type: 'filler' });
+    expect(field(renderLeg(), 'Leg 1 Returns')).toBeUndefined();
+    expect(field(renderLeg(), 'Leg 1 Return depth')).toBeUndefined();
+    change(field(renderLeg(), 'Leg 1 Fill'), 'panel');
+    expect(currentRun().legs[0].fill).toEqual({ type: 'panel' });
+    expect(field(renderLeg(), 'Leg 1 Returns').props.value).toBe('');
+    expect(field(renderLeg(), 'Leg 1 Return depth')).toBeUndefined();
   });
 });
 
