@@ -11,19 +11,7 @@ import { PLAN_DIM_FONT_SIZE } from './constants.js';
 import { canvasDimensionRows } from './elevationMarkers.js';
 import { readableRotation } from './textRotation.js';
 
-export default function PlanWallShape({
-  room,
-  wall,
-  isSelected,
-  scale,
-  text,
-  onSelect,
-  onOpen,
-  onLandingSpan,
-  cursor,
-  settings,
-}) {
-  const cursorKeys = useCursorKeys(cursor);
+function wallDimensionLayout({ room, wall, settings, scale, text }) {
   const frame = wallFrame(room, wall);
   if (frame.length === 0) return null;
 
@@ -106,6 +94,34 @@ export default function PlanWallShape({
     }];
   });
 
+  return {
+    frame, outline, faceEndpoints, exterior, midpoint, factor, tickLength, fontSize,
+    number, numberRadius, numberPoint, extensionStartOffset, extensionEndOffset,
+    dimensionEndpoints, tickDirection, tickHalfLength, dimensionLabel, dimensionCenter,
+    labelPoint, labelRotation, landingRows,
+  };
+}
+
+export default function PlanWallShape({
+  room,
+  wall,
+  isSelected,
+  scale,
+  text,
+  onSelect,
+  onOpen,
+  onLandingSpan,
+  cursor,
+  settings,
+}) {
+  const cursorKeys = useCursorKeys(cursor);
+  const layout = wallDimensionLayout({ room, wall, settings, scale, text });
+  if (!layout) return null;
+  const {
+    frame, outline, faceEndpoints, midpoint, tickLength,
+    number, numberRadius, numberPoint, landingRows,
+  } = layout;
+
   return (
     <Group
       onClick={onSelect}
@@ -138,6 +154,74 @@ export default function PlanWallShape({
         strokeWidth={1.5 / scale}
         listening={false}
       />
+      {landingRows.map((row) => (
+        <Group key={row.side}>
+          {row.segments.map((segment, index) => {
+            const span = row.spans.find((candidate) => (
+              Math.abs(candidate.start - segment.start) <= 1e-6
+              && Math.abs(candidate.end - segment.end) <= 1e-6
+            ));
+            if (!span) return null;
+            const cursorKey = `landing:${row.side}:${index}`;
+            return (
+              <Line
+                key={cursorKey}
+                points={[span.start, span.end].flatMap((x) => [
+                  row.rowStart.x + row.sideFrame.r.x * x,
+                  row.rowStart.y + row.sideFrame.r.y * x,
+                ])}
+                stroke="transparent"
+                strokeWidth={1 / scale}
+                hitStrokeWidth={10 / scale}
+                listening
+                onMouseEnter={() => cursorKeys.request(cursorKey, CURSORS.select)}
+                onMouseLeave={() => cursorKeys.release(cursorKey)}
+                onClick={(event) => {
+                  event.cancelBubble = true;
+                  onLandingSpan?.(span, event);
+                }}
+                onDblClick={(event) => { event.cancelBubble = true; }}
+              />
+            );
+          })}
+        </Group>
+      ))}
+      <Circle
+        x={numberPoint.x}
+        y={numberPoint.y}
+        radius={numberRadius}
+        fill="#111827"
+        stroke={isSelected ? '#93c5fd' : '#cbd5e1'}
+        strokeWidth={1 / scale}
+        listening={false}
+      />
+      <Text
+        x={numberPoint.x - numberRadius}
+        y={numberPoint.y - numberRadius}
+        width={numberRadius * 2}
+        height={numberRadius * 2}
+        text={String(number ?? '')}
+        align="center"
+        verticalAlign="middle"
+        fontSize={10 * (text?.label ?? 1) / scale}
+        fill="#f8fafc"
+        listening={false}
+      />
+    </Group>
+  );
+}
+
+export function PlanWallDimensions({ room, wall, settings, scale, text }) {
+  const layout = wallDimensionLayout({ room, wall, settings, scale, text });
+  if (!layout) return null;
+  const {
+    faceEndpoints, exterior, midpoint, factor, fontSize, extensionStartOffset, extensionEndOffset,
+    dimensionEndpoints, tickDirection, tickHalfLength, dimensionLabel, dimensionCenter,
+    labelPoint, labelRotation, landingRows,
+  } = layout;
+
+  return (
+    <Group listening={false}>
       <Group listening={false}>
         {(dimensionLabel.mode === 'inline'
           ? gappedLine(...dimensionEndpoints, dimensionCenter, dimensionLabel.width / 2 / scale, 0.5 / scale)
@@ -319,34 +403,6 @@ export default function PlanWallShape({
                 );
               })}
             </Group>
-            {row.segments.map((segment, index) => {
-              const span = row.spans.find((candidate) => (
-                Math.abs(candidate.start - segment.start) <= 1e-6
-                && Math.abs(candidate.end - segment.end) <= 1e-6
-              ));
-              if (!span) return null;
-              const cursorKey = `landing:${row.side}:${index}`;
-              return (
-                <Line
-                  key={cursorKey}
-                  points={[span.start, span.end].flatMap((x) => [
-                    row.rowStart.x + row.sideFrame.r.x * x,
-                    row.rowStart.y + row.sideFrame.r.y * x,
-                  ])}
-                  stroke="transparent"
-                  strokeWidth={1 / scale}
-                  hitStrokeWidth={10 / scale}
-                  listening
-                  onMouseEnter={() => cursorKeys.request(cursorKey, CURSORS.select)}
-                  onMouseLeave={() => cursorKeys.release(cursorKey)}
-                  onClick={(event) => {
-                    event.cancelBubble = true;
-                    onLandingSpan?.(span, event);
-                  }}
-                  onDblClick={(event) => { event.cancelBubble = true; }}
-                />
-              );
-            })}
           </Group>
         );
       })}
@@ -408,27 +464,6 @@ export default function PlanWallShape({
           </Group>
         );
       })}
-      <Circle
-        x={numberPoint.x}
-        y={numberPoint.y}
-        radius={numberRadius}
-        fill="#111827"
-        stroke={isSelected ? '#93c5fd' : '#cbd5e1'}
-        strokeWidth={1 / scale}
-        listening={false}
-      />
-      <Text
-        x={numberPoint.x - numberRadius}
-        y={numberPoint.y - numberRadius}
-        width={numberRadius * 2}
-        height={numberRadius * 2}
-        text={String(number ?? '')}
-        align="center"
-        verticalAlign="middle"
-        fontSize={10 * (text?.label ?? 1) / scale}
-        fill="#f8fafc"
-        listening={false}
-      />
     </Group>
   );
 }

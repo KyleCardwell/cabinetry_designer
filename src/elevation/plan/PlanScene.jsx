@@ -1,13 +1,13 @@
-import { Line } from 'react-konva';
+import { Group, Line } from 'react-konva';
 import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { elevationToPlan } from '../model/geometry.js';
 import { wallEndPanelPolygon, wallEndPanels } from '../model/wallEndPanels.js';
 import { wallSideFrame } from '../model/wallSides.js';
 import PlanClearances from './PlanClearances.jsx';
 import PlanOpening from './PlanOpening.jsx';
-import PlanRecess from './PlanRecess.jsx';
-import PlanWallShape from './PlanWallShape.jsx';
-import PlanRunFootprint from './PlanRunFootprint.jsx';
+import PlanRecess, { PlanRecessDepth } from './PlanRecess.jsx';
+import PlanWallShape, { PlanWallDimensions } from './PlanWallShape.jsx';
+import PlanRunFootprint, { PlanRunDepth } from './PlanRunFootprint.jsx';
 import PlanTops from './PlanTops.jsx';
 import PlanTopOverhangs from './PlanTopOverhangs.jsx';
 
@@ -59,12 +59,7 @@ export default function PlanScene({
       cursor={cursor}
     />
   ));
-  const tops = (
-    <>
-      <PlanTops room={room} settings={settings} scale={scale} />
-      <PlanTopOverhangs room={room} settings={settings} scale={scale} text={text} />
-    </>
-  );
+  const tops = <PlanTops room={room} settings={settings} scale={scale} />;
 
   return (
     <>
@@ -128,7 +123,6 @@ export default function PlanScene({
         />
       )))}
       {firstUpper < 0 && tops}
-      <PlanClearances dimensions={clearances} scale={scale} text={text} />
       {walls.flatMap((wall) => (wall.soffits ?? []).map((soffit) => {
         const frame = wallSideFrame(room, wall, soffit.wallSide);
         return (
@@ -148,6 +142,41 @@ export default function PlanScene({
           />
         );
       }))}
+      <Group listening={false}>
+        {walls.map((wall) => (
+          <PlanWallDimensions
+            key={`${wall.id}:dim`}
+            room={room}
+            wall={wall}
+            settings={settings}
+            scale={scale}
+            text={text}
+          />
+        ))}
+        {walls.flatMap((wall) => (wall.recesses ?? []).map((recess) => (
+          <PlanRecessDepth
+            key={`${wall.id}:${recess.id}:dim`}
+            room={room}
+            wall={wall}
+            frame={wallSideFrame(room, wall, recess.wallSide)}
+            recess={recess}
+            scale={scale}
+            text={text}
+          />
+        )))}
+        {orderedFootprints.map(({ frame, run }) => (
+          <PlanRunDepth
+            key={`${run.id}:dim`}
+            frame={frame}
+            run={run}
+            settings={settings}
+            scale={scale}
+            text={text}
+          />
+        ))}
+        <PlanTopOverhangs room={room} settings={settings} scale={scale} text={text} />
+        <PlanClearances dimensions={clearances} scale={scale} text={text} />
+      </Group>
     </>
   );
 }

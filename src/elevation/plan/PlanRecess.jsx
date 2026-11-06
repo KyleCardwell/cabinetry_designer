@@ -40,9 +40,6 @@ export default function PlanRecess({ room, wall, frame, recess, scale, text, sel
     ? geometry.depth : 0;
   const label = elevationToPlan(frame, geometry.x + geometry.width / 2,
     -wall.thickness - bumpOut - planSideReach(room, wall, opposite, settings) - 10 * factor / scale);
-  const depthDim = recess.kind === 'projection' && geometry.depth > 0
-    ? projectionDepth(frame, geometry.depth, projectionDepthX(recess, frame.length, wall.height, tight), scale, factor)
-    : null;
   return (
     <Group listening={false}>
       {shape.fill && (
@@ -72,9 +69,17 @@ export default function PlanRecess({ room, wall, frame, recess, scale, text, sel
         fontSize={PLAN_DIM_FONT_SIZE * factor / scale}
         fill="#e2e8f0"
       />
-      {depthDim}
     </Group>
   );
+}
+
+export function PlanRecessDepth({ room, wall, frame, recess, scale, text }) {
+  const factor = text?.dimension ?? 1;
+  const tight = projectionTightSides(room, wall, recess, frame.length);
+  const geometry = recessGeometry(recess, frame.length, wall.height);
+  return recess.kind === 'projection' && geometry.depth > 0
+    ? projectionDepth(frame, geometry.depth, projectionDepthX(recess, frame.length, wall.height, tight), scale, factor)
+    : null;
 }
 
 const TICK_HALF_LENGTH = 4;
@@ -98,7 +103,7 @@ function projectionDepth(frame, depth, x, scale, factor) {
     ? gappedLine(back, front, at, textWidth / 2, 0.5 / scale)
     : [[back.x, back.y, front.x, front.y]];
   return (
-    <Group>
+    <Group listening={false}>
       {linePieces.map((points, index) => (
         <Line key={`depth-line:${index}`} points={points} stroke="#e2e8f0" strokeWidth={1 / scale} />
       ))}

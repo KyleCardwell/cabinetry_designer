@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
+import { auto, room as makeRoom, run, wall } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../constants.js';
 import { planClearances } from '../clearances.js';
 import { elevationDimensions } from '../elevationDimensions.js';
 import { wallFrame, wallLength } from '../geometry.js';
-import { gridFromItems } from '../grid.js';
 import { wallBadgeGroups } from '../partNumbers.js';
 import { roomParts } from '../parts.js';
 import { pickStack } from '../pick.js';
@@ -15,7 +15,7 @@ import { wallOutline } from '../wallOutline.js';
 import { wallParts } from '../wallParts.js';
 import { shippingList } from '../../../reports/shippingList.js';
 import WallHeightProperties from '../../components/properties/WallHeightProperties.jsx';
-import PlanWallShape from '../../plan/PlanWallShape.jsx';
+import PlanWallShape, { PlanWallDimensions } from '../../plan/PlanWallShape.jsx';
 
 vi.mock('react', async (original) => ({ ...await original(),
   useMemo: (callback) => callback(), useState: (initial) => [initial, vi.fn()],
@@ -33,32 +33,25 @@ const panelParts = (parts) => parts.filter(({ kind }) => kind === 'wall_end_pane
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children)] : [];
 
-function wall(id, x1, y1, x2, y2, extra = {}) {
-  return {
-    id, name: '', numberOverride: null, x1, y1, x2, y2, height: 96, thickness: 0,
-    flipped: false, connections: { start: null, end: null }, profile: {}, openings: [],
-    joints: [], runs: [], endPanels: { start: null, end: null }, ...extra,
-  };
-}
-
 function island() {
-  return {
+  return makeRoom({
     id: 'room', name: 'Room', profile: { ...S.defaultProfile }, wallOrder: ['I'],
-    walls: [wall('I', 0, 0, 90, 0, {
+    walls: [wall({ id: 'I', x1: 0, y1: 0, x2: 90, y2: 0, thickness: 0, thicknessOverride: 0,
       endPanels: { start: { width: null }, end: { width: null } },
-      runs: [{
+      runs: [run({
         id: 'R', cabinetTypeId: 1, x: 0, width: 90, z: 4, height: 30.5, depth: 24,
         ends: { left: { type: 'end_panel', width: null }, right: { type: 'end_panel', width: null } },
         autoCount: true, maxCabinetWidth: null, heightMode: 'manual', overrides: {},
         anchors: { left: true, right: true },
-        grid: gridFromItems('R', [1, 2, 3].map((n) => ({ id: `R${n}`, kind: 'cabinet', width: null }))),
-      }],
+        items: [1, 2, 3].map((n) => auto(`R${n}`)),
+      })],
     })],
-  };
+  });
 }
 
 function planTree(room, settings = S) {
-  return nodes(PlanWallShape({ room, wall: room.walls[0], scale: 4, settings }));
+  const props = { room, wall: room.walls[0], scale: 4, settings };
+  return [...nodes(PlanWallShape(props)), ...nodes(PlanWallDimensions(props))];
 }
 
 describe('SPEC-RF3 step b built wall ends', () => {
@@ -97,10 +90,10 @@ describe('SPEC-RF3 step b built wall ends', () => {
     const source = island();
     const link = (wallId, endpoint) => ({ wallId, endpoint });
     source.walls.push(
-      wall('S', -42, -100, 132, -100, { thickness: 4.5, connections: { start: link('W', 'end'), end: link('E', 'start') } }),
-      wall('E', 132, -100, 132, 100, { thickness: 4.5, connections: { start: link('S', 'end'), end: link('N', 'start') } }),
-      wall('N', 132, 100, -42, 100, { thickness: 4.5, connections: { start: link('E', 'end'), end: link('W', 'start') } }),
-      wall('W', -42, 100, -42, -100, { thickness: 4.5, connections: { start: link('N', 'end'), end: link('S', 'start') } }),
+      wall({ id: 'S', x1: -42, y1: -100, x2: 132, y2: -100, thickness: 4.5, connections: { start: link('W', 'end'), end: link('E', 'start') } }),
+      wall({ id: 'E', x1: 132, y1: -100, x2: 132, y2: 100, thickness: 4.5, connections: { start: link('S', 'end'), end: link('N', 'start') } }),
+      wall({ id: 'N', x1: 132, y1: 100, x2: -42, y2: 100, thickness: 4.5, connections: { start: link('E', 'end'), end: link('W', 'start') } }),
+      wall({ id: 'W', x1: -42, y1: 100, x2: -42, y2: -100, thickness: 4.5, connections: { start: link('N', 'end'), end: link('S', 'start') } }),
     );
     source.wallOrder = source.walls.map(({ id }) => id);
     const room = syncRoom(source, S);
@@ -178,7 +171,7 @@ describe('SPEC-RF3 step b built wall ends', () => {
     const room = island();
     const wallI = room.walls[0];
     Object.assign(wallI, { thickness: 4.5, _endFlex: { start: 0.0625 }, connections: { end: { wallId: 'B', endpoint: 'start' } } });
-    room.walls.push(wall('B', 90, 0, 90, 96, { thickness: 4.5, connections: { start: { wallId: 'I', endpoint: 'end' } } }));
+    room.walls.push(wall({ id: 'B', x1: 90, y1: 0, x2: 90, y2: 96, thickness: 4.5, connections: { start: { wallId: 'I', endpoint: 'end' } } }));
     room.wallOrder.push('B');
     expect(wallOutline(room, wallI)).toEqual([
       { x: -0.0625, y: 0 }, { x: 90, y: 0 }, { x: 94.5, y: -4.5 }, { x: -0.0625, y: -4.5 },

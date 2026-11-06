@@ -73,6 +73,15 @@ function planPiecePoints(frame, piece) {
     : depthRangePoints(frame, piece);
 }
 
+function runDepthLayout(run, settings, scale, text) {
+  const factor = text?.label ?? 1;
+  // From the plane the run sits on (SPEC-38): the wall face, or a recess back.
+  const planeBack = run._plane?.offset ?? 0;
+  const depth = frontDepth(run, settings) - planeBack;
+  const dim = depthDimension(run, depth, scale, PLAN_DIM_FONT_SIZE * factor);
+  return { factor, planeBack, depth, dim };
+}
+
 export default function PlanRunFootprint({
   frame,
   room,
@@ -89,7 +98,7 @@ export default function PlanRunFootprint({
   onContextMenu,
   cursor,
 }) {
-  const factor = text?.label ?? 1;
+  const { factor } = runDepthLayout(run, settings, scale, text);
   const [hovered, setHovered] = useState(false);
   const cursorKeys = useCursorKeys(cursor);
   const layout = splitRun(run, settings, splitOptionsForRun(room, wall, run, settings));
@@ -102,31 +111,10 @@ export default function PlanRunFootprint({
     layout,
     faceLayouts,
   );
-  // From the plane the run sits on (SPEC-38): the wall face, or a recess back.
-  const planeBack = run._plane?.offset ?? 0;
-  const depth = frontDepth(run, settings) - planeBack;
   const upper = run.cabinetTypeId === CABINET_TYPE_IDS.UPPER;
   const color = CABINET_TYPE_COLORS[run.cabinetTypeId] ?? KIND_COLORS.cabinet;
   const outline = collision ? '#ef4444' : selected ? '#f8fafc' : color;
   const collisionAnchor = elevationToPlan(frame, (span.start + span.end) / 2, 0);
-  const depthFontSize = PLAN_DIM_FONT_SIZE * factor / scale;
-  const depthText = formatDimension(depth);
-  const depthTextWidth = (depthText.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
-  const dim = depthDimension(run, depth, scale, PLAN_DIM_FONT_SIZE * factor);
-  const dimensionBack = elevationToPlan(frame, dim.x, planeBack);
-  const dimensionFront = elevationToPlan(frame, dim.x, planeBack + depth);
-  const depthLabelLocation = elevationToPlan(frame, dim.label.x, planeBack + dim.label.offset);
-  // Ticks grow with the depth text, which follows text.label (TX1).
-  const tickHalf = DEPTH_TICK_HALF_LENGTH * factor / scale;
-  const tickDirection = {
-    x: (frame.n.x + frame.r.x) / Math.SQRT2,
-    y: (frame.n.y + frame.r.y) / Math.SQRT2,
-  };
-  const depthAngle = Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI;
-  const depthRotation = readableRotation(depthAngle);
-  const depthLinePieces = dim.fits
-    ? gappedLine(dimensionBack, dimensionFront, depthLabelLocation, depthTextWidth / 2, 0.5 / scale)
-    : [linePoints([dimensionBack, dimensionFront])];
 
   return (
     <Group
@@ -230,6 +218,58 @@ export default function PlanRunFootprint({
           event.cancelBubble = true;
           onSelect(event, { runId: run.id, wallId: wall.id });
         }} />
+      {collision && hovered && collisionMessage && (
+        <Label
+          x={collisionAnchor.x}
+          y={collisionAnchor.y - 5 / scale}
+          opacity={0.98}
+          listening={false}
+        >
+          <Tag
+            fill="#020617"
+            stroke="#ef4444"
+            strokeWidth={1 / scale}
+            cornerRadius={3 / scale}
+            pointerDirection="down"
+            pointerWidth={7 / scale}
+            pointerHeight={5 / scale}
+          />
+          <Text
+            width={230 * factor / scale}
+            text={collisionMessage}
+            align="center"
+            fill="#fecaca"
+            fontSize={11 * factor / scale}
+            padding={6 * factor / scale}
+          />
+        </Label>
+      )}
+    </Group>
+  );
+}
+
+export function PlanRunDepth({ frame, run, settings, scale, text }) {
+  const { factor, planeBack, depth, dim } = runDepthLayout(run, settings, scale, text);
+  const depthFontSize = PLAN_DIM_FONT_SIZE * factor / scale;
+  const depthText = formatDimension(depth);
+  const depthTextWidth = (depthText.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
+  const dimensionBack = elevationToPlan(frame, dim.x, planeBack);
+  const dimensionFront = elevationToPlan(frame, dim.x, planeBack + depth);
+  const depthLabelLocation = elevationToPlan(frame, dim.label.x, planeBack + dim.label.offset);
+  // Ticks grow with the depth text, which follows text.label (TX1).
+  const tickHalf = DEPTH_TICK_HALF_LENGTH * factor / scale;
+  const tickDirection = {
+    x: (frame.n.x + frame.r.x) / Math.SQRT2,
+    y: (frame.n.y + frame.r.y) / Math.SQRT2,
+  };
+  const depthAngle = Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI;
+  const depthRotation = readableRotation(depthAngle);
+  const depthLinePieces = dim.fits
+    ? gappedLine(dimensionBack, dimensionFront, depthLabelLocation, depthTextWidth / 2, 0.5 / scale)
+    : [linePoints([dimensionBack, dimensionFront])];
+
+  return (
+    <Group listening={false}>
       {depthLinePieces.map((points, index) => (
         <Line
           key={`depth-line:${index}`}
@@ -277,32 +317,6 @@ export default function PlanRunFootprint({
         fill="#e2e8f0"
         listening={false}
       />
-      {collision && hovered && collisionMessage && (
-        <Label
-          x={collisionAnchor.x}
-          y={collisionAnchor.y - 5 / scale}
-          opacity={0.98}
-          listening={false}
-        >
-          <Tag
-            fill="#020617"
-            stroke="#ef4444"
-            strokeWidth={1 / scale}
-            cornerRadius={3 / scale}
-            pointerDirection="down"
-            pointerWidth={7 / scale}
-            pointerHeight={5 / scale}
-          />
-          <Text
-            width={230 * factor / scale}
-            text={collisionMessage}
-            align="center"
-            fill="#fecaca"
-            fontSize={11 * factor / scale}
-            padding={6 * factor / scale}
-          />
-        </Label>
-      )}
     </Group>
   );
 }

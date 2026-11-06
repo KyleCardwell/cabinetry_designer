@@ -9,10 +9,10 @@ import { textScales } from '../../canvas/textScale.js';
 import PlanCanvas from '../PlanCanvas.jsx';
 import PlanScene from '../PlanScene.jsx';
 import PlanOverlays from '../PlanOverlays.jsx';
-import PlanWallShape from '../PlanWallShape.jsx';
+import PlanWallShape, { PlanWallDimensions } from '../PlanWallShape.jsx';
 import PlanOpening from '../PlanOpening.jsx';
 import PlanRecess from '../PlanRecess.jsx';
-import PlanRunFootprint from '../PlanRunFootprint.jsx';
+import { PlanRunDepth } from '../PlanRunFootprint.jsx';
 import PlanClearances from '../PlanClearances.jsx';
 import PlanElevationMarker from '../PlanElevationMarker.jsx';
 import { PLAN_DIM_FONT_SIZE } from '../constants.js';
@@ -162,7 +162,7 @@ it('anchor 2: fit 0.8, zoom 3.2 gives labels 4 and dimensions 2 throughout the s
   const props = { ...node(PlanScene).props, text, scale: 3.2 * 4 };
   const scene = nodes(PlanScene(props));
   const wallProps = scene.find(({ type }) => type === PlanWallShape).props;
-  const wallTree = nodes(PlanWallShape(wallProps));
+  const wallTree = [...nodes(PlanWallDimensions(wallProps)), ...nodes(PlanWallShape(wallProps))];
   const wallDimension = wallTree.find(({ type }) => type === Text);
   expect(wallDimension.props.fontSize).toBe(PLAN_DIM_FONT_SIZE * 2 / props.scale);
   expect(wallDimension.props.width).toBe((wallDimension.props.text.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * 2 / props.scale);
@@ -171,7 +171,7 @@ it('anchor 2: fit 0.8, zoom 3.2 gives labels 4 and dimensions 2 throughout the s
   const tinyWall = wall({ x2: 2 });
   const tinyRoom = room({ walls: [tinyWall] });
   const tinyRows = canvasDimensionRows(tinyRoom, tinyWall, props.settings, props.scale, 2);
-  const popout = nodes(PlanWallShape({ ...wallProps, wall: tinyWall, room: tinyRoom }))
+  const popout = nodes(PlanWallDimensions({ ...wallProps, wall: tinyWall, room: tinyRoom }))
     .find(({ type }) => type === Text);
   expect(Math.abs(popout.props.y)).toBeCloseTo(tinyRows.dimensionOffset + 24 * 2 / props.scale);
   const wallNumber = wallTree.find(({ type, props }) => type === Text && props.fill === '#f8fafc');
@@ -185,8 +185,8 @@ it('anchor 2: fit 0.8, zoom 3.2 gives labels 4 and dimensions 2 throughout the s
     const labels = nodes(type(child.props)).filter((item) => item.type === Text);
     labels.forEach(({ props: label }) => expect(label.fontSize).toBe(PLAN_DIM_FONT_SIZE * 2 / props.scale));
   }
-  const footprint = scene.find(({ type }) => type === PlanRunFootprint);
-  const depthTree = nodes(PlanRunFootprint(footprint.props));
+  const footprint = scene.find(({ type }) => type === PlanRunDepth);
+  const depthTree = nodes(PlanRunDepth(footprint.props));
   const depthLabel = depthTree.find(({ type }) => type === Text);
   expect(depthLabel.props.fontSize).toBe(PLAN_DIM_FONT_SIZE * 4 / props.scale);
   const tick = depthTree.find(({ key }) => key === 'depth-tick:0').props.points;

@@ -7,9 +7,9 @@ import { planThroughDimensions } from '../../model/planDimensions.js';
 import { syncRoom } from '../../model/room.js';
 import { wallSideFrame } from '../../model/wallSides.js';
 import PlanOpening from '../PlanOpening.jsx';
-import PlanRecess from '../PlanRecess.jsx';
-import PlanRunFootprint from '../PlanRunFootprint.jsx';
-import PlanWallShape from '../PlanWallShape.jsx';
+import PlanRecess, { PlanRecessDepth } from '../PlanRecess.jsx';
+import { PlanRunDepth } from '../PlanRunFootprint.jsx';
+import PlanWallShape, { PlanWallDimensions } from '../PlanWallShape.jsx';
 import { canvasDimensionRows, elevationMarkers, MARKER_FLAG_LENGTH, MARKER_RADIUS } from '../elevationMarkers.js';
 import { depthDimension } from '../depthDimension.js';
 import { PLAN_DIM_FONT_SIZE } from '../constants.js';
@@ -67,7 +67,7 @@ function checkMarker(input, tree) {
   const flagTip = markerOffset - (MARKER_RADIUS + MARKER_FLAG_LENGTH) / input.scale;
   const rowLabels = tree.filter(({ type, props }) => type === Text && props.fill === '#e2e8f0');
   expect(flagTip).toBeGreaterThan(Math.max(...rowLabels.map(({ props }) => outwardDistance(props, input.frame))));
-  const number = tree.find(({ type }) => type === Circle);
+  const number = nodes(PlanWallShape(input)).find(({ type }) => type === Circle);
   expect(outwardDistance(number.props, input.frame)).toBeCloseTo(rowOffset + 24 / input.scale);
   return rowOffset;
 }
@@ -76,10 +76,10 @@ describe('DM1 step b canvas render anchors', () => {
   it('puts the island marker beyond its rows and opening/recess labels beyond opposite-side runs', () => {
     // Step a case 2: 4 1/2 wall and two 24 7/8-deep Euro base runs.
     const island = setup();
-    expect(checkMarker(island, nodes(PlanWallShape(island)))).toBe(40.375);
+    expect(checkMarker(island, nodes(PlanWallDimensions(island)))).toBe(40.375);
     for (const overrides of [{}, { flipped: true }, { x2: 0, y2: 96 }]) {
       const input = setup({ window: true, ...overrides });
-      checkMarker(input, nodes(PlanWallShape(input)));
+      checkMarker(input, nodes(PlanWallDimensions(input)));
       const opening = input.wall.openings[0];
       const label = nodes(PlanOpening({ ...input, opening })).find(({ type }) => type === Text);
       expect(label.props.text).toBe('W1 · 36"');
@@ -101,7 +101,7 @@ describe('DM1 step b canvas render anchors', () => {
         id: 'back-recess', label: 'R1', kind: 'recess', wallSide: 'back',
         offset: 30, offsetFrom: 'left', width: 36, height: 36, bottom: 40, depth,
       }] });
-      const tree = nodes(PlanWallShape(input));
+      const tree = nodes(PlanWallDimensions(input));
       const backRow = tree.find(({ type, key }) => type === Group && key === 'back');
       const line = nodes(backRow).find(({ type }) => type === Line);
       const rowDepth = outwardDistance({ x: line.props.points[0], y: line.props.points[1] }, input.frame, 1);
@@ -114,7 +114,7 @@ describe('DM1 step b canvas render anchors', () => {
     }
     // A short window makes dimension text pop out; the wall row and marker follow those levels.
     const short = setup({ window: true, x2: 10 });
-    checkMarker(short, nodes(PlanWallShape(short)));
+    checkMarker(short, nodes(PlanWallDimensions(short)));
   });
 
   it('renders through-depth model numbers with a line, two ticks and a readable label at the outer panel end', () => {
@@ -123,7 +123,7 @@ describe('DM1 step b canvas render anchors', () => {
         [2, 0.5].map((scale) => [panels, scale])
       ))) {
         const input = { ...setup({ panels, ...overrides }), scale };
-        const groups = nodes(PlanWallShape(input)).filter(({ type, key }) => (
+        const groups = nodes(PlanWallDimensions(input)).filter(({ type, key }) => (
           type === Group && key?.startsWith('through:')
         ));
         expect(groups).toHaveLength(panels.length ? 1 : 0);
@@ -197,10 +197,10 @@ describe('DM7 step d centred plan dimensions', () => {
           id: 'back-recess', label: 'R1', kind: 'recess', wallSide: 'back',
           offset: 30, offsetFrom: 'left', width: 36, height: 36, bottom: 40, depth: 2,
         }] }), scale };
-        const tree = nodes(PlanWallShape(input));
+        const tree = nodes(PlanWallDimensions(input));
         const rows = canvasDimensionRows(input.room, input.wall, settings, scale);
         const overall = tree.find(({ type, props }) => type === Group && props.listening === false
-          && nodes(props.children).some(({ key }) => key === 'overall:0'));
+          && [props.children].flat(Infinity).some((node) => node?.key === 'overall:0'));
         const overallNodes = nodes(overall);
         const lineNodes = overallNodes.filter(({ type, props }) => type === Line && props.stroke === '#94a3b8');
         const ticks = overallNodes.filter(({ type, props }) => type === Line && props.stroke === '#cbd5e1');
@@ -233,7 +233,7 @@ describe('DM7 step d centred plan dimensions', () => {
         id: 'small-window', label: 'W1', kind: 'window', width: 2, height: 36, sillZ: 40,
         measureMode: 'jamb', offset: 2, offsetFrom: 'left', casing: null,
       })] : [] }), scale: 11.9 };
-      const tree = nodes(PlanWallShape(input));
+      const tree = nodes(PlanWallDimensions(input));
       const row = withFaceRow ? nodes(tree.find(({ type, key }) => type === Group && key === 'front')) : tree;
       const label = row.find(({ type }) => type === Text);
       const lines = row.filter(({ type, props }) => type === Line && props.stroke === '#94a3b8').slice(0, 2);
@@ -244,7 +244,7 @@ describe('DM7 step d centred plan dimensions', () => {
   it('keeps wall pop-out distances, midpoint leaders and hidden face labels unchanged', () => {
     for (const scale of [0.2, 0.3]) {
       const input = { ...setup({ window: true }), scale };
-      const tree = nodes(PlanWallShape(input));
+      const tree = nodes(PlanWallDimensions(input));
       const rows = canvasDimensionRows(input.room, input.wall, settings, scale);
       const overallLabel = tree.find(({ type }) => type === Text);
       expect(outwardDistance(overallLabel.props, input.frame))
@@ -286,15 +286,15 @@ describe('DM7 step d centred plan dimensions', () => {
           const run = { ...input.wall.runs.find((run) => run.wallSide === side), depth: runDepth };
           for (const planeBack of [0, -2]) {
             const depth = runDepth + 0.875;
-            const tree = nodes(PlanRunFootprint({ ...input, frame, run: { ...run, _plane: { offset: planeBack } }, scale }));
+            const tree = nodes(PlanRunDepth({ ...input, frame, run: { ...run, _plane: { offset: planeBack } }, scale }));
             const label = tree.find(({ type, props }) => type === Text && props.fill === '#e2e8f0');
             const dim = depthDimension(run, depth, scale, PLAN_DIM_FONT_SIZE * factor);
             checkDepth(tree, label, elevationToPlan(frame, dim.x, planeBack), elevationToPlan(frame, dim.x, planeBack + depth), dim, frame, scale, planeBack, factor);
           }
           const recess = { id: 'projection', label: 'P1', kind: 'projection', wallSide: side,
             offset: 30, offsetFrom: 'left', width: 36, height: 36, bottom: 40, depth: projectionDepth };
-          const tree = nodes(PlanRecess({ ...input, frame, recess, scale }));
-          const label = tree.filter(({ type }) => type === Text)[1];
+          const tree = nodes(PlanRecessDepth({ ...input, frame, recess, scale }));
+          const label = tree.find(({ type }) => type === Text);
           const dim = depthDimension({ x: 57, width: 0 }, projectionDepth, scale, PLAN_DIM_FONT_SIZE * factor);
           checkDepth(tree, label, elevationToPlan(frame, 57, 0), elevationToPlan(frame, 57, projectionDepth), dim, frame, scale, 0, factor);
         }

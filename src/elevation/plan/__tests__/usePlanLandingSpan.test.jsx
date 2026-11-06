@@ -179,7 +179,7 @@ it('anchor 2: clicking 85–124 opens Move Wall 2 at the pointer without selecti
   expect(hitLines[1].props.listening).toBe(true);
   const row = wallTree().find(({ type, key }) => type === Group && key === 'back');
   expect(row.props.listening).not.toBe(false);
-  expect(row.props.children[0].props.listening).toBe(false);
+  expect(nodes(row).filter(({ type }) => type === Line).every(({ props }) => props.listening)).toBe(true);
   hitLines[1].props.onMouseEnter(); render();
   expect(tree[0].props.style.cursor).toBe('pointer');
   hits()[1].props.onMouseLeave(); render();

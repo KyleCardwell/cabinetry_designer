@@ -4,7 +4,7 @@ import { auto, room, run, wall } from '../../../test/builders.js';
 import { DEFAULT_SETTINGS } from '../../model/constants.js';
 import { wallFrame } from '../../model/geometry.js';
 import { syncRoom } from '../../model/room.js';
-import PlanWallShape from '../PlanWallShape.jsx';
+import PlanWallShape, { PlanWallDimensions } from '../PlanWallShape.jsx';
 import { PLAN_DIM_FONT_SIZE } from '../constants.js';
 
 vi.mock('react-konva', () => ({ Circle: 'circle', Group: 'group', Line: 'line', Text: 'text' }));
@@ -26,7 +26,8 @@ describe('FX6 b plan zoom', () => {
             ends: { left: { type: 'none' }, right: { type: 'none' } },
           })),
         })] }), settings);
-        const tree = nodes(PlanWallShape({ room: r, wall: r.walls[0], settings, scale, text }));
+        const props = { room: r, wall: r.walls[0], settings, scale, text };
+        const tree = [...nodes(PlanWallDimensions(props)), ...nodes(PlanWallShape(props))];
         expect(tree.find(({ type }) => type === Circle).props.radius).toBe(18 / scale);
         const number = tree.find(({ type, props }) => type === Text && props.fill === '#f8fafc');
         expect(number.props.width).toBe(36 / scale);
@@ -75,7 +76,8 @@ describe('FX6 b plan zoom', () => {
           })),
         })] }), settings);
         const scale = 0.5;
-        const tree = nodes(PlanWallShape({ room: r, wall: r.walls[0], settings, scale, text }));
+        const props = { room: r, wall: r.walls[0], settings, scale, text };
+        const tree = [...nodes(PlanWallDimensions(props)), ...nodes(PlanWallShape(props))];
         const through = nodes(tree.find(({ key }) => key === 'through:0'));
         const lines = through.filter(({ type, props }) => type === Line && props.stroke === '#94a3b8');
         expect(lines).toHaveLength(1);

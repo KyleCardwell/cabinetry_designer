@@ -149,13 +149,13 @@ it.each(['stone', 'wood'])('anchor 4: %s tops sit between base and upper, preser
   }));
   const drawing = scene.filter(({ type }) => [PlanRunFootprint, PlanTops, PlanTopOverhangs].includes(type));
   expect(drawing.map(({ type, props }) => type === PlanRunFootprint ? props.run.id : type))
-    .toEqual(['base', PlanTops, PlanTopOverhangs, 'upper']);
-  const upperIndex = scene.indexOf(drawing.at(-1));
+    .toEqual(['base', PlanTops, 'upper', PlanTopOverhangs]);
+  const upperIndex = scene.indexOf(drawing[2]);
   expect(scene.findIndex(({ type }) => type === PlanClearances)).toBeGreaterThan(upperIndex);
   expect(scene.filter(({ type }) => type === Line).every((line) => scene.indexOf(line) > upperIndex)).toBe(true);
   expect(nodes(PlanTops(drawing[1].props)).length).toBeGreaterThan(0);
-  expect(nodes(PlanTopOverhangs(drawing[2].props)).length).toBeGreaterThan(0);
-  for (const footprint of [drawing[0], drawing[3]]) {
+  expect(nodes(PlanTopOverhangs(drawing[3].props)).length).toBeGreaterThan(0);
+  for (const footprint of [drawing[0], drawing[2]]) {
     const group = nodes(PlanRunFootprint(footprint.props)).find(({ type }) => type === Group);
     expect(group.props.listening).toBe(true);
     const event = {};
