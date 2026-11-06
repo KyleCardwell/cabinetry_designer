@@ -15,6 +15,7 @@ export const SETTING_GROUPS = [
     keys: [
       'minRunWidth', 'maxRunOverhang', 'runFlex', 'adjacentRunGap', 'defaultEnds.left',
       'defaultEnds.right', 'autoEndPanelOnFreeEnd', 'sheetThickness', 'bumperThickness',
+      'legPanelReveal', 'legPanelTopClearance', 'legPanelBottomClearance',
       'furnitureBaseScribe', 'woodTopScribe',
     ],
   },

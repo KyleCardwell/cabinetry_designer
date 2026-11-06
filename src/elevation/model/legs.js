@@ -11,6 +11,17 @@ import { wallSideOf } from './wallSides.js';
 const EPS = 1e-6;
 const isText = (value) => typeof value === 'string' && value.length > 0;
 
+function isLegFill(fill) {
+  if (!fill || typeof fill !== 'object' || Array.isArray(fill)
+    || !['panel', 'filler'].includes(fill.type)) return false;
+  const keys = ['type', 'inset', 'top', 'bottom', fill.type === 'panel' ? 'past' : 'thickness'];
+  return Object.keys(fill).every((key) => keys.includes(key))
+    && ['inset', 'top', 'bottom'].every((key) => !Object.hasOwn(fill, key)
+      || (Number.isFinite(fill[key]) && fill[key] >= 0))
+    && (!Object.hasOwn(fill, 'thickness') || (Number.isFinite(fill.thickness) && fill.thickness > 0))
+    && (!Object.hasOwn(fill, 'past') || fill.past === true);
+}
+
 /** Stored legs are non-empty, with ids unique within the list (and checked across the room by the store). */
 export function isLegList(value) {
   if (!Array.isArray(value) || !value.length) return false;
@@ -25,7 +36,8 @@ export function isLegList(value) {
       || (leg.mirror !== undefined && leg.mirror !== true)
       || (leg.mirrorDepth !== undefined && leg.mirrorDepth !== true)
       || (leg.takesRoom !== undefined && leg.takesRoom !== false)
-      || (leg.sitsOn !== undefined && !['base', 'countertop'].includes(leg.sitsOn))) return false;
+      || (leg.sitsOn !== undefined && !['base', 'countertop'].includes(leg.sitsOn))
+      || (Object.hasOwn(leg, 'fill') && !isLegFill(leg.fill))) return false;
     ids.add(leg.id);
     return true;
   });
@@ -129,7 +141,10 @@ export function legPreset(preset, { shapeId, height = 'full', sitsOn, proud = 0,
   }));
 }
 
-export function legWarningText({ code, index, target, fixed, height, sitsOn }) {
+export function legWarningText({ code, index, target, fixed, height, sitsOn, type, other }) {
+  if (code === 'leg-fill-no-depth') return `Leg ${index}: no room for its ${type} (the legs touch or overlap).`;
+  if (code === 'leg-fill-no-height') return `Leg ${index}: its ${type} has no height.`;
+  if (code === 'leg-fill-shared') return `Leg ${index}: Leg ${other} already fills the gap between them.`;
   if (code === 'leg-shape-missing') return `Leg ${index}: its shape isn't in the library.`;
   if (code === 'leg-no-height') return sitsOn
     ? `Leg ${index} has no height (the run sits on what the leg stands on).`

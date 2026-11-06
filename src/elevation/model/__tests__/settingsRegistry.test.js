@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS } from '../constants.js';
+import { groupsFor } from '../settingGroups.js';
 import { cleanOverrides, resolveSetting, withOverride } from '../settingsResolve.js';
 import { LIBRARY_KEYS, PREF_KEYS, SETTING_LEVELS, SETTINGS_REGISTRY, allowedAt, registryEntry } from '../settingsRegistry.js';
 
@@ -11,13 +12,13 @@ function leaves(values, prefix = '') {
 }
 
 describe('DB1 a settings registry', () => {
-  it('covers exactly 165 settings leaves, with 112 room settings and 15 team-only settings after IN15e a', () => {
+  it('covers exactly 168 settings leaves, with 115 room settings and 15 team-only settings after SH7.2 a', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(165);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(112);
+    expect(new Set(keys).size).toBe(168);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(115);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(15);
   });
 
@@ -156,5 +157,24 @@ it('IN11a registers ProBox text defaults through room scope and company address 
       expect(cleanOverrides({ report: { [leaf]: 'Other' } }, level)).toEqual({});
       expect(resolveSetting(key, [{ level, values: { report: { [leaf]: 'Other' } } }]).value).toBe('');
     }
+  }
+});
+
+it('SH7.2 registers leg panel defaults with labels, room inheritance and Runs & ends grouping', () => {
+  for (const [key, value, label] of [
+    ['legPanelReveal', 0.25, 'Leg panel reveal'],
+    ['legPanelTopClearance', 0, 'Leg panel top clearance'],
+    ['legPanelBottomClearance', 0, 'Leg panel bottom clearance'],
+  ]) {
+    expect(DEFAULT_SETTINGS[key]).toBe(value);
+    expect(registryEntry(key)).toEqual({ key, label, kind: 'number', lowest: 'room' });
+    expect(resolveSetting(key)).toEqual({ value, source: { level: 'default' } });
+    const chain = ['team', 'project', 'phase', 'room'].map((level, i) => ({ level, values: { [key]: i + 1 } }));
+    chain.forEach((layer, i) => {
+      expect(cleanOverrides(layer.values, layer.level)).toEqual(layer.values);
+      expect(resolveSetting(key, chain.slice(0, i + 1))).toEqual({ value: i + 1, source: { level: layer.level } });
+      expect(groupsFor(layer.level).find(({ id }) => id === 'runs-ends').keys).toContain(key);
+    });
+    for (const level of ['wall', 'run', 'cabinet', 'face']) expect(allowedAt(key, level)).toBe(false);
   }
 });

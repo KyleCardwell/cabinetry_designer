@@ -10,7 +10,8 @@ const expectedGroups = [
   ]],
   ['Runs & ends', [
     'minRunWidth', 'maxRunOverhang', 'runFlex', 'adjacentRunGap', 'defaultEnds.left', 'defaultEnds.right',
-    'autoEndPanelOnFreeEnd', 'sheetThickness', 'bumperThickness', 'furnitureBaseScribe', 'woodTopScribe',
+    'autoEndPanelOnFreeEnd', 'sheetThickness', 'bumperThickness',
+    'legPanelReveal', 'legPanelTopClearance', 'legPanelBottomClearance', 'furnitureBaseScribe', 'woodTopScribe',
   ]],
   ['Fillers & corners', [
     'fillerMinWidth', 'fillerWarnWidth', 'defaultInteriorFillerWidth', 'fillerReturnDepth',
@@ -73,21 +74,21 @@ describe('DB2 b setting groups and choice labels', () => {
       .filter((key) => /^(defaultProfile|faceReveals|defaultStyle)\./.test(key)));
   });
 
-  it('keeps twelve team groups and 127 keys in order, excluding project-only Job #', () => {
+  it('keeps twelve team groups and 130 keys in order, excluding project-only Job #', () => {
     const groups = groupsFor('team');
     expect(groups.map(({ label, keys }) => [label, keys])).toEqual(expectedGroups.map(([label, keys]) => [label, keys.filter((key) => allowedAt(key, 'team'))]));
     expect(groups.flatMap(({ keys }) => keys)).not.toContain('report.jobNumber');
-    expect(groups.map(({ keys }) => keys.length)).toEqual([12, 11, 11, 9, 6, 15, 1, 14, 7, 18, 10, 13]);
-    expect(groups.flatMap(({ keys }) => keys)).toHaveLength(127);
+    expect(groups.map(({ keys }) => keys.length)).toEqual([12, 14, 11, 9, 6, 15, 1, 14, 7, 18, 10, 13]);
+    expect(groups.flatMap(({ keys }) => keys)).toHaveLength(130);
     expect(new Set(groups.map(({ id }) => id)).size).toBe(12);
     for (const { id } of groups) expect(id).toEqual(expect.any(String));
   });
 
-  it('filters room groups to 112 allowed keys without team-only or managed entries', () => {
+  it('filters room groups to 115 allowed keys without team-only or managed entries', () => {
     const groups = groupsFor('room');
     const keys = groups.flatMap((group) => group.keys);
-    expect(groups.map((group) => group.keys.length)).toEqual([11, 11, 11, 9, 6, 15, 1, 7, 7, 18, 10, 6]);
-    expect(keys).toHaveLength(112);
+    expect(groups.map((group) => group.keys.length)).toEqual([11, 14, 11, 9, 6, 15, 1, 7, 7, 18, 10, 6]);
+    expect(keys).toHaveLength(115);
     expect(groups.map(({ label, keys }) => [label, keys])).toEqual(expectedGroups
       .map(([label, groupKeys]) => [label, groupKeys.filter((key) => allowedAt(key, 'room'))]));
     expect(groups.map(({ id }) => id)).toEqual(SETTING_GROUPS.map(({ id }) => id));

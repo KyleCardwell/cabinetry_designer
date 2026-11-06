@@ -108,3 +108,33 @@ describe('SH7 step a stored legs', () => {
     }
   });
 });
+
+it('SH7.2 replaces fills as a whole, rejects invalid edits and removes cleared fills', () => {
+  let state = elevationReducer(initial, addRunLegs({ ...target, legs: [{ ...leg,
+    fill: { type: 'filler', thickness: 0.75, inset: 0, bottom: 1 } }] }));
+  expect(currentRun(state).legs[0].fill.type).toBe('filler');
+  state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill: { type: 'panel' } } }));
+  expect(currentRun(state).legs[0].fill).toEqual({ type: 'panel' });
+  for (const fill of [{ type: 'panel', thickness: 1 }, { type: 'filler', past: true }, null]) {
+    expect(elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill } }))).toEqual(state);
+  }
+  const saved = toElevationDocument(state);
+  expect(isElevationDocument(saved)).toBe(true);
+  expect(toElevationDocument(normalizeElevationDocument(saved))).toEqual(saved);
+  state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill: undefined } }));
+  expect(currentRun(state).legs[0]).toEqual(leg);
+  expect(currentRun(state).legs[0]).not.toHaveProperty('fill');
+});
+
+it('SH7.2 defaults missing leg panel settings and preserves explicit values through persistence', () => {
+  const saved = structuredClone(toElevationDocument(initial));
+  const defaults = { legPanelReveal: 0.25, legPanelTopClearance: 0, legPanelBottomClearance: 0 };
+  for (const key of Object.keys(defaults)) delete saved.settings[key];
+  const normalized = normalizeElevationDocument(saved);
+  expect(normalized.settings).toMatchObject(defaults);
+  expect(isElevationDocument(normalized)).toBe(true);
+  for (const key of Object.keys(defaults)) expect(saved.settings).not.toHaveProperty(key);
+  const explicit = { legPanelReveal: 0, legPanelTopClearance: 0.5, legPanelBottomClearance: 1 };
+  Object.assign(normalized.settings, explicit);
+  expect(toElevationDocument(normalizeElevationDocument(normalized)).settings).toMatchObject(explicit);
+});
