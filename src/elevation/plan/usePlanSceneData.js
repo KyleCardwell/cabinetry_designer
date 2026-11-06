@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { planClearances } from '../model/clearances.js';
+import { planPlacedClearances } from '../model/planDimensions.js';
 import { CABINET_TYPE_IDS } from '../model/constants.js';
 import { findCollisions } from '../model/footprints.js';
 import { wallFrame } from '../model/geometry.js';
@@ -36,7 +36,7 @@ export default function usePlanSceneData({ room, walls, sceneRoom, settings }) {
     return messages;
   }, [sceneRoom, settings]);
   const clearances = useMemo(
-    () => (sceneRoom ? planClearances(sceneRoom, settings) : []),
+    () => (sceneRoom ? planPlacedClearances(sceneRoom, settings) : []),
     [sceneRoom, settings],
   );
   const orderedFootprints = useMemo(() => {

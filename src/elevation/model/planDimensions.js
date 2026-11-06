@@ -1,7 +1,7 @@
 import { planClearances } from './clearances.js';
 import { frontDepth } from './corners.js';
 import { plotScale } from './drawingScale.js';
-import { DIMENSION_ROW_SPACING, placeLabels } from './elevationDimensions.js';
+import { DIMENSION_ROW_SPACING, DIMENSION_TEXT_HEIGHT, placeLabels } from './elevationDimensions.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
 import { DEPTH_LANES, planDepthPositions } from './planDepthPositions.js';
 import { planTopOverhangs } from './planTops.js';
@@ -181,6 +181,107 @@ export function planThroughDimensions(room, wall, settings) {
   });
 }
 
+/** Compute the shared run and projection depth records once, including PD2's paired chains. */
+export function planDepthDimensions(room, settings) {
+  const scale = plotScale(settings);
+  const records = [];
+  const laneShift = DEPTH_LANE_SHIFT * scale;
+  const positions = planDepthPositions(room, settings, {
+    laneShift, gap: laneShift, margin: DEPTH_MARGIN * scale,
+  });
+  for (const wall of room.walls) {
+    for (const run of wall.runs ?? []) records.push(...depthRecords(room, wall, run, settings, positions.get(run.id)));
+    for (const recess of wall.recesses ?? []) records.push(...projectionDepthRecords(room, wall, recess, settings));
+  }
+  return records;
+}
+
+function clearanceRecords({ kind, from, to, length }, scale) {
+  if (length <= EPSILON) return [];
+  const unit = { x: (to.x - from.x) / length, y: (to.y - from.y) / length };
+  const base = (t) => ({ x: from.x + unit.x * t, y: from.y + unit.y * t });
+  const outward = { x: -unit.y, y: unit.x };
+  return rowRecords('clearance', [{ start: 0, end: length, kind }], base, outward, 0, scale).records;
+}
+
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1];
+const subtract = (a, b) => [a[0] - b[0], a[1] - b[1]];
+
+/** The DXF line and its oriented text box, in drawing inches with y up (PD3). */
+function dimensionShape({ start, end, offset, text, textAt }, scale) {
+  const length = Math.hypot(end[0] - start[0], end[1] - start[1]);
+  const u = [(end[0] - start[0]) / length, (end[1] - start[1]) / length];
+  const n = [-u[1], u[0]];
+  const line = [start, end].map((p) => [p[0] + n[0] * offset, p[1] + n[1] * offset]);
+  const center = textAt ?? [(line[0][0] + line[1][0]) / 2, (line[0][1] + line[1][1]) / 2];
+  const height = DIMENSION_TEXT_HEIGHT * scale;
+  return { line, center, axes: [u, n], half: [text.length * 0.5 * height / 2, height / 2] };
+}
+
+function boxesOverlap(a, b) {
+  return [...a.axes, ...b.axes].every((axis) => {
+    const radius = (box) => box.half.reduce((sum, half, i) => sum + half * Math.abs(dot(box.axes[i], axis)), 0);
+    return Math.abs(dot(subtract(a.center, b.center), axis)) < radius(a) + radius(b) - EPSILON;
+  });
+}
+
+/** Clip a segment to the open text rectangle; mere boundary contact is clear. */
+function lineHitsBox(line, box) {
+  let low = 0;
+  let high = 1;
+  for (let i = 0; i < 2; i += 1) {
+    const start = dot(subtract(line[0], box.center), box.axes[i]);
+    const delta = dot(subtract(line[1], line[0]), box.axes[i]);
+    const half = box.half[i] - EPSILON;
+    if (Math.abs(delta) <= EPSILON) {
+      if (Math.abs(start) >= half) return false;
+    } else {
+      const bounds = [(-half - start) / delta, (half - start) / delta].sort((a, b) => a - b);
+      low = Math.max(low, bounds[0]);
+      high = Math.min(high, bounds[1]);
+      if (low >= high) return false;
+    }
+  }
+  return true;
+}
+
+/** Place one clearance nearest its span's middle, keeping a quarter-paper-inch end margin. */
+export function placePlanClearance(clearance, obstacles, settings) {
+  const scale = plotScale(settings);
+  const shapes = obstacles.map((record) => dimensionShape(record, scale));
+  const { start, end } = clearance.along;
+  const span = Math.hypot(end.x - start.x, end.y - start.y);
+  const limit = span / 2 - 0.25 * scale;
+  const shifted = (distance) => {
+    const point = (p) => ({
+      x: Math.round((p.x + (end.x - start.x) / span * distance) * 10000) / 10000 + 0,
+      y: Math.round((p.y + (end.y - start.y) / span * distance) * 10000) / 10000 + 0,
+    });
+    return distance === 0 ? clearance : { ...clearance, from: point(clearance.from), to: point(clearance.to) };
+  };
+  for (let step = 0; step <= limit + EPSILON; step += 1) {
+    for (const distance of step === 0 ? [0] : [-step, step]) {
+      const candidate = shifted(distance);
+      const [record] = clearanceRecords(candidate, scale);
+      if (!record) return clearance;
+      const shape = dimensionShape(record, scale);
+      if (shapes.every((other) => !boxesOverlap(shape, other)
+        && !lineHitsBox(shape.line, other) && !lineHitsBox(other.line, shape))) return candidate;
+    }
+  }
+  return clearance;
+}
+
+/** Shared canvas/DXF placement; the DXF hands in its already-computed through and depth records. */
+export function planPlacedClearances(room, settings, obstacles) {
+  if (!room?.walls?.length) return [];
+  const records = obstacles ?? [
+    ...room.walls.flatMap((wall) => planThroughDimensions(room, wall, settings)),
+    ...planDepthDimensions(room, settings),
+  ];
+  return planClearances(room, settings, (clearance) => placePlanClearance(clearance, records, settings));
+}
+
 /**
  * The plan's dimensions for the DXF (SPEC-45): aligned, in plan inches with y up, reading from the bottom
  * or the right. Per wall, outside it, the front face row then the overall length, 3/8" (paper) apart past
@@ -190,18 +291,15 @@ export function planThroughDimensions(room, wall, settings) {
 export function planDimensions(room, settings) {
   const scale = plotScale(settings);
   const records = [];
-  const laneShift = DEPTH_LANE_SHIFT * scale;
-  const positions = planDepthPositions(room, settings, {
-    laneShift, gap: laneShift, margin: DEPTH_MARGIN * scale,
-  });
+  const through = [];
+  const depths = planDepthDimensions(room, settings);
   for (const wall of room.walls) {
     for (const { records: rows } of planWallRows(room, wall, settings)) records.push(...rows);
-    records.push(...planThroughDimensions(room, wall, settings));
+    const dimensions = planThroughDimensions(room, wall, settings);
+    through.push(...dimensions);
+    records.push(...dimensions);
   }
-  for (const wall of room.walls) {
-    for (const run of wall.runs ?? []) records.push(...depthRecords(room, wall, run, settings, positions.get(run.id)));
-    for (const recess of wall.recesses ?? []) records.push(...projectionDepthRecords(room, wall, recess, settings));
-  }
+  records.push(...depths);
   for (const { wallId, edge, value, from, to } of planTopOverhangs(room, settings)) {
     const wall = room.walls.find(({ id }) => id === wallId);
     const frame = wallSideFrame(room, wall, 'front');
@@ -212,12 +310,8 @@ export function planDimensions(room, settings) {
     records.push(...rowRecords('overhang', [{ start: 0, end: value, kind: 'overhang' }],
       base, outward, 0, scale).records);
   }
-  for (const { kind, from, to, length } of planClearances(room, settings)) {
-    if (length <= EPSILON) continue;
-    const unit = { x: (to.x - from.x) / length, y: (to.y - from.y) / length };
-    const base = (t) => ({ x: from.x + unit.x * t, y: from.y + unit.y * t });
-    const outward = { x: -unit.y, y: unit.x };
-    records.push(...rowRecords('clearance', [{ start: 0, end: length, kind }], base, outward, 0, scale).records);
+  for (const clearance of planPlacedClearances(room, settings, [...through, ...depths])) {
+    records.push(...clearanceRecords(clearance, scale));
   }
   return records;
 }

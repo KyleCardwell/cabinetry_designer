@@ -220,6 +220,7 @@ function dimensionOf(edge, across, kind) {
     from: { x: clean(from.x), y: clean(from.y) },
     to: { x: clean(to.x), y: clean(to.y) },
     length: clean(across.distance),
+    along: { start: point(across.start, edge.c), end: point(across.end, edge.c) },
     axis,
     lines: sorted(dot(axis, from), dot(axis, to)),
     span: sorted(dot(along, point(across.start, edge.c)), dot(along, point(across.end, edge.c))),
@@ -239,7 +240,7 @@ function sameGap(a, b) {
  * face, or the island's own facing edge), or one run's front to the front of the run facing it.
  * Only parallel, facing edges count.
  */
-export function partClearances(parts, islands) {
+export function partClearances(parts, islands, place = (dimension) => dimension) {
   const found = [];
   for (const ids of islands) {
     const own = parts.filter((part) => ids.includes(part.wallId));
@@ -262,7 +263,7 @@ export function partClearances(parts, islands) {
   for (const dimension of found) {
     if (!kept.some((other) => sameGap(other, dimension))) kept.push(dimension);
   }
-  return kept.map(({
+  return kept.map(place).map(({
     kind, from, to, length,
   }) => ({
     kind, from, to, length,
@@ -349,9 +350,9 @@ export function islandGroups(room, parts) {
   });
 }
 
-/** Plan clearances for a room (SPEC-36.3): islands' outside edges and facing-run aisles. */
-export function planClearances(room, settings) {
+/** Plan clearances; optional placement sees the internal span before it is stripped from the result. */
+export function planClearances(room, settings, place) {
   if (!room?.walls?.length) return [];
   const parts = clearanceParts(room, settings);
-  return partClearances(parts, islandGroups(room, parts));
+  return partClearances(parts, islandGroups(room, parts), place);
 }

@@ -142,7 +142,7 @@ describe('SPEC-45.2 clearances in plan', () => {
     expect(all.slice(-3)).toEqual(clearances(stored('G1 Euro kitchen')));
     expect(clearances(stored('G1 Euro kitchen'))).toEqual([
       { row: 'clearance', kind: 'island', start: [62.25, 21], end: [62.25, 57], offset: 0, text: '36' },
-      { row: 'clearance', kind: 'island', start: [-35.125, 2.125], end: [9.5, 2.125], offset: 0, text: '44 5/8' },
+      { row: 'clearance', kind: 'island', start: [-35.125, -1.875], end: [9.5, -1.875], offset: 0, text: '44 5/8' },
       { row: 'clearance', kind: 'aisle', start: [35.1563, 21], end: [35.1563, 59.125], offset: 0, text: '38 1/8' },
     ]);
   });
