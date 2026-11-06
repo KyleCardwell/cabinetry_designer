@@ -58,7 +58,6 @@ describe('TX1 elevation labels', () => {
         piece: { ...panel, kind: 'cabinet', auto: false }, transform, subLabel: 'back',
       }));
       expect(hovered.find(({ text }) => text === '*')).toMatchObject({ fontSize: 26, width: 16 });
-      expect(hovered.find(({ text }) => text.includes(' · back'))).toMatchObject({ fontSize: 22 });
     }
   });
 

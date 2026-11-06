@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Group, Label, Rect, Tag, Text } from 'react-konva';
+import { Group, Rect, Text } from 'react-konva';
 import { KIND_COLORS } from '../model/constants.js';
-import { formatDimension } from '../model/units.js';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen } from '../canvas/transform.js';
+import { hideHoverLabel, pieceSizeText, showHoverLabel } from '../canvas/hoverLabel.js';
 
 export default function PieceRect({
   piece,
@@ -24,10 +24,8 @@ export default function PieceRect({
   const rect = wallRectToScreen(piece, transform);
   const labelScale = transform.text?.label ?? 1;
   const fontSize = 13 * labelScale;
-  const widthText = Number.isFinite(piece.absorbed)
-    ? `${formatDimension(piece.width)} (${piece.absorbed >= 0 ? '+' : ''}${formatDimension(piece.absorbed)})`
-    : formatDimension(piece.width);
   // FX5: no piece prints its width any more (the dimensions and properties carry it); hover still shows it.
+  // EC2: hover shows W × H in the top hover layer, framed boxes included.
   // The centred block is kept for text notes: the sub-label, then any `notes`, stacked and centred.
   const centerLines = [subLabel, ...notes].filter(Boolean);
   const longest = Math.max(0, ...centerLines.map((line) => line.length));
@@ -45,15 +43,24 @@ export default function PieceRect({
   // A framed box never shows; a mitered end panel (ghost) shows while hovered or selected (SPEC-36.1).
   const quiet = framed || (ghost && !hovered && !selected);
   const showLabels = !quiet;
+  const showHover = () => showHoverLabel({
+    id: piece.id,
+    rect,
+    lines: [pieceSizeText(piece), ...(framed ? [] : centerLines)],
+    fontSize: 11 * labelScale,
+  });
 
   return (
     <Group
       onMouseEnter={() => {
         setHovered(true);
+        showHover();
         cursorKeys.request(piece.id, CURSORS.select);
       }}
+      onMouseMove={showHover}
       onMouseLeave={() => {
         setHovered(false);
+        hideHoverLabel(piece.id);
         cursorKeys.release(piece.id);
       }}
       onClick={(event) => {
@@ -102,30 +109,6 @@ export default function PieceRect({
         />
       )}
 
-      {showLabels && hovered && (
-        <Label
-          x={rect.x + rect.width / 2}
-          y={rect.y - 5}
-          opacity={0.96}
-          listening={false}
-        >
-          <Tag
-            fill="#020617"
-            stroke="#475569"
-            strokeWidth={1}
-            cornerRadius={3}
-            pointerDirection="down"
-            pointerWidth={6}
-            pointerHeight={4}
-          />
-          <Text
-            text={[widthText, ...centerLines].join(' · ')}
-            fill="#f8fafc"
-            fontSize={11 * labelScale}
-            padding={5}
-          />
-        </Label>
-      )}
     </Group>
   );
 }

@@ -43,6 +43,7 @@ import MeasureReadout from './MeasureReadout.jsx';
 import TrackSizeInput from './TrackSizeInput.jsx';
 import SelectionPicker from './SelectionPicker.jsx';
 import PartNumberLayer from './PartNumberLayer.jsx';
+import HoverLabelLayer from './HoverLabelLayer.jsx';
 import WallFrame from './WallFrame.jsx';
 import WallContentLayer from './WallContentLayer.jsx';
 import WallOverlayLayer from './WallOverlayLayer.jsx';
@@ -604,6 +605,8 @@ function ElevationCanvas({
               />
             </Layer>
           )}
+          {/* EC2: above faces, dimensions and part numbers; the measure overlay stays on top of it. */}
+          <HoverLabelLayer room={room} resetKey={`${activeKey}:${tool}:${doorsOff}`} />
           <CenterPickOverlay
             width={viewport.width}
             height={viewport.height}
