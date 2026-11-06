@@ -286,16 +286,16 @@ describe('DM7 step d centred plan dimensions', () => {
           const run = { ...input.wall.runs.find((run) => run.wallSide === side), depth: runDepth };
           for (const planeBack of [0, -2]) {
             const depth = runDepth + 0.875;
-            const tree = nodes(PlanRunDepth({ ...input, frame, run: { ...run, _plane: { offset: planeBack } }, scale }));
+            const tree = nodes(PlanRunDepth({ ...input, frame, run: { ...run, _plane: { offset: planeBack } }, position: { x: 60 }, scale }));
             const label = tree.find(({ type, props }) => type === Text && props.fill === '#e2e8f0');
-            const dim = depthDimension(run, depth, scale, PLAN_DIM_FONT_SIZE * factor);
+            const dim = depthDimension(run, depth, scale, PLAN_DIM_FONT_SIZE * factor, 60);
             checkDepth(tree, label, elevationToPlan(frame, dim.x, planeBack), elevationToPlan(frame, dim.x, planeBack + depth), dim, frame, scale, planeBack, factor);
           }
           const recess = { id: 'projection', label: 'P1', kind: 'projection', wallSide: side,
             offset: 30, offsetFrom: 'left', width: 36, height: 36, bottom: 40, depth: projectionDepth };
           const tree = nodes(PlanRecessDepth({ ...input, frame, recess, scale }));
           const label = tree.find(({ type }) => type === Text);
-          const dim = depthDimension({ x: 57, width: 0 }, projectionDepth, scale, PLAN_DIM_FONT_SIZE * factor);
+          const dim = depthDimension({ x: 57, width: 0 }, projectionDepth, scale, PLAN_DIM_FONT_SIZE * factor, 57);
           checkDepth(tree, label, elevationToPlan(frame, 57, 0), elevationToPlan(frame, 57, projectionDepth), dim, frame, scale, 0, factor);
         }
       }

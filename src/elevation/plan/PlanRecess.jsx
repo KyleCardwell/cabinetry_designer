@@ -86,7 +86,7 @@ const TICK_HALF_LENGTH = 4;
 
 /** A projection's depth from the face, across it at `x` (Kyle 2026-10-16), drawn like a run's depth. */
 function projectionDepth(frame, depth, x, scale, factor) {
-  const dim = depthDimension({ x, width: 0 }, depth, scale, PLAN_DIM_FONT_SIZE * factor);
+  const dim = depthDimension({ x, width: 0 }, depth, scale, PLAN_DIM_FONT_SIZE * factor, x);
   const back = elevationToPlan(frame, x, 0);
   const front = elevationToPlan(frame, x, depth);
   const tick = TICK_HALF_LENGTH * factor / scale;

@@ -4,6 +4,7 @@ import { Circle, Rect, Stage, Text } from 'react-konva';
 import { createInitialElevationState } from '../../store/elevationSlice.js';
 import { auto, opening, room, run, wall } from '../../../test/builders.js';
 import { CABINET_TYPE_IDS } from '../../model/constants.js';
+import { planDepthPositions } from '../../model/planDepthPositions.js';
 import { wallFrame } from '../../model/geometry.js';
 import { textScales } from '../../canvas/textScale.js';
 import PlanCanvas from '../PlanCanvas.jsx';
@@ -217,14 +218,17 @@ it('anchor 3: fit 0.8, zoom 0.4 keeps factors 1/1 when zooming out', () => {
 
 it('anchor 4: doubling the depth font pops out a label that fitted, and spreads depth lanes', () => {
   const base = run({ x: 0, width: 120 });
-  const normal = depthDimension(base, 24, 2);
-  const larger = depthDimension(base, 24, 2, PLAN_DIM_FONT_SIZE * 2);
+  const normal = depthDimension(base, 24, 2, undefined, 60);
+  const larger = depthDimension(base, 24, 2, PLAN_DIM_FONT_SIZE * 2, 60);
   expect(normal.fits).toBe(true);
   expect(normal.leader).toBeNull();
   expect(larger.fits).toBe(false);
   expect(larger.leader).not.toBeNull();
   expect(larger.label.x - larger.x).toBeCloseTo((10 + 2 + PLAN_DIM_FONT_SIZE / 2) * 2 / 2);
   const upper = run({ ...base, cabinetTypeId: CABINET_TYPE_IDS.UPPER });
-  expect(depthDimension(upper, 24, 2, PLAN_DIM_FONT_SIZE * 2).x - base.width / 2).toBe(-28);
-  expect(depthDimension(upper, 24, 2).x - base.width / 2).toBe(-14);
+  const input = room({ walls: [wall({ runs: [upper] })] });
+  for (const factor of [1, 2]) {
+    const positions = planDepthPositions(input, state.settings, { laneShift: 14 * factor, gap: 14 * factor, margin: 3 });
+    expect(positions.get(upper.id).x - base.width / 2).toBe(-14 * factor);
+  }
 });

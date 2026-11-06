@@ -3,6 +3,7 @@ import { expect, it, vi } from 'vitest';
 import { Group, Line, Text } from 'react-konva';
 import { room as makeRoom, wall as makeWall } from '../../../test/builders.js';
 import { KIND_COLORS } from '../../model/constants.js';
+import { planDepthPositions } from '../../model/planDepthPositions.js';
 import { syncRoom } from '../../model/room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
 import PlanClearances from '../PlanClearances.jsx';
@@ -82,15 +83,18 @@ it('anchor 2: every dimension follows all G2 parts, end panels and soffits in on
     .forEach(({ key }) => expect(key.endsWith(':dim')).toBe(true));
 });
 
-it('anchor 3: G6 footprints have no depth labels and their siblings preserve captured drawing props', () => {
+it('anchor 3: G6 footprints have no depth labels and their siblings preserve captured text styling', () => {
   for (const scale of [2, 4]) {
     const props = sceneProps(golden('G6'), scale);
+    const positions = planDepthPositions(props.room, settings, { laneShift: 56 / scale, gap: 56 / scale, margin: 6 / scale });
     for (const entry of props.orderedFootprints) {
       const captured = before[`G6:${scale}`].find(({ runId }) => runId === entry.run.id).props;
       const footprint = nodes(PlanRunFootprint({ ...props, ...entry }));
       expect(footprint.some(({ type, props }) => type === Text && props.text === captured.text)).toBe(false);
-      const depth = nodes(PlanRunDepth({ ...props, ...entry }));
-      expect(depth.find(({ type }) => type === Text).props).toEqual(captured);
+      const depth = nodes(PlanRunDepth({ ...props, ...entry, position: positions.get(entry.run.id) }));
+      const { x, y, ...style } = depth.find(({ type }) => type === Text).props;
+      expect({ ...style, x: captured.x, y: captured.y }).toEqual(captured);
+      expect(Number.isFinite(x) && Number.isFinite(y)).toBe(true);
     }
   }
 });
@@ -114,7 +118,7 @@ it('keeps the extracted dimensions non-listening, including projection depths', 
   expect(nodes(PlanRecess(recessProps)).filter(({ type }) => type === Text)).toHaveLength(1);
   const projection = PlanRecessDepth(recessProps);
   expect(nodes(projection).find(({ type }) => type === Text).props.text).toBe('8');
-  const trees = [projection, PlanRunDepth({ ...props, ...entry }), PlanWallDimensions({ ...props, wall: entry.wall })];
+  const trees = [projection, PlanRunDepth({ ...props, ...entry, position: { x: entry.run.x + entry.run.width / 2 } }), PlanWallDimensions({ ...props, wall: entry.wall })];
   for (const tree of trees) {
     expect(tree.props.listening).toBe(false);
     nodes(tree).forEach(({ props }) => {

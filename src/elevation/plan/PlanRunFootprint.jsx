@@ -9,11 +9,12 @@ import {
 } from '../model/constants.js';
 import { frontDepth } from '../model/corners.js';
 import { runFaceLayouts } from '../model/faceLayouts.js';
-import { elevationToPlan } from '../model/geometry.js';
+import { elevationToPlan, planPointToWallX } from '../model/geometry.js';
 import { planRunPieces } from '../model/planPieces.js';
 import { splitOptionsForRun } from '../model/index.js';
 import { splitRun } from '../model/splitRun.js';
 import { formatDimension } from '../model/units.js';
+import { wallSideFrame } from '../model/wallSides.js';
 import { PLAN_BACKGROUND_COLOR, PLAN_DIM_FONT_SIZE } from './constants.js';
 import { depthDimension } from './depthDimension.js';
 import PlanLegs from './PlanLegs.jsx';
@@ -73,13 +74,13 @@ function planPiecePoints(frame, piece) {
     : depthRangePoints(frame, piece);
 }
 
-function runDepthLayout(run, settings, scale, text) {
+function runDepthLayout(run, settings, scale, text, x) {
   const factor = text?.label ?? 1;
   // From the plane the run sits on (SPEC-38): the wall face, or a recess back.
   const planeBack = run._plane?.offset ?? 0;
   const depth = frontDepth(run, settings) - planeBack;
-  const dim = depthDimension(run, depth, scale, PLAN_DIM_FONT_SIZE * factor);
-  return { factor, planeBack, depth, dim };
+  const dim = depthDimension(run, depth, scale, PLAN_DIM_FONT_SIZE * factor, x);
+  return { planeBack, depth, dim };
 }
 
 export default function PlanRunFootprint({
@@ -98,7 +99,7 @@ export default function PlanRunFootprint({
   onContextMenu,
   cursor,
 }) {
-  const { factor } = runDepthLayout(run, settings, scale, text);
+  const factor = text?.label ?? 1;
   const [hovered, setHovered] = useState(false);
   const cursorKeys = useCursorKeys(cursor);
   const layout = splitRun(run, settings, splitOptionsForRun(room, wall, run, settings));
@@ -248,25 +249,50 @@ export default function PlanRunFootprint({
   );
 }
 
-export function PlanRunDepth({ frame, run, settings, scale, text }) {
-  const { factor, planeBack, depth, dim } = runDepthLayout(run, settings, scale, text);
+export function PlanRunDepth({ frame, room, wall, run, position, depthLabels, settings, scale, text }) {
+  if (!position || (position.pair && position.pair.front !== run.id)) return null;
+  const factor = text?.label ?? 1;
   const depthFontSize = PLAN_DIM_FONT_SIZE * factor / scale;
-  const depthText = formatDimension(depth);
-  const depthTextWidth = (depthText.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
-  const dimensionBack = elevationToPlan(frame, dim.x, planeBack);
-  const dimensionFront = elevationToPlan(frame, dim.x, planeBack + depth);
-  const depthLabelLocation = elevationToPlan(frame, dim.label.x, planeBack + dim.label.offset);
+  const entries = [{ frame, run, x: position.x }];
+  if (position.pair) {
+    const backFrame = wallSideFrame(room, wall, 'back');
+    entries.unshift({
+      frame: backFrame,
+      run: wall.runs.find(({ id }) => id === position.pair.back),
+      x: planPointToWallX(backFrame, elevationToPlan(frame, position.x, 0)),
+    });
+  }
+  const segments = entries.map(({ frame, run, x }) => {
+    const layout = runDepthLayout(run, settings, scale, text, x);
+    const { planeBack, depth } = layout;
+    const dim = depthLabels?.get(run.id) ?? layout.dim;
+    const depthText = formatDimension(depth);
+    const depthTextWidth = (depthText.length * 0.6 * PLAN_DIM_FONT_SIZE + 8) * factor / scale;
+    return {
+      frame, run, planeBack, dim, depthText, depthTextWidth,
+      back: elevationToPlan(frame, x, planeBack),
+      front: elevationToPlan(frame, x, planeBack + depth),
+      label: elevationToPlan(frame, dim.label.x, planeBack + dim.label.offset),
+    };
+  });
+  const dimensionBack = position.pair ? segments[0].front : segments[0].back;
+  const dimensionFront = segments.at(-1).front;
+  const ticks = position.pair
+    ? [dimensionBack, elevationToPlan(segments[0].frame, entries[0].x, 0),
+      ...(wall.thickness > 0 ? [elevationToPlan(frame, position.x, 0)] : []), dimensionFront]
+    : [dimensionBack, dimensionFront];
   // Ticks grow with the depth text, which follows text.label (TX1).
   const tickHalf = DEPTH_TICK_HALF_LENGTH * factor / scale;
   const tickDirection = {
     x: (frame.n.x + frame.r.x) / Math.SQRT2,
     y: (frame.n.y + frame.r.y) / Math.SQRT2,
   };
-  const depthAngle = Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI;
-  const depthRotation = readableRotation(depthAngle);
-  const depthLinePieces = dim.fits
-    ? gappedLine(dimensionBack, dimensionFront, depthLabelLocation, depthTextWidth / 2, 0.5 / scale)
-    : [linePoints([dimensionBack, dimensionFront])];
+  let depthLinePieces = [linePoints([dimensionBack, dimensionFront])];
+  for (const segment of segments.filter(({ dim }) => dim.fits)) {
+    depthLinePieces = depthLinePieces.flatMap(([x1, y1, x2, y2]) => gappedLine(
+      { x: x1, y: y1 }, { x: x2, y: y2 }, segment.label, segment.depthTextWidth / 2, 0.5 / scale,
+    ));
+  }
 
   return (
     <Group listening={false}>
@@ -279,7 +305,7 @@ export function PlanRunDepth({ frame, run, settings, scale, text }) {
           listening={false}
         />
       ))}
-      {[dimensionBack, dimensionFront].map((point, index) => (
+      {ticks.map((point, index) => (
         <Line
           key={`depth-tick:${index}`}
           points={[
@@ -293,8 +319,9 @@ export function PlanRunDepth({ frame, run, settings, scale, text }) {
           listening={false}
         />
       ))}
-      {dim.leader && (
+      {segments.map(({ frame, run, planeBack, dim }) => dim.leader && (
         <Line
+          key={`depth-leader:${run.id}`}
           points={linePoints([
             elevationToPlan(frame, dim.leader.x1, planeBack + dim.leader.offset),
             elevationToPlan(frame, dim.leader.x2, planeBack + dim.leader.offset),
@@ -303,20 +330,23 @@ export function PlanRunDepth({ frame, run, settings, scale, text }) {
           strokeWidth={0.75 / scale}
           listening={false}
         />
-      )}
-      <Text
-        x={depthLabelLocation.x}
-        y={depthLabelLocation.y}
-        width={depthTextWidth}
-        offsetX={depthTextWidth / 2}
-        offsetY={depthFontSize / 2}
-        rotation={depthRotation}
-        align="center"
-        text={depthText}
-        fontSize={depthFontSize}
-        fill="#e2e8f0"
-        listening={false}
-      />
+      ))}
+      {segments.map(({ frame, run, label, depthText, depthTextWidth }) => (
+        <Text
+          key={`depth-text:${run.id}`}
+          x={label.x}
+          y={label.y}
+          width={depthTextWidth}
+          offsetX={depthTextWidth / 2}
+          offsetY={depthFontSize / 2}
+          rotation={readableRotation(Math.atan2(frame.n.y, frame.n.x) * 180 / Math.PI)}
+          align="center"
+          text={depthText}
+          fontSize={depthFontSize}
+          fill="#e2e8f0"
+          listening={false}
+        />
+      ))}
     </Group>
   );
 }

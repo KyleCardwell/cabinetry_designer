@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { Group, Line } from 'react-konva';
 import { CABINET_TYPE_IDS, KIND_COLORS } from '../model/constants.js';
 import { elevationToPlan } from '../model/geometry.js';
+import { planDepthPositions } from '../model/planDepthPositions.js';
 import { wallEndPanelPolygon, wallEndPanels } from '../model/wallEndPanels.js';
 import { wallSideFrame } from '../model/wallSides.js';
 import PlanClearances from './PlanClearances.jsx';
@@ -10,6 +12,8 @@ import PlanWallShape, { PlanWallDimensions } from './PlanWallShape.jsx';
 import PlanRunFootprint, { PlanRunDepth } from './PlanRunFootprint.jsx';
 import PlanTops from './PlanTops.jsx';
 import PlanTopOverhangs from './PlanTopOverhangs.jsx';
+import { PLAN_DIM_FONT_SIZE } from './constants.js';
+import { planDepthLabels } from './depthDimension.js';
 
 export default function PlanScene({
   walls,
@@ -34,6 +38,15 @@ export default function PlanScene({
   handleRunContextMenu,
   clearances,
 }) {
+  const factor = text?.label ?? 1;
+  const { depthPositions, depthLabels } = useMemo(() => {
+    const gap = 28 * factor / scale;
+    const depthPositions = planDepthPositions(room, settings, { laneShift: gap, gap, margin: 6 / scale });
+    const depthLabels = planDepthLabels(room, settings, depthPositions, {
+      scale, fontSize: PLAN_DIM_FONT_SIZE * factor, gap,
+    });
+    return { depthPositions, depthLabels };
+  }, [room, settings, scale, factor]);
   const firstUpper = orderedFootprints.findIndex(({ run }) => (
     run.cabinetTypeId === CABINET_TYPE_IDS.UPPER
   ));
@@ -164,11 +177,15 @@ export default function PlanScene({
             text={text}
           />
         )))}
-        {orderedFootprints.map(({ frame, run }) => (
+        {orderedFootprints.map(({ frame, wall, run }) => (
           <PlanRunDepth
             key={`${run.id}:dim`}
             frame={frame}
+            room={room}
+            wall={wall}
             run={run}
+            position={depthPositions.get(run.id)}
+            depthLabels={depthLabels}
             settings={settings}
             scale={scale}
             text={text}
