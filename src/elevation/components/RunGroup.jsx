@@ -16,6 +16,7 @@ import { runItems } from '../model/grid.js';
 import { isFollowAnchor, isJointAnchor } from '../model/joints.js';
 import { placedAt } from '../model/layoutLines.js';
 import { runLegs } from '../model/legs.js';
+import { runLegFills } from '../model/legFills.js';
 import { centerlineMarkers } from '../model/dimensions.js';
 import { runStepSides } from '../model/columnSteps.js';
 import { runBands } from '../model/runBands.js';
@@ -82,6 +83,7 @@ function RunGroup({
   const highlight = runHighlight(selectedRun, selectedPieceId, selectedFacePath);
   const scene = useMemo(() => runScene(room, wall, run, settings), [room, run, settings, wall]);
   const legs = useMemo(() => runLegs(room, wall, run, settings), [room, wall, run, settings]);
+  const legFills = useMemo(() => runLegFills(room, wall, run, settings), [room, wall, run, settings]);
   const legFront = frontDepth(run, settings) - 1e-6;
   const drawing = doorDrawing(room);
   const doorDetails = useMemo(
@@ -262,6 +264,11 @@ function RunGroup({
   return (
     <Group opacity={preview ? 0.72 : 1}>
       <LegShapes {...legProps} legs={legs.filter(({ front }) => front < legFront)} />
+      {legFills.map(({ id, leg, bounds }) => (
+        <Rect key={id} {...toScreen(bounds)} fill="#cbd5e1" stroke="#1e293b" strokeWidth={1}
+          listening={legProps.listening} onClick={(event) => legProps.onSelect(event, leg)}
+          onMouseEnter={legProps.onMouseEnter} onMouseLeave={legProps.onMouseLeave} />
+      ))}
       {bands.toeKicks.map((band, index) => (
         <Rect
           key={`toeKick:${index}`}

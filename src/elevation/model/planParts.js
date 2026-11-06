@@ -1,6 +1,7 @@
 import { cellPieces } from './cells.js';
 import { layoutRun, runFaceLayouts } from './faceLayouts.js';
 import { runLegs } from './legs.js';
+import { runLegFills } from './legFills.js';
 import { elevationToPlan, wallFrame } from './geometry.js';
 import { openingGeometry } from './openings.js';
 import { wallEndPanelPartKey } from './parts.js';
@@ -154,6 +155,10 @@ export function planParts(room, settings) {
       for (const range of faces) addRange(range, range.kind);
       for (const range of returns) addRange(range, 'filler');
       for (const leg of waterfallLegs) addRange(leg, leg.kind);
+      for (const { id, type, bounds, back, front } of runLegFills(room, wall, run, settings)) {
+        addRange({ key: id, start: bounds.x, end: bounds.x + bounds.width, back, front,
+          top: bounds.z + bounds.height }, type === 'panel' ? 'end_panel' : 'filler');
+      }
     }
   }
   for (const { wallId, loops } of planTops(room, settings)) {

@@ -22,6 +22,7 @@ import { wallShowThrough } from './showThrough.js';
 import { glassMarks } from './glassMarks.js';
 import { openingGeometry } from './openings.js';
 import { runLegs } from './legs.js';
+import { runLegFills } from './legFills.js';
 
 export const DRAWING_PAYLOAD_VERSION = 1;
 
@@ -97,6 +98,11 @@ export function faceDrawing(room, wall, side, settings, options) {
     id: leg.id, kind: 'leg', runId, ...bounds, front, back,
     coversBoxEdges: false, opaque: false, openEdges: ['left', 'right', 'top', 'bottom'],
   })));
+  parts.push(...view.runs.flatMap((run) => runLegFills(room, view, run, settings)
+    .map(({ id, type, bounds, front, back }) => ({
+      id, kind: type === 'panel' ? 'end_panel' : 'filler', runId: run.id, ...bounds, front, back,
+      coversBoxEdges: type === 'filler',
+    }))));
   const partIds = new Set(parts.map(({ id }) => id));
   const doorDetails = faceDoorDetails(room, wall, side, settings, sourceParts);
   const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);
