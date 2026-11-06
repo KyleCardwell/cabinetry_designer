@@ -107,3 +107,33 @@ export function legWarningSubject(run, leg) {
     ? { name: `${leg.end.side === 'left' ? 'Left' : 'Right'} ${leg.end.edge} leg` }
     : { index: run.legs.indexOf(leg) + 1 };
 }
+
+/** Presets replace the ends they name; One adds an ordinary hand-placed leg. */
+export function legPresetEnds(preset, { shapeId, square, height = 'full', sitsOn, fit,
+  proud = 0, backOffset = 0, leaveOut }, newId) {
+  const spec = (edge) => ({
+    ...(square ? { square: { ...square } } : { shapeId }), height, x: 0,
+    y: edge === 'front' ? proud : backOffset, ...(sitsOn ? { sitsOn } : {}),
+  });
+  if (preset === 'one') return { endLegs: {}, legs: [{
+    id: newId(), ...spec('front'), from: 'left', yFrom: 'front', mirror: true,
+  }] };
+  const corners = {
+    four: ['LF', 'LB', 'RF', 'RB'], front: ['LF', 'RF'],
+    three: ['LF', 'LB', 'RF', 'RB'].filter((corner) => corner !== leaveOut),
+    left: ['LF', 'LB'], right: ['RF', 'RB'],
+  }[preset] ?? [];
+  const endLegs = {};
+  for (const [side, letter] of [['left', 'L'], ['right', 'R']]) {
+    const front = corners.includes(`${letter}F`);
+    const back = corners.includes(`${letter}B`);
+    if (!front && !back) continue;
+    endLegs[side] = {
+      legs: front && back ? 'both' : front ? 'front' : 'back',
+      ...(front ? { front: spec('front') } : {}), ...(back ? { back: spec('back') } : {}),
+      ...(fit === 'panel' && front && back ? { fit: 'between' } : {}),
+      ...(fit === 'filler' && front ? { fit: 'behind' } : {}),
+    };
+  }
+  return { endLegs, legs: [] };
+}

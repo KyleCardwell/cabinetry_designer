@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { endFit, endLegList, endPieceType, isEndLegs, isLeg, isLegList, runLegList } from '../index.js';
+import { legPresetEnds } from '../endLegs.js';
 import { flipRunsForWall } from '../room.js';
 import { isRoom } from '../../store/documentValidation.js';
 import { room, run, wall } from '../../../test/builders.js';
@@ -175,5 +176,76 @@ describe('SH7.5 step a run end legs data', () => {
     expect(isLeg({ ...L, fill: { type: 'filler', returns: 'both' } })).toBe(false);
     expect(isLeg({ ...L, extra: true })).toBe(true);
     expect(isLeg(null)).toBe(false);
+  });
+});
+
+describe('SH7.5 step c end-leg presets', () => {
+  it('anchor 9: Three keeps the remaining corners without storing unused specs', () => {
+    const spec = { square: {}, height: 'full', x: 0, y: 0 };
+    const both = { legs: 'both', front: spec, back: spec };
+    expect(legPresetEnds('three', { square: {}, leaveOut: 'RB' })).toEqual({
+      endLegs: { left: both, right: { legs: 'front', front: spec } }, legs: [],
+    });
+    expect(legPresetEnds('three', { square: {}, leaveOut: 'LF' })).toEqual({
+      endLegs: { left: { legs: 'back', back: spec }, right: both }, legs: [],
+    });
+    for (const leaveOut of ['LF', 'LB', 'RF', 'RB']) {
+      for (const fit of ['panel', 'filler']) {
+        const result = legPresetEnds('three', { square: {}, leaveOut, fit });
+        expect(isEndLegs(result.endLegs)).toBe(true);
+        expect(endLegList({ ...R, ...result })).toHaveLength(3);
+        for (const end of Object.values(result.endLegs)) {
+          expect(end.fit).toBe(fit === 'panel' ? (end.legs === 'both' ? 'between' : undefined)
+            : end.front ? 'behind' : undefined);
+        }
+      }
+    }
+  });
+
+  it('anchor 10: Front two allows filler fits and omits panel fits', () => {
+    const spec = { ...S };
+    for (const fit of [undefined, 'panel', 'filler']) {
+      const end = { legs: 'front', front: spec, ...(fit === 'filler' ? { fit: 'behind' } : {}) };
+      const result = legPresetEnds('front', { shapeId: 'leg', fit });
+      expect(result).toEqual({ endLegs: { left: end, right: end }, legs: [] });
+      if (fit !== 'filler') {
+        for (const value of Object.values(result.endLegs)) expect(value).not.toHaveProperty('fit');
+      }
+    }
+  });
+
+  it('anchor 11: One requests one id and creates a mirrored hand leg without an end or fill', () => {
+    let calls = 0;
+    const newId = () => { calls += 1; return 'h1'; };
+    expect(legPresetEnds('one', { shapeId: 'leg', proud: 1 }, newId)).toEqual({ endLegs: {}, legs: [{
+      id: 'h1', shapeId: 'leg', height: 'full', from: 'left', x: 0, yFrom: 'front', y: 1, mirror: true,
+    }] });
+    expect(calls).toBe(1);
+    const result = legPresetEnds('one', { square: { w: 2 }, height: 'feet', sitsOn: 'base',
+      proud: -1, backOffset: 5, fit: 'panel' }, newId);
+    expect(result.endLegs).toEqual({});
+    expect(result.legs).toEqual([{ id: 'h1', square: { w: 2 }, height: 'feet', sitsOn: 'base',
+      from: 'left', x: 0, yFrom: 'front', y: -1, mirror: true }]);
+    expect(isLegList(result.legs)).toBe(true);
+  });
+
+  it('builds Four and free-end presets with independent specs, offsets, heights and supports', () => {
+    const options = { square: { w: 2.5, d: 4 }, height: 20, sitsOn: 'countertop', proud: 1, backOffset: -2, fit: 'panel' };
+    const before = structuredClone(options);
+    for (const [preset, sides] of [['four', ['left', 'right']], ['left', ['left']], ['right', ['right']]]) {
+      const result = legPresetEnds(preset, options, () => { throw new Error('End presets need no ids'); });
+      expect(Object.keys(result.endLegs)).toEqual(sides);
+      expect(result.legs).toEqual([]);
+      expect(isEndLegs(result.endLegs)).toBe(true);
+      for (const end of Object.values(result.endLegs)) {
+        expect(end).toEqual({ legs: 'both', fit: 'between',
+          front: { square: { w: 2.5, d: 4 }, height: 20, x: 0, y: 1, sitsOn: 'countertop' },
+          back: { square: { w: 2.5, d: 4 }, height: 20, x: 0, y: -2, sitsOn: 'countertop' } });
+        expect(end.front).not.toBe(end.back);
+        expect(end.front.square).not.toBe(end.back.square);
+        expect(end.front.square).not.toBe(options.square);
+      }
+    }
+    expect(options).toEqual(before);
   });
 });

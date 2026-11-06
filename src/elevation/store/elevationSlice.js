@@ -182,6 +182,8 @@ export const {
   updateBaseCutout,
   removeBaseCutout,
   addRunLegs,
+  setRunEndLegs,
+  applyRunLegPreset,
   updateRunLeg,
   removeRunLeg,
   addTopSegment,

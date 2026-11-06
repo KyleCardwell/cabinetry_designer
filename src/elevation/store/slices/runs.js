@@ -1,3 +1,5 @@
+import { isPlainObject } from '@reduxjs/toolkit';
+import { endFit, isEndLegs } from '../../model/endLegs.js';
 import { cellWidthsBlocker } from '../../model/cellWidths.js';
 import { isLegList } from '../../model/legs.js';
 import { applyRunWidthChoice as applyRunWidthChoicePure } from '../../model/runWidthChoices.js';
@@ -35,6 +37,28 @@ function validRunLegs({ room, run }, legs) {
   const otherIds = new Set(room.walls.flatMap((wall) => wall.runs
     .filter((other) => other.id !== run.id).flatMap((other) => (other.legs ?? []).map((leg) => leg.id))));
   return legs.every((leg) => !otherIds.has(leg.id));
+}
+
+/** Build and validate the entire end change before touching the stored run. */
+function withRunEndLegs(run, side, value) {
+  if (side !== 'left' && side !== 'right') return null;
+  const next = { ...run, endLegs: { ...run.endLegs } };
+  if (!value?.legs) delete next.endLegs[side];
+  else {
+    const end = { ...value };
+    if ((end.fit === 'between' && end.legs !== 'both')
+      || (end.fit === 'behind' && !['front', 'both'].includes(end.legs))) delete end.fit;
+    if (end.fit !== 'between') delete end.panel;
+    next.endLegs[side] = end;
+  }
+  if (!Object.keys(next.endLegs).length) delete next.endLegs;
+  else if (!isEndLegs(next.endLegs)) return null;
+  const fit = next.endLegs?.[side]?.fit;
+  const previous = endFit(run, side);
+  if (fit || previous) next.ends = { ...run.ends, [side]: {
+    type: fit ? 'none' : previous === 'between' ? 'end_panel' : 'filler', width: null,
+  } };
+  return next;
 }
 
 export const runReducers = {
@@ -100,6 +124,16 @@ export const runReducers = {
     if (end.type !== 'blind') location.run.grid = setGridBlind(location.run.grid, side, null);
     if (end.type === 'none' || (end.type === 'end_panel' && previous !== 'end_panel')) {
       if (location.run.endFiller) location.run.endFiller[side] = null;
+    }
+    const legs = location.run.endLegs?.[side];
+    if (legs) {
+      if (end.type === 'blind') {
+        delete location.run.endLegs[side];
+        if (!Object.keys(location.run.endLegs).length) delete location.run.endLegs;
+      } else {
+        delete legs.fit;
+        delete legs.panel;
+      }
     }
     syncRoomAt(state, location.roomIndex);
   },
@@ -180,13 +214,39 @@ export const runReducers = {
     const legs = [...(location.run.legs ?? []), ...action.payload.legs];
     if (validRunLegs(location, legs)) location.run.legs = legs;
   },
+  setRunEndLegs(state, action) {
+    const location = runLocation(state, action.payload);
+    if (!location) return;
+    const next = withRunEndLegs(location.run, action.payload.side, action.payload.endLegs);
+    if (!next) return;
+    const endsChanged = next.ends !== location.run.ends;
+    location.wall.runs[location.runIndex] = next;
+    // Changing the end piece also refreshes derived end thickness and cabinet layout.
+    if (endsChanged) syncRoomAt(state, location.roomIndex);
+  },
+  applyRunLegPreset(state, action) {
+    const location = runLocation(state, action.payload);
+    const { endLegs = {}, legs = [] } = action.payload;
+    if (!location || !isPlainObject(endLegs) || !Array.isArray(legs)) return;
+    const appended = [...(location.run.legs ?? []), ...legs];
+    if (legs.length && !validRunLegs(location, appended)) return;
+    let next = location.run;
+    for (const [side, value] of Object.entries(endLegs)) {
+      next = withRunEndLegs(next, side, value);
+      if (!next) return;
+    }
+    if (legs.length) next = { ...next, legs: appended };
+    const endsChanged = next.ends !== location.run.ends;
+    location.wall.runs[location.runIndex] = next;
+    if (endsChanged) syncRoomAt(state, location.roomIndex);
+  },
   updateRunLeg(state, action) {
     const location = runLocation(state, action.payload);
     if (!location?.run.legs) return;
     const { legId, changes } = action.payload;
     const legs = location.run.legs.map((leg) => leg.id === legId
       ? Object.fromEntries(Object.entries({ ...leg, ...changes })
-        .filter(([key, value]) => !['shapeId', 'square', 'mirror', 'mirrorDepth', 'takesRoom', 'sitsOn', 'fill'].includes(key) || value !== undefined)) : leg);
+        .filter(([key, value]) => !['shapeId', 'square', 'mirror', 'mirrorDepth', 'takesRoom', 'sitsOn'].includes(key) || value !== undefined)) : leg);
     if (validRunLegs(location, legs)) location.run.legs = legs;
   },
   removeRunLeg(state, action) {
