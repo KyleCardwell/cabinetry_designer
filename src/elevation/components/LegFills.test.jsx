@@ -57,11 +57,12 @@ describe('SH7.2 step c canvas leg fills', () => {
   });
 
   it('maps panel and filler plan rectangles on rotated and back faces, using the leg selection handler', () => {
-    for (const type of ['panel', 'filler']) {
+    for (const fill of [{ type: 'panel' }, { type: 'filler' }, { type: 'panel', returns: 'both' }]) {
+      const { type } = fill;
       for (const wallSide of ['front', 'back']) {
         for (const rotated of [false, true]) {
           const r = run({ x: 10, width: 36, wallSide,
-            legs: four.map((leg, i) => i === 0 ? { ...leg, fill: { type } } : leg) });
+            legs: four.map((leg, i) => i === 0 ? { ...leg, fill } : leg) });
           const w = wall({ x1: 7, y1: 11, x2: rotated ? 7 : 151, y2: rotated ? 155 : 11, runs: [r] });
           const input = room({ walls: [w] });
           const frame = wallSideFrame(input, w, wallSide);
@@ -72,6 +73,10 @@ describe('SH7.2 step c canvas leg fills', () => {
             ? [['LF:fill', [[10.25, 3.5], [11.0625, 3.5], [11.0625, 21.875], [10.25, 21.875]]]]
             : [['LF:fill', [[10, 21.0625], [13.5, 21.0625], [13.5, 21.875], [10, 21.875]]],
               ['LF:fill:return', [[12.75, 18.6875], [13.5, 18.6875], [13.5, 21.1875], [12.75, 21.1875]]]];
+          if (fill.returns) expectedFills.push(
+            ['LF:fill:return-front', [[11.0625, 21.0625], [14.75, 21.0625], [14.75, 21.875], [11.0625, 21.875]]],
+            ['LF:fill:return-back', [[11.0625, 3.5], [14.75, 3.5], [14.75, 4.3125], [11.0625, 4.3125]]],
+          );
           expect(shapes.filter(({ key }) => key.startsWith('LF:fill'))).toHaveLength(expectedFills.length);
           for (const [id, points] of expectedFills) {
             const fill = shapes.find(({ key }) => key === id);
@@ -92,6 +97,35 @@ describe('SH7.2 step c canvas leg fills', () => {
             fill.props.onClick(event);
             expect(onSelect).toHaveBeenCalledWith(event);
           }
+        }
+      }
+    }
+  });
+
+  it('draws returns immediately before their panel with its style, height, selection and preview behavior', () => {
+    for (const [index, x] of [[0, 64.25], [2, 185]]) {
+      for (const preview of [false, true]) {
+        const r = run({ x: 10, width: 36,
+          legs: four.map((leg, i) => i === index
+            ? { ...leg, fill: { type: 'panel', returns: 'both', bottom: 1, top: 2 } } : leg) });
+        const w = wall({ runs: [r] });
+        const onSelectRun = vi.fn();
+        const tree = nodes(RunGroup.type({ room: room({ walls: [w] }), wall: w, run: r,
+          settings, transform, preview, onSelectRun }));
+        const id = `${four[index].id}:fill`;
+        const panelIndex = tree.findIndex(({ key }) => key === id);
+        expect(tree.slice(panelIndex - 2, panelIndex).map(({ key }) => key))
+          .toEqual([`${id}:return-front`, `${id}:return-back`]);
+        for (const node of tree.slice(panelIndex - 2, panelIndex)) {
+          expect(node.type).toBe(Rect);
+          expect(node.props).toMatchObject({ x, y: 284, width: 14.75, height: 126,
+            fill: '#cbd5e1', stroke: '#1e293b', strokeWidth: 1, listening: !preview });
+          const event = {};
+          node.props.onClick(event);
+          expect(event.cancelBubble).toBe(true);
+          expect(onSelectRun).toHaveBeenLastCalledWith(r.id, { legId: four[index].id });
+          expect(node.props.onMouseEnter).toBe(tree[panelIndex].props.onMouseEnter);
+          expect(node.props.onMouseLeave).toBe(tree[panelIndex].props.onMouseLeave);
         }
       }
     }

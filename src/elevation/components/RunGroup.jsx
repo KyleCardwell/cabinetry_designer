@@ -264,7 +264,11 @@ function RunGroup({
   return (
     <Group opacity={preview ? 0.72 : 1}>
       <LegShapes {...legProps} legs={legs.filter(({ front }) => front < legFront)} />
-      {legFills.map(({ id, leg, bounds }) => (
+      {legFills.flatMap(({ id, leg, bounds, returns = [] }) => [
+        ...returns.map(({ edge, start, end }) => ({ id: `${id}:return-${edge}`, leg,
+          bounds: { x: start, width: end - start, z: bounds.z, height: bounds.height } })),
+        { id, leg, bounds },
+      ]).map(({ id, leg, bounds }) => (
         <Rect key={id} {...toScreen(bounds)} fill="#cbd5e1" stroke="#1e293b" strokeWidth={1}
           listening={legProps.listening} onClick={(event) => legProps.onSelect(event, leg)}
           onMouseEnter={legProps.onMouseEnter} onMouseLeave={legProps.onMouseLeave} />

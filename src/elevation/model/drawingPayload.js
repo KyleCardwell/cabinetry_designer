@@ -99,11 +99,15 @@ export function faceDrawing(room, wall, side, settings, options) {
     coversBoxEdges: false, opaque: false, openEdges: ['left', 'right', 'top', 'bottom'],
   })));
   parts.push(...view.runs.flatMap((run) => runLegFills(room, view, run, settings)
-    .map(({ id, type, bounds, front, back, face }) => ({
+    .flatMap(({ id, type, bounds, front, back, face, returns = [] }) => [{
       id, kind: type === 'panel' ? 'end_panel' : 'filler', runId: run.id, ...bounds,
       front: face?.front ?? front, back: face?.back ?? back,
       coversBoxEdges: type === 'filler',
-    }))));
+    }, ...returns.map(({ edge, start, end, front, back }) => ({
+      id: `${id}:return-${edge}`, kind: 'end_panel', runId: run.id,
+      x: start, width: end - start, z: bounds.z, height: bounds.height, front, back,
+      coversBoxEdges: false,
+    }))])));
   const partIds = new Set(parts.map(({ id }) => id));
   const doorDetails = faceDoorDetails(room, wall, side, settings, sourceParts);
   const swingMarks = elevationSwingMarks(room, wall, side, settings, partIds);

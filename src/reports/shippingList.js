@@ -294,9 +294,9 @@ function orderedThickness(drawn, style) {
 
 function shippingSize(room, settings, part, context) {
   if (part.kind === 'leg_panel' || part.kind === 'leg_filler') {
-    const { depth, bounds, thickness, orderedDepth } = context.fill;
+    const { depth, bounds, thickness, orderedDepth, returns, returnDepth } = context.fill;
     return part.kind === 'leg_filler' ? formatSize(bounds.width, bounds.height, orderedDepth)
-      : formatSize(depth, bounds.height, thickness);
+      : formatSize(depth, bounds.height, returns?.length ? returnDepth : thickness);
   }
   if (part.kind === 'leg') {
     const { w, h, d } = context.leg.size;
@@ -470,7 +470,13 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
       ...nosings];
   }
   // Scribe is already in the ordered size, so it gets no note of its own (Kyle 2026-10-23).
-  if (['filler', 'end_panel'].includes(part.kind)) {
+  if (part.kind === 'leg_panel') {
+    const count = context.fill.returns.length;
+    groups[8] = count === 2 ? 'C-shape' : count === 1 ? 'L-shape' : null;
+  } else if (part.kind === 'leg_filler') {
+    const { orderedDepth, thickness } = context.fill;
+    groups[8] = orderedDepth > thickness ? 'L-shape' : null;
+  } else if (['filler', 'end_panel'].includes(part.kind)) {
     const tee = scene.tees.find((tee) => tee.id === part.key || tee.pieceId === part.key);
     const notes = shapeNotes.get(tee?.id ?? part.key) ?? [];
     groups[8] = notes.filter((note) => note.startsWith('T-shape') || note === 'L-shape');
