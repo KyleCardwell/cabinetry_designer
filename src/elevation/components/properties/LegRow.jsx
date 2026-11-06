@@ -140,16 +140,15 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
       <div className="mt-2 grid grid-cols-2 gap-2">
         <LegFillSelect value={leg.fill?.type} label={`${label} Fill`}
           onChange={(type) => update({ fill: type ? { type } : undefined })} />
-        {leg.fill && [
-          ['inset', leg.fill.type === 'panel' ? 'Reveal' : 'Setback', 'legPanelReveal'],
-          ...(leg.fill.type === 'filler' ? [['thickness', 'Thickness', 'fillerThickness']] : []),
+        {leg.fill?.type === 'panel' && [
+          ['inset', 'Reveal', 'legPanelReveal'],
           ['top', 'Top clearance', 'legPanelTopClearance'],
           ['bottom', 'Bottom clearance', 'legPanelBottomClearance'],
         ].map(([key, text, setting]) => (
           <Field key={key} label={text}>
             <CoordInput aria-label={`${label} ${text}`} value={leg.fill[key]} allowBlank
               placeholder={formatProfileCoord(settings[setting])} onCommit={(value) => {
-                if (value !== undefined && (!Number.isFinite(value) || (key === 'thickness' ? value <= 0 : value < 0))) return false;
+                if (value !== undefined && (!Number.isFinite(value) || value < 0)) return false;
                 updateFill(key, value);
               }} />
           </Field>

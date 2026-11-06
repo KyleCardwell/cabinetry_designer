@@ -294,8 +294,9 @@ function orderedThickness(drawn, style) {
 
 function shippingSize(room, settings, part, context) {
   if (part.kind === 'leg_panel' || part.kind === 'leg_filler') {
-    const { depth, bounds, thickness } = context.fill;
-    return formatSize(depth, bounds.height, thickness);
+    const { depth, bounds, thickness, orderedDepth } = context.fill;
+    return part.kind === 'leg_filler' ? formatSize(bounds.width, bounds.height, orderedDepth)
+      : formatSize(depth, bounds.height, thickness);
   }
   if (part.kind === 'leg') {
     const { w, h, d } = context.leg.size;

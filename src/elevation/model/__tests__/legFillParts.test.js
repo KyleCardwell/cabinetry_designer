@@ -44,6 +44,24 @@ describe('SH7.2 step b leg fill parts', () => {
     }
   });
 
+  it('step f: numbers each filler once at its face bounds, without numbering the plan return', () => {
+    const legs = four.filter(({ yFrom }) => yFrom === 'front')
+      .map((leg, i) => i === 0 ? { ...leg, fill: { type: 'filler' } } : leg);
+    const W = wall({ runs: [{ ...R, legs }] });
+    const input = room({ walls: [W] });
+    expect(roomParts(input, settings).filter(({ source }) => source === 'leg_fill')).toEqual([
+      { key: 'LF:fill', kind: 'leg_filler', wallId: W.id, side: 'front', runId: R.id,
+        pieceId: null, molding: null, x: 10, z: 4, width: 3.5, height: 30.5, source: 'leg_fill' },
+    ]);
+    const numbered = partNumbers(input, settings);
+    expect(numbered.byKey.get('LF:fill')).toBe(numbered.byKey.get('LF') + 1);
+    expect(numbered.byKey.has('LF:fill:return')).toBe(false);
+    expect(wallBadgeGroups(input, W, settings).flatMap(({ pieces }) => pieces)
+      .filter(({ id }) => id === 'LF:fill')).toEqual([
+      { id: 'LF:fill', x: 10, z: 4, width: 3.5, height: 30.5 },
+    ]);
+  });
+
   it('anchor 4: preserves parts, part numbers and shipping list without fills', () => {
     const input = room({ walls: [wall({ runs: [R] })] });
     expect({ parts: roomParts(input, settings), numbers: partNumbers(input, settings),

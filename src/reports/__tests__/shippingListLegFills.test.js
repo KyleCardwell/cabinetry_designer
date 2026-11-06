@@ -28,15 +28,12 @@ describe('SH7.2 step b leg fill shipping list', () => {
       .toBe('Custom panel');
   });
 
-  it('anchor 3: lists a front-only filler at its placed size, including explicit thickness and clearances', () => {
-    const front = four.filter(({ yFrom }) => yFrom === 'front');
-    for (const [fill, size] of [[{ type: 'filler' }, formatSize(21.875, 34.5, 0.8125)],
-      [{ type: 'filler', thickness: 0.75, top: 0.5, bottom: 1 }, formatSize(21.875, 33, 0.75)]]) {
-      const legs = front.map((leg, i) => i === 0 ? { ...leg, fill } : leg);
-      const input = room({ walls: [wall({ runs: [{ ...R, legs }] })] });
-      expect(roomParts(input, settings).find(({ key }) => key === 'LF:fill')).toMatchObject({ kind: 'leg_filler' });
-      expect(shippingList(input, settings).rows.find(({ key }) => key === 'LF:fill'))
-        .toMatchObject({ kind: 'leg_filler', description: 'Base Filler', size, notes: [] });
-    }
+  it('step f anchor 1: orders a front-two filler by face width, box height and ordered depth', () => {
+    const legs = four.filter(({ yFrom }) => yFrom === 'front')
+      .map((leg, i) => i === 0 ? { ...leg, fill: { type: 'filler' } } : leg);
+    const input = room({ walls: [wall({ runs: [{ ...R, legs }] })] });
+    expect(roomParts(input, settings).find(({ key }) => key === 'LF:fill')).toMatchObject({ kind: 'leg_filler' });
+    expect(shippingList(input, settings).rows.find(({ key }) => key === 'LF:fill'))
+      .toMatchObject({ kind: 'leg_filler', description: 'Base Filler', size: formatSize(3.5, 30.5, 3.1875), notes: [] });
   });
 });

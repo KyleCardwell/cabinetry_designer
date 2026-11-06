@@ -155,9 +155,11 @@ export function planParts(room, settings) {
       for (const range of faces) addRange(range, range.kind);
       for (const range of returns) addRange(range, 'filler');
       for (const leg of waterfallLegs) addRange(leg, leg.kind);
-      for (const { id, type, bounds, back, front } of runLegFills(room, wall, run, settings)) {
-        addRange({ key: id, start: bounds.x, end: bounds.x + bounds.width, back, front,
-          top: bounds.z + bounds.height }, type === 'panel' ? 'end_panel' : 'filler');
+      for (const { id, type, bounds, back, front, face, ret } of runLegFills(room, wall, run, settings)) {
+        const top = bounds.z + bounds.height;
+        addRange({ key: id, start: bounds.x, end: bounds.x + bounds.width,
+          back: face?.back ?? back, front: face?.front ?? front, top }, type === 'panel' ? 'end_panel' : 'filler');
+        if (ret) addRange({ ...ret, key: `${id}:return`, top }, 'filler');
       }
     }
   }

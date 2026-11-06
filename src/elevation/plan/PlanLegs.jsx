@@ -10,9 +10,13 @@ export default function PlanLegs({ room, wall, run, settings, frame, scale, stro
   const orientation = Math.sign(frame.r.x * frame.n.y - frame.r.y * frame.n.x);
   const loops = runLegs(room, wall, run, settings).flatMap(({ leg, plan }) => plan.loops
     .map((loop, index) => ({ ...loop, id: `${leg.id}:${index}` })));
-  loops.push(...runLegFills(room, wall, run, settings).map(({ id, bounds: { x, width }, back, front }) => ({
-    id, closed: true, points: [[x, back], [x + width, back], [x + width, front], [x, front]],
-  })));
+  loops.push(...runLegFills(room, wall, run, settings)
+    .flatMap(({ id, bounds: { x, width }, back, front, face, ret }) => [
+      { id, start: x, end: x + width, back, front, ...face },
+      ...(ret ? [{ id: `${id}:return`, ...ret }] : []),
+    ]).map(({ id, start, end, back, front }) => ({
+      id, closed: true, points: [[start, back], [end, back], [end, front], [start, front]],
+    })));
   return loops.map(({ id, closed, points }) => {
     // The shared tracer expects z-up; map plan y to -z and reverse bulges for that reflection.
     const outline = points.map(([u, v, bulge = 0]) => {

@@ -38,8 +38,10 @@ describe('SH7.2 step c canvas leg fills', () => {
         const tree = nodes(RunGroup.type({ ...input, onSelectRun }));
         const fill = tree.find(({ key }) => key === 'LF:fill');
         expect(fill.type).toBe(Rect);
-        expect(fill.props).toMatchObject({ x: 61, y: 276, width: 3.25, height: 138,
+        expect(fill.props).toMatchObject({ ...(type === 'panel'
+          ? { x: 61, y: 276, width: 3.25, height: 138 } : { x: 60, y: 276, width: 14, height: 122 }),
           stroke: '#1e293b', strokeWidth: 1, fill: '#cbd5e1', listening: true });
+        expect(tree.some(({ key }) => key === 'LF:fill:return')).toBe(false);
         const rear = tree.findIndex(({ type }) => type === LegShapes);
         expect(tree.indexOf(fill)).toBe(rear + 1);
         expect(tree.indexOf(fill)).toBeLessThan(tree.findIndex(({ type }) => type === PieceRect));
@@ -66,24 +68,30 @@ describe('SH7.2 step c canvas leg fills', () => {
           const onSelect = vi.fn();
           const shapes = PlanLegs({ room: input, wall: w, run: r, settings, frame, scale: 4,
             stroke: '#abc', onSelect });
-          const fill = shapes.find(({ key }) => key === 'LF:fill');
-          expect(fill.type).toBe(Shape);
-          expect(fill.props).toMatchObject({ stroke: '#abc', strokeWidth: 0.25, fillEnabled: false });
-          const ctx = Object.fromEntries(['beginPath', 'moveTo', 'lineTo', 'closePath', 'fillStrokeShape']
-            .map((name) => [name, vi.fn()]));
-          fill.props.sceneFunc(ctx, {});
-          const expected = [[10.25, 3.5], [11.0625, 3.5], [11.0625, 21.875], [10.25, 21.875]]
-            .map(([u, v]) => elevationToPlan(frame, u, v));
-          const drawn = [...ctx.moveTo.mock.calls, ...ctx.lineTo.mock.calls];
-          expect(drawn).toHaveLength(4);
-          expected.forEach((point, i) => {
-            expect(drawn[i][0]).toBeCloseTo(point.x);
-            expect(drawn[i][1]).toBeCloseTo(point.y);
-          });
-          expect(ctx.closePath).toHaveBeenCalledOnce();
-          const event = {};
-          fill.props.onClick(event);
-          expect(onSelect).toHaveBeenCalledWith(event);
+          const expectedFills = type === 'panel'
+            ? [['LF:fill', [[10.25, 3.5], [11.0625, 3.5], [11.0625, 21.875], [10.25, 21.875]]]]
+            : [['LF:fill', [[10, 21.0625], [13.5, 21.0625], [13.5, 21.875], [10, 21.875]]],
+              ['LF:fill:return', [[12.75, 18.6875], [13.5, 18.6875], [13.5, 21.1875], [12.75, 21.1875]]]];
+          expect(shapes.filter(({ key }) => key.startsWith('LF:fill'))).toHaveLength(expectedFills.length);
+          for (const [id, points] of expectedFills) {
+            const fill = shapes.find(({ key }) => key === id);
+            expect(fill.type).toBe(Shape);
+            expect(fill.props).toMatchObject({ stroke: '#abc', strokeWidth: 0.25, fillEnabled: false });
+            const ctx = Object.fromEntries(['beginPath', 'moveTo', 'lineTo', 'closePath', 'fillStrokeShape']
+              .map((name) => [name, vi.fn()]));
+            fill.props.sceneFunc(ctx, {});
+            const expected = points.map(([u, v]) => elevationToPlan(frame, u, v));
+            const drawn = [...ctx.moveTo.mock.calls, ...ctx.lineTo.mock.calls];
+            expect(drawn).toHaveLength(4);
+            expected.forEach((point, i) => {
+              expect(drawn[i][0]).toBeCloseTo(point.x);
+              expect(drawn[i][1]).toBeCloseTo(point.y);
+            });
+            expect(ctx.closePath).toHaveBeenCalledOnce();
+            const event = {};
+            fill.props.onClick(event);
+            expect(onSelect).toHaveBeenCalledWith(event);
+          }
         }
       }
     }

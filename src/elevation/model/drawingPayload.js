@@ -99,8 +99,9 @@ export function faceDrawing(room, wall, side, settings, options) {
     coversBoxEdges: false, opaque: false, openEdges: ['left', 'right', 'top', 'bottom'],
   })));
   parts.push(...view.runs.flatMap((run) => runLegFills(room, view, run, settings)
-    .map(({ id, type, bounds, front, back }) => ({
-      id, kind: type === 'panel' ? 'end_panel' : 'filler', runId: run.id, ...bounds, front, back,
+    .map(({ id, type, bounds, front, back, face }) => ({
+      id, kind: type === 'panel' ? 'end_panel' : 'filler', runId: run.id, ...bounds,
+      front: face?.front ?? front, back: face?.back ?? back,
       coversBoxEdges: type === 'filler',
     }))));
   const partIds = new Set(parts.map(({ id }) => id));
