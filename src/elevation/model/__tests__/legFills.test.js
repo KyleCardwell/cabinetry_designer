@@ -22,7 +22,7 @@ describe('SH7.2 leg fills', () => {
       expect(result[0]).toEqual({ id: `${legs[offset].id}:fill`, leg: legs[offset], index: offset + 1,
         type: 'panel', side: legs[offset].from,
         bounds: { x, z: 0, width: 0.8125, height: 34.5 },
-        back: 3.5, front: 21.875, depth: 18.375, thickness: 0.8125 });
+        back: 3.5, front: 21.875, depth: 18.375, thickness: 0.8125, returns: [] });
       expect(result.warnings).toEqual([]);
       expect(legFillPlans(input, settings)[0]).toMatchObject({ u0: x, width: 0.8125, takesRoom: true });
       expect(input).toEqual(before);
@@ -210,5 +210,120 @@ describe('SH7.2 leg fills', () => {
     expect(legFillPlans(shifted, settings)[0]).toMatchObject({ back: 1, front: 22.875 });
     expect(runLegFills(ROOM, W, { ...R, legs: [legs[0]] },
       { ...settings, teamDoorStyle: { ...settings.teamDoorStyle, thickness: 0.75 } })[0].thickness).toBe(0.75);
+  });
+});
+
+describe('SH7.3 step a panel returns', () => {
+  it('anchors 1, 2 and 8: plans returns from each outside face and carries them with panel height', () => {
+    for (const [offset, x, start, end] of [[0, 10.25, 11.0625, 14.75], [2, 44.9375, 41.25, 44.9375]]) {
+      const legs = four.map((leg, i) => i === offset ? { ...leg, fill: { type: 'panel', returns: 'both' } } : leg);
+      const input = run({ ...R, legs });
+      const before = structuredClone(input);
+      const [plan] = legFillPlans(input, settings);
+      const returns = [
+        { edge: 'front', start, end, back: 21.0625, front: 21.875, takesRoom: true },
+        { edge: 'back', start, end, back: 3.5, front: 4.3125, takesRoom: true },
+      ];
+      expect(plan).toMatchObject({ u0: x, width: 0.8125, back: 3.5, front: 21.875, returnDepth: 4.5, returns });
+      const fills = runLegFills(ROOM, W, input, settings);
+      expect(fills).toHaveLength(1);
+      expect(fills[0]).toMatchObject({ bounds: { x, z: 0, width: 0.8125, height: 34.5 }, returnDepth: 4.5, returns });
+      expect(fills.warnings).toEqual([]);
+      expect(input).toEqual(before);
+    }
+  });
+
+  it('anchor 3: reserves the greater of leg, panel and return room at either end', () => {
+    for (const offset of [0, 2]) {
+      const side = four[offset].from;
+      for (const [returns, returnDepth, expected] of [['both', undefined, 4.75], ['front', 3, 3.5]]) {
+        const fill = { type: 'panel', returns, ...(returnDepth === undefined ? {} : { returnDepth }) };
+        const legs = four.map((leg, i) => i === offset ? { ...leg, fill } : leg);
+        expect(legRoom(run({ ...R, legs }), settings)[side]).toBe(expected);
+      }
+      const legs = [{ ...four[offset], x: 1, fill: { type: 'panel', returns: 'front', inset: 0.5 } }];
+      expect(legRoom(run({ ...R, legs }), settings)[side]).toBe(4);
+      expect(legRoom(run({ ...R, legs: [{ ...legs[0], takesRoom: false }] }), settings)[side]).toBe(0);
+      expect(legRoom(run({ ...R, legs, _pinSplit: { [side]: true } }), settings)[side]).toBe(0);
+      for (const input of [run({ ...R, legs: [{ ...legs[0], takesRoom: false }] }),
+        run({ ...R, legs, _pinSplit: { [side]: true } })]) {
+        expect(legFillPlans(input, settings)[0].returns[0].takesRoom).toBe(false);
+      }
+    }
+  });
+
+  it('anchor 4: an island back return behind B reserves no room independently of its panel', () => {
+    const legs = four.map((leg, i) => i === 0 ? { ...leg, fill: { type: 'panel', returns: 'back' } }
+      : leg.yFrom === 'back' ? { ...leg, y: 12 } : leg);
+    const input = run({ ...R, legs });
+    expect(legFillPlans(input, settings)[0]).toMatchObject({ back: -8.5, front: 21.875, depth: 30.375,
+      takesRoom: true, returns: [{ edge: 'back', back: -8.5, front: -7.6875, takesRoom: false }] });
+    expect(legRoom(input, settings).left).toBe(3.5);
+    for (const overlap of [0.5e-6, 2e-6]) {
+      const shifted = run({ ...R, legs: legs.map((leg) => leg.yFrom === 'back'
+        ? { ...leg, y: 4.3125 - overlap } : leg) });
+      expect(legFillPlans(shifted, settings)[0].returns[0].takesRoom).toBe(overlap > 1e-6);
+      expect(legRoom(shifted, settings).left).toBe(overlap > 1e-6 ? 4.75 : 3.5);
+    }
+  });
+
+  it('anchor 5: keeps a plain panel and warns when R is no greater than T plus tolerance', () => {
+    for (const returnDepth of [0.75, 0.8125, 0.8125 + 0.5e-6]) {
+      const legs = [{ ...four[0], fill: { type: 'panel', returns: 'front', returnDepth } }, ...four.slice(1)];
+      const input = run({ ...R, legs });
+      const [plan] = legFillPlans(input, settings);
+      expect(plan.returns).toEqual([]);
+      expect(plan).not.toHaveProperty('returnDepth');
+      const fills = runLegFills(ROOM, W, input, settings);
+      expect(fills).toHaveLength(1);
+      expect(fills[0]).toMatchObject({ bounds: { x: 10.25, z: 0, width: 0.8125, height: 34.5 }, returns: [] });
+      expect(fills[0]).not.toHaveProperty('returnDepth');
+      expect(fills.warnings).toEqual([{ code: 'leg-fill-return-short', index: 1, legId: 'LF' }]);
+      expect(fills.warnings.map(legWarningText)).toEqual(["Leg 1: its panel return is no deeper than the panel's thickness."]);
+      expect(legRoom(input, settings).left).toBe(3.5);
+    }
+  });
+
+  it('anchor 6: the backward-filling leg owns returns in a shared gap', () => {
+    const legs = four.map((leg, i) => i === 0 ? { ...leg, fill: { type: 'panel' } }
+      : i === 1 ? { ...leg, fill: { type: 'panel', returns: 'both' } } : leg);
+    const input = run({ ...R, legs });
+    const fills = runLegFills(ROOM, W, input, settings);
+    expect(fills).toHaveLength(1);
+    expect(fills[0]).toMatchObject({ id: 'LF:fill', returns: [] });
+    expect(fills[0]).not.toHaveProperty('returnDepth');
+    expect(fills.warnings).toEqual([{ code: 'leg-fill-shared', type: 'panel', index: 2, legId: 'LB', other: 1 }]);
+    expect(legRoom(input, settings).left).toBe(3.5);
+  });
+
+  it('anchor 7: accepts only panel return choices with optional positive finite depths', () => {
+    for (const returns of ['front', 'back', 'both']) {
+      for (const pick of [{}, { returnDepth: 4 }]) {
+        expect(isLegList([{ ...four[0], fill: { type: 'panel', returns, ...pick } }])).toBe(true);
+      }
+    }
+    const invalid = [{ type: 'panel', returnDepth: 4 }, { type: 'panel', returns: 'side' },
+      ...[undefined, null, '', true, []].map((returns) => ({ type: 'panel', returns })),
+      ...[0, -1, Infinity, NaN, '4', undefined, null].map((returnDepth) => ({ type: 'panel', returns: 'both', returnDepth })),
+      { type: 'filler', returns: 'front' }, { type: 'filler', returnDepth: 4 }];
+    for (const fill of invalid) expect(isLegList([{ ...four[0], fill }])).toBe(false);
+  });
+
+  it('uses full-depth edges, inherited or explicit R, end thickness and panel clearances', () => {
+    const legs = [{ ...four[0], fill: { type: 'panel', returns: 'both', past: true, bottom: 1, top: 2 } }, ...four.slice(1)];
+    const input = run({ ...R, legs, _endThickness: { left: 1 } });
+    const inherited = { ...settings, legPanelReturnDepth: 6 };
+    const [fill] = runLegFills(ROOM, W, input, inherited);
+    expect(fill).toMatchObject({ bounds: { x: 10.25, z: 1, width: 1, height: 31.5 }, returnDepth: 6,
+      returns: [
+        { edge: 'front', start: 11.25, end: 16.25, back: 23.875, front: 24.875 },
+        { edge: 'back', start: 11.25, end: 16.25, back: 0, front: 1 },
+      ] });
+    expect(legRoom(input, inherited).left).toBe(6.25);
+    const explicit = run({ ...input, legs: [{ ...legs[0], fill: { ...legs[0].fill, returns: 'back', returnDepth: 2 } }, ...legs.slice(1)] });
+    expect(runLegFills(ROOM, W, explicit, inherited)[0]).toMatchObject({ returnDepth: 2,
+      returns: [{ edge: 'back', start: 11.25, end: 12.25, back: 0, front: 1 }] });
+    const narrow = run({ ...input, legs: [{ ...legs[0], fill: { type: 'panel', returns: 'front', returnDepth: 1 + 2e-6 } }] });
+    expect(legFillPlans(narrow, settings)[0].returns).toHaveLength(1);
   });
 });

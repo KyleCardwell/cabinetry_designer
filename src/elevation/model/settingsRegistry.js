@@ -31,6 +31,7 @@ const roomNumbers = [
   ['legPanelReveal', 'Leg panel reveal'],
   ['legPanelTopClearance', 'Leg panel top clearance'],
   ['legPanelBottomClearance', 'Leg panel bottom clearance'],
+  ['legPanelReturnDepth', 'Leg panel return depth'],
   ['fillerReturnTongue', 'Filler return tongue'],
   ['teeCover', 'Tee cover'],
   ['teeThickness', 'Tee thickness'],

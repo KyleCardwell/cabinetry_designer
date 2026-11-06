@@ -131,6 +131,7 @@ export const DEFAULT_SETTINGS = {
   legPanelReveal: 0.25,
   legPanelTopClearance: 0,
   legPanelBottomClearance: 0,
+  legPanelReturnDepth: 4.5,
   fillerReturnTongue: 0.125,
   teeCover: 0.75,
   teeThickness: 0.8125,

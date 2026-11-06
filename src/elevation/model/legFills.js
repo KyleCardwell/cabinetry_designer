@@ -34,9 +34,11 @@ export function runLegFills(room, wall, run, settings) {
       warn({ code: 'leg-fill-no-height', type: plan.type });
       continue;
     }
+    (plan.warnings ?? []).forEach(warn);
     placed.push({ id: `${leg.id}:fill`, leg, index, type: plan.type, side: plan.side,
       bounds: { x: plan.u0, z: bottom, width: plan.width, height },
-      front: plan.front, back: plan.back, depth: plan.depth, thickness: plan.width });
+      front: plan.front, back: plan.back, depth: plan.depth, thickness: plan.width,
+      returns: plan.returns, ...(plan.returnDepth !== undefined ? { returnDepth: plan.returnDepth } : {}) });
   }
   return placed;
 }

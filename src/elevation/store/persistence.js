@@ -40,6 +40,7 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'legPanelReveal',
   'legPanelTopClearance',
   'legPanelBottomClearance',
+  'legPanelReturnDepth',
   'fillerReturnTongue',
   'teeCover',
   'teeThickness',

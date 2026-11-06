@@ -55,11 +55,25 @@ export function legFillPlans(run, settings) {
     if (depth <= 1e-6) return warn('leg-fill-no-depth');
     const width = run._endThickness?.[leg.from] ?? teamDoorStyle(settings).thickness;
     const inset = fill.inset ?? settings.legPanelReveal;
+    const u0 = leg.from === 'left' ? run.x - leg.x + inset : run.x + run.width + leg.x - inset - width;
+    const takesRoom = (back, front) => leg.takesRoom !== false && !run._pinSplit?.[leg.from]
+      && Math.min(front, F) - Math.max(back, B) > 1e-6;
+    const returnDepth = fill.returnDepth ?? settings.legPanelReturnDepth;
+    const shortReturn = Boolean(fill.returns) && returnDepth <= width + 1e-6;
+    const returns = !fill.returns || shortReturn ? [] : ['front', 'back']
+      .filter((edge) => fill.returns === 'both' || fill.returns === edge)
+      .map((edge) => {
+        const band = edge === 'front' ? { back: front - width, front } : { back, front: back + width };
+        return { edge,
+          start: leg.from === 'left' ? u0 + width : u0 + width - returnDepth,
+          end: leg.from === 'left' ? u0 + returnDepth : u0,
+          ...band, takesRoom: takesRoom(band.back, band.front) };
+      });
     return { leg, index, type: fill.type, side: leg.from,
-      u0: leg.from === 'left' ? run.x - leg.x + inset : run.x + run.width + leg.x - inset - width,
-      width, back, front, depth,
-      takesRoom: leg.takesRoom !== false && !run._pinSplit?.[leg.from]
-        && Math.min(front, F) - Math.max(back, B) > 1e-6 };
+      u0, width, back, front, depth, returns,
+      ...(returns.length ? { returnDepth } : {}),
+      ...(shortReturn ? { warnings: [{ code: 'leg-fill-return-short' }] } : {}),
+      takesRoom: takesRoom(back, front) };
   });
 }
 
@@ -80,9 +94,16 @@ export function legRoom(run, settings) {
     room[leg.from] = Math.max(room[leg.from], b.w - leg.x);
   }
   for (const plan of legFillPlans(run, settings)) {
-    if (plan.warning || !plan.takesRoom) continue;
-    const inside = plan.side === 'left' ? plan.u0 + plan.width - run.x : run.x + run.width - plan.u0;
-    room[plan.side] = Math.max(room[plan.side], inside);
+    if (plan.warning) continue;
+    if (plan.takesRoom) {
+      const inside = plan.side === 'left' ? plan.u0 + plan.width - run.x : run.x + run.width - plan.u0;
+      room[plan.side] = Math.max(room[plan.side], inside);
+    }
+    for (const ret of plan.returns ?? []) {
+      if (!ret.takesRoom) continue;
+      const inside = plan.side === 'left' ? ret.end - run.x : run.x + run.width - ret.start;
+      room[plan.side] = Math.max(room[plan.side], inside);
+    }
   }
   return room;
 }

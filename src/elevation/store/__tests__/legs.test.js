@@ -132,13 +132,33 @@ it('SH7.2 replaces fills as a whole, rejects invalid edits and removes cleared f
 
 it('SH7.2 defaults missing leg panel settings and preserves explicit values through persistence', () => {
   const saved = structuredClone(toElevationDocument(initial));
-  const defaults = { legPanelReveal: 0.25, legPanelTopClearance: 0, legPanelBottomClearance: 0 };
+  const defaults = { legPanelReveal: 0.25, legPanelTopClearance: 0, legPanelBottomClearance: 0, legPanelReturnDepth: 4.5 };
   for (const key of Object.keys(defaults)) delete saved.settings[key];
   const normalized = normalizeElevationDocument(saved);
   expect(normalized.settings).toMatchObject(defaults);
   expect(isElevationDocument(normalized)).toBe(true);
   for (const key of Object.keys(defaults)) expect(saved.settings).not.toHaveProperty(key);
-  const explicit = { legPanelReveal: 0, legPanelTopClearance: 0.5, legPanelBottomClearance: 1 };
+  const explicit = { legPanelReveal: 0, legPanelTopClearance: 0.5, legPanelBottomClearance: 1, legPanelReturnDepth: 6 };
   Object.assign(normalized.settings, explicit);
   expect(toElevationDocument(normalizeElevationDocument(normalized)).settings).toMatchObject(explicit);
+});
+
+it('SH7.3 round-trips panel returns and room settings, then starts a fresh fill on type changes', () => {
+  const fill = { type: 'panel', returns: 'both', returnDepth: 4 };
+  let state = elevationReducer(initial, addRunLegs({ ...target, legs: [{ ...leg, fill }] }));
+  const saved = structuredClone(toElevationDocument(state));
+  saved.rooms[0].settingsOverrides = { legPanelReturnDepth: 5 };
+  const normalized = normalizeElevationDocument(saved);
+  expect(isElevationDocument(normalized)).toBe(true);
+  const loaded = toElevationDocument(createInitialElevationState(normalized));
+  expect(loaded.rooms[0].walls[0].runs[0].legs[0].fill).toEqual(fill);
+  expect(loaded.rooms[0].settingsOverrides).toEqual({ legPanelReturnDepth: 5 });
+  for (const invalid of [{ type: 'panel', returnDepth: 4 }, { type: 'panel', returns: 'side' },
+    { type: 'panel', returns: 'front', returnDepth: 0 }, { type: 'filler', returns: 'front' }]) {
+    expect(elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill: invalid } }))).toEqual(state);
+  }
+  for (const type of ['filler', 'panel']) {
+    state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill: { type } } }));
+    expect(currentRun(state).legs[0].fill).toEqual({ type });
+  }
 });

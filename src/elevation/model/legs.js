@@ -15,11 +15,14 @@ function isLegFill(fill) {
   if (!fill || typeof fill !== 'object' || Array.isArray(fill)
     || !['panel', 'filler'].includes(fill.type)) return false;
   if (fill.type === 'filler') return Object.keys(fill).every((key) => key === 'type');
-  const keys = ['type', 'inset', 'top', 'bottom', 'past'];
+  const keys = ['type', 'inset', 'top', 'bottom', 'past', 'returns', 'returnDepth'];
   return Object.keys(fill).every((key) => keys.includes(key))
     && ['inset', 'top', 'bottom'].every((key) => !Object.hasOwn(fill, key)
       || (Number.isFinite(fill[key]) && fill[key] >= 0))
-    && (!Object.hasOwn(fill, 'past') || fill.past === true);
+    && (!Object.hasOwn(fill, 'past') || fill.past === true)
+    && (!Object.hasOwn(fill, 'returns') || ['front', 'back', 'both'].includes(fill.returns))
+    && (!Object.hasOwn(fill, 'returnDepth') || (Object.hasOwn(fill, 'returns')
+      && Number.isFinite(fill.returnDepth) && fill.returnDepth > 0));
 }
 
 /** Stored legs are non-empty, with ids unique within the list (and checked across the room by the store). */
@@ -143,6 +146,7 @@ export function legPreset(preset, { shapeId, height = 'full', sitsOn, fill, prou
 }
 
 export function legWarningText({ code, index, target, fixed, height, sitsOn, type, other }) {
+  if (code === 'leg-fill-return-short') return `Leg ${index}: its panel return is no deeper than the panel's thickness.`;
   if (code === 'leg-fill-no-depth') return `Leg ${index}: no room for its ${type} (the legs touch or overlap).`;
   if (code === 'leg-fill-no-height') return `Leg ${index}: its ${type} has no height.`;
   if (code === 'leg-fill-shared') return `Leg ${index}: Leg ${other} already fills the gap between them.`;
