@@ -6,10 +6,10 @@ import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from '../../model/constants.js';
 import { legPreset, runLegs } from '../../model/legs.js';
 import { E, fourEndLegs, legShape, noEnds } from '../../model/__tests__/fixtures/legs.js';
 import { formatProfileCoord } from '../../model/profileEditing.js';
-import elevationReducer, { addRunLegs, createInitialElevationState, updateRun } from '../../store/elevationSlice.js';
+import elevationReducer, { addRunLegs, createInitialElevationState, setRunEnd, updateRun } from '../../store/elevationSlice.js';
 import CoordInput from '../../../library/profileEditor/CoordInput.jsx';
 import AddLegsRow from './AddLegsRow.jsx';
-import LegRow, { LegFillSelect, LegHeightFields, LegShapeSelect, LegSitsOnSelect } from './LegRow.jsx';
+import LegRow, { LegHeightFields, LegShapeSelect, LegSitsOnSelect } from './LegRow.jsx';
 import RunLegsSection from './RunLegsSection.jsx';
 import LegFields, { LegPanelFields } from './LegFields.jsx';
 
@@ -20,7 +20,7 @@ const LEG = legShape();
 const settings = { ...DEFAULT_SETTINGS, shapes: [LEG] };
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children), ...nodes(tree.props?.actions),
-    ...([LegFields, LegPanelFields, LegFillSelect, LegShapeSelect, LegHeightFields, LegSitsOnSelect].includes(tree.type) ? nodes(tree.type(tree.props)) : [])] : [];
+    ...([LegFields, LegPanelFields, LegShapeSelect, LegHeightFields, LegSitsOnSelect].includes(tree.type) ? nodes(tree.type(tree.props)) : [])] : [];
 const field = (tree, label) => nodes(tree).find(({ props }) => props['aria-label'] === label);
 const button = (tree, text) => nodes(tree).find(({ type, props }) => type === 'button' && props.children === text);
 const change = (node, value) => node.props.onChange({ target: { value } });
@@ -71,44 +71,37 @@ beforeEach(() => {
 });
 
 describe('SH7 step b Legs panel', () => {
-  it('anchor 1: adds four corners with Full height and Proud 1/2, in list order, and appends further presets', () => {
+  it('sets the corner ends with Proud and Back offset, replacing the named ends on further presets', () => {
     let tree = render(AddLegsRow);
     expect(field(tree, 'Add legs Shape').props.value).toBe(LEG.id);
     expect(field(tree, 'Add legs Height').props.value).toBe('full');
     field(tree, 'Add legs Proud').props.onCommit(0.5);
     tree = render(AddLegsRow);
-    button(tree, 'Add').props.onClick();
-    expect(currentRun().legs.map(({ from, yFrom, y }) => [from, yFrom, y])).toEqual([
-      ['left', 'front', 0.5], ['left', 'back', 0], ['right', 'front', 0.5], ['right', 'back', 0],
-    ]);
-    expect(currentRun().legs.every(({ height }) => height === 'full')).toBe(true);
-    slots = [];
-    const section = render(RunLegsSection);
-    expect(nodes(section).filter(({ type }) => type === LegRow).map(({ props }) => props.index)).toEqual([0, 1, 2, 3]);
-    const lf = renderLeg();
-    expect(formatProfileCoord(field(lf, 'Leg 1 In/out').props.value)).toBe('1/2');
-    expect(button(lf, 'Front').props['aria-pressed']).toBe(true);
-    expect(nodes(lf).some(({ props }) => props.children?.includes?.(' #12'))).toBe(true);
-    // Use independent hook slots for the Add legs row.
-    slots = [];
-    tree = render(AddLegsRow);
+    button(tree, 'Apply').props.onClick();
+    expect(currentRun().endLegs).toEqual(fourEndLegs);
+    expect(currentRun()).not.toHaveProperty('legs');
     change(field(tree, 'Add legs Preset'), 'three');
     tree = render(AddLegsRow);
     change(field(tree, 'Add legs Leave out'), 'LB');
     field(tree, 'Add legs Back offset').props.onCommit(1);
     tree = render(AddLegsRow);
-    button(tree, 'Add').props.onClick();
-    expect(currentRun().legs).toHaveLength(7);
-    expect(currentRun().legs.slice(4).map(({ from, yFrom, y }) => [from, yFrom, y]))
-      .toEqual([['left', 'front', 0], ['right', 'front', 0], ['right', 'back', 1]]);
-    expect(new Set(currentRun().legs.map(({ id }) => id)).size).toBe(7);
+    button(tree, 'Apply').props.onClick();
+    expect(currentRun().endLegs).toEqual({
+      left: { legs: 'front', front: E.front }, right: { ...E, back: { ...E.back, y: 1 } },
+    });
     for (const preset of ['front', 'left', 'right']) {
       change(field(tree, 'Add legs Preset'), preset);
       tree = render(AddLegsRow);
       expect(field(tree, 'Add legs Leave out')).toBeUndefined();
-      button(tree, 'Add').props.onClick();
+      const before = currentRun().endLegs;
+      button(tree, 'Apply').props.onClick();
+      for (const side of ['left', 'right']) {
+        if (preset === 'front') expect(currentRun().endLegs[side]).toEqual({ legs: 'front', front: E.front });
+        else if (preset === side) expect(currentRun().endLegs[side]).toEqual({ ...E, back: { ...E.back, y: 1 } });
+        else expect(currentRun().endLegs[side]).toEqual(before[side]);
+      }
+      expect(currentRun()).not.toHaveProperty('legs');
     }
-    expect(currentRun().legs).toHaveLength(13);
   });
 
   it('anchors 2–3: switches X to Right -32 1/2 and Back to Front -21 3/8 without moving the leg', () => {
@@ -268,21 +261,27 @@ describe('SH7 step b Legs panel', () => {
 });
 
 describe('SH7.5 step b fill fixtures', () => {
-  it.each(['panel', 'filler'])('rejects the staged hand-leg Fill control choice %s', (type) => {
+  it.each([0, 1])('anchor 3: hand leg %s has no Fill select or panel inputs', (index) => {
     addCorners();
-    const before = structuredClone(currentRun().legs);
-    change(field(renderLeg(), 'Leg 1 Fill'), type);
-    expect(currentRun().legs).toEqual(before);
-    expect(field(renderLeg(), 'Leg 1 Reveal')).toBeUndefined();
+    const tree = renderLeg(index);
+    for (const name of ['Fill', 'Reveal', 'Top clearance', 'Bottom clearance', 'Returns', 'Return depth', 'Full depth']) {
+      expect(field(tree, `Leg ${index + 1} ${name}`)).toBeUndefined();
+    }
+    expect(nodes(tree).some(({ type }) => type === LegPanelFields)).toBe(false);
   });
 
-  it('additive hand-leg presets no longer create fills', () => {
+  it('fits corner presets at the ends and clears Fit with Nothing', () => {
     let tree = render(AddLegsRow);
-    for (const type of ['panel', 'filler', '']) {
-      change(field(tree, 'Add legs Fill'), type);
+    for (const [value, fit] of [['panel', 'between'], ['filler', 'behind'], ['', undefined]]) {
+      change(field(tree, 'Add legs Fit'), value);
       tree = render(AddLegsRow);
-      button(tree, 'Add').props.onClick();
-      for (const leg of currentRun().legs.slice(-4)) expect(leg).not.toHaveProperty('fill');
+      button(tree, 'Apply').props.onClick();
+      for (const end of Object.values(currentRun().endLegs)) {
+        expect(end.fit).toBe(fit);
+        expect(end.front).not.toHaveProperty('fill');
+        expect(end.back).not.toHaveProperty('fill');
+      }
+      expect(currentRun()).not.toHaveProperty('legs');
     }
   });
 
@@ -363,19 +362,20 @@ describe('SH7.4 step b square legs panel', () => {
         tree = render(AddLegsRow, args);
       }
       expect(field(tree, 'Add legs Shape').props.value).toBe('');
-      expect(button(tree, 'Add').props.disabled).toBeUndefined();
+      expect(button(tree, 'Apply').props.disabled).toBeUndefined();
       expect(nodes(tree).some(({ props }) => props.children === 'Make a leg in Library → Shapes first.')).toBe(false);
-      button(tree, 'Add').props.onClick();
-      expect(currentRun().legs.slice(-4)).toHaveLength(4);
-      for (const leg of currentRun().legs.slice(-4)) {
+      button(tree, 'Apply').props.onClick();
+      expect(Object.keys(currentRun().endLegs)).toEqual(['left', 'right']);
+      expect(currentRun()).not.toHaveProperty('legs');
+      for (const leg of Object.values(currentRun().endLegs).flatMap(({ front, back }) => [front, back])) {
         expect(leg.square).toEqual({});
         expect(leg).not.toHaveProperty('shapeId');
       }
       if (shapes[0] === LEG) {
         change(field(tree, 'Add legs Shape'), LEG.id);
         tree = render(AddLegsRow, args);
-        button(tree, 'Add').props.onClick();
-        for (const leg of currentRun().legs.slice(-4)) {
+        button(tree, 'Apply').props.onClick();
+        for (const leg of Object.values(currentRun().endLegs).flatMap(({ front, back }) => [front, back])) {
           expect(leg.shapeId).toBe(LEG.id);
           expect(leg).not.toHaveProperty('square');
         }
@@ -454,16 +454,170 @@ describe('SH7.1 step c leg support controls', () => {
       .map(({ props }) => props.children)).toEqual(['Floor', 'Furniture base', 'Countertop below']);
     change(field(tree, 'Add legs Sits on'), 'base');
     tree = render(AddLegsRow);
-    button(tree, 'Add').props.onClick();
-    expect(currentRun().legs).toHaveLength(4);
-    expect(currentRun().legs.every(({ sitsOn }) => sitsOn === 'base')).toBe(true);
+    button(tree, 'Apply').props.onClick();
+    for (const end of Object.values(currentRun().endLegs)) {
+      expect(end.front.sitsOn).toBe('base');
+      expect(end.back.sitsOn).toBe('base');
+    }
     change(field(tree, 'Add legs Sits on'), 'countertop');
     tree = render(AddLegsRow);
-    button(tree, 'Add').props.onClick();
-    expect(currentRun().legs.slice(4).every(({ sitsOn }) => sitsOn === 'countertop')).toBe(true);
+    button(tree, 'Apply').props.onClick();
+    for (const end of Object.values(currentRun().endLegs)) {
+      expect(end.front.sitsOn).toBe('countertop');
+      expect(end.back.sitsOn).toBe('countertop');
+    }
     change(field(tree, 'Add legs Sits on'), '');
     tree = render(AddLegsRow);
-    button(tree, 'Add').props.onClick();
-    for (const leg of currentRun().legs.slice(8)) expect(leg).not.toHaveProperty('sitsOn');
+    button(tree, 'Apply').props.onClick();
+    for (const end of Object.values(currentRun().endLegs)) {
+      expect(end.front).not.toHaveProperty('sitsOn');
+      expect(end.back).not.toHaveProperty('sitsOn');
+    }
+  });
+});
+
+
+describe('SH7.5 step e end presets in the Legs section', () => {
+  it('anchor 1: applies Four corners, Panel and Proud 0.5 to both ends, with summaries and no hand legs', () => {
+    let tree = render(AddLegsRow);
+    expect(field(tree, 'Add legs Fill')).toBeUndefined();
+    expect(nodes(field(tree, 'Add legs Fit')).filter(({ type }) => type === 'option')
+      .map(({ props }) => [props.value, props.children])).toEqual([
+      ['', 'Nothing'], ['panel', 'Panel between the legs'], ['filler', 'Filler behind the front leg'],
+    ]);
+    expect(nodes(tree).some(({ props }) => props.children ===
+      "Corner presets set the run's ends (edit them under Ends). One leg adds a leg placed by hand.")).toBe(true);
+    change(field(tree, 'Add legs Fit'), 'panel');
+    field(tree, 'Add legs Proud').props.onCommit(0.5);
+    tree = render(AddLegsRow);
+    button(tree, 'Apply').props.onClick();
+    const expected = { left: { ...E, fit: 'between' }, right: { ...E, fit: 'between' } };
+    expect(dispatch.mock.calls.at(-1)[0]).toMatchObject({ type: 'elevation/applyRunLegPreset',
+      payload: { endLegs: expected, legs: [] } });
+    expect(currentRun().endLegs).toEqual(expected);
+    expect(currentRun().ends).toEqual(noEnds);
+    expect(currentRun()).not.toHaveProperty('legs');
+    slots = [];
+    const section = render(RunLegsSection);
+    const lines = nodes(section).filter(({ type }) => type === 'p').map(({ props }) => props.children);
+    expect(lines).toEqual([
+      'Left end: front and back legs, panel between the legs (edit under Ends).',
+      'Right end: front and back legs, panel between the legs (edit under Ends).',
+    ]);
+    expect(nodes(section).some(({ type }) => type === LegRow)).toBe(false);
+  });
+
+  it('anchor 2: One leg appends a unique hand-placed LF leg at Proud and shows Leg 1, keeping the ends', () => {
+    let tree = render(AddLegsRow);
+    button(tree, 'Apply').props.onClick();
+    const ends = currentRun().endLegs;
+    expect(nodes(field(tree, 'Add legs Preset')).some(({ type, props }) => type === 'option'
+      && props.value === 'one' && props.children === 'One leg (placed by hand)')).toBe(true);
+    change(field(tree, 'Add legs Preset'), 'one');
+    change(field(tree, 'Add legs Fit'), 'panel');
+    field(tree, 'Add legs Proud').props.onCommit(0.5);
+    tree = render(AddLegsRow);
+    button(tree, 'Apply').props.onClick();
+    expect(currentRun().legs).toEqual([{ id: expect.any(String), shapeId: LEG.id, height: 'full',
+      from: 'left', yFrom: 'front', x: 0, y: 0.5, mirror: true }]);
+    expect(currentRun().endLegs).toEqual(ends);
+    expect(field(renderLeg(), 'Leg 1')).toBeDefined();
+    expect(formatProfileCoord(field(renderLeg(), 'Leg 1 In/out').props.value)).toBe('1/2');
+    expect(button(renderLeg(), 'Front').props['aria-pressed']).toBe(true);
+    expect(nodes(renderLeg()).some(({ props }) => props.children?.includes?.(' #12'))).toBe(true);
+    button(tree, 'Apply').props.onClick();
+    expect(currentRun().legs).toHaveLength(2);
+    expect(new Set(currentRun().legs.map(({ id }) => id)).size).toBe(2);
+    slots = [];
+    expect(nodes(render(RunLegsSection)).filter(({ type }) => type === LegRow).map(({ props }) => props.index))
+      .toEqual([0, 1]);
+  });
+
+  it('anchor 4: Undo removes the applied end legs and restores End panel; Redo restores the fitted ends', () => {
+    // Keep span flex out of this check of restoring onto the stored, back-face run.
+    state = createInitialElevationState({ settings: { ...settings, runFlex: 0 },
+      rooms: [room({ walls: [wall({ runs: [run({ x: 10, width: 36,
+        ends: { left: { type: 'end_panel' }, right: { type: 'end_panel' } } })] })] })],
+      activeRoomId: 'room-1', activeWallId: 'wall-1' });
+    render(RunLegsSection);
+    const sectionSlots = slots;
+    slots = [];
+    let add = render(AddLegsRow);
+    change(field(add, 'Add legs Fit'), 'panel');
+    field(add, 'Add legs Proud').props.onCommit(0.5);
+    add = render(AddLegsRow);
+    button(add, 'Apply').props.onClick();
+    const fitted = { legs: currentRun().legs, endLegs: currentRun().endLegs, ends: currentRun().ends };
+    slots = sectionSlots;
+    let tree = render(RunLegsSection);
+    dispatch(updateRun({ wallId: 'wall-1', runId: 'run-1', changes: { width: 40, wallSide: 'back' } }));
+    const storedX = currentRun().x;
+    tree = render(RunLegsSection, { ...props(), run: { ...currentRun(), x: 999 } });
+    field(tree, 'Undo legs edit').props.onClick();
+    tree = render(RunLegsSection);
+    expect(currentRun()).not.toHaveProperty('endLegs');
+    expect(currentRun()).not.toHaveProperty('legs');
+    expect(currentRun().ends).toEqual({ left: { type: 'end_panel', width: null }, right: { type: 'end_panel', width: null } });
+    expect(currentRun()).toMatchObject({ x: storedX, width: 40, wallSide: 'back' });
+    field(tree, 'Redo legs edit').props.onClick();
+    render(RunLegsSection);
+    expect(currentRun()).toMatchObject({ endLegs: fitted.endLegs, ends: fitted.ends, x: storedX, width: 40 });
+    expect(currentRun()).not.toHaveProperty('legs');
+  });
+
+  it('snapshots end piece edits between leg edits and restores all three fields through Undo and Redo', () => {
+    const originalEnds = currentRun().ends;
+    let tree = render(RunLegsSection);
+    addCorners();
+    tree = render(RunLegsSection);
+    dispatch(setRunEnd({ roomId: 'room-1', wallId: 'wall-1', runId: 'run-1', side: 'left',
+      end: { type: 'filler', width: 2 } }));
+    tree = render(RunLegsSection);
+    const before = currentRun();
+    const sectionSlots = slots;
+    slots = [];
+    let add = render(AddLegsRow);
+    change(field(add, 'Add legs Fit'), 'panel');
+    add = render(AddLegsRow);
+    button(add, 'Apply').props.onClick();
+    slots = sectionSlots;
+    tree = render(RunLegsSection);
+    const after = currentRun();
+    expect(after.legs).toEqual(before.legs);
+    field(tree, 'Undo legs edit').props.onClick();
+    tree = render(RunLegsSection);
+    expect(currentRun().legs).toEqual(before.legs);
+    expect(currentRun().ends).toEqual(before.ends);
+    expect(currentRun()).not.toHaveProperty('endLegs');
+    field(tree, 'Undo legs edit').props.onClick();
+    tree = render(RunLegsSection);
+    expect(currentRun().ends).toEqual(originalEnds);
+    expect(currentRun().legs).toEqual(before.legs);
+    field(tree, 'Redo legs edit').props.onClick();
+    tree = render(RunLegsSection);
+    expect(currentRun().ends).toEqual(before.ends);
+    field(tree, 'Redo legs edit').props.onClick();
+    render(RunLegsSection);
+    expect(currentRun()).toMatchObject({ legs: after.legs, endLegs: after.endLegs, ends: after.ends });
+  });
+
+  it('shows end-only runs of other types and summarizes front, back and only active fits above hand rows', () => {
+    const source = currentRun();
+    const r = { ...source, cabinetTypeId: 'other', ends: noEnds, endLegs: {
+      left: { legs: 'front', front: E.front, fit: 'behind' }, right: { legs: 'back', back: E.back },
+    } };
+    let tree = render(RunLegsSection, { ...props(), run: r });
+    expect(tree).not.toBeNull();
+    const lines = (section) => nodes(section).filter(({ type }) => type === 'p').map(({ props }) => props.children);
+    expect(lines(tree)).toEqual([
+      'Left end: front leg, filler behind the front leg (edit under Ends).',
+      'Right end: back leg (edit under Ends).',
+    ]);
+    tree = render(RunLegsSection, { ...props(), run: { ...r, ends: source.ends } });
+    expect(lines(tree)[0]).toBe('Left end: front leg (edit under Ends).');
+    addCorners();
+    tree = render(RunLegsSection, { ...props(), run: { ...currentRun(), endLegs: r.endLegs } });
+    expect(nodes(tree).filter(({ type }) => type === 'p' || type === LegRow).map(({ type }) => type))
+      .toEqual(['p', 'p', LegRow, LegRow, LegRow, LegRow]);
   });
 });

@@ -9,7 +9,7 @@ import elevationReducer, { createInitialElevationState, setRunEnd, updateRun } f
 import EndFields from './EndFields.jsx';
 import EndLegsFields from './EndLegsFields.jsx';
 import LegFields, { LegHeightFields, LegPanelFields, LegShapeSelect, LegSitsOnSelect } from './LegFields.jsx';
-import LegRow, { LegFillSelect } from './LegRow.jsx';
+import LegRow from './LegRow.jsx';
 import RunEndsSection from './RunEndsSection.jsx';
 import ExtendFields from './ExtendFields.jsx';
 import PartStyleFields from './PartStyleFields.jsx';
@@ -19,7 +19,7 @@ vi.mock('react-redux', () => ({ useDispatch: vi.fn() }));
 
 const settings = { ...DEFAULT_SETTINGS, shapes: [legShape()] };
 const at = { roomId: 'room-1', wallId: 'wall-1', runId: 'run-1' };
-const expanded = [EndFields, EndLegsFields, LegFields, LegPanelFields, LegShapeSelect, LegHeightFields, LegSitsOnSelect, LegFillSelect];
+const expanded = [EndFields, EndLegsFields, LegFields, LegPanelFields, LegShapeSelect, LegHeightFields, LegSitsOnSelect];
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object'
     ? [tree, ...nodes(expanded.includes(tree.type) ? tree.type(tree.props) : tree.props?.children)] : [];
@@ -209,12 +209,15 @@ describe('SH7.5 step d run end legs', () => {
     expect(EndLegsFields({ ...props('right'), run: { ...other, legs: [{ ...S, id: 'hand', from: 'left', yFrom: 'front' }] } })).not.toBeNull();
   });
 
-  it('anchor 8: keeps hand-leg fields, reference buttons, Fill and its panel inputs through shared LegFields', () => {
-    const leg = { ...S, id: 'hand', from: 'left', yFrom: 'front', fill: { type: 'panel', returns: 'both' } };
+  it('keeps shared hand-leg fields and reference buttons after Fill moves to the end', () => {
+    const leg = { ...S, id: 'hand', from: 'left', yFrom: 'front' };
     const tree = LegRow({ ...props(), leg, index: 0, numbers: { byKey: new Map([['hand', 12]]) }, warnings: [] });
     for (const name of ['Shape', 'Height', 'Sits on', 'Along', 'In/out', 'Takes room', 'Mirror left–right', 'Mirror front–back',
-      'Along reference', 'In/out reference', 'Fill', 'Reveal', 'Top clearance', 'Bottom clearance', 'Returns', 'Return depth', 'Full depth']) {
+      'Along reference', 'In/out reference']) {
       expect(field(tree, `Leg 1 ${name}`)).toBeDefined();
+    }
+    for (const name of ['Fill', 'Reveal', 'Top clearance', 'Bottom clearance', 'Returns', 'Return depth', 'Full depth']) {
+      expect(field(tree, `Leg 1 ${name}`)).toBeUndefined();
     }
     expect(nodes(tree).some(({ type }) => type === LegFields)).toBe(true);
     expect(nodes(tree).filter(({ type }) => type === 'button').map(({ props }) => props.children))
