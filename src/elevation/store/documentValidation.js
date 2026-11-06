@@ -19,6 +19,7 @@ import { isAccessoryList } from '../model/accessories.js';
 import { isSectionProfileList } from '../model/sectionProfiles.js';
 import { isShapeList } from '../model/libraryShapes.js';
 import { isLegList } from '../model/legs.js';
+import { isEndLegs } from '../model/endLegs.js';
 import {
   DOOR_STYLE_KEYS,
   findDoorDesign,
@@ -437,6 +438,7 @@ function isRun(run) {
     && isEndFiller(run.endFiller)
     && (run.baseCutouts === undefined || isBaseCutoutList(run.baseCutouts))
     && (run.legs === undefined || isLegList(run.legs))
+    && (run.endLegs === undefined || isEndLegs(run.endLegs))
     && (run.topSegments === undefined || isTopSegmentList(run.topSegments))
     && run.items === undefined
     && run.blind === undefined

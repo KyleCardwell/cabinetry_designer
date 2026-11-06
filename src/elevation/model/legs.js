@@ -1,4 +1,5 @@
 import { frontDepth, runBackOffset } from './corners.js';
+import { isLeg } from './endLegs.js';
 import { runBaseProfile } from './furnitureBase.js';
 import { rectangle, resolveShape, shapeView } from './libraryShapes.js';
 import { resolveProfile } from './profile.js';
@@ -9,46 +10,13 @@ import { formatInches } from './units.js';
 import { wallSideOf } from './wallSides.js';
 
 const EPS = 1e-6;
-const isText = (value) => typeof value === 'string' && value.length > 0;
-
-function isLegShape(leg) {
-  if (Object.hasOwn(leg, 'shapeId')) return isText(leg.shapeId) && !Object.hasOwn(leg, 'square');
-  const square = leg.square;
-  return Boolean(square) && typeof square === 'object' && !Array.isArray(square)
-    && Object.entries(square).every(([key, value]) => ['w', 'd'].includes(key)
-      && Number.isFinite(value) && value > 0);
-}
-
-function isLegFill(fill) {
-  if (!fill || typeof fill !== 'object' || Array.isArray(fill)
-    || !['panel', 'filler'].includes(fill.type)) return false;
-  if (fill.type === 'filler') return Object.keys(fill).every((key) => key === 'type');
-  const keys = ['type', 'inset', 'top', 'bottom', 'past', 'returns', 'returnDepth'];
-  return Object.keys(fill).every((key) => keys.includes(key))
-    && ['inset', 'top', 'bottom'].every((key) => !Object.hasOwn(fill, key)
-      || (Number.isFinite(fill[key]) && fill[key] >= 0))
-    && (!Object.hasOwn(fill, 'past') || fill.past === true)
-    && (!Object.hasOwn(fill, 'returns') || ['front', 'back', 'both'].includes(fill.returns))
-    && (!Object.hasOwn(fill, 'returnDepth') || (Object.hasOwn(fill, 'returns')
-      && Number.isFinite(fill.returnDepth) && fill.returnDepth > 0));
-}
 
 /** Stored legs are non-empty, with ids unique within the list (and checked across the room by the store). */
 export function isLegList(value) {
   if (!Array.isArray(value) || !value.length) return false;
   const ids = new Set();
   return Array.from(value).every((leg) => {
-    if (!leg || typeof leg !== 'object' || Array.isArray(leg)
-      || !isText(leg.id) || ids.has(leg.id) || !isLegShape(leg)
-      || !['left', 'right'].includes(leg.from) || !Number.isFinite(leg.x)
-      || !['front', 'back'].includes(leg.yFrom) || !Number.isFinite(leg.y)
-      || !(leg.height === 'full' || leg.height === 'feet'
-        || (Number.isFinite(leg.height) && leg.height > 0))
-      || (leg.mirror !== undefined && leg.mirror !== true)
-      || (leg.mirrorDepth !== undefined && leg.mirrorDepth !== true)
-      || (leg.takesRoom !== undefined && leg.takesRoom !== false)
-      || (leg.sitsOn !== undefined && !['base', 'countertop'].includes(leg.sitsOn))
-      || (Object.hasOwn(leg, 'fill') && !isLegFill(leg.fill))) return false;
+    if (!isLeg(leg) || ids.has(leg.id)) return false;
     ids.add(leg.id);
     return true;
   });

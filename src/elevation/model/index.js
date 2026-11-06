@@ -185,6 +185,7 @@ export { splitRun } from './splitRun.js';
 export { columnSteps } from './columnSteps.js';
 export { topSegmentRange, resolveTopSegments } from './topSegments.js';
 export { isLegList, legShapeOf, legBottom, runLegs, legPreset, legWarningText } from './legs.js';
+export { isLeg, isEndLegs, endLegList, runLegList, endFit, endPieceType } from './endLegs.js';
 export { legRoom, legFillPlans } from './legRoom.js';
 export { runLegFills } from './legFills.js';
 export {
