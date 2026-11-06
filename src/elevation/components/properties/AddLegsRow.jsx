@@ -5,7 +5,7 @@ import CoordInput from '../../../library/profileEditor/CoordInput.jsx';
 import { legPreset } from '../../model/legs.js';
 import { addRunLegs } from '../../store/elevationSlice.js';
 import Field from './Field.jsx';
-import { LEG_SELECT_CLASS, LegHeightFields, LegShapeSelect, LegSitsOnSelect, liveLegShapes } from './LegRow.jsx';
+import { LEG_SELECT_CLASS, LegFillSelect, LegHeightFields, LegShapeSelect, LegSitsOnSelect, liveLegShapes } from './LegRow.jsx';
 
 export default function AddLegsRow({ room, wall, run, settings }) {
   const dispatch = useDispatch();
@@ -14,6 +14,7 @@ export default function AddLegsRow({ room, wall, run, settings }) {
   const [pickedShape, setShape] = useState('');
   const [height, setHeight] = useState('full');
   const [sitsOn, setSitsOn] = useState(undefined);
+  const [fill, setFill] = useState(undefined);
   const [proud, setProud] = useState(0);
   const [backOffset, setBackOffset] = useState(0);
   const shapes = liveLegShapes(settings);
@@ -41,6 +42,7 @@ export default function AddLegsRow({ room, wall, run, settings }) {
         <LegShapeSelect settings={settings} value={shapeId} label="Add legs Shape" onChange={setShape} />
         <LegHeightFields value={height} fullHeight={run.z + run.height} label="Add legs Height" onChange={setHeight} />
         <LegSitsOnSelect value={sitsOn} label="Add legs Sits on" onChange={setSitsOn} />
+        <LegFillSelect value={fill} label="Add legs Fill" onChange={setFill} />
         <Field label="Proud">
           <CoordInput aria-label="Add legs Proud" value={proud} onCommit={setProud} />
         </Field>
@@ -52,7 +54,7 @@ export default function AddLegsRow({ room, wall, run, settings }) {
       <button type="button" disabled={!shapeId} onClick={() => {
         if (!shapeId) return;
         dispatch(addRunLegs({ roomId: room.id, wallId: wall.id, runId: run.id,
-          legs: legPreset(preset, { shapeId, height, sitsOn, proud, backOffset, leaveOut }, () => `lg_${uuid()}`) }));
+          legs: legPreset(preset, { shapeId, height, sitsOn, fill, proud, backOffset, leaveOut }, () => `lg_${uuid()}`) }));
       }} className="w-full rounded bg-gray-700 px-3 py-2 text-sm font-medium text-gray-100 hover:bg-gray-600 disabled:opacity-40">Add</button>
     </div>
   );

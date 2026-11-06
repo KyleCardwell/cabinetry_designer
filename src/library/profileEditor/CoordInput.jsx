@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { formatProfileCoord } from '../../elevation/model/profileEditing.js';
 import { parseInches } from '../../elevation/model/units.js';
 
-export default function CoordInput({ value, onCommit, className = '', ...inputProps }) {
+export default function CoordInput({ value, onCommit, allowBlank = false, className = '', ...inputProps }) {
   const [text, setText] = useState(() => formatProfileCoord(value));
   const shown = useRef(formatProfileCoord(value));
   const skipCommit = useRef(false);
@@ -23,7 +23,7 @@ export default function CoordInput({ value, onCommit, className = '', ...inputPr
       return;
     }
     if (text === shown.current) return;
-    const parsed = parseInches(text.trim());
+    const parsed = allowBlank && text.trim() === '' ? undefined : parseInches(text.trim());
     if (parsed === null || onCommit(parsed) === false) {
       revert();
       return;

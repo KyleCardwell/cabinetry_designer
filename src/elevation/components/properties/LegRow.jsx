@@ -2,7 +2,9 @@ import { useDispatch } from 'react-redux';
 import CoordInput from '../../../library/profileEditor/CoordInput.jsx';
 import { frontDepth, runBackOffset } from '../../model/corners.js';
 import { resolveShape } from '../../model/libraryShapes.js';
+import { runLegFills } from '../../model/legFills.js';
 import { legBottom, legWarningText } from '../../model/legs.js';
+import { formatProfileCoord } from '../../model/profileEditing.js';
 import { formatInches } from '../../model/units.js';
 import { removeRunLeg, updateRunLeg } from '../../store/elevationSlice.js';
 import Field from './Field.jsx';
@@ -35,6 +37,19 @@ export function LegSitsOnSelect({ value, onChange, label }) {
         <option value="">Floor</option>
         <option value="base">Furniture base</option>
         <option value="countertop">Countertop below</option>
+      </select>
+    </Field>
+  );
+}
+
+export function LegFillSelect({ value, onChange, label }) {
+  return (
+    <Field label="Fill">
+      <select aria-label={label} value={value ?? ''} onChange={(event) => onChange(event.target.value || undefined)}
+        className={LEG_SELECT_CLASS}>
+        <option value="">Nothing</option>
+        <option value="panel">Panel between the legs</option>
+        <option value="filler">Filler behind the leg</option>
       </select>
     </Field>
   );
@@ -73,6 +88,13 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
   const height = leg.height === 'full' ? fullHeight : leg.height === 'feet' ? run.z - bottom : leg.height;
   const box = shape ? resolveShape(shape, { h: height }).shape.box : null;
   const number = numbers.byKey.get(leg.id);
+  const fillWarnings = leg.fill ? runLegFills(room, wall, run, settings).warnings : [];
+  const updateFill = (key, value) => {
+    const fill = { ...leg.fill };
+    if (value === undefined) delete fill[key];
+    else fill[key] = value;
+    update({ fill });
+  };
 
   return (
     <div aria-label={label} className="rounded border border-gray-700 bg-gray-900/45 p-3">
@@ -115,6 +137,28 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
         })}
       </div>
       <p className="mt-1 text-xs text-gray-500">Along: to the leg&apos;s outside face from the run end. In/out: to its front or back face. + = proud of the run, − = into it.</p>
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <LegFillSelect value={leg.fill?.type} label={`${label} Fill`}
+          onChange={(type) => update({ fill: type ? { type } : undefined })} />
+        {leg.fill && [
+          ['inset', leg.fill.type === 'panel' ? 'Reveal' : 'Setback', 'legPanelReveal'],
+          ...(leg.fill.type === 'filler' ? [['thickness', 'Thickness', 'fillerThickness']] : []),
+          ['top', 'Top clearance', 'legPanelTopClearance'],
+          ['bottom', 'Bottom clearance', 'legPanelBottomClearance'],
+        ].map(([key, text, setting]) => (
+          <Field key={key} label={text}>
+            <CoordInput aria-label={`${label} ${text}`} value={leg.fill[key]} allowBlank
+              placeholder={formatProfileCoord(settings[setting])} onCommit={(value) => {
+                if (value !== undefined && (!Number.isFinite(value) || (key === 'thickness' ? value <= 0 : value < 0))) return false;
+                updateFill(key, value);
+              }} />
+          </Field>
+        ))}
+      </div>
+      {leg.fill?.type === 'panel' && <label className="mt-2 flex items-center gap-2 text-xs text-gray-300">
+        <input type="checkbox" aria-label={`${label} Full depth`} checked={leg.fill.past === true}
+          onChange={(event) => updateFill('past', event.target.checked ? true : undefined)} />Full depth
+      </label>}
       <label className="mt-2 flex items-center gap-2 text-xs text-gray-300">
         <input type="checkbox" aria-label={`${label} Takes room`} checked={leg.takesRoom !== false}
           onChange={(event) => update({ takesRoom: event.target.checked ? undefined : false })} />Takes room
@@ -125,7 +169,7 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
             onChange={(event) => update({ [key]: event.target.checked ? true : undefined })} />{text}
         </label>
       ))}
-      {warnings.filter(({ legId }) => legId === leg.id).map((warning, i) => (
+      {[...warnings, ...fillWarnings].filter(({ legId }) => legId === leg.id).map((warning, i) => (
         <p key={`${warning.code}-${i}`} className="mt-2 text-xs text-amber-400">{legWarningText(warning)}</p>
       ))}
     </div>

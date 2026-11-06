@@ -9,7 +9,7 @@ import { formatProfileCoord } from '../../model/profileEditing.js';
 import elevationReducer, { addRunLegs, createInitialElevationState, updateRun } from '../../store/elevationSlice.js';
 import CoordInput from '../../../library/profileEditor/CoordInput.jsx';
 import AddLegsRow from './AddLegsRow.jsx';
-import LegRow, { LegHeightFields, LegShapeSelect, LegSitsOnSelect } from './LegRow.jsx';
+import LegRow, { LegFillSelect, LegHeightFields, LegShapeSelect, LegSitsOnSelect } from './LegRow.jsx';
 import RunLegsSection from './RunLegsSection.jsx';
 
 vi.mock('react', async (load) => ({ ...await load(), useMemo: vi.fn(), useState: vi.fn() }));
@@ -19,7 +19,7 @@ const LEG = legShape();
 const settings = { ...DEFAULT_SETTINGS, shapes: [LEG] };
 const nodes = (tree) => Array.isArray(tree) ? tree.flatMap(nodes)
   : tree && typeof tree === 'object' ? [tree, ...nodes(tree.props?.children), ...nodes(tree.props?.actions),
-    ...([LegShapeSelect, LegHeightFields, LegSitsOnSelect].includes(tree.type) ? nodes(tree.type(tree.props)) : [])] : [];
+    ...([LegFillSelect, LegShapeSelect, LegHeightFields, LegSitsOnSelect].includes(tree.type) ? nodes(tree.type(tree.props)) : [])] : [];
 const field = (tree, label) => nodes(tree).find(({ props }) => props['aria-label'] === label);
 const button = (tree, text) => nodes(tree).find(({ type, props }) => type === 'button' && props.children === text);
 const change = (node, value) => node.props.onChange({ target: { value } });
@@ -244,6 +244,19 @@ describe('SH7 step b Legs panel', () => {
     edit(() => change(field(renderLeg(), 'Leg 1 Sits on'), 'base'));
     edit(() => change(field(renderLeg(), 'Leg 1 Sits on'), 'countertop'));
     edit(() => change(field(renderLeg(), 'Leg 1 Sits on'), ''));
+    edit(() => change(field(renderLeg(), 'Leg 1 Fill'), 'panel'));
+    for (const label of ['Reveal', 'Top clearance', 'Bottom clearance']) {
+      edit(() => field(renderLeg(), `Leg 1 ${label}`).props.onCommit(0.5));
+      edit(() => field(renderLeg(), `Leg 1 ${label}`).props.onCommit(undefined));
+    }
+    edit(() => field(renderLeg(), 'Leg 1 Full depth').props.onChange({ target: { checked: true } }));
+    edit(() => field(renderLeg(), 'Leg 1 Full depth').props.onChange({ target: { checked: false } }));
+    edit(() => change(field(renderLeg(), 'Leg 1 Fill'), 'filler'));
+    for (const label of ['Setback', 'Thickness', 'Top clearance', 'Bottom clearance']) {
+      edit(() => field(renderLeg(), `Leg 1 ${label}`).props.onCommit(0.75));
+      edit(() => field(renderLeg(), `Leg 1 ${label}`).props.onCommit(undefined));
+    }
+    edit(() => change(field(renderLeg(), 'Leg 1 Fill'), ''));
     edit(() => field(renderLeg(), 'Remove leg 1').props.onClick());
     dispatch(updateRun({ wallId: 'wall-1', runId: 'run-1', changes: { width: 40 } }));
     const storedX = currentRun().x;
@@ -265,6 +278,105 @@ describe('SH7 step b Legs panel', () => {
     expect(field(tree, 'Redo legs edit').props.disabled).toBe(true);
     tree = render(RunLegsSection, { ...props(), run: { ...currentRun(), id: 'different' } });
     expect(field(tree, 'Undo legs edit').props.disabled).toBe(true);
+  });
+});
+
+describe('SH7.2 step d leg fill controls', () => {
+  it('anchor 1: edits a panel reveal, clearances and full depth, then starts a fresh filler', () => {
+    addCorners();
+    expect(field(renderLeg(), 'Leg 1 Fill').props.value).toBe('');
+    change(field(renderLeg(), 'Leg 1 Fill'), 'panel');
+    expect(currentRun().legs[0].fill).toEqual({ type: 'panel' });
+    expect(field(renderLeg(), 'Leg 1 Thickness')).toBeUndefined();
+    for (const [label, key, setting] of [['Reveal', 'inset', 'legPanelReveal'],
+      ['Top clearance', 'top', 'legPanelTopClearance'], ['Bottom clearance', 'bottom', 'legPanelBottomClearance']]) {
+      const input = () => field(renderLeg(), `Leg 1 ${label}`);
+      expect(input().type).toBe(CoordInput);
+      expect(input().props.allowBlank).toBe(true);
+      expect(input().props.value).toBeUndefined();
+      expect(input().props.placeholder).toBe(formatProfileCoord(settings[setting]));
+      for (const invalid of [-1, Infinity, NaN]) expect(input().props.onCommit(invalid)).toBe(false);
+      input().props.onCommit(0);
+      expect(currentRun().legs[0].fill[key]).toBe(0);
+      input().props.onCommit(undefined);
+      expect(currentRun().legs[0].fill).not.toHaveProperty(key);
+    }
+    field(renderLeg(), 'Leg 1 Reveal').props.onCommit(0.5);
+    expect(currentRun().legs[0].fill).toEqual({ type: 'panel', inset: 0.5 });
+    field(renderLeg(), 'Leg 1 Full depth').props.onChange({ target: { checked: true } });
+    expect(currentRun().legs[0].fill.past).toBe(true);
+    expect(field(renderLeg(), 'Leg 1 Full depth').props.checked).toBe(true);
+    field(renderLeg(), 'Leg 1 Full depth').props.onChange({ target: { checked: false } });
+    expect(currentRun().legs[0].fill).not.toHaveProperty('past');
+    field(renderLeg(), 'Leg 1 Full depth').props.onChange({ target: { checked: true } });
+    change(field(renderLeg(), 'Leg 1 Fill'), 'filler');
+    expect(currentRun().legs[0].fill).toEqual({ type: 'filler' });
+    expect(field(renderLeg(), 'Leg 1 Reveal')).toBeUndefined();
+    expect(field(renderLeg(), 'Leg 1 Full depth')).toBeUndefined();
+  });
+
+  it('anchor 2: stores filler thickness 0.75, clears its key, and uses setting placeholders', () => {
+    addCorners();
+    change(field(renderLeg(), 'Leg 1 Fill'), 'filler');
+    for (const [label, key, setting] of [['Setback', 'inset', 'legPanelReveal'], ['Thickness', 'thickness', 'fillerThickness'],
+      ['Top clearance', 'top', 'legPanelTopClearance'], ['Bottom clearance', 'bottom', 'legPanelBottomClearance']]) {
+      const input = () => field(renderLeg(), `Leg 1 ${label}`);
+      expect(input().props.placeholder).toBe(formatProfileCoord(settings[setting]));
+      expect(input().props.value).toBeUndefined();
+      for (const invalid of [-1, Infinity, NaN]) expect(input().props.onCommit(invalid)).toBe(false);
+      if (key === 'thickness') expect(input().props.onCommit(0)).toBe(false);
+      input().props.onCommit(0.75);
+      expect(currentRun().legs[0].fill[key]).toBe(0.75);
+      input().props.onCommit(undefined);
+      expect(currentRun().legs[0].fill).not.toHaveProperty(key);
+      expect(input().props.value).toBeUndefined();
+    }
+    expect(currentRun().legs[0].fill).toEqual({ type: 'filler' });
+    field(renderLeg(), 'Leg 1 Thickness').props.onCommit(0.75);
+    change(field(renderLeg(), 'Leg 1 Fill'), 'panel');
+    expect(currentRun().legs[0].fill).toEqual({ type: 'panel' });
+  });
+
+  it('anchor 3: removes Nothing fills and shows fill warnings alongside the leg warnings', () => {
+    addCorners();
+    change(field(renderLeg(), 'Leg 1 Fill'), 'panel');
+    field(renderLeg(), 'Leg 1 Top clearance').props.onCommit(40);
+    expect(nodes(renderLeg()).some(({ props }) => props.children === 'Leg 1: its panel has no height.')).toBe(true);
+    field(renderLeg(), 'Leg 1 Top clearance').props.onCommit(undefined);
+    field(renderLeg(), 'Leg 1 In/out').props.onCommit(-30);
+    expect(nodes(renderLeg()).some(({ props }) => props.children === 'Leg 1: no room for its panel (the legs touch or overlap).')).toBe(true);
+    change(field(renderLeg(), 'Leg 1 Sits on'), 'countertop');
+    expect(nodes(renderLeg()).some(({ props }) => props.children === 'Leg 1: no countertop below it. Drawn from the floor.')).toBe(true);
+    field(renderLeg(), 'Leg 1 In/out').props.onCommit(0.5);
+    change(field(renderLeg(1), 'Leg 2 Fill'), 'filler');
+    expect(nodes(renderLeg(1)).some(({ props }) => props.children === 'Leg 2: Leg 1 already fills the gap between them.')).toBe(true);
+    expect(nodes(renderLeg()).some(({ props }) => props.children === 'Leg 2: Leg 1 already fills the gap between them.')).toBe(false);
+    for (const type of ['panel', 'filler']) {
+      change(field(renderLeg(), 'Leg 1 Fill'), type);
+      change(field(renderLeg(), 'Leg 1 Fill'), '');
+      expect(currentRun().legs[0]).not.toHaveProperty('fill');
+      expect(field(renderLeg(), 'Leg 1 Reveal')).toBeUndefined();
+      expect(field(renderLeg(), 'Leg 1 Thickness')).toBeUndefined();
+    }
+  });
+
+  it('anchor 4: adds panels to LF/RF and none to LB/RB, supports fillers, and defaults to Nothing', () => {
+    let tree = render(AddLegsRow);
+    expect(field(tree, 'Add legs Fill').props.value).toBe('');
+    expect(nodes(field(tree, 'Add legs Fill')).filter(({ type }) => type === 'option').map(({ props }) => props.children))
+      .toEqual(['Nothing', 'Panel between the legs', 'Filler behind the leg']);
+    for (const type of ['panel', 'filler', '']) {
+      change(field(tree, 'Add legs Fill'), type);
+      tree = render(AddLegsRow);
+      button(tree, 'Add').props.onClick();
+      expect(currentRun().legs.slice(-4).map(({ from, yFrom, fill }) => [from, yFrom, fill])).toEqual([
+        ['left', 'front', type ? { type } : undefined], ['left', 'back', undefined],
+        ['right', 'front', type ? { type } : undefined], ['right', 'back', undefined],
+      ]);
+      for (const leg of currentRun().legs.slice(-4)) {
+        if (!type || leg.yFrom === 'back') expect(leg).not.toHaveProperty('fill');
+      }
+    }
   });
 });
 

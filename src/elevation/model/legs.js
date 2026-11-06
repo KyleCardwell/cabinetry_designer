@@ -127,7 +127,7 @@ export function runLegs(room, wall, run, settings) {
 }
 
 /** Presets append these placements in corner order; ids come from the caller. */
-export function legPreset(preset, { shapeId, height = 'full', sitsOn, proud = 0, backOffset = 0, leaveOut }, newId) {
+export function legPreset(preset, { shapeId, height = 'full', sitsOn, fill, proud = 0, backOffset = 0, leaveOut }, newId) {
   const corners = { four: ['LF', 'LB', 'RF', 'RB'], front: ['LF', 'RF'],
     three: ['LF', 'LB', 'RF', 'RB'].filter((corner) => corner !== leaveOut),
     left: ['LF', 'LB'], right: ['RF', 'RB'] };
@@ -136,6 +136,7 @@ export function legPreset(preset, { shapeId, height = 'full', sitsOn, proud = 0,
     yFrom: corner[1] === 'F' ? 'front' : 'back',
     y: corner[1] === 'F' ? proud : backOffset,
     ...(sitsOn ? { sitsOn } : {}),
+    ...(fill && corner[1] === 'F' ? { fill: { type: fill } } : {}),
     ...(corner[0] === 'L' ? { mirror: true } : {}),
     ...(corner[1] === 'B' ? { mirrorDepth: true } : {}),
   }));
