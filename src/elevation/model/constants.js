@@ -278,6 +278,11 @@ export const KIND_LABELS = {
   shelf: 'Shelf',
 };
 
+/** EC1: the elevation canvas background; part fills use it so parts cover what's behind them without a color. */
+export const ELEVATION_BG = '#111827';
+/** EC1: default outline for elevation parts (the face frame's line color). */
+export const ELEVATION_LINE = '#e7e5e4';
+
 /** Display colors for derived piece kinds. */
 export const KIND_COLORS = {
   cabinet: '#3b82f6',

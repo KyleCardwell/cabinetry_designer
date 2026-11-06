@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Rect } from 'react-konva';
+import { ELEVATION_BG } from '../../model/constants.js';
 import { topSegmentRoom, topSegmentSettings } from '../../model/__tests__/fixtures/topSegments.js';
 import RunGroup from '../RunGroup.jsx';
 
@@ -24,7 +25,7 @@ describe('ST4 step c top segment canvas', () => {
       .map(({ props: { x, y, width, height, fill } }) => [x, y, width, height, fill]))
       .toEqual([
         [7, 260, 123, 6, '#cbd5e1'], [250, 260, 123, 6, '#cbd5e1'],
-        [130, 260, 120, 14, '#c8a27a'],
+        [130, 260, 120, 14, ELEVATION_BG],
       ]);
   });
 });

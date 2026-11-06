@@ -6,7 +6,7 @@ import {
   Text,
 } from 'react-konva';
 import { wallRectToScreen, wallToScreen } from '../canvas/transform.js';
-import { KIND_COLORS } from '../model/constants.js';
+import { ELEVATION_BG, ELEVATION_LINE } from '../model/constants.js';
 import { cornerShapes } from '../model/cornerParts.js';
 import { doorDrawing } from '../model/doorDetails.js';
 import { landingsOn } from '../model/landings.js';
@@ -69,17 +69,17 @@ export default function NeighborReturns({
             const PartShape = part.outline ? Shape : Rect;
             const geometry = part.outline ? outlineGeometry(part.outline, transform) : part.rect;
             const section = part.kind === 'section';
-            const profile = part.kind === 'profile' || part.kind === 'end_panel';
+            const profile = part.kind === 'profile';
+            const outlined = part.kind === 'end_panel' || part.kind === 'furniture_base';
             const clipFunc = part.outline ? outlinePath(part.outline, transform) : undefined;
             return (
               <Group key={part.id} listening={false}>
                 <PartShape
                   {...geometry}
                   // An end panel seen end-on stands in front of this wall, so it covers what's behind it (FX5.1).
-                  fill={section ? '#475569' : part.kind === 'end_panel' ? KIND_COLORS.end_panel
-                    : part.kind === 'furniture_base' ? '#475569' : undefined}
+                  fill={section ? '#475569' : outlined ? ELEVATION_BG : undefined}
                   opacity={section ? 0.26 : part.kind === 'end_panel' ? 0.82 : part.kind === 'furniture_base' ? 0.9 : 1}
-                  stroke={profile ? '#64748b' : part.kind === 'furniture_base' ? '#f1f5f9' : '#94a3b8'}
+                  stroke={outlined ? ELEVATION_LINE : profile ? '#64748b' : '#94a3b8'}
                   strokeWidth={section ? 1.5 : 1}
                   listening={false}
                 />
@@ -90,7 +90,7 @@ export default function NeighborReturns({
                     <Line
                       key={`line:${index}`}
                       points={[from.x, from.y, to.x, to.y]}
-                      stroke={part.kind === 'furniture_base' ? '#f1f5f9' : '#94a3b8'}
+                      stroke={outlined ? ELEVATION_LINE : '#94a3b8'}
                       strokeWidth={part.kind === 'furniture_base' ? 1 : 0.5}
                       listening={false}
                     />

@@ -8,7 +8,7 @@ import {
   Tag,
   Text,
 } from 'react-konva';
-import { KIND_COLORS } from '../model/constants.js';
+import { ELEVATION_BG, ELEVATION_LINE } from '../model/constants.js';
 import { cornerAt, frontDepth } from '../model/corners.js';
 import { doorDrawing, runDoorDetails } from '../model/doorDetails.js';
 import { regionOpenings } from '../model/frames.js';
@@ -40,8 +40,7 @@ import SwingMarks from './SwingMarks.jsx';
 import ShowThroughInteriors from './ShowThroughInteriors.jsx';
 import { outlineGeometry } from './outlinePath.js';
 
-/** Furniture base on the canvas (FX5.1): a darker fill and a bright edge, so the profile and steps read. */
-const FURNITURE_BASE = { fill: '#475569', stroke: '#f1f5f9' };
+const FURNITURE_BASE = { fill: ELEVATION_BG, stroke: ELEVATION_LINE };
 
 function RunGroup({
   run,
@@ -269,7 +268,7 @@ function RunGroup({
           bounds: { x: start, width: end - start, z: bounds.z, height: bounds.height } })),
         { id, leg, bounds },
       ]).map(({ id, leg, bounds }) => (
-        <Rect key={id} {...toScreen(bounds)} fill="#cbd5e1" stroke="#1e293b" strokeWidth={1}
+        <Rect key={id} {...toScreen(bounds)} fill={ELEVATION_BG} stroke={ELEVATION_LINE} strokeWidth={1}
           listening={legProps.listening} onClick={(event) => legProps.onSelect(event, leg)}
           onMouseEnter={legProps.onMouseEnter} onMouseLeave={legProps.onMouseLeave} />
       ))}
@@ -277,8 +276,8 @@ function RunGroup({
         <Rect
           key={`toeKick:${index}`}
           {...toScreen(band)}
-          fill="#111827"
-          stroke="#334155"
+          fill={ELEVATION_BG}
+          stroke={ELEVATION_LINE}
           strokeWidth={1}
           listening={false}
         />
@@ -305,7 +304,7 @@ function RunGroup({
           <CountertopShape
             key={band.id ?? `countertop:${index}`}
             {...toBand(band)}
-            fill={(band.kind ?? bands.top.kind) === 'wood' ? '#c8a27a' : '#cbd5e1'}
+            fill={(band.kind ?? bands.top.kind) === 'wood' ? ELEVATION_BG : '#cbd5e1'}
             opacity={0.9}
             stroke="#64748b"
             strokeWidth={1}
@@ -317,9 +316,9 @@ function RunGroup({
       {topMold && (
         <TopMoldShape
           {...topMold}
-          fill="#94a3b8"
+          fill={ELEVATION_BG}
           opacity={0.9}
-          stroke="#cbd5e1"
+          stroke={ELEVATION_LINE}
           strokeWidth={1}
           listening={false}
         />
@@ -327,20 +326,20 @@ function RunGroup({
       {crown && (
         <CrownShape
           {...crown}
-          fill="#e2e8f0"
+          fill={ELEVATION_BG}
           opacity={0.82}
-          stroke="#f8fafc"
+          stroke={ELEVATION_LINE}
           strokeWidth={1}
           listening={false}
         />
       )}
 
       {[
-        ['toeKicks', '#334155', 1],
+        ['toeKicks', ELEVATION_LINE, 1],
         ['furnitureBases', FURNITURE_BASE.stroke, 1],
         ['countertops', '#64748b', 0.9],
-        ['topMold', '#cbd5e1', 0.9],
-        ['crown', '#f8fafc', 0.82],
+        ['topMold', ELEVATION_LINE, 0.9],
+        ['crown', ELEVATION_LINE, 0.82],
       ].flatMap(([kind, stroke, opacity]) => {
         const segments = Array.isArray(bands[kind]) ? bands[kind] : [bands[kind]];
         return segments.flatMap((band, segmentIndex) => (band?.lines ?? []).map((line, index) => {
@@ -363,9 +362,9 @@ function RunGroup({
         <Rect
           key={part.id}
           {...part.rect}
-          fill={part.behind ? 'transparent' : '#94a3b8'}
+          fill={part.behind ? 'transparent' : ELEVATION_BG}
           opacity={0.9}
-          stroke="#cbd5e1"
+          stroke={ELEVATION_LINE}
           strokeWidth={1}
           dash={part.behind || part.kind === 'corbels' ? [4, 3] : undefined}
           listening={false}
@@ -389,9 +388,9 @@ function RunGroup({
             width: panel.width,
             height: run.height,
           }, transform)}
-          fill={KIND_COLORS.end_panel}
+          fill={ELEVATION_BG}
           opacity={0.82}
-          stroke="#1e293b"
+          stroke={ELEVATION_LINE}
           strokeWidth={1}
           listening={false}
         />
@@ -495,9 +494,9 @@ function RunGroup({
         <Rect
           key={part.id}
           {...wallRectToScreen(part, transform)}
-          fill={KIND_COLORS[part.kind]}
+          fill={ELEVATION_BG}
           opacity={part.kind === 'shelf' ? 0.9 : 0.25}
-          stroke="#1e293b"
+          stroke={ELEVATION_LINE}
           strokeWidth={1}
           listening={false}
         />

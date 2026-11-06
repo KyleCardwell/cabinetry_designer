@@ -1,4 +1,5 @@
 import { Group, Shape } from 'react-konva';
+import { ELEVATION_BG, ELEVATION_LINE } from '../model/constants.js';
 import { polygonContainsPoint } from '../model/footprints.js';
 import { flattenOutline } from '../model/sectionProfileOutline.js';
 import { outlineGeometry } from './outlinePath.js';
@@ -20,7 +21,7 @@ export default function LegShapes({ legs, transform, onSelect, listening = true,
         onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
         {loops.map(({ closed, outline, outer, index }) => (
           <Shape key={index} {...outlineGeometry(outline, transform, { closed })}
-            stroke="#f8fafc" strokeWidth={1} fill="#cbd5e1" fillEnabled={outer}
+            stroke={ELEVATION_LINE} strokeWidth={1} fill={ELEVATION_BG} fillEnabled={outer}
             hitStrokeWidth={8} />
         ))}
       </Group>

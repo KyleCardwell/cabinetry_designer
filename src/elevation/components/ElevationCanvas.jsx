@@ -23,7 +23,7 @@ import { snapToAlignment, runAlignmentTargets } from '../canvas/alignment.js';
 import useLiveEntry, { resolveLiveEntryValue } from '../canvas/useLiveEntry.js';
 import { useMeasure } from '../canvas/measureState.js';
 import { elevationMeasureGeometry } from '../model/measure.js';
-import { CABINET_TYPE_IDS } from '../model/constants.js';
+import { CABINET_TYPE_IDS, ELEVATION_BG } from '../model/constants.js';
 import { jointLineLock } from '../model/lineLocks.js';
 import { elevationKey } from '../model/topology.js';
 import {
@@ -519,7 +519,7 @@ function ElevationCanvas({
           onContextMenu={handleContextMenu}
         >
           <Layer listening={false}>
-            <Rect width={viewport.width} height={viewport.height} fill="#111827" />
+            <Rect width={viewport.width} height={viewport.height} fill={ELEVATION_BG} />
             <WallFrame
               wall={wall}
               transform={transform}

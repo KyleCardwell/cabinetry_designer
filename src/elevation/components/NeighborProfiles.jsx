@@ -1,4 +1,5 @@
 import { Group, Rect, Shape } from 'react-konva';
+import { ELEVATION_BG, ELEVATION_LINE } from '../model/constants.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { cornerShapes } from '../model/cornerParts.js';
 import { doorDrawing } from '../model/doorDetails.js';
@@ -7,11 +8,11 @@ import { outlineGeometry } from './outlinePath.js';
 
 const PART_STYLES = {
   profile: { stroke: '#64748b' },
-  toe_kick: { fill: '#111827', opacity: 1, stroke: '#334155' },
-  furniture_base: { fill: '#475569', opacity: 0.9, stroke: '#f1f5f9' },
+  toe_kick: { fill: ELEVATION_BG, opacity: 1, stroke: ELEVATION_LINE },
+  furniture_base: { fill: ELEVATION_BG, opacity: 0.9, stroke: ELEVATION_LINE },
   countertop: { fill: '#9ca3af', opacity: 0.55, stroke: '#cbd5e1' },
-  top_mold: { fill: '#94a3b8', opacity: 0.55, stroke: '#cbd5e1' },
-  crown: { fill: '#e2e8f0', opacity: 0.5, stroke: '#f8fafc' },
+  top_mold: { fill: ELEVATION_BG, opacity: 0.55, stroke: ELEVATION_LINE },
+  crown: { fill: ELEVATION_BG, opacity: 0.5, stroke: ELEVATION_LINE },
 };
 
 /** Runs on a connected wall that reach past this face's ends, seen from the side (SPEC-42.2). */

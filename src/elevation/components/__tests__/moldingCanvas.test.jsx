@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vitest';
 import { Group, Line, Rect, Shape } from 'react-konva';
+import { ELEVATION_BG, ELEVATION_LINE } from '../../model/constants.js';
 import { cornerShapes } from '../../model/cornerParts.js';
 import { resolveWall, syncRoom } from '../../model/room.js';
 import { normalizeElevationDocument } from '../../store/persistence.js';
@@ -94,7 +95,7 @@ describe('SPEC-50.8 step 500 nosing canvas', () => {
     const tree = render('wood', 'nz1');
     const top = tree.find(({ type, props }) => type === Shape && props.stroke === '#64748b');
     expect(top).toBeDefined();
-    expect(top.props).toMatchObject({ fill: '#c8a27a', strokeWidth: 1, opacity: 0.9, listening: false });
+    expect(top.props).toMatchObject({ fill: ELEVATION_BG, strokeWidth: 1, opacity: 0.9, listening: false });
     expect(trace(top.props.sceneFunc)).toEqual([
       'begin', ['move', 128, 314], ['line', 276, 314], ['line', 276, 309],
       ['line', 275, 308], ['line', 129, 308], ['line', 128, 309], 'close',
@@ -107,7 +108,7 @@ describe('SPEC-50.8 step 500 nosing canvas', () => {
     expect(tree.some(({ type, props }) => type === Rect && props.stroke === '#64748b')).toBe(false);
   });
 
-  it.each([['wood', null, '#c8a27a'], ['stone', 'nz1', '#cbd5e1']])(
+  it.each([['wood', null, ELEVATION_BG], ['stone', 'nz1', '#cbd5e1']])(
     'keeps %s without an applicable nosing rectangular', (kind, pick, fill) => {
       const tree = render(kind, pick);
       const top = tree.find(({ type, props }) => type === Rect && props.stroke === '#64748b');
@@ -123,31 +124,31 @@ describe('Step 490 furniture base canvas', () => {
     const tree = nodes(RunGroup.type(setup({
       baseKind: 'furniture_base', furnitureBaseProfileId: 'fb4',
     }, 1)));
-    // FX5.1: a darker fill with a bright edge and contour lines, so the profile and steps read.
-    const base = tree.find(({ type, props }) => type === Shape && props.stroke === '#f1f5f9');
+    // EC1: background fill keeps the profiled base opaque with light contour lines.
+    const base = tree.find(({ type, props }) => type === Shape && props.stroke === ELEVATION_LINE);
     expect(base).toBeDefined();
     expect(trace(base.props.sceneFunc).at(-1)).toBe('close');
     expect(base.props).toMatchObject({
-      fill: '#475569', opacity: 0.9, strokeWidth: 1, listening: false,
+      fill: ELEVATION_BG, opacity: 0.9, strokeWidth: 1, listening: false,
     });
-    const lines = tree.filter(({ type, props }) => type === Line && props.stroke === '#f1f5f9');
+    const lines = tree.filter(({ type, props }) => type === Line && props.stroke === ELEVATION_LINE);
     expect(lines).toHaveLength(1);
     expect(lines[0].props).toMatchObject({
       points: [86.75, 437.25, 333.25, 437.25],
       strokeWidth: 1, opacity: 1, listening: false,
     });
-    expect(tree.some(({ type, props }) => type === Rect && props.stroke === '#334155')).toBe(false);
+    expect(tree.some(({ key }) => key?.startsWith('toeKick:'))).toBe(false);
   });
 
   it('renders a plain furniture base as a molding rectangle without profile lines or a toe kick', () => {
     const tree = nodes(RunGroup.type(setup({ baseKind: 'furniture_base' }, 1)));
-    const base = tree.find(({ type, props }) => type === Rect && props.stroke === '#f1f5f9');
+    const base = tree.find(({ type, props }) => type === Rect && props.stroke === ELEVATION_LINE);
     expect(base.props).toMatchObject({
       x: 86.75, y: 436, width: 246.5, height: 16,
-      fill: '#475569', opacity: 0.9, strokeWidth: 1, listening: false,
+      fill: ELEVATION_BG, opacity: 0.9, strokeWidth: 1, listening: false,
     });
-    expect(tree.some(({ type, props }) => type === Line && props.stroke === '#f1f5f9')).toBe(false);
-    expect(tree.some(({ type, props }) => type === Rect && props.stroke === '#334155')).toBe(false);
+    expect(tree.some(({ type, props }) => type === Line && props.stroke === ELEVATION_LINE)).toBe(false);
+    expect(tree.some(({ key }) => key?.startsWith('toeKick:'))).toBe(false);
   });
 });
 
@@ -163,7 +164,7 @@ describe('Step 472 molding canvas', () => {
     expect(rectangles).toHaveLength(2);
     expect(rectangles[0].props).toMatchObject({ fill: undefined, stroke: '#64748b', opacity: 1, strokeWidth: 1 });
     // FX5.1: an end panel seen end-on is filled, so it covers what's behind it.
-    expect(rectangles[1].props).toMatchObject({ fill: '#8b5cf6', stroke: '#64748b', opacity: 0.82, strokeWidth: 1 });
+    expect(rectangles[1].props).toMatchObject({ fill: ELEVATION_BG, stroke: ELEVATION_LINE, opacity: 0.82, strokeWidth: 1 });
     expect(tree.some(({ type }) => type === Hatch)).toBe(false);
     expect(tree.some(({ type, props }) => type === Group && props.clipFunc)).toBe(false);
   });
@@ -171,8 +172,10 @@ describe('Step 472 molding canvas', () => {
   it('renders the crown picks as thin lines stopped on the returned front contours', () => {
     const render = (profile) => nodes(RunGroup.type(setup(profile)));
     const picked = render(picks);
-    const crown = picked.find(({ type, props }) => type === Shape && props.stroke === '#f8fafc');
-    const lines = picked.filter(({ type, props }) => type === Line && props.stroke === crown.props.stroke);
+    const crown = picked.find(({ type, props }) => type === Shape && props.stroke === ELEVATION_LINE && props.opacity === 0.82);
+    expect(crown.props).toMatchObject({ fill: ELEVATION_BG, opacity: 0.82, stroke: ELEVATION_LINE });
+    const lines = picked.filter(({ type, props }) => type === Line
+      && props.stroke === crown.props.stroke && props.opacity === crown.props.opacity);
     expect(lines).toHaveLength(2);
     expect(lines.map(({ props }) => props.points)).toEqual([
       [77, 72, 343, 72], [87, 84, 333, 84],
@@ -181,10 +184,10 @@ describe('Step 472 molding canvas', () => {
       expect(props.strokeWidth).toBeLessThan(crown.props.strokeWidth);
       expect(props).toMatchObject({ opacity: crown.props.opacity, listening: false });
     }
-    expect(picked.filter(({ type, props }) => type === Line && props.stroke === '#cbd5e1')
+    expect(picked.filter(({ type, props }) => type === Line && props.stroke === ELEVATION_LINE && props.opacity === 0.9)
       .map(({ props }) => props.points)).toEqual([[89, 89, 331, 89]]);
     expect(render({}).filter(({ type, props }) => type === Line
-      && ['#f8fafc', '#cbd5e1'].includes(props.stroke))).toHaveLength(0);
+      && props.stroke === ELEVATION_LINE)).toHaveLength(0);
   });
 
   it.each([
@@ -205,9 +208,12 @@ describe('Step 472 molding canvas', () => {
     expect(polygon.props).toMatchObject({
       strokeWidth: 1, listening: false,
     });
+    if (kind === 'profile') {
+      expect(polygon.props).toMatchObject({ fill: ELEVATION_BG, stroke: ELEVATION_LINE, opacity: 0.5 });
+    }
     if (kind === 'return') {
       expect(polygon.props).toMatchObject(partKind === 'furniture_base'
-        ? { fill: '#475569', stroke: '#f1f5f9', opacity: 0.9 }
+        ? { fill: ELEVATION_BG, stroke: ELEVATION_LINE, opacity: 0.9 }
         : { fill: undefined, stroke: '#94a3b8', opacity: 1 });
     }
     expect(trace(polygon.props.sceneFunc)).toEqual([
@@ -248,11 +254,12 @@ describe('Step 472 molding canvas', () => {
   it('renders picked band outlines as paths and unprofiled bands as rectangles', () => {
     const picked = nodes(RunGroup.type(setup()));
     const plain = nodes(RunGroup.type(setup({})));
-    for (const stroke of ['#cbd5e1', '#f8fafc']) {
-      const band = picked.find(({ type, props }) => type === Shape && props.stroke === stroke);
+    for (const opacity of [0.9, 0.82]) {
+      const stroke = ELEVATION_LINE;
+      const band = picked.find(({ type, props }) => type === Shape && props.stroke === stroke && props.opacity === opacity);
       expect(trace(band.props.sceneFunc).at(-1)).toBe('close');
-      expect(picked.some(({ type, props }) => type === Rect && props.stroke === stroke)).toBe(false);
-      expect(plain.some(({ type, props }) => type === Rect && props.stroke === stroke)).toBe(true);
+      expect(picked.some(({ type, props }) => type === Rect && props.stroke === stroke && props.opacity === opacity)).toBe(false);
+      expect(plain.some(({ type, props }) => type === Rect && props.stroke === stroke && props.opacity === opacity)).toBe(true);
     }
   });
 

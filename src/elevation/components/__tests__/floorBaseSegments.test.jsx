@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { connectWallStops } from '../../model/__tests__/helpers/wallStops.js';
 import { room as buildRoom, run as buildRun, wall as buildWall } from '../../../test/builders.js';
 import { Rect, Shape, Line } from 'react-konva';
-import { CABINET_TYPE_IDS } from '../../model/constants.js';
+import { CABINET_TYPE_IDS, ELEVATION_BG, ELEVATION_LINE } from '../../model/constants.js';
 import { gridFromItems } from '../../model/grid.js';
 import { setGridCellBaseUnder, setGridCellKind, setGridPanelType } from '../../model/cellTree.js';
 import { bandParts } from '../../model/bandParts.js';
@@ -226,7 +226,7 @@ describe('SPEC-50.11 step 511 floor base segments', () => {
   it('draws both toe kicks and both profiled furniture bands, including their returned lines', () => {
     const toe = setup();
     const toeNodes = nodes(RunGroup.type({ ...toe, transform }));
-    expect(toeNodes.filter(({ type, props }) => type === Rect && props.fill === '#111827')
+    expect(toeNodes.filter(({ type, props }) => type === Rect && props.fill === ELEVATION_BG && props.stroke === ELEVATION_LINE)
       .map(({ props: { x, width } }) => [x, width])).toEqual([[11, 70], [179, 70]]);
     const furniture = setup({ furniture: true, profile: 'fb4' });
     expect(furniture.bands.furnitureBases.map(({ outline }) => outline)).toEqual([
@@ -236,8 +236,8 @@ describe('SPEC-50.11 step 511 floor base segments', () => {
         [60.5, 4, 0], [40.75, 4, 0], [40.4375, 3.6875, 0]],
     ]);
     const furnitureNodes = nodes(RunGroup.type({ ...furniture, transform }));
-    expect(furnitureNodes.filter(({ type, props }) => type === Shape && props.stroke === '#f1f5f9')).toHaveLength(2);
-    expect(furnitureNodes.filter(({ type, props }) => type === Line && props.stroke === '#f1f5f9')
+    expect(furnitureNodes.filter(({ type, props }) => type === Shape && props.stroke === ELEVATION_LINE)).toHaveLength(2);
+    expect(furnitureNodes.filter(({ type, props }) => type === Line && props.stroke === ELEVATION_LINE)
       .map(({ props }) => props.points)).toEqual([
       [6.75, 437.25, 88.25, 437.25], [171.75, 437.25, 253.25, 437.25],
     ]);

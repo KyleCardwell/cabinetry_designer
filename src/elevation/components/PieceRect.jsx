@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Group, Rect, Text } from 'react-konva';
-import { KIND_COLORS } from '../model/constants.js';
+import { ELEVATION_BG, ELEVATION_LINE } from '../model/constants.js';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen } from '../canvas/transform.js';
 import { hideHoverLabel, pieceSizeText, showHoverLabel } from '../canvas/hoverLabel.js';
@@ -11,7 +11,6 @@ export default function PieceRect({
   warning,
   error,
   selected,
-  cornerFiller = false,
   subLabel = null,
   notes = [],
   framed = false,
@@ -37,7 +36,7 @@ export default function PieceRect({
       ? '#f59e0b'
       : selected
         ? '#7dd3fc'
-        : '#1e293b';
+        : ELEVATION_LINE;
   const fixedCabinet = piece.kind === 'cabinet' && !piece.auto;
   const hollow = piece.kind === 'void' || piece.kind === 'shelves';
   // A framed box never shows; a mitered end panel (ghost) shows while hovered or selected (SPEC-36.1).
@@ -72,11 +71,11 @@ export default function PieceRect({
         {...rect}
         fill={quiet
           ? 'rgba(0, 0, 0, 0.001)'
-          : hollow ? 'transparent' : cornerFiller ? '#fbbf24' : KIND_COLORS[piece.kind]}
+          : hollow ? 'transparent' : ELEVATION_BG}
         opacity={0.82}
-        stroke={quiet && outline === '#1e293b'
+        stroke={quiet && outline === ELEVATION_LINE
           ? undefined
-          : piece.kind === 'void' && outline === '#1e293b' ? KIND_COLORS.void : outline}
+          : piece.kind === 'void' && outline === ELEVATION_LINE ? '#475569' : outline}
         strokeWidth={selected ? 3 : error || warning ? 2 : 1}
       />
 

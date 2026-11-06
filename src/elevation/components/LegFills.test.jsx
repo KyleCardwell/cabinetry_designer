@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Rect, Shape } from 'react-konva';
 import { auto, room, run, wall } from '../../test/builders.js';
-import { DEFAULT_SETTINGS } from '../model/constants.js';
+import { DEFAULT_SETTINGS, ELEVATION_BG, ELEVATION_LINE } from '../model/constants.js';
 import { legPreset } from '../model/legs.js';
 import { legShape } from '../model/__tests__/fixtures/legs.js';
 import { elevationToPlan } from '../model/geometry.js';
@@ -40,7 +40,7 @@ describe('SH7.2 step c canvas leg fills', () => {
         expect(fill.type).toBe(Rect);
         expect(fill.props).toMatchObject({ ...(type === 'panel'
           ? { x: 61, y: 276, width: 3.25, height: 138 } : { x: 60, y: 276, width: 14, height: 122 }),
-          stroke: '#1e293b', strokeWidth: 1, fill: '#cbd5e1', listening: true });
+          stroke: ELEVATION_LINE, strokeWidth: 1, fill: ELEVATION_BG, listening: true });
         expect(tree.some(({ key }) => key === 'LF:fill:return')).toBe(false);
         const rear = tree.findIndex(({ type }) => type === LegShapes);
         expect(tree.indexOf(fill)).toBe(rear + 1);
@@ -119,7 +119,7 @@ describe('SH7.2 step c canvas leg fills', () => {
         for (const node of tree.slice(panelIndex - 2, panelIndex)) {
           expect(node.type).toBe(Rect);
           expect(node.props).toMatchObject({ x, y: 284, width: 14.75, height: 126,
-            fill: '#cbd5e1', stroke: '#1e293b', strokeWidth: 1, listening: !preview });
+            fill: ELEVATION_BG, stroke: ELEVATION_LINE, strokeWidth: 1, listening: !preview });
           const event = {};
           node.props.onClick(event);
           expect(event.cancelBubble).toBe(true);

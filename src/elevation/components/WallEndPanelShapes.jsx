@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Group, Rect } from 'react-konva';
 import { CURSORS, useCursorKeys } from '../canvas/cursor.js';
 import { wallRectToScreen } from '../canvas/transform.js';
-import { KIND_COLORS } from '../model/constants.js';
+import { ELEVATION_BG, ELEVATION_LINE } from '../model/constants.js';
 import { wallEndPanelSpans, wallEndPanels } from '../model/wallEndPanels.js';
 
 function WallEndPanelShape({
@@ -37,9 +37,9 @@ function WallEndPanelShape({
         <Rect
           key={span.z}
           {...rect(span.z, span.height)}
-          fill={KIND_COLORS.end_panel}
+          fill={ELEVATION_BG}
           opacity={0.55}
-          stroke={selected ? '#7dd3fc' : KIND_COLORS.end_panel}
+          stroke={selected ? '#7dd3fc' : ELEVATION_LINE}
           strokeWidth={selected ? 3 : 1}
           listening={false}
         />
