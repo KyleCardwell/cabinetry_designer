@@ -1,57 +1,52 @@
 import { frontDepth, runBackOffset } from './corners.js';
+import { legWarningSubject, runLegList } from './endLegs.js';
 import { teamDoorStyle } from './doorStyles.js';
 import { legShapeOf } from './legs.js';
 
 /** Depth and along-run fill plans, independent of leg height and support. */
 export function legFillPlans(run, settings) {
-  if (!run.legs?.some(({ fill }) => fill)) return [];
+  const runLegs = runLegList(run);
+  if (!runLegs.some(({ fill }) => fill)) return [];
   const F = frontDepth(run, settings);
   const B = runBackOffset(run);
-  const legs = (run.legs ?? []).flatMap((leg, offset) => {
+  const legs = runLegs.flatMap((leg) => {
     const shape = legShapeOf(leg, settings);
     if (!shape) return [];
     const t0 = leg.yFrom === 'front' ? -leg.y : F - B + leg.y - shape.box.d;
     const front = F - t0;
-    return [{ leg, index: offset + 1, width: shape.box.w, front, back: front - shape.box.d }];
+    return [{ leg, legId: leg.id, ...legWarningSubject(run, leg), width: shape.box.w, front, back: front - shape.box.d }];
   });
-  const partnerOf = (entry) => legs.filter((other) => other !== entry && other.leg.from === entry.leg.from
-    && (entry.leg.yFrom === 'front' ? other.front < entry.front : other.back > entry.back))
-    .sort((a, b) => entry.leg.yFrom === 'front' ? b.front - a.front : a.back - b.back)[0];
-  const partners = new Map(legs.filter(({ leg }) => leg.fill?.type === 'panel')
-    .map((entry) => [entry, partnerOf(entry)]));
   return legs.filter(({ leg }) => leg.fill).map((entry) => {
-    const { leg, index } = entry;
+    const { leg, legId, index, name } = entry;
+    const identity = { leg, legId, ...(name ? { name } : { index }) };
     const { fill } = leg;
     if (fill.type === 'filler') {
       const width = entry.width;
       const u0 = leg.from === 'left' ? run.x - leg.x : run.x + run.width + leg.x - width;
       const thickness = settings.fillerThickness;
-      const forward = leg.yFrom === 'back';
-      const face = forward ? { back: entry.front, front: entry.front + thickness }
-        : { back: entry.back - thickness, front: entry.back };
+      const face = { back: entry.back - thickness, front: entry.back };
       const rt = settings.fillerReturnThickness;
-      const join = forward ? face.front - settings.fillerReturnTongue : face.back + settings.fillerReturnTongue;
+      const join = face.back + settings.fillerReturnTongue;
       const ret = {
         start: leg.from === 'left' ? u0 + width - rt : u0,
         end: leg.from === 'left' ? u0 + width : u0 + rt,
-        back: forward ? join : join - settings.fillerReturnDepth,
-        front: forward ? join + settings.fillerReturnDepth : join,
+        back: join - settings.fillerReturnDepth,
+        front: join,
       };
       const hasReturn = settings.fillerReturnDepth > 0;
       const back = hasReturn ? Math.min(face.back, ret.back) : face.back;
       const front = hasReturn ? Math.max(face.front, ret.front) : face.front;
-      return { leg, index, type: 'filler', side: leg.from, u0, width, face, ret,
+      return { ...identity, type: 'filler', side: leg.from, u0, width, face, ret,
         back, front, thickness,
         orderedDepth: hasReturn ? thickness + settings.fillerReturnDepth - settings.fillerReturnTongue : thickness,
         takesRoom: leg.takesRoom !== false && !run._pinSplit?.[leg.from]
           && Math.min(front, F) - Math.max(back, B) > 1e-6 };
     }
-    const partner = partners.get(entry);
-    const warn = (code, extra = {}) => ({ leg, index, warning: { code, type: fill.type, ...extra } });
-    if (leg.yFrom === 'back' && partner?.leg.fill?.type === 'panel' && partner.leg.yFrom === 'front'
-      && partners.get(partner) === entry) return warn('leg-fill-shared', { other: partner.index });
-    const back = fill.past ? B : leg.yFrom === 'front' ? partner?.front ?? B : entry.front;
-    const front = fill.past ? F : leg.yFrom === 'front' ? entry.back : partner?.back ?? F;
+    const backLeg = legs.find(({ leg: other }) => other.end?.side === leg.end?.side
+      && other.end?.edge === 'back');
+    const warn = (code) => ({ ...identity, warning: { code, type: fill.type } });
+    const back = fill.past ? B : backLeg?.front ?? B;
+    const front = fill.past ? F : entry.back;
     const depth = front - back;
     if (depth <= 1e-6) return warn('leg-fill-no-depth');
     const width = run._endThickness?.[leg.from] ?? teamDoorStyle(settings).thickness;
@@ -70,7 +65,7 @@ export function legFillPlans(run, settings) {
           end: leg.from === 'left' ? u0 + returnDepth : u0,
           ...band, takesRoom: takesRoom(band.back, band.front) };
       });
-    return { leg, index, type: fill.type, side: leg.from,
+    return { ...identity, type: fill.type, side: leg.from,
       u0, width, back, front, depth, returns,
       ...(returns.length ? { returnDepth } : {}),
       ...(shortReturn ? { warnings: [{ code: 'leg-fill-return-short' }] } : {}),
@@ -83,7 +78,7 @@ export function legRoom(run, settings) {
   const room = { left: 0, right: 0 };
   const F = frontDepth(run, settings);
   const B = runBackOffset(run);
-  for (const leg of run.legs ?? []) {
+  for (const leg of runLegList(run)) {
     if (run._pinSplit?.[leg.from] || leg.takesRoom === false) continue;
     const shape = legShapeOf(leg, settings);
     if (!shape) continue;

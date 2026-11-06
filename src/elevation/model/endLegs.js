@@ -24,7 +24,7 @@ function isLegFill(fill) {
       && Number.isFinite(fill.returnDepth) && fill.returnDepth > 0));
 }
 
-/** Validate one stored leg; fill remains supported during the data migration. */
+/** Hand-placed legs cannot own fills; run ends derive them while their fit is active. */
 export function isLeg(leg) {
   if (!leg || typeof leg !== 'object' || Array.isArray(leg)
     || !isText(leg.id) || !isLegShape(leg)
@@ -36,7 +36,7 @@ export function isLeg(leg) {
     || (leg.mirrorDepth !== undefined && leg.mirrorDepth !== true)
     || (leg.takesRoom !== undefined && leg.takesRoom !== false)
     || (leg.sitsOn !== undefined && !['base', 'countertop'].includes(leg.sitsOn))
-    || (Object.hasOwn(leg, 'fill') && !isLegFill(leg.fill))) return false;
+    || Object.hasOwn(leg, 'fill')) return false;
   return true;
 }
 
@@ -99,4 +99,11 @@ export function endLegList(run) {
 
 export function runLegList(run) {
   return [...endLegList(run), ...(run.legs ?? [])];
+}
+
+/** Warning subjects keep hand-leg positions independent of the derived end legs. */
+export function legWarningSubject(run, leg) {
+  return leg.end
+    ? { name: `${leg.end.side === 'left' ? 'Left' : 'Right'} ${leg.end.edge} leg` }
+    : { index: run.legs.indexOf(leg) + 1 };
 }

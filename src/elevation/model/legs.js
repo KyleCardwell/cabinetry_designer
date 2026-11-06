@@ -1,5 +1,5 @@
 import { frontDepth, runBackOffset } from './corners.js';
-import { isLeg } from './endLegs.js';
+import { isLeg, legWarningSubject, runLegList } from './endLegs.js';
 import { runBaseProfile } from './furnitureBase.js';
 import { rectangle, resolveShape, shapeView } from './libraryShapes.js';
 import { resolveProfile } from './profile.js';
@@ -68,11 +68,11 @@ export function runLegs(room, wall, run, settings) {
   if (view.side !== wallSideOf(run)) return placed;
   const F = frontDepth(run, settings);
   const B = runBackOffset(run);
-  (run.legs ?? []).forEach((leg, offset) => {
-    const index = offset + 1;
+  runLegList(run).forEach((leg) => {
+    const subject = legWarningSubject(run, leg);
     const warnings = [];
     const warn = (warning) => {
-      const entry = { ...warning, index, legId: leg.id };
+      const entry = { ...warning, ...subject, legId: leg.id };
       warnings.push(entry);
       placed.warnings.push(entry);
     };
@@ -101,7 +101,7 @@ export function runLegs(room, wall, run, settings) {
     const toFront = ([px, pz]) => [toX(px), pz - b.z + z0];
     const [x, z] = toFront([resolved.origin.x, resolved.origin.z]);
     placed.push({
-      leg, index, shapeName: shape.name, stretched: resolved.stretched,
+      leg, ...subject, shapeName: shape.name, stretched: resolved.stretched,
       bounds: { x: u0, z: z0, width: b.w, height: b.h },
       front: F - t0, back: F - t0 - b.d,
       outlines: shapeOutlines(resolved.shape.views.front).map(({ closed, outline }) => ({
@@ -122,7 +122,7 @@ export function runLegs(room, wall, run, settings) {
 }
 
 /** Presets append these placements in corner order; ids come from the caller. */
-export function legPreset(preset, { shapeId, square, height = 'full', sitsOn, fill, proud = 0, backOffset = 0, leaveOut }, newId) {
+export function legPreset(preset, { shapeId, square, height = 'full', sitsOn, proud = 0, backOffset = 0, leaveOut }, newId) {
   const corners = { four: ['LF', 'LB', 'RF', 'RB'], front: ['LF', 'RF'],
     three: ['LF', 'LB', 'RF', 'RB'].filter((corner) => corner !== leaveOut),
     left: ['LF', 'LB'], right: ['RF', 'RB'] };
@@ -132,26 +132,25 @@ export function legPreset(preset, { shapeId, square, height = 'full', sitsOn, fi
     yFrom: corner[1] === 'F' ? 'front' : 'back',
     y: corner[1] === 'F' ? proud : backOffset,
     ...(sitsOn ? { sitsOn } : {}),
-    ...(fill && (fill === 'filler' || corner[1] === 'F') ? { fill: { type: fill } } : {}),
     ...(corner[0] === 'L' ? { mirror: true } : {}),
     ...(corner[1] === 'B' ? { mirrorDepth: true } : {}),
   }));
 }
 
-export function legWarningText({ code, index, target, fixed, height, sitsOn, type, other }) {
-  if (code === 'leg-fill-return-short') return `Leg ${index}: its panel return is no deeper than the panel's thickness.`;
-  if (code === 'leg-fill-no-depth') return `Leg ${index}: no room for its ${type} (the legs touch or overlap).`;
-  if (code === 'leg-fill-no-height') return `Leg ${index}: its ${type} has no height.`;
-  if (code === 'leg-fill-shared') return `Leg ${index}: Leg ${other} already fills the gap between them.`;
-  if (code === 'leg-shape-missing') return `Leg ${index}: its shape isn't in the library.`;
+export function legWarningText({ code, index, name, target, fixed, height, sitsOn, type }) {
+  const who = name ?? `Leg ${index}`;
+  if (code === 'leg-fill-return-short') return `${who}: its panel return is no deeper than the panel's thickness.`;
+  if (code === 'leg-fill-no-depth') return `${who}: no room for its ${type} (the legs touch or overlap).`;
+  if (code === 'leg-fill-no-height') return `${who}: its ${type} has no height.`;
+  if (code === 'leg-shape-missing') return `${who}: its shape isn't in the library.`;
   if (code === 'leg-no-height') return sitsOn
-    ? `Leg ${index} has no height (the run sits on what the leg stands on).`
-    : `Leg ${index} has no height (the run sits on the floor).`;
-  if (code === 'leg-no-base') return `Leg ${index}: the run has no furniture base. Drawn from the floor.`;
-  if (code === 'leg-no-countertop') return `Leg ${index}: no countertop below it. Drawn from the floor.`;
+    ? `${who} has no height (the run sits on what the leg stands on).`
+    : `${who} has no height (the run sits on the floor).`;
+  if (code === 'leg-no-base') return `${who}: the run has no furniture base. Drawn from the floor.`;
+  if (code === 'leg-no-countertop') return `${who}: no countertop below it. Drawn from the floor.`;
   if (code === 'shape-too-small') {
-    return `Leg ${index} can't be ${formatInches(target)} tall: its fixed parts are ${formatInches(fixed)}. Drawn at ${formatInches(height)}.`;
+    return `${who} can't be ${formatInches(target)} tall: its fixed parts are ${formatInches(fixed)}. Drawn at ${formatInches(height)}.`;
   }
-  if (code === 'leg-fixed-height') return `Leg ${index} doesn't stretch: drawn at its own height, ${formatInches(height)}.`;
+  if (code === 'leg-fixed-height') return `${who} doesn't stretch: drawn at its own height, ${formatInches(height)}.`;
   return '';
 }

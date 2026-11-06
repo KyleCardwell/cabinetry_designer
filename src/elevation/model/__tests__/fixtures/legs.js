@@ -27,3 +27,10 @@ export const legShape = (bead = BEAD, stretch = 0, drawn = ['q1', 'q2', 'q3', 'q
   ] },
 });
 
+
+// SH7.5 anchor end specs, with the front legs proud by half an inch.
+export const S = { shapeId: 'leg', height: 'full', x: 0, y: 0 };
+export const Sf = { ...S, y: 0.5 };
+export const E = { legs: 'both', front: Sf, back: S };
+export const fourEndLegs = { left: E, right: E };
+export const noEnds = { left: { type: 'none', width: null }, right: { type: 'none', width: null } };

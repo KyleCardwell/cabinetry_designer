@@ -109,25 +109,15 @@ describe('SH7 step a stored legs', () => {
   });
 });
 
-it('SH7.2 replaces fills as a whole, rejects invalid edits and removes cleared fills', () => {
-  let state = elevationReducer(initial, addRunLegs({ ...target, legs: [{ ...leg,
-    fill: { type: 'filler' } }] }));
-  expect(currentRun(state).legs[0].fill).toEqual({ type: 'filler' });
-  const fillerSaved = toElevationDocument(state);
-  expect(isElevationDocument(fillerSaved)).toBe(true);
-  expect(toElevationDocument(normalizeElevationDocument(fillerSaved))).toEqual(fillerSaved);
-  state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill: { type: 'panel' } } }));
-  expect(currentRun(state).legs[0].fill).toEqual({ type: 'panel' });
-  for (const fill of [{ type: 'panel', thickness: 1 }, { type: 'filler', past: true },
-    ...['inset', 'thickness', 'top', 'bottom'].map((key) => ({ type: 'filler', [key]: 0 })), null]) {
+it('SH7.5 rejects hand-leg fills in additions, edits and saved documents', () => {
+  const state = elevationReducer(initial, addRunLegs({ ...target, legs: [leg] }));
+  for (const fill of [{ type: 'panel' }, { type: 'filler' }, { type: 'panel', returns: 'both', returnDepth: 4 }]) {
+    expect(elevationReducer(initial, addRunLegs({ ...target, legs: [{ ...leg, fill }] }))).toEqual(initial);
     expect(elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill } }))).toEqual(state);
+    const saved = structuredClone(toElevationDocument(state));
+    currentRun(saved).legs[0].fill = fill;
+    expect(isElevationDocument(saved)).toBe(false);
   }
-  const saved = toElevationDocument(state);
-  expect(isElevationDocument(saved)).toBe(true);
-  expect(toElevationDocument(normalizeElevationDocument(saved))).toEqual(saved);
-  state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill: undefined } }));
-  expect(currentRun(state).legs[0]).toEqual(leg);
-  expect(currentRun(state).legs[0]).not.toHaveProperty('fill');
 });
 
 it('SH7.2 defaults missing leg panel settings and preserves explicit values through persistence', () => {
@@ -143,22 +133,17 @@ it('SH7.2 defaults missing leg panel settings and preserves explicit values thro
   expect(toElevationDocument(normalizeElevationDocument(normalized)).settings).toMatchObject(explicit);
 });
 
-it('SH7.3 round-trips panel returns and room settings, then starts a fresh fill on type changes', () => {
-  const fill = { type: 'panel', returns: 'both', returnDepth: 4 };
-  let state = elevationReducer(initial, addRunLegs({ ...target, legs: [{ ...leg, fill }] }));
-  const saved = structuredClone(toElevationDocument(state));
+it('SH7.5 round-trips end panel returns and room settings', () => {
+  const saved = structuredClone(toElevationDocument(initial));
+  const spec = { shapeId: 'missing-shape', height: 'full', x: 0, y: 0 };
+  const endLegs = { left: { legs: 'both', front: spec, back: spec, fit: 'between',
+    panel: { returns: 'both', returnDepth: 4 } } };
+  currentRun(saved).endLegs = endLegs;
+  currentRun(saved).ends.left = { type: 'none', width: null };
   saved.rooms[0].settingsOverrides = { legPanelReturnDepth: 5 };
   const normalized = normalizeElevationDocument(saved);
   expect(isElevationDocument(normalized)).toBe(true);
   const loaded = toElevationDocument(createInitialElevationState(normalized));
-  expect(loaded.rooms[0].walls[0].runs[0].legs[0].fill).toEqual(fill);
+  expect(currentRun(loaded).endLegs).toEqual(endLegs);
   expect(loaded.rooms[0].settingsOverrides).toEqual({ legPanelReturnDepth: 5 });
-  for (const invalid of [{ type: 'panel', returnDepth: 4 }, { type: 'panel', returns: 'side' },
-    { type: 'panel', returns: 'front', returnDepth: 0 }, { type: 'filler', returns: 'front' }]) {
-    expect(elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill: invalid } }))).toEqual(state);
-  }
-  for (const type of ['filler', 'panel']) {
-    state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill: { type } } }));
-    expect(currentRun(state).legs[0].fill).toEqual({ type });
-  }
 });

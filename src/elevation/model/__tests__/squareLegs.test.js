@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_SETTINGS, isLegList, isShape, legFillPlans, legPreset, legRoom,
   legShapeOf, resolveShape, runLegs, shapeOutlines } from '../index.js';
+import { noEnds } from './fixtures/legs.js';
 import { faceDrawing } from '../drawingPayload.js';
 import { room, run, wall } from '../../../test/builders.js';
 
@@ -83,7 +84,10 @@ describe('SH7.4 step a square leg model', () => {
   });
 
   it('anchor 5: fills between the front and back square legs using their depths', () => {
-    const filled = { ...R, legs: legs.map((leg, i) => i ? leg : { ...leg, fill: { type: 'panel' } }) };
+    const spec = { square, height: 'full', x: 0, y: 0 };
+    const filled = { ...R, legs: undefined, ends: noEnds, endLegs: {
+      left: { legs: 'both', front: { ...spec, y: 0.5 }, back: spec, fit: 'between' },
+    } };
     expect(legFillPlans(filled, settings)).toMatchObject([
       { u0: 10.25, back: 3, front: 22.375, depth: 19.375 },
     ]);

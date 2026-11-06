@@ -164,14 +164,14 @@ describe('SH7.5 step a run end legs data', () => {
     }
   });
 
-  it('preserves the per-leg validation and list uniqueness, including existing hand-leg fills', () => {
+  it('preserves the per-leg validation and list uniqueness, rejecting hand-leg fills', () => {
     const withFill = { ...L, fill: { type: 'panel', returns: 'both', returnDepth: 4 } };
-    expect(isLeg(withFill)).toBe(true);
-    expect(isLegList([withFill])).toBe(true);
+    expect(isLeg(withFill)).toBe(false);
+    expect(isLegList([withFill])).toBe(false);
     expect(isLegList([L, L])).toBe(false);
     expect(isLegList([])).toBe(false);
     expect(isLegList(new Array(1))).toBe(false);
-    expect(isLeg({ ...L, fill: { type: 'filler' } })).toBe(true);
+    expect(isLeg({ ...L, fill: { type: 'filler' } })).toBe(false);
     expect(isLeg({ ...L, fill: { type: 'filler', returns: 'both' } })).toBe(false);
     expect(isLeg({ ...L, extra: true })).toBe(true);
     expect(isLeg(null)).toBe(false);

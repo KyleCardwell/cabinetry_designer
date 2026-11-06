@@ -7,7 +7,7 @@ import { legPreset } from '../legs.js';
 import { planParts } from '../planParts.js';
 import { elevationToPlan } from '../geometry.js';
 import { wallSideFrame } from '../wallSides.js';
-import { legShape } from './fixtures/legs.js';
+import { E, Sf, fourEndLegs, legShape, noEnds } from './fixtures/legs.js';
 
 const settings = { ...DEFAULT_SETTINGS, shapes: [legShape()] };
 let nextId = 0;
@@ -20,11 +20,11 @@ describe('SH7.2 step c leg fill drawing payloads', () => {
     for (const wallSide of ['front', 'back']) {
       for (const rotated of [false, true]) {
         const placed = run({ ...R, wallSide,
-          legs: four.map((leg, i) => i === 0 ? { ...leg, fill: { type: 'panel' } } : leg) });
+          legs: undefined, ends: noEnds, endLegs: { ...fourEndLegs, left: { ...E, fit: 'between' } } });
         const w = wall({ ...W, ...(rotated ? { x1: 7, y1: 11, x2: 7, y2: 155 } : {}), runs: [placed] });
         const input = room({ walls: [w] });
-        expect(faceDrawing(input, w, wallSide, settings).parts.find(({ id }) => id === 'LF:fill')).toEqual({
-          id: 'LF:fill', kind: 'end_panel', runId: R.id,
+        expect(faceDrawing(input, w, wallSide, settings).parts.find(({ id }) => id === 'run-1:endleg:left-front:fill')).toEqual({
+          id: 'run-1:endleg:left-front:fill', kind: 'end_panel', runId: R.id,
           x: 10.25, z: 0, width: 0.8125, height: 34.5, front: 21.875, back: 3.5,
           coversBoxEdges: false,
         });
@@ -34,8 +34,8 @@ describe('SH7.2 step c leg fill drawing payloads', () => {
             const point = elevationToPlan(frame, u, v);
             return [point.x + 0, 0 - point.y];
           });
-        expect(planParts(input, settings).find(({ id }) => id === 'LF:fill')).toEqual({
-          id: 'LF:fill', kind: 'end_panel', runId: R.id, points, top: 34.5,
+        expect(planParts(input, settings).find(({ id }) => id === 'run-1:endleg:left-front:fill')).toEqual({
+          id: 'run-1:endleg:left-front:fill', kind: 'end_panel', runId: R.id, points, top: 34.5,
         });
       }
     }
@@ -43,36 +43,35 @@ describe('SH7.2 step c leg fill drawing payloads', () => {
 
   it('step f anchors 2–3: exports a front-two filler face and its separate plan return at box top', () => {
     const w = wall({ ...W, runs: [run({ ...R,
-      legs: four.filter(({ yFrom }) => yFrom === 'front')
-        .map((leg, i) => i === 0 ? { ...leg, fill: { type: 'filler' } } : leg),
+      legs: undefined, ends: noEnds, endLegs: { left: { legs: 'front', front: Sf, fit: 'behind' },
+        right: { legs: 'front', front: Sf } },
     })] });
     const input = room({ walls: [w] });
     const payload = toDrawingPayload(input, settings);
-    expect(payload.elevations[0].parts.find(({ id }) => id === 'LF:fill')).toEqual({
-      id: 'LF:fill', kind: 'filler', runId: R.id,
+    expect(payload.elevations[0].parts.find(({ id }) => id === 'run-1:endleg:left-front:fill')).toEqual({
+      id: 'run-1:endleg:left-front:fill', kind: 'filler', runId: R.id,
       x: 10, z: 4, width: 3.5, height: 30.5, front: 21.875, back: 21.0625,
       coversBoxEdges: true,
     });
-    expect(payload.plan.parts.filter(({ id }) => id.startsWith('LF:fill'))).toEqual([
-      { id: 'LF:fill', kind: 'filler', runId: R.id, top: 34.5,
+    expect(payload.plan.parts.filter(({ id }) => id.startsWith('run-1:endleg:left-front:fill'))).toEqual([
+      { id: 'run-1:endleg:left-front:fill', kind: 'filler', runId: R.id, top: 34.5,
         points: [[10, -21.0625], [13.5, -21.0625], [13.5, -21.875], [10, -21.875]] },
-      { id: 'LF:fill:return', kind: 'filler', runId: R.id, top: 34.5,
+      { id: 'run-1:endleg:left-front:fill:return', kind: 'filler', runId: R.id, top: 34.5,
         points: [[12.75, -18.6875], [13.5, -18.6875], [13.5, -21.1875], [12.75, -21.1875]] },
     ]);
   });
 
-  it('step f: maps right and back filler faces and returns on rotated and back wall faces', () => {
+  it('step f: maps right front filler faces and returns on rotated and back wall faces', () => {
     for (const wallSide of ['front', 'back']) {
       for (const rotated of [false, true]) {
         for (const [index, x, back, front, start, end, returnBack, returnFront] of [
           [2, 42.5, 21.0625, 21.875, 42.5, 43.25, 18.6875, 21.1875],
-          [1, 10, 3.5, 4.3125, 12.75, 13.5, 4.1875, 6.6875],
         ]) {
           const placed = run({ ...R, wallSide,
-            legs: four.map((leg, i) => i === index ? { ...leg, fill: { type: 'filler' } } : leg) });
+            legs: undefined, ends: noEnds, endLegs: { ...fourEndLegs, right: { ...E, fit: 'behind' } } });
           const w = wall({ ...W, ...(rotated ? { x1: 7, y1: 11, x2: 7, y2: 155 } : {}), runs: [placed] });
           const input = room({ walls: [w] });
-          const id = `${four[index].id}:fill`;
+          const id = `${R.id}:endleg:${index === 0 ? 'left' : 'right'}-front:fill`;
           expect(faceDrawing(input, w, wallSide, settings).parts.find((part) => part.id === id))
             .toMatchObject({ x, z: 4, width: 3.5, height: 30.5, front, back });
           const frame = wallSideFrame(input, w, wallSide);
@@ -103,17 +102,16 @@ describe('SH7.2 step c leg fill drawing payloads', () => {
     }
   });
 
-  it('omits shared, missing-shape, zero-depth and zero-height fills from both payloads', () => {
-    for (const [changes, count] of [[{}, 1], [{ shapeId: 'missing' }, 0],
-      [{ y: -30 }, 0], [{ fill: { type: 'panel', top: 34.5 } }, 0]]) {
-      const w = wall({ ...W, runs: [run({ ...R, legs: four.map((leg, i) => i === 0
-        ? { ...leg, fill: { type: 'panel' }, ...changes }
-        : i === 1 && count ? { ...leg, fill: { type: 'panel' } } : leg) })] });
+  it('omits missing-shape, zero-depth and zero-height fills from both payloads', () => {
+    for (const changes of [{ front: { ...Sf, shapeId: 'missing' } },
+      { front: { ...Sf, y: -30 } }, { panel: { top: 34.5 } }]) {
+      const w = wall({ ...W, runs: [run({ ...R, legs: undefined, ends: noEnds,
+        endLegs: { ...fourEndLegs, left: { ...E, fit: 'between', ...changes } } })] });
       const payload = toDrawingPayload(room({ walls: [w] }), settings);
       expect(payload.elevations[0].parts.filter(({ id }) => id.endsWith(':fill')).map(({ id }) => id))
-        .toEqual(count ? ['LF:fill'] : []);
+        .toEqual([]);
       expect(payload.plan.parts.filter(({ id }) => id.endsWith(':fill')).map(({ id }) => id))
-        .toEqual(count ? ['LF:fill'] : []);
+        .toEqual([]);
     }
   });
 });
@@ -124,10 +122,10 @@ describe('SH7.3 step b panel return drawing payloads', () => {
       for (const rotated of [false, true]) {
         for (const [index, start, end] of [[0, 11.0625, 14.75], [2, 41.25, 44.9375]]) {
           const placed = run({ ...R, wallSide,
-            legs: four.map((leg, i) => i === index ? { ...leg, fill: { type: 'panel', returns: 'both' } } : leg) });
+            legs: undefined, ends: noEnds, endLegs: { ...fourEndLegs, [index === 0 ? 'left' : 'right']: { ...E, fit: 'between', panel: { returns: 'both' } } } });
           const w = wall({ ...W, ...(rotated ? { x1: 7, y1: 11, x2: 7, y2: 155 } : {}), runs: [placed] });
           const input = room({ walls: [w] });
-          const id = `${four[index].id}:fill`;
+          const id = `${R.id}:endleg:${index === 0 ? 'left' : 'right'}-front:fill`;
           const payload = toDrawingPayload(input, settings);
           const face = payload.elevations.find(({ parts }) => parts.some((part) => part.id === id));
           const fills = face.parts.filter((part) => part.id.startsWith(id));
@@ -157,24 +155,23 @@ describe('SH7.3 step b panel return drawing payloads', () => {
     }
   });
 
-  it('exports only effective returns, keeping panel clearances and ignoring a shared leg’s returns', () => {
-    for (const [fill, otherFill, expectedEdges, z, height] of [
-      [{ type: 'panel', returns: 'front', past: true, bottom: 1, top: 2 }, undefined, ['front'], 1, 31.5],
-      [{ type: 'panel', returns: 'back', returnDepth: 3 }, undefined, ['back'], 0, 34.5],
-      [{ type: 'panel', returns: 'both', returnDepth: 0.8125 }, undefined, [], 0, 34.5],
-      [{ type: 'panel' }, { type: 'panel', returns: 'both' }, [], 0, 34.5],
+  it('exports only effective returns, keeping panel clearances', () => {
+    for (const [panel, expectedEdges, z, height] of [
+      [{ returns: 'front', past: true, bottom: 1, top: 2 }, ['front'], 1, 31.5],
+      [{ returns: 'back', returnDepth: 3 }, ['back'], 0, 34.5],
+      [{ returns: 'both', returnDepth: 0.8125 }, [], 0, 34.5],
     ]) {
-      const placed = run({ ...R, legs: four.map((leg, i) => i === 0 ? { ...leg, fill }
-        : i === 1 && otherFill ? { ...leg, fill: otherFill } : leg) });
+      const placed = run({ ...R, legs: undefined, ends: noEnds,
+        endLegs: { ...fourEndLegs, left: { ...E, fit: 'between', panel } } });
       const w = wall({ ...W, runs: [placed] });
       const input = room({ walls: [w] });
-      const parts = faceDrawing(input, w, 'front', settings).parts.filter(({ id }) => id.startsWith('LF:fill'));
-      expect(parts.map(({ id }) => id)).toEqual(['LF:fill', ...expectedEdges.map((edge) => `LF:fill:return-${edge}`)]);
-      expect(planParts(input, settings).filter(({ id }) => id.startsWith('LF:fill'))
+      const parts = faceDrawing(input, w, 'front', settings).parts.filter(({ id }) => id.startsWith('run-1:endleg:left-front:fill'));
+      expect(parts.map(({ id }) => id)).toEqual(['run-1:endleg:left-front:fill', ...expectedEdges.map((edge) => `run-1:endleg:left-front:fill:return-${edge}`)]);
+      expect(planParts(input, settings).filter(({ id }) => id.startsWith('run-1:endleg:left-front:fill'))
         .map(({ id, top }) => ({ id, top }))).toEqual(parts.map(({ id }) => ({ id, top: z + height })));
       for (const part of parts) expect(part).toMatchObject({ z, height });
       if (expectedEdges.length) {
-        expect(parts[1]).toMatchObject(fill.past ? { front: 24.875, back: 24.0625 }
+        expect(parts[1]).toMatchObject(panel.past ? { front: 24.875, back: 24.0625 }
           : { x: 11.0625, width: 2.1875 });
       }
     }
