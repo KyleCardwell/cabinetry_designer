@@ -12,13 +12,13 @@ function leaves(values, prefix = '') {
 }
 
 describe('DB1 a settings registry', () => {
-  it('covers exactly 169 settings leaves, with 116 room settings and 15 team-only settings after SH7.3 a', () => {
+  it('covers exactly 171 settings leaves, with 118 room settings and 15 team-only settings after SH7.4 a', () => {
     const settings = Object.fromEntries(Object.entries(DEFAULT_SETTINGS)
       .filter(([key]) => ![...LIBRARY_KEYS, ...PREF_KEYS].includes(key)));
     const keys = SETTINGS_REGISTRY.map(({ key }) => key);
     expect(keys.toSorted()).toEqual(leaves(settings).toSorted());
-    expect(new Set(keys).size).toBe(169);
-    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(116);
+    expect(new Set(keys).size).toBe(171);
+    expect(SETTINGS_REGISTRY.filter(({ key }) => allowedAt(key, 'room'))).toHaveLength(118);
     expect(SETTINGS_REGISTRY.filter(({ lowest }) => lowest === 'team')).toHaveLength(15);
   });
 
@@ -191,4 +191,21 @@ it('SH7.3 registers leg panel return depth through room scope in Runs & ends', (
     expect(groupsFor(layer.level).find(({ id }) => id === 'runs-ends').keys).toContain(key);
   });
   for (const level of ['wall', 'run', 'cabinet', 'face']) expect(allowedAt(key, level)).toBe(false);
+});
+
+it('SH7.4 registers square leg dimensions with defaults and Runs & ends inheritance through room scope', () => {
+  for (const [key, label] of [['squareLegWidth', 'Square leg width'], ['squareLegDepth', 'Square leg depth']]) {
+    expect(DEFAULT_SETTINGS[key]).toBe(3);
+    expect(registryEntry(key)).toEqual({ key, label, kind: 'number', lowest: 'room' });
+    expect(resolveSetting(key)).toEqual({ value: 3, source: { level: 'default' } });
+    const chain = ['team', 'project', 'phase', 'room'].map((level, i) => ({ level, values: { [key]: i + 1 } }));
+    chain.forEach((layer, i) => {
+      expect(cleanOverrides(layer.values, layer.level)).toEqual(layer.values);
+      expect(resolveSetting(key, chain.slice(0, i + 1))).toEqual({ value: i + 1, source: { level: layer.level } });
+      expect(groupsFor(layer.level).find(({ id }) => id === 'runs-ends').keys).toContain(key);
+    });
+    chain[3].values = withOverride(chain[3].values, key, null);
+    expect(resolveSetting(key, chain)).toEqual({ value: 3, source: { level: 'phase' } });
+    for (const level of ['wall', 'run', 'cabinet', 'face']) expect(allowedAt(key, level)).toBe(false);
+  }
 });

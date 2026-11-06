@@ -132,7 +132,7 @@ export function faceDrawing(room, wall, side, settings, options) {
     kind: 'leg',
     depth: 0,
     loops: outlines.map(({ closed, outline }) => ({ closed, points: outline })),
-    ...(!stretched ? { block: {
+    ...(!stretched && !leg.square ? { block: {
       name: shapeBlockName(shapeName, leg.shapeId), ...insert, mirror: leg.mirror === true,
     } } : {}),
   })));

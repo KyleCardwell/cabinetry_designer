@@ -128,6 +128,8 @@ export const DEFAULT_SETTINGS = {
   fillerReturnDepth: 2.5,
   fillerReturnThickness: 0.75,
   fillerThickness: 0.8125,
+  squareLegWidth: 3,
+  squareLegDepth: 3,
   legPanelReveal: 0.25,
   legPanelTopClearance: 0,
   legPanelBottomClearance: 0,

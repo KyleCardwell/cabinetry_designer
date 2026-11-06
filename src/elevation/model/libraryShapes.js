@@ -61,7 +61,7 @@ export function isShapeList(list) {
   return true;
 }
 
-function rectangle(a, b, width, height, prefix, loopId) {
+export function rectangle(a, b, width, height, prefix, loopId) {
   const ids = [1, 2, 3, 4].map((n) => `${prefix}${n}`);
   return {
     units: 'in',

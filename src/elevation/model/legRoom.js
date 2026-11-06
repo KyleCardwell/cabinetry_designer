@@ -1,5 +1,6 @@
 import { frontDepth, runBackOffset } from './corners.js';
 import { teamDoorStyle } from './doorStyles.js';
+import { legShapeOf } from './legs.js';
 
 /** Depth and along-run fill plans, independent of leg height and support. */
 export function legFillPlans(run, settings) {
@@ -7,7 +8,7 @@ export function legFillPlans(run, settings) {
   const F = frontDepth(run, settings);
   const B = runBackOffset(run);
   const legs = (run.legs ?? []).flatMap((leg, offset) => {
-    const shape = (settings.shapes ?? []).find(({ id }) => id === leg.shapeId);
+    const shape = legShapeOf(leg, settings);
     if (!shape) return [];
     const t0 = leg.yFrom === 'front' ? -leg.y : F - B + leg.y - shape.box.d;
     const front = F - t0;
@@ -84,7 +85,7 @@ export function legRoom(run, settings) {
   const B = runBackOffset(run);
   for (const leg of run.legs ?? []) {
     if (run._pinSplit?.[leg.from] || leg.takesRoom === false) continue;
-    const shape = (settings.shapes ?? []).find(({ id }) => id === leg.shapeId);
+    const shape = legShapeOf(leg, settings);
     if (!shape) continue;
     const b = shape.box;
     const t0 = leg.yFrom === 'front' ? -leg.y : F - B + leg.y - b.d;

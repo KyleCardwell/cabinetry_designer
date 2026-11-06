@@ -1,6 +1,6 @@
 import { frontDepth, runBackOffset } from './corners.js';
 import { runBaseProfile } from './furnitureBase.js';
-import { resolveShape, shapeView } from './libraryShapes.js';
+import { rectangle, resolveShape, shapeView } from './libraryShapes.js';
 import { resolveProfile } from './profile.js';
 import { resolveWall } from './room.js';
 import { shapeOutlines, transformOutline } from './sectionProfileOutline.js';
@@ -10,6 +10,14 @@ import { wallSideOf } from './wallSides.js';
 
 const EPS = 1e-6;
 const isText = (value) => typeof value === 'string' && value.length > 0;
+
+function isLegShape(leg) {
+  if (Object.hasOwn(leg, 'shapeId')) return isText(leg.shapeId) && !Object.hasOwn(leg, 'square');
+  const square = leg.square;
+  return Boolean(square) && typeof square === 'object' && !Array.isArray(square)
+    && Object.entries(square).every(([key, value]) => ['w', 'd'].includes(key)
+      && Number.isFinite(value) && value > 0);
+}
 
 function isLegFill(fill) {
   if (!fill || typeof fill !== 'object' || Array.isArray(fill)
@@ -31,7 +39,7 @@ export function isLegList(value) {
   const ids = new Set();
   return Array.from(value).every((leg) => {
     if (!leg || typeof leg !== 'object' || Array.isArray(leg)
-      || !isText(leg.id) || ids.has(leg.id) || !isText(leg.shapeId)
+      || !isText(leg.id) || ids.has(leg.id) || !isLegShape(leg)
       || !['left', 'right'].includes(leg.from) || !Number.isFinite(leg.x)
       || !['front', 'back'].includes(leg.yFrom) || !Number.isFinite(leg.y)
       || !(leg.height === 'full' || leg.height === 'feet'
@@ -44,6 +52,22 @@ export function isLegList(value) {
     ids.add(leg.id);
     return true;
   });
+}
+
+/** Library shapes and generated square legs share the same placement geometry. */
+export function legShapeOf(leg, settings) {
+  if (!leg.square) return (settings.shapes ?? []).find(({ id }) => id === leg.shapeId);
+  const w = leg.square.w ?? settings.squareLegWidth;
+  const d = leg.square.d ?? settings.squareLegDepth;
+  return {
+    id: 'square-leg', name: 'Square leg', kind: 'leg', archived: false, version: 1,
+    box: { x: 0, y: 0, z: 0, w, h: 1, d }, stretch: { z: [[0, 1]] },
+    views: {
+      front: rectangle(0, 0, w, 1, 'f', 'outline'),
+      plan: rectangle(0, 0, w, d, 'p', 'outline'),
+      side: rectangle(0, 0, d, 1, 's', 'outline'),
+    },
+  };
 }
 
 /** Resolve what a leg stands on, falling back to the floor when its support is missing. */
@@ -84,7 +108,7 @@ export function runLegs(room, wall, run, settings) {
       warnings.push(entry);
       placed.warnings.push(entry);
     };
-    const shape = (settings.shapes ?? []).find(({ id }) => id === leg.shapeId);
+    const shape = legShapeOf(leg, settings);
     const width = shape?.box.w ?? 0;
     const u0 = leg.from === 'left' ? run.x - leg.x : run.x + run.width + leg.x - width;
     const bottom = legBottom(room, view, run, settings, leg, u0, width);
@@ -130,12 +154,13 @@ export function runLegs(room, wall, run, settings) {
 }
 
 /** Presets append these placements in corner order; ids come from the caller. */
-export function legPreset(preset, { shapeId, height = 'full', sitsOn, fill, proud = 0, backOffset = 0, leaveOut }, newId) {
+export function legPreset(preset, { shapeId, square, height = 'full', sitsOn, fill, proud = 0, backOffset = 0, leaveOut }, newId) {
   const corners = { four: ['LF', 'LB', 'RF', 'RB'], front: ['LF', 'RF'],
     three: ['LF', 'LB', 'RF', 'RB'].filter((corner) => corner !== leaveOut),
     left: ['LF', 'LB'], right: ['RF', 'RB'] };
   return (corners[preset] ?? []).map((corner) => ({
-    id: newId(), shapeId, height, from: corner[0] === 'L' ? 'left' : 'right', x: 0,
+    id: newId(), ...(square ? { square: { ...square } } : { shapeId }),
+    height, from: corner[0] === 'L' ? 'left' : 'right', x: 0,
     yFrom: corner[1] === 'F' ? 'front' : 'back',
     y: corner[1] === 'F' ? proud : backOffset,
     ...(sitsOn ? { sitsOn } : {}),

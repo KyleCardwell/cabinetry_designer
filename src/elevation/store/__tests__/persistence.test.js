@@ -135,6 +135,28 @@ function currentDocument() {
   };
 }
 
+it('SH7.4 defaults older square leg settings and round-trips dimensions and square legs', () => {
+  const legacy = currentDocument();
+  delete legacy.settings.squareLegWidth;
+  delete legacy.settings.squareLegDepth;
+  const before = structuredClone(legacy);
+  const normalized = normalizeElevationDocument(legacy);
+  expect(normalized.settings).toMatchObject({ squareLegWidth: 3, squareLegDepth: 3 });
+  expect(isElevationDocument(normalized)).toBe(true);
+  expect(legacy).toEqual(before);
+  normalized.settings.squareLegWidth = 4;
+  normalized.settings.squareLegDepth = 5;
+  const legs = [{ id: 'square-1', square: {}, from: 'left', x: 0, yFrom: 'front', y: 0.5, height: 'full' },
+    { id: 'square-2', square: { w: 2, d: 4 }, from: 'right', x: 0, yFrom: 'back', y: 0, height: 'feet' }];
+  normalized.rooms[0].walls[0].runs[0].legs = legs;
+  const saved = toElevationDocument(createInitialElevationState(normalized));
+  globalThis.window = { localStorage: storageWith([[ELEVATION_STORAGE_KEY, JSON.stringify(saved)]]) };
+  const loaded = loadElevationDocument();
+  expect(isElevationDocument(loaded)).toBe(true);
+  expect(loaded.settings).toMatchObject({ squareLegWidth: 4, squareLegDepth: 5 });
+  expect(loaded.rooms[0].walls[0].runs[0].legs).toEqual(legs);
+});
+
 it('IN15a defaults floating shelf spacing in older saves and preserves typed values', () => {
   const document = currentDocument();
   delete document.settings.floatingShelfSpacing;

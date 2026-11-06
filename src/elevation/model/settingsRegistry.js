@@ -28,6 +28,8 @@ const roomNumbers = [
   ['fillerReturnDepth', 'Filler return depth'],
   ['fillerReturnThickness', 'Filler return thickness'],
   ['fillerThickness', 'Filler face thickness'],
+  ['squareLegWidth', 'Square leg width'],
+  ['squareLegDepth', 'Square leg depth'],
   ['legPanelReveal', 'Leg panel reveal'],
   ['legPanelTopClearance', 'Leg panel top clearance'],
   ['legPanelBottomClearance', 'Leg panel bottom clearance'],

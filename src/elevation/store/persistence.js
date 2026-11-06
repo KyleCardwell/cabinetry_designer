@@ -37,6 +37,8 @@ const V2_DEFAULTED_SETTING_KEYS = [
   'fillerReturnDepth',
   'fillerReturnThickness',
   'fillerThickness',
+  'squareLegWidth',
+  'squareLegDepth',
   'legPanelReveal',
   'legPanelTopClearance',
   'legPanelBottomClearance',
