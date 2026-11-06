@@ -132,14 +132,7 @@ describe('SH7 step b Legs panel', () => {
     expect(placement()[1].front).toBe(backBefore[1].front);
   });
 
-  it('disables Add without live leg shapes; SH7.1 anchor 4: shows Legs on empty base, tall and upper runs', () => {
-    const emptySettings = { ...settings, shapes: [{ ...LEG, archived: true }, { ...LEG, id: 'other', kind: 'other' }] };
-    const tree = render(AddLegsRow, { ...props(), settings: emptySettings });
-    expect(button(tree, 'Add').props.disabled).toBe(true);
-    expect(nodes(tree).some(({ props }) => props.children === 'Make a leg in Library → Shapes first.')).toBe(true);
-    button(tree, 'Add').props.onClick();
-    expect(dispatch).not.toHaveBeenCalled();
-    slots = [];
+  it('SH7.1 anchor 4: shows Legs on empty base, tall and upper runs', () => {
     const upper = { ...currentRun(), cabinetTypeId: CABINET_TYPE_IDS.UPPER };
     for (const type of [CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL, CABINET_TYPE_IDS.UPPER]) {
       expect(render(RunLegsSection, { ...props(), run: { ...upper, cabinetTypeId: type } })).not.toBeNull();
@@ -155,7 +148,7 @@ describe('SH7 step b Legs panel', () => {
       { ...LEG, id: 'other', name: 'Other', kind: 'other' }] };
     for (const [value, text] of [['old', 'Old (archived)'], ['other', 'Other (archived)'], ['missing', 'Missing shape (archived)']]) {
       const tree = LegShapeSelect({ settings: library, value, onChange: vi.fn(), label: 'Shape' });
-      expect(nodes(tree).filter(({ type }) => type === 'option').map(({ props }) => props.value)).toEqual(['a', 'z', value]);
+      expect(nodes(tree).filter(({ type }) => type === 'option').map(({ props }) => props.value)).toEqual(['', 'a', 'z', value]);
       expect(nodes(tree).filter(({ type }) => type === 'option').at(-1).props.children.join('')).toBe(text);
     }
     expect(field(render(AddLegsRow, { ...props(), settings: library }), 'Add legs Shape').props.value).toBe('a');
@@ -164,10 +157,10 @@ describe('SH7 step b Legs panel', () => {
   it('edits shape, custom/Full/Feet height, signed coordinates, mirror and removal; shows all row warnings', () => {
     addCorners();
     const shape = nodes(renderLeg()).find(({ type }) => type === LegShapeSelect);
-    shape.props.onChange('missing');
+    shape.props.onChange({ shapeId: 'missing' });
     expect(nodes(renderLeg()).some(({ props }) => props.children === "Leg 1: its shape isn't in the library.")).toBe(true);
     expect(button(renderLeg(), 'Right').props.disabled).toBe(true);
-    shape.props.onChange(LEG.id);
+    shape.props.onChange({ shapeId: LEG.id });
     let height = nodes(renderLeg()).find(({ type }) => type === LegHeightFields);
     change(field(LegHeightFields(height.props), 'Leg 1 Height'), 'custom');
     height = nodes(renderLeg()).find(({ type }) => type === LegHeightFields);
@@ -235,7 +228,12 @@ describe('SH7 step b Legs panel', () => {
     edit(() => button(renderLeg(1), 'Front').props.onClick());
     edit(() => field(renderLeg(), 'Leg 1 Along').props.onCommit(-1));
     edit(() => field(renderLeg(), 'Leg 1 In/out').props.onCommit(-1));
-    edit(() => nodes(renderLeg()).find(({ type }) => type === LegShapeSelect).props.onChange('missing'));
+    edit(() => change(field(renderLeg(), 'Leg 1 Shape'), ''));
+    edit(() => field(renderLeg(), 'Leg 1 Width').props.onCommit(2.5));
+    edit(() => field(renderLeg(), 'Leg 1 Depth').props.onCommit(4));
+    edit(() => field(renderLeg(), 'Leg 1 Width').props.onCommit(undefined));
+    edit(() => field(renderLeg(), 'Leg 1 Depth').props.onCommit(undefined));
+    edit(() => change(field(renderLeg(), 'Leg 1 Shape'), 'missing'));
     edit(() => nodes(renderLeg()).find(({ type }) => type === LegHeightFields).props.onChange('feet'));
     edit(() => field(renderLeg(), 'Leg 1 Mirror left–right').props.onChange({ target: { checked: false } }));
     edit(() => field(renderLeg(), 'Leg 1 Mirror front–back').props.onChange({ target: { checked: true } }));
@@ -375,6 +373,107 @@ describe('SH7.2 step d leg fill controls', () => {
         if (!type || (type === 'panel' && leg.yFrom === 'back')) expect(leg).not.toHaveProperty('fill');
       }
     }
+  });
+});
+
+describe('SH7.4 step b square legs panel', () => {
+  it('anchor 1: switches a library leg to Square and stores Width 2.5 without shapeId', () => {
+    addCorners();
+    expect(field(renderLeg(), 'Leg 1 Width')).toBeUndefined();
+    expect(nodes(field(renderLeg(), 'Leg 1 Shape')).filter(({ type }) => type === 'option')
+      .map(({ props }) => [props.value, props.children])).toEqual([['', 'Square'], [LEG.id, LEG.name]]);
+    change(field(renderLeg(), 'Leg 1 Shape'), '');
+    expect(currentRun().legs[0].square).toEqual({});
+    expect(currentRun().legs[0]).not.toHaveProperty('shapeId');
+    for (const [label, setting] of [['Width', 'squareLegWidth'], ['Depth', 'squareLegDepth']]) {
+      const input = field(renderLeg(), `Leg 1 ${label}`);
+      expect(input.type).toBe(CoordInput);
+      expect(input.props.allowBlank).toBe(true);
+      expect(input.props.value).toBeUndefined();
+      expect(input.props.placeholder).toBe(formatProfileCoord(settings[setting]));
+    }
+    expect(field(renderLeg(0, { settings: { ...settings, squareLegWidth: 4, squareLegDepth: 5 } }), 'Leg 1 Width')
+      .props.placeholder).toBe('4');
+    expect(field(renderLeg(0, { settings: { ...settings, squareLegDepth: 5 } }), 'Leg 1 Depth')
+      .props.placeholder).toBe('5');
+    field(renderLeg(), 'Leg 1 Width').props.onCommit(2.5);
+    expect(currentRun().legs[0].square).toEqual({ w: 2.5 });
+    expect(field(renderLeg(), 'Leg 1 Width').props.value).toBe(2.5);
+    expect(currentRun().legs[0]).not.toHaveProperty('shapeId');
+    // Reference changes must use the square leg's resolved width and depth.
+    field(renderLeg(), 'Leg 1 Depth').props.onCommit(4);
+    const bounds = runLegs(state.rooms[0], state.rooms[0].walls[0], currentRun(), settings)[0].bounds;
+    button(renderLeg(), 'Right').props.onClick();
+    button(renderLeg(), 'Back').props.onClick();
+    expect(currentRun().legs[0]).toMatchObject({ x: -33.5 });
+    expect(runLegs(state.rooms[0], state.rooms[0].walls[0], currentRun(), settings)[0].bounds).toEqual(bounds);
+  });
+
+  it('anchor 2: clears Width to square {}, then switching to a library leg drops square', () => {
+    addCorners();
+    change(field(renderLeg(), 'Leg 1 Shape'), '');
+    field(renderLeg(), 'Leg 1 Width').props.onCommit(2.5);
+    field(renderLeg(), 'Leg 1 Width').props.onCommit(undefined);
+    expect(currentRun().legs[0].square).toEqual({});
+    expect(field(renderLeg(), 'Leg 1 Width').props.value).toBeUndefined();
+    field(renderLeg(), 'Leg 1 Depth').props.onCommit(4);
+    field(renderLeg(), 'Leg 1 Width').props.onCommit(2.5);
+    field(renderLeg(), 'Leg 1 Width').props.onCommit(undefined);
+    expect(currentRun().legs[0].square).toEqual({ d: 4 });
+    field(renderLeg(), 'Leg 1 Depth').props.onCommit(undefined);
+    expect(currentRun().legs[0].square).toEqual({});
+    change(field(renderLeg(), 'Leg 1 Shape'), LEG.id);
+    expect(currentRun().legs[0].shapeId).toBe(LEG.id);
+    expect(currentRun().legs[0]).not.toHaveProperty('square');
+    expect(field(renderLeg(), 'Leg 1 Width')).toBeUndefined();
+    expect(field(renderLeg(), 'Leg 1 Depth')).toBeUndefined();
+  });
+
+  it('anchor 3: adds four square corners without live library legs and allows picking Square with a library', () => {
+    for (const shapes of [[], [{ ...LEG, archived: true }, { ...LEG, id: 'other', kind: 'other' }], [LEG]]) {
+      slots = [];
+      const args = { ...props(), settings: { ...settings, shapes } };
+      let tree = render(AddLegsRow, args);
+      if (shapes[0] === LEG) {
+        expect(field(tree, 'Add legs Shape').props.value).toBe(LEG.id);
+        change(field(tree, 'Add legs Shape'), '');
+        tree = render(AddLegsRow, args);
+      }
+      expect(field(tree, 'Add legs Shape').props.value).toBe('');
+      expect(button(tree, 'Add').props.disabled).toBeUndefined();
+      expect(nodes(tree).some(({ props }) => props.children === 'Make a leg in Library → Shapes first.')).toBe(false);
+      button(tree, 'Add').props.onClick();
+      expect(currentRun().legs.slice(-4)).toHaveLength(4);
+      for (const leg of currentRun().legs.slice(-4)) {
+        expect(leg.square).toEqual({});
+        expect(leg).not.toHaveProperty('shapeId');
+      }
+      if (shapes[0] === LEG) {
+        change(field(tree, 'Add legs Shape'), LEG.id);
+        tree = render(AddLegsRow, args);
+        button(tree, 'Add').props.onClick();
+        for (const leg of currentRun().legs.slice(-4)) {
+          expect(leg.shapeId).toBe(LEG.id);
+          expect(leg).not.toHaveProperty('square');
+        }
+      }
+    }
+  });
+
+  it('anchor 4: refuses Width 0 and other nonpositive or nonfinite square dimensions without changing the leg', () => {
+    addCorners();
+    change(field(renderLeg(), 'Leg 1 Shape'), '');
+    field(renderLeg(), 'Leg 1 Width').props.onCommit(2.5);
+    field(renderLeg(), 'Leg 1 Depth').props.onCommit(4);
+    const before = currentRun().legs[0];
+    dispatch.mockClear();
+    for (const label of ['Width', 'Depth']) {
+      for (const value of [0, -1, Infinity, NaN]) {
+        expect(field(renderLeg(), `Leg 1 ${label}`).props.onCommit(value)).toBe(false);
+        expect(currentRun().legs[0]).toEqual(before);
+      }
+    }
+    expect(dispatch).not.toHaveBeenCalled();
   });
 });
 

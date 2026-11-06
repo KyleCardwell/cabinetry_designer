@@ -3,7 +3,7 @@ import CoordInput from '../../../library/profileEditor/CoordInput.jsx';
 import { frontDepth, runBackOffset } from '../../model/corners.js';
 import { resolveShape } from '../../model/libraryShapes.js';
 import { runLegFills } from '../../model/legFills.js';
-import { legBottom, legWarningText } from '../../model/legs.js';
+import { legBottom, legShapeOf, legWarningText } from '../../model/legs.js';
 import { formatProfileCoord } from '../../model/profileEditing.js';
 import { formatInches } from '../../model/units.js';
 import { removeRunLeg, updateRunLeg } from '../../store/elevationSlice.js';
@@ -20,8 +20,10 @@ export function LegShapeSelect({ settings, value, onChange, label }) {
   const current = settings.shapes?.find(({ id }) => id === value);
   return (
     <Field label="Shape">
-      <select aria-label={label} value={value} onChange={(event) => onChange(event.target.value)} className={LEG_SELECT_CLASS}>
-        {!value && <option value="">Select a shape</option>}
+      <select aria-label={label} value={value ?? ''}
+        onChange={(event) => onChange(event.target.value ? { shapeId: event.target.value } : { square: {} })}
+        className={LEG_SELECT_CLASS}>
+        <option value="">Square</option>
         {shapes.map(({ id, name }) => <option key={id} value={id}>{name}</option>)}
         {unavailable && <option value={value}>{current?.name ?? 'Missing shape'} (archived)</option>}
       </select>
@@ -79,7 +81,7 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
   const label = `Leg ${index + 1}`;
   const actionBase = { roomId: room.id, wallId: wall.id, runId: run.id, legId: leg.id };
   const update = (changes) => dispatch(updateRunLeg({ ...actionBase, changes }));
-  const shape = settings.shapes?.find(({ id }) => id === leg.shapeId);
+  const shape = legShapeOf(leg, settings);
   const width = shape?.box.w ?? 0;
   const u0 = leg.from === 'left' ? run.x - leg.x : run.x + run.width + leg.x - width;
   // Skipped legs (for example, Feet on a base) still need the right Full height.
@@ -106,7 +108,24 @@ export default function LegRow({ room, wall, run, leg, index, settings, numbers,
           className="px-2 text-sm text-red-300 hover:text-red-200">Remove</button>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <LegShapeSelect settings={settings} value={leg.shapeId} label={`${label} Shape`} onChange={(shapeId) => update({ shapeId })} />
+        <div>
+          <LegShapeSelect settings={settings} value={leg.shapeId} label={`${label} Shape`}
+            onChange={(choice) => update({ shapeId: undefined, square: undefined, ...choice })} />
+          {leg.square && <div className="mt-1 grid grid-cols-2 gap-2">
+            {[['w', 'Width', 'squareLegWidth'], ['d', 'Depth', 'squareLegDepth']].map(([key, text, setting]) => (
+              <Field key={key} label={text}>
+                <CoordInput aria-label={`${label} ${text}`} value={leg.square[key]} allowBlank
+                  placeholder={formatProfileCoord(settings[setting])} onCommit={(value) => {
+                    if (value !== undefined && (!Number.isFinite(value) || value <= 0)) return false;
+                    const square = { ...leg.square };
+                    if (value === undefined) delete square[key];
+                    else square[key] = value;
+                    update({ square });
+                  }} />
+              </Field>
+            ))}
+          </div>}
+        </div>
         <LegHeightFields value={leg.height} label={`${label} Height`} fullHeight={fullHeight} showFullHeight onChange={(height) => update({ height })} />
         <LegSitsOnSelect value={leg.sitsOn} label={`${label} Sits on`} onChange={(sitsOn) => update({ sitsOn })} />
         {['x', 'y'].map((axis) => {
