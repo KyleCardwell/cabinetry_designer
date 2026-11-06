@@ -11,6 +11,7 @@ import { frameMembers, regionOpenings } from '../elevation/model/frames.js';
 import { furnitureBaseGroups } from '../elevation/model/furnitureBaseGroups.js';
 import { wallLength } from '../elevation/model/geometry.js';
 import { runLegs } from '../elevation/model/legs.js';
+import { runLegFills } from '../elevation/model/legFills.js';
 import { moldingPast, moldingProfiles } from '../elevation/model/moldingProfiles.js';
 import {
   isJoinedEnd, isSheetCell, runEndThickness, wallPanelThickness,
@@ -151,6 +152,7 @@ function shippingContext(room, settings) {
   const elevations = new Map();
   const interiorData = new Map();
   const legs = new Map();
+  const legFills = new Map();
   let bases;
   let tops;
   let moldings;
@@ -184,6 +186,11 @@ function shippingContext(room, settings) {
       if (!legs.has(run)) legs.set(run,
         new Map(runLegs(room, view, run, settings).map((placed) => [placed.leg.id, placed])));
       return { wall: view, run, leg: legs.get(run).get(part.key) };
+    }
+    if (part.kind === 'leg_panel' || part.kind === 'leg_filler') {
+      if (!legFills.has(run)) legFills.set(run,
+        new Map(runLegFills(room, view, run, settings).map((fill) => [fill.id, fill])));
+      return { wall: view, run, fill: legFills.get(run).get(part.key) };
     }
     if (!scenes.has(run)) scenes.set(run, runScene(room, view, run, settings));
     const scene = scenes.get(run);
@@ -264,6 +271,8 @@ function describePart(room, settings, part, context) {
     }
     case 'shelf': description = 'Floating Shelf'; break;
     case 'leg': description = context.leg.leg.height === 'feet' ? 'Foot' : 'Leg'; break;
+    case 'leg_panel': description = `${type} End Panel`; break;
+    case 'leg_filler': description = `${type} Filler`; break;
     case 'wall_end_panel': description = 'Wall End Panel'; break;
     case 'frame': description = 'Face Frame'; break;
     case 'furniture_base': description = 'Furniture Base'; break;
@@ -284,6 +293,10 @@ function orderedThickness(drawn, style) {
 }
 
 function shippingSize(room, settings, part, context) {
+  if (part.kind === 'leg_panel' || part.kind === 'leg_filler') {
+    const { depth, bounds, thickness } = context.fill;
+    return formatSize(depth, bounds.height, thickness);
+  }
   if (part.kind === 'leg') {
     const { w, h, d } = context.leg.size;
     return formatSize(w, h, d);

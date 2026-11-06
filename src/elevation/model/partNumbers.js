@@ -5,6 +5,7 @@ import { frameBadgeAnchor, frameMembers, frameRegions, regionOpenings } from './
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
 import { wallLength } from './geometry.js';
 import { runLegs } from './legs.js';
+import { runLegFills } from './legFills.js';
 import { resolveProfile } from './profile.js';
 import { splitOptionsForRun } from './placement.js';
 import { splitRun } from './splitRun.js';
@@ -172,6 +173,7 @@ export function wallBadgeGroups(room, wall, settings) {
       ? pieces.filter((piece) => piece.kind === 'end_panel')
       : [];
     const seamTees = teeFillers(room, run, cells, settings).tees.filter((tee) => !tee.end);
+    const fills = new Map(runLegFills(room, wall, run, settings).map((fill) => [fill.leg.id, fill]));
     let layouts = null;
     const faceLayouts = () => (layouts ??= runFaceLayouts(room, wall, run, settings, layout));
     return [
@@ -214,7 +216,8 @@ export function wallBadgeGroups(room, wall, settings) {
         lift: 0,
         pieces: runLegs(room, wall, run, settings)
           .sort((a, b) => a.bounds.x - b.bounds.x || b.front - a.front)
-          .map(({ leg, bounds }) => ({ id: leg.id, ...bounds })),
+          .flatMap(({ leg, bounds }) => [{ id: leg.id, ...bounds },
+            ...[fills.get(leg.id)].filter(Boolean).map((fill) => ({ id: fill.id, ...fill.bounds }))]),
       },
     ];
   }).filter((group) => group.pieces.length > 0);

@@ -8,6 +8,7 @@ import { runBaseProfile as runBase } from './furnitureBase.js';
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
 import { wallLength } from './geometry.js';
 import { runLegs } from './legs.js';
+import { runLegFills } from './legFills.js';
 import { resolveProfile } from './profile.js';
 import { splitOptionsForRun } from './placement.js';
 import { splitRun } from './splitRun.js';
@@ -147,6 +148,7 @@ function runParts(room, wall, side, settings) {
     }));
     const insideOwners = new Map(cells.pieces.filter((piece) => piece.inside)
       .map((piece) => [piece.id, piece.ownerId]));
+    const fills = new Map(runLegFills(room, view, run, settings).map((fill) => [fill.leg.id, fill]));
     return [
       ...pieceParts.filter((part) => !insideOwners.has(part.key)).flatMap((part) => [
         part,
@@ -172,7 +174,7 @@ function runParts(room, wall, side, settings) {
       })),
       ...runLegs(room, view, run, settings)
         .sort((a, b) => a.bounds.x - b.bounds.x || b.front - a.front)
-        .map(({ leg, bounds }) => ({
+        .flatMap(({ leg, bounds }) => [{
           key: leg.id,
           kind: 'leg',
           wallId: wall.id,
@@ -182,7 +184,17 @@ function runParts(room, wall, side, settings) {
           molding: null,
           ...bounds,
           source: 'leg',
-        })),
+        }, ...[fills.get(leg.id)].filter(Boolean).map((fill) => ({
+          key: fill.id,
+          kind: fill.type === 'panel' ? 'leg_panel' : 'leg_filler',
+          wallId: wall.id,
+          side,
+          runId: run.id,
+          pieceId: null,
+          molding: null,
+          ...fill.bounds,
+          source: 'leg_fill',
+        }))]),
     ];
   });
 }
