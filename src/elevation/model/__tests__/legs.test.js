@@ -130,7 +130,7 @@ describe('SH7 step a run leg placement and presets', () => {
     }
   });
 
-  it('SH7.2 step d: every preset fills only front legs with independent panel or filler picks', () => {
+  it('SH7.2 step e anchor 6: presets put fillers on every leg and panels on front legs only', () => {
     let id = 0;
     for (const preset of ['four', 'front', 'three', 'left', 'right']) {
       for (const fill of [undefined, 'panel', 'filler']) {
@@ -138,11 +138,11 @@ describe('SH7 step a run leg placement and presets', () => {
           const picks = legPreset(preset, { shapeId: LEG.id, fill, leaveOut }, () => `lg-${++id}`);
           expect(isLegList(picks)).toBe(true);
           for (const pick of picks) {
-            if (fill && pick.yFrom === 'front') expect(pick.fill).toEqual({ type: fill });
+            if (fill && (fill === 'filler' || pick.yFrom === 'front')) expect(pick.fill).toEqual({ type: fill });
             else expect(pick).not.toHaveProperty('fill');
           }
-          const fronts = picks.filter((pick) => pick.fill);
-          if (fronts.length === 2) expect(fronts[0].fill).not.toBe(fronts[1].fill);
+          const filled = picks.filter((pick) => pick.fill);
+          expect(new Set(filled.map((pick) => pick.fill)).size).toBe(filled.length);
         }
       }
     }

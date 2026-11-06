@@ -14,11 +14,11 @@ const isText = (value) => typeof value === 'string' && value.length > 0;
 function isLegFill(fill) {
   if (!fill || typeof fill !== 'object' || Array.isArray(fill)
     || !['panel', 'filler'].includes(fill.type)) return false;
-  const keys = ['type', 'inset', 'top', 'bottom', fill.type === 'panel' ? 'past' : 'thickness'];
+  if (fill.type === 'filler') return Object.keys(fill).every((key) => key === 'type');
+  const keys = ['type', 'inset', 'top', 'bottom', 'past'];
   return Object.keys(fill).every((key) => keys.includes(key))
     && ['inset', 'top', 'bottom'].every((key) => !Object.hasOwn(fill, key)
       || (Number.isFinite(fill[key]) && fill[key] >= 0))
-    && (!Object.hasOwn(fill, 'thickness') || (Number.isFinite(fill.thickness) && fill.thickness > 0))
     && (!Object.hasOwn(fill, 'past') || fill.past === true);
 }
 
@@ -136,7 +136,7 @@ export function legPreset(preset, { shapeId, height = 'full', sitsOn, fill, prou
     yFrom: corner[1] === 'F' ? 'front' : 'back',
     y: corner[1] === 'F' ? proud : backOffset,
     ...(sitsOn ? { sitsOn } : {}),
-    ...(fill && corner[1] === 'F' ? { fill: { type: fill } } : {}),
+    ...(fill && (fill === 'filler' || corner[1] === 'F') ? { fill: { type: fill } } : {}),
     ...(corner[0] === 'L' ? { mirror: true } : {}),
     ...(corner[1] === 'B' ? { mirrorDepth: true } : {}),
   }));

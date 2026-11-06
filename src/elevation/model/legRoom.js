@@ -11,26 +11,49 @@ export function legFillPlans(run, settings) {
     if (!shape) return [];
     const t0 = leg.yFrom === 'front' ? -leg.y : F - B + leg.y - shape.box.d;
     const front = F - t0;
-    return [{ leg, index: offset + 1, front, back: front - shape.box.d }];
+    return [{ leg, index: offset + 1, width: shape.box.w, front, back: front - shape.box.d }];
   });
   const partnerOf = (entry) => legs.filter((other) => other !== entry && other.leg.from === entry.leg.from
     && (entry.leg.yFrom === 'front' ? other.front < entry.front : other.back > entry.back))
     .sort((a, b) => entry.leg.yFrom === 'front' ? b.front - a.front : a.back - b.back)[0];
-  const partners = new Map(legs.map((entry) => [entry, partnerOf(entry)]));
+  const partners = new Map(legs.filter(({ leg }) => leg.fill?.type === 'panel')
+    .map((entry) => [entry, partnerOf(entry)]));
   return legs.filter(({ leg }) => leg.fill).map((entry) => {
     const { leg, index } = entry;
     const { fill } = leg;
+    if (fill.type === 'filler') {
+      const width = entry.width;
+      const u0 = leg.from === 'left' ? run.x - leg.x : run.x + run.width + leg.x - width;
+      const thickness = settings.fillerThickness;
+      const forward = leg.yFrom === 'back';
+      const face = forward ? { back: entry.front, front: entry.front + thickness }
+        : { back: entry.back - thickness, front: entry.back };
+      const rt = settings.fillerReturnThickness;
+      const join = forward ? face.front - settings.fillerReturnTongue : face.back + settings.fillerReturnTongue;
+      const ret = {
+        start: leg.from === 'left' ? u0 + width - rt : u0,
+        end: leg.from === 'left' ? u0 + width : u0 + rt,
+        back: forward ? join : join - settings.fillerReturnDepth,
+        front: forward ? join + settings.fillerReturnDepth : join,
+      };
+      const hasReturn = settings.fillerReturnDepth > 0;
+      const back = hasReturn ? Math.min(face.back, ret.back) : face.back;
+      const front = hasReturn ? Math.max(face.front, ret.front) : face.front;
+      return { leg, index, type: 'filler', side: leg.from, u0, width, face, ret,
+        back, front, thickness,
+        orderedDepth: hasReturn ? thickness + settings.fillerReturnDepth - settings.fillerReturnTongue : thickness,
+        takesRoom: leg.takesRoom !== false && !run._pinSplit?.[leg.from]
+          && Math.min(front, F) - Math.max(back, B) > 1e-6 };
+    }
     const partner = partners.get(entry);
     const warn = (code, extra = {}) => ({ leg, index, warning: { code, type: fill.type, ...extra } });
-    if (leg.yFrom === 'back' && partner?.leg.fill && partner.leg.yFrom === 'front'
+    if (leg.yFrom === 'back' && partner?.leg.fill?.type === 'panel' && partner.leg.yFrom === 'front'
       && partners.get(partner) === entry) return warn('leg-fill-shared', { other: partner.index });
     const back = fill.past ? B : leg.yFrom === 'front' ? partner?.front ?? B : entry.front;
     const front = fill.past ? F : leg.yFrom === 'front' ? entry.back : partner?.back ?? F;
     const depth = front - back;
     if (depth <= 1e-6) return warn('leg-fill-no-depth');
-    const width = fill.type === 'panel'
-      ? run._endThickness?.[leg.from] ?? teamDoorStyle(settings).thickness
-      : fill.thickness ?? settings.fillerThickness;
+    const width = run._endThickness?.[leg.from] ?? teamDoorStyle(settings).thickness;
     const inset = fill.inset ?? settings.legPanelReveal;
     return { leg, index, type: fill.type, side: leg.from,
       u0: leg.from === 'left' ? run.x - leg.x + inset : run.x + run.width + leg.x - inset - width,

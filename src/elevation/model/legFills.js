@@ -1,17 +1,30 @@
 import { legFillPlans } from './legRoom.js';
 import { runLegs } from './legs.js';
+import { runFaceStyles } from './doorStyleResolve.js';
 
-/** Fill placements inherit their leg's resolved support, retaining warnings for skipped fills. */
+/** Panels inherit leg support; run fillers use box height. Retain warnings for skipped panels. */
 export function runLegFills(room, wall, run, settings) {
   const placed = Object.assign([], { warnings: [] });
   const legs = new Map(runLegs(room, wall, run, settings).map((entry) => [entry.index, entry]));
-  for (const plan of legFillPlans(run, settings)) {
+  // Match runFillerThickness locally: planPieces imports legRoom through the layout graph.
+  const faces = run.legs?.some(({ fill }) => fill?.type === 'filler')
+    ? runFaceStyles(room, wall, run, settings) : [];
+  const fillerThickness = faces.length && faces.every(({ design }) => design.slabCore === 'mdf')
+    ? Math.max(...faces.map(({ style }) => style.thickness)) : settings.fillerThickness;
+  for (const plan of legFillPlans(run, { ...settings, fillerThickness })) {
     const placement = legs.get(plan.index);
     if (!placement) continue;
     const { leg, index } = plan;
     const warn = (warning) => placed.warnings.push({ ...warning, index, legId: leg.id });
     if (plan.warning) {
       warn(plan.warning);
+      continue;
+    }
+    if (plan.type === 'filler') {
+      placed.push({ id: `${leg.id}:fill`, leg, index, type: 'filler', side: plan.side,
+        bounds: { x: plan.u0, z: run.z, width: plan.width, height: run.height },
+        face: plan.face, ret: plan.ret, front: plan.front, back: plan.back,
+        thickness: plan.thickness, orderedDepth: plan.orderedDepth });
       continue;
     }
     const bottom = placement.bounds.z + (leg.fill.bottom ?? settings.legPanelBottomClearance);

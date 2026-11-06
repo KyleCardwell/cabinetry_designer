@@ -111,11 +111,15 @@ describe('SH7 step a stored legs', () => {
 
 it('SH7.2 replaces fills as a whole, rejects invalid edits and removes cleared fills', () => {
   let state = elevationReducer(initial, addRunLegs({ ...target, legs: [{ ...leg,
-    fill: { type: 'filler', thickness: 0.75, inset: 0, bottom: 1 } }] }));
-  expect(currentRun(state).legs[0].fill.type).toBe('filler');
+    fill: { type: 'filler' } }] }));
+  expect(currentRun(state).legs[0].fill).toEqual({ type: 'filler' });
+  const fillerSaved = toElevationDocument(state);
+  expect(isElevationDocument(fillerSaved)).toBe(true);
+  expect(toElevationDocument(normalizeElevationDocument(fillerSaved))).toEqual(fillerSaved);
   state = elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill: { type: 'panel' } } }));
   expect(currentRun(state).legs[0].fill).toEqual({ type: 'panel' });
-  for (const fill of [{ type: 'panel', thickness: 1 }, { type: 'filler', past: true }, null]) {
+  for (const fill of [{ type: 'panel', thickness: 1 }, { type: 'filler', past: true },
+    ...['inset', 'thickness', 'top', 'bottom'].map((key) => ({ type: 'filler', [key]: 0 })), null]) {
     expect(elevationReducer(state, updateRunLeg({ ...target, legId: leg.id, changes: { fill } }))).toEqual(state);
   }
   const saved = toElevationDocument(state);
