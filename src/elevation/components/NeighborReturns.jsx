@@ -71,13 +71,15 @@ export default function NeighborReturns({
             const section = part.kind === 'section';
             const profile = part.kind === 'profile';
             const outlined = part.kind === 'end_panel' || part.kind === 'furniture_base';
+            // A crown or top mold seen end-on is in front of this wall's own bands, so it hides them.
+            const molding = part.kind === 'crown' || part.kind === 'top_mold';
             const clipFunc = part.outline ? outlinePath(part.outline, transform) : undefined;
             return (
               <Group key={part.id} listening={false}>
                 <PartShape
                   {...geometry}
                   // An end panel seen end-on stands in front of this wall, so it covers what's behind it (FX5.1).
-                  fill={section ? '#475569' : outlined ? ELEVATION_BG : undefined}
+                  fill={section ? '#475569' : outlined || molding ? ELEVATION_BG : undefined}
                   opacity={section ? 0.26 : part.kind === 'end_panel' ? 0.82 : part.kind === 'furniture_base' ? 0.9 : 1}
                   stroke={outlined ? ELEVATION_LINE : profile ? '#64748b' : '#94a3b8'}
                   strokeWidth={section ? 1.5 : 1}

@@ -1,4 +1,5 @@
 import { Layer } from 'react-konva';
+import { runsByDepth } from '../model/corners.js';
 import { openingGeometry } from '../model/openings.js';
 import { lineHeldJoints } from '../model/linePlacement.js';
 import JointMarkers from './JointMarkers.jsx';
@@ -89,7 +90,7 @@ export default function WallContentLayer({
               onSelect={tool === 'select' ? pick : undefined}
               combinedJoins={soffitJoins.filter((join) => join.key === activeKey)}
             />
-            {wall.runs.map((run) => (
+            {runsByDepth(wall.runs, settings).map((run) => (
               <RunGroup
                 key={run.id}
                 run={run}

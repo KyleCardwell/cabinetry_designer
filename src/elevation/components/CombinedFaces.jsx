@@ -6,6 +6,7 @@ import {
   wallRectToScreen,
 } from '../canvas/transform.js';
 import { combinedCornerShapes } from '../model/cornerParts.js';
+import { runsByDepth } from '../model/corners.js';
 import { openingGeometry } from '../model/openings.js';
 import { resolveProfile } from '../model/profile.js';
 import { resolveWall } from '../model/room.js';
@@ -89,7 +90,7 @@ export default function CombinedFaces({
                 onSelect={noop}
                 combinedJoins={soffitJoins.filter((join) => join.key === face.key)}
               />
-              {wall.runs.map((run) => (
+              {runsByDepth(wall.runs, settings).map((run) => (
                 <RunGroup
                   key={run.id}
                   run={run}

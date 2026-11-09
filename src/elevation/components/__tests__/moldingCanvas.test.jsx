@@ -214,7 +214,8 @@ describe('Step 472 molding canvas', () => {
     if (kind === 'return') {
       expect(polygon.props).toMatchObject(partKind === 'furniture_base'
         ? { fill: ELEVATION_BG, stroke: ELEVATION_LINE, opacity: 0.9 }
-        : { fill: undefined, stroke: '#94a3b8', opacity: 1 });
+        // A crown seen end-on hides this wall's own top mold behind it.
+        : { fill: ELEVATION_BG, stroke: '#94a3b8', opacity: 1 });
     }
     expect(trace(polygon.props.sceneFunc)).toEqual([
       'begin', ['move', 62.5, 68], ['line', 74.5, 68], ['line', 74.5, 72],

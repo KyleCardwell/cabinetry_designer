@@ -53,6 +53,11 @@ export function frontDepth(run, settings) {
   return back + run.depth + faceFrontOffset(run, settings);
 }
 
+/** Runs back to front by face depth, so a deeper run's band returns paint over the shallower run's bands. */
+export function runsByDepth(runs, settings) {
+  return [...runs].sort((a, b) => frontDepth(a, settings) - frontDepth(b, settings));
+}
+
 /** Return the minimum width for a filler scribed into an angled corner. */
 export function cornerFillerMin(settings, angle) {
   const base = settings.cornerFillerMinWidth;
