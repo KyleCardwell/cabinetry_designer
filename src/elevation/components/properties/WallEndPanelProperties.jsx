@@ -4,6 +4,7 @@ import {
   formatInches, partNumbers, wallEndPanelFramed, wallEndPanelPartKey,
 } from '../../model/index.js';
 import { panelLevels } from '../../model/doorStyleResolve.js';
+import { wallEndFit } from '../../model/wallEndFit.js';
 import { setPartStyle, setWallEndPanel } from '../../store/elevationSlice.js';
 import PartNumberField from './PartNumberField.jsx';
 import PartReportFields from './PartReportFields.jsx';
@@ -16,6 +17,7 @@ export default function WallEndPanelProperties({
 }) {
   const dispatch = useDispatch();
   const numbers = useMemo(() => partNumbers(room, settings), [room, settings]);
+  const fit = useMemo(() => wallEndFit(room, wall, panel.endpoint, settings), [room, wall, panel.endpoint, settings]);
   const key = wallEndPanelPartKey(wall.id, panel.endpoint);
   const side = panel[wall.side ?? 'front'];
   const label = side.side === 'left' ? 'Left end' : 'Right end';
@@ -38,6 +40,7 @@ export default function WallEndPanelProperties({
       <p className="text-xs text-gray-300">
         {formatInches(panel.width)} × {formatInches(panel.top - panel.bottom)} · {formatInches(side.depth)} deep on this side
       </p>
+      {fit.hi !== undefined && <p className="text-xs text-gray-300">Fitted between the legs</p>}
       <WallEndPanelFields
         wall={wall}
         endpoint={panel.endpoint}

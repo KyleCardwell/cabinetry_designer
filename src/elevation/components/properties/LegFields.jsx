@@ -60,7 +60,7 @@ export function LegHeightFields({ value, onChange, fullHeight, label, showFullHe
   );
 }
 
-export function LegPanelFields({ panel, settings, label, onChange, children }) {
+export function LegPanelFields({ panel, settings, label, onChange, children, showFullDepth = true }) {
   return (
     <>
       <div className="mt-2 grid grid-cols-2 gap-2">
@@ -95,10 +95,10 @@ export function LegPanelFields({ panel, settings, label, onChange, children }) {
             }} />
         </Field>}
       </div>
-      <label className="mt-2 flex items-center gap-2 text-xs text-gray-300">
+      {showFullDepth && <label className="mt-2 flex items-center gap-2 text-xs text-gray-300">
         <input type="checkbox" aria-label={`${label} Full depth`} checked={panel.past === true}
           onChange={(event) => onChange('past', event.target.checked ? true : undefined)} />Full depth
-      </label>
+      </label>}
     </>
   );
 }

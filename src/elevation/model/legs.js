@@ -102,6 +102,7 @@ export function legPreset(preset, { shapeId, square, height = 'full', sitsOn, pr
 
 export function legWarningText({ code, index, name, target, fixed, height, sitsOn, type }) {
   const who = name ?? `Leg ${index}`;
+  if (code === 'wall-leg-no-run') return `${who}: no run on that face stops at this end.`;
   if (code === 'wall-panel-no-depth') return `${who}: no room between the legs (they touch or overlap). Drawn inside the legs.`;
   if (code === 'wall-panel-no-height') return `${who}: it has no height. Drawn inside the legs.`;
   if (code === 'leg-fill-return-short') return `${who}: its panel return is no deeper than the panel's thickness.`;
