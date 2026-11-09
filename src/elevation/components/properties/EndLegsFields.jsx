@@ -17,6 +17,7 @@ export default function EndLegsFields({ room, wall, run, side, settings, actionB
   const end = run.endLegs?.[side];
   const piece = endPieceType(run, side);
   const fit = endFit(run, side);
+  if (run._wallEnds?.[side]) return <p className="mt-3 text-xs text-gray-500">Legs for this end are set on the wall (End panels).</p>;
   if (piece === 'blind' || (!end && !run.legs?.length
     && ![CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL, CABINET_TYPE_IDS.UPPER].includes(run.cabinetTypeId))) return null;
 

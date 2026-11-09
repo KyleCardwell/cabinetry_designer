@@ -4,6 +4,8 @@ import { CABINET_TYPE_IDS } from '../../model/constants.js';
 import { endFit } from '../../model/endLegs.js';
 import { runLegs } from '../../model/legs.js';
 import { partNumbers } from '../../model/partNumbers.js';
+import { wallEndpointSide } from '../../model/wallEndPanels.js';
+import { wallSideOf } from '../../model/wallSides.js';
 import { replaceRun } from '../../store/elevationSlice.js';
 import PanelSection from '../panel/PanelSection.jsx';
 import AddLegsRow from './AddLegsRow.jsx';
@@ -23,6 +25,7 @@ export default function RunLegsSection({ room, wall, run, settings }) {
   const numbers = useMemo(() => partNumbers(room, settings), [room, settings]);
   const placed = useMemo(() => runLegs(room, wall, run, settings), [room, wall, run, settings]);
   if (!run.legs?.length && !Object.keys(run.endLegs ?? {}).length
+    && !run._wallLegs?.length && !Object.keys(run._wallEnds ?? {}).length
     && ![CABINET_TYPE_IDS.BASE, CABINET_TYPE_IDS.TALL, CABINET_TYPE_IDS.UPPER].includes(run.cabinetTypeId)
     && !history.past.length && !history.future.length) return null;
   const restore = (redo) => {
@@ -52,7 +55,17 @@ export default function RunLegsSection({ room, wall, run, settings }) {
         onClick={() => restore(true)} className="text-xs text-gray-300 disabled:opacity-40">Redo</button>
     </div>}>
       <div className="space-y-3">
-        {['left', 'right'].filter((side) => run.endLegs?.[side]).map((side) => {
+        {['left', 'right'].filter((side) => run._wallEnds?.[side] || run.endLegs?.[side]).map((side) => {
+          if (run._wallEnds?.[side]) {
+            const source = wall.sideSource ?? wall;
+            const endpoint = ['start', 'end'].find((endpoint) =>
+              wallEndpointSide(room, source, endpoint, wallSideOf(run)) === side);
+            const legs = source.endLegs?.[endpoint]?.faces[wallSideOf(run)]?.legs;
+            const description = legs === 'both' ? 'front and back legs' : legs ? `${legs} leg` : 'legs';
+            return <p key={side} className="text-xs text-gray-300">
+              {`${side === 'left' ? 'Left' : 'Right'} end: ${description} (set on the wall, under End panels).`}
+            </p>;
+          }
           const legs = run.endLegs[side].legs;
           const fit = endFit(run, side);
           const description = legs === 'both' ? 'front and back legs' : `${legs} leg`;

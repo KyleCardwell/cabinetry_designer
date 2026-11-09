@@ -47,6 +47,7 @@ import DoorStylePicks from './DoorStylePicks.jsx';
 import PullPicks from './PullPicks.jsx';
 import Field from './Field.jsx';
 import WallEndPanelFields from './WallEndPanelFields.jsx';
+import WallEndLegsFields from './WallEndLegsFields.jsx';
 import StretchInput from './StretchInput.jsx';
 import PanelSection from '../panel/PanelSection.jsx';
 
@@ -562,6 +563,7 @@ export default function WallHeightProperties({ room, wall, plan }) {
                     />
                   </div>
                 )}
+                {free && <WallEndLegsFields room={room} wall={wall} endpoint={endpoint} label={label} settings={settings} />}
               </div>
             );
           })}
