@@ -14,6 +14,7 @@ import { landingEndpoint, landingsOn } from './landings.js';
 import { roundTo } from './units.js';
 import { runTFiller } from './styles.js';
 import { isShelvesOnlyRun } from './wallEndPanels.js';
+import { wallEndRoom } from './wallEndLegs.js';
 import {
   wallEndPanelAt,
   wallSideOf,
@@ -193,12 +194,16 @@ export function cornerReserveParts(room, wall, side, run, settings, { laps = tru
     const override = run.cornerClearance?.[side];
     const custom = typeof override === 'number' && Number.isFinite(override);
     const panel = corner.type === 'open' ? wallEndPanelAt(room, wall, side, settings) : null;
-    if (panel && !custom) return { face: panel.width, back: 0, lap: 0, total: panel.width, source: 'panel', neighborRunId: null };
+    const frame = wallFrame(room, wall);
+    const endpoint = side === 'left' ? frame.leftEndpoint : frame.rightEndpoint;
+    const roomTaken = !custom && corner.type === 'open' ? wallEndRoom(room, wall, endpoint, settings) : null;
+    if (panel && !custom) return { face: panel.width, back: 0, lap: 0,
+      total: roomTaken.panelS + panel.width, source: 'panel', neighborRunId: null };
     return {
       face: 0,
       back: 0,
       lap: 0,
-      total: custom ? override : 0,
+      total: custom ? override : roomTaken?.[wall.side ?? 'front'] ?? 0,
       source: custom ? 'custom' : 'auto',
       neighborRunId: null,
     };

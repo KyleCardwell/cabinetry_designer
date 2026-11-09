@@ -5,7 +5,7 @@ import { legShapeOf } from './legs.js';
 
 /** Depth and along-run fill plans, independent of leg height and support. */
 export function legFillPlans(run, settings) {
-  const runLegs = runLegList(run);
+  const runLegs = runLegList(run).filter((leg) => !leg.wall);
   if (!runLegs.some(({ fill }) => fill)) return [];
   const F = frontDepth(run, settings);
   const B = runBackOffset(run);
@@ -79,7 +79,7 @@ export function legRoom(run, settings) {
   const F = frontDepth(run, settings);
   const B = runBackOffset(run);
   for (const leg of runLegList(run)) {
-    if (run._pinSplit?.[leg.from] || leg.takesRoom === false) continue;
+    if (leg.wall || run._pinSplit?.[leg.from] || leg.takesRoom === false) continue;
     const shape = legShapeOf(leg, settings);
     if (!shape) continue;
     const b = shape.box;

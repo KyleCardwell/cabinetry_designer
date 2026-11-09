@@ -97,7 +97,7 @@ export function endPieceType(run, side) {
 export function endLegList(run) {
   return ['left', 'right'].flatMap((side) => {
     const end = run.endLegs?.[side];
-    if (!end) return [];
+    if (!end || run._wallEnds?.[side]) return [];
     const fit = endFit(run, side);
     return ['front', 'back'].flatMap((edge) => {
       if (!end[edge]) return [];
@@ -112,11 +112,15 @@ export function endLegList(run) {
 }
 
 export function runLegList(run) {
-  return [...endLegList(run), ...(run.legs ?? [])];
+  return [...endLegList(run), ...(run._wallLegs ?? []), ...(run.legs ?? [])];
 }
 
 /** Warning subjects keep hand-leg positions independent of the derived end legs. */
 export function legWarningSubject(run, leg) {
+  if (leg.wall) {
+    const end = (leg.from === 'left') === (leg.wall.face === 'front') ? 'Left' : 'Right';
+    return { name: `${end} end ${leg.wall.face}-face ${leg.wall.edge} leg` };
+  }
   return leg.end
     ? { name: `${leg.end.side === 'left' ? 'Left' : 'Right'} ${leg.end.edge} leg` }
     : { index: run.legs.indexOf(leg) + 1 };

@@ -3,6 +3,7 @@ import { frontDepth, runBackOffset } from './corners.js';
 import { wallFrame } from './geometry.js';
 import { gridLeaves } from './grid.js';
 import { wallSideOf, wallSideView } from './wallSides.js';
+import { wallEndRoom } from './wallEndLegs.js';
 
 const EPSILON = 1e-6;
 
@@ -98,10 +99,12 @@ function panelSide(room, wall, endpoint, elevationSide, width, settings) {
   const runs = view.runs.filter((run) => run.anchors?.[side] === true);
   const depth = runs.reduce((deepest, run) => Math.max(deepest, frontDepth(run, settings)), 0);
   const panelRun = panelRunJoin(runs, depth, wall.endPanels?.[endpoint]?.frame);
+  const { panelS } = wallEndRoom(room, wall, endpoint, settings);
   return {
     side,
     // SPEC-RF2: a free wall end's runs may stand out past it; the panel goes with them.
-    x: side === 'left' ? 0 - wallEndFlex(wall, endpoint) : frame.length - width + wallEndFlex(wall, endpoint),
+    x: side === 'left' ? panelS - wallEndFlex(wall, endpoint)
+      : frame.length - width + wallEndFlex(wall, endpoint) - panelS,
     depth,
     top: runs.reduce((top, run) => Math.max(top, run.z + run.height), 0),
     runIds: runs.map((run) => run.id),

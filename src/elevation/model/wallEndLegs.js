@@ -1,10 +1,11 @@
 import { isPlainObject } from '@reduxjs/toolkit';
 import { CABINET_TYPE_IDS, DEFAULT_SETTINGS } from './constants.js';
-import { frontDepth } from './corners.js';
+import { frontDepth, runBackOffset } from './corners.js';
 import { isEndLegSide, isLegFill, legHandedness } from './endLegs.js';
 import { wallFrame } from './geometry.js';
 import { wallEndpointSide } from './wallEndPanels.js';
 import { wallSideView } from './wallSides.js';
+import { legShapeOf } from './legs.js';
 
 /** Wall ends own face specs, with an optional panel fit across exactly two legs. */
 export function isWallEndLegs(value) {
@@ -68,4 +69,23 @@ export function wallEndLegList(room, wall, settings = DEFAULT_SETTINGS) {
     }
   }
   return legs;
+}
+
+/** Taking room is measured inward from the end line, independent of laid-out run x. */
+export function wallEndRoom(room, wall, endpoint, settings) {
+  const source = wall.sideSource ?? wall;
+  const roomByFace = { front: 0, back: 0 };
+  for (const { runId, leg } of wallEndLegList(room, source, settings)) {
+    if (leg.wall.endpoint !== endpoint || leg.takesRoom === false) continue;
+    const shape = legShapeOf(leg, settings);
+    if (!shape) continue;
+    const run = source.runs.find((run) => run.id === runId);
+    const F = frontDepth(run, settings);
+    const B = runBackOffset(run);
+    const front = leg.yFrom === 'front' ? F + leg.y : B - leg.y + shape.box.d;
+    if (Math.min(front, F) - Math.max(front - shape.box.d, B) <= 1e-6) continue;
+    const face = leg.wall.face;
+    roomByFace[face] = Math.max(roomByFace[face], shape.box.w - leg.x);
+  }
+  return { ...roomByFace, panelS: Math.max(roomByFace.front, roomByFace.back) };
 }

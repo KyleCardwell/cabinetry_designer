@@ -78,7 +78,9 @@ export function runLegs(room, wall, run, settings) {
     };
     const shape = legShapeOf(leg, settings);
     const width = shape?.box.w ?? 0;
-    const u0 = leg.from === 'left' ? run.x - leg.x : run.x + run.width + leg.x - width;
+    const u0 = leg.wall
+      ? (leg.from === 'left' ? leg.wall.endX - leg.x : leg.wall.endX + leg.x - width)
+      : (leg.from === 'left' ? run.x - leg.x : run.x + run.width + leg.x - width);
     const bottom = legBottom(room, view, run, settings, leg, u0, width);
     const z0 = bottom.z;
     const H = leg.height === 'full' ? run.z + run.height - z0 : leg.height === 'feet' ? run.z - z0 : leg.height;

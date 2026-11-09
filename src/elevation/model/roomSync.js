@@ -43,12 +43,13 @@ import {
   wallSideView,
   wallViewForRun,
 } from './wallSides.js';
-import { isPanelOnlyRun, panelRunMiters, wallEndPanels } from './wallEndPanels.js';
+import { isPanelOnlyRun, panelRunMiters, wallEndPanels, wallEndpointSide } from './wallEndPanels.js';
 import { cloneRun, cloneRoom } from './roomClone.js';
 import { blindCoversForRun, endMinWidthsForRun, horizontalResolution, casingClearanceWarnings, cornerLapWarnings } from './runAnchors.js';
 import { placeRoom, splitOptionsForRun } from './placement.js';
 import { returnFaceWarnings } from './returnWarnings.js';
 import { flexRoom, unflexRoom } from './runFlex.js';
+import { wallEndLegList } from './wallEndLegs.js';
 
 const PIN_EPSILON = 1e-6;
 
@@ -170,6 +171,29 @@ function withStepEnds(room, wall, run, settings) {
     return JSON.stringify(_stepEnds) === JSON.stringify(entries) ? run : { ...base, _stepEnds: entries };
   }
   return Object.hasOwn(run, '_stepEnds') ? base : run;
+}
+
+/** Ownership must also be known during layout, before run end legs reserve their own room. */
+function withWallEnds(room, wall, run) {
+  const { _wallEnds, ...base } = run;
+  const sides = ['start', 'end'].filter((endpoint) => wall.endLegs?.[endpoint]
+    && !wall.connections?.[endpoint] && !wall.landings?.[endpoint])
+    .map((endpoint) => wallEndpointSide(room, wall, endpoint, wallSideOf(run)))
+    .filter((side) => run.anchors?.[side] === true);
+  if (sides.length) return { ...base, _wallEnds: Object.fromEntries(sides.map((side) => [side, true])) };
+  return _wallEnds ? base : run;
+}
+
+/** Attach placements after flex so each leg carries the final wall end line. */
+function withWallLegs(room, wall, settings) {
+  const legs = wallEndLegList(room, wall, settings);
+  return { ...wall, runs: wall.runs.map((run) => {
+    const { _wallLegs, ...base } = run;
+    void _wallLegs;
+    const owned = withWallEnds(room, wall, base);
+    const entries = legs.filter(({ runId }) => runId === run.id).map(({ leg }) => leg);
+    return entries.length ? { ...owned, _wallLegs: entries } : owned;
+  }) };
 }
 
 /** A wall's derived panel thicknesses, only where they differ from the team default. */
@@ -299,6 +323,9 @@ export function syncRoom(room, settings) {
     )),
   }));
   nextRoom.wallOrder = computeWallOrder(nextRoom, nextRoom.wallOrder ?? []);
+  nextRoom.walls = nextRoom.walls.map((wall) => ({ ...wall,
+    runs: wall.runs.map((run) => withWallEnds(nextRoom, wall, run)),
+  }));
   // LL3: openings attached to a layout line sit on it, before labels (left to right) and run anchors read them.
   nextRoom = placeAttachedOpenings(nextRoom, settings);
   // Door and window labels follow wall order, then left to right (typed labels stay).
@@ -309,7 +336,7 @@ export function syncRoom(room, settings) {
     ...nextRoom,
     walls: nextRoom.walls.map((wall) => {
       const profile = resolveProfile(settings, nextRoom, wall);
-      const runs = wall.runs.map(cloneRun);
+      const runs = wall.runs.map((run) => withWallEnds(nextRoom, wall, cloneRun(run)));
       for (const typeId of [
         CABINET_TYPE_IDS.BASE,
         CABINET_TYPE_IDS.TALL,
@@ -386,12 +413,12 @@ export function syncRoom(room, settings) {
   nextRoom = flexRoom(nextRoom, settings);
   return {
     ...nextRoom,
-    walls: nextRoom.walls.map((wall) => ({
+    walls: nextRoom.walls.map((wall) => withWallLegs(nextRoom, {
       ...wall,
       runs: wall.runs.map((run) => withStepEnds(
         nextRoom, wall, withInsideEnds(nextRoom, wall, run, settings), settings,
       )),
-    })),
+    }, settings)),
   };
 }
 
