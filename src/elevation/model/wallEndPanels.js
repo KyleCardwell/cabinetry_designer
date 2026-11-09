@@ -4,6 +4,7 @@ import { wallFrame } from './geometry.js';
 import { gridLeaves } from './grid.js';
 import { wallSideOf, wallSideView } from './wallSides.js';
 import { wallEndRoom } from './wallEndLegs.js';
+import { wallEndFit } from './wallEndFit.js';
 
 const EPSILON = 1e-6;
 
@@ -92,14 +93,16 @@ export function wallEndpointSide(room, wall, endpoint, elevationSide) {
   return frame.leftEndpoint === endpoint ? 'left' : 'right';
 }
 
-function panelSide(room, wall, endpoint, elevationSide, width, settings) {
+function panelSide(room, wall, endpoint, elevationSide, width, settings, fit) {
   const view = wallSideView(wall, elevationSide);
   const frame = wallFrame(room, view);
   const side = wallEndpointSide(room, wall, endpoint, elevationSide);
   const runs = view.runs.filter((run) => run.anchors?.[side] === true);
-  const depth = runs.reduce((deepest, run) => Math.max(deepest, frontDepth(run, settings)), 0);
+  const depth = fit.hi !== undefined
+    ? elevationSide === 'front' ? fit.hi : -fit.lo - wall.thickness
+    : runs.reduce((deepest, run) => Math.max(deepest, frontDepth(run, settings)), 0);
   const panelRun = panelRunJoin(runs, depth, wall.endPanels?.[endpoint]?.frame);
-  const { panelS } = wallEndRoom(room, wall, endpoint, settings);
+  const panelS = fit.s0 ?? wallEndRoom(room, wall, endpoint, settings).panelS;
   return {
     side,
     // SPEC-RF2: a free wall end's runs may stand out past it; the panel goes with them.
@@ -118,13 +121,16 @@ export function wallEndPanels(room, wall, settings) {
     const stored = source.endPanels?.[endpoint];
     if (!stored || source.connections?.[endpoint] || source.landings?.[endpoint]) return [];
     const width = stored.width ?? source._endPanelThickness?.[endpoint] ?? teamDoorStyle(settings).thickness;
-    const front = panelSide(room, source, endpoint, 'front', width, settings);
-    const back = panelSide(room, source, endpoint, 'back', width, settings);
-    const top = Math.max(front.top, back.top);
+    const fit = wallEndFit(room, source, endpoint, settings);
+    const front = panelSide(room, source, endpoint, 'front', width, settings, fit);
+    const back = panelSide(room, source, endpoint, 'back', width, settings, fit);
+    const top = fit.top ?? Math.max(front.top, back.top);
     return top > 0 ? [{
       endpoint,
       width,
       top,
+      bottom: fit.bottom ?? 0,
+      ...(fit.warnings.length ? { warnings: fit.warnings } : {}),
       thickness: source.thickness,
       front,
       back,
@@ -168,7 +174,7 @@ export function wallEndPanelSpans(wall, panel) {
     .map((run) => [run.z - (run._frame?.drop ?? 0), run.z + run.height])
     .sort((a, b) => a[0] - b[0]);
   const spans = [];
-  let cursor = 0;
+  let cursor = panel.bottom ?? 0;
   for (const [bottom, top] of covers) {
     const end = Math.min(bottom, panel.top);
     if (end - cursor > EPSILON) spans.push({ z: cursor, height: end - cursor });

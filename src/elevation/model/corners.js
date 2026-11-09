@@ -15,6 +15,7 @@ import { roundTo } from './units.js';
 import { runTFiller } from './styles.js';
 import { isShelvesOnlyRun } from './wallEndPanels.js';
 import { wallEndRoom } from './wallEndLegs.js';
+import { wallEndFit } from './wallEndFit.js';
 import {
   wallEndPanelAt,
   wallSideOf,
@@ -197,8 +198,13 @@ export function cornerReserveParts(room, wall, side, run, settings, { laps = tru
     const frame = wallFrame(room, wall);
     const endpoint = side === 'left' ? frame.leftEndpoint : frame.rightEndpoint;
     const roomTaken = !custom && corner.type === 'open' ? wallEndRoom(room, wall, endpoint, settings) : null;
-    if (panel && !custom) return { face: panel.width, back: 0, lap: 0,
-      total: roomTaken.panelS + panel.width, source: 'panel', neighborRunId: null };
+    if (panel && !custom) {
+      const fit = wallEndFit(room, wall, endpoint, settings);
+      return { face: panel.width, back: 0, lap: 0,
+        total: fit.s0 === undefined ? roomTaken.panelS + panel.width
+          : Math.max(roomTaken.panelS, fit.s0 + panel.width),
+        source: 'panel', neighborRunId: null };
+    }
     return {
       face: 0,
       back: 0,

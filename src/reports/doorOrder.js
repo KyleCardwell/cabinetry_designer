@@ -167,7 +167,7 @@ export function doorOrderItems(room, settings) {
       }
     }
     for (const panel of wallEndPanels(room, wall, settings)) {
-      addPanel(wall, null, wall.endPanels[panel.endpoint], { width: panel.width, height: panel.top },
+      addPanel(wall, null, wall.endPanels[panel.endpoint], { width: panel.width, height: panel.top - panel.bottom },
         wallEndPanelPartKey(wall.id, panel.endpoint), 'wallEndPanel');
     }
   }

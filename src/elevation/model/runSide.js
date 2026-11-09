@@ -120,7 +120,7 @@ function wallEndPanelPiece(room, wall, run, end, settings, pieces) {
     if (mine.side !== end || mine.runIds[0] !== run.id) continue;
     if (face === 'back' && panel.front.runIds.length > 0) continue;
     const base = pieces.find(({ piece }) => piece === 'furniture_base');
-    const z = base ? base.z + base.height : 0;
+    const z = Math.max(panel.bottom, base ? base.z + base.height : 0);
     if (panel.top - z <= EPSILON) continue;
     return [{
       piece: 'end_panel', z, height: panel.top - z, back: -(panel.thickness + theirs.depth), front: mine.depth,

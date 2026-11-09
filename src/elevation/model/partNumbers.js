@@ -230,9 +230,9 @@ export function wallBadgeGroups(room, wall, settings) {
       pieces: [{
         id: wallEndPanelPartKey(wall.id, panel.endpoint),
         x: side.x,
-        z: 0,
+        z: panel.bottom,
         width: panel.width,
-        height: panel.top,
+        height: panel.top - panel.bottom,
       }],
     });
   }

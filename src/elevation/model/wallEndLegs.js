@@ -5,7 +5,7 @@ import { isEndLegSide, isLegFill, legHandedness } from './endLegs.js';
 import { wallFrame } from './geometry.js';
 import { wallEndpointSide } from './wallEndPanels.js';
 import { wallSideView } from './wallSides.js';
-import { legShapeOf } from './legs.js';
+import { legShapeOf } from './legSupport.js';
 
 /** Wall ends own face specs, with an optional panel fit across exactly two legs. */
 export function isWallEndLegs(value) {

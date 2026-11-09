@@ -1,13 +1,13 @@
 import { frontDepth, runBackOffset } from './corners.js';
 import { isLeg, legWarningSubject, runLegList } from './endLegs.js';
-import { runBaseProfile } from './furnitureBase.js';
-import { rectangle, resolveShape, shapeView } from './libraryShapes.js';
-import { resolveProfile } from './profile.js';
+import { legBottom, legShapeOf } from './legSupport.js';
+import { resolveShape, shapeView } from './libraryShapes.js';
 import { resolveWall } from './room.js';
 import { shapeOutlines, transformOutline } from './sectionProfileOutline.js';
-import { isCountertop, runTop } from './tops.js';
 import { formatInches } from './units.js';
 import { wallSideOf } from './wallSides.js';
+
+export { legBottom, legShapeOf } from './legSupport.js';
 
 const EPS = 1e-6;
 
@@ -20,45 +20,6 @@ export function isLegList(value) {
     ids.add(leg.id);
     return true;
   });
-}
-
-/** Library shapes and generated square legs share the same placement geometry. */
-export function legShapeOf(leg, settings) {
-  if (!leg.square) return (settings.shapes ?? []).find(({ id }) => id === leg.shapeId);
-  const w = leg.square.w ?? settings.squareLegWidth;
-  const d = leg.square.d ?? settings.squareLegDepth;
-  return {
-    id: 'square-leg', name: 'Square leg', kind: 'leg', archived: false, version: 1,
-    box: { x: 0, y: 0, z: 0, w, h: 1, d }, stretch: { z: [[0, 1]] },
-    views: {
-      front: rectangle(0, 0, w, 1, 'f', 'outline'),
-      plan: rectangle(0, 0, w, d, 'p', 'outline'),
-      side: rectangle(0, 0, d, 1, 's', 'outline'),
-    },
-  };
-}
-
-/** Resolve what a leg stands on, falling back to the floor when its support is missing. */
-export function legBottom(room, wall, run, settings, leg, u0, w) {
-  if (leg.sitsOn === 'base') {
-    const base = runBaseProfile(room, wall, run, settings);
-    return base.kind === 'furniture_base'
-      ? { z: base.height } : { z: 0, warning: { code: 'leg-no-base' } };
-  }
-  if (leg.sitsOn === 'countertop') {
-    const view = resolveWall(room, wall, wall.side ?? wallSideOf(run));
-    const profile = resolveProfile(settings, room, wall);
-    let z;
-    for (const other of view.runs) {
-      if (other.id === run.id
-        || Math.min(u0 + w, other.x + other.width) - Math.max(u0, other.x) <= EPS) continue;
-      const top = runTop(view, other, profile);
-      const surface = other.z + other.height + top.height;
-      if (isCountertop(top.kind) && surface <= run.z + EPS) z = Math.max(z ?? -Infinity, surface);
-    }
-    return z === undefined ? { z: 0, warning: { code: 'leg-no-countertop' } } : { z };
-  }
-  return { z: 0 };
 }
 
 /** Drawn placements only. The array's `warnings` also retains warnings for skipped legs. */
@@ -141,6 +102,8 @@ export function legPreset(preset, { shapeId, square, height = 'full', sitsOn, pr
 
 export function legWarningText({ code, index, name, target, fixed, height, sitsOn, type }) {
   const who = name ?? `Leg ${index}`;
+  if (code === 'wall-panel-no-depth') return `${who}: no room between the legs (they touch or overlap). Drawn inside the legs.`;
+  if (code === 'wall-panel-no-height') return `${who}: it has no height. Drawn inside the legs.`;
   if (code === 'leg-fill-return-short') return `${who}: its panel return is no deeper than the panel's thickness.`;
   if (code === 'leg-fill-no-depth') return `${who}: no room for its ${type} (the legs touch or overlap).`;
   if (code === 'leg-fill-no-height') return `${who}: its ${type} has no height.`;

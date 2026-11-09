@@ -36,7 +36,7 @@ export default function WallEndPanelProperties({
       />
       <PartReportFields room={room} partKey={key} kind="wall_end_panel" settings={settings} autoName="" />
       <p className="text-xs text-gray-300">
-        {formatInches(panel.width)} × {formatInches(panel.top)} · {formatInches(side.depth)} deep on this side
+        {formatInches(panel.width)} × {formatInches(panel.top - panel.bottom)} · {formatInches(side.depth)} deep on this side
       </p>
       <WallEndPanelFields
         wall={wall}
@@ -53,7 +53,7 @@ export default function WallEndPanelProperties({
         part={stored}
         levels={panelLevels(room, wall, null, stored)}
         width={side.depth}
-        height={panel.top}
+        height={panel.top - panel.bottom}
         label="Wall end panel"
         onChange={(patch) => dispatch(setPartStyle({ ...where, ...patch }))}
       />

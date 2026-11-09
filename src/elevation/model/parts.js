@@ -210,8 +210,8 @@ function wallPanelPart(wall, panel) {
     molding: null,
     width: panel.width,
     x: panel.front.x,
-    z: 0,
-    height: panel.top,
+    z: panel.bottom,
+    height: panel.top - panel.bottom,
     source: 'wall_end_panel',
   };
 }

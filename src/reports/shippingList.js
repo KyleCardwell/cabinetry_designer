@@ -31,6 +31,7 @@ import {
 } from '../elevation/model/styles.js';
 import { openBelowDrops, teeFillers, teeSetback } from '../elevation/model/tees.js';
 import { isShelvesOnlyRun, wallBuiltEnds } from '../elevation/model/wallEndPanels.js';
+import { wallEndFit } from '../elevation/model/wallEndFit.js';
 import { WALL_SIDES } from '../elevation/model/wallSides.js';
 import { woodTopGroups } from '../elevation/model/woodTopGroups.js';
 import { doorOrderItems } from './doorOrder.js';
@@ -175,7 +176,7 @@ function shippingContext(room, settings) {
       const endpoint = part.key.slice(part.key.lastIndexOf(':') + 1);
       const stored = wall.endPanels?.[endpoint];
       const resolved = resolveDoorStyle(room, settings, 'panel', panelLevels(room, wall, null, stored));
-      return { wall, endpoint, style: resolved.style };
+      return { wall, endpoint, style: resolved.style, fit: wallEndFit(room, wall, endpoint, settings) };
     }
     const viewKey = `${wall.id}:${part.side ?? 'front'}`;
     if (!views.has(viewKey)) views.set(viewKey, resolveWall(room, wall, part.side ?? 'front'));
@@ -313,7 +314,8 @@ function shippingSize(room, settings, part, context) {
   const { wall, run, scene, piece, end, blindPanel, style, endpoint, base } = context;
   if (part.kind === 'furniture_base') return formatSize(base.orderedWidth, base.orderedHeight, base.depth);
   if (part.kind === 'wall_end_panel') {
-    return formatSize(part.width, part.height, orderedThickness(wallPanelThickness(room, wall, settings)[endpoint], style));
+    const width = context.fit.hi === undefined ? part.width : context.fit.hi - context.fit.lo;
+    return formatSize(width, part.height, orderedThickness(wallPanelThickness(room, wall, settings)[endpoint], style));
   }
   // End parts retain box heights in the numbered list; order the extra open-below overhang too.
   const openDrop = piece && end && !piece.inside && ['filler', 'end_panel'].includes(part.kind)

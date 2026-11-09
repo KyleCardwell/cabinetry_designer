@@ -14,7 +14,7 @@ function WallEndPanelShape({
   const cursorKey = `wall-end-panel:${panel.endpoint}`;
   const rect = (z, height) => wallRectToScreen({ x: side.x, z, width: panel.width, height }, transform);
   // A mitered face frame covers part of the panel (SPEC-36.2); hovered or selected, it all shows.
-  const spans = hovered || selected ? [{ z: 0, height: panel.top }] : wallEndPanelSpans(wall, panel);
+  const spans = hovered || selected ? [{ z: panel.bottom, height: panel.top - panel.bottom }] : wallEndPanelSpans(wall, panel);
 
   return (
     <Group
@@ -32,7 +32,7 @@ function WallEndPanelShape({
         onSelect?.(panel.endpoint);
       }}
     >
-      <Rect {...rect(0, panel.top)} fill="rgba(0, 0, 0, 0.001)" />
+      <Rect {...rect(panel.bottom, panel.top - panel.bottom)} fill="rgba(0, 0, 0, 0.001)" />
       {spans.map((span) => (
         <Rect
           key={span.z}

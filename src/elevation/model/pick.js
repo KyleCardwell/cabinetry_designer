@@ -123,7 +123,7 @@ export function pickStack(room, wall, settings, point, { doorsOff = false, scale
   }
   const side = wall.side ?? 'front';
   const endPanels = wallEndPanels(room, wall, settings).flatMap((panel) => {
-    const rect = { x: panel[side].x, z: 0, width: panel.width, height: panel.top };
+    const rect = { x: panel[side].x, z: panel.bottom, width: panel.width, height: panel.top - panel.bottom };
     return contains(rect, point) ? [{
       kind: 'end_panel',
       key: `end_panel:${panel.endpoint}`,
