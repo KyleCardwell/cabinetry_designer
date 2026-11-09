@@ -20,6 +20,7 @@ import { isSectionProfileList } from '../model/sectionProfiles.js';
 import { isShapeList } from '../model/libraryShapes.js';
 import { isLegList } from '../model/legs.js';
 import { isEndLegs } from '../model/endLegs.js';
+import { isWallEndLegs } from '../model/wallEndLegs.js';
 import {
   DOOR_STYLE_KEYS,
   findDoorDesign,
@@ -674,6 +675,7 @@ function isWall(wall, profileKeys = PROFILE_KEYS) {
       && new Set(wall.lines.map((line) => line.id)).size === wall.lines.length))
     && (wall.attach === undefined || isAttachment(wall.attach))
     && (wall.endPanels === undefined || isEndPanels(wall.endPanels))
+    && (wall.endLegs === undefined || isWallEndLegs(wall.endLegs))
     && (wall.landings === undefined || isLandings(wall.landings));
 }
 

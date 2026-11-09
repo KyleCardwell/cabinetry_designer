@@ -10,7 +10,7 @@ function isLegShape(leg) {
       && Number.isFinite(value) && value > 0);
 }
 
-function isLegFill(fill) {
+export function isLegFill(fill) {
   if (!fill || typeof fill !== 'object' || Array.isArray(fill)
     || !['panel', 'filler'].includes(fill.type)) return false;
   if (fill.type === 'filler') return Object.keys(fill).every((key) => key === 'type');
@@ -43,20 +43,37 @@ export function isLeg(leg) {
 const SPEC_KEYS = ['shapeId', 'square', 'height', 'x', 'y', 'sitsOn', 'takesRoom', 'mirror', 'mirrorDepth'];
 const SIDE_KEYS = ['legs', 'front', 'back', 'fit', 'panel'];
 
+/** Shared spec and side checks for run ends and wall faces. */
+export function isEndLegSpec(spec, side, edge) {
+  return isPlainObject(spec) && Object.keys(spec).every((key) => SPEC_KEYS.includes(key))
+    && isLeg({ ...spec, id: 'x', from: side, yFrom: edge });
+}
+
+export function isEndLegSide(end, keys = ['legs', 'front', 'back']) {
+  return isPlainObject(end) && Object.keys(end).every((key) => keys.includes(key))
+    && ['front', 'back', 'both'].includes(end.legs)
+    && ['front', 'back'].every((edge) => {
+      const present = end.legs === edge || end.legs === 'both';
+      return Object.hasOwn(end, edge) === present
+        && (!present || isEndLegSpec(end[edge], 'left', edge));
+    });
+}
+
+/** Stored mirrors toggle the defaults for the face-view side and depth edge. */
+export function legHandedness(value, side, edge) {
+  const { mirror, mirrorDepth, ...spec } = value;
+  return {
+    ...spec, from: side, yFrom: edge,
+    ...((side === 'left') !== (mirror === true) ? { mirror: true } : {}),
+    ...((edge === 'back') !== (mirrorDepth === true) ? { mirrorDepth: true } : {}),
+  };
+}
+
 /** End legs store only their specs; side and edge belong to the end. */
 export function isEndLegs(value) {
   return isPlainObject(value) && Object.keys(value).length > 0
     && Object.entries(value).every(([side, end]) => {
-      if (!['left', 'right'].includes(side) || !isPlainObject(end)
-        || !Object.keys(end).every((key) => SIDE_KEYS.includes(key))
-        || !['front', 'back', 'both'].includes(end.legs)) return false;
-      for (const edge of ['front', 'back']) {
-        const present = end.legs === edge || end.legs === 'both';
-        if (Object.hasOwn(end, edge) !== present) return false;
-        if (present && (!isPlainObject(end[edge])
-          || !Object.keys(end[edge]).every((key) => SPEC_KEYS.includes(key))
-          || !isLeg({ ...end[edge], id: 'x', from: side, yFrom: edge }))) return false;
-      }
+      if (!['left', 'right'].includes(side) || !isEndLegSide(end, SIDE_KEYS)) return false;
       if (Object.hasOwn(end, 'fit')
         && !(end.fit === 'between' && end.legs === 'both')
         && !(end.fit === 'behind' && end.legs !== 'back')) return false;
@@ -84,12 +101,9 @@ export function endLegList(run) {
     const fit = endFit(run, side);
     return ['front', 'back'].flatMap((edge) => {
       if (!end[edge]) return [];
-      const { mirror, mirrorDepth, ...spec } = end[edge];
       return [{
-        id: `${run.id}:endleg:${side}-${edge}`, ...spec, from: side, yFrom: edge,
+        id: `${run.id}:endleg:${side}-${edge}`, ...legHandedness(end[edge], side, edge),
         end: { side, edge },
-        ...((side === 'left') !== (mirror === true) ? { mirror: true } : {}),
-        ...((edge === 'back') !== (mirrorDepth === true) ? { mirrorDepth: true } : {}),
         ...(edge === 'front' && fit === 'between' ? { fill: { type: 'panel', ...end.panel } } : {}),
         ...(edge === 'front' && fit === 'behind' ? { fill: { type: 'filler' } } : {}),
       }];

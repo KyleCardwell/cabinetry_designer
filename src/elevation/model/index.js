@@ -228,7 +228,8 @@ export {
   wallSideOf,
   wallViewForRun,
 } from './wallSides.js';
-export { wallEndPanelFramed, wallEndPanels } from './wallEndPanels.js';
+export { isWallEndLegs, wallLegRun, wallEndLegList } from './wallEndLegs.js';
+export { wallEndPanelFramed, wallEndPanels, wallEndpointSide } from './wallEndPanels.js';
 export {
   partNumbers,
   wallEndPanelPartKey,

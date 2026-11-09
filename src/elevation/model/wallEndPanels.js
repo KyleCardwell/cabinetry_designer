@@ -84,10 +84,17 @@ export function wallBuiltEnds(wall) {
   return { start: wallEndFlex(wall, 'start'), end: wallEndFlex(wall, 'end') };
 }
 
+/** The side of a stored endpoint as seen from one wall face. */
+export function wallEndpointSide(room, wall, endpoint, elevationSide) {
+  const view = wallSideView(wall, elevationSide);
+  const frame = wallFrame(room, view);
+  return frame.leftEndpoint === endpoint ? 'left' : 'right';
+}
+
 function panelSide(room, wall, endpoint, elevationSide, width, settings) {
   const view = wallSideView(wall, elevationSide);
   const frame = wallFrame(room, view);
-  const side = frame.leftEndpoint === endpoint ? 'left' : 'right';
+  const side = wallEndpointSide(room, wall, endpoint, elevationSide);
   const runs = view.runs.filter((run) => run.anchors?.[side] === true);
   const depth = runs.reduce((deepest, run) => Math.max(deepest, frontDepth(run, settings)), 0);
   const panelRun = panelRunJoin(runs, depth, wall.endPanels?.[endpoint]?.frame);
