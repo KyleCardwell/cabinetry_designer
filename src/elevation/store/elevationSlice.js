@@ -140,6 +140,7 @@ export const {
   setWallLength,
   setWallTFiller,
   setWallEndPanel,
+  setWallEndLegs,
   setWallLanding,
   detachWallLanding,
   updateWall,

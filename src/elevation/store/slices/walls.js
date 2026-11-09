@@ -1,5 +1,7 @@
 import { v4 as uuid } from 'uuid';
+import { isPlainObject } from '@reduxjs/toolkit';
 import { FRAME_JOINS } from '../../model/constants.js';
+import { isWallEndLegs } from '../../model/wallEndLegs.js';
 import { wallFrame } from '../../model/geometry.js';
 import { moveWallGroup as moveWallGroupPure } from '../../model/wallGroups.js';
 import {
@@ -276,6 +278,33 @@ export const wallReducers = {
       if (!location || (value !== null && !['none', 'seams', 'all'].includes(value))) return;
       if (value === null) delete location.wall.tFiller;
       else location.wall.tFiller = value;
+      syncRoomAt(state, location.roomIndex);
+    },
+    setWallEndLegs(state, action) {
+      const location = wallLocation(state, action.payload);
+      const { endpoint, endLegs } = action.payload;
+      if (!location || !['start', 'end'].includes(endpoint)
+        || location.wall.connections?.[endpoint] || location.wall.landings?.[endpoint]) return;
+      const next = { ...location.wall.endLegs };
+      if (endLegs == null) delete next[endpoint];
+      else {
+        if (!isPlainObject(endLegs) || !isPlainObject(endLegs.faces)) return;
+        const end = { ...endLegs, faces: { ...endLegs.faces } };
+        for (const face of ['front', 'back']) {
+          const specs = end.faces[face];
+          if (specs == null || (isPlainObject(specs) && !specs.legs)) delete end.faces[face];
+        }
+        const count = Object.values(end.faces).reduce((total, face) => total
+          + (face?.legs === 'both' ? 2 : ['front', 'back'].includes(face?.legs) ? 1 : 0), 0);
+        if (count !== 2) delete end.fit;
+        if (!end.fit) delete end.panel;
+        if (Object.keys(end.faces).length) next[endpoint] = end;
+        else delete next[endpoint];
+      }
+      const hasLegs = Object.keys(next).length > 0;
+      if (hasLegs && !isWallEndLegs(next)) return;
+      if (hasLegs) location.wall.endLegs = next;
+      else delete location.wall.endLegs;
       syncRoomAt(state, location.roomIndex);
     },
     setWallEndPanel(state, action) {
