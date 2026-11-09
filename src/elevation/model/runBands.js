@@ -3,7 +3,7 @@ import { bandDepths, hasToeKick } from './bandDepths.js';
 import { bandOutline, clipReturnEdge, endEdgeX, frontContour, placeAtEnd, returnedX } from './bandEnds.js';
 import { cornerBandEdge, lazyCornerShapes, profileBandJoint } from './cornerBands.js';
 import { cornerAt, frontDepth, runBackOffset } from './corners.js';
-import { floorOpenings } from './floorOpenings.js';
+import { floorEndOpen, floorOpenings } from './floorOpenings.js';
 import { furnitureBaseBand, furnitureBasePast, runBase, runBaseProfile } from './furnitureBase.js';
 import { wallFrame } from './geometry.js';
 import { landingProjection } from './landings.js';
@@ -218,7 +218,16 @@ function bandEdge(room, wall, run, side, band, settings, z, height, shapes) {
   const boxTop = run.z + run.height;
   if (band !== 'toeKick' && !furniture
     && neighbors.some((other) => other.z + other.height > boxTop + EPSILON)) return square;
-  const carriers = neighbors.filter((other) => (furniture
+  // A neighbour whose floor opening reaches this joint has no floor base there to meet.
+  const floorEnds = new Map();
+  const floorEnd = (other) => {
+    if (!floorEnds.has(other.id)) {
+      floorEnds.set(other.id, floorEndOpen(other, runScene(room, wall, other, settings), opposite));
+    }
+    return floorEnds.get(other.id);
+  };
+  const floorBand = band === 'toeKick' || furniture;
+  const carriers = neighbors.filter((other) => !(floorBand && floorEnd(other).open) && (furniture
     ? Math.abs(runBaseProfile(room, wall, other, settings).height - runBaseProfile(room, wall, run, settings).height) <= EPSILON
     : band === 'toeKick' || Math.abs(other.z + other.height - boxTop) <= EPSILON)
     && carries(room, wall, other, band, settings));
@@ -232,6 +241,10 @@ function bandEdge(room, wall, run, side, band, settings, z, height, shapes) {
     return square;
   }
   if (furniture && neighbors.length > 0) return square;
+  // An open-bottom neighbour's end piece drawn to the floor stops the toe kick at the joint.
+  if (band === 'toeKick' && neighbors.some((other) => floorEnd(other).open && floorEnd(other).onFloor)) {
+    return square;
+  }
   if (band === 'toeKick'
     && neighbors.some((other) => carries(room, wall, other, 'furnitureBase', settings))) return square;
   const joint = profileBandJoint(shapes, run, side, band, z, height, frontDepth(run, settings));

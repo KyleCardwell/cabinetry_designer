@@ -32,6 +32,23 @@ export function floorOpenings(run, cells) {
   return openings;
 }
 
+/**
+ * Whether a floor opening reaches this side of the run, with only the run's end piece (if any) between,
+ * so the run's floor base stops short of that side. `onFloor`: that end piece is drawn down to the floor.
+ * `scene` is runScene's.
+ */
+export function floorEndOpen(run, scene, side) {
+  const edge = side === 'left' ? run.x : run.x + run.width;
+  const atEdge = (piece) => (piece.kind === 'filler' || piece.kind === 'end_panel')
+    && Math.abs((side === 'left' ? piece.x : piece.x + piece.width) - edge) <= EPSILON;
+  const cell = scene.cells.pieces.find(atEdge);
+  const inner = cell ? (side === 'left' ? cell.x + cell.width : cell.x) : edge;
+  const open = floorOpenings(run, scene.cells).some((opening) => !opening.baseUnder && (side === 'left'
+    ? opening.x <= inner + EPSILON : opening.x + opening.width >= inner - EPSILON));
+  const drawn = scene.drawnPieces.find(atEdge);
+  return { open, onFloor: Boolean(drawn && drawn.z <= EPSILON) };
+}
+
 function bottomOpenings(run, cells) {
   const bottom = cells.pieces.filter((piece) => Math.abs(piece.z - run.z) <= EPSILON);
   return bottom.filter((piece) => piece.kind === 'void'
