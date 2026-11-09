@@ -1,3 +1,4 @@
+import { panelReturns } from './panelReturns.js';
 import { frontDepth, runBackOffset } from './corners.js';
 import { legWarningSubject, runLegList } from './endLegs.js';
 import { teamDoorStyle } from './doorStyles.js';
@@ -55,16 +56,9 @@ export function legFillPlans(run, settings) {
     const takesRoom = (back, front) => leg.takesRoom !== false && !run._pinSplit?.[leg.from]
       && Math.min(front, F) - Math.max(back, B) > 1e-6;
     const returnDepth = fill.returnDepth ?? settings.legPanelReturnDepth;
-    const shortReturn = Boolean(fill.returns) && returnDepth <= width + 1e-6;
-    const returns = !fill.returns || shortReturn ? [] : ['front', 'back']
-      .filter((edge) => fill.returns === 'both' || fill.returns === edge)
-      .map((edge) => {
-        const band = edge === 'front' ? { back: front - width, front } : { back, front: back + width };
-        return { edge,
-          start: leg.from === 'left' ? u0 + width : u0 + width - returnDepth,
-          end: leg.from === 'left' ? u0 + returnDepth : u0,
-          ...band, takesRoom: takesRoom(band.back, band.front) };
-      });
+    const { returns: bands, shortReturn } = panelReturns({ side: leg.from, u0, width, back, front,
+      returns: fill.returns, returnDepth });
+    const returns = bands.map((band) => ({ ...band, takesRoom: takesRoom(band.back, band.front) }));
     return { ...identity, type: fill.type, side: leg.from,
       u0, width, back, front, depth, returns,
       ...(returns.length ? { returnDepth } : {}),

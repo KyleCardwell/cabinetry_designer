@@ -202,7 +202,8 @@ export function cornerReserveParts(room, wall, side, run, settings, { laps = tru
       const fit = wallEndFit(room, wall, endpoint, settings);
       return { face: panel.width, back: 0, lap: 0,
         total: fit.s0 === undefined ? roomTaken.panelS + panel.width
-          : Math.max(roomTaken.panelS, fit.s0 + panel.width),
+          : Math.max(roomTaken.panelS, fit.s0 + panel.width,
+            ...(fit.returns ?? []).filter((ret) => ret.takesRoom).map((ret) => ret.end)),
         source: 'panel', neighborRunId: null };
     }
     return {

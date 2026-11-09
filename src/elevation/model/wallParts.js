@@ -13,7 +13,7 @@ import {
   soffitsOn,
 } from './soffits.js';
 import { wallEndPanelPartKey } from './parts.js';
-import { wallEndPanels } from './wallEndPanels.js';
+import { wallEndPanelReturns, wallEndPanels } from './wallEndPanels.js';
 
 const EPSILON = 1e-6;
 
@@ -57,6 +57,11 @@ export function wallParts(room, wall, side, settings, { soffitJoins = [] } = {})
       front: mine.depth - miter,
       coversBoxEdges: false,
     });
+    for (const ret of wallEndPanelReturns(panel, side)) {
+      outline(`${wallEndPanelPartKey(source.id, panel.endpoint)}:return-${ret.edge}`, 'wall_end_panel',
+        { x: ret.start, z: panel.bottom, width: ret.end - ret.start, height: panel.top - panel.bottom },
+        ret.back, ret.front);
+    }
   }
 
   for (const opening of view.openings ?? []) {

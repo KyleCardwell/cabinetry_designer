@@ -1,9 +1,11 @@
+import { panelReturns } from './panelReturns.js';
+import { teamDoorStyle } from './doorStyles.js';
 import { DEFAULT_SETTINGS } from './constants.js';
 import { frontDepth, runBackOffset } from './corners.js';
 import { legBottom, legShapeOf } from './legSupport.js';
 import { wallEndLegList } from './wallEndLegs.js';
 import { wallEndpointSide } from './wallEndPanels.js';
-import { wallSideView } from './wallSides.js';
+import { wallSideOf, wallSideView } from './wallSides.js';
 
 /** A fitted wall panel in wall-frame depth and distance inward from its end line. */
 export function wallEndFit(room, wall, endpoint, settings = DEFAULT_SETTINGS) {
@@ -48,5 +50,20 @@ export function wallEndFit(room, wall, endpoint, settings = DEFAULT_SETTINGS) {
   const bottom = foremost.support + (panel.bottom ?? settings.legPanelBottomClearance);
   if (top - bottom <= 1 / 1000) return { warnings: [{ code: 'wall-panel-no-height', name }] };
   const s0 = -foremost.leg.x + (panel.inset ?? settings.legPanelReveal);
-  return { hi, lo, s0, top, bottom, warnings };
+  const width = source.endPanels[endpoint].width ?? source._endPanelThickness?.[endpoint]
+    ?? teamDoorStyle(settings).thickness;
+  const returnDepth = panel.returnDepth ?? settings.legPanelReturnDepth;
+  const { returns: bands, shortReturn } = panelReturns({ side: 'left', u0: s0, width,
+    back: lo, front: hi, returns: panel.returns, returnDepth });
+  const returns = bands.map((band) => ({ ...band, takesRoom: source.runs.some((run) => {
+    const face = wallSideOf(run);
+    const side = wallEndpointSide(room, source, endpoint, face);
+    if (run.anchors?.[side] !== true) return false;
+    const back = face === 'front' ? band.back : -source.thickness - band.front;
+    const front = face === 'front' ? band.front : -source.thickness - band.back;
+    return Math.min(front, frontDepth(run, settings)) - Math.max(back, runBackOffset(run)) > 1e-6;
+  }) }));
+  if (shortReturn) warnings.push({ code: 'leg-fill-return-short', name });
+  return { hi, lo, s0, top, bottom, warnings, returns,
+    ...(returns.length ? { returnDepth } : {}) };
 }

@@ -4,8 +4,11 @@ import { syncRoom } from '../room.js';
 import { wallEndFit } from '../wallEndFit.js';
 import { wallEndPanelPolygon, wallEndPanelSpans, wallEndPanels } from '../wallEndPanels.js';
 import { wallParts } from '../wallParts.js';
+import { planParts } from '../planParts.js';
+import { clearanceParts } from '../clearances.js';
+import { wallFrame } from '../geometry.js';
 import { roomParts } from '../parts.js';
-import { wallBadgeGroups } from '../partNumbers.js';
+import { partNumbers, wallBadgeGroups } from '../partNumbers.js';
 import { pickStack } from '../pick.js';
 import { runEndView } from '../runSide.js';
 import { legWarningText, runLegs } from '../legs.js';
@@ -172,5 +175,161 @@ describe('SH7.6 step e wall end panel fit', () => {
     expect(panel.back).toMatchObject({ side: 'left', x: -0.75, depth: -8 });
     expect(wallEndPanels(input, wallSideView(w, 'back'), settings)[0]).toEqual(panel);
     expect(cornerReserveParts(input, w, 'right', w.runs[0], settings).total).toBe(3.5);
+  });
+});
+
+
+describe('SH7.6 step f wall end panel returns', () => {
+  it('anchor 1: reserves both returns, emits elevation outlines and ships one C-shape', () => {
+    const { synced, w, r, panel } = inspect(room({ walls: [wall({ ...W,
+      endLegs: { start: { ...W.endLegs.start, panel: { returns: 'both' } } } })] }));
+    expect(r.x).toBe(4.75);
+    expect(panel.returnDepth).toBe(4.5);
+    expect(panel.returns).toEqual([
+      { edge: 'front', start: 1.0625, end: 4.75, back: 21.0625, front: 21.875 },
+      { edge: 'back', start: 1.0625, end: 4.75, back: 3.5, front: 4.3125 },
+    ]);
+    expect(wallParts(synced, w, 'front', settings).slice(1)).toEqual(panel.returns.map((ret) => ({
+      id: `w:endPanel:start:return-${ret.edge}`, kind: 'wall_end_panel',
+      x: 1.0625, z: 0, width: 3.6875, height: 34.5, back: ret.back, front: ret.front,
+      coversBoxEdges: false, opaque: false,
+    })));
+    expect(shippingList(synced, settings).rows.filter(({ kind }) => kind === 'wall_end_panel'))
+      .toMatchObject([{ key: 'w:endPanel:start', notes: expect.arrayContaining(['C-shape']), size: '18 3/8 x 34 1/2 x 4 1/2' }]);
+    expect(roomParts(synced, settings).filter(({ kind }) => kind === 'wall_end_panel')).toHaveLength(1);
+    expect([...partNumbers(synced, settings).byKey.keys()].filter((key) => key.startsWith('w:endPanel:')))
+      .toEqual(['w:endPanel:start']);
+    expect(syncRoom(synced, settings)).toEqual(synced);
+  });
+
+  it('anchor 2: ships a single front or back return as an L-shape', () => {
+    for (const edge of ['front', 'back']) {
+      const { synced, r, panel } = inspect(room({ walls: [wall({ ...W,
+        endLegs: { start: { ...W.endLegs.start, panel: { returns: edge } } } })] }));
+      expect(panel.returns).toHaveLength(1);
+      expect(panel.returns[0].edge).toBe(edge);
+      expect(r.x).toBe(4.75);
+      expect(shipped(synced)).toMatchObject({ notes: expect.arrayContaining(['L-shape']), size: '18 3/8 x 34 1/2 x 4 1/2' });
+    }
+  });
+
+  it('anchor 3: warns and keeps a plain panel for returns no deeper than thickness', () => {
+    for (const returnDepth of [0.75, 0.8125, 0.8125 + 0.5e-6]) {
+      const { synced, w, r, panel } = inspect(room({ walls: [wall({ ...W,
+        endLegs: { start: { ...W.endLegs.start, panel: { returns: 'both', returnDepth } } } })] }));
+      expect(panel.returns ?? []).toEqual([]);
+      expect(panel).not.toHaveProperty('returnDepth');
+      expect(panel.warnings).toEqual([{ code: 'leg-fill-return-short', name: 'Left end wall panel' }]);
+      expect(r.x).toBe(3.5);
+      expect(wallParts(synced, w, 'front', settings)).toHaveLength(1);
+      expect(planParts(synced, settings).filter(({ kind }) => kind === 'wall_end_panel')).toHaveLength(1);
+      expect(shipped(synced).size).toBe('18 3/8 x 34 1/2 x 13/16');
+      expect(shipped(synced).notes).not.toEqual(expect.arrayContaining(['C-shape']));
+      expect(shipped(synced).notes).not.toEqual(expect.arrayContaining(['L-shape']));
+    }
+  });
+
+  it('anchor 4: draws a C in plan while dimensions and clearances retain the panel rectangle', () => {
+    const { synced, w, panel } = inspect(room({ walls: [wall({ ...W,
+      endLegs: { start: { ...W.endLegs.start, panel: { returns: 'both' } } } })] }));
+    const parts = planParts(synced, settings).filter(({ kind }) => kind === 'wall_end_panel');
+    expect(parts).toEqual([
+      { id: 'w:endPanel:start', kind: 'wall_end_panel', top: 34.5,
+        points: [[0.25, -3.5], [1.0625, -3.5], [1.0625, -21.875], [0.25, -21.875]] },
+      { id: 'w:endPanel:start:return-front', kind: 'wall_end_panel', top: 34.5,
+        points: [[1.0625, -21.0625], [4.75, -21.0625], [4.75, -21.875], [1.0625, -21.875]] },
+      { id: 'w:endPanel:start:return-back', kind: 'wall_end_panel', top: 34.5,
+        points: [[1.0625, -3.5], [4.75, -3.5], [4.75, -4.3125], [1.0625, -4.3125]] },
+    ]);
+    expect(clearanceParts(synced, settings).filter(({ kind }) => kind === 'panel')).toMatchObject([
+      { points: wallEndPanelPolygon(synced, w, panel) },
+    ]);
+    expect(planThroughDimensions(synced, w, settings).map(({ text }) => text)).toEqual(['18 3/8']);
+  });
+
+  it('picks the panel on returns from either face and respects its vertical clearances', () => {
+    const { synced, w } = inspect(room({ walls: [wall({ ...W,
+      endLegs: { start: { ...W.endLegs.start, panel: { returns: 'both', bottom: 1, top: 2 } } } })] }));
+    for (const [side, x] of [['front', 3], ['back', 93]]) {
+      const view = wallSideView(w, side);
+      expect(pickStack(synced, view, settings, { x, z: 2 }).filter(({ kind }) => kind === 'end_panel'))
+        .toMatchObject([{ key: 'end_panel:start', selection: { endPanel: 'start' },
+          rect: { z: 1, height: 31.5 } }]);
+      for (const z of [0.5, 33]) {
+        expect(pickStack(synced, view, settings, { x, z }).some(({ kind }) => kind === 'end_panel')).toBe(false);
+      }
+      expect(wallParts(synced, w, side, settings).slice(1))
+        .toMatchObject([{ z: 1, height: 31.5 }, { z: 1, height: 31.5 }]);
+    }
+  });
+
+  it('maps returns through right ends, flipped views, rotated walls and end flex', () => {
+    for (const flipped of [false, true]) {
+      for (const endpoint of ['start', 'end']) {
+        const side = (endpoint === 'start') !== flipped ? 'left' : 'right';
+        const backSide = side === 'left' ? 'right' : 'left';
+        const w = wall({ ...W, flipped, x1: 10, y1: 20, x2: 10, y2: 116,
+          _endFlex: { [endpoint]: 1 }, runs: [run({ ...R, anchors: { [side]: true } })],
+          endPanels: { [endpoint]: { width: null } },
+          endLegs: { [endpoint]: { ...W.endLegs.start, panel: { returns: 'both' } } } });
+        const source = room({ walls: [w] });
+        const panel = wallEndPanels(source, w, settings)[0];
+        const x = side === 'left' ? 0.0625 : 92.25;
+        expect(panel.returns).toMatchObject([{ start: x, end: x + 3.6875 }, { start: x, end: x + 3.6875 }]);
+        const backParts = wallParts(source, w, 'back', settings).slice(1);
+        expect(backParts).toMatchObject([
+          { x: backSide === 'left' ? 0.0625 : 92.25, width: 3.6875, back: -26.375, front: -25.5625 },
+          { back: -8.8125, front: -8 },
+        ]);
+        const frame = wallFrame(source, wallSideView(w, 'front'));
+        const returns = planParts(source, settings).filter(({ id }) => id.includes(':return-'));
+        expect(returns).toHaveLength(2);
+        for (const [index, ret] of returns.entries()) {
+          const points = ret.points.map(([px, py]) => {
+            const dx = px - frame.leftPoint.x;
+            const dy = -py - frame.leftPoint.y;
+            return [dx * frame.r.x + dy * frame.r.y, dx * frame.n.x + dy * frame.n.y];
+          });
+          const band = panel.returns[index];
+          expect(points).toEqual([[band.start, band.back], [band.end, band.back],
+            [band.end, band.front], [band.start, band.front]]);
+        }
+      }
+    }
+  });
+
+  it('reserves returns only where they overlap run depth, including across the back face', () => {
+    const front = { ...Sf, takesRoom: false };
+    const back = { ...S, y: 12, takesRoom: false };
+    for (const [returns, expected] of [['back', 1.0625], ['front', 6.25]]) {
+      const { synced, w, r, panel } = inspect(room({ walls: [wall({ ...W,
+        endLegs: { start: { ...W.endLegs.start, faces: { front: { legs: 'both', front, back } },
+          panel: { returns } } } })] }), { ...settings, legPanelReturnDepth: 6 });
+      expect(r.x).toBe(expected);
+      expect(panel.returnDepth).toBe(6);
+      expect(cornerReserveParts(synced, w, 'left', { ...r, cornerClearance: { left: 2 } }, settings).total).toBe(2);
+    }
+    const { w } = inspect(room({ walls: [wall({ ...W, runs: [R, Rb],
+      endLegs: { start: { faces: { front: { legs: 'front', front: Sf }, back: { legs: 'front', front: Sf } },
+        fit: 'between', panel: { returns: 'back', returnDepth: 6 } } } })] }));
+    expect(w.runs[0].x).toBe(6.25);
+    expect(96 - w.runs[1].x - w.runs[1].width).toBe(6.25);
+  });
+
+  it('uses explicit return depth and panel thickness, leaving invalid fits without returns', () => {
+    const { synced, r, panel } = inspect(room({ walls: [wall({ ...W,
+      endPanels: { start: { width: 1.25 } },
+      endLegs: { start: { ...W.endLegs.start, panel: { returns: 'front', returnDepth: 5 } } } })] }),
+    { ...settings, legPanelReturnDepth: 6 });
+    expect(r.x).toBe(5.25);
+    expect(panel.returns).toEqual([{ edge: 'front', start: 1.5, end: 5.25, back: 20.625, front: 21.875 }]);
+    expect(shipped(synced).size).toBe('18 3/8 x 34 1/2 x 5');
+    for (const changes of [{ fit: undefined }, { panel: { returns: 'both', bottom: 100 } },
+      { faces: { front: { ...E, back: { ...S, y: -18.5 } } } }]) {
+      const result = inspect(room({ walls: [wall({ ...W,
+        endLegs: { start: { ...W.endLegs.start, panel: { returns: 'both' }, ...changes } } })] }));
+      expect(result.panel.returns ?? []).toEqual([]);
+      expect(result.r.x).toBe(4.3125);
+    }
   });
 });

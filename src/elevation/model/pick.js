@@ -5,7 +5,7 @@ import { wallInteriors } from './interiors.js';
 import { runScene } from './runScene.js';
 import { wallLabel } from './topology.js';
 import { formatDimension, formatInches } from './units.js';
-import { wallEndPanels } from './wallEndPanels.js';
+import { wallEndPanelReturns, wallEndPanels } from './wallEndPanels.js';
 
 const PICK_EPSILON = 1e-6;
 export const RUN_LABELS = {
@@ -124,7 +124,10 @@ export function pickStack(room, wall, settings, point, { doorsOff = false, scale
   const side = wall.side ?? 'front';
   const endPanels = wallEndPanels(room, wall, settings).flatMap((panel) => {
     const rect = { x: panel[side].x, z: panel.bottom, width: panel.width, height: panel.top - panel.bottom };
-    return contains(rect, point) ? [{
+    const hit = contains(rect, point) || wallEndPanelReturns(panel, side).some((ret) => contains({
+      x: ret.start, z: rect.z, width: ret.end - ret.start, height: rect.height,
+    }, point));
+    return hit ? [{
       kind: 'end_panel',
       key: `end_panel:${panel.endpoint}`,
       label: `Wall end panel ${size(rect)}`,

@@ -131,11 +131,31 @@ export function wallEndPanels(room, wall, settings) {
       top,
       bottom: fit.bottom ?? 0,
       ...(fit.warnings.length ? { warnings: fit.warnings } : {}),
+      ...(fit.returns?.length ? {
+        returns: fit.returns.map(({ edge, start, end, back, front: depth }) => {
+          const endX = front.side === 'left' ? front.x - fit.s0 : front.x + width + fit.s0;
+          return { edge,
+            start: front.side === 'left' ? endX + start : endX - end,
+            end: front.side === 'left' ? endX + end : endX - start,
+            back, front: depth };
+        }),
+        returnDepth: fit.returnDepth,
+      } : {}),
       thickness: source.thickness,
       front,
       back,
     }] : [];
   });
+}
+
+/** Returns are stored in the front view; edge names keep their physical wall identity on either face. */
+export function wallEndPanelReturns(panel, face = 'front') {
+  const returns = panel.returns ?? [];
+  if (face === 'front') return returns;
+  const length = panel.front.x + panel.width + panel.back.x;
+  return returns.map(({ edge, start, end, back, front }) => ({ edge,
+    start: length - end, end: length - start,
+    back: -panel.thickness - front, front: -panel.thickness - back }));
 }
 
 export function wallEndPanelPolygon(room, wall, panel) {

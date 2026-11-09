@@ -315,7 +315,8 @@ function shippingSize(room, settings, part, context) {
   if (part.kind === 'furniture_base') return formatSize(base.orderedWidth, base.orderedHeight, base.depth);
   if (part.kind === 'wall_end_panel') {
     const width = context.fit.hi === undefined ? part.width : context.fit.hi - context.fit.lo;
-    return formatSize(width, part.height, orderedThickness(wallPanelThickness(room, wall, settings)[endpoint], style));
+    return formatSize(width, part.height, context.fit.returns?.length ? context.fit.returnDepth
+      : orderedThickness(wallPanelThickness(room, wall, settings)[endpoint], style));
   }
   // End parts retain box heights in the numbered list; order the extra open-below overhang too.
   const openDrop = piece && end && !piece.inside && ['filler', 'end_panel'].includes(part.kind)
@@ -472,8 +473,8 @@ function partNotes(room, settings, part, context, doorItems, shop, numberOf) {
       ...nosings];
   }
   // Scribe is already in the ordered size, so it gets no note of its own (Kyle 2026-10-23).
-  if (part.kind === 'leg_panel') {
-    const count = context.fill.returns.length;
+  if (part.kind === 'leg_panel' || part.kind === 'wall_end_panel') {
+    const count = (part.kind === 'leg_panel' ? context.fill.returns : context.fit.returns)?.length ?? 0;
     groups[8] = count === 2 ? 'C-shape' : count === 1 ? 'L-shape' : null;
   } else if (part.kind === 'leg_filler') {
     const { orderedDepth, thickness } = context.fill;

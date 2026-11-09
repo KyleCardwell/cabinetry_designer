@@ -123,6 +123,15 @@ export function planParts(room, settings) {
         points: wallEndPanelPolygon(room, wall, panel).map(flipPoint),
         top: panel.top,
       });
+      const frame = wallSideFrame(room, wall, 'front');
+      for (const ret of panel.returns ?? []) {
+        parts.push({
+          id: `${wallEndPanelPartKey(wall.id, panel.endpoint)}:return-${ret.edge}`,
+          kind: 'wall_end_panel',
+          points: planPoints(frame, rectangle(ret.start, ret.end, ret.back, ret.front)),
+          top: panel.top,
+        });
+      }
     }
   }
   for (const stored of room.walls) {
