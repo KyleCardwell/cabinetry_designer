@@ -1,6 +1,7 @@
 import { runFaceLayouts } from './faceLayouts.js';
 import { bandParts } from './bandParts.js';
 import { cellPieces, partPieces } from './cells.js';
+import { cornerReturnLegs } from './cornerLegs.js';
 import { frameBadgeAnchor, frameMembers, frameRegions, regionOpenings } from './frames.js';
 import { furnitureBaseGroups } from './furnitureBaseGroups.js';
 import { wallLength } from './geometry.js';
@@ -221,6 +222,10 @@ export function wallBadgeGroups(room, wall, settings) {
       },
     ];
   }).filter((group) => group.pieces.length > 0);
+
+  groups.push(...cornerReturnLegs(room, wall, settings).map((leg) => ({
+    key: leg.key, lift: 0, pieces: [{ id: leg.columnId, ...leg.rect }],
+  })));
 
   for (const panel of wallEndPanels(room, wall, settings)) {
     const side = panel[wall.side ?? 'front'];
